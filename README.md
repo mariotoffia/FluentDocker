@@ -1,5 +1,7 @@
 # FluentDocker
-Simple fluent interface to Docker.DotNet mainly used for unittesting.
+Simple fluent interface to Docker.DotNet to simplify forking one or more docker containers concurrenlty. Search for FluentDocker for *Nuget* packages for pre-compiled assemblies.
+
+In order to use `DockerBuilder` and `DockerContainer` with boot2docker you must have the docker daemon on the virtual machine, e.g. run the 'Quickstart Terminal' and the DOCKER environment variables. Simplest is to run devenv.exe through the 'Quickstart Terminal' and your'e all set to go. On Linux, just make sure the docker daemon is running and you have all the DOCKER environment variables set. The `DockerContainer`, when using boot2docker, makes use of the installation path to obtain the certificates and keys neccesary to do proper SSL communication. If you have a proxy, you may encounter that it will not be able to communicate properly with the docker daemon.
 
 This repo contains two nuget packages, one for the fluent access and the other is a mstest base classes to be used while testing. For example in a unit-test it is possible to fire up a postgres container and wait when the the db has booted.
 
