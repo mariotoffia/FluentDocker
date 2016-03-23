@@ -1,0 +1,34 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio 14
+VisualStudioVersion = 14.0.24720.0
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Ductus.FluentDocker", "Ductus.FluentDocker\Ductus.FluentDocker.csproj", "{4AE9F635-351C-4C47-93F3-A9FAD18F122F}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Ductus.FluentDockerTest", "Ductus.FluentDockerTest\Ductus.FluentDockerTest.csproj", "{03E0DD1C-F964-4993-B8F9-9A072398BBBC}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Ductus.FluentDocker.MsTest", "Ductus.FluentDocker.MsTest\Ductus.FluentDocker.MsTest.csproj", "{871473B8-75E1-4265-A679-99CA6971E2F0}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{4AE9F635-351C-4C47-93F3-A9FAD18F122F}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{4AE9F635-351C-4C47-93F3-A9FAD18F122F}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{4AE9F635-351C-4C47-93F3-A9FAD18F122F}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{4AE9F635-351C-4C47-93F3-A9FAD18F122F}.Release|Any CPU.Build.0 = Release|Any CPU
+		{03E0DD1C-F964-4993-B8F9-9A072398BBBC}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{03E0DD1C-F964-4993-B8F9-9A072398BBBC}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{03E0DD1C-F964-4993-B8F9-9A072398BBBC}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{03E0DD1C-F964-4993-B8F9-9A072398BBBC}.Release|Any CPU.Build.0 = Release|Any CPU
+		{871473B8-75E1-4265-A679-99CA6971E2F0}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{871473B8-75E1-4265-A679-99CA6971E2F0}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{871473B8-75E1-4265-A679-99CA6971E2F0}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{871473B8-75E1-4265-A679-99CA6971E2F0}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+EndGlobal
