@@ -14,3 +14,17 @@ This repo contains two nuget packages, one for the fluent access and the other i
       {
         container.Create().Start();
       }
+
+It is also possible to re-use abstract base classes, for example postgres test base to simplify and make clean unittest towards a container.
+
+     [TestClass]
+     public class PostgresMsTests : PostgresTestBase
+     {
+          [TestMethod]
+          public void Test()
+          {
+               // We now have a running postgres
+               // and a valid connection string to use.
+          }
+     }
+  
