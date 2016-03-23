@@ -1,5 +1,5 @@
 # FluentDocker
-Simple fluent interface to Docker.DotNet to simplify forking one or more docker containers concurrenlty. Search for FluentDocker for *Nuget* packages for pre-compiled assemblies.
+Simple fluent interface to Docker.DotNet to simplify forking one or more docker containers concurrenlty. Search for FluentDocker for *Nuget* packages for pre-compiled assemblies. The main package [Ductus.FluentDocker](https://www.nuget.org/packages/Ductus.FluentDocker/ "Nuget Home for Ductus.FluentDocker") Nuget package and the [Ductus.FluentDocker.MsTest](https://www.nuget.org/packages/Ductus.FluentDocker.MsTest/ "Nuget Home for Ductus.FluentDocker.MsTest") can be found on those locations.
 
 In order to use `DockerBuilder` and `DockerContainer` with boot2docker you must have the docker daemon on the virtual machine, e.g. run the 'Quickstart Terminal' and the DOCKER environment variables. Simplest is to run devenv.exe through the 'Quickstart Terminal' and your'e all set to go. On Linux, just make sure the docker daemon is running and you have all the DOCKER environment variables set. The `DockerContainer`, when using boot2docker, makes use of the installation path to obtain the certificates and keys neccesary to do proper SSL communication. If you have a proxy, you may encounter that it will not be able to communicate properly with the docker daemon.
 
