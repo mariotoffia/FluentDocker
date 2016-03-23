@@ -16,28 +16,13 @@ namespace Ductus.FluentDockerTest
       }
     }
 
-    [TestMethod]
-    public void NoContainerNameIsOk()
-    {
-      using (
-        var container =
-          new DockerBuilder()
-            .WithEnvironment("POSTGRES_PASSWORD=mysecretpassword")
-            .WithImage("postgres:latest")
-            .ExposePorts("5432")
-            .WaitForPort("5432/tcp", 30000 /*30s*/)
-            .Build())
-      {
-        container.Create().Start();
-      }
-    }
-
+ 
     [TestMethod]
     public void CreatePostgresImageAndStart()
     {
       using (
         var container =
-          new DockerBuilder().ContainerName("pgsql")
+          new DockerBuilder()
             .WithEnvironment("POSTGRES_PASSWORD=mysecretpassword")
             .WithImage("postgres:latest")
             .Build())
@@ -52,7 +37,7 @@ namespace Ductus.FluentDockerTest
       // to try out manually - docker exec -it pgsql sh -c 'exec psql -U postgres'
       using (
         var container =
-          new DockerBuilder().ContainerName("pgsql")
+          new DockerBuilder()
             .WithImage("postgres:latest")
             .WithEnvironment("POSTGRES_PASSWORD=mysecretpassword")
             .ExposePorts("5432")
