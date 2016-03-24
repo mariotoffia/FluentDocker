@@ -82,14 +82,6 @@
   <ItemGroup>
     <None Include="app.config" />
     <None Include="packages.config" />
-    <None Include="_CreateNewNuGetPackage\Config.ps1" />
-    <None Include="_CreateNewNuGetPackage\DoNotModify\CreateNuGetPackage.ps1" />
-    <None Include="_CreateNewNuGetPackage\DoNotModify\New-NuGetPackage.ps1" />
-    <None Include="_CreateNewNuGetPackage\DoNotModify\UploadNuGetPackage.ps1" />
-    <None Include="_CreateNewNuGetPackage\RunMeToUploadNuGetPackage.cmd" />
-  </ItemGroup>
-  <ItemGroup>
-    <None Include="_CreateNewNuGetPackage\DoNotModify\NuGet.exe" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <Import Project="..\packages\Microsoft.Bcl.Build.1.0.14\tools\Microsoft.Bcl.Build.targets" Condition="Exists('..\packages\Microsoft.Bcl.Build.1.0.14\tools\Microsoft.Bcl.Build.targets')" />
@@ -98,10 +90,8 @@
     <Error Condition="Exists('..\packages\Microsoft.Bcl.Build.1.0.14\tools\Microsoft.Bcl.Build.targets')" Text="The build restored NuGet packages. Build the project again to include these packages in the build. For more information, see http://go.microsoft.com/fwlink/?LinkID=317568." HelpKeyword="BCLBUILD2002" />
   </Target>
   <PropertyGroup>
-    <PostBuildEvent>REM Create a NuGet package for this project and place the .nupkg file in the project's output directory.
-REM If you see this in Visual Studio's Error List window, check the Output window's Build tab for the actual error.
-ECHO Creating NuGet package in Post-Build event...
-PowerShell -NoProfile -ExecutionPolicy Bypass -Command "&amp; '$(ProjectDir)_CreateNewNuGetPackage\DoNotModify\CreateNuGetPackage.ps1' -ProjectFilePath '$(ProjectPath)' -OutputDirectory '$(TargetDir)' -BuildConfiguration '$(ConfigurationName)' -BuildPlatform '$(PlatformName)'"</PostBuildEvent>
+    <PostBuildEvent>
+    </PostBuildEvent>
   </PropertyGroup>
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
        Other similar extension points exist, see Microsoft.Common.targets.
