@@ -74,9 +74,12 @@
     <Compile Include="DockerContainer.cs" />
     <Compile Include="Extensions\CrytoUtils.cs" />
     <Compile Include="Extensions\DockerClientExtensions.cs" />
+    <Compile Include="FluentDockerException.cs" />
     <Compile Include="Internal\DockerCertificates.cs" />
     <Compile Include="Internal\DockerParams.cs" />
     <Compile Include="Internal\DockerCertificateCredentials.cs" />
+    <Compile Include="Internal\DockerVolumeMount.cs" />
+    <Compile Include="Internal\Template.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>

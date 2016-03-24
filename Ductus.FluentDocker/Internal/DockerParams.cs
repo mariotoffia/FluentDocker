@@ -5,7 +5,7 @@
     /// <summary>
     /// Command to execute in the container.
     /// </summary>
-    internal string Cmd;
+    internal string []Cmd;
 
     /// <summary>
     ///   Path to where docker has stored it's certificates e.g. 'C:\Users\mario\.docker\machine\machines\default'.
@@ -43,7 +43,7 @@
     internal string ContainerName;
     internal string[] Ports;
     internal string PortToWaitOn;
-    internal string[] Volumes;
+    internal DockerVolumeMount[] Volumes;
     internal long WaitTimeout;
   }
 }

@@ -28,6 +28,8 @@ namespace Ductus.FluentDocker
           new DockerCertificateCredentials(certificates.CaCertificate, certificates.ClientCertificate)).CreateClient();
     }
 
+    public string Host => _client.Configuration.EndpointBaseUri.Host;
+
     public void Dispose()
     {
       if (_container != null)
@@ -56,6 +58,11 @@ namespace Ductus.FluentDocker
         Create();
       }
 
+      if (null == _container)
+      {
+        throw new FluentDockerException("Could not create container");
+      }
+
       // ReSharper disable once PossibleNullReferenceException
       _client.StartContainer(_container.Id, ToHostConfig(_prms));
       _settings = _client.Containers.InspectContainerAsync(_container.Id).Result;
@@ -81,8 +88,6 @@ namespace Ductus.FluentDocker
 
       return int.Parse(portBinding[0].HostPort);
     }
-
-    public string Host => _client.Configuration.EndpointBaseUri.Host;
 
     private DockerContainer WaitForPort(int port, long millisTimeout)
     {
@@ -121,8 +126,8 @@ namespace Ductus.FluentDocker
 
       return new HostConfig
       {
-        VolumesFrom = prms.Volumes,
-        PortBindings = ports
+        PortBindings = ports,
+        Binds = DockerVolumeMount.ToStringArray(prms.Volumes)
       };
     }
 
@@ -135,6 +140,16 @@ namespace Ductus.FluentDocker
           port => new PortBinding {HostIp = "0.0.0.0", HostPort = ""});
       }
 
+      IDictionary<string, object> vols = null;
+      if (null != prms.Volumes && 0 != prms.Volumes.Length)
+      {
+        vols = new Dictionary<string, object>();
+        foreach (var mount in prms.Volumes)
+        {
+          vols.Add(mount.Host, new object());
+        }
+      }
+
       return new CreateContainerParameters
       {
         ContainerName = prms.ContainerName,
@@ -142,12 +157,13 @@ namespace Ductus.FluentDocker
         {
           Env = prms.Env,
           Image = prms.ImageName,
-          Cmd = null == prms.Cmd ? null : new List<string> {prms.Cmd},
+          Cmd = null == prms.Cmd ? null : new List<string>(prms.Cmd),
           DomainName = prms.DomainName,
           User = prms.User,
           Hostname = prms.HostName,
           NetworkDisabled = false,
-          ExposedPorts = ports
+          ExposedPorts = ports,
+          Volumes = vols
         }
       };
     }
