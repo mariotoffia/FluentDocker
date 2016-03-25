@@ -1,13 +1,25 @@
 ﻿using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using Ductus.FluentDocker.Extensions;
 
 namespace Ductus.FluentDocker.Internal
 {
   internal class DockerVolumeMount
   {
+    /// <summary>
+    ///   Host path in MSYS or linux compatible format.
+    /// </summary>
     internal string Host { get; set; }
+
+    /// <summary>
+    ///   Inside docker container path in linux format.
+    /// </summary>
     internal string Docker { get; set; }
+
+    /// <summary>
+    ///   Which access 'ro' or 'rw'.
+    /// </summary>
     internal string Acess { get; set; }
 
     public override string ToString()
@@ -15,7 +27,8 @@ namespace Ductus.FluentDocker.Internal
       return $"{Host}:{Docker}:{Acess}";
     }
 
-    public static DockerVolumeMount ToMount(string volume)
+
+    internal static DockerVolumeMount ToMount(string volume)
     {
       var split = volume.Split(':');
       if (split.Length < 2)
@@ -30,9 +43,10 @@ namespace Ductus.FluentDocker.Internal
         Directory.CreateDirectory(split[0]);
       }
 
-      if (Path.DirectorySeparatorChar == '\\')
+      if (OsExtensions.IsWindows())
       {
-        split[0] = "//" + char.ToLower(split[0][0]) + split[0].Substring(2).Replace('\\', '/');
+        // Render MSYS compatible path if Windos path is expressed.
+        split[0] = split[0].ToMsysPath();
       }
 
       return split.Length == 3
@@ -40,12 +54,12 @@ namespace Ductus.FluentDocker.Internal
         : new DockerVolumeMount {Host = split[0], Docker = split[1], Acess = "rw"};
     }
 
-    public static IList<DockerVolumeMount> ToMount(string[] volume)
+    internal static IList<DockerVolumeMount> ToMount(string[] volume)
     {
       return volume.Select(ToMount).ToList();
     }
 
-    public static string[] ToStringArray(DockerVolumeMount[] mounts)
+    internal static string[] ToStringArray(DockerVolumeMount[] mounts)
     {
       if (null == mounts || 0 == mounts.Length)
       {

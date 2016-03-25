@@ -27,8 +27,6 @@
     /// </summary>
     internal string DockerToolboxInstallPath;
 
-    internal string DomainName;
-
     /// <summary>
     /// Environment strings.
     /// </summary>
@@ -38,6 +36,7 @@
     /// User to execute as in the container.
     /// </summary>
     internal string User;
+    internal string DomainName;
     internal string HostName;
     internal string ImageName;
     internal string ContainerName;
@@ -45,5 +44,9 @@
     internal string PortToWaitOn;
     internal DockerVolumeMount[] Volumes;
     internal long WaitTimeout;
+
+    internal string[] VolumesToRemoveOnDispose;
+    internal bool RemoveContainerOnDispose = true;
+    internal bool StopContainerOnDispose = true;
   }
 }

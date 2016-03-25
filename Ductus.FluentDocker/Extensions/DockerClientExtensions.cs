@@ -70,15 +70,18 @@ namespace Ductus.FluentDocker.Extensions
       return result.Any(img => img.RepoTags.Any(tag => tag == image));
     }
 
-    internal static bool StartContainer(this DockerClient client, string id, HostConfig config)
+    internal static void StartContainer(this DockerClient client, string id, HostConfig config)
     {
       try
       {
-        return client.Containers.StartContainerAsync(id, config).Result;
+        if (!client.Containers.StartContainerAsync(id, config).Result)
+        {
+          throw new FluentDockerException($"Failed to start container {id}");
+        }
       }
-      catch (Exception)
+      catch (Exception e)
       {
-        return false;
+        throw new FluentDockerException($"Failed to start container {id}",e);
       }
     }
 

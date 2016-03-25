@@ -1,6 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.IO;
 using System.Linq;
 using Ductus.FluentDocker.Internal;
 
@@ -27,6 +25,15 @@ namespace Ductus.FluentDocker
     }
 
     /// <summary>
+    ///   When the container is about to be disposed.
+    /// </summary>
+    /// <returns>Fluent builder for disposal</returns>
+    public WhenDisposedBuilder WhenDisposed()
+    {
+      return new WhenDisposedBuilder(this, _prms);
+    }
+
+    /// <summary>
     ///   Specifies the host of the docker daemon.
     /// </summary>
     /// <param name="host">The host to communicate with.</param>
@@ -35,9 +42,31 @@ namespace Ductus.FluentDocker
     ///   This will override the default environment variable DOCKER_HOST for e.g. not set or
     ///   if remote docker daemon communication is wanted.
     /// </remarks>
-    public DockerBuilder UseHost(string host)
+    public DockerBuilder UseDockerHost(string host)
     {
       _prms.DockerHost = host;
+      return this;
+    }
+
+    /// <summary>
+    ///   The the container host name.
+    /// </summary>
+    /// <param name="containerHostName">The host name that the container will be exposed as.</param>
+    /// <returns>Itself for fluent access.</returns>
+    public DockerBuilder UseHost(string containerHostName)
+    {
+      _prms.HostName = containerHostName;
+      return this;
+    }
+
+    /// <summary>
+    ///   Under which domain name shall the docker container be exposed as.
+    /// </summary>
+    /// <param name="containerDomain">The domain name</param>
+    /// <returns>Itself for fluent access.</returns>
+    public DockerBuilder UseDomain(string containerDomain)
+    {
+      _prms.DomainName = containerDomain;
       return this;
     }
 
@@ -134,7 +163,7 @@ namespace Ductus.FluentDocker
     }
 
     /// <summary>
-    ///   Mounts volumes on the following format 'local host path':'docker exposed volume':ro|rw where
+    ///   Mounts volumes on the following format 'host path':'inside docker container volume':ro|rw where
     ///   'ro' is read-only and 'rw' is read write volume.
     /// </summary>
     /// <param name="volume">One or more volumes to mount to the host. See remarks around variables.</param>
@@ -144,6 +173,8 @@ namespace Ductus.FluentDocker
     ///   If omitting the 'ro' or 'rw' it will mount the volume read-write by default.
     ///   It is possible to adress the standard windows temp directory and random generate a directory name by
     ///   '${TEMP}' and '${RND}'. If the host folder do not exists it will be created prior creating the container.
+    ///   Make sure that the host path has correct security and is reachable when in boot2docker. This is done for
+    ///   the VM inside virtual box shares.
     /// </remarks>
     public DockerBuilder MountVolumes(params string[] volume)
     {

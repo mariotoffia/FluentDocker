@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Net.Sockets;
 using System.Threading;
@@ -34,11 +35,26 @@ namespace Ductus.FluentDocker
     {
       if (_container != null)
       {
-        _client.StopContainer(_container.Id);
-        _client.RemoveContainer(_container.Id);
+        if (_prms.StopContainerOnDispose || _prms.RemoveContainerOnDispose)
+        {
+          _client.StopContainer(_container.Id);
+        }
+
+        if (_prms.RemoveContainerOnDispose)
+        {
+          _client.RemoveContainer(_container.Id);
+        }
       }
 
       _client.Dispose();
+
+      if (null != _prms.VolumesToRemoveOnDispose)
+      {
+        foreach (string path in _prms.VolumesToRemoveOnDispose)
+        {
+          Directory.Delete(path,true/*recursive*/);
+        }
+      }
     }
 
     public DockerContainer Create()
@@ -146,7 +162,7 @@ namespace Ductus.FluentDocker
         vols = new Dictionary<string, object>();
         foreach (var mount in prms.Volumes)
         {
-          vols.Add(mount.Host, new object());
+          vols.Add(mount.Docker, new object());
         }
       }
 
