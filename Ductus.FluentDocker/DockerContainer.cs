@@ -88,6 +88,11 @@ namespace Ductus.FluentDocker
         : this;
     }
 
+    public string GetHostVolume(string name)
+    {
+      return _prms.Volumes.FirstOrDefault(x => x.Name == name)?.Host.ToPlatformPath();
+    }
+
     public int GetHostPort(string containerPort)
     {
       var portBindings = _settings.NetworkSettings.Ports;

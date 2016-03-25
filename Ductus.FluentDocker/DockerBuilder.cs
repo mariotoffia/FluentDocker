@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Linq;
 using Ductus.FluentDocker.Internal;
 
@@ -163,6 +164,36 @@ namespace Ductus.FluentDocker
     }
 
     /// <summary>
+    ///   Adds a named volume that will be mounted. This name can be used to retrieve the mounted volumes
+    ///   by name in the <see cref="DockerContainer" />. This is especially usefull when having template
+    ///   parameters in the mount string.
+    /// </summary>
+    /// <param name="name">Name of the mount.</param>
+    /// <param name="hostdir">The host directory to mount.</param>
+    /// <param name="dockerdir">The directory in the container to mount.</param>
+    /// <param name="mode">Either ro for read-only or rw for read-write mode.</param>
+    /// <returns>Itelf for fluent access.</returns>
+    /// <remarks>
+    ///   See <see cref="MountVolumes" /> for template parameters and boot2docker issiues.
+    /// </remarks>
+    public DockerBuilder MountNamedVolume(string name, string hostdir, string dockerdir, string mode)
+    {
+      mode = string.IsNullOrEmpty(mode) ? "rw" : mode;
+
+      var mount = DockerVolumeMount.ToMount($"{hostdir}:{dockerdir}:{mode}");
+      mount.Name = name;
+
+      if (null == _prms.Volumes)
+      {
+        _prms.Volumes = new[] {mount};
+        return this;
+      }
+
+      _prms.Volumes = new List<DockerVolumeMount>(_prms.Volumes) {mount}.ToArray();
+      return this;
+    }
+
+    /// <summary>
     ///   Mounts volumes on the following format 'host path':'inside docker container volume':ro|rw where
     ///   'ro' is read-only and 'rw' is read write volume.
     /// </summary>
@@ -183,7 +214,16 @@ namespace Ductus.FluentDocker
         return this;
       }
 
-      _prms.Volumes = DockerVolumeMount.ToMount(volume).ToArray();
+      if (null == _prms.Volumes)
+      {
+        _prms.Volumes = DockerVolumeMount.ToMount(volume).ToArray();
+        return this;
+      }
+
+      var list = new List<DockerVolumeMount>(_prms.Volumes);
+      list.AddRange(DockerVolumeMount.ToMount(volume));
+      _prms.Volumes = list.ToArray();
+
       return this;
     }
 

@@ -8,6 +8,11 @@ namespace Ductus.FluentDocker.Internal
   internal class DockerVolumeMount
   {
     /// <summary>
+    /// The name of the mounted volyme, if any.
+    /// </summary>
+    internal string Name { get; set; }
+
+    /// <summary>
     ///   Host path in MSYS or linux compatible format.
     /// </summary>
     internal string Host { get; set; }
