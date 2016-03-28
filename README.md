@@ -64,3 +64,34 @@ If a before shutdown container hook is wanted override.
 Note that if unamed container, if not properly disposed, the docker container will still run and must be manually removed. This is a feature not a bug since you might want several containers running in your test. The `DockerContainer` class manages the instance id of the container and thus only intract with it and no other container.
 
 When creating / starting a new container it will first check the local repository if the container image is already present and will download it if not found. This may take some time and there's just a Debug Log if enabled it is possible to monitor the download process.
+
+== Working with Volumes
+It is possible to mount volumes onto the host that are exposed within the docker container. See sample below how to do a simple mount where a nginx server will serve html pages from a host directory.
+
+    private const string Html = "<html><head>Hello World</head><body><h1>Hello world</h1></body></html>";
+
+     using (var container =
+          new DockerBuilder()
+            .WithImage("nginx:latest")
+            .ExposePorts("80")
+            .WaitForPort("80/tcp", 10000 /*10s*/)
+            .MountNamedVolume("test", "${TEMP}/fluentdockertest/${RND}", "/usr/share/nginx/html", "ro")
+            .WhenDisposed()
+               .RemoveVolume("${TEMP}/fluentdockertest")
+            .Build().Start())
+      {
+        var hostdir = container.GetHostVolume("test");
+        File.WriteAllText(Path.Combine(hostdir, "hello.html"), Html);
+ 
+        var request = WebRequest.Create($"http://{container.Host}:{container.GetHostPort("80/tcp")}/hello.html");
+        using (var response = request.GetResponse())
+        {
+          var dataStream = response.GetResponseStream();
+          using (var reader = new StreamReader(dataStream))
+          {
+            var responseFromServer = reader.ReadToEnd();
+          }
+        }
+      }
+
+This example will create a temporary directory under temp/fluentdocker/random-dir and mount it within the docker container /usr/share/nginx/html. When the `DockerContainer` is disposed it will delete the temp/fluentdocker directory along with all it's subdirectories and files. This is especially good when doing unit-tests. 
