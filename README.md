@@ -3,7 +3,8 @@ Simple fluent interface to Docker.DotNet to simplify forking one or more docker 
 
 In order to use `DockerBuilder` and `DockerContainer` with boot2docker you must have the docker daemon on the virtual machine, e.g. run the 'Quickstart Terminal' and the DOCKER environment variables. Simplest is to run devenv.exe through the 'Quickstart Terminal' and your'e all set to go. On Linux, just make sure the docker daemon is running and you have all the DOCKER environment variables set. The `DockerContainer`, when using boot2docker, makes use of the installation path to obtain the certificates and keys neccesary to do proper SSL communication. If you have a proxy, you may encounter that it will not be able to communicate properly with the docker daemon.
 
-This repo contains two nuget packages, one for the fluent access and the other is a mstest base classes to be used while testing. For example in a unit-test it is possible to fire up a postgres container and wait when the the db has booted.
+## Test Support
+This repo contains two nuget packages, one for the fluent access and the other is a ms-test base classes to be used while testing. For example in a unit-test it is possible to fire up a postgres container and wait when the the db has booted.
 
      using (
         var container =
@@ -65,7 +66,7 @@ Note that if unamed container, if not properly disposed, the docker container wi
 
 When creating / starting a new container it will first check the local repository if the container image is already present and will download it if not found. This may take some time and there's just a Debug Log if enabled it is possible to monitor the download process.
 
-== Working with Volumes
+## Working with Volumes
 It is possible to mount volumes onto the host that are exposed within the docker container. See sample below how to do a simple mount where a nginx server will serve html pages from a host directory.
 
     private const string Html = "<html><head>Hello World</head><body><h1>Hello world</h1></body></html>";
@@ -94,4 +95,6 @@ It is possible to mount volumes onto the host that are exposed within the docker
         }
       }
 
-This example will create a temporary directory under temp/fluentdocker/random-dir and mount it within the docker container /usr/share/nginx/html. When the `DockerContainer` is disposed it will delete the temp/fluentdocker directory along with all it's subdirectories and files. This is especially good when doing unit-tests. 
+This example will create a temporary directory under temp/fluentdocker/random-dir and mount it within the docker container /usr/share/nginx/html. When the `DockerContainer` is disposed it will delete the temp/fluentdocker directory along with all it's subdirectories and files. This is especially good when doing unit-tests.
+
+When using boot2docker, make sure that the (if using standard) virtual box image has the path on the host mounted with correct permissions otherwise it will not be possible for docker processes to read-write to those volumes.
