@@ -3,7 +3,7 @@
 <package xmlns="http://schemas.microsoft.com/packaging/2010/07/nuspec.xsd">
   <metadata>
     <id>Ductus.FluentDocker</id>
-    <version>1.0.3</version>
+    <version>1.1.1</version>
     <title>Ductus.FluentDocker</title>
     <authors>Mario Toffia</authors>
     <owners>mariotoffia</owners>
@@ -19,8 +19,8 @@
     <copyright>(c) 2016 Mario Toffia</copyright>
     <tags>Docker Linux Windows Mac Fluent</tags>
     <dependencies>
-      <dependency id="Docker.DotNet" version="(1.2.2.2,2.0)" />
-      <dependency id="BouncyCastle.Crypto" version="(1.8.1,2.0)"/>
+      <dependency id="Docker.DotNet" version="[1.2.2,2.0)" />
+      <dependency id="BouncyCastle.Crypto.dll" version="[1.8.1,2.0)"/>
     </dependencies>
   </metadata>
   <files>

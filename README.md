@@ -5,7 +5,7 @@ In order to use `DockerBuilder` and `DockerContainer` with boot2docker you must 
 
 ## Test Support
 This repo contains two nuget packages, one for the fluent access and the other is a ms-test base classes to be used while testing. For example in a unit-test it is possible to fire up a postgres container and wait when the the db has booted.
-
+```cs
      using (
         var container =
           new DockerBuilder()
@@ -17,9 +17,9 @@ This repo contains two nuget packages, one for the fluent access and the other i
       {
         container.Create().Start();
       }
-
+```
 It is also possible to re-use abstract base classes, for example postgres test base to simplify and make clean unittest towards a container.
-
+```cs
      [TestClass]
      public class PostgresMsTests : PostgresTestBase
      {
@@ -30,9 +30,9 @@ It is also possible to re-use abstract base classes, for example postgres test b
                // and a valid connection string to use.
           }
      }
-  
+```  
 The `FluentDockerTestBase` allows for simple overrides to do whatever custom docker backed test easily. Just create a test class and derive from the `FluentDockerTestBase` and override suitable methods. For example.
-
+```cs
      protected override DockerBuilder Build()
      {
           return new DockerBuilder()
@@ -41,34 +41,34 @@ The `FluentDockerTestBase` allows for simple overrides to do whatever custom doc
                .ExposePorts("5432")
                .WaitForPort("5432/tcp", 30000 /*30s*/);
      }
-     
+```     
 This will create a builder with docker image postgres:latest and set one environment string, it will also expose the postgres db port 5432 to the host so one can connect to the db within the container. Lastly it will wait for the port 5432. This ensures that the db is running and have properly booted. If timeout, in this example set to 30 seconds, it will throw an exception and the container is stopped and removed. Note that the host port is not 5432! Use `Container.GetHostPort("5432/tcp")` to get the host port. The host ip can be retrieved by `Container.Host` property and thus shall be used when communicating with the app in the container. 
 
 If a callback is needed when the container has been successfully pulled, created, and started.
-
+```cs
      protected override void OnContainerInitialized()
      {
           ConnectionString = string.Format(PostgresConnectionString, Container.Host,
                Container.GetHostPort("5432/tcp"), PostgresUser,
                PostgresPassword, PostgresDb);
      }
-     
+```     
 This example renders a proper connection string to the postgresql db within the newly spun up container. This can be used to connect using Npgsql, EF7, NHibernate, Marten or other compatible tools. This method will not be called if pulling of the image from the docker repository or it could not create/start the container.
 
 If a before shutdown container hook is wanted override.
-
+```cs
      protected virtual void OnContainerTearDown()
      {
           // Do stuff before container is shut down.
      }
-
+```
 Note that if unamed container, if not properly disposed, the docker container will still run and must be manually removed. This is a feature not a bug since you might want several containers running in your test. The `DockerContainer` class manages the instance id of the container and thus only intract with it and no other container.
 
 When creating / starting a new container it will first check the local repository if the container image is already present and will download it if not found. This may take some time and there's just a Debug Log if enabled it is possible to monitor the download process.
 
 ## Working with Volumes
 It is possible to mount volumes onto the host that are exposed within the docker container. See sample below how to do a simple mount where a nginx server will serve html pages from a host directory.
-
+```cs
     private const string Html = "<html><head>Hello World</head><body><h1>Hello world</h1></body></html>";
 
      using (var container =
@@ -94,7 +94,7 @@ It is possible to mount volumes onto the host that are exposed within the docker
           }
         }
       }
-
+```
 This example will create a temporary directory under temp/fluentdocker/random-dir and mount it within the docker container /usr/share/nginx/html. When the `DockerContainer` is disposed it will delete the temp/fluentdocker directory along with all it's subdirectories and files. This is especially good when doing unit-tests.
 
 When using boot2docker, make sure that the (if using standard) virtual box image has the path on the host mounted with correct permissions otherwise it will not be possible for docker processes to read-write to those volumes.

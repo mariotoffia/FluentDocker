@@ -2,7 +2,7 @@
 <package xmlns="http://schemas.microsoft.com/packaging/2010/07/nuspec.xsd">
   <metadata>
     <id>Ductus.FluentDocker.MsTest</id>
-    <version>1.0.3</version>
+    <version>1.1.1</version>
     <title>Ductus.FluentDocker.MsTest</title>
     <authors>Mario Toffia</authors>
     <owners>mariotoffia</owners>
@@ -18,7 +18,7 @@
     <copyright>(c) 2016 Mario Toffia</copyright>
     <tags>Docker Linux Windows Mac Test</tags>
     <dependencies>
-      <dependency id="Ductus.FluentDocker" version="(1.0.2,2.0)" />
+      <dependency id="Ductus.FluentDocker" version="[1.1.1,2.0)" />
     </dependencies>
     <!--
     <references>
