@@ -1,4 +1,6 @@
-﻿namespace Ductus.FluentDocker.Internal
+﻿using System.Collections.Generic;
+
+namespace Ductus.FluentDocker.Internal
 {
   internal class DockerParams
   {
@@ -48,5 +50,6 @@
     internal string[] VolumesToRemoveOnDispose;
     internal bool RemoveContainerOnDispose = true;
     internal bool StopContainerOnDispose = true;
+    internal List<string> links = new List<string>(); 
   }
 }

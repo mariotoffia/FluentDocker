@@ -102,6 +102,54 @@ namespace Ductus.FluentDocker
     }
 
     /// <summary>
+    ///   Adds a link to another container from this one. The <paramref name="dnsName" /> will
+    ///   be set in the /etc/hosts file in this container. It will point to the <paramref name="containerName" />
+    ///   so it is e.g. possible to do "ping kalle" when a container link with kallecontainer1, kalle is set.
+    /// </summary>
+    /// <param name="containerName">The name of the named container to link to.</param>
+    /// <param name="dnsName">The name of the entry in the /etc/hosts to point to the <paramref name="containerName" />.</param>
+    /// <returns>Itself for fluent access.</returns>
+    public DockerBuilder UseLink(string containerName, string dnsName)
+    {
+      if (string.IsNullOrEmpty(containerName))
+      {
+        throw new ArgumentException("Null or empty string is not allowed",nameof(containerName));
+      }
+
+      if (string.IsNullOrEmpty(containerName))
+      {
+        throw new ArgumentException("Null or empty string is not allowed", nameof(dnsName));
+      }
+
+      _prms.links.Add($"{containerName}:{dnsName}");
+      return this;
+    }
+
+    /// <summary>
+    /// Links two containers. Make sure that the container to be linked is started first.
+    /// <see cref="UseLink(string,string)"/> for more information.
+    /// </summary>
+    /// <param name="container">The builder where the <see cref="ContainerName"/> is taken.</param>
+    /// <param name="dnsName">The name of the entry in the /etc/hosts to point to the <paramref name="container"/></param>
+    /// <returns>Itself for fluent access.</returns>
+    public DockerBuilder UseLink(DockerBuilder container, string dnsName)
+    {
+      return UseLink(container._prms.ContainerName, dnsName);
+    }
+
+    /// <summary>
+    /// Links two containers. Make sure that the container to be linked is started first.
+    /// <see cref="UseLink(string,string)"/> for more information.
+    /// </summary>
+    /// <param name="container">The container where the <see cref="DockerContainer.ContainerName"/> is taken.</param>
+    /// <param name="dnsName">The name of the entry in the /etc/hosts to point to the <paramref name="container"/></param>
+    /// <returns>Itself for fluent access.</returns>
+    public DockerBuilder UseLink(DockerContainer container, string dnsName)
+    {
+      return UseLink(container.ContainerName, dnsName);
+    }
+
+    /// <summary>
     ///   Sets a explicit container name. It must be unique. Two running containers can not
     ///   not have the same name.
     /// </summary>

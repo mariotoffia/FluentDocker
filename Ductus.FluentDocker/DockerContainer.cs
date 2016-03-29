@@ -93,6 +93,8 @@ namespace Ductus.FluentDocker
       return _prms.Volumes.FirstOrDefault(x => x.Name == name)?.Host.ToPlatformPath();
     }
 
+    public string ContainerName => _settings.Name;
+
     public int GetHostPort(string containerPort)
     {
       var portBindings = _settings.NetworkSettings.Ports;
@@ -148,7 +150,8 @@ namespace Ductus.FluentDocker
       return new HostConfig
       {
         PortBindings = ports,
-        Binds = DockerVolumeMount.ToStringArray(prms.Volumes)
+        Binds = DockerVolumeMount.ToStringArray(prms.Volumes),
+        Links = prms.links.Count == 0 ? null : prms.links
       };
     }
 
