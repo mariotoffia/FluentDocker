@@ -12,9 +12,15 @@ namespace Ductus.FluentDocker.Extensions
 
     internal static string ToPlatformPath(this string path)
     {
-      if (!OsExtensions.IsWindows())
+      if (!IsWindows())
       {
         return path;
+      }
+
+      // C:\Users\mario\AppData\Local\Temp/fluentdockertest/lyax2cp0.m0b
+      if (path.Length > 2 && path[1] == ':' && path[2] == '\\')
+      {
+        return path.Replace('/', '\\');
       }
 
       return string.IsNullOrEmpty(path) ? path : $"{path[2]}:{path.Substring(3).Replace('/', '\\')}";
@@ -22,7 +28,7 @@ namespace Ductus.FluentDocker.Extensions
 
     internal static string ToMsysPath(this string path)
     {
-      if (!OsExtensions.IsWindows())
+      if (!IsWindows())
       {
         return path;
       }

@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
@@ -81,7 +82,7 @@ namespace Ductus.FluentDocker.Extensions
       }
       catch (Exception e)
       {
-        throw new FluentDockerException($"Failed to start container {id}",e);
+        throw new FluentDockerException($"Failed to start container {id}", e);
       }
     }
 
@@ -116,6 +117,27 @@ namespace Ductus.FluentDocker.Extensions
       }
 
       return true;
+    }
+
+    internal static Processes ContainerProcesses(this DockerClient client, string id, string args)
+    {
+      try
+      {
+        var res =
+          client.Containers.ListProcessesAsync(id, new ListProcessesParameters {PsArgs = args}).Result;
+
+        var processes = new Processes {Columns = res.Titles, Rows = new List<ProcessRow>()};
+        foreach (var row in res.Processes)
+        {
+          processes.Rows.Add(ProcessRow.ToRow(res.Titles, row));
+        }
+
+        return processes;
+      }
+      catch (Exception)
+      {
+        return new Processes();
+      }
     }
   }
 }

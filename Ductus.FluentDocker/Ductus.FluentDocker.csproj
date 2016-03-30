@@ -54,6 +54,10 @@
       <HintPath>..\packages\Newtonsoft.Json.8.0.3\lib\net45\Newtonsoft.Json.dll</HintPath>
       <Private>True</Private>
     </Reference>
+    <Reference Include="SharpCompress, Version=0.11.3.0, Culture=neutral, PublicKeyToken=beaf6f427e128133, processorArchitecture=MSIL">
+      <HintPath>..\packages\sharpcompress.0.11.5\lib\net40\SharpCompress.dll</HintPath>
+      <Private>True</Private>
+    </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />
     <Reference Include="Microsoft.CSharp" />
@@ -74,7 +78,11 @@
     <Compile Include="DockerContainer.cs" />
     <Compile Include="Extensions\CrytoUtils.cs" />
     <Compile Include="Extensions\DockerClientExtensions.cs" />
+    <Compile Include="Extensions\DockerParamsTranslations.cs" />
     <Compile Include="Extensions\OsExtensions.cs" />
+    <Compile Include="Extensions\SettingsExtensions.cs" />
+    <Compile Include="Extensions\StreamExtensions.cs" />
+    <Compile Include="Extensions\WaitExtensions.cs" />
     <Compile Include="FluentDockerException.cs" />
     <Compile Include="Internal\DockerCertificates.cs" />
     <Compile Include="Internal\DockerParams.cs" />

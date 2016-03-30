@@ -1,5 +1,6 @@
 ﻿using System;
 using System.IO;
+using System.Linq;
 using System.Net;
 using Ductus.FluentDocker;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
@@ -44,6 +45,25 @@ namespace Ductus.FluentDockerTest
             Assert.AreEqual(Html, responseFromServer);
           }
         }
+      }
+    }
+
+    [TestMethod]
+    public void CopyBinDirToHost()
+    {
+      using (
+        var container =
+          new DockerBuilder()
+            .WithEnvironment("POSTGRES_PASSWORD=mysecretpassword")
+            .WithImage("postgres:latest")
+            .Build().Start())
+      {
+        var path = container.Copy("/bin","${TEMP}/fluentdockertest/${RND}");
+
+        var files = Directory.EnumerateFiles(Path.Combine(path,"bin")).ToArray();
+        Assert.IsTrue(files.Any(x => x.EndsWith("bash")));
+        Assert.IsTrue(files.Any(x => x.EndsWith("ps")));
+        Assert.IsTrue(files.Any(x => x.EndsWith("zcat")));
       }
     }
   }
