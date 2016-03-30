@@ -98,3 +98,24 @@ It is possible to mount volumes onto the host that are exposed within the docker
 This example will create a temporary directory under temp/fluentdocker/random-dir and mount it within the docker container /usr/share/nginx/html. When the `DockerContainer` is disposed it will delete the temp/fluentdocker directory along with all it's subdirectories and files. This is especially good when doing unit-tests.
 
 When using boot2docker, make sure that the (if using standard) virtual box image has the path on the host mounted with correct permissions otherwise it will not be possible for docker processes to read-write to those volumes.
+
+## Working with Container Processes
+It is possible to query for running processes within the docker container. This can be used within e.g. unit-tests. It is also possible to wait for a certain process (as with a port) before the `DockerContainer` is considered as started. If fails to satisifie the critera an exception is thrown.
+
+```cs
+     using (
+        var container =
+          new DockerBuilder()
+            .WithImage("postgres:latest")
+            .WithEnvironment("POSTGRES_PASSWORD=mysecretpassword")
+            .ExposePorts("5432")
+            .WaitForPort("5432/tcp", 30000 /*30s*/)
+            .WaitForProcess("postgres",30000/*30s*/)
+            .Build())
+      {
+        container.Start();
+        var proc = container.ContainerProcesses();
+        Debug.WriteLine(proc.ToString());
+      }
+```
+This example shows a unit-test where it waits fo a certain port to be opened *and* the postgres process to be running before executing the body code. Within the method body it will get the processes and dump those onto the debug log.
