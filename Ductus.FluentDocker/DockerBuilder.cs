@@ -188,6 +188,19 @@ namespace Ductus.FluentDocker
     }
 
     /// <summary>
+    /// Waits for a specific process to start in the container before proceeding.
+    /// </summary>
+    /// <param name="process">The name of the process to wait for.</param>
+    /// <param name="millisTimeout">The number of milliseconds to wait before failing. Default is infinite.</param>
+    /// <returns>Itself for fluent access.</returns>
+    public DockerBuilder WaitForProcess(string process, long millisTimeout = long.MaxValue)
+    {
+      _prms.ProcessWaitTimeout = millisTimeout;
+      _prms.WaitForProcess = process;
+      return this;
+    }
+
+    /// <summary>
     ///   Waits for a port to be exposed.
     /// </summary>
     /// <param name="port">The docker port to wait for e.g. 'tcp/5833'</param>
@@ -195,7 +208,7 @@ namespace Ductus.FluentDocker
     /// <returns>Itself for fluent access.</returns>
     public DockerBuilder WaitForPort(string port, long millisTimeout = long.MaxValue)
     {
-      _prms.WaitTimeout = millisTimeout;
+      _prms.PortWaitTimeout = millisTimeout;
       _prms.PortToWaitOn = port;
       return this;
     }

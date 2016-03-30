@@ -81,6 +81,8 @@
     <Compile Include="Internal\DockerCertificateCredentials.cs" />
     <Compile Include="Internal\DockerVolumeMount.cs" />
     <Compile Include="Internal\Template.cs" />
+    <Compile Include="Processes.cs" />
+    <Compile Include="ProcessRow.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="WhenDisposedBuilder.cs" />
   </ItemGroup>

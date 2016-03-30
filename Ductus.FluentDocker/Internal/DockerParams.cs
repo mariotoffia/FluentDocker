@@ -45,7 +45,9 @@ namespace Ductus.FluentDocker.Internal
     internal string[] Ports;
     internal string PortToWaitOn;
     internal DockerVolumeMount[] Volumes;
-    internal long WaitTimeout;
+    internal long PortWaitTimeout;
+    internal string WaitForProcess;
+    internal long ProcessWaitTimeout;
 
     internal string[] VolumesToRemoveOnDispose;
     internal bool RemoveContainerOnDispose = true;

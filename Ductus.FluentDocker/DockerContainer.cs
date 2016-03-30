@@ -83,9 +83,40 @@ namespace Ductus.FluentDocker
       _client.StartContainer(_container.Id, ToHostConfig(_prms));
       _settings = _client.Containers.InspectContainerAsync(_container.Id).Result;
 
-      return !string.IsNullOrEmpty(_prms.PortToWaitOn)
-        ? WaitForPort(GetHostPort(_prms.PortToWaitOn), _prms.WaitTimeout)
-        : this;
+      if (!string.IsNullOrEmpty(_prms.PortToWaitOn))
+      {
+        WaitForPort(GetHostPort(_prms.PortToWaitOn), _prms.PortWaitTimeout);
+      }
+
+      if (!string.IsNullOrEmpty(_prms.WaitForProcess))
+      {
+        WaitForProcess(_prms.WaitForProcess, _prms.ProcessWaitTimeout);
+      }
+
+      return this;
+    }
+
+    private void WaitForProcess(string process, long millisTimeout)
+    {
+      do
+      {
+        try
+        {
+          var proc = ContainerProcesses();
+          if (null != proc.Rows && proc.Rows.Any(x => x.Command == process))
+          {
+            return;
+          }
+        }
+        catch (Exception)
+        {
+          // Ignore
+        }
+
+        Thread.Sleep(1000);
+      } while (millisTimeout > 0);
+
+      throw new FluentDockerException($"Timeout while waiting for process {process}");
     }
 
     public string GetHostVolume(string name)
@@ -112,7 +143,28 @@ namespace Ductus.FluentDocker
       return int.Parse(portBinding[0].HostPort);
     }
 
-    private DockerContainer WaitForPort(int port, long millisTimeout)
+    public Processes ContainerProcesses(string args = null)
+    {
+      try
+      {
+        var res =
+          _client.Containers.ListProcessesAsync(_container.Id, new ListProcessesParameters {PsArgs = args}).Result;
+
+        var processes = new Processes {Columns = res.Titles, Rows = new List<ProcessRow>()};
+        foreach (var row in res.Processes)
+        {
+          processes.Rows.Add(ProcessRow.ToRow(res.Titles,row));
+        }
+
+        return processes;
+      }
+      catch (Exception)
+      {
+        return new Processes();
+      }
+    }
+
+    private void WaitForPort(int port, long millisTimeout)
     {
       using (var s = new Socket(SocketType.Stream, ProtocolType.Tcp))
       {
@@ -135,7 +187,6 @@ namespace Ductus.FluentDocker
           }
         }
       }
-      return this;
     }
 
     private static HostConfig ToHostConfig(DockerParams prms)
