@@ -1,5 +1,4 @@
-﻿using System;
-using System.IO;
+﻿using System.IO;
 using System.Linq;
 using System.Net;
 using Ductus.FluentDocker;
@@ -23,7 +22,7 @@ namespace Ductus.FluentDockerTest
             .WaitForPort("80/tcp", 10000 /*10s*/)
             .MountNamedVolume("test", "${TEMP}/fluentdockertest/${RND}", "/usr/share/nginx/html", "ro")
             .WhenDisposed()
-            .RemoveVolume("${TEMP}/fluentdockertest")
+              .RemoveVolume("${TEMP}/fluentdockertest")
             .Build().Start())
       {
         var hostdir = container.GetHostVolume("test");
@@ -31,11 +30,11 @@ namespace Ductus.FluentDockerTest
         Assert.IsTrue(Directory.Exists(hostdir));
 
         File.WriteAllText(Path.Combine(hostdir, "hello.html"), Html);
- 
+
         var request = WebRequest.Create($"http://{container.Host}:{container.GetHostPort("80/tcp")}/hello.html");
         using (var response = request.GetResponse())
         {
-          Assert.AreEqual("OK", ((HttpWebResponse)response).StatusDescription);
+          Assert.AreEqual("OK", ((HttpWebResponse) response).StatusDescription);
           var dataStream = response.GetResponseStream();
           Assert.IsNotNull(dataStream);
 
@@ -49,7 +48,7 @@ namespace Ductus.FluentDockerTest
     }
 
     [TestMethod]
-    public void CopyBinDirToHost()
+    public void CopyBinDirToHostManually()
     {
       using (
         var container =
@@ -58,13 +57,57 @@ namespace Ductus.FluentDockerTest
             .WithImage("postgres:latest")
             .Build().Start())
       {
-        var path = container.Copy("/bin","${TEMP}/fluentdockertest/${RND}");
+        var path = container.Copy("/bin", "${TEMP}/fluentdockertest/${RND}");
 
-        var files = Directory.EnumerateFiles(Path.Combine(path,"bin")).ToArray();
+        var files = Directory.EnumerateFiles(Path.Combine(path, "bin")).ToArray();
         Assert.IsTrue(files.Any(x => x.EndsWith("bash")));
         Assert.IsTrue(files.Any(x => x.EndsWith("ps")));
         Assert.IsTrue(files.Any(x => x.EndsWith("zcat")));
       }
+    }
+
+    [TestMethod]
+    public void CopyBinDirToHostBeforeStarting()
+    {
+      using (
+        var container =
+          new DockerBuilder()
+            .WithEnvironment("POSTGRES_PASSWORD=mysecretpassword")
+            .WithImage("postgres:latest")
+            .CopyFromContainer("/bin", "${TEMP}/fluentdockertest/${RND}", "test")
+            .Build().Start())
+      {
+        var path = container.GetHostCopyPath("test");
+
+        var files = Directory.EnumerateFiles(Path.Combine(path, "bin")).ToArray();
+        Assert.IsTrue(files.Any(x => x.EndsWith("bash")));
+        Assert.IsTrue(files.Any(x => x.EndsWith("ps")));
+        Assert.IsTrue(files.Any(x => x.EndsWith("zcat")));
+      }
+    }
+
+    [TestMethod]
+    public void CopyBinDirToHostBeforeDisposed()
+    {
+      DockerContainer container;
+      using (
+        container =
+          new DockerBuilder()
+            .WithEnvironment("POSTGRES_PASSWORD=mysecretpassword")
+            .WithImage("postgres:latest")
+            .WhenDisposed()
+              .CopyFromContainer("/bin", "${TEMP}/fluentdockertest/${RND}","test")
+            .Build().Start())
+      {
+      }
+
+      var path = container.GetHostCopyPath("test");
+
+      var files = Directory.EnumerateFiles(Path.Combine(path, "bin")).ToArray();
+      Assert.IsTrue(files.Any(x => x.EndsWith("bash")));
+      Assert.IsTrue(files.Any(x => x.EndsWith("ps")));
+      Assert.IsTrue(files.Any(x => x.EndsWith("zcat")));
+
     }
   }
 }

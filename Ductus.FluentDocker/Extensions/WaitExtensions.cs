@@ -8,13 +8,13 @@ namespace Ductus.FluentDocker.Extensions
 {
   internal static class WaitExtensions
   {
-    internal static void WaitForProcess(this DockerClient client, string process, long millisTimeout)
+    internal static void WaitForProcess(this DockerClient client, string id, string process, long millisTimeout)
     {
       do
       {
         try
         {
-          var proc = client.ContainerProcesses(process, null);
+          var proc = client.ContainerProcesses(id, null);
           if (null != proc.Rows && proc.Rows.Any(x => x.Command == process))
           {
             return;

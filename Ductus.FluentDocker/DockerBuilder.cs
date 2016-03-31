@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using Ductus.FluentDocker.Extensions;
 using Ductus.FluentDocker.Internal;
 
 namespace Ductus.FluentDocker
@@ -46,6 +47,30 @@ namespace Ductus.FluentDocker
     public DockerBuilder UseDockerHost(string host)
     {
       _prms.DockerHost = host;
+      return this;
+    }
+
+    /// <summary>
+    ///   Copies a file or directory from the container onto the host.
+    /// </summary>
+    /// <param name="name">The name of the copy instruction. Can later be used to a lookup of the path.</param>
+    /// <param name="containerPath">The path on the container to copy, either single file or subdirectory.</param>
+    /// <param name="hostPath">The host path. Template arguments are accepted.</param>
+    /// <returns>Itself for fluent access.</returns>
+    /// <remarks>
+    ///   The <paramref name="name" /> is used to tag a copy instruction and the host path can later be resolved using
+    ///   <see cref="DockerContainer.GetHostCopyPath" />.
+    /// </remarks>
+    public DockerBuilder CopyFromContainer(string containerPath, string hostPath, string name = null)
+    {
+      if (null == name)
+      {
+        name = Guid.NewGuid().ToString();
+      }
+
+      _prms.CopyFilesAfterStart.Add(new Tuple<string, string, string>(name, containerPath,
+        hostPath.Render().ToPlatformPath()));
+
       return this;
     }
 
@@ -113,7 +138,7 @@ namespace Ductus.FluentDocker
     {
       if (string.IsNullOrEmpty(containerName))
       {
-        throw new ArgumentException("Null or empty string is not allowed",nameof(containerName));
+        throw new ArgumentException("Null or empty string is not allowed", nameof(containerName));
       }
 
       if (string.IsNullOrEmpty(containerName))
@@ -121,16 +146,16 @@ namespace Ductus.FluentDocker
         throw new ArgumentException("Null or empty string is not allowed", nameof(dnsName));
       }
 
-      _prms.links.Add($"{containerName}:{dnsName}");
+      _prms.Links.Add($"{containerName}:{dnsName}");
       return this;
     }
 
     /// <summary>
-    /// Links two containers. Make sure that the container to be linked is started first.
-    /// <see cref="UseLink(string,string)"/> for more information.
+    ///   Links two containers. Make sure that the container to be linked is started first.
+    ///   <see cref="UseLink(string,string)" /> for more information.
     /// </summary>
-    /// <param name="container">The builder where the <see cref="ContainerName"/> is taken.</param>
-    /// <param name="dnsName">The name of the entry in the /etc/hosts to point to the <paramref name="container"/></param>
+    /// <param name="container">The builder where the <see cref="ContainerName" /> is taken.</param>
+    /// <param name="dnsName">The name of the entry in the /etc/hosts to point to the <paramref name="container" /></param>
     /// <returns>Itself for fluent access.</returns>
     public DockerBuilder UseLink(DockerBuilder container, string dnsName)
     {
@@ -138,11 +163,11 @@ namespace Ductus.FluentDocker
     }
 
     /// <summary>
-    /// Links two containers. Make sure that the container to be linked is started first.
-    /// <see cref="UseLink(string,string)"/> for more information.
+    ///   Links two containers. Make sure that the container to be linked is started first.
+    ///   <see cref="UseLink(string,string)" /> for more information.
     /// </summary>
-    /// <param name="container">The container where the <see cref="DockerContainer.ContainerName"/> is taken.</param>
-    /// <param name="dnsName">The name of the entry in the /etc/hosts to point to the <paramref name="container"/></param>
+    /// <param name="container">The container where the <see cref="DockerContainer.ContainerName" /> is taken.</param>
+    /// <param name="dnsName">The name of the entry in the /etc/hosts to point to the <paramref name="container" /></param>
     /// <returns>Itself for fluent access.</returns>
     public DockerBuilder UseLink(DockerContainer container, string dnsName)
     {
@@ -188,7 +213,7 @@ namespace Ductus.FluentDocker
     }
 
     /// <summary>
-    /// Waits for a specific process to start in the container before proceeding.
+    ///   Waits for a specific process to start in the container before proceeding.
     /// </summary>
     /// <param name="process">The name of the process to wait for.</param>
     /// <param name="millisTimeout">The number of milliseconds to wait before failing. Default is infinite.</param>

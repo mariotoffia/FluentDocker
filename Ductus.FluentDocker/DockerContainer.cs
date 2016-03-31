@@ -37,6 +37,14 @@ namespace Ductus.FluentDocker
     {
       if (_container != null)
       {
+        if (_prms.CopyFilesWhenDisposed.Count > 0)
+        {
+          foreach (var copy in _prms.CopyFilesWhenDisposed)
+          {
+            _client.CopyFromContainer(_container.Id, copy.Item2, copy.Item3);
+          }  
+        }
+
         if (_prms.StopContainerOnDispose || _prms.RemoveContainerOnDispose)
         {
           _client.StopContainer(_container.Id);
@@ -91,7 +99,15 @@ namespace Ductus.FluentDocker
 
       if (!string.IsNullOrEmpty(_prms.WaitForProcess))
       {
-        _client.WaitForProcess(_prms.WaitForProcess, _prms.ProcessWaitTimeout);
+        _client.WaitForProcess(_container.Id, _prms.WaitForProcess, _prms.ProcessWaitTimeout);
+      }
+
+      if (_prms.CopyFilesAfterStart.Count > 0)
+      {
+        foreach (var copy in _prms.CopyFilesAfterStart)
+        {
+          _client.CopyFromContainer(_container.Id, copy.Item2, copy.Item3);
+        }
       }
 
       return this;
@@ -100,6 +116,17 @@ namespace Ductus.FluentDocker
     public string GetHostVolume(string name)
     {
       return _prms.Volumes.FirstOrDefault(x => x.Name == name)?.Host.ToPlatformPath();
+    }
+
+    public string GetHostCopyPath(string name)
+    {
+      var path = (from item in _prms.CopyFilesAfterStart where item.Item1 == name select item.Item3).FirstOrDefault();
+      if (null != path)
+      {
+        return path;
+      }
+
+      return (from item in _prms.CopyFilesWhenDisposed where item.Item1 == name select item.Item3).FirstOrDefault();
     }
 
     public int GetHostPort(string containerPort)

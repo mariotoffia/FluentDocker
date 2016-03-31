@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 
 namespace Ductus.FluentDocker.Internal
 {
@@ -52,6 +53,9 @@ namespace Ductus.FluentDocker.Internal
     internal string[] VolumesToRemoveOnDispose;
     internal bool RemoveContainerOnDispose = true;
     internal bool StopContainerOnDispose = true;
-    internal List<string> links = new List<string>(); 
+    internal List<string> Links = new List<string>(); 
+
+    internal List<Tuple<string, string, string>> CopyFilesAfterStart = new List<Tuple<string, string, string>>();
+    internal List<Tuple<string, string, string>> CopyFilesWhenDisposed = new List<Tuple<string, string, string>>();
   }
 }

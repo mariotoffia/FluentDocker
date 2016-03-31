@@ -134,7 +134,7 @@ namespace Ductus.FluentDocker.Extensions
 
         return processes;
       }
-      catch (Exception)
+      catch (Exception e)
       {
         return new Processes();
       }

@@ -20,7 +20,7 @@ namespace Ductus.FluentDocker.Extensions
       {
         PortBindings = ports,
         Binds = DockerVolumeMount.ToStringArray(prms.Volumes),
-        Links = prms.links.Count == 0 ? null : prms.links
+        Links = prms.Links.Count == 0 ? null : prms.Links
       };
     }
 
