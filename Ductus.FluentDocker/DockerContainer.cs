@@ -1,13 +1,10 @@
 ﻿using System;
 using System.IO;
 using System.Linq;
-using System.Threading;
 using Docker.DotNet;
 using Docker.DotNet.Models;
 using Ductus.FluentDocker.Extensions;
 using Ductus.FluentDocker.Internal;
-using SharpCompress.Common;
-using SharpCompress.Reader;
 
 namespace Ductus.FluentDocker
 {
@@ -17,6 +14,12 @@ namespace Ductus.FluentDocker
     private readonly DockerParams _prms;
     private CreateContainerResponse _container;
     private ContainerResponse _settings;
+
+    /// <summary>
+    /// Member variable to be used when <see cref="DockerParams.ExportContainerHostPath"/> is set in the
+    /// <see cref="Dispose"/> method to export the container if not client has marked <see cref="Success"/>.
+    /// </summary>
+    private bool _exceptionOccured = true;
 
     internal DockerContainer(DockerParams prms)
     {
@@ -33,6 +36,12 @@ namespace Ductus.FluentDocker
 
     public string ContainerName => _settings.Name;
 
+    public DockerContainer Success()
+    {
+      _exceptionOccured = false;
+      return this;
+    }
+
     public void Dispose()
     {
       if (_container != null)
@@ -42,12 +51,18 @@ namespace Ductus.FluentDocker
           foreach (var copy in _prms.CopyFilesWhenDisposed)
           {
             _client.CopyFromContainer(_container.Id, copy.Item2, copy.Item3);
-          }  
+          }
         }
 
         if (_prms.StopContainerOnDispose || _prms.RemoveContainerOnDispose)
         {
           _client.StopContainer(_container.Id);
+        }
+
+        if (!string.IsNullOrEmpty(_prms.ExportContainerHostPath) && _exceptionOccured)
+        {
+          // Not marked Success and export is wanted
+          ExportContainer(_prms.ExportContainerHostPath, _prms.ExportContainerHostPathExplode);
         }
 
         if (_prms.RemoveContainerOnDispose)
@@ -137,6 +152,22 @@ namespace Ductus.FluentDocker
     public Processes ContainerProcesses(string args = null)
     {
       return _client.ContainerProcesses(_container.Id, args);
+    }
+
+    /// <summary>
+    ///   Exports the container as a tar file or exploded on host filesystem.
+    /// </summary>
+    /// <param name="hostFilePath">The target hostfilepath to export to (if explode is set to true).</param>
+    /// <param name="explode">Will extract the container onto the <paramref name="hostFilePath" />.</param>
+    /// <returns>Either the tar file full path or the hostfile path to where the container was extracted to.</returns>
+    /// <remarks>
+    ///   If <paramref name="explode" /> is set to false. The returning path is a completely different path than the
+    ///   in-parameter
+    ///   <paramref name="hostFilePath" />.
+    /// </remarks>
+    public string ExportContainer(string hostFilePath, bool explode = true)
+    {
+      return _client.ExportContainer(_container.Id, hostFilePath, explode);
     }
 
     /// <summary>

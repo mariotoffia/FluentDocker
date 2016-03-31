@@ -57,5 +57,7 @@ namespace Ductus.FluentDocker.Internal
 
     internal List<Tuple<string, string, string>> CopyFilesAfterStart = new List<Tuple<string, string, string>>();
     internal List<Tuple<string, string, string>> CopyFilesWhenDisposed = new List<Tuple<string, string, string>>();
+    internal string ExportContainerHostPath;
+    internal bool ExportContainerHostPathExplode = true;
   }
 }

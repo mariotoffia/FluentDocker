@@ -1,4 +1,6 @@
-﻿using System.Diagnostics;
+﻿using System;
+using System.Diagnostics;
+using System.IO;
 using System.Linq;
 using Ductus.FluentDocker;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
@@ -18,7 +20,7 @@ namespace Ductus.FluentDockerTest
       }
     }
 
- 
+
     [TestMethod]
     public void CreatePostgresImageAndStart()
     {
@@ -74,6 +76,7 @@ namespace Ductus.FluentDockerTest
         Assert.IsTrue(proc.Rows.Any(x => x.Command == "postgres: stats collector process"));
       }
     }
+
     [TestMethod]
     public void ProcessesInContainerAndVerifyPostgresIsRunning()
     {
@@ -84,12 +87,66 @@ namespace Ductus.FluentDockerTest
             .WithEnvironment("POSTGRES_PASSWORD=mysecretpassword")
             .ExposePorts("5432")
             .WaitForPort("5432/tcp", 30000 /*30s*/)
-            .WaitForProcess("postgres",30000/*30s*/)
+            .WaitForProcess("postgres", 30000 /*30s*/)
             .Build())
       {
         container.Start();
         var proc = container.ContainerProcesses();
         Debug.WriteLine(proc.ToString());
+      }
+    }
+
+    [TestMethod]
+    public void ExportContainerWhenExceptionOccurs()
+    {
+      var rnd = Path.GetFileName(Path.GetTempFileName());
+      var exploded = Path.Combine(Directory.GetCurrentDirectory(), rnd);
+
+      try
+      {
+        using (
+          var container =
+            new DockerBuilder()
+              .WithImage("postgres:latest")
+              .WithEnvironment("POSTGRES_PASSWORD=mysecretpassword")
+              .ExposePorts("5432")
+              .WaitForPort("5432/tcp", 30000 /*30s*/)
+              .WaitForProcess("postgres", 30000 /*30s*/)
+              .WhenDisposed()
+              .ExportOnError("${PWD}/" + rnd)
+              .Build())
+        {
+          container.Start();
+          Assert.Fail("This will trigger an exception that will not set the Success and thus export the container");
+
+          // ReSharper disable once HeuristicUnreachableCode
+          container.Success();
+        }
+      }
+      catch (AssertFailedException e)
+      {
+        try
+        {
+          Assert.IsTrue(
+            e.Message.Contains(
+              "This will trigger an exception that will not set the Success and thus export the container"));
+        }
+        catch (AssertFailedException)
+        {
+          Directory.Delete(exploded, true);
+          throw;
+        }
+      }
+
+
+      try
+      {
+        var files = Directory.GetFiles(exploded).ToArray();
+        Assert.IsTrue(files.Any(x => x.Contains("docker-entrypoint.sh")));
+      }
+      finally
+      {
+        Directory.Delete(exploded, true);
       }
     }
   }

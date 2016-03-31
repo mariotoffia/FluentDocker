@@ -12,6 +12,41 @@ namespace Ductus.FluentDocker.Extensions
 {
   internal static class StreamExtensions
   {
+    internal static string ExportContainer(this DockerClient client, string id, string hostFilePath,
+      bool explode = false)
+    {
+      var tmp = Path.GetTempFileName();
+
+      try
+      {
+        hostFilePath = hostFilePath.Render().ToPlatformPath();
+        using (var stream =
+          client.Containers.ExportContainerAsync(id, CancellationToken.None).Result)
+        {
+          CopyStream(stream, tmp);
+        }
+
+        if (!explode)
+        {
+          return tmp;
+        }
+
+        Extract(tmp, hostFilePath);
+        return hostFilePath;
+      }
+      catch (Exception)
+      {
+        return null;
+      }
+      finally
+      {
+        if (explode)
+        {
+          DeleteFile(tmp);
+        }
+      }
+    }
+
     internal static string CopyFromContainer(this DockerClient client, string id, string containerFilePath,
       string hostFilePath)
     {
@@ -26,43 +61,55 @@ namespace Ductus.FluentDocker.Extensions
             new CopyFromContainerParameters {Resource = containerFilePath}, CancellationToken.None)
             .Result)
         {
-          using (var writer = File.OpenWrite(tmp))
-          {
-            stream.CopyTo(writer, 4096);
-          }
+          CopyStream(stream, tmp);
         }
 
-        using (var stream = File.OpenRead(tmp))
-        {
-          using (var reader = ReaderFactory.Open(stream))
-          {
-            while (reader.MoveToNextEntry())
-            {
-              if (!reader.Entry.IsDirectory)
-              {
-                reader.WriteEntryToDirectory(hostFilePath, ExtractOptions.ExtractFullPath | ExtractOptions.Overwrite);
-              }
-            }
-          }
-        }
-
+        Extract(tmp, hostFilePath);
         return hostFilePath;
       }
-      catch (Exception e)
+      catch (Exception)
       {
-        Debug.WriteLine(e.Message);
         return null;
       }
       finally
       {
-        try
+        DeleteFile(tmp);
+      }
+    }
+
+    private static void Extract(string file, string destPath)
+    {
+      using (var stream = File.OpenRead(file))
+      {
+        using (var reader = ReaderFactory.Open(stream))
         {
-          File.Delete(tmp);
+          while (reader.MoveToNextEntry())
+          {
+            if (!reader.Entry.IsDirectory)
+            {
+              reader.WriteEntryToDirectory(destPath, ExtractOptions.ExtractFullPath | ExtractOptions.Overwrite);
+            }
+          }
         }
-        catch (Exception)
-        {
-          // Ignore
-        }
+      }
+    } 
+    private static void CopyStream(Stream stream, string destFile)
+    {
+      using (var writer = File.OpenWrite(destFile))
+      {
+        stream.CopyTo(writer, 4096);
+      }
+    }
+
+    private static void DeleteFile(string file)
+    {
+      try
+      {
+        File.Delete(file);
+      }
+      catch (Exception)
+      {
+        // Ignore
       }
     }
   }

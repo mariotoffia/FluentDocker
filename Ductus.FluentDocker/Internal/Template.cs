@@ -19,7 +19,8 @@ namespace Ductus.FluentDocker.Internal
             var path = Path.GetTempPath();
             return path.Substring(0, path.Length - 1);
           }},
-          {"${RND}", Path.GetRandomFileName}
+          {"${RND}", Path.GetRandomFileName},
+          {"${PWD}", Directory.GetCurrentDirectory }
         };
     }
 

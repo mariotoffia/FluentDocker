@@ -17,6 +17,26 @@ namespace Ductus.FluentDocker
     }
 
     /// <summary>
+    ///   When a exception or other occurs, i.e. client havent marked <see cref="DockerContainer.Success" />
+    ///   and this option is selected, it will export the container to the host path.
+    /// </summary>
+    /// <param name="hostPath">Path to export the container to (template string allowed).</param>
+    /// <param name="explode">If it shall explode it or not.</param>
+    /// <returns>Itself for fluent access.</returns>
+    /// <remarks>
+    ///   If <paramref name="explode" /> is set to false, the tar file will be written in the temp folder
+    ///   with a random name. If explode, it is possible to select any path (even if boot2docker and not
+    ///   reachable from e.g. VirtualBox) since it will copy the file to temp folder and then untar the file
+    ///   while exploding.
+    /// </remarks>
+    public WhenDisposedBuilder ExportOnError(string hostPath, bool explode = true)
+    {
+      _prms.ExportContainerHostPath = hostPath;
+      _prms.ExportContainerHostPathExplode = explode;
+      return this;
+    }
+
+    /// <summary>
     ///   Copies a file or directory from the container onto the host before it is stopped.
     /// </summary>
     /// <param name="name">The name of the copy instruction. Can later be used to a lookup of the path.</param>
