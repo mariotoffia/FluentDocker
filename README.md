@@ -119,3 +119,43 @@ It is possible to query for running processes within the docker container. This 
       }
 ```
 This example shows a unit-test where it waits fo a certain port to be opened *and* the postgres process to be running before executing the body code. Within the method body it will get the processes and dump those onto the debug log.
+
+## Copy Files and Subdirectories from Running Docker Container
+It is possible to copy files from a running docker container to the host for inspection. It also supports using the fluent builder to copy files from the container when executing Start(). In addition it is also possible to fluently declare copy operations from the docker container to host just before the container is disposed. This is particular useful when files are needed to inspect when e.g. a unit-test via docker container has finished and it needs files to assert upon within the container.
+
+```cs
+     using (
+        var container =
+          new DockerBuilder()
+            .WithEnvironment("POSTGRES_PASSWORD=mysecretpassword")
+            .WithImage("postgres:latest")
+            .CopyFromContainer("/bin", "${TEMP}/fluentdockertest/${RND}", "test")
+            .Build().Start())
+      {
+        var path = container.GetHostCopyPath("test");
+        var files = Directory.EnumerateFiles(Path.Combine(path, "bin")).ToArray();
+        Assert.IsTrue(files.Any(x => x.EndsWith("bash")));
+      }
+```
+This example shows a unit-test where it manually copies files from the docker container to the host.
+
+```cs
+     var container =
+          new DockerBuilder()
+            .WithEnvironment("POSTGRES_PASSWORD=mysecretpassword")
+            .WithImage("postgres:latest")
+            .CopyFromContainer("/bin", "${TEMP}/fluentdockertest/${RND}", "test")
+            .Build().Start();
+```
+This example shows fluent configuration to copy files to a temp path with a random folder. The host path is accessed using ```container.GetHostCopyPath("test")```. These files are copied before Start has finished.
+
+```cs
+     var container =
+          new DockerBuilder()
+            .WithEnvironment("POSTGRES_PASSWORD=mysecretpassword")
+            .WithImage("postgres:latest")
+            .WhenDisposed()
+              .CopyFromContainer("/bin", "${TEMP}/fluentdockertest/${RND}","test")
+            .Build().Start();
+```
+This example shows fluent configuration to copy files to a temp path with a random folder just before the container is disposed. The host path is accessed using ```container.GetHostCopyPath("test")```.
