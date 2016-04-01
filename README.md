@@ -161,7 +161,7 @@ This example shows fluent configuration to copy files to a temp path with a rand
 This example shows fluent configuration to copy files to a temp path with a random folder just before the container is disposed. The host path is accessed using ```container.GetHostCopyPath("test")```.
 
 ## Exporting and extracting containers
-There are two ways of exporting and extracting a container to the host. Either manually, ```container.GetHostCopyPath("test")```, or using a ```.WhenDisposed().ExportOnError("${PWD}/${RND}"```.
+There are two ways of exporting and extracting a container to the host. Either manually, or explicitly using the container instance.
 ```cs
 using (
           var container =
