@@ -159,3 +159,25 @@ This example shows fluent configuration to copy files to a temp path with a rand
             .Build().Start();
 ```
 This example shows fluent configuration to copy files to a temp path with a random folder just before the container is disposed. The host path is accessed using ```container.GetHostCopyPath("test")```.
+
+## Exporting and extracting containers
+There are two ways of exporting and extracting a container to the host. Either manually, ```container.GetHostCopyPath("test")```, or using a ```.WhenDisposed().ExportOnError("${PWD}/${RND}"```.
+```cs
+using (
+          var container =
+            new DockerBuilder()
+              .WithImage("postgres:latest")
+              .WithEnvironment("POSTGRES_PASSWORD=mysecretpassword")
+              .ExposePorts("5432")
+              .WaitForPort("5432/tcp", 30000 /*30s*/)
+              .WaitForProcess("postgres", 30000 /*30s*/)
+              .WhenDisposed()
+              .ExportOnError("${PWD}/" + rnd)
+              .Build())
+        {
+          Assert.Fail();
+          
+          container.Success(); // Never reached and thus exported
+        }
+```
+This example will extract the container onto current path + a random directory since ```container.Sucess()``` is never set. By default it will extract the tar archive, by supply false it will just store the tar file of the container. To manually export, just use ```container.ExportContainer(string hostFilePath, bool explode = true)```.
