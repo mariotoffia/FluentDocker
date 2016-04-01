@@ -10,10 +10,11 @@ namespace Ductus.FluentDocker
   {
     private const string DefaultDockerUrl = "https://192.168.99.100:2376";
 
-    private const string DockerHost = "DOCKER_HOST";
-    private const string DockerCertPath = "DOCKER_CERT_PATH";
-    private const string DockerMachineName = "DOCKER_MACHINE_NAME";
-    private const string DockerToolboxInstallPath = "DOCKER_TOOLBOX_INSTALL_PATH";
+    internal const string DockerHost = "DOCKER_HOST";
+    internal const string DockerCertPath = "DOCKER_CERT_PATH";
+    internal const string DockerMachineName = "DOCKER_MACHINE_NAME";
+    internal const string DockerToolboxInstallPath = "DOCKER_TOOLBOX_INSTALL_PATH";
+    internal const string DockerTlsVerify = "DOCKER_TLS_VERIFY";
 
     private readonly DockerParams _prms = new DockerParams();
 

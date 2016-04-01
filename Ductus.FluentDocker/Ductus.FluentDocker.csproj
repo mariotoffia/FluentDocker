@@ -85,6 +85,7 @@
     <Compile Include="Extensions\WaitExtensions.cs" />
     <Compile Include="FluentDockerException.cs" />
     <Compile Include="Internal\DockerCertificates.cs" />
+    <Compile Include="Internal\WindowsDockerMachineRunner.cs" />
     <Compile Include="Internal\DockerParams.cs" />
     <Compile Include="Internal\DockerCertificateCredentials.cs" />
     <Compile Include="Internal\DockerVolumeMount.cs" />
