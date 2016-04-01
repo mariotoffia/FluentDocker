@@ -172,7 +172,7 @@ using (
               .WaitForPort("5432/tcp", 30000 /*30s*/)
               .WaitForProcess("postgres", 30000 /*30s*/)
               .WhenDisposed()
-               .ExportOnError("${PWD}/" + rnd)
+               .ExportOnError("${PWD}/${RND}")
               .Build())
         {
           Assert.Fail();
