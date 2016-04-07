@@ -1,9 +1,7 @@
-﻿using System;
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using Ductus.FluentDocker;
-using Ductus.FluentDocker.Internal;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace Ductus.FluentDockerTest
@@ -11,13 +9,6 @@ namespace Ductus.FluentDockerTest
   [TestClass]
   public class ContainerTests
   {
-    [TestMethod]
-    public void Test()
-    {
-      var task = new WindowsDockerMachineRunner().StartAsync(10000 /*10s*/);
-      var res = task.Result;
-    }
-
     [TestMethod]
     public void EmptyBuildAndToDockerShallWorkWhenEnvIsCorrectlySet()
     {

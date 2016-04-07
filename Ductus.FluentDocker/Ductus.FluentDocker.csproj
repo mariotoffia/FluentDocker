@@ -74,9 +74,25 @@
     <Reference Include="System.Net.Http.WebRequest" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Commands\Client.cs" />
+    <Compile Include="Commands\Machine.cs" />
     <Compile Include="DockerBuilder.cs" />
     <Compile Include="DockerContainer.cs" />
+    <Compile Include="Executors\IProcessResponseParser.cs" />
+    <Compile Include="Executors\Parsers\ClientContainerInspectCommandResponder.cs" />
+    <Compile Include="Executors\Parsers\ClientPsResponseParser.cs" />
+    <Compile Include="Executors\Parsers\MachineCreateResponseParser.cs" />
+    <Compile Include="Executors\Parsers\MachineEnvResponseParser.cs" />
+    <Compile Include="Executors\Parsers\MachineInspectResponseParser.cs" />
+    <Compile Include="Executors\Parsers\MachineLsResponseParser.cs" />
+    <Compile Include="Executors\Parsers\MachineRmResponseParser.cs" />
+    <Compile Include="Executors\Parsers\MachineStartStopResponseParser.cs" />
+    <Compile Include="Executors\Parsers\SingleStringResponseParser.cs" />
+    <Compile Include="Executors\Parsers\StringListResponseParser.cs" />
+    <Compile Include="Executors\ProcessExecutor.cs" />
+    <Compile Include="Executors\Parsers\StringProcessResponseParser.cs" />
     <Compile Include="Extensions\CrytoUtils.cs" />
+    <Compile Include="Extensions\DockerBinaryUtils.cs" />
     <Compile Include="Extensions\DockerClientExtensions.cs" />
     <Compile Include="Extensions\DockerParamsTranslations.cs" />
     <Compile Include="Extensions\OsExtensions.cs" />
@@ -84,21 +100,42 @@
     <Compile Include="Extensions\StreamExtensions.cs" />
     <Compile Include="Extensions\WaitExtensions.cs" />
     <Compile Include="FluentDockerException.cs" />
+    <Compile Include="Internal\Constants.cs" />
     <Compile Include="Internal\DockerCertificates.cs" />
     <Compile Include="Internal\WindowsDockerMachineRunner.cs" />
     <Compile Include="Internal\DockerParams.cs" />
     <Compile Include="Internal\DockerCertificateCredentials.cs" />
     <Compile Include="Internal\DockerVolumeMount.cs" />
     <Compile Include="Internal\Template.cs" />
+    <Compile Include="Model\CommandResponse.cs" />
+    <Compile Include="Model\Container.cs" />
+    <Compile Include="Model\ContainerMount.cs" />
+    <Compile Include="Model\BridgeNetwork.cs" />
+    <Compile Include="Model\ContainerNetworkSettings.cs" />
+    <Compile Include="Model\ContainerState.cs" />
+    <Compile Include="Model\DockerRunArguments.cs" />
+    <Compile Include="Model\MachineAuthConfig.cs" />
+    <Compile Include="Model\MachineConfiguration.cs" />
     <Compile Include="Processes.cs" />
     <Compile Include="ProcessRow.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="Services\IContainerService.cs" />
+    <Compile Include="Services\IHostService.cs" />
+    <Compile Include="Services\Impl\DockerContainerService.cs" />
+    <Compile Include="Services\Impl\DockerHostService.cs" />
+    <Compile Include="Services\Impl\ServiceBase.cs" />
+    <Compile Include="Services\IService.cs" />
+    <Compile Include="Services\ServiceRunningState.cs" />
+    <Compile Include="Services\StateChangeEventArgs.cs" />
     <Compile Include="WhenDisposedBuilder.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="app.config" />
+    <None Include="Commands\postgres_container.json" />
+    <None Include="Commands\postgres_image.json" />
     <None Include="packages.config" />
   </ItemGroup>
+  <ItemGroup />
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <Import Project="..\packages\Microsoft.Bcl.Build.1.0.14\tools\Microsoft.Bcl.Build.targets" Condition="Exists('..\packages\Microsoft.Bcl.Build.1.0.14\tools\Microsoft.Bcl.Build.targets')" />
   <Target Name="EnsureBclBuildImported" BeforeTargets="BeforeBuild" Condition="'$(BclBuildImported)' == ''">

@@ -3,21 +3,21 @@ using System.IO;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using Org.BouncyCastle.Crypto;
-using Org.BouncyCastle.OpenSsl;
-using X509Certificate = Org.BouncyCastle.X509.X509Certificate;
 using Org.BouncyCastle.Crypto.Parameters;
 using Org.BouncyCastle.Math;
+using Org.BouncyCastle.OpenSsl;
+using X509Certificate = Org.BouncyCastle.X509.X509Certificate;
 
 namespace Ductus.FluentDocker.Extensions
 {
-  internal static class CrytoUtils
+  public static class CrytoUtils
   {
-    internal static X509Certificate2 ToCertificate(this string dockerCertPath, string certificate)
+    public static X509Certificate2 ToCertificate(this string dockerCertPath, string certificate)
     {
       return ToCertificate(dockerCertPath, certificate, null);
     }
 
-    internal static X509Certificate2 ToCertificate(this string dockerCertPath, string certificate, string key)
+    public static X509Certificate2 ToCertificate(this string dockerCertPath, string certificate, string key)
     {
       var cert = new X509Certificate2();
       using (var reader = File.OpenText(Path.Combine(dockerCertPath, certificate)))

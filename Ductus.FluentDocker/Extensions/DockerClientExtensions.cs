@@ -6,13 +6,12 @@ using System.Linq;
 using System.Threading;
 using Docker.DotNet;
 using Docker.DotNet.Models;
+using Ductus.FluentDocker.Internal;
 
 namespace Ductus.FluentDocker.Extensions
 {
   internal static class DockerClientExtensions
   {
-    private const string DebugCategory = "Npsql.Docker";
-
     internal static CreateContainerResponse CreateContainer(this DockerClient client, CreateContainerParameters prms,
       bool pullIfMissing)
     {
@@ -53,7 +52,7 @@ namespace Ductus.FluentDocker.Extensions
         while (!strm.EndOfStream)
         {
           var line = strm.ReadLine();
-          Debugger.Log((int) TraceLevel.Verbose, DebugCategory, line);
+          Debugger.Log((int) TraceLevel.Verbose, Constants.DebugCategory, line);
         }
       }
 
@@ -134,7 +133,7 @@ namespace Ductus.FluentDocker.Extensions
 
         return processes;
       }
-      catch (Exception e)
+      catch (Exception)
       {
         return new Processes();
       }

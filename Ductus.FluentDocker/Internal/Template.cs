@@ -1,11 +1,12 @@
 ﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 
 namespace Ductus.FluentDocker.Internal
 {
-  internal static class Template
+  public static class Template
   {
     private static readonly Dictionary<string, Func<string>> Templates;
 
@@ -24,12 +25,25 @@ namespace Ductus.FluentDocker.Internal
         };
     }
 
-    internal static string Render(this string str)
+    public static string Render(this string str)
     {
-      return Templates.Keys.Where(key => -1 != str.IndexOf(key, StringComparison.Ordinal))
+     str = Templates.Keys.Where(key => -1 != str.IndexOf(key, StringComparison.Ordinal))
         .Aggregate(str, (current, key) => current.Replace(key, Templates[key]()));
+
+      return RenderEnvionment(str);
     }
 
-    // C:\Users\mario\AppData\Local\Temp
+    public static string RenderEnvionment(this string str)
+    {
+      foreach(DictionaryEntry env in Environment.GetEnvironmentVariables())
+      {
+        var tenv = "${E_" + env.Key + "}";
+        if (-1 != str.IndexOf(tenv, StringComparison.Ordinal))
+        {
+          str = str.Replace(tenv, (string)env.Value);
+        }
+      }
+      return str;
+    }
   }
 }
