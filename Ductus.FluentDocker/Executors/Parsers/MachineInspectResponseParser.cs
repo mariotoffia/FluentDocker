@@ -7,23 +7,24 @@ namespace Ductus.FluentDocker.Executors.Parsers
 {
   public sealed class MachineInspectResponseParser : IProcessResponseParser<MachineConfiguration>
   {
-    public MachineConfiguration Response { get; private set; }
+    public CommandResponse<MachineConfiguration> Response { get; private set; }
 
-    public IProcessResponse<MachineConfiguration> Process(string response)
+    public IProcessResponse<MachineConfiguration> Process(ProcessExecutionResult response)
     {
-      if (string.IsNullOrEmpty(response))
+      if (string.IsNullOrEmpty(response.StdOut))
       {
-        Response = new MachineConfiguration {AuthConfig = new MachineAuthConfig()};
+        Response = response.ToResponse(false, "No response",
+          new MachineConfiguration {AuthConfig = new MachineAuthConfig()});
         return this;
       }
 
-      var j = JObject.Parse(response);
+      var j = JObject.Parse(response.StdOut);
 
       var str = j["HostOptions"]["AuthOptions"].ToString();
       var ip = j["Driver"]["IPAddress"].Value<string>();
       var authConfig = JsonConvert.DeserializeObject<MachineAuthConfig>(str);
 
-      Response = new MachineConfiguration
+      var config = new MachineConfiguration
       {
         AuthConfig = authConfig,
         IpAddress = string.IsNullOrEmpty(ip) ? IPAddress.None : IPAddress.Parse(ip),
@@ -35,6 +36,8 @@ namespace Ductus.FluentDocker.Executors.Parsers
         CpuCount = j["Driver"]["CPU"].Value<int>(),
         StorePath = j["Driver"]["StorePath"].Value<string>()
       };
+
+      Response = response.ToResponse(true, string.Empty, config);
       return this;
     }
   }

@@ -1,9 +1,11 @@
 ﻿using System.Diagnostics;
+using System.Text;
 using Ductus.FluentDocker.Internal;
+using Ductus.FluentDocker.Model;
 
 namespace Ductus.FluentDocker.Executors
 {
-  public sealed class ProcessExecutor<T,TE> where T : IProcessResponseParser<TE>, IProcessResponse<TE>, new()
+  public sealed class ProcessExecutor<T, TE> where T : IProcessResponseParser<TE>, IProcessResponse<TE>, new()
   {
     private readonly string _app;
     private readonly string _command;
@@ -16,7 +18,7 @@ namespace Ductus.FluentDocker.Executors
       _workingdir = workingdir;
     }
 
-    public TE Execute()
+    public CommandResponse<TE> Execute()
     {
       var startInfo = new ProcessStartInfo
       {
@@ -29,17 +31,40 @@ namespace Ductus.FluentDocker.Executors
         WorkingDirectory = _workingdir
       };
 
-      Debugger.Log((int)TraceLevel.Verbose, Constants.DebugCategory, $"app: {_app} - command: {_command}");
 
-      var process = new Process {StartInfo = startInfo};
-      if (!process.Start())
+      Debugger.Log((int) TraceLevel.Verbose, Constants.DebugCategory, $"app: {_app} - command: {_command}");
+
+      using (var process = new Process {StartInfo = startInfo})
       {
-        throw new FluentDockerException($"Could not start process {_app}");
+        var output = new StringBuilder();
+        var err = new StringBuilder();
+
+        process.OutputDataReceived += (sender, args) =>
+        {
+          if (!string.IsNullOrEmpty(args.Data))
+          {
+            output.Append(args.Data);
+          }
+        };
+
+        process.ErrorDataReceived += (sender, args) =>
+        {
+          if (!string.IsNullOrEmpty(args.Data))
+          {
+            err.Append(args.Data);
+          }
+        };
+
+        if (!process.Start())
+        {
+          throw new FluentDockerException($"Could not start process {_app}");
+        }
+
+        process.WaitForExit();
+        return
+          new T().Process(new ProcessExecutionResult(process, output.ToString(), err.ToString(), process.ExitCode))
+            .Response;
       }
-
-      var s = process.StandardOutput.ReadToEnd();
-
-      return new T().Process(s).Response;
     }
   }
 }

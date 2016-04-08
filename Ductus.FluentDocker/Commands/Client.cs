@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using Ductus.FluentDocker.Executors;
 using Ductus.FluentDocker.Executors.Parsers;
 using Ductus.FluentDocker.Extensions;
@@ -8,17 +9,18 @@ namespace Ductus.FluentDocker.Commands
 {
   public static class Client
   {
-    public static CommandResponse Ps(this Uri host, string options = "--quiet", string caCertPath = null,
+    public static CommandResponse<IList<string>> Ps(this Uri host, string options = "--quiet", string caCertPath = null,
       string clientCertPath = null,
       string clientKeyPath = null)
     {
       return
-        new ProcessExecutor<ClientPsResponseParser, CommandResponse>(
+        new ProcessExecutor<StringListResponseParser, IList<string>>(
           "docker".DockerPath(),
           $"{RenderBaseArgs(host, caCertPath, clientCertPath, clientKeyPath)} ps {options}").Execute();
     }
 
-    public static string Run(this Uri host, string image, DockerRunArguments args = null, string caCertPath = null,
+    public static CommandResponse<string> Run(this Uri host, string image, DockerRunArguments args = null,
+      string caCertPath = null,
       string clientCertPath = null,
       string clientKeyPath = null)
     {
@@ -36,7 +38,8 @@ namespace Ductus.FluentDocker.Commands
           arg).Execute();
     }
 
-    public static string Stop(this Uri host, string id, TimeSpan? killTimeout = null, string caCertPath = null,
+    public static CommandResponse<string> Stop(this Uri host, string id, TimeSpan? killTimeout = null,
+      string caCertPath = null,
       string clientCertPath = null,
       string clientKeyPath = null)
     {
@@ -53,7 +56,8 @@ namespace Ductus.FluentDocker.Commands
         arg).Execute();
     }
 
-    public static string RemoveContainer(this Uri host, string id, bool force = false, bool removeVolumes = false,
+    public static CommandResponse<string> RemoveContainer(this Uri host, string id, bool force = false,
+      bool removeVolumes = false,
       string removeLink = null, string caCertPath = null,
       string clientCertPath = null,
       string clientKeyPath = null)
@@ -81,7 +85,7 @@ namespace Ductus.FluentDocker.Commands
         arg).Execute();
     }
 
-    public static Container InspectContainer(this Uri host, string id, string caCertPath = null,
+    public static CommandResponse<Container> InspectContainer(this Uri host, string id, string caCertPath = null,
       string clientCertPath = null,
       string clientKeyPath = null)
     {

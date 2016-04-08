@@ -11,34 +11,34 @@ namespace Ductus.FluentDocker.Commands
 {
   public static class Machine
   {
-    public static IList<string> Ls()
+    public static CommandResponse<IList<string>> Ls()
     {
       return new ProcessExecutor<MachineLsResponseParser, IList<string>>(
         "docker-machine".DockerPath(), "ls").Execute();
     }
 
-    public static MachineConfiguration Inspect(this string machine)
+    public static CommandResponse<MachineConfiguration> Inspect(this string machine)
     {
       return
         new ProcessExecutor<MachineInspectResponseParser, MachineConfiguration>(
           "docker-machine".DockerPath(), $"inspect {machine}").Execute();
     }
 
-    public static CommandResponse Start(this string machine)
+    public static CommandResponse<string> Start(this string machine)
     {
       return
-        new ProcessExecutor<MachineStartStopResponseParser, CommandResponse>(
+        new ProcessExecutor<MachineStartStopResponseParser, string>(
           "docker-machine".DockerPath(), $"start {machine}").Execute();
     }
 
-    public static CommandResponse Stop(this string machine)
+    public static CommandResponse<string> Stop(this string machine)
     {
       return
-        new ProcessExecutor<MachineStartStopResponseParser, CommandResponse>(
+        new ProcessExecutor<MachineStartStopResponseParser, string>(
           "docker-machine".DockerPath(), $"start {machine}").Execute();
     }
 
-    public static IDictionary<string, string> Environment(this string machine)
+    public static CommandResponse<IDictionary<string, string>> Environment(this string machine)
     {
       return
         new ProcessExecutor<MachineEnvResponseParser, IDictionary<string, string>>(
@@ -52,29 +52,29 @@ namespace Ductus.FluentDocker.Commands
     /// <param name="driver">The machine driver</param>
     /// <param name="options">The "raw" docker-machine options.</param>
     /// <returns>Creation log.</returns>
-    public static CommandResponse Create(this string machine, string driver, params string[] options)
+    public static CommandResponse<string> Create(this string machine, string driver, params string[] options)
     {
       var opts = options.Aggregate(string.Empty, (current, option) => current + $"{option} ");
       var args = string.IsNullOrEmpty(opts) ? $"create -d {driver} {machine}" : $"create -d {driver} {opts} {machine}";
 
       return
-        new ProcessExecutor<MachineCreateResponseParser, CommandResponse>(
+        new ProcessExecutor<MachineCreateResponseParser, string>(
           "docker-machine".DockerPath(),
           args).Execute();
     }
 
-    public static CommandResponse Create(this string machine, int memMb, int volumeMb, int cpuCnt,
+    public static CommandResponse<string> Create(this string machine, int memMb, int volumeMb, int cpuCnt,
       params string[] options)
     {
       return Create(machine, "virtualbox", $"--virtualbox-memory \"{memMb}\"",
         $"--virtualbox-disk-size \"{volumeMb}\"", $"--virtualbox-cpu-count \"{cpuCnt}\"");
     }
 
-    public static CommandResponse Delete(this string machine, bool force)
+    public static CommandResponse<string> Delete(this string machine, bool force)
     {
       var args = "rm -y " + (force ? "-f " : string.Empty) + machine;
       return
-        new ProcessExecutor<MachineRmResponseParser, CommandResponse>(
+        new ProcessExecutor<MachineRmResponseParser, string>(
           "docker-machine".DockerPath(),
           args).Execute();
     }
@@ -85,7 +85,7 @@ namespace Ductus.FluentDocker.Commands
         new ProcessExecutor<SingleStringResponseParser, string>(
           "docker-machine".DockerPath(), $"url {machine}").Execute();
 
-      return resp.StartsWith("Host is not running") ? null : new Uri(resp);
+      return resp.Data.StartsWith("Host is not running") ? null : new Uri(resp.Data);
     }
 
     public static ServiceRunningState Status(this string machine)
@@ -93,7 +93,12 @@ namespace Ductus.FluentDocker.Commands
       var resp = new ProcessExecutor<SingleStringResponseParser, string>(
         "docker-machine".DockerPath(), $"status {machine}").Execute();
 
-      switch (resp)
+      if (!resp.Success)
+      {
+        return ServiceRunningState.Unknown;
+      }
+
+      switch (resp.Data)
       {
         case "Stopped":
           return ServiceRunningState.Stopped;

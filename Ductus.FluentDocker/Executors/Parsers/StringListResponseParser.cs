@@ -1,17 +1,15 @@
 ﻿using System.Collections.Generic;
+using Ductus.FluentDocker.Model;
 
 namespace Ductus.FluentDocker.Executors.Parsers
 {
   public sealed class StringListResponseParser : IProcessResponseParser<IList<string>>
   {
-    public IList<string> Response { get; private set; }
+    public CommandResponse<IList<string>> Response { get; private set; }
 
-    public IProcessResponse<IList<string>> Process(string response)
+    public IProcessResponse<IList<string>> Process(ProcessExecutionResult response)
     {
-      var list = string.IsNullOrEmpty(response) ? new List<string>() : new List<string>(response.Split('\n'));
-      list.RemoveAll(string.IsNullOrWhiteSpace);
-
-      Response = list;
+      Response = response.ToResponse(true, string.Empty, (IList<string>) new List<string>(response.StdOutAsArry));
       return this;
     }
   }

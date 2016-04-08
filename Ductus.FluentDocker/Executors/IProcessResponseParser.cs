@@ -1,12 +1,14 @@
-﻿namespace Ductus.FluentDocker.Executors
+﻿using Ductus.FluentDocker.Model;
+
+namespace Ductus.FluentDocker.Executors
 {
-  public interface IProcessResponse<out T>
+  public interface IProcessResponse<T>
   {
-    T Response { get; }
+    CommandResponse<T> Response { get; }
   }
 
-  public interface IProcessResponseParser<out T> : IProcessResponse<T>
+  public interface IProcessResponseParser<T> : IProcessResponse<T>
   {
-    IProcessResponse<T> Process(string response);
+    IProcessResponse<T> Process(ProcessExecutionResult response);
   }
 }

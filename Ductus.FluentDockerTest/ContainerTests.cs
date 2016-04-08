@@ -10,6 +10,7 @@ namespace Ductus.FluentDockerTest
   public class ContainerTests
   {
     [TestMethod]
+    [Ignore]
     public void EmptyBuildAndToDockerShallWorkWhenEnvIsCorrectlySet()
     {
       var builder = new DockerBuilder();
@@ -21,6 +22,7 @@ namespace Ductus.FluentDockerTest
 
 
     [TestMethod]
+    [Ignore]
     public void CreatePostgresImageAndStart()
     {
       using (
@@ -35,6 +37,7 @@ namespace Ductus.FluentDockerTest
     }
 
     [TestMethod]
+    [Ignore]
     public void CreatePostgresImageAndVerifyOpenPort()
     {
       // to try out manually - docker exec -it pgsql sh -c 'exec psql -U postgres'
@@ -52,6 +55,7 @@ namespace Ductus.FluentDockerTest
     }
 
     [TestMethod]
+    [Ignore]
     public void ProcessesInContainerAndManuallyVerifyPostgresIsRunning()
     {
       using (
@@ -77,6 +81,7 @@ namespace Ductus.FluentDockerTest
     }
 
     [TestMethod]
+    [Ignore]
     public void ProcessesInContainerAndVerifyPostgresIsRunning()
     {
       using (
@@ -96,6 +101,7 @@ namespace Ductus.FluentDockerTest
     }
 
     [TestMethod]
+    [Ignore]
     public void ExportContainerWhenExceptionOccurs()
     {
       var rnd = Path.GetFileName(Path.GetTempFileName());

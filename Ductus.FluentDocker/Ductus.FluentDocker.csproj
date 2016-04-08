@@ -80,7 +80,6 @@
     <Compile Include="DockerContainer.cs" />
     <Compile Include="Executors\IProcessResponseParser.cs" />
     <Compile Include="Executors\Parsers\ClientContainerInspectCommandResponder.cs" />
-    <Compile Include="Executors\Parsers\ClientPsResponseParser.cs" />
     <Compile Include="Executors\Parsers\MachineCreateResponseParser.cs" />
     <Compile Include="Executors\Parsers\MachineEnvResponseParser.cs" />
     <Compile Include="Executors\Parsers\MachineInspectResponseParser.cs" />
@@ -89,8 +88,8 @@
     <Compile Include="Executors\Parsers\MachineStartStopResponseParser.cs" />
     <Compile Include="Executors\Parsers\SingleStringResponseParser.cs" />
     <Compile Include="Executors\Parsers\StringListResponseParser.cs" />
+    <Compile Include="Executors\ProcessExecutionResult.cs" />
     <Compile Include="Executors\ProcessExecutor.cs" />
-    <Compile Include="Executors\Parsers\StringProcessResponseParser.cs" />
     <Compile Include="Extensions\CrytoUtils.cs" />
     <Compile Include="Extensions\DockerBinaryUtils.cs" />
     <Compile Include="Extensions\DockerClientExtensions.cs" />

@@ -12,6 +12,7 @@ namespace Ductus.FluentDockerTest
     private const string Html = "<html><head>Hello World</head><body><h1>Hello world</h1></body></html>";
 
     [TestMethod]
+    [Ignore]
     public void TestBindReadWriteSingleVolumeOnNgix()
     {
       using (
@@ -48,6 +49,7 @@ namespace Ductus.FluentDockerTest
     }
 
     [TestMethod]
+    [Ignore]
     public void CopyBinDirToHostManually()
     {
       using (
@@ -67,6 +69,7 @@ namespace Ductus.FluentDockerTest
     }
 
     [TestMethod]
+    [Ignore]
     public void CopyBinDirToHostBeforeStarting()
     {
       using (
@@ -87,6 +90,7 @@ namespace Ductus.FluentDockerTest
     }
 
     [TestMethod]
+    [Ignore]
     public void CopyBinDirToHostBeforeDisposed()
     {
       DockerContainer container;

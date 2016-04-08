@@ -1,19 +1,19 @@
-﻿using System.Collections.Generic;
-using System.Linq;
+﻿using System.Linq;
 using Ductus.FluentDocker.Model;
 
 namespace Ductus.FluentDocker.Executors.Parsers
 {
-  public sealed class MachineStartStopResponseParser : IProcessResponseParser<CommandResponse>
+  public sealed class MachineStartStopResponseParser : IProcessResponseParser<string>
   {
-    public CommandResponse Response { get; private set; }
+    public CommandResponse<string> Response { get; private set; }
 
-    public IProcessResponse<CommandResponse> Process(string response)
+    public IProcessResponse<string> Process(ProcessExecutionResult response)
     {
-      var log = string.IsNullOrEmpty(response) ? new List<string>() : new List<string>(response.Split('\n'));
-      bool success = log.All(line => !line.StartsWith("Host does not exist") && !line.StartsWith("Incorrect Usage."));
+      var success =
+        response.StdOutAsArry.All(
+          line => !line.StartsWith("Host does not exist") && !line.StartsWith("Incorrect Usage."));
 
-      Response = new CommandResponse(success, log);
+      Response = response.ToResponse(success, string.Empty, string.Empty);
       return this;
     }
   }

@@ -7,6 +7,7 @@ namespace Ductus.FluentDockerTest
   public class PostgresMsTests : PostgresTestBase
   {
     [TestMethod]
+    [Ignore]
     public void RunningContainerAndConnectionStringSetWithinTestMethod()
     {
       Assert.IsNotNull(Container);

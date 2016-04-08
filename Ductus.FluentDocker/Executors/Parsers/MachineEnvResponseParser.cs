@@ -1,22 +1,22 @@
 ﻿using System.Collections.Generic;
+using Ductus.FluentDocker.Model;
 
 namespace Ductus.FluentDocker.Executors.Parsers
 {
   public sealed class MachineEnvResponseParser : IProcessResponseParser<IDictionary<string, string>>
   {
-    public IDictionary<string, string> Response { get; private set; }
+    public CommandResponse<IDictionary<string, string>> Response { get; private set; }
 
-    public IProcessResponse<IDictionary<string, string>> Process(string response)
+    public IProcessResponse<IDictionary<string, string>> Process(ProcessExecutionResult response)
     {
       var dict = new Dictionary<string, string>();
-      if (string.IsNullOrEmpty(response))
+      if (string.IsNullOrEmpty(response.StdOut))
       {
-        Response = dict;
+        Response = response.ToResponse(false, "No data", (IDictionary<string, string>) dict);
         return this;
       }
 
-      var lines = response.Split('\n');
-
+      var lines = response.StdOutAsArry;
       foreach (var line in lines)
       {
         if (line.StartsWith("export") || line.StartsWith("SET "))
@@ -30,7 +30,7 @@ namespace Ductus.FluentDocker.Executors.Parsers
         }
       }
 
-      Response = dict;
+      Response = response.ToResponse(true, string.Empty, (IDictionary<string, string>) dict);
       return this;
     }
   }

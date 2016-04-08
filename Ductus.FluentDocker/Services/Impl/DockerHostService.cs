@@ -59,7 +59,7 @@ namespace Ductus.FluentDocker.Services.Impl
       // Machine - do inspect & get url
       Host = name.Uri();
 
-      var info = name.Inspect();
+      var info = name.Inspect().Data;
       RequireTls = info.RequireTls;
 
       ClientCaCertificate =

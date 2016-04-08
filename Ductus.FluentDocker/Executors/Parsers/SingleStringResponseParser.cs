@@ -1,12 +1,18 @@
-﻿namespace Ductus.FluentDocker.Executors.Parsers
+﻿using Ductus.FluentDocker.Model;
+
+namespace Ductus.FluentDocker.Executors.Parsers
 {
   public sealed class SingleStringResponseParser : IProcessResponseParser<string>
   {
-    public string Response { get; private set; }
-    public IProcessResponse<string> Process(string response)
+    public CommandResponse<string> Response { get; private set; }
+    public IProcessResponse<string> Process(ProcessExecutionResult response)
     {
-      var s = response.Split('\n');
-      Response = s[0];
+      var arr = response.StdOutAsArry;
+
+      Response = arr.Length == 0
+        ? response.ToResponse(false, "No line", string.Empty)
+        : response.ToResponse(true, string.Empty, arr[0]);
+
       return this;
     }
   }

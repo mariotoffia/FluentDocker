@@ -1,21 +1,21 @@
 ﻿using Ductus.FluentDocker.Model;
 using Newtonsoft.Json;
-using Newtonsoft.Json.Linq;
 
 namespace Ductus.FluentDocker.Executors.Parsers
 {
   public sealed class ClientContainerInspectCommandResponder : IProcessResponseParser<Container>
   {
-    public Container Response { get; private set; }
-    public IProcessResponse<Container> Process(string response)
+    public CommandResponse<Container> Response { get; private set; }
+
+    public IProcessResponse<Container> Process(ProcessExecutionResult response)
     {
-      if (string.IsNullOrEmpty(response))
+      if (string.IsNullOrEmpty(response.StdOut))
       {
-        Response = new Container();
+        Response = response.ToResponse(false, "Empty response", new Container());
         return this;
       }
 
-      Response = JsonConvert.DeserializeObject<Container>(response);
+      Response = response.ToResponse(true, string.Empty, JsonConvert.DeserializeObject<Container>(response.StdOut));
       return this;
     }
   }

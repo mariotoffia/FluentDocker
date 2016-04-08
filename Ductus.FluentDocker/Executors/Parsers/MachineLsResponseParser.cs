@@ -1,29 +1,25 @@
 ﻿using System.Collections.Generic;
+using Ductus.FluentDocker.Model;
 
 namespace Ductus.FluentDocker.Executors.Parsers
 {
-  public class MachineLsResponseParser : IProcessResponseParser<IList<string/*machine-name*/>>
+  public class MachineLsResponseParser : IProcessResponseParser<IList<string /*machine-name*/>>
   {
-    public IList<string> Response { get; private set; }
-    public IProcessResponse<IList<string>> Process(string response)
+    public CommandResponse<IList<string>> Response { get; private set; }
+
+    public IProcessResponse<IList<string>> Process(ProcessExecutionResult response)
     {
       var list = new List<string>();
-
-      var rows = response.Split('\n');
+      var rows = response.StdOutAsArry;
       if (rows.Length > 2)
       {
-        for (int i = 1; i < rows.Length;i++)
+        for (var i = 1; i < rows.Length; i++)
         {
-          if (string.IsNullOrEmpty(rows[i]))
-          {
-            break;
-          }
-
-          list.Add(rows[i].Substring(0,rows[i].IndexOf(' ')));
+          list.Add(rows[i].Substring(0, rows[i].IndexOf(' ')));
         }
       }
 
-      Response = list;
+      Response = response.ToResponse(true, string.Empty, (IList<string>) list);
       return this;
     }
   }

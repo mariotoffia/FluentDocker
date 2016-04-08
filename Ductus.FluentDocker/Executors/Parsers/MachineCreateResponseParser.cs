@@ -4,15 +4,17 @@ using Ductus.FluentDocker.Model;
 
 namespace Ductus.FluentDocker.Executors.Parsers
 {
-  public sealed class MachineCreateResponseParser : IProcessResponseParser<CommandResponse>
+  public sealed class MachineCreateResponseParser : IProcessResponseParser<string>
   {
-    public CommandResponse Response { get; private set; }
-    public IProcessResponse<CommandResponse> Process(string response)
-    {
-      var log = string.IsNullOrEmpty(response) ? new List<string>() : new List<string>(response.Split('\n'));
-      bool success = log.All(line => !line.StartsWith("Error") && !line.StartsWith("Can't remove") && !line.StartsWith("Incorrect Usage."));
+    public CommandResponse<string> Response { get; private set; }
 
-      Response = new CommandResponse(success, log);
+    public IProcessResponse<string> Process(ProcessExecutionResult response)
+    {
+      bool success =
+        response.StdOutAsArry.All(
+          line => !line.StartsWith("Error") && !line.StartsWith("Can't remove") && !line.StartsWith("Incorrect Usage."));
+
+      Response = response.ToResponse(success, "Error Creating Machine", string.Empty);
       return this;
     }
   }
