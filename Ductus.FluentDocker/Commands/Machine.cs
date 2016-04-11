@@ -11,10 +11,10 @@ namespace Ductus.FluentDocker.Commands
 {
   public static class Machine
   {
-    public static CommandResponse<IList<string>> Ls()
+    public static CommandResponse<IList<MachineLsResponse>> Ls()
     {
-      return new ProcessExecutor<MachineLsResponseParser, IList<string>>(
-        "docker-machine".DockerPath(), "ls").Execute();
+      return new ProcessExecutor<MachineLsResponseParser, IList<MachineLsResponse>>(
+        "docker-machine".DockerPath(), "ls --format=\"{{.Name}};{{.State}};{{.URL}}\"").Execute();
     }
 
     public static CommandResponse<MachineConfiguration> Inspect(this string machine)
@@ -35,7 +35,7 @@ namespace Ductus.FluentDocker.Commands
     {
       return
         new ProcessExecutor<MachineStartStopResponseParser, string>(
-          "docker-machine".DockerPath(), $"start {machine}").Execute();
+          "docker-machine".DockerPath(), $"stop {machine}").Execute();
     }
 
     public static CommandResponse<IDictionary<string, string>> Environment(this string machine)

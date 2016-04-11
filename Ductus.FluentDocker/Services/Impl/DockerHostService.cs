@@ -1,9 +1,11 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Security.Cryptography.X509Certificates;
 using Ductus.FluentDocker.Commands;
 using Ductus.FluentDocker.Extensions;
+using Ductus.FluentDocker.Model;
 
 namespace Ductus.FluentDocker.Services.Impl
 {
@@ -15,11 +17,11 @@ namespace Ductus.FluentDocker.Services.Impl
     private const string DefaultCaCertName = "ca.pem";
     private const string DefaultClientCertName = "cert.pem";
     private const string DefaultClientKeyName = "key.pem";
-    private readonly string _caCertPath;
-    private readonly string _clientCertPath;
-    private readonly string _clientKeyPath;
 
     private readonly bool _stopWhenDisposed;
+    private string _caCertPath;
+    private string _clientCertPath;
+    private string _clientKeyPath;
 
     public DockerHostService(string name, bool isNative, bool stopWhenDisposed = false, string dockerUri = null,
       string certificatePath = null)
@@ -57,6 +59,125 @@ namespace Ductus.FluentDocker.Services.Impl
       }
 
       // Machine - do inspect & get url
+      MachineSetup(name);
+    }
+
+    public override void Dispose()
+    {
+      if (_stopWhenDisposed && !IsNative)
+      {
+        Name.Stop();
+      }
+    }
+
+    public override void Start()
+    {
+      if (!IsNative)
+      {
+        throw new InvalidOperationException($"Cannot start docker host {Name} since it is native");
+      }
+
+      if (State != ServiceRunningState.Stopped)
+      {
+        throw new InvalidOperationException($"Cannot start docker host {Name} since it has state {State}");
+      }
+
+      var response = Name.Start();
+      if (!response.Success)
+      {
+        throw new InvalidOperationException($"Could not start docker host {Name}");
+      }
+
+      if (!IsNative)
+      {
+        MachineSetup(Name);
+      }
+    }
+
+    public override void Stop()
+    {
+      if (!IsNative)
+      {
+        throw new InvalidOperationException($"Cannot stop docker host {Name} since it is native");
+      }
+
+      if (State != ServiceRunningState.Running)
+      {
+        throw new InvalidOperationException($"Cannot stop docker host {Name} since it has state {State}");
+      }
+
+      var response = Name.Stop();
+      if (!response.Success)
+      {
+        throw new InvalidOperationException($"Could not stop docker host {Name}");
+      }
+    }
+
+    public override void Remove(bool force = false)
+    {
+      if (!IsNative)
+      {
+        throw new InvalidOperationException($"Cannot remove docker host {Name} since it is native");
+      }
+
+      if (State == ServiceRunningState.Running && !force)
+      {
+        throw new InvalidOperationException(
+          $"Cannot remove docker host {Name} since it has state {State} and force is not enabled");
+      }
+
+      var response = Name.Delete(force);
+      if (!response.Success)
+      {
+        throw new InvalidOperationException($"Could not remove docker host {Name}");
+      }
+    }
+
+    public Uri Host { get; private set; }
+    public bool IsNative { get; }
+    public bool RequireTls { get; private set; }
+    public X509Certificate2 ClientCertificate { get; }
+    public X509Certificate2 ClientCaCertificate { get; private set; }
+
+    public IList<IContainerService> RunningContainers => GetContainers(false);
+
+    public IList<IContainerService> GetContainers(bool all = true, string filter = null)
+    {
+      var options = string.Empty;
+      if (all)
+      {
+        options += " --all";
+      }
+
+      if (string.IsNullOrEmpty(filter))
+      {
+        options += $" --filter={filter}";
+      }
+
+      var result = Host.Ps(options, _caCertPath, _clientCertPath, _clientKeyPath);
+      if (!result.Success)
+      {
+        return new List<IContainerService>();
+      }
+
+      return (from id in result.Data
+        let config = Host.InspectContainer(id, _clientCertPath, _clientCertPath, _clientKeyPath)
+        select new DockerContainerService(config.Data.Name, id, Host, new CertificatePaths
+        {
+          CaCertificate = _caCertPath,
+          ClientKey = _clientKeyPath,
+          ClientCertificate = _clientCertPath
+        })).Cast<IContainerService>().ToList();
+    }
+
+    private void MachineSetup(string name)
+    {
+      State = name.Status();
+      if (State == ServiceRunningState.Running)
+      {
+        return;
+      }
+
       Host = name.Uri();
 
       var info = name.Inspect().Data;
@@ -70,66 +191,9 @@ namespace Ductus.FluentDocker.Services.Impl
           .ToCertificate(Path.GetFileName(info.AuthConfig.ClientCertPath),
             Path.GetFileName(info.AuthConfig.ClientKeyPath));
 
-      State = name.Status();
-
       _caCertPath = info.AuthConfig.CaCertPath;
       _clientCertPath = info.AuthConfig.ClientCertPath;
       _clientKeyPath = info.AuthConfig.ClientKeyPath;
-    }
-
-    public override void Dispose()
-    {
-      if (_stopWhenDisposed && !IsNative)
-      {
-        Name.Stop();
-      }
-    }
-
-    public override void Start()
-    {
-      if (State != ServiceRunningState.Stopped)
-      {
-        throw new InvalidOperationException($"Cannot start docker host {Name} since it has state {State}");
-      }
-
-      var response = Name.Start();
-      if (!response.Success)
-      {
-        throw new InvalidOperationException($"Could not start docker host {Name}");
-      }
-    }
-
-    public Uri Host { get; }
-    public bool IsNative { get; }
-    public bool RequireTls { get; }
-    public X509Certificate2 ClientCertificate { get; }
-    public X509Certificate2 ClientCaCertificate { get; }
-
-    public IList<IContainerService> RunningContainers => GetContainers(false);
-
-    public IList<IContainerService> GetContainers(bool all = true, string filter = null)
-    {
-      var options = "--quiet";
-      if (all)
-      {
-        options += " --all";
-      }
-
-      if (string.IsNullOrEmpty(filter))
-      {
-        options += $"--filter=[{filter}]";
-      }
-
-      var result = Host.Ps(options, _caCertPath, _clientCertPath, _clientKeyPath);
-      if (!result.Success)
-      {
-        return new List<IContainerService>();
-      }
-
-      var config = Host.InspectContainer(result.Log[0], _clientCertPath, _clientCertPath, _clientKeyPath);
-      // TODO: Create ContainerService from the config retrieved.
-
-      throw new NotImplementedException();
     }
   }
 }

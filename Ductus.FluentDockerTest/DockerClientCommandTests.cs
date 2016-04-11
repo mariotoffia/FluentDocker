@@ -1,5 +1,7 @@
 ﻿using System;
+using System.Linq;
 using Ductus.FluentDocker.Commands;
+using Ductus.FluentDocker.Model;
 using Ductus.FluentDocker.Services;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
@@ -12,18 +14,28 @@ namespace Ductus.FluentDockerTest
     private static string _clientCertPath;
     private static string _clientKeyPath;
     private static Uri _docker;
+    private static bool _createdTestMachine;
+
     [ClassInitialize]
     public static void Initialize(TestContext ctx)
     {
-      var status = "test-machine".Status();
-      if (status != ServiceRunningState.Running)
+      var machineName = "test-machine";
+
+      var machines = Machine.Ls();
+      if (machines.Success && machines.Data.Any(x => x.Name == "default"))
       {
-        "test-machine".Create(1024, 20000, 1);
+        machineName = "default";
+      }
+      else
+      {
+        machineName.Create(1024, 20000, 1);
+        _createdTestMachine = true;
       }
 
-      var inspect = "test-machine".Inspect().Data;
+      machineName.Start();
+      var inspect = machineName.Inspect().Data;
 
-      _docker = "test-machine".Uri();
+      _docker = machineName.Uri();
       _caCertPath = inspect.AuthConfig.CaCertPath;
       _clientCertPath = inspect.AuthConfig.ClientCertPath;
       _clientKeyPath = inspect.AuthConfig.ClientKeyPath;
@@ -32,7 +44,10 @@ namespace Ductus.FluentDockerTest
     [ClassCleanup]
     public static void TearDown()
     {
-      //"test-machine".Delete(true /*force*/);
+      if (_createdTestMachine)
+      {
+        "test-machine".Delete(true /*force*/);
+      }
     }
 
     [TestMethod]
@@ -46,6 +61,89 @@ namespace Ductus.FluentDockerTest
 
         id = cmd.Data;
         Assert.IsTrue(!string.IsNullOrWhiteSpace(id));
+        Assert.AreEqual(64, id.Length);
+      }
+      finally
+      {
+        if (null != id)
+        {
+          _docker.RemoveContainer(id, true, true, null, _caCertPath, _clientCertPath, _clientKeyPath);
+        }
+      }
+    }
+
+    [TestMethod]
+    public void RemoveContainerShallSucceed()
+    {
+      string id = null;
+      try
+      {
+        var cmd = _docker.Run("nginx:latest", null, _caCertPath, _clientCertPath, _clientKeyPath);
+        Assert.IsTrue(cmd.Success);
+
+        id = cmd.Data;
+        Assert.IsTrue(!string.IsNullOrWhiteSpace(id));
+        Assert.AreEqual(64, id.Length);
+
+        var rm = _docker.RemoveContainer(id, true, true, null, _caCertPath, _clientCertPath, _clientKeyPath);
+        Assert.IsTrue(rm.Success);
+        Assert.AreEqual(id, rm.Data);
+      }
+      finally
+      {
+        if (null != id)
+        {
+          _docker.RemoveContainer(id, true, true, null, _caCertPath, _clientCertPath, _clientKeyPath);
+        }
+      }
+
+    }
+
+
+    [TestMethod]
+    public void DockerPsWithOneContainerShallGiveOneResult()
+    {
+      string id = null;
+      try
+      {
+        var cmd = _docker.Run("nginx:latest", null, _caCertPath, _clientCertPath, _clientKeyPath);
+        Assert.IsTrue(cmd.Success);
+
+        id = cmd.Data;
+        Assert.IsTrue(!string.IsNullOrWhiteSpace(id));
+        Assert.AreEqual(64, id.Length);
+
+        var ls = _docker.Ps(null, _caCertPath, _clientCertPath, _clientKeyPath);
+        Assert.IsTrue(ls.Success);
+        Assert.AreEqual(1,ls.Data.Count);
+        Assert.IsTrue(id.StartsWith(ls.Data[0]));
+      }
+      finally
+      {
+        if (null != id)
+        {
+          _docker.RemoveContainer(id, true, true, null, _caCertPath, _clientCertPath, _clientKeyPath);
+        }
+      }
+    }
+
+    [TestMethod]
+    public void InspectRunningContainerShallSucceed()
+    {
+      string id = null;
+      try
+      {
+        var cmd = _docker.Run("nginx:latest", null, _caCertPath, _clientCertPath, _clientKeyPath);
+        Assert.IsTrue(cmd.Success);
+
+        id = cmd.Data;
+        Assert.IsTrue(!string.IsNullOrWhiteSpace(id));
+        Assert.AreEqual(64, id.Length);
+
+        var inspect = _docker.InspectContainer(id, _caCertPath, _clientCertPath, _clientKeyPath);
+        Assert.IsTrue(inspect.Success);
+        Assert.IsTrue(inspect.Data.Name.Length > 2);
+        Assert.AreEqual(true, inspect.Data.State.Running);
       }
       finally
       {

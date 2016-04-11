@@ -1,5 +1,8 @@
-﻿using Ductus.FluentDocker.Model;
+﻿using System;
+using System.Text;
+using Ductus.FluentDocker.Model;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 
 namespace Ductus.FluentDocker.Executors.Parsers
 {
@@ -15,7 +18,15 @@ namespace Ductus.FluentDocker.Executors.Parsers
         return this;
       }
 
-      Response = response.ToResponse(true, string.Empty, JsonConvert.DeserializeObject<Container>(response.StdOut));
+      var arr = response.StdOutAsArry;
+      var sb = new StringBuilder();
+      for (int i = 1; i < arr.Length - 1; i++)
+      {
+        sb.AppendLine(arr[i]);
+      }
+
+      var container = sb.ToString();
+      Response = response.ToResponse(true, string.Empty, JsonConvert.DeserializeObject<Container>(container));
       return this;
     }
   }

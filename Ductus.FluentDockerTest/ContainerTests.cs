@@ -7,6 +7,7 @@ using Microsoft.VisualStudio.TestTools.UnitTesting;
 namespace Ductus.FluentDockerTest
 {
   [TestClass]
+  [Ignore]
   public class ContainerTests
   {
     [TestMethod]

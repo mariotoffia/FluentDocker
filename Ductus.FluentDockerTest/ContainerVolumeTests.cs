@@ -7,6 +7,7 @@ using Microsoft.VisualStudio.TestTools.UnitTesting;
 namespace Ductus.FluentDockerTest
 {
   [TestClass]
+  [Ignore]
   public class ContainerVolumeTests
   {
     private const string Html = "<html><head>Hello World</head><body><h1>Hello world</h1></body></html>";

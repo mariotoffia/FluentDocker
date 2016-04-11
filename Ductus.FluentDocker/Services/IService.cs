@@ -12,6 +12,8 @@ namespace Ductus.FluentDocker.Services
     string Name { get; }
     ServiceRunningState State { get; }
     void Start();
+    void Stop();
+    void Remove(bool force = false);
 
     event ServiceDelegates.StateChange StateChange;
   }

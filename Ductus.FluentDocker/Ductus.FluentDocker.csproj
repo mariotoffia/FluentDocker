@@ -106,6 +106,7 @@
     <Compile Include="Internal\DockerCertificateCredentials.cs" />
     <Compile Include="Internal\DockerVolumeMount.cs" />
     <Compile Include="Internal\Template.cs" />
+    <Compile Include="Model\CertificatePaths.cs" />
     <Compile Include="Model\CommandResponse.cs" />
     <Compile Include="Model\Container.cs" />
     <Compile Include="Model\ContainerMount.cs" />
@@ -115,6 +116,7 @@
     <Compile Include="Model\DockerRunArguments.cs" />
     <Compile Include="Model\MachineAuthConfig.cs" />
     <Compile Include="Model\MachineConfiguration.cs" />
+    <Compile Include="Model\MachineLsResponse.cs" />
     <Compile Include="Processes.cs" />
     <Compile Include="ProcessRow.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
@@ -132,6 +134,7 @@
     <None Include="app.config" />
     <None Include="Commands\postgres_container.json" />
     <None Include="Commands\postgres_image.json" />
+    <None Include="Executors\Parsers\container_inspect.json" />
     <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup />

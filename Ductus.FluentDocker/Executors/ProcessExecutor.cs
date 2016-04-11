@@ -24,7 +24,7 @@ namespace Ductus.FluentDocker.Executors
       {
         CreateNoWindow = true,
         RedirectStandardOutput = true,
-        RedirectStandardInput = true,
+        RedirectStandardError = true,
         UseShellExecute = false,
         Arguments = _command,
         FileName = _app,
@@ -43,7 +43,7 @@ namespace Ductus.FluentDocker.Executors
         {
           if (!string.IsNullOrEmpty(args.Data))
           {
-            output.Append(args.Data);
+            output.AppendLine(args.Data);
           }
         };
 
@@ -51,7 +51,7 @@ namespace Ductus.FluentDocker.Executors
         {
           if (!string.IsNullOrEmpty(args.Data))
           {
-            err.Append(args.Data);
+            err.AppendLine(args.Data);
           }
         };
 
@@ -60,7 +60,11 @@ namespace Ductus.FluentDocker.Executors
           throw new FluentDockerException($"Could not start process {_app}");
         }
 
+        process.BeginOutputReadLine();
+        process.BeginErrorReadLine();
+
         process.WaitForExit();
+
         return
           new T().Process(new ProcessExecutionResult(process, output.ToString(), err.ToString(), process.ExitCode))
             .Response;

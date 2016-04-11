@@ -1,5 +1,7 @@
-﻿using System.Net;
+﻿using System.Linq;
+using System.Net;
 using Ductus.FluentDocker.Commands;
+using Ductus.FluentDocker.Services;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace Ductus.FluentDockerTest
@@ -14,6 +16,9 @@ namespace Ductus.FluentDockerTest
       {
         var res = "test-machine".Create(1024, 20000, 1);
         Assert.AreEqual(true, res.Success);
+
+        var start = "test-machine".Start();
+        Assert.AreEqual(true, start.Success);
 
         var inspect = "test-machine".Inspect().Data;
         Assert.AreEqual(1024, inspect.MemorySizeMb);
@@ -48,6 +53,31 @@ namespace Ductus.FluentDockerTest
         "test-machine".Delete(true /*force*/);
       }
     }
+
+    [TestMethod]
+    public void MachineLsWhenRunningContainerShallReturnStateAndValidUrl()
+    {
+      try
+      {
+        var res = "test-machine".Create(1024, 20000, 1);
+        Assert.AreEqual(true, res.Success);
+
+        var ls = Machine.Ls();
+        Assert.IsTrue(ls.Success);
+
+        var machines = ls.Data;
+        Assert.IsTrue(machines.Count > 0);
+
+        var testMachine = ls.Data.First(x => x.Name == "test-machine");
+        Assert.AreEqual(ServiceRunningState.Running, testMachine.State);
+        Assert.IsNotNull(testMachine.Docker);
+      }
+      finally
+      {
+        "test-machine".Delete(true /*force*/);
+      }
+    }
+
 
     [TestMethod]
     public void CreateAndStartStopDockerMachineShallSucceed()

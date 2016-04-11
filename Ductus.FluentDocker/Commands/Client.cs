@@ -9,10 +9,20 @@ namespace Ductus.FluentDocker.Commands
 {
   public static class Client
   {
-    public static CommandResponse<IList<string>> Ps(this Uri host, string options = "--quiet", string caCertPath = null,
+    public static CommandResponse<IList<string>> Ps(this Uri host,string options = null, string caCertPath = null,
       string clientCertPath = null,
       string clientKeyPath = null)
     {
+      if (string.IsNullOrEmpty(options))
+      {
+        options = "--quiet";
+      }
+
+      if (-1 == options.IndexOf("--quiet", StringComparison.Ordinal))
+      {
+        options += " --quiet";
+      }
+
       return
         new ProcessExecutor<StringListResponseParser, IList<string>>(
           "docker".DockerPath(),
@@ -38,6 +48,12 @@ namespace Ductus.FluentDocker.Commands
           arg).Execute();
     }
 
+    public static CommandResponse<string> Stop(this Uri host, string id, TimeSpan? killTimeout = null, CertificatePaths certificates = null)
+    {
+      return Stop(host, id, killTimeout, certificates?.CaCertificate,
+        certificates?.ClientCertificate, certificates?.ClientKey);
+    }
+
     public static CommandResponse<string> Stop(this Uri host, string id, TimeSpan? killTimeout = null,
       string caCertPath = null,
       string clientCertPath = null,
@@ -54,6 +70,14 @@ namespace Ductus.FluentDocker.Commands
       return new ProcessExecutor<SingleStringResponseParser, string>(
         "docker".DockerPath(),
         arg).Execute();
+    }
+
+    public static CommandResponse<string> RemoveContainer(this Uri host, string id, bool force = false,
+      bool removeVolumes = false,
+      string removeLink = null, CertificatePaths certificates = null)
+    {
+      return RemoveContainer(host, id, force, removeVolumes, removeLink, certificates?.CaCertificate,
+        certificates?.ClientCertificate, certificates?.ClientKey);
     }
 
     public static CommandResponse<string> RemoveContainer(this Uri host, string id, bool force = false,
