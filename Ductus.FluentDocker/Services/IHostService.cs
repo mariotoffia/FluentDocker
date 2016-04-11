@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Security.Cryptography.X509Certificates;
+using Ductus.FluentDocker.Model;
 
 namespace Ductus.FluentDocker.Services
 {
@@ -45,5 +46,17 @@ namespace Ductus.FluentDocker.Services
     IList<IContainerService> RunningContainers { get; }
 
     IList<IContainerService> GetContainers(bool all = true, string filter = null);
+
+    /// <summary>
+    /// Creates a new container (not started).
+    /// </summary>
+    /// <param name="image">The image to base the container from.</param>
+    /// <param name="command">Optionally a command to run when it is started.</param>
+    /// <param name="args">Optionally a set of parameters to go with the <see cref="command"/> when started.</param>
+    /// <param name="prms">Optionally paramters to configure the container.</param>
+    /// <returns>A service reflecting the newly created container.</returns>
+    /// <exception cref="FluentDockerException">If error occurs.</exception>
+    IContainerService Create(string image, string command = null,
+      string[] args = null, ContainerCreateParams prms = null);
   }
 }

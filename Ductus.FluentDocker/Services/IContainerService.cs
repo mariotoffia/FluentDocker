@@ -1,4 +1,5 @@
 ﻿using System;
+using Ductus.FluentDocker.Model;
 
 namespace Ductus.FluentDocker.Services
 {
@@ -7,5 +8,10 @@ namespace Ductus.FluentDocker.Services
     string Id { get; }
 
     Uri DockerHost { get; }
+
+    /// <summary>
+    /// Gets the configuration from the docker host for this container.
+    /// </summary>
+    Container Configuration { get; }
   }
 }

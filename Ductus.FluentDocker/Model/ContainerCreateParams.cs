@@ -5,7 +5,7 @@ using System.Text;
 
 namespace Ductus.FluentDocker.Model
 {
-  public sealed class DockerRunArguments
+  public sealed class ContainerCreateParams
   {
     /// <summary>
     ///   Add a custom host-to-IP mapping (host:ip).

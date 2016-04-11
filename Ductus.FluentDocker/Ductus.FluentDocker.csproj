@@ -94,6 +94,7 @@
     <Compile Include="Extensions\DockerBinaryUtils.cs" />
     <Compile Include="Extensions\DockerClientExtensions.cs" />
     <Compile Include="Extensions\DockerParamsTranslations.cs" />
+    <Compile Include="Extensions\ModelExtensions.cs" />
     <Compile Include="Extensions\OsExtensions.cs" />
     <Compile Include="Extensions\SettingsExtensions.cs" />
     <Compile Include="Extensions\StreamExtensions.cs" />
@@ -113,7 +114,7 @@
     <Compile Include="Model\BridgeNetwork.cs" />
     <Compile Include="Model\ContainerNetworkSettings.cs" />
     <Compile Include="Model\ContainerState.cs" />
-    <Compile Include="Model\DockerRunArguments.cs" />
+    <Compile Include="Model\ContainerCreateParams.cs" />
     <Compile Include="Model\MachineAuthConfig.cs" />
     <Compile Include="Model\MachineConfiguration.cs" />
     <Compile Include="Model\MachineLsResponse.cs" />

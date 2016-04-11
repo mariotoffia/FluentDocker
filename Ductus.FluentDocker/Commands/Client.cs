@@ -9,7 +9,7 @@ namespace Ductus.FluentDocker.Commands
 {
   public static class Client
   {
-    public static CommandResponse<IList<string>> Ps(this Uri host,string options = null, string caCertPath = null,
+    public static CommandResponse<IList<string>> Ps(this Uri host, string options = null, string caCertPath = null,
       string clientCertPath = null,
       string clientKeyPath = null)
     {
@@ -29,7 +29,37 @@ namespace Ductus.FluentDocker.Commands
           $"{RenderBaseArgs(host, caCertPath, clientCertPath, clientKeyPath)} ps {options}").Execute();
     }
 
-    public static CommandResponse<string> Run(this Uri host, string image, DockerRunArguments args = null,
+    public static CommandResponse<string> Create(this Uri host, string image, string command = null,
+      string[] args = null, ContainerCreateParams prms = null, CertificatePaths certificates = null)
+    {
+      var certArgs = RenderBaseArgs(host, certificates?.CaCertificate, certificates?.ClientCertificate,
+        certificates?.ClientKey);
+
+      var arg = $"{certArgs} create";
+      if (null != prms)
+      {
+        arg += " " + prms;
+      }
+
+      arg += " " + image;
+
+      if (!string.IsNullOrEmpty(command))
+      {
+        arg += $" {command}";
+      }
+
+      if (null != args && 0 != args.Length)
+      {
+        arg += " " + string.Join(" ", args);
+      }
+
+      return
+        new ProcessExecutor<SingleStringResponseParser, string>(
+          "docker".DockerPath(),
+          arg).Execute();
+    }
+
+    public static CommandResponse<string> Run(this Uri host, string image, ContainerCreateParams args = null,
       string caCertPath = null,
       string clientCertPath = null,
       string clientKeyPath = null)
@@ -48,12 +78,24 @@ namespace Ductus.FluentDocker.Commands
           arg).Execute();
     }
 
-    public static CommandResponse<string> Stop(this Uri host, string id, TimeSpan? killTimeout = null, CertificatePaths certificates = null)
+    public static CommandResponse<string> Stop(this Uri host, string id, TimeSpan? killTimeout = null,
+      CertificatePaths certificates = null)
     {
       return Stop(host, id, killTimeout, certificates?.CaCertificate,
         certificates?.ClientCertificate, certificates?.ClientKey);
     }
 
+    public static CommandResponse<IList<string>> Start(this Uri host, string id, CertificatePaths certificates = null)
+    {
+      var certArgs = RenderBaseArgs(host, certificates?.CaCertificate, certificates?.ClientCertificate,
+       certificates?.ClientKey);
+
+      return
+        new ProcessExecutor<StringListResponseParser, IList<string>>(
+          "docker".DockerPath(),
+          $"{certArgs} start {id}").Execute();
+
+    }
     public static CommandResponse<string> Stop(this Uri host, string id, TimeSpan? killTimeout = null,
       string caCertPath = null,
       string clientCertPath = null,
@@ -107,6 +149,13 @@ namespace Ductus.FluentDocker.Commands
       return new ProcessExecutor<SingleStringResponseParser, string>(
         "docker".DockerPath(),
         arg).Execute();
+    }
+
+    public static CommandResponse<Container> InspectContainer(this Uri host, string id,
+      CertificatePaths certificates = null)
+    {
+      return InspectContainer(host, id, certificates?.CaCertificate, certificates?.ClientCertificate,
+        certificates?.ClientKey);
     }
 
     public static CommandResponse<Container> InspectContainer(this Uri host, string id, string caCertPath = null,

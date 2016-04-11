@@ -161,13 +161,43 @@ namespace Ductus.FluentDocker.Services.Impl
       }
 
       return (from id in result.Data
-        let config = Host.InspectContainer(id, _clientCertPath, _clientCertPath, _clientKeyPath)
-        select new DockerContainerService(config.Data.Name, id, Host, new CertificatePaths
-        {
-          CaCertificate = _caCertPath,
-          ClientKey = _clientKeyPath,
-          ClientCertificate = _clientCertPath
-        })).Cast<IContainerService>().ToList();
+        let config = Host.InspectContainer(id, _clientCertPath, _clientCertPath, _clientKeyPath).Data
+        select
+          new DockerContainerService(config.Name, id, Host, config.State.ToServiceState(),
+            new CertificatePaths
+            {
+              CaCertificate = _caCertPath,
+              ClientKey = _clientKeyPath,
+              ClientCertificate = _clientCertPath
+            })).Cast<IContainerService>().ToList();
+    }
+
+    public IContainerService Create(string image, string command = null,
+      string[] args = null, ContainerCreateParams prms = null)
+    {
+      var res = Host.Create(image, command, args, prms);
+      if (!res.Success || 0 == res.Data.Length)
+      {
+        throw new FluentDockerException(
+          $"Could not create Service from {image} with command {command}, args {args}, and parameters {prms}");
+      }
+
+      var certificates = new CertificatePaths
+      {
+        CaCertificate = _caCertPath,
+        ClientKey = _clientKeyPath,
+        ClientCertificate = _clientCertPath
+      };
+
+      var config = Host.InspectContainer(res.Data, certificates);
+      if (!config.Success)
+      {
+        throw new FluentDockerException(
+          $"Could not return service for docker id {res.Data} - Container was created, you have to manually delete it or do a Ls");
+      }
+
+      return new DockerContainerService(config.Data.Name, res.Data, Host, config.Data.State.ToServiceState(),
+        certificates);
     }
 
     private void MachineSetup(string name)
