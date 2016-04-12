@@ -21,7 +21,7 @@ namespace Ductus.FluentDocker.Model
     public string IPPrefixLen { get; set; }
     public string IPv6Gateway { get; set; }
     public string MacAddress { get; set; }
-    public Dictionary<string, string> Ports { get; set; }
+    public Dictionary<string, HostIpEndpoint> Ports { get; set; }
     public Dictionary<string, BridgeNetwork> Networks { get; set; }
   }
 }

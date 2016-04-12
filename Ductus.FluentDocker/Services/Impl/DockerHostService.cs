@@ -11,9 +11,10 @@ namespace Ductus.FluentDocker.Services.Impl
 {
   public sealed class DockerHostService : ServiceBase, IHostService
   {
-    private const string DockerHost = "DOCKER_HOST";
-    private const string DockerCertPath = "DOCKER_CERT_PATH";
-    private const string DockerTlsVerify = "DOCKER_TLS_VERIFY";
+    internal const string DockerHost = "DOCKER_HOST";
+    internal const string DockerCertPath = "DOCKER_CERT_PATH";
+    internal const string DockerTlsVerify = "DOCKER_TLS_VERIFY";
+
     private const string DefaultCaCertName = "ca.pem";
     private const string DefaultClientCertName = "cert.pem";
     private const string DefaultClientKeyName = "key.pem";

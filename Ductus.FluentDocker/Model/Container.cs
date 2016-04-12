@@ -13,6 +13,7 @@
     public string [] Args { get; set; }
     public ContainerState State { get; set; }
     public ContainerMount[] Mounts { get; set; } 
+    public ContainerConfig Config { get; set; }
     public ContainerNetworkSettings NetworkSettings { get; set; }
   }
 }

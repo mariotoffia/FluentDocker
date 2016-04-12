@@ -100,6 +100,7 @@
     <Compile Include="Extensions\StreamExtensions.cs" />
     <Compile Include="Extensions\WaitExtensions.cs" />
     <Compile Include="FluentDockerException.cs" />
+    <Compile Include="Hosts.cs" />
     <Compile Include="Internal\Constants.cs" />
     <Compile Include="Internal\DockerCertificates.cs" />
     <Compile Include="Internal\WindowsDockerMachineRunner.cs" />
@@ -110,14 +111,17 @@
     <Compile Include="Model\CertificatePaths.cs" />
     <Compile Include="Model\CommandResponse.cs" />
     <Compile Include="Model\Container.cs" />
+    <Compile Include="Model\ContainerConfig.cs" />
     <Compile Include="Model\ContainerMount.cs" />
     <Compile Include="Model\BridgeNetwork.cs" />
     <Compile Include="Model\ContainerNetworkSettings.cs" />
     <Compile Include="Model\ContainerState.cs" />
     <Compile Include="Model\ContainerCreateParams.cs" />
+    <Compile Include="Model\HostIpEndpoint.cs" />
     <Compile Include="Model\MachineAuthConfig.cs" />
     <Compile Include="Model\MachineConfiguration.cs" />
     <Compile Include="Model\MachineLsResponse.cs" />
+    <Compile Include="Model\VolumeMount.cs" />
     <Compile Include="Processes.cs" />
     <Compile Include="ProcessRow.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
@@ -133,8 +137,6 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="app.config" />
-    <None Include="Commands\postgres_container.json" />
-    <None Include="Commands\postgres_image.json" />
     <None Include="Executors\Parsers\container_inspect.json" />
     <None Include="packages.config" />
   </ItemGroup>
