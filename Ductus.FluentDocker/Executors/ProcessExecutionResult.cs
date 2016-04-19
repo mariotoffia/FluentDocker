@@ -31,6 +31,17 @@ namespace Ductus.FluentDocker.Executors
       }
 
       return new CommandResponse<T>(success, log, error, data);
+    }
+
+    public CommandResponse<T> ToErrorResponse<T>(T data)
+    {
+      var err = this.StdErr;
+      if (string.IsNullOrWhiteSpace(err))
+      {
+        err = $"Error when executing command, exit code {ExitCode}";
+      }
+
+      return ToResponse(false, err, data);
     } 
   }
 }

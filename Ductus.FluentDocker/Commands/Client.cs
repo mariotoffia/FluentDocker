@@ -60,6 +60,13 @@ namespace Ductus.FluentDocker.Commands
     }
 
     public static CommandResponse<string> Run(this Uri host, string image, ContainerCreateParams args = null,
+      CertificatePaths certificates = null)
+    {
+      return Run(host, image, args, certificates?.CaCertificate, certificates?.ClientCertificate,
+        certificates?.ClientKey);
+    }
+
+    public static CommandResponse<string> Run(this Uri host, string image, ContainerCreateParams args = null,
       string caCertPath = null,
       string clientCertPath = null,
       string clientKeyPath = null)
@@ -88,14 +95,14 @@ namespace Ductus.FluentDocker.Commands
     public static CommandResponse<IList<string>> Start(this Uri host, string id, CertificatePaths certificates = null)
     {
       var certArgs = RenderBaseArgs(host, certificates?.CaCertificate, certificates?.ClientCertificate,
-       certificates?.ClientKey);
+        certificates?.ClientKey);
 
       return
         new ProcessExecutor<StringListResponseParser, IList<string>>(
           "docker".DockerPath(),
           $"{certArgs} start {id}").Execute();
-
     }
+
     public static CommandResponse<string> Stop(this Uri host, string id, TimeSpan? killTimeout = null,
       string caCertPath = null,
       string clientCertPath = null,
@@ -151,6 +158,14 @@ namespace Ductus.FluentDocker.Commands
         arg).Execute();
     }
 
+    public static CommandResponse<Processes> Top(this Uri host, string id, CertificatePaths certificates = null)
+    {
+      var arg =
+        $"{RenderBaseArgs(host, certificates?.CaCertificate, certificates?.ClientCertificate, certificates?.ClientKey)} top {id}";
+      return new ProcessExecutor<ClientTopResponseParser, Processes>("docker".DockerPath(),
+        arg).Execute();
+    }
+
     public static CommandResponse<Container> InspectContainer(this Uri host, string id,
       CertificatePaths certificates = null)
     {
@@ -164,6 +179,15 @@ namespace Ductus.FluentDocker.Commands
     {
       return new ProcessExecutor<ClientContainerInspectCommandResponder, Container>("docker".DockerPath(),
         $"{RenderBaseArgs(host, caCertPath, clientCertPath, clientKeyPath)} inspect {id}").Execute();
+    }
+
+    public static CommandResponse<string> Export(this Uri host, string id, string fqFilePath,
+      CertificatePaths certificates)
+    {
+      var arg =
+        $"{RenderBaseArgs(host, certificates?.CaCertificate, certificates?.ClientCertificate, certificates?.ClientKey)} export";
+      return new ProcessExecutor<NoLineResponseParser, string>("docker".DockerPath(),
+        $"{arg} -o {fqFilePath} {id}").Execute();
     }
 
     private static string RenderBaseArgs(Uri host, string caCertPath = null, string clientCertPath = null,

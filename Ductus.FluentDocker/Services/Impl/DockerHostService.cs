@@ -73,7 +73,7 @@ namespace Ductus.FluentDocker.Services.Impl
 
     public override void Start()
     {
-      if (!IsNative)
+      if (IsNative)
       {
         throw new InvalidOperationException($"Cannot start docker host {Name} since it is native");
       }
@@ -173,10 +173,17 @@ namespace Ductus.FluentDocker.Services.Impl
             })).Cast<IContainerService>().ToList();
     }
 
-    public IContainerService Create(string image, string command = null,
-      string[] args = null, ContainerCreateParams prms = null)
+    public IContainerService Create(string image, ContainerCreateParams prms = null,
+      bool stopOnDispose = true, bool deleteOnDispose = true,
+      string command = null, string[] args = null)
     {
-      var res = Host.Create(image, command, args, prms);
+      var res = Host.Create(image, command, args, prms, new CertificatePaths
+      {
+        CaCertificate = _caCertPath,
+        ClientKey = _clientKeyPath,
+        ClientCertificate = _clientCertPath
+      });
+
       if (!res.Success || 0 == res.Data.Length)
       {
         throw new FluentDockerException(
@@ -197,14 +204,14 @@ namespace Ductus.FluentDocker.Services.Impl
           $"Could not return service for docker id {res.Data} - Container was created, you have to manually delete it or do a Ls");
       }
 
-      return new DockerContainerService(config.Data.Name, res.Data, Host, config.Data.State.ToServiceState(),
-        certificates);
+      return new DockerContainerService(config.Data.Name.Substring(1), res.Data, Host, config.Data.State.ToServiceState(), 
+        certificates, stopOnDispose, deleteOnDispose);
     }
 
     private void MachineSetup(string name)
     {
       State = name.Status();
-      if (State == ServiceRunningState.Running)
+      if (State != ServiceRunningState.Running)
       {
         return;
       }

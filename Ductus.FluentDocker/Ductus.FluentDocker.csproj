@@ -80,6 +80,8 @@
     <Compile Include="DockerContainer.cs" />
     <Compile Include="Executors\IProcessResponseParser.cs" />
     <Compile Include="Executors\Parsers\ClientContainerInspectCommandResponder.cs" />
+    <Compile Include="Executors\Parsers\NoLineResponseParser.cs" />
+    <Compile Include="Executors\Parsers\ClientTopResponseParser.cs" />
     <Compile Include="Executors\Parsers\MachineCreateResponseParser.cs" />
     <Compile Include="Executors\Parsers\MachineEnvResponseParser.cs" />
     <Compile Include="Executors\Parsers\MachineInspectResponseParser.cs" />
@@ -90,17 +92,18 @@
     <Compile Include="Executors\Parsers\StringListResponseParser.cs" />
     <Compile Include="Executors\ProcessExecutionResult.cs" />
     <Compile Include="Executors\ProcessExecutor.cs" />
+    <Compile Include="Extensions\CompressionExtensions.cs" />
     <Compile Include="Extensions\CrytoUtils.cs" />
     <Compile Include="Extensions\DockerBinaryUtils.cs" />
     <Compile Include="Extensions\DockerClientExtensions.cs" />
     <Compile Include="Extensions\DockerParamsTranslations.cs" />
     <Compile Include="Extensions\ModelExtensions.cs" />
+    <Compile Include="Extensions\NetworkExtensions.cs" />
     <Compile Include="Extensions\OsExtensions.cs" />
     <Compile Include="Extensions\SettingsExtensions.cs" />
     <Compile Include="Extensions\StreamExtensions.cs" />
     <Compile Include="Extensions\WaitExtensions.cs" />
     <Compile Include="FluentDockerException.cs" />
-    <Compile Include="Hosts.cs" />
     <Compile Include="Internal\Constants.cs" />
     <Compile Include="Internal\DockerCertificates.cs" />
     <Compile Include="Internal\WindowsDockerMachineRunner.cs" />
@@ -121,10 +124,12 @@
     <Compile Include="Model\MachineAuthConfig.cs" />
     <Compile Include="Model\MachineConfiguration.cs" />
     <Compile Include="Model\MachineLsResponse.cs" />
+    <Compile Include="Model\Processes.cs" />
+    <Compile Include="Model\ProcessRow.cs" />
+    <Compile Include="Model\TemplateString.cs" />
     <Compile Include="Model\VolumeMount.cs" />
-    <Compile Include="Processes.cs" />
-    <Compile Include="ProcessRow.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="Services\Hosts.cs" />
     <Compile Include="Services\IContainerService.cs" />
     <Compile Include="Services\IHostService.cs" />
     <Compile Include="Services\Impl\DockerContainerService.cs" />
@@ -137,7 +142,6 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="app.config" />
-    <None Include="Executors\Parsers\container_inspect.json" />
     <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup />

@@ -32,6 +32,12 @@ namespace Ductus.FluentDocker.Extensions
         return ServiceRunningState.Paused;
       }
 
+      var status = state.Status?.ToLower() ?? string.Empty;
+      if (status == "created")
+      {
+        return ServiceRunningState.Stopped;
+      }
+
       return ServiceRunningState.Unknown;
     }
   }

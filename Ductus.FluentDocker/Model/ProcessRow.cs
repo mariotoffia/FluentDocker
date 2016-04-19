@@ -1,10 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Globalization;
-using System.Linq;
-using System.Runtime.Remoting.Messaging;
 
-namespace Ductus.FluentDocker
+namespace Ductus.FluentDocker.Model
 {
   public sealed class ProcessRow
   {

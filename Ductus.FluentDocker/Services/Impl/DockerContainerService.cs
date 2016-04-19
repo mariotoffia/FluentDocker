@@ -1,5 +1,8 @@
 ﻿using System;
+using System.IO;
+using System.Net;
 using Ductus.FluentDocker.Commands;
+using Ductus.FluentDocker.Extensions;
 using Ductus.FluentDocker.Model;
 
 namespace Ductus.FluentDocker.Services.Impl
@@ -9,10 +12,11 @@ namespace Ductus.FluentDocker.Services.Impl
     private readonly CertificatePaths _certificates;
     private readonly bool _removeOnDispose;
     private readonly bool _stopOnDispose;
+    private Container _containerConfigCache;
 
     public DockerContainerService(string name, string id, Uri docker, ServiceRunningState state,
       CertificatePaths certificates,
-      bool stopOnDispose = false, bool removeOnDispose = false) : base(name)
+      bool stopOnDispose = true, bool removeOnDispose = true) : base(name)
     {
       _certificates = certificates;
       _stopOnDispose = stopOnDispose;
@@ -25,7 +29,53 @@ namespace Ductus.FluentDocker.Services.Impl
 
     public string Id { get; }
     public Uri DockerHost { get; }
-    public Container Configuration => DockerHost.InspectContainer(Id, _certificates).Data;
+
+    public Container GetConfiguration(bool fresh = false)
+    {
+      if (!fresh && null != _containerConfigCache)
+      {
+        return _containerConfigCache;
+      }
+
+      _containerConfigCache = DockerHost.InspectContainer(Id, _certificates).Data;
+      return _containerConfigCache;
+    }
+
+    public IPEndPoint ToHosExposedtPort(string portAndProto)
+    {
+      return GetConfiguration()?.NetworkSettings.Ports.ToHostPort(portAndProto, DockerHost);
+    }
+
+    public Processes GetRunningProcesses()
+    {
+      return DockerHost.Top(Id, _certificates).Data;
+    }
+
+    public string Export(TemplateString fqPath, bool explode = false)
+    {
+      string path = explode ? Path.GetTempFileName() : fqPath;
+      var result = DockerHost.Export(Id, path, _certificates);
+      if (!result.Success)
+      {
+        return null;
+      }
+
+      if (!explode)
+      {
+        return path;
+      }
+
+      try
+      {
+        path.UnTar(fqPath);
+      }
+      finally
+      {
+        File.Delete(path);
+      }
+
+      return fqPath;
+    }
 
     public override void Dispose()
     {
@@ -49,7 +99,7 @@ namespace Ductus.FluentDocker.Services.Impl
     {
       State = ServiceRunningState.Starting;
       DockerHost.Start(Id, _certificates);
-      if (Configuration.State.Running)
+      if (GetConfiguration().State.Running)
       {
         State = ServiceRunningState.Running;
       }
@@ -58,8 +108,8 @@ namespace Ductus.FluentDocker.Services.Impl
     public override void Stop()
     {
       State = ServiceRunningState.Stopping;
-      DockerHost.Stop(Id, null, _certificates);
-      if (Configuration.State.Dead)
+      var res = DockerHost.Stop(Id, null, _certificates);
+      if (res.Success)
       {
         State = ServiceRunningState.Stopped;
       }

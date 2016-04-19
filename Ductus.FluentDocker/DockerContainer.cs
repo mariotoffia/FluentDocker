@@ -5,6 +5,7 @@ using Docker.DotNet;
 using Docker.DotNet.Models;
 using Ductus.FluentDocker.Extensions;
 using Ductus.FluentDocker.Internal;
+using Ductus.FluentDocker.Model;
 
 namespace Ductus.FluentDocker
 {

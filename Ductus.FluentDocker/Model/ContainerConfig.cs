@@ -10,7 +10,7 @@ namespace Ductus.FluentDocker.Model
     public bool AttachStdin { get; set; }
     public bool AttachStdout { get; set; }
     public bool AttachStderr { get; set; }
-    public IDictionary<string/*port/proto*/,HostIpEndpoint> ExposedPorts { get; set; } 
+    public IDictionary<string/*port/proto*/, object> ExposedPorts { get; set; } 
     public bool Tty { get; set; }
     public bool OpenStdin { get; set; }
     public bool StdinOnce { get; set; }

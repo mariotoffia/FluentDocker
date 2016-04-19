@@ -2,10 +2,9 @@
 using System.Collections.Generic;
 using System.Linq;
 using Ductus.FluentDocker.Commands;
-using Ductus.FluentDocker.Services;
 using Ductus.FluentDocker.Services.Impl;
 
-namespace Ductus.FluentDocker
+namespace Ductus.FluentDocker.Services
 {
   public sealed class Hosts
   {
@@ -22,7 +21,7 @@ namespace Ductus.FluentDocker
       list.AddRange(from machine in ls.Data
         let inspect = machine.Name.Inspect()
         select
-          new DockerHostService(machine.Name, false, false, machine.Docker.ToString(), inspect.Data.AuthConfig.CertDir));
+          new DockerHostService(machine.Name, false, false, machine.Docker?.ToString(), inspect.Data.AuthConfig.CertDir));
 
       var dockerHost = Environment.GetEnvironmentVariable(DockerHostService.DockerHost);
       if (string.IsNullOrEmpty(dockerHost))

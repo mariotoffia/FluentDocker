@@ -1,6 +1,8 @@
 ﻿using System;
+using System.Diagnostics;
 using System.Linq;
 using Ductus.FluentDocker.Commands;
+using Ductus.FluentDocker.Extensions;
 using Ductus.FluentDocker.Model;
 using Ductus.FluentDocker.Services;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
@@ -13,6 +15,7 @@ namespace Ductus.FluentDockerTest
     private static string _caCertPath;
     private static string _clientCertPath;
     private static string _clientKeyPath;
+    private static CertificatePaths _certificates;
     private static Uri _docker;
     private static bool _createdTestMachine;
 
@@ -39,6 +42,13 @@ namespace Ductus.FluentDockerTest
       _caCertPath = inspect.AuthConfig.CaCertPath;
       _clientCertPath = inspect.AuthConfig.ClientCertPath;
       _clientKeyPath = inspect.AuthConfig.ClientKeyPath;
+
+      _certificates = new CertificatePaths
+      {
+        CaCertificate = _caCertPath,
+        ClientCertificate = _clientCertPath,
+        ClientKey = _clientKeyPath
+      };
     }
 
     [ClassCleanup]
@@ -150,6 +160,54 @@ namespace Ductus.FluentDockerTest
         if (null != id)
         {
           _docker.RemoveContainer(id, true, true, null, _caCertPath, _clientCertPath, _clientKeyPath);
+        }
+      }
+    }
+
+    [TestMethod]
+    public void RunPostgresContainerAndCheckThatAllProcessesAreRunning()
+    {
+      string id = null;
+      try
+      {
+        var cmd = _docker.Run("postgres:latest", new ContainerCreateParams
+        {
+          PortMappings = new[] {"40001:5432"},
+          Environment = new[] {"POSTGRES_PASSWORD=mysecretpassword"}
+        }, _certificates);
+
+        Assert.IsTrue(cmd.Success);
+
+        id = cmd.Data;
+        Assert.IsTrue(!string.IsNullOrWhiteSpace(id));
+        Assert.AreEqual(64, id.Length);
+
+        var config = _docker.InspectContainer(id, _certificates);
+        Assert.IsTrue(config.Success);
+        Assert.AreEqual(true, config.Data.State.Running);
+
+        var endpoint = config.Data.NetworkSettings.Ports.ToHostPort("5432/tcp", _docker);
+        endpoint.WaitForPort(10000 /*10s*/);
+
+        var ls = _docker.Top(id, _certificates);
+        Assert.IsTrue(ls.Success);
+
+        var proc = ls.Data;
+        Debug.WriteLine(proc.ToString());
+
+        Assert.AreEqual(6, ls.Data.Rows.Count);
+        Assert.IsTrue(proc.Rows.Any(x => x.Command == "postgres"));
+        Assert.IsTrue(proc.Rows.Any(x => x.Command == "postgres: checkpointer process"));
+        Assert.IsTrue(proc.Rows.Any(x => x.Command == "postgres: writer process"));
+        Assert.IsTrue(proc.Rows.Any(x => x.Command == "postgres: wal writer process"));
+        Assert.IsTrue(proc.Rows.Any(x => x.Command == "postgres: autovacuum launcher process"));
+        Assert.IsTrue(proc.Rows.Any(x => x.Command == "postgres: stats collector process"));
+      }
+      finally
+      {
+        if (null != id)
+        {
+          _docker.RemoveContainer(id, true, true, null, _certificates);
         }
       }
     }
