@@ -4,7 +4,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 
-namespace Ductus.FluentDocker.Model
+namespace Ductus.FluentDocker.Model.Common
 {
   public sealed class TemplateString
   {
@@ -15,13 +15,15 @@ namespace Ductus.FluentDocker.Model
       Templates =
         new Dictionary<string, Func<string>>
         {
-          {"${TEMP}", () =>
           {
-            var path = Path.GetTempPath();
-            return path.Substring(0, path.Length - 1);
-          }},
+            "${TEMP}", () =>
+            {
+              var path = Path.GetTempPath();
+              return path.Substring(0, path.Length - 1);
+            }
+          },
           {"${RND}", Path.GetRandomFileName},
-          {"${PWD}", Directory.GetCurrentDirectory }
+          {"${PWD}", Directory.GetCurrentDirectory}
         };
     }
 
@@ -37,7 +39,7 @@ namespace Ductus.FluentDocker.Model
     private static string Render(string str)
     {
       str = Templates.Keys.Where(key => -1 != str.IndexOf(key, StringComparison.Ordinal))
-         .Aggregate(str, (current, key) => current.Replace(key, Templates[key]()));
+        .Aggregate(str, (current, key) => current.Replace(key, Templates[key]()));
 
       return RenderEnvionment(str);
     }
@@ -49,7 +51,7 @@ namespace Ductus.FluentDocker.Model
         var tenv = "${E_" + env.Key + "}";
         if (-1 != str.IndexOf(tenv, StringComparison.Ordinal))
         {
-          str = str.Replace(tenv, (string)env.Value);
+          str = str.Replace(tenv, (string) env.Value);
         }
       }
       return str;

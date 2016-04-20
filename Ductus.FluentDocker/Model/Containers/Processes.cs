@@ -1,7 +1,7 @@
 ﻿using System.Collections.Generic;
 using System.Text;
 
-namespace Ductus.FluentDocker.Model
+namespace Ductus.FluentDocker.Model.Containers
 {
   public sealed class Processes
   {

@@ -1,6 +1,6 @@
-﻿using System.Collections.Generic;
-using System.Linq;
+﻿using System.Linq;
 using Ductus.FluentDocker.Model;
+using Ductus.FluentDocker.Model.Containers;
 
 namespace Ductus.FluentDocker.Executors.Parsers
 {
@@ -10,9 +10,11 @@ namespace Ductus.FluentDocker.Executors.Parsers
 
     public IProcessResponse<string> Process(ProcessExecutionResult response)
     {
-      bool success =
-        response.StdOutAsArry.All(
-          line => !line.StartsWith("Error") && !line.StartsWith("Can't remove") && !line.StartsWith("Incorrect Usage."));
+      var success = response.ExitCode != 0 ||
+                    response.StdOutAsArry.All(
+                      line =>
+                        !line.StartsWith("Error") && !line.StartsWith("Can't remove") &&
+                        !line.StartsWith("Incorrect Usage."));
 
       Response = response.ToResponse(success, "Error Creating Machine", string.Empty);
       return this;

@@ -2,6 +2,7 @@
 using System.Text;
 using Ductus.FluentDocker.Internal;
 using Ductus.FluentDocker.Model;
+using Ductus.FluentDocker.Model.Containers;
 
 namespace Ductus.FluentDocker.Executors
 {

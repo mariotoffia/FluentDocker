@@ -6,6 +6,7 @@ using System.Security.Cryptography.X509Certificates;
 using Ductus.FluentDocker.Commands;
 using Ductus.FluentDocker.Extensions;
 using Ductus.FluentDocker.Model;
+using Ductus.FluentDocker.Model.Containers;
 
 namespace Ductus.FluentDocker.Services.Impl
 {
@@ -187,7 +188,7 @@ namespace Ductus.FluentDocker.Services.Impl
       if (!res.Success || 0 == res.Data.Length)
       {
         throw new FluentDockerException(
-          $"Could not create Service from {image} with command {command}, args {args}, and parameters {prms}");
+          $"Could not create Service from {image} with command {command}, args {args}, and parameters {prms}. Result: {res}");
       }
 
       var certificates = new CertificatePaths

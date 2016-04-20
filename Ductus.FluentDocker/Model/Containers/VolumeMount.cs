@@ -1,6 +1,6 @@
 ﻿using System.Text;
 
-namespace Ductus.FluentDocker.Model
+namespace Ductus.FluentDocker.Model.Containers
 {
   public sealed class VolumeMount
   {
@@ -10,7 +10,7 @@ namespace Ductus.FluentDocker.Model
     public string Source { get; set; }
 
     /// <summary>
-    ///   Inside docker container path in linux format.
+    ///   Inside docker container path in MSYS or linux compatible format.
     /// </summary>
     public string Destination { get; set; }
 

@@ -4,6 +4,7 @@ using System.Linq;
 using Ductus.FluentDocker.Commands;
 using Ductus.FluentDocker.Extensions;
 using Ductus.FluentDocker.Model;
+using Ductus.FluentDocker.Model.Containers;
 using Ductus.FluentDocker.Services;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
@@ -66,7 +67,7 @@ namespace Ductus.FluentDockerTest
       string id = null;
       try
       {
-        var cmd =_docker.Run("nginx:latest", null, _caCertPath, _clientCertPath, _clientKeyPath);
+        var cmd =_docker.Run("nginx:latest", null, _certificates);
         Assert.IsTrue(cmd.Success);
 
         id = cmd.Data;
@@ -77,7 +78,7 @@ namespace Ductus.FluentDockerTest
       {
         if (null != id)
         {
-          _docker.RemoveContainer(id, true, true, null, _caCertPath, _clientCertPath, _clientKeyPath);
+          _docker.RemoveContainer(id, true, true, null, _certificates);
         }
       }
     }
@@ -88,14 +89,14 @@ namespace Ductus.FluentDockerTest
       string id = null;
       try
       {
-        var cmd = _docker.Run("nginx:latest", null, _caCertPath, _clientCertPath, _clientKeyPath);
+        var cmd = _docker.Run("nginx:latest", null, _certificates);
         Assert.IsTrue(cmd.Success);
 
         id = cmd.Data;
         Assert.IsTrue(!string.IsNullOrWhiteSpace(id));
         Assert.AreEqual(64, id.Length);
 
-        var rm = _docker.RemoveContainer(id, true, true, null, _caCertPath, _clientCertPath, _clientKeyPath);
+        var rm = _docker.RemoveContainer(id, true, true, null, _certificates);
         Assert.IsTrue(rm.Success);
         Assert.AreEqual(id, rm.Data);
       }
@@ -103,12 +104,10 @@ namespace Ductus.FluentDockerTest
       {
         if (null != id)
         {
-          _docker.RemoveContainer(id, true, true, null, _caCertPath, _clientCertPath, _clientKeyPath);
+          _docker.RemoveContainer(id, true, true, null, _certificates);
         }
       }
-
     }
-
 
     [TestMethod]
     public void DockerPsWithOneContainerShallGiveOneResult()
@@ -116,14 +115,14 @@ namespace Ductus.FluentDockerTest
       string id = null;
       try
       {
-        var cmd = _docker.Run("nginx:latest", null, _caCertPath, _clientCertPath, _clientKeyPath);
+        var cmd = _docker.Run("nginx:latest", null, _certificates);
         Assert.IsTrue(cmd.Success);
 
         id = cmd.Data;
         Assert.IsTrue(!string.IsNullOrWhiteSpace(id));
         Assert.AreEqual(64, id.Length);
 
-        var ls = _docker.Ps(null, _caCertPath, _clientCertPath, _clientKeyPath);
+        var ls = _docker.Ps(null, _certificates);
         Assert.IsTrue(ls.Success);
         Assert.AreEqual(1,ls.Data.Count);
         Assert.IsTrue(id.StartsWith(ls.Data[0]));
@@ -132,7 +131,7 @@ namespace Ductus.FluentDockerTest
       {
         if (null != id)
         {
-          _docker.RemoveContainer(id, true, true, null, _caCertPath, _clientCertPath, _clientKeyPath);
+          _docker.RemoveContainer(id, true, true, null, _certificates);
         }
       }
     }
@@ -143,14 +142,14 @@ namespace Ductus.FluentDockerTest
       string id = null;
       try
       {
-        var cmd = _docker.Run("nginx:latest", null, _caCertPath, _clientCertPath, _clientKeyPath);
+        var cmd = _docker.Run("nginx:latest", null, _certificates);
         Assert.IsTrue(cmd.Success);
 
         id = cmd.Data;
         Assert.IsTrue(!string.IsNullOrWhiteSpace(id));
         Assert.AreEqual(64, id.Length);
 
-        var inspect = _docker.InspectContainer(id, _caCertPath, _clientCertPath, _clientKeyPath);
+        var inspect = _docker.InspectContainer(id, _certificates);
         Assert.IsTrue(inspect.Success);
         Assert.IsTrue(inspect.Data.Name.Length > 2);
         Assert.AreEqual(true, inspect.Data.State.Running);
@@ -159,7 +158,34 @@ namespace Ductus.FluentDockerTest
       {
         if (null != id)
         {
-          _docker.RemoveContainer(id, true, true, null, _caCertPath, _clientCertPath, _clientKeyPath);
+          _docker.RemoveContainer(id, true, true, null, _certificates);
+        }
+      }
+    }
+
+    [TestMethod]
+    public void DiffContainerShallWork()
+    {
+      string id = null;
+      try
+      {
+        var cmd = _docker.Run("nginx:latest", null, _certificates);
+        Assert.IsTrue(cmd.Success);
+
+        id = cmd.Data;
+        Assert.IsTrue(!string.IsNullOrWhiteSpace(id));
+        Assert.AreEqual(64, id.Length);
+
+        var diffs = _docker.Diff(id, _certificates);
+        Assert.IsTrue(diffs.Success);
+        Assert.IsTrue(diffs.Data.Any(x => x.Type == DiffType.Created && x.Item == "/var/cache/nginx"));
+        Assert.IsTrue(diffs.Data.Any(x => x.Type == DiffType.Added && x.Item == "/var/cache/nginx/client_temp"));
+      }
+      finally
+      {
+        if (null != id)
+        {
+          _docker.RemoveContainer(id, true, true, null, _certificates);
         }
       }
     }

@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Net;
 using System.Text;
 
-namespace Ductus.FluentDocker.Model
+namespace Ductus.FluentDocker.Model.Containers
 {
   public sealed class ContainerCreateParams
   {
@@ -13,7 +13,7 @@ namespace Ductus.FluentDocker.Model
     /// <remarks>
     ///   --add-host=[]
     /// </remarks>
-    public List<Tuple<string /*host*/, IPAddress /*mapsTo*/>> HostIpMappings { get; set; }
+    public List<Tuple<string, IPAddress>> HostIpMappings { get; set; }
 
     /// <summary>
     ///   Block IO (relative weight), between 10 and 1000

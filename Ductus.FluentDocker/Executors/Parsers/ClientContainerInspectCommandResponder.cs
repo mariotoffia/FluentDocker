@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Text;
 using Ductus.FluentDocker.Model;
+using Ductus.FluentDocker.Model.Containers;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 

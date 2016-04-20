@@ -1,4 +1,5 @@
 ﻿using Ductus.FluentDocker.Model;
+using Ductus.FluentDocker.Model.Containers;
 using Ductus.FluentDocker.Services;
 
 namespace Ductus.FluentDocker.Extensions

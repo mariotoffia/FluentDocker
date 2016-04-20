@@ -5,6 +5,8 @@ using Ductus.FluentDocker.Executors;
 using Ductus.FluentDocker.Executors.Parsers;
 using Ductus.FluentDocker.Extensions;
 using Ductus.FluentDocker.Model;
+using Ductus.FluentDocker.Model.Containers;
+using Ductus.FluentDocker.Model.Machines;
 using Ductus.FluentDocker.Services;
 
 namespace Ductus.FluentDocker.Commands

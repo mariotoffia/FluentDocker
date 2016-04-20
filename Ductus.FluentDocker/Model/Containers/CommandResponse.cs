@@ -1,6 +1,7 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 
-namespace Ductus.FluentDocker.Model
+namespace Ductus.FluentDocker.Model.Containers
 {
   public sealed class CommandResponse<T>
   {
@@ -16,5 +17,15 @@ namespace Ductus.FluentDocker.Model
     public IList<string> Log { get; private set; }
     public string Error { get; private set; }
     public T Data { get; }
+
+    public override string ToString()
+    {
+      if (null == Log)
+      {
+        return base.ToString();
+      }
+
+      return string.Join(Environment.NewLine, Log);
+    }
   }
 }

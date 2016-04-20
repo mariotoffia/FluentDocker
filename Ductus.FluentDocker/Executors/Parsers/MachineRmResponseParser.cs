@@ -1,5 +1,6 @@
 ﻿using System.Linq;
 using Ductus.FluentDocker.Model;
+using Ductus.FluentDocker.Model.Containers;
 
 namespace Ductus.FluentDocker.Executors.Parsers
 {

@@ -1,5 +1,5 @@
 ﻿// ReSharper disable InconsistentNaming
-namespace Ductus.FluentDocker.Model
+namespace Ductus.FluentDocker.Model.Containers
 {
   public sealed class ContainerMount
   {

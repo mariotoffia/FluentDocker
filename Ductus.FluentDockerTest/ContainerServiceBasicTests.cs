@@ -2,11 +2,14 @@
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using Ductus.FluentDocker;
+using System.Net;
 using Ductus.FluentDocker.Commands;
 using Ductus.FluentDocker.Extensions;
 using Ductus.FluentDocker.Model;
+using Ductus.FluentDocker.Model.Common;
+using Ductus.FluentDocker.Model.Containers;
 using Ductus.FluentDocker.Services;
+using Ductus.FluentDockerTest.Extensions;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace Ductus.FluentDockerTest
@@ -110,14 +113,15 @@ namespace Ductus.FluentDockerTest
         Debug.Write($"Succeeded waiting for postgres port {endpoint} docker port 5432/tcp");
       }
     }
+
     [TestMethod]
     public void ProcessesInContainerAndManuallyVerifyPostgresIsRunning()
     {
       using (var container = _host.Create("postgres:latest",
         new ContainerCreateParams
         {
-          PortMappings = new[] { "40001:5432" },
-          Environment = new[] { "POSTGRES_PASSWORD=mysecretpassword" }
+          PortMappings = new[] {"40001:5432"},
+          Environment = new[] {"POSTGRES_PASSWORD=mysecretpassword"}
         }))
       {
         container.Start();
@@ -144,8 +148,8 @@ namespace Ductus.FluentDockerTest
       using (var container = _host.Create("postgres:latest",
         new ContainerCreateParams
         {
-          PortMappings = new[] { "40001:5432" },
-          Environment = new[] { "POSTGRES_PASSWORD=mysecretpassword" }
+          PortMappings = new[] {"40001:5432"},
+          Environment = new[] {"POSTGRES_PASSWORD=mysecretpassword"}
         }))
       {
         container.Start();
@@ -179,8 +183,8 @@ namespace Ductus.FluentDockerTest
       using (var container = _host.Create("postgres:latest",
         new ContainerCreateParams
         {
-          PortMappings = new[] { "40001:5432" },
-          Environment = new[] { "POSTGRES_PASSWORD=mysecretpassword" }
+          PortMappings = new[] {"40001:5432"},
+          Environment = new[] {"POSTGRES_PASSWORD=mysecretpassword"}
         }))
       {
         container.Start();
@@ -195,7 +199,7 @@ namespace Ductus.FluentDockerTest
         string path = null;
         try
         {
-          path = container.Export((TemplateString)fullPath, true);
+          path = container.Export((TemplateString) fullPath, true);
           Assert.IsNotNull(path);
           Assert.IsTrue(Directory.Exists(path));
 
@@ -207,6 +211,100 @@ namespace Ductus.FluentDockerTest
           if (!string.IsNullOrEmpty(path) && Directory.Exists(path))
           {
             Directory.Delete(path, true);
+          }
+        }
+      }
+    }
+
+    [TestMethod]
+    public void UseHostVolumeInsideContainerWhenMountedShallSucceed()
+    {
+      const string html = "<html><head>Hello World</head><body><h1>Hello world</h1></body></html>";
+
+      var fullPath = (TemplateString)@"${TEMP}\fluentdockertest\${RND}";
+      using (var container = _host.Create("nginx:latest",
+        new ContainerCreateParams
+        {
+          PortMappings = new []{"80"},
+          Volumes = new[] {$"{fullPath.Rendered.ToMsysPath()}:/usr/share/nginx/html:ro"}
+        }))
+      {
+        container.Start();
+        Assert.AreEqual(ServiceRunningState.Running, container.State);
+
+        var endpoint = container.ToHosExposedtPort("80/tcp");
+        endpoint.WaitForPort(10000 /*10s*/);
+
+        File.WriteAllText(Path.Combine(fullPath, "hello.html"), html);
+
+        var response = $"http://{endpoint}/hello.html".Curl();
+        Assert.AreEqual(html, response);
+      }
+    }
+
+    [TestMethod]
+    public void CopyFromRunningContainerShallWork()
+    {
+      using (var container = _host.Create("postgres:latest",
+        new ContainerCreateParams
+        {
+          Environment = new[] { "POSTGRES_PASSWORD=mysecretpassword" }
+        }))
+      {
+        container.Start();
+        Assert.AreEqual(ServiceRunningState.Running, container.State);
+
+        var fullPath = (TemplateString)@"${TEMP}\fluentdockertest\${RND}";
+        try
+        {
+          Directory.CreateDirectory(fullPath);
+          var path = container.CopyFrom((TemplateString) "/bin", fullPath);
+
+          var files = Directory.EnumerateFiles(Path.Combine(path, "bin")).ToArray();
+          Assert.IsTrue(files.Any(x => x.EndsWith("bash")));
+          Assert.IsTrue(files.Any(x => x.EndsWith("cat")));
+        }
+        finally
+        {
+          if (Directory.Exists(fullPath))
+          {
+            Directory.Delete(fullPath,true);
+          }
+        }
+        }
+    }
+    [TestMethod]
+    public void CopyToRunningContainerShallWork()
+    {
+      using (var container = _host.Create("postgres:latest",
+        new ContainerCreateParams
+        {
+          Environment = new[] { "POSTGRES_PASSWORD=mysecretpassword" }
+        }))
+      {
+        container.Start();
+        Assert.AreEqual(ServiceRunningState.Running, container.State);
+
+        var fullPath = (TemplateString) @"${TEMP}\fluentdockertest\${RND}\hello.html";
+
+        try
+        {
+          // ReSharper disable once AssignNullToNotNullAttribute
+          Directory.CreateDirectory(Path.GetDirectoryName(fullPath));
+          File.WriteAllText(fullPath, "<html><head>Hello World</head><body><h1>Hello world</h1></body></html>");
+
+          var before = container.Diff();
+          container.CopyTo((TemplateString)"/bin", fullPath);
+          var after = container.Diff();
+
+          Assert.IsFalse(before.Any(x => x.Item == "/bin/hello.html"));
+          Assert.IsTrue(after.Any(x => x.Item == "/bin/hello.html"));
+        }
+        finally
+        {
+          if (Directory.Exists(fullPath))
+          {
+            Directory.Delete(fullPath, true);
           }
         }
       }

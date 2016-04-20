@@ -1,6 +1,6 @@
 ﻿using System.Collections.Generic;
 
-namespace Ductus.FluentDocker.Model
+namespace Ductus.FluentDocker.Model.Containers
 {
   public sealed class ContainerConfig
   {

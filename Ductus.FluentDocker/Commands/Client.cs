@@ -4,11 +4,18 @@ using Ductus.FluentDocker.Executors;
 using Ductus.FluentDocker.Executors.Parsers;
 using Ductus.FluentDocker.Extensions;
 using Ductus.FluentDocker.Model;
+using Ductus.FluentDocker.Model.Containers;
 
 namespace Ductus.FluentDocker.Commands
 {
   public static class Client
   {
+    public static CommandResponse<IList<string>> Ps(this Uri host, string options = null,
+      CertificatePaths certificates = null)
+    {
+      return Ps(host, options, certificates?.CaCertificate, certificates?.ClientCertificate, certificates?.ClientKey);
+    }
+
     public static CommandResponse<IList<string>> Ps(this Uri host, string options = null, string caCertPath = null,
       string clientCertPath = null,
       string clientKeyPath = null)
@@ -182,12 +189,38 @@ namespace Ductus.FluentDocker.Commands
     }
 
     public static CommandResponse<string> Export(this Uri host, string id, string fqFilePath,
-      CertificatePaths certificates)
+      CertificatePaths certificates = null)
     {
       var arg =
         $"{RenderBaseArgs(host, certificates?.CaCertificate, certificates?.ClientCertificate, certificates?.ClientKey)} export";
       return new ProcessExecutor<NoLineResponseParser, string>("docker".DockerPath(),
         $"{arg} -o {fqFilePath} {id}").Execute();
+    }
+
+    public static CommandResponse<string> CopyToContainer(this Uri host, string id, string containerPath,
+      string hostPath, CertificatePaths certificates = null)
+    {
+      var arg =
+        $"{RenderBaseArgs(host, certificates?.CaCertificate, certificates?.ClientCertificate, certificates?.ClientKey)}";
+      return new ProcessExecutor<IgnoreErrorResponseParser, string>("docker".DockerPath(),
+        $"{arg} cp \"{hostPath}\" {id}:{containerPath}").Execute();
+    }
+
+    public static CommandResponse<string> CopyFromContainer(this Uri host, string id, string containerPath,
+      string hostPath, CertificatePaths certificates = null)
+    {
+      var arg =
+        $"{RenderBaseArgs(host, certificates?.CaCertificate, certificates?.ClientCertificate, certificates?.ClientKey)}";
+      return new ProcessExecutor<IgnoreErrorResponseParser, string>("docker".DockerPath(),
+        $"{arg} cp {id}:{containerPath} \"{hostPath}\"").Execute();
+    }
+
+    public static CommandResponse<IList<Diff>> Diff(this Uri host, string id, CertificatePaths certificates = null)
+    {
+      var arg =
+        $"{RenderBaseArgs(host, certificates?.CaCertificate, certificates?.ClientCertificate, certificates?.ClientKey)}";
+      return new ProcessExecutor<ClientDiffResponseParser, IList<Diff>>("docker".DockerPath(),
+        $"{arg} diff {id}").Execute();
     }
 
     private static string RenderBaseArgs(Uri host, string caCertPath = null, string clientCertPath = null,

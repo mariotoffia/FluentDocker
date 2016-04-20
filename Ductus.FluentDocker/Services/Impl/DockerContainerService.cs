@@ -1,9 +1,12 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Net;
 using Ductus.FluentDocker.Commands;
 using Ductus.FluentDocker.Extensions;
 using Ductus.FluentDocker.Model;
+using Ductus.FluentDocker.Model.Common;
+using Ductus.FluentDocker.Model.Containers;
 
 namespace Ductus.FluentDocker.Services.Impl
 {
@@ -75,6 +78,29 @@ namespace Ductus.FluentDocker.Services.Impl
       }
 
       return fqPath;
+    }
+
+    public string CopyTo(TemplateString containerPath, TemplateString hostPath)
+    {
+      string cp = containerPath;
+      string hp = hostPath;
+
+      var res = DockerHost.CopyToContainer(Id, cp, hp, _certificates);
+      return !res.Success ? null : hp;
+    }
+
+    public string CopyFrom(TemplateString containerPath, TemplateString hostPath)
+    {
+      string cp = containerPath;
+      string hp = hostPath;
+
+      var res = DockerHost.CopyFromContainer(Id, cp, hp, _certificates);
+      return !res.Success ? null : hp;
+    }
+
+    public IList<Diff> Diff()
+    {
+      return DockerHost.Diff(Id, _certificates).Data;
     }
 
     public override void Dispose()
