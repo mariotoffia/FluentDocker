@@ -35,24 +35,18 @@ namespace Ductus.FluentDockerTest
             .Build())
       {
         id = container.Id;
+        Assert.IsNotNull(id);
       }
 
-      Assert.IsNotNull(id);
-      bool found = false;
-      foreach (var host in new Hosts().Discover())
-      {
-        var container = host.GetContainers().FirstOrDefault(x => x.Id == id);
-        if (null == container)
-        {
-          continue;
-        }
+      // We shall have the container as stopped by now.
+      var cont =
+        new Hosts()
+          .Discover()
+          .Select(host => host.GetContainers().FirstOrDefault(x => x.Id == id))
+          .FirstOrDefault(container => null != container);
 
-        found = true;
-        container.Remove(true);
-        break;
-      }
-
-      Assert.IsTrue(found);
+      Assert.IsNotNull(cont);
+      cont.Remove(true);
     }
 
     [TestMethod]
