@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using Ductus.FluentDocker.Executors;
 using Ductus.FluentDocker.Executors.Parsers;
 using Ductus.FluentDocker.Extensions;
-using Ductus.FluentDocker.Model;
 using Ductus.FluentDocker.Model.Containers;
 
 namespace Ductus.FluentDocker.Commands

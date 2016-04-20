@@ -3,7 +3,7 @@
 <package xmlns="http://schemas.microsoft.com/packaging/2010/07/nuspec.xsd">
   <metadata>
     <id>Ductus.FluentDocker</id>
-    <version>1.1.4</version>
+    <version>2.0.0</version>
     <title>Ductus.FluentDocker</title>
     <authors>Mario Toffia</authors>
     <owners>mariotoffia</owners>
@@ -15,11 +15,10 @@
       Fluent interface using Docker.Dotnet for boot2docker and docker (Linux Windows Mac)
       Documentation: https://github.com/mariotoffia/FluentDocker
     </description>
-    <summary>Fluent interface using Docker.Dotnet for boot2docker and docker (Linux Windows Mac)</summary>
+    <summary>Fluent interface for docker binaries to use for boot2docker and docker (Linux Windows Mac)</summary>
     <copyright>(c) 2016 Mario Toffia</copyright>
     <tags>Docker Linux Windows Mac Fluent</tags>
     <dependencies>
-      <dependency id="Docker.DotNet" version="[1.2.2,2.0)" />
       <dependency id="BouncyCastle.Crypto.dll" version="[1.8.1,2.0)"/>
       <dependency id="sharpcompress" version="[0.11.4,1.0)"/>
       <dependency id="Newtonsoft.Json" version="6.0.0"/>

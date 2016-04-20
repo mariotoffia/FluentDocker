@@ -1,6 +1,6 @@
 ﻿using System.Diagnostics;
 using System.Text;
-using Ductus.FluentDocker.Internal;
+using Ductus.FluentDocker.Common;
 using Ductus.FluentDocker.Model;
 using Ductus.FluentDocker.Model.Containers;
 

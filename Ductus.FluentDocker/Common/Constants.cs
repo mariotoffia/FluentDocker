@@ -1,4 +1,4 @@
-﻿namespace Ductus.FluentDocker.Internal
+﻿namespace Ductus.FluentDocker.Common
 {
   internal static class Constants
   {

@@ -1,9 +1,33 @@
 ﻿using System;
+using Ductus.FluentDocker.Model.Common;
 
 namespace Ductus.FluentDocker.Extensions
 {
   public static class OsExtensions
   {
+    public static string DockerPath(this string dockerCommand)
+    {
+      dockerCommand = dockerCommand.ToLower();
+      switch (dockerCommand)
+      {
+        case "docker-machine":
+          return HasMachine()
+            ? ((TemplateString)"${E_DOCKER_TOOLBOX_INSTALL_PATH}/docker-machine").Rendered.ToPlatformPath()
+            : dockerCommand;
+        case "docker":
+          return HasMachine()
+            ? ((TemplateString)"${E_DOCKER_TOOLBOX_INSTALL_PATH}/docker").Rendered.ToPlatformPath()
+            : dockerCommand;
+      }
+
+      throw new ArgumentException($"No command with name {dockerCommand} is present");
+    }
+
+    private static bool HasMachine()
+    {
+      return null != Environment.GetEnvironmentVariable("DOCKER_TOOLBOX_INSTALL_PATH");
+    }
+
     public static bool IsWindows()
     {
       return Environment.OSVersion.Platform != PlatformID.MacOSX && 
