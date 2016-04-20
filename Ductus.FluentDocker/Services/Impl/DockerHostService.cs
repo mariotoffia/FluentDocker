@@ -6,7 +6,6 @@ using System.Security.Cryptography.X509Certificates;
 using Ductus.FluentDocker.Commands;
 using Ductus.FluentDocker.Common;
 using Ductus.FluentDocker.Extensions;
-using Ductus.FluentDocker.Model;
 using Ductus.FluentDocker.Model.Containers;
 using Ductus.FluentDocker.Model.Machines;
 
@@ -153,7 +152,7 @@ namespace Ductus.FluentDocker.Services.Impl
         options += " --all";
       }
 
-      if (string.IsNullOrEmpty(filter))
+      if (!string.IsNullOrEmpty(filter))
       {
         options += $" --filter={filter}";
       }
@@ -165,7 +164,7 @@ namespace Ductus.FluentDocker.Services.Impl
       }
 
       return (from id in result.Data
-        let config = Host.InspectContainer(id, _clientCertPath, _clientCertPath, _clientKeyPath).Data
+        let config = Host.InspectContainer(id, _caCertPath, _clientCertPath, _clientKeyPath).Data
         select
           new DockerContainerService(config.Name, id, Host, config.State.ToServiceState(),
             new CertificatePaths
@@ -207,7 +206,8 @@ namespace Ductus.FluentDocker.Services.Impl
           $"Could not return service for docker id {res.Data} - Container was created, you have to manually delete it or do a Ls");
       }
 
-      return new DockerContainerService(config.Data.Name.Substring(1), res.Data, Host, config.Data.State.ToServiceState(), 
+      return new DockerContainerService(config.Data.Name.Substring(1), res.Data, Host,
+        config.Data.State.ToServiceState(),
         certificates, stopOnDispose, deleteOnDispose);
     }
 
@@ -229,13 +229,31 @@ namespace Ductus.FluentDocker.Services.Impl
       var info = name.Inspect().Data;
       RequireTls = info.RequireTls;
 
-      ClientCaCertificate =
-        Path.GetDirectoryName(info.AuthConfig.CaCertPath).ToCertificate(Path.GetFileName(info.AuthConfig.CaCertPath));
+      ResolveCertificatePaths(info);
 
       ClientCaCertificate =
-        Path.GetDirectoryName(info.AuthConfig.ClientCertPath)
-          .ToCertificate(Path.GetFileName(info.AuthConfig.ClientCertPath),
-            Path.GetFileName(info.AuthConfig.ClientKeyPath));
+        Path.GetDirectoryName(_caCertPath).ToCertificate(Path.GetFileName(_caCertPath));
+
+      ClientCaCertificate =
+        Path.GetDirectoryName(_clientCertPath)
+          .ToCertificate(Path.GetFileName(_clientCertPath),
+            Path.GetFileName(_clientKeyPath));
+    }
+
+    private void ResolveCertificatePaths(MachineConfiguration info)
+    {
+      var storePath = info.AuthConfig.StorePath;
+
+      _caCertPath = Path.Combine(storePath, DefaultCaCertName);
+      _clientCertPath = Path.Combine(storePath, DefaultClientCertName);
+      _clientKeyPath = Path.Combine(storePath, DefaultClientKeyName);
+
+      if (File.Exists(_clientCertPath) && File.Exists(_caCertPath) && File.Exists(_clientKeyPath))
+      {
+        // Check if ca, client and key is in the store path
+        // if so use those instead.
+        return;
+      }
 
       _caCertPath = info.AuthConfig.CaCertPath;
       _clientCertPath = info.AuthConfig.ClientCertPath;

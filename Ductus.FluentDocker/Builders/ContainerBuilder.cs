@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Net;
+using System.Reflection;
 using Ductus.FluentDocker.Common;
 using Ductus.FluentDocker.Extensions;
 using Ductus.FluentDocker.Model.Builders;
@@ -167,11 +168,25 @@ namespace Ductus.FluentDocker.Builders
       return this;
     }
 
+    public ContainerBuilder KeepRunning()
+    {
+      _config.StopOnDispose = false;
+      return this;
+    }
+
+    public ContainerBuilder KeepContainer()
+    {
+      _config.DeleteOnDispose = false;
+      _config.CreateParams.AutoRemoveContainer = false;
+      return this;
+    }
+
     private Option<IHostService> FindHostService()
     {
       for (var parent = ((IBuilder) this).Parent; parent.HasValue; parent = parent.Value.Parent)
       {
-        if (parent.Value.GetType().GetGenericArguments().Any(x => x == typeof (IHostService)))
+        var hostService = parent.Value.GetType().GetMethod("Build")?.ReturnType == typeof(IHostService);
+        if (hostService)
         {
           return new Option<IHostService>(((IBuilder<IHostService>) parent.Value).Build());
         }

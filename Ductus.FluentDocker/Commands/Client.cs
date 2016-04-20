@@ -21,12 +21,17 @@ namespace Ductus.FluentDocker.Commands
     {
       if (string.IsNullOrEmpty(options))
       {
-        options = "--quiet";
+        options = "--quiet --no-trunc";
       }
 
       if (-1 == options.IndexOf("--quiet", StringComparison.Ordinal))
       {
         options += " --quiet";
+      }
+
+      if (-1 == options.IndexOf("--no-trunc", StringComparison.Ordinal))
+      {
+        options += " --no-trunc";
       }
 
       return
