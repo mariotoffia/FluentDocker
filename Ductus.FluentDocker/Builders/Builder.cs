@@ -1,4 +1,6 @@
 ﻿using System.Collections.Generic;
+using System.Linq;
+using Ductus.FluentDocker.Common;
 using Ductus.FluentDocker.Services;
 using Ductus.FluentDocker.Services.Impl;
 
@@ -33,7 +35,33 @@ namespace Ductus.FluentDocker.Builders
 
     public ContainerBuilder UseContainer()
     {
-      return new ContainerBuilder(this);
+      var host = new HostBuilder(this);
+      Childs.Add(host);
+
+      var hosts = new Hosts().Discover();
+      if (hosts.Any(x => x.IsNative))
+      {
+        return host.UseNative().UseContainer();
+      }
+
+      var h = hosts.FirstOrDefault();
+      if (null == h)
+      {
+        throw new FluentDockerException("Cannot build a container when no host is defined");
+      }
+
+      var config = h.GetMachineConfiguration();
+      if (null == config)
+      {
+        throw new FluentDockerException("Cannot build container since no machine configuration and no native is found");
+      }
+
+      return host.UseMachine()
+        .CpuCount(config.CpuCount)
+        .Memory(config.MemorySizeMb)
+        .StorageSize(config.StorageSizeMb)
+        .UseDriver(config.DriverName)
+        .WithName(config.Name).UseContainer();
     }
 
     private static void InternalBuild(IList<IService> services, IBuilder builder)

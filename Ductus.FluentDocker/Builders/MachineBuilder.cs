@@ -70,5 +70,10 @@ namespace Ductus.FluentDocker.Builders
       _config.StorageSizeMb = storageMb;
       return this;
     }
+
+    public ContainerBuilder UseContainer()
+    {
+      return new ContainerBuilder(this);
+    }
   }
 }

@@ -8,6 +8,7 @@ using Ductus.FluentDocker.Common;
 using Ductus.FluentDocker.Extensions;
 using Ductus.FluentDocker.Model;
 using Ductus.FluentDocker.Model.Containers;
+using Ductus.FluentDocker.Model.Machines;
 
 namespace Ductus.FluentDocker.Services.Impl
 {
@@ -208,6 +209,11 @@ namespace Ductus.FluentDocker.Services.Impl
 
       return new DockerContainerService(config.Data.Name.Substring(1), res.Data, Host, config.Data.State.ToServiceState(), 
         certificates, stopOnDispose, deleteOnDispose);
+    }
+
+    public MachineConfiguration GetMachineConfiguration()
+    {
+      return Name.Inspect().Data;
     }
 
     private void MachineSetup(string name)

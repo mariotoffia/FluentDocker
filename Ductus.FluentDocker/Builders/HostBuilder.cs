@@ -34,5 +34,10 @@ namespace Ductus.FluentDocker.Builders
       Childs.Add(builder);
       return builder;
     }
+
+    public ContainerBuilder UseContainer()
+    {
+      return new ContainerBuilder(this);
+    }
   }
 }
