@@ -1,5 +1,6 @@
 ﻿using System.Linq;
 using Ductus.FluentDocker.Commands;
+using Ductus.FluentDocker.Common;
 using Ductus.FluentDocker.Model.Builders;
 using Ductus.FluentDocker.Services;
 

@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Runtime.Serialization;
 
-namespace Ductus.FluentDocker
+namespace Ductus.FluentDocker.Common
 {
   public class FluentDockerException : Exception
   {

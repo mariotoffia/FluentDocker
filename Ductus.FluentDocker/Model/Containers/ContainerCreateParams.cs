@@ -166,7 +166,7 @@ namespace Ductus.FluentDocker.Model.Containers
     /// <remarks>
     /// --link=[]
     /// </remarks>
-    public string Links { get; set; }
+    public string []Links { get; set; }
 
     /// <summary>
     /// Set meta data on a container

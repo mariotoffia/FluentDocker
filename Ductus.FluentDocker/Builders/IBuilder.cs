@@ -17,18 +17,20 @@ namespace Ductus.FluentDocker.Builders
     Option<IBuilder> Root { get; }
 
     /// <summary>
-    /// Gets the Childrens of this builder.
+    ///   Gets the Childrens of this builder.
     /// </summary>
     IReadOnlyCollection<IBuilder> Children { get; }
 
-      /// <summary>
+    /// <summary>
     ///   Creates a new child <see cref="IBuilder" /> and makes this as parent.
     /// </summary>
     /// <returns></returns>
     IBuilder Create();
+
+    IService Build();
   }
 
-  public interface IBuilder<out T> : IBuilder where T : IService
+  public interface IBuilder<out T> : IBuilder
   {
     /// <summary>
     ///   Builds using the configuration and returns the instance.
@@ -36,6 +38,6 @@ namespace Ductus.FluentDocker.Builders
     /// <typeparam name="T">The type to build from this builder.</typeparam>
     /// <returns>A instance if successfull, or and exception is thrown if any errors occurs.</returns>
     /// <exception cref="FluentDockerException">If any errors occurs during buildtime.</exception>
-    T Build();
+    new T Build();
   }
 }

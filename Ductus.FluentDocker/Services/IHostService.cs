@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Security.Cryptography.X509Certificates;
+using Ductus.FluentDocker.Common;
 using Ductus.FluentDocker.Model;
 using Ductus.FluentDocker.Model.Containers;
 

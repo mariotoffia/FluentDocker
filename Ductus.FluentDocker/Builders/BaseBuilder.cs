@@ -5,10 +5,10 @@ using Ductus.FluentDocker.Services;
 
 namespace Ductus.FluentDocker.Builders
 {
-  public abstract class BaseBuilder<T> : IBuilder<T> where T : IService
+  public abstract class BaseBuilder<T> : IBuilder<T>
   {
-    protected readonly IList<IBuilder> Childs = new List<IBuilder>();
     private readonly Option<IBuilder> _parent;
+    protected readonly IList<IBuilder> Childs = new List<IBuilder>();
 
     protected BaseBuilder(IBuilder parent)
     {
@@ -40,6 +40,11 @@ namespace Ductus.FluentDocker.Builders
       var builder = InternalCreate();
       Childs.Add(builder);
       return builder;
+    }
+
+    IService IBuilder.Build()
+    {
+      return (IService)Build();
     }
 
     protected abstract IBuilder InternalCreate();

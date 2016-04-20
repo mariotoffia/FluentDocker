@@ -65,10 +65,6 @@
     <Compile Include="ContainerServiceBasicTests.cs" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\Ductus.FluentDocker.MsTest\Ductus.FluentDocker.MsTest.csproj">
-      <Project>{871473b8-75e1-4265-a679-99ca6971e2f0}</Project>
-      <Name>Ductus.FluentDocker.MsTest</Name>
-    </ProjectReference>
     <ProjectReference Include="..\Ductus.FluentDocker\Ductus.FluentDocker.csproj">
       <Project>{4ae9f635-351c-4c47-93f3-a9fad18f122f}</Project>
       <Name>Ductus.FluentDocker</Name>
