@@ -5,11 +5,19 @@ using System.Net.Sockets;
 using System.Threading;
 using Ductus.FluentDocker.Common;
 using Ductus.FluentDocker.Model.Containers;
+using Ductus.FluentDocker.Services;
 
 namespace Ductus.FluentDocker.Extensions
 {
   public static class NetworkExtensions
   {
+    public static IContainerService WaitForPort(this IContainerService service, string portAndProto,
+      long millisTimeout = long.MaxValue)
+    {
+      service.ToHostExposedPort(portAndProto).WaitForPort(millisTimeout);
+      return service;
+    }
+
     public static void WaitForPort(this IPEndPoint endpoint, long millisTimeout = long.MaxValue)
     {
       WaitForPort(endpoint.Address.ToString(), endpoint.Port, millisTimeout);

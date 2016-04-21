@@ -1,6 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
+using Ductus.FluentDocker.Model.Common;
 using Ductus.FluentDocker.Model.Containers;
+using Ductus.FluentDocker.Services;
 
 namespace Ductus.FluentDocker.Model.Builders
 {
@@ -17,10 +19,11 @@ namespace Ductus.FluentDocker.Model.Builders
     public bool DeleteOnDispose { get; set; } = true;
     public string Command { get; set; }
     public string[] Arguments { get; set; }
-    public Tuple<string/*port/proto*/,int/*time*/> WaitForPort { get; set; }
-    public List<Tuple<string/*host*/,string/*container*/>> CopyToContainerStart { get; set; }
-    public List<Tuple<string/*host*/, string/*container*/>> CopyFromContainerStart { get; set; }
-    public List<Tuple<string/*host*/, string/*container*/>> CopyToContainerStop { get; set; }
-    public List<Tuple<string/*host*/, string/*container*/>> CopyFromContainerStop { get; set; }
+
+    public List<Tuple<TemplateString /*host*/, TemplateString /*container*/>> CopyFromContainerBeforeDispose { get; set;
+    }
+
+    public Tuple<TemplateString /*host*/, bool /*explode*/, Func<IContainerService, bool> /*condition*/>
+      ExportContainerOnDispose { get; set; }
   }
 }

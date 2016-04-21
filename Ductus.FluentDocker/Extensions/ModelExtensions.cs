@@ -1,5 +1,4 @@
 ﻿using System;
-using Ductus.FluentDocker.Model;
 using Ductus.FluentDocker.Model.Builders;
 using Ductus.FluentDocker.Model.Containers;
 using Ductus.FluentDocker.Services;
@@ -48,15 +47,16 @@ namespace Ductus.FluentDocker.Extensions
     {
       switch (access)
       {
-          case MountType.ReadOnly:
+        case MountType.ReadOnly:
           return "ro";
-          case MountType.ReadWrite:
+        case MountType.ReadWrite:
           return "rw";
       }
 
       throw new NotImplementedException($"Not implemented type: {access}");
     }
-    public static string[] AddToArray(this string[] arr, params string []values)
+
+    public static string[] AddToArray(this string[] arr, params string[] values)
     {
       if (null == values || 0 == values.Length)
       {
@@ -66,13 +66,13 @@ namespace Ductus.FluentDocker.Extensions
       if (null == arr)
       {
         var ret = new string[values.Length];
-        values.CopyTo(ret,0);
+        values.CopyTo(ret, 0);
         return ret;
       }
 
       var r = new string[arr.Length + values.Length];
-      arr.CopyTo(r,0);
-      values.CopyTo(r,arr.Length);
+      arr.CopyTo(r, 0);
+      values.CopyTo(r, arr.Length);
       return r;
     }
   }

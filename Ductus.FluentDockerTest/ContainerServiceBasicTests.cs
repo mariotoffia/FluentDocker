@@ -2,10 +2,8 @@
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using System.Net;
 using Ductus.FluentDocker.Commands;
 using Ductus.FluentDocker.Extensions;
-using Ductus.FluentDocker.Model;
 using Ductus.FluentDocker.Model.Common;
 using Ductus.FluentDocker.Model.Containers;
 using Ductus.FluentDocker.Services;
@@ -108,7 +106,7 @@ namespace Ductus.FluentDockerTest
         Assert.AreEqual(ServiceRunningState.Running, container.State);
         Assert.IsTrue(config.Config.Env.Any(x => x == "POSTGRES_PASSWORD=mysecretpassword"));
 
-        var endpoint = container.ToHosExposedtPort("5432/tcp");
+        var endpoint = container.ToHostExposedPort("5432/tcp");
         endpoint.WaitForPort(10000 /*10s*/);
         Debug.Write($"Succeeded waiting for postgres port {endpoint} docker port 5432/tcp");
       }
@@ -127,7 +125,7 @@ namespace Ductus.FluentDockerTest
         container.Start();
         Assert.AreEqual(ServiceRunningState.Running, container.State);
 
-        var endpoint = container.ToHosExposedtPort("5432/tcp");
+        var endpoint = container.ToHostExposedPort("5432/tcp");
         endpoint.WaitForPort(10000 /*10s*/);
 
         var proc = container.GetRunningProcesses();
@@ -155,7 +153,7 @@ namespace Ductus.FluentDockerTest
         container.Start();
         Assert.AreEqual(ServiceRunningState.Running, container.State);
 
-        var endpoint = container.ToHosExposedtPort("5432/tcp");
+        var endpoint = container.ToHostExposedPort("5432/tcp");
         endpoint.WaitForPort(10000 /*10s*/);
 
         var rnd = Path.GetFileName(Path.GetTempFileName());
@@ -163,7 +161,7 @@ namespace Ductus.FluentDockerTest
 
         try
         {
-          var path = container.Export((TemplateString) fullPath);
+          var path = container.Export(fullPath);
           Assert.IsNotNull(path);
           Assert.IsTrue(File.Exists(fullPath));
         }
@@ -190,27 +188,25 @@ namespace Ductus.FluentDockerTest
         container.Start();
         Assert.AreEqual(ServiceRunningState.Running, container.State);
 
-        var endpoint = container.ToHosExposedtPort("5432/tcp");
+        var endpoint = container.ToHostExposedPort("5432/tcp");
         endpoint.WaitForPort(10000 /*10s*/);
 
         var rnd = Path.GetFileName(Path.GetTempFileName());
         var fullPath = Path.Combine(Directory.GetCurrentDirectory(), rnd);
 
-        string path = null;
         try
         {
-          path = container.Export((TemplateString) fullPath, true);
-          Assert.IsNotNull(path);
-          Assert.IsTrue(Directory.Exists(path));
+          container.Export(fullPath, true);
+          Assert.IsTrue(Directory.Exists(fullPath));
 
-          var files = Directory.GetFiles(path).ToArray();
+          var files = Directory.GetFiles(fullPath).ToArray();
           Assert.IsTrue(files.Any(x => x.Contains("docker-entrypoint.sh")));
         }
         finally
         {
-          if (!string.IsNullOrEmpty(path) && Directory.Exists(path))
+          if (Directory.Exists(fullPath))
           {
-            Directory.Delete(path, true);
+            Directory.Delete(fullPath, true);
           }
         }
       }
@@ -221,18 +217,18 @@ namespace Ductus.FluentDockerTest
     {
       const string html = "<html><head>Hello World</head><body><h1>Hello world</h1></body></html>";
 
-      var fullPath = (TemplateString)@"${TEMP}\fluentdockertest\${RND}";
+      var fullPath = (TemplateString) @"${TEMP}\fluentdockertest\${RND}";
       using (var container = _host.Create("nginx:latest",
         new ContainerCreateParams
         {
-          PortMappings = new []{"80"},
+          PortMappings = new[] {"80"},
           Volumes = new[] {$"{fullPath.Rendered.ToMsysPath()}:/usr/share/nginx/html:ro"}
         }))
       {
         container.Start();
         Assert.AreEqual(ServiceRunningState.Running, container.State);
 
-        var endpoint = container.ToHosExposedtPort("80/tcp");
+        var endpoint = container.ToHostExposedPort("80/tcp");
         endpoint.WaitForPort(10000 /*10s*/);
 
         File.WriteAllText(Path.Combine(fullPath, "hello.html"), html);
@@ -248,19 +244,19 @@ namespace Ductus.FluentDockerTest
       using (var container = _host.Create("postgres:latest",
         new ContainerCreateParams
         {
-          Environment = new[] { "POSTGRES_PASSWORD=mysecretpassword" }
+          Environment = new[] {"POSTGRES_PASSWORD=mysecretpassword"}
         }))
       {
         container.Start();
         Assert.AreEqual(ServiceRunningState.Running, container.State);
 
-        var fullPath = (TemplateString)@"${TEMP}\fluentdockertest\${RND}";
+        var fullPath = (TemplateString) @"${TEMP}\fluentdockertest\${RND}";
         try
         {
           Directory.CreateDirectory(fullPath);
-          var path = container.CopyFrom((TemplateString) "/bin", fullPath);
+          container.CopyFrom("/bin", fullPath);
 
-          var files = Directory.EnumerateFiles(Path.Combine(path, "bin")).ToArray();
+          var files = Directory.EnumerateFiles(Path.Combine(fullPath, "bin")).ToArray();
           Assert.IsTrue(files.Any(x => x.EndsWith("bash")));
           Assert.IsTrue(files.Any(x => x.EndsWith("cat")));
         }
@@ -268,18 +264,19 @@ namespace Ductus.FluentDockerTest
         {
           if (Directory.Exists(fullPath))
           {
-            Directory.Delete(fullPath,true);
+            Directory.Delete(fullPath, true);
           }
         }
-        }
+      }
     }
+
     [TestMethod]
     public void CopyToRunningContainerShallWork()
     {
       using (var container = _host.Create("postgres:latest",
         new ContainerCreateParams
         {
-          Environment = new[] { "POSTGRES_PASSWORD=mysecretpassword" }
+          Environment = new[] {"POSTGRES_PASSWORD=mysecretpassword"}
         }))
       {
         container.Start();
@@ -294,7 +291,7 @@ namespace Ductus.FluentDockerTest
           File.WriteAllText(fullPath, "<html><head>Hello World</head><body><h1>Hello world</h1></body></html>");
 
           var before = container.Diff();
-          container.CopyTo((TemplateString)"/bin", fullPath);
+          container.CopyTo("/bin", fullPath);
           var after = container.Diff();
 
           Assert.IsFalse(before.Any(x => x.Item == "/bin/hello.html"));

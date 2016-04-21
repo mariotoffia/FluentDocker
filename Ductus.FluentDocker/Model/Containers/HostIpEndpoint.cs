@@ -7,8 +7,8 @@ namespace Ductus.FluentDocker.Model.Containers
     private string _hostIp;
     private string _hostPort;
 
-    public HostIpEndpoint() : base(0,0)
-    {      
+    public HostIpEndpoint() : base(0, 0)
+    {
     }
 
     public HostIpEndpoint(long address, int port) : base(address, port)

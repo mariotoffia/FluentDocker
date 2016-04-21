@@ -1,8 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Net;
-using System.Reflection;
 using Ductus.FluentDocker.Common;
 using Ductus.FluentDocker.Extensions;
 using Ductus.FluentDocker.Model.Builders;
@@ -28,8 +26,37 @@ namespace Ductus.FluentDocker.Builders
           $"Cannot build container {_config.Image} since no host service is defined");
       }
 
-      return host.Value.Create(_config.Image, _config.CreateParams, _config.StopOnDispose, _config.DeleteOnDispose,
+      var container = host.Value.Create(_config.Image, _config.CreateParams, _config.StopOnDispose,
+        _config.DeleteOnDispose,
         _config.Command, _config.Arguments);
+
+      // Copy files / folders on dispose
+      if (null != _config.CopyFromContainerBeforeDispose && 0 != _config.CopyFromContainerBeforeDispose.Count)
+      {
+        container.AddHook(ServiceRunningState.Removing, service =>
+        {
+          foreach (var copy in _config.CopyFromContainerBeforeDispose)
+          {
+            ((IContainerService) service).CopyFrom(copy.Item2, copy.Item1);
+          }
+        });
+      }
+
+      // Export container on dispose
+      if (null != _config.ExportContainerOnDispose)
+      {
+        container.AddHook(ServiceRunningState.Removing, service =>
+        {
+          var svc = (IContainerService) service;
+          if (_config.ExportContainerOnDispose.Item3(svc))
+          {
+            svc.Export(_config.ExportContainerOnDispose.Item1,
+              _config.ExportContainerOnDispose.Item2);
+          }
+        });
+      }
+
+      return container;
     }
 
     protected override IBuilder InternalCreate()
@@ -109,9 +136,9 @@ namespace Ductus.FluentDocker.Builders
       return this;
     }
 
-    public ContainerBuilder ExposePort(int hostPort)
+    public ContainerBuilder ExposePort(int containerPort)
     {
-      _config.CreateParams.PortMappings = _config.CreateParams.PortMappings.AddToArray($"{hostPort}");
+      _config.CreateParams.PortMappings = _config.CreateParams.PortMappings.AddToArray($"{containerPort}");
       return this;
     }
 
@@ -162,12 +189,6 @@ namespace Ductus.FluentDocker.Builders
       return this;
     }
 
-    public ContainerBuilder WaitForPort(string portAndProto, int timeout = int.MaxValue)
-    {
-      _config.WaitForPort = new Tuple<string, int>(portAndProto, timeout);
-      return this;
-    }
-
     public ContainerBuilder KeepRunning()
     {
       _config.StopOnDispose = false;
@@ -181,11 +202,39 @@ namespace Ductus.FluentDocker.Builders
       return this;
     }
 
+    public ContainerBuilder ExportOnDispose(string hostPath, Func<IContainerService, bool> condition = null)
+    {
+      _config.ExportContainerOnDispose =
+        new Tuple<TemplateString, bool, Func<IContainerService, bool>>(hostPath, false /*no-explode*/,
+          condition ?? (svc => true));
+      return this;
+    }
+
+    public ContainerBuilder ExportExploadedOnDispose(string hostPath, Func<IContainerService, bool> condition = null)
+    {
+      _config.ExportContainerOnDispose =
+        new Tuple<TemplateString, bool, Func<IContainerService, bool>>(hostPath, true /*explode*/,
+          condition ?? (svc => true));
+      return this;
+    }
+
+    public ContainerBuilder CopyOnDispose(string containerPath, string hostPath)
+    {
+      if (null == _config.CopyFromContainerBeforeDispose)
+      {
+        _config.CopyFromContainerBeforeDispose = new List<Tuple<TemplateString, TemplateString>>();
+      }
+
+      _config.CopyFromContainerBeforeDispose.Add(new Tuple<TemplateString, TemplateString>(hostPath,
+        containerPath));
+      return this;
+    }
+
     private Option<IHostService> FindHostService()
     {
       for (var parent = ((IBuilder) this).Parent; parent.HasValue; parent = parent.Value.Parent)
       {
-        var hostService = parent.Value.GetType().GetMethod("Build")?.ReturnType == typeof(IHostService);
+        var hostService = parent.Value.GetType().GetMethod("Build")?.ReturnType == typeof (IHostService);
         if (hostService)
         {
           return new Option<IHostService>(((IBuilder<IHostService>) parent.Value).Build());

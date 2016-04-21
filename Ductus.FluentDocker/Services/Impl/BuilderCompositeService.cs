@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
 
@@ -71,6 +72,24 @@ namespace Ductus.FluentDocker.Services.Impl
       {
         service.Remove(force);
       }
+    }
+
+    public IService AddHook(ServiceRunningState state, Action<IService> hook, string uniqueName = null)
+    {
+      foreach (var service in Services)
+      {
+        service.AddHook(state, hook, uniqueName);
+      }
+      return this;
+    }
+
+    public IService RemoveHook(string uniqueName)
+    {
+      foreach (var service in Services)
+      {
+        service.RemoveHook(uniqueName);
+      }
+      return this;
     }
 
     public event ServiceDelegates.StateChange StateChange;

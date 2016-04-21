@@ -39,9 +39,9 @@ namespace Ductus.FluentDocker.Model.Containers
     {
       var row = new ProcessRow {FullRow = fullRow};
 
-      for (int i = 0; i < columns.Count; i++)
+      for (var i = 0; i < columns.Count; i++)
       {
-        string column = columns[i];
+        var column = columns[i];
 
         switch (column)
         {

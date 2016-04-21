@@ -2,7 +2,6 @@
 using System.Collections.Generic;
 using System.Security.Cryptography.X509Certificates;
 using Ductus.FluentDocker.Common;
-using Ductus.FluentDocker.Model;
 using Ductus.FluentDocker.Model.Containers;
 using Ductus.FluentDocker.Model.Machines;
 
@@ -66,7 +65,7 @@ namespace Ductus.FluentDocker.Services
       string[] args = null);
 
     /// <summary>
-    /// Gets the machine configuration if machine.
+    ///   Gets the machine configuration if machine.
     /// </summary>
     /// <returns>A machine configuration. It will always return null if native.</returns>
     MachineConfiguration GetMachineConfiguration();

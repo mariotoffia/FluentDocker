@@ -15,7 +15,7 @@ namespace Ductus.FluentDocker.Model.Containers
     public string Destination { get; set; }
 
     /// <summary>
-    /// Mode of the mount (e.g. 'Z').
+    ///   Mode of the mount (e.g. 'Z').
     /// </summary>
     public string Mode { get; set; }
 

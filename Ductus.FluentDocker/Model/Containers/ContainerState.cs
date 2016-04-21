@@ -1,6 +1,7 @@
 ﻿using System;
 
 // ReSharper disable InconsistentNaming
+
 namespace Ductus.FluentDocker.Model.Containers
 {
   public sealed class ContainerState

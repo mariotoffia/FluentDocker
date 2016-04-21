@@ -44,7 +44,7 @@ namespace Ductus.FluentDocker.Builders
 
     IService IBuilder.Build()
     {
-      return (IService)Build();
+      return (IService) Build();
     }
 
     protected abstract IBuilder InternalCreate();

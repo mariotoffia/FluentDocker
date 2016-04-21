@@ -12,11 +12,11 @@ namespace Ductus.FluentDocker.Extensions
       {
         case "docker-machine":
           return HasMachine()
-            ? ((TemplateString)"${E_DOCKER_TOOLBOX_INSTALL_PATH}/docker-machine").Rendered.ToPlatformPath()
+            ? ((TemplateString) "${E_DOCKER_TOOLBOX_INSTALL_PATH}/docker-machine").Rendered.ToPlatformPath()
             : dockerCommand;
         case "docker":
           return HasMachine()
-            ? ((TemplateString)"${E_DOCKER_TOOLBOX_INSTALL_PATH}/docker").Rendered.ToPlatformPath()
+            ? ((TemplateString) "${E_DOCKER_TOOLBOX_INSTALL_PATH}/docker").Rendered.ToPlatformPath()
             : dockerCommand;
       }
 
@@ -30,7 +30,7 @@ namespace Ductus.FluentDocker.Extensions
 
     public static bool IsWindows()
     {
-      return Environment.OSVersion.Platform != PlatformID.MacOSX && 
+      return Environment.OSVersion.Platform != PlatformID.MacOSX &&
              Environment.OSVersion.Platform != PlatformID.Unix;
     }
 

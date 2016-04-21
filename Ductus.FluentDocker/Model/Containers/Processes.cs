@@ -5,7 +5,7 @@ namespace Ductus.FluentDocker.Model.Containers
 {
   public sealed class Processes
   {
-    public IList<string> Columns { get; set; } 
+    public IList<string> Columns { get; set; }
     public IList<ProcessRow> Rows { get; set; }
 
     public override string ToString()

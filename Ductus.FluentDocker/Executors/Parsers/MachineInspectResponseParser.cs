@@ -1,5 +1,4 @@
 ﻿using System.Net;
-using Ductus.FluentDocker.Model;
 using Ductus.FluentDocker.Model.Containers;
 using Ductus.FluentDocker.Model.Machines;
 using Newtonsoft.Json;

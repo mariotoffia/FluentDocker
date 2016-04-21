@@ -1,30 +1,27 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Net;
 using Ductus.FluentDocker.Commands;
-using Ductus.FluentDocker.Extensions;
-using Ductus.FluentDocker.Model;
-using Ductus.FluentDocker.Model.Common;
 using Ductus.FluentDocker.Model.Containers;
 
 namespace Ductus.FluentDocker.Services.Impl
 {
-  public sealed class DockerContainerService : ServiceBase, IContainerService
+  public sealed class DockerContainerService : IContainerService
   {
     private readonly CertificatePaths _certificates;
+    private readonly ServiceHooks _hooks = new ServiceHooks();
     private readonly bool _removeOnDispose;
     private readonly bool _stopOnDispose;
     private Container _containerConfigCache;
+    private ServiceRunningState _state = ServiceRunningState.Unknown;
 
     public DockerContainerService(string name, string id, Uri docker, ServiceRunningState state,
       CertificatePaths certificates,
-      bool stopOnDispose = true, bool removeOnDispose = true) : base(name)
+      bool stopOnDispose = true, bool removeOnDispose = true)
     {
       _certificates = certificates;
       _stopOnDispose = stopOnDispose;
       _removeOnDispose = removeOnDispose;
 
+      Name = name;
       Id = id;
       DockerHost = docker;
       State = state;
@@ -44,66 +41,33 @@ namespace Ductus.FluentDocker.Services.Impl
       return _containerConfigCache;
     }
 
-    public IPEndPoint ToHosExposedtPort(string portAndProto)
-    {
-      return GetConfiguration()?.NetworkSettings.Ports.ToHostPort(portAndProto, DockerHost);
-    }
+    public ICertificatePaths Certificates => _certificates;
 
-    public Processes GetRunningProcesses()
-    {
-      return DockerHost.Top(Id, _certificates).Data;
-    }
+    public string Name { get; }
 
-    public string Export(TemplateString fqPath, bool explode = false)
+    public ServiceRunningState State
     {
-      string path = explode ? Path.GetTempFileName() : fqPath;
-      var result = DockerHost.Export(Id, path, _certificates);
-      if (!result.Success)
+      get { return _state; }
+      set
       {
-        return null;
-      }
+        if (_state == value)
+        {
+          return;
+        }
 
-      if (!explode)
-      {
-        return path;
+        _state = value;
+        StateChange?.Invoke(this, new StateChangeEventArgs(this, value));
+        _hooks.Execute(this, _state);
       }
-
-      try
-      {
-        path.UnTar(fqPath);
-      }
-      finally
-      {
-        File.Delete(path);
-      }
-
-      return fqPath;
     }
 
-    public string CopyTo(TemplateString containerPath, TemplateString hostPath)
+    public IContainerService Start()
     {
-      string cp = containerPath;
-      string hp = hostPath;
-
-      var res = DockerHost.CopyToContainer(Id, cp, hp, _certificates);
-      return !res.Success ? null : hp;
+      ((IService) this).Start();
+      return this;
     }
 
-    public string CopyFrom(TemplateString containerPath, TemplateString hostPath)
-    {
-      string cp = containerPath;
-      string hp = hostPath;
-
-      var res = DockerHost.CopyFromContainer(Id, cp, hp, _certificates);
-      return !res.Success ? null : hp;
-    }
-
-    public IList<Diff> Diff()
-    {
-      return DockerHost.Diff(Id, _certificates).Data;
-    }
-
-    public override void Dispose()
+    public void Dispose()
     {
       if (string.IsNullOrEmpty(Id) || null == DockerHost)
       {
@@ -112,16 +76,16 @@ namespace Ductus.FluentDocker.Services.Impl
 
       if (_stopOnDispose)
       {
-        DockerHost.Stop(Id, null, _certificates);
+        Stop();
       }
 
       if (_removeOnDispose)
       {
-        DockerHost.RemoveContainer(Id, false, true, null, _certificates);
+        Remove(true);
       }
     }
 
-    public override void Start()
+    void IService.Start()
     {
       State = ServiceRunningState.Starting;
       DockerHost.Start(Id, _certificates);
@@ -131,7 +95,7 @@ namespace Ductus.FluentDocker.Services.Impl
       }
     }
 
-    public override void Stop()
+    public void Stop()
     {
       State = ServiceRunningState.Stopping;
       var res = DockerHost.Stop(Id, null, _certificates);
@@ -141,19 +105,33 @@ namespace Ductus.FluentDocker.Services.Impl
       }
     }
 
-    public override void Remove(bool force = false)
+    public void Remove(bool force = false)
     {
       if (State != ServiceRunningState.Stopped)
       {
-        State = ServiceRunningState.Stopping;
+        Stop();
       }
 
+      State = ServiceRunningState.Removing;
       var result = DockerHost.RemoveContainer(Id, force, false, null, _certificates);
       if (result.Success)
       {
-        State = ServiceRunningState.Stopped;
         State = ServiceRunningState.Removed;
       }
     }
+
+    public IService AddHook(ServiceRunningState state, Action<IService> hook, string uniqueName = null)
+    {
+      _hooks.AddHook(uniqueName ?? Guid.NewGuid().ToString(), state, hook);
+      return this;
+    }
+
+    public IService RemoveHook(string uniqueName)
+    {
+      _hooks.RemoveHook(uniqueName);
+      return this;
+    }
+
+    public event ServiceDelegates.StateChange StateChange;
   }
 }

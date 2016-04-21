@@ -14,6 +14,8 @@ namespace Ductus.FluentDocker.Services
     void Start();
     void Stop();
     void Remove(bool force = false);
+    IService AddHook(ServiceRunningState state, Action<IService> hook, string uniqueName = null);
+    IService RemoveHook(string uniqueName);
 
     event ServiceDelegates.StateChange StateChange;
   }

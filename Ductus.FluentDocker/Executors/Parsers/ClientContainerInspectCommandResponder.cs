@@ -1,9 +1,6 @@
-﻿using System;
-using System.Text;
-using Ductus.FluentDocker.Model;
+﻿using System.Text;
 using Ductus.FluentDocker.Model.Containers;
 using Newtonsoft.Json;
-using Newtonsoft.Json.Linq;
 
 namespace Ductus.FluentDocker.Executors.Parsers
 {
@@ -21,7 +18,7 @@ namespace Ductus.FluentDocker.Executors.Parsers
 
       var arr = response.StdOutAsArry;
       var sb = new StringBuilder();
-      for (int i = 1; i < arr.Length - 1; i++)
+      for (var i = 1; i < arr.Length - 1; i++)
       {
         sb.AppendLine(arr[i]);
       }

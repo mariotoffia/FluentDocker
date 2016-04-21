@@ -8,6 +8,7 @@
     Paused = 3,
     Stopping = 4,
     Stopped = 5,
-    Removed = 6
+    Removing = 6,
+    Removed = 7
   }
 }

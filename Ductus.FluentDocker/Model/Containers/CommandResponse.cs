@@ -14,7 +14,7 @@ namespace Ductus.FluentDocker.Model.Containers
     }
 
     public bool Success { get; private set; }
-    public IList<string> Log { get; private set; }
+    public IList<string> Log { get; }
     public string Error { get; private set; }
     public T Data { get; }
 

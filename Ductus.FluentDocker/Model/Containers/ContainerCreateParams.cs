@@ -155,34 +155,34 @@ namespace Ductus.FluentDocker.Model.Containers
     ///   Publish all exposed ports to random ports
     /// </summary>
     /// <remarks>
-    ///   -P, --publish-all. This is mutual exclusive when set to true, 
-    /// the <see cref="PortMappings" /> is ignored.
+    ///   -P, --publish-all. This is mutual exclusive when set to true,
+    ///   the <see cref="PortMappings" /> is ignored.
     /// </remarks>
     public bool PublishAllPorts { get; set; }
 
     /// <summary>
-    /// Add link to another container
+    ///   Add link to another container
     /// </summary>
     /// <remarks>
-    /// --link=[]
+    ///   --link=[]
     /// </remarks>
-    public string []Links { get; set; }
+    public string[] Links { get; set; }
 
     /// <summary>
-    /// Set meta data on a container
+    ///   Set meta data on a container
     /// </summary>
     /// <remarks>
-    /// -l, --label=[]
+    ///   -l, --label=[]
     /// </remarks>
-    public string []Labels { get; set; }
+    public string[] Labels { get; set; }
 
     /// <summary>
-    /// Add additional groups to join
+    ///   Add additional groups to join
     /// </summary>
     /// <remarks>
-    /// --group-add=[]
+    ///   --group-add=[]
     /// </remarks>
-    public string []Groups { get; set; }
+    public string[] Groups { get; set; }
 
     /// <summary>
     ///   Renders the argument string from this instance.
@@ -244,7 +244,7 @@ namespace Ductus.FluentDocker.Model.Containers
         sb.Append(" -P");
       }
 
-      RenderIfExists(sb,"--link=", Links);
+      RenderIfExists(sb, "--link=", Links);
       RenderIfExists(sb, "-l ", Labels);
       RenderIfExists(sb, "--group-add=", Groups);
 

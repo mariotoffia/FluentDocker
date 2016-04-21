@@ -75,6 +75,7 @@
     <Compile Include="Executors\ProcessExecutionResult.cs" />
     <Compile Include="Executors\ProcessExecutor.cs" />
     <Compile Include="Extensions\CompressionExtensions.cs" />
+    <Compile Include="Extensions\ContainerExtensions.cs" />
     <Compile Include="Extensions\CrytoUtils.cs" />
     <Compile Include="Extensions\ModelExtensions.cs" />
     <Compile Include="Extensions\NetworkExtensions.cs" />
@@ -110,6 +111,7 @@
     <Compile Include="Services\Impl\DockerContainerService.cs" />
     <Compile Include="Services\Impl\DockerHostService.cs" />
     <Compile Include="Services\Impl\ServiceBase.cs" />
+    <Compile Include="Services\Impl\ServiceHooks.cs" />
     <Compile Include="Services\IService.cs" />
     <Compile Include="Services\ServiceRunningState.cs" />
     <Compile Include="Services\StateChangeEventArgs.cs" />

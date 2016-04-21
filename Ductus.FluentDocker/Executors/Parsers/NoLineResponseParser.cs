@@ -1,11 +1,11 @@
-﻿using Ductus.FluentDocker.Model;
-using Ductus.FluentDocker.Model.Containers;
+﻿using Ductus.FluentDocker.Model.Containers;
 
 namespace Ductus.FluentDocker.Executors.Parsers
 {
   public sealed class NoLineResponseParser : IProcessResponseParser<string>
   {
     public CommandResponse<string> Response { get; private set; }
+
     public IProcessResponse<string> Process(ProcessExecutionResult response)
     {
       Response = response.ExitCode != 0

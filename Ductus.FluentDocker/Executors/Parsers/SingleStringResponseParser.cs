@@ -1,11 +1,11 @@
-﻿using Ductus.FluentDocker.Model;
-using Ductus.FluentDocker.Model.Containers;
+﻿using Ductus.FluentDocker.Model.Containers;
 
 namespace Ductus.FluentDocker.Executors.Parsers
 {
   public sealed class SingleStringResponseParser : IProcessResponseParser<string>
   {
     public CommandResponse<string> Response { get; private set; }
+
     public IProcessResponse<string> Process(ProcessExecutionResult response)
     {
       var arr = response.StdOutAsArry;

@@ -1,6 +1,6 @@
 ﻿using System.Reflection;
-using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+
 [assembly: AssemblyTitle("Ductus.FluentDocker")]
 [assembly: AssemblyDescription("Fluent interface to create, run and manage docker containers.")]
 [assembly: AssemblyConfiguration("")]

@@ -1,6 +1,13 @@
 ﻿namespace Ductus.FluentDocker.Model.Containers
 {
-  public sealed class CertificatePaths
+  public interface ICertificatePaths
+  {
+    string CaCertificate { get; }
+    string ClientCertificate { get; }
+    string ClientKey { get; }
+  }
+
+  public sealed class CertificatePaths : ICertificatePaths
   {
     public string CaCertificate { get; set; }
     public string ClientCertificate { get; set; }

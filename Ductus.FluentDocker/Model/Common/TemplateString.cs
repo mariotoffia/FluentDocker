@@ -57,7 +57,7 @@ namespace Ductus.FluentDocker.Model.Common
       return str;
     }
 
-    public static explicit operator TemplateString(string str)
+    public static implicit operator TemplateString(string str)
     {
       return new TemplateString(str);
     }

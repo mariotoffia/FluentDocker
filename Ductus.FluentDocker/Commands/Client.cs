@@ -10,7 +10,7 @@ namespace Ductus.FluentDocker.Commands
   public static class Client
   {
     public static CommandResponse<IList<string>> Ps(this Uri host, string options = null,
-      CertificatePaths certificates = null)
+      ICertificatePaths certificates = null)
     {
       return Ps(host, options, certificates?.CaCertificate, certificates?.ClientCertificate, certificates?.ClientKey);
     }
@@ -41,7 +41,7 @@ namespace Ductus.FluentDocker.Commands
     }
 
     public static CommandResponse<string> Create(this Uri host, string image, string command = null,
-      string[] args = null, ContainerCreateParams prms = null, CertificatePaths certificates = null)
+      string[] args = null, ContainerCreateParams prms = null, ICertificatePaths certificates = null)
     {
       var certArgs = RenderBaseArgs(host, certificates?.CaCertificate, certificates?.ClientCertificate,
         certificates?.ClientKey);
@@ -71,7 +71,7 @@ namespace Ductus.FluentDocker.Commands
     }
 
     public static CommandResponse<string> Run(this Uri host, string image, ContainerCreateParams args = null,
-      CertificatePaths certificates = null)
+      ICertificatePaths certificates = null)
     {
       return Run(host, image, args, certificates?.CaCertificate, certificates?.ClientCertificate,
         certificates?.ClientKey);
@@ -134,7 +134,7 @@ namespace Ductus.FluentDocker.Commands
 
     public static CommandResponse<string> RemoveContainer(this Uri host, string id, bool force = false,
       bool removeVolumes = false,
-      string removeLink = null, CertificatePaths certificates = null)
+      string removeLink = null, ICertificatePaths certificates = null)
     {
       return RemoveContainer(host, id, force, removeVolumes, removeLink, certificates?.CaCertificate,
         certificates?.ClientCertificate, certificates?.ClientKey);
@@ -169,7 +169,7 @@ namespace Ductus.FluentDocker.Commands
         arg).Execute();
     }
 
-    public static CommandResponse<Processes> Top(this Uri host, string id, CertificatePaths certificates = null)
+    public static CommandResponse<Processes> Top(this Uri host, string id, ICertificatePaths certificates = null)
     {
       var arg =
         $"{RenderBaseArgs(host, certificates?.CaCertificate, certificates?.ClientCertificate, certificates?.ClientKey)} top {id}";
@@ -178,7 +178,7 @@ namespace Ductus.FluentDocker.Commands
     }
 
     public static CommandResponse<Container> InspectContainer(this Uri host, string id,
-      CertificatePaths certificates = null)
+      ICertificatePaths certificates = null)
     {
       return InspectContainer(host, id, certificates?.CaCertificate, certificates?.ClientCertificate,
         certificates?.ClientKey);
@@ -193,7 +193,7 @@ namespace Ductus.FluentDocker.Commands
     }
 
     public static CommandResponse<string> Export(this Uri host, string id, string fqFilePath,
-      CertificatePaths certificates = null)
+      ICertificatePaths certificates = null)
     {
       var arg =
         $"{RenderBaseArgs(host, certificates?.CaCertificate, certificates?.ClientCertificate, certificates?.ClientKey)} export";
@@ -202,7 +202,7 @@ namespace Ductus.FluentDocker.Commands
     }
 
     public static CommandResponse<string> CopyToContainer(this Uri host, string id, string containerPath,
-      string hostPath, CertificatePaths certificates = null)
+      string hostPath, ICertificatePaths certificates = null)
     {
       var arg =
         $"{RenderBaseArgs(host, certificates?.CaCertificate, certificates?.ClientCertificate, certificates?.ClientKey)}";
@@ -211,7 +211,7 @@ namespace Ductus.FluentDocker.Commands
     }
 
     public static CommandResponse<string> CopyFromContainer(this Uri host, string id, string containerPath,
-      string hostPath, CertificatePaths certificates = null)
+      string hostPath, ICertificatePaths certificates = null)
     {
       var arg =
         $"{RenderBaseArgs(host, certificates?.CaCertificate, certificates?.ClientCertificate, certificates?.ClientKey)}";
@@ -219,7 +219,7 @@ namespace Ductus.FluentDocker.Commands
         $"{arg} cp {id}:{containerPath} \"{hostPath}\"").Execute();
     }
 
-    public static CommandResponse<IList<Diff>> Diff(this Uri host, string id, CertificatePaths certificates = null)
+    public static CommandResponse<IList<Diff>> Diff(this Uri host, string id, ICertificatePaths certificates = null)
     {
       var arg =
         $"{RenderBaseArgs(host, certificates?.CaCertificate, certificates?.ClientCertificate, certificates?.ClientKey)}";
