@@ -58,12 +58,15 @@
   </Choose>
   <ItemGroup>
     <Compile Include="Extensions\HttpExtensions.cs" />
+    <Compile Include="Extensions\ResourceExtensions.cs" />
+    <Compile Include="MultiContainerTestFiles\NsResolver.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="DockerMachineCommandTests.cs" />
     <Compile Include="DockerClientCommandTests.cs" />
     <Compile Include="MachineServiceTests.cs" />
     <Compile Include="ContainerServiceBasicTests.cs" />
     <Compile Include="FluentContainerBasicTests.cs" />
+    <Compile Include="FluentMultiContainerTests.cs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Ductus.FluentDocker\Ductus.FluentDocker.csproj">
@@ -73,7 +76,11 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="app.config" />
+    <EmbeddedResource Include="MultiContainerTestFiles\nginx.conf" />
     <None Include="packages.config" />
+  </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="MultiContainerTestFiles\index.js" />
   </ItemGroup>
   <Choose>
     <When Condition="'$(VisualStudioVersion)' == '10.0' And '$(IsCodedUITest)' == 'True'">

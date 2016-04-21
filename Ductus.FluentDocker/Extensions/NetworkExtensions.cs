@@ -14,7 +14,7 @@ namespace Ductus.FluentDocker.Extensions
     public static IContainerService WaitForPort(this IContainerService service, string portAndProto,
       long millisTimeout = long.MaxValue)
     {
-      service.ToHostExposedPort(portAndProto).WaitForPort(millisTimeout);
+      service.ToHostExposedEndpoint(portAndProto).WaitForPort(millisTimeout);
       return service;
     }
 

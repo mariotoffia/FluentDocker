@@ -10,8 +10,12 @@ namespace Ductus.FluentDocker.Services.Impl
     public BuilderCompositeService(IList<IService> services, string name)
     {
       Services = new ReadOnlyCollection<IService>(services);
-      Hosts = new ReadOnlyCollection<IHostService>(services.Cast<IHostService>().ToList());
-      Containers = new ReadOnlyCollection<IContainerService>(services.Cast<IContainerService>().ToList());
+      Hosts = new ReadOnlyCollection<IHostService>(services.Where(x => x is IHostService).Cast<IHostService>().ToList());
+
+      Containers =
+        new ReadOnlyCollection<IContainerService>(
+          services.Where(x => x is IContainerService).Cast<IContainerService>().ToList());
+
       Name = name;
 
       foreach (var service in Services)
@@ -44,12 +48,12 @@ namespace Ductus.FluentDocker.Services.Impl
       }
     }
 
-    public void Start()
+    void IService.Start()
     {
       foreach (
         var service in
           Services.Where(
-            service => service.State == ServiceRunningState.Stopped || service.State == ServiceRunningState.Paused))
+            service => service.State != ServiceRunningState.Running))
       {
         service.Start();
       }
@@ -96,6 +100,12 @@ namespace Ductus.FluentDocker.Services.Impl
     public IReadOnlyCollection<IHostService> Hosts { get; }
     public IReadOnlyCollection<IContainerService> Containers { get; }
     public IReadOnlyCollection<IService> Services { get; }
+
+    public ICompositeService Start()
+    {
+      ((IService) this).Start();
+      return this;
+    }
 
     private void OnStateChange(object service, StateChangeEventArgs evt)
     {

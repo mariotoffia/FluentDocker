@@ -1,18 +1,15 @@
 ﻿using System;
+using Ductus.FluentDocker.Builders;
+using Ductus.FluentDocker.Services;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace Ductus.FluentDocker.MsTest
 {
   public abstract class FluentDockerTestBase
   {
-    protected DockerContainer Container;
+    protected IContainerService Container;
 
-    /// <summary>
-    /// Builds a <see cref="DockerBuilder"/> and returns it. It will be used to
-    /// instantiate a container.
-    /// </summary>
-    /// <returns>A new instance of populated <see cref="DockerBuilder"/>.</returns>
-    protected abstract DockerBuilder Build();
+    protected abstract ContainerBuilder Build();
 
     [TestInitialize]
     public void Initialize()
@@ -20,7 +17,7 @@ namespace Ductus.FluentDocker.MsTest
       Container = Build().Build();
       try
       {
-        Container.Create().Start();
+        Container.Start();
       }
       catch (Exception)
       {
@@ -49,14 +46,14 @@ namespace Ductus.FluentDocker.MsTest
     }
 
     /// <summary>
-    /// Invoked just before the container is teared down.
+    ///   Invoked just before the container is teared down.
     /// </summary>
     protected virtual void OnContainerTearDown()
     {
     }
 
     /// <summary>
-    /// Invoked after a container has been created and started.
+    ///   Invoked after a container has been created and started.
     /// </summary>
     protected virtual void OnContainerInitialized()
     {

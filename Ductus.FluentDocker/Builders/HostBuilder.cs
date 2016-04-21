@@ -21,6 +21,7 @@ namespace Ductus.FluentDocker.Builders
       return new HostBuilder(this);
     }
 
+    public bool IsNative => _useNative;
 
     public HostBuilder UseNative()
     {
@@ -30,6 +31,12 @@ namespace Ductus.FluentDocker.Builders
 
     public MachineBuilder UseMachine()
     {
+      var existing = Childs.FirstOrDefault(x => x is MachineBuilder);
+      if (null != existing)
+      {
+        return (MachineBuilder) existing;
+      }
+
       var builder = new MachineBuilder(this);
       Childs.Add(builder);
       return builder;
@@ -37,7 +44,9 @@ namespace Ductus.FluentDocker.Builders
 
     public ContainerBuilder UseContainer()
     {
-      return new ContainerBuilder(this);
+      var builder = new ContainerBuilder(this);
+      Childs.Add(builder);
+      return builder;
     }
   }
 }

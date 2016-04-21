@@ -87,7 +87,7 @@ namespace Ductus.FluentDockerTest
             .Build()
             .Start())
       {
-        var endpoint = container.ToHostExposedPort("5432/tcp");
+        var endpoint = container.ToHostExposedEndpoint("5432/tcp");
         Assert.AreEqual(40001, endpoint.Port);
       }
     }
@@ -104,7 +104,7 @@ namespace Ductus.FluentDockerTest
             .Build()
             .Start())
       {
-        var endpoint = container.ToHostExposedPort("5432/tcp");
+        var endpoint = container.ToHostExposedEndpoint("5432/tcp");
         Assert.AreNotEqual(0, endpoint.Port);
       }
     }
@@ -118,9 +118,9 @@ namespace Ductus.FluentDockerTest
             .UseImage("postgres:latest")
             .ExposePort(5432)
             .WithEnvironment("POSTGRES_PASSWORD=mysecretpassword")
+            .WaitForPort("5432/tcp", 30000 /*30s*/)
             .Build()
-            .Start()
-            .WaitForPort("5432/tcp", 30000 /*30s*/))
+            .Start())
       {
         var config = container.GetConfiguration(true);
         Assert.AreEqual(ServiceRunningState.Running, config.State.ToServiceState());
@@ -136,9 +136,9 @@ namespace Ductus.FluentDockerTest
             .UseImage("postgres:latest")
             .ExposePort(5432)
             .WithEnvironment("POSTGRES_PASSWORD=mysecretpassword")
+            .WaitForProcess("postgres", 30000 /*30s*/)
             .Build()
-            .Start()
-            .WaitForProcess("postgres", 30000 /*30s*/))
+            .Start())
       {
         var config = container.GetConfiguration(true);
         Assert.AreEqual(ServiceRunningState.Running, config.State.ToServiceState());
@@ -167,7 +167,7 @@ namespace Ductus.FluentDockerTest
         {
           File.WriteAllText(Path.Combine(hostPath, "hello.html"), html);
 
-          var response = $"http://{container.ToHostExposedPort("80/tcp")}/hello.html".Curl();
+          var response = $"http://{container.ToHostExposedEndpoint("80/tcp")}/hello.html".Curl();
           Assert.AreEqual(html, response);
         }
         finally

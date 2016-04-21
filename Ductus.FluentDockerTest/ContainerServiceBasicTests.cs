@@ -106,7 +106,7 @@ namespace Ductus.FluentDockerTest
         Assert.AreEqual(ServiceRunningState.Running, container.State);
         Assert.IsTrue(config.Config.Env.Any(x => x == "POSTGRES_PASSWORD=mysecretpassword"));
 
-        var endpoint = container.ToHostExposedPort("5432/tcp");
+        var endpoint = container.ToHostExposedEndpoint("5432/tcp");
         endpoint.WaitForPort(10000 /*10s*/);
         Debug.Write($"Succeeded waiting for postgres port {endpoint} docker port 5432/tcp");
       }
@@ -125,7 +125,7 @@ namespace Ductus.FluentDockerTest
         container.Start();
         Assert.AreEqual(ServiceRunningState.Running, container.State);
 
-        var endpoint = container.ToHostExposedPort("5432/tcp");
+        var endpoint = container.ToHostExposedEndpoint("5432/tcp");
         endpoint.WaitForPort(10000 /*10s*/);
 
         var proc = container.GetRunningProcesses();
@@ -153,7 +153,7 @@ namespace Ductus.FluentDockerTest
         container.Start();
         Assert.AreEqual(ServiceRunningState.Running, container.State);
 
-        var endpoint = container.ToHostExposedPort("5432/tcp");
+        var endpoint = container.ToHostExposedEndpoint("5432/tcp");
         endpoint.WaitForPort(10000 /*10s*/);
 
         var rnd = Path.GetFileName(Path.GetTempFileName());
@@ -188,7 +188,7 @@ namespace Ductus.FluentDockerTest
         container.Start();
         Assert.AreEqual(ServiceRunningState.Running, container.State);
 
-        var endpoint = container.ToHostExposedPort("5432/tcp");
+        var endpoint = container.ToHostExposedEndpoint("5432/tcp");
         endpoint.WaitForPort(10000 /*10s*/);
 
         var rnd = Path.GetFileName(Path.GetTempFileName());
@@ -228,7 +228,7 @@ namespace Ductus.FluentDockerTest
         container.Start();
         Assert.AreEqual(ServiceRunningState.Running, container.State);
 
-        var endpoint = container.ToHostExposedPort("80/tcp");
+        var endpoint = container.ToHostExposedEndpoint("80/tcp");
         endpoint.WaitForPort(10000 /*10s*/);
 
         File.WriteAllText(Path.Combine(fullPath, "hello.html"), html);

@@ -1,4 +1,7 @@
-﻿namespace Ductus.FluentDocker.MsTest
+﻿using Ductus.FluentDocker.Builders;
+using Ductus.FluentDocker.Extensions;
+
+namespace Ductus.FluentDocker.MsTest
 {
   public abstract class PostgresTestBase : FluentDockerTestBase
   {
@@ -20,19 +23,19 @@
       DockerImage = image;
     }
 
-    protected override DockerBuilder Build()
+    protected override ContainerBuilder Build()
     {
-      return new DockerBuilder()
-        .WithImage("postgres:latest")
+      return new Builder().UseContainer()
+        .UseImage("postgres:latest")
         .WithEnvironment($"POSTGRES_PASSWORD={PostgresPassword}")
-        .ExposePorts("5432")
+        .ExposePort(5432)
         .WaitForPort("5432/tcp", 30000 /*30s*/);
     }
 
     protected override void OnContainerInitialized()
     {
-      ConnectionString = string.Format(PostgresConnectionString, Container.Host,
-        Container.GetHostPort("5432/tcp"), PostgresUser,
+      var ep = Container.ToHostExposedEndpoint("5432/tcp");
+      ConnectionString = string.Format(PostgresConnectionString, ep.Address,ep.Port, PostgresUser,
         PostgresPassword, PostgresDb);
     }
   }

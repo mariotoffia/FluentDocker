@@ -21,7 +21,7 @@ namespace Ductus.FluentDocker.Extensions
     /// <param name="service">The container to query.</param>
     /// <param name="portAndProto">The port slash protocol to translate to a host based <see cref="IPEndPoint" />.</param>
     /// <returns>A host based endpoint from a exposed port or null if none.</returns>
-    public static IPEndPoint ToHostExposedPort(this IContainerService service, string portAndProto)
+    public static IPEndPoint ToHostExposedEndpoint(this IContainerService service, string portAndProto)
     {
       return service.GetConfiguration()?.NetworkSettings.Ports.ToHostPort(portAndProto, service.DockerHost);
     }

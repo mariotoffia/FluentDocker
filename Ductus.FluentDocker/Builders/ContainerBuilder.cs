@@ -30,31 +30,7 @@ namespace Ductus.FluentDocker.Builders
         _config.DeleteOnDispose,
         _config.Command, _config.Arguments);
 
-      // Copy files / folders on dispose
-      if (null != _config.CopyFromContainerBeforeDispose && 0 != _config.CopyFromContainerBeforeDispose.Count)
-      {
-        container.AddHook(ServiceRunningState.Removing, service =>
-        {
-          foreach (var copy in _config.CopyFromContainerBeforeDispose)
-          {
-            ((IContainerService) service).CopyFrom(copy.Item2, copy.Item1);
-          }
-        });
-      }
-
-      // Export container on dispose
-      if (null != _config.ExportContainerOnDispose)
-      {
-        container.AddHook(ServiceRunningState.Removing, service =>
-        {
-          var svc = (IContainerService) service;
-          if (_config.ExportContainerOnDispose.Item3(svc))
-          {
-            svc.Export(_config.ExportContainerOnDispose.Item1,
-              _config.ExportContainerOnDispose.Item2);
-          }
-        });
-      }
+      AddHooks(container);
 
       return container;
     }
@@ -62,6 +38,17 @@ namespace Ductus.FluentDocker.Builders
     protected override IBuilder InternalCreate()
     {
       return new ContainerBuilder(this);
+    }
+
+    public Builder Builder()
+    {
+      var builder = FindBuilder();
+      if (!builder.HasValue)
+      {
+        throw new FluentDockerException("Cannot find a parent Builder instance, bug in your code");
+      }
+
+      return builder.Value;
     }
 
     public ContainerBuilder UseImage(string image)
@@ -204,7 +191,7 @@ namespace Ductus.FluentDocker.Builders
 
     public ContainerBuilder ExportOnDispose(string hostPath, Func<IContainerService, bool> condition = null)
     {
-      _config.ExportContainerOnDispose =
+      _config.ExportOnDispose =
         new Tuple<TemplateString, bool, Func<IContainerService, bool>>(hostPath, false /*no-explode*/,
           condition ?? (svc => true));
       return this;
@@ -212,22 +199,121 @@ namespace Ductus.FluentDocker.Builders
 
     public ContainerBuilder ExportExploadedOnDispose(string hostPath, Func<IContainerService, bool> condition = null)
     {
-      _config.ExportContainerOnDispose =
+      _config.ExportOnDispose =
         new Tuple<TemplateString, bool, Func<IContainerService, bool>>(hostPath, true /*explode*/,
           condition ?? (svc => true));
       return this;
     }
 
-    public ContainerBuilder CopyOnDispose(string containerPath, string hostPath)
+    public ContainerBuilder CopyOnStart(string hostPath, string containerPath)
     {
-      if (null == _config.CopyFromContainerBeforeDispose)
+      if (null == _config.CpToOnStart)
       {
-        _config.CopyFromContainerBeforeDispose = new List<Tuple<TemplateString, TemplateString>>();
+        _config.CpToOnStart = new List<Tuple<TemplateString, TemplateString>>();
       }
 
-      _config.CopyFromContainerBeforeDispose.Add(new Tuple<TemplateString, TemplateString>(hostPath,
+      _config.CpToOnStart.Add(new Tuple<TemplateString, TemplateString>(hostPath,containerPath));
+      return this;
+    }
+
+    public ContainerBuilder CopyOnDispose(string containerPath, string hostPath)
+    {
+      if (null == _config.CpFromOnDispose)
+      {
+        _config.CpFromOnDispose = new List<Tuple<TemplateString, TemplateString>>();
+      }
+
+      _config.CpFromOnDispose.Add(new Tuple<TemplateString, TemplateString>(hostPath,
         containerPath));
       return this;
+    }
+
+    public ContainerBuilder WaitForPort(string portAndProto, long millisTimeout = long.MaxValue)
+    {
+      _config.WaitForPort = new Tuple<string, long>(portAndProto, millisTimeout);
+      return this;
+    }
+
+    public ContainerBuilder WaitForProcess(string process, long millisTimeout = long.MaxValue)
+    {
+      _config.WaitForProcess = new Tuple<string, long>(process, millisTimeout);
+      return this;
+    }
+
+    private void AddHooks(IContainerService container)
+    {
+      // Copy files just before starting
+      if (null != _config.CpToOnStart)
+      {
+        container.AddHook(ServiceRunningState.Starting,
+          service =>
+          {
+            foreach (var copy in _config.CpToOnStart)
+            {
+              ((IContainerService)service).CopyTo(copy.Item2, copy.Item1);
+            }
+          });
+      }
+
+      // Wait for port when started
+      if (null != _config.WaitForPort)
+      {
+        container.AddHook(ServiceRunningState.Running,
+          service =>
+          {
+            ((IContainerService) service).WaitForPort(_config.WaitForPort.Item1, _config.WaitForPort.Item2);
+          });
+      }
+
+      // Wait for process when started
+      if (null != _config.WaitForProcess)
+      {
+        container.AddHook(ServiceRunningState.Running,
+          service =>
+          {
+            ((IContainerService) service).WaitForProcess(_config.WaitForProcess.Item1, _config.WaitForProcess.Item2);
+          });
+      }
+
+      // Copy files / folders on dispose
+      if (null != _config.CpFromOnDispose && 0 != _config.CpFromOnDispose.Count)
+      {
+        container.AddHook(ServiceRunningState.Removing, service =>
+        {
+          foreach (var copy in _config.CpFromOnDispose)
+          {
+            ((IContainerService) service).CopyFrom(copy.Item2, copy.Item1);
+          }
+        });
+      }
+
+      // Export container on dispose
+      if (null != _config.ExportOnDispose)
+      {
+        container.AddHook(ServiceRunningState.Removing, service =>
+        {
+          var svc = (IContainerService) service;
+          if (_config.ExportOnDispose.Item3(svc))
+          {
+            svc.Export(_config.ExportOnDispose.Item1,
+              _config.ExportOnDispose.Item2);
+          }
+        });
+      }
+    }
+
+    private Option<Builder> FindBuilder()
+    {
+      for (var parent = ((IBuilder) this).Parent; parent.HasValue; parent = parent.Value.Parent)
+      {
+        var value = parent.Value as Builder;
+        if (value != null)
+        {
+          return new Option<Builder>(value);
+        }
+      }
+
+      return new Option<Builder>(null);
     }
 
     private Option<IHostService> FindHostService()

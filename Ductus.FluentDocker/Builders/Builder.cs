@@ -35,6 +35,13 @@ namespace Ductus.FluentDocker.Builders
 
     public ContainerBuilder UseContainer()
     {
+      var existing = Childs.FirstOrDefault(x => x is HostBuilder);
+      if (null != existing)
+      {
+        var hb = (HostBuilder) existing;
+        return hb.IsNative ? hb.UseContainer() : hb.UseMachine().UseContainer();
+      }
+
       var host = new HostBuilder(this);
       Childs.Add(host);
 
