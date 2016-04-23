@@ -19,7 +19,6 @@
     <copyright>(c) 2016 Mario Toffia</copyright>
     <tags>Docker Linux Windows Mac Fluent</tags>
     <dependencies>
-      <dependency id="BouncyCastle.Crypto.dll" version="[1.8.1,2.0)"/>
       <dependency id="sharpcompress" version="[0.11.4,1.0)"/>
       <dependency id="Newtonsoft.Json" version="6.0.0"/>
     </dependencies>
