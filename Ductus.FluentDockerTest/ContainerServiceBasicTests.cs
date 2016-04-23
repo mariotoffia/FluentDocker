@@ -218,7 +218,7 @@ namespace Ductus.FluentDockerTest
     public void UseHostVolumeInsideContainerWhenMountedShallSucceed()
     {
       const string html = "<html><head>Hello World</head><body><h1>Hello world</h1></body></html>";
-
+      // docker create  -v //c/Users/mario/AppData/Local/Temp/fluentdockertest/usmipg0w.0am:/usr/share/nginx/html:ro -p 80 nginx:latest
       var fullPath = (TemplateString) @"${TEMP}\fluentdockertest\${RND}";
       Directory.CreateDirectory(fullPath);
 
