@@ -9,7 +9,7 @@ namespace Ductus.FluentDocker.Executors.Parsers
 
     public IProcessResponse<string> Process(ProcessExecutionResult response)
     {
-      var success = response.ExitCode != 0 ||
+      var success = response.ExitCode == 0 ||
                     response.StdOutAsArry.All(
                       line =>
                         !line.StartsWith("Error") && !line.StartsWith("Can't remove") &&

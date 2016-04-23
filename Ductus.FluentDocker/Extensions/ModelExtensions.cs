@@ -7,6 +7,19 @@ namespace Ductus.FluentDocker.Extensions
 {
   public static class ModelExtensions
   {
+    public static string ToCommandString(this CommandType type)
+    {
+      switch (type)
+      {
+        case CommandType.Add:
+          return "ADD";
+        case CommandType.Run:
+          return "RUN";
+      }
+
+      throw new NotImplementedException($"No implementation of command type {type}");
+    }
+
     public static ServiceRunningState ToServiceState(this ContainerState state)
     {
       if (null == state)

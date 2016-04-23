@@ -12,13 +12,6 @@ namespace Ductus.FluentDocker.Commands
     public static CommandResponse<IList<string>> Ps(this Uri host, string options = null,
       ICertificatePaths certificates = null)
     {
-      return Ps(host, options, certificates?.CaCertificate, certificates?.ClientCertificate, certificates?.ClientKey);
-    }
-
-    public static CommandResponse<IList<string>> Ps(this Uri host, string options = null, string caCertPath = null,
-      string clientCertPath = null,
-      string clientKeyPath = null)
-    {
       if (string.IsNullOrEmpty(options))
       {
         options = "--quiet --no-trunc";
@@ -36,15 +29,14 @@ namespace Ductus.FluentDocker.Commands
 
       return
         new ProcessExecutor<StringListResponseParser, IList<string>>(
-          "docker".DockerPath(),
-          $"{RenderBaseArgs(host, caCertPath, clientCertPath, clientKeyPath)} ps {options}").Execute();
+          "docker".ResolveBinary(),
+          $"{RenderBaseArgs(host, certificates)} ps {options}").Execute();
     }
 
     public static CommandResponse<string> Create(this Uri host, string image, string command = null,
       string[] args = null, ContainerCreateParams prms = null, ICertificatePaths certificates = null)
     {
-      var certArgs = RenderBaseArgs(host, certificates?.CaCertificate, certificates?.ClientCertificate,
-        certificates?.ClientKey);
+      var certArgs = RenderBaseArgs(host, certificates);
 
       var arg = $"{certArgs} create";
       if (null != prms)
@@ -66,23 +58,14 @@ namespace Ductus.FluentDocker.Commands
 
       return
         new ProcessExecutor<SingleStringResponseParser, string>(
-          "docker".DockerPath(),
+          "docker".ResolveBinary(),
           arg).Execute();
     }
 
     public static CommandResponse<string> Run(this Uri host, string image, ContainerCreateParams args = null,
       ICertificatePaths certificates = null)
     {
-      return Run(host, image, args, certificates?.CaCertificate, certificates?.ClientCertificate,
-        certificates?.ClientKey);
-    }
-
-    public static CommandResponse<string> Run(this Uri host, string image, ContainerCreateParams args = null,
-      string caCertPath = null,
-      string clientCertPath = null,
-      string clientKeyPath = null)
-    {
-      var arg = $"{RenderBaseArgs(host, caCertPath, clientCertPath, clientKeyPath)} run -d";
+      var arg = $"{RenderBaseArgs(host, certificates)} run -d";
       if (null != args)
       {
         arg += " " + args;
@@ -92,34 +75,24 @@ namespace Ductus.FluentDocker.Commands
 
       return
         new ProcessExecutor<SingleStringResponseParser, string>(
-          "docker".DockerPath(),
+          "docker".ResolveBinary(),
           arg).Execute();
     }
 
-    public static CommandResponse<string> Stop(this Uri host, string id, TimeSpan? killTimeout = null,
-      CertificatePaths certificates = null)
+    public static CommandResponse<IList<string>> Start(this Uri host, string id, ICertificatePaths certificates = null)
     {
-      return Stop(host, id, killTimeout, certificates?.CaCertificate,
-        certificates?.ClientCertificate, certificates?.ClientKey);
-    }
-
-    public static CommandResponse<IList<string>> Start(this Uri host, string id, CertificatePaths certificates = null)
-    {
-      var certArgs = RenderBaseArgs(host, certificates?.CaCertificate, certificates?.ClientCertificate,
-        certificates?.ClientKey);
+      var certArgs = RenderBaseArgs(host, certificates);
 
       return
         new ProcessExecutor<StringListResponseParser, IList<string>>(
-          "docker".DockerPath(),
+          "docker".ResolveBinary(),
           $"{certArgs} start {id}").Execute();
     }
 
     public static CommandResponse<string> Stop(this Uri host, string id, TimeSpan? killTimeout = null,
-      string caCertPath = null,
-      string clientCertPath = null,
-      string clientKeyPath = null)
+      ICertificatePaths certificates = null)
     {
-      var arg = $"{RenderBaseArgs(host, caCertPath, clientCertPath, clientKeyPath)} stop";
+      var arg = $"{RenderBaseArgs(host, certificates)} stop";
       if (null != killTimeout)
       {
         arg += $" --time={Math.Round(killTimeout.Value.TotalSeconds, 0)}";
@@ -128,7 +101,7 @@ namespace Ductus.FluentDocker.Commands
       arg += $" {id}";
 
       return new ProcessExecutor<SingleStringResponseParser, string>(
-        "docker".DockerPath(),
+        "docker".ResolveBinary(),
         arg).Execute();
     }
 
@@ -136,17 +109,7 @@ namespace Ductus.FluentDocker.Commands
       bool removeVolumes = false,
       string removeLink = null, ICertificatePaths certificates = null)
     {
-      return RemoveContainer(host, id, force, removeVolumes, removeLink, certificates?.CaCertificate,
-        certificates?.ClientCertificate, certificates?.ClientKey);
-    }
-
-    public static CommandResponse<string> RemoveContainer(this Uri host, string id, bool force = false,
-      bool removeVolumes = false,
-      string removeLink = null, string caCertPath = null,
-      string clientCertPath = null,
-      string clientKeyPath = null)
-    {
-      var arg = $"{RenderBaseArgs(host, caCertPath, clientCertPath, clientKeyPath)} rm";
+      var arg = $"{RenderBaseArgs(host, certificates)} rm";
       if (force)
       {
         arg += " --force";
@@ -165,74 +128,72 @@ namespace Ductus.FluentDocker.Commands
       arg += $" {id}";
 
       return new ProcessExecutor<SingleStringResponseParser, string>(
-        "docker".DockerPath(),
+        "docker".ResolveBinary(),
         arg).Execute();
     }
 
     public static CommandResponse<Processes> Top(this Uri host, string id, ICertificatePaths certificates = null)
     {
-      var arg =
-        $"{RenderBaseArgs(host, certificates?.CaCertificate, certificates?.ClientCertificate, certificates?.ClientKey)} top {id}";
-      return new ProcessExecutor<ClientTopResponseParser, Processes>("docker".DockerPath(),
+      var arg = $"{RenderBaseArgs(host, certificates)} top {id}";
+      return new ProcessExecutor<ClientTopResponseParser, Processes>("docker".ResolveBinary(),
         arg).Execute();
     }
 
     public static CommandResponse<Container> InspectContainer(this Uri host, string id,
       ICertificatePaths certificates = null)
     {
-      return InspectContainer(host, id, certificates?.CaCertificate, certificates?.ClientCertificate,
-        certificates?.ClientKey);
-    }
-
-    public static CommandResponse<Container> InspectContainer(this Uri host, string id, string caCertPath = null,
-      string clientCertPath = null,
-      string clientKeyPath = null)
-    {
-      return new ProcessExecutor<ClientContainerInspectCommandResponder, Container>("docker".DockerPath(),
-        $"{RenderBaseArgs(host, caCertPath, clientCertPath, clientKeyPath)} inspect {id}").Execute();
+      return new ProcessExecutor<ClientContainerInspectCommandResponder, Container>("docker".ResolveBinary(),
+        $"{RenderBaseArgs(host, certificates)} inspect {id}").Execute();
     }
 
     public static CommandResponse<string> Export(this Uri host, string id, string fqFilePath,
       ICertificatePaths certificates = null)
     {
-      var arg =
-        $"{RenderBaseArgs(host, certificates?.CaCertificate, certificates?.ClientCertificate, certificates?.ClientKey)} export";
-      return new ProcessExecutor<NoLineResponseParser, string>("docker".DockerPath(),
+      var arg = $"{RenderBaseArgs(host, certificates)} export";
+      return new ProcessExecutor<NoLineResponseParser, string>("docker".ResolveBinary(),
         $"{arg} -o {fqFilePath} {id}").Execute();
     }
 
     public static CommandResponse<string> CopyToContainer(this Uri host, string id, string containerPath,
       string hostPath, ICertificatePaths certificates = null)
     {
-      var arg =
-        $"{RenderBaseArgs(host, certificates?.CaCertificate, certificates?.ClientCertificate, certificates?.ClientKey)}";
-      return new ProcessExecutor<IgnoreErrorResponseParser, string>("docker".DockerPath(),
+      var arg = $"{RenderBaseArgs(host, certificates)}";
+      return new ProcessExecutor<IgnoreErrorResponseParser, string>("docker".ResolveBinary(),
         $"{arg} cp \"{hostPath}\" {id}:{containerPath}").Execute();
     }
 
     public static CommandResponse<string> CopyFromContainer(this Uri host, string id, string containerPath,
       string hostPath, ICertificatePaths certificates = null)
     {
-      var arg =
-        $"{RenderBaseArgs(host, certificates?.CaCertificate, certificates?.ClientCertificate, certificates?.ClientKey)}";
-      return new ProcessExecutor<IgnoreErrorResponseParser, string>("docker".DockerPath(),
+      var arg = $"{RenderBaseArgs(host, certificates)}";
+      return new ProcessExecutor<IgnoreErrorResponseParser, string>("docker".ResolveBinary(),
         $"{arg} cp {id}:{containerPath} \"{hostPath}\"").Execute();
     }
 
     public static CommandResponse<IList<Diff>> Diff(this Uri host, string id, ICertificatePaths certificates = null)
     {
-      var arg =
-        $"{RenderBaseArgs(host, certificates?.CaCertificate, certificates?.ClientCertificate, certificates?.ClientKey)}";
-      return new ProcessExecutor<ClientDiffResponseParser, IList<Diff>>("docker".DockerPath(),
+      var arg = $"{RenderBaseArgs(host, certificates)}";
+      return new ProcessExecutor<ClientDiffResponseParser, IList<Diff>>("docker".ResolveBinary(),
         $"{arg} diff {id}").Execute();
     }
 
-    private static string RenderBaseArgs(Uri host, string caCertPath = null, string clientCertPath = null,
-      string clientKeyPath = null)
+    private static string RenderBaseArgs(Uri host, ICertificatePaths certificates = null)
     {
-      return null != caCertPath
-        ? $" -H {host.Host}:{host.Port} --tlsverify=true --tlscacert={caCertPath} --tlscert={clientCertPath} --tlskey={clientKeyPath}"
-        : string.Empty;
+      var args = string.Empty;
+      if (null != host)
+      {
+        args = $" -H {host.Host}:{host.Port}";
+      }
+
+      if (null == certificates)
+      {
+        return args;
+      }
+
+      args +=
+        $" --tlsverify=true --tlscacert={certificates.CaCertificate} --tlscert={certificates.ClientCertificate} --tlskey={certificates.ClientKey}";
+
+      return args;
     }
   }
 }

@@ -29,27 +29,19 @@ namespace Ductus.FluentDocker.Services
     bool RequireTls { get; }
 
     /// <summary>
-    ///   The client certificate to use when communicating with the docker daemon.
-    /// </summary>
-    X509Certificate2 ClientCertificate { get; }
-
-    /// <summary>
-    ///   The Ca certificate singed the client certificate.
-    /// </summary>
-    X509Certificate2 ClientCaCertificate { get; }
-
-    /// <summary>
     ///   Gets a new copy of a set of running <see cref="IContainerService" />s.
     /// </summary>
     /// <remarks>
     ///   This will give back new list for each call and it will scan the <see cref="IHostService" /> each
     ///   time so this operation may be time consuming.
     /// </remarks>
-    IList<IContainerService> RunningContainers { get; }
+    IList<IContainerService> GetRunningContainers();
 
     IList<IContainerService> GetContainers(bool all = true, string filter = null);
 
-    /// <summary>
+    IList<IContainerImageService> GetImages(bool all = true, string filer = null);
+
+      /// <summary>
     ///   Creates a new container (not started).
     /// </summary>
     /// <param name="image">The image to base the container from.</param>

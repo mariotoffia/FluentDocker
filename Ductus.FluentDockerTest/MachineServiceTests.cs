@@ -2,6 +2,7 @@
 using System.Linq;
 using Ductus.FluentDocker;
 using Ductus.FluentDocker.Commands;
+using Ductus.FluentDocker.Extensions;
 using Ductus.FluentDocker.Services;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
@@ -10,9 +11,32 @@ namespace Ductus.FluentDockerTest
   [TestClass]
   public class MachineServiceTests
   {
+    [TestCategory("Main")]
+    [TestMethod]
+    public void DiscoverShouldReturnNativeWhenSuchIsPresent()
+    {
+      if (!(DockerEnvExtensions.IsEmulatedNative() || DockerEnvExtensions.IsNative()))
+      {
+        return;
+      }
+
+      var services = new Hosts().Discover();
+      Assert.AreEqual(1,services.Count);
+
+      var native = services.First();
+      Assert.AreEqual("native",native.Name);
+      Assert.AreEqual(true,native.IsNative);
+    }
+
+    [TestCategory("Machine-Only")]
     [TestMethod]
     public void DiscoverShallReturnMachines()
     {
+      if (!DockerEnvExtensions.IsMachine())
+      {
+        return;
+      }
+
       try
       {
         var res = "test-machine".Create(1024, 20000, 1);

@@ -22,10 +22,12 @@ namespace Ductus.FluentDockerTest
     public static void Initialize(TestContext ctx)
     {
       var hosts = new Hosts().Discover();
-      _host = hosts.FirstOrDefault(x => x.Name == "default");
+      _host = hosts.FirstOrDefault(x => x.IsNative) ?? hosts.FirstOrDefault(x => x.Name == "default");
+
       if (null != _host && _host.State != ServiceRunningState.Running)
       {
         _host.Start();
+        return;
       }
 
       if (null == _host && hosts.Count > 0)
@@ -218,6 +220,8 @@ namespace Ductus.FluentDockerTest
       const string html = "<html><head>Hello World</head><body><h1>Hello world</h1></body></html>";
 
       var fullPath = (TemplateString) @"${TEMP}\fluentdockertest\${RND}";
+      Directory.CreateDirectory(fullPath);
+
       using (var container = _host.Create("nginx:latest",
         new ContainerCreateParams
         {

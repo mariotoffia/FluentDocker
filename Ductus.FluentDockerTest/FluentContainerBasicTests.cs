@@ -150,6 +150,7 @@ namespace Ductus.FluentDockerTest
     {
       const string html = "<html><head>Hello World</head><body><h1>Hello world</h1></body></html>";
       var hostPath = (TemplateString) @"${TEMP}\fluentdockertest\${RND}";
+      Directory.CreateDirectory(hostPath);
 
       using (
         var container =

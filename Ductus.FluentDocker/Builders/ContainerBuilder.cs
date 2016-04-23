@@ -212,7 +212,7 @@ namespace Ductus.FluentDocker.Builders
         _config.CpToOnStart = new List<Tuple<TemplateString, TemplateString>>();
       }
 
-      _config.CpToOnStart.Add(new Tuple<TemplateString, TemplateString>(hostPath,containerPath));
+      _config.CpToOnStart.Add(new Tuple<TemplateString, TemplateString>(hostPath, containerPath));
       return this;
     }
 
@@ -250,7 +250,7 @@ namespace Ductus.FluentDocker.Builders
           {
             foreach (var copy in _config.CpToOnStart)
             {
-              ((IContainerService)service).CopyTo(copy.Item2, copy.Item1);
+              ((IContainerService) service).CopyTo(copy.Item2, copy.Item1);
             }
           });
       }
@@ -300,34 +300,6 @@ namespace Ductus.FluentDocker.Builders
           }
         });
       }
-    }
-
-    private Option<Builder> FindBuilder()
-    {
-      for (var parent = ((IBuilder) this).Parent; parent.HasValue; parent = parent.Value.Parent)
-      {
-        var value = parent.Value as Builder;
-        if (value != null)
-        {
-          return new Option<Builder>(value);
-        }
-      }
-
-      return new Option<Builder>(null);
-    }
-
-    private Option<IHostService> FindHostService()
-    {
-      for (var parent = ((IBuilder) this).Parent; parent.HasValue; parent = parent.Value.Parent)
-      {
-        var hostService = parent.Value.GetType().GetMethod("Build")?.ReturnType == typeof (IHostService);
-        if (hostService)
-        {
-          return new Option<IHostService>(((IBuilder<IHostService>) parent.Value).Build());
-        }
-      }
-
-      return new Option<IHostService>(null);
     }
   }
 }

@@ -75,6 +75,16 @@ namespace Ductus.FluentDocker.Extensions
         return null;
       }
 
+      if (DockerEnvExtensions.IsNative())
+      {
+        return endpoints[0];
+      }
+
+      if (DockerEnvExtensions.IsEmulatedNative())
+      {
+        return new IPEndPoint(DockerEnvExtensions.EmulatedNativeAdress(), endpoints[0].Port);
+      }
+
       if (Equals(endpoints[0].Address, IPAddress.Any) && null != dockerUri)
       {
         return new IPEndPoint(IPAddress.Parse(dockerUri.Host), endpoints[0].Port);

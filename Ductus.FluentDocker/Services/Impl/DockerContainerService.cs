@@ -69,7 +69,7 @@ namespace Ductus.FluentDocker.Services.Impl
 
     public void Dispose()
     {
-      if (string.IsNullOrEmpty(Id) || null == DockerHost)
+      if (string.IsNullOrEmpty(Id))
       {
         return;
       }

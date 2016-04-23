@@ -15,35 +15,35 @@ namespace Ductus.FluentDocker.Commands
     public static CommandResponse<IList<MachineLsResponse>> Ls()
     {
       return new ProcessExecutor<MachineLsResponseParser, IList<MachineLsResponse>>(
-        "docker-machine".DockerPath(), "ls --format=\"{{.Name}};{{.State}};{{.URL}}\"").Execute();
+        "docker-machine".ResolveBinary(), "ls --format=\"{{.Name}};{{.State}};{{.URL}}\"").Execute();
     }
 
     public static CommandResponse<MachineConfiguration> Inspect(this string machine)
     {
       return
         new ProcessExecutor<MachineInspectResponseParser, MachineConfiguration>(
-          "docker-machine".DockerPath(), $"inspect {machine}").Execute();
+          "docker-machine".ResolveBinary(), $"inspect {machine}").Execute();
     }
 
     public static CommandResponse<string> Start(this string machine)
     {
       return
         new ProcessExecutor<MachineStartStopResponseParser, string>(
-          "docker-machine".DockerPath(), $"start {machine}").Execute();
+          "docker-machine".ResolveBinary(), $"start {machine}").Execute();
     }
 
     public static CommandResponse<string> Stop(this string machine)
     {
       return
         new ProcessExecutor<MachineStartStopResponseParser, string>(
-          "docker-machine".DockerPath(), $"stop {machine}").Execute();
+          "docker-machine".ResolveBinary(), $"stop {machine}").Execute();
     }
 
     public static CommandResponse<IDictionary<string, string>> Environment(this string machine)
     {
       return
         new ProcessExecutor<MachineEnvResponseParser, IDictionary<string, string>>(
-          "docker-machine".DockerPath(), $"env {machine}").Execute();
+          "docker-machine".ResolveBinary(), $"env {machine}").Execute();
     }
 
     /// <summary>
@@ -60,15 +60,15 @@ namespace Ductus.FluentDocker.Commands
 
       return
         new ProcessExecutor<MachineCreateResponseParser, string>(
-          "docker-machine".DockerPath(),
+          "docker-machine".ResolveBinary(),
           args).Execute();
     }
 
     public static CommandResponse<string> Create(this string machine, int memMb, int volumeMb, int cpuCnt,
       params string[] options)
     {
-      return Create(machine, "virtualbox", $"--virtualbox-memory \"{memMb}\"",
-        $"--virtualbox-disk-size \"{volumeMb}\"", $"--virtualbox-cpu-count \"{cpuCnt}\"");
+      return Create(machine, $"{CommandDefaults.MachineDriver}", $"--{CommandDefaults.MachineDriver}-memory \"{memMb}\"",
+        $"--{CommandDefaults.MachineDriver}-disk-size \"{volumeMb}\"", $"--{CommandDefaults.MachineDriver}-cpu-count \"{cpuCnt}\"");
     }
 
     public static CommandResponse<string> Delete(this string machine, bool force)
@@ -76,7 +76,7 @@ namespace Ductus.FluentDocker.Commands
       var args = "rm -y " + (force ? "-f " : string.Empty) + machine;
       return
         new ProcessExecutor<MachineRmResponseParser, string>(
-          "docker-machine".DockerPath(),
+          "docker-machine".ResolveBinary(),
           args).Execute();
     }
 
@@ -84,7 +84,7 @@ namespace Ductus.FluentDocker.Commands
     {
       var resp =
         new ProcessExecutor<SingleStringResponseParser, string>(
-          "docker-machine".DockerPath(), $"url {machine}").Execute();
+          "docker-machine".ResolveBinary(), $"url {machine}").Execute();
 
       return resp.Data.StartsWith("Host is not running") ? null : new Uri(resp.Data);
     }
@@ -92,7 +92,7 @@ namespace Ductus.FluentDocker.Commands
     public static ServiceRunningState Status(this string machine)
     {
       var resp = new ProcessExecutor<SingleStringResponseParser, string>(
-        "docker-machine".DockerPath(), $"status {machine}").Execute();
+        "docker-machine".ResolveBinary(), $"status {machine}").Execute();
 
       if (!resp.Success)
       {

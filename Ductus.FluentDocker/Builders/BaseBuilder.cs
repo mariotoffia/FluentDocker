@@ -48,5 +48,34 @@ namespace Ductus.FluentDocker.Builders
     }
 
     protected abstract IBuilder InternalCreate();
+
+    protected Option<Builder> FindBuilder()
+    {
+      for (var parent = ((IBuilder)this).Parent; parent.HasValue; parent = parent.Value.Parent)
+      {
+        var value = parent.Value as Builder;
+        if (value != null)
+        {
+          return new Option<Builder>(value);
+        }
+      }
+
+      return new Option<Builder>(null);
+    }
+
+    protected Option<IHostService> FindHostService()
+    {
+      for (var parent = ((IBuilder)this).Parent; parent.HasValue; parent = parent.Value.Parent)
+      {
+        var hostService = parent.Value.GetType().GetMethod("Build")?.ReturnType == typeof(IHostService);
+        if (hostService)
+        {
+          return new Option<IHostService>(((IBuilder<IHostService>)parent.Value).Build());
+        }
+      }
+
+      return new Option<IHostService>(null);
+    }
+
   }
 }

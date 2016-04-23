@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using Ductus.FluentDocker.Commands;
+using Ductus.FluentDocker.Extensions;
 using Ductus.FluentDocker.Services.Impl;
 
 namespace Ductus.FluentDocker.Services
@@ -23,20 +24,12 @@ namespace Ductus.FluentDocker.Services
         select
           new DockerHostService(machine.Name, false, false, machine.Docker?.ToString(), inspect.Data.AuthConfig.CertDir));
 
-      var dockerHost = Environment.GetEnvironmentVariable(DockerHostService.DockerHost);
-      if (string.IsNullOrEmpty(dockerHost))
+      if (DockerEnvExtensions.IsEmulatedNative() || DockerEnvExtensions.IsNative())
       {
-        return list;
+        list.Add(new DockerHostService("native", true, false,
+          Environment.GetEnvironmentVariable(DockerHostService.DockerHost),
+          Environment.GetEnvironmentVariable(DockerHostService.DockerCertPath)));
       }
-
-      var uri = new Uri(dockerHost);
-      if (list.Any(x => x.Host == uri))
-      {
-        return list;
-      }
-
-      list.Add(new DockerHostService("native", true, false, dockerHost,
-        Environment.GetEnvironmentVariable(DockerHostService.DockerCertPath)));
 
       return list;
     }

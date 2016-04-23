@@ -2,7 +2,6 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Security.Cryptography.X509Certificates;
 using Ductus.FluentDocker.Commands;
 using Ductus.FluentDocker.Common;
 using Ductus.FluentDocker.Extensions;
@@ -22,9 +21,7 @@ namespace Ductus.FluentDocker.Services.Impl
     private const string DefaultClientKeyName = "key.pem";
 
     private readonly bool _stopWhenDisposed;
-    private string _caCertPath;
-    private string _clientCertPath;
-    private string _clientKeyPath;
+    private CertificatePaths _certificates;
 
     public DockerHostService(string name, bool isNative, bool stopWhenDisposed = false, string dockerUri = null,
       string certificatePath = null)
@@ -36,28 +33,21 @@ namespace Ductus.FluentDocker.Services.Impl
       if (IsNative)
       {
         var uri = dockerUri ?? Environment.GetEnvironmentVariable(DockerHost);
-        if (string.IsNullOrEmpty(uri))
-        {
-          throw new ArgumentException($"DockerHostService cannot be native when {DockerHost} is not defined",
-            nameof(isNative));
-        }
-
         var certPath = certificatePath ?? Environment.GetEnvironmentVariable(DockerCertPath);
-        if (string.IsNullOrEmpty(certPath))
+
+        if (!string.IsNullOrEmpty(certPath))
         {
-          throw new ArgumentException($"DockerHostService cannot be native when {DockerCertPath} is not defined",
-            nameof(isNative));
+          _certificates = new CertificatePaths
+          {
+            CaCertificate = Path.Combine(certPath, DefaultCaCertName),
+            ClientCertificate = Path.Combine(certPath, DefaultClientCertName),
+            ClientKey = Path.Combine(certPath, DefaultClientKeyName)
+          };
         }
 
-        Host = new Uri(uri);
+        Host = string.IsNullOrEmpty(uri) ? null : new Uri(uri);
         RequireTls = Environment.GetEnvironmentVariable(DockerTlsVerify) == "1";
-        ClientCaCertificate = certPath.ToCertificate(DefaultCaCertName);
-        ClientCertificate = certPath.ToCertificate(DefaultClientCertName, DefaultClientKeyName);
         State = ServiceRunningState.Running;
-
-        _caCertPath = Path.Combine(certPath, DefaultCaCertName);
-        _clientCertPath = Path.Combine(certPath, DefaultClientCertName);
-        _clientKeyPath = Path.Combine(certPath, DefaultClientKeyName);
         return;
       }
 
@@ -139,10 +129,11 @@ namespace Ductus.FluentDocker.Services.Impl
     public Uri Host { get; private set; }
     public bool IsNative { get; }
     public bool RequireTls { get; private set; }
-    public X509Certificate2 ClientCertificate { get; }
-    public X509Certificate2 ClientCaCertificate { get; private set; }
 
-    public IList<IContainerService> RunningContainers => GetContainers(false);
+    public IList<IContainerService> GetRunningContainers()
+    {
+      return GetContainers(false);
+    }
 
     public IList<IContainerService> GetContainers(bool all = true, string filter = null)
     {
@@ -157,34 +148,30 @@ namespace Ductus.FluentDocker.Services.Impl
         options += $" --filter={filter}";
       }
 
-      var result = Host.Ps(options, _caCertPath, _clientCertPath, _clientKeyPath);
+      var result = Host.Ps(options, _certificates);
       if (!result.Success)
       {
         return new List<IContainerService>();
       }
 
       return (from id in result.Data
-        let config = Host.InspectContainer(id, _caCertPath, _clientCertPath, _clientKeyPath).Data
+        let config = Host.InspectContainer(id, _certificates).Data
         select
           new DockerContainerService(config.Name, id, Host, config.State.ToServiceState(),
-            new CertificatePaths
-            {
-              CaCertificate = _caCertPath,
-              ClientKey = _clientKeyPath,
-              ClientCertificate = _clientCertPath
-            })).Cast<IContainerService>().ToList();
+            _certificates)).Cast<IContainerService>().ToList();
+    }
+
+    public IList<IContainerImageService> GetImages(bool all = true, string filer = null)
+    {
+      // TODO: docker images --no-trunc --format "{{.ID}};{{.Repository}};{{.Tag}}"
+      throw new NotImplementedException();
     }
 
     public IContainerService Create(string image, ContainerCreateParams prms = null,
       bool stopOnDispose = true, bool deleteOnDispose = true,
       string command = null, string[] args = null)
     {
-      var res = Host.Create(image, command, args, prms, new CertificatePaths
-      {
-        CaCertificate = _caCertPath,
-        ClientKey = _clientKeyPath,
-        ClientCertificate = _clientCertPath
-      });
+      var res = Host.Create(image, command, args, prms, _certificates);
 
       if (!res.Success || 0 == res.Data.Length)
       {
@@ -192,14 +179,7 @@ namespace Ductus.FluentDocker.Services.Impl
           $"Could not create Service from {image} with command {command}, args {args}, and parameters {prms}. Result: {res}");
       }
 
-      var certificates = new CertificatePaths
-      {
-        CaCertificate = _caCertPath,
-        ClientKey = _clientKeyPath,
-        ClientCertificate = _clientCertPath
-      };
-
-      var config = Host.InspectContainer(res.Data, certificates);
+      var config = Host.InspectContainer(res.Data, _certificates);
       if (!config.Success)
       {
         throw new FluentDockerException(
@@ -208,7 +188,7 @@ namespace Ductus.FluentDocker.Services.Impl
 
       return new DockerContainerService(config.Data.Name.Substring(1), res.Data, Host,
         config.Data.State.ToServiceState(),
-        certificates, stopOnDispose, deleteOnDispose);
+        _certificates, stopOnDispose, deleteOnDispose);
     }
 
     public MachineConfiguration GetMachineConfiguration()
@@ -230,34 +210,36 @@ namespace Ductus.FluentDocker.Services.Impl
       RequireTls = info.RequireTls;
 
       ResolveCertificatePaths(info);
-
-      ClientCaCertificate =
-        Path.GetDirectoryName(_caCertPath).ToCertificate(Path.GetFileName(_caCertPath));
-
-      ClientCaCertificate =
-        Path.GetDirectoryName(_clientCertPath)
-          .ToCertificate(Path.GetFileName(_clientCertPath),
-            Path.GetFileName(_clientKeyPath));
     }
 
     private void ResolveCertificatePaths(MachineConfiguration info)
     {
       var storePath = info.AuthConfig.StorePath;
 
-      _caCertPath = Path.Combine(storePath, DefaultCaCertName);
-      _clientCertPath = Path.Combine(storePath, DefaultClientCertName);
-      _clientKeyPath = Path.Combine(storePath, DefaultClientKeyName);
+      var caCertPath = Path.Combine(storePath, DefaultCaCertName);
+      var clientCertPath = Path.Combine(storePath, DefaultClientCertName);
+      var clientKeyPath = Path.Combine(storePath, DefaultClientKeyName);
 
-      if (File.Exists(_clientCertPath) && File.Exists(_caCertPath) && File.Exists(_clientKeyPath))
+      if (File.Exists(clientCertPath) && File.Exists(caCertPath) && File.Exists(clientKeyPath))
       {
         // Check if ca, client and key is in the store path
         // if so use those instead.
+        _certificates = new CertificatePaths
+        {
+          CaCertificate = info.AuthConfig.CaCertPath,
+          ClientCertificate = info.AuthConfig.ClientCertPath,
+          ClientKey = info.AuthConfig.ClientKeyPath
+        };
         return;
       }
 
-      _caCertPath = info.AuthConfig.CaCertPath;
-      _clientCertPath = info.AuthConfig.ClientCertPath;
-      _clientKeyPath = info.AuthConfig.ClientKeyPath;
+      // Otherwise use the defaults
+      _certificates = new CertificatePaths
+      {
+        CaCertificate = info.AuthConfig.CaCertPath,
+        ClientCertificate = info.AuthConfig.ClientCertPath,
+        ClientKey = info.AuthConfig.ClientKeyPath
+      };
     }
   }
 }

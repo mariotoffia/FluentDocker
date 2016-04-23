@@ -3,9 +3,7 @@ using System.Diagnostics;
 using System.Linq;
 using Ductus.FluentDocker.Commands;
 using Ductus.FluentDocker.Extensions;
-using Ductus.FluentDocker.Model;
 using Ductus.FluentDocker.Model.Containers;
-using Ductus.FluentDocker.Services;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace Ductus.FluentDockerTest
@@ -23,6 +21,11 @@ namespace Ductus.FluentDockerTest
     [ClassInitialize]
     public static void Initialize(TestContext ctx)
     {
+      if (DockerEnvExtensions.IsNative() || DockerEnvExtensions.IsEmulatedNative())
+      {
+        return;
+      }
+
       var machineName = "test-machine";
 
       var machines = Machine.Ls();
@@ -67,7 +70,7 @@ namespace Ductus.FluentDockerTest
       string id = null;
       try
       {
-        var cmd =_docker.Run("nginx:latest", null, _certificates);
+        var cmd = _docker.Run("nginx:latest", null, _certificates);
         Assert.IsTrue(cmd.Success);
 
         id = cmd.Data;
@@ -124,7 +127,7 @@ namespace Ductus.FluentDockerTest
 
         var ls = _docker.Ps(null, _certificates);
         Assert.IsTrue(ls.Success);
-        Assert.AreEqual(1,ls.Data.Count);
+        Assert.AreEqual(1, ls.Data.Count);
         Assert.IsTrue(id.StartsWith(ls.Data[0]));
       }
       finally
