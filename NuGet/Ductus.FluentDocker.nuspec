@@ -12,10 +12,10 @@
     <iconUrl>https://pbs.twimg.com/profile_images/378800000124779041/fbbb494a7eef5f9278c6967b6072ca3e.png</iconUrl>
     <requireLicenseAcceptance>false</requireLicenseAcceptance>
     <description>
-      Fluent interface using Docker.Dotnet for boot2docker and docker (Linux Windows Mac)
+      Library to manage docker machine and docker containers using docker-machine, docker win/mac beta or native linux.
       Documentation: https://github.com/mariotoffia/FluentDocker
     </description>
-    <summary>Fluent interface for docker binaries to use for boot2docker and docker (Linux Windows Mac)</summary>
+    <summary>Library to manage docker machine and docker containers.</summary>
     <copyright>(c) 2016 Mario Toffia</copyright>
     <tags>Docker Linux Windows Mac Fluent</tags>
     <dependencies>

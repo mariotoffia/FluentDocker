@@ -11,10 +11,10 @@
     <iconUrl>https://pbs.twimg.com/profile_images/378800000124779041/fbbb494a7eef5f9278c6967b6072ca3e.png</iconUrl>
     <requireLicenseAcceptance>false</requireLicenseAcceptance>
     <description>
-      Ms Test Support with docker and boot2docker for .NET projects (Linux, Windows, Mac).
+      Ms Test Support to allow for spin up docker images while testing (Linux, Windows, Mac).
       Documentation: https://github.com/mariotoffia/FluentDocker
     </description>
-    <summary>Ms Test Support with docker and boot2docker for .NET projects (Linux, Windows, Mac).</summary>
+    <summary>Ms Test Support with docker .NET projects (Linux, Windows, Mac).</summary>
     <copyright>(c) 2016 Mario Toffia</copyright>
     <tags>Docker Linux Windows Mac Test</tags>
     <dependencies>
