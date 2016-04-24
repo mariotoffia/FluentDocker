@@ -13,7 +13,8 @@ namespace Ductus.FluentDocker.Model.Builders
     public IList<string> Tags { get; } = new List<string>(); 
     public string From { get; set; }
     public string Maintainer { get; set; }
-    public IList<BuildCommand> BuildCommands { get; } = new List<BuildCommand>();
+    public IList<RunCommand> BuildCommands { get; } = new List<RunCommand>();
+    public IList<AddCommand> AddCommands { get; } = new List<AddCommand>();
     public string Workdir { get; set; }
     public IList<int> Expose { get; set; }
     public IList<string> Command { get; } = new List<string>();
@@ -33,6 +34,14 @@ namespace Ductus.FluentDocker.Model.Builders
         foreach (var command in BuildCommands)
         {
           sb.AppendLine(command.ToString());
+        }
+      }
+
+      if (0 != AddCommands.Count)
+      {
+        foreach (var cmd in AddCommands)
+        {
+          sb.AppendLine(cmd.ToString());
         }
       }
 

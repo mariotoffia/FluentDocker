@@ -1,4 +1,5 @@
 ﻿using System.IO;
+using System.Text;
 using Ductus.FluentDocker.Model.Builders;
 using Ductus.FluentDocker.Model.Common;
 
@@ -19,6 +20,16 @@ namespace Ductus.FluentDocker.Extensions
       }
 
       File.WriteAllText(Path.Combine(folder, "Dockerfile"), contents);
+    }
+
+    public static string ReadFile(this TemplateString fqPath, Encoding encoding = null)
+    {
+      if (null == encoding)
+      {
+        encoding = Encoding.UTF8;
+      }
+
+      return File.ReadAllText(fqPath, encoding);
     }
   }
 }

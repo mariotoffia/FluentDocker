@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.IO;
 using Ductus.FluentDocker.Extensions;
 using Ductus.FluentDocker.Model.Builders;
@@ -17,12 +18,8 @@ namespace Ductus.FluentDocker.Builders
 
     public override IContainerImageService Build()
     {
-      TemplateString workingFolder = "${TMP}/";
-      if (!string.IsNullOrWhiteSpace(_config.UseFile))
-      {
-        //TODO: _config.UseFile.Rendered.WriteFile();
-      }
-      throw new System.NotImplementedException();
+      var workdir = RenderDockerfile();
+      throw new NotImplementedException();
     }
 
     protected override IBuilder InternalCreate()
@@ -42,9 +39,15 @@ namespace Ductus.FluentDocker.Builders
       return this;
     }
 
-    public FileBuilder Build(CommandType type, params string[] commands)
+    public FileBuilder Add(TemplateString source, TemplateString destination)
     {
-      _config.BuildCommands.Add(new BuildCommand {Command = type, Lines = new List<string>(commands)});
+      _config.AddCommands.Add(new AddCommand {Source = source, Destination = destination});
+      return this;
+    }
+
+    public FileBuilder Run(params TemplateString[] commands)
+    {
+      _config.BuildCommands.Add(new RunCommand {Lines = new List<TemplateString>(commands)});
       return this;
     }
 
@@ -78,7 +81,7 @@ namespace Ductus.FluentDocker.Builders
 
     public FileBuilder UseImageTags(params string[] tags)
     {
-      ((List<string>)_config.Tags).AddRange(tags);
+      ((List<string>) _config.Tags).AddRange(tags);
       return this;
     }
 
@@ -92,6 +95,41 @@ namespace Ductus.FluentDocker.Builders
     {
       _config.DockerFileString = dockerFileAsString;
       return this;
+    }
+
+    private void CopyToWorkDir(string workdir)
+    {
+      
+    }
+
+    private string RenderDockerfile()
+    {
+      TemplateString workingFolder = @"${TEMP}\fluentdockertest\${RND}";
+      if (Directory.Exists(workingFolder))
+      {
+        Directory.CreateDirectory(workingFolder);
+      }
+
+      var dockerFile = Path.Combine(workingFolder, "Dockerfile");
+
+      string contents = null;
+      if (!string.IsNullOrEmpty(_config.UseFile))
+      {
+        contents = _config.UseFile.ReadFile();
+      }
+
+      if (!string.IsNullOrWhiteSpace(_config.DockerFileString))
+      {
+        contents = _config.DockerFileString;
+      }
+
+      if (string.IsNullOrEmpty(contents))
+      {
+        contents = _config.ToString();
+      }
+
+      contents.WriteFile(dockerFile);
+      return workingFolder;
     }
   }
 }

@@ -12,6 +12,10 @@ namespace Ductus.FluentDockerTest
   [TestClass]
   public class FluentMultiContainerTests
   {
+    /// <summary>
+    /// This test is by far completed - needs to have much more support for e.g.
+    /// building a docker file to do this.
+    /// </summary>
     [TestMethod]
     public void WeaveCluster()
     {

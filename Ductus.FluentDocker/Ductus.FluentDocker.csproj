@@ -79,12 +79,12 @@
     <Compile Include="Extensions\ModelExtensions.cs" />
     <Compile Include="Extensions\NetworkExtensions.cs" />
     <Compile Include="Extensions\OsExtensions.cs" />
-    <Compile Include="Model\Builders\CommandType.cs" />
+    <Compile Include="Model\Builders\AddCommand.cs" />
     <Compile Include="Model\Builders\ContainerBuilderConfig.cs" />
     <Compile Include="Model\Builders\FileBuilderConfig.cs" />
     <Compile Include="Model\Builders\HostBuilderConfig.cs" />
     <Compile Include="Model\Builders\MountType.cs" />
-    <Compile Include="Model\Builders\BuildCommand.cs" />
+    <Compile Include="Model\Builders\RunCommand.cs" />
     <Compile Include="Model\Common\TemplateString.cs" />
     <Compile Include="Model\Containers\BridgeNetwork.cs" />
     <Compile Include="Model\Containers\CertificatePaths.cs" />
