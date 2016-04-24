@@ -82,6 +82,9 @@
   <ItemGroup>
     <EmbeddedResource Include="MultiContainerTestFiles\index.js" />
   </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="MultiContainerTestFiles\app.js" />
+  </ItemGroup>
   <Choose>
     <When Condition="'$(VisualStudioVersion)' == '10.0' And '$(IsCodedUITest)' == 'True'">
       <ItemGroup>

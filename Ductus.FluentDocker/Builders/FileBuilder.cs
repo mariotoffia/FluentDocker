@@ -19,7 +19,7 @@ namespace Ductus.FluentDocker.Builders
 
     internal string PrepareBuild()
     {
-      var workingFolder = @"${TEMP}\fluentdockertest\${RND}";
+      TemplateString workingFolder = @"${TEMP}\fluentdockertest\${RND}";
 
       CopyToWorkDir(workingFolder); // Must be before RenderDockerFile!
       RenderDockerfile(workingFolder);

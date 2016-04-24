@@ -36,7 +36,7 @@ namespace Ductus.FluentDocker.Builders
     public ImageBuilder DefineImage(string image)
     {
       var hb = FindOrDefineHostBuilder();
-      return hb.IsNative ? hb.DefineImage() : hb.UseMachine().DefineImage();
+      return hb.IsNative ? hb.DefineImage(image) : hb.UseMachine().DefineImage(image);
     }
 
     public ContainerBuilder UseContainer()

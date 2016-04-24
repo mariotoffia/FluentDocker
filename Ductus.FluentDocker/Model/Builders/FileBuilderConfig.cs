@@ -1,5 +1,4 @@
 ﻿using System.Collections.Generic;
-using System.Linq;
 using System.Text;
 using Ductus.FluentDocker.Model.Common;
 
@@ -55,12 +54,12 @@ namespace Ductus.FluentDocker.Model.Builders
 
       if (0 != Command.Count)
       {
-        sb.Append("CMD [\"").Append(Command[0]);
-        if (Command.Count > 1)
+        sb.Append("CMD [");
+        for (var i = 0; i < Command.Count; i++)
         {
-          sb.Append(string.Join("\", \"", Command.Skip(1)));
+          sb.Append('"').Append(Command[i]).Append('"').Append(i == Command.Count - 1 ? string.Empty : ",");
         }
-        sb.AppendLine("\"]");
+        sb.AppendLine("]");
       }
 
       return sb.ToString();

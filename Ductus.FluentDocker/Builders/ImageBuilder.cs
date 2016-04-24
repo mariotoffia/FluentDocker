@@ -54,7 +54,7 @@ namespace Ductus.FluentDocker.Builders
       // to a working directory
       var workingdir = _fileBuilder.PrepareBuild();
 
-      var id = host.Value.Build(_config.Params.Tags[0], workingdir, new ContainerBuildParams
+      var id = host.Value.Build(_config.ImageName, _config.Params.Tags[0], workingdir, new ContainerBuildParams
       {
         Tags = _config.Params.Tags.Except(new[] {_config.Params.Tags[0]}).ToArray(),
         Quiet = true
@@ -66,7 +66,7 @@ namespace Ductus.FluentDocker.Builders
           $"Could not build image {_config.ImageName} due to error: {id.Error} log: {id.Log}");
       }
 
-      return new DockerImageService(_config.ImageName, id.Value, _config.Params.Tags[0], host.Value.Host,
+      return new DockerImageService(_config.ImageName, id.Value.Strip(), _config.Params.Tags[0], host.Value.Host,
         host.Value.Certificates);
     }
 

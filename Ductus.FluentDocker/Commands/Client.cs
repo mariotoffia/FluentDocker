@@ -11,10 +11,15 @@ namespace Ductus.FluentDocker.Commands
 {
   public static class Client
   {
-    public static CommandResponse<IList<string>> Build(this Uri host, string tag, string workdir = null,
+    public static CommandResponse<IList<string>> Build(this Uri host, string name, string tag, string workdir = null,
       ContainerBuildParams prms = null,
       ICertificatePaths certificates = null)
     {
+      if (null == tag)
+      {
+        tag = "latest";
+      }
+
       if (string.IsNullOrEmpty(workdir))
       {
         workdir = ".";
@@ -25,7 +30,7 @@ namespace Ductus.FluentDocker.Commands
       {
         if (!prms.Tags.Any(x => x == tag))
         {
-          options = $"-t {tag}";
+          options = $"-t {name}:{tag}";
         }
       }
 

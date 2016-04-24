@@ -7,10 +7,10 @@ namespace Ductus.FluentDocker.Extensions
 {
   public static class HostExtensions
   {
-    public static Result<string> Build(this IHostService host, string tag, string workdir = null,
+    public static Result<string> Build(this IHostService host, string name, string tag, string workdir = null,
       ContainerBuildParams prms = null)
     {
-      var res = host.Host.Build(tag, workdir, prms, host.Certificates);
+      var res = host.Host.Build(name, tag, workdir, prms, host.Certificates);
       return res.Success ? res.Data[0].ToSuccess() : string.Empty.ToFailure(res.Error, res.Log);
     }
   }

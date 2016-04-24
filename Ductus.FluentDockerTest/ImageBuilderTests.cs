@@ -20,11 +20,15 @@ namespace Ductus.FluentDockerTest
             .Run("apt-get update")
             .Run("apt-get install -y nodejs")
             .Run("mkdir /var/www")
-            .Add("embedded://Ductus.FluentDockerTest/MultiContainerTestFiles/app.js", "/var/www/app.js")
+            .Add("embedded:Ductus.FluentDockerTest/Ductus.FluentDockerTest.MultiContainerTestFiles/app.js", "/var/www/app.js")
             .Command("/usr/bin/node", "/var/www/app.js")
             .Build())
       {
         var config = image.GetConfiguration(true);
+        Assert.IsNotNull(config);
+        Assert.AreEqual(2,config.Config.Cmd.Length);
+        Assert.AreEqual("/usr/bin/node", config.Config.Cmd[0]);
+        Assert.AreEqual("/var/www/app.js", config.Config.Cmd[1]);
       }
     }
   }

@@ -1,30 +1,35 @@
 ﻿using System;
 using System.IO;
+using System.Linq;
 using System.Reflection;
 
 namespace Ductus.FluentDocker.Extensions
 {
   public static class ResourceExtensions
   {
-    public static string ExtractEmbeddedResource(this Uri resource, string outputDir)
+    public static string ExtractEmbeddedResourceByUri(this string resource, string outputDir)
     {
-      var ns = resource.Host;
-      var file = resource.LocalPath;
-
-      ExtractEmbeddedResource(ns, outputDir, file);
-      return file;
+      var s = resource.Split(':')[1].Split('/');
+      Assembly assembly = AppDomain.CurrentDomain.GetAssemblies().First(x => x.GetName().Name == s[0]);
+      ExtractEmbeddedResource(s[1],assembly, outputDir, s[2]);
+      return s[2];
     }
 
-    public static void ExtractEmbeddedResource(this string resourceLocation, string outputDir, params string[] files)
+    public static void ExtractEmbeddedResource(this string resourceLocation, Assembly assembly, string outputDir, params string[] files)
     {
       if (!Directory.Exists(outputDir))
       {
         Directory.CreateDirectory(outputDir);
       }
 
+      if (null == assembly)
+      {
+        assembly = Assembly.GetCallingAssembly();
+      }
+
       foreach (var file in files)
       {
-        using (var stream = Assembly.GetExecutingAssembly().GetManifestResourceStream(resourceLocation + @"." + file))
+        using (var stream = assembly.GetManifestResourceStream(resourceLocation + "." + file))
         {
           using (var fileStream = new FileStream(Path.Combine(outputDir, file), FileMode.Create))
           {

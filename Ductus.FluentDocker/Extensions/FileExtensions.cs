@@ -8,19 +8,15 @@ namespace Ductus.FluentDocker.Extensions
 {
   public static class FileExtensions
   {
-    public static void WriteDockerFile(this FileBuilderConfig config, TemplateString buildFolder)
+    public static void WriteFile(this string contents, TemplateString fqPath)
     {
-      config.ToString().WriteFile(buildFolder);
-    }
-
-    public static void WriteFile(this string contents, TemplateString folder)
-    {
-      if (!Directory.Exists(folder))
+      var folder = Path.GetDirectoryName(fqPath);
+      if (null != folder && !Directory.Exists(folder))
       {
         Directory.CreateDirectory(folder);
       }
 
-      File.WriteAllText(Path.Combine(folder, "Dockerfile"), contents);
+      File.WriteAllText(fqPath, contents);
     }
 
     public static string ReadFile(this TemplateString fqPath, Encoding encoding = null)
@@ -49,7 +45,7 @@ namespace Ductus.FluentDocker.Extensions
     {
       if (fileOrDirectory.Rendered.StartsWith("embedded:"))
       {
-        return new Uri(fileOrDirectory).ExtractEmbeddedResource(workdir);
+        return fileOrDirectory.Rendered.ExtractEmbeddedResourceByUri(workdir);
       }
 
       if (File.Exists(fileOrDirectory))

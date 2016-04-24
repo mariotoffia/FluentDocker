@@ -16,6 +16,13 @@ namespace Ductus.FluentDocker.Model.Common
         new Dictionary<string, Func<string>>
         {
           {
+            "${TMP}", () =>
+            {
+              var path = Path.GetTempPath();
+              return path.Substring(0, path.Length - 1);
+            }
+          },
+          {
             "${TEMP}", () =>
             {
               var path = Path.GetTempPath();
@@ -59,12 +66,22 @@ namespace Ductus.FluentDocker.Model.Common
 
     public static implicit operator TemplateString(string str)
     {
+      if (null == str)
+      {
+        return null;
+      }
+
       return new TemplateString(str);
     }
 
     public static implicit operator string(TemplateString str)
     {
-      return str.Rendered;
+      return str?.Rendered;
+    }
+
+    public override string ToString()
+    {
+      return Rendered;
     }
   }
 }
