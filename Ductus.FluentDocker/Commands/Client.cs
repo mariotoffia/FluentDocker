@@ -1,14 +1,60 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using Ductus.FluentDocker.Executors;
 using Ductus.FluentDocker.Executors.Parsers;
 using Ductus.FluentDocker.Extensions;
 using Ductus.FluentDocker.Model.Containers;
+using Ductus.FluentDocker.Model.Images;
 
 namespace Ductus.FluentDocker.Commands
 {
   public static class Client
   {
+    public static CommandResponse<IList<string>> Build(this Uri host, string tag, string workdir = null,
+      ContainerBuildParams prms = null,
+      ICertificatePaths certificates = null)
+    {
+      if (string.IsNullOrEmpty(workdir))
+      {
+        workdir = ".";
+      }
+
+      var options = string.Empty;
+      if (null != prms?.Tags)
+      {
+        if (!prms.Tags.Any(x => x == tag))
+        {
+          options = $"-t {tag}";
+        }
+      }
+
+      if (null != prms)
+      {
+        options += $" {prms}";
+      }
+
+      return
+        new ProcessExecutor<StringListResponseParser, IList<string>>(
+          "docker".ResolveBinary(),
+          $"{RenderBaseArgs(host, certificates)} build {options} {workdir}").Execute();
+    }
+
+    public static CommandResponse<IList<DockerImageRowResponse>> Images(this Uri host, string filter = null,
+      ICertificatePaths certificates = null)
+    {
+      var options = "--quiet --no-trunc --format \"{{.ID}};{{.Repository}};{{.Tag}}\"";
+      if (!string.IsNullOrEmpty(filter))
+      {
+        options = $" --filter={filter}";
+      }
+
+      return
+        new ProcessExecutor<ClientImagesResponseParser, IList<DockerImageRowResponse>>(
+          "docker".ResolveBinary(),
+          $"{RenderBaseArgs(host, certificates)} images {options}").Execute();
+    }
+
     public static CommandResponse<IList<string>> Ps(this Uri host, string options = null,
       ICertificatePaths certificates = null)
     {

@@ -9,8 +9,6 @@ namespace Ductus.FluentDocker.Model.Builders
   {
     public string DockerFileString { get; set; }
     public TemplateString UseFile { get; set; }
-    public bool VerifyExistenceOnly { get; set; }
-    public IList<string> Tags { get; } = new List<string>(); 
     public string From { get; set; }
     public string Maintainer { get; set; }
     public IList<RunCommand> BuildCommands { get; } = new List<RunCommand>();

@@ -1,5 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.IO;
 using Ductus.FluentDocker.Extensions;
 using Ductus.FluentDocker.Model.Builders;
@@ -8,23 +7,38 @@ using Ductus.FluentDocker.Services;
 
 namespace Ductus.FluentDocker.Builders
 {
-  public sealed class FileBuilder : BaseBuilder<IContainerImageService>
+  public sealed class FileBuilder
   {
     private readonly FileBuilderConfig _config = new FileBuilderConfig();
+    private readonly ImageBuilder _parent;
 
-    internal FileBuilder(IBuilder parent) : base(parent)
+    internal FileBuilder(ImageBuilder parent)
     {
+      _parent = parent;
     }
 
-    public override IContainerImageService Build()
+    internal string PrepareBuild()
     {
-      var workdir = RenderDockerfile();
-      throw new NotImplementedException();
+      var workingFolder = @"${TEMP}\fluentdockertest\${RND}";
+
+      CopyToWorkDir(workingFolder); // Must be before RenderDockerFile!
+      RenderDockerfile(workingFolder);
+      return workingFolder;
     }
 
-    protected override IBuilder InternalCreate()
+    public IContainerImageService Build()
     {
-      return new FileBuilder(this);
+      return _parent.Build();
+    }
+
+    public Builder Builder()
+    {
+      return _parent.Builder();
+    }
+
+    public ImageBuilder ToImage()
+    {
+      return _parent;
     }
 
     public FileBuilder UseParent(string from)
@@ -73,18 +87,6 @@ namespace Ductus.FluentDocker.Builders
       return this;
     }
 
-    public FileBuilder VerifyExistence()
-    {
-      _config.VerifyExistenceOnly = true;
-      return this;
-    }
-
-    public FileBuilder UseImageTags(params string[] tags)
-    {
-      ((List<string>) _config.Tags).AddRange(tags);
-      return this;
-    }
-
     public FileBuilder FromFile(string file)
     {
       _config.UseFile = file;
@@ -97,14 +99,23 @@ namespace Ductus.FluentDocker.Builders
       return this;
     }
 
-    private void CopyToWorkDir(string workdir)
+    /// <summary>
+    ///   Copies all files and folders to working directory.
+    ///   Note that this method will mutate <see cref="AddCommand.Source" /> to
+    ///   a relative path!!
+    /// </summary>
+    /// <param name="workingFolder">The working folder.</param>
+    private void CopyToWorkDir(TemplateString workingFolder)
     {
-      
+      foreach (var command in _config.AddCommands)
+      {
+        // Replace to relative path
+        command.Source = command.Source.Copy(workingFolder);
+      }
     }
 
-    private string RenderDockerfile()
+    private void RenderDockerfile(TemplateString workingFolder)
     {
-      TemplateString workingFolder = @"${TEMP}\fluentdockertest\${RND}";
       if (Directory.Exists(workingFolder))
       {
         Directory.CreateDirectory(workingFolder);
@@ -129,7 +140,6 @@ namespace Ductus.FluentDocker.Builders
       }
 
       contents.WriteFile(dockerFile);
-      return workingFolder;
     }
   }
 }

@@ -76,7 +76,6 @@ namespace Ductus.FluentDocker.Extensions
       var res = service.DockerHost.Export(service.Id, path, service.Certificates);
       if (!res.Success)
       {
-        Debug.WriteLine($"Failed to export {service.Id} to {fqPath} - result: {res}");
         if (throwOnError)
         {
           throw new FluentDockerException(

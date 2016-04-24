@@ -20,6 +20,7 @@ namespace Ductus.FluentDocker.Services.Impl
 
     public override void Dispose()
     {
+      Stop();
     }
 
     public override void Start()

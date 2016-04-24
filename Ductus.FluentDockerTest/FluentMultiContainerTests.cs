@@ -35,7 +35,7 @@ namespace Ductus.FluentDockerTest
         // TODO: in order they where added in fluent API - thus bottom up approach
         //
         using (var services = new Builder()
-          // Db Backend
+          // Redis Db Backend
           .UseContainer().WithName("redis").UseImage("redis").Builder()
           // Node server 1
           .UseContainer().WithName("node1").UseImage("node")
@@ -45,7 +45,7 @@ namespace Ductus.FluentDockerTest
           .UseContainer().WithName("node2").UseImage("node")
             .Link("redis").CopyOnStart(app, "/usr/src/app").UseWorkDir("/usr/src/app")
             .Command("nodemon", "/usr/src/app").Builder()
-          // nginx as load balancer
+          // Nginx as load balancer
           .UseContainer().WithName("nginx").UseImage("nginx")
             .Link("node1", "node2").CopyOnStart(nginx, "/etc/nginx/nginx.conf").ExposePort(80).Builder()
           .Build().Start())

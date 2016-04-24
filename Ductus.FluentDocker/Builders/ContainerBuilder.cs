@@ -40,17 +40,6 @@ namespace Ductus.FluentDocker.Builders
       return new ContainerBuilder(this);
     }
 
-    public Builder Builder()
-    {
-      var builder = FindBuilder();
-      if (!builder.HasValue)
-      {
-        throw new FluentDockerException("Cannot find a parent Builder instance, bug in your code");
-      }
-
-      return builder.Value;
-    }
-
     public ContainerBuilder UseImage(string image)
     {
       _config.Image = image;

@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Text;
 using Ductus.FluentDocker.Model.Builders;
 using Ductus.FluentDocker.Model.Common;
 using Ductus.FluentDocker.Model.Containers;
@@ -8,10 +9,57 @@ namespace Ductus.FluentDocker.Extensions
 {
   public static class ModelExtensions
   {
+    public static void RenderIfExists(this StringBuilder sb, string option, string value)
+    {
+      if (!string.IsNullOrEmpty(value))
+      {
+        sb.Append($" {option}{value}");
+      }
+    }
+
+    public static void RenderIfExists(this StringBuilder sb, string option, string[] values)
+    {
+      if (null == values || 0 == values.Length)
+      {
+        return;
+      }
+
+      foreach (var value in values)
+      {
+        sb.Append($" {option}{value}");
+      }
+    }
+
+    /// <summary>
+    ///   Strips the hash algorithm prefixed (if any) from the container hash id.
+    /// </summary>
+    /// <param name="hashAlgAndContainerHash">The hashalg:containerhash string.</param>
+    /// <returns>A "raw" container id hash.</returns>
+    public static string Strip(this string hashAlgAndContainerHash)
+    {
+      var split = hashAlgAndContainerHash.Split(':');
+      return split.Length == 2 ? split[1] : hashAlgAndContainerHash;
+    }
+
+    public static string ToDockerString(this ContainerIsolationTechnology isolation)
+    {
+      switch (isolation)
+      {
+        case ContainerIsolationTechnology.Default:
+          return "default";
+        case ContainerIsolationTechnology.Hyperv:
+          return "hyperv";
+        case ContainerIsolationTechnology.Process:
+          return "process";
+        default:
+          return null;
+      }
+    }
+
     public static TemplateString AsTemplate(this string str)
     {
       return str;
-    } 
+    }
 
     public static ServiceRunningState ToServiceState(this ContainerState state)
     {

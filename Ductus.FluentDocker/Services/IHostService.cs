@@ -29,6 +29,11 @@ namespace Ductus.FluentDocker.Services
     bool RequireTls { get; }
 
     /// <summary>
+    /// The certificates if any needed for this host.
+    /// </summary>
+    ICertificatePaths Certificates { get;  }
+
+    /// <summary>
     ///   Gets a new copy of a set of running <see cref="IContainerService" />s.
     /// </summary>
     /// <remarks>

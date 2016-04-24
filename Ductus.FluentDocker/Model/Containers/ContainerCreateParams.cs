@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Net;
 using System.Text;
+using Ductus.FluentDocker.Extensions;
 
 namespace Ductus.FluentDocker.Model.Containers
 {
@@ -205,12 +206,12 @@ namespace Ductus.FluentDocker.Model.Containers
         sb.Append($" --blkio-weight {BlockIoWeight.Value}");
       }
 
-      RenderIfExists(sb, "--blkio-weight-device=", BlockIoWeightDevices);
-      RenderIfExists(sb, "--cap-add=", CapabilitiesToAdd);
-      RenderIfExists(sb, "--cap-drop=", CapabilitiesToRemove);
-      RenderIfExists(sb, "--cgroup-parent ", ParentCGroup);
-      RenderIfExists(sb, "-e ", Environment);
-      RenderIfExists(sb, "--env-file=", EnvironmentFiles);
+      sb.RenderIfExists("--blkio-weight-device=", BlockIoWeightDevices);
+      sb.RenderIfExists("--cap-add=", CapabilitiesToAdd);
+      sb.RenderIfExists("--cap-drop=", CapabilitiesToRemove);
+      sb.RenderIfExists("--cgroup-parent ", ParentCGroup);
+      sb.RenderIfExists("-e ", Environment);
+      sb.RenderIfExists("--env-file=", EnvironmentFiles);
 
       if (Interactive)
       {
@@ -222,54 +223,33 @@ namespace Ductus.FluentDocker.Model.Containers
         sb.Append(" -t");
       }
 
-      RenderIfExists(sb, "--name ", Name);
-      RenderIfExists(sb, "-u ", AsUser);
+      sb.RenderIfExists("--name ", Name);
+      sb.RenderIfExists("-u ", AsUser);
 
       if (AutoRemoveContainer)
       {
         sb.Append(" --rm");
       }
 
-      RenderIfExists(sb, "-v ", Volumes);
-      RenderIfExists(sb, "--volume-driver ", VolumeDriver);
-      RenderIfExists(sb, "--volumes-from=", VolumesFrom);
-      RenderIfExists(sb, "-w ", WorkingDirectory);
+      sb.RenderIfExists("-v ", Volumes);
+      sb.RenderIfExists("--volume-driver ", VolumeDriver);
+      sb.RenderIfExists("--volumes-from=", VolumesFrom);
+      sb.RenderIfExists("-w ", WorkingDirectory);
 
       if (!PublishAllPorts)
       {
-        RenderIfExists(sb, "-p ", PortMappings);
+        sb.RenderIfExists("-p ", PortMappings);
       }
       else
       {
         sb.Append(" -P");
       }
 
-      RenderIfExists(sb, "--link=", Links);
-      RenderIfExists(sb, "-l ", Labels);
-      RenderIfExists(sb, "--group-add=", Groups);
+      sb.RenderIfExists("--link=", Links);
+      sb.RenderIfExists("-l ", Labels);
+      sb.RenderIfExists("--group-add=", Groups);
 
       return sb.ToString();
-    }
-
-    private static void RenderIfExists(StringBuilder sb, string option, string value)
-    {
-      if (!string.IsNullOrEmpty(value))
-      {
-        sb.Append($" {option}{value}");
-      }
-    }
-
-    private static void RenderIfExists(StringBuilder sb, string option, string[] values)
-    {
-      if (null == values || 0 == values.Length)
-      {
-        return;
-      }
-
-      foreach (var value in values)
-      {
-        sb.Append($" {option}{value}");
-      }
     }
   }
 

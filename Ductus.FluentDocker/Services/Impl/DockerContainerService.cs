@@ -6,7 +6,7 @@ namespace Ductus.FluentDocker.Services.Impl
 {
   public sealed class DockerContainerService : IContainerService
   {
-    private readonly CertificatePaths _certificates;
+    private readonly ICertificatePaths _certificates;
     private readonly ServiceHooks _hooks = new ServiceHooks();
     private readonly bool _removeOnDispose;
     private readonly bool _stopOnDispose;
@@ -14,7 +14,7 @@ namespace Ductus.FluentDocker.Services.Impl
     private ServiceRunningState _state = ServiceRunningState.Unknown;
 
     public DockerContainerService(string name, string id, Uri docker, ServiceRunningState state,
-      CertificatePaths certificates,
+      ICertificatePaths certificates,
       bool stopOnDispose = true, bool removeOnDispose = true)
     {
       _certificates = certificates;

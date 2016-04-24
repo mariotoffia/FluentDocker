@@ -46,6 +46,16 @@ namespace Ductus.FluentDocker.Builders
     {
       return (IService) Build();
     }
+    public Builder Builder()
+    {
+      var builder = FindBuilder();
+      if (!builder.HasValue)
+      {
+        throw new FluentDockerException("Cannot find a parent Builder instance, bug in your code");
+      }
+
+      return builder.Value;
+    }
 
     protected abstract IBuilder InternalCreate();
 

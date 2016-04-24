@@ -49,6 +49,7 @@
     <Compile Include="Builders\FileBuilder.cs" />
     <Compile Include="Builders\HostBuilder.cs" />
     <Compile Include="Builders\IBuilder.cs" />
+    <Compile Include="Builders\ImageBuilder.cs" />
     <Compile Include="Builders\MachineBuilder.cs" />
     <Compile Include="Commands\Client.cs" />
     <Compile Include="Commands\CommandDefaults.cs" />
@@ -56,9 +57,12 @@
     <Compile Include="Common\Constants.cs" />
     <Compile Include="Common\FluentDockerException.cs" />
     <Compile Include="Common\Option.cs" />
+    <Compile Include="Common\Result.cs" />
+    <Compile Include="Common\ResultExtensions.cs" />
     <Compile Include="Executors\IProcessResponseParser.cs" />
     <Compile Include="Executors\Parsers\ClientContainerInspectCommandResponder.cs" />
     <Compile Include="Executors\Parsers\ClientDiffResponseParser.cs" />
+    <Compile Include="Executors\Parsers\ClientImagesResponseParser.cs" />
     <Compile Include="Executors\Parsers\IgnoreErrorResponseParser.cs" />
     <Compile Include="Executors\Parsers\NoLineResponseParser.cs" />
     <Compile Include="Executors\Parsers\ClientTopResponseParser.cs" />
@@ -76,6 +80,7 @@
     <Compile Include="Extensions\ContainerExtensions.cs" />
     <Compile Include="Extensions\DockerEnvExtensions.cs" />
     <Compile Include="Extensions\FileExtensions.cs" />
+    <Compile Include="Extensions\HostExtensions.cs" />
     <Compile Include="Extensions\ModelExtensions.cs" />
     <Compile Include="Extensions\NetworkExtensions.cs" />
     <Compile Include="Extensions\OsExtensions.cs" />
@@ -83,6 +88,7 @@
     <Compile Include="Model\Builders\ContainerBuilderConfig.cs" />
     <Compile Include="Model\Builders\FileBuilderConfig.cs" />
     <Compile Include="Model\Builders\HostBuilderConfig.cs" />
+    <Compile Include="Model\Builders\ImageBuilderConfig.cs" />
     <Compile Include="Model\Builders\MountType.cs" />
     <Compile Include="Model\Builders\RunCommand.cs" />
     <Compile Include="Model\Common\TemplateString.cs" />
@@ -90,8 +96,10 @@
     <Compile Include="Model\Containers\CertificatePaths.cs" />
     <Compile Include="Model\Containers\CommandResponse.cs" />
     <Compile Include="Model\Containers\Container.cs" />
+    <Compile Include="Model\Containers\ContainerBuildParams.cs" />
     <Compile Include="Model\Containers\ContainerConfig.cs" />
     <Compile Include="Model\Containers\ContainerCreateParams.cs" />
+    <Compile Include="Model\Containers\ContainerIsolationTechnology.cs" />
     <Compile Include="Model\Containers\ContainerMount.cs" />
     <Compile Include="Model\Containers\ContainerNetworkSettings.cs" />
     <Compile Include="Model\Containers\ContainerState.cs" />
@@ -101,6 +109,7 @@
     <Compile Include="Model\Containers\Processes.cs" />
     <Compile Include="Model\Containers\ProcessRow.cs" />
     <Compile Include="Model\Containers\VolumeMount.cs" />
+    <Compile Include="Model\Images\DockerImageRowResponse.cs" />
     <Compile Include="Model\Machines\MachineAuthConfig.cs" />
     <Compile Include="Model\Machines\MachineConfiguration.cs" />
     <Compile Include="Model\Machines\MachineLsResponse.cs" />

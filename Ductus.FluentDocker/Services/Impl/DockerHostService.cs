@@ -21,7 +21,6 @@ namespace Ductus.FluentDocker.Services.Impl
     private const string DefaultClientKeyName = "key.pem";
 
     private readonly bool _stopWhenDisposed;
-    private CertificatePaths _certificates;
 
     public DockerHostService(string name, bool isNative, bool stopWhenDisposed = false, string dockerUri = null,
       string certificatePath = null)
@@ -37,7 +36,7 @@ namespace Ductus.FluentDocker.Services.Impl
 
         if (!string.IsNullOrEmpty(certPath))
         {
-          _certificates = new CertificatePaths
+          Certificates = new CertificatePaths
           {
             CaCertificate = Path.Combine(certPath, DefaultCaCertName),
             ClientCertificate = Path.Combine(certPath, DefaultClientCertName),
@@ -129,6 +128,7 @@ namespace Ductus.FluentDocker.Services.Impl
     public Uri Host { get; private set; }
     public bool IsNative { get; }
     public bool RequireTls { get; private set; }
+    public ICertificatePaths Certificates { get; private set; }
 
     public IList<IContainerService> GetRunningContainers()
     {
@@ -148,30 +148,38 @@ namespace Ductus.FluentDocker.Services.Impl
         options += $" --filter={filter}";
       }
 
-      var result = Host.Ps(options, _certificates);
+      var result = Host.Ps(options, Certificates);
       if (!result.Success)
       {
         return new List<IContainerService>();
       }
 
       return (from id in result.Data
-        let config = Host.InspectContainer(id, _certificates).Data
+        let config = Host.InspectContainer(id, Certificates).Data
         select
           new DockerContainerService(config.Name, id, Host, config.State.ToServiceState(),
-            _certificates)).Cast<IContainerService>().ToList();
+            Certificates)).Cast<IContainerService>().ToList();
     }
 
     public IList<IContainerImageService> GetImages(bool all = true, string filer = null)
     {
-      // TODO: docker images --no-trunc --format "{{.ID}};{{.Repository}};{{.Tag}}"
-      throw new NotImplementedException();
+      var images = Host.Images(null, Certificates);
+      if (!images.Success)
+      {
+        return new List<IContainerImageService>();
+      }
+
+      return
+        images.Data.Select(image => new DockerImageService(image.Name, image.Id, image.Tags[0], Host, Certificates))
+          .Cast<IContainerImageService>()
+          .ToList();
     }
 
     public IContainerService Create(string image, ContainerCreateParams prms = null,
       bool stopOnDispose = true, bool deleteOnDispose = true,
       string command = null, string[] args = null)
     {
-      var res = Host.Create(image, command, args, prms, _certificates);
+      var res = Host.Create(image, command, args, prms, Certificates);
 
       if (!res.Success || 0 == res.Data.Length)
       {
@@ -179,7 +187,7 @@ namespace Ductus.FluentDocker.Services.Impl
           $"Could not create Service from {image} with command {command}, args {args}, and parameters {prms}. Result: {res}");
       }
 
-      var config = Host.InspectContainer(res.Data, _certificates);
+      var config = Host.InspectContainer(res.Data, Certificates);
       if (!config.Success)
       {
         throw new FluentDockerException(
@@ -188,7 +196,7 @@ namespace Ductus.FluentDocker.Services.Impl
 
       return new DockerContainerService(config.Data.Name.Substring(1), res.Data, Host,
         config.Data.State.ToServiceState(),
-        _certificates, stopOnDispose, deleteOnDispose);
+        Certificates, stopOnDispose, deleteOnDispose);
     }
 
     public MachineConfiguration GetMachineConfiguration()
@@ -224,7 +232,7 @@ namespace Ductus.FluentDocker.Services.Impl
       {
         // Check if ca, client and key is in the store path
         // if so use those instead.
-        _certificates = new CertificatePaths
+        Certificates = new CertificatePaths
         {
           CaCertificate = info.AuthConfig.CaCertPath,
           ClientCertificate = info.AuthConfig.ClientCertPath,
@@ -234,7 +242,7 @@ namespace Ductus.FluentDocker.Services.Impl
       }
 
       // Otherwise use the defaults
-      _certificates = new CertificatePaths
+      Certificates = new CertificatePaths
       {
         CaCertificate = info.AuthConfig.CaCertPath,
         ClientCertificate = info.AuthConfig.ClientCertPath,
