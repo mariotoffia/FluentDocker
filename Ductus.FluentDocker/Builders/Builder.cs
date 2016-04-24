@@ -33,13 +33,24 @@ namespace Ductus.FluentDocker.Builders
       return new HostBuilder(this);
     }
 
+    public ImageBuilder DefineImage(string image)
+    {
+      var hb = FindOrDefineHostBuilder();
+      return hb.IsNative ? hb.DefineImage() : hb.UseMachine().DefineImage();
+    }
+
     public ContainerBuilder UseContainer()
+    {
+      var hb = FindOrDefineHostBuilder();
+      return hb.IsNative ? hb.UseContainer() : hb.UseMachine().UseContainer();
+    }
+
+    private HostBuilder FindOrDefineHostBuilder()
     {
       var existing = Childs.FirstOrDefault(x => x is HostBuilder);
       if (null != existing)
       {
-        var hb = (HostBuilder) existing;
-        return hb.IsNative ? hb.UseContainer() : hb.UseMachine().UseContainer();
+        return (HostBuilder) existing;
       }
 
       var host = new HostBuilder(this);
@@ -48,7 +59,7 @@ namespace Ductus.FluentDocker.Builders
       var hosts = new Hosts().Discover();
       if (hosts.Any(x => x.IsNative))
       {
-        return host.UseNative().UseContainer();
+        return host.UseNative();
       }
 
       var h = hosts.FirstOrDefault();
@@ -68,7 +79,7 @@ namespace Ductus.FluentDocker.Builders
         .Memory(config.MemorySizeMb)
         .StorageSize(config.StorageSizeMb)
         .UseDriver(config.DriverName)
-        .WithName(config.Name).UseContainer();
+        .WithName(config.Name).Host();
     }
 
     private static void InternalBuild(IList<IService> services, IBuilder builder)

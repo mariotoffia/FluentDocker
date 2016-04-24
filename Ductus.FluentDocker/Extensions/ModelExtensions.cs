@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Linq;
 using System.Text;
 using Ductus.FluentDocker.Model.Builders;
 using Ductus.FluentDocker.Model.Common;
@@ -108,6 +109,11 @@ namespace Ductus.FluentDocker.Extensions
       }
 
       throw new NotImplementedException($"Not implemented type: {access}");
+    }
+
+    public static string[] AddToArrayDistinct(this string[] arr, params string[] values)
+    {
+      return AddToArray(arr,values).Distinct().ToArray();
     }
 
     public static string[] AddToArray(this string[] arr, params string[] values)

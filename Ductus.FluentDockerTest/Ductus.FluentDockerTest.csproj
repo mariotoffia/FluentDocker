@@ -58,7 +58,6 @@
   </Choose>
   <ItemGroup>
     <Compile Include="Extensions\HttpExtensions.cs" />
-    <Compile Include="Extensions\ResourceExtensions.cs" />
     <Compile Include="MultiContainerTestFiles\NsResolver.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="DockerMachineCommandTests.cs" />

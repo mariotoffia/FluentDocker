@@ -94,13 +94,24 @@ namespace Ductus.FluentDocker.Builders
 
     public ImageBuilder AsImageName(string name)
     {
-      _config.ImageName = name;
+      var s = name.Split(':');
+      if (s.Length == 2)
+      {
+        _config.ImageName = s[0];
+        _config.Params.Tags.AddToArray(s[1]);
+      }
+      else
+      {
+        _config.ImageName = name;
+        _config.Params.Tags.AddToArray("latest");
+      }
+
       return this;
     }
 
     public ImageBuilder ImageTag(params string[] tags)
     {
-      _config.Params.Tags.AddToArray(tags);
+      _config.Params.Tags.AddToArrayDistinct(tags);
       return this;
     }
 

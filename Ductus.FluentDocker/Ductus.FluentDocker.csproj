@@ -84,6 +84,7 @@
     <Compile Include="Extensions\ModelExtensions.cs" />
     <Compile Include="Extensions\NetworkExtensions.cs" />
     <Compile Include="Extensions\OsExtensions.cs" />
+    <Compile Include="Extensions\ResourceExtensions.cs" />
     <Compile Include="Model\Builders\AddCommand.cs" />
     <Compile Include="Model\Builders\ContainerBuilderConfig.cs" />
     <Compile Include="Model\Builders\FileBuilderConfig.cs" />

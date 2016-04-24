@@ -77,7 +77,7 @@ namespace Ductus.FluentDocker.Builders
       return this;
     }
 
-    public FileBuilder Execute(string command, string[] args)
+    public FileBuilder Command(string command, params string[] args)
     {
       _config.Command.Add(command);
       if (null != args && 0 != args.Length)

@@ -2,10 +2,19 @@
 using System.IO;
 using System.Reflection;
 
-namespace Ductus.FluentDockerTest.Extensions
+namespace Ductus.FluentDocker.Extensions
 {
   public static class ResourceExtensions
   {
+    public static string ExtractEmbeddedResource(this Uri resource, string outputDir)
+    {
+      var ns = resource.Host;
+      var file = resource.LocalPath;
+
+      ExtractEmbeddedResource(ns, outputDir, file);
+      return file;
+    }
+
     public static void ExtractEmbeddedResource(this string resourceLocation, string outputDir, params string[] files)
     {
       if (!Directory.Exists(outputDir))
@@ -27,7 +36,7 @@ namespace Ductus.FluentDockerTest.Extensions
 
             for (var i = 0; i < stream.Length; i++)
             {
-              fileStream.WriteByte((byte) stream.ReadByte());
+              fileStream.WriteByte((byte)stream.ReadByte());
             }
             fileStream.Close();
           }
