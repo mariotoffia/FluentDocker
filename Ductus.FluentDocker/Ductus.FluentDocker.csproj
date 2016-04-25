@@ -89,6 +89,7 @@
     <Compile Include="Model\Builders\ContainerBuilderConfig.cs" />
     <Compile Include="Model\Builders\FileBuilderConfig.cs" />
     <Compile Include="Model\Builders\HostBuilderConfig.cs" />
+    <Compile Include="Model\Builders\ICommand.cs" />
     <Compile Include="Model\Builders\ImageBuilderConfig.cs" />
     <Compile Include="Model\Builders\MountType.cs" />
     <Compile Include="Model\Builders\RunCommand.cs" />

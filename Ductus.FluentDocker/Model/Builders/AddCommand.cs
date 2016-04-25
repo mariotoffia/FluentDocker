@@ -2,7 +2,7 @@
 
 namespace Ductus.FluentDocker.Model.Builders
 {
-  public sealed class AddCommand
+  public sealed class AddCommand : ICommand
   {
     public TemplateString Source { get; set; }
     public TemplateString Destination { get; set; }

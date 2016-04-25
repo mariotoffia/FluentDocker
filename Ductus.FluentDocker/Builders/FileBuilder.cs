@@ -1,5 +1,6 @@
 ﻿using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using Ductus.FluentDocker.Extensions;
 using Ductus.FluentDocker.Model.Builders;
 using Ductus.FluentDocker.Model.Common;
@@ -55,13 +56,13 @@ namespace Ductus.FluentDocker.Builders
 
     public FileBuilder Add(TemplateString source, TemplateString destination)
     {
-      _config.AddCommands.Add(new AddCommand {Source = source, Destination = destination});
+      _config.AddRunCommands.Add(new AddCommand {Source = source, Destination = destination});
       return this;
     }
 
     public FileBuilder Run(params TemplateString[] commands)
     {
-      _config.BuildCommands.Add(new RunCommand {Lines = new List<TemplateString>(commands)});
+      _config.AddRunCommands.Add(new RunCommand {Lines = new List<TemplateString>(commands)});
       return this;
     }
 
@@ -71,7 +72,7 @@ namespace Ductus.FluentDocker.Builders
       return this;
     }
 
-    public FileBuilder ExposePorts(int[] ports)
+    public FileBuilder ExposePorts(params int[] ports)
     {
       _config.Expose = new List<int>(ports);
       return this;
@@ -107,7 +108,7 @@ namespace Ductus.FluentDocker.Builders
     /// <param name="workingFolder">The working folder.</param>
     private void CopyToWorkDir(TemplateString workingFolder)
     {
-      foreach (var command in _config.AddCommands)
+      foreach (var command in _config.AddRunCommands.Where(x => x is AddCommand).Cast<AddCommand>())
       {
         // Replace to relative path
         command.Source = command.Source.Copy(workingFolder);

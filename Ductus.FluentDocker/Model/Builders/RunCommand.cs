@@ -4,7 +4,7 @@ using Ductus.FluentDocker.Model.Common;
 
 namespace Ductus.FluentDocker.Model.Builders
 {
-  public sealed class RunCommand
+  public sealed class RunCommand : ICommand
   {
     public IList<TemplateString> Lines { get; set; }
 

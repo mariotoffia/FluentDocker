@@ -10,8 +10,7 @@ namespace Ductus.FluentDocker.Model.Builders
     public TemplateString UseFile { get; set; }
     public string From { get; set; }
     public string Maintainer { get; set; }
-    public IList<RunCommand> BuildCommands { get; } = new List<RunCommand>();
-    public IList<AddCommand> AddCommands { get; } = new List<AddCommand>();
+    public IList<ICommand> AddRunCommands { get; } = new List<ICommand>();
     public string Workdir { get; set; }
     public IList<int> Expose { get; set; }
     public IList<string> Command { get; } = new List<string>();
@@ -26,19 +25,11 @@ namespace Ductus.FluentDocker.Model.Builders
         sb.Append("MAINTAINER ").AppendLine(Maintainer);
       }
 
-      if (0 != BuildCommands.Count)
+      if (0 != AddRunCommands.Count)
       {
-        foreach (var command in BuildCommands)
+        foreach (var command in AddRunCommands)
         {
           sb.AppendLine(command.ToString());
-        }
-      }
-
-      if (0 != AddCommands.Count)
-      {
-        foreach (var cmd in AddCommands)
-        {
-          sb.AppendLine(cmd.ToString());
         }
       }
 

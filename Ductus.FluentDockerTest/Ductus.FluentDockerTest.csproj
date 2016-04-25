@@ -77,6 +77,7 @@
   <ItemGroup>
     <None Include="app.config" />
     <EmbeddedResource Include="MultiContainerTestFiles\nginx.conf" />
+    <EmbeddedResource Include="MultiContainerTestFiles\package.txt" />
     <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
