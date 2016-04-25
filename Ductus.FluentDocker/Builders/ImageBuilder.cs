@@ -34,12 +34,12 @@ namespace Ductus.FluentDocker.Builders
       var tag = null == _config.Params.Tags ? "latest" : _config.Params.Tags[0];
       var image = host.Value.GetImages().FirstOrDefault(x => x.Name == _config.ImageName && x.Tag == tag);
 
-      if (_config.VerifyExistence && !_config.ForeRebuild)
+      if (_config.VerifyExistence)
       {
         return image;
       }
 
-      if (null != image && !_config.ForeRebuild)
+      if (null != image)
       {
         // Image already exists.
         return image;
@@ -80,15 +80,9 @@ namespace Ductus.FluentDocker.Builders
       return _fileBuilder = new FileBuilder(this).UseParent(from);
     }
 
-    public ImageBuilder VerifyExistence()
+    public ImageBuilder ReuseIfAlreadyExists()
     {
       _config.VerifyExistence = true;
-      return this;
-    }
-
-    public ImageBuilder ForceRebuild()
-    {
-      _config.ForeRebuild = true;
       return this;
     }
 

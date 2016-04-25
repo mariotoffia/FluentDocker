@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Net;
 using Ductus.FluentDocker.Common;
 using Ductus.FluentDocker.Extensions;
@@ -24,6 +25,19 @@ namespace Ductus.FluentDocker.Builders
       {
         throw new FluentDockerException(
           $"Cannot build container {_config.Image} since no host service is defined");
+      }
+
+      if (_config.VerifyExistence && !string.IsNullOrEmpty(_config.CreateParams.Name))
+      {
+        // Since filter on docker is only prefix filter
+        var existing =
+          host.Value.GetContainers(true, $" -f name={_config.CreateParams.Name}")
+            .FirstOrDefault(x => x.Name == _config.CreateParams.Name);
+
+        if (null != existing)
+        {
+          return existing;
+        }
       }
 
       var container = host.Value.Create(_config.Image, _config.CreateParams, _config.StopOnDispose,
@@ -185,6 +199,12 @@ namespace Ductus.FluentDocker.Builders
     {
       _config.DeleteOnDispose = false;
       _config.CreateParams.AutoRemoveContainer = false;
+      return this;
+    }
+
+    public ContainerBuilder ReuseIfExists()
+    {
+      _config.VerifyExistence = true;
       return this;
     }
 

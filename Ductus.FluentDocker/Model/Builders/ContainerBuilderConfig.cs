@@ -13,6 +13,7 @@ namespace Ductus.FluentDocker.Model.Builders
       CreateParams = new ContainerCreateParams();
     }
 
+    public bool VerifyExistence { get; set; }
     public ContainerCreateParams CreateParams { get; }
     public string Image { get; set; }
     public bool StopOnDispose { get; set; } = true;
