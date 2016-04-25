@@ -29,9 +29,6 @@ namespace Ductus.FluentDockerTest
 
       try
       {
-        // TODO: Currently it does not resolve links and only starts container
-        // TODO: in order they where added in fluent API - thus bottom up approach
-        //
         using (var services = new Builder()
           // Define custom node image to be used
           .DefineImage("mariotoffia/nodetest")
@@ -47,10 +44,9 @@ namespace Ductus.FluentDockerTest
           .Run("cd /tmp && npm install")
           .Run("mkdir -p /src && cp -a /tmp/node_modules /src/")
           .UseWorkDir("/src")
-          .Add("embedded:Ductus.FluentDockerTest/Ductus.FluentDockerTest.MultiContainerTestFiles/index.js", "/src")
+          .Add("index.js", "/src")
           .ExposePorts(8080)
           .Command("nodemon", "/src/index.js").Builder()
-          //
           // Redis Db Backend
           .UseContainer().WithName("redis").UseImage("redis").Builder()
           // Node server 1 & 2
