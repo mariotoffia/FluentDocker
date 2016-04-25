@@ -2,20 +2,21 @@
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using Ductus.FluentDocker.Model.Common;
 
 namespace Ductus.FluentDocker.Extensions
 {
   public static class ResourceExtensions
   {
-    public static string ExtractEmbeddedResourceByUri(this string resource, string outputDir)
+    public static string ExtractEmbeddedResourceByUri(this EmbeddedUri resource, string outputDir)
     {
-      var s = resource.Split(':')[1].Split('/');
-      Assembly assembly = AppDomain.CurrentDomain.GetAssemblies().First(x => x.GetName().Name == s[0]);
-      ExtractEmbeddedResource(s[1],assembly, outputDir, s[2]);
-      return s[2];
+      var assembly = AppDomain.CurrentDomain.GetAssemblies().First(x => x.GetName().Name == resource.Assembly);
+      ExtractEmbeddedResource(resource.Namespace, assembly, outputDir, resource.Resource);
+      return resource.Resource;
     }
 
-    public static void ExtractEmbeddedResource(this string resourceLocation, Assembly assembly, string outputDir, params string[] files)
+    public static void ExtractEmbeddedResource(this string resourceLocation, Assembly assembly, string outputDir,
+      params string[] files)
     {
       if (!Directory.Exists(outputDir))
       {
@@ -41,7 +42,7 @@ namespace Ductus.FluentDocker.Extensions
 
             for (var i = 0; i < stream.Length; i++)
             {
-              fileStream.WriteByte((byte)stream.ReadByte());
+              fileStream.WriteByte((byte) stream.ReadByte());
             }
             fileStream.Close();
           }

@@ -45,16 +45,13 @@ namespace Ductus.FluentDocker.Extensions
     {
       if (fileOrDirectory.Rendered.StartsWith("embedded:"))
       {
-        return fileOrDirectory.Rendered.ExtractEmbeddedResourceByUri(workdir);
+        return new EmbeddedUri(fileOrDirectory.Rendered).ExtractEmbeddedResourceByUri(workdir);
       }
 
       if (File.Exists(fileOrDirectory))
       {
         var file = Path.GetFileName(fileOrDirectory);
-        if (null != file)
-        {
-          File.Copy(fileOrDirectory, Path.Combine(workdir, file));
-        }
+        File.Copy(fileOrDirectory, Path.Combine(workdir, file));
         return file;
       }
 

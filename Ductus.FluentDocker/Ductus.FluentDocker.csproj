@@ -92,6 +92,7 @@
     <Compile Include="Model\Builders\ImageBuilderConfig.cs" />
     <Compile Include="Model\Builders\MountType.cs" />
     <Compile Include="Model\Builders\RunCommand.cs" />
+    <Compile Include="Model\Common\EmbeddedUri.cs" />
     <Compile Include="Model\Common\TemplateString.cs" />
     <Compile Include="Model\Containers\BridgeNetwork.cs" />
     <Compile Include="Model\Containers\CertificatePaths.cs" />
