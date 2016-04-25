@@ -6,6 +6,7 @@ namespace Ductus.FluentDocker.Services
   {
     IReadOnlyCollection<IHostService> Hosts { get; }
     IReadOnlyCollection<IContainerService> Containers { get; }
+    IReadOnlyCollection<IContainerImageService> Images { get; }
     IReadOnlyCollection<IService> Services { get; }
     new ICompositeService Start();
   }

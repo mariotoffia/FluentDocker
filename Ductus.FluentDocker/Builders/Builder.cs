@@ -84,15 +84,15 @@ namespace Ductus.FluentDocker.Builders
 
     private static void InternalBuild(IList<IService> services, IBuilder builder)
     {
+      foreach (var child in builder.Children)
+      {
+        InternalBuild(services, child);
+      }
+
       var service = builder.Build();
       if (null != service)
       {
         services.Add(service);
-      }
-
-      foreach (var child in builder.Children)
-      {
-        InternalBuild(services, child);
       }
     }
   }

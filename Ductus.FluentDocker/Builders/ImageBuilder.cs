@@ -34,14 +34,8 @@ namespace Ductus.FluentDocker.Builders
       var tag = null == _config.Params.Tags ? "latest" : _config.Params.Tags[0];
       var image = host.Value.GetImages().FirstOrDefault(x => x.Name == _config.ImageName && x.Tag == tag);
 
-      if (_config.VerifyExistence)
+      if (_config.VerifyExistence && null != image)
       {
-        return image;
-      }
-
-      if (null != image)
-      {
-        // Image already exists.
         return image;
       }
 

@@ -16,6 +16,10 @@ namespace Ductus.FluentDocker.Services.Impl
         new ReadOnlyCollection<IContainerService>(
           services.Where(x => x is IContainerService).Cast<IContainerService>().ToList());
 
+      Images =
+        new ReadOnlyCollection<IContainerImageService>(
+          services.Where(x => x is IContainerImageService).Cast<IContainerImageService>().ToList());
+
       Name = name;
 
       foreach (var service in Services)
@@ -99,6 +103,7 @@ namespace Ductus.FluentDocker.Services.Impl
     public event ServiceDelegates.StateChange StateChange;
     public IReadOnlyCollection<IHostService> Hosts { get; }
     public IReadOnlyCollection<IContainerService> Containers { get; }
+    public IReadOnlyCollection<IContainerImageService> Images { get; }
     public IReadOnlyCollection<IService> Services { get; }
 
     public ICompositeService Start()

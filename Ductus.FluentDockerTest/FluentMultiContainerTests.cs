@@ -22,7 +22,6 @@ namespace Ductus.FluentDockerTest
     public void WeaveCluster()
     {
       var fullPath = (TemplateString) @"${TEMP}\fluentdockertest\${RND}";
-      var app = Path.Combine(fullPath, "index.js");
       var nginx = Path.Combine(fullPath, "nginx.conf");
 
       Directory.CreateDirectory(fullPath);
@@ -43,12 +42,12 @@ namespace Ductus.FluentDockerTest
             "curl -sL https://deb.nodesource.com/setup | sudo bash - &&",
             "apt-get -y install python build-essential nodejs")
           .Run("npm install -g nodemon")
-          .Add("embedded:Ductus.FluentDockerTest:Ductus.FluentDockerTest.MultiContainerTestFiles/package.txt",
+          .Add("embedded:Ductus.FluentDockerTest/Ductus.FluentDockerTest.MultiContainerTestFiles/package.txt",
             "/tmp/package.json")
           .Run("cd /tmp && npm install")
           .Run("mkdir -p /src && cp -a /tmp/node_modules /src/")
           .UseWorkDir("/src")
-          .Add("embedded:Ductus.FluentDockerTest:Ductus.FluentDockerTest.MultiContainerTestFiles/index.js", "/src")
+          .Add("embedded:Ductus.FluentDockerTest/Ductus.FluentDockerTest.MultiContainerTestFiles/index.js", "/src")
           .ExposePorts(8080)
           .Command("nodemon", "/src/index.js").Builder()
           //
