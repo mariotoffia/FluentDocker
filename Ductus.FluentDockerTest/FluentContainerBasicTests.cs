@@ -168,7 +168,7 @@ namespace Ductus.FluentDockerTest
         {
           File.WriteAllText(Path.Combine(hostPath, "hello.html"), html);
 
-          var response = $"http://{container.ToHostExposedEndpoint("80/tcp")}/hello.html".Curl();
+          var response = $"http://{container.ToHostExposedEndpoint("80/tcp")}/hello.html".Wget();
           Assert.AreEqual(html, response);
         }
         finally

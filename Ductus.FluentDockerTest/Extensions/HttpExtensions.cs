@@ -6,7 +6,7 @@ namespace Ductus.FluentDockerTest.Extensions
 {
   public static class HttpExtensions
   {
-    public static string Curl(this string path, bool assertOk = true, bool assertDataStream = true)
+    public static string Wget(this string path, bool assertOk = true, bool assertDataStream = true)
     {
       var request = WebRequest.Create(path);
       using (var response = request.GetResponse())

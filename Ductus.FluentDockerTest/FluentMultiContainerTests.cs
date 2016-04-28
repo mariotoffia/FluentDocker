@@ -3,6 +3,7 @@ using System.Linq;
 using Ductus.FluentDocker.Builders;
 using Ductus.FluentDocker.Extensions;
 using Ductus.FluentDocker.Model.Common;
+using Ductus.FluentDockerTest.Extensions;
 using Ductus.FluentDockerTest.MultiContainerTestFiles;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
@@ -19,12 +20,14 @@ namespace Ductus.FluentDockerTest
     ///   As per - http://anandmanisankar.com/posts/docker-container-nginx-node-redis-example/
     /// </remarks>
     [TestMethod]
-    public void WeaveCluster()
+    public void DefineAndBuildImageAddNgixAsLoadBalancerTwoNodesAsHtmlServeAndRedisAsDbBackendShouldWorkAsCluster()
     {
       var fullPath = (TemplateString) @"${TEMP}\fluentdockertest\${RND}";
       var nginx = Path.Combine(fullPath, "nginx.conf");
 
       Directory.CreateDirectory(fullPath);
+
+      // Either extract or use embedded uri directly
       typeof(NsResolver).Namespace.ExtractEmbeddedResource(null, fullPath, "index.js", "nginx.conf");
 
       try
@@ -61,7 +64,12 @@ namespace Ductus.FluentDockerTest
 
           var ep = services.Containers.First(x => x.Name == "nginx").ToHostExposedEndpoint("80/tcp");
           Assert.IsNotNull(ep);
-          // TODO: Curl on ep and verify counter (thus nginx->nodeX->redis)
+
+          var round1 = $"http://{ep.Address}:{ep.Port}".Wget();
+          Assert.AreEqual("This page has been viewed 1 times!",round1);
+
+          var round2 = $"http://{ep.Address}:{ep.Port}".Wget();
+          Assert.AreEqual("This page has been viewed 2 times!", round2);
         }
       }
       finally

@@ -53,6 +53,7 @@
     <Compile Include="Builders\MachineBuilder.cs" />
     <Compile Include="Commands\Client.cs" />
     <Compile Include="Commands\CommandDefaults.cs" />
+    <Compile Include="Commands\Compose.cs" />
     <Compile Include="Commands\Machine.cs" />
     <Compile Include="Common\Constants.cs" />
     <Compile Include="Common\FluentDockerException.cs" />
@@ -113,6 +114,7 @@
     <Compile Include="Model\Containers\ProcessRow.cs" />
     <Compile Include="Model\Containers\VolumeMount.cs" />
     <Compile Include="Model\Images\DockerImageRowResponse.cs" />
+    <Compile Include="Model\Images\ImageRemovalOption.cs" />
     <Compile Include="Model\Machines\MachineAuthConfig.cs" />
     <Compile Include="Model\Machines\MachineConfiguration.cs" />
     <Compile Include="Model\Machines\MachineLsResponse.cs" />

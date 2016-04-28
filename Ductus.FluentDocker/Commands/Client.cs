@@ -228,7 +228,7 @@ namespace Ductus.FluentDocker.Commands
         $"{arg} diff {id}").Execute();
     }
 
-    private static string RenderBaseArgs(Uri host, ICertificatePaths certificates = null)
+    internal static string RenderBaseArgs(Uri host, ICertificatePaths certificates = null)
     {
       var args = string.Empty;
       if (null != host)

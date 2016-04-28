@@ -236,7 +236,7 @@ namespace Ductus.FluentDockerTest
 
         File.WriteAllText(Path.Combine(fullPath, "hello.html"), html);
 
-        var response = $"http://{endpoint}/hello.html".Curl();
+        var response = $"http://{endpoint}/hello.html".Wget();
         Assert.AreEqual(html, response);
       }
     }
