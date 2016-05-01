@@ -67,6 +67,7 @@
     <Compile Include="FluentContainerBasicTests.cs" />
     <Compile Include="FluentMultiContainerTests.cs" />
     <Compile Include="ImageBuilderTests.cs" />
+    <Compile Include="ClientStreamCommandTests.cs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Ductus.FluentDocker\Ductus.FluentDocker.csproj">

@@ -1,4 +1,5 @@
 ﻿using System.Diagnostics;
+using System.Threading;
 using Ductus.FluentDocker.Common;
 
 namespace Ductus.FluentDocker.Executors
@@ -17,7 +18,7 @@ namespace Ductus.FluentDocker.Executors
       _workingdir = workingdir;
     }
 
-    public ConsoleStream<TE> Execute()
+    public ConsoleStream<TE> Execute(CancellationToken token = default(CancellationToken))
     {
       Debugger.Log((int) TraceLevel.Verbose, Constants.DebugCategory, $"cmd: {_command} - arg: {_arguments}");
       return new ConsoleStream<TE>(new ProcessStartInfo
@@ -29,7 +30,7 @@ namespace Ductus.FluentDocker.Executors
         Arguments = _arguments,
         FileName = _command,
         WorkingDirectory = _workingdir
-      }, new T());
+      }, new T(), token);
     }
   }
 }

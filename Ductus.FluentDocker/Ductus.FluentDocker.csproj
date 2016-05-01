@@ -52,6 +52,7 @@
     <Compile Include="Builders\ImageBuilder.cs" />
     <Compile Include="Builders\MachineBuilder.cs" />
     <Compile Include="Commands\Client.cs" />
+    <Compile Include="Commands\ClientStreams.cs" />
     <Compile Include="Commands\CommandDefaults.cs" />
     <Compile Include="Commands\Compose.cs" />
     <Compile Include="Commands\Machine.cs" />

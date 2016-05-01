@@ -12,9 +12,6 @@ namespace Ductus.FluentDockerTest
   [TestClass]
   public class DockerClientCommandTests
   {
-    private static string _caCertPath;
-    private static string _clientCertPath;
-    private static string _clientKeyPath;
     private static CertificatePaths _certificates;
     private static DockerUri _docker;
     private static bool _createdTestMachine;
@@ -44,15 +41,11 @@ namespace Ductus.FluentDockerTest
       var inspect = machineName.Inspect().Data;
 
       _docker = machineName.Uri();
-      _caCertPath = inspect.AuthConfig.CaCertPath;
-      _clientCertPath = inspect.AuthConfig.ClientCertPath;
-      _clientKeyPath = inspect.AuthConfig.ClientKeyPath;
-
       _certificates = new CertificatePaths
       {
-        CaCertificate = _caCertPath,
-        ClientCertificate = _clientCertPath,
-        ClientKey = _clientKeyPath
+        CaCertificate = inspect.AuthConfig.CaCertPath,
+        ClientCertificate = inspect.AuthConfig.ClientCertPath,
+        ClientKey = inspect.AuthConfig.ClientKeyPath
       };
     }
 

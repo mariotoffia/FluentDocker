@@ -10,12 +10,25 @@ namespace Ductus.FluentDocker.Executors
   {
     private readonly IStreamMapper<T> _mapper;
     private readonly Process _process;
+    private readonly CancellationToken _token;
     private readonly BlockingCollection<T> _values = new BlockingCollection<T>();
 
-    internal ConsoleStream(ProcessStartInfo startInfo, IStreamMapper<T> mapper)
+    internal ConsoleStream(ProcessStartInfo startInfo, IStreamMapper<T> mapper, CancellationToken token)
     {
+      _token = token;
       _mapper = mapper;
-      _process = new Process {StartInfo = startInfo};
+
+      _process = new Process
+      {
+        StartInfo = startInfo,
+        EnableRaisingEvents = true
+      };
+
+      if (CancellationToken.None != token)
+      {
+        token.Register(SendControlC);
+      }
+
       _process.OutputDataReceived += (sender, args) =>
       {
         var val = _mapper.OnData(args.Data, false);
@@ -38,10 +51,10 @@ namespace Ductus.FluentDocker.Executors
 
       _process.Exited += (sender, args) =>
       {
-        _values.Add(_mapper.OnProcessEnd(_process.ExitCode));
         Error = _mapper.Error;
         IsSuccess = _process.ExitCode == 0;
         IsFinished = true;
+        _values.Add(_mapper.OnProcessEnd(_process.ExitCode));
       };
 
       if (!_process.Start())
@@ -56,20 +69,48 @@ namespace Ductus.FluentDocker.Executors
     public string Error { get; private set; }
     public bool IsFinished { get; private set; }
     public bool IsSuccess { get; private set; }
+
     public void Dispose()
     {
       _process.Dispose();
       _values.Dispose();
     }
 
-    public T Read(CancellationToken cancellationToken = default(CancellationToken))
+    public T Read()
+    {
+      return IsFinished ? null : _values.Take(_token);
+    }
+
+    public T TryRead(int millisTimeout)
     {
       if (IsFinished)
       {
         return null;
       }
 
-      return _values.Take(cancellationToken);
+      T result;
+      if (_values.TryTake(out result, millisTimeout, _token))
+      {
+        return result;
+      }
+      return null;
+    }
+
+    private void SendControlC()
+    {
+      if (_process.HasExited)
+      {
+        return;
+      }
+
+      try
+      {
+        _process.StandardInput.WriteLine("\x3");
+      }
+      catch (Exception e)
+      {
+        Debug.WriteLine($"Got exception when sending control+c to process - msg: {e.Message}");
+      }
     }
   }
 }

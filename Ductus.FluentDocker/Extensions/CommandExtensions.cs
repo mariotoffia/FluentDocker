@@ -1,7 +1,9 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Net;
+using Ductus.FluentDocker.Executors;
 using Ductus.FluentDocker.Model.Common;
 using Ductus.FluentDocker.Model.Containers;
 
@@ -11,6 +13,32 @@ namespace Ductus.FluentDocker.Extensions
   {
     private static string _nativeDockerPathCache;
     private static IPAddress _cachedDockerIpAdress;
+
+    /// <summary>
+    ///   Reads a <see cref="ConsoleStream{T}" /> until <see cref="ConsoleStream{T}.IsFinished" /> is set to true
+    ///   or a timeout occured on a read.
+    /// </summary>
+    /// <typeparam name="T">The type of returned items in the console stream.</typeparam>
+    /// <param name="stream">The stream to read from.</param>
+    /// <param name="millisTimeout">
+    ///   The amount of time to wait on a single <see cref="ConsoleStream{T}.TryRead" /> before returning.
+    /// </param>
+    /// <returns>A list of items read from the console stream.</returns>
+    public static IList<T> ReadToEnd<T>(this ConsoleStream<T> stream, int millisTimeout = 5000) where T : class
+    {
+      var list = new List<T>();
+      while (!stream.IsFinished)
+      {
+        var line = stream.TryRead(millisTimeout);
+        if (null == line)
+        {
+          break;
+        }
+        list.Add(line);
+      }
+
+      return list;
+    }
 
     public static string ResolveBinary(this string dockerCommand, bool preferMachine = false, bool forceResolve = false)
     {

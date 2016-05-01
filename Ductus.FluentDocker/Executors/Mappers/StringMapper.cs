@@ -2,21 +2,21 @@
 {
   public sealed class StringMapper : IStreamMapper<string>
   {
-    private string _error = string.Empty;
     public string OnData(string data, bool isStdErr)
     {
-      if (!isStdErr)
-      {
-        return data;
-      }
-
-      _error += data;
-      return null;
+      return data;
     }
+
     public string OnProcessEnd(int exitCode)
     {
+      if (exitCode != 0)
+      {
+        Error = $"Process exited with exit code {exitCode}";
+      }
+
       return null;
     }
-    public string Error => _error;
+
+    public string Error { get; private set; } = string.Empty;
   }
 }
