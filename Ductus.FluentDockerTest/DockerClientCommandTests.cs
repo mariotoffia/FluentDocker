@@ -193,7 +193,7 @@ namespace Ductus.FluentDockerTest
       string id = null;
       try
       {
-        var cmd = _docker.Run("postgres:latest", new ContainerCreateParams
+        var cmd = _docker.Run("kiasaki/alpine-postgres", new ContainerCreateParams
         {
           PortMappings = new[] {"40001:5432"},
           Environment = new[] {"POSTGRES_PASSWORD=mysecretpassword"}

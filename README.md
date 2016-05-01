@@ -15,7 +15,7 @@ This repo contains two nuget packages, one for the fluent access and the other i
      using (
         var container =
           new DockerBuilder()
-            .WithImage("postgres:latest")
+            .WithImage("kiasaki/alpine-postgres")
             .WithEnvironment("POSTGRES_PASSWORD=mysecretpassword")
             .ExposePorts("5432")
             .WaitForPort("5432/tcp", 30000 /*30s*/)
@@ -42,7 +42,7 @@ The `FluentDockerTestBase` allows for simple overrides to do whatever custom doc
      protected override DockerBuilder Build()
      {
           return new DockerBuilder()
-               .WithImage("postgres:latest")
+               .WithImage("kiasaki/alpine-postgres")
                .WithEnvironment($"POSTGRES_PASSWORD={PostgresPassword}")
                .ExposePorts("5432")
                .WaitForPort("5432/tcp", 30000 /*30s*/);
@@ -112,7 +112,7 @@ It is possible to query for running processes within the docker container. This 
      using (
         var container =
           new DockerBuilder()
-            .WithImage("postgres:latest")
+            .WithImage("kiasaki/alpine-postgres")
             .WithEnvironment("POSTGRES_PASSWORD=mysecretpassword")
             .ExposePorts("5432")
             .WaitForPort("5432/tcp", 30000 /*30s*/)
@@ -134,7 +134,7 @@ It is possible to copy files from a running docker container to the host for ins
         var container =
           new DockerBuilder()
             .WithEnvironment("POSTGRES_PASSWORD=mysecretpassword")
-            .WithImage("postgres:latest")
+            .WithImage("kiasaki/alpine-postgres")
             .CopyFromContainer("/bin", "${TEMP}/fluentdockertest/${RND}", "test")
             .Build().Start())
       {
@@ -149,7 +149,7 @@ This example shows a unit-test where it manually copies files from the docker co
      var container =
           new DockerBuilder()
             .WithEnvironment("POSTGRES_PASSWORD=mysecretpassword")
-            .WithImage("postgres:latest")
+            .WithImage("kiasaki/alpine-postgres")
             .CopyFromContainer("/bin", "${TEMP}/fluentdockertest/${RND}", "test")
             .Build().Start();
 ```
@@ -159,7 +159,7 @@ This example shows fluent configuration to copy files to a temp path with a rand
      var container =
           new DockerBuilder()
             .WithEnvironment("POSTGRES_PASSWORD=mysecretpassword")
-            .WithImage("postgres:latest")
+            .WithImage("kiasaki/alpine-postgres")
             .WhenDisposed()
               .CopyFromContainer("/bin", "${TEMP}/fluentdockertest/${RND}","test")
             .Build().Start();
@@ -172,7 +172,7 @@ There are two ways of exporting and extracting a container to the host. Either m
 using (
           var container =
             new DockerBuilder()
-              .WithImage("postgres:latest")
+              .WithImage("kiasaki/alpine-postgres")
               .WithEnvironment("POSTGRES_PASSWORD=mysecretpassword")
               .ExposePorts("5432")
               .WaitForPort("5432/tcp", 30000 /*30s*/)

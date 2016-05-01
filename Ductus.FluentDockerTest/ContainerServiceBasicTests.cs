@@ -66,7 +66,7 @@ namespace Ductus.FluentDockerTest
     [TestMethod]
     public void CreateContainerMakesServiceStopped()
     {
-      using (var container = _host.Create("postgres:latest",
+      using (var container = _host.Create("kiasaki/alpine-postgres",
         new ContainerCreateParams
         {
           Environment = new[] {"POSTGRES_PASSWORD=mysecretpassword"}
@@ -79,7 +79,7 @@ namespace Ductus.FluentDockerTest
     [TestMethod]
     public void CreateAndStartContainerWithEnvironment()
     {
-      using (var container = _host.Create("postgres:latest",
+      using (var container = _host.Create("kiasaki/alpine-postgres",
         new ContainerCreateParams
         {
           Environment = new[] {"POSTGRES_PASSWORD=mysecretpassword"}
@@ -96,7 +96,7 @@ namespace Ductus.FluentDockerTest
     [TestMethod]
     public void CreateAndStartContainerWithOneExposedPortVerified()
     {
-      using (var container = _host.Create("postgres:latest",
+      using (var container = _host.Create("kiasaki/alpine-postgres",
         new ContainerCreateParams
         {
           PortMappings = new[] {"40001:5432"},
@@ -118,7 +118,7 @@ namespace Ductus.FluentDockerTest
     [TestMethod]
     public void ProcessesInContainerAndManuallyVerifyPostgresIsRunning()
     {
-      using (var container = _host.Create("postgres:latest",
+      using (var container = _host.Create("kiasaki/alpine-postgres",
         new ContainerCreateParams
         {
           PortMappings = new[] {"40001:5432"},
@@ -146,7 +146,7 @@ namespace Ductus.FluentDockerTest
     [TestMethod]
     public void ExportRunningContainerToTarFileShallSucceed()
     {
-      using (var container = _host.Create("postgres:latest",
+      using (var container = _host.Create("kiasaki/alpine-postgres",
         new ContainerCreateParams
         {
           PortMappings = new[] {"40001:5432"},
@@ -181,7 +181,7 @@ namespace Ductus.FluentDockerTest
     [TestMethod]
     public void ExportRunningContainerExploadedShallSucceed()
     {
-      using (var container = _host.Create("postgres:latest",
+      using (var container = _host.Create("kiasaki/alpine-postgres",
         new ContainerCreateParams
         {
           PortMappings = new[] {"40001:5432"},
@@ -245,7 +245,7 @@ namespace Ductus.FluentDockerTest
     [TestMethod]
     public void CopyFromRunningContainerShallWork()
     {
-      using (var container = _host.Create("postgres:latest",
+      using (var container = _host.Create("kiasaki/alpine-postgres",
         new ContainerCreateParams
         {
           Environment = new[] {"POSTGRES_PASSWORD=mysecretpassword"}
@@ -277,7 +277,7 @@ namespace Ductus.FluentDockerTest
     [TestMethod]
     public void CopyToRunningContainerShallWork()
     {
-      using (var container = _host.Create("postgres:latest",
+      using (var container = _host.Create("kiasaki/alpine-postgres",
         new ContainerCreateParams
         {
           Environment = new[] {"POSTGRES_PASSWORD=mysecretpassword"}

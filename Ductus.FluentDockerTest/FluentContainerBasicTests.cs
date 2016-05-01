@@ -22,7 +22,7 @@ namespace Ductus.FluentDockerTest
       using (
         var container =
           new Builder().UseContainer()
-            .UseImage("postgres:latest")
+            .UseImage("kiasaki/alpine-postgres")
             .WithEnvironment("POSTGRES_PASSWORD=mysecretpassword")
             .Build())
       {
@@ -37,7 +37,7 @@ namespace Ductus.FluentDockerTest
       using (
         var container =
           new Builder().UseContainer()
-            .UseImage("postgres:latest")
+            .UseImage("kiasaki/alpine-postgres")
             .WithEnvironment("POSTGRES_PASSWORD=mysecretpassword")
             .KeepContainer()
             .Build()
@@ -64,7 +64,7 @@ namespace Ductus.FluentDockerTest
       using (
         var container =
           new Builder().UseContainer()
-            .UseImage("postgres:latest")
+            .UseImage("kiasaki/alpine-postgres")
             .WithEnvironment("POSTGRES_PASSWORD=mysecretpassword")
             .Build()
             .Start())
@@ -82,7 +82,7 @@ namespace Ductus.FluentDockerTest
       using (
         var container =
           new Builder().UseContainer()
-            .UseImage("postgres:latest")
+            .UseImage("kiasaki/alpine-postgres")
             .ExposePort(40001, 5432)
             .WithEnvironment("POSTGRES_PASSWORD=mysecretpassword")
             .Build()
@@ -99,7 +99,7 @@ namespace Ductus.FluentDockerTest
       using (
         var container =
           new Builder().UseContainer()
-            .UseImage("postgres:latest")
+            .UseImage("kiasaki/alpine-postgres")
             .ExposePort(5432)
             .WithEnvironment("POSTGRES_PASSWORD=mysecretpassword")
             .Build()
@@ -116,7 +116,7 @@ namespace Ductus.FluentDockerTest
       using (
         var container =
           new Builder().UseContainer()
-            .UseImage("postgres:latest")
+            .UseImage("kiasaki/alpine-postgres")
             .ExposePort(5432)
             .WithEnvironment("POSTGRES_PASSWORD=mysecretpassword")
             .WaitForPort("5432/tcp", 30000 /*30s*/)
@@ -134,7 +134,7 @@ namespace Ductus.FluentDockerTest
       using (
         var container =
           new Builder().UseContainer()
-            .UseImage("postgres:latest")
+            .UseImage("kiasaki/alpine-postgres")
             .ExposePort(5432)
             .WithEnvironment("POSTGRES_PASSWORD=mysecretpassword")
             .WaitForProcess("postgres", 30000 /*30s*/)
@@ -190,7 +190,7 @@ namespace Ductus.FluentDockerTest
       try
       {
         using (new Builder().UseContainer()
-          .UseImage("postgres:latest")
+          .UseImage("kiasaki/alpine-postgres")
           .ExposePort(5432)
           .WithEnvironment("POSTGRES_PASSWORD=mysecretpassword")
           .Build()
@@ -219,7 +219,7 @@ namespace Ductus.FluentDockerTest
       try
       {
         using (new Builder().UseContainer()
-          .UseImage("postgres:latest")
+          .UseImage("kiasaki/alpine-postgres")
           .ExposePort(5432)
           .WithEnvironment("POSTGRES_PASSWORD=mysecretpassword")
           .CopyOnDispose("/bin", fullPath)
@@ -250,7 +250,7 @@ namespace Ductus.FluentDockerTest
       try
       {
         using (new Builder().UseContainer()
-          .UseImage("postgres:latest")
+          .UseImage("kiasaki/alpine-postgres")
           .ExposePort(5432)
           .WithEnvironment("POSTGRES_PASSWORD=mysecretpassword")
           .ExportOnDispose(fullPath)
@@ -279,7 +279,7 @@ namespace Ductus.FluentDockerTest
       try
       {
         using (new Builder().UseContainer()
-          .UseImage("postgres:latest")
+          .UseImage("kiasaki/alpine-postgres")
           .ExposePort(5432)
           .WithEnvironment("POSTGRES_PASSWORD=mysecretpassword")
           .ExportExploadedOnDispose(fullPath)
@@ -316,7 +316,7 @@ namespace Ductus.FluentDockerTest
       {
         // ReSharper disable once AccessToModifiedClosure
         using (new Builder().UseContainer()
-          .UseImage("postgres:latest")
+          .UseImage("kiasaki/alpine-postgres")
           .ExposePort(5432)
           .WithEnvironment("POSTGRES_PASSWORD=mysecretpassword")
           .ExportOnDispose(fullPath, svc => failure)
@@ -353,7 +353,7 @@ namespace Ductus.FluentDockerTest
         using (
           var container =
             new Builder().UseContainer()
-              .UseImage("postgres:latest")
+              .UseImage("kiasaki/alpine-postgres")
               .ExposePort(5432)
               .WithEnvironment("POSTGRES_PASSWORD=mysecretpassword")
               .Build()

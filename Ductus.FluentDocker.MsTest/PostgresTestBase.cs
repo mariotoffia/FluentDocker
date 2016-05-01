@@ -17,7 +17,7 @@ namespace Ductus.FluentDocker.MsTest
 
     protected string ConnectionString;
 
-    protected PostgresTestBase(string password = "mysecretpassword", string image = "postgres:latest")
+    protected PostgresTestBase(string password = "mysecretpassword", string image = "kiasaki/alpine-postgres")
     {
       PostgresPassword = password;
       DockerImage = image;
@@ -26,7 +26,7 @@ namespace Ductus.FluentDocker.MsTest
     protected override ContainerBuilder Build()
     {
       return new Builder().UseContainer()
-        .UseImage("postgres:latest")
+        .UseImage("kiasaki/alpine-postgres")
         .WithEnvironment($"POSTGRES_PASSWORD={PostgresPassword}")
         .ExposePort(5432)
         .WaitForPort("5432/tcp", 30000 /*30s*/);
