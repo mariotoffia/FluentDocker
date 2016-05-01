@@ -258,11 +258,11 @@ namespace Ductus.FluentDockerTest
         try
         {
           Directory.CreateDirectory(fullPath);
-          container.CopyFrom("/bin", fullPath);
+          container.CopyFrom("/etc/conf.d", fullPath);
 
-          var files = Directory.EnumerateFiles(Path.Combine(fullPath, "bin")).ToArray();
-          Assert.IsTrue(files.Any(x => x.EndsWith("bash")));
-          Assert.IsTrue(files.Any(x => x.EndsWith("cat")));
+          var files = Directory.EnumerateFiles(Path.Combine(fullPath, "conf.d")).ToArray();
+          Assert.IsTrue(files.Any(x => x.EndsWith("pg-restore")));
+          Assert.IsTrue(files.Any(x => x.EndsWith("postgresql")));
         }
         finally
         {

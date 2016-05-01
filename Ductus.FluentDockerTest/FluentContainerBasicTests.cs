@@ -195,11 +195,11 @@ namespace Ductus.FluentDockerTest
           .WithEnvironment("POSTGRES_PASSWORD=mysecretpassword")
           .Build()
           .Start()
-          .CopyFrom("/bin", fullPath))
+          .CopyFrom("/etc/conf.d", fullPath))
         {
-          var files = Directory.EnumerateFiles(Path.Combine(fullPath, "bin")).ToArray();
-          Assert.IsTrue(files.Any(x => x.EndsWith("bash")));
-          Assert.IsTrue(files.Any(x => x.EndsWith("cat")));
+          var files = Directory.EnumerateFiles(Path.Combine(fullPath, "conf.d")).ToArray();
+          Assert.IsTrue(files.Any(x => x.EndsWith("pg-restore")));
+          Assert.IsTrue(files.Any(x => x.EndsWith("postgresql")));
         }
       }
       finally
@@ -222,15 +222,15 @@ namespace Ductus.FluentDockerTest
           .UseImage("kiasaki/alpine-postgres")
           .ExposePort(5432)
           .WithEnvironment("POSTGRES_PASSWORD=mysecretpassword")
-          .CopyOnDispose("/bin", fullPath)
+          .CopyOnDispose("/etc/conf.d", fullPath)
           .Build()
           .Start())
         {
         }
 
-        var files = Directory.EnumerateFiles(Path.Combine(fullPath, "bin")).ToArray();
-        Assert.IsTrue(files.Any(x => x.EndsWith("bash")));
-        Assert.IsTrue(files.Any(x => x.EndsWith("cat")));
+        var files = Directory.EnumerateFiles(Path.Combine(fullPath, "conf.d")).ToArray();
+        Assert.IsTrue(files.Any(x => x.EndsWith("pg-restore")));
+        Assert.IsTrue(files.Any(x => x.EndsWith("postgresql")));
       }
       finally
       {
