@@ -12,6 +12,24 @@ namespace Ductus.FluentDocker.Commands
 {
   public static class Client
   {
+    public static CommandResponse<IList<string>> Pause(this DockerUri host, ICertificatePaths certificates = null, params string[] containerIds)
+    {
+      var args = $"{host.RenderBaseArgs(certificates)}";
+      return
+        new ProcessExecutor<StringListResponseParser, IList<string>>(
+          "docker".ResolveBinary(),
+          $"{args} pause {string.Join(" ", containerIds)}").Execute();
+    }
+
+    public static CommandResponse<IList<string>> UnPause(this DockerUri host, ICertificatePaths certificates = null, params string[] containerIds)
+    {
+      var args = $"{host.RenderBaseArgs(certificates)}";
+      return
+        new ProcessExecutor<StringListResponseParser, IList<string>>(
+          "docker".ResolveBinary(),
+          $"{args} unpause {string.Join(" ", containerIds)}").Execute();
+    }
+
     public static CommandResponse<IList<string>> Build(this DockerUri host, string name, string tag, string workdir = null,
       ContainerBuildParams prms = null,
       ICertificatePaths certificates = null)
