@@ -26,7 +26,7 @@ namespace Ductus.FluentDocker.Executors
 
       if (CancellationToken.None != token)
       {
-        token.Register(SendControlC);
+        token.Register(CancelProcess);
       }
 
       _process.OutputDataReceived += (sender, args) =>
@@ -96,7 +96,7 @@ namespace Ductus.FluentDocker.Executors
       return null;
     }
 
-    private void SendControlC()
+    private void CancelProcess()
     {
       if (_process.HasExited)
       {
@@ -105,7 +105,10 @@ namespace Ductus.FluentDocker.Executors
 
       try
       {
-        _process.StandardInput.WriteLine("\x3");
+        IsSuccess = false;
+        IsFinished = true;
+        _process.StandardInput.WriteLine(char.ConvertFromUtf32(3));
+        _process.Kill();
       }
       catch (Exception e)
       {

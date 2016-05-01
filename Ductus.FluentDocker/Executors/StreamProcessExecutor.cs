@@ -26,6 +26,7 @@ namespace Ductus.FluentDocker.Executors
         CreateNoWindow = true,
         RedirectStandardOutput = true,
         RedirectStandardError = true,
+        RedirectStandardInput = true,
         UseShellExecute = false,
         Arguments = _arguments,
         FileName = _command,

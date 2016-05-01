@@ -1,5 +1,6 @@
 ﻿using System.Diagnostics;
 using System.Linq;
+using System.Threading;
 using Ductus.FluentDocker.Commands;
 using Ductus.FluentDocker.Extensions;
 using Ductus.FluentDocker.Model.Common;
@@ -44,7 +45,7 @@ namespace Ductus.FluentDockerTest
               break;
             }
 
-            Debug.WriteLine(logs.Read());
+            Debug.WriteLine(line);
           }
 
           Assert.AreEqual(true, logs.IsFinished);
@@ -60,6 +61,52 @@ namespace Ductus.FluentDockerTest
       }
     }
 
+    [TestMethod]
+    public void LogsFromContaierWhenInFollowModeShallExitWhenCancelled()
+    {
+      string id = null;
+      try
+      {
+        var cmd = _docker.Run("postgres:latest", new ContainerCreateParams
+        {
+          PortMappings = new[] { "40001:5432" },
+          Environment = new[] { "POSTGRES_PASSWORD=mysecretpassword" }
+        }, _certificates);
+
+        id = cmd.Data;
+        var config = _docker.InspectContainer(id, _certificates);
+        var endpoint = config.Data.NetworkSettings.Ports.ToHostPort("5432/tcp", _docker);
+        endpoint.WaitForPort(10000 /*10s*/);
+
+        var token = new CancellationTokenSource();
+        using (var logs = _docker.Logs(id,token.Token,true/*follow*/))
+        {
+          while (!logs.IsFinished)
+          {
+            var line = logs.TryRead(5000);
+            if (null == line)
+            {
+              Assert.AreEqual(false, logs.IsFinished);
+              token.Cancel();
+              Thread.Sleep(1000);
+              break;
+            }
+
+            Debug.WriteLine(line);
+          }
+
+          Assert.AreEqual(true, logs.IsFinished);
+          Assert.AreEqual(false, logs.IsSuccess);
+        }
+      }
+      finally
+      {
+        if (null != id)
+        {
+          _docker.RemoveContainer(id, true, true, null, _certificates);
+        }
+      }
+    }
 
     [ClassInitialize]
     public static void Initialize(TestContext ctx)
