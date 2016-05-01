@@ -4,10 +4,10 @@ using System.Net;
 using System.Net.Sockets;
 using System.Threading;
 using Ductus.FluentDocker.Common;
+using Ductus.FluentDocker.Extensions;
 using Ductus.FluentDocker.Model.Containers;
-using Ductus.FluentDocker.Services;
 
-namespace Ductus.FluentDocker.Extensions
+namespace Ductus.FluentDocker.Services.Extensions
 {
   public static class NetworkExtensions
   {
@@ -75,14 +75,14 @@ namespace Ductus.FluentDocker.Extensions
         return null;
       }
 
-      if (DockerEnvExtensions.IsNative())
+      if (CommandExtensions.IsNative())
       {
         return endpoints[0];
       }
 
-      if (DockerEnvExtensions.IsEmulatedNative())
+      if (CommandExtensions.IsEmulatedNative())
       {
-        return new IPEndPoint(DockerEnvExtensions.EmulatedNativeAdress(), endpoints[0].Port);
+        return new IPEndPoint(CommandExtensions.EmulatedNativeAdress(), endpoints[0].Port);
       }
 
       if (Equals(endpoints[0].Address, IPAddress.Any) && null != dockerUri)

@@ -1,9 +1,9 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Linq;
 using Ductus.FluentDocker.Executors;
 using Ductus.FluentDocker.Executors.Parsers;
 using Ductus.FluentDocker.Extensions;
+using Ductus.FluentDocker.Model.Common;
 using Ductus.FluentDocker.Model.Containers;
 using Ductus.FluentDocker.Model.Machines;
 using Ductus.FluentDocker.Services;
@@ -68,7 +68,8 @@ namespace Ductus.FluentDocker.Commands
       params string[] options)
     {
       return Create(machine, $"{CommandDefaults.MachineDriver}", $"--{CommandDefaults.MachineDriver}-memory \"{memMb}\"",
-        $"--{CommandDefaults.MachineDriver}-disk-size \"{volumeMb}\"", $"--{CommandDefaults.MachineDriver}-cpu-count \"{cpuCnt}\"");
+        $"--{CommandDefaults.MachineDriver}-disk-size \"{volumeMb}\"",
+        $"--{CommandDefaults.MachineDriver}-cpu-count \"{cpuCnt}\"");
     }
 
     public static CommandResponse<string> Delete(this string machine, bool force)
@@ -80,13 +81,13 @@ namespace Ductus.FluentDocker.Commands
           args).Execute();
     }
 
-    public static Uri Uri(this string machine)
+    public static DockerUri Uri(this string machine)
     {
       var resp =
         new ProcessExecutor<SingleStringResponseParser, string>(
           "docker-machine".ResolveBinary(), $"url {machine}").Execute();
 
-      return resp.Data.StartsWith("Host is not running") ? null : new Uri(resp.Data);
+      return resp.Data.StartsWith("Host is not running") ? null : new DockerUri(resp.Data);
     }
 
     public static ServiceRunningState Status(this string machine)

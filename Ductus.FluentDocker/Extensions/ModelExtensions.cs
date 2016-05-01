@@ -10,7 +10,7 @@ namespace Ductus.FluentDocker.Extensions
 {
   public static class ModelExtensions
   {
-    public static void RenderIfExists(this StringBuilder sb, string option, string value)
+    public static void OptionIfExists(this StringBuilder sb, string option, string value)
     {
       if (!string.IsNullOrEmpty(value))
       {
@@ -18,7 +18,7 @@ namespace Ductus.FluentDocker.Extensions
       }
     }
 
-    public static void RenderIfExists(this StringBuilder sb, string option, string[] values)
+    public static void OptionIfExists(this StringBuilder sb, string option, string[] values)
     {
       if (null == values || 0 == values.Length)
       {
@@ -36,13 +36,13 @@ namespace Ductus.FluentDocker.Extensions
     /// </summary>
     /// <param name="hashAlgAndContainerHash">The hashalg:containerhash string.</param>
     /// <returns>A "raw" container id hash.</returns>
-    public static string Strip(this string hashAlgAndContainerHash)
+    public static string ToPlainId(this string hashAlgAndContainerHash)
     {
       var split = hashAlgAndContainerHash.Split(':');
       return split.Length == 2 ? split[1] : hashAlgAndContainerHash;
     }
 
-    public static string ToDockerString(this ContainerIsolationTechnology isolation)
+    public static string ToDocker(this ContainerIsolationTechnology isolation)
     {
       switch (isolation)
       {
@@ -98,7 +98,7 @@ namespace Ductus.FluentDocker.Extensions
       return ServiceRunningState.Unknown;
     }
 
-    public static string ToDockerMountString(this MountType access)
+    public static string ToDocker(this MountType access)
     {
       switch (access)
       {
@@ -111,12 +111,12 @@ namespace Ductus.FluentDocker.Extensions
       throw new NotImplementedException($"Not implemented type: {access}");
     }
 
-    public static string[] AddToArrayDistinct(this string[] arr, params string[] values)
+    public static string[] ArrayAddDistinct(this string[] arr, params string[] values)
     {
-      return AddToArray(arr,values).Distinct().ToArray();
+      return ArrayAdd(arr,values).Distinct().ToArray();
     }
 
-    public static string[] AddToArray(this string[] arr, params string[] values)
+    public static string[] ArrayAdd(this string[] arr, params string[] values)
     {
       if (null == values || 0 == values.Length)
       {

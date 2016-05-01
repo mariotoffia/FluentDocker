@@ -1,4 +1,4 @@
-﻿using System;
+﻿using Ductus.FluentDocker.Model.Common;
 using Ductus.FluentDocker.Model.Containers;
 
 namespace Ductus.FluentDocker.Services
@@ -9,7 +9,7 @@ namespace Ductus.FluentDocker.Services
 
     string Tag { get; }
 
-    Uri DockerHost { get; }
+    DockerUri DockerHost { get; }
 
     /// <summary>
     ///   Paths to where certificates resides for this service.

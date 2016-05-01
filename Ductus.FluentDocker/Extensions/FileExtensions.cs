@@ -1,14 +1,12 @@
-﻿using System;
-using System.IO;
+﻿using System.IO;
 using System.Text;
-using Ductus.FluentDocker.Model.Builders;
 using Ductus.FluentDocker.Model.Common;
 
 namespace Ductus.FluentDocker.Extensions
 {
   public static class FileExtensions
   {
-    public static void WriteFile(this string contents, TemplateString fqPath)
+    public static void ToFile(this string contents, TemplateString fqPath)
     {
       var folder = Path.GetDirectoryName(fqPath);
       if (null != folder && !Directory.Exists(folder))
@@ -19,7 +17,7 @@ namespace Ductus.FluentDocker.Extensions
       File.WriteAllText(fqPath, contents);
     }
 
-    public static string ReadFile(this TemplateString fqPath, Encoding encoding = null)
+    public static string FromFile(this TemplateString fqPath, Encoding encoding = null)
     {
       if (null == encoding)
       {
@@ -38,7 +36,7 @@ namespace Ductus.FluentDocker.Extensions
     /// <returns>A relative path to <paramref name="workdir" /> in linux format. If fails it will return null.</returns>
     /// <remarks>
     ///   If the <paramref name="fileOrDirectory" /> is on format embedded://namespace/file format it will use
-    ///   <see cref="ResourceExtensions.ExtractEmbeddedResource(Uri,string)" />
+    ///   <see cref="ResourceExtensions.ExtractEmbeddedResourceByUri" />
     ///   to perform the copy. Only one file is permitted and thus the file or directory parameter is always a single file.
     /// </remarks>
     public static string Copy(this TemplateString fileOrDirectory, TemplateString workdir)
@@ -60,13 +58,13 @@ namespace Ductus.FluentDocker.Extensions
         return null;
       }
 
-      CopyDirectory(fileOrDirectory, workdir);
+      CopyTo(fileOrDirectory, workdir);
 
       // Return the relative path of workdir
       return Path.GetFileName(Path.GetFullPath(fileOrDirectory).TrimEnd(Path.DirectorySeparatorChar));
     }
 
-    public static void CopyDirectory(this TemplateString sourceDirectory, TemplateString targetDirectory)
+    public static void CopyTo(this TemplateString sourceDirectory, TemplateString targetDirectory)
     {
       CopyAll(new DirectoryInfo(sourceDirectory), new DirectoryInfo(targetDirectory));
     }

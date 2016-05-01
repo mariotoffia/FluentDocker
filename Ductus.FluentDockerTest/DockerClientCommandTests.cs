@@ -1,9 +1,10 @@
-﻿using System;
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using System.Linq;
 using Ductus.FluentDocker.Commands;
 using Ductus.FluentDocker.Extensions;
+using Ductus.FluentDocker.Model.Common;
 using Ductus.FluentDocker.Model.Containers;
+using Ductus.FluentDocker.Services.Extensions;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace Ductus.FluentDockerTest
@@ -15,13 +16,13 @@ namespace Ductus.FluentDockerTest
     private static string _clientCertPath;
     private static string _clientKeyPath;
     private static CertificatePaths _certificates;
-    private static Uri _docker;
+    private static DockerUri _docker;
     private static bool _createdTestMachine;
 
     [ClassInitialize]
     public static void Initialize(TestContext ctx)
     {
-      if (DockerEnvExtensions.IsNative() || DockerEnvExtensions.IsEmulatedNative())
+      if (CommandExtensions.IsNative() || CommandExtensions.IsEmulatedNative())
       {
         return;
       }

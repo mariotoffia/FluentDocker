@@ -206,12 +206,12 @@ namespace Ductus.FluentDocker.Model.Containers
         sb.Append($" --blkio-weight {BlockIoWeight.Value}");
       }
 
-      sb.RenderIfExists("--blkio-weight-device=", BlockIoWeightDevices);
-      sb.RenderIfExists("--cap-add=", CapabilitiesToAdd);
-      sb.RenderIfExists("--cap-drop=", CapabilitiesToRemove);
-      sb.RenderIfExists("--cgroup-parent ", ParentCGroup);
-      sb.RenderIfExists("-e ", Environment);
-      sb.RenderIfExists("--env-file=", EnvironmentFiles);
+      sb.OptionIfExists("--blkio-weight-device=", BlockIoWeightDevices);
+      sb.OptionIfExists("--cap-add=", CapabilitiesToAdd);
+      sb.OptionIfExists("--cap-drop=", CapabilitiesToRemove);
+      sb.OptionIfExists("--cgroup-parent ", ParentCGroup);
+      sb.OptionIfExists("-e ", Environment);
+      sb.OptionIfExists("--env-file=", EnvironmentFiles);
 
       if (Interactive)
       {
@@ -223,31 +223,31 @@ namespace Ductus.FluentDocker.Model.Containers
         sb.Append(" -t");
       }
 
-      sb.RenderIfExists("--name ", Name);
-      sb.RenderIfExists("-u ", AsUser);
+      sb.OptionIfExists("--name ", Name);
+      sb.OptionIfExists("-u ", AsUser);
 
       if (AutoRemoveContainer)
       {
         sb.Append(" --rm");
       }
 
-      sb.RenderIfExists("-v ", Volumes);
-      sb.RenderIfExists("--volume-driver ", VolumeDriver);
-      sb.RenderIfExists("--volumes-from=", VolumesFrom);
-      sb.RenderIfExists("-w ", WorkingDirectory);
+      sb.OptionIfExists("-v ", Volumes);
+      sb.OptionIfExists("--volume-driver ", VolumeDriver);
+      sb.OptionIfExists("--volumes-from=", VolumesFrom);
+      sb.OptionIfExists("-w ", WorkingDirectory);
 
       if (!PublishAllPorts)
       {
-        sb.RenderIfExists("-p ", PortMappings);
+        sb.OptionIfExists("-p ", PortMappings);
       }
       else
       {
         sb.Append(" -P");
       }
 
-      sb.RenderIfExists("--link=", Links);
-      sb.RenderIfExists("-l ", Labels);
-      sb.RenderIfExists("--group-add=", Groups);
+      sb.OptionIfExists("--link=", Links);
+      sb.OptionIfExists("-l ", Labels);
+      sb.OptionIfExists("--group-add=", Groups);
 
       return sb.ToString();
     }

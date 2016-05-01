@@ -3,10 +3,11 @@ using System.IO;
 using System.Linq;
 using System.Net;
 using Ductus.FluentDocker.Model.Common;
+using Ductus.FluentDocker.Model.Containers;
 
 namespace Ductus.FluentDocker.Extensions
 {
-  public static class DockerEnvExtensions
+  public static class CommandExtensions
   {
     private static string _nativeDockerPathCache;
     private static IPAddress _cachedDockerIpAdress;
@@ -54,7 +55,7 @@ namespace Ductus.FluentDocker.Extensions
         return _nativeDockerPathCache;
       }
 
-      var paths = Environment.GetEnvironmentVariable("PATH")?.Split(OsExtensions.IsWindows() ? ';' : ':');
+      var paths = Environment.GetEnvironmentVariable("PATH")?.Split(Environment.OSVersion.IsWindows() ? ';' : ':');
       if (null == paths)
       {
         return null;
@@ -91,12 +92,12 @@ namespace Ductus.FluentDocker.Extensions
 
     public static bool IsEmulatedNative()
     {
-      return !OsExtensions.IsUnix() && null != GetBoot2DockerNativeBinPath();
+      return !Environment.OSVersion.IsUnix() && null != GetBoot2DockerNativeBinPath();
     }
 
     public static bool IsNative()
     {
-      return OsExtensions.IsUnix();
+      return Environment.OSVersion.IsUnix();
     }
 
     public static IPAddress EmulatedNativeAdress(bool useCache = true)
@@ -113,6 +114,25 @@ namespace Ductus.FluentDocker.Extensions
       }
 
       return _cachedDockerIpAdress;
+    }
+
+    internal static string RenderBaseArgs(this Uri host, ICertificatePaths certificates = null)
+    {
+      var args = string.Empty;
+      if (null != host)
+      {
+        args = $" -H {host.Host}:{host.Port}";
+      }
+
+      if (null == certificates)
+      {
+        return args;
+      }
+
+      args +=
+        $" --tlsverify=true --tlscacert={certificates.CaCertificate} --tlscert={certificates.ClientCertificate} --tlskey={certificates.ClientKey}";
+
+      return args;
     }
   }
 }

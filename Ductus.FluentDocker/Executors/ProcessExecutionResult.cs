@@ -7,7 +7,7 @@ namespace Ductus.FluentDocker.Executors
 {
   public sealed class ProcessExecutionResult
   {
-    internal ProcessExecutionResult(Process process, string stdOut, string stdErr, int exitCode)
+    internal ProcessExecutionResult(string process, string stdOut, string stdErr, int exitCode)
     {
       Command = process;
       StdOut = stdOut;
@@ -15,7 +15,7 @@ namespace Ductus.FluentDocker.Executors
       ExitCode = exitCode;
     }
 
-    public Process Command { get; }
+    public string Command { get; }
     public string StdOut { get; }
     public string StdErr { get; }
     public int ExitCode { get; }

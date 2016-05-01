@@ -7,6 +7,7 @@ using Ductus.FluentDocker.Extensions;
 using Ductus.FluentDocker.Model.Builders;
 using Ductus.FluentDocker.Model.Common;
 using Ductus.FluentDocker.Services;
+using Ductus.FluentDocker.Services.Extensions;
 
 namespace Ductus.FluentDocker.Builders
 {
@@ -91,7 +92,7 @@ namespace Ductus.FluentDocker.Builders
 
     public ContainerBuilder UseEnvironmentFile(params string[] file)
     {
-      _config.CreateParams.EnvironmentFiles = _config.CreateParams.EnvironmentFiles.AddToArray(file);
+      _config.CreateParams.EnvironmentFiles = _config.CreateParams.EnvironmentFiles.ArrayAdd(file);
       return this;
     }
 
@@ -103,13 +104,13 @@ namespace Ductus.FluentDocker.Builders
 
     public ContainerBuilder UseCapability(params string[] capability)
     {
-      _config.CreateParams.CapabilitiesToAdd = _config.CreateParams.CapabilitiesToAdd.AddToArray(capability);
+      _config.CreateParams.CapabilitiesToAdd = _config.CreateParams.CapabilitiesToAdd.ArrayAdd(capability);
       return this;
     }
 
     public ContainerBuilder RemoveCapability(params string[] capability)
     {
-      _config.CreateParams.CapabilitiesToRemove = _config.CreateParams.CapabilitiesToRemove.AddToArray(capability);
+      _config.CreateParams.CapabilitiesToRemove = _config.CreateParams.CapabilitiesToRemove.ArrayAdd(capability);
       return this;
     }
 
@@ -132,30 +133,30 @@ namespace Ductus.FluentDocker.Builders
 
     public ContainerBuilder ExposePort(int hostPort, int containerPort)
     {
-      _config.CreateParams.PortMappings = _config.CreateParams.PortMappings.AddToArray($"{hostPort}:{containerPort}");
+      _config.CreateParams.PortMappings = _config.CreateParams.PortMappings.ArrayAdd($"{hostPort}:{containerPort}");
       return this;
     }
 
     public ContainerBuilder ExposePort(int containerPort)
     {
-      _config.CreateParams.PortMappings = _config.CreateParams.PortMappings.AddToArray($"{containerPort}");
+      _config.CreateParams.PortMappings = _config.CreateParams.PortMappings.ArrayAdd($"{containerPort}");
       return this;
     }
 
     public ContainerBuilder Mount(string fqHostPath, string fqContainerPath, MountType access)
     {
-      var hp = OsExtensions.IsWindows()
+      var hp = Environment.OSVersion.IsWindows()
         ? ((TemplateString) fqHostPath).Rendered.ToMsysPath()
         : ((TemplateString) fqHostPath).Rendered;
 
       _config.CreateParams.Volumes =
-        _config.CreateParams.Volumes.AddToArray($"{hp}:{fqContainerPath}:{access.ToDockerMountString()}");
+        _config.CreateParams.Volumes.ArrayAdd($"{hp}:{fqContainerPath}:{access.ToDocker()}");
       return this;
     }
 
     public ContainerBuilder MountFrom(params string[] from)
     {
-      _config.CreateParams.VolumesFrom = _config.CreateParams.VolumesFrom.AddToArray(from);
+      _config.CreateParams.VolumesFrom = _config.CreateParams.VolumesFrom.ArrayAdd(from);
       return this;
     }
 
@@ -167,19 +168,19 @@ namespace Ductus.FluentDocker.Builders
 
     public ContainerBuilder Link(params string[] container)
     {
-      _config.CreateParams.Links = _config.CreateParams.Links.AddToArray(container);
+      _config.CreateParams.Links = _config.CreateParams.Links.ArrayAdd(container);
       return this;
     }
 
     public ContainerBuilder WithLabel(params string[] label)
     {
-      _config.CreateParams.Labels = _config.CreateParams.Labels.AddToArray(label);
+      _config.CreateParams.Labels = _config.CreateParams.Labels.ArrayAdd(label);
       return this;
     }
 
     public ContainerBuilder UseGroup(params string[] group)
     {
-      _config.CreateParams.Groups = _config.CreateParams.Groups.AddToArray(group);
+      _config.CreateParams.Groups = _config.CreateParams.Groups.ArrayAdd(group);
       return this;
     }
 

@@ -4,25 +4,26 @@ namespace Ductus.FluentDocker.Extensions
 {
   public static class OsExtensions
   {
-    public static bool IsWindows()
+    public static bool IsWindows(this OperatingSystem os)
     {
-      return Environment.OSVersion.Platform != PlatformID.MacOSX &&
-             Environment.OSVersion.Platform != PlatformID.Unix;
+      return os.Platform != PlatformID.MacOSX &&
+             os.Platform != PlatformID.Unix;
     }
 
-    public static bool IsUnix()
+ 
+    public static bool IsUnix(this OperatingSystem os)
     {
-      return Environment.OSVersion.Platform == PlatformID.Unix;
+      return os.Platform == PlatformID.Unix;
     }
 
-    public static bool IsMac()
+    public static bool IsMac(this OperatingSystem os)
     {
-      return Environment.OSVersion.Platform == PlatformID.MacOSX;
+      return os.Platform == PlatformID.MacOSX;
     }
 
     public static string ToPlatformPath(this string path)
     {
-      if (!IsWindows())
+      if (!Environment.OSVersion.IsWindows())
       {
         return path;
       }
@@ -37,7 +38,7 @@ namespace Ductus.FluentDocker.Extensions
 
     public static string ToMsysPath(this string path)
     {
-      if (!IsWindows())
+      if (!Environment.OSVersion.IsWindows())
       {
         return path;
       }

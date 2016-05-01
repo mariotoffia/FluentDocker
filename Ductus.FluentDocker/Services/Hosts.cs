@@ -24,7 +24,7 @@ namespace Ductus.FluentDocker.Services
         select
           new DockerHostService(machine.Name, false, false, machine.Docker?.ToString(), inspect.Data.AuthConfig.CertDir));
 
-      if (DockerEnvExtensions.IsEmulatedNative() || DockerEnvExtensions.IsNative())
+      if (CommandExtensions.IsEmulatedNative() || CommandExtensions.IsNative())
       {
         list.Add(new DockerHostService("native", true, false,
           Environment.GetEnvironmentVariable(DockerHostService.DockerHost),

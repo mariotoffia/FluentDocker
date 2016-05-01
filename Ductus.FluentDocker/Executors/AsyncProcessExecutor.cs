@@ -1,24 +1,31 @@
 ﻿using System.Diagnostics;
 using System.Text;
+using System.Threading;
+using System.Threading.Tasks;
 using Ductus.FluentDocker.Common;
 using Ductus.FluentDocker.Model.Containers;
 
 namespace Ductus.FluentDocker.Executors
 {
-  public sealed class ProcessExecutor<T, TE> where T : IProcessResponseParser<TE>, IProcessResponse<TE>, new()
+  public sealed class AsyncProcessExecutor<T, TE> where T : IProcessResponseParser<TE>, IProcessResponse<TE>, new()
   {
-    private readonly string _command;
     private readonly string _arguments;
+    private readonly string _command;
     private readonly string _workingdir;
 
-    public ProcessExecutor(string command, string arguments, string workingdir = null)
+    public AsyncProcessExecutor(string command, string arguments, string workingdir = null)
     {
       _command = command;
       _arguments = arguments;
       _workingdir = workingdir;
     }
 
-    public CommandResponse<TE> Execute()
+    public Task<CommandResponse<TE>> Execute(CancellationToken cancellationToken = default(CancellationToken))
+    {
+      return Task.Factory.StartNew(() => InternalExecute(cancellationToken), cancellationToken);
+    }
+
+    private CommandResponse<TE> InternalExecute(CancellationToken cancellationToken)
     {
       var startInfo = new ProcessStartInfo
       {
@@ -31,8 +38,7 @@ namespace Ductus.FluentDocker.Executors
         WorkingDirectory = _workingdir
       };
 
-
-      Debugger.Log((int) TraceLevel.Verbose, Constants.DebugCategory, $"cmd: {_command} - arg: {_arguments}");
+      Debugger.Log((int)TraceLevel.Verbose, Constants.DebugCategory, $"cmd: {_command} - arg: {_arguments}");
 
       using (var process = new Process {StartInfo = startInfo})
       {
@@ -63,12 +69,15 @@ namespace Ductus.FluentDocker.Executors
         process.BeginOutputReadLine();
         process.BeginErrorReadLine();
 
-        process.WaitForExit();
+        while (!process.WaitForExit(1000))
+        {
+          cancellationToken.ThrowIfCancellationRequested();
+        }
 
         return
           new T().Process(new ProcessExecutionResult(_command, output.ToString(), err.ToString(), process.ExitCode))
             .Response;
       }
     }
-  }
+    }
 }

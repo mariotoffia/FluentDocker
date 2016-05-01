@@ -15,7 +15,7 @@ namespace Ductus.FluentDockerTest
     [TestMethod]
     public void DiscoverShouldReturnNativeWhenSuchIsPresent()
     {
-      if (!(DockerEnvExtensions.IsEmulatedNative() || DockerEnvExtensions.IsNative()))
+      if (!(CommandExtensions.IsEmulatedNative() || CommandExtensions.IsNative()))
       {
         return;
       }
@@ -32,7 +32,7 @@ namespace Ductus.FluentDockerTest
     [TestMethod]
     public void DiscoverShallReturnMachines()
     {
-      if (!DockerEnvExtensions.IsMachine())
+      if (!CommandExtensions.IsMachine())
       {
         return;
       }

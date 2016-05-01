@@ -60,7 +60,11 @@
     <Compile Include="Common\Option.cs" />
     <Compile Include="Common\Result.cs" />
     <Compile Include="Common\ResultExtensions.cs" />
+    <Compile Include="Executors\AsyncProcessExecutor.cs" />
+    <Compile Include="Executors\ConsoleStream.cs" />
     <Compile Include="Executors\IProcessResponseParser.cs" />
+    <Compile Include="Executors\IStreamMapper.cs" />
+    <Compile Include="Executors\Mappers\StringMapper.cs" />
     <Compile Include="Executors\Parsers\ClientContainerInspectCommandResponder.cs" />
     <Compile Include="Executors\Parsers\ClientDiffResponseParser.cs" />
     <Compile Include="Executors\Parsers\ClientImagesResponseParser.cs" />
@@ -77,13 +81,11 @@
     <Compile Include="Executors\Parsers\StringListResponseParser.cs" />
     <Compile Include="Executors\ProcessExecutionResult.cs" />
     <Compile Include="Executors\ProcessExecutor.cs" />
+    <Compile Include="Executors\StreamProcessExecutor.cs" />
+    <Compile Include="Extensions\CommandExtensions.cs" />
     <Compile Include="Extensions\CompressionExtensions.cs" />
-    <Compile Include="Extensions\ContainerExtensions.cs" />
-    <Compile Include="Extensions\DockerEnvExtensions.cs" />
     <Compile Include="Extensions\FileExtensions.cs" />
-    <Compile Include="Extensions\HostExtensions.cs" />
     <Compile Include="Extensions\ModelExtensions.cs" />
-    <Compile Include="Extensions\NetworkExtensions.cs" />
     <Compile Include="Extensions\OsExtensions.cs" />
     <Compile Include="Extensions\ResourceExtensions.cs" />
     <Compile Include="Model\Builders\AddCommand.cs" />
@@ -94,6 +96,7 @@
     <Compile Include="Model\Builders\ImageBuilderConfig.cs" />
     <Compile Include="Model\Builders\MountType.cs" />
     <Compile Include="Model\Builders\RunCommand.cs" />
+    <Compile Include="Model\Common\DockerUri.cs" />
     <Compile Include="Model\Common\EmbeddedUri.cs" />
     <Compile Include="Model\Common\TemplateString.cs" />
     <Compile Include="Model\Containers\BridgeNetwork.cs" />
@@ -112,6 +115,7 @@
     <Compile Include="Model\Containers\HostIpEndpoint.cs" />
     <Compile Include="Model\Containers\Processes.cs" />
     <Compile Include="Model\Containers\ProcessRow.cs" />
+    <Compile Include="Model\Containers\UnixSignal.cs" />
     <Compile Include="Model\Containers\VolumeMount.cs" />
     <Compile Include="Model\Images\DockerImageRowResponse.cs" />
     <Compile Include="Model\Images\ImageRemovalOption.cs" />
@@ -119,6 +123,9 @@
     <Compile Include="Model\Machines\MachineConfiguration.cs" />
     <Compile Include="Model\Machines\MachineLsResponse.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="Services\Extensions\ContainerExtensions.cs" />
+    <Compile Include="Services\Extensions\HostExtensions.cs" />
+    <Compile Include="Services\Extensions\NetworkExtensions.cs" />
     <Compile Include="Services\Hosts.cs" />
     <Compile Include="Services\ICompositeService.cs" />
     <Compile Include="Services\IContainerService.cs" />

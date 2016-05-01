@@ -127,7 +127,7 @@ namespace Ductus.FluentDocker.Builders
       string contents = null;
       if (!string.IsNullOrEmpty(_config.UseFile))
       {
-        contents = _config.UseFile.ReadFile();
+        contents = _config.UseFile.FromFile();
       }
 
       if (!string.IsNullOrWhiteSpace(_config.DockerFileString))
@@ -140,7 +140,7 @@ namespace Ductus.FluentDocker.Builders
         contents = _config.ToString();
       }
 
-      contents.WriteFile(dockerFile);
+      contents.ToFile(dockerFile);
     }
   }
 }

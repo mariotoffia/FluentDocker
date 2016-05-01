@@ -1,7 +1,6 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Security.Cryptography.X509Certificates;
+﻿using System.Collections.Generic;
 using Ductus.FluentDocker.Common;
+using Ductus.FluentDocker.Model.Common;
 using Ductus.FluentDocker.Model.Containers;
 using Ductus.FluentDocker.Model.Machines;
 
@@ -15,7 +14,7 @@ namespace Ductus.FluentDocker.Services
     /// <summary>
     ///   The adress and port to the docker daemon.
     /// </summary>
-    Uri Host { get; }
+    DockerUri Host { get; }
 
     /// <summary>
     ///   Gets a value wether the <see cref="Host" /> is a native docker (local or remote) or a daemon running
@@ -29,9 +28,9 @@ namespace Ductus.FluentDocker.Services
     bool RequireTls { get; }
 
     /// <summary>
-    /// The certificates if any needed for this host.
+    ///   The certificates if any needed for this host.
     /// </summary>
-    ICertificatePaths Certificates { get;  }
+    ICertificatePaths Certificates { get; }
 
     /// <summary>
     ///   Gets a new copy of a set of running <see cref="IContainerService" />s.
@@ -46,7 +45,7 @@ namespace Ductus.FluentDocker.Services
 
     IList<IContainerImageService> GetImages(bool all = true, string filer = null);
 
-      /// <summary>
+    /// <summary>
     ///   Creates a new container (not started).
     /// </summary>
     /// <param name="image">The image to base the container from.</param>

@@ -1,5 +1,5 @@
 ﻿using Ductus.FluentDocker.Builders;
-using Ductus.FluentDocker.Extensions;
+using Ductus.FluentDocker.Services.Extensions;
 
 namespace Ductus.FluentDocker.MsTest
 {
@@ -35,7 +35,7 @@ namespace Ductus.FluentDocker.MsTest
     protected override void OnContainerInitialized()
     {
       var ep = Container.ToHostExposedEndpoint("5432/tcp");
-      ConnectionString = string.Format(PostgresConnectionString, ep.Address,ep.Port, PostgresUser,
+      ConnectionString = string.Format(PostgresConnectionString, ep.Address, ep.Port, PostgresUser,
         PostgresPassword, PostgresDb);
     }
   }

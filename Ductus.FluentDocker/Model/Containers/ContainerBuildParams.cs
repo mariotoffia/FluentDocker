@@ -177,34 +177,34 @@ namespace Ductus.FluentDocker.Model.Containers
     {
       var sb = new StringBuilder();
 
-      sb.RenderIfExists("--build-arg=", BuildArguments);
-      sb.RenderIfExists("--cpu-shares ", CpuShares?.ToString());
-      sb.RenderIfExists("--cgroup-parent ", ParentCGroup?.ToString());
-      sb.RenderIfExists("--cpu-period ", CpuPeriod?.ToString());
-      sb.RenderIfExists("--cpu-quota ", CpuQuota?.ToString());
-      sb.RenderIfExists("--cpuset-cpus", AllowCpuExecution);
-      sb.RenderIfExists("--cpuset-mems ", AllowMemExecution);
+      sb.OptionIfExists("--build-arg=", BuildArguments);
+      sb.OptionIfExists("--cpu-shares ", CpuShares?.ToString());
+      sb.OptionIfExists("--cgroup-parent ", ParentCGroup?.ToString());
+      sb.OptionIfExists("--cpu-period ", CpuPeriod?.ToString());
+      sb.OptionIfExists("--cpu-quota ", CpuQuota?.ToString());
+      sb.OptionIfExists("--cpuset-cpus", AllowCpuExecution);
+      sb.OptionIfExists("--cpuset-mems ", AllowMemExecution);
 
       if (SkipImageVerification)
       {
         sb.Append(" --disable-content-trust=true");
       }
 
-      sb.RenderIfExists("-f ", File);
+      sb.OptionIfExists("-f ", File);
 
       if (ForceRemoveIntermediateContainers)
       {
         sb.Append(" --force-rm");
       }
 
-      if (null != Isolation.ToDockerString())
+      if (null != Isolation.ToDocker())
       {
-        sb.Append($"--isolation {Isolation.ToDockerString()}");
+        sb.Append($"--isolation {Isolation.ToDocker()}");
       }
 
-      sb.RenderIfExists("--label=", Labels);
-      sb.RenderIfExists("-m ", Memory?.ToString());
-      sb.RenderIfExists("--memory-swap ", Swap?.ToString());
+      sb.OptionIfExists("--label=", Labels);
+      sb.OptionIfExists("-m ", Memory?.ToString());
+      sb.OptionIfExists("--memory-swap ", Swap?.ToString());
 
       if (NoCache)
       {
@@ -226,9 +226,9 @@ namespace Ductus.FluentDocker.Model.Containers
         sb.Append(" --rm=true");
       }
 
-      sb.RenderIfExists("--shm-size ", ShmSize?.ToString());
-      sb.RenderIfExists("-t ", Tags);
-      sb.RenderIfExists("--ulimit=", UlimitOptions);
+      sb.OptionIfExists("--shm-size ", ShmSize?.ToString());
+      sb.OptionIfExists("-t ", Tags);
+      sb.OptionIfExists("--ulimit=", UlimitOptions);
       if (NoCache)
       {
         sb.Append(" --no-cache");

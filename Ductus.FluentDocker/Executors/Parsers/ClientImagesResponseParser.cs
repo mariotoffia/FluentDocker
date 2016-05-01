@@ -27,7 +27,7 @@ namespace Ductus.FluentDocker.Executors.Parsers
 
         list.Add(new DockerImageRowResponse
         {
-          Id = items[0].Strip(),
+          Id = items[0].ToPlainId(),
           Name = items[1],
           Tags = new[] {items[2]}
         });

@@ -3,6 +3,7 @@ using System.Linq;
 using Ductus.FluentDocker.Builders;
 using Ductus.FluentDocker.Extensions;
 using Ductus.FluentDocker.Model.Common;
+using Ductus.FluentDocker.Services.Extensions;
 using Ductus.FluentDockerTest.Extensions;
 using Ductus.FluentDockerTest.MultiContainerTestFiles;
 using Microsoft.VisualStudio.TestTools.UnitTesting;

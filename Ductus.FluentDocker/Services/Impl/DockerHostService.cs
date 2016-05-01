@@ -5,6 +5,7 @@ using System.Linq;
 using Ductus.FluentDocker.Commands;
 using Ductus.FluentDocker.Common;
 using Ductus.FluentDocker.Extensions;
+using Ductus.FluentDocker.Model.Common;
 using Ductus.FluentDocker.Model.Containers;
 using Ductus.FluentDocker.Model.Machines;
 
@@ -44,7 +45,7 @@ namespace Ductus.FluentDocker.Services.Impl
           };
         }
 
-        Host = string.IsNullOrEmpty(uri) ? null : new Uri(uri);
+        Host = string.IsNullOrEmpty(uri) ? null : new DockerUri(uri);
         RequireTls = Environment.GetEnvironmentVariable(DockerTlsVerify) == "1";
         State = ServiceRunningState.Running;
         return;
@@ -125,7 +126,7 @@ namespace Ductus.FluentDocker.Services.Impl
       }
     }
 
-    public Uri Host { get; private set; }
+    public DockerUri Host { get; private set; }
     public bool IsNative { get; }
     public bool RequireTls { get; private set; }
     public ICertificatePaths Certificates { get; private set; }

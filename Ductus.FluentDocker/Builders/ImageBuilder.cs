@@ -4,6 +4,7 @@ using Ductus.FluentDocker.Extensions;
 using Ductus.FluentDocker.Model.Builders;
 using Ductus.FluentDocker.Model.Containers;
 using Ductus.FluentDocker.Services;
+using Ductus.FluentDocker.Services.Extensions;
 using Ductus.FluentDocker.Services.Impl;
 
 namespace Ductus.FluentDocker.Builders
@@ -60,7 +61,7 @@ namespace Ductus.FluentDocker.Builders
           $"Could not build image {_config.ImageName} due to error: {id.Error} log: {id.Log}");
       }
 
-      return new DockerImageService(_config.ImageName, id.Value.Strip(), _config.Params.Tags[0], host.Value.Host,
+      return new DockerImageService(_config.ImageName, id.Value.ToPlainId(), _config.Params.Tags[0], host.Value.Host,
         host.Value.Certificates);
     }
 
@@ -86,12 +87,12 @@ namespace Ductus.FluentDocker.Builders
       if (s.Length == 2)
       {
         _config.ImageName = s[0];
-        _config.Params.Tags.AddToArray(s[1]);
+        _config.Params.Tags.ArrayAdd(s[1]);
       }
       else
       {
         _config.ImageName = name;
-        _config.Params.Tags.AddToArray("latest");
+        _config.Params.Tags.ArrayAdd("latest");
       }
 
       return this;
@@ -99,13 +100,13 @@ namespace Ductus.FluentDocker.Builders
 
     public ImageBuilder ImageTag(params string[] tags)
     {
-      _config.Params.Tags.AddToArrayDistinct(tags);
+      _config.Params.Tags.ArrayAddDistinct(tags);
       return this;
     }
 
     public ImageBuilder BuildArguments(params string[] args)
     {
-      _config.Params.BuildArguments.AddToArray(args);
+      _config.Params.BuildArguments.ArrayAdd(args);
       return this;
     }
 
@@ -117,7 +118,7 @@ namespace Ductus.FluentDocker.Builders
 
     public ImageBuilder Label(params string[] labels)
     {
-      _config.Params.Labels.AddToArray(labels);
+      _config.Params.Labels.ArrayAdd(labels);
       return this;
     }
 

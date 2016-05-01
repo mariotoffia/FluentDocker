@@ -24,15 +24,15 @@ namespace Ductus.FluentDocker.Commands
     /// </remarks>
     public static void AutoDetect()
     {
-      if (OsExtensions.IsWindows() || OsExtensions.IsMac())
+      if (Environment.OSVersion.IsWindows() || Environment.OSVersion.IsMac())
       {
         // Check if native boo2docker for non linux
         // Prefer that instead of machine
-        if (!string.IsNullOrEmpty(DockerEnvExtensions.GetBoot2DockerNativeBinPath()))
+        if (!string.IsNullOrEmpty(CommandExtensions.GetBoot2DockerNativeBinPath()))
         {
-          MachineDriver = OsExtensions.IsWindows() ? "hyperv" : "xhyve";
+          MachineDriver = Environment.OSVersion.IsWindows() ? "hyperv" : "xhyve";
 
-          if (OsExtensions.IsWindows())
+          if (Environment.OSVersion.IsWindows())
           {
             // TODO: Is it possible instead to use the proxy to proxy this machine
             // TODO: for the default docker NAT switch instead?

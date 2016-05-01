@@ -1,5 +1,5 @@
-﻿using System;
-using Ductus.FluentDocker.Commands;
+﻿using Ductus.FluentDocker.Commands;
+using Ductus.FluentDocker.Model.Common;
 using Ductus.FluentDocker.Model.Containers;
 
 namespace Ductus.FluentDocker.Services.Impl
@@ -8,7 +8,7 @@ namespace Ductus.FluentDocker.Services.Impl
   {
     private Container _containerConfigCache;
 
-    public DockerImageService(string name, string id, string tag, Uri dockerHost, ICertificatePaths certificate)
+    public DockerImageService(string name, string id, string tag, DockerUri dockerHost, ICertificatePaths certificate)
       : base(name)
     {
       Id = id;
@@ -44,7 +44,7 @@ namespace Ductus.FluentDocker.Services.Impl
 
     public string Id { get; }
     public string Tag { get; }
-    public Uri DockerHost { get; }
+    public DockerUri DockerHost { get; }
     public ICertificatePaths Certificates { get; }
 
     public Container GetConfiguration(bool fresh = false)

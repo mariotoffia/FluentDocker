@@ -1,5 +1,6 @@
 ﻿using System;
 using Ductus.FluentDocker.Commands;
+using Ductus.FluentDocker.Model.Common;
 using Ductus.FluentDocker.Model.Containers;
 
 namespace Ductus.FluentDocker.Services.Impl
@@ -13,7 +14,7 @@ namespace Ductus.FluentDocker.Services.Impl
     private Container _containerConfigCache;
     private ServiceRunningState _state = ServiceRunningState.Unknown;
 
-    public DockerContainerService(string name, string id, Uri docker, ServiceRunningState state,
+    public DockerContainerService(string name, string id, DockerUri docker, ServiceRunningState state,
       ICertificatePaths certificates,
       bool stopOnDispose = true, bool removeOnDispose = true)
     {
@@ -28,7 +29,7 @@ namespace Ductus.FluentDocker.Services.Impl
     }
 
     public string Id { get; }
-    public Uri DockerHost { get; }
+    public DockerUri DockerHost { get; }
 
     public Container GetConfiguration(bool fresh = false)
     {

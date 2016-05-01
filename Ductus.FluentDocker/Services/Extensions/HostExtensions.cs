@@ -1,9 +1,8 @@
 ﻿using Ductus.FluentDocker.Commands;
 using Ductus.FluentDocker.Common;
 using Ductus.FluentDocker.Model.Containers;
-using Ductus.FluentDocker.Services;
 
-namespace Ductus.FluentDocker.Extensions
+namespace Ductus.FluentDocker.Services.Extensions
 {
   public static class HostExtensions
   {
