@@ -4,8 +4,10 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Net;
+using System.Threading;
 using Ductus.FluentDocker.Commands;
 using Ductus.FluentDocker.Common;
+using Ductus.FluentDocker.Executors;
 using Ductus.FluentDocker.Extensions;
 using Ductus.FluentDocker.Model.Common;
 using Ductus.FluentDocker.Model.Containers;
@@ -14,6 +16,19 @@ namespace Ductus.FluentDocker.Services.Extensions
 {
   public static class ContainerExtensions
   {
+    /// <summary>
+    ///   Read the logs from the container.
+    /// </summary>
+    /// <param name="service">The container to read the logs from.</param>
+    /// <param name="follow">If continious logs is wanted.</param>
+    /// <param name="token">The cancellation token for logs, especially needed when <paramref name="follow" /> is set to true.</param>
+    /// <returns>A console stream to consume.</returns>
+    public static ConsoleStream<string> Logs(this IContainerService service, bool follow = false,
+      CancellationToken token = default(CancellationToken))
+    {
+      return service.DockerHost.Logs(service.Id, token, follow);
+    }
+
     /// <summary>
     ///   Translates a docker exposed port and protocol (on format 'port/proto' e.g. '534/tcp') to a
     ///   host endpoint that can be contacted outside the container.
@@ -72,7 +87,7 @@ namespace Ductus.FluentDocker.Services.Extensions
     public static IContainerService Export(this IContainerService service, TemplateString fqPath, bool explode = false,
       bool throwOnError = false)
     {
-      var path = explode ? Path.GetTempFileName() : (string)fqPath;
+      var path = explode ? Path.GetTempFileName() : (string) fqPath;
       var res = service.DockerHost.Export(service.Id, path, service.Certificates);
       if (!res.Success)
       {
