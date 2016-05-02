@@ -108,6 +108,43 @@ namespace Ductus.FluentDockerTest
       }
     }
 
+    [TestMethod]
+    public void LogFromContainerShouldSupportReadAllExtension()
+    {
+      string id = null;
+      try
+      {
+        var cmd = _docker.Run("kiasaki/alpine-postgres", new ContainerCreateParams
+        {
+          PortMappings = new[] { "40001:5432" },
+          Environment = new[] { "POSTGRES_PASSWORD=mysecretpassword" }
+        }, _certificates);
+
+        id = cmd.Data;
+        var config = _docker.InspectContainer(id, _certificates);
+        var endpoint = config.Data.NetworkSettings.Ports.ToHostPort("5432/tcp", _docker);
+        endpoint.WaitForPort(10000 /*10s*/);
+
+        using (var logs = _docker.Logs(id))
+        {
+          foreach (var line in logs.ReadToEnd())
+          {
+            Debug.WriteLine(line);
+          }
+
+          Assert.AreEqual(true, logs.IsFinished);
+          Assert.AreEqual(true, logs.IsSuccess);
+        }
+      }
+      finally
+      {
+        if (null != id)
+        {
+          _docker.RemoveContainer(id, true, true, null, _certificates);
+        }
+      }
+    }
+
     [ClassInitialize]
     public static void Initialize(TestContext ctx)
     {
