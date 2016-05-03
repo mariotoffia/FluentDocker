@@ -11,7 +11,7 @@ namespace Ductus.FluentDocker.Commands
 {
   public static class Compose
   {
-    public static CommandResponse<IList<string>> Build(this DockerUri host,
+    public static CommandResponse<IList<string>> ComposeBuild(this DockerUri host,
       string altProjectName = null, string composeFile = null,
       bool forceRm = false, bool dontUseCache = false,
       bool alwaysPull = false, string[] services = null /*all*/, ICertificatePaths certificates = null)
@@ -54,7 +54,7 @@ namespace Ductus.FluentDocker.Commands
           $"{args} build {options}").Execute();
     }
 
-    public static CommandResponse<IList<string>> Create(this DockerUri host,
+    public static CommandResponse<IList<string>> ComposeCreate(this DockerUri host,
       string altProjectName = null, string composeFile = null,
       bool forceRecreate = false, bool noRecreate = false, bool dontBuild = false,
       bool buildBeforeCreate = false,
@@ -104,7 +104,7 @@ namespace Ductus.FluentDocker.Commands
           $"{args} create {options}").Execute();
     }
 
-    public static CommandResponse<IList<string>> Start(this DockerUri host, string altProjectName = null,
+    public static CommandResponse<IList<string>> ComposeStart(this DockerUri host, string altProjectName = null,
       string composeFile = null, string[] services = null /*all*/, ICertificatePaths certificates = null)
     {
       var args = $"{host.RenderBaseArgs(certificates)}";
@@ -130,7 +130,7 @@ namespace Ductus.FluentDocker.Commands
           $"{args} start -d {options}").Execute();
     }
 
-    public static CommandResponse<IList<string>> Kill(this DockerUri host, string altProjectName = null,
+    public static CommandResponse<IList<string>> ComposeKill(this DockerUri host, string altProjectName = null,
       string composeFile = null, UnixSignal signal = UnixSignal.SIGKILL, string[] services = null /*all*/,
       ICertificatePaths certificates = null)
     {
@@ -162,7 +162,7 @@ namespace Ductus.FluentDocker.Commands
           $"{args} kill {options}").Execute();
     }
 
-    public static CommandResponse<IList<string>> Stop(this DockerUri host, string altProjectName = null,
+    public static CommandResponse<IList<string>> ComposeStop(this DockerUri host, string altProjectName = null,
       string composeFile = null, TimeSpan? timeout = null, string[] services = null /*all*/,
       ICertificatePaths certificates = null)
     {
@@ -194,7 +194,7 @@ namespace Ductus.FluentDocker.Commands
           $"{args} stop {options}").Execute();
     }
 
-    public static CommandResponse<IList<string>> Pause(this DockerUri host, string altProjectName = null,
+    public static CommandResponse<IList<string>> ComposePause(this DockerUri host, string altProjectName = null,
       string composeFile = null, string[] services = null /*all*/, ICertificatePaths certificates = null)
     {
       var args = $"{host.RenderBaseArgs(certificates)}";
@@ -220,7 +220,7 @@ namespace Ductus.FluentDocker.Commands
           $"{args} pause {options}").Execute();
     }
 
-    public static CommandResponse<IList<string>> UnPause(this DockerUri host, string altProjectName = null,
+    public static CommandResponse<IList<string>> ComposeUnPause(this DockerUri host, string altProjectName = null,
       string composeFile = null, string[] services = null /*all*/, ICertificatePaths certificates = null)
     {
       var args = $"{host.RenderBaseArgs(certificates)}";
@@ -246,7 +246,7 @@ namespace Ductus.FluentDocker.Commands
           $"{args} unpause {options}").Execute();
     }
 
-    public static CommandResponse<IList<string>> Scale(this DockerUri host, string altProjectName = null,
+    public static CommandResponse<IList<string>> ComposeScale(this DockerUri host, string altProjectName = null,
       string composeFile = null, TimeSpan? shutdownTimeout = null,
       string[] serviceEqNumber = null /*all*/, ICertificatePaths certificates = null)
     {
@@ -279,7 +279,7 @@ namespace Ductus.FluentDocker.Commands
           $"{args} scale {options} {services}").Execute();
     }
 
-    public static CommandResponse<IList<string>> Version(this DockerUri host, string altProjectName = null,
+    public static CommandResponse<IList<string>> ComposeVersion(this DockerUri host, string altProjectName = null,
       string composeFile = null, bool shortVersion = false, ICertificatePaths certificates = null)
     {
       var args = $"{host.RenderBaseArgs(certificates)}";
@@ -305,7 +305,7 @@ namespace Ductus.FluentDocker.Commands
           $"{args} version {options}").Execute();
     }
 
-    public static CommandResponse<IList<string>> Restart(this DockerUri host, string altProjectName = null,
+    public static CommandResponse<IList<string>> ComposeRestart(this DockerUri host, string altProjectName = null,
       string composeFile = null, TimeSpan? timeout = null, ICertificatePaths certificates = null,
       params string[] containerId)
     {
@@ -338,7 +338,7 @@ namespace Ductus.FluentDocker.Commands
           $"{args} restart {options} {ids}").Execute();
     }
 
-    public static CommandResponse<IList<string>> Port(this DockerUri host, string containerId,
+    public static CommandResponse<IList<string>> ComposePort(this DockerUri host, string containerId,
       string privatePortAndProto = null,
       string altProjectName = null, string composeFile = null,
       ICertificatePaths certificates = null)
@@ -365,7 +365,7 @@ namespace Ductus.FluentDocker.Commands
           $"{args} port {containerId} {privatePortAndProto}").Execute();
     }
 
-    public static CommandResponse<IList<string>> Config(this DockerUri host, string altProjectName = null,
+    public static CommandResponse<IList<string>> ComposeConfig(this DockerUri host, string altProjectName = null,
       string composeFile = null, bool quiet = true,
       bool outputServices = false, ICertificatePaths certificates = null)
     {
@@ -397,7 +397,7 @@ namespace Ductus.FluentDocker.Commands
           $"{args} config {options}").Execute();
     }
 
-    public static CommandResponse<IList<string>> Down(this DockerUri host, string altProjectName = null,
+    public static CommandResponse<IList<string>> ComposeDown(this DockerUri host, string altProjectName = null,
       string composeFile = null, ImageRemovalOption removeImagesFrom = ImageRemovalOption.None,
       bool removeVolumes = false, bool removeOrphanContainers = false, ICertificatePaths certificates = null)
     {
@@ -434,7 +434,7 @@ namespace Ductus.FluentDocker.Commands
           $"{args} down {options}").Execute();
     }
 
-    public static CommandResponse<IList<string>> Up(this DockerUri host,
+    public static CommandResponse<IList<string>> ComposeUp(this DockerUri host,
       string altProjectName = null, string composeFile = null,
       bool forceRecreate = false, bool noRecreate = false, bool dontBuild = false,
       bool buildBeforeCreate = false, TimeSpan? timeout = null,
@@ -495,7 +495,7 @@ namespace Ductus.FluentDocker.Commands
           $"{args} up {options}").Execute();
     }
 
-    public static CommandResponse<IList<string>> Rm(this DockerUri host, string altProjectName = null,
+    public static CommandResponse<IList<string>> ComposeRm(this DockerUri host, string altProjectName = null,
       string composeFile = null, bool force = false,
       bool removeVolumes = false, bool all = false,
       string[] services = null /*all*/, ICertificatePaths certificates = null)
@@ -538,7 +538,7 @@ namespace Ductus.FluentDocker.Commands
           $"{args} rm {options}").Execute();
     }
 
-    public static CommandResponse<IList<string>> Ps(this DockerUri host, string altProjectName = null,
+    public static CommandResponse<IList<string>> ComposePs(this DockerUri host, string altProjectName = null,
       string composeFile = null, string[] services = null,
       ICertificatePaths certificates = null)
     {
@@ -565,7 +565,8 @@ namespace Ductus.FluentDocker.Commands
           $"{args} ps -q {options}").Execute();
     }
 
-    public static CommandResponse<IList<string>> Pull(this DockerUri host, string image, string altProjectName = null,
+    public static CommandResponse<IList<string>> ComposePull(this DockerUri host, string image,
+      string altProjectName = null,
       string composeFile = null, bool downloadAllTagged = false, bool skipImageverficiation = false,
       ICertificatePaths certificates = null)
     {

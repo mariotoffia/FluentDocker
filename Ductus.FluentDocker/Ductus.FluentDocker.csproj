@@ -56,6 +56,7 @@
     <Compile Include="Commands\CommandDefaults.cs" />
     <Compile Include="Commands\Compose.cs" />
     <Compile Include="Commands\Machine.cs" />
+    <Compile Include="Commands\Volumes.cs" />
     <Compile Include="Common\Constants.cs" />
     <Compile Include="Common\FluentDockerException.cs" />
     <Compile Include="Common\Option.cs" />
@@ -146,7 +147,9 @@
     <None Include="app.config" />
     <None Include="packages.config" />
   </ItemGroup>
-  <ItemGroup />
+  <ItemGroup>
+    <Compile Include="Commands\ComposeStreams.cs" />
+  </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>
     <PostBuildEvent>
