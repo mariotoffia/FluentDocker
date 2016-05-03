@@ -56,6 +56,7 @@
     <Compile Include="Commands\CommandDefaults.cs" />
     <Compile Include="Commands\Compose.cs" />
     <Compile Include="Commands\Machine.cs" />
+    <Compile Include="Commands\Network.cs" />
     <Compile Include="Commands\Volumes.cs" />
     <Compile Include="Common\Constants.cs" />
     <Compile Include="Common\FluentDockerException.cs" />
@@ -115,6 +116,7 @@
     <Compile Include="Model\Containers\Diff.cs" />
     <Compile Include="Model\Containers\DiffType.cs" />
     <Compile Include="Model\Containers\HostIpEndpoint.cs" />
+    <Compile Include="Model\Containers\NetworkCreateParams.cs" />
     <Compile Include="Model\Containers\Processes.cs" />
     <Compile Include="Model\Containers\ProcessRow.cs" />
     <Compile Include="Model\Containers\UnixSignal.cs" />

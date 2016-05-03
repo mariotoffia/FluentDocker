@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using Ductus.FluentDocker.Model.Builders;
@@ -10,25 +11,52 @@ namespace Ductus.FluentDocker.Extensions
 {
   public static class ModelExtensions
   {
-    public static void OptionIfExists(this StringBuilder sb, string option, string value)
+    public static StringBuilder OptionIfExists(this StringBuilder sb, string option, string value)
     {
       if (!string.IsNullOrEmpty(value))
       {
         sb.Append($" {option}{value}");
       }
-    }
 
-    public static void OptionIfExists(this StringBuilder sb, string option, string[] values)
+      return sb;
+    }
+    public static StringBuilder OptionIfExists(this StringBuilder sb, string option, bool enabled)
+    {
+      if (enabled)
+      {
+        sb.Append($" {option}");
+      }
+
+      return sb;
+    }
+    public static StringBuilder OptionIfExists(this StringBuilder sb, string option, string[] values)
     {
       if (null == values || 0 == values.Length)
       {
-        return;
+        return sb;
       }
 
       foreach (var value in values)
       {
         sb.Append($" {option}{value}");
       }
+
+      return sb;
+    }
+
+    public static StringBuilder OptionIfExists(this StringBuilder sb, string option, IDictionary<string,string> values)
+    {
+      if (null == values || 0 == values.Count)
+      {
+        return sb;
+      }
+
+      foreach (var value in values)
+      {
+        sb.Append($" {option}{value.Key}={value.Value}");
+      }
+
+      return sb;
     }
 
     /// <summary>
