@@ -1,53 +1,44 @@
 ﻿using System;
-using System.IO;
+using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using Ductus.FluentDocker.Model.Common;
+using Ductus.FluentDocker.Resources;
 
 namespace Ductus.FluentDocker.Extensions
 {
   public static class ResourceExtensions
   {
-    public static string ExtractEmbeddedResourceByUri(this EmbeddedUri resource, string outputDir)
+    public static void Extract(this Assembly asm, string ns, TemplateString targetPath, params string[] files)
     {
-      var assembly = AppDomain.CurrentDomain.GetAssemblies().First(x => x.GetName().Name == resource.Assembly);
-      ExtractEmbeddedResource(resource.Namespace, assembly, outputDir, resource.Resource);
-      return resource.Resource;
+      if (null == files || 0 == files.Length)
+      {
+        new ResourceQuery().Namespace(ns).Query().ToFile(targetPath);
+        return;
+      }
+
+      new ResourceQuery().Namespace(ns, false).Include(files).ToFile(targetPath);
     }
 
-    public static void ExtractEmbeddedResource(this string resourceLocation, Assembly assembly, string outputDir,
-      params string[] files)
+    public static void ToFile(this IEnumerable<ResourceInfo> resources, TemplateString targetPath)
     {
-      if (!Directory.Exists(outputDir))
-      {
-        Directory.CreateDirectory(outputDir);
-      }
+      new FileResourceWriter(targetPath).Write(new ResourceReader(resources));
+    }
 
-      if (null == assembly)
-      {
-        assembly = Assembly.GetCallingAssembly();
-      }
-
-      foreach (var file in files)
-      {
-        using (var stream = assembly.GetManifestResourceStream(resourceLocation + "." + file))
+    public static string ToFile(this EmbeddedUri resource, TemplateString targetPath)
+    {
+      new FileResourceWriter(targetPath).Write(
+        new ResourceReader(new[]
         {
-          using (var fileStream = new FileStream(Path.Combine(outputDir, file), FileMode.Create))
+          new ResourceInfo
           {
-            if (null == stream)
-            {
-              throw new InvalidOperationException(
-                $"Could not find stream for {file} in namespace {resourceLocation} to {outputDir}");
-            }
-
-            for (var i = 0; i < stream.Length; i++)
-            {
-              fileStream.WriteByte((byte) stream.ReadByte());
-            }
-            fileStream.Close();
+            Assembly = AppDomain.CurrentDomain.GetAssemblies().First(x => x.GetName().Name == resource.Assembly),
+            Namespace = resource.Namespace,
+            RelativeNamespace = string.Empty,
+            Resource = resource.Resource
           }
-        }
-      }
+        }));
+      return resource.Resource;
     }
   }
 }

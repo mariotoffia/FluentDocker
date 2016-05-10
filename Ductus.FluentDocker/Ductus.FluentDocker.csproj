@@ -127,6 +127,12 @@
     <Compile Include="Model\Machines\MachineConfiguration.cs" />
     <Compile Include="Model\Machines\MachineLsResponse.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="Resources\FileResourceWriter.cs" />
+    <Compile Include="Resources\ResourceInfo.cs" />
+    <Compile Include="Resources\ResourceQuery.cs" />
+    <Compile Include="Resources\ResourceReader.cs" />
+    <Compile Include="Resources\IResourceWriter.cs" />
+    <Compile Include="Resources\ResourceStream.cs" />
     <Compile Include="Services\Extensions\ContainerExtensions.cs" />
     <Compile Include="Services\Extensions\HostExtensions.cs" />
     <Compile Include="Services\Extensions\NetworkExtensions.cs" />

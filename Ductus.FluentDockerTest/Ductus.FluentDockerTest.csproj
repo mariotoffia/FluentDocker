@@ -57,6 +57,7 @@
     </Otherwise>
   </Choose>
   <ItemGroup>
+    <Compile Include="Compose\NsResolver.cs" />
     <Compile Include="Extensions\HttpExtensions.cs" />
     <Compile Include="MultiContainerTestFiles\NsResolver.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
@@ -68,6 +69,8 @@
     <Compile Include="FluentMultiContainerTests.cs" />
     <Compile Include="ImageBuilderTests.cs" />
     <Compile Include="ClientStreamCommandTests.cs" />
+    <Compile Include="ComposeCommandTests.cs" />
+    <Compile Include="FluentDockerBaseTestClass.cs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Ductus.FluentDocker\Ductus.FluentDocker.csproj">
@@ -79,6 +82,12 @@
     <None Include="app.config" />
     <EmbeddedResource Include="MultiContainerTestFiles\nginx.conf" />
     <EmbeddedResource Include="MultiContainerTestFiles\package.txt" />
+    <None Include="Compose\docker-compose.yml" />
+    <None Include="Compose\nginx\Dockerfile" />
+    <None Include="Compose\nginx\nginx.conf" />
+    <None Include="Compose\node\Dockerfile" />
+    <None Include="Compose\node\package.json" />
+    <None Include="Compose\redis\Dockerfile" />
     <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
@@ -86,6 +95,11 @@
   </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="MultiContainerTestFiles\app.js" />
+  </ItemGroup>
+  <ItemGroup />
+  <ItemGroup>
+    <Content Include="Compose\node\index.js" />
+    <Content Include="Compose\node\test\dummyTest.js" />
   </ItemGroup>
   <Choose>
     <When Condition="'$(VisualStudioVersion)' == '10.0' And '$(IsCodedUITest)' == 'True'">

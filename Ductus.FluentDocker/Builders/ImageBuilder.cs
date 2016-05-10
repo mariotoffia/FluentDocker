@@ -70,7 +70,7 @@ namespace Ductus.FluentDocker.Builders
       return new ImageBuilder(this);
     }
 
-    public FileBuilder DefineFrom(string from)
+    public FileBuilder From(string from)
     {
       return _fileBuilder = new FileBuilder(this).UseParent(from);
     }

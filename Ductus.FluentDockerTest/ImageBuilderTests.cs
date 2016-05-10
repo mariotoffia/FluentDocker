@@ -12,7 +12,7 @@ namespace Ductus.FluentDockerTest
       using (
         var image =
           new Builder().DefineImage("mariotoffia/unittest:latest")
-            .DefineFrom("ubuntu")
+            .From("ubuntu")
             .Maintainer("Mario Toffia <mario.toffia@gmail.com>")
               .Run("apt-get install -y software-properties-common python")
               .Run("add-apt-repository ppa:chris-lea/node.js")

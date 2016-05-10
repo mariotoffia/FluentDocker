@@ -25,25 +25,25 @@ namespace Ductus.FluentDockerTest
     {
       var fullPath = (TemplateString) @"${TEMP}\fluentdockertest\${RND}";
       var nginx = Path.Combine(fullPath, "nginx.conf");
+      var resources = typeof(NsResolver);
 
       Directory.CreateDirectory(fullPath);
 
-      // Either extract or use embedded uri directly
-      typeof(NsResolver).Namespace.ExtractEmbeddedResource(null, fullPath, "index.js", "nginx.conf");
-
+      resources.Assembly.Extract(resources.Namespace, fullPath, "index.js");
       try
       {
         using (var services = new Builder()
+
           // Define custom node image to be used
-          .DefineImage("mariotoffia/nodetest")
-          .ReuseIfAlreadyExists()
-          .DefineFrom("ubuntu").Maintainer("Mario Toffia <mario.toffia@gmail.com>")
+          .DefineImage("mariotoffia/nodetest").ReuseIfAlreadyExists()
+          .From("ubuntu")
+          .Maintainer("Mario Toffia <mario.toffia@gmail.com>")
           .Run("apt-get update &&",
             "apt-get -y install curl &&",
             "curl -sL https://deb.nodesource.com/setup | sudo bash - &&",
             "apt-get -y install python build-essential nodejs")
           .Run("npm install -g nodemon")
-          .Add("embedded:Ductus.FluentDockerTest/Ductus.FluentDockerTest.MultiContainerTestFiles/package.txt",
+          .Add("emb:Ductus.FluentDockerTest/Ductus.FluentDockerTest.MultiContainerTestFiles/package.txt",
             "/tmp/package.json")
           .Run("cd /tmp && npm install")
           .Run("mkdir -p /src && cp -a /tmp/node_modules /src/")
@@ -51,14 +51,18 @@ namespace Ductus.FluentDockerTest
           .Add("index.js", "/src")
           .ExposePorts(8080)
           .Command("nodemon", "/src/index.js").Builder()
+
           // Redis Db Backend
           .UseContainer().WithName("redis").UseImage("redis").Builder()
+
           // Node server 1 & 2
           .UseContainer().WithName("node1").UseImage("mariotoffia/nodetest").Link("redis").Builder()
           .UseContainer().WithName("node2").UseImage("mariotoffia/nodetest").Link("redis").Builder()
+
           // Nginx as load balancer
-          .UseContainer().WithName("nginx").UseImage("nginx")
-          .Link("node1", "node2").CopyOnStart(nginx, "/etc/nginx/nginx.conf").ExposePort(80).Builder()
+          .UseContainer().WithName("nginx").UseImage("nginx").Link("node1", "node2")
+          .CopyOnStart(nginx, "/etc/nginx/nginx.conf")
+          .ExposePort(80).Builder()
           .Build().Start())
         {
           Assert.AreEqual(4, services.Containers.Count);
@@ -67,7 +71,7 @@ namespace Ductus.FluentDockerTest
           Assert.IsNotNull(ep);
 
           var round1 = $"http://{ep.Address}:{ep.Port}".Wget();
-          Assert.AreEqual("This page has been viewed 1 times!",round1);
+          Assert.AreEqual("This page has been viewed 1 times!", round1);
 
           var round2 = $"http://{ep.Address}:{ep.Port}".Wget();
           Assert.AreEqual("This page has been viewed 2 times!", round2);
