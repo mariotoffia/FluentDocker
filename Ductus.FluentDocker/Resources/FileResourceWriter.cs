@@ -14,9 +14,9 @@ namespace Ductus.FluentDocker.Resources
 
     public IResourceWriter Write(ResourceStream stream)
     {
-      var dir = string.IsNullOrEmpty(stream.Info.RelativeNamespace)
+      var dir = string.IsNullOrEmpty(stream.Info.RelativeRootNamespace)
         ? _basePath.Rendered
-        : Path.Combine(_basePath, stream.Info.RelativeNamespace.Replace('.', Path.PathSeparator));
+        : Path.Combine(_basePath, stream.Info.RelativeRootNamespace.Replace('.', Path.PathSeparator));
 
       if (!Directory.Exists(dir))
       {

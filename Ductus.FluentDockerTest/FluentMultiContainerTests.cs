@@ -25,11 +25,10 @@ namespace Ductus.FluentDockerTest
     {
       var fullPath = (TemplateString) @"${TEMP}\fluentdockertest\${RND}";
       var nginx = Path.Combine(fullPath, "nginx.conf");
-      var resources = typeof(NsResolver);
 
       Directory.CreateDirectory(fullPath);
+      typeof(NsResolver).ResourceExtract(fullPath, "index.js");
 
-      resources.Assembly.Extract(resources.Namespace, fullPath, "index.js");
       try
       {
         using (var services = new Builder()

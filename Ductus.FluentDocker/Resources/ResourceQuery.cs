@@ -39,13 +39,8 @@ namespace Ductus.FluentDocker.Resources
 
       foreach (var res in assembly.GetManifestResourceNames().Where(x => x.StartsWith(_namespace)))
       {
-        var resInfo = assembly.GetManifestResourceInfo(res);
-        if (null == resInfo)
-        {
-          continue;
-        }
-
-        var ns = res.Substring(0, res.Length - resInfo.FileName.Length);
+        var file = ExtractFile(res);
+        var ns = res.Substring(0, res.Length - file.Length - 1);
         if (ns.Length < _namespace.Length)
         {
           continue;
@@ -64,8 +59,9 @@ namespace Ductus.FluentDocker.Resources
         {
           Assembly = assembly,
           Namespace = ns,
-          RelativeNamespace = nseqlen ? string.Empty : ns.Substring(_namespace.Length),
-          Resource = resInfo.FileName
+          Root = _namespace,
+          RelativeRootNamespace = nseqlen ? string.Empty : ns.Substring(_namespace.Length + 1),
+          Resource = file
         };
       }
     }
@@ -73,6 +69,37 @@ namespace Ductus.FluentDocker.Resources
     public IEnumerable<ResourceInfo> Include(params string[] resources)
     {
       return Query().Where(x => resources.Contains(x.Resource));
+    }
+
+    /// <summary>
+    ///   TODO: Ugly hack since GetManifestResourceInfo(res) do not work!
+    /// </summary>
+    /// <param name="fqResource">The fully qualified file including namespace.</param>
+    /// <returns>Probably a filename.</returns>
+    private static string ExtractFile(string fqResource)
+    {
+      var last = fqResource.LastIndexOf(".", StringComparison.Ordinal);
+      if (-1 == last)
+      {
+        return fqResource;
+      }
+
+      var len = fqResource.Length - last;
+      if (len > 5)
+      {
+        // Assume "dotless" file
+        return fqResource.Substring(last + 1);
+      }
+
+      for (var i = fqResource.Length - len - 1; i >= 0; i--)
+      {
+        if (fqResource[i] == '.')
+        {
+          return fqResource.Substring(i + 1);
+        }
+      }
+
+      return fqResource;
     }
   }
 }
