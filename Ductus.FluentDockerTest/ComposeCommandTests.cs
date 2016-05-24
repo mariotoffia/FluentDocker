@@ -8,7 +8,7 @@ using Microsoft.VisualStudio.TestTools.UnitTesting;
 namespace Ductus.FluentDockerTest
 {
   [TestClass]
-  public class ComposeCommandTests : FluentDockerBaseTestClass
+  public class ComposeCommandTests : FluentDockerTestBase
   {
     [TestMethod]
     public void ComposeByBuildImageAddNgixAsLoadBalancerTwoNodesAsHtmlServeAndRedisAsDbBackendShouldWorkAsCluster()

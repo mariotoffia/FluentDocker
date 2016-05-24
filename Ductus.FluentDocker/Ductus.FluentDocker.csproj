@@ -55,6 +55,7 @@
     <Compile Include="Commands\ClientStreams.cs" />
     <Compile Include="Commands\CommandDefaults.cs" />
     <Compile Include="Commands\Compose.cs" />
+    <Compile Include="Commands\Info.cs" />
     <Compile Include="Commands\Machine.cs" />
     <Compile Include="Commands\Network.cs" />
     <Compile Include="Commands\Volumes.cs" />
@@ -68,6 +69,7 @@
     <Compile Include="Executors\IProcessResponseParser.cs" />
     <Compile Include="Executors\IStreamMapper.cs" />
     <Compile Include="Executors\Mappers\StringMapper.cs" />
+    <Compile Include="Executors\Parsers\BaseInfoResponseParser.cs" />
     <Compile Include="Executors\Parsers\ClientContainerInspectCommandResponder.cs" />
     <Compile Include="Executors\Parsers\ClientDiffResponseParser.cs" />
     <Compile Include="Executors\Parsers\ClientImagesResponseParser.cs" />
@@ -121,6 +123,7 @@
     <Compile Include="Model\Containers\ProcessRow.cs" />
     <Compile Include="Model\Containers\UnixSignal.cs" />
     <Compile Include="Model\Containers\VolumeMount.cs" />
+    <Compile Include="Model\DockerInfoBase.cs" />
     <Compile Include="Model\Images\DockerImageRowResponse.cs" />
     <Compile Include="Model\Images\ImageRemovalOption.cs" />
     <Compile Include="Model\Machines\MachineAuthConfig.cs" />

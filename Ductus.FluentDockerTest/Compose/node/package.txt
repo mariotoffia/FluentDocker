@@ -6,9 +6,7 @@
   "author": "Anand Mani Sankar",
   "license": "ISC",
   "dependencies": {
-    "express": "^4.12.3",
-    "hiredis": "^0.2.0",
-    "mocha": "^2.2.1",
-    "redis": "^0.12.1"
+    "express": "^4.13.4",
+    "redis": "^2.6.0-2"
   }
 }

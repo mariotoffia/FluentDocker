@@ -6,7 +6,7 @@ using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace Ductus.FluentDockerTest
 {
-  public abstract class FluentDockerBaseTestClass
+  public abstract class FluentDockerTestBase
   {
     protected IHostService Host;
     private bool _createdHost;

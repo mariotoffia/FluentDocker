@@ -70,8 +70,9 @@
     <Compile Include="ImageBuilderTests.cs" />
     <Compile Include="ClientStreamCommandTests.cs" />
     <Compile Include="ComposeCommandTests.cs" />
-    <Compile Include="FluentDockerBaseTestClass.cs" />
+    <Compile Include="FluentDockerTestBase.cs" />
     <Compile Include="ResourceExtensionsTests.cs" />
+    <Compile Include="DockerInfoCommandTests.cs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Ductus.FluentDocker\Ductus.FluentDocker.csproj">
@@ -87,7 +88,7 @@
     <EmbeddedResource Include="Compose\nginx\Dockerfile" />
     <EmbeddedResource Include="Compose\nginx\nginx.conf" />
     <EmbeddedResource Include="Compose\node\Dockerfile" />
-    <EmbeddedResource Include="Compose\node\package.json" />
+    <Content Include="Compose\node\package.txt" />
     <EmbeddedResource Include="Compose\redis\Dockerfile" />
     <None Include="packages.config" />
   </ItemGroup>
@@ -100,7 +101,6 @@
   <ItemGroup />
   <ItemGroup>
     <EmbeddedResource Include="Compose\node\index.js" />
-    <EmbeddedResource Include="Compose\node\test\dummyTest.js" />
   </ItemGroup>
   <Choose>
     <When Condition="'$(VisualStudioVersion)' == '10.0' And '$(IsCodedUITest)' == 'True'">
