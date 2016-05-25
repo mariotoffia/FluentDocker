@@ -1,5 +1,5 @@
 # FluentDocker
-FluentDocker is a library to interact with docker-machine and docker. It supports the new docker beta, docker machine or native linux (however only tested on windows machine). This library is available at nuget [Ductus.FluentDocker](https://www.nuget.org/packages/Ductus.FluentDocker/ "Nuget Home for Ductus.FluentDocker") and the ms test support is available at [Ductus.FluentDocker.MsTest](https://www.nuget.org/packages/Ductus.FluentDocker.MsTest/ "Nuget Home for Ductus.FluentDocker.MsTest").
+FluentDocker is a library to interact with docker-machine, docker-compose and docker. It supports the new docker beta, docker machine or native linux (however only tested on windows machine and docker beta for windows). This library is available at nuget [Ductus.FluentDocker](https://www.nuget.org/packages/Ductus.FluentDocker/ "Nuget Home for Ductus.FluentDocker") and the ms test support is available at [Ductus.FluentDocker.MsTest](https://www.nuget.org/packages/Ductus.FluentDocker.MsTest/ "Nuget Home for Ductus.FluentDocker.MsTest").
 
 The library is divided into three thin layers, each layer is accessable:
 
@@ -8,6 +8,52 @@ The library is divided into three thin layers, each layer is accessable:
 3. Fluent API - API to build/discover services to be used
 
 The Majority of the service methods are extension methods and not hardwired into the service itself, making them lightweigted and customizable. Since everthing is accessable it is e.g. easy to add extensions method for a service that uses the layer 1 commands to provide functionality. 
+
+## Basic Usage of Commands (Layer 1)
+All commands needs a ```DockerUri``` to work with. It is the Uri to the docker daemon, either locally or remote. It can be discoverable or hardcoded. Discovery of local ```DockerUri``` can be done by ```var host = new Hosts().Discover().FirstOrDefault(x => x.IsNative) ?? hosts.FirstOrDefault(x => x.Name == "default").Host```. The example snipped will check for native, or docker beta "native" hosts, if not choose the docker-machine "default" as host. If you're using docker-machine and no machine exists or is not started it is easy to create / start a docker-machine by e.g. ```"test-machine".Create(1024,20000000,1)```. This will create a docker machine named "test-machine" with 1GB of RAM, 20GB Disk, and use one CPU.
+
+It is now possible to use the Uri to communicate using the commands. For example to get the version of client and server docker binaries:
+```cs
+     var result = Host.Host.Version(Host.Certificates);
+     Debug.WriteLine(result.Data); // Will Print the Client and Server Version and API Versions respectively.
+```
+All commands return a CommandResponse<T> such that it is possible to check successfactor by ```response.Success```. If any data associated with the command it is returned in the ```response.Data``` property.
+
+Then it is simple as below to start and stop include delete a container using the commands. Below starts a container and do a PS on it and then deletes it.
+```cs
+     var id = _docker.Run("nginx:latest", null, _docker.Certificates).Data;
+     var ps = _docker.Ps(null, _docker.Certificates).Data;
+     
+     _docker.RemoveContainer(id, true, true, null, _docker.Certificates);
+```
+
+Some commands returns a stream of data when e.g. events or logs is wanted using a continious stream. Streams can be used in background tasks and support ```CancellationToken```. Below example tails a log.
+```cs
+     using (var logs = _docker.Logs(id))
+     {
+          while (!logs.IsFinished)
+          {
+               var line = logs.TryRead(5000); // Do a read with timeout
+               if (null == line)
+               {
+                    break;
+               }
+
+               Debug.WriteLine(line);
+          }
+     }
+```
+
+Utility methods exists for commands. They come in different flaviours such as networking etc. For example when reading a log to the end:
+```cs
+     using (var logs = _docker.Logs(id))
+     {
+          foreach (var line in logs.ReadToEnd())
+          {
+            Debug.WriteLine(line);
+          }
+     }
+```
 
 ## Test Support
 This repo contains two nuget packages, one for the fluent access and the other is a ms-test base classes to be used while testing. For example in a unit-test it is possible to fire up a postgres container and wait when the the db has booted.
