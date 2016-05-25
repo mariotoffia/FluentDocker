@@ -13,29 +13,28 @@ The Majority of the service methods are extension methods and not hardwired into
 All commands needs a ```DockerUri``` to work with. It is the Uri to the docker daemon, either locally or remote. It can be discoverable or hardcoded. Discovery of local ```DockerUri``` can be done by 
 ```cs
      var hosts = new Hosts().Discover();
-     var host = hosts.FirstOrDefault(x => x.IsNative) ?? hosts.FirstOrDefault(x => x.Name == "default");
-     var _docker = host.Host;
+     var _docker = hosts.FirstOrDefault(x => x.IsNative) ?? hosts.FirstOrDefault(x => x.Name == "default");
 ```
 The example snipped will check for native, or docker beta "native" hosts, if not choose the docker-machine "default" as host. If you're using docker-machine and no machine exists or is not started it is easy to create / start a docker-machine by e.g. ```"test-machine".Create(1024,20000000,1)```. This will create a docker machine named "test-machine" with 1GB of RAM, 20GB Disk, and use one CPU.
 
 It is now possible to use the Uri to communicate using the commands. For example to get the version of client and server docker binaries:
 ```cs
-     var result = Host.Host.Version(Host.Certificates);
+     var result = _docker.Host.Version(_docker.Certificates);
      Debug.WriteLine(result.Data); // Will Print the Client and Server Version and API Versions respectively.
 ```
 All commands return a CommandResponse<T> such that it is possible to check successfactor by ```response.Success```. If any data associated with the command it is returned in the ```response.Data``` property.
 
 Then it is simple as below to start and stop include delete a container using the commands. Below starts a container and do a PS on it and then deletes it.
 ```cs
-     var id = _docker.Run("nginx:latest", null, _docker.Certificates).Data;
-     var ps = _docker.Ps(null, _docker.Certificates).Data;
+     var id = _docker.Host.Run("nginx:latest", null, _docker.Certificates).Data;
+     var ps = _docker.Host.Ps(null, _docker.Certificates).Data;
      
-     _docker.RemoveContainer(id, true, true, null, _docker.Certificates);
+     _docker.Host.RemoveContainer(id, true, true, null, _docker.Certificates);
 ```
 
 Some commands returns a stream of data when e.g. events or logs is wanted using a continious stream. Streams can be used in background tasks and support ```CancellationToken```. Below example tails a log.
 ```cs
-     using (var logs = _docker.Logs(id))
+     using (var logs = _docker.Host.Logs(id, _docker.Certificates))
      {
           while (!logs.IsFinished)
           {
@@ -52,7 +51,7 @@ Some commands returns a stream of data when e.g. events or logs is wanted using 
 
 Utility methods exists for commands. They come in different flaviours such as networking etc. For example when reading a log to the end:
 ```cs
-     using (var logs = _docker.Logs(id))
+     using (var logs = _docker.Host.Logs(id, _docker.Certificates))
      {
           foreach (var line in logs.ReadToEnd())
           {
