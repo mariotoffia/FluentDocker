@@ -10,7 +10,12 @@ The library is divided into three thin layers, each layer is accessable:
 The Majority of the service methods are extension methods and not hardwired into the service itself, making them lightweigted and customizable. Since everthing is accessable it is e.g. easy to add extensions method for a service that uses the layer 1 commands to provide functionality. 
 
 ## Basic Usage of Commands (Layer 1)
-All commands needs a ```DockerUri``` to work with. It is the Uri to the docker daemon, either locally or remote. It can be discoverable or hardcoded. Discovery of local ```DockerUri``` can be done by ```var host = new Hosts().Discover().FirstOrDefault(x => x.IsNative) ?? hosts.FirstOrDefault(x => x.Name == "default").Host```. The example snipped will check for native, or docker beta "native" hosts, if not choose the docker-machine "default" as host. If you're using docker-machine and no machine exists or is not started it is easy to create / start a docker-machine by e.g. ```"test-machine".Create(1024,20000000,1)```. This will create a docker machine named "test-machine" with 1GB of RAM, 20GB Disk, and use one CPU.
+All commands needs a ```DockerUri``` to work with. It is the Uri to the docker daemon, either locally or remote. It can be discoverable or hardcoded. Discovery of local ```DockerUri``` can be done by 
+```cs
+     var hosts = new Hosts().Discover();
+     var host = hosts.FirstOrDefault(x => x.IsNative) ?? hosts.FirstOrDefault(x => x.Name == "default").Host
+```
+The example snipped will check for native, or docker beta "native" hosts, if not choose the docker-machine "default" as host. If you're using docker-machine and no machine exists or is not started it is easy to create / start a docker-machine by e.g. ```"test-machine".Create(1024,20000000,1)```. This will create a docker machine named "test-machine" with 1GB of RAM, 20GB Disk, and use one CPU.
 
 It is now possible to use the Uri to communicate using the commands. For example to get the version of client and server docker binaries:
 ```cs
