@@ -116,6 +116,238 @@ The highest layer of this library is the fluent API where you can define and con
         }
 ```
 
+The fluent API supports from defining a docker-machine to a set of docker instances. It has built-in support for e.g. waiting for a specific port or a process within the container before ```Build()``` completes and thus can be safely be used within a using statement. If specific management on wait timeouts etc. you can always build and start the container and use extension methods to do the waiting on the container itself.
+
+To create a container just omit the start. For example:
+```cs
+using (
+        var container =
+          new Builder().UseContainer()
+            .UseImage("kiasaki/alpine-postgres")
+            .WithEnvironment("POSTGRES_PASSWORD=mysecretpassword")
+            .Build())
+      {
+        Assert.AreEqual(ServiceRunningState.Stopped, container.State);
+      }
+```
+This example creates a container with postgres, configure one environment variable. Within the using statement it is possible to start the ```IContainerService```. Thus each built container is wrapped in a ```IContainerService```. It is also possible to use the ```IHostService.GetContainers(...)``` to obtain the created, running, and exited containers. From the ```IHostService``` it is also possible to get all the images in the local repository to create containers from.
+
+Whe you want to run a single container do use the fluent or container service start method. For example:
+```cs
+      using (
+        var container =
+          new Builder().UseContainer()
+            .UseImage("kiasaki/alpine-postgres")
+            .WithEnvironment("POSTGRES_PASSWORD=mysecretpassword")
+            .Build()
+            .Start())
+      {
+        var config = container.GetConfiguration();
+
+        Assert.AreEqual(ServiceRunningState.Running, container.State);
+        Assert.IsTrue(config.Config.Env.Any(x => x == "POSTGRES_PASSWORD=mysecretpassword"));
+      }
+```
+
+By default the container is stopped and deleted when the Dispose method is run, in order to keep the container in archve, use the ```KeepContainer()``` on the fluent API. When ```Dispose()``` is invoked it will be stopped but not deleted. It is also possible to keep it running after dispose as well.
+
+### Working with ports
+It is possible to expose ports both explicit or randomly. Either way it is possible to resolve the IP (in case of machine) and the port (in case of random port) to use in code. For example:
+
+```cs
+      using (
+        var container =
+          new Builder().UseContainer()
+            .UseImage("kiasaki/alpine-postgres")
+            .ExposePort(40001, 5432)
+            .WithEnvironment("POSTGRES_PASSWORD=mysecretpassword")
+            .Build()
+            .Start())
+      {
+        var endpoint = container.ToHostExposedEndpoint("5432/tcp");
+        Assert.AreEqual(40001, endpoint.Port);
+      }
+```
+
+Here we map the container port 5432 to host port 40001 explicitly. Note the use of ```container.ToHostExposedEndpoint(...)```. This is to always resolve to a working ip and port to communicate with the docker container. It is also possible to map a random port, i.e. let Docker choose a available port. For example:
+
+```cs
+      using (
+        var container =
+          new Builder().UseContainer()
+            .UseImage("kiasaki/alpine-postgres")
+            .ExposePort(5432)
+            .WithEnvironment("POSTGRES_PASSWORD=mysecretpassword")
+            .Build()
+            .Start())
+      {
+        var endpoint = container.ToHostExposedEndpoint("5432/tcp");
+        Assert.AreNotEqual(0, endpoint.Port);
+      }
+```
+The only difference here is that only one argument is used when ```ExposePort(...)``` was used to configure the container. The same usage applies otherwise and thus is transparent for the code.
+
+In order to know when a certain service is up and running before starting to e.g. connect to it. It is possible to wait for a specific port to be open. For example:
+```cs
+      using (
+        var container =
+          new Builder().UseContainer()
+            .UseImage("kiasaki/alpine-postgres")
+            .ExposePort(5432)
+            .WithEnvironment("POSTGRES_PASSWORD=mysecretpassword")
+            .WaitForPort("5432/tcp", 30000 /*30s*/)
+            .Build()
+            .Start())
+      {
+        var config = container.GetConfiguration(true);
+        Assert.AreEqual(ServiceRunningState.Running, config.State.ToServiceState());
+      }
+```
+In the above example we wait for the container port 5432 to be opened within 30 seconds. If it fails, it will throw an exception and thus the container will be disposed and removed (since we dont have any keep container etc. configuration).
+
+Sometime it is not sufficient to just wait for a port. Sometimes a container process is much more vital to wait for. Therefore a wait for process method exist in the fluent API as well as an extension method on the container object. For example: 
+```cs
+      using (
+        var container =
+          new Builder().UseContainer()
+            .UseImage("kiasaki/alpine-postgres")
+            .ExposePort(5432)
+            .WithEnvironment("POSTGRES_PASSWORD=mysecretpassword")
+            .WaitForProcess("postgres", 30000 /*30s*/)
+            .Build()
+            .Start())
+      {
+        var config = container.GetConfiguration(true);
+        Assert.AreEqual(ServiceRunningState.Running, config.State.ToServiceState());
+      }
+```
+In the above example ```Build()``` will return control when the process "postgres" have been started within the container.
+
+### Filesystem & Files
+In order to make use of containers, sometimes it is neccesary to mount volumes in the container onto the host or just copy from or to the container. Depending on if you're running machine or docker natively volume mapping have the constraint that it must be reachable from the virtual machine.
+
+A normal usecase is to have e.g. a webserver serving content on a docker container and the user edits files on the host file system. In such scenario it is necessary to mount a docker container volume onto the host. For example: 
+
+```cs
+     const string html = "<html><head>Hello World</head><body><h1>Hello world</h1></body></html>";
+      var hostPath = (TemplateString) @"${TEMP}\fluentdockertest\${RND}";
+      Directory.CreateDirectory(hostPath);
+
+      using (
+        var container =
+          new Builder().UseContainer()
+            .UseImage("nginx:latest")
+            .ExposePort(80)
+            .Mount(hostPath, "/usr/share/nginx/html", MountType.ReadOnly)
+            .Build()
+            .Start()
+            .WaitForPort("80/tcp", 30000 /*30s*/))
+      {
+          File.WriteAllText(Path.Combine(hostPath, "hello.html"), html);
+
+          var response = $"http://{container.ToHostExposedEndpoint("80/tcp")}/hello.html".Wget();
+          Assert.AreEqual(html, response);
+      }
+```
+In the above example a nginx container is started and mounts '/usr/share/nginx/html' onto a (random, in temp directory) host path. A HTML file is copied into the host path and when a HTTP get towards the nginx docker container is done, that same file is served.
+
+Sometimes it is neccesary copy files to and from a container. For example copy a configuration file, configure it and copy it back. More common scenario is to copy a configuration file to the container, just before it is started. The multi container example copies a nginx configuration file just before it is started. Thus it is possible to avoid manually creating a Dockerfile and a image for such a simple task. Instead just use e.g. an official or custom image, copy configuration and run.
+```cs
+ using (new Builder().UseContainer()
+          .UseImage("kiasaki/alpine-postgres")
+          .ExposePort(5432)
+          .WithEnvironment("POSTGRES_PASSWORD=mysecretpassword")
+          .Build()
+          .Start()
+          .CopyFrom("/etc/conf.d", fullPath))
+        {
+          var files = Directory.EnumerateFiles(Path.Combine(fullPath, "conf.d")).ToArray();
+          Assert.IsTrue(files.Any(x => x.EndsWith("pg-restore")));
+          Assert.IsTrue(files.Any(x => x.EndsWith("postgresql")));
+        }
+```
+Above example copies a directory to a host path (fullPath) from a running container. Note the use of extension method here, thus not using the fluent API (since CopyFrom is after Start()). If you want to copy files from the container just before starting use the Fluent API instead.
+```cs
+       using (new Builder().UseContainer()
+          .UseImage("kiasaki/alpine-postgres")
+          .ExposePort(5432)
+          .WithEnvironment("POSTGRES_PASSWORD=mysecretpassword")
+          .CopyOnDispose("/etc/conf.d", fullPath)
+          .Build()
+          .Start())
+        {
+        }
+```
+
+The below example illustrates a much more common scenario where files are copied to the container. This example makes use of the extension method instead of the fluent API version. It takes a Diff snapshot before copy and then just after the copy. In the latter
+the hello.html is present.
+```cs
+       using (
+          var container =
+            new Builder().UseContainer()
+              .UseImage("kiasaki/alpine-postgres")
+              .ExposePort(5432)
+              .WithEnvironment("POSTGRES_PASSWORD=mysecretpassword")
+              .Build()
+              .Start()
+              .WaitForProcess("postgres", 30000 /*30s*/)
+              .Diff(out before)
+              .CopyTo("/bin", fullPath))
+        {
+          var after = container.Diff();
+
+          Assert.IsFalse(before.Any(x => x.Item == "/bin/hello.html"));
+          Assert.IsTrue(after.Any(x => x.Item == "/bin/hello.html"));
+        }
+```
+
+Sometime is it useful to copy files in the ```IContainerService.Dispose()``` (just before container has stopped). Therefore a fluent API exitst to ensure that it will just do that.
+```cs
+using (new Builder().UseContainer()
+          .UseImage("kiasaki/alpine-postgres")
+          .ExposePort(5432)
+          .WithEnvironment("POSTGRES_PASSWORD=mysecretpassword")
+          .CopyOnDispose("/etc/conf.d", fullPath)
+          .Build()
+          .Start())
+        {
+        }
+```
+In order to analyze a container, export extension method and fluent API methods exists. Most notably is the possibility to export a container when a ```IContainerService``` is disposed.
+```cs
+        using (new Builder().UseContainer()
+          .UseImage("kiasaki/alpine-postgres")
+          .ExposePort(5432)
+          .WithEnvironment("POSTGRES_PASSWORD=mysecretpassword")
+          .ExportOnDispose(fullPath)
+          .Build()
+          .Start())
+        {
+        }
+```
+This will produce a container export (tar file) on the host (fullPath). If you rather have it exploaded (un-tared) use the ```ExportExploadedOnDispose``` method instead. Of course you can export the container any time using a extension method on the container.
+
+A useful trick when it comes to unit-testing is to export the container state when the unit test fails for some reason, therefore it exists a Fluent API that will export when a certain Lambda condition is met. For example:
+```cs
+      var failure = false;
+        using (new Builder().UseContainer()
+          .UseImage("kiasaki/alpine-postgres")
+          .ExposePort(5432)
+          .WithEnvironment("POSTGRES_PASSWORD=mysecretpassword")
+          .ExportOnDispose(fullPath, svc => failure)
+          .Build()
+          .Start())
+        {
+          failure = true;
+        }
+```
+This snippet will export the container when the using statement is disposing the container since the failure variable is set to true and is used in the ```ExportOnDispose``` expression.
+
+#### IService Hooks
+All services can be extended with hooks. In the ```ExportOnDispose(path, lambda)``` installs a Hook when the service state is set to execute the lambda when the state is ```Removing```. It is possible to install and remove hooks on the fly. If multiple hooks are registered on same service instance, with same ```ServiceRunningState```, they will be executed in installation order. 
+
+The hooks are particulary good if you want something to be executed when a state is about to be set (or executed) on the service such as ```Starting```. The Fluent API makes use of those in some situations such as Copy files, export, etc.
+
 ## Test Support
 This repo contains two nuget packages, one for the fluent access and the other is a ms-test base classes to be used while testing. For example in a unit-test it is possible to fire up a postgres container and wait when the the db has booted.
 ```cs
@@ -178,119 +410,3 @@ If a before shutdown container hook is wanted override.
 Note that if unamed container, if not properly disposed, the docker container will still run and must be manually removed. This is a feature not a bug since you might want several containers running in your test. The `DockerContainer` class manages the instance id of the container and thus only intract with it and no other container.
 
 When creating / starting a new container it will first check the local repository if the container image is already present and will download it if not found. This may take some time and there's just a Debug Log if enabled it is possible to monitor the download process.
-
-## Working with Volumes
-It is possible to mount volumes onto the host that are exposed within the docker container. See sample below how to do a simple mount where a nginx server will serve html pages from a host directory.
-```cs
-    private const string Html = "<html><head>Hello World</head><body><h1>Hello world</h1></body></html>";
-
-     using (var container =
-          new DockerBuilder()
-            .WithImage("nginx:latest")
-            .ExposePorts("80")
-            .WaitForPort("80/tcp", 10000 /*10s*/)
-            .MountNamedVolume("test", "${TEMP}/fluentdockertest/${RND}", "/usr/share/nginx/html", "ro")
-            .WhenDisposed()
-               .RemoveVolume("${TEMP}/fluentdockertest")
-            .Build().Start())
-      {
-        var hostdir = container.GetHostVolume("test");
-        File.WriteAllText(Path.Combine(hostdir, "hello.html"), Html);
- 
-        var request = WebRequest.Create($"http://{container.Host}:{container.GetHostPort("80/tcp")}/hello.html");
-        using (var response = request.GetResponse())
-        {
-          var dataStream = response.GetResponseStream();
-          using (var reader = new StreamReader(dataStream))
-          {
-            var responseFromServer = reader.ReadToEnd();
-          }
-        }
-      }
-```
-This example will create a temporary directory under temp/fluentdocker/random-dir and mount it within the docker container /usr/share/nginx/html. When the `DockerContainer` is disposed it will delete the temp/fluentdocker directory along with all it's subdirectories and files. This is especially good when doing unit-tests.
-
-When using boot2docker, make sure that the (if using standard) virtual box image has the path on the host mounted with correct permissions otherwise it will not be possible for docker processes to read-write to those volumes.
-
-## Working with Container Processes
-It is possible to query for running processes within the docker container. This can be used within e.g. unit-tests. It is also possible to wait for a certain process (as with a port) before the `DockerContainer` is considered as started. If fails to satisifie the critera an exception is thrown.
-
-```cs
-     using (
-        var container =
-          new DockerBuilder()
-            .WithImage("kiasaki/alpine-postgres")
-            .WithEnvironment("POSTGRES_PASSWORD=mysecretpassword")
-            .ExposePorts("5432")
-            .WaitForPort("5432/tcp", 30000 /*30s*/)
-            .WaitForProcess("postgres",30000/*30s*/)
-            .Build())
-      {
-        container.Start();
-        var proc = container.ContainerProcesses();
-        Debug.WriteLine(proc.ToString());
-      }
-```
-This example shows a unit-test where it waits fo a certain port to be opened *and* the postgres process to be running before executing the body code. Within the method body it will get the processes and dump those onto the debug log.
-
-## Copy Files and Subdirectories from Running Docker Container
-It is possible to copy files from a running docker container to the host for inspection. It also supports using the fluent builder to copy files from the container when executing Start(). In addition it is also possible to fluently declare copy operations from the docker container to host just before the container is disposed. This is particular useful when files are needed to inspect when e.g. a unit-test via docker container has finished and it needs files to assert upon within the container.
-
-```cs
-     using (
-        var container =
-          new DockerBuilder()
-            .WithEnvironment("POSTGRES_PASSWORD=mysecretpassword")
-            .WithImage("kiasaki/alpine-postgres")
-            .CopyFromContainer("/bin", "${TEMP}/fluentdockertest/${RND}", "test")
-            .Build().Start())
-      {
-        var path = container.GetHostCopyPath("test");
-        var files = Directory.EnumerateFiles(Path.Combine(path, "bin")).ToArray();
-        Assert.IsTrue(files.Any(x => x.EndsWith("bash")));
-      }
-```
-This example shows a unit-test where it manually copies files from the docker container to the host.
-
-```cs
-     var container =
-          new DockerBuilder()
-            .WithEnvironment("POSTGRES_PASSWORD=mysecretpassword")
-            .WithImage("kiasaki/alpine-postgres")
-            .CopyFromContainer("/bin", "${TEMP}/fluentdockertest/${RND}", "test")
-            .Build().Start();
-```
-This example shows fluent configuration to copy files to a temp path with a random folder. The host path is accessed using ```container.GetHostCopyPath("test")```. These files are copied before Start has finished.
-
-```cs
-     var container =
-          new DockerBuilder()
-            .WithEnvironment("POSTGRES_PASSWORD=mysecretpassword")
-            .WithImage("kiasaki/alpine-postgres")
-            .WhenDisposed()
-              .CopyFromContainer("/bin", "${TEMP}/fluentdockertest/${RND}","test")
-            .Build().Start();
-```
-This example shows fluent configuration to copy files to a temp path with a random folder just before the container is disposed. The host path is accessed using ```container.GetHostCopyPath("test")```.
-
-## Exporting and extracting containers
-There are two ways of exporting and extracting a container to the host. Either manually, or explicitly using the container instance.
-```cs
-using (
-          var container =
-            new DockerBuilder()
-              .WithImage("kiasaki/alpine-postgres")
-              .WithEnvironment("POSTGRES_PASSWORD=mysecretpassword")
-              .ExposePorts("5432")
-              .WaitForPort("5432/tcp", 30000 /*30s*/)
-              .WaitForProcess("postgres", 30000 /*30s*/)
-              .WhenDisposed()
-               .ExportOnError("${PWD}/${RND}")
-              .Build())
-        {
-          Assert.Fail();
-          
-          container.Success(); // Never reached and thus exported
-        }
-```
-This example will extract the container onto current path + a random directory since ```container.Sucess()``` is never set. By default it will extract the tar archive, by supply false it will just store the tar file of the container. To manually export, just use ```container.ExportContainer(string hostFilePath, bool explode = true)```.
