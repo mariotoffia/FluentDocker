@@ -23,6 +23,16 @@ namespace Ductus.FluentDockerTest
         var result = Host.Host.ComposeUp(composeFile: file, certificates: Host.Certificates);
         Assert.IsTrue(result.Success);
 
+        var ids = Host.Host.ComposePs(composeFile: file, certificates: Host.Certificates);
+        Assert.IsTrue(ids.Success);
+        Assert.AreEqual(2, ids.Data.Count);
+
+        foreach (var id in ids.Data)
+        {
+          var inspect = Host.Host.InspectContainer(id, Host.Certificates);
+          Assert.IsTrue(inspect.Success);
+        }
+
         // TODO: Test the cluster by firing a wget as in multicontainer tests
       }
       finally
