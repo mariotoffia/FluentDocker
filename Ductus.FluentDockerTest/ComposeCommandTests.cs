@@ -36,6 +36,7 @@ namespace Ductus.FluentDockerTest
         {
           var inspect = Host.Host.InspectContainer(id, Host.Certificates);
           Assert.IsTrue(inspect.Success);
+
           if (inspect.Data.Name.Contains("_nginx_"))
           {
             svc = new DockerContainerService(inspect.Data.Name.Substring(1), id, Host.Host,
