@@ -2,7 +2,10 @@
 using Ductus.FluentDocker.Commands;
 using Ductus.FluentDocker.Extensions;
 using Ductus.FluentDocker.Model.Common;
+using Ductus.FluentDocker.Services.Extensions;
+using Ductus.FluentDocker.Services.Impl;
 using Ductus.FluentDockerTest.Compose;
+using Ductus.FluentDockerTest.Extensions;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace Ductus.FluentDockerTest
@@ -25,19 +28,38 @@ namespace Ductus.FluentDockerTest
 
         var ids = Host.Host.ComposePs(composeFile: file, certificates: Host.Certificates);
         Assert.IsTrue(ids.Success);
-        Assert.AreEqual(2, ids.Data.Count);
+        Assert.AreEqual(4, ids.Data.Count);
 
+        // Find the nginx docker container
+        DockerContainerService svc = null;
         foreach (var id in ids.Data)
         {
           var inspect = Host.Host.InspectContainer(id, Host.Certificates);
           Assert.IsTrue(inspect.Success);
+          if (inspect.Data.Name.Contains("_nginx_"))
+          {
+            svc = new DockerContainerService(inspect.Data.Name.Substring(1), id, Host.Host,
+              inspect.Data.State.ToServiceState(),
+              Host.Certificates, false, false);
+            break;
+          }
         }
 
-        // TODO: Test the cluster by firing a wget as in multicontainer tests
+        Assert.IsNotNull(svc);
+
+        var ep = svc.ToHostExposedEndpoint("80/tcp");
+        Assert.IsNotNull(ep);
+
+        var round1 = $"http://{ep.Address}:{ep.Port}".Wget();
+        Assert.AreEqual("This page has been viewed 1 times!", round1);
+
+        var round2 = $"http://{ep.Address}:{ep.Port}".Wget();
+        Assert.AreEqual("This page has been viewed 2 times!", round2);
       }
       finally
       {
-        Host.Host.ComposeDown(composeFile: file, certificates: Host.Certificates);
+        Host.Host.ComposeDown(composeFile: file, certificates: Host.Certificates, removeVolumes: true,
+          removeOrphanContainers: true);
       }
     }
   }
