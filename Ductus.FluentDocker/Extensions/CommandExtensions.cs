@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Net;
+using System.Net.Sockets;
 using Ductus.FluentDocker.Executors;
 using Ductus.FluentDocker.Model.Common;
 using Ductus.FluentDocker.Model.Containers;
@@ -138,7 +139,9 @@ namespace Ductus.FluentDocker.Extensions
       var hostEntry = Dns.GetHostEntry("docker");
       if (hostEntry.AddressList.Length > 0)
       {
-        _cachedDockerIpAdress = hostEntry.AddressList[0];
+        // Prefer IPv4 addresses
+        var v4Addr = hostEntry.AddressList.FirstOrDefault(x => x.AddressFamily == AddressFamily.InterNetwork);
+        _cachedDockerIpAdress = v4Addr ?? hostEntry.AddressList[0];
       }
 
       return _cachedDockerIpAdress;
