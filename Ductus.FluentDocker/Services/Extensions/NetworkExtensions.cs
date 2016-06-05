@@ -20,11 +20,6 @@ namespace Ductus.FluentDocker.Services.Extensions
 
     public static void WaitForPort(this IPEndPoint endpoint, long millisTimeout = long.MaxValue)
     {
-      WaitForPort(endpoint.Address.ToString(), endpoint.Port, millisTimeout);
-    }
-
-    public static void WaitForPort(this string host, int port, long millisTimeout = long.MaxValue)
-    {
       using (var s = new Socket(SocketType.Stream, ProtocolType.Tcp))
       {
         long totalWait = 0;
@@ -32,7 +27,7 @@ namespace Ductus.FluentDocker.Services.Extensions
         {
           try
           {
-            s.Connect(host, port);
+            s.Connect(endpoint);
             break;
           }
           catch (Exception)
@@ -41,7 +36,7 @@ namespace Ductus.FluentDocker.Services.Extensions
             totalWait += 1000;
             if (totalWait >= millisTimeout)
             {
-              throw new FluentDockerException($"Timeout waiting for port {port}");
+              throw new FluentDockerException($"Timeout waiting for service at = {endpoint.Address} port = {endpoint.Port}");
             }
           }
         }

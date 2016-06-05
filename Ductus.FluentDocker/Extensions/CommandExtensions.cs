@@ -140,7 +140,7 @@ namespace Ductus.FluentDocker.Extensions
       if (hostEntry.AddressList.Length > 0)
       {
         // Prefer IPv4 addresses
-        var v4Addr = hostEntry.AddressList.FirstOrDefault(x => x.AddressFamily == AddressFamily.InterNetwork);
+        IPAddress v4Addr = hostEntry.AddressList.FirstOrDefault(x => x.AddressFamily == AddressFamily.InterNetwork);
         _cachedDockerIpAdress = v4Addr ?? hostEntry.AddressList[0];
       }
 

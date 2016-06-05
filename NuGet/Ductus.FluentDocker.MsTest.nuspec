@@ -2,7 +2,7 @@
 <package xmlns="http://schemas.microsoft.com/packaging/2010/07/nuspec.xsd">
   <metadata>
     <id>Ductus.FluentDocker.MsTest</id>
-    <version>3.0.0</version>
+    <version>2.2.0</version>
     <title>Ductus.FluentDocker.MsTest</title>
     <authors>Mario Toffia</authors>
     <owners>mariotoffia</owners>
