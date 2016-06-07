@@ -1,12 +1,10 @@
-﻿using System;
-using System.Linq;
-using Ductus.FluentDocker;
+﻿using System.Linq;
 using Ductus.FluentDocker.Commands;
 using Ductus.FluentDocker.Extensions;
 using Ductus.FluentDocker.Services;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
-namespace Ductus.FluentDockerTest
+namespace Ductus.FluentDockerTest.ServiceTests
 {
   [TestClass]
   public class MachineServiceTests

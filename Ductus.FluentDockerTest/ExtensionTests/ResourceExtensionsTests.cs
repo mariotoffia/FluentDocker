@@ -3,7 +3,7 @@ using Ductus.FluentDocker.Extensions;
 using Ductus.FluentDockerTest.Compose;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
-namespace Ductus.FluentDockerTest
+namespace Ductus.FluentDockerTest.ExtensionTests
 {
   [TestClass]
   public class ResourceExtensionsTests

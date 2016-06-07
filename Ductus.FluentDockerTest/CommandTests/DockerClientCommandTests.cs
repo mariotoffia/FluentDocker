@@ -7,7 +7,7 @@ using Ductus.FluentDocker.Model.Containers;
 using Ductus.FluentDocker.Services.Extensions;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
-namespace Ductus.FluentDockerTest
+namespace Ductus.FluentDockerTest.CommandTests
 {
   [TestClass]
   public class DockerClientCommandTests

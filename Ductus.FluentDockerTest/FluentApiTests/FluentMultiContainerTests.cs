@@ -8,7 +8,7 @@ using Ductus.FluentDockerTest.Extensions;
 using Ductus.FluentDockerTest.MultiContainerTestFiles;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
-namespace Ductus.FluentDockerTest
+namespace Ductus.FluentDockerTest.FluentApiTests
 {
   [TestClass]
   public class FluentMultiContainerTests

@@ -1,7 +1,7 @@
 ﻿using Ductus.FluentDocker.Builders;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
-namespace Ductus.FluentDockerTest
+namespace Ductus.FluentDockerTest.FluentApiTests
 {
   [TestClass]
   public class ImageBuilderTests

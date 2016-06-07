@@ -11,7 +11,7 @@ using Ductus.FluentDocker.Services.Extensions;
 using Ductus.FluentDockerTest.Extensions;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
-namespace Ductus.FluentDockerTest
+namespace Ductus.FluentDockerTest.ServiceTests
 {
   [TestClass]
   public class ContainerServiceBasicTests

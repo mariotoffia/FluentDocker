@@ -1,9 +1,8 @@
-﻿using System;
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using Ductus.FluentDocker.Commands;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
-namespace Ductus.FluentDockerTest
+namespace Ductus.FluentDockerTest.CommandTests
 {
   [TestClass]
   public class DockerInfoCommandTests : FluentDockerTestBase

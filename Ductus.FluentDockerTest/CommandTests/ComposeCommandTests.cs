@@ -8,7 +8,7 @@ using Ductus.FluentDockerTest.Compose;
 using Ductus.FluentDockerTest.Extensions;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
-namespace Ductus.FluentDockerTest
+namespace Ductus.FluentDockerTest.CommandTests
 {
   [TestClass]
   public class ComposeCommandTests : FluentDockerTestBase
