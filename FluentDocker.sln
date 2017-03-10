@@ -1,14 +1,8 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio 14
-VisualStudioVersion = 14.0.24720.0
+# Visual Studio 15
+VisualStudioVersion = 15.0.26228.4
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Ductus.FluentDocker", "Ductus.FluentDocker\Ductus.FluentDocker.csproj", "{4AE9F635-351C-4C47-93F3-A9FAD18F122F}"
-EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Ductus.FluentDockerTest", "Ductus.FluentDockerTest\Ductus.FluentDockerTest.csproj", "{03E0DD1C-F964-4993-B8F9-9A072398BBBC}"
-EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Ductus.FluentDocker.MsTest", "Ductus.FluentDocker.MsTest\Ductus.FluentDocker.MsTest.csproj", "{871473B8-75E1-4265-A679-99CA6971E2F0}"
-EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "NuGet", "NuGet", "{C7FD34B0-1CBF-44EC-A92C-59543CBE383B}"
 	ProjectSection(SolutionItems) = preProject
 		NuGet\Ductus.FluentDocker.MsTest.nuspec = NuGet\Ductus.FluentDocker.MsTest.nuspec
@@ -16,24 +10,36 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "NuGet", "NuGet", "{C7FD34B0
 		README.md = README.md
 	EndProjectSection
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Ductus.FluentDocker", "src\Ductus.FluentDocker\Ductus.FluentDocker.csproj", "{CC4DBBFE-88D1-470F-B177-B097D08DA81C}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Ductus.FluentDocker.MsTest", "src\Ductus.FluentDocker.MsTest\Ductus.FluentDocker.MsTest.csproj", "{56CFF6FE-F837-469D-83FD-A51444730E00}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Ductus.FluentDocker.Tests", "test\Ductus.FluentDocker.Tests\Ductus.FluentDocker.Tests.csproj", "{834CFA9E-07AC-44AE-88B5-5E32C2F081C6}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Temp", "Temp\Temp.csproj", "{D975396E-53C3-4125-9537-489940D4D25F}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
 		Release|Any CPU = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
-		{4AE9F635-351C-4C47-93F3-A9FAD18F122F}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{4AE9F635-351C-4C47-93F3-A9FAD18F122F}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{4AE9F635-351C-4C47-93F3-A9FAD18F122F}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{4AE9F635-351C-4C47-93F3-A9FAD18F122F}.Release|Any CPU.Build.0 = Release|Any CPU
-		{03E0DD1C-F964-4993-B8F9-9A072398BBBC}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{03E0DD1C-F964-4993-B8F9-9A072398BBBC}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{03E0DD1C-F964-4993-B8F9-9A072398BBBC}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{03E0DD1C-F964-4993-B8F9-9A072398BBBC}.Release|Any CPU.Build.0 = Release|Any CPU
-		{871473B8-75E1-4265-A679-99CA6971E2F0}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{871473B8-75E1-4265-A679-99CA6971E2F0}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{871473B8-75E1-4265-A679-99CA6971E2F0}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{871473B8-75E1-4265-A679-99CA6971E2F0}.Release|Any CPU.Build.0 = Release|Any CPU
+		{CC4DBBFE-88D1-470F-B177-B097D08DA81C}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{CC4DBBFE-88D1-470F-B177-B097D08DA81C}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{CC4DBBFE-88D1-470F-B177-B097D08DA81C}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{CC4DBBFE-88D1-470F-B177-B097D08DA81C}.Release|Any CPU.Build.0 = Release|Any CPU
+		{56CFF6FE-F837-469D-83FD-A51444730E00}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{56CFF6FE-F837-469D-83FD-A51444730E00}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{56CFF6FE-F837-469D-83FD-A51444730E00}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{56CFF6FE-F837-469D-83FD-A51444730E00}.Release|Any CPU.Build.0 = Release|Any CPU
+		{834CFA9E-07AC-44AE-88B5-5E32C2F081C6}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{834CFA9E-07AC-44AE-88B5-5E32C2F081C6}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{834CFA9E-07AC-44AE-88B5-5E32C2F081C6}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{834CFA9E-07AC-44AE-88B5-5E32C2F081C6}.Release|Any CPU.Build.0 = Release|Any CPU
+		{D975396E-53C3-4125-9537-489940D4D25F}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{D975396E-53C3-4125-9537-489940D4D25F}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{D975396E-53C3-4125-9537-489940D4D25F}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{D975396E-53C3-4125-9537-489940D4D25F}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
