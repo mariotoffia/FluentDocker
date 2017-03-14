@@ -2,6 +2,7 @@
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Threading.Tasks;
 using Ductus.FluentDocker.Commands;
 using Ductus.FluentDocker.Extensions;
 using Ductus.FluentDocker.Model.Common;
@@ -216,7 +217,7 @@ namespace Ductus.FluentDockerTest.ServiceTests
     }
 
     [TestMethod]
-    public void UseHostVolumeInsideContainerWhenMountedShallSucceed()
+    public async Task UseHostVolumeInsideContainerWhenMountedShallSucceed()
     {
       const string html = "<html><head>Hello World</head><body><h1>Hello world</h1></body></html>";
       var fullPath = (TemplateString) @"${TEMP}\fluentdockertest\${RND}";
@@ -237,7 +238,7 @@ namespace Ductus.FluentDockerTest.ServiceTests
 
         File.WriteAllText(Path.Combine(fullPath, "hello.html"), html);
 
-        var response = $"http://{endpoint}/hello.html".Wget();
+        var response = await $"http://{endpoint}/hello.html".Wget();
         Assert.AreEqual(html, response);
       }
     }

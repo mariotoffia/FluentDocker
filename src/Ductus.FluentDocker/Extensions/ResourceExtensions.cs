@@ -9,7 +9,6 @@ namespace Ductus.FluentDocker.Extensions
 {
 	public static class ResourceExtensions
 	{
-#if !COREFX
 		/// <summary>
 		///   Queries for embedded resources from the <paramref name="assemblyAndNamespace" /> parameters
 		///   <see cref="Assembly" /> and <see cref="Type.Namespace" />.
@@ -53,7 +52,6 @@ namespace Ductus.FluentDocker.Extensions
 			  .Include(files)
 			  .ToFile(targetPath);
 		}
-#endif
 
 		/// <summary>
 		///   Writes a set of resources using a base filepath in inparameter <paramref name="targetPath" />.
@@ -95,11 +93,10 @@ namespace Ductus.FluentDocker.Extensions
 		private static Assembly GetAssembly(string assemblyName)
 		{
 #if COREFX
-			
 			return GetAssemblies().First(x => x.GetName().Name == assemblyName);
 		}
 
-		private static IEnumerable<Assembly> GetAssemblies()
+		internal static IEnumerable<Assembly> GetAssemblies()
 		{
 			foreach (var library in Microsoft.Extensions.DependencyModel.DependencyContext.Default.RuntimeLibraries)
 				yield return Assembly.Load(new AssemblyName(library.Name));

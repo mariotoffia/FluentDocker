@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
+using Ductus.FluentDocker.Extensions;
 
 namespace Ductus.FluentDocker.Resources
 {
@@ -30,13 +31,21 @@ namespace Ductus.FluentDocker.Resources
 			return this;
 		}
 
-#if !COREFX
 		public IEnumerable<ResourceInfo> Query()
 		{
-			var assembly = string.IsNullOrEmpty(_assembly)
-			  ? Assembly.GetCallingAssembly()
-			  : AppDomain.CurrentDomain.GetAssemblies()
+#if COREFX
+			if (string.IsNullOrWhiteSpace(_assembly))
+				// TODO : Consider rework of Fluent API
+				throw new InvalidOperationException($"It is not possible to execute {nameof(Query)} without first executing {nameof(From)}.");
+			var assembly = ResourceExtensions.GetAssemblies()
 				.First(x => x.GetName().Name.Equals(_assembly, StringComparison.OrdinalIgnoreCase));
+#else
+			var assembly = string.IsNullOrEmpty(_assembly)
+			  ? Assembly.GetCallingAssembly() :
+				AppDomain.CurrentDomain.GetAssemblies()
+				.First(x => x.GetName().Name.Equals(_assembly, StringComparison.OrdinalIgnoreCase));
+#endif
+
 
 			foreach (var res in assembly.GetManifestResourceNames().Where(x => x.StartsWith(_namespace)))
 			{
@@ -71,7 +80,6 @@ namespace Ductus.FluentDocker.Resources
 		{
 			return Query().Where(x => resources.Contains(x.Resource));
 		}
-#endif
 
 		/// <summary>
 		///   TODO: Ugly hack since GetManifestResourceInfo(res) do not work!

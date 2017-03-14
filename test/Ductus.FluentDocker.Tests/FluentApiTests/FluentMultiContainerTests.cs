@@ -1,5 +1,6 @@
 ﻿using System.IO;
 using System.Linq;
+using System.Threading.Tasks;
 using Ductus.FluentDocker.Builders;
 using Ductus.FluentDocker.Extensions;
 using Ductus.FluentDocker.Model.Common;
@@ -21,7 +22,7 @@ namespace Ductus.FluentDockerTest.FluentApiTests
     ///   As per - http://anandmanisankar.com/posts/docker-container-nginx-node-redis-example/
     /// </remarks>
     [TestMethod]
-    public void DefineAndBuildImageAddNgixAsLoadBalancerTwoNodesAsHtmlServeAndRedisAsDbBackendShouldWorkAsCluster()
+    public async Task DefineAndBuildImageAddNgixAsLoadBalancerTwoNodesAsHtmlServeAndRedisAsDbBackendShouldWorkAsCluster()
     {
       var fullPath = (TemplateString) @"${TEMP}\fluentdockertest\${RND}";
       var nginx = Path.Combine(fullPath, "nginx.conf");
@@ -69,10 +70,10 @@ namespace Ductus.FluentDockerTest.FluentApiTests
           var ep = services.Containers.First(x => x.Name == "nginx").ToHostExposedEndpoint("80/tcp");
           Assert.IsNotNull(ep);
 
-          var round1 = $"http://{ep.Address}:{ep.Port}".Wget();
+          var round1 = await $"http://{ep.Address}:{ep.Port}".Wget();
           Assert.AreEqual("This page has been viewed 1 times!", round1);
 
-          var round2 = $"http://{ep.Address}:{ep.Port}".Wget();
+          var round2 = await $"http://{ep.Address}:{ep.Port}".Wget();
           Assert.AreEqual("This page has been viewed 2 times!", round2);
         }
       }
