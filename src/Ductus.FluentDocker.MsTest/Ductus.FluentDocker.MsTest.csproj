@@ -2,7 +2,23 @@
 
   <PropertyGroup>
     <TargetFrameworks>net452;netcoreapp1.1</TargetFrameworks>
+    <VersionPrefix>2.2.1</VersionPrefix>
+    <AssemblyTitle>Ductus.FluentDocker.MsTest</AssemblyTitle>
+    <Authors>Mario Toffia</Authors>
+    <PackageLicenseUrl>https://github.com/mariotoffia/FluentDocker/blob/master/LICENSE</PackageLicenseUrl>
+    <PackageProjectUrl>https://github.com/mariotoffia/FluentDocker</PackageProjectUrl>
+    <PackageIconUrl>https://pbs.twimg.com/profile_images/378800000124779041/fbbb494a7eef5f9278c6967b6072ca3e.png</PackageIconUrl>
+    <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
+    <PackageTags>Docker;Docker-Compose;Docker Compose;Docker-Machine;Docker Machine;Linux;Windows;Mac;Test</PackageTags>
+    <RepositoryType>git</RepositoryType>
+    <RepositoryUrl>https://github.com/mariotoffia/FluentDocker</RepositoryUrl>
+    <Description>
+Ms Test Support to allow for create, run one or more docker images while testing using docker, compose, machine (Linux, Windows, Mac).
+Documentation: https://github.com/mariotoffia/FluentDocker
+    </Description>
+    <Copyright>© 2016 Mario Toffia</Copyright>
     <DefineConstants Condition=" '$(TargetFramework)' == 'netcoreapp1.1' ">$(DefineConstants);COREFX</DefineConstants>
+    <GeneratePackageOnBuild>True</GeneratePackageOnBuild>
   </PropertyGroup>
 
   <ItemGroup>
