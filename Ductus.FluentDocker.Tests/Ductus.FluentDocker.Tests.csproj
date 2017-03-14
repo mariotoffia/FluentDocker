@@ -12,7 +12,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\src\Ductus.FluentDocker\Ductus.FluentDocker.csproj" />
+    <ProjectReference Include="..\Ductus.FluentDocker\Ductus.FluentDocker.csproj" />
   </ItemGroup>
 
   <ItemGroup>

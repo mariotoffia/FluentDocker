@@ -8,11 +8,11 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "NuGet", "NuGet", "{C7FD34B0
 		README.md = README.md
 	EndProjectSection
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Ductus.FluentDocker", "src\Ductus.FluentDocker\Ductus.FluentDocker.csproj", "{CC4DBBFE-88D1-470F-B177-B097D08DA81C}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Ductus.FluentDocker", "Ductus.FluentDocker\Ductus.FluentDocker.csproj", "{20B06EAB-41AD-4C1C-8375-5FE120F22B91}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Ductus.FluentDocker.MsTest", "src\Ductus.FluentDocker.MsTest\Ductus.FluentDocker.MsTest.csproj", "{56CFF6FE-F837-469D-83FD-A51444730E00}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Ductus.FluentDocker.MsTest", "Ductus.FluentDocker.MsTest\Ductus.FluentDocker.MsTest.csproj", "{0BA07552-BC03-43EC-8D01-087AE89BE436}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Ductus.FluentDocker.Tests", "test\Ductus.FluentDocker.Tests\Ductus.FluentDocker.Tests.csproj", "{834CFA9E-07AC-44AE-88B5-5E32C2F081C6}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Ductus.FluentDocker.Tests", "Ductus.FluentDocker.Tests\Ductus.FluentDocker.Tests.csproj", "{FA836F5A-6361-4042-9B12-E38EB057CD41}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -20,18 +20,18 @@ Global
 		Release|Any CPU = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
-		{CC4DBBFE-88D1-470F-B177-B097D08DA81C}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{CC4DBBFE-88D1-470F-B177-B097D08DA81C}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{CC4DBBFE-88D1-470F-B177-B097D08DA81C}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{CC4DBBFE-88D1-470F-B177-B097D08DA81C}.Release|Any CPU.Build.0 = Release|Any CPU
-		{56CFF6FE-F837-469D-83FD-A51444730E00}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{56CFF6FE-F837-469D-83FD-A51444730E00}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{56CFF6FE-F837-469D-83FD-A51444730E00}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{56CFF6FE-F837-469D-83FD-A51444730E00}.Release|Any CPU.Build.0 = Release|Any CPU
-		{834CFA9E-07AC-44AE-88B5-5E32C2F081C6}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{834CFA9E-07AC-44AE-88B5-5E32C2F081C6}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{834CFA9E-07AC-44AE-88B5-5E32C2F081C6}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{834CFA9E-07AC-44AE-88B5-5E32C2F081C6}.Release|Any CPU.Build.0 = Release|Any CPU
+		{20B06EAB-41AD-4C1C-8375-5FE120F22B91}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{20B06EAB-41AD-4C1C-8375-5FE120F22B91}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{20B06EAB-41AD-4C1C-8375-5FE120F22B91}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{20B06EAB-41AD-4C1C-8375-5FE120F22B91}.Release|Any CPU.Build.0 = Release|Any CPU
+		{0BA07552-BC03-43EC-8D01-087AE89BE436}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{0BA07552-BC03-43EC-8D01-087AE89BE436}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{0BA07552-BC03-43EC-8D01-087AE89BE436}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{0BA07552-BC03-43EC-8D01-087AE89BE436}.Release|Any CPU.Build.0 = Release|Any CPU
+		{FA836F5A-6361-4042-9B12-E38EB057CD41}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{FA836F5A-6361-4042-9B12-E38EB057CD41}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{FA836F5A-6361-4042-9B12-E38EB057CD41}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{FA836F5A-6361-4042-9B12-E38EB057CD41}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
