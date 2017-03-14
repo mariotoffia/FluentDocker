@@ -20,9 +20,9 @@ namespace Ductus.FluentDocker.Common
 		private static readonly Lazy<ILogger> ILogger
 			= new Lazy<ILogger>(() =>
 			{
-				var provider = new ServiceCollection().AddLogging().BuildServiceProvider();
-				provider.GetRequiredService<ILoggerFactory>().AddDebug();
-				return provider.GetRequiredService<ILoggerProvider>().CreateLogger(Constants.DebugCategory);
+				var factory = new ServiceCollection().AddLogging().BuildServiceProvider().GetRequiredService<ILoggerFactory>();
+				factory.AddDebug();
+				return factory.CreateLogger(Constants.DebugCategory);
 			});
 #else
 			System.Diagnostics.Debugger.Log((int)System.Diagnostics.TraceLevel.Verbose, Constants.DebugCategory, message);
