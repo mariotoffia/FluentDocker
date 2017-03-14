@@ -4,7 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Net;
 using System.Net.Sockets;
-using System.Runtime.InteropServices;
+using System.Threading.Tasks;
 using Ductus.FluentDocker.Executors;
 using Ductus.FluentDocker.Model.Common;
 using Ductus.FluentDocker.Model.Containers;
@@ -123,6 +123,21 @@ namespace Ductus.FluentDocker.Extensions
 		public static bool IsEmulatedNative()
 		{
 			return !Common.OperatingSystem.IsLinux() && null != GetBoot2DockerNativeBinPath();
+		}
+
+
+		public static bool IsDockerDnsAvailable()
+		{
+			try
+			{
+				Dns.GetHostEntryAsync("docker").Wait();
+				return true;
+			}
+			catch (AggregateException ex)
+				when (ex.InnerExceptions.Count == 1 && ex.InnerExceptions[0] is SocketException)
+			{
+				return false;
+			}
 		}
 
 		public static bool IsNative() => Common.OperatingSystem.IsLinux();
