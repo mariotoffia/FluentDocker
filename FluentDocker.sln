@@ -5,8 +5,6 @@ VisualStudioVersion = 15.0.26228.4
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "NuGet", "NuGet", "{C7FD34B0-1CBF-44EC-A92C-59543CBE383B}"
 	ProjectSection(SolutionItems) = preProject
-		NuGet\Ductus.FluentDocker.MsTest.nuspec = NuGet\Ductus.FluentDocker.MsTest.nuspec
-		NuGet\Ductus.FluentDocker.nuspec = NuGet\Ductus.FluentDocker.nuspec
 		README.md = README.md
 	EndProjectSection
 EndProject
