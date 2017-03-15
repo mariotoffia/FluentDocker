@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Linq;
 using System.Collections.Generic;
+using System.IO;
 using System.Reflection;
 using Ductus.FluentDocker.Model.Common;
 using Ductus.FluentDocker.Resources;
@@ -99,7 +100,18 @@ namespace Ductus.FluentDocker.Extensions
 		internal static IEnumerable<Assembly> GetAssemblies()
 		{
 			foreach (var library in Microsoft.Extensions.DependencyModel.DependencyContext.Default.RuntimeLibraries)
-				yield return Assembly.Load(new AssemblyName(library.Name));
+			{
+				Assembly assembly;
+				try
+				{
+					assembly = Assembly.Load(new AssemblyName(library.Name));
+				}
+				catch (FileNotFoundException)
+				{
+					continue;
+				}
+				yield return assembly;
+			}
 #else
 			return AppDomain.CurrentDomain.GetAssemblies().First(x => x.GetName().Name == assemblyName);
 #endif
