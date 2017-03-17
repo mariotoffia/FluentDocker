@@ -1,6 +1,7 @@
 ﻿using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Threading.Tasks;
 using Ductus.FluentDocker.Builders;
 using Ductus.FluentDocker.Extensions;
 using Ductus.FluentDocker.Model.Builders;
@@ -147,7 +148,7 @@ namespace Ductus.FluentDockerTest.FluentApiTests
     }
 
     [TestMethod]
-    public void VolumeMappingShallWork()
+    public async Task VolumeMappingShallWork()
     {
       const string html = "<html><head>Hello World</head><body><h1>Hello world</h1></body></html>";
       var hostPath = (TemplateString) @"${TEMP}\fluentdockertest\${RND}";
@@ -169,7 +170,7 @@ namespace Ductus.FluentDockerTest.FluentApiTests
         {
           File.WriteAllText(Path.Combine(hostPath, "hello.html"), html);
 
-          var response = $"http://{container.ToHostExposedEndpoint("80/tcp")}/hello.html".Wget();
+          var response = await $"http://{container.ToHostExposedEndpoint("80/tcp")}/hello.html".Wget();
           Assert.AreEqual(html, response);
         }
         finally

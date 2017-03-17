@@ -1,4 +1,5 @@
 ﻿using System.IO;
+using System.Threading.Tasks;
 using Ductus.FluentDocker.Commands;
 using Ductus.FluentDocker.Extensions;
 using Ductus.FluentDocker.Model.Common;
@@ -14,7 +15,7 @@ namespace Ductus.FluentDockerTest.CommandTests
   public class ComposeCommandTests : FluentDockerTestBase
   {
     [TestMethod]
-    public void ComposeByBuildImageAddNgixAsLoadBalancerTwoNodesAsHtmlServeAndRedisAsDbBackendShouldWorkAsCluster()
+    public async Task ComposeByBuildImageAddNgixAsLoadBalancerTwoNodesAsHtmlServeAndRedisAsDbBackendShouldWorkAsCluster()
     {
       // Extract compose file and it's dependencies to a temp folder
       var fullPath = (TemplateString) @"${TEMP}\fluentdockertest\${RND}";
@@ -51,10 +52,10 @@ namespace Ductus.FluentDockerTest.CommandTests
         var ep = svc.ToHostExposedEndpoint("80/tcp");
         Assert.IsNotNull(ep);
 
-        var round1 = $"http://{ep.Address}:{ep.Port}".Wget();
+        var round1 = await $"http://{ep.Address}:{ep.Port}".Wget();
         Assert.AreEqual("This page has been viewed 1 times!", round1);
 
-        var round2 = $"http://{ep.Address}:{ep.Port}".Wget();
+        var round2 = await $"http://{ep.Address}:{ep.Port}".Wget();
         Assert.AreEqual("This page has been viewed 2 times!", round2);
       }
       finally

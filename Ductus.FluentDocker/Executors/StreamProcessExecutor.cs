@@ -20,7 +20,7 @@ namespace Ductus.FluentDocker.Executors
 
     public ConsoleStream<TE> Execute(CancellationToken token = default(CancellationToken))
     {
-      Debugger.Log((int) TraceLevel.Verbose, Constants.DebugCategory, $"cmd: {_command} - arg: {_arguments}");
+      Logger.Log($"cmd: {_command} - arg: {_arguments}");
       return new ConsoleStream<TE>(new ProcessStartInfo
       {
         CreateNoWindow = true,

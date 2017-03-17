@@ -1,20 +1,18 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio 14
-VisualStudioVersion = 14.0.24720.0
+# Visual Studio 15
+VisualStudioVersion = 15.0.26228.4
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Ductus.FluentDocker", "Ductus.FluentDocker\Ductus.FluentDocker.csproj", "{4AE9F635-351C-4C47-93F3-A9FAD18F122F}"
-EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Ductus.FluentDockerTest", "Ductus.FluentDockerTest\Ductus.FluentDockerTest.csproj", "{03E0DD1C-F964-4993-B8F9-9A072398BBBC}"
-EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Ductus.FluentDocker.MsTest", "Ductus.FluentDocker.MsTest\Ductus.FluentDocker.MsTest.csproj", "{871473B8-75E1-4265-A679-99CA6971E2F0}"
-EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "NuGet", "NuGet", "{C7FD34B0-1CBF-44EC-A92C-59543CBE383B}"
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{C7FD34B0-1CBF-44EC-A92C-59543CBE383B}"
 	ProjectSection(SolutionItems) = preProject
-		NuGet\Ductus.FluentDocker.MsTest.nuspec = NuGet\Ductus.FluentDocker.MsTest.nuspec
-		NuGet\Ductus.FluentDocker.nuspec = NuGet\Ductus.FluentDocker.nuspec
 		README.md = README.md
 	EndProjectSection
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Ductus.FluentDocker", "Ductus.FluentDocker\Ductus.FluentDocker.csproj", "{20B06EAB-41AD-4C1C-8375-5FE120F22B91}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Ductus.FluentDocker.MsTest", "Ductus.FluentDocker.MsTest\Ductus.FluentDocker.MsTest.csproj", "{0BA07552-BC03-43EC-8D01-087AE89BE436}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Ductus.FluentDocker.Tests", "Ductus.FluentDocker.Tests\Ductus.FluentDocker.Tests.csproj", "{FA836F5A-6361-4042-9B12-E38EB057CD41}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -22,18 +20,18 @@ Global
 		Release|Any CPU = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
-		{4AE9F635-351C-4C47-93F3-A9FAD18F122F}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{4AE9F635-351C-4C47-93F3-A9FAD18F122F}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{4AE9F635-351C-4C47-93F3-A9FAD18F122F}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{4AE9F635-351C-4C47-93F3-A9FAD18F122F}.Release|Any CPU.Build.0 = Release|Any CPU
-		{03E0DD1C-F964-4993-B8F9-9A072398BBBC}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{03E0DD1C-F964-4993-B8F9-9A072398BBBC}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{03E0DD1C-F964-4993-B8F9-9A072398BBBC}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{03E0DD1C-F964-4993-B8F9-9A072398BBBC}.Release|Any CPU.Build.0 = Release|Any CPU
-		{871473B8-75E1-4265-A679-99CA6971E2F0}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{871473B8-75E1-4265-A679-99CA6971E2F0}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{871473B8-75E1-4265-A679-99CA6971E2F0}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{871473B8-75E1-4265-A679-99CA6971E2F0}.Release|Any CPU.Build.0 = Release|Any CPU
+		{20B06EAB-41AD-4C1C-8375-5FE120F22B91}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{20B06EAB-41AD-4C1C-8375-5FE120F22B91}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{20B06EAB-41AD-4C1C-8375-5FE120F22B91}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{20B06EAB-41AD-4C1C-8375-5FE120F22B91}.Release|Any CPU.Build.0 = Release|Any CPU
+		{0BA07552-BC03-43EC-8D01-087AE89BE436}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{0BA07552-BC03-43EC-8D01-087AE89BE436}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{0BA07552-BC03-43EC-8D01-087AE89BE436}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{0BA07552-BC03-43EC-8D01-087AE89BE436}.Release|Any CPU.Build.0 = Release|Any CPU
+		{FA836F5A-6361-4042-9B12-E38EB057CD41}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{FA836F5A-6361-4042-9B12-E38EB057CD41}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{FA836F5A-6361-4042-9B12-E38EB057CD41}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{FA836F5A-6361-4042-9B12-E38EB057CD41}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

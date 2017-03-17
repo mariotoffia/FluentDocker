@@ -38,7 +38,7 @@ namespace Ductus.FluentDocker.Executors
         WorkingDirectory = _workingdir
       };
 
-      Debugger.Log((int)TraceLevel.Verbose, Constants.DebugCategory, $"cmd: {_command} - arg: {_arguments}");
+      Logger.Log($"cmd: {_command} - arg: {_arguments}");
 
       using (var process = new Process {StartInfo = startInfo})
       {

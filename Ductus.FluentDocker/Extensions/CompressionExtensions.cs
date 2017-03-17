@@ -1,6 +1,6 @@
 ﻿using System.IO;
 using SharpCompress.Common;
-using SharpCompress.Reader;
+using SharpCompress.Readers;
 
 namespace Ductus.FluentDocker.Extensions
 {
@@ -16,7 +16,7 @@ namespace Ductus.FluentDocker.Extensions
           {
             if (!reader.Entry.IsDirectory)
             {
-              reader.WriteEntryToDirectory(destPath, ExtractOptions.ExtractFullPath | ExtractOptions.Overwrite);
+              reader.WriteEntryToDirectory(destPath, new ExtractionOptions { ExtractFullPath = true, Overwrite = true});
             }
           }
         }

@@ -8,10 +8,5 @@ namespace Ductus.FluentDocker.Model.Common
     public DockerUri(string uriString) : base(uriString)
     {
     }
-
-    public DockerUri(SerializationInfo serializationInfo, StreamingContext streamingContext)
-      : base(serializationInfo, streamingContext)
-    {
-    }
   }
 }

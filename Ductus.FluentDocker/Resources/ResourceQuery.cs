@@ -2,104 +2,114 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
+using Ductus.FluentDocker.Extensions;
 
 namespace Ductus.FluentDocker.Resources
 {
-  public sealed class ResourceQuery
-  {
-    private string _assembly;
-    private string _namespace;
-    private bool _recursive;
+	public sealed class ResourceQuery
+	{
+		private string _assembly;
+		private string _namespace;
+		private bool _recursive;
 
-    public ResourceQuery From(string assembly)
-    {
-      _assembly = assembly;
-      return this;
-    }
+		public ResourceQuery From(string assembly)
+		{
+			_assembly = assembly;
+			return this;
+		}
 
-    public ResourceQuery Namespace(string ns, bool recursive = true)
-    {
-      _namespace = ns;
-      _recursive = recursive;
-      return this;
-    }
+		public ResourceQuery Namespace(string ns, bool recursive = true)
+		{
+			_namespace = ns;
+			_recursive = recursive;
+			return this;
+		}
 
-    public ResourceQuery Recursive()
-    {
-      _recursive = true;
-      return this;
-    }
+		public ResourceQuery Recursive()
+		{
+			_recursive = true;
+			return this;
+		}
 
-    public IEnumerable<ResourceInfo> Query()
-    {
-      var assembly = string.IsNullOrEmpty(_assembly)
-        ? Assembly.GetCallingAssembly()
-        : AppDomain.CurrentDomain.GetAssemblies()
-          .First(x => x.GetName().Name.Equals(_assembly, StringComparison.OrdinalIgnoreCase));
+		public IEnumerable<ResourceInfo> Query()
+		{
+#if COREFX
+			if (string.IsNullOrWhiteSpace(_assembly))
+				// TODO : Consider rework of Fluent API
+				throw new InvalidOperationException($"It is not possible to execute {nameof(Query)} without first executing {nameof(From)}.");
+			var assembly = ResourceExtensions.GetAssemblies()
+				.First(x => x.GetName().Name.Equals(_assembly, StringComparison.OrdinalIgnoreCase));
+#else
+			var assembly = string.IsNullOrEmpty(_assembly)
+			  ? Assembly.GetCallingAssembly() :
+				AppDomain.CurrentDomain.GetAssemblies()
+				.First(x => x.GetName().Name.Equals(_assembly, StringComparison.OrdinalIgnoreCase));
+#endif
 
-      foreach (var res in assembly.GetManifestResourceNames().Where(x => x.StartsWith(_namespace)))
-      {
-        var file = ExtractFile(res);
-        var ns = res.Substring(0, res.Length - file.Length - 1);
-        if (ns.Length < _namespace.Length)
-        {
-          continue;
-        }
 
-        var nseqlen = ns.Length == _namespace.Length;
-        if (!_recursive)
-        {
-          if (!nseqlen)
-          {
-            continue;
-          }
-        }
+			foreach (var res in assembly.GetManifestResourceNames().Where(x => x.StartsWith(_namespace)))
+			{
+				var file = ExtractFile(res);
+				var ns = res.Substring(0, res.Length - file.Length - 1);
+				if (ns.Length < _namespace.Length)
+				{
+					continue;
+				}
 
-        yield return new ResourceInfo
-        {
-          Assembly = assembly,
-          Namespace = ns,
-          Root = _namespace,
-          RelativeRootNamespace = nseqlen ? string.Empty : ns.Substring(_namespace.Length + 1),
-          Resource = file
-        };
-      }
-    }
+				var nseqlen = ns.Length == _namespace.Length;
+				if (!_recursive)
+				{
+					if (!nseqlen)
+					{
+						continue;
+					}
+				}
 
-    public IEnumerable<ResourceInfo> Include(params string[] resources)
-    {
-      return Query().Where(x => resources.Contains(x.Resource));
-    }
+				yield return new ResourceInfo
+				{
+					Assembly = assembly,
+					Namespace = ns,
+					Root = _namespace,
+					RelativeRootNamespace = nseqlen ? string.Empty : ns.Substring(_namespace.Length + 1),
+					Resource = file
+				};
+			}
+		}
 
-    /// <summary>
-    ///   TODO: Ugly hack since GetManifestResourceInfo(res) do not work!
-    /// </summary>
-    /// <param name="fqResource">The fully qualified file including namespace.</param>
-    /// <returns>Probably a filename.</returns>
-    private static string ExtractFile(string fqResource)
-    {
-      var last = fqResource.LastIndexOf(".", StringComparison.Ordinal);
-      if (-1 == last)
-      {
-        return fqResource;
-      }
+		public IEnumerable<ResourceInfo> Include(params string[] resources)
+		{
+			return Query().Where(x => resources.Contains(x.Resource));
+		}
 
-      var len = fqResource.Length - last;
-      if (len > 5)
-      {
-        // Assume "dotless" file
-        return fqResource.Substring(last + 1);
-      }
+		/// <summary>
+		///   TODO: Ugly hack since GetManifestResourceInfo(res) do not work!
+		/// </summary>
+		/// <param name="fqResource">The fully qualified file including namespace.</param>
+		/// <returns>Probably a filename.</returns>
+		private static string ExtractFile(string fqResource)
+		{
+			var last = fqResource.LastIndexOf(".", StringComparison.Ordinal);
+			if (-1 == last)
+			{
+				return fqResource;
+			}
 
-      for (var i = fqResource.Length - len - 1; i >= 0; i--)
-      {
-        if (fqResource[i] == '.')
-        {
-          return fqResource.Substring(i + 1);
-        }
-      }
+			var len = fqResource.Length - last;
+			if (len > 5)
+			{
+				// Assume "dotless" file
+				return fqResource.Substring(last + 1);
+			}
 
-      return fqResource;
-    }
-  }
+			for (var i = fqResource.Length - len - 1; i >= 0; i--)
+			{
+				if (fqResource[i] == '.')
+				{
+					return fqResource.Substring(i + 1);
+				}
+			}
+
+			return fqResource;
+		}
+	}
 }

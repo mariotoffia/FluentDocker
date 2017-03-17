@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Runtime.Serialization;
 
 namespace Ductus.FluentDocker.Common
 {
@@ -14,10 +13,6 @@ namespace Ductus.FluentDocker.Common
     }
 
     public FluentDockerException(string message, Exception innerException) : base(message, innerException)
-    {
-    }
-
-    protected FluentDockerException(SerializationInfo info, StreamingContext context) : base(info, context)
     {
     }
   }

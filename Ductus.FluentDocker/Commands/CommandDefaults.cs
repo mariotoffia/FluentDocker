@@ -1,5 +1,4 @@
-﻿using System;
-using Ductus.FluentDocker.Extensions;
+﻿using Ductus.FluentDocker.Extensions;
 
 namespace Ductus.FluentDocker.Commands
 {
@@ -24,15 +23,15 @@ namespace Ductus.FluentDocker.Commands
     /// </remarks>
     public static void AutoDetect()
     {
-      if (Environment.OSVersion.IsWindows() || Environment.OSVersion.IsMac())
+      if (Common.OperatingSystem.IsWindows() || Common.OperatingSystem.IsOsx())
       {
         // Check if native boo2docker for non linux
         // Prefer that instead of machine
         if (!string.IsNullOrEmpty(CommandExtensions.GetBoot2DockerNativeBinPath()))
         {
-          MachineDriver = Environment.OSVersion.IsWindows() ? "hyperv" : "xhyve";
+          MachineDriver = Common.OperatingSystem.IsWindows() ? "hyperv" : "xhyve";
 
-          if (Environment.OSVersion.IsWindows())
+          if (Common.OperatingSystem.IsWindows())
           {
             // TODO: Is it possible instead to use the proxy to proxy this machine
             // TODO: for the default docker NAT switch instead?
