@@ -9,14 +9,15 @@
     <PackageProjectUrl>https://github.com/mariotoffia/FluentDocker</PackageProjectUrl>
     <PackageIconUrl>https://pbs.twimg.com/profile_images/378800000124779041/fbbb494a7eef5f9278c6967b6072ca3e.png</PackageIconUrl>
     <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
-    <PackageTags>Docker;Docker-Compose;Docker Compose;Docker-Machine;Docker Machine;Linux;Windows;Mac;Fluent</PackageTags>
+    <PackageTags>Docker;Docker-Compose;Docker Compose;Docker-Machine;Docker Machine;Linux;Windows;Mac;Fluent;NET Core</PackageTags>
     <RepositoryType>git</RepositoryType>
     <RepositoryUrl>https://github.com/mariotoffia/FluentDocker</RepositoryUrl>
-    <Description>Library to manage docker-machine, docker-compose, and docker containers for windows / mac or native linux.
-It supports both the machine or the new docker for windows and mac.
-Documentation: https://github.com/mariotoffia/FluentDocker
-</Description>
-    <Copyright>© 2016 Mario Toffia</Copyright>
+    <Description>
+      Library to manage docker-machine, docker-compose, and docker containers for windows / mac or native linux.
+      It supports both the machine or the new docker for windows and mac. This libray both supports the full .NET frameork and
+      NET Core. NET Core is a port by smudge202. Documentation: https://github.com/mariotoffia/FluentDocker
+    </Description>
+    <Copyright>© 2016, 2017 Mario Toffia</Copyright>
     <DefineConstants Condition=" '$(TargetFramework)' == 'netstandard1.6' ">$(DefineConstants);COREFX</DefineConstants>
     <GeneratePackageOnBuild>True</GeneratePackageOnBuild>
   </PropertyGroup>
