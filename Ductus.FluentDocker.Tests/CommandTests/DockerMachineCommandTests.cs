@@ -20,13 +20,12 @@ namespace Ductus.FluentDockerTest.CommandTests
 
 				var start = "test-machine".Start();
 				Assert.AreEqual(true, start.Success);
-
 				var inspect = "test-machine".Inspect().Data;
 				Assert.AreEqual(1024, inspect.MemorySizeMb);
 				Assert.AreEqual(20000, inspect.StorageSizeMb);
 				Assert.AreEqual("test-machine", inspect.Name);
 				Assert.AreEqual(true, inspect.RequireTls);
-				Assert.AreEqual("virtualbox", inspect.DriverName);
+				Assert.AreEqual(CommandDefaults.MachineDriver, inspect.DriverName);
 				Assert.AreEqual(1, inspect.CpuCount);
 				Assert.IsFalse(Equals(IPAddress.None, inspect.IpAddress));
 				Assert.IsNotNull(inspect.AuthConfig);
@@ -37,7 +36,7 @@ namespace Ductus.FluentDockerTest.CommandTests
 			}
 			finally
 			{
-				"test-machine".Delete(true /*force*/);
+				//"test-machine".Delete(true /*force*/);
 			}
 		}
 
