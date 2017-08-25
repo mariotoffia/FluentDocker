@@ -1,5 +1,4 @@
-﻿using System.Linq;
-using System.Net;
+﻿using System.Net;
 using Ductus.FluentDocker.Model.Containers;
 using Ductus.FluentDocker.Model.Machines;
 using Newtonsoft.Json;
@@ -36,19 +35,18 @@ namespace Ductus.FluentDocker.Executors.Parsers
       {
         memsize = j["Driver"]["MemSize"].Value<int>();
       }
-      
-      
+
       var config = new MachineConfiguration
       {
         AuthConfig = authConfig,
         IpAddress = string.IsNullOrEmpty(ip) ? IPAddress.None : IPAddress.Parse(ip),
-        DriverName = j["DriverName"].Value<string>(),
+        DriverName = null != j["DriverName"] ? j["DriverName"].Value<string>() : "unknown",
         MemorySizeMb = memsize,
-        Name = j["Name"].Value<string>(),
+        Name = null != j["Name"] ? j["Name"].Value<string>() : string.Empty,
         RequireTls = j["HostOptions"]["EngineOptions"]["TlsVerify"].Value<bool>(),
-        StorageSizeMb = j["Driver"]["DiskSize"].Value<int>(),
-        CpuCount = j["Driver"]["CPU"].Value<int>(),
-        StorePath = j["Driver"]["StorePath"].Value<string>()
+        StorageSizeMb = j["Driver"]["DiskSize"]?.Value<int>() ?? 0,
+        CpuCount = j["Driver"]["CPU"]?.Value<int>() ?? 0,
+        StorePath = j["Driver"]["StorePath"]?.Value<string>() ?? string.Empty
       };
 
       Response = response.ToResponse(true, string.Empty, config);

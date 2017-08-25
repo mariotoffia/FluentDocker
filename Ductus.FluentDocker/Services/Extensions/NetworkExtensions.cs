@@ -36,7 +36,7 @@ namespace Ductus.FluentDocker.Services.Extensions
 						totalWait += 1000;
 						if (totalWait >= millisTimeout)
 						{
-							throw new FluentDockerException($"Timeout waiting for service at = {endpoint.Address} port = {endpoint.Port}");
+							throw new FluentDockerException($"Timeout waiting for service at = {endpoint.Address} port = {endpoint.Port}", ex);
 						}
 					}
 				}

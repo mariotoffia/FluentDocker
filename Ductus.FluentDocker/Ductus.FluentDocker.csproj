@@ -2,7 +2,7 @@
 
   <PropertyGroup>
     <TargetFrameworks>netstandard1.6;net452</TargetFrameworks>
-    <VersionPrefix>2.2.1</VersionPrefix>
+    <VersionPrefix>2.2.3</VersionPrefix>
     <AssemblyTitle>Ductus.FluentDocker</AssemblyTitle>
     <Authors>Mario Toffia</Authors>
     <PackageLicenseUrl>https://github.com/mariotoffia/FluentDocker/blob/master/LICENSE</PackageLicenseUrl>
