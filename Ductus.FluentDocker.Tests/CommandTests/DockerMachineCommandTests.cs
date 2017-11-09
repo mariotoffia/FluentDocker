@@ -4,12 +4,13 @@ using Ductus.FluentDocker.Commands;
 using Ductus.FluentDocker.Services;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
-namespace Ductus.FluentDockerTest.CommandTests
+namespace Ductus.FluentDocker.Tests.CommandTests
 {
 	[TestClass]
 	public class DockerMachineCommandTests
 	{
 		[TestMethod]
+    [Ignore]
 		public void InspectDockerMachine()
 		{
 			try
@@ -41,7 +42,8 @@ namespace Ductus.FluentDockerTest.CommandTests
 		}
 
 		[TestMethod]
-		public void CreateDockerMachineShallSucceed()
+		[Ignore]
+    public void CreateDockerMachineShallSucceed()
 		{
 			try
 			{
@@ -55,7 +57,8 @@ namespace Ductus.FluentDockerTest.CommandTests
 		}
 
 		[TestMethod]
-		public void MachineLsWhenRunningContainerShallReturnStateAndValidUrl()
+		[Ignore]
+    public void MachineLsWhenRunningContainerShallReturnStateAndValidUrl()
 		{
 			try
 			{
@@ -80,7 +83,8 @@ namespace Ductus.FluentDockerTest.CommandTests
 
 
 		[TestMethod]
-		public void CreateAndStartStopDockerMachineShallSucceed()
+		[Ignore]
+    public void CreateAndStartStopDockerMachineShallSucceed()
 		{
 			try
 			{
@@ -100,7 +104,8 @@ namespace Ductus.FluentDockerTest.CommandTests
 		}
 
 		[TestMethod]
-		public void CreateAndStartStopDockerMachineShallGiveSaneEnvironment()
+		[Ignore]
+    public void CreateAndStartStopDockerMachineShallGiveSaneEnvironment()
 		{
 			try
 			{

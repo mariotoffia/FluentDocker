@@ -145,7 +145,7 @@ namespace Ductus.FluentDocker.Builders
 
     public ContainerBuilder Mount(string fqHostPath, string fqContainerPath, MountType access)
     {
-      var hp = Common.OperatingSystem.IsWindows()
+      var hp = (Common.OperatingSystem.IsWindows() && CommandExtensions.IsToolbox())
         ? ((TemplateString) fqHostPath).Rendered.ToMsysPath()
         : ((TemplateString) fqHostPath).Rendered;
 

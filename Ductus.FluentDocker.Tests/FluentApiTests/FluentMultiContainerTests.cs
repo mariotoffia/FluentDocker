@@ -5,11 +5,11 @@ using Ductus.FluentDocker.Builders;
 using Ductus.FluentDocker.Extensions;
 using Ductus.FluentDocker.Model.Common;
 using Ductus.FluentDocker.Services.Extensions;
-using Ductus.FluentDockerTest.Extensions;
+using Ductus.FluentDocker.Tests.Extensions;
 using Ductus.FluentDockerTest.MultiContainerTestFiles;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
-namespace Ductus.FluentDockerTest.FluentApiTests
+namespace Ductus.FluentDocker.Tests.FluentApiTests
 {
   [TestClass]
   public class FluentMultiContainerTests

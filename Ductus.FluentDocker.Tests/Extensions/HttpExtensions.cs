@@ -3,7 +3,7 @@ using System.Net;
 using System.Threading.Tasks;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
-namespace Ductus.FluentDockerTest.Extensions
+namespace Ductus.FluentDocker.Tests.Extensions
 {
 	public static class HttpExtensions
 	{

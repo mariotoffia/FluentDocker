@@ -8,7 +8,7 @@ using Ductus.FluentDocker.Model.Containers;
 using Ductus.FluentDocker.Services.Extensions;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
-namespace Ductus.FluentDockerTest.CommandTests
+namespace Ductus.FluentDocker.Tests.CommandTests
 {
   [TestClass]
   public class ClientStreamCommandTests
@@ -23,7 +23,7 @@ namespace Ductus.FluentDockerTest.CommandTests
       string id = null;
       try
       {
-        var cmd = _docker.Run("kiasaki/alpine-postgres", new ContainerCreateParams
+        var cmd = _docker.Run("postgres:9.6-alpine", new ContainerCreateParams
         {
           PortMappings = new[] {"40001:5432"},
           Environment = new[] {"POSTGRES_PASSWORD=mysecretpassword"}
@@ -67,7 +67,7 @@ namespace Ductus.FluentDockerTest.CommandTests
       string id = null;
       try
       {
-        var cmd = _docker.Run("kiasaki/alpine-postgres", new ContainerCreateParams
+        var cmd = _docker.Run("postgres:9.6-alpine", new ContainerCreateParams
         {
           PortMappings = new[] { "40001:5432" },
           Environment = new[] { "POSTGRES_PASSWORD=mysecretpassword" }
@@ -114,7 +114,7 @@ namespace Ductus.FluentDockerTest.CommandTests
       string id = null;
       try
       {
-        var cmd = _docker.Run("kiasaki/alpine-postgres", new ContainerCreateParams
+        var cmd = _docker.Run("postgres:9.6-alpine", new ContainerCreateParams
         {
           PortMappings = new[] { "40001:5432" },
           Environment = new[] { "POSTGRES_PASSWORD=mysecretpassword" }

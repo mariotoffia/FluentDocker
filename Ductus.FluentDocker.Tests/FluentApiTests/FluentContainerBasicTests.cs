@@ -9,10 +9,10 @@ using Ductus.FluentDocker.Model.Common;
 using Ductus.FluentDocker.Model.Containers;
 using Ductus.FluentDocker.Services;
 using Ductus.FluentDocker.Services.Extensions;
-using Ductus.FluentDockerTest.Extensions;
+using Ductus.FluentDocker.Tests.Extensions;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
-namespace Ductus.FluentDockerTest.FluentApiTests
+namespace Ductus.FluentDocker.Tests.FluentApiTests
 {
   [TestClass]
   public class FluentContainerBasicTests
@@ -23,7 +23,7 @@ namespace Ductus.FluentDockerTest.FluentApiTests
       using (
         var container =
           new Builder().UseContainer()
-            .UseImage("kiasaki/alpine-postgres")
+            .UseImage("postgres:9.6-alpine")
             .WithEnvironment("POSTGRES_PASSWORD=mysecretpassword")
             .Build())
       {
@@ -38,7 +38,7 @@ namespace Ductus.FluentDockerTest.FluentApiTests
       using (
         var container =
           new Builder().UseContainer()
-            .UseImage("kiasaki/alpine-postgres")
+            .UseImage("postgres:9.6-alpine")
             .WithEnvironment("POSTGRES_PASSWORD=mysecretpassword")
             .KeepContainer()
             .Build()
@@ -65,7 +65,7 @@ namespace Ductus.FluentDockerTest.FluentApiTests
       using (
         var container =
           new Builder().UseContainer()
-            .UseImage("kiasaki/alpine-postgres")
+            .UseImage("postgres:9.6-alpine")
             .WithEnvironment("POSTGRES_PASSWORD=mysecretpassword")
             .Build()
             .Start())
@@ -83,7 +83,7 @@ namespace Ductus.FluentDockerTest.FluentApiTests
       using (
         var container =
           new Builder().UseContainer()
-            .UseImage("kiasaki/alpine-postgres")
+            .UseImage("postgres:9.6-alpine")
             .ExposePort(40001, 5432)
             .WithEnvironment("POSTGRES_PASSWORD=mysecretpassword")
             .Build()
@@ -100,7 +100,7 @@ namespace Ductus.FluentDockerTest.FluentApiTests
       using (
         var container =
           new Builder().UseContainer()
-            .UseImage("kiasaki/alpine-postgres")
+            .UseImage("postgres:9.6-alpine")
             .ExposePort(5432)
             .WithEnvironment("POSTGRES_PASSWORD=mysecretpassword")
             .Build()
@@ -117,7 +117,7 @@ namespace Ductus.FluentDockerTest.FluentApiTests
       using (
         var container =
           new Builder().UseContainer()
-            .UseImage("kiasaki/alpine-postgres")
+            .UseImage("postgres:9.6-alpine")
             .ExposePort(5432)
             .WithEnvironment("POSTGRES_PASSWORD=mysecretpassword")
             .WaitForPort("5432/tcp", 30000 /*30s*/)
@@ -135,7 +135,7 @@ namespace Ductus.FluentDockerTest.FluentApiTests
       using (
         var container =
           new Builder().UseContainer()
-            .UseImage("kiasaki/alpine-postgres")
+            .UseImage("postgres:9.6-alpine")
             .ExposePort(5432)
             .WithEnvironment("POSTGRES_PASSWORD=mysecretpassword")
             .WaitForProcess("postgres", 30000 /*30s*/)
@@ -157,7 +157,7 @@ namespace Ductus.FluentDockerTest.FluentApiTests
       using (
         var container =
           new Builder().UseContainer()
-            .UseImage("nginx:latest")
+            .UseImage("nginx:1.13.6-alpine")
             .ExposePort(80)
             .Mount(hostPath, "/usr/share/nginx/html", MountType.ReadOnly)
             .Build()
@@ -191,16 +191,15 @@ namespace Ductus.FluentDockerTest.FluentApiTests
       try
       {
         using (new Builder().UseContainer()
-          .UseImage("kiasaki/alpine-postgres")
+          .UseImage("postgres:9.6-alpine")
           .ExposePort(5432)
           .WithEnvironment("POSTGRES_PASSWORD=mysecretpassword")
           .Build()
           .Start()
-          .CopyFrom("/etc/conf.d", fullPath))
+          .CopyFrom("/", fullPath))
         {
-          var files = Directory.EnumerateFiles(Path.Combine(fullPath, "conf.d")).ToArray();
-          Assert.IsTrue(files.Any(x => x.EndsWith("pg-restore")));
-          Assert.IsTrue(files.Any(x => x.EndsWith("postgresql")));
+          var files = Directory.EnumerateFiles(fullPath).ToArray();
+          Assert.IsTrue(files.Any(x => x.EndsWith(".dockerenv")));
         }
       }
       finally
@@ -220,18 +219,17 @@ namespace Ductus.FluentDockerTest.FluentApiTests
       try
       {
         using (new Builder().UseContainer()
-          .UseImage("kiasaki/alpine-postgres")
+          .UseImage("postgres:9.6-alpine")
           .ExposePort(5432)
           .WithEnvironment("POSTGRES_PASSWORD=mysecretpassword")
-          .CopyOnDispose("/etc/conf.d", fullPath)
+          .CopyOnDispose("/", fullPath)
           .Build()
           .Start())
         {
         }
 
-        var files = Directory.EnumerateFiles(Path.Combine(fullPath, "conf.d")).ToArray();
-        Assert.IsTrue(files.Any(x => x.EndsWith("pg-restore")));
-        Assert.IsTrue(files.Any(x => x.EndsWith("postgresql")));
+        var files = Directory.EnumerateFiles(fullPath).ToArray();
+        Assert.IsTrue(files.Any(x => x.EndsWith(".dockerenv")));
       }
       finally
       {
@@ -251,7 +249,7 @@ namespace Ductus.FluentDockerTest.FluentApiTests
       try
       {
         using (new Builder().UseContainer()
-          .UseImage("kiasaki/alpine-postgres")
+          .UseImage("postgres:9.6-alpine")
           .ExposePort(5432)
           .WithEnvironment("POSTGRES_PASSWORD=mysecretpassword")
           .ExportOnDispose(fullPath)
@@ -280,7 +278,7 @@ namespace Ductus.FluentDockerTest.FluentApiTests
       try
       {
         using (new Builder().UseContainer()
-          .UseImage("kiasaki/alpine-postgres")
+          .UseImage("postgres:9.6-alpine")
           .ExposePort(5432)
           .WithEnvironment("POSTGRES_PASSWORD=mysecretpassword")
           .ExportExploadedOnDispose(fullPath)
@@ -317,7 +315,7 @@ namespace Ductus.FluentDockerTest.FluentApiTests
       {
         // ReSharper disable once AccessToModifiedClosure
         using (new Builder().UseContainer()
-          .UseImage("kiasaki/alpine-postgres")
+          .UseImage("postgres:9.6-alpine")
           .ExposePort(5432)
           .WithEnvironment("POSTGRES_PASSWORD=mysecretpassword")
           .ExportOnDispose(fullPath, svc => failure)
@@ -354,7 +352,7 @@ namespace Ductus.FluentDockerTest.FluentApiTests
         using (
           var container =
             new Builder().UseContainer()
-              .UseImage("kiasaki/alpine-postgres")
+              .UseImage("postgres:9.6-alpine")
               .ExposePort(5432)
               .WithEnvironment("POSTGRES_PASSWORD=mysecretpassword")
               .Build()

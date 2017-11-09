@@ -1,14 +1,25 @@
-﻿using System.Linq;
+﻿using System;
+using System.Linq;
 using Ductus.FluentDocker.Commands;
 using Ductus.FluentDocker.Extensions;
+using Ductus.FluentDocker.Extensions.Utils;
 using Ductus.FluentDocker.Services;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
-namespace Ductus.FluentDockerTest.ServiceTests
+namespace Ductus.FluentDocker.Tests.ServiceTests
 {
   [TestClass]
   public class MachineServiceTests
   {
+    [TestCategory("Main")]
+    [TestMethod]
+    public void DiscoverBinariesShallWork()
+    {
+      var resolver = new DockerBinariesResolver();
+      
+      Console.WriteLine(
+        $"{resolver.MainDockerClient.FqPath} {resolver.MainDockerMachine.FqPath} {resolver.MainDockerCompose.FqPath}");
+    }
     [TestCategory("Main")]
     [TestMethod]
     public void DiscoverShouldReturnNativeWhenSuchIsPresent()
@@ -19,18 +30,19 @@ namespace Ductus.FluentDockerTest.ServiceTests
       }
 
       var services = new Hosts().Discover();
-      Assert.AreEqual(1,services.Count);
+      Assert.IsTrue(services.Count > 0);
 
-      var native = services.First();
+      var native = services.First(x => x.IsNative);
       Assert.AreEqual("native",native.Name);
       Assert.AreEqual(true,native.IsNative);
     }
 
     [TestCategory("Machine-Only")]
     [TestMethod]
+    [Ignore]
     public void DiscoverShallReturnMachines()
     {
-      if (!CommandExtensions.IsMachine())
+      if (!CommandExtensions.IsToolbox())
       {
         return;
       }

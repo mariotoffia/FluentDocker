@@ -25,9 +25,8 @@ namespace Ductus.FluentDocker.Commands
     {
       if (Common.OperatingSystem.IsWindows() || Common.OperatingSystem.IsOsx())
       {
-        // Check if native boo2docker for non linux
-        // Prefer that instead of machine
-        if (!string.IsNullOrEmpty(CommandExtensions.GetBoot2DockerNativeBinPath()))
+        // Prefer non toolbox on windows and mac
+        if (!CommandExtensions.IsToolbox())
         {
           MachineDriver = Common.OperatingSystem.IsWindows() ? "hyperv" : "xhyve";
 

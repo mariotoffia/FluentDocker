@@ -7,7 +7,7 @@ using Ductus.FluentDocker.Model.Containers;
 using Ductus.FluentDocker.Services.Extensions;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
-namespace Ductus.FluentDockerTest.CommandTests
+namespace Ductus.FluentDocker.Tests.CommandTests
 {
   [TestClass]
   public class DockerClientCommandTests
@@ -64,7 +64,7 @@ namespace Ductus.FluentDockerTest.CommandTests
       string id = null;
       try
       {
-        var cmd = _docker.Run("nginx:latest", null, _certificates);
+        var cmd = _docker.Run("nginx:1.13.6-alpine", null, _certificates);
         Assert.IsTrue(cmd.Success);
 
         id = cmd.Data;
@@ -86,7 +86,7 @@ namespace Ductus.FluentDockerTest.CommandTests
       string id = null;
       try
       {
-        var cmd = _docker.Run("nginx:latest", null, _certificates);
+        var cmd = _docker.Run("nginx:1.13.6-alpine", null, _certificates);
         Assert.IsTrue(cmd.Success);
 
         id = cmd.Data;
@@ -112,7 +112,7 @@ namespace Ductus.FluentDockerTest.CommandTests
       string id = null;
       try
       {
-        var cmd = _docker.Run("nginx:latest", null, _certificates);
+        var cmd = _docker.Run("nginx:1.13.6-alpine", null, _certificates);
         Assert.IsTrue(cmd.Success);
 
         id = cmd.Data;
@@ -139,7 +139,7 @@ namespace Ductus.FluentDockerTest.CommandTests
       string id = null;
       try
       {
-        var cmd = _docker.Run("nginx:latest", null, _certificates);
+        var cmd = _docker.Run("nginx:1.13.6-alpine", null, _certificates);
         Assert.IsTrue(cmd.Success);
 
         id = cmd.Data;
@@ -166,7 +166,7 @@ namespace Ductus.FluentDockerTest.CommandTests
       string id = null;
       try
       {
-        var cmd = _docker.Run("nginx:latest", null, _certificates);
+        var cmd = _docker.Run("nginx:1.13.6-alpine", null, _certificates);
         Assert.IsTrue(cmd.Success);
 
         id = cmd.Data;
@@ -193,7 +193,7 @@ namespace Ductus.FluentDockerTest.CommandTests
       string id = null;
       try
       {
-        var cmd = _docker.Run("kiasaki/alpine-postgres", new ContainerCreateParams
+        var cmd = _docker.Run("postgres:9.6-alpine", new ContainerCreateParams
         {
           PortMappings = new[] {"40001:5432"},
           Environment = new[] {"POSTGRES_PASSWORD=mysecretpassword"}
@@ -218,13 +218,9 @@ namespace Ductus.FluentDockerTest.CommandTests
         var proc = ls.Data;
         Debug.WriteLine(proc.ToString());
 
-        Assert.AreEqual(6, ls.Data.Rows.Count);
-        Assert.IsTrue(proc.Rows.Any(x => x.Command == "postgres"));
-        Assert.IsTrue(proc.Rows.Any(x => x.Command == "postgres: checkpointer process"));
-        Assert.IsTrue(proc.Rows.Any(x => x.Command == "postgres: writer process"));
-        Assert.IsTrue(proc.Rows.Any(x => x.Command == "postgres: wal writer process"));
-        Assert.IsTrue(proc.Rows.Any(x => x.Command == "postgres: autovacuum launcher process"));
-        Assert.IsTrue(proc.Rows.Any(x => x.Command == "postgres: stats collector process"));
+        Assert.AreEqual(2, ls.Data.Rows.Count);
+        Assert.IsTrue(proc.Rows.Any(x => x.Command == "bash /usr/local/bin/docker-entrypoint.sh postgres"));
+        Assert.IsTrue(proc.Rows.Any(x => x.Command == "pg_ctl -D /var/lib/postgresql/data -m fast -w stop"));
       }
       finally
       {

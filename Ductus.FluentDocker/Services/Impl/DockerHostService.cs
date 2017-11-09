@@ -13,7 +13,6 @@ namespace Ductus.FluentDocker.Services.Impl
 {
   public sealed class DockerHostService : ServiceBase, IHostService
   {
-    internal const string DockerHost = "DOCKER_HOST";
     internal const string DockerCertPath = "DOCKER_CERT_PATH";
     internal const string DockerTlsVerify = "DOCKER_TLS_VERIFY";
 
@@ -32,7 +31,7 @@ namespace Ductus.FluentDocker.Services.Impl
       IsNative = isNative;
       if (IsNative)
       {
-        var uri = dockerUri ?? Environment.GetEnvironmentVariable(DockerHost);
+        var uri = dockerUri ?? DockerUri.GetDockerHostEnvronmentPathOrDefault();
         var certPath = certificatePath ?? Environment.GetEnvironmentVariable(DockerCertPath);
 
         if (!string.IsNullOrEmpty(certPath))

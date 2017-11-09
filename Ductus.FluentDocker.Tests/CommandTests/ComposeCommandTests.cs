@@ -5,11 +5,12 @@ using Ductus.FluentDocker.Extensions;
 using Ductus.FluentDocker.Model.Common;
 using Ductus.FluentDocker.Services.Extensions;
 using Ductus.FluentDocker.Services.Impl;
+using Ductus.FluentDocker.Tests.Extensions;
+using Ductus.FluentDockerTest;
 using Ductus.FluentDockerTest.Compose;
-using Ductus.FluentDockerTest.Extensions;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
-namespace Ductus.FluentDockerTest.CommandTests
+namespace Ductus.FluentDocker.Tests.CommandTests
 {
   [TestClass]
   public class ComposeCommandTests : FluentDockerTestBase
