@@ -79,8 +79,9 @@ namespace Ductus.FluentDocker.Extensions.Utils
         }
 
         list.AddRange(from file in Directory.GetFiles(path)
-          let f = file.ToLower()
-          where f.Equals("docker") || f.Equals("docker-compose") || f.Equals("docker-machine")
+          let f = Path.GetFileName(file)
+          let f2 = f.ToLower()
+          where f2.Equals("docker") || f2.Equals("docker-compose") || f2.Equals("docker-machine")
           select new DockerBinary(path, f));
       }
       return list;
