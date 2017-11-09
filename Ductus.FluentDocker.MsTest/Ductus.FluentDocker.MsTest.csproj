@@ -2,7 +2,7 @@
 
   <PropertyGroup>
     <TargetFrameworks>net452;netcoreapp1.1</TargetFrameworks>
-    <VersionPrefix>2.2.3</VersionPrefix>
+    <VersionPrefix>2.2.5</VersionPrefix>
     <AssemblyTitle>Ductus.FluentDocker.MsTest</AssemblyTitle>
     <Authors>Mario Toffia</Authors>
     <PackageLicenseUrl>https://github.com/mariotoffia/FluentDocker/blob/master/LICENSE</PackageLicenseUrl>
@@ -19,7 +19,7 @@ Documentation: https://github.com/mariotoffia/FluentDocker
     <Copyright>© 2016 Mario Toffia</Copyright>
     <DefineConstants Condition=" '$(TargetFramework)' == 'netcoreapp1.1' ">$(DefineConstants);COREFX</DefineConstants>
     <GeneratePackageOnBuild>True</GeneratePackageOnBuild>
-    <Version>2.2.4</Version>
+    <Version>2.2.5</Version>
   </PropertyGroup>
 
   <ItemGroup>
