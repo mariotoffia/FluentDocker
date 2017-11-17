@@ -1,6 +1,6 @@
 # FluentDocker
 FluentDocker is a library to interact with docker-machine, docker-compose and docker. It supports the new docker beta, docker 
-machine or native linux (however only tested on windows machine and docker beta for windows). 
+machine or native linux (however only limited tests on Linux and Mac). 
 This library is available at nuget [Ductus.FluentDocker](https://www.nuget.org/packages/Ductus.FluentDocker/ "Nuget Home for Ductus.FluentDocker") 
 and the ms test support is available at [Ductus.FluentDocker.MsTest](https://www.nuget.org/packages/Ductus.FluentDocker.MsTest/ "Nuget Home for Ductus.FluentDocker.MsTest").
 
