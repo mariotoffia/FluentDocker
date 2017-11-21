@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using Ductus.FluentDocker.Common;
 using static Ductus.FluentDocker.Common.OperatingSystem;
 
 namespace Ductus.FluentDocker.Extensions.Utils
@@ -14,10 +15,26 @@ namespace Ductus.FluentDocker.Extensions.Utils
     public DockerBinariesResolver(params string []paths)
     {
       Binaries = ResolveFromPaths(paths).ToArray();
-      MainDockerClient = Binaries.First(x => !x.IsToolbox && x.Type == DockerBinaryType.DockerClient);
-      MainDockerCompose = Binaries.First(x => !x.IsToolbox && x.Type == DockerBinaryType.Compose);
-      MainDockerMachine = Binaries.First(x => !x.IsToolbox && x.Type == DockerBinaryType.Machine);
+      MainDockerClient = Binaries.FirstOrDefault(x => !x.IsToolbox && x.Type == DockerBinaryType.DockerClient);
+      MainDockerCompose = Binaries.FirstOrDefault(x => !x.IsToolbox && x.Type == DockerBinaryType.Compose);
+      MainDockerMachine = Binaries.FirstOrDefault(x => !x.IsToolbox && x.Type == DockerBinaryType.Machine);
       HasToolbox = Binaries.Any(x => x.IsToolbox);
+
+      if (null == MainDockerClient)
+      {
+        Logger.Log("Failed to find docker client binary - please add it to your path");
+        throw new FluentDockerException("Failed to find docker client binary - please add it to your path");
+      }
+
+      if (null == MainDockerCompose)
+      {
+        Logger.Log("Failed to find docker-compose client binary - please add it to your path");
+      }
+
+      if (null == MainDockerMachine)
+      {
+        Logger.Log("Failed to find docker-machine client binary - please add it to your path");
+      }
     }
 
     public DockerBinary[] Binaries { get; }
