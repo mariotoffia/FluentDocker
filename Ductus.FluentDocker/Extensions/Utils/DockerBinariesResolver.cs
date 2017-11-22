@@ -81,6 +81,8 @@ namespace Ductus.FluentDocker.Extensions.Utils
           complete.AddRange(envpaths);
         if (null != toolboxpath)
           complete.Add(toolboxpath);
+
+        paths = complete.ToArray();
       }
 
       if (null == paths)
