@@ -72,7 +72,16 @@ namespace Ductus.FluentDocker.Extensions.Utils
     {      
       var isWindows = IsWindows();
       if (null == paths || 0 == paths.Length)
-        paths = Environment.GetEnvironmentVariable("PATH")?.Split(isWindows ? ';' : ':');
+      {
+        var complete = new List<string>();
+        var toolboxpath = Environment.GetEnvironmentVariable("DOCKER_TOOLBOX_INSTALL_PATH");
+        var envpaths = Environment.GetEnvironmentVariable("PATH")?.Split(isWindows ? ';' : ':');
+
+        if (null != envpaths)
+          complete.AddRange(envpaths);
+        if (null != toolboxpath)
+          complete.Add(toolboxpath);
+      }
 
       if (null == paths)
         return new DockerBinary[0];
@@ -87,7 +96,7 @@ namespace Ductus.FluentDocker.Extensions.Utils
 
         if (isWindows)
         {
-          list.AddRange(from file in Directory.GetFiles(path)
+          list.AddRange(from file in Directory.GetFiles(path,"docker*.*")
             let f = Path.GetFileName(file.ToLower())
             where null != f && (f.Equals("docker.exe") || f.Equals("docker-compose.exe") || f.Equals("docker-machine.exe"))
             select new DockerBinary(path, f));
@@ -95,7 +104,7 @@ namespace Ductus.FluentDocker.Extensions.Utils
           continue;
         }
 
-        list.AddRange(from file in Directory.GetFiles(path)
+        list.AddRange(from file in Directory.GetFiles(path,"docker*")
           let f = Path.GetFileName(file)
           let f2 = f.ToLower()
           where f2.Equals("docker") || f2.Equals("docker-compose") || f2.Equals("docker-machine")

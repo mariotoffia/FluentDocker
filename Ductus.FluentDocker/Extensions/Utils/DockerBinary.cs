@@ -17,7 +17,7 @@ namespace Ductus.FluentDocker.Extensions.Utils
       Binary = binary.ToLower();
       Type = Translate(binary);
 
-      var isToolbox = Environment.GetEnvironmentVariable("DOCKER_TOOLBOX_INSTALL_PATH")?.ToLower().Equals(Path);
+      var isToolbox = Environment.GetEnvironmentVariable("DOCKER_TOOLBOX_INSTALL_PATH")?.Equals(Path);
       IsToolbox = isToolbox ?? false;
     }
 

@@ -48,6 +48,19 @@ namespace Ductus.FluentDocker.Extensions
       return _binaryResolver.Resolve(dockerCommand, preferMachine).FqPath;
     }
 
+    public static IEnumerable<string> GetResolvedBinaries()
+    {
+      if (null == _binaryResolver)
+        _binaryResolver = new DockerBinariesResolver();
+
+      return new List<string>
+      {
+        "docker        : " + (_binaryResolver.MainDockerClient.FqPath ?? "not found"),
+        "docker-compose: " + (_binaryResolver.MainDockerCompose.FqPath ?? "not found"),
+        "docker-machine: " + (_binaryResolver.MainDockerMachine.FqPath ?? "not found")
+      };
+    }
+
     /// <summary>
     ///   Checks is the current main environment is toolbox or not.
     /// </summary>
