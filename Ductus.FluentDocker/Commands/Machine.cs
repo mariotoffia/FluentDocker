@@ -12,6 +12,11 @@ namespace Ductus.FluentDocker.Commands
 {
   public static class Machine
   {
+    public static bool IsPresent()
+    {
+      return CommandExtensions.IsMachineBinaryPresent();
+    }
+
     public static CommandResponse<IList<MachineLsResponse>> Ls()
     {
       return new ProcessExecutor<MachineLsResponseParser, IList<MachineLsResponse>>(
@@ -67,7 +72,8 @@ namespace Ductus.FluentDocker.Commands
     public static CommandResponse<string> Create(this string machine, int memMb, int volumeMb, int cpuCnt,
       params string[] options)
     {
-      return Create(machine, $"{CommandDefaults.MachineDriver}", $"--{CommandDefaults.MachineDriver}-memory \"{memMb}\"",
+      return Create(machine, $"{CommandDefaults.MachineDriver}",
+        $"--{CommandDefaults.MachineDriver}-memory \"{memMb}\"",
         $"--{CommandDefaults.MachineDriver}-disk-size \"{volumeMb}\"",
         $"--{CommandDefaults.MachineDriver}-cpu-count \"{cpuCnt}\"");
     }
@@ -96,9 +102,7 @@ namespace Ductus.FluentDocker.Commands
         "docker-machine".ResolveBinary(), $"status {machine}").Execute();
 
       if (!resp.Success)
-      {
         return ServiceRunningState.Unknown;
-      }
 
       switch (resp.Data)
       {

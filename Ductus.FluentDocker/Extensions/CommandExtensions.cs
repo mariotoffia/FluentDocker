@@ -48,6 +48,24 @@ namespace Ductus.FluentDocker.Extensions
       return _binaryResolver.Resolve(dockerCommand, preferMachine).FqPath;
     }
 
+    public static bool IsMachineBinaryPresent()
+    {
+      if (null == _binaryResolver)
+        _binaryResolver = new DockerBinariesResolver();
+
+      return null != _binaryResolver.MainDockerMachine;
+
+    }
+
+    public static bool IsComposeBinaryPresent()
+    {
+      if (null == _binaryResolver)
+        _binaryResolver = new DockerBinariesResolver();
+
+      return null != _binaryResolver.MainDockerCompose;
+
+    }
+
     public static IEnumerable<string> GetResolvedBinaries()
     {
       if (null == _binaryResolver)
