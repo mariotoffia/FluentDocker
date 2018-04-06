@@ -1,6 +1,5 @@
 ﻿using System.Diagnostics;
 using Ductus.FluentDocker.Commands;
-using Ductus.FluentDockerTest;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace Ductus.FluentDocker.Tests.CommandTests

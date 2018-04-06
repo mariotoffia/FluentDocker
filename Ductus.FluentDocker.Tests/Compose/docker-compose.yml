@@ -5,7 +5,7 @@ nginx:
         - node2:node2
         - node3:node3
     ports:
-        - "80:80"
+        - "8090:80"
 node1:
     build: ./node
     links:

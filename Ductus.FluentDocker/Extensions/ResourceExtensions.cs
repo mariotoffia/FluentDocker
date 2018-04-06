@@ -48,7 +48,7 @@ namespace Ductus.FluentDocker.Extensions
 				return;
 			}
 
-			new ResourceQuery().From(assemblyAndNamespace.GetTypeInfo().Assembly.GetName().Name)
+      new ResourceQuery().From(assemblyAndNamespace.GetTypeInfo().Assembly.GetName().Name)
 			  .Namespace(assemblyAndNamespace.Namespace, false)
 			  .Include(files)
 			  .ToFile(targetPath);
@@ -94,7 +94,7 @@ namespace Ductus.FluentDocker.Extensions
 		private static Assembly GetAssembly(string assemblyName)
 		{
 #if COREFX
-			return GetAssemblies().First(x => x.GetName().Name == assemblyName);
+      return GetAssemblies().First(x => x.GetName().Name == assemblyName);
 		}
 
 		internal static IEnumerable<Assembly> GetAssemblies()

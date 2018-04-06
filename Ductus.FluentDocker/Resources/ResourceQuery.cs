@@ -46,8 +46,10 @@ namespace Ductus.FluentDocker.Resources
 				.First(x => x.GetName().Name.Equals(_assembly, StringComparison.OrdinalIgnoreCase));
 #endif
 
+		  var q = assembly.GetManifestResourceNames();
 
-			foreach (var res in assembly.GetManifestResourceNames().Where(x => x.StartsWith(_namespace)))
+
+      foreach (var res in assembly.GetManifestResourceNames().Where(x => x.StartsWith(_namespace)))
 			{
 				var file = ExtractFile(res);
 				var ns = res.Substring(0, res.Length - file.Length - 1);

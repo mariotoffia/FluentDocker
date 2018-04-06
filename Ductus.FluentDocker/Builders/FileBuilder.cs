@@ -12,6 +12,7 @@ namespace Ductus.FluentDocker.Builders
   {
     private readonly FileBuilderConfig _config = new FileBuilderConfig();
     private readonly ImageBuilder _parent;
+    private TemplateString _workingFolder;
 
     internal FileBuilder(ImageBuilder parent)
     {
@@ -20,11 +21,14 @@ namespace Ductus.FluentDocker.Builders
 
     internal string PrepareBuild()
     {
-      TemplateString workingFolder = @"${TEMP}\fluentdockertest\${RND}";
+      if (null == _workingFolder)
+      {
+        _workingFolder = @"${TEMP}\fluentdockertest\${RND}";
+      }
 
-      CopyToWorkDir(workingFolder); // Must be before RenderDockerFile!
-      RenderDockerfile(workingFolder);
-      return workingFolder;
+      CopyToWorkDir(_workingFolder); // Must be before RenderDockerFile!
+      RenderDockerfile(_workingFolder);
+      return _workingFolder;
     }
 
     public IContainerImageService Build()
@@ -40,6 +44,12 @@ namespace Ductus.FluentDocker.Builders
     public ImageBuilder ToImage()
     {
       return _parent;
+    }
+
+    public FileBuilder WorkingFolder(TemplateString workingFolder)
+    {
+      _workingFolder = workingFolder;
+      return this;
     }
 
     public FileBuilder UseParent(string from)
@@ -110,6 +120,13 @@ namespace Ductus.FluentDocker.Builders
     {
       foreach (var command in _config.AddRunCommands.Where(x => x is AddCommand).Cast<AddCommand>())
       {
+        var wff = Path.Combine(workingFolder, command.Source);
+        if (File.Exists(wff) || Directory.Exists(wff))
+        {
+          // File or folder already at working folder - no need to copy.
+          continue;
+        }
+
         // Replace to relative path
         command.Source = command.Source.Copy(workingFolder);
       }

@@ -1,4 +1,4 @@
-﻿namespace Ductus.FluentDockerTest.Compose
+﻿namespace Ductus.FluentDocker.Tests.Compose
 {
   public sealed class NsResolver
   {

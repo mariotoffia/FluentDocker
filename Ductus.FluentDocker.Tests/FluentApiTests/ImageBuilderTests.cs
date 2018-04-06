@@ -1,7 +1,7 @@
 ﻿using Ductus.FluentDocker.Builders;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
-namespace Ductus.FluentDockerTest.FluentApiTests
+namespace Ductus.FluentDocker.Tests.FluentApiTests
 {
   [TestClass]
   public class ImageBuilderTests
@@ -12,15 +12,16 @@ namespace Ductus.FluentDockerTest.FluentApiTests
       using (
         var image =
           new Builder().DefineImage("mariotoffia/unittest:latest")
-            .From("ubuntu")
+            .From("ubuntu:14.04")
             .Maintainer("Mario Toffia <mario.toffia@gmail.com>")
+              .Run("apt-get update")
               .Run("apt-get install -y software-properties-common python")
               .Run("add-apt-repository ppa:chris-lea/node.js")
               .Run("echo \"deb http://us.archive.ubuntu.com/ubuntu/ precise universe\" >> /etc/apt/sources.list")
               .Run("apt-get update")
               .Run("apt-get install -y nodejs")
               .Run("mkdir /var/www")
-              .Add("embedded:Ductus.FluentDockerTest/Ductus.FluentDockerTest.MultiContainerTestFiles/app.js", "/var/www/app.js")
+              .Add("emb:Ductus.FluentDocker.Tests/Ductus.FluentDocker.Tests.MultiContainerTestFiles/app.js", "/var/www/app.js")
             .Command("/usr/bin/node", "/var/www/app.js")
             .Build())
       {

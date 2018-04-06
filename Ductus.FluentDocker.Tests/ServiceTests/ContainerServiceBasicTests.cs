@@ -135,12 +135,7 @@ namespace Ductus.FluentDocker.Tests.ServiceTests
 				var proc = container.GetRunningProcesses();
 				Debug.WriteLine(proc.ToString());
 
-				Assert.IsTrue(proc.Rows.Any(x => x.Command == "postgres"));
-				Assert.IsTrue(proc.Rows.Any(x => x.Command == "postgres: checkpointer process"));
-				Assert.IsTrue(proc.Rows.Any(x => x.Command == "postgres: writer process"));
-				Assert.IsTrue(proc.Rows.Any(x => x.Command == "postgres: wal writer process"));
-				Assert.IsTrue(proc.Rows.Any(x => x.Command == "postgres: autovacuum launcher process"));
-				Assert.IsTrue(proc.Rows.Any(x => x.Command == "postgres: stats collector process"));
+				Assert.IsTrue(proc.Rows.Any(x => x.Command == "bash /usr/local/bin/docker-entrypoint.sh postgres"));
 			}
 		}
 
@@ -259,11 +254,10 @@ namespace Ductus.FluentDocker.Tests.ServiceTests
 				try
 				{
 					Directory.CreateDirectory(fullPath);
-					container.CopyFrom("/etc/conf.d", fullPath);
+					container.CopyFrom("/etc", fullPath);
 
-					var files = Directory.EnumerateFiles(Path.Combine(fullPath, "conf.d")).ToArray();
-					Assert.IsTrue(files.Any(x => x.EndsWith("pg-restore")));
-					Assert.IsTrue(files.Any(x => x.EndsWith("postgresql")));
+					var files = Directory.EnumerateFiles(Path.Combine(fullPath, "etc")).ToArray();
+					Assert.IsTrue(files.Any(x => x.EndsWith("fstab")));
 				}
 				finally
 				{

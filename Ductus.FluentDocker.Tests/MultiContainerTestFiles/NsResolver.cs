@@ -1,4 +1,4 @@
-﻿namespace Ductus.FluentDockerTest.MultiContainerTestFiles
+﻿namespace Ductus.FluentDocker.Tests.MultiContainerTestFiles
 {
   public class NsResolver
   {

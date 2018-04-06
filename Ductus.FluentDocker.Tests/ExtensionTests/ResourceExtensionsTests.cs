@@ -1,9 +1,9 @@
 ﻿using System.Linq;
 using Ductus.FluentDocker.Extensions;
-using Ductus.FluentDockerTest.Compose;
+using Ductus.FluentDocker.Tests.Compose;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
-namespace Ductus.FluentDockerTest.ExtensionTests
+namespace Ductus.FluentDocker.Tests.ExtensionTests
 {
 #if !COREFX
 	[TestClass]

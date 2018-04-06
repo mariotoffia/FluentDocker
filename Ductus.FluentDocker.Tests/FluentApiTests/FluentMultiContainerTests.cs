@@ -6,12 +6,13 @@ using Ductus.FluentDocker.Extensions;
 using Ductus.FluentDocker.Model.Common;
 using Ductus.FluentDocker.Services.Extensions;
 using Ductus.FluentDocker.Tests.Extensions;
-using Ductus.FluentDockerTest.MultiContainerTestFiles;
+using Ductus.FluentDocker.Tests.MultiContainerTestFiles;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace Ductus.FluentDocker.Tests.FluentApiTests
 {
   [TestClass]
+  [Ignore]
   public class FluentMultiContainerTests
   {
     /// <summary>
@@ -36,14 +37,15 @@ namespace Ductus.FluentDocker.Tests.FluentApiTests
 
           // Define custom node image to be used
           .DefineImage("mariotoffia/nodetest").ReuseIfAlreadyExists()
-          .From("ubuntu")
+          .From("ubuntu:14.04")
           .Maintainer("Mario Toffia <mario.toffia@gmail.com>")
+          .WorkingFolder(fullPath)
           .Run("apt-get update &&",
             "apt-get -y install curl &&",
             "curl -sL https://deb.nodesource.com/setup | sudo bash - &&",
             "apt-get -y install python build-essential nodejs")
           .Run("npm install -g nodemon")
-          .Add("emb:Ductus.FluentDockerTest/Ductus.FluentDockerTest.MultiContainerTestFiles/package.txt",
+          .Add("emb:Ductus.FluentDocker.Tests/Ductus.FluentDocker.Tests.MultiContainerTestFiles/package.txt",
             "/tmp/package.json")
           .Run("cd /tmp && npm install")
           .Run("mkdir -p /src && cp -a /tmp/node_modules /src/")

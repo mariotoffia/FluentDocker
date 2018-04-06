@@ -6,8 +6,7 @@ using Ductus.FluentDocker.Model.Common;
 using Ductus.FluentDocker.Services.Extensions;
 using Ductus.FluentDocker.Services.Impl;
 using Ductus.FluentDocker.Tests.Extensions;
-using Ductus.FluentDockerTest;
-using Ductus.FluentDockerTest.Compose;
+using Ductus.FluentDocker.Tests.Compose;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace Ductus.FluentDocker.Tests.CommandTests
@@ -30,7 +29,7 @@ namespace Ductus.FluentDocker.Tests.CommandTests
 
         var ids = Host.Host.ComposePs(composeFile: file, certificates: Host.Certificates);
         Assert.IsTrue(ids.Success);
-        Assert.AreEqual(4, ids.Data.Count);
+        Assert.AreEqual(5, ids.Data.Count);
 
         // Find the nginx docker container
         DockerContainerService svc = null;

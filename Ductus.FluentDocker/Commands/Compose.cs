@@ -453,7 +453,9 @@ namespace Ductus.FluentDocker.Commands
         args += $" -p {altProjectName}";
       }
 
-      var options = string.Empty;
+      // Always run in detached mode
+      var options = "--detach";
+
       if (forceRecreate)
       {
         options += " --force-recreate";

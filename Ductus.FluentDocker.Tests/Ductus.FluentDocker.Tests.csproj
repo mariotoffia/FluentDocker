@@ -19,4 +19,18 @@
     <Service Include="{82a7f48d-3b50-4b1e-b82e-3ada8210c358}" />
   </ItemGroup>
 
+  <ItemGroup>
+    <EmbeddedResource Include="MultiContainerTestFiles\*.js" />
+    <EmbeddedResource Include="MultiContainerTestFiles\*.txt" />
+    <EmbeddedResource Include="MultiContainerTestFiles\nginx.conf" />
+    <EmbeddedResource Include="Compose\docker-compose.yml" />
+    <EmbeddedResource Include="Compose\nginx\Dockerfile" />
+    <EmbeddedResource Include="Compose\nginx\Dockerfile_custom" />
+    <EmbeddedResource Include="Compose\nginx\nginx.conf" />
+    <EmbeddedResource Include="Compose\node\Dockerfile" />
+    <EmbeddedResource Include="Compose\node\index.js" />
+    <EmbeddedResource Include="Compose\node\package.txt" />
+    <EmbeddedResource Include="Compose\redis\Dockerfile" />
+  </ItemGroup>
+
 </Project>
