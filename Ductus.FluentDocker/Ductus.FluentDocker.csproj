@@ -21,6 +21,9 @@
     <AssemblyVersion>2.2.9.0</AssemblyVersion>
     <FileVersion>2.2.9.0</FileVersion>
     <Version>2.2.9</Version>
+    <AssemblyOriginatorKeyFile>..\keypair.snk</AssemblyOriginatorKeyFile>
+    <SignAssembly>true</SignAssembly>
+    <PublicSign Condition=" '$(OS)' != 'Windows_NT' ">true</PublicSign>
   </PropertyGroup>
 
   <ItemGroup>
