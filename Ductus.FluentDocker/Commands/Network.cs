@@ -92,7 +92,7 @@ namespace Ductus.FluentDocker.Commands
       return
         new ProcessExecutor<StringListResponseParser, IList<string>>(
           "docker".ResolveBinary(),
-          $"{args} network disconnect {options}").Execute();
+          $"{args} network inspect {options}").Execute();
     }
 
     public static CommandResponse<IList<string>> NetworkRm(this DockerUri host,
