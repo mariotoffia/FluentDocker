@@ -14,7 +14,14 @@ namespace Ductus.FluentDocker.Services.Extensions
 		public static IContainerService WaitForPort(this IContainerService service, string portAndProto,
 		  long millisTimeout = long.MaxValue)
 		{
-			service.ToHostExposedEndpoint(portAndProto).WaitForPort(millisTimeout);
+			var endpoint = service.ToHostExposedEndpoint(portAndProto);
+
+			if (endpoint == null)
+			{
+				throw new FluentDockerException($"Can't find host endpoint for container port: {portAndProto}");
+			}
+
+			endpoint.WaitForPort(millisTimeout);
 			return service;
 		}
 
