@@ -3,7 +3,7 @@ FluentDocker is a library to interact with docker-machine, docker-compose and do
 This library is available at nuget [Ductus.FluentDocker](https://www.nuget.org/packages/Ductus.FluentDocker/ "Nuget Home for Ductus.FluentDocker") 
 and the ms test support is available at [Ductus.FluentDocker.MsTest](https://www.nuget.org/packages/Ductus.FluentDocker.MsTest/ "Nuget Home for Ductus.FluentDocker.MsTest").
 
-This library was originally written for .NET framework but has now been ported to .NET Core by smudge202. Many thanks for the contribution. It supports .net standard 1.6 and 2.0 and .net 4.51.
+This library was originally written for .NET framework but has now been ported to .NET Core by smudge202. Many thanks for the contribution. It supports .net standard 1.6, 2.0 and .net 4.51.
 
 The library is divided into three thin layers, each layer is accessable:
 
