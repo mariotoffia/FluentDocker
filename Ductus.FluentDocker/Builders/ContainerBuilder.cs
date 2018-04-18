@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Net;
+using System.Text.RegularExpressions;
 using Ductus.FluentDocker.Common;
 using Ductus.FluentDocker.Extensions;
 using Ductus.FluentDocker.Model.Builders;
@@ -32,8 +33,8 @@ namespace Ductus.FluentDocker.Builders
       {
         // Since filter on docker is only prefix filter
         var existing =
-          host.Value.GetContainers(true, $" -f name={_config.CreateParams.Name}")
-            .FirstOrDefault(x => x.Name == _config.CreateParams.Name);
+          host.Value.GetContainers(true, $"name={_config.CreateParams.Name}")
+            .FirstOrDefault(x => IsNameMatch(x.Name, _config.CreateParams.Name));
 
         if (null != existing)
         {
@@ -321,5 +322,8 @@ namespace Ductus.FluentDocker.Builders
         });
       }
     }
+
+    private static bool IsNameMatch(string containerName, string test) =>
+      Regex.IsMatch(containerName, $@"^\/?{test}$");
   }
 }

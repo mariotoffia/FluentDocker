@@ -375,5 +375,23 @@ namespace Ductus.FluentDocker.Tests.FluentApiTests
         }
       }
     }
+
+    [TestMethod]
+    public void ReuseOfExistingContainerShallWork()
+    {
+      using (new Builder()
+        .UseContainer()
+        .UseImage("postgres:9.6-alpine")
+        .WithName("reusable-name")
+        .Build())
+      using (new Builder()
+        .UseContainer()
+        .ReuseIfExists()
+        .UseImage("postgres:9.6-alpine")
+        .WithName("reusable-name")
+        .Build())
+      {
+      }
+    }
   }
 }
