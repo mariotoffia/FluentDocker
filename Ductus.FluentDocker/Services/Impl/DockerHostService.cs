@@ -145,7 +145,7 @@ namespace Ductus.FluentDocker.Services.Impl
 
       if (!string.IsNullOrEmpty(filter))
       {
-        options += $" --filter={filter}";
+        options += $" --filter {filter}";
       }
 
       var result = Host.Ps(options, Certificates);
