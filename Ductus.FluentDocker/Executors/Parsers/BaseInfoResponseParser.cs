@@ -42,7 +42,8 @@ namespace Ductus.FluentDocker.Executors.Parsers
         ClientApiVersion = s[3],
         ClientVersion = s[2],
         ServerApiVersion = s[1],
-        ServerVersion = s[0]
+        ServerVersion = s[0],
+        ServerOs = s[4]
       });
       return this;
     }

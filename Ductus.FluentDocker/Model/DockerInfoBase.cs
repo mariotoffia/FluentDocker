@@ -6,6 +6,7 @@
     public string ClientApiVersion { get; set; }
     public string ServerVersion { get; set; }
     public string ServerApiVersion { get; set; }
+    public string ServerOs { get; set; }
 
     public override string ToString()
     {

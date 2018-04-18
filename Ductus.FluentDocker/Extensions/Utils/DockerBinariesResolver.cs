@@ -18,6 +18,7 @@ namespace Ductus.FluentDocker.Extensions.Utils
       MainDockerClient = Binaries.FirstOrDefault(x => !x.IsToolbox && x.Type == DockerBinaryType.DockerClient);
       MainDockerCompose = Binaries.FirstOrDefault(x => !x.IsToolbox && x.Type == DockerBinaryType.Compose);
       MainDockerMachine = Binaries.FirstOrDefault(x => !x.IsToolbox && x.Type == DockerBinaryType.Machine);
+      MainDockerCli = Binaries.FirstOrDefault(x => !x.IsToolbox && x.Type == DockerBinaryType.Cli);
       HasToolbox = Binaries.Any(x => x.IsToolbox);
 
       if (null == MainDockerClient)
@@ -41,6 +42,7 @@ namespace Ductus.FluentDocker.Extensions.Utils
     public DockerBinary MainDockerClient { get; }
     public DockerBinary MainDockerCompose { get; }
     public DockerBinary MainDockerMachine { get; }
+    public DockerBinary MainDockerCli { get; }
     public bool HasToolbox { get; }
 
     public DockerBinary Resolve(string binary, bool preferMachine = false)
@@ -102,6 +104,12 @@ namespace Ductus.FluentDocker.Extensions.Utils
             let f = Path.GetFileName(file.ToLower())
             where null != f && (f.Equals("docker.exe") || f.Equals("docker-compose.exe") || f.Equals("docker-machine.exe"))
             select new DockerBinary(path, f));
+
+          var dockercli = Path.GetFullPath(Path.Combine(path, "..\\.."));
+          if (File.Exists(Path.Combine(dockercli,"dockercli.exe")))
+          {
+            list.Add(new DockerBinary(dockercli,"dockercli.exe"));
+          }
 
           continue;
         }

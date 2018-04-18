@@ -6,7 +6,8 @@ namespace Ductus.FluentDocker.Extensions.Utils
   {
     DockerClient = 1,
     Machine = 2,
-    Compose = 3
+    Compose = 3,
+    Cli = 4
   }
 
   public sealed class DockerBinary
@@ -34,6 +35,9 @@ namespace Ductus.FluentDocker.Extensions.Utils
         case "docker-compose":
         case "docker-compose.exe":
           return DockerBinaryType.Compose;
+        case "dockercli":
+        case "dockercli.exe":
+          return DockerBinaryType.Cli;
         default:
           throw new Exception($"Cannot determine the docker type on binary {binary}");
       }
