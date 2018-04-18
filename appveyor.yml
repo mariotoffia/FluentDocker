@@ -1,0 +1,10 @@
+#version: 0.0.0.{build}
+version:2.2.12
+skip_non_tags: true
+image: Visual Studio 2017
+build:
+  verbosity: minimal
+before_build:
+  - nuget restore
+configuration:
+  - Release
