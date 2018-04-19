@@ -8,6 +8,7 @@ This library was originally written for .NET framework but has now been ported t
 ### Current project status ###
 | | Status |
 | ---: | :-: |
+|Current build|[![Build status](https://ci.appveyor.com/api/projects/status/kqqrkcv8wp3e9my6?svg=true)](https://ci.appveyor.com/project/mariotoffia/fluentdocker)|
 |Current release Core|[![NuGet](https://img.shields.io/nuget/v/Ductus.FluentDocker.svg)](https://www.nuget.org/packages/Ductus.FluentDocker)|
 |Current release Test|[![NuGet](https://img.shields.io/nuget/v/Ductus.FluentDocker.MsTest.svg)](https://www.nuget.org/packages/Ductus.FluentDocker.MsTest)|
 
