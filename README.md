@@ -1,4 +1,3 @@
-
 # FluentDocker
 FluentDocker is a library to interact with docker-machine, docker-compose and docker. It supports the docker for windows, docker for mac, docker machine, and native linux (however only limited tests on Linux and Mac). 
 This library is available at nuget [Ductus.FluentDocker](https://www.nuget.org/packages/Ductus.FluentDocker/ "Nuget Home for Ductus.FluentDocker") 
@@ -41,6 +40,10 @@ Then it is simple as below to start and stop include delete a container using th
      var ps = _docker.Host.Ps(null, _docker.Certificates).Data;
      
      _docker.Host.RemoveContainer(id, true, true, null, _docker.Certificates);
+```
+When running on windows, one can choose to run linux or windows container. Use the ```LinuxDaemon``` or ```WindowsDaemon``` to control which daemon to talk to.
+```cs
+     _docker.LinuxDaemon(); // ensures that it will talk to linux daemon, if windows daemon it will switch
 ```
 
 Some commands returns a stream of data when e.g. events or logs is wanted using a continious stream. Streams can be used in background tasks and support ```CancellationToken```. Below example tails a log.
