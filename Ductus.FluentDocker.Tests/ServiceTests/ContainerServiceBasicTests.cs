@@ -306,5 +306,22 @@ namespace Ductus.FluentDocker.Tests.ServiceTests
 				}
 			}
 		}
+
+		[TestMethod]
+		public void WaitingForSpecificStatesShallWork()
+		{
+			using (var container = _host.Create("postgres:9.6-alpine"))
+			{
+				Assert.AreEqual(ServiceRunningState.Stopped, container.State);
+
+				container.Start();
+				container.WaitForRunning();
+				Assert.AreEqual(ServiceRunningState.Running, container.State);
+
+				container.Stop();
+				container.WaitForStopped();
+				Assert.AreEqual(ServiceRunningState.Stopped, container.State);
+			}
+		}
 	}
 }
