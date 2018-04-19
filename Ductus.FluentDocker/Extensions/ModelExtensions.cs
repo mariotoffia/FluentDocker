@@ -123,6 +123,11 @@ namespace Ductus.FluentDocker.Extensions
         return ServiceRunningState.Stopped;
       }
 
+      if (status == "exited")
+      {
+        return ServiceRunningState.Stopped;
+      }
+
       return ServiceRunningState.Unknown;
     }
 
