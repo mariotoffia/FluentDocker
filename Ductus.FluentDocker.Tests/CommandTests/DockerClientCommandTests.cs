@@ -1,10 +1,12 @@
 ﻿using System.Diagnostics;
 using System.Linq;
 using Ductus.FluentDocker.Commands;
+using Ductus.FluentDocker.Common;
 using Ductus.FluentDocker.Extensions;
 using Ductus.FluentDocker.Model.Common;
 using Ductus.FluentDocker.Model.Containers;
 using Ductus.FluentDocker.Services.Extensions;
+using Ductus.FluentDocker.Tests.Extensions;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace Ductus.FluentDocker.Tests.CommandTests
@@ -21,6 +23,7 @@ namespace Ductus.FluentDocker.Tests.CommandTests
     {
       if (CommandExtensions.IsNative() || CommandExtensions.IsEmulatedNative())
       {
+        _docker.LinuxMode();
         return;
       }
 
@@ -47,6 +50,8 @@ namespace Ductus.FluentDocker.Tests.CommandTests
         ClientCertificate = inspect.AuthConfig.ClientCertPath,
         ClientKey = inspect.AuthConfig.ClientKeyPath
       };
+
+      _docker.LinuxMode(_certificates);
     }
 
     [ClassCleanup]
@@ -56,6 +61,35 @@ namespace Ductus.FluentDocker.Tests.CommandTests
       {
         "test-machine".Delete(true /*force*/);
       }
+    }
+
+    [TestMethod]
+    public void EnsureLinuxDaemonShallWork()
+    {
+      _docker.LinuxDaemon(_certificates);
+      var mode = _docker.Version(_certificates);
+      Assert.AreEqual("linux", mode.Data.ServerOs);
+    }
+    [TestMethod]
+    public void EnusreWindowsDaemonShallWork()
+    {
+      if (!OperatingSystem.IsWindows())
+      {
+        // Only run this test on windows devices.
+        return;
+      }
+
+      try
+      {
+        _docker.WindowsDaemon(_certificates);
+        var mode = _docker.Version(_certificates);
+        Assert.AreEqual("windows", mode.Data.ServerOs);
+      }
+      finally
+      {
+        _docker.LinuxDaemon(_certificates);
+      }
+
     }
 
     [TestMethod]

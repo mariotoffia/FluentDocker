@@ -2,6 +2,7 @@
 using System.Linq;
 using Ductus.FluentDocker.Commands;
 using Ductus.FluentDocker.Services;
+using Ductus.FluentDocker.Tests.Extensions;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace Ductus.FluentDocker.Tests
@@ -41,6 +42,7 @@ namespace Ductus.FluentDocker.Tests
         if (Host.State != ServiceRunningState.Running)
         {
           Host.Start();
+          Host.Host.LinuxMode(Host.Certificates);
         }
 
         return;

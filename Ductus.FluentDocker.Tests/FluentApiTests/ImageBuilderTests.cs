@@ -1,4 +1,5 @@
 ﻿using Ductus.FluentDocker.Builders;
+using Ductus.FluentDocker.Tests.Extensions;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace Ductus.FluentDocker.Tests.FluentApiTests
@@ -6,6 +7,12 @@ namespace Ductus.FluentDocker.Tests.FluentApiTests
   [TestClass]
   public class ImageBuilderTests
   {
+    [ClassInitialize]
+    public static void Initialize(TestContext ctx)
+    {
+      Utilities.LinuxMode();
+    }
+
     [TestMethod]
     public void BuildImageFromFileWithCopyAndRunInstructionShallWork()
     {

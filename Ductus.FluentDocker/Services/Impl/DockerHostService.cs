@@ -19,13 +19,15 @@ namespace Ductus.FluentDocker.Services.Impl
     private const string DefaultCaCertName = "ca.pem";
     private const string DefaultClientCertName = "cert.pem";
     private const string DefaultClientKeyName = "key.pem";
+    private readonly bool _isWindowsHost;
 
     private readonly bool _stopWhenDisposed;
 
     public DockerHostService(string name, bool isNative, bool stopWhenDisposed = false, string dockerUri = null,
-      string certificatePath = null)
+      string certificatePath = null, bool isWindowsHost = false)
       : base(name)
     {
+      _isWindowsHost = isWindowsHost;
       _stopWhenDisposed = stopWhenDisposed;
 
       IsNative = isNative;
@@ -35,14 +37,12 @@ namespace Ductus.FluentDocker.Services.Impl
         var certPath = certificatePath ?? Environment.GetEnvironmentVariable(DockerCertPath);
 
         if (!string.IsNullOrEmpty(certPath))
-        {
           Certificates = new CertificatePaths
           {
             CaCertificate = Path.Combine(certPath, DefaultCaCertName),
             ClientCertificate = Path.Combine(certPath, DefaultClientCertName),
             ClientKey = Path.Combine(certPath, DefaultClientKeyName)
           };
-        }
 
         Host = string.IsNullOrEmpty(uri) ? null : new DockerUri(uri);
         RequireTls = Environment.GetEnvironmentVariable(DockerTlsVerify) == "1";
@@ -57,72 +57,50 @@ namespace Ductus.FluentDocker.Services.Impl
     public override void Dispose()
     {
       if (_stopWhenDisposed && !IsNative)
-      {
         Name.Stop();
-      }
     }
 
     public override void Start()
     {
       if (IsNative)
-      {
         throw new InvalidOperationException($"Cannot start docker host {Name} since it is native");
-      }
 
       if (State != ServiceRunningState.Stopped)
-      {
         throw new InvalidOperationException($"Cannot start docker host {Name} since it has state {State}");
-      }
 
       var response = Name.Start();
       if (!response.Success)
-      {
         throw new InvalidOperationException($"Could not start docker host {Name}");
-      }
 
       if (!IsNative)
-      {
         MachineSetup(Name);
-      }
     }
 
     public override void Stop()
     {
       if (!IsNative)
-      {
         throw new InvalidOperationException($"Cannot stop docker host {Name} since it is native");
-      }
 
       if (State != ServiceRunningState.Running)
-      {
         throw new InvalidOperationException($"Cannot stop docker host {Name} since it has state {State}");
-      }
 
       var response = Name.Stop();
       if (!response.Success)
-      {
         throw new InvalidOperationException($"Could not stop docker host {Name}");
-      }
     }
 
     public override void Remove(bool force = false)
     {
       if (!IsNative)
-      {
         throw new InvalidOperationException($"Cannot remove docker host {Name} since it is native");
-      }
 
       if (State == ServiceRunningState.Running && !force)
-      {
         throw new InvalidOperationException(
           $"Cannot remove docker host {Name} since it has state {State} and force is not enabled");
-      }
 
       var response = Name.Delete(force);
       if (!response.Success)
-      {
         throw new InvalidOperationException($"Could not remove docker host {Name}");
-      }
     }
 
     public DockerUri Host { get; private set; }
@@ -139,38 +117,31 @@ namespace Ductus.FluentDocker.Services.Impl
     {
       var options = string.Empty;
       if (all)
-      {
         options += " --all";
-      }
 
       if (!string.IsNullOrEmpty(filter))
-      {
         options += $" --filter {filter}";
-      }
 
       var result = Host.Ps(options, Certificates);
       if (!result.Success)
-      {
         return new List<IContainerService>();
-      }
 
       return (from id in result.Data
         let config = Host.InspectContainer(id, Certificates).Data
         select
           new DockerContainerService(config.Name, id, Host, config.State.ToServiceState(),
-            Certificates)).Cast<IContainerService>().ToList();
+            Certificates, isWindowsContainer: _isWindowsHost)).Cast<IContainerService>().ToList();
     }
 
     public IList<IContainerImageService> GetImages(bool all = true, string filer = null)
     {
       var images = Host.Images(null, Certificates);
       if (!images.Success)
-      {
         return new List<IContainerImageService>();
-      }
 
       return
-        images.Data.Select(image => new DockerImageService(image.Name, image.Id, image.Tags[0], Host, Certificates))
+        images.Data.Select(image =>
+            new DockerImageService(image.Name, image.Id, image.Tags[0], Host, Certificates, _isWindowsHost))
           .Cast<IContainerImageService>()
           .ToList();
     }
@@ -182,21 +153,17 @@ namespace Ductus.FluentDocker.Services.Impl
       var res = Host.Create(image, command, args, prms, Certificates);
 
       if (!res.Success || 0 == res.Data.Length)
-      {
         throw new FluentDockerException(
           $"Could not create Service from {image} with command {command}, args {args}, and parameters {prms}. Result: {res}");
-      }
 
       var config = Host.InspectContainer(res.Data, Certificates);
       if (!config.Success)
-      {
         throw new FluentDockerException(
           $"Could not return service for docker id {res.Data} - Container was created, you have to manually delete it or do a Ls");
-      }
 
       return new DockerContainerService(config.Data.Name.Substring(1), res.Data, Host,
         config.Data.State.ToServiceState(),
-        Certificates, stopOnDispose, deleteOnDispose);
+        Certificates, stopOnDispose, deleteOnDispose, _isWindowsHost);
     }
 
     public MachineConfiguration GetMachineConfiguration()
@@ -208,9 +175,7 @@ namespace Ductus.FluentDocker.Services.Impl
     {
       State = name.Status();
       if (State != ServiceRunningState.Running)
-      {
         return;
-      }
 
       Host = name.Uri();
 

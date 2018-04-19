@@ -11,7 +11,7 @@
     public override string ToString()
     {
       return
-        $"Client.Version = {ClientVersion} Client.ApiVersion = {ClientApiVersion} Server.Version = {ServerVersion} Server.ApiVersion = {ServerApiVersion}";
+        $"Client.Version = {ClientVersion} Client.ApiVersion = {ClientApiVersion} Server.Version = {ServerVersion} Server.ApiVersion = {ServerApiVersion} Server.Os = {ServerOs}";
     }
   }
 }

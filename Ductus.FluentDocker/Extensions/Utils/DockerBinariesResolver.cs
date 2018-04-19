@@ -65,6 +65,8 @@ namespace Ductus.FluentDocker.Extensions.Utils
           return MainDockerClient;
         case DockerBinaryType.Machine:
           return MainDockerMachine;
+        case DockerBinaryType.Cli:
+          return MainDockerCli;
         default:
           throw new Exception($"Cannot resolve unknown binary {binary}");
       }

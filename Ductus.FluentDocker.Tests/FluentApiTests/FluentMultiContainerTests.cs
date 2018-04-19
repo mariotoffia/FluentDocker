@@ -15,6 +15,12 @@ namespace Ductus.FluentDocker.Tests.FluentApiTests
   [Ignore]
   public class FluentMultiContainerTests
   {
+    [ClassInitialize]
+    public static void Initialize(TestContext ctx)
+    {
+      Utilities.LinuxMode();
+    }
+
     /// <summary>
     ///   This test is by far completed - needs to have much more support for e.g.
     ///   building a docker file to do this.

@@ -4,6 +4,7 @@ using Ductus.FluentDocker.Commands;
 using Ductus.FluentDocker.Extensions;
 using Ductus.FluentDocker.Extensions.Utils;
 using Ductus.FluentDocker.Services;
+using Ductus.FluentDocker.Tests.Extensions;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace Ductus.FluentDocker.Tests.ServiceTests
@@ -11,6 +12,12 @@ namespace Ductus.FluentDocker.Tests.ServiceTests
   [TestClass]
   public class MachineServiceTests
   {
+    [ClassInitialize]
+    public static void Initialize(TestContext ctx)
+    {
+      Utilities.LinuxMode();
+    }
+
     [TestCategory("Main")]
     [TestMethod]
     public void DiscoverBinariesShallWork()

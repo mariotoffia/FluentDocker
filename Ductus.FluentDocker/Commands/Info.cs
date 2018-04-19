@@ -9,6 +9,12 @@ namespace Ductus.FluentDocker.Commands
 {
   public static class Info
   {
+    /// <summary>
+    /// Get the docker version both client and server version. It includes the server operating system (linux, windows).
+    /// </summary>
+    /// <param name="host">The docker daemon to contact.</param>
+    /// <param name="certificates">Path to certificates if any.</param>
+    /// <returns>A response with the versions if successfull.</returns>
     public static CommandResponse<DockerInfoBase> Version(this DockerUri host, ICertificatePaths certificates = null)
     {
       var args = $"{host.RenderBaseArgs(certificates)}";

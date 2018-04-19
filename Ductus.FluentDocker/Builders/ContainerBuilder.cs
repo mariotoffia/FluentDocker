@@ -62,6 +62,12 @@ namespace Ductus.FluentDocker.Builders
       return this;
     }
 
+    public ContainerBuilder IsWindowsImage()
+    {
+      _config.IsWindowsImage = true;
+      return this;
+    }
+
     public ImageBuilder FromImage(string image)
     {
       UseImage(image);

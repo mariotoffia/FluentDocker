@@ -21,29 +21,21 @@ namespace Ductus.FluentDocker.Builders
     public override IContainerImageService Build()
     {
       if (string.IsNullOrEmpty(_config.ImageName))
-      {
         throw new FluentDockerException("Cannot create or verify an image without a name");
-      }
 
       var host = FindHostService();
       if (!host.HasValue)
-      {
         throw new FluentDockerException(
           $"Cannot build Dockerfile for image {_config.ImageName} since no host service is defined");
-      }
 
       var tag = null == _config.Params.Tags ? "latest" : _config.Params.Tags[0];
       var image = host.Value.GetImages().FirstOrDefault(x => x.Name == _config.ImageName && x.Tag == tag);
 
       if (_config.VerifyExistence && null != image)
-      {
         return image;
-      }
 
       if (null == _config.Params.Tags)
-      {
         _config.Params.Tags = new[] {"latest"};
-      }
 
       // Render docker file and copy all resources
       // to a working directory
@@ -56,13 +48,11 @@ namespace Ductus.FluentDocker.Builders
       });
 
       if (id.IsFailure)
-      {
         throw new FluentDockerException(
           $"Could not build image {_config.ImageName} due to error: {id.Error} log: {id.Log}");
-      }
 
       return new DockerImageService(_config.ImageName, id.Value.ToPlainId(), _config.Params.Tags[0], host.Value.Host,
-        host.Value.Certificates);
+        host.Value.Certificates, _config.IsWindowsHost);
     }
 
     protected override IBuilder InternalCreate()
@@ -73,6 +63,12 @@ namespace Ductus.FluentDocker.Builders
     public FileBuilder From(string from)
     {
       return _fileBuilder = new FileBuilder(this).UseParent(from);
+    }
+
+    public ImageBuilder IsWindowsHost()
+    {
+      _config.IsWindowsHost = true;
+      return this;
     }
 
     public ImageBuilder ReuseIfAlreadyExists()
@@ -144,9 +140,7 @@ namespace Ductus.FluentDocker.Builders
     {
       _config.Params.RemoveIntermediateContainersOnSuccessfulBuild = true;
       if (force)
-      {
         _config.Params.ForceRemoveIntermediateContainers = true;
-      }
       return this;
     }
   }

@@ -5,8 +5,8 @@ using Ductus.FluentDocker.Extensions;
 using Ductus.FluentDocker.Model.Common;
 using Ductus.FluentDocker.Services.Extensions;
 using Ductus.FluentDocker.Services.Impl;
-using Ductus.FluentDocker.Tests.Extensions;
 using Ductus.FluentDocker.Tests.Compose;
+using Ductus.FluentDocker.Tests.Extensions;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace Ductus.FluentDocker.Tests.CommandTests
@@ -14,8 +14,15 @@ namespace Ductus.FluentDocker.Tests.CommandTests
   [TestClass]
   public class ComposeCommandTests : FluentDockerTestBase
   {
+    [ClassInitialize]
+    public static void Initialize(TestContext ctx)
+    {
+      Utilities.LinuxMode();
+    }
+
     [TestMethod]
-    public async Task ComposeByBuildImageAddNgixAsLoadBalancerTwoNodesAsHtmlServeAndRedisAsDbBackendShouldWorkAsCluster()
+    public async Task
+      ComposeByBuildImageAddNgixAsLoadBalancerTwoNodesAsHtmlServeAndRedisAsDbBackendShouldWorkAsCluster()
     {
       // Extract compose file and it's dependencies to a temp folder
       var fullPath = (TemplateString) @"${TEMP}\fluentdockertest\${RND}";

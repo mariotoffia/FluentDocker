@@ -7,10 +7,12 @@ namespace Ductus.FluentDocker.Services.Impl
   public sealed class DockerImageService : ServiceBase, IContainerImageService
   {
     private Container _containerConfigCache;
+    private readonly bool _isWindowsHost;
 
-    public DockerImageService(string name, string id, string tag, DockerUri dockerHost, ICertificatePaths certificate)
+    public DockerImageService(string name, string id, string tag, DockerUri dockerHost, ICertificatePaths certificate, bool isWindowsHost)
       : base(name)
     {
+      _isWindowsHost = isWindowsHost;
       Id = id;
       Tag = tag;
       Certificates = certificate;

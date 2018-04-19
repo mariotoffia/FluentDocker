@@ -6,6 +6,7 @@ using Ductus.FluentDocker.Extensions;
 using Ductus.FluentDocker.Model.Common;
 using Ductus.FluentDocker.Model.Containers;
 using Ductus.FluentDocker.Services.Extensions;
+using Ductus.FluentDocker.Tests.Extensions;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace Ductus.FluentDocker.Tests.CommandTests
@@ -150,6 +151,7 @@ namespace Ductus.FluentDocker.Tests.CommandTests
     {
       if (CommandExtensions.IsNative() || CommandExtensions.IsEmulatedNative())
       {
+        _docker.LinuxMode(_certificates);
         return;
       }
 
@@ -176,6 +178,7 @@ namespace Ductus.FluentDocker.Tests.CommandTests
         ClientCertificate = inspect.AuthConfig.ClientCertPath,
         ClientKey = inspect.AuthConfig.ClientKeyPath
       };
+      _docker.LinuxMode(_certificates);
     }
 
     [ClassCleanup]

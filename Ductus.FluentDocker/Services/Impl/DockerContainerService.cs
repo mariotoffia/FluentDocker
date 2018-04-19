@@ -11,14 +11,16 @@ namespace Ductus.FluentDocker.Services.Impl
 		private readonly ServiceHooks _hooks = new ServiceHooks();
 		private readonly bool _removeOnDispose;
 		private readonly bool _stopOnDispose;
-		private Container _containerConfigCache;
+	  private readonly bool _isWindowsContainer;
+    private Container _containerConfigCache;
 		private ServiceRunningState _state = ServiceRunningState.Unknown;
 
 		public DockerContainerService(string name, string id, DockerUri docker, ServiceRunningState state,
 		  ICertificatePaths certificates,
-		  bool stopOnDispose = true, bool removeOnDispose = true)
+		  bool stopOnDispose = true, bool removeOnDispose = true, bool isWindowsContainer = false)
 		{
-			_certificates = certificates;
+		  _isWindowsContainer = isWindowsContainer;
+      _certificates = certificates;
 			_stopOnDispose = stopOnDispose;
 			_removeOnDispose = removeOnDispose;
 

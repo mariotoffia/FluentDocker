@@ -23,7 +23,7 @@ namespace Ductus.FluentDocker.Executors.Parsers
       }
 
       var s = response.StdOut.TrimEnd('\r','\n').Split(';');
-      if (s.Length != 4)
+      if (s.Length != 5)
       {
         Response =
           response.ToErrorResponse(new DockerInfoBase

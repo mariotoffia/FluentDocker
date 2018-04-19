@@ -29,6 +29,7 @@ namespace Ductus.FluentDocker.Tests.ServiceTests
 			if (null != _host && _host.State != ServiceRunningState.Running)
 			{
 				_host.Start();
+        _host.Host.LinuxMode(_host.Certificates);
 				return;
 			}
 

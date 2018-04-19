@@ -17,6 +17,12 @@ namespace Ductus.FluentDocker.Tests.FluentApiTests
   [TestClass]
   public class FluentContainerBasicTests
   {
+    [ClassInitialize]
+    public static void Initialize(TestContext ctx)
+    {
+      Utilities.LinuxMode();
+    }
+
     [TestMethod]
     public void BuildContainerRenderServiceInStoppedMode()
     {
