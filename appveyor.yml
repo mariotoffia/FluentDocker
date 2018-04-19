@@ -12,7 +12,8 @@ dotnet_csproj:
   file_version: '{version}'
   informational_version: '{version}'
 build:
-  publish_nuget: true
+  publish_nuget: false
   verbosity: minimal
 before_build:
   - nuget restore
+test: off
