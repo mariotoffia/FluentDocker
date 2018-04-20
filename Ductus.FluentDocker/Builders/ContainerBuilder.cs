@@ -41,6 +41,7 @@ namespace Ductus.FluentDocker.Builders
       var container = host.Value.Create(_config.Image, _config.CreateParams, _config.StopOnDispose,
         _config.DeleteOnDispose,
         _config.DeleteVolumeOnDispose,
+        _config.DeleteNamedVolumeOnDispose,
         _config.Command, _config.Arguments);
 
       AddHooks(container);
@@ -53,9 +54,10 @@ namespace Ductus.FluentDocker.Builders
       return new ContainerBuilder(this);
     }
 
-    public ContainerBuilder RemoveVolumesOnDispose()
+    public ContainerBuilder RemoveVolumesOnDispose(bool includeNamedVolues = false)
     {
       _config.DeleteVolumeOnDispose = true;
+      _config.DeleteNamedVolumeOnDispose = includeNamedVolues;
       return this;
     }
 

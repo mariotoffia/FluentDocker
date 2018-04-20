@@ -148,6 +148,7 @@ namespace Ductus.FluentDocker.Services.Impl
 
     public IContainerService Create(string image, ContainerCreateParams prms = null,
       bool stopOnDispose = true, bool deleteOnDispose = true, bool deleteVolumeOnDispose = false,
+      bool deleteNamedVolumeOnDispose = false,
       string command = null, string[] args = null)
     {
       var res = Host.Create(image, command, args, prms, Certificates);
@@ -163,7 +164,8 @@ namespace Ductus.FluentDocker.Services.Impl
 
       return new DockerContainerService(config.Data.Name.Substring(1), res.Data, Host,
         config.Data.State.ToServiceState(),
-        Certificates, stopOnDispose, deleteOnDispose, deleteVolumeOnDispose, _isWindowsHost);
+        Certificates, stopOnDispose, deleteOnDispose, deleteVolumeOnDispose, deleteNamedVolumeOnDispose,
+        _isWindowsHost);
     }
 
     public MachineConfiguration GetMachineConfiguration()

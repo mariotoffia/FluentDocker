@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Linq;
 using Ductus.FluentDocker.Commands;
 using Ductus.FluentDocker.Model.Common;
 using Ductus.FluentDocker.Model.Containers;
@@ -9,18 +10,21 @@ namespace Ductus.FluentDocker.Services.Impl
   {
     private readonly ServiceHooks _hooks = new ServiceHooks();
     private readonly bool _isWindowsContainer;
+    private readonly bool _removeMountOnDispose;
+    private readonly bool _removeNamedMountOnDispose;
     private readonly bool _removeOnDispose;
     private readonly bool _stopOnDispose;
-    private readonly bool _removeMountOnDispose;
     private Container _containerConfigCache;
     private ServiceRunningState _state = ServiceRunningState.Unknown;
 
     public DockerContainerService(string name, string id, DockerUri docker, ServiceRunningState state,
       ICertificatePaths certificates,
-      bool stopOnDispose = true, bool removeOnDispose = true, bool removeMountOnDispose = false, bool isWindowsContainer = false)
+      bool stopOnDispose = true, bool removeOnDispose = true, bool removeMountOnDispose = false,
+      bool removeNamedMountOnDispose = false, bool isWindowsContainer = false)
     {
       _isWindowsContainer = isWindowsContainer;
       Certificates = certificates;
+      _removeNamedMountOnDispose = removeNamedMountOnDispose;
       _removeMountOnDispose = removeMountOnDispose;
       _stopOnDispose = stopOnDispose;
       _removeOnDispose = removeOnDispose;
@@ -105,16 +109,6 @@ namespace Ductus.FluentDocker.Services.Impl
       if (result.Success)
         State = ServiceRunningState.Removed;
     }
-    private void Remove(bool force, bool removeVolume)
-    {
-      if (State != ServiceRunningState.Stopped)
-        Stop();
-
-      State = ServiceRunningState.Removing;
-      var result = DockerHost.RemoveContainer(Id, force, removeVolume, null, Certificates);
-      if (result.Success)
-        State = ServiceRunningState.Removed;
-    }
 
     public IService AddHook(ServiceRunningState state, Action<IService> hook, string uniqueName = null)
     {
@@ -129,5 +123,27 @@ namespace Ductus.FluentDocker.Services.Impl
     }
 
     public event ServiceDelegates.StateChange StateChange;
+
+    private void Remove(bool force, bool removeVolume)
+    {
+      if (State != ServiceRunningState.Stopped)
+        Stop();
+
+      State = ServiceRunningState.Removing;
+      var result = DockerHost.RemoveContainer(Id, force, removeVolume, null, Certificates);
+
+      if (_removeNamedMountOnDispose)
+      {
+        var config = GetConfiguration();
+        if (null != config)
+        {
+          var namedMounts = config.Mounts.Where(x => !string.IsNullOrEmpty(x.Name)).Select(x => x.Name).ToArray();
+          DockerHost.VolumeRm(Certificates, true /*force*/, namedMounts);
+        }
+      }
+
+      if (result.Success)
+        State = ServiceRunningState.Removed;
+    }
   }
 }

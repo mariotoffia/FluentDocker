@@ -53,12 +53,14 @@ namespace Ductus.FluentDocker.Services
     /// <param name="stopOnDispose">If the docker container shall be stopped when service is disposed.</param>
     /// <param name="deleteOnDispose">If the docker container shall be deleted when the service is disposed.</param>
     /// <param name="deleteVolumeOnDispose">If the associated volumes should be deleted when container is disposed.</param>
+    /// <param name="deleteNamedVolumeOnDispose">If associated named volumes should be deleted as well.</param>
     /// <param name="command">Optionally a command to run when it is started.</param>
     /// <param name="args">Optionally a set of parameters to go with the <see cref="command" /> when started.</param>
     /// <returns>A service reflecting the newly created container.</returns>
     /// <exception cref="FluentDockerException">If error occurs.</exception>
     IContainerService Create(string image, ContainerCreateParams prms = null,
-      bool stopOnDispose = true, bool deleteOnDispose = true, bool deleteVolumeOnDispose = false, string command = null,
+      bool stopOnDispose = true, bool deleteOnDispose = true, bool deleteVolumeOnDispose = false,
+      bool deleteNamedVolumeOnDispose = false, string command = null,
       string[] args = null);
 
     /// <summary>

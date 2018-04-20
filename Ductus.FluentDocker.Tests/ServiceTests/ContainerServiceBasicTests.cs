@@ -107,6 +107,33 @@ namespace Ductus.FluentDocker.Tests.ServiceTests
     }
 
     [TestMethod]
+    public void DeleteNamedVolumesOnContainerDisposeShallWork()
+    {
+      try
+      {
+        _host.Host.VolumeCreate("unit-test-volume");
+
+        using (var container = _host.Create("postgres:9.6-alpine",
+          new ContainerCreateParams
+          {
+            Environment = new[] {"POSTGRES_PASSWORD=mysecretpassword"},
+            Volumes = new [] {"unit-test-volume:/world"}
+          }, deleteNamedVolumeOnDispose: true))
+        {
+          container.Start();
+          var config = container.GetConfiguration();
+
+          Assert.AreEqual(ServiceRunningState.Running, container.State);
+          Assert.IsTrue(config.Config.Env.Any(x => x == "POSTGRES_PASSWORD=mysecretpassword"));
+        }
+      }
+      finally
+      {
+        _host.Host.VolumeRm(volume: "unit-test-volume");
+      }
+    }
+
+    [TestMethod]
     public void CreateAndStartContainerWithOneExposedPortVerified()
     {
       using (var container = _host.Create("postgres:9.6-alpine",

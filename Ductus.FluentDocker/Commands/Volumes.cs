@@ -41,7 +41,7 @@ namespace Ductus.FluentDocker.Commands
       return
         new ProcessExecutor<SingleStringResponseParser, string>(
           "docker".ResolveBinary(),
-          $"{args} volumes create {options}").Execute();
+          $"{args} volume create {options}").Execute();
     }
 
     public static CommandResponse<IList<string>> VolumeInspect(this DockerUri host,
@@ -54,7 +54,7 @@ namespace Ductus.FluentDocker.Commands
       return
         new ProcessExecutor<StringListResponseParser, IList<string>>(
           "docker".ResolveBinary(),
-          $"{args} volumes inspect {volumes}").Execute();
+          $"{args} volume inspect {volumes}").Execute();
     }
 
     public static CommandResponse<string> VolumeLs(this DockerUri host, string[] filter = null, bool quiet = false,
@@ -81,20 +81,25 @@ namespace Ductus.FluentDocker.Commands
       return
         new ProcessExecutor<SingleStringResponseParser, string>(
           "docker".ResolveBinary(),
-          $"{args} volumes ls {options}").Execute();
+          $"{args} volume ls {options}").Execute();
     }
 
     public static CommandResponse<IList<string>> VolumeRm(this DockerUri host,
-      ICertificatePaths certificates = null, params string[] volume)
+      ICertificatePaths certificates = null, bool force = false, params string[] volume)
     {
       var args = $"{host.RenderBaseArgs(certificates)}";
+      string opts = string.Empty;
 
+      if (force)
+      {
+        opts = "-f";
+      }
       var volumes = string.Join(" ", volume);
 
       return
         new ProcessExecutor<StringListResponseParser, IList<string>>(
           "docker".ResolveBinary(),
-          $"{args} volumes rm {volumes}").Execute();
+          $"{args} volume rm {opts} {volumes}").Execute();
     }
   }
 }
