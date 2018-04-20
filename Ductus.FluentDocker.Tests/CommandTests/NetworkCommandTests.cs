@@ -61,13 +61,23 @@ namespace Ductus.FluentDocker.Tests.CommandTests
     }
 
     [TestMethod]
-    public void DiscoverNetworksShallWork()
+    public void NetworkDiscoverShallWork()
     {
       var networks = _docker.NetworkLs(_certificates);
       Assert.IsTrue(networks.Success);
       Assert.IsTrue(networks.Data.Count > 0);
       Assert.IsTrue(networks.Data.Count(x => x.Name == "bridge") == 1);
       Assert.IsTrue(networks.Data.Count(x => x.Name == "host") == 1);
+    }
+
+    [TestMethod]
+    public void NetworkInspectShallWork()
+    {
+      var networks = _docker.NetworkLs(_certificates);
+      var first = _docker.NetworkInspect(network: networks.Data[0].Id);
+      Assert.IsTrue(first.Success);
+      Assert.IsNotNull(first.Data);
+      Assert.IsNotNull(first.Data.IPAM);
     }
   }
 }

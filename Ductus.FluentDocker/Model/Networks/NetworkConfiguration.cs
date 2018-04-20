@@ -3,7 +3,7 @@ using System.Collections.Generic;
 
 namespace Ductus.FluentDocker.Model.Networks
 {
-  public sealed class Network
+  public sealed class NetworkConfiguration
   {
     public string Name { get; set; }
     public string Id { get; set; }
@@ -17,10 +17,11 @@ namespace Ductus.FluentDocker.Model.Networks
     public bool ConfigOnly { get; set; }
 
     // ReSharper disable once InconsistentNaming
-    public IList<Ipam> IPAM { get; set; }
+    public Ipam IPAM { get; set; }
 
     public IDictionary<string, string> ConfigFrom { get; set; }
     public IDictionary<string, NetworkedContainer> Containers { get; set; }
+
     public IDictionary<string, string> Options { get; set; }
     //TODO: "Labels": {}
   }

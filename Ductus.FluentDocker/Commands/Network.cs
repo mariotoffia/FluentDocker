@@ -103,7 +103,7 @@ namespace Ductus.FluentDocker.Commands
           $"{args} network disconnect {options} {network} {container}").Execute();
     }
 
-    public static CommandResponse<IList<string>> NetworkInspect(this DockerUri host, string format = null,
+    public static CommandResponse<NetworkConfiguration> NetworkInspect(this DockerUri host, string format = null,
       ICertificatePaths certificates = null, params string[] network)
     {
       var args = $"{host.RenderBaseArgs(certificates)}";
@@ -114,7 +114,7 @@ namespace Ductus.FluentDocker.Commands
 
       options += string.Join(" ", network);
       return
-        new ProcessExecutor<StringListResponseParser, IList<string>>(
+        new ProcessExecutor<NetworkLsResponseParser, NetworkConfiguration>(
           "docker".ResolveBinary(),
           $"{args} network inspect {options}").Execute();
     }
