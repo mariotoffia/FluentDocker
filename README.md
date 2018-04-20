@@ -363,6 +363,40 @@ All services can be extended with hooks. In the ```ExportOnDispose(path, lambda)
 
 The hooks are particulary good if you want something to be executed when a state is about to be set (or executed) on the service such as ```Starting```. The Fluent API makes use of those in some situations such as Copy files, export, etc.
 
+## Docker Networking
+FluentDocker do support all docker network commands. It can discover networks by ```_docker.NetworkLs()``` where it discovers all networks and some simple parameters defined in ```NetworkRow```. It can also inspect to gain deeper information about the network (such as which containers is in the network and Ipam configuration) by ```_docker.NetworkInspect(network:"networkId")```.
+
+In order to create a new network, use the ```_docker.NetworkCreate("name_of_network")```. It is also possible to supply ```NetworkCreateParams``` where everything can be customized such as creating a _overlay_ network och change the Ipam configuration. To delete a network, just use the ```_docker.NetworkRm(network:"networkId")```.
+
+*Note that networks are not deleted if there are any containers attached to it!*
+
+When a network is created it is possible to put one or more containers into it using the ```_docker.NetworkConnect("containerId","networkId")```. Note that containers may be in several networks at a time, thus can proxy request between isolated networks. To disconnect a container from a network, simple do a ```_docker.NetworkDisconnect("containerId","networkId")```.
+
+The following sample runs a container, creates a new network, and connects the running container into the network. It then disconnect the container, delete it, and delete the network.
+```cs
+    var cmd = _docker.Run("postgres:9.6-alpine", new ContainerCreateParams
+        {
+          PortMappings = new[] {"40001:5432"},
+          Environment = new[] {"POSTGRES_PASSWORD=mysecretpassword"}
+        }, _certificates);
+
+    var container = cmd.Data;
+    var network = string.Empty;
+
+    var created = _docker.NetworkCreate("test-network");
+    if (created.Success)
+      network = created.Data[0];
+
+    _docker.NetworkConnect(container, network);
+
+    // Container is now running and has address in the newly created 'test-network'
+
+    _docker.NetworkDisconnect(container, id, true /*force*/);
+    _docker.RemoveContainer(container, true, true);
+
+    // Now it is possible to delete the network since it has been disconnected from the network
+    _docker.NetworkRm(network: network);
+```
 ## Test Support
 This repo contains two nuget packages, one for the fluent access and the other is a ms-test base classes to be used while testing. For example in a unit-test it is possible to fire up a postgres container and wait when the the db has booted.
 ```cs
