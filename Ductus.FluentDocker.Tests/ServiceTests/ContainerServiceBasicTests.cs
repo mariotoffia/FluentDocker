@@ -14,314 +14,317 @@ using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace Ductus.FluentDocker.Tests.ServiceTests
 {
-	[TestClass]
-	public class ContainerServiceBasicTests
-	{
-		private static IHostService _host;
-		private static bool _createdHost;
+  [TestClass]
+  public class ContainerServiceBasicTests
+  {
+    private static IHostService _host;
+    private static bool _createdHost;
 
-		[ClassInitialize]
-		public static void Initialize(TestContext ctx)
-		{
-			var hosts = new Hosts().Discover();
-			_host = hosts.FirstOrDefault(x => x.IsNative) ?? hosts.FirstOrDefault(x => x.Name == "default");
+    [ClassInitialize]
+    public static void Initialize(TestContext ctx)
+    {
+      var hosts = new Hosts().Discover();
+      _host = hosts.FirstOrDefault(x => x.IsNative) ?? hosts.FirstOrDefault(x => x.Name == "default");
 
-			if (null != _host && _host.State != ServiceRunningState.Running)
-			{
-				_host.Start();
+      if (null != _host && _host.State != ServiceRunningState.Running)
+      {
+        _host.Start();
         _host.Host.LinuxMode(_host.Certificates);
-				return;
-			}
+        return;
+      }
 
-			if (null == _host && hosts.Count > 0)
-			{
-				_host = hosts.First();
-			}
+      if (null == _host && hosts.Count > 0)
+        _host = hosts.First();
 
-			if (null == _host)
-			{
-				if (_createdHost)
-				{
-					throw new Exception("Failed to initialize the test class, tried to create a docker host but failed");
-				}
+      if (null == _host)
+      {
+        if (_createdHost)
+          throw new Exception("Failed to initialize the test class, tried to create a docker host but failed");
 
-				var res = "test-machine".Create(1024, 20000, 1);
-				Assert.AreEqual(true, res.Success);
+        var res = "test-machine".Create(1024, 20000, 1);
+        Assert.AreEqual(true, res.Success);
 
-				var start = "test-machine".Start();
-				Assert.AreEqual(true, start.Success);
+        var start = "test-machine".Start();
+        Assert.AreEqual(true, start.Success);
 
-				_createdHost = true;
-				Initialize(ctx);
-			}
-		}
+        _createdHost = true;
+        Initialize(ctx);
+      }
+    }
 
-		[ClassCleanup]
-		public static void TearDown()
-		{
-			if (_createdHost)
-			{
-				"test-machine".Delete(true /*force*/);
-			}
-		}
+    [ClassCleanup]
+    public static void TearDown()
+    {
+      if (_createdHost)
+        "test-machine".Delete(true /*force*/);
+    }
 
-		[TestMethod]
-		public void CreateContainerMakesServiceStopped()
-		{
-			using (var container = _host.Create("postgres:9.6-alpine",
-			  new ContainerCreateParams
-			  {
-				  Environment = new[] { "POSTGRES_PASSWORD=mysecretpassword" }
-			  }))
-			{
-				Assert.AreEqual(ServiceRunningState.Stopped, container.State);
-			}
-		}
+    [TestMethod]
+    public void CreateContainerMakesServiceStopped()
+    {
+      using (var container = _host.Create("postgres:9.6-alpine",
+        new ContainerCreateParams
+        {
+          Environment = new[] {"POSTGRES_PASSWORD=mysecretpassword"}
+        }))
+      {
+        Assert.AreEqual(ServiceRunningState.Stopped, container.State);
+      }
+    }
 
-		[TestMethod]
-		public void CreateAndStartContainerWithEnvironment()
-		{
-			using (var container = _host.Create("postgres:9.6-alpine",
-			  new ContainerCreateParams
-			  {
-				  Environment = new[] { "POSTGRES_PASSWORD=mysecretpassword" }
-			  }))
-			{
-				container.Start();
-				var config = container.GetConfiguration();
+    [TestMethod]
+    public void CreateAndStartContainerWithEnvironment()
+    {
+      using (var container = _host.Create("postgres:9.6-alpine",
+        new ContainerCreateParams
+        {
+          Environment = new[] {"POSTGRES_PASSWORD=mysecretpassword"}
+        }))
+      {
+        container.Start();
+        var config = container.GetConfiguration();
 
-				Assert.AreEqual(ServiceRunningState.Running, container.State);
-				Assert.IsTrue(config.Config.Env.Any(x => x == "POSTGRES_PASSWORD=mysecretpassword"));
-			}
-		}
+        Assert.AreEqual(ServiceRunningState.Running, container.State);
+        Assert.IsTrue(config.Config.Env.Any(x => x == "POSTGRES_PASSWORD=mysecretpassword"));
+      }
+    }
 
-		[TestMethod]
-		public void CreateAndStartContainerWithOneExposedPortVerified()
-		{
-			using (var container = _host.Create("postgres:9.6-alpine",
-			  new ContainerCreateParams
-			  {
-				  PortMappings = new[] { "40001:5432" },
-				  Environment = new[] { "POSTGRES_PASSWORD=mysecretpassword" }
-			  }))
-			{
-				container.Start().WaitForRunning();
-				var config = container.GetConfiguration();
+    [TestMethod]
+    public void DeleteVolumesOnContainerDisposeShallWork()
+    {
+      using (var container = _host.Create("postgres:9.6-alpine",
+        new ContainerCreateParams
+        {
+          Environment = new[] {"POSTGRES_PASSWORD=mysecretpassword"}
+        }, deleteVolumeOnDispose: true))
+      {
+        container.Start();
+        var config = container.GetConfiguration();
 
-				Assert.AreEqual(ServiceRunningState.Running, container.State);
-				Assert.IsTrue(config.Config.Env.Any(x => x == "POSTGRES_PASSWORD=mysecretpassword"));
+        Assert.AreEqual(ServiceRunningState.Running, container.State);
+        Assert.IsTrue(config.Config.Env.Any(x => x == "POSTGRES_PASSWORD=mysecretpassword"));
+      }
+    }
 
-				var endpoint = container.ToHostExposedEndpoint("5432/tcp");
-				endpoint.WaitForPort(10000 /*10s*/);
-				Debug.Write($"Succeeded waiting for postgres port {endpoint} docker port 5432/tcp");
-			}
-		}
+    [TestMethod]
+    public void CreateAndStartContainerWithOneExposedPortVerified()
+    {
+      using (var container = _host.Create("postgres:9.6-alpine",
+        new ContainerCreateParams
+        {
+          PortMappings = new[] {"40001:5432"},
+          Environment = new[] {"POSTGRES_PASSWORD=mysecretpassword"}
+        }))
+      {
+        container.Start().WaitForRunning();
+        var config = container.GetConfiguration();
 
-		[TestMethod]
-		public void ProcessesInContainerAndManuallyVerifyPostgresIsRunning()
-		{
-			using (var container = _host.Create("postgres:9.6-alpine",
-			  new ContainerCreateParams
-			  {
-				  PortMappings = new[] { "40001:5432" },
-				  Environment = new[] { "POSTGRES_PASSWORD=mysecretpassword" }
-			  }))
-			{
-				container.Start();
-				Assert.AreEqual(ServiceRunningState.Running, container.State);
+        Assert.AreEqual(ServiceRunningState.Running, container.State);
+        Assert.IsTrue(config.Config.Env.Any(x => x == "POSTGRES_PASSWORD=mysecretpassword"));
 
-				var endpoint = container.ToHostExposedEndpoint("5432/tcp");
-				endpoint.WaitForPort(10000 /*10s*/);
+        var endpoint = container.ToHostExposedEndpoint("5432/tcp");
+        endpoint.WaitForPort(10000 /*10s*/);
+        Debug.Write($"Succeeded waiting for postgres port {endpoint} docker port 5432/tcp");
+      }
+    }
 
-				var proc = container.GetRunningProcesses();
-				Debug.WriteLine(proc.ToString());
+    [TestMethod]
+    public void ProcessesInContainerAndManuallyVerifyPostgresIsRunning()
+    {
+      using (var container = _host.Create("postgres:9.6-alpine",
+        new ContainerCreateParams
+        {
+          PortMappings = new[] {"40001:5432"},
+          Environment = new[] {"POSTGRES_PASSWORD=mysecretpassword"}
+        }))
+      {
+        container.Start();
+        Assert.AreEqual(ServiceRunningState.Running, container.State);
 
-				Assert.IsTrue(proc.Rows.Any(x => x.Command == "bash /usr/local/bin/docker-entrypoint.sh postgres"));
-			}
-		}
+        var endpoint = container.ToHostExposedEndpoint("5432/tcp");
+        endpoint.WaitForPort(10000 /*10s*/);
 
-		[TestMethod]
-		public void ExportRunningContainerToTarFileShallSucceed()
-		{
-			using (var container = _host.Create("postgres:9.6-alpine",
-			  new ContainerCreateParams
-			  {
-				  PortMappings = new[] { "40001:5432" },
-				  Environment = new[] { "POSTGRES_PASSWORD=mysecretpassword" }
-			  }))
-			{
-				container.Start();
-				Assert.AreEqual(ServiceRunningState.Running, container.State);
+        var proc = container.GetRunningProcesses();
+        Debug.WriteLine(proc.ToString());
 
-				var endpoint = container.ToHostExposedEndpoint("5432/tcp");
-				endpoint.WaitForPort(10000 /*10s*/);
+        Assert.IsTrue(proc.Rows.Any(x => x.Command == "bash /usr/local/bin/docker-entrypoint.sh postgres"));
+      }
+    }
 
-				var rnd = Path.GetFileName(Path.GetTempFileName());
-				var fullPath = Path.Combine(Directory.GetCurrentDirectory(), rnd);
+    [TestMethod]
+    public void ExportRunningContainerToTarFileShallSucceed()
+    {
+      using (var container = _host.Create("postgres:9.6-alpine",
+        new ContainerCreateParams
+        {
+          PortMappings = new[] {"40001:5432"},
+          Environment = new[] {"POSTGRES_PASSWORD=mysecretpassword"}
+        }))
+      {
+        container.Start();
+        Assert.AreEqual(ServiceRunningState.Running, container.State);
 
-				try
-				{
-					var path = container.Export(fullPath);
-					Assert.IsNotNull(path);
-					Assert.IsTrue(File.Exists(fullPath));
-				}
-				finally
-				{
-					if (File.Exists(fullPath))
-					{
-						File.Delete(fullPath);
-					}
-				}
-			}
-		}
+        var endpoint = container.ToHostExposedEndpoint("5432/tcp");
+        endpoint.WaitForPort(10000 /*10s*/);
 
-		[TestMethod]
-		public void ExportRunningContainerExploadedShallSucceed()
-		{
-			using (var container = _host.Create("postgres:9.6-alpine",
-			  new ContainerCreateParams
-			  {
-				  PortMappings = new[] { "40001:5432" },
-				  Environment = new[] { "POSTGRES_PASSWORD=mysecretpassword" }
-			  }))
-			{
-				container.Start();
-				Assert.AreEqual(ServiceRunningState.Running, container.State);
+        var rnd = Path.GetFileName(Path.GetTempFileName());
+        var fullPath = Path.Combine(Directory.GetCurrentDirectory(), rnd);
 
-				var endpoint = container.ToHostExposedEndpoint("5432/tcp");
-				endpoint.WaitForPort(10000 /*10s*/);
+        try
+        {
+          var path = container.Export(fullPath);
+          Assert.IsNotNull(path);
+          Assert.IsTrue(File.Exists(fullPath));
+        }
+        finally
+        {
+          if (File.Exists(fullPath))
+            File.Delete(fullPath);
+        }
+      }
+    }
 
-				var rnd = Path.GetFileName(Path.GetTempFileName());
-				var fullPath = Path.Combine(Directory.GetCurrentDirectory(), rnd);
+    [TestMethod]
+    public void ExportRunningContainerExploadedShallSucceed()
+    {
+      using (var container = _host.Create("postgres:9.6-alpine",
+        new ContainerCreateParams
+        {
+          PortMappings = new[] {"40001:5432"},
+          Environment = new[] {"POSTGRES_PASSWORD=mysecretpassword"}
+        }))
+      {
+        container.Start();
+        Assert.AreEqual(ServiceRunningState.Running, container.State);
 
-				try
-				{
-					container.Export(fullPath, true);
-					Assert.IsTrue(Directory.Exists(fullPath));
+        var endpoint = container.ToHostExposedEndpoint("5432/tcp");
+        endpoint.WaitForPort(10000 /*10s*/);
 
-					var files = Directory.GetFiles(fullPath).ToArray();
-					Assert.IsTrue(files.Any(x => x.Contains("docker-entrypoint.sh")));
-				}
-				finally
-				{
-					if (Directory.Exists(fullPath))
-					{
-						Directory.Delete(fullPath, true);
-					}
-				}
-			}
-		}
+        var rnd = Path.GetFileName(Path.GetTempFileName());
+        var fullPath = Path.Combine(Directory.GetCurrentDirectory(), rnd);
 
-		[TestMethod]
-		public async Task UseHostVolumeInsideContainerWhenMountedShallSucceed()
-		{
-			const string html = "<html><head>Hello World</head><body><h1>Hello world</h1></body></html>";
-			var fullPath = (TemplateString)@"${TEMP}\fluentdockertest\${RND}";
-			Directory.CreateDirectory(fullPath);
+        try
+        {
+          container.Export(fullPath, true);
+          Assert.IsTrue(Directory.Exists(fullPath));
 
-			using (var container = _host.Create("nginx:1.13.6-alpine",
-			  new ContainerCreateParams
-			  {
-				  PortMappings = new[] { "80" },
-				  Volumes = new[] { $"{fullPath.Rendered}:/usr/share/nginx/html:ro" }
-			  }))
-			{
-				container.Start();
-				Assert.AreEqual(ServiceRunningState.Running, container.State);
+          var files = Directory.GetFiles(fullPath).ToArray();
+          Assert.IsTrue(files.Any(x => x.Contains("docker-entrypoint.sh")));
+        }
+        finally
+        {
+          if (Directory.Exists(fullPath))
+            Directory.Delete(fullPath, true);
+        }
+      }
+    }
 
-				var endpoint = container.ToHostExposedEndpoint("80/tcp");
-				endpoint.WaitForPort(10000 /*10s*/);
+    [TestMethod]
+    public async Task UseHostVolumeInsideContainerWhenMountedShallSucceed()
+    {
+      const string html = "<html><head>Hello World</head><body><h1>Hello world</h1></body></html>";
+      var fullPath = (TemplateString) @"${TEMP}\fluentdockertest\${RND}";
+      Directory.CreateDirectory(fullPath);
 
-				File.WriteAllText(Path.Combine(fullPath, "hello.html"), html);
+      using (var container = _host.Create("nginx:1.13.6-alpine",
+        new ContainerCreateParams
+        {
+          PortMappings = new[] {"80"},
+          Volumes = new[] {$"{fullPath.Rendered}:/usr/share/nginx/html:ro"}
+        }))
+      {
+        container.Start();
+        Assert.AreEqual(ServiceRunningState.Running, container.State);
 
-				var response = await $"http://{endpoint}/hello.html".Wget();
-				Assert.AreEqual(html, response);
-			}
-		}
+        var endpoint = container.ToHostExposedEndpoint("80/tcp");
+        endpoint.WaitForPort(10000 /*10s*/);
 
-		[TestMethod]
-		public void CopyFromRunningContainerShallWork()
-		{
-			using (var container = _host.Create("postgres:9.6-alpine",
-			  new ContainerCreateParams
-			  {
-				  Environment = new[] { "POSTGRES_PASSWORD=mysecretpassword" }
-			  }))
-			{
-				container.Start();
-				Assert.AreEqual(ServiceRunningState.Running, container.State);
+        File.WriteAllText(Path.Combine(fullPath, "hello.html"), html);
 
-				var fullPath = (TemplateString)@"${TEMP}\fluentdockertest\${RND}";
-				try
-				{
-					Directory.CreateDirectory(fullPath);
-					container.CopyFrom("/etc", fullPath);
+        var response = await $"http://{endpoint}/hello.html".Wget();
+        Assert.AreEqual(html, response);
+      }
+    }
 
-					var files = Directory.EnumerateFiles(Path.Combine(fullPath, "etc")).ToArray();
-					Assert.IsTrue(files.Any(x => x.EndsWith("fstab")));
-				}
-				finally
-				{
-					if (Directory.Exists(fullPath))
-					{
-						Directory.Delete(fullPath, true);
-					}
-				}
-			}
-		}
+    [TestMethod]
+    public void CopyFromRunningContainerShallWork()
+    {
+      using (var container = _host.Create("postgres:9.6-alpine",
+        new ContainerCreateParams
+        {
+          Environment = new[] {"POSTGRES_PASSWORD=mysecretpassword"}
+        }))
+      {
+        container.Start();
+        Assert.AreEqual(ServiceRunningState.Running, container.State);
 
-		[TestMethod]
-		public void CopyToRunningContainerShallWork()
-		{
-			using (var container = _host.Create("postgres:9.6-alpine",
-			  new ContainerCreateParams
-			  {
-				  Environment = new[] { "POSTGRES_PASSWORD=mysecretpassword" }
-			  }))
-			{
-				container.Start();
-				Assert.AreEqual(ServiceRunningState.Running, container.State);
+        var fullPath = (TemplateString) @"${TEMP}\fluentdockertest\${RND}";
+        try
+        {
+          Directory.CreateDirectory(fullPath);
+          container.CopyFrom("/etc", fullPath);
 
-				var fullPath = (TemplateString)@"${TEMP}\fluentdockertest\${RND}\hello.html";
+          var files = Directory.EnumerateFiles(Path.Combine(fullPath, "etc")).ToArray();
+          Assert.IsTrue(files.Any(x => x.EndsWith("fstab")));
+        }
+        finally
+        {
+          if (Directory.Exists(fullPath))
+            Directory.Delete(fullPath, true);
+        }
+      }
+    }
 
-				try
-				{
-					// ReSharper disable once AssignNullToNotNullAttribute
-					Directory.CreateDirectory(Path.GetDirectoryName(fullPath));
-					File.WriteAllText(fullPath, "<html><head>Hello World</head><body><h1>Hello world</h1></body></html>");
+    [TestMethod]
+    public void CopyToRunningContainerShallWork()
+    {
+      using (var container = _host.Create("postgres:9.6-alpine",
+        new ContainerCreateParams
+        {
+          Environment = new[] {"POSTGRES_PASSWORD=mysecretpassword"}
+        }))
+      {
+        container.Start();
+        Assert.AreEqual(ServiceRunningState.Running, container.State);
 
-					var before = container.Diff();
-					container.CopyTo("/bin", fullPath);
-					var after = container.Diff();
+        var fullPath = (TemplateString) @"${TEMP}\fluentdockertest\${RND}\hello.html";
 
-					Assert.IsFalse(before.Any(x => x.Item == "/bin/hello.html"));
-					Assert.IsTrue(after.Any(x => x.Item == "/bin/hello.html"));
-				}
-				finally
-				{
-					if (Directory.Exists(fullPath))
-					{
-						Directory.Delete(fullPath, true);
-					}
-				}
-			}
-		}
+        try
+        {
+          // ReSharper disable once AssignNullToNotNullAttribute
+          Directory.CreateDirectory(Path.GetDirectoryName(fullPath));
+          File.WriteAllText(fullPath, "<html><head>Hello World</head><body><h1>Hello world</h1></body></html>");
 
-		[TestMethod]
-		public void WaitingForSpecificStatesShallWork()
-		{
-			using (var container = _host.Create("postgres:9.6-alpine"))
-			{
-				Assert.AreEqual(ServiceRunningState.Stopped, container.State);
+          var before = container.Diff();
+          container.CopyTo("/bin", fullPath);
+          var after = container.Diff();
 
-				container.Start();
-				container.WaitForRunning();
-				Assert.AreEqual(ServiceRunningState.Running, container.State);
+          Assert.IsFalse(before.Any(x => x.Item == "/bin/hello.html"));
+          Assert.IsTrue(after.Any(x => x.Item == "/bin/hello.html"));
+        }
+        finally
+        {
+          if (Directory.Exists(fullPath))
+            Directory.Delete(fullPath, true);
+        }
+      }
+    }
 
-				container.Stop();
-				container.WaitForStopped();
-				Assert.AreEqual(ServiceRunningState.Stopped, container.State);
-			}
-		}
-	}
+    [TestMethod]
+    public void WaitingForSpecificStatesShallWork()
+    {
+      using (var container = _host.Create("postgres:9.6-alpine"))
+      {
+        Assert.AreEqual(ServiceRunningState.Stopped, container.State);
+
+        container.Start();
+        container.WaitForRunning();
+        Assert.AreEqual(ServiceRunningState.Running, container.State);
+
+        container.Stop();
+        container.WaitForStopped();
+        Assert.AreEqual(ServiceRunningState.Stopped, container.State);
+      }
+    }
+  }
 }

@@ -24,10 +24,8 @@ namespace Ductus.FluentDocker.Builders
     {
       var host = FindHostService();
       if (!host.HasValue)
-      {
         throw new FluentDockerException(
           $"Cannot build container {_config.Image} since no host service is defined");
-      }
 
       if (_config.VerifyExistence && !string.IsNullOrEmpty(_config.CreateParams.Name))
       {
@@ -37,13 +35,12 @@ namespace Ductus.FluentDocker.Builders
             .FirstOrDefault(x => IsNameMatch(x.Name, _config.CreateParams.Name));
 
         if (null != existing)
-        {
           return existing;
-        }
       }
 
       var container = host.Value.Create(_config.Image, _config.CreateParams, _config.StopOnDispose,
         _config.DeleteOnDispose,
+        _config.DeleteVolumeOnDispose,
         _config.Command, _config.Arguments);
 
       AddHooks(container);
@@ -54,6 +51,12 @@ namespace Ductus.FluentDocker.Builders
     protected override IBuilder InternalCreate()
     {
       return new ContainerBuilder(this);
+    }
+
+    public ContainerBuilder RemoveVolumesOnDispose()
+    {
+      _config.DeleteVolumeOnDispose = true;
+      return this;
     }
 
     public ContainerBuilder UseImage(string image)
@@ -130,9 +133,7 @@ namespace Ductus.FluentDocker.Builders
     public ContainerBuilder HostIpMapping(string host, string ip)
     {
       if (null == _config.CreateParams.HostIpMappings)
-      {
         _config.CreateParams.HostIpMappings = new List<Tuple<string, IPAddress>>();
-      }
 
       _config.CreateParams.HostIpMappings.Add(new Tuple<string, IPAddress>(host, IPAddress.Parse(ip)));
       return this;
@@ -152,7 +153,7 @@ namespace Ductus.FluentDocker.Builders
 
     public ContainerBuilder Mount(string fqHostPath, string fqContainerPath, MountType access)
     {
-      var hp = (Common.OperatingSystem.IsWindows() && CommandExtensions.IsToolbox())
+      var hp = Ductus.FluentDocker.Common.OperatingSystem.IsWindows() && CommandExtensions.IsToolbox()
         ? ((TemplateString) fqHostPath).Rendered.ToMsysPath()
         : ((TemplateString) fqHostPath).Rendered;
 
@@ -235,9 +236,7 @@ namespace Ductus.FluentDocker.Builders
     public ContainerBuilder CopyOnStart(string hostPath, string containerPath)
     {
       if (null == _config.CpToOnStart)
-      {
         _config.CpToOnStart = new List<Tuple<TemplateString, TemplateString>>();
-      }
 
       _config.CpToOnStart.Add(new Tuple<TemplateString, TemplateString>(hostPath, containerPath));
       return this;
@@ -246,9 +245,7 @@ namespace Ductus.FluentDocker.Builders
     public ContainerBuilder CopyOnDispose(string containerPath, string hostPath)
     {
       if (null == _config.CpFromOnDispose)
-      {
         _config.CpFromOnDispose = new List<Tuple<TemplateString, TemplateString>>();
-      }
 
       _config.CpFromOnDispose.Add(new Tuple<TemplateString, TemplateString>(hostPath,
         containerPath));
@@ -271,65 +268,51 @@ namespace Ductus.FluentDocker.Builders
     {
       // Copy files just before starting
       if (null != _config.CpToOnStart)
-      {
         container.AddHook(ServiceRunningState.Starting,
           service =>
           {
             foreach (var copy in _config.CpToOnStart)
-            {
               ((IContainerService) service).CopyTo(copy.Item2, copy.Item1);
-            }
           });
-      }
 
       // Wait for port when started
       if (null != _config.WaitForPort)
-      {
         container.AddHook(ServiceRunningState.Running,
           service =>
           {
             ((IContainerService) service).WaitForPort(_config.WaitForPort.Item1, _config.WaitForPort.Item2);
           });
-      }
 
       // Wait for process when started
       if (null != _config.WaitForProcess)
-      {
         container.AddHook(ServiceRunningState.Running,
           service =>
           {
             ((IContainerService) service).WaitForProcess(_config.WaitForProcess.Item1, _config.WaitForProcess.Item2);
           });
-      }
 
       // Copy files / folders on dispose
       if (null != _config.CpFromOnDispose && 0 != _config.CpFromOnDispose.Count)
-      {
         container.AddHook(ServiceRunningState.Removing, service =>
         {
           foreach (var copy in _config.CpFromOnDispose)
-          {
             ((IContainerService) service).CopyFrom(copy.Item2, copy.Item1);
-          }
         });
-      }
 
       // Export container on dispose
       if (null != _config.ExportOnDispose)
-      {
         container.AddHook(ServiceRunningState.Removing, service =>
         {
           var svc = (IContainerService) service;
           if (_config.ExportOnDispose.Item3(svc))
-          {
             svc.Export(_config.ExportOnDispose.Item1,
               _config.ExportOnDispose.Item2);
-          }
         });
-      }
     }
 
-    private static bool IsNameMatch(string containerName, string test) =>
-      Regex.IsMatch(containerName, $@"^\/?{test}$");
+    private static bool IsNameMatch(string containerName, string test)
+    {
+      return Regex.IsMatch(containerName, $@"^\/?{test}$");
+    }
   }
 }

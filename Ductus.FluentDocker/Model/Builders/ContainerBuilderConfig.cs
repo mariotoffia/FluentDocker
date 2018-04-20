@@ -19,6 +19,7 @@ namespace Ductus.FluentDocker.Model.Builders
     public bool IsWindowsImage { get; set; }
     public bool StopOnDispose { get; set; } = true;
     public bool DeleteOnDispose { get; set; } = true;
+    public bool DeleteVolumeOnDispose { get; set; } = false;
     public string Command { get; set; }
     public string[] Arguments { get; set; }
     public Tuple<string /*portAndProto*/, long /*waitTimeout*/> WaitForPort { get; set; }
