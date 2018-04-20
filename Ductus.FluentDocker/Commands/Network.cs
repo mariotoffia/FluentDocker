@@ -130,7 +130,7 @@ namespace Ductus.FluentDocker.Commands
     }
 
     public static CommandResponse<IList<string>> NetworkCreate(this DockerUri host, string network,
-      NetworkCreateParams prms, ICertificatePaths certificates = null)
+      NetworkCreateParams prms = null, ICertificatePaths certificates = null)
     {
       var args = $"{host.RenderBaseArgs(certificates)}";
       return

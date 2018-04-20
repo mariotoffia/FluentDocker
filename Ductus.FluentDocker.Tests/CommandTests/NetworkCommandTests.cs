@@ -55,9 +55,7 @@ namespace Ductus.FluentDocker.Tests.CommandTests
     public static void TearDown()
     {
       if (_createdTestMachine)
-      {
         "test-machine".Delete(true /*force*/);
-      }
     }
 
     [TestMethod]
@@ -78,6 +76,81 @@ namespace Ductus.FluentDocker.Tests.CommandTests
       Assert.IsTrue(first.Success);
       Assert.IsNotNull(first.Data);
       Assert.IsNotNull(first.Data.IPAM);
+    }
+
+    [TestMethod]
+    public void NetworkCreateAndDeleteShallWork()
+    {
+      string id = null;
+      try
+      {
+        var created = _docker.NetworkCreate("unit-test-nw");
+        if (created.Success)
+          id = created.Data[0];
+
+        Assert.IsNotNull(id);
+      }
+      finally
+      {
+        if (null == id)
+        {
+          var networks = _docker.NetworkLs(_certificates);
+          if (networks.Success)
+            id = networks.Data.Where(x => x.Name == "unit-test-nw").Select(x => x.Id).FirstOrDefault();
+        }
+
+        if (null != id)
+          _docker.NetworkRm(network: id);
+      }
+    }
+
+    [TestMethod]
+    public void ConnectAndDisconnectContainerToNetworkShallWork()
+    {
+      string id = null;
+      string container = null;
+      try
+      {
+        var cmd = _docker.Run("postgres:9.6-alpine", new ContainerCreateParams
+        {
+          PortMappings = new[] {"40001:5432"},
+          Environment = new[] {"POSTGRES_PASSWORD=mysecretpassword"}
+        }, _certificates);
+
+        Assert.IsTrue(cmd.Success);
+        container = cmd.Data;
+
+        var created = _docker.NetworkCreate("unit-test-nw");
+        if (created.Success)
+          id = created.Data[0];
+        Assert.IsNotNull(id);
+
+        _docker.NetworkConnect(container, id);
+        var inspect = _docker.NetworkInspect(network: id);
+        Assert.IsTrue(inspect.Success);
+        Assert.IsTrue(inspect.Data.Containers.ContainsKey(container));
+
+        var disconnect = _docker.NetworkDisconnect(container, id, true /*force*/);
+        Assert.IsTrue(disconnect.Success);
+
+        inspect = _docker.NetworkInspect(network: id);
+        Assert.IsFalse(inspect.Data.Containers.ContainsKey(container));
+      }
+      finally
+      {
+        if (null != container)
+          _docker.RemoveContainer(container, true, true);
+
+        if (null == id)
+        {
+          var networks = _docker.NetworkLs(_certificates);
+          if (networks.Success)
+            id = networks.Data.Where(x => x.Name == "unit-test-nw").Select(x => x.Id).FirstOrDefault();
+        }
+
+        if (null != id)
+          _docker.NetworkRm(network: id);
+      }
     }
   }
 }
