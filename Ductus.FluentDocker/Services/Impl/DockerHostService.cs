@@ -178,13 +178,13 @@ namespace Ductus.FluentDocker.Services.Impl
         .Cast<INetworkService>().ToArray();
     }
 
-    public INetworkService CreateNetwork(string name, NetworkCreateParams createParams = null)
+    public INetworkService CreateNetwork(string name, NetworkCreateParams createParams = null, bool removeOnDispose = false)
     {
       var result = Host.NetworkCreate(name, createParams, Certificates);
       if (!result.Success)
         throw new FluentDockerException($"Failed to create network named {name}");
 
-      return new DockerNetworkService(name, result.Data[0], Host, Certificates);
+      return new DockerNetworkService(name, result.Data[0], Host, Certificates, removeOnDispose);
     }
 
     public MachineConfiguration GetMachineConfiguration()

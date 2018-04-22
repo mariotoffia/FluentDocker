@@ -74,9 +74,10 @@ namespace Ductus.FluentDocker.Services
     /// </summary>
     /// <param name="name">The name of the network</param>
     /// <param name="createParams">Optional additional parameters to customize the network creation.</param>
+    /// <param name="removeOnDispose">If the network shall be removed when service is disposed.</param>
     /// <returns>A network service if the newly created network.</returns>
     /// <exception cref="FluentDockerException">If failes to create the docker network.</exception>
-    INetworkService CreateNetwork(string name, NetworkCreateParams createParams = null);
+    INetworkService CreateNetwork(string name, NetworkCreateParams createParams = null, bool removeOnDispose = false);
 
     /// <summary>
     ///   Gets the machine configuration if machine.
