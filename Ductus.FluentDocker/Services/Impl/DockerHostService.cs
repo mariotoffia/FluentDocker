@@ -168,6 +168,25 @@ namespace Ductus.FluentDocker.Services.Impl
         _isWindowsHost);
     }
 
+    public IList<INetworkService> GetNetworks()
+    {
+      var networks = Host.NetworkLs(Certificates);
+      if (!networks.Success)
+        throw new FluentDockerException("Could not list network services");
+
+      return networks.Data.Select(nw => new DockerNetworkService(nw.Name, nw.Id, Host, Certificates))
+        .Cast<INetworkService>().ToArray();
+    }
+
+    public INetworkService CreateNetwork(string name, NetworkCreateParams createParams = null)
+    {
+      var result = Host.NetworkCreate(name, createParams, Certificates);
+      if (!result.Success)
+        throw new FluentDockerException($"Failed to create network named {name}");
+
+      return new DockerNetworkService(name, result.Data[0], Host, Certificates);
+    }
+
     public MachineConfiguration GetMachineConfiguration()
     {
       return Name.Inspect().Data;

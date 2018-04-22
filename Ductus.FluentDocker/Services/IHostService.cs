@@ -64,6 +64,21 @@ namespace Ductus.FluentDocker.Services
       string[] args = null);
 
     /// <summary>
+    ///   Gets all the docker networks.
+    /// </summary>
+    /// <returns>A list with zero or more docker networks.</returns>
+    IList<INetworkService> GetNetworks();
+
+    /// <summary>
+    ///   Creates a single netowork.
+    /// </summary>
+    /// <param name="name">The name of the network</param>
+    /// <param name="createParams">Optional additional parameters to customize the network creation.</param>
+    /// <returns>A network service if the newly created network.</returns>
+    /// <exception cref="FluentDockerException">If failes to create the docker network.</exception>
+    INetworkService CreateNetwork(string name, NetworkCreateParams createParams = null);
+
+    /// <summary>
     ///   Gets the machine configuration if machine.
     /// </summary>
     /// <returns>A machine configuration. It will always return null if native.</returns>

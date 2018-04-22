@@ -23,6 +23,5 @@ namespace Ductus.FluentDocker.Model.Networks
     public IDictionary<string, NetworkedContainer> Containers { get; set; }
 
     public IDictionary<string, string> Options { get; set; }
-    //TODO: "Labels": {}
   }
 }
