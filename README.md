@@ -3,6 +3,23 @@ FluentDocker is a library to interact with docker-machine, docker-compose and do
 This library is available at nuget [Ductus.FluentDocker](https://www.nuget.org/packages/Ductus.FluentDocker/ "Nuget Home for Ductus.FluentDocker") 
 and the ms test support is available at [Ductus.FluentDocker.MsTest](https://www.nuget.org/packages/Ductus.FluentDocker.MsTest/ "Nuget Home for Ductus.FluentDocker.MsTest").
 
+**Sample Fluent API usage**
+```cs
+      using (
+        var container =
+          new Builder().UseContainer()
+            .UseImage("kiasaki/alpine-postgres")
+            .ExposePort(5432)
+            .WithEnvironment("POSTGRES_PASSWORD=mysecretpassword")
+            .WaitForPort("5432/tcp", 30000 /*30s*/)
+            .Build()
+            .Start())
+      {
+        var config = container.GetConfiguration(true);
+        Assert.AreEqual(ServiceRunningState.Running, config.State.ToServiceState());
+      }
+```
+
 This library was originally written for .NET framework but has now been ported to .NET Core by smudge202. Many thanks for the contribution. It supports .net standard 1.6, 2.0 and .net 4.51.
 
 ### Current project status ###
