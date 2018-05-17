@@ -30,5 +30,7 @@ namespace Ductus.FluentDocker.Model.Builders
 
     public Tuple<TemplateString /*host*/, bool /*explode*/,
       Func<IContainerService, bool> /*condition*/> ExportOnDispose { get; set; }
+    public List<INetworkService> Networks { get; set; }
+    public List<string> NetworkNames { get; set; }
   }
 }

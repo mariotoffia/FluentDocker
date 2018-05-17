@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net;
@@ -45,6 +46,23 @@ namespace Ductus.FluentDocker.Builders
         _config.Command, _config.Arguments);
 
       AddHooks(container);
+
+      foreach (var network in (IEnumerable<INetworkService>) _config.Networks ?? new INetworkService[0])
+      {
+        network.Attach(container, true /*detachOnDisposeNetwork*/);
+      }
+
+      if (null == _config.NetworkNames)
+      {
+        return container;
+      }
+
+      var nw = host.Value.GetNetworks();
+      foreach (var network in (IEnumerable<string>) _config.NetworkNames ?? new string[0])
+      {
+        var nets = nw.First(x => x.Name == network);
+        nets.Attach(container, true /*detachOnDisposeNetwork*/);
+      }
 
       return container;
     }
@@ -216,6 +234,50 @@ namespace Ductus.FluentDocker.Builders
     public ContainerBuilder ReuseIfExists()
     {
       _config.VerifyExistence = true;
+      return this;
+    }
+
+    /// <summary>
+    /// Uses a already pre-existing network service. It will automatically
+    /// detatch this container from the network when the network is disposed.
+    /// </summary>
+    /// <param name="network">The networks to attach this container to.</param>
+    /// <returns>Itself for fluent access.</returns>
+    public ContainerBuilder UseNetwork(params INetworkService []network)
+    {
+      if (null == network || 0 == network.Length)
+      {
+        return this;
+      }
+
+      if (null == _config.Networks)
+      {
+        _config.Networks = new List<INetworkService>();
+      }
+
+      _config.Networks.AddRange(network);
+      return this;
+    }
+
+    /// <summary>
+    /// Attaches to a network with specified name after the container has been created. It will automatically
+    /// detatch this container from the network when the network is disposed.
+    /// </summary>
+    /// <param name="network">The networks to attach this container to.</param>
+    /// <returns>Itself for fluent access.</returns>
+    public ContainerBuilder UseNetwork(params string[] network)
+    {
+      if (null == network || 0 == network.Length)
+      {
+        return this;
+      }
+
+      if (null == _config.Networks)
+      {
+        _config.NetworkNames = new List<string>();
+      }
+
+      _config.NetworkNames.AddRange(network);
       return this;
     }
 
