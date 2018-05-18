@@ -57,7 +57,7 @@ namespace Ductus.FluentDocker.Commands
           $"{args} volume inspect {volumes}").Execute();
     }
 
-    public static CommandResponse<string> VolumeLs(this DockerUri host, string[] filter = null, bool quiet = false,
+    public static CommandResponse<IList<string>> VolumeLs(this DockerUri host, string[] filter = null, bool quiet = false,
       ICertificatePaths certificates = null, params string[] volume)
     {
       var args = $"{host.RenderBaseArgs(certificates)}";
@@ -79,7 +79,7 @@ namespace Ductus.FluentDocker.Commands
       options += " " + string.Join(" ", volume);
 
       return
-        new ProcessExecutor<SingleStringResponseParser, string>(
+        new ProcessExecutor<StringListResponseParser, IList<string>>(
           "docker".ResolveBinary(),
           $"{args} volume ls {options}").Execute();
     }

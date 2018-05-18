@@ -174,17 +174,34 @@ namespace Ductus.FluentDocker.Services.Impl
       if (!networks.Success)
         throw new FluentDockerException("Could not list network services");
 
-      return networks.Data.Select(nw => new DockerNetworkService(nw.Name, nw.Id, Host, Certificates))
-        .Cast<INetworkService>().ToArray();
+      return networks.Data.Select(nw => (INetworkService)new DockerNetworkService(nw.Name, nw.Id, Host, Certificates)).ToArray();
     }
 
-    public INetworkService CreateNetwork(string name, NetworkCreateParams createParams = null, bool removeOnDispose = false)
+    public INetworkService CreateNetwork(string name, NetworkCreateParams createParams = null,
+      bool removeOnDispose = false)
     {
       var result = Host.NetworkCreate(name, createParams, Certificates);
       if (!result.Success)
         throw new FluentDockerException($"Failed to create network named {name}");
 
       return new DockerNetworkService(name, result.Data[0], Host, Certificates, removeOnDispose);
+    }
+
+    public IList<IVolumeService> GetVolumes()
+    {
+      var volumes = Host.VolumeLs();
+      if (!volumes.Success) throw new FluentDockerException("Could not list docker volumes");
+
+      return volumes.Data.Select(vol => (IVolumeService) new DockerVolumeService(vol, Host, Certificates)).ToList();
+    }
+
+    public IVolumeService CreateVolume(string name = null, string driver = null, string[] labels = null,
+      IDictionary<string, string> opts = null)
+    {
+      var result = Host.VolumeCreate(name, driver, labels, opts, Certificates);
+      if (!result.Success) throw new FluentDockerException("Could not create docker volumes");
+
+      return new DockerVolumeService(result.Data, Host, Certificates);
     }
 
     public MachineConfiguration GetMachineConfiguration()

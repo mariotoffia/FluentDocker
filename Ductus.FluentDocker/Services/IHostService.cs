@@ -80,6 +80,22 @@ namespace Ductus.FluentDocker.Services
     INetworkService CreateNetwork(string name, NetworkCreateParams createParams = null, bool removeOnDispose = false);
 
     /// <summary>
+    /// Retrieves volumes.
+    /// </summary>
+    /// <returns>A list with zero or more volumes.</returns>
+    IList<IVolumeService> GetVolumes();
+
+    /// <summary>
+    /// Creates a volume.
+    /// </summary>
+    /// <param name="name">Optional the unique name of the volume.</param>
+    /// <param name="driver">Optional the volume driver to use.</param>
+    /// <param name="labels">Optional labels as metadata for the volume.</param>
+    /// <param name="opts">Optional parameters to feed to the specified or default driver.</param>
+    /// <returns></returns>
+    IVolumeService CreateVolume(string name = null, string driver = null /*local*/, string[] labels = null, IDictionary<string, string> opts = null);
+
+      /// <summary>
     ///   Gets the machine configuration if machine.
     /// </summary>
     /// <returns>A machine configuration. It will always return null if native.</returns>
