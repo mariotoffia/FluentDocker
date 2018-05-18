@@ -415,7 +415,7 @@ The following sample runs a container, creates a new network, and connects the r
     _docker.NetworkRm(network: network);
 ```
 ### Fluent Networking
-It is also possible to use a fluent builder to build new or reuse existing docker networks. Those can then be referenced while building _containers_. It is possible to build more than one docker network and attach a container to more than one netowrk at a time.
+It is also possible to use a fluent builder to build new or reuse existing docker networks. Those can then be referenced while building _containers_. It is possible to build more than one docker network and attach a container to more than one network at a time.
 ```cs
     using(var nw = new Builder().UseNetwork("test-network")) 
     {
