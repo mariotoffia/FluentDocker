@@ -414,6 +414,27 @@ The following sample runs a container, creates a new network, and connects the r
     // Now it is possible to delete the network since it has been disconnected from the network
     _docker.NetworkRm(network: network);
 ```
+### Fluent Networking
+It is also possible to use a fluent builder to build new or reuse existing docker networks. Those can then be referenced while building _containers_. It is possible to build more than one docker network and attach a container to more than one netowrk at a time.
+```cs
+    using(var nw = new Builder().UseNetwork("test-network")) 
+    {
+      using (
+        var container =
+          new DockerBuilder()
+            .WithImage("kiasaki/alpine-postgres")
+            .WithEnvironment("POSTGRES_PASSWORD=mysecretpassword")
+            .ExposePorts("5432")
+            .UseNetwork(nw)
+            .WaitForPort("5432/tcp", 30000 /*30s*/)
+            .Build())
+      {
+        container.Create().Start();
+      }
+    }
+```
+The above code snippet creates a new network called _test-network_ and then creates a container that is attached to the _test-network_. When the ```Dispose()``` is called on _nw_ it will remove the network.
+
 ## Test Support
 This repo contains two nuget packages, one for the fluent access and the other is a ms-test base classes to be used while testing. For example in a unit-test it is possible to fire up a postgres container and wait when the the db has booted.
 ```cs
