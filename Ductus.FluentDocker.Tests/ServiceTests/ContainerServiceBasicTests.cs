@@ -134,6 +134,22 @@ namespace Ductus.FluentDocker.Tests.ServiceTests
     }
 
     [TestMethod]
+    public void ListVolumesShallWork()
+    {
+      try
+      {
+        _host.Host.VolumeCreate("unit-test-volume");
+        var volumes = _host.Host.VolumeInspect(volume: "unit-test-volume");
+        Assert.IsTrue(volumes.Success);
+        Assert.AreEqual("unit-test-volume", volumes.Data[0].Name);
+      }
+      finally
+      {
+        _host.Host.VolumeRm(volume: "unit-test-volume");
+      }
+    }
+
+    [TestMethod]
     public void CreateAndStartContainerWithOneExposedPortVerified()
     {
       using (var container = _host.Create("postgres:9.6-alpine",

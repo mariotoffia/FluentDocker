@@ -92,8 +92,9 @@ namespace Ductus.FluentDocker.Services
     /// <param name="driver">Optional the volume driver to use.</param>
     /// <param name="labels">Optional labels as metadata for the volume.</param>
     /// <param name="opts">Optional parameters to feed to the specified or default driver.</param>
+    /// <param name="removeOnDispose">If volume shall be remove when disposed or not. Default is false.</param>
     /// <returns></returns>
-    IVolumeService CreateVolume(string name = null, string driver = null /*local*/, string[] labels = null, IDictionary<string, string> opts = null);
+    IVolumeService CreateVolume(string name = null, string driver = null /*local*/, string[] labels = null, IDictionary<string, string> opts = null, bool removeOnDispose = false);
 
       /// <summary>
     ///   Gets the machine configuration if machine.

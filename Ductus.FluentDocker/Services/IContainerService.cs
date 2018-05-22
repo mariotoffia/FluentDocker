@@ -1,4 +1,5 @@
-﻿using Ductus.FluentDocker.Model.Common;
+﻿using System.Collections.Generic;
+using Ductus.FluentDocker.Model.Common;
 using Ductus.FluentDocker.Model.Containers;
 
 namespace Ductus.FluentDocker.Services
@@ -6,8 +7,12 @@ namespace Ductus.FluentDocker.Services
   public interface IContainerService : IService
   {
     string Id { get; }
-
     DockerUri DockerHost { get; }
+
+    /// <summary>
+    /// Dettermines if this container is based on a windows image or linux image.
+    /// </summary>
+    bool IsWindowsContainer { get; }
 
     /// <summary>
     ///   Paths to where certificates resides for this service.
@@ -28,5 +33,17 @@ namespace Ductus.FluentDocker.Services
     /// </summary>
     /// <returns></returns>
     new IContainerService Start();
+
+    /// <summary>
+    ///   Gets all volumes attached to this container.
+    /// </summary>
+    /// <returns>A list with zero or more volumes.</returns>
+    IList<IVolumeService> GetVolumes();
+
+    /// <summary>
+    ///   Gets all networks that this container is attached to.
+    /// </summary>
+    /// <returns>A list with one or more networks.</returns>
+    IList<INetworkService> GetNetworks();
   }
 }

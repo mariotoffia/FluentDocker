@@ -1,6 +1,8 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Linq;
 using Ductus.FluentDocker.Commands;
+using Ductus.FluentDocker.Common;
 using Ductus.FluentDocker.Model.Common;
 using Ductus.FluentDocker.Model.Containers;
 
@@ -9,7 +11,6 @@ namespace Ductus.FluentDocker.Services.Impl
   public sealed class DockerContainerService : IContainerService
   {
     private readonly ServiceHooks _hooks = new ServiceHooks();
-    private readonly bool _isWindowsContainer;
     private readonly bool _removeMountOnDispose;
     private readonly bool _removeNamedMountOnDispose;
     private readonly bool _removeOnDispose;
@@ -22,7 +23,7 @@ namespace Ductus.FluentDocker.Services.Impl
       bool stopOnDispose = true, bool removeOnDispose = true, bool removeMountOnDispose = false,
       bool removeNamedMountOnDispose = false, bool isWindowsContainer = false)
     {
-      _isWindowsContainer = isWindowsContainer;
+      IsWindowsContainer = isWindowsContainer;
       Certificates = certificates;
       _removeNamedMountOnDispose = removeNamedMountOnDispose;
       _removeMountOnDispose = removeMountOnDispose;
@@ -37,6 +38,7 @@ namespace Ductus.FluentDocker.Services.Impl
 
     public string Id { get; }
     public DockerUri DockerHost { get; }
+    public bool IsWindowsContainer { get; }
 
     public Container GetConfiguration(bool fresh = false)
     {
@@ -123,6 +125,33 @@ namespace Ductus.FluentDocker.Services.Impl
     }
 
     public event ServiceDelegates.StateChange StateChange;
+
+    public IList<IVolumeService> GetVolumes()
+    {
+      var config = GetConfiguration();
+      var vols = DockerHost.VolumeInspect(Certificates, config.Mounts.Select(x => x.Name).ToArray());
+      if (!vols.Success)
+        throw new FluentDockerException($"Failed to get attached volumes on docker container {Id}");
+
+      return vols.Data.Select(x => (IVolumeService) new DockerVolumeService(x.Name, DockerHost, Certificates, false))
+        .ToList();
+    }
+
+    public IList<INetworkService> GetNetworks()
+    {
+      var config = GetConfiguration();
+      var networks = DockerHost.NetworkLs(Certificates);
+      if (!networks.Success)
+        throw new FluentDockerException($"Failed to get networks that container id = {Id} is attached to");
+
+      var list = new List<INetworkService>();
+      foreach (var n in config.NetworkSettings.Networks)
+      {
+        list.Add(new DockerNetworkService(n.Value.NetworkID, n.Key, DockerHost, Certificates));
+      }
+
+      return list;
+    }
 
     private void Remove(bool force, bool removeVolume)
     {
