@@ -55,5 +55,19 @@ namespace Ductus.FluentDocker.Builders
       Childs.Add(builder);
       return builder;
     }
+
+    public NetworkBuilder UseNetwork(string name = null)
+    {      
+      var builder = new NetworkBuilder(this, name);
+      Childs.Add(builder);
+      return builder;
+    }
+
+    public VolumeBuilder UseVolume(string name = null)
+    {
+      var builder = new VolumeBuilder(this, name);
+      Childs.Add(builder);
+      return builder;
+    }
   }
 }

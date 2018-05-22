@@ -45,9 +45,14 @@ namespace Ductus.FluentDocker.Builders
       return hb.IsNative ? hb.UseContainer() : hb.UseMachine().UseContainer();
     }
 
-    public NetworkBuilder UseNetwork()
+    public NetworkBuilder UseNetwork(string name = null)
     {
-      return new NetworkBuilder(this);
+      return FindOrDefineHostBuilder().UseNetwork(name);
+    }
+
+    public VolumeBuilder UseVolume(string name = null)
+    {
+      return FindOrDefineHostBuilder().UseVolume(name);
     }
 
     private HostBuilder FindOrDefineHostBuilder()

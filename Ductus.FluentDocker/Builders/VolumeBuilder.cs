@@ -25,7 +25,7 @@ namespace Ductus.FluentDocker.Builders
       var host = FindHostService();
       if (!host.HasValue)
         throw new FluentDockerException(
-          $"Cannot build network {_name} since no host service is defined");
+          $"Cannot build volume {_name} since no host service is defined");
 
       if (_reuseIfExist)
       {
