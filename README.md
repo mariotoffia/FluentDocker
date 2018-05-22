@@ -435,6 +435,40 @@ It is also possible to use a fluent builder to build new or reuse existing docke
 ```
 The above code snippet creates a new network called _test-network_ and then creates a container that is attached to the _test-network_. When the ```Dispose()``` is called on _nw_ it will remove the network.
 
+## Volume Support
+FluentDocker supports docker volume management both from commands and from a fluent API. Therefore it is possible to have total control on volumes used in container such if it shall be disposed, reused, what driver to use etc.
+
+```cs
+  var volume = _docker.VolumeCreate("test-volume", "local", opts: {{"type","nfs"},{"o=addr","192.168.1.1,rw"},{"device",":/path/to/dir"}});
+  var cfg = _docker.VolumeInspect(_certificates, "test-volume");
+  _docker.VolumeRm(force: true, id: "test-volume");
+```
+The above snippet creates a new volme with name _test-volume_ and is of _NFS_ type. It then inspects the newly created volume and lastly foce delete the volume.
+
+### Fluent Volume API
+It is also possible to use a fluent API to create or use volumes. They can then be used when building a container. This is especially usefull when creation of volumes are special or lifetime needs to be controlled.
+```cs
+      using (var vol = new Builder().UseVolume("test-volume").RemoveOnDispose().Build())
+      {
+        using (
+          var container =
+            new Builder().UseContainer()
+              .UseImage("postgres:9.6-alpine")
+              .WithEnvironment("POSTGRES_PASSWORD=mysecretpassword")
+              .MountVolume(vol, "/var/lib/postgresql/data", MountType.ReadWrite)
+              .Build()
+              .Start())
+        {
+          var config = container.GetConfiguration();
+
+          Assert.AreEqual(1, config.Mounts.Length);
+          Assert.AreEqual("test-volume", config.Mounts[0].Name);
+        }
+      }
+```
+The above sample creates a new volume called _test-volume_ and it is scheduled to be delete when ```Dispose()``` is invoked on the ```IVolumeService```. The container is created and mounts the newly created volume to _/var/lib/postgresql/data_ as _read/write_ access mode.
+Since the container is within the scope of the ```using``` statement of the volume it's lifetime spans the whole container lifetime and then get's deleted.
+
 ## Test Support
 This repo contains two nuget packages, one for the fluent access and the other is a ms-test base classes to be used while testing. For example in a unit-test it is possible to fire up a postgres container and wait when the the db has booted.
 ```cs
