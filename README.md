@@ -439,11 +439,16 @@ The above code snippet creates a new network called _test-network_ and then crea
 FluentDocker supports docker volume management both from commands and from a fluent API. Therefore it is possible to have total control on volumes used in container such if it shall be disposed, reused, what driver to use etc.
 
 ```cs
-  var volume = _docker.VolumeCreate("test-volume", "local", opts: {{"type","nfs"},{"o=addr","192.168.1.1,rw"},{"device",":/path/to/dir"}});
+  var volume = _docker.VolumeCreate("test-volume", "local", opts: {
+                                      {"type","nfs"},
+                                      {"o=addr","192.168.1.1,rw"},
+                                      {"device",":/path/to/dir"}
+                                    });
+
   var cfg = _docker.VolumeInspect(_certificates, "test-volume");
   _docker.VolumeRm(force: true, id: "test-volume");
 ```
-The above snippet creates a new volme with name _test-volume_ and is of _NFS_ type. It then inspects the newly created volume and lastly foce delete the volume.
+The above snippet creates a new volume with name _test-volume_ and is of _NFS_ type. It then inspects the just created volume and lastly force delete the volume.
 
 ### Fluent Volume API
 It is also possible to use a fluent API to create or use volumes. They can then be used when building a container. This is especially usefull when creation of volumes are special or lifetime needs to be controlled.
