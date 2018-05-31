@@ -425,7 +425,7 @@ namespace Ductus.FluentDocker.Commands
 
       if (removeImagesFrom != ImageRemovalOption.None)
       {
-        options += removeImagesFrom == ImageRemovalOption.Local ? " --rmi local" : " --rmi type all";
+        options += removeImagesFrom == ImageRemovalOption.Local ? " --rmi local" : " --rmi all";
       }
 
       return
