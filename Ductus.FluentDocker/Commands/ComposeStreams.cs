@@ -13,7 +13,7 @@ namespace Ductus.FluentDocker.Commands
     public static ConsoleStream<string> ComposeLogs(this DockerUri host, string altProjectName = null,
       string composeFile = null, string[] services = null /*all*/,
       CancellationToken cancellationToken = default(CancellationToken),
-      bool follow = false, bool showTimeStamps = false, DateTime? since = null, int? numLines = null,
+      bool follow = false, bool showTimeStamps = false, DateTime? since = null, int? numLines = null, bool noColor = false,
       ICertificatePaths certificates = null)
     {
       var args = $"{host.RenderBaseArgs(certificates)}";
@@ -43,6 +43,11 @@ namespace Ductus.FluentDocker.Commands
       if (showTimeStamps)
       {
         options += " -t";
+      }
+
+      if (noColor)
+      {
+        options += " --no-color";
       }
 
       if (null != services && 0 != services.Length)
