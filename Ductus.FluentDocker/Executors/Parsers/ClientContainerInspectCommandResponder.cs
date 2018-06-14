@@ -16,6 +16,13 @@ namespace Ductus.FluentDocker.Executors.Parsers
         return this;
       }
 
+      if (response.ExitCode != 0)
+      {
+        Response = response.ToErrorResponse(new Container());
+        return this;
+      }
+
+
       var arr = response.StdOutAsArry;
       var sb = new StringBuilder();
       for (var i = 1; i < arr.Length - 1; i++)
