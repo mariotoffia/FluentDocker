@@ -127,10 +127,10 @@ namespace Ductus.FluentDocker.Services.Impl
         return new List<IContainerService>();
 
       return (from id in result.Data
-        let config = Host.InspectContainer(id, Certificates).Data
-        select
-          new DockerContainerService(config.Name, id, Host, config.State.ToServiceState(),
-            Certificates, isWindowsContainer: _isWindowsHost)).Cast<IContainerService>().ToList();
+        let config = Host.InspectContainer(id, Certificates)
+        where config.Success && config.Data != null
+        select new DockerContainerService(config.Data.Name, id, Host, config.Data.State.ToServiceState(), Certificates,
+          isWindowsContainer: _isWindowsHost)).Cast<IContainerService>().ToList();
     }
 
     public IList<IContainerImageService> GetImages(bool all = true, string filer = null)
