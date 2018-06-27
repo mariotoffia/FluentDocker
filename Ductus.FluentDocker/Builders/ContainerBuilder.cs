@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Text.RegularExpressions;
+using Ductus.FluentDocker.Commands;
 using Ductus.FluentDocker.Common;
 using Ductus.FluentDocker.Extensions;
 using Ductus.FluentDocker.Model.Builders;
@@ -167,7 +168,7 @@ namespace Ductus.FluentDocker.Builders
 
     public ContainerBuilder Mount(string fqHostPath, string fqContainerPath, MountType access)
     {
-      var hp = FluentDocker.Common.OperatingSystem.IsWindows() && CommandExtensions.IsToolbox()
+      var hp = OperatingSystem.IsWindows() && CommandExtensions.IsToolbox()
         ? ((TemplateString) fqHostPath).Rendered.ToMsysPath()
         : ((TemplateString) fqHostPath).Rendered;
 
@@ -324,7 +325,39 @@ namespace Ductus.FluentDocker.Builders
       return this;
     }
 
-    private void AddHooks(IContainerService container)
+    /// <summary>
+    ///   Executes one or more commands including their arguments when container has started.
+    /// </summary>
+    /// <param name="execute">The binary to execute including any arguments to pass to the binary.</param>
+    /// <returns>Itself for fluent access.</returns>
+    /// <remarks>
+    ///   Each execute string is respected as a binary and argument.
+    /// </remarks>
+    public ContainerBuilder ExecuteOnRunning(params string[] execute)
+    {
+      if (null == _config.ExecuteOnRunningArguments) _config.ExecuteOnRunningArguments = new List<string>();
+
+      _config.ExecuteOnRunningArguments.AddRange(execute);
+      return this;
+    }
+
+    /// <summary>
+    ///   Executes one or more commands including their arguments when container about to stop.
+    /// </summary>
+    /// <param name="execute">The binary to execute including any arguments to pass to the binary.</param>
+    /// <returns>Itself for fluent access.</returns>
+    /// <remarks>
+    ///   Each execute string is respected as a binary and argument.
+    /// </remarks>
+    public ContainerBuilder ExecuteOnDisposing(params string[] execute)
+    {
+      if (null == _config.ExecuteOnDisposingArguments) _config.ExecuteOnDisposingArguments = new List<string>();
+
+      _config.ExecuteOnDisposingArguments.AddRange(execute);
+      return this;
+    }
+
+    private void AddHooks(IService container)
     {
       // Copy files just before starting
       if (null != _config.CpToOnStart)
@@ -351,12 +384,38 @@ namespace Ductus.FluentDocker.Builders
             ((IContainerService) service).WaitForProcess(_config.WaitForProcess.Item1, _config.WaitForProcess.Item2);
           });
 
+      // docker execute on running
+      if (null != _config.ExecuteOnRunningArguments && _config.ExecuteOnRunningArguments.Count > 0)
+        container.AddHook(ServiceRunningState.Running, service =>
+        {
+          var svc = (IContainerService) service;
+          foreach (var binaryAndArguments in _config.ExecuteOnRunningArguments)
+          {
+            var result = svc.DockerHost.Execute(svc.Id, binaryAndArguments, svc.Certificates);
+            if (!result.Success)
+              throw new FluentDockerException($"Failed to execute {binaryAndArguments} error: {result.Error}");
+          }
+        });
+
       // Copy files / folders on dispose
       if (null != _config.CpFromOnDispose && 0 != _config.CpFromOnDispose.Count)
         container.AddHook(ServiceRunningState.Removing, service =>
         {
           foreach (var copy in _config.CpFromOnDispose)
             ((IContainerService) service).CopyFrom(copy.Item2, copy.Item1);
+        });
+
+      // docker execute when disposing
+      if (null != _config.ExecuteOnDisposingArguments && _config.ExecuteOnDisposingArguments.Count > 0)
+        container.AddHook(ServiceRunningState.Running, service =>
+        {
+          var svc = (IContainerService) service;
+          foreach (var binaryAndArguments in _config.ExecuteOnDisposingArguments)
+          {
+            var result = svc.DockerHost.Execute(svc.Id, binaryAndArguments, svc.Certificates);
+            if (!result.Success)
+              throw new FluentDockerException($"Failed to execute {binaryAndArguments} error: {result.Error}");
+          }
         });
 
       // Export container on dispose

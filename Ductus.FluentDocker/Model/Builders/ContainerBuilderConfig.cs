@@ -32,5 +32,7 @@ namespace Ductus.FluentDocker.Model.Builders
       Func<IContainerService, bool> /*condition*/> ExportOnDispose { get; set; }
     public List<INetworkService> Networks { get; set; }
     public List<string> NetworkNames { get; set; }
+    public List<string> ExecuteOnRunningArguments { get; set; }
+    public List<string> ExecuteOnDisposingArguments { get; set; }
   }
 }
