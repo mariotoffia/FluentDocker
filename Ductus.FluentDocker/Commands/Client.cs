@@ -149,6 +149,16 @@ namespace Ductus.FluentDocker.Commands
           arg).Execute();
     }
 
+    public static CommandResponse<IList<string>> Execute(this DockerUri host, string id, string execArgs, ICertificatePaths certificates = null)
+    {
+      var certArgs = host.RenderBaseArgs(certificates);
+
+      return
+        new ProcessExecutor<StringListResponseParser, IList<string>>(
+          "docker".ResolveBinary(),
+          $"{certArgs} exec -i {id} {execArgs}").Execute();      
+    }
+    
     public static CommandResponse<IList<string>> Start(this DockerUri host, string id, ICertificatePaths certificates = null)
     {
       var certArgs = host.RenderBaseArgs(certificates);
@@ -245,6 +255,6 @@ namespace Ductus.FluentDocker.Commands
       var arg = $"{host.RenderBaseArgs(certificates)}";
       return new ProcessExecutor<ClientDiffResponseParser, IList<Diff>>("docker".ResolveBinary(),
         $"{arg} diff {id}").Execute();
-    }
+    }    
   }
 }
