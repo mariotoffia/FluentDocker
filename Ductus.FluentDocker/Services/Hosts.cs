@@ -9,9 +9,17 @@ namespace Ductus.FluentDocker.Services
 {
   public sealed class Hosts
   {
-    public IList<IHostService> Discover()
+    public IList<IHostService> Discover(bool preferNative = false)
     {
       var list = new List<IHostService>();
+
+      if (CommandExtensions.IsEmulatedNative() || CommandExtensions.IsNative())
+        list.Add(new DockerHostService("native", true, false,
+          null,
+          Environment.GetEnvironmentVariable(DockerHostService.DockerCertPath)));
+
+      if (list.Count > 0 && preferNative)
+        return list;
 
       if (Machine.IsPresent())
       {
@@ -23,11 +31,6 @@ namespace Ductus.FluentDocker.Services
               new DockerHostService(machine.Name, false, false, machine.Docker?.ToString(),
                 inspect.Data.AuthConfig.CertDir));
       }
-
-      if (CommandExtensions.IsEmulatedNative() || CommandExtensions.IsNative())
-        list.Add(new DockerHostService("native", true, false,
-          null,
-          Environment.GetEnvironmentVariable(DockerHostService.DockerCertPath)));
 
       return list;
     }

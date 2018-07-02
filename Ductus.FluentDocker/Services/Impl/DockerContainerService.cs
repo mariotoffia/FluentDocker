@@ -13,8 +13,6 @@ namespace Ductus.FluentDocker.Services.Impl
     private readonly ServiceHooks _hooks = new ServiceHooks();
     private readonly bool _removeMountOnDispose;
     private readonly bool _removeNamedMountOnDispose;
-    private readonly bool _removeOnDispose;
-    private readonly bool _stopOnDispose;
     private Container _containerConfigCache;
     private ServiceRunningState _state = ServiceRunningState.Unknown;
 
@@ -27,8 +25,8 @@ namespace Ductus.FluentDocker.Services.Impl
       Certificates = certificates;
       _removeNamedMountOnDispose = removeNamedMountOnDispose;
       _removeMountOnDispose = removeMountOnDispose;
-      _stopOnDispose = stopOnDispose;
-      _removeOnDispose = removeOnDispose;
+      StopOnDispose = stopOnDispose;
+      RemoveOnDispose = removeOnDispose;
 
       Name = name;
       Id = id;
@@ -38,6 +36,11 @@ namespace Ductus.FluentDocker.Services.Impl
 
     public string Id { get; }
     public DockerUri DockerHost { get; }
+
+    public bool StopOnDispose { get; set; }
+
+    public bool RemoveOnDispose { get; set; }
+
     public bool IsWindowsContainer { get; }
 
     public Container GetConfiguration(bool fresh = false)
@@ -78,10 +81,10 @@ namespace Ductus.FluentDocker.Services.Impl
       if (string.IsNullOrEmpty(Id))
         return;
 
-      if (_stopOnDispose)
+      if (StopOnDispose)
         Stop();
 
-      if (_removeOnDispose)
+      if (RemoveOnDispose)
         Remove(true, _removeMountOnDispose);
     }
 
@@ -146,9 +149,7 @@ namespace Ductus.FluentDocker.Services.Impl
 
       var list = new List<INetworkService>();
       foreach (var n in config.NetworkSettings.Networks)
-      {
         list.Add(new DockerNetworkService(n.Value.NetworkID, n.Key, DockerHost, Certificates));
-      }
 
       return list;
     }

@@ -36,7 +36,12 @@ namespace Ductus.FluentDocker.Builders
             .FirstOrDefault(x => IsNameMatch(x.Name, _config.CreateParams.Name));
 
         if (null != existing)
+        {
+          existing.RemoveOnDispose = _config.DeleteOnDispose;
+          existing.StopOnDispose = _config.StopOnDispose;
+
           return existing;
+        }
       }
 
       var container = host.Value.Create(_config.Image, _config.CreateParams, _config.StopOnDispose,
@@ -168,7 +173,7 @@ namespace Ductus.FluentDocker.Builders
 
     public ContainerBuilder Mount(string fqHostPath, string fqContainerPath, MountType access)
     {
-      var hp = OperatingSystem.IsWindows() && CommandExtensions.IsToolbox()
+      var hp = Ductus.FluentDocker.Common.OperatingSystem.IsWindows() && CommandExtensions.IsToolbox()
         ? ((TemplateString) fqHostPath).Rendered.ToMsysPath()
         : ((TemplateString) fqHostPath).Rendered;
 
@@ -407,7 +412,7 @@ namespace Ductus.FluentDocker.Builders
 
       // docker execute when disposing
       if (null != _config.ExecuteOnDisposingArguments && _config.ExecuteOnDisposingArguments.Count > 0)
-        container.AddHook(ServiceRunningState.Running, service =>
+        container.AddHook(ServiceRunningState.Removing, service =>
         {
           var svc = (IContainerService) service;
           foreach (var binaryAndArguments in _config.ExecuteOnDisposingArguments)

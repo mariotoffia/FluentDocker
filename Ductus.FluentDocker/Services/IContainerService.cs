@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using Ductus.FluentDocker.Model.Common;
 using Ductus.FluentDocker.Model.Containers;
 
@@ -6,11 +7,28 @@ namespace Ductus.FluentDocker.Services
 {
   public interface IContainerService : IService
   {
+    /// <summary>
+    ///   The container id of the running container.
+    /// </summary>
     string Id { get; }
+
+    /// <summary>
+    ///   The <see cref="System.Uri" /> to the docker daemon in control of this service.
+    /// </summary>
     DockerUri DockerHost { get; }
 
     /// <summary>
-    /// Dettermines if this container is based on a windows image or linux image.
+    ///   When set to true the container is stopped automatically on <see cref="IDisposable.Dispose()" />.
+    /// </summary>
+    bool StopOnDispose { get; set; }
+
+    /// <summary>
+    ///   When set to true the container is removed automaticallyh on <see cref="IDisposable.Dispose()" />.
+    /// </summary>
+    bool RemoveOnDispose { get; set; }
+
+    /// <summary>
+    ///   Dettermines if this container is based on a windows image or linux image.
     /// </summary>
     bool IsWindowsContainer { get; }
 

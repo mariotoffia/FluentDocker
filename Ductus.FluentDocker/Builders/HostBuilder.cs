@@ -13,7 +13,7 @@ namespace Ductus.FluentDocker.Builders
 
     public override IHostService Build()
     {
-      return _useNative ? new Hosts().Discover().First(x => x.IsNative) : null;
+      return _useNative ? new Hosts().Discover(_useNative).First(x => x.IsNative) : null;
     }
 
     protected override IBuilder InternalCreate()
