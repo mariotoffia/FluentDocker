@@ -474,6 +474,25 @@ It is also possible to use a fluent API to create or use volumes. They can then 
 The above sample creates a new volume called _test-volume_ and it is scheduled to be delete when ```Dispose()``` is invoked on the ```IVolumeService```. The container is created and mounts the newly created volume to _/var/lib/postgresql/data_ as _read/write_ access mode.
 Since the container is within the scope of the ```using``` statement of the volume it's lifetime spans the whole container lifetime and then get's deleted.
 
+### Logging
+In the full framework it uses verbose logging using the ```System.Diagnostics.Debugger.Log```. For .net core it uses the standard
+```Microsoft.Extensions.Logging.ILog``` to log. Both are using the category _Ductus.FluentDocker_ and therefore may be configured
+to participate in logging or not and configure different logging destinations.
+
+In .net core you can provide the logging segment in the application config file.
+```
+{
+  "Logging": {
+    "IncludeScopes": false,
+    "LogLevel": {
+      "Ductus.FluentDocker": "None"
+      }
+   }
+}
+```
+Please check the https://docs.microsoft.com/en-us/aspnet/core/fundamentals/logging/?view=aspnetcore-2.1 for more information.
+For full framework please check out the _XML_ needed in the appconfig for the full framework described in https://docs.microsoft.com/en-us/dotnet/framework/wcf/diagnostics/tracing/configuring-tracing.
+
 ## Test Support
 This repo contains two nuget packages, one for the fluent access and the other is a ms-test base classes to be used while testing. For example in a unit-test it is possible to fire up a postgres container and wait when the the db has booted.
 ```cs
