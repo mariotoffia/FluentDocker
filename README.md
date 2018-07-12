@@ -493,6 +493,8 @@ In .net core you can provide the logging segment in the application config file.
 Please check the https://docs.microsoft.com/en-us/aspnet/core/fundamentals/logging/?view=aspnetcore-2.1 for more information.
 For full framework please check out the _XML_ needed in the appconfig for the full framework described in https://docs.microsoft.com/en-us/dotnet/framework/wcf/diagnostics/tracing/configuring-tracing.
 
+There's a quick way of disabling / enabling logging via (``Ductus.FluentDocker.Services```) ```Logging.Enabled()``` or ```Logging.Disabled()```. This will forcefully enable / disable logging.
+
 ## Test Support
 This repo contains two nuget packages, one for the fluent access and the other is a ms-test base classes to be used while testing. For example in a unit-test it is possible to fire up a postgres container and wait when the the db has booted.
 ```cs
