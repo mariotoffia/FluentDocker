@@ -1,6 +1,6 @@
 # FluentDocker
-[![Build status](https://ci.appveyor.com/api/projects/status/kqqrkcv8wp3e9my6?svg=true)](https://ci.appveyor.com/project/mariotoffia/fluentdocker)
-Core [![NuGet](https://img.shields.io/nuget/v/Ductus.FluentDocker.svg)](https://www.nuget.org/packages/Ductus.FluentDocker) MsTest [![NuGet](https://img.shields.io/nuget/v/Ductus.FluentDocker.MsTest.svg)](https://www.nuget.org/packages/Ductus.FluentDocker.MsTest)
+[![Build status](https://ci.appveyor.com/api/projects/status/kqqrkcv8wp3e9my6?svg=true)](https://ci.appveyor.com/project/mariotoffia/fluentdocker) [![NuGet](https://img.shields.io/nuget/v/Ductus.FluentDocker.svg)](https://www.nuget.org/packages/Ductus.FluentDocker) 
+MsTest [![NuGet](https://img.shields.io/nuget/v/Ductus.FluentDocker.MsTest.svg)](https://www.nuget.org/packages/Ductus.FluentDocker.MsTest)
 
 FluentDocker is a library to interact with docker-machine, docker-compose and docker. It supports the docker for windows, docker for mac, docker machine, and native linux (however only limited tests on Linux and Mac). 
 This library is available at nuget [Ductus.FluentDocker](https://www.nuget.org/packages/Ductus.FluentDocker/ "Nuget Home for Ductus.FluentDocker") 
