@@ -1,9 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
-
-  
   <PropertyGroup>
     <TargetFrameworks>netstandard1.6;netstandard2.0;net452</TargetFrameworks>
-    <VersionPrefix>2.3.0</VersionPrefix>
+    <VersionPrefix>2.3.1</VersionPrefix>
     <AssemblyTitle>Ductus.FluentDocker</AssemblyTitle>
     <Authors>Mario Toffia</Authors>
     <PackageLicenseUrl>https://github.com/mariotoffia/FluentDocker/blob/master/LICENSE</PackageLicenseUrl>
@@ -18,19 +16,17 @@
     <DefineConstants Condition=" '$(TargetFramework)' == 'netstandard1.6' ">$(DefineConstants);COREFX</DefineConstants>
     <DefineConstants Condition=" '$(TargetFramework)' == 'netstandard2.0' ">$(DefineConstants);COREFX</DefineConstants>
     <GeneratePackageOnBuild>True</GeneratePackageOnBuild>
-    <AssemblyVersion>2.3.0.0</AssemblyVersion>
-    <FileVersion>2.3.0.0</FileVersion>
-    <Version>2.3.0</Version>
+    <AssemblyVersion>2.3.1.0</AssemblyVersion>
+    <FileVersion>2.3.1.0</FileVersion>
+    <Version>2.3.1</Version>
     <AssemblyOriginatorKeyFile>..\keypair.snk</AssemblyOriginatorKeyFile>
     <SignAssembly>true</SignAssembly>
     <PublicSign Condition=" '$(OS)' != 'Windows_NT' ">true</PublicSign>
   </PropertyGroup>
-
   <ItemGroup>
     <PackageReference Include="Newtonsoft.Json" Version="9.0.1" />
     <PackageReference Include="SharpCompress" Version="0.15.2" />
   </ItemGroup>
-
   <ItemGroup Condition=" '$(TargetFramework)' == 'netstandard1.6' ">
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="1.1.0" />
     <PackageReference Include="Microsoft.Extensions.DependencyModel" Version="1.1.1" />

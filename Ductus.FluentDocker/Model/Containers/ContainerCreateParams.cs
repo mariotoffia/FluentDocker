@@ -186,12 +186,14 @@ namespace Ductus.FluentDocker.Model.Containers
     public string[] Groups { get; set; }
 
     /// <summary>
-    /// Connect a container to a network
+    ///   Connect a container to a network
     /// </summary>
     /// <remarks>
     ///   --network
     /// </remarks>
     public string Network { get; set; }
+
+    public RestartPolicy RestartPolicy { get; set; }
 
     /// <summary>
     ///   Renders the argument string from this instance.
@@ -203,16 +205,10 @@ namespace Ductus.FluentDocker.Model.Containers
       if (null != HostIpMappings && 0 != HostIpMappings.Count)
       {
         sb.Append(" --add-host=");
-        foreach (var mapping in HostIpMappings)
-        {
-          sb.Append($"--add-host={mapping.Item1}:{mapping.Item2}");
-        }
+        foreach (var mapping in HostIpMappings) sb.Append($"--add-host={mapping.Item1}:{mapping.Item2}");
       }
 
-      if (null != BlockIoWeight)
-      {
-        sb.Append($" --blkio-weight {BlockIoWeight.Value}");
-      }
+      if (null != BlockIoWeight) sb.Append($" --blkio-weight {BlockIoWeight.Value}");
 
       sb.OptionIfExists("--blkio-weight-device=", BlockIoWeightDevices);
       sb.OptionIfExists("--cap-add=", CapabilitiesToAdd);
@@ -221,23 +217,14 @@ namespace Ductus.FluentDocker.Model.Containers
       sb.OptionIfExists("-e ", Environment);
       sb.OptionIfExists("--env-file=", EnvironmentFiles);
 
-      if (Interactive)
-      {
-        sb.Append(" -i");
-      }
+      if (Interactive) sb.Append(" -i");
 
-      if (Tty)
-      {
-        sb.Append(" -t");
-      }
+      if (Tty) sb.Append(" -t");
 
       sb.OptionIfExists("--name ", Name);
       sb.OptionIfExists("-u ", AsUser);
 
-      if (AutoRemoveContainer)
-      {
-        sb.Append(" --rm");
-      }
+      if (AutoRemoveContainer) sb.Append(" --rm");
 
       sb.OptionIfExists("-v ", Volumes);
       sb.OptionIfExists("--volume-driver ", VolumeDriver);
@@ -245,71 +232,83 @@ namespace Ductus.FluentDocker.Model.Containers
       sb.OptionIfExists("-w ", WorkingDirectory);
 
       if (!PublishAllPorts)
-      {
         sb.OptionIfExists("-p ", PortMappings);
-      }
       else
-      {
         sb.Append(" -P");
-      }
 
       sb.OptionIfExists("--link=", Links);
       sb.OptionIfExists("-l ", Labels);
       sb.OptionIfExists("--group-add=", Groups);
       sb.OptionIfExists("--network ", Network);
 
+      if (RestartPolicy.No != RestartPolicy)
+        switch (RestartPolicy)
+        {
+          case RestartPolicy.Always:
+            sb.Append(" --restart always");
+            break;
+          case RestartPolicy.OnFailure:
+            sb.Append(" --restart on-failure");
+            break;
+          case RestartPolicy.UnlessStopped:
+            sb.Append(" --restart unless-stopped");
+            break;
+          default:
+            sb.Append(" --restart no");
+            break;
+        }
+
       return sb.ToString();
     }
   }
 
-    /*
-    --cpu-shares                    CPU shares (relative weight)
-    --cidfile                       Write the container ID to the file
-    --cpu-period                    Limit CPU CFS (Completely Fair Scheduler) period
-    --cpu-quota                     Limit CPU CFS (Completely Fair Scheduler) quota
-    --cpuset-cpus                   CPUs in which to allow execution (0-3, 0,1)
-    --cpuset-mems                   MEMs in which to allow execution (0-3, 0,1)
-    --detach-keys                   Override the key sequence for detaching a container
-    --device=[]                     Add a host device to the container
-    --device-read-bps=[]            Limit read rate (bytes per second) from a device
-    --device-read-iops=[]           Limit read rate (IO per second) from a device
-    --device-write-bps=[]           Limit write rate (bytes per second) to a device
-    --device-write-iops=[]          Limit write rate (IO per second) to a device
-    --disable-content-trust=true    Skip image verification
-    --dns=[]                        Set custom DNS servers
-    --dns-opt=[]                    Set DNS options
-    --dns-search=[]                 Set custom DNS search domains
-    --entrypoint                    Overwrite the default ENTRYPOINT of the image
-    --expose=[]                     Expose a port or a range of ports
-    -h, --hostname                  Container host name
-    --ip                            Container IPv4 address (e.g. 172.30.100.104)
-    --ip6                           Container IPv6 address (e.g. 2001:db8::33)
-    --ipc                           IPC namespace to use
-    --isolation                     Container isolation level
-    --kernel-memory                 Kernel memory limit
-    --label-file=[]                 Read in a line delimited file of labels
-    --log-driver                    Logging driver for container
-    --log-opt=[]                    Log driver options
-    -m, --memory                    Memory limit
-    --mac-address                   Container MAC address (e.g. 92:d0:c6:0a:29:33)
-    --memory-reservation            Memory soft limit
-    --memory-swap                   Swap limit equal to memory plus swap: '-1' to enable unlimited swap
-    --memory-swappiness=-1          Tune container memory swappiness (0 to 100)
-    --net=default                   Connect a container to a network
-    --net-alias=[]                  Add network-scoped alias for the container
-    --oom-kill-disable              Disable OOM Killer
-    --oom-score-adj                 Tune host's OOM preferences (-1000 to 1000)
-    --pid                           PID namespace to use
-    --privileged                    Give extended privileges to this container
-    --read-only                     Mount the container's root filesystem as read only
-    --restart=no                    Restart policy to apply when a container exits
-    --security-opt=[]               Security Options
-    --shm-size                      Size of /dev/shm, default value is 64MB
-    --sig-proxy=true                Proxy received signals to the process
-    --stop-signal=15                Signal to stop a container, 15 by default
-    --tmpfs=[]                      Mount a tmpfs directory
-    --ulimit=[]                     Ulimit options
-    --uts                           UTS namespace to use
-    --network                       Connect a container to a network
-  */
+  /*
+  --cpu-shares                    CPU shares (relative weight)
+  --cidfile                       Write the container ID to the file
+  --cpu-period                    Limit CPU CFS (Completely Fair Scheduler) period
+  --cpu-quota                     Limit CPU CFS (Completely Fair Scheduler) quota
+  --cpuset-cpus                   CPUs in which to allow execution (0-3, 0,1)
+  --cpuset-mems                   MEMs in which to allow execution (0-3, 0,1)
+  --detach-keys                   Override the key sequence for detaching a container
+  --device=[]                     Add a host device to the container
+  --device-read-bps=[]            Limit read rate (bytes per second) from a device
+  --device-read-iops=[]           Limit read rate (IO per second) from a device
+  --device-write-bps=[]           Limit write rate (bytes per second) to a device
+  --device-write-iops=[]          Limit write rate (IO per second) to a device
+  --disable-content-trust=true    Skip image verification
+  --dns=[]                        Set custom DNS servers
+  --dns-opt=[]                    Set DNS options
+  --dns-search=[]                 Set custom DNS search domains
+  --entrypoint                    Overwrite the default ENTRYPOINT of the image
+  --expose=[]                     Expose a port or a range of ports
+  -h, --hostname                  Container host name
+  --ip                            Container IPv4 address (e.g. 172.30.100.104)
+  --ip6                           Container IPv6 address (e.g. 2001:db8::33)
+  --ipc                           IPC namespace to use
+  --isolation                     Container isolation level
+  --kernel-memory                 Kernel memory limit
+  --label-file=[]                 Read in a line delimited file of labels
+  --log-driver                    Logging driver for container
+  --log-opt=[]                    Log driver options
+  -m, --memory                    Memory limit
+  --mac-address                   Container MAC address (e.g. 92:d0:c6:0a:29:33)
+  --memory-reservation            Memory soft limit
+  --memory-swap                   Swap limit equal to memory plus swap: '-1' to enable unlimited swap
+  --memory-swappiness=-1          Tune container memory swappiness (0 to 100)
+  --net=default                   Connect a container to a network
+  --net-alias=[]                  Add network-scoped alias for the container
+  --oom-kill-disable              Disable OOM Killer
+  --oom-score-adj                 Tune host's OOM preferences (-1000 to 1000)
+  --pid                           PID namespace to use
+  --privileged                    Give extended privileges to this container
+  --read-only                     Mount the container's root filesystem as read only
+  --security-opt=[]               Security Options
+  --shm-size                      Size of /dev/shm, default value is 64MB
+  --sig-proxy=true                Proxy received signals to the process
+  --stop-signal=15                Signal to stop a container, 15 by default
+  --tmpfs=[]                      Mount a tmpfs directory
+  --ulimit=[]                     Ulimit options
+  --uts                           UTS namespace to use
+  --network                       Connect a container to a network
+*/
 }
