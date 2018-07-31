@@ -19,7 +19,7 @@ namespace Ductus.FluentDocker.Commands
       var args = $"{host.RenderBaseArgs(certificates)}";
       if (!string.IsNullOrEmpty(composeFile))
       {
-        args += $" -f {composeFile}";
+        args += $" -f \"{composeFile}\"";
       }
 
       if (!string.IsNullOrEmpty(altProjectName))
@@ -64,7 +64,7 @@ namespace Ductus.FluentDocker.Commands
       var args = $"{host.RenderBaseArgs(certificates)}";
       if (!string.IsNullOrEmpty(composeFile))
       {
-        args += $" -f {composeFile}";
+        args += $" -f \"{composeFile}\"";
       }
 
       if (!string.IsNullOrEmpty(altProjectName))
@@ -110,7 +110,7 @@ namespace Ductus.FluentDocker.Commands
       var args = $"{host.RenderBaseArgs(certificates)}";
       if (!string.IsNullOrEmpty(composeFile))
       {
-        args += $" -f {composeFile}";
+        args += $" -f \"{composeFile}\"";
       }
 
       if (!string.IsNullOrEmpty(altProjectName))
@@ -137,7 +137,7 @@ namespace Ductus.FluentDocker.Commands
       var args = $"{host.RenderBaseArgs(certificates)}";
       if (!string.IsNullOrEmpty(composeFile))
       {
-        args += $" -f {composeFile}";
+        args += $" -f \"{composeFile}\"";
       }
 
       if (!string.IsNullOrEmpty(altProjectName))
@@ -169,7 +169,7 @@ namespace Ductus.FluentDocker.Commands
       var args = $"{host.RenderBaseArgs(certificates)}";
       if (!string.IsNullOrEmpty(composeFile))
       {
-        args += $" -f {composeFile}";
+        args += $" -f \"{composeFile}\"";
       }
 
       if (!string.IsNullOrEmpty(altProjectName))
@@ -200,7 +200,7 @@ namespace Ductus.FluentDocker.Commands
       var args = $"{host.RenderBaseArgs(certificates)}";
       if (!string.IsNullOrEmpty(composeFile))
       {
-        args += $" -f {composeFile}";
+        args += $" -f \"{composeFile}\"";
       }
 
       if (!string.IsNullOrEmpty(altProjectName))
@@ -226,7 +226,7 @@ namespace Ductus.FluentDocker.Commands
       var args = $"{host.RenderBaseArgs(certificates)}";
       if (!string.IsNullOrEmpty(composeFile))
       {
-        args += $" -f {composeFile}";
+        args += $" -f \"{composeFile}\"";
       }
 
       if (!string.IsNullOrEmpty(altProjectName))
@@ -253,7 +253,7 @@ namespace Ductus.FluentDocker.Commands
       var args = $"{host.RenderBaseArgs(certificates)}";
       if (!string.IsNullOrEmpty(composeFile))
       {
-        args += $" -f {composeFile}";
+        args += $" -f \"{composeFile}\"";
       }
 
       if (!string.IsNullOrEmpty(altProjectName))
@@ -285,7 +285,7 @@ namespace Ductus.FluentDocker.Commands
       var args = $"{host.RenderBaseArgs(certificates)}";
       if (!string.IsNullOrEmpty(composeFile))
       {
-        args += $" -f {composeFile}";
+        args += $" -f \"{composeFile}\"";
       }
 
       if (!string.IsNullOrEmpty(altProjectName))
@@ -312,7 +312,7 @@ namespace Ductus.FluentDocker.Commands
       var args = $"{host.RenderBaseArgs(certificates)}";
       if (!string.IsNullOrEmpty(composeFile))
       {
-        args += $" -f {composeFile}";
+        args += $" -f \"{composeFile}\"";
       }
 
       if (!string.IsNullOrEmpty(altProjectName))
@@ -346,7 +346,7 @@ namespace Ductus.FluentDocker.Commands
       var args = $"{host.RenderBaseArgs(certificates)}";
       if (!string.IsNullOrEmpty(composeFile))
       {
-        args += $" -f {composeFile}";
+        args += $" -f \"{composeFile}\"";
       }
 
       if (!string.IsNullOrEmpty(altProjectName))
@@ -372,7 +372,7 @@ namespace Ductus.FluentDocker.Commands
       var args = $"{host.RenderBaseArgs(certificates)}";
       if (!string.IsNullOrEmpty(composeFile))
       {
-        args += $" -f {composeFile}";
+        args += $" -f \"{composeFile}\"";
       }
 
       if (!string.IsNullOrEmpty(altProjectName))
@@ -404,7 +404,7 @@ namespace Ductus.FluentDocker.Commands
       var args = $"{host.RenderBaseArgs(certificates)}";
       if (!string.IsNullOrEmpty(composeFile))
       {
-        args += $" -f {composeFile}";
+        args += $" -f \"{composeFile}\"";
       }
 
       if (!string.IsNullOrEmpty(altProjectName))
@@ -445,7 +445,7 @@ namespace Ductus.FluentDocker.Commands
       var args = $"{host.RenderBaseArgs(certificates)}";
       if (!string.IsNullOrEmpty(composeFile))
       {
-        args += $" -f {composeFile}";
+        args += $" -f \"{composeFile}\"";
       }
 
       if (!string.IsNullOrEmpty(altProjectName))
@@ -505,7 +505,7 @@ namespace Ductus.FluentDocker.Commands
       var args = $"{host.RenderBaseArgs(certificates)}";
       if (!string.IsNullOrEmpty(composeFile))
       {
-        args += $" -f {composeFile}";
+        args += $" -f \"{composeFile}\"";
       }
 
       if (!string.IsNullOrEmpty(altProjectName))
@@ -547,7 +547,7 @@ namespace Ductus.FluentDocker.Commands
       var args = $"{host.RenderBaseArgs(certificates)}";
       if (!string.IsNullOrEmpty(composeFile))
       {
-        args += $" -f {composeFile}";
+        args += $" -f \"{composeFile}\"";
       }
 
       if (!string.IsNullOrEmpty(altProjectName))
@@ -575,7 +575,7 @@ namespace Ductus.FluentDocker.Commands
       var args = $"{host.RenderBaseArgs(certificates)}";
       if (!string.IsNullOrEmpty(composeFile))
       {
-        args += $" -f {composeFile}";
+        args += $" -f \"{composeFile}\"";
       }
 
       if (!string.IsNullOrEmpty(altProjectName))
