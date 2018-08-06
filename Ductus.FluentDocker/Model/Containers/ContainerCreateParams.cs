@@ -193,7 +193,47 @@ namespace Ductus.FluentDocker.Model.Containers
     /// </remarks>
     public string Network { get; set; }
 
+    /// <summary>
+    ///   Restart policy for this container.
+    /// </summary>
+    /// <remarks>
+    ///   --restart
+    /// </remarks>
     public RestartPolicy RestartPolicy { get; set; }
+
+    /// <summary>
+    ///   The maximum amount of memory the container can use. If you set this option, the minimum allowed value is 4m (4
+    ///   megabyte).
+    /// </summary>
+    /// <remarks>
+    ///   -m, --memory=
+    /// </remarks>
+    public string Memory { get; set; }
+
+    /// <summary>
+    ///   The amount of memory this container is allowed to swap to disk.
+    /// </summary>
+    /// <remarks>
+    ///   --memory-swap *
+    ///   --memory-swap is a modifier flag that only has meaning if --memory is also set. Using swap allows the container to
+    ///   write excess memory requirements to disk when the container has exhausted all the RAM that is available to it. There
+    ///   is a performance penalty for applications that swap memory to disk often.
+    ///   Its setting can have complicated effects:
+    ///   If --memory-swap is set to a positive integer, then both --memory and --memory-swap must be set. --memory-swap
+    ///   represents the total amount of memory and swap that can be used, and --memory controls the amount used by non-swap
+    ///   memory. So if --memory="300m" and --memory-swap="1g", the container can use 300m of memory and 700m (1g - 300m) swap.
+    ///   If --memory-swap is set to 0, the setting is ignored, and the value is treated as unset.
+    ///   If --memory-swap is set to the same value as --memory, and --memory is set to a positive integer, the container does
+    ///   not have access to swap. See Prevent a container from using swap.
+    ///   If --memory-swap is unset, and --memory is set, the container can use twice as much swap as the --memory setting, if
+    ///   the host container has swap memory configured. For instance, if --memory="300m" and --memory-swap is not set, the
+    ///   container can use 300m of memory and 600m of swap.
+    ///   If --memory-swap is explicitly set to -1, the container is allowed to use unlimited swap, up to the amount available
+    ///   on the host system.
+    ///   Inside the container, tools like free report the host’s available swap, not what’s available inside the container.
+    ///   Don’t rely on the output of free or similar tools to determine whether swap is present.
+    /// </remarks>
+    public string MemorySwap { get; set; }// TODO: https://docs.docker.com/config/containers/resource_constraints/#understand-the-risks-of-running-out-of-memory
 
     /// <summary>
     ///   Renders the argument string from this instance.
@@ -258,6 +298,8 @@ namespace Ductus.FluentDocker.Model.Containers
             break;
         }
 
+      sb.SizeOptionIfValid("--memory=", Memory, 4 * 1024 * 1024 /*4m*/);
+
       return sb.ToString();
     }
   }
@@ -309,6 +351,5 @@ namespace Ductus.FluentDocker.Model.Containers
   --tmpfs=[]                      Mount a tmpfs directory
   --ulimit=[]                     Ulimit options
   --uts                           UTS namespace to use
-  --network                       Connect a container to a network
 */
 }

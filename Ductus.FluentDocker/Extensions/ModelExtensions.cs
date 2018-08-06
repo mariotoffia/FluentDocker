@@ -11,50 +11,50 @@ namespace Ductus.FluentDocker.Extensions
 {
   public static class ModelExtensions
   {
-    public static StringBuilder OptionIfExists(this StringBuilder sb, string option, string value)
+    public static StringBuilder SizeOptionIfValid(this StringBuilder sb, string option, string value,
+      long maxSize = long.MaxValue)
     {
       if (!string.IsNullOrEmpty(value))
       {
-        sb.Append($" {option}{value}");
+        var num = value.Convert();
+        if (num == long.MinValue)
+          return sb;
+        
+        if (num <= maxSize)
+          sb.Append($" {option}{value}");
       }
 
       return sb;
     }
+
+    public static StringBuilder OptionIfExists(this StringBuilder sb, string option, string value)
+    {
+      if (!string.IsNullOrEmpty(value)) sb.Append($" {option}{value}");
+
+      return sb;
+    }
+
     public static StringBuilder OptionIfExists(this StringBuilder sb, string option, bool enabled)
     {
-      if (enabled)
-      {
-        sb.Append($" {option}");
-      }
+      if (enabled) sb.Append($" {option}");
 
       return sb;
     }
+
     public static StringBuilder OptionIfExists(this StringBuilder sb, string option, string[] values)
     {
-      if (null == values || 0 == values.Length)
-      {
-        return sb;
-      }
+      if (null == values || 0 == values.Length) return sb;
 
-      foreach (var value in values)
-      {
-        sb.Append($" {option}{value}");
-      }
+      foreach (var value in values) sb.Append($" {option}{value}");
 
       return sb;
     }
 
-    public static StringBuilder OptionIfExists(this StringBuilder sb, string option, IDictionary<string,string> values)
+    public static StringBuilder OptionIfExists(this StringBuilder sb, string option, IDictionary<string, string> values)
     {
-      if (null == values || 0 == values.Count)
-      {
-        return sb;
-      }
+      if (null == values || 0 == values.Count) return sb;
 
-      foreach (var value in values)
-      {
-        sb.Append($" {option}{value.Key}={value.Value}");
-      }
+      foreach (var value in values) sb.Append($" {option}{value.Key}={value.Value}");
 
       return sb;
     }
@@ -92,41 +92,20 @@ namespace Ductus.FluentDocker.Extensions
 
     public static ServiceRunningState ToServiceState(this ContainerState state)
     {
-      if (null == state)
-      {
-        return ServiceRunningState.Unknown;
-      }
+      if (null == state) return ServiceRunningState.Unknown;
 
-      if (state.Running)
-      {
-        return ServiceRunningState.Running;
-      }
+      if (state.Running) return ServiceRunningState.Running;
 
-      if (state.Dead)
-      {
-        return ServiceRunningState.Stopped;
-      }
+      if (state.Dead) return ServiceRunningState.Stopped;
 
-      if (state.Restarting)
-      {
-        return ServiceRunningState.Starting;
-      }
+      if (state.Restarting) return ServiceRunningState.Starting;
 
-      if (state.Paused)
-      {
-        return ServiceRunningState.Paused;
-      }
+      if (state.Paused) return ServiceRunningState.Paused;
 
       var status = state.Status?.ToLower() ?? string.Empty;
-      if (status == "created")
-      {
-        return ServiceRunningState.Stopped;
-      }
+      if (status == "created") return ServiceRunningState.Stopped;
 
-      if (status == "exited")
-      {
-        return ServiceRunningState.Stopped;
-      }
+      if (status == "exited") return ServiceRunningState.Stopped;
 
       return ServiceRunningState.Unknown;
     }
@@ -146,15 +125,12 @@ namespace Ductus.FluentDocker.Extensions
 
     public static string[] ArrayAddDistinct(this string[] arr, params string[] values)
     {
-      return ArrayAdd(arr,values).Distinct().ToArray();
+      return ArrayAdd(arr, values).Distinct().ToArray();
     }
 
     public static string[] ArrayAdd(this string[] arr, params string[] values)
     {
-      if (null == values || 0 == values.Length)
-      {
-        return arr;
-      }
+      if (null == values || 0 == values.Length) return arr;
 
       if (null == arr)
       {
