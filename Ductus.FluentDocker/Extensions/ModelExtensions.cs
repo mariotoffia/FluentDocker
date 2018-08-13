@@ -27,6 +27,13 @@ namespace Ductus.FluentDocker.Extensions
       return sb;
     }
 
+    public static StringBuilder OptionIfExists(this StringBuilder sb, string option, short? value)
+    {
+      if (value.HasValue) sb.Append($" {option}{value.Value}");
+
+      return sb;
+    }
+
     public static StringBuilder OptionIfExists(this StringBuilder sb, string option, string value)
     {
       if (!string.IsNullOrEmpty(value)) sb.Append($" {option}{value}");

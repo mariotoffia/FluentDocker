@@ -233,7 +233,64 @@ namespace Ductus.FluentDocker.Model.Containers
     ///   Inside the container, tools like free report the host’s available swap, not what’s available inside the container.
     ///   Don’t rely on the output of free or similar tools to determine whether swap is present.
     /// </remarks>
-    public string MemorySwap { get; set; }// TODO: https://docs.docker.com/config/containers/resource_constraints/#understand-the-risks-of-running-out-of-memory
+    public string MemorySwap { get; set; }
+
+    /// <summary>
+    ///   Tune container memory swappiness (0 to 100)
+    /// </summary>
+    /// <remarks>
+    ///   By default, the host kernel can swap out a percentage of anonymous pages used by a container. You can set
+    ///   --memory-swappiness to a value between 0 and 100, to tune this percentage.
+    ///   A value of 0 turns off anonymous page swapping.
+    ///   A value of 100 sets all anonymous pages as swappable.
+    ///   By default, if you do not set --memory-swappiness, the value is inherited from the host machine.
+    /// </remarks>
+    public short? MemorySwappiness { get; set; }
+
+    /// <summary>
+    ///   Allows you to specify a soft limit smaller than --memory which is activated when Docker detects contention or low
+    ///   memory on the host machine.
+    /// </summary>
+    /// <remarks>
+    ///   If you use --memory-reservation, it must be set lower than --memory for it to take precedence. Because it is a soft
+    ///   limit, it does not guarantee that the container doesn’t exceed the limit.
+    /// </remarks>
+    public string MemoryReservation { get; set; }
+
+    /// <summary>
+    ///   The maximum amount of kernel memory the container can use.
+    /// </summary>
+    /// <remarks>
+    ///   The minimum allowed value is 4m. Because kernel memory cannot be swapped out, a container which is starved of kernel
+    ///   memory may block host machine resources, which can have side effects on the host machine and on other containers.
+    ///   Kernel memory limits are expressed in terms of the overall memory allocated to a container. Consider the following
+    ///   scenarios:
+    ///   Unlimited memory, unlimited kernel memory: This is the default behavior.
+    ///   Unlimited memory, limited kernel memory: This is appropriate when the amount of memory needed by all cgroups is
+    ///   greater than the amount of memory that actually exists on the host machine.You can configure the kernel memory to
+    ///   never go over what is available on the host machine, and containers which need more memory need to wait for it.
+    ///   Limited memory, unlimited kernel memory: The overall memory is limited, but the kernel memory is not.
+    ///   Limited memory, limited kernel memory: Limiting both user and kernel memory can be useful for debugging
+    ///   memory-related problems.If a container is using an unexpected amount of either type of memory, it runs out of memory
+    ///   without affecting other containers or the host machine.Within this setting, if the kernel memory limit is lower than
+    ///   the user memory limit, running out of kernel memory causes the container to experience an OOM error.If the kernel
+    ///   memory limit is higher than the user memory limit, the kernel limit does not cause the container to experience an
+    ///   OOM.
+    ///   When you turn on any kernel memory limits, the host machine tracks “high water mark” statistics on a per-process
+    ///   basis, so you can track which processes (in this case, containers) are using excess memory.This can be seen per
+    ///   process by viewing /proc/PID/status on the host machine.
+    /// </remarks>
+    public string KernelMemory { get; set; }
+
+    /// <summary>
+    ///   By default, if an out-of-memory (OOM) error occurs, the kernel kills processes in a container.
+    /// </summary>
+    /// <remarks>
+    ///   To change this behavior, use the --oom-kill-disable option. Only disable the OOM killer on containers where you have
+    ///   also set the -m/--memory option. If the -m flag is not set, the host can run out of memory and the kernel may need to
+    ///   kill the host system’s processes to free memory.
+    /// </remarks>
+    public bool OomKillDisable { get; set; }
 
     /// <summary>
     ///   Renders the argument string from this instance.
@@ -298,7 +355,13 @@ namespace Ductus.FluentDocker.Model.Containers
             break;
         }
 
+      // Memory management
       sb.SizeOptionIfValid("--memory=", Memory, 4 * 1024 * 1024 /*4m*/);
+      sb.SizeOptionIfValid("--memory-swap=", MemorySwap);
+      sb.OptionIfExists("--memory-swappiness=", MemorySwappiness);
+      sb.SizeOptionIfValid("--memory-reservation=", MemoryReservation);
+      sb.SizeOptionIfValid("--kernel-memory=", KernelMemory);
+      if (OomKillDisable) sb.Append(" --oom-kill-disable");
 
       return sb.ToString();
     }
@@ -328,18 +391,12 @@ namespace Ductus.FluentDocker.Model.Containers
   --ip6                           Container IPv6 address (e.g. 2001:db8::33)
   --ipc                           IPC namespace to use
   --isolation                     Container isolation level
-  --kernel-memory                 Kernel memory limit
   --label-file=[]                 Read in a line delimited file of labels
   --log-driver                    Logging driver for container
   --log-opt=[]                    Log driver options
-  -m, --memory                    Memory limit
   --mac-address                   Container MAC address (e.g. 92:d0:c6:0a:29:33)
-  --memory-reservation            Memory soft limit
-  --memory-swap                   Swap limit equal to memory plus swap: '-1' to enable unlimited swap
-  --memory-swappiness=-1          Tune container memory swappiness (0 to 100)
   --net=default                   Connect a container to a network
   --net-alias=[]                  Add network-scoped alias for the container
-  --oom-kill-disable              Disable OOM Killer
   --oom-score-adj                 Tune host's OOM preferences (-1000 to 1000)
   --pid                           PID namespace to use
   --privileged                    Give extended privileges to this container
