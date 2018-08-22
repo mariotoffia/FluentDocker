@@ -9,6 +9,41 @@ namespace Ductus.FluentDocker.Model.Containers
   public sealed class ContainerCreateParams
   {
     /// <summary>
+    ///   Specify how much of the available CPU resources a container can use.
+    /// </summary>
+    /// <remarks>
+    ///   For instance, if the host machine has two CPUs and you set --cpus="1.5", the container is guaranteed at
+    ///   most one and a half of the CPUs. If set to <see cref="float.MinValue" /> it will use the default.
+    ///   See: https://docs.docker.com/config/containers/resource_constraints/#cpu
+    /// </remarks>
+    public float Cpus { get; set; } = float.MinValue;
+
+    /// <summary>
+    ///   Limit the specific CPUs or cores a container can use.
+    /// </summary>
+    /// <remarks>
+    ///   A comma-separated list or hyphen-separated range of CPUs a container can use, if you have more than one CPU.
+    ///   The first CPU is numbered 0. A valid value might be 0-3 (to use the first, second, third, and fourth CPU)
+    ///   or 1,3 (to use the second and fourth CPU). --cpuset-cpus
+    ///   See: https://docs.docker.com/config/containers/resource_constraints/#cpu
+    /// </remarks>
+    public string CpusetCpus { get; set; }
+
+    /// <summary>
+    ///   Set this flag to a value greater or less than the default of 1024 to increase or reduce the container’s weight,
+    ///   and give it access to a greater or lesser proportion of the host machine’s CPU cycles.
+    /// </summary>
+    /// <remarks>
+    ///   This is only enforced when CPU cycles are constrained. When plenty of CPU cycles are available,
+    ///   all containers use as much CPU as they need. In that way, this is a soft limit. --cpu-shares does
+    ///   not prevent containers from being scheduled in swarm mode. It prioritizes container CPU resources
+    ///   for the available CPU cycles. It does not guarantee or reserve any specific CPU access.
+    ///   Set the value to <see cref="int.MinValue" /> to use the default. --cpu-shares
+    ///   See: https://docs.docker.com/config/containers/resource_constraints/#cpu
+    /// </remarks>
+    public int CpuShares { get; set; } = int.MinValue;
+
+    /// <summary>
     ///   Add a custom host-to-IP mapping (host:ip).
     /// </summary>
     /// <remarks>
@@ -363,17 +398,18 @@ namespace Ductus.FluentDocker.Model.Containers
       sb.SizeOptionIfValid("--kernel-memory=", KernelMemory);
       if (OomKillDisable) sb.Append(" --oom-kill-disable");
 
+      // Cpu management
+      if (Cpus.IsApproximatelyEqualTo(float.MinValue)) sb.Append($" --cpus=\"{Cpus}\"");
+      sb.OptionIfExists("--cpuset-cpus=", CpusetCpus);
+      if (CpuShares != int.MinValue) sb.Append($" --cpu-shares=\"{CpuShares}\"");
+
+
       return sb.ToString();
     }
   }
 
   /*
-  --cpu-shares                    CPU shares (relative weight)
   --cidfile                       Write the container ID to the file
-  --cpu-period                    Limit CPU CFS (Completely Fair Scheduler) period
-  --cpu-quota                     Limit CPU CFS (Completely Fair Scheduler) quota
-  --cpuset-cpus                   CPUs in which to allow execution (0-3, 0,1)
-  --cpuset-mems                   MEMs in which to allow execution (0-3, 0,1)
   --detach-keys                   Override the key sequence for detaching a container
   --device=[]                     Add a host device to the container
   --device-read-bps=[]            Limit read rate (bytes per second) from a device
