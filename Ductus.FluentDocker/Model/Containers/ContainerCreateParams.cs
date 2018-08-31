@@ -44,6 +44,71 @@ namespace Ductus.FluentDocker.Model.Containers
     public int CpuShares { get; set; } = int.MinValue;
 
     /// <summary>
+    ///   Write the container ID to the file
+    /// </summary>
+    /// <remarks>
+    ///   To help with automation, you can have Docker write the container ID out to a file of your choosing.
+    ///   This is similar to how some programs might write out their process ID to a file (you’ve seen them as PID files).
+    ///   --cidfile
+    /// </remarks>
+    public string CidFile { get; set; }
+
+    /// <summary>
+    ///   PID namespace to use.
+    /// </summary>
+    /// <remarks>
+    ///   By default, all containers have the PID namespace enabled.
+    ///   PID namespace provides separation of processes. The PID Namespace removes the view of the system processes, and
+    ///   allows process ids to be reused including pid 1.
+    ///   In certain cases you want your container to share the host’s process namespace, basically allowing processes within
+    ///   the container to see all of the processes on the system. For example, you could build a container with debugging
+    ///   tools like strace or gdb, but want to use these tools when debugging processes within the container.
+    ///   Example: run htop inside a container
+    ///   Create this Dockerfile: FROM alpine:latest RUN apk add --update htop && rm -rf /var/cache/apk/* CMD ["htop"]
+    ///   Build the Dockerfile and tag the image as myhtop: docker build -t myhtop .
+    ///   Use the following command to run htop inside a container: docker run -it --rm --pid=host myhtop
+    ///   --pid
+    /// </remarks>
+    public string Pid { get; set; }
+
+    /// <summary>
+    ///   Set the UTS namespace mode for the container.
+    /// </summary>
+    /// <remarks>
+    ///   The UTS namespace is for setting the hostname and the domain that is visible to running processes in that namespace.
+    ///   By default, all containers, including those with --network=host, have their own UTS namespace. The host setting will
+    ///   result in the container using the same UTS namespace as the host. Note that --hostname is invalid in host UTS mode.
+    ///   You may wish to share the UTS namespace with the host if you would like the hostname of the container to change as
+    ///   the hostname of the host changes. A more advanced use case would be changing the host’s hostname from a container.
+    ///   --uts
+    /// </remarks>
+    public string Uts { get; set; }
+
+    /// <summary>
+    ///   Set the IPC mode for the container.
+    /// </summary>
+    /// <remarks>
+    ///   The following values are accepted:
+    ///   “none” - Own private IPC namespace, with /dev/shm not mounted.
+    ///   “private” - Own private IPC namespace.
+    ///   “shareable” - Own private IPC namespace, with a possibility to share it with other containers.
+    ///   “container: name-or-ID" - Join another (“shareable”) container’s IPC namespace.
+    ///   “host” - Use the host system’s IPC namespace.
+    ///   If not specified, daemon default is used, which can either be "private" or "shareable", depending on the daemon
+    ///   version and configuration.
+    /// 
+    ///   IPC (POSIX/SysV IPC) namespace provides separation of named shared memory segments, semaphores and message queues.
+    ///   Shared memory segments are used to accelerate inter-process communication at memory speed, rather than through pipes
+    ///   or through the network stack. Shared memory is commonly used by databases and custom-built (typically C/OpenMPI,
+    ///   C++/using boost libraries) high performance applications for scientific computing and financial services industries.
+    ///   If these types of applications are broken into multiple containers, you might need to share the IPC mechanisms of the
+    ///   containers, using "shareable" mode for the main (i.e. “donor”) container, and "container: donor-name-or-ID" for
+    ///   other containers.
+    ///     --ipc
+    /// </remarks>
+    public string Ipc { get; set; }
+
+    /// <summary>
     ///   Add a custom host-to-IP mapping (host:ip).
     /// </summary>
     /// <remarks>
@@ -334,6 +399,14 @@ namespace Ductus.FluentDocker.Model.Containers
     public override string ToString()
     {
       var sb = new StringBuilder();
+      
+      // Container identification
+      sb.OptionIfExists("--name ", Name);
+      sb.OptionIfExists("--pid=", Pid);
+      sb.OptionIfExists("--uts=", Uts);
+      sb.OptionIfExists("--ipc=", Ipc);
+      if (!string.IsNullOrWhiteSpace(CidFile)) sb.Append($" --cidfile=\"{CidFile}\"");
+      
       if (null != HostIpMappings && 0 != HostIpMappings.Count)
       {
         sb.Append(" --add-host=");
@@ -353,7 +426,6 @@ namespace Ductus.FluentDocker.Model.Containers
 
       if (Tty) sb.Append(" -t");
 
-      sb.OptionIfExists("--name ", Name);
       sb.OptionIfExists("-u ", AsUser);
 
       if (AutoRemoveContainer) sb.Append(" --rm");
@@ -409,7 +481,6 @@ namespace Ductus.FluentDocker.Model.Containers
   }
 
   /*
-  --cidfile                       Write the container ID to the file
   --detach-keys                   Override the key sequence for detaching a container
   --device=[]                     Add a host device to the container
   --device-read-bps=[]            Limit read rate (bytes per second) from a device
@@ -425,7 +496,6 @@ namespace Ductus.FluentDocker.Model.Containers
   -h, --hostname                  Container host name
   --ip                            Container IPv4 address (e.g. 172.30.100.104)
   --ip6                           Container IPv6 address (e.g. 2001:db8::33)
-  --ipc                           IPC namespace to use
   --isolation                     Container isolation level
   --label-file=[]                 Read in a line delimited file of labels
   --log-driver                    Logging driver for container
@@ -433,8 +503,7 @@ namespace Ductus.FluentDocker.Model.Containers
   --mac-address                   Container MAC address (e.g. 92:d0:c6:0a:29:33)
   --net=default                   Connect a container to a network
   --net-alias=[]                  Add network-scoped alias for the container
-  --oom-score-adj                 Tune host's OOM preferences (-1000 to 1000)
-  --pid                           PID namespace to use
+  --oom-score-adj                 Tune host's OOM preferences (-1000 to 1000)  
   --privileged                    Give extended privileges to this container
   --read-only                     Mount the container's root filesystem as read only
   --security-opt=[]               Security Options
@@ -443,6 +512,5 @@ namespace Ductus.FluentDocker.Model.Containers
   --stop-signal=15                Signal to stop a container, 15 by default
   --tmpfs=[]                      Mount a tmpfs directory
   --ulimit=[]                     Ulimit options
-  --uts                           UTS namespace to use
 */
 }
