@@ -65,6 +65,16 @@ namespace Ductus.FluentDocker.Builders
       return _fileBuilder = new FileBuilder(this).UseParent(from);
     }
 
+    public FileBuilder FromFile(string dockerFile)
+    {
+      return _fileBuilder = new FileBuilder(this).FromFile(dockerFile);
+    }
+
+    public FileBuilder FromString(string dockerfileString)
+    {
+      return _fileBuilder = new FileBuilder(this).FromString(dockerfileString);
+    }
+
     public ImageBuilder IsWindowsHost()
     {
       _config.IsWindowsHost = true;
