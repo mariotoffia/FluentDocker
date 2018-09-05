@@ -131,11 +131,227 @@ namespace Ductus.FluentDocker.Model.Containers
     ///   --blkio-weight-device=[]
     /// </remarks>
     public string[] BlockIoWeightDevices { get; set; }
+    
+    /// <summary>
+    /// The --device-write-bps flag limits the write rate (bytes per second)to a device.
+    /// </summary>
+    /// <remarks>
+    /// For example, this command creates a container and limits the write rate to 1mb per second for /dev/sda:
+    /// docker run -it --device-write-bps /dev/sda:1mb ubuntu
+    /// --device-read-bps
+    /// </remarks>
+    public string DeviceReadBps { get; set; }
 
+    /// <summary>
+    /// he --device-read-iops flag limits read rate (IO per second) from a device.
+    /// </summary>
+    /// <remarks>
+    ///  For example, this command creates a container and limits the read rate to 1000 IO per second from /dev/sda:
+    ///  docker run -ti --device-read-iops /dev/sda:1000 ubuntu.
+    /// Limits are specified in the device-path:limit format and rates must be a positive integer.
+    /// --device-read-iops=[]
+    /// </remarks>
+    public string DeviceReadIops { get; set; }
+    
+    /// <summary>
+    /// The --device-write-bps flag limits the write rate (bytes per second)to a device. 
+    /// </summary>
+    /// <remarks>
+    /// For example, this command creates a container and limits the write rate to 1mb per second for /dev/sda:
+    /// docker run -it --device-write-bps /dev/sda:1mb ubuntu
+    /// --device-write-bps=[]
+    /// </remarks>
+    public string DeviceWriteBps { get; set; }
+    
+    /// <summary>
+    /// The --device-write-iops flag limits write rate (IO per second) to a device.
+    /// </summary>
+    /// <remarks>
+    ///  For example, this command creates a container and limits the write rate to 1000 IO per second to /dev/sda:
+    ///  docker run -ti --device-write-iops /dev/sda:1000 ubuntu
+    /// Limits are specified in the device-path:limit format and rates must be a positive integer.
+    /// --device-write-iops=[]
+    /// </remarks>
+    public string DeviceWriteIops { get; set; }
+    
     /// <summary>
     ///   Add Linux capabilities
     /// </summary>
     /// <remarks>
+    /// By default, Docker has a default list of capabilities that are kept. The following table lists the
+    /// Linux capability options which are allowed by default and can be dropped.
+    ///  <list type="table">  
+    ///    <listheader>  
+    /// <term>Capability Key</term>  
+    /// <description>Capability Description</description>  
+    /// </listheader>  
+    /// <item>  
+    /// <term>SETPCAP</term>  
+    /// <description>Modify process capabilities.</description>  
+    /// </item>  
+    /// <item>  
+    /// <term>MKNOD</term>  
+    /// <description>Create special files using mknod(2).</description>  
+    /// </item>  
+    /// <item>  
+    /// <term>AUDIT_WRITE</term>  
+    /// <description>Write records to kernel auditing log.</description>  
+    /// </item>  
+    /// <item>  
+    /// <term>CHOWN</term>  
+    /// <description>Make arbitrary changes to file UIDs and GIDs (see chown(2)).</description>  
+    /// </item>  
+    /// <item>  
+    /// <term>NET_RAW</term>  
+    /// <description>Use RAW and PACKET sockets.</description>  
+    /// </item>  
+    /// <item>  
+    /// <term>DAC_OVERRIDE</term>  
+    /// <description>Bypass file read, write, and execute permission checks.</description>  
+    /// </item>  
+    /// <item>  
+    /// <term>FOWNER</term>  
+    /// <description>Bypass permission checks on operations that normally require the file system UID of the process to match the UID of the file.</description>  
+    /// </item>  
+    /// <item>  
+    /// <term>FSETID</term>  
+    /// <description>Don’t clear set-user-ID and set-group-ID permission bits when a file is modified.</description>  
+    /// </item>  
+    /// <item>  
+    /// <term>KILL</term>  
+    /// <description>Bypass permission checks for sending signals.</description>  
+    /// </item>  
+    /// <item>  
+    /// <term>SETGID</term>  
+    /// <description>Make arbitrary manipulations of process GIDs and supplementary GID list.</description>  
+    /// </item>  
+    /// <item>  
+    /// <term>SETUID</term>  
+    /// <description>Make arbitrary manipulations of process UIDs.</description>  
+    /// </item>  
+    /// <item>  
+    /// <term>NET_BIND_SERVICE</term>  
+    /// <description>Bind a socket to internet domain privileged ports (port numbers less than 1024).</description>  
+    /// </item>  
+    /// <item>  
+    /// <term>SYS_CHROOT</term>  
+    /// <description>Use chroot(2), change root directory.</description>  
+    /// </item>  
+    /// <item>  
+    /// <term>SETFCAP</term>  
+    /// <description>Set file capabilities.</description>  
+    /// </item>  
+    /// <item>  
+    /// <term>SETPCAP</term>  
+    /// <description>DESCRIPTION</description>  
+    /// </item>  
+    /// </list>
+    /// The next table shows the capabilities which are not granted by default and may be added.
+    ///  <list type="table">  
+    ///    <listheader>  
+    /// <term>Capability Key</term>  
+    /// <description>Capability Description</description>  
+    /// </listheader>  
+    /// <item>  
+    /// <term>SYS_MODULE</term>  
+    /// <description>Load and unload kernel modules.</description>  
+    /// </item>  
+    /// <item>  
+    /// <term>SYS_RAWIO</term>  
+    /// <description>Perform I/O port operations (iopl(2) and ioperm(2)).</description>  
+    /// </item>  
+    /// <item>  
+    /// <term>SYS_PACCT</term>  
+    /// <description>Use acct(2), switch process accounting on or off.</description>  
+    /// </item>  
+    /// <item>  
+    /// <term>SYS_ADMIN</term>  
+    /// <description>Perform a range of system administration operations.</description>  
+    /// </item>  
+    /// <item>  
+    /// <term>SYS_NICE</term>  
+    /// <description>Raise process nice value (nice(2), setpriority(2)) and change the nice value for arbitrary processes.</description>  
+    /// </item>  
+    /// <item>  
+    /// <term>SYS_RESOURCE</term>  
+    /// <description>Override resource Limits.</description>  
+    /// </item>  
+    /// <item>  
+    /// <term>SYS_TIME</term>  
+    /// <description>Set system clock (settimeofday(2), stime(2), adjtimex(2)); set real-time (hardware) clock.</description>  
+    /// </item>  
+    /// <item>  
+    /// <term>SYS_TTY_CONFIG</term>  
+    /// <description>Use vhangup(2); employ various privileged ioctl(2) operations on virtual terminals.</description>  
+    /// </item>  
+    /// <item>  
+    /// <term>AUDIT_CONTROL</term>  
+    /// <description>Enable and disable kernel auditing; change auditing filter rules; retrieve auditing status and filtering rules.</description>  
+    /// </item>  
+    /// <item>  
+    /// <term>MAC_ADMIN</term>  
+    /// <description>Allow MAC configuration or state changes. Implemented for the Smack LSM.</description>  
+    /// </item>  
+    /// <item>  
+    /// <term>MAC_OVERRIDE</term>  
+    /// <description>Override Mandatory Access Control (MAC). Implemented for the Smack Linux Security Module (LSM).</description>  
+    /// </item>  
+    /// <item>  
+    /// <term>NET_ADMIN</term>  
+    /// <description>Perform various network-related operations.</description>  
+    /// </item>  
+    /// <item>  
+    /// <term>SYSLOG</term>  
+    /// <description>Perform privileged syslog(2) operations.</description>  
+    /// </item>  
+    /// <item>  
+    /// <term>DAC_READ_SEARCH</term>  
+    /// <description>Bypass file read permission checks and directory read and execute permission checks.</description>  
+    /// </item>  
+    /// <item>  
+    /// <term>LINUX_IMMUTABLE</term>  
+    /// <description>Set the FS_APPEND_FL and FS_IMMUTABLE_FL i-node flags.</description>  
+    /// </item>  
+    /// <item>  
+    /// <term>NET_BROADCAST</term>  
+    /// <description>Make socket broadcasts, and listen to multicasts.</description>  
+    /// </item>  
+    /// <item>  
+    /// <term>IPC_LOCK</term>  
+    /// <description>Lock memory (mlock(2), mlockall(2), mmap(2), shmctl(2)).</description>  
+    /// </item>  
+    /// <item>  
+    /// <term>IPC_OWNER</term>  
+    /// <description>Bypass permission checks for operations on System V IPC objects.</description>  
+    /// </item>  
+    /// <item>  
+    /// <term>SYS_PTRACE</term>  
+    /// <description>Trace arbitrary processes using ptrace(2).</description>  
+    /// </item>  
+    /// <item>  
+    /// <term>SYS_BOOT</term>  
+    /// <description>Use reboot(2) and kexec_load(2), reboot and load a new kernel for later execution.</description>  
+    /// </item>  
+    /// <item>  
+    /// <term>LEASE</term>  
+    /// <description>Establish leases on arbitrary files (see fcntl(2)).</description>  
+    /// </item>  
+    /// <item>  
+    /// <term>WAKE_ALARM</term>  
+    /// <description>Trigger something that will wake up the system.</description>  
+    /// </item>  
+    /// <item>  
+    /// <term>BLOCK_SUSPEND</term>  
+    /// <description>Employ features that can block system suspend.</description>  
+    /// </item>  
+    /// </list>
+    /// Further reference information is available on the capabilities(7) - Linux man page
+    /// Both flags support the value ALL, so if the operator wants to have all capabilities but MKNOD they could use:
+    ///  docker run --cap-add=ALL --cap-drop=MKNOD ...
+    /// For interacting with the network stack, instead of using --privileged they should use --cap-add=NET_ADMIN to modify the network interfaces.
+    ///  docker run -it --rm  ubuntu:14.04 ip link add dummy0 type dummy
+    /// RTNETLINK answers: Operation not permitted
+    ///  docker run -it --rm --cap-add=NET_ADMIN ubuntu:14.04 ip link add dummy0 type dummy
     ///   --cap-add=[]
     /// </remarks>
     public string[] CapabilitiesToAdd { get; set; }
@@ -147,6 +363,30 @@ namespace Ductus.FluentDocker.Model.Containers
     ///   --cap-drop=[]
     /// </remarks>
     public string[] CapabilitiesToRemove { get; set; }
+    
+    /// <summary>
+    /// Give extended privileges to this container.
+    /// </summary>
+    /// <remarks>
+    /// When the operator executes docker run --privileged, Docker will enable access to all devices on
+    /// the host as well as set some configuration in AppArmor or SELinux to allow the container nearly
+    /// all the same access to the host as processes running outside containers on the host.
+    /// --privileged
+    /// </remarks>
+    public bool Privileged { get; set; }
+    
+    /// <summary>
+    /// Allows you to run devices inside the container without the --privileged flag.
+    /// </summary>
+    /// <remarks>
+    /// If you want to limit access to a specific device or devices you can use the --device flag.
+    /// It allows you to specify one or more devices that will be accessible within the container.
+    /// docker run --device=/dev/snd:/dev/snd ...
+    /// By default, the container will be able to read, write, and mknod these devices.
+    /// This can be overridden using a third :rwm set of options to each --device flag:
+    /// --device=[]
+    /// </remarks>
+    public string Device { get; set; }
 
     /// <summary>
     ///   Optional parent cgroup for the container
@@ -413,11 +653,20 @@ namespace Ductus.FluentDocker.Model.Containers
         foreach (var mapping in HostIpMappings) sb.Append($"--add-host={mapping.Item1}:{mapping.Item2}");
       }
 
+      // Block IO bandwidth (Blkio) constraint
       if (null != BlockIoWeight) sb.Append($" --blkio-weight {BlockIoWeight.Value}");
-
       sb.OptionIfExists("--blkio-weight-device=", BlockIoWeightDevices);
+      sb.OptionIfExists("--device-read-bps ", DeviceReadBps);
+      sb.OptionIfExists("--device-read-iops=", DeviceReadIops);
+      sb.OptionIfExists("--device-write-bps=", DeviceWriteBps);
+      sb.OptionIfExists("--device-write-iops=", DeviceWriteIops);
+      
+      // Runtime privilege and Linux capabilities
       sb.OptionIfExists("--cap-add=", CapabilitiesToAdd);
       sb.OptionIfExists("--cap-drop=", CapabilitiesToRemove);
+      if (Privileged) sb.Append(" --privileged");
+      sb.OptionIfExists("--device=", Device);
+      
       sb.OptionIfExists("--cgroup-parent ", ParentCGroup);
       sb.OptionIfExists("-e ", Environment);
       sb.OptionIfExists("--env-file=", EnvironmentFiles);
@@ -482,11 +731,6 @@ namespace Ductus.FluentDocker.Model.Containers
 
   /*
   --detach-keys                   Override the key sequence for detaching a container
-  --device=[]                     Add a host device to the container
-  --device-read-bps=[]            Limit read rate (bytes per second) from a device
-  --device-read-iops=[]           Limit read rate (IO per second) from a device
-  --device-write-bps=[]           Limit write rate (bytes per second) to a device
-  --device-write-iops=[]          Limit write rate (IO per second) to a device
   --disable-content-trust=true    Skip image verification
   --dns=[]                        Set custom DNS servers
   --dns-opt=[]                    Set DNS options
@@ -504,7 +748,6 @@ namespace Ductus.FluentDocker.Model.Containers
   --net=default                   Connect a container to a network
   --net-alias=[]                  Add network-scoped alias for the container
   --oom-score-adj                 Tune host's OOM preferences (-1000 to 1000)  
-  --privileged                    Give extended privileges to this container
   --read-only                     Mount the container's root filesystem as read only
   --security-opt=[]               Security Options
   --shm-size                      Size of /dev/shm, default value is 64MB
