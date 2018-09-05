@@ -1,7 +1,7 @@
-# FluentDocker
 [![Build status](https://ci.appveyor.com/api/projects/status/kqqrkcv8wp3e9my6?svg=true)](https://ci.appveyor.com/project/mariotoffia/fluentdocker) [![NuGet](https://img.shields.io/nuget/v/Ductus.FluentDocker.svg)](https://www.nuget.org/packages/Ductus.FluentDocker) 
-MsTest [![NuGet](https://img.shields.io/nuget/v/Ductus.FluentDocker.MsTest.svg)](https://www.nuget.org/packages/Ductus.FluentDocker.MsTest)
+[![NuGet](https://img.shields.io/nuget/v/Ductus.FluentDocker.MsTest.svg)](https://www.nuget.org/packages/Ductus.FluentDocker.MsTest) (MsTest)
 
+# FluentDocker
 FluentDocker is a library to interact with docker-machine, docker-compose and docker. It supports the docker for windows, docker for mac, docker machine, and native linux (however only limited tests on Linux and Mac). 
 This library is available at nuget [Ductus.FluentDocker](https://www.nuget.org/packages/Ductus.FluentDocker/ "Nuget Home for Ductus.FluentDocker") 
 and the ms test support is available at [Ductus.FluentDocker.MsTest](https://www.nuget.org/packages/Ductus.FluentDocker.MsTest/ "Nuget Home for Ductus.FluentDocker.MsTest").
@@ -144,7 +144,24 @@ The highest layer of this library is the fluent API where you can define and con
         }
 ```
 
-The fluent API supports from defining a docker-machine to a set of docker instances. It has built-in support for e.g. waiting for a specific port or a process within the container before ```Build()``` completes and thus can be safely be used within a using statement. If specific management on wait timeouts etc. you can always build and start the container and use extension methods to do the waiting on the container itself.
+The above example defines a _Dockerfile_, and builds it, for the node image and use plain redis. If you just want to use
+a existing _Dockerfile_ it can be done like this.
+
+```cs
+        using (var services = new Builder()
+
+          .DefineImage("mariotoffia/nodetest").ReuseIfAlreadyExists()
+          .FromFile("/tmp/Dockerfile")
+          .Build().Start())
+        {
+         // Container either build to reused if found in registry and started here.
+        }
+```
+  
+The fluent API supports from defining a docker-machine to a set of docker instances. It has built-in support for e.g. 
+waiting for a specific port or a process within the container before ```Build()``` completes and thus can be safely 
+be used within a using statement. If specific management on wait timeouts etc. you can always build and start the 
+container and use extension methods to do the waiting on the container itself.
 
 To create a container just omit the start. For example:
 ```cs
