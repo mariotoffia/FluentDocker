@@ -23,9 +23,8 @@ and the ms test support is available at [Ductus.FluentDocker.MsTest](https://www
       }
 ```
 
-This library was originally written for .NET framework but has now been ported to .NET Core by smudge202. Many thanks for the contribution. It supports .net standard 1.6, 2.0 and .net 4.51.
-
-The library is divided into three thin layers, each layer is accessable:
+The library is supported by .NET full 4.51 framework and higher, .NET standard 1.6, 2.0. It is divided into 
+three thin layers, each layer is accessable:
 
 1. Docker Binaries interactions - Static commands and docker environment
 2. Services - thin service layer to manage machines, containers etc.
@@ -144,8 +143,8 @@ The highest layer of this library is the fluent API where you can define and con
         }
 ```
 
-The above example defines a _Dockerfile_, and builds it, for the node image and use plain redis. If you just want to use
-a existing _Dockerfile_ it can be done like this.
+The above example defines a _Dockerfile_, builds it, for the node image. It then uses vanilla redis and nginx. 
+If you just want to use an existing _Dockerfile_ it can be done like this.
 
 ```cs
         using (var services = new Builder()
