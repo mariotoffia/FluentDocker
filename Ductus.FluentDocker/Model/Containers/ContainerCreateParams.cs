@@ -395,6 +395,42 @@ namespace Ductus.FluentDocker.Model.Containers
     ///   --cgroup-parent
     /// </remarks>
     public string ParentCGroup { get; set; }
+    
+    /// <summary>
+    /// Your container will use the same DNS servers as the host by default, but you can override this with --dns.
+    /// </summary>
+    /// <remarks>
+    /// The IP address of a DNS server. To specify multiple DNS servers, use multiple --dns flags. If
+    /// the container cannot reach any of the IP addresses you specify, Google’s public DNS server
+    /// 8.8.8.8 is added, so that your container can resolve internet domains.
+    ///  --dns=[]
+    /// </remarks>
+    public string[] Dns { get; set; }
+    
+    /// <summary>
+    /// A key-value pair representing a DNS option and its value. 
+    /// </summary>
+    /// <remarks>
+    /// See your operating system’s documentation for resolv.conf for valid options.
+    /// --dns-opt=[]
+    /// </remarks>
+    public string []DnsOpt { get; set; }
+    /// <summary>
+    /// A DNS search domain to search non-fully-qualified hostnames.
+    /// </summary>
+    /// <remarks>
+    /// It is possible to specify multiple DNS search prefixes.
+    /// --dns-search=[]
+    /// </remarks>
+    public string []DnsSearch { get; set; }
+    /// <summary>
+    /// The hostname a container uses for itself. 
+    /// </summary>
+    /// <remarks>
+    /// Defaults to the container’s name if not specified.
+    /// --hostname
+    /// </remarks>
+    public string Hostname { get; set; }
 
     /// <summary>
     ///   Set environment variables
@@ -488,6 +524,32 @@ namespace Ductus.FluentDocker.Model.Containers
     ///   Publish a container's port(s) to the host
     /// </summary>
     /// <remarks>
+    /// By default, when you create a container, it does not publish any of its ports to the outside world.
+    /// To make a port available to services outside of Docker, or to Docker containers which are not connected
+    /// to the container’s network, use the --publish or -p flag. This creates a firewall rule which maps a container
+    /// port to a port on the Docker host. Here are some examples.
+    ///  <list type="table">  
+    ///    <listheader>  
+    /// <term>Flag value</term>  
+    /// <description>Description</description>  
+    /// </listheader>  
+    /// <item>  
+    /// <term>8080:80</term>  
+    /// <description>Map TCP port 80 in the container to port 8080 on the Docker host.</description>  
+    /// </item>  
+    /// <item>  
+    /// <term>192.168.1.100:8080:80</term>  
+    /// <description>Map TCP port 80 in the container to port 8080 on the Docker host for connections to host IP 192.168.1.100.</description>  
+    /// </item>  
+    /// <item>  
+    /// <term>8080:80/udp</term>  
+    /// <description>Map UDP port 80 in the container to port 8080 on the Docker host.</description>  
+    /// </item>  
+    /// <item>  
+    /// <term>{ "8080:80/tcp", "8080:80/udp" }</term>  
+    /// <description>Map TCP port 80 in the container to TCP port 8080 on the Docker host, and map UDP port 80 in the container to UDP port 8080 on the Docker host.</description>  
+    /// </item>  
+    /// </list>
     ///   -p, --publish=[]
     /// </remarks>
     public string[] PortMappings { get; set; }
@@ -667,7 +729,18 @@ namespace Ductus.FluentDocker.Model.Containers
       if (Privileged) sb.Append(" --privileged");
       sb.OptionIfExists("--device=", Device);
       
-      sb.OptionIfExists("--cgroup-parent ", ParentCGroup);
+      // Network settings
+      sb.OptionIfExists("--dns=", Dns);
+      sb.OptionIfExists("--dns-opt=", DnsOpt);
+      sb.OptionIfExists("--dns-search=", DnsSearch);
+      sb.OptionIfExists("--hostname ", Hostname);
+      if (!PublishAllPorts)
+        sb.OptionIfExists("-p ", PortMappings);
+      else
+        sb.Append(" -P");
+
+      
+      sb.OptionIfExists("--cgroup-parent ", ParentCGroup);      
       sb.OptionIfExists("-e ", Environment);
       sb.OptionIfExists("--env-file=", EnvironmentFiles);
 
@@ -683,11 +756,6 @@ namespace Ductus.FluentDocker.Model.Containers
       sb.OptionIfExists("--volume-driver ", VolumeDriver);
       sb.OptionIfExists("--volumes-from=", VolumesFrom);
       sb.OptionIfExists("-w ", WorkingDirectory);
-
-      if (!PublishAllPorts)
-        sb.OptionIfExists("-p ", PortMappings);
-      else
-        sb.Append(" -P");
 
       sb.OptionIfExists("--link=", Links);
       sb.OptionIfExists("-l ", Labels);
@@ -732,12 +800,8 @@ namespace Ductus.FluentDocker.Model.Containers
   /*
   --detach-keys                   Override the key sequence for detaching a container
   --disable-content-trust=true    Skip image verification
-  --dns=[]                        Set custom DNS servers
-  --dns-opt=[]                    Set DNS options
-  --dns-search=[]                 Set custom DNS search domains
   --entrypoint                    Overwrite the default ENTRYPOINT of the image
   --expose=[]                     Expose a port or a range of ports
-  -h, --hostname                  Container host name
   --ip                            Container IPv4 address (e.g. 172.30.100.104)
   --ip6                           Container IPv6 address (e.g. 2001:db8::33)
   --isolation                     Container isolation level
