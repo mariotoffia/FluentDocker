@@ -23,6 +23,19 @@ and the ms test support is available at [Ductus.FluentDocker.MsTest](https://www
       }
 ```
 
+Today a fluent _API_ to handle _docker-compose_ files do not exist (milestone 3.0.0). However, the commands are 
+implemented and can be leveraged e.g. as follows:
+```
+      Host.Host.ComposeUp(composeFile: "docker-compose-file.yml", certificates: Host.Certificates);
+
+      // You have now a running system from compose & discovery of containers works as usual etc.
+      
+      Host.Host.ComposeDown(composeFile: "docker-compose-file.yml", 
+                            certificates: Host.Certificates, 
+                            removeVolumes: true,
+                            removeOrphanContainers: true);
+``` 
+
 The library is supported by .NET full 4.51 framework and higher, .NET standard 1.6, 2.0. It is divided into 
 three thin layers, each layer is accessable:
 
