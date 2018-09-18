@@ -37,28 +37,33 @@ namespace Ductus.FluentDocker.Model.Common
     public TemplateString(string str)
     {
       Original = str;
-      Rendered = Render(str);
+      Rendered = Render(ToTargetOs(str));
     }
 
     public string Original { get; }
     public string Rendered { get; }
+
+    private static string ToTargetOs(string str)
+    {
+      return !Ductus.FluentDocker.Common.OperatingSystem.IsWindows() ? str : str.Replace('/', '\\');
+    }
 
     private static string Render(string str)
     {
       str = Templates.Keys.Where(key => -1 != str.IndexOf(key, StringComparison.Ordinal))
         .Aggregate(str, (current, key) => current.Replace(key, Templates[key]()));
 
-      return RenderEnvionment(str);
+      return RenderEnvironment(str);
     }
 
-    private static string RenderEnvionment(string str)
+    private static string RenderEnvironment(string str)
     {
       foreach (DictionaryEntry env in Environment.GetEnvironmentVariables())
       {
-        var tenv = "${E_" + env.Key + "}";
-        if (-1 != str.IndexOf(tenv, StringComparison.Ordinal))
+        var tmpEnv = "${E_" + env.Key + "}";
+        if (-1 != str.IndexOf(tmpEnv, StringComparison.Ordinal))
         {
-          str = str.Replace(tenv, (string) env.Value);
+          str = str.Replace(tmpEnv, (string) env.Value);
         }
       }
       return str;
@@ -66,12 +71,7 @@ namespace Ductus.FluentDocker.Model.Common
 
     public static implicit operator TemplateString(string str)
     {
-      if (null == str)
-      {
-        return null;
-      }
-
-      return new TemplateString(str);
+      return null == str ? null : new TemplateString(str);
     }
 
     public static implicit operator string(TemplateString str)

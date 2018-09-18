@@ -23,7 +23,7 @@ namespace Ductus.FluentDocker.Builders
     {
       if (null == _workingFolder)
       {
-        _workingFolder = @"${TEMP}\fluentdockertest\${RND}";
+        _workingFolder = @"${TEMP}/fluentdockertest/${RND}";
       }
 
       CopyToWorkDir(_workingFolder); // Must be before RenderDockerFile!
