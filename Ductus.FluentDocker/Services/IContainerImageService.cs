@@ -23,6 +23,6 @@ namespace Ductus.FluentDocker.Services
     /// <remarks>
     ///   This is not cached, thus it will go to the docker daemon each time.
     /// </remarks>
-    Container GetConfiguration(bool fresh = false);
+    ImageConfig GetConfiguration(bool fresh = false);
   }
 }

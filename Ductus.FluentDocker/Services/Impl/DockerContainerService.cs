@@ -14,6 +14,8 @@ namespace Ductus.FluentDocker.Services.Impl
     private readonly bool _removeMountOnDispose;
     private readonly bool _removeNamedMountOnDispose;
     private Container _containerConfigCache;
+    private IContainerImageService _imgCache;
+
     private ServiceRunningState _state = ServiceRunningState.Unknown;
 
     public DockerContainerService(string name, string id, DockerUri docker, ServiceRunningState state,
@@ -42,6 +44,31 @@ namespace Ductus.FluentDocker.Services.Impl
     public bool RemoveOnDispose { get; set; }
 
     public bool IsWindowsContainer { get; }
+
+    public IContainerImageService Image
+    {
+      get
+      {
+        if (null != _imgCache) return _imgCache;
+
+        var images = DockerHost.Images(certificates: Certificates);
+        if (!images.Success)
+          return null;
+
+        var cfg = GetConfiguration();
+
+        var cfgImageId = cfg.Image;
+        var idx = cfgImageId.IndexOf(':');
+        if (-1 != idx) cfgImageId = cfgImageId.Substring(idx + 1);
+
+        var img = images.Data.FirstOrDefault(x => x.Id == cfgImageId);
+        if (null == img)
+          return null;
+
+        return _imgCache =
+          new DockerImageService(img.Name, img.Id, img.Tags[0], DockerHost, Certificates, IsWindowsContainer);
+      }
+    }
 
     public Container GetConfiguration(bool fresh = false)
     {

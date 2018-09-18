@@ -12,6 +12,15 @@ namespace Ductus.FluentDocker.Commands
 {
   public static class Client
   {
+    public static CommandResponse<IList<string>> Pull(this DockerUri host, string image, ICertificatePaths certificates = null)
+    {
+      var args = $"{host.RenderBaseArgs(certificates)}";
+      return
+        new ProcessExecutor<StringListResponseParser, IList<string>>(
+          "docker".ResolveBinary(),
+          $"{args} pull {image}").Execute();
+    }
+
     public static CommandResponse<IList<string>> Pause(this DockerUri host, ICertificatePaths certificates = null, params string[] containerIds)
     {
       var args = $"{host.RenderBaseArgs(certificates)}";
@@ -70,7 +79,7 @@ namespace Ductus.FluentDocker.Commands
       var options = "--quiet --no-trunc --format \"{{.ID}};{{.Repository}};{{.Tag}}\"";
       if (!string.IsNullOrEmpty(filter))
       {
-        options = $" --filter={filter}";
+        options = $" --filter=\"{filter}\"";
       }
 
       return
@@ -224,6 +233,13 @@ namespace Ductus.FluentDocker.Commands
     {
       return new ProcessExecutor<ClientContainerInspectCommandResponder, Container>("docker".ResolveBinary(),
         $"{host.RenderBaseArgs(certificates)} inspect {id}").Execute();
+    }
+
+    public static CommandResponse<ImageConfig> InspectImage(this DockerUri host, string id,
+      ICertificatePaths certificates = null)
+    {
+      return new ProcessExecutor<ClientImageInspectCommandResponder, ImageConfig>("docker".ResolveBinary(),
+        $"{host.RenderBaseArgs(certificates)} image inspect {id}").Execute();
     }
 
     public static CommandResponse<string> Export(this DockerUri host, string id, string fqFilePath,
