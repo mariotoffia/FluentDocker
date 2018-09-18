@@ -20,5 +20,6 @@ namespace Ductus.FluentDocker.Model.Compose
     public bool KeepVolumes { get; set; }
     public ImageRemovalOption ImageRemoval { get; set; }
     public string []Services { get; set; }
+    public bool StopOnDispose { get; set; } = true;
   }
 }

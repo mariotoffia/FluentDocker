@@ -101,6 +101,12 @@ namespace Ductus.FluentDocker.Builders
       return this;
     }
 
+    public ComposeFileBuilder KeepOnDispose()
+    {
+      _config.StopOnDispose = false;
+      return this;
+    }
+
     protected override IBuilder InternalCreate()
     {
       return new ComposeFileBuilder(this);
