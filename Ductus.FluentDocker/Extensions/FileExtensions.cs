@@ -7,15 +7,32 @@ namespace Ductus.FluentDocker.Extensions
 {
   public static class FileExtensions
   {
+    public static string EscapePath(this string path)
+    {
+      if (string.IsNullOrEmpty(path) || -1 == path.IndexOf(' ')) return path;
+
+      return path.StartsWith("\"") ? path : $"\"{path}\"";
+    }
+
+    public static TemplateString EscapePath(this TemplateString path)
+    {     
+      if (string.IsNullOrEmpty(path)) return path;
+
+      var p = path.Rendered;
+      if (-1 == p.IndexOf(' ')) return path;
+
+      return p.StartsWith("\"") ? path : new TemplateString($"\"{p}\"");
+    }
+
     public static void ToFile(this string contents, TemplateString fqPath)
     {
-      var folder = Path.GetDirectoryName(fqPath);
+      var folder = Path.GetDirectoryName(fqPath.Rendered.EscapePath());
       if (null != folder && !Directory.Exists(folder))
       {
         Directory.CreateDirectory(folder);
       }
 
-      File.WriteAllText(fqPath, contents);
+      File.WriteAllText(fqPath.Rendered.EscapePath(), contents);
     }
 
     public static string FromFile(this TemplateString fqPath, Encoding encoding = null)
@@ -25,7 +42,7 @@ namespace Ductus.FluentDocker.Extensions
         encoding = Encoding.UTF8;
       }
 
-      return File.ReadAllText(fqPath, encoding);
+      return File.ReadAllText(fqPath.Rendered.EscapePath(), encoding);
     }
 
     /// <summary>
@@ -43,32 +60,37 @@ namespace Ductus.FluentDocker.Extensions
     /// </remarks>
     public static string Copy(this TemplateString fileOrDirectory, TemplateString workdir)
     {
-      if (fileOrDirectory.Rendered.StartsWith($"{EmbeddedUri.Prefix}:"))
+      var fd = fileOrDirectory.Rendered.EscapePath();
+      
+      if (fd.StartsWith($"{EmbeddedUri.Prefix}:"))
       {
-        return new EmbeddedUri(fileOrDirectory.Rendered).ToFile(workdir);
+        return new EmbeddedUri(fd).ToFile(workdir);
       }
 
-      if (File.Exists(fileOrDirectory))
+      if (File.Exists(fd))
       {
-        var file = Path.GetFileName(fileOrDirectory);
-        File.Copy(fileOrDirectory, Path.Combine(workdir, file));
+        var file = Path.GetFileName(fd);
+        File.Copy(fd, Path.Combine(workdir, file));
         return file;
       }
 
-      if (!Directory.Exists(fileOrDirectory))
+      if (!Directory.Exists(fd))
       {
         return null;
       }
 
-      CopyTo(fileOrDirectory, workdir);
+      CopyTo(fd, workdir);
 
       // Return the relative path of workdir
-      return Path.GetFileName(Path.GetFullPath(fileOrDirectory).TrimEnd(Path.DirectorySeparatorChar));
+      return Path.GetFileName(Path.GetFullPath(fd).TrimEnd(Path.DirectorySeparatorChar));
     }
 
     public static void CopyTo(this TemplateString sourceDirectory, TemplateString targetDirectory)
     {
-      CopyAll(new DirectoryInfo(sourceDirectory), new DirectoryInfo(targetDirectory));
+      var sd = sourceDirectory.Rendered.EscapePath();
+      var td = targetDirectory.Rendered.EscapePath();
+      
+      CopyAll(new DirectoryInfo(sd), new DirectoryInfo(td));
     }
 
     private static void CopyAll(DirectoryInfo source, DirectoryInfo target)

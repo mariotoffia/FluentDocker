@@ -45,6 +45,8 @@ namespace Ductus.FluentDocker.Model.Common
 
     private static string ToTargetOs(string str)
     {
+      if (string.IsNullOrEmpty(str) || str.StartsWith("emb:")) return str;
+      
       return !Ductus.FluentDocker.Common.OperatingSystem.IsWindows() ? str : str.Replace('/', '\\');
     }
 

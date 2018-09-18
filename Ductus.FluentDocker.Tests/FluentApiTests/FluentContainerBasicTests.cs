@@ -190,6 +190,42 @@ namespace Ductus.FluentDocker.Tests.FluentApiTests
     }
 
     [TestMethod]
+    public async Task VolumeMappingWithSpacesShallWork()
+    {
+      const string html = "<html><head>Hello World</head><body><h1>Hello world</h1></body></html>";
+      var hostPath = (TemplateString) @"${TEMP}\fluentdockertest\with space in path\${RND}";
+      Directory.CreateDirectory(hostPath);
+
+      using (
+        var container =
+          new Builder().UseContainer()
+            .UseImage("nginx:1.13.6-alpine")
+            .ExposePort(80)
+            .Mount(hostPath, "/usr/share/nginx/html", MountType.ReadOnly)
+            .Build()
+            .Start()
+            .WaitForPort("80/tcp", 30000 /*30s*/))
+      {
+        Assert.AreEqual(ServiceRunningState.Running, container.State);
+
+        try
+        {
+          File.WriteAllText(Path.Combine(hostPath, "hello.html"), html);
+
+          var response = await $"http://{container.ToHostExposedEndpoint("80/tcp")}/hello.html".Wget();
+          Assert.AreEqual(html, response);
+        }
+        finally
+        {
+          if (Directory.Exists(hostPath))
+          {
+            Directory.Delete(hostPath, true);
+          }
+        }
+      }
+    }
+
+    [TestMethod]
     public void CopyFromRunningContainerShallWork()
     {
       var fullPath = (TemplateString) @"${TEMP}\fluentdockertest\${RND}";

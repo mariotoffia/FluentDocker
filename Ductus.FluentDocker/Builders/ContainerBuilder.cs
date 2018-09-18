@@ -190,21 +190,21 @@ namespace Ductus.FluentDocker.Builders
         : ((TemplateString) fqHostPath).Rendered;
 
       _config.CreateParams.Volumes =
-        _config.CreateParams.Volumes.ArrayAdd($"{hp}:{fqContainerPath}:{access.ToDocker()}");
+        _config.CreateParams.Volumes.ArrayAdd($"{hp.EscapePath()}:{fqContainerPath.EscapePath()}:{access.ToDocker()}");
       return this;
     }
 
     public ContainerBuilder MountVolume(string name, string fqContainerPath, MountType access)
     {
       _config.CreateParams.Volumes =
-        _config.CreateParams.Volumes.ArrayAdd($"{name}:{fqContainerPath}:{access.ToDocker()}");
+        _config.CreateParams.Volumes.ArrayAdd($"{name}:{fqContainerPath.EscapePath()}:{access.ToDocker()}");
       return this;
     }
 
     public ContainerBuilder MountVolume(IVolumeService volume, string fqContainerPath, MountType access)
     {
       _config.CreateParams.Volumes =
-        _config.CreateParams.Volumes.ArrayAdd($"{volume.Name}:{fqContainerPath}:{access.ToDocker()}");
+        _config.CreateParams.Volumes.ArrayAdd($"{volume.Name}:{fqContainerPath.EscapePath()}:{access.ToDocker()}");
       return this;
     }
 
@@ -216,7 +216,7 @@ namespace Ductus.FluentDocker.Builders
 
     public ContainerBuilder UseWorkDir(string workingDirectory)
     {
-      _config.CreateParams.WorkingDirectory = workingDirectory;
+      _config.CreateParams.WorkingDirectory = workingDirectory.EscapePath();
       return this;
     }
 
@@ -298,7 +298,7 @@ namespace Ductus.FluentDocker.Builders
     public ContainerBuilder ExportOnDispose(string hostPath, Func<IContainerService, bool> condition = null)
     {
       _config.ExportOnDispose =
-        new Tuple<TemplateString, bool, Func<IContainerService, bool>>(hostPath, false /*no-explode*/,
+        new Tuple<TemplateString, bool, Func<IContainerService, bool>>(hostPath.EscapePath(), false /*no-explode*/,
           condition ?? (svc => true));
       return this;
     }
@@ -306,7 +306,7 @@ namespace Ductus.FluentDocker.Builders
     public ContainerBuilder ExportExploadedOnDispose(string hostPath, Func<IContainerService, bool> condition = null)
     {
       _config.ExportOnDispose =
-        new Tuple<TemplateString, bool, Func<IContainerService, bool>>(hostPath, true /*explode*/,
+        new Tuple<TemplateString, bool, Func<IContainerService, bool>>(hostPath.EscapePath(), true /*explode*/,
           condition ?? (svc => true));
       return this;
     }
@@ -316,7 +316,8 @@ namespace Ductus.FluentDocker.Builders
       if (null == _config.CpToOnStart)
         _config.CpToOnStart = new List<Tuple<TemplateString, TemplateString>>();
 
-      _config.CpToOnStart.Add(new Tuple<TemplateString, TemplateString>(hostPath, containerPath));
+      _config.CpToOnStart.Add(
+        new Tuple<TemplateString, TemplateString>(hostPath.EscapePath(), containerPath.EscapePath()));
       return this;
     }
 
@@ -325,8 +326,8 @@ namespace Ductus.FluentDocker.Builders
       if (null == _config.CpFromOnDispose)
         _config.CpFromOnDispose = new List<Tuple<TemplateString, TemplateString>>();
 
-      _config.CpFromOnDispose.Add(new Tuple<TemplateString, TemplateString>(hostPath,
-        containerPath));
+      _config.CpFromOnDispose.Add(new Tuple<TemplateString, TemplateString>(hostPath.EscapePath(),
+        containerPath.EscapePath()));
       return this;
     }
 
