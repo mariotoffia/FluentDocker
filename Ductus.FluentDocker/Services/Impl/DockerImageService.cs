@@ -6,7 +6,7 @@ namespace Ductus.FluentDocker.Services.Impl
 {
   public sealed class DockerImageService : ServiceBase, IContainerImageService
   {
-    private Container _containerConfigCache;
+    private ImageConfig _containerConfigCache;
     private readonly bool _isWindowsHost;
 
     public DockerImageService(string name, string id, string tag, DockerUri dockerHost, ICertificatePaths certificate, bool isWindowsHost)
@@ -49,14 +49,14 @@ namespace Ductus.FluentDocker.Services.Impl
     public DockerUri DockerHost { get; }
     public ICertificatePaths Certificates { get; }
 
-    public Container GetConfiguration(bool fresh = false)
+    public ImageConfig GetConfiguration(bool fresh = false)
     {
       if (!fresh && null != _containerConfigCache)
       {
         return _containerConfigCache;
       }
 
-      _containerConfigCache = DockerHost.InspectContainer(Id, Certificates).Data;
+      _containerConfigCache = DockerHost.InspectImage(Id, Certificates).Data;
       return _containerConfigCache;
     }
   }

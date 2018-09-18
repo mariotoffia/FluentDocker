@@ -788,7 +788,7 @@ namespace Ductus.FluentDocker.Model.Containers
       if (OomKillDisable) sb.Append(" --oom-kill-disable");
 
       // Cpu management
-      if (Cpus.IsApproximatelyEqualTo(float.MinValue)) sb.Append($" --cpus=\"{Cpus}\"");
+      if (!Cpus.IsApproximatelyEqualTo(float.MinValue)) sb.Append($" --cpus=\"{Cpus}\"");
       sb.OptionIfExists("--cpuset-cpus=", CpusetCpus);
       if (CpuShares != int.MinValue) sb.Append($" --cpu-shares=\"{CpuShares}\"");
 

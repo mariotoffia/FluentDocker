@@ -439,6 +439,7 @@ namespace Ductus.FluentDocker.Commands
       bool forceRecreate = false, bool noRecreate = false, bool dontBuild = false,
       bool buildBeforeCreate = false, TimeSpan? timeout = null,
       bool removeOphans = false,
+      bool useColor = false,
       string[] services = null /*all*/,
       ICertificatePaths certificates = null)
     {
@@ -474,6 +475,11 @@ namespace Ductus.FluentDocker.Commands
       if (buildBeforeCreate)
       {
         options += " --build";
+      }
+
+      if (!useColor)
+      {
+        options += " --no-color";
       }
 
       if (null != timeout)

@@ -133,9 +133,9 @@ namespace Ductus.FluentDocker.Services.Impl
           isWindowsContainer: _isWindowsHost)).Cast<IContainerService>().ToList();
     }
 
-    public IList<IContainerImageService> GetImages(bool all = true, string filer = null)
+    public IList<IContainerImageService> GetImages(bool all = true, string filter = null)
     {
-      var images = Host.Images(null, Certificates);
+      var images = Host.Images(filter, Certificates);
       if (!images.Success)
         return new List<IContainerImageService>();
 

@@ -36,6 +36,11 @@ namespace Ductus.FluentDocker.Services
     ///   Paths to where certificates resides for this service.
     /// </summary>
     ICertificatePaths Certificates { get; }
+    
+    /// <summary>
+    /// The image the running container is based on.
+    /// </summary>
+    IContainerImageService Image { get; }
 
     /// <summary>
     ///   Gets the configuration from the docker host for this container.

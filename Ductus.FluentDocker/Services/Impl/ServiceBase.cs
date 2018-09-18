@@ -18,8 +18,8 @@ namespace Ductus.FluentDocker.Services.Impl
 
     public ServiceRunningState State
     {
-      get { return _state; }
-      set
+      get => _state;
+      protected set
       {
         if (_state == value)
         {

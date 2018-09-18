@@ -101,6 +101,18 @@ namespace Ductus.FluentDocker.Builders
       return builder;
     }
 
+    public ComposeFileBuilder UseCompose()
+    {
+      var builder = new ComposeFileBuilder(this);
+      Childs.Add(builder);
+      return builder;
+    }
+
+    public ComposeFileBuilder FromComposeFile(string composeFile)
+    {
+      return UseCompose().FromFile(composeFile);
+    }
+
     public ContainerBuilder WithName(string name)
     {
       _config.CreateParams.Name = name;
