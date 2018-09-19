@@ -19,17 +19,17 @@ namespace Ductus.FluentDocker.Tests.CommandTests
     [TestMethod]
     public void ImageConfigurationShallBeRetrievable()
     {
-      var result = Host.Host.Pull("postgres:10-alpine");
+      var result = DockerHost.Host.Pull("postgres:10-alpine");
       Assert.IsTrue(result.Success);
       
-      var config = Host.GetImages().First(x => x.Name == "postgres").GetConfiguration(true);
+      var config = DockerHost.GetImages().First(x => x.Name == "postgres").GetConfiguration(true);
       Assert.IsNotNull(config);
     }
 
     [TestMethod]
     public void ImageIsExposedOnARunningContainer()
     {
-      using (var container = Host.Create("postgres:9.6-alpine",
+      using (var container = DockerHost.Create("postgres:9.6-alpine",
         new ContainerCreateParams
         {
           Environment = new[] {"POSTGRES_PASSWORD=mysecretpassword"}

@@ -10,7 +10,7 @@ namespace Ductus.FluentDocker.Tests.CommandTests
     [TestMethod]
     public void GetServerClientVersionInfoShallSucceed()
     {
-      var result = Host.Host.Version(Host.Certificates);
+      var result = DockerHost.Host.Version(DockerHost.Certificates);
       Assert.IsTrue(result.Success);
       Debug.WriteLine(result.Data.ToString());
     }

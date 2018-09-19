@@ -9,7 +9,7 @@ namespace Ductus.FluentDocker.Tests
 {
   public abstract class FluentDockerTestBase
   {
-    protected IHostService Host;
+    protected IHostService DockerHost;
     private bool _createdHost;
 
     [TestInitialize]
@@ -29,20 +29,20 @@ namespace Ductus.FluentDocker.Tests
 
     private void EnsureDockerHost()
     {
-      if (Host?.State == ServiceRunningState.Running)
+      if (DockerHost?.State == ServiceRunningState.Running)
       {
         return;
       }
 
       var hosts = new Hosts().Discover();
-      Host = hosts.FirstOrDefault(x => x.IsNative) ?? hosts.FirstOrDefault(x => x.Name == "default");
+      DockerHost = hosts.FirstOrDefault(x => x.IsNative) ?? hosts.FirstOrDefault(x => x.Name == "default");
 
-      if (null != Host)
+      if (null != DockerHost)
       {
-        if (Host.State != ServiceRunningState.Running)
+        if (DockerHost.State != ServiceRunningState.Running)
         {
-          Host.Start();
-          Host.Host.LinuxMode(Host.Certificates);
+          DockerHost.Start();
+          DockerHost.Host.LinuxMode(DockerHost.Certificates);
         }
 
         return;
@@ -50,10 +50,10 @@ namespace Ductus.FluentDocker.Tests
 
       if (hosts.Count > 0)
       {
-        Host = hosts.First();
+        DockerHost = hosts.First();
       }
 
-      if (null != Host)
+      if (null != DockerHost)
       {
         return;
       }

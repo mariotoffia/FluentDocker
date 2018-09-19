@@ -33,4 +33,10 @@
     <EmbeddedResource Include="Compose\redis\Dockerfile" />
   </ItemGroup>
 
+  <ItemGroup>
+    <None Update="Resources\ComposeTests\WordPress\docker-compose.yml">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
 </Project>

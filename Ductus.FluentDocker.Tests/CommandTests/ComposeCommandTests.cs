@@ -31,10 +31,10 @@ namespace Ductus.FluentDocker.Tests.CommandTests
 
       try
       {
-        var result = Host.Host.ComposeUp(composeFile: file, certificates: Host.Certificates);
+        var result = DockerHost.Host.ComposeUp(composeFile: file, certificates: DockerHost.Certificates);
         Assert.IsTrue(result.Success);
 
-        var ids = Host.Host.ComposePs(composeFile: file, certificates: Host.Certificates);
+        var ids = DockerHost.Host.ComposePs(composeFile: file, certificates: DockerHost.Certificates);
         Assert.IsTrue(ids.Success);
         Assert.AreEqual(5, ids.Data.Count);
 
@@ -42,14 +42,14 @@ namespace Ductus.FluentDocker.Tests.CommandTests
         DockerContainerService svc = null;
         foreach (var id in ids.Data)
         {
-          var inspect = Host.Host.InspectContainer(id, Host.Certificates);
+          var inspect = DockerHost.Host.InspectContainer(id, DockerHost.Certificates);
           Assert.IsTrue(inspect.Success);
 
           if (inspect.Data.Name.Contains("_nginx_"))
           {
-            svc = new DockerContainerService(inspect.Data.Name.Substring(1), id, Host.Host,
+            svc = new DockerContainerService(inspect.Data.Name.Substring(1), id, DockerHost.Host,
               inspect.Data.State.ToServiceState(),
-              Host.Certificates, false, false);
+              DockerHost.Certificates, false, false);
             break;
           }
         }
@@ -67,7 +67,7 @@ namespace Ductus.FluentDocker.Tests.CommandTests
       }
       finally
       {
-        Host.Host.ComposeDown(composeFile: file, certificates: Host.Certificates, removeVolumes: true,
+        DockerHost.Host.ComposeDown(composeFile: file, certificates: DockerHost.Certificates, removeVolumes: true,
           removeOrphanContainers: true);
       }
     }

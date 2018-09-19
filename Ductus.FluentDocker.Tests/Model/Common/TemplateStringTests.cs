@@ -7,7 +7,7 @@ using Ductus.FluentDocker.Extensions;
 namespace Ductus.FluentDocker.Tests.Model.Common
 {
   [TestClass]
-  public class TemplateStringTest
+  public class TemplateStringTests
   {
     [TestMethod]
     public void UnifiedSeparatorWillBeTranslatedOnWindows()
