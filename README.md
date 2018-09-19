@@ -23,18 +23,29 @@ and the ms test support is available at [Ductus.FluentDocker.MsTest](https://www
       }
 ```
 
-Today a fluent _API_ to handle _docker-compose_ files do not exist (milestone 3.0.0). However, the commands are 
-implemented and can be leveraged e.g. as follows:
+The fluent _API_ builds up one or more services. Each service may be composite or singular. Therefore it is possible
+to e.g. fire up several _docker-compose_ based services and manage each of them as a single service or dig in and use
+all underlying services on each _docker-compose_ service. It is also possible to use services directly e.g.
 ```cs
-      Host.Host.ComposeUp(composeFile: "docker-compose-file.yml", certificates: Host.Certificates);
+      var file = Path.Combine(Directory.GetCurrentDirectory(),
+        (TemplateString) "Resources/ComposeTests/WordPress/docker-compose.yml");
 
-      // You have now a running system from compose & discovery of containers works as usual etc.
-      
-      Host.Host.ComposeDown(composeFile: "docker-compose-file.yml", 
-                            certificates: Host.Certificates, 
-                            removeVolumes: true,
-                            removeOrphanContainers: true);
-``` 
+      using (var svc = new DockerComposeCompositeService(DockerHost, new DockerComposeConfig
+      {
+        ComposeFilePath = file, ForceRecreate = true, RemoveOrphans = true,
+        StopOnDispose = true
+      }))
+      {
+        svc.Start();
+        
+        // We now have a running WordPress with a MySql database
+        var installPage = await $"http://localhost:8000/wp-admin/install.php".Wget();
+        
+        Assert.IsTrue(installPage.IndexOf("https://wordpress.org/", StringComparison.Ordinal) != -1);
+      }
+```
+The above example creates a _docker-compose_ service from a single compose file. When the service is disposed all
+underlying services is automatically stopped.
 
 The library is supported by .NET full 4.51 framework and higher, .NET standard 1.6, 2.0. It is divided into 
 three thin layers, each layer is accessable:
@@ -520,6 +531,67 @@ For full framework please check out the _XML_ needed in the appconfig for the fu
 
 There's a quick way of disabling / enabling logging via (```Ductus.FluentDocker.Services```) ```Logging.Enabled()``` or ```Logging.Disabled()```. This will forcefully enable / disable logging.
 
+## Docker Compose Support
+The library support _docker-compose_ to use existing compose files to render services and manage lifetime of such.
+
+The following sample will do have compose file that fires up a _MySql_ and a _WordPress_. Therefore the single compose
+service will have two _container_ services below it. By default, it will stop the services and clean up when 
+```Dispose()``` is invoked. This can be overridden by ```KeepContainers()``` in the _fluent_ configuration.
+
+```yml
+version: '3.3'
+
+services:
+  db:
+    image: mysql:5.7
+    volumes:
+    - db_data:/var/lib/mysql
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: somewordpress
+      MYSQL_DATABASE: wordpress
+      MYSQL_USER: wordpress
+      MYSQL_PASSWORD: wordpress
+
+  wordpress:
+    depends_on:
+    - db
+    image: wordpress:latest
+    ports:
+    - "8000:80"
+    restart: always
+    environment:
+      WORDPRESS_DB_HOST: db:3306
+      WORDPRESS_DB_USER: wordpress
+      WORDPRESS_DB_PASSWORD: wordpress
+volumes:
+  db_data:
+``` 
+The above file is the _docker-compose_ file to stitch up the complete service.
+
+```cs
+      var file = Path.Combine(Directory.GetCurrentDirectory(),
+        (TemplateString) "Resources/ComposeTests/WordPress/docker-compose.yml");
+
+      using (var svc = new Builder()
+                        .UseContainer()
+                        .UseCompose()
+                        .FromFile(file)
+                        .RemoveOrphans()
+                        .Build().Start())
+      {
+        var installPage = await "http://localhost:8000/wp-admin/install.php".Wget();
+
+        Assert.IsTrue(installPage.IndexOf("https://wordpress.org/", StringComparison.Ordinal) != -1);
+        Assert.AreEqual(1, svc.Hosts.Count);
+        Assert.AreEqual(2, svc.Containers.Count);
+        Assert.AreEqual(2, svc.Images.Count);
+        Assert.AreEqual(5, svc.Services.Count);
+      }
+``` 
+ The above snippet is fluently configuring the _docker-compose_ service and invokes the install page to verify that
+ WordPress is indeed working.
+ 
 ## Test Support
 This repo contains two nuget packages, one for the fluent access and the other is a ms-test base classes to be used while testing. For example in a unit-test it is possible to fire up a postgres container and wait when the the db has booted.
 ```cs
