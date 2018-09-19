@@ -10,6 +10,7 @@ using Ductus.FluentDocker.Model.Compose;
 
 namespace Ductus.FluentDocker.Services.Impl
 {
+  [Experimental(TargetVersion = "3.0.0")]
   public class DockerComposeCompositeService : ServiceBase, ICompositeService
   {
     private readonly DockerComposeConfig _config;

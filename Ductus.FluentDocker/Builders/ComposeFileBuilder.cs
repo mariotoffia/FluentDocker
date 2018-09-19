@@ -6,7 +6,8 @@ using Ductus.FluentDocker.Services;
 using Ductus.FluentDocker.Services.Impl;
 
 namespace Ductus.FluentDocker.Builders
-{
+{  
+  [Experimental(TargetVersion = "3.0.0")]
   public sealed class ComposeFileBuilder : BaseBuilder<ICompositeService>
   {
     private readonly DockerComposeConfig _config = new DockerComposeConfig();
