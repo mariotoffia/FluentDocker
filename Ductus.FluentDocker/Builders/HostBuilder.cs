@@ -42,6 +42,13 @@ namespace Ductus.FluentDocker.Builders
       return builder;
     }
 
+    public RemoteSshHostBuilder UseSsh(string url)
+    {
+      var builder = new RemoteSshHostBuilder(this);
+      Childs.Add(builder);
+      return builder;
+    }
+
     public ImageBuilder DefineImage(string image = null)
     {
       var builder = new ImageBuilder(this).AsImageName(image);
