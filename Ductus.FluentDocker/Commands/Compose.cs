@@ -354,7 +354,7 @@ namespace Ductus.FluentDocker.Commands
         args += $" -p {altProjectName}";
       }
 
-      if (!string.IsNullOrEmpty(privatePortAndProto))
+      if (string.IsNullOrEmpty(privatePortAndProto))
       {
         privatePortAndProto = string.Empty;
       }
