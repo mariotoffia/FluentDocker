@@ -13,7 +13,9 @@ namespace Ductus.FluentDocker.Builders
 
     public override IHostService Build()
     {
-      return _useNative ? new Hosts().Discover(_useNative).First(x => x.IsNative) : null;
+      return _useNative
+        ? new Hosts().Discover(_useNative).First(x => x.IsNative)
+        : Childs.Cast<RemoteSshHostBuilder>().FirstOrDefault()?.Build();
     }
 
     protected override IBuilder InternalCreate()
@@ -42,9 +44,9 @@ namespace Ductus.FluentDocker.Builders
       return builder;
     }
 
-    public RemoteSshHostBuilder UseSsh(string url)
+    public RemoteSshHostBuilder UseSsh(string ipAddress = null)
     {
-      var builder = new RemoteSshHostBuilder(this);
+      var builder = new RemoteSshHostBuilder(this, ipAddress);
       Childs.Add(builder);
       return builder;
     }

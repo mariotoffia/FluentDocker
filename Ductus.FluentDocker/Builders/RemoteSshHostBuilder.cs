@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using System.Linq;
 using Ductus.FluentDocker.Commands;
 using Ductus.FluentDocker.Common;
+using Ductus.FluentDocker.Model.Common;
 using Ductus.FluentDocker.Services;
 
 namespace Ductus.FluentDocker.Builders
@@ -30,9 +31,12 @@ namespace Ductus.FluentDocker.Builders
     private string _ipAddress;
     private string _name;
     private int _port = -1;
-    private string _sshKeyPath;
     private string _sshUser;
 
+    private string _sshKeyPath = OperatingSystem.IsWindows()
+      ? ((TemplateString) "${E_LOCALAPPDATA}/lxss/home/martoffi/.ssh/id_rsa").Rendered
+      : "~/.ssh/id_rsa";
+    
     internal RemoteSshHostBuilder(IBuilder parent, string ipAddress = null) : base(parent)
     {
       _ipAddress = ipAddress;
@@ -62,8 +66,8 @@ namespace Ductus.FluentDocker.Builders
 
       var opts = new List<string> {$"--generic-ip-address={_ipAddress}"};
 
-      if (_port != -1) opts.Add($"--generic-ssh-port={_port}");
-      if (!string.IsNullOrEmpty(_sshKeyPath)) opts.Add($"--generic-ssh-key={_sshKeyPath}");
+      if (_port != -1) opts.Add($" --generic-ssh-port={_port}");
+      if (!string.IsNullOrEmpty(_sshKeyPath)) opts.Add($"--generic-ssh-key=\"{_sshKeyPath}\"");
       if (!string.IsNullOrEmpty(_sshUser)) opts.Add($"--generic-ssh-user={_sshUser}");
 
 
@@ -85,7 +89,7 @@ namespace Ductus.FluentDocker.Builders
     ///   found it will create a machine with specified ip address and possibly other configuration before
     ///   returning the host on the <see cref="Build()" /> function.
     /// </remarks>
-    public RemoteSshHostBuilder Name(string name)
+    public RemoteSshHostBuilder WithName(string name)
     {
       _name = name;
       return this;
@@ -96,7 +100,7 @@ namespace Ductus.FluentDocker.Builders
     /// </summary>
     /// <param name="ipAddress">The address to use when communicating with the remote daemon using ssh.</param>
     /// <returns>Itself for fluent access.</returns>
-    public RemoteSshHostBuilder IpAddress(string ipAddress)
+    public RemoteSshHostBuilder UseIpAddress(string ipAddress)
     {
       _ipAddress = ipAddress;
       return this;
@@ -107,7 +111,7 @@ namespace Ductus.FluentDocker.Builders
     /// </summary>
     /// <param name="port">The port the remote SSH daemon is using.</param>
     /// <returns>Itself for fluent access.</returns>
-    public RemoteSshHostBuilder Port(int port)
+    public RemoteSshHostBuilder UsePort(int port)
     {
       _port = port;
       return this;
@@ -118,9 +122,9 @@ namespace Ductus.FluentDocker.Builders
     /// </summary>
     /// <param name="path">The fully qualified path to the key file for SSH communication.</param>
     /// <returns>Itself for fluent access.</returns>
-    public RemoteSshHostBuilder SshKeyPath(string path)
+    public RemoteSshHostBuilder WithSshKeyPath(TemplateString path)
     {
-      _sshKeyPath = path;
+      _sshKeyPath = OperatingSystem.IsWindows() ? path.Rendered.Replace('\\', '/') : path.Rendered;
       return this;
     }
 
@@ -129,7 +133,7 @@ namespace Ductus.FluentDocker.Builders
     /// </summary>
     /// <param name="user">The user to use.</param>
     /// <returns>Itself for fluent access.</returns>
-    public RemoteSshHostBuilder SshUser(string user)
+    public RemoteSshHostBuilder WithSshUser(string user)
     {
       _sshUser = user;
       return this;

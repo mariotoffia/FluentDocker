@@ -591,7 +591,98 @@ The above file is the _docker-compose_ file to stitch up the complete service.
 ``` 
  The above snippet is fluently configuring the _docker-compose_ service and invokes the install page to verify that
  WordPress is indeed working.
- 
+
+## Connecting to Remote Docker Daemons
+FluentDocker supports connection to remote docker daemons. The fluent API supports e.g. 
+```cs
+new Builder().UseHost().UseMachine().WithName("remote-daemon")
+```
+where this requires a already pre-setup entry in the _docker-machine_ registry. It is also possible to
+define _SSH_ based _docker-machine_ registry entires to connecto to remote daemon.
+
+```cs
+      using (
+        var container =
+          new Builder().UseHost()
+            .UseSsh("192.168.1.27").WithName("remote-daemon")
+            .WithSshUser("solo").WithSshKeyPath("${E_LOCALAPPDATA}/lxss/home/martoffi/.ssh/id_rsa").Host()
+            .UseContainer()
+            .UseImage("postgres:9.6-alpine")
+            .WithEnvironment("POSTGRES_PASSWORD=mysecretpassword")
+            .Build())
+      {
+        Assert.AreEqual(ServiceRunningState.Stopped, container.State);
+      }
+```
+This example will create a new _docker-machine_ registry entry named _remote-daemeon_ that uses _SSH_ with
+ip address of _192.168.1.27_ and the _SSH_ user _solo_. If a entry is already found named _remote-daemon_
+it will just reuse this entry. Then it gets a _IHostService_ with correct certificates and _URL_ for the
+remote daemon. Thus, it is possible then to create a docker container on the remote dameon, in thus case
+it is the _postgres_ image. When it disposes the container, as usual it deletes it from the remote docker.
+The _IHostService_ do make sure to pick upp all necessary certificates in order to authenticate the connection.
+
+The above example produces this _docker-machine_ registry entry.
+```
+C:\Users\martoffi>docker-machine ls
+NAME           ACTIVE   DRIVER    STATE     URL                       SWARM   DOCKER        ERRORS
+remote-daemon  *        generic   Running   tcp://192.168.1.27:2376           v18.06.1-ce
+```
+
+In order to use ```UseSsh(...)``` a _SSH_ tunnel with no password must been set up. In addition the user
+that uses the tunnel must be allowed to access the docker daemon.
+
+Follow these tutorial how to setup the _SSH_ tunnel and make sure the user can access the docker daemon.
+1) https://www.kevinkuszyk.com/2016/11/28/connect-your-docker-client-to-a-remote-docker-host/
+2) https://askubuntu.com/questions/192050/how-to-run-sudo-command-with-no-password
+
+Basically create a new rsa key to use with the _SSH_ tunnel using ```ssh-keygen -t rsa``` and then
+copy it to the remote host by ```ssh-copy-id {username}@{host}```.
+
+Edit the /etc/sudoers as specified in the second tutorial.
+
+When this is done, you now can access the remote docker daemon by the generic driver or the fluent API
+specified above. To do the same thing manually as specified in the example it would look something like this.
+
+
+```
+C:\Users\martoffi>docker-machine.exe create --driver generic --generic-ip-address=192.168.1.27 --generic-ssh-key="%localappdata%/lxss/home/martoffi/.ssh/id_rsa" --generic-ssh-user=solo remote-daemon
+Running pre-create checks...
+Creating machine...
+(remote-daemon) Importing SSH key...
+Waiting for machine to be running, this may take a few minutes...
+Detecting operating system of created instance...
+Waiting for SSH to be available...
+Detecting the provisioner...
+Provisioning with ubuntu(systemd)...
+Installing Docker...
+Copying certs to the local machine directory...
+Copying certs to the remote machine...
+Setting Docker configuration on the remote daemon...
+Checking connection to Docker...
+Docker is up and running!
+To see how to connect your Docker Client to the Docker Engine running on this virtual machine, run: docker-machine.exe env remote-daemon
+```
+
+Now the registry entry is created, it is possible set the environment for the terminal docker.
+
+```
+C:\Users\martoffi>docker-machine.exe env remote-daemon
+SET DOCKER_TLS_VERIFY=1
+SET DOCKER_HOST=tcp://192.168.1.24:2376
+SET DOCKER_CERT_PATH=C:\Users\martoffi\.docker\machine\machines\remote-daemon
+SET DOCKER_MACHINE_NAME=remote-daemon
+SET COMPOSE_CONVERT_WINDOWS_PATHS=true
+REM Run this command to configure your shell:
+REM     @FOR /f "tokens=*" %i IN ('docker-machine.exe env remote-daemon') DO @%i
+```
+
+Run this to make docker client use the remote docker daemon.
+```
+@FOR /f "tokens=*" %i IN ('docker-machine.exe env remote-daemon') DO @%i
+```
+All commands using the ```docker``` binary will now execute on the remote docker daemon.
+
+
 ## Test Support
 This repo contains two nuget packages, one for the fluent access and the other is a ms-test base classes to be used while testing. For example in a unit-test it is possible to fire up a postgres container and wait when the the db has booted.
 ```cs

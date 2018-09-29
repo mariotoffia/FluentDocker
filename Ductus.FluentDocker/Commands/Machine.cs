@@ -1,5 +1,7 @@
 ﻿using System.Collections.Generic;
+using System.IO;
 using System.Linq;
+using Ductus.FluentDocker.Common;
 using Ductus.FluentDocker.Executors;
 using Ductus.FluentDocker.Executors.Parsers;
 using Ductus.FluentDocker.Extensions;
@@ -7,6 +9,7 @@ using Ductus.FluentDocker.Model.Common;
 using Ductus.FluentDocker.Model.Containers;
 using Ductus.FluentDocker.Model.Machines;
 using Ductus.FluentDocker.Services;
+// ReSharper disable StringLiteralTypo
 
 namespace Ductus.FluentDocker.Commands
 {
@@ -85,6 +88,19 @@ namespace Ductus.FluentDocker.Commands
         new ProcessExecutor<MachineRmResponseParser, string>(
           "docker-machine".ResolveBinary(),
           args).Execute();
+    }
+
+    public static CommandResponse<string> ManuallyDelete(this string machine)
+    {
+      var path = OperatingSystem.IsWindows()
+        ? ((TemplateString) ("${E_HOMEDRIVE}${E_HOMEPATH}/.docker/machine/machines/" + machine)).Rendered
+        : $"~/.docker/machine/machines/{machine}";
+
+      if (!Directory.Exists(path))
+        return new CommandResponse<string>(false, new string[0], $"Machine do not exist at path {path}");
+
+      Directory.Delete(path, recursive: true);
+      return new CommandResponse<string>(true, new string[0]);
     }
 
     public static DockerUri Uri(this string machine)

@@ -14,7 +14,7 @@ namespace Ductus.FluentDocker.Services.Impl
   public sealed class DockerHostService : ServiceBase, IHostService
   {
     internal const string DockerCertPath = "DOCKER_CERT_PATH";
-    internal const string DockerTlsVerify = "DOCKER_TLS_VERIFY";
+    private const string DockerTlsVerify = "DOCKER_TLS_VERIFY";
 
     private const string DefaultCaCertName = "ca.pem";
     private const string DefaultClientCertName = "cert.pem";
@@ -23,6 +23,15 @@ namespace Ductus.FluentDocker.Services.Impl
 
     private readonly bool _stopWhenDisposed;
 
+    public DockerHostService(string name, bool stopWhenDisposed = false, bool isWindowsHost = false) : base(name)
+    {
+      _isWindowsHost = isWindowsHost;
+      _stopWhenDisposed = stopWhenDisposed;
+      IsNative = false;
+      
+      MachineSetup(name);  
+    }
+    
     public DockerHostService(string name, bool isNative, bool stopWhenDisposed = false, string dockerUri = null,
       string certificatePath = null, bool isWindowsHost = false)
       : base(name)

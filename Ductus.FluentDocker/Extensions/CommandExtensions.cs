@@ -134,7 +134,7 @@ namespace Ductus.FluentDocker.Extensions
       var args = string.Empty;
       if (null != host)
       {
-        args = host.Port == -1 ? $" -H {host}" : $" -H {host.Host}:{host.Port}";
+        args = $" -H {host}";
       }
 
       if (null == certificates)
