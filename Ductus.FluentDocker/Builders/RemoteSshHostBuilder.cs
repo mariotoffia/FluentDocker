@@ -143,6 +143,20 @@ namespace Ductus.FluentDocker.Builders
     {
       return (HostBuilder) ((IBuilder) this).Parent.Value;
     }
+
+    public ImageBuilder DefineImage(string image = null)
+    {
+      var builder = new ImageBuilder(this).AsImageName(image);
+      Childs.Add(builder);
+      return builder;
+    }
+
+    public ContainerBuilder UseContainer()
+    {
+      var builder = new ContainerBuilder(this);
+      Childs.Add(builder);
+      return builder;
+    }
     
     protected override IBuilder InternalCreate()
     {

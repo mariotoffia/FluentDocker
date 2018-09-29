@@ -20,8 +20,8 @@ namespace Ductus.FluentDocker.Tests.FluentApiTests
       using (
         var container =
           new Builder().UseHost()
-            .UseSsh("192.168.1.27").WithName("remote-daemon")
-            .WithSshUser("solo").WithSshKeyPath("${E_LOCALAPPDATA}/lxss/home/martoffi/.ssh/id_rsa").Host()
+            .UseSsh("192.168.1.34").WithName("remote-daemon")
+            .WithSshUser("solo").WithSshKeyPath("${E_LOCALAPPDATA}/lxss/home/martoffi/.ssh/id_rsa")
             .UseContainer()
             .UseImage("postgres:9.6-alpine")
             .WithEnvironment("POSTGRES_PASSWORD=mysecretpassword")

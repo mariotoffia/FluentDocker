@@ -15,7 +15,7 @@ namespace Ductus.FluentDocker.Builders
     {
       return _useNative
         ? new Hosts().Discover(_useNative).First(x => x.IsNative)
-        : Childs.Cast<RemoteSshHostBuilder>().FirstOrDefault()?.Build();
+        : null;
     }
 
     protected override IBuilder InternalCreate()
