@@ -5,17 +5,13 @@ namespace Ductus.FluentDocker.Builders
 {
   public sealed class HostBuilder : BaseBuilder<IHostService>
   {
-    private bool _useNative;
-
     internal HostBuilder(IBuilder builder) : base(builder)
     {
     }
 
     public override IHostService Build()
     {
-      return _useNative
-        ? new Hosts().Discover(_useNative).First(x => x.IsNative)
-        : null;
+      return IsNative ? new Hosts().Native() : null;
     }
 
     protected override IBuilder InternalCreate()
@@ -23,11 +19,11 @@ namespace Ductus.FluentDocker.Builders
       return new HostBuilder(this);
     }
 
-    public bool IsNative => _useNative;
+    public bool IsNative { get; private set; }
 
     public HostBuilder UseNative()
     {
-      _useNative = true;
+      IsNative = true;
       return this;
     }
 

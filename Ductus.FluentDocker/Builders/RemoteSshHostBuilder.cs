@@ -58,7 +58,7 @@ namespace Ductus.FluentDocker.Builders
       if (string.IsNullOrEmpty(_name))
         throw new FluentDockerException("Cannot create machine (for remote docker access) since no name is set");
 
-      var machine = new Hosts().Discover().FirstOrDefault(x => x.Name == _name);
+      var machine = new Hosts().FromMachineName(_name);
       if (null != machine) return machine;
 
       if (string.IsNullOrEmpty(_ipAddress))
@@ -76,7 +76,7 @@ namespace Ductus.FluentDocker.Builders
         throw new FluentDockerException(
           $"Could not create machine (for remote docker host access) {_name} Log: {resp}");
 
-      return new Hosts().Discover().FirstOrDefault(x => x.Name == _name);
+      return new Hosts().FromMachineName(_name);
     }
 
     /// <summary>

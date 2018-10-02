@@ -16,7 +16,7 @@ namespace Ductus.FluentDocker.Builders
 
     public override IHostService Build()
     {
-      var machine = new Hosts().Discover().FirstOrDefault(x => x.Name == _config.Name);
+      var machine = new Hosts().FromMachineName(_config.Name);
       if (null != machine)
       {
         if (machine.State != ServiceRunningState.Running)

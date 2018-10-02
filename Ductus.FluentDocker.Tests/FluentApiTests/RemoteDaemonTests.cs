@@ -15,6 +15,7 @@ namespace Ductus.FluentDocker.Tests.FluentApiTests
     }
 
     [TestMethod]
+    [Ignore]
     public void CreateSshConnectionToRemoteDockerAndCreateContainerShallWork()
     {
       using (
@@ -32,6 +33,7 @@ namespace Ductus.FluentDocker.Tests.FluentApiTests
     }
     
     [TestMethod]
+    [Ignore]
     public void UseNamedDockerMachineForRemoteSshDaemonConnectionShallWork()
     {
       var remoteHost = new Builder().UseHost()

@@ -66,13 +66,12 @@ namespace Ductus.FluentDocker.Builders
       var host = new HostBuilder(this);
       Childs.Add(host);
 
-      var hosts = new Hosts().Discover();
-      if (hosts.Any(x => x.IsNative))
+      if (null != new Hosts().Native())
       {
         return host.UseNative();
       }
 
-      var h = hosts.FirstOrDefault();
+      var h = new Hosts().Discover().FirstOrDefault();
       if (null == h)
       {
         throw new FluentDockerException("Cannot build a container when no host is defined");

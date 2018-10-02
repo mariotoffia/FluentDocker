@@ -23,13 +23,14 @@ namespace Ductus.FluentDocker.Services.Impl
 
     private readonly bool _stopWhenDisposed;
 
-    public DockerHostService(string name, bool stopWhenDisposed = false, bool isWindowsHost = false) : base(name)
+    public DockerHostService(string name, bool stopWhenDisposed = false, bool isWindowsHost = false, 
+      bool throwOnNotRunning = false) : base(name)
     {
       _isWindowsHost = isWindowsHost;
       _stopWhenDisposed = stopWhenDisposed;
       IsNative = false;
       
-      MachineSetup(name);  
+      MachineSetup(name, throwOnNotRunning);
     }
     
     public DockerHostService(string name, bool isNative, bool stopWhenDisposed = false, string dockerUri = null,
@@ -220,11 +221,16 @@ namespace Ductus.FluentDocker.Services.Impl
       return new DockerVolumeService(result.Data, Host, Certificates, removeOnDispose);
     }
 
-    private void MachineSetup(string name)
+    private void MachineSetup(string name, bool throwOnNotRunning = false)
     {
       State = name.Status();
       if (State != ServiceRunningState.Running)
-        return;
+      {
+        if (!throwOnNotRunning) return;
+        
+        throw new FluentDockerException(
+          $"Could not get status from machine '{name}' thus not possible to resolve host");
+      }
 
       Host = name.Uri();
 

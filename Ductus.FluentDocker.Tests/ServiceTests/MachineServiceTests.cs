@@ -1,11 +1,15 @@
 ﻿using System;
 using System.Linq;
 using Ductus.FluentDocker.Commands;
+using Ductus.FluentDocker.Common;
 using Ductus.FluentDocker.Extensions;
 using Ductus.FluentDocker.Extensions.Utils;
 using Ductus.FluentDocker.Services;
 using Ductus.FluentDocker.Tests.Extensions;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
+using static Microsoft.VisualStudio.TestTools.UnitTesting.Assert;
+
+// ReSharper disable StringLiteralTypo
 
 namespace Ductus.FluentDocker.Tests.ServiceTests
 {
@@ -15,7 +19,14 @@ namespace Ductus.FluentDocker.Tests.ServiceTests
     [ClassInitialize]
     public static void Initialize(TestContext ctx)
     {
-      Utilities.LinuxMode();
+      try
+      {
+        Utilities.LinuxMode();
+      }
+      catch
+      {
+        Console.WriteLine("Got exception while setting to linux mode, but this is ok in some situation...");
+      }
     }
 
     [TestCategory("Main")]
@@ -37,11 +48,11 @@ namespace Ductus.FluentDocker.Tests.ServiceTests
       }
 
       var services = new Hosts().Discover();
-      Assert.IsTrue(services.Count > 0);
+      IsTrue(services.Count > 0);
 
       var native = services.First(x => x.IsNative);
-      Assert.AreEqual("native",native.Name);
-      Assert.AreEqual(true,native.IsNative);
+      AreEqual("native",native.Name);
+      AreEqual(true,native.IsNative);
     }
 
     [TestCategory("Machine-Only")]
@@ -57,18 +68,45 @@ namespace Ductus.FluentDocker.Tests.ServiceTests
       try
       {
         var res = "test-machine".Create(1024, 20000, 1);
-        Assert.AreEqual(true, res.Success);
+        AreEqual(true, res.Success);
 
         var start = "test-machine".Start();
-        Assert.AreEqual(true, start.Success);
+        AreEqual(true, start.Success);
 
         var hosts = new Hosts().Discover();
-        Assert.IsTrue(hosts.Count > 0);
+        IsTrue(hosts.Count > 0);
 
         var tm = hosts.First(x => x.Name == "test-machine");
-        Assert.IsNotNull(tm);
-        Assert.AreEqual(false, tm.IsNative);
-        Assert.AreEqual(ServiceRunningState.Running, tm.State);
+        IsNotNull(tm);
+        AreEqual(false, tm.IsNative);
+        AreEqual(ServiceRunningState.Running, tm.State);
+      }
+      finally
+      {
+        "test-machine".Delete(true /*force*/);
+      }
+    }
+
+    [TestCategory("Machine-Only")]
+    [TestMethod]
+    [ExpectedException(typeof(FluentDockerException))]
+    public void CreateHostFromNonExistingMachineRegistryEntryShallThrowExceptionWhenThrowIfNotStarted()
+    {
+      new Hosts().FromMachineName("kalleKula_not_a_regentry", throwIfNotStarted: true);
+    }
+    
+    [TestCategory("Machine-Only")]
+    [TestMethod]
+    [Ignore]
+    public void CreateHostFromExistingMachineRegistryEntryShallWork()
+    {
+      try
+      {
+        var res = "test-machine".Create(1024, 20000, 1);
+        AreEqual(true, res.Success);
+
+        var host = new Hosts().FromMachineName("test-machine");
+        IsNotNull(host);
       }
       finally
       {
