@@ -14,6 +14,7 @@ namespace Ductus.FluentDocker.Tests.FluentApiTests
     }
 
     [TestMethod]
+    [Ignore]
     public void BuildImageFromFileWithCopyAndRunInstructionShallWork()
     {
       using (

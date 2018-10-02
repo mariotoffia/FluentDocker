@@ -37,9 +37,6 @@ namespace Ductus.FluentDocker.Commands
 
     public static CommandResponse<string> LinuxDaemon(this DockerUri host, ICertificatePaths certificates = null)
     {
-      //if (null == host)
-      //  throw new ArgumentException("Must specify a URI to a docker host, current value is null", nameof(host));
-      
       var version = host.Version(certificates);
       if (version.Data.ServerOs.ToLower().Equals("linux"))
       {

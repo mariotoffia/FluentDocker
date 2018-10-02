@@ -5,8 +5,8 @@ using System.Linq;
 using Ductus.FluentDocker.Commands;
 using Ductus.FluentDocker.Common;
 using Ductus.FluentDocker.Extensions;
-using Ductus.FluentDocker.Model.Builders;
 using Ductus.FluentDocker.Model.Compose;
+using Ductus.FluentDocker.Model.Containers;
 
 namespace Ductus.FluentDocker.Services.Impl
 {
@@ -15,6 +15,7 @@ namespace Ductus.FluentDocker.Services.Impl
   {
     private readonly DockerComposeConfig _config;
     private IContainerImageService[] _imageCache;
+    
     public DockerComposeCompositeService(IHostService host, DockerComposeConfig config) : base(config.ComposeFilePath)
     {
       Hosts = new ReadOnlyCollection<IHostService>(new [] {host });
@@ -22,6 +23,7 @@ namespace Ductus.FluentDocker.Services.Impl
       _imageCache = new IContainerImageService[0];
       _config = config;
     }
+    
     public override void Dispose()
     {
       if (_config.StopOnDispose) Stop();
@@ -57,7 +59,7 @@ namespace Ductus.FluentDocker.Services.Impl
 
     public override void Start()
     {
-      if (base.State == ServiceRunningState.Running) return;
+      if (State == ServiceRunningState.Running) return;
 
       var host = Hosts.First();
       if (State == ServiceRunningState.Paused)
@@ -88,21 +90,39 @@ namespace Ductus.FluentDocker.Services.Impl
         State = ServiceRunningState.Unknown;
         throw new FluentDockerException($"Could not start composite service {_config.ComposeFilePath}");
       }            
-      
-      State = ServiceRunningState.Running;
-      
+            
       var containers = host.Host.ComposePs(_config.AlternativeServiceName, _config.ComposeFilePath, _config.Services,
         host.Certificates);
 
       if (!containers.Success)
         return;
 
-      Containers = (from cid in containers.Data
-        let cinfo = host.Host.InspectContainer(cid, host.Certificates)
-        select new DockerContainerService(cinfo.Data.Name, cid, host.Host, cinfo.Data.State.ToServiceState(),
-          host.Certificates)).Cast<IContainerService>().ToArray();
+      var list = new List<IContainerService>();
+      foreach (var cid in containers.Data)
+      {
+        var info = host.Host.InspectContainer(cid, host.Certificates);
+        var name = ExtractNames(info.Data, out var project, out var instanceId);
+
+        list.Add(new DockerContainerService(name, cid, host.Host, info.Data.State.ToServiceState(),
+          host.Certificates, instanceId: instanceId, project: project));
+      }
+
+      Containers = list;      
+      State = ServiceRunningState.Running;
     }
 
+    private static string ExtractNames(Container container, out string project, out string instanceId)
+    {
+      var name = container.Name;
+      if (name.StartsWith("/")) name = name.Substring(1);
+
+      var components = name.Split('_');
+
+      project = components[0];
+      instanceId = components[2];
+      return components[1];
+    }
+    
     ICompositeService ICompositeService.Start()
     {
       Start();
@@ -111,7 +131,9 @@ namespace Ductus.FluentDocker.Services.Impl
 
     public override void Stop()
     {
-      if (!(State == ServiceRunningState.Running || State == ServiceRunningState.Paused)) return;
+      if (!(State == ServiceRunningState.Running || State == ServiceRunningState.Starting ||
+            State == ServiceRunningState.Paused)) return;
+      
       State = ServiceRunningState.Stopping;
       
       var host = Hosts.First();

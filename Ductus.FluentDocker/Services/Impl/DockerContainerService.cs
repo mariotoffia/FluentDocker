@@ -21,7 +21,8 @@ namespace Ductus.FluentDocker.Services.Impl
     public DockerContainerService(string name, string id, DockerUri docker, ServiceRunningState state,
       ICertificatePaths certificates,
       bool stopOnDispose = true, bool removeOnDispose = true, bool removeMountOnDispose = false,
-      bool removeNamedMountOnDispose = false, bool isWindowsContainer = false)
+      bool removeNamedMountOnDispose = false, bool isWindowsContainer = false, string instanceId = null, 
+      string project = null)
     {
       IsWindowsContainer = isWindowsContainer;
       Certificates = certificates;
@@ -32,11 +33,16 @@ namespace Ductus.FluentDocker.Services.Impl
 
       Name = name;
       Id = id;
+      Service = project ?? string.Empty;
+      InstanceId = instanceId ?? string.Empty;
       DockerHost = docker;
-      State = state;
+      State = state;      
     }
 
     public string Id { get; }
+    public string InstanceId { get; }
+    public string Service { get; }
+    
     public DockerUri DockerHost { get; }
 
     public bool StopOnDispose { get; set; }
@@ -44,7 +50,7 @@ namespace Ductus.FluentDocker.Services.Impl
     public bool RemoveOnDispose { get; set; }
 
     public bool IsWindowsContainer { get; }
-
+    
     public IContainerImageService Image
     {
       get

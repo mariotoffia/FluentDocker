@@ -8,6 +8,9 @@ using Ductus.FluentDocker.Model.Containers;
 using Ductus.FluentDocker.Services.Extensions;
 using Ductus.FluentDocker.Tests.Extensions;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
+using static Microsoft.VisualStudio.TestTools.UnitTesting.Assert;
+
+// ReSharper disable StringLiteralTypo
 
 namespace Ductus.FluentDocker.Tests.CommandTests
 {
@@ -68,9 +71,11 @@ namespace Ductus.FluentDocker.Tests.CommandTests
     {
       _docker.LinuxDaemon(_certificates);
       var mode = _docker.Version(_certificates);
-      Assert.AreEqual("linux", mode.Data.ServerOs);
+      AreEqual("linux", mode.Data.ServerOs);
     }
+    
     [TestMethod]
+    [Ignore]
     public void EnusreWindowsDaemonShallWork()
     {
       if (!OperatingSystem.IsWindows())
@@ -83,7 +88,7 @@ namespace Ductus.FluentDocker.Tests.CommandTests
       {
         _docker.WindowsDaemon(_certificates);
         var mode = _docker.Version(_certificates);
-        Assert.AreEqual("windows", mode.Data.ServerOs);
+        AreEqual("windows", mode.Data.ServerOs);
       }
       finally
       {
@@ -99,11 +104,11 @@ namespace Ductus.FluentDocker.Tests.CommandTests
       try
       {
         var cmd = _docker.Run("nginx:1.13.6-alpine", null, _certificates);
-        Assert.IsTrue(cmd.Success);
+        IsTrue(cmd.Success);
 
         id = cmd.Data;
-        Assert.IsTrue(!string.IsNullOrWhiteSpace(id));
-        Assert.AreEqual(64, id.Length);
+        IsTrue(!string.IsNullOrWhiteSpace(id));
+        AreEqual(64, id.Length);
       }
       finally
       {
@@ -121,15 +126,15 @@ namespace Ductus.FluentDocker.Tests.CommandTests
       try
       {
         var cmd = _docker.Run("nginx:1.13.6-alpine", null, _certificates);
-        Assert.IsTrue(cmd.Success);
+        IsTrue(cmd.Success);
 
         id = cmd.Data;
-        Assert.IsTrue(!string.IsNullOrWhiteSpace(id));
-        Assert.AreEqual(64, id.Length);
+        IsTrue(!string.IsNullOrWhiteSpace(id));
+        AreEqual(64, id.Length);
 
         var rm = _docker.RemoveContainer(id, true, true, null, _certificates);
-        Assert.IsTrue(rm.Success);
-        Assert.AreEqual(id, rm.Data);
+        IsTrue(rm.Success);
+        AreEqual(id, rm.Data);
       }
       finally
       {
@@ -147,16 +152,16 @@ namespace Ductus.FluentDocker.Tests.CommandTests
       try
       {
         var cmd = _docker.Run("nginx:1.13.6-alpine", null, _certificates);
-        Assert.IsTrue(cmd.Success);
+        IsTrue(cmd.Success);
 
         id = cmd.Data;
-        Assert.IsTrue(!string.IsNullOrWhiteSpace(id));
-        Assert.AreEqual(64, id.Length);
+        IsTrue(!string.IsNullOrWhiteSpace(id));
+        AreEqual(64, id.Length);
 
         var ls = _docker.Ps(null, _certificates);
-        Assert.IsTrue(ls.Success);
-        Assert.AreEqual(1, ls.Data.Count);
-        Assert.IsTrue(id.StartsWith(ls.Data[0]));
+        IsTrue(ls.Success);
+        AreEqual(1, ls.Data.Count);
+        IsTrue(id.StartsWith(ls.Data[0]));
       }
       finally
       {
@@ -174,16 +179,16 @@ namespace Ductus.FluentDocker.Tests.CommandTests
       try
       {
         var cmd = _docker.Run("nginx:1.13.6-alpine", null, _certificates);
-        Assert.IsTrue(cmd.Success);
+        IsTrue(cmd.Success);
 
         id = cmd.Data;
-        Assert.IsTrue(!string.IsNullOrWhiteSpace(id));
-        Assert.AreEqual(64, id.Length);
+        IsTrue(!string.IsNullOrWhiteSpace(id));
+        AreEqual(64, id.Length);
 
         var inspect = _docker.InspectContainer(id, _certificates);
-        Assert.IsTrue(inspect.Success);
-        Assert.IsTrue(inspect.Data.Name.Length > 2);
-        Assert.AreEqual(true, inspect.Data.State.Running);
+        IsTrue(inspect.Success);
+        IsTrue(inspect.Data.Name.Length > 2);
+        AreEqual(true, inspect.Data.State.Running);
       }
       finally
       {
@@ -201,16 +206,16 @@ namespace Ductus.FluentDocker.Tests.CommandTests
       try
       {
         var cmd = _docker.Run("nginx:1.13.6-alpine", null, _certificates);
-        Assert.IsTrue(cmd.Success);
+        IsTrue(cmd.Success);
 
         id = cmd.Data;
-        Assert.IsTrue(!string.IsNullOrWhiteSpace(id));
-        Assert.AreEqual(64, id.Length);
+        IsTrue(!string.IsNullOrWhiteSpace(id));
+        AreEqual(64, id.Length);
 
         var diffs = _docker.Diff(id, _certificates);
-        Assert.IsTrue(diffs.Success);
-        Assert.IsTrue(diffs.Data.Any(x => x.Type == DiffType.Created && x.Item == "/var/cache/nginx"));
-        Assert.IsTrue(diffs.Data.Any(x => x.Type == DiffType.Added && x.Item == "/var/cache/nginx/client_temp"));
+        IsTrue(diffs.Success);
+        IsTrue(diffs.Data.Any(x => x.Type == DiffType.Created && x.Item == "/var/cache/nginx"));
+        IsTrue(diffs.Data.Any(x => x.Type == DiffType.Added && x.Item == "/var/cache/nginx/client_temp"));
       }
       finally
       {
@@ -233,27 +238,27 @@ namespace Ductus.FluentDocker.Tests.CommandTests
           Environment = new[] {"POSTGRES_PASSWORD=mysecretpassword"}
         }, _certificates);
 
-        Assert.IsTrue(cmd.Success);
+        IsTrue(cmd.Success);
 
         id = cmd.Data;
-        Assert.IsTrue(!string.IsNullOrWhiteSpace(id));
-        Assert.AreEqual(64, id.Length);
+        IsTrue(!string.IsNullOrWhiteSpace(id));
+        AreEqual(64, id.Length);
 
         var config = _docker.InspectContainer(id, _certificates);
-        Assert.IsTrue(config.Success);
-        Assert.AreEqual(true, config.Data.State.Running);
+        IsTrue(config.Success);
+        AreEqual(true, config.Data.State.Running);
 
         var endpoint = config.Data.NetworkSettings.Ports.ToHostPort("5432/tcp", _docker);
         endpoint.WaitForPort(10000 /*10s*/);
 
         var ls = _docker.Top(id, _certificates);
-        Assert.IsTrue(ls.Success);
+        IsTrue(ls.Success);
 
         var proc = ls.Data;
         Debug.WriteLine(proc.ToString());
 
-        Assert.IsTrue(proc.Rows.Any(x => x.Command == "bash /usr/local/bin/docker-entrypoint.sh postgres"));
-        Assert.IsTrue(proc.Rows.Any(x => x.Command == "pg_ctl -D /var/lib/postgresql/data -m fast -w stop"));
+        IsTrue(proc.Rows.Any(x => x.Command == "bash /usr/local/bin/docker-entrypoint.sh postgres"));
+        IsTrue(proc.Rows.Any(x => x.Command == "/usr/local/bin/postgres -D /var/lib/postgresql/data -c listen_addresses="));
       }
       finally
       {

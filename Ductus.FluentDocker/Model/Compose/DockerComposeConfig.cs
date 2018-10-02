@@ -1,9 +1,10 @@
 using System;
+using System.Collections.Generic;
 using Ductus.FluentDocker.Model.Images;
 
 namespace Ductus.FluentDocker.Model.Compose
 {
-  public sealed class DockerComposeConfig
+  public class DockerComposeConfig
   {
     /// <summary>
     ///   Fully qualified path to the docker-compose file.
@@ -21,5 +22,8 @@ namespace Ductus.FluentDocker.Model.Compose
     public ImageRemovalOption ImageRemoval { get; set; }
     public string []Services { get; set; }
     public bool StopOnDispose { get; set; } = true;
+
+    public IDictionary<string, ContainerSpecificConfig> ContainerConfiguration { get; } =
+      new Dictionary<string, ContainerSpecificConfig>();
   }
 }

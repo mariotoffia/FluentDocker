@@ -31,7 +31,11 @@ namespace Ductus.FluentDocker.Executors.Parsers
       }
 
       var container = sb.ToString();
-      Response = response.ToResponse(true, string.Empty, JsonConvert.DeserializeObject<Container>(container));
+      var obj = JsonConvert.DeserializeObject<Container>(container);
+
+      if (!string.IsNullOrEmpty(obj.Name) && obj.Name.StartsWith("/")) obj.Name = obj.Name.Substring(1);
+      
+      Response = response.ToResponse(true, string.Empty, obj);
       return this;
     }
   }
