@@ -2,12 +2,14 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Net;
+using System.Net.Http;
 using System.Text.RegularExpressions;
 using Ductus.FluentDocker.Commands;
 using Ductus.FluentDocker.Common;
 using Ductus.FluentDocker.Extensions;
 using Ductus.FluentDocker.Model.Builders;
 using Ductus.FluentDocker.Model.Common;
+using Ductus.FluentDocker.Model.Compose;
 using Ductus.FluentDocker.Services;
 using Ductus.FluentDocker.Services.Extensions;
 
@@ -336,7 +338,51 @@ namespace Ductus.FluentDocker.Builders
       _config.WaitForPort = new Tuple<string, long>(portAndProto, millisTimeout);
       return this;
     }
+    
+    /// <summary>
+    /// Custom function to do verification if wait is over or not.
+    /// </summary>
+    /// <param name="continuation">The continuation lambda.</param>
+    /// <returns>Itself for fluent access.</returns>
+    /// <remarks>
+    /// It is possible to stack multiple lambdas, they are executed in order they where registered (per service).
+    /// The lambda do the actual action to determine if the wait is over or not. If it returns zero or less, the
+    /// wait is over. If it returns a positive value, the wait function will wait this amount of milliseconds before
+    /// invoking it again. The second argument is the invocation count. This can be used for the function to determine
+    /// any type of abort action due to the amount of invocations. If continuation wishes to abort, it shall throw
+    /// <see cref="FluentDockerException"/>.
+    /// </remarks>
+    public ContainerBuilder Wait(string service, Func<IContainerService, int, int> continuation)
+    {
+      _config.WaitLambda.Add(continuation);
+      return this;
+    }
+    
+    /// <summary>
+    ///   Waits for a request to be passed or failed.
+    /// </summary>
+    /// <param name="url">The url including any query parameters.</param>
+    /// <param name="continuation">Optional continuation that evaluates if it shall still wait or continue.</param>
+    /// <param name="method">Optional. The method. Default is <see cref="HttpMethod.Get" />.</param>
+    /// <param name="contentType">Optional. The content type in put, post operations. Defaults to application/json</param>
+    /// <param name="body">Optional. A body to post or put.</param>
+    /// <returns>The response body in form of a string.</returns>
+    /// <exception cref="ArgumentException">If <paramref name="method" /> is not GET, PUT, POST or DELETE.</exception>
+    /// <exception cref="HttpRequestException">If any errors during the HTTP request.</exception>
+    public ContainerBuilder WaitForHttp(string url, long timeout = 60_000,
+      Func<RequestResponse, int, long> continuation = null, HttpMethod method = null,
+      string contentType = "application/json", string body = null)
+    {
+      _config.WaitForHttp.Add(new ContainerSpecificConfig.WaitForHttpParams
+      {
+        Url = url, Timeout = timeout, Continuation = continuation, Method = method, ContentType = contentType,
+        Body = body
+      });
 
+      return this;
+    }
+
+    
     public ContainerBuilder WaitForProcess(string process, long millisTimeout = long.MaxValue)
     {
       _config.WaitForProcess = new Tuple<string, long>(process, millisTimeout);
@@ -393,6 +439,25 @@ namespace Ductus.FluentDocker.Builders
           {
             ((IContainerService) service).WaitForPort(_config.WaitForPort.Item1, _config.WaitForPort.Item2);
           });
+
+      // Wait for http when started
+      if (null != _config.WaitForHttp && 0 != _config.WaitForHttp.Count)
+        container.AddHook(ServiceRunningState.Running, service =>
+        {
+          foreach (var prm in _config.WaitForHttp)
+            ((IContainerService) service).WaitForHttp(prm.Url, prm.Timeout, prm.Continuation, prm.Method,
+              prm.ContentType,
+              prm.Body);
+        });
+
+      // Wait for lambda when started
+      if (null != _config.WaitLambda && 0 != _config.WaitLambda.Count)
+        container.AddHook(ServiceRunningState.Running, service =>
+        {
+          foreach (var continuation in _config.WaitLambda)
+            ((IContainerService) service).Wait(continuation);
+        });
+
 
       // Wait for process when started
       if (null != _config.WaitForProcess)

@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Net;
 using System.Threading.Tasks;
 using Ductus.FluentDocker.Builders;
 using Ductus.FluentDocker.Common;
@@ -7,6 +8,7 @@ using Ductus.FluentDocker.Model.Common;
 using Ductus.FluentDocker.Services;
 using Ductus.FluentDocker.Tests.Extensions;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
+using HttpExtensions = Ductus.FluentDocker.Extensions.HttpExtensions;
 
 // ReSharper disable StringLiteralTypo
 
@@ -101,6 +103,32 @@ namespace Ductus.FluentDocker.Tests.FluentApiTests
         }
         
         throw;
+      }
+    }
+    
+    [TestMethod]
+    public async Task ComposeWaitForCustomLambdaShallWork()
+    {
+      var file = Path.Combine(Directory.GetCurrentDirectory(),
+        (TemplateString) "Resources/ComposeTests/WordPress/docker-compose.yml");
+
+      // @formatter:off
+      using (new Builder()
+                .UseContainer()
+                .UseCompose()
+                .FromFile(file)
+                .RemoveOrphans()
+                .Wait("wordpress", (service, cnt) => {
+                    var res = HttpExtensions.DoRequest("http://localhost:8000/wp-admin/install.php").Result;
+                    return (res.Code == HttpStatusCode.OK && 
+                            res.Body.IndexOf("https://wordpress.org/", StringComparison.Ordinal) != -1) ? 0 : 500;
+                  })
+                .Build().Start())
+        // @formatter:on
+      {
+        // Since we have waited - this shall now always work.       
+        var installPage = await "http://localhost:8000/wp-admin/install.php".Wget();
+        Assert.IsTrue(installPage.IndexOf("https://wordpress.org/", StringComparison.Ordinal) != -1);
       }
     }
   }

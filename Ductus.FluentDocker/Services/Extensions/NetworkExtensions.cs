@@ -89,6 +89,9 @@ namespace Ductus.FluentDocker.Services.Extensions
           time = Millis - time;
           wait = request.Code != HttpStatusCode.OK ? wait - time : -1;
         }
+
+        if (wait > 0) Thread.Sleep((int) wait);
+
       } while (wait > 0);
     }
 

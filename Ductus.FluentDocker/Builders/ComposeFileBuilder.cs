@@ -73,6 +73,14 @@ namespace Ductus.FluentDocker.Builders
                 prm.Body);
           });
 
+        // Wait for lambda when started
+        if (null != config.WaitLambda && 0 != config.WaitLambda.Count)
+          container.AddHook(ServiceRunningState.Running, service =>
+          {
+            foreach (var continuation in config.WaitLambda)
+              Resolve(config.Name)?.Wait(continuation);
+          });
+
         // Wait for process when started
         if (null != config.WaitForProcess)
           container.AddHook(ServiceRunningState.Running,
@@ -263,6 +271,26 @@ namespace Ductus.FluentDocker.Builders
     }
 
     /// <summary>
+    /// Custom function to do verification if wait is over or not.
+    /// </summary>
+    /// <param name="service">The service to attach this wait on.</param>
+    /// <param name="continuation">The continuation lambda.</param>
+    /// <returns>Itself for fluent access.</returns>
+    /// <remarks>
+    /// It is possible to stack multiple lambdas, they are executed in order they where registered (per service).
+    /// The lambda do the actual action to determine if the wait is over or not. If it returns zero or less, the
+    /// wait is over. If it returns a positive value, the wait function will wait this amount of milliseconds before
+    /// invoking it again. The second argument is the invocation count. This can be used for the function to determine
+    /// any type of abort action due to the amount of invocations. If continuation wishes to abort, it shall throw
+    /// <see cref="FluentDockerException"/>.
+    /// </remarks>
+    public ComposeFileBuilder Wait(string service, Func<IContainerService, int, int> continuation)
+    {
+      GetContainerSpecificConfig(service).WaitLambda.Add(continuation);
+      return this;
+    }
+
+    /// <summary>
     ///   Executes one or more commands including their arguments when container has started.
     /// </summary>
     /// <param name="service">The service to execute on</param>
@@ -301,6 +329,7 @@ namespace Ductus.FluentDocker.Builders
     /// <summary>
     ///   Waits for a request to be passed or failed.
     /// </summary>
+    /// <param name="service">The service to attach to.</param>
     /// <param name="url">The url including any query parameters.</param>
     /// <param name="continuation">Optional continuation that evaluates if it shall still wait or continue.</param>
     /// <param name="method">Optional. The method. Default is <see cref="HttpMethod.Get" />.</param>

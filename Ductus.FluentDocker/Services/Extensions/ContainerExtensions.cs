@@ -224,5 +224,35 @@ namespace Ductus.FluentDocker.Services.Extensions
 
 			return service;
 		}
+
+		/// <summary>
+		/// Waits using an arbitrary function.
+		/// </summary>
+		/// <param name="service">The service this lambda holds.</param>
+		/// <param name="continuation">The lambda that do the custom action.</param>
+		/// <returns>The service for fluent access.</returns>
+		/// <exception cref="ArgumentNullException">If <paramref name="continuation"/> is null.</exception>
+		/// <remarks>
+		/// The lambda do the actual action to determine if the wait is over or not. If it returns zero or less, the
+		/// wait is over. If it returns a positive value, the wait function will wait this amount of milliseconds before
+		/// invoking it again. The second argument is the invocation count. This can be used for the function to determine
+		/// any type of abort action due to the amount of invocations. If continuation wishes to abort, it shall throw
+		/// <see cref="FluentDockerException"/>.
+		/// </remarks>
+		public static IContainerService Wait(this IContainerService service, Func<IContainerService, int, int> continuation)
+		{
+			if (null == continuation)
+				throw new ArgumentNullException("Must specify a continuation", nameof(continuation));
+
+			int wait;
+			int count = 0;
+			do
+			{
+				wait = continuation.Invoke(service, count++);
+				if (wait > 0) Thread.Sleep(wait);
+			} while (wait > 0);
+
+			return service;
+		}		
 	}
 }

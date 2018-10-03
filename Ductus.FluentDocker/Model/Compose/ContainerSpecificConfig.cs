@@ -15,6 +15,7 @@ namespace Ductus.FluentDocker.Model.Compose
     public string Name { get; set; }    
     public Tuple<string /*portAndProto*/, long /*waitTimeout*/> WaitForPort { get; set; }
     public List<WaitForHttpParams> WaitForHttp { get; } = new List<WaitForHttpParams>();
+    public List<Func<IContainerService, int, int>> WaitLambda { get; } = new List<Func<IContainerService, int, int>>();
     public Tuple<string /*process*/, long /*waitTimeout*/> WaitForProcess { get; set; }
     public List<Tuple<TemplateString /*host*/, TemplateString /*container*/>> CpToOnStart { get; set; }
     public List<Tuple<TemplateString /*host*/, TemplateString /*container*/>> CpFromOnDispose { get; set; }
