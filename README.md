@@ -600,6 +600,31 @@ The above file is the _docker-compose_ file to stitch up the complete service.
 ``` 
  The above snippet is fluently configuring the _docker-compose_ service and invokes the install page to verify that
  WordPress is indeed working.
+ 
+ It is also possible to do all the operations that a single container supports such as copy on, export, wait operations. For example:
+```cs
+      var file = Path.Combine(Directory.GetCurrentDirectory(),
+        (TemplateString) "Resources/ComposeTests/WordPress/docker-compose.yml");
+
+      // @formatter:off
+      using (new Builder()
+                .UseContainer()
+                .UseCompose()
+                .FromFile(file)
+                .RemoveOrphans()
+                .WaitForHttp("wordpress",  "http://localhost:8000/wp-admin/install.php", continuation: (resp, cnt) =>  
+                             resp.Body.IndexOf("https://wordpress.org/", StringComparison.Ordinal) != -1 ? 0 : 500)
+                .Build().Start())
+        // @formatter:on
+      {
+        // Since we have waited - this shall now always work.       
+        var installPage = await "http://localhost:8000/wp-admin/install.php".Wget();
+        Assert.IsTrue(installPage.IndexOf("https://wordpress.org/", StringComparison.Ordinal) != -1);
+      }
+```
+The above snippet fires up the wordpress docker compose project and checks the _URL_ http://localhost:8000/wp-admin/install.php it it returnes a certain value in the body 
+(in this case "https://wordpress.org/"). If not it returns _500_ and the ```WaitForHttp``` function will wait 500 milliseconds before invoking again. This works for any custom
+lambda as well, just use ```WaitFor``` instead. Thus it is possible to e.g. query a database before continuing inside the using scope.
 
 ## Talking to Docker Daemon
 For Linux and Mac users there are several options how to authenticate towards the socket. _FluentDocker_ supports no _sudo_, _sudo_ without any password (user added as NOPASSWD in /etc/sudoer), or

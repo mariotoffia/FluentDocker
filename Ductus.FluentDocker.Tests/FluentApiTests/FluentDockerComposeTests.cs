@@ -119,7 +119,9 @@ namespace Ductus.FluentDocker.Tests.FluentApiTests
                 .FromFile(file)
                 .RemoveOrphans()
                 .Wait("wordpress", (service, cnt) => {
-                    var res = HttpExtensions.DoRequest("http://localhost:8000/wp-admin/install.php").Result;
+                    if (cnt > 60) throw new FluentDockerException("Failed to wait for wordpress service");
+            
+                    var res = HttpExtensions.DoRequest("http://localhost:8000/wp-admin/install.php").Result;            
                     return (res.Code == HttpStatusCode.OK && 
                             res.Body.IndexOf("https://wordpress.org/", StringComparison.Ordinal) != -1) ? 0 : 500;
                   })
