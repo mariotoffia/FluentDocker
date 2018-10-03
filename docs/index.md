@@ -25,6 +25,12 @@ and the ms test support is available at [Ductus.FluentDocker.MsTest](https://www
       }
 ```
 
+**Note for Linux Users:** _Docker requires _sudo_ by default and the library by default expects that executing user do not
+need to do _sudo_ in order to talk to the docker daemon. If you wish to have it on, please use the experimental 
+```SudoMechanism``` to setup how to do this. More description can be found in the _Talking to Docker Daemon_ chapter.
+If you wish to turn off _sudo_ to communicate with the docker daemon, you can follow a docker tutorial at 
+https://docs.docker.com/install/linux/docker-ce/ubuntu/ and do the last step of adding your user to docker group._
+
 The fluent _API_ builds up one or more services. Each service may be composite or singular. Therefore it is possible
 to e.g. fire up several _docker-compose_ based services and manage each of them as a single service or dig in and use
 all underlying services on each _docker-compose_ service. It is also possible to use services directly e.g.
@@ -594,7 +600,18 @@ The above file is the _docker-compose_ file to stitch up the complete service.
  The above snippet is fluently configuring the _docker-compose_ service and invokes the install page to verify that
  WordPress is indeed working.
 
-## Connecting to Remote Docker Daemons
+## Talking to Docker Daemon
+For Linux and Mac users there are several options how to authenticate towards the socket. _FluentDocker_ supports no _sudo_, _sudo_ without any password (user added as NOPASSWD in /etc/sudoer), or
+_sudo_ with password. The default is that FluentDocker expects to be able to talk without any _sudo_. The options ar global but can be changed in runtime.
+
+```cs
+     SudoMechanism.None.SetSudo(); // This is the default
+     SudoMechanism.Password.SetSudo("<my-sudo-password>");
+     SudoMechanism.NoPassword.SetSudo();
+```
+This is still experimental and will probably change to e.g ```SecureString``` or other in the future.
+
+### Connecting to Remote Docker Daemons
 FluentDocker supports connection to remote docker daemons. The fluent API supports e.g. 
 ```cs
 new Builder().UseHost().UseMachine().WithName("remote-daemon")
