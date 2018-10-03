@@ -594,7 +594,18 @@ The above file is the _docker-compose_ file to stitch up the complete service.
  The above snippet is fluently configuring the _docker-compose_ service and invokes the install page to verify that
  WordPress is indeed working.
 
-## Connecting to Remote Docker Daemons
+## Talking to Docker Daemon
+For Linux and Mac users there are several options how to authenticate towards the socket. _FluentDocker_ supports no _sudo_, _sudo_ without any password (user added as NOPASSWD in /etc/sudoer), or
+_sudo_ with password. The default is that FluentDocker expects to be able to talk without any _sudo_. The options ar global but can be changed in runtime.
+
+```cs
+     SudoMechanism.None.SetSudo(); // This is the default
+     SudoMechanism.Password.SetSudo("<my-sudo-password>");
+     SudoMechanism.NoPassword.SetSudo();
+```
+This is still experimental and will probably change to e.g ```SecureString``` or other in the future.
+
+### Connecting to Remote Docker Daemons
 FluentDocker supports connection to remote docker daemons. The fluent API supports e.g. 
 ```cs
 new Builder().UseHost().UseMachine().WithName("remote-daemon")
