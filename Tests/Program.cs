@@ -13,6 +13,10 @@ namespace Tests
     {
         static void Main(string[] args)
         {
+            //SudoMechanism.Password.SetSudo("<my-sudo-password>");
+            //SudoMechanism.NoPassword.SetSudo();
+            //SudoMechanism.None.SetSudo();
+            
             var hosts = new Hosts().Discover();
             Console.WriteLine($"Number of hosts:{hosts.Count}");
             foreach(var host in hosts)

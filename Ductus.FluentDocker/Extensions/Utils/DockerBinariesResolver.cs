@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using Ductus.FluentDocker.Common;
+using Ductus.FluentDocker.Model.Common;
 using static Ductus.FluentDocker.Common.OperatingSystem;
 
 namespace Ductus.FluentDocker.Extensions.Utils
@@ -12,9 +13,9 @@ namespace Ductus.FluentDocker.Extensions.Utils
   /// </summary>
   public sealed class DockerBinariesResolver
   {
-    public DockerBinariesResolver(params string []paths)
+    public DockerBinariesResolver(SudoMechanism sudo, string password, params string []paths)
     {
-      Binaries = ResolveFromPaths(paths).ToArray();
+      Binaries = ResolveFromPaths(sudo, password, paths).ToArray();
       MainDockerClient = Binaries.FirstOrDefault(x => !x.IsToolbox && x.Type == DockerBinaryType.DockerClient);
       MainDockerCompose = Binaries.FirstOrDefault(x => !x.IsToolbox && x.Type == DockerBinaryType.Compose);
       MainDockerMachine = Binaries.FirstOrDefault(x => !x.IsToolbox && x.Type == DockerBinaryType.Machine);
@@ -72,7 +73,7 @@ namespace Ductus.FluentDocker.Extensions.Utils
       }
     }
 
-    private static IEnumerable<DockerBinary> ResolveFromPaths(params string[]paths)
+    private static IEnumerable<DockerBinary> ResolveFromPaths(SudoMechanism sudo, string password, params string[]paths)
     {      
       var isWindows = IsWindows();
       if (null == paths || 0 == paths.Length)
@@ -105,12 +106,12 @@ namespace Ductus.FluentDocker.Extensions.Utils
           list.AddRange(from file in Directory.GetFiles(path,"docker*.*")
             let f = Path.GetFileName(file.ToLower())
             where null != f && (f.Equals("docker.exe") || f.Equals("docker-compose.exe") || f.Equals("docker-machine.exe"))
-            select new DockerBinary(path, f));
+            select new DockerBinary(path, f, sudo, password));
 
           var dockercli = Path.GetFullPath(Path.Combine(path, "..\\.."));
           if (File.Exists(Path.Combine(dockercli,"dockercli.exe")))
           {
-            list.Add(new DockerBinary(dockercli,"dockercli.exe"));
+            list.Add(new DockerBinary(dockercli,"dockercli.exe", sudo, password));
           }
 
           continue;
@@ -120,7 +121,7 @@ namespace Ductus.FluentDocker.Extensions.Utils
           let f = Path.GetFileName(file)
           let f2 = f.ToLower()
           where f2.Equals("docker") || f2.Equals("docker-compose") || f2.Equals("docker-machine")
-          select new DockerBinary(path, f));
+          select new DockerBinary(path, f, sudo, password));
       }
       return list;
     }

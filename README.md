@@ -25,6 +25,10 @@ and the ms test support is available at [Ductus.FluentDocker.MsTest](https://www
 
 The site http://mariotoffia.github.io/FluentDocker/ is under construction but will have a _"1.0"_ release before christmas.
 
+**Note for Linux Users:** _Docker requires _sudo_ by default and this needs to be turned off for the user using this library
+since it will not be able to communicate with the docker daemon. You can follow a docker tutorial at
+https://docs.docker.com/install/linux/docker-ce/ubuntu/ and do the last step of adding your user to docker group._
+
 The fluent _API_ builds up one or more services. Each service may be composite or singular. Therefore it is possible
 to e.g. fire up several _docker-compose_ based services and manage each of them as a single service or dig in and use
 all underlying services on each _docker-compose_ service. It is also possible to use services directly e.g.

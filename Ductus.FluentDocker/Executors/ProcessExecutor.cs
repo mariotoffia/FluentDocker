@@ -1,6 +1,7 @@
 ﻿using System.Diagnostics;
 using System.Text;
 using Ductus.FluentDocker.Common;
+using Ductus.FluentDocker.Extensions;
 using Ductus.FluentDocker.Model.Containers;
 
 namespace Ductus.FluentDocker.Executors
@@ -13,9 +14,17 @@ namespace Ductus.FluentDocker.Executors
 
     public ProcessExecutor(string command, string arguments, string workingdir = null)
     {
+      _workingdir = workingdir;
+      if (command.StartsWith("echo") || command.StartsWith("sudo"))
+      {
+        _command = CommandExtensions.DefaultShell;
+        _arguments = $"-c \"{command} {arguments}\"";
+        
+        return;
+      }
+      
       _command = command;
       _arguments = arguments;
-      _workingdir = workingdir;
     }
 
     public CommandResponse<TE> Execute()

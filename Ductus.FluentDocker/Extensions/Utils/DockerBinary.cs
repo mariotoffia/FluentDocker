@@ -1,4 +1,5 @@
 ﻿using System;
+using Ductus.FluentDocker.Model.Common;
 
 namespace Ductus.FluentDocker.Extensions.Utils
 {
@@ -12,11 +13,13 @@ namespace Ductus.FluentDocker.Extensions.Utils
 
   public sealed class DockerBinary
   {
-    internal DockerBinary(string path, string binary)
+    internal DockerBinary(string path, string binary, SudoMechanism sudo, string password)
     {
       Path = path;
       Binary = binary.ToLower();
       Type = Translate(binary);
+      Sudo = sudo;
+      SudoPassword = password;
 
       var isToolbox = Environment.GetEnvironmentVariable("DOCKER_TOOLBOX_INSTALL_PATH")?.Equals(Path);
       IsToolbox = isToolbox ?? false;
@@ -48,5 +51,7 @@ namespace Ductus.FluentDocker.Extensions.Utils
     public string Binary { get; }
     public DockerBinaryType Type { get; }
     public bool IsToolbox { get; }
+    public SudoMechanism Sudo { get; }
+    public string SudoPassword { get; }
   }
 }

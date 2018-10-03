@@ -4,6 +4,7 @@ using Ductus.FluentDocker.Commands;
 using Ductus.FluentDocker.Common;
 using Ductus.FluentDocker.Extensions;
 using Ductus.FluentDocker.Extensions.Utils;
+using Ductus.FluentDocker.Model.Common;
 using Ductus.FluentDocker.Services;
 using Ductus.FluentDocker.Tests.Extensions;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
@@ -33,7 +34,7 @@ namespace Ductus.FluentDocker.Tests.ServiceTests
     [TestMethod]
     public void DiscoverBinariesShallWork()
     {
-      var resolver = new DockerBinariesResolver();
+      var resolver = new DockerBinariesResolver(SudoMechanism.None, null);
       
       Console.WriteLine(
         $"{resolver.MainDockerClient.FqPath} {resolver.MainDockerMachine.FqPath} {resolver.MainDockerCompose.FqPath}");
