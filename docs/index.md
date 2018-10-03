@@ -1,6 +1,6 @@
 | Build | Core | MsTest |
-|:--------------------------------------------------------------------------------------------------------------------------------------------------:|:------------------------------------------------------------------------------------------------------------------------:|:-------------------------------------------------------------------------------------------------------------------------------------:|
-| [![Build status](https://ci.appveyor.com/api/projects/status/kqqrkcv8wp3e9my6?svg=true)](https://ci.appveyor.com/project/mariotoffia/fluentdocker) | [![NuGet](https://img.shields.io/nuget/v/Ductus.FluentDocker.svg)](https://www.nuget.org/packages/Ductus.FluentDocker)  | [![NuGet](https://img.shields.io/nuget/v/Ductus.FluentDocker.MsTest.svg)](https://www.nuget.org/packages/Ductus.FluentDocker.MsTest) |
+|:-----:|:----:|:------:|
+|[![Build status](https://ci.appveyor.com/api/projects/status/kqqrkcv8wp3e9my6?svg=true)](https://ci.appveyor.com/project/mariotoffia/fluentdocker)|[![NuGet](https://img.shields.io/nuget/v/Ductus.FluentDocker.svg)](https://www.nuget.org/packages/Ductus.FluentDocker)|[![NuGet](https://img.shields.io/nuget/v/Ductus.FluentDocker.MsTest.svg)](https://www.nuget.org/packages/Ductus.FluentDocker.MsTest)|
 
 
 # FluentDocker
