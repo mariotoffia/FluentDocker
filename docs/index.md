@@ -24,6 +24,30 @@ and the ms test support is available at [Ductus.FluentDocker.MsTest](https://www
         Assert.AreEqual(ServiceRunningState.Running, config.State.ToServiceState());
       }
 ```
+This fires up a postgres and waits for it to be ready. To use compose, just do it like this:
+```cs
+      var file = Path.Combine(Directory.GetCurrentDirectory(),
+        (TemplateString) "Resources/ComposeTests/WordPress/docker-compose.yml");
+
+      // @formatter:off
+      using (var svc = new Builder()
+                        .UseContainer()
+                        .UseCompose()
+                        .FromFile(file)
+                        .RemoveOrphans()
+                        .WaitForHttp("wordpress", "http://localhost:8000/wp-admin/install.php") 
+                        .Build().Start())
+        // @formatter:on
+      {
+        // We now have a running WordPress with a MySql database        
+        var installPage = await "http://localhost:8000/wp-admin/install.php".Wget();
+
+        Assert.IsTrue(installPage.IndexOf("https://wordpress.org/", StringComparison.Ordinal) != -1);
+        Assert.AreEqual(1, svc.Hosts.Count); // The host used by compose
+        Assert.AreEqual(2, svc.Containers.Count); // We can access each individual container
+        Assert.AreEqual(2, svc.Images.Count); // And the images used.
+      }
+```
 
 **Note for Linux Users:** _Docker requires _sudo_ by default and the library by default expects that executing user do not
 need to do _sudo_ in order to talk to the docker daemon. If you wish to have it on, please use the experimental 
