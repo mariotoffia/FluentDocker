@@ -128,6 +128,11 @@ namespace Ductus.FluentDocker.Builders
       return this;
     }
 
+    public ContainerBuilder IsPrivileged()
+    {
+      _config.CreateParams.Privileged = true;
+      return this;
+    }
     public ContainerBuilder WithEnvironment(params string[] nameValue)
     {
       _config.CreateParams.Environment = nameValue;

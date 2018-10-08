@@ -37,7 +37,7 @@ namespace Ductus.FluentDocker.Builders
 
     public ComposeServiceBuilder Restart(RestartPolicy policy)
     {
-      _config.RestartPolicy = policy;
+      _config.Restart = policy;
       return this;
     }
 
@@ -81,7 +81,7 @@ namespace Ductus.FluentDocker.Builders
     {
       if (null == services || 0 == services.Length) return this;
       
-      ((List<string>)_config.Dependencies).AddRange(services);
+      ((List<string>)_config.DependsOn).AddRange(services);
       return this;
     }
 
