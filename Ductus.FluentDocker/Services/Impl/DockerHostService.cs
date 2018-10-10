@@ -172,8 +172,7 @@ namespace Ductus.FluentDocker.Services.Impl
         throw new FluentDockerException(
           $"Could not return service for docker id {res.Data} - Container was created, you have to manually delete it or do a Ls");
 
-      return new DockerContainerService(config.Data.Name.Substring(1), res.Data, Host,
-        config.Data.State.ToServiceState(),
+      return new DockerContainerService(config.Data.Name, res.Data, Host, config.Data.State.ToServiceState(),
         Certificates, stopOnDispose, deleteOnDispose, deleteVolumeOnDispose, deleteNamedVolumeOnDispose,
         _isWindowsHost);
     }

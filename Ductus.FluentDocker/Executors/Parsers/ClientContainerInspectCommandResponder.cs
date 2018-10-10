@@ -33,10 +33,16 @@ namespace Ductus.FluentDocker.Executors.Parsers
       var container = sb.ToString();
       var obj = JsonConvert.DeserializeObject<Container>(container);
 
-      if (!string.IsNullOrEmpty(obj.Name) && obj.Name.StartsWith("/")) obj.Name = obj.Name.Substring(1);
+      obj.Name = TrimIfBeginsWithSlash(obj.Name);      
       
       Response = response.ToResponse(true, string.Empty, obj);
       return this;
+    }
+
+    private static string TrimIfBeginsWithSlash(string name)
+    {
+      if (!string.IsNullOrEmpty(name) && name.StartsWith("/")) return name.Substring(1);
+      return name;
     }
   }
 }

@@ -73,6 +73,24 @@ namespace Ductus.FluentDocker.Tests.ServiceTests
     }
 
     [TestMethod]
+    public void Issue_69_Container_name_lost_first_char()
+    {
+      // ReSharper disable once InconsistentNaming
+      using (var container_x = _host.Create("nginx:1.13.6-alpine", prms: new ContainerCreateParams
+      {
+        Privileged = true,
+        Name = "container_X",
+        Interactive = true,
+        Tty = true
+      }))
+      {
+        Assert.AreEqual("container_X", container_x.Name);
+      }
+
+    }
+
+
+    [TestMethod]
     public void CreateAndStartContainerWithEnvironment()
     {
       using (var container = _host.Create("postgres:9.6-alpine",
