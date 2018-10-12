@@ -55,35 +55,6 @@ need to do _sudo_ in order to talk to the docker daemon. If you wish to have it 
 If you wish to turn off _sudo_ to communicate with the docker daemon, you can follow a docker tutorial at 
 https://docs.docker.com/install/linux/docker-ce/ubuntu/ and do the last step of adding your user to docker group._
 
-**Important Note** When a unhandled exception occurs so the application _FailFast_ i.e. terminates quickly it
-will *not* invoke ```finally``` clause. Thus a failing ```WaitForPort``` inside a ```using``` statement will not 
-dispose the container service. Therefore the container is is still running. To fix this, either have a global 
-try...catch or inject one locally e.g.
-```cs
-            try
-            {
-                using (
-                    var container =
-                        new Builder().UseContainer()
-                            .UseImage("postgres:9.6-alpine")
-                            .ExposePort(5432)
-                            .WithEnvironment("POSTGRES_PASSWORD=postgres")
-                            .WaitForPort("5777/tcp", 10000)
-                            .Build())
-                {
-                    container.Start();
-                }
-            } catch
-            {
-                throw;
-            }
-```
-But it this is only when application termination is done due to the ```FluentDockerException``` thrown in the
-```WaitForPort```, otherwise it will dispose the container properly and thus the ```try...catch``` is not needed.
-
-This may not be refelected in the samples below due to they concentrates on the essential. But please have this
-in mind.
-
 The fluent _API_ builds up one or more services. Each service may be composite or singular. Therefore it is possible
 to e.g. fire up several _docker-compose_ based services and manage each of them as a single service or dig in and use
 all underlying services on each _docker-compose_ service. It is also possible to use services directly e.g.
@@ -842,3 +813,28 @@ If a before shutdown container hook is wanted override.
 Note that if unamed container, if not properly disposed, the docker container will still run and must be manually removed. This is a feature not a bug since you might want several containers running in your test. The `DockerContainer` class manages the instance id of the container and thus only intract with it and no other container.
 
 When creating / starting a new container it will first check the local repository if the container image is already present and will download it if not found. This may take some time and there's just a Debug Log if enabled it is possible to monitor the download process.
+
+## Miscellanious
+
+### Unhandled Exceptions
+When a unhandled exception occurs and the application _FailFast_ i.e. terminates quickly it
+will *not* invoke ```finally``` clause. Thus a failing ```WaitForPort``` inside a ```using``` statement will *not* 
+dispose the container service. Therefore the container is is still running. To fix this, either have a global 
+try...catch or inject one locally e.g.
+```cs
+            try
+            {
+                using (var container =
+                        new Builder().UseContainer()
+                            .UseImage("postgres:9.6-alpine")
+                            .ExposePort(5432)
+                            .WithEnvironment("POSTGRES_PASSWORD=postgres")
+                            .WaitForPort("5777/tcp", 10000) // Fail here since 5777 is not valid port
+                            .Build())
+                {
+                    container.Start(); // FluentDockerException is thrown here since WaitForPort is executed
+                }
+            } catch { throw; }
+```
+But it this is only when application termination is done due to the ```FluentDockerException``` thrown in the
+```WaitForPort```, otherwise it will dispose the container properly and thus the ```try...catch``` is not needed.
