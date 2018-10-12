@@ -86,9 +86,7 @@ namespace Ductus.FluentDocker.Tests.ServiceTests
       {
         Assert.AreEqual("container_X", container_x.Name);
       }
-
     }
-
 
     [TestMethod]
     public void CreateAndStartContainerWithEnvironment()

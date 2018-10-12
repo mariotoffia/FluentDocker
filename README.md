@@ -838,3 +838,70 @@ try...catch or inject one locally e.g.
 ```
 But it this is only when application termination is done due to the ```FluentDockerException``` thrown in the
 ```WaitForPort```, otherwise it will dispose the container properly and thus the ```try...catch``` is not needed.
+
+This could also be solved using the ```Fd.Build``` functions (_see Using Builder Extensions_ for more information).
+
+### Using Builder Extensions
+The class ```Fd``` is a static _class_ that provides convenience methods for building and running single
+and composed containers. To build a container juse use:
+```cs
+    var build = Fd.Build(c => c.UseContainer()
+                    .UseImage("postgres:9.6-alpine")
+                    .ExposePort(5432)
+                    .WithEnvironment("POSTGRES_PASSWORD=mysecretpassword")
+                    .WaitForPort("5432/tcp", TimeSpan.FromSeconds(30)));
+
+// This is the equivalent of
+    var build = new Builder().UseContainer()
+                             .UseImage("postgres:9.6-alpine")
+                             .ExposePort(5432)
+                             .WithEnvironment("POSTGRES_PASSWORD=mysecretpassword")
+                             .WaitForPort("5432/tcp", TimeSpan.FromSeconds(30));
+```
+This can then be used to start the containers within a _safe_ ```using``` clause that is **guaranteed** to be
+disposed even if uncaught exception.
+```cs
+    build.Container(svc =>
+    {
+        var config = svc.GetConfiguration();
+        // Do stuff...
+    });   
+```
+After the ```Container``` method has been runned the container is in this case stopped and removed. This is
+equivalent of
+```cs
+   // This is eqvivualent of
+    try
+    {
+        using(var svc = build.Build()) 
+        {
+            svc.Start();
+            
+            var config = svc.GetConfiguration();
+            // Do stuff...            
+        }
+    }
+    catch
+    {
+        Log(...);
+        throw;
+    }
+```
+
+
+It is also possible to combine builder and running e.g. via:
+```cs
+      Fd.Container(c => c.UseContainer()
+          .UseImage("postgres:9.6-alpine")
+          .ExposePort(5432)
+          .WithEnvironment("POSTGRES_PASSWORD=mysecretpassword")
+          .WaitForPort("5432/tcp", TimeSpan.FromSeconds(30)),
+        svc =>
+        {
+          var config = svc.GetConfiguration();
+          // Do stuff...
+        });
+```
+The above example will build the container, start, stop, and finally delete the container. Even if and
+```Exception``` is thrown it will be ```Disposed```. Of course it is possible to use compsed container using 
+```composite``` extension methods as with ```container```.

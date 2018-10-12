@@ -1,8 +1,11 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
+using System.ComponentModel;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using Ductus.FluentDocker.Builders;
+using Ductus.FluentDocker.Common;
 using Ductus.FluentDocker.Extensions;
 using Ductus.FluentDocker.Model.Builders;
 using Ductus.FluentDocker.Model.Common;
@@ -11,6 +14,7 @@ using Ductus.FluentDocker.Services;
 using Ductus.FluentDocker.Services.Extensions;
 using Ductus.FluentDocker.Tests.Extensions;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
+using static Microsoft.VisualStudio.TestTools.UnitTesting.Assert;
 
 namespace Ductus.FluentDocker.Tests.FluentApiTests
 {
@@ -33,12 +37,45 @@ namespace Ductus.FluentDocker.Tests.FluentApiTests
             .WithEnvironment("POSTGRES_PASSWORD=mysecretpassword")
             .Build())
       {
-        Assert.AreEqual(ServiceRunningState.Stopped, container.State);
+        AreEqual(ServiceRunningState.Stopped, container.State);
       }
     }
 
     [TestMethod]
-    public void BuildAndStartContainerWithKeepContainerWillLeaveContainerInArchve()
+    public void UseStaticBuilderWillAlwaysRunDisposeOnContainer()
+    {
+      Fd.Container(c => c.UseContainer()
+          .UseImage("postgres:9.6-alpine")
+          .ExposePort(5432)
+          .WithEnvironment("POSTGRES_PASSWORD=mysecretpassword")
+          .WaitForPort("5432/tcp", TimeSpan.FromSeconds(30)),
+        svc =>
+        {
+          var config = svc.GetConfiguration();
+          AreEqual(ServiceRunningState.Running, svc.State);
+          IsTrue(config.Config.Env.Any(x => x == "POSTGRES_PASSWORD=mysecretpassword"));
+        });
+    }
+
+    [TestMethod]
+    public void UseStaticBuilderAsExtension()
+    {
+      var build = Fd.Build(c => c.UseContainer()
+        .UseImage("postgres:9.6-alpine")
+        .ExposePort(5432)
+        .WithEnvironment("POSTGRES_PASSWORD=mysecretpassword")
+        .WaitForPort("5432/tcp", TimeSpan.FromSeconds(30)));
+
+      build.Container(svc =>
+      {
+        var config = svc.GetConfiguration();
+        AreEqual(ServiceRunningState.Running, svc.State);
+        IsTrue(config.Config.Env.Any(x => x == "POSTGRES_PASSWORD=mysecretpassword"));
+      });
+    }
+
+    [TestMethod]
+    public void BuildAndStartContainerWithKeepContainerWillLeaveContainerInArchive()
     {
       string id;
       using (
@@ -51,7 +88,7 @@ namespace Ductus.FluentDocker.Tests.FluentApiTests
             .Start())
       {
         id = container.Id;
-        Assert.IsNotNull(id);
+        IsNotNull(id);
       }
 
       // We shall have the container as stopped by now.
@@ -61,7 +98,7 @@ namespace Ductus.FluentDocker.Tests.FluentApiTests
           .Select(host => host.GetContainers().FirstOrDefault(x => x.Id == id))
           .FirstOrDefault(container => null != container);
 
-      Assert.IsNotNull(cont);
+      IsNotNull(cont);
       cont.Remove(true);
     }
 
@@ -78,8 +115,8 @@ namespace Ductus.FluentDocker.Tests.FluentApiTests
       {
         var config = container.GetConfiguration();
 
-        Assert.AreEqual(ServiceRunningState.Running, container.State);
-        Assert.IsTrue(config.Config.Env.Any(x => x == "POSTGRES_PASSWORD=mysecretpassword"));
+        AreEqual(ServiceRunningState.Running, container.State);
+        IsTrue(config.Config.Env.Any(x => x == "POSTGRES_PASSWORD=mysecretpassword"));
       }
     }
 
@@ -96,7 +133,7 @@ namespace Ductus.FluentDocker.Tests.FluentApiTests
             .Start())
       {
         var endpoint = container.ToHostExposedEndpoint("5432/tcp");
-        Assert.AreEqual(40001, endpoint.Port);
+        AreEqual(40001, endpoint.Port);
       }
     }
 
@@ -113,7 +150,7 @@ namespace Ductus.FluentDocker.Tests.FluentApiTests
             .Start())
       {
         var endpoint = container.ToHostExposedEndpoint("5432/tcp");
-        Assert.AreNotEqual(0, endpoint.Port);
+        AreNotEqual(0, endpoint.Port);
       }
     }
 
@@ -131,7 +168,7 @@ namespace Ductus.FluentDocker.Tests.FluentApiTests
             .Start())
       {
         var config = container.GetConfiguration(true);
-        Assert.AreEqual(ServiceRunningState.Running, config.State.ToServiceState());
+        AreEqual(ServiceRunningState.Running, config.State.ToServiceState());
       }
     }
 
@@ -149,7 +186,7 @@ namespace Ductus.FluentDocker.Tests.FluentApiTests
             .Start())
       {
         var config = container.GetConfiguration(true);
-        Assert.AreEqual(ServiceRunningState.Running, config.State.ToServiceState());
+        AreEqual(ServiceRunningState.Running, config.State.ToServiceState());
       }
     }
 
@@ -170,14 +207,14 @@ namespace Ductus.FluentDocker.Tests.FluentApiTests
             .Start()
             .WaitForPort("80/tcp", 30000 /*30s*/))
       {
-        Assert.AreEqual(ServiceRunningState.Running, container.State);
+        AreEqual(ServiceRunningState.Running, container.State);
 
         try
         {
           File.WriteAllText(Path.Combine(hostPath, "hello.html"), html);
 
           var response = await $"http://{container.ToHostExposedEndpoint("80/tcp")}/hello.html".Wget();
-          Assert.AreEqual(html, response);
+          AreEqual(html, response);
         }
         finally
         {
@@ -206,14 +243,14 @@ namespace Ductus.FluentDocker.Tests.FluentApiTests
             .Start()
             .WaitForPort("80/tcp", 30000 /*30s*/))
       {
-        Assert.AreEqual(ServiceRunningState.Running, container.State);
+        AreEqual(ServiceRunningState.Running, container.State);
 
         try
         {
           File.WriteAllText(Path.Combine(hostPath, "hello.html"), html);
 
           var response = await $"http://{container.ToHostExposedEndpoint("80/tcp")}/hello.html".Wget();
-          Assert.AreEqual(html, response);
+          AreEqual(html, response);
         }
         finally
         {
@@ -241,7 +278,7 @@ namespace Ductus.FluentDocker.Tests.FluentApiTests
           .CopyFrom("/", fullPath))
         {
           var files = Directory.EnumerateFiles(fullPath).ToArray();
-          Assert.IsTrue(files.Any(x => x.EndsWith(".dockerenv")));
+          IsTrue(files.Any(x => x.EndsWith(".dockerenv")));
         }
       }
       finally
@@ -271,7 +308,7 @@ namespace Ductus.FluentDocker.Tests.FluentApiTests
         }
 
         var files = Directory.EnumerateFiles(fullPath).ToArray();
-        Assert.IsTrue(files.Any(x => x.EndsWith(".dockerenv")));
+        IsTrue(files.Any(x => x.EndsWith(".dockerenv")));
       }
       finally
       {
@@ -300,7 +337,7 @@ namespace Ductus.FluentDocker.Tests.FluentApiTests
         {
         }
 
-        Assert.IsTrue(File.Exists(fullPath));
+        IsTrue(File.Exists(fullPath));
       }
       finally
       {
@@ -329,10 +366,10 @@ namespace Ductus.FluentDocker.Tests.FluentApiTests
         {
         }
 
-        Assert.IsTrue(Directory.Exists(fullPath));
+        IsTrue(Directory.Exists(fullPath));
 
         var files = Directory.GetFiles(fullPath).ToArray();
-        Assert.IsTrue(files.Any(x => x.Contains("docker-entrypoint.sh")));
+        IsTrue(files.Any(x => x.Contains("docker-entrypoint.sh")));
       }
       finally
       {
@@ -367,7 +404,7 @@ namespace Ductus.FluentDocker.Tests.FluentApiTests
           failure = true;
         }
 
-        Assert.IsTrue(File.Exists(fullPath));
+        IsTrue(File.Exists(fullPath));
       }
       finally
       {
@@ -405,8 +442,8 @@ namespace Ductus.FluentDocker.Tests.FluentApiTests
         {
           var after = container.Diff();
 
-          Assert.IsFalse(before.Any(x => x.Item == "/bin/hello.html"));
-          Assert.IsTrue(after.Any(x => x.Item == "/bin/hello.html"));
+          IsFalse(before.Any(x => x.Item == "/bin/hello.html"));
+          IsTrue(after.Any(x => x.Item == "/bin/hello.html"));
         }
       }
       finally

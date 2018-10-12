@@ -338,6 +338,23 @@ namespace Ductus.FluentDocker.Builders
       return this;
     }
 
+    public ContainerBuilder WaitForPort(string portAndProto, double millisTimeout = double.MaxValue)
+    {
+      if (millisTimeout >= long.MaxValue)
+        millisTimeout = long.MaxValue;
+      
+      _config.WaitForPort = new Tuple<string, long>(portAndProto, Convert.ToInt64(millisTimeout));
+      return this;
+    }
+
+    public ContainerBuilder WaitForPort(string portAndProto, TimeSpan timeout = default(TimeSpan))
+    {
+      if (timeout == default(TimeSpan)) timeout = TimeSpan.FromMilliseconds(long.MaxValue);
+
+      _config.WaitForPort = new Tuple<string, long>(portAndProto, Convert.ToInt64(timeout.TotalMilliseconds));
+      return this;
+    }
+
     public ContainerBuilder WaitForPort(string portAndProto, long millisTimeout = long.MaxValue)
     {
       _config.WaitForPort = new Tuple<string, long>(portAndProto, millisTimeout);
