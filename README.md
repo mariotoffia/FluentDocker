@@ -55,6 +55,34 @@ need to do _sudo_ in order to talk to the docker daemon. If you wish to have it 
 If you wish to turn off _sudo_ to communicate with the docker daemon, you can follow a docker tutorial at 
 https://docs.docker.com/install/linux/docker-ce/ubuntu/ and do the last step of adding your user to docker group._
 
+**Important Note** When a unhandled exception occurs so the application _FailFast_ i.e. terminates quickly it
+will *not* invoke ```finally``` clause. Thus a failing ```WaitForPort``` inside a ```using``` statement will not 
+dispose the container service. Therefore the container is is still running. To fix this, either have a global 
+try...catch or inject one locally e.g.
+```cs
+            try
+            {
+                using (
+                    var container =
+                        new Builder().UseContainer()
+                            .UseImage("postgres:9.6-alpine")
+                            .ExposePort(5432)
+                            .WithEnvironment("POSTGRES_PASSWORD=postgres")
+                            .WaitForPort("5777/tcp", 10000)
+                            .Build())
+                {
+                    container.Start();
+                }
+            } catch
+            {
+                throw;
+            }
+```
+But it this is only when application termination is done due to the ```FluentDockerException``` thrown in the
+```WaitForPort```, otherwise it will dispose the container properly and thus the ```try...catch``` is not needed.
+
+This may not be refelected in the samples below due to they concentrates on the essential. But please have this
+in mind.
 
 The fluent _API_ builds up one or more services. Each service may be composite or singular. Therefore it is possible
 to e.g. fire up several _docker-compose_ based services and manage each of them as a single service or dig in and use
