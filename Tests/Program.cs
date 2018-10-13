@@ -1,12 +1,9 @@
 ﻿using Ductus.FluentDocker.Builders;
 using Ductus.FluentDocker.Extensions;
-using Ductus.FluentDocker.Model.Builders;
-using Ductus.FluentDocker.Model.Common;
-using Ductus.FluentDocker.Model.Containers;
 using Ductus.FluentDocker.Services;
-using Ductus.FluentDocker.Services.Extensions;
 using System;
 using System.Diagnostics;
+using Ductus.FluentDocker.Executors;
 
 namespace Tests
 {
@@ -18,16 +15,12 @@ namespace Tests
             //SudoMechanism.NoPassword.SetSudo();
             //SudoMechanism.None.SetSudo();
             //RunPs();
-            RunPsCloneStdOut();
+            //RunPsCloneStdOut();
             //RunContainer();
         }
+        // https://docs.microsoft.com/en-us/dotnet/standard/exceptions/how-to-use-finally-blocks
+        
         // http://csharptest.net/532/using-processstart-to-capture-console-output/index.html
-        static void RunPsCloneStdOut()
-        {
-            ProcessExecutor.Run(s => Console.WriteLine(s), null,
-                @"C:\windows\system32\windowspowershell\v1.0\powershell.exe"/*, "-NoLogo -NoExit -Command docker ps"*/);            
-            
-        }
         static void RunPs()
         {
             var process = new Process()

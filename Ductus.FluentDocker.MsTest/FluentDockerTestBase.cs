@@ -19,7 +19,7 @@ namespace Ductus.FluentDocker.MsTest
       {
         Container.Start();
       }
-      catch (Exception)
+      catch
       {
         Container.Dispose();
         throw;
@@ -29,7 +29,7 @@ namespace Ductus.FluentDocker.MsTest
     }
 
     [TestCleanup]
-    public void TeardownPostgres()
+    public void TeardownContainer()
     {
       OnContainerTearDown();
 
@@ -39,7 +39,7 @@ namespace Ductus.FluentDocker.MsTest
       {
         c?.Dispose();
       }
-      catch (Exception)
+      catch
       {
         // Ignore
       }

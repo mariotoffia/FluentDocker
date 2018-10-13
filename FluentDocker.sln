@@ -19,6 +19,10 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Ductus.FluentDocker.Tests",
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Tests", "Tests\Tests.csproj", "{2840F9EE-DC65-40A8-8E11-6DF4585DE4B4}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FluentDocker.Features.Elk", "FluentDocker.Features\FluentDocker.Features.Elk\FluentDocker.Features.Elk.csproj", "{B2F4EA39-3DFB-422E-B6CA-A7DD35F38FF4}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Features", "Features", "{E950CBF3-37F5-442C-9AC4-1294A5AB9E80}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -41,11 +45,16 @@ Global
 		{2840F9EE-DC65-40A8-8E11-6DF4585DE4B4}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{2840F9EE-DC65-40A8-8E11-6DF4585DE4B4}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{2840F9EE-DC65-40A8-8E11-6DF4585DE4B4}.Release|Any CPU.Build.0 = Release|Any CPU
+		{B2F4EA39-3DFB-422E-B6CA-A7DD35F38FF4}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B2F4EA39-3DFB-422E-B6CA-A7DD35F38FF4}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B2F4EA39-3DFB-422E-B6CA-A7DD35F38FF4}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B2F4EA39-3DFB-422E-B6CA-A7DD35F38FF4}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
+		{B2F4EA39-3DFB-422E-B6CA-A7DD35F38FF4} = {E950CBF3-37F5-442C-9AC4-1294A5AB9E80}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {E5379AC0-CB30-46F7-B995-C515FA19102D}
