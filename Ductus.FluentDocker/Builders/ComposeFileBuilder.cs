@@ -55,30 +55,44 @@ namespace Ductus.FluentDocker.Builders
           container.AddHook(ServiceRunningState.Starting,
             service =>
             {
-              foreach (var copy in config.CpToOnStart)
-                Resolve(config.Name)?.CopyTo(copy.Item2, copy.Item1);
+              Fd.DisposeOnException(svc =>
+              {
+                foreach (var copy in config.CpToOnStart)
+                  Resolve(config.Name)?.CopyTo(copy.Item2, copy.Item1);
+              }, service, "Copy on Start");
             });
 
         // Wait for port when started
         if (null != config.WaitForPort)
           container.AddHook(ServiceRunningState.Running,
-            service => { Resolve(config.Name)?.WaitForPort(config.WaitForPort.Item1, config.WaitForPort.Item2); });
+            service =>
+            {
+              Fd.DisposeOnException(svc =>
+                  Resolve(config.Name)?.WaitForPort(config.WaitForPort.Item1, config.WaitForPort.Item2), service,
+                "Wait for Port");
+            });
 
         // Wait for http when started
         if (null != config.WaitForHttp && 0 != config.WaitForHttp.Count)
           container.AddHook(ServiceRunningState.Running, service =>
           {
-            foreach (var prm in config.WaitForHttp)
-              Resolve(config.Name)?.WaitForHttp(prm.Url, prm.Timeout, prm.Continuation, prm.Method, prm.ContentType,
-                prm.Body);
+            Fd.DisposeOnException(svc =>
+            {
+              foreach (var prm in config.WaitForHttp)
+                Resolve(config.Name)?.WaitForHttp(prm.Url, prm.Timeout, prm.Continuation, prm.Method, prm.ContentType,
+                  prm.Body);
+            }, service, "Wait for HTTP");
           });
 
         // Wait for lambda when started
         if (null != config.WaitLambda && 0 != config.WaitLambda.Count)
           container.AddHook(ServiceRunningState.Running, service =>
           {
-            foreach (var continuation in config.WaitLambda)
-              Resolve(config.Name)?.Wait(continuation);
+            Fd.DisposeOnException(svc =>
+            {
+              foreach (var continuation in config.WaitLambda)
+                Resolve(config.Name)?.Wait(continuation);
+            }, service, "Wait for Lambda");
           });
 
         // Wait for process when started
@@ -86,56 +100,70 @@ namespace Ductus.FluentDocker.Builders
           container.AddHook(ServiceRunningState.Running,
             service =>
             {
-              Resolve(config.Name)?.WaitForProcess(config.WaitForProcess.Item1, config.WaitForProcess.Item2);
+              Fd.DisposeOnException(svc =>
+                  Resolve(config.Name)?.WaitForProcess(config.WaitForProcess.Item1, config.WaitForProcess.Item2),
+                service, "Wait for Process");
             });
 
         // docker execute on running
         if (null != config.ExecuteOnRunningArguments && config.ExecuteOnRunningArguments.Count > 0)
           container.AddHook(ServiceRunningState.Running, service =>
           {
-            var svc = Resolve(config.Name);
-            if (null == svc) return;
-
-            foreach (var binaryAndArguments in config.ExecuteOnRunningArguments)
+            Fd.DisposeOnException(svc =>
             {
-              var result = svc.DockerHost.Execute(svc.Id, binaryAndArguments, svc.Certificates);
-              if (!result.Success)
-                throw new FluentDockerException($"Failed to execute {binaryAndArguments} error: {result.Error}");
-            }
+              var csvc = Resolve(config.Name);
+              if (null == csvc) return;
+
+              foreach (var binaryAndArguments in config.ExecuteOnRunningArguments)
+              {
+                var result = csvc.DockerHost.Execute(csvc.Id, binaryAndArguments, csvc.Certificates);
+                if (!result.Success)
+                  throw new FluentDockerException($"Failed to execute {binaryAndArguments} error: {result.Error}");
+              }
+            }, service, "Execute on Running Argument");
           });
 
         // Copy files / folders on dispose
         if (null != config.CpFromOnDispose && 0 != config.CpFromOnDispose.Count)
           container.AddHook(ServiceRunningState.Removing, service =>
           {
-            foreach (var copy in config.CpFromOnDispose)
-              Resolve(config.Name)?.CopyFrom(copy.Item2, copy.Item1);
+            Fd.DisposeOnException(svc =>
+            {
+              foreach (var copy in config.CpFromOnDispose)
+                Resolve(config.Name)?.CopyFrom(copy.Item2, copy.Item1);
+            }, service, "Copy from on Dispose");
           });
 
         // docker execute when disposing
         if (null != config.ExecuteOnDisposingArguments && config.ExecuteOnDisposingArguments.Count > 0)
           container.AddHook(ServiceRunningState.Removing, service =>
           {
-            var svc = Resolve(config.Name);
-            if (null == svc) return;
-
-            foreach (var binaryAndArguments in config.ExecuteOnDisposingArguments)
+            Fd.DisposeOnException(svc =>
             {
-              var result = svc.DockerHost.Execute(svc.Id, binaryAndArguments, svc.Certificates);
-              if (!result.Success)
-                throw new FluentDockerException($"Failed to execute {binaryAndArguments} error: {result.Error}");
-            }
+              var csvc = Resolve(config.Name);
+              if (null == svc) return;
+
+              foreach (var binaryAndArguments in config.ExecuteOnDisposingArguments)
+              {
+                var result = csvc.DockerHost.Execute(csvc.Id, binaryAndArguments, csvc.Certificates);
+                if (!result.Success)
+                  throw new FluentDockerException($"Failed to execute {binaryAndArguments} error: {result.Error}");
+              }
+            }, service, "Execute on Disposing Argument");
           });
 
         // Export container on dispose
         if (null != config.ExportOnDispose)
           container.AddHook(ServiceRunningState.Removing, service =>
           {
-            var svc = Resolve(config.Name);
-            if (null == svc) return;
+            Fd.DisposeOnException(svc =>
+            {
+              var csvc = Resolve(config.Name);
+              if (null == csvc) return;
 
-            if (config.ExportOnDispose.Item3(svc))
-              svc.Export(config.ExportOnDispose.Item1, config.ExportOnDispose.Item2);
+              if (config.ExportOnDispose.Item3(csvc))
+                csvc.Export(config.ExportOnDispose.Item1, config.ExportOnDispose.Item2);
+            }, service, "Export on Dispose");
           });
       }
     }

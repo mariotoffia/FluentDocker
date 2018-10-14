@@ -1,8 +1,9 @@
 using System;
+using Ductus.FluentDocker.Builders;
 using Ductus.FluentDocker.Common;
 using Ductus.FluentDocker.Services;
 
-namespace Ductus.FluentDocker.Builders
+namespace Ductus.FluentDocker
 {
   public static class Fd
   {
@@ -18,7 +19,7 @@ namespace Ductus.FluentDocker.Builders
       }
       catch
       {
-        if (null != name) Logger.Log($"Failed to build / run {name}");
+        if (null != name) Logger.Log($"Failed to run service {name}");
         throw;
       }      
     }
@@ -69,6 +70,22 @@ namespace Ductus.FluentDocker.Builders
       catch
       {
         Logger.Log($"Failed to build");
+        throw;
+      }
+    }
+
+    internal static void DisposeOnException<T>(Action<T> action, T service, string name = null) where T : IService
+    {
+      if (null == name) name = "n/a";
+      
+      try
+      {
+        action.Invoke(service);
+      }
+      catch
+      {
+        Logger.Log($"Failed to run action for {name} disposing service {service.Name}");
+        service.Dispose();
         throw;
       }
     }

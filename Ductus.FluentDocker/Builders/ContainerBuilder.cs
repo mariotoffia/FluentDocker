@@ -450,8 +450,11 @@ namespace Ductus.FluentDocker.Builders
         container.AddHook(ServiceRunningState.Starting,
           service =>
           {
-            foreach (var copy in _config.CpToOnStart)
-              ((IContainerService) service).CopyTo(copy.Item2, copy.Item1);
+            Fd.DisposeOnException(svc =>
+            {
+              foreach (var copy in _config.CpToOnStart)
+                ((IContainerService) service).CopyTo(copy.Item2, copy.Item1);
+            }, service, "Copy on start");
           });
 
       // Wait for port when started
@@ -459,25 +462,33 @@ namespace Ductus.FluentDocker.Builders
         container.AddHook(ServiceRunningState.Running,
           service =>
           {
-            ((IContainerService) service).WaitForPort(_config.WaitForPort.Item1, _config.WaitForPort.Item2);
+            Fd.DisposeOnException(svc =>
+                ((IContainerService) service).WaitForPort(_config.WaitForPort.Item1, _config.WaitForPort.Item2),
+              service, "Wait for port");
           });
 
       // Wait for http when started
       if (null != _config.WaitForHttp && 0 != _config.WaitForHttp.Count)
         container.AddHook(ServiceRunningState.Running, service =>
         {
-          foreach (var prm in _config.WaitForHttp)
-            ((IContainerService) service).WaitForHttp(prm.Url, prm.Timeout, prm.Continuation, prm.Method,
-              prm.ContentType,
-              prm.Body);
+          Fd.DisposeOnException(svc =>
+          {
+            foreach (var prm in _config.WaitForHttp)
+              ((IContainerService) service).WaitForHttp(prm.Url, prm.Timeout, prm.Continuation, prm.Method,
+                prm.ContentType,
+                prm.Body);
+          }, service, "Wait for HTTP");
         });
 
       // Wait for lambda when started
       if (null != _config.WaitLambda && 0 != _config.WaitLambda.Count)
         container.AddHook(ServiceRunningState.Running, service =>
         {
-          foreach (var continuation in _config.WaitLambda)
-            ((IContainerService) service).Wait(continuation);
+          Fd.DisposeOnException(src =>
+          {
+            foreach (var continuation in _config.WaitLambda)
+              ((IContainerService) service).Wait(continuation);
+          }, service, "Wait for lambda");
         });
 
 
@@ -486,51 +497,66 @@ namespace Ductus.FluentDocker.Builders
         container.AddHook(ServiceRunningState.Running,
           service =>
           {
-            ((IContainerService) service).WaitForProcess(_config.WaitForProcess.Item1, _config.WaitForProcess.Item2);
+            Fd.DisposeOnException(src =>
+                ((IContainerService) service).WaitForProcess(_config.WaitForProcess.Item1,
+                  _config.WaitForProcess.Item2),
+              service, "Wait for process");
           });
 
       // docker execute on running
       if (null != _config.ExecuteOnRunningArguments && _config.ExecuteOnRunningArguments.Count > 0)
         container.AddHook(ServiceRunningState.Running, service =>
         {
-          var svc = (IContainerService) service;
-          foreach (var binaryAndArguments in _config.ExecuteOnRunningArguments)
+          Fd.DisposeOnException(svc =>
           {
-            var result = svc.DockerHost.Execute(svc.Id, binaryAndArguments, svc.Certificates);
-            if (!result.Success)
-              throw new FluentDockerException($"Failed to execute {binaryAndArguments} error: {result.Error}");
-          }
+            var csvc = (IContainerService) service;
+            foreach (var binaryAndArguments in _config.ExecuteOnRunningArguments)
+            {
+              var result = csvc.DockerHost.Execute(csvc.Id, binaryAndArguments, csvc.Certificates);
+              if (!result.Success)
+                throw new FluentDockerException($"Failed to execute {binaryAndArguments} error: {result.Error}");
+            }
+          }, service, "Execute On Running Arguments");
         });
 
       // Copy files / folders on dispose
       if (null != _config.CpFromOnDispose && 0 != _config.CpFromOnDispose.Count)
         container.AddHook(ServiceRunningState.Removing, service =>
         {
-          foreach (var copy in _config.CpFromOnDispose)
-            ((IContainerService) service).CopyFrom(copy.Item2, copy.Item1);
+          Fd.DisposeOnException(svc =>
+          {
+            foreach (var copy in _config.CpFromOnDispose)
+              ((IContainerService) service).CopyFrom(copy.Item2, copy.Item1);
+          }, service, "Copy From on Dispose");
         });
 
       // docker execute when disposing
       if (null != _config.ExecuteOnDisposingArguments && _config.ExecuteOnDisposingArguments.Count > 0)
         container.AddHook(ServiceRunningState.Removing, service =>
         {
-          var svc = (IContainerService) service;
-          foreach (var binaryAndArguments in _config.ExecuteOnDisposingArguments)
+          Fd.DisposeOnException(svc =>
           {
-            var result = svc.DockerHost.Execute(svc.Id, binaryAndArguments, svc.Certificates);
-            if (!result.Success)
-              throw new FluentDockerException($"Failed to execute {binaryAndArguments} error: {result.Error}");
-          }
+            var csvc = (IContainerService) service;
+            foreach (var binaryAndArguments in _config.ExecuteOnDisposingArguments)
+            {
+              var result = csvc.DockerHost.Execute(csvc.Id, binaryAndArguments, csvc.Certificates);
+              if (!result.Success)
+                throw new FluentDockerException($"Failed to execute {binaryAndArguments} error: {result.Error}");
+            }
+          }, service, "Execute On Disposing Argument");
         });
 
       // Export container on dispose
       if (null != _config.ExportOnDispose)
         container.AddHook(ServiceRunningState.Removing, service =>
         {
-          var svc = (IContainerService) service;
-          if (_config.ExportOnDispose.Item3(svc))
-            svc.Export(_config.ExportOnDispose.Item1,
-              _config.ExportOnDispose.Item2);
+          Fd.DisposeOnException(svc =>
+          {
+            var csvc = (IContainerService) service;
+            if (_config.ExportOnDispose.Item3(csvc))
+              csvc.Export(_config.ExportOnDispose.Item1,
+                _config.ExportOnDispose.Item2);
+          }, service, "Export on Dispose");
         });
     }
 
