@@ -1,5 +1,4 @@
-﻿using Ductus.FluentDocker.Builders;
-using Ductus.FluentDocker.Tests.Extensions;
+﻿using Ductus.FluentDocker.Tests.Extensions;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace Ductus.FluentDocker.Tests.FluentApiTests
@@ -19,7 +18,7 @@ namespace Ductus.FluentDocker.Tests.FluentApiTests
     {
       using (
         var image =
-          new Builder().DefineImage("mariotoffia/unittest:latest")
+          Fd.DefineImage("mariotoffia/unittest:latest")
             .From("ubuntu:14.04")
             .Maintainer("Mario Toffia <mario.toffia@gmail.com>")
               .Run("apt-get update")

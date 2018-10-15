@@ -1,15 +1,10 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.ComponentModel;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
-using Ductus.FluentDocker.Builders;
-using Ductus.FluentDocker.Common;
 using Ductus.FluentDocker.Extensions;
 using Ductus.FluentDocker.Model.Builders;
 using Ductus.FluentDocker.Model.Common;
-using Ductus.FluentDocker.Model.Containers;
 using Ductus.FluentDocker.Services;
 using Ductus.FluentDocker.Services.Extensions;
 using Ductus.FluentDocker.Tests.Extensions;
@@ -32,7 +27,7 @@ namespace Ductus.FluentDocker.Tests.FluentApiTests
     {
       using (
         var container =
-          new Builder().UseContainer()
+          Fd.UseContainer()
             .UseImage("postgres:9.6-alpine")
             .WithEnvironment("POSTGRES_PASSWORD=mysecretpassword")
             .Build())
@@ -60,11 +55,11 @@ namespace Ductus.FluentDocker.Tests.FluentApiTests
     [TestMethod]
     public void UseStaticBuilderAsExtension()
     {
-      var build = Fd.Build(c => c.UseContainer()
+      var build = Fd.UseContainer()
         .UseImage("postgres:9.6-alpine")
         .ExposePort(5432)
         .WithEnvironment("POSTGRES_PASSWORD=mysecretpassword")
-        .WaitForPort("5432/tcp", TimeSpan.FromSeconds(30)));
+        .WaitForPort("5432/tcp", TimeSpan.FromSeconds(30));
 
       build.Container(svc =>
       {
@@ -80,7 +75,7 @@ namespace Ductus.FluentDocker.Tests.FluentApiTests
       string id;
       using (
         var container =
-          new Builder().UseContainer()
+          Fd.UseContainer()
             .UseImage("postgres:9.6-alpine")
             .WithEnvironment("POSTGRES_PASSWORD=mysecretpassword")
             .KeepContainer()
@@ -93,8 +88,7 @@ namespace Ductus.FluentDocker.Tests.FluentApiTests
 
       // We shall have the container as stopped by now.
       var cont =
-        new Hosts()
-          .Discover()
+        Fd.Discover()
           .Select(host => host.GetContainers().FirstOrDefault(x => x.Id == id))
           .FirstOrDefault(container => null != container);
 
@@ -107,7 +101,7 @@ namespace Ductus.FluentDocker.Tests.FluentApiTests
     {
       using (
         var container =
-          new Builder().UseContainer()
+          Fd.UseContainer()
             .UseImage("postgres:9.6-alpine")
             .WithEnvironment("POSTGRES_PASSWORD=mysecretpassword")
             .Build()
@@ -125,7 +119,7 @@ namespace Ductus.FluentDocker.Tests.FluentApiTests
     {
       using (
         var container =
-          new Builder().UseContainer()
+          Fd.UseContainer()
             .UseImage("postgres:9.6-alpine")
             .ExposePort(40001, 5432)
             .WithEnvironment("POSTGRES_PASSWORD=mysecretpassword")
@@ -142,7 +136,7 @@ namespace Ductus.FluentDocker.Tests.FluentApiTests
     {
       using (
         var container =
-          new Builder().UseContainer()
+          Fd.UseContainer()
             .UseImage("postgres:9.6-alpine")
             .ExposePort(5432)
             .WithEnvironment("POSTGRES_PASSWORD=mysecretpassword")
@@ -159,7 +153,7 @@ namespace Ductus.FluentDocker.Tests.FluentApiTests
     {
       using (
         var container =
-          new Builder().UseContainer()
+          Fd.UseContainer()
             .UseImage("postgres:9.6-alpine")
             .ExposePort(5432)
             .WithEnvironment("POSTGRES_PASSWORD=mysecretpassword")
@@ -177,7 +171,7 @@ namespace Ductus.FluentDocker.Tests.FluentApiTests
     {
       using (
         var container =
-          new Builder().UseContainer()
+          Fd.UseContainer()
             .UseImage("postgres:9.6-alpine")
             .ExposePort(5432)
             .WithEnvironment("POSTGRES_PASSWORD=mysecretpassword")
@@ -199,7 +193,7 @@ namespace Ductus.FluentDocker.Tests.FluentApiTests
 
       using (
         var container =
-          new Builder().UseContainer()
+          Fd.UseContainer()
             .UseImage("nginx:1.13.6-alpine")
             .ExposePort(80)
             .Mount(hostPath, "/usr/share/nginx/html", MountType.ReadOnly)
@@ -218,10 +212,7 @@ namespace Ductus.FluentDocker.Tests.FluentApiTests
         }
         finally
         {
-          if (Directory.Exists(hostPath))
-          {
-            Directory.Delete(hostPath, true);
-          }
+          if (Directory.Exists(hostPath)) Directory.Delete(hostPath, true);
         }
       }
     }
@@ -235,7 +226,7 @@ namespace Ductus.FluentDocker.Tests.FluentApiTests
 
       using (
         var container =
-          new Builder().UseContainer()
+          Fd.UseContainer()
             .UseImage("nginx:1.13.6-alpine")
             .ExposePort(80)
             .Mount(hostPath, "/usr/share/nginx/html", MountType.ReadOnly)
@@ -254,10 +245,7 @@ namespace Ductus.FluentDocker.Tests.FluentApiTests
         }
         finally
         {
-          if (Directory.Exists(hostPath))
-          {
-            Directory.Delete(hostPath, true);
-          }
+          if (Directory.Exists(hostPath)) Directory.Delete(hostPath, true);
         }
       }
     }
@@ -269,7 +257,7 @@ namespace Ductus.FluentDocker.Tests.FluentApiTests
       Directory.CreateDirectory(fullPath);
       try
       {
-        using (new Builder().UseContainer()
+        using (Fd.UseContainer()
           .UseImage("postgres:9.6-alpine")
           .ExposePort(5432)
           .WithEnvironment("POSTGRES_PASSWORD=mysecretpassword")
@@ -283,10 +271,7 @@ namespace Ductus.FluentDocker.Tests.FluentApiTests
       }
       finally
       {
-        if (Directory.Exists(fullPath))
-        {
-          Directory.Delete(fullPath, true);
-        }
+        if (Directory.Exists(fullPath)) Directory.Delete(fullPath, true);
       }
     }
 
@@ -297,7 +282,7 @@ namespace Ductus.FluentDocker.Tests.FluentApiTests
       Directory.CreateDirectory(fullPath);
       try
       {
-        using (new Builder().UseContainer()
+        using (Fd.UseContainer()
           .UseImage("postgres:9.6-alpine")
           .ExposePort(5432)
           .WithEnvironment("POSTGRES_PASSWORD=mysecretpassword")
@@ -312,10 +297,7 @@ namespace Ductus.FluentDocker.Tests.FluentApiTests
       }
       finally
       {
-        if (Directory.Exists(fullPath))
-        {
-          Directory.Delete(fullPath, true);
-        }
+        if (Directory.Exists(fullPath)) Directory.Delete(fullPath, true);
       }
     }
 
@@ -327,7 +309,7 @@ namespace Ductus.FluentDocker.Tests.FluentApiTests
       Directory.CreateDirectory(Path.GetDirectoryName(fullPath));
       try
       {
-        using (new Builder().UseContainer()
+        using (Fd.UseContainer()
           .UseImage("postgres:9.6-alpine")
           .ExposePort(5432)
           .WithEnvironment("POSTGRES_PASSWORD=mysecretpassword")
@@ -341,11 +323,7 @@ namespace Ductus.FluentDocker.Tests.FluentApiTests
       }
       finally
       {
-        if (File.Exists(fullPath))
-        {
-          // ReSharper disable once AssignNullToNotNullAttribute
-          Directory.Delete(Path.GetDirectoryName(fullPath), true);
-        }
+        if (File.Exists(fullPath)) Directory.Delete(Path.GetDirectoryName(fullPath), true);
       }
     }
 
@@ -356,7 +334,7 @@ namespace Ductus.FluentDocker.Tests.FluentApiTests
       Directory.CreateDirectory(fullPath);
       try
       {
-        using (new Builder().UseContainer()
+        using (Fd.UseContainer()
           .UseImage("postgres:9.6-alpine")
           .ExposePort(5432)
           .WithEnvironment("POSTGRES_PASSWORD=mysecretpassword")
@@ -373,10 +351,7 @@ namespace Ductus.FluentDocker.Tests.FluentApiTests
       }
       finally
       {
-        if (Directory.Exists(fullPath))
-        {
-          Directory.Delete(fullPath, true);
-        }
+        if (Directory.Exists(fullPath)) Directory.Delete(fullPath, true);
       }
     }
 
@@ -393,7 +368,7 @@ namespace Ductus.FluentDocker.Tests.FluentApiTests
       try
       {
         // ReSharper disable once AccessToModifiedClosure
-        using (new Builder().UseContainer()
+        using (Fd.UseContainer()
           .UseImage("postgres:9.6-alpine")
           .ExposePort(5432)
           .WithEnvironment("POSTGRES_PASSWORD=mysecretpassword")
@@ -408,11 +383,7 @@ namespace Ductus.FluentDocker.Tests.FluentApiTests
       }
       finally
       {
-        if (File.Exists(fullPath))
-        {
-          // ReSharper disable once AssignNullToNotNullAttribute
-          Directory.Delete(Path.GetDirectoryName(fullPath), true);
-        }
+        if (File.Exists(fullPath)) Directory.Delete(Path.GetDirectoryName(fullPath), true);
       }
     }
 
@@ -427,17 +398,16 @@ namespace Ductus.FluentDocker.Tests.FluentApiTests
 
       try
       {
-        IList<Diff> before;
         using (
           var container =
-            new Builder().UseContainer()
+            Fd.UseContainer()
               .UseImage("postgres:9.6-alpine")
               .ExposePort(5432)
               .WithEnvironment("POSTGRES_PASSWORD=mysecretpassword")
               .Build()
               .Start()
               .WaitForProcess("postgres", 30000 /*30s*/)
-              .Diff(out before)
+              .Diff(out var before)
               .CopyTo("/bin", fullPath))
         {
           var after = container.Diff();
@@ -448,22 +418,19 @@ namespace Ductus.FluentDocker.Tests.FluentApiTests
       }
       finally
       {
-        if (Directory.Exists(fullPath))
-        {
-          Directory.Delete(fullPath, true);
-        }
+        if (Directory.Exists(fullPath)) Directory.Delete(fullPath, true);
       }
     }
 
     [TestMethod]
     public void ReuseOfExistingContainerShallWork()
     {
-      using (new Builder()
+      using (Fd
         .UseContainer()
         .UseImage("postgres:9.6-alpine")
         .WithName("reusable-name")
         .Build())
-      using (new Builder()
+      using (Fd
         .UseContainer()
         .ReuseIfExists()
         .UseImage("postgres:9.6-alpine")

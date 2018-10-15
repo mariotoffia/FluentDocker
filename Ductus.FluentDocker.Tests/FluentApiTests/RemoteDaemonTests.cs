@@ -19,8 +19,7 @@ namespace Ductus.FluentDocker.Tests.FluentApiTests
     public void CreateSshConnectionToRemoteDockerAndCreateContainerShallWork()
     {
       using (
-        var container =
-          new Builder().UseHost()
+        var container = Fd.UseHost()
             .UseSsh("192.168.1.34").WithName("remote-daemon")
             .WithSshUser("solo").WithSshKeyPath("${E_LOCALAPPDATA}/lxss/home/martoffi/.ssh/id_rsa")
             .UseContainer()
@@ -43,8 +42,8 @@ namespace Ductus.FluentDocker.Tests.FluentApiTests
       Assert.IsTrue(remoteHost.Host.ToString().StartsWith("tcp://"));
       
       using (
-        var container =
-          new Builder().UseHost().UseMachine().WithName("remote-daemon")
+        var container = Fd.UseHost()
+            .UseMachine().WithName("remote-daemon")
             .UseContainer()
             .UseImage("postgres:9.6-alpine")
             .WithEnvironment("POSTGRES_PASSWORD=mysecretpassword")

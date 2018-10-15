@@ -39,10 +39,10 @@ namespace Ductus.FluentDocker.Tests.FluentApiTests
 
       try
       {
-        using (var services = new Builder()
+        using (var services =
 
           // Define custom node image to be used
-          .DefineImage("mariotoffia/nodetest").ReuseIfAlreadyExists()
+          Fd.DefineImage("mariotoffia/nodetest").ReuseIfAlreadyExists()
           .From("ubuntu:14.04")
           .Maintainer("Mario Toffia <mario.toffia@gmail.com>")
           .WorkingFolder(fullPath)

@@ -1,5 +1,4 @@
 ﻿using System.Linq;
-using Ductus.FluentDocker.Builders;
 using Ductus.FluentDocker.Commands;
 using Ductus.FluentDocker.Extensions;
 using Ductus.FluentDocker.Model.Builders;
@@ -66,7 +65,7 @@ namespace Ductus.FluentDocker.Tests.FluentApiTests
       string id = null;
       try
       {
-        using (var vol = new Builder().UseVolume("test-volume").Build())
+        using (var vol = Fd.UseVolume("test-volume").Build())
         {
           vol.GetConfiguration(true); // Will throw FluentDockerException if fails
           id = vol.Name;
@@ -87,7 +86,7 @@ namespace Ductus.FluentDocker.Tests.FluentApiTests
     public void VolumeShallBeDeletedWhenRemoveOnDispose()
     {
       string id;
-      using (var vol = new Builder().UseVolume("test-volume").RemoveOnDispose().Build())
+      using (var vol = Fd.UseVolume("test-volume").RemoveOnDispose().Build())
       {
         vol.GetConfiguration(true); // Will throw FluentDockerException if fails
         id = vol.Name;
@@ -100,11 +99,11 @@ namespace Ductus.FluentDocker.Tests.FluentApiTests
     [TestMethod]
     public void VolumeShallBeUsedWhenMounted()
     {
-      using (var vol = new Builder().UseVolume("test-volume").RemoveOnDispose().Build())
+      using (var vol = Fd.UseVolume("test-volume").RemoveOnDispose().Build())
       {
         using (
           var container =
-            new Builder().UseContainer()
+            Fd.UseContainer()
               .UseImage("postgres:9.6-alpine")
               .WithEnvironment("POSTGRES_PASSWORD=mysecretpassword")
               .MountVolume(vol, "/var/lib/postgresql/data", MountType.ReadWrite)

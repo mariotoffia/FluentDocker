@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using Ductus.FluentDocker.Builders;
 using Ductus.FluentDocker.Common;
 using Ductus.FluentDocker.Services;
@@ -28,7 +29,7 @@ namespace Ductus.FluentDocker
     {
       try
       {
-        using (var service = Build(builder).Build())
+        using (var service = builder.Invoke(Build()).Build())
         {
           service.Start();
           run.Invoke((T) service);
@@ -61,19 +62,6 @@ namespace Ductus.FluentDocker
       Run(builder, run, name);
     }
 
-    public static IBuilder Build(Func<Builder, IBuilder> builder)
-    {
-      try
-      {
-        return builder.Invoke(new Builder());
-      }
-      catch
-      {
-        Logger.Log($"Failed to build");
-        throw;
-      }
-    }
-
     internal static void DisposeOnException<T>(Action<T> action, T service, string name = null) where T : IService
     {
       if (null == name) name = "n/a";
@@ -89,5 +77,59 @@ namespace Ductus.FluentDocker
         throw;
       }
     }
+
+    #region Build Support
+    public static Builder Build()
+    {
+      return new Builder();
+    }
+
+    public static ContainerBuilder UseContainer()
+    {
+      return new Builder().UseContainer();
+    }
+
+    public static HostBuilder UseHost()
+    {
+      return new Builder().UseHost();
+    }
+    
+    public static ImageBuilder DefineImage(string image)
+    {
+      return new Builder().DefineImage(image);      
+    }
+
+    public static NetworkBuilder UseNetwork(string name = null)
+    {
+      return new Builder().UseNetwork(name);
+    }
+
+    public static VolumeBuilder UseVolume(string name = null)
+    {
+      return new Builder().UseVolume(name);
+    }   
+    #endregion
+    
+    #region Host Support
+
+    public static Hosts Hosts()
+    {
+      return new Hosts();      
+    }
+
+    public static IList<IHostService> Discover(bool preferNative = false)
+    {
+      return Hosts().Discover(preferNative);
+    }
+    public static IHostService Native()
+    {
+      return Hosts().Native();
+    }
+
+    public static IHostService FromMachineName(string name, bool isWindowsHost = false, bool throwIfNotStarted = false)
+    {
+      return Hosts().FromMachineName(name, isWindowsHost, throwIfNotStarted);
+    }
+    #endregion
   }
 }

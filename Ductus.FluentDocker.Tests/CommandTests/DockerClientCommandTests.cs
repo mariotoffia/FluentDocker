@@ -258,7 +258,7 @@ namespace Ductus.FluentDocker.Tests.CommandTests
         Debug.WriteLine(proc.ToString());
 
         IsTrue(proc.Rows.Any(x => x.Command == "bash /usr/local/bin/docker-entrypoint.sh postgres"));
-        IsTrue(proc.Rows.Any(x => x.Command == "/usr/local/bin/postgres -D /var/lib/postgresql/data -c listen_addresses="));
+        IsTrue(proc.Rows.Any(x => x.Command == "pg_ctl -D /var/lib/postgresql/data -m fast -w stop"));
       }
       finally
       {

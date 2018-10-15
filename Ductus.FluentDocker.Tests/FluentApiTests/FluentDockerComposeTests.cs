@@ -2,10 +2,8 @@ using System;
 using System.IO;
 using System.Net;
 using System.Threading.Tasks;
-using Ductus.FluentDocker.Builders;
 using Ductus.FluentDocker.Common;
 using Ductus.FluentDocker.Model.Common;
-using Ductus.FluentDocker.Services;
 using Ductus.FluentDocker.Tests.Extensions;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using HttpExtensions = Ductus.FluentDocker.Extensions.HttpExtensions;
@@ -24,7 +22,7 @@ namespace Ductus.FluentDocker.Tests.FluentApiTests
         (TemplateString) "Resources/ComposeTests/WordPress/docker-compose.yml");
 
       // @formatter:off
-      using (var svc = new Builder()
+      using (var svc = Fd
                         .UseContainer()
                         .UseCompose()
                         .FromFile(file)
@@ -51,7 +49,7 @@ namespace Ductus.FluentDocker.Tests.FluentApiTests
         (TemplateString) "Resources/ComposeTests/WordPress/docker-compose.yml");
 
       // @formatter:off
-      using (new Builder()
+      using (Fd
                 .UseContainer()
                 .UseCompose()
                 .FromFile(file)
@@ -66,7 +64,7 @@ namespace Ductus.FluentDocker.Tests.FluentApiTests
         Assert.IsTrue(installPage.IndexOf("https://wordpress.org/", StringComparison.Ordinal) != -1);
       }
     }
-    
+
     [TestMethod]
     [ExpectedException(typeof(FluentDockerException))]
     public void ComposeWaitForHttpThatFailShallBeAborted()
@@ -77,7 +75,7 @@ namespace Ductus.FluentDocker.Tests.FluentApiTests
       try
       {
         // @formatter:off
-        using (new Builder()
+        using (Fd
                           .UseContainer()
                           .UseCompose()
                           .FromFile(file)
@@ -92,20 +90,21 @@ namespace Ductus.FluentDocker.Tests.FluentApiTests
                           .Build().Start())
           // @formatter:on
 
-        Assert.Fail("It should have thrown a FluentDockerException!");
+        {
+          Assert.Fail("It should have thrown a FluentDockerException!");
+        }
       }
       catch
       {
         // Manually remove containers since they are not cleaned up due to the error...
-        foreach (var container in new Hosts().Native().GetContainers())
-        {
-          if (container.Name.StartsWith("wordpress")) container.Dispose();
-        }
-        
+        foreach (var container in Fd.Native().GetContainers())
+          if (container.Name.StartsWith("wordpress"))
+            container.Dispose();
+
         throw;
       }
     }
-    
+
     [TestMethod]
     public async Task ComposeWaitForCustomLambdaShallWork()
     {
@@ -113,7 +112,7 @@ namespace Ductus.FluentDocker.Tests.FluentApiTests
         (TemplateString) "Resources/ComposeTests/WordPress/docker-compose.yml");
 
       // @formatter:off
-      using (new Builder()
+      using (Fd
                 .UseContainer()
                 .UseCompose()
                 .FromFile(file)
@@ -122,8 +121,8 @@ namespace Ductus.FluentDocker.Tests.FluentApiTests
                     if (cnt > 60) throw new FluentDockerException("Failed to wait for wordpress service");
             
                     var res = HttpExtensions.DoRequest("http://localhost:8000/wp-admin/install.php").Result;            
-                    return (res.Code == HttpStatusCode.OK && 
-                            res.Body.IndexOf("https://wordpress.org/", StringComparison.Ordinal) != -1) ? 0 : 500;
+                    return res.Code == HttpStatusCode.OK && 
+                           res.Body.IndexOf("https://wordpress.org/", StringComparison.Ordinal) != -1 ? 0 : 500;
                   })
                 .Build().Start())
         // @formatter:on
