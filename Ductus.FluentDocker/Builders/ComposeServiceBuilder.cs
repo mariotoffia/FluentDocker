@@ -8,11 +8,11 @@ using Ductus.FluentDocker.Model.Containers;
 namespace Ductus.FluentDocker.Builders
 {
   /// <summary>
-  /// Builds a docker-compose service.
+  ///   Builds a docker-compose service.
   /// </summary>
   /// <remarks>
-  /// This is then written to a docker-compose.yml compatible format and can be used
-  /// to instantiate one or more services.
+  ///   This is then written to a docker-compose.yml compatible format and can be used
+  ///   to instantiate one or more services.
   /// </remarks>
   public class ComposeServiceBuilder
   {
@@ -29,9 +29,38 @@ namespace Ductus.FluentDocker.Builders
       return this;
     }
 
-    public ComposeServiceBuilder Volume(string name, TemplateString containerPath)
+    /// <summary>
+    ///   Creates a new volume at the service level.
+    /// </summary>
+    /// <param name="containerPath">The path inside container.</param>
+    /// <param name="hostPath">Either host path or name of the volume.</param>
+    /// <param name="isReadonly">If volume is readonly or not. Default false.</param>
+    /// <param name="options">If any options, even are name and odd ar it's corresponding value.</param>
+    /// <returns>Itself for fluent access.</returns>
+    public ComposeServiceBuilder Volume(TemplateString containerPath, TemplateString hostPath,
+      bool isReadonly = false, params string[] options)
     {
-      _config.Volumes.Add($"{name}:{containerPath.Rendered.EscapePath()}");
+      var volume = new LongServiceVolumeDefinition
+      {
+        Source = $"{hostPath.Rendered.EscapePath()}",
+        Target = $"{containerPath.Rendered.EscapePath()}",
+        IsReadOnly = isReadonly
+      };
+
+      _config.Volumes.Add(volume);
+
+      if (null == options || 0 == options.Length) return this;
+
+      for (var i = 0; i < options.Length; i++) volume.Options.Add(options[i], options[i + 1]);
+
+      return this;
+    }
+
+    public ComposeServiceBuilder Volume(TemplateString containerPath, TemplateString hostPath)
+    {
+      _config.Volumes.Add(new ShortServiceVolumeDefinition
+        {Entry = $"{hostPath.Rendered.EscapePath()}:{containerPath.Rendered.EscapePath()}"});
+
       return this;
     }
 
@@ -42,7 +71,7 @@ namespace Ductus.FluentDocker.Builders
     }
 
     /// <summary>
-    /// Environment are expressed either as name=value or name, value.
+    ///   Environment are expressed either as name=value or name, value.
     /// </summary>
     /// <param name="nameAndValue">The name=value format or every even is name and every odd is value.</param>
     /// <returns>Itself for fluent access.</returns>
@@ -67,10 +96,9 @@ namespace Ductus.FluentDocker.Builders
         }
 
         if (null != name)
-        {
-          throw new FluentDockerException("Either specify name=value format or every even is name and every odd is value.");
-        }
-        
+          throw new FluentDockerException(
+            "Either specify name=value format or every even is name and every odd is value.");
+
         _config.Environment.Add(v.Substring(0, idx), v.Substring(idx + 1));
       }
 
@@ -80,8 +108,16 @@ namespace Ductus.FluentDocker.Builders
     public ComposeServiceBuilder DependsOn(params string[] services)
     {
       if (null == services || 0 == services.Length) return this;
-      
-      ((List<string>)_config.DependsOn).AddRange(services);
+
+      ((List<string>) _config.DependsOn).AddRange(services);
+      return this;
+    }
+
+    public ComposeServiceBuilder Ports(int target, int published, PortMode mode = PortMode.Host,
+      string protocol = "tcp")
+    {
+      _config.Ports.Add(new PortsLongDefinition
+        {Target = target, Published = published, Mode = mode, Protocol = protocol});
       return this;
     }
 
@@ -89,7 +125,7 @@ namespace Ductus.FluentDocker.Builders
     {
       if (null == ports || 0 == ports.Length) return this;
 
-      ((List<string>)_config.Ports).AddRange(ports);
+      foreach (var port in ports) _config.Ports.Add(new PortsShortDefinition {Entry = port});
       return this;
     }
   }
