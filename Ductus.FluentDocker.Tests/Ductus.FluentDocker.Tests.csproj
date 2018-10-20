@@ -1,7 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>    
-    <TargetFrameworks>netcoreapp2.0;net452</TargetFrameworks>
+    <TargetFrameworks>netcoreapp2.0;net462</TargetFrameworks>
     <DefineConstants Condition=" '$(TargetFramework)' == 'netcoreapp2.0' ">$(DefineConstants);COREFX</DefineConstants>
     <DefineConstants Condition=" '$(TargetFramework)' == 'netcoreapp1.1' ">$(DefineConstants);COREFX</DefineConstants>
   </PropertyGroup>
@@ -14,6 +14,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Ductus.FluentDocker\Ductus.FluentDocker.csproj" />
+    <ProjectReference Include="..\FluentDocker.Features\FluentDocker.Features.Elk\FluentDocker.Features.Elk.csproj" />
   </ItemGroup>
 
   <ItemGroup>

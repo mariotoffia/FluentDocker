@@ -3,6 +3,11 @@ using System.Collections.Generic;
 
 namespace Ductus.FluentDocker.Model
 {
+  public static class FeatureConstants
+  {
+    public const string KeepOnDispose = "global.keep.on.dispose";
+  }
+  
   public interface IFeature : IDisposable
   {
     /// <summary>
