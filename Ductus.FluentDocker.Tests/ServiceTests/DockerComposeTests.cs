@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
@@ -23,7 +24,7 @@ namespace Ductus.FluentDocker.Tests.ServiceTests
 
       using (var svc = new DockerComposeCompositeService(DockerHost, new DockerComposeConfig
       {
-        ComposeFilePath = file, ForceRecreate = true, RemoveOrphans = true,
+        ComposeFilePath = new List<string> { file }, ForceRecreate = true, RemoveOrphans = true,
         StopOnDispose = true
       }))
       {

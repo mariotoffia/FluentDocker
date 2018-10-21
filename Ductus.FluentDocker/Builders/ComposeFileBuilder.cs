@@ -21,12 +21,13 @@ namespace Ductus.FluentDocker.Builders
 
     internal ComposeFileBuilder(IBuilder parent, string composeFile = null) : base(parent)
     {
-      _config.ComposeFilePath = composeFile;
+      if (!string.IsNullOrEmpty(composeFile))
+      _config.ComposeFilePath.Add(composeFile);
     }
 
     public override ICompositeService Build()
     {
-      if (string.IsNullOrEmpty(_config.ComposeFilePath))
+      if (_config.ComposeFilePath.Count == 0)
         throw new FluentDockerException("Cannot create service without a docker-compose file");
 
       var host = FindHostService();
@@ -168,9 +169,9 @@ namespace Ductus.FluentDocker.Builders
       }
     }
 
-    public ComposeFileBuilder FromFile(string composeFile)
+    public ComposeFileBuilder FromFile(params string []composeFile)
     {
-      _config.ComposeFilePath = composeFile;
+      ((List<string>)_config.ComposeFilePath).AddRange(composeFile);
       return this;
     }
 
@@ -359,6 +360,7 @@ namespace Ductus.FluentDocker.Builders
     /// </summary>
     /// <param name="service">The service to attach to.</param>
     /// <param name="url">The url including any query parameters.</param>
+    /// <param name="timeout">The amount of time to wait before failing.</param>
     /// <param name="continuation">Optional continuation that evaluates if it shall still wait or continue.</param>
     /// <param name="method">Optional. The method. Default is <see cref="HttpMethod.Get" />.</param>
     /// <param name="contentType">Optional. The content type in put, post operations. Defaults to application/json</param>

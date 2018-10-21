@@ -11,6 +11,12 @@ using LibGit2Sharp;
 
 namespace FluentDocker.Features.Elk
 {
+  /// <summary>
+  ///   Enables ELK stack.
+  /// </summary>
+  /// <remarks>
+  ///   Based on the https://github.com/deviantony/docker-elk.
+  /// </remarks>
   [Feature(Id = FeatureId)]
   public class ElkFeature : IFeature
   {
@@ -74,7 +80,7 @@ namespace FluentDocker.Features.Elk
 
       _svc = new DockerComposeCompositeService(_host, new DockerComposeConfig
       {
-        ComposeFilePath = file, ForceRecreate = false, RemoveOrphans = false,
+        ComposeFilePath = new List<string> { file }, ForceRecreate = false, RemoveOrphans = false,
         StopOnDispose = true
       });
 
