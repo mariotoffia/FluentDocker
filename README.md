@@ -64,7 +64,7 @@ all underlying services on each _docker-compose_ service. It is also possible to
 
       using (var svc = new DockerComposeCompositeService(DockerHost, new DockerComposeConfig
       {
-        ComposeFilePath = file, ForceRecreate = true, RemoveOrphans = true,
+        ComposeFilePath = new List<string> { file }, ForceRecreate = true, RemoveOrphans = true,
         StopOnDispose = true
       }))
       {
