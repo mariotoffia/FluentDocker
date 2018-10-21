@@ -38,19 +38,10 @@ namespace Ductus.FluentDocker.Commands
 
       if (null != services && 0 != services.Length) options += " " + string.Join(" ", services);
 
-      try
-      {
-        if (cwd.NeedCwd) Directory.SetCurrentDirectory(cwd.Cwd); // To pick up .env file
-
-        return
-          new ProcessExecutor<StringListResponseParser, IList<string>>(
-            "docker-compose".ResolveBinary(),
-            $"{args} build {options}", cwd.NeedCwd ? cwd.Cwd : null).Execute();
-      }
-      finally
-      {
-        if (cwd.NeedCwd) Directory.SetCurrentDirectory(cwd.Curr);
-      }
+      return
+        new ProcessExecutor<StringListResponseParser, IList<string>>(
+          "docker-compose".ResolveBinary(),
+          $"{args} build {options}", cwd.NeedCwd ? cwd.Cwd : null).Execute();
     }
 
     public static CommandResponse<IList<string>> ComposeCreate(this DockerUri host,
@@ -81,19 +72,10 @@ namespace Ductus.FluentDocker.Commands
 
       if (null != services && 0 != services.Length) options += " " + string.Join(" ", services);
 
-      try
-      {
-        if (cwd.NeedCwd) Directory.SetCurrentDirectory(cwd.Cwd); // To pick up .env file
-
-        return
-          new ProcessExecutor<StringListResponseParser, IList<string>>(
-            "docker-compose".ResolveBinary(),
-            $"{args} create {options}", cwd.NeedCwd ? cwd.Cwd : null).Execute();
-      }
-      finally
-      {
-        if (cwd.NeedCwd) Directory.SetCurrentDirectory(cwd.Curr);
-      }
+      return
+        new ProcessExecutor<StringListResponseParser, IList<string>>(
+          "docker-compose".ResolveBinary(),
+          $"{args} create {options}", cwd.NeedCwd ? cwd.Cwd : null).Execute();
     }
 
     public static CommandResponse<IList<string>> ComposeStart(this DockerUri host, string altProjectName = null,
@@ -112,19 +94,10 @@ namespace Ductus.FluentDocker.Commands
       var options = string.Empty;
       if (null != services && 0 != services.Length) options += " " + string.Join(" ", services);
 
-      try
-      {
-        if (cwd.NeedCwd) Directory.SetCurrentDirectory(cwd.Cwd); // To pick up .env file
-
-        return
-          new ProcessExecutor<StringListResponseParser, IList<string>>(
-            "docker-compose".ResolveBinary(),
-            $"{args} start -d {options}", cwd.NeedCwd ? cwd.Cwd : null).Execute();
-      }
-      finally
-      {
-        if (cwd.NeedCwd) Directory.SetCurrentDirectory(cwd.Curr);
-      }
+      return
+        new ProcessExecutor<StringListResponseParser, IList<string>>(
+          "docker-compose".ResolveBinary(),
+          $"{args} start -d {options}", cwd.NeedCwd ? cwd.Cwd : null).Execute();
     }
 
     public static CommandResponse<IList<string>> ComposeKill(this DockerUri host, string altProjectName = null,
@@ -146,19 +119,10 @@ namespace Ductus.FluentDocker.Commands
 
       if (null != services && 0 != services.Length) options += " " + string.Join(" ", services);
 
-      try
-      {
-        if (cwd.NeedCwd) Directory.SetCurrentDirectory(cwd.Cwd); // To pick up .env file
-
-        return
-          new ProcessExecutor<StringListResponseParser, IList<string>>(
-            "docker-compose".ResolveBinary(),
-            $"{args} kill {options}", cwd.NeedCwd ? cwd.Cwd : null).Execute();
-      }
-      finally
-      {
-        if (cwd.NeedCwd) Directory.SetCurrentDirectory(cwd.Curr);
-      }
+      return
+        new ProcessExecutor<StringListResponseParser, IList<string>>(
+          "docker-compose".ResolveBinary(),
+          $"{args} kill {options}", cwd.NeedCwd ? cwd.Cwd : null).Execute();
     }
 
     public static CommandResponse<IList<string>> ComposeStop(this DockerUri host, string altProjectName = null,
@@ -180,19 +144,10 @@ namespace Ductus.FluentDocker.Commands
 
       if (null != services && 0 != services.Length) options += " " + string.Join(" ", services);
 
-      try
-      {
-        if (cwd.NeedCwd) Directory.SetCurrentDirectory(cwd.Cwd); // To pick up .env file
-
-        return
-          new ProcessExecutor<StringListResponseParser, IList<string>>(
-            "docker-compose".ResolveBinary(),
-            $"{args} stop {options}", cwd.NeedCwd ? cwd.Cwd : null).Execute();
-      }
-      finally
-      {
-        if (cwd.NeedCwd) Directory.SetCurrentDirectory(cwd.Curr);
-      }
+      return
+        new ProcessExecutor<StringListResponseParser, IList<string>>(
+          "docker-compose".ResolveBinary(),
+          $"{args} stop {options}", cwd.NeedCwd ? cwd.Cwd : null).Execute();
     }
 
     public static CommandResponse<IList<string>> ComposePause(this DockerUri host, string altProjectName = null,
@@ -211,19 +166,10 @@ namespace Ductus.FluentDocker.Commands
       var options = string.Empty;
       if (null != services && 0 != services.Length) options += " " + string.Join(" ", services);
 
-      try
-      {
-        if (cwd.NeedCwd) Directory.SetCurrentDirectory(cwd.Cwd); // To pick up .env file
-
-        return
-          new ProcessExecutor<StringListResponseParser, IList<string>>(
-            "docker-compose".ResolveBinary(),
-            $"{args} pause {options}", cwd.NeedCwd ? cwd.Cwd : null).Execute();
-      }
-      finally
-      {
-        if (cwd.NeedCwd) Directory.SetCurrentDirectory(cwd.Curr);
-      }
+      return
+        new ProcessExecutor<StringListResponseParser, IList<string>>(
+          "docker-compose".ResolveBinary(),
+          $"{args} pause {options}", cwd.NeedCwd ? cwd.Cwd : null).Execute();
     }
 
     public static CommandResponse<IList<string>> ComposeUnPause(this DockerUri host, string altProjectName = null,
@@ -242,19 +188,10 @@ namespace Ductus.FluentDocker.Commands
       var options = string.Empty;
       if (null != services && 0 != services.Length) options += " " + string.Join(" ", services);
 
-      try
-      {
-        if (cwd.NeedCwd) Directory.SetCurrentDirectory(cwd.Cwd); // To pick up .env file
-
-        return
-          new ProcessExecutor<StringListResponseParser, IList<string>>(
-            "docker-compose".ResolveBinary(),
-            $"{args} unpause {options}", cwd.NeedCwd ? cwd.Cwd : null).Execute();
-      }
-      finally
-      {
-        if (cwd.NeedCwd) Directory.SetCurrentDirectory(cwd.Curr);
-      }
+      return
+        new ProcessExecutor<StringListResponseParser, IList<string>>(
+          "docker-compose".ResolveBinary(),
+          $"{args} unpause {options}", cwd.NeedCwd ? cwd.Cwd : null).Execute();
     }
 
     public static CommandResponse<IList<string>> ComposeScale(this DockerUri host, string altProjectName = null,
@@ -278,19 +215,10 @@ namespace Ductus.FluentDocker.Commands
       var services = string.Empty;
       if (null != serviceEqNumber && 0 != serviceEqNumber.Length) services += " " + string.Join(" ", serviceEqNumber);
 
-      try
-      {
-        if (cwd.NeedCwd) Directory.SetCurrentDirectory(cwd.Cwd); // To pick up .env file
-
-        return
-          new ProcessExecutor<StringListResponseParser, IList<string>>(
-            "docker-compose".ResolveBinary(),
-            $"{args} scale {options} {services}", cwd.NeedCwd ? cwd.Cwd : null).Execute();
-      }
-      finally
-      {
-        if (cwd.NeedCwd) Directory.SetCurrentDirectory(cwd.Curr);
-      }
+      return
+        new ProcessExecutor<StringListResponseParser, IList<string>>(
+          "docker-compose".ResolveBinary(),
+          $"{args} scale {options} {services}", cwd.NeedCwd ? cwd.Cwd : null).Execute();
     }
 
     public static CommandResponse<IList<string>> ComposeVersion(this DockerUri host, string altProjectName = null,
@@ -309,19 +237,10 @@ namespace Ductus.FluentDocker.Commands
       var options = string.Empty;
       if (shortVersion) options = "--short";
 
-      try
-      {
-        if (cwd.NeedCwd) Directory.SetCurrentDirectory(cwd.Cwd); // To pick up .env file
-
-        return
-          new ProcessExecutor<StringListResponseParser, IList<string>>(
-            "docker-compose".ResolveBinary(),
-            $"{args} version {options}", cwd.NeedCwd ? cwd.Cwd : null).Execute();
-      }
-      finally
-      {
-        if (cwd.NeedCwd) Directory.SetCurrentDirectory(cwd.Curr);
-      }
+      return
+        new ProcessExecutor<StringListResponseParser, IList<string>>(
+          "docker-compose".ResolveBinary(),
+          $"{args} version {options}", cwd.NeedCwd ? cwd.Cwd : null).Execute();
     }
 
     public static CommandResponse<IList<string>> ComposeRestart(this DockerUri host, string altProjectName = null,
@@ -344,19 +263,10 @@ namespace Ductus.FluentDocker.Commands
       var options = string.Empty;
       if (null != timeout) options = $" -t {Math.Round(timeout.Value.TotalSeconds, 0)}";
 
-      try
-      {
-        if (cwd.NeedCwd) Directory.SetCurrentDirectory(cwd.Cwd); // To pick up .env file
-
-        return
-          new ProcessExecutor<StringListResponseParser, IList<string>>(
-            "docker-compose".ResolveBinary(),
-            $"{args} restart {options} {ids}", cwd.NeedCwd ? cwd.Cwd : null).Execute();
-      }
-      finally
-      {
-        if (cwd.NeedCwd) Directory.SetCurrentDirectory(cwd.Curr);
-      }
+      return
+        new ProcessExecutor<StringListResponseParser, IList<string>>(
+          "docker-compose".ResolveBinary(),
+          $"{args} restart {options} {ids}", cwd.NeedCwd ? cwd.Cwd : null).Execute();
     }
 
     public static CommandResponse<IList<string>> ComposePort(this DockerUri host, string containerId,
@@ -375,19 +285,10 @@ namespace Ductus.FluentDocker.Commands
 
       if (string.IsNullOrEmpty(privatePortAndProto)) privatePortAndProto = string.Empty;
 
-      try
-      {
-        if (cwd.NeedCwd) Directory.SetCurrentDirectory(cwd.Cwd); // To pick up .env file
-
-        return
-          new ProcessExecutor<StringListResponseParser, IList<string>>(
-            "docker-compose".ResolveBinary(),
-            $"{args} port {containerId} {privatePortAndProto}", cwd.NeedCwd ? cwd.Cwd : null).Execute();
-      }
-      finally
-      {
-        if (cwd.NeedCwd) Directory.SetCurrentDirectory(cwd.Curr);
-      }
+      return
+        new ProcessExecutor<StringListResponseParser, IList<string>>(
+          "docker-compose".ResolveBinary(),
+          $"{args} port {containerId} {privatePortAndProto}", cwd.NeedCwd ? cwd.Cwd : null).Execute();
     }
 
     public static CommandResponse<IList<string>> ComposeConfig(this DockerUri host, string altProjectName = null,
@@ -409,19 +310,10 @@ namespace Ductus.FluentDocker.Commands
 
       if (outputServices) options += " --services";
 
-      try
-      {
-        if (cwd.NeedCwd) Directory.SetCurrentDirectory(cwd.Cwd); // To pick up .env file
-
-        return
-          new ProcessExecutor<StringListResponseParser, IList<string>>(
-            "docker-compose".ResolveBinary(),
-            $"{args} config {options}", cwd.NeedCwd ? cwd.Cwd : null).Execute();
-      }
-      finally
-      {
-        if (cwd.NeedCwd) Directory.SetCurrentDirectory(cwd.Curr);
-      }
+      return
+        new ProcessExecutor<StringListResponseParser, IList<string>>(
+          "docker-compose".ResolveBinary(),
+          $"{args} config {options}", cwd.NeedCwd ? cwd.Cwd : null).Execute();
     }
 
     public static CommandResponse<IList<string>> ComposeDown(this DockerUri host, string altProjectName = null,
@@ -447,19 +339,10 @@ namespace Ductus.FluentDocker.Commands
       if (removeImagesFrom != ImageRemovalOption.None)
         options += removeImagesFrom == ImageRemovalOption.Local ? " --rmi local" : " --rmi all";
 
-      try
-      {
-        if (cwd.NeedCwd) Directory.SetCurrentDirectory(cwd.Cwd); // To pick up .env file
-
-        return
-          new ProcessExecutor<StringListResponseParser, IList<string>>(
-            "docker-compose".ResolveBinary(),
-            $"{args} down {options}", cwd.NeedCwd ? cwd.Cwd : null).Execute();
-      }
-      finally
-      {
-        if (cwd.NeedCwd) Directory.SetCurrentDirectory(cwd.Curr);
-      }
+      return
+        new ProcessExecutor<StringListResponseParser, IList<string>>(
+          "docker-compose".ResolveBinary(),
+          $"{args} down {options}", cwd.NeedCwd ? cwd.Cwd : null).Execute();
     }
 
     public static CommandResponse<IList<string>> ComposeUp(this DockerUri host,
@@ -501,19 +384,10 @@ namespace Ductus.FluentDocker.Commands
 
       if (null != services && 0 != services.Length) options += " " + string.Join(" ", services);
 
-      try
-      {
-        if (cwd.NeedCwd) Directory.SetCurrentDirectory(cwd.Cwd); // To pick up .env file
-
-        return
-          new ProcessExecutor<StringListResponseParser, IList<string>>(
-            "docker-compose".ResolveBinary(),
-            $"{args} up {options}", cwd.NeedCwd ? cwd.Cwd : null).Execute();
-      }
-      finally
-      {
-        if (cwd.NeedCwd) Directory.SetCurrentDirectory(cwd.Curr);
-      }
+      return
+        new ProcessExecutor<StringListResponseParser, IList<string>>(
+          "docker-compose".ResolveBinary(),
+          $"{args} up {options}", cwd.NeedCwd ? cwd.Cwd : null).Execute();
     }
 
     public static CommandResponse<IList<string>> ComposeRm(this DockerUri host, string altProjectName = null,
@@ -540,19 +414,10 @@ namespace Ductus.FluentDocker.Commands
 
       if (null != services && 0 != services.Length) options += " " + string.Join(" ", services);
 
-      try
-      {
-        if (cwd.NeedCwd) Directory.SetCurrentDirectory(cwd.Cwd); // To pick up .env file
-
-        return
-          new ProcessExecutor<StringListResponseParser, IList<string>>(
-            "docker-compose".ResolveBinary(),
-            $"{args} rm {options}", cwd.NeedCwd ? cwd.Cwd : null).Execute();
-      }
-      finally
-      {
-        if (cwd.NeedCwd) Directory.SetCurrentDirectory(cwd.Curr);
-      }
+      return
+        new ProcessExecutor<StringListResponseParser, IList<string>>(
+          "docker-compose".ResolveBinary(),
+          $"{args} rm {options}", cwd.NeedCwd ? cwd.Cwd : null).Execute();
     }
 
     public static CommandResponse<IList<string>> ComposePs(this DockerUri host, string altProjectName = null,

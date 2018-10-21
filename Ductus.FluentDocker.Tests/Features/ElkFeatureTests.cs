@@ -113,6 +113,70 @@ namespace Ductus.FluentDocker.Tests.Features
       }
     }
 
+    [TestMethod]
+    public void EnableCuratorExtensionShallWork()
+    {
+      try
+      {
+        using (var feature = new ElkFeature())
+        {
+          feature.Initialize(new Dictionary<string, object> {{ElkFeature.EnableCurator, "true"}});
+          feature.Execute();
+
+          var curatorService = feature.Services.OfType<ICompositeService>().First().Services.FirstOrDefault(x => x.Name == "curator");
+          IsNotNull(curatorService);
+        }
+      }
+      catch
+      {
+        Console.WriteLine("Just to make sure Dispose is invoked on feature");
+        throw;
+      }
+    }
+
+    [TestMethod]
+    public void EnableApmExtensionShallWork()
+    {
+      try
+      {
+        using (var feature = new ElkFeature())
+        {
+          feature.Initialize(new Dictionary<string, object> {{ElkFeature.EnableApmServer, "true"}});
+          feature.Execute();
+
+          var apmServer = feature.Services.OfType<ICompositeService>().First().Services.FirstOrDefault(x => x.Name == "apm-server");
+          IsNotNull(apmServer);
+        }
+      }
+      catch
+      {
+        Console.WriteLine("Just to make sure Dispose is invoked on feature");
+        throw;
+      }
+    }
+    
+    [TestMethod]
+    [Ignore] // Since not windows compatible
+    public void EnableLogSpoutExtensionShallWork()
+    {
+      try
+      {
+        using (var feature = new ElkFeature())
+        {
+          feature.Initialize(new Dictionary<string, object> {{ElkFeature.EnableLogspout, "true"}});
+          feature.Execute();
+
+          var logspout = feature.Services.OfType<ICompositeService>().First().Services.FirstOrDefault(x => x.Name == "logspout");
+          IsNotNull(logspout);
+        }
+      }
+      catch
+      {
+        Console.WriteLine("Just to make sure Dispose is invoked on feature");
+        throw;
+      }
+    }
+
     private static string CleanFolder(string relativePath)
     {
       var path = Path.Combine(Directory.GetCurrentDirectory(), relativePath);
