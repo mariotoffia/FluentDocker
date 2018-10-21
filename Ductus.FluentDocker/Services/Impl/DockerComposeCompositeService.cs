@@ -88,7 +88,7 @@ namespace Ductus.FluentDocker.Services.Impl
       if (!result.Success)
       {
         State = ServiceRunningState.Unknown;
-        throw new FluentDockerException($"Could not start composite service {_config.ComposeFilePath}");
+        throw new FluentDockerException($"Could not start composite service {_config.ComposeFilePath} - result: {result}");
       }            
             
       var containers = host.Host.ComposePs(_config.AlternativeServiceName, _config.ComposeFilePath, _config.Services,

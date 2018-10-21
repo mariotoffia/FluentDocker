@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using Ductus.FluentDocker.Executors;
 using Ductus.FluentDocker.Executors.Parsers;
 using Ductus.FluentDocker.Extensions;
@@ -16,6 +17,8 @@ namespace Ductus.FluentDocker.Commands
       bool forceRm = false, bool dontUseCache = false,
       bool alwaysPull = false, string[] services = null /*all*/, ICertificatePaths certificates = null)
     {
+      var cwd = WorkingDirectory(composeFile);
+      
       var args = $"{host.RenderBaseArgs(certificates)}";
       if (!string.IsNullOrEmpty(composeFile))
       {
@@ -48,10 +51,19 @@ namespace Ductus.FluentDocker.Commands
         options += " " + string.Join(" ", services);
       }
 
-      return
-        new ProcessExecutor<StringListResponseParser, IList<string>>(
-          "docker-compose".ResolveBinary(),
-          $"{args} build {options}").Execute();
+      try
+      {
+        if (cwd.NeedCwd) Directory.SetCurrentDirectory(cwd.Cwd); // To pick up .env file
+        
+        return
+          new ProcessExecutor<StringListResponseParser, IList<string>>(
+            "docker-compose".ResolveBinary(),
+            $"{args} build {options}", cwd.NeedCwd ? cwd.Cwd : null).Execute();
+      }
+      finally
+      {
+        if (cwd.NeedCwd) Directory.SetCurrentDirectory(cwd.Curr);
+      }
     }
 
     public static CommandResponse<IList<string>> ComposeCreate(this DockerUri host,
@@ -61,6 +73,7 @@ namespace Ductus.FluentDocker.Commands
       string[] services = null /*all*/,
       ICertificatePaths certificates = null)
     {
+      var cwd = WorkingDirectory(composeFile);
       var args = $"{host.RenderBaseArgs(certificates)}";
       if (!string.IsNullOrEmpty(composeFile))
       {
@@ -98,15 +111,25 @@ namespace Ductus.FluentDocker.Commands
         options += " " + string.Join(" ", services);
       }
 
-      return
-        new ProcessExecutor<StringListResponseParser, IList<string>>(
-          "docker-compose".ResolveBinary(),
-          $"{args} create {options}").Execute();
+      try
+      {
+        if (cwd.NeedCwd) Directory.SetCurrentDirectory(cwd.Cwd); // To pick up .env file
+        
+        return
+          new ProcessExecutor<StringListResponseParser, IList<string>>(
+            "docker-compose".ResolveBinary(),
+            $"{args} create {options}", cwd.NeedCwd ? cwd.Cwd : null).Execute();
+      }
+      finally
+      {
+        if (cwd.NeedCwd) Directory.SetCurrentDirectory(cwd.Curr);
+      }
     }
 
     public static CommandResponse<IList<string>> ComposeStart(this DockerUri host, string altProjectName = null,
       string composeFile = null, string[] services = null /*all*/, ICertificatePaths certificates = null)
     {
+      var cwd = WorkingDirectory(composeFile);
       var args = $"{host.RenderBaseArgs(certificates)}";
       if (!string.IsNullOrEmpty(composeFile))
       {
@@ -124,16 +147,26 @@ namespace Ductus.FluentDocker.Commands
         options += " " + string.Join(" ", services);
       }
 
-      return
-        new ProcessExecutor<StringListResponseParser, IList<string>>(
-          "docker-compose".ResolveBinary(),
-          $"{args} start -d {options}").Execute();
+      try
+      {
+        if (cwd.NeedCwd) Directory.SetCurrentDirectory(cwd.Cwd); // To pick up .env file
+        
+        return
+          new ProcessExecutor<StringListResponseParser, IList<string>>(
+            "docker-compose".ResolveBinary(),
+            $"{args} start -d {options}", cwd.NeedCwd ? cwd.Cwd : null).Execute();
+      }
+      finally
+      {
+        if (cwd.NeedCwd) Directory.SetCurrentDirectory(cwd.Curr);
+      }
     }
 
     public static CommandResponse<IList<string>> ComposeKill(this DockerUri host, string altProjectName = null,
       string composeFile = null, UnixSignal signal = UnixSignal.SIGKILL, string[] services = null /*all*/,
       ICertificatePaths certificates = null)
     {
+      var cwd = WorkingDirectory(composeFile);
       var args = $"{host.RenderBaseArgs(certificates)}";
       if (!string.IsNullOrEmpty(composeFile))
       {
@@ -156,16 +189,26 @@ namespace Ductus.FluentDocker.Commands
         options += " " + string.Join(" ", services);
       }
 
-      return
-        new ProcessExecutor<StringListResponseParser, IList<string>>(
-          "docker-compose".ResolveBinary(),
-          $"{args} kill {options}").Execute();
+      try
+      {
+        if (cwd.NeedCwd) Directory.SetCurrentDirectory(cwd.Cwd); // To pick up .env file
+        
+        return
+          new ProcessExecutor<StringListResponseParser, IList<string>>(
+            "docker-compose".ResolveBinary(),
+            $"{args} kill {options}", cwd.NeedCwd ? cwd.Cwd : null).Execute();
+      }
+      finally
+      {
+        if (cwd.NeedCwd) Directory.SetCurrentDirectory(cwd.Curr);
+      }
     }
 
     public static CommandResponse<IList<string>> ComposeStop(this DockerUri host, string altProjectName = null,
       string composeFile = null, TimeSpan? timeout = null, string[] services = null /*all*/,
       ICertificatePaths certificates = null)
     {
+      var cwd = WorkingDirectory(composeFile);
       var args = $"{host.RenderBaseArgs(certificates)}";
       if (!string.IsNullOrEmpty(composeFile))
       {
@@ -188,15 +231,25 @@ namespace Ductus.FluentDocker.Commands
         options += " " + string.Join(" ", services);
       }
 
-      return
-        new ProcessExecutor<StringListResponseParser, IList<string>>(
-          "docker-compose".ResolveBinary(),
-          $"{args} stop {options}").Execute();
+      try
+      {
+        if (cwd.NeedCwd) Directory.SetCurrentDirectory(cwd.Cwd); // To pick up .env file
+        
+        return
+          new ProcessExecutor<StringListResponseParser, IList<string>>(
+            "docker-compose".ResolveBinary(),
+            $"{args} stop {options}", cwd.NeedCwd ? cwd.Cwd : null).Execute();
+      }
+      finally
+      {
+        if (cwd.NeedCwd) Directory.SetCurrentDirectory(cwd.Curr);
+      }
     }
 
     public static CommandResponse<IList<string>> ComposePause(this DockerUri host, string altProjectName = null,
       string composeFile = null, string[] services = null /*all*/, ICertificatePaths certificates = null)
     {
+      var cwd = WorkingDirectory(composeFile);
       var args = $"{host.RenderBaseArgs(certificates)}";
       if (!string.IsNullOrEmpty(composeFile))
       {
@@ -214,15 +267,25 @@ namespace Ductus.FluentDocker.Commands
         options += " " + string.Join(" ", services);
       }
 
-      return
-        new ProcessExecutor<StringListResponseParser, IList<string>>(
-          "docker-compose".ResolveBinary(),
-          $"{args} pause {options}").Execute();
+      try
+      {
+        if (cwd.NeedCwd) Directory.SetCurrentDirectory(cwd.Cwd); // To pick up .env file
+        
+        return
+          new ProcessExecutor<StringListResponseParser, IList<string>>(
+            "docker-compose".ResolveBinary(),
+            $"{args} pause {options}", cwd.NeedCwd ? cwd.Cwd : null).Execute();
+      }
+      finally
+      {
+        if (cwd.NeedCwd) Directory.SetCurrentDirectory(cwd.Curr);
+      }
     }
 
     public static CommandResponse<IList<string>> ComposeUnPause(this DockerUri host, string altProjectName = null,
       string composeFile = null, string[] services = null /*all*/, ICertificatePaths certificates = null)
     {
+      var cwd = WorkingDirectory(composeFile);
       var args = $"{host.RenderBaseArgs(certificates)}";
       if (!string.IsNullOrEmpty(composeFile))
       {
@@ -240,16 +303,26 @@ namespace Ductus.FluentDocker.Commands
         options += " " + string.Join(" ", services);
       }
 
-      return
-        new ProcessExecutor<StringListResponseParser, IList<string>>(
-          "docker-compose".ResolveBinary(),
-          $"{args} unpause {options}").Execute();
+      try
+      {
+        if (cwd.NeedCwd) Directory.SetCurrentDirectory(cwd.Cwd); // To pick up .env file
+        
+        return
+          new ProcessExecutor<StringListResponseParser, IList<string>>(
+            "docker-compose".ResolveBinary(),
+            $"{args} unpause {options}", cwd.NeedCwd ? cwd.Cwd : null).Execute();
+      }
+      finally
+      {
+        if (cwd.NeedCwd) Directory.SetCurrentDirectory(cwd.Curr);
+      }
     }
 
     public static CommandResponse<IList<string>> ComposeScale(this DockerUri host, string altProjectName = null,
       string composeFile = null, TimeSpan? shutdownTimeout = null,
       string[] serviceEqNumber = null /*all*/, ICertificatePaths certificates = null)
     {
+      var cwd = WorkingDirectory(composeFile);
       var args = $"{host.RenderBaseArgs(certificates)}";
       if (!string.IsNullOrEmpty(composeFile))
       {
@@ -273,15 +346,25 @@ namespace Ductus.FluentDocker.Commands
         services += " " + string.Join(" ", serviceEqNumber);
       }
 
-      return
-        new ProcessExecutor<StringListResponseParser, IList<string>>(
-          "docker-compose".ResolveBinary(),
-          $"{args} scale {options} {services}").Execute();
+      try
+      {
+        if (cwd.NeedCwd) Directory.SetCurrentDirectory(cwd.Cwd); // To pick up .env file
+        
+        return
+          new ProcessExecutor<StringListResponseParser, IList<string>>(
+            "docker-compose".ResolveBinary(),
+            $"{args} scale {options} {services}", cwd.NeedCwd ? cwd.Cwd : null).Execute();
+      }
+      finally
+      {
+        if (cwd.NeedCwd) Directory.SetCurrentDirectory(cwd.Curr);
+      }
     }
 
     public static CommandResponse<IList<string>> ComposeVersion(this DockerUri host, string altProjectName = null,
       string composeFile = null, bool shortVersion = false, ICertificatePaths certificates = null)
     {
+      var cwd = WorkingDirectory(composeFile);
       var args = $"{host.RenderBaseArgs(certificates)}";
       if (!string.IsNullOrEmpty(composeFile))
       {
@@ -299,16 +382,26 @@ namespace Ductus.FluentDocker.Commands
         options = "--short";
       }
 
-      return
-        new ProcessExecutor<StringListResponseParser, IList<string>>(
-          "docker-compose".ResolveBinary(),
-          $"{args} version {options}").Execute();
+      try
+      {
+        if (cwd.NeedCwd) Directory.SetCurrentDirectory(cwd.Cwd); // To pick up .env file
+        
+        return
+          new ProcessExecutor<StringListResponseParser, IList<string>>(
+            "docker-compose".ResolveBinary(),
+            $"{args} version {options}", cwd.NeedCwd ? cwd.Cwd : null).Execute();
+      }
+      finally
+      {
+        if (cwd.NeedCwd) Directory.SetCurrentDirectory(cwd.Curr);
+      }
     }
 
     public static CommandResponse<IList<string>> ComposeRestart(this DockerUri host, string altProjectName = null,
       string composeFile = null, TimeSpan? timeout = null, ICertificatePaths certificates = null,
       params string[] containerId)
     {
+      var cwd = WorkingDirectory(composeFile);
       var args = $"{host.RenderBaseArgs(certificates)}";
       if (!string.IsNullOrEmpty(composeFile))
       {
@@ -332,10 +425,19 @@ namespace Ductus.FluentDocker.Commands
         options = $" -t {Math.Round(timeout.Value.TotalSeconds, 0)}";
       }
 
-      return
-        new ProcessExecutor<StringListResponseParser, IList<string>>(
-          "docker-compose".ResolveBinary(),
-          $"{args} restart {options} {ids}").Execute();
+      try
+      {
+        if (cwd.NeedCwd) Directory.SetCurrentDirectory(cwd.Cwd); // To pick up .env file
+        
+        return
+          new ProcessExecutor<StringListResponseParser, IList<string>>(
+            "docker-compose".ResolveBinary(),
+            $"{args} restart {options} {ids}", cwd.NeedCwd ? cwd.Cwd : null).Execute();
+      }
+      finally
+      {
+        if (cwd.NeedCwd) Directory.SetCurrentDirectory(cwd.Curr);
+      }
     }
 
     public static CommandResponse<IList<string>> ComposePort(this DockerUri host, string containerId,
@@ -343,6 +445,7 @@ namespace Ductus.FluentDocker.Commands
       string altProjectName = null, string composeFile = null,
       ICertificatePaths certificates = null)
     {
+      var cwd = WorkingDirectory(composeFile);
       var args = $"{host.RenderBaseArgs(certificates)}";
       if (!string.IsNullOrEmpty(composeFile))
       {
@@ -359,16 +462,26 @@ namespace Ductus.FluentDocker.Commands
         privatePortAndProto = string.Empty;
       }
 
-      return
-        new ProcessExecutor<StringListResponseParser, IList<string>>(
-          "docker-compose".ResolveBinary(),
-          $"{args} port {containerId} {privatePortAndProto}").Execute();
+      try
+      {
+        if (cwd.NeedCwd) Directory.SetCurrentDirectory(cwd.Cwd); // To pick up .env file
+        
+        return
+          new ProcessExecutor<StringListResponseParser, IList<string>>(
+            "docker-compose".ResolveBinary(),
+            $"{args} port {containerId} {privatePortAndProto}", cwd.NeedCwd ? cwd.Cwd : null).Execute();
+      }
+      finally
+      {
+        if (cwd.NeedCwd) Directory.SetCurrentDirectory(cwd.Curr);
+      }
     }
 
     public static CommandResponse<IList<string>> ComposeConfig(this DockerUri host, string altProjectName = null,
       string composeFile = null, bool quiet = true,
       bool outputServices = false, ICertificatePaths certificates = null)
     {
+      var cwd = WorkingDirectory(composeFile);
       var args = $"{host.RenderBaseArgs(certificates)}";
       if (!string.IsNullOrEmpty(composeFile))
       {
@@ -391,16 +504,26 @@ namespace Ductus.FluentDocker.Commands
         options += " --services";
       }
 
-      return
-        new ProcessExecutor<StringListResponseParser, IList<string>>(
-          "docker-compose".ResolveBinary(),
-          $"{args} config {options}").Execute();
+      try
+      {
+        if (cwd.NeedCwd) Directory.SetCurrentDirectory(cwd.Cwd); // To pick up .env file
+        
+        return
+          new ProcessExecutor<StringListResponseParser, IList<string>>(
+            "docker-compose".ResolveBinary(),
+            $"{args} config {options}", cwd.NeedCwd ? cwd.Cwd : null).Execute();
+      }
+      finally
+      {
+        if (cwd.NeedCwd) Directory.SetCurrentDirectory(cwd.Curr);
+      }
     }
 
     public static CommandResponse<IList<string>> ComposeDown(this DockerUri host, string altProjectName = null,
       string composeFile = null, ImageRemovalOption removeImagesFrom = ImageRemovalOption.None,
       bool removeVolumes = false, bool removeOrphanContainers = false, ICertificatePaths certificates = null)
     {
+      var cwd = WorkingDirectory(composeFile);
       var args = $"{host.RenderBaseArgs(certificates)}";
       if (!string.IsNullOrEmpty(composeFile))
       {
@@ -428,10 +551,19 @@ namespace Ductus.FluentDocker.Commands
         options += removeImagesFrom == ImageRemovalOption.Local ? " --rmi local" : " --rmi all";
       }
 
-      return
-        new ProcessExecutor<StringListResponseParser, IList<string>>(
-          "docker-compose".ResolveBinary(),
-          $"{args} down {options}").Execute();
+      try
+      {
+        if (cwd.NeedCwd) Directory.SetCurrentDirectory(cwd.Cwd); // To pick up .env file
+        
+        return
+          new ProcessExecutor<StringListResponseParser, IList<string>>(
+            "docker-compose".ResolveBinary(),
+            $"{args} down {options}", cwd.NeedCwd ? cwd.Cwd : null).Execute();
+      }
+      finally
+      {
+        if (cwd.NeedCwd) Directory.SetCurrentDirectory(cwd.Curr);
+      }
     }
 
     public static CommandResponse<IList<string>> ComposeUp(this DockerUri host,
@@ -443,6 +575,8 @@ namespace Ductus.FluentDocker.Commands
       string[] services = null /*all*/,
       ICertificatePaths certificates = null)
     {
+      var cwd = WorkingDirectory(composeFile);
+      
       var args = $"{host.RenderBaseArgs(certificates)}";
       if (!string.IsNullOrEmpty(composeFile))
       {
@@ -497,10 +631,19 @@ namespace Ductus.FluentDocker.Commands
         options += " " + string.Join(" ", services);
       }
 
-      return
-        new ProcessExecutor<StringListResponseParser, IList<string>>(
-          "docker-compose".ResolveBinary(),
-          $"{args} up {options}").Execute();
+      try
+      {
+        if (cwd.NeedCwd) Directory.SetCurrentDirectory(cwd.Cwd); // To pick up .env file
+        
+        return
+          new ProcessExecutor<StringListResponseParser, IList<string>>(
+            "docker-compose".ResolveBinary(),
+            $"{args} up {options}", cwd.NeedCwd ? cwd.Cwd : null).Execute();
+      }
+      finally
+      {
+        if (cwd.NeedCwd) Directory.SetCurrentDirectory(cwd.Curr);
+      }
     }
 
     public static CommandResponse<IList<string>> ComposeRm(this DockerUri host, string altProjectName = null,
@@ -508,6 +651,7 @@ namespace Ductus.FluentDocker.Commands
       bool removeVolumes = false, bool all = false,
       string[] services = null /*all*/, ICertificatePaths certificates = null)
     {
+      var cwd = WorkingDirectory(composeFile);
       var args = $"{host.RenderBaseArgs(certificates)}";
       if (!string.IsNullOrEmpty(composeFile))
       {
@@ -540,16 +684,26 @@ namespace Ductus.FluentDocker.Commands
         options += " " + string.Join(" ", services);
       }
 
-      return
-        new ProcessExecutor<StringListResponseParser, IList<string>>(
-          "docker-compose".ResolveBinary(),
-          $"{args} rm {options}").Execute();
+      try
+      {
+        if (cwd.NeedCwd) Directory.SetCurrentDirectory(cwd.Cwd); // To pick up .env file
+        
+        return
+          new ProcessExecutor<StringListResponseParser, IList<string>>(
+            "docker-compose".ResolveBinary(),
+            $"{args} rm {options}", cwd.NeedCwd ? cwd.Cwd : null).Execute();
+      }
+      finally
+      {
+        if (cwd.NeedCwd) Directory.SetCurrentDirectory(cwd.Curr);
+      }
     }
 
     public static CommandResponse<IList<string>> ComposePs(this DockerUri host, string altProjectName = null,
       string composeFile = null, string[] services = null,
       ICertificatePaths certificates = null)
     {
+      var cwd = WorkingDirectory(composeFile);
       var args = $"{host.RenderBaseArgs(certificates)}";
       if (!string.IsNullOrEmpty(composeFile))
       {
@@ -567,10 +721,10 @@ namespace Ductus.FluentDocker.Commands
         options += " " + string.Join(" ", services);
       }
 
-      return
-        new ProcessExecutor<StringListResponseParser, IList<string>>(
-          "docker-compose".ResolveBinary(),
-          $"{args} ps -q {options}").Execute();
+        return
+          new ProcessExecutor<StringListResponseParser, IList<string>>(
+            "docker-compose".ResolveBinary(),
+            $"{args} ps -q {options}", cwd.NeedCwd ? cwd.Cwd : null).Execute();
     }
 
     public static CommandResponse<IList<string>> ComposePull(this DockerUri host, string image,
@@ -578,6 +732,7 @@ namespace Ductus.FluentDocker.Commands
       string composeFile = null, bool downloadAllTagged = false, bool skipImageverficiation = false,
       ICertificatePaths certificates = null)
     {
+      var cwd = WorkingDirectory(composeFile);
       var args = $"{host.RenderBaseArgs(certificates)}";
       if (!string.IsNullOrEmpty(composeFile))
       {
@@ -600,10 +755,32 @@ namespace Ductus.FluentDocker.Commands
         options += " --disable-content-trust=true";
       }
 
-      return
-        new ProcessExecutor<StringListResponseParser, IList<string>>(
-          "docker-compose".ResolveBinary(),
-          $"{args} pull {options} {image}").Execute();
+        return
+          new ProcessExecutor<StringListResponseParser, IList<string>>(
+            "docker-compose".ResolveBinary(),
+            $"{args} pull {options} {image}", cwd.NeedCwd ? cwd.Cwd : null).Execute();
+    }
+    
+    private static WorkingDirectoryInfo WorkingDirectory(string composeFile)
+    {
+      var curr = Directory.GetCurrentDirectory();
+      var cwd = curr;
+      if (!string.IsNullOrEmpty(composeFile))
+      {
+        cwd = Path.GetDirectoryName(Path.IsPathRooted(composeFile)
+          ? composeFile
+          : Path.Combine(curr, composeFile));
+      }
+
+      return new WorkingDirectoryInfo {Curr = curr, Cwd = cwd};
+    }
+
+    private struct WorkingDirectoryInfo
+    {
+      public string Cwd {get; set; }
+      public string Curr { get; set; }
+
+      public bool NeedCwd => Cwd != Curr;
     }
   }
 }
