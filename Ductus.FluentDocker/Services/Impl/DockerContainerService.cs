@@ -124,7 +124,13 @@ namespace Ductus.FluentDocker.Services.Impl
     void IService.Start()
     {
       State = ServiceRunningState.Starting;
-      DockerHost.Start(Id, Certificates);
+      var result = DockerHost.Start(Id, Certificates);
+      if (!result.Success)
+      {
+        Dispose();
+        throw new FluentDockerException($"Failed to start container {Name} log: {result}");
+      }
+      
       if (GetConfiguration().State.Running)
         State = ServiceRunningState.Running;
     }

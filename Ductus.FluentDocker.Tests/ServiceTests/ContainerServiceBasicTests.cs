@@ -346,7 +346,7 @@ namespace Ductus.FluentDocker.Tests.ServiceTests
         container.Start();
         Assert.AreEqual(ServiceRunningState.Running, container.State);
 
-        var fullPath = (TemplateString) @"${TEMP}\fluentdockertest\${RND}\hello.html";
+        var fullPath = (TemplateString) @"${TEMP}/fluentdockertest/${RND}/hello.html";
 
         try
         {

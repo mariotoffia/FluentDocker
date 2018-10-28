@@ -19,6 +19,7 @@ namespace Ductus.FluentDocker.Model.Common
             "${TMP}", () =>
             {
               var path = Path.GetTempPath();
+              if (path.StartsWith("/var/")) path = "/private/" + path; // mac os x
               return path.Substring(0, path.Length - 1);
             }
           },
@@ -26,6 +27,7 @@ namespace Ductus.FluentDocker.Model.Common
             "${TEMP}", () =>
             {
               var path = Path.GetTempPath();
+              if (path.StartsWith("/var/")) path = "/private/" + path; // mac os x
               return path.Substring(0, path.Length - 1);
             }
           },

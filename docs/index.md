@@ -149,7 +149,7 @@ Utility methods exists for commands. They come in different flaviours such as ne
 The highest layer of this library is the fluent API where you can define and control machines, images, and containers. For example to setup a loadbalancer with two nodejs servers reading from a redis server can look like this (node image is custom built if not found in the repository).
 
 ```cs
-     var fullPath = (TemplateString) @"${TEMP}\fluentdockertest\${RND}";
+     var fullPath = (TemplateString) @"${TEMP}/fluentdockertest/${RND}";
       var nginx = Path.Combine(fullPath, "nginx.conf");
 
       Directory.CreateDirectory(fullPath);
@@ -332,7 +332,7 @@ A normal usecase is to have e.g. a webserver serving content on a docker contain
 
 ```cs
      const string html = "<html><head>Hello World</head><body><h1>Hello world</h1></body></html>";
-      var hostPath = (TemplateString) @"${TEMP}\fluentdockertest\${RND}";
+      var hostPath = (TemplateString) @"${TEMP}/fluentdockertest/${RND}";
       Directory.CreateDirectory(hostPath);
 
       using (
