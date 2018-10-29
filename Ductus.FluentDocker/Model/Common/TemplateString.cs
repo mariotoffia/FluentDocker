@@ -3,6 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using Ductus.FluentDocker.Common;
 
 namespace Ductus.FluentDocker.Model.Common
 {
@@ -19,7 +20,7 @@ namespace Ductus.FluentDocker.Model.Common
             "${TMP}", () =>
             {
               var path = Path.GetTempPath();
-              if (path.StartsWith("/var/")) path = "/private/" + path; // mac os x
+              if (path.StartsWith("/var/") && OperatingSystem.IsOsx()) path = "/private/" + path;
               return path.Substring(0, path.Length - 1);
             }
           },
@@ -27,7 +28,7 @@ namespace Ductus.FluentDocker.Model.Common
             "${TEMP}", () =>
             {
               var path = Path.GetTempPath();
-              if (path.StartsWith("/var/")) path = "/private/" + path; // mac os x
+              if (path.StartsWith("/var/") && OperatingSystem.IsOsx()) path = "/private/" + path;
               return path.Substring(0, path.Length - 1);
             }
           },
@@ -48,8 +49,8 @@ namespace Ductus.FluentDocker.Model.Common
     private static string ToTargetOs(string str)
     {
       if (string.IsNullOrEmpty(str) || str.StartsWith("emb:")) return str;
-      
-      return !Ductus.FluentDocker.Common.OperatingSystem.IsWindows() ? str : str.Replace('/', '\\');
+
+      return !OperatingSystem.IsWindows() ? str : str.Replace('/', '\\');
     }
 
     private static string Render(string str)
@@ -65,11 +66,9 @@ namespace Ductus.FluentDocker.Model.Common
       foreach (DictionaryEntry env in Environment.GetEnvironmentVariables())
       {
         var tmpEnv = "${E_" + env.Key + "}";
-        if (-1 != str.IndexOf(tmpEnv, StringComparison.Ordinal))
-        {
-          str = str.Replace(tmpEnv, (string) env.Value);
-        }
+        if (-1 != str.IndexOf(tmpEnv, StringComparison.Ordinal)) str = str.Replace(tmpEnv, (string) env.Value);
       }
+
       return str;
     }
 
