@@ -8,7 +8,6 @@ using Ductus.FluentDocker.Executors;
 using Ductus.FluentDocker.Extensions.Utils;
 using Ductus.FluentDocker.Model.Common;
 using Ductus.FluentDocker.Model.Containers;
-using OperatingSystem = Ductus.FluentDocker.Common.OperatingSystem;
 
 namespace Ductus.FluentDocker.Extensions
 {
@@ -90,7 +89,7 @@ namespace Ductus.FluentDocker.Extensions
 
       var binary = _binaryResolver.Resolve(dockerCommand, preferMachine);
 
-      if (OperatingSystem.IsWindows() || binary.Sudo == SudoMechanism.None)
+      if (FdOs.IsWindows() || binary.Sudo == SudoMechanism.None)
         return binary.FqPath;
 
       string cmd;
@@ -144,7 +143,7 @@ namespace Ductus.FluentDocker.Extensions
 
     public static bool IsEmulatedNative()
     {
-      return !OperatingSystem.IsLinux() && !IsToolbox();
+      return !FdOs.IsLinux() && !IsToolbox();
     }
 
 
@@ -164,7 +163,7 @@ namespace Ductus.FluentDocker.Extensions
 
     public static bool IsNative()
     {
-      return OperatingSystem.IsLinux();
+      return FdOs.IsLinux();
     }
 
     public static IPAddress EmulatedNativeAdress(bool useCache = true)

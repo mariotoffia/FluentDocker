@@ -33,7 +33,7 @@ namespace Ductus.FluentDocker.Builders
     private int _port = -1;
     private string _sshUser;
 
-    private string _sshKeyPath = OperatingSystem.IsWindows()
+    private string _sshKeyPath = FdOs.IsWindows()
       ? ((TemplateString) "${E_LOCALAPPDATA}/lxss/home/martoffi/.ssh/id_rsa").Rendered
       : "~/.ssh/id_rsa";
     
@@ -124,7 +124,7 @@ namespace Ductus.FluentDocker.Builders
     /// <returns>Itself for fluent access.</returns>
     public RemoteSshHostBuilder WithSshKeyPath(TemplateString path)
     {
-      _sshKeyPath = OperatingSystem.IsWindows() ? path.Rendered.Replace('\\', '/') : path.Rendered;
+      _sshKeyPath = FdOs.IsWindows() ? path.Rendered.Replace('\\', '/') : path.Rendered;
       return this;
     }
 

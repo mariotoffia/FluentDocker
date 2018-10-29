@@ -4,7 +4,7 @@ using System.IO;
 using System.Linq;
 using Ductus.FluentDocker.Common;
 using Ductus.FluentDocker.Model.Common;
-using static Ductus.FluentDocker.Common.OperatingSystem;
+using static Ductus.FluentDocker.Common.FdOs;
 
 namespace Ductus.FluentDocker.Extensions.Utils
 {

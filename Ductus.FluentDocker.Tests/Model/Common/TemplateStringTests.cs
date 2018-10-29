@@ -1,7 +1,7 @@
 using System;
+using Ductus.FluentDocker.Common;
 using Ductus.FluentDocker.Model.Common;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
-using OperatingSystem = Ductus.FluentDocker.Common.OperatingSystem;
 using Ductus.FluentDocker.Extensions;
 
 namespace Ductus.FluentDocker.Tests.Model.Common
@@ -12,7 +12,7 @@ namespace Ductus.FluentDocker.Tests.Model.Common
     [TestMethod]
     public void UnifiedSeparatorWillBeTranslatedOnWindows()
     {
-      if (!OperatingSystem.IsWindows()) return;
+      if (!FdOs.IsWindows()) return;
 
       var path = new TemplateString(@"${TEMP}/folder/${RND}");
       

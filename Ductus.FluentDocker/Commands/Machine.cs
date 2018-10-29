@@ -92,7 +92,7 @@ namespace Ductus.FluentDocker.Commands
 
     public static CommandResponse<string> ManuallyDelete(this string machine)
     {
-      var path = OperatingSystem.IsWindows()
+      var path = FdOs.IsWindows()
         ? ((TemplateString) ("${E_HOMEDRIVE}${E_HOMEPATH}/.docker/machine/machines/" + machine)).Rendered
         : $"~/.docker/machine/machines/{machine}";
 

@@ -1,6 +1,6 @@
 ﻿using System;
+using Ductus.FluentDocker.Common;
 using Ductus.FluentDocker.Extensions;
-using OperatingSystem = Ductus.FluentDocker.Common.OperatingSystem;
 
 namespace Ductus.FluentDocker.Model.Common
 {
@@ -23,7 +23,7 @@ namespace Ductus.FluentDocker.Model.Common
         return env;
       }
 
-      if (OperatingSystem.IsWindows())
+      if (FdOs.IsWindows())
       {
         return CommandExtensions.IsToolbox() ? DockerHostUrlLegacy : DockerHostUrlWindowsNative;
       }

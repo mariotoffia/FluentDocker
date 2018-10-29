@@ -9,7 +9,7 @@ namespace Ductus.FluentDocker.Tests.Extensions
   {
     public static void LinuxMode()
     {
-      if (OperatingSystem.IsWindows())
+      if (FdOs.IsWindows())
         Info.LinuxDaemon(null);
     }
 
@@ -20,7 +20,7 @@ namespace Ductus.FluentDocker.Tests.Extensions
     /// <param name="certificates">The certificates to communicate, many be null.</param>
     public static void LinuxMode(this DockerUri host, ICertificatePaths certificates = null)
     {
-      if (OperatingSystem.IsWindows())
+      if (FdOs.IsWindows())
         host.LinuxDaemon(certificates);
     }
   }

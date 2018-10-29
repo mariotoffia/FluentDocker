@@ -23,14 +23,14 @@ namespace Ductus.FluentDocker.Commands
     /// </remarks>
     public static void AutoDetect()
     {
-      if (Common.OperatingSystem.IsWindows() || Common.OperatingSystem.IsOsx())
+      if (Common.FdOs.IsWindows() || Common.FdOs.IsOsx())
       {
         // Prefer non toolbox on windows and mac
         if (!CommandExtensions.IsToolbox())
         {
-          MachineDriver = Common.OperatingSystem.IsWindows() ? "hyperv" : "xhyve";
+          MachineDriver = Common.FdOs.IsWindows() ? "hyperv" : "xhyve";
 
-          if (Common.OperatingSystem.IsWindows())
+          if (Common.FdOs.IsWindows())
           {
             // TODO: Is it possible instead to use the proxy to proxy this machine
             // TODO: for the default docker NAT switch instead?

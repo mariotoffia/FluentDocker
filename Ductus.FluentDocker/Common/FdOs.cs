@@ -6,7 +6,7 @@ using System;
 
 namespace Ductus.FluentDocker.Common
 {
-	public static class OperatingSystem
+	public static class FdOs
 	{
 
 #if COREFX

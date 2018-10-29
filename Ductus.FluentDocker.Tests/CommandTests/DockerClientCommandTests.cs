@@ -78,7 +78,7 @@ namespace Ductus.FluentDocker.Tests.CommandTests
     [Ignore]
     public void EnsureWindowsDaemonShallWork()
     {
-      if (!OperatingSystem.IsWindows())
+      if (!FdOs.IsWindows())
       {
         // Only run this test on windows devices.
         return;

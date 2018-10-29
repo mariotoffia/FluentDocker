@@ -20,7 +20,8 @@ namespace Ductus.FluentDocker.Model.Common
             "${TMP}", () =>
             {
               var path = Path.GetTempPath();
-              if (path.StartsWith("/var/") && OperatingSystem.IsOsx()) path = "/private/" + path;
+              if (path.StartsWith("/var/") && FdOs.IsOsx()) path = "/private/" + path;
+              
               return path.Substring(0, path.Length - 1);
             }
           },
@@ -28,7 +29,8 @@ namespace Ductus.FluentDocker.Model.Common
             "${TEMP}", () =>
             {
               var path = Path.GetTempPath();
-              if (path.StartsWith("/var/") && OperatingSystem.IsOsx()) path = "/private/" + path;
+              if (path.StartsWith("/var/") && FdOs.IsOsx()) path = "/private/" + path;
+              
               return path.Substring(0, path.Length - 1);
             }
           },
@@ -50,7 +52,7 @@ namespace Ductus.FluentDocker.Model.Common
     {
       if (string.IsNullOrEmpty(str) || str.StartsWith("emb:")) return str;
 
-      return !OperatingSystem.IsWindows() ? str : str.Replace('/', '\\');
+      return !FdOs.IsWindows() ? str : str.Replace('/', '\\');
     }
 
     private static string Render(string str)
