@@ -33,7 +33,7 @@ namespace Ductus.FluentDocker.Builders
 
         public RepositoryBuilder Build(IHostService host)
         {
-            host?.Host.Login(_user, _password);
+            host?.Host.Login(_server, _user, _password);
             return this;
         }
     }
