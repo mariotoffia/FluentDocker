@@ -5,16 +5,21 @@ namespace Ductus.FluentDocker.Builders
 {
     public sealed class RepositoryBuilder
     {
-        private string _name;
+        private string _server;
         private string _user;
         private string _password;
-        public RepositoryBuilder(string name = null, string user = null, string pass = null)
+        public RepositoryBuilder(string server, string user = null, string pass = null)
         {
-            _name = name;
+            _server = server;
             _user = user;
             _password = pass;
         }
 
+        public RepositoryBuilder Server(string server)
+        {
+            _server = server;
+            return this;
+        }
         public RepositoryBuilder User(string user)
         {
             _user = user;

@@ -91,9 +91,16 @@ namespace Ductus.FluentDocker.Builders
       return this;
     }
 
-    public ContainerBuilder WithCredential(string user, string password)
+    /// <summary>
+    /// Uses credentials to login to a registry. 
+    /// </summary>
+    /// <param name="server">The ip or dns to the server (with optioanl :port)</param>
+    /// <param name="user">An optional user to use when logging in.</param>
+    /// <param name="password">An optional password to user when logging in.</param>
+    /// <returns>Itself for fluent access.</returns>
+    public ContainerBuilder WithCredential(string server, string user = null, string password = null)
     {
-      _repositoryBuilder = new RepositoryBuilder(user: user, pass: password);
+      _repositoryBuilder = new RepositoryBuilder(server, user, password);
       return this;
     }
 

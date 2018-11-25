@@ -12,17 +12,18 @@ namespace Ductus.FluentDocker.Commands
 {
   public static class Client
   {
-    public static CommandResponse<IList<string>> Login(this DockerUri host, string user, string pass = null, 
-      ICertificatePaths certificates = null)
+    public static CommandResponse<IList<string>> Login(this DockerUri host, string server, string user = null, 
+      string pass = null, ICertificatePaths certificates = null)
     {
       var args = $"{host.RenderBaseArgs(certificates)}";
-      var opts = $"-u {user}";
+      var opts = string.Empty;
+      if (!string.IsNullOrEmpty(user)) opts = $"-u {user}";
       if (!string.IsNullOrEmpty(pass)) opts += $" -p {pass}";
       
       return
         new ProcessExecutor<StringListResponseParser, IList<string>>(
           "docker".ResolveBinary(),
-          $"{args} login {opts}").Execute();
+          $"{args} login {opts} {server}").Execute();
     }
 
     public static CommandResponse<IList<string>> Logout(this DockerUri host, ICertificatePaths certificates = null)
