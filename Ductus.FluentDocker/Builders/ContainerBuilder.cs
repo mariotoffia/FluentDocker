@@ -103,14 +103,14 @@ namespace Ductus.FluentDocker.Builders
       return builder;
     }
 
-    public ComposeFileBuilder UseCompose()
+    public CompositeBuilder UseCompose()
     {
-      var builder = new ComposeFileBuilder(this);
+      var builder = new CompositeBuilder(this);
       Childs.Add(builder);
       return builder;
     }
 
-    public ComposeFileBuilder FromComposeFile(string composeFile)
+    public CompositeBuilder FromComposeFile(string composeFile)
     {
       return UseCompose().FromFile(composeFile);
     }
@@ -192,7 +192,7 @@ namespace Ductus.FluentDocker.Builders
 
     public ContainerBuilder Mount(string fqHostPath, string fqContainerPath, MountType access)
     {
-      var hp = Ductus.FluentDocker.Common.FdOs.IsWindows() && CommandExtensions.IsToolbox()
+      var hp = FdOs.IsWindows() && CommandExtensions.IsToolbox()
         ? ((TemplateString) fqHostPath).Rendered.ToMsysPath()
         : ((TemplateString) fqHostPath).Rendered;
 

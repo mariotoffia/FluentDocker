@@ -15,11 +15,11 @@ using Ductus.FluentDocker.Services.Impl;
 namespace Ductus.FluentDocker.Builders
 {
   [Experimental(TargetVersion = "3.0.0")]
-  public sealed class ComposeFileBuilder : BaseBuilder<ICompositeService>
+  public sealed class CompositeBuilder : BaseBuilder<ICompositeService>
   {
     private readonly DockerComposeFileConfig _config = new DockerComposeFileConfig();
 
-    internal ComposeFileBuilder(IBuilder parent, string composeFile = null) : base(parent)
+    internal CompositeBuilder(IBuilder parent, string composeFile = null) : base(parent)
     {
       if (!string.IsNullOrEmpty(composeFile))
       _config.ComposeFilePath.Add(composeFile);
@@ -169,85 +169,85 @@ namespace Ductus.FluentDocker.Builders
       }
     }
 
-    public ComposeFileBuilder FromFile(params string []composeFile)
+    public CompositeBuilder FromFile(params string []composeFile)
     {
       ((List<string>)_config.ComposeFilePath).AddRange(composeFile);
       return this;
     }
 
-    public ComposeFileBuilder ForceRecreate()
+    public CompositeBuilder ForceRecreate()
     {
       _config.ForceRecreate = true;
       return this;
     }
 
-    public ComposeFileBuilder NoRecreate()
+    public CompositeBuilder NoRecreate()
     {
       _config.NoRecreate = true;
       return this;
     }
 
-    public ComposeFileBuilder NoBuild()
+    public CompositeBuilder NoBuild()
     {
       _config.NoBuild = true;
       return this;
     }
 
-    public ComposeFileBuilder ForceBuild()
+    public CompositeBuilder ForceBuild()
     {
       _config.ForceBuild = true;
       return this;
     }
 
-    public ComposeFileBuilder Timeout(TimeSpan timeoutInSeconds)
+    public CompositeBuilder Timeout(TimeSpan timeoutInSeconds)
     {
       _config.TimeoutSeconds = timeoutInSeconds;
       return this;
     }
 
-    public ComposeFileBuilder RemoveOrphans()
+    public CompositeBuilder RemoveOrphans()
     {
       _config.RemoveOrphans = true;
       return this;
     }
 
-    public ComposeFileBuilder ServiceName(string name)
+    public CompositeBuilder ServiceName(string name)
     {
       _config.AlternativeServiceName = name;
       return this;
     }
 
-    public ComposeFileBuilder UseColor()
+    public CompositeBuilder UseColor()
     {
       _config.UseColor = true;
       return this;
     }
 
-    public ComposeFileBuilder KeepVolumes()
+    public CompositeBuilder KeepVolumes()
     {
       _config.KeepVolumes = true;
       return this;
     }
 
-    public ComposeFileBuilder RemoveAllImages()
+    public CompositeBuilder RemoveAllImages()
     {
       _config.ImageRemoval = ImageRemovalOption.All;
       return this;
     }
 
-    public ComposeFileBuilder RemoveNonTaggedImages()
+    public CompositeBuilder RemoveNonTaggedImages()
     {
       _config.ImageRemoval = ImageRemovalOption.Local;
       return this;
     }
 
-    public ComposeFileBuilder KeepOnDispose()
+    public CompositeBuilder KeepOnDispose()
     {
       _config.StopOnDispose = false;
       return this;
     }
 
-    public ComposeFileBuilder ExportOnDispose(string service, string hostPath,
+    public CompositeBuilder ExportOnDispose(string service, string hostPath,
       Func<IContainerService, bool> condition = null)
     {
       GetContainerSpecificConfig(service).ExportOnDispose =
@@ -256,7 +256,7 @@ namespace Ductus.FluentDocker.Builders
       return this;
     }
 
-    public ComposeFileBuilder ExportExploadedOnDispose(string service, string hostPath,
+    public CompositeBuilder ExportExploadedOnDispose(string service, string hostPath,
       Func<IContainerService, bool> condition = null)
     {
       GetContainerSpecificConfig(service).ExportOnDispose =
@@ -265,7 +265,7 @@ namespace Ductus.FluentDocker.Builders
       return this;
     }
 
-    public ComposeFileBuilder CopyOnStart(string service, string hostPath, string containerPath)
+    public CompositeBuilder CopyOnStart(string service, string hostPath, string containerPath)
     {
       var config = GetContainerSpecificConfig(service);
       if (null == config.CpToOnStart)
@@ -276,7 +276,7 @@ namespace Ductus.FluentDocker.Builders
       return this;
     }
 
-    public ComposeFileBuilder CopyOnDispose(string service, string containerPath, string hostPath)
+    public CompositeBuilder CopyOnDispose(string service, string containerPath, string hostPath)
     {
       var config = GetContainerSpecificConfig(service);
       if (null == config.CpFromOnDispose)
@@ -287,13 +287,13 @@ namespace Ductus.FluentDocker.Builders
       return this;
     }
 
-    public ComposeFileBuilder WaitForPort(string service, string portAndProto, long millisTimeout = long.MaxValue)
+    public CompositeBuilder WaitForPort(string service, string portAndProto, long millisTimeout = long.MaxValue)
     {
       GetContainerSpecificConfig(service).WaitForPort = new Tuple<string, long>(portAndProto, millisTimeout);
       return this;
     }
 
-    public ComposeFileBuilder WaitForProcess(string service, string process, long millisTimeout = long.MaxValue)
+    public CompositeBuilder WaitForProcess(string service, string process, long millisTimeout = long.MaxValue)
     {
       GetContainerSpecificConfig(service).WaitForProcess = new Tuple<string, long>(process, millisTimeout);
       return this;
@@ -313,7 +313,7 @@ namespace Ductus.FluentDocker.Builders
     /// any type of abort action due to the amount of invocations. If continuation wishes to abort, it shall throw
     /// <see cref="FluentDockerException"/>.
     /// </remarks>
-    public ComposeFileBuilder Wait(string service, Func<IContainerService, int, int> continuation)
+    public CompositeBuilder Wait(string service, Func<IContainerService, int, int> continuation)
     {
       GetContainerSpecificConfig(service).WaitLambda.Add(continuation);
       return this;
@@ -328,7 +328,7 @@ namespace Ductus.FluentDocker.Builders
     /// <remarks>
     ///   Each execute string is respected as a binary and argument.
     /// </remarks>
-    public ComposeFileBuilder ExecuteOnRunning(string service, params string[] execute)
+    public CompositeBuilder ExecuteOnRunning(string service, params string[] execute)
     {
       var config = GetContainerSpecificConfig(service);
       if (null == config.ExecuteOnRunningArguments) config.ExecuteOnRunningArguments = new List<string>();
@@ -346,7 +346,7 @@ namespace Ductus.FluentDocker.Builders
     /// <remarks>
     ///   Each execute string is respected as a binary and argument.
     /// </remarks>
-    public ComposeFileBuilder ExecuteOnDisposing(string service, params string[] execute)
+    public CompositeBuilder ExecuteOnDisposing(string service, params string[] execute)
     {
       var config = GetContainerSpecificConfig(service);
       if (null == config.ExecuteOnDisposingArguments) config.ExecuteOnDisposingArguments = new List<string>();
@@ -368,7 +368,7 @@ namespace Ductus.FluentDocker.Builders
     /// <returns>The response body in form of a string.</returns>
     /// <exception cref="ArgumentException">If <paramref name="method" /> is not GET, PUT, POST or DELETE.</exception>
     /// <exception cref="HttpRequestException">If any errors during the HTTP request.</exception>
-    public ComposeFileBuilder WaitForHttp(string service, string url, long timeout = 60_000,
+    public CompositeBuilder WaitForHttp(string service, string url, long timeout = 60_000,
       Func<RequestResponse, int, long> continuation = null, HttpMethod method = null,
       string contentType = "application/json", string body = null)
     {
@@ -394,7 +394,7 @@ namespace Ductus.FluentDocker.Builders
 
     protected override IBuilder InternalCreate()
     {
-      return new ComposeFileBuilder(this);
+      return new CompositeBuilder(this);
     }
   }
 }

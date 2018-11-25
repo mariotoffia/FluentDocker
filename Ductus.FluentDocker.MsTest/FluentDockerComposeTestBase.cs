@@ -51,7 +51,7 @@ namespace Ductus.FluentDocker.MsTest
       }
     }
 
-    protected virtual ComposeFileBuilder Build()
+    protected virtual CompositeBuilder Build()
     {
       return new Builder()
         .UseContainer()
