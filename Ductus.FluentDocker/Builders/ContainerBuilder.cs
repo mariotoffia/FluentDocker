@@ -18,7 +18,8 @@ namespace Ductus.FluentDocker.Builders
   public sealed class ContainerBuilder : BaseBuilder<IContainerService>
   {
     private readonly ContainerBuilderConfig _config = new ContainerBuilderConfig();
-
+    private RepositoryBuilder _repositoryBuilder = null;
+    
     internal ContainerBuilder(IBuilder parent) : base(parent)
     {
     }
@@ -29,6 +30,9 @@ namespace Ductus.FluentDocker.Builders
       if (!host.HasValue)
         throw new FluentDockerException(
           $"Cannot build container {_config.Image} since no host service is defined");
+
+      // Login on private repo if needed.
+      _repositoryBuilder?.Build(host.Value);
 
       if (_config.VerifyExistence && !string.IsNullOrEmpty(_config.CreateParams.Name))
       {
@@ -84,6 +88,12 @@ namespace Ductus.FluentDocker.Builders
     public ContainerBuilder UseImage(string image)
     {
       _config.Image = image;
+      return this;
+    }
+
+    public ContainerBuilder WithCredential(string user, string password)
+    {
+      _repositoryBuilder = new RepositoryBuilder(user: user, pass: password);
       return this;
     }
 
