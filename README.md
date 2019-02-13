@@ -372,7 +372,7 @@ Above example copies a directory to a host path (fullPath) from a running contai
           .UseImage("kiasaki/alpine-postgres")
           .ExposePort(5432)
           .WithEnvironment("POSTGRES_PASSWORD=mysecretpassword")
-          .CopyOnDispose("/etc/conf.d", fullPath)
+          .CopyOnStart("/etc/conf.d", fullPath)
           .Build()
           .Start())
         {
