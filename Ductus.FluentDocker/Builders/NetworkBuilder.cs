@@ -63,9 +63,16 @@ namespace Ductus.FluentDocker.Builders
       return this;
     }
 
+    [Deprecated("Wrong Spelling, replaced with KeepOnDispose", "3.0.0")]
     public NetworkBuilder KeepOnDispse()
     {
       _removeOnDispose = false;
+      return this;
+    }
+    public NetworkBuilder KeepOnDispose()
+    {
+      _removeOnDispose = false;
+
       return this;
     }
 
