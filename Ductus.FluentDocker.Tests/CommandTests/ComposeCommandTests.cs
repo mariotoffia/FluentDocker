@@ -75,7 +75,7 @@ namespace Ductus.FluentDocker.Tests.CommandTests
     }
 
     [TestMethod]
-//    [Ignore]
+    [Ignore]
     public void Issue79_DockerComposeOnDockerMachineShallWork()
     {
       var fullPath = (TemplateString) @"${TEMP}\fluentdockertest\${RND}";
