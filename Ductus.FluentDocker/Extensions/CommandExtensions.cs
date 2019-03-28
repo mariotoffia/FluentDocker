@@ -194,7 +194,7 @@ namespace Ductus.FluentDocker.Extensions
         return args;
       
       args +=        
-        $" --tlsverify=true --tlscacert={certificates.CaCertificate} --tlscert={certificates.ClientCertificate} --tlskey={certificates.ClientKey}";
+        $" --tlsverify --tlscacert={certificates.CaCertificate} --tlscert={certificates.ClientCertificate} --tlskey={certificates.ClientKey}";
 
       return args;
     }

@@ -1,8 +1,10 @@
 ﻿using System.IO;
+using System.Linq;
 using System.Threading.Tasks;
 using Ductus.FluentDocker.Commands;
 using Ductus.FluentDocker.Extensions;
 using Ductus.FluentDocker.Model.Common;
+using Ductus.FluentDocker.Services;
 using Ductus.FluentDocker.Services.Extensions;
 using Ductus.FluentDocker.Services.Impl;
 using Ductus.FluentDocker.Tests.Compose;
@@ -70,6 +72,19 @@ namespace Ductus.FluentDocker.Tests.CommandTests
         DockerHost.Host.ComposeDown(composeFile: file, certificates: DockerHost.Certificates, removeVolumes: true,
           removeOrphanContainers: true);
       }
+    }
+
+    [TestMethod]
+//    [Ignore]
+    public void Issue79_DockerComposeOnDockerMachineShallWork()
+    {
+      var fullPath = (TemplateString) @"${TEMP}\fluentdockertest\${RND}";
+      var file = Path.Combine(fullPath, "docker-compose.yml");
+      typeof(NsResolver).ResourceExtract(fullPath);
+
+      var hostService = new DockerHostService("test-machine");
+      var composeResponse = hostService.Host
+        .ComposeUp(composeFile: file, certificates: hostService.Certificates);      
     }
   }
 }
