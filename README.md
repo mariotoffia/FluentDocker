@@ -750,6 +750,9 @@ Run this to make docker client use the remote docker daemon.
 ```
 All commands using the ```docker``` binary will now execute on the remote docker daemon.
 
+### Hyper-V
+When creating and querying, via machine, a hyper-v docker machine the process needs to be elevated since Hyper-V will not
+respond to API calls in standard user mode.
 
 ## Test Support
 This repo contains two nuget packages, one for the fluent access and the other is a ms-test base classes to be used while testing. For example in a unit-test it is possible to fire up a postgres container and wait when the the db has booted.

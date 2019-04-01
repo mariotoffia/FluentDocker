@@ -222,19 +222,27 @@ namespace Ductus.FluentDocker.Services.Impl
 
     private void MachineSetup(string name, bool throwOnNotRunning = false)
     {
-      State = name.Status();
-      if (State != ServiceRunningState.Running)
-      {
-        if (!throwOnNotRunning) return;
-        
-        throw new FluentDockerException(
-          $"Could not get status from machine '{name}' thus not possible to resolve host");
-      }
-
-      Host = name.Uri();
-
       var info = name.Inspect().Data;
       RequireTls = info.RequireTls;
+      if (info.DriverName == "hyperv")
+      {
+         // Workaround for Status and Url requires elevated process.
+         Host = new DockerUri($"tcp://{info.IpAddress}:2376");
+         State = ServiceRunningState.Running;
+      }
+      else
+      {
+        State = name.Status();
+        if (State != ServiceRunningState.Running)
+        {
+          if (!throwOnNotRunning) return;
+
+          throw new FluentDockerException(
+            $"Could not get status from machine '{name}' thus not possible to resolve host");
+        }
+        
+        Host = name.Uri();
+      }
 
       ResolveCertificatePaths(info);
     }

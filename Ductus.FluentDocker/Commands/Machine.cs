@@ -1,6 +1,7 @@
 ﻿using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Security.Cryptography.X509Certificates;
 using Ductus.FluentDocker.Common;
 using Ductus.FluentDocker.Executors;
 using Ductus.FluentDocker.Executors.Parsers;
@@ -20,6 +21,14 @@ namespace Ductus.FluentDocker.Commands
       return CommandExtensions.IsMachineBinaryPresent();
     }
 
+    /// <summary>
+    /// Lists all available docker machines
+    /// </summary>
+    /// <returns>A list of machines with name, state and their url</returns>
+    /// <remarks>
+    /// When Hyper-V, the process is required to be elevated or have Hyper-V API privileges. Otherwise
+    /// the state and url properties will be null.
+    /// </remarks>
     public static CommandResponse<IList<MachineLsResponse>> Ls()
     {
       return new ProcessExecutor<MachineLsResponseParser, IList<MachineLsResponse>>(
@@ -33,6 +42,15 @@ namespace Ductus.FluentDocker.Commands
           "docker-machine".ResolveBinary(), $"inspect {machine}").Execute();
     }
 
+    /// <summary>
+    /// Starts a already created machine.
+    /// </summary>
+    /// <param name="machine">The machine to start</param>
+    /// <returns></returns>
+    /// <remarks>
+    /// When starting Hyper-V, the process is required to be elevated or have Hyper-V API privileges. Otherwise
+    /// this command will fail.
+    /// </remarks>
     public static CommandResponse<string> Start(this string machine)
     {
       return
@@ -40,6 +58,15 @@ namespace Ductus.FluentDocker.Commands
           "docker-machine".ResolveBinary(), $"start {machine}").Execute();
     }
 
+    /// <summary>
+    /// Stops a machine.
+    /// </summary>
+    /// <param name="machine">The machine to stop</param>
+    /// <returns></returns>
+    /// <remarks>
+    /// When stopping Hyper-V, the process is required to be elevated or have Hyper-V API privileges. Otherwise
+    /// this command will fail.
+    /// </remarks>
     public static CommandResponse<string> Stop(this string machine)
     {
       return
@@ -61,6 +88,9 @@ namespace Ductus.FluentDocker.Commands
     /// <param name="driver">The machine driver</param>
     /// <param name="options">The "raw" docker-machine options.</param>
     /// <returns>Creation log.</returns>
+    /// <remarks>
+    /// When creating a hyper-v machine, the process must execute in elevated mode.
+    /// </remarks>
     public static CommandResponse<string> Create(this string machine, string driver, params string[] options)
     {
       var opts = options.Aggregate(string.Empty, (current, option) => current + $"{option} ");
@@ -112,6 +142,15 @@ namespace Ductus.FluentDocker.Commands
       return resp.Data.StartsWith("Host is not running") ? null : new DockerUri(resp.Data);
     }
 
+    /// <summary>
+    /// Gets the status of a certain machine.
+    /// </summary>
+    /// <param name="machine">The name of the machine.</param>
+    /// <returns>The machine status</returns>
+    /// <remarks>
+    /// On hyper-v this command requires elevated privileges, otherwise <see cref="ServiceRunningState.Unknown"/>
+    /// is always returned.
+    /// </remarks>
     public static ServiceRunningState Status(this string machine)
     {
       var resp = new ProcessExecutor<SingleStringResponseParser, string>(
@@ -119,8 +158,12 @@ namespace Ductus.FluentDocker.Commands
 
       if (!resp.Success)
         return ServiceRunningState.Unknown;
+      return ToMachineServiceRunningState(resp.Data);
+    }
 
-      switch (resp.Data)
+    public static ServiceRunningState ToMachineServiceRunningState(this string state)
+    {
+      switch (state)
       {
         case "Stopped":
           return ServiceRunningState.Stopped;
@@ -128,7 +171,7 @@ namespace Ductus.FluentDocker.Commands
           return ServiceRunningState.Running;
         default:
           return ServiceRunningState.Unknown;
-      }
+      }      
     }
   }
 }

@@ -75,14 +75,14 @@ namespace Ductus.FluentDocker.Tests.CommandTests
     }
 
     [TestMethod]
-    [Ignore]
+    //[Ignore]
     public void Issue79_DockerComposeOnDockerMachineShallWork()
     {
       var fullPath = (TemplateString) @"${TEMP}\fluentdockertest\${RND}";
       var file = Path.Combine(fullPath, "docker-compose.yml");
       typeof(NsResolver).ResourceExtract(fullPath);
 
-      var hostService = new DockerHostService("test-machine");
+      var hostService = new DockerHostService("wifi-test");
       var composeResponse = hostService.Host
         .ComposeUp(composeFile: file, certificates: hostService.Certificates);      
     }
