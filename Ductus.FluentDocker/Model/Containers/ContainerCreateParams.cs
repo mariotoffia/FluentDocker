@@ -723,8 +723,6 @@ namespace Ductus.FluentDocker.Model.Containers
       sb.OptionIfExists("--pid=", Pid);
       sb.OptionIfExists("--uts=", Uts);
       sb.OptionIfExists("--ipc=", Ipc);
-      sb.OptionIfExists("--ip ", Ipv4);
-      sb.OptionIfExists("--ip6 ", Ipv6);
       if (!string.IsNullOrWhiteSpace(CidFile)) sb.Append($" --cidfile=\"{CidFile}\"");
       
       if (null != HostIpMappings && 0 != HostIpMappings.Count)
@@ -779,6 +777,8 @@ namespace Ductus.FluentDocker.Model.Containers
       sb.OptionIfExists("-l ", Labels);
       sb.OptionIfExists("--group-add=", Groups);
       sb.OptionIfExists("--network ", Network);
+      sb.OptionIfExists("--ip ", Ipv4);
+      sb.OptionIfExists("--ip6 ", Ipv6);
 
       if (RestartPolicy.No != RestartPolicy)
         switch (RestartPolicy)
