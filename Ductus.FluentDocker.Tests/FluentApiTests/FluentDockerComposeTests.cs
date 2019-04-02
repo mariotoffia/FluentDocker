@@ -135,7 +135,7 @@ namespace Ductus.FluentDocker.Tests.FluentApiTests
         }
 
         [TestMethod]
-        public async Task ComposeRunOnRemoteMachineShallWork()
+        public void ComposeRunOnRemoteMachineShallWork()
         {
             var file = Path.Combine(Directory.GetCurrentDirectory(),
                 (TemplateString) "Resources/ComposeTests/WordPress/docker-compose.yml");

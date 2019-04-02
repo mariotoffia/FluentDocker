@@ -6,20 +6,20 @@ using Ductus.FluentDocker.Executors.Parsers;
 using Ductus.FluentDocker.Extensions;
 using Ductus.FluentDocker.Model.Common;
 using Ductus.FluentDocker.Model.Containers;
+using Ductus.FluentDocker.Model.Stacks;
 
 namespace Ductus.FluentDocker.Commands
 {
+  /// <summary>
+  /// Commands to manage docker stack
+  /// </summary>
+  /// <remarks>
+  /// See good examples at https://github.com/play-with-docker/stacks
+  /// </remarks>
   public static class Stack
   {
     // TODO: https://docs.docker.com/engine/reference/commandline/stack_ps/
-    public enum Orchestrator
-    {
-      All,
-      Swarm,
-      Kubernetes
-    }
-
-    public static CommandResponse<IList<string>> StackLs(this DockerUri host,
+    public static CommandResponse<IList<StackLsResponse>> StackLs(this DockerUri host,
       Orchestrator orchestrator = Orchestrator.All,
       bool kubeAllNamespaces = true,
       string kubeNamespace = null,
@@ -35,12 +35,12 @@ namespace Ductus.FluentDocker.Commands
 
       opts += " --format=\"{{.Name}};{{.Services}};{{.Orchestrator}};{{.Namespace}}\"";
       return
-        new ProcessExecutor<StringListResponseParser, IList<string>>(
+        new ProcessExecutor<StackLsResponseParser, IList<StackLsResponse>>(
           "docker".ResolveBinary(),
           $"{args} stack ls {opts}").Execute();
     }
 
-    public static CommandResponse<IList<string>> StackPs(this DockerUri host,
+    public static CommandResponse<IList<StackPsResponse>> StackPs(this DockerUri host,
       string stack,
       Orchestrator orchestrator = Orchestrator.All,
       string kubeNamespace = null,
@@ -58,7 +58,7 @@ namespace Ductus.FluentDocker.Commands
       opts +=
         " --no-trunc --format=\"{{.ID}};{{.Name}};{{.Image}};{{.Node}};{{.DesiredState}};{{.CurrentState}};{{.Error}};{{.Ports}}\"";
       return
-        new ProcessExecutor<StringListResponseParser, IList<string>>(
+        new ProcessExecutor<StackPsResponseParser, IList<StackPsResponse>>(
           "docker".ResolveBinary(),
           $"{args} stack ps {opts} {stack}").Execute();
     }
