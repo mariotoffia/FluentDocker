@@ -105,6 +105,8 @@ namespace Ductus.FluentDocker.Tests.CommandTests
       }
     }
 
+    [TestMethod]
+    [Ignore]
     public void UseNetworkAndStaticIpv4ShallWork()
     {
       string container = null;

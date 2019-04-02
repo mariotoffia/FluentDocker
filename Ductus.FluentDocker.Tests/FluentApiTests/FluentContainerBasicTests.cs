@@ -442,6 +442,7 @@ namespace Ductus.FluentDocker.Tests.FluentApiTests
     }
 
     [TestMethod]
+    [Ignore]
     public void StaticIpv4InCustomNetworkShallWork()
     {
       using (var nw = Fd.UseNetwork("mynetwork").Build())
