@@ -1,7 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <TargetFrameworks>netstandard1.6;netstandard2.0;net452</TargetFrameworks>
-    <VersionPrefix>2.6.4</VersionPrefix>
+    <VersionPrefix>2.6.5</VersionPrefix>
     <AssemblyTitle>Ductus.FluentDocker</AssemblyTitle>
     <Authors>Mario Toffia</Authors>
     <PackageLicenseUrl>https://github.com/mariotoffia/FluentDocker/blob/master/LICENSE</PackageLicenseUrl>
@@ -12,13 +12,13 @@
     <RepositoryType>git</RepositoryType>
     <RepositoryUrl>https://github.com/mariotoffia/FluentDocker</RepositoryUrl>
     <Description>Library to manage docker-machine, docker-compose, and docker containers for windows / mac or native linux using netcore or full framework.</Description>
-    <Copyright>© 2016, 2017, 2018 Mario Toffia</Copyright>
+    <Copyright>© 2016 - 2019 Mario Toffia</Copyright>
     <DefineConstants Condition=" '$(TargetFramework)' == 'netstandard1.6' ">$(DefineConstants);COREFX</DefineConstants>
     <DefineConstants Condition=" '$(TargetFramework)' == 'netstandard2.0' ">$(DefineConstants);COREFX</DefineConstants>
     <GeneratePackageOnBuild>True</GeneratePackageOnBuild>
-    <AssemblyVersion>2.6.4.0</AssemblyVersion>
-    <FileVersion>2.6.4.0</FileVersion>
-    <Version>2.6.4</Version>
+    <AssemblyVersion>2.6.5.0</AssemblyVersion>
+    <FileVersion>2.6.5.0</FileVersion>
+    <Version>2.6.5</Version>
     <AssemblyOriginatorKeyFile>..\keypair.snk</AssemblyOriginatorKeyFile>
     <SignAssembly>true</SignAssembly>
     <PublicSign Condition=" '$(OS)' != 'Windows_NT' ">true</PublicSign>
