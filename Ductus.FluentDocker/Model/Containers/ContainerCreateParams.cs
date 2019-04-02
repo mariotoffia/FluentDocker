@@ -594,6 +594,22 @@ namespace Ductus.FluentDocker.Model.Containers
     ///   --network
     /// </remarks>
     public string Network { get; set; }
+    
+    /// <summary>
+    /// Container IPv4 address (e.g. 172.30.100.104).
+    /// </summary>
+    /// <remarks>
+    ///  --ip
+    /// </remarks>
+    public string Ipv4 { get; set; }
+        
+    /// <summary>
+    /// Container IPv6 address (e.g. 2001:db8::33).
+    /// </summary>
+    /// <remarks>
+    ///  --ip6
+    /// </remarks>
+    public string Ipv6 { get; set; }
 
     /// <summary>
     ///   Restart policy for this container.
@@ -707,6 +723,8 @@ namespace Ductus.FluentDocker.Model.Containers
       sb.OptionIfExists("--pid=", Pid);
       sb.OptionIfExists("--uts=", Uts);
       sb.OptionIfExists("--ipc=", Ipc);
+      sb.OptionIfExists("--ip ", Ipv4);
+      sb.OptionIfExists("--ip6 ", Ipv6);
       if (!string.IsNullOrWhiteSpace(CidFile)) sb.Append($" --cidfile=\"{CidFile}\"");
       
       if (null != HostIpMappings && 0 != HostIpMappings.Count)
@@ -802,8 +820,6 @@ namespace Ductus.FluentDocker.Model.Containers
   --disable-content-trust=true    Skip image verification
   --entrypoint                    Overwrite the default ENTRYPOINT of the image
   --expose=[]                     Expose a port or a range of ports
-  --ip                            Container IPv4 address (e.g. 172.30.100.104)
-  --ip6                           Container IPv6 address (e.g. 2001:db8::33)
   --isolation                     Container isolation level
   --label-file=[]                 Read in a line delimited file of labels
   --log-driver                    Logging driver for container

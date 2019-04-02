@@ -36,7 +36,7 @@ namespace Ductus.FluentDocker.Services.Impl
       Service = project ?? string.Empty;
       InstanceId = instanceId ?? string.Empty;
       DockerHost = docker;
-      State = state;      
+      State = state;
     }
 
     public string Id { get; }

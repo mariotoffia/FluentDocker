@@ -18,8 +18,8 @@ namespace Ductus.FluentDocker.Builders
   public sealed class ContainerBuilder : BaseBuilder<IContainerService>
   {
     private readonly ContainerBuilderConfig _config = new ContainerBuilderConfig();
-    private RepositoryBuilder _repositoryBuilder = null;
-    
+    private RepositoryBuilder _repositoryBuilder;
+
     internal ContainerBuilder(IBuilder parent) : base(parent)
     {
     }
@@ -92,7 +92,7 @@ namespace Ductus.FluentDocker.Builders
     }
 
     /// <summary>
-    /// Uses credentials to login to a registry. 
+    ///   Uses credentials to login to a registry.
     /// </summary>
     /// <param name="server">The ip or dns to the server (with optioanl :port)</param>
     /// <param name="user">An optional user to use when logging in.</param>
@@ -150,6 +150,7 @@ namespace Ductus.FluentDocker.Builders
       _config.CreateParams.Privileged = true;
       return this;
     }
+
     public ContainerBuilder WithEnvironment(params string[] nameValue)
     {
       _config.CreateParams.Environment = nameValue;
@@ -319,6 +320,28 @@ namespace Ductus.FluentDocker.Builders
       return this;
     }
 
+    /// <summary>
+    ///   Set the container Ip explicitly.
+    /// </summary>
+    /// <param name="ipv4">A ip v4 e.g. 1.1.1.1</param>
+    /// <returns>Itself for fluent access.</returns>
+    public ContainerBuilder UseIpV4(string ipv4)
+    {
+      _config.CreateParams.Ipv4 = ipv4;
+      return this;
+    }
+
+    /// <summary>
+    ///   Set the container Ip explicitly.
+    /// </summary>
+    /// <param name="ipv6">A ip v6 e.g. 2001:db8::33</param>
+    /// <returns>Itself for fluent access.</returns>
+    public ContainerBuilder UseIpV6(string ipv6)
+    {
+      _config.CreateParams.Ipv6 = ipv6;
+      return this;
+    }
+
     public ContainerBuilder ExportOnDispose(string hostPath, Func<IContainerService, bool> condition = null)
     {
       _config.ExportOnDispose =
@@ -359,14 +382,14 @@ namespace Ductus.FluentDocker.Builders
     {
       if (millisTimeout >= long.MaxValue)
         millisTimeout = long.MaxValue;
-      
+
       _config.WaitForPort = new Tuple<string, long>(portAndProto, Convert.ToInt64(millisTimeout));
       return this;
     }
 
-    public ContainerBuilder WaitForPort(string portAndProto, TimeSpan timeout = default(TimeSpan))
+    public ContainerBuilder WaitForPort(string portAndProto, TimeSpan timeout = default)
     {
-      if (timeout == default(TimeSpan)) timeout = TimeSpan.FromMilliseconds(long.MaxValue);
+      if (timeout == default) timeout = TimeSpan.FromMilliseconds(long.MaxValue);
 
       _config.WaitForPort = new Tuple<string, long>(portAndProto, Convert.ToInt64(timeout.TotalMilliseconds));
       return this;
@@ -377,26 +400,26 @@ namespace Ductus.FluentDocker.Builders
       _config.WaitForPort = new Tuple<string, long>(portAndProto, millisTimeout);
       return this;
     }
-    
+
     /// <summary>
-    /// Custom function to do verification if wait is over or not.
+    ///   Custom function to do verification if wait is over or not.
     /// </summary>
     /// <param name="continuation">The continuation lambda.</param>
     /// <returns>Itself for fluent access.</returns>
     /// <remarks>
-    /// It is possible to stack multiple lambdas, they are executed in order they where registered (per service).
-    /// The lambda do the actual action to determine if the wait is over or not. If it returns zero or less, the
-    /// wait is over. If it returns a positive value, the wait function will wait this amount of milliseconds before
-    /// invoking it again. The second argument is the invocation count. This can be used for the function to determine
-    /// any type of abort action due to the amount of invocations. If continuation wishes to abort, it shall throw
-    /// <see cref="FluentDockerException"/>.
+    ///   It is possible to stack multiple lambdas, they are executed in order they where registered (per service).
+    ///   The lambda do the actual action to determine if the wait is over or not. If it returns zero or less, the
+    ///   wait is over. If it returns a positive value, the wait function will wait this amount of milliseconds before
+    ///   invoking it again. The second argument is the invocation count. This can be used for the function to determine
+    ///   any type of abort action due to the amount of invocations. If continuation wishes to abort, it shall throw
+    ///   <see cref="FluentDockerException" />.
     /// </remarks>
     public ContainerBuilder Wait(string service, Func<IContainerService, int, int> continuation)
     {
       _config.WaitLambda.Add(continuation);
       return this;
     }
-    
+
     /// <summary>
     ///   Waits for a request to be passed or failed.
     /// </summary>
@@ -421,7 +444,7 @@ namespace Ductus.FluentDocker.Builders
       return this;
     }
 
-    
+
     public ContainerBuilder WaitForProcess(string process, long millisTimeout = long.MaxValue)
     {
       _config.WaitForProcess = new Tuple<string, long>(process, millisTimeout);

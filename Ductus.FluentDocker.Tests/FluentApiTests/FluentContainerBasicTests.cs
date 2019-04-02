@@ -2,6 +2,7 @@
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
+using Ductus.FluentDocker.Builders;
 using Ductus.FluentDocker.Extensions;
 using Ductus.FluentDocker.Model.Builders;
 using Ductus.FluentDocker.Model.Common;
@@ -437,6 +438,30 @@ namespace Ductus.FluentDocker.Tests.FluentApiTests
         .WithName("reusable-name")
         .Build())
       {
+      }
+    }
+
+    [TestMethod]
+    public void StaticIpv4InCustomNetworkShallWork()
+    {
+      using (var nw = Fd.UseNetwork("mynetwork").Build())
+      {
+        using (
+          var container =
+            Fd.UseContainer()
+              .WithName("mycontainer")
+              .UseImage("postgres:9.6-alpine")
+              .WithEnvironment("POSTGRES_PASSWORD=mysecretpassword")
+              .ExposePort(5432)
+              .UseNetwork(nw)
+              .UseIpV4("1.1.1.1")              
+              .WaitForPort("5432/tcp", 30000 /*30s*/)
+              .Build()
+              .Start())
+        {
+          var ip = container.GetConfiguration().NetworkSettings.IPAddress;
+          Assert.AreEqual("1.1.1.1", ip);
+        }
       }
     }
   }

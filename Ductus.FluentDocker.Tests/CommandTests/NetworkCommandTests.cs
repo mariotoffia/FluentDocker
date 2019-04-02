@@ -1,4 +1,5 @@
-﻿using System.Linq;
+﻿using System;
+using System.Linq;
 using Ductus.FluentDocker.Commands;
 using Ductus.FluentDocker.Extensions;
 using Ductus.FluentDocker.Model.Common;
@@ -101,6 +102,37 @@ namespace Ductus.FluentDocker.Tests.CommandTests
 
         if (null != id)
           _docker.NetworkRm(network: id);
+      }
+    }
+
+    public void UseNetworkAndStaticIpv4ShallWork()
+    {
+      string container = null;
+      
+      try
+      {
+        var cmd = _docker.Run("postgres:9.6-alpine", new ContainerCreateParams
+        {
+          PortMappings = new[] {"40001:5432"},
+          Environment = new[] {"POSTGRES_PASSWORD=mysecretpassword"},
+          Network = "mynetwork",
+          Ipv4 = "1.1.1.1"
+        }, _certificates);
+        
+        Assert.IsTrue(cmd.Success);
+        container = cmd.Data;
+
+        var insp = _docker.InspectContainer(container, _certificates);
+        Assert.IsTrue(insp.Success);
+
+        var ip = insp.Data.NetworkSettings.IPAddress;
+        Assert.AreEqual("1.1.1.1", ip);
+
+      }
+      finally
+      {
+        if (null != container)
+          _docker.RemoveContainer(container, true, true);
       }
     }
 
