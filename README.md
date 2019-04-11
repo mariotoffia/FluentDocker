@@ -502,7 +502,29 @@ It is also possible to use a fluent builder to build new or reuse existing docke
     }
 ```
 The above code snippet creates a new network called _test-network_ and then creates a container that is attached to the _test-network_. When the ```Dispose()``` is called on _nw_ it will remove the network.
-
+It is also possible to do static _IP_ container assignments within the network by `UseIpV4` or `UseIpV6`. For example:
+```cs
+using (var nw = Fd.UseNetwork("unit-test-nw")
+                .UseSubnet("10.18.0.0/16").Build())
+{
+	using (
+		var container =
+		Fd.UseContainer()
+			.UseImage("postgres:9.6-alpine")
+			.WithEnvironment("POSTGRES_PASSWORD=mysecretpassword")
+			.ExposePort(5432)
+			.UseNetwork(nw)
+			.UseIpV4("10.18.0.22")              
+			.WaitForPort("5432/tcp", 30000 /*30s*/)
+			.Build()
+			.Start())
+	{
+		var ip = container.GetConfiguration().NetworkSettings.Networks["unit-test-nw"].IPAddress;
+		Assert.AreEqual("10.18.0.22", ip);
+	}
+}
+```
+The above example creates a new network _unit-test-nw_ with ip-range _10.18.0.0/16_. It is the used in the new container. The IP for the container is set to _10.18.0.22_ and is static due to `UseIpV4` command.
 ## Volume Support
 FluentDocker supports docker volume management both from commands and from a fluent API. Therefore it is possible to have total control on volumes used in container such if it shall be disposed, reused, what driver to use etc.
 
