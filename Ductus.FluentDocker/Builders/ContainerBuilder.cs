@@ -305,10 +305,15 @@ namespace Ductus.FluentDocker.Builders
 
     /// <summary>
     ///   Uses a already pre-existing network service. It will automatically
-    ///   detatch this container from the network when the network is disposed.
+    ///   detach this container from the network when the network is disposed.
     /// </summary>
     /// <param name="network">The networks to attach this container to.</param>
     /// <returns>Itself for fluent access.</returns>
+    /// <remarks>
+    /// The firstg parameter will not be used to do a docker network attach. Instead
+    /// it is used as a creation parameter --network. This is to support static ip
+    /// assignment. The rest of the networks will do attach via docker network.
+    /// </remarks>
     public ContainerBuilder UseNetwork(params INetworkService[] network)
     {
       if (null == network || 0 == network.Length) return this;
@@ -321,10 +326,15 @@ namespace Ductus.FluentDocker.Builders
 
     /// <summary>
     ///   Attaches to a network with specified name after the container has been created. It will automatically
-    ///   detatch this container from the network when the network is disposed.
+    ///   detach this container from the network when the network is disposed.
     /// </summary>
     /// <param name="network">The networks to attach this container to.</param>
     /// <returns>Itself for fluent access.</returns>
+    /// <remarks>
+    /// The first network from will be used as docker create --network parameter, if no <see cref="UseNetwork(INetworkService[])"/>
+    /// is set (those have precedence).  This is to support static ip
+    /// assignment. The rest of the networks will do attach via docker network.
+    /// </remarks>
     public ContainerBuilder UseNetwork(params string[] network)
     {
       if (null == network || 0 == network.Length) return this;
