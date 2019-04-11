@@ -106,19 +106,26 @@ namespace Ductus.FluentDocker.Tests.CommandTests
     }
 
     [TestMethod]
-    [Ignore]
     public void UseNetworkAndStaticIpv4ShallWork()
     {
       string container = null;
-      
+      string id = null;
       try
       {
+        var created = _docker.NetworkCreate("unit-test-nw", new NetworkCreateParams
+        {
+          Subnet  = new [] {"10.18.0.0/16"}
+        }, _certificates);
+        
+        Assert.IsTrue(created.Success);
+        id = created.Data[0];
+
         var cmd = _docker.Run("postgres:9.6-alpine", new ContainerCreateParams
         {
           PortMappings = new[] {"40001:5432"},
           Environment = new[] {"POSTGRES_PASSWORD=mysecretpassword"},
-          Network = "mynetwork",
-          Ipv4 = "1.1.1.1"
+          Network = "unit-test-nw",
+          Ipv4 = "10.18.0.22"
         }, _certificates);
         
         Assert.IsTrue(cmd.Success);
@@ -127,14 +134,16 @@ namespace Ductus.FluentDocker.Tests.CommandTests
         var insp = _docker.InspectContainer(container, _certificates);
         Assert.IsTrue(insp.Success);
 
-        var ip = insp.Data.NetworkSettings.IPAddress;
-        Assert.AreEqual("1.1.1.1", ip);
-
+        var ip = insp.Data.NetworkSettings.Networks["unit-test-nw"].IPAddress;
+        Assert.AreEqual("10.18.0.22", ip);
       }
       finally
       {
         if (null != container)
           _docker.RemoveContainer(container, true, true);
+        
+        if (null != id)
+          _docker.NetworkRm(network: id);
       }
     }
 

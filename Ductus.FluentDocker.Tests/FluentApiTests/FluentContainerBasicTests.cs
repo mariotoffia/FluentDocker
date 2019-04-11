@@ -442,10 +442,9 @@ namespace Ductus.FluentDocker.Tests.FluentApiTests
     }
 
     [TestMethod]
-    [Ignore]
     public void StaticIpv4InCustomNetworkShallWork()
     {
-      using (var nw = Fd.UseNetwork("mynetwork").Build())
+      using (var nw = Fd.UseNetwork("unit-test-nw").UseSubnet("10.18.0.0/16").Build())
       {
         using (
           var container =
@@ -455,13 +454,13 @@ namespace Ductus.FluentDocker.Tests.FluentApiTests
               .WithEnvironment("POSTGRES_PASSWORD=mysecretpassword")
               .ExposePort(5432)
               .UseNetwork(nw)
-              .UseIpV4("1.1.1.1")              
+              .UseIpV4("10.18.0.22")              
               .WaitForPort("5432/tcp", 30000 /*30s*/)
               .Build()
               .Start())
         {
-          var ip = container.GetConfiguration().NetworkSettings.IPAddress;
-          Assert.AreEqual("1.1.1.1", ip);
+          var ip = container.GetConfiguration().NetworkSettings.Networks["unit-test-nw"].IPAddress;
+          Assert.AreEqual("10.18.0.22", ip);
         }
       }
     }

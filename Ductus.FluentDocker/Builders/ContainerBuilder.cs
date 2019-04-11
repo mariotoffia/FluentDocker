@@ -50,6 +50,16 @@ namespace Ductus.FluentDocker.Builders
         }
       }
 
+      // If we have networks, the first is supplied as --network option on docker create
+      // TODO: This is a ugly hack that needs to be cleaned up.
+      var cfgNw = (IList<INetworkService>)_config.Networks ?? new INetworkService[0];
+      
+      var firstNw = null != _config.NetworkNames
+        ? _config.NetworkNames[0]
+        : (0 == cfgNw.Count ? string.Empty : cfgNw[0].Name);
+
+      if (string.Empty != firstNw) _config.CreateParams.Network = firstNw;
+      
       var container = host.Value.Create(_config.Image, _config.CreateParams, _config.StopOnDispose,
         _config.DeleteOnDispose,
         _config.DeleteVolumeOnDispose,
@@ -58,14 +68,19 @@ namespace Ductus.FluentDocker.Builders
 
       AddHooks(container);
 
-      foreach (var network in (IEnumerable<INetworkService>) _config.Networks ?? new INetworkService[0])
-        network.Attach(container, true /*detachOnDisposeNetwork*/);
+      foreach (var network in cfgNw)
+      {
+        if (network.Name != firstNw)
+          network.Attach(container, true /*detachOnDisposeNetwork*/);
+      }
 
       if (null == _config.NetworkNames) return container;
 
       var nw = host.Value.GetNetworks();
       foreach (var network in (IEnumerable<string>) _config.NetworkNames ?? new string[0])
       {
+        if (network == firstNw) continue;
+        
         var nets = nw.First(x => x.Name == network);
         nets.Attach(container, true /*detachOnDisposeNetwork*/);
       }
