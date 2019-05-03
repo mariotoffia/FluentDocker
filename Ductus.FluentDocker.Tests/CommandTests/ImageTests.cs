@@ -29,7 +29,7 @@ namespace Ductus.FluentDocker.Tests.CommandTests
     [TestMethod]
     public void ImageIsExposedOnARunningContainer()
     {
-      using (var container = DockerHost.Create("postgres:9.6-alpine",
+      using (var container = DockerHost.Create("postgres:9.6-alpine", false,
         new ContainerCreateParams
         {
           Environment = new[] {"POSTGRES_PASSWORD=mysecretpassword"}

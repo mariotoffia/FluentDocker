@@ -11,7 +11,7 @@ namespace Ductus.FluentDocker.Builders
     private readonly NetworkCreateParams _config = new NetworkCreateParams();
     private string _name;
     private bool _removeOnDispose = true;
-    private bool _reuseIfExist = false;
+    private bool _reuseIfExist;
 
     public NetworkBuilder(IBuilder parent, string name = null) : base(parent)
     {
@@ -28,10 +28,7 @@ namespace Ductus.FluentDocker.Builders
       if (_reuseIfExist)
       {
         var network = host.Value.GetNetworks().FirstOrDefault(x => x.Name == _name);
-        if (null != network)
-        {
-          return network;
-        }
+        if (null != network) return network;
       }
 
       return host.Value.CreateNetwork(_name, _config, _removeOnDispose);
@@ -69,6 +66,7 @@ namespace Ductus.FluentDocker.Builders
       _removeOnDispose = false;
       return this;
     }
+
     public NetworkBuilder KeepOnDispose()
     {
       _removeOnDispose = false;
@@ -107,6 +105,20 @@ namespace Ductus.FluentDocker.Builders
     public NetworkBuilder IsInternal()
     {
       _config.Internal = true;
+      return this;
+    }
+
+    /// <summary>
+    ///   Enables manual container attachment to the network.
+    /// </summary>
+    /// <returns>Itself for fluent access.</returns>
+    /// <remarks>
+    ///   By default manual attachment of containers is set to false.
+    ///   This is vital if e.g. overlay network with internal is specified.
+    /// </remarks>
+    public NetworkBuilder IsAttachAble()
+    {
+      _config.Attachable = true;
       return this;
     }
 

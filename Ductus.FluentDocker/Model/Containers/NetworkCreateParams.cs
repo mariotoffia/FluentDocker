@@ -7,6 +7,14 @@ namespace Ductus.FluentDocker.Model.Containers
   public sealed class NetworkCreateParams
   {
     /// <summary>
+    /// Enables manual container attachment (disabled by default)
+    /// </summary>
+    /// <remarks>
+    ///  --attachable
+    /// </remarks>
+    public bool Attachable { get; set; }
+    
+    /// <summary>
     ///   Auxiliary ipv4 or ipv6 addresses used by Network driver
     /// </summary>
     /// <remarks>
@@ -97,6 +105,7 @@ namespace Ductus.FluentDocker.Model.Containers
     public override string ToString()
     {
       return new StringBuilder()
+        .OptionIfExists("--attachable", Attachable)
         .OptionIfExists("--aux-address=", AuxAddress)
         .OptionIfExists("--driver=", Driver)
         .OptionIfExists("--opt=", DriverOptions)

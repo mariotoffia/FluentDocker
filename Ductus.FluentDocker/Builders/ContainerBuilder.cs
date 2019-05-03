@@ -60,7 +60,7 @@ namespace Ductus.FluentDocker.Builders
 
       if (string.Empty != firstNw) _config.CreateParams.Network = firstNw;
       
-      var container = host.Value.Create(_config.Image, _config.CreateParams, _config.StopOnDispose,
+      var container = host.Value.Create(_config.Image, _config.ImageFocrePull, _config.CreateParams, _config.StopOnDispose,
         _config.DeleteOnDispose,
         _config.DeleteVolumeOnDispose,
         _config.DeleteNamedVolumeOnDispose,
@@ -100,9 +100,10 @@ namespace Ductus.FluentDocker.Builders
       return this;
     }
 
-    public ContainerBuilder UseImage(string image)
+    public ContainerBuilder UseImage(string image, bool force = false)
     {
       _config.Image = image;
+      _config.ImageFocrePull = force;
       return this;
     }
 

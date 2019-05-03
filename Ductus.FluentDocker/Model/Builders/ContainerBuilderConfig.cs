@@ -17,6 +17,7 @@ namespace Ductus.FluentDocker.Model.Builders
     public bool VerifyExistence { get; set; }
     public ContainerCreateParams CreateParams { get; }
     public string Image { get; set; }
+    public bool ImageFocrePull { get; set; }
     public bool IsWindowsImage { get; set; }
     public bool StopOnDispose { get; set; } = true;
     public bool DeleteOnDispose { get; set; } = true;

@@ -62,7 +62,7 @@ namespace Ductus.FluentDocker.Tests.ServiceTests
     [TestMethod]
     public void CreateContainerMakesServiceStopped()
     {
-      using (var container = _host.Create("postgres:9.6-alpine",
+      using (var container = _host.Create("postgres:9.6-alpine", false,
         new ContainerCreateParams
         {
           Environment = new[] {"POSTGRES_PASSWORD=mysecretpassword"}
@@ -91,7 +91,7 @@ namespace Ductus.FluentDocker.Tests.ServiceTests
     [TestMethod]
     public void CreateAndStartContainerWithEnvironment()
     {
-      using (var container = _host.Create("postgres:9.6-alpine",
+      using (var container = _host.Create("postgres:9.6-alpine", false,
         new ContainerCreateParams
         {
           Environment = new[] {"POSTGRES_PASSWORD=mysecretpassword"}
@@ -108,7 +108,7 @@ namespace Ductus.FluentDocker.Tests.ServiceTests
     [TestMethod]
     public void DeleteVolumesOnContainerDisposeShallWork()
     {
-      using (var container = _host.Create("postgres:9.6-alpine",
+      using (var container = _host.Create("postgres:9.6-alpine", false,
         new ContainerCreateParams
         {
           Environment = new[] {"POSTGRES_PASSWORD=mysecretpassword"}
@@ -129,7 +129,7 @@ namespace Ductus.FluentDocker.Tests.ServiceTests
       {
         _host.Host.VolumeCreate("unit-test-volume");
 
-        using (var container = _host.Create("postgres:9.6-alpine",
+        using (var container = _host.Create("postgres:9.6-alpine", false,
           new ContainerCreateParams
           {
             Environment = new[] {"POSTGRES_PASSWORD=mysecretpassword"},
@@ -168,7 +168,7 @@ namespace Ductus.FluentDocker.Tests.ServiceTests
     [TestMethod]
     public void CreateAndStartContainerWithOneExposedPortVerified()
     {
-      using (var container = _host.Create("postgres:9.6-alpine",
+      using (var container = _host.Create("postgres:9.6-alpine", false,
         new ContainerCreateParams
         {
           PortMappings = new[] {"40001:5432"},
@@ -190,7 +190,7 @@ namespace Ductus.FluentDocker.Tests.ServiceTests
     [TestMethod]
     public void ProcessesInContainerAndManuallyVerifyPostgresIsRunning()
     {
-      using (var container = _host.Create("postgres:9.6-alpine",
+      using (var container = _host.Create("postgres:9.6-alpine", false,
         new ContainerCreateParams
         {
           PortMappings = new[] {"40001:5432"},
@@ -213,7 +213,7 @@ namespace Ductus.FluentDocker.Tests.ServiceTests
     [TestMethod]
     public void ExportRunningContainerToTarFileShallSucceed()
     {
-      using (var container = _host.Create("postgres:9.6-alpine",
+      using (var container = _host.Create("postgres:9.6-alpine", false,
         new ContainerCreateParams
         {
           PortMappings = new[] {"40001:5432"},
@@ -246,7 +246,7 @@ namespace Ductus.FluentDocker.Tests.ServiceTests
     [TestMethod]
     public void ExportRunningContainerExploadedShallSucceed()
     {
-      using (var container = _host.Create("postgres:9.6-alpine",
+      using (var container = _host.Create("postgres:9.6-alpine", false,
         new ContainerCreateParams
         {
           PortMappings = new[] {"40001:5432"},
@@ -285,7 +285,7 @@ namespace Ductus.FluentDocker.Tests.ServiceTests
       var fullPath = (TemplateString) @"${TEMP}\fluentdockertest\${RND}";
       Directory.CreateDirectory(fullPath);
 
-      using (var container = _host.Create("nginx:1.13.6-alpine",
+      using (var container = _host.Create("nginx:1.13.6-alpine", false,
         new ContainerCreateParams
         {
           PortMappings = new[] {"80"},
@@ -308,7 +308,7 @@ namespace Ductus.FluentDocker.Tests.ServiceTests
     [TestMethod]
     public void CopyFromRunningContainerShallWork()
     {
-      using (var container = _host.Create("postgres:9.6-alpine",
+      using (var container = _host.Create("postgres:9.6-alpine", false,
         new ContainerCreateParams
         {
           Environment = new[] {"POSTGRES_PASSWORD=mysecretpassword"}
@@ -337,7 +337,7 @@ namespace Ductus.FluentDocker.Tests.ServiceTests
     [TestMethod]
     public void CopyToRunningContainerShallWork()
     {
-      using (var container = _host.Create("postgres:9.6-alpine",
+      using (var container = _host.Create("postgres:9.6-alpine", false,
         new ContainerCreateParams
         {
           Environment = new[] {"POSTGRES_PASSWORD=mysecretpassword"}

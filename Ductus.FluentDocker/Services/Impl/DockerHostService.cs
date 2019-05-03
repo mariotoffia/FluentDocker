@@ -156,11 +156,18 @@ namespace Ductus.FluentDocker.Services.Impl
           .ToList();
     }
 
-    public IContainerService Create(string image, ContainerCreateParams prms = null,
+    public IContainerService Create(string image, bool forcePull, ContainerCreateParams prms = null,
       bool stopOnDispose = true, bool deleteOnDispose = true, bool deleteVolumeOnDispose = false,
       bool deleteNamedVolumeOnDispose = false,
       string command = null, string[] args = null)
     {
+      if (forcePull)
+      {
+        var force = Host.Pull(image, Certificates);
+        if (!force.Success)
+          throw new FluentDockerException($"Could not pull image ${image}. Result: {force}");
+      }
+      
       var res = Host.Create(image, command, args, prms, Certificates);
 
       if (!res.Success || 0 == res.Data.Length)

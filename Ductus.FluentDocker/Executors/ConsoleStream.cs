@@ -83,12 +83,18 @@ namespace Ductus.FluentDocker.Executors
 
     public T TryRead(int millisTimeout)
     {
+      T result;
       if (IsFinished)
       {
+        if (_values.TryTake(out result, 10, _token))
+        {
+          return result;
+        }
+        
         return null;
       }
 
-      T result;
+      
       if (_values.TryTake(out result, millisTimeout, _token))
       {
         return result;
