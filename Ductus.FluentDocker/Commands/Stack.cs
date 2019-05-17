@@ -18,7 +18,6 @@ namespace Ductus.FluentDocker.Commands
   /// </remarks>
   public static class Stack
   {
-    // TODO: https://docs.docker.com/engine/reference/commandline/stack_ps/
     public static CommandResponse<IList<StackLsResponse>> StackLs(this DockerUri host,
       Orchestrator orchestrator = Orchestrator.All,
       bool kubeAllNamespaces = true,

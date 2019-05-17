@@ -1,0 +1,18 @@
+version: '3.3'
+
+services:
+  mongodb:
+    image: mongo:latest
+    volumes:
+      - mongodb-data:/data
+    command: mongod --smallfiles --bind_ip=0.0.0.0 --logpath=/dev/null
+    expose:
+      - 27017
+    networks:
+      - mongodb-network
+
+volumes:
+  mongodb-data:
+
+networks:
+  mongodb-network:

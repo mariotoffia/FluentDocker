@@ -188,7 +188,7 @@ namespace Ductus.FluentDocker.Services.Impl
 
       var list = new List<INetworkService>();
       foreach (var n in config.NetworkSettings.Networks)
-        list.Add(new DockerNetworkService(n.Value.NetworkID, n.Key, DockerHost, Certificates));
+        list.Add(new DockerNetworkService(n.Key, n.Value.NetworkID, DockerHost, Certificates));
 
       return list;
     }
