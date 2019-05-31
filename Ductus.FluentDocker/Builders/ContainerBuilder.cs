@@ -45,6 +45,10 @@ namespace Ductus.FluentDocker.Builders
         {
           existing.RemoveOnDispose = _config.DeleteOnDispose;
           existing.StopOnDispose = _config.StopOnDispose;
+          
+          // Run hooks will not be run since they have already met the requirements
+          // (since container was found running).
+          AddHooks(existing);
 
           return existing;
         }
@@ -546,6 +550,17 @@ namespace Ductus.FluentDocker.Builders
           }, service, "Wait for HTTP");
         });
 
+      // Wait for process when started
+      if (null != _config.WaitForProcess)
+        container.AddHook(ServiceRunningState.Running,
+          service =>
+          {
+            Fd.DisposeOnException(src =>
+                ((IContainerService) service).WaitForProcess(_config.WaitForProcess.Item1,
+                  _config.WaitForProcess.Item2),
+              service, "Wait for process");
+        });
+
       // Wait for lambda when started
       if (null != _config.WaitLambda && 0 != _config.WaitLambda.Count)
         container.AddHook(ServiceRunningState.Running, service =>
@@ -556,19 +571,7 @@ namespace Ductus.FluentDocker.Builders
               ((IContainerService) service).Wait(continuation);
           }, service, "Wait for lambda");
         });
-
-
-      // Wait for process when started
-      if (null != _config.WaitForProcess)
-        container.AddHook(ServiceRunningState.Running,
-          service =>
-          {
-            Fd.DisposeOnException(src =>
-                ((IContainerService) service).WaitForProcess(_config.WaitForProcess.Item1,
-                  _config.WaitForProcess.Item2),
-              service, "Wait for process");
-          });
-
+      
       // docker execute on running
       if (null != _config.ExecuteOnRunningArguments && _config.ExecuteOnRunningArguments.Count > 0)
         container.AddHook(ServiceRunningState.Running, service =>
