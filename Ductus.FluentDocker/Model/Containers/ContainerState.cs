@@ -17,5 +17,6 @@ namespace Ductus.FluentDocker.Model.Containers
     public string Error { get; set; }
     public DateTime StartedAt { get; set; }
     public DateTime FinishedAt { get; set; }
+    public Health Health { get; set; }
   }
 }
