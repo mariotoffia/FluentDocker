@@ -519,6 +519,14 @@ namespace Ductus.FluentDocker.Model.Containers
     ///   -w, --workdir
     /// </remarks>
     public string WorkingDirectory { get; set; }
+    
+    /// <summary>
+    /// Health check for container
+    /// </summary>
+    /// <remarks>
+    ///  --health-cmd
+    /// </remarks>
+    public string HealthCheck { get; set; }
 
     /// <summary>
     ///   Publish a container's port(s) to the host
@@ -755,7 +763,7 @@ namespace Ductus.FluentDocker.Model.Containers
       else
         sb.Append(" -P");
 
-      
+      sb.OptionIfExists("--health-cmd=", HealthCheck);
       sb.OptionIfExists("--cgroup-parent ", ParentCGroup);      
       sb.OptionIfExists("-e ", Environment);
       sb.OptionIfExists("--env-file=", EnvironmentFiles);

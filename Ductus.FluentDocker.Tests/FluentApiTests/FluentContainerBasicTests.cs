@@ -7,6 +7,7 @@ using Ductus.FluentDocker.Commands;
 using Ductus.FluentDocker.Extensions;
 using Ductus.FluentDocker.Model.Builders;
 using Ductus.FluentDocker.Model.Common;
+using Ductus.FluentDocker.Model.Containers;
 using Ductus.FluentDocker.Services;
 using Ductus.FluentDocker.Services.Extensions;
 using Ductus.FluentDocker.Tests.Extensions;
@@ -457,6 +458,23 @@ namespace Ductus.FluentDocker.Tests.FluentApiTests
       {
         var config = container.GetConfiguration(true);
         AreEqual(ServiceRunningState.Running, config.State.ToServiceState());
+      }
+    }
+    
+    [TestMethod]
+    public void ContainerHealthCheckShallWork()
+    {
+      using (
+        var container =
+          Fd.UseContainer()
+            .UseImage("postgres:latest", force: true)
+            .HealthCheck("exit")
+            .WithEnvironment("POSTGRES_PASSWORD=mysecretpassword")
+            .Build()
+            .Start())
+      {
+        var config = container.GetConfiguration(true);
+        AreEqual(HealthState.Starting, config.State.Health.Status);
       }
     }
   }

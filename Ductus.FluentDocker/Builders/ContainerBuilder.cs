@@ -228,6 +228,12 @@ namespace Ductus.FluentDocker.Builders
       return this;
     }
 
+    public ContainerBuilder HealthCheck(string cmd)
+    {
+      _config.CreateParams.HealthCheck = cmd;
+      return this;
+    }
+
     public ContainerBuilder Mount(string fqHostPath, string fqContainerPath, MountType access)
     {
       var hp = FdOs.IsWindows() && CommandExtensions.IsToolbox()
