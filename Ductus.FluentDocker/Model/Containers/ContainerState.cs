@@ -13,7 +13,7 @@ namespace Ductus.FluentDocker.Model.Containers
     public bool OOMKilled { get; set; }
     public bool Dead { get; set; }
     public int Pid { get; set; }
-    public int ExitCode { get; set; }
+    public long ExitCode { get; set; }
     public string Error { get; set; }
     public DateTime StartedAt { get; set; }
     public DateTime FinishedAt { get; set; }
