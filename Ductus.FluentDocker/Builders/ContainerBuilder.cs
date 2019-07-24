@@ -10,6 +10,7 @@ using Ductus.FluentDocker.Extensions;
 using Ductus.FluentDocker.Model.Builders;
 using Ductus.FluentDocker.Model.Common;
 using Ductus.FluentDocker.Model.Compose;
+using Ductus.FluentDocker.Model.Containers;
 using Ductus.FluentDocker.Services;
 using Ductus.FluentDocker.Services.Extensions;
 
@@ -378,6 +379,40 @@ namespace Ductus.FluentDocker.Builders
       return this;
     }
 
+    /// <summary>
+    /// Adds a new <see cref="Ulimit"/> onto a container.
+    /// </summary>
+    /// <param name="ulimit">The ulimit to impose.</param>
+    /// <param name="soft">The soft value.</param>
+    /// <param name="hard">The optional hard value.</param>
+    /// <returns>Itself for fluent access.</returns>
+    /// <remarks>
+    ///  For example restricting the number of open files to 10 use <see cref="Ulimit.NoFile"/> and set soft / hard
+    /// to 10. 
+    /// </remarks>
+    public ContainerBuilder UseUlimit(Ulimit ulimit, string soft, string hard = null)
+    {
+      _config.CreateParams.Ulimit.Add(new ULimitItem(ulimit, soft, hard));
+      return this;
+    }
+
+    /// <summary>
+    /// Adds a new <see cref="Ulimit"/> onto a container.
+    /// </summary>
+    /// <param name="ulimit">The ulimit to impose.</param>
+    /// <param name="soft">The soft value.</param>
+    /// <param name="hard">The optional hard value.</param>
+    /// <returns>Itself for fluent access.</returns>
+    /// <remarks>
+    ///  For example restricting the number of open files to 10 use <see cref="Ulimit.NoFile"/> and set soft / hard
+    /// to 10. 
+    /// </remarks>
+    public ContainerBuilder UseUlimit(Ulimit ulimit, long soft, long ?hard = null)
+    {
+      _config.CreateParams.Ulimit.Add(new ULimitItem(ulimit, soft.ToString(), hard.HasValue ? hard.ToString() : null));
+      return this;
+    }
+    
     public ContainerBuilder ExportOnDispose(string hostPath, Func<IContainerService, bool> condition = null)
     {
       _config.ExportOnDispose =

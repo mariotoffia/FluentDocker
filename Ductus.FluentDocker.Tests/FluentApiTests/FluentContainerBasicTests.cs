@@ -477,5 +477,21 @@ namespace Ductus.FluentDocker.Tests.FluentApiTests
         AreEqual(HealthState.Starting, config.State.Health.Status);
       }
     }
+    [TestMethod]
+    public void ContainerWithUlimitsShallWork()
+    {
+      using (
+        var container =
+          Fd.UseContainer()
+            .UseImage("postgres:latest", force: true)
+            .UseUlimit(Ulimit.NoFile,2048, 2048)
+            .WithEnvironment("POSTGRES_PASSWORD=mysecretpassword")
+            .Build()
+            .Start())
+      {
+        var config = container.GetConfiguration(true);
+        AreEqual(HealthState.Starting, config.State.Health.Status);
+      }
+    }
   }
 }
