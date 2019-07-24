@@ -776,6 +776,44 @@ All commands using the ```docker``` binary will now execute on the remote docker
 When creating and querying, via machine, a hyper-v docker machine the process needs to be elevated since Hyper-V will not
 respond to API calls in standard user mode.
 
+## Misc
+
+### Health Check
+It is possible to specify a health check for the docker container to report the state of the container based on such activity. The following example
+is using a health check that the container has exited or not. It is possible to check the confguration (make sure to force refresh) what status
+the health check is reporting.
+```cs
+      using (
+        var container =
+          Fd.UseContainer()
+            .UseImage("postgres:latest", force: true)
+            .HealthCheck("exit")
+            .WithEnvironment("POSTGRES_PASSWORD=mysecretpassword")
+            .Build()
+            .Start())
+      {
+        var config = container.GetConfiguration(true);
+        AreEqual(HealthState.Starting, config.State.Health.Status);
+      }
+```
+
+### ulimit
+It is possible via the _Fluent API_ and `ContainerCreateParams` specify ulimit to the docker container to e.g. limit the number of open files etc. For example
+using the _Fluent API_ could look like this when restricting the number of open files to 2048 (both soft and hard).
+```cs
+using (
+        var container =
+          Fd.UseContainer()
+            .UseImage("postgres:latest", force: true)
+            .UseUlimit(Ulimit.NoFile,2048, 2048)
+            .WithEnvironment("POSTGRES_PASSWORD=mysecretpassword")
+            .Build()
+            .Start())
+      {
+        // Do stuff
+      }
+```
+
 ## Test Support
 This repo contains two nuget packages, one for the fluent access and the other is a ms-test base classes to be used while testing. For example in a unit-test it is possible to fire up a postgres container and wait when the the db has booted.
 ```cs
