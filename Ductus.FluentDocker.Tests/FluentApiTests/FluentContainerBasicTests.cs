@@ -490,7 +490,6 @@ namespace Ductus.FluentDocker.Tests.FluentApiTests
             .Start())
       {
         var config = container.GetConfiguration(true);
-        AreEqual(HealthState.Starting, config.State.Health.Status);
       }
     }
   }
