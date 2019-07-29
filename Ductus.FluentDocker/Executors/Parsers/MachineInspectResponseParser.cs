@@ -36,10 +36,12 @@ namespace Ductus.FluentDocker.Executors.Parsers
         memsize = j["Driver"]["MemSize"].Value<int>();
       }
 
-      string hostname = null;
+      string hostname = string.Empty;
       if (!IPAddress.TryParse(ip, out var ipaddr))
-        hostname = ip;
-
+      {
+          hostname = ip;
+          ipaddr = IPAddress.None;
+      }
 
       var config = new MachineConfiguration
       {
