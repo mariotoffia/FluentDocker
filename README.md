@@ -305,6 +305,25 @@ In order to know when a certain service is up and running before starting to e.g
 ```
 In the above example we wait for the container port 5432 to be opened within 30 seconds. If it fails, it will throw an exception and thus the container will be disposed and removed (since we dont have any keep container etc. configuration).
 
+
+```cs
+      using (
+        var container =
+          new Builder().UseContainer()
+            .UseImage("kiasaki/alpine-postgres")
+            .ExposePort(5432)
+            .WithEnvironment("POSTGRES_PASSWORD=mysecretpassword")
+            .WaitForPort("5432/tcp", 30000 /*30s*/, "127.0.0.1")
+            .Build()
+            .Start())
+      {
+        var config = container.GetConfiguration(true);
+        Assert.AreEqual(ServiceRunningState.Running, config.State.ToServiceState());
+      }
+```
+Sometimes it is not possible to directly reach the container, by local ip and port, instead e.g. the container has an exposed port on the loopback interface (_127.0.0.1_) and that is the only way of reaching the container from the program. The above example forces the
+address to be _127.0.0.1_ but still resolves the host port. By default, _FluentDocker_ uses the network inspect on the container to determine the network configuration.
+
 Sometime it is not sufficient to just wait for a port. Sometimes a container process is much more vital to wait for. Therefore a wait for process method exist in the fluent API as well as an extension method on the container object. For example: 
 ```cs
       using (
