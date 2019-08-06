@@ -2,6 +2,7 @@ using System;
 using Ductus.FluentDocker.Common;
 using Ductus.FluentDocker.Services;
 using Ductus.FluentDocker.Services.Extensions;
+using Ductus.FluentDocker.Extensions;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Npgsql;
 using static Microsoft.VisualStudio.TestTools.UnitTesting.Assert;
@@ -60,6 +61,24 @@ namespace Ductus.FluentDocker.Tests.FluentApiTests
           IsTrue(_checkConnectionInvoked,
             "Is invoked even if reused container since Start drives the container state eventually to running");
         }
+      }
+    }
+
+    [TestMethod]
+    public void Issue92()
+    {
+      using (var c = Fd.UseContainer()
+        .WithName("profiles-smtp-server")
+        .UseImage("mailhog/mailhog:latest")
+        .ReuseIfExists()
+        .ExposePort(5011, 8025)
+        .ExposePort(1025)
+        .WaitForPort("8025/tcp", TimeSpan.FromSeconds(30))
+        .Build())
+      {
+        c.Start();
+        var response = $"http://{c.ToHostExposedEndpoint("8025/tcp")}/".Wget().Result;
+        IsTrue(response.IndexOf("<title>MailHog</title>", StringComparison.Ordinal) != -1);
       }
     }
 
