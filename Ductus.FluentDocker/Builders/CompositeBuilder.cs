@@ -69,8 +69,9 @@ namespace Ductus.FluentDocker.Builders
             service =>
             {
               Fd.DisposeOnException(svc =>
-                  Resolve(config.Name)?.WaitForPort(config.WaitForPort.Item1, config.WaitForPort.Item2), service,
-                "Wait for Port");
+                  Resolve(config.Name)?.WaitForPort(config.WaitForPort.Item1, config.WaitForPort.Item3,
+                    config.WaitForPort.Item2),
+                service, "Wait for Port");
             });
 
         // Wait for http when started
@@ -287,9 +288,10 @@ namespace Ductus.FluentDocker.Builders
       return this;
     }
 
-    public CompositeBuilder WaitForPort(string service, string portAndProto, long millisTimeout = long.MaxValue)
+    public CompositeBuilder WaitForPort(string service, string portAndProto, long millisTimeout = long.MaxValue, string address = null)
     {
-      GetContainerSpecificConfig(service).WaitForPort = new Tuple<string, long>(portAndProto, millisTimeout);
+      GetContainerSpecificConfig(service).WaitForPort =
+        new Tuple<string, string, long>(portAndProto, address, millisTimeout);
       return this;
     }
 

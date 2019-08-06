@@ -449,26 +449,26 @@ namespace Ductus.FluentDocker.Builders
       return this;
     }
 
-    public ContainerBuilder WaitForPort(string portAndProto, double millisTimeout = double.MaxValue)
+    public ContainerBuilder WaitForPort(string portAndProto, double millisTimeout = double.MaxValue, string address = null)
     {
       if (millisTimeout >= long.MaxValue)
         millisTimeout = long.MaxValue;
 
-      _config.WaitForPort = new Tuple<string, long>(portAndProto, Convert.ToInt64(millisTimeout));
+      _config.WaitForPort = new Tuple<string, string, long>(portAndProto, address, Convert.ToInt64(millisTimeout));
       return this;
     }
 
-    public ContainerBuilder WaitForPort(string portAndProto, TimeSpan timeout = default)
+    public ContainerBuilder WaitForPort(string portAndProto, TimeSpan timeout = default, string address = null)
     {
       if (timeout == default) timeout = TimeSpan.FromMilliseconds(long.MaxValue);
 
-      _config.WaitForPort = new Tuple<string, long>(portAndProto, Convert.ToInt64(timeout.TotalMilliseconds));
+      _config.WaitForPort = new Tuple<string, string, long>(portAndProto, address, Convert.ToInt64(timeout.TotalMilliseconds));
       return this;
     }
 
-    public ContainerBuilder WaitForPort(string portAndProto, long millisTimeout = long.MaxValue)
+    public ContainerBuilder WaitForPort(string portAndProto, long millisTimeout = long.MaxValue, string address = null)
     {
-      _config.WaitForPort = new Tuple<string, long>(portAndProto, millisTimeout);
+      _config.WaitForPort = new Tuple<string, string, long>(portAndProto, address, millisTimeout);
       return this;
     }
 
@@ -574,7 +574,8 @@ namespace Ductus.FluentDocker.Builders
           service =>
           {
             Fd.DisposeOnException(svc =>
-                ((IContainerService) service).WaitForPort(_config.WaitForPort.Item1, _config.WaitForPort.Item2),
+                ((IContainerService) service).WaitForPort(_config.WaitForPort.Item1, _config.WaitForPort.Item3,
+                  _config.WaitForPort.Item2),
               service, "Wait for port");
           });
 

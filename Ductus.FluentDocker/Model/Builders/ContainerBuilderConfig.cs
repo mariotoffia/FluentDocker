@@ -25,7 +25,7 @@ namespace Ductus.FluentDocker.Model.Builders
     public bool DeleteNamedVolumeOnDispose { get; set; } = false;
     public string Command { get; set; }
     public string[] Arguments { get; set; }
-    public Tuple<string /*portAndProto*/, long /*waitTimeout*/> WaitForPort { get; set; }
+    public Tuple<string /*portAndProto*/, string /*address*/ , long /*waitTimeout*/> WaitForPort { get; set; }
 
     public List<ContainerSpecificConfig.WaitForHttpParams> WaitForHttp { get; } =
       new List<ContainerSpecificConfig.WaitForHttpParams>();

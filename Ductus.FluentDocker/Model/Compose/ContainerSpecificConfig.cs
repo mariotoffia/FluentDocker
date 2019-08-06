@@ -13,7 +13,7 @@ namespace Ductus.FluentDocker.Model.Compose
     /// Name of the container matching the compose file service name.
     /// </summary>
     public string Name { get; set; }    
-    public Tuple<string /*portAndProto*/, long /*waitTimeout*/> WaitForPort { get; set; }
+    public Tuple<string /*portAndProto*/, string /*address*/, long /*waitTimeout*/> WaitForPort { get; set; }
     public List<WaitForHttpParams> WaitForHttp { get; } = new List<WaitForHttpParams>();
     public List<Func<IContainerService, int, int>> WaitLambda { get; } = new List<Func<IContainerService, int, int>>();
     public Tuple<string /*process*/, long /*waitTimeout*/> WaitForProcess { get; set; }

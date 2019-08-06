@@ -73,11 +73,12 @@ namespace Ductus.FluentDocker.Tests.FluentApiTests
         .ReuseIfExists()
         .ExposePort(5011, 8025)
         .ExposePort(1025)
-        .WaitForPort("8025/tcp", TimeSpan.FromSeconds(30))
+        .WaitForPort("8025/tcp", TimeSpan.FromSeconds(30), "127.0.0.1")
         .Build())
       {
         c.Start();
-        var response = $"http://{c.ToHostExposedEndpoint("8025/tcp")}/".Wget().Result;
+        var port = c.ToHostExposedEndpoint("8025/tcp").Port;
+        var response = $"http://127.0.0.1:{port}/".Wget().Result;
         IsTrue(response.IndexOf("<title>MailHog</title>", StringComparison.Ordinal) != -1);
       }
     }
