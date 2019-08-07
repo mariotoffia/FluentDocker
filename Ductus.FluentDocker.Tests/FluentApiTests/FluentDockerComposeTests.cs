@@ -183,5 +183,26 @@ namespace Ductus.FluentDocker.Tests.FluentApiTests
         Assert.AreEqual(ncfg.Id, nw.Id);
       }
     }
+    
+    [TestMethod]
+    public void Issue94()
+    {
+      var file = Path.Combine(Directory.GetCurrentDirectory(),
+        (TemplateString) "Resources/ComposeTests/KafkaAndZookeeper/docker-compose.yaml");
+
+      using (var svc = Fd.UseContainer()
+        .UseCompose()
+        .FromFile(file)
+        .Build()
+        .Start())
+      {
+        var kafka = svc.Services.OfType<IContainerService>().Single(x => x.Name == "kafka");
+        var zookeeper = svc.Services.OfType<IContainerService>().Single(x => x.Name == "zookeeper");
+        Assert.AreEqual("kafkaandzookeeper",kafka.Service);
+        Assert.AreEqual("kafkaandzookeeper",zookeeper.Service);
+        Assert.AreEqual("1",kafka.InstanceId);
+        Assert.AreEqual("1",zookeeper.InstanceId);
+      }
+    }
   }
 }

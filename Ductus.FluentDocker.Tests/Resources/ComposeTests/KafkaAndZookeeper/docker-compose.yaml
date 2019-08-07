@@ -1,0 +1,55 @@
+version: '3.5'
+
+services:
+
+  # building up the message queue system (zookeeper + kafka)
+  zookeeper:
+    image: wurstmeister/zookeeper
+    container_name: zookeeper
+    networks:
+      - messageBus
+    ports:
+      - "2181:2181"
+    restart: always
+
+  kafkaserver:
+    image: wurstmeister/kafka
+    container_name: kafka
+    networks:
+      - messageBus
+    ports:
+      - 9092:9092
+      - 29092:29092
+      - 29093:29093
+
+    restart: always
+
+    environment:
+      KAFKA_ADVERTISED_HOST_NAME: kafka
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST_DEMOSRV:PLAINTEXT,PLAINTEXT_LOCALHOST:PLAINTEXT
+      KAFKA_LISTENERS: PLAINTEXT://:9092,PLAINTEXT_HOST_DEMOSRV://:29092,PLAINTEXT_LOCALHOST://:29093
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,PLAINTEXT_HOST_DEMOSRV://demo01:29092,PLAINTEXT_LOCALHOST://localhost:29093
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "false"
+      # overrides the default separator ',' for creating topics
+      KAFKA_CREATE_TOPICS_SEPARATOR: "$$'\n'"
+      # create topic "Values" that will use log compaction to get rid of older value messages
+      KAFKA_CREATE_TOPICS: |
+        Values:1:1:compact --config=min.compaction.lag.ms=250 --config=segment.bytes=536870912 --config=segment.ms=10000 --config=retention.ms=10000 --config=min.cleanable.dirty.ratio=0.25 --config=file.delete.delay.ms=0
+        Configuration:1:1:delete --config=file.delete.delay.ms=0 --config=retention.bytes=-1 --config=retention.ms=-1
+        ProjectDefinition:1:1:delete --config=file.delete.delay.ms=0 --config=retention.bytes=-1 --config=retention.ms=-1
+        SetValues:1:1:delete --config=retention.ms=1000 --config=segment.ms=1000 --config=segment.bytes=268435456 --config=min.cleanable.dirty.ratio=0.1 --config=file.delete.delay.ms=0
+        Devices:1:1:delete --config=file.delete.delay.ms=0 --config=retention.bytes=-1 --config=retention.ms=-1
+        ReadHistoryValues:1:1:delete --config=retention.ms=1000 --config=segment.ms=1000 --config=segment.bytes=268435456 --config=min.cleanable.dirty.ratio=0.1 --config=file.delete.delay.ms=0 
+
+      # Enables/disables the possibility to delete a topic (if set to false, the topic will only be marked for deletion but not deleted actually)
+      KAFKA_DELETE_TOPIC_ENABLE: "true"
+
+networks:
+  default:
+    external:
+      name: nat
+
+  # create network for messaging
+  messageBus:
+    name: message-bus

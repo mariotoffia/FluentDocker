@@ -150,10 +150,18 @@ namespace Ductus.FluentDocker.Services.Impl
       if (name.StartsWith("/")) name = name.Substring(1);
 
       var components = name.Split('_');
+      if (components.Length >= 3)
+      {
+        project = components[0];
+        instanceId = components[2];
+        return components[1];
+      }
+      
+      // use labels instead of name of the container
+      project = container.Config.Labels["com.docker.compose.project"];
+      instanceId = container.Config.Labels["com.docker.compose.container-number"];
 
-      project = components[0];
-      instanceId = components[2];
-      return components[1];
+      return container.Name;
     }
   }
 }
