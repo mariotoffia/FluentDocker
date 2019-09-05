@@ -28,9 +28,13 @@ namespace Ductus.FluentDocker.Services.Impl
     public override void Dispose()
     {
       if (_config.StopOnDispose) Stop();
+      
+      Hosts = new ReadOnlyCollection<IHostService>(new List<IHostService>());
+      Containers = new IContainerService[0];
+      _imageCache = new IContainerImageService[0];
     }
 
-    public IReadOnlyCollection<IHostService> Hosts { get; }
+    public IReadOnlyCollection<IHostService> Hosts { get; private set; }
     public IReadOnlyCollection<IContainerService> Containers { get; private set; }
 
     public IReadOnlyCollection<IService> Services
