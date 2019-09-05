@@ -30,6 +30,19 @@ namespace Ductus.FluentDocker.Services.Extensions
 		}
 
 		/// <summary>
+		/// Exectues a command with arguments on the running container.
+		/// </summary>
+		/// <param name="service">The service to execute command in.</param>
+		/// <param name="arguments">The command and arguments to pass</param>
+		/// <remarks>
+		///  This will call the docker exec {containerId} "command and arguments".
+		/// </remarks>
+		public static CommandResponse<IList<string>> Execute(this IContainerService service, string arguments)
+		{
+			return service.DockerHost.Execute(service.Id, arguments, service.Certificates);
+		}
+
+		/// <summary>
 		///   Translates a docker exposed port and protocol (on format 'port/proto' e.g. '534/tcp') to a
 		///   host endpoint that can be contacted outside the container.
 		/// </summary>
