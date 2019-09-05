@@ -34,8 +34,8 @@ namespace Ductus.FluentDocker.Services.Extensions
     {
       using (var s = new Socket(SocketType.Stream, ProtocolType.Tcp))
       {
-        long totalWait = 0;
-        while (totalWait < millisTimeout)
+        var waitMillis = (DateTime.Now.Ticks / TimeSpan.TicksPerMillisecond) + millisTimeout;
+        while (true)
           try
           {
             s.Connect(endpoint);
@@ -44,8 +44,9 @@ namespace Ductus.FluentDocker.Services.Extensions
           catch (Exception ex)
           {
             Thread.Sleep(1000);
-            totalWait += 1000;
-            if (totalWait >= millisTimeout)
+            var now = DateTime.Now.Ticks / TimeSpan.TicksPerMillisecond;
+            
+            if (now >= waitMillis)
               throw new FluentDockerException(
                 $"Timeout waiting for service at = {endpoint.Address} port = {endpoint.Port}", ex);
           }
