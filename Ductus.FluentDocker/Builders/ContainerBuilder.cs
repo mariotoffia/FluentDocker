@@ -159,6 +159,12 @@ namespace Ductus.FluentDocker.Builders
       return this;
     }
 
+    public ContainerBuilder WithHostName(string name)
+    {
+      _config.CreateParams.Hostname = name;
+      return this;
+    }
+
     public ContainerBuilder Command(string command, params string[] arguments)
     {
       _config.Command = command;
