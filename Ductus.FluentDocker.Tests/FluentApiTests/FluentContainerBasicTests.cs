@@ -193,7 +193,7 @@ namespace Ductus.FluentDocker.Tests.FluentApiTests
         using (
           var container =
             Fd.DefineImage("mariotoffia/issue111").ReuseIfAlreadyExists()
-              .From("microsoft/windowsservercore:1607")
+              .From("mcr.microsoft.com/windows/servercore:ltsc2019")
               .Shell("powershell", "-Command", "$ErrorActionPreference = 'Stop';")
               .Run("Set-ExecutionPolicy Bypass -Scope Process -Force; " +
                    "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12")

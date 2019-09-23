@@ -41,7 +41,7 @@ namespace Ductus.FluentDocker.Model.Common
         };
     }
 
-    public TemplateString(string str, bool handleWindowsPathIfNeeded = true)
+    public TemplateString(string str, bool handleWindowsPathIfNeeded = false)
     {
       Original = str;
       Rendered = Render(ToTargetOs(str, handleWindowsPathIfNeeded));

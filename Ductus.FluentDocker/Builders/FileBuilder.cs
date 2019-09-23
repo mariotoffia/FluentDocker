@@ -89,7 +89,7 @@ namespace Ductus.FluentDocker.Builders
 
     public FileBuilder Copy(TemplateString source, TemplateString dest)
     {
-      _config.Copy.Add(new Tuple<string, string>(new TemplateString(source, false), new TemplateString(dest)));
+      _config.Copy.Add(new Tuple<string, string>(source,dest));
       return this;
     }
 
