@@ -2,7 +2,10 @@ using System;
 using System.Collections.Generic;
 using Ductus.FluentDocker.Builders;
 using Ductus.FluentDocker.Common;
+using Ductus.FluentDocker.Model.Common;
+using Ductus.FluentDocker.Model.Containers;
 using Ductus.FluentDocker.Services;
+using Ductus.FluentDocker.Services.Impl;
 
 namespace Ductus.FluentDocker
 {
@@ -97,6 +100,11 @@ namespace Ductus.FluentDocker
     public static ImageBuilder DefineImage(string image)
     {
       return new Builder().DefineImage(image);      
+    }
+
+    public static IEngineScope EngineScope(EngineScopeType scope, DockerUri host = null, ICertificatePaths certificates = null)
+    {
+      return new EngineScope(host, scope, certificates);
     }
 
     public static NetworkBuilder UseNetwork(string name = null)

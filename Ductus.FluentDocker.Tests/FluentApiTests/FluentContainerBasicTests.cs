@@ -186,6 +186,37 @@ namespace Ductus.FluentDocker.Tests.FluentApiTests
     }
 
     [TestMethod]
+    public void Issue111_WaitForProcess()
+    {
+      using (var scope = Fd.EngineScope(EngineScopeType.Windows))
+      {
+        using (
+          var container =
+            Fd.DefineImage("mariotoffia/issue111").ReuseIfAlreadyExists()
+              .From("microsoft/windowsservercore:1607")
+              .Shell("powershell", "-Command", "$ErrorActionPreference = 'Stop';")
+              .Run("powershell [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; exit 0")
+              .Run(
+                "Set-ExecutionPolicy Bypass -Scope Process -Force; iex ((New-Object System.Net.WebClient).DownloadString('https://chocolatey.org/install.ps1'))")
+              .Run("choco feature enable --name=allowGlobalConfirmation")
+              .Run("choco install python3")
+              .Copy("Resources/Issue/111/server.py", "C:/")
+              .ExposePorts(8000)
+              .Command("python", "server.py")
+              .Builder().UseContainer().UseImage("mariotoffia/issue111")
+              .WaitForProcess("python.exe", (long) TimeSpan.FromSeconds(30).TotalMilliseconds)
+              .Builder()
+              .Build()
+              .Start())
+        {
+          var res = container.Containers;
+          //var config = container.GetConfiguration(true);
+          //AreEqual(ServiceRunningState.Running, config.State.ToServiceState());
+        }
+      }
+    }
+
+    [TestMethod]
     public async Task VolumeMappingShallWork()
     {
       const string html = "<html><head>Hello World</head><body><h1>Hello world</h1></body></html>";
@@ -440,14 +471,14 @@ namespace Ductus.FluentDocker.Tests.FluentApiTests
       {
       }
     }
-    
+
     [TestMethod]
     public void PullContainerBeforeRunningShallWork()
     {
       using (
         var container =
           Fd.UseContainer()
-            .UseImage("postgres:latest", force: true)
+            .UseImage("postgres:latest", true)
             .ExposePort(5432)
             .WithEnvironment("POSTGRES_PASSWORD=mysecretpassword")
             .WaitForProcess("postgres", 30000 /*30s*/)
@@ -458,14 +489,14 @@ namespace Ductus.FluentDocker.Tests.FluentApiTests
         AreEqual(ServiceRunningState.Running, config.State.ToServiceState());
       }
     }
-    
+
     [TestMethod]
     public void ContainerHealthCheckShallWork()
     {
       using (
         var container =
           Fd.UseContainer()
-            .UseImage("postgres:latest", force: true)
+            .UseImage("postgres:latest", true)
             .HealthCheck("exit")
             .WithEnvironment("POSTGRES_PASSWORD=mysecretpassword")
             .Build()
@@ -475,14 +506,15 @@ namespace Ductus.FluentDocker.Tests.FluentApiTests
         AreEqual(HealthState.Starting, config.State.Health.Status);
       }
     }
+
     [TestMethod]
     public void ContainerWithUlimitsShallWork()
     {
       using (
         var container =
           Fd.UseContainer()
-            .UseImage("postgres:latest", force: true)
-            .UseUlimit(Ulimit.NoFile,2048, 2048)
+            .UseImage("postgres:latest", true)
+            .UseUlimit(Ulimit.NoFile, 2048, 2048)
             .WithEnvironment("POSTGRES_PASSWORD=mysecretpassword")
             .Build()
             .Start())

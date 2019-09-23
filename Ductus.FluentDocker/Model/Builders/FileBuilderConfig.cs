@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Text;
 using Ductus.FluentDocker.Model.Common;
 
@@ -14,6 +15,8 @@ namespace Ductus.FluentDocker.Model.Builders
     public string Workdir { get; set; }
     public IList<int> Expose { get; set; }
     public IList<string> Command { get; } = new List<string>();
+    public IList<string> Shell { get; } = new List<string>();
+    public IList<Tuple<string/*src*/, string/*dst*/>> Copy { get; } = new List<Tuple<string, string>>();
 
     public override string ToString()
     {
@@ -23,6 +26,16 @@ namespace Ductus.FluentDocker.Model.Builders
       if (!string.IsNullOrWhiteSpace(Maintainer))
       {
         sb.Append("MAINTAINER ").AppendLine(Maintainer);
+      }
+
+      if (0 != Shell.Count)
+      {
+        sb.Append("SHELL [");
+        for (var i = 0; i < Shell.Count; i++)
+        {
+          sb.Append('"').Append(Shell[i]).Append('"').Append(i == Shell.Count - 1 ? string.Empty : ",");
+        }
+        sb.AppendLine("]");
       }
 
       if (0 != AddRunCommands.Count)
@@ -36,6 +49,14 @@ namespace Ductus.FluentDocker.Model.Builders
       if (!string.IsNullOrWhiteSpace(Workdir))
       {
         sb.Append("WORKDIR ").AppendLine(Workdir);
+      }
+
+      if (0 != Copy.Count)
+      {
+        foreach (var cp in Copy)
+        {
+          sb.AppendLine($"COPY \"{cp.Item1}\" \"{cp.Item2}\"");
+        }
       }
 
       if (null != Expose && 0 != Expose.Count)

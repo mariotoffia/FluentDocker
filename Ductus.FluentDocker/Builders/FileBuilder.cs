@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using Ductus.FluentDocker.Extensions;
@@ -69,10 +70,26 @@ namespace Ductus.FluentDocker.Builders
       _config.AddRunCommands.Add(new AddCommand {Source = source, Destination = destination});
       return this;
     }
+    
+    public FileBuilder Shell(string command, params string[] args)
+    {
+      _config.Shell.Add(command);
+      if (null != args && 0 != args.Length)
+      {
+        ((List<string>) _config.Shell).AddRange(args);
+      }
+      return this;
+    }
 
     public FileBuilder Run(params TemplateString[] commands)
     {
       _config.AddRunCommands.Add(new RunCommand {Lines = new List<TemplateString>(commands)});
+      return this;
+    }
+
+    public FileBuilder Copy(TemplateString source, TemplateString dest)
+    {
+      _config.Copy.Add(new Tuple<string, string>(source, dest));
       return this;
     }
 
@@ -118,6 +135,17 @@ namespace Ductus.FluentDocker.Builders
     /// <param name="workingFolder">The working folder.</param>
     private void CopyToWorkDir(TemplateString workingFolder)
     {
+      // Copy all files from copy arguments.
+      foreach (var cp in _config.Copy)
+      {
+        if (!File.Exists(cp.Item1)) continue;
+        
+        var wp = Path.Combine(workingFolder, cp.Item1);
+        var wdp = Path.GetDirectoryName(wp);
+        Directory.CreateDirectory(wdp);
+        File.Copy(cp.Item1,wp);
+      }
+      
       foreach (var command in _config.AddRunCommands.Where(x => x is AddCommand).Cast<AddCommand>())
       {
         var wff = Path.Combine(workingFolder, command.Source);

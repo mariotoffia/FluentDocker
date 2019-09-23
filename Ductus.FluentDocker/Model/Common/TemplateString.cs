@@ -3,6 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Text.RegularExpressions;
 using Ductus.FluentDocker.Common;
 
 namespace Ductus.FluentDocker.Model.Common
@@ -10,6 +11,7 @@ namespace Ductus.FluentDocker.Model.Common
   public sealed class TemplateString
   {
     private static readonly Dictionary<string, Func<string>> Templates;
+    private static readonly Regex Urldetector = new Regex("((\"|')http(|s)://.*?(\"|'))", RegexOptions.Compiled);
 
     static TemplateString()
     {
@@ -52,7 +54,28 @@ namespace Ductus.FluentDocker.Model.Common
     {
       if (string.IsNullOrEmpty(str) || str.StartsWith("emb:")) return str;
 
-      return !FdOs.IsWindows() ? str : str.Replace('/', '\\');
+      if (!FdOs.IsWindows())
+      {
+        return str;
+      }
+
+      var match = Urldetector.Match(str);
+      if (!match.Success) 
+        return str.Replace('/', '\\');
+
+      var res = "";
+      int idx = 0;
+      while (match.Success)
+      {
+        res += str.Substring(idx, match.Index - idx).Replace('/', '\\');
+        res += str.Substring(match.Index, match.Length);
+        idx = match.Index + match.Length;
+        
+        match = match.NextMatch();
+      }
+      
+      res += str.Substring(idx).Replace('/', '\\');
+      return res;
     }
 
     private static string Render(string str)
