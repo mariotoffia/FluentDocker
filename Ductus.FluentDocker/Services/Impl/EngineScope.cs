@@ -4,6 +4,9 @@ using Ductus.FluentDocker.Model.Containers;
 
 namespace Ductus.FluentDocker.Services.Impl
 {
+  /// <summary>
+  /// Default Implementation of <see cref="IEngineScope" />.
+  /// </summary>
   internal class EngineScope : IEngineScope
   {
     private readonly EngineScopeType _original;
