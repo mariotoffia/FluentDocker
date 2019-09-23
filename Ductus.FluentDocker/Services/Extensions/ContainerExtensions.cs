@@ -219,18 +219,23 @@ namespace Ductus.FluentDocker.Services.Extensions
 			Exception exception = null;
 			var stopwatch = Stopwatch.StartNew();
 			using (var mre = new ManualResetEventSlim())
-			using (new Timer(_ =>
 			{
-				var processes = service.GetRunningProcesses();
-				if (processes?.Rows.Any(x => x.Command == process) ?? false)
-					mre.Set();
-				if (stopwatch.ElapsedMilliseconds > millisTimeout)
+				Timer timer;
+				using (timer = new Timer(_ =>
 				{
-					exception = new FluentDockerException($"Wait expired for process {process} in container {service.Id}");
-					mre.Set();
-				}
-			}, null, 0, 500))
-				mre.Wait();
+					var processes = service.GetRunningProcesses();
+					if (processes?.Rows.Any(x => x.Command == process) ?? false)
+						mre.Set();
+					if (stopwatch.ElapsedMilliseconds > millisTimeout)
+					{
+						exception = new FluentDockerException($"Wait expired for process {process} in container {service.Id}");
+						mre.Set();
+					}
+				}, null, 0, 500))
+					
+					mre.Wait();
+				timer.Dispose();
+			}
 
 			if (exception != null)
 				throw exception;

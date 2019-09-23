@@ -41,24 +41,24 @@ namespace Ductus.FluentDocker.Model.Common
         };
     }
 
-    public TemplateString(string str)
+    public TemplateString(string str, bool handleWindowsPathIfNeeded = true)
     {
       Original = str;
-      Rendered = Render(ToTargetOs(str));
+      Rendered = Render(ToTargetOs(str, handleWindowsPathIfNeeded));
     }
 
     public string Original { get; }
     public string Rendered { get; }
 
-    private static string ToTargetOs(string str)
+    private static string ToTargetOs(string str, bool handleWindowsPathIfNeeded)
     {
       if (string.IsNullOrEmpty(str) || str.StartsWith("emb:")) return str;
 
-      if (!FdOs.IsWindows())
+      if (!FdOs.IsWindows() || !handleWindowsPathIfNeeded)
       {
         return str;
       }
-
+      
       var match = Urldetector.Match(str);
       if (!match.Success) 
         return str.Replace('/', '\\');

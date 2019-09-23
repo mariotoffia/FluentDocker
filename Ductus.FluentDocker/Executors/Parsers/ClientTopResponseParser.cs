@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using Ductus.FluentDocker.Model.Containers;
 
 namespace Ductus.FluentDocker.Executors.Parsers
@@ -77,6 +78,13 @@ namespace Ductus.FluentDocker.Executors.Parsers
         inText = false;
       }
 
+      // TODO: Hack to handle windows container - when other lang this will break!
+      if (list.Count == 6 && row.IndexOf("Private Working Set", StringComparison.Ordinal) != -1)
+      {
+        list.RemoveAt(4);
+        list.RemoveAt(4);
+      }
+      
       return list;
     }
   }

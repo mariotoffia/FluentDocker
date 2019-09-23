@@ -55,7 +55,7 @@ namespace Ductus.FluentDocker.Model.Builders
       {
         foreach (var cp in Copy)
         {
-          sb.AppendLine($"COPY \"{cp.Item1}\" \"{cp.Item2}\"");
+          sb.AppendLine($"COPY {cp.Item1} {cp.Item2}");
         }
       }
 

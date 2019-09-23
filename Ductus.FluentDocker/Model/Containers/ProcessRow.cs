@@ -17,11 +17,13 @@ namespace Ductus.FluentDocker.Model.Containers
     private const string CommandConst = "COMMAND";
     private const string CmdConst = "CMD";
     private const string PercentCpuConst = "%CPU";
+    private const string CpuTime = "CPU";
     private const string PercentMemoryConst = "%MEM";
     private const string VszConst = "VSZ";
     private const string RssConst = "RSS";
     private const string StatConst = "STAT";
     private const string StartConst = "START";
+    private const string CmdConstWin = "Name";
 
     public string User { get; internal set; }
     public long Pid { get; internal set; }
@@ -32,6 +34,7 @@ namespace Ductus.FluentDocker.Model.Containers
     public TimeSpan Started { get; internal set; }
     public string Status { get; internal set; }
     public float PercentCpuUtilization { get; internal set; }
+    public TimeSpan Cpu { get; private set; }
     public float PercentMemoryUtilization { get; internal set; }
     public IList<string> FullRow { get; internal set; }
 
@@ -47,6 +50,7 @@ namespace Ductus.FluentDocker.Model.Containers
         {
           case CmdConst:
           case CommandConst:
+          case CmdConstWin:  
             row.Command = fullRow[i];
             break;
           case UserConst:
@@ -71,6 +75,9 @@ namespace Ductus.FluentDocker.Model.Containers
             break;
           case StatConst:
             row.Status = fullRow[i];
+            break;
+          case CpuTime:
+            if (TimeSpan.TryParse(fullRow[i], out var cpuTime)) row.Cpu = cpuTime;
             break;
           case PercentCpuConst:
             row.PercentCpuUtilization = float.Parse(fullRow[i], CultureInfo.InvariantCulture.NumberFormat);

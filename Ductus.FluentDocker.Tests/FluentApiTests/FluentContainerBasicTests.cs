@@ -195,9 +195,10 @@ namespace Ductus.FluentDocker.Tests.FluentApiTests
             Fd.DefineImage("mariotoffia/issue111").ReuseIfAlreadyExists()
               .From("microsoft/windowsservercore:1607")
               .Shell("powershell", "-Command", "$ErrorActionPreference = 'Stop';")
-              .Run("powershell [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; exit 0")
-              .Run(
-                "Set-ExecutionPolicy Bypass -Scope Process -Force; iex ((New-Object System.Net.WebClient).DownloadString('https://chocolatey.org/install.ps1'))")
+              .Run("Set-ExecutionPolicy Bypass -Scope Process -Force; " +
+                   "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12")
+              .Run("Invoke-WebRequest -OutFile install.ps1 https://www.chocolatey.org/install.ps1; " +
+                   "./install.ps1")
               .Run("choco feature enable --name=allowGlobalConfirmation")
               .Run("choco install python3")
               .Copy("Resources/Issue/111/server.py", "C:/")
@@ -209,9 +210,9 @@ namespace Ductus.FluentDocker.Tests.FluentApiTests
               .Build()
               .Start())
         {
-          var res = container.Containers;
-          //var config = container.GetConfiguration(true);
-          //AreEqual(ServiceRunningState.Running, config.State.ToServiceState());
+          var c = container.Containers.First();
+          var config = c.GetConfiguration(true);
+          AreEqual(ServiceRunningState.Running, config.State.ToServiceState());
         }
       }
     }
