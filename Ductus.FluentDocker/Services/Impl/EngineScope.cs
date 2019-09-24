@@ -32,16 +32,42 @@ namespace Ductus.FluentDocker.Services.Impl
     }
 
     public EngineScopeType Scope { get; private set; }
+    public bool UseLinux()
+    {
+      if (this.Scope == EngineScopeType.Linux) return true;
 
-    private void SwitchToScope(EngineScopeType scope)
+      var success = SwitchToScope(EngineScopeType.Linux);
+      if (success)
+      {
+        Scope = EngineScopeType.Linux;
+      }
+
+      return success;
+    }
+
+    public bool UseWindows()
+    {
+      if (this.Scope == EngineScopeType.Windows) return true;
+
+      var success = SwitchToScope(EngineScopeType.Windows);
+      if (success)
+      {
+        Scope = EngineScopeType.Windows;
+      }
+
+      return success;
+    }
+
+    private bool SwitchToScope(EngineScopeType scope)
     {
       if (scope == EngineScopeType.Linux)
       {
-        _host.LinuxDaemon(_certificates);
-        return;
+        var result = _host.LinuxDaemon(_certificates);
+        return null != result && result.Success;
       }
 
-      _host.WindowsDaemon(_certificates);
+      var res = _host.WindowsDaemon(_certificates);
+      return null != res && res.Success;
     }
   }
 }
