@@ -145,7 +145,7 @@ namespace Ductus.FluentDocker.Services.Impl
 
     public void Remove(bool force = false)
     {
-      if (State != ServiceRunningState.Stopped)
+      if (State != ServiceRunningState.Stopped && force)
         Stop();
 
       State = ServiceRunningState.Removing;
@@ -195,7 +195,7 @@ namespace Ductus.FluentDocker.Services.Impl
 
     private void Remove(bool force, bool removeVolume)
     {
-      if (State != ServiceRunningState.Stopped)
+      if (State != ServiceRunningState.Stopped && force)
         Stop();
 
       State = ServiceRunningState.Removing;
