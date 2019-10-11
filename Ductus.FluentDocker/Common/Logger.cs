@@ -1,11 +1,10 @@
-﻿#if COREFX
-#if NETSTANDARD2_1
+﻿#if NETSTANDARD2_1
 using Microsoft.Extensions.Logging.Debug;
 #endif
+#if COREFX
 using System;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-
 #endif
 
 namespace Ductus.FluentDocker.Common
