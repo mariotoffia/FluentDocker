@@ -116,6 +116,32 @@ namespace Ductus.FluentDocker.Tests.FluentApiTests
     }
 
     [TestMethod]
+    public void PauseAndResumeShallWorkOnSingleContainer()
+    {
+      using (
+        var container =
+          Fd.UseContainer()
+            .UseImage("postgres:9.6-alpine")
+            .ExposePort(40001, 5432)
+            .WithEnvironment("POSTGRES_PASSWORD=mysecretpassword")
+            .Build()
+            .Start())
+      {
+        AreEqual(ServiceRunningState.Running, container.State);
+        
+        container.Pause();
+        AreEqual(ServiceRunningState.Paused, container.State);
+        var config = container.GetConfiguration(true);
+        AreEqual(ServiceRunningState.Paused, config.State.ToServiceState());
+
+        container.Start();
+        AreEqual(ServiceRunningState.Running, container.State);
+        config = container.GetConfiguration(true);
+        AreEqual(ServiceRunningState.Running, config.State.ToServiceState());
+      }
+    }
+
+    [TestMethod]
     public void ExplicitPortMappingShouldWork()
     {
       using (

@@ -86,6 +86,11 @@ namespace Ductus.FluentDocker.Services.Impl
         MachineSetup(Name);
     }
 
+    public override void Pause()
+    {
+      throw new FluentDockerNotSupportedException("Cannot pause a docker machine");
+    }
+
     public override void Stop()
     {
       if (!IsNative)

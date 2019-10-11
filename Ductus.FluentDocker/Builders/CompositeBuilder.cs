@@ -242,10 +242,27 @@ namespace Ductus.FluentDocker.Builders
       return this;
     }
 
-    public CompositeBuilder KeepOnDispose()
+
+    public CompositeBuilder KeepRunning()
     {
       _config.StopOnDispose = false;
+      _config.KeepContainers = true;
       return this;
+    }
+
+    public CompositeBuilder KeepContainer()
+    {
+      _config.KeepContainers = true;
+      return this;
+    }
+
+    /// <summary>
+    /// Kept for backward compatibility, will be removed in 3.0.0.
+    /// </summary>
+    /// <returns>Itself for fluent access.</returns>
+    public CompositeBuilder KeepOnDispose()
+    {
+      return KeepContainer();
     }
 
     public CompositeBuilder ExportOnDispose(string service, string hostPath,

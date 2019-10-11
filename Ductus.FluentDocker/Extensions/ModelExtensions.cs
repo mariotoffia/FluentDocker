@@ -100,19 +100,22 @@ namespace Ductus.FluentDocker.Extensions
     public static ServiceRunningState ToServiceState(this ContainerState state)
     {
       if (null == state) return ServiceRunningState.Unknown;
-
-      if (state.Running) return ServiceRunningState.Running;
-
+      
       if (state.Dead) return ServiceRunningState.Stopped;
 
       if (state.Restarting) return ServiceRunningState.Starting;
 
       if (state.Paused) return ServiceRunningState.Paused;
 
-      var status = state.Status?.ToLower() ?? string.Empty;
-      if (status == "created") return ServiceRunningState.Stopped;
+      if (state.Running) return ServiceRunningState.Running;
 
-      if (status == "exited") return ServiceRunningState.Stopped;
+      var status = state.Status?.ToLower() ?? string.Empty;
+      switch (status)
+      {
+        case "created":
+        case "exited":
+          return ServiceRunningState.Stopped;
+      }
 
       return ServiceRunningState.Unknown;
     }

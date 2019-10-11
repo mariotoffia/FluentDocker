@@ -1,8 +1,10 @@
-﻿using System;
+﻿#if NETSTANDARD2_1
+using Microsoft.Extensions.Logging.Debug;
+#endif
 #if COREFX
+using System;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-
 #endif
 
 namespace Ductus.FluentDocker.Common
@@ -24,7 +26,11 @@ namespace Ductus.FluentDocker.Common
       = new Lazy<ILogger>(() =>
       {
         var factory = new ServiceCollection().AddLogging().BuildServiceProvider().GetRequiredService<ILoggerFactory>();
+#if NETSTANDARD2_1
+        factory.AddProvider(new DebugLoggerProvider());
+#else
         factory.AddDebug();
+#endif
         return factory.CreateLogger(Constants.DebugCategory);
       });
 #else
