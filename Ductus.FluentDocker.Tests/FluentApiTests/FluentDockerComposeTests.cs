@@ -9,7 +9,7 @@ using Ductus.FluentDocker.Extensions;
 using Ductus.FluentDocker.Model.Common;
 using Ductus.FluentDocker.Services;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
-using HttpExtensions = Ductus.FluentDocker.Extensions.HttpExtensions;
+using HttpExtensions = Ductus.FluentDocker.Tests.Extensions.HttpExtensions;
 
 // ReSharper disable StringLiteralTypo
 
@@ -35,13 +35,85 @@ namespace Ductus.FluentDocker.Tests.FluentApiTests
         // @formatter:on
       {
         // We now have a running WordPress with a MySql database        
-        var installPage = await Extensions.HttpExtensions.Wget("http://localhost:8000/wp-admin/install.php");
+        var installPage = await HttpExtensions.Wget("http://localhost:8000/wp-admin/install.php");
 
         Assert.IsTrue(installPage.IndexOf("https://wordpress.org/", StringComparison.Ordinal) != -1);
         Assert.AreEqual(1, svc.Hosts.Count);
         Assert.AreEqual(2, svc.Containers.Count);
         Assert.AreEqual(2, svc.Images.Count);
         Assert.AreEqual(5, svc.Services.Count);
+      }
+    }
+
+    [TestMethod]
+    public void KeepContainersShallWorkForCompositeServices()
+    {
+      var file = Path.Combine(Directory.GetCurrentDirectory(),
+        (TemplateString) "Resources/ComposeTests/WordPress/docker-compose.yml");
+
+      ICompositeService svc = null;
+      IContainerService c1 = null;
+      IContainerService c2 = null;
+      try
+      {
+        svc = Fd
+          .UseContainer()
+          .UseCompose()
+          .FromFile(file)
+          .RemoveOrphans()
+          .KeepContainer()
+          .Build().Start();
+
+        c1 = svc.Containers.First();
+        c2 = svc.Containers.Skip(1).First();
+        
+        svc.Dispose();
+        
+        Assert.AreEqual(ServiceRunningState.Stopped, c1.State);
+        Assert.AreEqual(ServiceRunningState.Stopped, c2.State);
+      }
+      finally
+      {
+        svc?.Dispose();
+        
+        c1?.Remove(true);
+        c2?.Remove(true);
+      }
+    }
+
+    [TestMethod]
+    public void KeepRunningsShallWorkForCompositeServices()
+    {
+      var file = Path.Combine(Directory.GetCurrentDirectory(),
+        (TemplateString) "Resources/ComposeTests/WordPress/docker-compose.yml");
+
+      ICompositeService svc = null;
+      IContainerService c1 = null;
+      IContainerService c2 = null;
+      try
+      {
+        svc = Fd
+          .UseContainer()
+          .UseCompose()
+          .FromFile(file)
+          .RemoveOrphans()
+          .KeepRunning()
+          .Build().Start();
+
+        c1 = svc.Containers.First();
+        c2 = svc.Containers.Skip(1).First();
+        
+        svc.Dispose();
+        
+        Assert.AreEqual(ServiceRunningState.Running, c1.State);
+        Assert.AreEqual(ServiceRunningState.Running, c2.State);
+      }
+      finally
+      {
+        svc?.Dispose();
+        
+        c1?.Remove(true);
+        c2?.Remove(true);
       }
     }
 
@@ -62,19 +134,19 @@ namespace Ductus.FluentDocker.Tests.FluentApiTests
         // @formatter:on
       {
         // We now have a running WordPress with a MySql database        
-        var installPage = await Extensions.HttpExtensions.Wget("http://localhost:8000/wp-admin/install.php");
+        var installPage = await HttpExtensions.Wget("http://localhost:8000/wp-admin/install.php");
 
         Assert.IsTrue(installPage.IndexOf("https://wordpress.org/", StringComparison.Ordinal) != -1);
-        
+
         svc.Pause();
         Assert.AreEqual(ServiceRunningState.Paused, svc.State);
 
         try
         {
-          await Extensions.HttpExtensions.Wget("http://localhost:8000/wp-admin/install.php");
+          await HttpExtensions.Wget("http://localhost:8000/wp-admin/install.php");
           Assert.Fail("The containers should be paused and thus no http get shall work");
         }
-        catch (Exception e)
+        catch (Exception)
         {
           // We shall end up here
         }
@@ -88,10 +160,10 @@ namespace Ductus.FluentDocker.Tests.FluentApiTests
 
         svc.Start();
         Assert.AreEqual(ServiceRunningState.Running, svc.State);
-        installPage = await Extensions.HttpExtensions.Wget("http://localhost:8000/wp-admin/install.php");
+        installPage = await HttpExtensions.Wget("http://localhost:8000/wp-admin/install.php");
 
         Assert.IsTrue(installPage.IndexOf("https://wordpress.org/", StringComparison.Ordinal) != -1);
-        
+
         foreach (var container in svc.Containers)
         {
           Assert.AreEqual(ServiceRunningState.Running, container.State);
@@ -119,7 +191,7 @@ namespace Ductus.FluentDocker.Tests.FluentApiTests
         // @formatter:on
       {
         // Since we have waited - this shall now always work.       
-        var installPage = await Extensions.HttpExtensions.Wget("http://localhost:8000/wp-admin/install.php");
+        var installPage = await HttpExtensions.Wget("http://localhost:8000/wp-admin/install.php");
         Assert.IsTrue(installPage.IndexOf("https://wordpress.org/", StringComparison.Ordinal) != -1);
       }
     }
@@ -179,7 +251,7 @@ namespace Ductus.FluentDocker.Tests.FluentApiTests
                 .Wait("wordpress", (service, cnt) => {
                     if (cnt > 60) throw new FluentDockerException("Failed to wait for wordpress service");
             
-                    var res = HttpExtensions.DoRequest("http://localhost:8000/wp-admin/install.php").Result;            
+                    var res = "http://localhost:8000/wp-admin/install.php".DoRequest().Result;            
                     return res.Code == HttpStatusCode.OK && 
                            res.Body.IndexOf("https://wordpress.org/", StringComparison.Ordinal) != -1 ? 0 : 500;
                   })
@@ -187,7 +259,7 @@ namespace Ductus.FluentDocker.Tests.FluentApiTests
         // @formatter:on
       {
         // Since we have waited - this shall now always work.       
-        var installPage = await Extensions.HttpExtensions.Wget("http://localhost:8000/wp-admin/install.php");
+        var installPage = await HttpExtensions.Wget("http://localhost:8000/wp-admin/install.php");
         Assert.IsTrue(installPage.IndexOf("https://wordpress.org/", StringComparison.Ordinal) != -1);
       }
     }
@@ -234,12 +306,12 @@ namespace Ductus.FluentDocker.Tests.FluentApiTests
         var c = (IContainerService) svc.Services.Single(s => s is IContainerService);
         var nw = c.GetNetworks().Single();
         var ncfg = nw.GetConfiguration(true);
-        
+
         Assert.AreEqual("mongodbandnetwork_mongodb-network", nw.Name);
         Assert.AreEqual(ncfg.Id, nw.Id);
       }
     }
-    
+
     [TestMethod]
     public void Issue94()
     {
@@ -254,10 +326,10 @@ namespace Ductus.FluentDocker.Tests.FluentApiTests
       {
         var kafka = svc.Services.OfType<IContainerService>().Single(x => x.Name == "kafka");
         var zookeeper = svc.Services.OfType<IContainerService>().Single(x => x.Name == "zookeeper");
-        Assert.AreEqual("kafkaandzookeeper",kafka.Service);
-        Assert.AreEqual("kafkaandzookeeper",zookeeper.Service);
-        Assert.AreEqual("1",kafka.InstanceId);
-        Assert.AreEqual("1",zookeeper.InstanceId);
+        Assert.AreEqual("kafkaandzookeeper", kafka.Service);
+        Assert.AreEqual("kafkaandzookeeper", zookeeper.Service);
+        Assert.AreEqual("1", kafka.InstanceId);
+        Assert.AreEqual("1", zookeeper.InstanceId);
       }
     }
   }
