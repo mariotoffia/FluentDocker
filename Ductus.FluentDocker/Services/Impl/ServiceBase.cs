@@ -33,6 +33,7 @@ namespace Ductus.FluentDocker.Services.Impl
     }
 
     public abstract void Start();
+    public abstract void Pause();
     public abstract void Stop();
     public abstract void Remove(bool force = false);
 

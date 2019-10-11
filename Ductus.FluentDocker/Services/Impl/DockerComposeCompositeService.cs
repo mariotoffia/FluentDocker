@@ -29,7 +29,27 @@ namespace Ductus.FluentDocker.Services.Impl
     {
       try
       {
-        if (_config.StopOnDispose) Stop();
+        if (_config.StopOnDispose)
+        {
+          Stop();
+        }
+
+        if (_config.KeepContainers) return;
+        
+        State = ServiceRunningState.Removing;
+        var host = Hosts.First();
+
+        var result = host.Host.ComposeDown(_config.AlternativeServiceName, _config.ImageRemoval,
+          !_config.KeepVolumes, _config.RemoveOrphans, host.Certificates,
+          _config.ComposeFilePath.ToArray());
+
+        if (!result.Success)
+        {
+          State = ServiceRunningState.Unknown;
+          throw new FluentDockerException($"Could not dispose composite service {_config.ComposeFilePath}");
+        }
+
+        State = ServiceRunningState.Removed;
       }
       finally
       {
@@ -120,6 +140,20 @@ namespace Ductus.FluentDocker.Services.Impl
       State = ServiceRunningState.Running;
     }
 
+    public override void Pause()
+    {
+      if (State != ServiceRunningState.Running) return;
+
+      var host = Hosts.First();
+      var pause = host.Host.ComposePause(_config.AlternativeServiceName, _config.Services,
+        host.Certificates, _config.ComposeFilePath.ToArray());
+
+      if (!pause.Success)
+        throw new FluentDockerException($"Could not pause composite service {_config.ComposeFilePath}");
+
+      State = ServiceRunningState.Paused;
+    }
+
     ICompositeService ICompositeService.Start()
     {
       Start();
@@ -135,8 +169,8 @@ namespace Ductus.FluentDocker.Services.Impl
 
       var host = Hosts.First();
 
-      var result = host.Host.ComposeDown(_config.AlternativeServiceName, _config.ImageRemoval,
-        !_config.KeepVolumes, _config.RemoveOrphans, host.Certificates, _config.ComposeFilePath.ToArray());
+      var result = host.Host.ComposeStop(_config.AlternativeServiceName, TimeSpan.FromSeconds(30),
+        _config.Services, host.Certificates, _config.ComposeFilePath.ToArray());
 
       if (!result.Success)
       {
@@ -150,6 +184,17 @@ namespace Ductus.FluentDocker.Services.Impl
     public override void Remove(bool force = false)
     {
       State = ServiceRunningState.Removing;
+      var host = Hosts.First();
+
+      var result = host.Host.ComposeRm(_config.AlternativeServiceName, force,
+        !_config.KeepVolumes, _config.Services, host.Certificates, _config.ComposeFilePath.ToArray());
+
+      if (!result.Success)
+      {
+        State = ServiceRunningState.Unknown;
+        throw new FluentDockerException($"Could not remove composite service {_config.ComposeFilePath}");
+      }
+
       State = ServiceRunningState.Removed;
     }
 
@@ -165,7 +210,7 @@ namespace Ductus.FluentDocker.Services.Impl
         instanceId = components[2];
         return components[1];
       }
-      
+
       // use labels instead of name of the container
       project = container.Config.Labels["com.docker.compose.project"];
       instanceId = container.Config.Labels["com.docker.compose.container-number"];

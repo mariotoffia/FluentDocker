@@ -108,7 +108,7 @@ namespace Ductus.FluentDocker.Services.Impl
       ((IService) this).Start();
       return this;
     }
-
+    
     public void Dispose()
     {
       if (string.IsNullOrEmpty(Id))
@@ -123,16 +123,37 @@ namespace Ductus.FluentDocker.Services.Impl
 
     void IService.Start()
     {
-      State = ServiceRunningState.Starting;
-      var result = DockerHost.Start(Id, Certificates);
-      if (!result.Success)
+      if (State == ServiceRunningState.Paused)
       {
-        Dispose();
-        throw new FluentDockerException($"Failed to start container {Name} log: {result}");
+        var res = DockerHost.UnPause(Certificates, Id);
+        if (!res.Success)
+          throw new FluentDockerException($"Failed to pause container {Name} log: {res}");
       }
-      
+      else
+      {
+        State = ServiceRunningState.Starting;
+        var result = DockerHost.Start(Id, Certificates);
+        if (!result.Success)
+        {
+          Dispose();
+          throw new FluentDockerException($"Failed to start container {Name} log: {result}");
+        }
+      }
+
       if (GetConfiguration().State.Running)
         State = ServiceRunningState.Running;
+    }
+
+    void IService.Pause()
+    {
+      if (State != ServiceRunningState.Running) return;
+      var result = DockerHost.Pause(Certificates, Id);
+      if (!result.Success)
+      {
+        throw new FluentDockerException($"Failed to pause container {Name} log: {result}");
+      }
+
+      State = ServiceRunningState.Paused;
     }
 
     public void Stop()

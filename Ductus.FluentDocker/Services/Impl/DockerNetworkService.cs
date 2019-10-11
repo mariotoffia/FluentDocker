@@ -78,6 +78,11 @@ namespace Ductus.FluentDocker.Services.Impl
     {
     }
 
+    public override void Pause()
+    {
+      throw new FluentDockerNotSupportedException("Cannot pause a docker network service");
+    }
+
     public override void Stop()
     {
     }

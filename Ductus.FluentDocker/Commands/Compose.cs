@@ -392,7 +392,7 @@ namespace Ductus.FluentDocker.Commands
 
     public static CommandResponse<IList<string>> ComposeRm(this DockerUri host, string altProjectName = null,
       bool force = false,
-      bool removeVolumes = false, bool all = false,
+      bool removeVolumes = false,
       string[] services = null /*all*/, ICertificatePaths certificates = null, params string[] composeFile)
     {
       var cwd = WorkingDirectory(composeFile);
@@ -406,11 +406,11 @@ namespace Ductus.FluentDocker.Commands
       if (!string.IsNullOrEmpty(altProjectName)) args += $" -p {altProjectName}";
 
       var options = string.Empty;
-      if (force) options += " -f";
+      options += " -f"; // Don't ask to confirm removal
+
+      if (force) options += " -s";
 
       if (removeVolumes) options += " -v";
-
-      if (all) options += " -a";
 
       if (null != services && 0 != services.Length) options += " " + string.Join(" ", services);
 

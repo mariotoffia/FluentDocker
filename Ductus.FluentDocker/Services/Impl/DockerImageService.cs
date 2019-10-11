@@ -31,6 +31,11 @@ namespace Ductus.FluentDocker.Services.Impl
       State = ServiceRunningState.Running;
     }
 
+    public override void Pause()
+    {
+      throw new FluentDockerNotSupportedException("Cannot pause a docker image service");
+    }
+
     public override void Stop()
     {
       State = ServiceRunningState.Stopping;
