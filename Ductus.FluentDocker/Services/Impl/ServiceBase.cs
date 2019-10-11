@@ -16,7 +16,7 @@ namespace Ductus.FluentDocker.Services.Impl
 
     public string Name { get; }
 
-    public ServiceRunningState State
+    public virtual ServiceRunningState State
     {
       get => _state;
       protected set

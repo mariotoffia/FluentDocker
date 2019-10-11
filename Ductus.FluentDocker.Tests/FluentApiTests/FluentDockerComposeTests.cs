@@ -5,9 +5,9 @@ using System.Net;
 using System.Threading.Tasks;
 using Ductus.FluentDocker.Builders;
 using Ductus.FluentDocker.Common;
+using Ductus.FluentDocker.Extensions;
 using Ductus.FluentDocker.Model.Common;
 using Ductus.FluentDocker.Services;
-using Ductus.FluentDocker.Tests.Extensions;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using HttpExtensions = Ductus.FluentDocker.Extensions.HttpExtensions;
 
@@ -35,13 +35,69 @@ namespace Ductus.FluentDocker.Tests.FluentApiTests
         // @formatter:on
       {
         // We now have a running WordPress with a MySql database        
-        var installPage = await "http://localhost:8000/wp-admin/install.php".Wget();
+        var installPage = await Extensions.HttpExtensions.Wget("http://localhost:8000/wp-admin/install.php");
 
         Assert.IsTrue(installPage.IndexOf("https://wordpress.org/", StringComparison.Ordinal) != -1);
         Assert.AreEqual(1, svc.Hosts.Count);
         Assert.AreEqual(2, svc.Containers.Count);
         Assert.AreEqual(2, svc.Images.Count);
         Assert.AreEqual(5, svc.Services.Count);
+      }
+    }
+
+    [TestMethod]
+    public async Task DockerComposePauseResumeShallWork()
+    {
+      var file = Path.Combine(Directory.GetCurrentDirectory(),
+        (TemplateString) "Resources/ComposeTests/WordPress/docker-compose.yml");
+
+      // @formatter:off
+      using (var svc = Fd
+                        .UseContainer()
+                        .UseCompose()
+                        .FromFile(file)
+                        .RemoveOrphans()
+                        .WaitForHttp("wordpress", "http://localhost:8000/wp-admin/install.php") 
+                        .Build().Start())
+        // @formatter:on
+      {
+        // We now have a running WordPress with a MySql database        
+        var installPage = await Extensions.HttpExtensions.Wget("http://localhost:8000/wp-admin/install.php");
+
+        Assert.IsTrue(installPage.IndexOf("https://wordpress.org/", StringComparison.Ordinal) != -1);
+        
+        svc.Pause();
+        Assert.AreEqual(ServiceRunningState.Paused, svc.State);
+
+        try
+        {
+          await Extensions.HttpExtensions.Wget("http://localhost:8000/wp-admin/install.php");
+          Assert.Fail("The containers should be paused and thus no http get shall work");
+        }
+        catch (Exception e)
+        {
+          // We shall end up here
+        }
+
+        foreach (var container in svc.Containers)
+        {
+          Assert.AreEqual(ServiceRunningState.Paused, container.State);
+          var cfg = container.GetConfiguration(true);
+          Assert.AreEqual(ServiceRunningState.Paused, cfg.State.ToServiceState());
+        }
+
+        svc.Start();
+        Assert.AreEqual(ServiceRunningState.Running, svc.State);
+        installPage = await Extensions.HttpExtensions.Wget("http://localhost:8000/wp-admin/install.php");
+
+        Assert.IsTrue(installPage.IndexOf("https://wordpress.org/", StringComparison.Ordinal) != -1);
+        
+        foreach (var container in svc.Containers)
+        {
+          Assert.AreEqual(ServiceRunningState.Running, container.State);
+          var cfg = container.GetConfiguration(true);
+          Assert.AreEqual(ServiceRunningState.Running, cfg.State.ToServiceState());
+        }
       }
     }
 
@@ -63,7 +119,7 @@ namespace Ductus.FluentDocker.Tests.FluentApiTests
         // @formatter:on
       {
         // Since we have waited - this shall now always work.       
-        var installPage = await "http://localhost:8000/wp-admin/install.php".Wget();
+        var installPage = await Extensions.HttpExtensions.Wget("http://localhost:8000/wp-admin/install.php");
         Assert.IsTrue(installPage.IndexOf("https://wordpress.org/", StringComparison.Ordinal) != -1);
       }
     }
@@ -131,7 +187,7 @@ namespace Ductus.FluentDocker.Tests.FluentApiTests
         // @formatter:on
       {
         // Since we have waited - this shall now always work.       
-        var installPage = await "http://localhost:8000/wp-admin/install.php".Wget();
+        var installPage = await Extensions.HttpExtensions.Wget("http://localhost:8000/wp-admin/install.php");
         Assert.IsTrue(installPage.IndexOf("https://wordpress.org/", StringComparison.Ordinal) != -1);
       }
     }

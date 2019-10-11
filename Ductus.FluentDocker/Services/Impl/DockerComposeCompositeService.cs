@@ -59,6 +59,25 @@ namespace Ductus.FluentDocker.Services.Impl
       }
     }
 
+    public override ServiceRunningState State
+    {
+      get => base.State;
+      protected set
+      {
+        if (State == value)
+        {
+          return;
+        }
+
+        base.State = value;
+        if (null == Containers) return;
+        foreach (var container in Containers.Cast<DockerContainerService>())
+        {
+          container.State = value;
+        }
+      }
+    }
+
     public IReadOnlyCollection<IHostService> Hosts { get; private set; }
     public IReadOnlyCollection<IContainerService> Containers { get; private set; }
 
