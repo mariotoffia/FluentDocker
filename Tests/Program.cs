@@ -16,7 +16,7 @@ namespace Tests
             //SudoMechanism.None.SetSudo();
             //RunPs();
             //RunPsCloneStdOut();
-            //RunContainer();
+            RunContainer();
         }
         // https://docs.microsoft.com/en-us/dotnet/standard/exceptions/how-to-use-finally-blocks
         
@@ -58,14 +58,9 @@ namespace Tests
                         .Start())
             {
                 var config = container.GetConfiguration(true);
-                if (ServiceRunningState.Running == config.State.ToServiceState())
-                {
-                    Console.WriteLine("Service is running");
-                }
-                else
-                {
-                    Console.WriteLine("Failed to start nginx instance...");
-                }
+                Console.WriteLine(ServiceRunningState.Running == config.State.ToServiceState()
+                    ? "Service is running"
+                    : "Failed to start nginx instance...");
             }
         }
     }
