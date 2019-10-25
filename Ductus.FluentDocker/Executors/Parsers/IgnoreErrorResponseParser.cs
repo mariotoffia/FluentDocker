@@ -8,7 +8,7 @@ namespace Ductus.FluentDocker.Executors.Parsers
 
     public IProcessResponse<string> Process(ProcessExecutionResult response)
     {
-      Response = response.ToResponse(true, string.Empty, $"ExitCode={response.ExitCode}");
+      Response = response.ToResponse(response.ExitCode == 0, string.Empty, $"ExitCode={response.ExitCode}");
       return this;
     }
   }
