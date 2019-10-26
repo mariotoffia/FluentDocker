@@ -278,7 +278,7 @@ namespace Ductus.FluentDocker.Commands
       string hostPath, ICertificatePaths certificates = null)
     {
       var arg = $"{host.RenderBaseArgs(certificates)}";
-      return new ProcessExecutor<IgnoreErrorResponseParser, string>("docker".ResolveBinary(),
+      return new ProcessExecutor<ProcessExitAwareResponseParser, string>("docker".ResolveBinary(),
         $"{arg} cp \"{hostPath}\" {id}:{containerPath}").Execute();
     }
 
@@ -286,7 +286,7 @@ namespace Ductus.FluentDocker.Commands
       string hostPath, ICertificatePaths certificates = null)
     {
       var arg = $"{host.RenderBaseArgs(certificates)}";
-      return new ProcessExecutor<IgnoreErrorResponseParser, string>("docker".ResolveBinary(),
+      return new ProcessExecutor<ProcessExitAwareResponseParser, string>("docker".ResolveBinary(),
         $"{arg} cp {id}:{containerPath} \"{hostPath}\"").Execute();
     }
 
