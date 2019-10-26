@@ -2,7 +2,7 @@
 
 namespace Ductus.FluentDocker.Executors.Parsers
 {
-  public sealed class IgnoreErrorResponseParser : IProcessResponseParser<string>
+  public sealed class ProcessExitAwareResponseParser : IProcessResponseParser<string>
   {
     public CommandResponse<string> Response { get; private set; }
 
