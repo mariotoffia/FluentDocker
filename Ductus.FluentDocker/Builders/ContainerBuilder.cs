@@ -474,7 +474,7 @@ namespace Ductus.FluentDocker.Builders
 
     public ContainerBuilder WaitForPort(string portAndProto, TimeSpan timeout = default, string address = null)
     {
-      if (timeout == default) timeout = TimeSpan.MaxValue;
+      if (timeout == default) timeout = TimeSpan.FromMilliseconds(long.MaxValue);
 
       _config.WaitForPort = new Tuple<string, string, long>(portAndProto, address, Convert.ToInt64(timeout.TotalMilliseconds));
       return this;
