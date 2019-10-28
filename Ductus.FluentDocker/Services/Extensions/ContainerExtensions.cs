@@ -242,6 +242,44 @@ namespace Ductus.FluentDocker.Services.Extensions
 
 			return service;
 		}
+		
+		/// <summary>
+		///   Waits for the container to be in a healthy state
+		/// </summary>
+		/// <param name="service">The service to check processes within.</param>
+		/// <param name="millisTimeout">Timeout giving up the wait.</param>
+		/// <returns>The inparam service.</returns>
+		public static IContainerService WaitForHealthy(this IContainerService service, long millisTimeout = -1)
+		{
+			if (service == null)
+				return null;
+
+			Exception exception = null;
+			var stopwatch = Stopwatch.StartNew();
+			using (var mre = new ManualResetEventSlim())
+			{
+				Timer timer;
+				using (timer = new Timer(_ =>
+				{
+					var config = service.GetConfiguration(true);
+					if (config?.State?.Health?.Status == HealthState.Healthy)
+						mre.Set();
+					if (stopwatch.ElapsedMilliseconds > millisTimeout)
+					{
+						exception = new FluentDockerException($"Wait for healthy expired for container {service.Id}");
+						mre.Set();
+					}
+				}, null, 0, 500))
+					
+					mre.Wait();
+				timer.Dispose();
+			}
+
+			if (exception != null)
+				throw exception;
+
+			return service;
+		}
 
 		/// <summary>
 		/// Waits using an arbitrary function.
