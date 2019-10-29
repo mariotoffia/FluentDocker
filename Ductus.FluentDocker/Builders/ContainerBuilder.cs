@@ -463,6 +463,14 @@ namespace Ductus.FluentDocker.Builders
       _config.WaitForPort = new Tuple<string, string, long>(portAndProto, address, Convert.ToInt64(millisTimeout));
       return this;
     }
+    
+    public ContainerBuilder WaitForHealthy(TimeSpan timeout = default)
+    {
+      if (timeout == default) timeout = TimeSpan.MaxValue;
+
+      _config.WaitForHealthy = new Tuple<long>(Convert.ToInt64(timeout.TotalMilliseconds));
+      return this;
+    }
 
     public ContainerBuilder WaitForPort(string portAndProto, TimeSpan timeout = default, string address = null)
     {
@@ -585,6 +593,16 @@ namespace Ductus.FluentDocker.Builders
               service, "Wait for port");
           });
 
+      // Wait for healthy when started
+      if (null != _config.WaitForHealthy)
+        container.AddHook(ServiceRunningState.Running,
+          service =>
+          {
+            Fd.DisposeOnException(svc =>
+                ((IContainerService) service).WaitForHealthy(_config.WaitForHealthy.Item1),
+              service, "Wait for healthy");
+          });
+      
       // Wait for http when started
       if (null != _config.WaitForHttp && 0 != _config.WaitForHttp.Count)
         container.AddHook(ServiceRunningState.Running, service =>

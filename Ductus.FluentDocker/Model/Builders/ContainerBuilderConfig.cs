@@ -27,6 +27,8 @@ namespace Ductus.FluentDocker.Model.Builders
     public string[] Arguments { get; set; }
     public Tuple<string /*portAndProto*/, string /*address*/ , long /*waitTimeout*/> WaitForPort { get; set; }
 
+    public Tuple<long /*waitTimeout*/> WaitForHealthy { get; set; }
+    
     public List<ContainerSpecificConfig.WaitForHttpParams> WaitForHttp { get; } =
       new List<ContainerSpecificConfig.WaitForHttpParams>();
 
