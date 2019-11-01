@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using Ductus.FluentDocker.Extensions;
@@ -19,6 +18,19 @@ namespace Ductus.FluentDocker.Builders
     internal FileBuilder(ImageBuilder parent)
     {
       _parent = parent;
+    }
+
+    /// <summary>
+    /// Used to create a Dockerfile as string
+    /// </summary>
+    /// <remarks>
+    ///   This is mainly for unit testing but may be used by external
+    ///   code to render Dockerfile for custom usage. Use the
+    ///   <see cref="ToDockerfileString()"/> method to produce the
+    ///   Dockerfile contents.
+    /// </remarks>
+    public FileBuilder()
+    {
     }
 
     internal string PrepareBuild()
@@ -164,24 +176,19 @@ namespace Ductus.FluentDocker.Builders
       }
 
       var dockerFile = Path.Combine(workingFolder, "Dockerfile");
-
-      string contents = null;
-      if (!string.IsNullOrEmpty(_config.UseFile))
-      {
-        contents = _config.UseFile.FromFile();
-      }
-
-      if (!string.IsNullOrWhiteSpace(_config.DockerFileString))
-      {
-        contents = _config.DockerFileString;
-      }
-
-      if (string.IsNullOrEmpty(contents))
-      {
-        contents = _config.ToString();
-      }
+      
+      string contents = !string.IsNullOrEmpty(_config.UseFile) ? 
+        _config.UseFile.FromFile() : 
+        ToDockerfileString();
 
       contents.ToFile(dockerFile);
+    }
+
+    public string ToDockerfileString()
+    {
+      return !string.IsNullOrWhiteSpace(_config.DockerFileString) ? 
+        _config.DockerFileString : 
+        _config.ToString();
     }
   }
 }
