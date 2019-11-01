@@ -102,6 +102,20 @@ namespace Ductus.FluentDocker
       return new Builder().DefineImage(image);      
     }
 
+    /// <summary>
+    /// Creates a in-memory Dockerfile builder.
+    /// </summary>
+    /// <returns>A builder to build a Dockerfile</returns>
+    /// <remarks>
+    ///   This builder won't build an Image, use <see cref="DefineImage(string)"/>
+    ///   for that purpose. This is a builder that can produce a string representing
+    ///   a docker file.
+    /// </remarks>
+    public static FileBuilder Dockerfile()
+    {
+      return new FileBuilder();
+    }
+
     public static IEngineScope EngineScope(EngineScopeType scope, DockerUri host = null, ICertificatePaths certificates = null)
     {
       return new EngineScope(host, scope, certificates);
