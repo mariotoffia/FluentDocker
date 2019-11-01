@@ -15,6 +15,7 @@ namespace Ductus.FluentDocker.Builders
     private readonly FileBuilderConfig _config = new FileBuilderConfig();
     private readonly ImageBuilder _parent;
     private TemplateString _workingFolder;
+    private string _lastContents = null;
 
     internal FileBuilder(ImageBuilder parent)
     {
@@ -28,7 +29,9 @@ namespace Ductus.FluentDocker.Builders
     ///   This is mainly for unit testing but may be used by external
     ///   code to render Dockerfile for custom usage. Use the
     ///   <see cref="ToDockerfileString()"/> method to produce the
-    ///   Dockerfile contents.
+    ///   Dockerfile contents (and copy files / render Dockerfile
+    ///   on working directory). If no working directory is set
+    ///   it will create a temporary one.
     /// </remarks>
     public FileBuilder()
     {
@@ -50,7 +53,7 @@ namespace Ductus.FluentDocker.Builders
     {
       if (null == _parent)
       {
-        PrepareBuild();
+        throw new FluentDockerException("No ImageBuilder was set as parent");
       }
 
       return _parent.Build();
@@ -189,17 +192,25 @@ namespace Ductus.FluentDocker.Builders
       var dockerFile = Path.Combine(workingFolder, "Dockerfile");
       
       string contents = !string.IsNullOrEmpty(_config.UseFile) ? 
-        _config.UseFile.FromFile() : 
-        ToDockerfileString();
+        _config.UseFile.FromFile() :
+        ResolveOrBuildString();
 
       contents.ToFile(dockerFile);
+
+      _lastContents = contents;
+    }
+
+    private string ResolveOrBuildString()
+    {
+      return !string.IsNullOrWhiteSpace(_config.DockerFileString) ?
+              _config.DockerFileString :
+              _config.ToString();
     }
 
     public string ToDockerfileString()
     {
-      return !string.IsNullOrWhiteSpace(_config.DockerFileString) ? 
-        _config.DockerFileString : 
-        _config.ToString();
+      PrepareBuild();
+      return _lastContents;
     }
   }
 }
