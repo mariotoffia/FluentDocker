@@ -29,7 +29,7 @@ namespace Ductus.FluentDocker.Tests.FluentApiTests
         .ExposePorts(8000)
         .Command("python", "server.py").ToDockerfileString();
 
-      var lines = dockerfile.Split(Environment.NewLine);
+      var lines = dockerfile.Split(new[] { Environment.NewLine }, StringSplitOptions.None);
       Assert.AreEqual(10, lines.Length);
       Assert.AreEqual("FROM mcr.microsoft.com/windows/servercore:ltsc2019", lines[0]);
       Assert.AreEqual("SHELL [powershell-Command,$ErrorActionPreference = 'Stop';]", lines[1]);
