@@ -1,6 +1,7 @@
 ﻿using System;
 using System.IO;
 using System.Linq;
+using Ductus.FluentDocker.Common;
 using Ductus.FluentDocker.Extensions;
 using Ductus.FluentDocker.Model.Builders;
 using Ductus.FluentDocker.Model.Builders.FileBuilder;
@@ -47,6 +48,11 @@ namespace Ductus.FluentDocker.Builders
 
     public IContainerImageService Build()
     {
+      if (null == _parent)
+      {
+        PrepareBuild();
+      }
+
       return _parent.Build();
     }
 
@@ -57,6 +63,11 @@ namespace Ductus.FluentDocker.Builders
 
     public ImageBuilder ToImage()
     {
+      if (null == _parent)
+      {
+        throw new FluentDockerException("No ImageBuilder was set as parent");
+      }
+
       return _parent;
     }
 
@@ -151,7 +162,7 @@ namespace Ductus.FluentDocker.Builders
         var wp = Path.Combine(workingFolder, cp.From);
         var wdp = Path.GetDirectoryName(wp);
         Directory.CreateDirectory(wdp);
-        File.Copy(cp.From,wp);
+        File.Copy(cp.From,wp, true /*overwrite*/);
       }
       
       foreach (var command in _config.Commands.Where(x => x is AddCommand).Cast<AddCommand>())
