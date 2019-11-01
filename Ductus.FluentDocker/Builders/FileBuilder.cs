@@ -113,6 +113,24 @@ namespace Ductus.FluentDocker.Builders
       return this;
     }
 
+    /// <summary>
+    /// Adds an HEALTHCHECK clause of which gets executed when container is started/running.
+    /// </summary>
+    /// <param name="cmd">The command with it's argument to do when performing the health check.</param>
+    /// <param name="interval">Optional (default is 30s) interval when to invoke the <paramref name="cmd"/>.</param>
+    /// <param name="timeout">Optional (default is 30s) when the healthcheck is force cancelled and failed.</param>
+    /// <param name="startPeriod">Optional (default is 0s) when it shall start to excute the <paramref name="cmd"/>.</param>
+    /// <param name="retries">Optional (default is 3) number retries before consider it as non healthy.</param>
+    /// <remarks>
+    ///   A <paramref name="cmd"/> can be e.g. a curl command combined by other shell command for example:
+    ///   "curl -f http://localhost/ || exit 1".
+    /// </remarks>
+    public FileBuilder WithHealthCheck(string cmd, string interval = null, string timeout = null, string startPeriod = null, int retries = 3)
+    {
+      _config.Commands.Add(new HealthCheckCommand(cmd, interval, timeout, startPeriod, retries));
+      return this;
+    }
+
     public FileBuilder Copy(TemplateString source, TemplateString dest)
     {
       _config.Commands.Add(new CopyCommand(source, dest));
