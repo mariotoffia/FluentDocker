@@ -300,8 +300,10 @@ namespace Ductus.FluentDocker.Services.Extensions
 				Timer timer;
 				using (timer = new Timer(_ =>
 				{
-					var logs = service.Logs().Read();
-					if (logs != null && logs.Contains(message))
+					var logs = service.Logs().ReadToEnd((int)millisTimeout);
+					var match = logs.FirstOrDefault(stringToCheck => stringToCheck.Contains(message));
+					
+					if (match != null)
 						mre.Set();
 					if (stopwatch.ElapsedMilliseconds > millisTimeout)
 					{
