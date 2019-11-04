@@ -280,6 +280,45 @@ namespace Ductus.FluentDocker.Services.Extensions
 
 			return service;
 		}
+		
+		/// <summary>
+		///   Waits for a specific message in the logs
+		/// </summary>
+		/// <param name="service">The service to check processes within.</param>
+		/// <param name="message">The message to wait for</param>
+		/// <param name="millisTimeout">Timeout giving up the wait.</param>
+		/// <returns>The inparam service.</returns>
+		public static IContainerService WaitForMessageInLogs(this IContainerService service, string message, long millisTimeout = -1)
+		{
+			if (service == null)
+				return null;
+
+			Exception exception = null;
+			var stopwatch = Stopwatch.StartNew();
+			using (var mre = new ManualResetEventSlim())
+			{
+				Timer timer;
+				using (timer = new Timer(_ =>
+				{
+					var logs = service.Logs().Read();
+					if (logs != null && logs.Contains(message))
+						mre.Set();
+					if (stopwatch.ElapsedMilliseconds > millisTimeout)
+					{
+						exception = new FluentDockerException($"Wait for message '{message}' in logs for container {service.Id}");
+						mre.Set();
+					}
+				}, null, 0, 500))
+					
+					mre.Wait();
+				timer.Dispose();
+			}
+
+			if (exception != null)
+				throw exception;
+
+			return service;
+		}
 
 		/// <summary>
 		/// Waits using an arbitrary function.
