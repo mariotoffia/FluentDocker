@@ -310,7 +310,7 @@ namespace Ductus.FluentDocker.Services.Extensions
 					}
 				}, null, 0, 500))
 					
-					mre.Wait();
+				mre.Wait();
 				timer.Dispose();
 			}
 
