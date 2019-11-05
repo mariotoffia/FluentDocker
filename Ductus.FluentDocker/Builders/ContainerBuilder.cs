@@ -464,6 +464,14 @@ namespace Ductus.FluentDocker.Builders
       return this;
     }
     
+    public ContainerBuilder WaitForMessageInLog(string message, TimeSpan timeout = default)
+    {
+      if (timeout == default) timeout = TimeSpan.MaxValue;
+
+      _config.WaitForMessageInLog = new Tuple<long, string>((long)timeout.TotalMilliseconds, message);
+      return this;
+    }
+
     public ContainerBuilder WaitForHealthy(TimeSpan timeout = default)
     {
       if (timeout == default) timeout = TimeSpan.MaxValue;
@@ -626,6 +634,17 @@ namespace Ductus.FluentDocker.Builders
                   _config.WaitForProcess.Item2),
               service, "Wait for process");
         });
+
+      // Wait for message in log when started
+      if (null != _config.WaitForMessageInLog)
+        container.AddHook(ServiceRunningState.Running,
+          service =>
+          {
+            Fd.DisposeOnException(src =>
+                ((IContainerService)service).WaitForMessageInLogs(_config.WaitForMessageInLog.Item2,
+                  _config.WaitForMessageInLog.Item1),
+              service, "Wait for process");
+          });
 
       // Wait for lambda when started
       if (null != _config.WaitLambda && 0 != _config.WaitLambda.Count)
