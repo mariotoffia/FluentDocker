@@ -30,7 +30,7 @@ namespace Ductus.FluentDocker.Tests.FluentApiTests
         Assert.AreEqual(ServiceRunningState.Stopped, container.State);
       }
     }
-    
+
     [TestMethod]
     [Ignore]
     public void UseNamedDockerMachineForRemoteSshDaemonConnectionShallWork()
@@ -38,9 +38,9 @@ namespace Ductus.FluentDocker.Tests.FluentApiTests
       var remoteHost = new Builder().UseHost()
         .UseSsh("192.168.1.34").WithName("remote-daemon")
         .WithSshUser("solo").WithSshKeyPath("${E_LOCALAPPDATA}/lxss/home/martoffi/.ssh/id_rsa").Build();
-      
+
       Assert.IsTrue(remoteHost.Host.ToString().StartsWith("tcp://"));
-      
+
       using (
         var container = Fd.UseHost()
             .UseMachine().WithName("remote-daemon")

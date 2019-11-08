@@ -13,24 +13,24 @@ namespace Ductus.FluentDocker.Executors.Parsers
     {
       var list = new List<StackLsResponse>();
       var rows = response.StdOutAsArry;
-      
+
       if (rows.Length > 0)
       {
         list.AddRange(from row in rows
-          select row.Split(';')
+                      select row.Split(';')
           into s
-          where s.Length == 3
-          select new StackLsResponse
-          {
-            Name = s[0],
-            Services = null == s[1] ? -1 : int.Parse(s[1]),
-            Orchestrator = StackLsResponse.ToOrchestrator(s[2]),
-            Namespace = s[3]
-          });
+                      where s.Length == 3
+                      select new StackLsResponse
+                      {
+                        Name = s[0],
+                        Services = null == s[1] ? -1 : int.Parse(s[1]),
+                        Orchestrator = StackLsResponse.ToOrchestrator(s[2]),
+                        Namespace = s[3]
+                      });
       }
 
-      Response = response.ToResponse(true, string.Empty, (IList<StackLsResponse>) list);
+      Response = response.ToResponse(true, string.Empty, (IList<StackLsResponse>)list);
       return this;
     }
-  }  
+  }
 }

@@ -12,9 +12,9 @@ namespace Ductus.FluentDocker.Common
     {
       Documentation = documentation ?? string.Empty;
       TargetVersion = targetVersion ?? string.Empty;
-      
+
     }
-    
+
     /// <summary>
     /// Current target version when this is to be released.
     /// </summary>

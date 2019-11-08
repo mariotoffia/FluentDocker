@@ -1,6 +1,6 @@
 ﻿using Ductus.FluentDocker.Model.Common;
 
-namespace Ductus.FluentDocker.Model.Builders.FileBuilder 
+namespace Ductus.FluentDocker.Model.Builders.FileBuilder
 {
   public sealed class RunCommand : ICommand
   {

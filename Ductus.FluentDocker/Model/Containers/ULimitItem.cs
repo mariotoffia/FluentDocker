@@ -11,7 +11,7 @@ namespace Ductus.FluentDocker.Model.Containers
       Soft = soft;
       Hard = hard;
     }
-    
+
     public Ulimit Ulimit { get; }
     public string Soft { get; }
     public string Hard { get; }

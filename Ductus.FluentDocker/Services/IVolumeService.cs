@@ -4,11 +4,11 @@ using Ductus.FluentDocker.Model.Volumes;
 
 namespace Ductus.FluentDocker.Services
 {
-    public interface IVolumeService : IService
-    {
-      DockerUri DockerHost { get; }
-      ICertificatePaths Certificates { get; }
+  public interface IVolumeService : IService
+  {
+    DockerUri DockerHost { get; }
+    ICertificatePaths Certificates { get; }
 
-      Volume GetConfiguration(bool fresh = false);
+    Volume GetConfiguration(bool fresh = false);
   }
 }

@@ -28,9 +28,12 @@ namespace Ductus.FluentDocker.Commands
       var args = $"{host.RenderBaseArgs(certificates)}";
       var opts = $"--orchestrator={orchestrator}";
 
-      if (kubeAllNamespaces) opts += " --all-namespaces";
-      if (null != kubeNamespace) opts += $" --namespace={kubeNamespace}";
-      if (null != kubeConfigFile) opts += $" --kubeconfig={kubeConfigFile}";
+      if (kubeAllNamespaces)
+        opts += " --all-namespaces";
+      if (null != kubeNamespace)
+        opts += $" --namespace={kubeNamespace}";
+      if (null != kubeConfigFile)
+        opts += $" --kubeconfig={kubeConfigFile}";
 
       opts += " --format=\"{{.Name}};{{.Services}};{{.Orchestrator}};{{.Namespace}}\"";
       return
@@ -50,9 +53,12 @@ namespace Ductus.FluentDocker.Commands
       var args = $"{host.RenderBaseArgs(certificates)}";
       var opts = $"--orchestrator={orchestrator}";
 
-      if (null != kubeNamespace) opts += $" --namespace={kubeNamespace}";
-      if (null != kubeConfigFile) opts += $" --kubeconfig={kubeConfigFile}";
-      if (null != filter) opts += $" --filter={filter}";
+      if (null != kubeNamespace)
+        opts += $" --namespace={kubeNamespace}";
+      if (null != kubeConfigFile)
+        opts += $" --kubeconfig={kubeConfigFile}";
+      if (null != filter)
+        opts += $" --filter={filter}";
 
       opts +=
         " --no-trunc --format=\"{{.ID}};{{.Name}};{{.Image}};{{.Node}};{{.DesiredState}};{{.CurrentState}};{{.Error}};{{.Ports}}\"";
@@ -65,15 +71,16 @@ namespace Ductus.FluentDocker.Commands
     public static CommandResponse<IList<string>> StackRm(this DockerUri host,
       Orchestrator orchestrator = Orchestrator.All,
       string kubeConfigFile = null,
-      ICertificatePaths certificates = null, params string []stacks)
+      ICertificatePaths certificates = null, params string[] stacks)
     {
       if (null == stacks || 0 == stacks.Length)
-        throw new ArgumentException("Must provide with stacks when doing rm.",nameof(stacks));
-      
+        throw new ArgumentException("Must provide with stacks when doing rm.", nameof(stacks));
+
       var args = $"{host.RenderBaseArgs(certificates)}";
       var opts = $"--orchestrator={orchestrator}";
 
-      if (null != kubeConfigFile) opts += $" --kubeconfig={kubeConfigFile}";
+      if (null != kubeConfigFile)
+        opts += $" --kubeconfig={kubeConfigFile}";
 
       return
         new ProcessExecutor<StringListResponseParser, IList<string>>(

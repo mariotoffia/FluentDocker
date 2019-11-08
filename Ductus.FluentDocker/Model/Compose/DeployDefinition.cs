@@ -59,7 +59,7 @@ namespace Ductus.FluentDocker.Model.Compose
     /// Default is one.
     /// </remarks>
     public int Replicas { get; set; } = 1;
-      
+
     public ResourcesDefinition Resources { get; set; }
     public RestartPolicyDefinition RestartPolicy { get; set; }
     public DeployConfigDefinition RollbackConfig { get; set; }

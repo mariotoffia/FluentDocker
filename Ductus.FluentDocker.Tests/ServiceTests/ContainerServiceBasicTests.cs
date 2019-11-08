@@ -65,7 +65,7 @@ namespace Ductus.FluentDocker.Tests.ServiceTests
       using (var container = _host.Create("postgres:9.6-alpine", false,
         new ContainerCreateParams
         {
-          Environment = new[] {"POSTGRES_PASSWORD=mysecretpassword"}
+          Environment = new[] { "POSTGRES_PASSWORD=mysecretpassword" }
         }))
       {
         Assert.AreEqual(ServiceRunningState.Stopped, container.State);
@@ -94,7 +94,7 @@ namespace Ductus.FluentDocker.Tests.ServiceTests
       using (var container = _host.Create("postgres:9.6-alpine", false,
         new ContainerCreateParams
         {
-          Environment = new[] {"POSTGRES_PASSWORD=mysecretpassword"}
+          Environment = new[] { "POSTGRES_PASSWORD=mysecretpassword" }
         }))
       {
         container.Start();
@@ -111,7 +111,7 @@ namespace Ductus.FluentDocker.Tests.ServiceTests
       using (var container = _host.Create("postgres:9.6-alpine", false,
         new ContainerCreateParams
         {
-          Environment = new[] {"POSTGRES_PASSWORD=mysecretpassword"}
+          Environment = new[] { "POSTGRES_PASSWORD=mysecretpassword" }
         }, deleteVolumeOnDispose: true))
       {
         container.Start();
@@ -132,8 +132,8 @@ namespace Ductus.FluentDocker.Tests.ServiceTests
         using (var container = _host.Create("postgres:9.6-alpine", false,
           new ContainerCreateParams
           {
-            Environment = new[] {"POSTGRES_PASSWORD=mysecretpassword"},
-            Volumes = new [] {"unit-test-volume:/world"}
+            Environment = new[] { "POSTGRES_PASSWORD=mysecretpassword" },
+            Volumes = new[] { "unit-test-volume:/world" }
           }, deleteNamedVolumeOnDispose: true))
         {
           container.Start();
@@ -171,8 +171,8 @@ namespace Ductus.FluentDocker.Tests.ServiceTests
       using (var container = _host.Create("postgres:9.6-alpine", false,
         new ContainerCreateParams
         {
-          PortMappings = new[] {"40001:5432"},
-          Environment = new[] {"POSTGRES_PASSWORD=mysecretpassword"}
+          PortMappings = new[] { "40001:5432" },
+          Environment = new[] { "POSTGRES_PASSWORD=mysecretpassword" }
         }))
       {
         container.Start().WaitForRunning();
@@ -193,8 +193,8 @@ namespace Ductus.FluentDocker.Tests.ServiceTests
       using (var container = _host.Create("postgres:9.6-alpine", false,
         new ContainerCreateParams
         {
-          PortMappings = new[] {"40001:5432"},
-          Environment = new[] {"POSTGRES_PASSWORD=mysecretpassword"}
+          PortMappings = new[] { "40001:5432" },
+          Environment = new[] { "POSTGRES_PASSWORD=mysecretpassword" }
         }))
       {
         container.Start();
@@ -216,8 +216,8 @@ namespace Ductus.FluentDocker.Tests.ServiceTests
       using (var container = _host.Create("postgres:9.6-alpine", false,
         new ContainerCreateParams
         {
-          PortMappings = new[] {"40001:5432"},
-          Environment = new[] {"POSTGRES_PASSWORD=mysecretpassword"}
+          PortMappings = new[] { "40001:5432" },
+          Environment = new[] { "POSTGRES_PASSWORD=mysecretpassword" }
         }))
       {
         container.Start();
@@ -249,8 +249,8 @@ namespace Ductus.FluentDocker.Tests.ServiceTests
       using (var container = _host.Create("postgres:9.6-alpine", false,
         new ContainerCreateParams
         {
-          PortMappings = new[] {"40001:5432"},
-          Environment = new[] {"POSTGRES_PASSWORD=mysecretpassword"}
+          PortMappings = new[] { "40001:5432" },
+          Environment = new[] { "POSTGRES_PASSWORD=mysecretpassword" }
         }))
       {
         container.Start();
@@ -282,14 +282,14 @@ namespace Ductus.FluentDocker.Tests.ServiceTests
     public async Task UseHostVolumeInsideContainerWhenMountedShallSucceed()
     {
       const string html = "<html><head>Hello World</head><body><h1>Hello world</h1></body></html>";
-      var fullPath = (TemplateString) @"${TEMP}\fluentdockertest\${RND}";
+      var fullPath = (TemplateString)@"${TEMP}\fluentdockertest\${RND}";
       Directory.CreateDirectory(fullPath);
 
       using (var container = _host.Create("nginx:1.13.6-alpine", false,
         new ContainerCreateParams
         {
-          PortMappings = new[] {"80"},
-          Volumes = new[] {$"{fullPath.Rendered}:/usr/share/nginx/html:ro"}
+          PortMappings = new[] { "80" },
+          Volumes = new[] { $"{fullPath.Rendered}:/usr/share/nginx/html:ro" }
         }))
       {
         container.Start();
@@ -311,13 +311,13 @@ namespace Ductus.FluentDocker.Tests.ServiceTests
       using (var container = _host.Create("postgres:9.6-alpine", false,
         new ContainerCreateParams
         {
-          Environment = new[] {"POSTGRES_PASSWORD=mysecretpassword"}
+          Environment = new[] { "POSTGRES_PASSWORD=mysecretpassword" }
         }))
       {
         container.Start();
         Assert.AreEqual(ServiceRunningState.Running, container.State);
 
-        var fullPath = (TemplateString) @"${TEMP}\fluentdockertest\${RND}";
+        var fullPath = (TemplateString)@"${TEMP}\fluentdockertest\${RND}";
         try
         {
           Directory.CreateDirectory(fullPath);
@@ -340,13 +340,13 @@ namespace Ductus.FluentDocker.Tests.ServiceTests
       using (var container = _host.Create("postgres:9.6-alpine", false,
         new ContainerCreateParams
         {
-          Environment = new[] {"POSTGRES_PASSWORD=mysecretpassword"}
+          Environment = new[] { "POSTGRES_PASSWORD=mysecretpassword" }
         }))
       {
         container.Start();
         Assert.AreEqual(ServiceRunningState.Running, container.State);
 
-        var fullPath = (TemplateString) @"${TEMP}/fluentdockertest/${RND}/hello.html";
+        var fullPath = (TemplateString)@"${TEMP}/fluentdockertest/${RND}/hello.html";
 
         try
         {

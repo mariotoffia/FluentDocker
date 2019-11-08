@@ -12,7 +12,7 @@ namespace Ductus.FluentDocker.Model.Compose
     /// <summary>
     /// Name of the container matching the compose file service name.
     /// </summary>
-    public string Name { get; set; }    
+    public string Name { get; set; }
     public Tuple<string /*portAndProto*/, string /*address*/, long /*waitTimeout*/> WaitForPort { get; set; }
     public List<WaitForHttpParams> WaitForHttp { get; } = new List<WaitForHttpParams>();
     public List<Func<IContainerService, int, int>> WaitLambda { get; } = new List<Func<IContainerService, int, int>>();
@@ -21,7 +21,8 @@ namespace Ductus.FluentDocker.Model.Compose
     public List<Tuple<TemplateString /*host*/, TemplateString /*container*/>> CpFromOnDispose { get; set; }
 
     public Tuple<TemplateString /*host*/, bool /*explode*/,
-      Func<IContainerService, bool> /*condition*/> ExportOnDispose { get; set; }
+      Func<IContainerService, bool> /*condition*/> ExportOnDispose
+    { get; set; }
 
     public List<string> ExecuteOnRunningArguments { get; set; }
     public List<string> ExecuteOnDisposingArguments { get; set; }
@@ -31,8 +32,8 @@ namespace Ductus.FluentDocker.Model.Compose
       public string Url { get; set; }
       public long Timeout { get; set; }
       public Func<RequestResponse, int, long> Continuation { get; set; }
-      public HttpMethod Method { get; set; } 
-      public string ContentType { get; set; } 
+      public HttpMethod Method { get; set; }
+      public string ContentType { get; set; }
       public string Body { get; set; }
     }
   }

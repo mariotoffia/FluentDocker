@@ -23,7 +23,7 @@ namespace Ductus.FluentDocker.Model.Common
             {
               var path = Path.GetTempPath();
               if (path.StartsWith("/var/") && FdOs.IsOsx()) path = "/private/" + path;
-              
+
               return path.Substring(0, path.Length - 1);
             }
           },
@@ -32,7 +32,7 @@ namespace Ductus.FluentDocker.Model.Common
             {
               var path = Path.GetTempPath();
               if (path.StartsWith("/var/") && FdOs.IsOsx()) path = "/private/" + path;
-              
+
               return path.Substring(0, path.Length - 1);
             }
           },
@@ -52,15 +52,16 @@ namespace Ductus.FluentDocker.Model.Common
 
     private static string ToTargetOs(string str, bool handleWindowsPathIfNeeded)
     {
-      if (string.IsNullOrEmpty(str) || str.StartsWith("emb:")) return str;
+      if (string.IsNullOrEmpty(str) || str.StartsWith("emb:"))
+        return str;
 
       if (!FdOs.IsWindows() || !handleWindowsPathIfNeeded)
       {
         return str;
       }
-      
+
       var match = Urldetector.Match(str);
-      if (!match.Success) 
+      if (!match.Success)
         return str.Replace('/', '\\');
 
       var res = "";
@@ -70,10 +71,10 @@ namespace Ductus.FluentDocker.Model.Common
         res += str.Substring(idx, match.Index - idx).Replace('/', '\\');
         res += str.Substring(match.Index, match.Length);
         idx = match.Index + match.Length;
-        
+
         match = match.NextMatch();
       }
-      
+
       res += str.Substring(idx).Replace('/', '\\');
       return res;
     }
@@ -91,7 +92,8 @@ namespace Ductus.FluentDocker.Model.Common
       foreach (DictionaryEntry env in Environment.GetEnvironmentVariables())
       {
         var tmpEnv = "${E_" + env.Key + "}";
-        if (-1 != str.IndexOf(tmpEnv, StringComparison.Ordinal)) str = str.Replace(tmpEnv, (string) env.Value);
+        if (-1 != str.IndexOf(tmpEnv, StringComparison.Ordinal))
+          str = str.Replace(tmpEnv, (string)env.Value);
       }
 
       return str;

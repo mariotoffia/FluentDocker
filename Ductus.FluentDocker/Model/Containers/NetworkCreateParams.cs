@@ -13,7 +13,7 @@ namespace Ductus.FluentDocker.Model.Containers
     ///  --attachable
     /// </remarks>
     public bool Attachable { get; set; }
-    
+
     /// <summary>
     ///   Auxiliary ipv4 or ipv6 addresses used by Network driver
     /// </summary>

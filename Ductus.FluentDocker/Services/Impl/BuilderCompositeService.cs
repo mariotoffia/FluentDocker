@@ -23,12 +23,14 @@ namespace Ductus.FluentDocker.Services.Impl
 
       Name = name;
 
-      foreach (var service in Services) service.StateChange += OnStateChange;
+      foreach (var service in Services)
+        service.StateChange += OnStateChange;
     }
 
     public void Dispose()
     {
-      foreach (var service in Services) service.Dispose();
+      foreach (var service in Services)
+        service.Dispose();
     }
 
     public string Name { get; }
@@ -37,7 +39,8 @@ namespace Ductus.FluentDocker.Services.Impl
     {
       get
       {
-        if (Services.Count == 0) return ServiceRunningState.Unknown;
+        if (Services.Count == 0)
+          return ServiceRunningState.Unknown;
 
         var state = Services.First().State;
         return Services.All(x => x.State == state) ? state : ServiceRunningState.Unknown;
@@ -73,18 +76,21 @@ namespace Ductus.FluentDocker.Services.Impl
 
     public void Remove(bool force = false)
     {
-      foreach (var service in Services) service.Remove(force);
+      foreach (var service in Services)
+        service.Remove(force);
     }
 
     public IService AddHook(ServiceRunningState state, Action<IService> hook, string uniqueName = null)
     {
-      foreach (var service in Services) service.AddHook(state, hook, uniqueName);
+      foreach (var service in Services)
+        service.AddHook(state, hook, uniqueName);
       return this;
     }
 
     public IService RemoveHook(string uniqueName)
     {
-      foreach (var service in Services) service.RemoveHook(uniqueName);
+      foreach (var service in Services)
+        service.RemoveHook(uniqueName);
       return this;
     }
 
@@ -96,7 +102,7 @@ namespace Ductus.FluentDocker.Services.Impl
 
     public ICompositeService Start()
     {
-      ((IService) this).Start();
+      ((IService)this).Start();
       return this;
     }
 

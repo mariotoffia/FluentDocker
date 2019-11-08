@@ -64,7 +64,7 @@ namespace Ductus.FluentDocker.Commands
     public static ConsoleStream<string> ComposeEvents(this DockerUri host, string altProjectName = null,
       string composeFile = null, string[] services = null /*all*/,
       CancellationToken cancellationToken = default(CancellationToken),
-	  bool json = false,
+    bool json = false,
       ICertificatePaths certificates = null)
     {
       var args = $"{host.RenderBaseArgs(certificates)}";
