@@ -19,7 +19,6 @@ install:
 
 before_build:
   - nuget restore
-  - ps: dotnet format --check --dry-run
   - ps: dotnet gitversion /l console /output buildserver
 
 build:
