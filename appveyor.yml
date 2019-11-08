@@ -1,3 +1,4 @@
+skip_non_tags: false
 test: off
 image: Visual Studio 2019
 configuration: Release
