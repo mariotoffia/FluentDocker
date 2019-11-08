@@ -293,7 +293,7 @@ namespace Ductus.FluentDocker.Builders
     public ContainerBuilder UseHealthCheck(string cmd = null, string interval = null, string timeout = null, string startPeriod = null, int retries = -1)
     {
       if (!string.IsNullOrEmpty(cmd))
-      _config.CreateParams.HealthCheckCmd = cmd;
+        _config.CreateParams.HealthCheckCmd = cmd;
 
       if (!string.IsNullOrEmpty(interval))
         _config.CreateParams.HealthCheckInterval = interval;
