@@ -32,9 +32,14 @@ artifacts:
   - path: 'src\**\Release\*.snupkg'
     name: NuGet Symbol Packages
 
+after_test:
+  - ps: $env:good_to_deploy="true"
+  - ps: if (Test-Path env:APPVEYOR_PULL_REQUEST_HEAD_REPO_BRANCH) {$env:good_to_deploy="false"}
+
 deploy:
   - provider: NuGet
     on:
       branch: master
+      good_to_deploy: true
     api_key:
       secure: 7nuJgcCxoCbPZRW7ZeOUNFC3myB1AsCJN4O2UOT3D+TRKOLyUG0b6isOeW64FOa+
