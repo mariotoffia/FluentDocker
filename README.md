@@ -89,6 +89,10 @@ three thin layers, each layer is accessable:
 
 The Majority of the service methods are extension methods and not hardwired into the service itself, making them lightweigted and customizable. Since everthing is accessable it is e.g. easy to add extensions method for a service that uses the layer 1 commands to provide functionality. 
 
+## Contribution
+I do welcome contribution, though there is no contribution guideline as of yet, make sure to adhere to _.editorconfig_ when doing the Pull Requests.
+Otherwise the build will fail. I'll update with a **real** guideline sooner or later.
+
 ## Basic Usage of Commands (Layer 1)
 All commands needs a ```DockerUri``` to work with. It is the Uri to the docker daemon, either locally or remote. It can be discoverable or hardcoded. Discovery of local ```DockerUri``` can be done by 
 ```cs
