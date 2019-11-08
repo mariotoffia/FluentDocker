@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
@@ -23,6 +23,12 @@ namespace Ductus.FluentDocker.Tests.FluentApiTests
       Utilities.LinuxMode();
     }
 
+    [TestMethod]
+    public void VersionInfoShallBePossibleToRetrieve()
+    {
+      var v = Fd.Version();
+      Assert.IsTrue(v != null && v.Length > 0);
+    }
     [TestMethod]
     public void BuildContainerRenderServiceInStoppedMode()
     {
