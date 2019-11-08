@@ -1,8 +1,9 @@
-#version: 0.0.0.{build}
 version: 2.7.3
-skip_non_tags: true
+#skip_non_tags: true
+test: off
 image: Visual Studio 2019
 configuration: Release
+
 dotnet_csproj:
   patch: true
   file: '**\*.csproj'
@@ -11,9 +12,28 @@ dotnet_csproj:
   assembly_version: '{version}'
   file_version: '{version}'
   informational_version: '{version}'
-build:
-  publish_nuget: false
-  verbosity: minimal
+
+#install:
+  - ps: dotnet tool install -g Codecov.Tool
+  - ps: dotnet tool install -g GitVersion.Tool
+  - ps: dotnet tool install -g dotnet-format
+
 before_build:
   - nuget restore
-test: off
+  - ps: dotnet format --check --dry-run
+  - ps: dotnet gitversion /l console /output buildserver
+
+build:
+  publish_nuget: true
+  verbosity: minimal
+
+artifacts:
+  - path: 'src\**\Release\*.nupkg'
+    name: NuGet Packages
+  - path: 'src\**\Release\*.snupkg'
+    name: NuGet Symbol Packages
+
+deploy:
+  - provider: NuGet
+    api_key:
+      secure: 7nuJgcCxoCbPZRW7ZeOUNFC3myB1AsCJN4O2UOT3D+TRKOLyUG0b6isOeW64FOa+

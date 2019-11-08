@@ -1,13 +1,23 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFrameworks>netcoreapp1.1;netcoreapp2.0;net452</TargetFrameworks>
-    <VersionPrefix>2.7.3</VersionPrefix>
+    <TargetFrameworks Condition="'$(OS)' != 'Unix'">netcoreapp1.1;netcoreapp2.0;net452</TargetFrameworks>
+    <TargetFrameworks Condition="'$(OS)' == 'Unix'">netcoreapp1.1;netcoreapp2.0</TargetFrameworks>
+
+    <DefineConstants Condition=" '$(TargetFramework)' == 'netcoreapp1.1' ">$(DefineConstants);COREFX</DefineConstants>
+    <DefineConstants Condition=" '$(TargetFramework)' == 'netcoreapp22.0' ">$(DefineConstants);COREFX</DefineConstants>
+
+    <Version>1.0.0</Version>
+    <AssemblyVersion>1.0.0.0</AssemblyVersion>
+    <FileVersion>1.0.0.0</FileVersion>
+    <VersionSuffix>$(VersionSuffix)</VersionSuffix>
+    <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
     <AssemblyTitle>Ductus.FluentDocker.MsTest</AssemblyTitle>
     <Authors>Mario Toffia</Authors>
     <PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
     <PackageProjectUrl>https://github.com/mariotoffia/FluentDocker</PackageProjectUrl>
     <PackageIconUrl>https://pbs.twimg.com/profile_images/378800000124779041/fbbb494a7eef5f9278c6967b6072ca3e.png</PackageIconUrl>
+    <PackageId>Ductus.FluentDocker.MsTest</PackageId>
     <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
     <PackageTags>Docker;Docker-Compose;Docker Compose;Docker-Machine;Docker Machine;Linux;Windows;Mac;Test;NET Core</PackageTags>
     <RepositoryType>git</RepositoryType>
@@ -18,14 +28,13 @@ Documentation: https://github.com/mariotoffia/FluentDocker
     </Description>
     <Copyright>© 2016 - 2019 Mario Toffia</Copyright>
     <DefineConstants Condition=" '$(TargetFramework)' == 'netcoreapp1.1' ">$(DefineConstants);COREFX</DefineConstants>
-    <GeneratePackageOnBuild>True</GeneratePackageOnBuild>
-    <Version>2.7.3</Version>
     <AssemblyOriginatorKeyFile>..\keypair.snk</AssemblyOriginatorKeyFile>
     <SignAssembly>true</SignAssembly>
     <PublicSign Condition=" '$(OS)' != 'Windows_NT' ">true</PublicSign>
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="GitVersionTask" Version="5.1.1" PrivateAssets="All" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="15.0.0" />
     <PackageReference Include="MSTest.TestAdapter" Version="1.1.11" />
     <PackageReference Include="MSTest.TestFramework" Version="1.1.11" />

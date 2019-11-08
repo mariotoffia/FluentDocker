@@ -1,5 +1,7 @@
 using System;
 using System.Collections.Generic;
+using System.Reflection;
+using System.Text;
 using Ductus.FluentDocker.Builders;
 using Ductus.FluentDocker.Common;
 using Ductus.FluentDocker.Model.Common;
@@ -11,6 +13,28 @@ namespace Ductus.FluentDocker
 {
   public static class Fd
   {
+    /// <summary>
+    /// Gets the version information for FluentDocker.
+    /// </summary>
+    /// <returns>A set of version information</returns>
+    public static string Version()
+    {
+      var assembly = typeof(Fd).GetTypeInfo().Assembly;
+      var assemblyName = assembly.GetName().Name;
+
+      var gitVersionInformationType = assembly.GetType(assemblyName + ".GitVersionInformation");
+      if (null == gitVersionInformationType)
+        gitVersionInformationType = assembly.GetType("GitVersionInformation");
+
+      var fields = gitVersionInformationType.GetFields();
+
+      var sb = new StringBuilder();
+      foreach (var field in fields)
+        sb.AppendLine($"{field.Name}: {field.GetValue(null)}");
+
+      return sb.ToString();
+    }
+
     public static void Run<T>(this IBuilder builder, Action<T> run, string name = null) where T : IService
     {
       try
