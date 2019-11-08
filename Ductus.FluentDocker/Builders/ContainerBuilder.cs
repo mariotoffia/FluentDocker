@@ -256,9 +256,57 @@ namespace Ductus.FluentDocker.Builders
       return this;
     }
 
+    /// <summary>
+    /// Deprecated ue <see cref="UseHealthCheck(string, string, string, int)"/> instead.
+    /// </summary>
+    /// <param name="cmd">Commnad to use in the health check.</param>
+    /// <returns>Itself for fluent access</returns>
+    [Deprecated("Will be removed since replaced by UseHealthCheck")]
     public ContainerBuilder HealthCheck(string cmd)
     {
-      _config.CreateParams.HealthCheck = cmd;
+      return UseHealthCheck(cmd);
+    }
+
+    /// <summary>
+    /// Completely disable HEALTHCHECK.
+    /// </summary>
+    /// <returns>Itself for fluent access.</returns>
+    /// <remarks>
+    /// Independant on what is specified in the Dockerfile (in HEALTHCHECK section).
+    /// All is disabled!
+    /// </remarks>
+    public ContainerBuilder UseNoHealthCheck()
+    {
+      _config.CreateParams.HealthCheckDisabled = true;
+      return this;
+    }
+
+    /// <summary>
+    /// Sets or overrides the native HEALTHCHECK provided by the docker daemon.
+    /// </summary>
+    /// <param name="cmd">A commnad to preform the health check.</param>
+    /// <param name="interval">How ofthen to perform the <paramref name="cmd"/>, default is 30s.</param>
+    /// <param name="timeout">How long time the <paramref name="cmd"/> has in order to not be marked as unhealthy container.</param>
+    /// <param name="startPeriod">How long for the first execution of <paramref name="cmd"/>, default is 30s.</param>
+    /// <param name="retries">The number of retries a <paramref name="cmd"/> has in order for the container do be marked as unhealthy, default is 3.</param>
+    /// <returns>Itself for fluent access.</returns>
+    public ContainerBuilder UseHealthCheck(string cmd = null, string interval = null, string timeout = null, string startPeriod = null, int retries = -1)
+    {
+      if (!string.IsNullOrEmpty(cmd))
+        _config.CreateParams.HealthCheckCmd = cmd;
+
+      if (!string.IsNullOrEmpty(interval))
+        _config.CreateParams.HealthCheckInterval = interval;
+
+      if (!string.IsNullOrEmpty(timeout))
+        _config.CreateParams.HealthCheckTimeout = timeout;
+
+      if (!string.IsNullOrEmpty(startPeriod))
+        _config.CreateParams.HealthCheckStartPeriod = startPeriod;
+
+      if (retries > 0)
+        _config.CreateParams.HealthCheckRetries = retries;
+
       return this;
     }
 
@@ -498,6 +546,19 @@ namespace Ductus.FluentDocker.Builders
       return this;
     }
 
+    /// <summary>
+    /// This install a wait for a docker daemon HEALTH check until certain timeout to set to Healthy.
+    /// </summary>
+    /// <param name="timeout">A optional timeout to stop waiting.</param>
+    /// <returns>Itself for fluent access.</returns>
+    /// <remarks>
+    ///   When the container is in <see cref="ServiceRunningState.Running"/> mode it will poll
+    ///   the container configuration and check the health of the container (as classified by the
+    ///   docker daemon). When the container is reported as Healthy, this method silently exits.
+    ///   If timeout a <see cref="FluentDockerException"/> is thrown. The status is deemed
+    ///   by the containers Dockerfiles HEALTH section or if overrided / created by
+    ///   <see cref="UseHealthCheck(string, string, string, string, int)"/>.
+    /// </remarks>
     public ContainerBuilder WaitForHealthy(TimeSpan timeout = default)
     {
       if (timeout == default)
