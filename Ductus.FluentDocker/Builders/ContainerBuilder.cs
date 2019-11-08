@@ -546,6 +546,19 @@ namespace Ductus.FluentDocker.Builders
       return this;
     }
 
+    /// <summary>
+    /// This install a wait for a docker daemon HEALTH check until certain timeout to set to Healthy.
+    /// </summary>
+    /// <param name="timeout">A optional timeout to stop waiting.</param>
+    /// <returns>Itself for fluent access.</returns>
+    /// <remarks>
+    ///   When the container is in <see cref="ServiceRunningState.Running"/> mode it will poll
+    ///   the container configuration and check the health of the container (as classified by the
+    ///   docker daemon). When the container is reported as Healthy, this method silently exits.
+    ///   If timeout a <see cref="FluentDockerException"/> is thrown. The status is deemed
+    ///   by the containers Dockerfiles HEALTH section or if overrided / created by
+    ///   <see cref="UseHealthCheck(string, string, string, string, int)"/>.
+    /// </remarks>
     public ContainerBuilder WaitForHealthy(TimeSpan timeout = default)
     {
       if (timeout == default)
