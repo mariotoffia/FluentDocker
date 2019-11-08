@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Net;
 using System.Text;
@@ -532,13 +532,62 @@ namespace Ductus.FluentDocker.Model.Containers
     public string WorkingDirectory { get; set; }
 
     /// <summary>
-    ///   Health check for container
+    ///   Health check command for container
     /// </summary>
     /// <remarks>
+    ///   This defines what command to run in order to check the health status.
+    ///   Health check commands should return 0 if healthy and 1 if unhealthy.
+    ///   Note that the command you use to validate health must be present in the image.
     ///   --health-cmd
     /// </remarks>
-    public string HealthCheck { get; set; }
+    public string HealthCheckCmd { get; set; }
 
+    /// <summary>
+    /// The timeout when the daemon deems a container as unhealthy
+    /// </summary>
+    /// <remarks>
+    ///  If the health check command takes longer than this to complete,
+    ///  it will be considered a failure. The default timeout is 30 seconds.
+    ///  --health-timeout
+    /// </remarks>
+    public string HealthCheckTimeout { get; set; }
+
+    /// <summary>
+    /// The number of retries of the health check commnad <see cref="HealthCheckCmd"/>
+    /// </summary>
+    /// <remarks>
+    ///   The health check will retry up to this many times before marking the container
+    ///   as unhealthy. The default is 3 retries.
+    ///   --health-retries
+    /// </remarks>
+    public int HealthCheckRetries { get; set; } = -1;
+
+    /// <summary>
+    /// The time between the <see cref="HealthCheckCmd"/> is executed.
+    /// </summary>
+    /// <remarks>
+    ///   This controls the initial delay before the first health check runs and then how
+    ///   often the health check command is executed thereafter. The default is 30 seconds.
+    ///   --health-interval
+    /// </remarks>
+    public string HealthCheckInterval { get; set; }
+
+    /// <summary>
+    /// The start <see cref="HealthCheckInterval"/> for the first execution of <see cref="HealthCheckCmd"/>.
+    /// </summary>
+    /// <remarks>
+    ///   The default is 30s.
+    ///   --health-start-period
+    /// </remarks>
+    public string HealthCheckStartPeriod { get; set; }
+
+    /// <summary>
+    /// When set to true, independand on the HEALTHCHECK in the Dockerfile, no health check is performed.
+    /// </summary>
+    /// <remarks>
+    /// --no-healthcheck 
+    /// </remarks>
+    public bool HealthCheckDisabled { get; set; }
     /// <summary>
     ///   Publish a container's port(s) to the host
     /// </summary>
@@ -802,7 +851,17 @@ namespace Ductus.FluentDocker.Model.Containers
       else
         sb.Append(" -P");
 
-      sb.OptionIfExists("--health-cmd=", HealthCheck);
+      // Native health check
+      sb.OptionIfExists("--health-cmd=", HealthCheckCmd);
+      sb.OptionIfExists("--health-interval=", HealthCheckInterval);
+      sb.OptionIfExists("--health-timeout=", HealthCheckTimeout);
+      sb.OptionIfExists("--health-start-period=", HealthCheckStartPeriod);
+      sb.OptionIfExists("--no-healthcheck", HealthCheckDisabled);
+
+      if (HealthCheckRetries > 0)
+        sb.Append($" --health-retries={HealthCheckRetries}");
+
+
       sb.OptionIfExists("--cgroup-parent ", ParentCGroup);
       sb.OptionIfExists("-e ", Environment);
       sb.OptionIfExists("--env-file=", EnvironmentFiles);
