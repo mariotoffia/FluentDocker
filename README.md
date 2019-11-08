@@ -91,7 +91,7 @@ The Majority of the service methods are extension methods and not hardwired into
 
 ## Contribution
 I do welcome contribution, though there is no contribution guideline as of yet, make sure to adhere to _.editorconfig_ when doing the Pull Requests.
-Otherwise the build will fail. I'll update with a **real** guideline sooner or later.
+Otherwise the build will fail. I'll update with a **real** guideline sooner or later this year.
 
 ## Basic Usage of Commands (Layer 1)
 All commands needs a ```DockerUri``` to work with. It is the Uri to the docker daemon, either locally or remote. It can be discoverable or hardcoded. Discovery of local ```DockerUri``` can be done by 
