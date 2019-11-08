@@ -1,5 +1,3 @@
-version: 2.7.3
-#skip_non_tags: true
 test: off
 image: Visual Studio 2019
 configuration: Release
