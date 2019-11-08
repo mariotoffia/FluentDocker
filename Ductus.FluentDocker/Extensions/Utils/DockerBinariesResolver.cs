@@ -58,19 +58,31 @@ namespace Ductus.FluentDocker.Extensions.Utils
         }
       }
 
+      DockerBinary resolved = null;
       switch (type)
       {
         case DockerBinaryType.Compose:
-          return MainDockerCompose;
+          resolved = MainDockerCompose;
+          break;
         case DockerBinaryType.DockerClient:
-          return MainDockerClient;
+          resolved = MainDockerClient;
+          break;
         case DockerBinaryType.Machine:
-          return MainDockerMachine;
+          resolved = MainDockerMachine;
+          break;
         case DockerBinaryType.Cli:
-          return MainDockerCli;
+          resolved = MainDockerCli;
+          break;
         default:
-          throw new Exception($"Cannot resolve unknown binary {binary}");
+          throw new FluentDockerException($"Cannot resolve unknown binary {binary}");
       }
+
+      if (null == resolved)
+      {
+        throw new FluentDockerException($"Could not resolve binary {binary} is it installed on the local system?");
+      }
+
+      return resolved;
     }
 
     private static IEnumerable<DockerBinary> ResolveFromPaths(SudoMechanism sudo, string password, params string[]paths)
