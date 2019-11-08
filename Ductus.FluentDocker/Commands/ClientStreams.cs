@@ -43,7 +43,7 @@ namespace Ductus.FluentDocker.Commands
 
     public static ConsoleStream<string> Events(this DockerUri host,
       CancellationToken cancellationToken = default(CancellationToken),
-      string []filters = null, DateTime ?since = null, DateTime? until = null,
+      string[] filters = null, DateTime? since = null, DateTime? until = null,
       ICertificatePaths certificates = null)
     {
       var args = $"{host.RenderBaseArgs(certificates)}";

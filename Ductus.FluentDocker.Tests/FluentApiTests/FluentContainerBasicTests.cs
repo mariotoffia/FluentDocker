@@ -134,7 +134,7 @@ namespace Ductus.FluentDocker.Tests.FluentApiTests
             .Start())
       {
         AreEqual(ServiceRunningState.Running, container.State);
-        
+
         container.Pause();
         AreEqual(ServiceRunningState.Paused, container.State);
         var config = container.GetConfiguration(true);
@@ -237,7 +237,7 @@ namespace Ductus.FluentDocker.Tests.FluentApiTests
               .ExposePorts(8000)
               .Command("python", "server.py")
               .Builder().UseContainer().UseImage("mariotoffia/issue111")
-              .WaitForProcess("python.exe", (long) TimeSpan.FromSeconds(30).TotalMilliseconds)
+              .WaitForProcess("python.exe", (long)TimeSpan.FromSeconds(30).TotalMilliseconds)
               .Builder()
               .Build()
               .Start())
@@ -253,7 +253,7 @@ namespace Ductus.FluentDocker.Tests.FluentApiTests
     public async Task VolumeMappingShallWork()
     {
       const string html = "<html><head>Hello World</head><body><h1>Hello world</h1></body></html>";
-      var hostPath = (TemplateString) @"${TEMP}/fluentdockertest/${RND}";
+      var hostPath = (TemplateString)@"${TEMP}/fluentdockertest/${RND}";
       Directory.CreateDirectory(hostPath);
 
       using (
@@ -277,7 +277,8 @@ namespace Ductus.FluentDocker.Tests.FluentApiTests
         }
         finally
         {
-          if (Directory.Exists(hostPath)) Directory.Delete(hostPath, true);
+          if (Directory.Exists(hostPath))
+            Directory.Delete(hostPath, true);
         }
       }
     }
@@ -286,7 +287,7 @@ namespace Ductus.FluentDocker.Tests.FluentApiTests
     public async Task VolumeMappingWithSpacesShallWork()
     {
       const string html = "<html><head>Hello World</head><body><h1>Hello world</h1></body></html>";
-      var hostPath = (TemplateString) @"${TEMP}/fluentdockertest/with space in path/${RND}";
+      var hostPath = (TemplateString)@"${TEMP}/fluentdockertest/with space in path/${RND}";
       Directory.CreateDirectory(hostPath);
 
       using (
@@ -310,7 +311,8 @@ namespace Ductus.FluentDocker.Tests.FluentApiTests
         }
         finally
         {
-          if (Directory.Exists(hostPath)) Directory.Delete(hostPath, true);
+          if (Directory.Exists(hostPath))
+            Directory.Delete(hostPath, true);
         }
       }
     }
@@ -318,7 +320,7 @@ namespace Ductus.FluentDocker.Tests.FluentApiTests
     [TestMethod]
     public void CopyFromRunningContainerShallWork()
     {
-      var fullPath = (TemplateString) @"${TEMP}/fluentdockertest/${RND}";
+      var fullPath = (TemplateString)@"${TEMP}/fluentdockertest/${RND}";
       Directory.CreateDirectory(fullPath);
       try
       {
@@ -336,14 +338,15 @@ namespace Ductus.FluentDocker.Tests.FluentApiTests
       }
       finally
       {
-        if (Directory.Exists(fullPath)) Directory.Delete(fullPath, true);
+        if (Directory.Exists(fullPath))
+          Directory.Delete(fullPath, true);
       }
     }
 
     [TestMethod]
     public void CopyBeforeDisposeContainerShallWork()
     {
-      var fullPath = (TemplateString) @"${TEMP}/fluentdockertest/${RND}";
+      var fullPath = (TemplateString)@"${TEMP}/fluentdockertest/${RND}";
       Directory.CreateDirectory(fullPath);
       try
       {
@@ -362,14 +365,15 @@ namespace Ductus.FluentDocker.Tests.FluentApiTests
       }
       finally
       {
-        if (Directory.Exists(fullPath)) Directory.Delete(fullPath, true);
+        if (Directory.Exists(fullPath))
+          Directory.Delete(fullPath, true);
       }
     }
 
     [TestMethod]
     public void ExportToTarFileWhenDisposeShallWork()
     {
-      var fullPath = (TemplateString) @"${TEMP}/fluentdockertest/${RND}/export.tar";
+      var fullPath = (TemplateString)@"${TEMP}/fluentdockertest/${RND}/export.tar";
       // ReSharper disable once AssignNullToNotNullAttribute
       Directory.CreateDirectory(Path.GetDirectoryName(fullPath));
       try
@@ -388,14 +392,15 @@ namespace Ductus.FluentDocker.Tests.FluentApiTests
       }
       finally
       {
-        if (File.Exists(fullPath)) Directory.Delete(Path.GetDirectoryName(fullPath), true);
+        if (File.Exists(fullPath))
+          Directory.Delete(Path.GetDirectoryName(fullPath), true);
       }
     }
 
     [TestMethod]
     public void ExportExploadedWhenDisposeShallWork()
     {
-      var fullPath = (TemplateString) @"${TEMP}/fluentdockertest/${RND}";
+      var fullPath = (TemplateString)@"${TEMP}/fluentdockertest/${RND}";
       Directory.CreateDirectory(fullPath);
       try
       {
@@ -416,14 +421,15 @@ namespace Ductus.FluentDocker.Tests.FluentApiTests
       }
       finally
       {
-        if (Directory.Exists(fullPath)) Directory.Delete(fullPath, true);
+        if (Directory.Exists(fullPath))
+          Directory.Delete(fullPath, true);
       }
     }
 
     [TestMethod]
     public void ExportWithConditionDisposeShallWork()
     {
-      var fullPath = (TemplateString) @"${TEMP}/fluentdockertest/${RND}/export.tar";
+      var fullPath = (TemplateString)@"${TEMP}/fluentdockertest/${RND}/export.tar";
       // ReSharper disable once AssignNullToNotNullAttribute
       Directory.CreateDirectory(Path.GetDirectoryName(fullPath));
 
@@ -448,14 +454,15 @@ namespace Ductus.FluentDocker.Tests.FluentApiTests
       }
       finally
       {
-        if (File.Exists(fullPath)) Directory.Delete(Path.GetDirectoryName(fullPath), true);
+        if (File.Exists(fullPath))
+          Directory.Delete(Path.GetDirectoryName(fullPath), true);
       }
     }
 
     [TestMethod]
     public void CopyToRunningContainerShallWork()
     {
-      var fullPath = (TemplateString) @"${TEMP}/fluentdockertest/${RND}/hello.html";
+      var fullPath = (TemplateString)@"${TEMP}/fluentdockertest/${RND}/hello.html";
 
       // ReSharper disable once AssignNullToNotNullAttribute
       Directory.CreateDirectory(Path.GetDirectoryName(fullPath));
@@ -483,7 +490,8 @@ namespace Ductus.FluentDocker.Tests.FluentApiTests
       }
       finally
       {
-        if (Directory.Exists(fullPath)) Directory.Delete(fullPath, true);
+        if (Directory.Exists(fullPath))
+          Directory.Delete(fullPath, true);
       }
     }
 

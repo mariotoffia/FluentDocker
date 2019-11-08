@@ -31,7 +31,7 @@ namespace Ductus.FluentDocker.Tests.FluentApiTests
     [TestMethod]
     public async Task DefineAndBuildImageAddNgixAsLoadBalancerTwoNodesAsHtmlServeAndRedisAsDbBackendShouldWorkAsCluster()
     {
-      var fullPath = (TemplateString) @"${TEMP}\fluentdockertest\${RND}";
+      var fullPath = (TemplateString)@"${TEMP}\fluentdockertest\${RND}";
       var nginx = Path.Combine(fullPath, "nginx.conf");
 
       Directory.CreateDirectory(fullPath);

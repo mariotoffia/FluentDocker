@@ -42,16 +42,17 @@ namespace Ductus.FluentDocker
         using (var service = builder.Build())
         {
           service.Start();
-          run.Invoke((T) service);
+          run.Invoke((T)service);
         }
       }
       catch
       {
-        if (null != name) Logger.Log($"Failed to run service {name}");
+        if (null != name)
+          Logger.Log($"Failed to run service {name}");
         throw;
-      }      
+      }
     }
-    
+
     public static void Run<T>(Func<Builder, IBuilder> builder, Action<T> run, string name = null) where T : IService
     {
       try
@@ -59,21 +60,22 @@ namespace Ductus.FluentDocker
         using (var service = builder.Invoke(Build()).Build())
         {
           service.Start();
-          run.Invoke((T) service);
+          run.Invoke((T)service);
         }
       }
       catch
       {
-        if (null != name) Logger.Log($"Failed to run service {name}");
+        if (null != name)
+          Logger.Log($"Failed to run service {name}");
         throw;
-      }      
+      }
     }
 
     public static void Container(this IBuilder builder, Action<IContainerService> run, string name = null)
     {
       Run(builder, run, name);
     }
-    
+
     public static void Container(Func<Builder, IBuilder> builder, Action<IContainerService> run, string name = null)
     {
       Run(builder, run, name);
@@ -91,8 +93,9 @@ namespace Ductus.FluentDocker
 
     internal static void DisposeOnException<T>(Action<T> action, T service, string name = null) where T : IService
     {
-      if (null == name) name = "n/a";
-      
+      if (null == name)
+        name = "n/a";
+
       try
       {
         action.Invoke(service);
@@ -120,10 +123,10 @@ namespace Ductus.FluentDocker
     {
       return new Builder().UseHost();
     }
-    
+
     public static ImageBuilder DefineImage(string image)
     {
-      return new Builder().DefineImage(image);      
+      return new Builder().DefineImage(image);
     }
 
     /// <summary>
@@ -153,14 +156,14 @@ namespace Ductus.FluentDocker
     public static VolumeBuilder UseVolume(string name = null)
     {
       return new Builder().UseVolume(name);
-    }   
+    }
     #endregion
-    
+
     #region Host Support
 
     public static Hosts Hosts()
     {
-      return new Hosts();      
+      return new Hosts();
     }
 
     public static IList<IHostService> Discover(bool preferNative = false)

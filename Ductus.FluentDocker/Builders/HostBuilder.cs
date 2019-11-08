@@ -32,7 +32,7 @@ namespace Ductus.FluentDocker.Builders
       var existing = Childs.FirstOrDefault(x => x is MachineBuilder);
       if (null != existing)
       {
-        return (MachineBuilder) existing;
+        return (MachineBuilder)existing;
       }
 
       var builder = new MachineBuilder(this);
@@ -62,7 +62,7 @@ namespace Ductus.FluentDocker.Builders
     }
 
     public NetworkBuilder UseNetwork(string name = null)
-    {      
+    {
       var builder = new NetworkBuilder(this, name);
       Childs.Add(builder);
       return builder;

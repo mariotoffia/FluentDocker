@@ -2,14 +2,14 @@
 {
   public sealed class CmdCommand : ICommand
   {
-    public CmdCommand(string cmd, params string []args)
+    public CmdCommand(string cmd, params string[] args)
     {
       Cmd = cmd;
       Arguments = null == args ? new string[0] : args;
     }
 
     public string Cmd { get; }
-    public string []Arguments { get; }
+    public string[] Arguments { get; }
 
     public override string ToString()
     {

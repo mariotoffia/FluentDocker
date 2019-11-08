@@ -40,7 +40,7 @@ namespace Ductus.FluentDocker.Model.Containers
 
     internal static ProcessRow ToRow(IList<string> columns, IList<string> fullRow)
     {
-      var row = new ProcessRow {FullRow = fullRow};
+      var row = new ProcessRow { FullRow = fullRow };
 
       for (var i = 0; i < columns.Count; i++)
       {
@@ -50,7 +50,7 @@ namespace Ductus.FluentDocker.Model.Containers
         {
           case CmdConst:
           case CommandConst:
-          case CmdConstWin:  
+          case CmdConstWin:
             row.Command = fullRow[i];
             break;
           case UserConst:
@@ -77,7 +77,8 @@ namespace Ductus.FluentDocker.Model.Containers
             row.Status = fullRow[i];
             break;
           case CpuTime:
-            if (TimeSpan.TryParse(fullRow[i], out var cpuTime)) row.Cpu = cpuTime;
+            if (TimeSpan.TryParse(fullRow[i], out var cpuTime))
+              row.Cpu = cpuTime;
             break;
           case PercentCpuConst:
             row.PercentCpuUtilization = float.Parse(fullRow[i], CultureInfo.InvariantCulture.NumberFormat);

@@ -15,7 +15,8 @@ namespace Ductus.FluentDocker.Common
 
     public static void Log(string message)
     {
-      if (!Enabled) return;
+      if (!Enabled)
+        return;
 
 #if COREFX
       ILogger.Value.LogTrace(message);
@@ -34,8 +35,8 @@ namespace Ductus.FluentDocker.Common
         return factory.CreateLogger(Constants.DebugCategory);
       });
 #else
-			System.Diagnostics.Debugger.Log((int)System.Diagnostics.TraceLevel.Verbose, Constants.DebugCategory, message);
-		}
+      System.Diagnostics.Debugger.Log((int)System.Diagnostics.TraceLevel.Verbose, Constants.DebugCategory, message);
+    }
 #endif
   }
 }

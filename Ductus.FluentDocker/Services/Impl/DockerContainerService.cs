@@ -21,7 +21,7 @@ namespace Ductus.FluentDocker.Services.Impl
     public DockerContainerService(string name, string id, DockerUri docker, ServiceRunningState state,
       ICertificatePaths certificates,
       bool stopOnDispose = true, bool removeOnDispose = true, bool removeMountOnDispose = false,
-      bool removeNamedMountOnDispose = false, bool isWindowsContainer = false, string instanceId = null, 
+      bool removeNamedMountOnDispose = false, bool isWindowsContainer = false, string instanceId = null,
       string project = null)
     {
       IsWindowsContainer = isWindowsContainer;
@@ -42,7 +42,7 @@ namespace Ductus.FluentDocker.Services.Impl
     public string Id { get; }
     public string InstanceId { get; }
     public string Service { get; }
-    
+
     public DockerUri DockerHost { get; }
 
     public bool StopOnDispose { get; set; }
@@ -50,12 +50,13 @@ namespace Ductus.FluentDocker.Services.Impl
     public bool RemoveOnDispose { get; set; }
 
     public bool IsWindowsContainer { get; }
-    
+
     public IContainerImageService Image
     {
       get
       {
-        if (null != _imgCache) return _imgCache;
+        if (null != _imgCache)
+          return _imgCache;
 
         var images = DockerHost.Images(certificates: Certificates);
         if (!images.Success)
@@ -65,7 +66,8 @@ namespace Ductus.FluentDocker.Services.Impl
 
         var cfgImageId = cfg.Image;
         var idx = cfgImageId.IndexOf(':');
-        if (-1 != idx) cfgImageId = cfgImageId.Substring(idx + 1);
+        if (-1 != idx)
+          cfgImageId = cfgImageId.Substring(idx + 1);
 
         var img = images.Data.FirstOrDefault(x => x.Id == cfgImageId);
         if (null == img)
@@ -105,10 +107,10 @@ namespace Ductus.FluentDocker.Services.Impl
 
     public IContainerService Start()
     {
-      ((IService) this).Start();
+      ((IService)this).Start();
       return this;
     }
-    
+
     public void Dispose()
     {
       if (string.IsNullOrEmpty(Id))
@@ -146,7 +148,8 @@ namespace Ductus.FluentDocker.Services.Impl
 
     void IService.Pause()
     {
-      if (State != ServiceRunningState.Running) return;
+      if (State != ServiceRunningState.Running)
+        return;
       var result = DockerHost.Pause(Certificates, Id);
       if (!result.Success)
       {
@@ -196,7 +199,7 @@ namespace Ductus.FluentDocker.Services.Impl
       if (!vols.Success)
         throw new FluentDockerException($"Failed to get attached volumes on docker container {Id}");
 
-      return vols.Data.Select(x => (IVolumeService) new DockerVolumeService(x.Name, DockerHost, Certificates, false))
+      return vols.Data.Select(x => (IVolumeService)new DockerVolumeService(x.Name, DockerHost, Certificates, false))
         .ToList();
     }
 

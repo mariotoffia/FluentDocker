@@ -11,7 +11,7 @@ namespace Ductus.FluentDocker.MsTest
   {
     protected ICompositeService Service;
     protected readonly string ComposeFile;
-    
+
     protected FluentDockerComposeTestBase(TemplateString fqPathDockerComposeFile)
     {
       ComposeFile = fqPathDockerComposeFile;
@@ -59,7 +59,7 @@ namespace Ductus.FluentDocker.MsTest
         .FromFile(ComposeFile)
         .RemoveOrphans();
     }
-    
+
     /// <summary>
     ///   Invoked just before the service is teared down.
     /// </summary>
@@ -72,6 +72,6 @@ namespace Ductus.FluentDocker.MsTest
     /// </summary>
     protected virtual void OnServiceInitialized()
     {
-    }    
+    }
   }
 }

@@ -12,14 +12,16 @@ namespace Ductus.FluentDocker.Commands
 {
   public static class Client
   {
-    public static CommandResponse<IList<string>> Login(this DockerUri host, string server, string user = null, 
+    public static CommandResponse<IList<string>> Login(this DockerUri host, string server, string user = null,
       string pass = null, ICertificatePaths certificates = null)
     {
       var args = $"{host.RenderBaseArgs(certificates)}";
       var opts = string.Empty;
-      if (!string.IsNullOrEmpty(user)) opts = $"-u {user}";
-      if (!string.IsNullOrEmpty(pass)) opts += $" -p {pass}";
-      
+      if (!string.IsNullOrEmpty(user))
+        opts = $"-u {user}";
+      if (!string.IsNullOrEmpty(pass))
+        opts += $" -p {pass}";
+
       return
         new ProcessExecutor<StringListResponseParser, IList<string>>(
           "docker".ResolveBinary(),
@@ -29,7 +31,7 @@ namespace Ductus.FluentDocker.Commands
     public static CommandResponse<IList<string>> Logout(this DockerUri host, ICertificatePaths certificates = null)
     {
       var args = $"{host.RenderBaseArgs(certificates)}";
-      
+
       return
         new ProcessExecutor<StringListResponseParser, IList<string>>(
           "docker".ResolveBinary(),
@@ -189,9 +191,9 @@ namespace Ductus.FluentDocker.Commands
       return
         new ProcessExecutor<StringListResponseParser, IList<string>>(
           "docker".ResolveBinary(),
-          $"{certArgs} exec -i {id} {execArgs}").Execute();      
+          $"{certArgs} exec -i {id} {execArgs}").Execute();
     }
-    
+
     public static CommandResponse<IList<string>> Start(this DockerUri host, string id, ICertificatePaths certificates = null)
     {
       var certArgs = host.RenderBaseArgs(certificates);
@@ -295,6 +297,6 @@ namespace Ductus.FluentDocker.Commands
       var arg = $"{host.RenderBaseArgs(certificates)}";
       return new ProcessExecutor<ClientDiffResponseParser, IList<Diff>>("docker".ResolveBinary(),
         $"{arg} diff {id}").Execute();
-    }    
+    }
   }
 }

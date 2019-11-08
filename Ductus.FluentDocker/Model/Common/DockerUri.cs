@@ -14,7 +14,7 @@ namespace Ductus.FluentDocker.Model.Common
     public DockerUri(string uriString) : base(uriString)
     {
     }
-    
+
     public static string GetDockerHostEnvronmentPathOrDefault()
     {
       string env = Environment.GetEnvironmentVariable(DockerHost);

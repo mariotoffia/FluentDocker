@@ -99,7 +99,7 @@ namespace Ductus.FluentDocker.Model.Service
     ///   --no-healthcheck
     /// </remarks>
     public bool? HealthCheckDisabled { get; set; }
-    
+
     /// <summary>
     /// Overwrite the default ENTRYPOINT of the image
     /// </summary>
@@ -112,24 +112,27 @@ namespace Ductus.FluentDocker.Model.Service
     {
       var sb = new StringBuilder();
 
-      if (Detach) sb.Append("-d");
+      if (Detach)
+        sb.Append("-d");
 
       sb.OptionIfExists("--entrypoint ", EntryPointCmd);
-      
+
       // Health Check
       sb.OptionIfExists("--health-cmd ", HealthCheckCmd);
       sb.OptionIfExists("--health-interval ", HealthCheckInterval);
       sb.OptionIfExists("--health-start-period ", HealthCheckInitialPeriod);
       sb.OptionIfExists("--health-timeout ", HealthCheckCmdTimeout);
-      if (HealthCheckRetries > 0) sb.AppendFormat(" --health-retries {0}", HealthCheckRetries);
-      if (HealthCheckDisabled.HasValue) sb.Append(" --no-healthcheck");
+      if (HealthCheckRetries > 0)
+        sb.AppendFormat(" --health-retries {0}", HealthCheckRetries);
+      if (HealthCheckDisabled.HasValue)
+        sb.Append(" --no-healthcheck");
 
       // Network settings
       sb.OptionIfExists("--dns=", Dns);
       sb.OptionIfExists("--dns-opt=", DnsOpt);
       sb.OptionIfExists("--dns-search=", DnsSearch);
       sb.OptionIfExists("--hostname ", Hostname);
-// https://docs.docker.com/engine/reference/commandline/service_create/
+      // https://docs.docker.com/engine/reference/commandline/service_create/
       return sb.ToString();
     }
   }

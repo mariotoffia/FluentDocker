@@ -12,7 +12,7 @@ namespace Ductus.FluentDocker.Executors.Parsers
       var dict = new Dictionary<string, string>();
       if (string.IsNullOrEmpty(response.StdOut))
       {
-        Response = response.ToResponse(false, "No data", (IDictionary<string, string>) dict);
+        Response = response.ToResponse(false, "No data", (IDictionary<string, string>)dict);
         return this;
       }
 
@@ -30,7 +30,7 @@ namespace Ductus.FluentDocker.Executors.Parsers
         }
       }
 
-      Response = response.ToResponse(true, string.Empty, (IDictionary<string, string>) dict);
+      Response = response.ToResponse(true, string.Empty, (IDictionary<string, string>)dict);
       return this;
     }
   }

@@ -14,7 +14,7 @@ namespace Ductus.FluentDocker.Model.Builders
     public override string ToString()
     {
       var sb = new StringBuilder();
-      foreach(var cmd in Commands)
+      foreach (var cmd in Commands)
       {
         sb.AppendLine(cmd.ToString());
       }

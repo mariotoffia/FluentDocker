@@ -17,24 +17,27 @@ namespace Ductus.FluentDocker.Services.Impl
       Scope = scope;
       _host = host;
       _certificates = certificates;
-      
+
       _original = host.IsWindowsEngine(certificates) ? EngineScopeType.Windows : EngineScopeType.Linux;
 
-      if (scope == _original) return;
+      if (scope == _original)
+        return;
 
       SwitchToScope(Scope);
     }
 
     public void Dispose()
     {
-      if (_original == Scope) return;
+      if (_original == Scope)
+        return;
       SwitchToScope(_original);
     }
 
     public EngineScopeType Scope { get; private set; }
     public bool UseLinux()
     {
-      if (this.Scope == EngineScopeType.Linux) return true;
+      if (this.Scope == EngineScopeType.Linux)
+        return true;
 
       var success = SwitchToScope(EngineScopeType.Linux);
       if (success)
@@ -47,7 +50,8 @@ namespace Ductus.FluentDocker.Services.Impl
 
     public bool UseWindows()
     {
-      if (this.Scope == EngineScopeType.Windows) return true;
+      if (this.Scope == EngineScopeType.Windows)
+        return true;
 
       var success = SwitchToScope(EngineScopeType.Windows);
       if (success)

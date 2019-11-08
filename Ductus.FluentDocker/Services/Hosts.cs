@@ -14,13 +14,15 @@ namespace Ductus.FluentDocker.Services
       var list = new List<IHostService>();
 
       var native = Native();
-      if (null != native) list.Add(native);
+      if (null != native)
+        list.Add(native);
 
       if (list.Count > 0 && preferNative)
         return list;
 
-      if (!Machine.IsPresent()) return list;
-      
+      if (!Machine.IsPresent())
+        return list;
+
       var ls = Machine.Ls();
       if (ls.Success)
         list.AddRange(from machine in ls.Data select FromMachineName(machine.Name));
@@ -36,7 +38,7 @@ namespace Ductus.FluentDocker.Services
 
       return null;
     }
-    
+
     public IHostService FromMachineName(string name, bool isWindowsHost = false, bool throwIfNotStarted = false)
     {
       return new DockerHostService(name, false, isWindowsHost, throwIfNotStarted);

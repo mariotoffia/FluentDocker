@@ -26,8 +26,8 @@ namespace Ductus.FluentDocker.Tests.CommandTests
       {
         var cmd = _docker.Run("postgres:9.6-alpine", new ContainerCreateParams
         {
-          PortMappings = new[] {"40001:5432"},
-          Environment = new[] {"POSTGRES_PASSWORD=mysecretpassword"}
+          PortMappings = new[] { "40001:5432" },
+          Environment = new[] { "POSTGRES_PASSWORD=mysecretpassword" }
         }, _certificates);
 
         id = cmd.Data;
@@ -80,7 +80,7 @@ namespace Ductus.FluentDocker.Tests.CommandTests
         endpoint.WaitForPort(10000 /*10s*/);
 
         var token = new CancellationTokenSource();
-        using (var logs = _docker.Logs(id,token.Token,true/*follow*/))
+        using (var logs = _docker.Logs(id, token.Token, true/*follow*/))
         {
           while (!logs.IsFinished)
           {

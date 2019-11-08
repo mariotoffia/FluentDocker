@@ -762,12 +762,14 @@ namespace Ductus.FluentDocker.Model.Containers
       sb.OptionIfExists("--pid=", Pid);
       sb.OptionIfExists("--uts=", Uts);
       sb.OptionIfExists("--ipc=", Ipc);
-      if (!string.IsNullOrWhiteSpace(CidFile)) sb.Append($" --cidfile=\"{CidFile}\"");
+      if (!string.IsNullOrWhiteSpace(CidFile))
+        sb.Append($" --cidfile=\"{CidFile}\"");
 
       if (null != HostIpMappings && 0 != HostIpMappings.Count)
       {
         sb.Append(" --add-host=");
-        foreach (var mapping in HostIpMappings) sb.Append($"--add-host={mapping.Item1}:{mapping.Item2}");
+        foreach (var mapping in HostIpMappings)
+          sb.Append($"--add-host={mapping.Item1}:{mapping.Item2}");
       }
 
       if (Ulimit.Count > 0)
@@ -775,7 +777,8 @@ namespace Ductus.FluentDocker.Model.Containers
           sb.Append($" --ulimit {ulimit}");
 
       // Block IO bandwidth (Blkio) constraint
-      if (null != BlockIoWeight) sb.Append($" --blkio-weight {BlockIoWeight.Value}");
+      if (null != BlockIoWeight)
+        sb.Append($" --blkio-weight {BlockIoWeight.Value}");
       sb.OptionIfExists("--blkio-weight-device=", BlockIoWeightDevices);
       sb.OptionIfExists("--device-read-bps ", DeviceReadBps);
       sb.OptionIfExists("--device-read-iops=", DeviceReadIops);
@@ -785,7 +788,8 @@ namespace Ductus.FluentDocker.Model.Containers
       // Runtime privilege and Linux capabilities
       sb.OptionIfExists("--cap-add=", CapabilitiesToAdd);
       sb.OptionIfExists("--cap-drop=", CapabilitiesToRemove);
-      if (Privileged) sb.Append(" --privileged");
+      if (Privileged)
+        sb.Append(" --privileged");
       sb.OptionIfExists("--device=", Device);
 
       // Network settings
@@ -803,13 +807,16 @@ namespace Ductus.FluentDocker.Model.Containers
       sb.OptionIfExists("-e ", Environment);
       sb.OptionIfExists("--env-file=", EnvironmentFiles);
 
-      if (Interactive) sb.Append(" -i");
+      if (Interactive)
+        sb.Append(" -i");
 
-      if (Tty) sb.Append(" -t");
+      if (Tty)
+        sb.Append(" -t");
 
       sb.OptionIfExists("-u ", AsUser);
 
-      if (AutoRemoveContainer) sb.Append(" --rm");
+      if (AutoRemoveContainer)
+        sb.Append(" --rm");
 
       sb.OptionIfExists("-v ", Volumes);
       sb.OptionIfExists("--volume-driver ", VolumeDriver);
@@ -846,12 +853,15 @@ namespace Ductus.FluentDocker.Model.Containers
       sb.OptionIfExists("--memory-swappiness=", MemorySwappiness);
       sb.SizeOptionIfValid("--memory-reservation=", MemoryReservation);
       sb.SizeOptionIfValid("--kernel-memory=", KernelMemory);
-      if (OomKillDisable) sb.Append(" --oom-kill-disable");
+      if (OomKillDisable)
+        sb.Append(" --oom-kill-disable");
 
       // Cpu management
-      if (!Cpus.IsApproximatelyEqualTo(float.MinValue)) sb.Append($" --cpus=\"{Cpus}\"");
+      if (!Cpus.IsApproximatelyEqualTo(float.MinValue))
+        sb.Append($" --cpus=\"{Cpus}\"");
       sb.OptionIfExists("--cpuset-cpus=", CpusetCpus);
-      if (CpuShares != int.MinValue) sb.Append($" --cpu-shares=\"{CpuShares}\"");
+      if (CpuShares != int.MinValue)
+        sb.Append($" --cpu-shares=\"{CpuShares}\"");
 
 
       return sb.ToString();

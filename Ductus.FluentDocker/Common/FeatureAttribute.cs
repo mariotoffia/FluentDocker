@@ -25,7 +25,8 @@ namespace Ductus.FluentDocker.Common
 
     public void Validate()
     {
-      if (null == Id) throw new FluentDockerException("A feature must have a valid Id");
+      if (null == Id)
+        throw new FluentDockerException("A feature must have a valid Id");
 
       foreach (var dependency in Dependencies)
         if (!dependency.GetInterfaces().Contains(typeof(IFeature)))

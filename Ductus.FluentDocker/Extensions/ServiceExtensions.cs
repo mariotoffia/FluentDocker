@@ -12,7 +12,7 @@ namespace Ductus.FluentDocker.Extensions
       WaitForStateObject so;
       using (var mre = new ManualResetEventSlim())
       {
-        so = new WaitForStateObject {Mre = mre, Container = container, State = state};
+        so = new WaitForStateObject { Mre = mre, Container = container, State = state };
         using (new Timer(Callback, so, 0, 500))
         {
           mre.Wait();
@@ -25,7 +25,7 @@ namespace Ductus.FluentDocker.Extensions
 
     private static void Callback(object state)
     {
-      var obj = (WaitForStateObject) state;
+      var obj = (WaitForStateObject)state;
       var containerState = obj.Container.GetConfiguration(true).State;
       if (!string.IsNullOrWhiteSpace(containerState.Error))
       {

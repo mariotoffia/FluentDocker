@@ -28,7 +28,8 @@ namespace Ductus.FluentDocker.Builders
       if (_reuseIfExist)
       {
         var network = host.Value.GetNetworks().FirstOrDefault(x => x.Name == _name);
-        if (null != network) return network;
+        if (null != network)
+          return network;
       }
 
       return host.Value.CreateNetwork(_name, _config, _removeOnDispose);
@@ -76,7 +77,8 @@ namespace Ductus.FluentDocker.Builders
 
     public NetworkBuilder UseAuxAddress(string name, string ip)
     {
-      if (null == _config.AuxAddress) _config.AuxAddress = new Dictionary<string, string>();
+      if (null == _config.AuxAddress)
+        _config.AuxAddress = new Dictionary<string, string>();
 
       _config.AuxAddress[name] = ip;
       return this;
@@ -90,7 +92,8 @@ namespace Ductus.FluentDocker.Builders
 
     public NetworkBuilder UseDriverOption(string name, string value)
     {
-      if (null == _config.DriverOptions) _config.DriverOptions = new Dictionary<string, string>();
+      if (null == _config.DriverOptions)
+        _config.DriverOptions = new Dictionary<string, string>();
 
       _config.DriverOptions[name] = value;
       return this;
@@ -130,7 +133,8 @@ namespace Ductus.FluentDocker.Builders
 
     public NetworkBuilder UseIpamOption(string name, string value)
     {
-      if (null == _config.IpamOptions) _config.IpamOptions = new Dictionary<string, string>();
+      if (null == _config.IpamOptions)
+        _config.IpamOptions = new Dictionary<string, string>();
 
       _config.IpamOptions[name] = value;
       return this;

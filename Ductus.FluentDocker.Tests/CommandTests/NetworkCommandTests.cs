@@ -114,20 +114,20 @@ namespace Ductus.FluentDocker.Tests.CommandTests
       {
         var created = _docker.NetworkCreate("unit-test-nw", new NetworkCreateParams
         {
-          Subnet  = new [] {"10.18.0.0/16"}
+          Subnet = new[] { "10.18.0.0/16" }
         }, _certificates);
-        
+
         Assert.IsTrue(created.Success);
         id = created.Data[0];
 
         var cmd = _docker.Run("postgres:9.6-alpine", new ContainerCreateParams
         {
-          PortMappings = new[] {"40001:5432"},
-          Environment = new[] {"POSTGRES_PASSWORD=mysecretpassword"},
+          PortMappings = new[] { "40001:5432" },
+          Environment = new[] { "POSTGRES_PASSWORD=mysecretpassword" },
           Network = "unit-test-nw",
           Ipv4 = "10.18.0.22"
         }, _certificates);
-        
+
         Assert.IsTrue(cmd.Success);
         container = cmd.Data;
 
@@ -141,7 +141,7 @@ namespace Ductus.FluentDocker.Tests.CommandTests
       {
         if (null != container)
           _docker.RemoveContainer(container, true, true);
-        
+
         if (null != id)
           _docker.NetworkRm(network: id);
       }
@@ -156,8 +156,8 @@ namespace Ductus.FluentDocker.Tests.CommandTests
       {
         var cmd = _docker.Run("postgres:9.6-alpine", new ContainerCreateParams
         {
-          PortMappings = new[] {"40001:5432"},
-          Environment = new[] {"POSTGRES_PASSWORD=mysecretpassword"}
+          PortMappings = new[] { "40001:5432" },
+          Environment = new[] { "POSTGRES_PASSWORD=mysecretpassword" }
         }, _certificates);
 
         Assert.IsTrue(cmd.Success);

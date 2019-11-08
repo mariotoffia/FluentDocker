@@ -23,16 +23,16 @@ namespace Ductus.FluentDocker.Services.Impl
 
     private readonly bool _stopWhenDisposed;
 
-    public DockerHostService(string name, bool stopWhenDisposed = false, bool isWindowsHost = false, 
+    public DockerHostService(string name, bool stopWhenDisposed = false, bool isWindowsHost = false,
       bool throwOnNotRunning = false) : base(name)
     {
       _isWindowsHost = isWindowsHost;
       _stopWhenDisposed = stopWhenDisposed;
       IsNative = false;
-      
+
       MachineSetup(name, throwOnNotRunning);
     }
-    
+
     public DockerHostService(string name, bool isNative, bool stopWhenDisposed = false, string dockerUri = null,
       string certificatePath = null, bool isWindowsHost = false)
       : base(name)
@@ -142,10 +142,10 @@ namespace Ductus.FluentDocker.Services.Impl
         return new List<IContainerService>();
 
       return (from id in result.Data
-        let config = Host.InspectContainer(id, Certificates)
-        where config.Success && config.Data != null
-        select new DockerContainerService(config.Data.Name, id, Host, config.Data.State.ToServiceState(), Certificates,
-          isWindowsContainer: _isWindowsHost)).Cast<IContainerService>().ToList();
+              let config = Host.InspectContainer(id, Certificates)
+              where config.Success && config.Data != null
+              select new DockerContainerService(config.Data.Name, id, Host, config.Data.State.ToServiceState(), Certificates,
+                isWindowsContainer: _isWindowsHost)).Cast<IContainerService>().ToList();
     }
 
     public IList<IContainerImageService> GetImages(bool all = true, string filter = null)
@@ -172,7 +172,7 @@ namespace Ductus.FluentDocker.Services.Impl
         if (!force.Success)
           throw new FluentDockerException($"Could not pull image ${image}. Result: {force}");
       }
-      
+
       var res = Host.Create(image, command, args, prms, Certificates);
 
       if (!res.Success || 0 == res.Data.Length)
@@ -195,7 +195,7 @@ namespace Ductus.FluentDocker.Services.Impl
       if (!networks.Success)
         throw new FluentDockerException("Could not list network services");
 
-      return networks.Data.Select(nw => (INetworkService) new DockerNetworkService(nw.Name, nw.Id, Host, Certificates))
+      return networks.Data.Select(nw => (INetworkService)new DockerNetworkService(nw.Name, nw.Id, Host, Certificates))
         .ToArray();
     }
 
@@ -212,9 +212,10 @@ namespace Ductus.FluentDocker.Services.Impl
     public IList<IVolumeService> GetVolumes()
     {
       var volumes = Host.VolumeLs();
-      if (!volumes.Success) throw new FluentDockerException("Could not list docker volumes");
+      if (!volumes.Success)
+        throw new FluentDockerException("Could not list docker volumes");
 
-      return volumes.Data.Select(vol => (IVolumeService) new DockerVolumeService(vol, Host, Certificates, false))
+      return volumes.Data.Select(vol => (IVolumeService)new DockerVolumeService(vol, Host, Certificates, false))
         .ToList();
     }
 
@@ -227,7 +228,8 @@ namespace Ductus.FluentDocker.Services.Impl
       IDictionary<string, string> opts = null, bool removeOnDispose = false)
     {
       var result = Host.VolumeCreate(name, driver, labels, opts, Certificates);
-      if (!result.Success) throw new FluentDockerException("Could not create docker volumes");
+      if (!result.Success)
+        throw new FluentDockerException("Could not create docker volumes");
 
       return new DockerVolumeService(result.Data, Host, Certificates, removeOnDispose);
     }
@@ -238,21 +240,22 @@ namespace Ductus.FluentDocker.Services.Impl
       RequireTls = info.RequireTls;
       if (info.DriverName == "hyperv")
       {
-         // Workaround for Status and Url requires elevated process.
-         Host = new DockerUri($"tcp://{info.IpAddress}:2376");
-         State = ServiceRunningState.Running;
+        // Workaround for Status and Url requires elevated process.
+        Host = new DockerUri($"tcp://{info.IpAddress}:2376");
+        State = ServiceRunningState.Running;
       }
       else
       {
         State = name.Status();
         if (State != ServiceRunningState.Running)
         {
-          if (!throwOnNotRunning) return;
+          if (!throwOnNotRunning)
+            return;
 
           throw new FluentDockerException(
             $"Could not get status from machine '{name}' thus not possible to resolve host");
         }
-        
+
         Host = name.Uri();
       }
 

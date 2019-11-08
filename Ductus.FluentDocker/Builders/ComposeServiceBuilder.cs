@@ -49,9 +49,11 @@ namespace Ductus.FluentDocker.Builders
 
       _config.Volumes.Add(volume);
 
-      if (null == options || 0 == options.Length) return this;
+      if (null == options || 0 == options.Length)
+        return this;
 
-      for (var i = 0; i < options.Length; i++) volume.Options.Add(options[i], options[i + 1]);
+      for (var i = 0; i < options.Length; i++)
+        volume.Options.Add(options[i], options[i + 1]);
 
       return this;
     }
@@ -59,7 +61,7 @@ namespace Ductus.FluentDocker.Builders
     public ComposeServiceBuilder Volume(TemplateString containerPath, TemplateString hostPath)
     {
       _config.Volumes.Add(new ShortServiceVolumeDefinition
-        {Entry = $"{hostPath.Rendered.EscapePath()}:{containerPath.Rendered.EscapePath()}"});
+      { Entry = $"{hostPath.Rendered.EscapePath()}:{containerPath.Rendered.EscapePath()}" });
 
       return this;
     }
@@ -77,7 +79,8 @@ namespace Ductus.FluentDocker.Builders
     /// <returns>Itself for fluent access.</returns>
     public ComposeServiceBuilder Environment(params string[] nameAndValue)
     {
-      if (null == nameAndValue || 0 == nameAndValue.Length) return this;
+      if (null == nameAndValue || 0 == nameAndValue.Length)
+        return this;
       string name = null;
       foreach (var v in nameAndValue)
       {
@@ -107,9 +110,10 @@ namespace Ductus.FluentDocker.Builders
 
     public ComposeServiceBuilder DependsOn(params string[] services)
     {
-      if (null == services || 0 == services.Length) return this;
+      if (null == services || 0 == services.Length)
+        return this;
 
-      ((List<string>) _config.DependsOn).AddRange(services);
+      ((List<string>)_config.DependsOn).AddRange(services);
       return this;
     }
 
@@ -117,15 +121,17 @@ namespace Ductus.FluentDocker.Builders
       string protocol = "tcp")
     {
       _config.Ports.Add(new PortsLongDefinition
-        {Target = target, Published = published, Mode = mode, Protocol = protocol});
+      { Target = target, Published = published, Mode = mode, Protocol = protocol });
       return this;
     }
 
     public ComposeServiceBuilder Ports(params string[] ports)
     {
-      if (null == ports || 0 == ports.Length) return this;
+      if (null == ports || 0 == ports.Length)
+        return this;
 
-      foreach (var port in ports) _config.Ports.Add(new PortsShortDefinition {Entry = port});
+      foreach (var port in ports)
+        _config.Ports.Add(new PortsShortDefinition { Entry = port });
       return this;
     }
   }

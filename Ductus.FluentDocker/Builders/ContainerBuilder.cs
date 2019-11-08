@@ -46,7 +46,7 @@ namespace Ductus.FluentDocker.Builders
         {
           existing.RemoveOnDispose = _config.DeleteOnDispose;
           existing.StopOnDispose = _config.StopOnDispose;
-          
+
           // Run hooks will not be run since they have already met the requirements
           // (since container was found running).
           AddHooks(existing);
@@ -58,13 +58,14 @@ namespace Ductus.FluentDocker.Builders
       // If we have networks, the first is supplied as --network option on docker create
       // TODO: This is a ugly hack that needs to be cleaned up.
       var cfgNw = (IList<INetworkService>)_config.Networks ?? new INetworkService[0];
-      
+
       var firstNw = null != _config.NetworkNames
         ? _config.NetworkNames[0]
         : (0 == cfgNw.Count ? string.Empty : cfgNw[0].Name);
 
-      if (string.Empty != firstNw) _config.CreateParams.Network = firstNw;
-      
+      if (string.Empty != firstNw)
+        _config.CreateParams.Network = firstNw;
+
       var container = host.Value.Create(_config.Image, _config.ImageFocrePull, _config.CreateParams, _config.StopOnDispose,
         _config.DeleteOnDispose,
         _config.DeleteVolumeOnDispose,
@@ -79,13 +80,15 @@ namespace Ductus.FluentDocker.Builders
           network.Attach(container, true /*detachOnDisposeNetwork*/);
       }
 
-      if (null == _config.NetworkNames) return container;
+      if (null == _config.NetworkNames)
+        return container;
 
       var nw = host.Value.GetNetworks();
-      foreach (var network in (IEnumerable<string>) _config.NetworkNames ?? new string[0])
+      foreach (var network in (IEnumerable<string>)_config.NetworkNames ?? new string[0])
       {
-        if (network == firstNw) continue;
-        
+        if (network == firstNw)
+          continue;
+
         var nets = nw.First(x => x.Name == network);
         nets.Attach(container, true /*detachOnDisposeNetwork*/);
       }
@@ -223,7 +226,7 @@ namespace Ductus.FluentDocker.Builders
       return this;
     }
 
-    public ContainerBuilder UseDns(params string []server)
+    public ContainerBuilder UseDns(params string[] server)
     {
       _config.CreateParams.Dns = _config.CreateParams.Dns.ArrayAdd(server);
       return this;
@@ -262,8 +265,8 @@ namespace Ductus.FluentDocker.Builders
     public ContainerBuilder Mount(string fqHostPath, string fqContainerPath, MountType access)
     {
       var hp = FdOs.IsWindows() && CommandExtensions.IsToolbox()
-        ? ((TemplateString) fqHostPath).Rendered.ToMsysPath()
-        : ((TemplateString) fqHostPath).Rendered;
+        ? ((TemplateString)fqHostPath).Rendered.ToMsysPath()
+        : ((TemplateString)fqHostPath).Rendered;
 
       _config.CreateParams.Volumes =
         _config.CreateParams.Volumes.ArrayAdd($"{hp.EscapePath()}:{fqContainerPath.EscapePath()}:{access.ToDocker()}");
@@ -352,9 +355,11 @@ namespace Ductus.FluentDocker.Builders
     /// </remarks>
     public ContainerBuilder UseNetwork(params INetworkService[] network)
     {
-      if (null == network || 0 == network.Length) return this;
+      if (null == network || 0 == network.Length)
+        return this;
 
-      if (null == _config.Networks) _config.Networks = new List<INetworkService>();
+      if (null == _config.Networks)
+        _config.Networks = new List<INetworkService>();
 
       _config.Networks.AddRange(network);
       return this;
@@ -373,9 +378,11 @@ namespace Ductus.FluentDocker.Builders
     /// </remarks>
     public ContainerBuilder UseNetwork(params string[] network)
     {
-      if (null == network || 0 == network.Length) return this;
+      if (null == network || 0 == network.Length)
+        return this;
 
-      if (null == _config.NetworkNames) _config.NetworkNames = new List<string>();
+      if (null == _config.NetworkNames)
+        _config.NetworkNames = new List<string>();
 
       _config.NetworkNames.AddRange(network);
       return this;
@@ -431,12 +438,12 @@ namespace Ductus.FluentDocker.Builders
     ///  For example restricting the number of open files to 10 use <see cref="Ulimit.NoFile"/> and set soft / hard
     /// to 10. 
     /// </remarks>
-    public ContainerBuilder UseUlimit(Ulimit ulimit, long soft, long ?hard = null)
+    public ContainerBuilder UseUlimit(Ulimit ulimit, long soft, long? hard = null)
     {
       _config.CreateParams.Ulimit.Add(new ULimitItem(ulimit, soft.ToString(), hard.HasValue ? hard.ToString() : null));
       return this;
     }
-    
+
     public ContainerBuilder ExportOnDispose(string hostPath, Func<IContainerService, bool> condition = null)
     {
       _config.ExportOnDispose =
@@ -481,10 +488,11 @@ namespace Ductus.FluentDocker.Builders
       _config.WaitForPort = new Tuple<string, string, long>(portAndProto, address, Convert.ToInt64(millisTimeout));
       return this;
     }
-    
+
     public ContainerBuilder WaitForMessageInLog(string message, TimeSpan timeout = default)
     {
-      if (timeout == default) timeout = TimeSpan.MaxValue;
+      if (timeout == default)
+        timeout = TimeSpan.MaxValue;
 
       _config.WaitForMessageInLog = new Tuple<long, string>((long)timeout.TotalMilliseconds, message);
       return this;
@@ -492,7 +500,8 @@ namespace Ductus.FluentDocker.Builders
 
     public ContainerBuilder WaitForHealthy(TimeSpan timeout = default)
     {
-      if (timeout == default) timeout = TimeSpan.MaxValue;
+      if (timeout == default)
+        timeout = TimeSpan.MaxValue;
 
       _config.WaitForHealthy = new Tuple<long>(Convert.ToInt64(timeout.TotalMilliseconds));
       return this;
@@ -500,7 +509,8 @@ namespace Ductus.FluentDocker.Builders
 
     public ContainerBuilder WaitForPort(string portAndProto, TimeSpan timeout = default, string address = null)
     {
-      if (timeout == default) timeout = TimeSpan.FromMilliseconds(long.MaxValue);
+      if (timeout == default)
+        timeout = TimeSpan.FromMilliseconds(long.MaxValue);
 
       _config.WaitForPort = new Tuple<string, string, long>(portAndProto, address, Convert.ToInt64(timeout.TotalMilliseconds));
       return this;
@@ -548,7 +558,11 @@ namespace Ductus.FluentDocker.Builders
     {
       _config.WaitForHttp.Add(new ContainerSpecificConfig.WaitForHttpParams
       {
-        Url = url, Timeout = timeout, Continuation = continuation, Method = method, ContentType = contentType,
+        Url = url,
+        Timeout = timeout,
+        Continuation = continuation,
+        Method = method,
+        ContentType = contentType,
         Body = body
       });
 
@@ -572,7 +586,8 @@ namespace Ductus.FluentDocker.Builders
     /// </remarks>
     public ContainerBuilder ExecuteOnRunning(params string[] execute)
     {
-      if (null == _config.ExecuteOnRunningArguments) _config.ExecuteOnRunningArguments = new List<string>();
+      if (null == _config.ExecuteOnRunningArguments)
+        _config.ExecuteOnRunningArguments = new List<string>();
 
       _config.ExecuteOnRunningArguments.AddRange(execute);
       return this;
@@ -588,7 +603,8 @@ namespace Ductus.FluentDocker.Builders
     /// </remarks>
     public ContainerBuilder ExecuteOnDisposing(params string[] execute)
     {
-      if (null == _config.ExecuteOnDisposingArguments) _config.ExecuteOnDisposingArguments = new List<string>();
+      if (null == _config.ExecuteOnDisposingArguments)
+        _config.ExecuteOnDisposingArguments = new List<string>();
 
       _config.ExecuteOnDisposingArguments.AddRange(execute);
       return this;
@@ -604,7 +620,7 @@ namespace Ductus.FluentDocker.Builders
             Fd.DisposeOnException(svc =>
             {
               foreach (var copy in _config.CpToOnStart)
-                ((IContainerService) service).CopyTo(copy.Item2, copy.Item1);
+                ((IContainerService)service).CopyTo(copy.Item2, copy.Item1);
             }, service, "Copy on start");
           });
 
@@ -614,7 +630,7 @@ namespace Ductus.FluentDocker.Builders
           service =>
           {
             Fd.DisposeOnException(svc =>
-                ((IContainerService) service).WaitForPort(_config.WaitForPort.Item1, _config.WaitForPort.Item3,
+                ((IContainerService)service).WaitForPort(_config.WaitForPort.Item1, _config.WaitForPort.Item3,
                   _config.WaitForPort.Item2),
               service, "Wait for port");
           });
@@ -625,10 +641,10 @@ namespace Ductus.FluentDocker.Builders
           service =>
           {
             Fd.DisposeOnException(svc =>
-                ((IContainerService) service).WaitForHealthy(_config.WaitForHealthy.Item1),
+                ((IContainerService)service).WaitForHealthy(_config.WaitForHealthy.Item1),
               service, "Wait for healthy");
           });
-      
+
       // Wait for http when started
       if (null != _config.WaitForHttp && 0 != _config.WaitForHttp.Count)
         container.AddHook(ServiceRunningState.Running, service =>
@@ -636,7 +652,7 @@ namespace Ductus.FluentDocker.Builders
           Fd.DisposeOnException(svc =>
           {
             foreach (var prm in _config.WaitForHttp)
-              ((IContainerService) service).WaitForHttp(prm.Url, prm.Timeout, prm.Continuation, prm.Method,
+              ((IContainerService)service).WaitForHttp(prm.Url, prm.Timeout, prm.Continuation, prm.Method,
                 prm.ContentType,
                 prm.Body);
           }, service, "Wait for HTTP");
@@ -648,10 +664,10 @@ namespace Ductus.FluentDocker.Builders
           service =>
           {
             Fd.DisposeOnException(src =>
-                ((IContainerService) service).WaitForProcess(_config.WaitForProcess.Item1,
+                ((IContainerService)service).WaitForProcess(_config.WaitForProcess.Item1,
                   _config.WaitForProcess.Item2),
               service, "Wait for process");
-        });
+          });
 
       // Wait for message in log when started
       if (null != _config.WaitForMessageInLog)
@@ -671,17 +687,17 @@ namespace Ductus.FluentDocker.Builders
           Fd.DisposeOnException(src =>
           {
             foreach (var continuation in _config.WaitLambda)
-              ((IContainerService) service).Wait(continuation);
+              ((IContainerService)service).Wait(continuation);
           }, service, "Wait for lambda");
         });
-      
+
       // docker execute on running
       if (null != _config.ExecuteOnRunningArguments && _config.ExecuteOnRunningArguments.Count > 0)
         container.AddHook(ServiceRunningState.Running, service =>
         {
           Fd.DisposeOnException(svc =>
           {
-            var csvc = (IContainerService) service;
+            var csvc = (IContainerService)service;
             foreach (var binaryAndArguments in _config.ExecuteOnRunningArguments)
             {
               var result = csvc.DockerHost.Execute(csvc.Id, binaryAndArguments, csvc.Certificates);
@@ -698,7 +714,7 @@ namespace Ductus.FluentDocker.Builders
           Fd.DisposeOnException(svc =>
           {
             foreach (var copy in _config.CpFromOnDispose)
-              ((IContainerService) service).CopyFrom(copy.Item2, copy.Item1);
+              ((IContainerService)service).CopyFrom(copy.Item2, copy.Item1);
           }, service, "Copy From on Dispose");
         });
 
@@ -708,7 +724,7 @@ namespace Ductus.FluentDocker.Builders
         {
           Fd.DisposeOnException(svc =>
           {
-            var csvc = (IContainerService) service;
+            var csvc = (IContainerService)service;
             foreach (var binaryAndArguments in _config.ExecuteOnDisposingArguments)
             {
               var result = csvc.DockerHost.Execute(csvc.Id, binaryAndArguments, csvc.Certificates);
@@ -724,7 +740,7 @@ namespace Ductus.FluentDocker.Builders
         {
           Fd.DisposeOnException(svc =>
           {
-            var csvc = (IContainerService) service;
+            var csvc = (IContainerService)service;
             if (_config.ExportOnDispose.Item3(csvc))
               csvc.Export(_config.ExportOnDispose.Item1,
                 _config.ExportOnDispose.Item2);

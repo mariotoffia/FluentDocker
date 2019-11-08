@@ -1,10 +1,10 @@
 namespace Ductus.FluentDocker.Model.Containers
 {
-    public enum HealthState
-    {
-        Starting,
-        Unhealthy,
-        Healthy,
-        Unknown
-    }
+  public enum HealthState
+  {
+    Starting,
+    Unhealthy,
+    Healthy,
+    Unknown
+  }
 }
