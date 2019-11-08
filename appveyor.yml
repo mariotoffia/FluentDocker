@@ -31,9 +31,9 @@ build:
   verbosity: minimal
 
 artifacts:
-  - path: 'src\**\Release\*.nupkg'
+  - path: '**\Release\*.nupkg'
     name: NuGet Packages
-  - path: 'src\**\Release\*.snupkg'
+  - path: '**\Release\*.snupkg'
     name: NuGet Symbol Packages
 
 deploy:

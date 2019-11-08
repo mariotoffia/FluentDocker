@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Threading;
 using Ductus.FluentDocker.Executors;
 using Ductus.FluentDocker.Executors.Mappers;
@@ -11,7 +11,7 @@ namespace Ductus.FluentDocker.Commands
   public static class ClientStreams
   {
     public static ConsoleStream<string> Logs(this DockerUri host, string id,
-      CancellationToken cancellationToken = default(CancellationToken),
+      CancellationToken cancellationToken = default,
       bool follow = false, bool showTimeStamps = false, DateTime? since = null, int? numLines = null,
       ICertificatePaths certificates = null)
     {
@@ -42,7 +42,7 @@ namespace Ductus.FluentDocker.Commands
     }
 
     public static ConsoleStream<string> Events(this DockerUri host,
-      CancellationToken cancellationToken = default(CancellationToken),
+      CancellationToken cancellationToken = default,
       string[] filters = null, DateTime? since = null, DateTime? until = null,
       ICertificatePaths certificates = null)
     {
