@@ -34,7 +34,9 @@ artifacts:
 
 after_test:
   - ps: $env:good_to_deploy="true"
+  - ps: if (Test-Path env:APPVEYOR_PULL_REQUEST_HEAD_REPO_BRANCH) {echo "Not going to deploy because pull request."}
   - ps: if (Test-Path env:APPVEYOR_PULL_REQUEST_HEAD_REPO_BRANCH) {$env:good_to_deploy="false"}
+  - echo good_to_deploy=%good_to_deploy%
 
 deploy:
   - provider: NuGet
