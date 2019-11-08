@@ -9,10 +9,7 @@ namespace Ductus.FluentDocker.Model.Builders
 {
   public sealed class ContainerBuilderConfig
   {
-    public ContainerBuilderConfig()
-    {
-      CreateParams = new ContainerCreateParams();
-    }
+    public ContainerBuilderConfig() => CreateParams = new ContainerCreateParams();
 
     public bool VerifyExistence { get; set; }
     public ContainerCreateParams CreateParams { get; }
@@ -35,7 +32,8 @@ namespace Ductus.FluentDocker.Model.Builders
     public List<Tuple<TemplateString /*host*/, TemplateString /*container*/>> CpToOnStart { get; set; }
     public List<Tuple<TemplateString /*host*/, TemplateString /*container*/>> CpFromOnDispose { get; set; }
     public Tuple<TemplateString /*host*/, bool /*explode*/,
-      Func<IContainerService, bool> /*condition*/> ExportOnDispose { get; set; }
+      Func<IContainerService, bool> /*condition*/> ExportOnDispose
+    { get; set; }
     public List<INetworkService> Networks { get; set; }
     public List<string> NetworkNames { get; set; }
     public List<string> ExecuteOnRunningArguments { get; set; }
