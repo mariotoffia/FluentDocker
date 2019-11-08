@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net;
@@ -220,6 +220,24 @@ namespace Ductus.FluentDocker.Builders
         _config.CreateParams.HostIpMappings = new List<Tuple<string, IPAddress>>();
 
       _config.CreateParams.HostIpMappings.Add(new Tuple<string, IPAddress>(host, IPAddress.Parse(ip)));
+      return this;
+    }
+
+    public ContainerBuilder UseDns(params string []server)
+    {
+      _config.CreateParams.Dns = _config.CreateParams.Dns.ArrayAdd(server);
+      return this;
+    }
+
+    public ContainerBuilder UseDnsSearch(params string[] searchArg)
+    {
+      _config.CreateParams.DnsSearch = _config.CreateParams.DnsSearch.ArrayAdd(searchArg);
+      return this;
+    }
+
+    public ContainerBuilder UseDnsOption(params string[] option)
+    {
+      _config.CreateParams.DnsOpt = _config.CreateParams.DnsOpt.ArrayAdd(option);
       return this;
     }
 
