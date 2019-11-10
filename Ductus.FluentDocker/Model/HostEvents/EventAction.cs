@@ -1,6 +1,6 @@
 namespace Ductus.FluentDocker.Model.HostEvents
 {
-  public enum Action
+  public enum EventAction
   {
     Unknown,
     Pull,
