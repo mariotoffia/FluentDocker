@@ -27,6 +27,12 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "FluentDocker.Features.Elk",
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Features", "Features", "{E950CBF3-37F5-442C-9AC4-1294A5AB9E80}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "data", "data", "{60257CD9-E6FE-4F23-A675-34B7DD1C27F1}"
+	ProjectSection(SolutionItems) = preProject
+		data\docker_event_sample_1.json = data\docker_event_sample_1.json
+		data\docker_network_inspect.json = data\docker_network_inspect.json
+	EndProjectSection
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -59,6 +65,7 @@ Global
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
 		{B2F4EA39-3DFB-422E-B6CA-A7DD35F38FF4} = {E950CBF3-37F5-442C-9AC4-1294A5AB9E80}
+		{60257CD9-E6FE-4F23-A675-34B7DD1C27F1} = {C7FD34B0-1CBF-44EC-A92C-59543CBE383B}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {E5379AC0-CB30-46F7-B995-C515FA19102D}
