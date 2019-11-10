@@ -1,3 +1,5 @@
+using System;
+
 namespace Ductus.FluentDocker.Model.HostEvents
 {
   /// <summary>
@@ -6,7 +8,7 @@ namespace Ductus.FluentDocker.Model.HostEvents
   /// <remarks>
   /// See docker documentation https://docs.docker.com/engine/reference/commandline/events/
   /// </remarks>
-  public class Event
+  public class Event<T> where T : EventActor
   {
     /// <summary>
     /// The type of the event.
@@ -16,5 +18,17 @@ namespace Ductus.FluentDocker.Model.HostEvents
     /// The event action
     /// </summary>
     public EventAction Action { get; set; }
+
+    public EventScope Scope { get; set; }
+
+    /// <summary>
+    /// Timestamp in nanoseconds.
+    /// </summary>
+    public DateTime Time { get; set; }
+
+    /// <summary>
+    /// The actor that is the origin of this event.
+    /// </summary>
+    public T Actor { get; set; }
   }
 }
