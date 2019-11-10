@@ -799,6 +799,11 @@ namespace Ductus.FluentDocker.Model.Containers
     public IList<ULimitItem> Ulimit { get; } = new List<ULimitItem>();
 
     /// <summary>
+    /// Specify a container runtime. Default is docker built-in.
+    /// </summary>
+    public ContainerRuntime Runtime { get; set; } = ContainerRuntime.Default;
+
+    /// <summary>
     ///   Renders the argument string from this instance.
     /// </summary>
     /// <returns></returns>
@@ -922,6 +927,9 @@ namespace Ductus.FluentDocker.Model.Containers
       if (CpuShares != int.MinValue)
         sb.Append($" --cpu-shares=\"{CpuShares}\"");
 
+      // Runtime
+      if (Runtime != ContainerRuntime.Default)
+        sb.Append($" --runtime={Runtime.ToString().ToLower()}");
 
       return sb.ToString();
     }

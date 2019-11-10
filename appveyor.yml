@@ -13,7 +13,6 @@ dotnet_csproj:
   informational_version: '{version}'
 
 install:
-  - ps: dotnet tool install -g Codecov.Tool
   - ps: dotnet tool install -g GitVersion.Tool
   - ps: dotnet tool install -g dotnet-format
 

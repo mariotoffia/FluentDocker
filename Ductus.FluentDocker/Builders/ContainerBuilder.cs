@@ -310,6 +310,23 @@ namespace Ductus.FluentDocker.Builders
       return this;
     }
 
+    /// <summary>
+    /// Specifies a container runtime, e.g. NVIDIA for GPU workloads.
+    /// </summary>
+    /// <param name="runtime">A runtime to execute the container under.</param>
+    /// <returns>Itself for fluent access.</returns>
+    /// <remarks>
+    /// By default, containers execute under docker provided default environment
+    /// <see cref="ContainerRuntime.Default"/>. It is not neccesary to specify
+    /// such. Instead, if a custom runtime is wanted for the container specify custom
+    /// runtime such as <see cref="ContainerRuntime.Nvidia"/>.
+    /// </remarks>
+    public ContainerBuilder UseRuntime(ContainerRuntime runtime)
+    {
+      _config.CreateParams.Runtime = runtime;
+      return this;
+    }
+
     public ContainerBuilder Mount(string fqHostPath, string fqContainerPath, MountType access)
     {
       var hp = FdOs.IsWindows() && CommandExtensions.IsToolbox()
