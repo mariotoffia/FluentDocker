@@ -230,7 +230,7 @@ namespace Ductus.FluentDocker.Executors.Mappers
       var list = new List<Tuple<string, string>>();
       foreach (var prop in obj.Properties().Where(x => !nonlabels.Contains(x.Name)))
       {
-        list.Add(new Tuple<string, string>(prop.Name, prop.Value<string>()));
+        list.Add(new Tuple<string, string>(prop.Name, prop.Value.ToString()));
       }
       return list;
     }
