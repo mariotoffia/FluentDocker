@@ -1,4 +1,4 @@
-﻿using System.Diagnostics;
+using System.Diagnostics;
 using System.Threading;
 using Ductus.FluentDocker.Common;
 
@@ -18,7 +18,7 @@ namespace Ductus.FluentDocker.Executors
       _workingdir = workingdir;
     }
 
-    public ConsoleStream<TE> Execute(CancellationToken token = default(CancellationToken))
+    public ConsoleStream<TE> Execute(CancellationToken token = default)
     {
       Logger.Log($"cmd: {_command} - arg: {_arguments}");
       return new ConsoleStream<TE>(new ProcessStartInfo

@@ -5,6 +5,7 @@ using Ductus.FluentDocker.Executors.Mappers;
 using Ductus.FluentDocker.Extensions;
 using Ductus.FluentDocker.Model.Common;
 using Ductus.FluentDocker.Model.Containers;
+using Newtonsoft.Json.Linq;
 
 namespace Ductus.FluentDocker.Commands
 {
@@ -69,6 +70,39 @@ namespace Ductus.FluentDocker.Commands
 
       return
         new StreamProcessExecutor<StringMapper, string>(
+          "docker".ResolveBinary(),
+          $"{args} events {options}").Execute(cancellationToken);
+    }
+    public static ConsoleStream<JObject> JsonEvents(this DockerUri host,
+      CancellationToken cancellationToken = default,
+      string[] filters = null, DateTime? since = null, DateTime? until = null,
+      ICertificatePaths certificates = null)
+    {
+      var args = $"{host.RenderBaseArgs(certificates)}";
+
+      var options = string.Empty;
+      if (null != since)
+      {
+        options += $" --since {since}";
+      }
+
+      if (null != until)
+      {
+        options += $" --since {until}";
+      }
+
+      if (null != filters && 0 != filters.Length)
+      {
+        foreach (var filter in filters)
+        {
+          options += $" --filter={filter}";
+        }
+      }
+
+      options += " --format \"{{json .}}\"";
+
+      return
+        new JsonStreamProcessExecutor(
           "docker".ResolveBinary(),
           $"{args} events {options}").Execute(cancellationToken);
     }
