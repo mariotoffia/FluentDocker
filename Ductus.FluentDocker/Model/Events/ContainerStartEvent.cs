@@ -1,13 +1,13 @@
 namespace Ductus.FluentDocker.Model.Events
 {
   /// <summary>
-  /// Emitted when a container has been created (not started).
+  /// Emitted when a container has been started.
   /// </summary>
-  public sealed class ContainerCreateEvent : FdEvent<ContainerCreateEvent.ContainerCreateActor>
+  public sealed class ContainerStartEvent : FdEvent<ContainerStartEvent.ContainerStartActor>
   {
-    public ContainerCreateEvent()
+    public ContainerStartEvent()
     {
-      Action = EventAction.Create;
+      Action = EventAction.Start;
       Type = EventType.Container;
     }
 
@@ -17,7 +17,7 @@ namespace Ductus.FluentDocker.Model.Events
     /// <remarks>
     /// The actor is the hash of the container.
     /// </remarks>
-    public sealed class ContainerCreateActor : EventActor
+    public sealed class ContainerStartActor : EventActor
     {
       /// <summary>
       /// The image name and label such as "alpine:latest".

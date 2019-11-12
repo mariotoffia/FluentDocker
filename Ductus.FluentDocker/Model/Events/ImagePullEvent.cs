@@ -1,10 +1,10 @@
 namespace Ductus.FluentDocker.Model.Events
 {
+  /// <summary>
+  /// Emitted when a remote image has been pulled onto local store.
+  /// </summary>
   public sealed class ImagePullEvent : FdEvent<ImagePullEvent.ImagePullActor>
   {
-    /// <summary>
-    /// Emitted when a remote image has been pulled onto local store.
-    /// </summary>
     public ImagePullEvent()
     {
       Action = EventAction.Pull;

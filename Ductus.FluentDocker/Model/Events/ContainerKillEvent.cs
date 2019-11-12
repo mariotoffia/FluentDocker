@@ -1,13 +1,13 @@
 namespace Ductus.FluentDocker.Model.Events
 {
   /// <summary>
-  /// Emitted when a container has been created (not started).
+  /// Emitted when a container has been sent a kill signal (but is not yet dead).
   /// </summary>
-  public sealed class ContainerCreateEvent : FdEvent<ContainerCreateEvent.ContainerCreateActor>
+  public sealed class ContainerKillEvent : FdEvent<ContainerKillEvent.ContainerKillActor>
   {
-    public ContainerCreateEvent()
+    public ContainerKillEvent()
     {
-      Action = EventAction.Create;
+      Action = EventAction.Kill;
       Type = EventType.Container;
     }
 
@@ -17,7 +17,7 @@ namespace Ductus.FluentDocker.Model.Events
     /// <remarks>
     /// The actor is the hash of the container.
     /// </remarks>
-    public sealed class ContainerCreateActor : EventActor
+    public sealed class ContainerKillActor : EventActor
     {
       /// <summary>
       /// The image name and label such as "alpine:latest".
@@ -27,6 +27,10 @@ namespace Ductus.FluentDocker.Model.Events
       /// Name of the container.
       /// </summary>
       public string Name { get; set; }
+      /// <summary>
+      /// The signal that the container has been signalled.
+      /// </summary>
+      public string Signal { get; set; }
     }
   }
 }

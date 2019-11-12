@@ -1,13 +1,13 @@
 namespace Ductus.FluentDocker.Model.Events
 {
   /// <summary>
-  /// Emitted when a container has been created (not started).
+  /// Emitted when a container has been removed from local disk (-rm operation).
   /// </summary>
-  public sealed class ContainerCreateEvent : FdEvent<ContainerCreateEvent.ContainerCreateActor>
+  public sealed class ContainerDestroyEvent : FdEvent<ContainerDestroyEvent.ContainerDestroyActor>
   {
-    public ContainerCreateEvent()
+    public ContainerDestroyEvent()
     {
-      Action = EventAction.Create;
+      Action = EventAction.Destroy;
       Type = EventType.Container;
     }
 
@@ -17,7 +17,7 @@ namespace Ductus.FluentDocker.Model.Events
     /// <remarks>
     /// The actor is the hash of the container.
     /// </remarks>
-    public sealed class ContainerCreateActor : EventActor
+    public sealed class ContainerDestroyActor : EventActor
     {
       /// <summary>
       /// The image name and label such as "alpine:latest".
