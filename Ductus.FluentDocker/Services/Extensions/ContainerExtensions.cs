@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
@@ -24,7 +24,7 @@ namespace Ductus.FluentDocker.Services.Extensions
     /// <param name="token">The cancellation token for logs, especially needed when <paramref name="follow" /> is set to true.</param>
     /// <returns>A console stream to consume.</returns>
     public static ConsoleStream<string> Logs(this IContainerService service, bool follow = false,
-      CancellationToken token = default(CancellationToken))
+      CancellationToken token = default)
     {
       return service.DockerHost.Logs(service.Id, token, follow);
     }
@@ -342,7 +342,7 @@ namespace Ductus.FluentDocker.Services.Extensions
         throw new ArgumentNullException("Must specify a continuation", nameof(continuation));
 
       int wait;
-      int count = 0;
+      var count = 0;
       do
       {
         wait = continuation.Invoke(service, count++);
