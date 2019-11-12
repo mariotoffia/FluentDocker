@@ -2,11 +2,7 @@ using System;
 
 namespace Ductus.FluentDocker.Model.Events
 {
-  /// <summary>
-  /// Base event in the system.
-  /// </summary>
-  /// <typeparam name="T"></typeparam>
-  public abstract class FdEvent<T> where T : EventActor
+  public abstract class FdEvent
   {
     /// <summary>
     /// The type of the event.
@@ -29,11 +25,24 @@ namespace Ductus.FluentDocker.Model.Events
     /// <summary>
     /// The actor that is the originator of this event.
     /// </summary>
-    public T EventActor { get; set; }
+    public EventActor EventActor { get; set; }
 
     /// <summary>
     /// Timestamp in nanoseconds.
     /// </summary>
     public DateTime Time { get; set; }
+
+  }
+
+  /// <summary>
+  /// Base event in the system.
+  /// </summary>
+  /// <typeparam name="T"></typeparam>
+  public abstract class FdEvent<T> : FdEvent where T : EventActor
+  {
+    /// <summary>
+    /// The actor that is the originator of this event.
+    /// </summary>
+    public new T EventActor { get; set; }
   }
 }

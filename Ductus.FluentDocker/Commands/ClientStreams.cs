@@ -5,7 +5,7 @@ using Ductus.FluentDocker.Executors.Mappers;
 using Ductus.FluentDocker.Extensions;
 using Ductus.FluentDocker.Model.Common;
 using Ductus.FluentDocker.Model.Containers;
-using Newtonsoft.Json.Linq;
+using Ductus.FluentDocker.Model.Events;
 
 namespace Ductus.FluentDocker.Commands
 {
@@ -47,36 +47,23 @@ namespace Ductus.FluentDocker.Commands
       string[] filters = null, DateTime? since = null, DateTime? until = null,
       ICertificatePaths certificates = null)
     {
-      var args = $"{host.RenderBaseArgs(certificates)}";
-
-      var options = string.Empty;
-      if (null != since)
-      {
-        options += $" --since {since}";
-      }
-
-      if (null != until)
-      {
-        options += $" --since {until}";
-      }
-
-      if (null != filters && 0 != filters.Length)
-      {
-        foreach (var filter in filters)
-        {
-          options += $" --filter={filter}";
-        }
-      }
-
-      return
-        new StreamProcessExecutor<StringMapper, string>(
-          "docker".ResolveBinary(),
-          $"{args} events {options}").Execute(cancellationToken);
+      return Events<StringMapper, string>(host, cancellationToken, filters, since, until, certificates);
     }
-    public static ConsoleStream<JObject> JsonEvents(this DockerUri host,
+
+    public static ConsoleStream<FdEvent> FdEvents(this DockerUri host,
       CancellationToken cancellationToken = default,
       string[] filters = null, DateTime? since = null, DateTime? until = null,
       ICertificatePaths certificates = null)
+    {
+      return Events<FdEventStreamMapper, FdEvent>(host, cancellationToken, filters, since, until, certificates);
+    }
+
+    public static ConsoleStream<TE> Events<T, TE>(this DockerUri host,
+      CancellationToken cancellationToken = default,
+      string[] filters = null, DateTime? since = null, DateTime? until = null,
+      ICertificatePaths certificates = null)
+        where T : class, IStreamMapper<TE>, new()
+        where TE : class
     {
       var args = $"{host.RenderBaseArgs(certificates)}";
 
@@ -102,7 +89,7 @@ namespace Ductus.FluentDocker.Commands
       options += " --format \"{{json .}}\"";
 
       return
-        new JsonStreamProcessExecutor(
+        new StreamProcessExecutor<T, TE>(
           "docker".ResolveBinary(),
           $"{args} events {options}").Execute(cancellationToken);
     }
