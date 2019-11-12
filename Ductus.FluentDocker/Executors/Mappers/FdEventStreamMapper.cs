@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using Ductus.FluentDocker.Model.Events;
+using Ductus.FluentDocker.Model.Networks;
 using Newtonsoft.Json.Linq;
 
 namespace Ductus.FluentDocker.Executors.Mappers
@@ -51,9 +52,14 @@ namespace Ductus.FluentDocker.Executors.Mappers
         case "container":
           evt = CreateContainerEvent(action, scope, id, ts, attributes);
           break;
+        case "network":
+          evt = CreateNetworkEvent(action, scope, id, ts, attributes);
+          break;
       }
 
-      // TODO: if evt is null -> render default event
+      if (null == evt)
+        evt = CreateUnknownEvent(type, action, scope, id, ts, attributes);
+
       return evt;
     }
 
@@ -145,6 +151,44 @@ namespace Ductus.FluentDocker.Executors.Mappers
 
       return null;
     }
+
+    private static FdEvent CreateNetworkEvent(string action, string scope, string id, DateTime ts, JObject attributes)
+    {
+      switch (action)
+      {
+        case "connect":
+          return new NetworkConnectEvent
+          {
+            Scope = EventScope.Local,
+            Time = ts,
+            EventActor = new NetworkConnectEvent.NetworkConnectActor
+            {
+              Id = id,
+              ContainerId = attributes["container"].Value<string>(),
+              Name = attributes["name"].Value<string>(),
+              Type = (NetworkType)Enum.Parse(typeof(NetworkType), attributes["type"].Value<string>(), true/*ignoreCase*/),
+              Labels = GetExtraInfo(attributes, new[] { "container", "name", "type" })
+            }
+          };
+        case "disconnect":
+          return new NetworkDisconnectEvent
+          {
+            Scope = EventScope.Local,
+            Time = ts,
+            EventActor = new NetworkDisconnectEvent.NetworkDisconnectActor
+            {
+              Id = id,
+              ContainerId = attributes["container"].Value<string>(),
+              Name = attributes["name"].Value<string>(),
+              Type = (NetworkType)Enum.Parse(typeof(NetworkType), attributes["type"].Value<string>(), true/*ignoreCase*/),
+              Labels = GetExtraInfo(attributes, new[] { "container", "name", "type" })
+            }
+          };
+      }
+
+      return null;
+    }
+
     private static FdEvent CreateImageEvent(string action, string scope, string id, DateTime ts, JObject attributes)
     {
       switch (action)
@@ -164,6 +208,21 @@ namespace Ductus.FluentDocker.Executors.Mappers
       }
 
       return null;
+    }
+
+    private static FdEvent CreateUnknownEvent(string type, string action, string scope, string id, DateTime ts, JObject attributes)
+    {
+      return new UnknownEvent(action, type)
+      {
+        Scope = EventScope.Local,
+        Time = ts,
+        EventActor = new UnknownEvent.UnknownActor
+        {
+          Id = id,
+          Labels = new List<Tuple<string, string>>(),
+          Attributes = GetExtraInfo(attributes, new string[0])
+        }
+      };
     }
 
     private static IList<Tuple<string, string>> GetExtraInfo(JObject obj, string[] nonlabels)
