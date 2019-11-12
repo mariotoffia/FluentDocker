@@ -38,7 +38,7 @@ namespace Ductus.FluentDocker.Tests.CommandTests
           id = cmd.Data;
 
           FdEvent e = null;
-          while((e = events.TryRead(3000)) != null)
+          while ((e = events.TryRead(3000)) != null)
           {
             if (e.Type == EventType.Container && e.Action == EventAction.Start)
               break;
