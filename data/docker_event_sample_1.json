@@ -1,5 +1,6 @@
 // https://docs.docker.com/engine/reference/commandline/events/
 [
+  // docker events --format "{{json .}}"
   // docker create --name test alpine:latest top
   // Unable to find image 'alpine:latest' locally
   // latest: Pulling from library/alpine
