@@ -43,6 +43,10 @@ namespace Ductus.FluentDocker.Model.Events
     /// <summary>
     /// The actor that is the originator of this event.
     /// </summary>
-    public new T EventActor { get; set; }
+    public new T EventActor
+    {
+      get => (T)base.EventActor;
+      set => base.EventActor = value;
+    }
   }
 }

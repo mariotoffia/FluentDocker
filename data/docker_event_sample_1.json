@@ -1,5 +1,6 @@
 // https://docs.docker.com/engine/reference/commandline/events/
 [
+  // https://docs.docker.com/engine/api/v1.39/#operation/SystemEvents (OpenAPI docs)
   // docker events --format "{{json .}}"
   // docker create --name test alpine:latest top
   // Unable to find image 'alpine:latest' locally

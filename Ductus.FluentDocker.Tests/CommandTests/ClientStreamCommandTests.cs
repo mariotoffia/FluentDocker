@@ -1,10 +1,11 @@
-﻿using System.Diagnostics;
+using System.Diagnostics;
 using System.Linq;
 using System.Threading;
 using Ductus.FluentDocker.Commands;
 using Ductus.FluentDocker.Extensions;
 using Ductus.FluentDocker.Model.Common;
 using Ductus.FluentDocker.Model.Containers;
+using Ductus.FluentDocker.Model.Events;
 using Ductus.FluentDocker.Services.Extensions;
 using Ductus.FluentDocker.Tests.Extensions;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
@@ -17,6 +18,43 @@ namespace Ductus.FluentDocker.Tests.CommandTests
     private static CertificatePaths _certificates;
     private static DockerUri _docker;
     private static bool _createdTestMachine;
+
+    [TestMethod]
+    public void StartEventShallBeEmittedWhenContainerStart()
+    {
+      var host = Fd.Native();
+      string id = null;
+
+      try
+      {
+        using (var events = host.Events())
+        {
+          var cmd = _docker.Run("postgres:9.6-alpine", new ContainerCreateParams
+          {
+            PortMappings = new[] { "40001:5432" },
+            Environment = new[] { "POSTGRES_PASSWORD=mysecretpassword" }
+          }, _certificates);
+
+          id = cmd.Data;
+
+          FdEvent e = null;
+          while((e = events.TryRead(3000)) != null)
+          {
+            if (e.Type == EventType.Container && e.Action == EventAction.Start)
+              break;
+          }
+
+          Assert.IsNotNull(e);
+        }
+      }
+      finally
+      {
+        if (null != id)
+        {
+          _docker.RemoveContainer(id, true, true, null, _certificates);
+        }
+      }
+    }
 
     [TestMethod]
     public void LogsFromContaierWhenNotFollowModeShallExitByItself()

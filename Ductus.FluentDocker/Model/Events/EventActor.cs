@@ -1,3 +1,6 @@
+using System;
+using System.Collections.Generic;
+
 namespace Ductus.FluentDocker.Model.Events
 {
   /// <summary>
@@ -5,6 +8,7 @@ namespace Ductus.FluentDocker.Model.Events
   /// </summary>
   public class EventActor
   {
-    public string Id { get; set; }
+    public string Id { get; internal set; }
+    public IList<Tuple<string, string>> Labels { get; internal set; }
   }
 }
