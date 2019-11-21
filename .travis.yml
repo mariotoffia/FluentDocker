@@ -1,7 +1,7 @@
 language: csharp
 mono: none
 dotnet:
-- 3.0
+- 3.0.100
 dist: bionic
 git:
   depth: false
