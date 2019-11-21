@@ -3,7 +3,7 @@ mono: none
 dotnet:
 - 3.0
 - 2.1
-dist: trusty
+dist: bionic
 git:
   depth: false
 sudo: required
