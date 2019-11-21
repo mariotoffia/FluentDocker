@@ -2,7 +2,7 @@
 
     <PropertyGroup>
         <TargetFrameworks>netstandard2.0;netstandard2.1;net462</TargetFrameworks>
-        <TargetFrameworks Condition=" '$(OS)' == 'Unix' ">netstandard2.0;netstandard2.1</TargetFrameworks>
+        <TargetFrameworks Condition=" '$(OS)' == 'Unix' ">netstandard2.1</TargetFrameworks>
     </PropertyGroup>
 
     <ItemGroup>
