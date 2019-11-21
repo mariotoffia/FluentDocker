@@ -1,6 +1,8 @@
 language: csharp
 mono: none
-dotnet: 3.0.100
+dotnet: 
+  - 3.0
+  - 2.1
 dist: bionic
 git:
   depth: false
@@ -12,7 +14,7 @@ script:
   - dotnet tool install --global GitVersion.Tool --version 5.1.2
   - dotnet gitversion
   - dotnet build
-  - dotnet test
+  - dotnet test --list-tests
 cache:
   directories:
     - $HOME/.nuget

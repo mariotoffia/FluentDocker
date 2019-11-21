@@ -1,7 +1,8 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFrameworks>netcoreapp1.1;netcoreapp2.0;net452</TargetFrameworks>
+    <TargetFrameworks>netcoreapp1.1;netcoreapp2.0;netcoreapp3.0;net452</TargetFrameworks>
+    <TargetFrameworks Condition=" '$(OS)' == 'Unix' ">netcoreapp2.0;netcoreapp3.0</TargetFrameworks>
     <VersionPrefix>2.7.3</VersionPrefix>
     <AssemblyTitle>Ductus.FluentDocker.MsTest</AssemblyTitle>
     <Authors>Mario Toffia</Authors>

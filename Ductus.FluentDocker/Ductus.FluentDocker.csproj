@@ -1,6 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <TargetFrameworks>netstandard1.6;netstandard2.0;netstandard2.1;net452</TargetFrameworks>
+    <TargetFrameworks>netstandard2.0;netstandard2.1;net452</TargetFrameworks>
+    <TargetFrameworks Condition=" '$(OS)' == 'Unix' ">netstandard2.0;netstandard2.1</TargetFrameworks>
     <VersionPrefix>2.7.3</VersionPrefix>
     <AssemblyTitle>Ductus.FluentDocker</AssemblyTitle>
     <Authors>Mario Toffia</Authors>
