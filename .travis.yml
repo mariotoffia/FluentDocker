@@ -3,21 +3,23 @@ mono: none
 dotnet:
 - 3.0
 - 2.1
-dist: bionic
+dist: trusty
 git:
   depth: false
 sudo: required
 services:
 - docker
 script:
-- export PATH="$PATH:$HOME/.dotnet/tools"
-- dotnet tool install --global GitVersion.Tool --version 5.1.2
-- dotnet gitversion
-- dotnet build
-- dotnet test
+  # the following command line builds the project, runs the tests with coverage and then execute the SonarCloud analysis
+  - export PATH="$PATH:$HOME/.dotnet/tools"
+  - dotnet tool install --global GitVersion.Tool --version 5.1.2
+  - dotnet gitversion
+  - sonar-scanner
 cache:
   directories:
   - "$HOME/.nuget"
-env:
-  global:
-    secure: k4YmjJz5v5k+yB+4TY1qGpBJ9Bl6XmbnDm2jDNOOYNOdI7klcx46dGKBBtRGoJL4RFuLfN82XY9SVsJI6+D7w7d6dxuO+42CbaZ+7Mbq1GaTkoZWMp71AHMLK2GiD35JThHbzR9J/fJAstf75LSU/f5hBUm2KaAkQXlNS8DjVEtE9NHvVSvOzOHAcXzJP2U+mdwPYShb0Jw4ViopbhB1J6dkZfUgkgulmYagySHZ7nQ+bxIsxYDb5M4mMOc6n8oNPmjeOVni2N7gPt87SsM7Luos1gRPcp0CoppSRwVGYZYzcV7SBT86OeA+0otUILAHhMKACSv4roki1naXoyj6CjV2Q5dyAdsqHLqN9DKn53JmKtok0G0ysJn11/KmibMYsx6EthYHTZHA+1qUdKTiUkcWrImGyVMLGhDWstcBa4dh+JeiicW9qZHGEwRXkaMNJP9eUfe6eci2DKMfI30euNi6th95jyXQdSQr0cLJ/l/4cplpb9wLQdTGzi5f2Yzuj4ICfC0Bo8bpc7z7Fpp7w3CJ5Vyy219xzUjV57cFWWLm+uXX7IPSpzqE8N63Gr/XOzwJUUuDDx0SKrdAd4h9vg6/W1HmA5iyst76fgGMlFNv68OLG++8mVuV9qM+HUEZmspJA1VOJ3opXVvG/yf2nT+WO1WPWoWO+KcN4IWM0s0=
+addons:
+  sonarcloud:
+    organization: "mindaugaslaganeckas"
+    token:
+      secure: k4YmjJz5v5k+yB+4TY1qGpBJ9Bl6XmbnDm2jDNOOYNOdI7klcx46dGKBBtRGoJL4RFuLfN82XY9SVsJI6+D7w7d6dxuO+42CbaZ+7Mbq1GaTkoZWMp71AHMLK2GiD35JThHbzR9J/fJAstf75LSU/f5hBUm2KaAkQXlNS8DjVEtE9NHvVSvOzOHAcXzJP2U+mdwPYShb0Jw4ViopbhB1J6dkZfUgkgulmYagySHZ7nQ+bxIsxYDb5M4mMOc6n8oNPmjeOVni2N7gPt87SsM7Luos1gRPcp0CoppSRwVGYZYzcV7SBT86OeA+0otUILAHhMKACSv4roki1naXoyj6CjV2Q5dyAdsqHLqN9DKn53JmKtok0G0ysJn11/KmibMYsx6EthYHTZHA+1qUdKTiUkcWrImGyVMLGhDWstcBa4dh+JeiicW9qZHGEwRXkaMNJP9eUfe6eci2DKMfI30euNi6th95jyXQdSQr0cLJ/l/4cplpb9wLQdTGzi5f2Yzuj4ICfC0Bo8bpc7z7Fpp7w3CJ5Vyy219xzUjV57cFWWLm+uXX7IPSpzqE8N63Gr/XOzwJUUuDDx0SKrdAd4h9vg6/W1HmA5iyst76fgGMlFNv68OLG++8mVuV9qM+HUEZmspJA1VOJ3opXVvG/yf2nT+WO1WPWoWO+KcN4IWM0s0=
