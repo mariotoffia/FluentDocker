@@ -1,20 +1,24 @@
 language: csharp
 mono: none
 dotnet:
-- 3.0.100
+- 3.0
 dist: bionic
 git:
   depth: false
 sudo: required
 services:
 - docker
+install:
+  - dotnet tool install --global dotnet-sonarscanner -v:m
 script:
   - export PATH="$PATH:$HOME/.dotnet/tools"
   - dotnet tool install --global GitVersion.Tool --version 5.1.2
   - dotnet gitversion
   - dotnet build
-  - travis_wait dotnet test
-  - sonar-scanner
+  - travis_wait 60 dotnet test /p:CollectCoverage=true /p:CoverletOutputFormat=opencover
+  - dotnet sonarscanner begin /d:sonar.host.url=https://sonarcloud.io  /d:sonar.sources=Ductus.FluentDocker /d:sonar.login=${sonar.login} /k:MindaugasLaganeckas_FluentDocker /o:mindaugaslaganeckas /d:sonar.cs.opencover.reportsPaths="**/coverage.opencover.xml" /d:sonar.coverage.exclusions="**Tests*.cs"
+  - dotnet build
+  - dotnet sonarscanner end /d:sonar.login=${sonar.login} 
 cache:
   directories:
   - "$HOME/.nuget"
