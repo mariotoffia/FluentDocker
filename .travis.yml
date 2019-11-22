@@ -15,7 +15,7 @@ script:
   - dotnet gitversion
   - dotnet build
   - travis_wait 60 dotnet test /p:CollectCoverage=true /p:CoverletOutputFormat=opencover
-  - dotnet sonarscanner begin /d:sonar.host.url=https://sonarcloud.io  /d:sonar.sources=Ductus.FluentDocker /d:sonar.login=${SONAR_LOGIN} /k:MindaugasLaganeckas_FluentDocker /o:mindaugaslaganeckas /d:sonar.cs.opencover.reportsPaths="**/coverage.opencover.xml" /d:sonar.coverage.exclusions="**Tests*.cs"
+  - dotnet sonarscanner begin /d:sonar.host.url=https://sonarcloud.io /d:sonar.login=${SONAR_LOGIN} /k:MindaugasLaganeckas_FluentDocker /o:mindaugaslaganeckas /d:sonar.cs.opencover.reportsPaths="**/coverage.opencover.xml" /d:sonar.coverage.exclusions="**Tests*.cs"
   - dotnet build
   - dotnet sonarscanner end /d:sonar.login=${SONAR_LOGIN} 
 cache:
