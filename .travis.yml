@@ -10,12 +10,13 @@ services:
 - docker
 script:
   - export PATH="$PATH:$HOME/.dotnet/tools"
+  - dotnet tool install --global coverlet.console --version 1.6.0
   - dotnet tool install --global dotnet-sonarscanner -v:m
   - dotnet tool install --global GitVersion.Tool --version 5.1.2
   - dotnet gitversion
   - dotnet build
-  - travis_wait 60 dotnet test --no-build /p:CollectCoverage=true /p:CoverletOutputFormat=opencover ./Ductus.FluentDocker.Tests/Ductus.FluentDocker.Tests.csproj
-  - dotnet sonarscanner begin /d:sonar.host.url=https://sonarcloud.io /d:sonar.login=${SONAR_LOGIN} /k:MindaugasLaganeckas_FluentDocker /o:mindaugaslaganeckas /d:sonar.cs.opencover.reportsPaths="**/coverage.opencover.xml" /d:sonar.coverage.exclusions="**Tests*.cs"
+  - travis_wait 60 coverlet Ductus.FluentDocker.Tests/bin/Debug/netcoreapp3.0/Ductus.FluentDocker.Tests.dll --target "dotnet" --targetargs "test Ductus.FluentDocker.Tests/Ductus.FluentDocker.Tests.csproj --no-build" --format opencover -o ./output/
+  - dotnet sonarscanner begin /d:sonar.host.url=https://sonarcloud.io /d:sonar.login=${SONAR_LOGIN} /k:MindaugasLaganeckas_FluentDocker /o:mindaugaslaganeckas /d:sonar.cs.opencover.reportsPaths="./output/coverage.opencover.xml" /d:sonar.coverage.exclusions="**Tests*.cs"
   - dotnet build
   - dotnet sonarscanner end /d:sonar.login=${SONAR_LOGIN} 
 cache:
