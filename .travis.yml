@@ -22,8 +22,3 @@ script:
 cache:
   directories:
   - "$HOME/.nuget"
-addons:
-  sonarcloud:
-    organization: "mindaugaslaganeckas"
-    token:
-      secure: k4YmjJz5v5k+yB+4TY1qGpBJ9Bl6XmbnDm2jDNOOYNOdI7klcx46dGKBBtRGoJL4RFuLfN82XY9SVsJI6+D7w7d6dxuO+42CbaZ+7Mbq1GaTkoZWMp71AHMLK2GiD35JThHbzR9J/fJAstf75LSU/f5hBUm2KaAkQXlNS8DjVEtE9NHvVSvOzOHAcXzJP2U+mdwPYShb0Jw4ViopbhB1J6dkZfUgkgulmYagySHZ7nQ+bxIsxYDb5M4mMOc6n8oNPmjeOVni2N7gPt87SsM7Luos1gRPcp0CoppSRwVGYZYzcV7SBT86OeA+0otUILAHhMKACSv4roki1naXoyj6CjV2Q5dyAdsqHLqN9DKn53JmKtok0G0ysJn11/KmibMYsx6EthYHTZHA+1qUdKTiUkcWrImGyVMLGhDWstcBa4dh+JeiicW9qZHGEwRXkaMNJP9eUfe6eci2DKMfI30euNi6th95jyXQdSQr0cLJ/l/4cplpb9wLQdTGzi5f2Yzuj4ICfC0Bo8bpc7z7Fpp7w3CJ5Vyy219xzUjV57cFWWLm+uXX7IPSpzqE8N63Gr/XOzwJUUuDDx0SKrdAd4h9vg6/W1HmA5iyst76fgGMlFNv68OLG++8mVuV9qM+HUEZmspJA1VOJ3opXVvG/yf2nT+WO1WPWoWO+KcN4IWM0s0=
