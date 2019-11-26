@@ -1,12 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-<<<<<<< HEAD
-    <TargetFrameworks>netstandard2.0;netstandard2.1;net452</TargetFrameworks>
-    <TargetFrameworks Condition=" '$(OS)' == 'Unix' ">netstandard2.1</TargetFrameworks>
-    <VersionPrefix>2.7.3</VersionPrefix>
-=======
-    <TargetFrameworks Condition="'$(OS)' != 'Unix'">netstandard1.6;netstandard2.0;netstandard2.1;net452</TargetFrameworks>
-    <TargetFrameworks Condition="'$(OS)' == 'Unix'">netstandard1.6;netstandard2.0;netstandard2.1</TargetFrameworks>
+    <TargetFrameworks Condition="'$(OS)' != 'Unix'">netstandard2.0;netstandard2.1;net452</TargetFrameworks>
+    <TargetFrameworks Condition="'$(OS)' == 'Unix'">netstandard2.1</TargetFrameworks>
     
     <DefineConstants Condition=" '$(TargetFramework)' == 'netstandard1.6' ">$(DefineConstants);COREFX</DefineConstants>
     <DefineConstants Condition=" '$(TargetFramework)' == 'netstandard2.0' ">$(DefineConstants);COREFX</DefineConstants>
@@ -17,7 +12,6 @@
     <FileVersion>1.0.0.0</FileVersion>
     <VersionSuffix>$(VersionSuffix)</VersionSuffix>
     <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
->>>>>>> 272d6673441783f9e567bebba84b25917778a6d8
     <AssemblyTitle>Ductus.FluentDocker</AssemblyTitle>
     <Authors>Mario Toffia</Authors>
     <PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
