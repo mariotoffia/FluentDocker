@@ -73,7 +73,7 @@ namespace Ductus.FluentDocker.Tests.CommandTests
       var mode = _docker.Version(_certificates);
       AreEqual("linux", mode.Data.ServerOs);
     }
-    
+
     [TestMethod]
     [Ignore]
     public void EnsureWindowsDaemonShallWork()
@@ -234,8 +234,8 @@ namespace Ductus.FluentDocker.Tests.CommandTests
       {
         var cmd = _docker.Run("postgres:9.6-alpine", new ContainerCreateParams
         {
-          PortMappings = new[] {"40001:5432"},
-          Environment = new[] {"POSTGRES_PASSWORD=mysecretpassword"}
+          PortMappings = new[] { "40001:5432" },
+          Environment = new[] { "POSTGRES_PASSWORD=mysecretpassword" }
         }, _certificates);
 
         IsTrue(cmd.Success);

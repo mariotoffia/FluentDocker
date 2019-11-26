@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using Ductus.FluentDocker.Common;
@@ -15,10 +15,7 @@ namespace Ductus.FluentDocker.Builders
     private bool _removeOnDispose;
     private bool _reuseIfExist;
 
-    public VolumeBuilder(IBuilder parent, string name = null) : base(parent)
-    {
-      _name = name;
-    }
+    public VolumeBuilder(IBuilder parent, string name = null) : base(parent) => _name = name;
 
     public override IVolumeService Build()
     {
@@ -30,7 +27,8 @@ namespace Ductus.FluentDocker.Builders
       if (_reuseIfExist)
       {
         var volume = host.Value.GetVolumes().FirstOrDefault(x => x.Name == _name);
-        if (null != volume) return volume;
+        if (null != volume)
+          return volume;
       }
 
       return host.Value.CreateVolume(_name, _driver, 0 == _labels.Count ? null : _labels.ToArray(),
@@ -77,7 +75,7 @@ namespace Ductus.FluentDocker.Builders
         return this;
       }
 
-      foreach(var s in nameValue)
+      foreach (var s in nameValue)
       {
         var splt = s.Split('=');
         if (splt.Length < 2 || string.IsNullOrEmpty(splt[0]) || string.IsNullOrEmpty(splt[1]))

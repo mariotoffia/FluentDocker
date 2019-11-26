@@ -3,7 +3,7 @@
 namespace Ductus.FluentDocker.Executors.Mappers
 {
   public sealed class StringMapper : IStreamMapper<string>
-  {    
+  {
     public string OnData(string data, bool isStdErr)
     {
       return data;

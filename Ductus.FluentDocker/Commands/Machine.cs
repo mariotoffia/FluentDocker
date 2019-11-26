@@ -123,7 +123,7 @@ namespace Ductus.FluentDocker.Commands
     public static CommandResponse<string> ManuallyDelete(this string machine)
     {
       var path = FdOs.IsWindows()
-        ? ((TemplateString) ("${E_HOMEDRIVE}${E_HOMEPATH}/.docker/machine/machines/" + machine)).Rendered
+        ? ((TemplateString)("${E_HOMEDRIVE}${E_HOMEPATH}/.docker/machine/machines/" + machine)).Rendered
         : $"~/.docker/machine/machines/{machine}";
 
       if (!Directory.Exists(path))
@@ -171,7 +171,7 @@ namespace Ductus.FluentDocker.Commands
           return ServiceRunningState.Running;
         default:
           return ServiceRunningState.Unknown;
-      }      
+      }
     }
   }
 }

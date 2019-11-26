@@ -9,17 +9,20 @@ namespace Ductus.FluentDocker.Extensions
   {
     public static string EscapePath(this string path)
     {
-      if (string.IsNullOrEmpty(path) || -1 == path.IndexOf(' ')) return path;
+      if (string.IsNullOrEmpty(path) || -1 == path.IndexOf(' '))
+        return path;
 
       return path.StartsWith("\"") ? path : $"\"{path}\"";
     }
 
     public static TemplateString EscapePath(this TemplateString path)
-    {     
-      if (string.IsNullOrEmpty(path)) return path;
+    {
+      if (string.IsNullOrEmpty(path))
+        return path;
 
       var p = path.Rendered;
-      if (-1 == p.IndexOf(' ')) return path;
+      if (-1 == p.IndexOf(' '))
+        return path;
 
       return p.StartsWith("\"") ? path : new TemplateString($"\"{p}\"");
     }
@@ -61,7 +64,7 @@ namespace Ductus.FluentDocker.Extensions
     public static string Copy(this TemplateString fileOrDirectory, TemplateString workdir)
     {
       var fd = fileOrDirectory.Rendered.EscapePath();
-      
+
       if (fd.StartsWith($"{EmbeddedUri.Prefix}:"))
       {
         return new EmbeddedUri(fd).ToFile(workdir);
@@ -89,7 +92,7 @@ namespace Ductus.FluentDocker.Extensions
     {
       var sd = sourceDirectory.Rendered.EscapePath();
       var td = targetDirectory.Rendered.EscapePath();
-      
+
       CopyAll(new DirectoryInfo(sd), new DirectoryInfo(td));
     }
 

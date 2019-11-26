@@ -13,7 +13,7 @@ namespace Ductus.FluentDocker.Extensions.Utils
   /// </summary>
   public sealed class DockerBinariesResolver
   {
-    public DockerBinariesResolver(SudoMechanism sudo, string password, params string []paths)
+    public DockerBinariesResolver(SudoMechanism sudo, string password, params string[] paths)
     {
       Binaries = ResolveFromPaths(sudo, password, paths).ToArray();
       MainDockerClient = Binaries.FirstOrDefault(x => !x.IsToolbox && x.Type == DockerBinaryType.DockerClient);
@@ -58,23 +58,35 @@ namespace Ductus.FluentDocker.Extensions.Utils
         }
       }
 
+      DockerBinary resolved = null;
       switch (type)
       {
         case DockerBinaryType.Compose:
-          return MainDockerCompose;
+          resolved = MainDockerCompose;
+          break;
         case DockerBinaryType.DockerClient:
-          return MainDockerClient;
+          resolved = MainDockerClient;
+          break;
         case DockerBinaryType.Machine:
-          return MainDockerMachine;
+          resolved = MainDockerMachine;
+          break;
         case DockerBinaryType.Cli:
-          return MainDockerCli;
+          resolved = MainDockerCli;
+          break;
         default:
-          throw new Exception($"Cannot resolve unknown binary {binary}");
+          throw new FluentDockerException($"Cannot resolve unknown binary {binary}");
       }
+
+      if (null == resolved)
+      {
+        throw new FluentDockerException($"Could not resolve binary {binary} is it installed on the local system?");
+      }
+
+      return resolved;
     }
 
-    private static IEnumerable<DockerBinary> ResolveFromPaths(SudoMechanism sudo, string password, params string[]paths)
-    {      
+    private static IEnumerable<DockerBinary> ResolveFromPaths(SudoMechanism sudo, string password, params string[] paths)
+    {
       var isWindows = IsWindows();
       if (null == paths || 0 == paths.Length)
       {
@@ -106,25 +118,25 @@ namespace Ductus.FluentDocker.Extensions.Utils
           if (isWindows)
           {
             list.AddRange(from file in Directory.GetFiles(path, "docker*.*")
-              let f = Path.GetFileName(file.ToLower())
-              where null != f && (f.Equals("docker.exe") || f.Equals("docker-compose.exe") ||
-                                  f.Equals("docker-machine.exe"))
-              select new DockerBinary(path, f, sudo, password));
+                          let f = Path.GetFileName(file.ToLower())
+                          where null != f && (f.Equals("docker.exe") || f.Equals("docker-compose.exe") ||
+                                              f.Equals("docker-machine.exe"))
+                          select new DockerBinary(path, f, sudo, password));
 
             var dockercli = Path.GetFullPath(Path.Combine(path, "..\\.."));
             if (File.Exists(Path.Combine(dockercli, "dockercli.exe")))
             {
               list.Add(new DockerBinary(dockercli, "dockercli.exe", sudo, password));
             }
-            
+
             continue;
           }
-         
+
           list.AddRange(from file in Directory.GetFiles(path, "docker*")
-            let f = Path.GetFileName(file)
-            let f2 = f.ToLower()
-            where f2.Equals("docker") || f2.Equals("docker-compose") || f2.Equals("docker-machine")
-            select new DockerBinary(path, f, sudo, password));
+                        let f = Path.GetFileName(file)
+                        let f2 = f.ToLower()
+                        where f2.Equals("docker") || f2.Equals("docker-compose") || f2.Equals("docker-machine")
+                        select new DockerBinary(path, f, sudo, password));
         }
         catch (Exception e)
         {

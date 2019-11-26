@@ -1,3 +1,4 @@
+[![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=mariotoffia_FluentDocker&metric=alert_status)](https://sonarcloud.io/dashboard?id=mariotoffia_FluentDocker)
 [![Build status](https://ci.appveyor.com/api/projects/status/kqqrkcv8wp3e9my6?svg=true)](https://ci.appveyor.com/project/mariotoffia/fluentdocker) 
 [![NuGet](https://img.shields.io/nuget/v/Ductus.FluentDocker.svg)](https://www.nuget.org/packages/Ductus.FluentDocker) 
 [![NuGet](https://img.shields.io/nuget/v/Ductus.FluentDocker.MsTest.svg)](https://www.nuget.org/packages/Ductus.FluentDocker.MsTest)
@@ -48,7 +49,7 @@ This fires up a postgres and waits for it to be ready. To use compose, just do i
       }
 ```
 
-The site http://mariotoffia.github.io/FluentDocker/ is under construction but will have a _"1.0"_ release before christmas.
+The site http://mariotoffia.github.io/FluentDocker/ is still under construction.
 
 **Note for Linux Users:** _Docker requires _sudo_ by default and the library by default expects that executing user do not
 need to do _sudo_ in order to talk to the docker daemon. If you wish to have it on, please use the experimental 
@@ -88,6 +89,10 @@ three thin layers, each layer is accessable:
 3. Fluent API - API to build/discover services to be used
 
 The Majority of the service methods are extension methods and not hardwired into the service itself, making them lightweigted and customizable. Since everthing is accessable it is e.g. easy to add extensions method for a service that uses the layer 1 commands to provide functionality. 
+
+## Contribution
+I do welcome contribution, though there is no contribution guideline as of yet, make sure to adhere to _.editorconfig_ when doing the Pull Requests.
+Otherwise the build will fail. I'll update with a **real** guideline sooner or later this year.
 
 ## Basic Usage of Commands (Layer 1)
 All commands needs a ```DockerUri``` to work with. It is the Uri to the docker daemon, either locally or remote. It can be discoverable or hardcoded. Discovery of local ```DockerUri``` can be done by 

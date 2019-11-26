@@ -16,7 +16,7 @@ namespace Ductus.FluentDocker.Tests.CommandTests
       var res = "remote-docker-daemon-entry".ManuallyDelete();
       Assert.IsTrue(res.Success);
     }
-    
+
     [TestMethod]
     [Ignore]
     public void InspectDockerMachine()

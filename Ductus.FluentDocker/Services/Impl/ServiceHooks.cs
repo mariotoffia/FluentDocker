@@ -10,7 +10,7 @@ namespace Ductus.FluentDocker.Services.Impl
 
     public void AddHook(string uniqueName, ServiceRunningState state, Action<IService> hook)
     {
-      _hooks.TryAdd(uniqueName, new HookItem {State = state, Hook = hook});
+      _hooks.TryAdd(uniqueName, new HookItem { State = state, Hook = hook });
     }
 
     public void RemoveHook(string uniqueName)

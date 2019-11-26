@@ -19,7 +19,7 @@ namespace Ductus.FluentDocker.Services.Impl
     public DockerComposeCompositeService(IHostService host, DockerComposeConfig config) : base(config.ComposeFilePath
       .First())
     {
-      Hosts = new ReadOnlyCollection<IHostService>(new[] {host});
+      Hosts = new ReadOnlyCollection<IHostService>(new[] { host });
       Containers = new IContainerService[0];
       _imageCache = new IContainerImageService[0];
       _config = config;
@@ -34,8 +34,9 @@ namespace Ductus.FluentDocker.Services.Impl
           Stop();
         }
 
-        if (_config.KeepContainers) return;
-        
+        if (_config.KeepContainers)
+          return;
+
         State = ServiceRunningState.Removing;
         var host = Hosts.First();
 
@@ -70,7 +71,8 @@ namespace Ductus.FluentDocker.Services.Impl
         }
 
         base.State = value;
-        if (null == Containers) return;
+        if (null == Containers)
+          return;
         foreach (var container in Containers.Cast<DockerContainerService>())
         {
           container.State = value;
@@ -100,7 +102,8 @@ namespace Ductus.FluentDocker.Services.Impl
     {
       get
       {
-        if (_imageCache.Length > 0) return _imageCache;
+        if (_imageCache.Length > 0)
+          return _imageCache;
 
         return _imageCache = Containers.Where(x => null != x.Image).Select(x => x.Image).ToArray();
       }
@@ -108,7 +111,8 @@ namespace Ductus.FluentDocker.Services.Impl
 
     public override void Start()
     {
-      if (State == ServiceRunningState.Running) return;
+      if (State == ServiceRunningState.Running)
+        return;
 
       var host = Hosts.First();
       if (State == ServiceRunningState.Paused)
@@ -127,7 +131,7 @@ namespace Ductus.FluentDocker.Services.Impl
 
       var result = host.Host.ComposeUp(_config.AlternativeServiceName, _config.ForceRecreate,
         _config.NoRecreate, _config.NoBuild, _config.ForceBuild,
-        _config.TimeoutSeconds == TimeSpan.Zero ? (TimeSpan?) null : _config.TimeoutSeconds, _config.RemoveOrphans,
+        _config.TimeoutSeconds == TimeSpan.Zero ? (TimeSpan?)null : _config.TimeoutSeconds, _config.RemoveOrphans,
         _config.UseColor,
         _config.Services,
         host.Certificates, _config.ComposeFilePath.ToArray());
@@ -161,7 +165,8 @@ namespace Ductus.FluentDocker.Services.Impl
 
     public override void Pause()
     {
-      if (State != ServiceRunningState.Running) return;
+      if (State != ServiceRunningState.Running)
+        return;
 
       var host = Hosts.First();
       var pause = host.Host.ComposePause(_config.AlternativeServiceName, _config.Services,
@@ -182,7 +187,8 @@ namespace Ductus.FluentDocker.Services.Impl
     public override void Stop()
     {
       if (!(State == ServiceRunningState.Running || State == ServiceRunningState.Starting ||
-            State == ServiceRunningState.Paused)) return;
+            State == ServiceRunningState.Paused))
+        return;
 
       State = ServiceRunningState.Stopping;
 
@@ -220,7 +226,8 @@ namespace Ductus.FluentDocker.Services.Impl
     private static string ExtractNames(Container container, out string project, out string instanceId)
     {
       var name = container.Name;
-      if (name.StartsWith("/")) name = name.Substring(1);
+      if (name.StartsWith("/"))
+        name = name.Substring(1);
 
       var components = name.Split('_');
       if (components.Length >= 3)

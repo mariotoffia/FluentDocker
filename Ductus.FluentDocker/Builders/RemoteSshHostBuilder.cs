@@ -34,9 +34,9 @@ namespace Ductus.FluentDocker.Builders
     private string _sshUser;
 
     private string _sshKeyPath = FdOs.IsWindows()
-      ? ((TemplateString) "${E_LOCALAPPDATA}/lxss/home/martoffi/.ssh/id_rsa").Rendered
+      ? ((TemplateString)"${E_LOCALAPPDATA}/lxss/home/martoffi/.ssh/id_rsa").Rendered
       : "~/.ssh/id_rsa";
-    
+
     internal RemoteSshHostBuilder(IBuilder parent, string ipAddress = null) : base(parent)
     {
       _ipAddress = ipAddress;
@@ -59,16 +59,20 @@ namespace Ductus.FluentDocker.Builders
         throw new FluentDockerException("Cannot create machine (for remote docker access) since no name is set");
 
       var machine = new Hosts().FromMachineName(_name);
-      if (null != machine) return machine;
+      if (null != machine)
+        return machine;
 
       if (string.IsNullOrEmpty(_ipAddress))
         throw new FluentDockerException("Cannot create machine (for remote docker access) since no ip address is set");
 
-      var opts = new List<string> {$"--generic-ip-address={_ipAddress}"};
+      var opts = new List<string> { $"--generic-ip-address={_ipAddress}" };
 
-      if (_port != -1) opts.Add($" --generic-ssh-port={_port}");
-      if (!string.IsNullOrEmpty(_sshKeyPath)) opts.Add($"--generic-ssh-key=\"{_sshKeyPath}\"");
-      if (!string.IsNullOrEmpty(_sshUser)) opts.Add($"--generic-ssh-user={_sshUser}");
+      if (_port != -1)
+        opts.Add($" --generic-ssh-port={_port}");
+      if (!string.IsNullOrEmpty(_sshKeyPath))
+        opts.Add($"--generic-ssh-key=\"{_sshKeyPath}\"");
+      if (!string.IsNullOrEmpty(_sshUser))
+        opts.Add($"--generic-ssh-user={_sshUser}");
 
 
       var resp = _name.Create("generic", opts.ToArray());
@@ -141,7 +145,7 @@ namespace Ductus.FluentDocker.Builders
 
     public HostBuilder Host()
     {
-      return (HostBuilder) ((IBuilder) this).Parent.Value;
+      return (HostBuilder)((IBuilder)this).Parent.Value;
     }
 
     public ImageBuilder DefineImage(string image = null)
@@ -157,7 +161,7 @@ namespace Ductus.FluentDocker.Builders
       Childs.Add(builder);
       return builder;
     }
-    
+
     protected override IBuilder InternalCreate()
     {
       return new RemoteSshHostBuilder(this);

@@ -19,7 +19,7 @@ namespace Ductus.FluentDocker.Extensions
         var num = value.Convert();
         if (num == long.MinValue)
           return sb;
-        
+
         if (num <= maxSize)
           sb.Append($" {option}{value}");
       }
@@ -29,39 +29,46 @@ namespace Ductus.FluentDocker.Extensions
 
     public static StringBuilder OptionIfExists(this StringBuilder sb, string option, short? value)
     {
-      if (value.HasValue) sb.Append($" {option}{value.Value}");
+      if (value.HasValue)
+        sb.Append($" {option}{value.Value}");
 
       return sb;
     }
 
     public static StringBuilder OptionIfExists(this StringBuilder sb, string option, string value)
     {
-      if (!string.IsNullOrEmpty(value)) sb.Append($" {option}{value}");
+      if (!string.IsNullOrEmpty(value))
+        sb.Append($" {option}{value}");
 
       return sb;
     }
 
     public static StringBuilder OptionIfExists(this StringBuilder sb, string option, bool enabled)
     {
-      if (enabled) sb.Append($" {option}");
+      if (enabled)
+        sb.Append($" {option}");
 
       return sb;
     }
 
     public static StringBuilder OptionIfExists(this StringBuilder sb, string option, string[] values)
     {
-      if (null == values || 0 == values.Length) return sb;
+      if (null == values || 0 == values.Length)
+        return sb;
 
-      foreach (var value in values) sb.Append($" {option}{value}");
+      foreach (var value in values)
+        sb.Append($" {option}{value}");
 
       return sb;
     }
 
     public static StringBuilder OptionIfExists(this StringBuilder sb, string option, IDictionary<string, string> values)
     {
-      if (null == values || 0 == values.Count) return sb;
+      if (null == values || 0 == values.Count)
+        return sb;
 
-      foreach (var value in values) sb.Append($" {option}{value.Key}={value.Value}");
+      foreach (var value in values)
+        sb.Append($" {option}{value.Key}={value.Value}");
 
       return sb;
     }
@@ -99,15 +106,20 @@ namespace Ductus.FluentDocker.Extensions
 
     public static ServiceRunningState ToServiceState(this ContainerState state)
     {
-      if (null == state) return ServiceRunningState.Unknown;
-      
-      if (state.Dead) return ServiceRunningState.Stopped;
+      if (null == state)
+        return ServiceRunningState.Unknown;
 
-      if (state.Restarting) return ServiceRunningState.Starting;
+      if (state.Dead)
+        return ServiceRunningState.Stopped;
 
-      if (state.Paused) return ServiceRunningState.Paused;
+      if (state.Restarting)
+        return ServiceRunningState.Starting;
 
-      if (state.Running) return ServiceRunningState.Running;
+      if (state.Paused)
+        return ServiceRunningState.Paused;
+
+      if (state.Running)
+        return ServiceRunningState.Running;
 
       var status = state.Status?.ToLower() ?? string.Empty;
       switch (status)
@@ -140,7 +152,8 @@ namespace Ductus.FluentDocker.Extensions
 
     public static string[] ArrayAdd(this string[] arr, params string[] values)
     {
-      if (null == values || 0 == values.Length) return arr;
+      if (null == values || 0 == values.Length)
+        return arr;
 
       if (null == arr)
       {

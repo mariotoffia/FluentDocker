@@ -19,7 +19,7 @@ namespace Ductus.FluentDocker.Extensions
     private static string _defaultShell = "bash";
 
     private static DockerBinariesResolver _binaryResolver = new DockerBinariesResolver(_sudoMechanism, _sudoPassword);
-    
+
     /// <summary>
     ///   Reads a <see cref="ConsoleStream{T}" /> until <see cref="ConsoleStream{T}.IsFinished" /> is set to true
     ///   or a timeout occured on a read.
@@ -76,12 +76,12 @@ namespace Ductus.FluentDocker.Extensions
     {
       if (string.IsNullOrWhiteSpace(password) && sudo == SudoMechanism.Password)
         throw new ArgumentException("When using SudoMechanism.Password a password must be provided!", nameof(password));
-      
+
       _sudoMechanism = sudo;
       _sudoPassword = password;
       _binaryResolver = new DockerBinariesResolver(_sudoMechanism, _sudoPassword);
     }
-    
+
     public static string ResolveBinary(this string dockerCommand, bool preferMachine = false, bool forceResolve = false)
     {
       if (forceResolve)
@@ -97,7 +97,7 @@ namespace Ductus.FluentDocker.Extensions
         cmd = $"sudo {binary.FqPath}";
       else
         cmd = $"echo {binary.SudoPassword} | sudo -S {binary.FqPath}";
-      
+
       return cmd;
     }
 
@@ -192,8 +192,8 @@ namespace Ductus.FluentDocker.Extensions
 
       if (null == certificates)
         return args;
-      
-      args +=        
+
+      args +=
         $" --tlsverify --tlscacert={certificates.CaCertificate} --tlscert={certificates.ClientCertificate} --tlskey={certificates.ClientKey}";
 
       return args;

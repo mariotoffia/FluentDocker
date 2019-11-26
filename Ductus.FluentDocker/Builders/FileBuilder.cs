@@ -97,7 +97,7 @@ namespace Ductus.FluentDocker.Builders
       _config.Commands.Add(new AddCommand(source, destination));
       return this;
     }
-    
+
     public FileBuilder Shell(string command, params string[] args)
     {
       _config.Commands.Add(new ShellCommand(command, args));
@@ -106,7 +106,7 @@ namespace Ductus.FluentDocker.Builders
 
     public FileBuilder Run(params TemplateString[] commands)
     {
-      foreach(var cmd in commands)
+      foreach (var cmd in commands)
       {
         _config.Commands.Add(new RunCommand(cmd));
       }
@@ -178,14 +178,15 @@ namespace Ductus.FluentDocker.Builders
       // Copy all files from copy arguments.
       foreach (var cp in _config.Commands.Where(x => x is CopyCommand).Cast<CopyCommand>())
       {
-        if (!File.Exists(cp.From)) continue;
-        
+        if (!File.Exists(cp.From))
+          continue;
+
         var wp = Path.Combine(workingFolder, cp.From);
         var wdp = Path.GetDirectoryName(wp);
         Directory.CreateDirectory(wdp);
-        File.Copy(cp.From,wp, true /*overwrite*/);
+        File.Copy(cp.From, wp, true /*overwrite*/);
       }
-      
+
       foreach (var command in _config.Commands.Where(x => x is AddCommand).Cast<AddCommand>())
       {
         var wff = Path.Combine(workingFolder, command.Source);
@@ -208,8 +209,8 @@ namespace Ductus.FluentDocker.Builders
       }
 
       var dockerFile = Path.Combine(workingFolder, "Dockerfile");
-      
-      string contents = !string.IsNullOrEmpty(_config.UseFile) ? 
+
+      string contents = !string.IsNullOrEmpty(_config.UseFile) ?
         _config.UseFile.FromFile() :
         ResolveOrBuildString();
 

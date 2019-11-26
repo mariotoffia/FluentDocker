@@ -35,7 +35,7 @@ namespace Ductus.FluentDocker.Builders
         return image;
 
       if (null == _config.Params.Tags)
-        _config.Params.Tags = new[] {"latest"};
+        _config.Params.Tags = new[] { "latest" };
 
       // Render docker file and copy all resources
       // to a working directory
@@ -43,7 +43,7 @@ namespace Ductus.FluentDocker.Builders
 
       var id = host.Value.Build(_config.ImageName, _config.Params.Tags[0], workingdir, new ContainerBuildParams
       {
-        Tags = _config.Params.Tags.Except(new[] {_config.Params.Tags[0]}).ToArray(),
+        Tags = _config.Params.Tags.Except(new[] { _config.Params.Tags[0] }).ToArray(),
         Quiet = true
       });
 

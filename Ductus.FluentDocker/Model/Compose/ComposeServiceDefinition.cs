@@ -91,7 +91,7 @@ namespace Ductus.FluentDocker.Model.Compose
     /// have specified a custom name. Attempting to do so results in an error.
     /// For example container_name: my-web-container
     /// </remarks>
-    public string ContainerName { get; set; }    
+    public string ContainerName { get; set; }
     /// <summary>
     /// Configure the credential spec for managed service account.
     /// </summary>
@@ -200,7 +200,7 @@ namespace Ductus.FluentDocker.Model.Compose
     /// file a.env and assigned a different value in file b.env, if b.env is listed below (after), then the value from
     /// b.env stands.
     /// </remarks>
-    public IList<string> EnvFiles { get; set; } = new List<string>(); 
+    public IList<string> EnvFiles { get; set; } = new List<string>();
     /// <summary>
     /// Add environment variables.
     /// </summary>

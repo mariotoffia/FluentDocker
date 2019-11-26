@@ -11,17 +11,17 @@ namespace Ductus.FluentDocker.Services
     ///   The container id of the running container.
     /// </summary>
     string Id { get; }
-    
+
     /// <summary>
     /// The instance id if multiple instances of same container. May be <see cref="string.Empty"/>.
     /// </summary>
     string InstanceId { get; }
-    
+
     /// <summary>
     /// If part of a service, the name of the service is in this property. Otherwise <see cref="string.Empty"/>
     /// </summary>
     string Service { get; }
-    
+
     /// <summary>
     ///   The <see cref="System.Uri" /> to the docker daemon in control of this service.
     /// </summary>
@@ -46,7 +46,7 @@ namespace Ductus.FluentDocker.Services
     ///   Paths to where certificates resides for this service.
     /// </summary>
     ICertificatePaths Certificates { get; }
-    
+
     /// <summary>
     /// The image the running container is based on.
     /// </summary>

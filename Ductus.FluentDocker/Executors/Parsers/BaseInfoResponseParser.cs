@@ -22,7 +22,7 @@ namespace Ductus.FluentDocker.Executors.Parsers
         return this;
       }
 
-      var s = response.StdOut.TrimEnd('\r','\n').Split(';');
+      var s = response.StdOut.TrimEnd('\r', '\n').Split(';');
       if (s.Length != 5)
       {
         Response =

@@ -20,21 +20,23 @@ namespace Ductus.FluentDocker.Tests.ServiceTests
     public async Task WordPressDockerComposeServiceShallShowInstallScreen()
     {
       var file = Path.Combine(Directory.GetCurrentDirectory(),
-        (TemplateString) "Resources/ComposeTests/WordPress/docker-compose.yml");
+        (TemplateString)"Resources/ComposeTests/WordPress/docker-compose.yml");
 
       using (var svc = new DockerComposeCompositeService(DockerHost, new DockerComposeConfig
       {
-        ComposeFilePath = new List<string> { file }, ForceRecreate = true, RemoveOrphans = true,
+        ComposeFilePath = new List<string> { file },
+        ForceRecreate = true,
+        RemoveOrphans = true,
         StopOnDispose = true
       }))
       {
         svc.Start();
 
         svc.Containers.First(x => x.Name == "wordpress").WaitForHttp("http://localhost:8000/wp-admin/install.php");
-        
+
         // We now have a running WordPress with a MySql database
         var installPage = await $"http://localhost:8000/wp-admin/install.php".Wget();
-        
+
         Assert.IsTrue(installPage.IndexOf("https://wordpress.org/", StringComparison.Ordinal) != -1);
       }
     }

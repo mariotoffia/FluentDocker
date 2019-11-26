@@ -78,7 +78,8 @@ namespace Ductus.FluentDocker.Tests.FluentApiTests
       }
       finally
       {
-        if (null != id) _docker.VolumeRm(_certificates, force: true, volume: id);
+        if (null != id)
+          _docker.VolumeRm(_certificates, force: true, volume: id);
       }
     }
 

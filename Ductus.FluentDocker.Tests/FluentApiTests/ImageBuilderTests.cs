@@ -65,7 +65,7 @@ namespace Ductus.FluentDocker.Tests.FluentApiTests
       {
         var config = image.GetConfiguration(true);
         Assert.IsNotNull(config);
-        Assert.AreEqual(2,config.Config.Cmd.Length);
+        Assert.AreEqual(2, config.Config.Cmd.Length);
         Assert.AreEqual("/usr/bin/node", config.Config.Cmd[0]);
         Assert.AreEqual("/var/www/app.js", config.Config.Cmd[1]);
       }

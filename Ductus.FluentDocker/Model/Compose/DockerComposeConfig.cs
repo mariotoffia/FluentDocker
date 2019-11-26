@@ -20,7 +20,7 @@ namespace Ductus.FluentDocker.Model.Compose
     public bool UseColor { get; set; }
     public bool KeepVolumes { get; set; }
     public ImageRemovalOption ImageRemoval { get; set; }
-    public string []Services { get; set; }
+    public string[] Services { get; set; }
     public bool StopOnDispose { get; set; } = true;
     public bool KeepContainers { get; set; }
 

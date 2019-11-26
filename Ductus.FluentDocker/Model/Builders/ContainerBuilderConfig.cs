@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using Ductus.FluentDocker.Model.Common;
 using Ductus.FluentDocker.Model.Compose;
@@ -9,10 +9,7 @@ namespace Ductus.FluentDocker.Model.Builders
 {
   public sealed class ContainerBuilderConfig
   {
-    public ContainerBuilderConfig()
-    {
-      CreateParams = new ContainerCreateParams();
-    }
+    public ContainerBuilderConfig() => CreateParams = new ContainerCreateParams();
 
     public bool VerifyExistence { get; set; }
     public ContainerCreateParams CreateParams { get; }
@@ -26,21 +23,17 @@ namespace Ductus.FluentDocker.Model.Builders
     public string Command { get; set; }
     public string[] Arguments { get; set; }
     public Tuple<string /*portAndProto*/, string /*address*/ , long /*waitTimeout*/> WaitForPort { get; set; }
-
     public Tuple<long /*waitTimeout*/> WaitForHealthy { get; set; }
-    
+    public Tuple<long/*waitTimeout*/, string /*message*/> WaitForMessageInLog { get; set; }
     public List<ContainerSpecificConfig.WaitForHttpParams> WaitForHttp { get; } =
       new List<ContainerSpecificConfig.WaitForHttpParams>();
-
     public List<Func<IContainerService, int, int>> WaitLambda { get; } = new List<Func<IContainerService, int, int>>();
-
     public Tuple<string /*process*/, long /*waitTimeout*/> WaitForProcess { get; set; }
     public List<Tuple<TemplateString /*host*/, TemplateString /*container*/>> CpToOnStart { get; set; }
     public List<Tuple<TemplateString /*host*/, TemplateString /*container*/>> CpFromOnDispose { get; set; }
-
     public Tuple<TemplateString /*host*/, bool /*explode*/,
-      Func<IContainerService, bool> /*condition*/> ExportOnDispose { get; set; }
-
+      Func<IContainerService, bool> /*condition*/> ExportOnDispose
+    { get; set; }
     public List<INetworkService> Networks { get; set; }
     public List<string> NetworkNames { get; set; }
     public List<string> ExecuteOnRunningArguments { get; set; }

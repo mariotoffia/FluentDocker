@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Threading;
@@ -90,11 +90,11 @@ namespace Ductus.FluentDocker.Executors
         {
           return result;
         }
-        
+
         return null;
       }
 
-      
+
       if (_values.TryTake(out result, millisTimeout, _token))
       {
         return result;

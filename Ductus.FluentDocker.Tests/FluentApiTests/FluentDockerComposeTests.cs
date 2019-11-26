@@ -22,7 +22,7 @@ namespace Ductus.FluentDocker.Tests.FluentApiTests
     public async Task WordPressDockerComposeServiceShallShowInstallScreen()
     {
       var file = Path.Combine(Directory.GetCurrentDirectory(),
-        (TemplateString) "Resources/ComposeTests/WordPress/docker-compose.yml");
+        (TemplateString)"Resources/ComposeTests/WordPress/docker-compose.yml");
 
       // @formatter:off
       using (var svc = Fd
@@ -30,9 +30,9 @@ namespace Ductus.FluentDocker.Tests.FluentApiTests
                         .UseCompose()
                         .FromFile(file)
                         .RemoveOrphans()
-                        .WaitForHttp("wordpress", "http://localhost:8000/wp-admin/install.php") 
+                        .WaitForHttp("wordpress", "http://localhost:8000/wp-admin/install.php")
                         .Build().Start())
-        // @formatter:on
+      // @formatter:on
       {
         // We now have a running WordPress with a MySql database        
         var installPage = await HttpExtensions.Wget("http://localhost:8000/wp-admin/install.php");
@@ -49,7 +49,7 @@ namespace Ductus.FluentDocker.Tests.FluentApiTests
     public void KeepContainersShallWorkForCompositeServices()
     {
       var file = Path.Combine(Directory.GetCurrentDirectory(),
-        (TemplateString) "Resources/ComposeTests/WordPress/docker-compose.yml");
+        (TemplateString)"Resources/ComposeTests/WordPress/docker-compose.yml");
 
       ICompositeService svc = null;
       IContainerService c1 = null;
@@ -66,16 +66,16 @@ namespace Ductus.FluentDocker.Tests.FluentApiTests
 
         c1 = svc.Containers.First();
         c2 = svc.Containers.Skip(1).First();
-        
+
         svc.Dispose();
-        
+
         Assert.AreEqual(ServiceRunningState.Stopped, c1.State);
         Assert.AreEqual(ServiceRunningState.Stopped, c2.State);
       }
       finally
       {
         svc?.Dispose();
-        
+
         c1?.Remove(true);
         c2?.Remove(true);
       }
@@ -85,7 +85,7 @@ namespace Ductus.FluentDocker.Tests.FluentApiTests
     public void KeepRunningsShallWorkForCompositeServices()
     {
       var file = Path.Combine(Directory.GetCurrentDirectory(),
-        (TemplateString) "Resources/ComposeTests/WordPress/docker-compose.yml");
+        (TemplateString)"Resources/ComposeTests/WordPress/docker-compose.yml");
 
       ICompositeService svc = null;
       IContainerService c1 = null;
@@ -102,16 +102,16 @@ namespace Ductus.FluentDocker.Tests.FluentApiTests
 
         c1 = svc.Containers.First();
         c2 = svc.Containers.Skip(1).First();
-        
+
         svc.Dispose();
-        
+
         Assert.AreEqual(ServiceRunningState.Running, c1.State);
         Assert.AreEqual(ServiceRunningState.Running, c2.State);
       }
       finally
       {
         svc?.Dispose();
-        
+
         c1?.Remove(true);
         c2?.Remove(true);
       }
@@ -121,7 +121,7 @@ namespace Ductus.FluentDocker.Tests.FluentApiTests
     public async Task DockerComposePauseResumeShallWork()
     {
       var file = Path.Combine(Directory.GetCurrentDirectory(),
-        (TemplateString) "Resources/ComposeTests/WordPress/docker-compose.yml");
+        (TemplateString)"Resources/ComposeTests/WordPress/docker-compose.yml");
 
       // @formatter:off
       using (var svc = Fd
@@ -129,9 +129,9 @@ namespace Ductus.FluentDocker.Tests.FluentApiTests
                         .UseCompose()
                         .FromFile(file)
                         .RemoveOrphans()
-                        .WaitForHttp("wordpress", "http://localhost:8000/wp-admin/install.php") 
+                        .WaitForHttp("wordpress", "http://localhost:8000/wp-admin/install.php")
                         .Build().Start())
-        // @formatter:on
+      // @formatter:on
       {
         // We now have a running WordPress with a MySql database        
         var installPage = await HttpExtensions.Wget("http://localhost:8000/wp-admin/install.php");
@@ -177,7 +177,7 @@ namespace Ductus.FluentDocker.Tests.FluentApiTests
     public async Task ComposeWaitForHttpShallWork()
     {
       var file = Path.Combine(Directory.GetCurrentDirectory(),
-        (TemplateString) "Resources/ComposeTests/WordPress/docker-compose.yml");
+        (TemplateString)"Resources/ComposeTests/WordPress/docker-compose.yml");
 
       // @formatter:off
       using (Fd
@@ -185,10 +185,10 @@ namespace Ductus.FluentDocker.Tests.FluentApiTests
                 .UseCompose()
                 .FromFile(file)
                 .RemoveOrphans()
-                .WaitForHttp("wordpress",  "http://localhost:8000/wp-admin/install.php", continuation: (resp, cnt) =>  
-                             resp.Body.IndexOf("https://wordpress.org/", StringComparison.Ordinal) != -1 ? 0 : 500)
+                .WaitForHttp("wordpress", "http://localhost:8000/wp-admin/install.php", continuation: (resp, cnt) =>
+                            resp.Body.IndexOf("https://wordpress.org/", StringComparison.Ordinal) != -1 ? 0 : 500)
                 .Build().Start())
-        // @formatter:on
+      // @formatter:on
       {
         // Since we have waited - this shall now always work.       
         var installPage = await HttpExtensions.Wget("http://localhost:8000/wp-admin/install.php");
@@ -201,7 +201,7 @@ namespace Ductus.FluentDocker.Tests.FluentApiTests
     public void ComposeWaitForHttpThatFailShallBeAborted()
     {
       var file = Path.Combine(Directory.GetCurrentDirectory(),
-        (TemplateString) "Resources/ComposeTests/WordPress/docker-compose.yml");
+        (TemplateString)"Resources/ComposeTests/WordPress/docker-compose.yml");
 
       try
       {
@@ -212,14 +212,15 @@ namespace Ductus.FluentDocker.Tests.FluentApiTests
                           .FromFile(file)
                           .RemoveOrphans()
                           .WaitForHttp("wordpress",
-                                      "http://localhost:8000/wp-admin/install.php", 
+                                      "http://localhost:8000/wp-admin/install.php",
                                       continuation: (resp, cnt) =>
                                       {
-                                        if (cnt > 3) throw new FluentDockerException($"No Contact after {cnt} times");
+                                        if (cnt > 3)
+                                          throw new FluentDockerException($"No Contact after {cnt} times");
                                         return resp.Body.IndexOf("ALIBABA", StringComparison.Ordinal) != -1 ? 0 : 500;
                                       })
                           .Build().Start())
-          // @formatter:on
+        // @formatter:on
 
         {
           Assert.Fail("It should have thrown a FluentDockerException!");
@@ -240,7 +241,7 @@ namespace Ductus.FluentDocker.Tests.FluentApiTests
     public async Task ComposeWaitForCustomLambdaShallWork()
     {
       var file = Path.Combine(Directory.GetCurrentDirectory(),
-        (TemplateString) "Resources/ComposeTests/WordPress/docker-compose.yml");
+        (TemplateString)"Resources/ComposeTests/WordPress/docker-compose.yml");
 
       // @formatter:off
       using (Fd
@@ -248,15 +249,17 @@ namespace Ductus.FluentDocker.Tests.FluentApiTests
                 .UseCompose()
                 .FromFile(file)
                 .RemoveOrphans()
-                .Wait("wordpress", (service, cnt) => {
-                    if (cnt > 60) throw new FluentDockerException("Failed to wait for wordpress service");
-            
-                    var res = "http://localhost:8000/wp-admin/install.php".DoRequest().Result;            
-                    return res.Code == HttpStatusCode.OK && 
-                           res.Body.IndexOf("https://wordpress.org/", StringComparison.Ordinal) != -1 ? 0 : 500;
-                  })
+                .Wait("wordpress", (service, cnt) =>
+                {
+                  if (cnt > 60)
+                    throw new FluentDockerException("Failed to wait for wordpress service");
+
+                  var res = "http://localhost:8000/wp-admin/install.php".DoRequest().Result;
+                  return res.Code == HttpStatusCode.OK &&
+                         res.Body.IndexOf("https://wordpress.org/", StringComparison.Ordinal) != -1 ? 0 : 500;
+                })
                 .Build().Start())
-        // @formatter:on
+      // @formatter:on
       {
         // Since we have waited - this shall now always work.       
         var installPage = await HttpExtensions.Wget("http://localhost:8000/wp-admin/install.php");
@@ -268,7 +271,7 @@ namespace Ductus.FluentDocker.Tests.FluentApiTests
     public void ComposeRunOnRemoteMachineShallWork()
     {
       var file = Path.Combine(Directory.GetCurrentDirectory(),
-        (TemplateString) "Resources/ComposeTests/WordPress/docker-compose.yml");
+        (TemplateString)"Resources/ComposeTests/WordPress/docker-compose.yml");
 
       using (
         var svc =
@@ -295,7 +298,7 @@ namespace Ductus.FluentDocker.Tests.FluentApiTests
     public void Issue85()
     {
       var file = Path.Combine(Directory.GetCurrentDirectory(),
-        (TemplateString) "Resources/ComposeTests/MongoDbAndNetwork/docker-compose.yml");
+        (TemplateString)"Resources/ComposeTests/MongoDbAndNetwork/docker-compose.yml");
 
       using (var svc = Fd.UseContainer()
         .UseCompose()
@@ -303,7 +306,7 @@ namespace Ductus.FluentDocker.Tests.FluentApiTests
         .Build()
         .Start())
       {
-        var c = (IContainerService) svc.Services.Single(s => s is IContainerService);
+        var c = (IContainerService)svc.Services.Single(s => s is IContainerService);
         var nw = c.GetNetworks().Single();
         var ncfg = nw.GetConfiguration(true);
 
@@ -316,7 +319,7 @@ namespace Ductus.FluentDocker.Tests.FluentApiTests
     public void Issue94()
     {
       var file = Path.Combine(Directory.GetCurrentDirectory(),
-        (TemplateString) "Resources/ComposeTests/KafkaAndZookeeper/docker-compose.yaml");
+        (TemplateString)"Resources/ComposeTests/KafkaAndZookeeper/docker-compose.yaml");
 
       using (var svc = Fd.UseContainer()
         .UseCompose()

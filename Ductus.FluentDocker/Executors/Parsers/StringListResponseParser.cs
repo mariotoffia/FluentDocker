@@ -11,11 +11,11 @@ namespace Ductus.FluentDocker.Executors.Parsers
     {
       if (response.ExitCode != 0)
       {
-        Response = response.ToErrorResponse((IList<string>) new List<string>());
+        Response = response.ToErrorResponse((IList<string>)new List<string>());
         return this;
       }
 
-      Response = response.ToResponse(true, string.Empty, (IList<string>) new List<string>(response.StdOutAsArry));
+      Response = response.ToResponse(true, string.Empty, (IList<string>)new List<string>(response.StdOutAsArry));
       return this;
     }
   }

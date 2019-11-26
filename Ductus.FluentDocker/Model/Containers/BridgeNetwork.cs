@@ -4,7 +4,7 @@ namespace Ductus.FluentDocker.Model.Containers
 {
   public sealed class BridgeNetwork
   {
-    public string []Aliases { get; set; }
+    public string[] Aliases { get; set; }
     public string NetworkID { get; set; }
     public string EndpointID { get; set; }
     public string Gateway { get; set; }

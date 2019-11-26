@@ -19,8 +19,8 @@ namespace Ductus.FluentDocker.Executors
     public string StdOut { get; }
     public string StdErr { get; }
     public int ExitCode { get; }
-    public string[] StdOutAsArry => StdOut.Split(new[] {"\n", "\r\n"}, StringSplitOptions.RemoveEmptyEntries);
-    public string[] StdErrAsArry => StdErr.Split(new[] {"\n", "\r\n"}, StringSplitOptions.RemoveEmptyEntries);
+    public string[] StdOutAsArry => StdOut.Split(new[] { "\n", "\r\n" }, StringSplitOptions.RemoveEmptyEntries);
+    public string[] StdErrAsArry => StdErr.Split(new[] { "\n", "\r\n" }, StringSplitOptions.RemoveEmptyEntries);
 
     public CommandResponse<T> ToResponse<T>(bool success, string error, T data)
     {

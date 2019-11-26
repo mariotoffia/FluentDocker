@@ -17,7 +17,8 @@ namespace Ductus.FluentDocker.Commands
       var args = $"{host.RenderBaseArgs(certificates)}";
 
       var options = string.Empty;
-      if (!string.IsNullOrEmpty(name)) options += $" --name={name}";
+      if (!string.IsNullOrEmpty(name))
+        options += $" --name={name}";
 
       if (null != labels && labels.Length > 0)
         foreach (var label in labels)
@@ -54,13 +55,15 @@ namespace Ductus.FluentDocker.Commands
       var args = $"{host.RenderBaseArgs(certificates)}";
 
       var options = string.Empty;
-      if (quiet) options += " -q";
+      if (quiet)
+        options += " -q";
 
       if (null != filter && 0 != filter.Length)
         foreach (var f in filter)
           options += $" --filter={f}";
 
-      if (!string.IsNullOrEmpty(format)) options = $"--format \"{format}\"";
+      if (!string.IsNullOrEmpty(format))
+        options = $"--format \"{format}\"";
 
       return
         new ProcessExecutor<StringListResponseParser, IList<string>>(
@@ -74,7 +77,8 @@ namespace Ductus.FluentDocker.Commands
       var args = $"{host.RenderBaseArgs(certificates)}";
       var opts = string.Empty;
 
-      if (force) opts = "-f";
+      if (force)
+        opts = "-f";
       var volumes = string.Join(" ", volume);
 
       return
