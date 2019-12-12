@@ -16,11 +16,13 @@ install:
   - ps: dotnet tool install -g GitVersion.Tool
   - ps: dotnet tool install -g dotnet-format
   - ps: dotnet tool install -g dotnet-sonarscanner -v:m
+  - ps: dotnet tool install -g coverlet.console --version 1.6.0
 
 before_build:
   - nuget restore
   - ps: dotnet format --check --dry-run
   - ps: dotnet gitversion /l console /output buildserver
+  - ps: coverlet Ductus.FluentDocker.Tests/bin/Debug/netcoreapp3.0/Ductus.FluentDocker.Tests.dll --target "dotnet" --targetargs "test Ductus.FluentDocker.Tests/Ductus.FluentDocker.Tests.csproj --no-build" --format opencover -o ./output/
   - ps: dotnet sonarscanner begin /d:sonar.host.url=https://sonarcloud.io /d:sonar.login=e220dd372506f00fe34923f011ea45f8568e9bcc /k:mariotoffia_FluentDocker /o:mariotoffia /v:"$env:APPVEYOR_BUILD_NUMBER" /d:sonar.cs.opencover.reportsPaths="./output/coverage.opencover.xml" /d:sonar.coverage.exclusions="**Tests*.cs"
   - ps: $env:good_to_deploy="true"
   - ps: if (Test-Path env:APPVEYOR_PULL_REQUEST_HEAD_REPO_BRANCH) {echo "Not going to deploy because pull request."}
