@@ -37,7 +37,7 @@ build:
   verbosity: minimal
 
 after_build:
-  -ps: dotnet sonarscanner end /d:sonar.login=e220dd372506f00fe34923f011ea45f8568e9bcc
+  - ps: dotnet sonarscanner end /d:sonar.login=e220dd372506f00fe34923f011ea45f8568e9bcc
 
 artifacts:
   - path: '.\**\Release\*.nupkg'
