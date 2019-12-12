@@ -3,11 +3,6 @@ test: off
 image: Visual Studio 2019
 configuration: Release
 
-environment:
-  SONAR_TOKEN:
-    secure: MZiKKW1QBe0dq63a3dKMLwqFytcEZ9yIBhDZUUKN7sfZL5xZJ8HzrX8S88rhfGZ7
-  PSONAR_TOKEN: e220dd372506f00fe34923f011ea45f8568e9bcc
-
 dotnet_csproj:
   patch: true
   file: '**\*.csproj'
