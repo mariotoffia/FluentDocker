@@ -26,7 +26,7 @@ before_build:
   - nuget restore
   - ps: dotnet format --check --dry-run
   - ps: dotnet gitversion /l console /output buildserver
-  - ps: dotnet sonarscanner begin /d:sonar.host.url=https://sonarcloud.io /d:sonar.login=%PSONAR_TOKEN% /k:mariotoffia_FluentDocker /o:mariotoffia /v:"%APPVEYOR_BUILD_NUMBER%" /d:sonar.cs.opencover.reportsPaths="./output/coverage.opencover.xml" /d:sonar.coverage.exclusions="**Tests*.cs"
+  - ps: dotnet sonarscanner begin /d:sonar.host.url=https://sonarcloud.io /d:sonar.login=e220dd372506f00fe34923f011ea45f8568e9bcc /k:mariotoffia_FluentDocker /o:mariotoffia /v:"%APPVEYOR_BUILD_NUMBER%" /d:sonar.cs.opencover.reportsPaths="./output/coverage.opencover.xml" /d:sonar.coverage.exclusions="**Tests*.cs"
   - ps: $env:good_to_deploy="true"
   - ps: if (Test-Path env:APPVEYOR_PULL_REQUEST_HEAD_REPO_BRANCH) {echo "Not going to deploy because pull request."}
   - ps: if (Test-Path env:APPVEYOR_PULL_REQUEST_HEAD_REPO_BRANCH) {$env:good_to_deploy="false"}
@@ -37,7 +37,7 @@ build:
   verbosity: minimal
 
 after_build:
-  -ps: dotnet sonarscanner end /d:sonar.login=%PSONAR_TOKEN%
+  -ps: dotnet sonarscanner end /d:sonar.login=e220dd372506f00fe34923f011ea45f8568e9bcc
 
 artifacts:
   - path: '.\**\Release\*.nupkg'
