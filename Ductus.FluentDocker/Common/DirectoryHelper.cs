@@ -15,6 +15,18 @@ namespace Ductus.FluentDocker.Common
   /// </remarks>
   public static class DirectoryHelper
   {
+    static DirectoryHelper()
+    {
+      var test = Environment.GetEnvironmentVariable("APPVEYOR_PROJECT_NAME");
+      if (null == test)
+        GetTempPath = Path.GetTempPath;
+      else
+      {
+        Directory.CreateDirectory(@"d:\\fluentdocker");
+        GetTempPath = () => @"d:\\fluentdocker";
+      }
+    }
+
     private static readonly Dictionary<string, string> ToRename = new Dictionary<string, string>
     {
       {"dot_git", ".git"},
@@ -22,6 +34,16 @@ namespace Ductus.FluentDocker.Common
     };
 
     private static readonly Type[] Whitelist = { typeof(IOException), typeof(UnauthorizedAccessException) };
+
+    /// <summary>
+    /// Gets a path to a temporary folder that is writeable.
+    /// </summary>
+    /// <remarks>
+    ///  This folder may be the same from time to time. It is possible to override this property at
+    ///  startup to provide for a custom path. The default uses the <see cref="Path.GetTempPath"/>
+    ///  implementation.
+    /// </remarks>
+    public static Func<string> GetTempPath { get; set; }
 
     public static void CopyFilesRecursively(DirectoryInfo source, DirectoryInfo target)
     {

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.IO;
@@ -13,15 +13,13 @@ namespace Ductus.FluentDocker.Model.Common
     private static readonly Dictionary<string, Func<string>> Templates;
     private static readonly Regex Urldetector = new Regex("((\"|')http(|s)://.*?(\"|'))", RegexOptions.Compiled);
 
-    static TemplateString()
-    {
-      Templates =
+    static TemplateString() => Templates =
         new Dictionary<string, Func<string>>
         {
           {
             "${TMP}", () =>
             {
-              var path = Path.GetTempPath();
+              var path = DirectoryHelper.GetTempPath();
               if (path.StartsWith("/var/") && FdOs.IsOsx()) path = "/private/" + path;
 
               return path.Substring(0, path.Length - 1);
@@ -30,7 +28,7 @@ namespace Ductus.FluentDocker.Model.Common
           {
             "${TEMP}", () =>
             {
-              var path = Path.GetTempPath();
+              var path = DirectoryHelper.GetTempPath();
               if (path.StartsWith("/var/") && FdOs.IsOsx()) path = "/private/" + path;
 
               return path.Substring(0, path.Length - 1);
@@ -39,7 +37,6 @@ namespace Ductus.FluentDocker.Model.Common
           {"${RND}", Path.GetRandomFileName},
           {"${PWD}", Directory.GetCurrentDirectory}
         };
-    }
 
     public TemplateString(string str, bool handleWindowsPathIfNeeded = false)
     {
@@ -65,7 +62,7 @@ namespace Ductus.FluentDocker.Model.Common
         return str.Replace('/', '\\');
 
       var res = "";
-      int idx = 0;
+      var idx = 0;
       while (match.Success)
       {
         res += str.Substring(idx, match.Index - idx).Replace('/', '\\');
@@ -99,15 +96,9 @@ namespace Ductus.FluentDocker.Model.Common
       return str;
     }
 
-    public static implicit operator TemplateString(string str)
-    {
-      return null == str ? null : new TemplateString(str);
-    }
+    public static implicit operator TemplateString(string str) => null == str ? null : new TemplateString(str);
 
-    public static implicit operator string(TemplateString str)
-    {
-      return str?.Rendered;
-    }
+    public static implicit operator string(TemplateString str) => str?.Rendered;
 
     public override string ToString()
     {
