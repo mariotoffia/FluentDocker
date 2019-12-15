@@ -22,8 +22,8 @@ namespace Ductus.FluentDocker.Common
         GetTempPath = Path.GetTempPath;
       else
       {
-        Directory.CreateDirectory(@"d:\\fluentdocker");
-        GetTempPath = () => @"d:\\fluentdocker";
+        Directory.CreateDirectory(@"d:\fluentdocker");
+        GetTempPath = () => @"d:\fluentdocker";
       }
     }
 
