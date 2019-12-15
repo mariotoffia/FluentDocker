@@ -1,4 +1,4 @@
-﻿namespace Ductus.FluentDocker.Model.Builders.FileBuilder
+namespace Ductus.FluentDocker.Model.Builders.FileBuilder
 {
   public sealed class CmdCommand : ICommand
   {
@@ -13,7 +13,7 @@
 
     public override string ToString()
     {
-      return $"CMD [{Cmd}{string.Join(",", Arguments)}]";
+      return $"CMD [\"{Cmd}{string.Join("\",\"", Arguments)}\"]";
     }
   }
 }

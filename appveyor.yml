@@ -31,7 +31,13 @@ build:
   publish_nuget: true
   verbosity: minimal
 
-after_build:
+#after_build:
+#  - ps: dotnet sonarscanner end /d:sonar.login=e220dd372506f00fe34923f011ea45f8568e9bcc
+
+test_script:
+  - ps: dotnet test --settings coverletArgs.runsettings
+
+after_test:
   - ps: dotnet sonarscanner end /d:sonar.login=e220dd372506f00fe34923f011ea45f8568e9bcc
 
 artifacts:

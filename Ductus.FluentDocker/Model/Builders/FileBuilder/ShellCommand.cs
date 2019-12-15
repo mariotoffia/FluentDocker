@@ -1,4 +1,4 @@
-﻿using Ductus.FluentDocker.Model.Common;
+using Ductus.FluentDocker.Model.Common;
 
 namespace Ductus.FluentDocker.Model.Builders.FileBuilder
 {
@@ -15,7 +15,7 @@ namespace Ductus.FluentDocker.Model.Builders.FileBuilder
 
     public override string ToString()
     {
-      return $"SHELL [{Shell}{string.Join(",", Arguments)}]";
+      return $"SHELL [\"{Shell}{string.Join("\",\"", Arguments)}\"]";
     }
   }
 }
