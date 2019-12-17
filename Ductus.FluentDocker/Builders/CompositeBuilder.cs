@@ -22,7 +22,7 @@ namespace Ductus.FluentDocker.Builders
     internal CompositeBuilder(IBuilder parent, string composeFile = null) : base(parent)
     {
       if (!string.IsNullOrEmpty(composeFile))
-      _config.ComposeFilePath.Add(composeFile);
+        _config.ComposeFilePath.Add(composeFile);
     }
 
     public override ICompositeService Build()
@@ -114,7 +114,8 @@ namespace Ductus.FluentDocker.Builders
             Fd.DisposeOnException(svc =>
             {
               var csvc = Resolve(config.Name);
-              if (null == csvc) return;
+              if (null == csvc)
+                return;
 
               foreach (var binaryAndArguments in config.ExecuteOnRunningArguments)
               {
@@ -143,7 +144,8 @@ namespace Ductus.FluentDocker.Builders
             Fd.DisposeOnException(svc =>
             {
               var csvc = Resolve(config.Name);
-              if (null == svc) return;
+              if (null == svc)
+                return;
 
               foreach (var binaryAndArguments in config.ExecuteOnDisposingArguments)
               {
@@ -161,7 +163,8 @@ namespace Ductus.FluentDocker.Builders
             Fd.DisposeOnException(svc =>
             {
               var csvc = Resolve(config.Name);
-              if (null == csvc) return;
+              if (null == csvc)
+                return;
 
               if (config.ExportOnDispose.Item3(csvc))
                 csvc.Export(config.ExportOnDispose.Item1, config.ExportOnDispose.Item2);
@@ -170,7 +173,7 @@ namespace Ductus.FluentDocker.Builders
       }
     }
 
-    public CompositeBuilder FromFile(params string []composeFile)
+    public CompositeBuilder FromFile(params string[] composeFile)
     {
       ((List<string>)_config.ComposeFilePath).AddRange(composeFile);
       return this;
@@ -242,10 +245,27 @@ namespace Ductus.FluentDocker.Builders
       return this;
     }
 
-    public CompositeBuilder KeepOnDispose()
+
+    public CompositeBuilder KeepRunning()
     {
       _config.StopOnDispose = false;
+      _config.KeepContainers = true;
       return this;
+    }
+
+    public CompositeBuilder KeepContainer()
+    {
+      _config.KeepContainers = true;
+      return this;
+    }
+
+    /// <summary>
+    /// Kept for backward compatibility, will be removed in 3.0.0.
+    /// </summary>
+    /// <returns>Itself for fluent access.</returns>
+    public CompositeBuilder KeepOnDispose()
+    {
+      return KeepContainer();
     }
 
     public CompositeBuilder ExportOnDispose(string service, string hostPath,
@@ -333,7 +353,8 @@ namespace Ductus.FluentDocker.Builders
     public CompositeBuilder ExecuteOnRunning(string service, params string[] execute)
     {
       var config = GetContainerSpecificConfig(service);
-      if (null == config.ExecuteOnRunningArguments) config.ExecuteOnRunningArguments = new List<string>();
+      if (null == config.ExecuteOnRunningArguments)
+        config.ExecuteOnRunningArguments = new List<string>();
 
       config.ExecuteOnRunningArguments.AddRange(execute);
       return this;
@@ -351,7 +372,8 @@ namespace Ductus.FluentDocker.Builders
     public CompositeBuilder ExecuteOnDisposing(string service, params string[] execute)
     {
       var config = GetContainerSpecificConfig(service);
-      if (null == config.ExecuteOnDisposingArguments) config.ExecuteOnDisposingArguments = new List<string>();
+      if (null == config.ExecuteOnDisposingArguments)
+        config.ExecuteOnDisposingArguments = new List<string>();
 
       config.ExecuteOnDisposingArguments.AddRange(execute);
       return this;
@@ -377,7 +399,11 @@ namespace Ductus.FluentDocker.Builders
       var config = GetContainerSpecificConfig(service);
       config.WaitForHttp.Add(new ContainerSpecificConfig.WaitForHttpParams
       {
-        Url = url, Timeout = timeout, Continuation = continuation, Method = method, ContentType = contentType,
+        Url = url,
+        Timeout = timeout,
+        Continuation = continuation,
+        Method = method,
+        ContentType = contentType,
         Body = body
       });
 
@@ -386,9 +412,10 @@ namespace Ductus.FluentDocker.Builders
 
     private ContainerSpecificConfig GetContainerSpecificConfig(string service)
     {
-      if (_config.ContainerConfiguration.TryGetValue(service, out var config)) return config;
+      if (_config.ContainerConfiguration.TryGetValue(service, out var config))
+        return config;
 
-      config = new ContainerSpecificConfig {Name = service};
+      config = new ContainerSpecificConfig { Name = service };
       _config.ContainerConfiguration.Add(service, config);
 
       return config;

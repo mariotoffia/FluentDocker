@@ -19,18 +19,18 @@ namespace Ductus.FluentDocker.Executors.Parsers
       if (rows.Length > 0)
       {
         list.AddRange(from row in rows
-          select row.Split(';')
+                      select row.Split(';')
           into s
-          where s.Length == 3
-          select new MachineLsResponse
-          {
-            State = s[1] == "Running" ? ServiceRunningState.Running : ServiceRunningState.Stopped,
-            Name = s[0],
-            Docker = string.IsNullOrWhiteSpace(s[2]) ? null : new Uri(s[2])
-          });
+                      where s.Length == 3
+                      select new MachineLsResponse
+                      {
+                        State = s[1] == "Running" ? ServiceRunningState.Running : ServiceRunningState.Stopped,
+                        Name = s[0],
+                        Docker = string.IsNullOrWhiteSpace(s[2]) ? null : new Uri(s[2])
+                      });
       }
 
-      Response = response.ToResponse(true, string.Empty, (IList<MachineLsResponse>) list);
+      Response = response.ToResponse(true, string.Empty, (IList<MachineLsResponse>)list);
       return this;
     }
   }

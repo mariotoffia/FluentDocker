@@ -16,7 +16,7 @@ namespace Ductus.FluentDocker.Services.Impl
 
     public string Name { get; }
 
-    public ServiceRunningState State
+    public virtual ServiceRunningState State
     {
       get => _state;
       protected set
@@ -33,6 +33,7 @@ namespace Ductus.FluentDocker.Services.Impl
     }
 
     public abstract void Start();
+    public abstract void Pause();
     public abstract void Stop();
     public abstract void Remove(bool force = false);
 

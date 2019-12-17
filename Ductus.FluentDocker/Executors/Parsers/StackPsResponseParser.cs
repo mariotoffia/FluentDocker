@@ -15,24 +15,24 @@ namespace Ductus.FluentDocker.Executors.Parsers
       var rows = response.StdOutAsArry;
       if (rows.Length > 0)
         list.AddRange(from row in rows
-          select row.Split(';')
+                      select row.Split(';')
           into s
-          where s.Length == 3
-          select new StackPsResponse
-          {
-            Id = s[0],
-            Stack = s[1].Split('_')[0],
-            Name = s[1].Split('_')[1],
-            Image = s[2].Split(':')[0],
-            ImageVersion = s[2].Split(':')[1],
-            Node = s[3],
-            DesiredState = s[4],
-            CurrentState = s[5],
-            Error = s[6] ?? string.Empty,
-            Ports = s[7] ?? string.Empty
-          });
+                      where s.Length == 3
+                      select new StackPsResponse
+                      {
+                        Id = s[0],
+                        Stack = s[1].Split('_')[0],
+                        Name = s[1].Split('_')[1],
+                        Image = s[2].Split(':')[0],
+                        ImageVersion = s[2].Split(':')[1],
+                        Node = s[3],
+                        DesiredState = s[4],
+                        CurrentState = s[5],
+                        Error = s[6] ?? string.Empty,
+                        Ports = s[7] ?? string.Empty
+                      });
 
-      Response = response.ToResponse(true, string.Empty, (IList<StackPsResponse>) list);
+      Response = response.ToResponse(true, string.Empty, (IList<StackPsResponse>)list);
       return this;
     }
   }

@@ -40,7 +40,7 @@ namespace Ductus.FluentDocker.Executors
 
       Logger.Log($"cmd: {_command} - arg: {_arguments}");
 
-      using (var process = new Process {StartInfo = startInfo})
+      using (var process = new Process { StartInfo = startInfo })
       {
         var output = new StringBuilder();
         var err = new StringBuilder();
@@ -79,5 +79,5 @@ namespace Ductus.FluentDocker.Executors
             .Response;
       }
     }
-    }
+  }
 }

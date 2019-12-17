@@ -42,7 +42,7 @@ namespace Ductus.FluentDocker.Tests.Features
       var feature = new ElkFeature();
       try
       {
-        feature.Initialize(new Dictionary<string, object> {{FeatureConstants.KeepOnDispose, "true"}});
+        feature.Initialize(new Dictionary<string, object> { { FeatureConstants.KeepOnDispose, "true" } });
         feature.Execute();
         feature.Dispose();
 
@@ -58,7 +58,8 @@ namespace Ductus.FluentDocker.Tests.Features
         try
         {
           feature.Services.OfType<ICompositeService>().First().Dispose();
-        } catch { /*ignore*/}
+        }
+        catch { /*ignore*/}
 
         CleanFolder(Path.GetFileName(feature.Target));
         throw;
@@ -96,7 +97,7 @@ namespace Ductus.FluentDocker.Tests.Features
       var feature = new ElkFeature();
       try
       {
-        feature.Initialize(new Dictionary<string, object> {{ElkFeature.TargetPath, "repo-here"}});
+        feature.Initialize(new Dictionary<string, object> { { ElkFeature.TargetPath, "repo-here" } });
         feature.Execute();
 
         IsTrue(Directory.Exists(path));
@@ -120,7 +121,7 @@ namespace Ductus.FluentDocker.Tests.Features
       {
         using (var feature = new ElkFeature())
         {
-          feature.Initialize(new Dictionary<string, object> {{ElkFeature.EnableCurator, "true"}});
+          feature.Initialize(new Dictionary<string, object> { { ElkFeature.EnableCurator, "true" } });
           feature.Execute();
 
           var curatorService = feature.Services.OfType<ICompositeService>().First().Services.FirstOrDefault(x => x.Name == "curator");
@@ -141,7 +142,7 @@ namespace Ductus.FluentDocker.Tests.Features
       {
         using (var feature = new ElkFeature())
         {
-          feature.Initialize(new Dictionary<string, object> {{ElkFeature.EnableApmServer, "true"}});
+          feature.Initialize(new Dictionary<string, object> { { ElkFeature.EnableApmServer, "true" } });
           feature.Execute();
 
           var apmServer = feature.Services.OfType<ICompositeService>().First().Services.FirstOrDefault(x => x.Name == "apm-server");
@@ -154,7 +155,7 @@ namespace Ductus.FluentDocker.Tests.Features
         throw;
       }
     }
-    
+
     [TestMethod]
     [Ignore] // Since not windows compatible
     public void EnableLogSpoutExtensionShallWork()
@@ -163,7 +164,7 @@ namespace Ductus.FluentDocker.Tests.Features
       {
         using (var feature = new ElkFeature())
         {
-          feature.Initialize(new Dictionary<string, object> {{ElkFeature.EnableLogspout, "true"}});
+          feature.Initialize(new Dictionary<string, object> { { ElkFeature.EnableLogspout, "true" } });
           feature.Execute();
 
           var logspout = feature.Services.OfType<ICompositeService>().First().Services.FirstOrDefault(x => x.Name == "logspout");
@@ -182,7 +183,8 @@ namespace Ductus.FluentDocker.Tests.Features
       var path = Path.Combine(Directory.GetCurrentDirectory(), relativePath);
       try
       {
-        if (Directory.Exists(path)) DirectoryHelper.DeleteDirectory(path);
+        if (Directory.Exists(path))
+          DirectoryHelper.DeleteDirectory(path);
       }
       catch (Exception e)
       {

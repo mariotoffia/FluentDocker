@@ -5,6 +5,9 @@
 # IntelliJ Rider
 .idea/
 
+# Sonarqube
+.sonarqube/
+
 # User-specific files
 *.suo
 *.user

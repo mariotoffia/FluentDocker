@@ -13,21 +13,26 @@ namespace Ductus.FluentDocker.Extensions
     /// <returns>If successful the number, otherwise <see cref="long.MinValue" /> is returned.</returns>
     public static long Convert(this string value, params string[] unit)
     {
-      if (null == unit || 0 == unit.Length) unit = new[] {"b", "k", "m", "g"};
+      if (null == unit || 0 == unit.Length)
+        unit = new[] { "b", "k", "m", "g" };
 
-      if (string.IsNullOrWhiteSpace(value)) return long.MinValue;
+      if (string.IsNullOrWhiteSpace(value))
+        return long.MinValue;
 
       var num = value.Substring(0, value.Length - 2);
       var u = value.Substring(value.Length - 2, 1).ToLower();
 
-      if (char.IsDigit(u[0])) return !long.TryParse(value, out var n) ? long.MinValue : n;
+      if (char.IsDigit(u[0]))
+        return !long.TryParse(value, out var n) ? long.MinValue : n;
 
-      if (!unit.Contains(u)) return long.MinValue;
+      if (!unit.Contains(u))
+        return long.MinValue;
 
       if (!long.TryParse(num, out var val))
         return long.MinValue;
 
-      if (u == "b") return val;
+      if (u == "b")
+        return val;
 
       switch (u)
       {

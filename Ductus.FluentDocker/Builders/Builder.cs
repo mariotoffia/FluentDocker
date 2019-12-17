@@ -60,7 +60,7 @@ namespace Ductus.FluentDocker.Builders
       var existing = Childs.FirstOrDefault(x => x is HostBuilder);
       if (null != existing)
       {
-        return (HostBuilder) existing;
+        return (HostBuilder)existing;
       }
 
       var host = new HostBuilder(this);

@@ -10,7 +10,8 @@ namespace Ductus.FluentDocker.Services.Impl
     public BuilderCompositeService(IList<IService> services, string name)
     {
       Services = new ReadOnlyCollection<IService>(services);
-      Hosts = new ReadOnlyCollection<IHostService>(services.Where(x => x is IHostService).Cast<IHostService>().ToList());
+      Hosts = new ReadOnlyCollection<IHostService>(services.Where(x => x is IHostService).Cast<IHostService>()
+        .ToList());
 
       Containers =
         new ReadOnlyCollection<IContainerService>(
@@ -23,17 +24,13 @@ namespace Ductus.FluentDocker.Services.Impl
       Name = name;
 
       foreach (var service in Services)
-      {
         service.StateChange += OnStateChange;
-      }
     }
 
     public void Dispose()
     {
       foreach (var service in Services)
-      {
         service.Dispose();
-      }
     }
 
     public string Name { get; }
@@ -43,9 +40,7 @@ namespace Ductus.FluentDocker.Services.Impl
       get
       {
         if (Services.Count == 0)
-        {
           return ServiceRunningState.Unknown;
-        }
 
         var state = Services.First().State;
         return Services.All(x => x.State == state) ? state : ServiceRunningState.Unknown;
@@ -56,47 +51,46 @@ namespace Ductus.FluentDocker.Services.Impl
     {
       foreach (
         var service in
-          Services.Where(
-            service => service.State != ServiceRunningState.Running))
-      {
+        Services.Where(
+          service => service.State != ServiceRunningState.Running))
         service.Start();
-      }
+    }
+
+    void IService.Pause()
+    {
+      foreach (
+        var service in
+        Services.Where(
+          service => service.State == ServiceRunningState.Running))
+        service.Pause();
     }
 
     public void Stop()
     {
       foreach (
         var service in
-          Services.Where(
-            service => service.State != ServiceRunningState.Stopped && service.State != ServiceRunningState.Stopping))
-      {
+        Services.Where(
+          service => service.State != ServiceRunningState.Stopped && service.State != ServiceRunningState.Stopping))
         service.Stop();
-      }
     }
 
     public void Remove(bool force = false)
     {
       foreach (var service in Services)
-      {
         service.Remove(force);
-      }
     }
 
     public IService AddHook(ServiceRunningState state, Action<IService> hook, string uniqueName = null)
     {
       foreach (var service in Services)
-      {
         service.AddHook(state, hook, uniqueName);
-      }
       return this;
     }
 
     public IService RemoveHook(string uniqueName)
     {
       foreach (var service in Services)
-      {
         service.RemoveHook(uniqueName);
-      }
       return this;
     }
 
@@ -108,7 +102,7 @@ namespace Ductus.FluentDocker.Services.Impl
 
     public ICompositeService Start()
     {
-      ((IService) this).Start();
+      ((IService)this).Start();
       return this;
     }
 
