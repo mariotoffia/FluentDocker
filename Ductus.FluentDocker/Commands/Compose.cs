@@ -390,9 +390,15 @@ namespace Ductus.FluentDocker.Commands
       bool buildBeforeCreate = false, TimeSpan? timeout = null,
       bool removeOphans = false,
       bool useColor = false,
+      bool noStart = false,
       string[] services = null /*all*/,
       ICertificatePaths certificates = null, params string[] composeFile)
     {
+      if (forceRecreate && noRecreate)
+      {
+        throw new InvalidOperationException($"{nameof(forceRecreate)} and {nameof(noRecreate)} are incompatible.");
+      }
+
       var cwd = WorkingDirectory(composeFile);
 
       var args = $"{host.RenderBaseArgs(certificates)}";
@@ -405,8 +411,7 @@ namespace Ductus.FluentDocker.Commands
       if (!string.IsNullOrEmpty(altProjectName))
         args += $" -p {altProjectName}";
 
-      // Always run in detached mode
-      var options = "--detach";
+      var options = noStart ? "--no-start" : "--detach";
 
       if (forceRecreate)
         options += " --force-recreate";
