@@ -87,7 +87,8 @@ namespace Ductus.FluentDocker.Tests.FluentApiTests
     {
       _checkConnectionInvoked = true;
 
-      if (count > 10) throw new FluentDockerException("Failed to wait for sql server");
+      if (count > 10)
+        throw new FluentDockerException("Failed to wait for sql server");
 
       var ep = service.ToHostExposedEndpoint("5432/tcp");
       var str = $"Server={ep.Address};Port={ep.Port};Userid=postgres;" +

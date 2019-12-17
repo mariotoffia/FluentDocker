@@ -97,7 +97,7 @@ namespace Ductus.FluentDocker.Services
     /// <returns></returns>
     IVolumeService CreateVolume(string name = null, string driver = null /*local*/, string[] labels = null, IDictionary<string, string> opts = null, bool removeOnDispose = false);
 
-      /// <summary>
+    /// <summary>
     ///   Gets the machine configuration if machine.
     /// </summary>
     /// <returns>A machine configuration. It will always return null if native.</returns>

@@ -19,10 +19,10 @@ namespace Ductus.FluentDocker.Executors
       {
         _command = CommandExtensions.DefaultShell;
         _arguments = $"-c \"{command} {arguments}\"";
-        
+
         return;
       }
-      
+
       _command = command;
       _arguments = arguments;
     }
@@ -43,7 +43,7 @@ namespace Ductus.FluentDocker.Executors
 
       Logger.Log($"cmd: {_command} - arg: {_arguments}");
 
-      using (var process = new Process {StartInfo = startInfo})
+      using (var process = new Process { StartInfo = startInfo })
       {
         var output = new StringBuilder();
         var err = new StringBuilder();

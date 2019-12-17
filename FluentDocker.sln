@@ -1,14 +1,20 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio 15
-VisualStudioVersion = 15.0.27130.2036
+# Visual Studio Version 16
+VisualStudioVersion = 16.0.29424.173
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{C7FD34B0-1CBF-44EC-A92C-59543CBE383B}"
 	ProjectSection(SolutionItems) = preProject
-		appveyor.yml = appveyor.yml
-		README.md = README.md
-		docs\index.md = docs\index.md
+		.editorconfig = .editorconfig
+		.sonarcloud.properties = .sonarcloud.properties
 		docs\_config.yml = docs\_config.yml
+		appveyor.yml = appveyor.yml
+		GitVersion.yml = GitVersion.yml
+		global.json = global.json
+		docs\index.md = docs\index.md
+		NuGet.config = NuGet.config
+		README.md = README.md
+		sonar-project.properties = sonar-project.properties
 	EndProjectSection
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Ductus.FluentDocker", "Ductus.FluentDocker\Ductus.FluentDocker.csproj", "{20B06EAB-41AD-4C1C-8375-5FE120F22B91}"
@@ -19,9 +25,15 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Ductus.FluentDocker.Tests",
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Tests", "Tests\Tests.csproj", "{2840F9EE-DC65-40A8-8E11-6DF4585DE4B4}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FluentDocker.Features.Elk", "FluentDocker.Features\FluentDocker.Features.Elk\FluentDocker.Features.Elk.csproj", "{B2F4EA39-3DFB-422E-B6CA-A7DD35F38FF4}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "FluentDocker.Features.Elk", "FluentDocker.Features\FluentDocker.Features.Elk\FluentDocker.Features.Elk.csproj", "{B2F4EA39-3DFB-422E-B6CA-A7DD35F38FF4}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Features", "Features", "{E950CBF3-37F5-442C-9AC4-1294A5AB9E80}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "data", "data", "{60257CD9-E6FE-4F23-A675-34B7DD1C27F1}"
+	ProjectSection(SolutionItems) = preProject
+		data\docker_event_sample_1.json = data\docker_event_sample_1.json
+		data\docker_network_inspect.json = data\docker_network_inspect.json
+	EndProjectSection
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -55,6 +67,7 @@ Global
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
 		{B2F4EA39-3DFB-422E-B6CA-A7DD35F38FF4} = {E950CBF3-37F5-442C-9AC4-1294A5AB9E80}
+		{60257CD9-E6FE-4F23-A675-34B7DD1C27F1} = {C7FD34B0-1CBF-44EC-A92C-59543CBE383B}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {E5379AC0-CB30-46F7-B995-C515FA19102D}

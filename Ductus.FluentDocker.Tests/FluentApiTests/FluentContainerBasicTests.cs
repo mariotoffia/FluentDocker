@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
@@ -23,6 +23,12 @@ namespace Ductus.FluentDocker.Tests.FluentApiTests
       Utilities.LinuxMode();
     }
 
+    [TestMethod]
+    public void VersionInfoShallBePossibleToRetrieve()
+    {
+      var v = Fd.Version();
+      Assert.IsTrue(v != null && v.Length > 0);
+    }
     [TestMethod]
     public void BuildContainerRenderServiceInStoppedMode()
     {
@@ -116,6 +122,32 @@ namespace Ductus.FluentDocker.Tests.FluentApiTests
     }
 
     [TestMethod]
+    public void PauseAndResumeShallWorkOnSingleContainer()
+    {
+      using (
+        var container =
+          Fd.UseContainer()
+            .UseImage("postgres:9.6-alpine")
+            .ExposePort(40001, 5432)
+            .WithEnvironment("POSTGRES_PASSWORD=mysecretpassword")
+            .Build()
+            .Start())
+      {
+        AreEqual(ServiceRunningState.Running, container.State);
+
+        container.Pause();
+        AreEqual(ServiceRunningState.Paused, container.State);
+        var config = container.GetConfiguration(true);
+        AreEqual(ServiceRunningState.Paused, config.State.ToServiceState());
+
+        container.Start();
+        AreEqual(ServiceRunningState.Running, container.State);
+        config = container.GetConfiguration(true);
+        AreEqual(ServiceRunningState.Running, config.State.ToServiceState());
+      }
+    }
+
+    [TestMethod]
     public void ExplicitPortMappingShouldWork()
     {
       using (
@@ -186,10 +218,42 @@ namespace Ductus.FluentDocker.Tests.FluentApiTests
     }
 
     [TestMethod]
+    public void Issue111_WaitForProcess()
+    {
+      using (var scope = Fd.EngineScope(EngineScopeType.Windows))
+      {
+        using (
+          var container =
+            Fd.DefineImage("mariotoffia/issue111").ReuseIfAlreadyExists()
+              .From("mcr.microsoft.com/windows/servercore:ltsc2019")
+              .Shell("powershell", "-Command", "$ErrorActionPreference = 'Stop';")
+              .Run("Set-ExecutionPolicy Bypass -Scope Process -Force; " +
+                   "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12")
+              .Run("Invoke-WebRequest -OutFile install.ps1 https://www.chocolatey.org/install.ps1; " +
+                   "./install.ps1")
+              .Run("choco feature enable --name=allowGlobalConfirmation")
+              .Run("choco install python3")
+              .Copy("Resources/Issue/111/server.py", "C:/")
+              .ExposePorts(8000)
+              .Command("python", "server.py")
+              .Builder().UseContainer().UseImage("mariotoffia/issue111")
+              .WaitForProcess("python.exe", (long)TimeSpan.FromSeconds(30).TotalMilliseconds)
+              .Builder()
+              .Build()
+              .Start())
+        {
+          var c = container.Containers.First();
+          var config = c.GetConfiguration(true);
+          AreEqual(ServiceRunningState.Running, config.State.ToServiceState());
+        }
+      }
+    }
+
+    [TestMethod]
     public async Task VolumeMappingShallWork()
     {
       const string html = "<html><head>Hello World</head><body><h1>Hello world</h1></body></html>";
-      var hostPath = (TemplateString) @"${TEMP}/fluentdockertest/${RND}";
+      var hostPath = (TemplateString)@"${TEMP}/fluentdockertest/${RND}";
       Directory.CreateDirectory(hostPath);
 
       using (
@@ -213,7 +277,8 @@ namespace Ductus.FluentDocker.Tests.FluentApiTests
         }
         finally
         {
-          if (Directory.Exists(hostPath)) Directory.Delete(hostPath, true);
+          if (Directory.Exists(hostPath))
+            Directory.Delete(hostPath, true);
         }
       }
     }
@@ -222,7 +287,7 @@ namespace Ductus.FluentDocker.Tests.FluentApiTests
     public async Task VolumeMappingWithSpacesShallWork()
     {
       const string html = "<html><head>Hello World</head><body><h1>Hello world</h1></body></html>";
-      var hostPath = (TemplateString) @"${TEMP}/fluentdockertest/with space in path/${RND}";
+      var hostPath = (TemplateString)@"${TEMP}/fluentdockertest/with space in path/${RND}";
       Directory.CreateDirectory(hostPath);
 
       using (
@@ -246,7 +311,8 @@ namespace Ductus.FluentDocker.Tests.FluentApiTests
         }
         finally
         {
-          if (Directory.Exists(hostPath)) Directory.Delete(hostPath, true);
+          if (Directory.Exists(hostPath))
+            Directory.Delete(hostPath, true);
         }
       }
     }
@@ -254,7 +320,7 @@ namespace Ductus.FluentDocker.Tests.FluentApiTests
     [TestMethod]
     public void CopyFromRunningContainerShallWork()
     {
-      var fullPath = (TemplateString) @"${TEMP}/fluentdockertest/${RND}";
+      var fullPath = (TemplateString)@"${TEMP}/fluentdockertest/${RND}";
       Directory.CreateDirectory(fullPath);
       try
       {
@@ -272,14 +338,15 @@ namespace Ductus.FluentDocker.Tests.FluentApiTests
       }
       finally
       {
-        if (Directory.Exists(fullPath)) Directory.Delete(fullPath, true);
+        if (Directory.Exists(fullPath))
+          Directory.Delete(fullPath, true);
       }
     }
 
     [TestMethod]
     public void CopyBeforeDisposeContainerShallWork()
     {
-      var fullPath = (TemplateString) @"${TEMP}/fluentdockertest/${RND}";
+      var fullPath = (TemplateString)@"${TEMP}/fluentdockertest/${RND}";
       Directory.CreateDirectory(fullPath);
       try
       {
@@ -298,14 +365,15 @@ namespace Ductus.FluentDocker.Tests.FluentApiTests
       }
       finally
       {
-        if (Directory.Exists(fullPath)) Directory.Delete(fullPath, true);
+        if (Directory.Exists(fullPath))
+          Directory.Delete(fullPath, true);
       }
     }
 
     [TestMethod]
     public void ExportToTarFileWhenDisposeShallWork()
     {
-      var fullPath = (TemplateString) @"${TEMP}/fluentdockertest/${RND}/export.tar";
+      var fullPath = (TemplateString)@"${TEMP}/fluentdockertest/${RND}/export.tar";
       // ReSharper disable once AssignNullToNotNullAttribute
       Directory.CreateDirectory(Path.GetDirectoryName(fullPath));
       try
@@ -324,14 +392,15 @@ namespace Ductus.FluentDocker.Tests.FluentApiTests
       }
       finally
       {
-        if (File.Exists(fullPath)) Directory.Delete(Path.GetDirectoryName(fullPath), true);
+        if (File.Exists(fullPath))
+          Directory.Delete(Path.GetDirectoryName(fullPath), true);
       }
     }
 
     [TestMethod]
     public void ExportExploadedWhenDisposeShallWork()
     {
-      var fullPath = (TemplateString) @"${TEMP}/fluentdockertest/${RND}";
+      var fullPath = (TemplateString)@"${TEMP}/fluentdockertest/${RND}";
       Directory.CreateDirectory(fullPath);
       try
       {
@@ -352,14 +421,15 @@ namespace Ductus.FluentDocker.Tests.FluentApiTests
       }
       finally
       {
-        if (Directory.Exists(fullPath)) Directory.Delete(fullPath, true);
+        if (Directory.Exists(fullPath))
+          Directory.Delete(fullPath, true);
       }
     }
 
     [TestMethod]
     public void ExportWithConditionDisposeShallWork()
     {
-      var fullPath = (TemplateString) @"${TEMP}/fluentdockertest/${RND}/export.tar";
+      var fullPath = (TemplateString)@"${TEMP}/fluentdockertest/${RND}/export.tar";
       // ReSharper disable once AssignNullToNotNullAttribute
       Directory.CreateDirectory(Path.GetDirectoryName(fullPath));
 
@@ -384,14 +454,15 @@ namespace Ductus.FluentDocker.Tests.FluentApiTests
       }
       finally
       {
-        if (File.Exists(fullPath)) Directory.Delete(Path.GetDirectoryName(fullPath), true);
+        if (File.Exists(fullPath))
+          Directory.Delete(Path.GetDirectoryName(fullPath), true);
       }
     }
 
     [TestMethod]
     public void CopyToRunningContainerShallWork()
     {
-      var fullPath = (TemplateString) @"${TEMP}/fluentdockertest/${RND}/hello.html";
+      var fullPath = (TemplateString)@"${TEMP}/fluentdockertest/${RND}/hello.html";
 
       // ReSharper disable once AssignNullToNotNullAttribute
       Directory.CreateDirectory(Path.GetDirectoryName(fullPath));
@@ -419,7 +490,8 @@ namespace Ductus.FluentDocker.Tests.FluentApiTests
       }
       finally
       {
-        if (Directory.Exists(fullPath)) Directory.Delete(fullPath, true);
+        if (Directory.Exists(fullPath))
+          Directory.Delete(fullPath, true);
       }
     }
 
@@ -440,14 +512,14 @@ namespace Ductus.FluentDocker.Tests.FluentApiTests
       {
       }
     }
-    
+
     [TestMethod]
     public void PullContainerBeforeRunningShallWork()
     {
       using (
         var container =
           Fd.UseContainer()
-            .UseImage("postgres:latest", force: true)
+            .UseImage("postgres:latest", true)
             .ExposePort(5432)
             .WithEnvironment("POSTGRES_PASSWORD=mysecretpassword")
             .WaitForProcess("postgres", 30000 /*30s*/)
@@ -458,14 +530,14 @@ namespace Ductus.FluentDocker.Tests.FluentApiTests
         AreEqual(ServiceRunningState.Running, config.State.ToServiceState());
       }
     }
-    
+
     [TestMethod]
     public void ContainerHealthCheckShallWork()
     {
       using (
         var container =
           Fd.UseContainer()
-            .UseImage("postgres:latest", force: true)
+            .UseImage("postgres:latest", true)
             .HealthCheck("exit")
             .WithEnvironment("POSTGRES_PASSWORD=mysecretpassword")
             .Build()
@@ -475,14 +547,15 @@ namespace Ductus.FluentDocker.Tests.FluentApiTests
         AreEqual(HealthState.Starting, config.State.Health.Status);
       }
     }
+
     [TestMethod]
     public void ContainerWithUlimitsShallWork()
     {
       using (
         var container =
           Fd.UseContainer()
-            .UseImage("postgres:latest", force: true)
-            .UseUlimit(Ulimit.NoFile,2048, 2048)
+            .UseImage("postgres:latest", true)
+            .UseUlimit(Ulimit.NoFile, 2048, 2048)
             .WithEnvironment("POSTGRES_PASSWORD=mysecretpassword")
             .Build()
             .Start())

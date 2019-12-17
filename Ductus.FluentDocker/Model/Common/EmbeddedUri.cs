@@ -1,10 +1,10 @@
-﻿using System;
+using System;
 
 namespace Ductus.FluentDocker.Model.Common
 {
   public sealed class EmbeddedUri : Uri
   {
-    public static string Prefix = "emb";
+    internal static string Prefix = "emb";
 
     /// <summary>
     ///   Uri to use when manageing embedded resources.

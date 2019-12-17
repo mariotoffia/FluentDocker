@@ -16,7 +16,7 @@ namespace Ductus.FluentDocker.Extensions
           {
             if (!reader.Entry.IsDirectory)
             {
-              reader.WriteEntryToDirectory(destPath, new ExtractionOptions { ExtractFullPath = true, Overwrite = true});
+              reader.WriteEntryToDirectory(destPath, new ExtractionOptions { ExtractFullPath = true, Overwrite = true });
             }
           }
         }

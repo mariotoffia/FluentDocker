@@ -27,7 +27,7 @@ namespace Ductus.FluentDocker.Tests.CommandTests
       ComposeByBuildImageAddNgixAsLoadBalancerTwoNodesAsHtmlServeAndRedisAsDbBackendShouldWorkAsCluster()
     {
       // Extract compose file and it's dependencies to a temp folder
-      var fullPath = (TemplateString) @"${TEMP}\fluentdockertest\${RND}";
+      var fullPath = (TemplateString)@"${TEMP}\fluentdockertest\${RND}";
       var file = Path.Combine(fullPath, "docker-compose.yml");
       typeof(NsResolver).ResourceExtract(fullPath);
 
@@ -78,13 +78,13 @@ namespace Ductus.FluentDocker.Tests.CommandTests
     //[Ignore]
     public void Issue79_DockerComposeOnDockerMachineShallWork()
     {
-      var fullPath = (TemplateString) @"${TEMP}\fluentdockertest\${RND}";
+      var fullPath = (TemplateString)@"${TEMP}\fluentdockertest\${RND}";
       var file = Path.Combine(fullPath, "docker-compose.yml");
       typeof(NsResolver).ResourceExtract(fullPath);
 
       var hostService = new DockerHostService("wifi-test");
       var composeResponse = hostService.Host
-        .ComposeUp(composeFile: file, certificates: hostService.Certificates);      
+        .ComposeUp(composeFile: file, certificates: hostService.Certificates);
     }
   }
 }

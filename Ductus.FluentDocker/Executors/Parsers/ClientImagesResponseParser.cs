@@ -12,7 +12,7 @@ namespace Ductus.FluentDocker.Executors.Parsers
     {
       if (response.ExitCode != 0)
       {
-        Response = response.ToErrorResponse((IList<DockerImageRowResponse>) new List<DockerImageRowResponse>());
+        Response = response.ToErrorResponse((IList<DockerImageRowResponse>)new List<DockerImageRowResponse>());
         return this;
       }
 
@@ -29,11 +29,11 @@ namespace Ductus.FluentDocker.Executors.Parsers
         {
           Id = items[0].ToPlainId(),
           Name = items[1],
-          Tags = new[] {items[2]}
+          Tags = new[] { items[2] }
         });
       }
 
-      Response = response.ToResponse(true,string.Empty,(IList<DockerImageRowResponse>)list);
+      Response = response.ToResponse(true, string.Empty, (IList<DockerImageRowResponse>)list);
       return this;
     }
   }

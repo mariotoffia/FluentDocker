@@ -1,13 +1,40 @@
 using System;
 using System.Collections.Generic;
+using System.Reflection;
+using System.Text;
 using Ductus.FluentDocker.Builders;
 using Ductus.FluentDocker.Common;
+using Ductus.FluentDocker.Model.Common;
+using Ductus.FluentDocker.Model.Containers;
 using Ductus.FluentDocker.Services;
+using Ductus.FluentDocker.Services.Impl;
 
 namespace Ductus.FluentDocker
 {
   public static class Fd
   {
+    /// <summary>
+    /// Gets the version information for FluentDocker.
+    /// </summary>
+    /// <returns>A set of version information</returns>
+    public static string Version()
+    {
+      var assembly = typeof(Fd).GetTypeInfo().Assembly;
+      var assemblyName = assembly.GetName().Name;
+
+      var gitVersionInformationType = assembly.GetType(assemblyName + ".GitVersionInformation");
+      if (null == gitVersionInformationType)
+        gitVersionInformationType = assembly.GetType("GitVersionInformation");
+
+      var fields = gitVersionInformationType.GetFields();
+
+      var sb = new StringBuilder();
+      foreach (var field in fields)
+        sb.AppendLine($"{field.Name}: {field.GetValue(null)}");
+
+      return sb.ToString();
+    }
+
     public static void Run<T>(this IBuilder builder, Action<T> run, string name = null) where T : IService
     {
       try
@@ -15,16 +42,17 @@ namespace Ductus.FluentDocker
         using (var service = builder.Build())
         {
           service.Start();
-          run.Invoke((T) service);
+          run.Invoke((T)service);
         }
       }
       catch
       {
-        if (null != name) Logger.Log($"Failed to run service {name}");
+        if (null != name)
+          Logger.Log($"Failed to run service {name}");
         throw;
-      }      
+      }
     }
-    
+
     public static void Run<T>(Func<Builder, IBuilder> builder, Action<T> run, string name = null) where T : IService
     {
       try
@@ -32,21 +60,22 @@ namespace Ductus.FluentDocker
         using (var service = builder.Invoke(Build()).Build())
         {
           service.Start();
-          run.Invoke((T) service);
+          run.Invoke((T)service);
         }
       }
       catch
       {
-        if (null != name) Logger.Log($"Failed to run service {name}");
+        if (null != name)
+          Logger.Log($"Failed to run service {name}");
         throw;
-      }      
+      }
     }
 
     public static void Container(this IBuilder builder, Action<IContainerService> run, string name = null)
     {
       Run(builder, run, name);
     }
-    
+
     public static void Container(Func<Builder, IBuilder> builder, Action<IContainerService> run, string name = null)
     {
       Run(builder, run, name);
@@ -64,8 +93,9 @@ namespace Ductus.FluentDocker
 
     internal static void DisposeOnException<T>(Action<T> action, T service, string name = null) where T : IService
     {
-      if (null == name) name = "n/a";
-      
+      if (null == name)
+        name = "n/a";
+
       try
       {
         action.Invoke(service);
@@ -93,10 +123,29 @@ namespace Ductus.FluentDocker
     {
       return new Builder().UseHost();
     }
-    
+
     public static ImageBuilder DefineImage(string image)
     {
-      return new Builder().DefineImage(image);      
+      return new Builder().DefineImage(image);
+    }
+
+    /// <summary>
+    /// Creates a in-memory Dockerfile builder.
+    /// </summary>
+    /// <returns>A builder to build a Dockerfile</returns>
+    /// <remarks>
+    ///   This builder won't build an Image, use <see cref="DefineImage(string)"/>
+    ///   for that purpose. This is a builder that can produce a string representing
+    ///   a docker file.
+    /// </remarks>
+    public static FileBuilder Dockerfile()
+    {
+      return new FileBuilder();
+    }
+
+    public static IEngineScope EngineScope(EngineScopeType scope, DockerUri host = null, ICertificatePaths certificates = null)
+    {
+      return new EngineScope(host, scope, certificates);
     }
 
     public static NetworkBuilder UseNetwork(string name = null)
@@ -107,14 +156,14 @@ namespace Ductus.FluentDocker
     public static VolumeBuilder UseVolume(string name = null)
     {
       return new Builder().UseVolume(name);
-    }   
+    }
     #endregion
-    
+
     #region Host Support
 
     public static Hosts Hosts()
     {
-      return new Hosts();      
+      return new Hosts();
     }
 
     public static IList<IHostService> Discover(bool preferNative = false)

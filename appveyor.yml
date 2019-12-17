@@ -1,8 +1,8 @@
-#version: 0.0.0.{build}
-version: 2.7.1
-skip_non_tags: true
-image: Visual Studio 2017
+skip_non_tags: false
+test: off
+image: Visual Studio 2019
 configuration: Release
+
 dotnet_csproj:
   patch: true
   file: '**\*.csproj'
@@ -11,9 +11,39 @@ dotnet_csproj:
   assembly_version: '{version}'
   file_version: '{version}'
   informational_version: '{version}'
-build:
-  publish_nuget: false
-  verbosity: minimal
+
+install:
+  - ps: dotnet tool install -g GitVersion.Tool
+  - ps: dotnet tool install -g dotnet-format
+  - ps: dotnet tool install -g dotnet-sonarscanner -v:m
+
 before_build:
   - nuget restore
-test: off
+  - ps: dotnet format --check --dry-run
+  - ps: dotnet gitversion /l console /output buildserver
+  - ps: dotnet sonarscanner begin /d:sonar.host.url=https://sonarcloud.io /d:sonar.login=e220dd372506f00fe34923f011ea45f8568e9bcc /k:mariotoffia_FluentDocker /o:mariotoffia /v:"$env:APPVEYOR_BUILD_NUMBER" /d:sonar.cs.opencover.reportsPaths="./output/coverage.opencover.xml" /d:sonar.coverage.exclusions="**Tests*.cs"
+  - ps: $env:good_to_deploy="true"
+  - ps: if (Test-Path env:APPVEYOR_PULL_REQUEST_HEAD_REPO_BRANCH) {echo "Not going to deploy because pull request."}
+  - ps: if (Test-Path env:APPVEYOR_PULL_REQUEST_HEAD_REPO_BRANCH) {$env:good_to_deploy="false"}
+  - echo good_to_deploy=%good_to_deploy%
+
+build:
+  publish_nuget: true
+  verbosity: minimal
+
+after_build:
+  - ps: dotnet sonarscanner end /d:sonar.login=e220dd372506f00fe34923f011ea45f8568e9bcc
+
+artifacts:
+  - path: '.\**\Release\*.nupkg'
+    name: NuGet Packages
+  - path: '.\**\Release\*.snupkg'
+    name: NuGet Symbol Packages
+
+deploy:
+  - provider: NuGet
+    on:
+      branch: master
+      good_to_deploy: true
+    api_key:
+      secure: 7nuJgcCxoCbPZRW7ZeOUNFC3myB1AsCJN4O2UOT3D+TRKOLyUG0b6isOeW64FOa+

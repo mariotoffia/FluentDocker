@@ -34,8 +34,8 @@ namespace Ductus.FluentDocker.Services.Extensions
     {
       using (var s = new Socket(SocketType.Stream, ProtocolType.Tcp))
       {
-        long totalWait = 0;
-        while (totalWait < millisTimeout)
+        var waitMillis = (DateTime.Now.Ticks / TimeSpan.TicksPerMillisecond) + millisTimeout;
+        while (true)
           try
           {
             s.Connect(endpoint);
@@ -44,8 +44,9 @@ namespace Ductus.FluentDocker.Services.Extensions
           catch (Exception ex)
           {
             Thread.Sleep(1000);
-            totalWait += 1000;
-            if (totalWait >= millisTimeout)
+            var now = DateTime.Now.Ticks / TimeSpan.TicksPerMillisecond;
+
+            if (now >= waitMillis)
               throw new FluentDockerException(
                 $"Timeout waiting for service at = {endpoint.Address} port = {endpoint.Port}", ex);
           }
@@ -96,12 +97,13 @@ namespace Ductus.FluentDocker.Services.Extensions
           wait = request.Code != HttpStatusCode.OK ? wait - time : -1;
         }
 
-        if (wait > 0) Thread.Sleep((int) wait);
+        if (wait > 0)
+          Thread.Sleep((int)wait);
 
       } while (wait > 0);
     }
 
-    private static readonly DateTime Jan1St1970 = new DateTime (1970, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+    private static readonly DateTime Jan1St1970 = new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc);
     /// <summary>Get extra long current timestamp</summary>
     private static long Millis => (long)((DateTime.UtcNow - Jan1St1970).TotalMilliseconds);
 
@@ -116,13 +118,17 @@ namespace Ductus.FluentDocker.Services.Extensions
     public static IPEndPoint ToHostPort(this Dictionary<string, HostIpEndpoint[]> ports, string portAndProto,
       Uri dockerUri = null)
     {
-      if (null == ports || string.IsNullOrEmpty(portAndProto)) return null;
+      if (null == ports || string.IsNullOrEmpty(portAndProto))
+        return null;
 
-      if (!ports.TryGetValue(portAndProto, out var endpoints)) return null;
+      if (!ports.TryGetValue(portAndProto, out var endpoints))
+        return null;
 
-      if (null == endpoints || endpoints.Length == 0) return null;
+      if (null == endpoints || endpoints.Length == 0)
+        return null;
 
-      if (CommandExtensions.IsNative()) return endpoints[0];
+      if (CommandExtensions.IsNative())
+        return endpoints[0];
 
       if (CommandExtensions.IsEmulatedNative())
         return CommandExtensions.IsDockerDnsAvailable()

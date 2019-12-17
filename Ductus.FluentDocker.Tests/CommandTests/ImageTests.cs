@@ -21,7 +21,7 @@ namespace Ductus.FluentDocker.Tests.CommandTests
     {
       var result = DockerHost.Host.Pull("postgres:10-alpine");
       Assert.IsTrue(result.Success);
-      
+
       var config = DockerHost.GetImages().First(x => x.Name == "postgres").GetConfiguration(true);
       Assert.IsNotNull(config);
     }
@@ -32,14 +32,14 @@ namespace Ductus.FluentDocker.Tests.CommandTests
       using (var container = DockerHost.Create("postgres:9.6-alpine", false,
         new ContainerCreateParams
         {
-          Environment = new[] {"POSTGRES_PASSWORD=mysecretpassword"}
+          Environment = new[] { "POSTGRES_PASSWORD=mysecretpassword" }
         }))
       {
         var config = container.GetConfiguration();
         var image = container.Image.GetConfiguration();
 
         Assert.AreEqual(config.Image, image.Id);
-      }      
+      }
     }
   }
 }

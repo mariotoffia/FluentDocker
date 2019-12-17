@@ -22,7 +22,7 @@ namespace Ductus.FluentDocker.Commands
     public static CommandResponse<IList<string>> ServiceCreate(this DockerUri host,
       Orchestrator orchestrator = Orchestrator.All,
       string kubeConfigFile = null,
-      ICertificatePaths certificates = null, params string []stacks)
+      ICertificatePaths certificates = null, params string[] stacks)
     {
       var args = $"{host.RenderBaseArgs(certificates)}";
       var opts = $"--orchestrator={orchestrator}"; // TODO:

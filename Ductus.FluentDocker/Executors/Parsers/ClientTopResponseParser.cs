@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using Ductus.FluentDocker.Model.Containers;
 
 namespace Ductus.FluentDocker.Executors.Parsers
@@ -12,7 +13,7 @@ namespace Ductus.FluentDocker.Executors.Parsers
       var rows = response.StdOutAsArry;
       if (response.ExitCode != 0 || 0 == rows.Length)
       {
-        Response = response.ToErrorResponse(new Processes {Columns = new List<string>(), Rows = new List<ProcessRow>()});
+        Response = response.ToErrorResponse(new Processes { Columns = new List<string>(), Rows = new List<ProcessRow>() });
         return this;
       }
 
@@ -20,11 +21,11 @@ namespace Ductus.FluentDocker.Executors.Parsers
       if (0 == columns.Count)
       {
         Response = response.ToResponse(false, "No Process Columns Found",
-          new Processes {Columns = new List<string>(), Rows = new List<ProcessRow>()});
+          new Processes { Columns = new List<string>(), Rows = new List<ProcessRow>() });
         return this;
       }
 
-      var processes = new Processes {Columns = ColumnSplit(columns, rows[0]), Rows = new List<ProcessRow>()};
+      var processes = new Processes { Columns = ColumnSplit(columns, rows[0]), Rows = new List<ProcessRow>() };
       for (var i = 1; i < rows.Length; i++)
       {
         var row = ColumnSplit(columns, rows[i]);
@@ -75,6 +76,13 @@ namespace Ductus.FluentDocker.Executors.Parsers
         }
 
         inText = false;
+      }
+
+      // TODO: Hack to handle windows container - when other lang this will break!
+      if (list.Count == 6 && row.IndexOf("Private Working Set", StringComparison.Ordinal) != -1)
+      {
+        list.RemoveAt(4);
+        list.RemoveAt(4);
       }
 
       return list;

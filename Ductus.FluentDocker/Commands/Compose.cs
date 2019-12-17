@@ -27,16 +27,21 @@ namespace Ductus.FluentDocker.Commands
           if (!string.IsNullOrEmpty(cf))
             args += $" -f \"{cf}\"";
 
-      if (!string.IsNullOrEmpty(altProjectName)) args += $" -p {altProjectName}";
+      if (!string.IsNullOrEmpty(altProjectName))
+        args += $" -p {altProjectName}";
 
       var options = string.Empty;
-      if (forceRm) options += " --force-rm";
+      if (forceRm)
+        options += " --force-rm";
 
-      if (alwaysPull) options += " --pull";
+      if (alwaysPull)
+        options += " --pull";
 
-      if (forceRm) options += " --force-rm";
+      if (forceRm)
+        options += " --force-rm";
 
-      if (null != services && 0 != services.Length) options += " " + string.Join(" ", services);
+      if (null != services && 0 != services.Length)
+        options += " " + string.Join(" ", services);
 
       return
         new ProcessExecutor<StringListResponseParser, IList<string>>(
@@ -59,18 +64,24 @@ namespace Ductus.FluentDocker.Commands
           if (!string.IsNullOrEmpty(cf))
             args += $" -f \"{cf}\"";
 
-      if (!string.IsNullOrEmpty(altProjectName)) args += $" -p {altProjectName}";
+      if (!string.IsNullOrEmpty(altProjectName))
+        args += $" -p {altProjectName}";
 
       var options = string.Empty;
-      if (forceRecreate) options += " --force-recreate";
+      if (forceRecreate)
+        options += " --force-recreate";
 
-      if (noRecreate) options += " --no-recreate";
+      if (noRecreate)
+        options += " --no-recreate";
 
-      if (dontBuild) options += " --no-build";
+      if (dontBuild)
+        options += " --no-build";
 
-      if (buildBeforeCreate) options += " --build";
+      if (buildBeforeCreate)
+        options += " --build";
 
-      if (null != services && 0 != services.Length) options += " " + string.Join(" ", services);
+      if (null != services && 0 != services.Length)
+        options += " " + string.Join(" ", services);
 
       return
         new ProcessExecutor<StringListResponseParser, IList<string>>(
@@ -89,10 +100,12 @@ namespace Ductus.FluentDocker.Commands
           if (!string.IsNullOrEmpty(cf))
             args += $" -f \"{cf}\"";
 
-      if (!string.IsNullOrEmpty(altProjectName)) args += $" -p {altProjectName}";
+      if (!string.IsNullOrEmpty(altProjectName))
+        args += $" -p {altProjectName}";
 
       var options = string.Empty;
-      if (null != services && 0 != services.Length) options += " " + string.Join(" ", services);
+      if (null != services && 0 != services.Length)
+        options += " " + string.Join(" ", services);
 
       return
         new ProcessExecutor<StringListResponseParser, IList<string>>(
@@ -112,12 +125,15 @@ namespace Ductus.FluentDocker.Commands
           if (!string.IsNullOrEmpty(cf))
             args += $" -f \"{cf}\"";
 
-      if (!string.IsNullOrEmpty(altProjectName)) args += $" -p {altProjectName}";
+      if (!string.IsNullOrEmpty(altProjectName))
+        args += $" -p {altProjectName}";
 
       var options = string.Empty;
-      if (UnixSignal.SIGKILL != signal) options += $" -s {signal}";
+      if (UnixSignal.SIGKILL != signal)
+        options += $" -s {signal}";
 
-      if (null != services && 0 != services.Length) options += " " + string.Join(" ", services);
+      if (null != services && 0 != services.Length)
+        options += " " + string.Join(" ", services);
 
       return
         new ProcessExecutor<StringListResponseParser, IList<string>>(
@@ -137,12 +153,15 @@ namespace Ductus.FluentDocker.Commands
           if (!string.IsNullOrEmpty(cf))
             args += $" -f \"{cf}\"";
 
-      if (!string.IsNullOrEmpty(altProjectName)) args += $" -p {altProjectName}";
+      if (!string.IsNullOrEmpty(altProjectName))
+        args += $" -p {altProjectName}";
 
       var options = string.Empty;
-      if (null != timeout) options += $" -t {Math.Round(timeout.Value.TotalSeconds, 0)}";
+      if (null != timeout)
+        options += $" -t {Math.Round(timeout.Value.TotalSeconds, 0)}";
 
-      if (null != services && 0 != services.Length) options += " " + string.Join(" ", services);
+      if (null != services && 0 != services.Length)
+        options += " " + string.Join(" ", services);
 
       return
         new ProcessExecutor<StringListResponseParser, IList<string>>(
@@ -161,10 +180,12 @@ namespace Ductus.FluentDocker.Commands
           if (!string.IsNullOrEmpty(cf))
             args += $" -f \"{cf}\"";
 
-      if (!string.IsNullOrEmpty(altProjectName)) args += $" -p {altProjectName}";
+      if (!string.IsNullOrEmpty(altProjectName))
+        args += $" -p {altProjectName}";
 
       var options = string.Empty;
-      if (null != services && 0 != services.Length) options += " " + string.Join(" ", services);
+      if (null != services && 0 != services.Length)
+        options += " " + string.Join(" ", services);
 
       return
         new ProcessExecutor<StringListResponseParser, IList<string>>(
@@ -183,10 +204,12 @@ namespace Ductus.FluentDocker.Commands
           if (!string.IsNullOrEmpty(cf))
             args += $" -f \"{cf}\"";
 
-      if (!string.IsNullOrEmpty(altProjectName)) args += $" -p {altProjectName}";
+      if (!string.IsNullOrEmpty(altProjectName))
+        args += $" -p {altProjectName}";
 
       var options = string.Empty;
-      if (null != services && 0 != services.Length) options += " " + string.Join(" ", services);
+      if (null != services && 0 != services.Length)
+        options += " " + string.Join(" ", services);
 
       return
         new ProcessExecutor<StringListResponseParser, IList<string>>(
@@ -207,13 +230,16 @@ namespace Ductus.FluentDocker.Commands
           if (!string.IsNullOrEmpty(cf))
             args += $" -f \"{cf}\"";
 
-      if (!string.IsNullOrEmpty(altProjectName)) args += $" -p {altProjectName}";
+      if (!string.IsNullOrEmpty(altProjectName))
+        args += $" -p {altProjectName}";
 
       var options = string.Empty;
-      if (null != shutdownTimeout) options = $" -t {Math.Round(shutdownTimeout.Value.TotalSeconds, 0)}";
+      if (null != shutdownTimeout)
+        options = $" -t {Math.Round(shutdownTimeout.Value.TotalSeconds, 0)}";
 
       var services = string.Empty;
-      if (null != serviceEqNumber && 0 != serviceEqNumber.Length) services += " " + string.Join(" ", serviceEqNumber);
+      if (null != serviceEqNumber && 0 != serviceEqNumber.Length)
+        services += " " + string.Join(" ", serviceEqNumber);
 
       return
         new ProcessExecutor<StringListResponseParser, IList<string>>(
@@ -232,10 +258,12 @@ namespace Ductus.FluentDocker.Commands
         foreach (var cf in composeFile)
           if (!string.IsNullOrEmpty(cf))
             args += $" -f \"{cf}\"";
-      if (!string.IsNullOrEmpty(altProjectName)) args += $" -p {altProjectName}";
+      if (!string.IsNullOrEmpty(altProjectName))
+        args += $" -p {altProjectName}";
 
       var options = string.Empty;
-      if (shortVersion) options = "--short";
+      if (shortVersion)
+        options = "--short";
 
       return
         new ProcessExecutor<StringListResponseParser, IList<string>>(
@@ -255,13 +283,16 @@ namespace Ductus.FluentDocker.Commands
           if (!string.IsNullOrEmpty(cf))
             args += $" -f \"{cf}\"";
 
-      if (!string.IsNullOrEmpty(altProjectName)) args += $" -p {altProjectName}";
+      if (!string.IsNullOrEmpty(altProjectName))
+        args += $" -p {altProjectName}";
 
       var ids = string.Empty;
-      if (null != containerId && 0 != containerId.Length) ids += " " + string.Join(" ", containerId);
+      if (null != containerId && 0 != containerId.Length)
+        ids += " " + string.Join(" ", containerId);
 
       var options = string.Empty;
-      if (null != timeout) options = $" -t {Math.Round(timeout.Value.TotalSeconds, 0)}";
+      if (null != timeout)
+        options = $" -t {Math.Round(timeout.Value.TotalSeconds, 0)}";
 
       return
         new ProcessExecutor<StringListResponseParser, IList<string>>(
@@ -281,9 +312,11 @@ namespace Ductus.FluentDocker.Commands
           if (!string.IsNullOrEmpty(cf))
             args += $" -f \"{cf}\"";
 
-      if (!string.IsNullOrEmpty(altProjectName)) args += $" -p {altProjectName}";
+      if (!string.IsNullOrEmpty(altProjectName))
+        args += $" -p {altProjectName}";
 
-      if (string.IsNullOrEmpty(privatePortAndProto)) privatePortAndProto = string.Empty;
+      if (string.IsNullOrEmpty(privatePortAndProto))
+        privatePortAndProto = string.Empty;
 
       return
         new ProcessExecutor<StringListResponseParser, IList<string>>(
@@ -303,12 +336,15 @@ namespace Ductus.FluentDocker.Commands
           if (!string.IsNullOrEmpty(cf))
             args += $" -f \"{cf}\"";
 
-      if (!string.IsNullOrEmpty(altProjectName)) args += $" -p {altProjectName}";
+      if (!string.IsNullOrEmpty(altProjectName))
+        args += $" -p {altProjectName}";
 
       var options = string.Empty;
-      if (quiet) options += " -q";
+      if (quiet)
+        options += " -q";
 
-      if (outputServices) options += " --services";
+      if (outputServices)
+        options += " --services";
 
       return
         new ProcessExecutor<StringListResponseParser, IList<string>>(
@@ -329,12 +365,15 @@ namespace Ductus.FluentDocker.Commands
           if (!string.IsNullOrEmpty(cf))
             args += $" -f \"{cf}\"";
 
-      if (!string.IsNullOrEmpty(altProjectName)) args += $" -p {altProjectName}";
+      if (!string.IsNullOrEmpty(altProjectName))
+        args += $" -p {altProjectName}";
 
       var options = string.Empty;
-      if (removeOrphanContainers) options += " --remove-orphans";
+      if (removeOrphanContainers)
+        options += " --remove-orphans";
 
-      if (removeVolumes) options += " -v";
+      if (removeVolumes)
+        options += " -v";
 
       if (removeImagesFrom != ImageRemovalOption.None)
         options += removeImagesFrom == ImageRemovalOption.Local ? " --rmi local" : " --rmi all";
@@ -353,8 +392,7 @@ namespace Ductus.FluentDocker.Commands
       bool useColor = false,
       bool noStart = false,
       string[] services = null /*all*/,
-      ICertificatePaths certificates = null,
-      params string[] composeFile)
+      ICertificatePaths certificates = null, params string[] composeFile)
     {
       if (forceRecreate && noRecreate)
       {
@@ -370,25 +408,34 @@ namespace Ductus.FluentDocker.Commands
           if (!string.IsNullOrEmpty(cf))
             args += $" -f \"{cf}\"";
 
-      if (!string.IsNullOrEmpty(altProjectName)) args += $" -p {altProjectName}";
-      
-      var options = noStart ? "--no-start": "--detach"; 
+      if (!string.IsNullOrEmpty(altProjectName))
+        args += $" -p {altProjectName}";
 
-      if (forceRecreate) options += " --force-recreate";
+      var options = noStart ? "--no-start": "--detach";
 
-      if (noRecreate) options += " --no-recreate";
+      if (forceRecreate)
+        options += " --force-recreate";
 
-      if (dontBuild) options += " --no-build";
+      if (noRecreate)
+        options += " --no-recreate";
 
-      if (buildBeforeCreate) options += " --build";
+      if (dontBuild)
+        options += " --no-build";
 
-      if (!useColor) options += " --no-color";
+      if (buildBeforeCreate)
+        options += " --build";
 
-      if (null != timeout) options += $" -t {Math.Round(timeout.Value.TotalSeconds, 0)}";
+      if (!useColor)
+        options += " --no-color";
 
-      if (removeOphans) options += " --remove-orphans";
+      if (null != timeout)
+        options += $" -t {Math.Round(timeout.Value.TotalSeconds, 0)}";
 
-      if (null != services && 0 != services.Length) options += " " + string.Join(" ", services);
+      if (removeOphans)
+        options += " --remove-orphans";
+
+      if (null != services && 0 != services.Length)
+        options += " " + string.Join(" ", services);
 
       return
         new ProcessExecutor<StringListResponseParser, IList<string>>(
@@ -398,7 +445,7 @@ namespace Ductus.FluentDocker.Commands
 
     public static CommandResponse<IList<string>> ComposeRm(this DockerUri host, string altProjectName = null,
       bool force = false,
-      bool removeVolumes = false, bool all = false,
+      bool removeVolumes = false,
       string[] services = null /*all*/, ICertificatePaths certificates = null, params string[] composeFile)
     {
       var cwd = WorkingDirectory(composeFile);
@@ -409,16 +456,20 @@ namespace Ductus.FluentDocker.Commands
           if (!string.IsNullOrEmpty(cf))
             args += $" -f \"{cf}\"";
 
-      if (!string.IsNullOrEmpty(altProjectName)) args += $" -p {altProjectName}";
+      if (!string.IsNullOrEmpty(altProjectName))
+        args += $" -p {altProjectName}";
 
       var options = string.Empty;
-      if (force) options += " -f";
+      options += " -f"; // Don't ask to confirm removal
 
-      if (removeVolumes) options += " -v";
+      if (force)
+        options += " -s";
 
-      if (all) options += " -a";
+      if (removeVolumes)
+        options += " -v";
 
-      if (null != services && 0 != services.Length) options += " " + string.Join(" ", services);
+      if (null != services && 0 != services.Length)
+        options += " " + string.Join(" ", services);
 
       return
         new ProcessExecutor<StringListResponseParser, IList<string>>(
@@ -438,10 +489,12 @@ namespace Ductus.FluentDocker.Commands
           if (!string.IsNullOrEmpty(cf))
             args += $" -f \"{cf}\"";
 
-      if (!string.IsNullOrEmpty(altProjectName)) args += $" -p {altProjectName}";
+      if (!string.IsNullOrEmpty(altProjectName))
+        args += $" -p {altProjectName}";
 
       var options = string.Empty;
-      if (null != services && 0 != services.Length) options += " " + string.Join(" ", services);
+      if (null != services && 0 != services.Length)
+        options += " " + string.Join(" ", services);
 
       return
         new ProcessExecutor<StringListResponseParser, IList<string>>(
@@ -462,12 +515,15 @@ namespace Ductus.FluentDocker.Commands
           if (!string.IsNullOrEmpty(cf))
             args += $" -f \"{cf}\"";
 
-      if (!string.IsNullOrEmpty(altProjectName)) args += $" -p {altProjectName}";
+      if (!string.IsNullOrEmpty(altProjectName))
+        args += $" -p {altProjectName}";
 
       var options = string.Empty;
-      if (downloadAllTagged) options += " -a";
+      if (downloadAllTagged)
+        options += " -a";
 
-      if (skipImageverficiation) options += " --disable-content-trust=true";
+      if (skipImageverficiation)
+        options += " --disable-content-trust=true";
 
       return
         new ProcessExecutor<StringListResponseParser, IList<string>>(
@@ -480,14 +536,15 @@ namespace Ductus.FluentDocker.Commands
       var curr = Directory.GetCurrentDirectory();
       var cwd = curr;
 
-      if (null == composeFile || 0 == composeFile.Length) return new WorkingDirectoryInfo {Curr = curr, Cwd = cwd};
+      if (null == composeFile || 0 == composeFile.Length)
+        return new WorkingDirectoryInfo { Curr = curr, Cwd = cwd };
 
       if (!string.IsNullOrEmpty(composeFile[0])) // First is assumed to be baseline
         cwd = Path.GetDirectoryName(Path.IsPathRooted(composeFile[0])
           ? composeFile[0]
           : Path.Combine(curr, composeFile[0]));
 
-      return new WorkingDirectoryInfo {Curr = curr, Cwd = cwd};
+      return new WorkingDirectoryInfo { Curr = curr, Cwd = cwd };
     }
 
     private struct WorkingDirectoryInfo

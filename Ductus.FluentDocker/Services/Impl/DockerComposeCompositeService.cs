@@ -19,7 +19,7 @@ namespace Ductus.FluentDocker.Services.Impl
     public DockerComposeCompositeService(IHostService host, DockerComposeConfig config) : base(config.ComposeFilePath
       .First())
     {
-      Hosts = new ReadOnlyCollection<IHostService>(new[] {host});
+      Hosts = new ReadOnlyCollection<IHostService>(new[] { host });
       Containers = new IContainerService[0];
       _imageCache = new IContainerImageService[0];
       _config = config;
@@ -27,10 +27,60 @@ namespace Ductus.FluentDocker.Services.Impl
 
     public override void Dispose()
     {
-      if (_config.StopOnDispose) Stop();
+      try
+      {
+        if (_config.StopOnDispose)
+        {
+          Stop();
+        }
+
+        if (_config.KeepContainers)
+          return;
+
+        State = ServiceRunningState.Removing;
+        var host = Hosts.First();
+
+        var result = host.Host.ComposeDown(_config.AlternativeServiceName, _config.ImageRemoval,
+          !_config.KeepVolumes, _config.RemoveOrphans, host.Certificates,
+          _config.ComposeFilePath.ToArray());
+
+        if (!result.Success)
+        {
+          State = ServiceRunningState.Unknown;
+          throw new FluentDockerException($"Could not dispose composite service {_config.ComposeFilePath}");
+        }
+
+        State = ServiceRunningState.Removed;
+      }
+      finally
+      {
+        Hosts = new ReadOnlyCollection<IHostService>(new List<IHostService>());
+        Containers = new IContainerService[0];
+        _imageCache = new IContainerImageService[0];
+      }
     }
 
-    public IReadOnlyCollection<IHostService> Hosts { get; }
+    public override ServiceRunningState State
+    {
+      get => base.State;
+      protected set
+      {
+        if (State == value)
+        {
+          return;
+        }
+
+        base.State = value;
+        if (null == Containers)
+          return;
+        foreach (var container in Containers.Cast<DockerContainerService>())
+        {
+          container.State = value;
+        }
+      }
+    }
+
+    public IReadOnlyCollection<IHostService> Hosts { get; private set; }
     public IReadOnlyCollection<IContainerService> Containers { get; private set; }
 
     public IReadOnlyCollection<IService> Services
@@ -52,7 +102,8 @@ namespace Ductus.FluentDocker.Services.Impl
     {
       get
       {
-        if (_imageCache.Length > 0) return _imageCache;
+        if (_imageCache.Length > 0)
+          return _imageCache;
 
         return _imageCache = Containers.Where(x => null != x.Image).Select(x => x.Image).ToArray();
       }
@@ -60,7 +111,8 @@ namespace Ductus.FluentDocker.Services.Impl
 
     public override void Start()
     {
-      if (State == ServiceRunningState.Running) return;
+      if (State == ServiceRunningState.Running)
+        return;
 
       var host = Hosts.First();
       if (State == ServiceRunningState.Paused)
@@ -79,7 +131,7 @@ namespace Ductus.FluentDocker.Services.Impl
 
       var result = host.Host.ComposeUp(_config.AlternativeServiceName, _config.ForceRecreate,
         _config.NoRecreate, _config.NoBuild, _config.ForceBuild,
-        _config.TimeoutSeconds == TimeSpan.Zero ? (TimeSpan?) null : _config.TimeoutSeconds, _config.RemoveOrphans,
+        _config.TimeoutSeconds == TimeSpan.Zero ? (TimeSpan?)null : _config.TimeoutSeconds, _config.RemoveOrphans,
         _config.UseColor,
         false,
         _config.Services,
@@ -112,6 +164,21 @@ namespace Ductus.FluentDocker.Services.Impl
       State = ServiceRunningState.Running;
     }
 
+    public override void Pause()
+    {
+      if (State != ServiceRunningState.Running)
+        return;
+
+      var host = Hosts.First();
+      var pause = host.Host.ComposePause(_config.AlternativeServiceName, _config.Services,
+        host.Certificates, _config.ComposeFilePath.ToArray());
+
+      if (!pause.Success)
+        throw new FluentDockerException($"Could not pause composite service {_config.ComposeFilePath}");
+
+      State = ServiceRunningState.Paused;
+    }
+
     ICompositeService ICompositeService.Start()
     {
       Start();
@@ -121,14 +188,15 @@ namespace Ductus.FluentDocker.Services.Impl
     public override void Stop()
     {
       if (!(State == ServiceRunningState.Running || State == ServiceRunningState.Starting ||
-            State == ServiceRunningState.Paused)) return;
+            State == ServiceRunningState.Paused))
+        return;
 
       State = ServiceRunningState.Stopping;
 
       var host = Hosts.First();
 
-      var result = host.Host.ComposeDown(_config.AlternativeServiceName, _config.ImageRemoval,
-        !_config.KeepVolumes, _config.RemoveOrphans, host.Certificates, _config.ComposeFilePath.ToArray());
+      var result = host.Host.ComposeStop(_config.AlternativeServiceName, TimeSpan.FromSeconds(30),
+        _config.Services, host.Certificates, _config.ComposeFilePath.ToArray());
 
       if (!result.Success)
       {
@@ -142,13 +210,25 @@ namespace Ductus.FluentDocker.Services.Impl
     public override void Remove(bool force = false)
     {
       State = ServiceRunningState.Removing;
+      var host = Hosts.First();
+
+      var result = host.Host.ComposeRm(_config.AlternativeServiceName, force,
+        !_config.KeepVolumes, _config.Services, host.Certificates, _config.ComposeFilePath.ToArray());
+
+      if (!result.Success)
+      {
+        State = ServiceRunningState.Unknown;
+        throw new FluentDockerException($"Could not remove composite service {_config.ComposeFilePath}");
+      }
+
       State = ServiceRunningState.Removed;
     }
 
     private static string ExtractNames(Container container, out string project, out string instanceId)
     {
       var name = container.Name;
-      if (name.StartsWith("/")) name = name.Substring(1);
+      if (name.StartsWith("/"))
+        name = name.Substring(1);
 
       var components = name.Split('_');
       if (components.Length >= 3)
@@ -157,7 +237,7 @@ namespace Ductus.FluentDocker.Services.Impl
         instanceId = components[2];
         return components[1];
       }
-      
+
       // use labels instead of name of the container
       project = container.Config.Labels["com.docker.compose.project"];
       instanceId = container.Config.Labels["com.docker.compose.container-number"];

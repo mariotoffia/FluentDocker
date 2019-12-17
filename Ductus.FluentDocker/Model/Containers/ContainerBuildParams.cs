@@ -177,7 +177,7 @@ namespace Ductus.FluentDocker.Model.Containers
     {
       var sb = new StringBuilder();
 
-      sb.OptionIfExists("--build-arg=", BuildArguments);
+      sb.OptionIfExists("--build-arg ", BuildArguments);
       sb.OptionIfExists("--cpu-shares ", CpuShares?.ToString());
       sb.OptionIfExists("--cgroup-parent ", ParentCGroup?.ToString());
       sb.OptionIfExists("--cpu-period ", CpuPeriod?.ToString());

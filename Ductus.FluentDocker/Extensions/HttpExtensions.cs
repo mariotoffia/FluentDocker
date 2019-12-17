@@ -53,8 +53,10 @@ namespace Ductus.FluentDocker.Extensions
     public static async Task<RequestResponse> DoRequest(this string url, HttpMethod method = null,
       string contentType = "application/json", string body = null, bool noThrow = true)
     {
-      if (null == method) method = HttpMethod.Get;
-      if (null == body) body = string.Empty;
+      if (null == method)
+        method = HttpMethod.Get;
+      if (null == body)
+        body = string.Empty;
 
       HttpContent content = new StringContent(body);
       content.Headers.ContentType = new MediaTypeHeaderValue(contentType);
@@ -62,10 +64,14 @@ namespace Ductus.FluentDocker.Extensions
       HttpResponseMessage response = null;
       try
       {
-        if (method.Equals(HttpMethod.Get)) response = await Client.GetAsync(url);
-        if (method.Equals(HttpMethod.Post)) response = await Client.PostAsync(url, content);
-        if (method.Equals(HttpMethod.Put)) response = await Client.PutAsync(url, content);
-        if (method.Equals(HttpMethod.Delete)) response = await Client.DeleteAsync(url);
+        if (method.Equals(HttpMethod.Get))
+          response = await Client.GetAsync(url);
+        if (method.Equals(HttpMethod.Post))
+          response = await Client.PostAsync(url, content);
+        if (method.Equals(HttpMethod.Put))
+          response = await Client.PutAsync(url, content);
+        if (method.Equals(HttpMethod.Delete))
+          response = await Client.DeleteAsync(url);
 
       }
       catch (Exception err)

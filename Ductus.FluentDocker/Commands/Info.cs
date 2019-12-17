@@ -27,6 +27,17 @@ namespace Ductus.FluentDocker.Commands
           $"{args} version -f \"{fmt}\"").Execute();
     }
 
+    public static bool IsWindowsEngine(this DockerUri host, ICertificatePaths certificates = null)
+    {
+      var version = host.Version(certificates);
+      return version.Data.ServerOs.ToLower().Equals("windows");
+    }
+
+    public static bool IsLinuxEngine(this DockerUri host, ICertificatePaths certificates = null)
+    {
+      return !IsWindowsEngine(host, certificates);
+    }
+
     public static CommandResponse<string> Switch(this DockerUri host, ICertificatePaths certificates = null)
     {
       var args = $"{host.RenderBaseArgs(certificates)}";
@@ -37,27 +48,17 @@ namespace Ductus.FluentDocker.Commands
 
     public static CommandResponse<string> LinuxDaemon(this DockerUri host, ICertificatePaths certificates = null)
     {
-      var version = host.Version(certificates);
-      if (version.Data.ServerOs.ToLower().Equals("linux"))
-      {
-        return new CommandResponse<string>(true,new string[0]);
-      }
       var args = $"{host.RenderBaseArgs(certificates)}";
 
       return new ProcessExecutor<NoLineResponseParser, string>(
-        "dockercli".ResolveBinary(), $"{args} -SwitchDaemon").Execute();
+        "dockercli".ResolveBinary(), $"{args} -SwitchLinuxEngine").Execute();
     }
     public static CommandResponse<string> WindowsDaemon(this DockerUri host, ICertificatePaths certificates = null)
     {
-      var version = host.Version(certificates);
-      if (version.Data.ServerOs.ToLower().Equals("windows"))
-      {
-        return new CommandResponse<string>(true, new string[0]);
-      }
       var args = $"{host.RenderBaseArgs(certificates)}";
 
       return new ProcessExecutor<NoLineResponseParser, string>(
-        "dockercli".ResolveBinary(), $"{args} -SwitchDaemon").Execute();
+        "dockercli".ResolveBinary(), $"{args} -SwitchWindowsEngine").Execute();
     }
   }
 }

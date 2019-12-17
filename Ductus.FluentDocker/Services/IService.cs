@@ -1,4 +1,5 @@
 ﻿using System;
+using Ductus.FluentDocker.Common;
 
 namespace Ductus.FluentDocker.Services
 {
@@ -11,7 +12,20 @@ namespace Ductus.FluentDocker.Services
   {
     string Name { get; }
     ServiceRunningState State { get; }
+    /// <summary>
+    /// Starts a service either from scratch or un-pause the service if earlier paused by <see cref="Pause"/>.
+    /// </summary>
     void Start();
+    /// <summary>
+    /// Pauses the service (if it supports such) and may be resumed by <see cref="Start"/>.
+    /// </summary>
+    /// <exception cref="FluentDockerNotSupportedException">If any the service do not support this operation.</exception>
+    /// <remarks>
+    /// Some services may implement this functionality and some it makes no sense or it is impossible
+    /// to pause the service. When the service is paused it will be reflected as <see cref="ServiceRunningState.Paused"/>
+    /// in the <see cref="State"/> property.
+    /// </remarks>
+    void Pause();
     void Stop();
     void Remove(bool force = false);
     IService AddHook(ServiceRunningState state, Action<IService> hook, string uniqueName = null);

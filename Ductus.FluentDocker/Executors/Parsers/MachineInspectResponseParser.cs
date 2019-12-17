@@ -15,7 +15,7 @@ namespace Ductus.FluentDocker.Executors.Parsers
       if (string.IsNullOrEmpty(response.StdOut))
       {
         Response = response.ToResponse(false, "No response",
-          new MachineConfiguration {AuthConfig = new MachineAuthConfig()});
+          new MachineConfiguration { AuthConfig = new MachineAuthConfig() });
         return this;
       }
 
@@ -39,8 +39,8 @@ namespace Ductus.FluentDocker.Executors.Parsers
       string hostname = string.Empty;
       if (!IPAddress.TryParse(ip, out var ipaddr))
       {
-          hostname = ip;
-          ipaddr = IPAddress.None;
+        hostname = ip;
+        ipaddr = IPAddress.None;
       }
 
       var config = new MachineConfiguration

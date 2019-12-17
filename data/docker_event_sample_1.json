@@ -1,0 +1,161 @@
+// https://docs.docker.com/engine/reference/commandline/events/
+[
+  // https://docs.docker.com/engine/api/v1.39/#operation/SystemEvents (OpenAPI docs)
+  // docker events --format "{{json .}}"
+  // docker create --name test alpine:latest top
+  // Unable to find image 'alpine:latest' locally
+  // latest: Pulling from library/alpine
+  // 89d9c30c1d48: Pull complete
+  // Digest: sha256:c19173c5ada610a5989151111163d28a67368362762534d8a8121ce95cf2bd5a
+  // Status: Downloaded newer image for alpine:latest
+  // 9d58f3bbad74fdb30725cbbbd32ba6f1f2cdc5b213d6eb63fc0739a42cff9c43
+  {
+    "status": "pull",
+    "id": "alpine:latest",
+    "Type": "image",
+    "Action": "pull",
+    "Actor": {
+      "ID": "alpine:latest",
+      "Attributes": { "name": "alpine" }
+    },
+    "scope": "local",
+    "time": 1573403558,
+    "timeNano": 1573403558204155400
+  },
+  {
+    "status": "create",
+    "id": "9d58f3bbad74fdb30725cbbbd32ba6f1f2cdc5b213d6eb63fc0739a42cff9c43",
+    "from": "alpine:latest",
+    "Type": "container",
+    "Action": "create",
+    "Actor": {
+      "ID": "9d58f3bbad74fdb30725cbbbd32ba6f1f2cdc5b213d6eb63fc0739a42cff9c43",
+      "Attributes": {
+        "image": "alpine:latest",
+        "name": "test"
+      }
+    },
+    "scope": "local",
+    "time": 1573403558,
+    "timeNano": 1573403558458678500
+  },
+  {
+    // docker start test
+    "Type": "network",
+    "Action": "connect",
+    "Actor": {
+      "ID": "fbd98377389d2c102d8f250bf9844f315bf6e2177cbddf9055564192b15ffabd",
+      "Attributes": {
+        "container": "9d58f3bbad74fdb30725cbbbd32ba6f1f2cdc5b213d6eb63fc0739a42cff9c43",
+        "name": "bridge",
+        "type": "bridge"
+      }
+    },
+    "scope": "local",
+    "time": 1573403766,
+    "timeNano": 1573403766915337100
+  },
+  {
+    "status": "start",
+    "id": "9d58f3bbad74fdb30725cbbbd32ba6f1f2cdc5b213d6eb63fc0739a42cff9c43",
+    "from": "alpine:latest",
+    "Type": "container",
+    "Action": "start",
+    "Actor": {
+      "ID": "9d58f3bbad74fdb30725cbbbd32ba6f1f2cdc5b213d6eb63fc0739a42cff9c43",
+      "Attributes": {
+        "image": "alpine:latest",
+        "name": "test"
+      }
+    },
+    "scope": "local",
+    "time": 1573403767,
+    "timeNano": 1573403767745094000
+  },
+  {
+    "status": "kill",
+    "id": "9d58f3bbad74fdb30725cbbbd32ba6f1f2cdc5b213d6eb63fc0739a42cff9c43",
+    "from": "alpine:latest",
+    "Type": "container",
+    "Action": "kill",
+    "Actor": {
+      "ID": "9d58f3bbad74fdb30725cbbbd32ba6f1f2cdc5b213d6eb63fc0739a42cff9c43",
+      "Attributes": {
+        "image": "alpine:latest",
+        "name": "test",
+        "signal": "15"
+      }
+    },
+    "scope": "local",
+    "time": 1573403816,
+    "timeNano": 1573403816504779400
+  },
+  {
+    "status": "die",
+    "id": "9d58f3bbad74fdb30725cbbbd32ba6f1f2cdc5b213d6eb63fc0739a42cff9c43",
+    "from": "alpine:latest",
+    "Type": "container",
+    "Action": "die",
+    "Actor": {
+      "ID": "9d58f3bbad74fdb30725cbbbd32ba6f1f2cdc5b213d6eb63fc0739a42cff9c43",
+      "Attributes": {
+        "exitCode": "143",
+        "image": "alpine:latest",
+        "name": "test"
+      }
+    },
+    "scope": "local",
+    "time": 1573403816,
+    "timeNano": 1573403816736495300
+  },
+  {
+    "Type": "network",
+    "Action": "disconnect",
+    "Actor": {
+      "ID": "fbd98377389d2c102d8f250bf9844f315bf6e2177cbddf9055564192b15ffabd",
+      "Attributes": {
+        "container": "9d58f3bbad74fdb30725cbbbd32ba6f1f2cdc5b213d6eb63fc0739a42cff9c43",
+        "name": "bridge",
+        "type": "bridge"
+      }
+    },
+    "scope": "local",
+    "time": 1573403817,
+    "timeNano": 1573403817078738200
+  },
+  {
+    "status": "stop",
+    "id": "9d58f3bbad74fdb30725cbbbd32ba6f1f2cdc5b213d6eb63fc0739a42cff9c43",
+    "from": "alpine:latest",
+    "Type": "container",
+    "Action": "stop",
+    "Actor": {
+      "ID": "9d58f3bbad74fdb30725cbbbd32ba6f1f2cdc5b213d6eb63fc0739a42cff9c43",
+      "Attributes": {
+        "image": "alpine:latest",
+        "name": "test"
+      }
+    },
+    "scope": "local",
+    "time": 1573403817,
+    "timeNano": 1573403817143210400
+  },
+  {
+    // docker rm -vf test
+    "status": "destroy",
+    "id": "9d58f3bbad74fdb30725cbbbd32ba6f1f2cdc5b213d6eb63fc0739a42cff9c43",
+    "from": "alpine:latest",
+    "Type": "container",
+    "Action": "destroy",
+    "Actor": {
+      "ID": "9d58f3bbad74fdb30725cbbbd32ba6f1f2cdc5b213d6eb63fc0739a42cff9c43",
+      "Attributes": {
+        "image": "alpine:latest",
+        "name": "test"
+      }
+    },
+    "scope": "local",
+    "time": 1573403911,
+    "timeNano": 1573403911366326500
+  }
+]

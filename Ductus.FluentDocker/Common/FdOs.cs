@@ -6,8 +6,8 @@ using System;
 
 namespace Ductus.FluentDocker.Common
 {
-	public static class FdOs
-	{
+  public static class FdOs
+  {
 
 #if COREFX
 		public static bool IsWindows()
@@ -19,15 +19,15 @@ namespace Ductus.FluentDocker.Common
 		public static bool IsLinux()
 			=> RuntimeInformation.IsOSPlatform(OSPlatform.Linux);
 #else
-		public static bool IsWindows() 
-			=> Environment.OSVersion.Platform != PlatformID.MacOSX && 
-			   Environment.OSVersion.Platform != PlatformID.Unix;
+    public static bool IsWindows()
+      => Environment.OSVersion.Platform != PlatformID.MacOSX &&
+         Environment.OSVersion.Platform != PlatformID.Unix;
 
-		public static bool IsOsx()
-			=> Environment.OSVersion.Platform == PlatformID.MacOSX;
+    public static bool IsOsx()
+      => Environment.OSVersion.Platform == PlatformID.MacOSX;
 
-		public static bool IsLinux()
-			=> Environment.OSVersion.Platform == PlatformID.Unix;
+    public static bool IsLinux()
+      => Environment.OSVersion.Platform == PlatformID.Unix;
 #endif
-	}
+  }
 }

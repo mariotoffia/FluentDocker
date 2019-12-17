@@ -28,7 +28,7 @@ namespace FluentDocker.Features.Elk
     public const string EnableCurator = "elk-feature.enable.curator";
     public const string EnableLogspout = "elk-feature.enable.logspout";
     public const string EnableApmServer = "elk-feature.enable.apm-server";
-    
+
     private IHostService _host;
     private bool _keepOnDispose;
     private string _source;
@@ -41,7 +41,8 @@ namespace FluentDocker.Features.Elk
 
     public void Dispose()
     {
-      if (_keepOnDispose) return;
+      if (_keepOnDispose)
+        return;
 
       foreach (var service in Services)
         if (service is IContainerService || service is ICompositeService)
@@ -66,27 +67,28 @@ namespace FluentDocker.Features.Elk
       }
 
       _source = settings.ContainsKey(SourceUrl)
-        ? (string) settings[SourceUrl]
+        ? (string)settings[SourceUrl]
         : "https://github.com/deviantony/docker-elk.git";
 
-      Target = !settings.ContainsKey(TargetPath) ? Guid.NewGuid().ToString() : (string) settings[TargetPath];
+      Target = !settings.ContainsKey(TargetPath) ? Guid.NewGuid().ToString() : (string)settings[TargetPath];
       _keepOnDispose = settings.ContainsKey(FeatureConstants.KeepOnDispose);
 
       _host = !settings.ContainsKey(FeatureConstants.HostService)
         ? Fd.Native()
-        : (IHostService) settings[FeatureConstants.HostService];
+        : (IHostService)settings[FeatureConstants.HostService];
 
-      if (!Path.IsPathRooted(Target)) Target = Path.Combine(Directory.GetCurrentDirectory(), Target);
+      if (!Path.IsPathRooted(Target))
+        Target = Path.Combine(Directory.GetCurrentDirectory(), Target);
       _apmServer = settings.ContainsKey(EnableApmServer)
-        ? ((TemplateString) $"{Target}/extensions/apm-server/apm-server-compose.yml").Rendered
+        ? ((TemplateString)$"{Target}/extensions/apm-server/apm-server-compose.yml").Rendered
         : null;
       _logspout = settings.ContainsKey(EnableLogspout)
-        ? ((TemplateString) $"{Target}/extensions/logspout/logspout-compose.yml").Rendered
+        ? ((TemplateString)$"{Target}/extensions/logspout/logspout-compose.yml").Rendered
         : null;
       _curator = settings.ContainsKey(EnableCurator)
-        ? ((TemplateString) $"{Target}/extensions/curator/curator-compose.yml").Rendered
+        ? ((TemplateString)$"{Target}/extensions/curator/curator-compose.yml").Rendered
         : null;
-      
+
     }
 
     public void Execute(params string[] arguments)
@@ -96,20 +98,25 @@ namespace FluentDocker.Features.Elk
       var file = Path.Combine(Target, "docker-compose.yml");
       // TODO: later on when swarm is supported in Fd - "docker-stack.yml" can also be selected...
 
-      var files = new List<string>() {file};
-      if (null != _curator) files.Add(_curator);
-      if (null != _logspout) files.Add(_logspout);
-      if (null != _apmServer) files.Add(_apmServer);
-      
+      var files = new List<string>() { file };
+      if (null != _curator)
+        files.Add(_curator);
+      if (null != _logspout)
+        files.Add(_logspout);
+      if (null != _apmServer)
+        files.Add(_apmServer);
+
       _svc = new DockerComposeCompositeService(_host, new DockerComposeConfig
       {
-        ComposeFilePath = files, ForceRecreate = false, RemoveOrphans = false,
+        ComposeFilePath = files,
+        ForceRecreate = false,
+        RemoveOrphans = false,
         StopOnDispose = true
       });
 
       _svc.Start();
 
-      Services = new IService[] {_host, _svc};
+      Services = new IService[] { _host, _svc };
     }
   }
 }

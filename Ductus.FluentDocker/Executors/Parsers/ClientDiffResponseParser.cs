@@ -14,12 +14,12 @@ namespace Ductus.FluentDocker.Executors.Parsers
       var rows = response.StdOutAsArry;
       if (0 != response.ExitCode)
       {
-        Response = response.ToErrorResponse((IList<Diff>) new List<Diff>());
+        Response = response.ToErrorResponse((IList<Diff>)new List<Diff>());
         return this;
       }
 
       Response = response.ToResponse(true, string.Empty,
-        (IList<Diff>) rows.Select(row => new Diff {Type = ToDiffType(row[0]), Item = row.Substring(2).Trim()}).ToList());
+        (IList<Diff>)rows.Select(row => new Diff { Type = ToDiffType(row[0]), Item = row.Substring(2).Trim() }).ToList());
 
       return this;
     }

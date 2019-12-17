@@ -13,14 +13,14 @@ namespace Ductus.FluentDocker.Executors.Parsers
     {
       if (string.IsNullOrEmpty(response.StdOut))
       {
-        Response = response.ToResponse(false, "No response", (IList<Volume>) new List<Volume>());
+        Response = response.ToResponse(false, "No response", (IList<Volume>)new List<Volume>());
         return this;
       }
 
       var resp = JsonConvert.DeserializeObject<Volume[]>(response.StdOut);
       if (null == resp || 0 == resp.Length)
       {
-        Response = response.ToResponse(false, "No response", (IList<Volume>) new List<Volume>());
+        Response = response.ToResponse(false, "No response", (IList<Volume>)new List<Volume>());
         return this;
       }
 

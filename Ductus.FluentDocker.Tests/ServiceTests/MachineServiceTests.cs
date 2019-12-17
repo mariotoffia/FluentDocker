@@ -35,7 +35,7 @@ namespace Ductus.FluentDocker.Tests.ServiceTests
     public void DiscoverBinariesShallWork()
     {
       var resolver = new DockerBinariesResolver(SudoMechanism.None, null);
-      
+
       Console.WriteLine(
         $"{resolver.MainDockerClient.FqPath} {resolver.MainDockerMachine.FqPath} {resolver.MainDockerCompose.FqPath}");
     }
@@ -52,8 +52,8 @@ namespace Ductus.FluentDocker.Tests.ServiceTests
       IsTrue(services.Count > 0);
 
       var native = services.First(x => x.IsNative);
-      AreEqual("native",native.Name);
-      AreEqual(true,native.IsNative);
+      AreEqual("native", native.Name);
+      AreEqual(true, native.IsNative);
     }
 
     [TestCategory("Machine-Only")]
@@ -95,7 +95,7 @@ namespace Ductus.FluentDocker.Tests.ServiceTests
     {
       new Hosts().FromMachineName("kalleKula_not_a_regentry", throwIfNotStarted: true);
     }
-    
+
     [TestCategory("Machine-Only")]
     [TestMethod]
     [Ignore]
