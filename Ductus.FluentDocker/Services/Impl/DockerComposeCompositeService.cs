@@ -81,6 +81,7 @@ namespace Ductus.FluentDocker.Services.Impl
         _config.NoRecreate, _config.NoBuild, _config.ForceBuild,
         _config.TimeoutSeconds == TimeSpan.Zero ? (TimeSpan?) null : _config.TimeoutSeconds, _config.RemoveOrphans,
         _config.UseColor,
+        false,
         _config.Services,
         host.Certificates, _config.ComposeFilePath.ToArray());
 
