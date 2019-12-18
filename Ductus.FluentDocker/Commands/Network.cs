@@ -18,55 +18,15 @@ namespace Ductus.FluentDocker.Commands
     {
       var args = $"{host.RenderBaseArgs(certificates)}";
 
-      var options =
-        " --no-trunc --format \"{{.ID}};{{.Name}};{{.Driver}};{{.Scope}};{{.IPv6}};{{.Internal}};{{.CreatedAt}}\"";
+      var options = $" --no-trunc --format \"{NetworkLsResponseParser.Format}\"";
 
       if (null != filters && 0 != filters.Length)
         options = filters.Aggregate(options, (current, filter) => current + $" --filter={filter}");
 
-      var response =
-        new ProcessExecutor<StringListResponseParser, IList<string>>(
+      return
+        new ProcessExecutor<NetworkLsResponseParser, IList<NetworkRow>>(
           "docker".ResolveBinary(),
           $"{args} network ls {options}").Execute();
-
-      var list = new List<NetworkRow>();
-      var res = new CommandResponse<IList<NetworkRow>>(response.Success, response.Log, response.Error, list);
-      if (!response.Success)
-        return res;
-
-      foreach (var row in response.Data)
-      {
-        var items = row.Split(';');
-        if (null == items || items.Length < 4)
-          continue;
-
-        var created = DateTime.MinValue;
-        var ipv6 = false;
-        var intern = false;
-
-        if (items.Length > 4)
-          bool.TryParse(items[4], out ipv6);
-        if (items.Length > 5)
-          bool.TryParse(items[5], out intern);
-        if (items.Length > 6)
-        {
-          DateTime.TryParse(items[6].Substring(0, items[6].IndexOf('+')), out created);
-          created = DateTime.SpecifyKind(created, DateTimeKind.Utc);
-        }
-
-        list.Add(new NetworkRow
-        {
-          Id = items[0],
-          Name = items[1],
-          Driver = items[2],
-          Scope = items[3],
-          IPv6 = ipv6,
-          Internal = intern,
-          Created = created
-        });
-      }
-
-      return res;
     }
 
     public static CommandResponse<IList<string>> NetworkConnect(this DockerUri host, string container, string network,
@@ -112,7 +72,7 @@ namespace Ductus.FluentDocker.Commands
       var options = string.Empty;
       options += string.Join(" ", network);
       return
-        new ProcessExecutor<NetworkLsResponseParser, NetworkConfiguration>(
+        new ProcessExecutor<NetworkInspectResponseParser, NetworkConfiguration>(
           "docker".ResolveBinary(),
           $"{args} network inspect {options}").Execute();
     }
