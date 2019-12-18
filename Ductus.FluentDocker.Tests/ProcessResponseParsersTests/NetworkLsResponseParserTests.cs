@@ -24,7 +24,7 @@ namespace Ductus.FluentDocker.Tests.ProcessResponseParsersTests
 
       var stdOut = $"{id};{name};{driver};{scope};{ipv6};{isInternal};{created:yyyy-MM-dd HH:mm:ss.ffffff} +0000 ZZZ";
 
-      var ctorArgs = new object[] {"command", stdOut, "", 0};
+      var ctorArgs = new object[] { "command", stdOut, "", 0 };
       var executionResult = (ProcessExecutionResult)Activator.CreateInstance(typeof(ProcessExecutionResult),
         BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.CreateInstance,
         null, ctorArgs, null, null);
@@ -62,7 +62,7 @@ namespace Ductus.FluentDocker.Tests.ProcessResponseParsersTests
 
       var stdOut = $"{id};{name};{driver};{scope};{ipv6};{isInternal};{created:yyyy-MM-dd HH:mm:ss.ffffff} {tzShift:00}00 ZZZ";
 
-      var ctorArgs = new object[] {"command", stdOut, "", 0};
+      var ctorArgs = new object[] { "command", stdOut, "", 0 };
       var executionResult = (ProcessExecutionResult)Activator.CreateInstance(typeof(ProcessExecutionResult),
         BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.CreateInstance,
         null, ctorArgs, null, null);
