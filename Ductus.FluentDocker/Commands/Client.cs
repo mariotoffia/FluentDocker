@@ -261,6 +261,25 @@ namespace Ductus.FluentDocker.Commands
         $"{host.RenderBaseArgs(certificates)} inspect {id}").Execute();
     }
 
+    public static CommandResponse<IList<Container>> InspectContainers(this DockerUri host,
+      ICertificatePaths certificates = null,
+      params string[] containerIds)
+    {
+      if (containerIds?.Any() != true)
+      {
+        var psResult = host.Ps("--all", certificates);
+        if (!psResult.Success)
+          return new CommandResponse<IList<Container>>(psResult.Success, psResult.Log, psResult.Error);
+
+        containerIds = psResult.Data.ToArray();
+      }
+
+      var dockerBinary = "docker".ResolveBinary();
+      return new ProcessExecutor<ClientInspectContainersResponseParser, IList<Container>>(dockerBinary,
+          $"{host.RenderBaseArgs(certificates)} inspect " + string.Join(" ", containerIds))
+        .Execute();
+    }
+
     public static CommandResponse<ImageConfig> InspectImage(this DockerUri host, string id,
       ICertificatePaths certificates = null)
     {

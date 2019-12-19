@@ -200,6 +200,105 @@ namespace Ductus.FluentDocker.Tests.CommandTests
     }
 
     [TestMethod]
+    public void InspectContainersShallSucceed()
+    {
+      // Arrange
+
+      const string image1 = "nginx:1.13.6-alpine";
+      const string image2 = "postgres:9.6-alpine";
+      string id1 = null;
+      string id2 = null;
+
+      try
+      {
+        var cmd = _docker.Run(image1, null, _certificates);
+        IsTrue(cmd.Success);
+        id1 = cmd.Data;
+        IsTrue(!string.IsNullOrWhiteSpace(id1));
+        AreEqual(64, id1.Length);
+
+        cmd = _docker.Create(image2, null);
+        IsTrue(cmd.Success);
+        id2 = cmd.Data;
+        IsTrue(!string.IsNullOrWhiteSpace(id2));
+        AreEqual(64, id2.Length);
+
+
+        // Act
+        var result = _docker.InspectContainers(_certificates);
+
+
+        // Assert
+        IsTrue(result.Success);
+        IsTrue(result.Data.Count > 1);
+        IsNotNull(result.Data.SingleOrDefault(c => c.Id == id1));
+        IsNotNull(result.Data.SingleOrDefault(c => c.Id == id2));
+      }
+      finally
+      {
+        if (null != id1)
+        {
+          _docker.RemoveContainer(id1, true, true, null, _certificates);
+        }
+        if (null != id2)
+        {
+          _docker.RemoveContainer(id2, true, true, null, _certificates);
+        }
+      }
+    }
+
+    [TestMethod]
+    public void InspectContainersByIdsShallSucceed()
+    {
+      // Arrange
+
+      const string image1 = "nginx:1.13.6-alpine";
+      const string image2 = "postgres:9.6-alpine";
+      string id1 = null;
+      string id2 = null;
+
+      try
+      {
+        var cmd = _docker.Run(image1, null, _certificates);
+        IsTrue(cmd.Success);
+        id1 = cmd.Data;
+        IsTrue(!string.IsNullOrWhiteSpace(id1));
+        AreEqual(64, id1.Length);
+
+        cmd = _docker.Create(image2, null);
+        IsTrue(cmd.Success);
+        id2 = cmd.Data;
+        IsTrue(!string.IsNullOrWhiteSpace(id2));
+        AreEqual(64, id2.Length);
+
+
+        // Act
+        var result = _docker.InspectContainers(_certificates, id1, id2);
+
+
+        // Assert
+        IsTrue(result.Success);
+        IsTrue(result.Data[0].Name.Length > 2);
+        IsTrue(result.Data[0].State.Running);
+        AreEqual(image1, result.Data[0].Config.Image);
+        IsTrue(result.Data[1].Name.Length > 2);
+        IsFalse(result.Data[1].State.Running);
+        AreEqual(image2, result.Data[1].Config.Image);
+      }
+      finally
+      {
+        if (null != id1)
+        {
+          _docker.RemoveContainer(id1, true, true, null, _certificates);
+        }
+        if (null != id2)
+        {
+          _docker.RemoveContainer(id2, true, true, null, _certificates);
+        }
+      }
+    }
+
+    [TestMethod]
     public void DiffContainerShallWork()
     {
       string id = null;
