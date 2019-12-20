@@ -11,6 +11,7 @@ using Ductus.FluentDocker.Services;
 using Ductus.FluentDocker.Services.Extensions;
 using Ductus.FluentDocker.Tests.Extensions;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
+using Newtonsoft.Json;
 
 namespace Ductus.FluentDocker.Tests.ServiceTests
 {
@@ -383,6 +384,26 @@ namespace Ductus.FluentDocker.Tests.ServiceTests
         container.Stop();
         container.WaitForStopped();
         Assert.AreEqual(ServiceRunningState.Stopped, container.State);
+      }
+    }
+
+    [TestMethod]
+    public void GetContainersShallWork()
+    {
+      // Arrange
+      using (var container = _host.Create("postgres:9.6-alpine"))
+      using (var container2 = _host.Create("postgres:9.6-alpine"))
+      {
+        container.Start();
+
+        // Act
+        var result = _host.GetContainers(true);
+
+        // Assert
+        Assert.IsNotNull(result.SingleOrDefault(c => c.Id == container.Id
+                                                     && JsonConvert.SerializeObject(c) == JsonConvert.SerializeObject(container)));
+        Assert.IsNotNull(result.SingleOrDefault(c => c.Id == container2.Id
+                                                     && JsonConvert.SerializeObject(c) == JsonConvert.SerializeObject(container2)));
       }
     }
   }

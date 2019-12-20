@@ -2,6 +2,7 @@
 {
   public sealed class Container
   {
+    public string Id { get; set; }
     public string Image { get; set; }
     public string ResolvConfPath { get; set; }
     public string HostnamePath { get; set; }
