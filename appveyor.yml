@@ -1,75 +1,56 @@
-image: Windows Server 2019
-
-build_script:
-- ps: Write-host "`nAppVeyor Azure VMs for heterogeneous build scenarios.`nDefault is Standard_D2s_v3 VM Size. Custom plan with Standard_D4s_v3 can be created per request.`nIt is in Preview now. Please send email to support@appveyor.com if you want to try.`n" -foregroundcolor yellow
-
-- ps: Write-host "`n*** VM CONFIGURATION ***`n" -foregroundcolor yellow
-
-- ps: Write-host "`nCheck number of logical CPUs" -foregroundcolor green
-- ps: gcim Win32_Processor | % { "$($_.NumberOfLogicalProcessors) logical CPUs" }
-
-- ps: Write-host "`nCheck memory size" -foregroundcolor green
-- ps: gcim Win32_OperatingSystem | % { "$([int]($_.TotalVisibleMemorySize/1mb)) Gb" }
-
-- ps: Write-host "`n*** DOCKER ***`n" -foregroundcolor yellow
-
-- ps: Write-host "`nSwitch to linux engine"  -foregroundcolor green
-- ps: Switch-DockerLinux
-
-- ps: Write-host "`nIf you prefer CMD, use 'docker-switch-linux' command"  -foregroundcolor green
-
-- ps: Write-host "`nList local docker linux images"  -foregroundcolor green
-- docker images
-
-- ps: Write-host "`nRunning simple command in Linux container" -foregroundcolor green
-- docker run --rm busybox echo hello_world_busybox
-
-- ps: Write-host "`nRunning simple command in Ununtu 18.04 container (no local image exists)" -foregroundcolor green
-- docker run --rm ubuntu:18.04 echo hello_world_ubuntu_18_04   
-
-- ps: |
-    Write-host "`nDrive D: is shared in Docker for Windows to exhange files between Linux containers and build VM"  -foregroundcolor green
-    Write-host "Here we creating folder and file on the host VM and checking it from Linux container:"  -foregroundcolor green
-    mkdir D:\host | Out-Null
-    Set-Content -Value "Mapped folder file content" -Path D:\host\readme.txt | Out-Null
-    docker run --rm -v D:/host:/host busybox cat /host/readme.txt
-- ps: Write-host "`nSwitch to Windows engine"  -foregroundcolor green
-- ps: Switch-DockerWindows
-
-- ps: Write-host "`nIf you prefer CMD, use 'docker-switch-windows' command"  -foregroundcolor green
-
-- ps: Write-host "`nList local docker Windows images"  -foregroundcolor green
-- docker images
-
-- ps: Write-host "`nRun Server Core images" -foregroundcolor green
-- docker run --rm --isolation=hyperv mcr.microsoft.com/windows/servercore:ltsc2016 cmd /c echo hello_world_servercore_ltsc2016
-- docker run --rm --isolation=hyperv mcr.microsoft.com/windows/servercore:1803 cmd /c echo hello_world_servercore_1803
-- docker run --rm --isolation=default mcr.microsoft.com/windows/servercore:ltsc2019 cmd /c echo hello_world_servercore_ltsc2019
-            
-- ps: Write-host "`nRun Nano Server images"  -foregroundcolor green
-- docker run --rm --isolation=hyperv mcr.microsoft.com/windows/nanoserver:sac2016 cmd /c echo hello_world_nanoserver_sac2016
-- docker run --rm --isolation=hyperv mcr.microsoft.com/windows/nanoserver:1803 cmd /c echo hello_world_nanoserver_1803
-- docker run --rm --isolation=default mcr.microsoft.com/windows/nanoserver:1809 cmd /c echo hello_world_nanoserver_1809
-
-- ps: Write-host "`nNote that older Windows images run in Hyper-V isolation mode"  -foregroundcolor Yellow
-
-- ps: Write-host "`n*** WSL ***`n" -foregroundcolor yellow
-
-- ps: Write-host "`nRun Ubuntu in WSL"  -foregroundcolor green
-- wslconfig /setdefault ubuntu
-- wsl lsb_release -a
-
-- ps: Write-host "`nRun Ubuntu 18.04 in WSL"  -foregroundcolor green
-- wslconfig /setdefault ubuntu-18.04
-- wsl lsb_release -a
-
-- ps: Write-host "`n*** NETWORKING ***`n" -foregroundcolor yellow
-
-- ps: Write-host "`nVMs public IPs are limited and defined at https://www.appveyor.com/docs/build-environment/#ip-addresses -- safely update your firewall. `nRight now it is only 13.83.108.89 for Azure VMs. Later more can be added."  -foregroundcolor green
-- ps: (Invoke-WebRequest https://api.ipify.org).content
-
-- ps: Write-host "`nRDP access to Azure VMs available the same way as for other AppVeyor builds"  -foregroundcolor green
-- ps: iex ((new-object net.webclient).DownloadString('https://raw.githubusercontent.com/appveyor/ci/master/scripts/enable-rdp.ps1'))
-
+skip_non_tags: false
 test: off
-deploy: off
+image: Visual Studio 2019
+configuration: Release
+
+dotnet_csproj:
+  patch: true
+  file: '**\*.csproj'
+  version: '{version}'
+  package_version: '{version}'
+  assembly_version: '{version}'
+  file_version: '{version}'
+  informational_version: '{version}'
+
+install:
+  - ps: dotnet tool install -g GitVersion.Tool
+  - ps: dotnet tool install -g dotnet-format
+  - ps: dotnet tool install -g dotnet-sonarscanner -v:m
+
+before_build:
+  - nuget restore
+  - ps: mkdir D:\fluentdocker | Out-Null
+  - ps: dotnet format --check --dry-run
+  - ps: dotnet gitversion /l console /output buildserver
+  - ps: dotnet sonarscanner begin /d:sonar.host.url=https://sonarcloud.io /d:sonar.login=e220dd372506f00fe34923f011ea45f8568e9bcc /k:mariotoffia_FluentDocker /o:mariotoffia /v:"$env:APPVEYOR_BUILD_NUMBER" /d:sonar.cs.opencover.reportsPaths="./output/coverage.opencover.xml" /d:sonar.coverage.exclusions="**Tests*.cs"
+  - ps: $env:good_to_deploy="true"
+  - ps: if (Test-Path env:APPVEYOR_PULL_REQUEST_HEAD_REPO_BRANCH) {echo "Not going to deploy because pull request."}
+  - ps: if (Test-Path env:APPVEYOR_PULL_REQUEST_HEAD_REPO_BRANCH) {$env:good_to_deploy="false"}
+  - echo good_to_deploy=%good_to_deploy%
+
+build:
+  publish_nuget: true
+  verbosity: minimal
+
+#after_build:
+#  - ps: dotnet sonarscanner end /d:sonar.login=e220dd372506f00fe34923f011ea45f8568e9bcc
+
+test_script:
+  - ps: dotnet test --settings coverletArgs.runsettings
+
+after_test:
+  - ps: dotnet sonarscanner end /d:sonar.login=e220dd372506f00fe34923f011ea45f8568e9bcc
+
+artifacts:
+  - path: '.\**\Release\*.nupkg'
+    name: NuGet Packages
+  - path: '.\**\Release\*.snupkg'
+    name: NuGet Symbol Packages
+
+deploy:
+  - provider: NuGet
+    on:
+      branch: master
+      good_to_deploy: true
+    api_key:
+      secure: 7nuJgcCxoCbPZRW7ZeOUNFC3myB1AsCJN4O2UOT3D+TRKOLyUG0b6isOeW64FOa+
