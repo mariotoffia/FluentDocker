@@ -1,4 +1,5 @@
-﻿using System.Diagnostics;
+using System.Collections.Generic;
+using System.Diagnostics;
 using System.Text;
 using Ductus.FluentDocker.Common;
 using Ductus.FluentDocker.Extensions;
@@ -27,6 +28,8 @@ namespace Ductus.FluentDocker.Executors
       _arguments = arguments;
     }
 
+    public IDictionary<string, string> Env { get; } = new Dictionary<string, string>();
+
     public CommandResponse<TE> Execute()
     {
       var startInfo = new ProcessStartInfo
@@ -40,6 +43,17 @@ namespace Ductus.FluentDocker.Executors
         WorkingDirectory = _workingdir
       };
 
+      if (0 != Env.Count)
+      {
+        foreach(var key in Env.Keys)
+        {
+#if COREFX
+          startInfo.Environment[key] = Env[key];
+#else
+         startInfo.EnvironmentVariables[key] = Env[key]; 
+#endif
+        }
+      }
 
       Logger.Log($"cmd: {_command} - arg: {_arguments}");
 
