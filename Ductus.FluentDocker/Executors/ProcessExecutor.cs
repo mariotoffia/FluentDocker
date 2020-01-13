@@ -50,7 +50,7 @@ namespace Ductus.FluentDocker.Executors
 #if COREFX
           startInfo.Environment[key] = Env[key];
 #else
-         startInfo.EnvironmentVariables[key] = Env[key]; 
+          startInfo.EnvironmentVariables[key] = Env[key]; 
 #endif
         }
       }
