@@ -275,7 +275,7 @@ namespace Ductus.FluentDocker.Builders
         return this;
       }
 
-      foreach(var nv in nameValue)
+      foreach (var nv in nameValue)
       {
         var env = nv.Extract();
         if (null == env || string.IsNullOrWhiteSpace(env.Item1))

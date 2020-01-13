@@ -15,7 +15,7 @@ namespace Ductus.FluentDocker.Extensions
       if (-1 == idx)
         return new Tuple<string, string>(envExpression.Trim(), string.Empty);
 
-      if (idx == envExpression.Length -1)
+      if (idx == envExpression.Length - 1)
         return new Tuple<string, string>(envExpression.Substring(0, idx).Trim(), string.Empty);
 
       return new Tuple<string, string>(envExpression.Substring(0, idx).Trim(), envExpression.Substring(idx + 1, envExpression.Length - idx - 1));
@@ -26,7 +26,7 @@ namespace Ductus.FluentDocker.Extensions
       if (null == env || 0 == env.Count)
         return executor;
 
-      foreach(var key in env.Keys)
+      foreach (var key in env.Keys)
       {
         executor.Env[key] = env[key];
       }
