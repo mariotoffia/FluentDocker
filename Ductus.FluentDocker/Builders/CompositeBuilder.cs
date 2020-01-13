@@ -260,6 +260,34 @@ namespace Ductus.FluentDocker.Builders
     }
 
     /// <summary>
+    /// Sets environment variables when executing docker
+    /// compose. Those may be used in a docker-compose file
+    /// to pass dynamic information such as image labels etc.
+    /// </summary>
+    /// <param name="nameValue">An array of name=value string. It is possilbe to have equal sign
+    /// in the value area since it will use the first encountered equal sign as the enviroment variable
+    /// name and the value.</param>
+    /// <returns>Itself for fluent access.</returns>
+    public CompositeBuilder WithEnvironment(params string[] nameValue)
+    {
+      if (null == nameValue || 0 == nameValue.Length)
+      {
+        return this;
+      }
+
+      foreach(var nv in nameValue)
+      {
+        var env = nv.Extract();
+        if (null == env || string.IsNullOrWhiteSpace(env.Item1))
+          continue;
+        _config.EnvironmentNameValue.Add(env.Item1, env.Item2 ?? string.Empty);
+      }
+
+      return this;
+    }
+
+
+    /// <summary>
     /// Kept for backward compatibility, will be removed in 3.0.0.
     /// </summary>
     /// <returns>Itself for fluent access.</returns>
