@@ -55,22 +55,25 @@ namespace Ductus.FluentDocker.Executors
 
       Logger.Log($"cmd: {_command} - arg: {_arguments}");
 
-      using (var process = new Process {StartInfo = startInfo})
+      using (var process = new Process { StartInfo = startInfo })
       {
         var output = new StringBuilder();
         var err = new StringBuilder();
 
         process.OutputDataReceived += (sender, args) =>
         {
-          if (!string.IsNullOrEmpty(args.Data)) output.AppendLine(args.Data);
+          if (!string.IsNullOrEmpty(args.Data))
+            output.AppendLine(args.Data);
         };
 
         process.ErrorDataReceived += (sender, args) =>
         {
-          if (!string.IsNullOrEmpty(args.Data)) err.AppendLine(args.Data);
+          if (!string.IsNullOrEmpty(args.Data))
+            err.AppendLine(args.Data);
         };
 
-        if (!process.Start()) throw new FluentDockerException($"Could not start process {_command}");
+        if (!process.Start())
+          throw new FluentDockerException($"Could not start process {_command}");
 
         process.BeginOutputReadLine();
         process.BeginErrorReadLine();
