@@ -33,7 +33,8 @@ namespace Ductus.FluentDocker.Model.Common
 
     public override string ToString()
     {
-      if (Scheme != "npipe") return base.ToString();
+      if (Scheme != "npipe")
+        return base.ToString();
 
       var s = base.ToString();
       return s.Substring(0, 6) + "//" + s.Substring(6);
