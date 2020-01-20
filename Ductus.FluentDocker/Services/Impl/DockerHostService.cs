@@ -43,7 +43,7 @@ namespace Ductus.FluentDocker.Services.Impl
       IsNative = isNative;
       if (IsNative)
       {
-        var uri = dockerUri ?? DockerUri.GetDockerHostEnvronmentPathOrDefault();
+        var uri = dockerUri ?? DockerUri.GetDockerHostEnvironmentPathOrDefault();
         var certPath = certificatePath ?? Environment.GetEnvironmentVariable(DockerCertPath);
 
         if (!string.IsNullOrEmpty(certPath))

@@ -36,7 +36,7 @@ namespace Ductus.FluentDocker.Services.Impl
     public EngineScopeType Scope { get; private set; }
     public bool UseLinux()
     {
-      if (this.Scope == EngineScopeType.Linux)
+      if (Scope == EngineScopeType.Linux)
         return true;
 
       var success = SwitchToScope(EngineScopeType.Linux);
@@ -50,7 +50,7 @@ namespace Ductus.FluentDocker.Services.Impl
 
     public bool UseWindows()
     {
-      if (this.Scope == EngineScopeType.Windows)
+      if (Scope == EngineScopeType.Windows)
         return true;
 
       var success = SwitchToScope(EngineScopeType.Windows);

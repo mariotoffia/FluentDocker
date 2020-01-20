@@ -100,7 +100,7 @@ namespace Ductus.FluentDocker.Services.Impl
           return;
 
         _state = value;
-        StateChange?.Invoke(this, new StateChangeEventArgs(this, value));
+        this.StateChange?.Invoke(this, new StateChangeEventArgs(this, value));
         _hooks.Execute(this, _state);
       }
     }

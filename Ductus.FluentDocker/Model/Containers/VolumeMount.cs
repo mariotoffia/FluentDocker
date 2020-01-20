@@ -22,7 +22,7 @@ namespace Ductus.FluentDocker.Model.Containers
     /// <summary>
     ///   Which access 'ro' or 'rw'.
     /// </summary>
-    public bool RW { get; set; }
+    public bool Rw { get; set; }
 
     public override string ToString()
     {
@@ -54,7 +54,7 @@ namespace Ductus.FluentDocker.Model.Containers
       {
         sb.Append(':');
       }
-      sb.Append(RW ? "rw " : "ro");
+      sb.Append(Rw ? "rw " : "ro");
 
       return sb.ToString();
     }

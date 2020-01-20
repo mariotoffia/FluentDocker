@@ -20,14 +20,14 @@ namespace Ductus.FluentDocker.Model.Compose
     /// </remarks>
     public string Delay { get; set; } = "0";
     /// <summary>
-    /// How many times to attempt to restart a container before giving up (default: never give up). 
+    /// How many times to attempt to restart a container before giving up (default: never give up).
     /// </summary>
     /// <remarks>
     ///  If the restart does not succeed within the configured window, this attempt doesn’t count toward the
     /// configured max_attempts value. For example, if max_attempts is set to ‘2’, and the restart fails on the first
     /// attempt, more than two restarts may be attempted.
     /// </remarks>
-    public int MaxAttempts { get; set; } = Int32.MaxValue;
+    public int MaxAttempts { get; set; } = int.MaxValue;
     /// <summary>
     /// How long to wait before deciding if a restart has succeeded.
     /// </summary>

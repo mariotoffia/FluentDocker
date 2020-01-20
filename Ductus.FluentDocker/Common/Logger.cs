@@ -19,11 +19,11 @@ namespace Ductus.FluentDocker.Common
         return;
 
 #if COREFX
-      ILogger.Value.LogTrace(message);
+      InternalLogger.Value.LogTrace(message);
     }
 
 
-    private static readonly Lazy<ILogger> ILogger
+    private static readonly Lazy<ILogger> InternalLogger
       = new Lazy<ILogger>(() =>
       {
         var factory = new ServiceCollection().AddLogging().BuildServiceProvider().GetRequiredService<ILoggerFactory>();
