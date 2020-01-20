@@ -1,5 +1,4 @@
-﻿using System;
-using System.IO;
+﻿using System.IO;
 using System.Linq;
 using Ductus.FluentDocker.Common;
 using Ductus.FluentDocker.Extensions;
@@ -15,12 +14,9 @@ namespace Ductus.FluentDocker.Builders
     private readonly FileBuilderConfig _config = new FileBuilderConfig();
     private readonly ImageBuilder _parent;
     private TemplateString _workingFolder;
-    private string _lastContents = null;
+    private string _lastContents;
 
-    internal FileBuilder(ImageBuilder parent)
-    {
-      _parent = parent;
-    }
+    internal FileBuilder(ImageBuilder parent) => _parent = parent;
 
     /// <summary>
     /// Used to create a Dockerfile as string
@@ -119,7 +115,7 @@ namespace Ductus.FluentDocker.Builders
     /// <param name="cmd">The command with it's argument to do when performing the health check.</param>
     /// <param name="interval">Optional (default is 30s) interval when to invoke the <paramref name="cmd"/>.</param>
     /// <param name="timeout">Optional (default is 30s) when the healthcheck is force cancelled and failed.</param>
-    /// <param name="startPeriod">Optional (default is 0s) when it shall start to excute the <paramref name="cmd"/>.</param>
+    /// <param name="startPeriod">Optional (default is 0s) when it shall start to execute the <paramref name="cmd"/>.</param>
     /// <param name="retries">Optional (default is 3) number retries before consider it as non healthy.</param>
     /// <remarks>
     ///   A <paramref name="cmd"/> can be e.g. a curl command combined by other shell command for example:
@@ -210,7 +206,7 @@ namespace Ductus.FluentDocker.Builders
 
       var dockerFile = Path.Combine(workingFolder, "Dockerfile");
 
-      string contents = !string.IsNullOrEmpty(_config.UseFile) ?
+      var contents = !string.IsNullOrEmpty(_config.UseFile) ?
         _config.UseFile.FromFile() :
         ResolveOrBuildString();
 

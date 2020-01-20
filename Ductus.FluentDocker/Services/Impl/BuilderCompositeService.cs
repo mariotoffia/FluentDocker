@@ -108,7 +108,7 @@ namespace Ductus.FluentDocker.Services.Impl
 
     private void OnStateChange(object service, StateChangeEventArgs evt)
     {
-      StateChange?.Invoke(service, evt);
+      this.StateChange?.Invoke(service, evt);
     }
   }
 }
