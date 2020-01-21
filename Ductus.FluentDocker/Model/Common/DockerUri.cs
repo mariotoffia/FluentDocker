@@ -15,9 +15,9 @@ namespace Ductus.FluentDocker.Model.Common
     {
     }
 
-    public static string GetDockerHostEnvronmentPathOrDefault()
+    public static string GetDockerHostEnvironmentPathOrDefault()
     {
-      string env = Environment.GetEnvironmentVariable(DockerHost);
+      var env = Environment.GetEnvironmentVariable(DockerHost);
       if (null != env)
       {
         return env;
@@ -33,12 +33,11 @@ namespace Ductus.FluentDocker.Model.Common
 
     public override string ToString()
     {
-      if (Scheme == "npipe")
-      {
-        var s = base.ToString();
-        return s.Substring(0, 6) + "//" + s.Substring(6);
-      }
-      return base.ToString();
+      if (Scheme != "npipe")
+        return base.ToString();
+
+      var s = base.ToString();
+      return s.Substring(0, 6) + "//" + s.Substring(6);
     }
   }
 }

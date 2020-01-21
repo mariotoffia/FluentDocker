@@ -43,7 +43,7 @@ namespace Ductus.FluentDocker.Services.Impl
       IsNative = isNative;
       if (IsNative)
       {
-        var uri = dockerUri ?? DockerUri.GetDockerHostEnvronmentPathOrDefault();
+        var uri = dockerUri ?? DockerUri.GetDockerHostEnvironmentPathOrDefault();
         var certPath = certificatePath ?? Environment.GetEnvironmentVariable(DockerCertPath);
 
         if (!string.IsNullOrEmpty(certPath))
@@ -137,15 +137,19 @@ namespace Ductus.FluentDocker.Services.Impl
       if (!string.IsNullOrEmpty(filter))
         options += $" --filter {filter}";
 
-      var result = Host.Ps(options, Certificates);
-      if (!result.Success)
+      var psResult = Host.Ps(options, Certificates);
+      if (!psResult.Success)
         return new List<IContainerService>();
 
-      return (from id in result.Data
-              let config = Host.InspectContainer(id, Certificates)
-              where config.Success && config.Data != null
-              select new DockerContainerService(config.Data.Name, id, Host, config.Data.State.ToServiceState(), Certificates,
-                isWindowsContainer: _isWindowsHost)).Cast<IContainerService>().ToList();
+      var ids = psResult.Data.ToArray();
+
+      var inspectContainersResult = Host.InspectContainers(Certificates, ids);
+      if (!inspectContainersResult.Success)
+        return new List<IContainerService>();
+
+      return inspectContainersResult.Data.Select(c =>
+          new DockerContainerService(c.Name, c.Id, Host, c.State.ToServiceState(), Certificates, isWindowsContainer: _isWindowsHost))
+        .Cast<IContainerService>().ToList();
     }
 
     public IList<IContainerImageService> GetImages(bool all = true, string filter = null)

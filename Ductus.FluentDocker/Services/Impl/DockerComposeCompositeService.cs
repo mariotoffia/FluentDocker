@@ -41,7 +41,7 @@ namespace Ductus.FluentDocker.Services.Impl
         var host = Hosts.First();
 
         var result = host.Host.ComposeDown(_config.AlternativeServiceName, _config.ImageRemoval,
-          !_config.KeepVolumes, _config.RemoveOrphans, host.Certificates,
+          !_config.KeepVolumes, _config.RemoveOrphans, _config.EnvironmentNameValue, host.Certificates,
           _config.ComposeFilePath.ToArray());
 
         if (!result.Success)
@@ -117,7 +117,7 @@ namespace Ductus.FluentDocker.Services.Impl
       var host = Hosts.First();
       if (State == ServiceRunningState.Paused)
       {
-        var upr = host.Host.ComposeUnPause(_config.AlternativeServiceName, _config.Services,
+        var upr = host.Host.ComposeUnPause(_config.AlternativeServiceName, _config.Services, _config.EnvironmentNameValue,
           host.Certificates, _config.ComposeFilePath.ToArray());
 
         if (!upr.Success)
@@ -133,7 +133,9 @@ namespace Ductus.FluentDocker.Services.Impl
         _config.NoRecreate, _config.NoBuild, _config.ForceBuild,
         _config.TimeoutSeconds == TimeSpan.Zero ? (TimeSpan?)null : _config.TimeoutSeconds, _config.RemoveOrphans,
         _config.UseColor,
+        false,
         _config.Services,
+        _config.EnvironmentNameValue,
         host.Certificates, _config.ComposeFilePath.ToArray());
 
       if (!result.Success)
@@ -143,7 +145,7 @@ namespace Ductus.FluentDocker.Services.Impl
           $"Could not start composite service {_config.ComposeFilePath} - result: {result}");
       }
 
-      var containers = host.Host.ComposePs(_config.AlternativeServiceName, _config.Services,
+      var containers = host.Host.ComposePs(_config.AlternativeServiceName, _config.Services, _config.EnvironmentNameValue,
         host.Certificates, _config.ComposeFilePath.ToArray());
 
       if (!containers.Success)
@@ -169,7 +171,7 @@ namespace Ductus.FluentDocker.Services.Impl
         return;
 
       var host = Hosts.First();
-      var pause = host.Host.ComposePause(_config.AlternativeServiceName, _config.Services,
+      var pause = host.Host.ComposePause(_config.AlternativeServiceName, _config.Services, _config.EnvironmentNameValue,
         host.Certificates, _config.ComposeFilePath.ToArray());
 
       if (!pause.Success)
@@ -195,7 +197,7 @@ namespace Ductus.FluentDocker.Services.Impl
       var host = Hosts.First();
 
       var result = host.Host.ComposeStop(_config.AlternativeServiceName, TimeSpan.FromSeconds(30),
-        _config.Services, host.Certificates, _config.ComposeFilePath.ToArray());
+        _config.Services, _config.EnvironmentNameValue, host.Certificates, _config.ComposeFilePath.ToArray());
 
       if (!result.Success)
       {
@@ -212,7 +214,7 @@ namespace Ductus.FluentDocker.Services.Impl
       var host = Hosts.First();
 
       var result = host.Host.ComposeRm(_config.AlternativeServiceName, force,
-        !_config.KeepVolumes, _config.Services, host.Certificates, _config.ComposeFilePath.ToArray());
+        !_config.KeepVolumes, _config.Services, _config.EnvironmentNameValue, host.Certificates, _config.ComposeFilePath.ToArray());
 
       if (!result.Success)
       {

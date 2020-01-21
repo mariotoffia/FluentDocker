@@ -22,7 +22,7 @@ namespace Ductus.FluentDocker.Model.Containers
     public long Size { get; set; }
     public long VirtualSize { get; set; }
     public GraphDriver GraphDriver { get; set; }
-    public FileSystem RootFS { get; set; }
+    public FileSystem RootFs { get; set; }
     public IDictionary<string, string> Metadata { get; set; }
   }
 

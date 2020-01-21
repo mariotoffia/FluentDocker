@@ -25,31 +25,31 @@ namespace Ductus.FluentDocker.Executors.Parsers
       var ip = j["Driver"]["IPAddress"].Value<string>();
       var authConfig = JsonConvert.DeserializeObject<MachineAuthConfig>(str);
 
-      int memsize = 0;
+      var sizeMb = 0;
       if (null != j["Driver"]["Memory"])
       {
-        memsize = j["Driver"]["Memory"].Value<int>();
+        sizeMb = j["Driver"]["Memory"].Value<int>();
       }
 
       if (null != j["Driver"]["MemSize"])
       {
-        memsize = j["Driver"]["MemSize"].Value<int>();
+        sizeMb = j["Driver"]["MemSize"].Value<int>();
       }
 
-      string hostname = string.Empty;
-      if (!IPAddress.TryParse(ip, out var ipaddr))
+      var hostname = string.Empty;
+      if (!IPAddress.TryParse(ip, out var ipAddress))
       {
         hostname = ip;
-        ipaddr = IPAddress.None;
+        ipAddress = IPAddress.None;
       }
 
       var config = new MachineConfiguration
       {
         AuthConfig = authConfig,
-        IpAddress = ipaddr,
+        IpAddress = ipAddress,
         Hostname = hostname,
         DriverName = null != j["DriverName"] ? j["DriverName"].Value<string>() : "unknown",
-        MemorySizeMb = memsize,
+        MemorySizeMb = sizeMb,
         Name = null != j["Name"] ? j["Name"].Value<string>() : string.Empty,
         RequireTls = j["HostOptions"]["EngineOptions"]["TlsVerify"].Value<bool>(),
         StorageSizeMb = j["Driver"]["DiskSize"]?.Value<int>() ?? 0,

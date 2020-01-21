@@ -80,8 +80,8 @@ namespace Ductus.FluentDocker.Services.Extensions
       Func<RequestResponse, int, long> continuation = null, HttpMethod method = null,
       string contentType = "application/json", string body = null)
     {
-      long wait = null == continuation ? timeout : 0;
-      int count = 0;
+      var wait = null == continuation ? timeout : 0;
+      var count = 0;
       do
       {
         var time = Millis;

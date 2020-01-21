@@ -23,6 +23,7 @@ namespace Ductus.FluentDocker.Model.Compose
     public string[] Services { get; set; }
     public bool StopOnDispose { get; set; } = true;
     public bool KeepContainers { get; set; }
+    public IDictionary<string, string> EnvironmentNameValue { get; set; } = new Dictionary<string, string>();
 
     public IDictionary<string, ContainerSpecificConfig> ContainerConfiguration { get; } =
       new Dictionary<string, ContainerSpecificConfig>();
