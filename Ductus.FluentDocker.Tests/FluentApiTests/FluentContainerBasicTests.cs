@@ -24,12 +24,14 @@ namespace Ductus.FluentDocker.Tests.FluentApiTests
     }
 
     [TestMethod]
+    [TestCategory("CI")]
     public void VersionInfoShallBePossibleToRetrieve()
     {
       var v = Fd.Version();
       Assert.IsTrue(v != null && v.Length > 0);
     }
     [TestMethod]
+    [TestCategory("CI")]
     public void BuildContainerRenderServiceInStoppedMode()
     {
       using (
@@ -44,6 +46,7 @@ namespace Ductus.FluentDocker.Tests.FluentApiTests
     }
 
     [TestMethod]
+    [TestCategory("CI")]
     public void UseStaticBuilderWillAlwaysRunDisposeOnContainer()
     {
       Fd.Container(c => c.UseContainer()
@@ -60,6 +63,7 @@ namespace Ductus.FluentDocker.Tests.FluentApiTests
     }
 
     [TestMethod]
+    [TestCategory("CI")]
     public void UseStaticBuilderAsExtension()
     {
       var build = Fd.UseContainer()
@@ -77,6 +81,7 @@ namespace Ductus.FluentDocker.Tests.FluentApiTests
     }
 
     [TestMethod]
+    [TestCategory("CI")]
     public void BuildAndStartContainerWithKeepContainerWillLeaveContainerInArchive()
     {
       string id;
@@ -104,6 +109,7 @@ namespace Ductus.FluentDocker.Tests.FluentApiTests
     }
 
     [TestMethod]
+    [TestCategory("CI")]
     public void BuildAndStartContainerWithCustomEnvironmentWillBeReflectedInGetConfiguration()
     {
       using (
@@ -122,6 +128,7 @@ namespace Ductus.FluentDocker.Tests.FluentApiTests
     }
 
     [TestMethod]
+    [TestCategory("CI")]
     public void PauseAndResumeShallWorkOnSingleContainer()
     {
       using (
@@ -148,6 +155,7 @@ namespace Ductus.FluentDocker.Tests.FluentApiTests
     }
 
     [TestMethod]
+    [TestCategory("CI")]
     public void ExplicitPortMappingShouldWork()
     {
       using (
@@ -165,6 +173,7 @@ namespace Ductus.FluentDocker.Tests.FluentApiTests
     }
 
     [TestMethod]
+    [TestCategory("CI")]
     public void ImplicitPortMappingShouldWork()
     {
       using (
@@ -182,6 +191,7 @@ namespace Ductus.FluentDocker.Tests.FluentApiTests
     }
 
     [TestMethod]
+    [TestCategory("CI")]
     public void WaitForPortShallWork()
     {
       using (
@@ -200,6 +210,7 @@ namespace Ductus.FluentDocker.Tests.FluentApiTests
     }
 
     [TestMethod]
+    [TestCategory("CI")]
     public void WaitForProcessShallWork()
     {
       using (
@@ -218,6 +229,7 @@ namespace Ductus.FluentDocker.Tests.FluentApiTests
     }
 
     [TestMethod]
+    [TestCategory("CI")]
     public void Issue111_WaitForProcess()
     {
       using (var scope = Fd.EngineScope(EngineScopeType.Windows))
@@ -250,6 +262,7 @@ namespace Ductus.FluentDocker.Tests.FluentApiTests
     }
 
     [TestMethod]
+    [TestCategory("CI")]
     public async Task VolumeMappingShallWork()
     {
       const string html = "<html><head>Hello World</head><body><h1>Hello world</h1></body></html>";
@@ -284,6 +297,7 @@ namespace Ductus.FluentDocker.Tests.FluentApiTests
     }
 
     [TestMethod]
+    [TestCategory("CI")]
     public async Task VolumeMappingWithSpacesShallWork()
     {
       const string html = "<html><head>Hello World</head><body><h1>Hello world</h1></body></html>";
@@ -318,6 +332,7 @@ namespace Ductus.FluentDocker.Tests.FluentApiTests
     }
 
     [TestMethod]
+    [TestCategory("CI")]
     public void CopyFromRunningContainerShallWork()
     {
       var fullPath = (TemplateString)@"${TEMP}/fluentdockertest/${RND}";
@@ -344,6 +359,7 @@ namespace Ductus.FluentDocker.Tests.FluentApiTests
     }
 
     [TestMethod]
+    [TestCategory("CI")]
     public void CopyBeforeDisposeContainerShallWork()
     {
       var fullPath = (TemplateString)@"${TEMP}/fluentdockertest/${RND}";
@@ -371,6 +387,7 @@ namespace Ductus.FluentDocker.Tests.FluentApiTests
     }
 
     [TestMethod]
+    [TestCategory("CI")]
     public void ExportToTarFileWhenDisposeShallWork()
     {
       var fullPath = (TemplateString)@"${TEMP}/fluentdockertest/${RND}/export.tar";
@@ -398,6 +415,7 @@ namespace Ductus.FluentDocker.Tests.FluentApiTests
     }
 
     [TestMethod]
+    [TestCategory("CI")]
     public void ExportExploadedWhenDisposeShallWork()
     {
       var fullPath = (TemplateString)@"${TEMP}/fluentdockertest/${RND}";
@@ -427,6 +445,7 @@ namespace Ductus.FluentDocker.Tests.FluentApiTests
     }
 
     [TestMethod]
+    [TestCategory("CI")]
     public void ExportWithConditionDisposeShallWork()
     {
       var fullPath = (TemplateString)@"${TEMP}/fluentdockertest/${RND}/export.tar";
@@ -460,6 +479,7 @@ namespace Ductus.FluentDocker.Tests.FluentApiTests
     }
 
     [TestMethod]
+    [TestCategory("CI")]
     public void CopyToRunningContainerShallWork()
     {
       var fullPath = (TemplateString)@"${TEMP}/fluentdockertest/${RND}/hello.html";
@@ -496,6 +516,7 @@ namespace Ductus.FluentDocker.Tests.FluentApiTests
     }
 
     [TestMethod]
+    [TestCategory("CI")]
     public void ReuseOfExistingContainerShallWork()
     {
       using (Fd
@@ -514,6 +535,7 @@ namespace Ductus.FluentDocker.Tests.FluentApiTests
     }
 
     [TestMethod]
+    [TestCategory("CI")]
     public void PullContainerBeforeRunningShallWork()
     {
       using (
@@ -532,6 +554,7 @@ namespace Ductus.FluentDocker.Tests.FluentApiTests
     }
 
     [TestMethod]
+    [TestCategory("CI")]
     public void ContainerHealthCheckShallWork()
     {
       using (
@@ -549,6 +572,7 @@ namespace Ductus.FluentDocker.Tests.FluentApiTests
     }
 
     [TestMethod]
+    [TestCategory("CI")]
     public void ContainerWithUlimitsShallWork()
     {
       using (

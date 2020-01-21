@@ -20,6 +20,7 @@ namespace Ductus.FluentDocker.Tests.CommandTests
     private static bool _createdTestMachine;
 
     [TestMethod]
+    [TestCategory("Command")]
     public void StartEventShallBeEmittedWhenContainerStart()
     {
       var host = Fd.Native();
@@ -57,6 +58,7 @@ namespace Ductus.FluentDocker.Tests.CommandTests
     }
 
     [TestMethod]
+    [TestCategory("Command")]
     public void LogsFromContaierWhenNotFollowModeShallExitByItself()
     {
       string id = null;
@@ -101,6 +103,7 @@ namespace Ductus.FluentDocker.Tests.CommandTests
     }
 
     [TestMethod]
+    [TestCategory("Command")]
     public void LogsFromContaierWhenInFollowModeShallExitWhenCancelled()
     {
       string id = null;
@@ -148,6 +151,7 @@ namespace Ductus.FluentDocker.Tests.CommandTests
     }
 
     [TestMethod]
+    [TestCategory("Command")]
     public void LogFromContainerShouldSupportReadAllExtension()
     {
       string id = null;

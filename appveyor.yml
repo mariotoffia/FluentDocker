@@ -1,5 +1,5 @@
 skip_non_tags: false
-test: off
+#test: off
 image: Visual Studio 2019
 configuration: Release
 
@@ -32,11 +32,8 @@ build:
   publish_nuget: true
   verbosity: minimal
 
-#after_build:
-#  - ps: dotnet sonarscanner end /d:sonar.login=e220dd372506f00fe34923f011ea45f8568e9bcc
-
 test_script:
-  - ps: dotnet test --settings coverletArgs.runsettings
+  - ps: dotnet test --settings coverletArgs.runsettings --filter TestCategory=CI
 
 after_test:
   - ps: dotnet sonarscanner end /d:sonar.login=e220dd372506f00fe34923f011ea45f8568e9bcc
