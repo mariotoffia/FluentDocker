@@ -21,6 +21,7 @@ namespace Ductus.FluentDocker.Tests.FluentApiTests
     public static void Initialize(TestContext ctx)
     {
       Utilities.LinuxMode();
+      Utilities.EnsureImage("postgres:9.6-alpine", TimeSpan.FromMinutes(1.0));
     }
 
     [TestMethod]
