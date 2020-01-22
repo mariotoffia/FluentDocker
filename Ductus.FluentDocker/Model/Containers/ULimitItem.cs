@@ -18,7 +18,7 @@ namespace Ductus.FluentDocker.Model.Containers
 
     public override string ToString()
     {
-      return !string.IsNullOrEmpty(Hard) ? $"{Ulimit}={Soft}:{Hard}" : $"{Ulimit}={Soft}";
+      return !string.IsNullOrEmpty(Hard) ? $"{Ulimit.ToString().ToLower()}={Soft}:{Hard}" : $"{Ulimit}={Soft}";
     }
   }
 }

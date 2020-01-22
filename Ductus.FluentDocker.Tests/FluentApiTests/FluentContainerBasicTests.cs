@@ -227,42 +227,8 @@ namespace Ductus.FluentDocker.Tests.FluentApiTests
         AreEqual(ServiceRunningState.Running, config.State.ToServiceState());
       }
     }
-
     [TestMethod]
-    [TestCategory("CI")]
-    public void Issue111_WaitForProcess()
-    {
-      using (var scope = Fd.EngineScope(EngineScopeType.Windows))
-      {
-        using (
-          var container =
-            Fd.DefineImage("mariotoffia/issue111").ReuseIfAlreadyExists()
-              .From("mcr.microsoft.com/windows/servercore:ltsc2019")
-              .Shell("powershell", "-Command", "$ErrorActionPreference = 'Stop';")
-              .Run("Set-ExecutionPolicy Bypass -Scope Process -Force; " +
-                   "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12")
-              .Run("Invoke-WebRequest -OutFile install.ps1 https://www.chocolatey.org/install.ps1; " +
-                   "./install.ps1")
-              .Run("choco feature enable --name=allowGlobalConfirmation")
-              .Run("choco install python3")
-              .Copy("Resources/Issue/111/server.py", "C:/")
-              .ExposePorts(8000)
-              .Command("python", "server.py")
-              .Builder().UseContainer().UseImage("mariotoffia/issue111")
-              .WaitForProcess("python.exe", (long)TimeSpan.FromSeconds(30).TotalMilliseconds)
-              .Builder()
-              .Build()
-              .Start())
-        {
-          var c = container.Containers.First();
-          var config = c.GetConfiguration(true);
-          AreEqual(ServiceRunningState.Running, config.State.ToServiceState());
-        }
-      }
-    }
-
-    [TestMethod]
-    [TestCategory("CI")]
+    [TestCategory("Volume")]
     public async Task VolumeMappingShallWork()
     {
       const string html = "<html><head>Hello World</head><body><h1>Hello world</h1></body></html>";
@@ -297,7 +263,7 @@ namespace Ductus.FluentDocker.Tests.FluentApiTests
     }
 
     [TestMethod]
-    [TestCategory("CI")]
+    [TestCategory("Volume")]
     public async Task VolumeMappingWithSpacesShallWork()
     {
       const string html = "<html><head>Hello World</head><body><h1>Hello world</h1></body></html>";
@@ -435,7 +401,7 @@ namespace Ductus.FluentDocker.Tests.FluentApiTests
         IsTrue(Directory.Exists(fullPath));
 
         var files = Directory.GetFiles(fullPath).ToArray();
-        IsTrue(files.Any(x => x.Contains("docker-entrypoint.sh")));
+        IsTrue(files.Any(x => x.Contains(".dockerenv")));
       }
       finally
       {

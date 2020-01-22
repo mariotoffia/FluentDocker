@@ -6,7 +6,6 @@ MinimumVisualStudioVersion = 10.0.40219.1
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{C7FD34B0-1CBF-44EC-A92C-59543CBE383B}"
 	ProjectSection(SolutionItems) = preProject
 		.editorconfig = .editorconfig
-		.sonarcloud.properties = .sonarcloud.properties
 		docs\_config.yml = docs\_config.yml
 		appveyor.yml = appveyor.yml
 		coverletArgs.runsettings = coverletArgs.runsettings
@@ -15,7 +14,6 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution 
 		docs\index.md = docs\index.md
 		NuGet.config = NuGet.config
 		README.md = README.md
-		sonar-project.properties = sonar-project.properties
 	EndProjectSection
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Ductus.FluentDocker", "Ductus.FluentDocker\Ductus.FluentDocker.csproj", "{20B06EAB-41AD-4C1C-8375-5FE120F22B91}"
