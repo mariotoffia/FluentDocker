@@ -49,8 +49,6 @@ This fires up a postgres and waits for it to be ready. To use compose, just do i
       }
 ```
 
-The site http://mariotoffia.github.io/FluentDocker/ is still under construction.
-
 **Note for Linux Users:** _Docker requires _sudo_ by default and the library by default expects that executing user do not
 need to do _sudo_ in order to talk to the docker daemon. If you wish to have it on, please use the experimental 
 ```SudoMechanism``` to setup how to do this. More description can be found in the _Talking to Docker Daemon_ chapter.
