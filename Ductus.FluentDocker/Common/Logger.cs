@@ -9,7 +9,7 @@ using Microsoft.Extensions.Logging;
 
 namespace Ductus.FluentDocker.Common
 {
-  internal static class Logger
+  public static class Logger
   {
     internal static bool Enabled = true;
 

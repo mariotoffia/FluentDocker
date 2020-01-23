@@ -15,17 +15,7 @@ namespace Ductus.FluentDocker.Common
   /// </remarks>
   public static class DirectoryHelper
   {
-    static DirectoryHelper()
-    {
-      var test = Environment.GetEnvironmentVariable("APPVEYOR_PROJECT_NAME");
-      if (null == test)
-        GetTempPath = Path.GetTempPath;
-      else
-      {
-        Directory.CreateDirectory(@"d:\\fluentdocker");
-        GetTempPath = () => @"d:\\fluentdocker";
-      }
-    }
+    static DirectoryHelper() => GetTempPath = Path.GetTempPath;
 
     private static readonly Dictionary<string, string> ToRename = new Dictionary<string, string>
     {

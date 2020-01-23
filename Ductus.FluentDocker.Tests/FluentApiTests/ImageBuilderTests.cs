@@ -1,4 +1,4 @@
-﻿using Ductus.FluentDocker.Tests.Extensions;
+using Ductus.FluentDocker.Tests.Extensions;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using System;
 
@@ -32,14 +32,14 @@ namespace Ductus.FluentDocker.Tests.FluentApiTests
       var lines = dockerfile.Split(new[] { Environment.NewLine }, StringSplitOptions.None);
       Assert.AreEqual(10, lines.Length);
       Assert.AreEqual("FROM mcr.microsoft.com/windows/servercore:ltsc2019", lines[0]);
-      Assert.AreEqual("SHELL [powershell-Command,$ErrorActionPreference = 'Stop';]", lines[1]);
+      Assert.AreEqual("SHELL [\"powershell-Command\",\"$ErrorActionPreference = 'Stop';\"]", lines[1]);
       Assert.AreEqual("RUN Set-ExecutionPolicy Bypass -Scope Process -Force; [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12", lines[2]);
       Assert.AreEqual("RUN Invoke-WebRequest -OutFile install.ps1 https://www.chocolatey.org/install.ps1; ./install.ps1", lines[3]);
       Assert.AreEqual("RUN choco feature enable --name=allowGlobalConfirmation", lines[4]);
       Assert.AreEqual("RUN choco install python3", lines[5]);
       Assert.AreEqual("COPY Resources/Issue/111/server.py C:/", lines[6]);
       Assert.AreEqual("EXPOSE 8000", lines[7]);
-      Assert.AreEqual("CMD [pythonserver.py]", lines[8]);
+      Assert.AreEqual("CMD [\"pythonserver.py\"]", lines[8]);
       Assert.AreEqual(string.Empty, lines[9]);
     }
 
