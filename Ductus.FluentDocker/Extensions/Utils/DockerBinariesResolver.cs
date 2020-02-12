@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -35,7 +35,11 @@ namespace Ductus.FluentDocker.Extensions.Utils
 
       if (null == MainDockerMachine)
       {
-        Logger.Log("Failed to find docker-machine client binary - please add it to your path");
+        Logger.Log(
+            "Failed to find docker-machine client binary - " +
+                   "please add it to your path. If you're running docker " +
+                   "2.2.0 or later you have to install it using " +
+                   "https://github.com/docker/machine/releases");
       }
     }
 

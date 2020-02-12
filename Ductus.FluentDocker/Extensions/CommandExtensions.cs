@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net;
@@ -97,6 +97,15 @@ namespace Ductus.FluentDocker.Extensions
         cmd = $"sudo {binary.FqPath}";
       else
         cmd = $"echo {binary.SudoPassword} | sudo -S {binary.FqPath}";
+
+      if (string.IsNullOrEmpty(cmd))
+      {
+        if (!string.IsNullOrEmpty(dockerCommand) && dockerCommand.ToLower() == "")
+          throw new FluentDockerException(
+            $"Could not find {dockerCommand} make sure it is on your path. From 2.2.0 you have to seprately install it via https://github.com/docker/machine/releases");
+
+        throw new FluentDockerException($"Could not find {dockerCommand}, make sure it is on your path.");
+      }
 
       return cmd;
     }
