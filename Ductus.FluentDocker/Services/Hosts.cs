@@ -1,7 +1,8 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using Ductus.FluentDocker.Commands;
+using Ductus.FluentDocker.Common;
 using Ductus.FluentDocker.Extensions;
 using Ductus.FluentDocker.Services.Impl;
 
@@ -23,9 +24,16 @@ namespace Ductus.FluentDocker.Services
       if (!Machine.IsPresent())
         return list;
 
-      var ls = Machine.Ls();
-      if (ls.Success)
-        list.AddRange(from machine in ls.Data select FromMachineName(machine.Name));
+      try
+      {
+        var ls = Machine.Ls();
+        if (ls.Success)
+          list.AddRange(from machine in ls.Data select FromMachineName(machine.Name));
+      }
+      catch(FluentDockerException)
+      {
+        return list;
+      }
 
       return list;
     }
