@@ -30,7 +30,7 @@ namespace Ductus.FluentDocker.Services
         if (ls.Success)
           list.AddRange(from machine in ls.Data select FromMachineName(machine.Name));
       }
-      catch(FluentDockerException)
+      catch (FluentDockerException)
       {
         return list;
       }
