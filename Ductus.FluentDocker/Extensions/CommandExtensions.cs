@@ -100,7 +100,7 @@ namespace Ductus.FluentDocker.Extensions
 
       if (string.IsNullOrEmpty(cmd))
       {
-        if (!string.IsNullOrEmpty(dockerCommand) && dockerCommand.ToLower() == "")
+        if (!string.IsNullOrEmpty(dockerCommand) && dockerCommand.ToLower() == "docker-machine")
           throw new FluentDockerException(
             $"Could not find {dockerCommand} make sure it is on your path. From 2.2.0 you have to seprately install it via https://github.com/docker/machine/releases");
 
