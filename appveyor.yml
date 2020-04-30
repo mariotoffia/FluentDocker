@@ -40,8 +40,6 @@ after_test:
 artifacts:
   - path: '.\**\Release\*.nupkg'
     name: NuGet Packages
-  - path: '.\**\Release\*.snupkg'
-    name: NuGet Symbol Packages
 
 deploy:
   - provider: NuGet
