@@ -1,6 +1,7 @@
 using Ductus.FluentDocker.Tests.Extensions;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using System;
+using System.Linq;
 
 namespace Ductus.FluentDocker.Tests.FluentApiTests
 {
@@ -68,6 +69,26 @@ namespace Ductus.FluentDocker.Tests.FluentApiTests
         Assert.AreEqual(2, config.Config.Cmd.Length);
         Assert.AreEqual("/usr/bin/node", config.Config.Cmd[0]);
         Assert.AreEqual("/var/www/app.js", config.Config.Cmd[1]);
+      }
+    }
+
+    [TestMethod]
+    [Ignore]
+    public void BuildImageShouldPropagateBuildArguments()
+    {
+      using (
+        var image =
+          Fd.DefineImage("mariotoffia/fd-args-test:latest")
+            .BuildArguments("configuration=Debug")
+            .FromString(@"
+FROM alpine
+ARG configuration=Release
+ENV CONFIGURATION $configuration
+")
+            .Build())
+      {
+        var config = image.GetConfiguration(true);
+        Assert.IsTrue(config.Config.Env.Any(env => env == "CONFIGURATION=Debug"));
       }
     }
   }
