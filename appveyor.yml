@@ -32,7 +32,7 @@ build:
   verbosity: minimal
 
 test_script:
-  - ps: dotnet test --settings coverletArgs.runsettings --filter TestCategory=CI -f netcoreapp3.0
+  - ps: dotnet test --settings coverletArgs.runsettings --filter TestCategory=CI -f netcoreapp3.1
 
 after_test:
   - ps: dotnet sonarscanner end /d:sonar.login=e220dd372506f00fe34923f011ea45f8568e9bcc
