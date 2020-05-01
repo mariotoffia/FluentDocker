@@ -43,6 +43,7 @@ namespace Ductus.FluentDocker.Builders
 
       var id = host.Value.Build(_config.ImageName, _config.Params.Tags[0], workingdir, new ContainerBuildParams
       {
+        BuildArguments = _config.Params.BuildArguments,
         Tags = _config.Params.Tags.Except(new[] { _config.Params.Tags[0] }).ToArray(),
         Quiet = true
       });
