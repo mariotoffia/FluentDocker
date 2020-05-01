@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Security.Cryptography.X509Certificates;
@@ -127,10 +128,10 @@ namespace Ductus.FluentDocker.Commands
         : $"~/.docker/machine/machines/{machine}";
 
       if (!Directory.Exists(path))
-        return new CommandResponse<string>(false, new string[0], $"Machine do not exist at path {path}");
+        return new CommandResponse<string>(false, Array.Empty<string>(), $"Machine do not exist at path {path}");
 
       Directory.Delete(path, recursive: true);
-      return new CommandResponse<string>(true, new string[0]);
+      return new CommandResponse<string>(true, Array.Empty<string>());
     }
 
     public static DockerUri Uri(this string machine)

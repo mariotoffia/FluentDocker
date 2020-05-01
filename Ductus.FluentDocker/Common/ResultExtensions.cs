@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 
 namespace Ductus.FluentDocker.Common
@@ -38,7 +38,7 @@ namespace Ductus.FluentDocker.Common
     {
       if (string.IsNullOrEmpty(log))
       {
-        return new string[0];
+        return Array.Empty<string>();
       }
 
       return log.Split(new[] { "\n", "\r\n" }, StringSplitOptions.RemoveEmptyEntries);

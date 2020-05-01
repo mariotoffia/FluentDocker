@@ -84,7 +84,7 @@ namespace Ductus.FluentDocker.Builders
         return container;
 
       var nw = host.Value.GetNetworks();
-      foreach (var network in (IEnumerable<string>)_config.NetworkNames ?? new string[0])
+      foreach (var network in (IEnumerable<string>)_config.NetworkNames ?? Array.Empty<string>())
       {
         if (network == firstNw)
           continue;
