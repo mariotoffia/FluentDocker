@@ -1,4 +1,4 @@
-﻿using System.Linq;
+using System.Linq;
 using Ductus.FluentDocker.Common;
 using Ductus.FluentDocker.Extensions;
 using Ductus.FluentDocker.Model.Builders;
@@ -93,12 +93,12 @@ namespace Ductus.FluentDocker.Builders
       if (s.Length == 2)
       {
         _config.ImageName = s[0];
-        _config.Params.Tags.ArrayAdd(s[1]);
+        _config.Params.Tags = _config.Params.Tags.ArrayAdd(s[1]);
       }
       else
       {
         _config.ImageName = name;
-        _config.Params.Tags.ArrayAdd("latest");
+        _config.Params.Tags = _config.Params.Tags.ArrayAdd("latest");
       }
 
       return this;
@@ -106,13 +106,13 @@ namespace Ductus.FluentDocker.Builders
 
     public ImageBuilder ImageTag(params string[] tags)
     {
-      _config.Params.Tags.ArrayAddDistinct(tags);
+      _config.Params.Tags = _config.Params.Tags.ArrayAddDistinct(tags);
       return this;
     }
 
     public ImageBuilder BuildArguments(params string[] args)
     {
-      _config.Params.BuildArguments.ArrayAdd(args);
+      _config.Params.BuildArguments = _config.Params.BuildArguments.ArrayAdd(args);
       return this;
     }
 
@@ -124,7 +124,7 @@ namespace Ductus.FluentDocker.Builders
 
     public ImageBuilder Label(params string[] labels)
     {
-      _config.Params.Labels.ArrayAdd(labels);
+      _config.Params.Labels = _config.Params.Labels.ArrayAdd(labels);
       return this;
     }
 
