@@ -13,7 +13,20 @@ dotnet_csproj:
   informational_version: '{version}'
 
 install:
+  - ps: ipconfig /all
+  - ps: cat C:\Windows\System32\drivers\etc\hosts
+  # - ps: ping -n 3 host.docker.internal
+  - ps: docker version
   - ps: Switch-DockerLinux
+  - ps: ipconfig /all
+  - ps: cat C:\Windows\System32\drivers\etc\hosts
+  # - ps: ping -n 3 host.docker.internal
+  - ps: docker version
+  - ps: docker run -it --rm busybox ifconfig
+  - ps: docker run -it --rm busybox cat /etc/hosts
+  - ps: docker run -it --rm busybox cat /etc/resolv.conf
+  - ps: docker run -it --rm busybox ping -c 3 host.docker.internal
+  - ps: docker run -it --rm busybox ping -c 3 docker.for.win.localhost
   - ps: dotnet tool install -g GitVersion.Tool
   - ps: dotnet tool install -g dotnet-format
   - ps: dotnet tool install -g dotnet-sonarscanner -v:m
