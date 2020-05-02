@@ -13,6 +13,7 @@ dotnet_csproj:
   informational_version: '{version}'
 
 install:
+  - ps: Switch-DockerLinux
   - ps: dotnet tool install -g GitVersion.Tool
   - ps: dotnet tool install -g dotnet-format
   - ps: dotnet tool install -g dotnet-sonarscanner -v:m
