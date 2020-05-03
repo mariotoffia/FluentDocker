@@ -184,8 +184,8 @@ namespace Ductus.FluentDocker.Extensions
       if (hostEntry.AddressList.Length > 0)
       {
         // Prefer IPv4 addresses
-        var v4Address = hostEntry.AddressList.FirstOrDefault(x => x.AddressFamily == AddressFamily.InterNetwork);
-        _cachedDockerIpAddress = v4Address ?? hostEntry.AddressList[0];
+        var v4Address = hostEntry.AddressList.LastOrDefault(x => x.AddressFamily == AddressFamily.InterNetwork);
+        _cachedDockerIpAddress = v4Address ?? hostEntry.AddressList.Last();
       }
 
       return _cachedDockerIpAddress;
