@@ -220,7 +220,7 @@ namespace Ductus.FluentDocker.Executors.Mappers
         {
           Id = id,
           Labels = new List<Tuple<string, string>>(),
-          Attributes = GetExtraInfo(attributes, new string[0])
+          Attributes = GetExtraInfo(attributes, Array.Empty<string>())
         }
       };
     }

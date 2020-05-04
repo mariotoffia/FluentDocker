@@ -1,4 +1,4 @@
-using Ductus.FluentDocker.Model.Common;
+using System;
 
 namespace Ductus.FluentDocker.Model.Builders.FileBuilder
 {
@@ -7,7 +7,7 @@ namespace Ductus.FluentDocker.Model.Builders.FileBuilder
     public ShellCommand(string shell, params string[] args)
     {
       Shell = shell;
-      Arguments = null == args ? new string[0] : args;
+      Arguments = args ?? Array.Empty<string>();
     }
 
     public string Shell { get; }

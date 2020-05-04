@@ -1,6 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <TargetFrameworks Condition="'$(OS)' != 'Unix'">netstandard1.6;netstandard2.0;netstandard2.1;net452</TargetFrameworks>
+    <TargetFrameworks Condition="'$(OS)' != 'Unix'">netstandard1.6;netstandard2.0;netstandard2.1;net461</TargetFrameworks>
     <TargetFrameworks Condition="'$(OS)' == 'Unix'">netstandard1.6;netstandard2.0;netstandard2.1</TargetFrameworks>
 
     <DefineConstants Condition=" '$(TargetFramework)' == 'netstandard1.6' ">$(DefineConstants);COREFX</DefineConstants>
@@ -68,7 +68,7 @@
     <PackageReference Include="System.Runtime.InteropServices.RuntimeInformation" Version="4.3.0" />
     <PackageReference Include="System.Threading.Thread" Version="4.3.0" />
   </ItemGroup>
-  <ItemGroup Condition="'$(TargetFramework)' == 'net452'">
+  <ItemGroup Condition="'$(TargetFramework)' == 'net461'">
       <PackageReference Include="System.Net.Http" Version="4.3.3" />
   </ItemGroup>
 </Project>
