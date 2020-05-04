@@ -160,7 +160,7 @@ namespace Ductus.FluentDocker.Extensions
     {
       try
       {
-        Dns.GetHostEntryAsync("docker").Wait();
+        Dns.GetHostEntryAsync("host.docker.internal").Wait();
         return true;
       }
       catch (AggregateException ex)
@@ -180,12 +180,12 @@ namespace Ductus.FluentDocker.Extensions
       if (useCache && null != _cachedDockerIpAddress)
         return _cachedDockerIpAddress;
 
-      var hostEntry = Dns.GetHostEntryAsync("docker").Result;
+      var hostEntry = Dns.GetHostEntryAsync("host.docker.internal").Result;
       if (hostEntry.AddressList.Length > 0)
       {
         // Prefer IPv4 addresses
-        var v4Address = hostEntry.AddressList.FirstOrDefault(x => x.AddressFamily == AddressFamily.InterNetwork);
-        _cachedDockerIpAddress = v4Address ?? hostEntry.AddressList[0];
+        var v4Address = hostEntry.AddressList.LastOrDefault(x => x.AddressFamily == AddressFamily.InterNetwork);
+        _cachedDockerIpAddress = v4Address ?? hostEntry.AddressList.Last();
       }
 
       return _cachedDockerIpAddress;
