@@ -20,7 +20,6 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Ductus.FluentDocker\Ductus.FluentDocker.csproj" />
-    <ProjectReference Include="..\FluentDocker.Features\FluentDocker.Features.Elk\FluentDocker.Features.Elk.csproj" />
   </ItemGroup>
 
   <ItemGroup>
