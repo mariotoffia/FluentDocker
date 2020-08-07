@@ -5,7 +5,7 @@
     <TargetFrameworks Condition="'$(OS)' == 'Unix'">netcoreapp1.1;netcoreapp2.0</TargetFrameworks>
 
     <DefineConstants Condition=" '$(TargetFramework)' == 'netcoreapp1.1' ">$(DefineConstants);COREFX</DefineConstants>
-    <DefineConstants Condition=" '$(TargetFramework)' == 'netcoreapp22.0' ">$(DefineConstants);COREFX</DefineConstants>
+    <DefineConstants Condition=" '$(TargetFramework)' == 'netcoreapp2.0' ">$(DefineConstants);COREFX</DefineConstants>
 
     <Version>1.0.0</Version>
     <AssemblyVersion>1.0.0.0</AssemblyVersion>
@@ -33,7 +33,7 @@ Documentation: https://github.com/mariotoffia/FluentDocker
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="GitVersionTask" Version="5.2.5-beta1.98" PrivateAssets="All" />
+    <PackageReference Include="GitVersionTask" Version="5.3.7" PrivateAssets="All" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="15.0.0" />
     <PackageReference Include="MSTest.TestAdapter" Version="1.1.11" />
     <PackageReference Include="MSTest.TestFramework" Version="1.1.11" />
