@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using Ductus.FluentDocker.Executors;
 using Ductus.FluentDocker.Executors.Parsers;
@@ -415,7 +416,10 @@ namespace Ductus.FluentDocker.Commands
       bool noStart = false,
       string[] services = null /*all*/,
       IDictionary<string, string> env = null,
-      ICertificatePaths certificates = null, params string[] composeFile)
+      ICertificatePaths certificates = null,
+      DataReceivedEventHandler outputDataReceived = null,
+      DataReceivedEventHandler errorDataReceived = null,
+      params string[] composeFile)
     {
       if (forceRecreate && noRecreate)
       {
@@ -463,7 +467,8 @@ namespace Ductus.FluentDocker.Commands
       return
         new ProcessExecutor<StringListResponseParser, IList<string>>(
           "docker-compose".ResolveBinary(),
-          $"{args} up {options}", cwd.NeedCwd ? cwd.Cwd : null).ExecutionEnvironment(env).Execute();
+          $"{args} up {options}", cwd.NeedCwd ? cwd.Cwd : null).ExecutionEnvironment(env)
+          .Execute(outputDataReceived, errorDataReceived);
     }
 
     public static CommandResponse<IList<string>> ComposeRm(this DockerUri host, string altProjectName = null,
@@ -471,7 +476,10 @@ namespace Ductus.FluentDocker.Commands
       bool removeVolumes = false,
       string[] services = null /*all*/,
       IDictionary<string, string> env = null,
-      ICertificatePaths certificates = null, params string[] composeFile)
+      ICertificatePaths certificates = null,
+      DataReceivedEventHandler outputDataReceived = null,
+      DataReceivedEventHandler errorDataReceived = null,
+      params string[] composeFile)
     {
       var cwd = WorkingDirectory(composeFile);
       var args = $"{host.RenderBaseArgs(certificates)}";
@@ -499,7 +507,7 @@ namespace Ductus.FluentDocker.Commands
       return
         new ProcessExecutor<StringListResponseParser, IList<string>>(
           "docker-compose".ResolveBinary(),
-          $"{args} rm {options}", cwd.NeedCwd ? cwd.Cwd : null).ExecutionEnvironment(env).Execute();
+          $"{args} rm {options}", cwd.NeedCwd ? cwd.Cwd : null).ExecutionEnvironment(env).Execute(outputDataReceived, errorDataReceived);
     }
 
     public static CommandResponse<IList<string>> ComposePs(this DockerUri host, string altProjectName = null,

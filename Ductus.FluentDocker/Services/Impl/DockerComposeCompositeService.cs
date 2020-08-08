@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Diagnostics;
 using System.Linq;
 using Ductus.FluentDocker.Commands;
 using Ductus.FluentDocker.Common;
@@ -80,6 +81,8 @@ namespace Ductus.FluentDocker.Services.Impl
       }
     }
 
+    public event DataReceivedEventHandler OutputDataReceived;
+    public event DataReceivedEventHandler ErrorDataReceived;
     public IReadOnlyCollection<IHostService> Hosts { get; private set; }
     public IReadOnlyCollection<IContainerService> Containers { get; private set; }
 
@@ -136,7 +139,10 @@ namespace Ductus.FluentDocker.Services.Impl
         false,
         _config.Services,
         _config.EnvironmentNameValue,
-        host.Certificates, _config.ComposeFilePath.ToArray());
+        host.Certificates,
+        this.OutputDataReceived,
+        this.ErrorDataReceived,
+        _config.ComposeFilePath.ToArray());
 
       if (!result.Success)
       {
@@ -213,8 +219,16 @@ namespace Ductus.FluentDocker.Services.Impl
       State = ServiceRunningState.Removing;
       var host = Hosts.First();
 
-      var result = host.Host.ComposeRm(_config.AlternativeServiceName, force,
-        !_config.KeepVolumes, _config.Services, _config.EnvironmentNameValue, host.Certificates, _config.ComposeFilePath.ToArray());
+      var result = host.Host.ComposeRm(
+        _config.AlternativeServiceName,
+        force,
+        !_config.KeepVolumes,
+        _config.Services,
+        _config.EnvironmentNameValue,
+        host.Certificates,
+        this.OutputDataReceived,
+        this.ErrorDataReceived,
+        _config.ComposeFilePath.ToArray());
 
       if (!result.Success)
       {

@@ -17,6 +17,7 @@ namespace Ductus.FluentDocker.Builders
   [Experimental(TargetVersion = "3.0.0")]
   public sealed class CompositeBuilder : BaseBuilder<ICompositeService>
   {
+
     private readonly DockerComposeFileConfig _config = new DockerComposeFileConfig();
 
     internal CompositeBuilder(IBuilder parent, string composeFile = null) : base(parent)

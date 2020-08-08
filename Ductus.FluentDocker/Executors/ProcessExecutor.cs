@@ -30,7 +30,9 @@ namespace Ductus.FluentDocker.Executors
 
     public IDictionary<string, string> Env { get; } = new Dictionary<string, string>();
 
-    public CommandResponse<TE> Execute()
+    public CommandResponse<TE> Execute(
+    DataReceivedEventHandler outputDataReceived = null,
+    DataReceivedEventHandler errorDataReceived = null)
     {
       var startInfo = new ProcessStartInfo
       {
@@ -62,12 +64,14 @@ namespace Ductus.FluentDocker.Executors
 
         process.OutputDataReceived += (sender, args) =>
         {
+          outputDataReceived?.Invoke(sender, args);
           if (!string.IsNullOrEmpty(args.Data))
             output.AppendLine(args.Data);
         };
 
         process.ErrorDataReceived += (sender, args) =>
         {
+          errorDataReceived?.Invoke(sender, args);
           if (!string.IsNullOrEmpty(args.Data))
             err.AppendLine(args.Data);
         };
