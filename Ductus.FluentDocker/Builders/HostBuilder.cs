@@ -40,9 +40,9 @@ namespace Ductus.FluentDocker.Builders
       return builder;
     }
 
-    public RemoteSshHostBuilder UseSsh(string ipAddress = null)
+    public RemoteSshHostBuilder UseSsh(string ipAddressOrURI = null)
     {
-      var builder = new RemoteSshHostBuilder(this, ipAddress);
+      var builder = new RemoteSshHostBuilder(this, ipAddressOrURI);
       Childs.Add(builder);
       return builder;
     }
