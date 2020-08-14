@@ -3,20 +3,25 @@
 using Ductus.FluentDocker.Builders;
 using Ductus.FluentDocker.Services;
 
-public class DockerContextAwareRemoteBuilder : BaseBuilder<IHostService>
+namespace Ductus.FluentDocker.Builders
 {
-    private string _uri;
-    internal DockerContextAwareRemoteBuilder(IBuilder parent, string uri = null) : base(parent) {
-        _uri = uri;
-    }
 
-    public override IHostService Build()
+    public class DockerContextAwareRemoteBuilder : BaseBuilder<IHostService>
     {
-        throw new System.NotImplementedException();
-    }
+        private string _uri;
+        internal DockerContextAwareRemoteBuilder(IBuilder parent, string uri = null) : base(parent)
+        {
+            _uri = uri;
+        }
 
-    protected override IBuilder InternalCreate()
-    {
-        throw new System.NotImplementedException();
+        public override IHostService Build()
+        {
+            throw new System.NotImplementedException();
+        }
+
+        protected override IBuilder InternalCreate()
+        {
+            throw new System.NotImplementedException();
+        }
     }
 }
