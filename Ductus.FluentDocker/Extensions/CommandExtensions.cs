@@ -191,6 +191,13 @@ namespace Ductus.FluentDocker.Extensions
       return _cachedDockerIpAddress;
     }
 
+    internal static string CommaAdd(this string s, string value) 
+    {
+      if (string.IsNullOrEmpty(s)) {
+        return value;
+      } 
+      return $"{s},{value}";
+    }
     internal static string RenderBaseArgs(this Uri host, ICertificatePaths certificates = null)
     {
       var args = string.Empty;

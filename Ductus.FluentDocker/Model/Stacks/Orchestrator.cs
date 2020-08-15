@@ -13,6 +13,10 @@ namespace Ductus.FluentDocker.Model.Stacks
     /// <summary>
     /// Kubernetes
     /// </summary>
-    Kubernetes
+    Kubernetes,
+    /// <summary>
+    /// No orchestrator.
+    /// </summary>
+    None
   }
 }
