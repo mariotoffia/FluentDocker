@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.IO;
 using Ductus.FluentDocker.Executors;
 using Ductus.FluentDocker.Executors.Parsers;
@@ -417,8 +416,6 @@ namespace Ductus.FluentDocker.Commands
       string[] services = null /*all*/,
       IDictionary<string, string> env = null,
       ICertificatePaths certificates = null,
-      DataReceivedEventHandler outputDataReceived = null,
-      DataReceivedEventHandler errorDataReceived = null,
       params string[] composeFile)
     {
       if (forceRecreate && noRecreate)
@@ -468,7 +465,7 @@ namespace Ductus.FluentDocker.Commands
         new ProcessExecutor<StringListResponseParser, IList<string>>(
           "docker-compose".ResolveBinary(),
           $"{args} up {options}", cwd.NeedCwd ? cwd.Cwd : null).ExecutionEnvironment(env)
-          .Execute(outputDataReceived, errorDataReceived);
+          .Execute();
     }
 
     public static CommandResponse<IList<string>> ComposeRm(this DockerUri host, string altProjectName = null,
@@ -477,8 +474,6 @@ namespace Ductus.FluentDocker.Commands
       string[] services = null /*all*/,
       IDictionary<string, string> env = null,
       ICertificatePaths certificates = null,
-      DataReceivedEventHandler outputDataReceived = null,
-      DataReceivedEventHandler errorDataReceived = null,
       params string[] composeFile)
     {
       var cwd = WorkingDirectory(composeFile);
@@ -507,7 +502,7 @@ namespace Ductus.FluentDocker.Commands
       return
         new ProcessExecutor<StringListResponseParser, IList<string>>(
           "docker-compose".ResolveBinary(),
-          $"{args} rm {options}", cwd.NeedCwd ? cwd.Cwd : null).ExecutionEnvironment(env).Execute(outputDataReceived, errorDataReceived);
+          $"{args} rm {options}", cwd.NeedCwd ? cwd.Cwd : null).ExecutionEnvironment(env).Execute();
     }
 
     public static CommandResponse<IList<string>> ComposePs(this DockerUri host, string altProjectName = null,

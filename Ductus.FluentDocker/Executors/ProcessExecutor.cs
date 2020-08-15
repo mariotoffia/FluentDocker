@@ -1,6 +1,7 @@
 using System.Collections.Generic;
-using System.Diagnostics;
+using System.Runtime.CompilerServices;
 using System.Text;
+using Ductus.FluentDocker.AmbientContext;
 using Ductus.FluentDocker.Common;
 using Ductus.FluentDocker.Extensions;
 using Ductus.FluentDocker.Model.Containers;
@@ -30,64 +31,37 @@ namespace Ductus.FluentDocker.Executors
 
     public IDictionary<string, string> Env { get; } = new Dictionary<string, string>();
 
-    public CommandResponse<TE> Execute(
-    DataReceivedEventHandler outputDataReceived = null,
-    DataReceivedEventHandler errorDataReceived = null)
+    public CommandResponse<TE> Execute([CallerMemberName] string caller = "")
     {
-      var startInfo = new ProcessStartInfo
-      {
-        CreateNoWindow = true,
-        RedirectStandardOutput = true,
-        RedirectStandardError = true,
-        UseShellExecute = false,
-        Arguments = _arguments,
-        FileName = _command,
-        WorkingDirectory = _workingdir
-      };
-
-      if (0 != Env.Count)
-        foreach (var key in Env.Keys)
-        {
-#if COREFX
-          startInfo.Environment[key] = Env[key];
-#else
-          startInfo.EnvironmentVariables[key] = Env[key];
-#endif
-        }
-
       Logger.Log($"cmd: {_command} - arg: {_arguments}");
 
-      using (var process = new Process { StartInfo = startInfo })
+      var pm = ProcessManagerContext.ProcessManager;
+
+      var output = new StringBuilder();
+      var err = new StringBuilder();
+
+      pm.StandartTextReceived += (sender, s) =>
       {
-        var output = new StringBuilder();
-        var err = new StringBuilder();
+        if (!string.IsNullOrEmpty(s))
+          output.Append(s);
+      };
 
-        process.OutputDataReceived += (sender, args) =>
-        {
-          outputDataReceived?.Invoke(sender, args);
-          if (!string.IsNullOrEmpty(args.Data))
-            output.AppendLine(args.Data);
-        };
+      pm.ErrorTextReceived += (sender, s) =>
+      {
+        if (!string.IsNullOrEmpty(s))
+          err.Append(s);
+      };
 
-        process.ErrorDataReceived += (sender, args) =>
-        {
-          errorDataReceived?.Invoke(sender, args);
-          if (!string.IsNullOrEmpty(args.Data))
-            err.AppendLine(args.Data);
-        };
+      pm.ExecuteAsync(caller, _command, _workingdir, Env, _arguments);
 
-        if (!process.Start())
-          throw new FluentDockerException($"Could not start process {_command}");
+      if (!pm.Running)
+        throw new FluentDockerException($"Could not start process {_command}");
 
-        process.BeginOutputReadLine();
-        process.BeginErrorReadLine();
+      pm.WaitForExit();
 
-        process.WaitForExit();
-
-        return
-          new T().Process(new ProcessExecutionResult(_command, output.ToString(), err.ToString(), process.ExitCode))
-            .Response;
-      }
+      return
+        new T().Process(new ProcessExecutionResult(_command, output.ToString(), err.ToString(), pm.ExitCode))
+          .Response;
     }
   }
 }

@@ -81,8 +81,6 @@ namespace Ductus.FluentDocker.Services.Impl
       }
     }
 
-    public event DataReceivedEventHandler OutputDataReceived;
-    public event DataReceivedEventHandler ErrorDataReceived;
     public IReadOnlyCollection<IHostService> Hosts { get; private set; }
     public IReadOnlyCollection<IContainerService> Containers { get; private set; }
 
@@ -140,8 +138,6 @@ namespace Ductus.FluentDocker.Services.Impl
         _config.Services,
         _config.EnvironmentNameValue,
         host.Certificates,
-        this.OutputDataReceived,
-        this.ErrorDataReceived,
         _config.ComposeFilePath.ToArray());
 
       if (!result.Success)
@@ -226,8 +222,6 @@ namespace Ductus.FluentDocker.Services.Impl
         _config.Services,
         _config.EnvironmentNameValue,
         host.Certificates,
-        this.OutputDataReceived,
-        this.ErrorDataReceived,
         _config.ComposeFilePath.ToArray());
 
       if (!result.Success)

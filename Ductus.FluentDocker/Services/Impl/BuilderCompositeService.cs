@@ -96,8 +96,6 @@ namespace Ductus.FluentDocker.Services.Impl
     }
 
     public event ServiceDelegates.StateChange StateChange;
-    public event DataReceivedEventHandler OutputDataReceived;
-    public event DataReceivedEventHandler ErrorDataReceived;
     public IReadOnlyCollection<IHostService> Hosts { get; }
     public IReadOnlyCollection<IContainerService> Containers { get; }
     public IReadOnlyCollection<IContainerImageService> Images { get; }

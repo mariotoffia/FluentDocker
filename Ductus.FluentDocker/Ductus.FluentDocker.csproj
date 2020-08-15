@@ -34,7 +34,7 @@
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="GitVersionTask" Version="5.3.7" PrivateAssets="All" />
-    <PackageReference Include="Microsoft.SourceLink.GitHub" Version="1.0.0" PrivateAssets="All"/>
+    <PackageReference Include="Microsoft.SourceLink.GitHub" Version="1.0.0" PrivateAssets="All" />
     <PackageReference Include="Newtonsoft.Json" Version="9.0.1" />
     <PackageReference Include="SharpCompress" Version="0.23.0" />
   </ItemGroup>
