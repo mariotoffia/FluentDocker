@@ -19,6 +19,7 @@ namespace Ductus.FluentDocker.Model.Containers
     public ContainerConfig Config { get; set; }
     public string Architecture { get; set; }
     public string Os { get; set; }
+    public string OsVersion { get; set; }
     public long Size { get; set; }
     public long VirtualSize { get; set; }
     public GraphDriver GraphDriver { get; set; }

@@ -73,7 +73,7 @@ namespace Ductus.FluentDocker.Executors
           if (dataReceivedContext == null) return;
 
           var processDataReceivedArgs = new ProcessDataReceivedArgs {Data = args.Data, ProcessIdentifier = caller};
-          dataReceivedContext.OutputDataReceived.Invoke(sender, processDataReceivedArgs);
+          dataReceivedContext.OutputDataReceived?.Invoke(sender, processDataReceivedArgs);
         };
 
         process.ErrorDataReceived += (sender, args) =>
@@ -84,7 +84,7 @@ namespace Ductus.FluentDocker.Executors
           if (dataReceivedContext == null) return;
 
           var processDataReceivedArgs = new ProcessDataReceivedArgs {Data = args.Data, ProcessIdentifier = caller};
-          dataReceivedContext.ErrorDataReceived.Invoke(sender, processDataReceivedArgs);
+          dataReceivedContext.ErrorDataReceived?.Invoke(sender, processDataReceivedArgs);
         };
 
         if (!process.Start())
