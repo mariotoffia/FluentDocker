@@ -585,7 +585,7 @@ namespace Ductus.FluentDocker.Model.Containers
     /// When set to true, independand on the HEALTHCHECK in the Dockerfile, no health check is performed.
     /// </summary>
     /// <remarks>
-    /// --no-healthcheck 
+    /// --no-healthcheck
     /// </remarks>
     public bool HealthCheckDisabled { get; set; }
     /// <summary>
@@ -652,6 +652,14 @@ namespace Ductus.FluentDocker.Model.Containers
     ///   -l, --label=[]
     /// </remarks>
     public string[] Labels { get; set; }
+
+    /// <summary>
+    ///   Container isolation technology
+    /// </summary>
+    /// <remarks>
+    ///   --isolation
+    /// </remarks>
+    public ContainerIsolationTechnology Isolation { get; set; }
 
     /// <summary>
     ///   Add additional groups to join
@@ -931,6 +939,11 @@ namespace Ductus.FluentDocker.Model.Containers
       if (Runtime != ContainerRuntime.Default)
         sb.Append($" --runtime={Runtime.ToString().ToLower()}");
 
+      var isolation = Isolation.ToDocker();
+      if (null != isolation)
+      {
+        sb.Append($"--isolation {Isolation.ToDocker()}");
+      }
       return sb.ToString();
     }
   }
@@ -947,7 +960,7 @@ namespace Ductus.FluentDocker.Model.Containers
   --mac-address                   Container MAC address (e.g. 92:d0:c6:0a:29:33)
   --net=default                   Connect a container to a network
   --net-alias=[]                  Add network-scoped alias for the container
-  --oom-score-adj                 Tune host's OOM preferences (-1000 to 1000)  
+  --oom-score-adj                 Tune host's OOM preferences (-1000 to 1000)
   --read-only                     Mount the container's root filesystem as read only
   --security-opt=[]               Security Options
   --shm-size                      Size of /dev/shm, default value is 64MB
