@@ -23,7 +23,7 @@ namespace Ductus.FluentDocker.Tests.Model.Containers
     {
       var prms = new ContainerCreateParams { Isolation = isolationTechnology};
       var opts = prms.ToString();
-      Assert.IsTrue(opts.Contains($"--isolation {expectedIsolationParameter}"));
+      Assert.IsTrue(opts.Contains($" --isolation {expectedIsolationParameter}"));
     }
   }
 }

@@ -942,7 +942,7 @@ namespace Ductus.FluentDocker.Model.Containers
       var isolation = Isolation.ToDocker();
       if (null != isolation)
       {
-        sb.Append($"--isolation {Isolation.ToDocker()}");
+        sb.Append($" --isolation {Isolation.ToDocker()}");
       }
       return sb.ToString();
     }
