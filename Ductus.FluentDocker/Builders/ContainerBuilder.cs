@@ -310,6 +310,12 @@ namespace Ductus.FluentDocker.Builders
       return this;
     }
 
+    public ContainerBuilder WithIPC(string ipc)
+    {
+      _config.CreateParams.Ipc = ipc;
+      return this;
+    }
+
     /// <summary>
     /// Specifies a container runtime, e.g. NVIDIA for GPU workloads.
     /// </summary>
