@@ -84,10 +84,15 @@ namespace Ductus.FluentDocker.Extensions
 
     public static string ResolveBinary(this string dockerCommand, bool preferMachine = false, bool forceResolve = false)
     {
-      if (forceResolve)
+      if (forceResolve || null == _binaryResolver)
         _binaryResolver = new DockerBinariesResolver(_sudoMechanism, _sudoPassword);
 
-      var binary = _binaryResolver.Resolve(dockerCommand, preferMachine);
+      return dockerCommand.ResolveBinary(_binaryResolver, preferMachine);
+    }
+
+    public static string ResolveBinary(this string dockerCommand, DockerBinariesResolver resolver, bool preferMachine = false)
+    {
+      var binary = resolver.Resolve(dockerCommand, preferMachine);
 
       if (FdOs.IsWindows() || binary.Sudo == SudoMechanism.None)
         return binary.FqPath;

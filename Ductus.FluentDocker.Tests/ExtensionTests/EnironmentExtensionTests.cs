@@ -1,6 +1,4 @@
-using System.Linq;
 using Ductus.FluentDocker.Extensions;
-using Ductus.FluentDocker.Tests.Compose;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace Ductus.FluentDocker.Tests.ExtensionTests
