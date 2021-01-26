@@ -678,6 +678,15 @@ namespace Ductus.FluentDocker.Model.Containers
     public string Network { get; set; }
 
     /// <summary>
+    ///   The alias to use when connectin to the network
+    ///   specified by <see cref="Network"/>
+    /// </summary>
+    /// <remarks>
+    ///   --network-alias
+    /// </remarks>
+    public string NetworkAlias { get; set; }
+
+    /// <summary>
     ///   Container IPv4 address (e.g. 172.30.100.104).
     /// </summary>
     /// <remarks>
@@ -899,6 +908,7 @@ namespace Ductus.FluentDocker.Model.Containers
       sb.OptionIfExists("-l ", Labels);
       sb.OptionIfExists("--group-add=", Groups);
       sb.OptionIfExists("--network ", Network);
+      sb.OptionIfExists("--network-alias ", NetworkAlias);
       sb.OptionIfExists("--ip ", Ipv4);
       sb.OptionIfExists("--ip6 ", Ipv6);
 
@@ -959,7 +969,6 @@ namespace Ductus.FluentDocker.Model.Containers
   --log-opt=[]                    Log driver options
   --mac-address                   Container MAC address (e.g. 92:d0:c6:0a:29:33)
   --net=default                   Connect a container to a network
-  --net-alias=[]                  Add network-scoped alias for the container
   --oom-score-adj                 Tune host's OOM preferences (-1000 to 1000)
   --read-only                     Mount the container's root filesystem as read only
   --security-opt=[]               Security Options
