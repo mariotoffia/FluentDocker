@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using Ductus.FluentDocker.Model.Common;
 using Ductus.FluentDocker.Model.Compose;
 using Ductus.FluentDocker.Model.Containers;
+using Ductus.FluentDocker.Model.Networks;
 using Ductus.FluentDocker.Services;
 
 namespace Ductus.FluentDocker.Model.Builders
@@ -34,8 +35,8 @@ namespace Ductus.FluentDocker.Model.Builders
     public Tuple<TemplateString /*host*/, bool /*explode*/,
       Func<IContainerService, bool> /*condition*/> ExportOnDispose
     { get; set; }
-    public List<INetworkService> Networks { get; set; }
-    public List<string> NetworkNames { get; set; }
+    public List<NetworkAttachConfiguration> Networks { get; set; }
+    public List<NetworkNameAttachConfiguration> NetworkNames { get; set; }
     public List<string> ExecuteOnRunningArguments { get; set; }
     public List<string> ExecuteOnDisposingArguments { get; set; }
   }
