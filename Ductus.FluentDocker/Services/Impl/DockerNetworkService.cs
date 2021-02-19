@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using Ductus.FluentDocker.Commands;
 using Ductus.FluentDocker.Common;
 using Ductus.FluentDocker.Model.Common;
@@ -39,17 +39,21 @@ namespace Ductus.FluentDocker.Services.Impl
       return _config = result.Data;
     }
 
-    public INetworkService Attach(IContainerService container, bool detatchOnDisposeNetwork)
+    public INetworkService Attach(IContainerService container, bool detatchOnDisposeNetwork, string alias = null)
     {
-      return Attach(container.Id, detatchOnDisposeNetwork);
+      return Attach(container.Id, detatchOnDisposeNetwork, alias);
     }
 
-    public INetworkService Attach(string containerId, bool detatchOnDisposeNetwork)
+    public INetworkService Attach(string containerId, bool detatchOnDisposeNetwork, string alias = null)
     {
+      var aliasArray = alias != null ?
+        new string[] { alias } :
+        null;
+
       if (detatchOnDisposeNetwork)
         _detatchOnDispose.Add(containerId);
 
-      DockerHost.NetworkConnect(containerId, Id, certificates: Certificates);
+      DockerHost.NetworkConnect(containerId, Id, certificates: Certificates, alias: aliasArray);
       return this;
     }
 

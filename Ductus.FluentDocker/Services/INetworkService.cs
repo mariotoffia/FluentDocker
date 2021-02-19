@@ -1,4 +1,4 @@
-﻿using Ductus.FluentDocker.Model.Common;
+using Ductus.FluentDocker.Model.Common;
 using Ductus.FluentDocker.Model.Containers;
 using Ductus.FluentDocker.Model.Networks;
 
@@ -11,8 +11,8 @@ namespace Ductus.FluentDocker.Services
     ICertificatePaths Certificates { get; }
     NetworkConfiguration GetConfiguration(bool fresh = false);
 
-    INetworkService Attach(IContainerService container, bool detatchOnDisposeNetwork);
-    INetworkService Attach(string containerId, bool detatchOnDisposeNetwork);
+    INetworkService Attach(IContainerService container, bool detatchOnDisposeNetwork, string alias = null);
+    INetworkService Attach(string containerId, bool detatchOnDisposeNetwork, string alias = null);
     INetworkService Detatch(IContainerService container, bool force = false);
     INetworkService Detatch(string containerId, bool force = false);
   }
