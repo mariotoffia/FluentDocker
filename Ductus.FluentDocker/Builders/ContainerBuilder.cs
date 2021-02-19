@@ -55,16 +55,17 @@ namespace Ductus.FluentDocker.Builders
         }
       }
 
-      // If we have networks, the first is supplied as --network option on docker create
-      // TODO: This is a ugly hack that needs to be cleaned up.
-      var cfgNw = (IList<INetworkService>)_config.Networks ?? new INetworkService[0];
+      var firstNetwork = FindFirstNetworkNameAndAlias();
 
-      var firstNw = null != _config.NetworkNames
-        ? _config.NetworkNames[0]
-        : (0 == cfgNw.Count ? string.Empty : cfgNw[0].Name);
+      if (string.Empty != firstNetwork.Network)
+      {
+        _config.CreateParams.Network = firstNetwork.Network;
 
-      if (string.Empty != firstNw)
-        _config.CreateParams.Network = firstNw;
+        if(string.Empty != firstNetwork.Alias)
+        {
+          _config.CreateParams.Alias = firstNetwork.Alias;
+        }
+      }
 
       var container = host.Value.Create(_config.Image, _config.ImageFocrePull, _config.CreateParams, _config.StopOnDispose,
         _config.DeleteOnDispose,
@@ -74,10 +75,17 @@ namespace Ductus.FluentDocker.Builders
 
       AddHooks(container);
 
-      foreach (var network in cfgNw)
+      foreach (var network in (IEnumerable<INetworkService>)_config.Networks ?? Array.Empty<INetworkService>())
       {
-        if (network.Name != firstNw)
+        if (network.Name != firstNetwork.Network)
           network.Attach(container, true /*detachOnDisposeNetwork*/);
+      }
+
+      foreach (var networkWithAlias in (IEnumerable<NetworkWithAlias<INetworkService>>)_config.NetworksWithAlias ?? Array.Empty<NetworkWithAlias<INetworkService>>())
+      {
+        var network = networkWithAlias.Network;
+        if (network.Name != firstNetwork.Network)
+          network.Attach(container, true /*detachOnDisposeNetwork*/, networkWithAlias.Alias);
       }
 
       if (null == _config.NetworkNames)
@@ -86,14 +94,65 @@ namespace Ductus.FluentDocker.Builders
       var nw = host.Value.GetNetworks();
       foreach (var network in (IEnumerable<string>)_config.NetworkNames ?? Array.Empty<string>())
       {
-        if (network == firstNw)
+        if (network == firstNetwork.Network)
           continue;
 
         var nets = nw.First(x => x.Name == network);
         nets.Attach(container, true /*detachOnDisposeNetwork*/);
       }
 
+      foreach (var networkWithAlias in (IEnumerable<NetworkWithAlias<string>>)_config.NetworkNamesWithAlias ?? Array.Empty<NetworkWithAlias<string>>())
+      {
+        var network = networkWithAlias.Network;
+        if (network == firstNetwork.Network)
+          continue;
+
+        var nets = nw.First(x => x.Name == network);
+        nets.Attach(container, true /*detachOnDisposeNetwork*/, networkWithAlias.Alias);
+      }
+
       return container;
+    }
+
+    private NetworkWithAlias<string> FindFirstNetworkNameAndAlias()
+    {
+
+      if(_config.Networks != null && _config.Networks.Count > 0)
+      {
+        return new NetworkWithAlias<string>
+        {
+          Network = _config.Networks[0].Name,
+        };
+      }
+      else if (_config.NetworksWithAlias != null && _config.NetworksWithAlias.Count > 0)
+      {
+        return new NetworkWithAlias<string>
+        {
+          Network = _config.NetworksWithAlias[0].Network.Name,
+          Alias = _config.NetworksWithAlias[0].Alias
+        };
+      }
+      else if (_config.NetworkNames != null && _config.NetworkNames.Count > 0)
+      {
+        return new NetworkWithAlias<string>
+        {
+          Network = _config.NetworkNames[0],
+        };
+      }
+      else if (_config.NetworkNamesWithAlias != null && _config.NetworkNamesWithAlias.Count > 0)
+      {
+        return new NetworkWithAlias<string>
+        {
+          Network = _config.NetworkNamesWithAlias[0].Network,
+          Alias = _config.NetworkNamesWithAlias[0].Alias
+        };
+      }
+
+      return new NetworkWithAlias<string>
+      {
+        Network = string.Empty,
+        Alias = string.Empty
+      };
     }
 
     protected override IBuilder InternalCreate()
