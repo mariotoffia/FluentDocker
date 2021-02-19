@@ -909,7 +909,7 @@ namespace Ductus.FluentDocker.Model.Containers
       sb.OptionIfExists("-l ", Labels);
       sb.OptionIfExists("--group-add=", Groups);
       sb.OptionIfExists("--network ", Network);
-      if(Network != null)
+      if(!string.IsNullOrEmpty(Network))
       {
         sb.OptionIfExists("--alias ", Network);
       }
