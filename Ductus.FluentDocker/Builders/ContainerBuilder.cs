@@ -420,7 +420,7 @@ namespace Ductus.FluentDocker.Builders
     /// <param name="network">The networks to attach this container to.</param>
     /// <returns>Itself for fluent access.</returns>
     /// <remarks>
-    /// The firstg parameter will not be used to do a docker network attach. Instead
+    /// The first parameter will not be used to do a docker network attach. Instead
     /// it is used as a creation parameter --network. This is to support static ip
     /// assignment. The rest of the networks will do attach via docker network.
     /// </remarks>
@@ -437,13 +437,48 @@ namespace Ductus.FluentDocker.Builders
     }
 
     /// <summary>
+    ///   Uses a already pre-existing network service. It will automatically
+    ///   detach this container from the network when the network is disposed.
+    /// </summary>
+    /// <param name="alias">The alias to use for the container in each of the given networks</param>
+    /// <param name="networks">The networks to attach this container to.</param>
+    /// <returns>Itself for fluent access.</returns>
+    /// <remarks>
+    /// The first parameter will not be used to do a docker network attach if no <see cref="UseNetwork(INetworkService[])"/>
+    /// is set (those have precedence).
+    /// assignment. The rest of the networks will do attach via docker network.
+    /// </remarks>
+    public ContainerBuilder UseNetworksWithAlias(string alias, params INetworkService[] networks)
+    {
+      _ = alias ?? throw new ArgumentNullException(nameof(alias));
+
+      if (null == networks || 0 == networks.Length)
+        return this;
+
+      if (null == _config.Networks)
+        _config.NetworksWithAlias = new List<NetworkWithAlias<INetworkService>>();
+
+
+      foreach(var network in networks)
+      {
+        _config.NetworksWithAlias.Add(new NetworkWithAlias<INetworkService>
+          {
+            Network = network,
+            Alias = alias
+          });
+      }
+
+      return this;
+    }
+
+    /// <summary>
     ///   Attaches to a network with specified name after the container has been created. It will automatically
     ///   detach this container from the network when the network is disposed.
     /// </summary>
     /// <param name="network">The networks to attach this container to.</param>
     /// <returns>Itself for fluent access.</returns>
     /// <remarks>
-    /// The first network from will be used as docker create --network parameter, if no <see cref="UseNetwork(INetworkService[])"/>
+    /// The first network from will be used as docker create --network parameter, if no <see cref="UseNetworksWithAlias(string, INetworkService[])"/>
     /// is set (those have precedence).  This is to support static ip
     /// assignment. The rest of the networks will do attach via docker network.
     /// </remarks>
@@ -456,6 +491,40 @@ namespace Ductus.FluentDocker.Builders
         _config.NetworkNames = new List<string>();
 
       _config.NetworkNames.AddRange(network);
+      return this;
+    }
+
+    /// <summary>
+    ///   Attaches to a network with specified name after the container has been created. It will automatically
+    ///   detach this container from the network when the network is disposed.
+    /// </summary>
+    /// <param name="alias">The alias to use for the container in each of the given networks</param>
+    /// <param name="networks">The networks to attach this container to.</param>
+    /// <returns>Itself for fluent access.</returns>
+    /// <remarks>
+    /// The first network from will be used as docker create --network parameter, if no <see cref="UseNetwork(INetworkService[])"/>
+    /// is set (those have precedence).  This is to support static ip
+    /// assignment. The rest of the networks will do attach via docker network.
+    /// </remarks>
+    public ContainerBuilder UseNetworksWithAlias(string alias, params string[] networks)
+    {
+      _ = alias ?? throw new ArgumentNullException(nameof(alias));
+
+      if (null == networks || 0 == networks.Length)
+        return this;
+
+      if (null == _config.NetworkNames)
+        _config.NetworkNamesWithAlias = new List<NetworkWithAlias<string>>();
+
+      foreach (var network in networks)
+      {
+        _config.NetworkNamesWithAlias.Add(new NetworkWithAlias<string>
+        {
+          Network = network,
+          Alias = alias
+        });
+      }
+
       return this;
     }
 
