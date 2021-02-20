@@ -911,7 +911,7 @@ namespace Ductus.FluentDocker.Model.Containers
       sb.OptionIfExists("--network ", Network);
       if(!string.IsNullOrEmpty(Network))
       {
-        sb.OptionIfExists("--alias ", Network);
+        sb.OptionIfExists("--network-alias ", Alias);
       }
       sb.OptionIfExists("--ip ", Ipv4);
       sb.OptionIfExists("--ip6 ", Ipv6);
