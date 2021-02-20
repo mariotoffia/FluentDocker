@@ -40,5 +40,46 @@ namespace Ductus.FluentDocker.Model.Builders
     public List<NetworkWithAlias<string>> NetworkNamesWithAlias { get; set; }
     public List<string> ExecuteOnRunningArguments { get; set; }
     public List<string> ExecuteOnDisposingArguments { get; set; }
+    
+    public NetworkWithAlias<string> FindFirstNetworkNameAndAlias()
+    {
+
+      if (Networks != null && Networks.Count > 0)
+      {
+        return new NetworkWithAlias<string>
+        {
+          Network = Networks[0].Name,
+        };
+      }
+      else if (NetworksWithAlias != null && NetworksWithAlias.Count > 0)
+      {
+        return new NetworkWithAlias<string>
+        {
+          Network = NetworksWithAlias[0].Network.Name,
+          Alias = NetworksWithAlias[0].Alias
+        };
+      }
+      else if (NetworkNames != null && NetworkNames.Count > 0)
+      {
+        return new NetworkWithAlias<string>
+        {
+          Network = NetworkNames[0],
+        };
+      }
+      else if (NetworkNamesWithAlias != null && NetworkNamesWithAlias.Count > 0)
+      {
+        return new NetworkWithAlias<string>
+        {
+          Network = NetworkNamesWithAlias[0].Network,
+          Alias = NetworkNamesWithAlias[0].Alias
+        };
+      }
+
+      return new NetworkWithAlias<string>
+      {
+        Network = string.Empty,
+        Alias = string.Empty
+      };
+    }
   }
 }

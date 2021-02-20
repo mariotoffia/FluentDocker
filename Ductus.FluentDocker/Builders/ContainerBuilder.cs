@@ -55,7 +55,7 @@ namespace Ductus.FluentDocker.Builders
         }
       }
 
-      var firstNetwork = FindFirstNetworkNameAndAlias();
+      var firstNetwork = _config.FindFirstNetworkNameAndAlias();
 
       if (string.Empty != firstNetwork.Network)
       {
@@ -88,9 +88,6 @@ namespace Ductus.FluentDocker.Builders
           network.Attach(container, true /*detachOnDisposeNetwork*/, networkWithAlias.Alias);
       }
 
-      if (null == _config.NetworkNames)
-        return container;
-
       var nw = host.Value.GetNetworks();
       foreach (var network in (IEnumerable<string>)_config.NetworkNames ?? Array.Empty<string>())
       {
@@ -112,47 +109,6 @@ namespace Ductus.FluentDocker.Builders
       }
 
       return container;
-    }
-
-    private NetworkWithAlias<string> FindFirstNetworkNameAndAlias()
-    {
-
-      if(_config.Networks != null && _config.Networks.Count > 0)
-      {
-        return new NetworkWithAlias<string>
-        {
-          Network = _config.Networks[0].Name,
-        };
-      }
-      else if (_config.NetworksWithAlias != null && _config.NetworksWithAlias.Count > 0)
-      {
-        return new NetworkWithAlias<string>
-        {
-          Network = _config.NetworksWithAlias[0].Network.Name,
-          Alias = _config.NetworksWithAlias[0].Alias
-        };
-      }
-      else if (_config.NetworkNames != null && _config.NetworkNames.Count > 0)
-      {
-        return new NetworkWithAlias<string>
-        {
-          Network = _config.NetworkNames[0],
-        };
-      }
-      else if (_config.NetworkNamesWithAlias != null && _config.NetworkNamesWithAlias.Count > 0)
-      {
-        return new NetworkWithAlias<string>
-        {
-          Network = _config.NetworkNamesWithAlias[0].Network,
-          Alias = _config.NetworkNamesWithAlias[0].Alias
-        };
-      }
-
-      return new NetworkWithAlias<string>
-      {
-        Network = string.Empty,
-        Alias = string.Empty
-      };
     }
 
     protected override IBuilder InternalCreate()
@@ -514,7 +470,7 @@ namespace Ductus.FluentDocker.Builders
       if (null == networks || 0 == networks.Length)
         return this;
 
-      if (null == _config.Networks)
+      if (null == _config.NetworksWithAlias)
         _config.NetworksWithAlias = new List<NetworkWithAlias<INetworkService>>();
 
 
@@ -572,7 +528,7 @@ namespace Ductus.FluentDocker.Builders
       if (null == networks || 0 == networks.Length)
         return this;
 
-      if (null == _config.NetworkNames)
+      if (null == _config.NetworkNamesWithAlias)
         _config.NetworkNamesWithAlias = new List<NetworkWithAlias<string>>();
 
       foreach (var network in networks)
