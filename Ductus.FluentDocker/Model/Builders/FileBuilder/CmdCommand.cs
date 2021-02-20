@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 
 namespace Ductus.FluentDocker.Model.Builders.FileBuilder
 {
@@ -7,7 +8,9 @@ namespace Ductus.FluentDocker.Model.Builders.FileBuilder
     public CmdCommand(string cmd, params string[] args)
     {
       Cmd = cmd;
-      Arguments = args ?? Array.Empty<string>();
+      Arguments = (args ?? Array.Empty<string>())
+        .Select(arg => $"\"{arg}\"")
+        .ToArray();
     }
 
     public string Cmd { get; }
@@ -15,7 +18,11 @@ namespace Ductus.FluentDocker.Model.Builders.FileBuilder
 
     public override string ToString()
     {
-      return $"CMD [\"{Cmd}{string.Join("\",\"", Arguments)}\"]";
+      var args = string.Join(", ", Arguments);
+
+      args = string.IsNullOrEmpty(args) ? "" : $", {args}";
+
+      return $"CMD [\"{Cmd}\"{args}]";
     }
   }
 }
