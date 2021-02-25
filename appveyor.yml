@@ -13,7 +13,7 @@ dotnet_csproj:
   informational_version: '{version}'
 
 init:
-- set PATH=C:\Program Files\Java\jdk15\bin;%PATH%
+  - set PATH=C:\Program Files\Java\jdk15\bin;%PATH%
 
 install:
   - ps: Switch-DockerLinux
