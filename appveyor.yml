@@ -12,6 +12,9 @@ dotnet_csproj:
   file_version: '{version}'
   informational_version: '{version}'
 
+init:
+- set PATH=C:\Program Files\Java\jdk15\bin;%PATH%
+
 install:
   - ps: Switch-DockerLinux
   - ps: dotnet tool install -g GitVersion.Tool
