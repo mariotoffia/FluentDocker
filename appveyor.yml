@@ -25,8 +25,6 @@ before_build:
   - nuget restore
  # - ps: dotnet format --check --dry-run
   - ps: dotnet gitversion /l console /output buildserver
-  - ps: where java
-  - ps: java --version
   - ps: dotnet sonarscanner begin /d:sonar.host.url=https://sonarcloud.io /d:sonar.login=e220dd372506f00fe34923f011ea45f8568e9bcc /k:mariotoffia_FluentDocker /o:mariotoffia /v:"$env:APPVEYOR_BUILD_NUMBER" /d:sonar.cs.opencover.reportsPaths="./output/coverage.opencover.xml" /d:sonar.coverage.exclusions="**Tests*.cs"
   - ps: $env:good_to_deploy="true"
   - ps: if (Test-Path env:APPVEYOR_PULL_REQUEST_HEAD_REPO_BRANCH) {echo "Not going to deploy because pull request."}
@@ -41,6 +39,8 @@ test_script:
   - ps: dotnet test --settings coverletArgs.runsettings --filter TestCategory=CI -f netcoreapp3.1
 
 after_test:
+  - ps: where java
+  - ps: java --version
   - ps: dotnet sonarscanner end /d:sonar.login=e220dd372506f00fe34923f011ea45f8568e9bcc
 
 artifacts:
