@@ -19,7 +19,7 @@ install:
   - ps: Switch-DockerLinux
   - ps: dotnet tool install -g GitVersion.Tool
   - ps: dotnet tool install -g dotnet-format
-  - ps: dotnet tool install -g dotnet-sonarscanner -v:m
+  - ps: dotnet tool install -g dotnet-sonarscanner -v:m --version 5.0.4
 
 before_build:
   - nuget restore
@@ -39,9 +39,6 @@ test_script:
   - ps: dotnet test --settings coverletArgs.runsettings --filter TestCategory=CI -f netcoreapp3.1
 
 after_test:
-  - ps: $env:path = $env:path.replace('C:\Program Files\Java\jdk1.8.0\bin;', '')
-  - ps: |
-      [Environment]::SetEnvironmentVariable("PATH", $env:path, "Machine")
   - ps: dotnet sonarscanner end /d:sonar.login=e220dd372506f00fe34923f011ea45f8568e9bcc
 
 artifacts:
