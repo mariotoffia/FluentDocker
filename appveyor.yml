@@ -40,7 +40,7 @@ test_script:
 
 after_test:
   - ps: $env:path = $env:path.replace('C:\Program Files\Java\jdk1.8.0\bin;', '')
-  - ps: [Environment]::SetEnvironmentVariable("PATH", $env:path, "Machine")
+  - ps: [System.Environment]::SetEnvironmentVariable("PATH", $env:path, [System.EnvironmentVariableTarget]::Machine)
   - ps: dotnet sonarscanner end /d:sonar.login=e220dd372506f00fe34923f011ea45f8568e9bcc
 
 artifacts:
