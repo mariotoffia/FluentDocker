@@ -14,12 +14,14 @@ dotnet_csproj:
 
 init:
   - set PATH=C:\Program Files\Java\jdk15\bin;%PATH%
+  - set JAVA_HOME_11_X64=C:\Program Files\Java\jdk15
+  - set JAVA_HOME=C:\Program Files\Java\jdk15
 
 install:
   - ps: Switch-DockerLinux
   - ps: dotnet tool install -g GitVersion.Tool
   - ps: dotnet tool install -g dotnet-format
-  - ps: dotnet tool install -g dotnet-sonarscanner -v:m --version 5.0.4
+  - ps: dotnet tool install -g dotnet-sonarscanner -v:m
 
 before_build:
   - nuget restore
