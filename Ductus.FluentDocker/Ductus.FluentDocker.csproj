@@ -27,7 +27,7 @@
     <RepositoryType>git</RepositoryType>
     <RepositoryUrl>https://github.com/mariotoffia/FluentDocker</RepositoryUrl>
     <Description>Library to manage docker-machine, docker-compose, and docker containers for windows / mac or native linux using netcore or full framework.</Description>
-    <Copyright>© 2016 - 2019 Mario Toffia</Copyright>
+    <Copyright>© 2016 - 2021 Mario Toffia</Copyright>
     <AssemblyOriginatorKeyFile>..\keypair.snk</AssemblyOriginatorKeyFile>
     <SignAssembly>true</SignAssembly>
     <PublicSign Condition=" '$(OS)' != 'Windows_NT' ">true</PublicSign>

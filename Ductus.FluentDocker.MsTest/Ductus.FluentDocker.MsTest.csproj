@@ -26,7 +26,7 @@
 Ms Test Support to allow for create, run one or more docker images while testing using docker, compose, machine (Linux, Windows, Mac) using netcore or full framework.
 Documentation: https://github.com/mariotoffia/FluentDocker
     </Description>
-    <Copyright>© 2016 - 2019 Mario Toffia</Copyright>
+    <Copyright>© 2016 - 2021 Mario Toffia</Copyright>
     <AssemblyOriginatorKeyFile>..\keypair.snk</AssemblyOriginatorKeyFile>
     <SignAssembly>true</SignAssembly>
     <PublicSign Condition=" '$(OS)' != 'Windows_NT' ">true</PublicSign>
