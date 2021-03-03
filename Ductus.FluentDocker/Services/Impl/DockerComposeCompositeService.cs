@@ -47,7 +47,7 @@ namespace Ductus.FluentDocker.Services.Impl
         if (!result.Success)
         {
           State = ServiceRunningState.Unknown;
-          throw new FluentDockerException($"Could not dispose composite service {_config.ComposeFilePath}");
+          throw new FluentDockerException($"Could not dispose composite service from file(s) {string.Join(", ", _config.ComposeFilePath)}");
         }
 
         State = ServiceRunningState.Removed;
@@ -121,7 +121,7 @@ namespace Ductus.FluentDocker.Services.Impl
           host.Certificates, _config.ComposeFilePath.ToArray());
 
         if (!upr.Success)
-          throw new FluentDockerException($"Could not resume composite service {_config.ComposeFilePath}");
+          throw new FluentDockerException($"Could not resume composite service from file(s) {string.Join(", ", _config.ComposeFilePath)}");
 
         State = ServiceRunningState.Running;
         return;
@@ -142,7 +142,7 @@ namespace Ductus.FluentDocker.Services.Impl
       {
         State = ServiceRunningState.Unknown;
         throw new FluentDockerException(
-          $"Could not start composite service {_config.ComposeFilePath} - result: {result}");
+          $"Could not start composite service with file(s) {string.Join(", ", _config.ComposeFilePath)} - result: {result}");
       }
 
       var containers = host.Host.ComposePs(_config.AlternativeServiceName, _config.Services, _config.EnvironmentNameValue,
@@ -175,7 +175,7 @@ namespace Ductus.FluentDocker.Services.Impl
         host.Certificates, _config.ComposeFilePath.ToArray());
 
       if (!pause.Success)
-        throw new FluentDockerException($"Could not pause composite service {_config.ComposeFilePath}");
+        throw new FluentDockerException($"Could not pause composite service from file(s) {string.Join(", ", _config.ComposeFilePath)}");
 
       State = ServiceRunningState.Paused;
     }
@@ -202,7 +202,7 @@ namespace Ductus.FluentDocker.Services.Impl
       if (!result.Success)
       {
         State = ServiceRunningState.Unknown;
-        throw new FluentDockerException($"Could not stop composite service {_config.ComposeFilePath}");
+        throw new FluentDockerException($"Could not stop composite service from file(s) {string.Join(", ", _config.ComposeFilePath)}");
       }
 
       State = ServiceRunningState.Stopped;
@@ -219,7 +219,7 @@ namespace Ductus.FluentDocker.Services.Impl
       if (!result.Success)
       {
         State = ServiceRunningState.Unknown;
-        throw new FluentDockerException($"Could not remove composite service {_config.ComposeFilePath}");
+        throw new FluentDockerException($"Could not remove composite service from file(s) {string.Join(", ", _config.ComposeFilePath)}");
       }
 
       State = ServiceRunningState.Removed;

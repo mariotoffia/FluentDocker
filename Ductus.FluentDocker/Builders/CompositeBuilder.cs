@@ -33,7 +33,7 @@ namespace Ductus.FluentDocker.Builders
       var host = FindHostService();
       if (!host.HasValue)
         throw new FluentDockerException(
-          $"Cannot build service using compose-file {_config.ComposeFilePath} since no host service is defined");
+          $"Cannot build service using compose-file(s) {string.Join(", ", _config.ComposeFilePath)} since no host service is defined");
 
       var container = new DockerComposeCompositeService(host.Value, _config);
 
