@@ -55,16 +55,17 @@ namespace Ductus.FluentDocker.Builders
         }
       }
 
-      // If we have networks, the first is supplied as --network option on docker create
-      // TODO: This is a ugly hack that needs to be cleaned up.
-      var cfgNw = (IList<INetworkService>)_config.Networks ?? new INetworkService[0];
+      var firstNetwork = _config.FindFirstNetworkNameAndAlias();
 
-      var firstNw = null != _config.NetworkNames
-        ? _config.NetworkNames[0]
-        : (0 == cfgNw.Count ? string.Empty : cfgNw[0].Name);
+      if (string.Empty != firstNetwork.Network)
+      {
+        _config.CreateParams.Network = firstNetwork.Network;
 
-      if (string.Empty != firstNw)
-        _config.CreateParams.Network = firstNw;
+        if(string.Empty != firstNetwork.Alias)
+        {
+          _config.CreateParams.Alias = firstNetwork.Alias;
+        }
+      }
 
       var container = host.Value.Create(_config.Image, _config.ImageFocrePull, _config.CreateParams, _config.StopOnDispose,
         _config.DeleteOnDispose,
@@ -74,23 +75,37 @@ namespace Ductus.FluentDocker.Builders
 
       AddHooks(container);
 
-      foreach (var network in cfgNw)
+      foreach (var network in (IEnumerable<INetworkService>)_config.Networks ?? Array.Empty<INetworkService>())
       {
-        if (network.Name != firstNw)
+        if (network.Name != firstNetwork.Network)
           network.Attach(container, true /*detachOnDisposeNetwork*/);
       }
 
-      if (null == _config.NetworkNames)
-        return container;
+      foreach (var networkWithAlias in (IEnumerable<NetworkWithAlias<INetworkService>>)_config.NetworksWithAlias ?? Array.Empty<NetworkWithAlias<INetworkService>>())
+      {
+        var network = networkWithAlias.Network;
+        if (network.Name != firstNetwork.Network)
+          network.Attach(container, true /*detachOnDisposeNetwork*/, networkWithAlias.Alias);
+      }
 
       var nw = host.Value.GetNetworks();
       foreach (var network in (IEnumerable<string>)_config.NetworkNames ?? Array.Empty<string>())
       {
-        if (network == firstNw)
+        if (network == firstNetwork.Network)
           continue;
 
         var nets = nw.First(x => x.Name == network);
         nets.Attach(container, true /*detachOnDisposeNetwork*/);
+      }
+
+      foreach (var networkWithAlias in (IEnumerable<NetworkWithAlias<string>>)_config.NetworkNamesWithAlias ?? Array.Empty<NetworkWithAlias<string>>())
+      {
+        var network = networkWithAlias.Network;
+        if (network == firstNetwork.Network)
+          continue;
+
+        var nets = nw.First(x => x.Name == network);
+        nets.Attach(container, true /*detachOnDisposeNetwork*/, networkWithAlias.Alias);
       }
 
       return container;
@@ -420,7 +435,7 @@ namespace Ductus.FluentDocker.Builders
     /// <param name="network">The networks to attach this container to.</param>
     /// <returns>Itself for fluent access.</returns>
     /// <remarks>
-    /// The firstg parameter will not be used to do a docker network attach. Instead
+    /// The first parameter will not be used to do a docker network attach. Instead
     /// it is used as a creation parameter --network. This is to support static ip
     /// assignment. The rest of the networks will do attach via docker network.
     /// </remarks>
@@ -437,13 +452,48 @@ namespace Ductus.FluentDocker.Builders
     }
 
     /// <summary>
+    ///   Uses a already pre-existing network service. It will automatically
+    ///   detach this container from the network when the network is disposed.
+    /// </summary>
+    /// <param name="alias">The alias to use for the container in each of the given networks</param>
+    /// <param name="networks">The networks to attach this container to.</param>
+    /// <returns>Itself for fluent access.</returns>
+    /// <remarks>
+    /// The first parameter will not be used to do a docker network attach if no <see cref="UseNetwork(INetworkService[])"/>
+    /// is set (those have precedence).
+    /// assignment. The rest of the networks will do attach via docker network.
+    /// </remarks>
+    public ContainerBuilder UseNetworksWithAlias(string alias, params INetworkService[] networks)
+    {
+      _ = alias ?? throw new ArgumentNullException(nameof(alias));
+
+      if (null == networks || 0 == networks.Length)
+        return this;
+
+      if (null == _config.NetworksWithAlias)
+        _config.NetworksWithAlias = new List<NetworkWithAlias<INetworkService>>();
+
+
+      foreach(var network in networks)
+      {
+        _config.NetworksWithAlias.Add(new NetworkWithAlias<INetworkService>
+          {
+            Network = network,
+            Alias = alias
+          });
+      }
+
+      return this;
+    }
+
+    /// <summary>
     ///   Attaches to a network with specified name after the container has been created. It will automatically
     ///   detach this container from the network when the network is disposed.
     /// </summary>
     /// <param name="network">The networks to attach this container to.</param>
     /// <returns>Itself for fluent access.</returns>
     /// <remarks>
-    /// The first network from will be used as docker create --network parameter, if no <see cref="UseNetwork(INetworkService[])"/>
+    /// The first network from will be used as docker create --network parameter, if no <see cref="UseNetworksWithAlias(string, INetworkService[])"/>
     /// is set (those have precedence).  This is to support static ip
     /// assignment. The rest of the networks will do attach via docker network.
     /// </remarks>
@@ -456,6 +506,40 @@ namespace Ductus.FluentDocker.Builders
         _config.NetworkNames = new List<string>();
 
       _config.NetworkNames.AddRange(network);
+      return this;
+    }
+
+    /// <summary>
+    ///   Attaches to a network with specified name after the container has been created. It will automatically
+    ///   detach this container from the network when the network is disposed.
+    /// </summary>
+    /// <param name="alias">The alias to use for the container in each of the given networks</param>
+    /// <param name="networks">The networks to attach this container to.</param>
+    /// <returns>Itself for fluent access.</returns>
+    /// <remarks>
+    /// The first network from will be used as docker create --network parameter, if no <see cref="UseNetwork(INetworkService[])"/>
+    /// is set (those have precedence).  This is to support static ip
+    /// assignment. The rest of the networks will do attach via docker network.
+    /// </remarks>
+    public ContainerBuilder UseNetworksWithAlias(string alias, params string[] networks)
+    {
+      _ = alias ?? throw new ArgumentNullException(nameof(alias));
+
+      if (null == networks || 0 == networks.Length)
+        return this;
+
+      if (null == _config.NetworkNamesWithAlias)
+        _config.NetworkNamesWithAlias = new List<NetworkWithAlias<string>>();
+
+      foreach (var network in networks)
+      {
+        _config.NetworkNamesWithAlias.Add(new NetworkWithAlias<string>
+        {
+          Network = network,
+          Alias = alias
+        });
+      }
+
       return this;
     }
 

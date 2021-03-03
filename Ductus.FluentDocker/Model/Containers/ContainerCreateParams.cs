@@ -9,6 +9,16 @@ namespace Ductus.FluentDocker.Model.Containers
   public sealed class ContainerCreateParams
   {
     /// <summary>
+    ///   The alias to use then connecting the container to a network. This is not used if
+    ///   <see cref="Network"/> is not set.
+    /// </summary>
+    /// <remarks>
+    ///   --alias
+    /// </remarks>
+    public string Alias { get; set; }
+
+
+    /// <summary>
     ///   Specify how much of the available CPU resources a container can use.
     /// </summary>
     /// <remarks>
@@ -899,6 +909,10 @@ namespace Ductus.FluentDocker.Model.Containers
       sb.OptionIfExists("-l ", Labels);
       sb.OptionIfExists("--group-add=", Groups);
       sb.OptionIfExists("--network ", Network);
+      if(!string.IsNullOrEmpty(Network))
+      {
+        sb.OptionIfExists("--network-alias ", Alias);
+      }
       sb.OptionIfExists("--ip ", Ipv4);
       sb.OptionIfExists("--ip6 ", Ipv6);
 
