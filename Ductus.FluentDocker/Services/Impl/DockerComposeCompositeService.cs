@@ -145,7 +145,7 @@ namespace Ductus.FluentDocker.Services.Impl
           $"Could not start composite service with file(s) {string.Join(", ", _config.ComposeFilePath)} - result: {result}");
       }
 
-      State = ServiceRunningState.Starting
+      State = ServiceRunningState.Starting;
 
       var result = host.Host.ComposeUp(_config.AlternativeServiceName, 
         false/*forceRecreate*/,false/*noRecreate*/,false/*dontBuild*/, false/*buildBeforeCreate*/,
