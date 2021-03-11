@@ -151,7 +151,7 @@ namespace Ductus.FluentDocker.Services.Impl
         false/*forceRecreate*/,false/*noRecreate*/,false/*dontBuild*/, false/*buildBeforeCreate*/,
         _config.TimeoutSeconds == TimeSpan.Zero ? (TimeSpan?)null : _config.TimeoutSeconds, _config.RemoveOrphans,
         _config.UseColor,
-        true/*noStart*/,
+        false/*noStart*/,
         _config.Services,
         _config.EnvironmentNameValue,
         host.Certificates, _config.ComposeFilePath.ToArray());
