@@ -133,7 +133,7 @@ namespace Ductus.FluentDocker.Services.Impl
         _config.NoRecreate, _config.NoBuild, _config.ForceBuild,
         _config.TimeoutSeconds == TimeSpan.Zero ? (TimeSpan?)null : _config.TimeoutSeconds, _config.RemoveOrphans,
         _config.UseColor,
-        false,
+        true/*noStart*/,
         _config.Services,
         _config.EnvironmentNameValue,
         host.Certificates, _config.ComposeFilePath.ToArray());
@@ -144,6 +144,18 @@ namespace Ductus.FluentDocker.Services.Impl
         throw new FluentDockerException(
           $"Could not start composite service with file(s) {string.Join(", ", _config.ComposeFilePath)} - result: {result}");
       }
+
+      State = ServiceRunningState.Starting
+
+      var result = host.Host.ComposeUp(_config.AlternativeServiceName, 
+        false/*forceRecreate*/,false/*noRecreate*/,false/*dontBuild*/, false/*buildBeforeCreate*/,
+        _config.TimeoutSeconds == TimeSpan.Zero ? (TimeSpan?)null : _config.TimeoutSeconds, _config.RemoveOrphans,
+        _config.UseColor,
+        true/*noStart*/,
+        _config.Services,
+        _config.EnvironmentNameValue,
+        host.Certificates, _config.ComposeFilePath.ToArray());
+
 
       var containers = host.Host.ComposePs(_config.AlternativeServiceName, _config.Services, _config.EnvironmentNameValue,
         host.Certificates, _config.ComposeFilePath.ToArray());
