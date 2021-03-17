@@ -76,9 +76,27 @@ namespace Ductus.FluentDocker.Builders
       return this;
     }
 
+    /// <summary>
+    /// Specified a simplified from command with the image name (and optional tag name) only!
+    /// </summary>
+    /// <param name="from">The image and optional tag name.</param>
+    /// <returns>Itself for fluent access.</returns>
     public FileBuilder UseParent(string from)
     {
       _config.Commands.Add(new FromCommand(from));
+      return this;
+    }
+
+    /// <summary>
+    /// Specifies the _FROM_ command.
+    /// </summary>
+    /// <param name="imageAndTag">The image to derive from and a optional (colon) tag, e.g. myimg:mytag</param>
+    /// <param name="asName">An optional alias.</param>
+    /// <param name="platform">An optional platform such linux/amd64 or windows/amd64.</param>
+    /// <returns>Itself for fluent access.</returns>
+    public FileBuilder From(TemplateString imageAndTag, TemplateString asName = null, TemplateString platform = null)
+    {
+      _config.Commands.Add(new FromCommand(imageAndTag, asName, platform));
       return this;
     }
 
@@ -127,9 +145,22 @@ namespace Ductus.FluentDocker.Builders
       return this;
     }
 
-    public FileBuilder Copy(TemplateString source, TemplateString dest)
+    /// <summary>
+    /// This generates the _COPY_ command.
+    /// </summary>
+    /// <param name="source">From directory.</param>
+    /// <param name="dest">To directory.</param>
+    /// <param name="chownUserAndGroup">Optional --chown user:group.</param>
+    /// <param name="fromAlias">
+    /// Optional source location from earlier buildstage FROM ... AS alias. This will 
+    /// generate --from=aliasname in the _COPY_ command and hence reference a earlier
+    /// _FROM ... AS aliasname_ buildstep as source.
+    /// </param>
+    /// <returns>Itself for fluent access.</returns>
+    public FileBuilder Copy(TemplateString source, TemplateString dest,
+    TemplateString chownUserAndGroup = null, TemplateString fromAlias = null)
     {
-      _config.Commands.Add(new CopyCommand(source, dest));
+      _config.Commands.Add(new CopyCommand(source, dest, chownUserAndGroup, fromAlias));
       return this;
     }
 
@@ -142,6 +173,59 @@ namespace Ductus.FluentDocker.Builders
     public FileBuilder ExposePorts(params int[] ports)
     {
       _config.Commands.Add(new ExposeCommand(ports));
+      return this;
+    }
+
+    /// <summary>
+    /// Adds a _ENV_ command to _dockerfile_. The value of each name value pair is automatically
+    /// double quoted. Hence, it is possible to write spaces etc in the string without double quoting it.
+    /// </summary>
+    /// <param name="nameValue">Name=value array.</param>
+    /// <returns>Itself for fluent access.</returns>
+    /// <remarks>The name value is separated by space on same line.</remarks>
+    public FileBuilder Environment(params TemplateString[] nameValue)
+    {
+      _config.Commands.Add(new EnvCommand(nameValue));
+      return this;
+    }
+
+        /// <summary>
+    /// Adds a _LABEL_ command to _dockerfile_. The value of each name value pair is automatically
+    /// double quoted. Hence, it is possible to write spaces etc in the string without double quoting it.
+    /// </summary>
+    /// <param name="nameValue">Name=value array.</param>
+    /// <returns>Itself for fluent access.</returns>
+    /// <remarks>The name value is separated by space on same line.</remarks>
+    public FileBuilder Label(params TemplateString[] nameValue)
+    {
+      _config.Commands.Add(new LabelCommand(nameValue));
+      return this;
+    }
+
+    /// <summary>
+    /// Adds a _ARG_ command in _dockerfile_ with the optional _defaultValue_.
+    /// </summary>
+    /// <param name="name">The name of the argument.</param>
+    /// <param name="defaultValue">Optional a default value for the argument.</param>
+    /// <returns>Itself for fluent access.</returns>
+    public FileBuilder Arguments(TemplateString name, TemplateString defaultValue = null) {
+      _config.Commands.Add(new ArgCommand(name, defaultValue));
+      return this;
+    }
+
+    public FileBuilder Entrypoint(string command, params string[] args)
+    {
+      _config.Commands.Add(new EntrypointCommand(command, args));
+      return this;
+    }
+
+    public FileBuilder User(TemplateString user, TemplateString group = null) {
+      _config.Commands.Add(new UserCommand(user, group));
+      return this;
+    }
+
+    public FileBuilder Volume(params TemplateString[] mountpoints) {
+      _config.Commands.Add(new VolumeCommand(mountpoints));
       return this;
     }
 
