@@ -15,7 +15,11 @@ namespace Ductus.FluentDocker.Model.Builders.FileBuilder
 
     public override string ToString()
     {
-      return $"SHELL [\"{Shell}{string.Join("\",\"", Arguments)}\"]";
+      if (Arguments.Length == 0) {
+        return $"SHELL [\"{Shell}\"]"; 
+      }
+
+      return $"SHELL [\"{Shell}\",\"{string.Join("\",\"", Arguments)}\"]";
     }
   }
 }
