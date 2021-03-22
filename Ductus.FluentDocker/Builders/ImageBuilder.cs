@@ -64,21 +64,31 @@ namespace Ductus.FluentDocker.Builders
     /// <summary>
     /// Creates a _dockerfile_ builder.
     /// </summary>
-    /// <param name="from">
+    /// <param name="imageAndTag">
     /// Optional image to specify as FROM. If omitted, it is up to the caller to specify _UseParent_ or _From_.
     /// </param>
     /// <returns>
     /// A newly created filebuilder. If empty or null string the `FileBuilder` is empty. Otherwise it has populated
     /// the `FileBuilder` with a parent of the specified image name (via _UseParent()_).
     /// </returns>
-    public FileBuilder From(string from = null)
+    public FileBuilder From(string imageAndTag = null)
     {
-      if (string.IsNullOrEmpty(from))
+      if (string.IsNullOrEmpty(imageAndTag))
       {
         return _fileBuilder = new FileBuilder(this);
       }
 
-      return _fileBuilder = new FileBuilder(this).UseParent(from);
+      return _fileBuilder = new FileBuilder(this).UseParent(imageAndTag);
+    }
+
+    public FileBuilder From(string imageAndTag, string asName)
+    {
+      if (string.IsNullOrEmpty(imageAndTag))
+      {
+        return _fileBuilder = new FileBuilder(this);
+      }
+
+      return _fileBuilder = new FileBuilder(this).From(imageAndTag, asName);
     }
 
     public FileBuilder FromFile(string dockerFile)
