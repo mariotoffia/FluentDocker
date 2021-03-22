@@ -15,7 +15,11 @@ namespace Ductus.FluentDocker.Model.Builders.FileBuilder
 
     public override string ToString()
     {
-      return $"ENTRYPOINT [\"{Executable}{string.Join("\",\"", Arguments)}\"]";
+      if (Arguments.Length == 0) {
+        return $"ENTRYPOINT [\"{Executable}\"]"; 
+      }
+
+      return $"ENTRYPOINT [\"{Executable}\",\"{string.Join("\",\"", Arguments)}\"]";
     }
   }
 }

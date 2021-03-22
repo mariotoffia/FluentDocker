@@ -45,7 +45,7 @@ namespace Ductus.FluentDocker.Model.Builders.FileBuilder
       s = $"{s} {ImageAndTag}";
 
       if (!string.IsNullOrEmpty(Alias)) {
-        s = $"{s} {Alias}";
+        s = $"{s} AS {Alias}";
       }
 
       return s;
