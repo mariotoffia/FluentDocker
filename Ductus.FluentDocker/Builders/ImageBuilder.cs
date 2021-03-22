@@ -105,6 +105,10 @@ namespace Ductus.FluentDocker.Builders
 
     public ImageBuilder AsImageName(string name)
     {
+      if (name == null) {
+        return this;
+      }
+      
       var s = name.Split(':');
       if (s.Length == 2)
       {
