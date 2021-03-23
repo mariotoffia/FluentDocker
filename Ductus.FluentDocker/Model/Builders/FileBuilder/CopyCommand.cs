@@ -19,8 +19,8 @@ namespace Ductus.FluentDocker.Model.Builders.FileBuilder
     public CopyCommand(TemplateString from, TemplateString to, 
       TemplateString chownUserAndGroup = null, TemplateString fromAlias = null)
     {
-      From = from.Rendered.WrapWithChar("\"");
-      To = to.Rendered.WrapWithChar("\"");
+      From = from.Rendered;
+      To = to.Rendered;
 
       if (null != chownUserAndGroup && !string.IsNullOrEmpty(chownUserAndGroup.Rendered)) {
         Chown = chownUserAndGroup.Rendered;
