@@ -1,4 +1,4 @@
 mode: Mainline
 branches:
   master:
-    tag: ''
+    tag: beta
