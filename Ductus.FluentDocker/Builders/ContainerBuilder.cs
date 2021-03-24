@@ -61,7 +61,7 @@ namespace Ductus.FluentDocker.Builders
       {
         _config.CreateParams.Network = firstNetwork.Network;
 
-        if(string.Empty != firstNetwork.Alias)
+        if (string.Empty != firstNetwork.Alias)
         {
           _config.CreateParams.Alias = firstNetwork.Alias;
         }
@@ -259,9 +259,21 @@ namespace Ductus.FluentDocker.Builders
       return this;
     }
 
-    public ContainerBuilder ExposePort(int hostPort, int containerPort)
+    public ContainerBuilder ExposePort(int hostPort, int containerPort, string protocol = "tcp")
     {
-      _config.CreateParams.PortMappings = _config.CreateParams.PortMappings.ArrayAdd($"{hostPort}:{containerPort}");
+      if (string.IsNullOrEmpty(protocol))
+      {
+        protocol = "tcp";
+      }
+
+      if (protocol.ToLower() == "tcp")
+      {
+        _config.CreateParams.PortMappings = _config.CreateParams.PortMappings.ArrayAdd($"{hostPort}:{containerPort}");
+      }
+      else
+      {
+        _config.CreateParams.PortMappings = _config.CreateParams.PortMappings.ArrayAdd($"{hostPort}:{containerPort}/{protocol}");
+      }
       return this;
     }
 
@@ -474,13 +486,13 @@ namespace Ductus.FluentDocker.Builders
         _config.NetworksWithAlias = new List<NetworkWithAlias<INetworkService>>();
 
 
-      foreach(var network in networks)
+      foreach (var network in networks)
       {
         _config.NetworksWithAlias.Add(new NetworkWithAlias<INetworkService>
-          {
-            Network = network,
-            Alias = alias
-          });
+        {
+          Network = network,
+          Alias = alias
+        });
       }
 
       return this;
