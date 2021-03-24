@@ -3,7 +3,7 @@ using Ductus.FluentDocker.Model.Common;
 
 namespace Ductus.FluentDocker.Model.Builders.FileBuilder
 {
-  public sealed class CopyCommand : ICommand
+  public class CopyCommand : ICommand
   {
     /// <summary>
     /// This generates the _COPY_ command.

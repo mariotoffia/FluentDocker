@@ -1,4 +1,5 @@
-﻿using System.IO;
+﻿using System;
+using System.IO;
 using System.Linq;
 using Ductus.FluentDocker.Common;
 using Ductus.FluentDocker.Extensions;
@@ -13,7 +14,7 @@ namespace Ductus.FluentDocker.Builders
   {
     private readonly FileBuilderConfig _config = new FileBuilderConfig();
     private readonly ImageBuilder _parent;
-    private TemplateString _workingFolder;
+    private TemplateString _workingFolder = @"${TEMP}/fluentdockertest/${RND}";
     private string _lastContents;
 
     internal FileBuilder(ImageBuilder parent) => _parent = parent;
@@ -35,10 +36,6 @@ namespace Ductus.FluentDocker.Builders
 
     internal string PrepareBuild()
     {
-      if (null == _workingFolder)
-      {
-        _workingFolder = @"${TEMP}/fluentdockertest/${RND}";
-      }
 
       CopyToWorkDir(_workingFolder); // Must be before RenderDockerFile!
       RenderDockerfile(_workingFolder);
@@ -157,9 +154,32 @@ namespace Ductus.FluentDocker.Builders
     /// _FROM ... AS aliasname_ buildstep as source.
     /// </param>
     /// <returns>Itself for fluent access.</returns>
+    /// <remarks>
+    /// Initial support for downloading files from a _URL_, just specify a full http(s)
+    /// to a resource. It will place those resources under _{workingfolder}/___fluentdockerdl_
+    /// without any sub-directories. Hence, it is not possible to have multiple _URLs_ with
+    /// same filename - the last one downloaded will be the one used.
+    /// </remarks>
     public FileBuilder Copy(TemplateString source, TemplateString dest,
     TemplateString chownUserAndGroup = null, TemplateString fromAlias = null)
     {
+      var lc = source.Rendered.ToLower();
+      if (lc.StartsWith("http://") || lc.StartsWith("https://") ||
+        lc.StartsWith("ftp://") || lc.StartsWith("ftps://"))
+      {
+
+        var uri = new Uri(source);
+        var tmp = Path.Combine("___fluentdockerdl", Path.GetFileName(uri.LocalPath));
+
+        _config.Commands.Add(
+            new CopyURLCommand(
+              uri, tmp, dest, chownUserAndGroup, fromAlias
+            )
+          );
+
+        return this;
+      }
+
       _config.Commands.Add(new CopyCommand(source, dest, chownUserAndGroup, fromAlias));
       return this;
     }
@@ -189,7 +209,7 @@ namespace Ductus.FluentDocker.Builders
       return this;
     }
 
-        /// <summary>
+    /// <summary>
     /// Adds a _LABEL_ command to _dockerfile_. The value of each name value pair is automatically
     /// double quoted. Hence, it is possible to write spaces etc in the string without double quoting it.
     /// </summary>
@@ -208,7 +228,8 @@ namespace Ductus.FluentDocker.Builders
     /// <param name="name">The name of the argument.</param>
     /// <param name="defaultValue">Optional a default value for the argument.</param>
     /// <returns>Itself for fluent access.</returns>
-    public FileBuilder Arguments(TemplateString name, TemplateString defaultValue = null) {
+    public FileBuilder Arguments(TemplateString name, TemplateString defaultValue = null)
+    {
       _config.Commands.Add(new ArgCommand(name, defaultValue));
       return this;
     }
@@ -219,12 +240,14 @@ namespace Ductus.FluentDocker.Builders
       return this;
     }
 
-    public FileBuilder User(TemplateString user, TemplateString group = null) {
+    public FileBuilder User(TemplateString user, TemplateString group = null)
+    {
       _config.Commands.Add(new UserCommand(user, group));
       return this;
     }
 
-    public FileBuilder Volume(params TemplateString[] mountpoints) {
+    public FileBuilder Volume(params TemplateString[] mountpoints)
+    {
       _config.Commands.Add(new VolumeCommand(mountpoints));
       return this;
     }
@@ -258,13 +281,33 @@ namespace Ductus.FluentDocker.Builders
       // Copy all files from copy arguments.
       foreach (var cp in _config.Commands.Where(x => x is CopyCommand).Cast<CopyCommand>())
       {
+        if (cp is CopyURLCommand)
+        {
+          var wdlp = Path.Combine(workingFolder, cp.From);
+          var dd = Path.GetDirectoryName(wdlp);
+
+          if (dd != "")
+          {
+            Directory.CreateDirectory(dd);
+          }
+
+          var ccp = (CopyURLCommand)cp;
+          var res = ccp.FromURL.Download(wdlp).Result;
+
+          continue;
+        }
+
+        // Standard CopyCommand
+
         if (!File.Exists(cp.From))
           continue;
 
         var wp = Path.Combine(workingFolder, cp.From);
         var wdp = Path.GetDirectoryName(wp);
         Directory.CreateDirectory(wdp);
+
         File.Copy(cp.From, wp, true /*overwrite*/);
+
       }
 
       foreach (var command in _config.Commands.Where(x => x is AddCommand).Cast<AddCommand>())

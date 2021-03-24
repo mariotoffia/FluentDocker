@@ -1,4 +1,5 @@
 using System;
+using System.IO;
 using System.Net;
 using System.Net.Http;
 using System.Net.Http.Headers;
@@ -12,6 +13,34 @@ namespace Ductus.FluentDocker.Extensions
   public static class HttpExtensions
   {
     private static readonly HttpClient Client = new HttpClient();
+
+    /// <summary>
+    /// Downloads a resource to local path and filename.
+    /// </summary>
+    /// <param name="url">The url to resource to download.</param>
+    /// <param name="fqPath">The fully qualified path to the file where the data is stored.</param>
+    /// <returns></returns>
+    public static async Task<bool> Download(this Uri url, string fqPath)
+    {
+      var response = await Client.GetAsync(url);
+
+      if (response.IsSuccessStatusCode)
+      {
+        using (var fs = new FileStream(fqPath, FileMode.Create))
+        {
+          await response.Content.CopyToAsync(fs);
+          fs.Flush();
+        }
+      }
+      else
+      {
+        throw new FluentDockerException(
+          $"Could not download file ${url} code: ${response.StatusCode}"
+        );
+      }
+
+      return true;
+    }
 
     /// <summary>
     /// Gets a body from a URL.

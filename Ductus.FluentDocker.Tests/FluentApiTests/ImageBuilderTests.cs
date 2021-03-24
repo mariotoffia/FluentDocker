@@ -91,5 +91,21 @@ ENV CONFIGURATION $configuration
         Assert.IsTrue(config.Config.Env.Any(env => env == "CONFIGURATION=Debug"));
       }
     }
+
+    [TestMethod]
+    public void URLInCopyShallWork()
+    {
+      var dockerfile = Fd.Dockerfile()
+             .UseParent("node:12.18.1")
+             .Environment("NODE_ENV=production")
+             .Run("npm install --production")
+             .Copy(
+               "https://raw.githubusercontent.com/mariotoffia/FluentDocker/master/Ductus.FluentDocker/Model/Builders/FileBuilder/CopyCommand.cs",
+             "/server.js")
+             .Copy("Resources/Issue/111/server.py", "/server.py")
+             .Command("node", "server.js").ToDockerfileString();
+
+      var lines = dockerfile.Split(new[] { Environment.NewLine }, StringSplitOptions.None);
+    }
   }
 }
