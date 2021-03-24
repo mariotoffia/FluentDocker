@@ -80,13 +80,13 @@ The above example creates a _docker-compose_ service from a single compose file.
 underlying services is automatically stopped.
 
 The library is supported by .NET full 4.51 framework and higher, .NET standard 1.6, 2.0. It is divided into 
-three thin layers, each layer is accessable:
+three thin layers, each layer is accessible:
 
 1. Docker Binaries interactions - Static commands and docker environment
 2. Services - thin service layer to manage machines, containers etc.
 3. Fluent API - API to build/discover services to be used
 
-The Majority of the service methods are extension methods and not hardwired into the service itself, making them lightweigted and customizable. Since everthing is accessable it is e.g. easy to add extensions method for a service that uses the layer 1 commands to provide functionality. 
+The Majority of the service methods are extension methods and not hardwired into the service itself, making them lightweight and customizable. Since everything is accessible it is e.g. easy to add extensions method for a service that uses the layer 1 commands to provide functionality. 
 
 ## Contribution
 I do welcome contribution, though there is no contribution guideline as of yet, make sure to adhere to _.editorconfig_ when doing the Pull Requests.
@@ -105,7 +105,7 @@ It is now possible to use the Uri to communicate using the commands. For example
      var result = _docker.Host.Version(_docker.Certificates);
      Debug.WriteLine(result.Data); // Will Print the Client and Server Version and API Versions respectively.
 ```
-All commands return a CommandResponse<T> such that it is possible to check successfactor by ```response.Success```. If any data associated with the command it is returned in the ```response.Data``` property.
+All commands return a CommandResponse<T> such that it is possible to check success factor by ```response.Success```. If any data associated with the command it is returned in the ```response.Data``` property.
 
 Then it is simple as below to start and stop include delete a container using the commands. Below starts a container and do a PS on it and then deletes it.
 ```cs
@@ -119,7 +119,7 @@ When running on windows, one can choose to run linux or windows container. Use t
      _docker.LinuxDaemon(); // ensures that it will talk to linux daemon, if windows daemon it will switch
 ```
 
-Some commands returns a stream of data when e.g. events or logs is wanted using a continious stream. Streams can be used in background tasks and support ```CancellationToken```. Below example tails a log.
+Some commands returns a stream of data when e.g. events or logs is wanted using a continuous stream. Streams can be used in background tasks and support ```CancellationToken```. Below example tails a log.
 ```cs
      using (var logs = _docker.Host.Logs(id, _docker.Certificates))
      {
@@ -148,7 +148,7 @@ Utility methods exists for commands. They come in different flaviours such as ne
 ```
 
 ## Using Fluent API
-The highest layer of this library is the fluent API where you can define and control machines, images, and containers. For example to setup a loadbalancer with two nodejs servers reading from a redis server can look like this (node image is custom built if not found in the repository).
+The highest layer of this library is the fluent API where you can define and control machines, images, and containers. For example to setup a load balancer with two nodejs servers reading from a redis server can look like this (node image is custom built if not found in the repository).
 
 ```cs
      var fullPath = (TemplateString) @"${TEMP}/fluentdockertest/${RND}";
@@ -162,7 +162,7 @@ The highest layer of this library is the fluent API where you can define and con
           // Define custom node image to be used
           .DefineImage("mariotoffia/nodetest").ReuseIfAlreadyExists()
           .From("ubuntu")
-          .Maintainer("Mario Toffia <mario.toffia@gmail.com>")
+          .Maintainer("Mario Toffia <mario.toffia@xyz.com>")
           .Run("apt-get update &&",
             "apt-get -y install curl &&",
             "curl -sL https://deb.nodesource.com/setup | sudo bash - &&",
@@ -347,9 +347,9 @@ Sometime it is not sufficient to just wait for a port. Sometimes a container pro
 In the above example ```Build()``` will return control when the process "postgres" have been started within the container.
 
 ### Filesystem & Files
-In order to make use of containers, sometimes it is neccesary to mount volumes in the container onto the host or just copy from or to the container. Depending on if you're running machine or docker natively volume mapping have the constraint that it must be reachable from the virtual machine.
+In order to make use of containers, sometimes it is necessary to mount volumes in the container onto the host or just copy from or to the container. Depending on if you're running machine or docker natively volume mapping have the constraint that it must be reachable from the virtual machine.
 
-A normal usecase is to have e.g. a webserver serving content on a docker container and the user edits files on the host file system. In such scenario it is necessary to mount a docker container volume onto the host. For example: 
+A normal use case is to have e.g. a webserver serving content on a docker container and the user edits files on the host file system. In such scenario it is necessary to mount a docker container volume onto the host. For example: 
 
 ```cs
      const string html = "<html><head>Hello World</head><body><h1>Hello world</h1></body></html>";
@@ -374,7 +374,7 @@ A normal usecase is to have e.g. a webserver serving content on a docker contain
 ```
 In the above example a nginx container is started and mounts '/usr/share/nginx/html' onto a (random, in temp directory) host path. A HTML file is copied into the host path and when a HTTP get towards the nginx docker container is done, that same file is served.
 
-Sometimes it is neccesary copy files to and from a container. For example copy a configuration file, configure it and copy it back. More common scenario is to copy a configuration file to the container, just before it is started. The multi container example copies a nginx configuration file just before it is started. Thus it is possible to avoid manually creating a Dockerfile and a image for such a simple task. Instead just use e.g. an official or custom image, copy configuration and run.
+Sometimes it is necessary copy files to and from a container. For example copy a configuration file, configure it and copy it back. More common scenario is to copy a configuration file to the container, just before it is started. The multi container example copies a nginx configuration file just before it is started. Thus it is possible to avoid manually creating a Dockerfile and a image for such a simple task. Instead just use e.g. an official or custom image, copy configuration and run.
 ```cs
  using (new Builder().UseContainer()
           .UseImage("kiasaki/alpine-postgres")
@@ -424,7 +424,7 @@ the hello.html is present.
         }
 ```
 
-Sometime is it useful to copy files in the ```IContainerService.Dispose()``` (just before container has stopped). Therefore a fluent API exitst to ensure that it will just do that.
+Sometime is it useful to copy files in the ```IContainerService.Dispose()``` (just before container has stopped). Therefore a fluent API exists to ensure that it will just do that.
 ```cs
 using (new Builder().UseContainer()
           .UseImage("kiasaki/alpine-postgres")
@@ -564,7 +564,7 @@ FluentDocker supports docker volume management both from commands and from a flu
 The above snippet creates a new volume with name _test-volume_ and is of _NFS_ type. It then inspects the just created volume and lastly force delete the volume.
 
 ### Fluent Volume API
-It is also possible to use a fluent API to create or use volumes. They can then be used when building a container. This is especially usefull when creation of volumes are special or lifetime needs to be controlled.
+It is also possible to use a fluent API to create or use volumes. They can then be used when building a container. This is especially useful when creation of volumes are special or lifetime needs to be controlled.
 ```cs
       using (var vol = new Builder().UseVolume("test-volume").RemoveOnDispose().Build())
       {
@@ -585,7 +585,72 @@ It is also possible to use a fluent API to create or use volumes. They can then 
       }
 ```
 The above sample creates a new volume called _test-volume_ and it is scheduled to be delete when ```Dispose()``` is invoked on the ```IVolumeService```. The container is created and mounts the newly created volume to _/var/lib/postgresql/data_ as _read/write_ access mode.
-Since the container is within the scope of the ```using``` statement of the volume it's lifetime spans the whole container lifetime and then get's deleted.
+Since the container is within the scope of the ```using``` statement of the volume it's lifetime spans the whole container lifetime and then gets deleted.
+
+### Events
+
+_FluentDocker_ supports, connecting to the docker event mechanism to listen to the events it sends.
+
+```cs
+using (var events = Fd.Native().Events())
+{
+  using (
+      var container =
+          new Builder().UseContainer()
+              .UseImage("postgres:9.6-alpine")
+              .ExposePort(5432)
+              .WithEnvironment("POSTGRES_PASSWORD=mysecretpassword")
+              .WaitForPort("5432/tcp", 30000 /*30s*/)
+              .Build()
+              .Start())
+  {
+    FdEvent e;
+    while ((e= events.TryRead(3000)) != null)
+    {
+      if (e.Type == EventType.Container && e.Action == EventAction.Start)
+        break;
+    }
+  }
+}
+```
+
+Event listener is global and may handle many `EventAction` types. 
+
+For example
+
+* Pull
+* Create
+* Start
+* Kill
+* Die
+* Connect
+* Disconnect
+* Stop
+* Destroy
+
+Depending on action, the event type may differ such as `ContainerKillEvent` for `EventAction.Kill`. All events derive from `FdEvent`. That means all shared properties is in the base event and the explicit ones are in the derived.
+
+For example, the ´ContainerKillEvent` contains the following properties:
+
+```cs
+public sealed class ContainerKillActor : EventActor
+{
+  /// <summary>
+  /// The image name and label such as "alpine:latest".
+  /// </summary>
+  public string Image { get; set; }
+  /// <summary>
+  /// Name of the container.
+  /// </summary>
+  public string Name { get; set; }
+  /// <summary>
+  /// The signal that the container has been signalled.
+  /// </summary>
+  public string Signal { get; set; }
+}
+```
+
+This event loop may be used to pick up events and drive your instantiated `IService` instances. Or if you need to react to e.g. a network is added or deleted.
 
 ### Logging
 In the full framework it uses verbose logging using the ```System.Diagnostics.Debugger.Log```. For .net core it uses the standard
@@ -690,7 +755,7 @@ The above file is the _docker-compose_ file to stitch up the complete service.
         Assert.IsTrue(installPage.IndexOf("https://wordpress.org/", StringComparison.Ordinal) != -1);
       }
 ```
-The above snippet fires up the wordpress docker compose project and checks the _URL_ http://localhost:8000/wp-admin/install.php it it returnes a certain value in the body 
+The above snippet fires up the wordpress docker compose project and checks the _URL_ http://localhost:8000/wp-admin/install.php it it returns a certain value in the body 
 (in this case "https://wordpress.org/"). If not it returns _500_ and the ```WaitForHttp``` function will wait 500 milliseconds before invoking again. This works for any custom
 lambda as well, just use ```WaitFor``` instead. Thus it is possible to e.g. query a database before continuing inside the using scope.
 
@@ -711,7 +776,7 @@ FluentDocker supports connection to remote docker daemons. The fluent API suppor
 new Builder().UseHost().UseMachine().WithName("remote-daemon")
 ```
 where this requires a already pre-setup entry in the _docker-machine_ registry. It is also possible to
-define _SSH_ based _docker-machine_ registry entires to connecto to remote daemon.
+define _SSH_ based _docker-machine_ registry entires to connect to remote daemon.
 
 ```cs
       using (
@@ -727,10 +792,10 @@ define _SSH_ based _docker-machine_ registry entires to connecto to remote daemo
         Assert.AreEqual(ServiceRunningState.Stopped, container.State);
       }
 ```
-This example will create a new _docker-machine_ registry entry named _remote-daemeon_ that uses _SSH_ with
+This example will create a new _docker-machine_ registry entry named _remote-daemon_ that uses _SSH_ with
 ip address of _192.168.1.27_ and the _SSH_ user _solo_. If a entry is already found named _remote-daemon_
 it will just reuse this entry. Then it gets a _IHostService_ with correct certificates and _URL_ for the
-remote daemon. Thus, it is possible then to create a docker container on the remote dameon, in thus case
+remote daemon. Thus, it is possible then to create a docker container on the remote daemon, in thus case
 it is the _postgres_ image. When it disposes the container, as usual it deletes it from the remote docker.
 The _IHostService_ do make sure to pick upp all necessary certificates in order to authenticate the connection.
 
@@ -803,7 +868,7 @@ respond to API calls in standard user mode.
 
 ### Health Check
 It is possible to specify a health check for the docker container to report the state of the container based on such activity. The following example
-is using a health check that the container has exited or not. It is possible to check the confguration (make sure to force refresh) what status
+is using a health check that the container has exited or not. It is possible to check the configuration (make sure to force refresh) what status
 the health check is reporting.
 ```cs
       using (
@@ -896,7 +961,7 @@ If a before shutdown container hook is wanted override.
           // Do stuff before container is shut down.
      }
 ```
-Note that if unamed container, if not properly disposed, the docker container will still run and must be manually removed. This is a feature not a bug since you might want several containers running in your test. The `DockerContainer` class manages the instance id of the container and thus only intract with it and no other container.
+Note that if un-named container, if not properly disposed, the docker container will still run and must be manually removed. This is a feature not a bug since you might want several containers running in your test. The `DockerContainer` class manages the instance id of the container and thus only interact with it and no other container.
 
 When creating / starting a new container it will first check the local repository if the container image is already present and will download it if not found. This may take some time and there's just a Debug Log if enabled it is possible to monitor the download process.
 
@@ -929,7 +994,7 @@ This could also be solved using the ```Fd.Build``` functions (_see Using Builder
 
 ### Using Builder Extensions
 The class ```Fd``` is a static _class_ that provides convenience methods for building and running single
-and composed containers. To build a container juse use:
+and composed containers. To build a container just use:
 ```cs
     var build = Fd.Build(c => c.UseContainer()
                     .UseImage("postgres:9.6-alpine")
@@ -953,10 +1018,10 @@ disposed even if uncaught exception.
         // Do stuff...
     });   
 ```
-After the ```Container``` method has been runned the container is in this case stopped and removed. This is
+After the ```Container``` method has been executed the container is in this case stopped and removed. This is
 equivalent of
 ```cs
-   // This is eqvivualent of
+   // This is equivalent of
     try
     {
         using(var svc = build.Build()) 
