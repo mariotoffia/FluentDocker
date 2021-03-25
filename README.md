@@ -673,6 +673,53 @@ For full framework please check out the _XML_ needed in the appconfig for the fu
 
 There's a quick way of disabling / enabling logging via (```Ductus.FluentDocker.Services```) ```Logging.Enabled()``` or ```Logging.Disabled()```. This will forcefully enable / disable logging.
 
+### Custom IPEndpoint Resolvers
+
+It is possible to override the default mechanism of _FluentDocker_ resolves the container IP from the clients perspective in e.g. `WaitForPort`. This can be overridden on `ContainerBuilder` basis.
+
+The below sample, overrides the _default_ behaviour. When it returns `null` the _default_ resolver kicks in.
+  
+```cs
+using (
+  var container =
+    Fd.UseContainer()
+      .UseImage("postgres:9.6-alpine")
+      .WithEnvironment("POSTGRES_PASSWORD=mysecretpassword")
+      .ExposePort(5432)
+      .UseCustomResolver((
+        ports, portAndProto, dockerUri) =>
+      {
+        if (null == ports || string.IsNullOrEmpty(portAndProto))
+          return null;
+
+        if (!ports.TryGetValue(portAndProto, out var endpoints))
+          return null;
+
+        if (null == endpoints || endpoints.Length == 0)
+          return null;
+
+        if (CommandExtensions.IsNative())
+          return endpoints[0];
+
+        if (CommandExtensions.IsEmulatedNative())
+          return CommandExtensions.IsDockerDnsAvailable()
+            ? new IPEndPoint(CommandExtensions.EmulatedNativeAddress(), endpoints[0].Port)
+            : new IPEndPoint(IPAddress.Loopback, endpoints[0].Port);
+
+        if (Equals(endpoints[0].Address, IPAddress.Any) && null != dockerUri)
+          return new IPEndPoint(IPAddress.Parse(dockerUri.Host), endpoints[0].Port);
+
+        return endpoints[0];
+      })
+      .WaitForPort("5432/tcp", 30000 /*30s*/)
+      .Build()
+      .Start())
+{
+  var state = container.GetConfiguration(true/*force*/).State.ToServiceState();
+  Assert.AreEqual(ServiceRunningState.Running, state);
+}
+```
+
 ## Docker Compose Support
 The library support _docker-compose_ to use existing compose files to render services and manage lifetime of such.
 
