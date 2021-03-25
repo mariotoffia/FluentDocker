@@ -1,4 +1,6 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
+using System.Net;
 using Ductus.FluentDocker.Common;
 using Ductus.FluentDocker.Model.Common;
 using Ductus.FluentDocker.Model.Containers;
@@ -57,12 +59,14 @@ namespace Ductus.FluentDocker.Services
     /// <param name="deleteNamedVolumeOnDispose">If associated named volumes should be deleted as well.</param>
     /// <param name="command">Optionally a command to run when it is started.</param>
     /// <param name="args">Optionally a set of parameters to go with the <see cref="command" /> when started.</param>
+    /// <param name="customEndpointResolver">Set this resolver when creating the container.</param>
     /// <returns>A service reflecting the newly created container.</returns>
     /// <exception cref="FluentDockerException">If error occurs.</exception>
     IContainerService Create(string image, bool forcePull = false, ContainerCreateParams prms = null,
       bool stopOnDispose = true, bool deleteOnDispose = true, bool deleteVolumeOnDispose = false,
       bool deleteNamedVolumeOnDispose = false, string command = null,
-      string[] args = null);
+      string[] args = null, 
+      Func<Dictionary<string, HostIpEndpoint[]>, string, Uri, IPEndPoint> customEndpointResolver = null);
 
     /// <summary>
     ///   Gets all the docker networks.

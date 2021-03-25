@@ -147,8 +147,8 @@ namespace Ductus.FluentDocker.Services.Impl
 
       State = ServiceRunningState.Starting;
 
-      result = host.Host.ComposeUp(_config.AlternativeServiceName, 
-        false/*forceRecreate*/,false/*noRecreate*/,false/*dontBuild*/, false/*buildBeforeCreate*/,
+      result = host.Host.ComposeUp(_config.AlternativeServiceName,
+        false/*forceRecreate*/, false/*noRecreate*/, false/*dontBuild*/, false/*buildBeforeCreate*/,
         _config.TimeoutSeconds == TimeSpan.Zero ? (TimeSpan?)null : _config.TimeoutSeconds, _config.RemoveOrphans,
         _config.UseColor,
         false/*noStart*/,
@@ -175,7 +175,7 @@ namespace Ductus.FluentDocker.Services.Impl
         var name = ExtractNames(info.Data, out var project, out var instanceId);
 
         list.Add(new DockerContainerService(name, cid, host.Host, info.Data.State.ToServiceState(),
-          host.Certificates, instanceId: instanceId, project: project));
+          host.Certificates, null/*noCustomResolver*/, instanceId: instanceId, project: project));
       }
 
       Containers = list;

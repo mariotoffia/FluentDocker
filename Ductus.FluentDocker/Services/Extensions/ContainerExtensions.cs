@@ -20,7 +20,7 @@ namespace Ductus.FluentDocker.Services.Extensions
     ///   Read the logs from the container.
     /// </summary>
     /// <param name="service">The container to read the logs from.</param>
-    /// <param name="follow">If continious logs is wanted.</param>
+    /// <param name="follow">If continuous logs is wanted.</param>
     /// <param name="token">The cancellation token for logs, especially needed when <paramref name="follow" /> is set to true.</param>
     /// <returns>A console stream to consume.</returns>
     public static ConsoleStream<string> Logs(this IContainerService service, bool follow = false,
@@ -51,11 +51,13 @@ namespace Ductus.FluentDocker.Services.Extensions
     /// <returns>A host based endpoint from a exposed port or null if none.</returns>
     public static IPEndPoint ToHostExposedEndpoint(this IContainerService service, string portAndProto)
     {
-      return service.GetConfiguration()?.NetworkSettings.Ports.ToHostPort(portAndProto, service.DockerHost);
+      return service.GetConfiguration()?.NetworkSettings.Ports.ToHostPortCustomResolver(
+        service.CustomEndpointResolver, portAndProto, service.DockerHost
+      );
     }
 
     /// <summary>
-    ///   Diffs the container from it's orignal state to the current state.
+    ///   Diffs the container from it's original state to the current state.
     /// </summary>
     /// <param name="service">The container to do the diff operation on.</param>
     /// <returns>
@@ -68,7 +70,7 @@ namespace Ductus.FluentDocker.Services.Extensions
     }
 
     /// <summary>
-    ///   Diffs the container from it's orignal state to the current state.
+    ///   Diffs the container from it's original state to the current state.
     /// </summary>
     /// <param name="service">The container to do the diff operation on.</param>
     /// <param name="result">
@@ -94,7 +96,7 @@ namespace Ductus.FluentDocker.Services.Extensions
     /// <param name="throwOnError">If a exception shall be thrown if any error occurs.</param>
     /// <returns>The service itself.</returns>
     /// <exception cref="FluentDockerException">
-    ///   The exception thrown when an error occured and <paramref name="throwOnError" />
+    ///   The exception thrown when an error occurred and <paramref name="throwOnError" />
     ///   is set to true.
     /// </exception>
     public static IContainerService Export(this IContainerService service, TemplateString fqPath, bool explode = false,
@@ -126,7 +128,7 @@ namespace Ductus.FluentDocker.Services.Extensions
       {
         if (throwOnError)
         {
-          throw new FluentDockerException("Exception while untaring archive", e);
+          throw new FluentDockerException("Exception while un-taring archive", e);
         }
       }
       finally
@@ -155,7 +157,7 @@ namespace Ductus.FluentDocker.Services.Extensions
     /// <param name="hostPath">The host path to copy to.</param>
     /// <param name="throwOnError">If it shall throw if any errors occur during copy.</param>
     /// <returns>The path where the files where copied to if successful, otherwise null is returned.</returns>
-    /// <exception cref="FluentDockerException">If <paramref name="throwOnError" /> is true and error occured during copy.</exception>
+    /// <exception cref="FluentDockerException">If <paramref name="throwOnError" /> is true and error occurred during copy.</exception>
     public static IContainerService CopyFrom(this IContainerService service, TemplateString containerPath,
       TemplateString hostPath, bool throwOnError = false)
     {
@@ -183,7 +185,7 @@ namespace Ductus.FluentDocker.Services.Extensions
     /// <param name="hostPath">The host path to copy from.</param>
     /// <param name="throwOnError">If it shall throw if any errors occur during copy.</param>
     /// <returns>The path where the files where copied from if successful, otherwise null is returned.</returns>
-    /// <exception cref="FluentDockerException">If <paramref name="throwOnError" /> is true and error occured during copy.</exception>
+    /// <exception cref="FluentDockerException">If <paramref name="throwOnError" /> is true and error occurred during copy.</exception>
     public static IContainerService CopyTo(this IContainerService service, TemplateString containerPath,
       TemplateString hostPath, bool throwOnError = false)
     {
@@ -209,7 +211,7 @@ namespace Ductus.FluentDocker.Services.Extensions
     /// <param name="service">The service to check processes within.</param>
     /// <param name="process">The process to wait for.</param>
     /// <param name="millisTimeout">Timeout giving up the wait.</param>
-    /// <returns>The inparam service.</returns>
+    /// <returns>The in param service.</returns>
     public static IContainerService WaitForProcess(this IContainerService service, string process,
       long millisTimeout = -1)
     {
@@ -248,7 +250,7 @@ namespace Ductus.FluentDocker.Services.Extensions
     /// </summary>
     /// <param name="service">The service to check processes within.</param>
     /// <param name="millisTimeout">Timeout giving up the wait.</param>
-    /// <returns>The inparam service.</returns>
+    /// <returns>The in param service.</returns>
     public static IContainerService WaitForHealthy(this IContainerService service, long millisTimeout = -1)
     {
       if (service == null)
@@ -287,7 +289,7 @@ namespace Ductus.FluentDocker.Services.Extensions
     /// <param name="service">The service to check processes within.</param>
     /// <param name="message">The message to wait for</param>
     /// <param name="millisTimeout">Timeout giving up the wait.</param>
-    /// <returns>The inparam service.</returns>
+    /// <returns>The in param service.</returns>
     public static IContainerService WaitForMessageInLogs(this IContainerService service, string message, long millisTimeout = -1)
     {
       if (service == null)

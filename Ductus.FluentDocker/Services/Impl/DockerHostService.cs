@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Net;
 using Ductus.FluentDocker.Commands;
 using Ductus.FluentDocker.Common;
 using Ductus.FluentDocker.Extensions;
@@ -148,7 +149,9 @@ namespace Ductus.FluentDocker.Services.Impl
         return new List<IContainerService>();
 
       return inspectContainersResult.Data.Select(c =>
-          new DockerContainerService(c.Name, c.Id, Host, c.State.ToServiceState(), Certificates, isWindowsContainer: _isWindowsHost))
+          new DockerContainerService(
+            c.Name, c.Id, Host, c.State.ToServiceState(), Certificates, null/*noCustomResolver*/,
+            isWindowsContainer: _isWindowsHost))
         .Cast<IContainerService>().ToList();
     }
 
@@ -168,7 +171,8 @@ namespace Ductus.FluentDocker.Services.Impl
     public IContainerService Create(string image, bool forcePull, ContainerCreateParams prms = null,
       bool stopOnDispose = true, bool deleteOnDispose = true, bool deleteVolumeOnDispose = false,
       bool deleteNamedVolumeOnDispose = false,
-      string command = null, string[] args = null)
+      string command = null, string[] args = null,
+      Func<Dictionary<string, HostIpEndpoint[]>, string, Uri, IPEndPoint> customEndpointResolver = null)
     {
       if (forcePull)
       {
@@ -188,8 +192,10 @@ namespace Ductus.FluentDocker.Services.Impl
         throw new FluentDockerException(
           $"Could not return service for docker id {res.Data} - Container was created, you have to manually delete it or do a Ls");
 
-      return new DockerContainerService(config.Data.Name, res.Data, Host, config.Data.State.ToServiceState(),
-        Certificates, stopOnDispose, deleteOnDispose, deleteVolumeOnDispose, deleteNamedVolumeOnDispose,
+      return new DockerContainerService(
+        config.Data.Name, res.Data, Host, config.Data.State.ToServiceState(),
+        Certificates, customEndpointResolver, stopOnDispose, deleteOnDispose,
+        deleteVolumeOnDispose, deleteNamedVolumeOnDispose,
         _isWindowsHost);
     }
 

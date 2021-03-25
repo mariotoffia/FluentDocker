@@ -180,7 +180,7 @@ namespace Ductus.FluentDocker.Extensions
       return FdOs.IsLinux();
     }
 
-    public static IPAddress EmulatedNativeAdress(bool useCache = true)
+    public static IPAddress EmulatedNativeAddress(bool useCache = true)
     {
       if (useCache && null != _cachedDockerIpAddress)
         return _cachedDockerIpAddress;

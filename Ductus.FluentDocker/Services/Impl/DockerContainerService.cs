@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net;
 using Ductus.FluentDocker.Commands;
 using Ductus.FluentDocker.Common;
 using Ductus.FluentDocker.Model.Common;
@@ -22,6 +23,17 @@ namespace Ductus.FluentDocker.Services.Impl
       ICertificatePaths certificates,
       bool stopOnDispose = true, bool removeOnDispose = true, bool removeMountOnDispose = false,
       bool removeNamedMountOnDispose = false, bool isWindowsContainer = false, string instanceId = null,
+      string project = null) : 
+      this(name, id, docker, state, certificates, null, stopOnDispose, removeOnDispose, removeMountOnDispose,
+      removeNamedMountOnDispose, isWindowsContainer, instanceId, project)
+      {
+      }
+
+    public DockerContainerService(string name, string id, DockerUri docker, ServiceRunningState state,
+      ICertificatePaths certificates,
+      Func<Dictionary<string, HostIpEndpoint[]>, string, Uri, IPEndPoint> customEndpointResolver,
+      bool stopOnDispose = true, bool removeOnDispose = true, bool removeMountOnDispose = false,
+      bool removeNamedMountOnDispose = false, bool isWindowsContainer = false, string instanceId = null,
       string project = null)
     {
       IsWindowsContainer = isWindowsContainer;
@@ -32,6 +44,7 @@ namespace Ductus.FluentDocker.Services.Impl
       RemoveOnDispose = removeOnDispose;
 
       Name = name;
+      CustomEndpointResolver = customEndpointResolver;
       Id = id;
       Service = project ?? string.Empty;
       InstanceId = instanceId ?? string.Empty;
@@ -48,6 +61,8 @@ namespace Ductus.FluentDocker.Services.Impl
     public bool StopOnDispose { get; set; }
 
     public bool RemoveOnDispose { get; set; }
+
+    public Func<Dictionary<string, HostIpEndpoint[]>, string, Uri, IPEndPoint> CustomEndpointResolver { get; }
 
     public bool IsWindowsContainer { get; }
 

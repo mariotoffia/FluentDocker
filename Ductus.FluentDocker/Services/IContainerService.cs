@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Net;
 using Ductus.FluentDocker.Model.Common;
 using Ductus.FluentDocker.Model.Containers;
 
@@ -33,12 +34,23 @@ namespace Ductus.FluentDocker.Services
     bool StopOnDispose { get; set; }
 
     /// <summary>
-    ///   When set to true the container is removed automaticallyh on <see cref="IDisposable.Dispose()" />.
+    ///   When set to true the container is removed automatically on <see cref="IDisposable.Dispose()" />.
     /// </summary>
     bool RemoveOnDispose { get; set; }
 
     /// <summary>
-    ///   Dettermines if this container is based on a windows image or linux image.
+    /// Optionally exposes a custom resolver. When this is set, it will override the default container endpoint IP resolver.
+    /// </summary>
+    /// <value>A custom resolver.</value>
+    /// <remarks>
+    /// If the resolver returns null it will use the built-in behavior. It is true, when no custom resolver has 
+    /// been set on the service.
+    /// </remarks>
+    Func<Dictionary<string, HostIpEndpoint[]>, string, Uri, IPEndPoint> CustomEndpointResolver { get; }
+
+
+    /// <summary>
+    ///   Determines if this container is based on a windows image or linux image.
     /// </summary>
     bool IsWindowsContainer { get; }
 

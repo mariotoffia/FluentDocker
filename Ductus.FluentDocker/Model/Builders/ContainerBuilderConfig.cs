@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Net;
 using Ductus.FluentDocker.Model.Common;
 using Ductus.FluentDocker.Model.Compose;
 using Ductus.FluentDocker.Model.Containers;
@@ -20,6 +21,7 @@ namespace Ductus.FluentDocker.Model.Builders
     public bool DeleteOnDispose { get; set; } = true;
     public bool DeleteVolumeOnDispose { get; set; } = false;
     public bool DeleteNamedVolumeOnDispose { get; set; } = false;
+    public Func<Dictionary<string, HostIpEndpoint[]>, string, Uri, IPEndPoint> CustomResolver { get; set; }
     public string Command { get; set; }
     public string[] Arguments { get; set; }
     public Tuple<string /*portAndProto*/, string /*address*/ , long /*waitTimeout*/> WaitForPort { get; set; }
@@ -40,7 +42,7 @@ namespace Ductus.FluentDocker.Model.Builders
     public List<NetworkWithAlias<string>> NetworkNamesWithAlias { get; set; }
     public List<string> ExecuteOnRunningArguments { get; set; }
     public List<string> ExecuteOnDisposingArguments { get; set; }
-    
+
     public NetworkWithAlias<string> FindFirstNetworkNameAndAlias()
     {
 

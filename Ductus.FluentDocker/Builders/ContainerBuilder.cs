@@ -71,7 +71,8 @@ namespace Ductus.FluentDocker.Builders
         _config.DeleteOnDispose,
         _config.DeleteVolumeOnDispose,
         _config.DeleteNamedVolumeOnDispose,
-        _config.Command, _config.Arguments);
+        _config.Command, _config.Arguments,
+        _config.CustomResolver);
 
       AddHooks(container);
 
@@ -131,9 +132,22 @@ namespace Ductus.FluentDocker.Builders
     }
 
     /// <summary>
+    /// Sets a custom EndpointResolver. This resolver may override the default endpoint resolver if returns an endpoint, otherwise
+    /// the default resolve mechanism kicks in.
+    /// </summary>
+    /// <param name="customResolver">The custom resolver.§</param>
+    /// <returns>Itself for fluent access.</returns>
+    public ContainerBuilder UseCustomResolver(
+      Func<Dictionary<string, HostIpEndpoint[]>, string, Uri, IPEndPoint> customResolver)
+    {
+      _config.CustomResolver = customResolver;
+      return this;
+    }
+
+    /// <summary>
     ///   Uses credentials to login to a registry.
     /// </summary>
-    /// <param name="server">The ip or dns to the server (with optioanl :port)</param>
+    /// <param name="server">The ip or dns to the server (with optional :port)</param>
     /// <param name="user">An optional user to use when logging in.</param>
     /// <param name="password">An optional password to user when logging in.</param>
     /// <returns>Itself for fluent access.</returns>

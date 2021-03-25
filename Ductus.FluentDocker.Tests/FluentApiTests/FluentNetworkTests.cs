@@ -1,6 +1,8 @@
 using System;
+using System.Net;
 using System.Threading.Tasks;
 using Ductus.FluentDocker.Extensions;
+using Ductus.FluentDocker.Services;
 using Ductus.FluentDocker.Services.Extensions;
 using Ductus.FluentDocker.Tests.Extensions;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
@@ -79,6 +81,54 @@ namespace Ductus.FluentDocker.Tests.FluentApiTests
           var response = $"http://{container.ToHostExposedEndpoint("80/tcp")}".Wget().Result;
           Console.WriteLine(response);
         }
+      }
+    }
+
+    [TestMethod]
+    public void CustomResolverForContainerShallWork()
+    {
+      bool executedCustomResolver = false;
+
+      using (
+        var container =
+          Fd.UseContainer()
+            .UseImage("postgres:9.6-alpine")
+            .WithEnvironment("POSTGRES_PASSWORD=mysecretpassword")
+            .ExposePort(5432)
+            .UseCustomResolver((
+              ports, portAndProto, dockerUri) =>
+            {
+              executedCustomResolver = true;
+              
+              if (null == ports || string.IsNullOrEmpty(portAndProto))
+                return null;
+
+              if (!ports.TryGetValue(portAndProto, out var endpoints))
+                return null;
+
+              if (null == endpoints || endpoints.Length == 0)
+                return null;
+
+              if (CommandExtensions.IsNative())
+                return endpoints[0];
+
+              if (CommandExtensions.IsEmulatedNative())
+                return CommandExtensions.IsDockerDnsAvailable()
+                  ? new IPEndPoint(CommandExtensions.EmulatedNativeAddress(), endpoints[0].Port)
+                  : new IPEndPoint(IPAddress.Loopback, endpoints[0].Port);
+
+              if (Equals(endpoints[0].Address, IPAddress.Any) && null != dockerUri)
+                return new IPEndPoint(IPAddress.Parse(dockerUri.Host), endpoints[0].Port);
+
+              return endpoints[0];
+            })
+            .WaitForPort("5432/tcp", 30000 /*30s*/)
+            .Build()
+            .Start())
+      {
+        var state = container.GetConfiguration(true/*force*/).State.ToServiceState();
+        Assert.AreEqual(ServiceRunningState.Running, state);
+        Assert.IsTrue(executedCustomResolver);
       }
     }
   }
