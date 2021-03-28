@@ -107,19 +107,22 @@ namespace Ductus.FluentDocker.Services.Extensions
     /// <summary>Get extra long current timestamp</summary>
     private static long Millis => (long)((DateTime.UtcNow - Jan1St1970).TotalMilliseconds);
 
-/// <summary>
+    /// <summary>
     ///   Translates a docker exposed port and protocol (on format 'port/proto' e.g. '534/tcp') to a
     ///   host endpoint that can be contacted outside the container.
     /// </summary>
     /// <param name="ports">The ports from the <see cref="ContainerNetworkSettings.Ports" /> property.</param>
     /// <param name="portAndProto">The port and protocol string.</param>
     /// <param name="dockerUri">Optional docker uri to use when the address is 0.0.0.0 in the endpoint.</param>
-    /// <returns>A endpoint of the host exposed ip and port into the container port. If none is found, null is returned.</returns>
+    /// <returns>
+    /// A endpoint of the host exposed ip and port into the container port. 
+    /// If none is found, null is returned.
+    /// </returns>
     public static IPEndPoint ToHostPort(this Dictionary<string, HostIpEndpoint[]> ports, string portAndProto,
-      Uri dockerUri = null) 
-      {
-        return ToHostPortCustomResolver(ports, null, portAndProto, dockerUri);
-      }
+      Uri dockerUri = null)
+    {
+      return ToHostPortCustomResolver(ports, null, portAndProto, dockerUri);
+    }
 
     /// <summary>
     ///   Translates a docker exposed port and protocol (on format 'port/proto' e.g. '534/tcp') to a
@@ -133,22 +136,23 @@ namespace Ductus.FluentDocker.Services.Extensions
     /// <param name="dockerUri">Optional docker uri to use when the address is 0.0.0.0 in the endpoint.</param>
     /// <returns>A endpoint of the host exposed ip and port into the container port. If none is found, null is returned.</returns>
     public static IPEndPoint ToHostPortCustomResolver(
-      this Dictionary<string, HostIpEndpoint[]> ports, 
-      Func<Dictionary<string, HostIpEndpoint[]>,string, Uri, IPEndPoint> customResolver, 
+      this Dictionary<string, HostIpEndpoint[]> ports,
+      Func<Dictionary<string, HostIpEndpoint[]>, string, Uri, IPEndPoint> customResolver,
       string portAndProto,
       Uri dockerUri = null)
     {
 
-      if (customResolver != null) 
+      if (customResolver != null)
       {
         var ep = customResolver.Invoke(ports, portAndProto, dockerUri);
-        
-        if (ep != null) {
+
+        if (ep != null)
+        {
           return ep;
         }
 
       }
-      
+
       if (null == ports || string.IsNullOrEmpty(portAndProto))
         return null;
 
