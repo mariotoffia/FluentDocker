@@ -720,6 +720,38 @@ using (
 }
 ```
 
+### Talking to custom docker daemon URI without docker-machine
+
+There's limited support to use the _FluentAPI_ to talk to a remote docker daemon without using docker-machine. This is done either by manually creating a instance of a `DockerHostService` or use `FromUri` on `HostBuilder`.
+
+```cs
+  using(var container = Fd.UseHost().
+                          FromUri(Settings.DockerUri, isWindowsHost: true).
+                          UseContainer().
+                          Build()) 
+  {
+  }
+```
+
+The above sample connects to a custom `DockerUri` from a setting and is a windows container docker daemon.
+
+
+* `FromUri` that uses a `DockerUri` to create a `IHostService`. This _uri_ is arbitrary. It also support other properties (_see below_).
+
+```cs
+   public HostBuilder FromUri(
+      DockerUri uri,
+      string name = null,
+      bool isNative = true,
+      bool stopWhenDisposed = false,
+      bool isWindowsHost = false,
+      string certificatePath = null) {/*...*/}
+```
+
+It will use _"sensible"_ defaults on all parameters. Most of the case the _uri_ is sufficient. For example if not providing the _certificatePath_ it will try to get it from the environment _DOCKER_CERT_PATH_. If not found in the environment, it will default to none.
+
+* `UseHost` that takes a instantiated `IHostService` implementation.
+
 ## Docker Compose Support
 The library support _docker-compose_ to use existing compose files to render services and manage lifetime of such.
 
