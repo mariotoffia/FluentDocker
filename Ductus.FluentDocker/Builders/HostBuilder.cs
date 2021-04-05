@@ -15,7 +15,8 @@ namespace Ductus.FluentDocker.Builders
     public override IHostService Build()
     {
 
-      if (this.customHostService != null) {
+      if (this.customHostService != null)
+      {
         return this.customHostService;
       }
 
@@ -36,12 +37,18 @@ namespace Ductus.FluentDocker.Builders
       return this;
     }
 
-    public HostBuilder UseHost(IHostService customHostService) {
+    /// <summary>
+    /// This function will use a custom host service already instantiated.
+    /// </summary>
+    /// <param name="customHostService">The instantiated IHostService</param>
+    /// <returns>Itself for fluent access.</returns>
+    public HostBuilder WithService(IHostService customHostService)
+    {
       this.customHostService = customHostService;
       return this;
     }
 
-   /// <summary>
+    /// <summary>
     /// Creates a `IHostService` based on a _URI_.
     /// </summary>
     /// <param name="uri">The _URI_ to the docker daemon.</param>
@@ -54,15 +61,15 @@ namespace Ductus.FluentDocker.Builders
     /// it will try to get it from the environment _DOCKER_CERT_PATH_.
     /// </param>
     /// <returns>Itself for fluent access.</returns>
-     public HostBuilder FromUri(
-      DockerUri uri,
-      string name = null,
-      bool isNative = true,
-      bool stopWhenDisposed = false,
-      bool isWindowsHost = false,
-      string certificatePath = null)
+    public HostBuilder FromUri(
+     DockerUri uri,
+     string name = null,
+     bool isNative = true,
+     bool stopWhenDisposed = false,
+     bool isWindowsHost = false,
+     string certificatePath = null)
     {
-      this.customHostService = new Hosts().FromUri(uri,name,isNative,stopWhenDisposed,isWindowsHost,certificatePath);
+      this.customHostService = new Hosts().FromUri(uri, name, isNative, stopWhenDisposed, isWindowsHost, certificatePath);
       return this;
     }
 
