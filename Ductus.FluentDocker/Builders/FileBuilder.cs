@@ -326,7 +326,7 @@ namespace Ductus.FluentDocker.Builders
 
     private void RenderDockerfile(TemplateString workingFolder)
     {
-      if (Directory.Exists(workingFolder))
+      if (!Directory.Exists(workingFolder))
       {
         Directory.CreateDirectory(workingFolder);
       }
