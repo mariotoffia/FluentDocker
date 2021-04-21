@@ -70,6 +70,6 @@
     <PackageReference Include="System.Threading.Thread" Version="4.3.0" />
   </ItemGroup>
   <ItemGroup Condition="'$(TargetFramework)' == 'net461'">
-      <PackageReference Include="System.Net.Http" Version="4.3.3" />
+      <PackageReference Include="System.Net.Http" Version="4.3.4" />
   </ItemGroup>
 </Project>
