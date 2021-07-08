@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Diagnostics;
 using System.Linq;
 using Ductus.FluentDocker.Commands;
 using Ductus.FluentDocker.Common;
@@ -136,7 +137,8 @@ namespace Ductus.FluentDocker.Services.Impl
         true/*noStart*/,
         _config.Services,
         _config.EnvironmentNameValue,
-        host.Certificates, _config.ComposeFilePath.ToArray());
+        host.Certificates,
+        _config.ComposeFilePath.ToArray());
 
       if (!result.Success)
       {
@@ -230,8 +232,14 @@ namespace Ductus.FluentDocker.Services.Impl
       State = ServiceRunningState.Removing;
       var host = Hosts.First();
 
-      var result = host.Host.ComposeRm(_config.AlternativeServiceName, force,
-        !_config.KeepVolumes, _config.Services, _config.EnvironmentNameValue, host.Certificates, _config.ComposeFilePath.ToArray());
+      var result = host.Host.ComposeRm(
+        _config.AlternativeServiceName,
+        force,
+        !_config.KeepVolumes,
+        _config.Services,
+        _config.EnvironmentNameValue,
+        host.Certificates,
+        _config.ComposeFilePath.ToArray());
 
       if (!result.Success)
       {
