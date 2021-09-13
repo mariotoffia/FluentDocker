@@ -136,7 +136,6 @@ namespace Ductus.FluentDocker.Tests.FluentApiTests
         var container =
           Fd.UseContainer()
             .UseImage("postgres:9.6-alpine")
-            .ExposePort(40001, 5432)
             .WithEnvironment("POSTGRES_PASSWORD=mysecretpassword")
             .Build()
             .Start())
