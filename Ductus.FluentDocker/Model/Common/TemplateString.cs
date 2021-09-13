@@ -11,7 +11,7 @@ namespace Ductus.FluentDocker.Model.Common
   public sealed class TemplateString
   {
     private static readonly Dictionary<string, Func<string>> Templates;
-    private static readonly Regex Urldetector = new Regex("((\"|')http(|s)://.*?(\"|'))", RegexOptions.Compiled);
+    private static readonly Regex UrlDetector = new Regex("((\"|')http(|s)://.*?(\"|'))", RegexOptions.Compiled);
 
     static TemplateString() => Templates =
         new Dictionary<string, Func<string>>
@@ -57,7 +57,7 @@ namespace Ductus.FluentDocker.Model.Common
         return str;
       }
 
-      var match = Urldetector.Match(str);
+      var match = UrlDetector.Match(str);
       if (!match.Success)
         return str.Replace('/', '\\');
 

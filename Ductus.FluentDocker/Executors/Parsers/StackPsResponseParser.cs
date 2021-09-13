@@ -12,7 +12,7 @@ namespace Ductus.FluentDocker.Executors.Parsers
     public IProcessResponse<IList<StackPsResponse>> Process(ProcessExecutionResult response)
     {
       var list = new List<StackPsResponse>();
-      var rows = response.StdOutAsArry;
+      var rows = response.StdOutAsArray;
       if (rows.Length > 0)
         list.AddRange(from row in rows
                       select row.Split(';')

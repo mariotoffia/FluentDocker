@@ -4,7 +4,7 @@ namespace Ductus.FluentDocker.Extensions {
 
         /// <summary>
         /// This function will wrap the string s with string c (start and end) if
-        /// not already existant. If already exist, it will leave it, hence it
+        /// not already existent. If already exist, it will leave it, hence it
         /// do not double wrap.
         /// </summary>
         /// <param name="s">The string to wrap.</param>

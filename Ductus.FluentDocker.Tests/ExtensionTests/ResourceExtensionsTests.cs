@@ -15,7 +15,7 @@ namespace Ductus.FluentDocker.Tests.ExtensionTests
       var resources = typeof(NsResolver);
 
       var res =
-        resources.ResuorceQuery().Where(x => x.Resource.Equals("Dockerfile") || x.Resource.Equals("index.js")).ToArray();
+        resources.ResourceQuery().Where(x => x.Resource.Equals("Dockerfile") || x.Resource.Equals("index.js")).ToArray();
 
       Assert.AreEqual(4, res.Length);
       Assert.AreEqual(3, res.Count(x => x.Resource == "Dockerfile"));
@@ -27,7 +27,7 @@ namespace Ductus.FluentDocker.Tests.ExtensionTests
     {
       var resources = typeof(NsResolver);
 
-      var res = resources.ResuorceQuery(false).ToArray();
+      var res = resources.ResourceQuery(false).ToArray();
 
       Assert.AreEqual(1, res.Length);
       Assert.AreEqual("docker-compose.yml", res[0].Resource);

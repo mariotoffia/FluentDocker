@@ -14,14 +14,14 @@ namespace Ductus.FluentDocker.Tests.Model.Builders.FileBuilder
     }
 
     [TestMethod]
-    public void CopyCommandShallNotAddDoubleQuoteWrapForArgumentsWithDoubleQote()
+    public void CopyCommandShallNotAddDoubleQuoteWrapForArgumentsWithDoubleQuote()
     {
       var cp  = new CopyCommand("entrypoint.sh", "\"/worker/entrypoint.sh\"");
       Assert.AreEqual("COPY [\"entrypoint.sh\",\"/worker/entrypoint.sh\"]", cp.ToString());
     }
 
     [TestMethod]
-    public void CopyCommandShallEnsureBothSidesAreDoubleQotedEvenIfArgumentHasOnlyOneSide()
+    public void CopyCommandShallEnsureBothSidesAreDoubleQuotedEvenIfArgumentHasOnlyOneSide()
     {
       var cp  = new CopyCommand("entrypoint.sh", "\"/worker/entrypoint.sh");
       Assert.AreEqual("COPY [\"entrypoint.sh\",\"/worker/entrypoint.sh\"]", cp.ToString());

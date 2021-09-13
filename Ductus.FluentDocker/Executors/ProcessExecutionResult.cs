@@ -19,15 +19,19 @@ namespace Ductus.FluentDocker.Executors
     public string StdOut { get; }
     public string StdErr { get; }
     public int ExitCode { get; }
-    public string[] StdOutAsArry => StdOut.Split(new[] { "\n", "\r\n" }, StringSplitOptions.RemoveEmptyEntries);
-    public string[] StdErrAsArry => StdErr.Split(new[] { "\n", "\r\n" }, StringSplitOptions.RemoveEmptyEntries);
+    [Obsolete("Please use the properly spelled `StdOutAsArray` method instead.")]
+    public string[] StdOutAsArry => StdOutAsArray;
+    public string[] StdOutAsArray => StdOut.Split(new[] { "\n", "\r\n" }, StringSplitOptions.RemoveEmptyEntries);
+    [Obsolete("Please use the properly spelled `StdErrAsArray` method instead.")]
+    public string[] StdErrAsArry => StdErrAsArray;
+    public string[] StdErrAsArray => StdErr.Split(new[] { "\n", "\r\n" }, StringSplitOptions.RemoveEmptyEntries);
 
     public CommandResponse<T> ToResponse<T>(bool success, string error, T data)
     {
-      var log = new List<string>(StdOutAsArry);
+      var log = new List<string>(StdOutAsArray);
       if (!string.IsNullOrEmpty(StdErr))
       {
-        log.AddRange(StdErrAsArry);
+        log.AddRange(StdErrAsArray);
       }
 
       return new CommandResponse<T>(success, log, error, data);

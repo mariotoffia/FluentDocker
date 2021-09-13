@@ -14,7 +14,7 @@ namespace Ductus.FluentDocker.Executors.Parsers
     public IProcessResponse<IList<MachineLsResponse>> Process(ProcessExecutionResult response)
     {
       var list = new List<MachineLsResponse>();
-      var rows = response.StdOutAsArry;
+      var rows = response.StdOutAsArray;
 
       if (rows.Length > 0)
       {

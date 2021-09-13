@@ -35,7 +35,7 @@ namespace Ductus.FluentDocker.Model.Stacks
     /// </summary>
     /// <remarks>
     /// Even if this state is the <see cref="DesiredState"/> it cannot be compared
-    /// directly since it may e.g. be 'Running sicne 2 minutes ago' wherease the <see cref="DesiredState"/>
+    /// directly since it may e.g. be 'Running since 2 minutes ago' whereas the <see cref="DesiredState"/>
     /// is 'Running'.
     /// </remarks>
     public string CurrentState { get; set; }

@@ -563,7 +563,7 @@ namespace Ductus.FluentDocker.Model.Containers
     public string HealthCheckTimeout { get; set; }
 
     /// <summary>
-    /// The number of retries of the health check commnad <see cref="HealthCheckCmd"/>
+    /// The number of retries of the health check command <see cref="HealthCheckCmd"/>
     /// </summary>
     /// <remarks>
     ///   The health check will retry up to this many times before marking the container
@@ -592,7 +592,7 @@ namespace Ductus.FluentDocker.Model.Containers
     public string HealthCheckStartPeriod { get; set; }
 
     /// <summary>
-    /// When set to true, independand on the HEALTHCHECK in the Dockerfile, no health check is performed.
+    /// When set to true, independent on the HEALTHCHECK in the Dockerfile, no health check is performed.
     /// </summary>
     /// <remarks>
     /// --no-healthcheck

@@ -382,7 +382,7 @@ namespace Ductus.FluentDocker.Tests.FluentApiTests
 
     [TestMethod]
     [TestCategory("CI")]
-    public void ExportExploadedWhenDisposeShallWork()
+    public void ExportExplodedWhenDisposeShallWork()
     {
       var fullPath = (TemplateString)@"${TEMP}/fluentdockertest/${RND}";
       Directory.CreateDirectory(fullPath);
@@ -392,7 +392,7 @@ namespace Ductus.FluentDocker.Tests.FluentApiTests
           .UseImage("postgres:9.6-alpine")
           .ExposePort(5432)
           .WithEnvironment("POSTGRES_PASSWORD=mysecretpassword")
-          .ExportExploadedOnDispose(fullPath)
+          .ExportExplodedOnDispose(fullPath)
           .Build()
           .Start())
         {
@@ -418,7 +418,7 @@ namespace Ductus.FluentDocker.Tests.FluentApiTests
       // ReSharper disable once AssignNullToNotNullAttribute
       Directory.CreateDirectory(Path.GetDirectoryName(fullPath));
 
-      // Probably the oppsite is reverse where the last statement in the using clause
+      // Probably the opposite is reverse where the last statement in the using clause
       // would set failure = false - but this is a unit test ;)
       var failure = false;
       try

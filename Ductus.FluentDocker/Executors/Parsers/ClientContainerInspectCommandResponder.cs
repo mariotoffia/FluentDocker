@@ -23,7 +23,7 @@ namespace Ductus.FluentDocker.Executors.Parsers
       }
 
 
-      var arr = response.StdOutAsArry;
+      var arr = response.StdOutAsArray;
       var sb = new StringBuilder();
       for (var i = 1; i < arr.Length - 1; i++)
       {

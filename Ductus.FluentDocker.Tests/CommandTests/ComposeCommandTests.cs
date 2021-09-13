@@ -24,7 +24,7 @@ namespace Ductus.FluentDocker.Tests.CommandTests
 
     [TestMethod]
     public async Task
-      ComposeByBuildImageAddNgixAsLoadBalancerTwoNodesAsHtmlServeAndRedisAsDbBackendShouldWorkAsCluster()
+      ComposeByBuildImageAddNginxAsLoadBalancerTwoNodesAsHtmlServeAndRedisAsDbBackendShouldWorkAsCluster()
     {
       // Extract compose file and it's dependencies to a temp folder
       var fullPath = (TemplateString)@"${TEMP}\fluentdockertest\${RND}";
