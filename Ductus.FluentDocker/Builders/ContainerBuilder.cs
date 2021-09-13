@@ -275,6 +275,8 @@ namespace Ductus.FluentDocker.Builders
 
     public ContainerBuilder ExposePort(int hostPort, int containerPort, string protocol = "tcp")
     {
+      EnsurePublishAllPortsIsFalse();
+
       if (string.IsNullOrEmpty(protocol))
       {
         protocol = "tcp";
@@ -293,8 +295,36 @@ namespace Ductus.FluentDocker.Builders
 
     public ContainerBuilder ExposePort(int containerPort)
     {
+      EnsurePublishAllPortsIsFalse();
+
       _config.CreateParams.PortMappings = _config.CreateParams.PortMappings.ArrayAdd($"{containerPort}");
       return this;
+    }
+
+    public ContainerBuilder ExposeAllPorts()
+    {
+      EnsurePortMappingsIsEmpty();
+
+      _config.CreateParams.PublishAllPorts = true;
+      return this;
+    }
+
+    private void EnsurePublishAllPortsIsFalse()
+    {
+      if (_config.CreateParams.PublishAllPorts)
+      {
+        throw new FluentDockerNotSupportedException($"{nameof(ExposePort)} is mutually exclusive with {nameof(ExposeAllPorts)} methods. " +
+                                                    $"Do not call {nameof(ExposeAllPorts)} if you want to explicitly expose ports.");
+      }
+    }
+
+    private void EnsurePortMappingsIsEmpty()
+    {
+      if (_config.CreateParams.PortMappings.Any())
+      {
+        throw new FluentDockerNotSupportedException($"{nameof(ExposeAllPorts)} is mutually exclusive with {nameof(ExposePort)} methods. " +
+                                                    $"Do not call {nameof(ExposePort)} if you want to expose all ports.");
+      }
     }
 
     /// <summary>
