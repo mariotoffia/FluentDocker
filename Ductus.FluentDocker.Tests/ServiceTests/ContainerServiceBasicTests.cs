@@ -172,7 +172,7 @@ namespace Ductus.FluentDocker.Tests.ServiceTests
       using (var container = _host.Create("postgres:9.6-alpine", false,
         new ContainerCreateParams
         {
-          PortMappings = new[] { "40001:5432" },
+          PublishAllPorts = true,
           Environment = new[] { "POSTGRES_PASSWORD=mysecretpassword" }
         }))
       {
@@ -194,7 +194,7 @@ namespace Ductus.FluentDocker.Tests.ServiceTests
       using (var container = _host.Create("postgres:9.6-alpine", false,
         new ContainerCreateParams
         {
-          PortMappings = new[] { "40001:5432" },
+          PublishAllPorts = true,
           Environment = new[] { "POSTGRES_PASSWORD=mysecretpassword" }
         }))
       {
@@ -217,7 +217,7 @@ namespace Ductus.FluentDocker.Tests.ServiceTests
       using (var container = _host.Create("postgres:9.6-alpine", false,
         new ContainerCreateParams
         {
-          PortMappings = new[] { "40001:5432" },
+          PublishAllPorts = true,
           Environment = new[] { "POSTGRES_PASSWORD=mysecretpassword" }
         }))
       {
@@ -250,7 +250,7 @@ namespace Ductus.FluentDocker.Tests.ServiceTests
       using (var container = _host.Create("postgres:9.6-alpine", false,
         new ContainerCreateParams
         {
-          PortMappings = new[] { "40001:5432" },
+          PublishAllPorts = true,
           Environment = new[] { "POSTGRES_PASSWORD=mysecretpassword" }
         }))
       {
