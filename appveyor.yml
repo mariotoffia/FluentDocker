@@ -3,6 +3,11 @@ skip_non_tags: false
 image: Visual Studio 2019
 configuration: Release
 
+skip_commits:
+  files:
+    - Examples/**/*
+    - '**/*.md'
+
 dotnet_csproj:
   patch: true
   file: '**\*.csproj'
