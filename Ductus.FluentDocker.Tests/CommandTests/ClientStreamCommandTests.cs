@@ -59,7 +59,7 @@ namespace Ductus.FluentDocker.Tests.CommandTests
 
     [TestMethod]
     [TestCategory("Command")]
-    public void LogsFromContaierWhenNotFollowModeShallExitByItself()
+    public void LogsFromContainerWhenNotFollowModeShallExitByItself()
     {
       string id = null;
       try
@@ -104,7 +104,7 @@ namespace Ductus.FluentDocker.Tests.CommandTests
 
     [TestMethod]
     [TestCategory("Command")]
-    public void LogsFromContaierWhenInFollowModeShallExitWhenCancelled()
+    public void LogsFromContainerWhenInFollowModeShallExitWhenCancelled()
     {
       string id = null;
       try

@@ -10,7 +10,7 @@ namespace Ductus.FluentDocker.Executors.Parsers
     public IProcessResponse<string> Process(ProcessExecutionResult response)
     {
       var success =
-        response.StdOutAsArry.All(
+        response.StdOutAsArray.All(
           line => !line.StartsWith("Host does not exist") && !line.StartsWith("Incorrect Usage."));
 
       Response = response.ToResponse(success, string.Empty, string.Empty);

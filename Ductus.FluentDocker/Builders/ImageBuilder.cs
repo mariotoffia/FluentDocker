@@ -68,7 +68,7 @@ namespace Ductus.FluentDocker.Builders
     /// Optional image to specify as FROM. If omitted, it is up to the caller to specify _UseParent_ or _From_.
     /// </param>
     /// <returns>
-    /// A newly created filebuilder. If empty or null string the `FileBuilder` is empty. Otherwise it has populated
+    /// A newly created file builder. If empty or null string the `FileBuilder` is empty. Otherwise it has populated
     /// the `FileBuilder` with a parent of the specified image name (via _UseParent()_).
     /// </returns>
     public FileBuilder From(string imageAndTag = null)

@@ -245,7 +245,7 @@ namespace Ductus.FluentDocker.Tests.ServiceTests
     }
 
     [TestMethod]
-    public void ExportRunningContainerExploadedShallSucceed()
+    public void ExportRunningContainerExplodedShallSucceed()
     {
       using (var container = _host.Create("postgres:9.6-alpine", false,
         new ContainerCreateParams

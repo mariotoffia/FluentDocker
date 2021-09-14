@@ -10,7 +10,7 @@ namespace Ductus.FluentDocker.Executors.Parsers
 
     public IProcessResponse<Processes> Process(ProcessExecutionResult response)
     {
-      var rows = response.StdOutAsArry;
+      var rows = response.StdOutAsArray;
       if (response.ExitCode != 0 || 0 == rows.Length)
       {
         Response = response.ToErrorResponse(new Processes { Columns = new List<string>(), Rows = new List<ProcessRow>() });

@@ -76,7 +76,7 @@ namespace Ductus.FluentDocker.Tests.ServiceTests
     }
 
     [TestMethod]
-    public void AttachkWithAliasShallWorkWithIContainerService()
+    public void AttachWithAliasShallWorkWithIContainerService()
     {
       using (var nw = _host.CreateNetwork("unit-test-network", removeOnDispose: true))
       {
@@ -118,7 +118,7 @@ namespace Ductus.FluentDocker.Tests.ServiceTests
     }
 
     [TestMethod]
-    public void AttachkWithAliasShallWorkWithContainerId()
+    public void AttachWithAliasShallWorkWithContainerId()
     {
       using (var nw = _host.CreateNetwork("unit-test-network", removeOnDispose: true))
       {

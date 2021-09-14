@@ -13,7 +13,7 @@ namespace Ductus.FluentDocker.Services.Extensions
     /// <summary>
     ///   Read the events from the event stream.
     /// </summary>
-    /// <param name="host">The hosto to attach to when listening for its events</param>
+    /// <param name="host">The host to attach to when listening for its events</param>
     /// <param name="token">The cancellation token for logs, especially needed when <paramref name="follow" /> is set to true.</param>
     /// <param name="filters">A optional set of filters to narrow the amount of events.</param>
     /// <param name="since">A optional since filter.</param>

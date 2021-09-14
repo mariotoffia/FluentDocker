@@ -15,28 +15,28 @@ namespace Ductus.FluentDocker.Tests.Model.Builders
 
     [DataRow(null, null, null, null, "", "")]
     [DataRow(
-      new string[] { "NETWORK-SERVICE" }, // INetworkSevices
+      new string[] { "NETWORK-SERVICE" }, // INetworkServices
       null, // INetworkServices With Alias
       null, // NetworkNames
       null, // NetworkNames With Alias
       null, //alias
       "NETWORK-SERVICE")]
     [DataRow(
-      null, // INetworkSevices
+      null, // INetworkServices
       new string[] { "NETWORK-SERVICE", "ALIAS" }, // INetworkServices With Alias
       null, // NetworkNames
       null, // NetworkNames With Alias
       "ALIAS", //alias
       "NETWORK-SERVICE")]
     [DataRow(
-      null, // INetworkSevices
+      null, // INetworkServices
       null, // INetworkServices With Alias
       new string[] { "NETWORK-NAME" }, // NetworkNames
       null, // NetworkNames With Alias
       null, //alias
       "NETWORK-NAME")]
     [DataRow(
-      null, // INetworkSevices
+      null, // INetworkServices
       null, // INetworkServices With Alias
       null, // NetworkNames
       new string[] { "NETWORK-NAME", "ALIAS" }, // NetworkNames With Alias
@@ -45,56 +45,56 @@ namespace Ductus.FluentDocker.Tests.Model.Builders
 
     #region With INetworkService
     [DataRow(
-      new string[] { "NETWORK-SERVICE" }, // INetworkSevices
+      new string[] { "NETWORK-SERVICE" }, // INetworkServices
       new string[] { "NETWORK-SERVICE", "ALIAS" }, // INetworkServices With Alias
       new string[] { "NETWORK-NAME" }, // NetworkNames
       new string[] { "NETWORK-NAME", "ALIAS" }, // NetworkNames With Alias
       null, //alias
       "NETWORK-SERVICE")]
     [DataRow(
-      new string[] { "NETWORK-SERVICE" }, // INetworkSevices
+      new string[] { "NETWORK-SERVICE" }, // INetworkServices
       new string[] { "NETWORK-SERVICE", "ALIAS" }, // INetworkServices With Alias
       new string[] { "NETWORK-NAME" }, // NetworkNames
       null, // NetworkNames With Alias
       null, //alias
       "NETWORK-SERVICE")]
     [DataRow(
-      new string[] { "NETWORK-SERVICE" }, // INetworkSevices
+      new string[] { "NETWORK-SERVICE" }, // INetworkServices
       new string[] { "NETWORK-SERVICE", "ALIAS" }, // INetworkServices With Alias
       null, // NetworkNames
       null, // NetworkNames With Alias
       null, //alias
       "NETWORK-SERVICE")]
     [DataRow(
-      new string[] { "NETWORK-SERVICE" }, // INetworkSevices
+      new string[] { "NETWORK-SERVICE" }, // INetworkServices
       null, // INetworkServices With Alias
       null, // NetworkNames
       null, // NetworkNames With Alias
       null, //alias
       "NETWORK-SERVICE")]
     [DataRow(
-      new string[] { "NETWORK-SERVICE" }, // INetworkSevices
+      new string[] { "NETWORK-SERVICE" }, // INetworkServices
       null, // INetworkServices With Alias
       new string[] { "NETWORK-NAME" }, // NetworkNames
       new string[] { "NETWORK-NAME", "ALIAS" }, // NetworkNames With Alias
       null, //alias
       "NETWORK-SERVICE")]
     [DataRow(
-      new string[] { "NETWORK-SERVICE" }, // INetworkSevices
+      new string[] { "NETWORK-SERVICE" }, // INetworkServices
       null, // INetworkServices With Alias
       null, // NetworkNames
       new string[] { "NETWORK-NAME", "ALIAS" }, // NetworkNames With Alias
       null, //alias
       "NETWORK-SERVICE")]
     [DataRow(
-      new string[] { "NETWORK-SERVICE" }, // INetworkSevices
+      new string[] { "NETWORK-SERVICE" }, // INetworkServices
       null, // INetworkServices With Alias
       null, // NetworkNames
       null, // NetworkNames With Alias
       null, //alias
       "NETWORK-SERVICE")]
     [DataRow(
-      new string[] { "NETWORK-SERVICE" }, // INetworkSevices
+      new string[] { "NETWORK-SERVICE" }, // INetworkServices
       new string[] { "NETWORK-SERVICE", "ALIAS" }, // INetworkServices With Alias
       null, // NetworkNames
       new string[] { "NETWORK-NAME", "ALIAS" }, // NetworkNames With Alias
@@ -104,21 +104,21 @@ namespace Ductus.FluentDocker.Tests.Model.Builders
 
     #region INetworkService With Alias
     [DataRow(
-      null, // INetworkSevices
+      null, // INetworkServices
       new string[] { "NETWORK-SERVICE", "ALIAS" }, // INetworkServices With Alias
       new string[] { "NETWORK-NAME" }, // NetworkNames
       new string[] { "NETWORK-NAME", "ALIAS" }, // NetworkNames With Alias
       "ALIAS", //alias
       "NETWORK-SERVICE")]
     [DataRow(
-      null, // INetworkSevices
+      null, // INetworkServices
       new string[] { "NETWORK-SERVICE", "ALIAS" }, // INetworkServices With Alias
       null, // NetworkNames
       new string[] { "NETWORK-NAME", "ALIAS" }, // NetworkNames With Alias
       "ALIAS", //alias
       "NETWORK-SERVICE")]
     [DataRow(
-      null, // INetworkSevices
+      null, // INetworkServices
       new string[] { "NETWORK-SERVICE", "ALIAS" }, // INetworkServices With Alias
       new string[] { "NETWORK-NAME" }, // NetworkNames
       null, // NetworkNames With Alias
@@ -128,7 +128,7 @@ namespace Ductus.FluentDocker.Tests.Model.Builders
 
     #region NetworkNames
     [DataRow(
-      null, // INetworkSevices
+      null, // INetworkServices
       null, // INetworkServices With Alias
       new string[] { "NETWORK-NAME" }, // NetworkNames
       new string[] { "NETWORK-NAME", "ALIAS" }, // NetworkNames With Alias
@@ -149,7 +149,7 @@ namespace Ductus.FluentDocker.Tests.Model.Builders
         Networks = AsINetworkServiceList(networks),
         NetworksWithAlias = AsINetworkServiceWithAliasList(networksWithAliases),
         NetworkNames = networkNames?.ToList(),
-        NetworkNamesWithAlias = AsNetworknameWithAliasList(networkNamesWithAliases)
+        NetworkNamesWithAlias = AsNetworkNameWithAliasList(networkNamesWithAliases)
       };
 
       var firstNetwork = config.FindFirstNetworkNameAndAlias();
@@ -158,7 +158,7 @@ namespace Ductus.FluentDocker.Tests.Model.Builders
       Assert.AreEqual(expectedNetworkName, firstNetwork.Network);
     }
 
-    private List<NetworkWithAlias<string>> AsNetworknameWithAliasList(string[] networkNamesWithAliases)
+    private List<NetworkWithAlias<string>> AsNetworkNameWithAliasList(string[] networkNamesWithAliases)
     {
       if (networkNamesWithAliases == null)
       {

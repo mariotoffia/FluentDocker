@@ -7,7 +7,7 @@ namespace Ductus.FluentDocker.Model.Common
     internal static string Prefix = "emb";
 
     /// <summary>
-    ///   Uri to use when manageing embedded resources.
+    ///   Uri to use when managing embedded resources.
     /// </summary>
     /// <param name="embedded">Uri on format embedded:AssemblyName/namespace/resource</param>
     public EmbeddedUri(string embedded) : base(embedded)

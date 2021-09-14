@@ -15,7 +15,7 @@ namespace Ductus.FluentDocker.Model.Builders.FileBuilder
     /// <param name="to">To directory.</param>
     /// <param name="chownUserAndGroup">Optional --chown user:group.</param>
     /// <param name="fromAlias">
-    /// Optional source location from earlier buildstage FROM ... AS alias. This will 
+    /// Optional source location from earlier build stage FROM ... AS alias. This will
     /// generate --from=aliasname in the _COPY_ command and hence reference a earlier
     /// _FROM ... AS aliasname_ buildstep as source.
     /// </param>

@@ -27,7 +27,7 @@ namespace Ductus.FluentDocker.Executors.Parsers
 
       var result = new List<NetworkRow>();
 
-      foreach (var row in response.StdOutAsArry)
+      foreach (var row in response.StdOutAsArray)
       {
         var items = row.Split(';');
         if (items.Length < 4)

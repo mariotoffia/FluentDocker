@@ -10,6 +10,10 @@ namespace Ductus.FluentDocker.Extensions
 {
   public static class ResourceExtensions
   {
+    [Obsolete("Please use the properly spelled `ResourceQuery` method instead.")]
+    public static IEnumerable<ResourceInfo> ResuorceQuery(this Type assemblyAndNamespace, bool recursive = true)
+      => ResourceQuery(assemblyAndNamespace, recursive);
+
     /// <summary>
     ///   Queries for embedded resources from the <paramref name="assemblyAndNamespace" /> parameters
     ///   <see cref="Assembly" /> and <see cref="Type.Namespace" />.
@@ -17,7 +21,7 @@ namespace Ductus.FluentDocker.Extensions
     /// <param name="assemblyAndNamespace">The assembly and namespace to query for resources</param>
     /// <param name="recursive">If the query should be namespace recursive or not (default true).</param>
     /// <returns>A enumeration of resources.</returns>
-    public static IEnumerable<ResourceInfo> ResuorceQuery(this Type assemblyAndNamespace, bool recursive = true)
+    public static IEnumerable<ResourceInfo> ResourceQuery(this Type assemblyAndNamespace, bool recursive = true)
     {
       return
         new ResourceQuery().From(assemblyAndNamespace.GetTypeInfo().Assembly.GetName().Name)
@@ -29,7 +33,7 @@ namespace Ductus.FluentDocker.Extensions
     ///   Extracts embedded resource based on the inparam <paramref name="assemblyAndNamespace" />,
     ///   <see cref="Assembly" /> and <see cref="Type.Namespace" />.
     /// </summary>
-    /// <param name="assemblyAndNamespace">The assemlby and namesspace to start searching for resources to extract.</param>
+    /// <param name="assemblyAndNamespace">The assembly and namespace to start searching for resources to extract.</param>
     /// <param name="targetPath">The target base filepath to start the extraction from.</param>
     /// <param name="files">
     ///   Optional explicit files that are direct children of the <paramref name="assemblyAndNamespace" />
@@ -37,14 +41,14 @@ namespace Ductus.FluentDocker.Extensions
     /// </param>
     /// <remarks>
     ///   This function extract recursively embedded resources if no <paramref name="files" /> has been specified. If any
-    ///   <paramref name="files" /> has been specifies it won't do a recurive extraction, instead all files in the provided
+    ///   <paramref name="files" /> has been specifies it won't do a recursive extraction, instead all files in the provided
     ///   namespace (in <paramref name="assemblyAndNamespace" />) will be matched against the <paramref name="files" />.
     /// </remarks>
     public static void ResourceExtract(this Type assemblyAndNamespace, TemplateString targetPath, params string[] files)
     {
       if (null == files || 0 == files.Length)
       {
-        assemblyAndNamespace.ResuorceQuery().ToFile(targetPath);
+        assemblyAndNamespace.ResourceQuery().ToFile(targetPath);
         return;
       }
 

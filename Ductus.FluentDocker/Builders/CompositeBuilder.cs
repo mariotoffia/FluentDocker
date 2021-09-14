@@ -264,8 +264,8 @@ namespace Ductus.FluentDocker.Builders
     /// compose. Those may be used in a docker-compose file
     /// to pass dynamic information such as image labels etc.
     /// </summary>
-    /// <param name="nameValue">An array of name=value string. It is possilbe to have equal sign
-    /// in the value area since it will use the first encountered equal sign as the enviroment variable
+    /// <param name="nameValue">An array of name=value string. It is possible to have equal sign
+    /// in the value area since it will use the first encountered equal sign as the environment variable
     /// name and the value.</param>
     /// <returns>Itself for fluent access.</returns>
     public CompositeBuilder WithEnvironment(params string[] nameValue)
@@ -305,7 +305,12 @@ namespace Ductus.FluentDocker.Builders
       return this;
     }
 
+    [Obsolete("Please use the properly spelled `ExportExplodedOnDispose` method instead.")]
     public CompositeBuilder ExportExploadedOnDispose(string service, string hostPath,
+      Func<IContainerService, bool> condition = null)
+      => ExportExplodedOnDispose(service, hostPath, condition);
+
+    public CompositeBuilder ExportExplodedOnDispose(string service, string hostPath,
       Func<IContainerService, bool> condition = null)
     {
       GetContainerSpecificConfig(service).ExportOnDispose =

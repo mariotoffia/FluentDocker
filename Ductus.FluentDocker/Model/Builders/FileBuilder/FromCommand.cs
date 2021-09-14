@@ -14,7 +14,7 @@ namespace Ductus.FluentDocker.Model.Builders.FileBuilder
     public FromCommand(TemplateString imageAndTag, TemplateString asName = null, TemplateString platform = null)
     {
       if (null == imageAndTag || string.IsNullOrEmpty(imageAndTag.Rendered)) {
-        throw new FluentDockerException("FROM requires atleast a image name");
+        throw new FluentDockerException("FROM requires at least an image name");
       }
 
       ImageAndTag = imageAndTag;

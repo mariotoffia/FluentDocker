@@ -16,7 +16,7 @@ namespace Ductus.FluentDocker.Executors.Parsers
         return this;
       }
 
-      var lines = response.StdOutAsArry;
+      var lines = response.StdOutAsArray;
       foreach (var line in lines)
       {
         if (line.StartsWith("export") || line.StartsWith("SET "))

@@ -1,11 +1,18 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 
 namespace Ductus.FluentDocker.Model.Containers
 {
   public sealed class ContainerConfig
   {
     public string Hostname { get; set; }
-    public string Domainname { get; set; }
+    [Obsolete("Please use the properly spelled `DomainName` method instead.")]
+    public string Domainname
+    {
+      get => DomainName;
+      set => DomainName = value;
+    }
+    public string DomainName { get; set; }
     public string User { get; set; }
     public bool AttachStdin { get; set; }
     public bool AttachStdout { get; set; }
