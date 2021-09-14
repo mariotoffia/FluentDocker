@@ -33,7 +33,7 @@ Documentation: https://github.com/mariotoffia/FluentDocker
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="GitVersionTask" Version="5.3.7" PrivateAssets="All" />
+    <!--<PackageReference Include="GitVersionTask" Version="5.3.7" PrivateAssets="All" />-->
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="15.0.0" />
     <PackageReference Include="MSTest.TestAdapter" Version="1.1.11" />
     <PackageReference Include="MSTest.TestFramework" Version="1.1.11" />
