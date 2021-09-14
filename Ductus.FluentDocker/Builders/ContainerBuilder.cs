@@ -35,6 +35,19 @@ namespace Ductus.FluentDocker.Builders
       // Login on private repo if needed.
       _repositoryBuilder?.Build(host.Value);
 
+      // Destroy the container if it already exists (if enabled).
+      if (_config.DestroyIfExists != null &&
+          !string.IsNullOrEmpty(_config.CreateParams.Name))
+      {
+        host.Value.Host.RemoveContainer(
+            _config.CreateParams.Name,
+            _config.DestroyIfExists.Force,
+            _config.DestroyIfExists.RemoveVolumes,
+            _config.DestroyIfExists.LinkToRemove,
+            host.Value.Certificates);
+
+      }
+
       if (_config.VerifyExistence && !string.IsNullOrEmpty(_config.CreateParams.Name))
       {
         // Since filter on docker is only prefix filter
@@ -481,6 +494,27 @@ namespace Ductus.FluentDocker.Builders
     public ContainerBuilder ReuseIfExists()
     {
       _config.VerifyExistence = true;
+      return this;
+    }
+
+
+    /// <summary>
+    /// This will ensure that the *named* container is deleted before the container is created.
+    /// </summary>
+    /// <param name="removeVolumes">Optional. If set to true it will remove all volumes. True by default.</param>
+    /// <param name="force">Optional. Fore will try to force delete the container. False by default.</param>
+    /// <param name="removeLink">Optional. When set to a value other than null it will remove any linkage. Null by default.</param>
+    /// <returns></returns>
+    public ContainerBuilder DeleteIfExists(bool removeVolumes = true, bool force = false, string removeLink = null)
+    {
+      _config.DestroyIfExists = new DestroyIfExistParams
+      {
+        Force = force,
+        RemoveVolumes = removeVolumes,
+        LinkToRemove = removeLink
+      };
+
+
       return this;
     }
 

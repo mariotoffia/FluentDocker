@@ -8,10 +8,24 @@ using Ductus.FluentDocker.Services;
 
 namespace Ductus.FluentDocker.Model.Builders
 {
+  public sealed class DestroyIfExistParams {
+    public bool Force { get; set; }
+    public bool RemoveVolumes { get; set; }
+    public string LinkToRemove { get; set; }
+  }
+
   public sealed class ContainerBuilderConfig
   {
     public ContainerBuilderConfig() => CreateParams = new ContainerCreateParams();
 
+    /// <summary>
+    /// When set to true, the container will be removed if it exists before creating it.
+    /// </summary>
+    /// <value>true if it shall be destroyed if exists, false if skip checking and destroy.</value>
+    /// <remarks>
+    /// Default is false.
+    /// </remarks>
+    public DestroyIfExistParams DestroyIfExists { get; set; }
     public bool VerifyExistence { get; set; }
     public ContainerCreateParams CreateParams { get; }
     public string Image { get; set; }

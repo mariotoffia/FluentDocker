@@ -335,5 +335,23 @@ namespace Ductus.FluentDocker.Tests.FluentApiTests
         Assert.AreEqual("1", zookeeper.InstanceId);
       }
     }
+
+    [TestMethod]
+    public void Issue190()
+    {
+      var file = Path.Combine(Directory.GetCurrentDirectory(),
+        (TemplateString)"Resources/hellotest/docker-compose.yml");
+
+      using (var svc = Fd.UseContainer()
+        .FromComposeFile(file)
+        .RemoveNonTaggedImages()
+        .ForceBuild()
+        .Build()
+        .Start())
+      {
+      }
+
+      // Now the custom build image should be removed!
+    }
   }
 }

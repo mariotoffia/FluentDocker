@@ -4,6 +4,7 @@
   {
     public string Id { get; set; }
     public string Image { get; set; }
+    public System.DateTime Created { get; set; }
     public string ResolvConfPath { get; set; }
     public string HostnamePath { get; set; }
     public string HostsPath { get; set; }

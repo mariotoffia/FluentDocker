@@ -26,13 +26,6 @@ namespace Ductus.FluentDocker.Tests.FluentApiTests
 
     [TestMethod]
     [TestCategory("CI")]
-    public void VersionInfoShallBePossibleToRetrieve()
-    {
-      var v = Fd.Version();
-      Assert.IsTrue(v != null && v.Length > 0);
-    }
-    [TestMethod]
-    [TestCategory("CI")]
     public void BuildContainerRenderServiceInStoppedMode()
     {
       using (
@@ -497,6 +490,31 @@ namespace Ductus.FluentDocker.Tests.FluentApiTests
         .WithName("reusable-name")
         .Build())
       {
+      }
+    }
+
+    [TestMethod]
+    [TestCategory("CI")]
+    public void DeleteIfExistsWithContainerShallWork()
+    {
+      var name = Guid.NewGuid().ToString();
+
+      var container = Fd.UseContainer()
+        .UseImage("postgres:9.6-alpine")
+        .WithName($"name-{name}")
+        .Build();
+
+      var id = container.Id;
+
+      using (var c = Fd
+        .UseContainer()
+        .DeleteIfExists()
+        .UseImage("postgres:9.6-alpine")
+        .WithName($"name-{name}")
+        .Build())
+      {
+        // Ids should not be equal - since deleted and then created.
+        AreNotEqual(id, c.Id);
       }
     }
 
