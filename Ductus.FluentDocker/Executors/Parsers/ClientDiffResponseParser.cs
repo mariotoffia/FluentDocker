@@ -11,7 +11,7 @@ namespace Ductus.FluentDocker.Executors.Parsers
 
     public IProcessResponse<IList<Diff>> Process(ProcessExecutionResult response)
     {
-      var rows = response.StdOutAsArry;
+      var rows = response.StdOutAsArray;
       if (0 != response.ExitCode)
       {
         Response = response.ToErrorResponse((IList<Diff>)new List<Diff>());

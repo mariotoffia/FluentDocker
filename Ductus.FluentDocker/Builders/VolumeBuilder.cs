@@ -41,7 +41,10 @@ namespace Ductus.FluentDocker.Builders
       return this;
     }
 
-    public VolumeBuilder UseingDriver(string driver)
+    [Obsolete("Please use the properly spelled `UsingDriver` method instead.")]
+    public VolumeBuilder UseingDriver(string driver) => UsingDriver(driver);
+
+    public VolumeBuilder UsingDriver(string driver)
     {
       _driver = driver;
       return this;

@@ -30,7 +30,7 @@ namespace Ductus.FluentDocker.Services.Extensions
     }
 
     /// <summary>
-    /// Exectues a command with arguments on the running container.
+    /// Executes a command with arguments on the running container.
     /// </summary>
     /// <param name="service">The service to execute command in.</param>
     /// <param name="arguments">The command and arguments to pass</param>

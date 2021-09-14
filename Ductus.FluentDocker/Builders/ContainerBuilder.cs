@@ -67,7 +67,7 @@ namespace Ductus.FluentDocker.Builders
         }
       }
 
-      var container = host.Value.Create(_config.Image, _config.ImageFocrePull, _config.CreateParams, _config.StopOnDispose,
+      var container = host.Value.Create(_config.Image, _config.ImageForcePull, _config.CreateParams, _config.StopOnDispose,
         _config.DeleteOnDispose,
         _config.DeleteVolumeOnDispose,
         _config.DeleteNamedVolumeOnDispose,
@@ -127,7 +127,7 @@ namespace Ductus.FluentDocker.Builders
     public ContainerBuilder UseImage(string image, bool force = false)
     {
       _config.Image = image;
-      _config.ImageFocrePull = force;
+      _config.ImageForcePull = force;
       return this;
     }
 
@@ -275,6 +275,8 @@ namespace Ductus.FluentDocker.Builders
 
     public ContainerBuilder ExposePort(int hostPort, int containerPort, string protocol = "tcp")
     {
+      EnsurePublishAllPortsIsFalse();
+
       if (string.IsNullOrEmpty(protocol))
       {
         protocol = "tcp";
@@ -293,14 +295,42 @@ namespace Ductus.FluentDocker.Builders
 
     public ContainerBuilder ExposePort(int containerPort)
     {
+      EnsurePublishAllPortsIsFalse();
+
       _config.CreateParams.PortMappings = _config.CreateParams.PortMappings.ArrayAdd($"{containerPort}");
       return this;
+    }
+
+    public ContainerBuilder ExposeAllPorts()
+    {
+      EnsurePortMappingsIsEmpty();
+
+      _config.CreateParams.PublishAllPorts = true;
+      return this;
+    }
+
+    private void EnsurePublishAllPortsIsFalse()
+    {
+      if (_config.CreateParams.PublishAllPorts)
+      {
+        throw new FluentDockerNotSupportedException($"{nameof(ExposePort)} is mutually exclusive with {nameof(ExposeAllPorts)} methods. " +
+                                                    $"Do not call {nameof(ExposeAllPorts)} if you want to explicitly expose ports.");
+      }
+    }
+
+    private void EnsurePortMappingsIsEmpty()
+    {
+      if (_config.CreateParams.PortMappings.Any())
+      {
+        throw new FluentDockerNotSupportedException($"{nameof(ExposeAllPorts)} is mutually exclusive with {nameof(ExposePort)} methods. " +
+                                                    $"Do not call {nameof(ExposePort)} if you want to expose all ports.");
+      }
     }
 
     /// <summary>
     /// Deprecated ue <see cref="UseHealthCheck(string, string, string, int)"/> instead.
     /// </summary>
-    /// <param name="cmd">Commnad to use in the health check.</param>
+    /// <param name="cmd">Command to use in the health check.</param>
     /// <returns>Itself for fluent access</returns>
     [Deprecated("Will be removed since replaced by UseHealthCheck")]
     public ContainerBuilder HealthCheck(string cmd)
@@ -313,7 +343,7 @@ namespace Ductus.FluentDocker.Builders
     /// </summary>
     /// <returns>Itself for fluent access.</returns>
     /// <remarks>
-    /// Independant on what is specified in the Dockerfile (in HEALTHCHECK section).
+    /// Independent on what is specified in the Dockerfile (in HEALTHCHECK section).
     /// All is disabled!
     /// </remarks>
     public ContainerBuilder UseNoHealthCheck()
@@ -325,8 +355,8 @@ namespace Ductus.FluentDocker.Builders
     /// <summary>
     /// Sets or overrides the native HEALTHCHECK provided by the docker daemon.
     /// </summary>
-    /// <param name="cmd">A commnad to preform the health check.</param>
-    /// <param name="interval">How ofthen to perform the <paramref name="cmd"/>, default is 30s.</param>
+    /// <param name="cmd">A command to preform the health check.</param>
+    /// <param name="interval">How often to perform the <paramref name="cmd"/>, default is 30s.</param>
     /// <param name="timeout">How long time the <paramref name="cmd"/> has in order to not be marked as unhealthy container.</param>
     /// <param name="startPeriod">How long for the first execution of <paramref name="cmd"/>, default is 30s.</param>
     /// <param name="retries">The number of retries a <paramref name="cmd"/> has in order for the container do be marked as unhealthy, default is 3.</param>
@@ -364,7 +394,7 @@ namespace Ductus.FluentDocker.Builders
     /// <returns>Itself for fluent access.</returns>
     /// <remarks>
     /// By default, containers execute under docker provided default environment
-    /// <see cref="ContainerRuntime.Default"/>. It is not neccesary to specify
+    /// <see cref="ContainerRuntime.Default"/>. It is not necessary to specify
     /// such. Instead, if a custom runtime is wanted for the container specify custom
     /// runtime such as <see cref="ContainerRuntime.Nvidia"/>.
     /// </remarks>
@@ -633,7 +663,11 @@ namespace Ductus.FluentDocker.Builders
       return this;
     }
 
+    [Obsolete("Please use the properly spelled `ExportExplodedOnDispose` method instead.")]
     public ContainerBuilder ExportExploadedOnDispose(string hostPath, Func<IContainerService, bool> condition = null)
+      => ExportExplodedOnDispose(hostPath, condition);
+
+    public ContainerBuilder ExportExplodedOnDispose(string hostPath, Func<IContainerService, bool> condition = null)
     {
       _config.ExportOnDispose =
         new Tuple<TemplateString, bool, Func<IContainerService, bool>>(hostPath.EscapePath(), true /*explode*/,
@@ -689,7 +723,7 @@ namespace Ductus.FluentDocker.Builders
     ///   the container configuration and check the health of the container (as classified by the
     ///   docker daemon). When the container is reported as Healthy, this method silently exits.
     ///   If timeout a <see cref="FluentDockerException"/> is thrown. The status is deemed
-    ///   by the containers Dockerfiles HEALTH section or if overrided / created by
+    ///   by the containers Dockerfiles HEALTH section or if overriden / created by
     ///   <see cref="UseHealthCheck(string, string, string, string, int)"/>.
     /// </remarks>
     public ContainerBuilder WaitForHealthy(TimeSpan timeout = default)

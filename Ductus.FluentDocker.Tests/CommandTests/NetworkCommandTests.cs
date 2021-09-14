@@ -122,7 +122,7 @@ namespace Ductus.FluentDocker.Tests.CommandTests
 
         var cmd = _docker.Run("postgres:9.6-alpine", new ContainerCreateParams
         {
-          PortMappings = new[] { "40001:5432" },
+          PublishAllPorts = true,
           Environment = new[] { "POSTGRES_PASSWORD=mysecretpassword" },
           Network = "unit-test-nw",
           Ipv4 = "10.18.0.22"
@@ -156,7 +156,7 @@ namespace Ductus.FluentDocker.Tests.CommandTests
       {
         var cmd = _docker.Run("postgres:9.6-alpine", new ContainerCreateParams
         {
-          PortMappings = new[] { "40001:5432" },
+          PublishAllPorts = true,
           Environment = new[] { "POSTGRES_PASSWORD=mysecretpassword" }
         }, _certificates);
 

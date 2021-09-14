@@ -15,7 +15,7 @@ namespace Ductus.FluentDocker.Tests.FluentApiTests
     }
 
     [TestMethod]
-    public void BuildImageShallPerserveLineOrdering()
+    public void BuildImageShallPreserveLineOrdering()
     {
       var dockerfile = Fd.Dockerfile()
         .UseParent("mcr.microsoft.com/windows/servercore:ltsc2019")

@@ -4,7 +4,7 @@ using Microsoft.VisualStudio.TestTools.UnitTesting;
 namespace Ductus.FluentDocker.Tests.ExtensionTests
 {
   [TestClass]
-  public class EnironmentExtensionTests
+  public class EnvironmentExtensionTests
   {
     [TestMethod]
     public void NullStringShallGiveNullReturnInExtract()

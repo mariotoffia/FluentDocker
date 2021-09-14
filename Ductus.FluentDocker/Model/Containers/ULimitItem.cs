@@ -1,7 +1,7 @@
 namespace Ductus.FluentDocker.Model.Containers
 {
   /// <summary>
-  /// A item with a <see cref="Ulimit"/> and atleast a soft limit but may include a hard as well.
+  /// A item with a <see cref="Ulimit"/> and at least a soft limit but may include a hard as well.
   /// </summary>
   public class ULimitItem
   {

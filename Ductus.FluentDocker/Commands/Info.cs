@@ -15,7 +15,7 @@ namespace Ductus.FluentDocker.Commands
     /// </summary>
     /// <param name="host">The docker daemon to contact.</param>
     /// <param name="certificates">Path to certificates if any.</param>
-    /// <returns>A response with the versions if successfull.</returns>
+    /// <returns>A response with the versions if successful.</returns>
     public static CommandResponse<DockerInfoBase> Version(this DockerUri host, ICertificatePaths certificates = null)
     {
       var args = $"{host.RenderBaseArgs(certificates)}";

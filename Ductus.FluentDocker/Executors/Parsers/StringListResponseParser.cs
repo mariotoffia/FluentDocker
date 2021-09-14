@@ -15,7 +15,7 @@ namespace Ductus.FluentDocker.Executors.Parsers
         return this;
       }
 
-      Response = response.ToResponse(true, string.Empty, (IList<string>)new List<string>(response.StdOutAsArry));
+      Response = response.ToResponse(true, string.Empty, (IList<string>)new List<string>(response.StdOutAsArray));
       return this;
     }
   }

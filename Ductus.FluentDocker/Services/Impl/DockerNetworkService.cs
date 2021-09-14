@@ -1,3 +1,4 @@
+﻿using System;
 using System.Collections.Generic;
 using Ductus.FluentDocker.Commands;
 using Ductus.FluentDocker.Common;
@@ -57,12 +58,18 @@ namespace Ductus.FluentDocker.Services.Impl
       return this;
     }
 
-    public INetworkService Detatch(IContainerService container, bool force = false)
+    [Obsolete("Please use the properly spelled `Detach` method instead.")]
+    public INetworkService Detatch(IContainerService container, bool force = false) => Detach(container, force);
+
+    public INetworkService Detach(IContainerService container, bool force = false)
     {
-      return Detatch(container.Id, force);
+      return Detach(container.Id, force);
     }
 
-    public INetworkService Detatch(string containerId, bool force = false)
+    [Obsolete("Please use the properly spelled `Detach` method instead.")]
+    public INetworkService Detatch(string containerId, bool force = false) => Detach(containerId, force);
+
+    public INetworkService Detach(string containerId, bool force = false)
     {
       _detatchOnDispose.Remove(containerId);
       DockerHost.NetworkDisconnect(containerId, Id, force, Certificates);

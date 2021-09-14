@@ -82,7 +82,7 @@ namespace Ductus.FluentDocker.Tests.FluentApiTests
     }
 
     [TestMethod]
-    public void KeepRunningsShallWorkForCompositeServices()
+    public void KeepRunningShallWorkForCompositeServices()
     {
       var file = Path.Combine(Directory.GetCurrentDirectory(),
         (TemplateString)"Resources/ComposeTests/WordPress/docker-compose.yml");

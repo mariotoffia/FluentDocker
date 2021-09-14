@@ -10,7 +10,7 @@ namespace Ductus.FluentDocker.Executors.Parsers
     public IProcessResponse<string> Process(ProcessExecutionResult response)
     {
       var success = response.ExitCode == 0 ||
-                    response.StdOutAsArry.All(
+                    response.StdOutAsArray.All(
                       line =>
                         !line.StartsWith("Error") && !line.StartsWith("Can't remove") &&
                         !line.StartsWith("Incorrect Usage."));

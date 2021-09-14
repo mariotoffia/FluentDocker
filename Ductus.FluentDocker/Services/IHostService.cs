@@ -14,18 +14,18 @@ namespace Ductus.FluentDocker.Services
   public interface IHostService : IService
   {
     /// <summary>
-    ///   The adress and port to the docker daemon.
+    ///   The address and port to the docker daemon.
     /// </summary>
     DockerUri Host { get; }
 
     /// <summary>
-    ///   Gets a value wether the <see cref="Host" /> is a native docker (local or remote) or a daemon running
+    ///   Gets a value whether the <see cref="Host" /> is a native docker (local or remote) or a daemon running
     ///   in a virtual machine.
     /// </summary>
     bool IsNative { get; }
 
     /// <summary>
-    ///   Gets a value wether it needs TLS or not to connect to the docker daemon.
+    ///   Gets a value whether it needs TLS or not to connect to the docker daemon.
     /// </summary>
     bool RequireTls { get; }
 
@@ -52,7 +52,7 @@ namespace Ductus.FluentDocker.Services
     /// </summary>
     /// <param name="image">The image to base the container from.</param>
     /// <param name="forcePull">If the image shall be forced downloaded or not. Default is false.</param>
-    /// <param name="prms">Optionally paramters to configure the container.</param>
+    /// <param name="prms">Optionally parameters to configure the container.</param>
     /// <param name="stopOnDispose">If the docker container shall be stopped when service is disposed.</param>
     /// <param name="deleteOnDispose">If the docker container shall be deleted when the service is disposed.</param>
     /// <param name="deleteVolumeOnDispose">If the associated volumes should be deleted when container is disposed.</param>
@@ -75,13 +75,13 @@ namespace Ductus.FluentDocker.Services
     IList<INetworkService> GetNetworks();
 
     /// <summary>
-    ///   Creates a single netowork.
+    ///   Creates a single network.
     /// </summary>
     /// <param name="name">The name of the network</param>
     /// <param name="createParams">Optional additional parameters to customize the network creation.</param>
     /// <param name="removeOnDispose">If the network shall be removed when service is disposed.</param>
     /// <returns>A network service if the newly created network.</returns>
-    /// <exception cref="FluentDockerException">If failes to create the docker network.</exception>
+    /// <exception cref="FluentDockerException">If fails to create the docker network.</exception>
     INetworkService CreateNetwork(string name, NetworkCreateParams createParams = null, bool removeOnDispose = false);
 
     /// <summary>

@@ -448,7 +448,7 @@ In order to analyze a container, export extension method and fluent API methods 
         {
         }
 ```
-This will produce a container export (tar file) on the host (fullPath). If you rather have it exploaded (un-tared) use the ```ExportExploadedOnDispose``` method instead. Of course you can export the container any time using a extension method on the container.
+This will produce a container export (tar file) on the host (fullPath). If you rather have it exploded (un-tared) use the ```ExportExplodedOnDispose``` method instead. Of course you can export the container any time using a extension method on the container.
 
 A useful trick when it comes to unit-testing is to export the container state when the unit test fails for some reason, therefore it exists a Fluent API that will export when a certain Lambda condition is met. For example:
 ```cs

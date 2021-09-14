@@ -172,7 +172,7 @@ namespace Ductus.FluentDocker.Tests.ServiceTests
       using (var container = _host.Create("postgres:9.6-alpine", false,
         new ContainerCreateParams
         {
-          PortMappings = new[] { "40001:5432" },
+          PublishAllPorts = true,
           Environment = new[] { "POSTGRES_PASSWORD=mysecretpassword" }
         }))
       {
@@ -194,7 +194,7 @@ namespace Ductus.FluentDocker.Tests.ServiceTests
       using (var container = _host.Create("postgres:9.6-alpine", false,
         new ContainerCreateParams
         {
-          PortMappings = new[] { "40001:5432" },
+          PublishAllPorts = true,
           Environment = new[] { "POSTGRES_PASSWORD=mysecretpassword" }
         }))
       {
@@ -217,7 +217,7 @@ namespace Ductus.FluentDocker.Tests.ServiceTests
       using (var container = _host.Create("postgres:9.6-alpine", false,
         new ContainerCreateParams
         {
-          PortMappings = new[] { "40001:5432" },
+          PublishAllPorts = true,
           Environment = new[] { "POSTGRES_PASSWORD=mysecretpassword" }
         }))
       {
@@ -232,7 +232,7 @@ namespace Ductus.FluentDocker.Tests.ServiceTests
 
         try
         {
-          var path = container.Export(fullPath);
+          var path = container.Export(fullPath, throwOnError: true);
           Assert.IsNotNull(path);
           Assert.IsTrue(File.Exists(fullPath));
         }
@@ -245,12 +245,12 @@ namespace Ductus.FluentDocker.Tests.ServiceTests
     }
 
     [TestMethod]
-    public void ExportRunningContainerExploadedShallSucceed()
+    public void ExportRunningContainerExplodedShallSucceed()
     {
       using (var container = _host.Create("postgres:9.6-alpine", false,
         new ContainerCreateParams
         {
-          PortMappings = new[] { "40001:5432" },
+          PublishAllPorts = true,
           Environment = new[] { "POSTGRES_PASSWORD=mysecretpassword" }
         }))
       {
@@ -265,7 +265,7 @@ namespace Ductus.FluentDocker.Tests.ServiceTests
 
         try
         {
-          container.Export(fullPath, true);
+          container.Export(fullPath, explode: true, throwOnError: true);
           Assert.IsTrue(Directory.Exists(fullPath));
 
           var files = Directory.GetFiles(fullPath).ToArray();

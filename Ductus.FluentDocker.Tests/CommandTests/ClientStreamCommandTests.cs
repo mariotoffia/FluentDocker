@@ -32,7 +32,7 @@ namespace Ductus.FluentDocker.Tests.CommandTests
         {
           var cmd = _docker.Run("postgres:9.6-alpine", new ContainerCreateParams
           {
-            PortMappings = new[] { "40001:5432" },
+            PublishAllPorts = true,
             Environment = new[] { "POSTGRES_PASSWORD=mysecretpassword" }
           }, _certificates);
 
@@ -59,14 +59,14 @@ namespace Ductus.FluentDocker.Tests.CommandTests
 
     [TestMethod]
     [TestCategory("Command")]
-    public void LogsFromContaierWhenNotFollowModeShallExitByItself()
+    public void LogsFromContainerWhenNotFollowModeShallExitByItself()
     {
       string id = null;
       try
       {
         var cmd = _docker.Run("postgres:9.6-alpine", new ContainerCreateParams
         {
-          PortMappings = new[] { "40001:5432" },
+          PublishAllPorts = true,
           Environment = new[] { "POSTGRES_PASSWORD=mysecretpassword" }
         }, _certificates);
 
@@ -104,14 +104,14 @@ namespace Ductus.FluentDocker.Tests.CommandTests
 
     [TestMethod]
     [TestCategory("Command")]
-    public void LogsFromContaierWhenInFollowModeShallExitWhenCancelled()
+    public void LogsFromContainerWhenInFollowModeShallExitWhenCancelled()
     {
       string id = null;
       try
       {
         var cmd = _docker.Run("postgres:9.6-alpine", new ContainerCreateParams
         {
-          PortMappings = new[] { "40001:5432" },
+          PublishAllPorts = true,
           Environment = new[] { "POSTGRES_PASSWORD=mysecretpassword" }
         }, _certificates);
 
@@ -159,7 +159,7 @@ namespace Ductus.FluentDocker.Tests.CommandTests
       {
         var cmd = _docker.Run("postgres:9.6-alpine", new ContainerCreateParams
         {
-          PortMappings = new[] { "40001:5432" },
+          PublishAllPorts = true,
           Environment = new[] { "POSTGRES_PASSWORD=mysecretpassword" }
         }, _certificates);
 

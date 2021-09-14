@@ -29,7 +29,7 @@ namespace Ductus.FluentDocker.Tests.FluentApiTests
     ///   As per - http://anandmanisankar.com/posts/docker-container-nginx-node-redis-example/
     /// </remarks>
     [TestMethod]
-    public async Task DefineAndBuildImageAddNgixAsLoadBalancerTwoNodesAsHtmlServeAndRedisAsDbBackendShouldWorkAsCluster()
+    public async Task DefineAndBuildImageAddNginxAsLoadBalancerTwoNodesAsHtmlServeAndRedisAsDbBackendShouldWorkAsCluster()
     {
       var fullPath = (TemplateString)@"${TEMP}\fluentdockertest\${RND}";
       var nginx = Path.Combine(fullPath, "nginx.conf");

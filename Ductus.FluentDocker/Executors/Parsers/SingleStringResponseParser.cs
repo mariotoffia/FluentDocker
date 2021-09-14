@@ -8,7 +8,7 @@ namespace Ductus.FluentDocker.Executors.Parsers
 
     public IProcessResponse<string> Process(ProcessExecutionResult response)
     {
-      var arr = response.StdOutAsArry;
+      var arr = response.StdOutAsArray;
 
       Response = arr.Length == 0
         ? response.ToResponse(false, "No line", string.Empty)

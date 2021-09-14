@@ -17,7 +17,7 @@ namespace Ductus.FluentDocker.Executors.Parsers
       }
 
       var list = new List<DockerImageRowResponse>();
-      foreach (var row in response.StdOutAsArry)
+      foreach (var row in response.StdOutAsArray)
       {
         var items = row.Split(';');
         if (items.Length != 3)
