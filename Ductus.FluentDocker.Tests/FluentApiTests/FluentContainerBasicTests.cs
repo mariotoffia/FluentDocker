@@ -26,13 +26,6 @@ namespace Ductus.FluentDocker.Tests.FluentApiTests
 
     [TestMethod]
     [TestCategory("CI")]
-    public void VersionInfoShallBePossibleToRetrieve()
-    {
-      var v = Fd.Version();
-      Assert.IsTrue(v != null && v.Length > 0);
-    }
-    [TestMethod]
-    [TestCategory("CI")]
     public void BuildContainerRenderServiceInStoppedMode()
     {
       using (
