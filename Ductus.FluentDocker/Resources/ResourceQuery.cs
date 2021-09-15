@@ -33,7 +33,7 @@ namespace Ductus.FluentDocker.Resources
 
     public IEnumerable<ResourceInfo> Query()
     {
-#if COREFX
+#if NETSTANDARD1_6
 			if (string.IsNullOrWhiteSpace(_assembly))
 				// TODO : Consider rework of Fluent API
 				throw new InvalidOperationException($"It is not possible to execute {nameof(Query)} without first executing {nameof(From)}.");

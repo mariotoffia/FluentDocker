@@ -5,7 +5,6 @@ using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace Ductus.FluentDocker.Tests.ExtensionTests
 {
-#if !COREFX
   [TestClass]
   public class ResourceExtensionsTests
   {
@@ -33,5 +32,4 @@ namespace Ductus.FluentDocker.Tests.ExtensionTests
       Assert.AreEqual("docker-compose.yml", res[0].Resource);
     }
   }
-#endif
 }
