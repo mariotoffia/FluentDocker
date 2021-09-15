@@ -97,7 +97,7 @@ namespace Ductus.FluentDocker.Extensions
 
     private static Assembly GetAssembly(string assemblyName)
     {
-#if COREFX
+#if NETSTANDARD1_6
       return GetAssemblies().First(x => x.GetName().Name == assemblyName);
 		}
 
