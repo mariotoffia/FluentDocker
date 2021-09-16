@@ -22,8 +22,6 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Ductus.FluentDocker.MsTest"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Ductus.FluentDocker.Tests", "Ductus.FluentDocker.Tests\Ductus.FluentDocker.Tests.csproj", "{FA836F5A-6361-4042-9B12-E38EB057CD41}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Tests", "Tests\Tests.csproj", "{2840F9EE-DC65-40A8-8E11-6DF4585DE4B4}"
-EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "data", "data", "{60257CD9-E6FE-4F23-A675-34B7DD1C27F1}"
 	ProjectSection(SolutionItems) = preProject
 		data\docker_event_sample_1.json = data\docker_event_sample_1.json
@@ -48,10 +46,6 @@ Global
 		{FA836F5A-6361-4042-9B12-E38EB057CD41}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{FA836F5A-6361-4042-9B12-E38EB057CD41}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{FA836F5A-6361-4042-9B12-E38EB057CD41}.Release|Any CPU.Build.0 = Release|Any CPU
-		{2840F9EE-DC65-40A8-8E11-6DF4585DE4B4}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{2840F9EE-DC65-40A8-8E11-6DF4585DE4B4}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{2840F9EE-DC65-40A8-8E11-6DF4585DE4B4}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{2840F9EE-DC65-40A8-8E11-6DF4585DE4B4}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
