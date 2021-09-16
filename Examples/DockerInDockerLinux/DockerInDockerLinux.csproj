@@ -4,6 +4,6 @@
     <TargetFramework>netcoreapp3.1</TargetFramework>
   </PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="Ductus.FluentDocker" Version="2.10.7"/>
+    <PackageReference Include="Ductus.FluentDocker" Version="2.*"/>
   </ItemGroup>
 </Project>
