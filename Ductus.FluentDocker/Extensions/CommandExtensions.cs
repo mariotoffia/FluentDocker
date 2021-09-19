@@ -161,23 +161,33 @@ namespace Ductus.FluentDocker.Extensions
     }
 
 
+#if NETSTANDARD1_6
     public static bool IsDockerDnsAvailable()
     {
       try
       {
-#if NETSTANDARD1_6
         Dns.GetHostEntryAsync("host.docker.internal").Wait();
-#else
-        Dns.GetHostEntry("host.docker.internal");
-#endif
         return true;
       }
-      catch (AggregateException ex)
-        when (ex.InnerExceptions.Count == 1 && ex.InnerExceptions[0] is SocketException)
+      catch (Exception ex) when (ex.GetBaseException() is SocketException)
       {
         return false;
       }
     }
+#else
+    public static bool IsDockerDnsAvailable()
+    {
+      try
+      {
+        Dns.GetHostEntry("host.docker.internal");
+        return true;
+      }
+      catch (SocketException)
+      {
+        return false;
+      }
+    }
+#endif
 
     public static bool IsNative()
     {
