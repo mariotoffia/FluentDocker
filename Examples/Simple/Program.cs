@@ -1,12 +1,10 @@
 ﻿using System;
 using System.Linq;
 using System.Diagnostics;
-using Ductus.FluentDocker;
 using Ductus.FluentDocker.Model.Containers;
 using Ductus.FluentDocker.Builders;
 using Ductus.FluentDocker.Extensions;
 using Ductus.FluentDocker.Services;
-using Ductus.FluentDocker.Services.Extensions;
 
 namespace Simple
 {
