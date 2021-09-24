@@ -1,7 +1,10 @@
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Runtime.CompilerServices;
 using System.Text;
+using Ductus.FluentDocker.AmbientContext;
 using Ductus.FluentDocker.Common;
+using Ductus.FluentDocker.Executors.ProcessDataReceived;
 using Ductus.FluentDocker.Extensions;
 using Ductus.FluentDocker.Model.Containers;
 
@@ -30,7 +33,7 @@ namespace Ductus.FluentDocker.Executors
 
     public IDictionary<string, string> Env { get; } = new Dictionary<string, string>();
 
-    public CommandResponse<TE> Execute()
+    public CommandResponse<TE> Execute([CallerMemberName] string caller = "")
     {
       var startInfo = new ProcessStartInfo
       {
@@ -60,16 +63,28 @@ namespace Ductus.FluentDocker.Executors
         var output = new StringBuilder();
         var err = new StringBuilder();
 
+        var dataReceivedContext = DataReceivedContext.DataReceived;
+
         process.OutputDataReceived += (sender, args) =>
         {
           if (!string.IsNullOrEmpty(args.Data))
             output.AppendLine(args.Data);
+
+          if (dataReceivedContext == null) return;
+
+          var processDataReceivedArgs = new ProcessDataReceivedArgs {Data = args.Data, ProcessIdentifier = caller};
+          dataReceivedContext.OutputDataReceived?.Invoke(sender, processDataReceivedArgs);
         };
 
         process.ErrorDataReceived += (sender, args) =>
         {
           if (!string.IsNullOrEmpty(args.Data))
             err.AppendLine(args.Data);
+
+          if (dataReceivedContext == null) return;
+
+          var processDataReceivedArgs = new ProcessDataReceivedArgs {Data = args.Data, ProcessIdentifier = caller};
+          dataReceivedContext.ErrorDataReceived?.Invoke(sender, processDataReceivedArgs);
         };
 
         if (!process.Start())
