@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using Ductus.FluentDocker.Model.Images;
+using Ductus.FluentDocker.Model.Common;
 
 namespace Ductus.FluentDocker.Model.Compose
 {
@@ -24,6 +25,7 @@ namespace Ductus.FluentDocker.Model.Compose
     public bool StopOnDispose { get; set; } = true;
     public bool KeepContainers { get; set; }
     public IDictionary<string, string> EnvironmentNameValue { get; set; } = new Dictionary<string, string>();
+    public TemplateString ProjectDirectory {get;set;}
 
     public IDictionary<string, ContainerSpecificConfig> ContainerConfiguration { get; } =
       new Dictionary<string, ContainerSpecificConfig>();

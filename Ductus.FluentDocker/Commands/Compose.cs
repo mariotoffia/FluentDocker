@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using Ductus.FluentDocker.Executors;
 using Ductus.FluentDocker.Executors.Parsers;
 using Ductus.FluentDocker.Extensions;
@@ -406,64 +407,107 @@ namespace Ductus.FluentDocker.Commands
           $"{args} down {options}", cwd.NeedCwd ? cwd.Cwd : null).ExecutionEnvironment(env).Execute();
     }
 
+    [Obsolete("Use ComposeUpCommand(...)")]
     public static CommandResponse<IList<string>> ComposeUp(this DockerUri host,
       string altProjectName = null,
       bool forceRecreate = false, bool noRecreate = false, bool dontBuild = false,
       bool buildBeforeCreate = false, TimeSpan? timeout = null,
-      bool removeOphans = false,
+      bool removeOrphans = false,
       bool useColor = false,
       bool noStart = false,
       string[] services = null /*all*/,
       IDictionary<string, string> env = null,
       ICertificatePaths certificates = null, params string[] composeFile)
     {
-      if (forceRecreate && noRecreate)
+      return host.ComposeUpCommand(new ComposeUpCommandArgs
       {
-        throw new InvalidOperationException($"{nameof(forceRecreate)} and {nameof(noRecreate)} are incompatible.");
+        AltProjectName = altProjectName,
+        ForceRecreate = forceRecreate,
+        NoRecreate = noRecreate,
+        DontBuild = dontBuild,
+        BuildBeforeCreate = buildBeforeCreate,
+        Timeout = timeout,
+        RemoveOrphans = removeOrphans,
+        UseColor = useColor,
+        NoStart = noStart,
+        Services = services,
+        Env = env,
+        Certificates = certificates,
+        ComposeFiles = composeFile
+      });
+    }
+
+    public struct ComposeUpCommandArgs 
+    {
+      public string AltProjectName {get;set;}
+      public bool ForceRecreate {get;set;} 
+      public bool NoRecreate {get;set;} 
+      public bool DontBuild {get;set;}
+      public bool BuildBeforeCreate {get;set;}
+      public TimeSpan? Timeout {get;set;}
+      public bool RemoveOrphans {get;set;}
+      public bool UseColor {get;set;}
+      public bool NoStart {get;set;}
+      public IList<string> Services {get;set;}
+      public IDictionary<string, string> Env {get;set;}
+      public ICertificatePaths Certificates {get;set;} 
+      public  IList<string> ComposeFiles {get;set;}
+      public TemplateString ProjectDirectory {get;set;}
+    }
+
+    public static CommandResponse<IList<string>> ComposeUpCommand(this DockerUri host, ComposeUpCommandArgs ca)
+    {
+      if (ca.ForceRecreate && ca.NoRecreate)
+      {
+        throw new InvalidOperationException("ForceRecreate and NoRecreate are incompatible.");
       }
 
-      var cwd = WorkingDirectory(composeFile);
+      var cwd = WorkingDirectory(ca.ComposeFiles.ToArray());
 
-      var args = $"{host.RenderBaseArgs(certificates)}";
+      var args = $"{host.RenderBaseArgs(ca.Certificates)}";
 
-      if (null != composeFile && 0 != composeFile.Length)
-        foreach (var cf in composeFile)
+      if (null != ca.ComposeFiles && 0 != ca.ComposeFiles.Count)
+        foreach (var cf in ca.ComposeFiles)
           if (!string.IsNullOrEmpty(cf))
             args += $" -f \"{cf}\"";
 
-      if (!string.IsNullOrEmpty(altProjectName))
-        args += $" -p {altProjectName}";
+      if (!string.IsNullOrEmpty(ca.AltProjectName))
+        args += $" -p {ca.AltProjectName}";
 
-      var options = noStart ? "--no-start" : "--detach";
+      var options = ca.NoStart ? "--no-start" : "--detach";
 
-      if (forceRecreate)
+      if (ca.ForceRecreate)
         options += " --force-recreate";
 
-      if (noRecreate)
+      if (ca.NoRecreate)
         options += " --no-recreate";
 
-      if (dontBuild)
+      if (ca.DontBuild)
         options += " --no-build";
 
-      if (buildBeforeCreate)
+      if (ca.BuildBeforeCreate)
         options += " --build";
 
-      if (!useColor)
+      if (!ca.UseColor)
         options += " --no-color";
 
-      if (null != timeout)
-        options += $" -t {Math.Round(timeout.Value.TotalSeconds, 0)}";
+      if (null != ca.Timeout)
+        options += $" -t {Math.Round(ca.Timeout.Value.TotalSeconds, 0)}";
 
-      if (removeOphans)
+      if (ca.RemoveOrphans)
         options += " --remove-orphans";
 
-      if (null != services && 0 != services.Length)
-        options += " " + string.Join(" ", services);
+      if (!string.IsNullOrEmpty(ca.ProjectDirectory)) {
+        options += $" --project-directory {ca.ProjectDirectory.Rendered}";
+      }
+
+      if (null != ca.Services && 0 != ca.Services.Count)
+        options += " " + string.Join(" ", ca.Services);
 
       return
         new ProcessExecutor<StringListResponseParser, IList<string>>(
           "docker-compose".ResolveBinary(),
-          $"{args} up {options}", cwd.NeedCwd ? cwd.Cwd : null).ExecutionEnvironment(env).Execute();
+          $"{args} up {options}", cwd.NeedCwd ? cwd.Cwd : null).ExecutionEnvironment(ca.Env).Execute();
     }
 
     public static CommandResponse<IList<string>> ComposeRm(this DockerUri host, string altProjectName = null,

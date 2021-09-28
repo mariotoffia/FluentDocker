@@ -179,6 +179,17 @@ namespace Ductus.FluentDocker.Builders
       return this;
     }
 
+    /// <summary>
+    /// Explicitly sets the project directory.
+    /// </summary>
+    /// <param name="projectDir">The project dir, if none set it to an empty string.</param>
+    /// <returns>Itself for fluent access.</returns>
+    public CompositeBuilder UseProjectDir(TemplateString projectDir)
+    {
+      _config.ProjectDirectory = projectDir;
+      return this;
+    }
+
     public CompositeBuilder ForceRecreate()
     {
       _config.ForceRecreate = true;

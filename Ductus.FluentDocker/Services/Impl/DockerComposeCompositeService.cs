@@ -7,6 +7,7 @@ using Ductus.FluentDocker.Common;
 using Ductus.FluentDocker.Extensions;
 using Ductus.FluentDocker.Model.Compose;
 using Ductus.FluentDocker.Model.Containers;
+using static Ductus.FluentDocker.Commands.Compose;
 
 namespace Ductus.FluentDocker.Services.Impl
 {
@@ -129,14 +130,24 @@ namespace Ductus.FluentDocker.Services.Impl
 
       State = ServiceRunningState.Starting;
 
-      var result = host.Host.ComposeUp(_config.AlternativeServiceName, _config.ForceRecreate,
-        _config.NoRecreate, _config.NoBuild, _config.ForceBuild,
-        _config.TimeoutSeconds == TimeSpan.Zero ? (TimeSpan?)null : _config.TimeoutSeconds, _config.RemoveOrphans,
-        _config.UseColor,
-        true/*noStart*/,
-        _config.Services,
-        _config.EnvironmentNameValue,
-        host.Certificates, _config.ComposeFilePath.ToArray());
+      var result = host.Host.ComposeUpCommand(
+        new ComposeUpCommandArgs
+        {
+          AltProjectName = _config.AlternativeServiceName,
+          ForceRecreate = _config.ForceRecreate,
+          NoRecreate = _config.NoRecreate,
+          DontBuild = _config.NoBuild,
+          BuildBeforeCreate = _config.ForceBuild,
+          Timeout = _config.TimeoutSeconds == TimeSpan.Zero ? (TimeSpan?)null : _config.TimeoutSeconds,
+          RemoveOrphans = _config.RemoveOrphans,
+          UseColor = _config.UseColor,
+          NoStart = true,
+          Services = _config.Services,
+          Env = _config.EnvironmentNameValue,
+          Certificates = host.Certificates,
+          ComposeFiles = _config.ComposeFilePath.ToArray(),
+          ProjectDirectory = _config.ProjectDirectory
+        });
 
       if (!result.Success)
       {
@@ -147,14 +158,24 @@ namespace Ductus.FluentDocker.Services.Impl
 
       State = ServiceRunningState.Starting;
 
-      result = host.Host.ComposeUp(_config.AlternativeServiceName,
-        false/*forceRecreate*/, false/*noRecreate*/, false/*dontBuild*/, false/*buildBeforeCreate*/,
-        _config.TimeoutSeconds == TimeSpan.Zero ? (TimeSpan?)null : _config.TimeoutSeconds, _config.RemoveOrphans,
-        _config.UseColor,
-        false/*noStart*/,
-        _config.Services,
-        _config.EnvironmentNameValue,
-        host.Certificates, _config.ComposeFilePath.ToArray());
+      result = host.Host.ComposeUpCommand(
+        new ComposeUpCommandArgs
+        {
+          AltProjectName = _config.AlternativeServiceName,
+          ForceRecreate = false,
+          NoRecreate = false,
+          DontBuild = false,
+          BuildBeforeCreate = false,
+          Timeout = _config.TimeoutSeconds == TimeSpan.Zero ? (TimeSpan?)null : _config.TimeoutSeconds,
+          RemoveOrphans = _config.RemoveOrphans,
+          UseColor = _config.UseColor,
+          NoStart = false,
+          Services = _config.Services,
+          Env = _config.EnvironmentNameValue,
+          Certificates = host.Certificates,
+          ComposeFiles = _config.ComposeFilePath.ToArray(),
+          ProjectDirectory = _config.ProjectDirectory
+        });
 
       if (!result.Success)
       {
