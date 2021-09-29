@@ -1,10 +1,8 @@
 ﻿using System.IO;
-using System.Linq;
 using System.Threading.Tasks;
 using Ductus.FluentDocker.Commands;
 using Ductus.FluentDocker.Extensions;
 using Ductus.FluentDocker.Model.Common;
-using Ductus.FluentDocker.Services;
 using Ductus.FluentDocker.Services.Extensions;
 using Ductus.FluentDocker.Services.Impl;
 using Ductus.FluentDocker.Tests.Compose;
@@ -33,7 +31,13 @@ namespace Ductus.FluentDocker.Tests.CommandTests
 
       try
       {
-        var result = DockerHost.Host.ComposeUp(composeFile: file, certificates: DockerHost.Certificates);
+        var result = DockerHost.Host
+        .ComposeUpCommand(new Commands.Compose.ComposeUpCommandArgs
+        {
+          ComposeFiles = new System.Collections.Generic.List<string>() { file },
+          Certificates = DockerHost.Certificates
+        });
+
         Assert.IsTrue(result.Success);
 
         var ids = DockerHost.Host.ComposePs(composeFile: file, certificates: DockerHost.Certificates);
@@ -83,8 +87,13 @@ namespace Ductus.FluentDocker.Tests.CommandTests
       typeof(NsResolver).ResourceExtract(fullPath);
 
       var hostService = new DockerHostService("wifi-test");
+
       var composeResponse = hostService.Host
-        .ComposeUp(composeFile: file, certificates: hostService.Certificates);
+        .ComposeUpCommand(new Commands.Compose.ComposeUpCommandArgs
+        {
+          ComposeFiles = new System.Collections.Generic.List<string>() { file },
+          Certificates = hostService.Certificates
+        });
     }
   }
 }
