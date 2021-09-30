@@ -982,7 +982,23 @@ using (
 ```
 
 ## Test Support
-This repo contains two nuget packages, one for the fluent access and the other is a ms-test base classes to be used while testing. For example in a unit-test it is possible to fire up a postgres container and wait when the the db has booted.
+This repo contains three nuget packages, one for the fluent access, one for ms-test base classes and another for xunit base classes to be used while testing. For example in a unit-test it is possible to fire up a postgres container and wait when the the db has booted.
+
+### XUnit
+```cs
+     public class PostgresXUnitTests : IClassFixture<PostgresTestBase>
+     {
+          [Fact]
+          public void Test()
+          {
+               // We now have a running postgres
+               // and a valid connection string to use.
+          }
+     }
+```
+
+
+### MSTest
 ```cs
      using (
         var container =
