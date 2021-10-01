@@ -5,7 +5,7 @@
 | ---------------|:--------------:|
 | FluentDocker   |[![NuGet](https://img.shields.io/nuget/v/Ductus.FluentDocker.svg)](https://www.nuget.org/packages/Ductus.FluentDocker) |
 | Microsoft Test | [![NuGet](https://img.shields.io/nuget/v/Ductus.FluentDocker.MsTest.svg)](https://www.nuget.org/packages/Ductus.FluentDocker.MsTest) |
-| XUnit          | [![NuGet](https://img.shields.io/nuget/v/Ductus.FluentDocker.XUnit.svg)](https://www.nuget.org/packages/Ductus.FluentDocker.XUnit) |
+| XUnit Test     | [![NuGet](https://img.shields.io/nuget/v/Ductus.FluentDocker.XUnit.svg)](https://www.nuget.org/packages/Ductus.FluentDocker.XUnit) |
 
 # FluentDocker
 
