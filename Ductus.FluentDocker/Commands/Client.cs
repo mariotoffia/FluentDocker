@@ -105,7 +105,7 @@ namespace Ductus.FluentDocker.Commands
       var options = "--quiet --no-trunc --format \"{{.ID}};{{.Repository}};{{.Tag}}\"";
       if (!string.IsNullOrEmpty(filter))
       {
-        options = $" --filter=\"{filter}\"";
+        options += $" --filter=\"{filter}\"";
       }
 
       return
