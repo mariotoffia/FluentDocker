@@ -26,8 +26,12 @@
     <PublicSign Condition=" '$(OS)' != 'Windows_NT' ">true</PublicSign>
     <LangVersion>latest</LangVersion>
   </PropertyGroup>
-  <ItemGroup>
+
+  <ItemGroup Condition="'$(Configuration)'=='Release'">
     <PackageReference Include="GitVersionTask" Version="5.3.7" PrivateAssets="All" />
+  </ItemGroup>
+
+  <ItemGroup>    
     <PackageReference Include="Microsoft.SourceLink.GitHub" Version="1.0.0" PrivateAssets="All" />
     <PackageReference Include="Newtonsoft.Json" Version="9.0.1" />
     <PackageReference Include="SharpCompress" Version="0.23.0" />

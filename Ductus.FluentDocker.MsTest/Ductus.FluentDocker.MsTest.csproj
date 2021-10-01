@@ -27,8 +27,11 @@ Documentation: https://github.com/mariotoffia/FluentDocker
     <PublicSign Condition=" '$(OS)' != 'Windows_NT' ">true</PublicSign>
   </PropertyGroup>
 
-  <ItemGroup>
+  <ItemGroup Condition="'$(Configuration)'=='Release'">
     <PackageReference Include="GitVersionTask" Version="5.3.7" PrivateAssets="All" />
+  </ItemGroup>
+
+  <ItemGroup>    
     <PackageReference Include="MSTest.TestFramework" Version="1.1.17" />
   </ItemGroup>
   <ItemGroup>
