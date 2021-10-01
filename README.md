@@ -1151,17 +1151,3 @@ It is also possible to combine builder and running e.g. via:
 The above example will build the container, start, stop, and finally delete the container. Even if and
 ```Exception``` is thrown it will be ```Disposed```. Of course it is possible to use compsed container using 
 ```composite``` extension methods as with ```container```.
-
-## Build FluentDocker from Repository
-
-TODO: Expand this section.
-
-### Install GitVersionTask on commandline
-It is used to get which version it will have on release build.
-
-Execute the following command when in the root of the project:
-
-```bash
-dotnet tool install GitVersion.Tool -g
-```
-Will install the `gitversion.tool` and is accessable through the `dotnet run dotnet-gitversion` command.
