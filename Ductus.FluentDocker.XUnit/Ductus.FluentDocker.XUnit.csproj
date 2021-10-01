@@ -12,6 +12,7 @@
     <PackageProjectUrl>https://github.com/mariotoffia/FluentDocker</PackageProjectUrl>
     <PackageIconUrl>https://pbs.twimg.com/profile_images/378800000124779041/fbbb494a7eef5f9278c6967b6072ca3e.png</PackageIconUrl>
     <PackageId>Ductus.FluentDocker.XUnit</PackageId>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
     <PackageTags>Docker;Docker-Compose;Docker Compose;Docker-Machine;Docker Machine;Linux;Windows;Mac;Test;NET Core</PackageTags>
     <RepositoryType>git</RepositoryType>
@@ -28,6 +29,10 @@
 
   <ItemGroup Condition="'$(Configuration)'=='Release'">
     <PackageReference Include="GitVersionTask" Version="5.3.7" PrivateAssets="All" />
+  </ItemGroup>
+ 
+  <ItemGroup>
+    <None Include="README.md" Pack="true" PackagePath="\"/>
   </ItemGroup>
 
   <ItemGroup>
