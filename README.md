@@ -1,7 +1,11 @@
 [![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=mariotoffia_FluentDocker&metric=alert_status)](https://sonarcloud.io/dashboard?id=mariotoffia_FluentDocker)
 [![Build status](https://ci.appveyor.com/api/projects/status/kqqrkcv8wp3e9my6/branch/master?svg=true)](https://ci.appveyor.com/project/mariotoffia/fluentdocker) 
-[![NuGet](https://img.shields.io/nuget/v/Ductus.FluentDocker.svg)](https://www.nuget.org/packages/Ductus.FluentDocker) 
-[![NuGet](https://img.shields.io/nuget/v/Ductus.FluentDocker.MsTest.svg)](https://www.nuget.org/packages/Ductus.FluentDocker.MsTest)
+
+| Package        | NuGet          |
+| ---------------|:--------------:|
+| FluentDocker   |[![NuGet](https://img.shields.io/nuget/v/Ductus.FluentDocker.svg)](https://www.nuget.org/packages/Ductus.FluentDocker) |
+| Microsoft Test | [![NuGet](https://img.shields.io/nuget/v/Ductus.FluentDocker.MsTest.svg)](https://www.nuget.org/packages/Ductus.FluentDocker.MsTest) |
+| XUnit          | [![NuGet](https://img.shields.io/nuget/v/Ductus.FluentDocker.XUnit.svg)](https://www.nuget.org/packages/Ductus.FluentDocker.XUnit) |
 
 # FluentDocker
 FluentDocker is a library to interact with docker-machine, docker-compose and docker. It supports the docker for windows, docker for mac, docker machine, and native linux (however only limited tests on Linux and Mac). 
@@ -49,11 +53,8 @@ This fires up a postgres and waits for it to be ready. To use compose, just do i
       }
 ```
 
-**Note for Linux Users:** _Docker requires _sudo_ by default and the library by default expects that executing user do not
-need to do _sudo_ in order to talk to the docker daemon. If you wish to have it on, please use the experimental 
-```SudoMechanism``` to setup how to do this. More description can be found in the _Talking to Docker Daemon_ chapter.
-If you wish to turn off _sudo_ to communicate with the docker daemon, you can follow a docker tutorial at 
-https://docs.docker.com/install/linux/docker-ce/ubuntu/ and do the last step of adding your user to docker group._
+:bulb **Note for Linux Users:** Docker requires _sudo_ by default and the library by default expects that executing user do not
+need to do _sudo_ in order to talk to the docker daemon. More description can be found in the _Talking to Docker Daemon_ chapter.
 
 The fluent _API_ builds up one or more services. Each service may be composite or singular. Therefore it is possible
 to e.g. fire up several _docker-compose_ based services and manage each of them as a single service or dig in and use
@@ -847,7 +848,8 @@ _sudo_ with password. The default is that FluentDocker expects to be able to tal
      SudoMechanism.Password.SetSudo("<my-sudo-password>");
      SudoMechanism.NoPassword.SetSudo();
 ```
-This is still experimental and will probably change to e.g ```SecureString``` or other in the future.
+
+If you wish to turn off _sudo_ to communicate with the docker daemon, you can follow a docker [tutorial](https://docs.docker.com/install/linux/docker-ce/ubuntu/) and do the last step of adding your user to docker group.
 
 ### Connecting to Remote Docker Daemons
 FluentDocker supports connection to remote docker daemons. The fluent API supports e.g. 
