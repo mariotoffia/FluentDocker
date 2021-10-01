@@ -8,9 +8,8 @@
 | XUnit          | [![NuGet](https://img.shields.io/nuget/v/Ductus.FluentDocker.XUnit.svg)](https://www.nuget.org/packages/Ductus.FluentDocker.XUnit) |
 
 # FluentDocker
-FluentDocker is a library to interact with docker-machine, docker-compose and docker. It supports the docker for windows, docker for mac, docker machine, and native linux (however only limited tests on Linux and Mac). 
-This library is available at nuget [Ductus.FluentDocker](https://www.nuget.org/packages/Ductus.FluentDocker/ "Nuget Home for Ductus.FluentDocker") 
-and the ms test support is available at [Ductus.FluentDocker.MsTest](https://www.nuget.org/packages/Ductus.FluentDocker.MsTest/ "Nuget Home for Ductus.FluentDocker.MsTest").
+
+This library enables `docker` and `docker-compose` interactions usinga _Fluent API_. It is supported on Linux, Windows and Mac. It also has support for the legazy `docker-machine` interactions.
 
 **Sample Fluent API usage**
 ```cs
