@@ -28,6 +28,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "data", "data", "{60257CD9-E
 		data\docker_network_inspect.json = data\docker_network_inspect.json
 	EndProjectSection
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Ductus.FluentDocker.XUnit", "Ductus.FluentDocker.XUnit\Ductus.FluentDocker.XUnit.csproj", "{F8020BBA-78F7-426A-BE28-13716CC17966}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -46,6 +48,10 @@ Global
 		{FA836F5A-6361-4042-9B12-E38EB057CD41}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{FA836F5A-6361-4042-9B12-E38EB057CD41}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{FA836F5A-6361-4042-9B12-E38EB057CD41}.Release|Any CPU.Build.0 = Release|Any CPU
+		{F8020BBA-78F7-426A-BE28-13716CC17966}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{F8020BBA-78F7-426A-BE28-13716CC17966}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{F8020BBA-78F7-426A-BE28-13716CC17966}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{F8020BBA-78F7-426A-BE28-13716CC17966}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
