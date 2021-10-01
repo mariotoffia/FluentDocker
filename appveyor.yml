@@ -4,13 +4,13 @@ image: Visual Studio 2019
 configuration: Release
 
 # Only build when [release] is in the commit title
-only_commits:
-  message: /\[release\]/
+#only_commits:
+#  message: /\[release\]/
 
-# skip_commits:
-#   files:
-#     - Examples/**/*
-#     - '**/*.md'
+ skip_commits:
+   files:
+     - Examples/**/*
+     - '**/*.md'
 
 dotnet_csproj:
   patch: true
