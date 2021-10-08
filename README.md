@@ -9,7 +9,7 @@
 
 # FluentDocker
 
-This library enables `docker` and `docker-compose` interactions usinga _Fluent API_. It is supported on Linux, Windows and Mac. It also has support for the legazy `docker-machine` interactions.
+This library enables `docker` and `docker-compose` interactions usinga _Fluent API_. It is supported on Linux, Windows and Mac. It also has support for the legacy `docker-machine` interactions.
 
 **Sample Fluent API usage**
 ```cs
