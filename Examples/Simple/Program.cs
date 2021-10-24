@@ -120,7 +120,6 @@ namespace Simple
       //RunSingleContainerFluentAPI();
       //PerformanceSingleContainer();
       //PerformanceSingleContainerFluentAPI();
-      Mongo.RunMongoDb();
     }
   }
 }
