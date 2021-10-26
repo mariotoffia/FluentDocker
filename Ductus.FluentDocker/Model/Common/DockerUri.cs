@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using Ductus.FluentDocker.Common;
 using Ductus.FluentDocker.Extensions;
 
@@ -33,11 +33,15 @@ namespace Ductus.FluentDocker.Model.Common
 
     public override string ToString()
     {
-      if (Scheme != "npipe")
-        return base.ToString();
+      var baseString = base.ToString();
 
-      var s = base.ToString();
-      return s.Substring(0, 6) + "//" + s.Substring(6);
+      if (Scheme == "ssh")
+        return baseString.TrimEnd('/');
+
+      if (Scheme == "npipe")
+        return baseString.Substring(0, 6) + "//" + baseString.Substring(6);
+
+      return baseString;
     }
   }
 }
