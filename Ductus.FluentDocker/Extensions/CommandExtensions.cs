@@ -161,20 +161,6 @@ namespace Ductus.FluentDocker.Extensions
     }
 
 
-#if NETSTANDARD1_6
-    public static bool IsDockerDnsAvailable()
-    {
-      try
-      {
-        Dns.GetHostEntryAsync("host.docker.internal").Wait();
-        return true;
-      }
-      catch (Exception ex) when (ex.GetBaseException() is SocketException)
-      {
-        return false;
-      }
-    }
-#else
     public static bool IsDockerDnsAvailable()
     {
       try
@@ -187,7 +173,6 @@ namespace Ductus.FluentDocker.Extensions
         return false;
       }
     }
-#endif
 
     public static bool IsNative()
     {
@@ -199,11 +184,7 @@ namespace Ductus.FluentDocker.Extensions
       if (useCache && null != _cachedDockerIpAddress)
         return _cachedDockerIpAddress;
 
-#if NETSTANDARD1_6
-      var hostEntry = Dns.GetHostEntryAsync("host.docker.internal").Result;
-#else
       var hostEntry = Dns.GetHostEntry("host.docker.internal");
-#endif
       if (hostEntry.AddressList.Length > 0)
       {
         // Prefer IPv4 addresses
