@@ -120,6 +120,8 @@ namespace Simple
       //RunSingleContainerFluentAPI();
       //PerformanceSingleContainer();
       //PerformanceSingleContainerFluentAPI();
+      //ExecuteCommandInRunningContainer.Runner();
+      Compose.Sample.Runner();
     }
   }
 }

@@ -5,7 +5,8 @@
     <TargetFramework>netcoreapp3.1</TargetFramework>
   </PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="Ductus.FluentDocker" Version="2.*"/>
+    <PackageReference Include="Ductus.FluentDocker" Version="2.*" />
+    <PackageReference Include="MongoDB.Driver" Version="2.13.2" />
   </ItemGroup>
 
 </Project>
