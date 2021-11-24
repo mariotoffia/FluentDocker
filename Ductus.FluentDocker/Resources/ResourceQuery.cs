@@ -2,7 +2,6 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
-using Ductus.FluentDocker.Extensions;
 
 namespace Ductus.FluentDocker.Resources
 {
@@ -33,18 +32,10 @@ namespace Ductus.FluentDocker.Resources
 
     public IEnumerable<ResourceInfo> Query()
     {
-#if NETSTANDARD1_6
-			if (string.IsNullOrWhiteSpace(_assembly))
-				// TODO : Consider rework of Fluent API
-				throw new InvalidOperationException($"It is not possible to execute {nameof(Query)} without first executing {nameof(From)}.");
-			var assembly = ResourceExtensions.GetAssemblies()
-				.First(x => x.GetName().Name.Equals(_assembly, StringComparison.OrdinalIgnoreCase));
-#else
       var assembly = string.IsNullOrEmpty(_assembly)
         ? Assembly.GetCallingAssembly() :
         AppDomain.CurrentDomain.GetAssemblies()
         .First(x => x.GetName().Name.Equals(_assembly, StringComparison.OrdinalIgnoreCase));
-#endif
 
       var q = assembly.GetManifestResourceNames();
 

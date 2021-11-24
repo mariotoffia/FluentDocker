@@ -46,11 +46,7 @@ namespace Ductus.FluentDocker.Executors
       if (0 != Env.Count)
         foreach (var key in Env.Keys)
         {
-#if NETSTANDARD1_6
-          startInfo.Environment[key] = Env[key];
-#else
           startInfo.EnvironmentVariables[key] = Env[key];
-#endif
         }
 
       Logger.Log($"cmd: {_command} - arg: {_arguments}");
