@@ -13,6 +13,8 @@ namespace Ductus.FluentDocker.Model.Common
 
     public DockerUri(string uriString) : base(uriString)
     {
+      if (uriString == DockerHostUrlMacOrLinux || uriString == DockerHostUrlWindowsNative)
+        this.IsStandardDaemon = true;
     }
 
     public static string GetDockerHostEnvironmentPathOrDefault()
@@ -30,6 +32,15 @@ namespace Ductus.FluentDocker.Model.Common
 
       return CommandExtensions.IsToolbox() ? DockerHostUrlLegacy : DockerHostUrlMacOrLinux;
     }
+
+    /// <summary>
+    /// Returns true if the DockerUri has a "standard" daemon URI.
+    /// </summary>
+    /// <value>True if standard daemon, false otherwise.</value>
+    /// <remarks>
+    /// If it is a standard daemon URI, there's no need to add the -H flag
+    /// </remarks>
+    public bool IsStandardDaemon {get;}
 
     public override string ToString()
     {
