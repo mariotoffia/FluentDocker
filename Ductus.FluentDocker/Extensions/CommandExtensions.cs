@@ -22,7 +22,7 @@ namespace Ductus.FluentDocker.Extensions
 
     /// <summary>
     ///   Reads a <see cref="ConsoleStream{T}" /> until <see cref="ConsoleStream{T}.IsFinished" /> is set to true
-    ///   or a timeout occured on a read.
+    ///   or a timeout occurred on a read.
     /// </summary>
     /// <typeparam name="T">The type of returned items in the console stream.</typeparam>
     /// <param name="stream">The stream to read from.</param>
@@ -214,10 +214,10 @@ namespace Ductus.FluentDocker.Extensions
       return _cachedDockerIpAddress;
     }
 
-    internal static string RenderBaseArgs(this Uri host, ICertificatePaths certificates = null)
+    internal static string RenderBaseArgs(this DockerUri host, ICertificatePaths certificates = null)
     {
       var args = string.Empty;
-      if (null != host)
+      if (null != host && !host.IsStandardDaemon)
       {
         args = $" -H {host}";
       }
