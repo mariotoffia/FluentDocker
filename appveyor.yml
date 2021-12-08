@@ -63,4 +63,4 @@ deploy:
       branch: master
       good_to_deploy: true
     api_key:
-      secure: SvrLpeGG/sw6ymYYGzaMGfKIBKvR4DJChspymL2tz2RWwOGJQ3H9NVHrdXxOHn4j
+      secure: z80ekLggILaWCZEJxfg21hE+ueNBQIOuST9c2ed4FCo8e/9EvU756oMO8lMfwGhW
