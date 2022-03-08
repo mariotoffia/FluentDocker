@@ -210,6 +210,17 @@ namespace Ductus.FluentDocker.Builders
       return this;
     }
 
+    /// <summary>
+    ///   Sets memory limit of the container as the -m,--memory parameters in docker run.
+    /// </summary>
+    /// <param name="memoryLimit">The memory limit with a suffix for the unit: b, k, m, g, to indicate bytes, kilobytes, megabytes, or gigabytes. E.g: 2g for 2 gigabytes</param>
+    /// <returns>Itself for fluent access.</returns>
+    public ContainerBuilder WithMemoryLimit(string memoryLimit)
+    {
+      _config.CreateParams.Memory = memoryLimit;
+      return this;
+    }
+
     public ContainerBuilder Command(string command, params string[] arguments)
     {
       _config.Command = command;
@@ -664,7 +675,7 @@ namespace Ductus.FluentDocker.Builders
     /// <returns>Itself for fluent access.</returns>
     /// <remarks>
     ///  For example restricting the number of open files to 10 use <see cref="Ulimit.NoFile"/> and set soft / hard
-    /// to 10. 
+    /// to 10.
     /// </remarks>
     public ContainerBuilder UseUlimit(Ulimit ulimit, string soft, string hard = null)
     {
@@ -681,7 +692,7 @@ namespace Ductus.FluentDocker.Builders
     /// <returns>Itself for fluent access.</returns>
     /// <remarks>
     ///  For example restricting the number of open files to 10 use <see cref="Ulimit.NoFile"/> and set soft / hard
-    /// to 10. 
+    /// to 10.
     /// </remarks>
     public ContainerBuilder UseUlimit(Ulimit ulimit, long soft, long? hard = null)
     {
