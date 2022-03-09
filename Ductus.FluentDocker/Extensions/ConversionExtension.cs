@@ -1,4 +1,5 @@
 ﻿using System.Linq;
+using System.Text.RegularExpressions;
 
 namespace Ductus.FluentDocker.Extensions
 {
@@ -19,22 +20,25 @@ namespace Ductus.FluentDocker.Extensions
       if (string.IsNullOrWhiteSpace(value))
         return long.MinValue;
 
-      var num = value.Substring(0, value.Length - 2);
-      var u = value.Substring(value.Length - 2, 1).ToLower();
+      var regex = new Regex(@"(\d+)([a-zA-Z]+)");
+      var result = regex.Match(value);
 
-      if (char.IsDigit(u[0]))
-        return !long.TryParse(value, out var n) ? long.MinValue : n;
-
-      if (!unit.Contains(u))
+      if (!result.Success)
         return long.MinValue;
 
-      if (!long.TryParse(num, out var val))
+      var digits = result.Groups[1].Value;
+      var letters = result.Groups[2].Value;
+
+      if (!unit.Contains(letters))
         return long.MinValue;
 
-      if (u == "b")
+      if (!long.TryParse(digits, out var val))
+        return long.MinValue;
+
+      if (letters == "b")
         return val;
 
-      switch (u)
+      switch (letters)
       {
         case "b":
           return val;

@@ -31,7 +31,7 @@ namespace Ductus.FluentDocker.Tests.FluentApiTests
       var v = Fd.Version();
       Assert.IsTrue(v != null && v.Length > 0);
     }
-    
+
     [TestMethod]
     [TestCategory("CI")]
     public void BuildContainerRenderServiceInStoppedMode()
@@ -550,6 +550,23 @@ namespace Ductus.FluentDocker.Tests.FluentApiTests
             .WithEnvironment("POSTGRES_PASSWORD=mysecretpassword")
             .Build()
             .Start())
+      {
+        var config = container.GetConfiguration(true);
+      }
+    }
+
+    [TestMethod]
+    [TestCategory("CI")]
+    public void ContainerWithMemoryLimitShallWork()
+    {
+      using (
+        var container =
+        Fd.UseContainer()
+          .UseImage("postgres:latest", true)
+          .WithMemoryLimit("2g")
+          .WithEnvironment("POSTGRES_PASSWORD=mysecretpassword")
+          .Build()
+          .Start())
       {
         var config = container.GetConfiguration(true);
       }

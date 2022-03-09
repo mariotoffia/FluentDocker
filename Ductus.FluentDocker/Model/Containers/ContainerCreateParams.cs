@@ -934,7 +934,7 @@ namespace Ductus.FluentDocker.Model.Containers
         }
 
       // Memory management
-      sb.SizeOptionIfValid("--memory=", Memory, 4 * 1024 * 1024 /*4m*/);
+      sb.SizeOptionIfValid("--memory=", Memory);
       sb.SizeOptionIfValid("--memory-swap=", MemorySwap);
       sb.OptionIfExists("--memory-swappiness=", MemorySwappiness);
       sb.SizeOptionIfValid("--memory-reservation=", MemoryReservation);
