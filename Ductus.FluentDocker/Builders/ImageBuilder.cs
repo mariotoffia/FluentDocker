@@ -2,6 +2,7 @@ using System.Linq;
 using Ductus.FluentDocker.Common;
 using Ductus.FluentDocker.Extensions;
 using Ductus.FluentDocker.Model.Builders;
+using Ductus.FluentDocker.Model.Common;
 using Ductus.FluentDocker.Model.Containers;
 using Ductus.FluentDocker.Services;
 using Ductus.FluentDocker.Services.Extensions;
@@ -11,7 +12,7 @@ namespace Ductus.FluentDocker.Builders
 {
   public sealed class ImageBuilder : BaseBuilder<IContainerImageService>
   {
-    private readonly ImageBuilderConfig _config = new ImageBuilderConfig();
+    internal readonly ImageBuilderConfig Config = new ImageBuilderConfig();
     private FileBuilder _fileBuilder;
 
     internal ImageBuilder(IBuilder parent) : base(parent)
@@ -20,40 +21,40 @@ namespace Ductus.FluentDocker.Builders
 
     public override IContainerImageService Build()
     {
-      if (string.IsNullOrEmpty(_config.ImageName))
+      if (string.IsNullOrEmpty(Config.ImageName))
         throw new FluentDockerException("Cannot create or verify an image without a name");
 
       var host = FindHostService();
       if (!host.HasValue)
         throw new FluentDockerException(
-          $"Cannot build Dockerfile for image {_config.ImageName} since no host service is defined");
+          $"Cannot build Dockerfile for image {Config.ImageName} since no host service is defined");
 
-      var tag = null == _config.Params.Tags ? "latest" : _config.Params.Tags[0];
-      var image = host.Value.GetImages().FirstOrDefault(x => x.Name == _config.ImageName && x.Tag == tag);
+      var tag = null == Config.Params.Tags ? "latest" : Config.Params.Tags[0];
+      var image = host.Value.GetImages().FirstOrDefault(x => x.Name == Config.ImageName && x.Tag == tag);
 
-      if (_config.VerifyExistence && null != image)
+      if (Config.VerifyExistence && null != image)
         return image;
 
-      if (null == _config.Params.Tags)
-        _config.Params.Tags = new[] { "latest" };
+      if (null == Config.Params.Tags)
+        Config.Params.Tags = new[] { "latest" };
 
       // Render docker file and copy all resources
       // to a working directory
       var workingdir = _fileBuilder.PrepareBuild();
 
-      var id = host.Value.Build(_config.ImageName, _config.Params.Tags[0], workingdir, new ContainerBuildParams
-      {
-        BuildArguments = _config.Params.BuildArguments,
-        Tags = _config.Params.Tags.Except(new[] { _config.Params.Tags[0] }).ToArray(),
-        Quiet = true
-      });
+      var id = host.Value.Build(Config.ImageName, Config.Params.Tags[0], workingdir, new ContainerBuildParams
+        {
+          BuildArguments = Config.Params.BuildArguments,
+          Tags = Config.Params.Tags.Except(new[] {Config.Params.Tags[0]}).ToArray(),
+          Quiet = true
+        });
 
       if (id.IsFailure)
         throw new FluentDockerException(
-          $"Could not build image {_config.ImageName} due to error: {id.Error} log: {id.Log}");
+          $"Could not build image {Config.ImageName} due to error: {id.Error} log: {id.Log}");
 
-      return new DockerImageService(_config.ImageName, id.Value.ToPlainId(), _config.Params.Tags[0], host.Value.Host,
-        host.Value.Certificates, _config.IsWindowsHost);
+      return new DockerImageService(Config.ImageName, id.Value.ToPlainId(), Config.Params.Tags[0], host.Value.Host,
+        host.Value.Certificates, Config.IsWindowsHost);
     }
 
     protected override IBuilder InternalCreate()
@@ -103,13 +104,13 @@ namespace Ductus.FluentDocker.Builders
 
     public ImageBuilder IsWindowsHost()
     {
-      _config.IsWindowsHost = true;
+      Config.IsWindowsHost = true;
       return this;
     }
 
     public ImageBuilder ReuseIfAlreadyExists()
     {
-      _config.VerifyExistence = true;
+      Config.VerifyExistence = true;
       return this;
     }
 
@@ -118,17 +119,17 @@ namespace Ductus.FluentDocker.Builders
       if (name == null) {
         return this;
       }
-      
+
       var s = name.Split(':');
       if (s.Length == 2)
       {
-        _config.ImageName = s[0];
-        _config.Params.Tags = _config.Params.Tags.ArrayAdd(s[1]);
+        Config.ImageName = s[0];
+        Config.Params.Tags = Config.Params.Tags.ArrayAdd(s[1]);
       }
       else
       {
-        _config.ImageName = name;
-        _config.Params.Tags = _config.Params.Tags.ArrayAdd("latest");
+        Config.ImageName = name;
+        Config.Params.Tags = Config.Params.Tags.ArrayAdd("latest");
       }
 
       return this;
@@ -136,51 +137,64 @@ namespace Ductus.FluentDocker.Builders
 
     public ImageBuilder ImageTag(params string[] tags)
     {
-      _config.Params.Tags = _config.Params.Tags.ArrayAddDistinct(tags);
+      Config.Params.Tags = Config.Params.Tags.ArrayAddDistinct(tags);
       return this;
     }
 
     public ImageBuilder BuildArguments(params string[] args)
     {
-      _config.Params.BuildArguments = _config.Params.BuildArguments.ArrayAdd(args);
+      Config.Params.BuildArguments = Config.Params.BuildArguments.ArrayAdd(args);
+      return this;
+    }
+
+    /// <summary>
+    /// Sets the file name of the rendered Dockerfile to the specified <paramref name="dockerfileName"/>.
+    /// Default of <see cref="ContainerBuildParams.File"/> is 'PATH/Dockerfile'.
+    /// </summary>
+    /// <param name="dockerfileName"></param>
+    /// <returns></returns>
+    /// <remarks><inheritdoc cref="ContainerBuildParams.File"/></remarks>
+    public ImageBuilder DockerfileName(TemplateString dockerfileName)
+    {
+      Config.Params.File = dockerfileName;
       return this;
     }
 
     public ImageBuilder NoVerifyImage()
     {
-      _config.Params.SkipImageVerification = true;
+      Config.Params.SkipImageVerification = true;
       return this;
     }
 
     public ImageBuilder Label(params string[] labels)
     {
-      _config.Params.Labels = _config.Params.Labels.ArrayAdd(labels);
+      Config.Params.Labels = Config.Params.Labels.ArrayAdd(labels);
       return this;
     }
 
     public ImageBuilder NoCache()
     {
-      _config.Params.NoCache = true;
+      Config.Params.NoCache = true;
       return this;
     }
 
     public ImageBuilder AlwaysPull()
     {
-      _config.Params.AlwaysPull = true;
+      Config.Params.AlwaysPull = true;
       return this;
     }
 
     public ImageBuilder WithIsolation(ContainerIsolationTechnology isolation)
     {
-      _config.Params.Isolation = isolation;
+      Config.Params.Isolation = isolation;
       return this;
     }
 
     public ImageBuilder RemoveIntermediate(bool force = false)
     {
-      _config.Params.RemoveIntermediateContainersOnSuccessfulBuild = true;
+      Config.Params.RemoveIntermediateContainersOnSuccessfulBuild = true;
       if (force)
-        _config.Params.ForceRemoveIntermediateContainers = true;
+        Config.Params.ForceRemoveIntermediateContainers = true;
       return this;
     }
   }
