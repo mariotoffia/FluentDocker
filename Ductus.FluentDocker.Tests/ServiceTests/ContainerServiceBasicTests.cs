@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
@@ -404,6 +404,42 @@ namespace Ductus.FluentDocker.Tests.ServiceTests
                                                      && JsonConvert.SerializeObject(c) == JsonConvert.SerializeObject(container)));
         Assert.IsNotNull(result.SingleOrDefault(c => c.Id == container2.Id
                                                      && JsonConvert.SerializeObject(c) == JsonConvert.SerializeObject(container2)));
+      }
+    }
+
+    [TestMethod]
+    public void GetContainersShallWorkWithFilterWhenThereIsNoResults()
+    {
+      // Arrange
+      using (var container = _host.Create("postgres:9.6-alpine"))
+      using (var container2 = _host.Create("postgres:14.2-alpine"))
+      {
+        container.Start();
+
+        // Act
+        var result = _host.GetContainers(true, "ancestor==somethingnotexisting");
+
+        // Assert
+        Assert.Equals(0, result.Count);
+      }
+    }
+
+    [TestMethod]
+    public void GetContainersShallWorkWithFilterWhenThereIsResults()
+    {
+      // Arrange
+      using (var container = _host.Create("postgres:9.6-alpine"))
+      using (var container2 = _host.Create("postgres:14.2-alpine"))
+      {
+        container.Start();
+
+        // Act
+        var result = _host.GetContainers(true, "ancestor==postgres:14.2-alpine");
+
+        // Assert
+        Assert.Equals(1, result.Count);
+        Assert.IsNotNull(result.SingleOrDefault(c => c.Id == container2.Id
+                                             && JsonConvert.SerializeObject(c) == JsonConvert.SerializeObject(container2)));
       }
     }
   }
