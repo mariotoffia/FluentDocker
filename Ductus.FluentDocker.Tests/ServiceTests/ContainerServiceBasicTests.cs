@@ -420,7 +420,7 @@ namespace Ductus.FluentDocker.Tests.ServiceTests
         var result = _host.GetContainers(true, "ancestor==somethingnotexisting");
 
         // Assert
-        Assert.Equals(0, result.Count);
+        Assert.AreEqual(0, result.Count);
       }
     }
 
@@ -437,7 +437,7 @@ namespace Ductus.FluentDocker.Tests.ServiceTests
         var result = _host.GetContainers(true, "ancestor==postgres:14.2-alpine");
 
         // Assert
-        Assert.Equals(1, result.Count);
+        Assert.AreEqual(1, result.Count);
         Assert.IsNotNull(result.SingleOrDefault(c => c.Id == container2.Id
                                              && JsonConvert.SerializeObject(c) == JsonConvert.SerializeObject(container2)));
       }
