@@ -428,6 +428,23 @@ namespace Ductus.FluentDocker.Builders
       return this;
     }
 
+    /// <summary>
+    /// Mounts a temporary file system. A tmpfs mount is temporary, and only persisted in the host memory.
+    /// When the container stops, the tmpfs mount is removed, and files written there won’t be persisted.
+    /// </summary>
+    /// <param name="destinations">A destination per temporary file system.</param>
+    /// <returns>Itself for fluent access.</returns>
+    /// <remarks>
+    /// This functionality is only available if you’re running Docker on Linux.
+    /// For details see the docker documentation on <see href="https://docs.docker.com/storage/tmpfs/">tmpfs</see>.
+    /// </remarks>
+    public ContainerBuilder MountTmpfs(params string[] destinations)
+    {
+      _config.CreateParams.TmpfsDestinations =
+        _config.CreateParams.TmpfsDestinations.ArrayAdd(destinations);
+      return this;
+    }
+
     public ContainerBuilder Mount(string fqHostPath, string fqContainerPath, MountType access)
     {
       var hp = FdOs.IsWindows() && CommandExtensions.IsToolbox()

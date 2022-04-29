@@ -510,6 +510,15 @@ namespace Ductus.FluentDocker.Model.Containers
     public bool AutoRemoveContainer { get; set; }
 
     /// <summary>
+    ///   Mount a tmpfs mount without any configurable options,
+    ///   and it can only be used with standalone containers.
+    /// </summary>
+    /// <remarks>
+    /// --tmpfs
+    /// </remarks>
+    public string[] TmpfsDestinations { get; set; }
+
+    /// <summary>
     ///   Bind mount a volume
     /// </summary>
     /// <remarks>
@@ -900,6 +909,7 @@ namespace Ductus.FluentDocker.Model.Containers
       if (AutoRemoveContainer)
         sb.Append(" --rm");
 
+      sb.OptionIfExists("--tmpfs ", TmpfsDestinations);
       sb.OptionIfExists("-v ", Volumes);
       sb.OptionIfExists("--volume-driver ", VolumeDriver);
       sb.OptionIfExists("--volumes-from=", VolumesFrom);
@@ -909,7 +919,7 @@ namespace Ductus.FluentDocker.Model.Containers
       sb.OptionIfExists("-l ", Labels);
       sb.OptionIfExists("--group-add=", Groups);
       sb.OptionIfExists("--network ", Network);
-      if(!string.IsNullOrEmpty(Network))
+      if (!string.IsNullOrEmpty(Network))
       {
         sb.OptionIfExists("--network-alias ", Alias);
       }
