@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -129,17 +129,20 @@ namespace Ductus.FluentDocker.Services.Impl
       return GetContainers(false);
     }
 
-    public IList<IContainerService> GetContainers(bool all = true, string filter = null)
+    public IList<IContainerService> GetContainers(bool all = true, params string[] filters)
     {
       var options = string.Empty;
       if (all)
         options += " --all";
 
-      if (!string.IsNullOrEmpty(filter))
-        options += $" --filter {filter}";
+      foreach (var filter in filters)
+      {
+        if (!string.IsNullOrEmpty(filter))
+          options += $" --filter {filter}";
+      }
 
       var psResult = Host.Ps(options, Certificates);
-      if (!psResult.Success)
+      if (!psResult.Success || psResult.Data.Count == 0)
         return new List<IContainerService>();
 
       var ids = psResult.Data.ToArray();
@@ -155,9 +158,9 @@ namespace Ductus.FluentDocker.Services.Impl
         .Cast<IContainerService>().ToList();
     }
 
-    public IList<IContainerImageService> GetImages(bool all = true, string filter = null)
+    public IList<IContainerImageService> GetImages(bool all = true, params string[] filters)
     {
-      var images = Host.Images(filter, Certificates);
+      var images = Host.Images(Certificates, filters);
       if (!images.Success)
         return new List<IContainerImageService>();
 

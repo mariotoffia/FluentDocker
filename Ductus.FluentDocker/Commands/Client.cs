@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using Ductus.FluentDocker.Executors;
@@ -99,13 +99,17 @@ namespace Ductus.FluentDocker.Commands
           $"{host.RenderBaseArgs(certificates)} build {options} {workdir}").Execute();
     }
 
-    public static CommandResponse<IList<DockerImageRowResponse>> Images(this DockerUri host, string filter = null,
-      ICertificatePaths certificates = null)
+    public static CommandResponse<IList<DockerImageRowResponse>> Images(this DockerUri host, ICertificatePaths certificates = null,
+      params string[] filters)
     {
       var options = "--quiet --no-trunc --format \"{{.ID}};{{.Repository}};{{.Tag}}\"";
-      if (!string.IsNullOrEmpty(filter))
+
+      foreach (var filter in filters)
       {
-        options += $" --filter=\"{filter}\"";
+        if (!string.IsNullOrEmpty(filter))
+        {
+          options += $" --filter=\"{filter}\"";
+        }
       }
 
       return
