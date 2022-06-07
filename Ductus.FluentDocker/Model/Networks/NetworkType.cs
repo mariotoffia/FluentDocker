@@ -6,6 +6,7 @@ namespace Ductus.FluentDocker.Model.Networks
     Bridge,
     Host,
     Overlay,
+    Ipvlan,
     Macvlan,
     None,
     Custom
