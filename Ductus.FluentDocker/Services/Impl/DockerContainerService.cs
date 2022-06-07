@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net;
@@ -157,7 +157,7 @@ namespace Ductus.FluentDocker.Services.Impl
         }
       }
 
-      if (GetConfiguration().State.Running)
+      if (GetConfiguration(true).State.Running)
         State = ServiceRunningState.Running;
     }
 
