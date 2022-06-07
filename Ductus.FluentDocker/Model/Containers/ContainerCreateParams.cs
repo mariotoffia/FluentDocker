@@ -848,9 +848,8 @@ namespace Ductus.FluentDocker.Model.Containers
 
       if (null != HostIpMappings && 0 != HostIpMappings.Count)
       {
-        sb.Append(" --add-host=");
         foreach (var mapping in HostIpMappings)
-          sb.Append($"--add-host={mapping.Item1}:{mapping.Item2}");
+          sb.Append($" --add-host={mapping.Item1}:{mapping.Item2}");
       }
 
       if (Ulimit.Count > 0)
