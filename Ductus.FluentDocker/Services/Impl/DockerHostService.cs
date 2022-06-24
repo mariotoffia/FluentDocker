@@ -131,17 +131,17 @@ namespace Ductus.FluentDocker.Services.Impl
 
     public IList<IContainerService> GetContainers(bool all = true, params string[] filters)
     {
-      var options = string.Empty;
+      var options = new System.Text.StringBuilder();
       if (all)
-        options += " --all";
+        options.Append(" --all");
 
       foreach (var filter in filters)
       {
         if (!string.IsNullOrEmpty(filter))
-          options += $" --filter {filter}";
+          options.Append($" --filter \"{filter}\"");
       }
 
-      var psResult = Host.Ps(options, Certificates);
+      var psResult = Host.Ps(options.ToString(), Certificates);
       if (!psResult.Success || psResult.Data.Count == 0)
         return new List<IContainerService>();
 

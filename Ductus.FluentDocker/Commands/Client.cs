@@ -102,20 +102,21 @@ namespace Ductus.FluentDocker.Commands
     public static CommandResponse<IList<DockerImageRowResponse>> Images(this DockerUri host, ICertificatePaths certificates = null,
       params string[] filters)
     {
-      var options = "--quiet --no-trunc --format \"{{.ID}};{{.Repository}};{{.Tag}}\"";
+      var options = new System.Text.StringBuilder();
+      options.Append("--quiet --no-trunc --format \"{{.ID}};{{.Repository}};{{.Tag}}\"");
 
       foreach (var filter in filters)
       {
         if (!string.IsNullOrEmpty(filter))
         {
-          options += $" --filter=\"{filter}\"";
+          options.Append($" --filter=\"{filter}\"");
         }
       }
 
       return
         new ProcessExecutor<ClientImagesResponseParser, IList<DockerImageRowResponse>>(
           "docker".ResolveBinary(),
-          $"{host.RenderBaseArgs(certificates)} images {options}").Execute();
+          $"{host.RenderBaseArgs(certificates)} images {options.ToString()}").Execute();
     }
 
     public static CommandResponse<IList<string>> Ps(this DockerUri host, string options = null,
