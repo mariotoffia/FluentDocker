@@ -12,20 +12,13 @@ namespace Ductus.FluentDocker.XUnit
 
     public FluentDockerTestBase()
     {
-      var containerBuilder = Build();
-
-      this.OnBeforeContainerBuild(containerBuilder);
-
-      Container = containerBuilder.Build();
-
+      Container = Build().Build();
       try
       {
-        this.OnBeforeContainerStart();
         Container.Start();
       }
-      catch (Exception ex)
+      catch
       {
-        this.OnBeforeDispose(Container, ex);
         Container.Dispose();
         throw;
       }
@@ -41,7 +34,6 @@ namespace Ductus.FluentDocker.XUnit
       Container = null;
       try
       {
-        this.OnBeforeDispose(c, null);
         c?.Dispose();
       }
       catch
@@ -57,35 +49,6 @@ namespace Ductus.FluentDocker.XUnit
     {
     }
 
-    /// <summary>
-    ///   Invoked just before the container is built.
-    /// </summary>
-    /// <param name="containerBuilder">The <see cref="ContainerBuilder"/> that is about to be built.</param>
-    protected virtual void OnBeforeContainerBuild(ContainerBuilder containerBuilder)
-    {
-    }
-
-    /// <summary>
-    ///   Invoked just after the container is built and before starting it.
-    /// </summary>
-    protected virtual void OnBeforeContainerStart()
-    {
-    }
-
-    /// <summary>
-    ///   Invoked just before the container is <see cref="System.IDisposable"/>ed.
-    /// </summary>
-    /// <param name="container">The <see cref="IContainerService"/> that is about to be disposed.</param>
-    /// <param name="throwable">The <see cref="Exception"/> that caused the container to be disposed (when starting up).</param>
-    /// <remarks>
-    ///   This method is invoked either when the container fails to start. In such situation the 
-    ///   <paramref name="throwable"/> is not null. It is also called when the test is cleaning up and thus the
-    ///   <paramref name="throwable"/> is null. The <paramref name="container"> is always set since the teardown
-    ///   will clear the <see cref="Container"/> field. Note that the <paramref name="container"/> may still be null!
-    /// </remarks>
-    protected virtual void OnBeforeDispose(IContainerService container, Exception throwable)
-    {
-    }
     /// <summary>
     ///   Invoked after a container has been created and started.
     /// </summary>
