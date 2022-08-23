@@ -130,6 +130,30 @@ namespace Ductus.FluentDocker.Services.Impl
 
       State = ServiceRunningState.Starting;
 
+      if (_config.AlwaysPull)
+      {
+        var resultPull = host.Host.ComposePull(
+          new ComposePullCommandArgs
+          {
+
+            AltProjectName = _config.AlternativeServiceName,
+            Services = _config.Services,
+            Env = _config.EnvironmentNameValue,
+            Certificates = host.Certificates,
+            ComposeFiles = _config.ComposeFilePath,
+            DownloadAllTagged = false,
+            SkipImageVerification = false,
+          });
+
+        if (!resultPull.Success)
+        {
+          State = ServiceRunningState.Unknown;
+          throw new FluentDockerException(
+            $"Could not pull composite service with file(s) {string.Join(", ", _config.ComposeFilePath)} - result: {resultPull}");
+        }
+      }
+
+
       var result = host.Host.ComposeUpCommand(
         new ComposeUpCommandArgs
         {

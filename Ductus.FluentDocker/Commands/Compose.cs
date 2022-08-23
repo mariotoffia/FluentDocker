@@ -437,11 +437,11 @@ namespace Ductus.FluentDocker.Commands
       });
     }
 
-    public struct ComposeUpCommandArgs 
+    public struct ComposeUpCommandArgs
     {
       public string AltProjectName {get;set;}
-      public bool ForceRecreate {get;set;} 
-      public bool NoRecreate {get;set;} 
+      public bool ForceRecreate {get;set;}
+      public bool NoRecreate {get;set;}
       public bool DontBuild {get;set;}
       public bool BuildBeforeCreate {get;set;}
       public TimeSpan? Timeout {get;set;}
@@ -450,7 +450,7 @@ namespace Ductus.FluentDocker.Commands
       public bool NoStart {get;set;}
       public IList<string> Services {get;set;}
       public IDictionary<string, string> Env {get;set;}
-      public ICertificatePaths Certificates {get;set;} 
+      public ICertificatePaths Certificates {get;set;}
       public  IList<string> ComposeFiles {get;set;}
       public TemplateString ProjectDirectory {get;set;}
     }
@@ -572,34 +572,43 @@ namespace Ductus.FluentDocker.Commands
           $"{args} ps -q {options}", cwd.NeedCwd ? cwd.Cwd : null).ExecutionEnvironment(env).Execute();
     }
 
-    public static CommandResponse<IList<string>> ComposePull(this DockerUri host, string image,
-      string altProjectName = null,
-      bool downloadAllTagged = false, bool skipImageverficiation = false,
-      IDictionary<string, string> env = null,
-      ICertificatePaths certificates = null, params string[] composeFile)
+    public struct ComposePullCommandArgs
     {
-      var cwd = WorkingDirectory(composeFile);
-      var args = $"{host.RenderBaseArgs(certificates)}";
+      public string AltProjectName {get; set;}
+      public bool DownloadAllTagged { get; set; }
+      public bool SkipImageVerification { get; set; }
+      public IList<string> Services { get; set; }
+      public IDictionary<string, string> Env { get; set; }
+      public ICertificatePaths Certificates { get; set; }
+      public IList<string> ComposeFiles { get; set; }
+    }
 
-      if (null != composeFile && 0 != composeFile.Length)
-        foreach (var cf in composeFile)
+    public static CommandResponse<IList<string>> ComposePull(this DockerUri host, ComposePullCommandArgs commandArgs)
+    {
+      var args = $"{host.RenderBaseArgs(commandArgs.Certificates)}";
+
+      var cwd = WorkingDirectory(commandArgs.ComposeFiles?.ToArray());
+
+      if (null != commandArgs.ComposeFiles && 0 != commandArgs.ComposeFiles.Count)
+
+        foreach (var cf in commandArgs.ComposeFiles)
           if (!string.IsNullOrEmpty(cf))
             args += $" -f \"{cf}\"";
 
-      if (!string.IsNullOrEmpty(altProjectName))
-        args += $" -p {altProjectName}";
+      if (!string.IsNullOrEmpty(commandArgs.AltProjectName))
+        args += $" -p {commandArgs.AltProjectName}";
 
       var options = string.Empty;
-      if (downloadAllTagged)
+      if (commandArgs.DownloadAllTagged)
         options += " -a";
 
-      if (skipImageverficiation)
+      if (commandArgs.SkipImageVerification)
         options += " --disable-content-trust=true";
 
       return
         new ProcessExecutor<StringListResponseParser, IList<string>>(
           "docker-compose".ResolveBinary(),
-          $"{args} pull {options} {image}", cwd.NeedCwd ? cwd.Cwd : null).ExecutionEnvironment(env).Execute();
+          $"{args} pull {options} {string.Join(" ", commandArgs.Services)}", cwd.NeedCwd ? cwd.Cwd : null).ExecutionEnvironment(commandArgs.Env).Execute();
     }
 
     private static WorkingDirectoryInfo WorkingDirectory(params string[] composeFile)
