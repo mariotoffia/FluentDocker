@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFrameworks>netstandard2.0;net461</TargetFrameworks>
+    <TargetFrameworks>netstandard2.0;net462</TargetFrameworks>
     <Version>1.0.0</Version>
     <AssemblyVersion>1.0.0.0</AssemblyVersion>
     <FileVersion>1.0.0.0</FileVersion>
@@ -31,12 +31,12 @@ Documentation: https://github.com/mariotoffia/FluentDocker
   <ItemGroup Condition="'$(Configuration)'=='Release'">
     <PackageReference Include="GitVersionTask" Version="5.3.7" PrivateAssets="All" />
   </ItemGroup>
- 
+
   <ItemGroup>
     <None Include="README.md" Pack="true" PackagePath="\"/>
   </ItemGroup>
 
-  <ItemGroup>    
+  <ItemGroup>
     <PackageReference Include="MSTest.TestFramework" Version="1.1.17" />
   </ItemGroup>
   <ItemGroup>
