@@ -55,7 +55,7 @@ This fires up a postgres and waits for it to be ready. To use compose, just do i
       }
 ```
 
-:bulb **Note for Linux Users:** Docker requires _sudo_ by default and the library by default expects that executing user do not
+:bulb: **Note for Linux Users:** Docker requires _sudo_ by default and the library by default expects that executing user do not
 need to do _sudo_ in order to talk to the docker daemon. More description can be found in the _Talking to Docker Daemon_ chapter.
 
 The fluent _API_ builds up one or more services. Each service may be composite or singular. Therefore it is possible
