@@ -358,7 +358,7 @@ namespace Ductus.FluentDocker.Builders
 
     private void EnsurePortMappingsIsEmpty()
     {
-      if (_config.CreateParams.PortMappings.Any())
+      if (_config.CreateParams.PortMappings?.Any() == true)
       {
         throw new FluentDockerNotSupportedException($"{nameof(ExposeAllPorts)} is mutually exclusive with {nameof(ExposePort)} methods. " +
                                                     $"Do not call {nameof(ExposePort)} if you want to expose all ports.");
