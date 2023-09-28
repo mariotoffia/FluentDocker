@@ -25,17 +25,7 @@ namespace Ductus.FluentDocker.Model.Containers
     private const string StartConst = "START";
     private const string CmdConstWin = "Name";
 
-    public string User { get; internal set; }
-    public long Pid { get; internal set; }
-    public long ProcessPid { get; internal set; }
     public string Command { get; internal set; }
-    public string Tty { get; internal set; }
-    public TimeSpan Time { get; internal set; }
-    public TimeSpan Started { get; internal set; }
-    public string Status { get; internal set; }
-    public float PercentCpuUtilization { get; internal set; }
-    public TimeSpan Cpu { get; private set; }
-    public float PercentMemoryUtilization { get; internal set; }
     public IList<string> FullRow { get; internal set; }
 
     internal static ProcessRow ToRow(IList<string> columns, IList<string> fullRow)
@@ -52,39 +42,6 @@ namespace Ductus.FluentDocker.Model.Containers
           case CommandConst:
           case CmdConstWin:
             row.Command = fullRow[i];
-            break;
-          case UserConst:
-          case UidConst:
-            row.User = fullRow[i];
-            break;
-          case PidConst:
-            row.Pid = long.Parse(fullRow[i]);
-            break;
-          case PpidConst:
-            row.ProcessPid = long.Parse(fullRow[i]);
-            break;
-          case StartConst:
-          case StartTimeConst:
-            row.Started = TimeSpan.Parse(fullRow[i]);
-            break;
-          case TimeConst:
-            row.Time = TimeSpan.Parse(fullRow[i]);
-            break;
-          case TerminalConst:
-            row.Tty = fullRow[i];
-            break;
-          case StatConst:
-            row.Status = fullRow[i];
-            break;
-          case CpuTime:
-            if (TimeSpan.TryParse(fullRow[i], out var cpuTime))
-              row.Cpu = cpuTime;
-            break;
-          case PercentCpuConst:
-            row.PercentCpuUtilization = float.Parse(fullRow[i], CultureInfo.InvariantCulture.NumberFormat);
-            break;
-          case PercentMemoryConst:
-            row.PercentMemoryUtilization = float.Parse(fullRow[i], CultureInfo.InvariantCulture.NumberFormat);
             break;
         }
       }
