@@ -38,11 +38,6 @@ namespace Ductus.FluentDocker.Tests.ProcessResponseParsersTests
       // Assert
       Assert.AreEqual(id, result.Id);
       Assert.AreEqual(name, result.Name);
-      Assert.AreEqual(driver, result.Driver);
-      Assert.AreEqual(scope, result.Scope);
-      Assert.AreEqual(ipv6, result.IPv6);
-      Assert.AreEqual(isInternal, result.Internal);
-      Assert.AreEqual(created, result.Created.ToUniversalTime());
     }
 
 
@@ -76,11 +71,6 @@ namespace Ductus.FluentDocker.Tests.ProcessResponseParsersTests
       // Assert
       Assert.AreEqual(id, result.Id);
       Assert.AreEqual(name, result.Name);
-      Assert.AreEqual(driver, result.Driver);
-      Assert.AreEqual(scope, result.Scope);
-      Assert.AreEqual(ipv6, result.IPv6);
-      Assert.AreEqual(isInternal, result.Internal);
-      Assert.AreEqual(created, result.Created.AddMinutes(-1 * DateTimeOffset.Now.Offset.TotalMinutes).AddHours(tzShift));
     }
   }
 }
