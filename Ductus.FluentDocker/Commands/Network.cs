@@ -23,8 +23,20 @@ namespace Ductus.FluentDocker.Commands
       if (null != filters && 0 != filters.Length)
         options = filters.Aggregate(options, (current, filter) => current + $" --filter={filter}");
 
-      return
+      var fullNetworkDetails =
         new ProcessExecutor<NetworkLsResponseParser, IList<NetworkRow>>(
+          "docker".ResolveBinary(),
+          $"{args} network ls {options}").Execute();
+      if (fullNetworkDetails.Success)
+        return fullNetworkDetails;
+
+      options = $" --no-trunc --format \"{MinimalNetworkLsResponseParser.Format}\"";
+
+      if (null != filters && 0 != filters.Length)
+        options = filters.Aggregate(options, (current, filter) => current + $" --filter={filter}");
+
+      return
+        new ProcessExecutor<MinimalNetworkLsResponseParser, IList<NetworkRow>>(
           "docker".ResolveBinary(),
           $"{args} network ls {options}").Execute();
     }
