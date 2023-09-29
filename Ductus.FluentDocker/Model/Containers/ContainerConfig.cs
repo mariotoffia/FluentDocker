@@ -1,5 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
+using Ductus.FluentDocker.Common;
+using Newtonsoft.Json;
 
 namespace Ductus.FluentDocker.Model.Containers
 {
@@ -26,6 +28,7 @@ namespace Ductus.FluentDocker.Model.Containers
     public string Image { get; set; }
     public IDictionary<string, VolumeMount> Volumes { get; set; }
     public string WorkingDir { get; set; }
+    [JsonConverter(typeof(JsonArrayOrSingleConverter<string>))]
     public string[] EntryPoint { get; set; }
     public IDictionary<string, string> Labels { get; set; }
     public string StopSignal { get; set; }
