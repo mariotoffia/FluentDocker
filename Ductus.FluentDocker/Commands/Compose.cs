@@ -448,6 +448,8 @@ namespace Ductus.FluentDocker.Commands
       public bool RemoveOrphans {get;set;}
       public bool UseColor {get;set;}
       public bool NoStart {get;set;}
+      public bool Wait {get;set;}
+      public int? WaitTimeoutSeconds {get;set;}
       public IList<string> Services {get;set;}
       public IDictionary<string, string> Env {get;set;}
       public ICertificatePaths Certificates {get;set;}
@@ -490,6 +492,12 @@ namespace Ductus.FluentDocker.Commands
 
       if (!ca.UseColor)
         options += " --no-color";
+
+      if (ca.Wait)
+        options += " --wait";
+
+      if (ca.WaitTimeoutSeconds.HasValue)
+        options += $" --wait-timeout {ca.WaitTimeoutSeconds.Value}";
 
       if (null != ca.Timeout)
         options += $" -t {Math.Round(ca.Timeout.Value.TotalSeconds, 0)}";
