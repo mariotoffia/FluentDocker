@@ -57,7 +57,7 @@ jobs:
 
       - name: Patch csproj files with version
         run: |
-          find . -name '*.csproj' -exec sed -i 's/<Version>.*<\/Version>/<Version>${{ steps.gitversion.outputs.nugetversion }}<\/Version>/g' {} +
+          find . -name '*.csproj' -exec sed -i 's/<Version>.*<\/Version>/<Version>${{ steps.gitversion.outputs.NuGetVersion }}<\/Version>/g' {} +
 
       - name: SonarScanner begin
         run: |
@@ -66,14 +66,14 @@ jobs:
             /d:sonar.login=$SONAR_TOKEN \
             /k:mariotoffia_FluentDocker \
             /o:mariotoffia \
-            /v:"${{ steps.gitversion.outputs.nugetversion }}" \
+            /v:"${{ steps.gitversion.outputs.NuGetVersion }}" \
             /d:sonar.cs.opencover.reportsPaths="./output/coverage.opencover.xml" \
             /d:sonar.coverage.exclusions="**Tests*.cs"
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
 
       - name: Build
-        run: dotnet build FluentDocker.sln --configuration Release --no-restore --verbosity minimal /p:Version=${{ steps.gitversion.outputs.nugetversion }}
+        run: dotnet build FluentDocker.sln --configuration Release --no-restore --verbosity minimal /p:Version=${{ steps.gitversion.outputs.NuGetVersion }}
 
       - name: Test
         run: dotnet test --settings coverletArgs.runsettings --filter TestCategory=CI -f netcoreapp3.1
@@ -84,7 +84,7 @@ jobs:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
 
       - name: Package NuGet
-        run: dotnet pack FluentDocker.sln --configuration Release -o output /p:Version=${{ steps.gitversion.outputs.nugetversion }}
+        run: dotnet pack FluentDocker.sln --configuration Release -o output /p:Version=${{ steps.gitversion.outputs.NuGetVersion }}
 
       - name: Upload Artifacts
         uses: actions/upload-artifact@v3
