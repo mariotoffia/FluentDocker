@@ -38,7 +38,7 @@ jobs:
           dotnet tool install -g dotnet-sonarscanner -v:m
 
       - name: Add .NET tools to PATH
-        run: echo "::add-path::$HOME/.dotnet/tools"
+        run: echo "$HOME/.dotnet/tools" >> $GITHUB_PATH
 
       - uses: gittools/actions/gitversion/execute@v0.9.12
         id: gitversion
