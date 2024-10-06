@@ -50,7 +50,7 @@ jobs:
         uses: gittools/actions/gitversion/execute@v0.9.14
 
       - name: Restore dependencies
-        run: dotnet restore
+        run: dotnet restore --disable-parallel --ignore-failed-sources
 
       - name: Run code formatting check
         run: dotnet format --check
