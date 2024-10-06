@@ -398,6 +398,29 @@ namespace Ductus.FluentDocker.Builders
     }
 
     /// <summary>
+    /// Wait forever until all services are healthy.
+    /// </summary>
+    /// <returns>Itself for fluent access.</returns>
+    public CompositeBuilder WaitForHealthy()
+    {
+      _config.Wait = true;
+      _config.WaitTimeoutSeconds = null;
+      return this;
+    }
+
+    /// <summary>
+    /// Waits until all services are healthy or until the timeout is reached.
+    /// </summary>
+    /// <param name="waitTimeoutSeconds">Maximum duration to wait for the project to be healthy.</param>
+    /// <returns>Itself for fluent access.</returns>
+    public CompositeBuilder WaitForHealthy(int waitTimeoutSeconds)
+    {
+      _config.Wait = true;
+      _config.WaitTimeoutSeconds = waitTimeoutSeconds;
+      return this;
+    }
+
+    /// <summary>
     ///   Executes one or more commands including their arguments when container has started.
     /// </summary>
     /// <param name="service">The service to execute on</param>

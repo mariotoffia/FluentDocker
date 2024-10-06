@@ -268,6 +268,34 @@ namespace Ductus.FluentDocker.Tests.FluentApiTests
     }
 
     [TestMethod]
+    public void ComposeWaitForHealthyShallWork()
+    {
+      var file = Path.Combine(Directory.GetCurrentDirectory(),
+        (TemplateString)"Resources/ComposeTests/RabbitMQ/docker-compose.yml");
+
+      // @formatter:off
+      using (Fd
+                .UseContainer()
+                .UseCompose()
+                .FromFile(file)
+                .RemoveOrphans()
+                .WaitForHealthy(100)
+                .Build().Start())
+        // @formatter:on
+      {
+        // Since we have waited - this shall now always work.
+        var cf = new RabbitMQ.Client.ConnectionFactory
+        {
+          HostName = "localhost",
+          UserName = "guest",
+          Password = "guest",
+        };
+        using var connection = cf.CreateConnection();
+        using var channel = connection.CreateModel();
+      }
+    }
+
+    [TestMethod]
     public void ComposeRunOnRemoteMachineShallWork()
     {
       var file = Path.Combine(Directory.GetCurrentDirectory(),

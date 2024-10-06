@@ -95,5 +95,25 @@ namespace Ductus.FluentDocker.Tests.CommandTests
           Certificates = hostService.Certificates
         });
     }
+
+    [TestMethod]
+    public void WaitFlagAndWaitTimeoutWorks()
+    {
+      var file = Path.Combine(Directory.GetCurrentDirectory(),
+        (TemplateString)"Resources/ComposeTests/RabbitMQ/docker-compose.yml");
+
+      var hostService = new DockerHostService("test");
+
+      var composeResponse = hostService.Host
+        .ComposeUpCommand(new Commands.Compose.ComposeUpCommandArgs
+        {
+          ComposeFiles = new System.Collections.Generic.List<string> { file },
+          Certificates = hostService.Certificates,
+          Wait = true,
+          WaitTimeoutSeconds = 100,
+        });
+
+      Assert.IsTrue(composeResponse.Success);
+    }
   }
 }
