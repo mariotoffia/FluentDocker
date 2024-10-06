@@ -11,7 +11,7 @@ jobs:
   build:
     runs-on: ubuntu-latest
     env:
-      DOTNET_NO_GLOBAL: '1'  # Ignore global.json
+      DOTNET_NO_GLOBAL: 'true'  # Ignore global.json
     steps:
       - uses: actions/checkout@v3
         with:
@@ -30,13 +30,9 @@ jobs:
         uses: actions/setup-dotnet@v3
         with:
           dotnet-version: '6.0.x'
-
-      - name: List files
-        run: ls -la
-
+          
       - name: Install .NET tools
         run: |
-          dotnet tool install -g GitVersion.Tool
           dotnet tool install -g dotnet-format
           dotnet tool install -g dotnet-sonarscanner -v:m
 
