@@ -10,11 +10,13 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-
+    env:
+      DOTNET_NO_GLOBAL: '1'  # Ignore global.json
     steps:
       - uses: actions/checkout@v3
         with:
           fetch-depth: 0
+
       - name: display git info about the checkout stuff
         run: git rev-parse --abbrev-ref HEAD
 
