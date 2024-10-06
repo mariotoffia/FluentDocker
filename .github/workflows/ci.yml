@@ -1,0 +1,99 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - master
+      - ci-gh-action-migration  # For testing GitHub Action Workflows
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    env:
+      DOTNET_NO_GLOBAL: 'true'  # Ignore global.json
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: display git info about the checkout stuff
+        run: git rev-parse --abbrev-ref HEAD
+
+      - name: Set up JDK 15
+        uses: actions/setup-java@v3
+        with:
+          distribution: 'adopt'
+          java-version: '15'
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v3
+        with:
+          dotnet-version: |
+            6.0.x
+            5.0.200
+          
+      - name: Install .NET tools
+        run: |
+          dotnet tool install -g dotnet-sonarscanner -v:m
+
+      - name: Add .NET tools to PATH
+        run: echo "$HOME/.dotnet/tools" >> $GITHUB_PATH
+
+      - name: Install GitVersion
+        uses: gittools/actions/gitversion/setup@v0.9.14
+        with:
+          versionSpec: '5.x'
+      
+      - name: Execute GitVersion
+        id: gitversion
+        uses: gittools/actions/gitversion/execute@v0.9.14
+
+      - name: Restore dependencies
+        run: dotnet restore --disable-parallel --ignore-failed-sources
+
+      - name: Run code formatting check
+        run: dotnet format --check
+
+      - name: Patch csproj files with version
+        run: |
+          find . -name '*.csproj' -exec sed -i 's/<Version>.*<\/Version>/<Version>${{ steps.gitversion.outputs.NuGetVersion }}<\/Version>/g' {} +
+
+      - name: SonarScanner begin
+        run: |
+          dotnet sonarscanner begin \
+            /d:sonar.host.url=https://sonarcloud.io \
+            /d:sonar.login=$SONAR_TOKEN \
+            /k:mariotoffia_FluentDocker \
+            /o:mariotoffia \
+            /v:"${{ steps.gitversion.outputs.NuGetVersion }}" \
+            /d:sonar.cs.opencover.reportsPaths="./output/coverage.opencover.xml" \
+            /d:sonar.coverage.exclusions="**Tests*.cs"
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+
+      - name: Build
+        run: dotnet build FluentDocker.sln --configuration Release --no-restore --verbosity minimal /p:Version=${{ steps.gitversion.outputs.NuGetVersion }}
+
+      - name: Test
+        run: dotnet test --settings coverletArgs.runsettings --filter TestCategory=CI -f netcoreapp3.1
+
+      - name: SonarScanner end
+        run: dotnet sonarscanner end /d:sonar.login=$SONAR_TOKEN
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+
+      - name: Package NuGet
+        run: dotnet pack FluentDocker.sln --configuration Release -o output /p:Version=${{ steps.gitversion.outputs.NuGetVersion }}
+
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: NuGet Packages
+          path: ./output/*.nupkg
+
+      # Deployment step conditioned to run only on master branch
+      - name: Deploy to NuGet
+        if: github.ref == 'refs/heads/master' && github.event_name == 'push'
+        run: echo "Deploying to NuGet..."
+#run: dotnet nuget push ./output/*.nupkg -k ${{ secrets.NUGET_API_KEY }} -s https://api.nuget.org/v3/index.json
