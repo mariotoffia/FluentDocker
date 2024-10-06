@@ -35,7 +35,6 @@ jobs:
           
       - name: Install .NET tools
         run: |
-          dotnet tool install -g dotnet-format
           dotnet tool install -g dotnet-sonarscanner -v:m
 
       - name: Add .NET tools to PATH
@@ -46,6 +45,9 @@ jobs:
 
       - name: Restore dependencies
         run: dotnet restore
+
+      - name: Run code formatting check
+        run: dotnet format --check
 
       - name: Patch csproj files with version
         run: |
