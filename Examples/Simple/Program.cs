@@ -22,18 +22,16 @@ namespace Simple
                   .Build()
                   .Start())
       {
-
         var config = container.GetConfiguration(true);
+        var image = config.Config.Image;
         var running = ServiceRunningState.Running == config.State.ToServiceState();
 
-        Console.WriteLine(running ? "Service is running" : "Failed to start nginx instance...");
-
+        Console.WriteLine(running ? "Service is running" : FailedToStartMessage(image));
       }
     }
 
     static void PerformanceSingleContainer()
     {
-
       Stopwatch stopwatch = new Stopwatch();
 
       stopwatch.Start();
@@ -63,20 +61,16 @@ namespace Simple
       }
       finally
       {
-
         stopwatch.Restart();
         _container.Dispose();
         Console.WriteLine("Dispose container: " + TimeSpan.FromMilliseconds(stopwatch.ElapsedMilliseconds).TotalSeconds);
 
         stopwatch.Stop();
-
       }
-
     }
 
     static void PerformanceSingleContainerFluentAPI()
     {
-
       Stopwatch stopwatch = new Stopwatch();
 
       stopwatch.Start();
@@ -97,16 +91,14 @@ namespace Simple
 
         stopwatch.Restart();
         var config = container.GetConfiguration(true);
+        var image = config.Config.Image;
         Console.WriteLine("Get configuration: " + TimeSpan.FromMilliseconds(stopwatch.ElapsedMilliseconds).TotalSeconds);
 
         var running = ServiceRunningState.Running == config.State.ToServiceState();
-        Console.WriteLine(running ? "Service is running" : "Failed to start nginx instance...");
-
-
+        Console.WriteLine(running ? "Service is running" : FailedToStartMessage(image));
       }
       finally
       {
-
         stopwatch.Restart();
         container.Dispose();
         Console.WriteLine("Dispose container: " + TimeSpan.FromMilliseconds(stopwatch.ElapsedMilliseconds).TotalSeconds);
@@ -115,11 +107,13 @@ namespace Simple
       }
     }
 
+    private static string FailedToStartMessage(string image) => $"Failed to start {image} instance...";
+
     static void Main(string[] args)
     {
-      //RunSingleContainerFluentAPI();
-      //PerformanceSingleContainer();
-      //PerformanceSingleContainerFluentAPI();
+      // RunSingleContainerFluentAPI();
+      // PerformanceSingleContainer();
+      // PerformanceSingleContainerFluentAPI();
     }
   }
 }
