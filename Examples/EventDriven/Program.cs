@@ -35,9 +35,11 @@ namespace EventDriven
                     .Start())
         {
           var config = container.GetConfiguration(true);
+          var image = config.Config.Image;
+
           Console.WriteLine(ServiceRunningState.Running == config.State.ToServiceState()
               ? "Service is running"
-              : "Failed to start nginx instance...");
+              : $"Failed to start {image} instance...");
 
           FdEvent evt;
           var list = new List<FdEvent>();
