@@ -289,9 +289,9 @@ namespace Ductus.FluentDocker.Services.Impl
         // if so use those instead.
         Certificates = new CertificatePaths
         {
-          CaCertificate = info.AuthConfig.CaCertPath,
-          ClientCertificate = info.AuthConfig.ClientCertPath,
-          ClientKey = info.AuthConfig.ClientKeyPath
+          CaCertificate = caCertPath,
+          ClientCertificate = clientCertPath,
+          ClientKey = clientKeyPath
         };
         return;
       }
