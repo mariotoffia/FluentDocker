@@ -32,7 +32,12 @@ jobs:
           dotnet-version: |
             6.0.x
             5.0.200
-          
+
+      - name: Install prerequisites for dotnet-sonarscanner
+        run: |
+          sudo apt-get update -y
+          sudo apt-get install -y libssl-dev
+
       - name: Install .NET tools
         run: |
           dotnet tool install -g dotnet-sonarscanner -v:m
