@@ -1,5 +1,5 @@
 [![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=mariotoffia_FluentDocker&metric=alert_status)](https://sonarcloud.io/dashboard?id=mariotoffia_FluentDocker)
-[![Build status](https://ci.appveyor.com/api/projects/status/kqqrkcv8wp3e9my6/branch/master?svg=true)](https://ci.appveyor.com/project/mariotoffia/fluentdocker) 
+[![Build status](https://github.com/mariotoffia/FluentDocker/actions/workflows/ci.yml/badge.svg)](https://github.com/mariotoffia/FluentDocker/actions/workflows/ci.yml)
 
 | Package        | NuGet          |
 | ---------------|:--------------:|
@@ -28,6 +28,9 @@ This library enables `docker` and `docker-compose` interactions usinga _Fluent A
       }
 ```
 This fires up a postgres and waits for it to be ready. To use compose, just do it like this:
+
+:bulb: **NOTE: Use the AssumeComposeVersion(ComposeVersion.V2) to use the V2 behaviour, default is still V1 (to be changed to default to V2 later this year)**
+
 ```cs
       var file = Path.Combine(Directory.GetCurrentDirectory(),
         (TemplateString) "Resources/ComposeTests/WordPress/docker-compose.yml");

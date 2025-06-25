@@ -11,6 +11,9 @@ namespace Ductus.FluentDocker.Model.Compose
     ///   Fully qualified path to the docker-compose file.
     /// </summary>
     public IList<string> ComposeFilePath { get; set; } = new List<string>();
+
+    public ComposeVersion ComposeVersion { get; set; }
+    public bool AlwaysPull { get; set; }
     public bool ForceRecreate { get; set; }
     public bool NoRecreate { get; set; }
     public bool NoBuild { get; set; }

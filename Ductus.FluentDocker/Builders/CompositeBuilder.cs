@@ -190,6 +190,18 @@ namespace Ductus.FluentDocker.Builders
       return this;
     }
 
+    public CompositeBuilder AssumeComposeVersion(ComposeVersion composeVersion)
+    {
+      _config.ComposeVersion = composeVersion;
+      return this;
+    }
+
+    public CompositeBuilder AlwaysPull()
+    {
+      _config.AlwaysPull = true;
+      return this;
+    }
+
     public CompositeBuilder ForceRecreate()
     {
       _config.ForceRecreate = true;

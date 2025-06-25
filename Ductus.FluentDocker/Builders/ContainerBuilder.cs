@@ -221,6 +221,20 @@ namespace Ductus.FluentDocker.Builders
       return this;
     }
 
+    /// <summary>
+    ///   Sets amount of memory the container is allowed to swap to disk, --memory-swap parameter in docker run.
+    /// </summary>
+    /// <param name="memorySwap">The memory swap limit with a suffix for the unit: b, k, m, g, to indicate bytes, kilobytes, megabytes, or gigabytes. 0 for ignore, -1 for unlimited</param>
+    /// <remarks>Needs to be used along with WithMemoryLimit. The amount of swap will be the difference between WithMemoryLimit and WithMemorySwap, except for values 0 and -1</remarks>
+    /// <see cref="WithMemoryLimit">See With memory limit</see>
+    /// <returns>Itself for fluent access.</returns>
+    public ContainerBuilder WithMemorySwap(string memorySwap)
+    {
+      _config.CreateParams.MemorySwap = memorySwap;
+      return this;
+    }
+
+
     public ContainerBuilder Command(string command, params string[] arguments)
     {
       _config.Command = command;
@@ -425,6 +439,23 @@ namespace Ductus.FluentDocker.Builders
     public ContainerBuilder UseRuntime(ContainerRuntime runtime)
     {
       _config.CreateParams.Runtime = runtime;
+      return this;
+    }
+
+    /// <summary>
+    /// Mounts a temporary file system. A tmpfs mount is temporary, and only persisted in the host memory.
+    /// When the container stops, the tmpfs mount is removed, and files written there won’t be persisted.
+    /// </summary>
+    /// <param name="destinations">A destination per temporary file system.</param>
+    /// <returns>Itself for fluent access.</returns>
+    /// <remarks>
+    /// This functionality is only available if you’re running Docker on Linux.
+    /// For details see the docker documentation on <see href="https://docs.docker.com/storage/tmpfs/">tmpfs</see>.
+    /// </remarks>
+    public ContainerBuilder MountTmpfs(params string[] destinations)
+    {
+      _config.CreateParams.TmpfsDestinations =
+        _config.CreateParams.TmpfsDestinations.ArrayAdd(destinations);
       return this;
     }
 

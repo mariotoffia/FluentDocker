@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Net;
 using Ductus.FluentDocker.Common;
@@ -43,9 +43,9 @@ namespace Ductus.FluentDocker.Services
     /// </remarks>
     IList<IContainerService> GetRunningContainers();
 
-    IList<IContainerService> GetContainers(bool all = true, string filter = null);
+    IList<IContainerService> GetContainers(bool all = true, params string[] filters);
 
-    IList<IContainerImageService> GetImages(bool all = true, string filer = null);
+    IList<IContainerImageService> GetImages(bool all = true, params string[] filters);
 
     /// <summary>
     ///   Creates a new container (not started).

@@ -14,8 +14,9 @@ namespace Ductus.FluentDocker.Services.Impl
   [Experimental(TargetVersion = "3.0.0")]
   public class DockerComposeCompositeService : ServiceBase, ICompositeService
   {
-    private readonly DockerComposeConfig _config;
     private IContainerImageService[] _imageCache;
+
+    protected DockerComposeConfig Config { get; }
 
     public DockerComposeCompositeService(IHostService host, DockerComposeConfig config) : base(config.ComposeFilePath
       .First())
@@ -23,32 +24,32 @@ namespace Ductus.FluentDocker.Services.Impl
       Hosts = new ReadOnlyCollection<IHostService>(new[] { host });
       Containers = new IContainerService[0];
       _imageCache = new IContainerImageService[0];
-      _config = config;
+      Config = config;
     }
 
     public override void Dispose()
     {
       try
       {
-        if (_config.StopOnDispose)
+        if (Config.StopOnDispose)
         {
           Stop();
         }
 
-        if (_config.KeepContainers)
+        if (Config.KeepContainers)
           return;
 
         State = ServiceRunningState.Removing;
         var host = Hosts.First();
 
-        var result = host.Host.ComposeDown(_config.AlternativeServiceName, _config.ImageRemoval,
-          !_config.KeepVolumes, _config.RemoveOrphans, _config.EnvironmentNameValue, host.Certificates,
-          _config.ComposeFilePath.ToArray());
+        var result = host.Host.ComposeDown(Config.AlternativeServiceName, Config.ImageRemoval,
+          !Config.KeepVolumes, Config.RemoveOrphans, Config.EnvironmentNameValue, host.Certificates,
+          Config.ComposeFilePath.ToArray());
 
         if (!result.Success)
         {
           State = ServiceRunningState.Unknown;
-          throw new FluentDockerException($"Could not dispose composite service from file(s) {string.Join(", ", _config.ComposeFilePath)}");
+          throw new FluentDockerException($"Could not dispose composite service from file(s) {string.Join(", ", Config.ComposeFilePath)}");
         }
 
         State = ServiceRunningState.Removed;
@@ -81,8 +82,8 @@ namespace Ductus.FluentDocker.Services.Impl
       }
     }
 
-    public IReadOnlyCollection<IHostService> Hosts { get; private set; }
-    public IReadOnlyCollection<IContainerService> Containers { get; private set; }
+    public IReadOnlyCollection<IHostService> Hosts { get; protected set; }
+    public IReadOnlyCollection<IContainerService> Containers { get; protected set; }
 
     public IReadOnlyCollection<IService> Services
     {
@@ -118,11 +119,11 @@ namespace Ductus.FluentDocker.Services.Impl
       var host = Hosts.First();
       if (State == ServiceRunningState.Paused)
       {
-        var upr = host.Host.ComposeUnPause(_config.AlternativeServiceName, _config.Services, _config.EnvironmentNameValue,
-          host.Certificates, _config.ComposeFilePath.ToArray());
+        var upr = host.Host.ComposeUnPause(Config.AlternativeServiceName, Config.Services, Config.EnvironmentNameValue,
+          host.Certificates, Config.ComposeFilePath.ToArray());
 
         if (!upr.Success)
-          throw new FluentDockerException($"Could not resume composite service from file(s) {string.Join(", ", _config.ComposeFilePath)}");
+          throw new FluentDockerException($"Could not resume composite service from file(s) {string.Join(", ", Config.ComposeFilePath)}");
 
         State = ServiceRunningState.Running;
         return;
@@ -130,30 +131,54 @@ namespace Ductus.FluentDocker.Services.Impl
 
       State = ServiceRunningState.Starting;
 
+      if (Config.AlwaysPull)
+      {
+        var resultPull = host.Host.ComposePull(
+          new ComposePullCommandArgs
+          {
+
+            AltProjectName = Config.AlternativeServiceName,
+            Services = Config.Services,
+            Env = Config.EnvironmentNameValue,
+            Certificates = host.Certificates,
+            ComposeFiles = Config.ComposeFilePath,
+            DownloadAllTagged = false,
+            SkipImageVerification = false,
+          });
+
+        if (!resultPull.Success)
+        {
+          State = ServiceRunningState.Unknown;
+          throw new FluentDockerException(
+            $"Could not pull composite service with file(s) {string.Join(", ", Config.ComposeFilePath)} - result: {resultPull}");
+        }
+      }
+
+
       var result = host.Host.ComposeUpCommand(
         new ComposeUpCommandArgs
         {
-          AltProjectName = _config.AlternativeServiceName,
-          ForceRecreate = _config.ForceRecreate,
-          NoRecreate = _config.NoRecreate,
-          DontBuild = _config.NoBuild,
-          BuildBeforeCreate = _config.ForceBuild,
-          Timeout = _config.TimeoutSeconds == TimeSpan.Zero ? (TimeSpan?)null : _config.TimeoutSeconds,
-          RemoveOrphans = _config.RemoveOrphans,
-          UseColor = _config.UseColor,
+          AltProjectName = Config.AlternativeServiceName,
+          ForceRecreate = Config.ForceRecreate,
+          NoRecreate = Config.NoRecreate,
+          DontBuild = Config.NoBuild,
+          BuildBeforeCreate = Config.ForceBuild,
+          Timeout = Config.TimeoutSeconds == TimeSpan.Zero ? (TimeSpan?)null : Config.TimeoutSeconds,
+          RemoveOrphans = Config.RemoveOrphans,
+          UseColor = Config.UseColor,
           NoStart = true,
-          Services = _config.Services,
-          Env = _config.EnvironmentNameValue,
+          Services = Config.Services,
+          Env = Config.EnvironmentNameValue,
           Certificates = host.Certificates,
-          ComposeFiles = _config.ComposeFilePath.ToArray(),
-          ProjectDirectory = _config.ProjectDirectory
+          ComposeFiles = Config.ComposeFilePath.ToArray(),
+          ProjectDirectory = Config.ProjectDirectory
         });
 
       if (!result.Success)
       {
         State = ServiceRunningState.Unknown;
         throw new FluentDockerException(
-          $"Could not create composite service with file(s) {string.Join(", ", _config.ComposeFilePath)} - result: {result}");
+          $"Could not create composite service with file(s) {string.Join(", ", Config.ComposeFilePath)} - result: {result}");
       }
 
       State = ServiceRunningState.Starting;
@@ -161,30 +186,30 @@ namespace Ductus.FluentDocker.Services.Impl
       result = host.Host.ComposeUpCommand(
         new ComposeUpCommandArgs
         {
-          AltProjectName = _config.AlternativeServiceName,
+          AltProjectName = Config.AlternativeServiceName,
           ForceRecreate = false,
           NoRecreate = false,
           DontBuild = false,
           BuildBeforeCreate = false,
-          Timeout = _config.TimeoutSeconds == TimeSpan.Zero ? (TimeSpan?)null : _config.TimeoutSeconds,
-          RemoveOrphans = _config.RemoveOrphans,
-          UseColor = _config.UseColor,
+          Timeout = Config.TimeoutSeconds == TimeSpan.Zero ? (TimeSpan?)null : Config.TimeoutSeconds,
+          RemoveOrphans = Config.RemoveOrphans,
+          UseColor = Config.UseColor,
           NoStart = false,
-          Services = _config.Services,
-          Env = _config.EnvironmentNameValue,
+          Services = Config.Services,
+          Env = Config.EnvironmentNameValue,
           Certificates = host.Certificates,
-          ComposeFiles = _config.ComposeFilePath.ToArray(),
-          ProjectDirectory = _config.ProjectDirectory
+          ComposeFiles = Config.ComposeFilePath.ToArray(),
+          ProjectDirectory = Config.ProjectDirectory
         });
 
       if (!result.Success)
       {
         throw new FluentDockerException(
-          $"Could not start composite service with file(s) {string.Join(", ", _config.ComposeFilePath)} - result: {result}");
+          $"Could not start composite service with file(s) {string.Join(", ", Config.ComposeFilePath)} - result: {result}");
       }
 
-      var containers = host.Host.ComposePs(_config.AlternativeServiceName, _config.Services, _config.EnvironmentNameValue,
-        host.Certificates, _config.ComposeFilePath.ToArray());
+      var containers = host.Host.ComposePs(Config.AlternativeServiceName, Config.Services, Config.EnvironmentNameValue,
+        host.Certificates, Config.ComposeFilePath.ToArray());
 
       if (!containers.Success)
         return;
@@ -209,11 +234,11 @@ namespace Ductus.FluentDocker.Services.Impl
         return;
 
       var host = Hosts.First();
-      var pause = host.Host.ComposePause(_config.AlternativeServiceName, _config.Services, _config.EnvironmentNameValue,
-        host.Certificates, _config.ComposeFilePath.ToArray());
+      var pause = host.Host.ComposePause(Config.AlternativeServiceName, Config.Services, Config.EnvironmentNameValue,
+        host.Certificates, Config.ComposeFilePath.ToArray());
 
       if (!pause.Success)
-        throw new FluentDockerException($"Could not pause composite service from file(s) {string.Join(", ", _config.ComposeFilePath)}");
+        throw new FluentDockerException($"Could not pause composite service from file(s) {string.Join(", ", Config.ComposeFilePath)}");
 
       State = ServiceRunningState.Paused;
     }
@@ -234,13 +259,13 @@ namespace Ductus.FluentDocker.Services.Impl
 
       var host = Hosts.First();
 
-      var result = host.Host.ComposeStop(_config.AlternativeServiceName, TimeSpan.FromSeconds(30),
-        _config.Services, _config.EnvironmentNameValue, host.Certificates, _config.ComposeFilePath.ToArray());
+      var result = host.Host.ComposeStop(Config.AlternativeServiceName, TimeSpan.FromSeconds(30),
+        Config.Services, Config.EnvironmentNameValue, host.Certificates, Config.ComposeFilePath.ToArray());
 
       if (!result.Success)
       {
         State = ServiceRunningState.Unknown;
-        throw new FluentDockerException($"Could not stop composite service from file(s) {string.Join(", ", _config.ComposeFilePath)}");
+        throw new FluentDockerException($"Could not stop composite service from file(s) {string.Join(", ", Config.ComposeFilePath)}");
       }
 
       State = ServiceRunningState.Stopped;
@@ -251,25 +276,39 @@ namespace Ductus.FluentDocker.Services.Impl
       State = ServiceRunningState.Removing;
       var host = Hosts.First();
 
-      var result = host.Host.ComposeRm(_config.AlternativeServiceName, force,
-        !_config.KeepVolumes, _config.Services, _config.EnvironmentNameValue, host.Certificates, _config.ComposeFilePath.ToArray());
+      var result = host.Host.ComposeRm(Config.AlternativeServiceName, force,
+        !Config.KeepVolumes, Config.Services, Config.EnvironmentNameValue, host.Certificates, Config.ComposeFilePath.ToArray());
 
       if (!result.Success)
       {
         State = ServiceRunningState.Unknown;
-        throw new FluentDockerException($"Could not remove composite service from file(s) {string.Join(", ", _config.ComposeFilePath)}");
+        throw new FluentDockerException($"Could not remove composite service from file(s) {string.Join(", ", Config.ComposeFilePath)}");
       }
 
       State = ServiceRunningState.Removed;
     }
 
-    private static string ExtractNames(Container container, out string project, out string instanceId)
+    protected virtual string ExtractNames(Container container, out string project, out string instanceId)
     {
+      char componentSeparator;
+      switch (Config.ComposeVersion)
+      {
+        case ComposeVersion.Unknown:
+        case ComposeVersion.V1:
+          componentSeparator = '_';
+          break;
+        case ComposeVersion.V2:
+          componentSeparator = '-';
+          break;
+        default:
+          throw new InvalidOperationException(
+            $"Unrecognised compose version specified for {nameof(DockerComposeConfig)}.{nameof(DockerComposeConfig.ComposeVersion)}");
+      }
       var name = container.Name;
       if (name.StartsWith("/"))
         name = name.Substring(1);
 
-      var components = name.Split('_');
+      var components = name.Split(componentSeparator);
       if (components.Length >= 3)
       {
         project = components[0];
