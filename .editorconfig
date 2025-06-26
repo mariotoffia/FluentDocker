@@ -258,3 +258,7 @@ dotnet_naming_style.member_style.capitalization = pascal_case
 dotnet_naming_rule.members_are_pascal_case.severity = error
 dotnet_naming_rule.members_are_pascal_case.symbols = member_symbol
 dotnet_naming_rule.members_are_pascal_case.style = member_style
+# Test-specific settings
+[**/Tests/**/*.cs]
+# IDE0005: Remove unnecessary imports/using
+dotnet_diagnostic.IDE0005.severity = none

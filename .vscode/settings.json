@@ -1,15 +1,14 @@
 {
     "dotnet.defaultSolution": "FluentDocker.sln",
     "omnisharp.useModernNet": true,
+    "omnisharp.enableEditorConfigSupport": true,
+    "csharp.format.enable": true,
+    "editor.formatOnType": true,
     "dotnet.server.useOmnisharp": true,
-    "dotnet.server.path": "",
-    "omnisharp.enableRoslynAnalyzers": true,
-    "omnisharp.enableMsBuildLoadProjectsOnDemand": true,
+    "omnisharp.enableMsBuildLoadProjectsOnDemand": false,
+    "omnisharp.maxProjectResults": 1000,
+    "omnisharp.useEditorFormattingSettings": true,
     "dotnet.backgroundAnalysis.analyzerDiagnosticsScope": "openFiles",
-    "dotnet.backgroundAnalysis.compilerDiagnosticsScope": "openFiles",
-    "dotnet.completion.showCompletionItemsFromUnimportedNamespaces": true,
-    "dotnet.preferDotnetExecuteFileAsTerminalTarget": true,
-    "dotnet.completion.showNameCompletionSuggestions": true,
     "cSpell.words": [
         "appconfig",
         "archve",
@@ -81,5 +80,7 @@
         "!Select sequence",
         "!Split",
         "!Split sequence"
-    ]
+    ],
+    "dotnet.completion.showCompletionItemsFromUnimportedNamespaces": true,
+    "dotnet.formatting.organizeImportsOnFormat": true
 }

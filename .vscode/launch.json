@@ -6,19 +6,16 @@
     "configurations": [
         {
             "name": ".NET Core Launch (console)",
-            "type": "coreclr",
             "request": "launch",
             "preLaunchTask": "build",
             "program": "${workspaceFolder}/Ductus.FluentDocker.Tests/bin/Debug/net9.0/Ductus.FluentDocker.Tests.dll",
             "args": [],
             "cwd": "${workspaceFolder}/Ductus.FluentDocker.Tests",
             "console": "internalConsole",
-            "stopAtEntry": false,
             "internalConsoleOptions": "openOnSessionStart"
         },
         {
             "name": ".NET Core Attach",
-            "type": "coreclr",
             "request": "attach",
             "processId": "${command:pickProcess}"
         }
