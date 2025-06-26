@@ -130,15 +130,18 @@ jobs:
             -Dsonar.coverage.exclusions=**Tests*.cs
             -Dsonar.branch.name=${{ steps.detect-branch.outputs.branch }}
             -Dsonar.projectVersion=${{ steps.gitversion.outputs.AssemblySemVer }}
+            
       - name: Create NuGet packages
-        run: dotnet pack --configuration Release --no-build --output packages /p:Version=${{ steps.gitversion.outputs.NuGetVersion }}
+        run: |
+          echo "Creating NuGet packages with version: ${{ steps.gitversion.outputs.NuGetVersion }}"
+          dotnet pack --configuration Release --no-build --output packages /p:Version=${{ steps.gitversion.outputs.NuGetVersion }}
 
       - name: List NuGet packages
         run: |
           echo "Created NuGet packages:"
           ls -la packages/*.nupkg
           
-      - name: Upload NuGet packages as artifacts–
+      - name: Upload NuGet packages as artifacts
         uses: actions/upload-artifact@v4
         with:
           name: nuget-packages
@@ -149,5 +152,6 @@ jobs:
       - name: Publish NuGet packages
         if: github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main'
         run: |
+          echo "Publishing NuGet packages with version: ${{ steps.gitversion.outputs.NuGetVersion }}"
           dotnet nuget push "packages/*.nupkg" --api-key ${{ secrets.NUGET_API_KEY }} --source https://api.nuget.org/v3/index.json --skip-duplicate
         continue-on-error: ${{ steps.detect-env.outputs.running_in_act == 'true' }}
