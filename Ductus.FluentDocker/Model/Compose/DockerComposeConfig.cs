@@ -22,6 +22,8 @@ namespace Ductus.FluentDocker.Model.Compose
     public bool RemoveOrphans { get; set; }
     public string AlternativeServiceName { get; set; }
     public bool UseColor { get; set; }
+    public bool Wait { get; set; }
+    public int? WaitTimeoutSeconds { get; set; }
     public bool KeepVolumes { get; set; }
     public ImageRemovalOption ImageRemoval { get; set; }
     public string[] Services { get; set; }

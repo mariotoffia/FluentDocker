@@ -1,0 +1,11 @@
+version: '3.9'
+
+services:
+  rabbitmq:
+    image: library/rabbitmq:3.9-alpine
+    ports:
+      - "5672:5672"
+    healthcheck:
+      test: nc -vn 127.0.0.1 5672 || exit 1
+      interval: 1s
+      retries: 100

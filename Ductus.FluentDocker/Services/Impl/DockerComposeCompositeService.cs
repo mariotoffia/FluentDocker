@@ -195,6 +195,8 @@ namespace Ductus.FluentDocker.Services.Impl
           RemoveOrphans = Config.RemoveOrphans,
           UseColor = Config.UseColor,
           NoStart = false,
+          Wait = Config.Wait,
+          WaitTimeoutSeconds = Config.WaitTimeoutSeconds,
           Services = Config.Services,
           Env = Config.EnvironmentNameValue,
           Certificates = host.Certificates,

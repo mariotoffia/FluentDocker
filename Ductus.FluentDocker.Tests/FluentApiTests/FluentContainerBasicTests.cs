@@ -193,6 +193,40 @@ namespace Ductus.FluentDocker.Tests.FluentApiTests
 
     [TestMethod]
     [TestCategory("CI")]
+    public void FullImplicitPortMappingShouldWork()
+    {
+      using (
+        var container =
+          Fd.UseContainer()
+            .UseImage("postgres:9.6-alpine")
+            .ExposeAllPorts()
+            .WithEnvironment("POSTGRES_PASSWORD=mysecretpassword")
+            .Build()
+            .Start())
+      {
+        var endpoint = container.ToHostExposedEndpoint("5432/tcp");
+        AreNotEqual(0, endpoint.Port);
+      }
+    }
+
+    [TestMethod]
+    [TestCategory("CI")]
+    public void ExposeAllPortsIsMutuallyExclusiveWithExposePort()
+    {
+      var exception = ThrowsException<FluentDockerNotSupportedException>(() => Fd.UseContainer().ExposePort(5432).ExposeAllPorts());
+      AreEqual("ExposeAllPorts is mutually exclusive with ExposePort methods. Do not call ExposePort if you want to expose all ports.", exception.Message);
+    }
+
+    [TestMethod]
+    [TestCategory("CI")]
+    public void ExposePortIsMutuallyExclusiveWithExposeAllPorts()
+    {
+      var exception = ThrowsException<FluentDockerNotSupportedException>(() => Fd.UseContainer().ExposeAllPorts().ExposePort(5432));
+      AreEqual("ExposePort is mutually exclusive with ExposeAllPorts methods. Do not call ExposeAllPorts if you want to explicitly expose ports.", exception.Message);
+    }
+
+    [TestMethod]
+    [TestCategory("CI")]
     public void WaitForPortShallWork()
     {
       using (
