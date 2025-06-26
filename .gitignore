@@ -5,6 +5,11 @@
 # IntelliJ Rider
 .idea/
 
+# Mac
+.DS_Store
+
+# Secrets
+.env
 # Sonarqube
 .sonarqube/
 

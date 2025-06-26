@@ -1,4 +1,37 @@
 mode: Mainline
+next-version: 2.0.0  # Set your current major version here
+major-version-bump-message: '\+semver:\s?(breaking|major)'
+minor-version-bump-message: '\+semver:\s?(feature|minor)'
+patch-version-bump-message: '\+semver:\s?(fix|patch)'
+no-bump-message: '\+semver:\s?(none|skip)'
+assembly-versioning-scheme: MajorMinorPatch
+assembly-file-versioning-scheme: MajorMinorPatchTag
+tag-prefix: 'v'
+continuous-delivery-fallback-tag: 'ci'
+commit-message-incrementing: Enabled
 branches:
   master:
+    regex: ^master$|^main$
     tag: ''
+    increment: Patch
+    prevent-increment-of-merged-branch-version: true
+    track-merge-target: false
+  feature:
+    regex: ^features?[/-]
+    tag: 'beta'
+    increment: Inherit
+  pull-request:
+    regex: ^(pull|pull\-requests|pr)[/-]
+    tag: 'pr'
+    increment: Inherit
+  hotfix:
+    regex: ^hotfix[/-]
+    tag: 'beta'
+    increment: Patch
+  develop:
+    regex: ^dev(elop)?(ment)?$
+    tag: 'alpha'
+    increment: Minor
+    prevent-increment-of-merged-branch-version: false
+ignore:
+  sha: []
