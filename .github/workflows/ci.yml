@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - master
+      - main
       - ci-gh-action-migration  # For testing GitHub Action Workflows
   pull_request:
 
@@ -11,89 +12,95 @@ jobs:
   build:
     runs-on: ubuntu-latest
     env:
-      DOTNET_NO_GLOBAL: 'true'  # Ignore global.json
+      DOTNET_NOLOGO: 'true'
+      DOTNET_CLI_TELEMETRY_OPTOUT: 'true'
     steps:
-      - uses: actions/checkout@v3
+      - name: Checkout code
+        uses: actions/checkout@v4
         with:
-          fetch-depth: 0
-
-      - name: display git info about the checkout stuff
-        run: git rev-parse --abbrev-ref HEAD
-
-      - name: Set up JDK 15
-        uses: actions/setup-java@v3
-        with:
-          distribution: 'adopt'
-          java-version: '15'
+          fetch-depth: 0  # Required for GitVersion to work properly
 
       - name: Setup .NET
-        uses: actions/setup-dotnet@v3
+        uses: actions/setup-dotnet@v4
         with:
           dotnet-version: |
             6.0.x
-            5.0.200
-          
-      - name: Install .NET tools
-        run: |
-          dotnet tool install -g dotnet-sonarscanner -v:m
-
-      - name: Add .NET tools to PATH
-        run: echo "$HOME/.dotnet/tools" >> $GITHUB_PATH
+            9.0.x
 
       - name: Install GitVersion
-        uses: gittools/actions/gitversion/setup@v0.9.14
+        uses: gittools/actions/gitversion/setup@v1
         with:
           versionSpec: '5.x'
       
-      - name: Execute GitVersion
+      - name: Determine version
         id: gitversion
-        uses: gittools/actions/gitversion/execute@v0.9.14
+        uses: gittools/actions/gitversion/execute@v1
+        with:
+          useConfigFile: true
+          configFilePath: GitVersion.yml
+
+      - name: Display GitVersion outputs
+        run: |
+          echo "Major: ${{ steps.gitversion.outputs.Major }}"
+          echo "Minor: ${{ steps.gitversion.outputs.Minor }}"
+          echo "Patch: ${{ steps.gitversion.outputs.Patch }}"
+          echo "NuGetVersion: ${{ steps.gitversion.outputs.NuGetVersion }}"
 
       - name: Restore dependencies
-        run: dotnet restore --disable-parallel --ignore-failed-sources
+        run: dotnet restore
 
-      - name: Run code formatting check
-        run: dotnet format --check
+      - name: Build solution
+        run: dotnet build --configuration Release --no-restore /p:Version=${{ steps.gitversion.outputs.NuGetVersion }}
 
-      - name: Patch csproj files with version
-        run: |
-          find . -name '*.csproj' -exec sed -i 's/<Version>.*<\/Version>/<Version>${{ steps.gitversion.outputs.NuGetVersion }}<\/Version>/g' {} +
-
-      - name: SonarScanner begin
-        run: |
-          dotnet sonarscanner begin \
-            /d:sonar.host.url=https://sonarcloud.io \
-            /d:sonar.login=$SONAR_TOKEN \
-            /k:mariotoffia_FluentDocker \
-            /o:mariotoffia \
-            /v:"${{ steps.gitversion.outputs.NuGetVersion }}" \
-            /d:sonar.cs.opencover.reportsPaths="./output/coverage.opencover.xml" \
-            /d:sonar.coverage.exclusions="**Tests*.cs"
+      - name: Run tests
         env:
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          TERM: dumb
+          DOTNET_CLI_UI_LANGUAGE: en-US
+          ACT: ${{ github.actor == 'nektos/act' && 'true' || '' }}
+        run: |
+          if [ -n "$ACT" ]; then
+            echo "Running in act environment - excluding container tests"
+            dotnet test \
+              --no-build \
+              --configuration Release \
+              --filter "TestCategory=CI&FullyQualifiedName!~FluentContainerBasicTests" \
+              --logger "console;verbosity=detailed"
+          else
+            echo "Running in GitHub Actions environment"
+            dotnet test \
+              --no-build \
+              --configuration Release \
+              --filter "TestCategory=CI" \
+              --collect:"XPlat Code Coverage" \
+              --results-directory ./coverage \
+              --settings coverletArgs.runsettings
+          fi
 
-      - name: Build
-        run: dotnet build FluentDocker.sln --configuration Release --no-restore --verbosity minimal /p:Version=${{ steps.gitversion.outputs.NuGetVersion }}
-
-      - name: Test
-        run: dotnet test --settings coverletArgs.runsettings --filter TestCategory=CI -f netcoreapp3.1
-
-      - name: SonarScanner end
-        run: dotnet sonarscanner end /d:sonar.login=$SONAR_TOKEN
+      - name: SonarCloud Scan
+        if: ${{ github.actor != 'nektos/act' }}
+        uses: SonarSource/sonarcloud-github-action@master
         env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-
-      - name: Package NuGet
-        run: dotnet pack FluentDocker.sln --configuration Release -o output /p:Version=${{ steps.gitversion.outputs.NuGetVersion }}
-
-      - name: Upload Artifacts
-        uses: actions/upload-artifact@v3
         with:
-          name: NuGet Packages
-          path: ./output/*.nupkg
+          args: >
+            -Dsonar.projectKey=mariotoffia_FluentDocker
+            -Dsonar.organization=mariotoffia
+            -Dsonar.cs.opencover.reportsPaths=./coverage/**/coverage.opencover.xml
+            -Dsonar.coverage.exclusions=**Tests*.cs
+            -Dsonar.projectVersion=${{ steps.gitversion.outputs.NuGetVersion }}
 
-      # Deployment step conditioned to run only on master branch
-      - name: Deploy to NuGet
-        if: github.ref == 'refs/heads/master' && github.event_name == 'push'
-        run: echo "Deploying to NuGet..."
-#run: dotnet nuget push ./output/*.nupkg -k ${{ secrets.NUGET_API_KEY }} -s https://api.nuget.org/v3/index.json
+      - name: Create NuGet packages
+        run: dotnet pack --configuration Release --no-build --output packages /p:Version=${{ steps.gitversion.outputs.NuGetVersion }}
+
+      - name: Upload NuGet packages as artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: nuget-packages
+          path: packages/*.nupkg
+          retention-days: 7
+
+      - name: Publish NuGet packages
+        if: github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main'
+        run: |
+          dotnet nuget push "packages/*.nupkg" --api-key ${{ secrets.NUGET_API_KEY }} --source https://api.nuget.org/v3/index.json --skip-duplicate

@@ -1,4 +1,15 @@
 {
+    "dotnet.defaultSolution": "FluentDocker.sln",
+    "omnisharp.useModernNet": true,
+    "dotnet.server.useOmnisharp": true,
+    "dotnet.server.path": "",
+    "omnisharp.enableRoslynAnalyzers": true,
+    "omnisharp.enableMsBuildLoadProjectsOnDemand": true,
+    "dotnet.backgroundAnalysis.analyzerDiagnosticsScope": "openFiles",
+    "dotnet.backgroundAnalysis.compilerDiagnosticsScope": "openFiles",
+    "dotnet.completion.showCompletionItemsFromUnimportedNamespaces": true,
+    "dotnet.preferDotnetExecuteFileAsTerminalTarget": true,
+    "dotnet.completion.showNameCompletionSuggestions": true,
     "cSpell.words": [
         "appconfig",
         "archve",
