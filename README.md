@@ -1,4 +1,4 @@
-[![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=mariotoffia_FluentDocker&metric=alert_status)](https://sonarcloud.io/dashboard?id=mariotoffia_FluentDocker)
+[![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=mariotoffia_FluentDocker&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=mariotoffia_FluentDocker)
 [![Build status](https://ci.appveyor.com/api/projects/status/kqqrkcv8wp3e9my6/branch/master?svg=true)](https://ci.appveyor.com/project/mariotoffia/fluentdocker) 
 
 | Package        | NuGet          |

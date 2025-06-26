@@ -15,6 +15,19 @@ jobs:
       DOTNET_NOLOGO: 'true'
       DOTNET_CLI_TELEMETRY_OPTOUT: 'true'
     steps:
+      - name: Detect environment
+        id: detect-env
+        run: |
+          if [ "$GITHUB_ACTOR" == "nektos/act" ]; then
+            echo "running_in_act=true" >> $GITHUB_OUTPUT
+          else
+            echo "running_in_act=false" >> $GITHUB_OUTPUT
+          fi
+      
+      - name: Echo environment
+        run: |
+          echo "Running in act environment: ${{ steps.detect-env.outputs.running_in_act }}"
+
       - name: Checkout code
         uses: actions/checkout@v4
         with:
@@ -52,55 +65,89 @@ jobs:
       - name: Build solution
         run: dotnet build --configuration Release --no-restore /p:Version=${{ steps.gitversion.outputs.NuGetVersion }}
 
-      - name: Run tests
+      - name: Run tests (in act)
+        if: steps.detect-env.outputs.running_in_act == 'true'
         env:
           TERM: dumb
           DOTNET_CLI_UI_LANGUAGE: en-US
-          ACT: ${{ github.actor == 'nektos/act' && 'true' || '' }}
         run: |
-          if [ -n "$ACT" ]; then
-            echo "Running in act environment - excluding container tests"
-            dotnet test \
-              --no-build \
-              --configuration Release \
-              --filter "TestCategory=CI&FullyQualifiedName!~FluentContainerBasicTests" \
-              --logger "console;verbosity=detailed"
+          echo "Running in act environment - excluding container tests"
+          dotnet test \
+            --no-build \
+            --configuration Release \
+            --filter "TestCategory=CI&FullyQualifiedName!~FluentContainerBasicTests" \
+            --logger "console;verbosity=detailed"
+
+      - name: Run tests (in GitHub)
+        if: steps.detect-env.outputs.running_in_act != 'true'
+        run: >
+          dotnet test 
+          --no-build 
+          --configuration Release 
+          --filter "TestCategory=CI"
+          --collect:"XPlat Code Coverage" 
+          --results-directory ./coverage
+          --settings coverletArgs.runsettings
+
+      - name: Detect branch for SonarCloud
+        id: detect-branch
+        run: |
+          if [ "${{ steps.detect-env.outputs.running_in_act }}" == "true" ]; then
+            # Use git to determine branch name when running in act
+            BRANCH_NAME=$(git rev-parse --abbrev-ref HEAD)
+            echo "Using git to determine branch: $BRANCH_NAME"
+            echo "branch=$BRANCH_NAME" >> $GITHUB_OUTPUT
           else
-            echo "Running in GitHub Actions environment"
-            dotnet test \
-              --no-build \
-              --configuration Release \
-              --filter "TestCategory=CI" \
-              --collect:"XPlat Code Coverage" \
-              --results-directory ./coverage \
-              --settings coverletArgs.runsettings
+            # In GitHub Actions, we can use GitHub's environment variables
+            echo "Using GitHub environment for branch info"
+            echo "branch=$GITHUB_REF_NAME" >> $GITHUB_OUTPUT
           fi
 
+      # Prepare environment variables for SonarCloud
+      - name: Setup SonarCloud environment variables
+        id: sonar-env
+        run: |
+          # Ensure the token is available regardless of environment
+          if [ "${{ steps.detect-env.outputs.running_in_act }}" == "true" ] && [ -n "$SONAR_TOKEN" ]; then
+            echo "Using SONAR_TOKEN from environment file"
+            echo "token=$SONAR_TOKEN" >> $GITHUB_OUTPUT
+          else
+            echo "Using SONAR_TOKEN from GitHub secrets"
+            echo "token=${{ secrets.SONAR_TOKEN }}" >> $GITHUB_OUTPUT
+          fi
+
+      # Single SonarCloud scan step for both environments
       - name: SonarCloud Scan
-        if: ${{ github.actor != 'nektos/act' }}
         uses: SonarSource/sonarcloud-github-action@master
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_TOKEN: ${{ steps.sonar-env.outputs.token }}
         with:
           args: >
             -Dsonar.projectKey=mariotoffia_FluentDocker
             -Dsonar.organization=mariotoffia
             -Dsonar.cs.opencover.reportsPaths=./coverage/**/coverage.opencover.xml
             -Dsonar.coverage.exclusions=**Tests*.cs
-            -Dsonar.projectVersion=${{ steps.gitversion.outputs.NuGetVersion }}
-
+            -Dsonar.branch.name=${{ steps.detect-branch.outputs.branch }}
+            -Dsonar.projectVersion=${{ steps.gitversion.outputs.AssemblySemVer }}
       - name: Create NuGet packages
         run: dotnet pack --configuration Release --no-build --output packages /p:Version=${{ steps.gitversion.outputs.NuGetVersion }}
 
-      - name: Upload NuGet packages as artifacts
+      - name: List NuGet packages
+        run: |
+          echo "Created NuGet packages:"
+          ls -la packages/*.nupkg
+          
+      - name: Upload NuGet packages as artifacts–
         uses: actions/upload-artifact@v4
         with:
           name: nuget-packages
           path: packages/*.nupkg
           retention-days: 7
+        continue-on-error: ${{ steps.detect-env.outputs.running_in_act == 'true' }}
 
       - name: Publish NuGet packages
         if: github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main'
         run: |
           dotnet nuget push "packages/*.nupkg" --api-key ${{ secrets.NUGET_API_KEY }} --source https://api.nuget.org/v3/index.json --skip-duplicate
+        continue-on-error: ${{ steps.detect-env.outputs.running_in_act == 'true' }}

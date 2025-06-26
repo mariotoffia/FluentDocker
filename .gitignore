@@ -8,6 +8,8 @@
 # Mac
 .DS_Store
 
+# Secrets
+.env
 # Sonarqube
 .sonarqube/
 
