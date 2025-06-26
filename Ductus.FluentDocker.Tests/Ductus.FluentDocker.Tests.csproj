@@ -11,6 +11,7 @@
     <PackageReference Include="MSTest.TestAdapter" Version="2.2.7" />
     <PackageReference Include="MSTest.TestFramework" Version="2.2.7" />
     <PackageReference Include="Npgsql" Version="8.0.4" />
+    <PackageReference Include="RabbitMQ.Client" Version="6.8.1" />
   </ItemGroup>
 
   <ItemGroup>
