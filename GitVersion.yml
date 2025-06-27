@@ -1,3 +1,5 @@
+# GitVersion configuration file
+# This file is used by the GitVersion GitHub Action in the CI pipeline
 mode: Mainline
 next-version: 2.10.60  # Set to a higher version to ensure proper calculation
 major-version-bump-message: '\+semver:\s?(breaking|major)'
@@ -6,7 +8,7 @@ patch-version-bump-message: '\+semver:\s?(fix|patch)'
 no-bump-message: '\+semver:\s?(none|skip)'
 assembly-versioning-scheme: MajorMinorPatch
 assembly-file-versioning-scheme: MajorMinorPatchTag
-tag-prefix: ''  # Ensure no prefix to match your existing tags
+tag-prefix: '' # Tags should only be the actual Semver version, no 'v' prefix 
 continuous-delivery-fallback-tag: 'ci'
 commit-message-incrementing: Enabled
 branches:

@@ -2,6 +2,8 @@
 
   <PropertyGroup>
     <TargetFrameworks>netstandard2.0;net6.0;net8.0</TargetFrameworks>
+    <!-- Version properties are intentionally set to 1.0.0 as placeholders -->
+    <!-- Actual version is controlled by GitVersion in CI pipeline -->
     <Version>1.0.0</Version>
     <AssemblyVersion>1.0.0.0</AssemblyVersion>
     <FileVersion>1.0.0.0</FileVersion>
@@ -28,10 +30,6 @@ Documentation: https://github.com/mariotoffia/FluentDocker
     <PublicSign Condition=" '$(OS)' != 'Windows_NT' ">true</PublicSign>
   </PropertyGroup>
 
-  <ItemGroup Condition="'$(Configuration)'=='Release'">
-    <PackageReference Include="GitVersionTask" Version="5.3.7" PrivateAssets="All" />
-  </ItemGroup>
- 
   <ItemGroup>
     <None Include="README.md" Pack="true" PackagePath="\"/>
     <None Include="..\icon\fluent-docker.png" Pack="true" PackagePath="\"/>

@@ -43,7 +43,7 @@ jobs:
       - name: Install GitVersion
         uses: gittools/actions/gitversion/setup@v1
         with:
-          versionSpec: '5.x'
+          versionSpec: '5.12'
       
       - name: Determine version
         id: gitversion
@@ -63,7 +63,7 @@ jobs:
         run: dotnet restore
 
       - name: Build solution
-        run: dotnet build --configuration Release --no-restore /p:Version=${{ steps.gitversion.outputs.NuGetVersion }}
+        run: dotnet build --configuration Release --no-restore /p:Version=${{ steps.gitversion.outputs.NuGetVersion }} /p:AssemblyVersion=${{ steps.gitversion.outputs.AssemblySemVer }} /p:FileVersion=${{ steps.gitversion.outputs.AssemblySemFileVer }}
 
       - name: Run tests (in act)
         if: steps.detect-env.outputs.running_in_act == 'true'
@@ -134,7 +134,7 @@ jobs:
       - name: Create NuGet packages
         run: |
           echo "Creating NuGet packages with version: ${{ steps.gitversion.outputs.NuGetVersion }}"
-          dotnet pack --configuration Release --no-build --output packages /p:Version=${{ steps.gitversion.outputs.NuGetVersion }}
+          dotnet pack --configuration Release --no-build --output packages /p:Version=${{ steps.gitversion.outputs.NuGetVersion }} /p:AssemblyVersion=${{ steps.gitversion.outputs.AssemblySemVer }} /p:FileVersion=${{ steps.gitversion.outputs.AssemblySemFileVer }}
 
       - name: List NuGet packages
         run: |
