@@ -160,7 +160,7 @@ The highest layer of this library is the fluent API where you can define and con
           // Define custom node image to be used
           .DefineImage("mariotoffia/nodetest").ReuseIfAlreadyExists()
           .From("ubuntu")
-          .Maintainer("Mario Toffia <mario.toffia@gmail.com>")
+          .Maintainer("Mario Toffia")
           .Run("apt-get update &&",
             "apt-get -y install curl &&",
             "curl -sL https://deb.nodesource.com/setup | sudo bash - &&",

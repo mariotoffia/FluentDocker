@@ -34,7 +34,7 @@ namespace Ductus.FluentDocker.Extensions.Utils
       {
         Logger.Log("Failed to find docker-compose client binary (neither V1 nor V2) - please add it to your path");
       }
-
+/*
       if (null == MainDockerMachine)
       {
         Logger.Log(
@@ -43,6 +43,7 @@ namespace Ductus.FluentDocker.Extensions.Utils
                    "2.2.0 or later you have to install it using " +
                    "https://github.com/docker/machine/releases");
       }
+      */
     }
 
     public DockerBinary[] Binaries { get; }

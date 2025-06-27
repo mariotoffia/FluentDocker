@@ -52,7 +52,7 @@ namespace Ductus.FluentDocker.Tests.FluentApiTests
         var image =
           Fd.DefineImage("mariotoffia/unittest:latest")
             .From("ubuntu:14.04")
-            .Maintainer("Mario Toffia <mario.toffia@gmail.com>")
+            .Maintainer("Mario Toffia")
               .Run("apt-get update")
               .Run("apt-get install -y software-properties-common python")
               .Run("add-apt-repository ppa:chris-lea/node.js")

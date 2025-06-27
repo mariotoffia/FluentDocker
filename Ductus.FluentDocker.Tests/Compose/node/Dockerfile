@@ -1,5 +1,5 @@
-FROM mhart/alpine-node
-MAINTAINER Mario Toffia <mario.toffia@dataductus.se>
+FROM node:alpine
+MAINTAINER Mario Toffia
 
 WORKDIR /src
 ADD index.js /src

@@ -1,5 +1,5 @@
 # Set nginx base image
-FROM nginx:1.13.6-alpine
+FROM nginx:alpine
 
 # File Author / Maintainer
 MAINTAINER Anand Mani Sankar

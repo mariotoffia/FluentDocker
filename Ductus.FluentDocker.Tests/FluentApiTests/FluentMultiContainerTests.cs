@@ -44,7 +44,7 @@ namespace Ductus.FluentDocker.Tests.FluentApiTests
           // Define custom node image to be used
           Fd.DefineImage("mariotoffia/nodetest").ReuseIfAlreadyExists()
           .From("ubuntu:14.04")
-          .Maintainer("Mario Toffia <mario.toffia@gmail.com>")
+          .Maintainer("Mario Toffia")
           .WorkingFolder(fullPath)
           .Run("apt-get update &&",
             "apt-get -y install curl &&",
