@@ -9,6 +9,8 @@ namespace Ductus.FluentDocker.Extensions.Utils
     Machine = 2,
     Compose = 3,
     Cli = 4,
+    // ComposeV2 is a `DockerClient` that do support the subcommand `compose`
+    // This is used to distinguish between the old `docker-compose` and the new `docker compose` command.    
     ComposeV2 = 5
   }
 

@@ -151,24 +151,15 @@ namespace Ductus.FluentDocker.Extensions
     }
 
     /// <summary>
-    /// Checks if Docker Compose V2 is available
-    /// </summary>
-    /// <returns>True if Docker Compose V2 is available, false otherwise</returns>
-    public static bool IsComposeV2Available()
-    {
-      if (null == _binaryResolver)
-        _binaryResolver = new DockerBinariesResolver(_sudoMechanism, _sudoPassword);
-        
-      return null != _binaryResolver.MainDockerComposeV2;
-    }
-    
-    /// <summary>
     /// Gets the detected Docker Compose version
     /// </summary>
     /// <returns>The detected Docker Compose version</returns>
-    public static ComposeVersion GetComposeVersion()
+    public static ComposeVersion DetectComposeVersion()
     {
-      return IsComposeV2Available() ? ComposeVersion.V2 : ComposeVersion.V1;
+      if (null == _binaryResolver)
+        _binaryResolver = new DockerBinariesResolver(_sudoMechanism, _sudoPassword);
+
+      return null != _binaryResolver.MainDockerComposeV2 ? ComposeVersion.V2 : ComposeVersion.V1;
     }
 
     public static IEnumerable<string> GetResolvedBinaries()
