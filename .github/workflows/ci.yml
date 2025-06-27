@@ -76,6 +76,7 @@ jobs:
           dotnet test \
             --no-build \
             --configuration Release \
+            --framework net8.0 \
             --filter "TestCategory=CI&FullyQualifiedName!~FluentContainerBasicTests" \
             --logger "console;verbosity=detailed"
 
@@ -85,6 +86,7 @@ jobs:
           dotnet test 
           --no-build 
           --configuration Release 
+          --framework net8.0
           --filter "TestCategory=CI"
           --collect:"XPlat Code Coverage" 
           --results-directory ./coverage
