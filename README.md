@@ -13,7 +13,7 @@
 
 This library enables `docker` and `docker-compose` interactions usinga _Fluent API_. It is supported on Linux, Windows and Mac. It also has support for the legazy `docker-machine` interactions.
 
-:bulb: A work has begun to auto detect if `docker-compose` is present, if not it will assume that it is new enough docker client binary to handle `docker compose` subcommand. This will *hopefully* be finished mid July.
+**:bulb: Breaking changes. It will not adhere to `AssumeComposeVersion` instead it will autodetect if it supports `docker compose` subcommand and automatically set it to V2. If not supported, it will use `docker-compose` and this is V1.**
 
 **Sample Fluent API usage**
 ```cs
@@ -32,8 +32,6 @@ This library enables `docker` and `docker-compose` interactions usinga _Fluent A
       }
 ```
 This fires up a postgres and waits for it to be ready. To use compose, just do it like this:
-
-:bulb: **NOTE: Use the AssumeComposeVersion(ComposeVersion.V2) to use the V2 behaviour, default is still V1 (to be changed to default to V2 later this year)**
 
 ```cs
       var file = Path.Combine(Directory.GetCurrentDirectory(),
