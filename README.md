@@ -1,11 +1,13 @@
+[![CI](https://github.com/mariotoffia/FluentDocker/actions/workflows/ci.yml/badge.svg)](https://github.com/mariotoffia/FluentDocker/actions/workflows/ci.yml)
 [![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=mariotoffia_FluentDocker&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=mariotoffia_FluentDocker)
-[![Build status](https://ci.appveyor.com/api/projects/status/kqqrkcv8wp3e9my6/branch/master?svg=true)](https://ci.appveyor.com/project/mariotoffia/fluentdocker) 
+[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
+[![.NET](https://img.shields.io/badge/.NET-netstandard2.0%20%7C%20net6.0%20%7C%20net8.0-blueviolet)](https://dotnet.microsoft.com/)
 
-| Package        | NuGet          |
-| ---------------|:--------------:|
-| FluentDocker   |[![NuGet](https://img.shields.io/nuget/v/Ductus.FluentDocker.svg)](https://www.nuget.org/packages/Ductus.FluentDocker) |
-| Microsoft Test | [![NuGet](https://img.shields.io/nuget/v/Ductus.FluentDocker.MsTest.svg)](https://www.nuget.org/packages/Ductus.FluentDocker.MsTest) |
-| XUnit Test     | [![NuGet](https://img.shields.io/nuget/v/Ductus.FluentDocker.XUnit.svg)](https://www.nuget.org/packages/Ductus.FluentDocker.XUnit) |
+| Package        | NuGet          | Downloads       |
+| ---------------|:--------------:|:---------------:|
+| FluentDocker   | [![NuGet](https://img.shields.io/nuget/v/Ductus.FluentDocker.svg)](https://www.nuget.org/packages/Ductus.FluentDocker) | [![Downloads](https://img.shields.io/nuget/dt/Ductus.FluentDocker.svg)](https://www.nuget.org/packages/Ductus.FluentDocker) |
+| Microsoft Test | [![NuGet](https://img.shields.io/nuget/v/Ductus.FluentDocker.MsTest.svg)](https://www.nuget.org/packages/Ductus.FluentDocker.MsTest) | [![Downloads](https://img.shields.io/nuget/dt/Ductus.FluentDocker.MsTest.svg)](https://www.nuget.org/packages/Ductus.FluentDocker.MsTest) |
+| XUnit Test     | [![NuGet](https://img.shields.io/nuget/v/Ductus.FluentDocker.XUnit.svg)](https://www.nuget.org/packages/Ductus.FluentDocker.XUnit) | [![Downloads](https://img.shields.io/nuget/dt/Ductus.FluentDocker.XUnit.svg)](https://www.nuget.org/packages/Ductus.FluentDocker.XUnit) |
 
 # FluentDocker
 
