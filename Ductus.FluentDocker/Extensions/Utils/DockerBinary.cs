@@ -8,7 +8,10 @@ namespace Ductus.FluentDocker.Extensions.Utils
     DockerClient = 1,
     Machine = 2,
     Compose = 3,
-    Cli = 4
+    Cli = 4,
+    // ComposeV2 is a `DockerClient` that do support the subcommand `compose`
+    // This is used to distinguish between the old `docker-compose` and the new `docker compose` command.    
+    ComposeV2 = 5
   }
 
   public sealed class DockerBinary
@@ -18,6 +21,18 @@ namespace Ductus.FluentDocker.Extensions.Utils
       Path = path;
       Binary = binary.ToLower();
       Type = Translate(binary);
+      Sudo = sudo;
+      SudoPassword = password;
+
+      var isToolbox = Environment.GetEnvironmentVariable("DOCKER_TOOLBOX_INSTALL_PATH")?.Equals(Path);
+      IsToolbox = isToolbox ?? false;
+    }
+
+    internal DockerBinary(string path, string binary, SudoMechanism sudo, string password, DockerBinaryType type)
+    {
+      Path = path;
+      Binary = binary.ToLower();
+      Type = type;
       Sudo = sudo;
       SudoPassword = password;
 

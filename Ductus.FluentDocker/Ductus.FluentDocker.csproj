@@ -28,6 +28,7 @@
     <SignAssembly>true</SignAssembly>
     <PublicSign Condition=" '$(OS)' != 'Windows_NT' ">true</PublicSign>
     <LangVersion>latest</LangVersion>
+    <NoWarn>$(NoWarn);SYSLIB0014</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>

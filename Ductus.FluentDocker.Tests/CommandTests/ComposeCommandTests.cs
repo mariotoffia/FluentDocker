@@ -2,6 +2,7 @@
 using System.Threading.Tasks;
 using Ductus.FluentDocker.Commands;
 using Ductus.FluentDocker.Extensions;
+using Ductus.FluentDocker.Extensions.Utils;
 using Ductus.FluentDocker.Model.Common;
 using Ductus.FluentDocker.Services.Extensions;
 using Ductus.FluentDocker.Services.Impl;
@@ -15,9 +16,24 @@ namespace Ductus.FluentDocker.Tests.CommandTests
   public class ComposeCommandTests : FluentDockerTestBase
   {
     [ClassInitialize]
-    public static void Initialize(TestContext ctx)
+    public static void Initialize(TestContext _)
     {
       Utilities.LinuxMode();
+    }
+
+    [TestMethod]
+    public void ComposeIsEitherSeparateOrSubCommand() {
+      // NOTE: This may fail if user has a docker-compose binary in the path and have
+      // docker that has compose as a sub-command.
+      var resolver = new DockerBinariesResolver(SudoMechanism.None, null);
+
+      if (resolver.IsDockerComposeV2Available) {
+        Assert.IsNull(resolver.MainDockerCompose,
+          "Docker Compose V2 is available, so MainDockerCompose should be null");
+      } else {
+        Assert.IsNotNull(resolver.MainDockerCompose,
+          "Docker Compose V2 is not available, so MainDockerCompose should not be null");
+      }
     }
 
     [TestMethod]
@@ -79,7 +95,6 @@ namespace Ductus.FluentDocker.Tests.CommandTests
     }
 
     [TestMethod]
-    //[Ignore]
     public void Issue79_DockerComposeOnDockerMachineShallWork()
     {
       var fullPath = (TemplateString)@"${TEMP}\fluentdockertest\${RND}";
@@ -88,8 +103,7 @@ namespace Ductus.FluentDocker.Tests.CommandTests
 
       var hostService = new DockerHostService("wifi-test");
 
-      var composeResponse = hostService.Host
-        .ComposeUpCommand(new Commands.Compose.ComposeUpCommandArgs
+      hostService.Host.ComposeUpCommand(new Commands.Compose.ComposeUpCommandArgs
         {
           ComposeFiles = new System.Collections.Generic.List<string>() { file },
           Certificates = hostService.Certificates

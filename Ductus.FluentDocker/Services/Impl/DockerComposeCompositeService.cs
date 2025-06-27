@@ -5,7 +5,9 @@ using System.Linq;
 using Ductus.FluentDocker.Commands;
 using Ductus.FluentDocker.Common;
 using Ductus.FluentDocker.Extensions;
+using Ductus.FluentDocker.Extensions.Utils;
 using Ductus.FluentDocker.Model.Compose;
+using Ductus.FluentDocker.Model.Common;
 using Ductus.FluentDocker.Model.Containers;
 using static Ductus.FluentDocker.Commands.Compose;
 
@@ -25,7 +27,15 @@ namespace Ductus.FluentDocker.Services.Impl
       Containers = new IContainerService[0];
       _imageCache = new IContainerImageService[0];
       Config = config;
+      
+      // Auto-detect Docker Compose version if not explicitly set
+      if (Config.ComposeVersion == ComposeVersion.Unknown)
+      {
+        throw new FluentDockerException(
+          "Compose version must be set. Use AutoDetectComposeVersion() or AssumeComposeVersion() in the builder.");
+      }
     }
+    
 
     public override void Dispose()
     {
@@ -292,25 +302,20 @@ namespace Ductus.FluentDocker.Services.Impl
 
     protected virtual string ExtractNames(Container container, out string project, out string instanceId)
     {
-      char componentSeparator;
-      switch (Config.ComposeVersion)
+      var componentSeparator = Config.ComposeVersion switch
       {
-        case ComposeVersion.Unknown:
-        case ComposeVersion.V1:
-          componentSeparator = '_';
-          break;
-        case ComposeVersion.V2:
-          componentSeparator = '-';
-          break;
-        default:
-          throw new InvalidOperationException(
-            $"Unrecognised compose version specified for {nameof(DockerComposeConfig)}.{nameof(DockerComposeConfig.ComposeVersion)}");
-      }
+        ComposeVersion.Unknown or ComposeVersion.V1 => '_',
+        ComposeVersion.V2 => '-',
+        _ => throw new InvalidOperationException(
+                    $"Unrecognised compose version specified for {nameof(DockerComposeConfig)}.{nameof(DockerComposeConfig.ComposeVersion)}"),
+      };
+
       var name = container.Name;
       if (name.StartsWith("/"))
         name = name.Substring(1);
 
       var components = name.Split(componentSeparator);
+      
       if (components.Length >= 3)
       {
         project = components[0];

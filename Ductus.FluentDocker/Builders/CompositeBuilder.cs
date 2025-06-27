@@ -23,6 +23,9 @@ namespace Ductus.FluentDocker.Builders
     {
       if (!string.IsNullOrEmpty(composeFile))
         _config.ComposeFilePath.Add(composeFile);
+        
+      // Default to auto-detecting the Docker Compose version
+      _config.ComposeVersion = CommandExtensions.DetectComposeVersion();
     }
 
     public override ICompositeService Build()
@@ -190,9 +193,22 @@ namespace Ductus.FluentDocker.Builders
       return this;
     }
 
-    public CompositeBuilder AssumeComposeVersion(ComposeVersion composeVersion)
+    /// <summary>
+    /// Assumes a specific compose version to use. If not used, it will auto-detect the
+    /// the latest version of Docker Compose available.
+    /// </summary>
+    /// <param name="_">The compose version to use.</param>
+    /// <returns>Itself for fluent access.</returns>
+    /// <remarks>
+    /// CAUTION: This is right now *NOT* supported and will not change anything. It will
+    ///          purely rely on detection mechanism. This will be re-enabled in the future.
+    ///
+    /// This is useful if you want to use a specific version of Docker Compose, for example
+    /// if you want to use a specific feature that is only available in a certain version.
+    /// </remarks>
+    public CompositeBuilder AssumeComposeVersion(ComposeVersion _)
     {
-      _config.ComposeVersion = composeVersion;
+      //_config.ComposeVersion = composeVersion;
       return this;
     }
 

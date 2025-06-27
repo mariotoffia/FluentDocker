@@ -1,5 +1,9 @@
 # Development Guide
 
+## Install Dependencies
+
+I use _vs code_ to develop on my mac _M1_. I also use homebrew to manage my packages. Use the `make dep` to check if required _SDKs_ needs to be installed is installed. Otherwise it will install it using `brew`.
+
 ## Testing GitHub Actions Locally
 
 You can test the GitHub Actions workflow locally using [nektos/act](https://github.com/nektos/act).

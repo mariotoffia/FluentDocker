@@ -72,12 +72,12 @@ jobs:
           TERM: dumb
           DOTNET_CLI_UI_LANGUAGE: en-US
         run: |
-          echo "Running in act environment - excluding container tests"
+          echo "Running in act environment"
           dotnet test \
             --no-build \
             --configuration Release \
             --framework net8.0 \
-            --filter "TestCategory=CI&FullyQualifiedName!~FluentContainerBasicTests" \
+            --filter "TestCategory=CI" \
             --logger "console;verbosity=detailed"
 
       - name: Run tests (in GitHub)

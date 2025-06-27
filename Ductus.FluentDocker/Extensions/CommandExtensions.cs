@@ -8,6 +8,7 @@ using Ductus.FluentDocker.Executors;
 using Ductus.FluentDocker.Extensions.Utils;
 using Ductus.FluentDocker.Model.Common;
 using Ductus.FluentDocker.Model.Containers;
+using Ductus.FluentDocker.Model.Compose;
 
 namespace Ductus.FluentDocker.Extensions
 {
@@ -94,6 +95,22 @@ namespace Ductus.FluentDocker.Extensions
     {
       var binary = resolver.Resolve(dockerCommand, preferMachine);
 
+      // Special handling for Docker Compose V2
+      if (binary.Type == DockerBinaryType.ComposeV2 && dockerCommand.Equals("docker-compose", StringComparison.OrdinalIgnoreCase))
+      {
+        // For V2, we need to return 'docker compose' instead of 'docker-compose'
+        if (FdOs.IsWindows() || binary.Sudo == SudoMechanism.None)
+          return $"{binary.FqPath} compose";
+        
+        string cmdV2;
+        if (binary.Sudo == SudoMechanism.NoPassword)
+          cmdV2 = $"sudo {binary.FqPath} compose";
+        else
+          cmdV2 = $"echo {binary.SudoPassword} | sudo -S {binary.FqPath} compose";
+          
+        return cmdV2;
+      }
+
       if (FdOs.IsWindows() || binary.Sudo == SudoMechanism.None)
         return binary.FqPath;
 
@@ -131,6 +148,18 @@ namespace Ductus.FluentDocker.Extensions
 
       return null != _binaryResolver.MainDockerCompose;
 
+    }
+
+    /// <summary>
+    /// Gets the detected Docker Compose version
+    /// </summary>
+    /// <returns>The detected Docker Compose version</returns>
+    public static ComposeVersion DetectComposeVersion()
+    {
+      if (null == _binaryResolver)
+        _binaryResolver = new DockerBinariesResolver(_sudoMechanism, _sudoPassword);
+
+      return null != _binaryResolver.MainDockerComposeV2 ? ComposeVersion.V2 : ComposeVersion.V1;
     }
 
     public static IEnumerable<string> GetResolvedBinaries()

@@ -5,7 +5,7 @@
     "tasks": [
         {
             "label": "build",
-            "command": "dotnet build -f net8.0",
+            "command": "./use-net8.sh build -f net8.0",
             "type": "shell",
             "group": {
                 "kind": "build",
@@ -13,6 +13,19 @@
             },
             "presentation": {
                 "reveal": "silent"
+            },
+            "problemMatcher": "$msCompile"
+        },
+        {
+            "label": "test",
+            "command": "./use-net8.sh test -f net8.0",
+            "type": "shell",
+            "group": {
+                "kind": "test",
+                "isDefault": true
+            },
+            "presentation": {
+                "reveal": "always"
             },
             "problemMatcher": "$msCompile"
         },
