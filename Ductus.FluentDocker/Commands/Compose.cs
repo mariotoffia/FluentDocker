@@ -5,6 +5,7 @@ using System.Linq;
 using Ductus.FluentDocker.Executors;
 using Ductus.FluentDocker.Executors.Parsers;
 using Ductus.FluentDocker.Extensions;
+using Ductus.FluentDocker.Extensions.Utils;
 using Ductus.FluentDocker.Model.Common;
 using Ductus.FluentDocker.Model.Containers;
 using Ductus.FluentDocker.Model.Images;
@@ -13,6 +14,27 @@ namespace Ductus.FluentDocker.Commands
 {
   public static class Compose
   {
+    /// <summary>
+    /// Returns the appropriate binary and command string for Docker Compose operations,
+    /// handling both V1 and V2 formats.
+    /// </summary>
+    private static (string binary, string command) GetComposeCommand()
+    {
+      var resolver = new DockerBinariesResolver(SudoMechanism.None, null);
+      var isV2 = resolver.IsDockerComposeV2Available;
+      
+      if (isV2)
+      {
+        // For V2, we resolve 'docker' and add 'compose' as the first command
+        return ("docker".ResolveBinary(), "compose");
+      }
+      else
+      {
+        // For V1, we use the traditional docker-compose binary
+        return ("docker-compose".ResolveBinary(), "");
+      }
+    }
+
     public static CommandResponse<IList<string>> ComposeBuild(this DockerUri host,
       string altProjectName = null,
       bool forceRm = false, bool dontUseCache = false,
@@ -22,6 +44,8 @@ namespace Ductus.FluentDocker.Commands
       params string[] composeFile)
     {
       var cwd = WorkingDirectory(composeFile);
+
+      var (binary, command) = GetComposeCommand();
 
       var args = $"{host.RenderBaseArgs(certificates)}";
 
@@ -48,8 +72,8 @@ namespace Ductus.FluentDocker.Commands
 
       return
         new ProcessExecutor<StringListResponseParser, IList<string>>(
-          "docker-compose".ResolveBinary(),
-          $"{args} build {options}", cwd.NeedCwd ? cwd.Cwd : null).ExecutionEnvironment(env).Execute();
+          binary,
+          $"{command} build {options}", cwd.NeedCwd ? cwd.Cwd : null).ExecutionEnvironment(env).Execute();
     }
 
     public static CommandResponse<IList<string>> ComposeCreate(this DockerUri host,

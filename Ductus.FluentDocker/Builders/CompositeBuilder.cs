@@ -23,6 +23,9 @@ namespace Ductus.FluentDocker.Builders
     {
       if (!string.IsNullOrEmpty(composeFile))
         _config.ComposeFilePath.Add(composeFile);
+        
+      // Default to auto-detecting the Docker Compose version
+      _config.ComposeVersion = CommandExtensions.GetComposeVersion();
     }
 
     public override ICompositeService Build()
@@ -187,6 +190,12 @@ namespace Ductus.FluentDocker.Builders
     public CompositeBuilder UseProjectDir(TemplateString projectDir)
     {
       _config.ProjectDirectory = projectDir;
+      return this;
+    }
+
+    public CompositeBuilder AutoDetectComposeVersion()
+    {
+      _config.ComposeVersion = CommandExtensions.GetComposeVersion();
       return this;
     }
 

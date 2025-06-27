@@ -4,6 +4,8 @@ using System.IO;
 using System.Linq;
 using Ductus.FluentDocker.Common;
 using Ductus.FluentDocker.Model.Common;
+using Ductus.FluentDocker.Executors;
+using Ductus.FluentDocker.Executors.Parsers;
 using static Ductus.FluentDocker.Common.FdOs;
 
 namespace Ductus.FluentDocker.Extensions.Utils
@@ -18,6 +20,7 @@ namespace Ductus.FluentDocker.Extensions.Utils
       Binaries = ResolveFromPaths(sudo, password, paths).ToArray();
       MainDockerClient = Binaries.FirstOrDefault(x => !x.IsToolbox && x.Type == DockerBinaryType.DockerClient);
       MainDockerCompose = Binaries.FirstOrDefault(x => !x.IsToolbox && x.Type == DockerBinaryType.Compose);
+      MainDockerComposeV2 = CheckComposeV2(sudo, password);
       MainDockerMachine = Binaries.FirstOrDefault(x => !x.IsToolbox && x.Type == DockerBinaryType.Machine);
       MainDockerCli = Binaries.FirstOrDefault(x => !x.IsToolbox && x.Type == DockerBinaryType.Cli);
       HasToolbox = Binaries.Any(x => x.IsToolbox);
@@ -28,9 +31,9 @@ namespace Ductus.FluentDocker.Extensions.Utils
         throw new FluentDockerException("Failed to find docker client binary - please add it to your path");
       }
 
-      if (null == MainDockerCompose)
+      if (null == MainDockerCompose && null == MainDockerComposeV2)
       {
-        Logger.Log("Failed to find docker-compose client binary - please add it to your path");
+        Logger.Log("Failed to find docker-compose client binary (neither V1 nor V2) - please add it to your path");
       }
 
       if (null == MainDockerMachine)
@@ -46,11 +49,11 @@ namespace Ductus.FluentDocker.Extensions.Utils
     public DockerBinary[] Binaries { get; }
     public DockerBinary MainDockerClient { get; }
     public DockerBinary MainDockerCompose { get; }
+    public DockerBinary MainDockerComposeV2 { get; }
     public DockerBinary MainDockerMachine { get; }
     public DockerBinary MainDockerCli { get; }
-    public bool IsDockerClientAvailable => null != MainDockerClient;
-    public bool IsDockerComposeAvailable => null != MainDockerCompose;
     public bool IsDockerMachineAvailable => null != MainDockerMachine;
+    public bool IsDockerComposeV2Available => null != MainDockerComposeV2;
     public bool HasToolbox { get; }
 
     public DockerBinary Resolve(string binary, bool preferMachine = false)
@@ -67,7 +70,7 @@ namespace Ductus.FluentDocker.Extensions.Utils
 
       var resolved = type switch
       {
-        DockerBinaryType.Compose => MainDockerCompose,
+        DockerBinaryType.Compose => MainDockerComposeV2 ?? MainDockerCompose, // Prefer V2 if available
         DockerBinaryType.DockerClient => MainDockerClient,
         DockerBinaryType.Machine => MainDockerMachine,
         DockerBinaryType.Cli => MainDockerCli,
@@ -143,6 +146,38 @@ namespace Ductus.FluentDocker.Extensions.Utils
         }
       }
       return list;
+    }
+
+    private DockerBinary CheckComposeV2(SudoMechanism sudo, string password)
+    {
+      if (null == MainDockerClient)
+        return null;
+
+      try
+      {
+        // Test if 'docker compose' command exists (V2 plugin)
+        var result = new ProcessExecutor<Executors.Parsers.StringListResponseParser, IList<string>>(
+          MainDockerClient.FqPath,
+          "compose version").Execute();
+
+        if (result.Success)
+        {
+          // Docker Compose V2 exists
+          return new DockerBinary(
+            System.IO.Path.GetDirectoryName(MainDockerClient.FqPath), 
+            System.IO.Path.GetFileName(MainDockerClient.FqPath), 
+            sudo, 
+            password, 
+            DockerBinaryType.ComposeV2);
+        }
+      }
+      catch
+      {
+        // Compose V2 plugin is not available
+        Logger.Log("Docker Compose V2 plugin is not available");
+      }
+      
+      return null;
     }
   }
 }
