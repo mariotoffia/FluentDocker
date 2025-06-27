@@ -1,7 +1,6 @@
 # GitVersion configuration file
 # This file is used by the GitVersion GitHub Action in the CI pipeline
 mode: Mainline
-next-version: 2.10.60  # Set to a higher version to ensure proper calculation
 major-version-bump-message: '\+semver:\s?(breaking|major)'
 minor-version-bump-message: '\+semver:\s?(feature|minor)'
 patch-version-bump-message: '\+semver:\s?(fix|patch)'
