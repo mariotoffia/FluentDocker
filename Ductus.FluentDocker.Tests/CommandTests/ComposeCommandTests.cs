@@ -103,8 +103,7 @@ namespace Ductus.FluentDocker.Tests.CommandTests
 
       var hostService = new DockerHostService("wifi-test");
 
-      hostService.Host
-        .ComposeUpCommand(new Commands.Compose.ComposeUpCommandArgs
+      hostService.Host.ComposeUpCommand(new Commands.Compose.ComposeUpCommandArgs
         {
           ComposeFiles = new System.Collections.Generic.List<string>() { file },
           Certificates = hostService.Certificates
