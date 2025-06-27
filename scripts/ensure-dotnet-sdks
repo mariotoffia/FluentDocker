@@ -1,0 +1,56 @@
+#!/usr/bin/env bash
+# ensure-dotnet-sdks.sh
+# Installs .NET SDK 6.x and 8.x side-by-side on macOS (Apple silicon) via Homebrew.
+# Re-run any time—if both SDKs are already present it exits without changes.
+
+set -euo pipefail
+
+REQUIRED_SDKS=(6 8)
+
+# 1 – Verify Homebrew is available
+if ! command -v brew >/dev/null 2>&1; then
+  echo "❌  Homebrew is not installed. Install it from https://brew.sh/ and re-run this script." >&2
+  exit 1
+fi
+
+# 2 – Add the versioned-SDK tap if it hasn’t been added yet
+if ! brew tap | grep -q "^isen-ng/dotnet-sdk-versions$"; then
+  echo "➕  Adding Homebrew tap isen-ng/dotnet-sdk-versions …"
+  brew tap isen-ng/dotnet-sdk-versions   # provides dotnet-sdk6, dotnet-sdk8, etc.  [oai_citation:0‡github.com](https://github.com/isen-ng/homebrew-dotnet-sdk-versions)
+fi
+
+# 3 – Helper: true when an SDK for the given major version is already installed
+sdk_present () {
+  local major="$1"
+
+  # 3a – Ask the dotnet CLI if it exists
+  if command -v dotnet >/dev/null 2>&1; then
+    dotnet --list-sdks 2>/dev/null | grep -E "^${major}\." >/dev/null && return 0
+  fi
+
+  # 3b – Fallback: look for SDK folders in the default install path
+  local sdk_root="/usr/local/share/dotnet/sdk"
+  [ -d "$sdk_root" ] && ls "$sdk_root" 2>/dev/null | grep -E "^${major}\." >/dev/null
+}
+
+# 4 – Install the missing SDKs
+for major in "${REQUIRED_SDKS[@]}"; do
+  if sdk_present "$major"; then
+    echo "✅  .NET SDK ${major}.x is already installed."
+  else
+    echo "⬇️   Installing .NET SDK ${major}.x …"
+    brew install --cask "dotnet-sdk${major}"   # installs latest patch for that major line  [oai_citation:1‡github.com](https://github.com/isen-ng/homebrew-dotnet-sdk-versions)
+  fi
+done
+
+# 5 – Show final summary
+echo
+if command -v dotnet >/dev/null 2>&1; then
+  echo "📋  Installed SDKs:"
+  dotnet --list-sdks
+  echo
+  echo "📋  Installed runtimes:"
+  dotnet --list-runtimes
+else
+  echo "⚠️   dotnet CLI not yet on PATH—open a new terminal or add /usr/local/share/dotnet to PATH."
+fi

@@ -5,17 +5,30 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": ".NET Core Launch (console)",
+            "name": "Debug Tests",
+            "type": "coreclr",
             "request": "launch",
             "preLaunchTask": "build",
-            "program": "${workspaceFolder}/Ductus.FluentDocker.Tests/bin/Debug/net9.0/Ductus.FluentDocker.Tests.dll",
-            "args": [],
-            "cwd": "${workspaceFolder}/Ductus.FluentDocker.Tests",
+            "program": "dotnet",
+            "args": [
+                "test",
+                "${workspaceFolder}/Ductus.FluentDocker.Tests/Ductus.FluentDocker.Tests.csproj",
+                "-f",
+                "net8.0",
+                "--filter",
+                "FullyQualifiedName=${command:dotnet-test-explorer.pickMSTestClass}",
+                "--settings",
+                "${workspaceFolder}/.vscode/test.runsettings"
+            ],
+            "cwd": "${workspaceFolder}",
             "console": "internalConsole",
-            "internalConsoleOptions": "openOnSessionStart"
+            "stopAtEntry": false,
+            "internalConsoleOptions": "openOnSessionStart",
+            "justMyCode": false
         },
         {
             "name": ".NET Core Attach",
+            "type": "coreclr",
             "request": "attach",
             "processId": "${command:pickProcess}"
         }

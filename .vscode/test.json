@@ -1,0 +1,28 @@
+{
+  "RunConfiguration": {
+    "TestSessionTimeout": 30000,
+    "InIsolation": true,
+    "CollectSourceInformation": true,
+    "DisableAppDomain": false,
+    "DisableParallelization": true,
+    "MaxCpuCount": 1,
+    "ResultsDirectory": "${workspaceFolder}/TestResults"
+  },
+  "LoggerRunSettings": {
+    "Loggers": [
+      {
+        "LogFileName": "${workspaceFolder}/TestResults/test-logs.trx",
+        "LogFilePrefixName": "test",
+        "LogFileExtension": ".trx",
+        "StandardOutputEnabled": true,
+        "StandardErrorEnabled": true,
+        "DebugLogsEnabled": true,
+        "ConsoleLoggerParameters": "Verbose"
+      }
+    ]
+  },
+  "TestAdapterRunSettings": {
+    "TestSessionTimeout": 60000,
+    "VSTestConsoleDisplayLogsFromAttachedDebugger": true
+  }
+}
