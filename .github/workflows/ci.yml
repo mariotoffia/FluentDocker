@@ -38,7 +38,7 @@ jobs:
         with:
           dotnet-version: |
             6.0.x
-            9.0.x
+            8.0.x
 
       - name: Install GitVersion
         uses: gittools/actions/gitversion/setup@v1
@@ -155,3 +155,14 @@ jobs:
           echo "Publishing NuGet packages with version: ${{ steps.gitversion.outputs.NuGetVersion }}"
           dotnet nuget push "packages/*.nupkg" --api-key ${{ secrets.NUGET_API_KEY }} --source https://api.nuget.org/v3/index.json --skip-duplicate
         continue-on-error: ${{ steps.detect-env.outputs.running_in_act == 'true' }}
+        
+      - name: Create and push Git tag for release
+        if: (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main') && steps.detect-env.outputs.running_in_act != 'true'
+        run: |
+          echo "Creating Git tag for version: ${{ steps.gitversion.outputs.NuGetVersion }}"
+          git config --global user.name "GitHub Actions"
+          git config --global user.email "actions@github.com"
+          git tag ${{ steps.gitversion.outputs.NuGetVersion }}
+          git push origin ${{ steps.gitversion.outputs.NuGetVersion }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

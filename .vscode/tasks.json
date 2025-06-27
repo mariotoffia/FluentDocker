@@ -5,7 +5,7 @@
     "tasks": [
         {
             "label": "build",
-            "command": "dotnet build -f net9.0",
+            "command": "dotnet build -f net8.0",
             "type": "shell",
             "group": {
                 "kind": "build",

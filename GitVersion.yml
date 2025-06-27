@@ -1,19 +1,19 @@
 mode: Mainline
-next-version: 2.0.0  # Set your current major version here
+next-version: 2.10.60  # Set to a higher version to ensure proper calculation
 major-version-bump-message: '\+semver:\s?(breaking|major)'
 minor-version-bump-message: '\+semver:\s?(feature|minor)'
 patch-version-bump-message: '\+semver:\s?(fix|patch)'
 no-bump-message: '\+semver:\s?(none|skip)'
 assembly-versioning-scheme: MajorMinorPatch
 assembly-file-versioning-scheme: MajorMinorPatchTag
-tag-prefix: 'v'
+tag-prefix: ''  # Ensure no prefix to match your existing tags
 continuous-delivery-fallback-tag: 'ci'
 commit-message-incrementing: Enabled
 branches:
   master:
     regex: ^master$|^main$
     tag: ''
-    increment: Patch
+    increment: Minor
     prevent-increment-of-merged-branch-version: true
     track-merge-target: false
   feature:

@@ -48,6 +48,9 @@ namespace Ductus.FluentDocker.Extensions.Utils
     public DockerBinary MainDockerCompose { get; }
     public DockerBinary MainDockerMachine { get; }
     public DockerBinary MainDockerCli { get; }
+    public bool IsDockerClientAvailable => null != MainDockerClient;
+    public bool IsDockerComposeAvailable => null != MainDockerCompose;
+    public bool IsDockerMachineAvailable => null != MainDockerMachine;
     public bool HasToolbox { get; }
 
     public DockerBinary Resolve(string binary, bool preferMachine = false)
@@ -62,25 +65,15 @@ namespace Ductus.FluentDocker.Extensions.Utils
         }
       }
 
-      DockerBinary resolved = null;
-      switch (type)
+      var resolved = type switch
       {
-        case DockerBinaryType.Compose:
-          resolved = MainDockerCompose;
-          break;
-        case DockerBinaryType.DockerClient:
-          resolved = MainDockerClient;
-          break;
-        case DockerBinaryType.Machine:
-          resolved = MainDockerMachine;
-          break;
-        case DockerBinaryType.Cli:
-          resolved = MainDockerCli;
-          break;
-        default:
-          throw new FluentDockerException($"Cannot resolve unknown binary {binary}");
-      }
-
+        DockerBinaryType.Compose => MainDockerCompose,
+        DockerBinaryType.DockerClient => MainDockerClient,
+        DockerBinaryType.Machine => MainDockerMachine,
+        DockerBinaryType.Cli => MainDockerCli,
+        _ => throw new FluentDockerException($"Cannot resolve unknown binary {binary}"),
+      };
+      
       if (null == resolved)
       {
         throw new FluentDockerException($"Could not resolve binary {binary} is it installed on the local system?");

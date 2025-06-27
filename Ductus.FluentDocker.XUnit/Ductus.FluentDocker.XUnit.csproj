@@ -1,6 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <TargetFramework>net9.0</TargetFramework>
+    <TargetFrameworks>netstandard2.0;net6.0;net8.0</TargetFrameworks>
     <Version>1.0.0</Version>
     <AssemblyVersion>1.0.0.0</AssemblyVersion>
     <FileVersion>1.0.0.0</FileVersion>
@@ -21,7 +21,7 @@
       XUnit Support to allow for create, run one or more docker images while testing using docker, compose, machine (Linux, Windows, Mac) using netcore or full framework.
       Documentation: https://github.com/mariotoffia/FluentDocker
     </Description>
-    <Copyright>© 2016 - 2021 Mario Toffia</Copyright>
+    <Copyright>© 2016 - 2025 Mario Toffia</Copyright>
     <AssemblyOriginatorKeyFile>..\keypair.snk</AssemblyOriginatorKeyFile>
     <SignAssembly>true</SignAssembly>
     <PublicSign Condition=" '$(OS)' != 'Windows_NT' ">true</PublicSign>
@@ -38,5 +38,9 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Ductus.FluentDocker\Ductus.FluentDocker.csproj" />
+  </ItemGroup>
+  
+  <ItemGroup Condition="'$(TargetFramework)' == 'netstandard2.0'">
+    <PackageReference Include="System.Runtime.InteropServices.RuntimeInformation" Version="4.3.0" />
   </ItemGroup>
 </Project>
