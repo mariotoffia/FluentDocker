@@ -13,6 +13,8 @@
 
 This library enables `docker` and `docker-compose` interactions usinga _Fluent API_. It is supported on Linux, Windows and Mac. It also has support for the legazy `docker-machine` interactions.
 
+:bulb: A work has begun to auto detect if `docker-compose` is present, if not it will assume that it is new enough docker client binary to handle `docker compose` subcommand. This will *hopefully* be finished mid July.
+
 **Sample Fluent API usage**
 ```cs
       using (
