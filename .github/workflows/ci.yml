@@ -72,7 +72,7 @@ jobs:
           TERM: dumb
           DOTNET_CLI_UI_LANGUAGE: en-US
         run: |
-          echo "Running in act environment - excluding container tests"
+          echo "Running in act environment"
           dotnet test \
             --no-build \
             --configuration Release \
