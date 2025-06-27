@@ -39,7 +39,7 @@ namespace Ductus.FluentDocker.Extensions.Utils
       {
         Logger.Log(
             "Failed to find docker-machine client binary - " +
-                   "please add it to your path. If you're running docker " +
+                   "If you need it: please add it to your path. If you're running docker " +
                    "2.2.0 or later you have to install it using " +
                    "https://github.com/docker/machine/releases");
       }
