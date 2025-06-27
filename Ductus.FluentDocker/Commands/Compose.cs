@@ -2,11 +2,13 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using Ductus.FluentDocker.Common;
 using Ductus.FluentDocker.Executors;
 using Ductus.FluentDocker.Executors.Parsers;
 using Ductus.FluentDocker.Extensions;
 using Ductus.FluentDocker.Extensions.Utils;
 using Ductus.FluentDocker.Model.Common;
+using Ductus.FluentDocker.Model.Compose;
 using Ductus.FluentDocker.Model.Containers;
 using Ductus.FluentDocker.Model.Images;
 
@@ -18,18 +20,30 @@ namespace Ductus.FluentDocker.Commands
     /// Returns the appropriate binary and command string for Docker Compose operations,
     /// handling both V1 and V2 formats.
     /// </summary>
-    private static (string binary, string command) GetComposeCommand()
+    private static (string binary, string command) GetComposeCommand(ComposeVersion version = Model.Compose.ComposeVersion.Unknown)
     {
       var resolver = new DockerBinariesResolver(SudoMechanism.None, null);
       var isV2 = resolver.IsDockerComposeV2Available;
 
       if (isV2)
       {
+        if (version != Model.Compose.ComposeVersion.Unknown && version != Model.Compose.ComposeVersion.V2)
+        {
+          throw new FluentDockerException(
+            $"Requested compose version {version} but only V2 is available. Use the overload that accepts ComposeVersion to specify the version.");
+        }
+
         // For V2, we resolve 'docker' and add 'compose' as the first command
         return ("docker".ResolveBinary(), "compose");
       }
       else
       {
+        if (version != Model.Compose.ComposeVersion.Unknown && version != Model.Compose.ComposeVersion.V1)
+        {
+          throw new FluentDockerException(
+            $"Requested compose version {version} but only V1 is available. Use the overload that accepts ComposeVersion to specify the version.");
+        }
+        
         // For V1, we use the traditional docker-compose binary
         return ("docker-compose".ResolveBinary(), "");
       }

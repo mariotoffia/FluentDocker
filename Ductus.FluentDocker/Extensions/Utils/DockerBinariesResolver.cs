@@ -5,7 +5,6 @@ using System.Linq;
 using Ductus.FluentDocker.Common;
 using Ductus.FluentDocker.Model.Common;
 using Ductus.FluentDocker.Executors;
-using Ductus.FluentDocker.Executors.Parsers;
 using static Ductus.FluentDocker.Common.FdOs;
 
 namespace Ductus.FluentDocker.Extensions.Utils
