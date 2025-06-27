@@ -77,7 +77,7 @@ jobs:
             --no-build \
             --configuration Release \
             --framework net8.0 \
-            --filter "TestCategory=CI&FullyQualifiedName!~FluentContainerBasicTests" \
+            --filter "TestCategory=CI" \
             --logger "console;verbosity=detailed"
 
       - name: Run tests (in GitHub)
