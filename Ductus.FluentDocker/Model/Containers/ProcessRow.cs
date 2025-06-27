@@ -65,10 +65,10 @@ namespace Ductus.FluentDocker.Model.Containers
             break;
           case StartConst:
           case StartTimeConst:
-            row.Started = TimeSpan.Parse(fullRow[i]);
+            row.Started = Parse(fullRow[i]);
             break;
           case TimeConst:
-            row.Time = TimeSpan.Parse(fullRow[i]);
+            row.Time = Parse(fullRow[i]);
             break;
           case TerminalConst:
             row.Tty = fullRow[i];
@@ -77,7 +77,7 @@ namespace Ductus.FluentDocker.Model.Containers
             row.Status = fullRow[i];
             break;
           case CpuTime:
-            if (TimeSpan.TryParse(fullRow[i], out var cpuTime))
+            if (TryParse(fullRow[i], out var cpuTime))
               row.Cpu = cpuTime;
             break;
           case PercentCpuConst:
@@ -90,6 +90,30 @@ namespace Ductus.FluentDocker.Model.Containers
       }
 
       return row;
+    }
+
+    private static TimeSpan Parse(string value)
+    {
+      if (TimeSpan.TryParse(value, out var result))
+        return result;
+      if (TimeSpan.TryParseExact(value, @"%s\s", CultureInfo.InvariantCulture, out result)) // E.G. 0s or 12s
+        return result;
+      if (TimeSpan.TryParseExact(value, @"%m\m%s\s", CultureInfo.InvariantCulture, out result)) // E.G. 0m0s or 12m34s
+        return result;
+      return TimeSpan.ParseExact(value, @"%h\h%m\m%s\s", CultureInfo.InvariantCulture); // E.G. 0h0m0s or 12h34m56s
+    }
+
+    private static bool TryParse(string value, out TimeSpan result)
+    {
+      if (TimeSpan.TryParse(value, out result))
+        return true;
+      if (TimeSpan.TryParseExact(value, @"%s\s", CultureInfo.InvariantCulture, out result)) // E.G. 0s or 12s
+        return true;
+      if (TimeSpan.TryParseExact(value, @"%m\m%s\s", CultureInfo.InvariantCulture, out result)) // E.G. 0m0s or 12m34s
+        return true;
+      if (TimeSpan.TryParseExact(value, @"%h\h%m\m%s\s", CultureInfo.InvariantCulture, out result)) // E.G. 0h0m0s or 12h34m56s
+        return true;
+      return false;
     }
   }
 }
