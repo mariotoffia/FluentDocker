@@ -124,6 +124,83 @@ This directory contains comprehensive architecture, implementation, and migratio
 
 ---
 
+### 4. **ERROR_HANDLING_STRATEGY_V3.md**
+
+**Complete error handling and exception strategy** for v3.0.0.
+
+**Current v2.x.x Issues:**
+- Only 2 exception types (FluentDockerException, FluentDockerNotSupportedException)
+- No error codes - string parsing required
+- No diagnostic context
+- Minimal logging (debug traces only)
+- No retry mechanisms
+
+**v3.0.0 Improvements:**
+- **20+ typed exceptions**: ContainerNotFoundException, ImagePullException, DriverNotAvailableException, etc.
+- **Error codes**: Hierarchical codes (e.g., `ErrorCodes.Container.NotFound`)
+- **Error context**: OperationId, DriverId, Host, Operation, ExitCode, StdOut/StdErr
+- **IsTransient flag**: Automatic transient error detection
+- **Enhanced CommandResponse**: Includes ErrorContext and ErrorCode
+- **Retry mechanisms**: RetryPolicy and RetryExecutor
+- **Structured logging**: IFluentDockerLogger with log levels
+- **Metrics/telemetry**: IFluentDockerMetrics for observability
+
+**Contents:**
+- Current error handling analysis
+- Complete exception hierarchy (20+ types)
+- Error codes system (50+ codes)
+- ErrorContext class for diagnostics
+- Enhanced CommandResponse<T>
+- Error handling patterns per layer (Driver, Service, Builder, Kernel)
+- Retry and recovery mechanisms
+- Logging and observability framework
+- Best practices for library users and driver implementers
+
+**Use this** to understand the complete error handling design.
+
+---
+
+### 5. **ERROR_HANDLING_MIGRATION_V3.md**
+
+**Step-by-step migration guide** for error handling changes.
+
+**Exception Type Mapping:**
+- v2.x.x `FluentDockerException` → v3.0.0 specific types
+- Comprehensive mapping table
+
+**6 Detailed Migration Scenarios:**
+1. Basic container operations (minimal vs specific exception handling)
+2. Image pull operations (with retry support)
+3. Container start/stop (state tracking)
+4. Docker Compose (file not found, validation, runtime errors)
+5. Driver management (registration, selection, health checks)
+6. Validation errors (detailed error lists)
+
+**Advanced Topics:**
+- Error code usage for programmatic handling
+- Using ErrorContext for diagnostics
+- Retry patterns (built-in, custom, manual)
+- Logging integration (custom adapters)
+- Testing error handling
+
+**Migration Checklist:**
+- For library maintainers (9 phases, 6 weeks)
+- For library users (by user type)
+
+**Contents:**
+- Quick migration reference
+- Before/after code examples for 6 scenarios
+- Error code usage patterns
+- Error context extraction
+- Retry pattern implementations
+- Logging integration examples
+- Testing strategies
+- Complete migration checklists
+
+**Use this** when migrating error handling from v2.x.x to v3.0.0.
+
+---
+
 ## Document Comparison
 
 ### Original Documents (v2.x.x compatible)
@@ -140,9 +217,14 @@ These documents were created assuming backward compatibility:
 
 These documents embrace v3.0.0 breaking changes for better architecture:
 
+**Core Architecture:**
 - **DRIVER_LAYER_ARCHITECTURE_V3.md** ⭐
 - **IMPLEMENTATION_PLAN_V3.md** ⭐
 - **MIGRATION_GUIDE_V3.md** ⭐
+
+**Error Handling:**
+- **ERROR_HANDLING_STRATEGY_V3.md** ⭐
+- **ERROR_HANDLING_MIGRATION_V3.md** ⭐
 
 **Status**: These are the **official v3.0.0 documents** to follow.
 
@@ -214,6 +296,20 @@ These documents embrace v3.0.0 breaking changes for better architecture:
 - Future-proof
 
 **Impact**: Breaking change - Service interfaces modified.
+
+### 6. Typed Exception Hierarchy
+
+**Decision**: 20+ typed exceptions with error codes, context, and transient flags.
+
+**Rationale**:
+- Specific exception types for precise error handling
+- Error codes for programmatic decisions
+- ErrorContext for diagnostics (OperationId, DriverId, etc.)
+- IsTransient flag for retry decisions
+- Enhanced CommandResponse with error information
+- Better observability with structured logging
+
+**Impact**: Breaking change - new exception types, but backward compatible (can still catch FluentDockerException).
 
 ---
 
@@ -314,8 +410,9 @@ var driver = kernel.GetDriver("docker");
 
 ## Summary
 
-FluentDocker v3.0.0 introduces a **pluggable driver architecture** that:
+FluentDocker v3.0.0 introduces a **pluggable driver architecture** with **comprehensive error handling** that:
 
+**Driver Architecture:**
 ✅ **Supports multiple runtimes**: Docker, Podman, future runtimes
 ✅ **Multiple instances**: Same driver type, different configurations
 ✅ **Multiple kernels**: Isolated instances, no global state
@@ -323,9 +420,21 @@ FluentDocker v3.0.0 introduces a **pluggable driver architecture** that:
 ✅ **Better testing**: Mock drivers, isolated kernels
 ✅ **Multi-host support**: Multiple Docker hosts simultaneously
 ✅ **Flexibility**: Driver plugins, custom implementations
-✅ **Breaking changes**: v3.0.0 allows architectural improvements
 
-The architecture is **cleaner, more testable, and more flexible** than singleton approach while maintaining FluentDocker's elegant fluent API.
+**Error Handling:**
+✅ **Typed exceptions**: 20+ specific exception types (ContainerNotFoundException, ImagePullException, etc.)
+✅ **Error codes**: 50+ hierarchical codes for programmatic handling
+✅ **Error context**: Rich diagnostics (OperationId, DriverId, Host, ExitCode, StdOut/StdErr)
+✅ **Transient detection**: IsTransient flag for automatic retry decisions
+✅ **Retry mechanisms**: Built-in RetryPolicy and RetryExecutor
+✅ **Structured logging**: IFluentDockerLogger with log levels
+✅ **Metrics/telemetry**: IFluentDockerMetrics for observability
+✅ **Enhanced CommandResponse**: Includes error context and codes
+
+**Breaking Changes Acceptable:**
+✅ v3.0.0 allows architectural improvements for long-term benefits
+
+The architecture is **cleaner, more testable, more observable, and more flexible** than v2.x.x while maintaining FluentDocker's elegant fluent API.
 
 ---
 
