@@ -8,13 +8,45 @@ This directory contains comprehensive architecture, implementation, and migratio
 
 ## Documents
 
-### 1. **DRIVER_LAYER_ARCHITECTURE_V3.md** ⭐ **START HERE**
+### 0. **TERMINAL_BUILD_PATTERN.md** 🔥 **READ THIS FIRST - BREAKING CHANGE**
+
+**Terminal Build() pattern - fundamental API redesign in v3.0.0**
+
+**Critical Change:** `Build()` is now TERMINAL in all fluent APIs. No more nested `.Build()` calls.
+
+**Quick Examples:**
+```csharp
+// Kernel - Build() returns FluentDockerKernel
+var kernel = FluentDockerKernel.Create()
+    .WithDriver("docker", d => d.UseDockerCli())
+    .Build();  // TERMINAL
+
+// Container - Build() returns BuildResults
+var results = new Builder()
+    .WithinDriver("docker", kernel)
+        .UseContainer(c => c.UseImage("nginx"))
+    .Build();  // TERMINAL
+```
+
+**What Changed:**
+- Lambda configuration everywhere (cleaner syntax)
+- Single Build() call at the end
+- Build() executes all operations and returns results
+- .NET 10.0.100 single-framework targeting
+
+**Read this first** to understand the breaking changes before other docs.
+
+---
+
+### 1. **DRIVER_LAYER_ARCHITECTURE_V3.md** ⭐ **CORE ARCHITECTURE**
 
 **The main architecture document** describing the v3.0.0 design with breaking changes.
 
 **Key Concepts:**
 - **Non-singleton kernel**: `FluentDockerKernel` is instantiable, multiple instances supported
-- **Driver registration with IDs**: `kernel.RegisterDriver("docker-local", driver)`
+- **Terminal Build()**: Build() executes all operations and returns final result (no nested builds)
+- **Lambda configuration**: All builders use lambda syntax for clean configuration
+- **Driver registration**: `WithDriver(id, d => d.UseDockerCli())` with lambda configuration
 - **SysCtl() interface**: `kernel.SysCtl<IContainerDriver>("docker-id")`
 - **Multiple driver instances**: Same driver type, different IDs and configurations
 - **Scoped fluent API**: `new Builder().WithinDriver(driverId, kernel)`
