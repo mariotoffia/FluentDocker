@@ -1,0 +1,72 @@
+using System;
+using System.Threading;
+using System.Threading.Tasks;
+using Ductus.FluentDocker.Drivers;
+using Ductus.FluentDocker.Model.Drivers;
+
+namespace Ductus.FluentDocker.Kernel
+{
+    /// <summary>
+    /// Fluent builder for creating and configuring a FluentDockerKernel.
+    /// </summary>
+    public interface IKernelBuilder
+    {
+        /// <summary>
+        /// Registers a driver with lambda configuration.
+        /// </summary>
+        /// <param name="driverId">Unique driver identifier</param>
+        /// <param name="configure">Driver configuration action</param>
+        /// <returns>This builder for fluent chaining</returns>
+        IKernelBuilder WithDriver(string driverId, Action<IDriverBuilder> configure);
+
+        /// <summary>
+        /// Builds the kernel asynchronously (TERMINAL operation).
+        /// </summary>
+        /// <param name="cancellationToken">Cancellation token</param>
+        /// <returns>Configured FluentDockerKernel instance</returns>
+        Task<FluentDockerKernel> BuildAsync(CancellationToken cancellationToken = default);
+    }
+
+    /// <summary>
+    /// Builder for configuring a specific driver.
+    /// </summary>
+    public interface IDriverBuilder
+    {
+        /// <summary>
+        /// Uses Docker CLI driver.
+        /// </summary>
+        IDriverBuilder UseDockerCli();
+
+        /// <summary>
+        /// Uses Docker API driver.
+        /// </summary>
+        IDriverBuilder UseDockerApi();
+
+        /// <summary>
+        /// Uses Podman CLI driver.
+        /// </summary>
+        IDriverBuilder UsePodmanCli();
+
+        /// <summary>
+        /// Uses a custom driver instance.
+        /// </summary>
+        IDriverBuilder UseCustomDriver(IDriver driver);
+
+        /// <summary>
+        /// Sets the host for this driver.
+        /// </summary>
+        /// <param name="host">Host URI (e.g., "unix:///var/run/docker.sock", "tcp://localhost:2376")</param>
+        IDriverBuilder AtHost(string host);
+
+        /// <summary>
+        /// Sets the certificate path for TLS connections.
+        /// </summary>
+        /// <param name="certificatePath">Path to certificate directory</param>
+        IDriverBuilder WithCertificates(string certificatePath);
+
+        /// <summary>
+        /// Sets this driver as the default.
+        /// </summary>
+        IDriverBuilder AsDefault();
+    }
+}
