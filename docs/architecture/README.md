@@ -17,7 +17,9 @@ This directory contains comprehensive architecture, implementation, and migratio
 - **Driver registration with IDs**: `kernel.RegisterDriver("docker-local", driver)`
 - **SysCtl() interface**: `kernel.SysCtl<IContainerDriver>("docker-id")`
 - **Multiple driver instances**: Same driver type, different IDs and configurations
-- **Kernel-bound fluent API**: `new Builder(kernel)`
+- **Scoped fluent API**: `new Builder().WithinDriver(driverId, kernel)`
+- **Kernel reuse**: If kernel omitted in `WithinDriver()`, last kernel is reused
+- **Multi-scope deployments**: Track resources across multiple drivers/kernels
 - **Services reference kernel**: `container.Kernel`, `container.DriverId`, `container.Context`
 
 **Contents:**
@@ -53,10 +55,11 @@ This directory contains comprehensive architecture, implementation, and migratio
   - FluentDocker static helper (default kernel)
 
 - **Phase 3 (Days 7-9)**: Update Builders
-  - Builder accepts kernel: `new Builder(kernel)`
-  - ContainerBuilder.UseDriver("id") method
-  - All builders updated to pass kernel
-  - Build() creates services with kernel reference
+  - Builder with `WithinDriver()` scoping pattern
+  - BuildScope and BuildResults classes for multi-scope tracking
+  - ContainerBuilder with continuation (Build() returns Builder)
+  - BuildAndGet() method for direct service retrieval
+  - Kernel reuse when omitted in WithinDriver()
 
 - **Phase 4 (Days 10-12)**: Update Services
   - IContainerService interface changes
@@ -96,7 +99,8 @@ This directory contains comprehensive architecture, implementation, and migratio
 **User migration guide** from v2.x.x to v3.0.0.
 
 **Breaking Changes:**
-- Builder requires kernel parameter (or uses default)
+- Builder uses WithinDriver() scoping pattern (no kernel in constructor)
+- Build() returns Builder for continuation; use BuildAndGet() for service
 - Services API changes (Kernel/DriverId/Context properties)
 - Host configuration via driver registration
 - DockerHost/Certificates moved to Context
@@ -400,21 +404,38 @@ kernel.RegisterDriver("docker", new DockerCliDriver());
 kernel.RegisterDriver("podman", new PodmanCliDriver());
 ```
 
-### Using Fluent API
+### Using Fluent API with WithinDriver()
 
 ```csharp
-// With default kernel (no changes from v2)
-var container = new Builder()
-    .UseContainer()
-    .UseImage("nginx")
-    .Build();
+// Single scope
+using var container = new Builder()
+    .WithinDriver("docker", kernel)
+        .UseContainer()
+            .UseImage("nginx")
+            .BuildAndGet();  // Returns service
 
-// With explicit kernel
-var container = new Builder(kernel)
-    .UseContainer()
-    .UseDriver("docker-prod")  // Specify driver
-    .UseImage("nginx")
-    .Build();
+// Multi-scope deployment
+var deployment = new Builder()
+    .WithinDriver("docker-prod", prodKernel)
+        .UseContainer()
+            .UseImage("myapp:v1.0")
+            .Build()
+    .WithinDriver("docker-staging", stagingKernel)
+        .UseContainer()
+            .UseImage("myapp:v1.0")
+            .Build()
+    .GetResults();
+
+// deployment.ForDriver("docker-prod") => [container]
+// deployment.ForDriver("docker-staging") => [container]
+
+// Kernel reuse
+var results = new Builder()
+    .WithinDriver("docker-1", kernel)  // Set kernel
+        .UseContainer().UseImage("nginx").Build()
+    .WithinDriver("docker-2")  // Reuses kernel
+        .UseContainer().UseImage("postgres").Build()
+    .GetResults();
 ```
 
 ### Using SysCtl()

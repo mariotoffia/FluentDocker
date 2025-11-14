@@ -191,23 +191,27 @@ var containers = kernel.SysCtl("docker-remote-1", DriverComponent.Container)
 var kernel = new FluentDockerKernel();
 kernel.RegisterDriver("docker-local", new DockerCliDriver());
 
-// Fluent API binds to kernel
-using var container = new Builder(kernel)
-    .UseContainer()
-    .UseImage("nginx")
-    .UseDriver("docker-local")  // Optional: specify driver
-    .Build()
-    .Start();
+// Fluent API uses WithinDriver() to scope operations
+var results = new Builder()
+    .WithinDriver("docker-local", kernel)
+        .UseContainer()
+            .UseImage("nginx")
+            .Build()
+    .GetResults();
 
-// Or use default driver
-using var container = new Builder(kernel)
-    .UseContainer()
-    .UseImage("nginx")
-    .Build()  // Uses default driver
-    .Start();
+using var container = results.All[0] as IContainerService;
+container?.Start();
+
+// Or get service directly with BuildAndGet()
+using var container = new Builder()
+    .WithinDriver("docker-local", kernel)
+        .UseContainer()
+            .UseImage("nginx")
+            .BuildAndGet();  // Returns service, breaks chain
+container.Start();
 ```
 
-**Breaking Change**: `new Builder()` now requires kernel parameter (or uses default).
+**Breaking Change**: `new Builder()` uses `WithinDriver(driverId, kernel)` to scope operations.
 
 ---
 
@@ -620,14 +624,15 @@ public class DriverPreferences
 var kernel = new FluentDockerKernel();
 kernel.RegisterDriver("docker", new DockerCliDriver());
 
-// Use fluent API
-using var container = new Builder(kernel)
-    .UseContainer()
-    .UseImage("nginx:alpine")
-    .WithName("my-nginx")
-    .ExposePort(80)
-    .Build()
-    .Start();
+// Use fluent API with scoped driver
+using var container = new Builder()
+    .WithinDriver("docker", kernel)
+        .UseContainer()
+            .UseImage("nginx:alpine")
+            .WithName("my-nginx")
+            .ExposePort(80)
+            .BuildAndGet();  // BuildAndGet() returns service
+container.Start();
 
 // Direct driver access via SysCtl
 var containerDriver = kernel.SysCtl<IContainerDriver>("docker");
@@ -660,21 +665,40 @@ kernel.RegisterDriver("remote-staging", new DockerApiDriver(
     stagingCertificates
 ));
 
-// Deploy to production
-using var prodContainer = new Builder(kernel)
-    .UseContainer()
-    .UseDriver("remote-prod")
-    .UseImage("myapp:latest")
-    .Build()
-    .Start();
+// Deploy to both environments using scoped driver pattern
+var deployment = new Builder()
+    .WithinDriver("remote-prod", kernel)
+        .UseContainer()
+            .UseImage("myapp:latest")
+            .WithName("myapp-prod")
+            .Build()
+    .WithinDriver("remote-staging")  // Reuses kernel from previous scope
+        .UseContainer()
+            .UseImage("myapp:latest")
+            .WithName("myapp-staging")
+            .Build()
+    .GetResults();
 
-// Deploy to staging
-using var stagingContainer = new Builder(kernel)
-    .UseContainer()
-    .UseDriver("remote-staging")
-    .UseImage("myapp:latest")
-    .Build()
-    .Start();
+// Start all containers
+foreach (var container in deployment.All.OfType<IContainerService>())
+{
+    container.Start();
+}
+
+// Or deploy separately
+using var prodContainer = new Builder()
+    .WithinDriver("remote-prod", kernel)
+        .UseContainer()
+            .UseImage("myapp:latest")
+            .BuildAndGet();
+prodContainer.Start();
+
+using var stagingContainer = new Builder()
+    .WithinDriver("remote-staging", kernel)
+        .UseContainer()
+            .UseImage("myapp:latest")
+            .BuildAndGet();
+stagingContainer.Start();
 
 // Check both via SysCtl
 var prodNetworks = kernel.SysCtl("remote-prod", DriverComponent.Network)
@@ -697,21 +721,43 @@ kernel.RegisterDriver("docker-api", new DockerApiDriver());
 kernel.RegisterDriver("podman-rootless", new PodmanCliDriver(rootless: true));
 kernel.RegisterDriver("podman-system", new PodmanCliDriver(rootless: false));
 
-// Create Docker container
-using var dockerContainer = new Builder(kernel)
-    .UseContainer()
-    .UseDriver("docker-cli")
-    .UseImage("nginx")
-    .Build()
-    .Start();
+// Create containers across both Docker and Podman using scoped pattern
+var deployment = new Builder()
+    .WithinDriver("docker-cli", kernel)
+        .UseContainer()
+            .UseImage("nginx")
+            .WithName("docker-nginx")
+            .Build()
+    .WithinDriver("podman-rootless")  // Reuses kernel from previous scope
+        .UseContainer()
+            .UseImage("nginx")
+            .WithName("podman-nginx")
+            .Build()
+    .GetResults();
 
-// Create Podman container
-using var podmanContainer = new Builder(kernel)
-    .UseContainer()
-    .UseDriver("podman-rootless")
-    .UseImage("nginx")
-    .Build()
-    .Start();
+// deployment.ForDriver("docker-cli") => [docker-nginx]
+// deployment.ForDriver("podman-rootless") => [podman-nginx]
+
+// Start all containers
+foreach (var container in deployment.All.OfType<IContainerService>())
+{
+    container.Start();
+}
+
+// Or create separately
+using var dockerContainer = new Builder()
+    .WithinDriver("docker-cli", kernel)
+        .UseContainer()
+            .UseImage("nginx")
+            .BuildAndGet();
+dockerContainer.Start();
+
+using var podmanContainer = new Builder()
+    .WithinDriver("podman-rootless", kernel)
+        .UseContainer()
+            .UseImage("nginx")
+            .BuildAndGet();
+podmanContainer.Start();
 
 // Use Podman-specific features via SysCtl
 var podmanDriver = kernel.GetDriver("podman-rootless") as PodmanCliDriver;
@@ -761,12 +807,12 @@ public void Should_Create_Container_On_Mock_Driver()
     var mockDriver = new MockDockerDriver();
     kernel.RegisterDriver("mock", mockDriver);
 
-    // Use fluent API with mock
-    var builder = new Builder(kernel)
-        .UseContainer()
-        .UseDriver("mock")
-        .UseImage("test-image")
-        .Build();
+    // Use fluent API with mock using scoped pattern
+    var container = new Builder()
+        .WithinDriver("mock", kernel)
+            .UseContainer()
+                .UseImage("test-image")
+                .BuildAndGet();
 
     // Verify mock was called
     Assert.Contains("test-image", mockDriver.CreatedContainers);
@@ -791,59 +837,57 @@ using var container = new Builder()
 
 **v3.0.0**:
 ```csharp
-// New way - requires kernel
+// New way - WithinDriver() scopes operations
 var kernel = new FluentDockerKernel();
+kernel.RegisterDriver("docker", new DockerCliDriver());
 
-using var container = new Builder(kernel)
-    .UseContainer()
-    .UseImage("nginx")
-    .Build()
-    .Start();
+using var container = new Builder()
+    .WithinDriver("docker", kernel)
+        .UseContainer()
+            .UseImage("nginx")
+            .BuildAndGet();  // BuildAndGet() returns service
+container.Start();
 
-// Or specify driver explicitly
-using var container = new Builder(kernel)
-    .UseContainer()
-    .UseDriver("docker-api")  // NEW: Specify driver ID
-    .UseImage("nginx")
-    .Build()
-    .Start();
+// Or use Build() for continuation and GetResults()
+var results = new Builder()
+    .WithinDriver("docker", kernel)
+        .UseContainer()
+            .UseImage("nginx")
+            .Build()
+    .GetResults();
+
+var container = results.All[0] as IContainerService;
+container.Start();
+
+// Multi-scope deployment
+var deployment = new Builder()
+    .WithinDriver("docker-local", localKernel)
+        .UseContainer().UseImage("nginx").Build()
+    .WithinDriver("docker-remote", remoteKernel)
+        .UseContainer().UseImage("postgres").Build()
+    .GetResults();
+
+// deployment.ForDriver("docker-local") => [nginx]
+// deployment.ForDriver("docker-remote") => [postgres]
 ```
 
-**Default Kernel Option**:
+**Kernel Reuse in Scopes**:
 
-For convenience, provide a default kernel:
+If kernel is omitted in `WithinDriver()`, the last kernel is reused:
 
 ```csharp
-public static class FluentDocker
-{
-    private static Lazy<FluentDockerKernel> _defaultKernel =
-        new Lazy<FluentDockerKernel>(() => new FluentDockerKernel());
+var kernel = new FluentDockerKernel();
+kernel.RegisterDriver("docker-1", new DockerCliDriver());
+kernel.RegisterDriver("docker-2", new DockerApiDriver());
 
-    public static FluentDockerKernel DefaultKernel => _defaultKernel.Value;
+var results = new Builder()
+    .WithinDriver("docker-1", kernel)  // Set kernel
+        .UseContainer().UseImage("nginx").Build()
+    .WithinDriver("docker-2")  // Reuses kernel from previous WithinDriver()
+        .UseContainer().UseImage("postgres").Build()
+    .GetResults();
 
-    public static void ResetDefaultKernel()
-    {
-        if (_defaultKernel.IsValueCreated)
-        {
-            _defaultKernel.Value.Dispose();
-        }
-        _defaultKernel = new Lazy<FluentDockerKernel>(() => new FluentDockerKernel());
-    }
-}
-
-// Usage with default kernel
-using var container = new Builder(FluentDocker.DefaultKernel)
-    .UseContainer()
-    .UseImage("nginx")
-    .Build()
-    .Start();
-
-// Or even simpler - Builder uses default if not specified
-using var container = new Builder()  // Uses FluentDocker.DefaultKernel
-    .UseContainer()
-    .UseImage("nginx")
-    .Build()
-    .Start();
+// Both containers use the same kernel instance
 ```
 
 ### Builder Implementation
@@ -851,34 +895,62 @@ using var container = new Builder()  // Uses FluentDocker.DefaultKernel
 ```csharp
 public class Builder : BaseBuilder<ICompositeService>
 {
-    private readonly FluentDockerKernel _kernel;
+    private FluentDockerKernel _currentKernel;
+    private string _currentDriverId;
+    private readonly List<BuildScope> _scopes = new();
+    private BuildScope _currentScope;
 
-    // Constructor with explicit kernel
-    public Builder(FluentDockerKernel kernel)
+    // No kernel in constructor
+    public Builder()
     {
-        _kernel = kernel ?? throw new ArgumentNullException(nameof(kernel));
+        // Kernel is set via WithinDriver()
     }
 
-    // Constructor using default kernel (convenience)
-    public Builder() : this(FluentDocker.DefaultKernel)
+    // Establish driver/kernel scope
+    public Builder WithinDriver(string driverId, FluentDockerKernel kernel = null)
     {
+        // Reuse last kernel if not specified
+        _currentKernel = kernel ?? _currentKernel;
+        _currentDriverId = driverId;
+
+        // Create new scope
+        _currentScope = new BuildScope(_currentKernel, _currentDriverId);
+        _scopes.Add(_currentScope);
+
+        return this;
     }
 
-    public FluentDockerKernel Kernel => _kernel;
+    // Get all results
+    public BuildResults GetResults() => new BuildResults(_scopes);
 
-    public HostBuilder UseHost()
+    // Builder operations use current scope
+    public IContainerBuilder UseContainer()
     {
-        return new HostBuilder(this, _kernel);
+        ValidateScope();  // Ensures WithinDriver() was called
+        return new ContainerBuilder(_currentKernel, _currentDriverId, this);
     }
 
-    public ContainerBuilder UseContainer()
+    public IComposeBuilder UseCompose()
     {
-        return new ContainerBuilder(this, _kernel);
+        ValidateScope();
+        return new ComposeBuilder(_currentKernel, _currentDriverId, this);
     }
 
-    public NetworkBuilder UseNetwork(string name = null)
+    public INetworkBuilder UseNetwork()
     {
-        return new NetworkBuilder(this, _kernel, name);
+        ValidateScope();
+        return new NetworkBuilder(_currentKernel, _currentDriverId, this);
+    }
+
+    private void ValidateScope()
+    {
+        if (_currentKernel == null || _currentDriverId == null)
+            throw new InvalidOperationException("Must call WithinDriver() before using builder operations");
+    }
+
+    internal void TrackResult(IService service)
+    {
+        _currentScope?.AddResult(service);
     }
 
     // ... other builders

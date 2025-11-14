@@ -298,6 +298,560 @@ var kernel = FluentDockerKernel.Create()
 
 ---
 
+## Scoped Fluent API Pattern with WithinDriver()
+
+### Overview
+
+The FluentDocker v3.0.0 Builder uses a **scoped driver pattern** where operations are grouped by driver and kernel context using `WithinDriver()`. This allows switching between different drivers and kernels within a single fluent chain.
+
+**Key Concepts:**
+- **No kernel in constructor**: `new Builder()` never takes a kernel parameter
+- **Scope establishment**: `WithinDriver(driverId, optionalKernel)` establishes the active scope
+- **Kernel reuse**: If kernel is omitted, the last kernel is reused
+- **Automatic grouping**: Operations are automatically tracked and grouped by scope
+- **Scope persistence**: The scope remains active until the next `WithinDriver()` call
+- **Multi-scope chains**: Build multiple resources across different drivers/kernels in one chain
+
+### Basic Scoped Builder Pattern
+
+```csharp
+namespace Ductus.FluentDocker.Builders
+{
+    public class Builder : IFluentBuilder
+    {
+        private FluentDockerKernel _currentKernel;
+        private string _currentDriverId;
+        private readonly List<BuildScope> _scopes = new();
+        private BuildScope _currentScope;
+
+        // Establish or switch driver/kernel scope
+        public Builder WithinDriver(string driverId, FluentDockerKernel kernel = null)
+        {
+            // Reuse last kernel if not specified
+            _currentKernel = kernel ?? _currentKernel;
+            _currentDriverId = driverId;
+
+            // Create new scope
+            _currentScope = new BuildScope(_currentKernel, _currentDriverId);
+            _scopes.Add(_currentScope);
+
+            return this;
+        }
+
+        // Operations use current scope
+        public IContainerBuilder UseContainer()
+        {
+            ValidateScope(); // Ensures WithinDriver() was called
+            return new ContainerBuilder(_currentKernel, _currentDriverId, this);
+        }
+
+        public IComposeBuilder UseCompose()
+        {
+            ValidateScope();
+            return new ComposeBuilder(_currentKernel, _currentDriverId, this);
+        }
+
+        public INetworkBuilder UseNetwork()
+        {
+            ValidateScope();
+            return new NetworkBuilder(_currentKernel, _currentDriverId, this);
+        }
+
+        public IVolumeBuilder UseVolume()
+        {
+            ValidateScope();
+            return new VolumeBuilder(_currentKernel, _currentDriverId, this);
+        }
+
+        // Get all results grouped by scope
+        public BuildResults GetResults() => new BuildResults(_scopes);
+
+        // Get results for specific scope
+        public ScopeResults GetResults(string driverId) => _scopes.FirstOrDefault(s => s.DriverId == driverId);
+
+        private void ValidateScope()
+        {
+            if (_currentKernel == null || _currentDriverId == null)
+                throw new InvalidOperationException("Must call WithinDriver() before using builder operations");
+        }
+
+        internal void TrackResult(IService service)
+        {
+            _currentScope?.AddResult(service);
+        }
+    }
+}
+```
+
+### Build Scope Tracking
+
+```csharp
+public class BuildScope
+{
+    public FluentDockerKernel Kernel { get; }
+    public string DriverId { get; }
+    public List<IService> Results { get; } = new();
+    public DateTime CreatedAt { get; } = DateTime.UtcNow;
+
+    public BuildScope(FluentDockerKernel kernel, string driverId)
+    {
+        Kernel = kernel;
+        DriverId = driverId;
+    }
+
+    internal void AddResult(IService service)
+    {
+        Results.Add(service);
+    }
+}
+
+public class BuildResults
+{
+    private readonly List<BuildScope> _scopes;
+
+    public BuildResults(List<BuildScope> scopes)
+    {
+        _scopes = scopes;
+    }
+
+    // Get all services across all scopes
+    public IReadOnlyList<IService> All => _scopes.SelectMany(s => s.Results).ToList();
+
+    // Get services for specific driver
+    public IReadOnlyList<IService> ForDriver(string driverId) =>
+        _scopes.Where(s => s.DriverId == driverId)
+                .SelectMany(s => s.Results)
+                .ToList();
+
+    // Get services for specific kernel
+    public IReadOnlyList<IService> ForKernel(FluentDockerKernel kernel) =>
+        _scopes.Where(s => s.Kernel == kernel)
+                .SelectMany(s => s.Results)
+                .ToList();
+
+    // Get all scopes
+    public IReadOnlyList<BuildScope> Scopes => _scopes;
+
+    // Group by driver ID
+    public Dictionary<string, List<IService>> GroupedByDriver =>
+        _scopes.GroupBy(s => s.DriverId)
+                .ToDictionary(g => g.Key, g => g.SelectMany(s => s.Results).ToList());
+
+    // Dispose all services
+    public void DisposeAll()
+    {
+        foreach (var service in All)
+        {
+            service?.Dispose();
+        }
+    }
+}
+```
+
+### Container Builder with Continuation
+
+```csharp
+public class ContainerBuilder : IContainerBuilder
+{
+    private readonly FluentDockerKernel _kernel;
+    private readonly string _driverId;
+    private readonly Builder _parentBuilder;
+    private string _image;
+    private readonly List<string> _command = new();
+    // ... other configuration fields
+
+    public ContainerBuilder(FluentDockerKernel kernel, string driverId, Builder parent)
+    {
+        _kernel = kernel;
+        _driverId = driverId;
+        _parentBuilder = parent;
+    }
+
+    public IContainerBuilder UseImage(string image)
+    {
+        _image = image;
+        return this;
+    }
+
+    public IContainerBuilder Command(params string[] command)
+    {
+        _command.AddRange(command);
+        return this;
+    }
+
+    // Build returns Builder for continuation, not IContainerService
+    public Builder Build()
+    {
+        // Create container using kernel and driver
+        var containerDriver = _kernel.SysCtl<IContainerDriver>(_driverId);
+        var service = CreateContainerService(containerDriver);
+
+        // Track in current scope
+        _parentBuilder.TrackResult(service);
+
+        // Return parent builder for continuation
+        return _parentBuilder;
+    }
+
+    // Alternative: Build and get service (breaks chain)
+    public IContainerService BuildAndGet()
+    {
+        var containerDriver = _kernel.SysCtl<IContainerDriver>(_driverId);
+        var service = CreateContainerService(containerDriver);
+        _parentBuilder.TrackResult(service);
+        return service;
+    }
+
+    private IContainerService CreateContainerService(IContainerDriver driver)
+    {
+        // Create and start container
+        var config = new ContainerCreateConfig
+        {
+            Image = _image,
+            Command = _command,
+            // ... other config
+        };
+
+        var context = new DriverContext
+        {
+            DriverId = _driverId,
+            OperationId = Guid.NewGuid().ToString()
+        };
+
+        var response = driver.Create(context, config);
+        if (!response.Success)
+        {
+            throw new ContainerCreationException(
+                $"Failed to create container: {response.Error}",
+                response.ErrorCode,
+                response.Context);
+        }
+
+        return new DockerContainerService(_kernel, _driverId, response.Data.Id);
+    }
+}
+```
+
+### Usage Examples
+
+**Single scope (one driver/kernel):**
+```csharp
+var kernel = FluentDockerKernel.Create()
+    .WithDriver("docker-local")
+        .UseDockerCli()
+        .Build()
+    .Build();
+
+var results = new Builder()
+    .WithinDriver("docker-local", kernel)
+        .UseContainer()
+            .UseImage("nginx")
+            .Build()
+        .UseContainer()
+            .UseImage("redis")
+            .Build()
+        .UseNetwork()
+            .WithName("my-network")
+            .Build()
+    .GetResults();
+
+// results.All => [nginx container, redis container, network]
+// results.ForDriver("docker-local") => [nginx container, redis container, network]
+```
+
+**Multiple scopes (different drivers, same kernel):**
+```csharp
+var kernel = FluentDockerKernel.Create()
+    .WithDriver("docker-cli")
+        .UseDockerCli()
+        .Build()
+    .WithDriver("docker-api")
+        .UseDockerApi()
+        .AtHost("tcp://remote:2376")
+        .WithCertificates("/certs")
+        .Build()
+    .Build();
+
+var results = new Builder()
+    .WithinDriver("docker-cli", kernel)
+        .UseContainer()
+            .UseImage("nginx")
+            .Build()
+        .UseContainer()
+            .UseImage("redis")
+            .Build()
+    .WithinDriver("docker-api")  // Reuses kernel from previous scope
+        .UseContainer()
+            .UseImage("postgres")
+            .Build()
+    .GetResults();
+
+// results.ForDriver("docker-cli") => [nginx, redis]
+// results.ForDriver("docker-api") => [postgres]
+```
+
+**Multiple scopes (different kernels and drivers):**
+```csharp
+var localKernel = FluentDockerKernel.Create()
+    .WithDriver("docker-local")
+        .UseDockerCli()
+        .Build()
+    .Build();
+
+var remoteKernel = FluentDockerKernel.Create()
+    .WithDriver("docker-remote")
+        .UseDockerApi()
+        .AtHost("tcp://remote:2376")
+        .Build()
+    .Build();
+
+var podmanKernel = FluentDockerKernel.Create()
+    .WithDriver("podman")
+        .UsePodmanCli()
+        .AsRootless()
+        .Build()
+    .Build();
+
+var results = new Builder()
+    .WithinDriver("docker-local", localKernel)
+        .UseContainer()
+            .UseImage("nginx")
+            .WithName("local-nginx")
+            .Build()
+    .WithinDriver("docker-remote", remoteKernel)
+        .UseContainer()
+            .UseImage("postgres")
+            .WithName("remote-postgres")
+            .Build()
+    .WithinDriver("podman", podmanKernel)
+        .UseContainer()
+            .UseImage("redis")
+            .WithName("podman-redis")
+            .Build()
+    .GetResults();
+
+// results.ForKernel(localKernel) => [local-nginx]
+// results.ForKernel(remoteKernel) => [remote-postgres]
+// results.ForKernel(podmanKernel) => [podman-redis]
+// results.GroupedByDriver => { "docker-local": [...], "docker-remote": [...], "podman": [...] }
+```
+
+**Kernel reuse within scopes:**
+```csharp
+var kernel = FluentDockerKernel.Create()
+    .WithDriver("docker-1")
+        .UseDockerCli()
+        .AtHost("unix:///var/run/docker.sock")
+        .Build()
+    .WithDriver("docker-2")
+        .UseDockerApi()
+        .AtHost("tcp://remote:2376")
+        .Build()
+    .Build();
+
+var results = new Builder()
+    .WithinDriver("docker-1", kernel)  // Explicitly set kernel
+        .UseContainer()
+            .UseImage("nginx")
+            .Build()
+    .WithinDriver("docker-2")  // Reuses kernel from previous WithinDriver()
+        .UseContainer()
+            .UseImage("postgres")
+            .Build()
+    .WithinDriver("docker-1")  // Still reuses same kernel
+        .UseContainer()
+            .UseImage("redis")
+            .Build()
+    .GetResults();
+
+// All operations use the same kernel instance
+```
+
+**Docker Compose with scoping:**
+```csharp
+var kernel = FluentDockerKernel.Create()
+    .WithDriver("docker")
+        .UseDockerCli()
+        .WithComposeV2()
+        .Build()
+    .Build();
+
+var results = new Builder()
+    .WithinDriver("docker", kernel)
+        .UseCompose()
+            .FromFile("docker-compose.yml")
+            .Build()
+        .UseContainer()  // Additional container in same scope
+            .UseImage("monitoring/prometheus")
+            .Build()
+    .GetResults();
+
+// results.ForDriver("docker") => [compose service, prometheus container]
+```
+
+**Advanced: Mixed operations across multiple hosts:**
+```csharp
+var dev = FluentDockerKernel.Create()
+    .WithDriver("dev-docker").UseDockerCli().Build()
+    .Build();
+
+var staging = FluentDockerKernel.Create()
+    .WithDriver("staging-docker").UseDockerApi().AtHost("tcp://staging:2376").Build()
+    .Build();
+
+var prod = FluentDockerKernel.Create()
+    .WithDriver("prod-docker").UseDockerApi().AtHost("tcp://prod:2376").Build()
+    .Build();
+
+var deployment = new Builder()
+    .WithinDriver("dev-docker", dev)
+        .UseContainer()
+            .UseImage("myapp:dev")
+            .WithName("myapp-dev")
+            .Build()
+        .UseContainer()
+            .UseImage("postgres:14")
+            .WithName("db-dev")
+            .Build()
+    .WithinDriver("staging-docker", staging)
+        .UseContainer()
+            .UseImage("myapp:staging")
+            .WithName("myapp-staging")
+            .Build()
+        .UseContainer()
+            .UseImage("postgres:14")
+            .WithName("db-staging")
+            .Build()
+    .WithinDriver("prod-docker", prod)
+        .UseContainer()
+            .UseImage("myapp:v1.2.3")
+            .WithName("myapp-prod")
+            .Build()
+        .UseContainer()
+            .UseImage("postgres:14")
+            .WithName("db-prod")
+            .Build()
+    .GetResults();
+
+// Deploy to all environments in single chain
+Console.WriteLine($"Deployed {deployment.All.Count} containers across {deployment.Scopes.Count} environments");
+Console.WriteLine($"Dev: {deployment.ForDriver("dev-docker").Count} containers");
+Console.WriteLine($"Staging: {deployment.ForDriver("staging-docker").Count} containers");
+Console.WriteLine($"Prod: {deployment.ForDriver("prod-docker").Count} containers");
+```
+
+### Resource Management
+
+**Using statement for automatic cleanup:**
+```csharp
+using var deployment = new Builder()
+    .WithinDriver("docker", kernel)
+        .UseContainer().UseImage("nginx").Build()
+        .UseContainer().UseImage("redis").Build()
+    .GetResults();
+
+// All resources automatically disposed at end of using block
+```
+
+**Manual cleanup:**
+```csharp
+var results = new Builder()
+    .WithinDriver("docker", kernel)
+        .UseContainer().UseImage("nginx").Build()
+    .GetResults();
+
+try
+{
+    // Use services
+    var nginx = results.All[0];
+    // ...
+}
+finally
+{
+    results.DisposeAll();  // Cleanup all services
+}
+```
+
+**Selective cleanup:**
+```csharp
+var results = new Builder()
+    .WithinDriver("docker-1", kernel)
+        .UseContainer().UseImage("nginx").Build()
+    .WithinDriver("docker-2", kernel)
+        .UseContainer().UseImage("redis").Build()
+    .GetResults();
+
+// Cleanup only services from docker-1
+foreach (var service in results.ForDriver("docker-1"))
+{
+    service.Dispose();
+}
+
+// Keep docker-2 services running
+```
+
+### Error Handling in Scoped Operations
+
+```csharp
+var results = new Builder();
+
+try
+{
+    results = new Builder()
+        .WithinDriver("docker", kernel)
+            .UseContainer()
+                .UseImage("nginx")
+                .Build()
+        .GetResults();
+}
+catch (DriverNotFoundException ex)
+{
+    Console.WriteLine($"Driver not found: {ex.Context.DriverId}");
+}
+catch (ContainerCreationException ex)
+{
+    Console.WriteLine($"Failed to create container: {ex.Message}");
+    Console.WriteLine($"Error code: {ex.ErrorCode}");
+    Console.WriteLine($"StdErr: {ex.Context.StdErr}");
+}
+catch (InvalidOperationException ex) when (ex.Message.Contains("Must call WithinDriver"))
+{
+    Console.WriteLine("Forgot to call WithinDriver() before operations");
+}
+finally
+{
+    results?.DisposeAll();
+}
+```
+
+### Benefits of Scoped Pattern
+
+**1. Multi-environment deployment:**
+Deploy to multiple Docker hosts/Podman instances in a single chain.
+
+**2. Kernel isolation:**
+Each scope can use different kernels with different configurations.
+
+**3. Automatic tracking:**
+All built resources are automatically tracked and grouped.
+
+**4. Flexible switching:**
+Switch between drivers/kernels at any point in the chain.
+
+**5. Kernel reuse:**
+Omit kernel parameter to reuse the last kernel.
+
+**6. Clear scoping:**
+Explicit `WithinDriver()` makes it clear which driver/kernel is being used.
+
+**7. Simplified cleanup:**
+GetResults() provides convenient methods for cleanup by scope.
+
+**8. No constructor kernel:**
+Builder is always instantiated the same way: `new Builder()`
+
+---
+
 ## Composable Driver Interfaces
 
 ### Interface Breakdown Strategy

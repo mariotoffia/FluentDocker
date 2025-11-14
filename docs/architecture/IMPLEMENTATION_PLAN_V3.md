@@ -916,7 +916,7 @@ namespace Ductus.FluentDocker.Kernel
 
 ## Phase 3: Update Builders (Days 7-9)
 
-### Task 3.1: Update Builder Base Class
+### Task 3.1: Update Builder Base Class with WithinDriver() Scoping
 
 **File**: `Builders/Builder.cs`
 
@@ -926,56 +926,163 @@ using Ductus.FluentDocker.Services;
 
 namespace Ductus.FluentDocker.Builders
 {
-    public class Builder : BaseBuilder<ICompositeService>
+    public class Builder : IFluentBuilder
     {
-        private readonly FluentDockerKernel _kernel;
+        private FluentDockerKernel _currentKernel;
+        private string _currentDriverId;
+        private readonly List<BuildScope> _scopes = new();
+        private BuildScope _currentScope;
 
         /// <summary>
-        /// Creates a builder with explicit kernel.
+        /// Creates a builder. No kernel in constructor.
+        /// Use WithinDriver() to establish scope.
         /// </summary>
-        public Builder(FluentDockerKernel kernel)
+        public Builder()
         {
-            _kernel = kernel ?? throw new ArgumentNullException(nameof(kernel));
+            // Kernel and driver set via WithinDriver()
         }
 
         /// <summary>
-        /// Creates a builder using default kernel.
+        /// Establish or switch driver/kernel scope.
         /// </summary>
-        public Builder() : this(FluentDocker.DefaultKernel)
+        /// <param name="driverId">Driver ID to use</param>
+        /// <param name="kernel">Optional kernel. If null, reuses last kernel.</param>
+        public Builder WithinDriver(string driverId, FluentDockerKernel kernel = null)
         {
+            // Reuse last kernel if not specified
+            _currentKernel = kernel ?? _currentKernel;
+
+            if (_currentKernel == null)
+                throw new InvalidOperationException("Kernel must be provided in first WithinDriver() call");
+
+            _currentDriverId = driverId;
+
+            // Create new scope
+            _currentScope = new BuildScope(_currentKernel, _currentDriverId);
+            _scopes.Add(_currentScope);
+
+            return this;
         }
 
-        public FluentDockerKernel Kernel => _kernel;
+        /// <summary>
+        /// Get all build results grouped by scope.
+        /// </summary>
+        public BuildResults GetResults() => new BuildResults(_scopes);
 
-        public HostBuilder UseHost()
+        /// <summary>
+        /// Get results for specific driver.
+        /// </summary>
+        public BuildScope GetResults(string driverId) =>
+            _scopes.FirstOrDefault(s => s.DriverId == driverId);
+
+        public IContainerBuilder UseContainer()
         {
-            return new HostBuilder(this, _kernel);
+            ValidateScope();
+            return new ContainerBuilder(_currentKernel, _currentDriverId, this);
         }
 
-        public ContainerBuilder UseContainer()
+        public IComposeBuilder UseCompose()
         {
-            return new ContainerBuilder(this, _kernel);
+            ValidateScope();
+            return new ComposeBuilder(_currentKernel, _currentDriverId, this);
         }
 
-        public NetworkBuilder UseNetwork(string name = null)
+        public INetworkBuilder UseNetwork()
         {
-            return new NetworkBuilder(this, _kernel, name);
+            ValidateScope();
+            return new NetworkBuilder(_currentKernel, _currentDriverId, this);
         }
 
-        public VolumeBuilder UseVolume(string name = null)
+        public IVolumeBuilder UseVolume()
         {
-            return new VolumeBuilder(this, _kernel, name);
+            ValidateScope();
+            return new VolumeBuilder(_currentKernel, _currentDriverId, this);
         }
 
-        public override ICompositeService Build()
+        private void ValidateScope()
         {
-            return new BuilderCompositeService(Children.Select(x => x.Build()).ToArray());
+            if (_currentKernel == null || _currentDriverId == null)
+                throw new InvalidOperationException(
+                    "Must call WithinDriver() before using builder operations");
         }
+
+        internal void TrackResult(IService service)
+        {
+            _currentScope?.AddResult(service);
+        }
+    }
+
+    /// <summary>
+    /// Tracks build results for a single driver/kernel scope.
+    /// </summary>
+    public class BuildScope
+    {
+        public FluentDockerKernel Kernel { get; }
+        public string DriverId { get; }
+        public List<IService> Results { get; } = new();
+        public DateTime CreatedAt { get; } = DateTime.UtcNow;
+
+        public BuildScope(FluentDockerKernel kernel, string driverId)
+        {
+            Kernel = kernel;
+            DriverId = driverId;
+        }
+
+        internal void AddResult(IService service) => Results.Add(service);
+    }
+
+    /// <summary>
+    /// Contains all build results across all scopes.
+    /// </summary>
+    public class BuildResults : IDisposable
+    {
+        private readonly List<BuildScope> _scopes;
+
+        public BuildResults(List<BuildScope> scopes)
+        {
+            _scopes = scopes;
+        }
+
+        // All services across all scopes
+        public IReadOnlyList<IService> All =>
+            _scopes.SelectMany(s => s.Results).ToList();
+
+        // Services for specific driver
+        public IReadOnlyList<IService> ForDriver(string driverId) =>
+            _scopes.Where(s => s.DriverId == driverId)
+                   .SelectMany(s => s.Results)
+                   .ToList();
+
+        // Services for specific kernel
+        public IReadOnlyList<IService> ForKernel(FluentDockerKernel kernel) =>
+            _scopes.Where(s => s.Kernel == kernel)
+                   .SelectMany(s => s.Results)
+                   .ToList();
+
+        // All scopes
+        public IReadOnlyList<BuildScope> Scopes => _scopes;
+
+        // Group by driver ID
+        public Dictionary<string, List<IService>> GroupedByDriver =>
+            _scopes.GroupBy(s => s.DriverId)
+                   .ToDictionary(g => g.Key,
+                                g => g.SelectMany(s => s.Results).ToList());
+
+        // Dispose all services
+        public void Dispose()
+        {
+            foreach (var service in All)
+            {
+                service?.Dispose();
+            }
+        }
+
+        public void DisposeAll() => Dispose();
     }
 }
 ```
 
-### Task 3.2: Update ContainerBuilder
+### Task 3.2: Update ContainerBuilder with Continuation
 
 **File**: `Builders/ContainerBuilder.cs`
 
@@ -987,65 +1094,127 @@ using Ductus.FluentDocker.Drivers.Models;
 
 namespace Ductus.FluentDocker.Builders
 {
-    public class ContainerBuilder : BaseBuilder<IContainerService>
+    public class ContainerBuilder : IContainerBuilder
     {
         private readonly FluentDockerKernel _kernel;
+        private readonly string _driverId;
+        private readonly Builder _parentBuilder;
         private readonly ContainerBuilderConfig _config;
-        private string _driverId;  // NEW: Specific driver ID
 
-        public ContainerBuilder(IBuilder parent, FluentDockerKernel kernel)
-            : base(parent)
+        /// <summary>
+        /// Creates container builder with scoped driver/kernel.
+        /// </summary>
+        public ContainerBuilder(FluentDockerKernel kernel, string driverId, Builder parent)
         {
             _kernel = kernel ?? throw new ArgumentNullException(nameof(kernel));
+            _driverId = driverId ?? throw new ArgumentNullException(nameof(driverId));
+            _parentBuilder = parent ?? throw new ArgumentNullException(nameof(parent));
             _config = new ContainerBuilderConfig();
         }
 
-        /// <summary>
-        /// NEW: Specify which driver to use for this container.
-        /// </summary>
-        public ContainerBuilder UseDriver(string driverId)
-        {
-            _driverId = driverId;
-            return this;
-        }
-
-        public ContainerBuilder UseImage(string image)
+        public IContainerBuilder UseImage(string image)
         {
             _config.Image = image;
             return this;
         }
 
-        public ContainerBuilder WithName(string name)
+        public IContainerBuilder WithName(string name)
         {
             _config.ContainerName = name;
             return this;
         }
 
+        public IContainerBuilder ExposePort(int port, string protocol = "tcp")
+        {
+            _config.ExposedPorts.Add($"{port}/{protocol}");
+            return this;
+        }
+
+        public IContainerBuilder Command(params string[] command)
+        {
+            _config.Command.AddRange(command);
+            return this;
+        }
+
         // ... all other builder methods
 
-        public override IContainerService Build()
+        /// <summary>
+        /// Builds the container and returns parent Builder for continuation.
+        /// </summary>
+        public Builder Build()
         {
-            // Create context with driver preference
-            var context = new DriverContext();
-            if (!string.IsNullOrEmpty(_driverId))
-            {
-                context.Preferences.PreferredDriverId = _driverId;
-            }
+            // Get container driver from kernel using scoped driver ID
+            var containerDriver = _kernel.SysCtl<IContainerDriver>(_driverId);
 
-            // Create container using kernel
-            var createParams = _config.ToCreateParams();
-            var response = _kernel.CreateContainer(createParams, context);
+            // Create container
+            var context = new DriverContext
+            {
+                DriverId = _driverId,
+                OperationId = Guid.NewGuid().ToString()
+            };
+
+            var createConfig = _config.ToCreateConfig();
+            var response = containerDriver.Create(context, createConfig);
 
             if (!response.Success)
-                throw new FluentDockerException($"Failed to create container: {response.Error}");
+            {
+                throw new ContainerCreationException(
+                    $"Failed to create container: {response.Error}",
+                    response.ErrorCode,
+                    response.Context);
+            }
 
-            // Return service bound to kernel
-            return new DockerContainerService(
-                id: response.Data,
-                image: _config.Image,
+            // Create service
+            var service = new DockerContainerService(
+                id: response.Data.Id,
                 kernel: _kernel,
+                driverId: _driverId,
                 context: context
             );
+
+            // Track result in parent builder
+            _parentBuilder.TrackResult(service);
+
+            // Return parent for continuation
+            return _parentBuilder;
+        }
+
+        /// <summary>
+        /// Builds the container and returns the service (breaks chain).
+        /// </summary>
+        public IContainerService BuildAndGet()
+        {
+            // Get container driver from kernel
+            var containerDriver = _kernel.SysCtl<IContainerDriver>(_driverId);
+
+            var context = new DriverContext
+            {
+                DriverId = _driverId,
+                OperationId = Guid.NewGuid().ToString()
+            };
+
+            var createConfig = _config.ToCreateConfig();
+            var response = containerDriver.Create(context, createConfig);
+
+            if (!response.Success)
+            {
+                throw new ContainerCreationException(
+                    $"Failed to create container: {response.Error}",
+                    response.ErrorCode,
+                    response.Context);
+            }
+
+            var service = new DockerContainerService(
+                id: response.Data.Id,
+                kernel: _kernel,
+                driverId: _driverId,
+                context: context
+            );
+
+            // Track in parent builder
+            _parentBuilder.TrackResult(service);
+
+            return service;
         }
     }
 }
@@ -1332,13 +1501,16 @@ Migrate all container operations from `Commands/Client.cs` to this driver.
 - [ ] Unit tests for kernel and registry
 
 ### Phase 3: Update Builders (Days 7-9)
-- [ ] Update Builder to accept kernel parameter
-- [ ] Update ContainerBuilder with UseDriver() method
-- [ ] Update ImageBuilder
-- [ ] Update NetworkBuilder
-- [ ] Update VolumeBuilder
-- [ ] Update ComposeServiceBuilder
-- [ ] Integration tests
+- [ ] Implement Builder with WithinDriver() scoping pattern
+- [ ] Implement BuildScope and BuildResults classes
+- [ ] Update ContainerBuilder with continuation (Build() returns Builder)
+- [ ] Add BuildAndGet() method to ContainerBuilder
+- [ ] Update ComposeBuilder with continuation
+- [ ] Update NetworkBuilder with continuation
+- [ ] Update VolumeBuilder with continuation
+- [ ] Integration tests for scoped API
+- [ ] Test kernel reuse in scopes
+- [ ] Test multi-scope deployments
 
 ### Phase 4: Update Services (Days 10-12)
 - [ ] Update IContainerService interface

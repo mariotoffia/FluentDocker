@@ -5,7 +5,9 @@
 FluentDocker v3.0.0 introduces a pluggable driver layer architecture with **breaking changes**. This guide helps you migrate from v2.x.x to v3.0.0.
 
 **Key Changes:**
-- **Builder requires kernel instance** (can use default)
+- **Builder uses WithinDriver() scoping pattern** (no kernel in constructor)
+- **Scoped operations with kernel reuse**
+- **BuildResults for tracking multi-scope deployments**
 - **Services reference kernel instead of DockerUri**
 - **Multiple driver instances supported**
 - **SysCtl() interface for driver access**
@@ -15,7 +17,7 @@ FluentDocker v3.0.0 introduces a pluggable driver layer architecture with **brea
 
 ## Quick Start
 
-### Minimal Changes (Using Default Kernel)
+### Simple Migration with WithinDriver()
 
 **v2.x.x**:
 ```csharp
@@ -26,55 +28,76 @@ using var container = new Builder()
     .Start();
 ```
 
-**v3.0.0** (no changes needed):
+**v3.0.0**:
 ```csharp
-// Works exactly the same - uses FluentDocker.DefaultKernel
+// Create kernel and register driver
+var kernel = new FluentDockerKernel();
+kernel.RegisterDriver("docker", new DockerCliDriver());
+
+// Use WithinDriver() to scope operations
 using var container = new Builder()
-    .UseContainer()
-    .UseImage("nginx")
-    .Build()
-    .Start();
+    .WithinDriver("docker", kernel)
+        .UseContainer()
+            .UseImage("nginx")
+            .BuildAndGet();  // BuildAndGet() returns service
+container.Start();
 ```
 
-### Explicit Kernel (Recommended)
+### Fluent Kernel Configuration (Recommended)
 
 **v3.0.0**:
 ```csharp
-// Create kernel explicitly
-var kernel = new FluentDockerKernel();
+// Create kernel with fluent API
+var kernel = FluentDockerKernel.Create()
+    .WithDriver("docker")
+        .UseDockerCli()
+        .Build()
+    .Build();
 
-using var container = new Builder(kernel)
-    .UseContainer()
-    .UseImage("nginx")
-    .Build()
-    .Start();
+// Use scoped builder
+using var container = new Builder()
+    .WithinDriver("docker", kernel)
+        .UseContainer()
+            .UseImage("nginx")
+            .BuildAndGet();
+container.Start();
 ```
 
 ---
 
 ## Breaking Changes
 
-### 1. Builder Constructor
+### 1. Builder Scoping Pattern
 
-**Change**: `Builder` now accepts optional kernel parameter.
+**Change**: `Builder` no longer takes kernel in constructor. Use `WithinDriver()` to establish scopes.
 
 **v2.x.x**:
 ```csharp
 var builder = new Builder();
+using var container = builder
+    .UseContainer()
+    .UseImage("nginx")
+    .Build();
 ```
 
-**v3.0.0** (Option A - uses default kernel):
-```csharp
-var builder = new Builder();  // Uses FluentDocker.DefaultKernel
-```
-
-**v3.0.0** (Option B - explicit kernel):
+**v3.0.0**:
 ```csharp
 var kernel = new FluentDockerKernel();
-var builder = new Builder(kernel);
+kernel.RegisterDriver("docker", new DockerCliDriver());
+
+// WithinDriver() establishes the scope
+var builder = new Builder();
+using var container = builder
+    .WithinDriver("docker", kernel)
+        .UseContainer()
+            .UseImage("nginx")
+            .BuildAndGet();  // BuildAndGet() returns service
 ```
 
-**Migration**: Add kernel parameter where you want explicit control, or keep unchanged to use default.
+**Migration**:
+1. Create and configure kernel with drivers
+2. Use `WithinDriver(driverId, kernel)` before builder operations
+3. Use `BuildAndGet()` to get service directly, or `Build()` + `GetResults()` for multi-scope deployments
 
 ### 2. Service Interfaces
 
