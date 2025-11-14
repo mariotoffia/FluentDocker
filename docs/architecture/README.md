@@ -10,31 +10,78 @@ This directory contains comprehensive architecture, implementation, and migratio
 
 ### 0. **TERMINAL_BUILD_PATTERN.md** 🔥 **READ THIS FIRST - BREAKING CHANGE**
 
-**Terminal Build() pattern - fundamental API redesign in v3.0.0**
+**Terminal BuildAsync() pattern - fundamental API redesign in v3.0.0**
 
-**Critical Change:** `Build()` is now TERMINAL in all fluent APIs. No more nested `.Build()` calls.
+**Critical Changes:**
+1. `BuildAsync()` is now TERMINAL in all fluent APIs - returns `Task<TResult>`
+2. All operations are asynchronous (async/await throughout)
 
 **Quick Examples:**
 ```csharp
-// Kernel - Build() returns FluentDockerKernel
-var kernel = FluentDockerKernel.Create()
+// Kernel - BuildAsync() returns Task<FluentDockerKernel>
+var kernel = await FluentDockerKernel.Create()
     .WithDriver("docker", d => d.UseDockerCli())
-    .Build();  // TERMINAL
+    .BuildAsync();  // TERMINAL ASYNC
 
-// Container - Build() returns BuildResults
-var results = new Builder()
+// Container - BuildAsync() returns Task<BuildResults>
+var results = await new Builder()
     .WithinDriver("docker", kernel)
         .UseContainer(c => c.UseImage("nginx"))
-    .Build();  // TERMINAL
+    .BuildAsync();  // TERMINAL ASYNC
+
+// Service operations are async
+await results.All[0].StartAsync();
+await results.DisposeAllAsync();
 ```
 
 **What Changed:**
 - Lambda configuration everywhere (cleaner syntax)
-- Single Build() call at the end
-- Build() executes all operations and returns results
+- Single BuildAsync() call at the end (async/await pattern)
+- BuildAsync() executes all operations and returns results
+- All driver operations return `Task<CommandResponse<T>>`
+- All service operations are async (`StartAsync()`, `StopAsync()`, etc.)
 - .NET 10.0.100 single-framework targeting
 
 **Read this first** to understand the breaking changes before other docs.
+
+---
+
+### 0.1. **ASYNC_OPERATIONS.md** ⚡ **ASYNC/AWAIT PATTERN**
+
+**Comprehensive async/await implementation - all operations are asynchronous**
+
+**Core Principles:**
+- `BuildAsync()` is terminal and returns `Task<TResult>`
+- All driver operations return `Task<CommandResponse<T>>`
+- All service operations are async (`StartAsync()`, `StopAsync()`, etc.)
+- `CancellationToken` support throughout
+- `IAsyncDisposable` implementation
+
+**Covers:**
+- Async builder pattern with `BuildAsync()`
+- Async driver interfaces (Container, Image, Network, Volume, Compose, System)
+- Async service operations with cancellation
+- Progress reporting with `IProgress<T>`
+- Parallel execution patterns
+- Async disposal (`DisposeAllAsync()`)
+- Complete migration guide from sync to async
+
+**Example:**
+```csharp
+var kernel = await FluentDockerKernel.Create()
+    .WithDriver("docker", d => d.UseDockerCli())
+    .BuildAsync();  // ASYNC
+
+var deployment = await new Builder()
+    .WithinDriver("docker", kernel)
+        .UseContainer(c => c.UseImage("nginx"))
+    .BuildAsync(cancellationToken);  // ASYNC with cancellation
+
+await deployment.All[0].StartAsync();
+await deployment.DisposeAllAsync();
+```
+
+**Read this** for complete async implementation details and patterns.
 
 ---
 
@@ -404,82 +451,83 @@ These documents embrace v3.0.0 breaking changes for better architecture:
 
 ## Quick Reference
 
-### Creating a Kernel
+### Creating a Kernel (Async)
 
 ```csharp
-// Auto-register available drivers
-var kernel = new FluentDockerKernel();
+// Fluent kernel builder with async
+var kernel = await FluentDockerKernel.Create()
+    .WithDriver("docker", d => d.UseDockerCli())
+    .BuildAsync();
 
-// Manual registration
+// Manual registration (still sync)
 var kernel = new FluentDockerKernel(new FluentDockerKernelOptions
 {
     AutoRegisterDrivers = false
 });
-kernel.RegisterDriver("docker", new DockerCliDriver());
+await kernel.RegisterDriverAsync("docker", new DockerCliDriver());
 
 // Use default kernel
 var kernel = FluentDocker.DefaultKernel;
 ```
 
-### Registering Drivers
+### Registering Drivers (Async)
 
 ```csharp
-// Single local Docker
-kernel.RegisterDriver("docker-local", new DockerCliDriver());
-
-// Multiple Docker hosts
-kernel.RegisterDriver("docker-dev", new DockerCliDriver(devHost, devCerts));
-kernel.RegisterDriver("docker-prod", new DockerApiDriver(prodHost, prodCerts));
-
-// Docker + Podman
-kernel.RegisterDriver("docker", new DockerCliDriver());
-kernel.RegisterDriver("podman", new PodmanCliDriver());
+// Fluent registration with lambda configuration
+var kernel = await FluentDockerKernel.Create()
+    .WithDriver("docker-local", d => d.UseDockerCli())
+    .WithDriver("docker-prod", d => d
+        .UseDockerApi()
+        .AtHost("tcp://prod:2376")
+        .WithCertificates("/certs"))
+    .WithDriver("podman", d => d.UsePodmanCli())
+    .BuildAsync();
 ```
 
-### Using Fluent API with WithinDriver()
+### Using Fluent API with WithinDriver() (Async)
 
 ```csharp
-// Single scope
-using var container = new Builder()
+// Single scope with async
+var deployment = await new Builder()
     .WithinDriver("docker", kernel)
-        .UseContainer()
-            .UseImage("nginx")
-            .BuildAndGet();  // Returns service
+        .UseContainer(c => c.UseImage("nginx"))
+    .BuildAsync();  // TERMINAL ASYNC
 
-// Multi-scope deployment
-var deployment = new Builder()
+var container = deployment.All[0] as IContainerService;
+await container.StartAsync();
+
+// Multi-scope deployment with async
+var deployment = await new Builder()
     .WithinDriver("docker-prod", prodKernel)
-        .UseContainer()
-            .UseImage("myapp:v1.0")
-            .Build()
+        .UseContainer(c => c.UseImage("myapp:v1.0"))
     .WithinDriver("docker-staging", stagingKernel)
-        .UseContainer()
-            .UseImage("myapp:v1.0")
-            .Build()
-    .GetResults();
+        .UseContainer(c => c.UseImage("myapp:v1.0"))
+    .BuildAsync();  // TERMINAL ASYNC - returns all services
 
 // deployment.ForDriver("docker-prod") => [container]
 // deployment.ForDriver("docker-staging") => [container]
 
-// Kernel reuse
-var results = new Builder()
+// Kernel reuse with async
+var results = await new Builder()
     .WithinDriver("docker-1", kernel)  // Set kernel
-        .UseContainer().UseImage("nginx").Build()
+        .UseContainer(c => c.UseImage("nginx"))
     .WithinDriver("docker-2")  // Reuses kernel
-        .UseContainer().UseImage("postgres").Build()
-    .GetResults();
+        .UseContainer(c => c.UseImage("postgres"))
+    .BuildAsync();  // TERMINAL ASYNC
 ```
 
-### Using SysCtl()
+### Using SysCtl() (Async)
 
 ```csharp
-// Type-safe access
+// Type-safe access with async driver calls
 var containerDriver = kernel.SysCtl<IContainerDriver>("docker");
-var containers = containerDriver.List(new DriverContext());
+var containers = await containerDriver.ListAsync(
+    new DriverContext(),
+    cancellationToken: ct);
 
 // Component-based access
 var networkDriver = kernel.SysCtl("docker", DriverComponent.Network);
-var networks = networkDriver.List(new DriverContext());
+var networks = await networkDriver.ListAsync(new DriverContext());
 
 // Get entire driver
 var driver = kernel.GetDriver("docker");
