@@ -18,94 +18,108 @@ This document describes the fluent API for driver registration and kernel config
 ### Kernel Configuration Fluent API
 
 ```csharp
-// Fluent kernel configuration
+// Fluent kernel configuration - Build() is TERMINAL
 var kernel = FluentDockerKernel.Create()
-    .WithDriver("docker-local")
+    .WithDriver("docker-local", d => d
         .UseDockerCli()
-        .AtHost("unix:///var/run/docker.sock")
-        .Build()
-    .WithDriver("docker-remote")
+        .AtHost("unix:///var/run/docker.sock"))
+    .WithDriver("docker-remote", d => d
         .UseDockerApi()
         .AtHost("tcp://remote:2376")
         .WithCertificates("/path/to/certs")
         .WithTimeout(TimeSpan.FromSeconds(30))
         .AsPriority(200)
-        .AsDefault()
-        .Build()
-    .WithDriver("podman")
+        .AsDefault())
+    .WithDriver("podman", d => d
         .UsePodmanCli()
         .AsRootless()
-        .WithPodSupport()
-        .Build()
-    .WithRetryPolicy()
+        .WithPodSupport())
+    .WithRetryPolicy(p => p
         .MaxAttempts(3)
         .InitialDelay(TimeSpan.FromSeconds(1))
-        .ExponentialBackoff(2.0)
-        .Build()
-    .WithLogging(logger => logger
+        .ExponentialBackoff(2.0))
+    .WithLogging(log => log
         .UseStructuredLogging()
         .MinimumLevel(LogLevel.Information))
     .WithMetrics<MyCustomMetrics>()
-    .Build();
+    .Build();  // TERMINAL - returns FluentDockerKernel
 ```
 
-### Driver Builder Pattern
+### Driver Builder Pattern (Lambda Configuration)
+
+**Key principle: All builders configured via lambda, Build() is terminal**
 
 ```csharp
 namespace Ductus.FluentDocker.Kernel.Builders
 {
     public interface IKernelBuilder
     {
-        IDriverBuilder<IKernelBuilder> WithDriver(string driverId);
-        IKernelBuilder WithRetryPolicy();
+        // Configure driver via lambda
+        IKernelBuilder WithDriver(string driverId, Action<IDriverBuilder> configure);
+        IKernelBuilder WithRetryPolicy(Action<IRetryPolicyBuilder> configure);
         IKernelBuilder WithLogging(Action<ILoggingBuilder> configure);
         IKernelBuilder WithMetrics<T>() where T : IFluentDockerMetrics, new();
+
+        // TERMINAL - returns FluentDockerKernel
         FluentDockerKernel Build();
     }
 
-    public interface IDriverBuilder<TReturn>
+    // Driver builder - not returned directly, only used in lambda
+    public interface IDriverBuilder
     {
-        IDockerCliDriverBuilder<TReturn> UseDockerCli();
-        IDockerApiDriverBuilder<TReturn> UseDockerApi();
-        IPodmanCliDriverBuilder<TReturn> UsePodmanCli();
-        TReturn Build();
+        IDockerCliDriverBuilder UseDockerCli();
+        IDockerApiDriverBuilder UseDockerApi();
+        IPodmanCliDriverBuilder UsePodmanCli();
     }
 
-    public interface IDockerCliDriverBuilder<TReturn>
+    // Docker CLI driver configuration
+    public interface IDockerCliDriverBuilder
     {
-        IDockerCliDriverBuilder<TReturn> AtHost(string hostUri);
-        IDockerCliDriverBuilder<TReturn> WithCertificates(string certPath);
-        IDockerCliDriverBuilder<TReturn> WithTimeout(TimeSpan timeout);
-        IDockerCliDriverBuilder<TReturn> WithSudo(SudoMechanism mechanism);
-        IDockerCliDriverBuilder<TReturn> AsPriority(int priority);
-        IDockerCliDriverBuilder<TReturn> AsDefault();
-        IDockerCliDriverBuilder<TReturn> WithComposeV2();
-        IDockerCliDriverBuilder<TReturn> WithBuildx();
-        TReturn Build();
+        IDockerCliDriverBuilder AtHost(string hostUri);
+        IDockerCliDriverBuilder WithCertificates(string certPath);
+        IDockerCliDriverBuilder WithTimeout(TimeSpan timeout);
+        IDockerCliDriverBuilder WithSudo(SudoMechanism mechanism);
+        IDockerCliDriverBuilder AsPriority(int priority);
+        IDockerCliDriverBuilder AsDefault();
+        IDockerCliDriverBuilder WithComposeV2();
+        IDockerCliDriverBuilder WithBuildx();
+        // No Build() - configuration happens in lambda
     }
 
-    public interface IDockerApiDriverBuilder<TReturn>
+    // Docker API driver configuration
+    public interface IDockerApiDriverBuilder
     {
-        IDockerApiDriverBuilder<TReturn> AtHost(string hostUri);
-        IDockerApiDriverBuilder<TReturn> WithCertificates(string certPath);
-        IDockerApiDriverBuilder<TReturn> WithTimeout(TimeSpan timeout);
-        IDockerApiDriverBuilder<TReturn> AsPriority(int priority);
-        IDockerApiDriverBuilder<TReturn> AsDefault();
-        IDockerApiDriverBuilder<TReturn> WithStreaming();
-        IDockerApiDriverBuilder<TReturn> WithBulkOperations();
-        TReturn Build();
+        IDockerApiDriverBuilder AtHost(string hostUri);
+        IDockerApiDriverBuilder WithCertificates(string certPath);
+        IDockerApiDriverBuilder WithTimeout(TimeSpan timeout);
+        IDockerApiDriverBuilder AsPriority(int priority);
+        IDockerApiDriverBuilder AsDefault();
+        IDockerApiDriverBuilder WithStreaming();
+        IDockerApiDriverBuilder WithBulkOperations();
+        // No Build() - configuration happens in lambda
     }
 
-    public interface IPodmanCliDriverBuilder<TReturn>
+    // Podman CLI driver configuration
+    public interface IPodmanCliDriverBuilder
     {
-        IPodmanCliDriverBuilder<TReturn> AtHost(string hostUri);
-        IPodmanCliDriverBuilder<TReturn> AsRootless();
-        IPodmanCliDriverBuilder<TReturn> WithPodSupport();
-        IPodmanCliDriverBuilder<TReturn> WithKubernetesYaml();
-        IPodmanCliDriverBuilder<TReturn> WithSystemdIntegration();
-        IPodmanCliDriverBuilder<TReturn> WithReducedCapabilities();
-        IPodmanCliDriverBuilder<TReturn> AsPriority(int priority);
-        TReturn Build();
+        IPodmanCliDriverBuilder AtHost(string hostUri);
+        IPodmanCliDriverBuilder AsRootless();
+        IPodmanCliDriverBuilder WithPodSupport();
+        IPodmanCliDriverBuilder WithKubernetesYaml();
+        IPodmanCliDriverBuilder WithSystemdIntegration();
+        IPodmanCliDriverBuilder WithReducedCapabilities();
+        IPodmanCliDriverBuilder AsPriority(int priority);
+        // No Build() - configuration happens in lambda
+    }
+
+    // Retry policy configuration
+    public interface IRetryPolicyBuilder
+    {
+        IRetryPolicyBuilder MaxAttempts(int attempts);
+        IRetryPolicyBuilder InitialDelay(TimeSpan delay);
+        IRetryPolicyBuilder ExponentialBackoff(double multiplier);
+        IRetryPolicyBuilder MaxDelay(TimeSpan maxDelay);
+        // No Build() - configuration happens in lambda
     }
 }
 ```
@@ -314,6 +328,11 @@ The FluentDocker v3.0.0 Builder uses a **scoped driver pattern** where operation
 
 ### Basic Scoped Builder Pattern
 
+**Key Principle: Build() is Terminal**
+- The Builder accumulates operations across scopes
+- Build() executes all operations and returns BuildResults
+- No need for separate GetResults() call
+
 ```csharp
 namespace Ductus.FluentDocker.Builders
 {
@@ -321,64 +340,125 @@ namespace Ductus.FluentDocker.Builders
     {
         private FluentDockerKernel _currentKernel;
         private string _currentDriverId;
-        private readonly List<BuildScope> _scopes = new();
-        private BuildScope _currentScope;
+        private readonly List<BuildOperation> _operations = new();
 
         // Establish or switch driver/kernel scope
         public Builder WithinDriver(string driverId, FluentDockerKernel kernel = null)
         {
             // Reuse last kernel if not specified
             _currentKernel = kernel ?? _currentKernel;
-            _currentDriverId = driverId;
 
-            // Create new scope
-            _currentScope = new BuildScope(_currentKernel, _currentDriverId);
-            _scopes.Add(_currentScope);
+            if (_currentKernel == null)
+                throw new InvalidOperationException("Kernel must be provided in first WithinDriver() call");
+
+            _currentDriverId = driverId;
+            return this;
+        }
+
+        // Configure and queue container creation
+        public Builder UseContainer(Action<IContainerBuilder> configure)
+        {
+            ValidateScope();
+
+            var builder = new ContainerBuilder(_currentKernel, _currentDriverId);
+            configure(builder);
+
+            // Queue the operation
+            _operations.Add(new BuildOperation
+            {
+                Kernel = _currentKernel,
+                DriverId = _currentDriverId,
+                Execute = () => builder.Execute()
+            });
 
             return this;
         }
 
-        // Operations use current scope
-        public IContainerBuilder UseContainer()
-        {
-            ValidateScope(); // Ensures WithinDriver() was called
-            return new ContainerBuilder(_currentKernel, _currentDriverId, this);
-        }
-
-        public IComposeBuilder UseCompose()
+        public Builder UseCompose(Action<IComposeBuilder> configure)
         {
             ValidateScope();
-            return new ComposeBuilder(_currentKernel, _currentDriverId, this);
+
+            var builder = new ComposeBuilder(_currentKernel, _currentDriverId);
+            configure(builder);
+
+            _operations.Add(new BuildOperation
+            {
+                Kernel = _currentKernel,
+                DriverId = _currentDriverId,
+                Execute = () => builder.Execute()
+            });
+
+            return this;
         }
 
-        public INetworkBuilder UseNetwork()
+        public Builder UseNetwork(Action<INetworkBuilder> configure)
         {
             ValidateScope();
-            return new NetworkBuilder(_currentKernel, _currentDriverId, this);
+
+            var builder = new NetworkBuilder(_currentKernel, _currentDriverId);
+            configure(builder);
+
+            _operations.Add(new BuildOperation
+            {
+                Kernel = _currentKernel,
+                DriverId = _currentDriverId,
+                Execute = () => builder.Execute()
+            });
+
+            return this;
         }
 
-        public IVolumeBuilder UseVolume()
+        public Builder UseVolume(Action<IVolumeBuilder> configure)
         {
             ValidateScope();
-            return new VolumeBuilder(_currentKernel, _currentDriverId, this);
+
+            var builder = new VolumeBuilder(_currentKernel, _currentDriverId);
+            configure(builder);
+
+            _operations.Add(new BuildOperation
+            {
+                Kernel = _currentKernel,
+                DriverId = _currentDriverId,
+                Execute = () => builder.Execute()
+            });
+
+            return this;
         }
 
-        // Get all results grouped by scope
-        public BuildResults GetResults() => new BuildResults(_scopes);
+        // TERMINAL: Build() executes all operations and returns results
+        public BuildResults Build()
+        {
+            var scopes = new Dictionary<(FluentDockerKernel, string), BuildScope>();
 
-        // Get results for specific scope
-        public ScopeResults GetResults(string driverId) => _scopes.FirstOrDefault(s => s.DriverId == driverId);
+            // Execute all operations and group by scope
+            foreach (var operation in _operations)
+            {
+                var key = (operation.Kernel, operation.DriverId);
+
+                if (!scopes.ContainsKey(key))
+                {
+                    scopes[key] = new BuildScope(operation.Kernel, operation.DriverId);
+                }
+
+                var service = operation.Execute();
+                scopes[key].AddResult(service);
+            }
+
+            return new BuildResults(scopes.Values.ToList());
+        }
 
         private void ValidateScope()
         {
             if (_currentKernel == null || _currentDriverId == null)
                 throw new InvalidOperationException("Must call WithinDriver() before using builder operations");
         }
+    }
 
-        internal void TrackResult(IService service)
-        {
-            _currentScope?.AddResult(service);
-        }
+    internal class BuildOperation
+    {
+        public FluentDockerKernel Kernel { get; set; }
+        public string DriverId { get; set; }
+        public Func<IService> Execute { get; set; }
     }
 }
 ```
@@ -448,28 +528,36 @@ public class BuildResults
 }
 ```
 
-### Container Builder with Continuation
+### Container Builder (Configured via Lambda)
 
 ```csharp
 public class ContainerBuilder : IContainerBuilder
 {
     private readonly FluentDockerKernel _kernel;
     private readonly string _driverId;
-    private readonly Builder _parentBuilder;
     private string _image;
+    private string _name;
     private readonly List<string> _command = new();
+    private readonly List<string> _exposedPorts = new();
+    private readonly Dictionary<string, string> _env = new();
     // ... other configuration fields
 
-    public ContainerBuilder(FluentDockerKernel kernel, string driverId, Builder parent)
+    public ContainerBuilder(FluentDockerKernel kernel, string driverId)
     {
         _kernel = kernel;
         _driverId = driverId;
-        _parentBuilder = parent;
     }
 
+    // Configuration methods return this for chaining
     public IContainerBuilder UseImage(string image)
     {
         _image = image;
+        return this;
+    }
+
+    public IContainerBuilder WithName(string name)
+    {
+        _name = name;
         return this;
     }
 
@@ -479,36 +567,32 @@ public class ContainerBuilder : IContainerBuilder
         return this;
     }
 
-    // Build returns Builder for continuation, not IContainerService
-    public Builder Build()
+    public IContainerBuilder ExposePort(int port, string protocol = "tcp")
     {
-        // Create container using kernel and driver
-        var containerDriver = _kernel.SysCtl<IContainerDriver>(_driverId);
-        var service = CreateContainerService(containerDriver);
-
-        // Track in current scope
-        _parentBuilder.TrackResult(service);
-
-        // Return parent builder for continuation
-        return _parentBuilder;
+        _exposedPorts.Add($"{port}/{protocol}");
+        return this;
     }
 
-    // Alternative: Build and get service (breaks chain)
-    public IContainerService BuildAndGet()
+    public IContainerBuilder WithEnvironment(string key, string value)
     {
-        var containerDriver = _kernel.SysCtl<IContainerDriver>(_driverId);
-        var service = CreateContainerService(containerDriver);
-        _parentBuilder.TrackResult(service);
-        return service;
+        _env[key] = value;
+        return this;
     }
 
-    private IContainerService CreateContainerService(IContainerDriver driver)
+    // Internal execution method called by Builder.Build()
+    internal IService Execute()
     {
-        // Create and start container
+        // Get container driver from kernel
+        var containerDriver = _kernel.SysCtl<IContainerDriver>(_driverId);
+
+        // Create container configuration
         var config = new ContainerCreateConfig
         {
             Image = _image,
-            Command = _command,
+            Name = _name,
+            Command = _command.ToArray(),
+            ExposedPorts = _exposedPorts.ToArray(),
+            Env = _env.Select(kv => $"{kv.Key}={kv.Value}").ToArray(),
             // ... other config
         };
 
@@ -518,7 +602,8 @@ public class ContainerBuilder : IContainerBuilder
             OperationId = Guid.NewGuid().ToString()
         };
 
-        var response = driver.Create(context, config);
+        // Execute container creation
+        var response = containerDriver.Create(context, config);
         if (!response.Success)
         {
             throw new ContainerCreationException(
@@ -527,6 +612,7 @@ public class ContainerBuilder : IContainerBuilder
                 response.Context);
         }
 
+        // Return service
         return new DockerContainerService(_kernel, _driverId, response.Data.Id);
     }
 }
@@ -534,29 +620,36 @@ public class ContainerBuilder : IContainerBuilder
 
 ### Usage Examples
 
+**Key principle: Build() is terminal - call it once at the end**
+
 **Single scope (one driver/kernel):**
 ```csharp
+// Kernel builder is also terminal
 var kernel = FluentDockerKernel.Create()
     .WithDriver("docker-local")
         .UseDockerCli()
-        .Build()
-    .Build();
+    .Build();  // TERMINAL - returns FluentDockerKernel
 
+// Builder.Build() is terminal - returns BuildResults
 var results = new Builder()
     .WithinDriver("docker-local", kernel)
-        .UseContainer()
+        .UseContainer(c => c
             .UseImage("nginx")
-            .Build()
-        .UseContainer()
+            .WithName("web"))
+        .UseContainer(c => c
             .UseImage("redis")
-            .Build()
-        .UseNetwork()
-            .WithName("my-network")
-            .Build()
-    .GetResults();
+            .WithName("cache"))
+        .UseNetwork(n => n
+            .WithName("my-network"))
+    .Build();  // TERMINAL - executes all operations, returns BuildResults
 
-// results.All => [nginx container, redis container, network]
-// results.ForDriver("docker-local") => [nginx container, redis container, network]
+// Access results
+var nginx = results.All[0];
+var redis = results.All[1];
+var network = results.All[2];
+
+// Or filter by driver
+var services = results.ForDriver("docker-local");  // [nginx, redis, network]
 ```
 
 **Multiple scopes (different drivers, same kernel):**
