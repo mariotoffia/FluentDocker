@@ -201,6 +201,56 @@ This directory contains comprehensive architecture, implementation, and migratio
 
 ---
 
+### 6. **FLUENT_API_AND_CAPABILITIES_V3.md**
+
+**Fluent API for driver registration and composable interfaces** for v3.0.0.
+
+**Fluent Kernel Configuration:**
+- Fluent builder pattern for kernel creation
+- Driver-specific builders (DockerCli, DockerApi, PodmanCli)
+- Intuitive method chaining for registration
+- Configuration methods: AtHost(), WithCertificates(), AsPriority(), AsDefault()
+
+**Composable Interface System (30+ sub-interfaces):**
+- **IContainerDriver** → 8 focused interfaces (Lifecycle, Inspection, Execution, Files, Logs, Stats, Processes, Health)
+- **IImageDriver** → 6 focused interfaces (Lifecycle, Build, BuildAdvanced, Registry, Inspection, Export)
+- **INetworkDriver** → 3 focused interfaces (Lifecycle, Connectivity, Inspection)
+- **IVolumeDriver** → 2 focused interfaces (Lifecycle, Inspection)
+- **IComposeDriver** → 3 focused interfaces (Lifecycle, Operations, Inspection)
+- **ISystemDriver** → 4 focused interfaces (Info, Auth, Events, Maintenance)
+- **Podman-specific** → 3 interfaces (PodDriver, KubernetesYaml, SystemdGeneration)
+
+**Enhanced Capability System (100+ flags):**
+- DriverCapabilities with granular feature detection
+- ContainerCapabilities, ImageCapabilities, NetworkCapabilities, VolumeCapabilities
+- DockerSpecificCapabilities (Swarm, secrets, BuildX, content trust)
+- PodmanSpecificCapabilities (pods, Kubernetes YAML, systemd, rootless)
+- SecurityCapabilities (Docker: 14 capabilities, Podman: 11 capabilities)
+- PerformanceCapabilities (streaming, bulk operations, async)
+- Type-safe capability checking with Implements<T>()
+
+**Fd.XXX Static Method Removal:**
+- Migration from Fd.DisposeOnException to using statements
+- Extension method alternatives provided
+- Complete migration examples
+
+**Research-Based Features:**
+- Docker 2024-2025 capabilities (Swarm, BuildX, content trust, BuildCloud)
+- Podman 2024-2025 capabilities (pods, Kubernetes YAML, systemd, rootless by default)
+- Performance characteristics and security differences
+
+**Contents:**
+- Fluent kernel configuration API with examples
+- Complete composable interface breakdown
+- Capability system with 100+ flags
+- Driver-specific capability implementations
+- Fd.XXX removal migration guide
+- New exceptions: InterfaceNotSupportedException, CapabilityNotSupportedException
+
+**Use this** for fluent driver registration, understanding composable interfaces, and capability discovery.
+
+---
+
 ## Document Comparison
 
 ### Original Documents (v2.x.x compatible)
@@ -225,6 +275,9 @@ These documents embrace v3.0.0 breaking changes for better architecture:
 **Error Handling:**
 - **ERROR_HANDLING_STRATEGY_V3.md** ⭐
 - **ERROR_HANDLING_MIGRATION_V3.md** ⭐
+
+**Fluent API & Capabilities:**
+- **FLUENT_API_AND_CAPABILITIES_V3.md** ⭐
 
 **Status**: These are the **official v3.0.0 documents** to follow.
 
@@ -430,6 +483,14 @@ FluentDocker v3.0.0 introduces a **pluggable driver architecture** with **compre
 ✅ **Structured logging**: IFluentDockerLogger with log levels
 ✅ **Metrics/telemetry**: IFluentDockerMetrics for observability
 ✅ **Enhanced CommandResponse**: Includes error context and codes
+
+**Fluent API & Capabilities:**
+✅ **Fluent configuration**: Intuitive builder pattern for kernel and driver setup
+✅ **Composable interfaces**: 30+ focused sub-interfaces for fine-grained implementation
+✅ **Capability discovery**: 100+ flags for feature detection and runtime adaptation
+✅ **Docker/Podman features**: Research-based capability system (Swarm, pods, BuildX, Kubernetes YAML)
+✅ **Type-safe checking**: Implements<T>() for interface and capability validation
+✅ **Fd.XXX removal**: Migration to modern patterns (using statements, extension methods)
 
 **Breaking Changes Acceptable:**
 ✅ v3.0.0 allows architectural improvements for long-term benefits
