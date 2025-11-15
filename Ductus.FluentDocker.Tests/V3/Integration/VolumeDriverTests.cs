@@ -32,7 +32,7 @@ namespace Ductus.FluentDocker.Tests.V3.Integration
             _kernel?.Dispose();
         }
 
-        [Fact(Skip = "Volume operations not yet implemented in DockerCliDriver")]
+        [Fact]
         public async Task Volume_Create_CreatesVolume()
         {
             // Arrange
@@ -54,7 +54,7 @@ namespace Ductus.FluentDocker.Tests.V3.Integration
             await _driver.RemoveAsync(_context, volumeName, force: false);
         }
 
-        [Fact(Skip = "Volume operations not yet implemented in DockerCliDriver")]
+        [Fact]
         public async Task Volume_List_ReturnsVolumes()
         {
             // Act
@@ -66,7 +66,7 @@ namespace Ductus.FluentDocker.Tests.V3.Integration
             // May be empty if no volumes exist
         }
 
-        [Fact(Skip = "Volume operations not yet implemented in DockerCliDriver")]
+        [Fact]
         public async Task Volume_Inspect_ReturnsDetails()
         {
             // Arrange
@@ -89,7 +89,7 @@ namespace Ductus.FluentDocker.Tests.V3.Integration
             await _driver.RemoveAsync(_context, volumeName, force: false);
         }
 
-        [Fact(Skip = "Volume operations not yet implemented in DockerCliDriver")]
+        [Fact]
         public async Task Volume_Remove_RemovesVolume()
         {
             // Arrange
@@ -107,7 +107,7 @@ namespace Ductus.FluentDocker.Tests.V3.Integration
             Assert.True(removeResponse.Success, removeResponse.Error);
         }
 
-        [Fact(Skip = "Volume operations not yet implemented in DockerCliDriver")]
+        [Fact]
         public async Task Volume_CreateWithLabels_SetsLabels()
         {
             // Arrange
@@ -132,7 +132,7 @@ namespace Ductus.FluentDocker.Tests.V3.Integration
             await _driver.RemoveAsync(_context, volumeName, force: false);
         }
 
-        [Fact(Skip = "Volume operations not yet implemented in DockerCliDriver")]
+        [Fact]
         public async Task Volume_CreateWithDriver_UsesCustomDriver()
         {
             // Arrange
@@ -158,7 +158,7 @@ namespace Ductus.FluentDocker.Tests.V3.Integration
             await _driver.RemoveAsync(_context, volumeName, force: false);
         }
 
-        [Fact(Skip = "Volume operations not yet implemented in DockerCliDriver")]
+        [Fact]
         public async Task Volume_Remove_InUse_Fails()
         {
             // Arrange
@@ -194,7 +194,7 @@ namespace Ductus.FluentDocker.Tests.V3.Integration
             await _driver.RemoveAsync(_context, volumeName, force: false);
         }
 
-        [Fact(Skip = "Volume operations not yet implemented in DockerCliDriver")]
+        [Fact]
         public async Task Volume_Prune_RemovesUnusedVolumes()
         {
             // Arrange
@@ -213,7 +213,7 @@ namespace Ductus.FluentDocker.Tests.V3.Integration
             Assert.NotNull(pruneResponse.Data);
         }
 
-        [Fact(Skip = "Volume operations not yet implemented in DockerCliDriver")]
+        [Fact]
         public async Task Volume_Inspect_NonExistent_Fails()
         {
             // Arrange

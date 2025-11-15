@@ -32,7 +32,7 @@ namespace Ductus.FluentDocker.Tests.V3.Integration
             _kernel?.Dispose();
         }
 
-        [Fact(Skip = "Network operations not yet implemented in DockerCliDriver")]
+        [Fact]
         public async Task Network_Create_CreatesNetwork()
         {
             // Arrange
@@ -55,7 +55,7 @@ namespace Ductus.FluentDocker.Tests.V3.Integration
             await _driver.RemoveAsync(_context, response.Data.Id);
         }
 
-        [Fact(Skip = "Network operations not yet implemented in DockerCliDriver")]
+        [Fact]
         public async Task Network_List_ReturnsNetworks()
         {
             // Act
@@ -69,7 +69,7 @@ namespace Ductus.FluentDocker.Tests.V3.Integration
             Assert.Contains(response.Data, n => n.Name == "bridge");
         }
 
-        [Fact(Skip = "Network operations not yet implemented in DockerCliDriver")]
+        [Fact]
         public async Task Network_Inspect_ReturnsDetails()
         {
             // Arrange - Use default bridge network
@@ -84,7 +84,7 @@ namespace Ductus.FluentDocker.Tests.V3.Integration
             Assert.Equal("bridge", response.Data.Name);
         }
 
-        [Fact(Skip = "Network operations not yet implemented in DockerCliDriver")]
+        [Fact]
         public async Task Network_Remove_RemovesNetwork()
         {
             // Arrange
@@ -103,7 +103,7 @@ namespace Ductus.FluentDocker.Tests.V3.Integration
             Assert.True(removeResponse.Success, removeResponse.Error);
         }
 
-        [Fact(Skip = "Network operations not yet implemented in DockerCliDriver")]
+        [Fact]
         public async Task Network_CreateWithSubnet_ConfiguresSubnet()
         {
             // Arrange
@@ -131,7 +131,7 @@ namespace Ductus.FluentDocker.Tests.V3.Integration
             await _driver.RemoveAsync(_context, response.Data.Id);
         }
 
-        [Fact(Skip = "Network operations not yet implemented in DockerCliDriver")]
+        [Fact]
         public async Task Network_CreateWithLabels_SetsLabels()
         {
             // Arrange
@@ -157,7 +157,7 @@ namespace Ductus.FluentDocker.Tests.V3.Integration
             await _driver.RemoveAsync(_context, response.Data.Id);
         }
 
-        [Fact(Skip = "Network operations not yet implemented in DockerCliDriver")]
+        [Fact]
         public async Task Network_Connect_ConnectsContainer()
         {
             // Arrange
@@ -192,7 +192,7 @@ namespace Ductus.FluentDocker.Tests.V3.Integration
             await _driver.RemoveAsync(_context, createNetworkResponse.Data.Id);
         }
 
-        [Fact(Skip = "Network operations not yet implemented in DockerCliDriver")]
+        [Fact]
         public async Task Network_Disconnect_DisconnectsContainer()
         {
             // Arrange
@@ -228,7 +228,7 @@ namespace Ductus.FluentDocker.Tests.V3.Integration
             await _driver.RemoveAsync(_context, createNetworkResponse.Data.Id);
         }
 
-        [Fact(Skip = "Network operations not yet implemented in DockerCliDriver")]
+        [Fact]
         public async Task Network_Remove_NonExistent_Fails()
         {
             // Arrange
@@ -242,7 +242,7 @@ namespace Ductus.FluentDocker.Tests.V3.Integration
             Assert.NotNull(response.Error);
         }
 
-        [Fact(Skip = "Network operations not yet implemented in DockerCliDriver")]
+        [Fact]
         public async Task Network_Inspect_NonExistent_Fails()
         {
             // Arrange
@@ -256,7 +256,7 @@ namespace Ductus.FluentDocker.Tests.V3.Integration
             Assert.NotNull(response.Error);
         }
 
-        [Fact(Skip = "Network operations not yet implemented in DockerCliDriver")]
+        [Fact]
         public async Task Network_CreateDuplicate_Fails()
         {
             // Arrange
@@ -283,7 +283,7 @@ namespace Ductus.FluentDocker.Tests.V3.Integration
             await _driver.RemoveAsync(_context, firstResponse.Data.Id);
         }
 
-        [Fact(Skip = "Network operations not yet implemented in DockerCliDriver")]
+        [Fact]
         public async Task Network_Prune_RemovesUnusedNetworks()
         {
             // Arrange
@@ -303,7 +303,7 @@ namespace Ductus.FluentDocker.Tests.V3.Integration
             Assert.NotNull(pruneResponse.Data);
         }
 
-        [Fact(Skip = "Network operations not yet implemented in DockerCliDriver")]
+        [Fact]
         public async Task Network_CreateWithIpv6_EnablesIpv6()
         {
             // Arrange

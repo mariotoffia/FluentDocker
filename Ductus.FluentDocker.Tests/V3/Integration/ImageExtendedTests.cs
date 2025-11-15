@@ -167,7 +167,7 @@ namespace Ductus.FluentDocker.Tests.V3.Integration
             Assert.NotNull(response.Error);
         }
 
-        [Fact(Skip = "Image build not yet implemented")]
+        [Fact]
         public async Task Image_Build_CreatesImage()
         {
             // Arrange
@@ -189,7 +189,7 @@ namespace Ductus.FluentDocker.Tests.V3.Integration
             await _driver.RemoveAsync(_context, response.Data.ImageId, force: true);
         }
 
-        [Fact(Skip = "Image build not yet implemented")]
+        [Fact]
         public async Task Image_BuildWithBuildArgs_PassesArguments()
         {
             // Arrange
@@ -214,7 +214,7 @@ namespace Ductus.FluentDocker.Tests.V3.Integration
             await _driver.RemoveAsync(_context, response.Data.ImageId, force: true);
         }
 
-        [Fact(Skip = "Image build not yet implemented")]
+        [Fact]
         public async Task Image_BuildWithLabels_SetsLabels()
         {
             // Arrange
@@ -239,7 +239,7 @@ namespace Ductus.FluentDocker.Tests.V3.Integration
             await _driver.RemoveAsync(_context, response.Data.ImageId, force: true);
         }
 
-        [Fact(Skip = "Image build not yet implemented")]
+        [Fact]
         public async Task Image_BuildWithTarget_BuildsStage()
         {
             // Arrange
