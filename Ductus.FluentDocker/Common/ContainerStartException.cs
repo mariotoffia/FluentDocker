@@ -15,11 +15,6 @@ namespace Ductus.FluentDocker.Common
         {
         }
 
-        public ContainerStartException(string message, string errorCode, ErrorContext context)
-            : base(message, errorCode, context, isTransient: true)
-        {
-        }
-
         public ContainerStartException(string containerId, string reason, ErrorContext context)
             : base($"Failed to start container '{containerId}': {reason}", ErrorCodes.Container.StartFailed, context, isTransient: true)
         {

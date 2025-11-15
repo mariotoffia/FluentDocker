@@ -4,12 +4,12 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Ductus.FluentDocker.Common;
-using Ductus.FluentDocker.Model.Containers;
 using Ductus.FluentDocker.Model.Drivers;
 using Ductus.FluentDocker.Model.Images;
 using Ductus.FluentDocker.Model.Networks;
 using Ductus.FluentDocker.Model.Volumes;
 using Newtonsoft.Json;
+using Container = Ductus.FluentDocker.Model.Containers.Container;
 
 namespace Ductus.FluentDocker.Drivers.Docker.Cli
 {
@@ -172,11 +172,20 @@ namespace Ductus.FluentDocker.Drivers.Docker.Cli
             }
         }
 
-        public async Task<CommandResponse<Unit>> RemoveAsync(
+        Task<CommandResponse<Unit>> IContainerDriver.RemoveAsync(
             DriverContext context,
             string containerId,
-            bool force = false,
-            CancellationToken cancellationToken = default)
+            bool force,
+            CancellationToken cancellationToken)
+        {
+            return RemoveContainerAsync(context, containerId, force, cancellationToken);
+        }
+
+        private async Task<CommandResponse<Unit>> RemoveContainerAsync(
+            DriverContext context,
+            string containerId,
+            bool force,
+            CancellationToken cancellationToken)
         {
             try
             {

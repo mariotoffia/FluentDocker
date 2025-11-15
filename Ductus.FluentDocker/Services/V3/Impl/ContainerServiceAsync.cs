@@ -56,8 +56,8 @@ namespace Ductus.FluentDocker.Services.V3.Impl
             if (!response.Success)
             {
                 throw new ContainerStartException(
-                    $"Failed to start container '{_name}': {response.Error}",
-                    response.ErrorCode,
+                    _containerId,
+                    response.Error,
                     response.ErrorContext);
             }
 
