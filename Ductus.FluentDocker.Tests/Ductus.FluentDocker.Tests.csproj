@@ -17,20 +17,6 @@
     <ProjectReference Include="..\Ductus.FluentDocker\Ductus.FluentDocker.csproj" />
   </ItemGroup>
 
-  <ItemGroup>
-    <EmbeddedResource Include="MultiContainerTestFiles\*.js" />
-    <EmbeddedResource Include="MultiContainerTestFiles\*.txt" />
-    <EmbeddedResource Include="MultiContainerTestFiles\nginx.conf" />
-    <EmbeddedResource Include="Compose\docker-compose.yml" />
-    <EmbeddedResource Include="Compose\nginx\Dockerfile" />
-    <EmbeddedResource Include="Compose\nginx\Dockerfile_custom" />
-    <EmbeddedResource Include="Compose\nginx\nginx.conf" />
-    <EmbeddedResource Include="Compose\node\Dockerfile" />
-    <EmbeddedResource Include="Compose\node\index.js" />
-    <EmbeddedResource Include="Compose\node\package.txt" />
-    <EmbeddedResource Include="Compose\redis\Dockerfile" />
-  </ItemGroup>
-
   <ItemGroup Condition="'$(Configuration)' == 'Debug'">
     <None Update="Resources\ComposeTests\MongoDbAndNetwork\docker-compose.yml">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
