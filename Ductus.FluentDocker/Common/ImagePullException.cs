@@ -11,7 +11,7 @@ namespace Ductus.FluentDocker.Common
         public string ImageName { get; }
 
         public ImagePullException(string imageName, string reason)
-            : base($"Failed to pull image '{imageName}': {reason}", ErrorCodes.Image.PullFailed, isTransient: true)
+            : base($"Failed to pull image '{imageName}': {reason}", ErrorCodes.Image.PullFailed, null, isTransient: true)
         {
             ImageName = imageName;
         }
@@ -23,7 +23,7 @@ namespace Ductus.FluentDocker.Common
         }
 
         public ImagePullException(string imageName, string reason, Exception innerException)
-            : base($"Failed to pull image '{imageName}': {reason}", ErrorCodes.Image.PullFailed, innerException, isTransient: true)
+            : base($"Failed to pull image '{imageName}': {reason}", ErrorCodes.Image.PullFailed, null, innerException, isTransient: true)
         {
             ImageName = imageName;
         }

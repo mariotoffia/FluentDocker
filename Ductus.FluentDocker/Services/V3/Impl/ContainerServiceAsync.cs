@@ -128,7 +128,7 @@ namespace Ductus.FluentDocker.Services.V3.Impl
             // Update state from inspection
             if (response.Data?.State != null)
             {
-                _state = ParseState(response.Data.State);
+                _state = ParseState(response.Data.State.Status);
             }
 
             return response.Data;
@@ -224,7 +224,7 @@ namespace Ductus.FluentDocker.Services.V3.Impl
         {
             var oldState = _state;
             _state = newState;
-            StateChange?.Invoke(this, new StateChangeEventArgs(oldState, newState, this));
+            StateChange?.Invoke(this, new StateChangeEventArgs(this, newState));
         }
 
         private async Task ExecuteHooksAsync(ServiceRunningState state)

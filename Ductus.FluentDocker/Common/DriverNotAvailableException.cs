@@ -11,7 +11,7 @@ namespace Ductus.FluentDocker.Common
         public string DriverId { get; }
 
         public DriverNotAvailableException(string driverId, string reason)
-            : base($"Driver '{driverId}' is not available: {reason}", ErrorCodes.Driver.NotAvailable, isTransient: true)
+            : base($"Driver '{driverId}' is not available: {reason}", ErrorCodes.Driver.NotAvailable, null, isTransient: true)
         {
             DriverId = driverId;
         }
@@ -23,7 +23,7 @@ namespace Ductus.FluentDocker.Common
         }
 
         public DriverNotAvailableException(string driverId, string reason, Exception innerException)
-            : base($"Driver '{driverId}' is not available: {reason}", ErrorCodes.Driver.NotAvailable, innerException, isTransient: true)
+            : base($"Driver '{driverId}' is not available: {reason}", ErrorCodes.Driver.NotAvailable, null, innerException, isTransient: true)
         {
             DriverId = driverId;
         }

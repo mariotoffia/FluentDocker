@@ -11,7 +11,7 @@ namespace Ductus.FluentDocker.Common
         public string ContainerId { get; }
 
         public ContainerStartException(string message)
-            : base(message, ErrorCodes.Container.StartFailed, isTransient: true)
+            : base(message, ErrorCodes.Container.StartFailed, null, isTransient: true)
         {
         }
 

@@ -74,6 +74,7 @@ namespace Ductus.FluentDocker.Model.Drivers
             public const string ConnectFailed = "NET_005";
             public const string DisconnectFailed = "NET_006";
             public const string InspectFailed = "NET_007";
+            public const string PruneFailed = "NET_008";
         }
 
         /// <summary>
@@ -87,6 +88,7 @@ namespace Ductus.FluentDocker.Model.Drivers
             public const string RemoveFailed = "VOL_004";
             public const string InspectFailed = "VOL_005";
             public const string InUse = "VOL_006";
+            public const string PruneFailed = "VOL_007";
         }
 
         /// <summary>
@@ -99,6 +101,11 @@ namespace Ductus.FluentDocker.Model.Drivers
             public const string UpFailed = "CMP_003";
             public const string DownFailed = "CMP_004";
             public const string ValidationFailed = "CMP_005";
+            public const string StartFailed = "CMP_006";
+            public const string StopFailed = "CMP_007";
+            public const string ListFailed = "CMP_008";
+            public const string LogsFailed = "CMP_009";
+            public const string ExecFailed = "CMP_010";
         }
 
         /// <summary>
