@@ -9,7 +9,11 @@ namespace Ductus.FluentDocker.Model.Kernel
     /// <summary>
     /// Results from a BuildAsync() operation containing all built services.
     /// </summary>
+#if NETSTANDARD2_0
+    public class BuildResults : IDisposable
+#else
     public class BuildResults : IAsyncDisposable, IDisposable
+#endif
     {
         private readonly List<BuildScope> _scopes;
 
@@ -46,6 +50,7 @@ namespace Ductus.FluentDocker.Model.Kernel
         /// <summary>
         /// Async disposal of all services.
         /// </summary>
+#if !NETSTANDARD2_0
         public async ValueTask DisposeAsync()
         {
             foreach (var service in All)
@@ -60,13 +65,22 @@ namespace Ductus.FluentDocker.Model.Kernel
                 }
             }
         }
+#endif
 
         /// <summary>
         /// Explicit async disposal method.
         /// </summary>
         public async Task DisposeAllAsync()
         {
+#if NETSTANDARD2_0
+            foreach (var service in All)
+            {
+                service?.Dispose();
+            }
+            await Task.CompletedTask;
+#else
             await DisposeAsync();
+#endif
         }
 
         /// <summary>
@@ -74,7 +88,14 @@ namespace Ductus.FluentDocker.Model.Kernel
         /// </summary>
         public void Dispose()
         {
+#if NETSTANDARD2_0
+            foreach (var service in All)
+            {
+                service?.Dispose();
+            }
+#else
             DisposeAsync().AsTask().GetAwaiter().GetResult();
+#endif
         }
 
         /// <summary>

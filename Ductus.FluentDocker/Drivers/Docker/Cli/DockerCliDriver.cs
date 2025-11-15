@@ -1162,10 +1162,18 @@ namespace Ductus.FluentDocker.Drivers.Docker.Cli
             }
         }
 
-        public async Task<CommandResponse<Unit>> StartAsync(
+        Task<CommandResponse<Unit>> IComposeDriver.StartAsync(
             DriverContext context,
             string composeFile,
-            CancellationToken cancellationToken = default)
+            CancellationToken cancellationToken)
+        {
+            return ComposeStartAsync(context, composeFile, cancellationToken);
+        }
+
+        private async Task<CommandResponse<Unit>> ComposeStartAsync(
+            DriverContext context,
+            string composeFile,
+            CancellationToken cancellationToken)
         {
             try
             {
@@ -1188,11 +1196,20 @@ namespace Ductus.FluentDocker.Drivers.Docker.Cli
             }
         }
 
-        public async Task<CommandResponse<Unit>> StopAsync(
+        Task<CommandResponse<Unit>> IComposeDriver.StopAsync(
             DriverContext context,
             string composeFile,
-            int? timeout = null,
-            CancellationToken cancellationToken = default)
+            int? timeout,
+            CancellationToken cancellationToken)
+        {
+            return ComposeStopAsync(context, composeFile, timeout, cancellationToken);
+        }
+
+        private async Task<CommandResponse<Unit>> ComposeStopAsync(
+            DriverContext context,
+            string composeFile,
+            int? timeout,
+            CancellationToken cancellationToken)
         {
             try
             {
@@ -1219,14 +1236,29 @@ namespace Ductus.FluentDocker.Drivers.Docker.Cli
             }
         }
 
-        public async Task<CommandResponse<IList<ComposeService>>> ListAsync(
+        Task<CommandResponse<IList<ComposeService>>> IComposeDriver.ListAsync(
             DriverContext context,
             string composeFile,
-            CancellationToken cancellationToken = default)
+            string projectName,
+            CancellationToken cancellationToken)
+        {
+            return ComposeListAsync(context, composeFile, projectName, cancellationToken);
+        }
+
+        private async Task<CommandResponse<IList<ComposeService>>> ComposeListAsync(
+            DriverContext context,
+            string composeFile,
+            string projectName,
+            CancellationToken cancellationToken)
         {
             try
             {
-                var result = await ExecuteCommandAsync($"compose -f {composeFile} ps --format json", cancellationToken);
+                var args = $"compose -f {composeFile}";
+                if (!string.IsNullOrEmpty(projectName))
+                    args += $" -p {projectName}";
+                args += " ps --format json";
+
+                var result = await ExecuteCommandAsync(args, cancellationToken);
 
                 if (!result.Success)
                 {
@@ -1259,11 +1291,20 @@ namespace Ductus.FluentDocker.Drivers.Docker.Cli
             }
         }
 
-        public async Task<CommandResponse<string>> GetLogsAsync(
+        Task<CommandResponse<string>> IComposeDriver.GetLogsAsync(
             DriverContext context,
             string composeFile,
-            bool follow = false,
-            CancellationToken cancellationToken = default)
+            bool follow,
+            CancellationToken cancellationToken)
+        {
+            return ComposeGetLogsAsync(context, composeFile, follow, cancellationToken);
+        }
+
+        private async Task<CommandResponse<string>> ComposeGetLogsAsync(
+            DriverContext context,
+            string composeFile,
+            bool follow,
+            CancellationToken cancellationToken)
         {
             try
             {

@@ -43,6 +43,13 @@ namespace Ductus.FluentDocker.Drivers
             DriverContext context,
             string volumeName,
             CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Prunes unused volumes.
+        /// </summary>
+        Task<CommandResponse<VolumePruneResult>> PruneAsync(
+            DriverContext context,
+            CancellationToken cancellationToken = default);
     }
 
     public class VolumeCreateConfig
@@ -63,5 +70,11 @@ namespace Ductus.FluentDocker.Drivers
     {
         public string Name { get; set; }
         public Dictionary<string, string> Labels { get; set; } = new Dictionary<string, string>();
+    }
+
+    public class VolumePruneResult
+    {
+        public List<string> VolumesDeleted { get; set; } = new List<string>();
+        public long SpaceReclaimed { get; set; }
     }
 }

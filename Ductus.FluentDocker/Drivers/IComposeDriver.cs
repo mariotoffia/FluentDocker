@@ -49,6 +49,7 @@ namespace Ductus.FluentDocker.Drivers
         Task<CommandResponse<IList<ComposeService>>> ListAsync(
             DriverContext context,
             string composeFile,
+            string projectName = null,
             CancellationToken cancellationToken = default);
 
         /// <summary>
@@ -115,6 +116,16 @@ namespace Ductus.FluentDocker.Drivers
         /// Specific services to start.
         /// </summary>
         public List<string> Services { get; set; } = new List<string>();
+
+        /// <summary>
+        /// Don't start linked services.
+        /// </summary>
+        public bool NoDeps { get; set; }
+
+        /// <summary>
+        /// Shutdown timeout in seconds.
+        /// </summary>
+        public int? Timeout { get; set; }
     }
 
     /// <summary>
@@ -146,6 +157,11 @@ namespace Ductus.FluentDocker.Drivers
         /// Timeout in seconds.
         /// </summary>
         public int? Timeout { get; set; }
+
+        /// <summary>
+        /// Remove orphaned containers.
+        /// </summary>
+        public bool RemoveOrphans { get; set; }
     }
 
     /// <summary>
