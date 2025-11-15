@@ -3,6 +3,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Ductus.FluentDocker.Common;
 using Ductus.FluentDocker.Kernel;
+using Ductus.FluentDocker.Services;
 
 namespace Ductus.FluentDocker.Services.V3
 {
@@ -10,21 +11,11 @@ namespace Ductus.FluentDocker.Services.V3
     /// v3.0.0 async service interface.
     /// </summary>
 #if NETSTANDARD2_0
-    public interface IServiceAsync : IDisposable
+    public interface IServiceAsync : IService
 #else
-    public interface IServiceAsync : IAsyncDisposable, IDisposable
+    public interface IServiceAsync : IService, IAsyncDisposable
 #endif
     {
-        /// <summary>
-        /// Service name.
-        /// </summary>
-        string Name { get; }
-
-        /// <summary>
-        /// Current state of the service.
-        /// </summary>
-        ServiceRunningState State { get; }
-
         /// <summary>
         /// The kernel instance managing this service.
         /// </summary>
@@ -56,18 +47,13 @@ namespace Ductus.FluentDocker.Services.V3
         Task RemoveAsync(bool force = false, CancellationToken cancellationToken = default);
 
         /// <summary>
-        /// Adds a state change hook.
+        /// Adds a state change hook (async version).
         /// </summary>
         IServiceAsync AddHook(ServiceRunningState state, Func<IServiceAsync, Task> hook, string uniqueName = null);
 
         /// <summary>
-        /// Removes a hook by name.
+        /// Removes a hook by name (async version).
         /// </summary>
-        IServiceAsync RemoveHook(string uniqueName);
-
-        /// <summary>
-        /// State change event.
-        /// </summary>
-        event ServiceDelegates.StateChange StateChange;
+        new IServiceAsync RemoveHook(string uniqueName);
     }
 }

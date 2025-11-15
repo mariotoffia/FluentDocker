@@ -190,6 +190,39 @@ namespace Ductus.FluentDocker.Services.V3.Impl
             return this;
         }
 
+        // IService synchronous method implementations
+        void IService.Start()
+        {
+            StartAsync().GetAwaiter().GetResult();
+        }
+
+        void IService.Pause()
+        {
+            PauseAsync().GetAwaiter().GetResult();
+        }
+
+        void IService.Stop()
+        {
+            StopAsync().GetAwaiter().GetResult();
+        }
+
+        void IService.Remove(bool force)
+        {
+            RemoveAsync(force).GetAwaiter().GetResult();
+        }
+
+        IService IService.AddHook(ServiceRunningState state, Action<IService> hook, string uniqueName)
+        {
+            // Wrap synchronous hook in async Task
+            return AddHook(state, async service => hook(service), uniqueName);
+        }
+
+        IService IService.RemoveHook(string uniqueName)
+        {
+            RemoveHook(uniqueName);
+            return this;
+        }
+
         public void Dispose()
         {
 #if NETSTANDARD2_0

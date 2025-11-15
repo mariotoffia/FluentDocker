@@ -244,7 +244,7 @@ namespace Ductus.FluentDocker.Builders.V3
             return this;
         }
 
-        public async Task<Services.V3.IServiceAsync> ExecuteAsync(CancellationToken cancellationToken)
+        public async Task<IService> ExecuteAsync(CancellationToken cancellationToken)
         {
             // Create container using driver
             var driver = _kernel.SysCtl<Drivers.IContainerDriver>(_driverId);
