@@ -3,7 +3,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using Ductus.FluentDocker.Model.Containers;
 using Ductus.FluentDocker.Model.Drivers;
-using CommandResponse = Ductus.FluentDocker.Model.Drivers.CommandResponse;
 
 namespace Ductus.FluentDocker.Drivers
 {
@@ -19,7 +18,7 @@ namespace Ductus.FluentDocker.Drivers
         /// <param name="config">Container configuration</param>
         /// <param name="cancellationToken">Cancellation token</param>
         /// <returns>Container create result with ID</returns>
-        Task<CommandResponse<ContainerCreateResult>> CreateAsync(
+        Task<Ductus.FluentDocker.Model.Drivers.CommandResponse<ContainerCreateResult>> CreateAsync(
             DriverContext context,
             ContainerCreateConfig config,
             CancellationToken cancellationToken = default);
@@ -30,7 +29,7 @@ namespace Ductus.FluentDocker.Drivers
         /// <param name="context">Driver context</param>
         /// <param name="containerId">Container ID or name</param>
         /// <param name="cancellationToken">Cancellation token</param>
-        Task<CommandResponse<Unit>> StartAsync(
+        Task<Ductus.FluentDocker.Model.Drivers.CommandResponse<Unit>> StartAsync(
             DriverContext context,
             string containerId,
             CancellationToken cancellationToken = default);
@@ -42,7 +41,7 @@ namespace Ductus.FluentDocker.Drivers
         /// <param name="containerId">Container ID or name</param>
         /// <param name="timeout">Timeout in seconds before forcing stop</param>
         /// <param name="cancellationToken">Cancellation token</param>
-        Task<CommandResponse<Unit>> StopAsync(
+        Task<Ductus.FluentDocker.Model.Drivers.CommandResponse<Unit>> StopAsync(
             DriverContext context,
             string containerId,
             int? timeout = null,
@@ -55,7 +54,7 @@ namespace Ductus.FluentDocker.Drivers
         /// <param name="containerId">Container ID or name</param>
         /// <param name="force">Force removal even if running</param>
         /// <param name="cancellationToken">Cancellation token</param>
-        Task<CommandResponse<Unit>> RemoveAsync(
+        Task<Ductus.FluentDocker.Model.Drivers.CommandResponse<Unit>> RemoveAsync(
             DriverContext context,
             string containerId,
             bool force = false,
@@ -68,7 +67,7 @@ namespace Ductus.FluentDocker.Drivers
         /// <param name="containerId">Container ID or name</param>
         /// <param name="cancellationToken">Cancellation token</param>
         /// <returns>Detailed container information</returns>
-        Task<CommandResponse<Container>> InspectAsync(
+        Task<Ductus.FluentDocker.Model.Drivers.CommandResponse<Container>> InspectAsync(
             DriverContext context,
             string containerId,
             CancellationToken cancellationToken = default);
@@ -80,7 +79,7 @@ namespace Ductus.FluentDocker.Drivers
         /// <param name="filter">Optional filter parameters</param>
         /// <param name="cancellationToken">Cancellation token</param>
         /// <returns>List of containers</returns>
-        Task<CommandResponse<IList<Container>>> ListAsync(
+        Task<Ductus.FluentDocker.Model.Drivers.CommandResponse<IList<Container>>> ListAsync(
             DriverContext context,
             ContainerListFilter filter = null,
             CancellationToken cancellationToken = default);
@@ -93,7 +92,7 @@ namespace Ductus.FluentDocker.Drivers
         /// <param name="follow">Follow log output</param>
         /// <param name="cancellationToken">Cancellation token</param>
         /// <returns>Container logs</returns>
-        Task<CommandResponse<string>> GetLogsAsync(
+        Task<Ductus.FluentDocker.Model.Drivers.CommandResponse<string>> GetLogsAsync(
             DriverContext context,
             string containerId,
             bool follow = false,
