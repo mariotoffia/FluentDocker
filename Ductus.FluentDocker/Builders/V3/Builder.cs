@@ -246,10 +246,35 @@ namespace Ductus.FluentDocker.Builders.V3
 
         public async Task<IService> ExecuteAsync(CancellationToken cancellationToken)
         {
-            // This is a stub - proper implementation will come later
-            // For now, just return a stub service
-            await Task.CompletedTask;
-            throw new NotImplementedException("Container creation will be implemented in Phase 5");
+            // Create container using driver
+            var driver = _kernel.SysCtl<Drivers.IContainerDriver>(_driverId);
+            var context = new Model.Drivers.DriverContext(_driverId);
+
+            var config = new Drivers.ContainerCreateConfig
+            {
+                Image = _image,
+                Name = _name,
+                Environment = _environment,
+                PortBindings = _ports
+            };
+
+            var response = await driver.CreateAsync(context, config, cancellationToken);
+
+            if (!response.Success)
+            {
+                throw new Common.DriverException(
+                    $"Failed to create container: {response.Error}",
+                    response.ErrorCode,
+                    response.ErrorContext);
+            }
+
+            // Return async service implementation
+            return new Services.V3.Impl.ContainerServiceAsync(
+                _kernel,
+                _driverId,
+                response.Data.Id,
+                _image,
+                _name);
         }
     }
 

@@ -1,3 +1,4 @@
+using System;
 using System.Threading.Tasks;
 using Ductus.FluentDocker.Builders.V3;
 using Ductus.FluentDocker.Kernel;
@@ -8,15 +9,23 @@ namespace Ductus.FluentDocker.Tests.V3
     /// <summary>
     /// Tests for v3.0.0 async Builder with WithinDriver() scoping.
     /// </summary>
+    [Trait("Category", "Integration")]
     public class BuilderTests
     {
-        [Fact(Skip = "Integration test - requires Docker daemon and Phase 5 implementation")]
+        [Fact]
         public async Task Builder_WithSingleContainer_CreatesBuildResults()
         {
             // Arrange
             var kernel = await FluentDockerKernel.Create()
-                .WithDriver("docker", d => d.UseDockerCli())
+                .UseDriver("docker", d => d.UseDockerCli())
                 .BuildAsync();
+
+            // Ensure image is available
+            var imageDriver = kernel.SysCtl<Drivers.IImageDriver>("docker");
+            await imageDriver.PullAsync(
+                new Model.Drivers.DriverContext("docker"),
+                "alpine",
+                "latest");
 
             try
             {
@@ -24,8 +33,8 @@ namespace Ductus.FluentDocker.Tests.V3
                 var results = await new Builder()
                     .WithinDriver("docker", kernel)
                         .UseContainer(c => c
-                            .UseImage("nginx:latest")
-                            .WithName("test-nginx"))
+                            .UseImage("alpine:latest")
+                            .WithName($"test-builder-{Guid.NewGuid():N}"))
                     .BuildAsync();
 
                 // Assert
@@ -42,24 +51,30 @@ namespace Ductus.FluentDocker.Tests.V3
             }
         }
 
-        [Fact(Skip = "Integration test - requires Docker daemon and Phase 5 implementation")]
+        [Fact]
         public async Task Builder_WithMultipleScopes_CreatesBuildResultsForEachScope()
         {
             // Arrange
             var kernel = await FluentDockerKernel.Create()
-                .WithDriver("docker-1", d => d.UseDockerCli())
-                .WithDriver("docker-2", d => d.UseDockerCli())
+                .UseDriver("docker-1", d => d.UseDockerCli())
+                .UseDriver("docker-2", d => d.UseDockerCli())
                 .BuildAsync();
+
+            // Ensure images are available
+            var imageDriver1 = kernel.SysCtl<Drivers.IImageDriver>("docker-1");
+            var imageDriver2 = kernel.SysCtl<Drivers.IImageDriver>("docker-2");
+            await imageDriver1.PullAsync(new Model.Drivers.DriverContext("docker-1"), "alpine", "latest");
+            await imageDriver2.PullAsync(new Model.Drivers.DriverContext("docker-2"), "alpine", "latest");
 
             try
             {
                 // Act
                 var results = await new Builder()
                     .WithinDriver("docker-1", kernel)
-                        .UseContainer(c => c.UseImage("nginx"))
-                        .UseContainer(c => c.UseImage("postgres"))
+                        .UseContainer(c => c.UseImage("alpine:latest").WithName($"d1-c1-{Guid.NewGuid():N}"))
+                        .UseContainer(c => c.UseImage("alpine:latest").WithName($"d1-c2-{Guid.NewGuid():N}"))
                     .WithinDriver("docker-2")  // Reuses kernel
-                        .UseContainer(c => c.UseImage("redis"))
+                        .UseContainer(c => c.UseImage("alpine:latest").WithName($"d2-c1-{Guid.NewGuid():N}"))
                     .BuildAsync();
 
                 // Assert
@@ -89,11 +104,10 @@ namespace Ductus.FluentDocker.Tests.V3
         public async Task Builder_KernelReuse_VerifiesPattern()
         {
             // This test demonstrates the kernel reuse pattern
-            // Actual execution requires Docker daemon and Phase 5 implementation
 
             var kernel = await FluentDockerKernel.Create()
-                .WithDriver("docker-1", d => d.UseDockerCli())
-                .WithDriver("docker-2", d => d.UseDockerCli())
+                .UseDriver("docker-1", d => d.UseDockerCli())
+                .UseDriver("docker-2", d => d.UseDockerCli())
                 .BuildAsync();
 
             var builder = new Builder()
