@@ -58,7 +58,7 @@ namespace Ductus.FluentDocker.Kernel
             return kernel;
         }
 
-        private class DriverConfiguration
+        internal class DriverConfiguration
         {
             public string DriverId { get; set; }
             public IDriver Driver { get; set; }

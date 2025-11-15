@@ -213,10 +213,18 @@ namespace Ductus.FluentDocker.Drivers.Docker.Cli
             }
         }
 
-        public async Task<CommandResponse<Container>> InspectAsync(
+        Task<CommandResponse<Container>> IContainerDriver.InspectAsync(
             DriverContext context,
             string containerId,
-            CancellationToken cancellationToken = default)
+            CancellationToken cancellationToken)
+        {
+            return InspectContainerAsync(context, containerId, cancellationToken);
+        }
+
+        private async Task<CommandResponse<Container>> InspectContainerAsync(
+            DriverContext context,
+            string containerId,
+            CancellationToken cancellationToken)
         {
             try
             {
@@ -706,10 +714,18 @@ namespace Ductus.FluentDocker.Drivers.Docker.Cli
             }
         }
 
-        public async Task<CommandResponse<Network>> InspectAsync(
+        Task<CommandResponse<Network>> INetworkDriver.InspectAsync(
             DriverContext context,
             string networkId,
-            CancellationToken cancellationToken = default)
+            CancellationToken cancellationToken)
+        {
+            return InspectNetworkAsync(context, networkId, cancellationToken);
+        }
+
+        private async Task<CommandResponse<Network>> InspectNetworkAsync(
+            DriverContext context,
+            string networkId,
+            CancellationToken cancellationToken)
         {
             try
             {
@@ -784,9 +800,16 @@ namespace Ductus.FluentDocker.Drivers.Docker.Cli
             }
         }
 
-        public async Task<CommandResponse<NetworkPruneResult>> PruneAsync(
+        Task<CommandResponse<NetworkPruneResult>> INetworkDriver.PruneAsync(
             DriverContext context,
-            CancellationToken cancellationToken = default)
+            CancellationToken cancellationToken)
+        {
+            return PruneNetworkAsync(context, cancellationToken);
+        }
+
+        private async Task<CommandResponse<NetworkPruneResult>> PruneNetworkAsync(
+            DriverContext context,
+            CancellationToken cancellationToken)
         {
             try
             {
@@ -966,9 +989,16 @@ namespace Ductus.FluentDocker.Drivers.Docker.Cli
             }
         }
 
-        public async Task<CommandResponse<VolumePruneResult>> PruneAsync(
+        Task<CommandResponse<VolumePruneResult>> IVolumeDriver.PruneAsync(
             DriverContext context,
-            CancellationToken cancellationToken = default)
+            CancellationToken cancellationToken)
+        {
+            return PruneVolumeAsync(context, cancellationToken);
+        }
+
+        private async Task<CommandResponse<VolumePruneResult>> PruneVolumeAsync(
+            DriverContext context,
+            CancellationToken cancellationToken)
         {
             try
             {

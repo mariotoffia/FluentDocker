@@ -192,10 +192,18 @@ namespace Ductus.FluentDocker.Services.V3.Impl
 
         public void Dispose()
         {
+#if NETSTANDARD2_0
+            DisposeAsync().GetAwaiter().GetResult();
+#else
             DisposeAsync().AsTask().GetAwaiter().GetResult();
+#endif
         }
 
+#if NETSTANDARD2_0
+        public async Task DisposeAsync()
+#else
         public async ValueTask DisposeAsync()
+#endif
         {
             try
             {

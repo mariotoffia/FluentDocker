@@ -9,7 +9,11 @@ namespace Ductus.FluentDocker.Services.V3
     /// <summary>
     /// v3.0.0 async service interface.
     /// </summary>
+#if NETSTANDARD2_0
+    public interface IServiceAsync : IDisposable
+#else
     public interface IServiceAsync : IAsyncDisposable, IDisposable
+#endif
     {
         /// <summary>
         /// Service name.
@@ -65,11 +69,5 @@ namespace Ductus.FluentDocker.Services.V3
         /// State change event.
         /// </summary>
         event ServiceDelegates.StateChange StateChange;
-
-        // Backward compatibility - sync versions (optional implementation)
-        void Start() => StartAsync().GetAwaiter().GetResult();
-        void Pause() => PauseAsync().GetAwaiter().GetResult();
-        void Stop() => StopAsync().GetAwaiter().GetResult();
-        void Remove(bool force = false) => RemoveAsync(force).GetAwaiter().GetResult();
     }
 }

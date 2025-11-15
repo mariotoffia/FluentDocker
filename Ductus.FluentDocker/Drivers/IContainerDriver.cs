@@ -3,6 +3,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Ductus.FluentDocker.Model.Containers;
 using Ductus.FluentDocker.Model.Drivers;
+using CommandResponse = Ductus.FluentDocker.Model.Drivers.CommandResponse;
 
 namespace Ductus.FluentDocker.Drivers
 {
