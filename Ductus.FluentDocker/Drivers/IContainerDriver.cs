@@ -141,14 +141,14 @@ namespace Ductus.FluentDocker.Drivers
         public Dictionary<string, string> Environment { get; set; } = new Dictionary<string, string>();
 
         /// <summary>
-        /// Port bindings.
+        /// Port bindings (container port -> host port).
         /// </summary>
         public Dictionary<string, string> PortBindings { get; set; } = new Dictionary<string, string>();
 
         /// <summary>
-        /// Volume bindings.
+        /// Volume bindings (host path -> container path or volume name).
         /// </summary>
-        public List<string> Volumes { get; set; } = new List<string>();
+        public Dictionary<string, string> Volumes { get; set; } = new Dictionary<string, string>();
 
         /// <summary>
         /// Network mode.
@@ -159,6 +159,51 @@ namespace Ductus.FluentDocker.Drivers
         /// Additional labels.
         /// </summary>
         public Dictionary<string, string> Labels { get; set; } = new Dictionary<string, string>();
+
+        /// <summary>
+        /// Working directory inside the container.
+        /// </summary>
+        public string WorkingDirectory { get; set; }
+
+        /// <summary>
+        /// User to run as inside the container.
+        /// </summary>
+        public string User { get; set; }
+
+        /// <summary>
+        /// Restart policy (no, always, unless-stopped, on-failure).
+        /// </summary>
+        public string RestartPolicy { get; set; }
+
+        /// <summary>
+        /// Hostname of the container.
+        /// </summary>
+        public string Hostname { get; set; }
+
+        /// <summary>
+        /// Networks to attach the container to.
+        /// </summary>
+        public List<string> Networks { get; set; } = new List<string>();
+
+        /// <summary>
+        /// Memory limit in bytes.
+        /// </summary>
+        public long? MemoryLimit { get; set; }
+
+        /// <summary>
+        /// CPU shares (relative weight).
+        /// </summary>
+        public long? CpuShares { get; set; }
+
+        /// <summary>
+        /// Whether to run in privileged mode.
+        /// </summary>
+        public bool Privileged { get; set; }
+
+        /// <summary>
+        /// Whether to auto-remove container when it exits.
+        /// </summary>
+        public bool AutoRemove { get; set; }
     }
 
     /// <summary>

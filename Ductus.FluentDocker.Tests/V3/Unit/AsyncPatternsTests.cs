@@ -3,7 +3,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Xunit;
 
-namespace Ductus.FluentDocker.Tests.V3.Unit
+namespace Ductus.FluentDocker.Tests.V3.UnitTests
 {
     /// <summary>
     /// Tests for v3.0.0 async/await patterns and cancellation support.

@@ -3,6 +3,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Ductus.FluentDocker.Builders.V3;
 using Ductus.FluentDocker.Kernel;
+using Ductus.FluentDocker.Model.Kernel;
 using Ductus.FluentDocker.Services.V3;
 using Xunit;
 
@@ -28,8 +29,8 @@ namespace Ductus.FluentDocker.Tests.V3.Integration
         {
             // Arrange
             _kernel = await new KernelBuilder()
-                .UseDriver("docker-1", b => b.UseDockerCli())
-                .UseDriver("docker-2", b => b.UseDockerCli())
+                .WithDriver("docker-1", b => b.UseDockerCli())
+                .WithDriver("docker-2", b => b.UseDockerCli())
                 .BuildAsync();
 
             // Ensure images are available
@@ -67,8 +68,8 @@ namespace Ductus.FluentDocker.Tests.V3.Integration
         {
             // Arrange
             _kernel = await new KernelBuilder()
-                .UseDriver("docker-1", b => b.UseDockerCli())
-                .UseDriver("docker-2", b => b.UseDockerCli())
+                .WithDriver("docker-1", b => b.UseDockerCli())
+                .WithDriver("docker-2", b => b.UseDockerCli())
                 .BuildAsync();
 
             var driver1 = _kernel.SysCtl<Drivers.IImageDriver>("docker-1");
@@ -103,8 +104,8 @@ namespace Ductus.FluentDocker.Tests.V3.Integration
         {
             // Arrange
             _kernel = await new KernelBuilder()
-                .UseDriver("docker-1", b => b.UseDockerCli())
-                .UseDriver("docker-2", b => b.UseDockerCli())
+                .WithDriver("docker-1", b => b.UseDockerCli())
+                .WithDriver("docker-2", b => b.UseDockerCli())
                 .BuildAsync();
 
             var driver1 = _kernel.SysCtl<Drivers.IImageDriver>("docker-1");
@@ -139,7 +140,7 @@ namespace Ductus.FluentDocker.Tests.V3.Integration
         {
             // Arrange
             _kernel = await new KernelBuilder()
-                .UseDriver("docker-local", b => b.UseDockerCli())
+                .WithDriver("docker-local", b => b.UseDockerCli())
                 .BuildAsync();
 
             var driver = _kernel.SysCtl<Drivers.IImageDriver>("docker-local");
@@ -170,9 +171,9 @@ namespace Ductus.FluentDocker.Tests.V3.Integration
         {
             // Arrange
             _kernel = await new KernelBuilder()
-                .UseDriver("docker-1", b => b.UseDockerCli())
-                .UseDriver("docker-2", b => b.UseDockerCli())
-                .UseDriver("docker-3", b => b.UseDockerCli())
+                .WithDriver("docker-1", b => b.UseDockerCli())
+                .WithDriver("docker-2", b => b.UseDockerCli())
+                .WithDriver("docker-3", b => b.UseDockerCli())
                 .BuildAsync();
 
             var driver1 = _kernel.SysCtl<Drivers.IImageDriver>("docker-1");
@@ -206,8 +207,8 @@ namespace Ductus.FluentDocker.Tests.V3.Integration
         {
             // Arrange
             _kernel = await new KernelBuilder()
-                .UseDriver("docker-1", b => b.UseDockerCli())
-                .UseDriver("docker-2", b => b.UseDockerCli())
+                .WithDriver("docker-1", b => b.UseDockerCli())
+                .WithDriver("docker-2", b => b.UseDockerCli())
                 .BuildAsync();
 
             var driver1 = _kernel.SysCtl<Drivers.IImageDriver>("docker-1");

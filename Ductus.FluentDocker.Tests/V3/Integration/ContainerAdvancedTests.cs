@@ -20,7 +20,7 @@ namespace Ductus.FluentDocker.Tests.V3.Integration
         public ContainerAdvancedTests()
         {
             _kernel = new KernelBuilder()
-                .UseDriver("docker-local", b => b.UseDockerCli())
+                .WithDriver("docker-local", b => b.UseDockerCli())
                 .BuildAsync()
                 .GetAwaiter()
                 .GetResult();
@@ -199,7 +199,7 @@ namespace Ductus.FluentDocker.Tests.V3.Integration
             _containerId = createResponse.Data.Id;
 
             // Act
-            var listResponse = await _driver.ListAsync(_context, all: true);
+            var listResponse = await _driver.ListAsync(_context, new ContainerListFilter { All = true });
 
             // Assert
             Assert.True(listResponse.Success, listResponse.Error);

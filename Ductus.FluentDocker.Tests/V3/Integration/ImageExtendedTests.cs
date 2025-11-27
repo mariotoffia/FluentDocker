@@ -18,7 +18,7 @@ namespace Ductus.FluentDocker.Tests.V3.Integration
         public ImageExtendedTests()
         {
             _kernel = new KernelBuilder()
-                .UseDriver("docker-local", b => b.UseDockerCli())
+                .WithDriver("docker-local", b => b.UseDockerCli())
                 .BuildAsync()
                 .GetAwaiter()
                 .GetResult();
@@ -56,12 +56,12 @@ namespace Ductus.FluentDocker.Tests.V3.Integration
             // Arrange
             await _driver.PullAsync(_context, "alpine", "latest");
 
-            var tag1 = $"alpine:test-tag-1-{Guid.NewGuid():N}";
-            var tag2 = $"alpine:test-tag-2-{Guid.NewGuid():N}";
+            var tagName1 = $"test-tag-1-{Guid.NewGuid():N}";
+            var tagName2 = $"test-tag-2-{Guid.NewGuid():N}";
 
             // Act
-            var response1 = await _driver.TagAsync(_context, "alpine:latest", tag1);
-            var response2 = await _driver.TagAsync(_context, "alpine:latest", tag2);
+            var response1 = await _driver.TagAsync(_context, "alpine:latest", "alpine", tagName1);
+            var response2 = await _driver.TagAsync(_context, "alpine:latest", "alpine", tagName2);
 
             // Assert
             Assert.True(response1.Success, response1.Error);
@@ -75,8 +75,8 @@ namespace Ductus.FluentDocker.Tests.V3.Integration
                 img.Tags != null && img.Tags.Any(t => t.Contains("test-tag-2")));
 
             // Cleanup
-            await _driver.RemoveAsync(_context, tag1, force: true);
-            await _driver.RemoveAsync(_context, tag2, force: true);
+            await _driver.RemoveAsync(_context, $"alpine:{tagName1}", force: true);
+            await _driver.RemoveAsync(_context, $"alpine:{tagName2}", force: true);
         }
 
         [Fact]
@@ -121,8 +121,9 @@ namespace Ductus.FluentDocker.Tests.V3.Integration
             // Arrange
             await _driver.PullAsync(_context, "alpine", "latest");
 
-            var testTag = $"alpine:force-remove-{Guid.NewGuid():N}";
-            await _driver.TagAsync(_context, "alpine:latest", testTag);
+            var testTagName = $"force-remove-{Guid.NewGuid():N}";
+            var testTag = $"alpine:{testTagName}";
+            await _driver.TagAsync(_context, "alpine:latest", "alpine", testTagName);
 
             // Create container using the image
             var containerDriver = _kernel.SysCtl<IContainerDriver>("docker-local");
@@ -284,7 +285,7 @@ namespace Ductus.FluentDocker.Tests.V3.Integration
             await _driver.PullAsync(_context, "alpine", "latest");
 
             // Act - Invalid tag format (spaces not allowed)
-            var response = await _driver.TagAsync(_context, "alpine:latest", "invalid tag name");
+            var response = await _driver.TagAsync(_context, "alpine:latest", "invalid", "tag name");
 
             // Assert
             Assert.False(response.Success);

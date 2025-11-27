@@ -3,10 +3,13 @@ using System.Linq;
 using System.Threading.Tasks;
 using Ductus.FluentDocker.Builders.V3;
 using Ductus.FluentDocker.Kernel;
+using Ductus.FluentDocker.Model.Kernel;
+using Ductus.FluentDocker.Services;
+using Ductus.FluentDocker.Services.V3;
 using Ductus.FluentDocker.Tests.V3.Mock;
 using Xunit;
 
-namespace Ductus.FluentDocker.Tests.V3.Unit
+namespace Ductus.FluentDocker.Tests.V3.UnitTests
 {
     /// <summary>
     /// Tests for complex multi-driver deployment scenarios.
@@ -18,9 +21,9 @@ namespace Ductus.FluentDocker.Tests.V3.Unit
         {
             // Arrange
             var kernel = await new KernelBuilder()
-                .UseDriver("driver-1", b => b.UseCustomDriver(new MockDriver()))
-                .UseDriver("driver-2", b => b.UseCustomDriver(new MockDriver()))
-                .UseDriver("driver-3", b => b.UseCustomDriver(new MockDriver()))
+                .WithDriver("driver-1", b => b.UseCustomDriver(new MockDriver()))
+                .WithDriver("driver-2", b => b.UseCustomDriver(new MockDriver()))
+                .WithDriver("driver-3", b => b.UseCustomDriver(new MockDriver()))
                 .BuildAsync();
 
             // Act
@@ -49,8 +52,8 @@ namespace Ductus.FluentDocker.Tests.V3.Unit
         {
             // Arrange
             var kernel = await new KernelBuilder()
-                .UseDriver("heavy", b => b.UseCustomDriver(new MockDriver()))
-                .UseDriver("light", b => b.UseCustomDriver(new MockDriver()))
+                .WithDriver("heavy", b => b.UseCustomDriver(new MockDriver()))
+                .WithDriver("light", b => b.UseCustomDriver(new MockDriver()))
                 .BuildAsync();
 
             // Act
@@ -79,8 +82,8 @@ namespace Ductus.FluentDocker.Tests.V3.Unit
         {
             // Arrange
             var kernel = await new KernelBuilder()
-                .UseDriver("driver-1", b => b.UseCustomDriver(new MockDriver()))
-                .UseDriver("driver-2", b => b.UseCustomDriver(new MockDriver()))
+                .WithDriver("driver-1", b => b.UseCustomDriver(new MockDriver()))
+                .WithDriver("driver-2", b => b.UseCustomDriver(new MockDriver()))
                 .BuildAsync();
 
             // Act
@@ -98,8 +101,8 @@ namespace Ductus.FluentDocker.Tests.V3.Unit
             Assert.Equal(2, results.ForDriver("driver-1").Count);
             Assert.Single(results.ForDriver("driver-2"));
 
-            // All services should share the same kernel
-            Assert.All(results.All, service => Assert.Same(kernel, service.Kernel));
+            // All services should share the same kernel (cast to IServiceAsync to access Kernel property)
+            Assert.All(results.All.OfType<IServiceAsync>(), service => Assert.Same(kernel, service.Kernel));
 
             // Cleanup
             await results.DisposeAllAsync();
@@ -111,8 +114,8 @@ namespace Ductus.FluentDocker.Tests.V3.Unit
         {
             // Arrange
             var kernel = await new KernelBuilder()
-                .UseDriver("driver-1", b => b.UseCustomDriver(new MockDriver()))
-                .UseDriver("driver-2", b => b.UseCustomDriver(new MockDriver()))
+                .WithDriver("driver-1", b => b.UseCustomDriver(new MockDriver()))
+                .WithDriver("driver-2", b => b.UseCustomDriver(new MockDriver()))
                 .BuildAsync();
 
             var results = await new Builder()
@@ -122,8 +125,8 @@ namespace Ductus.FluentDocker.Tests.V3.Unit
                     .UseContainer(c => c.UseImage("image:latest").WithName("d2-container"))
                 .BuildAsync();
 
-            var service1 = results.ForDriver("driver-1").First();
-            var service2 = results.ForDriver("driver-2").First();
+            var service1 = results.ForDriver("driver-1").First() as IServiceAsync;
+            var service2 = results.ForDriver("driver-2").First() as IServiceAsync;
 
             // Act - Start only service1
             await service1.StartAsync();
@@ -145,8 +148,8 @@ namespace Ductus.FluentDocker.Tests.V3.Unit
             failingDriver.SimulateFailure = true;
 
             var kernel = await new KernelBuilder()
-                .UseDriver("working", b => b.UseCustomDriver(new MockDriver()))
-                .UseDriver("failing", b => b.UseCustomDriver(failingDriver))
+                .WithDriver("working", b => b.UseCustomDriver(new MockDriver()))
+                .WithDriver("failing", b => b.UseCustomDriver(failingDriver))
                 .BuildAsync();
 
             // Act & Assert
@@ -176,9 +179,9 @@ namespace Ductus.FluentDocker.Tests.V3.Unit
         {
             // Arrange
             var kernel = await new KernelBuilder()
-                .UseDriver("prod", b => b.UseCustomDriver(new MockDriver()))
-                .UseDriver("dev", b => b.UseCustomDriver(new MockDriver()))
-                .UseDriver("test", b => b.UseCustomDriver(new MockDriver()))
+                .WithDriver("prod", b => b.UseCustomDriver(new MockDriver()))
+                .WithDriver("dev", b => b.UseCustomDriver(new MockDriver()))
+                .WithDriver("test", b => b.UseCustomDriver(new MockDriver()))
                 .BuildAsync();
 
             var results = await new Builder()
@@ -213,8 +216,8 @@ namespace Ductus.FluentDocker.Tests.V3.Unit
         {
             // Arrange
             var kernel = await new KernelBuilder()
-                .UseDriver("driver-1", b => b.UseCustomDriver(new MockDriver()))
-                .UseDriver("driver-2", b => b.UseCustomDriver(new MockDriver()))
+                .WithDriver("driver-1", b => b.UseCustomDriver(new MockDriver()))
+                .WithDriver("driver-2", b => b.UseCustomDriver(new MockDriver()))
                 .BuildAsync();
 
             var results = await new Builder()
@@ -243,8 +246,8 @@ namespace Ductus.FluentDocker.Tests.V3.Unit
         {
             // Arrange
             var kernel = await new KernelBuilder()
-                .UseDriver("driver-1", b => b.UseCustomDriver(new MockDriver()))
-                .UseDriver("driver-2", b => b.UseCustomDriver(new MockDriver()))
+                .WithDriver("driver-1", b => b.UseCustomDriver(new MockDriver()))
+                .WithDriver("driver-2", b => b.UseCustomDriver(new MockDriver()))
                 .BuildAsync();
 
             var results = await new Builder()
@@ -268,8 +271,8 @@ namespace Ductus.FluentDocker.Tests.V3.Unit
         {
             // Arrange
             var kernel = await new KernelBuilder()
-                .UseDriver("driver-1", b => b.UseCustomDriver(new MockDriver()))
-                .UseDriver("driver-2", b => b.UseCustomDriver(new MockDriver()))
+                .WithDriver("driver-1", b => b.UseCustomDriver(new MockDriver()))
+                .WithDriver("driver-2", b => b.UseCustomDriver(new MockDriver()))
                 .BuildAsync();
 
             // Act
@@ -300,8 +303,8 @@ namespace Ductus.FluentDocker.Tests.V3.Unit
         {
             // Arrange
             var kernel = await new KernelBuilder()
-                .UseDriver("driver-1", b => b.UseCustomDriver(new MockDriver()))
-                .UseDriver("driver-2", b => b.UseCustomDriver(new MockDriver()))
+                .WithDriver("driver-1", b => b.UseCustomDriver(new MockDriver()))
+                .WithDriver("driver-2", b => b.UseCustomDriver(new MockDriver()))
                 .BuildAsync();
 
             // Act - Create scope but don't add containers to driver-2

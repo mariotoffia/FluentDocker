@@ -34,6 +34,19 @@ namespace Ductus.FluentDocker.Kernel
         }
 
         /// <summary>
+        /// Builds the kernel synchronously (TERMINAL operation).
+        /// </summary>
+        /// <remarks>
+        /// For async contexts (ASP.NET, UI applications), prefer <see cref="BuildAsync"/> to avoid deadlocks.
+        /// This method is safe to use in console apps, test fixtures, and scripts.
+        /// </remarks>
+        public FluentDockerKernel Build()
+        {
+            // Use Task.Run to avoid deadlocks in sync-over-async scenarios
+            return Task.Run(() => BuildAsync()).GetAwaiter().GetResult();
+        }
+
+        /// <summary>
         /// Builds the kernel asynchronously (TERMINAL operation).
         /// </summary>
         public async Task<FluentDockerKernel> BuildAsync(CancellationToken cancellationToken = default)

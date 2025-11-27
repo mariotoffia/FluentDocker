@@ -1,4 +1,6 @@
+using System;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 using Ductus.FluentDocker.Services;
 
 namespace Ductus.FluentDocker.Model.Kernel
@@ -47,6 +49,51 @@ namespace Ductus.FluentDocker.Model.Kernel
             {
                 _results.Add(service);
             }
+        }
+
+        /// <summary>
+        /// Disposes all services in this scope asynchronously.
+        /// </summary>
+        public async Task DisposeAllAsync()
+        {
+            foreach (var service in _results)
+            {
+                try
+                {
+                    if (service is IAsyncDisposable asyncDisposable)
+                    {
+                        await asyncDisposable.DisposeAsync();
+                    }
+                    else
+                    {
+                        service.Dispose();
+                    }
+                }
+                catch
+                {
+                    // Ignore disposal errors
+                }
+            }
+            _results.Clear();
+        }
+
+        /// <summary>
+        /// Disposes all services in this scope synchronously.
+        /// </summary>
+        public void DisposeAll()
+        {
+            foreach (var service in _results)
+            {
+                try
+                {
+                    service.Dispose();
+                }
+                catch
+                {
+                    // Ignore disposal errors
+                }
+            }
+            _results.Clear();
         }
     }
 }

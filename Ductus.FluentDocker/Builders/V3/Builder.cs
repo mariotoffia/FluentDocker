@@ -113,6 +113,42 @@ namespace Ductus.FluentDocker.Builders.V3
         }
 
         /// <summary>
+        /// Adds a compose operation to the current scope.
+        /// </summary>
+        /// <param name="configure">Compose configuration action</param>
+        /// <returns>This builder for fluent chaining</returns>
+        public Builder UseCompose(Action<IComposeBuilder> configure)
+        {
+            ValidateScope();
+
+            var builder = new ComposeBuilder(_currentKernel, _currentDriverId);
+            configure(builder);
+
+            _operations.Add(new BuildOperation
+            {
+                Kernel = _currentKernel,
+                DriverId = _currentDriverId,
+                ExecuteAsync = ct => builder.ExecuteAsync(ct)
+            });
+
+            return this;
+        }
+
+        /// <summary>
+        /// TERMINAL - Builds all operations synchronously.
+        /// </summary>
+        /// <remarks>
+        /// For async contexts (ASP.NET, UI applications), prefer <see cref="BuildAsync"/> to avoid deadlocks.
+        /// This method is safe to use in console apps, test fixtures, and scripts.
+        /// </remarks>
+        /// <returns>Build results containing all services</returns>
+        public BuildResults Build()
+        {
+            // Use Task.Run to avoid deadlocks in sync-over-async scenarios
+            return Task.Run(() => BuildAsync()).GetAwaiter().GetResult();
+        }
+
+        /// <summary>
         /// TERMINAL - Builds all operations asynchronously.
         /// </summary>
         /// <param name="cancellationToken">Cancellation token</param>
@@ -170,6 +206,17 @@ namespace Ductus.FluentDocker.Builders.V3
         Builder UseContainer(Action<IContainerBuilder> configure);
         Builder UseNetwork(Action<INetworkBuilder> configure);
         Builder UseVolume(Action<IVolumeBuilder> configure);
+        Builder UseCompose(Action<IComposeBuilder> configure);
+        
+        /// <summary>
+        /// Builds all operations synchronously (TERMINAL operation).
+        /// For async contexts, prefer BuildAsync() to avoid deadlocks.
+        /// </summary>
+        BuildResults Build();
+        
+        /// <summary>
+        /// Builds all operations asynchronously (TERMINAL operation).
+        /// </summary>
         Task<BuildResults> BuildAsync(CancellationToken cancellationToken = default);
     }
 
@@ -182,6 +229,19 @@ namespace Ductus.FluentDocker.Builders.V3
         IContainerBuilder WithName(string name);
         IContainerBuilder WithEnvironment(string key, string value);
         IContainerBuilder WithPort(string containerPort, string hostPort);
+        IContainerBuilder WithCommand(params string[] command);
+        IContainerBuilder WithVolume(string hostPath, string containerPath);
+        IContainerBuilder WithLabel(string key, string value);
+        IContainerBuilder WithWorkingDirectory(string workingDir);
+        IContainerBuilder WithUser(string user);
+        IContainerBuilder WithRestartPolicy(string policy);
+        IContainerBuilder WithHostname(string hostname);
+        IContainerBuilder WithNetworkMode(string networkMode);
+        IContainerBuilder WithNetwork(string networkName);
+        IContainerBuilder WithMemoryLimit(long bytes);
+        IContainerBuilder WithCpuShares(long shares);
+        IContainerBuilder WithPrivileged(bool privileged = true);
+        IContainerBuilder WithAutoRemove(bool autoRemove = true);
     }
 
     /// <summary>
@@ -191,6 +251,11 @@ namespace Ductus.FluentDocker.Builders.V3
     {
         INetworkBuilder WithName(string name);
         INetworkBuilder UseDriver(string driver);
+        INetworkBuilder WithSubnet(string subnet);
+        INetworkBuilder WithGateway(string gateway);
+        INetworkBuilder WithIPv6(bool enableIPv6 = true);
+        INetworkBuilder WithLabel(string key, string value);
+        INetworkBuilder WithOption(string key, string value);
     }
 
     /// <summary>
@@ -200,10 +265,26 @@ namespace Ductus.FluentDocker.Builders.V3
     {
         IVolumeBuilder WithName(string name);
         IVolumeBuilder UseDriver(string driver);
+        IVolumeBuilder WithDriverOption(string key, string value);
+        IVolumeBuilder WithLabel(string key, string value);
     }
 
     /// <summary>
-    /// Container builder implementation (stub - will be properly implemented).
+    /// Compose builder for lambda configuration.
+    /// </summary>
+    public interface IComposeBuilder
+    {
+        IComposeBuilder WithComposeFile(string path);
+        IComposeBuilder WithProjectName(string name);
+        IComposeBuilder WithEnvironment(string key, string value);
+        IComposeBuilder WithBuild(bool build = true);
+        IComposeBuilder WithForceRecreate(bool forceRecreate = true);
+        IComposeBuilder WithRemoveOrphans(bool removeOrphans = true);
+        IComposeBuilder ForServices(params string[] services);
+    }
+
+    /// <summary>
+    /// Container builder implementation.
     /// </summary>
     internal class ContainerBuilder : IContainerBuilder
     {
@@ -213,6 +294,19 @@ namespace Ductus.FluentDocker.Builders.V3
         private string _name;
         private readonly Dictionary<string, string> _environment = new Dictionary<string, string>();
         private readonly Dictionary<string, string> _ports = new Dictionary<string, string>();
+        private readonly List<string> _command = new List<string>();
+        private readonly Dictionary<string, string> _volumes = new Dictionary<string, string>();
+        private readonly Dictionary<string, string> _labels = new Dictionary<string, string>();
+        private readonly List<string> _networks = new List<string>();
+        private string _workingDir;
+        private string _user;
+        private string _restartPolicy;
+        private string _hostname;
+        private string _networkMode;
+        private long? _memoryLimit;
+        private long? _cpuShares;
+        private bool _privileged;
+        private bool _autoRemove;
 
         public ContainerBuilder(FluentDockerKernel kernel, string driverId)
         {
@@ -244,6 +338,84 @@ namespace Ductus.FluentDocker.Builders.V3
             return this;
         }
 
+        public IContainerBuilder WithCommand(params string[] command)
+        {
+            _command.AddRange(command);
+            return this;
+        }
+
+        public IContainerBuilder WithVolume(string hostPath, string containerPath)
+        {
+            _volumes[hostPath] = containerPath;
+            return this;
+        }
+
+        public IContainerBuilder WithLabel(string key, string value)
+        {
+            _labels[key] = value;
+            return this;
+        }
+
+        public IContainerBuilder WithWorkingDirectory(string workingDir)
+        {
+            _workingDir = workingDir;
+            return this;
+        }
+
+        public IContainerBuilder WithUser(string user)
+        {
+            _user = user;
+            return this;
+        }
+
+        public IContainerBuilder WithRestartPolicy(string policy)
+        {
+            _restartPolicy = policy;
+            return this;
+        }
+
+        public IContainerBuilder WithHostname(string hostname)
+        {
+            _hostname = hostname;
+            return this;
+        }
+
+        public IContainerBuilder WithNetworkMode(string networkMode)
+        {
+            _networkMode = networkMode;
+            return this;
+        }
+
+        public IContainerBuilder WithNetwork(string networkName)
+        {
+            _networks.Add(networkName);
+            return this;
+        }
+
+        public IContainerBuilder WithMemoryLimit(long bytes)
+        {
+            _memoryLimit = bytes;
+            return this;
+        }
+
+        public IContainerBuilder WithCpuShares(long shares)
+        {
+            _cpuShares = shares;
+            return this;
+        }
+
+        public IContainerBuilder WithPrivileged(bool privileged = true)
+        {
+            _privileged = privileged;
+            return this;
+        }
+
+        public IContainerBuilder WithAutoRemove(bool autoRemove = true)
+        {
+            _autoRemove = autoRemove;
+            return this;
+        }
+
         public async Task<IService> ExecuteAsync(CancellationToken cancellationToken)
         {
             // Create container using driver
@@ -255,7 +427,20 @@ namespace Ductus.FluentDocker.Builders.V3
                 Image = _image,
                 Name = _name,
                 Environment = _environment,
-                PortBindings = _ports
+                PortBindings = _ports,
+                Command = _command.Count > 0 ? _command.ToArray() : null,
+                Labels = _labels.Count > 0 ? _labels : null,
+                Volumes = _volumes.Count > 0 ? _volumes : null,
+                Networks = _networks.Count > 0 ? _networks : null,
+                WorkingDirectory = _workingDir,
+                User = _user,
+                RestartPolicy = _restartPolicy,
+                Hostname = _hostname,
+                NetworkMode = _networkMode,
+                MemoryLimit = _memoryLimit,
+                CpuShares = _cpuShares,
+                Privileged = _privileged,
+                AutoRemove = _autoRemove
             };
 
             var response = await driver.CreateAsync(context, config, cancellationToken);
@@ -279,7 +464,7 @@ namespace Ductus.FluentDocker.Builders.V3
     }
 
     /// <summary>
-    /// Network builder implementation (stub).
+    /// Network builder implementation.
     /// </summary>
     internal class NetworkBuilder : INetworkBuilder
     {
@@ -287,6 +472,11 @@ namespace Ductus.FluentDocker.Builders.V3
         private readonly string _driverId;
         private string _name;
         private string _driver = "bridge";
+        private string _subnet;
+        private string _gateway;
+        private bool _enableIPv6;
+        private readonly Dictionary<string, string> _labels = new Dictionary<string, string>();
+        private readonly Dictionary<string, string> _options = new Dictionary<string, string>();
 
         public NetworkBuilder(FluentDockerKernel kernel, string driverId)
         {
@@ -306,15 +496,74 @@ namespace Ductus.FluentDocker.Builders.V3
             return this;
         }
 
+        public INetworkBuilder WithSubnet(string subnet)
+        {
+            _subnet = subnet;
+            return this;
+        }
+
+        public INetworkBuilder WithGateway(string gateway)
+        {
+            _gateway = gateway;
+            return this;
+        }
+
+        public INetworkBuilder WithIPv6(bool enableIPv6 = true)
+        {
+            _enableIPv6 = enableIPv6;
+            return this;
+        }
+
+        public INetworkBuilder WithLabel(string key, string value)
+        {
+            _labels[key] = value;
+            return this;
+        }
+
+        public INetworkBuilder WithOption(string key, string value)
+        {
+            _options[key] = value;
+            return this;
+        }
+
         public async Task<IService> ExecuteAsync(CancellationToken cancellationToken)
         {
-            await Task.CompletedTask;
-            throw new NotImplementedException("Network creation will be implemented in Phase 5");
+            // Create network using driver
+            var driver = _kernel.SysCtl<Drivers.INetworkDriver>(_driverId);
+            var context = new Model.Drivers.DriverContext(_driverId);
+
+            var config = new Drivers.NetworkCreateConfig
+            {
+                Name = _name,
+                Driver = _driver,
+                Subnet = _subnet,
+                Gateway = _gateway,
+                EnableIPv6 = _enableIPv6,
+                Labels = _labels,
+                Options = _options
+            };
+
+            var response = await driver.CreateAsync(context, config, cancellationToken);
+
+            if (!response.Success)
+            {
+                throw new Common.DriverException(
+                    $"Failed to create network: {response.Error}",
+                    response.ErrorCode,
+                    response.ErrorContext);
+            }
+
+            // Return async service implementation
+            return new Services.V3.Impl.NetworkServiceAsync(
+                _kernel,
+                _driverId,
+                response.Data.Id,
+                _name);
         }
     }
 
     /// <summary>
-    /// Volume builder implementation (stub).
+    /// Volume builder implementation.
     /// </summary>
     internal class VolumeBuilder : IVolumeBuilder
     {
@@ -322,6 +571,8 @@ namespace Ductus.FluentDocker.Builders.V3
         private readonly string _driverId;
         private string _name;
         private string _driver = "local";
+        private readonly Dictionary<string, string> _driverOpts = new Dictionary<string, string>();
+        private readonly Dictionary<string, string> _labels = new Dictionary<string, string>();
 
         public VolumeBuilder(FluentDockerKernel kernel, string driverId)
         {
@@ -341,10 +592,148 @@ namespace Ductus.FluentDocker.Builders.V3
             return this;
         }
 
+        public IVolumeBuilder WithDriverOption(string key, string value)
+        {
+            _driverOpts[key] = value;
+            return this;
+        }
+
+        public IVolumeBuilder WithLabel(string key, string value)
+        {
+            _labels[key] = value;
+            return this;
+        }
+
         public async Task<IService> ExecuteAsync(CancellationToken cancellationToken)
         {
-            await Task.CompletedTask;
-            throw new NotImplementedException("Volume creation will be implemented in Phase 5");
+            // Create volume using driver
+            var driver = _kernel.SysCtl<Drivers.IVolumeDriver>(_driverId);
+            var context = new Model.Drivers.DriverContext(_driverId);
+
+            var config = new Drivers.VolumeCreateConfig
+            {
+                Name = _name,
+                Driver = _driver,
+                DriverOpts = _driverOpts,
+                Labels = _labels
+            };
+
+            var response = await driver.CreateAsync(context, config, cancellationToken);
+
+            if (!response.Success)
+            {
+                throw new Common.DriverException(
+                    $"Failed to create volume: {response.Error}",
+                    response.ErrorCode,
+                    response.ErrorContext);
+            }
+
+            // Return async service implementation
+            return new Services.V3.Impl.VolumeServiceAsync(
+                _kernel,
+                _driverId,
+                response.Data.Name,
+                _driver);
+        }
+    }
+
+    /// <summary>
+    /// Compose builder implementation.
+    /// </summary>
+    internal class ComposeBuilder : IComposeBuilder
+    {
+        private readonly FluentDockerKernel _kernel;
+        private readonly string _driverId;
+        private readonly List<string> _composeFiles = new List<string>();
+        private string _projectName;
+        private readonly Dictionary<string, string> _environment = new Dictionary<string, string>();
+        private bool _build;
+        private bool _forceRecreate;
+        private bool _removeOrphans;
+        private readonly List<string> _services = new List<string>();
+
+        public ComposeBuilder(FluentDockerKernel kernel, string driverId)
+        {
+            _kernel = kernel;
+            _driverId = driverId;
+        }
+
+        public IComposeBuilder WithComposeFile(string path)
+        {
+            _composeFiles.Add(path);
+            return this;
+        }
+
+        public IComposeBuilder WithProjectName(string name)
+        {
+            _projectName = name;
+            return this;
+        }
+
+        public IComposeBuilder WithEnvironment(string key, string value)
+        {
+            _environment[key] = value;
+            return this;
+        }
+
+        public IComposeBuilder WithBuild(bool build = true)
+        {
+            _build = build;
+            return this;
+        }
+
+        public IComposeBuilder WithForceRecreate(bool forceRecreate = true)
+        {
+            _forceRecreate = forceRecreate;
+            return this;
+        }
+
+        public IComposeBuilder WithRemoveOrphans(bool removeOrphans = true)
+        {
+            _removeOrphans = removeOrphans;
+            return this;
+        }
+
+        public IComposeBuilder ForServices(params string[] services)
+        {
+            _services.AddRange(services);
+            return this;
+        }
+
+        public async Task<IService> ExecuteAsync(CancellationToken cancellationToken)
+        {
+            // Start compose using driver
+            var driver = _kernel.SysCtl<Drivers.IComposeDriver>(_driverId);
+            var context = new Model.Drivers.DriverContext(_driverId);
+
+            var config = new Drivers.ComposeUpConfig
+            {
+                ComposeFiles = _composeFiles,
+                ProjectName = _projectName,
+                Environment = _environment,
+                Build = _build,
+                ForceRecreate = _forceRecreate,
+                RemoveOrphans = _removeOrphans,
+                Services = _services,
+                Detached = true
+            };
+
+            var response = await driver.UpAsync(context, config, cancellationToken);
+
+            if (!response.Success)
+            {
+                throw new Common.DriverException(
+                    $"Failed to start compose: {response.Error}",
+                    response.ErrorCode,
+                    response.ErrorContext);
+            }
+
+            // Return async service implementation
+            return new Services.V3.Impl.ComposeServiceAsync(
+                _kernel,
+                _driverId,
+                _composeFiles,
+                response.Data.ProjectName ?? _projectName);
         }
     }
 }

@@ -4,7 +4,7 @@ using Ductus.FluentDocker.Kernel;
 using Ductus.FluentDocker.Tests.V3.Mock;
 using Xunit;
 
-namespace Ductus.FluentDocker.Tests.V3.Unit
+namespace Ductus.FluentDocker.Tests.V3.UnitTests
 {
     /// <summary>
     /// Tests for v3.0.0 kernel isolation and multi-kernel scenarios.
@@ -25,11 +25,11 @@ namespace Ductus.FluentDocker.Tests.V3.Unit
         {
             // Arrange & Act
             _kernel1 = await new KernelBuilder()
-                .UseDriver("driver-1", b => b.UseCustomDriver(new MockDriver()))
+                .WithDriver("driver-1", b => b.UseCustomDriver(new MockDriver()))
                 .BuildAsync();
 
             _kernel2 = await new KernelBuilder()
-                .UseDriver("driver-2", b => b.UseCustomDriver(new MockDriver()))
+                .WithDriver("driver-2", b => b.UseCustomDriver(new MockDriver()))
                 .BuildAsync();
 
             // Assert
@@ -49,11 +49,11 @@ namespace Ductus.FluentDocker.Tests.V3.Unit
 
             // Act
             _kernel1 = await new KernelBuilder()
-                .UseDriver("shared-id", b => b.UseCustomDriver(driver1))
+                .WithDriver("shared-id", b => b.UseCustomDriver(driver1))
                 .BuildAsync();
 
             _kernel2 = await new KernelBuilder()
-                .UseDriver("shared-id", b => b.UseCustomDriver(driver2))
+                .WithDriver("shared-id", b => b.UseCustomDriver(driver2))
                 .BuildAsync();
 
             var retrieved1 = _kernel1.SysCtl<Drivers.IDriver>("shared-id");
@@ -70,11 +70,11 @@ namespace Ductus.FluentDocker.Tests.V3.Unit
         {
             // Arrange
             _kernel1 = await new KernelBuilder()
-                .UseDriver("driver-1", b => b.UseCustomDriver(new MockDriver()))
+                .WithDriver("driver-1", b => b.UseCustomDriver(new MockDriver()))
                 .BuildAsync();
 
             _kernel2 = await new KernelBuilder()
-                .UseDriver("driver-2", b => b.UseCustomDriver(new MockDriver()))
+                .WithDriver("driver-2", b => b.UseCustomDriver(new MockDriver()))
                 .BuildAsync();
 
             // Act
@@ -92,9 +92,9 @@ namespace Ductus.FluentDocker.Tests.V3.Unit
         {
             // Arrange & Act
             _kernel1 = await new KernelBuilder()
-                .UseDriver("driver-a", b => b.UseCustomDriver(new MockDriver()))
-                .UseDriver("driver-b", b => b.UseCustomDriver(new MockDriver()))
-                .UseDriver("driver-c", b => b.UseCustomDriver(new MockDriver()))
+                .WithDriver("driver-a", b => b.UseCustomDriver(new MockDriver()))
+                .WithDriver("driver-b", b => b.UseCustomDriver(new MockDriver()))
+                .WithDriver("driver-c", b => b.UseCustomDriver(new MockDriver()))
                 .BuildAsync();
 
             // Assert
@@ -115,8 +115,8 @@ namespace Ductus.FluentDocker.Tests.V3.Unit
             var driverB = new MockDriver();
 
             _kernel1 = await new KernelBuilder()
-                .UseDriver("driver-a", b => b.UseCustomDriver(driverA))
-                .UseDriver("driver-b", b => b.UseCustomDriver(driverB))
+                .WithDriver("driver-a", b => b.UseCustomDriver(driverA))
+                .WithDriver("driver-b", b => b.UseCustomDriver(driverB))
                 .BuildAsync();
 
             // Act - Create container in driver-a
@@ -145,13 +145,13 @@ namespace Ductus.FluentDocker.Tests.V3.Unit
             var buildTasks = new[]
             {
                 new KernelBuilder()
-                    .UseDriver("concurrent-1", b => b.UseCustomDriver(new MockDriver()))
+                    .WithDriver("concurrent-1", b => b.UseCustomDriver(new MockDriver()))
                     .BuildAsync(),
                 new KernelBuilder()
-                    .UseDriver("concurrent-2", b => b.UseCustomDriver(new MockDriver()))
+                    .WithDriver("concurrent-2", b => b.UseCustomDriver(new MockDriver()))
                     .BuildAsync(),
                 new KernelBuilder()
-                    .UseDriver("concurrent-3", b => b.UseCustomDriver(new MockDriver()))
+                    .WithDriver("concurrent-3", b => b.UseCustomDriver(new MockDriver()))
                     .BuildAsync()
             };
 
@@ -189,8 +189,8 @@ namespace Ductus.FluentDocker.Tests.V3.Unit
 
             // Act
             _kernel1 = await new KernelBuilder()
-                .UseDriver("shared", b => b.UseCustomDriver(sharedDriver))
-                .UseDriver("other", b => b.UseCustomDriver(new MockDriver()))
+                .WithDriver("shared", b => b.UseCustomDriver(sharedDriver))
+                .WithDriver("other", b => b.UseCustomDriver(new MockDriver()))
                 .BuildAsync();
 
             var retrieved1 = _kernel1.SysCtl<Drivers.IDriver>("shared");
@@ -210,7 +210,7 @@ namespace Ductus.FluentDocker.Tests.V3.Unit
 
             // Act
             _kernel1 = await new KernelBuilder()
-                .UseDriver("mock", b => b.UseCustomDriver(mockDriver))
+                .WithDriver("mock", b => b.UseCustomDriver(mockDriver))
                 .BuildAsync();
 
             // Assert

@@ -5,8 +5,9 @@ using Ductus.FluentDocker.Drivers;
 using Ductus.FluentDocker.Kernel;
 using Ductus.FluentDocker.Model.Drivers;
 using Xunit;
+using Unit = Ductus.FluentDocker.Model.Drivers.Unit;
 
-namespace Ductus.FluentDocker.Tests.V3.Unit
+namespace Ductus.FluentDocker.Tests.V3.UnitTests
 {
     [Trait("Category", "Unit")]
     public class FluentDockerKernelTests

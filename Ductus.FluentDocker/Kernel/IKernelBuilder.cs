@@ -20,6 +20,16 @@ namespace Ductus.FluentDocker.Kernel
         IKernelBuilder WithDriver(string driverId, Action<IDriverBuilder> configure);
 
         /// <summary>
+        /// Builds the kernel synchronously (TERMINAL operation).
+        /// </summary>
+        /// <remarks>
+        /// For async contexts (ASP.NET, UI applications), prefer <see cref="BuildAsync"/> to avoid deadlocks.
+        /// This method is safe to use in console apps, test fixtures, and scripts.
+        /// </remarks>
+        /// <returns>Configured FluentDockerKernel instance</returns>
+        FluentDockerKernel Build();
+
+        /// <summary>
         /// Builds the kernel asynchronously (TERMINAL operation).
         /// </summary>
         /// <param name="cancellationToken">Cancellation token</param>

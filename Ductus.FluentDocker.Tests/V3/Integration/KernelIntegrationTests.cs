@@ -21,7 +21,7 @@ namespace Ductus.FluentDocker.Tests.V3.Integration
         {
             // Act
             _kernel = await new KernelBuilder()
-                .UseDriver("docker-local", b => b.UseDockerCli())
+                .WithDriver("docker-local", b => b.UseDockerCli())
                 .BuildAsync();
 
             // Assert
@@ -34,8 +34,8 @@ namespace Ductus.FluentDocker.Tests.V3.Integration
         {
             // Act
             _kernel = await new KernelBuilder()
-                .UseDriver("docker-1", b => b.UseDockerCli())
-                .UseDriver("docker-2", b => b.UseDockerCli())
+                .WithDriver("docker-1", b => b.UseDockerCli())
+                .WithDriver("docker-2", b => b.UseDockerCli())
                 .BuildAsync();
 
             // Assert
@@ -49,7 +49,7 @@ namespace Ductus.FluentDocker.Tests.V3.Integration
         {
             // Arrange
             _kernel = await new KernelBuilder()
-                .UseDriver("docker-local", b => b.UseDockerCli())
+                .WithDriver("docker-local", b => b.UseDockerCli())
                 .BuildAsync();
 
             // Act
@@ -65,7 +65,7 @@ namespace Ductus.FluentDocker.Tests.V3.Integration
         {
             // Arrange
             _kernel = await new KernelBuilder()
-                .UseDriver("docker-local", b => b.UseDockerCli())
+                .WithDriver("docker-local", b => b.UseDockerCli())
                 .BuildAsync();
 
             // Act & Assert
@@ -78,7 +78,7 @@ namespace Ductus.FluentDocker.Tests.V3.Integration
         {
             // Arrange
             _kernel = await new KernelBuilder()
-                .UseDriver("docker-local", b => b.UseDockerCli())
+                .WithDriver("docker-local", b => b.UseDockerCli())
                 .BuildAsync();
 
             // Act

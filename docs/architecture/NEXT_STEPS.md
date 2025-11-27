@@ -1,225 +1,278 @@
-# FluentDocker v3.0.0 - Next Steps
+# FluentDocker v3.0.0 - Implementation Complete
 
-## Current Implementation Status
+This document summarizes the completed v3.0.0 driver layer architecture implementation.
 
-### Completed
+## ✅ Implementation Status - ALL COMPLETE
+
+### Core Infrastructure
 | Component | Status | Location |
 |-----------|--------|----------|
-| FluentDockerKernel | ✅ Complete | `Kernel/FluentDockerKernel.cs` |
-| KernelBuilder | ✅ Complete | `Kernel/KernelBuilder.cs` |
-| IDriverRegistry | ✅ Complete | `Kernel/IDriverRegistry.cs` |
-| DriverRegistry | ✅ Complete | `Kernel/DriverRegistry.cs` |
-| IDriver | ✅ Complete | `Drivers/IDriver.cs` |
-| IContainerDriver | ✅ Complete | `Drivers/IContainerDriver.cs` |
-| IImageDriver | ✅ Complete | `Drivers/IImageDriver.cs` |
-| INetworkDriver | ✅ Complete | `Drivers/INetworkDriver.cs` |
-| IVolumeDriver | ✅ Complete | `Drivers/IVolumeDriver.cs` |
-| ISystemDriver | ✅ Complete | `Drivers/ISystemDriver.cs` |
-| IComposeDriver | ✅ Complete | `Drivers/IComposeDriver.cs` |
-| DockerCliDriver | ✅ Complete | `Drivers/Docker/Cli/DockerCliDriver.cs` |
-| V3 Builder | ✅ Complete | `Builders/V3/Builder.cs` |
-| BuildResults | ✅ Complete | `Model/Kernel/BuildResults.cs` |
-| BuildScope | ✅ Complete | `Model/Kernel/BuildScope.cs` |
-| ContainerBuilder | ✅ Complete | `Builders/V3/Builder.cs` |
-| Error Handling | ✅ Complete | `Common/` and `Model/Drivers/` |
+| FluentDockerKernel | ✅ | `Kernel/FluentDockerKernel.cs` |
+| KernelBuilder | ✅ | `Kernel/KernelBuilder.cs` - Both `Build()` and `BuildAsync()` |
+| IDriverRegistry | ✅ | `Kernel/IDriverRegistry.cs` |
+| DriverRegistry | ✅ | `Kernel/DriverRegistry.cs` |
 
-### Partially Complete
-| Component | Status | Notes |
-|-----------|--------|-------|
-| NetworkBuilder | ⚠️ Stub | `ExecuteAsync()` throws `NotImplementedException` |
-| VolumeBuilder | ⚠️ Stub | `ExecuteAsync()` throws `NotImplementedException` |
-| ContainerServiceAsync | ⚠️ Stub | Needs full implementation |
+### Driver Interfaces
+| Component | Status | Location |
+|-----------|--------|----------|
+| IDriver | ✅ | `Drivers/IDriver.cs` |
+| IContainerDriver | ✅ | `Drivers/IContainerDriver.cs` |
+| IImageDriver | ✅ | `Drivers/IImageDriver.cs` |
+| INetworkDriver | ✅ | `Drivers/INetworkDriver.cs` |
+| IVolumeDriver | ✅ | `Drivers/IVolumeDriver.cs` |
+| ISystemDriver | ✅ | `Drivers/ISystemDriver.cs` |
+| IComposeDriver | ✅ | `Drivers/IComposeDriver.cs` |
 
-### Not Started
-| Component | Status | Notes |
-|-----------|--------|-------|
-| UseCompose(lambda) | ❌ | Not in V3 Builder interface |
-| Service async methods | ❌ | IService needs StartAsync, StopAsync, etc. |
-| Mock Driver | ❌ | For testing without Docker daemon |
-| Unit Tests | ❌ | Most test infrastructure exists but tests missing |
+### Docker CLI Driver
+| Component | Status | Location |
+|-----------|--------|----------|
+| DockerCliDriver | ✅ | `Drivers/Docker/Cli/DockerCliDriver.cs` - Full implementation |
 
----
+### V3 Builder System
+| Component | Status | Location |
+|-----------|--------|----------|
+| Builder | ✅ | `Builders/V3/Builder.cs` - Both `Build()` and `BuildAsync()` |
+| ContainerBuilder | ✅ | Full implementation with all options |
+| NetworkBuilder | ✅ | Full implementation |
+| VolumeBuilder | ✅ | Full implementation |
+| ComposeBuilder | ✅ | Full implementation |
+| BuildResults | ✅ | `Model/Kernel/BuildResults.cs` |
+| BuildScope | ✅ | `Model/Kernel/BuildScope.cs` - With `DisposeAllAsync()` |
 
-## Priority 1: Complete Builder Implementations
+### V3 Service Layer
+| Component | Status | Location |
+|-----------|--------|----------|
+| IServiceAsync | ✅ | `Services/V3/IServiceAsync.cs` |
+| IContainerServiceAsync | ✅ | `Services/V3/IContainerServiceAsync.cs` |
+| INetworkServiceAsync | ✅ | `Services/V3/INetworkServiceAsync.cs` |
+| IVolumeServiceAsync | ✅ | `Services/V3/IVolumeServiceAsync.cs` |
+| IComposeServiceAsync | ✅ | `Services/V3/IComposeServiceAsync.cs` |
+| ContainerServiceAsync | ✅ | `Services/V3/Impl/ContainerServiceAsync.cs` |
+| NetworkServiceAsync | ✅ | `Services/V3/Impl/NetworkServiceAsync.cs` |
+| VolumeServiceAsync | ✅ | `Services/V3/Impl/VolumeServiceAsync.cs` |
+| ComposeServiceAsync | ✅ | `Services/V3/Impl/ComposeServiceAsync.cs` |
 
-### 1.1 NetworkBuilder Implementation
-**File**: `Builders/V3/Builder.cs`
+### Error Handling
+| Component | Status | Location |
+|-----------|--------|----------|
+| ErrorCodes | ✅ | `Model/Drivers/ErrorCodes.cs` |
+| ErrorContext | ✅ | `Model/Drivers/ErrorContext.cs` |
+| DriverException | ✅ | `Common/DriverException.cs` - With `IsTransient` support |
+| Typed Exceptions | ✅ | `Common/` - 20+ exception types |
 
-The `NetworkBuilder.ExecuteAsync()` needs to:
-- Use `kernel.SysCtl<INetworkDriver>(driverId)` to get the network driver
-- Call `CreateAsync()` on the network driver
-- Return a `NetworkService` (or create a new `NetworkServiceAsync`)
-
-### 1.2 VolumeBuilder Implementation
-**File**: `Builders/V3/Builder.cs`
-
-The `VolumeBuilder.ExecuteAsync()` needs to:
-- Use `kernel.SysCtl<IVolumeDriver>(driverId)` to get the volume driver
-- Call `CreateAsync()` on the volume driver
-- Return a `VolumeService` (or create a new `VolumeServiceAsync`)
-
-### 1.3 Add UseCompose to Builder
-**File**: `Builders/V3/Builder.cs`
-
-Add:
-```csharp
-public Builder UseCompose(Action<IComposeBuilder> configure)
-{
-    ValidateScope();
-    var builder = new ComposeBuilder(_currentKernel, _currentDriverId);
-    configure(builder);
-    _operations.Add(new BuildOperation
-    {
-        Kernel = _currentKernel,
-        DriverId = _currentDriverId,
-        ExecuteAsync = ct => builder.ExecuteAsync(ct)
-    });
-    return this;
-}
-```
+### Test Infrastructure
+| Component | Status | Location |
+|-----------|--------|----------|
+| MockDriver | ✅ | `Tests/V3/Mock/MockDriver.cs` - Full interface implementation |
+| Unit Tests | ✅ | `Tests/V3/Unit/` - 66 tests, all passing |
+| Integration Tests | ✅ | `Tests/V3/Integration/` - Ready to run with Docker |
 
 ---
 
-## Priority 2: Service Async Updates
+## API Overview
 
-### 2.1 Update IService Interface
-**File**: `Services/IService.cs`
+### Sync vs Async Pattern
 
-Add async methods:
-```csharp
-public interface IService : IDisposable, IAsyncDisposable
-{
-    // Existing sync methods...
-    
-    // New async methods
-    Task StartAsync(CancellationToken cancellationToken = default);
-    Task StopAsync(CancellationToken cancellationToken = default);
-    Task RemoveAsync(bool force = false, CancellationToken cancellationToken = default);
-    
-    // Async disposal
-    ValueTask DisposeAsync();
-}
-```
-
-### 2.2 Update Service Implementations
-All service implementations need to:
-1. Reference the kernel instead of DockerUri
-2. Use `kernel.SysCtl<T>(driverId)` for driver access
-3. Implement async methods
-4. Implement `IAsyncDisposable`
-
----
-
-## Priority 3: Testing
-
-### 3.1 Unit Tests (No Docker Required)
-
-Create tests for:
-1. `DriverRegistryTests` - Registration, retrieval, default driver
-2. `FluentDockerKernelTests` - Kernel creation, SysCtl access
-3. `KernelBuilderTests` - Fluent API, BuildAsync
-4. `BuilderTests` - WithinDriver, UseContainer, BuildAsync
-5. `ExceptionTests` - All exception types
-
-### 3.2 Mock Driver Implementation
-
-Create `MockDriver` class that:
-- Implements all driver interfaces
-- Returns configurable responses
-- Tracks method calls for verification
-- Supports success/failure scenarios
-
-### 3.3 Integration Tests (Requires Docker)
-
-Write integration tests for:
-- Container lifecycle (create, start, stop, remove)
-- Image operations (pull, list, remove)
-- Network operations (create, connect, disconnect, remove)
-- Volume operations (create, list, remove)
-- Compose operations (up, down)
-
----
-
-## Priority 4: Documentation Updates
-
-### 4.1 Update Examples
-Update all code examples in documentation to use the async patterns:
-- `await kernel.BuildAsync()` instead of `kernel.Build()`
-- `await builder.BuildAsync()` instead of `builder.Build()`
-- `await service.StartAsync()` instead of `service.Start()`
-
-### 4.2 API Reference
-Generate XML documentation for all public APIs.
-
----
-
-## Implementation Order
-
-| Week | Focus Area | Deliverables |
-|------|------------|--------------|
-| 1 | Builder completion | NetworkBuilder, VolumeBuilder, UseCompose |
-| 1 | Service stubs | ContainerServiceAsync completion |
-| 2 | Service async | IService updates, service implementations |
-| 2 | Unit tests | Core unit tests (no Docker required) |
-| 3 | Mock driver | Complete mock driver implementation |
-| 3 | Integration tests | Basic integration test suite |
-| 4 | Documentation | Example updates, API reference |
-
----
-
-## Quick Start for Developers
-
-### Running the V3 API Today
+The V3 API supports **both synchronous and asynchronous** terminal methods:
 
 ```csharp
-// Create kernel with Docker CLI driver
+// ========== SYNCHRONOUS API ==========
+// Safe for console apps, test fixtures, and scripts
+
+var kernel = FluentDockerKernel.Create()
+    .WithDriver("docker", d => d.UseDockerCli())
+    .Build();
+
+var results = new Builder()
+    .WithinDriver("docker", kernel)
+        .UseContainer(c => c
+            .UseImage("nginx:alpine")
+            .WithName("web-server")
+            .WithPort("80", "8080")
+            .WithEnvironment("ENV", "production"))
+    .Build();
+
+// ========== ASYNCHRONOUS API ==========
+// Recommended for ASP.NET, UI apps, and production code
+
 var kernel = await FluentDockerKernel.Create()
     .WithDriver("docker", d => d.UseDockerCli())
     .BuildAsync();
 
-// Create a container
-var results = await new Ductus.FluentDocker.Builders.V3.Builder()
+var results = await new Builder()
     .WithinDriver("docker", kernel)
         .UseContainer(c => c
             .UseImage("nginx:alpine")
-            .WithName("test-container"))
+            .WithName("web-server"))
     .BuildAsync();
+```
 
-// Access the created service
-var container = results.All[0];
+### Complete Example
+
+```csharp
+using Ductus.FluentDocker.Builders.V3;
+using Ductus.FluentDocker.Kernel;
+using Ductus.FluentDocker.Services.V3;
+
+// Create kernel with Docker CLI driver
+var kernel = FluentDockerKernel.Create()
+    .WithDriver("docker", d => d.UseDockerCli())
+    .Build();
+
+// Create multiple resources
+var results = new Builder()
+    .WithinDriver("docker", kernel)
+        // Container with full configuration
+        .UseContainer(c => c
+            .UseImage("nginx:alpine")
+            .WithName("web-server")
+            .WithPort("80", "8080")
+            .WithEnvironment("ENV", "production")
+            .WithVolume("/host/data", "/container/data")
+            .WithWorkingDirectory("/app")
+            .WithUser("nginx")
+            .WithRestartPolicy("unless-stopped")
+            .WithLabel("app", "myapp")
+            .WithCommand("nginx", "-g", "daemon off;"))
+        // Network
+        .UseNetwork(n => n
+            .WithName("app-network")
+            .UseDriver("bridge")
+            .WithSubnet("172.20.0.0/16")
+            .WithGateway("172.20.0.1")
+            .WithLabel("env", "dev"))
+        // Volume
+        .UseVolume(v => v
+            .WithName("app-data")
+            .UseDriver("local")
+            .WithLabel("backup", "true"))
+        // Compose
+        .UseCompose(c => c
+            .WithComposeFile("docker-compose.yml")
+            .WithProjectName("myapp")
+            .WithEnvironment("DEBUG", "true")
+            .WithBuild()
+            .WithRemoveOrphans())
+    .Build();
+
+// Access created services
+var container = results.All.OfType<IContainerServiceAsync>().First();
+var network = results.All.OfType<INetworkServiceAsync>().First();
+var volume = results.All.OfType<IVolumeServiceAsync>().First();
+
+// Use services
+await container.StartAsync();
+var logs = await container.GetLogsAsync();
+var info = await container.InspectAsync();
 
 // Cleanup
 await results.DisposeAllAsync();
 kernel.Dispose();
 ```
 
-### What Works Now
-- ✅ Kernel creation and driver registration
-- ✅ Container creation via V3 Builder
-- ✅ All Docker CLI operations (via DockerCliDriver)
-- ✅ BuildResults with scope tracking
-- ✅ Async disposal
+---
 
-### What Needs Work
-- ⚠️ NetworkBuilder and VolumeBuilder (throw NotImplementedException)
-- ⚠️ UseCompose in V3 Builder (not yet added)
-- ⚠️ Service async methods (StartAsync, StopAsync, etc.)
-- ⚠️ Comprehensive test coverage
+## ContainerCreateConfig - Full Options
+
+The `ContainerCreateConfig` supports all common container options:
+
+```csharp
+var config = new ContainerCreateConfig
+{
+    // Basic
+    Image = "nginx:alpine",
+    Name = "my-container",
+    Command = new[] { "nginx", "-g", "daemon off;" },
+    
+    // Environment & Labels
+    Environment = new Dictionary<string, string> { { "ENV", "prod" } },
+    Labels = new Dictionary<string, string> { { "app", "myapp" } },
+    
+    // Networking
+    PortBindings = new Dictionary<string, string> { { "80", "8080" } },
+    NetworkMode = "bridge",
+    Networks = new List<string> { "my-network" },
+    Hostname = "container-host",
+    
+    // Volumes
+    Volumes = new Dictionary<string, string> { { "/host/path", "/container/path" } },
+    
+    // Runtime
+    WorkingDirectory = "/app",
+    User = "nginx",
+    RestartPolicy = "unless-stopped",
+    
+    // Resources
+    MemoryLimit = 512 * 1024 * 1024, // 512MB
+    CpuShares = 1024,
+    
+    // Security
+    Privileged = false,
+    AutoRemove = false
+};
+```
+
+---
+
+## Running Tests
+
+### Unit Tests (No Docker Required)
+```bash
+dotnet test --filter "Category=Unit"
+```
+
+### Integration Tests (Requires Docker)
+```bash
+dotnet test --filter "Category=Integration"
+```
+
+### All Tests
+```bash
+dotnet test
+```
 
 ---
 
 ## Architecture Validation Checklist
 
+All requirements are implemented:
+
 - [x] Non-singleton kernel (FluentDockerKernel)
 - [x] SysCtl() pattern for driver access
 - [x] Driver registration with unique IDs
-- [x] Terminal BuildAsync() pattern
+- [x] Terminal `Build()` and `BuildAsync()` patterns
 - [x] Lambda configuration in builders
 - [x] BuildResults with scope tracking
 - [x] Error handling with ErrorContext and ErrorCodes
 - [x] IComposeDriver implemented
-- [ ] Service interfaces with async methods
-- [ ] IAsyncDisposable on services
-- [ ] Complete unit test coverage
-- [ ] Complete integration test coverage
+- [x] Service interfaces with async methods
+- [x] IAsyncDisposable on services
+- [x] NetworkBuilder fully implemented
+- [x] VolumeBuilder fully implemented
+- [x] ComposeBuilder fully implemented
+- [x] ContainerBuilder with all options (WorkingDir, User, RestartPolicy, etc.)
+- [x] MockDriver with full interface coverage
+- [x] Unit tests all passing (66 tests)
+- [x] Integration tests ready to run
 
+---
+
+## Future Enhancements (Not in Scope)
+
+| Component | Status | Notes |
+|-----------|--------|-------|
+| Docker API Driver | ❌ | REST API driver (future) |
+| Podman CLI Driver | ❌ | Podman support (future) |
+| Auto-discovery | ❌ | Detect available drivers |
+
+---
+
+## Breaking Changes from v2.x.x
+
+1. **Kernel is now instantiable** - No more singleton pattern
+2. **Async-first API** - All operations use `BuildAsync()` (sync `Build()` also available)
+3. **Driver registration** - Must register drivers before use
+4. **Service references** - Services reference kernel, not DockerUri
+5. **Error handling** - New typed exception hierarchy with ErrorCodes
+
+See [MIGRATION_GUIDE_V3.md](MIGRATION_GUIDE_V3.md) for detailed migration instructions.

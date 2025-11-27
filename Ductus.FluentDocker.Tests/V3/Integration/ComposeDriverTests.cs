@@ -21,7 +21,7 @@ namespace Ductus.FluentDocker.Tests.V3.Integration
         public ComposeDriverTests()
         {
             _kernel = new KernelBuilder()
-                .UseDriver("docker-local", b => b.UseDockerCli())
+                .WithDriver("docker-local", b => b.UseDockerCli())
                 .BuildAsync()
                 .GetAwaiter()
                 .GetResult();

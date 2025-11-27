@@ -17,7 +17,7 @@ namespace Ductus.FluentDocker.Tests.V3
         {
             // Arrange
             var kernel = await FluentDockerKernel.Create()
-                .UseDriver("docker", d => d.UseDockerCli())
+                .WithDriver("docker", d => d.UseDockerCli())
                 .BuildAsync();
 
             // Ensure image is available
@@ -56,8 +56,8 @@ namespace Ductus.FluentDocker.Tests.V3
         {
             // Arrange
             var kernel = await FluentDockerKernel.Create()
-                .UseDriver("docker-1", d => d.UseDockerCli())
-                .UseDriver("docker-2", d => d.UseDockerCli())
+                .WithDriver("docker-1", d => d.UseDockerCli())
+                .WithDriver("docker-2", d => d.UseDockerCli())
                 .BuildAsync();
 
             // Ensure images are available
@@ -106,8 +106,8 @@ namespace Ductus.FluentDocker.Tests.V3
             // This test demonstrates the kernel reuse pattern
 
             var kernel = await FluentDockerKernel.Create()
-                .UseDriver("docker-1", d => d.UseDockerCli())
-                .UseDriver("docker-2", d => d.UseDockerCli())
+                .WithDriver("docker-1", d => d.UseDockerCli())
+                .WithDriver("docker-2", d => d.UseDockerCli())
                 .BuildAsync();
 
             var builder = new Builder()

@@ -67,26 +67,85 @@ namespace Ductus.FluentDocker.Drivers.Docker.Cli
             {
                 var args = new List<string> { "create" };
 
+                // Name
                 if (!string.IsNullOrEmpty(config.Name))
                     args.Add($"--name {config.Name}");
 
-                foreach (var env in config.Environment)
-                    args.Add($"-e {env.Key}={env.Value}");
+                // Environment variables
+                if (config.Environment != null)
+                {
+                    foreach (var env in config.Environment)
+                        args.Add($"-e {env.Key}={env.Value}");
+                }
 
-                foreach (var port in config.PortBindings)
-                    args.Add($"-p {port.Value}:{port.Key}");
+                // Port bindings (container:host)
+                if (config.PortBindings != null)
+                {
+                    foreach (var port in config.PortBindings)
+                        args.Add($"-p {port.Value}:{port.Key}");
+                }
 
-                foreach (var volume in config.Volumes)
-                    args.Add($"-v {volume}");
+                // Volume mounts (host:container)
+                if (config.Volumes != null)
+                {
+                    foreach (var volume in config.Volumes)
+                        args.Add($"-v {volume.Key}:{volume.Value}");
+                }
 
+                // Network mode
                 if (!string.IsNullOrEmpty(config.NetworkMode))
                     args.Add($"--network {config.NetworkMode}");
 
-                foreach (var label in config.Labels)
-                    args.Add($"--label {label.Key}={label.Value}");
+                // Networks
+                if (config.Networks != null)
+                {
+                    foreach (var network in config.Networks)
+                        args.Add($"--network {network}");
+                }
 
+                // Labels
+                if (config.Labels != null)
+                {
+                    foreach (var label in config.Labels)
+                        args.Add($"--label {label.Key}={label.Value}");
+                }
+
+                // Working directory
+                if (!string.IsNullOrEmpty(config.WorkingDirectory))
+                    args.Add($"-w {config.WorkingDirectory}");
+
+                // User
+                if (!string.IsNullOrEmpty(config.User))
+                    args.Add($"-u {config.User}");
+
+                // Restart policy
+                if (!string.IsNullOrEmpty(config.RestartPolicy))
+                    args.Add($"--restart {config.RestartPolicy}");
+
+                // Hostname
+                if (!string.IsNullOrEmpty(config.Hostname))
+                    args.Add($"--hostname {config.Hostname}");
+
+                // Memory limit
+                if (config.MemoryLimit.HasValue)
+                    args.Add($"--memory {config.MemoryLimit.Value}");
+
+                // CPU shares
+                if (config.CpuShares.HasValue)
+                    args.Add($"--cpu-shares {config.CpuShares.Value}");
+
+                // Privileged mode
+                if (config.Privileged)
+                    args.Add("--privileged");
+
+                // Auto remove
+                if (config.AutoRemove)
+                    args.Add("--rm");
+
+                // Image (required)
                 args.Add(config.Image);
 
+                // Command
                 if (config.Command != null && config.Command.Length > 0)
                     args.AddRange(config.Command);
 
@@ -443,12 +502,13 @@ namespace Ductus.FluentDocker.Drivers.Docker.Cli
                 // Extract image ID from build output (usually last line with "sha256:...")
                 var lines = result.Output.Split(new[] { '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries);
                 var imageId = "";
-                foreach (var line in lines.Reverse())
+                for (var i = lines.Length - 1; i >= 0; i--)
                 {
+                    var line = lines[i];
                     if (line.Contains("sha256:"))
                     {
                         var parts = line.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
-                        imageId = parts.LastOrDefault(p => p.StartsWith("sha256:")) ?? "";
+                        imageId = parts.Where(p => p.StartsWith("sha256:")).LastOrDefault() ?? "";
                         break;
                     }
                 }

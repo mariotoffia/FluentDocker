@@ -18,7 +18,7 @@ namespace Ductus.FluentDocker.Tests.V3.Integration
         public ImageOperationsTests()
         {
             _kernel = new KernelBuilder()
-                .UseDriver("docker-local", b => b.UseDockerCli())
+                .WithDriver("docker-local", b => b.UseDockerCli())
                 .BuildAsync()
                 .GetAwaiter()
                 .GetResult();
@@ -78,10 +78,11 @@ namespace Ductus.FluentDocker.Tests.V3.Integration
         {
             // Arrange
             await _driver.PullAsync(_context, "alpine", "latest");
-            var newTag = $"alpine:test-{Guid.NewGuid():N}";
+            var tagName = $"test-{Guid.NewGuid():N}";
+            var newTag = $"alpine:{tagName}";
 
             // Act
-            var tagResponse = await _driver.TagAsync(_context, "alpine:latest", newTag);
+            var tagResponse = await _driver.TagAsync(_context, "alpine:latest", "alpine", tagName);
 
             // Assert
             Assert.True(tagResponse.Success, tagResponse.Error);
@@ -99,9 +100,10 @@ namespace Ductus.FluentDocker.Tests.V3.Integration
         public async Task RemoveImage_ExistingImage_Removes()
         {
             // Arrange
-            var testTag = $"alpine:test-remove-{Guid.NewGuid():N}";
+            var testTagName = $"test-remove-{Guid.NewGuid():N}";
+            var testTag = $"alpine:{testTagName}";
             await _driver.PullAsync(_context, "alpine", "latest");
-            await _driver.TagAsync(_context, "alpine:latest", testTag);
+            await _driver.TagAsync(_context, "alpine:latest", "alpine", testTagName);
 
             // Act
             var removeResponse = await _driver.RemoveAsync(_context, testTag, force: true);

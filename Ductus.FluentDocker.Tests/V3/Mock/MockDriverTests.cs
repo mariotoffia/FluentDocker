@@ -43,7 +43,7 @@ namespace Ductus.FluentDocker.Tests.V3.Mock
             var createResponse = await driver.CreateAsync(context, config);
             var startResponse = await driver.StartAsync(context, createResponse.Data.Id);
             var stopResponse = await driver.StopAsync(context, createResponse.Data.Id);
-            var removeResponse = await driver.RemoveAsync(context, createResponse.Data.Id);
+            var removeResponse = await driver.RemoveAsync(context, createResponse.Data.Id, force: false);
 
             // Assert
             Assert.True(createResponse.Success);
@@ -256,9 +256,9 @@ namespace Ductus.FluentDocker.Tests.V3.Mock
             var inspectAfterStop = await driver.InspectAsync(context, createResponse.Data.Id);
 
             // Assert
-            Assert.Equal("created", inspectAfterCreate.Data.State);
-            Assert.Equal("running", inspectAfterStart.Data.State);
-            Assert.Equal("exited", inspectAfterStop.Data.State);
+            Assert.Equal("created", inspectAfterCreate.Data.State?.Status);
+            Assert.Equal("running", inspectAfterStart.Data.State?.Status);
+            Assert.Equal("exited", inspectAfterStop.Data.State?.Status);
         }
 
         [Fact]

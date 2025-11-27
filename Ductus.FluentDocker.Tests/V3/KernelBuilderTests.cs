@@ -15,7 +15,7 @@ namespace Ductus.FluentDocker.Tests.V3
         {
             // Arrange & Act
             var kernel = await FluentDockerKernel.Create()
-                .UseDriver("docker", d => d.UseDockerCli())
+                .WithDriver("docker", d => d.UseDockerCli())
                 .BuildAsync();
 
             // Assert
@@ -31,8 +31,8 @@ namespace Ductus.FluentDocker.Tests.V3
         {
             // Arrange & Act
             var kernel = await FluentDockerKernel.Create()
-                .UseDriver("docker-local", d => d.UseDockerCli())
-                .UseDriver("docker-remote", d => d.UseDockerCli())
+                .WithDriver("docker-local", d => d.UseDockerCli())
+                .WithDriver("docker-remote", d => d.UseDockerCli())
                 .BuildAsync();
 
             // Assert
@@ -49,7 +49,7 @@ namespace Ductus.FluentDocker.Tests.V3
         {
             // Arrange
             var kernel = await FluentDockerKernel.Create()
-                .UseDriver("docker", d => d.UseDockerCli())
+                .WithDriver("docker", d => d.UseDockerCli())
                 .BuildAsync();
 
             try

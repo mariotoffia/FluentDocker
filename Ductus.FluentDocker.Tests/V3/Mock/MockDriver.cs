@@ -3,11 +3,11 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Ductus.FluentDocker.Drivers;
-using Ductus.FluentDocker.Model.Containers;
 using Ductus.FluentDocker.Model.Drivers;
 using Ductus.FluentDocker.Model.Images;
-using Ductus.FluentDocker.Model.Networks;
 using Ductus.FluentDocker.Model.Volumes;
+using Container = Ductus.FluentDocker.Model.Containers.Container;
+using ContainerState = Ductus.FluentDocker.Model.Containers.ContainerState;
 
 namespace Ductus.FluentDocker.Tests.V3.Mock
 {
@@ -35,6 +35,26 @@ namespace Ductus.FluentDocker.Tests.V3.Mock
         }
 
         public IReadOnlyList<MethodCall> MethodCalls => _methodCalls;
+
+        /// <summary>
+        /// Gets the containers stored in this mock driver (for test assertions).
+        /// </summary>
+        public IReadOnlyDictionary<string, Container> Containers => _containers;
+
+        /// <summary>
+        /// Gets the images stored in this mock driver (for test assertions).
+        /// </summary>
+        public IReadOnlyDictionary<string, Image> Images => _images;
+
+        /// <summary>
+        /// Gets the networks stored in this mock driver (for test assertions).
+        /// </summary>
+        public IReadOnlyDictionary<string, Network> Networks => _networks;
+
+        /// <summary>
+        /// Gets the volumes stored in this mock driver (for test assertions).
+        /// </summary>
+        public IReadOnlyDictionary<string, Volume> Volumes => _volumes;
 
         // IDriver implementation
         public DriverType Type => _driverType;
@@ -72,7 +92,7 @@ namespace Ductus.FluentDocker.Tests.V3.Mock
                 Id = id,
                 Name = config.Name ?? $"container-{id}",
                 Image = config.Image,
-                State = "created"
+                State = new ContainerState { Status = "created" }
             };
 
             _containers[id] = container;
@@ -80,49 +100,49 @@ namespace Ductus.FluentDocker.Tests.V3.Mock
             return Task.FromResult(CommandResponse<ContainerCreateResult>.Ok(new ContainerCreateResult { Id = id }));
         }
 
-        public Task<CommandResponse<Unit>> StartAsync(DriverContext context, string containerId, CancellationToken cancellationToken = default)
+        public Task<CommandResponse<Model.Drivers.Unit>> StartAsync(DriverContext context, string containerId, CancellationToken cancellationToken = default)
         {
             RecordCall(nameof(StartAsync), context, containerId);
 
             if (SimulateFailure)
-                return Task.FromResult(CommandResponse<Unit>.Fail(FailureMessage, FailureErrorCode));
+                return Task.FromResult(CommandResponse<Model.Drivers.Unit>.Fail(FailureMessage, FailureErrorCode));
 
             if (_containers.TryGetValue(containerId, out var container))
             {
-                container.State = "running";
-                return Task.FromResult(CommandResponse<Unit>.Ok(Unit.Default));
+                container.State = new ContainerState { Status = "running" };
+                return Task.FromResult(CommandResponse<Model.Drivers.Unit>.Ok(Model.Drivers.Unit.Default));
             }
 
-            return Task.FromResult(CommandResponse<Unit>.Fail($"Container {containerId} not found", ErrorCodes.Container.NotFound));
+            return Task.FromResult(CommandResponse<Model.Drivers.Unit>.Fail($"Container {containerId} not found", ErrorCodes.Container.NotFound));
         }
 
-        public Task<CommandResponse<Unit>> StopAsync(DriverContext context, string containerId, int? timeout = null, CancellationToken cancellationToken = default)
+        public Task<CommandResponse<Model.Drivers.Unit>> StopAsync(DriverContext context, string containerId, int? timeout = null, CancellationToken cancellationToken = default)
         {
             RecordCall(nameof(StopAsync), context, containerId, timeout);
 
             if (SimulateFailure)
-                return Task.FromResult(CommandResponse<Unit>.Fail(FailureMessage, FailureErrorCode));
+                return Task.FromResult(CommandResponse<Model.Drivers.Unit>.Fail(FailureMessage, FailureErrorCode));
 
             if (_containers.TryGetValue(containerId, out var container))
             {
-                container.State = "exited";
-                return Task.FromResult(CommandResponse<Unit>.Ok(Unit.Default));
+                container.State = new ContainerState { Status = "exited" };
+                return Task.FromResult(CommandResponse<Model.Drivers.Unit>.Ok(Model.Drivers.Unit.Default));
             }
 
-            return Task.FromResult(CommandResponse<Unit>.Fail($"Container {containerId} not found", ErrorCodes.Container.NotFound));
+            return Task.FromResult(CommandResponse<Model.Drivers.Unit>.Fail($"Container {containerId} not found", ErrorCodes.Container.NotFound));
         }
 
-        public Task<CommandResponse<Unit>> RemoveAsync(DriverContext context, string containerId, bool force = false, CancellationToken cancellationToken = default)
+        public Task<CommandResponse<Model.Drivers.Unit>> RemoveAsync(DriverContext context, string containerId, bool force = false, CancellationToken cancellationToken = default)
         {
             RecordCall(nameof(RemoveAsync), context, containerId, force);
 
             if (SimulateFailure)
-                return Task.FromResult(CommandResponse<Unit>.Fail(FailureMessage, FailureErrorCode));
+                return Task.FromResult(CommandResponse<Model.Drivers.Unit>.Fail(FailureMessage, FailureErrorCode));
 
             if (_containers.Remove(containerId))
-                return Task.FromResult(CommandResponse<Unit>.Ok(Unit.Default));
+                return Task.FromResult(CommandResponse<Model.Drivers.Unit>.Ok(Model.Drivers.Unit.Default));
 
-            return Task.FromResult(CommandResponse<Unit>.Fail($"Container {containerId} not found", ErrorCodes.Container.NotFound));
+            return Task.FromResult(CommandResponse<Model.Drivers.Unit>.Fail($"Container {containerId} not found", ErrorCodes.Container.NotFound));
         }
 
         public Task<CommandResponse<Container>> InspectAsync(DriverContext context, string containerId, CancellationToken cancellationToken = default)
@@ -160,30 +180,30 @@ namespace Ductus.FluentDocker.Tests.V3.Mock
         }
 
         // IImageDriver implementation
-        public Task<CommandResponse<Unit>> PullAsync(DriverContext context, string image, string tag = "latest", IProgress<ImagePullProgress> progress = null, CancellationToken cancellationToken = default)
+        public Task<CommandResponse<Model.Drivers.Unit>> PullAsync(DriverContext context, string image, string tag = "latest", IProgress<ImagePullProgress> progress = null, CancellationToken cancellationToken = default)
         {
             RecordCall(nameof(PullAsync), context, image, tag);
 
             if (SimulateFailure)
-                return Task.FromResult(CommandResponse<Unit>.Fail(FailureMessage, FailureErrorCode));
+                return Task.FromResult(CommandResponse<Model.Drivers.Unit>.Fail(FailureMessage, FailureErrorCode));
 
             var id = Guid.NewGuid().ToString("N").Substring(0, 12);
-            _images[id] = new Image { Id = id, Repository = image, Tag = tag };
+            _images[id] = new Image { Id = id, Repository = image, Tags = new List<string> { tag } };
 
-            return Task.FromResult(CommandResponse<Unit>.Ok(Unit.Default));
+            return Task.FromResult(CommandResponse<Model.Drivers.Unit>.Ok(Model.Drivers.Unit.Default));
         }
 
-        Task<CommandResponse<Unit>> IImageDriver.RemoveAsync(DriverContext context, string imageId, bool force, CancellationToken cancellationToken)
+        Task<CommandResponse<Model.Drivers.Unit>> IImageDriver.RemoveAsync(DriverContext context, string imageId, bool force, CancellationToken cancellationToken)
         {
             RecordCall(nameof(IImageDriver.RemoveAsync), context, imageId, force);
 
             if (SimulateFailure)
-                return Task.FromResult(CommandResponse<Unit>.Fail(FailureMessage, FailureErrorCode));
+                return Task.FromResult(CommandResponse<Model.Drivers.Unit>.Fail(FailureMessage, FailureErrorCode));
 
             if (_images.Remove(imageId))
-                return Task.FromResult(CommandResponse<Unit>.Ok(Unit.Default));
+                return Task.FromResult(CommandResponse<Model.Drivers.Unit>.Ok(Model.Drivers.Unit.Default));
 
-            return Task.FromResult(CommandResponse<Unit>.Fail($"Image {imageId} not found", ErrorCodes.Image.NotFound));
+            return Task.FromResult(CommandResponse<Model.Drivers.Unit>.Fail($"Image {imageId} not found", ErrorCodes.Image.NotFound));
         }
 
         public Task<CommandResponse<ImageBuildResult>> BuildAsync(DriverContext context, ImageBuildConfig config, IProgress<ImageBuildProgress> progress = null, CancellationToken cancellationToken = default)
@@ -197,9 +217,9 @@ namespace Ductus.FluentDocker.Tests.V3.Mock
             return Task.FromResult(CommandResponse<ImageBuildResult>.Ok(new ImageBuildResult { ImageId = id }));
         }
 
-        Task<CommandResponse<IList<Image>>> IImageDriver.ListAsync(DriverContext context, ImageListFilter filter, CancellationToken cancellationToken)
+        public Task<CommandResponse<IList<Image>>> ListAsync(DriverContext context, ImageListFilter filter, CancellationToken cancellationToken = default)
         {
-            RecordCall(nameof(IImageDriver.ListAsync), context, filter);
+            RecordCall(nameof(ListAsync), context, filter);
 
             if (SimulateFailure)
                 return Task.FromResult(CommandResponse<IList<Image>>.Fail(FailureMessage, FailureErrorCode));
@@ -221,14 +241,14 @@ namespace Ductus.FluentDocker.Tests.V3.Mock
             return Task.FromResult(CommandResponse<Image>.Fail($"Image {imageId} not found", ErrorCodes.Image.NotFound));
         }
 
-        public Task<CommandResponse<Unit>> TagAsync(DriverContext context, string imageId, string repository, string tag, CancellationToken cancellationToken = default)
+        public Task<CommandResponse<Model.Drivers.Unit>> TagAsync(DriverContext context, string imageId, string repository, string tag, CancellationToken cancellationToken = default)
         {
             RecordCall(nameof(TagAsync), context, imageId, repository, tag);
 
             if (SimulateFailure)
-                return Task.FromResult(CommandResponse<Unit>.Fail(FailureMessage, FailureErrorCode));
+                return Task.FromResult(CommandResponse<Model.Drivers.Unit>.Fail(FailureMessage, FailureErrorCode));
 
-            return Task.FromResult(CommandResponse<Unit>.Ok(Unit.Default));
+            return Task.FromResult(CommandResponse<Model.Drivers.Unit>.Ok(Model.Drivers.Unit.Default));
         }
 
         // INetworkDriver implementation
@@ -245,22 +265,22 @@ namespace Ductus.FluentDocker.Tests.V3.Mock
             return Task.FromResult(CommandResponse<NetworkCreateResult>.Ok(new NetworkCreateResult { Id = id }));
         }
 
-        Task<CommandResponse<Unit>> INetworkDriver.RemoveAsync(DriverContext context, string networkId, CancellationToken cancellationToken)
+        public Task<CommandResponse<Model.Drivers.Unit>> RemoveAsync(DriverContext context, string networkId, CancellationToken cancellationToken = default)
         {
-            RecordCall(nameof(INetworkDriver.RemoveAsync), context, networkId);
+            RecordCall(nameof(RemoveAsync), context, networkId);
 
             if (SimulateFailure)
-                return Task.FromResult(CommandResponse<Unit>.Fail(FailureMessage, FailureErrorCode));
+                return Task.FromResult(CommandResponse<Model.Drivers.Unit>.Fail(FailureMessage, FailureErrorCode));
 
             if (_networks.Remove(networkId))
-                return Task.FromResult(CommandResponse<Unit>.Ok(Unit.Default));
+                return Task.FromResult(CommandResponse<Model.Drivers.Unit>.Ok(Model.Drivers.Unit.Default));
 
-            return Task.FromResult(CommandResponse<Unit>.Fail($"Network {networkId} not found", ErrorCodes.Network.NotFound));
+            return Task.FromResult(CommandResponse<Model.Drivers.Unit>.Fail($"Network {networkId} not found", ErrorCodes.Network.NotFound));
         }
 
-        Task<CommandResponse<IList<Network>>> INetworkDriver.ListAsync(DriverContext context, NetworkListFilter filter, CancellationToken cancellationToken)
+        public Task<CommandResponse<IList<Network>>> ListAsync(DriverContext context, NetworkListFilter filter, CancellationToken cancellationToken = default)
         {
-            RecordCall(nameof(INetworkDriver.ListAsync), context, filter);
+            RecordCall(nameof(ListAsync), context, filter);
 
             if (SimulateFailure)
                 return Task.FromResult(CommandResponse<IList<Network>>.Fail(FailureMessage, FailureErrorCode));
@@ -269,24 +289,47 @@ namespace Ductus.FluentDocker.Tests.V3.Mock
             return Task.FromResult(CommandResponse<IList<Network>>.Ok(networks));
         }
 
-        public Task<CommandResponse<Unit>> ConnectAsync(DriverContext context, string networkId, string containerId, CancellationToken cancellationToken = default)
+        public Task<CommandResponse<Model.Drivers.Unit>> ConnectAsync(DriverContext context, string networkId, string containerId, CancellationToken cancellationToken = default)
         {
             RecordCall(nameof(ConnectAsync), context, networkId, containerId);
 
             if (SimulateFailure)
-                return Task.FromResult(CommandResponse<Unit>.Fail(FailureMessage, FailureErrorCode));
+                return Task.FromResult(CommandResponse<Model.Drivers.Unit>.Fail(FailureMessage, FailureErrorCode));
 
-            return Task.FromResult(CommandResponse<Unit>.Ok(Unit.Default));
+            return Task.FromResult(CommandResponse<Model.Drivers.Unit>.Ok(Model.Drivers.Unit.Default));
         }
 
-        public Task<CommandResponse<Unit>> DisconnectAsync(DriverContext context, string networkId, string containerId, bool force = false, CancellationToken cancellationToken = default)
+        public Task<CommandResponse<Model.Drivers.Unit>> DisconnectAsync(DriverContext context, string networkId, string containerId, bool force = false, CancellationToken cancellationToken = default)
         {
             RecordCall(nameof(DisconnectAsync), context, networkId, containerId, force);
 
             if (SimulateFailure)
-                return Task.FromResult(CommandResponse<Unit>.Fail(FailureMessage, FailureErrorCode));
+                return Task.FromResult(CommandResponse<Model.Drivers.Unit>.Fail(FailureMessage, FailureErrorCode));
 
-            return Task.FromResult(CommandResponse<Unit>.Ok(Unit.Default));
+            return Task.FromResult(CommandResponse<Model.Drivers.Unit>.Ok(Model.Drivers.Unit.Default));
+        }
+
+        Task<CommandResponse<Network>> INetworkDriver.InspectAsync(DriverContext context, string networkId, CancellationToken cancellationToken)
+        {
+            RecordCall("INetworkDriver.InspectAsync", context, networkId);
+
+            if (SimulateFailure)
+                return Task.FromResult(CommandResponse<Network>.Fail(FailureMessage, FailureErrorCode));
+
+            if (_networks.TryGetValue(networkId, out var network))
+                return Task.FromResult(CommandResponse<Network>.Ok(network));
+
+            return Task.FromResult(CommandResponse<Network>.Fail($"Network {networkId} not found", ErrorCodes.Network.NotFound));
+        }
+
+        public Task<CommandResponse<NetworkPruneResult>> PruneAsync(DriverContext context, CancellationToken cancellationToken = default)
+        {
+            RecordCall(nameof(PruneAsync), context);
+
+            if (SimulateFailure)
+                return Task.FromResult(CommandResponse<NetworkPruneResult>.Fail(FailureMessage, FailureErrorCode));
+
+            return Task.FromResult(CommandResponse<NetworkPruneResult>.Ok(new NetworkPruneResult()));
         }
 
         // IVolumeDriver implementation
@@ -303,22 +346,22 @@ namespace Ductus.FluentDocker.Tests.V3.Mock
             return Task.FromResult(CommandResponse<VolumeCreateResult>.Ok(new VolumeCreateResult { Name = name }));
         }
 
-        Task<CommandResponse<Unit>> IVolumeDriver.RemoveAsync(DriverContext context, string volumeName, bool force, CancellationToken cancellationToken)
+        Task<CommandResponse<Model.Drivers.Unit>> IVolumeDriver.RemoveAsync(DriverContext context, string volumeName, bool force, CancellationToken cancellationToken)
         {
-            RecordCall(nameof(IVolumeDriver.RemoveAsync), context, volumeName, force);
+            RecordCall("IVolumeDriver.RemoveAsync", context, volumeName, force);
 
             if (SimulateFailure)
-                return Task.FromResult(CommandResponse<Unit>.Fail(FailureMessage, FailureErrorCode));
+                return Task.FromResult(CommandResponse<Model.Drivers.Unit>.Fail(FailureMessage, FailureErrorCode));
 
             if (_volumes.Remove(volumeName))
-                return Task.FromResult(CommandResponse<Unit>.Ok(Unit.Default));
+                return Task.FromResult(CommandResponse<Model.Drivers.Unit>.Ok(Model.Drivers.Unit.Default));
 
-            return Task.FromResult(CommandResponse<Unit>.Fail($"Volume {volumeName} not found", ErrorCodes.Volume.NotFound));
+            return Task.FromResult(CommandResponse<Model.Drivers.Unit>.Fail($"Volume {volumeName} not found", ErrorCodes.Volume.NotFound));
         }
 
-        Task<CommandResponse<IList<Volume>>> IVolumeDriver.ListAsync(DriverContext context, VolumeListFilter filter, CancellationToken cancellationToken)
+        public Task<CommandResponse<IList<Volume>>> ListAsync(DriverContext context, VolumeListFilter filter, CancellationToken cancellationToken = default)
         {
-            RecordCall(nameof(IVolumeDriver.ListAsync), context, filter);
+            RecordCall(nameof(ListAsync), context, filter);
 
             if (SimulateFailure)
                 return Task.FromResult(CommandResponse<IList<Volume>>.Fail(FailureMessage, FailureErrorCode));
@@ -329,7 +372,7 @@ namespace Ductus.FluentDocker.Tests.V3.Mock
 
         Task<CommandResponse<Volume>> IVolumeDriver.InspectAsync(DriverContext context, string volumeName, CancellationToken cancellationToken)
         {
-            RecordCall(nameof(IVolumeDriver.InspectAsync), context, volumeName);
+            RecordCall("IVolumeDriver.InspectAsync", context, volumeName);
 
             if (SimulateFailure)
                 return Task.FromResult(CommandResponse<Volume>.Fail(FailureMessage, FailureErrorCode));
@@ -338,6 +381,16 @@ namespace Ductus.FluentDocker.Tests.V3.Mock
                 return Task.FromResult(CommandResponse<Volume>.Ok(volume));
 
             return Task.FromResult(CommandResponse<Volume>.Fail($"Volume {volumeName} not found", ErrorCodes.Volume.NotFound));
+        }
+
+        Task<CommandResponse<VolumePruneResult>> IVolumeDriver.PruneAsync(DriverContext context, CancellationToken cancellationToken)
+        {
+            RecordCall(nameof(IVolumeDriver.PruneAsync), context);
+
+            if (SimulateFailure)
+                return Task.FromResult(CommandResponse<VolumePruneResult>.Fail(FailureMessage, FailureErrorCode));
+
+            return Task.FromResult(CommandResponse<VolumePruneResult>.Ok(new VolumePruneResult()));
         }
 
         // ISystemDriver implementation
@@ -374,14 +427,14 @@ namespace Ductus.FluentDocker.Tests.V3.Mock
             return Task.FromResult(CommandResponse<VersionInfo>.Ok(version));
         }
 
-        public Task<CommandResponse<Unit>> PingAsync(DriverContext context, CancellationToken cancellationToken = default)
+        public Task<CommandResponse<Model.Drivers.Unit>> PingAsync(DriverContext context, CancellationToken cancellationToken = default)
         {
             RecordCall(nameof(PingAsync), context);
 
             if (SimulateFailure)
-                return Task.FromResult(CommandResponse<Unit>.Fail(FailureMessage, FailureErrorCode));
+                return Task.FromResult(CommandResponse<Model.Drivers.Unit>.Fail(FailureMessage, FailureErrorCode));
 
-            return Task.FromResult(CommandResponse<Unit>.Ok(Unit.Default));
+            return Task.FromResult(CommandResponse<Model.Drivers.Unit>.Ok(Model.Drivers.Unit.Default));
         }
 
         // IComposeDriver stub implementation
@@ -395,39 +448,39 @@ namespace Ductus.FluentDocker.Tests.V3.Mock
             return Task.FromResult(CommandResponse<ComposeUpResult>.Ok(new ComposeUpResult()));
         }
 
-        public Task<CommandResponse<Unit>> DownAsync(DriverContext context, ComposeDownConfig config, CancellationToken cancellationToken = default)
+        public Task<CommandResponse<Model.Drivers.Unit>> DownAsync(DriverContext context, ComposeDownConfig config, CancellationToken cancellationToken = default)
         {
             RecordCall(nameof(DownAsync), context, config);
 
             if (SimulateFailure)
-                return Task.FromResult(CommandResponse<Unit>.Fail(FailureMessage, FailureErrorCode));
+                return Task.FromResult(CommandResponse<Model.Drivers.Unit>.Fail(FailureMessage, FailureErrorCode));
 
-            return Task.FromResult(CommandResponse<Unit>.Ok(Unit.Default));
+            return Task.FromResult(CommandResponse<Model.Drivers.Unit>.Ok(Model.Drivers.Unit.Default));
         }
 
-        Task<CommandResponse<Unit>> IComposeDriver.StartAsync(DriverContext context, string composeFile, CancellationToken cancellationToken)
+        Task<CommandResponse<Model.Drivers.Unit>> IComposeDriver.StartAsync(DriverContext context, string composeFile, CancellationToken cancellationToken)
         {
-            RecordCall(nameof(IComposeDriver.StartAsync), context, composeFile);
+            RecordCall("IComposeDriver.StartAsync", context, composeFile);
 
             if (SimulateFailure)
-                return Task.FromResult(CommandResponse<Unit>.Fail(FailureMessage, FailureErrorCode));
+                return Task.FromResult(CommandResponse<Model.Drivers.Unit>.Fail(FailureMessage, FailureErrorCode));
 
-            return Task.FromResult(CommandResponse<Unit>.Ok(Unit.Default));
+            return Task.FromResult(CommandResponse<Model.Drivers.Unit>.Ok(Model.Drivers.Unit.Default));
         }
 
-        Task<CommandResponse<Unit>> IComposeDriver.StopAsync(DriverContext context, string composeFile, int? timeout, CancellationToken cancellationToken)
+        Task<CommandResponse<Model.Drivers.Unit>> IComposeDriver.StopAsync(DriverContext context, string composeFile, int? timeout, CancellationToken cancellationToken)
         {
-            RecordCall(nameof(IComposeDriver.StopAsync), context, composeFile, timeout);
+            RecordCall("IComposeDriver.StopAsync", context, composeFile, timeout);
 
             if (SimulateFailure)
-                return Task.FromResult(CommandResponse<Unit>.Fail(FailureMessage, FailureErrorCode));
+                return Task.FromResult(CommandResponse<Model.Drivers.Unit>.Fail(FailureMessage, FailureErrorCode));
 
-            return Task.FromResult(CommandResponse<Unit>.Ok(Unit.Default));
+            return Task.FromResult(CommandResponse<Model.Drivers.Unit>.Ok(Model.Drivers.Unit.Default));
         }
 
-        Task<CommandResponse<IList<ComposeService>>> IComposeDriver.ListAsync(DriverContext context, string composeFile, CancellationToken cancellationToken)
+        Task<CommandResponse<IList<ComposeService>>> IComposeDriver.ListAsync(DriverContext context, string composeFile, string projectName, CancellationToken cancellationToken)
         {
-            RecordCall(nameof(IComposeDriver.ListAsync), context, composeFile);
+            RecordCall("IComposeDriver.ListAsync", context, composeFile, projectName);
 
             if (SimulateFailure)
                 return Task.FromResult(CommandResponse<IList<ComposeService>>.Fail(FailureMessage, FailureErrorCode));
@@ -437,7 +490,7 @@ namespace Ductus.FluentDocker.Tests.V3.Mock
 
         Task<CommandResponse<string>> IComposeDriver.GetLogsAsync(DriverContext context, string composeFile, bool follow, CancellationToken cancellationToken)
         {
-            RecordCall(nameof(IComposeDriver.GetLogsAsync), context, composeFile, follow);
+            RecordCall("IComposeDriver.GetLogsAsync", context, composeFile, follow);
 
             if (SimulateFailure)
                 return Task.FromResult(CommandResponse<string>.Fail(FailureMessage, FailureErrorCode));

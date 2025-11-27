@@ -6,7 +6,7 @@ using Ductus.FluentDocker.Model.Kernel;
 using Ductus.FluentDocker.Services;
 using Xunit;
 
-namespace Ductus.FluentDocker.Tests.V3.Unit
+namespace Ductus.FluentDocker.Tests.V3.UnitTests
 {
     [Trait("Category", "Unit")]
     public class BuildResultsTests
@@ -168,15 +168,15 @@ namespace Ductus.FluentDocker.Tests.V3.Unit
             }
 
             public string Name { get; }
-            public Common.ServiceRunningState State => Common.ServiceRunningState.Unknown;
+            public ServiceRunningState State => ServiceRunningState.Unknown;
 
             public void Start() { }
             public void Pause() { }
             public void Stop() { }
             public void Remove(bool force = false) { }
-            public IService AddHook(Common.ServiceRunningState state, System.Action<IService> hook, string uniqueName = null) => this;
+            public IService AddHook(ServiceRunningState state, System.Action<IService> hook, string uniqueName = null) => this;
             public IService RemoveHook(string uniqueName) => this;
-            public event Services.ServiceDelegates.StateChange StateChange;
+            public event ServiceDelegates.StateChange StateChange;
             public void Dispose() { }
         }
 

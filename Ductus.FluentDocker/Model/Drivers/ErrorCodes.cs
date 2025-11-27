@@ -75,6 +75,7 @@ namespace Ductus.FluentDocker.Model.Drivers
             public const string DisconnectFailed = "NET_006";
             public const string InspectFailed = "NET_007";
             public const string PruneFailed = "NET_008";
+            public const string Timeout = "NET_009";
         }
 
         /// <summary>

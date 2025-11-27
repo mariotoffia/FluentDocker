@@ -33,6 +33,13 @@ namespace Ductus.FluentDocker.Common
             ErrorCode = errorCode;
         }
 
+        public DriverException(string message, string errorCode, bool isTransient)
+            : base(message)
+        {
+            ErrorCode = errorCode;
+            IsTransient = isTransient;
+        }
+
         public DriverException(string message, string errorCode, ErrorContext context, bool isTransient = false)
             : base(message)
         {

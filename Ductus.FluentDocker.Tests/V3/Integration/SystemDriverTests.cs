@@ -16,7 +16,7 @@ namespace Ductus.FluentDocker.Tests.V3.Integration
         public SystemDriverTests()
         {
             _kernel = new KernelBuilder()
-                .UseDriver("docker-local", b => b.UseDockerCli())
+                .WithDriver("docker-local", b => b.UseDockerCli())
                 .BuildAsync()
                 .GetAwaiter()
                 .GetResult();
@@ -29,7 +29,7 @@ namespace Ductus.FluentDocker.Tests.V3.Integration
         public async Task System_Info_ReturnsDockerInfo()
         {
             // Act
-            var response = await _driver.InfoAsync(_context);
+            var response = await _driver.GetInfoAsync(_context);
 
             // Assert
             Assert.True(response.Success, response.Error);
@@ -41,7 +41,7 @@ namespace Ductus.FluentDocker.Tests.V3.Integration
         public async Task System_Version_ReturnsDockerVersion()
         {
             // Act
-            var response = await _driver.VersionAsync(_context);
+            var response = await _driver.GetVersionAsync(_context);
 
             // Assert
             Assert.True(response.Success, response.Error);
@@ -59,43 +59,7 @@ namespace Ductus.FluentDocker.Tests.V3.Integration
             Assert.True(response.Success, response.Error);
         }
 
-        [Fact(Skip = "Events streaming not yet implemented")]
-        public async Task System_Events_ReturnsEventStream()
-        {
-            // Arrange
-            var cts = new System.Threading.CancellationTokenSource();
-            cts.CancelAfter(5000); // Cancel after 5 seconds
-
-            var eventReceived = false;
-
-            // Act
-            try
-            {
-                await foreach (var evt in _driver.EventsAsync(_context, cts.Token))
-                {
-                    eventReceived = true;
-                    break; // Exit after first event
-                }
-            }
-            catch (System.OperationCanceledException)
-            {
-                // Expected when timeout occurs
-            }
-
-            // Assert
-            // This is a smoke test - just verify events endpoint works
-            Assert.True(true);
-        }
-
-        [Fact(Skip = "Disk usage not yet implemented")]
-        public async Task System_DiskUsage_ReturnsUsageInfo()
-        {
-            // Act
-            var response = await _driver.DiskUsageAsync(_context);
-
-            // Assert
-            Assert.True(response.Success, response.Error);
-            Assert.NotNull(response.Data);
-        }
+        // Note: EventsAsync and DiskUsageAsync are not implemented in ISystemDriver
+        // These tests will be added when the methods are implemented
     }
 }
