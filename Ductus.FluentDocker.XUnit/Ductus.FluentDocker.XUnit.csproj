@@ -1,6 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <TargetFrameworks>netstandard2.0;net6.0;net8.0</TargetFrameworks>
+    <TargetFramework>net8.0</TargetFramework>
     <!-- Version properties are intentionally set to 1.0.0 as placeholders -->
     <!-- Actual version is controlled by GitVersion in CI pipeline -->
     <Version>1.0.0</Version>

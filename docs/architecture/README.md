@@ -334,35 +334,26 @@ await deployment.DisposeAllAsync();
 
 ---
 
-## Document Comparison
+## V3 Architecture Documents
 
-### Original Documents (v2.x.x compatible)
-
-These documents were created assuming backward compatibility:
-
-- **DRIVER_LAYER_ARCHITECTURE.md** - Original design with singleton kernel
-- **IMPLEMENTATION_PLAN_KERNEL_AND_DRIVERS.md** - Implementation with singleton
-- **MIGRATION_PLAN.md** - 100% backward compatible migration
-
-**Status**: These are now superseded by v3 documents but kept for reference.
-
-### V3 Documents (Breaking changes)
-
-These documents embrace v3.0.0 breaking changes for better architecture:
+All documents in this directory define the v3.0.0 architecture with breaking changes:
 
 **Core Architecture:**
-- **DRIVER_LAYER_ARCHITECTURE_V3.md** ⭐
-- **IMPLEMENTATION_PLAN_V3.md** ⭐
-- **MIGRATION_GUIDE_V3.md** ⭐
+- **TERMINAL_BUILD_PATTERN.md** - Read first: `BuildAsync()` is terminal
+- **ASYNC_OPERATIONS.md** - Comprehensive async patterns
+- **DRIVER_LAYER_ARCHITECTURE_V3.md** - Main architecture document
+- **IMPLEMENTATION_PLAN_V3.md** - Implementation roadmap
+- **MIGRATION_GUIDE_V3.md** - User migration guide
 
 **Error Handling:**
-- **ERROR_HANDLING_STRATEGY_V3.md** ⭐
-- **ERROR_HANDLING_MIGRATION_V3.md** ⭐
+- **ERROR_HANDLING_STRATEGY_V3.md** - Exception hierarchy and patterns
+- **ERROR_HANDLING_MIGRATION_V3.md** - Error handling migration guide
 
 **Fluent API & Capabilities:**
-- **FLUENT_API_AND_CAPABILITIES_V3.md** ⭐
+- **FLUENT_API_AND_CAPABILITIES_V3.md** - Driver registration and capability system
 
-**Status**: These are the **official v3.0.0 documents** to follow.
+**Testing:**
+- **TEST_PLAN_V3.md** - Test plan and verification checklist
 
 ---
 

@@ -70,20 +70,15 @@ namespace Ductus.FluentDocker.Kernel
     /// <summary>
     /// Builder for configuring a specific driver.
     /// </summary>
-    internal class DriverBuilder : IDriverBuilder
+    internal class DriverBuilder(string driverId) : IDriverBuilder
     {
-        private readonly string _driverId;
+        private readonly string _driverId = driverId;
         private IDriver _driver;
         private string _host;
         private string _certificatePath;
         private bool _isDefault;
 
-        public DriverBuilder(string driverId)
-        {
-            _driverId = driverId;
-        }
-
-        public IDriverBuilder UseDockerCli()
+    public IDriverBuilder UseDockerCli()
         {
             _driver = new Drivers.Docker.Cli.DockerCliDriver();
             return this;
