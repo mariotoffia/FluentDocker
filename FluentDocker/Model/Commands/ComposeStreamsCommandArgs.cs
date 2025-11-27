@@ -31,6 +31,8 @@ namespace FluentDocker.Model.Commands
     public bool NoColor { get; set; }
     /// <summary>Don't print prefix in logs.</summary>
     public bool NoLogPrefix { get; set; }
+    /// <summary>Environment variables.</summary>
+    public IDictionary<string, string> Env { get; set; }
     /// <summary>Certificate paths for TLS.</summary>
     public ICertificatePaths Certificates { get; set; }
 

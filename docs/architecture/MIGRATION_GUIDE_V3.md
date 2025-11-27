@@ -650,6 +650,112 @@ These APIs have been removed in v3.0.0:
 3. **IContainerService.DockerHost** - Use `Context.Host` instead
 4. **IContainerService.Certificates** - Use `Context.Certificates` instead
 
+### Compose Command API Changes
+
+All Docker Compose commands now use **struct-based arguments** instead of individual parameters. This provides better extensibility, discoverability, and type safety.
+
+#### Removed Methods (Breaking Change)
+
+The following old-style methods have been **removed**:
+
+| Removed Method | Replacement |
+|----------------|-------------|
+| `ComposeBuild(host, altProjectName, forceRm, ...)` | `ComposeBuildCommand(host, ComposeBuildCommandArgs)` |
+| `ComposeCreate(host, altProjectName, ...)` | `ComposeCreateCommand(host, ComposeCreateCommandArgs)` |
+| `ComposeStart(host, altProjectName, ...)` | `ComposeStartCommand(host, ComposeStartCommandArgs)` |
+| `ComposeStop(host, altProjectName, timeout, ...)` | `ComposeStopCommand(host, ComposeStopCommandArgs)` |
+| `ComposeKill(host, altProjectName, signal, ...)` | `ComposeKillCommand(host, ComposeKillCommandArgs)` |
+| `ComposePause(host, altProjectName, ...)` | `ComposePauseCommand(host, ComposePauseCommandArgs)` |
+| `ComposeUnPause(host, altProjectName, ...)` | `ComposeUnpauseCommand(host, ComposeUnpauseCommandArgs)` |
+| `ComposeScale(host, altProjectName, timeout, ...)` | `ComposeScaleCommand(host, ComposeScaleCommandArgs)` |
+| `ComposeVersion(host, altProjectName, ...)` | `ComposeVersionCommand(host, ComposeVersionCommandArgs)` |
+| `ComposeRestart(host, altProjectName, ...)` | `ComposeRestartCommand(host, ComposeRestartCommandArgs)` |
+| `ComposePort(host, containerId, ...)` | `ComposePortCommand(host, ComposePortCommandArgs)` |
+| `ComposeConfig(host, altProjectName, ...)` | `ComposeConfigCommand(host, ComposeConfigCommandArgs)` |
+| `ComposeDown(host, altProjectName, ...)` | `ComposeDownCommand(host, ComposeDownCommandArgs)` |
+| `ComposeUp(host, altProjectName, ...)` | `ComposeUpCommand(host, ComposeUpCommandArgs)` |
+| `ComposeRm(host, altProjectName, ...)` | `ComposeRmCommand(host, ComposeRmCommandArgs)` |
+| `ComposePs(host, altProjectName, ...)` | `ComposePsCommand(host, ComposePsCommandArgs)` |
+| `ComposePull(host, ...)` | `ComposePullCommand(host, ComposePullCommandArgs)` |
+
+#### New Methods Added
+
+These methods are new in v3.0.0:
+
+| Method | Description |
+|--------|-------------|
+| `ComposeExecCommand` | Execute command in running service container |
+| `ComposeRunCommand` | Run one-off command in service container |
+| `ComposeTopCommand` | Display running processes |
+| `ComposeImagesCommand` | List images used by containers |
+| `ComposeCpCommand` | Copy files between container and host |
+| `ComposeLogsCommand` | View logs (non-streaming) |
+
+#### Migration Examples
+
+**v2.x.x**:
+```csharp
+host.Host.ComposeBuild(
+    altProjectName: "myproject",
+    forceRm: true,
+    dontUseCache: true,
+    alwaysPull: false,
+    services: new[] { "web", "db" },
+    env: null,
+    certificates: host.Certificates,
+    composeFile: "docker-compose.yml"
+);
+```
+
+**v3.0.0**:
+```csharp
+host.Host.ComposeBuildCommand(new ComposeBuildCommandArgs
+{
+    AltProjectName = "myproject",
+    ForceRm = true,
+    NoCache = true,
+    Pull = false,
+    Services = new[] { "web", "db" },
+    Certificates = host.Certificates,
+    ComposeFiles = new[] { "docker-compose.yml" }
+});
+```
+
+**v2.x.x**:
+```csharp
+host.Host.ComposeDown(
+    Config.AlternativeServiceName,
+    Config.ImageRemoval,
+    !Config.KeepVolumes,
+    Config.RemoveOrphans,
+    Config.EnvironmentNameValue,
+    host.Certificates,
+    Config.ComposeFilePath.ToArray()
+);
+```
+
+**v3.0.0**:
+```csharp
+host.Host.ComposeDownCommand(new ComposeDownCommandArgs
+{
+    AltProjectName = Config.AlternativeServiceName,
+    RemoveImages = Config.ImageRemoval,
+    RemoveVolumes = !Config.KeepVolumes,
+    RemoveOrphans = Config.RemoveOrphans,
+    Env = Config.EnvironmentNameValue,
+    Certificates = host.Certificates,
+    ComposeFiles = Config.ComposeFilePath.ToArray()
+});
+```
+
+#### Benefits of the New Pattern
+
+1. **Extensibility**: New options can be added to structs without breaking existing code
+2. **Discoverability**: IntelliSense shows all available options in the struct
+3. **Type Safety**: Strongly-typed properties prevent parameter ordering mistakes
+4. **Readability**: Named properties are clearer than positional parameters
+5. **Default Values**: Struct fields have sensible defaults (false for bools, null for references)
+
 ### Behavior Changes
 
 1. **Builder()** - Can now optionally accept kernel parameter
@@ -800,7 +906,7 @@ kernel.RegisterDriver("docker", new DockerCliDriver());
 |----------|--------|------------------|
 | **All projects** | **Required** | Namespace rename: `Ductus.FluentDocker` → `FluentDocker` |
 | Simple local Docker | **Low** | Namespace rename + use default kernel |
-| Docker Compose | **Low** | Namespace rename + use default kernel |
+| Docker Compose | **Medium** | Namespace rename + update Compose commands to use struct-based args |
 | Remote Docker host | **Low-Medium** | Namespace rename + register driver with host/certs |
 | Multiple hosts | **Medium** | Namespace rename + register multiple drivers |
 | Custom testing | **Low-Medium** | Namespace rename + use mock drivers |
@@ -811,6 +917,7 @@ kernel.RegisterDriver("docker", new DockerCliDriver());
 2. ✅ Find & replace all `Ductus.FluentDocker` → `FluentDocker` in code
 3. ✅ Update logging configuration if filtering by namespace
 4. ✅ Review and update any service property accesses (e.g., `DockerHost` → `Context.Host`)
+5. ✅ Update all Compose command calls to use new struct-based methods (see Compose API Changes section)
 
 ### Benefits of v3.0.0
 

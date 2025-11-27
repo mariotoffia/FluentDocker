@@ -7,10 +7,10 @@ using FluentDocker.Executors;
 using FluentDocker.Executors.Parsers;
 using FluentDocker.Extensions;
 using FluentDocker.Extensions.Utils;
+using FluentDocker.Model.Commands;
 using FluentDocker.Model.Common;
 using FluentDocker.Model.Compose;
 using FluentDocker.Model.Containers;
-using FluentDocker.Model.Images;
 
 namespace FluentDocker.Commands
 {
@@ -49,458 +49,374 @@ namespace FluentDocker.Commands
       }
     }
 
-    public static CommandResponse<IList<string>> ComposeBuild(this DockerUri host,
-      string altProjectName = null,
-      bool forceRm = false, bool dontUseCache = false,
-      bool alwaysPull = false, string[] services = null /*all*/,
-      IDictionary<string, string> env = null,
-      ICertificatePaths certificates = null,
-      params string[] composeFile)
+    /// <summary>
+    /// Builds or rebuilds services defined in the compose file.
+    /// </summary>
+    public static CommandResponse<IList<string>> ComposeBuildCommand(this DockerUri host, ComposeBuildCommandArgs args)
     {
-      var cwd = WorkingDirectory(composeFile);
+      var composeFiles = args.ComposeFiles?.ToArray() ?? Array.Empty<string>();
+      var cwd = WorkingDirectory(composeFiles);
 
       var (binary, command) = GetComposeCommand();
 
-      var dockerArgs = $"{host.RenderBaseArgs(certificates)}";
+      var dockerArgs = $"{host.RenderBaseArgs(args.Certificates)}";
       var dockerComposeArgs = "";
 
-      if (null != composeFile && 0 != composeFile.Length)
-        foreach (var cf in composeFile)
+      if (composeFiles.Length > 0)
+        foreach (var cf in composeFiles)
           if (!string.IsNullOrEmpty(cf))
             dockerComposeArgs += $" -f \"{cf}\"";
 
-      if (!string.IsNullOrEmpty(altProjectName))
-        dockerComposeArgs += $" -p {altProjectName}";
+      if (!string.IsNullOrEmpty(args.AltProjectName))
+        dockerComposeArgs += $" -p {args.AltProjectName}";
 
-      var options = string.Empty;
-      if (forceRm)
-        options += " --force-rm";
-
-      if (alwaysPull)
-        options += " --pull";
-
-      if (dontUseCache)
-        options += " --no-cache";
-
-      if (null != services && 0 != services.Length)
-        options += " " + string.Join(" ", services);
+      var options = args.ToString();
 
       return
         new ProcessExecutor<StringListResponseParser, IList<string>>(
           binary,
-          $"{dockerArgs} {(string.IsNullOrEmpty(command) ? "" : command + " ")}{dockerComposeArgs} build {options}",
-          cwd.NeedCwd ? cwd.Cwd : null).ExecutionEnvironment(env).Execute();
+          $"{dockerArgs} {(string.IsNullOrEmpty(command) ? "" : command + " ")}{dockerComposeArgs} build{options}",
+          cwd.NeedCwd ? cwd.Cwd : null).ExecutionEnvironment(args.Env).Execute();
     }
 
-    public static CommandResponse<IList<string>> ComposeCreate(this DockerUri host,
-      string altProjectName = null,
-      bool forceRecreate = false, bool noRecreate = false, bool dontBuild = false,
-      bool buildBeforeCreate = false,
-      string[] services = null /*all*/,
-      IDictionary<string, string> env = null,
-      ICertificatePaths certificates = null, params string[] composeFile)
+    /// <summary>
+    /// Creates containers for services defined in the compose file.
+    /// </summary>
+    public static CommandResponse<IList<string>> ComposeCreateCommand(this DockerUri host, ComposeCreateCommandArgs args)
     {
-      var cwd = WorkingDirectory(composeFile);
+      var composeFiles = args.ComposeFiles?.ToArray() ?? Array.Empty<string>();
+      var cwd = WorkingDirectory(composeFiles);
       var (binary, command) = GetComposeCommand();
-      var args = $"{host.RenderBaseArgs(certificates)}";
+      var dockerArgs = $"{host.RenderBaseArgs(args.Certificates)}";
+      var composeArgs = "";
 
-      if (null != composeFile && 0 != composeFile.Length)
-        foreach (var cf in composeFile)
+      if (composeFiles.Length > 0)
+        foreach (var cf in composeFiles)
           if (!string.IsNullOrEmpty(cf))
-            args += $" -f \"{cf}\"";
+            composeArgs += $" -f \"{cf}\"";
 
-      if (!string.IsNullOrEmpty(altProjectName))
-        args += $" -p {altProjectName}";
+      if (!string.IsNullOrEmpty(args.AltProjectName))
+        composeArgs += $" -p {args.AltProjectName}";
 
-      var options = string.Empty;
-      if (forceRecreate)
-        options += " --force-recreate";
-
-      if (noRecreate)
-        options += " --no-recreate";
-
-      if (dontBuild)
-        options += " --no-build";
-
-      if (buildBeforeCreate)
-        options += " --build";
-
-      if (null != services && 0 != services.Length)
-        options += " " + string.Join(" ", services);
+      var options = args.ToString();
 
       return
         new ProcessExecutor<StringListResponseParser, IList<string>>(
           binary,
-          $"{(string.IsNullOrEmpty(command) ? "" : command + " ")}{args} create {options}",
-          cwd.NeedCwd ? cwd.Cwd : null).ExecutionEnvironment(env).Execute();
+          $"{dockerArgs} {(string.IsNullOrEmpty(command) ? "" : command + " ")}{composeArgs} create{options}",
+          cwd.NeedCwd ? cwd.Cwd : null).ExecutionEnvironment(args.Env).Execute();
     }
 
-    public static CommandResponse<IList<string>> ComposeStart(this DockerUri host, string altProjectName = null,
-      string[] services = null /*all*/,
-      IDictionary<string, string> env = null,
-      ICertificatePaths certificates = null, params string[] composeFile)
+    /// <summary>
+    /// Starts services defined in the compose file.
+    /// </summary>
+    public static CommandResponse<IList<string>> ComposeStartCommand(this DockerUri host, ComposeStartCommandArgs args)
     {
-      var cwd = WorkingDirectory(composeFile);
+      var composeFiles = args.ComposeFiles?.ToArray() ?? Array.Empty<string>();
+      var cwd = WorkingDirectory(composeFiles);
       var (binary, command) = GetComposeCommand();
-      var args = $"{host.RenderBaseArgs(certificates)}";
+      var dockerArgs = $"{host.RenderBaseArgs(args.Certificates)}";
+      var composeArgs = "";
 
-      if (null != composeFile && 0 != composeFile.Length)
-        foreach (var cf in composeFile)
+      if (composeFiles.Length > 0)
+        foreach (var cf in composeFiles)
           if (!string.IsNullOrEmpty(cf))
-            args += $" -f \"{cf}\"";
+            composeArgs += $" -f \"{cf}\"";
 
-      if (!string.IsNullOrEmpty(altProjectName))
-        args += $" -p {altProjectName}";
+      if (!string.IsNullOrEmpty(args.AltProjectName))
+        composeArgs += $" -p {args.AltProjectName}";
 
-      var options = string.Empty;
-      if (null != services && 0 != services.Length)
-        options += " " + string.Join(" ", services);
+      var options = args.ToString();
 
       return
         new ProcessExecutor<StringListResponseParser, IList<string>>(
           binary,
-          $"{(string.IsNullOrEmpty(command) ? "" : command + " ")}{args} start -d {options}",
-          cwd.NeedCwd ? cwd.Cwd : null).ExecutionEnvironment(env).Execute();
+          $"{dockerArgs} {(string.IsNullOrEmpty(command) ? "" : command + " ")}{composeArgs} start{options}",
+          cwd.NeedCwd ? cwd.Cwd : null).ExecutionEnvironment(args.Env).Execute();
     }
 
-    public static CommandResponse<IList<string>> ComposeKill(this DockerUri host, string altProjectName = null,
-      UnixSignal signal = UnixSignal.SIGKILL, string[] services = null /*all*/,
-      IDictionary<string, string> env = null,
-      ICertificatePaths certificates = null, params string[] composeFile)
+    /// <summary>
+    /// Kills running containers for services defined in the compose file.
+    /// </summary>
+    public static CommandResponse<IList<string>> ComposeKillCommand(this DockerUri host, ComposeKillCommandArgs args)
     {
-      var cwd = WorkingDirectory(composeFile);
+      var composeFiles = args.ComposeFiles?.ToArray() ?? Array.Empty<string>();
+      var cwd = WorkingDirectory(composeFiles);
       var (binary, command) = GetComposeCommand();
-      var args = $"{host.RenderBaseArgs(certificates)}";
+      var dockerArgs = $"{host.RenderBaseArgs(args.Certificates)}";
+      var composeArgs = "";
 
-      if (null != composeFile && 0 != composeFile.Length)
-        foreach (var cf in composeFile)
+      if (composeFiles.Length > 0)
+        foreach (var cf in composeFiles)
           if (!string.IsNullOrEmpty(cf))
-            args += $" -f \"{cf}\"";
+            composeArgs += $" -f \"{cf}\"";
 
-      if (!string.IsNullOrEmpty(altProjectName))
-        args += $" -p {altProjectName}";
+      if (!string.IsNullOrEmpty(args.AltProjectName))
+        composeArgs += $" -p {args.AltProjectName}";
 
-      var options = string.Empty;
-      if (UnixSignal.SIGKILL != signal)
-        options += $" -s {signal}";
-
-      if (null != services && 0 != services.Length)
-        options += " " + string.Join(" ", services);
+      var options = args.ToString();
 
       return
         new ProcessExecutor<StringListResponseParser, IList<string>>(
           binary,
-          $"{(string.IsNullOrEmpty(command) ? "" : command + " ")}{args} kill {options}",
-          cwd.NeedCwd ? cwd.Cwd : null).ExecutionEnvironment(env).Execute();
+          $"{dockerArgs} {(string.IsNullOrEmpty(command) ? "" : command + " ")}{composeArgs} kill{options}",
+          cwd.NeedCwd ? cwd.Cwd : null).ExecutionEnvironment(args.Env).Execute();
     }
 
-    public static CommandResponse<IList<string>> ComposeStop(this DockerUri host, string altProjectName = null,
-      TimeSpan? timeout = null, string[] services = null /*all*/,
-      IDictionary<string, string> env = null,
-      ICertificatePaths certificates = null, params string[] composeFile)
+    /// <summary>
+    /// Stops running containers for services defined in the compose file.
+    /// </summary>
+    public static CommandResponse<IList<string>> ComposeStopCommand(this DockerUri host, ComposeStopCommandArgs args)
     {
-      var cwd = WorkingDirectory(composeFile);
+      var composeFiles = args.ComposeFiles?.ToArray() ?? Array.Empty<string>();
+      var cwd = WorkingDirectory(composeFiles);
       var (binary, command) = GetComposeCommand();
-      var args = $"{host.RenderBaseArgs(certificates)}";
+      var dockerArgs = $"{host.RenderBaseArgs(args.Certificates)}";
+      var composeArgs = "";
 
-      if (null != composeFile && 0 != composeFile.Length)
-        foreach (var cf in composeFile)
+      if (composeFiles.Length > 0)
+        foreach (var cf in composeFiles)
           if (!string.IsNullOrEmpty(cf))
-            args += $" -f \"{cf}\"";
+            composeArgs += $" -f \"{cf}\"";
 
-      if (!string.IsNullOrEmpty(altProjectName))
-        args += $" -p {altProjectName}";
+      if (!string.IsNullOrEmpty(args.AltProjectName))
+        composeArgs += $" -p {args.AltProjectName}";
 
-      var options = string.Empty;
-      if (null != timeout)
-        options += $" -t {Math.Round(timeout.Value.TotalSeconds, 0)}";
-
-      if (null != services && 0 != services.Length)
-        options += " " + string.Join(" ", services);
+      var options = args.ToString();
 
       return
         new ProcessExecutor<StringListResponseParser, IList<string>>(
           binary,
-          $"{(string.IsNullOrEmpty(command) ? "" : command + " ")}{args} stop {options}",
-          cwd.NeedCwd ? cwd.Cwd : null).ExecutionEnvironment(env).Execute();
+          $"{dockerArgs} {(string.IsNullOrEmpty(command) ? "" : command + " ")}{composeArgs} stop{options}",
+          cwd.NeedCwd ? cwd.Cwd : null).ExecutionEnvironment(args.Env).Execute();
     }
 
-    public static CommandResponse<IList<string>> ComposePause(this DockerUri host, string altProjectName = null,
-      string[] services = null /*all*/,
-      IDictionary<string, string> env = null,
-      ICertificatePaths certificates = null, params string[] composeFile)
+    /// <summary>
+    /// Pauses running containers for services defined in the compose file.
+    /// </summary>
+    public static CommandResponse<IList<string>> ComposePauseCommand(this DockerUri host, ComposePauseCommandArgs args)
     {
-      var cwd = WorkingDirectory(composeFile);
+      var composeFiles = args.ComposeFiles?.ToArray() ?? Array.Empty<string>();
+      var cwd = WorkingDirectory(composeFiles);
       var (binary, command) = GetComposeCommand();
-      var args = $"{host.RenderBaseArgs(certificates)}";
+      var dockerArgs = $"{host.RenderBaseArgs(args.Certificates)}";
+      var composeArgs = "";
 
-      if (null != composeFile && 0 != composeFile.Length)
-        foreach (var cf in composeFile)
+      if (composeFiles.Length > 0)
+        foreach (var cf in composeFiles)
           if (!string.IsNullOrEmpty(cf))
-            args += $" -f \"{cf}\"";
+            composeArgs += $" -f \"{cf}\"";
 
-      if (!string.IsNullOrEmpty(altProjectName))
-        args += $" -p {altProjectName}";
+      if (!string.IsNullOrEmpty(args.AltProjectName))
+        composeArgs += $" -p {args.AltProjectName}";
 
-      var options = string.Empty;
-      if (null != services && 0 != services.Length)
-        options += " " + string.Join(" ", services);
+      var options = args.ToString();
 
       return
         new ProcessExecutor<StringListResponseParser, IList<string>>(
           binary,
-          $"{(string.IsNullOrEmpty(command) ? "" : command + " ")}{args} pause {options}",
-          cwd.NeedCwd ? cwd.Cwd : null).ExecutionEnvironment(env).Execute();
+          $"{dockerArgs} {(string.IsNullOrEmpty(command) ? "" : command + " ")}{composeArgs} pause{options}",
+          cwd.NeedCwd ? cwd.Cwd : null).ExecutionEnvironment(args.Env).Execute();
     }
 
-    public static CommandResponse<IList<string>> ComposeUnPause(this DockerUri host, string altProjectName = null,
-      string[] services = null /*all*/,
-      IDictionary<string, string> env = null,
-      ICertificatePaths certificates = null, params string[] composeFile)
+    /// <summary>
+    /// Unpauses running containers for services defined in the compose file.
+    /// </summary>
+    public static CommandResponse<IList<string>> ComposeUnpauseCommand(this DockerUri host, ComposeUnpauseCommandArgs args)
     {
-      var cwd = WorkingDirectory(composeFile);
+      var composeFiles = args.ComposeFiles?.ToArray() ?? Array.Empty<string>();
+      var cwd = WorkingDirectory(composeFiles);
       var (binary, command) = GetComposeCommand();
-      var args = $"{host.RenderBaseArgs(certificates)}";
+      var dockerArgs = $"{host.RenderBaseArgs(args.Certificates)}";
+      var composeArgs = "";
 
-      if (null != composeFile && 0 != composeFile.Length)
-        foreach (var cf in composeFile)
+      if (composeFiles.Length > 0)
+        foreach (var cf in composeFiles)
           if (!string.IsNullOrEmpty(cf))
-            args += $" -f \"{cf}\"";
+            composeArgs += $" -f \"{cf}\"";
 
-      if (!string.IsNullOrEmpty(altProjectName))
-        args += $" -p {altProjectName}";
+      if (!string.IsNullOrEmpty(args.AltProjectName))
+        composeArgs += $" -p {args.AltProjectName}";
 
-      var options = string.Empty;
-      if (null != services && 0 != services.Length)
-        options += " " + string.Join(" ", services);
+      var options = args.ToString();
 
       return
         new ProcessExecutor<StringListResponseParser, IList<string>>(
           binary,
-          $"{(string.IsNullOrEmpty(command) ? "" : command + " ")}{args} unpause {options}",
-          cwd.NeedCwd ? cwd.Cwd : null).ExecutionEnvironment(env).Execute();
+          $"{dockerArgs} {(string.IsNullOrEmpty(command) ? "" : command + " ")}{composeArgs} unpause{options}",
+          cwd.NeedCwd ? cwd.Cwd : null).ExecutionEnvironment(args.Env).Execute();
     }
 
-    public static CommandResponse<IList<string>> ComposeScale(this DockerUri host, string altProjectName = null,
-      TimeSpan? shutdownTimeout = null,
-      string[] serviceEqNumber = null /*all*/,
-      IDictionary<string, string> env = null,
-      ICertificatePaths certificates = null,
-      params string[] composeFile)
+    /// <summary>
+    /// Scales services to specified number of instances.
+    /// </summary>
+    public static CommandResponse<IList<string>> ComposeScaleCommand(this DockerUri host, ComposeScaleCommandArgs args)
     {
-      var cwd = WorkingDirectory(composeFile);
+      var composeFiles = args.ComposeFiles?.ToArray() ?? Array.Empty<string>();
+      var cwd = WorkingDirectory(composeFiles);
       var (binary, command) = GetComposeCommand();
-      var args = $"{host.RenderBaseArgs(certificates)}";
+      var dockerArgs = $"{host.RenderBaseArgs(args.Certificates)}";
+      var composeArgs = "";
 
-      if (null != composeFile && 0 != composeFile.Length)
-        foreach (var cf in composeFile)
+      if (composeFiles.Length > 0)
+        foreach (var cf in composeFiles)
           if (!string.IsNullOrEmpty(cf))
-            args += $" -f \"{cf}\"";
+            composeArgs += $" -f \"{cf}\"";
 
-      if (!string.IsNullOrEmpty(altProjectName))
-        args += $" -p {altProjectName}";
+      if (!string.IsNullOrEmpty(args.AltProjectName))
+        composeArgs += $" -p {args.AltProjectName}";
 
-      var options = string.Empty;
-      if (null != shutdownTimeout)
-        options = $" -t {Math.Round(shutdownTimeout.Value.TotalSeconds, 0)}";
-
-      var services = string.Empty;
-      if (null != serviceEqNumber && 0 != serviceEqNumber.Length)
-        services += " " + string.Join(" ", serviceEqNumber);
+      var options = args.ToString();
 
       return
         new ProcessExecutor<StringListResponseParser, IList<string>>(
           binary,
-          $"{(string.IsNullOrEmpty(command) ? "" : command + " ")}{args} scale {options} {services}",
-          cwd.NeedCwd ? cwd.Cwd : null).ExecutionEnvironment(env).Execute();
+          $"{dockerArgs} {(string.IsNullOrEmpty(command) ? "" : command + " ")}{composeArgs} scale{options}",
+          cwd.NeedCwd ? cwd.Cwd : null).ExecutionEnvironment(args.Env).Execute();
     }
 
-    public static CommandResponse<IList<string>> ComposeVersion(this DockerUri host, string altProjectName = null,
-      bool shortVersion = false,
-      IDictionary<string, string> env = null,
-      ICertificatePaths certificates = null,
-      params string[] composeFile)
+    /// <summary>
+    /// Shows the Docker Compose version information.
+    /// </summary>
+    public static CommandResponse<IList<string>> ComposeVersionCommand(this DockerUri host, ComposeVersionCommandArgs args)
     {
-      var cwd = WorkingDirectory(composeFile);
+      var composeFiles = args.ComposeFiles?.ToArray() ?? Array.Empty<string>();
+      var cwd = WorkingDirectory(composeFiles);
       var (binary, command) = GetComposeCommand();
-      var args = $"{host.RenderBaseArgs(certificates)}";
+      var dockerArgs = $"{host.RenderBaseArgs(args.Certificates)}";
+      var composeArgs = "";
 
-      if (null != composeFile && 0 != composeFile.Length)
-        foreach (var cf in composeFile)
+      if (composeFiles.Length > 0)
+        foreach (var cf in composeFiles)
           if (!string.IsNullOrEmpty(cf))
-            args += $" -f \"{cf}\"";
-      if (!string.IsNullOrEmpty(altProjectName))
-        args += $" -p {altProjectName}";
+            composeArgs += $" -f \"{cf}\"";
+      if (!string.IsNullOrEmpty(args.AltProjectName))
+        composeArgs += $" -p {args.AltProjectName}";
 
-      var options = string.Empty;
-      if (shortVersion)
-        options = "--short";
+      var options = args.ToString();
 
       return
         new ProcessExecutor<StringListResponseParser, IList<string>>(
           binary,
-          $"{(string.IsNullOrEmpty(command) ? "" : command + " ")}{args} version {options}",
-          cwd.NeedCwd ? cwd.Cwd : null).ExecutionEnvironment(env).Execute();
+          $"{dockerArgs} {(string.IsNullOrEmpty(command) ? "" : command + " ")}{composeArgs} version{options}",
+          cwd.NeedCwd ? cwd.Cwd : null).ExecutionEnvironment(args.Env).Execute();
     }
 
-    public static CommandResponse<IList<string>> ComposeRestart(this DockerUri host, string altProjectName = null,
-      string[] composeFile = null, TimeSpan? timeout = null,
-      IDictionary<string, string> env = null,
-      ICertificatePaths certificates = null,
-      params string[] containerId)
+    /// <summary>
+    /// Restarts services defined in the compose file.
+    /// </summary>
+    public static CommandResponse<IList<string>> ComposeRestartCommand(this DockerUri host, ComposeRestartCommandArgs args)
     {
-      var cwd = WorkingDirectory(composeFile);
+      var composeFiles = args.ComposeFiles?.ToArray() ?? Array.Empty<string>();
+      var cwd = WorkingDirectory(composeFiles);
       var (binary, command) = GetComposeCommand();
-      var args = $"{host.RenderBaseArgs(certificates)}";
+      var dockerArgs = $"{host.RenderBaseArgs(args.Certificates)}";
+      var composeArgs = "";
 
-      if (null != composeFile && 0 != composeFile.Length)
-        foreach (var cf in composeFile)
+      if (composeFiles.Length > 0)
+        foreach (var cf in composeFiles)
           if (!string.IsNullOrEmpty(cf))
-            args += $" -f \"{cf}\"";
+            composeArgs += $" -f \"{cf}\"";
 
-      if (!string.IsNullOrEmpty(altProjectName))
-        args += $" -p {altProjectName}";
+      if (!string.IsNullOrEmpty(args.AltProjectName))
+        composeArgs += $" -p {args.AltProjectName}";
 
-      var ids = string.Empty;
-      if (null != containerId && 0 != containerId.Length)
-        ids += " " + string.Join(" ", containerId);
-
-      var options = string.Empty;
-      if (null != timeout)
-        options = $" -t {Math.Round(timeout.Value.TotalSeconds, 0)}";
+      var options = args.ToString();
 
       return
         new ProcessExecutor<StringListResponseParser, IList<string>>(
           binary,
-          $"{(string.IsNullOrEmpty(command) ? "" : command + " ")}{args} restart {options} {ids}",
-          cwd.NeedCwd ? cwd.Cwd : null).ExecutionEnvironment(env).Execute();
+          $"{dockerArgs} {(string.IsNullOrEmpty(command) ? "" : command + " ")}{composeArgs} restart{options}",
+          cwd.NeedCwd ? cwd.Cwd : null).ExecutionEnvironment(args.Env).Execute();
     }
 
-    public static CommandResponse<IList<string>> ComposePort(this DockerUri host, string containerId,
-      string privatePortAndProto = null,
-      string altProjectName = null,
-      IDictionary<string, string> env = null,
-      ICertificatePaths certificates = null, params string[] composeFile)
+    /// <summary>
+    /// Prints the public port for a port binding.
+    /// </summary>
+    public static CommandResponse<IList<string>> ComposePortCommand(this DockerUri host, ComposePortCommandArgs args)
     {
-      var cwd = WorkingDirectory(composeFile);
+      var composeFiles = args.ComposeFiles?.ToArray() ?? Array.Empty<string>();
+      var cwd = WorkingDirectory(composeFiles);
       var (binary, command) = GetComposeCommand();
-      var args = $"{host.RenderBaseArgs(certificates)}";
-      if (null != composeFile && 0 != composeFile.Length)
-        foreach (var cf in composeFile)
+      var dockerArgs = $"{host.RenderBaseArgs(args.Certificates)}";
+      var composeArgs = "";
+      if (composeFiles.Length > 0)
+        foreach (var cf in composeFiles)
           if (!string.IsNullOrEmpty(cf))
-            args += $" -f \"{cf}\"";
+            composeArgs += $" -f \"{cf}\"";
 
-      if (!string.IsNullOrEmpty(altProjectName))
-        args += $" -p {altProjectName}";
+      if (!string.IsNullOrEmpty(args.AltProjectName))
+        composeArgs += $" -p {args.AltProjectName}";
 
-      if (string.IsNullOrEmpty(privatePortAndProto))
-        privatePortAndProto = string.Empty;
+      var options = args.ToString();
+      var privatePort = args.PrivatePort ?? string.Empty;
 
       return
         new ProcessExecutor<StringListResponseParser, IList<string>>(
           binary,
-          $"{(string.IsNullOrEmpty(command) ? "" : command + " ")}{args} port {containerId} {privatePortAndProto}",
-          cwd.NeedCwd ? cwd.Cwd : null).ExecutionEnvironment(env).Execute();
+          $"{dockerArgs} {(string.IsNullOrEmpty(command) ? "" : command + " ")}{composeArgs} port{options} {args.Service} {privatePort}",
+          cwd.NeedCwd ? cwd.Cwd : null).ExecutionEnvironment(args.Env).Execute();
     }
 
-    public static CommandResponse<IList<string>> ComposeConfig(this DockerUri host, string altProjectName = null,
-      bool quiet = true,
-      bool outputServices = false,
-      IDictionary<string, string> env = null,
-      ICertificatePaths certificates = null, params string[] composeFile)
+    /// <summary>
+    /// Validates and view the Compose file.
+    /// </summary>
+    public static CommandResponse<IList<string>> ComposeConfigCommand(this DockerUri host, ComposeConfigCommandArgs args)
     {
-      var cwd = WorkingDirectory(composeFile);
+      var composeFiles = args.ComposeFiles?.ToArray() ?? Array.Empty<string>();
+      var cwd = WorkingDirectory(composeFiles);
       var (binary, command) = GetComposeCommand();
-      var args = $"{host.RenderBaseArgs(certificates)}";
+      var dockerArgs = $"{host.RenderBaseArgs(args.Certificates)}";
+      var composeArgs = "";
 
-      if (null != composeFile && 0 != composeFile.Length)
-        foreach (var cf in composeFile)
+      if (composeFiles.Length > 0)
+        foreach (var cf in composeFiles)
           if (!string.IsNullOrEmpty(cf))
-            args += $" -f \"{cf}\"";
+            composeArgs += $" -f \"{cf}\"";
 
-      if (!string.IsNullOrEmpty(altProjectName))
-        args += $" -p {altProjectName}";
+      if (!string.IsNullOrEmpty(args.AltProjectName))
+        composeArgs += $" -p {args.AltProjectName}";
 
-      var options = string.Empty;
-      if (quiet)
-        options += " -q";
-
-      if (outputServices)
-        options += " --services";
+      var options = args.ToString();
 
       return
         new ProcessExecutor<StringListResponseParser, IList<string>>(
           binary,
-          $"{(string.IsNullOrEmpty(command) ? "" : command + " ")}{args} config {options}",
-          cwd.NeedCwd ? cwd.Cwd : null).ExecutionEnvironment(env).Execute();
+          $"{dockerArgs} {(string.IsNullOrEmpty(command) ? "" : command + " ")}{composeArgs} config{options}",
+          cwd.NeedCwd ? cwd.Cwd : null).ExecutionEnvironment(args.Env).Execute();
     }
 
-    public static CommandResponse<IList<string>> ComposeDown(this DockerUri host, string altProjectName = null,
-      ImageRemovalOption removeImagesFrom = ImageRemovalOption.None,
-      bool removeVolumes = false, bool removeOrphanContainers = false,
-      IDictionary<string, string> env = null,
-      ICertificatePaths certificates = null,
-      params string[] composeFile)
+    /// <summary>
+    /// Stops containers and removes containers, networks, volumes, and images created by up.
+    /// </summary>
+    public static CommandResponse<IList<string>> ComposeDownCommand(this DockerUri host, ComposeDownCommandArgs args)
     {
-      var cwd = WorkingDirectory(composeFile);
+      var composeFiles = args.ComposeFiles?.ToArray() ?? Array.Empty<string>();
+      var cwd = WorkingDirectory(composeFiles);
       var (binary, command) = GetComposeCommand();
-      var args = $"{host.RenderBaseArgs(certificates)}";
+      var dockerArgs = $"{host.RenderBaseArgs(args.Certificates)}";
+      var composeArgs = "";
 
-      if (null != composeFile && 0 != composeFile.Length)
-        foreach (var cf in composeFile)
+      if (composeFiles.Length > 0)
+        foreach (var cf in composeFiles)
           if (!string.IsNullOrEmpty(cf))
-            args += $" -f \"{cf}\"";
+            composeArgs += $" -f \"{cf}\"";
 
-      if (!string.IsNullOrEmpty(altProjectName))
-        args += $" -p {altProjectName}";
+      if (!string.IsNullOrEmpty(args.AltProjectName))
+        composeArgs += $" -p {args.AltProjectName}";
 
-      var options = string.Empty;
-      if (removeOrphanContainers)
-        options += " --remove-orphans";
-
-      if (removeVolumes)
-        options += " -v";
-
-      if (removeImagesFrom != ImageRemovalOption.None)
-        options += removeImagesFrom == ImageRemovalOption.Local ? " --rmi local" : " --rmi all";
+      var options = args.ToString();
 
       return
         new ProcessExecutor<StringListResponseParser, IList<string>>(
           binary,
-          $"{(string.IsNullOrEmpty(command) ? "" : command + " ")}{args} down {options}",
-          cwd.NeedCwd ? cwd.Cwd : null).ExecutionEnvironment(env).Execute();
+          $"{dockerArgs} {(string.IsNullOrEmpty(command) ? "" : command + " ")}{composeArgs} down{options}",
+          cwd.NeedCwd ? cwd.Cwd : null).ExecutionEnvironment(args.Env).Execute();
     }
 
-    [Obsolete("Use ComposeUpCommand(...)")]
-    public static CommandResponse<IList<string>> ComposeUp(this DockerUri host,
-      string altProjectName = null,
-      bool forceRecreate = false, bool noRecreate = false, bool dontBuild = false,
-      bool buildBeforeCreate = false, TimeSpan? timeout = null,
-      bool removeOrphans = false,
-      bool useColor = false,
-      bool noStart = false,
-      string[] services = null /*all*/,
-      IDictionary<string, string> env = null,
-      ICertificatePaths certificates = null, params string[] composeFile)
-    {
-      return host.ComposeUpCommand(new ComposeUpCommandArgs
-      {
-        AltProjectName = altProjectName,
-        ForceRecreate = forceRecreate,
-        NoRecreate = noRecreate,
-        DontBuild = dontBuild,
-        BuildBeforeCreate = buildBeforeCreate,
-        Timeout = timeout,
-        RemoveOrphans = removeOrphans,
-        UseColor = useColor,
-        NoStart = noStart,
-        Services = services,
-        Env = env,
-        Certificates = certificates,
-        ComposeFiles = composeFile
-      });
-    }
-
+    /// <summary>
+    /// Arguments for docker compose up command.
+    /// </summary>
     public struct ComposeUpCommandArgs
     {
       public string AltProjectName { get; set; }
@@ -521,6 +437,9 @@ namespace FluentDocker.Commands
       public TemplateString ProjectDirectory { get; set; }
     }
 
+    /// <summary>
+    /// Creates and starts containers for services defined in the compose file.
+    /// </summary>
     public static CommandResponse<IList<string>> ComposeUpCommand(this DockerUri host, ComposeUpCommandArgs ca)
     {
       if (ca.ForceRecreate && ca.NoRecreate)
@@ -528,7 +447,7 @@ namespace FluentDocker.Commands
         throw new InvalidOperationException("ForceRecreate and NoRecreate are incompatible.");
       }
 
-      var cwd = WorkingDirectory(ca.ComposeFiles.ToArray());
+      var cwd = WorkingDirectory(ca.ComposeFiles?.ToArray() ?? Array.Empty<string>());
       var (binary, command) = GetComposeCommand();
 
       var dockerArgs = $"{host.RenderBaseArgs(ca.Certificates)}";
@@ -586,72 +505,65 @@ namespace FluentDocker.Commands
           cwd.NeedCwd ? cwd.Cwd : null).ExecutionEnvironment(ca.Env).Execute();
     }
 
-    public static CommandResponse<IList<string>> ComposeRm(this DockerUri host, string altProjectName = null,
-      bool force = false,
-      bool removeVolumes = false,
-      string[] services = null /*all*/,
-      IDictionary<string, string> env = null,
-      ICertificatePaths certificates = null, params string[] composeFile)
+    /// <summary>
+    /// Removes stopped service containers.
+    /// </summary>
+    public static CommandResponse<IList<string>> ComposeRmCommand(this DockerUri host, ComposeRmCommandArgs args)
     {
-      var cwd = WorkingDirectory(composeFile);
+      var composeFiles = args.ComposeFiles?.ToArray() ?? Array.Empty<string>();
+      var cwd = WorkingDirectory(composeFiles);
       var (binary, command) = GetComposeCommand();
-      var args = $"{host.RenderBaseArgs(certificates)}";
+      var dockerArgs = $"{host.RenderBaseArgs(args.Certificates)}";
+      var composeArgs = "";
 
-      if (null != composeFile && 0 != composeFile.Length)
-        foreach (var cf in composeFile)
+      if (composeFiles.Length > 0)
+        foreach (var cf in composeFiles)
           if (!string.IsNullOrEmpty(cf))
-            args += $" -f \"{cf}\"";
+            composeArgs += $" -f \"{cf}\"";
 
-      if (!string.IsNullOrEmpty(altProjectName))
-        args += $" -p {altProjectName}";
+      if (!string.IsNullOrEmpty(args.AltProjectName))
+        composeArgs += $" -p {args.AltProjectName}";
 
-      var options = string.Empty;
-      options += " -f"; // Don't ask to confirm removal
-
-      if (force)
-        options += " -s";
-
-      if (removeVolumes)
-        options += " -v";
-
-      if (null != services && 0 != services.Length)
-        options += " " + string.Join(" ", services);
+      var options = args.ToString();
 
       return
         new ProcessExecutor<StringListResponseParser, IList<string>>(
           binary,
-          $"{(string.IsNullOrEmpty(command) ? "" : command + " ")}{args} rm {options}",
-          cwd.NeedCwd ? cwd.Cwd : null).ExecutionEnvironment(env).Execute();
+          $"{dockerArgs} {(string.IsNullOrEmpty(command) ? "" : command + " ")}{composeArgs} rm{options}",
+          cwd.NeedCwd ? cwd.Cwd : null).ExecutionEnvironment(args.Env).Execute();
     }
 
-    public static CommandResponse<IList<string>> ComposePs(this DockerUri host, string altProjectName = null,
-      string[] services = null,
-      IDictionary<string, string> env = null,
-      ICertificatePaths certificates = null, params string[] composeFile)
+    /// <summary>
+    /// Lists containers for services defined in the compose file.
+    /// </summary>
+    public static CommandResponse<IList<string>> ComposePsCommand(this DockerUri host, ComposePsCommandArgs args)
     {
-      var cwd = WorkingDirectory(composeFile);
+      var composeFiles = args.ComposeFiles?.ToArray() ?? Array.Empty<string>();
+      var cwd = WorkingDirectory(composeFiles);
       var (binary, command) = GetComposeCommand();
-      var args = $"{host.RenderBaseArgs(certificates)}";
+      var dockerArgs = $"{host.RenderBaseArgs(args.Certificates)}";
+      var composeArgs = "";
 
-      if (null != composeFile && 0 != composeFile.Length)
-        foreach (var cf in composeFile)
+      if (composeFiles.Length > 0)
+        foreach (var cf in composeFiles)
           if (!string.IsNullOrEmpty(cf))
-            args += $" -f \"{cf}\"";
+            composeArgs += $" -f \"{cf}\"";
 
-      if (!string.IsNullOrEmpty(altProjectName))
-        args += $" -p {altProjectName}";
+      if (!string.IsNullOrEmpty(args.AltProjectName))
+        composeArgs += $" -p {args.AltProjectName}";
 
-      var options = string.Empty;
-      if (null != services && 0 != services.Length)
-        options += " " + string.Join(" ", services);
+      var options = args.ToString();
 
       return
         new ProcessExecutor<StringListResponseParser, IList<string>>(
           binary,
-          $"{(string.IsNullOrEmpty(command) ? "" : command + " ")}{args} ps -q {options}",
-          cwd.NeedCwd ? cwd.Cwd : null).ExecutionEnvironment(env).Execute();
+          $"{dockerArgs} {(string.IsNullOrEmpty(command) ? "" : command + " ")}{composeArgs} ps{options}",
+          cwd.NeedCwd ? cwd.Cwd : null).ExecutionEnvironment(args.Env).Execute();
     }
 
+    /// <summary>
+    /// Arguments for docker compose pull command.
+    /// </summary>
     public struct ComposePullCommandArgs
     {
       public string AltProjectName { get; set; }
@@ -663,20 +575,23 @@ namespace FluentDocker.Commands
       public IList<string> ComposeFiles { get; set; }
     }
 
-    public static CommandResponse<IList<string>> ComposePull(this DockerUri host, ComposePullCommandArgs commandArgs)
+    /// <summary>
+    /// Pulls images for services defined in the compose file.
+    /// </summary>
+    public static CommandResponse<IList<string>> ComposePullCommand(this DockerUri host, ComposePullCommandArgs commandArgs)
     {
-      var args = $"{host.RenderBaseArgs(commandArgs.Certificates)}";
+      var dockerArgs = $"{host.RenderBaseArgs(commandArgs.Certificates)}";
       var (binary, command) = GetComposeCommand();
       var cwd = WorkingDirectory(commandArgs.ComposeFiles?.ToArray());
+      var composeArgs = "";
 
       if (null != commandArgs.ComposeFiles && 0 != commandArgs.ComposeFiles.Count)
-
         foreach (var cf in commandArgs.ComposeFiles)
           if (!string.IsNullOrEmpty(cf))
-            args += $" -f \"{cf}\"";
+            composeArgs += $" -f \"{cf}\"";
 
       if (!string.IsNullOrEmpty(commandArgs.AltProjectName))
-        args += $" -p {commandArgs.AltProjectName}";
+        composeArgs += $" -p {commandArgs.AltProjectName}";
 
       var options = string.Empty;
       if (commandArgs.DownloadAllTagged)
@@ -688,8 +603,184 @@ namespace FluentDocker.Commands
       return
         new ProcessExecutor<StringListResponseParser, IList<string>>(
           binary,
-          $"{(string.IsNullOrEmpty(command) ? "" : command + " ")}{args} pull {options} {string.Join(" ", commandArgs.Services ?? new string[0])}",
+          $"{dockerArgs} {(string.IsNullOrEmpty(command) ? "" : command + " ")}{composeArgs} pull {options} {string.Join(" ", commandArgs.Services ?? Array.Empty<string>())}",
           cwd.NeedCwd ? cwd.Cwd : null).ExecutionEnvironment(commandArgs.Env).Execute();
+    }
+
+    /// <summary>
+    /// Executes a command in a running service container.
+    /// </summary>
+    public static CommandResponse<IList<string>> ComposeExecCommand(this DockerUri host, ComposeExecCommandArgs args)
+    {
+      var composeFiles = args.ComposeFiles?.ToArray() ?? Array.Empty<string>();
+      var cwd = WorkingDirectory(composeFiles);
+      var (binary, command) = GetComposeCommand();
+      var dockerArgs = $"{host.RenderBaseArgs(args.Certificates)}";
+      var composeArgs = "";
+
+      if (composeFiles.Length > 0)
+        foreach (var cf in composeFiles)
+          if (!string.IsNullOrEmpty(cf))
+            composeArgs += $" -f \"{cf}\"";
+
+      if (!string.IsNullOrEmpty(args.AltProjectName))
+        composeArgs += $" -p {args.AltProjectName}";
+
+      var options = args.ToString();
+      var cmdArgs = args.Arguments != null && args.Arguments.Count > 0
+        ? " " + string.Join(" ", args.Arguments)
+        : "";
+
+      return
+        new ProcessExecutor<StringListResponseParser, IList<string>>(
+          binary,
+          $"{dockerArgs} {(string.IsNullOrEmpty(command) ? "" : command + " ")}{composeArgs} exec{options} {args.Service} {args.Command}{cmdArgs}",
+          cwd.NeedCwd ? cwd.Cwd : null).ExecutionEnvironment(args.Env).Execute();
+    }
+
+    /// <summary>
+    /// Runs a one-off command in a service container.
+    /// </summary>
+    public static CommandResponse<IList<string>> ComposeRunCommand(this DockerUri host, ComposeRunCommandArgs args)
+    {
+      var composeFiles = args.ComposeFiles?.ToArray() ?? Array.Empty<string>();
+      var cwd = WorkingDirectory(composeFiles);
+      var (binary, command) = GetComposeCommand();
+      var dockerArgs = $"{host.RenderBaseArgs(args.Certificates)}";
+      var composeArgs = "";
+
+      if (composeFiles.Length > 0)
+        foreach (var cf in composeFiles)
+          if (!string.IsNullOrEmpty(cf))
+            composeArgs += $" -f \"{cf}\"";
+
+      if (!string.IsNullOrEmpty(args.AltProjectName))
+        composeArgs += $" -p {args.AltProjectName}";
+
+      var options = args.ToString();
+      var cmdWithArgs = string.IsNullOrEmpty(args.Command)
+        ? ""
+        : args.Arguments != null && args.Arguments.Count > 0
+          ? $" {args.Command} {string.Join(" ", args.Arguments)}"
+          : $" {args.Command}";
+
+      return
+        new ProcessExecutor<StringListResponseParser, IList<string>>(
+          binary,
+          $"{dockerArgs} {(string.IsNullOrEmpty(command) ? "" : command + " ")}{composeArgs} run{options} {args.Service}{cmdWithArgs}",
+          cwd.NeedCwd ? cwd.Cwd : null).ExecutionEnvironment(args.Env).Execute();
+    }
+
+    /// <summary>
+    /// Displays the running processes in a service container.
+    /// </summary>
+    public static CommandResponse<IList<string>> ComposeTopCommand(this DockerUri host, ComposeTopCommandArgs args)
+    {
+      var composeFiles = args.ComposeFiles?.ToArray() ?? Array.Empty<string>();
+      var cwd = WorkingDirectory(composeFiles);
+      var (binary, command) = GetComposeCommand();
+      var dockerArgs = $"{host.RenderBaseArgs(args.Certificates)}";
+      var composeArgs = "";
+
+      if (composeFiles.Length > 0)
+        foreach (var cf in composeFiles)
+          if (!string.IsNullOrEmpty(cf))
+            composeArgs += $" -f \"{cf}\"";
+
+      if (!string.IsNullOrEmpty(args.AltProjectName))
+        composeArgs += $" -p {args.AltProjectName}";
+
+      var options = args.ToString();
+
+      return
+        new ProcessExecutor<StringListResponseParser, IList<string>>(
+          binary,
+          $"{dockerArgs} {(string.IsNullOrEmpty(command) ? "" : command + " ")}{composeArgs} top{options}",
+          cwd.NeedCwd ? cwd.Cwd : null).ExecutionEnvironment(args.Env).Execute();
+    }
+
+    /// <summary>
+    /// Lists images used by the created containers.
+    /// </summary>
+    public static CommandResponse<IList<string>> ComposeImagesCommand(this DockerUri host, ComposeImagesCommandArgs args)
+    {
+      var composeFiles = args.ComposeFiles?.ToArray() ?? Array.Empty<string>();
+      var cwd = WorkingDirectory(composeFiles);
+      var (binary, command) = GetComposeCommand();
+      var dockerArgs = $"{host.RenderBaseArgs(args.Certificates)}";
+      var composeArgs = "";
+
+      if (composeFiles.Length > 0)
+        foreach (var cf in composeFiles)
+          if (!string.IsNullOrEmpty(cf))
+            composeArgs += $" -f \"{cf}\"";
+
+      if (!string.IsNullOrEmpty(args.AltProjectName))
+        composeArgs += $" -p {args.AltProjectName}";
+
+      var options = args.ToString();
+
+      return
+        new ProcessExecutor<StringListResponseParser, IList<string>>(
+          binary,
+          $"{dockerArgs} {(string.IsNullOrEmpty(command) ? "" : command + " ")}{composeArgs} images{options}",
+          cwd.NeedCwd ? cwd.Cwd : null).ExecutionEnvironment(args.Env).Execute();
+    }
+
+    /// <summary>
+    /// Copies files/folders between a service container and the local filesystem.
+    /// </summary>
+    public static CommandResponse<IList<string>> ComposeCpCommand(this DockerUri host, ComposeCpCommandArgs args)
+    {
+      var composeFiles = args.ComposeFiles?.ToArray() ?? Array.Empty<string>();
+      var cwd = WorkingDirectory(composeFiles);
+      var (binary, command) = GetComposeCommand();
+      var dockerArgs = $"{host.RenderBaseArgs(args.Certificates)}";
+      var composeArgs = "";
+
+      if (composeFiles.Length > 0)
+        foreach (var cf in composeFiles)
+          if (!string.IsNullOrEmpty(cf))
+            composeArgs += $" -f \"{cf}\"";
+
+      if (!string.IsNullOrEmpty(args.AltProjectName))
+        composeArgs += $" -p {args.AltProjectName}";
+
+      var options = args.ToString();
+
+      return
+        new ProcessExecutor<StringListResponseParser, IList<string>>(
+          binary,
+          $"{dockerArgs} {(string.IsNullOrEmpty(command) ? "" : command + " ")}{composeArgs} cp{options} {args.Source} {args.Destination}",
+          cwd.NeedCwd ? cwd.Cwd : null).ExecutionEnvironment(args.Env).Execute();
+    }
+
+    /// <summary>
+    /// Displays log output from services defined in the compose file (non-streaming).
+    /// </summary>
+    public static CommandResponse<IList<string>> ComposeLogsCommand(this DockerUri host, ComposeLogsCommandArgs args)
+    {
+      var composeFiles = args.ComposeFiles?.ToArray() ?? Array.Empty<string>();
+      var cwd = WorkingDirectory(composeFiles);
+      var (binary, command) = GetComposeCommand();
+      var dockerArgs = $"{host.RenderBaseArgs(args.Certificates)}";
+      var composeArgs = "";
+
+      if (composeFiles.Length > 0)
+        foreach (var cf in composeFiles)
+          if (!string.IsNullOrEmpty(cf))
+            composeArgs += $" -f \"{cf}\"";
+
+      if (!string.IsNullOrEmpty(args.AltProjectName))
+        composeArgs += $" -p {args.AltProjectName}";
+
+      var options = args.ToString();
+
+      return
+        new ProcessExecutor<StringListResponseParser, IList<string>>(
+          binary,
+          $"{dockerArgs} {(string.IsNullOrEmpty(command) ? "" : command + " ")}{composeArgs} logs{options}",
+          cwd.NeedCwd ? cwd.Cwd : null).ExecutionEnvironment(args.Env).Execute();
     }
 
     private static WorkingDirectoryInfo WorkingDirectory(params string[] composeFile)

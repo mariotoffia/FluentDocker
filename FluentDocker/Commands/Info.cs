@@ -30,12 +30,17 @@ namespace FluentDocker.Commands
     public static bool IsWindowsEngine(this DockerUri host, ICertificatePaths certificates = null)
     {
       var version = host.Version(certificates);
-      return version.Data.ServerOs.ToLower().Equals("windows");
+      if (!version.Success || version.Data == null || string.IsNullOrEmpty(version.Data.ServerOs))
+        return false;
+      return version.Data.ServerOs.Equals("windows", StringComparison.OrdinalIgnoreCase);
     }
 
     public static bool IsLinuxEngine(this DockerUri host, ICertificatePaths certificates = null)
     {
-      return !IsWindowsEngine(host, certificates);
+      var version = host.Version(certificates);
+      if (!version.Success || version.Data == null || string.IsNullOrEmpty(version.Data.ServerOs))
+        return true; // Default to Linux if we can't determine
+      return !version.Data.ServerOs.Equals("windows", StringComparison.OrdinalIgnoreCase);
     }
 
     public static CommandResponse<string> Switch(this DockerUri host, ICertificatePaths certificates = null)

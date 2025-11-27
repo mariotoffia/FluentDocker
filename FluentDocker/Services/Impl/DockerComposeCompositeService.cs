@@ -6,6 +6,7 @@ using FluentDocker.Commands;
 using FluentDocker.Common;
 using FluentDocker.Extensions;
 using FluentDocker.Extensions.Utils;
+using FluentDocker.Model.Commands;
 using FluentDocker.Model.Compose;
 using FluentDocker.Model.Common;
 using FluentDocker.Model.Containers;
@@ -52,9 +53,16 @@ namespace FluentDocker.Services.Impl
         State = ServiceRunningState.Removing;
         var host = Hosts.First();
 
-        var result = host.Host.ComposeDown(Config.AlternativeServiceName, Config.ImageRemoval,
-          !Config.KeepVolumes, Config.RemoveOrphans, Config.EnvironmentNameValue, host.Certificates,
-          Config.ComposeFilePath.ToArray());
+        var result = host.Host.ComposeDownCommand(new ComposeDownCommandArgs
+        {
+          AltProjectName = Config.AlternativeServiceName,
+          RemoveImages = Config.ImageRemoval,
+          RemoveVolumes = !Config.KeepVolumes,
+          RemoveOrphans = Config.RemoveOrphans,
+          Env = Config.EnvironmentNameValue,
+          Certificates = host.Certificates,
+          ComposeFiles = Config.ComposeFilePath.ToArray()
+        });
 
         if (!result.Success)
         {
@@ -129,8 +137,14 @@ namespace FluentDocker.Services.Impl
       var host = Hosts.First();
       if (State == ServiceRunningState.Paused)
       {
-        var upr = host.Host.ComposeUnPause(Config.AlternativeServiceName, Config.Services, Config.EnvironmentNameValue,
-          host.Certificates, Config.ComposeFilePath.ToArray());
+        var upr = host.Host.ComposeUnpauseCommand(new ComposeUnpauseCommandArgs
+        {
+          AltProjectName = Config.AlternativeServiceName,
+          Services = Config.Services,
+          Env = Config.EnvironmentNameValue,
+          Certificates = host.Certificates,
+          ComposeFiles = Config.ComposeFilePath.ToArray()
+        });
 
         if (!upr.Success)
           throw new FluentDockerException($"Could not resume composite service from file(s) {string.Join(", ", Config.ComposeFilePath)}");
@@ -143,7 +157,7 @@ namespace FluentDocker.Services.Impl
 
       if (Config.AlwaysPull)
       {
-        var resultPull = host.Host.ComposePull(
+        var resultPull = host.Host.ComposePullCommand(
           new ComposePullCommandArgs
           {
 
@@ -220,8 +234,15 @@ namespace FluentDocker.Services.Impl
           $"Could not start composite service with file(s) {string.Join(", ", Config.ComposeFilePath)} - result: {result}");
       }
 
-      var containers = host.Host.ComposePs(Config.AlternativeServiceName, Config.Services, Config.EnvironmentNameValue,
-        host.Certificates, Config.ComposeFilePath.ToArray());
+      var containers = host.Host.ComposePsCommand(new ComposePsCommandArgs
+      {
+        AltProjectName = Config.AlternativeServiceName,
+        Quiet = true,
+        ServiceNames = Config.Services,
+        Env = Config.EnvironmentNameValue,
+        Certificates = host.Certificates,
+        ComposeFiles = Config.ComposeFilePath.ToArray()
+      });
 
       if (!containers.Success)
         return;
@@ -246,8 +267,14 @@ namespace FluentDocker.Services.Impl
         return;
 
       var host = Hosts.First();
-      var pause = host.Host.ComposePause(Config.AlternativeServiceName, Config.Services, Config.EnvironmentNameValue,
-        host.Certificates, Config.ComposeFilePath.ToArray());
+      var pause = host.Host.ComposePauseCommand(new ComposePauseCommandArgs
+      {
+        AltProjectName = Config.AlternativeServiceName,
+        Services = Config.Services,
+        Env = Config.EnvironmentNameValue,
+        Certificates = host.Certificates,
+        ComposeFiles = Config.ComposeFilePath.ToArray()
+      });
 
       if (!pause.Success)
         throw new FluentDockerException($"Could not pause composite service from file(s) {string.Join(", ", Config.ComposeFilePath)}");
@@ -271,8 +298,15 @@ namespace FluentDocker.Services.Impl
 
       var host = Hosts.First();
 
-      var result = host.Host.ComposeStop(Config.AlternativeServiceName, TimeSpan.FromSeconds(30),
-        Config.Services, Config.EnvironmentNameValue, host.Certificates, Config.ComposeFilePath.ToArray());
+      var result = host.Host.ComposeStopCommand(new ComposeStopCommandArgs
+      {
+        AltProjectName = Config.AlternativeServiceName,
+        Timeout = TimeSpan.FromSeconds(30),
+        Services = Config.Services,
+        Env = Config.EnvironmentNameValue,
+        Certificates = host.Certificates,
+        ComposeFiles = Config.ComposeFilePath.ToArray()
+      });
 
       if (!result.Success)
       {
@@ -288,8 +322,16 @@ namespace FluentDocker.Services.Impl
       State = ServiceRunningState.Removing;
       var host = Hosts.First();
 
-      var result = host.Host.ComposeRm(Config.AlternativeServiceName, force,
-        !Config.KeepVolumes, Config.Services, Config.EnvironmentNameValue, host.Certificates, Config.ComposeFilePath.ToArray());
+      var result = host.Host.ComposeRmCommand(new ComposeRmCommandArgs
+      {
+        AltProjectName = Config.AlternativeServiceName,
+        Force = force,
+        RemoveVolumes = !Config.KeepVolumes,
+        Services = Config.Services,
+        Env = Config.EnvironmentNameValue,
+        Certificates = host.Certificates,
+        ComposeFiles = Config.ComposeFilePath.ToArray()
+      });
 
       if (!result.Success)
       {
