@@ -1,9 +1,9 @@
 ﻿using System;
 using System.IO;
-using Ductus.FluentDocker.Extensions;
-using Ductus.FluentDocker.Model.Common;
+using FluentDocker.Extensions;
+using FluentDocker.Model.Common;
 
-namespace Ductus.FluentDocker.Model.Builders.FileBuilder
+namespace FluentDocker.Model.Builders.FileBuilder
 {
   public sealed class CopyURLCommand : CopyCommand
   {

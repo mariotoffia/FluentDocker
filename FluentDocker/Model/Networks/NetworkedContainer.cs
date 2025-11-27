@@ -1,4 +1,4 @@
-﻿namespace Ductus.FluentDocker.Model.Networks
+﻿namespace FluentDocker.Model.Networks
 {
   public sealed class NetworkedContainer
   {

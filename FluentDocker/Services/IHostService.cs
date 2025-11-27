@@ -1,12 +1,12 @@
 using System;
 using System.Collections.Generic;
 using System.Net;
-using Ductus.FluentDocker.Common;
-using Ductus.FluentDocker.Model.Common;
-using Ductus.FluentDocker.Model.Containers;
-using Ductus.FluentDocker.Model.Machines;
+using FluentDocker.Common;
+using FluentDocker.Model.Common;
+using FluentDocker.Model.Containers;
+using FluentDocker.Model.Machines;
 
-namespace Ductus.FluentDocker.Services
+namespace FluentDocker.Services
 {
   /// <summary>
   ///   Represents a docker host, either native or a virtual machine (local or remote).

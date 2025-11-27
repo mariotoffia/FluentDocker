@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Globalization;
 
-namespace Ductus.FluentDocker.Model.Containers
+namespace FluentDocker.Model.Containers
 {
   public sealed class ProcessRow
   {

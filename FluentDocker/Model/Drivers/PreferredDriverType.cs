@@ -1,4 +1,4 @@
-namespace Ductus.FluentDocker.Model.Drivers
+namespace FluentDocker.Model.Drivers
 {
     /// <summary>
     /// Specifies the preferred driver type when multiple drivers are available.

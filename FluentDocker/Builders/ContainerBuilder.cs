@@ -4,17 +4,17 @@ using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Text.RegularExpressions;
-using Ductus.FluentDocker.Commands;
-using Ductus.FluentDocker.Common;
-using Ductus.FluentDocker.Extensions;
-using Ductus.FluentDocker.Model.Builders;
-using Ductus.FluentDocker.Model.Common;
-using Ductus.FluentDocker.Model.Compose;
-using Ductus.FluentDocker.Model.Containers;
-using Ductus.FluentDocker.Services;
-using Ductus.FluentDocker.Services.Extensions;
+using FluentDocker.Commands;
+using FluentDocker.Common;
+using FluentDocker.Extensions;
+using FluentDocker.Model.Builders;
+using FluentDocker.Model.Common;
+using FluentDocker.Model.Compose;
+using FluentDocker.Model.Containers;
+using FluentDocker.Services;
+using FluentDocker.Services.Extensions;
 
-namespace Ductus.FluentDocker.Builders
+namespace FluentDocker.Builders
 {
   public sealed class ContainerBuilder : BaseBuilder<IContainerService>
   {

@@ -1,10 +1,10 @@
 ﻿using System.Net;
-using Ductus.FluentDocker.Model.Containers;
-using Ductus.FluentDocker.Model.Machines;
+using FluentDocker.Model.Containers;
+using FluentDocker.Model.Machines;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 
-namespace Ductus.FluentDocker.Executors.Parsers
+namespace FluentDocker.Executors.Parsers
 {
   public sealed class MachineInspectResponseParser : IProcessResponseParser<MachineConfiguration>
   {

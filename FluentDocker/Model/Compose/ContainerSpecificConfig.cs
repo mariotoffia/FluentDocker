@@ -1,11 +1,11 @@
 using System;
 using System.Collections.Generic;
 using System.Net.Http;
-using Ductus.FluentDocker.Common;
-using Ductus.FluentDocker.Model.Common;
-using Ductus.FluentDocker.Services;
+using FluentDocker.Common;
+using FluentDocker.Model.Common;
+using FluentDocker.Services;
 
-namespace Ductus.FluentDocker.Model.Compose
+namespace FluentDocker.Model.Compose
 {
   public sealed class ContainerSpecificConfig
   {

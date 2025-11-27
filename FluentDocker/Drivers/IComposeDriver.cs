@@ -1,9 +1,9 @@
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
-using Ductus.FluentDocker.Model.Drivers;
+using FluentDocker.Model.Drivers;
 
-namespace Ductus.FluentDocker.Drivers
+namespace FluentDocker.Drivers
 {
     /// <summary>
     /// Compose-specific driver operations (docker-compose, podman-compose).

@@ -1,6 +1,6 @@
-using Ductus.FluentDocker.Model.Networks;
+using FluentDocker.Model.Networks;
 
-namespace Ductus.FluentDocker.Model.Events
+namespace FluentDocker.Model.Events
 {
   /// <summary>
   /// Emitted when a container has disconnected from a network.

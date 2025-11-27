@@ -1,8 +1,8 @@
 ﻿using System.Collections.Generic;
-using Ductus.FluentDocker.Common;
-using Ductus.FluentDocker.Services;
+using FluentDocker.Common;
+using FluentDocker.Services;
 
-namespace Ductus.FluentDocker.Builders
+namespace FluentDocker.Builders
 {
   public interface IBuilder
   {

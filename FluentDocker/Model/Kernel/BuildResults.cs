@@ -2,9 +2,9 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-using Ductus.FluentDocker.Services;
+using FluentDocker.Services;
 
-namespace Ductus.FluentDocker.Model.Kernel
+namespace FluentDocker.Model.Kernel
 {
     /// <summary>
     /// Results from a BuildAsync() operation containing all built services.

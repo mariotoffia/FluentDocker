@@ -2,17 +2,17 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using Ductus.FluentDocker.Common;
-using Ductus.FluentDocker.Executors;
-using Ductus.FluentDocker.Executors.Parsers;
-using Ductus.FluentDocker.Extensions;
-using Ductus.FluentDocker.Extensions.Utils;
-using Ductus.FluentDocker.Model.Common;
-using Ductus.FluentDocker.Model.Compose;
-using Ductus.FluentDocker.Model.Containers;
-using Ductus.FluentDocker.Model.Images;
+using FluentDocker.Common;
+using FluentDocker.Executors;
+using FluentDocker.Executors.Parsers;
+using FluentDocker.Extensions;
+using FluentDocker.Extensions.Utils;
+using FluentDocker.Model.Common;
+using FluentDocker.Model.Compose;
+using FluentDocker.Model.Containers;
+using FluentDocker.Model.Images;
 
-namespace Ductus.FluentDocker.Commands
+namespace FluentDocker.Commands
 {
   public static class Compose
   {

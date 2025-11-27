@@ -2,7 +2,7 @@
 using System.Collections.Concurrent;
 using System.Linq;
 
-namespace Ductus.FluentDocker.Services.Impl
+namespace FluentDocker.Services.Impl
 {
   public class ServiceHooks
   {

@@ -2,17 +2,17 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net.Http;
-using Ductus.FluentDocker.Commands;
-using Ductus.FluentDocker.Common;
-using Ductus.FluentDocker.Extensions;
-using Ductus.FluentDocker.Model.Common;
-using Ductus.FluentDocker.Model.Compose;
-using Ductus.FluentDocker.Model.Images;
-using Ductus.FluentDocker.Services;
-using Ductus.FluentDocker.Services.Extensions;
-using Ductus.FluentDocker.Services.Impl;
+using FluentDocker.Commands;
+using FluentDocker.Common;
+using FluentDocker.Extensions;
+using FluentDocker.Model.Common;
+using FluentDocker.Model.Compose;
+using FluentDocker.Model.Images;
+using FluentDocker.Services;
+using FluentDocker.Services.Extensions;
+using FluentDocker.Services.Impl;
 
-namespace Ductus.FluentDocker.Builders
+namespace FluentDocker.Builders
 {
   [Experimental(TargetVersion = "3.0.0")]
   public sealed class CompositeBuilder : BaseBuilder<ICompositeService>

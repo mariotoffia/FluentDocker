@@ -9,12 +9,12 @@
     <FileVersion>1.0.0.0</FileVersion>
     <VersionSuffix>$(VersionSuffix)</VersionSuffix>
     <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
-    <AssemblyTitle>Ductus.FluentDocker.MsTest</AssemblyTitle>
+    <AssemblyTitle>FluentDocker.MsTest</AssemblyTitle>
     <Authors>Mario Toffia</Authors>
     <PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
     <PackageProjectUrl>https://github.com/mariotoffia/FluentDocker</PackageProjectUrl>
     <PackageIcon>fluent-docker.png</PackageIcon>
-    <PackageId>Ductus.FluentDocker.MsTest</PackageId>
+    <PackageId>FluentDocker.MsTest</PackageId>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
     <PackageTags>Docker;Docker-Compose;Docker Compose;Docker-Machine;Docker Machine;Linux;Windows;Mac;Test;NET Core</PackageTags>
@@ -39,7 +39,7 @@ Documentation: https://github.com/mariotoffia/FluentDocker
     <PackageReference Include="MSTest.TestFramework" Version="2.2.7" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\Ductus.FluentDocker\Ductus.FluentDocker.csproj" />
+    <ProjectReference Include="..\FluentDocker\FluentDocker.csproj" />
   </ItemGroup>
   
   <ItemGroup Condition="'$(TargetFramework)' == 'netstandard2.0'">

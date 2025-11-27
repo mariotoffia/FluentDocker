@@ -1,6 +1,6 @@
 // ReSharper disable InconsistentNaming
 // ReSharper disable CommentTypo
-namespace Ductus.FluentDocker.Model.Containers
+namespace FluentDocker.Model.Containers
 {
   /// <summary>
   ///   ULimit

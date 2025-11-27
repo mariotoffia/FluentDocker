@@ -1,10 +1,10 @@
 using System.Threading.Tasks;
-using Ductus.FluentDocker.Drivers;
-using Ductus.FluentDocker.Kernel;
-using Ductus.FluentDocker.Model.Drivers;
+using FluentDocker.Drivers;
+using FluentDocker.Kernel;
+using FluentDocker.Model.Drivers;
 using Xunit;
 
-namespace Ductus.FluentDocker.Tests.V3.Integration
+namespace FluentDocker.Tests.V3.Integration
 {
     [Trait("Category", "Integration")]
     public class SystemDriverTests

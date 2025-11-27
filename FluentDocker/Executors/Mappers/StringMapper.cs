@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace Ductus.FluentDocker.Executors.Mappers
+namespace FluentDocker.Executors.Mappers
 {
   public sealed class StringMapper : IStreamMapper<string>
   {

@@ -2,10 +2,10 @@
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using Ductus.FluentDocker.Common;
-using Ductus.FluentDocker.Model.Containers;
+using FluentDocker.Common;
+using FluentDocker.Model.Containers;
 
-namespace Ductus.FluentDocker.Executors
+namespace FluentDocker.Executors
 {
   public sealed class AsyncProcessExecutor<T, TE> where T : IProcessResponseParser<TE>, IProcessResponse<TE>, new()
   {

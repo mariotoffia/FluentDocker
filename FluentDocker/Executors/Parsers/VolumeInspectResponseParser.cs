@@ -1,9 +1,9 @@
 ﻿using System.Collections.Generic;
-using Ductus.FluentDocker.Model.Containers;
-using Ductus.FluentDocker.Model.Volumes;
+using FluentDocker.Model.Containers;
+using FluentDocker.Model.Volumes;
 using Newtonsoft.Json;
 
-namespace Ductus.FluentDocker.Executors.Parsers
+namespace FluentDocker.Executors.Parsers
 {
   public sealed class VolumeInspectResponseParser : IProcessResponseParser<IList<Volume>>
   {

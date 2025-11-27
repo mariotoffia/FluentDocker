@@ -1,9 +1,9 @@
 ﻿using System;
 using System.Threading;
-using Ductus.FluentDocker.Common;
-using Ductus.FluentDocker.Services;
+using FluentDocker.Common;
+using FluentDocker.Services;
 
-namespace Ductus.FluentDocker.Extensions
+namespace FluentDocker.Extensions
 {
   public static class ServiceExtensions
   {

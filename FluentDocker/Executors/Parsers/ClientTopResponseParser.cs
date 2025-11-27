@@ -1,8 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
-using Ductus.FluentDocker.Model.Containers;
+using FluentDocker.Model.Containers;
 
-namespace Ductus.FluentDocker.Executors.Parsers
+namespace FluentDocker.Executors.Parsers
 {
   public class ClientTopResponseParser : IProcessResponseParser<Processes>
   {

@@ -1,11 +1,11 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using Ductus.FluentDocker.Common;
-using Ductus.FluentDocker.Executors;
-using Ductus.FluentDocker.Model.Common;
+using FluentDocker.Common;
+using FluentDocker.Executors;
+using FluentDocker.Model.Common;
 
-namespace Ductus.FluentDocker.Extensions
+namespace FluentDocker.Extensions
 {
   public static class EnvironmentExtensions
   {

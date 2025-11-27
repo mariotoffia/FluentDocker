@@ -1,7 +1,7 @@
-﻿using Ductus.FluentDocker.Builders;
-using Ductus.FluentDocker.Services.Extensions;
+﻿using FluentDocker.Builders;
+using FluentDocker.Services.Extensions;
 
-namespace Ductus.FluentDocker.MsTest
+namespace FluentDocker.MsTest
 {
   public abstract class PostgresTestBase : FluentDockerTestBase
   {

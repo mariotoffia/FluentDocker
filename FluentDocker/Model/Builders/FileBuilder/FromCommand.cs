@@ -1,7 +1,7 @@
-﻿using Ductus.FluentDocker.Common;
-using Ductus.FluentDocker.Model.Common;
+﻿using FluentDocker.Common;
+using FluentDocker.Model.Common;
 
-namespace Ductus.FluentDocker.Model.Builders.FileBuilder
+namespace FluentDocker.Model.Builders.FileBuilder
 {
   public sealed class FromCommand : ICommand
   {

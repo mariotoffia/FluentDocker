@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 
-namespace Ductus.FluentDocker.Common
+namespace FluentDocker.Common
 {
   public static class ResultExtensions
   {

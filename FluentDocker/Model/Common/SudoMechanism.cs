@@ -1,6 +1,6 @@
-using Ductus.FluentDocker.Common;
+using FluentDocker.Common;
 
-namespace Ductus.FluentDocker.Model.Common
+namespace FluentDocker.Model.Common
 {
   /// <summary>
   /// Sets the sudo mechanism the library shall use to talk to the docker daemon.

@@ -8,12 +8,12 @@
     <FileVersion>1.0.0.0</FileVersion>
     <VersionSuffix>$(VersionSuffix)</VersionSuffix>
     <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
-    <AssemblyTitle>Ductus.FluentDocker</AssemblyTitle>
+    <AssemblyTitle>FluentDocker</AssemblyTitle>
     <Authors>Mario Toffia</Authors>
     <PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
     <PackageProjectUrl>https://github.com/mariotoffia/FluentDocker</PackageProjectUrl>
     <PackageIcon>fluent-docker.png</PackageIcon>
-    <PackageId>Ductus.FluentDocker</PackageId>
+    <PackageId>FluentDocker</PackageId>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <PublishRepositoryUrl>true</PublishRepositoryUrl>
     <AllowedOutputExtensionsInPackageBuildOutputFolder>$(AllowedOutputExtensionsInPackageBuildOutputFolder);.pdb</AllowedOutputExtensionsInPackageBuildOutputFolder>

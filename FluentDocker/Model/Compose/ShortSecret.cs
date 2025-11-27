@@ -1,4 +1,4 @@
-namespace Ductus.FluentDocker.Model.Compose
+namespace FluentDocker.Model.Compose
 {
   /// <summary>
   ///   The short syntax variant only specifies the secret name.

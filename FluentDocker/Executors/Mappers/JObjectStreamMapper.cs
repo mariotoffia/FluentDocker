@@ -1,6 +1,6 @@
 using Newtonsoft.Json.Linq;
 
-namespace Ductus.FluentDocker.Executors.Mappers
+namespace FluentDocker.Executors.Mappers
 {
   public sealed class JObjectStreamMapper : IStreamMapper<JObject>
   {

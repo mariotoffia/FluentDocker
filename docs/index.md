@@ -1,12 +1,12 @@
 | Build | Core | MsTest |
 |:-----:|:----:|:------:|
-|[![Build status](https://ci.appveyor.com/api/projects/status/kqqrkcv8wp3e9my6?svg=true)](https://ci.appveyor.com/project/mariotoffia/fluentdocker)|[![NuGet](https://img.shields.io/nuget/v/Ductus.FluentDocker.svg)](https://www.nuget.org/packages/Ductus.FluentDocker)|[![NuGet](https://img.shields.io/nuget/v/Ductus.FluentDocker.MsTest.svg)](https://www.nuget.org/packages/Ductus.FluentDocker.MsTest)|
+|[![Build status](https://ci.appveyor.com/api/projects/status/kqqrkcv8wp3e9my6?svg=true)](https://ci.appveyor.com/project/mariotoffia/fluentdocker)|[![NuGet](https://img.shields.io/nuget/v/FluentDocker.svg)](https://www.nuget.org/packages/FluentDocker)|[![NuGet](https://img.shields.io/nuget/v/FluentDocker.MsTest.svg)](https://www.nuget.org/packages/FluentDocker.MsTest)|
 
 
 # FluentDocker
 FluentDocker is a library to interact with docker-machine, docker-compose and docker. It supports the docker for windows, docker for mac, docker machine, and native linux (however only limited tests on Linux and Mac). 
-This library is available at nuget [Ductus.FluentDocker](https://www.nuget.org/packages/Ductus.FluentDocker/ "Nuget Home for Ductus.FluentDocker") 
-and the ms test support is available at [Ductus.FluentDocker.MsTest](https://www.nuget.org/packages/Ductus.FluentDocker.MsTest/ "Nuget Home for Ductus.FluentDocker.MsTest").
+This library is available at nuget [FluentDocker](https://www.nuget.org/packages/FluentDocker/ "Nuget Home for FluentDocker") 
+and the ms test support is available at [FluentDocker.MsTest](https://www.nuget.org/packages/FluentDocker.MsTest/ "Nuget Home for FluentDocker.MsTest").
 
 **Sample Fluent API usage**
 ```cs
@@ -166,7 +166,7 @@ The highest layer of this library is the fluent API where you can define and con
             "curl -sL https://deb.nodesource.com/setup | sudo bash - &&",
             "apt-get -y install python build-essential nodejs")
           .Run("npm install -g nodemon")
-          .Add("emb:Ductus.FluentDockerTest/Ductus.FluentDockerTest.MultiContainerTestFiles/package.txt",
+          .Add("emb:FluentDockerTest/FluentDockerTest.MultiContainerTestFiles/package.txt",
             "/tmp/package.json")
           .Run("cd /tmp && npm install")
           .Run("mkdir -p /src && cp -a /tmp/node_modules /src/")
@@ -570,7 +570,7 @@ Since the container is within the scope of the ```using``` statement of the volu
 
 ### Logging
 In the full framework it uses verbose logging using the ```System.Diagnostics.Debugger.Log```. For .net core it uses the standard
-```Microsoft.Extensions.Logging.ILog``` to log. Both are using the category _Ductus.FluentDocker_ and therefore may be configured
+```Microsoft.Extensions.Logging.ILog``` to log. Both are using the category _FluentDocker_ and therefore may be configured
 to participate in logging or not and configure different logging destinations.
 
 In .net core you can provide the logging segment in the application config file.
@@ -579,7 +579,7 @@ In .net core you can provide the logging segment in the application config file.
   "Logging": {
     "IncludeScopes": false,
     "LogLevel": {
-      "Ductus.FluentDocker": "None"
+      "FluentDocker": "None"
       }
    }
 }
@@ -587,7 +587,7 @@ In .net core you can provide the logging segment in the application config file.
 Please check the https://docs.microsoft.com/en-us/aspnet/core/fundamentals/logging/?view=aspnetcore-2.1 for more information.
 For full framework please check out the _XML_ needed in the appconfig for the full framework described in https://docs.microsoft.com/en-us/dotnet/framework/wcf/diagnostics/tracing/configuring-tracing.
 
-There's a quick way of disabling / enabling logging via (```Ductus.FluentDocker.Services```) ```Logging.Enabled()``` or ```Logging.Disabled()```. This will forcefully enable / disable logging.
+There's a quick way of disabling / enabling logging via (```FluentDocker.Services```) ```Logging.Enabled()``` or ```Logging.Disabled()```. This will forcefully enable / disable logging.
 
 ## Docker Compose Support
 The library support _docker-compose_ to use existing compose files to render services and manage lifetime of such.

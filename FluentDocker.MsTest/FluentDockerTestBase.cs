@@ -1,9 +1,9 @@
 ﻿using System;
-using Ductus.FluentDocker.Builders;
-using Ductus.FluentDocker.Services;
+using FluentDocker.Builders;
+using FluentDocker.Services;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
-namespace Ductus.FluentDocker.MsTest
+namespace FluentDocker.MsTest
 {
   public abstract class FluentDockerTestBase
   {

@@ -1,7 +1,7 @@
 using System;
-using Ductus.FluentDocker.Model.Drivers;
+using FluentDocker.Model.Drivers;
 
-namespace Ductus.FluentDocker.Common
+namespace FluentDocker.Common
 {
     /// <summary>
     /// Base exception for all driver-related errors in FluentDocker v3.0.0.

@@ -2,9 +2,9 @@ using System;
 using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Threading;
-using Ductus.FluentDocker.Common;
+using FluentDocker.Common;
 
-namespace Ductus.FluentDocker.Executors
+namespace FluentDocker.Executors
 {
   public sealed class ConsoleStream<T> : IDisposable where T : class
   {

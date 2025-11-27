@@ -1,4 +1,4 @@
-﻿namespace Ductus.FluentDocker.Model.Images
+﻿namespace FluentDocker.Model.Images
 {
   public sealed class DockerRmImageRowResponse
   {

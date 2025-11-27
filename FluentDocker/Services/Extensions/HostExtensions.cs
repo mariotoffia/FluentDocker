@@ -1,12 +1,12 @@
 using System;
 using System.Threading;
-using Ductus.FluentDocker.Commands;
-using Ductus.FluentDocker.Common;
-using Ductus.FluentDocker.Executors;
-using Ductus.FluentDocker.Model.Containers;
-using Ductus.FluentDocker.Model.Events;
+using FluentDocker.Commands;
+using FluentDocker.Common;
+using FluentDocker.Executors;
+using FluentDocker.Model.Containers;
+using FluentDocker.Model.Events;
 
-namespace Ductus.FluentDocker.Services.Extensions
+namespace FluentDocker.Services.Extensions
 {
   public static class HostExtensions
   {

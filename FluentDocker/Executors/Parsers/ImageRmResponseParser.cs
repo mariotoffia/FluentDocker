@@ -1,10 +1,10 @@
 ﻿using System.Collections.Generic;
-using Ductus.FluentDocker.Model.Containers;
-using Ductus.FluentDocker.Model.Images;
-using Ductus.FluentDocker.Extensions;
+using FluentDocker.Model.Containers;
+using FluentDocker.Model.Images;
+using FluentDocker.Extensions;
 using System;
 
-namespace Ductus.FluentDocker.Executors.Parsers
+namespace FluentDocker.Executors.Parsers
 {
   public sealed class ImageRmResponseParser : IProcessResponseParser<IList<DockerRmImageRowResponse>>
   {

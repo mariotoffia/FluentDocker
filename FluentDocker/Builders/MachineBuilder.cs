@@ -1,10 +1,10 @@
 ﻿using System.Linq;
-using Ductus.FluentDocker.Commands;
-using Ductus.FluentDocker.Common;
-using Ductus.FluentDocker.Model.Builders;
-using Ductus.FluentDocker.Services;
+using FluentDocker.Commands;
+using FluentDocker.Common;
+using FluentDocker.Model.Builders;
+using FluentDocker.Services;
 
-namespace Ductus.FluentDocker.Builders
+namespace FluentDocker.Builders
 {
   public sealed class MachineBuilder : BaseBuilder<IHostService>
   {

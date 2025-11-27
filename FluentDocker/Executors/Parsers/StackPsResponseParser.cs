@@ -1,9 +1,9 @@
 using System.Collections.Generic;
 using System.Linq;
-using Ductus.FluentDocker.Model.Containers;
-using Ductus.FluentDocker.Model.Stacks;
+using FluentDocker.Model.Containers;
+using FluentDocker.Model.Stacks;
 
-namespace Ductus.FluentDocker.Executors.Parsers
+namespace FluentDocker.Executors.Parsers
 {
   public class StackPsResponseParser : IProcessResponseParser<IList<StackPsResponse>>
   {

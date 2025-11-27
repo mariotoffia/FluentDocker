@@ -1,14 +1,14 @@
 ﻿using System;
 using System.IO;
 using System.Linq;
-using Ductus.FluentDocker.Common;
-using Ductus.FluentDocker.Extensions;
-using Ductus.FluentDocker.Model.Builders;
-using Ductus.FluentDocker.Model.Builders.FileBuilder;
-using Ductus.FluentDocker.Model.Common;
-using Ductus.FluentDocker.Services;
+using FluentDocker.Common;
+using FluentDocker.Extensions;
+using FluentDocker.Model.Builders;
+using FluentDocker.Model.Builders.FileBuilder;
+using FluentDocker.Model.Common;
+using FluentDocker.Services;
 
-namespace Ductus.FluentDocker.Builders
+namespace FluentDocker.Builders
 {
   public sealed class FileBuilder
   {

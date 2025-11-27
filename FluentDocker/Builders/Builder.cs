@@ -1,10 +1,10 @@
 ﻿using System.Collections.Generic;
 using System.Linq;
-using Ductus.FluentDocker.Common;
-using Ductus.FluentDocker.Services;
-using Ductus.FluentDocker.Services.Impl;
+using FluentDocker.Common;
+using FluentDocker.Services;
+using FluentDocker.Services.Impl;
 
-namespace Ductus.FluentDocker.Builders
+namespace FluentDocker.Builders
 {
   public class Builder : BaseBuilder<ICompositeService>
   {

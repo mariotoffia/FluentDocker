@@ -46,8 +46,8 @@ This guide provides step-by-step migration instructions for error handling chang
 **v2.x.x Code:**
 
 ```csharp
-using Ductus.FluentDocker.Builders;
-using Ductus.FluentDocker.Common;
+using FluentDocker.Builders;
+using FluentDocker.Common;
 
 public void StartContainer()
 {
@@ -72,8 +72,8 @@ public void StartContainer()
 **v3.0.0 Code (Option 1 - Minimal Changes):**
 
 ```csharp
-using Ductus.FluentDocker.Builders;
-using Ductus.FluentDocker.Exceptions;
+using FluentDocker.Builders;
+using FluentDocker.Exceptions;
 
 public void StartContainer()
 {
@@ -108,8 +108,8 @@ public void StartContainer()
 **v3.0.0 Code (Option 2 - Specific Exception Handling):**
 
 ```csharp
-using Ductus.FluentDocker.Builders;
-using Ductus.FluentDocker.Exceptions;
+using FluentDocker.Builders;
+using FluentDocker.Exceptions;
 
 public void StartContainer()
 {
@@ -188,8 +188,8 @@ public void PullImage(string imageName)
 **v3.0.0 Code:**
 
 ```csharp
-using Ductus.FluentDocker.Exceptions;
-using Ductus.FluentDocker.Resilience;
+using FluentDocker.Exceptions;
+using FluentDocker.Resilience;
 
 public async Task PullImageAsync(string imageName)
 {
@@ -268,7 +268,7 @@ public void ManageContainer(IContainerService container)
 **v3.0.0 Code:**
 
 ```csharp
-using Ductus.FluentDocker.Exceptions;
+using FluentDocker.Exceptions;
 
 public void ManageContainer(IContainerService container)
 {
@@ -348,7 +348,7 @@ public void RunCompose(string composeFile)
 **v3.0.0 Code:**
 
 ```csharp
-using Ductus.FluentDocker.Exceptions;
+using FluentDocker.Exceptions;
 
 public void RunCompose(string composeFile)
 {
@@ -406,8 +406,8 @@ N/A - Drivers don't exist in v2.x.x
 **v3.0.0 Code:**
 
 ```csharp
-using Ductus.FluentDocker.Drivers.Exceptions;
-using Ductus.FluentDocker.Exceptions;
+using FluentDocker.Drivers.Exceptions;
+using FluentDocker.Exceptions;
 
 public void ManageDrivers()
 {
@@ -509,7 +509,7 @@ public void BuildContainer()
 **v3.0.0 Code:**
 
 ```csharp
-using Ductus.FluentDocker.Exceptions;
+using FluentDocker.Exceptions;
 
 public void BuildContainer()
 {
@@ -557,7 +557,7 @@ public void BuildContainer()
 **v3.0.0 Pattern:**
 
 ```csharp
-using Ductus.FluentDocker.Exceptions;
+using FluentDocker.Exceptions;
 
 public void HandleErrors()
 {
@@ -608,7 +608,7 @@ public void HandleErrors()
 
 ```csharp
 // All error codes are in ErrorCodes class
-using static Ductus.FluentDocker.Exceptions.ErrorCodes;
+using static FluentDocker.Exceptions.ErrorCodes;
 
 try
 {
@@ -631,7 +631,7 @@ catch (FluentDockerException ex) when (ex.ErrorCode == Image.PullFailed)
 ### Extract Diagnostic Information
 
 ```csharp
-using Ductus.FluentDocker.Exceptions;
+using FluentDocker.Exceptions;
 
 public void DiagnoseError(FluentDockerException ex)
 {
@@ -723,7 +723,7 @@ public async Task PerformComplexOperation()
 **v3.0.0 Feature:**
 
 ```csharp
-using Ductus.FluentDocker.Resilience;
+using FluentDocker.Resilience;
 
 // Method 1: Use RetryPolicy in DriverContext
 public async Task PullWithRetry(string image)
@@ -809,13 +809,13 @@ public async Task ManualRetry()
 // Only debug traces via Logger.Log()
 
 Logger.Log("Some debug message");
-// Output: [Ductus.FluentDocker] Some debug message
+// Output: [FluentDocker] Some debug message
 ```
 
 ### v3.0.0 Logging
 
 ```csharp
-using Ductus.FluentDocker.Logging;
+using FluentDocker.Logging;
 
 // Setup custom logger (once at app startup)
 public void ConfigureLogging()
@@ -915,7 +915,7 @@ public void Should_Throw_Exception_When_Container_Not_Found()
 ### Unit Tests - v3.0.0
 
 ```csharp
-using Ductus.FluentDocker.Exceptions;
+using FluentDocker.Exceptions;
 
 [Fact]
 public void Should_Throw_ContainerNotFoundException_When_Container_Not_Found()

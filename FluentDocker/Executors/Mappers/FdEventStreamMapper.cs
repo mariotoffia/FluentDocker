@@ -1,11 +1,11 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using Ductus.FluentDocker.Model.Events;
-using Ductus.FluentDocker.Model.Networks;
+using FluentDocker.Model.Events;
+using FluentDocker.Model.Networks;
 using Newtonsoft.Json.Linq;
 
-namespace Ductus.FluentDocker.Executors.Mappers
+namespace FluentDocker.Executors.Mappers
 {
   public sealed class FdEventStreamMapper : IStreamMapper<FdEvent>
   {

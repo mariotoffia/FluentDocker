@@ -1,8 +1,8 @@
 ﻿using System.Text;
-using Ductus.FluentDocker.Model.Containers;
+using FluentDocker.Model.Containers;
 using Newtonsoft.Json;
 
-namespace Ductus.FluentDocker.Executors.Parsers
+namespace FluentDocker.Executors.Parsers
 {
   public sealed class ClientContainerInspectCommandResponder : IProcessResponseParser<Container>
   {

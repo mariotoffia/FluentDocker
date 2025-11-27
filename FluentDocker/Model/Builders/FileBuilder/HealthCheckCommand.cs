@@ -1,7 +1,7 @@
-﻿using Ductus.FluentDocker.Extensions;
+﻿using FluentDocker.Extensions;
 using System.Text;
 
-namespace Ductus.FluentDocker.Model.Builders.FileBuilder
+namespace FluentDocker.Model.Builders.FileBuilder
 {
   public sealed class HealthCheckCommand : ICommand
   {

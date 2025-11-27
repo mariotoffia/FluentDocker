@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 
-namespace Ductus.FluentDocker.Model.Images
+namespace FluentDocker.Model.Images
 {
     /// <summary>
     /// Represents a Docker image for v3.0.0 API.

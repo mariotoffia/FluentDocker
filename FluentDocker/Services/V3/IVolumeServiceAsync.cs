@@ -1,8 +1,8 @@
 using System.Threading;
 using System.Threading.Tasks;
-using Ductus.FluentDocker.Model.Volumes;
+using FluentDocker.Model.Volumes;
 
-namespace Ductus.FluentDocker.Services.V3
+namespace FluentDocker.Services.V3
 {
     /// <summary>
     /// v3.0.0 async volume service interface.

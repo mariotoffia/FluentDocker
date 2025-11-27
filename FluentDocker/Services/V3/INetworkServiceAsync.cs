@@ -2,7 +2,7 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace Ductus.FluentDocker.Services.V3
+namespace FluentDocker.Services.V3
 {
     /// <summary>
     /// v3.0.0 async network service interface.

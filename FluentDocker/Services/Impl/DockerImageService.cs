@@ -1,8 +1,8 @@
-﻿using Ductus.FluentDocker.Commands;
-using Ductus.FluentDocker.Model.Common;
-using Ductus.FluentDocker.Model.Containers;
+﻿using FluentDocker.Commands;
+using FluentDocker.Model.Common;
+using FluentDocker.Model.Containers;
 
-namespace Ductus.FluentDocker.Services.Impl
+namespace FluentDocker.Services.Impl
 {
   public sealed class DockerImageService : ServiceBase, IContainerImageService
   {

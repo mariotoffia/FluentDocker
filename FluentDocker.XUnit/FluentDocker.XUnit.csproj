@@ -8,12 +8,12 @@
     <FileVersion>1.0.0.0</FileVersion>
     <VersionSuffix>$(VersionSuffix)</VersionSuffix>
     <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
-    <AssemblyTitle>Ductus.FluentDocker.XUnit</AssemblyTitle>
+    <AssemblyTitle>FluentDocker.XUnit</AssemblyTitle>
     <Authors>Mario Toffia</Authors>
     <PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
     <PackageProjectUrl>https://github.com/mariotoffia/FluentDocker</PackageProjectUrl>
     <PackageIcon>fluent-docker.png</PackageIcon>
-    <PackageId>Ductus.FluentDocker.XUnit</PackageId>
+    <PackageId>FluentDocker.XUnit</PackageId>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
     <PackageTags>Docker;Docker-Compose;Docker Compose;Docker-Machine;Docker Machine;Linux;Windows;Mac;Test;NET Core</PackageTags>
@@ -35,7 +35,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Ductus.FluentDocker\Ductus.FluentDocker.csproj" />
+    <ProjectReference Include="..\FluentDocker\FluentDocker.csproj" />
   </ItemGroup>
   
   <ItemGroup Condition="'$(TargetFramework)' == 'netstandard2.0'">

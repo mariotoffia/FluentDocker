@@ -1,10 +1,10 @@
 using System;
 using System.Threading.Tasks;
-using Ductus.FluentDocker.Kernel;
-using Ductus.FluentDocker.Model.Kernel;
+using FluentDocker.Kernel;
+using FluentDocker.Model.Kernel;
 using Xunit;
 
-namespace Ductus.FluentDocker.Tests.V3.Integration
+namespace FluentDocker.Tests.V3.Integration
 {
     [Trait("Category", "Integration")]
     public class KernelIntegrationTests : IDisposable

@@ -1,6 +1,6 @@
 ﻿using System.Net;
 
-namespace Ductus.FluentDocker.Model.Containers
+namespace FluentDocker.Model.Containers
 {
   public class HostIpEndpoint : IPEndPoint
   {

@@ -1,7 +1,7 @@
 using System.Collections.Generic;
-using Ductus.FluentDocker.Model.Containers;
+using FluentDocker.Model.Containers;
 
-namespace Ductus.FluentDocker.Model.Compose
+namespace FluentDocker.Model.Compose
 {
   public sealed class DockerComposeFileConfig : DockerComposeConfig
   {

@@ -1,9 +1,9 @@
 ﻿using System;
-using Ductus.FluentDocker.Model.Common;
-using Ductus.FluentDocker.Model.Containers;
-using Ductus.FluentDocker.Model.Networks;
+using FluentDocker.Model.Common;
+using FluentDocker.Model.Containers;
+using FluentDocker.Model.Networks;
 
-namespace Ductus.FluentDocker.Services
+namespace FluentDocker.Services
 {
   public interface INetworkService : IService
   {

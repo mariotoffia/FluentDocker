@@ -1,7 +1,7 @@
-﻿using Ductus.FluentDocker.Extensions;
-using Ductus.FluentDocker.Model.Common;
+﻿using FluentDocker.Extensions;
+using FluentDocker.Model.Common;
 
-namespace Ductus.FluentDocker.Model.Builders.FileBuilder
+namespace FluentDocker.Model.Builders.FileBuilder
 {
   public class CopyCommand : ICommand
   {

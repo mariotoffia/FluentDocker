@@ -10,7 +10,7 @@ unix:///var/run/docker.sock native Running
 Spinning up a postgres and wait for ready state...
 Service is running
 Events:
-Ductus.FluentDocker.Model.Events.ContainerCreateEvent
-Ductus.FluentDocker.Model.Events.NetworkConnectEvent
-Ductus.FluentDocker.Model.Events.ContainerStartEvent
+FluentDocker.Model.Events.ContainerCreateEvent
+FluentDocker.Model.Events.NetworkConnectEvent
+FluentDocker.Model.Events.ContainerStartEvent
 ```

@@ -3,11 +3,11 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using Ductus.FluentDocker.Common;
-using Ductus.FluentDocker.Drivers;
-using Ductus.FluentDocker.Model.Drivers;
+using FluentDocker.Common;
+using FluentDocker.Drivers;
+using FluentDocker.Model.Drivers;
 
-namespace Ductus.FluentDocker.Kernel
+namespace FluentDocker.Kernel
 {
     /// <summary>
     /// Default implementation of the driver registry.

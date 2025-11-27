@@ -1,6 +1,6 @@
 using System;
 
-namespace Ductus.FluentDocker.Common
+namespace FluentDocker.Common
 {
   /// <summary>
   ///     Specifies that the implementation is deprecated and is subject to be removed.

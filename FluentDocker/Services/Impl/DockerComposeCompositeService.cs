@@ -2,16 +2,16 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
-using Ductus.FluentDocker.Commands;
-using Ductus.FluentDocker.Common;
-using Ductus.FluentDocker.Extensions;
-using Ductus.FluentDocker.Extensions.Utils;
-using Ductus.FluentDocker.Model.Compose;
-using Ductus.FluentDocker.Model.Common;
-using Ductus.FluentDocker.Model.Containers;
-using static Ductus.FluentDocker.Commands.Compose;
+using FluentDocker.Commands;
+using FluentDocker.Common;
+using FluentDocker.Extensions;
+using FluentDocker.Extensions.Utils;
+using FluentDocker.Model.Compose;
+using FluentDocker.Model.Common;
+using FluentDocker.Model.Containers;
+using static FluentDocker.Commands.Compose;
 
-namespace Ductus.FluentDocker.Services.Impl
+namespace FluentDocker.Services.Impl
 {
   [Experimental(TargetVersion = "3.0.0")]
   public class DockerComposeCompositeService : ServiceBase, ICompositeService

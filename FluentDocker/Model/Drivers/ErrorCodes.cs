@@ -1,4 +1,4 @@
-namespace Ductus.FluentDocker.Model.Drivers
+namespace FluentDocker.Model.Drivers
 {
     /// <summary>
     /// Hierarchical error codes for FluentDocker v3.0.0.

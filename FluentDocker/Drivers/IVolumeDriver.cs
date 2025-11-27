@@ -1,10 +1,10 @@
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
-using Ductus.FluentDocker.Model.Drivers;
-using Ductus.FluentDocker.Model.Volumes;
+using FluentDocker.Model.Drivers;
+using FluentDocker.Model.Volumes;
 
-namespace Ductus.FluentDocker.Drivers
+namespace FluentDocker.Drivers
 {
     /// <summary>
     /// Volume-specific driver operations.

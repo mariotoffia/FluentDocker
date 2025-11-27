@@ -1,6 +1,6 @@
 using System.Collections.Generic;
 
-namespace Ductus.FluentDocker.Model.Compose
+namespace FluentDocker.Model.Compose
 {
   /// <summary>
   /// 

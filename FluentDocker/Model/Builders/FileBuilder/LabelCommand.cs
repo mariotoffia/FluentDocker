@@ -1,8 +1,8 @@
-using Ductus.FluentDocker.Extensions;
-using Ductus.FluentDocker.Model.Common;
+using FluentDocker.Extensions;
+using FluentDocker.Model.Common;
 using System.Linq;
 
-namespace Ductus.FluentDocker.Model.Builders.FileBuilder
+namespace FluentDocker.Model.Builders.FileBuilder
 {
   public sealed class LabelCommand : ICommand
   {

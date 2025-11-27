@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 
-namespace Ductus.FluentDocker.Model.Containers
+namespace FluentDocker.Model.Containers
 {
   public sealed class CommandResponse<T>
   {

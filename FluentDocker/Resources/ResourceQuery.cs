@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 
-namespace Ductus.FluentDocker.Resources
+namespace FluentDocker.Resources
 {
   public sealed class ResourceQuery
   {

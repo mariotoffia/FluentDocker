@@ -1,6 +1,6 @@
 using System.Collections.Generic;
 
-namespace Ductus.FluentDocker.Model.Drivers
+namespace FluentDocker.Model.Drivers
 {
     /// <summary>
     /// Provides diagnostic context information for errors that occur during driver operations.

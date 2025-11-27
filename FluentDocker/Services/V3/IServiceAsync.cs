@@ -1,11 +1,11 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
-using Ductus.FluentDocker.Common;
-using Ductus.FluentDocker.Kernel;
-using Ductus.FluentDocker.Services;
+using FluentDocker.Common;
+using FluentDocker.Kernel;
+using FluentDocker.Services;
 
-namespace Ductus.FluentDocker.Services.V3
+namespace FluentDocker.Services.V3
 {
     /// <summary>
     /// v3.0.0 async service interface.

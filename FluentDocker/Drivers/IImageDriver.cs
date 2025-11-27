@@ -2,10 +2,10 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
-using Ductus.FluentDocker.Model.Drivers;
-using Ductus.FluentDocker.Model.Images;
+using FluentDocker.Model.Drivers;
+using FluentDocker.Model.Images;
 
-namespace Ductus.FluentDocker.Drivers
+namespace FluentDocker.Drivers
 {
     /// <summary>
     /// Image-specific driver operations.

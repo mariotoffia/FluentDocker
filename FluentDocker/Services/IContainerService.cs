@@ -1,10 +1,10 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Net;
-using Ductus.FluentDocker.Model.Common;
-using Ductus.FluentDocker.Model.Containers;
+using FluentDocker.Model.Common;
+using FluentDocker.Model.Containers;
 
-namespace Ductus.FluentDocker.Services
+namespace FluentDocker.Services
 {
   public interface IContainerService : IService
   {

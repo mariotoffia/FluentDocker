@@ -1,13 +1,13 @@
 using System;
 using System.Threading.Tasks;
-using Ductus.FluentDocker.Common;
-using Ductus.FluentDocker.Drivers;
-using Ductus.FluentDocker.Kernel;
-using Ductus.FluentDocker.Model.Drivers;
+using FluentDocker.Common;
+using FluentDocker.Drivers;
+using FluentDocker.Kernel;
+using FluentDocker.Model.Drivers;
 using Xunit;
-using Unit = Ductus.FluentDocker.Model.Drivers.Unit;
+using Unit = FluentDocker.Model.Drivers.Unit;
 
-namespace Ductus.FluentDocker.Tests.V3.UnitTests
+namespace FluentDocker.Tests.V3.UnitTests
 {
     [Trait("Category", "Unit")]
     public class FluentDockerKernelTests

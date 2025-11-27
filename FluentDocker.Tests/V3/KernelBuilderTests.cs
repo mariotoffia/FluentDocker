@@ -1,8 +1,8 @@
 using System.Threading.Tasks;
-using Ductus.FluentDocker.Kernel;
+using FluentDocker.Kernel;
 using Xunit;
 
-namespace Ductus.FluentDocker.Tests.V3
+namespace FluentDocker.Tests.V3
 {
     /// <summary>
     /// Tests for v3.0.0 Kernel Builder with async/await pattern.

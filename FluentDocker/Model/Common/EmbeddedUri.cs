@@ -1,6 +1,6 @@
 using System;
 
-namespace Ductus.FluentDocker.Model.Common
+namespace FluentDocker.Model.Common
 {
   public sealed class EmbeddedUri : Uri
   {

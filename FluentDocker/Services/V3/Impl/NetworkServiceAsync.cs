@@ -3,12 +3,12 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using Ductus.FluentDocker.Common;
-using Ductus.FluentDocker.Drivers;
-using Ductus.FluentDocker.Kernel;
-using Ductus.FluentDocker.Model.Drivers;
+using FluentDocker.Common;
+using FluentDocker.Drivers;
+using FluentDocker.Kernel;
+using FluentDocker.Model.Drivers;
 
-namespace Ductus.FluentDocker.Services.V3.Impl
+namespace FluentDocker.Services.V3.Impl
 {
     /// <summary>
     /// v3.0.0 network service implementation using kernel and driver.

@@ -1,10 +1,10 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using Ductus.FluentDocker.Common;
-using Ductus.FluentDocker.Services;
+using FluentDocker.Common;
+using FluentDocker.Services;
 
-namespace Ductus.FluentDocker.Builders
+namespace FluentDocker.Builders
 {
   public sealed class VolumeBuilder : BaseBuilder<IVolumeService>
   {

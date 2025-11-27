@@ -2,14 +2,14 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
-using Ductus.FluentDocker.Executors;
-using Ductus.FluentDocker.Executors.Parsers;
-using Ductus.FluentDocker.Extensions;
-using Ductus.FluentDocker.Model.Common;
-using Ductus.FluentDocker.Model.Containers;
-using Ductus.FluentDocker.Model.Networks;
+using FluentDocker.Executors;
+using FluentDocker.Executors.Parsers;
+using FluentDocker.Extensions;
+using FluentDocker.Model.Common;
+using FluentDocker.Model.Containers;
+using FluentDocker.Model.Networks;
 
-namespace Ductus.FluentDocker.Commands
+namespace FluentDocker.Commands
 {
   public static class Network
   {

@@ -1,10 +1,10 @@
 using System;
 using System.Threading.Tasks;
-using Ductus.FluentDocker.Builders.V3;
-using Ductus.FluentDocker.Kernel;
+using FluentDocker.Builders.V3;
+using FluentDocker.Kernel;
 using Xunit;
 
-namespace Ductus.FluentDocker.Tests.V3
+namespace FluentDocker.Tests.V3
 {
     /// <summary>
     /// Tests for v3.0.0 async Builder with WithinDriver() scoping.

@@ -1,7 +1,7 @@
 ﻿using System.IO;
-using Ductus.FluentDocker.Model.Common;
+using FluentDocker.Model.Common;
 
-namespace Ductus.FluentDocker.Resources
+namespace FluentDocker.Resources
 {
   public sealed class FileResourceWriter : IResourceWriter
   {

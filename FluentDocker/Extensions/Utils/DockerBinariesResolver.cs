@@ -2,12 +2,12 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using Ductus.FluentDocker.Common;
-using Ductus.FluentDocker.Model.Common;
-using Ductus.FluentDocker.Executors;
-using static Ductus.FluentDocker.Common.FdOs;
+using FluentDocker.Common;
+using FluentDocker.Model.Common;
+using FluentDocker.Executors;
+using static FluentDocker.Common.FdOs;
 
-namespace Ductus.FluentDocker.Extensions.Utils
+namespace FluentDocker.Extensions.Utils
 {
   /// <summary>
   ///   Resolves the available docker commands on the local machine.

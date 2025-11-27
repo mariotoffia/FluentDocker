@@ -1,6 +1,6 @@
 ﻿using System.IO;
 
-namespace Ductus.FluentDocker.Resources
+namespace FluentDocker.Resources
 {
   public interface IResourceWriter
   {

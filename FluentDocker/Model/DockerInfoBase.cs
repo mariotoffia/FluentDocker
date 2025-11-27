@@ -1,4 +1,4 @@
-﻿namespace Ductus.FluentDocker.Model
+﻿namespace FluentDocker.Model
 {
   public sealed class DockerInfoBase
   {

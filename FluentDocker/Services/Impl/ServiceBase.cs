@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace Ductus.FluentDocker.Services.Impl
+namespace FluentDocker.Services.Impl
 {
   public abstract class ServiceBase : IService
   {

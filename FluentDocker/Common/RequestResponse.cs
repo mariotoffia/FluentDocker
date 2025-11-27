@@ -2,7 +2,7 @@ using System;
 using System.Net;
 using System.Net.Http.Headers;
 
-namespace Ductus.FluentDocker.Common
+namespace FluentDocker.Common
 {
   public struct RequestResponse
   {

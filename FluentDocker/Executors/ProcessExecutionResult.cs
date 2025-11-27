@@ -1,9 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
-using Ductus.FluentDocker.Model.Containers;
+using FluentDocker.Model.Containers;
 
-namespace Ductus.FluentDocker.Executors
+namespace FluentDocker.Executors
 {
   public sealed class ProcessExecutionResult
   {

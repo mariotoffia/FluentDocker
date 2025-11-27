@@ -1,6 +1,6 @@
-﻿using Ductus.FluentDocker.Model.Containers;
+﻿using FluentDocker.Model.Containers;
 
-namespace Ductus.FluentDocker.Executors
+namespace FluentDocker.Executors
 {
   public interface IProcessResponse<T>
   {

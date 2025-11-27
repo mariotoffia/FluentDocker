@@ -1,6 +1,6 @@
 using System;
 
-namespace Ductus.FluentDocker.Model.Compose
+namespace FluentDocker.Model.Compose
 {
   /// <summary>
   /// Configures if and how to restart containers when they exit. Replaces

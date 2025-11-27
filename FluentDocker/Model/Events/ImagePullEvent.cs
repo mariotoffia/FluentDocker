@@ -1,4 +1,4 @@
-namespace Ductus.FluentDocker.Model.Events
+namespace FluentDocker.Model.Events
 {
   /// <summary>
   /// Emitted when a remote image has been pulled onto local store.

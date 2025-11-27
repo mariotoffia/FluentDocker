@@ -1,10 +1,10 @@
 using System.Linq;
-using Ductus.FluentDocker.Kernel;
-using Ductus.FluentDocker.Model.Kernel;
-using Ductus.FluentDocker.Services;
+using FluentDocker.Kernel;
+using FluentDocker.Model.Kernel;
+using FluentDocker.Services;
 using Xunit;
 
-namespace Ductus.FluentDocker.Tests.V3.UnitTests
+namespace FluentDocker.Tests.V3.UnitTests
 {
     [Trait("Category", "Unit")]
     public class BuildScopeTests

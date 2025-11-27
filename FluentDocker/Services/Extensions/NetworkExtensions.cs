@@ -4,11 +4,11 @@ using System.Net;
 using System.Net.Http;
 using System.Net.Sockets;
 using System.Threading;
-using Ductus.FluentDocker.Common;
-using Ductus.FluentDocker.Extensions;
-using Ductus.FluentDocker.Model.Containers;
+using FluentDocker.Common;
+using FluentDocker.Extensions;
+using FluentDocker.Model.Containers;
 
-namespace Ductus.FluentDocker.Services.Extensions
+namespace FluentDocker.Services.Extensions
 {
   public static class NetworkExtensions
   {

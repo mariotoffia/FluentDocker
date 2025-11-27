@@ -1,11 +1,11 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using Ductus.FluentDocker.Model.Containers;
-using Ductus.FluentDocker.Model.Machines;
-using Ductus.FluentDocker.Services;
+using FluentDocker.Model.Containers;
+using FluentDocker.Model.Machines;
+using FluentDocker.Services;
 
-namespace Ductus.FluentDocker.Executors.Parsers
+namespace FluentDocker.Executors.Parsers
 {
   public class MachineLsResponseParser : IProcessResponseParser<IList<MachineLsResponse /*machine-name*/>>
   {

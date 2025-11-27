@@ -1,6 +1,6 @@
 using System.Collections.Generic;
 
-namespace Ductus.FluentDocker.Model.Compose
+namespace FluentDocker.Model.Compose
 {
   /// <summary>
   ///   Mount host paths or named volumes, specified as sub-options to a service.

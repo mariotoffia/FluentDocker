@@ -2,9 +2,9 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
-using Ductus.FluentDocker.Model;
+using FluentDocker.Model;
 
-namespace Ductus.FluentDocker.Common
+namespace FluentDocker.Common
 {
   [AttributeUsage(AttributeTargets.Class)]
   public sealed class FeatureAttribute : Attribute

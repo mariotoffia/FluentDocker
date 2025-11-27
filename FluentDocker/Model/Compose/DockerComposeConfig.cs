@@ -1,9 +1,9 @@
 using System;
 using System.Collections.Generic;
-using Ductus.FluentDocker.Model.Images;
-using Ductus.FluentDocker.Model.Common;
+using FluentDocker.Model.Images;
+using FluentDocker.Model.Common;
 
-namespace Ductus.FluentDocker.Model.Compose
+namespace FluentDocker.Model.Compose
 {
   public class DockerComposeConfig
   {

@@ -1,6 +1,6 @@
 ﻿using System.Text;
 
-namespace Ductus.FluentDocker.Model.Containers
+namespace FluentDocker.Model.Containers
 {
   public sealed class VolumeMount
   {

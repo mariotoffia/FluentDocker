@@ -2,10 +2,10 @@
 using System.Linq;
 using System.Collections.Generic;
 using System.Reflection;
-using Ductus.FluentDocker.Model.Common;
-using Ductus.FluentDocker.Resources;
+using FluentDocker.Model.Common;
+using FluentDocker.Resources;
 
-namespace Ductus.FluentDocker.Extensions
+namespace FluentDocker.Extensions
 {
   public static class ResourceExtensions
   {

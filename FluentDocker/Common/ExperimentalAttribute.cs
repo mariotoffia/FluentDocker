@@ -1,6 +1,6 @@
 using System;
 
-namespace Ductus.FluentDocker.Common
+namespace FluentDocker.Common
 {
   /// <summary>
   /// Specifies that the implementation is experimental and is subject to change.

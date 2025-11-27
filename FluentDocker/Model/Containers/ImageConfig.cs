@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 // ReSharper disable ClassNeverInstantiated.Global
 
-namespace Ductus.FluentDocker.Model.Containers
+namespace FluentDocker.Model.Containers
 {
   public sealed class ImageConfig
   {

@@ -110,9 +110,9 @@ var results = await new Builder()
 ### Complete Example
 
 ```csharp
-using Ductus.FluentDocker.Builders.V3;
-using Ductus.FluentDocker.Kernel;
-using Ductus.FluentDocker.Services.V3;
+using FluentDocker.Builders.V3;
+using FluentDocker.Kernel;
+using FluentDocker.Services.V3;
 
 // Create kernel with Docker CLI driver
 var kernel = FluentDockerKernel.Create()

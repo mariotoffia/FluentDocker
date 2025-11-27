@@ -3,15 +3,15 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using Ductus.FluentDocker.Common;
-using Ductus.FluentDocker.Model.Drivers;
-using Ductus.FluentDocker.Model.Images;
-using Ductus.FluentDocker.Model.Networks;
-using Ductus.FluentDocker.Model.Volumes;
+using FluentDocker.Common;
+using FluentDocker.Model.Drivers;
+using FluentDocker.Model.Images;
+using FluentDocker.Model.Networks;
+using FluentDocker.Model.Volumes;
 using Newtonsoft.Json;
-using Container = Ductus.FluentDocker.Model.Containers.Container;
+using Container = FluentDocker.Model.Containers.Container;
 
-namespace Ductus.FluentDocker.Drivers.Docker.Cli
+namespace FluentDocker.Drivers.Docker.Cli
 {
     /// <summary>
     /// Docker CLI driver implementation for v3.0.0.
@@ -58,7 +58,7 @@ namespace Ductus.FluentDocker.Drivers.Docker.Cli
         }
 
         // IContainerDriver implementation
-        public async Task<Ductus.FluentDocker.Model.Drivers.CommandResponse<ContainerCreateResult>> CreateAsync(
+        public async Task<Model.Drivers.CommandResponse<ContainerCreateResult>> CreateAsync(
             DriverContext context,
             ContainerCreateConfig config,
             CancellationToken cancellationToken = default)
@@ -173,7 +173,7 @@ namespace Ductus.FluentDocker.Drivers.Docker.Cli
             }
         }
 
-        public async Task<Ductus.FluentDocker.Model.Drivers.CommandResponse<Unit>> StartAsync(
+        public async Task<Model.Drivers.CommandResponse<Unit>> StartAsync(
             DriverContext context,
             string containerId,
             CancellationToken cancellationToken = default)
@@ -199,7 +199,7 @@ namespace Ductus.FluentDocker.Drivers.Docker.Cli
             }
         }
 
-        public async Task<Ductus.FluentDocker.Model.Drivers.CommandResponse<Unit>> StopAsync(
+        public async Task<Model.Drivers.CommandResponse<Unit>> StopAsync(
             DriverContext context,
             string containerId,
             int? timeout = null,
@@ -231,7 +231,7 @@ namespace Ductus.FluentDocker.Drivers.Docker.Cli
             }
         }
 
-        Task<Ductus.FluentDocker.Model.Drivers.CommandResponse<Unit>> IContainerDriver.RemoveAsync(
+        Task<Model.Drivers.CommandResponse<Unit>> IContainerDriver.RemoveAsync(
             DriverContext context,
             string containerId,
             bool force,
@@ -272,7 +272,7 @@ namespace Ductus.FluentDocker.Drivers.Docker.Cli
             }
         }
 
-        Task<Ductus.FluentDocker.Model.Drivers.CommandResponse<Container>> IContainerDriver.InspectAsync(
+        Task<Model.Drivers.CommandResponse<Container>> IContainerDriver.InspectAsync(
             DriverContext context,
             string containerId,
             CancellationToken cancellationToken)
@@ -316,7 +316,7 @@ namespace Ductus.FluentDocker.Drivers.Docker.Cli
             }
         }
 
-        public async Task<Ductus.FluentDocker.Model.Drivers.CommandResponse<IList<Container>>> ListAsync(
+        public async Task<Model.Drivers.CommandResponse<IList<Container>>> ListAsync(
             DriverContext context,
             ContainerListFilter filter = null,
             CancellationToken cancellationToken = default)
@@ -362,7 +362,7 @@ namespace Ductus.FluentDocker.Drivers.Docker.Cli
             }
         }
 
-        public async Task<Ductus.FluentDocker.Model.Drivers.CommandResponse<string>> GetLogsAsync(
+        public async Task<Model.Drivers.CommandResponse<string>> GetLogsAsync(
             DriverContext context,
             string containerId,
             bool follow = false,

@@ -1,8 +1,8 @@
 using System.Threading;
 using System.Threading.Tasks;
-using Ductus.FluentDocker.Model.Drivers;
+using FluentDocker.Model.Drivers;
 
-namespace Ductus.FluentDocker.Drivers
+namespace FluentDocker.Drivers
 {
     /// <summary>
     /// Base interface for all container runtime drivers (Docker, Podman, etc.).

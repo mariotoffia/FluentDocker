@@ -4,6 +4,6 @@
     <TargetFramework>net8.0</TargetFramework>
   </PropertyGroup>
   <ItemGroup>
-    <ProjectReference Include="..\..\Ductus.FluentDocker\Ductus.FluentDocker.csproj" />
+    <ProjectReference Include="..\..\FluentDocker\FluentDocker.csproj" />
   </ItemGroup>
 </Project>

@@ -1,4 +1,4 @@
-namespace Ductus.FluentDocker.Model.Compose
+namespace FluentDocker.Model.Compose
 {
   public interface IServiceVolumeDefinition
   {

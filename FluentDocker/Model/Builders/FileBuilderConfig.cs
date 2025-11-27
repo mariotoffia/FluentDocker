@@ -1,9 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Text;
-using Ductus.FluentDocker.Model.Common;
+using FluentDocker.Model.Common;
 
-namespace Ductus.FluentDocker.Model.Builders
+namespace FluentDocker.Model.Builders
 {
   public sealed class FileBuilderConfig
   {

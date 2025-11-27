@@ -1,12 +1,12 @@
 using System;
 using System.Collections.Generic;
 using System.Net;
-using Ductus.FluentDocker.Model.Common;
-using Ductus.FluentDocker.Model.Compose;
-using Ductus.FluentDocker.Model.Containers;
-using Ductus.FluentDocker.Services;
+using FluentDocker.Model.Common;
+using FluentDocker.Model.Compose;
+using FluentDocker.Model.Containers;
+using FluentDocker.Services;
 
-namespace Ductus.FluentDocker.Model.Builders
+namespace FluentDocker.Model.Builders
 {
   public sealed class DestroyIfExistParams {
     public bool Force { get; set; }

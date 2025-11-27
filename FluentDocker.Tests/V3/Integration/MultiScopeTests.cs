@@ -1,13 +1,13 @@
 using System;
 using System.Linq;
 using System.Threading.Tasks;
-using Ductus.FluentDocker.Builders.V3;
-using Ductus.FluentDocker.Kernel;
-using Ductus.FluentDocker.Model.Kernel;
-using Ductus.FluentDocker.Services.V3;
+using FluentDocker.Builders.V3;
+using FluentDocker.Kernel;
+using FluentDocker.Model.Kernel;
+using FluentDocker.Services.V3;
 using Xunit;
 
-namespace Ductus.FluentDocker.Tests.V3.Integration
+namespace FluentDocker.Tests.V3.Integration
 {
     [Trait("Category", "Integration")]
     public class MultiScopeTests : IAsyncDisposable

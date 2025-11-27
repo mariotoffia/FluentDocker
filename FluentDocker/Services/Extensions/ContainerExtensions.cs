@@ -5,14 +5,14 @@ using System.IO;
 using System.Linq;
 using System.Net;
 using System.Threading;
-using Ductus.FluentDocker.Commands;
-using Ductus.FluentDocker.Common;
-using Ductus.FluentDocker.Executors;
-using Ductus.FluentDocker.Extensions;
-using Ductus.FluentDocker.Model.Common;
-using Ductus.FluentDocker.Model.Containers;
+using FluentDocker.Commands;
+using FluentDocker.Common;
+using FluentDocker.Executors;
+using FluentDocker.Extensions;
+using FluentDocker.Model.Common;
+using FluentDocker.Model.Containers;
 
-namespace Ductus.FluentDocker.Services.Extensions
+namespace FluentDocker.Services.Extensions
 {
   public static class ContainerExtensions
   {

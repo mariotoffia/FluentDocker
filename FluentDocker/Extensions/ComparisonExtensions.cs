@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace Ductus.FluentDocker.Extensions
+namespace FluentDocker.Extensions
 {
   public static class ComparisonExtensions
   {

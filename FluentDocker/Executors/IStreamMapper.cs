@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace Ductus.FluentDocker.Executors
+namespace FluentDocker.Executors
 {
   public interface IStreamMapper<T> where T : class
   {

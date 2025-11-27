@@ -1,7 +1,7 @@
 using System;
-using Ductus.FluentDocker.Model.Drivers;
+using FluentDocker.Model.Drivers;
 
-namespace Ductus.FluentDocker.Common
+namespace FluentDocker.Common
 {
     /// <summary>
     /// Exception thrown when an image pull operation fails.

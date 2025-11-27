@@ -5,6 +5,7 @@
 FluentDocker v3.0.0 introduces a pluggable driver layer architecture with **breaking changes**. This guide helps you migrate from v2.x.x to v3.0.0.
 
 **Key Changes:**
+- **⚠️ Package and namespace renamed from `Ductus.FluentDocker` to `FluentDocker`**
 - **Builder uses WithinDriver() scoping pattern** (no kernel in constructor)
 - **Scoped operations with kernel reuse**
 - **BuildResults for tracking multi-scope deployments**
@@ -66,6 +67,120 @@ container.Start();
 ---
 
 ## Breaking Changes
+
+### 0. Package and Namespace Rename
+
+**⚠️ CRITICAL BREAKING CHANGE**
+
+In v3.0.0, the package and namespace have been simplified from `Ductus.FluentDocker` to `FluentDocker`.
+
+#### NuGet Package Changes
+
+| v2.x.x Package | v3.0.0 Package |
+|----------------|----------------|
+| `Ductus.FluentDocker` | `FluentDocker` |
+| `Ductus.FluentDocker.MsTest` | `FluentDocker.MsTest` |
+| `Ductus.FluentDocker.XUnit` | `FluentDocker.XUnit` |
+
+**Migration Step**: Update your package references in your `.csproj` file:
+
+```xml
+<!-- v2.x.x -->
+<PackageReference Include="Ductus.FluentDocker" Version="2.x.x" />
+<PackageReference Include="Ductus.FluentDocker.MsTest" Version="2.x.x" />
+<PackageReference Include="Ductus.FluentDocker.XUnit" Version="2.x.x" />
+
+<!-- v3.0.0 -->
+<PackageReference Include="FluentDocker" Version="3.0.0" />
+<PackageReference Include="FluentDocker.MsTest" Version="3.0.0" />
+<PackageReference Include="FluentDocker.XUnit" Version="3.0.0" />
+```
+
+#### Namespace Changes
+
+All namespaces have been renamed from `Ductus.FluentDocker.*` to `FluentDocker.*`.
+
+**v2.x.x**:
+```csharp
+using Ductus.FluentDocker;
+using Ductus.FluentDocker.Builders;
+using Ductus.FluentDocker.Commands;
+using Ductus.FluentDocker.Extensions;
+using Ductus.FluentDocker.Model.Containers;
+using Ductus.FluentDocker.Services;
+```
+
+**v3.0.0**:
+```csharp
+using FluentDocker;
+using FluentDocker.Builders;
+using FluentDocker.Commands;
+using FluentDocker.Extensions;
+using FluentDocker.Model.Containers;
+using FluentDocker.Services;
+```
+
+#### Quick Find & Replace Migration
+
+You can migrate your code with a simple find-and-replace:
+
+**Using IDE**:
+1. Find: `Ductus.FluentDocker`
+2. Replace with: `FluentDocker`
+
+**Using Command Line (Unix/macOS)**:
+```bash
+# For all .cs files in current directory recursively
+find . -name "*.cs" -exec sed -i '' 's/Ductus\.FluentDocker/FluentDocker/g' {} \;
+
+# For .csproj files
+find . -name "*.csproj" -exec sed -i '' 's/Ductus\.FluentDocker/FluentDocker/g' {} \;
+```
+
+**Using PowerShell (Windows)**:
+```powershell
+# For all .cs files
+Get-ChildItem -Recurse -Filter *.cs | ForEach-Object {
+    (Get-Content $_.FullName) -replace 'Ductus\.FluentDocker', 'FluentDocker' | Set-Content $_.FullName
+}
+
+# For .csproj files
+Get-ChildItem -Recurse -Filter *.csproj | ForEach-Object {
+    (Get-Content $_.FullName) -replace 'Ductus\.FluentDocker', 'FluentDocker' | Set-Content $_.FullName
+}
+```
+
+#### Logging Category Change
+
+The logging category has also changed:
+
+| v2.x.x | v3.0.0 |
+|--------|--------|
+| `Ductus.FluentDocker` | `FluentDocker` |
+
+If you have logging configuration filtering by namespace, update accordingly:
+
+```json
+// v2.x.x appsettings.json
+{
+  "Logging": {
+    "LogLevel": {
+      "Ductus.FluentDocker": "Debug"
+    }
+  }
+}
+
+// v3.0.0 appsettings.json
+{
+  "Logging": {
+    "LogLevel": {
+      "FluentDocker": "Debug"
+    }
+  }
+}
+```
+
+---
 
 ### 1. Builder Scoping Pattern
 
@@ -299,7 +414,7 @@ var response = kernel.CreateContainer(createParams, context);
 
 **v2.x.x**:
 ```csharp
-using Ductus.FluentDocker.Builders;
+using FluentDocker.Builders;
 
 public class MyApp
 {
@@ -320,7 +435,7 @@ public class MyApp
 
 **v3.0.0** (no changes needed):
 ```csharp
-using Ductus.FluentDocker.Builders;
+using FluentDocker.Builders;
 
 public class MyApp
 {
@@ -683,14 +798,23 @@ kernel.RegisterDriver("docker", new DockerCliDriver());
 
 | Use Case | Effort | Changes Required |
 |----------|--------|------------------|
-| Simple local Docker | **None** | Use default kernel (no changes) |
-| Docker Compose | **None** | Use default kernel (no changes) |
-| Remote Docker host | **Low** | Register driver with host/certs |
-| Multiple hosts | **Medium** | Register multiple drivers |
-| Custom testing | **Low-Medium** | Use mock drivers |
+| **All projects** | **Required** | Namespace rename: `Ductus.FluentDocker` → `FluentDocker` |
+| Simple local Docker | **Low** | Namespace rename + use default kernel |
+| Docker Compose | **Low** | Namespace rename + use default kernel |
+| Remote Docker host | **Low-Medium** | Namespace rename + register driver with host/certs |
+| Multiple hosts | **Medium** | Namespace rename + register multiple drivers |
+| Custom testing | **Low-Medium** | Namespace rename + use mock drivers |
+
+### Migration Checklist
+
+1. ✅ Update NuGet package references (remove `Ductus.` prefix)
+2. ✅ Find & replace all `Ductus.FluentDocker` → `FluentDocker` in code
+3. ✅ Update logging configuration if filtering by namespace
+4. ✅ Review and update any service property accesses (e.g., `DockerHost` → `Context.Host`)
 
 ### Benefits of v3.0.0
 
+✅ **Cleaner namespace**: Simplified from `Ductus.FluentDocker` to `FluentDocker`
 ✅ **Multiple runtimes**: Docker and Podman simultaneously
 ✅ **Multiple hosts**: Manage multiple Docker hosts easily
 ✅ **Better performance**: API drivers available
@@ -698,12 +822,13 @@ kernel.RegisterDriver("docker", new DockerCliDriver());
 ✅ **More flexible**: Driver plugins, custom implementations
 ✅ **Cleaner code**: Explicit kernel management
 
-### Recommended Approach
+### Recommended Migration Approach
 
-1. **Start with default kernel** for simple cases (zero changes)
-2. **Use explicit kernel** for better control and testing
-3. **Register multiple drivers** when managing multiple hosts
-4. **Use SysCtl()** for advanced driver access
-5. **Create mock drivers** for unit testing
+1. **First**: Do the namespace rename (required for all projects)
+2. **Then**: Start with default kernel for simple cases
+3. **Later**: Use explicit kernel for better control and testing
+4. **As needed**: Register multiple drivers when managing multiple hosts
+5. **For advanced use**: Use SysCtl() for direct driver access
+6. **For testing**: Create mock drivers for unit testing
 
-The migration path is designed to be **smooth and incremental** - start with minimal changes and adopt new features as needed.
+The migration path is designed to be **smooth and incremental** - the namespace rename is the only required change, and you can adopt new features as needed.

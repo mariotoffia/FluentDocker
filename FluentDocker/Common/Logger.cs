@@ -1,6 +1,6 @@
 using System.Diagnostics;
 
-namespace Ductus.FluentDocker.Common
+namespace FluentDocker.Common
 {
   public static class Logger
   {

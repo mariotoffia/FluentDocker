@@ -1,6 +1,6 @@
-﻿using Ductus.FluentDocker.Common;
+﻿using FluentDocker.Common;
 
-namespace Ductus.FluentDocker.Services
+namespace FluentDocker.Services
 {
   /// <summary>
   ///   Controls Logging.

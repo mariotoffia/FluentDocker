@@ -1,7 +1,7 @@
 using System.Text;
-using Ductus.FluentDocker.Extensions;
+using FluentDocker.Extensions;
 
-namespace Ductus.FluentDocker.Model.Service
+namespace FluentDocker.Model.Service
 {
   public sealed class ServiceCreate
   {

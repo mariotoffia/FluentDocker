@@ -1,6 +1,6 @@
 ﻿using System.Runtime.InteropServices;
 
-namespace Ductus.FluentDocker.Common
+namespace FluentDocker.Common
 {
   public static class FdOs
   {

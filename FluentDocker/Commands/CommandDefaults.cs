@@ -1,6 +1,6 @@
-﻿using Ductus.FluentDocker.Extensions;
+﻿using FluentDocker.Extensions;
 
-namespace Ductus.FluentDocker.Commands
+namespace FluentDocker.Commands
 {
   public static class CommandDefaults
   {

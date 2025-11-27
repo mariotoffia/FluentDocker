@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace Ductus.FluentDocker.Common
+namespace FluentDocker.Common
 {
   public class FluentDockerException : Exception
   {

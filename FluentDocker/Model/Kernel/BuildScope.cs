@@ -1,9 +1,9 @@
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
-using Ductus.FluentDocker.Services;
+using FluentDocker.Services;
 
-namespace Ductus.FluentDocker.Model.Kernel
+namespace FluentDocker.Model.Kernel
 {
     /// <summary>
     /// Represents a build scope (kernel + driver).
@@ -18,7 +18,7 @@ namespace Ductus.FluentDocker.Model.Kernel
         /// </summary>
         /// <param name="kernel">The kernel instance</param>
         /// <param name="driverId">The driver identifier</param>
-        public BuildScope(global::Ductus.FluentDocker.Kernel.FluentDockerKernel kernel, string driverId)
+        public BuildScope(global::FluentDocker.Kernel.FluentDockerKernel kernel, string driverId)
         {
             Kernel = kernel;
             DriverId = driverId;
@@ -27,7 +27,7 @@ namespace Ductus.FluentDocker.Model.Kernel
         /// <summary>
         /// Gets the kernel for this scope.
         /// </summary>
-        public global::Ductus.FluentDocker.Kernel.FluentDockerKernel Kernel { get; }
+        public global::FluentDocker.Kernel.FluentDockerKernel Kernel { get; }
 
         /// <summary>
         /// Gets the driver ID for this scope.

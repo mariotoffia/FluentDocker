@@ -1,7 +1,7 @@
-﻿using Ductus.FluentDocker.Model;
-using Ductus.FluentDocker.Model.Containers;
+﻿using FluentDocker.Model;
+using FluentDocker.Model.Containers;
 
-namespace Ductus.FluentDocker.Executors.Parsers
+namespace FluentDocker.Executors.Parsers
 {
   public sealed class BaseInfoResponseParser : IProcessResponseParser<DockerInfoBase>
   {

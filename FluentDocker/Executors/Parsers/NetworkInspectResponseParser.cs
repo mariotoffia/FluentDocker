@@ -1,8 +1,8 @@
-using Ductus.FluentDocker.Model.Containers;
-using Ductus.FluentDocker.Model.Networks;
+using FluentDocker.Model.Containers;
+using FluentDocker.Model.Networks;
 using Newtonsoft.Json;
 
-namespace Ductus.FluentDocker.Executors.Parsers
+namespace FluentDocker.Executors.Parsers
 {
   public sealed class NetworkInspectResponseParser : IProcessResponseParser<NetworkConfiguration>
   {

@@ -1,9 +1,9 @@
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
-using Ductus.FluentDocker.Model.Containers;
+using FluentDocker.Model.Containers;
 
-namespace Ductus.FluentDocker.Services.V3
+namespace FluentDocker.Services.V3
 {
     /// <summary>
     /// v3.0.0 async container service interface.

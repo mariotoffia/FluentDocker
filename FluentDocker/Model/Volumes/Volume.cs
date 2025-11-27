@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace Ductus.FluentDocker.Model.Volumes
+namespace FluentDocker.Model.Volumes
 {
   public sealed class Volume
   {

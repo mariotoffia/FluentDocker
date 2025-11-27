@@ -1,10 +1,10 @@
-using Ductus.FluentDocker.Builders;
-using Ductus.FluentDocker.Common;
-using Ductus.FluentDocker.Model.Common;
-using Ductus.FluentDocker.Services;
+using FluentDocker.Builders;
+using FluentDocker.Common;
+using FluentDocker.Model.Common;
+using FluentDocker.Services;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
-namespace Ductus.FluentDocker.MsTest
+namespace FluentDocker.MsTest
 {
   [Experimental]
   public abstract class FluentDockerComposeTestBase

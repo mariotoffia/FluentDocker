@@ -1,12 +1,12 @@
 ﻿using System;
 using System.Threading;
-using Ductus.FluentDocker.Executors;
-using Ductus.FluentDocker.Executors.Mappers;
-using Ductus.FluentDocker.Extensions;
-using Ductus.FluentDocker.Model.Common;
-using Ductus.FluentDocker.Model.Containers;
+using FluentDocker.Executors;
+using FluentDocker.Executors.Mappers;
+using FluentDocker.Extensions;
+using FluentDocker.Model.Common;
+using FluentDocker.Model.Containers;
 
-namespace Ductus.FluentDocker.Commands
+namespace FluentDocker.Commands
 {
   public static class ComposeStreams
   {

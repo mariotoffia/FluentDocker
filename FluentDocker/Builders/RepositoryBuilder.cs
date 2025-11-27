@@ -1,7 +1,7 @@
-using Ductus.FluentDocker.Commands;
-using Ductus.FluentDocker.Services;
+using FluentDocker.Commands;
+using FluentDocker.Services;
 
-namespace Ductus.FluentDocker.Builders
+namespace FluentDocker.Builders
 {
   public sealed class RepositoryBuilder
   {

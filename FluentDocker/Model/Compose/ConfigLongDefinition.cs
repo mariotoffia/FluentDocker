@@ -1,4 +1,4 @@
-namespace Ductus.FluentDocker.Model.Compose
+namespace FluentDocker.Model.Compose
 {
   /// <summary>
   /// The long syntax provides more granularity in how the config is created within the service’s task containers.

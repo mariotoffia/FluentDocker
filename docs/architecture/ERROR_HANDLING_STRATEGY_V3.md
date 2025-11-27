@@ -69,7 +69,7 @@ public class FluentDockerNotSupportedException : FluentDockerException
 ### Base Exceptions
 
 ```csharp
-namespace Ductus.FluentDocker.Exceptions
+namespace FluentDocker.Exceptions
 {
     /// <summary>
     /// Base exception for all FluentDocker errors.
@@ -151,7 +151,7 @@ namespace Ductus.FluentDocker.Exceptions
 ### Driver Exceptions
 
 ```csharp
-namespace Ductus.FluentDocker.Drivers.Exceptions
+namespace FluentDocker.Drivers.Exceptions
 {
     /// <summary>
     /// Base exception for driver-related errors.
@@ -268,7 +268,7 @@ namespace Ductus.FluentDocker.Drivers.Exceptions
 ### Container Operation Exceptions
 
 ```csharp
-namespace Ductus.FluentDocker.Exceptions
+namespace FluentDocker.Exceptions
 {
     /// <summary>
     /// Base exception for container operations.
@@ -362,7 +362,7 @@ namespace Ductus.FluentDocker.Exceptions
 ### Image Operation Exceptions
 
 ```csharp
-namespace Ductus.FluentDocker.Exceptions
+namespace FluentDocker.Exceptions
 {
     public class ImageException : FluentDockerException
     {
@@ -414,7 +414,7 @@ namespace Ductus.FluentDocker.Exceptions
 ### Network and Volume Exceptions
 
 ```csharp
-namespace Ductus.FluentDocker.Exceptions
+namespace FluentDocker.Exceptions
 {
     public class NetworkException : FluentDockerException
     {
@@ -467,7 +467,7 @@ namespace Ductus.FluentDocker.Exceptions
 ### Compose Exceptions
 
 ```csharp
-namespace Ductus.FluentDocker.Exceptions
+namespace FluentDocker.Exceptions
 {
     public class ComposeException : FluentDockerException
     {
@@ -518,7 +518,7 @@ namespace Ductus.FluentDocker.Exceptions
 ### Configuration and Validation Exceptions
 
 ```csharp
-namespace Ductus.FluentDocker.Exceptions
+namespace FluentDocker.Exceptions
 {
     public class ConfigurationException : FluentDockerException
     {
@@ -582,7 +582,7 @@ namespace Ductus.FluentDocker.Exceptions
 ### Error Code Structure
 
 ```csharp
-namespace Ductus.FluentDocker.Exceptions
+namespace FluentDocker.Exceptions
 {
     /// <summary>
     /// Hierarchical error codes for programmatic error handling.
@@ -686,7 +686,7 @@ namespace Ductus.FluentDocker.Exceptions
 ### ErrorContext Class
 
 ```csharp
-namespace Ductus.FluentDocker.Exceptions
+namespace FluentDocker.Exceptions
 {
     /// <summary>
     /// Diagnostic context attached to exceptions for troubleshooting.
@@ -806,7 +806,7 @@ namespace Ductus.FluentDocker.Exceptions
 ### Enhanced CommandResponse<T>
 
 ```csharp
-namespace Ductus.FluentDocker.Commands
+namespace FluentDocker.Commands
 {
     /// <summary>
     /// Enhanced command response with error context.
@@ -1172,7 +1172,7 @@ public class FluentDockerKernel : IFluentDockerKernel
 ### Retry Policy
 
 ```csharp
-namespace Ductus.FluentDocker.Resilience
+namespace FluentDocker.Resilience
 {
     public class RetryPolicy
     {
@@ -1275,7 +1275,7 @@ public CommandResponse<string> PullImage(DriverContext context, string image)
 ### Structured Logging
 
 ```csharp
-namespace Ductus.FluentDocker.Logging
+namespace FluentDocker.Logging
 {
     public enum LogLevel
     {
@@ -1346,7 +1346,7 @@ namespace Ductus.FluentDocker.Logging
 ### Metrics and Telemetry
 
 ```csharp
-namespace Ductus.FluentDocker.Telemetry
+namespace FluentDocker.Telemetry
 {
     public interface IFluentDockerMetrics
     {
@@ -1399,7 +1399,7 @@ namespace Ductus.FluentDocker.Telemetry
 
 **Add to codebase without changing existing code:**
 
-1. Create new exception hierarchy in `Ductus.FluentDocker.Exceptions/`
+1. Create new exception hierarchy in `FluentDocker.Exceptions/`
 2. Create `ErrorCodes` class
 3. Create `ErrorContext` class
 4. Add to project but don't use yet

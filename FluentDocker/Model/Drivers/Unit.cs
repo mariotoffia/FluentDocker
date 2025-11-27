@@ -1,4 +1,4 @@
-namespace Ductus.FluentDocker.Model.Drivers
+namespace FluentDocker.Model.Drivers
 {
     /// <summary>
     /// Represents a void return type for CommandResponse when no data is returned.

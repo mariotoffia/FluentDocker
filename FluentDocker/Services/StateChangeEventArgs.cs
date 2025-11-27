@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace Ductus.FluentDocker.Services
+namespace FluentDocker.Services
 {
   public sealed class StateChangeEventArgs : EventArgs
   {

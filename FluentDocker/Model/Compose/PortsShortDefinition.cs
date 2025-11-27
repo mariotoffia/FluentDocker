@@ -1,4 +1,4 @@
-namespace Ductus.FluentDocker.Model.Compose
+namespace FluentDocker.Model.Compose
 {
   /// <summary>
   ///   Either specify both ports (HOST:CONTAINER), or just the container port (an ephemeral host port is chosen).

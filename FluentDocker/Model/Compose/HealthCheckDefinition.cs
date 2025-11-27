@@ -1,6 +1,6 @@
 using System.Collections.Generic;
 
-namespace Ductus.FluentDocker.Model.Compose
+namespace FluentDocker.Model.Compose
 {
   /// <summary>
   ///   Configure a check that’s run to determine whether or not containers for this service are “healthy”.

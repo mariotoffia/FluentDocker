@@ -16,7 +16,7 @@ This document provides a detailed implementation plan for FluentDocker v3.0.0 wi
 ## Project Structure
 
 ```
-Ductus.FluentDocker/
+FluentDocker/
 ├── Drivers/                          # NEW: Driver layer
 │   ├── Core/                         # Core driver abstractions
 │   │   ├── IDriver.cs
@@ -89,7 +89,7 @@ Ductus.FluentDocker/
 **File**: `Drivers/Models/DriverComponent.cs`
 
 ```csharp
-namespace Ductus.FluentDocker.Drivers.Models
+namespace FluentDocker.Drivers.Models
 {
     /// <summary>
     /// Driver component types for SysCtl() access.
@@ -110,7 +110,7 @@ namespace Ductus.FluentDocker.Drivers.Models
 **File**: `Drivers/Models/DriverType.cs`
 
 ```csharp
-namespace Ductus.FluentDocker.Drivers.Models
+namespace FluentDocker.Drivers.Models
 {
     public enum DriverType
     {
@@ -125,7 +125,7 @@ namespace Ductus.FluentDocker.Drivers.Models
 **File**: `Drivers/Models/RuntimeType.cs`
 
 ```csharp
-namespace Ductus.FluentDocker.Drivers.Models
+namespace FluentDocker.Drivers.Models
 {
     public enum RuntimeType
     {
@@ -141,7 +141,7 @@ namespace Ductus.FluentDocker.Drivers.Models
 **File**: `Drivers/Models/PreferredDriverType.cs`
 
 ```csharp
-namespace Ductus.FluentDocker.Drivers.Models
+namespace FluentDocker.Drivers.Models
 {
     public enum PreferredDriverType
     {
@@ -160,7 +160,7 @@ namespace Ductus.FluentDocker.Drivers.Models
 ```csharp
 using System;
 
-namespace Ductus.FluentDocker.Drivers.Exceptions
+namespace FluentDocker.Drivers.Exceptions
 {
     public class DriverNotFoundException : Exception
     {
@@ -189,7 +189,7 @@ namespace Ductus.FluentDocker.Drivers.Exceptions
 ```csharp
 using System;
 
-namespace Ductus.FluentDocker.Drivers.Exceptions
+namespace FluentDocker.Drivers.Exceptions
 {
     public class DriverException : Exception
     {
@@ -221,9 +221,9 @@ namespace Ductus.FluentDocker.Drivers.Exceptions
 using System;
 using System.Collections.Generic;
 using System.Threading;
-using Ductus.FluentDocker.Model.Common;
+using FluentDocker.Model.Common;
 
-namespace Ductus.FluentDocker.Drivers.Models
+namespace FluentDocker.Drivers.Models
 {
     public class DriverContext
     {
@@ -257,7 +257,7 @@ namespace Ductus.FluentDocker.Drivers.Models
 ```csharp
 using System.Collections.Generic;
 
-namespace Ductus.FluentDocker.Drivers.Models
+namespace FluentDocker.Drivers.Models
 {
     public class DriverPreferences
     {
@@ -300,9 +300,9 @@ namespace Ductus.FluentDocker.Drivers.Models
 
 ```csharp
 using System;
-using Ductus.FluentDocker.Drivers.Models;
+using FluentDocker.Drivers.Models;
 
-namespace Ductus.FluentDocker.Drivers.Core
+namespace FluentDocker.Drivers.Core
 {
     public interface IDriver : IDisposable
     {
@@ -379,11 +379,11 @@ namespace Ductus.FluentDocker.Drivers.Core
 
 ```csharp
 using System.Collections.Generic;
-using Ductus.FluentDocker.Commands;
-using Ductus.FluentDocker.Drivers.Models;
-using Ductus.FluentDocker.Model.Containers;
+using FluentDocker.Commands;
+using FluentDocker.Drivers.Models;
+using FluentDocker.Model.Containers;
 
-namespace Ductus.FluentDocker.Drivers.Core
+namespace FluentDocker.Drivers.Core
 {
     public interface IContainerDriver
     {
@@ -423,10 +423,10 @@ Create similar interfaces for: `IImageDriver`, `INetworkDriver`, `IVolumeDriver`
 ```csharp
 using System;
 using System.Collections.Generic;
-using Ductus.FluentDocker.Drivers.Core;
-using Ductus.FluentDocker.Drivers.Models;
+using FluentDocker.Drivers.Core;
+using FluentDocker.Drivers.Models;
 
-namespace Ductus.FluentDocker.Kernel.Registry
+namespace FluentDocker.Kernel.Registry
 {
     public interface IDriverRegistry : IDisposable
     {
@@ -485,10 +485,10 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
-using Ductus.FluentDocker.Drivers.Core;
-using Ductus.FluentDocker.Drivers.Models;
+using FluentDocker.Drivers.Core;
+using FluentDocker.Drivers.Models;
 
-namespace Ductus.FluentDocker.Kernel.Registry
+namespace FluentDocker.Kernel.Registry
 {
     public class DriverRegistry : IDriverRegistry
     {
@@ -577,12 +577,12 @@ namespace Ductus.FluentDocker.Kernel.Registry
 ```csharp
 using System;
 using System.Linq;
-using Ductus.FluentDocker.Drivers.Core;
-using Ductus.FluentDocker.Drivers.Exceptions;
-using Ductus.FluentDocker.Drivers.Models;
-using Ductus.FluentDocker.Kernel.Registry;
+using FluentDocker.Drivers.Core;
+using FluentDocker.Drivers.Exceptions;
+using FluentDocker.Drivers.Models;
+using FluentDocker.Kernel.Registry;
 
-namespace Ductus.FluentDocker.Kernel.Selection
+namespace FluentDocker.Kernel.Selection
 {
     public class DefaultDriverSelector : IDriverSelector
     {
@@ -682,12 +682,12 @@ namespace Ductus.FluentDocker.Kernel.Selection
 ```csharp
 using System;
 using System.Collections.Generic;
-using Ductus.FluentDocker.Commands;
-using Ductus.FluentDocker.Drivers.Core;
-using Ductus.FluentDocker.Drivers.Models;
-using Ductus.FluentDocker.Model.Containers;
+using FluentDocker.Commands;
+using FluentDocker.Drivers.Core;
+using FluentDocker.Drivers.Models;
+using FluentDocker.Model.Containers;
 
-namespace Ductus.FluentDocker.Kernel
+namespace FluentDocker.Kernel
 {
     public interface IFluentDockerKernel : IDisposable
     {
@@ -738,17 +738,17 @@ namespace Ductus.FluentDocker.Kernel
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using Ductus.FluentDocker.Commands;
-using Ductus.FluentDocker.Common;
-using Ductus.FluentDocker.Drivers.Core;
-using Ductus.FluentDocker.Drivers.Docker.Cli;
-using Ductus.FluentDocker.Drivers.Exceptions;
-using Ductus.FluentDocker.Drivers.Models;
-using Ductus.FluentDocker.Kernel.Registry;
-using Ductus.FluentDocker.Kernel.Selection;
-using Ductus.FluentDocker.Model.Containers;
+using FluentDocker.Commands;
+using FluentDocker.Common;
+using FluentDocker.Drivers.Core;
+using FluentDocker.Drivers.Docker.Cli;
+using FluentDocker.Drivers.Exceptions;
+using FluentDocker.Drivers.Models;
+using FluentDocker.Kernel.Registry;
+using FluentDocker.Kernel.Selection;
+using FluentDocker.Model.Containers;
 
-namespace Ductus.FluentDocker.Kernel
+namespace FluentDocker.Kernel
 {
     public class FluentDockerKernel : IFluentDockerKernel
     {
@@ -882,7 +882,7 @@ namespace Ductus.FluentDocker.Kernel
 ```csharp
 using System;
 
-namespace Ductus.FluentDocker.Kernel
+namespace FluentDocker.Kernel
 {
     /// <summary>
     /// Static helper providing default kernel instance for convenience.
@@ -921,10 +921,10 @@ namespace Ductus.FluentDocker.Kernel
 **File**: `Builders/Builder.cs`
 
 ```csharp
-using Ductus.FluentDocker.Kernel;
-using Ductus.FluentDocker.Services;
+using FluentDocker.Kernel;
+using FluentDocker.Services;
 
-namespace Ductus.FluentDocker.Builders
+namespace FluentDocker.Builders
 {
     public class Builder : IFluentBuilder
     {
@@ -1087,12 +1087,12 @@ namespace Ductus.FluentDocker.Builders
 **File**: `Builders/ContainerBuilder.cs`
 
 ```csharp
-using Ductus.FluentDocker.Kernel;
-using Ductus.FluentDocker.Services;
-using Ductus.FluentDocker.Services.Impl;
-using Ductus.FluentDocker.Drivers.Models;
+using FluentDocker.Kernel;
+using FluentDocker.Services;
+using FluentDocker.Services.Impl;
+using FluentDocker.Drivers.Models;
 
-namespace Ductus.FluentDocker.Builders
+namespace FluentDocker.Builders
 {
     public class ContainerBuilder : IContainerBuilder
     {
@@ -1229,11 +1229,11 @@ namespace Ductus.FluentDocker.Builders
 **File**: `Services/IContainerService.cs`
 
 ```csharp
-using Ductus.FluentDocker.Drivers.Models;
-using Ductus.FluentDocker.Kernel;
-using Ductus.FluentDocker.Model.Containers;
+using FluentDocker.Drivers.Models;
+using FluentDocker.Kernel;
+using FluentDocker.Model.Containers;
 
-namespace Ductus.FluentDocker.Services
+namespace FluentDocker.Services
 {
     public interface IContainerService : IService
     {
@@ -1265,12 +1265,12 @@ namespace Ductus.FluentDocker.Services
 **File**: `Services/Impl/DockerContainerService.cs`
 
 ```csharp
-using Ductus.FluentDocker.Drivers.Core;
-using Ductus.FluentDocker.Drivers.Models;
-using Ductus.FluentDocker.Kernel;
-using Ductus.FluentDocker.Model.Containers;
+using FluentDocker.Drivers.Core;
+using FluentDocker.Drivers.Models;
+using FluentDocker.Kernel;
+using FluentDocker.Model.Containers;
 
-namespace Ductus.FluentDocker.Services.Impl
+namespace FluentDocker.Services.Impl
 {
     public class DockerContainerService : ServiceBase, IContainerService
     {
@@ -1367,11 +1367,11 @@ namespace Ductus.FluentDocker.Services.Impl
 
 ```csharp
 using System;
-using Ductus.FluentDocker.Common;
-using Ductus.FluentDocker.Drivers.Core;
-using Ductus.FluentDocker.Drivers.Models;
+using FluentDocker.Common;
+using FluentDocker.Drivers.Core;
+using FluentDocker.Drivers.Models;
 
-namespace Ductus.FluentDocker.Drivers.Docker.Cli
+namespace FluentDocker.Drivers.Docker.Cli
 {
     public class DockerCliDriver : IDriver
     {

@@ -1,4 +1,4 @@
-namespace Ductus.FluentDocker.Model.Events
+namespace FluentDocker.Model.Events
 {
   /// <summary>
   /// Emitted when a container has been buried (exited).

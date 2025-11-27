@@ -1,6 +1,6 @@
-﻿using Ductus.FluentDocker.Model.Containers;
+﻿using FluentDocker.Model.Containers;
 
-namespace Ductus.FluentDocker.Model.Builders
+namespace FluentDocker.Model.Builders
 {
   public sealed class ImageBuilderConfig
   {

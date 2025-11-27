@@ -1,9 +1,9 @@
 using System;
-using Ductus.FluentDocker.Common;
-using Ductus.FluentDocker.Model.Drivers;
+using FluentDocker.Common;
+using FluentDocker.Model.Drivers;
 using Xunit;
 
-namespace Ductus.FluentDocker.Tests.V3.UnitTests
+namespace FluentDocker.Tests.V3.UnitTests
 {
     [Trait("Category", "Unit")]
     public class ExceptionTests

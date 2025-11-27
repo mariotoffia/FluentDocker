@@ -3,10 +3,10 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using Ductus.FluentDocker.Builders;
-using Ductus.FluentDocker.Services.Extensions;
+using FluentDocker.Builders;
+using FluentDocker.Services.Extensions;
 
-namespace Ductus.FluentDocker.XUnit
+namespace FluentDocker.XUnit
 {
   public abstract class PostgresTestBase : FluentDockerTestBase
   {

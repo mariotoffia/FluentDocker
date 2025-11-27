@@ -2,14 +2,14 @@ using System;
 using System.Collections.Generic;
 using System.Reflection;
 using System.Text;
-using Ductus.FluentDocker.Builders;
-using Ductus.FluentDocker.Common;
-using Ductus.FluentDocker.Model.Common;
-using Ductus.FluentDocker.Model.Containers;
-using Ductus.FluentDocker.Services;
-using Ductus.FluentDocker.Services.Impl;
+using FluentDocker.Builders;
+using FluentDocker.Common;
+using FluentDocker.Model.Common;
+using FluentDocker.Model.Containers;
+using FluentDocker.Services;
+using FluentDocker.Services.Impl;
 
-namespace Ductus.FluentDocker
+namespace FluentDocker
 {
   public static class Fd
   {

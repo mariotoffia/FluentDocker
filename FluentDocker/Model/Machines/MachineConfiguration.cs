@@ -1,6 +1,6 @@
 ﻿using System.Net;
 
-namespace Ductus.FluentDocker.Model.Machines
+namespace FluentDocker.Model.Machines
 {
   public sealed class MachineConfiguration
   {

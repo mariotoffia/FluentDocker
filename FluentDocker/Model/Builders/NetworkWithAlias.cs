@@ -1,6 +1,6 @@
-using Ductus.FluentDocker.Services;
+using FluentDocker.Services;
 
-namespace Ductus.FluentDocker.Model.Builders
+namespace FluentDocker.Model.Builders
 {
   public class NetworkWithAlias<T>
   {

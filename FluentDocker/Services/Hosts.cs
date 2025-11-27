@@ -1,13 +1,13 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using Ductus.FluentDocker.Commands;
-using Ductus.FluentDocker.Common;
-using Ductus.FluentDocker.Extensions;
-using Ductus.FluentDocker.Model.Common;
-using Ductus.FluentDocker.Services.Impl;
+using FluentDocker.Commands;
+using FluentDocker.Common;
+using FluentDocker.Extensions;
+using FluentDocker.Model.Common;
+using FluentDocker.Services.Impl;
 
-namespace Ductus.FluentDocker.Services
+namespace FluentDocker.Services
 {
   public sealed class Hosts
   {

@@ -1,13 +1,13 @@
 using System;
 using System.Collections.Generic;
-using Ductus.FluentDocker.Executors;
-using Ductus.FluentDocker.Executors.Parsers;
-using Ductus.FluentDocker.Extensions;
-using Ductus.FluentDocker.Model.Common;
-using Ductus.FluentDocker.Model.Containers;
-using Ductus.FluentDocker.Model.Stacks;
+using FluentDocker.Executors;
+using FluentDocker.Executors.Parsers;
+using FluentDocker.Extensions;
+using FluentDocker.Model.Common;
+using FluentDocker.Model.Containers;
+using FluentDocker.Model.Stacks;
 
-namespace Ductus.FluentDocker.Commands
+namespace FluentDocker.Commands
 {
   /// <summary>
   /// Docker service commands

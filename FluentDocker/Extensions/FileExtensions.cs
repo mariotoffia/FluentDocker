@@ -1,8 +1,8 @@
 ﻿using System.IO;
 using System.Text;
-using Ductus.FluentDocker.Model.Common;
+using FluentDocker.Model.Common;
 
-namespace Ductus.FluentDocker.Extensions
+namespace FluentDocker.Extensions
 {
   public static class FileExtensions
   {
@@ -57,7 +57,7 @@ namespace Ductus.FluentDocker.Extensions
     /// <remarks>
     ///   If the <paramref name="fileOrDirectory" /> is on format emb://namespace/file format it will use
     ///   <see
-    ///     cref="ResourceExtensions.ToFile(System.Collections.Generic.IEnumerable{Ductus.FluentDocker.Resources.ResourceInfo},TemplateString)" />
+    ///     cref="ResourceExtensions.ToFile(System.Collections.Generic.IEnumerable{FluentDocker.Resources.ResourceInfo},TemplateString)" />
     ///   to perform the copy. Only one file is permitted and thus the file or directory parameter is always a single file.
     /// </remarks>
     public static string Copy(this TemplateString fileOrDirectory, TemplateString workdir)

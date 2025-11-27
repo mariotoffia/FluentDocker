@@ -1,11 +1,11 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
-using Ductus.FluentDocker.Common;
-using Ductus.FluentDocker.Model.Drivers;
+using FluentDocker.Common;
+using FluentDocker.Model.Drivers;
 using Xunit;
 
-namespace Ductus.FluentDocker.Tests.V3.UnitTests
+namespace FluentDocker.Tests.V3.UnitTests
 {
     /// <summary>
     /// Tests for v3.0.0 exception handling and error propagation.

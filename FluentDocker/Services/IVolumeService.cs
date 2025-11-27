@@ -1,8 +1,8 @@
-﻿using Ductus.FluentDocker.Model.Common;
-using Ductus.FluentDocker.Model.Containers;
-using Ductus.FluentDocker.Model.Volumes;
+﻿using FluentDocker.Model.Common;
+using FluentDocker.Model.Containers;
+using FluentDocker.Model.Volumes;
 
-namespace Ductus.FluentDocker.Services
+namespace FluentDocker.Services
 {
   public interface IVolumeService : IService
   {

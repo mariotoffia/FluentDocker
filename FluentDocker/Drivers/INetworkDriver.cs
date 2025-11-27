@@ -1,10 +1,10 @@
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
-using Ductus.FluentDocker.Model.Drivers;
-using Ductus.FluentDocker.Model.Networks;
+using FluentDocker.Model.Drivers;
+using FluentDocker.Model.Networks;
 
-namespace Ductus.FluentDocker.Drivers
+namespace FluentDocker.Drivers
 {
     /// <summary>
     /// Network-specific driver operations.

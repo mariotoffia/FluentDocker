@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 
-namespace Ductus.FluentDocker.Model.Events
+namespace FluentDocker.Model.Events
 {
   /// <summary>
   /// The actor of a <see cref="FdEvent{T}"/> such as container id, image name or c# class name.

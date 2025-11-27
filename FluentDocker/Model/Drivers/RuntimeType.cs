@@ -1,4 +1,4 @@
-namespace Ductus.FluentDocker.Model.Drivers
+namespace FluentDocker.Model.Drivers
 {
     /// <summary>
     /// Specifies the container runtime type.

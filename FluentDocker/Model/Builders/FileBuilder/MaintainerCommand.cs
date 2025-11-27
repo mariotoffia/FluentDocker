@@ -1,4 +1,4 @@
-﻿namespace Ductus.FluentDocker.Model.Builders.FileBuilder
+﻿namespace FluentDocker.Model.Builders.FileBuilder
 {
   public sealed class MaintainerCommand : ICommand
   {

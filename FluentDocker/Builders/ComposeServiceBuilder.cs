@@ -1,11 +1,11 @@
 using System.Collections.Generic;
-using Ductus.FluentDocker.Common;
-using Ductus.FluentDocker.Extensions;
-using Ductus.FluentDocker.Model.Common;
-using Ductus.FluentDocker.Model.Compose;
-using Ductus.FluentDocker.Model.Containers;
+using FluentDocker.Common;
+using FluentDocker.Extensions;
+using FluentDocker.Model.Common;
+using FluentDocker.Model.Compose;
+using FluentDocker.Model.Containers;
 
-namespace Ductus.FluentDocker.Builders
+namespace FluentDocker.Builders
 {
   /// <summary>
   ///   Builds a docker-compose service.

@@ -1,9 +1,9 @@
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
-using Ductus.FluentDocker.Drivers;
+using FluentDocker.Drivers;
 
-namespace Ductus.FluentDocker.Services.V3
+namespace FluentDocker.Services.V3
 {
     /// <summary>
     /// v3.0.0 async compose service interface.

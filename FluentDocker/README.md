@@ -1,8 +1,8 @@
 # FluentDocker
 
 [![CI](https://github.com/mariotoffia/FluentDocker/actions/workflows/ci.yml/badge.svg)](https://github.com/mariotoffia/FluentDocker/actions/workflows/ci.yml)
-[![NuGet](https://img.shields.io/nuget/v/Ductus.FluentDocker.svg)](https://www.nuget.org/packages/Ductus.FluentDocker)
-[![Downloads](https://img.shields.io/nuget/dt/Ductus.FluentDocker.svg)](https://www.nuget.org/packages/Ductus.FluentDocker)
+[![NuGet](https://img.shields.io/nuget/v/FluentDocker.svg)](https://www.nuget.org/packages/FluentDocker)
+[![Downloads](https://img.shields.io/nuget/dt/FluentDocker.svg)](https://www.nuget.org/packages/FluentDocker)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 
 This library enables `docker` and `docker-compose` interactions using a _Fluent API_. It is supported on Linux, Windows and Mac. It also has support for the legacy `docker-machine` interactions.

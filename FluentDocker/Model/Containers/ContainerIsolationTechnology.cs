@@ -1,4 +1,4 @@
-﻿namespace Ductus.FluentDocker.Model.Containers
+﻿namespace FluentDocker.Model.Containers
 {
   public enum ContainerIsolationTechnology
   {

@@ -1,6 +1,6 @@
 using Xunit;
 
-namespace Ductus.FluentDocker.Tests.V3.UnitTests
+namespace FluentDocker.Tests.V3.UnitTests
 {
     /// <summary>
     /// Tests for utility extension methods and helpers.

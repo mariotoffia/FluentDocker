@@ -4,9 +4,9 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
-using Ductus.FluentDocker.Common;
+using FluentDocker.Common;
 
-namespace Ductus.FluentDocker.Model.Common
+namespace FluentDocker.Model.Common
 {
   public sealed class TemplateString
   {

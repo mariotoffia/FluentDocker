@@ -1,10 +1,10 @@
 using System.Linq;
 using System.Threading.Tasks;
-using Ductus.FluentDocker.Drivers;
-using Ductus.FluentDocker.Model.Drivers;
+using FluentDocker.Drivers;
+using FluentDocker.Model.Drivers;
 using Xunit;
 
-namespace Ductus.FluentDocker.Tests.V3.Mock
+namespace FluentDocker.Tests.V3.Mock
 {
     [Trait("Category", "Mock")]
     public class MockDriverTests

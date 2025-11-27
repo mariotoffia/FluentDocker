@@ -1,6 +1,6 @@
 ﻿using System.Reflection;
 
-namespace Ductus.FluentDocker.Resources
+namespace FluentDocker.Resources
 {
   public sealed class ResourceInfo
   {

@@ -2,14 +2,14 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
-using Ductus.FluentDocker.Drivers;
-using Ductus.FluentDocker.Model.Drivers;
-using Ductus.FluentDocker.Model.Images;
-using Ductus.FluentDocker.Model.Volumes;
-using Container = Ductus.FluentDocker.Model.Containers.Container;
-using ContainerState = Ductus.FluentDocker.Model.Containers.ContainerState;
+using FluentDocker.Drivers;
+using FluentDocker.Model.Drivers;
+using FluentDocker.Model.Images;
+using FluentDocker.Model.Volumes;
+using Container = FluentDocker.Model.Containers.Container;
+using ContainerState = FluentDocker.Model.Containers.ContainerState;
 
-namespace Ductus.FluentDocker.Tests.V3.Mock
+namespace FluentDocker.Tests.V3.Mock
 {
     /// <summary>
     /// Comprehensive mock driver for testing - implements all driver interfaces.

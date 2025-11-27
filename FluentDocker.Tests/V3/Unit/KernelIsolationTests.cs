@@ -1,10 +1,10 @@
 using System;
 using System.Threading.Tasks;
-using Ductus.FluentDocker.Kernel;
-using Ductus.FluentDocker.Tests.V3.Mock;
+using FluentDocker.Kernel;
+using FluentDocker.Tests.V3.Mock;
 using Xunit;
 
-namespace Ductus.FluentDocker.Tests.V3.UnitTests
+namespace FluentDocker.Tests.V3.UnitTests
 {
     /// <summary>
     /// Tests for v3.0.0 kernel isolation and multi-kernel scenarios.

@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 
-namespace Ductus.FluentDocker.Resources
+namespace FluentDocker.Resources
 {
   public sealed class ResourceReader : IEnumerable<ResourceStream>
   {

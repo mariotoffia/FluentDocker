@@ -1,8 +1,8 @@
 using System;
 using System.Collections.Generic;
-using Ductus.FluentDocker.Services;
+using FluentDocker.Services;
 
-namespace Ductus.FluentDocker.Model
+namespace FluentDocker.Model
 {
   public static class FeatureConstants
   {

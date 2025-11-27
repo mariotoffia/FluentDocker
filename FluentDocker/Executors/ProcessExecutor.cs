@@ -1,11 +1,11 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Text;
-using Ductus.FluentDocker.Common;
-using Ductus.FluentDocker.Extensions;
-using Ductus.FluentDocker.Model.Containers;
+using FluentDocker.Common;
+using FluentDocker.Extensions;
+using FluentDocker.Model.Containers;
 
-namespace Ductus.FluentDocker.Executors
+namespace FluentDocker.Executors
 {
   public sealed class ProcessExecutor<T, TE> where T : IProcessResponseParser<TE>, IProcessResponse<TE>, new()
   {

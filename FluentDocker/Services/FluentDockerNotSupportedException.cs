@@ -1,7 +1,7 @@
 using System;
-using Ductus.FluentDocker.Common;
+using FluentDocker.Common;
 
-namespace Ductus.FluentDocker.Services
+namespace FluentDocker.Services
 {
   public class FluentDockerNotSupportedException : FluentDockerException
   {

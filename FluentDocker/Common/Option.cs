@@ -1,4 +1,4 @@
-﻿namespace Ductus.FluentDocker.Common
+﻿namespace FluentDocker.Common
 {
   public sealed class Option<T> where T : class
   {

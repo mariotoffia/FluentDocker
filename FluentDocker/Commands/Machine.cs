@@ -3,17 +3,17 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Security.Cryptography.X509Certificates;
-using Ductus.FluentDocker.Common;
-using Ductus.FluentDocker.Executors;
-using Ductus.FluentDocker.Executors.Parsers;
-using Ductus.FluentDocker.Extensions;
-using Ductus.FluentDocker.Model.Common;
-using Ductus.FluentDocker.Model.Containers;
-using Ductus.FluentDocker.Model.Machines;
-using Ductus.FluentDocker.Services;
+using FluentDocker.Common;
+using FluentDocker.Executors;
+using FluentDocker.Executors.Parsers;
+using FluentDocker.Extensions;
+using FluentDocker.Model.Common;
+using FluentDocker.Model.Containers;
+using FluentDocker.Model.Machines;
+using FluentDocker.Services;
 // ReSharper disable StringLiteralTypo
 
-namespace Ductus.FluentDocker.Commands
+namespace FluentDocker.Commands
 {
   public static class Machine
   {

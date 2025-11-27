@@ -1,8 +1,8 @@
 using System.Collections.Generic;
-using Ductus.FluentDocker.Model.Containers;
-using Ductus.FluentDocker.Services;
+using FluentDocker.Model.Containers;
+using FluentDocker.Services;
 
-namespace Ductus.FluentDocker.Model.Compose
+namespace FluentDocker.Model.Compose
 {
   // https://docs.docker.com/compose/compose-file/#service-configuration-reference
   /// <summary>

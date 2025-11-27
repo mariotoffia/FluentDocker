@@ -1,6 +1,6 @@
 ﻿using System.Collections.Generic;
 
-namespace Ductus.FluentDocker.Model.Networks
+namespace FluentDocker.Model.Networks
 {
   public sealed class Ipam
   {

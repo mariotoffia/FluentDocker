@@ -1,10 +1,10 @@
-﻿using Ductus.FluentDocker.Commands;
-using Ductus.FluentDocker.Common;
-using Ductus.FluentDocker.Model.Common;
-using Ductus.FluentDocker.Model.Containers;
-using Ductus.FluentDocker.Model.Volumes;
+﻿using FluentDocker.Commands;
+using FluentDocker.Common;
+using FluentDocker.Model.Common;
+using FluentDocker.Model.Containers;
+using FluentDocker.Model.Volumes;
 
-namespace Ductus.FluentDocker.Services.Impl
+namespace FluentDocker.Services.Impl
 {
   public sealed class DockerVolumeService : ServiceBase, IVolumeService
   {

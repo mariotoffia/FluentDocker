@@ -50,7 +50,7 @@ var kernel = FluentDockerKernel.Create()
 **Key principle: All builders configured via lambda, Build() is terminal**
 
 ```csharp
-namespace Ductus.FluentDocker.Kernel.Builders
+namespace FluentDocker.Kernel.Builders
 {
     public interface IKernelBuilder
     {
@@ -334,7 +334,7 @@ The FluentDocker v3.0.0 Builder uses a **scoped driver pattern** where operation
 - No need for separate GetResults() call
 
 ```csharp
-namespace Ductus.FluentDocker.Builders
+namespace FluentDocker.Builders
 {
     public class Builder : IFluentBuilder
     {
@@ -954,7 +954,7 @@ Break down large interfaces (IContainerDriver, INetworkDriver, etc.) into smalle
 ### Container Operations - Composable Design
 
 ```csharp
-namespace Ductus.FluentDocker.Drivers.Core.Container
+namespace FluentDocker.Drivers.Core.Container
 {
     /// <summary>
     /// Main container driver interface - aggregates all container sub-interfaces.
@@ -1064,7 +1064,7 @@ namespace Ductus.FluentDocker.Drivers.Core.Container
 ### Image Operations - Composable Design
 
 ```csharp
-namespace Ductus.FluentDocker.Drivers.Core.Image
+namespace FluentDocker.Drivers.Core.Image
 {
     /// <summary>
     /// Main image driver interface - aggregates all image sub-interfaces.
@@ -1145,7 +1145,7 @@ namespace Ductus.FluentDocker.Drivers.Core.Image
 ### Network Operations - Composable Design
 
 ```csharp
-namespace Ductus.FluentDocker.Drivers.Core.Network
+namespace FluentDocker.Drivers.Core.Network
 {
     /// <summary>
     /// Main network driver interface - aggregates all network sub-interfaces.
@@ -1192,7 +1192,7 @@ namespace Ductus.FluentDocker.Drivers.Core.Network
 ### Volume Operations - Composable Design
 
 ```csharp
-namespace Ductus.FluentDocker.Drivers.Core.Volume
+namespace FluentDocker.Drivers.Core.Volume
 {
     /// <summary>
     /// Main volume driver interface - aggregates all volume sub-interfaces.
@@ -1228,7 +1228,7 @@ namespace Ductus.FluentDocker.Drivers.Core.Volume
 ### Compose Operations - Composable Design
 
 ```csharp
-namespace Ductus.FluentDocker.Drivers.Core.Compose
+namespace FluentDocker.Drivers.Core.Compose
 {
     /// <summary>
     /// Main compose driver interface - aggregates all compose sub-interfaces.
@@ -1286,7 +1286,7 @@ namespace Ductus.FluentDocker.Drivers.Core.Compose
 ### System Operations - Composable Design
 
 ```csharp
-namespace Ductus.FluentDocker.Drivers.Core.System
+namespace FluentDocker.Drivers.Core.System
 {
     /// <summary>
     /// Main system driver interface - aggregates all system sub-interfaces.
@@ -1342,7 +1342,7 @@ namespace Ductus.FluentDocker.Drivers.Core.System
 ### Podman-Specific Interfaces
 
 ```csharp
-namespace Ductus.FluentDocker.Drivers.Core.Podman
+namespace FluentDocker.Drivers.Core.Podman
 {
     /// <summary>
     /// Podman pod operations (unique to Podman).
@@ -1408,7 +1408,7 @@ namespace Ductus.FluentDocker.Drivers.Core.Podman
 ### DriverCapabilities Enhancement
 
 ```csharp
-namespace Ductus.FluentDocker.Drivers.Models
+namespace FluentDocker.Drivers.Models
 {
     /// <summary>
     /// Comprehensive driver capabilities based on Docker and Podman feature analysis.
@@ -2067,7 +2067,7 @@ using (var container = new Builder(kernel)
 ### New Exceptions for Composable Interfaces
 
 ```csharp
-namespace Ductus.FluentDocker.Exceptions
+namespace FluentDocker.Exceptions
 {
     /// <summary>
     /// Exception thrown when a driver doesn't support a required sub-interface.

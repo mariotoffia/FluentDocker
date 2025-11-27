@@ -1,8 +1,8 @@
 using System.Diagnostics;
 using System.Threading;
-using Ductus.FluentDocker.Common;
+using FluentDocker.Common;
 
-namespace Ductus.FluentDocker.Executors
+namespace FluentDocker.Executors
 {
   public sealed class StreamProcessExecutor<T, TE> where T : class, IStreamMapper<TE>, new()
     where TE : class

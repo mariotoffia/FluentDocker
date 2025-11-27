@@ -1,6 +1,6 @@
 ﻿using System.Collections.Generic;
 
-namespace Ductus.FluentDocker.Services
+namespace FluentDocker.Services
 {
   public interface ICompositeService : IService
   {

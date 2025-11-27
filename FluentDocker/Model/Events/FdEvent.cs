@@ -1,6 +1,6 @@
 using System;
 
-namespace Ductus.FluentDocker.Model.Events
+namespace FluentDocker.Model.Events
 {
   public abstract class FdEvent
   {

@@ -1,4 +1,4 @@
-namespace Ductus.FluentDocker.Model.Stacks
+namespace FluentDocker.Model.Stacks
 {
   public sealed class StackLsResponse
   {

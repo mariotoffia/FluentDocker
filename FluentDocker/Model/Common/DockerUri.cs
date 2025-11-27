@@ -1,8 +1,8 @@
 using System;
-using Ductus.FluentDocker.Common;
-using Ductus.FluentDocker.Extensions;
+using FluentDocker.Common;
+using FluentDocker.Extensions;
 
-namespace Ductus.FluentDocker.Model.Common
+namespace FluentDocker.Model.Common
 {
   public sealed class DockerUri : Uri
   {

@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 
-namespace Ductus.FluentDocker.Model.Events
+namespace FluentDocker.Model.Events
 {
   /// <summary>
   /// All events that currently FluentDocker do not handle. Never rely or use

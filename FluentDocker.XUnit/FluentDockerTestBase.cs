@@ -1,8 +1,8 @@
 using System;
-using Ductus.FluentDocker.Builders;
-using Ductus.FluentDocker.Services;
+using FluentDocker.Builders;
+using FluentDocker.Services;
 
-namespace Ductus.FluentDocker.XUnit
+namespace FluentDocker.XUnit
 {
   public abstract class FluentDockerTestBase : IDisposable
   {

@@ -1,11 +1,11 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
-using Ductus.FluentDocker.Common;
-using Ductus.FluentDocker.Drivers;
-using Ductus.FluentDocker.Model.Drivers;
+using FluentDocker.Common;
+using FluentDocker.Drivers;
+using FluentDocker.Model.Drivers;
 
-namespace Ductus.FluentDocker.Kernel
+namespace FluentDocker.Kernel
 {
     /// <summary>
     /// FluentDocker kernel - manages driver instances and provides SysCtl() access.

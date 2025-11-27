@@ -1,7 +1,7 @@
-﻿namespace Ductus.FluentDocker.Common
+﻿namespace FluentDocker.Common
 {
   internal static class Constants
   {
-    internal const string DebugCategory = "Ductus.FluentDocker";
+    internal const string DebugCategory = "FluentDocker";
   }
 }

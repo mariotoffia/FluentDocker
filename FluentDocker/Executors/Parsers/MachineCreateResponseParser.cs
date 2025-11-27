@@ -1,7 +1,7 @@
 ﻿using System.Linq;
-using Ductus.FluentDocker.Model.Containers;
+using FluentDocker.Model.Containers;
 
-namespace Ductus.FluentDocker.Executors.Parsers
+namespace FluentDocker.Executors.Parsers
 {
   public sealed class MachineCreateResponseParser : IProcessResponseParser<string>
   {

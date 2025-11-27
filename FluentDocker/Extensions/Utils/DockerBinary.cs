@@ -1,7 +1,7 @@
 ﻿using System;
-using Ductus.FluentDocker.Model.Common;
+using FluentDocker.Model.Common;
 
-namespace Ductus.FluentDocker.Extensions.Utils
+namespace FluentDocker.Extensions.Utils
 {
   public enum DockerBinaryType
   {

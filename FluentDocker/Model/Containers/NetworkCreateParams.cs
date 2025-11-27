@@ -1,8 +1,8 @@
 ﻿using System.Collections.Generic;
 using System.Text;
-using Ductus.FluentDocker.Extensions;
+using FluentDocker.Extensions;
 
-namespace Ductus.FluentDocker.Model.Containers
+namespace FluentDocker.Model.Containers
 {
   public sealed class NetworkCreateParams
   {

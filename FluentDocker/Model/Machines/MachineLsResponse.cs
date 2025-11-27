@@ -1,7 +1,7 @@
 ﻿using System;
-using Ductus.FluentDocker.Services;
+using FluentDocker.Services;
 
-namespace Ductus.FluentDocker.Model.Machines
+namespace FluentDocker.Model.Machines
 {
   public sealed class MachineLsResponse
   {

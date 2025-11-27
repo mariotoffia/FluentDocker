@@ -1,10 +1,10 @@
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
-using Ductus.FluentDocker.Drivers;
-using Ductus.FluentDocker.Model.Drivers;
+using FluentDocker.Drivers;
+using FluentDocker.Model.Drivers;
 
-namespace Ductus.FluentDocker.Kernel
+namespace FluentDocker.Kernel
 {
     /// <summary>
     /// Registry for managing driver instances.

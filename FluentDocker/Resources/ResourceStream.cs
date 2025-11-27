@@ -1,7 +1,7 @@
 ﻿using System;
 using System.IO;
 
-namespace Ductus.FluentDocker.Resources
+namespace FluentDocker.Resources
 {
   public sealed class ResourceStream : IDisposable
   {
