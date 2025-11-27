@@ -1,25 +1,63 @@
 ﻿using System;
 using System.Threading;
+using FluentDocker.Common;
 using FluentDocker.Executors;
 using FluentDocker.Executors.Mappers;
 using FluentDocker.Extensions;
+using FluentDocker.Extensions.Utils;
 using FluentDocker.Model.Common;
+using FluentDocker.Model.Compose;
 using FluentDocker.Model.Containers;
 
 namespace FluentDocker.Commands
 {
   public static class ComposeStreams
   {
+    /// <summary>
+    /// Returns the appropriate binary and command string for Docker Compose operations,
+    /// handling both V1 and V2 formats.
+    /// </summary>
+    private static (string binary, string command) GetComposeCommand(ComposeVersion version = ComposeVersion.Unknown)
+    {
+      var resolver = new DockerBinariesResolver(SudoMechanism.None, null);
+      var isV2 = resolver.IsDockerComposeV2Available;
+
+      if (isV2)
+      {
+        if (version != ComposeVersion.Unknown && version != ComposeVersion.V2)
+        {
+          throw new FluentDockerException(
+            $"Requested compose version {version} but only V2 is available. Use the overload that accepts ComposeVersion to specify the version.");
+        }
+
+        // For V2, we resolve 'docker' and add 'compose' as the first command
+        return ("docker".ResolveBinary(), "compose");
+      }
+      else
+      {
+        if (version != ComposeVersion.Unknown && version != ComposeVersion.V1)
+        {
+          throw new FluentDockerException(
+            $"Requested compose version {version} but only V1 is available. Use the overload that accepts ComposeVersion to specify the version.");
+        }
+
+        // For V1, we use the traditional docker-compose binary
+        return ("docker-compose".ResolveBinary(), "");
+      }
+    }
+
     public static ConsoleStream<string> ComposeLogs(this DockerUri host, string altProjectName = null,
       string composeFile = null, string[] services = null /*all*/,
       CancellationToken cancellationToken = default(CancellationToken),
       bool follow = false, bool showTimeStamps = false, DateTime? since = null, int? numLines = null, bool noColor = false,
       ICertificatePaths certificates = null)
     {
+      var (binary, command) = GetComposeCommand();
       var args = $"{host.RenderBaseArgs(certificates)}";
+
       if (!string.IsNullOrEmpty(composeFile))
       {
-        args += $" -f {composeFile}";
+        args += $" -f \"{composeFile}\"";
       }
 
       if (!string.IsNullOrEmpty(altProjectName))
@@ -57,20 +95,22 @@ namespace FluentDocker.Commands
 
       return
         new StreamProcessExecutor<StringMapper, string>(
-          "docker-compose".ResolveBinary(),
-          $"{args} logs {options}").Execute(cancellationToken);
+          binary,
+          $"{args} {(string.IsNullOrEmpty(command) ? "" : command + " ")}logs {options}").Execute(cancellationToken);
     }
 
     public static ConsoleStream<string> ComposeEvents(this DockerUri host, string altProjectName = null,
       string composeFile = null, string[] services = null /*all*/,
       CancellationToken cancellationToken = default(CancellationToken),
-    bool json = false,
+      bool json = false,
       ICertificatePaths certificates = null)
     {
+      var (binary, command) = GetComposeCommand();
       var args = $"{host.RenderBaseArgs(certificates)}";
+
       if (!string.IsNullOrEmpty(composeFile))
       {
-        args += $" -f {composeFile}";
+        args += $" -f \"{composeFile}\"";
       }
 
       if (!string.IsNullOrEmpty(altProjectName))
@@ -91,8 +131,8 @@ namespace FluentDocker.Commands
 
       return
         new StreamProcessExecutor<StringMapper, string>(
-          "docker-compose".ResolveBinary(),
-          $"{args} events {options}").Execute(cancellationToken);
+          binary,
+          $"{args} {(string.IsNullOrEmpty(command) ? "" : command + " ")}events {options}").Execute(cancellationToken);
     }
   }
 }

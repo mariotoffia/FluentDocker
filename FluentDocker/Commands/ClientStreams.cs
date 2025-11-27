@@ -3,6 +3,7 @@ using System.Threading;
 using FluentDocker.Executors;
 using FluentDocker.Executors.Mappers;
 using FluentDocker.Extensions;
+using FluentDocker.Model.Commands;
 using FluentDocker.Model.Common;
 using FluentDocker.Model.Containers;
 using FluentDocker.Model.Events;
@@ -11,6 +12,61 @@ namespace FluentDocker.Commands
 {
   public static class ClientStreams
   {
+    #region New struct-based command methods
+
+    /// <summary>
+    /// Gets container logs using command args struct.
+    /// </summary>
+    public static ConsoleStream<string> LogsCommand(this DockerUri host, LogsCommandArgs args,
+      CancellationToken cancellationToken = default)
+    {
+      var certArgs = $"{host.RenderBaseArgs(args.Certificates)}";
+      var options = args.ToString();
+
+      return
+        new StreamProcessExecutor<StringMapper, string>(
+          "docker".ResolveBinary(),
+          $"{certArgs} logs {options} {args.ContainerId}").Execute(cancellationToken);
+    }
+
+    /// <summary>
+    /// Gets Docker events using command args struct.
+    /// </summary>
+    public static ConsoleStream<string> EventsCommand(this DockerUri host, EventsCommandArgs args,
+      CancellationToken cancellationToken = default)
+    {
+      var certArgs = $"{host.RenderBaseArgs(args.Certificates)}";
+      var options = args.ToString();
+
+      if (string.IsNullOrEmpty(args.Format))
+        options += " --format \"{{json .}}\"";
+
+      return
+        new StreamProcessExecutor<StringMapper, string>(
+          "docker".ResolveBinary(),
+          $"{certArgs} events {options}").Execute(cancellationToken);
+    }
+
+    /// <summary>
+    /// Gets Docker events as FdEvent using command args struct.
+    /// </summary>
+    public static ConsoleStream<FdEvent> FdEventsCommand(this DockerUri host, EventsCommandArgs args,
+      CancellationToken cancellationToken = default)
+    {
+      var certArgs = $"{host.RenderBaseArgs(args.Certificates)}";
+      var options = args.ToString();
+      options += " --format \"{{json .}}\"";
+
+      return
+        new StreamProcessExecutor<FdEventStreamMapper, FdEvent>(
+          "docker".ResolveBinary(),
+          $"{certArgs} events {options}").Execute(cancellationToken);
+    }
+
+    #endregion
+
+    #region Existing methods (backward compatible)
+
     public static ConsoleStream<string> Logs(this DockerUri host, string id,
       CancellationToken cancellationToken = default,
       bool follow = false, bool showTimeStamps = false, DateTime? since = null, int? numLines = null,
@@ -75,7 +131,7 @@ namespace FluentDocker.Commands
 
       if (null != until)
       {
-        options += $" --since {until}";
+        options += $" --until {until}";
       }
 
       if (null != filters && 0 != filters.Length)
@@ -93,5 +149,7 @@ namespace FluentDocker.Commands
           "docker".ResolveBinary(),
           $"{args} events {options}").Execute(cancellationToken);
     }
+
+    #endregion
   }
 }

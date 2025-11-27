@@ -79,8 +79,8 @@ namespace FluentDocker.Commands
       if (alwaysPull)
         options += " --pull";
 
-      if (forceRm)
-        options += " --force-rm";
+      if (dontUseCache)
+        options += " --no-cache";
 
       if (null != services && 0 != services.Length)
         options += " " + string.Join(" ", services);

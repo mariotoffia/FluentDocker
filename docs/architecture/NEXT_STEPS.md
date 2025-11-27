@@ -257,12 +257,13 @@ All requirements are implemented:
 
 ---
 
-## Future Enhancements (Not in Scope)
+
+## Future Enhancements (Not in Scope - manually chat with LLM for this)
 
 | Component | Status | Notes |
 |-----------|--------|-------|
 | Docker API Driver | ❌ | REST API driver (future) |
-| Podman CLI Driver | ❌ | Podman support (future) |
+| Podman CLI Driver | ❌ | Podman support |
 | Auto-discovery | ❌ | Detect available drivers |
 
 ---

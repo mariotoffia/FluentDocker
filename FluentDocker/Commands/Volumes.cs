@@ -2,6 +2,7 @@
 using FluentDocker.Executors;
 using FluentDocker.Executors.Parsers;
 using FluentDocker.Extensions;
+using FluentDocker.Model.Commands;
 using FluentDocker.Model.Common;
 using FluentDocker.Model.Containers;
 using FluentDocker.Model.Volumes;
@@ -10,6 +11,83 @@ namespace FluentDocker.Commands
 {
   public static class Volumes
   {
+    #region New struct-based command methods
+
+    /// <summary>
+    /// Creates a volume using command args struct.
+    /// </summary>
+    public static CommandResponse<string> VolumeCreateCommand(this DockerUri host, VolumeCreateCommandArgs args)
+    {
+      var certArgs = $"{host.RenderBaseArgs(args.Certificates)}";
+      var options = args.ToString();
+
+      return
+        new ProcessExecutor<SingleStringResponseParser, string>(
+          "docker".ResolveBinary(),
+          $"{certArgs} volume create {options}").Execute();
+    }
+
+    /// <summary>
+    /// Lists volumes using command args struct.
+    /// </summary>
+    public static CommandResponse<IList<string>> VolumeLsCommand(this DockerUri host, VolumeLsCommandArgs args)
+    {
+      var certArgs = $"{host.RenderBaseArgs(args.Certificates)}";
+      var options = args.ToString();
+
+      return
+        new ProcessExecutor<StringListResponseParser, IList<string>>(
+          "docker".ResolveBinary(),
+          $"{certArgs} volume ls {options}").Execute();
+    }
+
+    /// <summary>
+    /// Removes volumes using command args struct.
+    /// </summary>
+    public static CommandResponse<IList<string>> VolumeRmCommand(this DockerUri host, VolumeRmCommandArgs args)
+    {
+      var certArgs = $"{host.RenderBaseArgs(args.Certificates)}";
+      var options = args.ToString();
+      var volumes = args.Volumes != null ? string.Join(" ", args.Volumes) : "";
+
+      return
+        new ProcessExecutor<StringListResponseParser, IList<string>>(
+          "docker".ResolveBinary(),
+          $"{certArgs} volume rm {options} {volumes}").Execute();
+    }
+
+    /// <summary>
+    /// Inspects volumes using command args struct.
+    /// </summary>
+    public static CommandResponse<IList<Volume>> VolumeInspectCommand(this DockerUri host, VolumeInspectCommandArgs args)
+    {
+      var certArgs = $"{host.RenderBaseArgs(args.Certificates)}";
+      var options = args.ToString();
+      var volumes = args.Volumes != null ? string.Join(" ", args.Volumes) : "";
+
+      return
+        new ProcessExecutor<VolumeInspectResponseParser, IList<Volume>>(
+          "docker".ResolveBinary(),
+          $"{certArgs} volume inspect {options} {volumes}").Execute();
+    }
+
+    /// <summary>
+    /// Prunes unused volumes using command args struct.
+    /// </summary>
+    public static CommandResponse<IList<string>> VolumePruneCommand(this DockerUri host, VolumePruneCommandArgs args)
+    {
+      var certArgs = $"{host.RenderBaseArgs(args.Certificates)}";
+      var options = args.ToString();
+
+      return
+        new ProcessExecutor<StringListResponseParser, IList<string>>(
+          "docker".ResolveBinary(),
+          $"{certArgs} volume prune {options}").Execute();
+    }
+
+    #endregion
+
+    #region Existing methods (backward compatible)
     public static CommandResponse<string> VolumeCreate(this DockerUri host, string name = null,
       string driver = null /*local*/, string[] labels = null, IDictionary<string, string> opts = null,
       ICertificatePaths certificates = null)
@@ -63,7 +141,7 @@ namespace FluentDocker.Commands
           options += $" --filter={f}";
 
       if (!string.IsNullOrEmpty(format))
-        options = $"--format \"{format}\"";
+        options += $" --format \"{format}\"";
 
       return
         new ProcessExecutor<StringListResponseParser, IList<string>>(
@@ -86,5 +164,7 @@ namespace FluentDocker.Commands
           "docker".ResolveBinary(),
           $"{args} volume rm {opts} {volumes}").Execute();
     }
+
+    #endregion
   }
 }

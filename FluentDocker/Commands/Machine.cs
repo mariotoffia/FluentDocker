@@ -106,10 +106,19 @@ namespace FluentDocker.Commands
     public static CommandResponse<string> Create(this string machine, int memMb, int volumeMb, int cpuCnt,
       params string[] options)
     {
-      return Create(machine, $"{CommandDefaults.MachineDriver}",
+      var allOptions = new List<string>
+      {
         $"--{CommandDefaults.MachineDriver}-memory \"{memMb}\"",
         $"--{CommandDefaults.MachineDriver}-disk-size \"{volumeMb}\"",
-        $"--{CommandDefaults.MachineDriver}-cpu-count \"{cpuCnt}\"");
+        $"--{CommandDefaults.MachineDriver}-cpu-count \"{cpuCnt}\""
+      };
+
+      if (options != null && options.Length > 0)
+      {
+        allOptions.AddRange(options);
+      }
+
+      return Create(machine, CommandDefaults.MachineDriver, allOptions.ToArray());
     }
 
     public static CommandResponse<string> Delete(this string machine, bool force)

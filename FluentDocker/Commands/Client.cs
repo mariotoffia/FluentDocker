@@ -4,6 +4,7 @@ using System.Linq;
 using FluentDocker.Executors;
 using FluentDocker.Executors.Parsers;
 using FluentDocker.Extensions;
+using FluentDocker.Model.Commands;
 using FluentDocker.Model.Common;
 using FluentDocker.Model.Containers;
 using FluentDocker.Model.Images;
@@ -12,6 +13,271 @@ namespace FluentDocker.Commands
 {
   public static class Client
   {
+    #region New struct-based command methods
+
+    /// <summary>
+    /// Logs in to a Docker registry using command args struct.
+    /// </summary>
+    public static CommandResponse<IList<string>> LoginCommand(this DockerUri host, LoginCommandArgs args)
+    {
+      var certArgs = $"{host.RenderBaseArgs(args.Certificates)}";
+      var options = args.ToString();
+
+      return
+        new ProcessExecutor<StringListResponseParser, IList<string>>(
+          "docker".ResolveBinary(),
+          $"{certArgs} login {options} {args.Server}").Execute();
+    }
+
+    /// <summary>
+    /// Lists containers using command args struct.
+    /// </summary>
+    public static CommandResponse<IList<string>> PsCommand(this DockerUri host, PsCommandArgs args)
+    {
+      var certArgs = $"{host.RenderBaseArgs(args.Certificates)}";
+      var options = args.ToString();
+
+      // Ensure quiet and no-trunc are included for backward compatibility
+      if (!options.Contains("--quiet"))
+        options += " --quiet";
+      if (!options.Contains("--no-trunc"))
+        options += " --no-trunc";
+
+      return
+        new ProcessExecutor<StringListResponseParser, IList<string>>(
+          "docker".ResolveBinary(),
+          $"{certArgs} ps {options}").Execute();
+    }
+
+    /// <summary>
+    /// Stops a container using command args struct.
+    /// </summary>
+    public static CommandResponse<string> StopCommand(this DockerUri host, StopCommandArgs args)
+    {
+      var certArgs = $"{host.RenderBaseArgs(args.Certificates)}";
+      var options = args.ToString();
+
+      return new ProcessExecutor<SingleStringResponseParser, string>(
+        "docker".ResolveBinary(),
+        $"{certArgs} stop {options} {args.ContainerId}").Execute();
+    }
+
+    /// <summary>
+    /// Removes a container using command args struct.
+    /// </summary>
+    public static CommandResponse<string> RemoveContainerCommand(this DockerUri host, RemoveContainerCommandArgs args)
+    {
+      var certArgs = $"{host.RenderBaseArgs(args.Certificates)}";
+      var options = args.ToString();
+
+      return new ProcessExecutor<SingleStringResponseParser, string>(
+        "docker".ResolveBinary(),
+        $"{certArgs} rm {options} {args.ContainerId}").Execute();
+    }
+
+    /// <summary>
+    /// Executes a command in a container using command args struct.
+    /// </summary>
+    public static CommandResponse<IList<string>> ExecuteCommand(this DockerUri host, ExecCommandArgs args)
+    {
+      var certArgs = $"{host.RenderBaseArgs(args.Certificates)}";
+      var options = args.ToString();
+      var command = args.Command ?? "";
+      var cmdArgs = args.Arguments != null ? " " + string.Join(" ", args.Arguments) : "";
+
+      return
+        new ProcessExecutor<StringListResponseParser, IList<string>>(
+          "docker".ResolveBinary(),
+          $"{certArgs} exec {options} {args.ContainerId} {command}{cmdArgs}").Execute();
+    }
+
+    /// <summary>
+    /// Exports a container using command args struct.
+    /// </summary>
+    public static CommandResponse<string> ExportCommand(this DockerUri host, ExportCommandArgs args)
+    {
+      var certArgs = $"{host.RenderBaseArgs(args.Certificates)}";
+
+      return new ProcessExecutor<NoLineResponseParser, string>("docker".ResolveBinary(),
+        $"{certArgs} export -o {args.OutputFilePath} {args.ContainerId}").Execute();
+    }
+
+    /// <summary>
+    /// Copies files to a container using command args struct.
+    /// </summary>
+    public static CommandResponse<string> CopyToContainerCommand(this DockerUri host, CopyCommandArgs args)
+    {
+      var certArgs = $"{host.RenderBaseArgs(args.Certificates)}";
+      var options = args.ToString();
+
+      return new ProcessExecutor<ProcessExitAwareResponseParser, string>("docker".ResolveBinary(),
+        $"{certArgs} cp {options} \"{args.HostPath}\" {args.ContainerId}:{args.ContainerPath}").Execute();
+    }
+
+    /// <summary>
+    /// Copies files from a container using command args struct.
+    /// </summary>
+    public static CommandResponse<string> CopyFromContainerCommand(this DockerUri host, CopyCommandArgs args)
+    {
+      var certArgs = $"{host.RenderBaseArgs(args.Certificates)}";
+      var options = args.ToString();
+
+      return new ProcessExecutor<ProcessExitAwareResponseParser, string>("docker".ResolveBinary(),
+        $"{certArgs} cp {options} {args.ContainerId}:{args.ContainerPath} \"{args.HostPath}\"").Execute();
+    }
+
+    /// <summary>
+    /// Pulls an image using command args struct.
+    /// </summary>
+    public static CommandResponse<IList<string>> PullCommand(this DockerUri host, PullCommandArgs args)
+    {
+      var certArgs = $"{host.RenderBaseArgs(args.Certificates)}";
+      var options = args.ToString();
+
+      return
+        new ProcessExecutor<StringListResponseParser, IList<string>>(
+          "docker".ResolveBinary(),
+          $"{certArgs} pull {options} {args.Image}").Execute();
+    }
+
+    /// <summary>
+    /// Builds an image using command args struct.
+    /// </summary>
+    public static CommandResponse<IList<string>> BuildCommand(this DockerUri host, BuildCommandArgs args)
+    {
+      var certArgs = $"{host.RenderBaseArgs(args.Certificates)}";
+      var options = args.ToString();
+      var context = string.IsNullOrEmpty(args.Context) ? "." : args.Context;
+
+      return
+        new ProcessExecutor<StringListResponseParser, IList<string>>(
+          "docker".ResolveBinary(),
+          $"{certArgs} build {options} {context}").Execute();
+    }
+
+    /// <summary>
+    /// Creates a container using command args struct.
+    /// </summary>
+    public static CommandResponse<string> CreateCommand(this DockerUri host, CreateCommandArgs args)
+    {
+      var certArgs = $"{host.RenderBaseArgs(args.Certificates)}";
+      var options = args.ToString();
+      var command = !string.IsNullOrEmpty(args.Command) ? $" {args.Command}" : "";
+      var cmdArgs = args.Arguments != null && args.Arguments.Length > 0 ? " " + string.Join(" ", args.Arguments) : "";
+
+      return
+        new ProcessExecutor<SingleStringResponseParser, string>(
+          "docker".ResolveBinary(),
+          $"{certArgs} create {options} {args.Image}{command}{cmdArgs}").Execute();
+    }
+
+    /// <summary>
+    /// Runs a container using command args struct.
+    /// </summary>
+    public static CommandResponse<string> RunCommand(this DockerUri host, RunCommandArgs args)
+    {
+      var certArgs = $"{host.RenderBaseArgs(args.Certificates)}";
+      var options = args.ToString();
+      var command = !string.IsNullOrEmpty(args.Command) ? $" {args.Command}" : "";
+      var cmdArgs = args.Arguments != null && args.Arguments.Length > 0 ? " " + string.Join(" ", args.Arguments) : "";
+
+      return
+        new ProcessExecutor<SingleStringResponseParser, string>(
+          "docker".ResolveBinary(),
+          $"{certArgs} run {options} {args.Image}{command}{cmdArgs}").Execute();
+    }
+
+    /// <summary>
+    /// Starts containers using command args struct.
+    /// </summary>
+    public static CommandResponse<IList<string>> StartCommand(this DockerUri host, StartCommandArgs args)
+    {
+      var certArgs = $"{host.RenderBaseArgs(args.Certificates)}";
+      var options = args.ToString();
+      var ids = args.ContainerIds != null ? string.Join(" ", args.ContainerIds) : "";
+
+      return
+        new ProcessExecutor<StringListResponseParser, IList<string>>(
+          "docker".ResolveBinary(),
+          $"{certArgs} start {options} {ids}").Execute();
+    }
+
+    /// <summary>
+    /// Inspects containers/images using command args struct.
+    /// </summary>
+    public static CommandResponse<IList<string>> InspectCommand(this DockerUri host, InspectCommandArgs args)
+    {
+      var certArgs = $"{host.RenderBaseArgs(args.Certificates)}";
+      var options = args.ToString();
+      var ids = args.Ids != null ? string.Join(" ", args.Ids) : "";
+
+      return
+        new ProcessExecutor<StringListResponseParser, IList<string>>(
+          "docker".ResolveBinary(),
+          $"{certArgs} inspect {options} {ids}").Execute();
+    }
+
+    /// <summary>
+    /// Pauses containers using command args struct.
+    /// </summary>
+    public static CommandResponse<IList<string>> PauseCommand(this DockerUri host, PauseCommandArgs args)
+    {
+      var certArgs = $"{host.RenderBaseArgs(args.Certificates)}";
+      var ids = args.ContainerIds != null ? string.Join(" ", args.ContainerIds) : "";
+
+      return
+        new ProcessExecutor<StringListResponseParser, IList<string>>(
+          "docker".ResolveBinary(),
+          $"{certArgs} pause {ids}").Execute();
+    }
+
+    /// <summary>
+    /// Unpauses containers using command args struct.
+    /// </summary>
+    public static CommandResponse<IList<string>> UnpauseCommand(this DockerUri host, UnpauseCommandArgs args)
+    {
+      var certArgs = $"{host.RenderBaseArgs(args.Certificates)}";
+      var ids = args.ContainerIds != null ? string.Join(" ", args.ContainerIds) : "";
+
+      return
+        new ProcessExecutor<StringListResponseParser, IList<string>>(
+          "docker".ResolveBinary(),
+          $"{certArgs} unpause {ids}").Execute();
+    }
+
+    /// <summary>
+    /// Kills containers using command args struct.
+    /// </summary>
+    public static CommandResponse<IList<string>> KillCommand(this DockerUri host, KillCommandArgs args)
+    {
+      var certArgs = $"{host.RenderBaseArgs(args.Certificates)}";
+      var options = args.ToString();
+      var ids = args.ContainerIds != null ? string.Join(" ", args.ContainerIds) : "";
+
+      return
+        new ProcessExecutor<StringListResponseParser, IList<string>>(
+          "docker".ResolveBinary(),
+          $"{certArgs} kill {options} {ids}").Execute();
+    }
+
+    /// <summary>
+    /// Restarts containers using command args struct.
+    /// </summary>
+    public static CommandResponse<IList<string>> RestartCommand(this DockerUri host, RestartCommandArgs args)
+    {
+      var certArgs = $"{host.RenderBaseArgs(args.Certificates)}";
+      var options = args.ToString();
+      var ids = args.ContainerIds != null ? string.Join(" ", args.ContainerIds) : "";
+
+      return
+        new ProcessExecutor<StringListResponseParser, IList<string>>(
+          "docker".ResolveBinary(),
+          $"{certArgs} restart {options} {ids}").Execute();
+    }
+
+    #endregion
+
+    #region Existing methods (backward compatible)
     public static CommandResponse<IList<string>> Login(this DockerUri host, string server, string user = null,
       string pass = null, ICertificatePaths certificates = null)
     {
@@ -322,5 +588,7 @@ namespace FluentDocker.Commands
       return new ProcessExecutor<ClientDiffResponseParser, IList<Diff>>("docker".ResolveBinary(),
         $"{arg} diff {id}").Execute();
     }
+
+    #endregion
   }
 }

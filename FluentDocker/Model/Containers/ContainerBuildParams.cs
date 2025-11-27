@@ -229,10 +229,6 @@ namespace FluentDocker.Model.Containers
       sb.OptionIfExists("--shm-size ", ShmSize?.ToString());
       sb.OptionIfExists("-t ", Tags);
       sb.OptionIfExists("--ulimit=", UlimitOptions);
-      if (NoCache)
-      {
-        sb.Append(" --no-cache");
-      }
 
       return sb.ToString();
     }
