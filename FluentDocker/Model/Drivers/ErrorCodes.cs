@@ -46,6 +46,17 @@ namespace FluentDocker.Model.Drivers
             public const string InvalidState = "CNT_008";
             public const string AttachFailed = "CNT_009";
             public const string ExecFailed = "CNT_010";
+            public const string RestartFailed = "CNT_011";
+            public const string PauseFailed = "CNT_012";
+            public const string UnpauseFailed = "CNT_013";
+            public const string KillFailed = "CNT_014";
+            public const string WaitFailed = "CNT_015";
+            public const string CopyFailed = "CNT_016";
+            public const string ExportFailed = "CNT_017";
+            public const string DiffFailed = "CNT_018";
+            public const string TopFailed = "CNT_019";
+            public const string RenameFailed = "CNT_020";
+            public const string UpdateFailed = "CNT_021";
         }
 
         /// <summary>
@@ -60,6 +71,11 @@ namespace FluentDocker.Model.Drivers
             public const string RemoveFailed = "IMG_005";
             public const string TagFailed = "IMG_006";
             public const string InspectFailed = "IMG_007";
+            public const string HistoryFailed = "IMG_008";
+            public const string SaveFailed = "IMG_009";
+            public const string LoadFailed = "IMG_010";
+            public const string ImportFailed = "IMG_011";
+            public const string PruneFailed = "IMG_012";
         }
 
         /// <summary>
@@ -107,6 +123,22 @@ namespace FluentDocker.Model.Drivers
             public const string ListFailed = "CMP_008";
             public const string LogsFailed = "CMP_009";
             public const string ExecFailed = "CMP_010";
+            public const string RestartFailed = "CMP_011";
+            public const string PauseFailed = "CMP_012";
+            public const string UnpauseFailed = "CMP_013";
+            public const string KillFailed = "CMP_014";
+            public const string RemoveFailed = "CMP_015";
+            public const string TopFailed = "CMP_016";
+            public const string ConfigFailed = "CMP_017";
+            public const string ImagesFailed = "CMP_018";
+            public const string PortFailed = "CMP_019";
+            public const string BuildFailed = "CMP_020";
+            public const string PullFailed = "CMP_021";
+            public const string PushFailed = "CMP_022";
+            public const string RunFailed = "CMP_023";
+            public const string ScaleFailed = "CMP_024";
+            public const string CopyFailed = "CMP_025";
+            public const string CreateFailed = "CMP_026";
         }
 
         /// <summary>
@@ -117,6 +149,69 @@ namespace FluentDocker.Model.Drivers
             public const string Invalid = "CFG_001";
             public const string Missing = "CFG_002";
             public const string ValidationFailed = "CFG_003";
+        }
+
+        /// <summary>
+        /// Authentication-related error codes
+        /// </summary>
+        public static class Auth
+        {
+            public const string LoginFailed = "AUTH_001";
+            public const string LogoutFailed = "AUTH_002";
+            public const string InvalidCredentials = "AUTH_003";
+            public const string RegistryNotFound = "AUTH_004";
+        }
+
+        /// <summary>
+        /// Stack-related error codes (Docker Swarm / Kubernetes)
+        /// </summary>
+        public static class Stack
+        {
+            public const string NotFound = "STK_001";
+            public const string ListFailed = "STK_002";
+            public const string TasksFailed = "STK_003";
+            public const string DeployFailed = "STK_004";
+            public const string RemoveFailed = "STK_005";
+            public const string ServicesFailed = "STK_006";
+        }
+
+        /// <summary>
+        /// Service-related error codes (Docker Swarm / Kubernetes)
+        /// </summary>
+        public static class Service
+        {
+            public const string NotFound = "SVC_001";
+            public const string CreateFailed = "SVC_002";
+            public const string RemoveFailed = "SVC_003";
+            public const string UpdateFailed = "SVC_004";
+            public const string RollbackFailed = "SVC_005";
+            public const string ListFailed = "SVC_006";
+            public const string InspectFailed = "SVC_007";
+            public const string TasksFailed = "SVC_008";
+            public const string LogsFailed = "SVC_009";
+            public const string ScaleFailed = "SVC_010";
+        }
+
+        /// <summary>
+        /// Machine-related error codes (Docker Machine)
+        /// </summary>
+        public static class Machine
+        {
+            public const string NotFound = "MCH_001";
+            public const string ListFailed = "MCH_002";
+            public const string InspectFailed = "MCH_003";
+            public const string StartFailed = "MCH_004";
+            public const string StopFailed = "MCH_005";
+            public const string RestartFailed = "MCH_006";
+            public const string CreateFailed = "MCH_007";
+            public const string DeleteFailed = "MCH_008";
+            public const string EnvFailed = "MCH_009";
+            public const string UrlFailed = "MCH_010";
+            public const string StatusFailed = "MCH_011";
+            public const string RegenerateCertsFailed = "MCH_012";
+            public const string UpgradeFailed = "MCH_013";
+            public const string SshFailed = "MCH_014";
+            public const string ScpFailed = "MCH_015";
         }
     }
 }

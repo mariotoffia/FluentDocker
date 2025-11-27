@@ -9,9 +9,13 @@ namespace FluentDocker.Drivers
 {
     /// <summary>
     /// Image-specific driver operations.
+    /// Supported by: Docker, Podman
+    /// Not supported by: Kubernetes (images are managed externally)
     /// </summary>
     public interface IImageDriver
     {
+        #region Pull/Push Operations
+
         /// <summary>
         /// Pulls an image from a registry.
         /// </summary>
@@ -28,17 +32,21 @@ namespace FluentDocker.Drivers
             CancellationToken cancellationToken = default);
 
         /// <summary>
-        /// Removes an image.
+        /// Pushes an image to a registry.
         /// </summary>
         /// <param name="context">Driver context</param>
-        /// <param name="imageId">Image ID or name</param>
-        /// <param name="force">Force removal</param>
+        /// <param name="image">Image name with tag</param>
+        /// <param name="progress">Progress reporter</param>
         /// <param name="cancellationToken">Cancellation token</param>
-        Task<CommandResponse<Unit>> RemoveAsync(
+        Task<CommandResponse<Unit>> PushAsync(
             DriverContext context,
-            string imageId,
-            bool force = false,
+            string image,
+            IProgress<ImagePushProgress> progress = null,
             CancellationToken cancellationToken = default);
+
+        #endregion
+
+        #region Build Operations
 
         /// <summary>
         /// Builds an image from a Dockerfile.
@@ -53,6 +61,10 @@ namespace FluentDocker.Drivers
             ImageBuildConfig config,
             IProgress<ImageBuildProgress> progress = null,
             CancellationToken cancellationToken = default);
+
+        #endregion
+
+        #region List/Inspect Operations
 
         /// <summary>
         /// Lists images.
@@ -79,6 +91,22 @@ namespace FluentDocker.Drivers
             CancellationToken cancellationToken = default);
 
         /// <summary>
+        /// Shows image layer history.
+        /// </summary>
+        /// <param name="context">Driver context</param>
+        /// <param name="imageId">Image ID or name</param>
+        /// <param name="cancellationToken">Cancellation token</param>
+        /// <returns>List of image layers</returns>
+        Task<CommandResponse<IList<ImageLayer>>> HistoryAsync(
+            DriverContext context,
+            string imageId,
+            CancellationToken cancellationToken = default);
+
+        #endregion
+
+        #region Tag/Remove Operations
+
+        /// <summary>
         /// Tags an image.
         /// </summary>
         /// <param name="context">Driver context</param>
@@ -92,7 +120,86 @@ namespace FluentDocker.Drivers
             string repository,
             string tag,
             CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Removes an image.
+        /// </summary>
+        /// <param name="context">Driver context</param>
+        /// <param name="imageId">Image ID or name</param>
+        /// <param name="force">Force removal</param>
+        /// <param name="noPrune">Don't remove untagged parents</param>
+        /// <param name="cancellationToken">Cancellation token</param>
+        Task<CommandResponse<ImageRemoveResult>> RemoveAsync(
+            DriverContext context,
+            string imageId,
+            bool force = false,
+            bool noPrune = false,
+            CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Removes unused images.
+        /// </summary>
+        /// <param name="context">Driver context</param>
+        /// <param name="all">Remove all unused images, not just dangling</param>
+        /// <param name="filter">Filter to provide</param>
+        /// <param name="cancellationToken">Cancellation token</param>
+        Task<CommandResponse<ImagePruneResult>> PruneAsync(
+            DriverContext context,
+            bool all = false,
+            Dictionary<string, string> filter = null,
+            CancellationToken cancellationToken = default);
+
+        #endregion
+
+        #region Save/Load/Import Operations
+
+        /// <summary>
+        /// Saves images to a tar archive.
+        /// </summary>
+        /// <param name="context">Driver context</param>
+        /// <param name="images">Images to save</param>
+        /// <param name="outputPath">Output file path</param>
+        /// <param name="cancellationToken">Cancellation token</param>
+        Task<CommandResponse<Unit>> SaveAsync(
+            DriverContext context,
+            string[] images,
+            string outputPath,
+            CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Loads images from a tar archive.
+        /// </summary>
+        /// <param name="context">Driver context</param>
+        /// <param name="inputPath">Input file path</param>
+        /// <param name="cancellationToken">Cancellation token</param>
+        /// <returns>List of loaded image names</returns>
+        Task<CommandResponse<IList<string>>> LoadAsync(
+            DriverContext context,
+            string inputPath,
+            CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Imports a container as an image.
+        /// </summary>
+        /// <param name="context">Driver context</param>
+        /// <param name="source">Source file path or URL</param>
+        /// <param name="repository">Target repository name</param>
+        /// <param name="tag">Target tag</param>
+        /// <param name="message">Commit message</param>
+        /// <param name="cancellationToken">Cancellation token</param>
+        /// <returns>Imported image ID</returns>
+        Task<CommandResponse<string>> ImportAsync(
+            DriverContext context,
+            string source,
+            string repository = null,
+            string tag = null,
+            string message = null,
+            CancellationToken cancellationToken = default);
+
+        #endregion
     }
+
+    #region Progress Types
 
     /// <summary>
     /// Progress information for image pull operations.
@@ -101,6 +208,19 @@ namespace FluentDocker.Drivers
     {
         public string Status { get; set; }
         public string Progress { get; set; }
+        public string Id { get; set; }
+        public long Current { get; set; }
+        public long Total { get; set; }
+    }
+
+    /// <summary>
+    /// Progress information for image push operations.
+    /// </summary>
+    public class ImagePushProgress
+    {
+        public string Status { get; set; }
+        public string Progress { get; set; }
+        public string Id { get; set; }
         public long Current { get; set; }
         public long Total { get; set; }
     }
@@ -112,58 +232,63 @@ namespace FluentDocker.Drivers
     {
         public string Stream { get; set; }
         public string Status { get; set; }
+        public string Id { get; set; }
+        public string Error { get; set; }
     }
+
+    #endregion
+
+    #region Config Types
 
     /// <summary>
     /// Configuration for building an image.
     /// </summary>
     public class ImageBuildConfig
     {
-        /// <summary>
-        /// Path to Dockerfile or build context.
-        /// </summary>
+        /// <summary>Path to Dockerfile or build context.</summary>
         public string BuildContext { get; set; }
 
-        /// <summary>
-        /// Dockerfile name (if not "Dockerfile").
-        /// </summary>
+        /// <summary>Dockerfile name (if not "Dockerfile").</summary>
         public string DockerfileName { get; set; }
 
-        /// <summary>
-        /// Tags to apply to the built image.
-        /// </summary>
+        /// <summary>Tags to apply to the built image.</summary>
         public List<string> Tags { get; set; } = new List<string>();
 
-        /// <summary>
-        /// Build arguments.
-        /// </summary>
+        /// <summary>Build arguments.</summary>
         public Dictionary<string, string> BuildArgs { get; set; } = new Dictionary<string, string>();
 
-        /// <summary>
-        /// Target build stage (for multi-stage builds).
-        /// </summary>
+        /// <summary>Target build stage (for multi-stage builds).</summary>
         public string Target { get; set; }
 
-        /// <summary>
-        /// Labels to apply.
-        /// </summary>
+        /// <summary>Labels to apply.</summary>
         public Dictionary<string, string> Labels { get; set; } = new Dictionary<string, string>();
-    }
 
-    /// <summary>
-    /// Result of an image build operation.
-    /// </summary>
-    public class ImageBuildResult
-    {
-        /// <summary>
-        /// Built image ID.
-        /// </summary>
-        public string ImageId { get; set; }
+        /// <summary>Don't use cache when building.</summary>
+        public bool NoCache { get; set; }
 
-        /// <summary>
-        /// Build warnings.
-        /// </summary>
-        public List<string> Warnings { get; set; } = new List<string>();
+        /// <summary>Always attempt to pull newer versions of base images.</summary>
+        public bool Pull { get; set; }
+
+        /// <summary>Remove intermediate containers after build.</summary>
+        public bool Rm { get; set; } = true;
+
+        /// <summary>Always remove intermediate containers.</summary>
+        public bool ForceRm { get; set; }
+
+        /// <summary>Squash newly built layers into a single layer.</summary>
+        public bool Squash { get; set; }
+
+        /// <summary>Platform to build for.</summary>
+        public string Platform { get; set; }
+
+        /// <summary>Network mode during build.</summary>
+        public string NetworkMode { get; set; }
+
+        /// <summary>Memory limit for build.</summary>
+        public long? Memory { get; set; }
+
+        /// <summary>CPU quota for build.</summary>
+        public long? CpuQuota { get; set; }
     }
 
     /// <summary>
@@ -171,19 +296,130 @@ namespace FluentDocker.Drivers
     /// </summary>
     public class ImageListFilter
     {
-        /// <summary>
-        /// Include all images (including intermediates).
-        /// </summary>
+        /// <summary>Include all images (including intermediates).</summary>
         public bool All { get; set; }
 
-        /// <summary>
-        /// Filter by reference (name:tag).
-        /// </summary>
+        /// <summary>Filter by reference (name:tag).</summary>
         public string Reference { get; set; }
 
-        /// <summary>
-        /// Filter by label.
-        /// </summary>
+        /// <summary>Show dangling images only.</summary>
+        public bool? Dangling { get; set; }
+
+        /// <summary>Filter by label.</summary>
         public Dictionary<string, string> Labels { get; set; } = new Dictionary<string, string>();
+
+        /// <summary>Filter by before image.</summary>
+        public string Before { get; set; }
+
+        /// <summary>Filter by since image.</summary>
+        public string Since { get; set; }
     }
+
+    #endregion
+
+    #region Result Types
+
+    /// <summary>
+    /// Result of an image build operation.
+    /// </summary>
+    public class ImageBuildResult
+    {
+        /// <summary>Built image ID.</summary>
+        public string ImageId { get; set; }
+
+        /// <summary>Build warnings.</summary>
+        public List<string> Warnings { get; set; } = new List<string>();
+
+        /// <summary>Build output.</summary>
+        public List<string> Output { get; set; } = new List<string>();
+    }
+
+    /// <summary>
+    /// Result of an image remove operation.
+    /// </summary>
+    public class ImageRemoveResult
+    {
+        /// <summary>Deleted image IDs.</summary>
+        public List<string> Deleted { get; set; } = new List<string>();
+
+        /// <summary>Untagged image references.</summary>
+        public List<string> Untagged { get; set; } = new List<string>();
+    }
+
+    /// <summary>
+    /// Result of an image prune operation.
+    /// </summary>
+    public class ImagePruneResult
+    {
+        /// <summary>Deleted image IDs.</summary>
+        public List<string> ImagesDeleted { get; set; } = new List<string>();
+
+        /// <summary>Space reclaimed in bytes.</summary>
+        public long SpaceReclaimed { get; set; }
+    }
+
+    /// <summary>
+    /// Represents an image layer.
+    /// </summary>
+    public class ImageLayer
+    {
+        /// <summary>Layer ID.</summary>
+        public string Id { get; set; }
+
+        /// <summary>Created by command.</summary>
+        public string CreatedBy { get; set; }
+
+        /// <summary>Creation time.</summary>
+        public DateTime Created { get; set; }
+
+        /// <summary>Layer size in bytes.</summary>
+        public long Size { get; set; }
+
+        /// <summary>Comment.</summary>
+        public string Comment { get; set; }
+
+        /// <summary>Tags associated with this layer.</summary>
+        public List<string> Tags { get; set; } = new List<string>();
+    }
+
+    /// <summary>
+    /// Represents an image.
+    /// </summary>
+    public class Image
+    {
+        /// <summary>Image ID.</summary>
+        public string Id { get; set; }
+
+        /// <summary>Parent image ID.</summary>
+        public string ParentId { get; set; }
+
+        /// <summary>Repository tags.</summary>
+        public List<string> RepoTags { get; set; } = new List<string>();
+
+        /// <summary>Repository digests.</summary>
+        public List<string> RepoDigests { get; set; } = new List<string>();
+
+        /// <summary>Creation time.</summary>
+        public DateTime Created { get; set; }
+
+        /// <summary>Image size in bytes.</summary>
+        public long Size { get; set; }
+
+        /// <summary>Virtual size in bytes.</summary>
+        public long VirtualSize { get; set; }
+
+        /// <summary>Image labels.</summary>
+        public Dictionary<string, string> Labels { get; set; } = new Dictionary<string, string>();
+
+        /// <summary>Number of containers using this image.</summary>
+        public int Containers { get; set; }
+
+        /// <summary>Architecture.</summary>
+        public string Architecture { get; set; }
+
+        /// <summary>Operating system.</summary>
+        public string Os { get; set; }
+    }
+
+    #endregion
 }

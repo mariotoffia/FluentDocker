@@ -47,9 +47,13 @@ namespace FluentDocker.Services.V3.Impl
             var driver = _kernel.SysCtl<IComposeDriver>(_driverId);
             var context = new DriverContext(_driverId);
 
-            // Use the first compose file for listing
-            var composeFile = _composeFiles.Count > 0 ? _composeFiles[0] : throw new InvalidOperationException("No compose file specified");
-            var response = await driver.ListAsync(context, composeFile, _projectName, cancellationToken);
+            var config = new ComposeListConfig
+            {
+                ComposeFiles = _composeFiles,
+                ProjectName = _projectName
+            };
+
+            var response = await driver.ListAsync(context, config, cancellationToken);
 
             if (!response.Success)
             {
@@ -67,8 +71,14 @@ namespace FluentDocker.Services.V3.Impl
             var driver = _kernel.SysCtl<IComposeDriver>(_driverId);
             var context = new DriverContext(_driverId);
 
-            var composeFile = _composeFiles.Count > 0 ? _composeFiles[0] : throw new InvalidOperationException("No compose file specified");
-            var response = await driver.GetLogsAsync(context, composeFile, follow, cancellationToken);
+            var config = new ComposeLogsConfig
+            {
+                ComposeFiles = _composeFiles,
+                ProjectName = _projectName,
+                Follow = follow
+            };
+
+            var response = await driver.GetLogsAsync(context, config, cancellationToken);
 
             if (!response.Success)
             {
@@ -86,8 +96,15 @@ namespace FluentDocker.Services.V3.Impl
             var driver = _kernel.SysCtl<IComposeDriver>(_driverId);
             var context = new DriverContext(_driverId);
 
-            var composeFile = _composeFiles.Count > 0 ? _composeFiles[0] : throw new InvalidOperationException("No compose file specified");
-            var response = await driver.ExecuteAsync(context, composeFile, service, command, cancellationToken);
+            var config = new ComposeExecConfig
+            {
+                ComposeFiles = _composeFiles,
+                ProjectName = _projectName,
+                Service = service,
+                Command = command
+            };
+
+            var response = await driver.ExecuteAsync(context, config, cancellationToken);
 
             if (!response.Success)
             {
@@ -100,10 +117,27 @@ namespace FluentDocker.Services.V3.Impl
             return response.Data;
         }
 
-        public Task ScaleAsync(string service, int replicas, CancellationToken cancellationToken = default)
+        public async Task ScaleAsync(string service, int replicas, CancellationToken cancellationToken = default)
         {
-            // Scale would need to be added to IComposeDriver
-            throw new NotImplementedException("ScaleAsync requires IComposeDriver.ScaleAsync");
+            var driver = _kernel.SysCtl<IComposeDriver>(_driverId);
+            var context = new DriverContext(_driverId);
+
+            var config = new ComposeScaleConfig
+            {
+                ComposeFiles = _composeFiles,
+                ProjectName = _projectName,
+                Scale = new Dictionary<string, int> { { service, replicas } }
+            };
+
+            var response = await driver.ScaleAsync(context, config, cancellationToken);
+
+            if (!response.Success)
+            {
+                throw new DriverException(
+                    $"Failed to scale service '{service}' for project '{_projectName}': {response.Error}",
+                    response.ErrorCode,
+                    response.ErrorContext);
+            }
         }
 
         public async Task StartAsync(CancellationToken cancellationToken = default)
@@ -111,8 +145,13 @@ namespace FluentDocker.Services.V3.Impl
             var driver = _kernel.SysCtl<IComposeDriver>(_driverId);
             var context = new DriverContext(_driverId);
 
-            var composeFile = _composeFiles.Count > 0 ? _composeFiles[0] : throw new InvalidOperationException("No compose file specified");
-            var response = await driver.StartAsync(context, composeFile, cancellationToken);
+            var config = new ComposeFileConfig
+            {
+                ComposeFiles = _composeFiles,
+                ProjectName = _projectName
+            };
+
+            var response = await driver.StartAsync(context, config, cancellationToken);
 
             if (!response.Success)
             {
@@ -126,10 +165,29 @@ namespace FluentDocker.Services.V3.Impl
             await ExecuteHooksAsync(ServiceRunningState.Running);
         }
 
-        public Task PauseAsync(CancellationToken cancellationToken = default)
+        public async Task PauseAsync(CancellationToken cancellationToken = default)
         {
-            // Compose projects cannot be paused
-            throw new NotSupportedException("Compose projects cannot be paused");
+            var driver = _kernel.SysCtl<IComposeDriver>(_driverId);
+            var context = new DriverContext(_driverId);
+
+            var config = new ComposeFileConfig
+            {
+                ComposeFiles = _composeFiles,
+                ProjectName = _projectName
+            };
+
+            var response = await driver.PauseAsync(context, config, cancellationToken);
+
+            if (!response.Success)
+            {
+                throw new DriverException(
+                    $"Failed to pause compose project '{_projectName}': {response.Error}",
+                    response.ErrorCode,
+                    response.ErrorContext);
+            }
+
+            UpdateState(ServiceRunningState.Paused);
+            await ExecuteHooksAsync(ServiceRunningState.Paused);
         }
 
         public async Task StopAsync(CancellationToken cancellationToken = default)
@@ -137,8 +195,13 @@ namespace FluentDocker.Services.V3.Impl
             var driver = _kernel.SysCtl<IComposeDriver>(_driverId);
             var context = new DriverContext(_driverId);
 
-            var composeFile = _composeFiles.Count > 0 ? _composeFiles[0] : throw new InvalidOperationException("No compose file specified");
-            var response = await driver.StopAsync(context, composeFile, timeout: null, cancellationToken);
+            var config = new ComposeStopConfig
+            {
+                ComposeFiles = _composeFiles,
+                ProjectName = _projectName
+            };
+
+            var response = await driver.StopAsync(context, config, cancellationToken);
 
             if (!response.Success)
             {
@@ -256,4 +319,3 @@ namespace FluentDocker.Services.V3.Impl
         }
     }
 }
-

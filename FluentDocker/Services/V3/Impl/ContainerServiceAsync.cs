@@ -67,7 +67,19 @@ namespace FluentDocker.Services.V3.Impl
 
         public async Task PauseAsync(CancellationToken cancellationToken = default)
         {
-            // Docker CLI doesn't have pause in our driver yet, but structure is here
+            var driver = _kernel.SysCtl<IContainerDriver>(_driverId);
+            var context = new DriverContext(_driverId);
+
+            var response = await driver.PauseAsync(context, _containerId, cancellationToken);
+
+            if (!response.Success)
+            {
+                throw new DriverException(
+                    $"Failed to pause container '{_name}': {response.Error}",
+                    response.ErrorCode,
+                    response.ErrorContext);
+            }
+
             UpdateState(ServiceRunningState.Paused);
             await ExecuteHooksAsync(ServiceRunningState.Paused);
         }
@@ -77,7 +89,7 @@ namespace FluentDocker.Services.V3.Impl
             var driver = _kernel.SysCtl<IContainerDriver>(_driverId);
             var context = new DriverContext(_driverId);
 
-            var response = await driver.StopAsync(context, _containerId, timeout: null, cancellationToken);
+            var response = await driver.StopAsync(context, _containerId, null, cancellationToken);
 
             if (!response.Success)
             {
@@ -96,7 +108,7 @@ namespace FluentDocker.Services.V3.Impl
             var driver = _kernel.SysCtl<IContainerDriver>(_driverId);
             var context = new DriverContext(_driverId);
 
-            var response = await driver.RemoveAsync(context, _containerId, force, cancellationToken);
+            var response = await driver.RemoveAsync(context, _containerId, force, false, cancellationToken);
 
             if (!response.Success)
             {
@@ -139,7 +151,7 @@ namespace FluentDocker.Services.V3.Impl
             var driver = _kernel.SysCtl<IContainerDriver>(_driverId);
             var context = new DriverContext(_driverId);
 
-            var response = await driver.GetLogsAsync(context, _containerId, follow, cancellationToken);
+            var response = await driver.GetLogsAsync(context, _containerId, follow, null, false, cancellationToken);
 
             if (!response.Success)
             {
@@ -151,10 +163,26 @@ namespace FluentDocker.Services.V3.Impl
             return response.Data;
         }
 
-        public Task<string> ExecuteAsync(string command, CancellationToken cancellationToken = default)
+        public async Task<string> ExecuteAsync(string command, CancellationToken cancellationToken = default)
         {
-            // Would need to add Execute to IContainerDriver
-            throw new NotImplementedException("ExecuteAsync requires IContainerDriver.ExecuteAsync");
+            var driver = _kernel.SysCtl<IContainerDriver>(_driverId);
+            var context = new DriverContext(_driverId);
+
+            var config = new ExecConfig
+            {
+                Command = command.Split(' ')
+            };
+
+            var response = await driver.ExecAsync(context, _containerId, config, cancellationToken);
+
+            if (!response.Success)
+            {
+                throw new DriverException(
+                    $"Failed to execute command in container '{_name}': {response.Error}",
+                    response.ErrorCode);
+            }
+
+            return response.Data?.StdOut;
         }
 
         public Task<byte[]> ExportAsync(CancellationToken cancellationToken = default)

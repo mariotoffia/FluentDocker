@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
@@ -7,11 +8,14 @@ namespace FluentDocker.Drivers
 {
     /// <summary>
     /// Compose-specific driver operations (docker-compose, podman-compose).
+    /// Supported by: Docker (V1 and V2), Podman (partial)
     /// </summary>
     public interface IComposeDriver
     {
+        #region Lifecycle Operations
+
         /// <summary>
-        /// Starts all services defined in a compose file.
+        /// Creates and starts all services defined in a compose file.
         /// </summary>
         Task<CommandResponse<ComposeUpResult>> UpAsync(
             DriverContext context,
@@ -27,11 +31,11 @@ namespace FluentDocker.Drivers
             CancellationToken cancellationToken = default);
 
         /// <summary>
-        /// Starts existing compose services.
+        /// Starts existing compose services (previously created).
         /// </summary>
         Task<CommandResponse<Unit>> StartAsync(
             DriverContext context,
-            string composeFile,
+            ComposeFileConfig config,
             CancellationToken cancellationToken = default);
 
         /// <summary>
@@ -39,17 +43,59 @@ namespace FluentDocker.Drivers
         /// </summary>
         Task<CommandResponse<Unit>> StopAsync(
             DriverContext context,
-            string composeFile,
-            int? timeout = null,
+            ComposeStopConfig config,
             CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Restarts compose services.
+        /// </summary>
+        Task<CommandResponse<Unit>> RestartAsync(
+            DriverContext context,
+            ComposeRestartConfig config,
+            CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Pauses running compose services.
+        /// </summary>
+        Task<CommandResponse<Unit>> PauseAsync(
+            DriverContext context,
+            ComposeFileConfig config,
+            CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Unpauses paused compose services.
+        /// </summary>
+        Task<CommandResponse<Unit>> UnpauseAsync(
+            DriverContext context,
+            ComposeFileConfig config,
+            CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Kills running compose services with a signal.
+        /// </summary>
+        Task<CommandResponse<Unit>> KillAsync(
+            DriverContext context,
+            ComposeKillConfig config,
+            CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Removes stopped service containers.
+        /// </summary>
+        Task<CommandResponse<Unit>> RemoveAsync(
+            DriverContext context,
+            ComposeRemoveConfig config,
+            CancellationToken cancellationToken = default);
+
+        #endregion
+
+        #region Information Operations
 
         /// <summary>
         /// Lists services in a compose project.
         /// </summary>
         Task<CommandResponse<IList<ComposeService>>> ListAsync(
             DriverContext context,
-            string composeFile,
-            string projectName = null,
+            ComposeListConfig config,
             CancellationToken cancellationToken = default);
 
         /// <summary>
@@ -57,131 +103,517 @@ namespace FluentDocker.Drivers
         /// </summary>
         Task<CommandResponse<string>> GetLogsAsync(
             DriverContext context,
-            string composeFile,
-            bool follow = false,
+            ComposeLogsConfig config,
             CancellationToken cancellationToken = default);
 
         /// <summary>
-        /// Executes a command in a compose service.
+        /// Gets running processes in compose services.
+        /// </summary>
+        Task<CommandResponse<IList<ComposeProcesses>>> TopAsync(
+            DriverContext context,
+            ComposeFileConfig config,
+            CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Validates and views the compose file.
+        /// </summary>
+        Task<CommandResponse<string>> ConfigAsync(
+            DriverContext context,
+            ComposeConfigConfig config,
+            CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Lists images used by the created containers.
+        /// </summary>
+        Task<CommandResponse<IList<ComposeImage>>> ImagesAsync(
+            DriverContext context,
+            ComposeFileConfig config,
+            CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Gets the public port for a port binding.
+        /// </summary>
+        Task<CommandResponse<string>> PortAsync(
+            DriverContext context,
+            ComposePortConfig config,
+            CancellationToken cancellationToken = default);
+
+        #endregion
+
+        #region Build/Pull Operations
+
+        /// <summary>
+        /// Builds or rebuilds services.
+        /// </summary>
+        Task<CommandResponse<Unit>> BuildAsync(
+            DriverContext context,
+            ComposeBuildConfig config,
+            CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Pulls images for services defined in compose file.
+        /// </summary>
+        Task<CommandResponse<Unit>> PullAsync(
+            DriverContext context,
+            ComposePullConfig config,
+            CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Pushes images for services.
+        /// </summary>
+        Task<CommandResponse<Unit>> PushAsync(
+            DriverContext context,
+            ComposeFileConfig config,
+            CancellationToken cancellationToken = default);
+
+        #endregion
+
+        #region Execution Operations
+
+        /// <summary>
+        /// Executes a command in a compose service container.
         /// </summary>
         Task<CommandResponse<string>> ExecuteAsync(
             DriverContext context,
-            string composeFile,
-            string service,
-            string[] command,
+            ComposeExecConfig config,
             CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Runs a one-off command in a service container.
+        /// </summary>
+        Task<CommandResponse<string>> RunAsync(
+            DriverContext context,
+            ComposeRunConfig config,
+            CancellationToken cancellationToken = default);
+
+        #endregion
+
+        #region Scale/Copy Operations
+
+        /// <summary>
+        /// Scales services to specified number of instances.
+        /// </summary>
+        Task<CommandResponse<Unit>> ScaleAsync(
+            DriverContext context,
+            ComposeScaleConfig config,
+            CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Copies files/folders between a service container and local filesystem.
+        /// </summary>
+        Task<CommandResponse<Unit>> CopyAsync(
+            DriverContext context,
+            ComposeCopyConfig config,
+            CancellationToken cancellationToken = default);
+
+        #endregion
+
+        #region Create Operations
+
+        /// <summary>
+        /// Creates containers for services without starting them.
+        /// </summary>
+        Task<CommandResponse<Unit>> CreateAsync(
+            DriverContext context,
+            ComposeCreateConfig config,
+            CancellationToken cancellationToken = default);
+
+        #endregion
+    }
+
+    #region Config Types
+
+    /// <summary>
+    /// Base configuration for compose operations.
+    /// </summary>
+    public class ComposeFileConfig
+    {
+        /// <summary>Path to compose file(s).</summary>
+        public List<string> ComposeFiles { get; set; } = new List<string>();
+
+        /// <summary>Project name.</summary>
+        public string ProjectName { get; set; }
+
+        /// <summary>Project directory.</summary>
+        public string ProjectDirectory { get; set; }
+
+        /// <summary>Environment variables.</summary>
+        public Dictionary<string, string> Environment { get; set; } = new Dictionary<string, string>();
+
+        /// <summary>Specific services to target.</summary>
+        public List<string> Services { get; set; } = new List<string>();
     }
 
     /// <summary>
     /// Configuration for compose up operation.
     /// </summary>
-    public class ComposeUpConfig
+    public class ComposeUpConfig : ComposeFileConfig
     {
-        /// <summary>
-        /// Path to compose file(s).
-        /// </summary>
-        public List<string> ComposeFiles { get; set; } = new List<string>();
-
-        /// <summary>
-        /// Project name.
-        /// </summary>
-        public string ProjectName { get; set; }
-
-        /// <summary>
-        /// Build images before starting.
-        /// </summary>
+        /// <summary>Build images before starting.</summary>
         public bool Build { get; set; }
 
-        /// <summary>
-        /// Force recreate containers.
-        /// </summary>
+        /// <summary>Force recreate containers.</summary>
         public bool ForceRecreate { get; set; }
 
-        /// <summary>
-        /// Detached mode.
-        /// </summary>
+        /// <summary>Don't recreate containers.</summary>
+        public bool NoRecreate { get; set; }
+
+        /// <summary>Detached mode.</summary>
         public bool Detached { get; set; } = true;
 
-        /// <summary>
-        /// Remove orphan containers.
-        /// </summary>
+        /// <summary>Remove orphan containers.</summary>
         public bool RemoveOrphans { get; set; }
 
-        /// <summary>
-        /// Environment variables.
-        /// </summary>
-        public Dictionary<string, string> Environment { get; set; } = new Dictionary<string, string>();
+        /// <summary>Don't build images.</summary>
+        public bool NoBuild { get; set; }
 
-        /// <summary>
-        /// Specific services to start.
-        /// </summary>
-        public List<string> Services { get; set; } = new List<string>();
-
-        /// <summary>
-        /// Don't start linked services.
-        /// </summary>
+        /// <summary>Don't start linked services.</summary>
         public bool NoDeps { get; set; }
 
-        /// <summary>
-        /// Shutdown timeout in seconds.
-        /// </summary>
+        /// <summary>Don't start the services.</summary>
+        public bool NoStart { get; set; }
+
+        /// <summary>Wait for services to be healthy.</summary>
+        public bool Wait { get; set; }
+
+        /// <summary>Wait timeout in seconds.</summary>
+        public int? WaitTimeout { get; set; }
+
+        /// <summary>Shutdown timeout in seconds.</summary>
         public int? Timeout { get; set; }
     }
 
     /// <summary>
     /// Configuration for compose down operation.
     /// </summary>
-    public class ComposeDownConfig
+    public class ComposeDownConfig : ComposeFileConfig
     {
-        /// <summary>
-        /// Path to compose file(s).
-        /// </summary>
-        public List<string> ComposeFiles { get; set; } = new List<string>();
-
-        /// <summary>
-        /// Project name.
-        /// </summary>
-        public string ProjectName { get; set; }
-
-        /// <summary>
-        /// Remove volumes.
-        /// </summary>
+        /// <summary>Remove volumes.</summary>
         public bool RemoveVolumes { get; set; }
 
-        /// <summary>
-        /// Remove images (all, local).
-        /// </summary>
+        /// <summary>Remove images (all, local).</summary>
         public string RemoveImages { get; set; }
 
-        /// <summary>
-        /// Timeout in seconds.
-        /// </summary>
+        /// <summary>Timeout in seconds.</summary>
         public int? Timeout { get; set; }
 
-        /// <summary>
-        /// Remove orphaned containers.
-        /// </summary>
+        /// <summary>Remove orphaned containers.</summary>
         public bool RemoveOrphans { get; set; }
     }
+
+    /// <summary>
+    /// Configuration for compose stop operation.
+    /// </summary>
+    public class ComposeStopConfig : ComposeFileConfig
+    {
+        /// <summary>Timeout in seconds before forcing stop.</summary>
+        public int? Timeout { get; set; }
+    }
+
+    /// <summary>
+    /// Configuration for compose restart operation.
+    /// </summary>
+    public class ComposeRestartConfig : ComposeFileConfig
+    {
+        /// <summary>Timeout in seconds.</summary>
+        public int? Timeout { get; set; }
+
+        /// <summary>Don't restart linked services.</summary>
+        public bool NoDeps { get; set; }
+    }
+
+    /// <summary>
+    /// Configuration for compose kill operation.
+    /// </summary>
+    public class ComposeKillConfig : ComposeFileConfig
+    {
+        /// <summary>Signal to send (default: SIGKILL).</summary>
+        public string Signal { get; set; } = "SIGKILL";
+    }
+
+    /// <summary>
+    /// Configuration for compose rm operation.
+    /// </summary>
+    public class ComposeRemoveConfig : ComposeFileConfig
+    {
+        /// <summary>Don't ask to confirm removal.</summary>
+        public bool Force { get; set; }
+
+        /// <summary>Stop containers before removing.</summary>
+        public bool Stop { get; set; }
+
+        /// <summary>Remove anonymous volumes.</summary>
+        public bool Volumes { get; set; }
+    }
+
+    /// <summary>
+    /// Configuration for compose ps operation.
+    /// </summary>
+    public class ComposeListConfig : ComposeFileConfig
+    {
+        /// <summary>Show all containers (default: running only).</summary>
+        public bool All { get; set; }
+
+        /// <summary>Output format (json, table).</summary>
+        public string Format { get; set; }
+
+        /// <summary>Only display IDs.</summary>
+        public bool Quiet { get; set; }
+
+        /// <summary>Filter by status.</summary>
+        public string Status { get; set; }
+    }
+
+    /// <summary>
+    /// Configuration for compose logs operation.
+    /// </summary>
+    public class ComposeLogsConfig : ComposeFileConfig
+    {
+        /// <summary>Follow log output.</summary>
+        public bool Follow { get; set; }
+
+        /// <summary>Show timestamps.</summary>
+        public bool Timestamps { get; set; }
+
+        /// <summary>Number of lines to show from end.</summary>
+        public int? Tail { get; set; }
+
+        /// <summary>Show logs since timestamp.</summary>
+        public string Since { get; set; }
+
+        /// <summary>Show logs until timestamp.</summary>
+        public string Until { get; set; }
+
+        /// <summary>Don't colorize output.</summary>
+        public bool NoColor { get; set; }
+    }
+
+    /// <summary>
+    /// Configuration for compose config operation.
+    /// </summary>
+    public class ComposeConfigConfig : ComposeFileConfig
+    {
+        /// <summary>Only show service names.</summary>
+        public bool ShowServices { get; set; }
+
+        /// <summary>Only show volumes.</summary>
+        public bool ShowVolumes { get; set; }
+
+        /// <summary>Print resolved file paths.</summary>
+        public bool ResolveImageDigests { get; set; }
+
+        /// <summary>Output format.</summary>
+        public string Format { get; set; }
+    }
+
+    /// <summary>
+    /// Configuration for compose build operation.
+    /// </summary>
+    public class ComposeBuildConfig : ComposeFileConfig
+    {
+        /// <summary>Don't use cache.</summary>
+        public bool NoCache { get; set; }
+
+        /// <summary>Always pull newer versions of base images.</summary>
+        public bool Pull { get; set; }
+
+        /// <summary>Remove intermediate containers.</summary>
+        public bool ForceRm { get; set; }
+
+        /// <summary>Build arguments.</summary>
+        public Dictionary<string, string> BuildArgs { get; set; } = new Dictionary<string, string>();
+
+        /// <summary>Build in parallel.</summary>
+        public bool Parallel { get; set; }
+
+        /// <summary>Compress build context.</summary>
+        public bool Compress { get; set; }
+    }
+
+    /// <summary>
+    /// Configuration for compose pull operation.
+    /// </summary>
+    public class ComposePullConfig : ComposeFileConfig
+    {
+        /// <summary>Ignore pull failures.</summary>
+        public bool IgnorePullFailures { get; set; }
+
+        /// <summary>Pull in parallel.</summary>
+        public bool Parallel { get; set; }
+
+        /// <summary>Don't print progress information.</summary>
+        public bool Quiet { get; set; }
+
+        /// <summary>Also pull images for services with build config.</summary>
+        public bool IncludeDeps { get; set; }
+    }
+
+    /// <summary>
+    /// Configuration for compose exec operation.
+    /// </summary>
+    public class ComposeExecConfig : ComposeFileConfig
+    {
+        /// <summary>Service name.</summary>
+        public string Service { get; set; }
+
+        /// <summary>Command to execute.</summary>
+        public string[] Command { get; set; }
+
+        /// <summary>Detached mode.</summary>
+        public bool Detach { get; set; }
+
+        /// <summary>Give extended privileges.</summary>
+        public bool Privileged { get; set; }
+
+        /// <summary>Run as this user.</summary>
+        public string User { get; set; }
+
+        /// <summary>Allocate a pseudo-TTY.</summary>
+        public bool Tty { get; set; } = true;
+
+        /// <summary>Working directory inside container.</summary>
+        public string WorkDir { get; set; }
+
+        /// <summary>Index of container if scaled.</summary>
+        public int? Index { get; set; }
+    }
+
+    /// <summary>
+    /// Configuration for compose run operation.
+    /// </summary>
+    public class ComposeRunConfig : ComposeFileConfig
+    {
+        /// <summary>Service name.</summary>
+        public string Service { get; set; }
+
+        /// <summary>Command to run.</summary>
+        public string[] Command { get; set; }
+
+        /// <summary>Detached mode.</summary>
+        public bool Detach { get; set; }
+
+        /// <summary>Container name.</summary>
+        public string Name { get; set; }
+
+        /// <summary>Override entrypoint.</summary>
+        public string Entrypoint { get; set; }
+
+        /// <summary>Run as this user.</summary>
+        public string User { get; set; }
+
+        /// <summary>Working directory.</summary>
+        public string WorkDir { get; set; }
+
+        /// <summary>Don't start linked services.</summary>
+        public bool NoDeps { get; set; }
+
+        /// <summary>Remove container after run.</summary>
+        public bool Rm { get; set; }
+
+        /// <summary>Publish service ports.</summary>
+        public bool ServicePorts { get; set; }
+
+        /// <summary>Additional ports to expose.</summary>
+        public List<string> Publish { get; set; } = new List<string>();
+
+        /// <summary>Additional volumes.</summary>
+        public List<string> Volumes { get; set; } = new List<string>();
+
+        /// <summary>Allocate a pseudo-TTY.</summary>
+        public bool Tty { get; set; }
+    }
+
+    /// <summary>
+    /// Configuration for compose scale operation.
+    /// </summary>
+    public class ComposeScaleConfig : ComposeFileConfig
+    {
+        /// <summary>Service replicas (service=count).</summary>
+        public Dictionary<string, int> Scale { get; set; } = new Dictionary<string, int>();
+
+        /// <summary>Don't start linked services.</summary>
+        public bool NoDeps { get; set; }
+    }
+
+    /// <summary>
+    /// Configuration for compose cp operation.
+    /// </summary>
+    public class ComposeCopyConfig : ComposeFileConfig
+    {
+        /// <summary>Source path (container:path or local path).</summary>
+        public string Source { get; set; }
+
+        /// <summary>Destination path (container:path or local path).</summary>
+        public string Destination { get; set; }
+
+        /// <summary>Archive mode (copy all uid/gid info).</summary>
+        public bool Archive { get; set; }
+
+        /// <summary>Follow symbolic links.</summary>
+        public bool FollowLinks { get; set; }
+
+        /// <summary>Container index if scaled.</summary>
+        public int? Index { get; set; }
+    }
+
+    /// <summary>
+    /// Configuration for compose create operation.
+    /// </summary>
+    public class ComposeCreateConfig : ComposeFileConfig
+    {
+        /// <summary>Build images before creating.</summary>
+        public bool Build { get; set; }
+
+        /// <summary>Recreate containers even if unchanged.</summary>
+        public bool ForceRecreate { get; set; }
+
+        /// <summary>Don't recreate existing containers.</summary>
+        public bool NoRecreate { get; set; }
+
+        /// <summary>Don't build images.</summary>
+        public bool NoBuild { get; set; }
+
+        /// <summary>Pull images before creating.</summary>
+        public string Pull { get; set; }
+
+        /// <summary>Remove orphaned containers.</summary>
+        public bool RemoveOrphans { get; set; }
+    }
+
+    /// <summary>
+    /// Configuration for compose port operation.
+    /// </summary>
+    public class ComposePortConfig : ComposeFileConfig
+    {
+        /// <summary>Service name.</summary>
+        public string Service { get; set; }
+
+        /// <summary>Private port.</summary>
+        public int PrivatePort { get; set; }
+
+        /// <summary>Protocol (tcp or udp).</summary>
+        public string Protocol { get; set; } = "tcp";
+
+        /// <summary>Index of container if scaled.</summary>
+        public int? Index { get; set; }
+    }
+
+    #endregion
+
+    #region Result Types
 
     /// <summary>
     /// Result of a compose up operation.
     /// </summary>
     public class ComposeUpResult
     {
-        /// <summary>
-        /// List of started services.
-        /// </summary>
+        /// <summary>List of started services.</summary>
         public List<string> Services { get; set; } = new List<string>();
 
-        /// <summary>
-        /// Project name.
-        /// </summary>
+        /// <summary>Project name.</summary>
         public string ProjectName { get; set; }
 
-        /// <summary>
-        /// Warnings from the operation.
-        /// </summary>
+        /// <summary>Warnings from the operation.</summary>
         public List<string> Warnings { get; set; } = new List<string>();
     }
 
@@ -190,29 +622,69 @@ namespace FluentDocker.Drivers
     /// </summary>
     public class ComposeService
     {
-        /// <summary>
-        /// Service name.
-        /// </summary>
+        /// <summary>Service name.</summary>
         public string Name { get; set; }
 
-        /// <summary>
-        /// Current state.
-        /// </summary>
+        /// <summary>Current state.</summary>
         public string State { get; set; }
 
-        /// <summary>
-        /// Container ID (if running).
-        /// </summary>
+        /// <summary>Health status.</summary>
+        public string Health { get; set; }
+
+        /// <summary>Container ID (if running).</summary>
         public string ContainerId { get; set; }
 
-        /// <summary>
-        /// Image being used.
-        /// </summary>
+        /// <summary>Image being used.</summary>
         public string Image { get; set; }
 
-        /// <summary>
-        /// Port mappings.
-        /// </summary>
+        /// <summary>Command being run.</summary>
+        public string Command { get; set; }
+
+        /// <summary>Port mappings.</summary>
         public List<string> Ports { get; set; } = new List<string>();
+
+        /// <summary>Number of replicas.</summary>
+        public int Replicas { get; set; }
+
+        /// <summary>Exit code (if stopped).</summary>
+        public int? ExitCode { get; set; }
     }
+
+    /// <summary>
+    /// Represents processes in a compose service.
+    /// </summary>
+    public class ComposeProcesses
+    {
+        /// <summary>Service name.</summary>
+        public string Service { get; set; }
+
+        /// <summary>Container ID.</summary>
+        public string ContainerId { get; set; }
+
+        /// <summary>Process information.</summary>
+        public List<Dictionary<string, string>> Processes { get; set; } = new List<Dictionary<string, string>>();
+    }
+
+    /// <summary>
+    /// Represents an image used by a compose service.
+    /// </summary>
+    public class ComposeImage
+    {
+        /// <summary>Container name.</summary>
+        public string Container { get; set; }
+
+        /// <summary>Repository.</summary>
+        public string Repository { get; set; }
+
+        /// <summary>Tag.</summary>
+        public string Tag { get; set; }
+
+        /// <summary>Image ID.</summary>
+        public string ImageId { get; set; }
+
+        /// <summary>Image size.</summary>
+        public string Size { get; set; }
+    }
+
+    #endregion
 }
