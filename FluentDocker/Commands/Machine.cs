@@ -15,6 +15,14 @@ using FluentDocker.Services;
 
 namespace FluentDocker.Commands
 {
+  /// <summary>
+  /// Docker Machine commands.
+  /// </summary>
+  /// <remarks>
+  /// This class is deprecated. Use the IMachineDriver interface from the FluentDocker.Drivers namespace instead.
+  /// The Driver layer provides async operations, better error handling, and support for multiple container runtimes.
+  /// </remarks>
+  [System.Obsolete("Use IMachineDriver from FluentDocker.Drivers namespace instead. Will be removed in v4.0.0.")]
   public static class Machine
   {
     public static bool IsPresent()

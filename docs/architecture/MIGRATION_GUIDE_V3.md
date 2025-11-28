@@ -182,6 +182,76 @@ If you have logging configuration filtering by namespace, update accordingly:
 
 ---
 
+### Commands Namespace Deprecation
+
+**⚠️ DEPRECATION WARNING**
+
+The `FluentDocker.Commands` namespace is **deprecated** in v3.0.0 and will be removed in v4.0.0. All classes in this namespace have been marked with `[Obsolete]` attributes.
+
+#### Why is Commands Deprecated?
+
+The Commands namespace was the original v1/v2 API for executing Docker CLI commands. It has been superseded by the **Driver Layer** which provides:
+
+- **Async/await support** - Better performance and scalability
+- **Type-safe error handling** - `CommandResponse<T>` with error codes instead of exceptions
+- **Pluggable architecture** - Support for Docker CLI, Podman, Kubernetes, and future runtimes
+- **Testability** - Driver interfaces enable mocking and testing
+
+#### Migration from Commands to Drivers
+
+**v2.x.x (Commands)**:
+```csharp
+using FluentDocker.Commands;
+
+// Direct CLI calls via extension methods
+var result = host.Ps("--all", certificates);
+var container = host.InspectContainer(containerId, certificates);
+host.Start(containerId, certificates);
+host.Stop(containerId, null, certificates);
+```
+
+**v3.0.0 (Drivers - Recommended)**:
+```csharp
+using FluentDocker.Drivers;
+using FluentDocker.Model.Drivers;
+
+// Get driver from kernel
+var driver = kernel.GetDriver<IContainerDriver>("docker");
+var context = new DriverContext("default") { Host = "unix:///var/run/docker.sock" };
+
+// Async driver calls with typed responses
+var result = await driver.ListAsync(context, new ContainerListFilter { All = true });
+var container = await driver.InspectAsync(context, containerId);
+await driver.StartAsync(context, containerId);
+await driver.StopAsync(context, containerId, timeout: 30);
+```
+
+#### Commands → Driver Mapping
+
+| Commands Class | Driver Interface |
+|----------------|-----------------|
+| `Client` | `IContainerDriver` |
+| `Images` | `IImageDriver` |
+| `Network` | `INetworkDriver` |
+| `Volumes` | `IVolumeDriver` |
+| `Info` | `ISystemDriver` |
+| `Compose` | `IComposeDriver` |
+| `Machine` | `IMachineDriver` |
+| `Service` | `IServiceDriver` |
+| `Stack` | `IStackDriver` |
+| `ClientStreams` | `IStreamDriver` |
+| `ComposeStreams` | `IStreamDriver` |
+
+#### Gradual Migration Strategy
+
+1. **Phase 1**: Continue using v2 Services/Builders (which internally use Commands) - works in v3.0.0 with deprecation warnings
+2. **Phase 2**: Migrate to v3 async Services (`FluentDocker.Services.V3`) which use the Driver layer
+3. **Phase 3**: For advanced use cases, call Driver interfaces directly
+
+**Note**: The v2 Services (`DockerContainerService`, `DockerHostService`, etc.) continue to work in v3.0.0 and use Commands internally. You will see deprecation warnings, but functionality is preserved.
+
+---
+
 ### 1. Builder Scoping Pattern
 
 **Change**: `Builder` no longer takes kernel in constructor. Use `WithinDriver()` to establish scopes.

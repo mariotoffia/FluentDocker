@@ -22,6 +22,28 @@ This document summarizes the completed v3.0.0 driver layer architecture implemen
 | IVolumeDriver | ✅ | `Drivers/IVolumeDriver.cs` |
 | ISystemDriver | ✅ | `Drivers/ISystemDriver.cs` |
 | IComposeDriver | ✅ | `Drivers/IComposeDriver.cs` |
+| IAuthDriver | ✅ | `Drivers/IAuthDriver.cs` |
+| IStreamDriver | ✅ | `Drivers/IStreamDriver.cs` |
+| IStackDriver | ✅ | `Drivers/IStackDriver.cs` |
+| IServiceDriver | ✅ | `Drivers/IServiceDriver.cs` |
+| IMachineDriver | ✅ | `Drivers/IMachineDriver.cs` |
+
+### Commands Namespace (Deprecated)
+| Component | Status | Notes |
+|-----------|--------|-------|
+| Client | ⚠️ | Use `IContainerDriver` instead |
+| Images | ⚠️ | Use `IImageDriver` instead |
+| Network | ⚠️ | Use `INetworkDriver` instead |
+| Volumes | ⚠️ | Use `IVolumeDriver` instead |
+| Info | ⚠️ | Use `ISystemDriver` instead |
+| Compose | ⚠️ | Use `IComposeDriver` instead |
+| Machine | ⚠️ | Use `IMachineDriver` instead |
+| Service | ⚠️ | Use `IServiceDriver` instead |
+| Stack | ⚠️ | Use `IStackDriver` instead |
+| ClientStreams | ⚠️ | Use `IStreamDriver` instead |
+| ComposeStreams | ⚠️ | Use `IStreamDriver` instead |
+
+**Note**: All Commands classes are marked with `[Obsolete]` and will be removed in v4.0.0.
 
 ### Docker CLI Driver
 | Component | Status | Location |

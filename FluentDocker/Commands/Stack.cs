@@ -16,7 +16,10 @@ namespace FluentDocker.Commands
   /// </summary>
   /// <remarks>
   /// See good examples at https://github.com/play-with-docker/stacks
+  /// This class is deprecated. Use the IStackDriver interface from the FluentDocker.Drivers namespace instead.
+  /// The Driver layer provides async operations, better error handling, and support for multiple container runtimes.
   /// </remarks>
+  [System.Obsolete("Use IStackDriver from FluentDocker.Drivers namespace instead. Will be removed in v4.0.0.")]
   public static class Stack
   {
     #region New struct-based command methods

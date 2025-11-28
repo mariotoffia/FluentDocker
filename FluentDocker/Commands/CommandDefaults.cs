@@ -2,6 +2,13 @@
 
 namespace FluentDocker.Commands
 {
+  /// <summary>
+  /// Default settings for Docker commands.
+  /// </summary>
+  /// <remarks>
+  /// This class is deprecated. Configuration should be done through the Driver layer instead.
+  /// </remarks>
+  [System.Obsolete("Configuration should be done through the Driver layer. Will be removed in v4.0.0.")]
   public static class CommandDefaults
   {
     static CommandDefaults()

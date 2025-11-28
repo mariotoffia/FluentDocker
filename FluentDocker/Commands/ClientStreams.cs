@@ -10,6 +10,14 @@ using FluentDocker.Model.Events;
 
 namespace FluentDocker.Commands
 {
+  /// <summary>
+  /// Docker client streaming commands (logs, events, stats).
+  /// </summary>
+  /// <remarks>
+  /// This class is deprecated. Use the IStreamDriver interface from the FluentDocker.Drivers namespace instead.
+  /// The Driver layer provides async operations, better error handling, and support for multiple container runtimes.
+  /// </remarks>
+  [System.Obsolete("Use IStreamDriver from FluentDocker.Drivers namespace instead. Will be removed in v4.0.0.")]
   public static class ClientStreams
   {
     #region New struct-based command methods

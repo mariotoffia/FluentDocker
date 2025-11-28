@@ -16,7 +16,10 @@ namespace FluentDocker.Commands
   /// <remarks>
   /// API 1.24+
   /// docker service create [OPTIONS] IMAGE [COMMAND] [ARG...]
+  /// This class is deprecated. Use the IServiceDriver interface from the FluentDocker.Drivers namespace instead.
+  /// The Driver layer provides async operations, better error handling, and support for multiple container runtimes.
   /// </remarks>
+  [System.Obsolete("Use IServiceDriver from FluentDocker.Drivers namespace instead. Will be removed in v4.0.0.")]
   public static class Service
   {
     /// <summary>

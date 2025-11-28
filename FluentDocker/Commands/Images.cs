@@ -9,6 +9,14 @@ using FluentDocker.Model.Images;
 
 namespace FluentDocker.Commands
 {
+  /// <summary>
+  /// Docker image commands.
+  /// </summary>
+  /// <remarks>
+  /// This class is deprecated. Use the IImageDriver interface from the FluentDocker.Drivers namespace instead.
+  /// The Driver layer provides async operations, better error handling, and support for multiple container runtimes.
+  /// </remarks>
+  [System.Obsolete("Use IImageDriver from FluentDocker.Drivers namespace instead. Will be removed in v4.0.0.")]
   public static class Images
   {
     #region New struct-based command methods

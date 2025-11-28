@@ -12,6 +12,14 @@ using FluentDocker.Model.Networks;
 
 namespace FluentDocker.Commands
 {
+  /// <summary>
+  /// Docker network commands.
+  /// </summary>
+  /// <remarks>
+  /// This class is deprecated. Use the INetworkDriver interface from the FluentDocker.Drivers namespace instead.
+  /// The Driver layer provides async operations, better error handling, and support for multiple container runtimes.
+  /// </remarks>
+  [System.Obsolete("Use INetworkDriver from FluentDocker.Drivers namespace instead. Will be removed in v4.0.0.")]
   public static class Network
   {
     #region New struct-based command methods

@@ -11,6 +11,14 @@ using FluentDocker.Model.Images;
 
 namespace FluentDocker.Commands
 {
+  /// <summary>
+  /// Docker client commands (container operations).
+  /// </summary>
+  /// <remarks>
+  /// This class is deprecated. Use the IContainerDriver interface from the FluentDocker.Drivers namespace instead.
+  /// The Driver layer provides async operations, better error handling, and support for multiple container runtimes.
+  /// </remarks>
+  [Obsolete("Use IContainerDriver from FluentDocker.Drivers namespace instead. Will be removed in v4.0.0.")]
   public static class Client
   {
     #region New struct-based command methods

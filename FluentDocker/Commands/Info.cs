@@ -8,6 +8,14 @@ using FluentDocker.Model.Containers;
 
 namespace FluentDocker.Commands
 {
+  /// <summary>
+  /// Docker system/info commands.
+  /// </summary>
+  /// <remarks>
+  /// This class is deprecated. Use the ISystemDriver interface from the FluentDocker.Drivers namespace instead.
+  /// The Driver layer provides async operations, better error handling, and support for multiple container runtimes.
+  /// </remarks>
+  [System.Obsolete("Use ISystemDriver from FluentDocker.Drivers namespace instead. Will be removed in v4.0.0.")]
   public static class Info
   {
     /// <summary>
