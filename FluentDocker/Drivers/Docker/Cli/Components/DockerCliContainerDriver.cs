@@ -199,6 +199,64 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
                 if (config.Interactive)
                     args.Add("-i");
 
+                // Health check configuration
+                if (config.HealthCheck != null)
+                {
+                    if (config.HealthCheck.Test != null && config.HealthCheck.Test.Length > 0)
+                    {
+                        // Docker CLI --health-cmd expects just the command, without CMD-SHELL prefix
+                        // If the first element is "CMD-SHELL" or "CMD", skip it as it's only for Dockerfile format
+                        var testCommands = config.HealthCheck.Test;
+                        if (testCommands[0] == "CMD-SHELL" || testCommands[0] == "CMD")
+                            testCommands = testCommands.Skip(1).ToArray();
+                        
+                        var cmd = string.Join(" ", testCommands);
+                        args.Add($"--health-cmd \"{cmd}\"");
+                    }
+                    if (!string.IsNullOrEmpty(config.HealthCheck.Interval))
+                        args.Add($"--health-interval {config.HealthCheck.Interval}");
+                    if (!string.IsNullOrEmpty(config.HealthCheck.Timeout))
+                        args.Add($"--health-timeout {config.HealthCheck.Timeout}");
+                    if (config.HealthCheck.Retries > 0)
+                        args.Add($"--health-retries {config.HealthCheck.Retries}");
+                    if (!string.IsNullOrEmpty(config.HealthCheck.StartPeriod))
+                        args.Add($"--health-start-period {config.HealthCheck.StartPeriod}");
+                }
+
+                // Memory limit
+                if (config.MemoryLimit.HasValue && config.MemoryLimit.Value > 0)
+                    args.Add($"--memory {config.MemoryLimit.Value}");
+
+                // CPU shares
+                if (config.CpuShares.HasValue && config.CpuShares.Value > 0)
+                    args.Add($"--cpu-shares {config.CpuShares.Value}");
+
+                // Hostname
+                if (!string.IsNullOrEmpty(config.Hostname))
+                    args.Add($"--hostname {config.Hostname}");
+
+                // DNS servers
+                if (config.Dns != null)
+                    foreach (var dns in config.Dns)
+                        args.Add($"--dns {dns}");
+
+                // Extra hosts
+                if (config.ExtraHosts != null)
+                    foreach (var host in config.ExtraHosts)
+                        args.Add($"--add-host {host.Key}:{host.Value}");
+
+                // Entrypoint
+                if (config.Entrypoint != null && config.Entrypoint.Length > 0)
+                    args.Add($"--entrypoint \"{string.Join(" ", config.Entrypoint)}\"");
+
+                // Stop signal
+                if (!string.IsNullOrEmpty(config.StopSignal))
+                    args.Add($"--stop-signal {config.StopSignal}");
+
+                // Stop timeout
+                if (config.StopTimeout.HasValue)
+                    args.Add($"--stop-timeout {config.StopTimeout.Value}");
+
                 args.Add(config.Image);
 
                 if (config.Command != null && config.Command.Length > 0)

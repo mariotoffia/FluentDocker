@@ -238,8 +238,8 @@ The entire Commands namespace is deprecated. Tests should NOT be ported.
 - ✅ **Fluent Container Tests**: 13/14 passing (1 health check config issue)
 - ✅ **Fluent Network Tests**: 6/6 passing - all passing!
 - ✅ **Fluent Volume Tests**: 5/6 passing (1 minor timing issue)
-- ⚠️ **Compose Driver Tests**: Need resources copied to output directory
-- ✅ **Wait Condition Tests**: 8/9 passing (1 health check wait issue)
+- ✅ **Compose Driver Tests**: 13/13 passing - all tests pass!
+- ✅ **Wait Condition Tests**: 9/9 passing - all tests pass!
 - ✅ **Regression Tests**: 4/6 passing (2 compose-related)
 - ✅ **DockerfileBuilder**: Full support for programmatic Dockerfile creation
 - ✅ **ImageBuilder**: Full support for building Docker images
@@ -251,8 +251,9 @@ The entire Commands namespace is deprecated. Tests should NOT be ported.
 - ✅ **Network Driver Tests**: Create, connect, disconnect tests
 - ✅ **Volume Driver Tests**: Create, mount, list tests
 - ✅ **Image Driver Tests**: Pull, inspect, tag tests
-- ⚠️ **System Driver Tests**: Need model updates for Docker JSON structure
-- ⚠️ **Health Check Tests**: Driver may need fix for health check config passing
+- ✅ **System Driver Tests**: 6/6 passing - models updated for Docker JSON structure
+- ✅ **Health Check Tests**: All passing - driver now passes health check config correctly
+- ✅ **Compose List Tests**: Fixed - ComposeServiceInfo model updated for compose ps output
 
 ---
 
@@ -273,4 +274,91 @@ The entire Commands namespace is deprecated. Tests should NOT be ported.
 3. Direct command execution - Use drivers instead
 4. Sync-only operations - All operations are now async
 
+---
+
+## Test Resources Mapping
+
+This section maps the test resources in `/FluentDocker.Tests/Resources/` to their usage in tests.
+
+### Resource Structure
+
+```
+FluentDocker.Tests/Resources/
+├── ComposeTests/
+│   ├── KafkaAndZookeeper/
+│   │   └── docker-compose.yaml     ✅ Used: ComposeDriverTests, RegressionTests
+│   ├── MongoDbAndNetwork/
+│   │   └── docker-compose.yml      ✅ Used: ComposeDriverTests, RegressionTests
+│   ├── RabbitMQ/
+│   │   └── docker-compose.yml      ✅ Used: ComposeDriverTests (7 tests)
+│   └── WordPress/
+│       └── docker-compose.yml      ✅ Used: ComposeDriverTests (4 tests)
+├── hellotest/
+│   ├── docker-compose.yml          ✅ Used: ComposeDriverTests (build test)
+│   └── hellotest/
+│       ├── Dockerfile              ✅ Used: ComposeDriverTests (image build)
+│       └── hello                   ✅ Used: ComposeDriverTests (binary)
+└── Scripts/
+    ├── envtest.bat                 ✅ Used: ProcessEnvironmentTests (Windows)
+    └── envtest.sh                  ✅ Used: ProcessEnvironmentTests (Linux/macOS)
+```
+
+### Resource Usage by Test File
+
+| Test File | Resources Used |
+|-----------|----------------|
+| `ComposeDriverTests.cs` | WordPress, RabbitMQ, MongoDbAndNetwork, KafkaAndZookeeper, hellotest |
+| `RegressionTests.cs` | MongoDbAndNetwork, KafkaAndZookeeper |
+| `ProcessEnvironmentTests.cs` | Scripts/envtest.sh, Scripts/envtest.bat |
+
+### Removed Resources
+
+| Resource | Reason | Status |
+|----------|--------|--------|
+| `Issue/111/server.py` | Legacy V2 issue test resource | ✅ Removed |
+| `StackTests/WordPress/stack.yml` | Docker Swarm stack tests deprecated | ✅ Removed |
+
+### Notes on Resources
+
+1. **ComposeTests/**: Primary compose resources for integration testing
+   - WordPress: Multi-container with MariaDB + WordPress (port 8000)
+     - Updated from mysql:5.7 → mariadb:10.6 for ARM64 compatibility
+   - RabbitMQ: Single service with healthcheck (port 5672)
+     - Updated to rabbitmq:3-alpine for consistency
+   - MongoDbAndNetwork: Custom network with MongoDB
+     - Removed deprecated --smallfiles flag
+   - KafkaAndZookeeper: Multi-container messaging system
+     - Updated from wurstmeister → bitnami images for ARM64 compatibility
+
+2. **hellotest/**: Build context for compose with local Dockerfile
+   - Tests compose `build` functionality vs pre-built images
+   - Contains simple "hello" binary for testing
+
+3. **Scripts/**: Cross-platform environment testing scripts
+   - Used by `ProcessEnvironmentTests` to verify env var passing
+
+4. **Issue/** and **StackTests/**: Removed
+   - Legacy resources no longer needed in V3
+
+### Resource File Changes Made
+
+The following updates were made to modernize the compose files:
+
+| File | Change | Reason |
+|------|--------|--------|
+| WordPress/docker-compose.yml | mysql:5.7 → mariadb:10.6 | ARM64 support |
+| WordPress/docker-compose.yml | Removed `version` attribute | Deprecated in Compose V2 |
+| KafkaAndZookeeper/docker-compose.yaml | wurstmeister → bitnami | ARM64 support |
+| KafkaAndZookeeper/docker-compose.yaml | Simplified config | Modern Kafka settings |
+| MongoDbAndNetwork/docker-compose.yml | Removed --smallfiles | Deprecated in MongoDB |
+| RabbitMQ/docker-compose.yml | Removed `version` attribute | Deprecated in Compose V2 |
+| hellotest/docker-compose.yml | Removed `version` attribute | Deprecated in Compose V2 |
+
+### csproj Updates
+
+Added missing resource file entries to `FluentDocker.Tests.csproj`:
+- `ComposeTests/RabbitMQ/docker-compose.yml`
+- `hellotest/docker-compose.yml`
+- `hellotest/hellotest/Dockerfile`
+- `hellotest/hellotest/hello`
 

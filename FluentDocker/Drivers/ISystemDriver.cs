@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using FluentDocker.Model.Drivers;
@@ -99,8 +100,12 @@ namespace FluentDocker.Drivers
 
     public class SystemInfo
     {
-        /// <summary>Operating system type.</summary>
+        /// <summary>Operating system name (e.g., "Docker Desktop").</summary>
         public string OperatingSystem { get; set; }
+
+        /// <summary>Operating system type (e.g., "linux", "windows").</summary>
+        [Newtonsoft.Json.JsonProperty("OSType")]
+        public string OSType { get; set; }
 
         /// <summary>Operating system version.</summary>
         public string OSVersion { get; set; }
@@ -127,6 +132,7 @@ namespace FluentDocker.Drivers
         public string ServerVersion { get; set; }
 
         /// <summary>Storage driver in use.</summary>
+        [Newtonsoft.Json.JsonProperty("Driver")]
         public string StorageDriver { get; set; }
 
         /// <summary>Logging driver in use.</summary>
@@ -136,43 +142,129 @@ namespace FluentDocker.Drivers
         public string KernelVersion { get; set; }
 
         /// <summary>Total memory in bytes.</summary>
+        [Newtonsoft.Json.JsonProperty("MemTotal")]
         public long MemoryTotal { get; set; }
 
         /// <summary>Number of CPUs.</summary>
+        [Newtonsoft.Json.JsonProperty("NCPU")]
         public int CPUs { get; set; }
 
         /// <summary>Docker root directory.</summary>
         public string DockerRootDir { get; set; }
 
         /// <summary>Server hostname.</summary>
+        [Newtonsoft.Json.JsonProperty("Name")]
         public string Hostname { get; set; }
 
         /// <summary>Whether swarm mode is active.</summary>
-        public bool SwarmActive { get; set; }
+        [Newtonsoft.Json.JsonIgnore]
+        public bool SwarmActive => Swarm?.LocalNodeState == "active";
+
+        /// <summary>Swarm info.</summary>
+        public SwarmInfo Swarm { get; set; }
 
         /// <summary>Security options.</summary>
         public List<string> SecurityOptions { get; set; } = new List<string>();
 
-        /// <summary>Available runtimes.</summary>
-        public List<string> Runtimes { get; set; } = new List<string>();
+        /// <summary>Available runtimes (as dictionary from Docker).</summary>
+        [Newtonsoft.Json.JsonProperty("Runtimes")]
+        public Dictionary<string, object> RuntimesRaw { get; set; }
+
+        /// <summary>Available runtime names.</summary>
+        [Newtonsoft.Json.JsonIgnore]
+        public List<string> Runtimes => RuntimesRaw?.Keys.ToList() ?? new List<string>();
 
         /// <summary>Default runtime.</summary>
         public string DefaultRuntime { get; set; }
     }
 
+    /// <summary>
+    /// Swarm information from docker info.
+    /// </summary>
+    public class SwarmInfo
+    {
+        /// <summary>Local node state (inactive, pending, active, etc.).</summary>
+        public string LocalNodeState { get; set; }
+
+        /// <summary>Node ID if part of swarm.</summary>
+        public string NodeID { get; set; }
+
+        /// <summary>Control available.</summary>
+        public bool ControlAvailable { get; set; }
+    }
+
     public class VersionInfo
     {
+        /// <summary>Client information.</summary>
+        [Newtonsoft.Json.JsonProperty("Client")]
+        public VersionComponent Client { get; set; }
+
+        /// <summary>Server information.</summary>
+        [Newtonsoft.Json.JsonProperty("Server")]
+        public VersionComponent Server { get; set; }
+
+        // Convenience properties that extract from Client/Server
         /// <summary>Client version.</summary>
-        public string ClientVersion { get; set; }
+        [Newtonsoft.Json.JsonIgnore]
+        public string ClientVersion => Client?.Version;
 
         /// <summary>Client API version.</summary>
-        public string ClientApiVersion { get; set; }
+        [Newtonsoft.Json.JsonIgnore]
+        public string ClientApiVersion => Client?.ApiVersion;
 
         /// <summary>Server version.</summary>
-        public string ServerVersion { get; set; }
+        [Newtonsoft.Json.JsonIgnore]
+        public string ServerVersion => Server?.Version;
 
         /// <summary>Server API version.</summary>
-        public string ServerApiVersion { get; set; }
+        [Newtonsoft.Json.JsonIgnore]
+        public string ServerApiVersion => Server?.ApiVersion;
+
+        /// <summary>Git commit (from server).</summary>
+        [Newtonsoft.Json.JsonIgnore]
+        public string GitCommit => Server?.GitCommit ?? Client?.GitCommit;
+
+        /// <summary>Go version (from server).</summary>
+        [Newtonsoft.Json.JsonIgnore]
+        public string GoVersion => Server?.GoVersion ?? Client?.GoVersion;
+
+        /// <summary>Operating system (from server, which is the daemon OS).</summary>
+        [Newtonsoft.Json.JsonIgnore]
+        public string Os => Server?.Os ?? Client?.Os;
+
+        /// <summary>Architecture (from server).</summary>
+        [Newtonsoft.Json.JsonIgnore]
+        public string Arch => Server?.Arch ?? Client?.Arch;
+
+        /// <summary>Minimum API version (from server).</summary>
+        [Newtonsoft.Json.JsonIgnore]
+        public string MinApiVersion => Server?.MinAPIVersion;
+
+        /// <summary>Build time (from server).</summary>
+        [Newtonsoft.Json.JsonIgnore]
+        public string BuildTime => Server?.BuildTime ?? Client?.BuildTime;
+
+        /// <summary>Experimental features enabled.</summary>
+        [Newtonsoft.Json.JsonIgnore]
+        public bool Experimental => Server?.Experimental == "true";
+    }
+
+    /// <summary>
+    /// Version component information (Client or Server).
+    /// </summary>
+    public class VersionComponent
+    {
+        /// <summary>Version string.</summary>
+        public string Version { get; set; }
+
+        /// <summary>API version.</summary>
+        public string ApiVersion { get; set; }
+
+        /// <summary>Default API version.</summary>
+        public string DefaultAPIVersion { get; set; }
+
+        /// <summary>Minimum API version.</summary>
+        public string MinAPIVersion { get; set; }
 
         /// <summary>Git commit.</summary>
         public string GitCommit { get; set; }
@@ -186,14 +278,14 @@ namespace FluentDocker.Drivers
         /// <summary>Architecture.</summary>
         public string Arch { get; set; }
 
-        /// <summary>Minimum API version.</summary>
-        public string MinApiVersion { get; set; }
-
         /// <summary>Build time.</summary>
         public string BuildTime { get; set; }
 
-        /// <summary>Experimental features enabled.</summary>
-        public bool Experimental { get; set; }
+        /// <summary>Experimental features enabled (string "true"/"false").</summary>
+        public string Experimental { get; set; }
+
+        /// <summary>Kernel version (server only).</summary>
+        public string KernelVersion { get; set; }
     }
 
     public class DiskUsageInfo

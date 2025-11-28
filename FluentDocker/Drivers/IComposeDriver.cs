@@ -622,17 +622,26 @@ namespace FluentDocker.Drivers
     /// </summary>
     public class ComposeServiceInfo
     {
-        /// <summary>Service name.</summary>
+        /// <summary>Service name (from compose file).</summary>
+        [Newtonsoft.Json.JsonProperty("Service")]
         public string Name { get; set; }
 
-        /// <summary>Current state.</summary>
+        /// <summary>Current state (running, exited, etc.).</summary>
         public string State { get; set; }
+
+        /// <summary>Status description (e.g., "Up 2 seconds").</summary>
+        public string Status { get; set; }
 
         /// <summary>Health status.</summary>
         public string Health { get; set; }
 
-        /// <summary>Container ID (if running).</summary>
+        /// <summary>Container ID.</summary>
+        [Newtonsoft.Json.JsonProperty("ID")]
         public string ContainerId { get; set; }
+
+        /// <summary>Container name.</summary>
+        [Newtonsoft.Json.JsonProperty("Name")]
+        public string ContainerName { get; set; }
 
         /// <summary>Image being used.</summary>
         public string Image { get; set; }
@@ -640,14 +649,41 @@ namespace FluentDocker.Drivers
         /// <summary>Command being run.</summary>
         public string Command { get; set; }
 
-        /// <summary>Port mappings.</summary>
-        public List<string> Ports { get; set; } = new List<string>();
+        /// <summary>Port mappings string.</summary>
+        public string Ports { get; set; }
 
-        /// <summary>Number of replicas.</summary>
-        public int Replicas { get; set; }
+        /// <summary>Project name.</summary>
+        public string Project { get; set; }
 
         /// <summary>Exit code (if stopped).</summary>
-        public int? ExitCode { get; set; }
+        public int ExitCode { get; set; }
+
+        /// <summary>Created at timestamp.</summary>
+        public string CreatedAt { get; set; }
+
+        /// <summary>Running time description.</summary>
+        public string RunningFor { get; set; }
+
+        /// <summary>Publishers (structured port info).</summary>
+        public List<ComposePublisher> Publishers { get; set; } = new List<ComposePublisher>();
+    }
+
+    /// <summary>
+    /// Port publisher information from compose ps.
+    /// </summary>
+    public class ComposePublisher
+    {
+        /// <summary>URL/IP to bind to.</summary>
+        public string URL { get; set; }
+
+        /// <summary>Target port in container.</summary>
+        public int TargetPort { get; set; }
+
+        /// <summary>Published port on host.</summary>
+        public int PublishedPort { get; set; }
+
+        /// <summary>Protocol (tcp/udp).</summary>
+        public string Protocol { get; set; }
     }
 
     /// <summary>

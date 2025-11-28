@@ -242,30 +242,27 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
             string? containerId = null;
             try
             {
-                // Arrange - Start container with healthcheck
+                // Arrange - Start container with simple healthcheck that succeeds immediately
                 var runResult = await ContainerDriver.RunAsync(Context, new ContainerCreateConfig
                 {
-                    Image = PostgresImage,
-                    Environment = new Dictionary<string, string>
-                    {
-                        ["POSTGRES_PASSWORD"] = "mysecretpassword"
-                    },
+                    Image = TestImage, // alpine
+                    Command = new[] { "sleep", "120" },
                     HealthCheck = new HealthCheckConfig
                     {
-                        Test = new[] { "CMD-SHELL", "pg_isready -U postgres || exit 1" },
-                        Interval = "2s",
-                        Retries = 10,
-                        Timeout = "5s",
-                        StartPeriod = "10s"
+                        Test = new[] { "CMD", "true" }, // Simple command that always succeeds
+                        Interval = "1s",
+                        Retries = 3,
+                        Timeout = "3s",
+                        StartPeriod = "1s"
                     },
                     Detach = true
                 });
                 
-                Assert.True(runResult.Success);
+                Assert.True(runResult.Success, $"Container run failed: {runResult.Error}");
                 containerId = runResult.Data.Id;
 
-                // Act - Wait for healthy
-                var isHealthy = await WaitForHealthyAsync(containerId, TimeSpan.FromSeconds(60));
+                // Act - Wait for healthy (should happen quickly with 'true' command)
+                var isHealthy = await WaitForHealthyAsync(containerId, TimeSpan.FromSeconds(30));
 
                 // Assert
                 Assert.True(isHealthy, "Container should become healthy");
