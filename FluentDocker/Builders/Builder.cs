@@ -141,6 +141,45 @@ namespace FluentDocker.Builders
         }
 
         /// <summary>
+        /// Adds an image build operation to the current scope.
+        /// </summary>
+        /// <param name="imageName">Name of the image to build</param>
+        /// <param name="configure">Dockerfile configuration action</param>
+        /// <returns>This builder for fluent chaining</returns>
+        /// <example>
+        /// <code>
+        /// var results = await new Builder()
+        ///     .WithinDriver("docker", kernel)
+        ///     .UseImage("myapp:latest", img => img
+        ///         .From("node:18")
+        ///         .Run("npm install")
+        ///         .Copy(".", "/app")
+        ///         .Command("npm", "start"))
+        ///     .UseContainer(c => c
+        ///         .UseImage("myapp:latest")
+        ///         .ExposePort(3000))
+        ///     .BuildAsync();
+        /// </code>
+        /// </example>
+        public Builder UseImage(string imageName, Action<DockerfileBuilder> configure)
+        {
+            ValidateScope();
+
+            var imageBuilder = new ImageBuilder(_currentKernel, _currentDriverId, imageName);
+            var dockerfileBuilder = imageBuilder.From();
+            configure(dockerfileBuilder);
+
+            _operations.Add(new BuildOperation
+            {
+                Kernel = _currentKernel,
+                DriverId = _currentDriverId,
+                ExecuteAsync = ct => imageBuilder.ExecuteAsync(ct).ContinueWith(t => (IService)t.Result, ct)
+            });
+
+            return this;
+        }
+
+        /// <summary>
         /// TERMINAL - Builds all operations synchronously.
         /// </summary>
         /// <remarks>
@@ -213,6 +252,11 @@ namespace FluentDocker.Builders
         Builder UseNetwork(Action<INetworkBuilder> configure);
         Builder UseVolume(Action<IVolumeBuilder> configure);
         Builder UseCompose(Action<IComposeBuilder> configure);
+        
+        /// <summary>
+        /// Adds an image build operation.
+        /// </summary>
+        Builder UseImage(string imageName, Action<DockerfileBuilder> configure);
         
         /// <summary>
         /// Builds all operations synchronously (TERMINAL operation).

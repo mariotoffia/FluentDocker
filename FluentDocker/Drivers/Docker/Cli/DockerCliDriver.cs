@@ -49,7 +49,8 @@ namespace FluentDocker.Drivers.Docker.Cli
         {
             try
             {
-                var result = await ExecuteCommandAsync("version --format '{{.Server.Version}}'", cancellationToken);
+                // Use simple version check without format to avoid shell escaping issues
+                var result = await ExecuteCommandAsync("version", cancellationToken);
                 return result.Success;
             }
             catch
@@ -291,7 +292,7 @@ namespace FluentDocker.Drivers.Docker.Cli
         {
             try
             {
-                var args = "ps --format '{{json .}}'";
+                var args = "ps --format \"{{json .}}\"";
 
                 if (filter?.All == true)
                     args += " -a";
@@ -1019,7 +1020,7 @@ namespace FluentDocker.Drivers.Docker.Cli
         {
             try
             {
-                var args = "images --format '{{json .}}'";
+                var args = "images --format \"{{json .}}\"";
 
                 if (filter?.All == true)
                     args += " -a";
@@ -1482,7 +1483,7 @@ namespace FluentDocker.Drivers.Docker.Cli
         {
             try
             {
-                var result = await ExecuteCommandAsync("network ls --format '{{json .}}'", cancellationToken);
+                var result = await ExecuteCommandAsync("network ls --format \"{{json .}}\"", cancellationToken);
 
                 if (!result.Success)
                 {
@@ -1725,7 +1726,7 @@ namespace FluentDocker.Drivers.Docker.Cli
         {
             try
             {
-                var result = await ExecuteCommandAsync("volume ls --format '{{json .}}'", cancellationToken);
+                var result = await ExecuteCommandAsync("volume ls --format \"{{json .}}\"", cancellationToken);
 
                 if (!result.Success)
                 {
@@ -1826,7 +1827,7 @@ namespace FluentDocker.Drivers.Docker.Cli
         {
             try
             {
-                var result = await ExecuteCommandAsync("info --format '{{json .}}'", cancellationToken);
+                var result = await ExecuteCommandAsync("info --format \"{{json .}}\"", cancellationToken);
 
                 if (!result.Success)
                 {
@@ -1850,7 +1851,8 @@ namespace FluentDocker.Drivers.Docker.Cli
         {
             try
             {
-                var result = await ExecuteCommandAsync("version --format '{{json .}}'", cancellationToken);
+                // Note: --format without quotes works when not going through shell
+                var result = await ExecuteCommandAsync("version --format \"{{json .}}\"", cancellationToken);
 
                 if (!result.Success)
                 {
@@ -1931,7 +1933,7 @@ namespace FluentDocker.Drivers.Docker.Cli
         {
             try
             {
-                var result = await ExecuteCommandAsync("system df --format '{{json .}}'", cancellationToken);
+                var result = await ExecuteCommandAsync("system df --format \"{{json .}}\"", cancellationToken);
 
                 if (!result.Success)
                 {
@@ -2805,7 +2807,7 @@ namespace FluentDocker.Drivers.Docker.Cli
             StreamEventsConfig config = null,
             [EnumeratorCancellation] CancellationToken cancellationToken = default)
         {
-            var args = "events --format '{{json .}}'";
+            var args = "events --format \"{{json .}}\"";
             if (config?.Since != null)
                 args += $" --since {config.Since}";
             if (config?.Until != null)
@@ -2837,7 +2839,7 @@ namespace FluentDocker.Drivers.Docker.Cli
             StreamStatsConfig config = null,
             [EnumeratorCancellation] CancellationToken cancellationToken = default)
         {
-            var args = "stats --format '{{json .}}'";
+            var args = "stats --format \"{{json .}}\"";
             if (config?.All == true)
                 args += " -a";
             if (!string.IsNullOrEmpty(containerId))
@@ -2880,7 +2882,7 @@ namespace FluentDocker.Drivers.Docker.Cli
         {
             try
             {
-                var args = "stack ls --format '{{json .}}'";
+                var args = "stack ls --format \"{{json .}}\"";
 
                 var result = await ExecuteCommandAsync(args, cancellationToken);
 
@@ -3200,7 +3202,7 @@ namespace FluentDocker.Drivers.Docker.Cli
         {
             try
             {
-                var args = "service ls --format '{{json .}}'";
+                var args = "service ls --format \"{{json .}}\"";
                 if (filter?.Quiet == true)
                     args = "service ls -q";
 
@@ -3379,7 +3381,7 @@ namespace FluentDocker.Drivers.Docker.Cli
         {
             try
             {
-                var result = await ExecuteMachineCommandAsync("ls --format '{{json .}}'", cancellationToken);
+                var result = await ExecuteMachineCommandAsync("ls --format \"{{json .}}\"", cancellationToken);
 
                 if (!result.Success)
                 {

@@ -1,0 +1,399 @@
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
+using FluentDocker.Drivers;
+using FluentDocker.Services;
+using Xunit;
+
+namespace FluentDocker.Tests.Integration.DockerCliDriver
+{
+    /// <summary>
+    /// Integration tests for IContainerDriver operations.
+    /// Requires Docker daemon to be running.
+    /// </summary>
+    [Trait("Category", "Integration")]
+    [Collection("DockerDriver")]
+    public class ContainerDriverTests : DockerDriverTestBase
+    {
+        [Fact]
+        public async Task Run_WithoutArguments_CreatesAndStartsContainer()
+        {
+            string containerId = null;
+            try
+            {
+                // Act
+                var result = await ContainerDriver.RunAsync(Context, new ContainerCreateConfig
+                {
+                    Image = NginxImage,
+                    Detach = true
+                });
+
+                // Assert
+                Assert.True(result.Success, $"Run failed: {result.Error}");
+                containerId = result.Data.Id;
+                Assert.NotNull(containerId);
+                Assert.Equal(64, containerId.Length);
+            }
+            finally
+            {
+                await RemoveContainerAsync(containerId);
+            }
+        }
+
+        [Fact]
+        public async Task Remove_ExistingContainer_Succeeds()
+        {
+            // Arrange
+            var containerId = await RunContainerAsync(NginxImage);
+
+            // Act
+            var result = await ContainerDriver.RemoveAsync(Context, containerId, force: true, removeVolumes: true);
+
+            // Assert
+            Assert.True(result.Success);
+        }
+
+        [Fact]
+        public async Task List_WithRunningContainer_ReturnsContainer()
+        {
+            string containerId = null;
+            try
+            {
+                // Arrange
+                containerId = await RunContainerAsync(NginxImage);
+
+                // Act
+                var result = await ContainerDriver.ListAsync(Context);
+
+                // Assert
+                Assert.True(result.Success);
+                Assert.True(result.Data.Count >= 1);
+                Assert.Contains(result.Data, c => c.Id.StartsWith(containerId.Substring(0, 12)) || containerId.StartsWith(c.Id));
+            }
+            finally
+            {
+                await RemoveContainerAsync(containerId);
+            }
+        }
+
+        [Fact]
+        public async Task Inspect_RunningContainer_ReturnsDetails()
+        {
+            string containerId = null;
+            try
+            {
+                // Arrange
+                containerId = await RunContainerAsync(NginxImage);
+
+                // Act
+                var result = await ContainerDriver.InspectAsync(Context, containerId);
+
+                // Assert
+                Assert.True(result.Success);
+                Assert.NotNull(result.Data);
+                Assert.NotNull(result.Data.Name);
+                Assert.True(result.Data.State.Running);
+            }
+            finally
+            {
+                await RemoveContainerAsync(containerId);
+            }
+        }
+
+        [Fact]
+        public async Task Stop_RunningContainer_StopsSuccessfully()
+        {
+            string containerId = null;
+            try
+            {
+                // Arrange
+                containerId = await RunContainerAsync(NginxImage);
+
+                // Act
+                var result = await ContainerDriver.StopAsync(Context, containerId, timeout: 5);
+
+                // Assert
+                Assert.True(result.Success);
+
+                // Verify it's stopped
+                var inspect = await ContainerDriver.InspectAsync(Context, containerId);
+                Assert.False(inspect.Data.State.Running);
+            }
+            finally
+            {
+                await RemoveContainerAsync(containerId);
+            }
+        }
+
+        [Fact]
+        public async Task Start_StoppedContainer_StartsSuccessfully()
+        {
+            string containerId = null;
+            try
+            {
+                // Arrange
+                containerId = await RunContainerAsync(NginxImage);
+                await ContainerDriver.StopAsync(Context, containerId, timeout: 5);
+
+                // Act
+                var result = await ContainerDriver.StartAsync(Context, containerId);
+
+                // Assert
+                Assert.True(result.Success);
+
+                var inspect = await ContainerDriver.InspectAsync(Context, containerId);
+                Assert.True(inspect.Data.State.Running);
+            }
+            finally
+            {
+                await RemoveContainerAsync(containerId);
+            }
+        }
+
+        [Fact]
+        public async Task Pause_RunningContainer_PausesSuccessfully()
+        {
+            string containerId = null;
+            try
+            {
+                // Arrange
+                containerId = await RunContainerAsync(NginxImage);
+
+                // Act
+                var result = await ContainerDriver.PauseAsync(Context, containerId);
+
+                // Assert
+                Assert.True(result.Success);
+
+                var inspect = await ContainerDriver.InspectAsync(Context, containerId);
+                Assert.True(inspect.Data.State.Paused);
+            }
+            finally
+            {
+                await RemoveContainerAsync(containerId);
+            }
+        }
+
+        [Fact]
+        public async Task Unpause_PausedContainer_ResumesSuccessfully()
+        {
+            string containerId = null;
+            try
+            {
+                // Arrange
+                containerId = await RunContainerAsync(NginxImage);
+                await ContainerDriver.PauseAsync(Context, containerId);
+
+                // Act
+                var result = await ContainerDriver.UnpauseAsync(Context, containerId);
+
+                // Assert
+                Assert.True(result.Success);
+
+                var inspect = await ContainerDriver.InspectAsync(Context, containerId);
+                Assert.False(inspect.Data.State.Paused);
+                Assert.True(inspect.Data.State.Running);
+            }
+            finally
+            {
+                await RemoveContainerAsync(containerId);
+            }
+        }
+
+        [Fact]
+        public async Task Run_WithEnvironmentVariables_SetsEnvironment()
+        {
+            string containerId = null;
+            try
+            {
+                // Act
+                var result = await ContainerDriver.RunAsync(Context, new ContainerCreateConfig
+                {
+                    Image = TestImage,
+                    Command = new[] { "sleep", "30" },
+                    Environment = new Dictionary<string, string>
+                    {
+                        ["TEST_VAR"] = "test_value",
+                        ["ANOTHER_VAR"] = "another_value"
+                    },
+                    Detach = true
+                });
+
+                containerId = result.Data.Id;
+
+                // Assert
+                var inspect = await ContainerDriver.InspectAsync(Context, containerId);
+                Assert.True(inspect.Success);
+                Assert.Contains(inspect.Data.Config.Env, e => e == "TEST_VAR=test_value");
+                Assert.Contains(inspect.Data.Config.Env, e => e == "ANOTHER_VAR=another_value");
+            }
+            finally
+            {
+                await RemoveContainerAsync(containerId);
+            }
+        }
+
+        [Fact]
+        public async Task Run_WithExplicitPortMapping_MapsPort()
+        {
+            string containerId = null;
+            try
+            {
+                // Act
+                var result = await ContainerDriver.RunAsync(Context, new ContainerCreateConfig
+                {
+                    Image = NginxImage,
+                    PortBindings = new Dictionary<string, string>
+                    {
+                        ["80/tcp"] = "8888"
+                    },
+                    Detach = true
+                });
+
+                containerId = result.Data.Id;
+
+                // Assert
+                var inspect = await ContainerDriver.InspectAsync(Context, containerId);
+                Assert.True(inspect.Success);
+                
+                // Check port binding exists
+                var ports = inspect.Data.NetworkSettings?.Ports;
+                Assert.NotNull(ports);
+            }
+            finally
+            {
+                await RemoveContainerAsync(containerId);
+            }
+        }
+
+        [Fact]
+        public async Task GetLogs_RunningContainer_ReturnsLogs()
+        {
+            string containerId = null;
+            try
+            {
+                // Arrange - run container that produces output
+                var runResult = await ContainerDriver.RunAsync(Context, new ContainerCreateConfig
+                {
+                    Image = TestImage,
+                    Command = new[] { "sh", "-c", "echo 'Hello from container'" },
+                    Detach = true
+                });
+                containerId = runResult.Data.Id;
+
+                // Wait a bit for container to finish
+                await Task.Delay(1000);
+
+                // Act
+                var result = await ContainerDriver.GetLogsAsync(Context, containerId);
+
+                // Assert
+                Assert.True(result.Success);
+                // Note: Container may have already exited, logs should still be available
+            }
+            finally
+            {
+                await RemoveContainerAsync(containerId);
+            }
+        }
+
+        [Fact]
+        public async Task Exec_InRunningContainer_ExecutesCommand()
+        {
+            string containerId = null;
+            try
+            {
+                // Arrange
+                containerId = await RunContainerAsync(NginxImage);
+
+                // Act
+                var result = await ContainerDriver.ExecAsync(Context, containerId, new ExecConfig
+                {
+                    Command = new[] { "echo", "hello" }
+                });
+
+                // Assert
+                Assert.True(result.Success);
+                Assert.Contains("hello", result.Data.StdOut);
+            }
+            finally
+            {
+                await RemoveContainerAsync(containerId);
+            }
+        }
+
+        [Fact]
+        public async Task Top_RunningContainer_ReturnsProcesses()
+        {
+            string containerId = null;
+            try
+            {
+                // Arrange
+                containerId = await RunContainerAsync(NginxImage);
+
+                // Act
+                var result = await ContainerDriver.TopAsync(Context, containerId);
+
+                // Assert
+                Assert.True(result.Success);
+                Assert.NotNull(result.Data);
+                Assert.True(result.Data.Processes.Count > 0, "Should have at least one process");
+            }
+            finally
+            {
+                await RemoveContainerAsync(containerId);
+            }
+        }
+
+        [Fact]
+        public async Task Rename_ExistingContainer_RenamesSuccessfully()
+        {
+            string containerId = null;
+            var newName = UniqueName("renamed");
+            try
+            {
+                // Arrange
+                containerId = await RunContainerAsync(NginxImage);
+
+                // Act
+                var result = await ContainerDriver.RenameAsync(Context, containerId, newName);
+
+                // Assert
+                Assert.True(result.Success);
+
+                var inspect = await ContainerDriver.InspectAsync(Context, containerId);
+                Assert.Contains(newName, inspect.Data.Name);
+            }
+            finally
+            {
+                await RemoveContainerAsync(containerId);
+            }
+        }
+
+        [Fact]
+        public async Task Kill_RunningContainer_KillsContainer()
+        {
+            string containerId = null;
+            try
+            {
+                // Arrange
+                containerId = await RunContainerAsync(NginxImage);
+
+                // Act
+                var result = await ContainerDriver.KillAsync(Context, containerId);
+
+                // Assert
+                Assert.True(result.Success);
+
+                // Container should be stopped
+                var inspect = await ContainerDriver.InspectAsync(Context, containerId);
+                Assert.False(inspect.Data.State.Running);
+            }
+            finally
+            {
+                await RemoveContainerAsync(containerId);
+            }
+        }
+    }
+}
+

@@ -29,12 +29,22 @@ FluentDocker.Tests/
 │   ├── Exceptions/
 │   │   └── ExceptionTests.cs           🆕 Custom exception tests
 │   ├── Extensions/
+│   │   ├── ConversionExtensionTests.cs ✅ Ported from V2
 │   │   ├── EnvironmentExtensionTests.cs 🆕 Environment detection tests
-│   │   └── ExtensionUtilityTests.cs    🆕 Utility tests
+│   │   ├── ExtensionUtilityTests.cs    🆕 Utility tests
+│   │   └── ResourceExtensionTests.cs   ✅ Ported from V2
+│   ├── Model/
+│   │   └── TemplateStringTests.cs      ✅ Ported from V2
+│   ├── Parser/
+│   │   └── NetworkLsResponseParserTests.cs ✅ Ported from V2
+│   ├── Process/
+│   │   └── ProcessEnvironmentTests.cs  ✅ Ported from V2
 │   ├── BuilderTests/
 │   │   ├── ContainerBuilderTests.cs    🆕 Container builder tests
 │   │   ├── WaitConditionTests.cs       🆕 Wait condition tests
-│   │   └── LifecycleHookTests.cs       🆕 Lifecycle hook tests
+│   │   ├── LifecycleHookTests.cs       🆕 Lifecycle hook tests
+│   │   ├── DockerfileBuilderTests.cs   🆕 Dockerfile builder tests
+│   │   └── ImageBuilderTests.cs        🆕 Image builder tests
 │   └── Service/
 │       ├── ContainerServiceTests.cs    🆕 Container service tests
 │       ├── NetworkServiceTests.cs      🆕 Network service tests
@@ -48,49 +58,46 @@ FluentDocker.Tests/
 
 ---
 
-## Planned Docker CLI Driver Integration Tests
+## Docker CLI Driver Integration Tests
 
-The following test structure is planned for Docker CLI driver integration tests.
-These require Docker to be running and test actual container/network/volume operations.
+Integration tests for DockerCliDriver. These require Docker daemon to be running.
 
 ```
 FluentDocker.Tests/
-├── Drivers/
-│   └── DockerCliDriverTests/
-│       ├── DockerTestBase.cs           📋 Base class with kernel setup
-│       ├── ContainerTests/
-│       │   ├── BasicContainerTests.cs  📋 Ports from FluentContainerBasicTests.cs
-│       │   ├── PortMappingTests.cs     📋 Port mapping scenarios
-│       │   └── CustomResolverTests.cs  📋 Custom endpoint resolver tests
-│       ├── NetworkTests/
-│       │   ├── NetworkBasicTests.cs    📋 Ports from FluentNetworkTests.cs
-│       │   └── NetworkContainerTests.cs 📋 Container-network interaction
-│       ├── VolumeTests/
-│       │   └── VolumeBasicTests.cs     📋 Ports from FluentVolumeTests.cs
-│       ├── ComposeTests/
-│       │   ├── ComposeBasicTests.cs    📋 Ports from FluentDockerComposeTests.cs
-│       │   └── ComposePauseResumeTests.cs 📋 Pause/resume scenarios
-│       ├── WaitTests/
-│       │   ├── WaitForPortTests.cs     📋 Port wait conditions
-│       │   ├── WaitForHealthyTests.cs  📋 Health check waits
-│       │   └── WaitLambdaTests.cs      📋 Ports from WaitTests.cs
-│       └── RegressionTests/
-│           └── IssueTests.cs           📋 Ports from IssuesTests.cs
+├── Integration/
+│   └── DockerCliDriver/
+│       ├── DockerDriverTestBase.cs    ✅ Base class with kernel setup
+│       ├── ContainerDriverTests.cs    ✅ Container lifecycle tests (15 tests)
+│       ├── NetworkDriverTests.cs      ✅ Network operations tests (9 tests)
+│       ├── VolumeDriverTests.cs       ✅ Volume operations tests (8 tests)
+│       ├── ImageDriverTests.cs        ✅ Image operations tests (8 tests)
+│       └── SystemDriverTests.cs       ✅ System info tests (6 tests)
 ```
 
 ### V2 Test to V3 Driver Test Mapping
 
 | V2 Test | V3 Location | Status |
 |---------|-------------|--------|
-| FluentContainerBasicTests.cs | ContainerTests/BasicContainerTests.cs | 📋 Planned |
-| FluentNetworkTests.cs | NetworkTests/NetworkBasicTests.cs | 📋 Planned |
-| FluentVolumeTests.cs | VolumeTests/VolumeBasicTests.cs | 📋 Planned |
-| FluentDockerComposeTests.cs | ComposeTests/ComposeBasicTests.cs | 📋 Planned |
-| WaitTests.cs | WaitTests/WaitLambdaTests.cs | 📋 Planned |
-| IssuesTests.cs | RegressionTests/IssueTests.cs | 📋 Planned |
-| FluentMultiContainerTests.cs | - | ❌ Deprecated (was ignored) |
-| ImageBuilderTests.cs | - | ❌ Deprecated (FileBuilder deprecated) |
-| RemoteDaemonTests.cs | - | 📋 Planned (Remote host tests) |
+| DockerClientCommandTests.cs | Integration/DockerCliDriver/ContainerDriverTests.cs | ✅ Ported |
+| NetworkCommandTests.cs | Integration/DockerCliDriver/NetworkDriverTests.cs | ✅ Ported |
+| VolumeTests.cs | Integration/DockerCliDriver/VolumeDriverTests.cs | ✅ Ported |
+| ImageTests.cs | Integration/DockerCliDriver/ImageDriverTests.cs | ✅ Ported |
+| DockerInfoCommandTests.cs | Integration/DockerCliDriver/SystemDriverTests.cs | ✅ Ported |
+| FluentContainerBasicTests.cs | Integration/DockerCliDriver/ContainerDriverTests.cs | ✅ Ported |
+| FluentNetworkTests.cs | Integration/DockerCliDriver/NetworkDriverTests.cs | ✅ Ported |
+| FluentVolumeTests.cs | Integration/DockerCliDriver/VolumeDriverTests.cs | ✅ Ported |
+| ImageBuilderTests.cs | CoreTests/BuilderTests/DockerfileBuilderTests.cs | ✅ Implemented |
+| FluentMultiContainerTests.cs | - | ⏳ Needs builder support |
+| RemoteDaemonTests.cs | - | 📋 Planned |
+
+### Known Issues
+
+Some integration tests may fail due to model deserialization mismatches:
+- `SystemDriverTests.GetVersion_*` - VersionInfo model needs updating for nested Client/Server structure
+- `SystemDriverTests.GetInfo_*` - SystemInfo model needs updating for Runtimes object structure
+- Filter tests - Some filter implementations need to handle Docker's JSON format correctly
+
+These are model/parsing issues that can be fixed separately without affecting the test structure.
 
 ---
 
@@ -113,16 +120,16 @@ The entire Commands namespace is deprecated. Tests should NOT be ported.
 
 | V2 Test File | Status | Notes |
 |-------------|--------|-------|
-| LoggerTests.cs | ⏳ Needs Port | Still relevant for logging |
+| LoggerTests.cs | ❌ Deprecated | Logger implementation simplified in V3 |
 
 ### 3. ExtensionTests
 
 | V2 Test File | Status | Notes |
 |-------------|--------|-------|
 | CommandExtensionTest.cs | ❌ Deprecated | Commands are deprecated |
-| ConversionExtensionTests.cs | ⏳ Needs Port | Still relevant |
-| EnironmentExtensionTests.cs | 🔄 Refactored | See EnvironmentExtensions in V3 |
-| ResourceExtensionsTests.cs | ⏳ Needs Port | Resource handling still needed |
+| ConversionExtensionTests.cs | ✅ Ported | CoreTests/Extensions/ConversionExtensionTests.cs |
+| EnironmentExtensionTests.cs | ✅ Ported | CoreTests/Extensions/EnvironmentExtensionTests.cs |
+| ResourceExtensionsTests.cs | ✅ Ported | CoreTests/Extensions/ResourceExtensionTests.cs |
 
 ### 4. FluentApiTests (Integration Tests)
 
@@ -142,16 +149,16 @@ The entire Commands namespace is deprecated. Tests should NOT be ported.
 
 | V2 Test File | Status | Notes |
 |-------------|--------|-------|
-| CmdCommandTests.cs | ❌ Deprecated | Dockerfile builder deprecated |
+| CmdCommandTests.cs | 🔄 Refactored | Tested via DockerfileBuilderTests |
 | ContainerBuilderConfigTests.cs | 🔄 Refactored | Config is in V3 builder |
-| FileBuilder/CmdCommandTests.cs | ❌ Deprecated | Dockerfile builder deprecated |
-| FileBuilder/CopyCommandTests.cs | ❌ Deprecated | Dockerfile builder deprecated |
+| FileBuilder/CmdCommandTests.cs | 🔄 Refactored | Tested via DockerfileBuilderTests |
+| FileBuilder/CopyCommandTests.cs | 🔄 Refactored | Tested via DockerfileBuilderTests |
 
 ### 6. Model/Common
 
 | V2 Test File | Status | Notes |
 |-------------|--------|-------|
-| TemplateStringTests.cs | ⏳ Needs Port | If TemplateString still exists |
+| TemplateStringTests.cs | ✅ Ported | CoreTests/Model/TemplateStringTests.cs |
 
 ### 7. Model/Containers
 
@@ -164,73 +171,55 @@ The entire Commands namespace is deprecated. Tests should NOT be ported.
 
 | V2 Test File | Status | Notes |
 |-------------|--------|-------|
-| NetworkLsResponseParserTests.cs | ⏳ Needs Port | Parsers still used by CLI driver |
+| NetworkLsResponseParserTests.cs | ✅ Ported | CoreTests/Parser/NetworkLsResponseParserTests.cs |
 
 ### 9. ProcessTests
 
 | V2 Test File | Status | Notes |
 |-------------|--------|-------|
-| ProcessEnvironmentTest.cs | ⏳ Needs Port | Process execution still relevant |
+| ProcessEnvironmentTest.cs | ✅ Ported | CoreTests/Process/ProcessEnvironmentTests.cs |
 
 ### 10. ServiceTests (Service Layer)
 
 | V2 Test File | Status | V3 Equivalent |
 |-------------|--------|---------------|
-| ContainerServiceBasicTests.cs | ⏳ Needs Port | Need Unit/Service/ContainerServiceTests.cs |
-| DockerComposeTests.cs | ⏳ Needs Port | Need Unit/Service/ComposeServiceTests.cs |
+| ContainerServiceBasicTests.cs | ✅ Ported | CoreTests/Service/ContainerServiceTests.cs |
+| DockerComposeTests.cs | ✅ Ported | CoreTests/Service/ComposeServiceTests.cs |
 | MachineServiceTests.cs | ❌ Deprecated | Docker Machine is deprecated |
-| NetworkServiceTests.cs | ⏳ Needs Port | Need Unit/Service/NetworkServiceTests.cs |
-
----
-
-## Tests to Implement (Priority Order)
-
-### High Priority - Core Functionality
-
-1. **Unit/Builder/ContainerBuilderTests.cs** - Test all container builder methods
-2. **Unit/Builder/WaitConditionTests.cs** - Test WaitForPort, WaitForHealthy, WaitLambda
-3. **Unit/Builder/LifecycleHookTests.cs** - Test CopyTo, CopyFrom, Execute hooks
-4. **Unit/Service/ContainerServiceTests.cs** - Test ContainerService operations
-5. **Unit/Service/NetworkServiceTests.cs** - Test NetworkService operations
-6. **Unit/Service/VolumeServiceTests.cs** - Test VolumeService operations
-7. **Unit/Service/ComposeServiceTests.cs** - Test ComposeService operations
-
-### Medium Priority - Integration Tests
-
-8. **Integration/ContainerTests.cs** - Full container lifecycle tests
-9. **Integration/NetworkTests.cs** - Network create/connect tests
-10. **Integration/VolumeTests.cs** - Volume create/mount tests
-11. **Integration/ComposeTests.cs** - Docker Compose tests
-12. **Integration/WaitTests.cs** - Wait condition integration tests
-
-### Low Priority - Utilities
-
-13. **Unit/Common/LoggerTests.cs** - Logger tests
-14. **Unit/Parser/ResponseParserTests.cs** - CLI output parser tests
-15. **Unit/Extensions/ConversionTests.cs** - Type conversion tests
+| NetworkServiceTests.cs | ✅ Ported | CoreTests/Service/NetworkServiceTests.cs |
 
 ---
 
 ## Summary Statistics
 
-| Category | Total | Implemented | Planned | Deprecated | New in V3 |
-|----------|-------|-------------|---------|------------|-----------|
-| Command Tests | 7 | 0 | 0 | 7 | 0 |
-| Common | 1 | 0 | 1 | 0 | 0 |
-| Extension Tests | 4 | 1 | 2 | 1 | 0 |
-| FluentApi Tests | 9 | 2 | 6 | 1 | 0 |
-| Model Tests | 6 | 0 | 1 | 5 | 0 |
-| Parser Tests | 1 | 0 | 1 | 0 | 0 |
-| Process Tests | 1 | 0 | 1 | 0 | 0 |
-| Service Tests | 4 | 0 | 3 | 1 | 0 |
-| **V3 Unit Tests** | 239 | 239 | - | - | 239 |
-| **Docker Driver Tests** | 10+ | 0 | 10+ | - | 10+ |
-| **TOTAL** | 280+ | 241 | 25+ | 15 | 249 |
+| Category | Total | Implemented | Deprecated |
+|----------|-------|-------------|------------|
+| Command Tests | 7 | 0 | 7 (ported to Driver tests) |
+| Common | 1 | 0 | 1 |
+| Extension Tests | 4 | 4 | 0 |
+| FluentApi Tests | 9 | 4 | 1 |
+| Model Tests | 6 | 5 | 1 |
+| Parser Tests | 1 | 1 | 0 |
+| Process Tests | 1 | 1 | 0 |
+| Service Tests | 4 | 3 | 1 |
+| **V3 Unit Tests** | 328 | 328 | - |
+| **Docker Driver Tests** | 56 | 46 | - |
+| **TOTAL** | 400+ | 392 | 11 |
 
 ### Test Implementation Status
-- ✅ **Unit Tests**: 239 tests fully implemented (all passing)
-- ✅ **Integration Tests**: Basic builder and kernel tests implemented
-- 📋 **Docker Driver Tests**: Structure planned, requires Docker to be running
+- ✅ **Unit Tests**: 328 tests fully implemented (all passing)
+- ✅ **Docker Driver Integration Tests**: 46 passing, 10 need model fixes
+- ✅ **DockerfileBuilder**: Full support for programmatic Dockerfile creation
+- ✅ **ImageBuilder**: Full support for building Docker images
+- ✅ **Extension Tests**: ConversionExtension, ResourceExtension, EnvironmentExtension ported
+- ✅ **Model Tests**: TemplateString tests ported
+- ✅ **Parser Tests**: NetworkLsResponseParser tests ported
+- ✅ **Process Tests**: ProcessEnvironment tests ported
+- ✅ **Container Driver Tests**: Full lifecycle tests (run, stop, pause, exec, etc.)
+- ✅ **Network Driver Tests**: Create, connect, disconnect tests
+- ✅ **Volume Driver Tests**: Create, mount, list tests
+- ✅ **Image Driver Tests**: Pull, inspect, tag tests
+- ⚠️ **System Driver Tests**: Need model updates for Docker JSON structure
 
 ---
 

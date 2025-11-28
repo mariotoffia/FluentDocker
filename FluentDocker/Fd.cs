@@ -135,5 +135,58 @@ namespace FluentDocker
                 }
             }
         }
+
+        #region Image Building
+
+        /// <summary>
+        /// Creates an ImageBuilder for building Docker images programmatically.
+        /// </summary>
+        /// <param name="kernel">The kernel instance.</param>
+        /// <param name="driverId">The driver identifier.</param>
+        /// <param name="imageName">Optional image name (can be set later with AsImageName).</param>
+        /// <returns>An ImageBuilder for fluent image configuration.</returns>
+        /// <example>
+        /// <code>
+        /// var kernel = await Fd.CreateDefaultKernelAsync();
+        /// var image = await Fd.DefineImage(kernel, "docker-cli", "myapp:latest")
+        ///     .From("node:18")
+        ///     .Run("npm install")
+        ///     .Copy(".", "/app")
+        ///     .WorkDir("/app")
+        ///     .Command("npm", "start")
+        ///     .BuildAsync();
+        /// </code>
+        /// </example>
+        public static ImageBuilder DefineImage(FluentDockerKernel kernel, string driverId, string imageName = null)
+        {
+            return string.IsNullOrEmpty(imageName)
+                ? new ImageBuilder(kernel, driverId)
+                : new ImageBuilder(kernel, driverId, imageName);
+        }
+
+        /// <summary>
+        /// Creates a standalone DockerfileBuilder for generating Dockerfile content.
+        /// </summary>
+        /// <returns>A DockerfileBuilder for fluent Dockerfile construction.</returns>
+        /// <remarks>
+        /// This builder won't build an image, use <see cref="DefineImage"/> for that purpose.
+        /// This is for generating Dockerfile strings for custom usage.
+        /// </remarks>
+        /// <example>
+        /// <code>
+        /// var dockerfile = Fd.Dockerfile()
+        ///     .UseParent("alpine:latest")
+        ///     .Run("apk add --no-cache nodejs")
+        ///     .Copy("app.js", "/app/")
+        ///     .Command("node", "/app/app.js")
+        ///     .ToDockerfileString();
+        /// </code>
+        /// </example>
+        public static DockerfileBuilder Dockerfile()
+        {
+            return new DockerfileBuilder();
+        }
+
+        #endregion
     }
 }
