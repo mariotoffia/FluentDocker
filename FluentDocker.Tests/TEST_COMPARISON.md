@@ -51,8 +51,24 @@ FluentDocker.Tests/
 │       ├── VolumeServiceTests.cs       🆕 Volume service tests
 │       └── ComposeServiceTests.cs      🆕 Compose service tests
 ├── Integration/
+│   ├── Builder/                        🆕 Builder integration tests
 │   ├── BuilderTests.cs                 🆕 Builder integration tests
-│   └── KernelBuilderTests.cs           🆕 Kernel builder tests
+│   ├── KernelBuilderTests.cs           🆕 Kernel builder tests
+│   ├── DockerCliDriver/                ✅ Docker CLI driver integration tests
+│   │   ├── DockerDriverTestBase.cs     ✅ Base class with kernel setup
+│   │   ├── ContainerDriverTests.cs     ✅ Container driver tests
+│   │   ├── NetworkDriverTests.cs       ✅ Network driver tests
+│   │   ├── VolumeDriverTests.cs        ✅ Volume driver tests
+│   │   ├── ImageDriverTests.cs         ✅ Image driver tests
+│   │   ├── SystemDriverTests.cs        ✅ System driver tests
+│   │   ├── FluentContainerTests.cs     ✅ Fluent container tests
+│   │   ├── FluentNetworkTests.cs       ✅ Fluent network tests
+│   │   ├── FluentVolumeTests.cs        ✅ Fluent volume tests
+│   │   ├── ComposeDriverTests.cs       ✅ Compose driver tests
+│   │   ├── WaitConditionTests.cs       ✅ Wait condition tests
+│   │   └── RegressionTests.cs          ✅ Issue regression tests
+│   └── FluentBuilder/
+│       └── MultiContainerTests.cs      ✅ Multi-container tests (10 tests)
 └── Resources/                          ✅ Kept from V2
 ```
 
@@ -71,7 +87,13 @@ FluentDocker.Tests/
 │       ├── NetworkDriverTests.cs      ✅ Network operations tests (9 tests)
 │       ├── VolumeDriverTests.cs       ✅ Volume operations tests (8 tests)
 │       ├── ImageDriverTests.cs        ✅ Image operations tests (8 tests)
-│       └── SystemDriverTests.cs       ✅ System info tests (6 tests)
+│       ├── SystemDriverTests.cs       ✅ System info tests (6 tests)
+│       ├── FluentContainerTests.cs    ✅ Fluent container tests (20 tests)
+│       ├── FluentNetworkTests.cs      ✅ Fluent network tests (8 tests)
+│       ├── FluentVolumeTests.cs       ✅ Fluent volume tests (10 tests)
+│       ├── ComposeDriverTests.cs      ✅ Compose driver tests (12 tests)
+│       ├── WaitConditionTests.cs      ✅ Wait condition tests (10 tests)
+│       └── RegressionTests.cs         ✅ Issue regression tests (7 tests)
 ```
 
 ### V2 Test to V3 Driver Test Mapping
@@ -83,12 +105,15 @@ FluentDocker.Tests/
 | VolumeTests.cs | Integration/DockerCliDriver/VolumeDriverTests.cs | ✅ Ported |
 | ImageTests.cs | Integration/DockerCliDriver/ImageDriverTests.cs | ✅ Ported |
 | DockerInfoCommandTests.cs | Integration/DockerCliDriver/SystemDriverTests.cs | ✅ Ported |
-| FluentContainerBasicTests.cs | Integration/DockerCliDriver/ContainerDriverTests.cs | ✅ Ported |
-| FluentNetworkTests.cs | Integration/DockerCliDriver/NetworkDriverTests.cs | ✅ Ported |
-| FluentVolumeTests.cs | Integration/DockerCliDriver/VolumeDriverTests.cs | ✅ Ported |
+| FluentContainerBasicTests.cs | Integration/DockerCliDriver/FluentContainerTests.cs | ✅ Ported |
+| FluentNetworkTests.cs | Integration/DockerCliDriver/FluentNetworkTests.cs | ✅ Ported |
+| FluentVolumeTests.cs | Integration/DockerCliDriver/FluentVolumeTests.cs | ✅ Ported |
+| FluentDockerComposeTests.cs | Integration/DockerCliDriver/ComposeDriverTests.cs | ✅ Ported |
+| WaitTests.cs | Integration/DockerCliDriver/WaitConditionTests.cs | ✅ Ported |
+| IssuesTests.cs | Integration/DockerCliDriver/RegressionTests.cs | ✅ Ported |
 | ImageBuilderTests.cs | CoreTests/BuilderTests/DockerfileBuilderTests.cs | ✅ Implemented |
-| FluentMultiContainerTests.cs | - | ⏳ Needs builder support |
-| RemoteDaemonTests.cs | - | 📋 Planned |
+| FluentMultiContainerTests.cs | Integration/FluentBuilder/MultiContainerTests.cs | ✅ Implemented |
+| RemoteDaemonTests.cs | - | ❌ Deprecated (Docker Machine/SSH) |
 
 ### Known Issues
 
@@ -135,15 +160,15 @@ The entire Commands namespace is deprecated. Tests should NOT be ported.
 
 | V2 Test File | Status | V3 Equivalent |
 |-------------|--------|---------------|
-| FluentContainerBasicTests.cs | ⏳ Needs Port | Need Integration/ContainerTests.cs |
-| FluentDockerComposeTests.cs | ⏳ Needs Port | Need Integration/ComposeTests.cs |
-| FluentMultiContainerTests.cs | ⏳ Needs Port | Need Integration/MultiContainerTests.cs |
-| FluentNetworkTests.cs | ⏳ Needs Port | Need Integration/NetworkTests.cs |
-| FluentVolumeTests.cs | ⏳ Needs Port | Need Integration/VolumeTests.cs |
-| ImageBuilderTests.cs | 🔄 Refactored | Part of BuilderTests.cs |
-| IssuesTests.cs | ⏳ Needs Port | Regression tests for issues |
-| RemoteDaemonTests.cs | ⏳ Needs Port | Remote docker host tests |
-| WaitTests.cs | ⏳ Needs Port | Need Unit/Builder/WaitConditionTests.cs |
+| FluentContainerBasicTests.cs | ✅ Ported | Integration/DockerCliDriver/FluentContainerTests.cs |
+| FluentDockerComposeTests.cs | ✅ Ported | Integration/DockerCliDriver/ComposeDriverTests.cs |
+| FluentMultiContainerTests.cs | ✅ Ported | Integration/FluentBuilder/MultiContainerTests.cs |
+| FluentNetworkTests.cs | ✅ Ported | Integration/DockerCliDriver/FluentNetworkTests.cs |
+| FluentVolumeTests.cs | ✅ Ported | Integration/DockerCliDriver/FluentVolumeTests.cs |
+| ImageBuilderTests.cs | 🔄 Refactored | CoreTests/BuilderTests/ImageBuilderTests.cs |
+| IssuesTests.cs | ✅ Ported | Integration/DockerCliDriver/RegressionTests.cs |
+| RemoteDaemonTests.cs | ❌ Deprecated | Docker Machine / Remote SSH deprecated |
+| WaitTests.cs | ✅ Ported | Integration/DockerCliDriver/WaitConditionTests.cs |
 
 ### 5. Model/Builders
 
@@ -197,18 +222,25 @@ The entire Commands namespace is deprecated. Tests should NOT be ported.
 | Command Tests | 7 | 0 | 7 (ported to Driver tests) |
 | Common | 1 | 0 | 1 |
 | Extension Tests | 4 | 4 | 0 |
-| FluentApi Tests | 9 | 4 | 1 |
+| FluentApi Tests | 9 | 8 | 1 |
 | Model Tests | 6 | 5 | 1 |
 | Parser Tests | 1 | 1 | 0 |
 | Process Tests | 1 | 1 | 0 |
 | Service Tests | 4 | 3 | 1 |
 | **V3 Unit Tests** | 328 | 328 | - |
 | **Docker Driver Tests** | 56 | 46 | - |
-| **TOTAL** | 400+ | 392 | 11 |
+| **Fluent API Tests** | 67 | 67 | - |
+| **TOTAL** | 470+ | 459 | 11 |
 
 ### Test Implementation Status
 - ✅ **Unit Tests**: 328 tests fully implemented (all passing)
 - ✅ **Docker Driver Integration Tests**: 46 passing, 10 need model fixes
+- ✅ **Fluent Container Tests**: 20 tests for container operations (ports, mounts, copies, exports)
+- ✅ **Fluent Network Tests**: 8 tests for custom networks, static IPs, internal networks
+- ✅ **Fluent Volume Tests**: 10 tests for volume lifecycle, bind mounts, persistence
+- ✅ **Compose Driver Tests**: 12 tests for compose up/down, pause/unpause, logs, exec
+- ✅ **Wait Condition Tests**: 10 tests for port, process, HTTP, health, and custom waits
+- ✅ **Regression Tests**: 7 tests for GitHub issues (85, 92, 94, 190)
 - ✅ **DockerfileBuilder**: Full support for programmatic Dockerfile creation
 - ✅ **ImageBuilder**: Full support for building Docker images
 - ✅ **Extension Tests**: ConversionExtension, ResourceExtension, EnvironmentExtension ported

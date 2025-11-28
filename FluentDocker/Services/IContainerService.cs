@@ -15,6 +15,11 @@ namespace FluentDocker.Services
         string Id { get; }
 
         /// <summary>
+        /// Container name.
+        /// </summary>
+        new string Name { get; }
+
+        /// <summary>
         /// Container image.
         /// </summary>
         string Image { get; }

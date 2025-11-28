@@ -474,6 +474,16 @@ namespace FluentDocker.Drivers
 
         /// <summary>Extra hosts (/etc/hosts entries).</summary>
         public Dictionary<string, string> ExtraHosts { get; set; } = new Dictionary<string, string>();
+
+        /// <summary>
+        /// Container links (legacy Docker feature).
+        /// Format: "container:alias" or just "container" (alias defaults to container name).
+        /// </summary>
+        /// <remarks>
+        /// Container linking is a legacy Docker feature. User-defined networks are the preferred approach.
+        /// Links allow containers to discover each other and securely transfer information.
+        /// </remarks>
+        public List<string> Links { get; set; } = new List<string>();
     }
 
     /// <summary>

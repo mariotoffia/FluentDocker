@@ -102,6 +102,11 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
                 if (config.AutoRemove)
                     args.Add("--rm");
 
+                // Links (legacy Docker feature)
+                if (config.Links != null)
+                    foreach (var link in config.Links)
+                        args.Add($"--link {link}");
+
                 // Image (required)
                 args.Add(config.Image);
 
@@ -182,6 +187,11 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
 
                 if (config.AutoRemove)
                     args.Add("--rm");
+
+                // Links (legacy Docker feature)
+                if (config.Links != null)
+                    foreach (var link in config.Links)
+                        args.Add($"--link {link}");
 
                 if (config.Tty)
                     args.Add("-t");

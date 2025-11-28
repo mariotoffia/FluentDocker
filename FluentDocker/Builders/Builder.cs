@@ -348,6 +348,17 @@ namespace FluentDocker.Builders
         public string Alias { get; set; }
     }
 
+    /// <summary>
+    /// Container link configuration (legacy Docker feature).
+    /// </summary>
+    public class ContainerLink
+    {
+        /// <summary>Name of the container to link to.</summary>
+        public string ContainerName { get; set; }
+        /// <summary>Alias for the linked container (defaults to container name if not specified).</summary>
+        public string Alias { get; set; }
+    }
+
     #endregion
 
     #region Container Builder Interface
@@ -384,6 +395,19 @@ namespace FluentDocker.Builders
         IContainerBuilder WithCpuShares(long shares);
         IContainerBuilder WithPrivileged(bool privileged = true);
         IContainerBuilder WithAutoRemove(bool autoRemove = true);
+        
+        /// <summary>Links this container to another container (legacy Docker feature).</summary>
+        /// <param name="containerName">Name of the container to link to</param>
+        /// <param name="alias">Optional alias for the linked container</param>
+        /// <remarks>
+        /// Container linking is a legacy Docker feature. Consider using user-defined networks instead.
+        /// Links allow containers to discover each other and securely transfer information about one container to another.
+        /// </remarks>
+        IContainerBuilder WithLink(string containerName, string alias = null);
+        
+        /// <summary>Links this container to multiple other containers (legacy Docker feature).</summary>
+        /// <param name="containerNames">Names of the containers to link to</param>
+        IContainerBuilder WithLinks(params string[] containerNames);
         
         #endregion
 
@@ -559,6 +583,7 @@ namespace FluentDocker.Builders
         private readonly List<NetworkAlias> _networkAliases = new List<NetworkAlias>();
         private readonly List<WaitCondition> _waitConditions = new List<WaitCondition>();
         private readonly List<LifecycleHook> _lifecycleHooks = new List<LifecycleHook>();
+        private readonly List<ContainerLink> _links = new List<ContainerLink>();
         
         private string _workingDir;
         private string _user;
@@ -717,6 +742,25 @@ namespace FluentDocker.Builders
         public IContainerBuilder WithAutoRemove(bool autoRemove = true)
         {
             _autoRemove = autoRemove;
+            return this;
+        }
+
+        public IContainerBuilder WithLink(string containerName, string alias = null)
+        {
+            _links.Add(new ContainerLink 
+            { 
+                ContainerName = containerName, 
+                Alias = alias ?? containerName 
+            });
+            return this;
+        }
+
+        public IContainerBuilder WithLinks(params string[] containerNames)
+        {
+            foreach (var name in containerNames)
+            {
+                _links.Add(new ContainerLink { ContainerName = name, Alias = name });
+            }
             return this;
         }
 
@@ -1030,7 +1074,12 @@ namespace FluentDocker.Builders
                 MemoryLimit = _memoryLimit,
                 CpuShares = _cpuShares,
                 Privileged = _privileged,
-                AutoRemove = _autoRemove
+                AutoRemove = _autoRemove,
+                Links = _links.Count > 0 
+                    ? _links.Select(l => l.Alias != l.ContainerName 
+                        ? $"{l.ContainerName}:{l.Alias}" 
+                        : l.ContainerName).ToList() 
+                    : null
             };
 
             var response = await driver.CreateAsync(context, config, cancellationToken);
