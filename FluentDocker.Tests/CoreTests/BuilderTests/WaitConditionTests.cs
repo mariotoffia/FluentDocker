@@ -1,7 +1,7 @@
 using FluentDocker.Builders;
 using Xunit;
 
-namespace FluentDocker.Tests.CoreTests.Builder
+namespace FluentDocker.Tests.CoreTests.BuilderTests
 {
     /// <summary>
     /// Tests for Wait Condition builder methods.
@@ -15,7 +15,7 @@ namespace FluentDocker.Tests.CoreTests.Builder
         [InlineData("80/tcp")]
         public void WaitForPort_SetsWaitCondition(string port)
         {
-            var builder = new FluentBuilder();
+            var builder = new Builder();
             var configured = false;
             builder.WithinDriver("test", new Kernel.FluentDockerKernel())
                 .UseContainer(c =>
@@ -30,7 +30,7 @@ namespace FluentDocker.Tests.CoreTests.Builder
         [Fact]
         public void WaitForPort_WithAddress_SetsWaitCondition()
         {
-            var builder = new FluentBuilder();
+            var builder = new Builder();
             var configured = false;
             builder.WithinDriver("test", new Kernel.FluentDockerKernel())
                 .UseContainer(c =>
@@ -45,7 +45,7 @@ namespace FluentDocker.Tests.CoreTests.Builder
         [Fact]
         public void WaitForProcess_SetsWaitCondition()
         {
-            var builder = new FluentBuilder();
+            var builder = new Builder();
             var configured = false;
             builder.WithinDriver("test", new Kernel.FluentDockerKernel())
                 .UseContainer(c =>
@@ -63,7 +63,7 @@ namespace FluentDocker.Tests.CoreTests.Builder
         [InlineData("8080/tcp", "/api/status")]
         public void WaitForHttp_SetsWaitCondition(string port, string path)
         {
-            var builder = new FluentBuilder();
+            var builder = new Builder();
             var configured = false;
             builder.WithinDriver("test", new Kernel.FluentDockerKernel())
                 .UseContainer(c =>
@@ -78,7 +78,7 @@ namespace FluentDocker.Tests.CoreTests.Builder
         [Fact]
         public void WaitForHttp_AdvancedOptions_SetsWaitCondition()
         {
-            var builder = new FluentBuilder();
+            var builder = new Builder();
             var configured = false;
             builder.WithinDriver("test", new Kernel.FluentDockerKernel())
                 .UseContainer(c =>
@@ -102,7 +102,7 @@ namespace FluentDocker.Tests.CoreTests.Builder
         [InlineData("database system is ready to accept connections")]
         public void WaitForLogMessage_SetsWaitCondition(string message)
         {
-            var builder = new FluentBuilder();
+            var builder = new Builder();
             var configured = false;
             builder.WithinDriver("test", new Kernel.FluentDockerKernel())
                 .UseContainer(c =>
@@ -117,7 +117,7 @@ namespace FluentDocker.Tests.CoreTests.Builder
         [Fact]
         public void WaitForHealthy_SetsWaitCondition()
         {
-            var builder = new FluentBuilder();
+            var builder = new Builder();
             var configured = false;
             builder.WithinDriver("test", new Kernel.FluentDockerKernel())
                 .UseContainer(c =>
@@ -132,7 +132,7 @@ namespace FluentDocker.Tests.CoreTests.Builder
         [Fact]
         public void Wait_CustomLambda_SetsWaitCondition()
         {
-            var builder = new FluentBuilder();
+            var builder = new Builder();
             var configured = false;
             builder.WithinDriver("test", new Kernel.FluentDockerKernel())
                 .UseContainer(c =>
@@ -152,7 +152,7 @@ namespace FluentDocker.Tests.CoreTests.Builder
         [Fact]
         public void MultipleWaitConditions_CanBeChained()
         {
-            var builder = new FluentBuilder();
+            var builder = new Builder();
             var configured = false;
             builder.WithinDriver("test", new Kernel.FluentDockerKernel())
                 .UseContainer(c =>

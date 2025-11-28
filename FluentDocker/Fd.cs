@@ -18,9 +18,9 @@ namespace FluentDocker
         /// Creates a new builder for constructing Docker resources.
         /// </summary>
         /// <returns>A new builder instance.</returns>
-        public static FluentBuilder Build()
+        public static Builder Build()
         {
-            return new FluentBuilder();
+            return new Builder();
         }
 
         /// <summary>

@@ -30,7 +30,7 @@ FluentDocker.Tests/
 │   ├── Extensions/
 │   │   ├── EnvironmentExtensionTests.cs 🆕 Environment detection tests
 │   │   └── ExtensionUtilityTests.cs    🆕 Utility tests
-│   ├── Builder/
+│   ├── BuilderTests/
 │   │   ├── ContainerBuilderTests.cs    🆕 Container builder tests
 │   │   ├── WaitConditionTests.cs       🆕 Wait condition tests
 │   │   └── LifecycleHookTests.cs       🆕 Lifecycle hook tests

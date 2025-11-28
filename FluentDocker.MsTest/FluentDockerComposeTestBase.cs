@@ -60,7 +60,7 @@ namespace FluentDocker.MsTest
         {
             Kernel = await CreateKernelAsync();
 
-            var builder = new FluentBuilder();
+            var builder = new Builder();
             builder.WithinDriver(DriverId, Kernel);
             builder.UseCompose(ConfigureCompose);
 

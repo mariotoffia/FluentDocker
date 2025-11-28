@@ -26,7 +26,7 @@ namespace EventDriven
       {
         using (
             var container =
-                new FluentBuilder().UseContainer()
+                new Builder().UseContainer()
                     .UseImage("postgres:9.6-alpine")
                     .ExposePort(5432)
                     .WithEnvironment("POSTGRES_PASSWORD=mysecretpassword")

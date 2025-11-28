@@ -47,7 +47,7 @@ namespace FluentDocker.MsTest
 
             OnBeforeContainerBuild();
 
-            var builder = new FluentBuilder();
+            var builder = new Builder();
             builder.WithinDriver(DriverId, Kernel);
             builder.UseContainer(ConfigureContainer);
 
