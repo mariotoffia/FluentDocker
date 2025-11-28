@@ -5,9 +5,9 @@
 
 | Package        | NuGet          | Downloads       |
 | ---------------|:--------------:|:---------------:|
-| FluentDocker   | [![NuGet](https://img.shields.io/nuget/v/Ductus.FluentDocker.svg)](https://www.nuget.org/packages/Ductus.FluentDocker) | [![Downloads](https://img.shields.io/nuget/dt/Ductus.FluentDocker.svg)](https://www.nuget.org/packages/Ductus.FluentDocker) |
-| Microsoft Test | [![NuGet](https://img.shields.io/nuget/v/Ductus.FluentDocker.MsTest.svg)](https://www.nuget.org/packages/Ductus.FluentDocker.MsTest) | [![Downloads](https://img.shields.io/nuget/dt/Ductus.FluentDocker.MsTest.svg)](https://www.nuget.org/packages/Ductus.FluentDocker.MsTest) |
-| XUnit Test     | [![NuGet](https://img.shields.io/nuget/v/Ductus.FluentDocker.XUnit.svg)](https://www.nuget.org/packages/Ductus.FluentDocker.XUnit) | [![Downloads](https://img.shields.io/nuget/dt/Ductus.FluentDocker.XUnit.svg)](https://www.nuget.org/packages/Ductus.FluentDocker.XUnit) |
+| FluentDocker   | [![NuGet](https://img.shields.io/nuget/v/FluentDocker.svg)](https://www.nuget.org/packages/FluentDocker) | [![Downloads](https://img.shields.io/nuget/dt/FluentDocker.svg)](https://www.nuget.org/packages/FluentDocker) |
+| Microsoft Test | [![NuGet](https://img.shields.io/nuget/v/FluentDocker.MsTest.svg)](https://www.nuget.org/packages/FluentDocker.MsTest) | [![Downloads](https://img.shields.io/nuget/dt/FluentDocker.MsTest.svg)](https://www.nuget.org/packages/FluentDocker.MsTest) |
+| XUnit Test     | [![NuGet](https://img.shields.io/nuget/v/FluentDocker.XUnit.svg)](https://www.nuget.org/packages/FluentDocker.XUnit) | [![Downloads](https://img.shields.io/nuget/dt/FluentDocker.XUnit.svg)](https://www.nuget.org/packages/FluentDocker.XUnit) |
 
 # FluentDocker
 
@@ -173,7 +173,7 @@ The highest layer of this library is the fluent API where you can define and con
             "curl -sL https://deb.nodesource.com/setup | sudo bash - &&",
             "apt-get -y install python build-essential nodejs")
           .Run("npm install -g nodemon")
-          .Add("emb:Ductus.FluentDockerTest/Ductus.FluentDockerTest.MultiContainerTestFiles/package.txt",
+          .Add("emb:FluentDockerTest/FluentDockerTest.MultiContainerTestFiles/package.txt",
             "/tmp/package.json")
           .Run("cd /tmp && npm install")
           .Run("mkdir -p /src && cp -a /tmp/node_modules /src/")
@@ -659,7 +659,7 @@ This event loop may be used to pick up events and drive your instantiated `IServ
 
 ### Logging
 In the full framework it uses verbose logging using the ```System.Diagnostics.Debugger.Log```. For .net core it uses the standard
-```Microsoft.Extensions.Logging.ILog``` to log. Both are using the category _Ductus.FluentDocker_ and therefore may be configured
+```Microsoft.Extensions.Logging.ILog``` to log. Both are using the category _FluentDocker_ and therefore may be configured
 to participate in logging or not and configure different logging destinations.
 
 In .net core you can provide the logging segment in the application config file.
@@ -668,7 +668,7 @@ In .net core you can provide the logging segment in the application config file.
   "Logging": {
     "IncludeScopes": false,
     "LogLevel": {
-      "Ductus.FluentDocker": "None"
+      "FluentDocker": "None"
       }
    }
 }
@@ -676,7 +676,7 @@ In .net core you can provide the logging segment in the application config file.
 Please check the https://docs.microsoft.com/en-us/aspnet/core/fundamentals/logging/?view=aspnetcore-2.1 for more information.
 For full framework please check out the _XML_ needed in the appconfig for the full framework described in https://docs.microsoft.com/en-us/dotnet/framework/wcf/diagnostics/tracing/configuring-tracing.
 
-There's a quick way of disabling / enabling logging via (```Ductus.FluentDocker.Services```) ```Logging.Enabled()``` or ```Logging.Disabled()```. This will forcefully enable / disable logging.
+There's a quick way of disabling / enabling logging via (```FluentDocker.Services```) ```Logging.Enabled()``` or ```Logging.Disabled()```. This will forcefully enable / disable logging.
 
 ### Custom IPEndpoint Resolvers
 

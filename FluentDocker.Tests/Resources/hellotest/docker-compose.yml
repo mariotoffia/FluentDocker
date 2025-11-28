@@ -1,0 +1,6 @@
+services:
+  hellotest:
+    image: hellotest:v2
+    build:
+      context: hellotest
+      dockerfile: Dockerfile

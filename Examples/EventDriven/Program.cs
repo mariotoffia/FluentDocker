@@ -1,11 +1,11 @@
 ﻿using System;
 using System.Collections.Generic;
-using Ductus.FluentDocker;
-using Ductus.FluentDocker.Builders;
-using Ductus.FluentDocker.Extensions;
-using Ductus.FluentDocker.Model.Events;
-using Ductus.FluentDocker.Services;
-using Ductus.FluentDocker.Services.Extensions;
+using FluentDocker;
+using FluentDocker.Builders;
+using FluentDocker.Extensions;
+using FluentDocker.Model.Events;
+using FluentDocker.Services;
+using FluentDocker.Services.Extensions;
 
 namespace EventDriven
 {

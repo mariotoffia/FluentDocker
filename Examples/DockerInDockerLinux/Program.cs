@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Linq;
-using Ductus.FluentDocker.Commands;
-using Ductus.FluentDocker.Services;
+using FluentDocker.Commands;
+using FluentDocker.Services;
 
 namespace DockerInDockerLinux
 {

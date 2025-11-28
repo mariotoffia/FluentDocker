@@ -1,0 +1,304 @@
+using System;
+using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
+using FluentDocker.Common;
+using FluentDocker.Drivers.Docker.Cli.Components;
+using FluentDocker.Kernel;
+using FluentDocker.Model.Drivers;
+
+namespace FluentDocker.Drivers.Docker.Cli
+{
+    /// <summary>
+    /// Docker CLI driver pack that composes all individual Docker CLI driver implementations.
+    /// Implements IDriverPack to provide unified access to all driver components.
+    /// </summary>
+    public class DockerCliDriverPack : IDriverPack
+    {
+        private readonly Dictionary<Type, object> _drivers = new Dictionary<Type, object>();
+        private DriverContext _context;
+        private bool _initialized;
+
+        /// <summary>
+        /// Individual driver components
+        /// </summary>
+        private DockerCliContainerDriver _containerDriver;
+        private DockerCliImageDriver _imageDriver;
+        private DockerCliNetworkDriver _networkDriver;
+        private DockerCliVolumeDriver _volumeDriver;
+        private DockerCliSystemDriver _systemDriver;
+        private DockerCliComposeDriver _composeDriver;
+        private DockerCliAuthDriver _authDriver;
+        private DockerCliStreamDriver _streamDriver;
+        private DockerCliStackDriver _stackDriver;
+        private DockerCliServiceDriver _serviceDriver;
+        private DockerCliMachineDriver _machineDriver;
+
+        /// <inheritdoc />
+        public DriverType Type => DriverType.DockerCli;
+
+        /// <inheritdoc />
+        public RuntimeType Runtime => RuntimeType.Docker;
+
+        /// <inheritdoc />
+        public async Task InitializeAsync(DriverContext context, CancellationToken cancellationToken = default)
+        {
+            _context = context ?? throw new ArgumentNullException(nameof(context));
+
+            // Create and initialize all driver components
+            _containerDriver = new DockerCliContainerDriver();
+            _imageDriver = new DockerCliImageDriver();
+            _networkDriver = new DockerCliNetworkDriver();
+            _volumeDriver = new DockerCliVolumeDriver();
+            _systemDriver = new DockerCliSystemDriver();
+            _composeDriver = new DockerCliComposeDriver();
+            _authDriver = new DockerCliAuthDriver();
+            _streamDriver = new DockerCliStreamDriver();
+            _stackDriver = new DockerCliStackDriver();
+            _serviceDriver = new DockerCliServiceDriver();
+            _machineDriver = new DockerCliMachineDriver();
+
+            // Initialize all components
+            _containerDriver.Initialize(context);
+            _imageDriver.Initialize(context);
+            _networkDriver.Initialize(context);
+            _volumeDriver.Initialize(context);
+            _systemDriver.Initialize(context);
+            _composeDriver.Initialize(context);
+            _authDriver.Initialize(context);
+            _streamDriver.Initialize(context);
+            _stackDriver.Initialize(context);
+            _serviceDriver.Initialize(context);
+            _machineDriver.Initialize(context);
+
+            // Register all drivers by interface type
+            _drivers[typeof(IContainerDriver)] = _containerDriver;
+            _drivers[typeof(IImageDriver)] = _imageDriver;
+            _drivers[typeof(INetworkDriver)] = _networkDriver;
+            _drivers[typeof(IVolumeDriver)] = _volumeDriver;
+            _drivers[typeof(ISystemDriver)] = _systemDriver;
+            _drivers[typeof(IComposeDriver)] = _composeDriver;
+            _drivers[typeof(IAuthDriver)] = _authDriver;
+            _drivers[typeof(IStreamDriver)] = _streamDriver;
+            _drivers[typeof(IStackDriver)] = _stackDriver;
+            _drivers[typeof(IServiceDriver)] = _serviceDriver;
+            _drivers[typeof(IMachineDriver)] = _machineDriver;
+
+            _initialized = true;
+            await Task.CompletedTask;
+        }
+
+        /// <inheritdoc />
+        public Task<DriverCapabilities> GetCapabilitiesAsync(CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult(new DriverCapabilities
+            {
+                SupportsContainers = true,
+                SupportsImages = true,
+                SupportsNetworks = true,
+                SupportsVolumes = true,
+                SupportsCompose = true,
+                SupportsSystem = true,
+                SupportsPods = false
+            });
+        }
+
+        /// <inheritdoc />
+        public async Task<bool> IsHealthyAsync(CancellationToken cancellationToken = default)
+        {
+            if (!_initialized || _systemDriver == null)
+                return false;
+
+            try
+            {
+                var result = await _systemDriver.PingAsync(_context, cancellationToken);
+                return result.Success;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        /// <inheritdoc />
+        public T SysCtl<T>(string driverId) where T : class
+        {
+            ThrowIfNotInitialized();
+
+            var requestedType = typeof(T);
+
+            if (_drivers.TryGetValue(requestedType, out var driver))
+            {
+                return (T)driver;
+            }
+
+            throw new InterfaceNotSupportedException(driverId, requestedType.Name);
+        }
+
+        /// <inheritdoc />
+        public object SysCtl(string driverId, DriverComponent component)
+        {
+            ThrowIfNotInitialized();
+
+            return component switch
+            {
+                DriverComponent.Container => _containerDriver,
+                DriverComponent.Image => _imageDriver,
+                DriverComponent.Network => _networkDriver,
+                DriverComponent.Volume => _volumeDriver,
+                DriverComponent.System => _systemDriver,
+                DriverComponent.Compose => _composeDriver,
+                _ => throw new ArgumentException($"Unknown component: {component}", nameof(component))
+            };
+        }
+
+        #region Direct Driver Access
+
+        /// <summary>
+        /// Gets the container driver.
+        /// </summary>
+        public IContainerDriver ContainerDriver
+        {
+            get
+            {
+                ThrowIfNotInitialized();
+                return _containerDriver;
+            }
+        }
+
+        /// <summary>
+        /// Gets the image driver.
+        /// </summary>
+        public IImageDriver ImageDriver
+        {
+            get
+            {
+                ThrowIfNotInitialized();
+                return _imageDriver;
+            }
+        }
+
+        /// <summary>
+        /// Gets the network driver.
+        /// </summary>
+        public INetworkDriver NetworkDriver
+        {
+            get
+            {
+                ThrowIfNotInitialized();
+                return _networkDriver;
+            }
+        }
+
+        /// <summary>
+        /// Gets the volume driver.
+        /// </summary>
+        public IVolumeDriver VolumeDriver
+        {
+            get
+            {
+                ThrowIfNotInitialized();
+                return _volumeDriver;
+            }
+        }
+
+        /// <summary>
+        /// Gets the system driver.
+        /// </summary>
+        public ISystemDriver SystemDriver
+        {
+            get
+            {
+                ThrowIfNotInitialized();
+                return _systemDriver;
+            }
+        }
+
+        /// <summary>
+        /// Gets the compose driver.
+        /// </summary>
+        public IComposeDriver ComposeDriver
+        {
+            get
+            {
+                ThrowIfNotInitialized();
+                return _composeDriver;
+            }
+        }
+
+        /// <summary>
+        /// Gets the auth driver.
+        /// </summary>
+        public IAuthDriver AuthDriver
+        {
+            get
+            {
+                ThrowIfNotInitialized();
+                return _authDriver;
+            }
+        }
+
+        /// <summary>
+        /// Gets the stream driver.
+        /// </summary>
+        public IStreamDriver StreamDriver
+        {
+            get
+            {
+                ThrowIfNotInitialized();
+                return _streamDriver;
+            }
+        }
+
+        /// <summary>
+        /// Gets the stack driver.
+        /// </summary>
+        public IStackDriver StackDriver
+        {
+            get
+            {
+                ThrowIfNotInitialized();
+                return _stackDriver;
+            }
+        }
+
+        /// <summary>
+        /// Gets the service driver.
+        /// </summary>
+        public IServiceDriver ServiceDriver
+        {
+            get
+            {
+                ThrowIfNotInitialized();
+                return _serviceDriver;
+            }
+        }
+
+        /// <summary>
+        /// Gets the machine driver.
+        /// </summary>
+        public IMachineDriver MachineDriver
+        {
+            get
+            {
+                ThrowIfNotInitialized();
+                return _machineDriver;
+            }
+        }
+
+        #endregion
+
+        #region Private Helpers
+
+        private void ThrowIfNotInitialized()
+        {
+            if (!_initialized)
+            {
+                throw new InvalidOperationException("DockerCliDriverPack has not been initialized. Call InitializeAsync first.");
+            }
+        }
+
+        #endregion
+    }
+}
+

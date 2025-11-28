@@ -1,0 +1,9 @@
+services:
+  rabbitmq:
+    image: rabbitmq:3-alpine
+    ports:
+      - "5672:5672"
+    healthcheck:
+      test: ["CMD", "nc", "-vn", "127.0.0.1", "5672"]
+      interval: 2s
+      retries: 30
