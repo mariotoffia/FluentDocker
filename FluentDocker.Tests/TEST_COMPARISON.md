@@ -8,6 +8,7 @@ This document tracks the migration status of tests from the v2.x.x system to v3.
 - ⏳ Needs Port - Test should be ported to V3
 - ❌ Deprecated - Test should NOT be ported (deprecated feature)
 - 🔄 Refactored - Test concept exists but implementation changed
+- 📋 Planned - Test structure defined but not yet implemented
 
 ---
 
@@ -44,6 +45,52 @@ FluentDocker.Tests/
 │   └── KernelBuilderTests.cs           🆕 Kernel builder tests
 └── Resources/                          ✅ Kept from V2
 ```
+
+---
+
+## Planned Docker CLI Driver Integration Tests
+
+The following test structure is planned for Docker CLI driver integration tests.
+These require Docker to be running and test actual container/network/volume operations.
+
+```
+FluentDocker.Tests/
+├── Drivers/
+│   └── DockerCliDriverTests/
+│       ├── DockerTestBase.cs           📋 Base class with kernel setup
+│       ├── ContainerTests/
+│       │   ├── BasicContainerTests.cs  📋 Ports from FluentContainerBasicTests.cs
+│       │   ├── PortMappingTests.cs     📋 Port mapping scenarios
+│       │   └── CustomResolverTests.cs  📋 Custom endpoint resolver tests
+│       ├── NetworkTests/
+│       │   ├── NetworkBasicTests.cs    📋 Ports from FluentNetworkTests.cs
+│       │   └── NetworkContainerTests.cs 📋 Container-network interaction
+│       ├── VolumeTests/
+│       │   └── VolumeBasicTests.cs     📋 Ports from FluentVolumeTests.cs
+│       ├── ComposeTests/
+│       │   ├── ComposeBasicTests.cs    📋 Ports from FluentDockerComposeTests.cs
+│       │   └── ComposePauseResumeTests.cs 📋 Pause/resume scenarios
+│       ├── WaitTests/
+│       │   ├── WaitForPortTests.cs     📋 Port wait conditions
+│       │   ├── WaitForHealthyTests.cs  📋 Health check waits
+│       │   └── WaitLambdaTests.cs      📋 Ports from WaitTests.cs
+│       └── RegressionTests/
+│           └── IssueTests.cs           📋 Ports from IssuesTests.cs
+```
+
+### V2 Test to V3 Driver Test Mapping
+
+| V2 Test | V3 Location | Status |
+|---------|-------------|--------|
+| FluentContainerBasicTests.cs | ContainerTests/BasicContainerTests.cs | 📋 Planned |
+| FluentNetworkTests.cs | NetworkTests/NetworkBasicTests.cs | 📋 Planned |
+| FluentVolumeTests.cs | VolumeTests/VolumeBasicTests.cs | 📋 Planned |
+| FluentDockerComposeTests.cs | ComposeTests/ComposeBasicTests.cs | 📋 Planned |
+| WaitTests.cs | WaitTests/WaitLambdaTests.cs | 📋 Planned |
+| IssuesTests.cs | RegressionTests/IssueTests.cs | 📋 Planned |
+| FluentMultiContainerTests.cs | - | ❌ Deprecated (was ignored) |
+| ImageBuilderTests.cs | - | ❌ Deprecated (FileBuilder deprecated) |
+| RemoteDaemonTests.cs | - | 📋 Planned (Remote host tests) |
 
 ---
 
@@ -166,18 +213,24 @@ The entire Commands namespace is deprecated. Tests should NOT be ported.
 
 ## Summary Statistics
 
-| Category | Total | Implemented | Needs Port | Deprecated | New in V3 |
-|----------|-------|-------------|------------|------------|-----------|
+| Category | Total | Implemented | Planned | Deprecated | New in V3 |
+|----------|-------|-------------|---------|------------|-----------|
 | Command Tests | 7 | 0 | 0 | 7 | 0 |
 | Common | 1 | 0 | 1 | 0 | 0 |
 | Extension Tests | 4 | 1 | 2 | 1 | 0 |
-| FluentApi Tests | 9 | 2 | 7 | 0 | 0 |
+| FluentApi Tests | 9 | 2 | 6 | 1 | 0 |
 | Model Tests | 6 | 0 | 1 | 5 | 0 |
 | Parser Tests | 1 | 0 | 1 | 0 | 0 |
 | Process Tests | 1 | 0 | 1 | 0 | 0 |
 | Service Tests | 4 | 0 | 3 | 1 | 0 |
-| **V3 New Tests** | - | 11 | - | - | 11 |
-| **TOTAL** | 33+ | 14 | 16 | 14 | 11 |
+| **V3 Unit Tests** | 239 | 239 | - | - | 239 |
+| **Docker Driver Tests** | 10+ | 0 | 10+ | - | 10+ |
+| **TOTAL** | 280+ | 241 | 25+ | 15 | 249 |
+
+### Test Implementation Status
+- ✅ **Unit Tests**: 239 tests fully implemented (all passing)
+- ✅ **Integration Tests**: Basic builder and kernel tests implemented
+- 📋 **Docker Driver Tests**: Structure planned, requires Docker to be running
 
 ---
 

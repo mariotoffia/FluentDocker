@@ -55,7 +55,7 @@ namespace FluentDocker.Tests.Integration
             try
             {
                 // Act
-                var containerDriver = kernel.SysCtl<Drivers.IContainerDriver>("docker");
+                var containerDriver = kernel.SysCtl<FluentDocker.Drivers.IContainerDriver>("docker");
 
                 // Assert
                 Assert.NotNull(containerDriver);

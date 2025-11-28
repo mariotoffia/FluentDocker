@@ -21,7 +21,7 @@ namespace FluentDocker.Tests.Integration
                 .BuildAsync();
 
             // Ensure image is available
-            var imageDriver = kernel.SysCtl<Drivers.IImageDriver>("docker");
+            var imageDriver = kernel.SysCtl<FluentDocker.Drivers.IImageDriver>("docker");
             await imageDriver.PullAsync(
                 new Model.Drivers.DriverContext("docker"),
                 "alpine",
@@ -61,8 +61,8 @@ namespace FluentDocker.Tests.Integration
                 .BuildAsync();
 
             // Ensure images are available
-            var imageDriver1 = kernel.SysCtl<Drivers.IImageDriver>("docker-1");
-            var imageDriver2 = kernel.SysCtl<Drivers.IImageDriver>("docker-2");
+            var imageDriver1 = kernel.SysCtl<FluentDocker.Drivers.IImageDriver>("docker-1");
+            var imageDriver2 = kernel.SysCtl<FluentDocker.Drivers.IImageDriver>("docker-2");
             await imageDriver1.PullAsync(new Model.Drivers.DriverContext("docker-1"), "alpine", "latest");
             await imageDriver2.PullAsync(new Model.Drivers.DriverContext("docker-2"), "alpine", "latest");
 
