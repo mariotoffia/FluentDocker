@@ -18,6 +18,8 @@ namespace FluentDocker.Services.Impl
         private readonly string _driverId;
         private readonly List<string> _composeFiles;
         private readonly string _projectName;
+        private readonly bool _removeVolumes;
+        private readonly bool _removeImages;
         private readonly Dictionary<string, Func<IServiceAsync, Task>> _hooks = new Dictionary<string, Func<IServiceAsync, Task>>();
         private ServiceRunningState _state = ServiceRunningState.Running;
 
@@ -25,12 +27,16 @@ namespace FluentDocker.Services.Impl
             FluentDockerKernel kernel,
             string driverId,
             List<string> composeFiles,
-            string projectName)
+            string projectName,
+            bool removeVolumes = false,
+            bool removeImages = false)
         {
             _kernel = kernel ?? throw new ArgumentNullException(nameof(kernel));
             _driverId = driverId ?? throw new ArgumentNullException(nameof(driverId));
             _composeFiles = composeFiles ?? throw new ArgumentNullException(nameof(composeFiles));
             _projectName = projectName ?? throw new ArgumentNullException(nameof(projectName));
+            _removeVolumes = removeVolumes;
+            _removeImages = removeImages;
         }
 
         public string Name => _projectName;
@@ -224,7 +230,8 @@ namespace FluentDocker.Services.Impl
             {
                 ComposeFiles = _composeFiles,
                 ProjectName = _projectName,
-                RemoveVolumes = force
+                RemoveVolumes = _removeVolumes || force,
+                RemoveImages = _removeImages ? "all" : null
             };
 
             var response = await driver.DownAsync(context, config, cancellationToken);

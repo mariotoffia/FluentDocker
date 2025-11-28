@@ -2,10 +2,10 @@ using System.Threading.Tasks;
 using FluentDocker.Kernel;
 using Xunit;
 
-namespace FluentDocker.Tests.V3
+namespace FluentDocker.Tests.Integration
 {
     /// <summary>
-    /// Tests for v3.0.0 Kernel Builder with async/await pattern.
+    /// Integration tests for Kernel Builder with async/await pattern.
     /// </summary>
     [Trait("Category", "Integration")]
     public class KernelBuilderTests
@@ -77,3 +77,4 @@ namespace FluentDocker.Tests.V3
         }
     }
 }
+

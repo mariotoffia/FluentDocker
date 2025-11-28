@@ -7,8 +7,11 @@ using FluentDocker.Kernel;
 using FluentDocker.Model.Drivers;
 using Xunit;
 
-namespace FluentDocker.Tests.V3.UnitTests
+namespace FluentDocker.Tests.CoreTests.Driver
 {
+    /// <summary>
+    /// Tests for DriverRegistry class.
+    /// </summary>
     [Trait("Category", "Unit")]
     public class DriverRegistryTests
     {
@@ -250,3 +253,4 @@ namespace FluentDocker.Tests.V3.UnitTests
         }
     }
 }
+

@@ -3,11 +3,12 @@ using System.Threading;
 using System.Threading.Tasks;
 using Xunit;
 
-namespace FluentDocker.Tests.V3.UnitTests
+namespace FluentDocker.Tests.CoreTests.Core
 {
     /// <summary>
-    /// Tests for v3.0.0 async/await patterns and cancellation support.
+    /// Tests for async/await patterns and cancellation support.
     /// </summary>
+    [Trait("Category", "Unit")]
     public class AsyncPatternsTests
     {
         [Fact]
@@ -17,11 +18,12 @@ namespace FluentDocker.Tests.V3.UnitTests
             var cts = new CancellationTokenSource();
             cts.Cancel();
 
-            // Act & Assert
-            await Assert.ThrowsAsync<OperationCanceledException>(async () =>
+            // Act & Assert - TaskCanceledException inherits from OperationCanceledException
+            var ex = await Assert.ThrowsAnyAsync<OperationCanceledException>(async () =>
             {
                 await Task.Run(() => cts.Token.ThrowIfCancellationRequested(), cts.Token);
             });
+            Assert.NotNull(ex);
         }
 
         [Fact]
@@ -60,8 +62,8 @@ namespace FluentDocker.Tests.V3.UnitTests
             await Task.Delay(50); // Let it start
             cts.Cancel();
 
-            // Assert
-            await Assert.ThrowsAsync<OperationCanceledException>(async () => await task);
+            // Assert - TaskCanceledException inherits from OperationCanceledException
+            await Assert.ThrowsAnyAsync<OperationCanceledException>(async () => await task);
         }
 
         [Fact]
@@ -107,7 +109,7 @@ namespace FluentDocker.Tests.V3.UnitTests
             await disposable.DisposeAsync();
 
             // Assert
-            Assert.Equal(3, disposeCount); // Each call should trigger
+            Assert.Equal(3, disposeCount);
         }
 
         [Fact]
@@ -254,3 +256,4 @@ namespace FluentDocker.Tests.V3.UnitTests
         }
     }
 }
+

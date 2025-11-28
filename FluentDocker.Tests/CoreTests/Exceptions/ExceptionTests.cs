@@ -3,8 +3,11 @@ using FluentDocker.Common;
 using FluentDocker.Model.Drivers;
 using Xunit;
 
-namespace FluentDocker.Tests.V3.UnitTests
+namespace FluentDocker.Tests.CoreTests.Exceptions
 {
+    /// <summary>
+    /// Tests for custom exception types.
+    /// </summary>
     [Trait("Category", "Unit")]
     public class ExceptionTests
     {
@@ -176,3 +179,4 @@ namespace FluentDocker.Tests.V3.UnitTests
         }
     }
 }
+

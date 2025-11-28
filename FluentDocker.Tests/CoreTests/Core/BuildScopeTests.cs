@@ -4,8 +4,11 @@ using FluentDocker.Model.Kernel;
 using FluentDocker.Services;
 using Xunit;
 
-namespace FluentDocker.Tests.V3.UnitTests
+namespace FluentDocker.Tests.CoreTests.Core
 {
+    /// <summary>
+    /// Tests for BuildScope class.
+    /// </summary>
     [Trait("Category", "Unit")]
     public class BuildScopeTests
     {
@@ -124,8 +127,11 @@ namespace FluentDocker.Tests.V3.UnitTests
             public void Remove(bool force = false) { }
             public IService AddHook(ServiceRunningState state, System.Action<IService> hook, string uniqueName = null) => this;
             public IService RemoveHook(string uniqueName) => this;
+#pragma warning disable CS0067
             public event ServiceDelegates.StateChange StateChange;
+#pragma warning restore CS0067
             public void Dispose() { }
         }
     }
 }
+

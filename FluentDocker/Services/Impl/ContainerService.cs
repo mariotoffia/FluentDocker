@@ -1,7 +1,10 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
+using System.Net;
 using System.Threading;
 using System.Threading.Tasks;
+using FluentDocker.Builders.V3;
 using FluentDocker.Common;
 using FluentDocker.Drivers;
 using FluentDocker.Kernel;
@@ -22,19 +25,18 @@ namespace FluentDocker.Services.Impl
         private readonly string _name;
         private readonly bool _stopOnDispose;
         private readonly bool _deleteOnDispose;
+        private readonly bool _deleteVolumeOnDispose;
+        private readonly bool _deleteNamedVolumeOnDispose;
+        private readonly Func<Dictionary<string, HostIpEndpoint[]>, string, Uri, IPEndPoint> _customResolver;
+        private readonly List<LifecycleHook> _lifecycleHooks;
         private readonly Dictionary<string, Func<IServiceAsync, Task>> _hooks = new Dictionary<string, Func<IServiceAsync, Task>>();
+        private readonly Dictionary<ServiceRunningState, List<Func<IServiceAsync, Task>>> _stateHooks = 
+            new Dictionary<ServiceRunningState, List<Func<IServiceAsync, Task>>>();
         private ServiceRunningState _state = ServiceRunningState.Unknown;
 
         /// <summary>
         /// Creates a new container service.
         /// </summary>
-        /// <param name="kernel">The kernel instance.</param>
-        /// <param name="driverId">The driver ID.</param>
-        /// <param name="containerId">The container ID.</param>
-        /// <param name="image">The image name.</param>
-        /// <param name="name">The container name.</param>
-        /// <param name="stopOnDispose">Whether to stop the container on dispose.</param>
-        /// <param name="deleteOnDispose">Whether to delete the container on dispose.</param>
         public ContainerService(
             FluentDockerKernel kernel,
             string driverId,
@@ -42,7 +44,11 @@ namespace FluentDocker.Services.Impl
             string image,
             string name,
             bool stopOnDispose = true,
-            bool deleteOnDispose = true)
+            bool deleteOnDispose = true,
+            bool deleteVolumeOnDispose = false,
+            bool deleteNamedVolumeOnDispose = false,
+            Func<Dictionary<string, HostIpEndpoint[]>, string, Uri, IPEndPoint> customResolver = null,
+            List<LifecycleHook> lifecycleHooks = null)
         {
             _kernel = kernel ?? throw new ArgumentNullException(nameof(kernel));
             _driverId = driverId ?? throw new ArgumentNullException(nameof(driverId));
@@ -51,6 +57,16 @@ namespace FluentDocker.Services.Impl
             _name = name ?? $"container-{containerId}";
             _stopOnDispose = stopOnDispose;
             _deleteOnDispose = deleteOnDispose;
+            _deleteVolumeOnDispose = deleteVolumeOnDispose;
+            _deleteNamedVolumeOnDispose = deleteNamedVolumeOnDispose;
+            _customResolver = customResolver;
+            _lifecycleHooks = lifecycleHooks ?? new List<LifecycleHook>();
+            
+            // Initialize state hook lists
+            foreach (ServiceRunningState state in Enum.GetValues(typeof(ServiceRunningState)))
+            {
+                _stateHooks[state] = new List<Func<IServiceAsync, Task>>();
+            }
         }
 
         public string Name => _name;
@@ -67,6 +83,9 @@ namespace FluentDocker.Services.Impl
             var driver = _kernel.SysCtl<IContainerDriver>(_driverId);
             var context = new DriverContext(_driverId);
 
+            UpdateState(ServiceRunningState.Starting);
+            await ExecuteHooksAsync(ServiceRunningState.Starting);
+
             var response = await driver.StartAsync(context, _containerId, cancellationToken);
 
             if (!response.Success)
@@ -79,6 +98,7 @@ namespace FluentDocker.Services.Impl
 
             UpdateState(ServiceRunningState.Running);
             await ExecuteHooksAsync(ServiceRunningState.Running);
+            await ExecuteLifecycleHooksAsync(ServiceRunningState.Running, cancellationToken);
         }
 
         public async Task PauseAsync(CancellationToken cancellationToken = default)
@@ -105,6 +125,9 @@ namespace FluentDocker.Services.Impl
             var driver = _kernel.SysCtl<IContainerDriver>(_driverId);
             var context = new DriverContext(_driverId);
 
+            UpdateState(ServiceRunningState.Stopping);
+            await ExecuteHooksAsync(ServiceRunningState.Stopping);
+
             var response = await driver.StopAsync(context, _containerId, null, cancellationToken);
 
             if (!response.Success)
@@ -124,7 +147,12 @@ namespace FluentDocker.Services.Impl
             var driver = _kernel.SysCtl<IContainerDriver>(_driverId);
             var context = new DriverContext(_driverId);
 
-            var response = await driver.RemoveAsync(context, _containerId, force, false, cancellationToken);
+            UpdateState(ServiceRunningState.Removing);
+            await ExecuteHooksAsync(ServiceRunningState.Removing);
+            await ExecuteLifecycleHooksAsync(ServiceRunningState.Removing, cancellationToken);
+
+            var removeVolumes = _deleteVolumeOnDispose || _deleteNamedVolumeOnDispose;
+            var response = await driver.RemoveAsync(context, _containerId, force, removeVolumes, cancellationToken);
 
             if (!response.Success)
             {
@@ -201,59 +229,148 @@ namespace FluentDocker.Services.Impl
             return response.Data?.StdOut;
         }
 
-        public Task<byte[]> ExportAsync(CancellationToken cancellationToken = default)
+        public async Task<byte[]> ExportAsync(CancellationToken cancellationToken = default)
         {
-            throw new NotImplementedException("ExportAsync not yet implemented");
+            var driver = _kernel.SysCtl<IContainerDriver>(_driverId);
+            var context = new DriverContext(_driverId);
+
+            // Create a temp file for export
+            var tempPath = Path.GetTempFileName();
+            try
+            {
+                var response = await driver.ExportAsync(context, _containerId, tempPath, cancellationToken);
+
+                if (!response.Success)
+                {
+                    throw new DriverException(
+                        $"Failed to export container '{_name}': {response.Error}",
+                        response.ErrorCode);
+                }
+
+                return await File.ReadAllBytesAsync(tempPath, cancellationToken);
+            }
+            finally
+            {
+                if (File.Exists(tempPath))
+                    File.Delete(tempPath);
+            }
         }
 
-        public Task<byte[]> CopyFromAsync(string containerPath, CancellationToken cancellationToken = default)
+        public async Task<byte[]> CopyFromAsync(string containerPath, CancellationToken cancellationToken = default)
         {
-            throw new NotImplementedException("CopyFromAsync not yet implemented");
+            var driver = _kernel.SysCtl<IContainerDriver>(_driverId);
+            var context = new DriverContext(_driverId);
+
+            // Create a temp file for copy
+            var tempPath = Path.GetTempFileName();
+            try
+            {
+                var response = await driver.CopyFromAsync(context, _containerId, containerPath, tempPath, cancellationToken);
+
+                if (!response.Success)
+                {
+                    throw new DriverException(
+                        $"Failed to copy from container '{_name}': {response.Error}",
+                        response.ErrorCode);
+                }
+
+                return await File.ReadAllBytesAsync(tempPath, cancellationToken);
+            }
+            finally
+            {
+                if (File.Exists(tempPath))
+                    File.Delete(tempPath);
+            }
         }
 
-        public Task CopyToAsync(string containerPath, byte[] data, CancellationToken cancellationToken = default)
+        public async Task CopyToAsync(string containerPath, byte[] data, CancellationToken cancellationToken = default)
         {
-            throw new NotImplementedException("CopyToAsync not yet implemented");
+            var driver = _kernel.SysCtl<IContainerDriver>(_driverId);
+            var context = new DriverContext(_driverId);
+
+            // Write data to temp file
+            var tempPath = Path.GetTempFileName();
+            try
+            {
+                await File.WriteAllBytesAsync(tempPath, data, cancellationToken);
+                
+                var response = await driver.CopyToAsync(context, _containerId, tempPath, containerPath, cancellationToken);
+
+                if (!response.Success)
+                {
+                    throw new DriverException(
+                        $"Failed to copy to container '{_name}': {response.Error}",
+                        response.ErrorCode);
+                }
+            }
+            finally
+            {
+                if (File.Exists(tempPath))
+                    File.Delete(tempPath);
+            }
         }
 
         public Task<ContainerStats> GetStatsAsync(CancellationToken cancellationToken = default)
         {
+            // TODO: Implement stats when driver supports it
             throw new NotImplementedException("GetStatsAsync not yet implemented");
         }
+
+        /// <summary>
+        /// Gets the host port for a container port, using custom resolver if configured.
+        /// </summary>
+        public async Task<int> GetHostPortAsync(string portAndProto, CancellationToken cancellationToken = default)
+        {
+            var config = await InspectAsync(cancellationToken);
+            
+            if (_customResolver != null && config?.NetworkSettings?.Ports != null)
+            {
+                var endpoint = _customResolver(config.NetworkSettings.Ports, portAndProto, null);
+                return endpoint?.Port ?? 0;
+            }
+
+            if (config?.NetworkSettings?.Ports == null)
+                return 0;
+
+            if (!config.NetworkSettings.Ports.TryGetValue(portAndProto, out var bindings) || 
+                bindings == null || bindings.Length == 0)
+                return 0;
+
+            var binding = bindings[0];
+            return int.TryParse(binding.HostPort, out var port) ? port : 0;
+        }
+
+        #region Hooks
 
         public IServiceAsync AddHook(ServiceRunningState state, Func<IServiceAsync, Task> hook, string uniqueName = null)
         {
             var name = uniqueName ?? Guid.NewGuid().ToString();
             _hooks[name] = hook;
+            _stateHooks[state].Add(hook);
             return this;
         }
 
         public IServiceAsync RemoveHook(string uniqueName)
         {
-            _hooks.Remove(uniqueName);
+            if (_hooks.TryGetValue(uniqueName, out var hook))
+            {
+                _hooks.Remove(uniqueName);
+                foreach (var stateList in _stateHooks.Values)
+                {
+                    stateList.Remove(hook);
+                }
+            }
             return this;
         }
 
-        // IService synchronous method implementations
-        void IService.Start()
-        {
-            StartAsync().GetAwaiter().GetResult();
-        }
+        #endregion
 
-        void IService.Pause()
-        {
-            PauseAsync().GetAwaiter().GetResult();
-        }
+        #region IService Sync Implementations
 
-        void IService.Stop()
-        {
-            StopAsync().GetAwaiter().GetResult();
-        }
-
-        void IService.Remove(bool force)
-        {
-            RemoveAsync(force).GetAwaiter().GetResult();
-        }
+        void IService.Start() => StartAsync().GetAwaiter().GetResult();
+        void IService.Pause() => PauseAsync().GetAwaiter().GetResult();
+        void IService.Stop() => StopAsync().GetAwaiter().GetResult();
+        void IService.Remove(bool force) => RemoveAsync(force).GetAwaiter().GetResult();
 
         IService IService.AddHook(ServiceRunningState state, Action<IService> hook, string uniqueName)
         {
@@ -265,6 +382,10 @@ namespace FluentDocker.Services.Impl
             RemoveHook(uniqueName);
             return this;
         }
+
+        #endregion
+
+        #region Dispose
 
         public void Dispose()
         {
@@ -300,6 +421,10 @@ namespace FluentDocker.Services.Impl
             }
         }
 
+        #endregion
+
+        #region Private Methods
+
         private void UpdateState(ServiceRunningState newState)
         {
             var oldState = _state;
@@ -309,7 +434,10 @@ namespace FluentDocker.Services.Impl
 
         private async Task ExecuteHooksAsync(ServiceRunningState state)
         {
-            foreach (var hook in _hooks.Values)
+            if (!_stateHooks.TryGetValue(state, out var hooks))
+                return;
+
+            foreach (var hook in hooks)
             {
                 try
                 {
@@ -318,6 +446,76 @@ namespace FluentDocker.Services.Impl
                 catch
                 {
                     // Ignore hook errors
+                }
+            }
+        }
+
+        private async Task ExecuteLifecycleHooksAsync(ServiceRunningState state, CancellationToken cancellationToken)
+        {
+            foreach (var hook in _lifecycleHooks)
+            {
+                if (hook.TriggerState != state)
+                    continue;
+
+                try
+                {
+                    switch (hook.Type)
+                    {
+                        case LifecycleHookType.CopyTo:
+                            if (File.Exists(hook.HostPath))
+                            {
+                                var data = await File.ReadAllBytesAsync(hook.HostPath, cancellationToken);
+                                await CopyToAsync(hook.ContainerPath, data, cancellationToken);
+                            }
+                            else if (Directory.Exists(hook.HostPath))
+                            {
+                                // For directories, we'd need to create a tar archive
+                                // This is a simplified implementation
+                                throw new NotSupportedException("Directory copy not yet supported");
+                            }
+                            break;
+
+                        case LifecycleHookType.CopyFrom:
+                            var content = await CopyFromAsync(hook.ContainerPath, cancellationToken);
+                            var dir = Path.GetDirectoryName(hook.HostPath);
+                            if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir))
+                                Directory.CreateDirectory(dir);
+                            await File.WriteAllBytesAsync(hook.HostPath, content, cancellationToken);
+                            break;
+
+                        case LifecycleHookType.Export:
+                            if (hook.Condition == null || hook.Condition(this))
+                            {
+                                var exportData = await ExportAsync(cancellationToken);
+                                var exportDir = Path.GetDirectoryName(hook.HostPath);
+                                if (!string.IsNullOrEmpty(exportDir) && !Directory.Exists(exportDir))
+                                    Directory.CreateDirectory(exportDir);
+
+                                if (hook.Explode)
+                                {
+                                    // Extract tar to directory
+                                    // Simplified - would need proper tar extraction
+                                    await File.WriteAllBytesAsync(hook.HostPath + ".tar", exportData, cancellationToken);
+                                }
+                                else
+                                {
+                                    await File.WriteAllBytesAsync(hook.HostPath, exportData, cancellationToken);
+                                }
+                            }
+                            break;
+
+                        case LifecycleHookType.Execute:
+                            if (hook.Command?.Length > 0)
+                            {
+                                await ExecuteAsync(string.Join(" ", hook.Command), cancellationToken);
+                            }
+                            break;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    // Log but don't fail on lifecycle hook errors
+                    Logger.Log($"Lifecycle hook failed: {ex.Message}");
                 }
             }
         }
@@ -333,6 +531,7 @@ namespace FluentDocker.Services.Impl
                 _ => ServiceRunningState.Unknown
             };
         }
+
+        #endregion
     }
 }
-

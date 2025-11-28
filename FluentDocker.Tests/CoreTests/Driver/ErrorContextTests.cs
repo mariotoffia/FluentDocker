@@ -1,8 +1,11 @@
 using FluentDocker.Model.Drivers;
 using Xunit;
 
-namespace FluentDocker.Tests.V3.UnitTests
+namespace FluentDocker.Tests.CoreTests.Driver
 {
+    /// <summary>
+    /// Tests for ErrorContext class.
+    /// </summary>
     [Trait("Category", "Unit")]
     public class ErrorContextTests
     {
@@ -105,3 +108,4 @@ namespace FluentDocker.Tests.V3.UnitTests
         }
     }
 }
+

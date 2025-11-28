@@ -4,10 +4,10 @@ using FluentDocker.Builders.V3;
 using FluentDocker.Kernel;
 using Xunit;
 
-namespace FluentDocker.Tests.V3
+namespace FluentDocker.Tests.Integration
 {
     /// <summary>
-    /// Tests for v3.0.0 async Builder with WithinDriver() scoping.
+    /// Integration tests for Builder with WithinDriver() scoping.
     /// </summary>
     [Trait("Category", "Integration")]
     public class BuilderTests
@@ -95,7 +95,7 @@ namespace FluentDocker.Tests.V3
         [Fact]
         public void Builder_VerifiesCompilation()
         {
-            // This test just verifies the v3 Builder API compiles correctly
+            // This test just verifies the Builder API compiles correctly
             var builder = new Builder();
             Assert.NotNull(builder);
         }
@@ -121,3 +121,4 @@ namespace FluentDocker.Tests.V3
         }
     }
 }
+

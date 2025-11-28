@@ -1,10 +1,11 @@
 using Xunit;
 
-namespace FluentDocker.Tests.V3.UnitTests
+namespace FluentDocker.Tests.CoreTests.Extensions
 {
     /// <summary>
     /// Tests for utility extension methods and helpers.
     /// </summary>
+    [Trait("Category", "Unit")]
     public class ExtensionUtilityTests
     {
         [Theory]
@@ -16,7 +17,6 @@ namespace FluentDocker.Tests.V3.UnitTests
         [InlineData("2.5GB", 2684354560L)]
         public void SizeConversion_ValidFormats_ConvertsCorrectly(string input, long expected)
         {
-            // This test demonstrates expected behavior for size conversion
             // Verify input format is valid
             Assert.NotNull(input);
             Assert.Contains("B", input);
@@ -55,7 +55,6 @@ namespace FluentDocker.Tests.V3.UnitTests
             Assert.NotNull(binaryName);
             Assert.NotEmpty(binaryName);
             
-            // These are just expected values - real tests would check PATH
             if (shouldExist)
             {
                 Assert.True(binaryName == "docker" || binaryName == "docker-compose");
@@ -70,7 +69,9 @@ namespace FluentDocker.Tests.V3.UnitTests
         public void NullOrEmpty_StringChecks_WorkCorrectly()
         {
             // Arrange
+#pragma warning disable CS8600
             string nullString = null;
+#pragma warning restore CS8600
             string emptyString = "";
             string whitespace = "   ";
             string valid = "value";
@@ -125,7 +126,7 @@ namespace FluentDocker.Tests.V3.UnitTests
 
             // Assert
             Assert.NotEqual(id1, id2);
-            Assert.Equal(32, id1.Length); // 32 chars without hyphens
+            Assert.Equal(32, id1.Length);
             Assert.Equal(32, id2.Length);
         }
 
@@ -275,3 +276,4 @@ namespace FluentDocker.Tests.V3.UnitTests
         }
     }
 }
+

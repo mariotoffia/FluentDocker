@@ -19,6 +19,7 @@ namespace FluentDocker.Services.Impl
         private readonly string _driverId;
         private readonly string _volumeName;
         private readonly string _driver;
+        private readonly bool _removeOnDispose;
         private readonly Dictionary<string, Func<IServiceAsync, Task>> _hooks = new Dictionary<string, Func<IServiceAsync, Task>>();
         private ServiceRunningState _state = ServiceRunningState.Running;
 
@@ -26,12 +27,14 @@ namespace FluentDocker.Services.Impl
             FluentDockerKernel kernel,
             string driverId,
             string volumeName,
-            string driver)
+            string driver,
+            bool removeOnDispose = false)
         {
             _kernel = kernel ?? throw new ArgumentNullException(nameof(kernel));
             _driverId = driverId ?? throw new ArgumentNullException(nameof(driverId));
             _volumeName = volumeName ?? throw new ArgumentNullException(nameof(volumeName));
             _driver = driver ?? "local";
+            _removeOnDispose = removeOnDispose;
         }
 
         public string Name => _volumeName;
@@ -139,6 +142,9 @@ namespace FluentDocker.Services.Impl
         public async ValueTask DisposeAsync()
 #endif
         {
+            if (!_removeOnDispose)
+                return;
+                
             try
             {
                 await RemoveAsync(force: true);
