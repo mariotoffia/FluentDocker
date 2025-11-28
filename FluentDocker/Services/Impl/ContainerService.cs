@@ -8,33 +8,49 @@ using FluentDocker.Kernel;
 using FluentDocker.Model.Containers;
 using FluentDocker.Model.Drivers;
 
-namespace FluentDocker.Services.V3.Impl
+namespace FluentDocker.Services.Impl
 {
     /// <summary>
-    /// v3.0.0 container service implementation using kernel and driver.
+    /// Container service implementation using kernel and driver.
     /// </summary>
-    public class ContainerServiceAsync : IContainerServiceAsync
+    public class ContainerService : IContainerService
     {
         private readonly FluentDockerKernel _kernel;
         private readonly string _driverId;
         private readonly string _containerId;
         private readonly string _image;
         private readonly string _name;
+        private readonly bool _stopOnDispose;
+        private readonly bool _deleteOnDispose;
         private readonly Dictionary<string, Func<IServiceAsync, Task>> _hooks = new Dictionary<string, Func<IServiceAsync, Task>>();
         private ServiceRunningState _state = ServiceRunningState.Unknown;
 
-        public ContainerServiceAsync(
+        /// <summary>
+        /// Creates a new container service.
+        /// </summary>
+        /// <param name="kernel">The kernel instance.</param>
+        /// <param name="driverId">The driver ID.</param>
+        /// <param name="containerId">The container ID.</param>
+        /// <param name="image">The image name.</param>
+        /// <param name="name">The container name.</param>
+        /// <param name="stopOnDispose">Whether to stop the container on dispose.</param>
+        /// <param name="deleteOnDispose">Whether to delete the container on dispose.</param>
+        public ContainerService(
             FluentDockerKernel kernel,
             string driverId,
             string containerId,
             string image,
-            string name)
+            string name,
+            bool stopOnDispose = true,
+            bool deleteOnDispose = true)
         {
             _kernel = kernel ?? throw new ArgumentNullException(nameof(kernel));
             _driverId = driverId ?? throw new ArgumentNullException(nameof(driverId));
             _containerId = containerId ?? throw new ArgumentNullException(nameof(containerId));
             _image = image;
             _name = name ?? $"container-{containerId}";
+            _stopOnDispose = stopOnDispose;
+            _deleteOnDispose = deleteOnDispose;
         }
 
         public string Name => _name;
@@ -241,7 +257,6 @@ namespace FluentDocker.Services.V3.Impl
 
         IService IService.AddHook(ServiceRunningState state, Action<IService> hook, string uniqueName)
         {
-            // Wrap synchronous hook in async Task
             return AddHook(state, async service => hook(service), uniqueName);
         }
 
@@ -268,12 +283,16 @@ namespace FluentDocker.Services.V3.Impl
         {
             try
             {
-                if (_state == ServiceRunningState.Running || _state == ServiceRunningState.Paused)
+                if (_stopOnDispose && 
+                    (_state == ServiceRunningState.Running || _state == ServiceRunningState.Paused))
                 {
                     await StopAsync();
                 }
 
-                await RemoveAsync(force: true);
+                if (_deleteOnDispose)
+                {
+                    await RemoveAsync(force: true);
+                }
             }
             catch
             {
@@ -316,3 +335,4 @@ namespace FluentDocker.Services.V3.Impl
         }
     }
 }
+

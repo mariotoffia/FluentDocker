@@ -2320,7 +2320,7 @@ namespace FluentDocker.Drivers.Docker.Cli
             }
         }
 
-        public async Task<CommandResponse<IList<ComposeService>>> ListAsync(
+        public async Task<CommandResponse<IList<ComposeServiceInfo>>> ListAsync(
             DriverContext context,
             ComposeListConfig config,
             CancellationToken cancellationToken = default)
@@ -2338,27 +2338,27 @@ namespace FluentDocker.Drivers.Docker.Cli
 
                 if (!result.Success)
                 {
-                    return CommandResponse<IList<ComposeService>>.Fail(
+                    return CommandResponse<IList<ComposeServiceInfo>>.Fail(
                         result.Error ?? "Compose ps failed", ErrorCodes.Compose.ListFailed);
                 }
 
-                var services = new List<ComposeService>();
+                var services = new List<ComposeServiceInfo>();
                 var lines = result.Output.Split(new[] { '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries);
                 foreach (var line in lines)
                 {
                     try
                     {
-                        var service = JsonConvert.DeserializeObject<ComposeService>(line);
+                        var service = JsonConvert.DeserializeObject<ComposeServiceInfo>(line);
                         if (service != null) services.Add(service);
                     }
                     catch { }
                 }
 
-                return CommandResponse<IList<ComposeService>>.Ok(services);
+                return CommandResponse<IList<ComposeServiceInfo>>.Ok(services);
             }
             catch (Exception ex)
             {
-                return CommandResponse<IList<ComposeService>>.Fail(ex.Message, ErrorCodes.Compose.ListFailed);
+                return CommandResponse<IList<ComposeServiceInfo>>.Fail(ex.Message, ErrorCodes.Compose.ListFailed);
             }
         }
 

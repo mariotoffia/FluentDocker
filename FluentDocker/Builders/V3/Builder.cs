@@ -228,7 +228,22 @@ namespace FluentDocker.Builders.V3
         IContainerBuilder UseImage(string image);
         IContainerBuilder WithName(string name);
         IContainerBuilder WithEnvironment(string key, string value);
+        /// <summary>
+        /// Sets an environment variable using "KEY=VALUE" format.
+        /// </summary>
+        IContainerBuilder WithEnvironment(string keyValue);
         IContainerBuilder WithPort(string containerPort, string hostPort);
+        /// <summary>
+        /// Exposes a container port, letting Docker assign a random host port.
+        /// </summary>
+        /// <param name="containerPort">The container port to expose (e.g., "5432/tcp" or just "5432").</param>
+        IContainerBuilder ExposePort(string containerPort);
+        /// <summary>
+        /// Exposes a container port with explicit host port mapping.
+        /// </summary>
+        /// <param name="hostPort">The host port.</param>
+        /// <param name="containerPort">The container port.</param>
+        IContainerBuilder ExposePort(int hostPort, int containerPort);
         IContainerBuilder WithCommand(params string[] command);
         IContainerBuilder WithVolume(string hostPath, string containerPath);
         IContainerBuilder WithLabel(string key, string value);
@@ -242,6 +257,45 @@ namespace FluentDocker.Builders.V3
         IContainerBuilder WithCpuShares(long shares);
         IContainerBuilder WithPrivileged(bool privileged = true);
         IContainerBuilder WithAutoRemove(bool autoRemove = true);
+        
+        /// <summary>
+        /// Configures the container to wait for a port to be available after starting.
+        /// </summary>
+        /// <param name="portAndProto">Port and protocol, e.g., "5432/tcp".</param>
+        /// <param name="timeoutMs">Timeout in milliseconds (default: 30000).</param>
+        IContainerBuilder WaitForPort(string portAndProto, long timeoutMs = 30000);
+        
+        /// <summary>
+        /// Configures the container to wait for a process to be running after starting.
+        /// </summary>
+        /// <param name="processName">Name of the process to wait for.</param>
+        /// <param name="timeoutMs">Timeout in milliseconds (default: 30000).</param>
+        IContainerBuilder WaitForProcess(string processName, long timeoutMs = 30000);
+        
+        /// <summary>
+        /// Configures the container to wait for an HTTP endpoint to respond after starting.
+        /// </summary>
+        /// <param name="portAndProto">Port and protocol, e.g., "8080/tcp".</param>
+        /// <param name="path">URL path to check, e.g., "/health".</param>
+        /// <param name="timeoutMs">Timeout in milliseconds (default: 30000).</param>
+        IContainerBuilder WaitForHttp(string portAndProto, string path = "/", long timeoutMs = 30000);
+        
+        /// <summary>
+        /// Configures the container to wait for a specific message in logs after starting.
+        /// </summary>
+        /// <param name="message">Message to wait for.</param>
+        /// <param name="timeoutMs">Timeout in milliseconds (default: 30000).</param>
+        IContainerBuilder WaitForLogMessage(string message, long timeoutMs = 30000);
+        
+        /// <summary>
+        /// Keeps the container after dispose (don't delete).
+        /// </summary>
+        IContainerBuilder KeepContainer();
+        
+        /// <summary>
+        /// Keeps the container running after dispose (don't stop).
+        /// </summary>
+        IContainerBuilder KeepRunning();
     }
 
     /// <summary>
@@ -284,6 +338,28 @@ namespace FluentDocker.Builders.V3
     }
 
     /// <summary>
+    /// Defines a wait condition for the container.
+    /// </summary>
+    internal enum WaitConditionType
+    {
+        Port,
+        Process,
+        Http,
+        LogMessage
+    }
+
+    /// <summary>
+    /// Represents a wait condition configuration.
+    /// </summary>
+    internal class WaitCondition
+    {
+        public WaitConditionType Type { get; set; }
+        public string Target { get; set; }
+        public string Path { get; set; }
+        public long TimeoutMs { get; set; }
+    }
+
+    /// <summary>
     /// Container builder implementation.
     /// </summary>
     internal class ContainerBuilder : IContainerBuilder
@@ -298,6 +374,7 @@ namespace FluentDocker.Builders.V3
         private readonly Dictionary<string, string> _volumes = new Dictionary<string, string>();
         private readonly Dictionary<string, string> _labels = new Dictionary<string, string>();
         private readonly List<string> _networks = new List<string>();
+        private readonly List<WaitCondition> _waitConditions = new List<WaitCondition>();
         private string _workingDir;
         private string _user;
         private string _restartPolicy;
@@ -307,6 +384,8 @@ namespace FluentDocker.Builders.V3
         private long? _cpuShares;
         private bool _privileged;
         private bool _autoRemove;
+        private bool _keepContainer;
+        private bool _keepRunning;
 
         public ContainerBuilder(FluentDockerKernel kernel, string driverId)
         {
@@ -332,9 +411,33 @@ namespace FluentDocker.Builders.V3
             return this;
         }
 
+        public IContainerBuilder WithEnvironment(string keyValue)
+        {
+            var parts = keyValue.Split(new[] { '=' }, 2);
+            if (parts.Length == 2)
+                _environment[parts[0]] = parts[1];
+            else
+                _environment[keyValue] = string.Empty;
+            return this;
+        }
+
         public IContainerBuilder WithPort(string containerPort, string hostPort)
         {
             _ports[containerPort] = hostPort;
+            return this;
+        }
+
+        public IContainerBuilder ExposePort(string containerPort)
+        {
+            // Normalize to "port/protocol" format
+            var normalized = containerPort.Contains("/") ? containerPort : $"{containerPort}/tcp";
+            _ports[normalized] = ""; // Empty string = random host port
+            return this;
+        }
+
+        public IContainerBuilder ExposePort(int hostPort, int containerPort)
+        {
+            _ports[$"{containerPort}/tcp"] = hostPort.ToString();
             return this;
         }
 
@@ -416,6 +519,63 @@ namespace FluentDocker.Builders.V3
             return this;
         }
 
+        public IContainerBuilder WaitForPort(string portAndProto, long timeoutMs = 30000)
+        {
+            _waitConditions.Add(new WaitCondition
+            {
+                Type = WaitConditionType.Port,
+                Target = portAndProto.Contains("/") ? portAndProto : $"{portAndProto}/tcp",
+                TimeoutMs = timeoutMs
+            });
+            return this;
+        }
+
+        public IContainerBuilder WaitForProcess(string processName, long timeoutMs = 30000)
+        {
+            _waitConditions.Add(new WaitCondition
+            {
+                Type = WaitConditionType.Process,
+                Target = processName,
+                TimeoutMs = timeoutMs
+            });
+            return this;
+        }
+
+        public IContainerBuilder WaitForHttp(string portAndProto, string path = "/", long timeoutMs = 30000)
+        {
+            _waitConditions.Add(new WaitCondition
+            {
+                Type = WaitConditionType.Http,
+                Target = portAndProto.Contains("/") ? portAndProto : $"{portAndProto}/tcp",
+                Path = path,
+                TimeoutMs = timeoutMs
+            });
+            return this;
+        }
+
+        public IContainerBuilder WaitForLogMessage(string message, long timeoutMs = 30000)
+        {
+            _waitConditions.Add(new WaitCondition
+            {
+                Type = WaitConditionType.LogMessage,
+                Target = message,
+                TimeoutMs = timeoutMs
+            });
+            return this;
+        }
+
+        public IContainerBuilder KeepContainer()
+        {
+            _keepContainer = true;
+            return this;
+        }
+
+        public IContainerBuilder KeepRunning()
+        {
+            _keepRunning = true;
+            return this;
+        }
+
         public async Task<IService> ExecuteAsync(CancellationToken cancellationToken)
         {
             // Create container using driver
@@ -453,13 +613,60 @@ namespace FluentDocker.Builders.V3
                     response.ErrorContext);
             }
 
-            // Return async service implementation
-            return new Services.V3.Impl.ContainerServiceAsync(
+            // Create service
+            var service = new Services.Impl.ContainerService(
                 _kernel,
                 _driverId,
                 response.Data.Id,
                 _image,
-                _name);
+                _name,
+                !_keepRunning,  // stopOnDispose
+                !_keepContainer); // deleteOnDispose
+
+            // Start the container
+            await service.StartAsync(cancellationToken);
+
+            // Execute wait conditions
+            foreach (var condition in _waitConditions)
+            {
+                bool success;
+                switch (condition.Type)
+                {
+                    case WaitConditionType.Port:
+                        success = await Services.Extensions.ServiceExtensions.WaitForPortAsync(
+                            service, condition.Target, condition.TimeoutMs, cancellationToken);
+                        if (!success)
+                            throw new Common.FluentDockerException(
+                                $"Timeout waiting for port {condition.Target} on container {service.Id}");
+                        break;
+
+                    case WaitConditionType.Process:
+                        success = await Services.Extensions.ServiceExtensions.WaitForProcessAsync(
+                            service, condition.Target, condition.TimeoutMs, cancellationToken);
+                        if (!success)
+                            throw new Common.FluentDockerException(
+                                $"Timeout waiting for process {condition.Target} on container {service.Id}");
+                        break;
+
+                    case WaitConditionType.Http:
+                        success = await Services.Extensions.ServiceExtensions.WaitForHttpAsync(
+                            service, condition.Target, condition.Path, condition.TimeoutMs, cancellationToken);
+                        if (!success)
+                            throw new Common.FluentDockerException(
+                                $"Timeout waiting for HTTP {condition.Path} on port {condition.Target} on container {service.Id}");
+                        break;
+
+                    case WaitConditionType.LogMessage:
+                        success = await Services.Extensions.ServiceExtensions.WaitForLogMessageAsync(
+                            service, condition.Target, condition.TimeoutMs, cancellationToken);
+                        if (!success)
+                            throw new Common.FluentDockerException(
+                                $"Timeout waiting for log message '{condition.Target}' on container {service.Id}");
+                        break;
+                }
+            }
+
+            return service;
         }
     }
 
@@ -554,7 +761,7 @@ namespace FluentDocker.Builders.V3
             }
 
             // Return async service implementation
-            return new Services.V3.Impl.NetworkServiceAsync(
+            return new Services.Impl.NetworkService(
                 _kernel,
                 _driverId,
                 response.Data.Id,
@@ -629,7 +836,7 @@ namespace FluentDocker.Builders.V3
             }
 
             // Return async service implementation
-            return new Services.V3.Impl.VolumeServiceAsync(
+            return new Services.Impl.VolumeService(
                 _kernel,
                 _driverId,
                 response.Data.Name,
@@ -729,7 +936,7 @@ namespace FluentDocker.Builders.V3
             }
 
             // Return async service implementation
-            return new Services.V3.Impl.ComposeServiceAsync(
+            return new Services.Impl.ComposeService(
                 _kernel,
                 _driverId,
                 _composeFiles,

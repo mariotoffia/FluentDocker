@@ -1,110 +1,234 @@
 using System;
 using System.Collections.Generic;
-using System.Net;
-using FluentDocker.Common;
-using FluentDocker.Model.Common;
-using FluentDocker.Model.Containers;
-using FluentDocker.Model.Machines;
+using System.Threading;
+using System.Threading.Tasks;
+using FluentDocker.Drivers;
 
 namespace FluentDocker.Services
 {
-  /// <summary>
-  ///   Represents a docker host, either native or a virtual machine (local or remote).
-  /// </summary>
-  public interface IHostService : IService
-  {
     /// <summary>
-    ///   The address and port to the docker daemon.
+    /// Async host service interface for managing Docker hosts.
     /// </summary>
-    DockerUri Host { get; }
+    public interface IHostService : IServiceAsync
+    {
+        /// <summary>
+        /// Whether this is a native Docker installation (not Docker Machine).
+        /// </summary>
+        bool IsNative { get; }
+
+        /// <summary>
+        /// Whether TLS is required for connections.
+        /// </summary>
+        bool RequireTls { get; }
+
+        #region System Information
+
+        /// <summary>
+        /// Gets system information asynchronously.
+        /// </summary>
+        Task<SystemInfo> GetSystemInfoAsync(CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Gets version information asynchronously.
+        /// </summary>
+        Task<VersionInfo> GetVersionAsync(CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Pings the daemon to check if it's responsive.
+        /// </summary>
+        Task<bool> PingAsync(CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Gets disk usage information asynchronously.
+        /// </summary>
+        Task<DiskUsageInfo> GetDiskUsageAsync(CancellationToken cancellationToken = default);
+
+        #endregion
+
+        #region Container Management
+
+        /// <summary>
+        /// Gets running containers.
+        /// </summary>
+        Task<IList<IContainerService>> GetRunningContainersAsync(CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Gets containers with optional filters.
+        /// </summary>
+        Task<IList<IContainerService>> GetContainersAsync(
+            bool all = true,
+            IDictionary<string, string> filters = null,
+            CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Creates a new container (not started).
+        /// </summary>
+        Task<IContainerService> CreateContainerAsync(
+            string image,
+            ContainerCreateOptions config = null,
+            CancellationToken cancellationToken = default);
+
+        #endregion
+
+        #region Image Management
+
+        /// <summary>
+        /// Gets images with optional filters.
+        /// </summary>
+        Task<IList<IImageService>> GetImagesAsync(
+            bool all = true,
+            ImageListFilter filter = null,
+            CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Pulls an image from a registry.
+        /// </summary>
+        Task<IImageService> PullImageAsync(
+            string image,
+            string tag = "latest",
+            IProgress<ImagePullProgress> progress = null,
+            CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Builds an image from a Dockerfile.
+        /// </summary>
+        Task<IImageService> BuildImageAsync(
+            ImageBuildConfig config,
+            IProgress<ImageBuildProgress> progress = null,
+            CancellationToken cancellationToken = default);
+
+        #endregion
+
+        #region Network Management
+
+        /// <summary>
+        /// Gets all networks.
+        /// </summary>
+        Task<IList<INetworkService>> GetNetworksAsync(CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Creates a network.
+        /// </summary>
+        Task<INetworkService> CreateNetworkAsync(
+            string name,
+            NetworkCreateConfig config = null,
+            CancellationToken cancellationToken = default);
+
+        #endregion
+
+        #region Volume Management
+
+        /// <summary>
+        /// Gets all volumes.
+        /// </summary>
+        Task<IList<IVolumeService>> GetVolumesAsync(CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Creates a volume.
+        /// </summary>
+        Task<IVolumeService> CreateVolumeAsync(
+            string name = null,
+            string driver = "local",
+            IDictionary<string, string> labels = null,
+            IDictionary<string, string> options = null,
+            CancellationToken cancellationToken = default);
+
+        #endregion
+
+        #region Maintenance
+
+        /// <summary>
+        /// Prunes unused resources.
+        /// </summary>
+        Task<SystemPruneResult> PruneAsync(
+            SystemPruneConfig config = null,
+            CancellationToken cancellationToken = default);
+
+        #endregion
+    }
 
     /// <summary>
-    ///   Gets a value whether the <see cref="Host" /> is a native docker (local or remote) or a daemon running
-    ///   in a virtual machine.
+    /// Options for creating a container.
     /// </summary>
-    bool IsNative { get; }
+    public class ContainerCreateOptions
+    {
+        /// <summary>Force pull the image before creating.</summary>
+        public bool ForcePull { get; set; }
+
+        /// <summary>Container name.</summary>
+        public string Name { get; set; }
+
+        /// <summary>Command to run.</summary>
+        public string[] Command { get; set; }
+
+        /// <summary>Environment variables.</summary>
+        public Dictionary<string, string> Environment { get; set; } = new Dictionary<string, string>();
+
+        /// <summary>Port mappings (container:host).</summary>
+        public Dictionary<string, string> Ports { get; set; } = new Dictionary<string, string>();
+
+        /// <summary>Volume mounts.</summary>
+        public List<string> Volumes { get; set; } = new List<string>();
+
+        /// <summary>Network to connect to.</summary>
+        public string Network { get; set; }
+
+        /// <summary>Working directory inside container.</summary>
+        public string WorkingDir { get; set; }
+
+        /// <summary>User to run as.</summary>
+        public string User { get; set; }
+
+        /// <summary>Stop container on service dispose.</summary>
+        public bool StopOnDispose { get; set; } = true;
+
+        /// <summary>Delete container on service dispose.</summary>
+        public bool DeleteOnDispose { get; set; } = true;
+
+        /// <summary>Delete volumes on container dispose.</summary>
+        public bool DeleteVolumeOnDispose { get; set; }
+
+        /// <summary>Delete named volumes on container dispose.</summary>
+        public bool DeleteNamedVolumeOnDispose { get; set; }
+
+        /// <summary>Labels to apply.</summary>
+        public Dictionary<string, string> Labels { get; set; } = new Dictionary<string, string>();
+
+        /// <summary>Memory limit in bytes.</summary>
+        public long? MemoryLimit { get; set; }
+
+        /// <summary>CPU quota.</summary>
+        public long? CpuQuota { get; set; }
+
+        /// <summary>Restart policy.</summary>
+        public string RestartPolicy { get; set; }
+
+        /// <summary>Privileged mode.</summary>
+        public bool Privileged { get; set; }
+    }
 
     /// <summary>
-    ///   Gets a value whether it needs TLS or not to connect to the docker daemon.
+    /// Configuration for creating a network.
     /// </summary>
-    bool RequireTls { get; }
+    public class NetworkCreateConfig
+    {
+        /// <summary>Network driver (default: bridge).</summary>
+        public string Driver { get; set; } = "bridge";
 
-    /// <summary>
-    ///   The certificates if any needed for this host.
-    /// </summary>
-    ICertificatePaths Certificates { get; }
+        /// <summary>Internal network (no external connectivity).</summary>
+        public bool Internal { get; set; }
 
-    /// <summary>
-    ///   Gets a new copy of a set of running <see cref="IContainerService" />s.
-    /// </summary>
-    /// <remarks>
-    ///   This will give back new list for each call and it will scan the <see cref="IHostService" /> each
-    ///   time so this operation may be time consuming.
-    /// </remarks>
-    IList<IContainerService> GetRunningContainers();
+        /// <summary>Enable IPv6.</summary>
+        public bool EnableIPv6 { get; set; }
 
-    IList<IContainerService> GetContainers(bool all = true, params string[] filters);
+        /// <summary>Network labels.</summary>
+        public Dictionary<string, string> Labels { get; set; } = new Dictionary<string, string>();
 
-    IList<IContainerImageService> GetImages(bool all = true, params string[] filters);
+        /// <summary>Driver options.</summary>
+        public Dictionary<string, string> Options { get; set; } = new Dictionary<string, string>();
 
-    /// <summary>
-    ///   Creates a new container (not started).
-    /// </summary>
-    /// <param name="image">The image to base the container from.</param>
-    /// <param name="forcePull">If the image shall be forced downloaded or not. Default is false.</param>
-    /// <param name="prms">Optionally parameters to configure the container.</param>
-    /// <param name="stopOnDispose">If the docker container shall be stopped when service is disposed.</param>
-    /// <param name="deleteOnDispose">If the docker container shall be deleted when the service is disposed.</param>
-    /// <param name="deleteVolumeOnDispose">If the associated volumes should be deleted when container is disposed.</param>
-    /// <param name="deleteNamedVolumeOnDispose">If associated named volumes should be deleted as well.</param>
-    /// <param name="command">Optionally a command to run when it is started.</param>
-    /// <param name="args">Optionally a set of parameters to go with the <see cref="command" /> when started.</param>
-    /// <param name="customEndpointResolver">Set this resolver when creating the container.</param>
-    /// <returns>A service reflecting the newly created container.</returns>
-    /// <exception cref="FluentDockerException">If error occurs.</exception>
-    IContainerService Create(string image, bool forcePull = false, ContainerCreateParams prms = null,
-      bool stopOnDispose = true, bool deleteOnDispose = true, bool deleteVolumeOnDispose = false,
-      bool deleteNamedVolumeOnDispose = false, string command = null,
-      string[] args = null, 
-      Func<Dictionary<string, HostIpEndpoint[]>, string, Uri, IPEndPoint> customEndpointResolver = null);
-
-    /// <summary>
-    ///   Gets all the docker networks.
-    /// </summary>
-    /// <returns>A list with zero or more docker networks.</returns>
-    IList<INetworkService> GetNetworks();
-
-    /// <summary>
-    ///   Creates a single network.
-    /// </summary>
-    /// <param name="name">The name of the network</param>
-    /// <param name="createParams">Optional additional parameters to customize the network creation.</param>
-    /// <param name="removeOnDispose">If the network shall be removed when service is disposed.</param>
-    /// <returns>A network service if the newly created network.</returns>
-    /// <exception cref="FluentDockerException">If fails to create the docker network.</exception>
-    INetworkService CreateNetwork(string name, NetworkCreateParams createParams = null, bool removeOnDispose = false);
-
-    /// <summary>
-    /// Retrieves volumes.
-    /// </summary>
-    /// <returns>A list with zero or more volumes.</returns>
-    IList<IVolumeService> GetVolumes();
-
-    /// <summary>
-    /// Creates a volume.
-    /// </summary>
-    /// <param name="name">Optional the unique name of the volume.</param>
-    /// <param name="driver">Optional the volume driver to use.</param>
-    /// <param name="labels">Optional labels as metadata for the volume.</param>
-    /// <param name="opts">Optional parameters to feed to the specified or default driver.</param>
-    /// <param name="removeOnDispose">If volume shall be remove when disposed or not. Default is false.</param>
-    /// <returns></returns>
-    IVolumeService CreateVolume(string name = null, string driver = null /*local*/, string[] labels = null, IDictionary<string, string> opts = null, bool removeOnDispose = false);
-
-    /// <summary>
-    ///   Gets the machine configuration if machine.
-    /// </summary>
-    /// <returns>A machine configuration. It will always return null if native.</returns>
-    MachineConfiguration GetMachineConfiguration();
-  }
+        /// <summary>Remove on service dispose.</summary>
+        public bool RemoveOnDispose { get; set; }
+    }
 }
+

@@ -318,6 +318,9 @@ namespace FluentDocker.Drivers
         /// <summary>Container ID.</summary>
         public string Id { get; set; }
 
+        /// <summary>Container name.</summary>
+        public string Name { get; set; }
+
         /// <summary>Warnings from the create operation.</summary>
         public List<string> Warnings { get; set; } = new List<string>();
     }

@@ -93,7 +93,7 @@ namespace FluentDocker.Drivers
         /// <summary>
         /// Lists services in a compose project.
         /// </summary>
-        Task<CommandResponse<IList<ComposeService>>> ListAsync(
+        Task<CommandResponse<IList<ComposeServiceInfo>>> ListAsync(
             DriverContext context,
             ComposeListConfig config,
             CancellationToken cancellationToken = default);
@@ -618,9 +618,9 @@ namespace FluentDocker.Drivers
     }
 
     /// <summary>
-    /// Represents a compose service.
+    /// Information about a compose service.
     /// </summary>
-    public class ComposeService
+    public class ComposeServiceInfo
     {
         /// <summary>Service name.</summary>
         public string Name { get; set; }

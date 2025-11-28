@@ -6,54 +6,91 @@ using FluentDocker.Common;
 using FluentDocker.Drivers;
 using FluentDocker.Kernel;
 using FluentDocker.Model.Drivers;
-using FluentDocker.Model.Volumes;
 
-namespace FluentDocker.Services.V3.Impl
+namespace FluentDocker.Services.Impl
 {
     /// <summary>
-    /// v3.0.0 volume service implementation using kernel and driver.
+    /// Network service implementation using kernel and driver.
     /// </summary>
-    public class VolumeServiceAsync : IVolumeServiceAsync
+    public class NetworkService : INetworkService
     {
         private readonly FluentDockerKernel _kernel;
         private readonly string _driverId;
-        private readonly string _volumeName;
-        private readonly string _driver;
+        private readonly string _networkId;
+        private readonly string _networkName;
         private readonly Dictionary<string, Func<IServiceAsync, Task>> _hooks = new Dictionary<string, Func<IServiceAsync, Task>>();
         private ServiceRunningState _state = ServiceRunningState.Running;
 
-        public VolumeServiceAsync(
+        public NetworkService(
             FluentDockerKernel kernel,
             string driverId,
-            string volumeName,
-            string driver)
+            string networkId,
+            string networkName)
         {
             _kernel = kernel ?? throw new ArgumentNullException(nameof(kernel));
             _driverId = driverId ?? throw new ArgumentNullException(nameof(driverId));
-            _volumeName = volumeName ?? throw new ArgumentNullException(nameof(volumeName));
-            _driver = driver ?? "local";
+            _networkId = networkId ?? throw new ArgumentNullException(nameof(networkId));
+            _networkName = networkName ?? $"network-{networkId}";
         }
 
-        public string Name => _volumeName;
+        public string Name => _networkName;
         public ServiceRunningState State => _state;
         public FluentDockerKernel Kernel => _kernel;
         public string DriverId => _driverId;
-        public string VolumeName => _volumeName;
-        public string Driver => _driver;
+        public string Id => _networkId;
+        public string NetworkName => _networkName;
 
         public event ServiceDelegates.StateChange StateChange;
 
-        public async Task<Model.Volumes.Volume> InspectAsync(CancellationToken cancellationToken = default)
+        public async Task ConnectAsync(string containerId, CancellationToken cancellationToken = default)
         {
-            var driver = _kernel.SysCtl<IVolumeDriver>(_driverId);
+            var driver = _kernel.SysCtl<INetworkDriver>(_driverId);
             var context = new DriverContext(_driverId);
 
-            var response = await driver.InspectAsync(context, _volumeName, cancellationToken);
+            var response = await driver.ConnectAsync(context, _networkId, containerId, cancellationToken);
 
             if (!response.Success)
             {
                 throw new DriverException(
-                    $"Failed to inspect volume '{_volumeName}': {response.Error}",
+                    $"Failed to connect container '{containerId}' to network '{_networkName}': {response.Error}",
+                    response.ErrorCode,
+                    response.ErrorContext);
+            }
+        }
+
+        public async Task DisconnectAsync(string containerId, bool force = false, CancellationToken cancellationToken = default)
+        {
+            var driver = _kernel.SysCtl<INetworkDriver>(_driverId);
+            var context = new DriverContext(_driverId);
+
+            var response = await driver.DisconnectAsync(context, _networkId, containerId, force, cancellationToken);
+
+            if (!response.Success)
+            {
+                throw new DriverException(
+                    $"Failed to disconnect container '{containerId}' from network '{_networkName}': {response.Error}",
+                    response.ErrorCode,
+                    response.ErrorContext);
+            }
+        }
+
+        public async Task<IList<string>> GetConnectedContainersAsync(CancellationToken cancellationToken = default)
+        {
+            await InspectAsync(cancellationToken);
+            return new List<string>();
+        }
+
+        public async Task<Network> InspectAsync(CancellationToken cancellationToken = default)
+        {
+            var driver = _kernel.SysCtl<INetworkDriver>(_driverId);
+            var context = new DriverContext(_driverId);
+
+            var response = await driver.InspectAsync(context, _networkId, cancellationToken);
+
+            if (!response.Success)
+            {
+                throw new DriverException(
+                    $"Failed to inspect network '{_networkName}': {response.Error}",
                     response.ErrorCode,
                     response.ErrorContext);
             }
@@ -63,33 +100,30 @@ namespace FluentDocker.Services.V3.Impl
 
         public Task StartAsync(CancellationToken cancellationToken = default)
         {
-            // Volumes are always "running" once created
             return Task.CompletedTask;
         }
 
         public Task PauseAsync(CancellationToken cancellationToken = default)
         {
-            // Volumes cannot be paused
-            throw new NotSupportedException("Volumes cannot be paused");
+            throw new NotSupportedException("Networks cannot be paused");
         }
 
         public Task StopAsync(CancellationToken cancellationToken = default)
         {
-            // Volumes cannot be stopped, only removed
-            throw new NotSupportedException("Volumes cannot be stopped, use RemoveAsync instead");
+            throw new NotSupportedException("Networks cannot be stopped, use RemoveAsync instead");
         }
 
         public async Task RemoveAsync(bool force = false, CancellationToken cancellationToken = default)
         {
-            var driver = _kernel.SysCtl<IVolumeDriver>(_driverId);
+            var driver = _kernel.SysCtl<INetworkDriver>(_driverId);
             var context = new DriverContext(_driverId);
 
-            var response = await driver.RemoveAsync(context, _volumeName, force, cancellationToken);
+            var response = await driver.RemoveAsync(context, _networkId, cancellationToken);
 
             if (!response.Success)
             {
                 throw new DriverException(
-                    $"Failed to remove volume '{_volumeName}': {response.Error}",
+                    $"Failed to remove network '{_networkName}': {response.Error}",
                     response.ErrorCode,
                     response.ErrorContext);
             }
@@ -111,7 +145,6 @@ namespace FluentDocker.Services.V3.Impl
             return this;
         }
 
-        // IService synchronous method implementations
         void IService.Start() => StartAsync().GetAwaiter().GetResult();
         void IService.Pause() => PauseAsync().GetAwaiter().GetResult();
         void IService.Stop() => StopAsync().GetAwaiter().GetResult();
@@ -149,13 +182,11 @@ namespace FluentDocker.Services.V3.Impl
             }
             catch
             {
-                // Ignore errors during disposal
             }
         }
 
         private void UpdateState(ServiceRunningState newState)
         {
-            var oldState = _state;
             _state = newState;
             StateChange?.Invoke(this, new StateChangeEventArgs(this, newState));
         }
@@ -170,7 +201,6 @@ namespace FluentDocker.Services.V3.Impl
                 }
                 catch
                 {
-                    // Ignore hook errors
                 }
             }
         }

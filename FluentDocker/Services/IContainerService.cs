@@ -1,94 +1,98 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Net;
-using FluentDocker.Model.Common;
+using System.Threading;
+using System.Threading.Tasks;
 using FluentDocker.Model.Containers;
 
 namespace FluentDocker.Services
 {
-  public interface IContainerService : IService
-  {
     /// <summary>
-    ///   The container id of the running container.
+    /// Async container service interface.
     /// </summary>
-    string Id { get; }
+    public interface IContainerService : IServiceAsync
+    {
+        /// <summary>
+        /// Container ID.
+        /// </summary>
+        string Id { get; }
+
+        /// <summary>
+        /// Container image.
+        /// </summary>
+        string Image { get; }
+
+        /// <summary>
+        /// Gets detailed container information asynchronously.
+        /// </summary>
+        Task<Container> InspectAsync(CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Gets container logs asynchronously.
+        /// </summary>
+        Task<string> GetLogsAsync(bool follow = false, CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Executes a command in the container asynchronously.
+        /// </summary>
+        Task<string> ExecuteAsync(string command, CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Exports the container filesystem as a tar archive.
+        /// </summary>
+        Task<byte[]> ExportAsync(CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Copies a file from the container.
+        /// </summary>
+        Task<byte[]> CopyFromAsync(string containerPath, CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Copies a file to the container.
+        /// </summary>
+        Task CopyToAsync(string containerPath, byte[] data, CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Gets real-time stats from the container.
+        /// </summary>
+        Task<ContainerStats> GetStatsAsync(CancellationToken cancellationToken = default);
+    }
 
     /// <summary>
-    /// The instance id if multiple instances of same container. May be <see cref="string.Empty"/>.
+    /// Container statistics.
     /// </summary>
-    string InstanceId { get; }
+    public class ContainerStats
+    {
+        public string ContainerId { get; set; }
+        public CpuStats Cpu { get; set; }
+        public MemoryStats Memory { get; set; }
+        public NetworkStats Network { get; set; }
+        public DiskStats Disk { get; set; }
+    }
 
-    /// <summary>
-    /// If part of a service, the name of the service is in this property. Otherwise <see cref="string.Empty"/>
-    /// </summary>
-    string Service { get; }
+    public class CpuStats
+    {
+        public double UsagePercent { get; set; }
+        public long SystemCpuUsage { get; set; }
+        public long ContainerCpuUsage { get; set; }
+    }
 
-    /// <summary>
-    ///   The <see cref="System.Uri" /> to the docker daemon in control of this service.
-    /// </summary>
-    DockerUri DockerHost { get; }
+    public class MemoryStats
+    {
+        public long Usage { get; set; }
+        public long Limit { get; set; }
+        public double UsagePercent { get; set; }
+    }
 
-    /// <summary>
-    ///   When set to true the container is stopped automatically on <see cref="IDisposable.Dispose()" />.
-    /// </summary>
-    bool StopOnDispose { get; set; }
+    public class NetworkStats
+    {
+        public long RxBytes { get; set; }
+        public long TxBytes { get; set; }
+        public long RxPackets { get; set; }
+        public long TxPackets { get; set; }
+    }
 
-    /// <summary>
-    ///   When set to true the container is removed automatically on <see cref="IDisposable.Dispose()" />.
-    /// </summary>
-    bool RemoveOnDispose { get; set; }
-
-    /// <summary>
-    /// Optionally exposes a custom resolver. When this is set, it will override the default container endpoint IP resolver.
-    /// </summary>
-    /// <value>A custom resolver.</value>
-    /// <remarks>
-    /// If the resolver returns null it will use the built-in behavior. It is true, when no custom resolver has 
-    /// been set on the service.
-    /// </remarks>
-    Func<Dictionary<string, HostIpEndpoint[]>, string, Uri, IPEndPoint> CustomEndpointResolver { get; }
-
-
-    /// <summary>
-    ///   Determines if this container is based on a windows image or linux image.
-    /// </summary>
-    bool IsWindowsContainer { get; }
-
-    /// <summary>
-    ///   Paths to where certificates resides for this service.
-    /// </summary>
-    ICertificatePaths Certificates { get; }
-
-    /// <summary>
-    /// The image the running container is based on.
-    /// </summary>
-    IContainerImageService Image { get; }
-
-    /// <summary>
-    ///   Gets the configuration from the docker host for this container.
-    /// </summary>
-    /// <param name="fresh">If a new copy is wanted or a cached one. If non has been requested it will fetch one and cache it.</param>
-    /// <remarks>
-    ///   This is not cached, thus it will go to the docker daemon each time.
-    /// </remarks>
-    Container GetConfiguration(bool fresh = false);
-
-    /// <summary>
-    ///   Overridden to handle fluent access.
-    /// </summary>
-    /// <returns></returns>
-    new IContainerService Start();
-
-    /// <summary>
-    ///   Gets all volumes attached to this container.
-    /// </summary>
-    /// <returns>A list with zero or more volumes.</returns>
-    IList<IVolumeService> GetVolumes();
-
-    /// <summary>
-    ///   Gets all networks that this container is attached to.
-    /// </summary>
-    /// <returns>A list with one or more networks.</returns>
-    IList<INetworkService> GetNetworks();
-  }
+    public class DiskStats
+    {
+        public long ReadBytes { get; set; }
+        public long WriteBytes { get; set; }
+    }
 }
+

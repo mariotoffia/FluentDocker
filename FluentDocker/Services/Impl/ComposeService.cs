@@ -7,12 +7,12 @@ using FluentDocker.Drivers;
 using FluentDocker.Kernel;
 using FluentDocker.Model.Drivers;
 
-namespace FluentDocker.Services.V3.Impl
+namespace FluentDocker.Services.Impl
 {
     /// <summary>
-    /// v3.0.0 compose service implementation using kernel and driver.
+    /// Compose service implementation using kernel and driver.
     /// </summary>
-    public class ComposeServiceAsync : IComposeServiceAsync
+    public class ComposeService : IComposeService
     {
         private readonly FluentDockerKernel _kernel;
         private readonly string _driverId;
@@ -21,7 +21,7 @@ namespace FluentDocker.Services.V3.Impl
         private readonly Dictionary<string, Func<IServiceAsync, Task>> _hooks = new Dictionary<string, Func<IServiceAsync, Task>>();
         private ServiceRunningState _state = ServiceRunningState.Running;
 
-        public ComposeServiceAsync(
+        public ComposeService(
             FluentDockerKernel kernel,
             string driverId,
             List<string> composeFiles,
@@ -42,7 +42,7 @@ namespace FluentDocker.Services.V3.Impl
 
         public event ServiceDelegates.StateChange StateChange;
 
-        public async Task<IList<ComposeService>> ListServicesAsync(CancellationToken cancellationToken = default)
+        public async Task<IList<ComposeServiceInfo>> ListServicesAsync(CancellationToken cancellationToken = default)
         {
             var driver = _kernel.SysCtl<IComposeDriver>(_driverId);
             var context = new DriverContext(_driverId);
@@ -254,7 +254,6 @@ namespace FluentDocker.Services.V3.Impl
             return this;
         }
 
-        // IService synchronous method implementations
         void IService.Start() => StartAsync().GetAwaiter().GetResult();
         void IService.Pause() => PauseAsync().GetAwaiter().GetResult();
         void IService.Stop() => StopAsync().GetAwaiter().GetResult();
@@ -292,13 +291,11 @@ namespace FluentDocker.Services.V3.Impl
             }
             catch
             {
-                // Ignore errors during disposal
             }
         }
 
         private void UpdateState(ServiceRunningState newState)
         {
-            var oldState = _state;
             _state = newState;
             StateChange?.Invoke(this, new StateChangeEventArgs(this, newState));
         }
@@ -313,9 +310,9 @@ namespace FluentDocker.Services.V3.Impl
                 }
                 catch
                 {
-                    // Ignore hook errors
                 }
             }
         }
     }
 }
+

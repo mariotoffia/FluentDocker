@@ -3,12 +3,11 @@ using System.Threading;
 using System.Threading.Tasks;
 using FluentDocker.Common;
 using FluentDocker.Kernel;
-using FluentDocker.Services;
 
-namespace FluentDocker.Services.V3
+namespace FluentDocker.Services
 {
     /// <summary>
-    /// v3.0.0 async service interface.
+    /// Async service interface with kernel/driver architecture.
     /// </summary>
 #if NETSTANDARD2_0
     public interface IServiceAsync : IService
@@ -57,3 +56,4 @@ namespace FluentDocker.Services.V3
         new IServiceAsync RemoveHook(string uniqueName);
     }
 }
+

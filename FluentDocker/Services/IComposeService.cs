@@ -3,12 +3,12 @@ using System.Threading;
 using System.Threading.Tasks;
 using FluentDocker.Drivers;
 
-namespace FluentDocker.Services.V3
+namespace FluentDocker.Services
 {
     /// <summary>
-    /// v3.0.0 async compose service interface.
+    /// Async compose service interface.
     /// </summary>
-    public interface IComposeServiceAsync : IServiceAsync
+    public interface IComposeService : IServiceAsync
     {
         /// <summary>
         /// Project name.
@@ -23,7 +23,7 @@ namespace FluentDocker.Services.V3
         /// <summary>
         /// Lists all services in this compose project.
         /// </summary>
-        Task<IList<ComposeService>> ListServicesAsync(CancellationToken cancellationToken = default);
+        Task<IList<ComposeServiceInfo>> ListServicesAsync(CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Gets logs from compose services.

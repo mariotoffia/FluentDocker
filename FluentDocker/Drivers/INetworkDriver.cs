@@ -78,6 +78,7 @@ namespace FluentDocker.Drivers
         public string Subnet { get; set; }
         public string Gateway { get; set; }
         public bool EnableIPv6 { get; set; }
+        public bool Internal { get; set; }
         public Dictionary<string, string> Labels { get; set; } = new Dictionary<string, string>();
     }
 

@@ -1,14 +1,28 @@
-﻿using FluentDocker.Model.Common;
-using FluentDocker.Model.Containers;
+using System.Threading;
+using System.Threading.Tasks;
 using FluentDocker.Model.Volumes;
 
 namespace FluentDocker.Services
 {
-  public interface IVolumeService : IService
-  {
-    DockerUri DockerHost { get; }
-    ICertificatePaths Certificates { get; }
+    /// <summary>
+    /// Async volume service interface.
+    /// </summary>
+    public interface IVolumeService : IServiceAsync
+    {
+        /// <summary>
+        /// Volume name.
+        /// </summary>
+        string VolumeName { get; }
 
-    Volume GetConfiguration(bool fresh = false);
-  }
+        /// <summary>
+        /// Volume driver.
+        /// </summary>
+        string Driver { get; }
+
+        /// <summary>
+        /// Inspects the volume to get detailed information.
+        /// </summary>
+        Task<Volume> InspectAsync(CancellationToken cancellationToken = default);
+    }
 }
+

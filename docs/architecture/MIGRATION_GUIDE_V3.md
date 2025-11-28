@@ -245,7 +245,14 @@ await driver.StopAsync(context, containerId, timeout: 30);
 #### Gradual Migration Strategy
 
 1. **Phase 1**: Continue using v2 Services/Builders (which internally use Commands) - works in v3.0.0 with deprecation warnings
-2. **Phase 2**: Migrate to v3 async Services (`FluentDocker.Services.V3`) which use the Driver layer
+2. **Phase 2**: Migrate to v3 async Services (`FluentDocker.Services.V3`) which use the Driver layer:
+   - `ContainerServiceAsync` - replaces `DockerContainerService`
+   - `ImageServiceAsync` - replaces `DockerImageService`
+   - `NetworkServiceAsync` - replaces `DockerNetworkService`
+   - `VolumeServiceAsync` - replaces `DockerVolumeService`
+   - `HostServiceAsync` - replaces `DockerHostService`
+   - `ComposeServiceAsync` - replaces `DockerComposeCompositeService`
+   - `EngineScopeAsync` - replaces `EngineScope`
 3. **Phase 3**: For advanced use cases, call Driver interfaces directly
 
 **Note**: The v2 Services (`DockerContainerService`, `DockerHostService`, etc.) continue to work in v3.0.0 and use Commands internally. You will see deprecation warnings, but functionality is preserved.
@@ -453,7 +460,104 @@ var podmanContainer = new Builder(kernel)
     .Build();
 ```
 
-### 4. Automatic Driver Selection
+### 4. V3 Async Service Layer
+
+**NEW in v3.0.0**: Complete async service layer using the kernel/driver architecture.
+
+The V3 async service layer (`FluentDocker.Services.V3`) provides full async/await support and uses the driver layer instead of the deprecated Commands namespace.
+
+#### V3 Service Interfaces
+
+| Interface | Description | V2 Equivalent |
+|-----------|-------------|---------------|
+| `IServiceAsync` | Base async service interface | `IService` |
+| `IContainerServiceAsync` | Async container operations | `IContainerService` |
+| `IImageServiceAsync` | Async image operations | `IContainerImageService` |
+| `INetworkServiceAsync` | Async network operations | `INetworkService` |
+| `IVolumeServiceAsync` | Async volume operations | `IVolumeService` |
+| `IComposeServiceAsync` | Async compose operations | `ICompositeService` |
+| `IHostServiceAsync` | Async host management | `IHostService` |
+| `IEngineScopeAsync` | Async engine mode switching | `IEngineScope` |
+
+#### V3 Service Implementations
+
+| Implementation | Uses Driver |
+|----------------|-------------|
+| `ContainerServiceAsync` | `IContainerDriver` |
+| `ImageServiceAsync` | `IImageDriver` |
+| `NetworkServiceAsync` | `INetworkDriver` |
+| `VolumeServiceAsync` | `IVolumeDriver` |
+| `ComposeServiceAsync` | `IComposeDriver` |
+| `HostServiceAsync` | `ISystemDriver`, `IContainerDriver`, `IImageDriver`, `INetworkDriver`, `IVolumeDriver` |
+| `EngineScopeAsync` | `ISystemDriver` |
+
+#### Example: Using V3 Async Services
+
+```csharp
+using FluentDocker.Kernel;
+using FluentDocker.Drivers.Docker.Cli;
+using FluentDocker.Services.V3;
+using FluentDocker.Services.V3.Impl;
+
+// Setup kernel and driver
+var kernel = new FluentDockerKernel();
+kernel.RegisterDriver("docker", new DockerCliDriver());
+
+// Create host service
+var host = new HostServiceAsync(kernel, "docker", "native", isNative: true);
+
+// List containers asynchronously
+var containers = await host.GetContainersAsync(all: true);
+
+// Create a container
+var container = await host.CreateContainerAsync("nginx:latest", new ContainerCreateOptions
+{
+    Name = "my-nginx",
+    Ports = new Dictionary<string, string> { ["80"] = "8080" },
+    StopOnDispose = true,
+    DeleteOnDispose = true
+});
+
+// Start and use the container
+await container.StartAsync();
+var info = await container.InspectAsync();
+Console.WriteLine($"Container {info.Name} is {info.State.Status}");
+
+// Cleanup
+await container.StopAsync();
+await container.RemoveAsync();
+```
+
+#### Example: Using V3 Engine Scope
+
+```csharp
+// Create an engine scope that switches to Linux daemon
+await using var scope = await EngineScopeAsync.CreateAsync(kernel, "docker", EngineScopeType.Linux);
+
+// All operations in this scope use Linux daemon
+var containers = await host.GetContainersAsync();
+
+// When scope is disposed, original daemon mode is restored
+```
+
+#### Example: Using V3 Image Service
+
+```csharp
+// Pull an image
+var image = await host.PullImageAsync("nginx", "alpine");
+
+// Get image info
+var imageInfo = await image.InspectAsync();
+Console.WriteLine($"Image size: {imageInfo.Size} bytes");
+
+// Tag the image
+await image.TagAsync("myregistry.com/nginx", "v1");
+
+// Push to registry
+await image.PushAsync();
+```
+
+### 5. Automatic Driver Selection
 
 **NEW in v3.0.0**: Driver selection based on preferences.
 
@@ -992,12 +1096,14 @@ kernel.RegisterDriver("docker", new DockerCliDriver());
 ### Benefits of v3.0.0
 
 ✅ **Cleaner namespace**: Simplified from `Ductus.FluentDocker` to `FluentDocker`
+✅ **Async/await support**: V3 service layer with full async operations
 ✅ **Multiple runtimes**: Docker and Podman simultaneously
 ✅ **Multiple hosts**: Manage multiple Docker hosts easily
 ✅ **Better performance**: API drivers available
 ✅ **Better testing**: Mock drivers, isolated kernels
 ✅ **More flexible**: Driver plugins, custom implementations
 ✅ **Cleaner code**: Explicit kernel management
+✅ **Type-safe errors**: `CommandResponse<T>` with error codes instead of exceptions
 
 ### Recommended Migration Approach
 

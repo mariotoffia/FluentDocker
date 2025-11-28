@@ -1,162 +1,139 @@
 using System;
-using System.Collections.Generic;
-using System.Reflection;
-using System.Text;
-using FluentDocker.Builders;
+using System.Threading;
+using System.Threading.Tasks;
+using FluentDocker.Builders.V3;
 using FluentDocker.Common;
-using FluentDocker.Model.Common;
-using FluentDocker.Model.Containers;
+using FluentDocker.Kernel;
 using FluentDocker.Services;
 using FluentDocker.Services.Impl;
 
 namespace FluentDocker
 {
-  public static class Fd
-  {
-    public static void Run<T>(this IBuilder builder, Action<T> run, string name = null) where T : IService
-    {
-      try
-      {
-        using (var service = builder.Build())
-        {
-          service.Start();
-          run.Invoke((T)service);
-        }
-      }
-      catch
-      {
-        if (null != name)
-          Logger.Log($"Failed to run service {name}");
-        throw;
-      }
-    }
-
-    public static void Run<T>(Func<Builder, IBuilder> builder, Action<T> run, string name = null) where T : IService
-    {
-      try
-      {
-        using (var service = builder.Invoke(Build()).Build())
-        {
-          service.Start();
-          run.Invoke((T)service);
-        }
-      }
-      catch
-      {
-        if (null != name)
-          Logger.Log($"Failed to run service {name}");
-        throw;
-      }
-    }
-
-    public static void Container(this IBuilder builder, Action<IContainerService> run, string name = null)
-    {
-      Run(builder, run, name);
-    }
-
-    public static void Container(Func<Builder, IBuilder> builder, Action<IContainerService> run, string name = null)
-    {
-      Run(builder, run, name);
-    }
-
-    public static void Composite(this IBuilder builder, Action<ICompositeService> run, string name = null)
-    {
-      Run(builder, run, name);
-    }
-
-    public static void Composite(Func<Builder, IBuilder> builder, Action<ICompositeService> run, string name = null)
-    {
-      Run(builder, run, name);
-    }
-
-    internal static void DisposeOnException<T>(Action<T> action, T service, string name = null) where T : IService
-    {
-      if (null == name)
-        name = "n/a";
-
-      try
-      {
-        action.Invoke(service);
-      }
-      catch
-      {
-        Logger.Log($"Failed to run action for {name} disposing service {service.Name}");
-        service.Dispose();
-        throw;
-      }
-    }
-
-    #region Build Support
-    public static Builder Build()
-    {
-      return new Builder();
-    }
-
-    public static ContainerBuilder UseContainer()
-    {
-      return new Builder().UseContainer();
-    }
-
-    public static HostBuilder UseHost()
-    {
-      return new Builder().UseHost();
-    }
-
-    public static ImageBuilder DefineImage(string image)
-    {
-      return new Builder().DefineImage(image);
-    }
-
     /// <summary>
-    /// Creates a in-memory Dockerfile builder.
+    /// Main entry point for FluentDocker v3.0.0.
     /// </summary>
-    /// <returns>A builder to build a Dockerfile</returns>
-    /// <remarks>
-    ///   This builder won't build an Image, use <see cref="DefineImage(string)"/>
-    ///   for that purpose. This is a builder that can produce a string representing
-    ///   a docker file.
-    /// </remarks>
-    public static FileBuilder Dockerfile()
+    public static class Fd
     {
-      return new FileBuilder();
-    }
+        /// <summary>
+        /// Creates a new builder for constructing Docker resources.
+        /// </summary>
+        /// <returns>A new builder instance.</returns>
+        public static Builder Build()
+        {
+            return new Builder();
+        }
 
-    public static IEngineScope EngineScope(EngineScopeType scope, DockerUri host = null, ICertificatePaths certificates = null)
-    {
-      return new EngineScope(host, scope, certificates);
-    }
+        /// <summary>
+        /// Creates a new kernel builder for configuring FluentDockerKernel.
+        /// </summary>
+        /// <returns>A new kernel builder instance.</returns>
+        public static IKernelBuilder CreateKernel()
+        {
+            return FluentDockerKernel.Create();
+        }
 
-    public static NetworkBuilder UseNetwork(string name = null)
-    {
-      return new Builder().UseNetwork(name);
-    }
+        /// <summary>
+        /// Creates and builds a default kernel with Docker CLI driver.
+        /// </summary>
+        /// <returns>A configured kernel instance.</returns>
+        public static async Task<FluentDockerKernel> CreateDefaultKernelAsync(CancellationToken cancellationToken = default)
+        {
+            return await FluentDockerKernel.Create()
+                .WithDriver("docker-cli", driver => driver.UseDockerCli().AsDefault())
+                .BuildAsync(cancellationToken);
+        }
 
-    public static VolumeBuilder UseVolume(string name = null)
-    {
-      return new Builder().UseVolume(name);
-    }
-    #endregion
+        /// <summary>
+        /// Creates a host service for the specified driver.
+        /// </summary>
+        /// <param name="kernel">The kernel instance.</param>
+        /// <param name="driverId">The driver identifier.</param>
+        /// <returns>A host service for interacting with Docker.</returns>
+        public static IHostService GetHost(FluentDockerKernel kernel, string driverId)
+        {
+            return new HostService(kernel, driverId, "default", isNative: true, requireTls: false);
+        }
 
-    #region Host Support
+        /// <summary>
+        /// Creates an engine scope for switching between Windows and Linux daemon modes.
+        /// </summary>
+        /// <param name="kernel">The kernel instance.</param>
+        /// <param name="driverId">The driver identifier.</param>
+        /// <param name="targetScope">The target engine scope.</param>
+        /// <returns>An engine scope instance.</returns>
+        public static async Task<IEngineScope> EngineScopeAsync(
+            FluentDockerKernel kernel,
+            string driverId,
+            EngineScopeType targetScope,
+            CancellationToken cancellationToken = default)
+        {
+            return await EngineScope.CreateAsync(kernel, driverId, targetScope, cancellationToken);
+        }
 
-    public static Hosts Hosts()
-    {
-      return new Hosts();
-    }
+        /// <summary>
+        /// Runs an action with a service and ensures cleanup.
+        /// </summary>
+        /// <typeparam name="T">Service type.</typeparam>
+        /// <param name="service">The service instance.</param>
+        /// <param name="run">Action to execute.</param>
+        /// <param name="name">Optional name for logging.</param>
+        public static async Task RunAsync<T>(T service, Func<T, Task> run, string name = null) where T : IServiceAsync
+        {
+            try
+            {
+                await service.StartAsync();
+                await run.Invoke(service);
+            }
+            catch
+            {
+                if (!string.IsNullOrEmpty(name))
+                    Logger.Log($"Failed to run service {name}");
+                throw;
+            }
+            finally
+            {
+                try
+                {
+                    await service.StopAsync();
+                }
+                catch
+                {
+                    // Ignore cleanup errors
+                }
+            }
+        }
 
-    public static IList<IHostService> Discover(bool preferNative = false)
-    {
-      return Hosts().Discover(preferNative);
+        /// <summary>
+        /// Runs a synchronous action with a service and ensures cleanup.
+        /// </summary>
+        /// <typeparam name="T">Service type.</typeparam>
+        /// <param name="service">The service instance.</param>
+        /// <param name="run">Action to execute.</param>
+        /// <param name="name">Optional name for logging.</param>
+        public static void Run<T>(T service, Action<T> run, string name = null) where T : IService
+        {
+            try
+            {
+                service.Start();
+                run.Invoke(service);
+            }
+            catch
+            {
+                if (!string.IsNullOrEmpty(name))
+                    Logger.Log($"Failed to run service {name}");
+                throw;
+            }
+            finally
+            {
+                try
+                {
+                    service.Stop();
+                }
+                catch
+                {
+                    // Ignore cleanup errors
+                }
+            }
+        }
     }
-    public static IHostService Native()
-    {
-      return Hosts().Native();
-    }
-
-    public static IHostService FromMachineName(string name, bool isWindowsHost = false, bool throwIfNotStarted = false)
-    {
-      return Hosts().FromMachineName(name, isWindowsHost, throwIfNotStarted);
-    }
-    #endregion
-  }
 }

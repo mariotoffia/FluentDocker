@@ -1,24 +1,43 @@
-﻿using System;
-using FluentDocker.Model.Common;
-using FluentDocker.Model.Containers;
-using FluentDocker.Model.Networks;
+using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace FluentDocker.Services
 {
-  public interface INetworkService : IService
-  {
-    string Id { get; }
-    DockerUri DockerHost { get; }
-    ICertificatePaths Certificates { get; }
-    NetworkConfiguration GetConfiguration(bool fresh = false);
+    /// <summary>
+    /// Async network service interface.
+    /// </summary>
+    public interface INetworkService : IServiceAsync
+    {
+        /// <summary>
+        /// Network ID.
+        /// </summary>
+        string Id { get; }
 
-    INetworkService Attach(IContainerService container, bool detatchOnDisposeNetwork, string alias = null);
-    INetworkService Attach(string containerId, bool detatchOnDisposeNetwork, string alias = null);
-    [Obsolete("Please use the properly spelled `Detach` method instead.")]
-    INetworkService Detatch(IContainerService container, bool force = false);
-    INetworkService Detach(IContainerService container, bool force = false);
-    [Obsolete("Please use the properly spelled `Detach` method instead.")]
-    INetworkService Detatch(string containerId, bool force = false);
-    INetworkService Detach(string containerId, bool force = false);
-  }
+        /// <summary>
+        /// Network name.
+        /// </summary>
+        string NetworkName { get; }
+
+        /// <summary>
+        /// Connects a container to this network.
+        /// </summary>
+        Task ConnectAsync(string containerId, CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Disconnects a container from this network.
+        /// </summary>
+        Task DisconnectAsync(string containerId, bool force = false, CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Gets the list of containers connected to this network.
+        /// </summary>
+        Task<IList<string>> GetConnectedContainersAsync(CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Inspects the network to get detailed information.
+        /// </summary>
+        Task<Drivers.Network> InspectAsync(CancellationToken cancellationToken = default);
+    }
 }
+

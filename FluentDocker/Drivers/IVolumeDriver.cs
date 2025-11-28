@@ -63,6 +63,7 @@ namespace FluentDocker.Drivers
     public class VolumeCreateResult
     {
         public string Name { get; set; }
+        public string Driver { get; set; }
         public List<string> Warnings { get; set; } = new List<string>();
     }
 
