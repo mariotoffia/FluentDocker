@@ -1,6 +1,6 @@
 using System;
 using System.Threading.Tasks;
-using FluentDocker.Builders.V3;
+using FluentDocker.Builders;
 using FluentDocker.Kernel;
 using FluentDocker.Model.Kernel;
 using FluentDocker.Services;
@@ -38,7 +38,7 @@ namespace FluentDocker.XUnit
         {
             Kernel = await CreateKernelAsync();
 
-            var builder = new Builder();
+            var builder = new FluentBuilder();
             builder.WithinDriver(DriverId, Kernel);
             builder.UseContainer(ConfigureContainer);
 

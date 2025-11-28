@@ -18,7 +18,7 @@ namespace FluentDocker.Builders
     /// <summary>
     /// v3.0.0 async builder with WithinDriver() scoping and terminal BuildAsync().
     /// </summary>
-    public class Builder : IFluentBuilder
+    public class FluentBuilder : IFluentBuilder
     {
         private FluentDockerKernel _currentKernel;
         private string _currentDriverId;
@@ -27,7 +27,7 @@ namespace FluentDocker.Builders
         /// <summary>
         /// Creates a new builder.
         /// </summary>
-        public Builder()
+        public FluentBuilder()
         {
         }
 
@@ -37,7 +37,7 @@ namespace FluentDocker.Builders
         /// <param name="driverId">Driver identifier</param>
         /// <param name="kernel">Kernel instance (reuses previous if null)</param>
         /// <returns>This builder for fluent chaining</returns>
-        public Builder WithinDriver(string driverId, FluentDockerKernel kernel = null)
+        public FluentBuilder WithinDriver(string driverId, FluentDockerKernel kernel = null)
         {
             _currentKernel = kernel ?? _currentKernel;
 
@@ -57,7 +57,7 @@ namespace FluentDocker.Builders
         /// </summary>
         /// <param name="configure">Container configuration action</param>
         /// <returns>This builder for fluent chaining</returns>
-        public Builder UseContainer(Action<IContainerBuilder> configure)
+        public FluentBuilder UseContainer(Action<IContainerBuilder> configure)
         {
             ValidateScope();
 
@@ -79,7 +79,7 @@ namespace FluentDocker.Builders
         /// </summary>
         /// <param name="configure">Network configuration action</param>
         /// <returns>This builder for fluent chaining</returns>
-        public Builder UseNetwork(Action<INetworkBuilder> configure)
+        public FluentBuilder UseNetwork(Action<INetworkBuilder> configure)
         {
             ValidateScope();
 
@@ -101,7 +101,7 @@ namespace FluentDocker.Builders
         /// </summary>
         /// <param name="configure">Volume configuration action</param>
         /// <returns>This builder for fluent chaining</returns>
-        public Builder UseVolume(Action<IVolumeBuilder> configure)
+        public FluentBuilder UseVolume(Action<IVolumeBuilder> configure)
         {
             ValidateScope();
 
@@ -123,7 +123,7 @@ namespace FluentDocker.Builders
         /// </summary>
         /// <param name="configure">Compose configuration action</param>
         /// <returns>This builder for fluent chaining</returns>
-        public Builder UseCompose(Action<IComposeBuilder> configure)
+        public FluentBuilder UseCompose(Action<IComposeBuilder> configure)
         {
             ValidateScope();
 
@@ -208,11 +208,11 @@ namespace FluentDocker.Builders
     /// </summary>
     public interface IFluentBuilder
     {
-        Builder WithinDriver(string driverId, FluentDockerKernel kernel = null);
-        Builder UseContainer(Action<IContainerBuilder> configure);
-        Builder UseNetwork(Action<INetworkBuilder> configure);
-        Builder UseVolume(Action<IVolumeBuilder> configure);
-        Builder UseCompose(Action<IComposeBuilder> configure);
+        FluentBuilder WithinDriver(string driverId, FluentDockerKernel kernel = null);
+        FluentBuilder UseContainer(Action<IContainerBuilder> configure);
+        FluentBuilder UseNetwork(Action<INetworkBuilder> configure);
+        FluentBuilder UseVolume(Action<IVolumeBuilder> configure);
+        FluentBuilder UseCompose(Action<IComposeBuilder> configure);
         
         /// <summary>
         /// Builds all operations synchronously (TERMINAL operation).

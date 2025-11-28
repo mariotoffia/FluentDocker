@@ -1,7 +1,7 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
-using FluentDocker.Builders.V3;
+using FluentDocker.Builders;
 using FluentDocker.Common;
 using FluentDocker.Kernel;
 using FluentDocker.Services;
@@ -18,9 +18,9 @@ namespace FluentDocker
         /// Creates a new builder for constructing Docker resources.
         /// </summary>
         /// <returns>A new builder instance.</returns>
-        public static Builder Build()
+        public static FluentBuilder Build()
         {
-            return new Builder();
+            return new FluentBuilder();
         }
 
         /// <summary>

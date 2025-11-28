@@ -14,7 +14,7 @@ namespace Simple
     {
       using (
           var container =
-              new Builder().UseContainer()
+              new FluentBuilder().UseContainer()
                   .UseImage("postgres:9.6-alpine")
                   .ExposePort(5432)
                   .WithEnvironment("POSTGRES_PASSWORD=mysecretpassword")
@@ -80,7 +80,7 @@ namespace Simple
       Stopwatch stopwatch = new Stopwatch();
 
       stopwatch.Start();
-      var container = new Builder().UseContainer()
+      var container = new FluentBuilder().UseContainer()
                   .UseImage("postgres:9.6-alpine")
                   .ExposePort(5432)
                   .WithEnvironment("POSTGRES_PASSWORD=mysecretpassword")

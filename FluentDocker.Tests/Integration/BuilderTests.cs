@@ -1,6 +1,6 @@
 using System;
 using System.Threading.Tasks;
-using FluentDocker.Builders.V3;
+using FluentDocker.Builders;
 using FluentDocker.Kernel;
 using Xunit;
 
@@ -30,7 +30,7 @@ namespace FluentDocker.Tests.Integration
             try
             {
                 // Act
-                var results = await new Builder()
+                var results = await new FluentBuilder()
                     .WithinDriver("docker", kernel)
                         .UseContainer(c => c
                             .UseImage("alpine:latest")
@@ -69,7 +69,7 @@ namespace FluentDocker.Tests.Integration
             try
             {
                 // Act
-                var results = await new Builder()
+                var results = await new FluentBuilder()
                     .WithinDriver("docker-1", kernel)
                         .UseContainer(c => c.UseImage("alpine:latest").WithName($"d1-c1-{Guid.NewGuid():N}"))
                         .UseContainer(c => c.UseImage("alpine:latest").WithName($"d1-c2-{Guid.NewGuid():N}"))
@@ -96,7 +96,7 @@ namespace FluentDocker.Tests.Integration
         public void Builder_VerifiesCompilation()
         {
             // This test just verifies the Builder API compiles correctly
-            var builder = new Builder();
+            var builder = new FluentBuilder();
             Assert.NotNull(builder);
         }
 
@@ -110,7 +110,7 @@ namespace FluentDocker.Tests.Integration
                 .WithDriver("docker-2", d => d.UseDockerCli())
                 .BuildAsync();
 
-            var builder = new Builder()
+            var builder = new FluentBuilder()
                 .WithinDriver("docker-1", kernel)  // Sets kernel
                     // .UseContainer(...) would go here
                 .WithinDriver("docker-2");  // Reuses kernel from previous WithinDriver()

@@ -4,7 +4,7 @@ using System.IO;
 using System.Net;
 using System.Threading;
 using System.Threading.Tasks;
-using FluentDocker.Builders.V3;
+using FluentDocker.Builders;
 using FluentDocker.Common;
 using FluentDocker.Drivers;
 using FluentDocker.Kernel;

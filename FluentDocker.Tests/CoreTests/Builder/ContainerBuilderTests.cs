@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
+using FluentDocker.Builders;
 using Xunit;
-using V3Builder = FluentDocker.Builders.V3.Builder;
 
 namespace FluentDocker.Tests.CoreTests.Builder
 {
@@ -15,7 +15,7 @@ namespace FluentDocker.Tests.CoreTests.Builder
         public void UseImage_SetsImage()
         {
             // Act - Just verify compilation and method exists
-            var builder = new V3Builder();
+            var builder = new FluentBuilder();
             var configured = false;
             builder.WithinDriver("test", new Kernel.FluentDockerKernel())
                 .UseContainer(c =>
@@ -31,7 +31,7 @@ namespace FluentDocker.Tests.CoreTests.Builder
         [Fact]
         public void WithName_SetsContainerName()
         {
-            var builder = new V3Builder();
+            var builder = new FluentBuilder();
             var configured = false;
             builder.WithinDriver("test", new Kernel.FluentDockerKernel())
                 .UseContainer(c =>
@@ -48,7 +48,7 @@ namespace FluentDocker.Tests.CoreTests.Builder
         [InlineData("DEBUG", "true")]
         public void WithEnvironment_KeyValue_SetsEnvironment(string key, string value)
         {
-            var builder = new V3Builder();
+            var builder = new FluentBuilder();
             var configured = false;
             builder.WithinDriver("test", new Kernel.FluentDockerKernel())
                 .UseContainer(c =>
@@ -64,7 +64,7 @@ namespace FluentDocker.Tests.CoreTests.Builder
         [InlineData("PATH=/usr/bin")]
         public void WithEnvironment_SingleString_SetsEnvironment(string keyValue)
         {
-            var builder = new V3Builder();
+            var builder = new FluentBuilder();
             var configured = false;
             builder.WithinDriver("test", new Kernel.FluentDockerKernel())
                 .UseContainer(c =>
@@ -78,7 +78,7 @@ namespace FluentDocker.Tests.CoreTests.Builder
         [Fact]
         public void WithPort_SetsPortMapping()
         {
-            var builder = new V3Builder();
+            var builder = new FluentBuilder();
             var configured = false;
             builder.WithinDriver("test", new Kernel.FluentDockerKernel())
                 .UseContainer(c =>
@@ -92,7 +92,7 @@ namespace FluentDocker.Tests.CoreTests.Builder
         [Fact]
         public void ExposePort_String_ExposesPort()
         {
-            var builder = new V3Builder();
+            var builder = new FluentBuilder();
             var configured = false;
             builder.WithinDriver("test", new Kernel.FluentDockerKernel())
                 .UseContainer(c =>
@@ -106,7 +106,7 @@ namespace FluentDocker.Tests.CoreTests.Builder
         [Fact]
         public void ExposePort_IntPair_ExposesPort()
         {
-            var builder = new V3Builder();
+            var builder = new FluentBuilder();
             var configured = false;
             builder.WithinDriver("test", new Kernel.FluentDockerKernel())
                 .UseContainer(c =>
@@ -120,7 +120,7 @@ namespace FluentDocker.Tests.CoreTests.Builder
         [Fact]
         public void WithCommand_SetsCommand()
         {
-            var builder = new V3Builder();
+            var builder = new FluentBuilder();
             var configured = false;
             builder.WithinDriver("test", new Kernel.FluentDockerKernel())
                 .UseContainer(c =>
@@ -134,7 +134,7 @@ namespace FluentDocker.Tests.CoreTests.Builder
         [Fact]
         public void WithVolume_SetsVolumeMount()
         {
-            var builder = new V3Builder();
+            var builder = new FluentBuilder();
             var configured = false;
             builder.WithinDriver("test", new Kernel.FluentDockerKernel())
                 .UseContainer(c =>
@@ -148,7 +148,7 @@ namespace FluentDocker.Tests.CoreTests.Builder
         [Fact]
         public void WithLabel_SetsLabel()
         {
-            var builder = new V3Builder();
+            var builder = new FluentBuilder();
             var configured = false;
             builder.WithinDriver("test", new Kernel.FluentDockerKernel())
                 .UseContainer(c =>
@@ -162,7 +162,7 @@ namespace FluentDocker.Tests.CoreTests.Builder
         [Fact]
         public void WithWorkingDirectory_SetsWorkDir()
         {
-            var builder = new V3Builder();
+            var builder = new FluentBuilder();
             var configured = false;
             builder.WithinDriver("test", new Kernel.FluentDockerKernel())
                 .UseContainer(c =>
@@ -176,7 +176,7 @@ namespace FluentDocker.Tests.CoreTests.Builder
         [Fact]
         public void WithUser_SetsUser()
         {
-            var builder = new V3Builder();
+            var builder = new FluentBuilder();
             var configured = false;
             builder.WithinDriver("test", new Kernel.FluentDockerKernel())
                 .UseContainer(c =>
@@ -194,7 +194,7 @@ namespace FluentDocker.Tests.CoreTests.Builder
         [InlineData("on-failure")]
         public void WithRestartPolicy_SetsPolicy(string policy)
         {
-            var builder = new V3Builder();
+            var builder = new FluentBuilder();
             var configured = false;
             builder.WithinDriver("test", new Kernel.FluentDockerKernel())
                 .UseContainer(c =>
@@ -208,7 +208,7 @@ namespace FluentDocker.Tests.CoreTests.Builder
         [Fact]
         public void WithHostname_SetsHostname()
         {
-            var builder = new V3Builder();
+            var builder = new FluentBuilder();
             var configured = false;
             builder.WithinDriver("test", new Kernel.FluentDockerKernel())
                 .UseContainer(c =>
@@ -225,7 +225,7 @@ namespace FluentDocker.Tests.CoreTests.Builder
         [InlineData("none")]
         public void WithNetworkMode_SetsNetworkMode(string mode)
         {
-            var builder = new V3Builder();
+            var builder = new FluentBuilder();
             var configured = false;
             builder.WithinDriver("test", new Kernel.FluentDockerKernel())
                 .UseContainer(c =>
@@ -239,7 +239,7 @@ namespace FluentDocker.Tests.CoreTests.Builder
         [Fact]
         public void WithNetwork_AddsNetwork()
         {
-            var builder = new V3Builder();
+            var builder = new FluentBuilder();
             var configured = false;
             builder.WithinDriver("test", new Kernel.FluentDockerKernel())
                 .UseContainer(c =>
@@ -253,7 +253,7 @@ namespace FluentDocker.Tests.CoreTests.Builder
         [Fact]
         public void WithNetworkAlias_AddsNetworkWithAlias()
         {
-            var builder = new V3Builder();
+            var builder = new FluentBuilder();
             var configured = false;
             builder.WithinDriver("test", new Kernel.FluentDockerKernel())
                 .UseContainer(c =>
@@ -267,7 +267,7 @@ namespace FluentDocker.Tests.CoreTests.Builder
         [Fact]
         public void WithMemoryLimit_SetsMemory()
         {
-            var builder = new V3Builder();
+            var builder = new FluentBuilder();
             var configured = false;
             builder.WithinDriver("test", new Kernel.FluentDockerKernel())
                 .UseContainer(c =>
@@ -281,7 +281,7 @@ namespace FluentDocker.Tests.CoreTests.Builder
         [Fact]
         public void WithCpuShares_SetsCpu()
         {
-            var builder = new V3Builder();
+            var builder = new FluentBuilder();
             var configured = false;
             builder.WithinDriver("test", new Kernel.FluentDockerKernel())
                 .UseContainer(c =>
@@ -295,7 +295,7 @@ namespace FluentDocker.Tests.CoreTests.Builder
         [Fact]
         public void WithPrivileged_SetsPrivileged()
         {
-            var builder = new V3Builder();
+            var builder = new FluentBuilder();
             var configured = false;
             builder.WithinDriver("test", new Kernel.FluentDockerKernel())
                 .UseContainer(c =>
@@ -309,7 +309,7 @@ namespace FluentDocker.Tests.CoreTests.Builder
         [Fact]
         public void WithAutoRemove_SetsAutoRemove()
         {
-            var builder = new V3Builder();
+            var builder = new FluentBuilder();
             var configured = false;
             builder.WithinDriver("test", new Kernel.FluentDockerKernel())
                 .UseContainer(c =>
@@ -323,7 +323,7 @@ namespace FluentDocker.Tests.CoreTests.Builder
         [Fact]
         public void ReuseIfExists_SetsReuseBehavior()
         {
-            var builder = new V3Builder();
+            var builder = new FluentBuilder();
             var configured = false;
             builder.WithinDriver("test", new Kernel.FluentDockerKernel())
                 .UseContainer(c =>
@@ -337,7 +337,7 @@ namespace FluentDocker.Tests.CoreTests.Builder
         [Fact]
         public void DestroyIfExists_SetsDestroyBehavior()
         {
-            var builder = new V3Builder();
+            var builder = new FluentBuilder();
             var configured = false;
             builder.WithinDriver("test", new Kernel.FluentDockerKernel())
                 .UseContainer(c =>
@@ -351,7 +351,7 @@ namespace FluentDocker.Tests.CoreTests.Builder
         [Fact]
         public void ForcePullImage_SetsForcePull()
         {
-            var builder = new V3Builder();
+            var builder = new FluentBuilder();
             var configured = false;
             builder.WithinDriver("test", new Kernel.FluentDockerKernel())
                 .UseContainer(c =>
@@ -365,7 +365,7 @@ namespace FluentDocker.Tests.CoreTests.Builder
         [Fact]
         public void KeepContainer_SetsKeepContainer()
         {
-            var builder = new V3Builder();
+            var builder = new FluentBuilder();
             var configured = false;
             builder.WithinDriver("test", new Kernel.FluentDockerKernel())
                 .UseContainer(c =>
@@ -379,7 +379,7 @@ namespace FluentDocker.Tests.CoreTests.Builder
         [Fact]
         public void KeepRunning_SetsKeepRunning()
         {
-            var builder = new V3Builder();
+            var builder = new FluentBuilder();
             var configured = false;
             builder.WithinDriver("test", new Kernel.FluentDockerKernel())
                 .UseContainer(c =>
@@ -393,7 +393,7 @@ namespace FluentDocker.Tests.CoreTests.Builder
         [Fact]
         public void DeleteVolumeOnDispose_SetsVolumeCleanup()
         {
-            var builder = new V3Builder();
+            var builder = new FluentBuilder();
             var configured = false;
             builder.WithinDriver("test", new Kernel.FluentDockerKernel())
                 .UseContainer(c =>
@@ -407,7 +407,7 @@ namespace FluentDocker.Tests.CoreTests.Builder
         [Fact]
         public void DeleteNamedVolumeOnDispose_SetsNamedVolumeCleanup()
         {
-            var builder = new V3Builder();
+            var builder = new FluentBuilder();
             var configured = false;
             builder.WithinDriver("test", new Kernel.FluentDockerKernel())
                 .UseContainer(c =>

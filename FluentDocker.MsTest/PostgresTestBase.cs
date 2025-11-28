@@ -1,5 +1,5 @@
 ﻿using System.Threading.Tasks;
-using FluentDocker.Builders.V3;
+using FluentDocker.Builders;
 
 namespace FluentDocker.MsTest
 {

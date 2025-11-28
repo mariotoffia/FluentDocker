@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
-using FluentDocker.Builders.V3;
+using FluentDocker.Builders;
 using FluentDocker.Common;
 using FluentDocker.Kernel;
 using FluentDocker.Model.Common;
@@ -60,7 +60,7 @@ namespace FluentDocker.MsTest
         {
             Kernel = await CreateKernelAsync();
 
-            var builder = new Builder();
+            var builder = new FluentBuilder();
             builder.WithinDriver(DriverId, Kernel);
             builder.UseCompose(ConfigureCompose);
 

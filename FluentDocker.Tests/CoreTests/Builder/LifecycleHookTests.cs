@@ -1,7 +1,6 @@
-using FluentDocker.Builders.V3;
+using FluentDocker.Builders;
 using FluentDocker.Services;
 using Xunit;
-using V3Builder = FluentDocker.Builders.V3.Builder;
 
 namespace FluentDocker.Tests.CoreTests.Builder
 {
@@ -14,7 +13,7 @@ namespace FluentDocker.Tests.CoreTests.Builder
         [Fact]
         public void CopyToOnStart_SetsHook()
         {
-            var builder = new V3Builder();
+            var builder = new FluentBuilder();
             var configured = false;
             builder.WithinDriver("test", new Kernel.FluentDockerKernel())
                 .UseContainer(c =>
@@ -29,7 +28,7 @@ namespace FluentDocker.Tests.CoreTests.Builder
         [Fact]
         public void CopyFromOnDispose_SetsHook()
         {
-            var builder = new V3Builder();
+            var builder = new FluentBuilder();
             var configured = false;
             builder.WithinDriver("test", new Kernel.FluentDockerKernel())
                 .UseContainer(c =>
@@ -44,7 +43,7 @@ namespace FluentDocker.Tests.CoreTests.Builder
         [Fact]
         public void ExportOnDispose_Simple_SetsHook()
         {
-            var builder = new V3Builder();
+            var builder = new FluentBuilder();
             var configured = false;
             builder.WithinDriver("test", new Kernel.FluentDockerKernel())
                 .UseContainer(c =>
@@ -59,7 +58,7 @@ namespace FluentDocker.Tests.CoreTests.Builder
         [Fact]
         public void ExportOnDispose_WithExplode_SetsHook()
         {
-            var builder = new V3Builder();
+            var builder = new FluentBuilder();
             var configured = false;
             builder.WithinDriver("test", new Kernel.FluentDockerKernel())
                 .UseContainer(c =>
@@ -74,7 +73,7 @@ namespace FluentDocker.Tests.CoreTests.Builder
         [Fact]
         public void ExportOnDispose_WithCondition_SetsHook()
         {
-            var builder = new V3Builder();
+            var builder = new FluentBuilder();
             var configured = false;
             builder.WithinDriver("test", new Kernel.FluentDockerKernel())
                 .UseContainer(c =>
@@ -91,7 +90,7 @@ namespace FluentDocker.Tests.CoreTests.Builder
         [Fact]
         public void ExecuteOnRunning_SetsHook()
         {
-            var builder = new V3Builder();
+            var builder = new FluentBuilder();
             var configured = false;
             builder.WithinDriver("test", new Kernel.FluentDockerKernel())
                 .UseContainer(c =>
@@ -106,7 +105,7 @@ namespace FluentDocker.Tests.CoreTests.Builder
         [Fact]
         public void ExecuteOnDisposing_SetsHook()
         {
-            var builder = new V3Builder();
+            var builder = new FluentBuilder();
             var configured = false;
             builder.WithinDriver("test", new Kernel.FluentDockerKernel())
                 .UseContainer(c =>
@@ -121,7 +120,7 @@ namespace FluentDocker.Tests.CoreTests.Builder
         [Fact]
         public void MultipleHooks_CanBeChained()
         {
-            var builder = new V3Builder();
+            var builder = new FluentBuilder();
             var configured = false;
             builder.WithinDriver("test", new Kernel.FluentDockerKernel())
                 .UseContainer(c =>
