@@ -218,9 +218,33 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
                 {
                     try
                     {
-                        var image = JsonConvert.DeserializeObject<Image>(line);
-                        if (image != null)
+                        // docker images JSON has Repository, Tag, ID fields
+                        // We need to map to Image class with RepoTags
+                        var dto = JsonConvert.DeserializeObject<DockerImageDto>(line);
+                        if (dto != null)
+                        {
+                            var image = new Image
+                            {
+                                Id = dto.ID,
+                                Size = ParseSize(dto.Size),
+                                VirtualSize = ParseSize(dto.VirtualSize),
+                                Containers = int.TryParse(dto.Containers, out var count) ? count : 0
+                            };
+
+                            // Construct RepoTags from Repository and Tag
+                            if (!string.IsNullOrEmpty(dto.Repository) && !string.IsNullOrEmpty(dto.Tag))
+                            {
+                                image.RepoTags.Add($"{dto.Repository}:{dto.Tag}");
+                            }
+
+                            // Parse CreatedAt if present
+                            if (!string.IsNullOrEmpty(dto.CreatedAt) && DateTime.TryParse(dto.CreatedAt, out var created))
+                            {
+                                image.Created = created;
+                            }
+
                             images.Add(image);
+                        }
                     }
                     catch
                     {
@@ -234,6 +258,70 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
             {
                 return CommandResponse<IList<Image>>.Fail(ex.Message, ErrorCodes.General.Unknown);
             }
+        }
+
+        /// <summary>
+        /// DTO for docker images JSON output.
+        /// </summary>
+        private class DockerImageDto
+        {
+            public string ID { get; set; }
+            public string Repository { get; set; }
+            public string Tag { get; set; }
+            public string Size { get; set; }
+            public string VirtualSize { get; set; }
+            public string CreatedAt { get; set; }
+            public string Containers { get; set; }
+            public string Digest { get; set; }
+        }
+
+        /// <summary>
+        /// DTO for docker history JSON output.
+        /// </summary>
+        private class DockerHistoryDto
+        {
+            public string ID { get; set; }
+            public string CreatedBy { get; set; }
+            public string CreatedAt { get; set; }
+            public string CreatedSince { get; set; }
+            public string Size { get; set; }
+            public string Comment { get; set; }
+        }
+
+        /// <summary>
+        /// Parses size string like "1.05GB", "125MB", "9.18MB" to bytes.
+        /// </summary>
+        private static long ParseSize(string sizeStr)
+        {
+            if (string.IsNullOrEmpty(sizeStr))
+                return 0;
+
+            sizeStr = sizeStr.Trim();
+            if (sizeStr == "N/A" || sizeStr == "0B")
+                return 0;
+
+            var multipliers = new Dictionary<string, long>
+            {
+                { "B", 1L },
+                { "KB", 1024L },
+                { "MB", 1024L * 1024 },
+                { "GB", 1024L * 1024 * 1024 },
+                { "TB", 1024L * 1024 * 1024 * 1024 }
+            };
+
+            foreach (var unit in multipliers.Keys)
+            {
+                if (sizeStr.EndsWith(unit, StringComparison.OrdinalIgnoreCase))
+                {
+                    var numberPart = sizeStr.Substring(0, sizeStr.Length - unit.Length).Trim();
+                    if (double.TryParse(numberPart, out var number))
+                    {
+                        return (long)(number * multipliers[unit]);
+                    }
+                }
+            }
+
+            return 0;
         }
 
         /// <inheritdoc />
@@ -279,7 +367,8 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
         {
             try
             {
-                var result = await ExecuteCommandAsync($"history --format '{{{{json .}}}}' --no-trunc {imageId}", cancellationToken);
+                // Quote the format string to ensure it's treated as a single argument
+                var result = await ExecuteCommandAsync($"history --format \"{{{{json .}}}}\" --no-trunc {imageId}", cancellationToken);
 
                 if (!result.Success)
                 {
@@ -296,9 +385,26 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
                 {
                     try
                     {
-                        var layer = JsonConvert.DeserializeObject<ImageLayer>(line);
-                        if (layer != null)
+                        // Docker history JSON has ID, CreatedAt, CreatedBy, Size, Comment fields
+                        var dto = JsonConvert.DeserializeObject<DockerHistoryDto>(line);
+                        if (dto != null)
+                        {
+                            var layer = new ImageLayer
+                            {
+                                Id = dto.ID,
+                                CreatedBy = dto.CreatedBy,
+                                Comment = dto.Comment,
+                                Size = ParseSize(dto.Size)
+                            };
+
+                            // Parse CreatedAt if present
+                            if (!string.IsNullOrEmpty(dto.CreatedAt) && DateTime.TryParse(dto.CreatedAt, out var created))
+                            {
+                                layer.Created = created;
+                            }
+
                             layers.Add(layer);
+                        }
                     }
                     catch
                     {

@@ -182,7 +182,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
                     {
                         [volumeName] = "/data"
                     },
-                    Command = new[] { "sh", "-c", $"echo '{testData}' > /data/test.txt && sleep 5" },
+                    Command = new[] { "sh", "-c", $"echo \"{testData}\" > /data/test.txt && sleep 5" },
                     Detach = true
                 });
                 container1Id = container1Result.Data?.Id;

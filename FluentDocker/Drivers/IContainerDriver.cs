@@ -330,8 +330,11 @@ namespace FluentDocker.Drivers
     /// </summary>
     public class ContainerRunResult
     {
-        /// <summary>Container ID.</summary>
+        /// <summary>Container ID (when Detach = true) or null (when Detach = false).</summary>
         public string Id { get; set; }
+
+        /// <summary>Container output (when Detach = false) or null (when Detach = true).</summary>
+        public string Output { get; set; }
 
         /// <summary>Warnings from the run operation.</summary>
         public List<string> Warnings { get; set; } = new List<string>();

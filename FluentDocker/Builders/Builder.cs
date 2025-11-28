@@ -212,14 +212,84 @@ namespace FluentDocker.Builders
                 scopes[key] = scope;
 
                 // Execute operations in this scope
+                // NOTE: Container operations with links will create but not start containers
+                // They will be started later in dependency order
                 foreach (var operation in group)
                 {
                     var service = await operation.ExecuteAsync(cancellationToken);
                     scope.AddResult(service);
                 }
+
+                // After all services are created, start containers with links in dependency order
+                await StartContainersWithLinksAsync(scope, cancellationToken);
             }
 
             return new BuildResults(scopes.Values.ToList());
+        }
+
+        /// <summary>
+        /// Starts containers that have links in proper dependency order.
+        /// Containers without links are already started. This method only starts containers
+        /// that were created but not started due to link dependencies.
+        ///
+        /// Containers are started in the order they were created, which should respect
+        /// dependency order (linked containers should be defined after their dependencies).
+        /// </summary>
+        private async Task StartContainersWithLinksAsync(BuildScope scope, CancellationToken cancellationToken)
+        {
+            // Find all containers that need to be started (they have links and are not running)
+            // Keep them in the original order (Results list maintains creation order)
+            var containersToStart = scope.Results
+                .OfType<IContainerService>()
+                .Where(c => c.State != ServiceRunningState.Running)
+                .ToList();
+
+            if (containersToStart.Count == 0)
+                return;
+
+            // Get driver to check container status
+            var driver = scope.Kernel.SysCtl<Drivers.IContainerDriver>(scope.DriverId);
+            var context = new DriverContext(scope.DriverId);
+
+            // Start containers in order - each container must wait for its linked containers
+            // to be running. By starting in creation order, dependencies should be satisfied.
+            foreach (var container in containersToStart)
+            {
+                await container.StartAsync(cancellationToken);
+
+                // Wait for container to actually be running before starting next one
+                // This is critical for containers with links
+                await WaitForContainerRunningAsync(driver, context, container.Id, cancellationToken);
+
+                // Note: Lifecycle hooks are executed by ContainerService.StartAsync
+            }
+        }
+
+        /// <summary>
+        /// Waits for a container to be in running state.
+        /// </summary>
+        private async Task WaitForContainerRunningAsync(
+            Drivers.IContainerDriver driver,
+            DriverContext context,
+            string containerId,
+            CancellationToken cancellationToken)
+        {
+            const int maxAttempts = 30; // 30 attempts * 100ms = 3 seconds max
+            const int delayMs = 100;
+
+            for (int i = 0; i < maxAttempts; i++)
+            {
+                var inspectResult = await driver.InspectAsync(context, containerId, cancellationToken);
+                if (inspectResult.Success && inspectResult.Data?.State?.Running == true)
+                {
+                    return;
+                }
+
+                await Task.Delay(delayMs, cancellationToken);
+            }
+
+            // If we get here, container didn't start in time, but let Docker handle the error
+            // when the next container with links tries to start
         }
 
         private void ValidateScope()
@@ -1099,16 +1169,55 @@ namespace FluentDocker.Builders
                 _deleteVolumeOnDispose, _deleteNamedVolumeOnDispose,
                 _customResolver, _lifecycleHooks);
 
-            // Start the container
-            await service.StartAsync(cancellationToken);
+            // If container has links, defer starting until after all containers are created
+            // This allows linked containers to be running first
+            bool hasLinks = _links.Count > 0;
 
-            // Execute "on running" lifecycle hooks
-            await ExecuteLifecycleHooksAsync(service, ServiceRunningState.Running, cancellationToken);
+            if (!hasLinks)
+            {
+                // Start the container immediately if no links
+                await service.StartAsync(cancellationToken);
 
-            // Execute wait conditions
-            await ExecuteWaitConditionsAsync(service, cancellationToken);
+                // Wait for container to actually be running
+                // This is critical for containers that other containers will link to
+                await WaitForContainerRunningAsync(driver, context, response.Data.Id, cancellationToken);
+
+                // Execute "on running" lifecycle hooks
+                await ExecuteLifecycleHooksAsync(service, ServiceRunningState.Running, cancellationToken);
+
+                // Execute wait conditions
+                await ExecuteWaitConditionsAsync(service, cancellationToken);
+            }
+            // Note: Containers with links will be started by Builder.StartContainersWithLinksAsync
 
             return service;
+        }
+
+        /// <summary>
+        /// Waits for a container to be in running state.
+        /// </summary>
+        private async Task WaitForContainerRunningAsync(
+            Drivers.IContainerDriver driver,
+            DriverContext context,
+            string containerId,
+            CancellationToken cancellationToken)
+        {
+            const int maxAttempts = 30; // 30 attempts * 100ms = 3 seconds max
+            const int delayMs = 100;
+
+            for (int i = 0; i < maxAttempts; i++)
+            {
+                var inspectResult = await driver.InspectAsync(context, containerId, cancellationToken);
+                if (inspectResult.Success && inspectResult.Data?.State?.Running == true)
+                {
+                    return;
+                }
+
+                await Task.Delay(delayMs, cancellationToken);
+            }
+
+            // If we get here, container didn't start in time, but let Docker handle the error
+            // when the next container with links tries to start
         }
 
         private async Task<string> FindExistingContainerAsync(
@@ -1408,6 +1517,29 @@ namespace FluentDocker.Builders
             var driver = _kernel.SysCtl<Drivers.INetworkDriver>(_driverId);
             var context = new DriverContext(_driverId);
 
+            // Check if network already exists
+            var listResult = await driver.ListAsync(context, null, cancellationToken);
+            if (listResult.Success)
+            {
+                var existingNetwork = listResult.Data?.FirstOrDefault(n =>
+                    string.Equals(n.Name, _name, StringComparison.OrdinalIgnoreCase));
+
+                if (existingNetwork != null)
+                {
+                    // Network exists - if RemoveOnDispose is set, remove it first to recreate
+                    if (_removeOnDispose)
+                    {
+                        await driver.RemoveAsync(context, existingNetwork.Id, cancellationToken);
+                    }
+                    else
+                    {
+                        // Reuse existing network
+                        return new Services.Impl.NetworkService(
+                            _kernel, _driverId, existingNetwork.Id, _name, _removeOnDispose);
+                    }
+                }
+            }
+
             var config = new Drivers.NetworkCreateConfig
             {
                 Name = _name,
@@ -1419,7 +1551,7 @@ namespace FluentDocker.Builders
                 Labels = _labels,
                 Options = _options
             };
-            
+
             // IP range can be set via options if needed
             if (!string.IsNullOrEmpty(_ipRange))
                 config.Options["com.docker.network.bridge.ip-range"] = _ipRange;

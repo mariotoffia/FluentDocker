@@ -259,7 +259,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
                     {
                         [volumeName] = "/data"
                     },
-                    Command = new[] { "sh", "-c", $"echo '{testData}' > /data/test.txt" },
+                    Command = new[] { "sh", "-c", $"echo \"{testData}\" > /data/test.txt" },
                     Detach = false
                 });
                 Assert.True(result1.Success);

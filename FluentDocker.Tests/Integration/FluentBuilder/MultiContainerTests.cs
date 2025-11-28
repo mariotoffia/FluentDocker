@@ -1,8 +1,12 @@
 using System;
+using System.Linq;
 using System.Threading.Tasks;
 using FluentDocker.Builders;
+using FluentDocker.Drivers;
 using FluentDocker.Kernel;
+using FluentDocker.Model.Drivers;
 using FluentDocker.Services;
+using FluentDocker.Tests.Utilities;
 using Xunit;
 
 namespace FluentDocker.Tests.Integration.FluentBuilder
@@ -17,18 +21,24 @@ namespace FluentDocker.Tests.Integration.FluentBuilder
     {
         private FluentDockerKernel _kernel;
         private const string DriverId = "docker";
+        private const string TestSessionLabel = "fluentdocker.test.session";
+        private readonly string _sessionId = Guid.NewGuid().ToString();
 
         public async Task InitializeAsync()
         {
             _kernel = await FluentDockerKernel.Create()
                 .WithDriver(DriverId, d => d.UseDockerCli().AsDefault())
                 .BuildAsync();
+
+            // Cleanup any leftover test containers from previous runs
+            await TestContainerUtils.CleanupAllTestResourcesAsync(_kernel, DriverId);
         }
 
-        public Task DisposeAsync()
+        public async Task DisposeAsync()
         {
+            // Cleanup test containers and networks created in this session
+            await TestContainerUtils.CleanupAllTestResourcesAsync(_kernel, DriverId, _sessionId);
             _kernel?.Dispose();
-            return Task.CompletedTask;
         }
 
         [Fact]

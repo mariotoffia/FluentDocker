@@ -7,6 +7,7 @@ using FluentDocker.Common;
 using FluentDocker.Model.Drivers;
 using Newtonsoft.Json;
 using Container = FluentDocker.Model.Containers.Container;
+using ContainerState = FluentDocker.Model.Containers.ContainerState;
 
 namespace FluentDocker.Drivers.Docker.Cli.Components
 {
@@ -110,9 +111,14 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
                 // Image (required)
                 args.Add(config.Image);
 
-                // Command
+                // Command - properly quote arguments that contain spaces or special characters
                 if (config.Command != null && config.Command.Length > 0)
-                    args.AddRange(config.Command);
+                {
+                    foreach (var cmdArg in config.Command)
+                    {
+                        args.Add(QuoteArgumentIfNeeded(cmdArg));
+                    }
+                }
 
                 var result = await ExecuteCommandAsync(string.Join(" ", args), cancellationToken);
 
@@ -259,8 +265,14 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
 
                 args.Add(config.Image);
 
+                // Command - properly quote arguments that contain spaces or special characters
                 if (config.Command != null && config.Command.Length > 0)
-                    args.AddRange(config.Command);
+                {
+                    foreach (var cmdArg in config.Command)
+                    {
+                        args.Add(QuoteArgumentIfNeeded(cmdArg));
+                    }
+                }
 
                 var result = await ExecuteCommandAsync(string.Join(" ", args), cancellationToken);
 
@@ -273,8 +285,40 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
                         result.ExitCode);
                 }
 
-                return CommandResponse<ContainerRunResult>.Ok(
-                    new ContainerRunResult { Id = result.Output.Trim() });
+                var runResult = new ContainerRunResult();
+
+                if (config.Detach)
+                {
+                    // When detached, output is the container ID
+                    runResult.Id = result.Output.Trim();
+                }
+                else
+                {
+                    // When not detached, output is the container's stdout/stderr
+                    runResult.Output = result.Output;
+
+                    // Find the container ID by listing the most recently created container
+                    // Use the name if specified, otherwise get the last created container
+                    if (!string.IsNullOrEmpty(config.Name))
+                    {
+                        var listResult = await ExecuteCommandAsync($"ps -a --filter \"name={config.Name}\" --format \"{{{{.ID}}}}\" -n 1", cancellationToken);
+                        if (listResult.Success && !string.IsNullOrEmpty(listResult.Output))
+                        {
+                            runResult.Id = listResult.Output.Trim().Split('\n')[0];
+                        }
+                    }
+                    else
+                    {
+                        // Get the most recently created container
+                        var listResult = await ExecuteCommandAsync("ps -a --format \"{{.ID}}\" -n 1", cancellationToken);
+                        if (listResult.Success && !string.IsNullOrEmpty(listResult.Output))
+                        {
+                            runResult.Id = listResult.Output.Trim().Split('\n')[0];
+                        }
+                    }
+                }
+
+                return CommandResponse<ContainerRunResult>.Ok(runResult);
             }
             catch (Exception ex)
             {
@@ -576,6 +620,34 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
                 if (filter?.All == true)
                     args += " -a";
 
+                // Add label filters
+                if (filter?.Labels != null && filter.Labels.Count > 0)
+                {
+                    foreach (var label in filter.Labels)
+                    {
+                        if (string.IsNullOrEmpty(label.Value))
+                            args += $" --filter \"label={label.Key}\"";
+                        else
+                            args += $" --filter \"label={label.Key}={label.Value}\"";
+                    }
+                }
+
+                // Add name filter
+                if (!string.IsNullOrEmpty(filter?.Name))
+                    args += $" --filter \"name={filter.Name}\"";
+
+                // Add status filter
+                if (!string.IsNullOrEmpty(filter?.Status))
+                    args += $" --filter \"status={filter.Status}\"";
+
+                // Add ID filter
+                if (!string.IsNullOrEmpty(filter?.Id))
+                    args += $" --filter \"id={filter.Id}\"";
+
+                // Add ancestor filter
+                if (!string.IsNullOrEmpty(filter?.Ancestor))
+                    args += $" --filter \"ancestor={filter.Ancestor}\"";
+
                 var result = await ExecuteCommandAsync(args, cancellationToken);
 
                 if (!result.Success)
@@ -592,9 +664,35 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
                 {
                     try
                     {
-                        var container = JsonConvert.DeserializeObject<Container>(line);
-                        if (container != null)
+                        // Docker ps JSON has different field names than our Container model
+                        var dto = JsonConvert.DeserializeObject<DockerPsDto>(line);
+                        if (dto != null)
+                        {
+                            var container = new Container
+                            {
+                                Id = dto.ID,
+                                Image = dto.Image,
+                                Name = dto.Names
+                            };
+
+                            // Parse CreatedAt if present
+                            if (!string.IsNullOrEmpty(dto.CreatedAt) && DateTime.TryParse(dto.CreatedAt, out var created))
+                            {
+                                container.Created = created;
+                            }
+
+                            // Parse State if present
+                            if (!string.IsNullOrEmpty(dto.State))
+                            {
+                                container.State = new ContainerState
+                                {
+                                    Running = dto.State.Equals("running", StringComparison.OrdinalIgnoreCase),
+                                    Status = dto.Status
+                                };
+                            }
+
                             containers.Add(container);
+                        }
                     }
                     catch
                     {
@@ -950,6 +1048,54 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
             {
                 return CommandResponse<Unit>.Fail(ex.Message, ErrorCodes.Container.UpdateFailed);
             }
+        }
+
+        #endregion
+
+        #region Helper Methods
+
+        /// <summary>
+        /// Quotes an argument if it contains spaces.
+        /// For ProcessStartInfo on Unix, arguments containing spaces need to be quoted.
+        /// We use double quotes and escape any existing double quotes.
+        /// </summary>
+        /// <param name="argument">The argument to potentially quote</param>
+        /// <returns>The argument, quoted if necessary</returns>
+        private static string QuoteArgumentIfNeeded(string argument)
+        {
+            if (string.IsNullOrEmpty(argument))
+                return argument;
+
+            // Only quote if the argument contains spaces or tabs
+            // Other special characters are handled correctly by ProcessStartInfo
+            bool needsQuoting = argument.Contains(' ') || argument.Contains('\t');
+
+            if (!needsQuoting)
+                return argument;
+
+            // Escape any backslashes first, then escape double quotes
+            var escaped = argument.Replace("\\", "\\\\").Replace("\"", "\\\"");
+            return $"\"{escaped}\"";
+        }
+
+        /// <summary>
+        /// DTO for docker ps JSON output.
+        /// </summary>
+        private class DockerPsDto
+        {
+            public string ID { get; set; }
+            public string Image { get; set; }
+            public string Command { get; set; }
+            public string CreatedAt { get; set; }
+            public string Names { get; set; }
+            public string State { get; set; }
+            public string Status { get; set; }
+            public string Ports { get; set; }
+            public string Labels { get; set; }
+            public string Mounts { get; set; }
+            public string Networks { get; set; }
+            public string RunningFor { get; set; }
+            public string Size { get; set; }
         }
 
         #endregion
