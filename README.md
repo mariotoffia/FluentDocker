@@ -9,6 +9,28 @@
 | Microsoft Test | [![NuGet](https://img.shields.io/nuget/v/FluentDocker.MsTest.svg)](https://www.nuget.org/packages/FluentDocker.MsTest) | [![Downloads](https://img.shields.io/nuget/dt/FluentDocker.MsTest.svg)](https://www.nuget.org/packages/FluentDocker.MsTest) |
 | XUnit Test     | [![NuGet](https://img.shields.io/nuget/v/FluentDocker.XUnit.svg)](https://www.nuget.org/packages/FluentDocker.XUnit) | [![Downloads](https://img.shields.io/nuget/dt/FluentDocker.XUnit.svg)](https://www.nuget.org/packages/FluentDocker.XUnit) |
 
+---
+
+## ⚠️ Migrating from v2.x.x to v3.0.0?
+
+**FluentDocker v3.0.0 introduces breaking changes.** Please read the [Migration Guide](MIGRATE_TO_V3.md) for:
+- **Critical changes** (namespace rename, Compose commands)
+- **Step-by-step migration** instructions
+- **New features** (async/await, label filtering, multiple drivers)
+- **Detailed examples** and troubleshooting
+
+**Quick Summary:**
+- ✅ Namespace changed: `Ductus.FluentDocker` → `FluentDocker`
+- ✅ Package names changed (remove `Ductus.` prefix)
+- ✅ Compose commands now use struct-based arguments
+- ✅ New: Label-based container filtering (5.5x faster cleanup)
+- ✅ New: Full async/await support
+- ✅ New: Multiple driver instances (Docker + Podman simultaneously)
+
+📖 **[Read the full Migration Guide →](MIGRATE_TO_V3.md)**
+
+---
+
 # FluentDocker
 
 This library enables `docker` and `docker-compose` interactions usinga _Fluent API_. It is supported on Linux, Windows and Mac. It also has support for the legazy `docker-machine` interactions.
