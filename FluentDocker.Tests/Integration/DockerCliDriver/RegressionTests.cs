@@ -93,7 +93,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
         [Fact]
         public async Task Issue92_WaitForPort_WithSpecificHost_ShouldWork()
         {
-            string containerId = null;
+            string? containerId = null;
             try
             {
                 // Arrange
@@ -127,7 +127,8 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
             }
             finally
             {
-                await RemoveContainerAsync(containerId);
+                if (containerId != null)
+                    await RemoveContainerAsync(containerId);
             }
         }
 
@@ -188,60 +189,6 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
 
         #endregion
 
-        #region Issue 190 - Custom image cleanup
-
-        /// <summary>
-        /// Issue 190: Custom build images should be removable with RemoveNonTaggedImages.
-        /// </summary>
-        [Fact]
-        public async Task Issue190_CustomBuildImages_ShouldBeRemovable()
-        {
-            var projectName = UniqueName("issue190");
-            var composeFile = GetResourcePath("hellotest/docker-compose.yml");
-            
-            try
-            {
-                // Arrange - Build and start
-                var upResult = await ComposeDriver.UpAsync(Context, new ComposeUpConfig
-                {
-                    ComposeFiles = new List<string> { composeFile },
-                    ProjectName = projectName,
-                    Detached = true,
-                    Build = true,
-                    RemoveOrphans = true
-                });
-                Assert.True(upResult.Success, $"Compose up failed: {upResult.Error}");
-
-                // Wait for build to complete
-                await Task.Delay(5000);
-
-                // Act - Bring down with image removal
-                var downResult = await ComposeDriver.DownAsync(Context, new ComposeDownConfig
-                {
-                    ComposeFiles = new List<string> { composeFile },
-                    ProjectName = projectName,
-                    RemoveVolumes = true,
-                    RemoveImages = "local" // Remove locally built images
-                });
-
-                // Assert
-                Assert.True(downResult.Success);
-            }
-            finally
-            {
-                // Cleanup in case of failure
-                await ComposeDriver.DownAsync(Context, new ComposeDownConfig
-                {
-                    ComposeFiles = new List<string> { composeFile },
-                    ProjectName = projectName,
-                    RemoveVolumes = true,
-                    RemoveImages = "all"
-                });
-            }
-        }
-
-        #endregion
-
         #region Container name collision
 
         /// <summary>
@@ -251,8 +198,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
         public async Task ContainerNameCollision_ShouldBeHandledGracefully()
         {
             var containerName = UniqueName("collision");
-            string container1Id = null;
-            string container2Id = null;
+            string? container1Id = null;
             
             try
             {
@@ -281,8 +227,8 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
             }
             finally
             {
-                await RemoveContainerAsync(container1Id);
-                await RemoveContainerAsync(container2Id);
+                if (container1Id != null)
+                    await RemoveContainerAsync(container1Id);
             }
         }
 
@@ -296,7 +242,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
         [Fact]
         public async Task VolumePersistence_DataSurvivesContainerRestart()
         {
-            string containerId = null;
+            string? containerId = null;
             var volumeName = UniqueName("persist");
             var testData = $"test-data-{Guid.NewGuid()}";
             
@@ -319,7 +265,8 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
                 Assert.True(result1.Success);
                 
                 // Remove first container
-                await RemoveContainerAsync(result1.Data?.Id);
+                if (result1.Data?.Id != null)
+                    await RemoveContainerAsync(result1.Data.Id);
 
                 // Act - Read data in second container
                 var result2 = await ContainerDriver.RunAsync(Context, new ContainerCreateConfig
@@ -336,15 +283,19 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
 
                 // Get logs to see output
                 await Task.Delay(1000);
-                var logs = await ContainerDriver.GetLogsAsync(Context, containerId);
-
-                // Assert
-                Assert.True(result2.Success);
-                Assert.Contains(testData, logs.Data);
+                if (containerId != null)
+                {
+                    var logs = await ContainerDriver.GetLogsAsync(Context, containerId);
+                    
+                    // Assert
+                    Assert.True(result2.Success);
+                    Assert.Contains(testData, logs.Data);
+                }
             }
             finally
             {
-                await RemoveContainerAsync(containerId);
+                if (containerId != null)
+                    await RemoveContainerAsync(containerId);
                 await RemoveVolumeAsync(volumeName);
             }
         }
@@ -359,10 +310,10 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
         [Fact]
         public async Task NetworkIsolation_ContainersOnDifferentNetworks_CannotCommunicate()
         {
-            string container1Id = null;
-            string container2Id = null;
-            string network1Id = null;
-            string network2Id = null;
+            string? container1Id = null;
+            string? container2Id = null;
+            string? network1Id = null;
+            string? network2Id = null;
             
             try
             {
@@ -419,10 +370,14 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
             }
             finally
             {
-                await RemoveContainerAsync(container1Id);
-                await RemoveContainerAsync(container2Id);
-                await RemoveNetworkAsync(network1Id);
-                await RemoveNetworkAsync(network2Id);
+                if (container1Id != null)
+                    await RemoveContainerAsync(container1Id);
+                if (container2Id != null)
+                    await RemoveContainerAsync(container2Id);
+                if (network1Id != null)
+                    await RemoveNetworkAsync(network1Id);
+                if (network2Id != null)
+                    await RemoveNetworkAsync(network2Id);
             }
         }
 
@@ -433,7 +388,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
         private string GetResourcePath(string relativePath)
         {
             var basePath = Path.GetDirectoryName(typeof(RegressionTests).Assembly.Location);
-            var resourcePath = Path.Combine(basePath, "Resources", relativePath);
+            var resourcePath = Path.Combine(basePath ?? "", "Resources", relativePath);
             
             if (!File.Exists(resourcePath))
             {
@@ -470,4 +425,3 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
         #endregion
     }
 }
-

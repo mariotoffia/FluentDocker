@@ -603,7 +603,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
         private string GetResourcePath(string relativePath)
         {
             var basePath = Path.GetDirectoryName(typeof(ComposeDriverTests).Assembly.Location);
-            var resourcePath = Path.Combine(basePath, "Resources", relativePath);
+            var resourcePath = Path.Combine(basePath ?? "", "Resources", relativePath);
             
             // If not found, try from current directory
             if (!File.Exists(resourcePath))

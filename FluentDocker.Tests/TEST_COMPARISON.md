@@ -235,12 +235,12 @@ The entire Commands namespace is deprecated. Tests should NOT be ported.
 ### Test Implementation Status
 - ✅ **Unit Tests**: 328 tests fully implemented (all passing)
 - ✅ **Docker Driver Integration Tests**: 46 passing, 10 need model fixes
-- ✅ **Fluent Container Tests**: 20 tests for container operations (ports, mounts, copies, exports)
-- ✅ **Fluent Network Tests**: 8 tests for custom networks, static IPs, internal networks
-- ✅ **Fluent Volume Tests**: 10 tests for volume lifecycle, bind mounts, persistence
-- ✅ **Compose Driver Tests**: 12 tests for compose up/down, pause/unpause, logs, exec
-- ✅ **Wait Condition Tests**: 10 tests for port, process, HTTP, health, and custom waits
-- ✅ **Regression Tests**: 7 tests for GitHub issues (85, 92, 94, 190)
+- ✅ **Fluent Container Tests**: 13/14 passing (1 health check config issue)
+- ✅ **Fluent Network Tests**: 6/6 passing - all passing!
+- ✅ **Fluent Volume Tests**: 5/6 passing (1 minor timing issue)
+- ⚠️ **Compose Driver Tests**: Need resources copied to output directory
+- ✅ **Wait Condition Tests**: 8/9 passing (1 health check wait issue)
+- ✅ **Regression Tests**: 4/6 passing (2 compose-related)
 - ✅ **DockerfileBuilder**: Full support for programmatic Dockerfile creation
 - ✅ **ImageBuilder**: Full support for building Docker images
 - ✅ **Extension Tests**: ConversionExtension, ResourceExtension, EnvironmentExtension ported
@@ -252,6 +252,7 @@ The entire Commands namespace is deprecated. Tests should NOT be ported.
 - ✅ **Volume Driver Tests**: Create, mount, list tests
 - ✅ **Image Driver Tests**: Pull, inspect, tag tests
 - ⚠️ **System Driver Tests**: Need model updates for Docker JSON structure
+- ⚠️ **Health Check Tests**: Driver may need fix for health check config passing
 
 ---
 

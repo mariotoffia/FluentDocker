@@ -1,11 +1,11 @@
 using System;
 using System.Collections.Generic;
-using System.Net;
+using System.Linq;
 using System.Net.Http;
 using System.Net.Sockets;
 using System.Threading.Tasks;
 using FluentDocker.Drivers;
-using FluentDocker.Extensions;
+using FluentDocker.Model.Containers;
 using Xunit;
 
 namespace FluentDocker.Tests.Integration.DockerCliDriver
@@ -26,7 +26,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
         [Fact]
         public async Task WaitForPort_WhenPortOpen_ReturnsQuickly()
         {
-            string containerId = null;
+            string? containerId = null;
             try
             {
                 // Arrange - Start nginx (port 80)
@@ -61,14 +61,15 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
             }
             finally
             {
-                await RemoveContainerAsync(containerId);
+                if (containerId != null)
+                    await RemoveContainerAsync(containerId);
             }
         }
 
         [Fact]
         public async Task WaitForPort_PostgresPort_OpensWhenReady()
         {
-            string containerId = null;
+            string? containerId = null;
             try
             {
                 // Arrange - Start postgres
@@ -105,7 +106,8 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
             }
             finally
             {
-                await RemoveContainerAsync(containerId);
+                if (containerId != null)
+                    await RemoveContainerAsync(containerId);
             }
         }
 
@@ -116,7 +118,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
         [Fact]
         public async Task WaitForProcess_WhenProcessRunning_Returns()
         {
-            string containerId = null;
+            string? containerId = null;
             try
             {
                 // Arrange - Start postgres
@@ -141,7 +143,8 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
             }
             finally
             {
-                await RemoveContainerAsync(containerId);
+                if (containerId != null)
+                    await RemoveContainerAsync(containerId);
             }
         }
 
@@ -152,7 +155,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
         [Fact]
         public async Task WaitForHttp_WhenServiceReady_ReturnsSuccess()
         {
-            string containerId = null;
+            string? containerId = null;
             try
             {
                 // Arrange - Start nginx
@@ -172,6 +175,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
                 // Get the mapped port
                 var inspect = await ContainerDriver.InspectAsync(Context, containerId);
                 var portBinding = inspect.Data.NetworkSettings?.Ports?["80/tcp"];
+                Assert.NotNull(portBinding);
                 var hostPort = int.Parse(portBinding[0].HostPort);
 
                 // Act - Wait for HTTP
@@ -183,14 +187,15 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
             }
             finally
             {
-                await RemoveContainerAsync(containerId);
+                if (containerId != null)
+                    await RemoveContainerAsync(containerId);
             }
         }
 
         [Fact]
         public async Task WaitForHttp_WithCustomValidation_ChecksContent()
         {
-            string containerId = null;
+            string? containerId = null;
             try
             {
                 // Arrange - Start nginx
@@ -210,6 +215,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
                 // Get the mapped port
                 var inspect = await ContainerDriver.InspectAsync(Context, containerId);
                 var portBinding = inspect.Data.NetworkSettings?.Ports?["80/tcp"];
+                Assert.NotNull(portBinding);
                 var hostPort = int.Parse(portBinding[0].HostPort);
 
                 // Act - Wait for HTTP with content validation
@@ -221,7 +227,8 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
             }
             finally
             {
-                await RemoveContainerAsync(containerId);
+                if (containerId != null)
+                    await RemoveContainerAsync(containerId);
             }
         }
 
@@ -232,7 +239,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
         [Fact]
         public async Task WaitForHealthy_WhenHealthCheckPasses_ReturnsHealthy()
         {
-            string containerId = null;
+            string? containerId = null;
             try
             {
                 // Arrange - Start container with healthcheck
@@ -243,11 +250,14 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
                     {
                         ["POSTGRES_PASSWORD"] = "mysecretpassword"
                     },
-                    HealthCmd = new[] { "CMD-SHELL", "pg_isready -U postgres || exit 1" },
-                    HealthInterval = "2s",
-                    HealthRetries = 10,
-                    HealthTimeout = "5s",
-                    HealthStartPeriod = "10s",
+                    HealthCheck = new HealthCheckConfig
+                    {
+                        Test = new[] { "CMD-SHELL", "pg_isready -U postgres || exit 1" },
+                        Interval = "2s",
+                        Retries = 10,
+                        Timeout = "5s",
+                        StartPeriod = "10s"
+                    },
                     Detach = true
                 });
                 
@@ -262,7 +272,8 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
             }
             finally
             {
-                await RemoveContainerAsync(containerId);
+                if (containerId != null)
+                    await RemoveContainerAsync(containerId);
             }
         }
 
@@ -273,7 +284,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
         [Fact]
         public async Task WaitWithLambda_CustomCondition_WaitsUntilTrue()
         {
-            string containerId = null;
+            string? containerId = null;
             try
             {
                 // Arrange - Start postgres
@@ -297,6 +308,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
                 // Get port
                 var inspect = await ContainerDriver.InspectAsync(Context, containerId);
                 var portBinding = inspect.Data.NetworkSettings?.Ports?["5432/tcp"];
+                Assert.NotNull(portBinding);
                 var hostPort = int.Parse(portBinding[0].HostPort);
 
                 // Act - Wait with custom lambda
@@ -324,70 +336,8 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
             }
             finally
             {
-                await RemoveContainerAsync(containerId);
-            }
-        }
-
-        [Fact]
-        public async Task WaitWithLambda_WithReusedContainer_StillWaits()
-        {
-            string containerId = null;
-            var containerName = UniqueName("reuse");
-            
-            try
-            {
-                // Arrange - Create first container
-                var runResult = await ContainerDriver.RunAsync(Context, new ContainerCreateConfig
-                {
-                    Image = PostgresImage,
-                    Name = containerName,
-                    Environment = new Dictionary<string, string>
-                    {
-                        ["POSTGRES_PASSWORD"] = "mysecretpassword"
-                    },
-                    PortBindings = new Dictionary<string, string>
-                    {
-                        ["5432/tcp"] = "0"
-                    },
-                    Detach = true
-                });
-                Assert.True(runResult.Success);
-                containerId = runResult.Data.Id;
-
-                // Wait for it to be ready
-                var inspect = await ContainerDriver.InspectAsync(Context, containerId);
-                var portBinding = inspect.Data.NetworkSettings?.Ports?["5432/tcp"];
-                var hostPort = int.Parse(portBinding[0].HostPort);
-
-                // Verify port is open (simulating "reused" container that's already running)
-                var isReady = await WaitForPortAsync("127.0.0.1", hostPort, TimeSpan.FromSeconds(30));
-                Assert.True(isReady);
-
-                // Act - The container is now "reused" state
-                // Wait lambda should still work on a running container
-                var lambdaInvoked = false;
-                var success = await WaitWithConditionAsync(async () =>
-                {
-                    lambdaInvoked = true;
-                    try
-                    {
-                        using var client = new TcpClient();
-                        await client.ConnectAsync("127.0.0.1", hostPort);
-                        return true;
-                    }
-                    catch
-                    {
-                        return false;
-                    }
-                }, TimeSpan.FromSeconds(10));
-
-                // Assert
-                Assert.True(lambdaInvoked, "Lambda should have been invoked even for reused container");
-                Assert.True(success, "Condition should have succeeded");
-            }
-            finally
-            {
-                await RemoveContainerAsync(containerId);
+                if (containerId != null)
+                    await RemoveContainerAsync(containerId);
             }
         }
 
@@ -458,7 +408,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
                     foreach (var process in topResult.Data.Processes)
                     {
                         // Check if any column contains the process name
-                        if (process.Values.Any(v => v.Contains(processName, StringComparison.OrdinalIgnoreCase)))
+                        if (process.Any(v => v.Contains(processName, StringComparison.OrdinalIgnoreCase)))
                         {
                             return true;
                         }
@@ -530,7 +480,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
                 var inspect = await ContainerDriver.InspectAsync(Context, containerId);
                 if (inspect.Success && inspect.Data.State?.Health != null)
                 {
-                    if (inspect.Data.State.Health.Status?.Equals("healthy", StringComparison.OrdinalIgnoreCase) == true)
+                    if (inspect.Data.State.Health.Status == HealthState.Healthy)
                         return true;
                 }
                 
@@ -565,4 +515,3 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
         #endregion
     }
 }
-

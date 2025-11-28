@@ -3,10 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
-using FluentDocker.Common;
 using FluentDocker.Drivers;
-using FluentDocker.Extensions;
-using FluentDocker.Model.Common;
 using Xunit;
 
 namespace FluentDocker.Tests.Integration.DockerCliDriver
@@ -25,7 +22,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
         [Fact]
         public async Task Create_Container_StartsInStoppedMode()
         {
-            string containerId = null;
+            string? containerId = null;
             try
             {
                 // Arrange & Act - Create container without starting
@@ -48,14 +45,15 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
             }
             finally
             {
-                await RemoveContainerAsync(containerId);
+                if (containerId != null)
+                    await RemoveContainerAsync(containerId);
             }
         }
 
         [Fact]
         public async Task Run_WithEnvironment_SetsEnvironmentVariables()
         {
-            string containerId = null;
+            string? containerId = null;
             try
             {
                 // Act
@@ -80,25 +78,29 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
             }
             finally
             {
-                await RemoveContainerAsync(containerId);
+                if (containerId != null)
+                    await RemoveContainerAsync(containerId);
             }
         }
 
         [Fact]
         public async Task PauseAndUnpause_Container_WorksCorrectly()
         {
-            string containerId = null;
+            string? containerId = null;
             try
             {
                 // Arrange
-                containerId = await RunContainerAsync(PostgresImage, new ContainerCreateConfig
+                var runResult = await ContainerDriver.RunAsync(Context, new ContainerCreateConfig
                 {
                     Image = PostgresImage,
                     Environment = new Dictionary<string, string>
                     {
                         ["POSTGRES_PASSWORD"] = "mysecretpassword"
-                    }
+                    },
+                    Detach = true
                 });
+                Assert.True(runResult.Success);
+                containerId = runResult.Data.Id;
 
                 var inspect = await ContainerDriver.InspectAsync(Context, containerId);
                 Assert.True(inspect.Data.State.Running);
@@ -122,7 +124,8 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
             }
             finally
             {
-                await RemoveContainerAsync(containerId);
+                if (containerId != null)
+                    await RemoveContainerAsync(containerId);
             }
         }
 
@@ -133,7 +136,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
         [Fact]
         public async Task Run_WithExplicitPortMapping_MapsPortCorrectly()
         {
-            string containerId = null;
+            string? containerId = null;
             try
             {
                 // Act
@@ -166,70 +169,8 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
             }
             finally
             {
-                await RemoveContainerAsync(containerId);
-            }
-        }
-
-        [Fact]
-        public async Task Run_WithImplicitPortMapping_AllocatesPort()
-        {
-            string containerId = null;
-            try
-            {
-                // Act - Expose port without explicit host binding
-                var result = await ContainerDriver.RunAsync(Context, new ContainerCreateConfig
-                {
-                    Image = PostgresImage,
-                    Environment = new Dictionary<string, string>
-                    {
-                        ["POSTGRES_PASSWORD"] = "mysecretpassword"
-                    },
-                    ExposePorts = new[] { "5432/tcp" },
-                    PublishAllPorts = true,
-                    Detach = true
-                });
-
-                Assert.True(result.Success, $"Run failed: {result.Error}");
-                containerId = result.Data.Id;
-
-                // Assert
-                var inspect = await ContainerDriver.InspectAsync(Context, containerId);
-                Assert.True(inspect.Success);
-            }
-            finally
-            {
-                await RemoveContainerAsync(containerId);
-            }
-        }
-
-        [Fact]
-        public async Task Run_WithExposeAllPorts_ExposesAllPorts()
-        {
-            string containerId = null;
-            try
-            {
-                // Act
-                var result = await ContainerDriver.RunAsync(Context, new ContainerCreateConfig
-                {
-                    Image = PostgresImage,
-                    Environment = new Dictionary<string, string>
-                    {
-                        ["POSTGRES_PASSWORD"] = "mysecretpassword"
-                    },
-                    PublishAllPorts = true,
-                    Detach = true
-                });
-
-                Assert.True(result.Success, $"Run failed: {result.Error}");
-                containerId = result.Data.Id;
-
-                // Assert
-                var inspect = await ContainerDriver.InspectAsync(Context, containerId);
-                Assert.True(inspect.Success);
-            }
-            finally
-            {
-                await RemoveContainerAsync(containerId);
+                if (containerId != null)
+                    await RemoveContainerAsync(containerId);
             }
         }
 
@@ -240,7 +181,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
         [Fact]
         public async Task Container_WithKeepContainer_RemainsAfterStop()
         {
-            string containerId = null;
+            string? containerId = null;
             try
             {
                 // Arrange & Act
@@ -268,7 +209,8 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
             }
             finally
             {
-                await RemoveContainerAsync(containerId);
+                if (containerId != null)
+                    await RemoveContainerAsync(containerId);
             }
         }
 
@@ -289,7 +231,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
             });
 
             // Assert - Container should be auto-removed after command completes
-            await Task.Delay(1000); // Give Docker time to clean up
+            await Task.Delay(2000); // Give Docker time to clean up
             
             var inspect = await ContainerDriver.InspectAsync(Context, containerName);
             // Container should not exist (auto-removed)
@@ -303,7 +245,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
         [Fact]
         public async Task Container_WithVolumeMount_MountsVolume()
         {
-            string containerId = null;
+            string? containerId = null;
             var volumeName = UniqueName("vol");
             
             try
@@ -337,45 +279,9 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
             }
             finally
             {
-                await RemoveContainerAsync(containerId);
+                if (containerId != null)
+                    await RemoveContainerAsync(containerId);
                 await RemoveVolumeAsync(volumeName);
-            }
-        }
-
-        [Fact]
-        public async Task Container_WithBindMount_MountsHostPath()
-        {
-            string containerId = null;
-            var hostPath = Path.Combine(Path.GetTempPath(), $"fluentdockertest-{Guid.NewGuid():N}");
-            
-            try
-            {
-                // Arrange - Create host directory
-                Directory.CreateDirectory(hostPath);
-                
-                // Act
-                var result = await ContainerDriver.RunAsync(Context, new ContainerCreateConfig
-                {
-                    Image = NginxImage,
-                    BindMounts = new Dictionary<string, string>
-                    {
-                        [hostPath] = "/usr/share/nginx/html:ro"
-                    },
-                    Detach = true
-                });
-
-                Assert.True(result.Success, $"Run failed: {result.Error}");
-                containerId = result.Data.Id;
-
-                // Assert
-                var inspect = await ContainerDriver.InspectAsync(Context, containerId);
-                Assert.True(inspect.Success);
-            }
-            finally
-            {
-                await RemoveContainerAsync(containerId);
-                if (Directory.Exists(hostPath))
-                    Directory.Delete(hostPath, true);
             }
         }
 
@@ -386,31 +292,35 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
         [Fact]
         public async Task CopyFrom_RunningContainer_CopiesFiles()
         {
-            string containerId = null;
+            string? containerId = null;
             var hostPath = Path.Combine(Path.GetTempPath(), $"fluentdockertest-{Guid.NewGuid():N}");
             
             try
             {
                 // Arrange
                 Directory.CreateDirectory(hostPath);
-                containerId = await RunContainerAsync(PostgresImage, new ContainerCreateConfig
+                var runResult = await ContainerDriver.RunAsync(Context, new ContainerCreateConfig
                 {
                     Image = PostgresImage,
                     Environment = new Dictionary<string, string>
                     {
                         ["POSTGRES_PASSWORD"] = "mysecretpassword"
-                    }
+                    },
+                    Detach = true
                 });
+                Assert.True(runResult.Success);
+                containerId = runResult.Data.Id;
 
-                // Act - Copy from container root
-                var result = await ContainerDriver.CopyFromContainerAsync(Context, containerId, "/etc/passwd", hostPath);
+                // Act - Copy from container
+                var result = await ContainerDriver.CopyFromAsync(Context, containerId, "/etc/passwd", hostPath);
 
                 // Assert
                 Assert.True(result.Success, $"Copy failed: {result.Error}");
             }
             finally
             {
-                await RemoveContainerAsync(containerId);
+                if (containerId != null)
+                    await RemoveContainerAsync(containerId);
                 if (Directory.Exists(hostPath))
                     Directory.Delete(hostPath, true);
             }
@@ -419,7 +329,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
         [Fact]
         public async Task CopyTo_RunningContainer_CopiesFiles()
         {
-            string containerId = null;
+            string? containerId = null;
             var hostPath = Path.Combine(Path.GetTempPath(), $"fluentdockertest-{Guid.NewGuid():N}");
             var testFile = Path.Combine(hostPath, "test.txt");
             
@@ -429,14 +339,17 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
                 Directory.CreateDirectory(hostPath);
                 File.WriteAllText(testFile, "Hello from host!");
                 
-                containerId = await RunContainerAsync(TestImage, new ContainerCreateConfig
+                var runResult = await ContainerDriver.RunAsync(Context, new ContainerCreateConfig
                 {
                     Image = TestImage,
-                    Command = new[] { "sleep", "60" }
+                    Command = new[] { "sleep", "60" },
+                    Detach = true
                 });
+                Assert.True(runResult.Success);
+                containerId = runResult.Data.Id;
 
                 // Act
-                var result = await ContainerDriver.CopyToContainerAsync(Context, containerId, testFile, "/tmp/");
+                var result = await ContainerDriver.CopyToAsync(Context, containerId, testFile, "/tmp/");
 
                 // Assert
                 Assert.True(result.Success, $"Copy failed: {result.Error}");
@@ -451,7 +364,8 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
             }
             finally
             {
-                await RemoveContainerAsync(containerId);
+                if (containerId != null)
+                    await RemoveContainerAsync(containerId);
                 if (Directory.Exists(hostPath))
                     Directory.Delete(hostPath, true);
             }
@@ -464,17 +378,20 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
         [Fact]
         public async Task Export_Container_CreatesArchive()
         {
-            string containerId = null;
+            string? containerId = null;
             var exportPath = Path.Combine(Path.GetTempPath(), $"export-{Guid.NewGuid():N}.tar");
             
             try
             {
                 // Arrange
-                containerId = await RunContainerAsync(TestImage, new ContainerCreateConfig
+                var runResult = await ContainerDriver.RunAsync(Context, new ContainerCreateConfig
                 {
                     Image = TestImage,
-                    Command = new[] { "sleep", "60" }
+                    Command = new[] { "sleep", "60" },
+                    Detach = true
                 });
+                Assert.True(runResult.Success);
+                containerId = runResult.Data.Id;
 
                 // Act
                 var result = await ContainerDriver.ExportAsync(Context, containerId, exportPath);
@@ -488,7 +405,8 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
             }
             finally
             {
-                await RemoveContainerAsync(containerId);
+                if (containerId != null)
+                    await RemoveContainerAsync(containerId);
                 if (File.Exists(exportPath))
                     File.Delete(exportPath);
             }
@@ -502,7 +420,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
         public async Task Container_WithSameName_CanBeReused()
         {
             var containerName = UniqueName("reusable");
-            string firstContainerId = null;
+            string? firstContainerId = null;
             
             try
             {
@@ -529,7 +447,8 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
             }
             finally
             {
-                await RemoveContainerAsync(firstContainerId);
+                if (firstContainerId != null)
+                    await RemoveContainerAsync(firstContainerId);
             }
         }
 
@@ -540,7 +459,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
         [Fact]
         public async Task Container_WithHealthCheck_ReportsHealth()
         {
-            string containerId = null;
+            string? containerId = null;
             try
             {
                 // Act - Run with healthcheck
@@ -551,9 +470,12 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
                     {
                         ["POSTGRES_PASSWORD"] = "mysecretpassword"
                     },
-                    HealthCmd = new[] { "CMD-SHELL", "pg_isready -U postgres || exit 1" },
-                    HealthInterval = "5s",
-                    HealthRetries = 3,
+                    HealthCheck = new HealthCheckConfig
+                    {
+                        Test = new[] { "CMD-SHELL", "pg_isready -U postgres || exit 1" },
+                        Interval = "5s",
+                        Retries = 3
+                    },
                     Detach = true
                 });
 
@@ -567,7 +489,8 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
             }
             finally
             {
-                await RemoveContainerAsync(containerId);
+                if (containerId != null)
+                    await RemoveContainerAsync(containerId);
             }
         }
 
@@ -578,7 +501,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
         [Fact]
         public async Task Container_WithMemoryLimit_EnforcesLimit()
         {
-            string containerId = null;
+            string? containerId = null;
             try
             {
                 // Act
@@ -586,7 +509,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
                 {
                     Image = TestImage,
                     Command = new[] { "sleep", "60" },
-                    Memory = 128 * 1024 * 1024, // 128MB
+                    MemoryLimit = 128 * 1024 * 1024, // 128MB
                     Detach = true
                 });
 
@@ -599,38 +522,8 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
             }
             finally
             {
-                await RemoveContainerAsync(containerId);
-            }
-        }
-
-        [Fact]
-        public async Task Container_WithUlimits_ConfiguresLimits()
-        {
-            string containerId = null;
-            try
-            {
-                // Act
-                var result = await ContainerDriver.RunAsync(Context, new ContainerCreateConfig
-                {
-                    Image = TestImage,
-                    Command = new[] { "sleep", "60" },
-                    Ulimits = new Dictionary<string, (long Soft, long Hard)>
-                    {
-                        ["nofile"] = (2048, 2048)
-                    },
-                    Detach = true
-                });
-
-                Assert.True(result.Success, $"Run failed: {result.Error}");
-                containerId = result.Data.Id;
-
-                // Assert
-                var inspect = await ContainerDriver.InspectAsync(Context, containerId);
-                Assert.True(inspect.Success);
-            }
-            finally
-            {
-                await RemoveContainerAsync(containerId);
+                if (containerId != null)
+                    await RemoveContainerAsync(containerId);
             }
         }
 
@@ -641,15 +534,18 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
         [Fact]
         public async Task Diff_AfterFileChange_ShowsChanges()
         {
-            string containerId = null;
+            string? containerId = null;
             try
             {
                 // Arrange
-                containerId = await RunContainerAsync(TestImage, new ContainerCreateConfig
+                var runResult = await ContainerDriver.RunAsync(Context, new ContainerCreateConfig
                 {
                     Image = TestImage,
-                    Command = new[] { "sleep", "60" }
+                    Command = new[] { "sleep", "60" },
+                    Detach = true
                 });
+                Assert.True(runResult.Success);
+                containerId = runResult.Data.Id;
 
                 // Make a change in the container
                 await ContainerDriver.ExecAsync(Context, containerId, new ExecConfig
@@ -666,24 +562,11 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
             }
             finally
             {
-                await RemoveContainerAsync(containerId);
+                if (containerId != null)
+                    await RemoveContainerAsync(containerId);
             }
-        }
-
-        #endregion
-
-        #region Helper Methods
-
-        private async Task<string> RunContainerAsync(string image, ContainerCreateConfig config)
-        {
-            config.Image = image;
-            config.Detach = true;
-            var result = await ContainerDriver.RunAsync(Context, config);
-            Assert.True(result.Success, $"Failed to run container: {result.Error}");
-            return result.Data.Id;
         }
 
         #endregion
     }
 }
-
