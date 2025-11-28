@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using FluentDocker.Drivers;
+using FluentDocker.Drivers.Docker.Cli;
 using FluentDocker.Model.Drivers;
 
 namespace FluentDocker.Kernel
@@ -56,11 +57,24 @@ namespace FluentDocker.Kernel
             // Register all configured drivers
             foreach (var config in _driverConfigurations)
             {
-                await kernel.RegisterDriverAsync(
-                    config.DriverId,
-                    config.Driver,
-                    config.Context,
-                    cancellationToken);
+                if (config.DriverPack != null)
+                {
+                    // Register as driver pack
+                    await kernel.RegisterDriverPackAsync(
+                        config.DriverId,
+                        config.DriverPack,
+                        config.Context,
+                        cancellationToken);
+                }
+                else if (config.Driver != null)
+                {
+                    // Register as regular driver
+                    await kernel.RegisterDriverAsync(
+                        config.DriverId,
+                        config.Driver,
+                        config.Context,
+                        cancellationToken);
+                }
 
                 if (config.IsDefault)
                 {
@@ -75,6 +89,7 @@ namespace FluentDocker.Kernel
         {
             public string DriverId { get; set; }
             public IDriver Driver { get; set; }
+            public IDriverPack DriverPack { get; set; }
             public DriverContext Context { get; set; }
             public bool IsDefault { get; set; }
         }
@@ -87,13 +102,16 @@ namespace FluentDocker.Kernel
     {
         private readonly string _driverId = driverId;
         private IDriver _driver;
+        private IDriverPack _driverPack;
         private string _host;
         private string _certificatePath;
         private bool _isDefault;
 
-    public IDriverBuilder UseDockerCli()
+        public IDriverBuilder UseDockerCli()
         {
-            _driver = new Drivers.Docker.Cli.DockerCliDriver();
+            // Use the new modular driver pack architecture
+            _driverPack = new DockerCliDriverPack();
+            _driver = null; // Clear any previously set driver
             return this;
         }
 
@@ -110,6 +128,14 @@ namespace FluentDocker.Kernel
         public IDriverBuilder UseCustomDriver(IDriver driver)
         {
             _driver = driver ?? throw new ArgumentNullException(nameof(driver));
+            _driverPack = null; // Clear any previously set driver pack
+            return this;
+        }
+
+        public IDriverBuilder UseCustomDriverPack(IDriverPack driverPack)
+        {
+            _driverPack = driverPack ?? throw new ArgumentNullException(nameof(driverPack));
+            _driver = null; // Clear any previously set driver
             return this;
         }
 
@@ -133,9 +159,9 @@ namespace FluentDocker.Kernel
 
         internal KernelBuilder.DriverConfiguration Build()
         {
-            if (_driver == null)
+            if (_driver == null && _driverPack == null)
             {
-                throw new InvalidOperationException($"No driver specified for driver ID '{_driverId}'");
+                throw new InvalidOperationException($"No driver or driver pack specified for driver ID '{_driverId}'");
             }
 
             var context = new DriverContext(_driverId)
@@ -148,6 +174,7 @@ namespace FluentDocker.Kernel
             {
                 DriverId = _driverId,
                 Driver = _driver,
+                DriverPack = _driverPack,
                 Context = context,
                 IsDefault = _isDefault
             };

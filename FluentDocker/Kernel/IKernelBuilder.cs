@@ -43,7 +43,8 @@ namespace FluentDocker.Kernel
     public interface IDriverBuilder
     {
         /// <summary>
-        /// Uses Docker CLI driver.
+        /// Uses Docker CLI driver pack (modular architecture).
+        /// This is the recommended approach for new code.
         /// </summary>
         IDriverBuilder UseDockerCli();
 
@@ -61,6 +62,11 @@ namespace FluentDocker.Kernel
         /// Uses a custom driver instance.
         /// </summary>
         IDriverBuilder UseCustomDriver(IDriver driver);
+
+        /// <summary>
+        /// Uses a custom driver pack instance.
+        /// </summary>
+        IDriverBuilder UseCustomDriverPack(IDriverPack driverPack);
 
         /// <summary>
         /// Sets the host for this driver.
