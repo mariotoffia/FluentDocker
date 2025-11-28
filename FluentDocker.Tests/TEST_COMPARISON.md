@@ -117,12 +117,12 @@ FluentDocker.Tests/
 
 ### Known Issues
 
-Some integration tests may fail due to model deserialization mismatches:
-- `SystemDriverTests.GetVersion_*` - VersionInfo model needs updating for nested Client/Server structure
-- `SystemDriverTests.GetInfo_*` - SystemInfo model needs updating for Runtimes object structure
-- Filter tests - Some filter implementations need to handle Docker's JSON format correctly
+Previously tracked migration gaps have been closed:
+- Version model now handles nested Client/Server JSON returned by `docker version`.
+- System info model reads the Runtimes object Docker emits.
+- CLI filters now format Docker's image filters correctly.
 
-These are model/parsing issues that can be fixed separately without affecting the test structure.
+No additional V2-to-V3 migration issues are currently tracked; integration failures are expected to be environment-related (e.g., Docker daemon offline).
 
 ---
 
@@ -361,4 +361,3 @@ Added missing resource file entries to `FluentDocker.Tests.csproj`:
 - `hellotest/docker-compose.yml`
 - `hellotest/hellotest/Dockerfile`
 - `hellotest/hellotest/hello`
-

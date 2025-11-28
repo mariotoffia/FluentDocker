@@ -33,8 +33,9 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
                         ErrorCodes.General.Unknown);
                 }
 
-                var info = JsonConvert.DeserializeObject<SystemInfo>(result.Output);
-                return CommandResponse<SystemInfo>.Ok(info ?? new SystemInfo());
+                var info = JsonConvert.DeserializeObject<DockerSystemInfo>(result.Output) ?? new DockerSystemInfo();
+                info.PopulateMeta();
+                return CommandResponse<SystemInfo>.Ok(info);
             }
             catch (Exception ex)
             {
@@ -58,8 +59,9 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
                         ErrorCodes.General.Unknown);
                 }
 
-                var version = JsonConvert.DeserializeObject<VersionInfo>(result.Output);
-                return CommandResponse<VersionInfo>.Ok(version ?? new VersionInfo());
+                var version = JsonConvert.DeserializeObject<DockerVersionInfo>(result.Output) ?? new DockerVersionInfo();
+                version.PopulateMeta();
+                return CommandResponse<VersionInfo>.Ok(version);
             }
             catch (Exception ex)
             {
@@ -317,4 +319,3 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
         #endregion
     }
 }
-

@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using FluentDocker.Common;
@@ -170,12 +171,38 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
         {
             try
             {
-                var args = "images --format \"{{json .}}\"";
+                var args = new StringBuilder("images --format \"{{json .}}\"");
 
                 if (filter?.All == true)
-                    args += " -a";
+                    args.Append(" -a");
 
-                var result = await ExecuteCommandAsync(args, cancellationToken);
+                if (filter != null)
+                {
+                    if (!string.IsNullOrEmpty(filter.Reference))
+                        args.Append($" --filter reference={filter.Reference}");
+
+                    if (filter.Dangling.HasValue)
+                        args.Append($" --filter dangling={(filter.Dangling.Value ? "true" : "false")}");
+
+                    if (!string.IsNullOrEmpty(filter.Before))
+                        args.Append($" --filter before={filter.Before}");
+
+                    if (!string.IsNullOrEmpty(filter.Since))
+                        args.Append($" --filter since={filter.Since}");
+
+                    if (filter.Labels != null)
+                    {
+                        foreach (var label in filter.Labels)
+                        {
+                            var labelValue = string.IsNullOrEmpty(label.Value)
+                                ? label.Key
+                                : $"{label.Key}={label.Value}";
+                            args.Append($" --filter label={labelValue}");
+                        }
+                    }
+                }
+
+                var result = await ExecuteCommandAsync(args.ToString(), cancellationToken);
 
                 if (!result.Success)
                 {
@@ -514,4 +541,3 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
         #endregion
     }
 }
-

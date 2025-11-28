@@ -1,5 +1,6 @@
+using System;
 using System.Collections.Generic;
-using System.Linq;
+using System.Globalization;
 using System.Threading;
 using System.Threading.Tasks;
 using FluentDocker.Model.Drivers;
@@ -98,13 +99,75 @@ namespace FluentDocker.Drivers
 
     #region Info Types
 
-    public class SystemInfo
+    /// <summary>
+    /// Common base for runtime/system information across drivers.
+    /// Carries a meta dictionary with well-known keys for cross-driver consumers.
+    /// </summary>
+    public abstract class RuntimeInfoBase
+    {
+        public Dictionary<string, string> MetaInfo { get; } = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+        /// <summary>Adds a meta key/value if the value is non-null/non-empty.</summary>
+        public void AddMeta(string key, object value) => SetMeta(key, value);
+
+        protected void SetMeta(string key, object value)
+        {
+            if (string.IsNullOrWhiteSpace(key) || value == null)
+                return;
+
+            var valueString = value switch
+            {
+                IFormattable formattable => formattable.ToString(null, CultureInfo.InvariantCulture),
+                _ => value.ToString()
+            };
+
+            if (string.IsNullOrWhiteSpace(valueString))
+                return;
+
+            MetaInfo[key] = valueString;
+        }
+    }
+
+    public static class SystemInfoMetaKeys
+    {
+        public const string OperatingSystem = "operatingSystem";
+        public const string OSType = "osType";
+        public const string OSVersion = "osVersion";
+        public const string Architecture = "architecture";
+        public const string Hostname = "hostname";
+        public const string EngineVersion = "engineVersion";
+        public const string StorageBackend = "storageBackend";
+        public const string LoggingBackend = "loggingBackend";
+        public const string KernelVersion = "kernelVersion";
+        public const string MemoryTotal = "memoryTotal";
+        public const string Cpus = "cpus";
+        public const string DefaultRuntime = "defaultRuntime";
+        public const string Runtimes = "runtimes";
+        public const string DataRoot = "dataRoot";
+    }
+
+    public static class VersionInfoMetaKeys
+    {
+        public const string ClientVersion = "clientVersion";
+        public const string ClientApiVersion = "clientApiVersion";
+        public const string ServerVersion = "serverVersion";
+        public const string ServerApiVersion = "serverApiVersion";
+        public const string MinApiVersion = "minApiVersion";
+        public const string GitCommit = "gitCommit";
+        public const string RuntimeVersion = "runtimeVersion";
+        public const string Os = "os";
+        public const string Arch = "arch";
+        public const string BuildTime = "buildTime";
+        public const string Experimental = "experimental";
+        public const string PlatformName = "platformName";
+    }
+
+    public class SystemInfo : RuntimeInfoBase
     {
         /// <summary>Operating system name (e.g., "Docker Desktop").</summary>
         public string OperatingSystem { get; set; }
 
         /// <summary>Operating system type (e.g., "linux", "windows").</summary>
-        [Newtonsoft.Json.JsonProperty("OSType")]
         public string OSType { get; set; }
 
         /// <summary>Operating system version.</summary>
@@ -128,149 +191,94 @@ namespace FluentDocker.Drivers
         /// <summary>Total number of images.</summary>
         public int Images { get; set; }
 
-        /// <summary>Server version.</summary>
-        public string ServerVersion { get; set; }
+        /// <summary>Engine/runtime version (e.g., Docker Engine version, Podman version).</summary>
+        public string EngineVersion { get; set; }
 
-        /// <summary>Storage driver in use.</summary>
-        [Newtonsoft.Json.JsonProperty("Driver")]
-        public string StorageDriver { get; set; }
+        /// <summary>
+        /// Backward-compatible alias for Docker-based consumers; maps to EngineVersion.
+        /// </summary>
+        public string ServerVersion
+        {
+            get => EngineVersion;
+            set => EngineVersion = value;
+        }
 
-        /// <summary>Logging driver in use.</summary>
-        public string LoggingDriver { get; set; }
+        /// <summary>Storage backend/driver in use.</summary>
+        public string StorageBackend { get; set; }
+
+        /// <summary>Logging backend/driver in use.</summary>
+        public string LoggingBackend { get; set; }
 
         /// <summary>Kernel version.</summary>
         public string KernelVersion { get; set; }
 
         /// <summary>Total memory in bytes.</summary>
-        [Newtonsoft.Json.JsonProperty("MemTotal")]
         public long MemoryTotal { get; set; }
 
         /// <summary>Number of CPUs.</summary>
-        [Newtonsoft.Json.JsonProperty("NCPU")]
         public int CPUs { get; set; }
 
-        /// <summary>Docker root directory.</summary>
-        public string DockerRootDir { get; set; }
+        /// <summary>Root directory where the engine stores data/layers.</summary>
+        public string DataRoot { get; set; }
 
         /// <summary>Server hostname.</summary>
-        [Newtonsoft.Json.JsonProperty("Name")]
         public string Hostname { get; set; }
-
-        /// <summary>Whether swarm mode is active.</summary>
-        [Newtonsoft.Json.JsonIgnore]
-        public bool SwarmActive => Swarm?.LocalNodeState == "active";
-
-        /// <summary>Swarm info.</summary>
-        public SwarmInfo Swarm { get; set; }
 
         /// <summary>Security options.</summary>
         public List<string> SecurityOptions { get; set; } = new List<string>();
 
-        /// <summary>Available runtimes (as dictionary from Docker).</summary>
-        [Newtonsoft.Json.JsonProperty("Runtimes")]
-        public Dictionary<string, object> RuntimesRaw { get; set; }
-
-        /// <summary>Available runtime names.</summary>
-        [Newtonsoft.Json.JsonIgnore]
-        public List<string> Runtimes => RuntimesRaw?.Keys.ToList() ?? new List<string>();
+        /// <summary>Available runtimes reported by the engine.</summary>
+        public Dictionary<string, object> Runtimes { get; set; } = new Dictionary<string, object>();
 
         /// <summary>Default runtime.</summary>
         public string DefaultRuntime { get; set; }
+
+        /// <summary>
+        /// Populate MetaInfo with a normalized set of cross-driver keys.
+        /// </summary>
+        public virtual void PopulateMeta()
+        {
+            SetMeta(SystemInfoMetaKeys.OperatingSystem, OperatingSystem);
+            SetMeta(SystemInfoMetaKeys.OSType, OSType);
+            SetMeta(SystemInfoMetaKeys.OSVersion, OSVersion);
+            SetMeta(SystemInfoMetaKeys.Architecture, Architecture);
+            SetMeta(SystemInfoMetaKeys.Hostname, Hostname);
+            SetMeta(SystemInfoMetaKeys.EngineVersion, EngineVersion);
+            SetMeta(SystemInfoMetaKeys.StorageBackend, StorageBackend);
+            SetMeta(SystemInfoMetaKeys.LoggingBackend, LoggingBackend);
+            SetMeta(SystemInfoMetaKeys.KernelVersion, KernelVersion);
+            SetMeta(SystemInfoMetaKeys.MemoryTotal, MemoryTotal);
+            SetMeta(SystemInfoMetaKeys.Cpus, CPUs);
+            SetMeta(SystemInfoMetaKeys.DefaultRuntime, DefaultRuntime);
+            SetMeta(SystemInfoMetaKeys.DataRoot, DataRoot);
+
+            if (Runtimes?.Count > 0)
+                SetMeta(SystemInfoMetaKeys.Runtimes, string.Join(",", Runtimes.Keys));
+        }
     }
 
-    /// <summary>
-    /// Swarm information from docker info.
-    /// </summary>
-    public class SwarmInfo
+    public class VersionInfo : RuntimeInfoBase
     {
-        /// <summary>Local node state (inactive, pending, active, etc.).</summary>
-        public string LocalNodeState { get; set; }
-
-        /// <summary>Node ID if part of swarm.</summary>
-        public string NodeID { get; set; }
-
-        /// <summary>Control available.</summary>
-        public bool ControlAvailable { get; set; }
-    }
-
-    public class VersionInfo
-    {
-        /// <summary>Client information.</summary>
-        [Newtonsoft.Json.JsonProperty("Client")]
-        public VersionComponent Client { get; set; }
-
-        /// <summary>Server information.</summary>
-        [Newtonsoft.Json.JsonProperty("Server")]
-        public VersionComponent Server { get; set; }
-
-        // Convenience properties that extract from Client/Server
         /// <summary>Client version.</summary>
-        [Newtonsoft.Json.JsonIgnore]
-        public string ClientVersion => Client?.Version;
+        public string ClientVersion { get; set; }
 
         /// <summary>Client API version.</summary>
-        [Newtonsoft.Json.JsonIgnore]
-        public string ClientApiVersion => Client?.ApiVersion;
+        public string ClientApiVersion { get; set; }
 
         /// <summary>Server version.</summary>
-        [Newtonsoft.Json.JsonIgnore]
-        public string ServerVersion => Server?.Version;
+        public string ServerVersion { get; set; }
 
         /// <summary>Server API version.</summary>
-        [Newtonsoft.Json.JsonIgnore]
-        public string ServerApiVersion => Server?.ApiVersion;
-
-        /// <summary>Git commit (from server).</summary>
-        [Newtonsoft.Json.JsonIgnore]
-        public string GitCommit => Server?.GitCommit ?? Client?.GitCommit;
-
-        /// <summary>Go version (from server).</summary>
-        [Newtonsoft.Json.JsonIgnore]
-        public string GoVersion => Server?.GoVersion ?? Client?.GoVersion;
-
-        /// <summary>Operating system (from server, which is the daemon OS).</summary>
-        [Newtonsoft.Json.JsonIgnore]
-        public string Os => Server?.Os ?? Client?.Os;
-
-        /// <summary>Architecture (from server).</summary>
-        [Newtonsoft.Json.JsonIgnore]
-        public string Arch => Server?.Arch ?? Client?.Arch;
-
-        /// <summary>Minimum API version (from server).</summary>
-        [Newtonsoft.Json.JsonIgnore]
-        public string MinApiVersion => Server?.MinAPIVersion;
-
-        /// <summary>Build time (from server).</summary>
-        [Newtonsoft.Json.JsonIgnore]
-        public string BuildTime => Server?.BuildTime ?? Client?.BuildTime;
-
-        /// <summary>Experimental features enabled.</summary>
-        [Newtonsoft.Json.JsonIgnore]
-        public bool Experimental => Server?.Experimental == "true";
-    }
-
-    /// <summary>
-    /// Version component information (Client or Server).
-    /// </summary>
-    public class VersionComponent
-    {
-        /// <summary>Version string.</summary>
-        public string Version { get; set; }
-
-        /// <summary>API version.</summary>
-        public string ApiVersion { get; set; }
-
-        /// <summary>Default API version.</summary>
-        public string DefaultAPIVersion { get; set; }
+        public string ServerApiVersion { get; set; }
 
         /// <summary>Minimum API version.</summary>
-        public string MinAPIVersion { get; set; }
+        public string MinApiVersion { get; set; }
 
         /// <summary>Git commit.</summary>
         public string GitCommit { get; set; }
 
-        /// <summary>Go version.</summary>
-        public string GoVersion { get; set; }
+        /// <summary>Engine runtime language/toolchain version (e.g., Go version for Docker/Podman).</summary>
+        public string RuntimeVersion { get; set; }
 
         /// <summary>Operating system.</summary>
         public string Os { get; set; }
@@ -281,11 +289,30 @@ namespace FluentDocker.Drivers
         /// <summary>Build time.</summary>
         public string BuildTime { get; set; }
 
-        /// <summary>Experimental features enabled (string "true"/"false").</summary>
-        public string Experimental { get; set; }
+        /// <summary>Platform name (engine or desktop distribution).</summary>
+        public string PlatformName { get; set; }
 
-        /// <summary>Kernel version (server only).</summary>
-        public string KernelVersion { get; set; }
+        /// <summary>Experimental features enabled.</summary>
+        public bool Experimental { get; set; }
+
+        /// <summary>
+        /// Populate MetaInfo with cross-driver keys from resolved properties.
+        /// </summary>
+        public virtual void PopulateMeta()
+        {
+            SetMeta(VersionInfoMetaKeys.ClientVersion, ClientVersion);
+            SetMeta(VersionInfoMetaKeys.ClientApiVersion, ClientApiVersion);
+            SetMeta(VersionInfoMetaKeys.ServerVersion, ServerVersion);
+            SetMeta(VersionInfoMetaKeys.ServerApiVersion, ServerApiVersion);
+            SetMeta(VersionInfoMetaKeys.MinApiVersion, MinApiVersion);
+            SetMeta(VersionInfoMetaKeys.GitCommit, GitCommit);
+            SetMeta(VersionInfoMetaKeys.RuntimeVersion, RuntimeVersion);
+            SetMeta(VersionInfoMetaKeys.Os, Os);
+            SetMeta(VersionInfoMetaKeys.Arch, Arch);
+            SetMeta(VersionInfoMetaKeys.BuildTime, BuildTime);
+            SetMeta(VersionInfoMetaKeys.Experimental, Experimental);
+            SetMeta(VersionInfoMetaKeys.PlatformName, PlatformName);
+        }
     }
 
     public class DiskUsageInfo
