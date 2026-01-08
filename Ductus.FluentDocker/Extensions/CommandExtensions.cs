@@ -18,8 +18,9 @@ namespace Ductus.FluentDocker.Extensions
     private static SudoMechanism _sudoMechanism = SudoMechanism.None;
     private static string _sudoPassword;
     private static string _defaultShell = "bash";
+    private static ContainerEngine _containerEngine = ContainerEngine.Auto;
 
-    private static DockerBinariesResolver _binaryResolver = new DockerBinariesResolver(_sudoMechanism, _sudoPassword);
+    private static DockerBinariesResolver _binaryResolver = new DockerBinariesResolver(_sudoMechanism, _sudoPassword, _containerEngine);
 
     /// <summary>
     ///   Reads a <see cref="ConsoleStream{T}" /> until <see cref="ConsoleStream{T}.IsFinished" /> is set to true
@@ -70,7 +71,7 @@ namespace Ductus.FluentDocker.Extensions
     /// <exception cref="ArgumentException">If sudo mechanism password is wanted but no password was provided.</exception>
     /// <remarks>
     /// By default the library operates on SudoMechanism.None and therefore expects the current user to be able to
-    /// communicate with the docker daemon.
+    /// communicate with the container engine (Docker daemon or Podman).
     /// </remarks>
     [Experimental]
     public static void SetSudo(this SudoMechanism sudo, string password = null)
@@ -80,25 +81,60 @@ namespace Ductus.FluentDocker.Extensions
 
       _sudoMechanism = sudo;
       _sudoPassword = password;
-      _binaryResolver = new DockerBinariesResolver(_sudoMechanism, _sudoPassword);
+      _binaryResolver = new DockerBinariesResolver(_sudoMechanism, _sudoPassword, _containerEngine);
     }
+
+    /// <summary>
+    /// Sets the preferred container engine to use.
+    /// </summary>
+    /// <param name="engine">The container engine to use (Docker, Podman, or Auto).</param>
+    /// <remarks>
+    /// By default the library operates with ContainerEngine.Auto which will prefer Docker if available,
+    /// falling back to Podman if Docker is not found.
+    /// 
+    /// Call this method early in your application startup to configure which container engine to use:
+    /// <code>
+    /// ContainerEngine.Podman.SetContainerEngine();
+    /// </code>
+    /// </remarks>
+    public static void SetContainerEngine(this ContainerEngine engine)
+    {
+      _containerEngine = engine;
+      _binaryResolver = new DockerBinariesResolver(_sudoMechanism, _sudoPassword, _containerEngine);
+    }
+
+    /// <summary>
+    /// Gets the currently configured container engine preference.
+    /// </summary>
+    public static ContainerEngine ContainerEngine => _containerEngine;
+
+    /// <summary>
+    /// Gets the actual container engine that is being used after binary resolution.
+    /// </summary>
+    /// <remarks>
+    /// This may differ from the configured preference if the preferred engine is not available.
+    /// For example, if ContainerEngine.Auto is set and only Podman is available, this will return Podman.
+    /// </remarks>
+    public static ContainerEngine ActiveContainerEngine => _binaryResolver?.ActiveEngine ?? ContainerEngine.Docker;
 
     public static string ResolveBinary(this string dockerCommand, bool preferMachine = false, bool forceResolve = false)
     {
       if (forceResolve || null == _binaryResolver)
-        _binaryResolver = new DockerBinariesResolver(_sudoMechanism, _sudoPassword);
+        _binaryResolver = new DockerBinariesResolver(_sudoMechanism, _sudoPassword, _containerEngine);
 
       return dockerCommand.ResolveBinary(_binaryResolver, preferMachine);
     }
 
     public static string ResolveBinary(this string dockerCommand, DockerBinariesResolver resolver, bool preferMachine = false)
     {
-      var binary = resolver.Resolve(dockerCommand, preferMachine);
+      // Normalize compose commands - treat "docker-compose" and "podman-compose" the same way
+      var normalizedCommand = NormalizeCommand(dockerCommand);
+      var binary = resolver.Resolve(normalizedCommand, preferMachine);
 
-      // Special handling for Docker Compose V2
-      if (binary.Type == DockerBinaryType.ComposeV2 && dockerCommand.Equals("docker-compose", StringComparison.OrdinalIgnoreCase))
+      // Special handling for Compose V2 (both Docker and Podman support 'compose' subcommand)
+      if (binary.Type == DockerBinaryType.ComposeV2 && IsComposeCommand(dockerCommand))
       {
-        // For V2, we need to return 'docker compose' instead of 'docker-compose'
+        // For V2, we need to return 'docker/podman compose' instead of 'docker-compose/podman-compose'
         if (FdOs.IsWindows() || binary.Sudo == SudoMechanism.None)
           return $"{binary.FqPath} compose";
         
@@ -114,28 +150,44 @@ namespace Ductus.FluentDocker.Extensions
       if (FdOs.IsWindows() || binary.Sudo == SudoMechanism.None)
         return binary.FqPath;
 
-      string cmd;
       if (binary.Sudo == SudoMechanism.NoPassword)
-        cmd = $"sudo {binary.FqPath}";
-      else
-        cmd = $"echo {binary.SudoPassword} | sudo -S {binary.FqPath}";
+        return $"sudo {binary.FqPath}";
+      
+      return $"echo {binary.SudoPassword} | sudo -S {binary.FqPath}";
+    }
 
-      if (string.IsNullOrEmpty(cmd))
+    /// <summary>
+    /// Normalizes command names to their canonical form for binary resolution.
+    /// </summary>
+    private static string NormalizeCommand(string command)
+    {
+      var lowerCommand = command?.ToLower();
+      
+      // Normalize Podman commands to their Docker equivalents for resolution
+      return lowerCommand switch
       {
-        if (!string.IsNullOrEmpty(dockerCommand) && dockerCommand.ToLower() == "docker-machine")
-          throw new FluentDockerException(
-            $"Could not find {dockerCommand} make sure it is on your path. From 2.2.0 you have to seprately install it via https://github.com/docker/machine/releases");
+        "podman" => "docker",
+        "podman.exe" => "docker",
+        "podman-compose" => "docker-compose",
+        "podman-compose.exe" => "docker-compose",
+        _ => command
+      };
+    }
 
-        throw new FluentDockerException($"Could not find {dockerCommand}, make sure it is on your path.");
-      }
-
-      return cmd;
+    /// <summary>
+    /// Checks if the command is a compose command (either docker-compose or podman-compose).
+    /// </summary>
+    private static bool IsComposeCommand(string command)
+    {
+      var lowerCommand = command?.ToLower();
+      return lowerCommand == "docker-compose" || lowerCommand == "docker-compose.exe" ||
+             lowerCommand == "podman-compose" || lowerCommand == "podman-compose.exe";
     }
 
     public static bool IsMachineBinaryPresent()
     {
       if (null == _binaryResolver)
-        _binaryResolver = new DockerBinariesResolver(_sudoMechanism, _sudoPassword);
+        _binaryResolver = new DockerBinariesResolver(_sudoMechanism, _sudoPassword, _containerEngine);
 
       return null != _binaryResolver.MainDockerMachine;
 
@@ -144,20 +196,19 @@ namespace Ductus.FluentDocker.Extensions
     public static bool IsComposeBinaryPresent()
     {
       if (null == _binaryResolver)
-        _binaryResolver = new DockerBinariesResolver(_sudoMechanism, _sudoPassword);
+        _binaryResolver = new DockerBinariesResolver(_sudoMechanism, _sudoPassword, _containerEngine);
 
-      return null != _binaryResolver.MainDockerCompose;
-
+      return null != _binaryResolver.MainDockerCompose || null != _binaryResolver.MainDockerComposeV2;
     }
 
     /// <summary>
-    /// Gets the detected Docker Compose version
+    /// Gets the detected Compose version (V1 or V2).
     /// </summary>
-    /// <returns>The detected Docker Compose version</returns>
+    /// <returns>The detected Compose version</returns>
     public static ComposeVersion DetectComposeVersion()
     {
       if (null == _binaryResolver)
-        _binaryResolver = new DockerBinariesResolver(_sudoMechanism, _sudoPassword);
+        _binaryResolver = new DockerBinariesResolver(_sudoMechanism, _sudoPassword, _containerEngine);
 
       return null != _binaryResolver.MainDockerComposeV2 ? ComposeVersion.V2 : ComposeVersion.V1;
     }
@@ -165,13 +216,16 @@ namespace Ductus.FluentDocker.Extensions
     public static IEnumerable<string> GetResolvedBinaries()
     {
       if (null == _binaryResolver)
-        _binaryResolver = new DockerBinariesResolver(_sudoMechanism, _sudoPassword);
+        _binaryResolver = new DockerBinariesResolver(_sudoMechanism, _sudoPassword, _containerEngine);
 
+      var engineInfo = $"engine        : {_binaryResolver.ActiveEngine} (preferred: {_binaryResolver.PreferredEngine})";
+      
       return new List<string>
       {
-        "docker        : " + (_binaryResolver.MainDockerClient.FqPath ?? "not found"),
-        "docker-compose: " + (_binaryResolver.MainDockerCompose.FqPath ?? "not found"),
-        "docker-machine: " + (_binaryResolver.MainDockerMachine.FqPath ?? "not found")
+        engineInfo,
+        "client        : " + (_binaryResolver.MainDockerClient?.FqPath ?? "not found"),
+        "compose       : " + (_binaryResolver.MainDockerCompose?.FqPath ?? (_binaryResolver.MainDockerComposeV2?.FqPath + " (V2)") ?? "not found"),
+        "machine       : " + (_binaryResolver.MainDockerMachine?.FqPath ?? "not found")
       };
     }
 

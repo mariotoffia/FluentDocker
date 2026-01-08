@@ -4,7 +4,7 @@
 
 
 # FluentDocker
-FluentDocker is a library to interact with docker-machine, docker-compose and docker. It supports the docker for windows, docker for mac, docker machine, and native linux (however only limited tests on Linux and Mac). 
+FluentDocker is a library to interact with docker-machine, docker-compose and docker. It supports the docker for windows, docker for mac, docker machine, and native linux (however only limited tests on Linux and Mac). The library supports both Docker and Podman as container engines. Podman is a daemonless, open-source container engine that is a drop-in replacement for Docker. See the [Container Engine Configuration](#container-engine-configuration) section below for details. 
 This library is available at nuget [Ductus.FluentDocker](https://www.nuget.org/packages/Ductus.FluentDocker/ "Nuget Home for Ductus.FluentDocker") 
 and the ms test support is available at [Ductus.FluentDocker.MsTest](https://www.nuget.org/packages/Ductus.FluentDocker.MsTest/ "Nuget Home for Ductus.FluentDocker.MsTest").
 
@@ -51,11 +51,39 @@ This fires up a postgres and waits for it to be ready. To use compose, just do i
 
 The site http://mariotoffia.github.io/FluentDocker/ is under construction but will have a _"1.0"_ release before christmas.
 
+## Container Engine Configuration
+
+FluentDocker supports both Docker and Podman as container engines. By default, the library will automatically detect and prefer Docker if both are available. You can explicitly configure which engine to use:
+
+```cs
+using Ductus.FluentDocker.Model.Common;
+using Ductus.FluentDocker.Extensions;
+
+// Use Podman explicitly
+ContainerEngine.Podman.SetContainerEngine();
+
+// Or use Docker explicitly
+ContainerEngine.Docker.SetContainerEngine();
+
+// Or let it auto-detect (default - prefers Docker if available)
+ContainerEngine.Auto.SetContainerEngine();
+```
+
+**When to use Podman:**
+- You're on Windows and using Podman Desktop
+- You prefer a daemonless container engine
+- You need rootless containers
+- Docker is not available on your system
+
+**Note:** Podman is designed as a drop-in replacement for Docker, so all FluentDocker APIs work the same way regardless of which engine you choose. The library automatically handles the differences in binary names (`docker` vs `podman`, `docker-compose` vs `podman-compose`).
+
 **Note for Linux Users:** _Docker requires _sudo_ by default and the library by default expects that executing user do not
 need to do _sudo_ in order to talk to the docker daemon. If you wish to have it on, please use the experimental 
 ```SudoMechanism``` to setup how to do this. More description can be found in the _Talking to Docker Daemon_ chapter.
 If you wish to turn off _sudo_ to communicate with the docker daemon, you can follow a docker tutorial at 
 https://docs.docker.com/install/linux/docker-ce/ubuntu/ and do the last step of adding your user to docker group._
+
+**Note:** If you're using Podman, it typically doesn't require sudo since it's designed to run rootless by default.
 
 The fluent _API_ builds up one or more services. Each service may be composite or singular. Therefore it is possible
 to e.g. fire up several _docker-compose_ based services and manage each of them as a single service or dig in and use
@@ -675,9 +703,11 @@ The above snippet fires up the wordpress docker compose project and checks the _
 (in this case "https://wordpress.org/"). If not it returns _500_ and the ```WaitForHttp``` function will wait 500 milliseconds before invoking again. This works for any custom
 lambda as well, just use ```WaitFor``` instead. Thus it is possible to e.g. query a database before continuing inside the using scope.
 
-## Talking to Docker Daemon
+## Talking to Container Engine Daemon
 For Linux and Mac users there are several options how to authenticate towards the socket. _FluentDocker_ supports no _sudo_, _sudo_ without any password (user added as NOPASSWD in /etc/sudoer), or
-_sudo_ with password. The default is that FluentDocker expects to be able to talk without any _sudo_. The options ar global but can be changed in runtime.
+_sudo_ with password. The default is that FluentDocker expects to be able to talk without any _sudo_. The options are global but can be changed in runtime.
+
+**Note:** If you're using Podman, it typically doesn't require sudo since it's designed to run rootless by default. Docker may require sudo depending on your system configuration.
 
 ```cs
      SudoMechanism.None.SetSudo(); // This is the default

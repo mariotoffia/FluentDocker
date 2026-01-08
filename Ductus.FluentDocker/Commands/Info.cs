@@ -1,4 +1,6 @@
 ﻿using System;
+using System.Collections.Generic;
+using Ductus.FluentDocker.Common;
 using Ductus.FluentDocker.Executors;
 using Ductus.FluentDocker.Executors.Parsers;
 using Ductus.FluentDocker.Extensions;
@@ -40,25 +42,62 @@ namespace Ductus.FluentDocker.Commands
 
     public static CommandResponse<string> Switch(this DockerUri host, ICertificatePaths certificates = null)
     {
-      var args = $"{host.RenderBaseArgs(certificates)}";
+      // dockercli is Docker Desktop for Windows specific - not available with Podman
+      if (CommandExtensions.ActiveContainerEngine == ContainerEngine.Podman)
+      {
+        return new CommandResponse<string>(true, new List<string> { "Podman does not support daemon switching" }, "", "Podman does not support daemon switching");
+      }
 
-      return new ProcessExecutor<NoLineResponseParser, string>(
-        "dockercli".ResolveBinary(), $"{args} -SwitchDaemon").Execute();
+      try
+      {
+        var args = $"{host.RenderBaseArgs(certificates)}";
+        return new ProcessExecutor<NoLineResponseParser, string>(
+          "dockercli".ResolveBinary(), $"{args} -SwitchDaemon").Execute();
+      }
+      catch (FluentDockerException ex) when (ex.Message.Contains("dockercli"))
+      {
+        return new CommandResponse<string>(false, new List<string>(), "dockercli binary not found - this is only available with Docker Desktop for Windows", default(string));
+      }
     }
 
     public static CommandResponse<string> LinuxDaemon(this DockerUri host, ICertificatePaths certificates = null)
     {
-      var args = $"{host.RenderBaseArgs(certificates)}";
+      // dockercli is Docker Desktop for Windows specific - not available with Podman
+      if (CommandExtensions.ActiveContainerEngine == ContainerEngine.Podman)
+      {
+        return new CommandResponse<string>(true, new List<string> { "Podman always uses Linux containers" }, "", "Podman always uses Linux containers");
+      }
 
-      return new ProcessExecutor<NoLineResponseParser, string>(
-        "dockercli".ResolveBinary(), $"{args} -SwitchLinuxEngine").Execute();
+      try
+      {
+        var args = $"{host.RenderBaseArgs(certificates)}";
+        return new ProcessExecutor<NoLineResponseParser, string>(
+          "dockercli".ResolveBinary(), $"{args} -SwitchLinuxEngine").Execute();
+      }
+      catch (FluentDockerException ex) when (ex.Message.Contains("dockercli"))
+      {
+        return new CommandResponse<string>(false, new List<string>(), "dockercli binary not found - this is only available with Docker Desktop for Windows", default(string));
+      }
     }
+    
     public static CommandResponse<string> WindowsDaemon(this DockerUri host, ICertificatePaths certificates = null)
     {
-      var args = $"{host.RenderBaseArgs(certificates)}";
+      // dockercli is Docker Desktop for Windows specific - not available with Podman
+      if (CommandExtensions.ActiveContainerEngine == ContainerEngine.Podman)
+      {
+        return new CommandResponse<string>(false, new List<string>(), "Podman does not support Windows containers", default(string));
+      }
 
-      return new ProcessExecutor<NoLineResponseParser, string>(
-        "dockercli".ResolveBinary(), $"{args} -SwitchWindowsEngine").Execute();
+      try
+      {
+        var args = $"{host.RenderBaseArgs(certificates)}";
+        return new ProcessExecutor<NoLineResponseParser, string>(
+          "dockercli".ResolveBinary(), $"{args} -SwitchWindowsEngine").Execute();
+      }
+      catch (FluentDockerException ex) when (ex.Message.Contains("dockercli"))
+      {
+        return new CommandResponse<string>(false, new List<string>(), "dockercli binary not found - this is only available with Docker Desktop for Windows", default(string));
+      }
     }
   }
 }

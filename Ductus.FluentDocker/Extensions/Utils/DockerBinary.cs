@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using Ductus.FluentDocker.Model.Common;
 
 namespace Ductus.FluentDocker.Extensions.Utils
@@ -23,6 +23,7 @@ namespace Ductus.FluentDocker.Extensions.Utils
       Type = Translate(binary);
       Sudo = sudo;
       SudoPassword = password;
+      Engine = DetermineEngine(binary);
 
       var isToolbox = Environment.GetEnvironmentVariable("DOCKER_TOOLBOX_INSTALL_PATH")?.Equals(Path);
       IsToolbox = isToolbox ?? false;
@@ -35,6 +36,7 @@ namespace Ductus.FluentDocker.Extensions.Utils
       Type = type;
       Sudo = sudo;
       SudoPassword = password;
+      Engine = DetermineEngine(binary);
 
       var isToolbox = Environment.GetEnvironmentVariable("DOCKER_TOOLBOX_INSTALL_PATH")?.Equals(Path);
       IsToolbox = isToolbox ?? false;
@@ -46,19 +48,34 @@ namespace Ductus.FluentDocker.Extensions.Utils
       {
         case "docker":
         case "docker.exe":
+        case "podman":
+        case "podman.exe":
           return DockerBinaryType.DockerClient;
         case "docker-machine":
         case "docker-machine.exe":
           return DockerBinaryType.Machine;
         case "docker-compose":
         case "docker-compose.exe":
+        case "podman-compose":
+        case "podman-compose.exe":
           return DockerBinaryType.Compose;
         case "dockercli":
         case "dockercli.exe":
           return DockerBinaryType.Cli;
         default:
-          throw new Exception($"Cannot determine the docker type on binary {binary}");
+          throw new Exception($"Cannot determine the container engine type for binary {binary}");
       }
+    }
+
+    /// <summary>
+    /// Determines the container engine based on the binary name.
+    /// </summary>
+    private static ContainerEngine DetermineEngine(string binary)
+    {
+      var lowerBinary = binary.ToLower();
+      if (lowerBinary.StartsWith("podman"))
+        return ContainerEngine.Podman;
+      return ContainerEngine.Docker;
     }
 
     public string FqPath => System.IO.Path.Combine(Path, Binary);
@@ -68,5 +85,10 @@ namespace Ductus.FluentDocker.Extensions.Utils
     public bool IsToolbox { get; }
     public SudoMechanism Sudo { get; }
     public string SudoPassword { get; }
+    
+    /// <summary>
+    /// Gets the container engine this binary belongs to.
+    /// </summary>
+    public ContainerEngine Engine { get; }
   }
 }
