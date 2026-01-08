@@ -13,10 +13,22 @@ namespace Ductus.FluentDocker.Executors.Mappers
 
     public FdEvent OnData(string data, bool isStdErr)
     {
-      if (null == data)
+      if (string.IsNullOrWhiteSpace(data))
         return null;
 
-      return Create(JObject.Parse(data));
+      try
+      {
+        return Create(JObject.Parse(data));
+      }
+      catch (Exception ex) when (ex is Newtonsoft.Json.JsonReaderException || 
+                                  ex is ArgumentNullException ||
+                                  ex is NullReferenceException ||
+                                  ex is FormatException)
+      {
+        // Skip events that cannot be parsed or have unexpected format
+        // This handles differences between Docker and Podman event formats
+        return null;
+      }
     }
 
     public FdEvent OnProcessEnd(int exitCode)
@@ -32,14 +44,18 @@ namespace Ductus.FluentDocker.Executors.Mappers
       if (null == obj)
         return null;
 
-      // Get header
-      var action = obj["Action"].Value<string>();
-      var type = obj["Type"].Value<string>();
-      var scope = obj["scope"].Value<string>();
-      var actor = (JObject)obj["Actor"];
-      var attributes = (JObject)actor["Attributes"];
-      var id = actor["ID"].Value<string>();
-      var timeNano = obj["timeNano"].Value<long>();
+      // Get header - use null-safe access for compatibility with different container engines
+      var action = obj["Action"]?.Value<string>() ?? obj["action"]?.Value<string>();
+      var type = obj["Type"]?.Value<string>() ?? obj["type"]?.Value<string>();
+      var scope = obj["scope"]?.Value<string>() ?? "local";
+      var actor = obj["Actor"] as JObject ?? obj["actor"] as JObject;
+      var attributes = actor?["Attributes"] as JObject ?? actor?["attributes"] as JObject ?? new JObject();
+      var id = actor?["ID"]?.Value<string>() ?? actor?["id"]?.Value<string>() ?? string.Empty;
+      var timeNano = obj["timeNano"]?.Value<long>() ?? obj["timenano"]?.Value<long>() ?? 0;
+
+      // Return null if we couldn't parse essential fields
+      if (string.IsNullOrEmpty(action) || string.IsNullOrEmpty(type))
+        return null;
 
       var ts = new DateTime(1970, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc).AddTicks(timeNano / 100).ToLocalTime();
 
@@ -75,8 +91,8 @@ namespace Ductus.FluentDocker.Executors.Mappers
             EventActor = new ContainerStartEvent.ContainerStartActor
             {
               Id = id,
-              Name = attributes["name"].Value<string>(),
-              Image = attributes["image"].Value<string>(),
+              Name = GetString(attributes, "name"),
+              Image = GetString(attributes, "image"),
               Labels = GetExtraInfo(attributes, new[] { "name", "image" })
             }
           };
@@ -88,8 +104,8 @@ namespace Ductus.FluentDocker.Executors.Mappers
             EventActor = new ContainerCreateEvent.ContainerCreateActor
             {
               Id = id,
-              Name = attributes["name"].Value<string>(),
-              Image = attributes["image"].Value<string>(),
+              Name = GetString(attributes, "name"),
+              Image = GetString(attributes, "image"),
               Labels = GetExtraInfo(attributes, new[] { "name", "image" })
             }
           };
@@ -101,9 +117,9 @@ namespace Ductus.FluentDocker.Executors.Mappers
             EventActor = new ContainerKillEvent.ContainerKillActor
             {
               Id = id,
-              Name = attributes["name"].Value<string>(),
-              Image = attributes["image"].Value<string>(),
-              Signal = attributes["signal"].Value<string>(),
+              Name = GetString(attributes, "name"),
+              Image = GetString(attributes, "image"),
+              Signal = GetString(attributes, "signal"),
               Labels = GetExtraInfo(attributes, new[] { "name", "image", "signal" })
             }
           };
@@ -115,9 +131,9 @@ namespace Ductus.FluentDocker.Executors.Mappers
             EventActor = new ContainerDieEvent.ContainerDieActor
             {
               Id = id,
-              Name = attributes["name"].Value<string>(),
-              Image = attributes["image"].Value<string>(),
-              ExitCode = attributes["exitCode"].Value<string>(),
+              Name = GetString(attributes, "name"),
+              Image = GetString(attributes, "image"),
+              ExitCode = GetString(attributes, "exitCode"),
               Labels = GetExtraInfo(attributes, new[] { "name", "image", "exitCode" })
             }
           };
@@ -129,8 +145,8 @@ namespace Ductus.FluentDocker.Executors.Mappers
             EventActor = new ContainerStopEvent.ContainerStopActor
             {
               Id = id,
-              Name = attributes["name"].Value<string>(),
-              Image = attributes["image"].Value<string>(),
+              Name = GetString(attributes, "name"),
+              Image = GetString(attributes, "image"),
               Labels = GetExtraInfo(attributes, new[] { "name", "image" })
             }
           };
@@ -142,8 +158,8 @@ namespace Ductus.FluentDocker.Executors.Mappers
             EventActor = new ContainerDestroyEvent.ContainerDestroyActor
             {
               Id = id,
-              Name = attributes["name"].Value<string>(),
-              Image = attributes["image"].Value<string>(),
+              Name = GetString(attributes, "name"),
+              Image = GetString(attributes, "image"),
               Labels = GetExtraInfo(attributes, new[] { "name", "image" })
             }
           };
@@ -157,6 +173,7 @@ namespace Ductus.FluentDocker.Executors.Mappers
       switch (action)
       {
         case "connect":
+          var connectType = GetString(attributes, "type");
           return new NetworkConnectEvent
           {
             Scope = EventScope.Local,
@@ -164,13 +181,14 @@ namespace Ductus.FluentDocker.Executors.Mappers
             EventActor = new NetworkConnectEvent.NetworkConnectActor
             {
               Id = id,
-              ContainerId = attributes["container"].Value<string>(),
-              Name = attributes["name"].Value<string>(),
-              Type = (NetworkType)Enum.Parse(typeof(NetworkType), attributes["type"].Value<string>(), true/*ignoreCase*/),
+              ContainerId = GetString(attributes, "container"),
+              Name = GetString(attributes, "name"),
+              Type = ParseNetworkType(connectType),
               Labels = GetExtraInfo(attributes, new[] { "container", "name", "type" })
             }
           };
         case "disconnect":
+          var disconnectType = GetString(attributes, "type");
           return new NetworkDisconnectEvent
           {
             Scope = EventScope.Local,
@@ -178,15 +196,23 @@ namespace Ductus.FluentDocker.Executors.Mappers
             EventActor = new NetworkDisconnectEvent.NetworkDisconnectActor
             {
               Id = id,
-              ContainerId = attributes["container"].Value<string>(),
-              Name = attributes["name"].Value<string>(),
-              Type = (NetworkType)Enum.Parse(typeof(NetworkType), attributes["type"].Value<string>(), true/*ignoreCase*/),
+              ContainerId = GetString(attributes, "container"),
+              Name = GetString(attributes, "name"),
+              Type = ParseNetworkType(disconnectType),
               Labels = GetExtraInfo(attributes, new[] { "container", "name", "type" })
             }
           };
       }
 
       return null;
+    }
+
+    private static NetworkType ParseNetworkType(string type)
+    {
+      if (string.IsNullOrEmpty(type))
+        return NetworkType.Bridge;
+      
+      return Enum.TryParse<NetworkType>(type, true, out var result) ? result : NetworkType.Bridge;
     }
 
     private static FdEvent CreateImageEvent(string action, string scope, string id, DateTime ts, JObject attributes)
@@ -201,7 +227,7 @@ namespace Ductus.FluentDocker.Executors.Mappers
             EventActor = new ImagePullEvent.ImagePullActor
             {
               Id = id,
-              Name = attributes["name"].Value<string>(),
+              Name = GetString(attributes, "name"),
               Labels = GetExtraInfo(attributes, new[] { "name" })
             }
           };
@@ -228,11 +254,22 @@ namespace Ductus.FluentDocker.Executors.Mappers
     private static IList<Tuple<string, string>> GetExtraInfo(JObject obj, string[] nonlabels)
     {
       var list = new List<Tuple<string, string>>();
+      if (obj == null)
+        return list;
+        
       foreach (var prop in obj.Properties().Where(x => !nonlabels.Contains(x.Name)))
       {
-        list.Add(new Tuple<string, string>(prop.Name, prop.Value.ToString()));
+        list.Add(new Tuple<string, string>(prop.Name, prop.Value?.ToString() ?? string.Empty));
       }
       return list;
+    }
+
+    /// <summary>
+    /// Safely gets a string value from a JObject, returning empty string if not found.
+    /// </summary>
+    private static string GetString(JObject obj, string key)
+    {
+      return obj?[key]?.Value<string>() ?? string.Empty;
     }
   }
 }

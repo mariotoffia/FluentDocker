@@ -38,7 +38,12 @@ namespace Ductus.FluentDocker.Commands
         options += $" --since {since}";
       }
 
-      options += numLines.HasValue ? $" --tail={numLines}" : " --tail=all";
+      // Only add --tail if a specific number is requested
+      // Omitting --tail shows all logs by default (works with both Docker and Podman)
+      if (numLines.HasValue)
+      {
+        options += $" --tail={numLines}";
+      }
 
       if (showTimeStamps)
       {
