@@ -54,7 +54,7 @@ namespace Ductus.FluentDocker.Commands
         return new ProcessExecutor<NoLineResponseParser, string>(
           "dockercli".ResolveBinary(), $"{args} -SwitchDaemon").Execute();
       }
-      catch (FluentDockerException ex) when (ex.Message.Contains("dockercli"))
+      catch (FluentDockerException ex) when (ex.Message.Contains("Could not resolve binary") && ex.Message.Contains("dockercli"))
       {
         return new CommandResponse<string>(false, new List<string>(), "dockercli binary not found - this is only available with Docker Desktop for Windows", default(string));
       }
@@ -74,7 +74,7 @@ namespace Ductus.FluentDocker.Commands
         return new ProcessExecutor<NoLineResponseParser, string>(
           "dockercli".ResolveBinary(), $"{args} -SwitchLinuxEngine").Execute();
       }
-      catch (FluentDockerException ex) when (ex.Message.Contains("dockercli"))
+      catch (FluentDockerException ex) when (ex.Message.Contains("Could not resolve binary") && ex.Message.Contains("dockercli"))
       {
         return new CommandResponse<string>(false, new List<string>(), "dockercli binary not found - this is only available with Docker Desktop for Windows", default(string));
       }
@@ -94,7 +94,7 @@ namespace Ductus.FluentDocker.Commands
         return new ProcessExecutor<NoLineResponseParser, string>(
           "dockercli".ResolveBinary(), $"{args} -SwitchWindowsEngine").Execute();
       }
-      catch (FluentDockerException ex) when (ex.Message.Contains("dockercli"))
+      catch (FluentDockerException ex) when (ex.Message.Contains("Could not resolve binary") && ex.Message.Contains("dockercli"))
       {
         return new CommandResponse<string>(false, new List<string>(), "dockercli binary not found - this is only available with Docker Desktop for Windows", default(string));
       }

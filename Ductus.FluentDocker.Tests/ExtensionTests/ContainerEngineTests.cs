@@ -252,10 +252,9 @@ namespace Ductus.FluentDocker.Tests.ExtensionTests
     public void IsComposeBinaryPresentShallCheckBothV1AndV2()
     {
       // This should work regardless of engine
-      var isPresent = CommandExtensions.IsComposeBinaryPresent();
-      
       // Just verify it doesn't throw - actual result depends on environment
-      Assert.IsTrue(isPresent || !isPresent); // Always true, just checking it doesn't throw
+      var isPresent = CommandExtensions.IsComposeBinaryPresent();
+      // Method call above verifies it doesn't throw - no assertion needed
     }
 
     [TestMethod]

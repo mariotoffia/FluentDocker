@@ -45,7 +45,7 @@ namespace Ductus.FluentDocker.Extensions.Utils
 
       if (null == MainDockerCompose && null == MainDockerComposeV2)
       {
-        var engineName = GetEngineName(ActiveEngine);
+        var engineName = GetEngineName(preferredEngine);
         Logger.Log($"Failed to find {engineName}-compose client binary (neither V1 nor V2) - please add it to your path");
       }
     }
@@ -54,24 +54,40 @@ namespace Ductus.FluentDocker.Extensions.Utils
     {
       var clients = Binaries.Where(x => !x.IsToolbox && x.Type == DockerBinaryType.DockerClient).ToList();
       
-      return preferredEngine switch
+      var selected = preferredEngine switch
       {
         ContainerEngine.Docker => clients.FirstOrDefault(x => x.Engine == ContainerEngine.Docker) ?? clients.FirstOrDefault(),
         ContainerEngine.Podman => clients.FirstOrDefault(x => x.Engine == ContainerEngine.Podman) ?? clients.FirstOrDefault(),
         _ => clients.FirstOrDefault(x => x.Engine == ContainerEngine.Docker) ?? clients.FirstOrDefault() // Auto: prefer Docker
       };
+      
+      // Log warning if preferred engine was explicitly requested but not available
+      if (selected != null && preferredEngine != ContainerEngine.Auto && selected.Engine != preferredEngine)
+      {
+        Logger.Log($"Warning: {GetEngineName(preferredEngine)} was requested but not available. Using {GetEngineName(selected.Engine)} instead.");
+      }
+      
+      return selected;
     }
 
     private DockerBinary SelectMainCompose(ContainerEngine preferredEngine)
     {
       var composes = Binaries.Where(x => !x.IsToolbox && x.Type == DockerBinaryType.Compose).ToList();
       
-      return preferredEngine switch
+      var selected = preferredEngine switch
       {
         ContainerEngine.Docker => composes.FirstOrDefault(x => x.Engine == ContainerEngine.Docker) ?? composes.FirstOrDefault(),
         ContainerEngine.Podman => composes.FirstOrDefault(x => x.Engine == ContainerEngine.Podman) ?? composes.FirstOrDefault(),
         _ => composes.FirstOrDefault(x => x.Engine == ContainerEngine.Docker) ?? composes.FirstOrDefault() // Auto: prefer Docker
       };
+      
+      // Log warning if preferred engine was explicitly requested but not available
+      if (selected != null && preferredEngine != ContainerEngine.Auto && selected.Engine != preferredEngine)
+      {
+        Logger.Log($"Warning: {GetEngineName(preferredEngine)}-compose was requested but not available. Using {GetEngineName(selected.Engine)}-compose instead.");
+      }
+      
+      return selected;
     }
 
     private static string GetEngineName(ContainerEngine engine)

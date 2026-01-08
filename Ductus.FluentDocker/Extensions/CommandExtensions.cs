@@ -132,7 +132,7 @@ namespace Ductus.FluentDocker.Extensions
       var binary = resolver.Resolve(normalizedCommand, preferMachine);
 
       // Special handling for Compose V2 (both Docker and Podman support 'compose' subcommand)
-      if (binary.Type == DockerBinaryType.ComposeV2 && IsComposeCommand(dockerCommand))
+      if (binary.Type == DockerBinaryType.ComposeV2 && IsComposeCommand(normalizedCommand))
       {
         // For V2, we need to return 'docker/podman compose' instead of 'docker-compose/podman-compose'
         if (FdOs.IsWindows() || binary.Sudo == SudoMechanism.None)
