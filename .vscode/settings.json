@@ -19,5 +19,8 @@
     "dotnet-test-explorer.runInParallel": false,
     "dotnet-test-explorer.treeMode": "full",
     "dotnet.completion.showCompletionItemsFromUnimportedNamespaces": true,
-    "dotnet.formatting.organizeImportsOnFormat": true
+    "dotnet.formatting.organizeImportsOnFormat": true,
+    "chat.tools.terminal.autoApprove": {
+        "dotnet test": true
+    }
 }
