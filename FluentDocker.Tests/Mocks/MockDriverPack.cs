@@ -6,9 +6,17 @@ using FluentDocker.Common;
 using FluentDocker.Drivers;
 using FluentDocker.Kernel;
 using FluentDocker.Model.Containers;
-using FluentDocker.Model.Drivers;
 using FluentDocker.Model.Volumes;
 using Moq;
+
+// Alias to avoid ambiguity with Model.Containers.CommandResponse
+using DriverResponse = FluentDocker.Model.Drivers.CommandResponse<FluentDocker.Model.Drivers.Unit>;
+using DriverCapabilities = FluentDocker.Model.Drivers.DriverCapabilities;
+using DriverContext = FluentDocker.Model.Drivers.DriverContext;
+using DriverType = FluentDocker.Model.Drivers.DriverType;
+using DriverComponent = FluentDocker.Model.Drivers.DriverComponent;
+using RuntimeType = FluentDocker.Model.Drivers.RuntimeType;
+using Unit = FluentDocker.Model.Drivers.Unit;
 
 namespace FluentDocker.Tests.Mocks
 {
@@ -20,6 +28,8 @@ namespace FluentDocker.Tests.Mocks
     {
         private readonly Dictionary<Type, object> _drivers = new Dictionary<Type, object>();
         private bool _initialized;
+        private DriverCapabilities _capabilities;
+        private bool _isHealthy = true;
 
         /// <summary>
         /// Mock container driver.
@@ -62,7 +72,26 @@ namespace FluentDocker.Tests.Mocks
         /// </summary>
         public MockDriverPack()
         {
+            _capabilities = DriverCapabilities.Default();
             SetupDefaultBehaviors();
+        }
+
+        /// <summary>
+        /// Sets the capabilities to return from GetCapabilitiesAsync.
+        /// </summary>
+        /// <param name="capabilities">The capabilities to return.</param>
+        public void SetCapabilities(DriverCapabilities capabilities)
+        {
+            _capabilities = capabilities;
+        }
+
+        /// <summary>
+        /// Sets whether the driver pack reports as healthy.
+        /// </summary>
+        /// <param name="isHealthy">True if healthy, false otherwise.</param>
+        public void SetHealthy(bool isHealthy)
+        {
+            _isHealthy = isHealthy;
         }
 
         /// <inheritdoc />
@@ -82,22 +111,13 @@ namespace FluentDocker.Tests.Mocks
         /// <inheritdoc />
         public Task<DriverCapabilities> GetCapabilitiesAsync(CancellationToken cancellationToken = default)
         {
-            return Task.FromResult(new DriverCapabilities
-            {
-                SupportsContainers = true,
-                SupportsImages = true,
-                SupportsNetworks = true,
-                SupportsVolumes = true,
-                SupportsCompose = true,
-                SupportsSystem = true,
-                SupportsPods = false
-            });
+            return Task.FromResult(_capabilities);
         }
 
         /// <inheritdoc />
         public Task<bool> IsHealthyAsync(CancellationToken cancellationToken = default)
         {
-            return Task.FromResult(true);
+            return Task.FromResult(_isHealthy);
         }
 
         /// <inheritdoc />
@@ -142,7 +162,7 @@ namespace FluentDocker.Tests.Mocks
             // Default system driver ping
             SystemDriver
                 .Setup(d => d.PingAsync(It.IsAny<DriverContext>(), It.IsAny<CancellationToken>()))
-                .ReturnsAsync(CommandResponse<Unit>.Ok(Unit.Value));
+                .ReturnsAsync(FluentDocker.Model.Drivers.CommandResponse<Unit>.Ok(Unit.Default));
         }
 
         #region Helper Setup Methods
@@ -157,7 +177,7 @@ namespace FluentDocker.Tests.Mocks
                     It.IsAny<DriverContext>(),
                     It.IsAny<ContainerCreateConfig>(),
                     It.IsAny<CancellationToken>()))
-                .ReturnsAsync(CommandResponse<ContainerCreateResult>.Ok(
+                .ReturnsAsync(FluentDocker.Model.Drivers.CommandResponse<ContainerCreateResult>.Ok(
                     new ContainerCreateResult { Id = containerId }));
             return this;
         }
@@ -172,7 +192,7 @@ namespace FluentDocker.Tests.Mocks
                     It.IsAny<DriverContext>(),
                     It.IsAny<ContainerCreateConfig>(),
                     It.IsAny<CancellationToken>()))
-                .ReturnsAsync(CommandResponse<ContainerRunResult>.Ok(
+                .ReturnsAsync(FluentDocker.Model.Drivers.CommandResponse<ContainerRunResult>.Ok(
                     new ContainerRunResult { Id = containerId }));
             return this;
         }
@@ -187,7 +207,7 @@ namespace FluentDocker.Tests.Mocks
                     It.IsAny<DriverContext>(),
                     It.IsAny<string>(),
                     It.IsAny<CancellationToken>()))
-                .ReturnsAsync(CommandResponse<Unit>.Ok(Unit.Value));
+                .ReturnsAsync(FluentDocker.Model.Drivers.CommandResponse<Unit>.Ok(Unit.Default));
             return this;
         }
 
@@ -202,7 +222,7 @@ namespace FluentDocker.Tests.Mocks
                     It.IsAny<string>(),
                     It.IsAny<int?>(),
                     It.IsAny<CancellationToken>()))
-                .ReturnsAsync(CommandResponse<Unit>.Ok(Unit.Value));
+                .ReturnsAsync(FluentDocker.Model.Drivers.CommandResponse<Unit>.Ok(Unit.Default));
             return this;
         }
 
@@ -218,7 +238,7 @@ namespace FluentDocker.Tests.Mocks
                     It.IsAny<bool>(),
                     It.IsAny<bool>(),
                     It.IsAny<CancellationToken>()))
-                .ReturnsAsync(CommandResponse<Unit>.Ok(Unit.Value));
+                .ReturnsAsync(FluentDocker.Model.Drivers.CommandResponse<Unit>.Ok(Unit.Default));
             return this;
         }
 
@@ -232,7 +252,7 @@ namespace FluentDocker.Tests.Mocks
                     It.IsAny<DriverContext>(),
                     It.IsAny<string>(),
                     It.IsAny<CancellationToken>()))
-                .ReturnsAsync(CommandResponse<Container>.Ok(new Container
+                .ReturnsAsync(FluentDocker.Model.Drivers.CommandResponse<Container>.Ok(new Container
                 {
                     Id = containerId,
                     Name = "test-container",
@@ -255,7 +275,7 @@ namespace FluentDocker.Tests.Mocks
                     It.IsAny<DriverContext>(),
                     It.IsAny<ContainerListFilter>(),
                     It.IsAny<CancellationToken>()))
-                .ReturnsAsync(CommandResponse<IList<Container>>.Ok(
+                .ReturnsAsync(FluentDocker.Model.Drivers.CommandResponse<IList<Container>>.Ok(
                     new List<Container>(containers)));
             return this;
         }
@@ -270,7 +290,7 @@ namespace FluentDocker.Tests.Mocks
                     It.IsAny<DriverContext>(),
                     It.IsAny<string>(),
                     It.IsAny<CancellationToken>()))
-                .ReturnsAsync(CommandResponse<Unit>.Ok(Unit.Value));
+                .ReturnsAsync(FluentDocker.Model.Drivers.CommandResponse<Unit>.Ok(Unit.Default));
             return this;
         }
 
@@ -284,7 +304,7 @@ namespace FluentDocker.Tests.Mocks
                     It.IsAny<DriverContext>(),
                     It.IsAny<NetworkCreateConfig>(),
                     It.IsAny<CancellationToken>()))
-                .ReturnsAsync(CommandResponse<NetworkCreateResult>.Ok(
+                .ReturnsAsync(FluentDocker.Model.Drivers.CommandResponse<NetworkCreateResult>.Ok(
                     new NetworkCreateResult { Id = networkId }));
             return this;
         }
@@ -299,7 +319,7 @@ namespace FluentDocker.Tests.Mocks
                     It.IsAny<DriverContext>(),
                     It.IsAny<NetworkListFilter>(),
                     It.IsAny<CancellationToken>()))
-                .ReturnsAsync(CommandResponse<IList<Network>>.Ok(
+                .ReturnsAsync(FluentDocker.Model.Drivers.CommandResponse<IList<Network>>.Ok(
                     new List<Network>(networks)));
             return this;
         }
@@ -314,7 +334,7 @@ namespace FluentDocker.Tests.Mocks
                     It.IsAny<DriverContext>(),
                     It.IsAny<string>(),
                     It.IsAny<CancellationToken>()))
-                .ReturnsAsync(CommandResponse<Unit>.Ok(Unit.Value));
+                .ReturnsAsync(FluentDocker.Model.Drivers.CommandResponse<Unit>.Ok(Unit.Default));
             return this;
         }
 
@@ -328,7 +348,7 @@ namespace FluentDocker.Tests.Mocks
                     It.IsAny<DriverContext>(),
                     It.IsAny<string>(),
                     It.IsAny<CancellationToken>()))
-                .ReturnsAsync(CommandResponse<Network>.Ok(new Network
+                .ReturnsAsync(FluentDocker.Model.Drivers.CommandResponse<Network>.Ok(new Network
                 {
                     Id = networkId,
                     Name = "test-network",
@@ -347,7 +367,7 @@ namespace FluentDocker.Tests.Mocks
                     It.IsAny<DriverContext>(),
                     It.IsAny<VolumeCreateConfig>(),
                     It.IsAny<CancellationToken>()))
-                .ReturnsAsync(CommandResponse<VolumeCreateResult>.Ok(
+                .ReturnsAsync(FluentDocker.Model.Drivers.CommandResponse<VolumeCreateResult>.Ok(
                     new VolumeCreateResult { Name = volumeName, Driver = "local" }));
             return this;
         }
@@ -363,7 +383,7 @@ namespace FluentDocker.Tests.Mocks
                     It.IsAny<string>(),
                     It.IsAny<bool>(),
                     It.IsAny<CancellationToken>()))
-                .ReturnsAsync(CommandResponse<Unit>.Ok(Unit.Value));
+                .ReturnsAsync(FluentDocker.Model.Drivers.CommandResponse<Unit>.Ok(Unit.Default));
             return this;
         }
 
@@ -377,7 +397,7 @@ namespace FluentDocker.Tests.Mocks
                     It.IsAny<DriverContext>(),
                     It.IsAny<string>(),
                     It.IsAny<CancellationToken>()))
-                .ReturnsAsync(CommandResponse<Volume>.Ok(new Volume
+                .ReturnsAsync(FluentDocker.Model.Drivers.CommandResponse<Volume>.Ok(new Volume
                 {
                     Name = volumeName,
                     Driver = "local"
@@ -395,8 +415,22 @@ namespace FluentDocker.Tests.Mocks
                     It.IsAny<DriverContext>(),
                     It.IsAny<ComposeUpConfig>(),
                     It.IsAny<CancellationToken>()))
-                .ReturnsAsync(CommandResponse<ComposeUpResult>.Ok(
+                .ReturnsAsync(FluentDocker.Model.Drivers.CommandResponse<ComposeUpResult>.Ok(
                     new ComposeUpResult { ProjectName = projectName }));
+            return this;
+        }
+
+        /// <summary>
+        /// Sets up ComposeDriver.UpAsync to return a specific result.
+        /// </summary>
+        public MockDriverPack SetupComposeUpAsync(ComposeUpResult result)
+        {
+            ComposeDriver
+                .Setup(d => d.UpAsync(
+                    It.IsAny<DriverContext>(),
+                    It.IsAny<ComposeUpConfig>(),
+                    It.IsAny<CancellationToken>()))
+                .ReturnsAsync(FluentDocker.Model.Drivers.CommandResponse<ComposeUpResult>.Ok(result));
             return this;
         }
 
@@ -410,7 +444,7 @@ namespace FluentDocker.Tests.Mocks
                     It.IsAny<DriverContext>(),
                     It.IsAny<ComposeDownConfig>(),
                     It.IsAny<CancellationToken>()))
-                .ReturnsAsync(CommandResponse<Unit>.Ok(Unit.Value));
+                .ReturnsAsync(FluentDocker.Model.Drivers.CommandResponse<Unit>.Ok(Unit.Default));
             return this;
         }
 

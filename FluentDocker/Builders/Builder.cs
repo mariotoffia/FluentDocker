@@ -618,17 +618,65 @@ namespace FluentDocker.Builders
     /// </summary>
     public interface IComposeBuilder
     {
+        /// <summary>Add a compose file to use.</summary>
         IComposeBuilder WithComposeFile(string path);
+        
+        /// <summary>Add multiple compose files (for overrides/extensions).</summary>
+        IComposeBuilder WithComposeFiles(params string[] paths);
+        
+        /// <summary>Set the project name.</summary>
         IComposeBuilder WithProjectName(string name);
+        
+        /// <summary>Set an environment variable for compose interpolation.</summary>
         IComposeBuilder WithEnvironment(string key, string value);
+        
+        /// <summary>Set multiple environment variables from a dictionary.</summary>
+        IComposeBuilder WithEnvironment(IDictionary<string, string> environment);
+        
+        /// <summary>Load environment variables from an env file.</summary>
+        IComposeBuilder WithEnvFile(string path);
+        
+        /// <summary>Build images before starting containers.</summary>
         IComposeBuilder WithBuild(bool build = true);
+        
+        /// <summary>Recreate containers even if configuration hasn't changed.</summary>
         IComposeBuilder WithForceRecreate(bool forceRecreate = true);
+        
+        /// <summary>Remove containers for services not defined in the compose file.</summary>
         IComposeBuilder WithRemoveOrphans(bool removeOrphans = true);
+        
+        /// <summary>Only operate on specific services.</summary>
         IComposeBuilder ForServices(params string[] services);
+        
         /// <summary>Remove volumes on down.</summary>
         IComposeBuilder WithRemoveVolumes(bool removeVolumes = true);
+        
         /// <summary>Remove images on down.</summary>
         IComposeBuilder WithRemoveImages(bool removeImages = true);
+        
+        /// <summary>Set a timeout for container shutdown (seconds).</summary>
+        IComposeBuilder WithTimeout(int seconds);
+        
+        /// <summary>Scale a service to the specified number of replicas.</summary>
+        IComposeBuilder WithScale(string service, int replicas);
+        
+        /// <summary>Don't start linked services.</summary>
+        IComposeBuilder WithNoDeps(bool noDeps = true);
+        
+        /// <summary>Don't start the project (useful for testing config only).</summary>
+        IComposeBuilder WithNoStart(bool noStart = true);
+        
+        /// <summary>Always pull images before running.</summary>
+        IComposeBuilder WithPull(bool always = true);
+        
+        /// <summary>Wait for services to be healthy before considering them started.</summary>
+        IComposeBuilder WithWait(bool wait = true);
+        
+        /// <summary>Set the wait timeout (seconds).</summary>
+        IComposeBuilder WithWaitTimeout(int seconds);
+        
+        /// <summary>Use a custom profiles set.</summary>
+        IComposeBuilder WithProfiles(params string[] profiles);
     }
 
     #endregion
@@ -1640,13 +1688,22 @@ namespace FluentDocker.Builders
         private readonly FluentDockerKernel _kernel;
         private readonly string _driverId;
         private readonly List<string> _composeFiles = new List<string>();
+        private readonly List<string> _envFiles = new List<string>();
+        private readonly List<string> _profiles = new List<string>();
         private string _projectName;
         private readonly Dictionary<string, string> _environment = new Dictionary<string, string>();
+        private readonly Dictionary<string, int> _scale = new Dictionary<string, int>();
         private bool _build;
         private bool _forceRecreate;
         private bool _removeOrphans;
         private bool _removeVolumes;
         private bool _removeImages;
+        private bool _noDeps;
+        private bool _noStart;
+        private bool _pull;
+        private bool _wait;
+        private int? _timeout;
+        private int? _waitTimeout;
         private readonly List<string> _services = new List<string>();
 
         public ComposeBuilder(FluentDockerKernel kernel, string driverId)
@@ -1655,15 +1712,145 @@ namespace FluentDocker.Builders
             _driverId = driverId;
         }
 
-        public IComposeBuilder WithComposeFile(string path) { _composeFiles.Add(path); return this; }
-        public IComposeBuilder WithProjectName(string name) { _projectName = name; return this; }
-        public IComposeBuilder WithEnvironment(string key, string value) { _environment[key] = value; return this; }
-        public IComposeBuilder WithBuild(bool build = true) { _build = build; return this; }
-        public IComposeBuilder WithForceRecreate(bool forceRecreate = true) { _forceRecreate = forceRecreate; return this; }
-        public IComposeBuilder WithRemoveOrphans(bool removeOrphans = true) { _removeOrphans = removeOrphans; return this; }
-        public IComposeBuilder WithRemoveVolumes(bool removeVolumes = true) { _removeVolumes = removeVolumes; return this; }
-        public IComposeBuilder WithRemoveImages(bool removeImages = true) { _removeImages = removeImages; return this; }
-        public IComposeBuilder ForServices(params string[] services) { _services.AddRange(services); return this; }
+        public IComposeBuilder WithComposeFile(string path) 
+        { 
+            _composeFiles.Add(path); 
+            return this; 
+        }
+        
+        public IComposeBuilder WithComposeFiles(params string[] paths) 
+        { 
+            _composeFiles.AddRange(paths); 
+            return this; 
+        }
+        
+        public IComposeBuilder WithProjectName(string name) 
+        { 
+            _projectName = name; 
+            return this; 
+        }
+        
+        public IComposeBuilder WithEnvironment(string key, string value) 
+        { 
+            _environment[key] = value; 
+            return this; 
+        }
+        
+        public IComposeBuilder WithEnvironment(IDictionary<string, string> environment) 
+        { 
+            foreach (var kvp in environment)
+                _environment[kvp.Key] = kvp.Value;
+            return this; 
+        }
+        
+        public IComposeBuilder WithEnvFile(string path) 
+        { 
+            _envFiles.Add(path);
+            // Also load the env file into the environment dictionary
+            if (System.IO.File.Exists(path))
+            {
+                foreach (var line in System.IO.File.ReadAllLines(path))
+                {
+                    var trimmed = line.Trim();
+                    if (string.IsNullOrEmpty(trimmed) || trimmed.StartsWith("#"))
+                        continue;
+                    
+                    var eqIndex = trimmed.IndexOf('=');
+                    if (eqIndex > 0)
+                    {
+                        var key = trimmed.Substring(0, eqIndex);
+                        var value = trimmed.Substring(eqIndex + 1);
+                        _environment[key] = value;
+                    }
+                }
+            }
+            return this; 
+        }
+        
+        public IComposeBuilder WithBuild(bool build = true) 
+        { 
+            _build = build; 
+            return this; 
+        }
+        
+        public IComposeBuilder WithForceRecreate(bool forceRecreate = true) 
+        { 
+            _forceRecreate = forceRecreate; 
+            return this; 
+        }
+        
+        public IComposeBuilder WithRemoveOrphans(bool removeOrphans = true) 
+        { 
+            _removeOrphans = removeOrphans; 
+            return this; 
+        }
+        
+        public IComposeBuilder WithRemoveVolumes(bool removeVolumes = true) 
+        { 
+            _removeVolumes = removeVolumes; 
+            return this; 
+        }
+        
+        public IComposeBuilder WithRemoveImages(bool removeImages = true) 
+        { 
+            _removeImages = removeImages; 
+            return this; 
+        }
+        
+        public IComposeBuilder ForServices(params string[] services) 
+        { 
+            _services.AddRange(services); 
+            return this; 
+        }
+        
+        public IComposeBuilder WithTimeout(int seconds) 
+        { 
+            _timeout = seconds; 
+            return this; 
+        }
+        
+        public IComposeBuilder WithScale(string service, int replicas) 
+        { 
+            _scale[service] = replicas; 
+            return this; 
+        }
+        
+        public IComposeBuilder WithNoDeps(bool noDeps = true) 
+        { 
+            _noDeps = noDeps; 
+            return this; 
+        }
+        
+        public IComposeBuilder WithNoStart(bool noStart = true) 
+        { 
+            _noStart = noStart; 
+            return this; 
+        }
+        
+        public IComposeBuilder WithPull(bool always = true) 
+        { 
+            _pull = always; 
+            return this; 
+        }
+        
+        public IComposeBuilder WithWait(bool wait = true) 
+        { 
+            _wait = wait; 
+            return this; 
+        }
+        
+        public IComposeBuilder WithWaitTimeout(int seconds) 
+        { 
+            _waitTimeout = seconds;
+            _wait = true; // Automatically enable wait when setting timeout
+            return this; 
+        }
+        
+        public IComposeBuilder WithProfiles(params string[] profiles) 
+        { 
+            _profiles.AddRange(profiles); 
+            return this; 
+        }
 
         public async Task<IService> ExecuteAsync(CancellationToken cancellationToken)
         {
@@ -1679,7 +1866,9 @@ namespace FluentDocker.Builders
                 ForceRecreate = _forceRecreate,
                 RemoveOrphans = _removeOrphans,
                 Services = _services,
-                Detached = true
+                Detached = true,
+                NoDeps = _noDeps,
+                Timeout = _timeout
             };
 
             var response = await driver.UpAsync(context, config, cancellationToken);

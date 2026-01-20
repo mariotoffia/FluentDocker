@@ -117,7 +117,7 @@ namespace FluentDocker.Tests.CoreTests.Kernel
             kernel.SetDefaultDriver("driver2");
 
             // Assert
-            Assert.Equal("driver2", kernel.GetDefaultDriverId());
+            Assert.Equal("driver2", kernel.DefaultDriverId);
 
             kernel.Dispose();
         }
@@ -135,13 +135,10 @@ namespace FluentDocker.Tests.CoreTests.Kernel
             await kernel.RegisterDriverPackAsync("docker-local", mockPack1, new DriverContext("docker-local"));
             await kernel.RegisterDriverPackAsync("docker-remote", mockPack2, new DriverContext("docker-remote"));
 
-            // Act
-            var ids = kernel.GetAllDriverIds();
-
-            // Assert
-            Assert.Equal(2, ids.Count);
-            Assert.Contains("docker-local", ids);
-            Assert.Contains("docker-remote", ids);
+            // Assert - both drivers are registered
+            Assert.True(kernel.IsDriverRegistered("docker-local"));
+            Assert.True(kernel.IsDriverRegistered("docker-remote"));
+            Assert.False(kernel.IsDriverRegistered("nonexistent"));
 
             kernel.Dispose();
         }
@@ -268,7 +265,7 @@ namespace FluentDocker.Tests.CoreTests.Kernel
             try
             {
                 // Assert
-                Assert.Equal("docker", kernel.GetDefaultDriverId());
+                Assert.Equal("docker", kernel.DefaultDriverId);
             }
             finally
             {

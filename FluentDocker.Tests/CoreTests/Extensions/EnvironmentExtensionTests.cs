@@ -1,3 +1,4 @@
+using FluentDocker.Common;
 using FluentDocker.Services.Extensions;
 using Xunit;
 
@@ -112,7 +113,7 @@ namespace FluentDocker.Tests.CoreTests.Extensions
             var result = EnvironmentExtensions.GetDockerSocketPath();
 
             // Assert - should contain expected patterns
-            if (Common.FdOs.IsWindows())
+            if (FdOs.IsWindows())
             {
                 Assert.Contains("pipe", result);
             }

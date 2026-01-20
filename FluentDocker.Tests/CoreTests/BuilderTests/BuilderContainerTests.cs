@@ -1,6 +1,7 @@
 using System.Linq;
 using System.Threading.Tasks;
 using FluentDocker.Builders;
+using FluentDocker.Drivers;
 using FluentDocker.Model.Containers;
 using FluentDocker.Services;
 using FluentDocker.Tests.Mocks;
@@ -100,7 +101,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
                 .UseContainer(c => c
                     .UseImage("nginx:alpine")
                     .WithPort("80/tcp", "8080")
-                    .ExposePort(443))
+                    .ExposePort("443"))
                 .BuildAsync();
 
             // Assert

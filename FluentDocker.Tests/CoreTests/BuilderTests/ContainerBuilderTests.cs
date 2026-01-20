@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using FluentDocker.Builders;
+using FluentDocker.Kernel;
 using Xunit;
 
 namespace FluentDocker.Tests.CoreTests.BuilderTests
@@ -17,7 +18,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
             // Act - Just verify compilation and method exists
             var builder = new Builder();
             var configured = false;
-            builder.WithinDriver("test", new Kernel.FluentDockerKernel())
+            builder.WithinDriver("test", new FluentDockerKernel())
                 .UseContainer(c =>
                 {
                     c.UseImage("nginx:latest");
@@ -33,7 +34,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
         {
             var builder = new Builder();
             var configured = false;
-            builder.WithinDriver("test", new Kernel.FluentDockerKernel())
+            builder.WithinDriver("test", new FluentDockerKernel())
                 .UseContainer(c =>
                 {
                     c.WithName("my-container");
@@ -50,7 +51,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
         {
             var builder = new Builder();
             var configured = false;
-            builder.WithinDriver("test", new Kernel.FluentDockerKernel())
+            builder.WithinDriver("test", new FluentDockerKernel())
                 .UseContainer(c =>
                 {
                     c.WithEnvironment(key, value);
@@ -66,7 +67,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
         {
             var builder = new Builder();
             var configured = false;
-            builder.WithinDriver("test", new Kernel.FluentDockerKernel())
+            builder.WithinDriver("test", new FluentDockerKernel())
                 .UseContainer(c =>
                 {
                     c.WithEnvironment(keyValue);
@@ -80,7 +81,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
         {
             var builder = new Builder();
             var configured = false;
-            builder.WithinDriver("test", new Kernel.FluentDockerKernel())
+            builder.WithinDriver("test", new FluentDockerKernel())
                 .UseContainer(c =>
                 {
                     c.WithPort("80/tcp", "8080");
@@ -94,7 +95,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
         {
             var builder = new Builder();
             var configured = false;
-            builder.WithinDriver("test", new Kernel.FluentDockerKernel())
+            builder.WithinDriver("test", new FluentDockerKernel())
                 .UseContainer(c =>
                 {
                     c.ExposePort("5432");
@@ -108,7 +109,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
         {
             var builder = new Builder();
             var configured = false;
-            builder.WithinDriver("test", new Kernel.FluentDockerKernel())
+            builder.WithinDriver("test", new FluentDockerKernel())
                 .UseContainer(c =>
                 {
                     c.ExposePort(5432, 5432);
@@ -122,7 +123,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
         {
             var builder = new Builder();
             var configured = false;
-            builder.WithinDriver("test", new Kernel.FluentDockerKernel())
+            builder.WithinDriver("test", new FluentDockerKernel())
                 .UseContainer(c =>
                 {
                     c.WithCommand("sh", "-c", "echo hello");
@@ -136,7 +137,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
         {
             var builder = new Builder();
             var configured = false;
-            builder.WithinDriver("test", new Kernel.FluentDockerKernel())
+            builder.WithinDriver("test", new FluentDockerKernel())
                 .UseContainer(c =>
                 {
                     c.WithVolume("/host/path", "/container/path");
@@ -150,7 +151,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
         {
             var builder = new Builder();
             var configured = false;
-            builder.WithinDriver("test", new Kernel.FluentDockerKernel())
+            builder.WithinDriver("test", new FluentDockerKernel())
                 .UseContainer(c =>
                 {
                     c.WithLabel("app", "myapp");
@@ -164,7 +165,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
         {
             var builder = new Builder();
             var configured = false;
-            builder.WithinDriver("test", new Kernel.FluentDockerKernel())
+            builder.WithinDriver("test", new FluentDockerKernel())
                 .UseContainer(c =>
                 {
                     c.WithWorkingDirectory("/app");
@@ -178,7 +179,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
         {
             var builder = new Builder();
             var configured = false;
-            builder.WithinDriver("test", new Kernel.FluentDockerKernel())
+            builder.WithinDriver("test", new FluentDockerKernel())
                 .UseContainer(c =>
                 {
                     c.WithUser("1000:1000");
@@ -196,7 +197,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
         {
             var builder = new Builder();
             var configured = false;
-            builder.WithinDriver("test", new Kernel.FluentDockerKernel())
+            builder.WithinDriver("test", new FluentDockerKernel())
                 .UseContainer(c =>
                 {
                     c.WithRestartPolicy(policy);
@@ -210,7 +211,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
         {
             var builder = new Builder();
             var configured = false;
-            builder.WithinDriver("test", new Kernel.FluentDockerKernel())
+            builder.WithinDriver("test", new FluentDockerKernel())
                 .UseContainer(c =>
                 {
                     c.WithHostname("my-host");
@@ -227,7 +228,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
         {
             var builder = new Builder();
             var configured = false;
-            builder.WithinDriver("test", new Kernel.FluentDockerKernel())
+            builder.WithinDriver("test", new FluentDockerKernel())
                 .UseContainer(c =>
                 {
                     c.WithNetworkMode(mode);
@@ -241,7 +242,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
         {
             var builder = new Builder();
             var configured = false;
-            builder.WithinDriver("test", new Kernel.FluentDockerKernel())
+            builder.WithinDriver("test", new FluentDockerKernel())
                 .UseContainer(c =>
                 {
                     c.WithNetwork("my-network");
@@ -255,7 +256,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
         {
             var builder = new Builder();
             var configured = false;
-            builder.WithinDriver("test", new Kernel.FluentDockerKernel())
+            builder.WithinDriver("test", new FluentDockerKernel())
                 .UseContainer(c =>
                 {
                     c.WithNetworkAlias("my-network", "my-alias");
@@ -269,7 +270,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
         {
             var builder = new Builder();
             var configured = false;
-            builder.WithinDriver("test", new Kernel.FluentDockerKernel())
+            builder.WithinDriver("test", new FluentDockerKernel())
                 .UseContainer(c =>
                 {
                     c.WithMemoryLimit(512 * 1024 * 1024); // 512MB
@@ -283,7 +284,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
         {
             var builder = new Builder();
             var configured = false;
-            builder.WithinDriver("test", new Kernel.FluentDockerKernel())
+            builder.WithinDriver("test", new FluentDockerKernel())
                 .UseContainer(c =>
                 {
                     c.WithCpuShares(512);
@@ -297,7 +298,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
         {
             var builder = new Builder();
             var configured = false;
-            builder.WithinDriver("test", new Kernel.FluentDockerKernel())
+            builder.WithinDriver("test", new FluentDockerKernel())
                 .UseContainer(c =>
                 {
                     c.WithPrivileged(true);
@@ -311,7 +312,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
         {
             var builder = new Builder();
             var configured = false;
-            builder.WithinDriver("test", new Kernel.FluentDockerKernel())
+            builder.WithinDriver("test", new FluentDockerKernel())
                 .UseContainer(c =>
                 {
                     c.WithAutoRemove(true);
@@ -325,7 +326,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
         {
             var builder = new Builder();
             var configured = false;
-            builder.WithinDriver("test", new Kernel.FluentDockerKernel())
+            builder.WithinDriver("test", new FluentDockerKernel())
                 .UseContainer(c =>
                 {
                     c.ReuseIfExists();
@@ -339,7 +340,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
         {
             var builder = new Builder();
             var configured = false;
-            builder.WithinDriver("test", new Kernel.FluentDockerKernel())
+            builder.WithinDriver("test", new FluentDockerKernel())
                 .UseContainer(c =>
                 {
                     c.DestroyIfExists(force: true, removeVolumes: true);
@@ -353,7 +354,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
         {
             var builder = new Builder();
             var configured = false;
-            builder.WithinDriver("test", new Kernel.FluentDockerKernel())
+            builder.WithinDriver("test", new FluentDockerKernel())
                 .UseContainer(c =>
                 {
                     c.ForcePullImage();
@@ -367,7 +368,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
         {
             var builder = new Builder();
             var configured = false;
-            builder.WithinDriver("test", new Kernel.FluentDockerKernel())
+            builder.WithinDriver("test", new FluentDockerKernel())
                 .UseContainer(c =>
                 {
                     c.KeepContainer();
@@ -381,7 +382,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
         {
             var builder = new Builder();
             var configured = false;
-            builder.WithinDriver("test", new Kernel.FluentDockerKernel())
+            builder.WithinDriver("test", new FluentDockerKernel())
                 .UseContainer(c =>
                 {
                     c.KeepRunning();
@@ -395,7 +396,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
         {
             var builder = new Builder();
             var configured = false;
-            builder.WithinDriver("test", new Kernel.FluentDockerKernel())
+            builder.WithinDriver("test", new FluentDockerKernel())
                 .UseContainer(c =>
                 {
                     c.DeleteVolumeOnDispose();
@@ -409,7 +410,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
         {
             var builder = new Builder();
             var configured = false;
-            builder.WithinDriver("test", new Kernel.FluentDockerKernel())
+            builder.WithinDriver("test", new FluentDockerKernel())
                 .UseContainer(c =>
                 {
                     c.DeleteNamedVolumeOnDispose();
