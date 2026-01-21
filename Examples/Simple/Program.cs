@@ -2,8 +2,8 @@
 using System.Diagnostics;
 using System.Linq;
 using System.Threading.Tasks;
-using FluentDocker;
 using FluentDocker.Builders;
+using FluentDocker.Services.Impl;
 using FluentDocker.Extensions;
 using FluentDocker.Kernel;
 using FluentDocker.Services;
@@ -53,7 +53,7 @@ namespace Simple
       var stopwatch = new Stopwatch();
       stopwatch.Start();
 
-      await using var host = Fd.GetHost(kernel, DriverId);
+      await using var host = new HostService(kernel, DriverId, "default", isNative: true, requireTls: false);
       Console.WriteLine("Kernel ready in {0}s", TimeSpan.FromMilliseconds(stopwatch.ElapsedMilliseconds).TotalSeconds);
 
       var container = await host.CreateContainerAsync(

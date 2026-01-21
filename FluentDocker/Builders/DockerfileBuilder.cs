@@ -60,7 +60,7 @@ namespace FluentDocker.Builders
         public Task<Services.IImageService> BuildAsync()
         {
             if (_parent == null)
-                throw new FluentDockerException("No ImageBuilder was set as parent. Use Fd.DefineImage() to create one.");
+                throw new FluentDockerException("No ImageBuilder was set as parent. Use new ImageBuilder() to create one.");
 
             return _parent.ExecuteAsync(default);
         }
@@ -71,7 +71,7 @@ namespace FluentDocker.Builders
         public ImageBuilder ToImage()
         {
             if (_parent == null)
-                throw new FluentDockerException("No ImageBuilder was set as parent. Use Fd.DefineImage() to create one.");
+                throw new FluentDockerException("No ImageBuilder was set as parent. Use new ImageBuilder() to create one.");
 
             return _parent;
         }

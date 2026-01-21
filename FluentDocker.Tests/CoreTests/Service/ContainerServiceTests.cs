@@ -1,8 +1,12 @@
 using System;
 using System.Threading.Tasks;
+using FluentDocker.Drivers;
 using FluentDocker.Kernel;
+using FluentDocker.Model.Containers;
 using FluentDocker.Services;
 using FluentDocker.Services.Impl;
+using FluentDocker.Tests.Mocks;
+using Moq;
 using Xunit;
 
 namespace FluentDocker.Tests.CoreTests.Service
@@ -221,6 +225,231 @@ namespace FluentDocker.Tests.CoreTests.Service
 
             kernel.Dispose();
         }
+
+        #region Service Operation Tests
+
+        [Fact]
+        [Trait("Category", "Unit")]
+        public async Task InspectAsync_CallsDriverAndReturnsContainer()
+        {
+            // Arrange
+            var mockPack = new MockDriverPack();
+            mockPack.SetupContainerInspect("test-container-123", running: true);
+
+            var kernel = await MockKernelBuilderExtensions.CreateWithMockDriverAsync("docker", mockPack);
+
+            var service = new ContainerService(kernel, "docker", "test-container-123", "nginx:latest", "test-container");
+
+            try
+            {
+                // Act
+                var container = await service.InspectAsync();
+
+                // Assert
+                Assert.NotNull(container);
+                Assert.Equal("test-container-123", container.Id);
+                Assert.True(container.State.Running);
+                mockPack.ContainerDriver.Verify(d => d.InspectAsync(
+                    It.IsAny<FluentDocker.Model.Drivers.DriverContext>(),
+                    It.Is<string>(s => s == "test-container-123"),
+                    It.IsAny<System.Threading.CancellationToken>()), Times.Once);
+            }
+            finally
+            {
+                kernel.Dispose();
+            }
+        }
+
+        [Fact]
+        [Trait("Category", "Unit")]
+        public async Task GetLogsAsync_CallsDriverAndReturnsLogs()
+        {
+            // Arrange
+            var mockPack = new MockDriverPack();
+            mockPack.SetupContainerGetLogs("Application started\nListening on port 80");
+
+            var kernel = await MockKernelBuilderExtensions.CreateWithMockDriverAsync("docker", mockPack);
+
+            var service = new ContainerService(kernel, "docker", "test-container-123", "nginx:latest", "test-container");
+
+            try
+            {
+                // Act
+                var logs = await service.GetLogsAsync();
+
+                // Assert
+                Assert.Contains("Application started", logs);
+                Assert.Contains("Listening on port 80", logs);
+                mockPack.ContainerDriver.Verify(d => d.GetLogsAsync(
+                    It.IsAny<FluentDocker.Model.Drivers.DriverContext>(),
+                    It.Is<string>(s => s == "test-container-123"),
+                    It.IsAny<bool>(),
+                    It.IsAny<int?>(),
+                    It.IsAny<bool>(),
+                    It.IsAny<System.Threading.CancellationToken>()), Times.Once);
+            }
+            finally
+            {
+                kernel.Dispose();
+            }
+        }
+
+        [Fact]
+        [Trait("Category", "Unit")]
+        public async Task ExecuteAsync_CallsDriverWithCommand()
+        {
+            // Arrange
+            var mockPack = new MockDriverPack();
+            mockPack.SetupContainerExec("file1.txt\nfile2.txt", 0);
+
+            var kernel = await MockKernelBuilderExtensions.CreateWithMockDriverAsync("docker", mockPack);
+
+            var service = new ContainerService(kernel, "docker", "test-container-123", "nginx:latest", "test-container");
+
+            try
+            {
+                // Act
+                var result = await service.ExecuteAsync("ls -la");
+
+                // Assert
+                Assert.Contains("file1.txt", result);
+                mockPack.ContainerDriver.Verify(d => d.ExecAsync(
+                    It.IsAny<FluentDocker.Model.Drivers.DriverContext>(),
+                    It.Is<string>(s => s == "test-container-123"),
+                    It.Is<ExecConfig>(c => c.Command.Length == 2 && c.Command[0] == "ls"),
+                    It.IsAny<System.Threading.CancellationToken>()), Times.Once);
+            }
+            finally
+            {
+                kernel.Dispose();
+            }
+        }
+
+        [Fact]
+        [Trait("Category", "Unit")]
+        public async Task StartAsync_CallsDriverAndUpdatesState()
+        {
+            // Arrange
+            var mockPack = new MockDriverPack();
+            mockPack.SetupContainerStart();
+
+            var kernel = await MockKernelBuilderExtensions.CreateWithMockDriverAsync("docker", mockPack);
+
+            var service = new ContainerService(kernel, "docker", "test-container-123", "nginx:latest", "test-container");
+
+            try
+            {
+                // Act
+                await service.StartAsync();
+
+                // Assert
+                Assert.Equal(ServiceRunningState.Running, service.State);
+                mockPack.ContainerDriver.Verify(d => d.StartAsync(
+                    It.IsAny<FluentDocker.Model.Drivers.DriverContext>(),
+                    It.Is<string>(s => s == "test-container-123"),
+                    It.IsAny<System.Threading.CancellationToken>()), Times.Once);
+            }
+            finally
+            {
+                kernel.Dispose();
+            }
+        }
+
+        [Fact]
+        [Trait("Category", "Unit")]
+        public async Task StopAsync_CallsDriverAndUpdatesState()
+        {
+            // Arrange
+            var mockPack = new MockDriverPack();
+            mockPack.SetupContainerStop();
+
+            var kernel = await MockKernelBuilderExtensions.CreateWithMockDriverAsync("docker", mockPack);
+
+            var service = new ContainerService(kernel, "docker", "test-container-123", "nginx:latest", "test-container");
+
+            try
+            {
+                // Act
+                await service.StopAsync();
+
+                // Assert
+                Assert.Equal(ServiceRunningState.Stopped, service.State);
+                mockPack.ContainerDriver.Verify(d => d.StopAsync(
+                    It.IsAny<FluentDocker.Model.Drivers.DriverContext>(),
+                    It.Is<string>(s => s == "test-container-123"),
+                    It.IsAny<int?>(),
+                    It.IsAny<System.Threading.CancellationToken>()), Times.Once);
+            }
+            finally
+            {
+                kernel.Dispose();
+            }
+        }
+
+        [Fact]
+        [Trait("Category", "Unit")]
+        public async Task PauseAsync_CallsDriverAndUpdatesState()
+        {
+            // Arrange
+            var mockPack = new MockDriverPack();
+            mockPack.SetupContainerPause();
+
+            var kernel = await MockKernelBuilderExtensions.CreateWithMockDriverAsync("docker", mockPack);
+
+            var service = new ContainerService(kernel, "docker", "test-container-123", "nginx:latest", "test-container");
+
+            try
+            {
+                // Act
+                await service.PauseAsync();
+
+                // Assert
+                Assert.Equal(ServiceRunningState.Paused, service.State);
+                mockPack.ContainerDriver.Verify(d => d.PauseAsync(
+                    It.IsAny<FluentDocker.Model.Drivers.DriverContext>(),
+                    It.Is<string>(s => s == "test-container-123"),
+                    It.IsAny<System.Threading.CancellationToken>()), Times.Once);
+            }
+            finally
+            {
+                kernel.Dispose();
+            }
+        }
+
+        [Fact]
+        [Trait("Category", "Unit")]
+        public async Task RemoveAsync_CallsDriverAndUpdatesState()
+        {
+            // Arrange
+            var mockPack = new MockDriverPack();
+            mockPack.SetupContainerRemove();
+
+            var kernel = await MockKernelBuilderExtensions.CreateWithMockDriverAsync("docker", mockPack);
+
+            var service = new ContainerService(kernel, "docker", "test-container-123", "nginx:latest", "test-container",
+                deleteVolumeOnDispose: true);
+
+            try
+            {
+                // Act
+                await service.RemoveAsync();
+
+                // Assert
+                Assert.Equal(ServiceRunningState.Removed, service.State);
+                mockPack.ContainerDriver.Verify(d => d.RemoveAsync(
+                    It.IsAny<FluentDocker.Model.Drivers.DriverContext>(),
+                    It.Is<string>(s => s == "test-container-123"),
+                    It.IsAny<bool>(),
+                    It.Is<bool>(v => v == true),  // removeVolumes should be true
+                    It.IsAny<System.Threading.CancellationToken>()), Times.Once);
+            }
+            finally
+            {
+                kernel.Dispose();
+            }
+        }
+
+        #endregion
     }
 }
 

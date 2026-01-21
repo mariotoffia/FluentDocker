@@ -1868,6 +1868,9 @@ namespace FluentDocker.Builders
                 Services = _services,
                 Detached = true,
                 NoDeps = _noDeps,
+                NoStart = _noStart,
+                Wait = _wait,
+                WaitTimeout = _waitTimeout,
                 Timeout = _timeout
             };
 

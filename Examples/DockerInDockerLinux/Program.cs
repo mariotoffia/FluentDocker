@@ -1,8 +1,8 @@
 ﻿using System;
 using System.Linq;
 using System.Threading.Tasks;
-using FluentDocker;
 using FluentDocker.Kernel;
+using FluentDocker.Services.Impl;
 using FluentDocker.Services;
 
 namespace DockerInDockerLinux
@@ -17,7 +17,7 @@ namespace DockerInDockerLinux
         .WithDriver(DriverId, d => d.UseDockerCli().AsDefault())
         .BuildAsync();
 
-      await using var host = Fd.GetHost(kernel, DriverId);
+      await using var host = new HostService(kernel, DriverId, "default", isNative: true, requireTls: false);
 
       Console.WriteLine($"Docker driver: {DriverId}");
 

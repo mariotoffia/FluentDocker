@@ -1,5 +1,6 @@
 using System.Linq;
 using System.Reflection;
+using FluentDocker.Builders;
 using FluentDocker.Extensions;
 using FluentDocker.Resources;
 using Xunit;
@@ -62,7 +63,7 @@ namespace FluentDocker.Tests.CoreTests.Extensions
         public void ResourceQuery_FromFluentDockerAssembly_FindsResources()
         {
             // Query from the main FluentDocker assembly which should have embedded resources
-            var fluentDockerAssembly = typeof(FluentDocker.Fd).Assembly;
+            var fluentDockerAssembly = typeof(Builder).Assembly;
             var assemblyName = fluentDockerAssembly.GetName().Name;
             
             // This assembly may or may not have embedded resources
@@ -80,7 +81,7 @@ namespace FluentDocker.Tests.CoreTests.Extensions
         public void ResourceExtension_FromType_Works()
         {
             // Test the extension method form
-            var resources = typeof(FluentDocker.Fd).ResourceQuery(recursive: false).ToArray();
+            var resources = typeof(Builder).ResourceQuery(recursive: false).ToArray();
             
             // Just verify it works (may be empty if no resources)
             Assert.NotNull(resources);
