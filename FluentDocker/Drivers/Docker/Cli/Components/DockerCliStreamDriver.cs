@@ -4,6 +4,7 @@ using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using FluentDocker.Common;
+using FluentDocker.Drivers.Docker.Cli.Binary;
 using FluentDocker.Model.Drivers;
 using Newtonsoft.Json;
 
@@ -14,6 +15,13 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     /// </summary>
     public class DockerCliStreamDriver : DockerCliDriverBase, IStreamDriver
     {
+        /// <summary>
+        /// Creates a new instance with the specified binary resolver.
+        /// </summary>
+        public DockerCliStreamDriver(IBinaryResolver binaryResolver) : base(binaryResolver)
+        {
+        }
+
         /// <inheritdoc />
         public async IAsyncEnumerable<string> StreamLogsAsync(
             DriverContext context,

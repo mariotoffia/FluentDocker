@@ -2,6 +2,7 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 using FluentDocker.Common;
+using FluentDocker.Drivers.Docker.Cli.Binary;
 using FluentDocker.Model.Drivers;
 
 namespace FluentDocker.Drivers.Docker.Cli.Components
@@ -11,6 +12,13 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     /// </summary>
     public class DockerCliAuthDriver : DockerCliDriverBase, IAuthDriver
     {
+        /// <summary>
+        /// Creates a new instance with the specified binary resolver.
+        /// </summary>
+        public DockerCliAuthDriver(IBinaryResolver binaryResolver) : base(binaryResolver)
+        {
+        }
+
         /// <inheritdoc />
         public async Task<CommandResponse<Unit>> LoginAsync(
             DriverContext context,

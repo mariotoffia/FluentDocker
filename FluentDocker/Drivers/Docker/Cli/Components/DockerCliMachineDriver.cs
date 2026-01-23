@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using FluentDocker.Common;
-using FluentDocker.Extensions;
+using FluentDocker.Drivers.Docker.Cli.Binary;
 using FluentDocker.Model.Drivers;
 using FluentDocker.Services;
 using Newtonsoft.Json;
@@ -15,10 +15,17 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     /// </summary>
     public class DockerCliMachineDriver : DockerCliDriverBase, IMachineDriver
     {
+        /// <summary>
+        /// Creates a new instance with the specified binary resolver.
+        /// </summary>
+        public DockerCliMachineDriver(IBinaryResolver binaryResolver) : base(binaryResolver)
+        {
+        }
+
         /// <inheritdoc />
         public bool IsAvailable()
         {
-            return CommandExtensions.IsMachineBinaryPresent();
+            return BinaryResolver?.IsDockerMachineAvailable ?? false;
         }
 
         /// <inheritdoc />

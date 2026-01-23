@@ -4,7 +4,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using FluentDocker.Common;
-using FluentDocker.Extensions;
+using FluentDocker.Drivers.Docker.Cli.Binary;
 using FluentDocker.Model.Drivers;
 using Newtonsoft.Json;
 
@@ -15,6 +15,13 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     /// </summary>
     public class DockerCliSystemDriver : DockerCliDriverBase, ISystemDriver
     {
+        /// <summary>
+        /// Creates a new instance with the specified binary resolver.
+        /// </summary>
+        public DockerCliSystemDriver(IBinaryResolver binaryResolver) : base(binaryResolver)
+        {
+        }
+
         #region Information Operations
 
         /// <inheritdoc />
@@ -263,7 +270,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
                     {
                         StartInfo = new ProcessStartInfo
                         {
-                            FileName = "dockercli".ResolveBinary(),
+                            FileName = BinaryResolver?.ResolveBinaryPath("dockercli") ?? "dockercli",
                             Arguments = arguments,
                             RedirectStandardOutput = true,
                             RedirectStandardError = true,

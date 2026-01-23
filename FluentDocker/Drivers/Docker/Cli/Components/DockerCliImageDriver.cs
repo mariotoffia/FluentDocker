@@ -5,6 +5,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using FluentDocker.Common;
+using FluentDocker.Drivers.Docker.Cli.Binary;
 using FluentDocker.Model.Drivers;
 using Newtonsoft.Json;
 
@@ -15,6 +16,13 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     /// </summary>
     public class DockerCliImageDriver : DockerCliDriverBase, IImageDriver
     {
+        /// <summary>
+        /// Creates a new instance with the specified binary resolver.
+        /// </summary>
+        public DockerCliImageDriver(IBinaryResolver binaryResolver) : base(binaryResolver)
+        {
+        }
+
         #region Pull/Push Operations
 
         /// <inheritdoc />

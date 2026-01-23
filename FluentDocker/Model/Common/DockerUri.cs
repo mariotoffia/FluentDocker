@@ -1,6 +1,5 @@
 using System;
 using FluentDocker.Common;
-using FluentDocker.Extensions;
 
 namespace FluentDocker.Model.Common
 {
@@ -11,10 +10,21 @@ namespace FluentDocker.Model.Common
     private const string DockerHostUrlLegacy = "tcp://localhost:2375";
     private const string DockerHostUrlMacOrLinux = "unix:///var/run/docker.sock";
 
+    private static Func<bool> _isToolboxResolver;
+
     public DockerUri(string uriString) : base(uriString)
     {
       if (uriString == DockerHostUrlMacOrLinux || uriString == DockerHostUrlWindowsNative)
         this.IsStandardDaemon = true;
+    }
+
+    /// <summary>
+    /// Configures how IsToolbox is resolved. Used by driver infrastructure.
+    /// </summary>
+    /// <param name="resolver">A function that returns true if Docker Toolbox is in use.</param>
+    public static void ConfigureToolboxResolver(Func<bool> resolver)
+    {
+      _isToolboxResolver = resolver;
     }
 
     public static string GetDockerHostEnvironmentPathOrDefault()
@@ -25,12 +35,22 @@ namespace FluentDocker.Model.Common
         return env;
       }
 
+      var isToolbox = _isToolboxResolver?.Invoke() ?? IsToolboxFromEnvironment();
+
       if (FdOs.IsWindows())
       {
-        return CommandExtensions.IsToolbox() ? DockerHostUrlLegacy : DockerHostUrlWindowsNative;
+        return isToolbox ? DockerHostUrlLegacy : DockerHostUrlWindowsNative;
       }
 
-      return CommandExtensions.IsToolbox() ? DockerHostUrlLegacy : DockerHostUrlMacOrLinux;
+      return isToolbox ? DockerHostUrlLegacy : DockerHostUrlMacOrLinux;
+    }
+
+    /// <summary>
+    /// Fallback check for Docker Toolbox using environment variable.
+    /// </summary>
+    private static bool IsToolboxFromEnvironment()
+    {
+      return !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("DOCKER_TOOLBOX_INSTALL_PATH"));
     }
 
     /// <summary>

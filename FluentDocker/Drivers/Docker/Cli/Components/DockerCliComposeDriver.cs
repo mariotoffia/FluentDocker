@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using FluentDocker.Common;
+using FluentDocker.Drivers.Docker.Cli.Binary;
 using FluentDocker.Model.Drivers;
 using Newtonsoft.Json;
 
@@ -14,6 +15,13 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     /// </summary>
     public class DockerCliComposeDriver : DockerCliDriverBase, IComposeDriver
     {
+        /// <summary>
+        /// Creates a new instance with the specified binary resolver.
+        /// </summary>
+        public DockerCliComposeDriver(IBinaryResolver binaryResolver) : base(binaryResolver)
+        {
+        }
+
         #region Lifecycle Operations
 
         /// <inheritdoc />

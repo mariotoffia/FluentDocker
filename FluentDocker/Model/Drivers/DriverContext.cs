@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using FluentDocker.Model.Common;
 
 namespace FluentDocker.Model.Drivers
 {
@@ -36,6 +37,21 @@ namespace FluentDocker.Model.Drivers
         /// Additional metadata for this operation.
         /// </summary>
         public Dictionary<string, string> Metadata { get; set; } = new Dictionary<string, string>();
+
+        /// <summary>
+        /// Sudo mechanism for Docker commands.
+        /// </summary>
+        public SudoMechanism Sudo { get; set; } = SudoMechanism.None;
+
+        /// <summary>
+        /// Password for sudo (when Sudo is set to SudoMechanism.Password).
+        /// </summary>
+        public string SudoPassword { get; set; }
+
+        /// <summary>
+        /// Default shell for sudo commands (default: "bash").
+        /// </summary>
+        public string DefaultShell { get; set; } = "bash";
 
         /// <summary>
         /// Creates a new driver context.

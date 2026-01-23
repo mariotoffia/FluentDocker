@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using FluentDocker.Common;
+using FluentDocker.Drivers.Docker.Cli.Binary;
 using FluentDocker.Drivers.Docker.Cli.Components;
 using FluentDocker.Kernel;
 using FluentDocker.Model.Drivers;
@@ -17,7 +18,13 @@ namespace FluentDocker.Drivers.Docker.Cli
     {
         private readonly Dictionary<Type, object> _drivers = new Dictionary<Type, object>();
         private DriverContext _context;
+        private IBinaryResolver _binaryResolver;
         private bool _initialized;
+
+        /// <summary>
+        /// Gets the binary resolver for this driver pack.
+        /// </summary>
+        public IBinaryResolver BinaryResolver => _binaryResolver;
 
         /// <summary>
         /// Individual driver components
@@ -45,20 +52,29 @@ namespace FluentDocker.Drivers.Docker.Cli
         {
             _context = context ?? throw new ArgumentNullException(nameof(context));
 
-            // Create and initialize all driver components
-            _containerDriver = new DockerCliContainerDriver();
-            _imageDriver = new DockerCliImageDriver();
-            _networkDriver = new DockerCliNetworkDriver();
-            _volumeDriver = new DockerCliVolumeDriver();
-            _systemDriver = new DockerCliSystemDriver();
-            _composeDriver = new DockerCliComposeDriver();
-            _authDriver = new DockerCliAuthDriver();
-            _streamDriver = new DockerCliStreamDriver();
-            _stackDriver = new DockerCliStackDriver();
-            _serviceDriver = new DockerCliServiceDriver();
-            _machineDriver = new DockerCliMachineDriver();
+            // Initialize the binary resolver with context configuration
+            var binaryConfig = new BinaryConfiguration
+            {
+                Sudo = context.Sudo,
+                SudoPassword = context.SudoPassword,
+                DefaultShell = context.DefaultShell
+            };
+            _binaryResolver = new DockerBinariesResolver(binaryConfig);
 
-            // Initialize all components
+            // Create and initialize all driver components with binary resolver
+            _containerDriver = new DockerCliContainerDriver(_binaryResolver);
+            _imageDriver = new DockerCliImageDriver(_binaryResolver);
+            _networkDriver = new DockerCliNetworkDriver(_binaryResolver);
+            _volumeDriver = new DockerCliVolumeDriver(_binaryResolver);
+            _systemDriver = new DockerCliSystemDriver(_binaryResolver);
+            _composeDriver = new DockerCliComposeDriver(_binaryResolver);
+            _authDriver = new DockerCliAuthDriver(_binaryResolver);
+            _streamDriver = new DockerCliStreamDriver(_binaryResolver);
+            _stackDriver = new DockerCliStackDriver(_binaryResolver);
+            _serviceDriver = new DockerCliServiceDriver(_binaryResolver);
+            _machineDriver = new DockerCliMachineDriver(_binaryResolver);
+
+            // Initialize all components with context
             _containerDriver.Initialize(context);
             _imageDriver.Initialize(context);
             _networkDriver.Initialize(context);

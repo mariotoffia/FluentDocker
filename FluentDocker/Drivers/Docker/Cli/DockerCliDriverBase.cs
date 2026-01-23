@@ -5,7 +5,7 @@ using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using FluentDocker.Extensions;
+using FluentDocker.Drivers.Docker.Cli.Binary;
 using FluentDocker.Model.Drivers;
 
 namespace FluentDocker.Drivers.Docker.Cli
@@ -32,12 +32,44 @@ namespace FluentDocker.Drivers.Docker.Cli
         protected DriverContext Context { get; private set; }
 
         /// <summary>
+        /// The binary resolver for resolving Docker command paths.
+        /// </summary>
+        protected IBinaryResolver BinaryResolver { get; private set; }
+
+        /// <summary>
+        /// Creates a new instance without a binary resolver.
+        /// </summary>
+        protected DockerCliDriverBase()
+        {
+        }
+
+        /// <summary>
+        /// Creates a new instance with the specified binary resolver.
+        /// </summary>
+        /// <param name="binaryResolver">The binary resolver to use.</param>
+        protected DockerCliDriverBase(IBinaryResolver binaryResolver)
+        {
+            BinaryResolver = binaryResolver;
+        }
+
+        /// <summary>
         /// Initializes the driver component with the given context.
         /// </summary>
         /// <param name="context">Driver context</param>
         public virtual void Initialize(DriverContext context)
         {
             Context = context ?? throw new ArgumentNullException(nameof(context));
+        }
+
+        /// <summary>
+        /// Initializes the driver component with the given context and binary resolver.
+        /// </summary>
+        /// <param name="context">Driver context</param>
+        /// <param name="binaryResolver">Binary resolver</param>
+        public virtual void Initialize(DriverContext context, IBinaryResolver binaryResolver)
+        {
+            Context = context ?? throw new ArgumentNullException(nameof(context));
+            BinaryResolver = binaryResolver ?? throw new ArgumentNullException(nameof(binaryResolver));
         }
 
         #region Command Execution
@@ -50,7 +82,8 @@ namespace FluentDocker.Drivers.Docker.Cli
         /// <returns>Command result</returns>
         protected async Task<SimpleCommandResult> ExecuteCommandAsync(string arguments, CancellationToken cancellationToken)
         {
-            return await ExecuteProcessAsync(DockerCommand, arguments, cancellationToken);
+            var dockerPath = BinaryResolver?.ResolveBinaryPath(DockerCommand) ?? DockerCommand;
+            return await ExecuteProcessAsync(dockerPath, arguments, cancellationToken);
         }
 
         /// <summary>
@@ -61,7 +94,8 @@ namespace FluentDocker.Drivers.Docker.Cli
         /// <returns>Command result</returns>
         protected async Task<SimpleCommandResult> ExecuteMachineCommandAsync(string arguments, CancellationToken cancellationToken)
         {
-            return await ExecuteProcessAsync(DockerMachineCommand.ResolveBinary(), arguments, cancellationToken);
+            var machinePath = BinaryResolver?.ResolveBinaryPath(DockerMachineCommand) ?? DockerMachineCommand;
+            return await ExecuteProcessAsync(machinePath, arguments, cancellationToken);
         }
 
         /// <summary>

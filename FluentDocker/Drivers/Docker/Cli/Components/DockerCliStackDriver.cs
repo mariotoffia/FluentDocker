@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using FluentDocker.Common;
+using FluentDocker.Drivers.Docker.Cli.Binary;
 using FluentDocker.Model.Drivers;
 using Newtonsoft.Json;
 
@@ -13,6 +14,13 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     /// </summary>
     public class DockerCliStackDriver : DockerCliDriverBase, IStackDriver
     {
+        /// <summary>
+        /// Creates a new instance with the specified binary resolver.
+        /// </summary>
+        public DockerCliStackDriver(IBinaryResolver binaryResolver) : base(binaryResolver)
+        {
+        }
+
         /// <inheritdoc />
         public async Task<CommandResponse<IList<StackInfo>>> ListAsync(
             DriverContext context,

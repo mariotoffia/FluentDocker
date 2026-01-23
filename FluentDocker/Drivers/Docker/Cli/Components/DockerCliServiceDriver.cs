@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using FluentDocker.Common;
+using FluentDocker.Drivers.Docker.Cli.Binary;
 using FluentDocker.Model.Drivers;
 using Newtonsoft.Json;
 
@@ -14,6 +15,13 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     /// </summary>
     public class DockerCliServiceDriver : DockerCliDriverBase, IServiceDriver
     {
+        /// <summary>
+        /// Creates a new instance with the specified binary resolver.
+        /// </summary>
+        public DockerCliServiceDriver(IBinaryResolver binaryResolver) : base(binaryResolver)
+        {
+        }
+
         /// <inheritdoc />
         public async Task<CommandResponse<ServiceCreateResult>> CreateAsync(
             DriverContext context,

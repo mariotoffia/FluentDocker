@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using FluentDocker.Common;
+using FluentDocker.Drivers.Docker.Cli.Binary;
 using FluentDocker.Model.Drivers;
 using Newtonsoft.Json;
 using Container = FluentDocker.Model.Containers.Container;
@@ -16,6 +17,13 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     /// </summary>
     public class DockerCliContainerDriver : DockerCliDriverBase, IContainerDriver
     {
+        /// <summary>
+        /// Creates a new instance with the specified binary resolver.
+        /// </summary>
+        public DockerCliContainerDriver(IBinaryResolver binaryResolver) : base(binaryResolver)
+        {
+        }
+
         #region Lifecycle Operations
 
         /// <inheritdoc />
