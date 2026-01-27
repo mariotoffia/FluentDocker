@@ -3,14 +3,17 @@ using FluentDocker.Common;
 
 namespace FluentDocker.Model.Common
 {
+  /// <summary>
+  /// Represents a Docker host URI.
+  /// </summary>
+  /// <remarks>
+  /// v3.0 Note: Docker Toolbox support has been removed. Uses native Docker daemon URIs only.
+  /// </remarks>
   public sealed class DockerUri : Uri
   {
     private const string DockerHost = "DOCKER_HOST";
     private const string DockerHostUrlWindowsNative = "npipe://./pipe/docker_engine";
-    private const string DockerHostUrlLegacy = "tcp://localhost:2375";
     private const string DockerHostUrlMacOrLinux = "unix:///var/run/docker.sock";
-
-    private static Func<bool> _isToolboxResolver;
 
     public DockerUri(string uriString) : base(uriString)
     {
@@ -19,14 +22,9 @@ namespace FluentDocker.Model.Common
     }
 
     /// <summary>
-    /// Configures how IsToolbox is resolved. Used by driver infrastructure.
+    /// Gets the Docker host URI from the DOCKER_HOST environment variable or returns the platform default.
     /// </summary>
-    /// <param name="resolver">A function that returns true if Docker Toolbox is in use.</param>
-    public static void ConfigureToolboxResolver(Func<bool> resolver)
-    {
-      _isToolboxResolver = resolver;
-    }
-
+    /// <returns>The Docker host URI string.</returns>
     public static string GetDockerHostEnvironmentPathOrDefault()
     {
       var env = Environment.GetEnvironmentVariable(DockerHost);
@@ -35,22 +33,7 @@ namespace FluentDocker.Model.Common
         return env;
       }
 
-      var isToolbox = _isToolboxResolver?.Invoke() ?? IsToolboxFromEnvironment();
-
-      if (FdOs.IsWindows())
-      {
-        return isToolbox ? DockerHostUrlLegacy : DockerHostUrlWindowsNative;
-      }
-
-      return isToolbox ? DockerHostUrlLegacy : DockerHostUrlMacOrLinux;
-    }
-
-    /// <summary>
-    /// Fallback check for Docker Toolbox using environment variable.
-    /// </summary>
-    private static bool IsToolboxFromEnvironment()
-    {
-      return !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("DOCKER_TOOLBOX_INSTALL_PATH"));
+      return FdOs.IsWindows() ? DockerHostUrlWindowsNative : DockerHostUrlMacOrLinux;
     }
 
     /// <summary>

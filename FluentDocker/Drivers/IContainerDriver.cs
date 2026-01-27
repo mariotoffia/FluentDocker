@@ -210,6 +210,18 @@ namespace FluentDocker.Drivers
             string containerId,
             CancellationToken cancellationToken = default);
 
+        /// <summary>
+        /// Gets real-time resource usage statistics from a container.
+        /// </summary>
+        /// <param name="context">Driver context</param>
+        /// <param name="containerId">Container ID or name</param>
+        /// <param name="cancellationToken">Cancellation token</param>
+        /// <returns>Container statistics</returns>
+        Task<Model.Drivers.CommandResponse<ContainerStatsResult>> StatsAsync(
+            DriverContext context,
+            string containerId,
+            CancellationToken cancellationToken = default);
+
         #endregion
 
         #region Execution Operations
@@ -391,6 +403,45 @@ namespace FluentDocker.Drivers
         public string Kind { get; set; }
     }
 
+    /// <summary>
+    /// Container resource usage statistics from docker stats command.
+    /// </summary>
+    public class ContainerStatsResult
+    {
+        /// <summary>Container ID.</summary>
+        public string ContainerId { get; set; }
+
+        /// <summary>Container name.</summary>
+        public string Name { get; set; }
+
+        /// <summary>CPU usage percentage.</summary>
+        public double CpuPercent { get; set; }
+
+        /// <summary>Memory usage in bytes.</summary>
+        public long MemoryUsage { get; set; }
+
+        /// <summary>Memory limit in bytes.</summary>
+        public long MemoryLimit { get; set; }
+
+        /// <summary>Memory usage percentage.</summary>
+        public double MemoryPercent { get; set; }
+
+        /// <summary>Network bytes received.</summary>
+        public long NetworkRxBytes { get; set; }
+
+        /// <summary>Network bytes transmitted.</summary>
+        public long NetworkTxBytes { get; set; }
+
+        /// <summary>Block I/O bytes read.</summary>
+        public long BlockReadBytes { get; set; }
+
+        /// <summary>Block I/O bytes written.</summary>
+        public long BlockWriteBytes { get; set; }
+
+        /// <summary>Number of PIDs (processes) in the container.</summary>
+        public int Pids { get; set; }
+    }
+
     #endregion
 
     #region Config Types
@@ -438,6 +489,12 @@ namespace FluentDocker.Drivers
 
         /// <summary>Networks to attach the container to.</summary>
         public List<string> Networks { get; set; } = new List<string>();
+
+        /// <summary>Static IPv4 address for the container (requires custom network with subnet).</summary>
+        public string Ipv4Address { get; set; }
+
+        /// <summary>Static IPv6 address for the container (requires IPv6-enabled network with subnet).</summary>
+        public string Ipv6Address { get; set; }
 
         /// <summary>Memory limit in bytes.</summary>
         public long? MemoryLimit { get; set; }

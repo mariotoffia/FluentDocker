@@ -50,9 +50,28 @@ namespace FluentDocker.Services
         Task<byte[]> CopyFromAsync(string containerPath, CancellationToken cancellationToken = default);
 
         /// <summary>
-        /// Copies a file to the container.
+        /// Copies data to the container.
         /// </summary>
+        /// <param name="containerPath">Destination path in the container.</param>
+        /// <param name="data">Data to copy.</param>
+        /// <param name="cancellationToken">Cancellation token.</param>
         Task CopyToAsync(string containerPath, byte[] data, CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Copies a file or directory from the host to the container.
+        /// </summary>
+        /// <param name="hostPath">Source path on the host (file or directory).</param>
+        /// <param name="containerPath">Destination path in the container.</param>
+        /// <param name="cancellationToken">Cancellation token.</param>
+        Task CopyToAsync(string hostPath, string containerPath, CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Copies a file or directory from the container to the host.
+        /// </summary>
+        /// <param name="containerPath">Source path in the container.</param>
+        /// <param name="hostPath">Destination path on the host.</param>
+        /// <param name="cancellationToken">Cancellation token.</param>
+        Task CopyFromToPathAsync(string containerPath, string hostPath, CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Gets real-time stats from the container.

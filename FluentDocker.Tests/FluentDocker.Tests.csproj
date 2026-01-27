@@ -30,6 +30,9 @@
     <None Update="Resources\ComposeTests\WordPress\docker-compose.yml">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
+    <None Update="Resources\ComposeTests\WordPress\docker-compose-test.yml">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
     <None Update="Resources\ComposeTests\RabbitMQ\docker-compose.yml">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>

@@ -6,6 +6,9 @@ namespace FluentDocker.Drivers.Docker.Cli.Binary
     /// <summary>
     /// Represents a resolved Docker binary on the local machine.
     /// </summary>
+    /// <remarks>
+    /// v3.0 Note: Docker Machine and Docker Toolbox support has been removed.
+    /// </remarks>
     public sealed class DockerBinary
     {
         /// <summary>
@@ -22,9 +25,6 @@ namespace FluentDocker.Drivers.Docker.Cli.Binary
             Type = Translate(binary);
             Sudo = sudo;
             SudoPassword = password;
-
-            var isToolbox = Environment.GetEnvironmentVariable("DOCKER_TOOLBOX_INSTALL_PATH")?.Equals(Path);
-            IsToolbox = isToolbox ?? false;
         }
 
         /// <summary>
@@ -42,9 +42,6 @@ namespace FluentDocker.Drivers.Docker.Cli.Binary
             Type = type;
             Sudo = sudo;
             SudoPassword = password;
-
-            var isToolbox = Environment.GetEnvironmentVariable("DOCKER_TOOLBOX_INSTALL_PATH")?.Equals(Path);
-            IsToolbox = isToolbox ?? false;
         }
 
         /// <summary>
@@ -52,16 +49,22 @@ namespace FluentDocker.Drivers.Docker.Cli.Binary
         /// </summary>
         /// <param name="binary">The binary name.</param>
         /// <returns>The corresponding DockerBinaryType.</returns>
+        /// <remarks>
+        /// v3.0: docker-machine and docker-compose are no longer supported.
+        /// For compose operations, use "docker compose" (Compose V2).
+        /// </remarks>
         /// <exception cref="ArgumentException">Thrown when the binary name is not recognized.</exception>
         public static DockerBinaryType Translate(string binary)
         {
             return binary.ToLower() switch
             {
                 "docker" or "docker.exe" => DockerBinaryType.DockerClient,
-                "docker-machine" or "docker-machine.exe" => DockerBinaryType.Machine,
-                "docker-compose" or "docker-compose.exe" => DockerBinaryType.Compose,
                 "dockercli" or "dockercli.exe" => DockerBinaryType.Cli,
-                _ => throw new ArgumentException($"Cannot determine the docker type on binary {binary}", nameof(binary))
+                "compose" => DockerBinaryType.ComposeV2,
+                // Legacy names - map to appropriate types or throw
+                "docker-compose" or "docker-compose.exe" => DockerBinaryType.ComposeV2, // Redirect to V2
+                _ => throw new ArgumentException($"Cannot determine the docker type on binary {binary}. " +
+                    "Note: docker-machine is no longer supported in v3.0.", nameof(binary))
             };
         }
 
@@ -84,11 +87,6 @@ namespace FluentDocker.Drivers.Docker.Cli.Binary
         /// Gets the binary type.
         /// </summary>
         public DockerBinaryType Type { get; }
-
-        /// <summary>
-        /// Gets whether this binary is from Docker Toolbox.
-        /// </summary>
-        public bool IsToolbox { get; }
 
         /// <summary>
         /// Gets the sudo mechanism for this binary.

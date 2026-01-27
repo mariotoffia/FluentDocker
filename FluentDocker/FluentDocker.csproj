@@ -19,10 +19,10 @@
     <AllowedOutputExtensionsInPackageBuildOutputFolder>$(AllowedOutputExtensionsInPackageBuildOutputFolder);.pdb</AllowedOutputExtensionsInPackageBuildOutputFolder>
     <EmbedUntrackedSources>true</EmbedUntrackedSources>
     <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
-    <PackageTags>Docker;Docker-Compose;Docker Compose;Docker-Machine;Docker Machine;Linux;Windows;Mac;Fluent;NET Core</PackageTags>
+    <PackageTags>Docker;Docker Compose;Linux;Windows;Mac;Fluent;NET Core</PackageTags>
     <RepositoryType>git</RepositoryType>
     <RepositoryUrl>https://github.com/mariotoffia/FluentDocker</RepositoryUrl>
-    <Description>Library to manage docker-machine, docker-compose, and docker containers for windows / mac or native linux using netcore or full framework.</Description>
+    <Description>Library to manage docker compose and docker containers for Windows, Mac, or native Linux using .NET.</Description>
     <Copyright>© 2016 - 2025 Mario Toffia</Copyright>
     <AssemblyOriginatorKeyFile>..\keypair.snk</AssemblyOriginatorKeyFile>
     <SignAssembly>true</SignAssembly>

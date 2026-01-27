@@ -1,9 +1,20 @@
 UNAME_S := $(shell uname -s)
+SOLUTION := FluentDocker.sln
+
+.PHONY: all
+all: build test
 
 .PHONY: build
 build:
-	act -j build --env-file .env
+	dotnet build $(SOLUTION) --configuration Debug
 
+.PHONY: build-release
+build-release:
+	dotnet build $(SOLUTION) --configuration Release
+
+.PHONY: act-build
+act-build:
+	act -j build --env-file .env
 
 .PHONY: dep
 dep:
@@ -13,3 +24,67 @@ ifeq ($(UNAME_S),Darwin)
 else
 	@echo "ℹ️  Skipping .NET SDK check (host OS: $(UNAME_S))"
 endif
+	dotnet restore $(SOLUTION)
+
+.PHONY: clean
+clean:
+	dotnet clean $(SOLUTION)
+	rm -rf **/bin **/obj
+
+.PHONY: test
+test:
+	dotnet test FluentDocker.Tests/FluentDocker.Tests.csproj --configuration Debug --verbosity normal
+
+.PHONY: test-unit
+test-unit:
+	dotnet test FluentDocker.Tests/FluentDocker.Tests.csproj --filter "Category!=Integration" --configuration Debug
+
+.PHONY: test-integration
+test-integration:
+	dotnet test FluentDocker.Tests/FluentDocker.Tests.csproj --filter "Category=Integration" --configuration Debug
+
+.PHONY: benchmark
+benchmark:
+	dotnet run --project FluentDocker.Benchmarks/FluentDocker.Benchmarks.csproj --configuration Release -- --filter "*"
+
+.PHONY: benchmark-stats
+benchmark-stats:
+	dotnet run --project FluentDocker.Benchmarks/FluentDocker.Benchmarks.csproj --configuration Release -- --filter "*ContainerStats*"
+
+.PHONY: benchmark-template
+benchmark-template:
+	dotnet run --project FluentDocker.Benchmarks/FluentDocker.Benchmarks.csproj --configuration Release -- --filter "*TemplateString*"
+
+.PHONY: lint
+lint:
+	dotnet format $(SOLUTION) --verify-no-changes --verbosity diagnostic
+
+.PHONY: format
+format:
+	dotnet format $(SOLUTION)
+
+.PHONY: pack
+pack: build-release
+	dotnet pack FluentDocker/FluentDocker.csproj --configuration Release --no-build
+	dotnet pack FluentDocker.MsTest/FluentDocker.MsTest.csproj --configuration Release --no-build
+	dotnet pack FluentDocker.XUnit/FluentDocker.XUnit.csproj --configuration Release --no-build
+
+.PHONY: help
+help:
+	@echo "Available targets:"
+	@echo "  all              - Build and test (default)"
+	@echo "  build            - Build solution in Debug mode"
+	@echo "  build-release    - Build solution in Release mode"
+	@echo "  act-build        - Run build via act (GitHub Actions)"
+	@echo "  dep              - Install dependencies and restore packages"
+	@echo "  clean            - Clean build artifacts"
+	@echo "  test             - Run all tests"
+	@echo "  test-unit        - Run unit tests only"
+	@echo "  test-integration - Run integration tests only (requires Docker)"
+	@echo "  benchmark        - Run all benchmarks"
+	@echo "  benchmark-stats  - Run container stats benchmarks only"
+	@echo "  benchmark-template - Run template string benchmarks only"
+	@echo "  lint             - Check code formatting"
+	@echo "  format           - Format code"
+	@echo "  pack             - Create NuGet packages"
+	@echo "  help             - Show this help"

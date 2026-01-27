@@ -418,6 +418,55 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
                 });
             Assert.True(configured);
         }
+
+        [Theory]
+        [InlineData("192.168.1.100")]
+        [InlineData("10.0.0.50")]
+        [InlineData("172.16.0.10")]
+        public void UseIpV4_SetsStaticIpv4Address(string ipv4)
+        {
+            var builder = new Builder();
+            var configured = false;
+            builder.WithinDriver("test", new FluentDockerKernel())
+                .UseContainer(c =>
+                {
+                    c.UseIpV4(ipv4);
+                    configured = true;
+                });
+            Assert.True(configured);
+        }
+
+        [Theory]
+        [InlineData("fd00::1")]
+        [InlineData("2001:db8::1")]
+        [InlineData("fe80::1")]
+        public void UseIpV6_SetsStaticIpv6Address(string ipv6)
+        {
+            var builder = new Builder();
+            var configured = false;
+            builder.WithinDriver("test", new FluentDockerKernel())
+                .UseContainer(c =>
+                {
+                    c.UseIpV6(ipv6);
+                    configured = true;
+                });
+            Assert.True(configured);
+        }
+
+        [Fact]
+        public void UseIpV4AndIpV6_CanBeUsedTogether()
+        {
+            var builder = new Builder();
+            var configured = false;
+            builder.WithinDriver("test", new FluentDockerKernel())
+                .UseContainer(c =>
+                {
+                    c.UseIpV4("192.168.1.100")
+                     .UseIpV6("fd00::1");
+                    configured = true;
+                });
+            Assert.True(configured);
+        }
     }
 }
 

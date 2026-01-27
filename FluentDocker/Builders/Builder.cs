@@ -461,6 +461,21 @@ namespace FluentDocker.Builders
         IContainerBuilder WithNetwork(string networkName);
         /// <summary>Adds the container to a network with a DNS alias.</summary>
         IContainerBuilder WithNetworkAlias(string networkName, string alias);
+
+        /// <summary>
+        /// Sets a static IPv4 address for the container.
+        /// Requires the container to be connected to a custom network with a defined subnet.
+        /// </summary>
+        /// <param name="ipv4Address">The IPv4 address to assign (e.g., "10.18.0.22").</param>
+        IContainerBuilder UseIpV4(string ipv4Address);
+
+        /// <summary>
+        /// Sets a static IPv6 address for the container.
+        /// Requires the container to be connected to an IPv6-enabled custom network.
+        /// </summary>
+        /// <param name="ipv6Address">The IPv6 address to assign.</param>
+        IContainerBuilder UseIpV6(string ipv6Address);
+
         IContainerBuilder WithMemoryLimit(long bytes);
         IContainerBuilder WithCpuShares(long shares);
         IContainerBuilder WithPrivileged(bool privileged = true);
@@ -708,6 +723,8 @@ namespace FluentDocker.Builders
         private string _restartPolicy;
         private string _hostname;
         private string _networkMode;
+        private string _ipv4Address;
+        private string _ipv6Address;
         private long? _memoryLimit;
         private long? _cpuShares;
         private bool _privileged;
@@ -836,6 +853,18 @@ namespace FluentDocker.Builders
             _networkAliases.Add(new NetworkAlias { NetworkName = networkName, Alias = alias });
             if (!_networks.Contains(networkName))
             _networks.Add(networkName);
+            return this;
+        }
+
+        public IContainerBuilder UseIpV4(string ipv4Address)
+        {
+            _ipv4Address = ipv4Address;
+            return this;
+        }
+
+        public IContainerBuilder UseIpV6(string ipv6Address)
+        {
+            _ipv6Address = ipv6Address;
             return this;
         }
 
@@ -1189,6 +1218,8 @@ namespace FluentDocker.Builders
                 RestartPolicy = _restartPolicy,
                 Hostname = _hostname,
                 NetworkMode = _networkMode,
+                Ipv4Address = _ipv4Address,
+                Ipv6Address = _ipv6Address,
                 MemoryLimit = _memoryLimit,
                 CpuShares = _cpuShares,
                 Privileged = _privileged,

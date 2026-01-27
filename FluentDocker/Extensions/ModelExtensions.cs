@@ -134,15 +134,12 @@ namespace FluentDocker.Extensions
 
     public static string ToDocker(this MountType access)
     {
-      switch (access)
+      return access switch
       {
-        case MountType.ReadOnly:
-          return "ro";
-        case MountType.ReadWrite:
-          return "rw";
-      }
-
-      throw new NotImplementedException($"Not implemented type: {access}");
+        MountType.ReadOnly => "ro",
+        MountType.ReadWrite => "rw",
+        _ => throw new ArgumentOutOfRangeException(nameof(access), access, $"Unsupported mount type: {access}")
+      };
     }
 
     public static string[] ArrayAddDistinct(this string[] arr, params string[] values)

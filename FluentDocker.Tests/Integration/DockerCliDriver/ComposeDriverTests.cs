@@ -33,7 +33,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
         public async Task Compose_Up_StartsServices()
         {
             var projectName = UniqueName("compose");
-            var composeFile = GetResourcePath("ComposeTests/WordPress/docker-compose.yml");
+            var composeFile = GetResourcePath("ComposeTests/WordPress/docker-compose-test.yml");
             
             try
             {
@@ -75,7 +75,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
         public async Task Compose_Down_StopsAndRemovesServices()
         {
             var projectName = UniqueName("compose");
-            var composeFile = GetResourcePath("ComposeTests/WordPress/docker-compose.yml");
+            var composeFile = GetResourcePath("ComposeTests/WordPress/docker-compose-test.yml");
             
             // Arrange
             var upResult = await ComposeDriver.UpAsync(Context, new ComposeUpConfig
@@ -224,7 +224,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
         [Fact]
         public async Task Compose_Config_ValidatesAndReturnsConfig()
         {
-            var composeFile = GetResourcePath("ComposeTests/WordPress/docker-compose.yml");
+            var composeFile = GetResourcePath("ComposeTests/WordPress/docker-compose-test.yml");
             
             // Act
             var configResult = await ComposeDriver.ConfigAsync(Context, new ComposeConfigConfig
@@ -557,7 +557,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
         public async Task Compose_Down_WithoutRemoveVolumes_KeepsVolumes()
         {
             var projectName = UniqueName("compose");
-            var composeFile = GetResourcePath("ComposeTests/WordPress/docker-compose.yml");
+            var composeFile = GetResourcePath("ComposeTests/WordPress/docker-compose-test.yml");
             
             // Arrange
             var upResult = await ComposeDriver.UpAsync(Context, new ComposeUpConfig

@@ -1,0 +1,26 @@
+# FluentDocker v3 - Docker Compose V2 Example
+# This compose file uses 'docker compose' (Compose V2), not docker-compose binary
+
+version: '3.8'
+
+services:
+  web:
+    image: nginx:alpine
+    ports:
+      - "8080:80"
+    volumes:
+      - ./config/nginx:/etc/nginx/conf.d:ro
+    depends_on:
+      - api
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost/"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  api:
+    image: alpine:latest
+    command: ["tail", "-f", "/dev/null"]
+    environment:
+      - APP_ENV=development
+      - LOG_LEVEL=debug

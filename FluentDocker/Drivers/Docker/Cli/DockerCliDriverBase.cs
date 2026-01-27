@@ -22,11 +22,6 @@ namespace FluentDocker.Drivers.Docker.Cli
         protected const string DockerCommand = "docker";
 
         /// <summary>
-        /// The Docker Machine command executable name.
-        /// </summary>
-        protected const string DockerMachineCommand = "docker-machine";
-
-        /// <summary>
         /// The driver context.
         /// </summary>
         protected DriverContext Context { get; private set; }
@@ -84,18 +79,6 @@ namespace FluentDocker.Drivers.Docker.Cli
         {
             var dockerPath = BinaryResolver?.ResolveBinaryPath(DockerCommand) ?? DockerCommand;
             return await ExecuteProcessAsync(dockerPath, arguments, cancellationToken);
-        }
-
-        /// <summary>
-        /// Executes a Docker Machine command asynchronously.
-        /// </summary>
-        /// <param name="arguments">Command arguments</param>
-        /// <param name="cancellationToken">Cancellation token</param>
-        /// <returns>Command result</returns>
-        protected async Task<SimpleCommandResult> ExecuteMachineCommandAsync(string arguments, CancellationToken cancellationToken)
-        {
-            var machinePath = BinaryResolver?.ResolveBinaryPath(DockerMachineCommand) ?? DockerMachineCommand;
-            return await ExecuteProcessAsync(machinePath, arguments, cancellationToken);
         }
 
         /// <summary>

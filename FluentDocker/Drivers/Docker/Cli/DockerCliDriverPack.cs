@@ -39,7 +39,6 @@ namespace FluentDocker.Drivers.Docker.Cli
         private DockerCliStreamDriver _streamDriver;
         private DockerCliStackDriver _stackDriver;
         private DockerCliServiceDriver _serviceDriver;
-        private DockerCliMachineDriver _machineDriver;
 
         /// <inheritdoc />
         public DriverType Type => DriverType.DockerCli;
@@ -72,7 +71,6 @@ namespace FluentDocker.Drivers.Docker.Cli
             _streamDriver = new DockerCliStreamDriver(_binaryResolver);
             _stackDriver = new DockerCliStackDriver(_binaryResolver);
             _serviceDriver = new DockerCliServiceDriver(_binaryResolver);
-            _machineDriver = new DockerCliMachineDriver(_binaryResolver);
 
             // Initialize all components with context
             _containerDriver.Initialize(context);
@@ -85,7 +83,6 @@ namespace FluentDocker.Drivers.Docker.Cli
             _streamDriver.Initialize(context);
             _stackDriver.Initialize(context);
             _serviceDriver.Initialize(context);
-            _machineDriver.Initialize(context);
 
             // Register all drivers by interface type
             _drivers[typeof(IContainerDriver)] = _containerDriver;
@@ -98,7 +95,6 @@ namespace FluentDocker.Drivers.Docker.Cli
             _drivers[typeof(IStreamDriver)] = _streamDriver;
             _drivers[typeof(IStackDriver)] = _stackDriver;
             _drivers[typeof(IServiceDriver)] = _serviceDriver;
-            _drivers[typeof(IMachineDriver)] = _machineDriver;
 
             _initialized = true;
             await Task.CompletedTask;
@@ -287,18 +283,6 @@ namespace FluentDocker.Drivers.Docker.Cli
             {
                 ThrowIfNotInitialized();
                 return _serviceDriver;
-            }
-        }
-
-        /// <summary>
-        /// Gets the machine driver.
-        /// </summary>
-        public IMachineDriver MachineDriver
-        {
-            get
-            {
-                ThrowIfNotInitialized();
-                return _machineDriver;
             }
         }
 

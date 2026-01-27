@@ -627,6 +627,43 @@ namespace FluentDocker.Tests.Mocks
             return this;
         }
 
+        /// <summary>
+        /// Sets up ContainerDriver.StatsAsync to return container statistics.
+        /// </summary>
+        public MockDriverPack SetupContainerStats(
+            double cpuPercent = 25.5,
+            long memoryUsage = 104857600,   // 100 MiB
+            long memoryLimit = 1073741824,  // 1 GiB
+            double memoryPercent = 9.77,
+            long networkRx = 1024000,       // ~1 MB
+            long networkTx = 512000,        // ~512 KB
+            long blockRead = 2048000,       // ~2 MB
+            long blockWrite = 1024000,      // ~1 MB
+            int pids = 5)
+        {
+            ContainerDriver
+                .Setup(d => d.StatsAsync(
+                    It.IsAny<DriverContext>(),
+                    It.IsAny<string>(),
+                    It.IsAny<CancellationToken>()))
+                .ReturnsAsync(FluentDocker.Model.Drivers.CommandResponse<ContainerStatsResult>.Ok(
+                    new ContainerStatsResult
+                    {
+                        ContainerId = "test-container-123",
+                        Name = "test-container",
+                        CpuPercent = cpuPercent,
+                        MemoryUsage = memoryUsage,
+                        MemoryLimit = memoryLimit,
+                        MemoryPercent = memoryPercent,
+                        NetworkRxBytes = networkRx,
+                        NetworkTxBytes = networkTx,
+                        BlockReadBytes = blockRead,
+                        BlockWriteBytes = blockWrite,
+                        Pids = pids
+                    }));
+            return this;
+        }
+
         #endregion
 
         #region Verification Methods

@@ -298,7 +298,7 @@ namespace FluentDocker.Services.Extensions
             if (service.IsNative)
                 return "127.0.0.1";
 
-            // For Docker Machine or remote, the address would be in the configuration
+            // For remote Docker hosts, the address would be in the configuration
             // This is a simplified implementation
             return "127.0.0.1";
         }

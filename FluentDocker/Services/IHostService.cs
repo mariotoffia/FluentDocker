@@ -12,7 +12,7 @@ namespace FluentDocker.Services
     public interface IHostService : IServiceAsync
     {
         /// <summary>
-        /// Whether this is a native Docker installation (not Docker Machine).
+        /// Whether this is a native Docker installation.
         /// </summary>
         bool IsNative { get; }
 

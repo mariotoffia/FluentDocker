@@ -37,9 +37,6 @@ namespace FluentDocker.Resources
         AppDomain.CurrentDomain.GetAssemblies()
         .First(x => x.GetName().Name.Equals(_assembly, StringComparison.OrdinalIgnoreCase));
 
-      var q = assembly.GetManifestResourceNames();
-
-
       foreach (var res in assembly.GetManifestResourceNames().Where(x => x.StartsWith(_namespace)))
       {
         var file = ExtractFile(res);
@@ -75,31 +72,37 @@ namespace FluentDocker.Resources
     }
 
     /// <summary>
-    ///   TODO: Ugly hack since GetManifestResourceInfo(res) do not work!
+    ///   Extracts the filename from a fully qualified manifest resource name.
     /// </summary>
-    /// <param name="fqResource">The fully qualified file including namespace.</param>
-    /// <returns>Probably a filename.</returns>
+    /// <remarks>
+    ///   .NET's GetManifestResourceInfo returns metadata about the resource's location
+    ///   (embedded, linked, satellite assembly) but not the original filename.
+    ///   Manifest resource names use dots as namespace separators, making it impossible
+    ///   to distinguish between "Namespace.File.txt" (file: File.txt) and
+    ///   "Namespace.File.Name.txt" (file: Name.txt). This method uses heuristics:
+    ///   - If extension > 5 chars, assume the file has no extension (dotless file)
+    ///   - Otherwise, walk backward to find the filename (everything after the last namespace dot)
+    /// </remarks>
+    /// <param name="fqResource">The fully qualified resource name including namespace (e.g., "MyApp.Resources.config.json").</param>
+    /// <returns>The extracted filename (e.g., "config.json").</returns>
     private static string ExtractFile(string fqResource)
     {
-      var last = fqResource.LastIndexOf(".", StringComparison.Ordinal);
-      if (-1 == last)
-      {
+      var extensionDot = fqResource.LastIndexOf('.');
+      if (extensionDot == -1)
         return fqResource;
-      }
 
-      var len = fqResource.Length - last;
-      if (len > 5)
-      {
-        // Assume "dotless" file
-        return fqResource.Substring(last + 1);
-      }
+      var extensionLength = fqResource.Length - extensionDot;
 
-      for (var i = fqResource.Length - len - 1; i >= 0; i--)
+      // If "extension" is longer than 5 chars, it's likely a dotless filename
+      // (e.g., "Namespace.Dockerfile" where "Dockerfile" has no extension)
+      if (extensionLength > 5)
+        return fqResource[(extensionDot + 1)..];
+
+      // Walk backward from extension dot to find the filename start (previous dot = namespace separator)
+      for (var i = extensionDot - 1; i >= 0; i--)
       {
         if (fqResource[i] == '.')
-        {
-          return fqResource.Substring(i + 1);
-        }
+          return fqResource[(i + 1)..];
       }
 
       return fqResource;

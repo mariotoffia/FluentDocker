@@ -5,7 +5,7 @@
 [![Downloads](https://img.shields.io/nuget/dt/FluentDocker.svg)](https://www.nuget.org/packages/FluentDocker)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 
-This library enables `docker` and `docker-compose` interactions using a _Fluent API_. It is supported on Linux, Windows and Mac. It also has support for the legacy `docker-machine` interactions.
+This library enables `docker` and `docker compose` (Compose V2) interactions using a _Fluent API_. It is supported on Linux, Windows and Mac.
 
 **Have a look at the [project site](https://github.com/mariotoffia/FluentDocker) for more information.**
 

@@ -57,6 +57,7 @@ namespace FluentDocker.Model.Drivers
             public const string TopFailed = "CNT_019";
             public const string RenameFailed = "CNT_020";
             public const string UpdateFailed = "CNT_021";
+            public const string StatsFailed = "CNT_022";
         }
 
         /// <summary>
@@ -190,28 +191,6 @@ namespace FluentDocker.Model.Drivers
             public const string TasksFailed = "SVC_008";
             public const string LogsFailed = "SVC_009";
             public const string ScaleFailed = "SVC_010";
-        }
-
-        /// <summary>
-        /// Machine-related error codes (Docker Machine)
-        /// </summary>
-        public static class Machine
-        {
-            public const string NotFound = "MCH_001";
-            public const string ListFailed = "MCH_002";
-            public const string InspectFailed = "MCH_003";
-            public const string StartFailed = "MCH_004";
-            public const string StopFailed = "MCH_005";
-            public const string RestartFailed = "MCH_006";
-            public const string CreateFailed = "MCH_007";
-            public const string DeleteFailed = "MCH_008";
-            public const string EnvFailed = "MCH_009";
-            public const string UrlFailed = "MCH_010";
-            public const string StatusFailed = "MCH_011";
-            public const string RegenerateCertsFailed = "MCH_012";
-            public const string UpgradeFailed = "MCH_013";
-            public const string SshFailed = "MCH_014";
-            public const string ScpFailed = "MCH_015";
         }
     }
 }

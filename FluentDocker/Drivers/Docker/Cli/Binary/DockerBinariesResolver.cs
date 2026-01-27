@@ -13,6 +13,10 @@ namespace FluentDocker.Drivers.Docker.Cli.Binary
     /// Resolves the available Docker binaries on the local machine.
     /// Implements IBinaryResolver to provide binary resolution for the CLI driver.
     /// </summary>
+    /// <remarks>
+    /// v3.0 Note: Docker Machine and Docker Toolbox support has been removed.
+    /// Only Docker CLI and Docker Compose V2 (docker compose) are supported.
+    /// </remarks>
     public sealed class DockerBinariesResolver : IBinaryResolver
     {
         private readonly BinaryConfiguration _configuration;
@@ -30,12 +34,9 @@ namespace FluentDocker.Drivers.Docker.Cli.Binary
                 _configuration.SudoPassword,
                 _configuration.SearchPaths).ToArray();
 
-            MainDockerClient = Binaries.FirstOrDefault(x => !x.IsToolbox && x.Type == DockerBinaryType.DockerClient);
-            MainDockerCompose = Binaries.FirstOrDefault(x => !x.IsToolbox && x.Type == DockerBinaryType.Compose);
+            MainDockerClient = Binaries.FirstOrDefault(x => x.Type == DockerBinaryType.DockerClient);
             MainDockerComposeV2 = CheckComposeV2(_configuration.Sudo, _configuration.SudoPassword);
-            MainDockerMachine = Binaries.FirstOrDefault(x => !x.IsToolbox && x.Type == DockerBinaryType.Machine);
-            MainDockerCli = Binaries.FirstOrDefault(x => !x.IsToolbox && x.Type == DockerBinaryType.Cli);
-            HasToolbox = Binaries.Any(x => x.IsToolbox);
+            MainDockerCli = Binaries.FirstOrDefault(x => x.Type == DockerBinaryType.Cli);
 
             if (MainDockerClient == null)
             {
@@ -43,9 +44,9 @@ namespace FluentDocker.Drivers.Docker.Cli.Binary
                 throw new FluentDockerException("Failed to find docker client binary - please add it to your path");
             }
 
-            if (MainDockerCompose == null && MainDockerComposeV2 == null)
+            if (MainDockerComposeV2 == null)
             {
-                Logger.Log("Failed to find docker-compose client binary (neither V1 nor V2) - please add it to your path");
+                Logger.Log("Docker Compose V2 (docker compose) is not available - compose features will not work");
             }
         }
 
@@ -72,50 +73,23 @@ namespace FluentDocker.Drivers.Docker.Cli.Binary
         public DockerBinary MainDockerClient { get; }
 
         /// <inheritdoc />
-        public DockerBinary MainDockerCompose { get; }
-
-        /// <inheritdoc />
         public DockerBinary MainDockerComposeV2 { get; }
-
-        /// <inheritdoc />
-        public DockerBinary MainDockerMachine { get; }
 
         /// <inheritdoc />
         public DockerBinary MainDockerCli { get; }
 
         /// <inheritdoc />
-        public bool IsToolbox => MainDockerClient?.IsToolbox ?? false;
-
-        /// <inheritdoc />
-        public bool IsDockerMachineAvailable => MainDockerMachine != null;
-
-        /// <inheritdoc />
-        public bool IsDockerComposeAvailable => MainDockerCompose != null || MainDockerComposeV2 != null;
-
-        /// <inheritdoc />
         public bool IsDockerComposeV2Available => MainDockerComposeV2 != null;
 
         /// <inheritdoc />
-        public bool HasToolbox { get; }
-
-        /// <inheritdoc />
-        public DockerBinary Resolve(string binary, bool preferMachine = false)
+        public DockerBinary Resolve(string binary)
         {
             var type = DockerBinary.Translate(binary);
-            if (preferMachine)
-            {
-                var m = Binaries.FirstOrDefault(x => x.IsToolbox && x.Type == type);
-                if (m != null)
-                {
-                    return m;
-                }
-            }
 
             var resolved = type switch
             {
-                DockerBinaryType.Compose => MainDockerComposeV2 ?? MainDockerCompose,
+                DockerBinaryType.ComposeV2 => MainDockerComposeV2,
                 DockerBinaryType.DockerClient => MainDockerClient,
-                DockerBinaryType.Machine => MainDockerMachine,
                 DockerBinaryType.Cli => MainDockerCli,
                 _ => throw new FluentDockerException($"Cannot resolve unknown binary {binary}"),
             };
@@ -129,13 +103,14 @@ namespace FluentDocker.Drivers.Docker.Cli.Binary
         }
 
         /// <inheritdoc />
-        public string ResolveBinaryPath(string dockerCommand, bool preferMachine = false)
+        public string ResolveBinaryPath(string dockerCommand)
         {
-            var binary = Resolve(dockerCommand, preferMachine);
+            var binary = Resolve(dockerCommand);
 
             // Special handling for Docker Compose V2
             if (binary.Type == DockerBinaryType.ComposeV2 &&
-                dockerCommand.Equals("docker-compose", StringComparison.OrdinalIgnoreCase))
+                (dockerCommand.Equals("docker-compose", StringComparison.OrdinalIgnoreCase) ||
+                 dockerCommand.Equals("compose", StringComparison.OrdinalIgnoreCase)))
             {
                 // For V2, we need to return 'docker compose' instead of 'docker-compose'
                 if (IsWindows() || binary.Sudo == SudoMechanism.None)
@@ -155,14 +130,6 @@ namespace FluentDocker.Drivers.Docker.Cli.Binary
 
             if (string.IsNullOrEmpty(cmd))
             {
-                if (!string.IsNullOrEmpty(dockerCommand) &&
-                    dockerCommand.Equals("docker-machine", StringComparison.OrdinalIgnoreCase))
-                {
-                    throw new FluentDockerException(
-                        $"Could not find {dockerCommand} - make sure it is on your path. " +
-                        "From Docker 2.2.0 you have to separately install it via https://github.com/docker/machine/releases");
-                }
-
                 throw new FluentDockerException($"Could not find {dockerCommand} - make sure it is on your path.");
             }
 
@@ -174,19 +141,11 @@ namespace FluentDocker.Drivers.Docker.Cli.Binary
             var isWindows = IsWindows();
             if (paths == null || paths.Length == 0)
             {
-                var complete = new List<string>();
-                var toolboxpath = Environment.GetEnvironmentVariable("DOCKER_TOOLBOX_INSTALL_PATH");
                 var envpaths = Environment.GetEnvironmentVariable("PATH")?.Split(isWindows ? ';' : ':');
-
-                if (envpaths != null)
-                    complete.AddRange(envpaths);
-                if (toolboxpath != null)
-                    complete.Add(toolboxpath);
-
-                paths = complete.ToArray();
+                paths = envpaths ?? Array.Empty<string>();
             }
 
-            if (paths == null)
+            if (paths == null || paths.Length == 0)
                 return Array.Empty<DockerBinary>();
 
             var list = new List<DockerBinary>();
@@ -203,8 +162,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Binary
                     {
                         list.AddRange(from file in Directory.GetFiles(path, "docker*.*")
                             let f = Path.GetFileName(file.ToLower())
-                            where f != null && (f.Equals("docker.exe") || f.Equals("docker-compose.exe") ||
-                                                f.Equals("docker-machine.exe"))
+                            where f != null && f.Equals("docker.exe")
                             select new DockerBinary(path, f, sudo, password));
 
                         var dockercli = Path.GetFullPath(Path.Combine(path, "..\\.."));
@@ -219,7 +177,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Binary
                     list.AddRange(from file in Directory.GetFiles(path, "docker*")
                         let f = Path.GetFileName(file)
                         let f2 = f.ToLower()
-                        where f2.Equals("docker") || f2.Equals("docker-compose") || f2.Equals("docker-machine")
+                        where f2.Equals("docker")
                         select new DockerBinary(path, f, sudo, password));
                 }
                 catch (Exception e)

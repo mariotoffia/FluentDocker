@@ -449,6 +449,68 @@ namespace FluentDocker.Tests.CoreTests.Service
             }
         }
 
+        [Fact]
+        [Trait("Category", "Unit")]
+        public async Task GetStatsAsync_CallsDriverAndReturnsStats()
+        {
+            // Arrange
+            var mockPack = new MockDriverPack();
+            mockPack.SetupContainerStats(
+                cpuPercent: 25.5,
+                memoryUsage: 104857600,   // 100 MiB
+                memoryLimit: 1073741824,  // 1 GiB
+                memoryPercent: 9.77,
+                networkRx: 1024000,
+                networkTx: 512000,
+                blockRead: 2048000,
+                blockWrite: 1024000,
+                pids: 5);
+
+            var kernel = await MockKernelBuilderExtensions.CreateWithMockDriverAsync("docker", mockPack);
+
+            var service = new ContainerService(kernel, "docker", "test-container-123", "nginx:latest", "test-container");
+
+            try
+            {
+                // Act
+                var stats = await service.GetStatsAsync();
+
+                // Assert
+                Assert.NotNull(stats);
+                Assert.Equal("test-container-123", stats.ContainerId);
+
+                // CPU stats
+                Assert.NotNull(stats.Cpu);
+                Assert.Equal(25.5, stats.Cpu.UsagePercent);
+
+                // Memory stats
+                Assert.NotNull(stats.Memory);
+                Assert.Equal(104857600, stats.Memory.Usage);
+                Assert.Equal(1073741824, stats.Memory.Limit);
+                Assert.Equal(9.77, stats.Memory.UsagePercent);
+
+                // Network stats
+                Assert.NotNull(stats.Network);
+                Assert.Equal(1024000, stats.Network.RxBytes);
+                Assert.Equal(512000, stats.Network.TxBytes);
+
+                // Disk stats
+                Assert.NotNull(stats.Disk);
+                Assert.Equal(2048000, stats.Disk.ReadBytes);
+                Assert.Equal(1024000, stats.Disk.WriteBytes);
+
+                // Verify driver was called
+                mockPack.ContainerDriver.Verify(d => d.StatsAsync(
+                    It.IsAny<FluentDocker.Model.Drivers.DriverContext>(),
+                    It.Is<string>(s => s == "test-container-123"),
+                    It.IsAny<System.Threading.CancellationToken>()), Times.Once);
+            }
+            finally
+            {
+                kernel.Dispose();
+            }
+        }
+
         #endregion
     }
 }

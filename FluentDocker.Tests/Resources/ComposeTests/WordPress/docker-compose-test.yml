@@ -1,0 +1,25 @@
+services:
+  db:
+    image: mariadb:10.6
+    volumes:
+    - db_data:/var/lib/mysql
+    restart: "no"
+    environment:
+      MARIADB_ROOT_PASSWORD: somewordpress
+      MARIADB_DATABASE: wordpress
+      MARIADB_USER: wordpress
+      MARIADB_PASSWORD: wordpress
+
+  wordpress:
+    depends_on:
+    - db
+    image: wordpress:latest
+    ports:
+    - "80"
+    restart: "no"
+    environment:
+      WORDPRESS_DB_HOST: db:3306
+      WORDPRESS_DB_USER: wordpress
+      WORDPRESS_DB_PASSWORD: wordpress
+volumes:
+  db_data:

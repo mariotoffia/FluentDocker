@@ -95,6 +95,14 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
                 if (!string.IsNullOrEmpty(config.Hostname))
                     args.Add($"--hostname {config.Hostname}");
 
+                // Static IPv4 address
+                if (!string.IsNullOrEmpty(config.Ipv4Address))
+                    args.Add($"--ip {config.Ipv4Address}");
+
+                // Static IPv6 address
+                if (!string.IsNullOrEmpty(config.Ipv6Address))
+                    args.Add($"--ip6 {config.Ipv6Address}");
+
                 // Memory limit
                 if (config.MemoryLimit.HasValue)
                     args.Add($"--memory {config.MemoryLimit.Value}");
@@ -182,6 +190,14 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
 
                 if (!string.IsNullOrEmpty(config.NetworkMode))
                     args.Add($"--network {config.NetworkMode}");
+
+                // Static IPv4 address (requires custom network with subnet)
+                if (!string.IsNullOrEmpty(config.Ipv4Address))
+                    args.Add($"--ip {config.Ipv4Address}");
+
+                // Static IPv6 address (requires custom network with IPv6 enabled)
+                if (!string.IsNullOrEmpty(config.Ipv6Address))
+                    args.Add($"--ip6 {config.Ipv6Address}");
 
                 if (config.Labels != null)
                     foreach (var label in config.Labels)
@@ -837,6 +853,185 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
             }
         }
 
+        /// <inheritdoc />
+        public async Task<CommandResponse<ContainerStatsResult>> StatsAsync(
+            DriverContext context,
+            string containerId,
+            CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                // Use --no-stream to get a single snapshot instead of continuous stream
+                // Use --format with JSON output for easier parsing
+                var result = await ExecuteCommandAsync(
+                    $"stats --no-stream --format \"{{{{json .}}}}\" {containerId}",
+                    cancellationToken);
+
+                if (!result.Success)
+                {
+                    return CommandResponse<ContainerStatsResult>.Fail(
+                        result.Error ?? "Container stats failed",
+                        ErrorCodes.Container.StatsFailed,
+                        CreateErrorContext(context, "StatsContainer", result),
+                        result.ExitCode);
+                }
+
+                var stats = ParseStatsOutput(result.Output, containerId);
+                return CommandResponse<ContainerStatsResult>.Ok(stats);
+            }
+            catch (Exception ex)
+            {
+                return CommandResponse<ContainerStatsResult>.Fail(ex.Message, ErrorCodes.Container.StatsFailed);
+            }
+        }
+
+        private static ContainerStatsResult ParseStatsOutput(string output, string containerId)
+        {
+            var stats = new ContainerStatsResult { ContainerId = containerId };
+
+            // Parse the JSON output from docker stats --format '{{json .}}'
+            try
+            {
+                var json = System.Text.Json.JsonDocument.Parse(output.Trim());
+                var root = json.RootElement;
+
+                if (root.TryGetProperty("Name", out var name))
+                    stats.Name = name.GetString();
+
+                if (root.TryGetProperty("CPUPerc", out var cpuPerc))
+                    stats.CpuPercent = ParsePercent(cpuPerc.GetString());
+
+                if (root.TryGetProperty("MemPerc", out var memPerc))
+                    stats.MemoryPercent = ParsePercent(memPerc.GetString());
+
+                if (root.TryGetProperty("MemUsage", out var memUsage))
+                {
+                    var (usage, limit) = ParseMemoryUsage(memUsage.GetString());
+                    stats.MemoryUsage = usage;
+                    stats.MemoryLimit = limit;
+                }
+
+                if (root.TryGetProperty("NetIO", out var netIO))
+                {
+                    var (rx, tx) = ParseIOPair(netIO.GetString());
+                    stats.NetworkRxBytes = rx;
+                    stats.NetworkTxBytes = tx;
+                }
+
+                if (root.TryGetProperty("BlockIO", out var blockIO))
+                {
+                    var (read, write) = ParseIOPair(blockIO.GetString());
+                    stats.BlockReadBytes = read;
+                    stats.BlockWriteBytes = write;
+                }
+
+                if (root.TryGetProperty("PIDs", out var pids))
+                {
+                    if (int.TryParse(pids.GetString(), out var pidCount))
+                        stats.Pids = pidCount;
+                }
+            }
+            catch
+            {
+                // If JSON parsing fails, return stats with just the container ID
+            }
+
+            return stats;
+        }
+
+        private static double ParsePercent(string value)
+        {
+            if (string.IsNullOrEmpty(value)) return 0;
+            value = value.TrimEnd('%');
+            return double.TryParse(value, System.Globalization.NumberStyles.Float,
+                System.Globalization.CultureInfo.InvariantCulture, out var result) ? result : 0;
+        }
+
+        private static (long usage, long limit) ParseMemoryUsage(string value)
+        {
+            // Format: "1.5MiB / 7.8GiB" or "1500000B / 8000000000B"
+            if (string.IsNullOrEmpty(value)) return (0, 0);
+
+            var parts = value.Split(new[] { " / " }, StringSplitOptions.None);
+            if (parts.Length != 2) return (0, 0);
+
+            return (ParseByteValue(parts[0].Trim()), ParseByteValue(parts[1].Trim()));
+        }
+
+        private static (long first, long second) ParseIOPair(string value)
+        {
+            // Format: "1.2kB / 0B" or "1200B / 0B"
+            if (string.IsNullOrEmpty(value)) return (0, 0);
+
+            var parts = value.Split(new[] { " / " }, StringSplitOptions.None);
+            if (parts.Length != 2) return (0, 0);
+
+            return (ParseByteValue(parts[0].Trim()), ParseByteValue(parts[1].Trim()));
+        }
+
+        private static long ParseByteValue(string value)
+        {
+            if (string.IsNullOrEmpty(value)) return 0;
+
+            // Handle various suffixes: B, kB, KB, MiB, MB, GiB, GB, TiB, TB
+            double multiplier = 1;
+            var numericPart = value;
+
+            if (value.EndsWith("TiB", StringComparison.OrdinalIgnoreCase))
+            {
+                multiplier = 1024L * 1024 * 1024 * 1024;
+                numericPart = value[..^3];
+            }
+            else if (value.EndsWith("TB", StringComparison.OrdinalIgnoreCase))
+            {
+                multiplier = 1000L * 1000 * 1000 * 1000;
+                numericPart = value[..^2];
+            }
+            else if (value.EndsWith("GiB", StringComparison.OrdinalIgnoreCase))
+            {
+                multiplier = 1024L * 1024 * 1024;
+                numericPart = value[..^3];
+            }
+            else if (value.EndsWith("GB", StringComparison.OrdinalIgnoreCase))
+            {
+                multiplier = 1000L * 1000 * 1000;
+                numericPart = value[..^2];
+            }
+            else if (value.EndsWith("MiB", StringComparison.OrdinalIgnoreCase))
+            {
+                multiplier = 1024L * 1024;
+                numericPart = value[..^3];
+            }
+            else if (value.EndsWith("MB", StringComparison.OrdinalIgnoreCase))
+            {
+                multiplier = 1000L * 1000;
+                numericPart = value[..^2];
+            }
+            else if (value.EndsWith("KiB", StringComparison.OrdinalIgnoreCase))
+            {
+                multiplier = 1024;
+                numericPart = value[..^3];
+            }
+            else if (value.EndsWith("kB", StringComparison.OrdinalIgnoreCase) ||
+                     value.EndsWith("KB", StringComparison.OrdinalIgnoreCase))
+            {
+                multiplier = 1000;
+                numericPart = value[..^2];
+            }
+            else if (value.EndsWith("B", StringComparison.OrdinalIgnoreCase))
+            {
+                numericPart = value[..^1];
+            }
+
+            if (double.TryParse(numericPart, System.Globalization.NumberStyles.Float,
+                System.Globalization.CultureInfo.InvariantCulture, out var number))
+            {
+                return (long)(number * multiplier);
+            }
+
+            return 0;
+        }
+
         #endregion
 
         #region Execution Operations
@@ -870,7 +1065,12 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
 
                 args.Add(containerId);
                 if (config.Command != null)
-                    args.AddRange(config.Command);
+                {
+                    foreach (var cmdArg in config.Command)
+                    {
+                        args.Add(QuoteArgumentIfNeeded(cmdArg));
+                    }
+                }
 
                 var result = await ExecuteCommandAsync(string.Join(" ", args), cancellationToken);
 

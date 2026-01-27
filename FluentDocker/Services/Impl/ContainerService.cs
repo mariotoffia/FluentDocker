@@ -293,7 +293,7 @@ namespace FluentDocker.Services.Impl
             try
             {
                 await File.WriteAllBytesAsync(tempPath, data, cancellationToken);
-                
+
                 var response = await driver.CopyToAsync(context, _containerId, tempPath, containerPath, cancellationToken);
 
                 if (!response.Success)
@@ -310,10 +310,102 @@ namespace FluentDocker.Services.Impl
             }
         }
 
-        public Task<ContainerStats> GetStatsAsync(CancellationToken cancellationToken = default)
+        /// <summary>
+        /// Copies a file or directory from the host to the container.
+        /// </summary>
+        /// <param name="hostPath">Source path on the host (file or directory).</param>
+        /// <param name="containerPath">Destination path in the container.</param>
+        /// <param name="cancellationToken">Cancellation token.</param>
+        public async Task CopyToAsync(string hostPath, string containerPath, CancellationToken cancellationToken = default)
         {
-            // TODO: Implement stats when driver supports it
-            throw new NotImplementedException("GetStatsAsync not yet implemented");
+            if (!File.Exists(hostPath) && !Directory.Exists(hostPath))
+            {
+                throw new FileNotFoundException($"Source path does not exist: {hostPath}");
+            }
+
+            var driver = _kernel.SysCtl<IContainerDriver>(_driverId);
+            var context = new DriverContext(_driverId);
+
+            var response = await driver.CopyToAsync(context, _containerId, hostPath, containerPath, cancellationToken);
+
+            if (!response.Success)
+            {
+                throw new DriverException(
+                    $"Failed to copy to container '{_name}': {response.Error}",
+                    response.ErrorCode);
+            }
+        }
+
+        /// <summary>
+        /// Copies a file or directory from the container to the host.
+        /// </summary>
+        /// <param name="containerPath">Source path in the container.</param>
+        /// <param name="hostPath">Destination path on the host.</param>
+        /// <param name="cancellationToken">Cancellation token.</param>
+        public async Task CopyFromToPathAsync(string containerPath, string hostPath, CancellationToken cancellationToken = default)
+        {
+            var driver = _kernel.SysCtl<IContainerDriver>(_driverId);
+            var context = new DriverContext(_driverId);
+
+            // Ensure the destination directory exists
+            var dir = Path.GetDirectoryName(hostPath);
+            if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir))
+            {
+                Directory.CreateDirectory(dir);
+            }
+
+            var response = await driver.CopyFromAsync(context, _containerId, containerPath, hostPath, cancellationToken);
+
+            if (!response.Success)
+            {
+                throw new DriverException(
+                    $"Failed to copy from container '{_name}': {response.Error}",
+                    response.ErrorCode);
+            }
+        }
+
+        public async Task<ContainerStats> GetStatsAsync(CancellationToken cancellationToken = default)
+        {
+            var driver = _kernel.SysCtl<IContainerDriver>(_driverId);
+            var context = new DriverContext(_driverId);
+            var response = await driver.StatsAsync(context, _containerId, cancellationToken);
+
+            if (!response.Success)
+            {
+                throw new DriverException(
+                    $"Failed to get stats for container '{_name}': {response.Error}",
+                    response.ErrorCode);
+            }
+
+            var driverStats = response.Data;
+            return new ContainerStats
+            {
+                ContainerId = driverStats.ContainerId,
+                Cpu = new CpuStats
+                {
+                    UsagePercent = driverStats.CpuPercent,
+                    SystemCpuUsage = 0, // Not available from docker stats command
+                    ContainerCpuUsage = 0 // Not available from docker stats command
+                },
+                Memory = new MemoryStats
+                {
+                    Usage = driverStats.MemoryUsage,
+                    Limit = driverStats.MemoryLimit,
+                    UsagePercent = driverStats.MemoryPercent
+                },
+                Network = new NetworkStats
+                {
+                    RxBytes = driverStats.NetworkRxBytes,
+                    TxBytes = driverStats.NetworkTxBytes,
+                    RxPackets = 0, // Not available from docker stats command
+                    TxPackets = 0 // Not available from docker stats command
+                },
+                Disk = new DiskStats
+                {
+                    ReadBytes = driverStats.BlockReadBytes,
+                    WriteBytes = driverStats.BlockWriteBytes
+                }
+            };
         }
 
         /// <summary>
@@ -462,25 +554,16 @@ namespace FluentDocker.Services.Impl
                     switch (hook.Type)
                     {
                         case LifecycleHookType.CopyTo:
-                            if (File.Exists(hook.HostPath))
+                            if (File.Exists(hook.HostPath) || Directory.Exists(hook.HostPath))
                             {
-                                var data = await File.ReadAllBytesAsync(hook.HostPath, cancellationToken);
-                                await CopyToAsync(hook.ContainerPath, data, cancellationToken);
-                            }
-                            else if (Directory.Exists(hook.HostPath))
-                            {
-                                // For directories, we'd need to create a tar archive
-                                // This is a simplified implementation
-                                throw new NotSupportedException("Directory copy not yet supported");
+                                // Use path-based copy which supports both files and directories
+                                await CopyToAsync(hook.HostPath, hook.ContainerPath, cancellationToken);
                             }
                             break;
 
                         case LifecycleHookType.CopyFrom:
-                            var content = await CopyFromAsync(hook.ContainerPath, cancellationToken);
-                            var dir = Path.GetDirectoryName(hook.HostPath);
-                            if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir))
-                                Directory.CreateDirectory(dir);
-                            await File.WriteAllBytesAsync(hook.HostPath, content, cancellationToken);
+                            // Use path-based copy which supports both files and directories
+                            await CopyFromToPathAsync(hook.ContainerPath, hook.HostPath, cancellationToken);
                             break;
 
                         case LifecycleHookType.Export:
