@@ -5,7 +5,7 @@
 [![Downloads](https://img.shields.io/nuget/dt/Ductus.FluentDocker.svg)](https://www.nuget.org/packages/Ductus.FluentDocker)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 
-This library enables `docker` and `docker-compose` interactions using a _Fluent API_. It is supported on Linux, Windows and Mac. It also has support for the legacy `docker-machine` interactions.
+This library enables `docker` and `docker-compose` interactions using a _Fluent API_. It is supported on Linux, Windows and Mac. It also has support for the legacy `docker-machine` interactions. The library supports both Docker and Podman as container engines. Configure the engine using `ContainerEngine.Podman.SetContainerEngine()`.
 
 **Have a look at the [project site](https://github.com/mariotoffia/FluentDocker) for more information.**
 

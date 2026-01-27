@@ -11,7 +11,7 @@
 
 # FluentDocker
 
-This library enables `docker` and `docker-compose` interactions usinga _Fluent API_. It is supported on Linux, Windows and Mac. It also has support for the legazy `docker-machine` interactions.
+This library enables `docker` and `docker-compose` interactions using a _Fluent API_. It is supported on Linux, Windows and Mac. It also has support for the legacy `docker-machine` interactions. The library supports both Docker and Podman as container engines. Podman is a daemonless, open-source container engine that is a drop-in replacement for Docker. See the [Container Engine Configuration](#container-engine-configuration) section below for details.
 
 **:bulb: Breaking changes. It will not adhere to `AssumeComposeVersion` instead it will autodetect if it supports `docker compose` subcommand and automatically set it to V2. If not supported, it will use `docker-compose` and this is V1.**
 
@@ -59,6 +59,32 @@ This fires up a postgres and waits for it to be ready. To use compose, just do i
 
 :bulb **Note for Linux Users:** Docker requires _sudo_ by default and the library by default expects that executing user do not
 need to do _sudo_ in order to talk to the docker daemon. More description can be found in the _Talking to Docker Daemon_ chapter.
+
+## Container Engine Configuration
+
+FluentDocker supports both Docker and Podman as container engines. By default, the library will automatically detect and prefer Docker if both are available. You can explicitly configure which engine to use:
+
+```cs
+using Ductus.FluentDocker.Model.Common;
+using Ductus.FluentDocker.Extensions;
+
+// Use Podman explicitly
+ContainerEngine.Podman.SetContainerEngine();
+
+// Or use Docker explicitly
+ContainerEngine.Docker.SetContainerEngine();
+
+// Or let it auto-detect (default - prefers Docker if available)
+ContainerEngine.Auto.SetContainerEngine();
+```
+
+**When to use Podman:**
+- You're on Windows and using Podman Desktop
+- You prefer a daemonless container engine
+- You need rootless containers
+- Docker is not available on your system
+
+**Note:** Podman is designed as a drop-in replacement for Docker, so all FluentDocker APIs work the same way regardless of which engine you choose. The library automatically handles the differences in binary names (`docker` vs `podman`, `docker-compose` vs `podman-compose`).
 
 The fluent _API_ builds up one or more services. Each service may be composite or singular. Therefore it is possible
 to e.g. fire up several _docker-compose_ based services and manage each of them as a single service or dig in and use
@@ -843,9 +869,12 @@ The above snippet fires up the wordpress docker compose project and checks the _
 (in this case "https://wordpress.org/"). If not it returns _500_ and the ```WaitForHttp``` function will wait 500 milliseconds before invoking again. This works for any custom
 lambda as well, just use ```WaitFor``` instead. Thus it is possible to e.g. query a database before continuing inside the using scope.
 
-## Talking to Docker Daemon
+## Talking to Container Engine Daemon
+
 For Linux and Mac users there are several options how to authenticate towards the socket. _FluentDocker_ supports no _sudo_, _sudo_ without any password (user added as NOPASSWD in /etc/sudoer), or
-_sudo_ with password. The default is that FluentDocker expects to be able to talk without any _sudo_. The options ar global but can be changed in runtime.
+_sudo_ with password. The default is that FluentDocker expects to be able to talk without any _sudo_. The options are global but can be changed in runtime.
+
+**Note:** If you're using Podman, it typically doesn't require sudo since it's designed to run rootless by default. Docker may require sudo depending on your system configuration.
 
 ```cs
      SudoMechanism.None.SetSudo(); // This is the default

@@ -10,15 +10,21 @@ namespace Ductus.FluentDocker.Executors.Parsers
 
     public IProcessResponse<Container> Process(ProcessExecutionResult response)
     {
-      if (string.IsNullOrEmpty(response.StdOut))
+      if (response.ExitCode != 0)
       {
-        Response = response.ToResponse(false, "Empty response", new Container());
+        var errorMessage = !string.IsNullOrWhiteSpace(response.StdErr)
+          ? response.StdErr.Trim()
+          : $"Container inspect failed with exit code {response.ExitCode}";
+        Response = response.ToResponse<Container>(false, errorMessage, null);
         return this;
       }
 
-      if (response.ExitCode != 0)
+      if (string.IsNullOrEmpty(response.StdOut))
       {
-        Response = response.ToErrorResponse(new Container());
+        var errorMessage = !string.IsNullOrWhiteSpace(response.StdErr)
+          ? response.StdErr.Trim()
+          : "Empty response from container inspect";
+        Response = response.ToResponse<Container>(false, errorMessage, null);
         return this;
       }
 
