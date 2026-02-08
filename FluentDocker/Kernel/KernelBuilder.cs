@@ -119,7 +119,9 @@ namespace FluentDocker.Kernel
 
         public IDriverBuilder UseDockerApi()
         {
-            throw new NotImplementedException("Docker API driver not yet implemented");
+            _driverPack = new Drivers.Docker.Api.DockerApiDriverPack();
+            _driver = null;
+            return this;
         }
 
         public IDriverBuilder UsePodmanCli()

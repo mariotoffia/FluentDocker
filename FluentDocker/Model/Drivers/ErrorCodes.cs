@@ -200,6 +200,19 @@ namespace FluentDocker.Model.Drivers
         }
 
         /// <summary>
+        /// Docker API HTTP-specific error codes
+        /// </summary>
+        public static class Api
+        {
+            public const string BadRequest = "API_400";
+            public const string Unauthorized = "API_401";
+            public const string NotFound = "API_404";
+            public const string Conflict = "API_409";
+            public const string ServerError = "API_500";
+            public const string ConnectionFailed = "API_CONN";
+        }
+
+        /// <summary>
         /// Configuration error codes
         /// </summary>
         public static class Config
