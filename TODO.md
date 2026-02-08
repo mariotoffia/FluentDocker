@@ -1,7 +1,7 @@
 # FluentDocker v3.0 Migration TODO List
 
 **Created**: 2026-01-27
-**Status**: Complete (24/26 tasks done, 2 optional deferred to v3.1)
+**Status**: Complete (25/26 tasks done, 1 optional deferred to v3.1)
 
 ---
 
@@ -124,9 +124,13 @@
 
 ## Phase 3: Nice to Have (Can Defer to v3.1)
 
-- [ ] **17. Podman CLI Driver** (OPTIONAL - Future)
-  - Location: `KernelBuilder.cs`
-  - Currently throws NotImplementedException
+- [x] **17. Podman CLI Driver** ✅
+  - Phase 1 (Core Compatibility): Container, Image, Network, Volume, System, Auth, Stream drivers
+  - Pod Driver: Full lifecycle + inspect (IPodmanPodDriver)
+  - Kubernetes Integration: play, down, generate (IPodmanKubernetesDriver)
+  - Machine Management: init, start, stop, rm, list, inspect, ssh, set, info (IPodmanMachineDriver)
+  - Manifest/Multi-Arch: create, add, push, inspect, annotate, rm, exists (IPodmanManifestDriver)
+  - 16 source files in `FluentDocker/Drivers/Podman/Cli/`
 
 - [ ] **18. Docker API Driver** (OPTIONAL - Future)
   - Location: `KernelBuilder.cs`
@@ -196,6 +200,18 @@
   - Removed: `docs/architecture/` folder (12 internal planning documents)
   - Ported public-facing content, kept internal docs (IMPLEMENTATION_PLAN, TEST_PLAN) removed
   - Site now has consolidated, user-friendly documentation
+
+---
+
+## Not Planned (Low Priority, On-Demand)
+
+These Podman features are not planned for implementation:
+
+- **Pod monitoring** (`podman pod logs/top/stats`): Niche monitoring, use container-level stats instead
+- **Secret management** (`podman secret`): Low adoption, consider on demand
+- **Healthcheck** (`podman healthcheck run`): Embedded in container lifecycle, manual run is edge case
+- **Generation** (`podman generate systemd/spec`): Linux-specific, consider on demand
+- **Advanced** (`podman mount/unmount/unshare/auto-update/farm/artifact/quadlet`): Niche/Linux-specific
 
 ---
 

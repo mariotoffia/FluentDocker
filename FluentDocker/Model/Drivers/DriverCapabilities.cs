@@ -51,6 +51,11 @@ namespace FluentDocker.Model.Drivers
         public bool SupportsMachines { get; set; }
 
         /// <summary>
+        /// Driver supports manifest/multi-arch operations (Podman-specific).
+        /// </summary>
+        public bool SupportsManifests { get; set; }
+
+        /// <summary>
         /// Driver version string.
         /// </summary>
         public string Version { get; set; }
@@ -75,7 +80,8 @@ namespace FluentDocker.Model.Drivers
                 SupportsSystem = true,
                 SupportsPods = false,
                 SupportsKubernetes = false,
-                SupportsMachines = false
+                SupportsMachines = false,
+                SupportsManifests = false
             };
         }
     }

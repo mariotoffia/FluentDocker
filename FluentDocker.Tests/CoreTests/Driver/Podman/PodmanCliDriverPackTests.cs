@@ -222,5 +222,28 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
             var caps = await pack.GetCapabilitiesAsync();
             Assert.True(caps.SupportsMachines);
         }
+
+        [Fact]
+        public void DirectAccess_ManifestDriver_BeforeInit_ThrowsInvalidOperation()
+        {
+            var pack = new PodmanCliDriverPack();
+            Assert.Throws<InvalidOperationException>(() => _ = pack.ManifestDriver);
+        }
+
+        [Fact]
+        public void SysCtlByComponent_Manifest_BeforeInit_ThrowsInvalidOperation()
+        {
+            var pack = new PodmanCliDriverPack();
+            Assert.Throws<InvalidOperationException>(() =>
+                pack.SysCtl("podman", DriverComponent.Manifest));
+        }
+
+        [Fact]
+        public async Task GetCapabilities_SupportsManifests()
+        {
+            var pack = new PodmanCliDriverPack();
+            var caps = await pack.GetCapabilitiesAsync();
+            Assert.True(caps.SupportsManifests);
+        }
     }
 }

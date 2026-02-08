@@ -187,6 +187,19 @@ namespace FluentDocker.Model.Drivers
         }
 
         /// <summary>
+        /// Manifest-related error codes (Podman manifest/multi-arch)
+        /// </summary>
+        public static class Manifest
+        {
+            public const string CreateFailed = "MAN_001";
+            public const string AddFailed = "MAN_002";
+            public const string PushFailed = "MAN_003";
+            public const string InspectFailed = "MAN_004";
+            public const string AnnotateFailed = "MAN_005";
+            public const string RemoveFailed = "MAN_006";
+        }
+
+        /// <summary>
         /// Configuration error codes
         /// </summary>
         public static class Config

@@ -48,6 +48,11 @@ namespace FluentDocker.Model.Drivers
         /// <summary>
         /// Podman-specific: Machine management (init, start, stop, etc.)
         /// </summary>
-        Machine
+        Machine,
+
+        /// <summary>
+        /// Podman-specific: Manifest/multi-arch operations (create, add, push, etc.)
+        /// </summary>
+        Manifest
     }
 }

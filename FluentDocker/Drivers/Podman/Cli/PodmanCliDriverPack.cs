@@ -42,6 +42,7 @@ namespace FluentDocker.Drivers.Podman.Cli
         private PodmanCliPodDriver _podDriver;
         private PodmanCliKubernetesDriver _kubernetesDriver;
         private PodmanCliMachineDriver _machineDriver;
+        private PodmanCliManifestDriver _manifestDriver;
 
         /// <inheritdoc />
         public DriverType Type => DriverType.PodmanCli;
@@ -74,6 +75,7 @@ namespace FluentDocker.Drivers.Podman.Cli
             _podDriver = new PodmanCliPodDriver(_binaryResolver);
             _kubernetesDriver = new PodmanCliKubernetesDriver(_binaryResolver);
             _machineDriver = new PodmanCliMachineDriver(_binaryResolver);
+            _manifestDriver = new PodmanCliManifestDriver(_binaryResolver);
 
             // Initialize all components with context
             _containerDriver.Initialize(context);
@@ -86,6 +88,7 @@ namespace FluentDocker.Drivers.Podman.Cli
             _podDriver.Initialize(context);
             _kubernetesDriver.Initialize(context);
             _machineDriver.Initialize(context);
+            _manifestDriver.Initialize(context);
 
             // Register all drivers by interface type
             _drivers[typeof(IContainerDriver)] = _containerDriver;
@@ -98,6 +101,7 @@ namespace FluentDocker.Drivers.Podman.Cli
             _drivers[typeof(IPodmanPodDriver)] = _podDriver;
             _drivers[typeof(IPodmanKubernetesDriver)] = _kubernetesDriver;
             _drivers[typeof(IPodmanMachineDriver)] = _machineDriver;
+            _drivers[typeof(IPodmanManifestDriver)] = _manifestDriver;
 
             _initialized = true;
             await Task.CompletedTask;
@@ -117,7 +121,8 @@ namespace FluentDocker.Drivers.Podman.Cli
                 SupportsSystem = true,
                 SupportsPods = true,
                 SupportsKubernetes = true,
-                SupportsMachines = true
+                SupportsMachines = true,
+                SupportsManifests = true
             });
         }
 
@@ -164,6 +169,7 @@ namespace FluentDocker.Drivers.Podman.Cli
                 DriverComponent.Pod => _podDriver,
                 DriverComponent.Kubernetes => _kubernetesDriver,
                 DriverComponent.Machine => _machineDriver,
+                DriverComponent.Manifest => _manifestDriver,
                 _ => throw new ArgumentException(
                     $"Component '{component}' is not supported by Podman driver",
                     nameof(component))
@@ -274,6 +280,12 @@ namespace FluentDocker.Drivers.Podman.Cli
         public IPodmanMachineDriver MachineDriver
         {
             get { ThrowIfNotInitialized(); return _machineDriver; }
+        }
+
+        /// <summary>Gets the manifest driver (Podman-specific).</summary>
+        public IPodmanManifestDriver ManifestDriver
+        {
+            get { ThrowIfNotInitialized(); return _manifestDriver; }
         }
 
         #endregion
