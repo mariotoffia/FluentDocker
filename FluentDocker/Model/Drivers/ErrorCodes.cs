@@ -171,6 +171,22 @@ namespace FluentDocker.Model.Drivers
         }
 
         /// <summary>
+        /// Machine-related error codes (Podman machine management)
+        /// </summary>
+        public static class Machine
+        {
+            public const string InitFailed = "MACH_001";
+            public const string StartFailed = "MACH_002";
+            public const string StopFailed = "MACH_003";
+            public const string RemoveFailed = "MACH_004";
+            public const string ListFailed = "MACH_005";
+            public const string InspectFailed = "MACH_006";
+            public const string SshFailed = "MACH_007";
+            public const string SetFailed = "MACH_008";
+            public const string InfoFailed = "MACH_009";
+        }
+
+        /// <summary>
         /// Configuration error codes
         /// </summary>
         public static class Config

@@ -199,5 +199,28 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
             var caps = await pack.GetCapabilitiesAsync();
             Assert.True(caps.SupportsKubernetes);
         }
+
+        [Fact]
+        public void DirectAccess_MachineDriver_BeforeInit_ThrowsInvalidOperation()
+        {
+            var pack = new PodmanCliDriverPack();
+            Assert.Throws<InvalidOperationException>(() => _ = pack.MachineDriver);
+        }
+
+        [Fact]
+        public void SysCtlByComponent_Machine_BeforeInit_ThrowsInvalidOperation()
+        {
+            var pack = new PodmanCliDriverPack();
+            Assert.Throws<InvalidOperationException>(() =>
+                pack.SysCtl("podman", DriverComponent.Machine));
+        }
+
+        [Fact]
+        public async Task GetCapabilities_SupportsMachines()
+        {
+            var pack = new PodmanCliDriverPack();
+            var caps = await pack.GetCapabilitiesAsync();
+            Assert.True(caps.SupportsMachines);
+        }
     }
 }

@@ -169,20 +169,31 @@ Implementation: `PodmanCliKubernetesDriver.cs`
 
 **Output parsing:** Handles both JSON format (newer Podman) and line-based Pod:/Container: format (older Podman).
 
+### 1.10 Machine Driver (`IPodmanMachineDriver`) — Podman-Specific
+
+Implementation: `PodmanCliMachineDriver.cs`
+
+| Podman Command | Description | Status |
+|----------------|-------------|--------|
+| `podman machine init` | Initialize VM | ✅ Done |
+| `podman machine start` | Start VM | ✅ Done |
+| `podman machine stop` | Stop VM | ✅ Done |
+| `podman machine rm` | Remove VM | ✅ Done |
+| `podman machine list` | List machines | ✅ Done |
+| `podman machine inspect` | Inspect machine | ✅ Done |
+| `podman machine ssh` | SSH into machine | ✅ Done |
+| `podman machine set` | Set machine config | ✅ Done |
+| `podman machine info` | Host machine info | ✅ Done |
+
+**Features:** `--cpus`, `--disk-size`, `--memory`, `--rootful`, `--image`, `--username`, `--now`, `-v` (volumes) flags supported for init. `--cpus`, `--disk-size`, `--memory`, `--rootful` for set.
+
+**JSON parsing:** Handles `list --format json` (array), `inspect` (object or array), `info --format json` (nested Host/Version).
+
 ---
 
 ## 2. Future Work (Not Yet Implemented)
 
-### 2.1 Machine Management (Phase 2)
-
-Would need: `IPodmanMachineDriver`
-
-| Command | Description | Priority |
-|---------|-------------|----------|
-| `podman machine init/start/stop/rm` | VM lifecycle | HIGH (macOS/Windows) |
-| `podman machine ssh/list/set/inspect` | VM management | MEDIUM |
-
-### 2.2 Manifest/Multi-Arch (Phase 2)
+### 2.1 Manifest/Multi-Arch (Phase 2)
 
 Would need: `IPodmanManifestDriver`
 
@@ -226,7 +237,8 @@ FluentDocker/Drivers/Podman/Cli/
 │   ├── PodmanCliSystemDriver.cs
 │   ├── PodmanCliVolumeDriver.cs
 │   ├── PodmanCliPodDriver.cs
-│   └── PodmanCliKubernetesDriver.cs
+│   ├── PodmanCliKubernetesDriver.cs
+│   └── PodmanCliMachineDriver.cs
 ├── PodmanCliDriverBase.cs
 └── PodmanCliDriverPack.cs
 ```
@@ -263,6 +275,7 @@ Podman:  FluentDocker → Podman CLI → Container Runtime (direct)
 | Streaming | ✅ Full | ✅ Full (no attach) |
 | Pods | ❌ No | ✅ Full (lifecycle + inspect) |
 | Kubernetes | ❌ No | ✅ Full (play + down + generate) |
+| Machines | ❌ No | ✅ Full (init + lifecycle + ssh + info) |
 | Swarm | ✅ Yes | ❌ N/A |
 | Compose | ✅ Native V2 | ❌ Skipped |
 | Rootless | ⚠️ Experimental | ✅ Default |
@@ -281,4 +294,4 @@ Podman:  FluentDocker → Podman CLI → Container Runtime (direct)
 
 **Document Version:** 3.0
 **Last Updated:** 2026-02-08
-**Status:** Phase 1 Complete + Pod Driver + Kubernetes Integration, Phase 2 Planned
+**Status:** Phase 1 Complete + Pod Driver + Kubernetes Integration + Machine Management, Phase 2 Planned

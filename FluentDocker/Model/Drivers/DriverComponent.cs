@@ -43,6 +43,11 @@ namespace FluentDocker.Model.Drivers
         /// <summary>
         /// Podman-specific: Kubernetes YAML operations (play, down, generate)
         /// </summary>
-        Kubernetes
+        Kubernetes,
+
+        /// <summary>
+        /// Podman-specific: Machine management (init, start, stop, etc.)
+        /// </summary>
+        Machine
     }
 }

@@ -46,6 +46,11 @@ namespace FluentDocker.Model.Drivers
         public bool SupportsKubernetes { get; set; }
 
         /// <summary>
+        /// Driver supports machine management (Podman machine init/start/stop/etc.).
+        /// </summary>
+        public bool SupportsMachines { get; set; }
+
+        /// <summary>
         /// Driver version string.
         /// </summary>
         public string Version { get; set; }
@@ -69,7 +74,8 @@ namespace FluentDocker.Model.Drivers
                 SupportsCompose = true,
                 SupportsSystem = true,
                 SupportsPods = false,
-                SupportsKubernetes = false
+                SupportsKubernetes = false,
+                SupportsMachines = false
             };
         }
     }

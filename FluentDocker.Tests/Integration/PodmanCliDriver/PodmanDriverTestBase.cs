@@ -65,6 +65,15 @@ namespace FluentDocker.Tests.Integration.PodmanCliDriver
             }
         }
 
+        protected IPodmanMachineDriver MachineDriver
+        {
+            get
+            {
+                Kernel.TrySysCtl<IPodmanMachineDriver>(DriverId, out var driver);
+                return driver;
+            }
+        }
+
         protected async Task RemovePodAsync(string podName)
         {
             if (!string.IsNullOrEmpty(podName))
