@@ -166,13 +166,20 @@ Access drivers via `kernel.SysCtl()` pattern (inspired by Unix sysctl):
 var containerDriver = kernel.SysCtl<IContainerDriver>("docker");
 var containers = await containerDriver.ListAsync(new DriverContext());
 
-// Component-based access
-var networkDriver = kernel.SysCtl("docker", DriverComponent.Network);
-var networks = await networkDriver.ListAsync(new DriverContext());
+// Type-based access (runtime resolution)
+object driver = kernel.SysCtl("docker", typeof(IContainerDriver));
 
-// Get entire driver
-var driver = kernel.GetDriver("docker");
+// Non-throwing — returns false if interface not supported
+if (kernel.TrySysCtl<IPodmanPodDriver>("podman", out var podDriver))
+{
+    await podDriver.CreatePodAsync(context, "my-pod");
+}
+
+// Component-based access (legacy, delegates to type-based internally)
+var networkDriver = kernel.SysCtl("docker", DriverComponent.Network);
 ```
+
+The kernel resolves interfaces through `IDriverInterfaceResolver` when the driver pack or driver implements it, falling back to direct `ISysCtl` delegation and then direct cast. This means any driver can expose custom interfaces without kernel changes. See [Driver Extensibility](extensibility.html) for details.
 
 ### Available Driver Components
 
@@ -232,6 +239,25 @@ public class BuildResults : IAsyncDisposable
     Task DisposeAllAsync();
 }
 ```
+
+---
+
+## Driver-Aware Builder Extensions
+
+All builders implement `IDriverScopedBuilder`, providing access to the kernel and driver ID inside builder lambdas. This enables driver-specific fluent extensions that gracefully no-op when the current driver doesn't support the feature:
+
+```csharp
+// Podman-specific .UsePod() — no-op on Docker
+await new Builder()
+    .WithinDriver("podman", kernel)
+    .UseContainer(c => c
+        .UseImage("redis:7-alpine")
+        .UsePod("cache-pod")         // Only applies on Podman
+        .ExposePort(6379, 6379))
+    .BuildAsync();
+```
+
+For full documentation on writing custom driver interfaces, builder extensions, and multi-driver deployment patterns, see [Driver Extensibility](extensibility.html).
 
 ---
 
@@ -439,7 +465,9 @@ FluentDocker v3.0 provides:
 - **Multiple runtimes**: Docker, Podman, future runtimes
 - **Multiple instances**: Same driver type, different configurations
 - **Multiple kernels**: Isolated instances, no global state
-- **Clean driver access**: SysCtl() interface pattern
+- **Clean driver access**: SysCtl() interface pattern with `TrySysCtl<T>()` for feature checks
+- **Driver extensibility**: Custom interfaces via `IDriverInterfaceResolver` ([details](extensibility.html))
+- **Driver-aware builders**: `IDriverScopedBuilder` with `RequireDriver<T>()` / `TryDriver<T>()`
 - **Better testing**: Mock drivers, isolated kernels
 - **Multi-host support**: Multiple Docker hosts simultaneously
 - **Full async**: All operations with CancellationToken support

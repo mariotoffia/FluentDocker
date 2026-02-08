@@ -6,7 +6,9 @@ nav_order: 8
 
 # Test Support
 
-FluentDocker provides test fixtures and base classes for MSTest and xUnit to simplify container-based testing.
+FluentDocker v3 provides test base classes for MSTest and xUnit that manage a
+`FluentDockerKernel` and container lifecycle for you. You can also use the
+standalone kernel + builder pattern when you need full control.
 
 ## Installation
 
@@ -19,20 +21,21 @@ dotnet add package FluentDocker.XUnit   # For xUnit
 
 ### FluentDockerTestBase
 
+The base class creates a kernel, builds a container via `ConfigureContainer`,
+starts it, and tears it down when tests complete.
+
 ```csharp
 using FluentDocker.MsTest;
-using FluentDocker.Builders;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 [TestClass]
-public class MyTests : FluentDockerTestBase
+public class NginxTests : FluentDockerTestBase
 {
-    protected override ContainerBuilder Build()
+    protected override void ConfigureContainer(IContainerBuilder builder)
     {
-        return new Builder()
-            .UseContainer()
+        builder
             .UseImage("nginx:alpine")
-            .ExposePort(80)
+            .ExposePort("80")
             .WaitForPort("80/tcp", 30000);
     }
 
@@ -54,35 +57,37 @@ public class MyTests : FluentDockerTestBase
 
 ### Lifecycle Hooks
 
+Override the async hooks and, optionally, the kernel factory.
+
 ```csharp
 [TestClass]
 public class DatabaseTests : FluentDockerTestBase
 {
     protected string ConnectionString { get; private set; }
 
-    protected override ContainerBuilder Build()
+    protected override void ConfigureContainer(IContainerBuilder builder)
     {
-        return new Builder()
-            .UseContainer()
+        builder
             .UseImage("postgres:15-alpine")
-            .WithEnvironment("POSTGRES_PASSWORD=test", "POSTGRES_DB=testdb")
-            .ExposePort(5432)
+            .WithEnvironment("POSTGRES_PASSWORD=test")
+            .WithEnvironment("POSTGRES_DB=testdb")
+            .ExposePort("5432")
             .WaitForPort("5432/tcp", 30000);
     }
 
-    protected override void OnContainerInitialized()
+    protected override async Task OnContainerInitializedAsync()
     {
-        // Called after container starts
         var endpoint = Container.ToHostExposedEndpoint("5432/tcp");
-        ConnectionString = $"Host=localhost;Port={endpoint.Port};Database=testdb;Username=postgres;Password=test";
-
-        // Run migrations, seed data, etc.
+        ConnectionString =
+            $"Host=localhost;Port={endpoint.Port};Database=testdb;" +
+            "Username=postgres;Password=test";
+        await Task.CompletedTask;
     }
 
-    protected override void OnContainerTearDown()
+    protected override async Task OnContainerTearDownAsync()
     {
-        // Called before container stops
         // Export logs, cleanup, etc.
+        await Task.CompletedTask;
     }
 
     [TestMethod]
@@ -95,52 +100,56 @@ public class DatabaseTests : FluentDockerTestBase
 }
 ```
 
-### PostgresTestBase
+### Customising the Kernel
+
+Override `CreateKernelAsync` when you need a non-default driver or additional
+kernel configuration.
 
 ```csharp
-using FluentDocker.MsTest;
-
 [TestClass]
-public class PostgresTests : PostgresTestBase
+public class PodmanTests : FluentDockerTestBase
 {
-    [TestMethod]
-    public void ConnectionString_IsAvailable()
+    protected override async Task<FluentDockerKernel> CreateKernelAsync()
     {
-        Assert.IsNotNull(ConnectionString);
-        Assert.IsTrue(ConnectionString.Contains("postgres"));
+        return await FluentDockerKernel.Create()
+            .WithDriver("podman", driver => driver.UsePodmanCli().AsDefault())
+            .BuildAsync();
+    }
+
+    protected override void ConfigureContainer(IContainerBuilder builder)
+    {
+        builder
+            .UseImage("nginx:alpine")
+            .ExposePort("80")
+            .WaitForPort("80/tcp", 30000);
     }
 
     [TestMethod]
-    public async Task CanExecuteQueries()
+    public void Container_Runs_Under_Podman()
     {
-        using var conn = new NpgsqlConnection(ConnectionString);
-        await conn.OpenAsync();
-
-        using var cmd = new NpgsqlCommand("SELECT 1", conn);
-        var result = await cmd.ExecuteScalarAsync();
-
-        Assert.AreEqual(1, result);
+        Assert.AreEqual(ServiceRunningState.Running, Container.State);
     }
 }
 ```
 
 ## xUnit
 
-### IClassFixture Pattern
+### FluentDockerTestBase (IClassFixture)
+
+The xUnit base class works the same way. Call `InitializeAsync()` in the
+constructor or use `IAsyncLifetime` on the test class.
 
 ```csharp
 using FluentDocker.XUnit;
-using FluentDocker.Builders;
 using Xunit;
 
 public class NginxFixture : FluentDockerTestBase
 {
-    protected override ContainerBuilder Build()
+    protected override void ConfigureContainer(IContainerBuilder builder)
     {
-        return new Builder()
-            .UseContainer()
+        builder
             .UseImage("nginx:alpine")
-            .ExposePort(80)
+            .ExposePort("80")
             .WaitForPort("80/tcp", 30000);
     }
 }
@@ -170,36 +179,47 @@ public class NginxTests : IClassFixture<NginxFixture>
 }
 ```
 
-### IAsyncLifetime Pattern
+### IAsyncLifetime -- Standalone Kernel + Builder
+
+When you do not want a base class, create a kernel and use the `Builder`
+directly.
 
 ```csharp
-using FluentDocker.Builders;
 using Xunit;
 
 public class DatabaseTests : IAsyncLifetime
 {
+    private FluentDockerKernel _kernel;
+    private IBuildResults _results;
     private IContainerService _container;
     private string _connectionString;
 
     public async Task InitializeAsync()
     {
-        _container = new Builder()
-            .UseContainer()
-            .UseImage("postgres:15-alpine")
-            .WithEnvironment("POSTGRES_PASSWORD=test")
-            .ExposePort(5432)
-            .WaitForPort("5432/tcp", 30000)
-            .Build()
-            .Start();
+        _kernel = await FluentDockerKernel.Create()
+            .WithDriver("docker", d => d.UseDockerCli().AsDefault())
+            .BuildAsync();
 
+        _results = await new Builder()
+            .WithinDriver("docker", _kernel)
+            .UseContainer(c => c
+                .UseImage("postgres:15-alpine")
+                .WithEnvironment("POSTGRES_PASSWORD=test")
+                .ExposePort("5432")
+                .WaitForPort("5432/tcp", 30000))
+            .BuildAsync();
+
+        _container = _results.Containers.First();
         var endpoint = _container.ToHostExposedEndpoint("5432/tcp");
-        _connectionString = $"Host=localhost;Port={endpoint.Port};Database=postgres;Username=postgres;Password=test";
+        _connectionString =
+            $"Host=localhost;Port={endpoint.Port};Database=postgres;" +
+            "Username=postgres;Password=test";
     }
 
-    public Task DisposeAsync()
+    public async Task DisposeAsync()
     {
-        _container?.Dispose();
-        return Task.CompletedTask;
+        if (_results is IAsyncDisposable ad) await ad.DisposeAsync();
+        if (_kernel is IAsyncDisposable kd) await kd.DisposeAsync();
     }
 
     [Fact]
@@ -214,49 +234,54 @@ public class DatabaseTests : IAsyncLifetime
 
 ### Collection Fixtures
 
+Share a single container across multiple test classes via xUnit collection
+fixtures. Each fixture manages its own kernel.
+
 ```csharp
-// Shared fixture for all tests in collection
 public class SharedDatabaseFixture : IAsyncLifetime
 {
+    public FluentDockerKernel Kernel { get; private set; }
     public IContainerService Container { get; private set; }
     public string ConnectionString { get; private set; }
+    private IBuildResults _results;
 
     public async Task InitializeAsync()
     {
-        Container = new Builder()
-            .UseContainer()
-            .UseImage("postgres:15-alpine")
-            .WithEnvironment("POSTGRES_PASSWORD=test")
-            .ExposePort(5432)
-            .WaitForPort("5432/tcp", 30000)
-            .Build()
-            .Start();
+        Kernel = await FluentDockerKernel.Create()
+            .WithDriver("docker", d => d.UseDockerCli().AsDefault())
+            .BuildAsync();
 
+        _results = await new Builder()
+            .WithinDriver("docker", Kernel)
+            .UseContainer(c => c
+                .UseImage("postgres:15-alpine")
+                .WithEnvironment("POSTGRES_PASSWORD=test")
+                .ExposePort("5432")
+                .WaitForPort("5432/tcp", 30000))
+            .BuildAsync();
+
+        Container = _results.Containers.First();
         var endpoint = Container.ToHostExposedEndpoint("5432/tcp");
-        ConnectionString = $"Host=localhost;Port={endpoint.Port};Database=postgres;Username=postgres;Password=test";
+        ConnectionString =
+            $"Host=localhost;Port={endpoint.Port};Database=postgres;" +
+            "Username=postgres;Password=test";
     }
 
-    public Task DisposeAsync()
+    public async Task DisposeAsync()
     {
-        Container?.Dispose();
-        return Task.CompletedTask;
+        if (_results is IAsyncDisposable ad) await ad.DisposeAsync();
+        if (Kernel is IAsyncDisposable kd) await kd.DisposeAsync();
     }
 }
 
 [CollectionDefinition("Database")]
-public class DatabaseCollection : ICollectionFixture<SharedDatabaseFixture>
-{
-}
+public class DatabaseCollection : ICollectionFixture<SharedDatabaseFixture> { }
 
 [Collection("Database")]
 public class UserRepositoryTests
 {
     private readonly SharedDatabaseFixture _fixture;
-
-    public UserRepositoryTests(SharedDatabaseFixture fixture)
-    {
-        _fixture = fixture;
-    }
+    public UserRepositoryTests(SharedDatabaseFixture fixture) => _fixture = fixture;
 
     [Fact]
     public async Task CanCreateUser()
@@ -269,23 +294,19 @@ public class UserRepositoryTests
 public class OrderRepositoryTests
 {
     private readonly SharedDatabaseFixture _fixture;
-
-    public OrderRepositoryTests(SharedDatabaseFixture fixture)
-    {
-        _fixture = fixture;
-    }
+    public OrderRepositoryTests(SharedDatabaseFixture fixture) => _fixture = fixture;
 
     [Fact]
     public async Task CanCreateOrder()
     {
-        // Same database container shared
+        // Same database container shared across the collection
     }
 }
 ```
 
 ## Custom Test Fixtures
 
-### Redis Fixture
+### Redis Fixture (MSTest)
 
 ```csharp
 public class RedisTestBase : FluentDockerTestBase
@@ -293,25 +314,24 @@ public class RedisTestBase : FluentDockerTestBase
     protected string RedisConnectionString { get; private set; }
     protected IConnectionMultiplexer Redis { get; private set; }
 
-    protected override ContainerBuilder Build()
+    protected override void ConfigureContainer(IContainerBuilder builder)
     {
-        return new Builder()
-            .UseContainer()
+        builder
             .UseImage("redis:alpine")
-            .ExposePort(6379)
+            .ExposePort("6379")
             .WaitForPort("6379/tcp", 30000);
     }
 
-    protected override void OnContainerInitialized()
+    protected override async Task OnContainerInitializedAsync()
     {
         var endpoint = Container.ToHostExposedEndpoint("6379/tcp");
         RedisConnectionString = $"localhost:{endpoint.Port}";
-        Redis = ConnectionMultiplexer.Connect(RedisConnectionString);
+        Redis = await ConnectionMultiplexer.ConnectAsync(RedisConnectionString);
     }
 
-    protected override void OnContainerTearDown()
+    protected override async Task OnContainerTearDownAsync()
     {
-        Redis?.Dispose();
+        if (Redis is not null) await Redis.DisposeAsync();
     }
 }
 
@@ -329,23 +349,20 @@ public class CacheTests : RedisTestBase
 }
 ```
 
-### Elasticsearch Fixture
+### Elasticsearch Fixture (MSTest)
 
 ```csharp
 public class ElasticsearchTestBase : FluentDockerTestBase
 {
     protected ElasticClient Client { get; private set; }
 
-    protected override ContainerBuilder Build()
+    protected override void ConfigureContainer(IContainerBuilder builder)
     {
-        return new Builder()
-            .UseContainer()
+        builder
             .UseImage("elasticsearch:8.10.2")
-            .WithEnvironment(
-                "discovery.type=single-node",
-                "xpack.security.enabled=false"
-            )
-            .ExposePort(9200)
+            .WithEnvironment("discovery.type=single-node")
+            .WithEnvironment("xpack.security.enabled=false")
+            .ExposePort("9200")
             .WaitForHttp("http://localhost:9200/_cluster/health",
                 continuation: (resp, _) =>
                     resp.Body.Contains("\"status\":\"green\"") ||
@@ -353,73 +370,84 @@ public class ElasticsearchTestBase : FluentDockerTestBase
                 timeout: 60000);
     }
 
-    protected override void OnContainerInitialized()
+    protected override async Task OnContainerInitializedAsync()
     {
         var endpoint = Container.ToHostExposedEndpoint("9200/tcp");
-        var settings = new ConnectionSettings(new Uri($"http://localhost:{endpoint.Port}"));
+        var settings = new ConnectionSettings(
+            new Uri($"http://localhost:{endpoint.Port}"));
         Client = new ElasticClient(settings);
+        await Task.CompletedTask;
     }
 }
 ```
 
-### Kafka Fixture
+### Kafka Fixture (xUnit -- Compose)
+
+Use the standalone kernel + compose builder for multi-container stacks.
 
 ```csharp
 public class KafkaTestBase : IAsyncLifetime
 {
-    protected ICompositeService Services { get; private set; }
+    protected FluentDockerKernel Kernel { get; private set; }
     protected string BootstrapServers { get; private set; }
+    private IBuildResults _results;
 
     public async Task InitializeAsync()
     {
-        Services = new Builder()
-            .UseContainer()
-            .UseCompose()
-            .FromFile("docker-compose.kafka.yml")
-            .WaitForPort("zookeeper", "2181/tcp", 30000)
-            .WaitForPort("kafka", "9092/tcp", 30000)
-            .Build()
-            .Start();
+        Kernel = await FluentDockerKernel.Create()
+            .WithDriver("docker", d => d.UseDockerCli().AsDefault())
+            .BuildAsync();
 
-        var kafka = Services.Containers.First(c => c.Name.Contains("kafka"));
+        _results = await new Builder()
+            .WithinDriver("docker", Kernel)
+            .UseCompose(c => c
+                .WithComposeFile("docker-compose.kafka.yml")
+                .WithRemoveOrphans()
+                .WithWait()
+                .WithWaitTimeout(30))
+            .BuildAsync();
+
+        var kafka = _results.Containers.First(c => c.Name.Contains("kafka"));
         var endpoint = kafka.ToHostExposedEndpoint("9092/tcp");
         BootstrapServers = $"localhost:{endpoint.Port}";
-
-        // Wait for Kafka to be fully ready
-        await Task.Delay(5000);
+        await Task.Delay(5000); // Allow Kafka to stabilise
     }
 
-    public Task DisposeAsync()
+    public async Task DisposeAsync()
     {
-        Services?.Dispose();
-        return Task.CompletedTask;
+        if (_results is IAsyncDisposable ad) await ad.DisposeAsync();
+        if (Kernel is IAsyncDisposable kd) await kd.DisposeAsync();
     }
 }
 ```
 
 ## Integration Test Patterns
 
-### API Integration Tests
+### API Integration Tests (Compose)
 
 ```csharp
 public class ApiIntegrationTestBase : IAsyncLifetime
 {
-    protected ICompositeService Services { get; private set; }
+    protected FluentDockerKernel Kernel { get; private set; }
     protected HttpClient Client { get; private set; }
+    private IBuildResults _results;
 
     public async Task InitializeAsync()
     {
-        Services = new Builder()
-            .UseContainer()
-            .UseCompose()
-            .FromFile("docker-compose.test.yml")
-            .RemoveOrphans()
-            .WaitForPort("db", "5432/tcp", 30000)
-            .WaitForHttp("api", "http://localhost:8080/health")
-            .Build()
-            .Start();
+        Kernel = await FluentDockerKernel.Create()
+            .WithDriver("docker", d => d.UseDockerCli().AsDefault())
+            .BuildAsync();
 
-        var api = Services.Containers.First(c => c.Name.Contains("api"));
+        _results = await new Builder()
+            .WithinDriver("docker", Kernel)
+            .UseCompose(c => c
+                .WithComposeFile("docker-compose.test.yml")
+                .WithRemoveOrphans()
+                .WithWait()
+                .WithWaitTimeout(30))
+            .BuildAsync();
+
+        var api = _results.Containers.First(c => c.Name.Contains("api"));
         var endpoint = api.ToHostExposedEndpoint("8080/tcp");
         Client = new HttpClient
         {
@@ -427,11 +455,11 @@ public class ApiIntegrationTestBase : IAsyncLifetime
         };
     }
 
-    public Task DisposeAsync()
+    public async Task DisposeAsync()
     {
         Client?.Dispose();
-        Services?.Dispose();
-        return Task.CompletedTask;
+        if (_results is IAsyncDisposable ad) await ad.DisposeAsync();
+        if (Kernel is IAsyncDisposable kd) await kd.DisposeAsync();
     }
 }
 
@@ -442,7 +470,6 @@ public class UserApiTests : ApiIntegrationTestBase
     {
         var response = await Client.PostAsJsonAsync("/api/users",
             new { Name = "Test User", Email = "test@example.com" });
-
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
     }
 
@@ -450,7 +477,6 @@ public class UserApiTests : ApiIntegrationTestBase
     public async Task GetUsers_ReturnsOk()
     {
         var response = await Client.GetAsync("/api/users");
-
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
     }
 }
@@ -461,51 +487,52 @@ public class UserApiTests : ApiIntegrationTestBase
 ```csharp
 public class MigrationTests : IAsyncLifetime
 {
-    private IContainerService _db;
+    private FluentDockerKernel _kernel;
+    private IBuildResults _results;
     private string _connectionString;
 
     public async Task InitializeAsync()
     {
-        _db = new Builder()
-            .UseContainer()
-            .UseImage("postgres:15-alpine")
-            .WithEnvironment("POSTGRES_PASSWORD=test")
-            .ExposePort(5432)
-            .WaitForPort("5432/tcp", 30000)
-            .Build()
-            .Start();
+        _kernel = await FluentDockerKernel.Create()
+            .WithDriver("docker", d => d.UseDockerCli().AsDefault())
+            .BuildAsync();
 
-        var endpoint = _db.ToHostExposedEndpoint("5432/tcp");
-        _connectionString = $"Host=localhost;Port={endpoint.Port};Database=postgres;Username=postgres;Password=test";
+        _results = await new Builder()
+            .WithinDriver("docker", _kernel)
+            .UseContainer(c => c
+                .UseImage("postgres:15-alpine")
+                .WithEnvironment("POSTGRES_PASSWORD=test")
+                .ExposePort("5432")
+                .WaitForPort("5432/tcp", 30000))
+            .BuildAsync();
+
+        var endpoint = _results.Containers.First()
+            .ToHostExposedEndpoint("5432/tcp");
+        _connectionString =
+            $"Host=localhost;Port={endpoint.Port};Database=postgres;" +
+            "Username=postgres;Password=test";
     }
 
-    public Task DisposeAsync()
+    public async Task DisposeAsync()
     {
-        _db?.Dispose();
-        return Task.CompletedTask;
+        if (_results is IAsyncDisposable ad) await ad.DisposeAsync();
+        if (_kernel is IAsyncDisposable kd) await kd.DisposeAsync();
     }
 
     [Fact]
     public async Task Migrations_ApplySuccessfully()
     {
-        // Apply migrations
-        var migrator = new DbMigrator(_connectionString);
-        await migrator.MigrateAsync();
+        await new DbMigrator(_connectionString).MigrateAsync();
 
-        // Verify schema
         using var conn = new NpgsqlConnection(_connectionString);
         await conn.OpenAsync();
-
         using var cmd = new NpgsqlCommand(
-            "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public'",
-            conn);
-
+            "SELECT table_name FROM information_schema.tables " +
+            "WHERE table_schema = 'public'", conn);
         using var reader = await cmd.ExecuteReaderAsync();
+
         var tables = new List<string>();
-        while (await reader.ReadAsync())
-        {
-            tables.Add(reader.GetString(0));
-        }
+        while (await reader.ReadAsync()) tables.Add(reader.GetString(0));
 
         Assert.Contains("users", tables);
         Assert.Contains("orders", tables);
@@ -517,37 +544,33 @@ public class MigrationTests : IAsyncLifetime
 
 ### Per-Test Containers
 
+Each test method gets its own kernel and container for full isolation.
+
 ```csharp
 public class IsolatedTests
 {
     [Fact]
-    public async Task Test1_HasOwnDatabase()
+    public async Task EachTest_HasOwnDatabase()
     {
-        using var db = new Builder()
-            .UseContainer()
-            .UseImage("postgres:15-alpine")
-            .WithEnvironment("POSTGRES_PASSWORD=test")
-            .ExposePort(5432)
-            .WaitForPort("5432/tcp", 30000)
-            .Build()
-            .Start();
+        var kernel = await FluentDockerKernel.Create()
+            .WithDriver("docker", d => d.UseDockerCli().AsDefault())
+            .BuildAsync();
 
-        // This test has its own database
-    }
+        var results = await new Builder()
+            .WithinDriver("docker", kernel)
+            .UseContainer(c => c
+                .UseImage("postgres:15-alpine")
+                .WithEnvironment("POSTGRES_PASSWORD=test")
+                .ExposePort("5432")
+                .WaitForPort("5432/tcp", 30000))
+            .BuildAsync();
 
-    [Fact]
-    public async Task Test2_HasOwnDatabase()
-    {
-        using var db = new Builder()
-            .UseContainer()
-            .UseImage("postgres:15-alpine")
-            .WithEnvironment("POSTGRES_PASSWORD=test")
-            .ExposePort(5432)
-            .WaitForPort("5432/tcp", 30000)
-            .Build()
-            .Start();
+        var container = results.Containers.First();
+        Assert.NotNull(container);
 
-        // Completely isolated from Test1
+        // Each test creates and disposes its own kernel + container
+        if (results is IAsyncDisposable ad) await ad.DisposeAsync();
+        if (kernel is IAsyncDisposable kd) await kd.DisposeAsync();
     }
 }
 ```
@@ -555,33 +578,24 @@ public class IsolatedTests
 ### Unique Names for Parallel Tests
 
 ```csharp
-private static string UniqueName(string prefix) =>
-    $"{prefix}-{Guid.NewGuid():N}"[..20];
-
-// Use unique names for networks and containers in parallel tests
-var networkName = UniqueName("net");
-var containerName = UniqueName("db");
+private static string UniqueName(string prefix) => $"{prefix}-{Guid.NewGuid():N}"[..20];
 ```
 
 ## Debugging Failed Tests
 
 ```csharp
-// Keep container on failure for debugging
-.KeepContainer()  // Don't remove on failure
+// Inside ConfigureContainer -- keep container on failure for debugging
+builder.KeepContainer();
+builder.KeepRunning();
 
-// Export logs on failure
-protected override void OnContainerTearDown()
+// Export logs on failure (MSTest hook)
+protected override async Task OnContainerTearDownAsync()
 {
     if (TestContext.CurrentTestOutcome == UnitTestOutcome.Failed)
-    {
-        var logs = Container.Logs();
-        File.WriteAllLines($"test-logs-{DateTime.Now:yyyyMMddHHmmss}.txt", logs);
-    }
+        await File.WriteAllLinesAsync(
+            $"test-logs-{DateTime.Now:yyyyMMddHHmmss}.txt", Container.Logs());
 }
 ```
 
 ## Next Steps
-
-- [Utilities](utilities.html) - Helper utilities
-- [Containers](containers.html) - Container management
-- [Docker Compose](compose.html) - Multi-container tests
+- [Utilities](utilities.html) -- [Containers](containers.html) -- [Docker Compose](compose.html)

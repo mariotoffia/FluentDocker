@@ -100,10 +100,16 @@ namespace FluentDocker.Builders
     /// <summary>
     /// Fluent builder for creating Docker images.
     /// </summary>
-    public sealed class ImageBuilder : IImageBuilder
+    public sealed class ImageBuilder : IImageBuilder, IDriverScopedBuilder
     {
         private readonly FluentDockerKernel _kernel;
         private readonly string _driverId;
+
+        /// <inheritdoc />
+        FluentDockerKernel IDriverScopedBuilder.Kernel => _kernel;
+
+        /// <inheritdoc />
+        string IDriverScopedBuilder.DriverId => _driverId;
         private readonly ImageBuilderConfig _config = new ImageBuilderConfig();
         private DockerfileBuilder _dockerfileBuilder;
 

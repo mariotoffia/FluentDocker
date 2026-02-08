@@ -19,11 +19,13 @@ FluentDocker is a .NET library providing a fluent API for Docker and Docker Comp
 - **Namespace renamed**: `Ductus.FluentDocker` → `FluentDocker`
 - **Full async/await support** with CancellationToken
 - **Driver Layer architecture** replacing Commands namespace
-- **Container Stats** - CPU, memory, network monitoring
-- **Label-based filtering** - 5.5x faster container cleanup
+- **Kernel + WithinDriver() scoping** for multi-driver support
+- **Lambda-based builder API** — `UseContainer(Action<IContainerBuilder>)`
+- **Container Stats** — CPU, memory, network monitoring
+- **Label-based filtering** — 5.5x faster container cleanup
 - **Static IPv4/IPv6** assignment for containers
 - **Directory copy** support (recursive)
-- **Docker Compose V2** - uses `docker compose`
+- **Docker Compose V2** — uses `docker compose`
 
 See the [Migration Guide](migration.html) for upgrading from v2.x.
 
@@ -31,16 +33,24 @@ See the [Migration Guide](migration.html) for upgrading from v2.x.
 
 ```csharp
 using FluentDocker.Builders;
+using FluentDocker.Kernel;
 
-using var container = new Builder()
-    .UseContainer()
-    .UseImage("postgres:15-alpine")
-    .ExposePort(5432)
-    .WithEnvironment("POSTGRES_PASSWORD=secret")
-    .WaitForPort("5432/tcp", 30000)
-    .Build()
-    .Start();
+// 1. Create a kernel (once per application)
+using var kernel = FluentDockerKernel.Create()
+    .WithDriver("docker", d => d.UseDockerCli().AsDefault())
+    .Build();
 
+// 2. Start a container and wait for it to be ready
+using var results = new Builder()
+    .WithinDriver("docker", kernel)
+    .UseContainer(c => c
+        .UseImage("postgres:15-alpine")
+        .ExposePort("5432")
+        .WithEnvironment("POSTGRES_PASSWORD=secret")
+        .WaitForPort("5432/tcp", 30000))
+    .Build();
+
+var container = results.Containers.First();
 var endpoint = container.ToHostExposedEndpoint("5432/tcp");
 Console.WriteLine($"Connect to: localhost:{endpoint.Port}");
 ```
@@ -48,17 +58,16 @@ Console.WriteLine($"Connect to: localhost:{endpoint.Port}");
 ## Docker Compose
 
 ```csharp
-using var services = new Builder()
-    .UseContainer()
-    .UseCompose()
-    .FromFile("docker-compose.yml")
-    .RemoveOrphans()
-    .WaitForHttp("api", "http://localhost:8080/health")
-    .Build()
-    .Start();
+using var results = new Builder()
+    .WithinDriver("docker", kernel)
+    .UseCompose(c => c
+        .WithComposeFile("docker-compose.yml")
+        .WithRemoveOrphans()
+        .WithWait()
+        .WithWaitTimeout(30))
+    .Build();
 
-foreach (var container in services.Containers)
-    Console.WriteLine($"Container: {container.Name}");
+var compose = results.ComposeServices.First();
 ```
 
 ## Installation
@@ -81,6 +90,7 @@ dotnet add package FluentDocker.XUnit   # Optional
 | [Images](images.html) | Build from Dockerfile or inline |
 | [Testing](testing.html) | MSTest/xUnit fixtures and patterns |
 | [Utilities](utilities.html) | TemplateString, Wget, resources |
+| [Extensibility](extensibility.html) | Custom driver interfaces, multi-driver patterns |
 | [Migration](migration.html) | Upgrading from v2.x to v3.0 |
 
 ## Architecture

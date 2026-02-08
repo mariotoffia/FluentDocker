@@ -41,6 +41,11 @@ namespace FluentDocker.Model.Drivers
         public bool SupportsPods { get; set; }
 
         /// <summary>
+        /// Driver supports Kubernetes YAML operations (Podman kube play/down/generate).
+        /// </summary>
+        public bool SupportsKubernetes { get; set; }
+
+        /// <summary>
         /// Driver version string.
         /// </summary>
         public string Version { get; set; }
@@ -63,7 +68,8 @@ namespace FluentDocker.Model.Drivers
                 SupportsVolumes = true,
                 SupportsCompose = true,
                 SupportsSystem = true,
-                SupportsPods = false
+                SupportsPods = false,
+                SupportsKubernetes = false
             };
         }
     }

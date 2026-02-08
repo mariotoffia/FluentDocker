@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using FluentDocker.Common;
@@ -24,7 +25,7 @@ namespace FluentDocker.Tests.Mocks
     /// Mock driver pack for unit testing FluentDocker components.
     /// Provides mock implementations of all driver interfaces.
     /// </summary>
-    public class MockDriverPack : IDriverPack
+    public partial class MockDriverPack : IDriverPack, IDriverInterfaceResolver
     {
         private readonly Dictionary<Type, object> _drivers = new Dictionary<Type, object>();
         private bool _initialized;
@@ -153,6 +154,67 @@ namespace FluentDocker.Tests.Mocks
                 _ => throw new InterfaceNotSupportedException(driverId, component.ToString())
             };
         }
+
+        #region IDriverInterfaceResolver
+
+        /// <inheritdoc />
+        public bool TryResolve(Type interfaceType, out object implementation)
+        {
+            if (!_initialized)
+                throw new InvalidOperationException("MockDriverPack not initialized.");
+            return _drivers.TryGetValue(interfaceType, out implementation);
+        }
+
+        /// <inheritdoc />
+        public IReadOnlyCollection<Type> GetSupportedInterfaces()
+        {
+            if (!_initialized)
+                throw new InvalidOperationException("MockDriverPack not initialized.");
+            return _drivers.Keys.ToList().AsReadOnly();
+        }
+
+        #endregion
+
+        #region ISysCtl Type-Based Resolution
+
+        /// <inheritdoc />
+        public object SysCtl(string driverId, Type interfaceType)
+        {
+            if (!_initialized)
+                throw new InvalidOperationException("MockDriverPack not initialized. Call InitializeAsync first.");
+            if (_drivers.TryGetValue(interfaceType, out var driver))
+                return driver;
+            throw new InterfaceNotSupportedException(driverId, interfaceType.Name);
+        }
+
+        /// <inheritdoc />
+        public bool TrySysCtl<T>(string driverId, out T instance) where T : class
+        {
+            if (!_initialized)
+                throw new InvalidOperationException("MockDriverPack not initialized. Call InitializeAsync first.");
+            if (_drivers.TryGetValue(typeof(T), out var driver))
+            {
+                instance = (T)driver;
+                return true;
+            }
+            instance = null;
+            return false;
+        }
+
+        #endregion
+
+        #region Custom Driver Registration
+
+        /// <summary>
+        /// Registers a custom driver interface for testing.
+        /// Allows tests to inject arbitrary interfaces (e.g., IPodmanPodDriver).
+        /// </summary>
+        public void RegisterCustomDriver<T>(T implementation) where T : class
+        {
+            _drivers[typeof(T)] = implementation;
+        }
+
+        #endregion
 
         /// <summary>
         /// Sets up default behaviors for all mock drivers.
@@ -403,349 +465,6 @@ namespace FluentDocker.Tests.Mocks
                     Driver = "local"
                 }));
             return this;
-        }
-
-        /// <summary>
-        /// Sets up ComposeDriver.UpAsync to return success.
-        /// </summary>
-        public MockDriverPack SetupComposeUp(string projectName = "test-project")
-        {
-            ComposeDriver
-                .Setup(d => d.UpAsync(
-                    It.IsAny<DriverContext>(),
-                    It.IsAny<ComposeUpConfig>(),
-                    It.IsAny<CancellationToken>()))
-                .ReturnsAsync(FluentDocker.Model.Drivers.CommandResponse<ComposeUpResult>.Ok(
-                    new ComposeUpResult { ProjectName = projectName }));
-            return this;
-        }
-
-        /// <summary>
-        /// Sets up ComposeDriver.UpAsync to return a specific result.
-        /// </summary>
-        public MockDriverPack SetupComposeUpAsync(ComposeUpResult result)
-        {
-            ComposeDriver
-                .Setup(d => d.UpAsync(
-                    It.IsAny<DriverContext>(),
-                    It.IsAny<ComposeUpConfig>(),
-                    It.IsAny<CancellationToken>()))
-                .ReturnsAsync(FluentDocker.Model.Drivers.CommandResponse<ComposeUpResult>.Ok(result));
-            return this;
-        }
-
-        /// <summary>
-        /// Sets up ComposeDriver.DownAsync to return success.
-        /// </summary>
-        public MockDriverPack SetupComposeDown()
-        {
-            ComposeDriver
-                .Setup(d => d.DownAsync(
-                    It.IsAny<DriverContext>(),
-                    It.IsAny<ComposeDownConfig>(),
-                    It.IsAny<CancellationToken>()))
-                .ReturnsAsync(FluentDocker.Model.Drivers.CommandResponse<Unit>.Ok(Unit.Default));
-            return this;
-        }
-
-        /// <summary>
-        /// Sets up ComposeDriver.ListAsync to return services.
-        /// </summary>
-        public MockDriverPack SetupComposeList(params ComposeServiceInfo[] services)
-        {
-            ComposeDriver
-                .Setup(d => d.ListAsync(
-                    It.IsAny<DriverContext>(),
-                    It.IsAny<ComposeListConfig>(),
-                    It.IsAny<CancellationToken>()))
-                .ReturnsAsync(FluentDocker.Model.Drivers.CommandResponse<IList<ComposeServiceInfo>>.Ok(
-                    new List<ComposeServiceInfo>(services)));
-            return this;
-        }
-
-        /// <summary>
-        /// Sets up ComposeDriver.GetLogsAsync to return logs.
-        /// </summary>
-        public MockDriverPack SetupComposeGetLogs(string logs = "test logs")
-        {
-            ComposeDriver
-                .Setup(d => d.GetLogsAsync(
-                    It.IsAny<DriverContext>(),
-                    It.IsAny<ComposeLogsConfig>(),
-                    It.IsAny<CancellationToken>()))
-                .ReturnsAsync(FluentDocker.Model.Drivers.CommandResponse<string>.Ok(logs));
-            return this;
-        }
-
-        /// <summary>
-        /// Sets up ComposeDriver.ExecuteAsync to return output.
-        /// </summary>
-        public MockDriverPack SetupComposeExecute(string output = "command output")
-        {
-            ComposeDriver
-                .Setup(d => d.ExecuteAsync(
-                    It.IsAny<DriverContext>(),
-                    It.IsAny<ComposeExecConfig>(),
-                    It.IsAny<CancellationToken>()))
-                .ReturnsAsync(FluentDocker.Model.Drivers.CommandResponse<string>.Ok(output));
-            return this;
-        }
-
-        /// <summary>
-        /// Sets up ComposeDriver.ScaleAsync to return success.
-        /// </summary>
-        public MockDriverPack SetupComposeScale()
-        {
-            ComposeDriver
-                .Setup(d => d.ScaleAsync(
-                    It.IsAny<DriverContext>(),
-                    It.IsAny<ComposeScaleConfig>(),
-                    It.IsAny<CancellationToken>()))
-                .ReturnsAsync(FluentDocker.Model.Drivers.CommandResponse<Unit>.Ok(Unit.Default));
-            return this;
-        }
-
-        /// <summary>
-        /// Sets up ComposeDriver.StartAsync to return success.
-        /// </summary>
-        public MockDriverPack SetupComposeStart()
-        {
-            ComposeDriver
-                .Setup(d => d.StartAsync(
-                    It.IsAny<DriverContext>(),
-                    It.IsAny<ComposeFileConfig>(),
-                    It.IsAny<CancellationToken>()))
-                .ReturnsAsync(FluentDocker.Model.Drivers.CommandResponse<Unit>.Ok(Unit.Default));
-            return this;
-        }
-
-        /// <summary>
-        /// Sets up ComposeDriver.StopAsync to return success.
-        /// </summary>
-        public MockDriverPack SetupComposeStop()
-        {
-            ComposeDriver
-                .Setup(d => d.StopAsync(
-                    It.IsAny<DriverContext>(),
-                    It.IsAny<ComposeStopConfig>(),
-                    It.IsAny<CancellationToken>()))
-                .ReturnsAsync(FluentDocker.Model.Drivers.CommandResponse<Unit>.Ok(Unit.Default));
-            return this;
-        }
-
-        /// <summary>
-        /// Sets up ComposeDriver.PauseAsync to return success.
-        /// </summary>
-        public MockDriverPack SetupComposePause()
-        {
-            ComposeDriver
-                .Setup(d => d.PauseAsync(
-                    It.IsAny<DriverContext>(),
-                    It.IsAny<ComposeFileConfig>(),
-                    It.IsAny<CancellationToken>()))
-                .ReturnsAsync(FluentDocker.Model.Drivers.CommandResponse<Unit>.Ok(Unit.Default));
-            return this;
-        }
-
-        /// <summary>
-        /// Sets up ContainerDriver.GetLogsAsync to return logs.
-        /// </summary>
-        public MockDriverPack SetupContainerGetLogs(string logs = "container logs")
-        {
-            ContainerDriver
-                .Setup(d => d.GetLogsAsync(
-                    It.IsAny<DriverContext>(),
-                    It.IsAny<string>(),
-                    It.IsAny<bool>(),
-                    It.IsAny<int?>(),
-                    It.IsAny<bool>(),
-                    It.IsAny<CancellationToken>()))
-                .ReturnsAsync(FluentDocker.Model.Drivers.CommandResponse<string>.Ok(logs));
-            return this;
-        }
-
-        /// <summary>
-        /// Sets up ContainerDriver.ExecAsync to return output.
-        /// </summary>
-        public MockDriverPack SetupContainerExec(string stdOut = "exec output", int exitCode = 0)
-        {
-            ContainerDriver
-                .Setup(d => d.ExecAsync(
-                    It.IsAny<DriverContext>(),
-                    It.IsAny<string>(),
-                    It.IsAny<ExecConfig>(),
-                    It.IsAny<CancellationToken>()))
-                .ReturnsAsync(FluentDocker.Model.Drivers.CommandResponse<ExecResult>.Ok(
-                    new ExecResult { StdOut = stdOut, ExitCode = exitCode }));
-            return this;
-        }
-
-        /// <summary>
-        /// Sets up ContainerDriver.ExportAsync to return success.
-        /// </summary>
-        public MockDriverPack SetupContainerExport()
-        {
-            ContainerDriver
-                .Setup(d => d.ExportAsync(
-                    It.IsAny<DriverContext>(),
-                    It.IsAny<string>(),
-                    It.IsAny<string>(),
-                    It.IsAny<CancellationToken>()))
-                .ReturnsAsync(FluentDocker.Model.Drivers.CommandResponse<Unit>.Ok(Unit.Default));
-            return this;
-        }
-
-        /// <summary>
-        /// Sets up ContainerDriver.CopyFromAsync to return success.
-        /// </summary>
-        public MockDriverPack SetupContainerCopyFrom()
-        {
-            ContainerDriver
-                .Setup(d => d.CopyFromAsync(
-                    It.IsAny<DriverContext>(),
-                    It.IsAny<string>(),
-                    It.IsAny<string>(),
-                    It.IsAny<string>(),
-                    It.IsAny<CancellationToken>()))
-                .ReturnsAsync(FluentDocker.Model.Drivers.CommandResponse<Unit>.Ok(Unit.Default));
-            return this;
-        }
-
-        /// <summary>
-        /// Sets up ContainerDriver.CopyToAsync to return success.
-        /// </summary>
-        public MockDriverPack SetupContainerCopyTo()
-        {
-            ContainerDriver
-                .Setup(d => d.CopyToAsync(
-                    It.IsAny<DriverContext>(),
-                    It.IsAny<string>(),
-                    It.IsAny<string>(),
-                    It.IsAny<string>(),
-                    It.IsAny<CancellationToken>()))
-                .ReturnsAsync(FluentDocker.Model.Drivers.CommandResponse<Unit>.Ok(Unit.Default));
-            return this;
-        }
-
-        /// <summary>
-        /// Sets up ContainerDriver.StatsAsync to return container statistics.
-        /// </summary>
-        public MockDriverPack SetupContainerStats(
-            double cpuPercent = 25.5,
-            long memoryUsage = 104857600,   // 100 MiB
-            long memoryLimit = 1073741824,  // 1 GiB
-            double memoryPercent = 9.77,
-            long networkRx = 1024000,       // ~1 MB
-            long networkTx = 512000,        // ~512 KB
-            long blockRead = 2048000,       // ~2 MB
-            long blockWrite = 1024000,      // ~1 MB
-            int pids = 5)
-        {
-            ContainerDriver
-                .Setup(d => d.StatsAsync(
-                    It.IsAny<DriverContext>(),
-                    It.IsAny<string>(),
-                    It.IsAny<CancellationToken>()))
-                .ReturnsAsync(FluentDocker.Model.Drivers.CommandResponse<ContainerStatsResult>.Ok(
-                    new ContainerStatsResult
-                    {
-                        ContainerId = "test-container-123",
-                        Name = "test-container",
-                        CpuPercent = cpuPercent,
-                        MemoryUsage = memoryUsage,
-                        MemoryLimit = memoryLimit,
-                        MemoryPercent = memoryPercent,
-                        NetworkRxBytes = networkRx,
-                        NetworkTxBytes = networkTx,
-                        BlockReadBytes = blockRead,
-                        BlockWriteBytes = blockWrite,
-                        Pids = pids
-                    }));
-            return this;
-        }
-
-        #endregion
-
-        #region Verification Methods
-
-        /// <summary>
-        /// Verifies ContainerDriver.CreateAsync was called with specific image.
-        /// </summary>
-        public void VerifyContainerCreated(string image, Times times)
-        {
-            ContainerDriver.Verify(d => d.CreateAsync(
-                It.IsAny<DriverContext>(),
-                It.Is<ContainerCreateConfig>(c => c.Image == image),
-                It.IsAny<CancellationToken>()), times);
-        }
-
-        /// <summary>
-        /// Verifies ContainerDriver.RunAsync was called with specific image.
-        /// </summary>
-        public void VerifyContainerRun(string image, Times times)
-        {
-            ContainerDriver.Verify(d => d.RunAsync(
-                It.IsAny<DriverContext>(),
-                It.Is<ContainerCreateConfig>(c => c.Image == image),
-                It.IsAny<CancellationToken>()), times);
-        }
-
-        /// <summary>
-        /// Verifies ContainerDriver.StartAsync was called.
-        /// </summary>
-        public void VerifyContainerStarted(Times times)
-        {
-            ContainerDriver.Verify(d => d.StartAsync(
-                It.IsAny<DriverContext>(),
-                It.IsAny<string>(),
-                It.IsAny<CancellationToken>()), times);
-        }
-
-        /// <summary>
-        /// Verifies ContainerDriver.StopAsync was called.
-        /// </summary>
-        public void VerifyContainerStopped(Times times)
-        {
-            ContainerDriver.Verify(d => d.StopAsync(
-                It.IsAny<DriverContext>(),
-                It.IsAny<string>(),
-                It.IsAny<int?>(),
-                It.IsAny<CancellationToken>()), times);
-        }
-
-        /// <summary>
-        /// Verifies ContainerDriver.RemoveAsync was called.
-        /// </summary>
-        public void VerifyContainerRemoved(Times times)
-        {
-            ContainerDriver.Verify(d => d.RemoveAsync(
-                It.IsAny<DriverContext>(),
-                It.IsAny<string>(),
-                It.IsAny<bool>(),
-                It.IsAny<bool>(),
-                It.IsAny<CancellationToken>()), times);
-        }
-
-        /// <summary>
-        /// Verifies NetworkDriver.CreateAsync was called.
-        /// </summary>
-        public void VerifyNetworkCreated(string name, Times times)
-        {
-            NetworkDriver.Verify(d => d.CreateAsync(
-                It.IsAny<DriverContext>(),
-                It.Is<NetworkCreateConfig>(c => c.Name == name),
-                It.IsAny<CancellationToken>()), times);
-        }
-
-        /// <summary>
-        /// Verifies VolumeDriver.CreateAsync was called.
-        /// </summary>
-        public void VerifyVolumeCreated(string name, Times times)
-        {
-            VolumeDriver.Verify(d => d.CreateAsync(
-                It.IsAny<DriverContext>(),
-                It.Is<VolumeCreateConfig>(c => c.Name == name),
-                It.IsAny<CancellationToken>()), times);
         }
 
         #endregion

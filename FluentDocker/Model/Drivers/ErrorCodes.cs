@@ -143,6 +143,34 @@ namespace FluentDocker.Model.Drivers
         }
 
         /// <summary>
+        /// Pod-related error codes (Podman-specific)
+        /// </summary>
+        public static class Pod
+        {
+            public const string NotFound = "POD_001";
+            public const string CreateFailed = "POD_002";
+            public const string RemoveFailed = "POD_003";
+            public const string StartFailed = "POD_004";
+            public const string StopFailed = "POD_005";
+            public const string RestartFailed = "POD_006";
+            public const string KillFailed = "POD_007";
+            public const string PauseFailed = "POD_008";
+            public const string UnpauseFailed = "POD_009";
+            public const string InspectFailed = "POD_010";
+            public const string ListFailed = "POD_011";
+        }
+
+        /// <summary>
+        /// Kubernetes-related error codes (Podman kube play/down/generate)
+        /// </summary>
+        public static class Kubernetes
+        {
+            public const string PlayFailed = "K8S_001";
+            public const string DownFailed = "K8S_002";
+            public const string GenerateFailed = "K8S_003";
+        }
+
+        /// <summary>
         /// Configuration error codes
         /// </summary>
         public static class Config

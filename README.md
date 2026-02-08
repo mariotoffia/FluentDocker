@@ -20,21 +20,25 @@ FluentDocker v3.0.0 is a major release with significant improvements:
 - **Namespace renamed**: `Ductus.FluentDocker` → `FluentDocker`
 - **Full async/await support** with CancellationToken throughout
 - **Driver Layer architecture** replacing Commands namespace
-- **Container Stats** - CPU, memory, network, and block I/O monitoring
-- **Label-based filtering** - 5.5x faster container cleanup
+- **Kernel + WithinDriver() scoping** for multi-driver support
+- **Lambda-based builder API** — `UseContainer(Action<IContainerBuilder>)`
+- **Container Stats** — CPU, memory, network, and block I/O monitoring
+- **Label-based filtering** — 5.5x faster container cleanup
 - **Static IPv4/IPv6** assignment for containers
 - **Directory copy** support (recursive copy to/from containers)
-- **Docker Compose V2** - uses `docker compose` subcommand
+- **Docker Compose V2** — uses `docker compose` subcommand
 
 ### Breaking Changes
 
 - `Ductus.FluentDocker` namespace → `FluentDocker`
+- Builder API now requires `WithinDriver()` scoping and lambda-based configuration
+- `Build()` returns `BuildResults` (containers auto-start; no separate `.Start()`)
 - Docker Machine support **removed** (deprecated by Docker)
 - Docker Toolbox support **removed** (deprecated by Docker)
 - Commands namespace **removed** (use Driver Layer)
 - Compose commands use struct-based arguments
 
-📖 **[Migration Guide →](MIGRATE_TO_V3.md)**
+📖 **[Migration Guide →](docs/migration.md)**
 
 ---
 
@@ -42,17 +46,24 @@ FluentDocker v3.0.0 is a major release with significant improvements:
 
 ```csharp
 using FluentDocker.Builders;
+using FluentDocker.Kernel;
 
-// Start a container and wait for it to be ready
-using var container = new Builder()
-    .UseContainer()
-    .UseImage("postgres:15-alpine")
-    .ExposePort(5432)
-    .WithEnvironment("POSTGRES_PASSWORD=mysecretpassword")
-    .WaitForPort("5432/tcp", 30000)
-    .Build()
-    .Start();
+// 1. Create a kernel (once per application)
+using var kernel = FluentDockerKernel.Create()
+    .WithDriver("docker", d => d.UseDockerCli().AsDefault())
+    .Build();
 
+// 2. Start a container and wait for it to be ready
+using var results = new Builder()
+    .WithinDriver("docker", kernel)
+    .UseContainer(c => c
+        .UseImage("postgres:15-alpine")
+        .ExposePort("5432")
+        .WithEnvironment("POSTGRES_PASSWORD=mysecretpassword")
+        .WaitForPort("5432/tcp", 30000))
+    .Build();
+
+var container = results.Containers.First();
 var endpoint = container.ToHostExposedEndpoint("5432/tcp");
 Console.WriteLine($"Connect to: {endpoint.Address}:{endpoint.Port}");
 ```
@@ -60,18 +71,17 @@ Console.WriteLine($"Connect to: {endpoint.Address}:{endpoint.Port}");
 ### Docker Compose
 
 ```csharp
-using var svc = new Builder()
-    .UseContainer()
-    .UseCompose()
-    .FromFile("docker-compose.yml")
-    .RemoveOrphans()
-    .WaitForHttp("web", "http://localhost:8000/health")
-    .Build()
-    .Start();
+using var results = new Builder()
+    .WithinDriver("docker", kernel)
+    .UseCompose(c => c
+        .WithComposeFile("docker-compose.yml")
+        .WithRemoveOrphans()
+        .WithWait()
+        .WithWaitTimeout(30))
+    .Build();
 
 // Access individual containers
-foreach (var container in svc.Containers)
-    Console.WriteLine($"Container: {container.Name}");
+var compose = results.ComposeServices.First();
 ```
 
 ---
@@ -92,12 +102,14 @@ dotnet add package FluentDocker.XUnit   # Optional
 
 ```csharp
 // Create and start
-using var container = new Builder()
-    .UseContainer()
-    .UseImage("nginx:latest")
-    .ExposePort(80)
-    .Build()
-    .Start();
+using var results = new Builder()
+    .WithinDriver("docker", kernel)
+    .UseContainer(c => c
+        .UseImage("nginx:latest")
+        .ExposePort("80"))
+    .Build();
+
+var container = results.Containers.First();
 
 // Get configuration
 var config = container.GetConfiguration(true);
@@ -114,7 +126,7 @@ Console.WriteLine($"CPU: {stats.CpuPercent:F2}%");
 .ExposePort(8080, 80)
 
 // Random: let Docker choose host port
-.ExposePort(80)
+.ExposePort("80")
 
 // Resolve actual endpoint
 var endpoint = container.ToHostExposedEndpoint("80/tcp");
@@ -125,35 +137,38 @@ var endpoint = container.ToHostExposedEndpoint("80/tcp");
 ```csharp
 .WaitForPort("5432/tcp", 30000)           // Wait for port
 .WaitForProcess("postgres", 30000)         // Wait for process
-.WaitForHttp("svc", "http://localhost/")   // Wait for HTTP (Compose)
+.WaitForLogMessage("ready", 30000)         // Wait for log message
 ```
 
 ### Networks with Static IP
 
 ```csharp
-using var nw = new Builder()
-    .UseNetwork("my-network")
-    .UseSubnet("10.18.0.0/16")
+using var nwResults = new Builder()
+    .WithinDriver("docker", kernel)
+    .UseNetwork(n => n
+        .WithName("my-network")
+        .WithSubnet("10.18.0.0/16"))
     .Build();
 
-using var container = new Builder()
-    .UseContainer()
-    .UseImage("nginx")
-    .UseNetwork(nw)
-    .UseIpV4("10.18.0.100")  // Static IPv4
-    .Build()
-    .Start();
+var network = nwResults.Networks.First();
+
+using var cResults = new Builder()
+    .WithinDriver("docker", kernel)
+    .UseContainer(c => c
+        .UseImage("nginx")
+        .WithNetwork("my-network")
+        .UseIpV4("10.18.0.100"))
+    .Build();
 ```
 
 ### Volume Mounts
 
 ```csharp
 // Host path mount
-.Mount("/host/path", "/container/path", MountType.ReadWrite)
+.WithVolume("/host/path", "/container/path")
 
 // Named volume
-using var vol = new Builder().UseVolume("my-vol").Build();
-.MountVolume(vol, "/data", MountType.ReadWrite)
+.WithVolume("my-vol", "/data")
 ```
 
 ### File Operations
@@ -170,20 +185,14 @@ await container.CopyFromAsync("/container/file", "/local/file");
 ### Image Building
 
 ```csharp
-// From Dockerfile
-using var img = new Builder()
-    .DefineImage("myapp:latest")
-    .FromFile("/path/to/Dockerfile")
-    .ReuseIfAlreadyExists()
-    .Build();
-
 // Inline Dockerfile
-using var img = new Builder()
-    .DefineImage("mynode:latest")
-    .From("node:18-alpine")
-    .Run("npm install -g nodemon")
-    .ExposePorts(8080)
-    .Command("node", "app.js")
+using var imgResults = new Builder()
+    .WithinDriver("docker", kernel)
+    .UseImage("mynode:latest", img => img
+        .From("node:18-alpine")
+        .Run("npm install -g nodemon")
+        .ExposePorts(8080)
+        .Command("node", "app.js"))
     .Build();
 ```
 
@@ -195,15 +204,24 @@ using var img = new Builder()
 
 ```csharp
 using FluentDocker.MsTest;
+using FluentDocker.Builders;
 
 [TestClass]
-public class MyTests : PostgresTestBase
+public class MyTests : FluentDockerTestBase
 {
+    protected override void ConfigureContainer(IContainerBuilder builder)
+    {
+        builder
+            .UseImage("postgres:15-alpine")
+            .WithEnvironment("POSTGRES_PASSWORD=test")
+            .ExposePort("5432")
+            .WaitForPort("5432/tcp", 30000);
+    }
+
     [TestMethod]
     public void Test()
     {
-        // ConnectionString available
-        // Container running
+        // Container available via Container property
     }
 }
 ```
@@ -212,36 +230,30 @@ public class MyTests : PostgresTestBase
 
 ```csharp
 using FluentDocker.XUnit;
+using FluentDocker.Builders;
 
-public class MyTests : IClassFixture<PostgresTestBase>
+public class MyFixture : FluentDockerTestBase
 {
-    private readonly PostgresTestBase _fixture;
+    protected override void ConfigureContainer(IContainerBuilder builder)
+    {
+        builder
+            .UseImage("postgres:15-alpine")
+            .WithEnvironment("POSTGRES_PASSWORD=test")
+            .ExposePort("5432")
+            .WaitForPort("5432/tcp", 30000);
+    }
+}
 
-    public MyTests(PostgresTestBase fixture) => _fixture = fixture;
+public class MyTests : IClassFixture<MyFixture>
+{
+    private readonly MyFixture _fixture;
+
+    public MyTests(MyFixture fixture) => _fixture = fixture;
 
     [Fact]
     public void Test()
     {
-        // _fixture.ConnectionString available
-    }
-}
-```
-
-### Custom Test Base
-
-```csharp
-public class MyTestBase : FluentDockerTestBase
-{
-    protected override ContainerBuilder Build() =>
-        new Builder()
-            .UseContainer()
-            .UseImage("redis:alpine")
-            .ExposePort(6379)
-            .WaitForPort("6379/tcp", 30000);
-
-    protected override void OnContainerInitialized()
-    {
-        // Setup after container starts
+        // _fixture.Container available
     }
 }
 ```
@@ -312,7 +324,7 @@ Contributions welcome! Please adhere to `.editorconfig` for code style.
 ## Resources
 
 - [Documentation Site](https://mariotoffia.github.io/FluentDocker/) - Full documentation on GitHub Pages
-- [Migration Guide](MIGRATE_TO_V3.md) - Upgrading from v2.x.x
+- [Migration Guide](docs/migration.md) - Upgrading from v2.x.x
 - [Architecture Docs](docs/architecture/) - v3 architecture details
 - [NuGet Package](https://www.nuget.org/packages/FluentDocker)
 

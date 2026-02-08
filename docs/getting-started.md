@@ -45,57 +45,75 @@ docker info
 
 ### Basic Example
 
+The v3 API uses a two-step approach: first create a **kernel** (once per application),
+then use the **Builder** to define and run containers.
+
 ```csharp
 using FluentDocker.Builders;
+using FluentDocker.Kernel;
+using FluentDocker.Services.Extensions;
 
-// Start an nginx container
-using var container = new Builder()
-    .UseContainer()
-    .UseImage("nginx:alpine")
-    .ExposePort(80)
-    .Build()
-    .Start();
+// Step 1: Create a kernel (once per application lifetime)
+using var kernel = FluentDockerKernel.Create()
+    .WithDriver("docker", d => d.UseDockerCli().AsDefault())
+    .Build();
 
-// Get the assigned port
+// Step 2: Build and start an nginx container
+using var results = new Builder()
+    .WithinDriver("docker", kernel)
+    .UseContainer(c => c
+        .UseImage("nginx:alpine")
+        .ExposePort("80"))
+    .Build();
+
+// Get the assigned host port
+var container = results.Containers.First();
 var endpoint = container.ToHostExposedEndpoint("80/tcp");
 Console.WriteLine($"Nginx running at: http://localhost:{endpoint.Port}");
 
-// Container stops and removes when disposed
+// All containers stop and are removed when results is disposed
 ```
 
 ### With Wait Strategy
 
 ```csharp
 using FluentDocker.Builders;
+using FluentDocker.Kernel;
+using FluentDocker.Services.Extensions;
 
-// Start PostgreSQL and wait for it to be ready
-using var container = new Builder()
-    .UseContainer()
-    .UseImage("postgres:15-alpine")
-    .WithEnvironment("POSTGRES_PASSWORD=mysecret")
-    .ExposePort(5432)
-    .WaitForPort("5432/tcp", 30000)  // Wait up to 30 seconds
-    .Build()
-    .Start();
+// kernel created as shown above
 
+using var results = new Builder()
+    .WithinDriver("docker", kernel)
+    .UseContainer(c => c
+        .UseImage("postgres:15-alpine")
+        .WithEnvironment("POSTGRES_PASSWORD=mysecret")
+        .ExposePort("5432")
+        .WaitForPort("5432/tcp", 30000))
+    .Build();
+
+var container = results.Containers.First();
 var endpoint = container.ToHostExposedEndpoint("5432/tcp");
-var connectionString = $"Host=localhost;Port={endpoint.Port};Database=postgres;Username=postgres;Password=mysecret";
+var connectionString =
+    $"Host=localhost;Port={endpoint.Port};Database=postgres;Username=postgres;Password=mysecret";
 ```
 
 ### Named Container
 
 ```csharp
-using var container = new Builder()
-    .UseContainer()
-    .WithName("my-postgres")
-    .UseImage("postgres:15-alpine")
-    .WithEnvironment("POSTGRES_PASSWORD=secret")
-    .ExposePort(5432)
-    .WaitForPort("5432/tcp", 30000)
-    .Build()
-    .Start();
+// kernel created as shown above
 
-// Container is named "my-postgres"
+using var results = new Builder()
+    .WithinDriver("docker", kernel)
+    .UseContainer(c => c
+        .WithName("my-postgres")
+        .UseImage("postgres:15-alpine")
+        .WithEnvironment("POSTGRES_PASSWORD=secret")
+        .ExposePort("5432")
+        .WaitForPort("5432/tcp", 30000))
+    .Build();
+
+var container = results.Containers.First();
 Console.WriteLine($"Container: {container.Name}");
 ```
 
@@ -122,64 +140,67 @@ sudo usermod -aG docker $USER
 
 ## Async Operations
 
-FluentDocker v3 supports full async/await:
+FluentDocker v3 supports full async/await via `BuildAsync()`:
 
 ```csharp
 using FluentDocker.Builders;
+using FluentDocker.Kernel;
+using FluentDocker.Services.Extensions;
 
-// Async container operations
-using var container = new Builder()
-    .UseContainer()
-    .UseImage("redis:alpine")
-    .ExposePort(6379)
-    .WaitForPort("6379/tcp", 30000)
-    .Build()
-    .Start();
+// kernel created as shown above
 
-// Get stats asynchronously
-var stats = await container.GetStatsAsync();
-Console.WriteLine($"CPU: {stats.CpuPercent:F2}%");
-Console.WriteLine($"Memory: {stats.MemoryUsage} bytes");
+// Build containers asynchronously
+using var results = await new Builder()
+    .WithinDriver("docker", kernel)
+    .UseContainer(c => c
+        .UseImage("redis:alpine")
+        .ExposePort("6379")
+        .WaitForPort("6379/tcp", 30000))
+    .BuildAsync();
 
-// Execute commands asynchronously
-var result = await container.ExecAsync("redis-cli", "PING");
-Console.WriteLine($"Redis says: {result}");
+var container = results.Containers.First();
+var endpoint = container.ToHostExposedEndpoint("6379/tcp");
+Console.WriteLine($"Redis running at: localhost:{endpoint.Port}");
 ```
 
 ## Multiple Containers
 
+The Builder lets you define a network and multiple containers in a single `Build()` call.
+Containers reference the network by its string name.
+
 ```csharp
 using FluentDocker.Builders;
+using FluentDocker.Kernel;
+using FluentDocker.Services.Extensions;
 
-// Create a network
-using var network = new Builder()
-    .UseNetwork("my-network")
+// kernel created as shown above
+
+using var results = new Builder()
+    .WithinDriver("docker", kernel)
+    // Create a network first
+    .UseNetwork(n => n
+        .WithName("my-network")
+        .RemoveOnDispose())
+    // Start Redis on the network
+    .UseContainer(c => c
+        .WithName("my-redis")
+        .UseImage("redis:alpine")
+        .WithNetwork("my-network")
+        .ExposePort("6379")
+        .WaitForPort("6379/tcp", 30000))
+    // Start app that uses Redis
+    .UseContainer(c => c
+        .WithName("my-app")
+        .UseImage("myapp:latest")
+        .WithNetwork("my-network")
+        .WithEnvironment("REDIS_HOST=my-redis")
+        .ExposePort("8080")
+        .WaitForPort("8080/tcp", 30000))
     .Build();
 
-// Start Redis
-using var redis = new Builder()
-    .UseContainer()
-    .WithName("my-redis")
-    .UseImage("redis:alpine")
-    .UseNetwork(network)
-    .ExposePort(6379)
-    .WaitForPort("6379/tcp", 30000)
-    .Build()
-    .Start();
-
-// Start app that uses Redis
-using var app = new Builder()
-    .UseContainer()
-    .WithName("my-app")
-    .UseImage("myapp:latest")
-    .UseNetwork(network)
-    .WithEnvironment("REDIS_HOST=my-redis")
-    .ExposePort(8080)
-    .WaitForPort("8080/tcp", 30000)
-    .Build()
-    .Start();
-
-// Both containers can communicate via network
+// Both containers can communicate via the network
+var redis = results.GetContainer("my-redis");
+var app = results.GetContainer("my-app");
 ```
 
 ## Docker Compose Quick Start
@@ -188,19 +209,21 @@ For multi-container applications, use Docker Compose:
 
 ```csharp
 using FluentDocker.Builders;
+using FluentDocker.Kernel;
 
-using var services = new Builder()
-    .UseContainer()
-    .UseCompose()
-    .FromFile("docker-compose.yml")
-    .RemoveOrphans()
-    .Build()
-    .Start();
+// kernel created as shown above
 
-// Access individual containers
-foreach (var container in services.Containers)
+using var results = new Builder()
+    .WithinDriver("docker", kernel)
+    .UseCompose(c => c
+        .WithComposeFile("docker-compose.yml")
+        .WithRemoveOrphans())
+    .Build();
+
+// Access compose services
+foreach (var compose in results.ComposeServices)
 {
-    Console.WriteLine($"Container: {container.Name}");
+    Console.WriteLine($"Compose project: {compose.Name}");
 }
 ```
 
@@ -232,21 +255,25 @@ Logging.Enabled();
 Always use try-catch or `using` to ensure cleanup:
 
 ```csharp
+// kernel created as shown above
+
 try
 {
-    using var container = new Builder()
-        .UseContainer()
-        .UseImage("postgres:15-alpine")
-        .WaitForPort("5432/tcp", 10000)
-        .Build()
-        .Start();
+    using var results = new Builder()
+        .WithinDriver("docker", kernel)
+        .UseContainer(c => c
+            .UseImage("postgres:15-alpine")
+            .ExposePort("5432")
+            .WaitForPort("5432/tcp", 10000))
+        .Build();
 
+    var container = results.Containers.First();
     // Use container...
 }
 catch (Exception ex)
 {
     Console.WriteLine($"Error: {ex.Message}");
-    // Container is disposed even on exception
+    // Results and all containers are disposed even on exception
 }
 ```
 

@@ -4,6 +4,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using FluentDocker.Drivers;
 using FluentDocker.Drivers.Docker.Cli;
+using FluentDocker.Drivers.Podman.Cli;
 using FluentDocker.Model.Drivers;
 
 namespace FluentDocker.Kernel
@@ -122,7 +123,9 @@ namespace FluentDocker.Kernel
 
         public IDriverBuilder UsePodmanCli()
         {
-            throw new NotImplementedException("Podman CLI driver not yet implemented");
+            _driverPack = new PodmanCliDriverPack();
+            _driver = null;
+            return this;
         }
 
         public IDriverBuilder UseCustomDriver(IDriver driver)

@@ -65,7 +65,7 @@ var config = new TemplateString("${E_CONFIG_DIR:-${TEMP}/config}");
 | `${TMP}` | Same as TEMP | `/tmp` |
 | `${RND}` | Random 8-char hex string | `a1b2c3d4` |
 | `${PWD}` | Current working directory | `/home/user/project` |
-| `${E_*}` | Environment variable | `${E_HOME}` → `/home/user` |
+| `${E_*}` | Environment variable | `${E_HOME}` -> `/home/user` |
 
 ### With Containers
 
@@ -73,12 +73,12 @@ var config = new TemplateString("${E_CONFIG_DIR:-${TEMP}/config}");
 // Create unique temp directory for test
 var testDir = new TemplateString("${TEMP}/integration-test-${RND}");
 
-using var container = new Builder()
-    .UseContainer()
-    .UseImage("myapp:latest")
-    .Mount(testDir, "/app/data", MountType.ReadWrite)
-    .Build()
-    .Start();
+using var results = new Builder()
+    .WithinDriver("docker", kernel)
+    .UseContainer(c => c
+        .UseImage("myapp:latest")
+        .WithVolume(testDir, "/app/data"))
+    .Build();
 ```
 
 ### Nested Templates
@@ -116,13 +116,14 @@ if (statusCode == HttpStatusCode.OK)
 ### Health Check Pattern
 
 ```csharp
-using var container = new Builder()
-    .UseContainer()
-    .UseImage("myapi:latest")
-    .ExposePort(8080)
-    .Build()
-    .Start();
+using var results = new Builder()
+    .WithinDriver("docker", kernel)
+    .UseContainer(c => c
+        .UseImage("myapi:latest")
+        .ExposePort("8080"))
+    .Build();
 
+var container = results.Containers.First();
 var endpoint = container.ToHostExposedEndpoint("8080/tcp");
 var healthUrl = $"http://localhost:{endpoint.Port}/health";
 
@@ -215,15 +216,15 @@ var fixturesPath = typeof(MyTests).ResourceExtract(
     "seed-data.json"
 );
 
-using var container = new Builder()
-    .UseContainer()
-    .UseImage("postgres:15-alpine")
-    .WithEnvironment("POSTGRES_PASSWORD=test")
-    .Mount(fixturesPath, "/docker-entrypoint-initdb.d", MountType.ReadOnly)
-    .ExposePort(5432)
-    .WaitForPort("5432/tcp", 30000)
-    .Build()
-    .Start();
+using var results = new Builder()
+    .WithinDriver("docker", kernel)
+    .UseContainer(c => c
+        .UseImage("postgres:15-alpine")
+        .WithEnvironment("POSTGRES_PASSWORD=test")
+        .WithVolume(fixturesPath, "/docker-entrypoint-initdb.d")
+        .ExposePort("5432")
+        .WaitForPort("5432/tcp", 30000))
+    .Build();
 
 // Database initialized with test-data.sql
 ```
@@ -492,45 +493,50 @@ var response = await TestDataGenerator.WaitForHealthy($"http://localhost:{port}/
 ```csharp
 public static class ContainerFactory
 {
-    public static IContainerService CreatePostgres(string password = "test")
+    public static BuildResults CreatePostgres(
+        FluentDockerKernel kernel, string password = "test")
     {
         return new Builder()
-            .UseContainer()
-            .UseImage("postgres:15-alpine")
-            .WithEnvironment($"POSTGRES_PASSWORD={password}")
-            .ExposePort(5432)
-            .WaitForPort("5432/tcp", 30000)
-            .Build()
-            .Start();
+            .WithinDriver("docker", kernel)
+            .UseContainer(c => c
+                .UseImage("postgres:15-alpine")
+                .WithEnvironment($"POSTGRES_PASSWORD={password}")
+                .ExposePort("5432")
+                .WaitForPort("5432/tcp", 30000))
+            .Build();
     }
 
-    public static IContainerService CreateRedis()
+    public static BuildResults CreateRedis(FluentDockerKernel kernel)
     {
         return new Builder()
-            .UseContainer()
-            .UseImage("redis:alpine")
-            .ExposePort(6379)
-            .WaitForPort("6379/tcp", 30000)
-            .Build()
-            .Start();
+            .WithinDriver("docker", kernel)
+            .UseContainer(c => c
+                .UseImage("redis:alpine")
+                .ExposePort("6379")
+                .WaitForPort("6379/tcp", 30000))
+            .Build();
     }
 
-    public static IContainerService CreateRabbitMQ()
+    public static BuildResults CreateRabbitMQ(FluentDockerKernel kernel)
     {
         return new Builder()
-            .UseContainer()
-            .UseImage("rabbitmq:3-management-alpine")
-            .ExposePort(5672)
-            .ExposePort(15672)
-            .WaitForPort("5672/tcp", 60000)
-            .Build()
-            .Start();
+            .WithinDriver("docker", kernel)
+            .UseContainer(c => c
+                .UseImage("rabbitmq:3-management-alpine")
+                .ExposePort("5672")
+                .ExposePort("15672")
+                .WaitForPort("5672/tcp", 60000))
+            .Build();
     }
 }
 
 // Usage
-using var db = ContainerFactory.CreatePostgres();
-using var cache = ContainerFactory.CreateRedis();
+using var kernel = FluentDockerKernel.Create()
+    .WithDriver("docker", d => d.UseDockerCli().AsDefault())
+    .Build();
+
+using var db = ContainerFactory.CreatePostgres(kernel);
+using var cache = ContainerFactory.CreateRedis(kernel);
 ```
 
 ## Next Steps

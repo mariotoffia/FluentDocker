@@ -544,6 +544,9 @@ namespace FluentDocker.Drivers
         /// Links allow containers to discover each other and securely transfer information.
         /// </remarks>
         public List<string> Links { get; set; } = new List<string>();
+
+        /// <summary>Podman pod to join (Podman-only, ignored by Docker).</summary>
+        public string Pod { get; set; }
     }
 
     /// <summary>

@@ -6,36 +6,58 @@ nav_order: 3
 
 # Container Management
 
-Complete guide to creating, configuring, and managing containers with FluentDocker.
+Complete guide to creating, configuring, and managing containers with FluentDocker v3.
+
+## Kernel Setup
+
+Before building any containers, create a kernel once per application. The kernel manages
+driver instances and provides access to container runtimes.
+
+```csharp
+using FluentDocker.Kernel;
+using FluentDocker.Builders;
+
+// Create kernel (once per application lifetime)
+using var kernel = FluentDockerKernel.Create()
+    .WithDriver("docker", d => d.UseDockerCli().AsDefault())
+    .Build();
+```
+
+All subsequent examples assume this `kernel` variable is available.
 
 ## Container Lifecycle
 
 ### Create and Start
 
-```csharp
-using FluentDocker.Builders;
-
-// Create and start immediately
-using var container = new Builder()
-    .UseContainer()
-    .UseImage("nginx:alpine")
-    .Build()
-    .Start();
-```
-
-### Create Without Starting
+In v3, `Build()` both creates and starts containers automatically. The result is a
+`BuildResults` object containing all built services.
 
 ```csharp
-// Create container (does not start)
-using var container = new Builder()
-    .UseContainer()
-    .UseImage("nginx:alpine")
+using var results = new Builder()
+    .WithinDriver("docker", kernel)
+    .UseContainer(c => c
+        .UseImage("nginx:alpine"))
     .Build();
 
-// Start later
-container.Start();
+var container = results.Containers.First();
+// Container is already running at this point
+```
 
-// Stop
+### Stop and Start Cycle
+
+Since containers auto-start during `Build()`, use the container service to stop and
+restart as needed.
+
+```csharp
+using var results = new Builder()
+    .WithinDriver("docker", kernel)
+    .UseContainer(c => c
+        .UseImage("nginx:alpine"))
+    .Build();
+
+var container = results.Containers.First();
+
+// Stop the running container
 container.Stop();
 
 // Start again
@@ -57,16 +79,7 @@ if (container.State == ServiceRunningState.Running)
 ### Pause and Resume
 
 ```csharp
-using var container = new Builder()
-    .UseContainer()
-    .UseImage("nginx:alpine")
-    .Build()
-    .Start();
-
-// Pause container processes
 container.Pause();
-
-// Resume
 container.Resume();
 ```
 
@@ -76,12 +89,12 @@ container.Resume();
 
 ```csharp
 // Map host port 8080 to container port 80
-using var container = new Builder()
-    .UseContainer()
-    .UseImage("nginx:alpine")
-    .ExposePort(8080, 80)
-    .Build()
-    .Start();
+using var results = new Builder()
+    .WithinDriver("docker", kernel)
+    .UseContainer(c => c
+        .UseImage("nginx:alpine")
+        .ExposePort(8080, 80))
+    .Build();
 
 // Access at http://localhost:8080
 ```
@@ -90,93 +103,53 @@ using var container = new Builder()
 
 ```csharp
 // Let Docker assign a random host port
-using var container = new Builder()
-    .UseContainer()
-    .UseImage("nginx:alpine")
-    .ExposePort(80)  // Random host port -> container 80
-    .Build()
-    .Start();
+using var results = new Builder()
+    .WithinDriver("docker", kernel)
+    .UseContainer(c => c
+        .UseImage("nginx:alpine")
+        .ExposePort("80"))
+    .Build();
+
+var container = results.Containers.First();
 
 // Get the assigned port
 var endpoint = container.ToHostExposedEndpoint("80/tcp");
 Console.WriteLine($"Port: {endpoint.Port}");
-// Access at http://localhost:{endpoint.Port}
 ```
 
 ### Multiple Ports
 
 ```csharp
-using var container = new Builder()
-    .UseContainer()
-    .UseImage("myapp:latest")
-    .ExposePort(8080, 80)   // HTTP
-    .ExposePort(8443, 443)  // HTTPS
-    .ExposePort(9090, 9090) // Metrics
-    .Build()
-    .Start();
+using var results = new Builder()
+    .WithinDriver("docker", kernel)
+    .UseContainer(c => c
+        .UseImage("myapp:latest")
+        .ExposePort(8080, 80)
+        .ExposePort(8443, 443)
+        .ExposePort(9090, 9090))
+    .Build();
 
+var container = results.Containers.First();
 var httpEndpoint = container.ToHostExposedEndpoint("80/tcp");
 var httpsEndpoint = container.ToHostExposedEndpoint("443/tcp");
 var metricsEndpoint = container.ToHostExposedEndpoint("9090/tcp");
 ```
 
-### UDP Ports
-
-```csharp
-using var container = new Builder()
-    .UseContainer()
-    .UseImage("coredns/coredns")
-    .ExposePort(53, 53, "udp")  // DNS over UDP
-    .ExposePort(53, 53, "tcp")  // DNS over TCP
-    .Build()
-    .Start();
-```
-
 ## Environment Variables
 
-### Single Variable
+Each call to `WithEnvironment()` sets one variable. Two overloads are available:
+`WithEnvironment("KEY=VALUE")` and `WithEnvironment("KEY", "VALUE")`.
 
 ```csharp
-using var container = new Builder()
-    .UseContainer()
-    .UseImage("postgres:15-alpine")
-    .WithEnvironment("POSTGRES_PASSWORD=secret")
-    .Build()
-    .Start();
-```
-
-### Multiple Variables
-
-```csharp
-using var container = new Builder()
-    .UseContainer()
-    .UseImage("postgres:15-alpine")
-    .WithEnvironment(
-        "POSTGRES_PASSWORD=secret",
-        "POSTGRES_USER=myuser",
-        "POSTGRES_DB=mydb"
-    )
-    .Build()
-    .Start();
-```
-
-### From Dictionary
-
-```csharp
-var env = new Dictionary<string, string>
-{
-    ["POSTGRES_PASSWORD"] = "secret",
-    ["POSTGRES_USER"] = "myuser",
-    ["POSTGRES_DB"] = "mydb",
-    ["PGDATA"] = "/var/lib/postgresql/data/pgdata"
-};
-
-using var container = new Builder()
-    .UseContainer()
-    .UseImage("postgres:15-alpine")
-    .WithEnvironment(env)
-    .Build()
-    .Start();
+using var results = new Builder()
+    .WithinDriver("docker", kernel)
+    .UseContainer(c => c
+        .UseImage("postgres:15-alpine")
+        .WithEnvironment("POSTGRES_PASSWORD=secret")
+        .WithEnvironment("POSTGRES_USER", "myuser")
+        .WithEnvironment("POSTGRES_DB", "mydb")
+        .WithEnvironment("PGDATA=/var/lib/postgresql/data/pgdata"))
+    .Build();
 ```
 
 ## Wait Strategies
@@ -184,288 +157,279 @@ using var container = new Builder()
 ### Wait for Port
 
 ```csharp
-using var container = new Builder()
-    .UseContainer()
-    .UseImage("postgres:15-alpine")
-    .WithEnvironment("POSTGRES_PASSWORD=secret")
-    .ExposePort(5432)
-    .WaitForPort("5432/tcp", 30000)  // Wait 30 seconds
-    .Build()
-    .Start();
+using var results = new Builder()
+    .WithinDriver("docker", kernel)
+    .UseContainer(c => c
+        .UseImage("postgres:15-alpine")
+        .WithEnvironment("POSTGRES_PASSWORD=secret")
+        .ExposePort("5432")
+        .WaitForPort("5432/tcp", 30000))
+    .Build();
 ```
 
 ### Wait for Process
 
 ```csharp
-using var container = new Builder()
-    .UseContainer()
-    .UseImage("postgres:15-alpine")
-    .WithEnvironment("POSTGRES_PASSWORD=secret")
-    .WaitForProcess("postgres", 30000)  // Wait for postgres process
-    .Build()
-    .Start();
+using var results = new Builder()
+    .WithinDriver("docker", kernel)
+    .UseContainer(c => c
+        .UseImage("postgres:15-alpine")
+        .WithEnvironment("POSTGRES_PASSWORD=secret")
+        .WaitForProcess("postgres", 30000))
+    .Build();
 ```
 
 ### Wait for Log Message
 
 ```csharp
-using var container = new Builder()
-    .UseContainer()
-    .UseImage("postgres:15-alpine")
-    .WithEnvironment("POSTGRES_PASSWORD=secret")
-    .WaitForMessageInLog("database system is ready", 30000)
-    .Build()
-    .Start();
+using var results = new Builder()
+    .WithinDriver("docker", kernel)
+    .UseContainer(c => c
+        .UseImage("postgres:15-alpine")
+        .WithEnvironment("POSTGRES_PASSWORD=secret")
+        .WaitForLogMessage("database system is ready", 30000))
+    .Build();
+```
+
+### Wait for Healthy
+
+Waits for the container's Docker HEALTHCHECK to report healthy.
+
+```csharp
+using var results = new Builder()
+    .WithinDriver("docker", kernel)
+    .UseContainer(c => c
+        .UseImage("myapp:latest")
+        .WaitForHealthy(60000))
+    .Build();
+```
+
+### Wait for HTTP
+
+```csharp
+using var results = new Builder()
+    .WithinDriver("docker", kernel)
+    .UseContainer(c => c
+        .UseImage("myapp:latest")
+        .ExposePort("8080")
+        .WaitForHttp("8080/tcp", "/health", 30000))
+    .Build();
 ```
 
 ### Custom Wait Function
 
+The `.Wait()` lambda receives the container service and an iteration counter. Return values:
+- **Negative** (e.g. `-1`): success, stop waiting
+- **Zero** (`0`): not ready, retry immediately
+- **Positive** (e.g. `500`): not ready, wait that many milliseconds before retry
+
 ```csharp
-using var container = new Builder()
-    .UseContainer()
-    .UseImage("myapp:latest")
-    .ExposePort(8080)
-    .Wait((service, count) =>
-    {
-        // Custom health check logic
-        try
+using var results = new Builder()
+    .WithinDriver("docker", kernel)
+    .UseContainer(c => c
+        .UseImage("myapp:latest")
+        .ExposePort("8080")
+        .Wait((service, iteration) =>
         {
-            var response = $"http://localhost:{service.ToHostExposedEndpoint("8080/tcp").Port}/health".Wget();
-            return response.Contains("ok") ? 0 : 500;  // 0 = ready
-        }
-        catch
-        {
-            return 500;  // Not ready
-        }
-    }, 30000)
-    .Build()
-    .Start();
+            try
+            {
+                var ep = service.ToHostExposedEndpoint("8080/tcp");
+                var response = $"http://localhost:{ep.Port}/health".Wget();
+                return response.Contains("ok") ? -1 : 500;
+            }
+            catch
+            {
+                return 500;
+            }
+        }))
+    .Build();
 ```
 
 ## File Operations
 
-### Copy to Container (Before Start)
+### Copy to Container on Start
+
+Files are copied after the container starts (lifecycle hook).
 
 ```csharp
-using var container = new Builder()
-    .UseContainer()
-    .UseImage("nginx:alpine")
-    .CopyOnStart("/local/nginx.conf", "/etc/nginx/nginx.conf")
-    .CopyOnStart("/local/html/", "/usr/share/nginx/html/")
-    .Build()
-    .Start();
+using var results = new Builder()
+    .WithinDriver("docker", kernel)
+    .UseContainer(c => c
+        .UseImage("nginx:alpine")
+        .CopyToOnStart("/local/nginx.conf", "/etc/nginx/nginx.conf")
+        .CopyToOnStart("/local/html/", "/usr/share/nginx/html/"))
+    .Build();
 ```
 
-### Copy to Container (After Start)
+### Copy from Container on Dispose
+
+Files are copied from the container before it is removed.
 
 ```csharp
-using var container = new Builder()
-    .UseContainer()
-    .UseImage("nginx:alpine")
-    .Build()
-    .Start();
-
-// Copy single file
-await container.CopyToAsync("/local/index.html", "/usr/share/nginx/html/index.html");
-
-// Copy directory (recursive)
-await container.CopyToAsync("/local/html/", "/usr/share/nginx/html/");
-```
-
-### Copy from Container
-
-```csharp
-using var container = new Builder()
-    .UseContainer()
-    .UseImage("myapp:latest")
-    .Build()
-    .Start();
-
-// Copy logs after tests
-await container.CopyFromAsync("/app/logs/", "/local/test-logs/");
-```
-
-### Copy on Dispose
-
-```csharp
-using var container = new Builder()
-    .UseContainer()
-    .UseImage("myapp:latest")
-    .CopyOnDispose("/app/logs/", "/local/artifacts/logs/")
-    .CopyOnDispose("/app/coverage/", "/local/artifacts/coverage/")
-    .Build()
-    .Start();
+using var results = new Builder()
+    .WithinDriver("docker", kernel)
+    .UseContainer(c => c
+        .UseImage("myapp:latest")
+        .CopyFromOnDispose("/app/logs/", "/local/artifacts/logs/")
+        .CopyFromOnDispose("/app/coverage/", "/local/artifacts/coverage/"))
+    .Build();
 
 // Run tests...
-
 // When disposed, logs and coverage are copied out
+```
+
+### Export on Dispose
+
+Export the entire container filesystem as a tar archive on dispose.
+
+```csharp
+using var results = new Builder()
+    .WithinDriver("docker", kernel)
+    .UseContainer(c => c
+        .UseImage("myapp:latest")
+        .ExportOnDispose("/local/artifacts/container.tar"))
+    .Build();
+```
+
+With a condition and explode (extract tar contents):
+
+```csharp
+using var results = new Builder()
+    .WithinDriver("docker", kernel)
+    .UseContainer(c => c
+        .UseImage("myapp:latest")
+        .ExportOnDispose("/local/artifacts/", svc => svc.State == ServiceRunningState.Running, explode: true))
+    .Build();
 ```
 
 ## Execute Commands
 
-### Simple Command
+### On Running (Lifecycle Hook)
+
+Execute a command automatically after the container starts.
 
 ```csharp
-using var container = new Builder()
-    .UseContainer()
-    .UseImage("alpine:latest")
-    .Build()
-    .Start();
+using var results = new Builder()
+    .WithinDriver("docker", kernel)
+    .UseContainer(c => c
+        .UseImage("postgres:15-alpine")
+        .WithEnvironment("POSTGRES_PASSWORD=secret")
+        .WaitForPort("5432/tcp", 30000)
+        .ExecuteOnRunning("psql", "-U", "postgres", "-c", "CREATE DATABASE mydb;"))
+    .Build();
+```
+
+### On Disposing (Lifecycle Hook)
+
+Execute a command before the container is removed.
+
+```csharp
+using var results = new Builder()
+    .WithinDriver("docker", kernel)
+    .UseContainer(c => c
+        .UseImage("myapp:latest")
+        .ExecuteOnDisposing("sh", "-c", "echo 'shutting down' >> /app/log.txt"))
+    .Build();
+```
+
+### Ad-hoc Commands on a Running Container
+
+```csharp
+var container = results.Containers.First();
 
 var result = await container.ExecAsync("echo", "Hello World");
 Console.WriteLine(result);  // "Hello World"
-```
 
-### Shell Commands
+// Shell commands
+var output = await container.ExecAsync("sh", "-c", "ls -la /app && cat /app/config.json");
 
-```csharp
-var result = await container.ExecAsync("sh", "-c", "ls -la /app && cat /app/config.json");
-```
-
-### Database Commands
-
-```csharp
-using var container = new Builder()
-    .UseContainer()
-    .UseImage("postgres:15-alpine")
-    .WithEnvironment("POSTGRES_PASSWORD=secret")
-    .WaitForPort("5432/tcp", 30000)
-    .Build()
-    .Start();
-
-// Run SQL
-var result = await container.ExecAsync(
-    "psql", "-U", "postgres", "-c", "SELECT version();"
-);
-```
-
-### Interactive Commands
-
-```csharp
 // Redis example
-using var container = new Builder()
-    .UseContainer()
-    .UseImage("redis:alpine")
-    .WaitForPort("6379/tcp", 30000)
-    .Build()
-    .Start();
-
 await container.ExecAsync("redis-cli", "SET", "mykey", "myvalue");
 var value = await container.ExecAsync("redis-cli", "GET", "mykey");
-Console.WriteLine(value);  // "myvalue"
 ```
 
-## Container Stats
+## Names, Labels, and Configuration
 
 ```csharp
-using var container = new Builder()
-    .UseContainer()
-    .UseImage("nginx:alpine")
-    .Build()
-    .Start();
+using var results = new Builder()
+    .WithinDriver("docker", kernel)
+    .UseContainer(c => c
+        .WithName("my-app-container")
+        .UseImage("nginx:alpine")
+        .WithLabel("app", "myapp")
+        .WithLabel("version", "1.0.0"))
+    .Build();
 
-// Get resource usage stats
-var stats = await container.GetStatsAsync();
-
-Console.WriteLine($"CPU: {stats.CpuPercent:F2}%");
-Console.WriteLine($"Memory: {stats.MemoryUsage:N0} / {stats.MemoryLimit:N0} bytes");
-Console.WriteLine($"Memory %: {stats.MemoryPercent:F2}%");
-Console.WriteLine($"Network RX: {stats.NetworkRxBytes:N0} bytes");
-Console.WriteLine($"Network TX: {stats.NetworkTxBytes:N0} bytes");
-Console.WriteLine($"Block Read: {stats.BlockReadBytes:N0} bytes");
-Console.WriteLine($"Block Write: {stats.BlockWriteBytes:N0} bytes");
-```
-
-## Container Configuration
-
-### Get Configuration
-
-```csharp
-using var container = new Builder()
-    .UseContainer()
-    .UseImage("nginx:alpine")
-    .Build()
-    .Start();
-
-// Get full configuration
+var container = results.Containers.First();
 var config = container.GetConfiguration(refresh: true);
-
-Console.WriteLine($"ID: {config.Id}");
-Console.WriteLine($"Name: {config.Name}");
-Console.WriteLine($"Image: {config.Image}");
-Console.WriteLine($"Created: {config.Created}");
-Console.WriteLine($"State: {config.State.Status}");
+Console.WriteLine($"ID: {config.Id}, Name: {config.Name}, State: {config.State.Status}");
 ```
 
-### Labels
+## Resource Limits
 
 ```csharp
-using var container = new Builder()
-    .UseContainer()
-    .UseImage("nginx:alpine")
-    .WithLabel("app", "myapp")
-    .WithLabel("version", "1.0.0")
-    .WithLabel("environment", "test")
-    .Build()
-    .Start();
-
-// Labels are useful for filtering and identification
+using var results = new Builder()
+    .WithinDriver("docker", kernel)
+    .UseContainer(c => c
+        .UseImage("myapp:latest")
+        .WithMemoryLimit(512 * 1024 * 1024)  // 512MB
+        .WithCpuShares(1024))                 // CPU shares
+    .Build();
 ```
 
-### Resource Limits
+## Advanced Container Options
+
+The following methods configure additional container properties inside the
+`UseContainer(c => ...)` lambda:
 
 ```csharp
-using var container = new Builder()
-    .UseContainer()
-    .UseImage("myapp:latest")
-    .UseMemory(512 * 1024 * 1024)  // 512MB memory limit
-    .UseCpu(1.5)                   // 1.5 CPU cores
-    .Build()
-    .Start();
+using var results = new Builder()
+    .WithinDriver("docker", kernel)
+    .UseContainer(c => c
+        .UseImage("myapp:latest")
+        .WithPrivileged()                     // Full host access (use with caution)
+        .WithWorkingDirectory("/app")         // Default working directory
+        .WithCommand("sh", "-c", "sleep 3600") // Override CMD
+        .WithHostname("app-host")
+        .WithUser("appuser")
+        .WithNetwork("my-network")            // Attach to named network
+        .WithNetworkAlias("my-network", "app") // DNS alias on network
+        .UseIpV4("10.18.0.22"))               // Static IP (requires custom subnet)
+    .Build();
 ```
 
-### Ulimits
+## Container Existence Behavior
+
+When a container with the same name already exists, control what happens:
 
 ```csharp
-using var container = new Builder()
-    .UseContainer()
-    .UseImage("myapp:latest")
-    .UseUlimit(Ulimit.NoFile, 65535, 65535)  // Max open files
-    .Build()
-    .Start();
+// Reuse the existing container if one matches by name
+.ReuseIfExists()
+
+// Destroy the existing container and create a new one
+.DestroyIfExists(force: true, removeVolumes: true)
+
+// Always pull the latest image before creating
+.ForcePullImage()
 ```
 
-## Health Checks
+## Cleanup and Dispose Behavior
+
+By default, containers are stopped and removed when `BuildResults` is disposed.
+Use these methods inside the `UseContainer(c => ...)` lambda to customize:
 
 ```csharp
-using var container = new Builder()
-    .UseContainer()
-    .UseImage("myapp:latest")
-    .UseHealthCheck(
-        cmd: "curl -f http://localhost/health || exit 1",
-        interval: TimeSpan.FromSeconds(30),
-        timeout: TimeSpan.FromSeconds(10),
-        retries: 3,
-        startPeriod: TimeSpan.FromSeconds(5)
-    )
-    .Build()
-    .Start();
-
-// Check health status
-var config = container.GetConfiguration(refresh: true);
-Console.WriteLine($"Health: {config.State.Health?.Status}");
+.KeepContainer()            // Don't remove container on dispose (for debugging)
+.KeepRunning()              // Don't stop container on dispose
+.WithAutoRemove()           // Docker-level auto-remove on stop
+.DeleteVolumeOnDispose()    // Remove anonymous volumes on dispose
+.DeleteNamedVolumeOnDispose() // Remove named volumes on dispose
 ```
 
 ## Container Logs
 
-### Get All Logs
-
 ```csharp
-using var container = new Builder()
-    .UseContainer()
-    .UseImage("nginx:alpine")
-    .Build()
-    .Start();
+var container = results.Containers.First();
 
 var logs = container.Logs();
 foreach (var line in logs)
@@ -474,94 +438,49 @@ foreach (var line in logs)
 }
 ```
 
-### Stream Logs
+## Volumes (Bind Mounts and Named Volumes)
 
 ```csharp
-// Tail logs in real-time
-using var logStream = container.Logs(follow: true, tail: 100);
-await foreach (var line in logStream)
-{
-    Console.WriteLine(line);
-}
+// Bind mount
+using var results = new Builder()
+    .WithinDriver("docker", kernel)
+    .UseContainer(c => c
+        .UseImage("nginx:alpine")
+        .WithVolume("/local/html", "/usr/share/nginx/html"))
+    .Build();
+
+// Named volume
+using var results2 = new Builder()
+    .WithinDriver("docker", kernel)
+    .UseContainer(c => c
+        .UseImage("postgres:15-alpine")
+        .WithEnvironment("POSTGRES_PASSWORD=secret")
+        .WithVolume("pgdata", "/var/lib/postgresql/data"))
+    .Build();
 ```
 
-## Naming Containers
+## Multiple Containers
+
+Build multiple containers in a single builder call.
 
 ```csharp
-// Named container
-using var container = new Builder()
-    .UseContainer()
-    .WithName("my-app-container")
-    .UseImage("myapp:latest")
-    .Build()
-    .Start();
+using var results = new Builder()
+    .WithinDriver("docker", kernel)
+    .UseContainer(c => c
+        .WithName("db")
+        .UseImage("postgres:15-alpine")
+        .WithEnvironment("POSTGRES_PASSWORD=secret")
+        .WaitForPort("5432/tcp", 30000))
+    .UseContainer(c => c
+        .WithName("app")
+        .UseImage("myapp:latest")
+        .WithEnvironment("DATABASE_HOST", "db")
+        .WithNetwork("my-network")
+        .ExposePort(8080, 80))
+    .Build();
 
-// Container can be referenced by name in networks
-```
-
-## Privileged Mode
-
-```csharp
-// Use with caution - grants full host access
-using var container = new Builder()
-    .UseContainer()
-    .UseImage("docker:dind")
-    .IsPrivileged()
-    .Build()
-    .Start();
-```
-
-## Working Directory
-
-```csharp
-using var container = new Builder()
-    .UseContainer()
-    .UseImage("node:18-alpine")
-    .UseWorkDir("/app")
-    .Build()
-    .Start();
-
-// Commands execute in /app by default
-```
-
-## Entry Point Override
-
-```csharp
-using var container = new Builder()
-    .UseContainer()
-    .UseImage("alpine:latest")
-    .UseEntrypoint("sh", "-c")
-    .UseCommand("echo 'Custom entrypoint' && sleep 3600")
-    .Build()
-    .Start();
-```
-
-## Cleanup
-
-### Remove on Stop
-
-```csharp
-using var container = new Builder()
-    .UseContainer()
-    .UseImage("nginx:alpine")
-    .RemoveOnDispose()  // Auto-remove when disposed
-    .Build()
-    .Start();
-
-// Container is automatically removed when disposed
-```
-
-### Keep Container
-
-```csharp
-using var container = new Builder()
-    .UseContainer()
-    .UseImage("nginx:alpine")
-    .KeepContainer()  // Don't remove on dispose
-    .Build()
-    .Start();
-
-// Container remains after disposal (for debugging)
+var db = results.GetContainer("db");
+var app = results.GetContainer("app");
 ```
 
 ## Next Steps

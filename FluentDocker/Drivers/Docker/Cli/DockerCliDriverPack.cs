@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using FluentDocker.Common;
@@ -12,9 +13,9 @@ namespace FluentDocker.Drivers.Docker.Cli
 {
     /// <summary>
     /// Docker CLI driver pack that composes all individual Docker CLI driver implementations.
-    /// Implements IDriverPack to provide unified access to all driver components.
+    /// Implements IDriverPack and IDriverInterfaceResolver for unified access.
     /// </summary>
-    public class DockerCliDriverPack : IDriverPack
+    public class DockerCliDriverPack : IDriverPack, IDriverInterfaceResolver
     {
         private readonly Dictionary<Type, object> _drivers = new Dictionary<Type, object>();
         private DriverContext _context;
@@ -163,6 +164,50 @@ namespace FluentDocker.Drivers.Docker.Cli
                 _ => throw new ArgumentException($"Unknown component: {component}", nameof(component))
             };
         }
+
+        #region IDriverInterfaceResolver
+
+        /// <inheritdoc />
+        public bool TryResolve(Type interfaceType, out object implementation)
+        {
+            ThrowIfNotInitialized();
+            return _drivers.TryGetValue(interfaceType, out implementation);
+        }
+
+        /// <inheritdoc />
+        public IReadOnlyCollection<Type> GetSupportedInterfaces()
+        {
+            ThrowIfNotInitialized();
+            return _drivers.Keys.ToList().AsReadOnly();
+        }
+
+        #endregion
+
+        #region ISysCtl Type-Based Resolution
+
+        /// <inheritdoc />
+        public object SysCtl(string driverId, Type interfaceType)
+        {
+            ThrowIfNotInitialized();
+            if (_drivers.TryGetValue(interfaceType, out var driver))
+                return driver;
+            throw new InterfaceNotSupportedException(driverId, interfaceType.Name);
+        }
+
+        /// <inheritdoc />
+        public bool TrySysCtl<T>(string driverId, out T instance) where T : class
+        {
+            ThrowIfNotInitialized();
+            if (_drivers.TryGetValue(typeof(T), out var driver))
+            {
+                instance = (T)driver;
+                return true;
+            }
+            instance = null;
+            return false;
+        }
+
+        #endregion
 
         #region Direct Driver Access
 

@@ -36,86 +36,100 @@ namespace FluentDocker.Kernel
         #region ISysCtl Implementation
 
         /// <summary>
-        /// SysCtl - System control interface for accessing drivers.
-        /// Gets a driver component interface by driver ID and component type.
-        /// If the driverId maps to an IDriverPack, delegates to the pack first.
+        /// Resolves a driver interface by driver ID and runtime type.
+        /// This is the unified resolution path used by all other SysCtl overloads.
+        /// Resolution order:
+        /// 1. If driver pack implements IDriverInterfaceResolver, ask it.
+        /// 2. Else delegate to the driver pack's ISysCtl.
+        /// 3. If regular driver implements IDriverInterfaceResolver, ask it.
+        /// 4. Else fallback to direct cast (driver is T).
         /// </summary>
-        /// <typeparam name="T">Driver component interface (IContainerDriver, IImageDriver, etc.)</typeparam>
-        /// <param name="driverId">Driver identifier</param>
-        /// <returns>Driver component instance</returns>
-        /// <exception cref="DriverNotFoundException">If driver not found</exception>
-        /// <exception cref="InterfaceNotSupportedException">If driver doesn't implement interface</exception>
-        public T SysCtl<T>(string driverId) where T : class
+        public object SysCtl(string driverId, Type interfaceType)
         {
             ThrowIfDisposed();
 
             // First check if driverId refers to a driver pack
             if (_registry.TryGetDriverPack(driverId, out var driverPack))
             {
-                // Delegate to the driver pack's SysCtl
-                return driverPack.SysCtl<T>(driverId);
+                // If the pack is an IDriverInterfaceResolver, use it
+                if (driverPack is IDriverInterfaceResolver resolver &&
+                    resolver.TryResolve(interfaceType, out var resolved))
+                    return resolved;
+
+                // Fallback: delegate to pack's type-based SysCtl
+                return driverPack.SysCtl(driverId, interfaceType);
             }
 
             // Fall back to regular driver resolution
             if (_registry.TryGetDriver(driverId, out var driver))
             {
-                if (driver is T typedDriver)
-                {
-                    return typedDriver;
-                }
+                // If the driver is an IDriverInterfaceResolver, use it
+                if (driver is IDriverInterfaceResolver driverResolver &&
+                    driverResolver.TryResolve(interfaceType, out var driverResolved))
+                    return driverResolved;
 
-                throw new InterfaceNotSupportedException(driverId, typeof(T).Name);
+                // Direct cast check
+                if (interfaceType.IsInstanceOfType(driver))
+                    return driver;
+
+                throw new InterfaceNotSupportedException(driverId, interfaceType.Name);
             }
 
             throw new DriverNotFoundException(driverId);
         }
 
         /// <summary>
-        /// SysCtl - System control interface for accessing drivers.
-        /// Gets a driver component interface by driver ID and component enum.
-        /// If the driverId maps to an IDriverPack, delegates to the pack first.
+        /// Gets a driver component interface by driver ID and generic type.
+        /// Delegates to the unified type-based resolution.
         /// </summary>
-        /// <param name="driverId">Driver identifier</param>
-        /// <param name="component">Driver component</param>
-        /// <returns>Driver component instance</returns>
-        public object SysCtl(string driverId, DriverComponent component)
+        public T SysCtl<T>(string driverId) where T : class
         {
-            ThrowIfDisposed();
-
-            // First check if driverId refers to a driver pack
-            if (_registry.TryGetDriverPack(driverId, out var driverPack))
-            {
-                // Delegate to the driver pack's SysCtl
-                return driverPack.SysCtl(driverId, component);
-            }
-
-            // Fall back to regular driver resolution via component switch
-            return component switch
-            {
-                DriverComponent.Container => ResolveFromDriver<IContainerDriver>(driverId),
-                DriverComponent.Image => ResolveFromDriver<IImageDriver>(driverId),
-                DriverComponent.Network => ResolveFromDriver<INetworkDriver>(driverId),
-                DriverComponent.Volume => ResolveFromDriver<IVolumeDriver>(driverId),
-                DriverComponent.System => ResolveFromDriver<ISystemDriver>(driverId),
-                DriverComponent.Compose => ResolveFromDriver<IComposeDriver>(driverId),
-                _ => throw new ArgumentException($"Unknown component: {component}", nameof(component))
-            };
+            return (T)SysCtl(driverId, typeof(T));
         }
 
         /// <summary>
-        /// Resolves a driver interface from a regular driver (not a pack).
+        /// Tries to get a driver component interface. Returns false instead of throwing
+        /// when the interface is not supported. A missing driver still throws.
         /// </summary>
-        private T ResolveFromDriver<T>(string driverId) where T : class
+        public bool TrySysCtl<T>(string driverId, out T instance) where T : class
         {
-            var driver = _registry.GetDriver(driverId);
+            ThrowIfDisposed();
+            instance = null;
 
-            if (driver is T typedDriver)
+            try
             {
-                return typedDriver;
+                instance = SysCtl<T>(driverId);
+                return true;
             }
-
-            throw new InterfaceNotSupportedException(driverId, typeof(T).Name);
+            catch (InterfaceNotSupportedException)
+            {
+                return false;
+            }
+            // DriverNotFoundException intentionally propagates -
+            // a missing driver is a hard error, not a "not supported" case
         }
+
+        /// <summary>
+        /// Gets a driver component interface by driver ID and component enum.
+        /// Maps the enum to the well-known interface type and delegates.
+        /// </summary>
+        public object SysCtl(string driverId, DriverComponent component)
+        {
+            ThrowIfDisposed();
+            var interfaceType = ComponentToType(component);
+            return SysCtl(driverId, interfaceType);
+        }
+
+        private static Type ComponentToType(DriverComponent component) => component switch
+        {
+            DriverComponent.Container => typeof(IContainerDriver),
+            DriverComponent.Image => typeof(IImageDriver),
+            DriverComponent.Network => typeof(INetworkDriver),
+            DriverComponent.Volume => typeof(IVolumeDriver),
+            DriverComponent.System => typeof(ISystemDriver),
+            DriverComponent.Compose => typeof(IComposeDriver),
+            _ => throw new ArgumentException($"Unknown component: {component}", nameof(component))
+        };
 
         #endregion
 
@@ -124,8 +138,6 @@ namespace FluentDocker.Kernel
         /// <summary>
         /// Gets the underlying driver instance.
         /// </summary>
-        /// <param name="driverId">Driver identifier</param>
-        /// <returns>Driver instance</returns>
         public IDriver GetDriver(string driverId)
         {
             ThrowIfDisposed();
@@ -135,8 +147,6 @@ namespace FluentDocker.Kernel
         /// <summary>
         /// Gets the underlying driver pack instance.
         /// </summary>
-        /// <param name="driverId">Driver identifier</param>
-        /// <returns>Driver pack instance</returns>
         public IDriverPack GetDriverPack(string driverId)
         {
             ThrowIfDisposed();
@@ -146,8 +156,6 @@ namespace FluentDocker.Kernel
         /// <summary>
         /// Checks if a driver ID refers to a driver pack.
         /// </summary>
-        /// <param name="driverId">Driver identifier</param>
-        /// <returns>True if the ID refers to a driver pack</returns>
         public bool IsDriverPack(string driverId)
         {
             ThrowIfDisposed();
@@ -161,10 +169,6 @@ namespace FluentDocker.Kernel
         /// <summary>
         /// Registers a driver.
         /// </summary>
-        /// <param name="driverId">Unique driver identifier</param>
-        /// <param name="driver">Driver instance</param>
-        /// <param name="context">Driver context</param>
-        /// <param name="cancellationToken">Cancellation token</param>
         public async Task RegisterDriverAsync(string driverId, IDriver driver, DriverContext context, CancellationToken cancellationToken = default)
         {
             ThrowIfDisposed();
@@ -174,10 +178,6 @@ namespace FluentDocker.Kernel
         /// <summary>
         /// Registers a driver pack.
         /// </summary>
-        /// <param name="driverId">Unique driver identifier</param>
-        /// <param name="driverPack">Driver pack instance</param>
-        /// <param name="context">Driver context</param>
-        /// <param name="cancellationToken">Cancellation token</param>
         public async Task RegisterDriverPackAsync(string driverId, IDriverPack driverPack, DriverContext context, CancellationToken cancellationToken = default)
         {
             ThrowIfDisposed();
@@ -187,7 +187,6 @@ namespace FluentDocker.Kernel
         /// <summary>
         /// Unregisters a driver or driver pack.
         /// </summary>
-        /// <param name="driverId">Driver identifier</param>
         public void UnregisterDriver(string driverId)
         {
             ThrowIfDisposed();
@@ -197,8 +196,6 @@ namespace FluentDocker.Kernel
         /// <summary>
         /// Checks if a driver or driver pack is registered.
         /// </summary>
-        /// <param name="driverId">Driver identifier</param>
-        /// <returns>True if registered</returns>
         public bool IsDriverRegistered(string driverId)
         {
             ThrowIfDisposed();
@@ -224,7 +221,6 @@ namespace FluentDocker.Kernel
         /// <summary>
         /// Sets the default driver.
         /// </summary>
-        /// <param name="driverId">Driver identifier</param>
         public void SetDefaultDriver(string driverId)
         {
             ThrowIfDisposed();
@@ -278,7 +274,6 @@ namespace FluentDocker.Kernel
 
             _disposed = true;
 
-            // Unregister all drivers and driver packs
             var driverIds = _registry.GetAllDriverIds();
             foreach (var driverId in driverIds)
             {
