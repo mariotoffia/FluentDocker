@@ -271,7 +271,12 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
 
             try
             {
-                var obj = JObject.Parse(json.Trim());
+                var trimmed = json.Trim();
+                JToken obj;
+                if (trimmed.StartsWith("["))
+                    obj = JArray.Parse(trimmed).First;
+                else
+                    obj = JObject.Parse(trimmed);
 
                 result.Id = (obj["Id"] ?? obj["id"])?.Value<string>();
                 result.Name = (obj["Name"] ?? obj["name"])?.Value<string>();

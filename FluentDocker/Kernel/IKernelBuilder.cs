@@ -84,5 +84,16 @@ namespace FluentDocker.Kernel
         /// Sets this driver as the default.
         /// </summary>
         IDriverBuilder AsDefault();
+
+        /// <summary>
+        /// Configures automatic Podman machine management during driver initialization.
+        /// When enabled, the Podman driver will ensure a machine is running before
+        /// completing initialization. Ignored by non-Podman drivers.
+        /// </summary>
+        /// <param name="configure">
+        /// Optional configuration action. When null, uses defaults
+        /// (start the default machine if it exists but is not running).
+        /// </param>
+        IDriverBuilder WithAutoStartMachine(Action<AutoStartMachineConfig> configure = null);
     }
 }

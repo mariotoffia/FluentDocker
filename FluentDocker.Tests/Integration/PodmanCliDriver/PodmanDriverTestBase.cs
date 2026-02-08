@@ -1,6 +1,7 @@
 using System;
 using System.Diagnostics;
 using System.Threading.Tasks;
+using FluentDocker.Common;
 using FluentDocker.Drivers;
 using FluentDocker.Drivers.Podman;
 using FluentDocker.Kernel;
@@ -28,6 +29,13 @@ namespace FluentDocker.Tests.Integration.PodmanCliDriver
             if (!IsPodmanInstalled())
             {
                 throw new SkipException("Podman is not installed or not in PATH");
+            }
+
+            if (!IsPodmanMachineRunning())
+            {
+                throw new PodmanMachineNotRunningException(
+                    "Podman machine is not running. " +
+                    "Start it with: podman machine start");
             }
 
             Kernel = await FluentDockerKernel.Create()
@@ -117,6 +125,9 @@ namespace FluentDocker.Tests.Integration.PodmanCliDriver
         protected string UniqueName(string prefix = "test") =>
             $"{prefix}-{Guid.NewGuid():N}"[..20];
 
+        /// <summary>
+        /// Checks if the podman binary is installed (local-only, no server contact).
+        /// </summary>
         private static bool IsPodmanInstalled()
         {
             try
@@ -126,7 +137,7 @@ namespace FluentDocker.Tests.Integration.PodmanCliDriver
                     StartInfo = new ProcessStartInfo
                     {
                         FileName = "podman",
-                        Arguments = "version",
+                        Arguments = "--version",
                         RedirectStandardOutput = true,
                         RedirectStandardError = true,
                         UseShellExecute = false,
@@ -143,13 +154,46 @@ namespace FluentDocker.Tests.Integration.PodmanCliDriver
                 return false;
             }
         }
+
+        /// <summary>
+        /// Checks if the podman machine/server is reachable (contacts the daemon).
+        /// On macOS/Windows this requires a running podman machine VM.
+        /// </summary>
+        private static bool IsPodmanMachineRunning()
+        {
+            try
+            {
+                var process = new Process
+                {
+                    StartInfo = new ProcessStartInfo
+                    {
+                        FileName = "podman",
+                        Arguments = "info",
+                        RedirectStandardOutput = true,
+                        RedirectStandardError = true,
+                        UseShellExecute = false,
+                        CreateNoWindow = true
+                    }
+                };
+
+                process.Start();
+                process.WaitForExit(10000);
+                return process.ExitCode == 0;
+            }
+            catch
+            {
+                return false;
+            }
+        }
     }
 
     /// <summary>
     /// Exception used to skip tests when Podman is not available.
+    /// Uses xUnit dynamic skip convention ($XunitDynamicSkip$) so
+    /// tests are reported as skipped rather than failed.
     /// </summary>
     public class SkipException : Exception
     {
-        public SkipException(string message) : base(message) { }
+        public SkipException(string message) : base("$XunitDynamicSkip$" + message) { }
     }
 }

@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using System.Threading.Tasks;
+using FluentDocker.Drivers;
 using FluentDocker.Drivers.Podman;
 using Xunit;
 
@@ -139,10 +140,22 @@ spec:
             string podName = null;
             try
             {
+                await EnsureImageAsync(TestImage);
                 podName = UniqueName("kube-gen");
                 var createResult = await PodDriver.CreatePodAsync(
                     Context, new PodCreateConfig { Name = podName });
                 Assert.True(createResult.Success, $"Pod create failed: {createResult.Error}");
+
+                // Pod must have at least one non-infra container for kube generate
+                var containerResult = await ContainerDriver.CreateAsync(Context,
+                    new ContainerCreateConfig
+                    {
+                        Image = TestImage,
+                        Command = new[] { "sleep", "300" },
+                        Pod = podName
+                    });
+                Assert.True(containerResult.Success,
+                    $"Container create failed: {containerResult.Error}");
 
                 var genResult = await KubernetesDriver.GenerateAsync(Context, podName);
                 Assert.True(genResult.Success, $"Generate failed: {genResult.Error}");

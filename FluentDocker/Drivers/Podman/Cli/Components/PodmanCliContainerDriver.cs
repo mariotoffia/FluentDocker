@@ -422,11 +422,19 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
 
         private static Container ParseContainerFromListToken(JToken token)
         {
+            // Names can be a JSON array ["name"] or a plain string
+            var names = token["Names"] ?? token["Name"];
+            string name = null;
+            if (names is JArray namesArr && namesArr.Count > 0)
+                name = namesArr[0].Value<string>();
+            else if (names != null)
+                name = names.Value<string>();
+
             return new Container
             {
                 Id = token["Id"]?.Value<string>() ?? token["ID"]?.Value<string>(),
                 Image = token["Image"]?.Value<string>(),
-                Name = token["Names"]?.Value<string>() ?? token["Name"]?.Value<string>(),
+                Name = name,
                 State = new ContainerState
                 {
                     Status = token["State"]?.Value<string>() ?? token["Status"]?.Value<string>()

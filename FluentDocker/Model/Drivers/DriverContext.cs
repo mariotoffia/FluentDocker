@@ -54,6 +54,13 @@ namespace FluentDocker.Model.Drivers
         public string DefaultShell { get; set; } = "bash";
 
         /// <summary>
+        /// Configuration for automatic Podman machine start.
+        /// When non-null, the Podman driver pack will ensure a machine
+        /// is running during initialization.
+        /// </summary>
+        public AutoStartMachineConfig AutoStartMachine { get; set; }
+
+        /// <summary>
         /// Creates a new driver context.
         /// </summary>
         public DriverContext()

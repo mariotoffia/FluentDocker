@@ -107,6 +107,7 @@ namespace FluentDocker.Kernel
         private string _host;
         private string _certificatePath;
         private bool _isDefault;
+        private AutoStartMachineConfig _autoStartMachine;
 
         public IDriverBuilder UseDockerCli()
         {
@@ -160,6 +161,13 @@ namespace FluentDocker.Kernel
             return this;
         }
 
+        public IDriverBuilder WithAutoStartMachine(Action<AutoStartMachineConfig> configure = null)
+        {
+            _autoStartMachine = new AutoStartMachineConfig();
+            configure?.Invoke(_autoStartMachine);
+            return this;
+        }
+
         internal KernelBuilder.DriverConfiguration Build()
         {
             if (_driver == null && _driverPack == null)
@@ -170,7 +178,8 @@ namespace FluentDocker.Kernel
             var context = new DriverContext(_driverId)
             {
                 Host = _host,
-                CertificatePath = _certificatePath
+                CertificatePath = _certificatePath,
+                AutoStartMachine = _autoStartMachine
             };
 
             return new KernelBuilder.DriverConfiguration

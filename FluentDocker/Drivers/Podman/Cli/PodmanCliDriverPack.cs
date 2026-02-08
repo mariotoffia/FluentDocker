@@ -103,8 +103,11 @@ namespace FluentDocker.Drivers.Podman.Cli
             _drivers[typeof(IPodmanMachineDriver)] = _machineDriver;
             _drivers[typeof(IPodmanManifestDriver)] = _manifestDriver;
 
+            // Auto-start machine if configured
+            if (context.AutoStartMachine != null)
+                await AutoStartMachineAsync(context, cancellationToken);
+
             _initialized = true;
-            await Task.CompletedTask;
         }
 
         /// <inheritdoc />
@@ -286,6 +289,75 @@ namespace FluentDocker.Drivers.Podman.Cli
         public IPodmanManifestDriver ManifestDriver
         {
             get { ThrowIfNotInitialized(); return _manifestDriver; }
+        }
+
+        #endregion
+
+        #region Auto-Start Machine
+
+        private async Task AutoStartMachineAsync(
+            DriverContext context, CancellationToken cancellationToken)
+        {
+            var config = context.AutoStartMachine;
+            var listResult = await _machineDriver.ListAsync(context, cancellationToken);
+
+            if (!listResult.Success)
+                throw new PodmanMachineNotRunningException(
+                    $"Failed to list Podman machines: {listResult.Error}");
+
+            // Find the target machine
+            MachineInfo target;
+            if (!string.IsNullOrEmpty(config.MachineName))
+                target = listResult.Data.FirstOrDefault(
+                    m => string.Equals(m.Name, config.MachineName,
+                        StringComparison.OrdinalIgnoreCase));
+            else
+                target = listResult.Data.FirstOrDefault(m => m.Default)
+                    ?? listResult.Data.FirstOrDefault();
+
+            if (target != null && target.Running)
+                return; // Machine is already running
+
+            if (target != null)
+            {
+                // Machine exists but is not running — start it
+                var startResult = await _machineDriver.StartAsync(
+                    context, target.Name, cancellationToken);
+
+                if (!startResult.Success)
+                    throw new PodmanMachineNotRunningException(
+                        $"Failed to start Podman machine '{target.Name}': {startResult.Error}");
+
+                return;
+            }
+
+            // Machine does not exist
+            if (!config.CreateIfNotExists)
+                throw new PodmanMachineNotRunningException(
+                    $"No Podman machine found" +
+                    (string.IsNullOrEmpty(config.MachineName)
+                        ? ". "
+                        : $" named '{config.MachineName}'. ") +
+                    "Start one with: podman machine init && podman machine start");
+
+            // Init a new machine
+            var machineName = config.MachineName ?? "default";
+            var initConfig = new MachineInitConfig
+            {
+                Name = machineName,
+                Cpus = config.InitCpus,
+                MemoryMiB = config.InitMemoryMiB,
+                DiskSizeGiB = config.InitDiskSizeGiB,
+                Rootful = config.InitRootful,
+                Now = true // Start immediately after init
+            };
+
+            var initResult = await _machineDriver.InitAsync(
+                context, initConfig, cancellationToken);
+
+            if (!initResult.Success)
+                throw new PodmanMachineNotRunningException(
+                    $"Failed to initialize Podman machine '{machineName}': {initResult.Error}");
         }
 
         #endregion
