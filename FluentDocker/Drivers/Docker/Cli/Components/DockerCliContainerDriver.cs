@@ -1263,30 +1263,6 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
         #region Helper Methods
 
         /// <summary>
-        /// Quotes an argument if it contains spaces.
-        /// For ProcessStartInfo on Unix, arguments containing spaces need to be quoted.
-        /// We use double quotes and escape any existing double quotes.
-        /// </summary>
-        /// <param name="argument">The argument to potentially quote</param>
-        /// <returns>The argument, quoted if necessary</returns>
-        private static string QuoteArgumentIfNeeded(string argument)
-        {
-            if (string.IsNullOrEmpty(argument))
-                return argument;
-
-            // Only quote if the argument contains spaces or tabs
-            // Other special characters are handled correctly by ProcessStartInfo
-            bool needsQuoting = argument.Contains(' ') || argument.Contains('\t');
-
-            if (!needsQuoting)
-                return argument;
-
-            // Escape any backslashes first, then escape double quotes
-            var escaped = argument.Replace("\\", "\\\\").Replace("\"", "\\\"");
-            return $"\"{escaped}\"";
-        }
-
-        /// <summary>
         /// DTO for docker ps JSON output.
         /// </summary>
         private class DockerPsDto

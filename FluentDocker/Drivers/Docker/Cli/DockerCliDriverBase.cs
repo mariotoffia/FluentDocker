@@ -229,6 +229,30 @@ namespace FluentDocker.Drivers.Docker.Cli
         }
 
         #endregion
+
+        #region Argument Quoting
+
+        /// <summary>
+        /// Quotes a command-line argument if it contains spaces or tabs.
+        /// Escapes backslashes and double quotes within the argument.
+        /// </summary>
+        /// <param name="argument">The argument to potentially quote</param>
+        /// <returns>The argument, quoted if necessary</returns>
+        protected static string QuoteArgumentIfNeeded(string argument)
+        {
+            if (string.IsNullOrEmpty(argument))
+                return argument;
+
+            bool needsQuoting = argument.Contains(' ') || argument.Contains('\t');
+
+            if (!needsQuoting)
+                return argument;
+
+            var escaped = argument.Replace("\\", "\\\\").Replace("\"", "\\\"");
+            return $"\"{escaped}\"";
+        }
+
+        #endregion
     }
 
     /// <summary>

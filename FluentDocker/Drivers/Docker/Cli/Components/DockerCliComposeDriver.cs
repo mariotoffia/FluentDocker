@@ -35,15 +35,15 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
                 var args = new List<string> { "compose" };
 
                 foreach (var file in config.ComposeFiles)
-                    args.Add($"-f {file}");
+                    args.Add($"-f {QuoteArgumentIfNeeded(file)}");
 
                 if (!string.IsNullOrEmpty(config.ProjectName))
-                    args.Add($"-p {config.ProjectName}");
+                    args.Add($"-p {QuoteArgumentIfNeeded(config.ProjectName)}");
 
                 if (config.Profiles != null && config.Profiles.Count > 0)
                 {
                     foreach (var profile in config.Profiles)
-                        args.Add($"--profile {profile}");
+                        args.Add($"--profile {QuoteArgumentIfNeeded(profile)}");
                 }
 
                 args.Add("up");
@@ -110,10 +110,10 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
                 var args = new List<string> { "compose" };
 
                 foreach (var file in config.ComposeFiles)
-                    args.Add($"-f {file}");
+                    args.Add($"-f {QuoteArgumentIfNeeded(file)}");
 
                 if (!string.IsNullOrEmpty(config.ProjectName))
-                    args.Add($"-p {config.ProjectName}");
+                    args.Add($"-p {QuoteArgumentIfNeeded(config.ProjectName)}");
 
                 args.Add("down");
 
@@ -320,11 +320,11 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
         {
             var args = "compose";
             foreach (var file in config.ComposeFiles)
-                args += $" -f {file}";
+                args += $" -f {QuoteArgumentIfNeeded(file)}";
             if (!string.IsNullOrEmpty(config.ProjectName))
-                args += $" -p {config.ProjectName}";
+                args += $" -p {QuoteArgumentIfNeeded(config.ProjectName)}";
             if (!string.IsNullOrEmpty(config.ProjectDirectory))
-                args += $" --project-directory {config.ProjectDirectory}";
+                args += $" --project-directory {QuoteArgumentIfNeeded(config.ProjectDirectory)}";
             return args;
         }
 

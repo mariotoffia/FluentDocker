@@ -73,7 +73,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
                 if (config.Tail.HasValue)
                     args += $" --tail {config.Tail.Value}";
                 if (!string.IsNullOrEmpty(config.Since))
-                    args += $" --since {config.Since}";
+                    args += $" --since {QuoteArgumentIfNeeded(config.Since)}";
                 if (config.Services.Count > 0)
                     args += " " + string.Join(" ", config.Services);
 
@@ -289,9 +289,9 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
                 if (config.Privileged)
                     args += " --privileged";
                 if (!string.IsNullOrEmpty(config.User))
-                    args += $" -u {config.User}";
+                    args += $" -u {QuoteArgumentIfNeeded(config.User)}";
                 if (!string.IsNullOrEmpty(config.WorkDir))
-                    args += $" -w {config.WorkDir}";
+                    args += $" -w {QuoteArgumentIfNeeded(config.WorkDir)}";
                 if (config.Index.HasValue)
                     args += $" --index {config.Index.Value}";
                 args += $" {config.Service} " +
@@ -325,9 +325,9 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
                 if (config.NoDeps)
                     args += " --no-deps";
                 if (!string.IsNullOrEmpty(config.Name))
-                    args += $" --name {config.Name}";
+                    args += $" --name {QuoteArgumentIfNeeded(config.Name)}";
                 if (!string.IsNullOrEmpty(config.User))
-                    args += $" -u {config.User}";
+                    args += $" -u {QuoteArgumentIfNeeded(config.User)}";
                 args += $" {config.Service}";
                 if (config.Command != null && config.Command.Length > 0)
                     args += " " + string.Join(" ", config.Command);
@@ -387,7 +387,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
                     args += " -L";
                 if (config.Index.HasValue)
                     args += $" --index {config.Index.Value}";
-                args += $" {config.Source} {config.Destination}";
+                args += $" {QuoteArgumentIfNeeded(config.Source)} {QuoteArgumentIfNeeded(config.Destination)}";
 
                 var result = await ExecuteCommandAsync(args, cancellationToken);
                 return result.Success
