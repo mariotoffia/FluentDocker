@@ -1,8 +1,8 @@
-﻿using System.Collections.Generic;
+using System;
+using System.Collections.Generic;
+using FluentDocker.Extensions;
 using FluentDocker.Model.Containers;
 using FluentDocker.Model.Images;
-using FluentDocker.Extensions;
-using System;
 
 namespace FluentDocker.Executors.Parsers
 {
@@ -20,7 +20,7 @@ namespace FluentDocker.Executors.Parsers
       var list = new List<DockerRmImageRowResponse>();
       foreach (var row in response.StdOutAsArray)
       {
-        var items = row.Split(new string[]{": "},1,StringSplitOptions.RemoveEmptyEntries);
+        var items = row.Split(new string[] { ": " }, 1, StringSplitOptions.RemoveEmptyEntries);
         if (items.Length != 2)
         {
           continue;

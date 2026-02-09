@@ -1,7 +1,7 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
+using FluentDocker.Extensions;
 using FluentDocker.Model.Containers;
 using FluentDocker.Model.Images;
-using FluentDocker.Extensions;
 
 namespace FluentDocker.Executors.Parsers
 {

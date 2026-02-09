@@ -1,4 +1,4 @@
-﻿namespace FluentDocker.Model.Images
+namespace FluentDocker.Model.Images
 {
   public sealed class DockerImageRowResponse
   {

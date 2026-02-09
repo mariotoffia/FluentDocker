@@ -1,4 +1,4 @@
-﻿using FluentDocker.Extensions;
+using FluentDocker.Extensions;
 using FluentDocker.Model.Common;
 
 namespace FluentDocker.Model.Builders.FileBuilder
@@ -16,17 +16,19 @@ namespace FluentDocker.Model.Builders.FileBuilder
     /// generate --from=aliasname in the _COPY_ command and hence reference a earlier
     /// _FROM ... AS aliasname_ buildstep as source.
     /// </param>
-    public CopyCommand(TemplateString from, TemplateString to, 
+    public CopyCommand(TemplateString from, TemplateString to,
       TemplateString chownUserAndGroup = null, TemplateString fromAlias = null)
     {
       From = from.Rendered.WrapWithChar("\"");
       To = to.Rendered.WrapWithChar("\"");
 
-      if (null != chownUserAndGroup && !string.IsNullOrEmpty(chownUserAndGroup.Rendered)) {
+      if (null != chownUserAndGroup && !string.IsNullOrEmpty(chownUserAndGroup.Rendered))
+      {
         Chown = chownUserAndGroup.Rendered;
       }
 
-      if (null != fromAlias && !string.IsNullOrEmpty(fromAlias.Rendered)) {
+      if (null != fromAlias && !string.IsNullOrEmpty(fromAlias.Rendered))
+      {
         Alias = fromAlias.Rendered;
       }
     }
@@ -38,13 +40,15 @@ namespace FluentDocker.Model.Builders.FileBuilder
 
     public override string ToString()
     {
-      string s = "COPY";
+      var s = "COPY";
 
-      if (!string.IsNullOrEmpty(Chown)) {
+      if (!string.IsNullOrEmpty(Chown))
+      {
         s = $"{s} --chown={Chown}";
       }
 
-      if (!string.IsNullOrEmpty(Alias)) {
+      if (!string.IsNullOrEmpty(Alias))
+      {
         s = $"{s} --from={Alias}";
       }
 

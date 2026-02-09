@@ -1,4 +1,4 @@
-﻿using System.Diagnostics;
+using System.Diagnostics;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -20,7 +20,7 @@ namespace FluentDocker.Executors
       _workingdir = workingdir;
     }
 
-    public Task<CommandResponse<TE>> Execute(CancellationToken cancellationToken = default(CancellationToken))
+    public Task<CommandResponse<TE>> Execute(CancellationToken cancellationToken = default)
     {
       return Task.Factory.StartNew(() => InternalExecute(cancellationToken), cancellationToken);
     }

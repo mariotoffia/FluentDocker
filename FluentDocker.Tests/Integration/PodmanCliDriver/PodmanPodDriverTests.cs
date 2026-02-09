@@ -6,144 +6,144 @@ using Xunit;
 
 namespace FluentDocker.Tests.Integration.PodmanCliDriver
 {
-    /// <summary>
-    /// Integration tests for Podman pod driver.
-    /// Requires Podman to be installed.
-    /// </summary>
-    [Collection("PodmanDriver")]
-    [Trait("Category", "PodmanIntegration")]
-    public class PodmanPodDriverTests : PodmanDriverTestBase
+  /// <summary>
+  /// Integration tests for Podman pod driver.
+  /// Requires Podman to be installed.
+  /// </summary>
+  [Collection("PodmanDriver")]
+  [Trait("Category", "PodmanIntegration")]
+  public class PodmanPodDriverTests : PodmanDriverTestBase
+  {
+    [Fact]
+    public async Task CreateAndRemove_Succeeds()
     {
-        [Fact]
-        public async Task CreateAndRemove_Succeeds()
-        {
-            var name = UniqueName("pod");
-            try
-            {
-                var config = new PodCreateConfig { Name = name };
-                var createResult = await PodDriver.CreatePodAsync(Context, config);
-                Assert.True(createResult.Success, $"Create failed: {createResult.Error}");
-                Assert.NotNull(createResult.Data.Id);
-            }
-            finally
-            {
-                await RemovePodAsync(name);
-            }
-        }
-
-        [Fact]
-        public async Task ListPods_ReturnsResults()
-        {
-            var name = UniqueName("pod");
-            try
-            {
-                await PodDriver.CreatePodAsync(Context, new PodCreateConfig { Name = name });
-
-                var result = await PodDriver.ListPodsAsync(Context);
-                Assert.True(result.Success, $"List failed: {result.Error}");
-                Assert.Contains(result.Data, p => p.Name == name);
-            }
-            finally
-            {
-                await RemovePodAsync(name);
-            }
-        }
-
-        [Fact]
-        public async Task InspectPod_ReturnsDetails()
-        {
-            var name = UniqueName("pod");
-            try
-            {
-                await PodDriver.CreatePodAsync(Context, new PodCreateConfig { Name = name });
-
-                var result = await PodDriver.InspectPodAsync(Context, name);
-                Assert.True(result.Success, $"Inspect failed: {result.Error}");
-                Assert.Equal(name, result.Data.Name);
-                Assert.NotNull(result.Data.Id);
-            }
-            finally
-            {
-                await RemovePodAsync(name);
-            }
-        }
-
-        [Fact]
-        public async Task StartStopRestart_Lifecycle()
-        {
-            var name = UniqueName("pod");
-            try
-            {
-                await PodDriver.CreatePodAsync(Context, new PodCreateConfig { Name = name });
-
-                var startResult = await PodDriver.StartPodAsync(Context, name);
-                Assert.True(startResult.Success, $"Start failed: {startResult.Error}");
-
-                var stopResult = await PodDriver.StopPodAsync(Context, name, timeout: 5);
-                Assert.True(stopResult.Success, $"Stop failed: {stopResult.Error}");
-
-                var restartResult = await PodDriver.RestartPodAsync(Context, name);
-                Assert.True(restartResult.Success, $"Restart failed: {restartResult.Error}");
-            }
-            finally
-            {
-                await RemovePodAsync(name);
-            }
-        }
-
-        [Fact]
-        public async Task PauseUnpause_Succeeds()
-        {
-            var name = UniqueName("pod");
-            try
-            {
-                await PodDriver.CreatePodAsync(Context, new PodCreateConfig { Name = name });
-                await PodDriver.StartPodAsync(Context, name);
-
-                var pauseResult = await PodDriver.PausePodAsync(Context, name);
-                Assert.True(pauseResult.Success, $"Pause failed: {pauseResult.Error}");
-
-                var unpauseResult = await PodDriver.UnpausePodAsync(Context, name);
-                Assert.True(unpauseResult.Success, $"Unpause failed: {unpauseResult.Error}");
-            }
-            finally
-            {
-                await RemovePodAsync(name);
-            }
-        }
-
-        [Fact]
-        public async Task CreateContainerInPod_Succeeds()
-        {
-            await EnsureImageAsync(TestImage);
-            var podName = UniqueName("pod");
-            string containerId = null;
-
-            try
-            {
-                await PodDriver.CreatePodAsync(Context, new PodCreateConfig { Name = podName });
-
-                var config = new ContainerCreateConfig
-                {
-                    Image = TestImage,
-                    Command = new[] { "sleep", "60" },
-                    Pod = podName
-                };
-
-                var createResult = await ContainerDriver.CreateAsync(Context, config);
-                Assert.True(createResult.Success, $"Container create failed: {createResult.Error}");
-                containerId = createResult.Data.Id;
-
-                // Verify the pod now shows containers
-                var inspectResult = await PodDriver.InspectPodAsync(Context, podName);
-                Assert.True(inspectResult.Success);
-                Assert.True(inspectResult.Data.NumContainers > 0 ||
-                            inspectResult.Data.Containers.Count > 0);
-            }
-            finally
-            {
-                await RemovePodAsync(podName);
-            }
-        }
+      var name = UniqueName("pod");
+      try
+      {
+        var config = new PodCreateConfig { Name = name };
+        var createResult = await PodDriver.CreatePodAsync(Context, config);
+        Assert.True(createResult.Success, $"Create failed: {createResult.Error}");
+        Assert.NotNull(createResult.Data.Id);
+      }
+      finally
+      {
+        await RemovePodAsync(name);
+      }
     }
+
+    [Fact]
+    public async Task ListPods_ReturnsResults()
+    {
+      var name = UniqueName("pod");
+      try
+      {
+        await PodDriver.CreatePodAsync(Context, new PodCreateConfig { Name = name });
+
+        var result = await PodDriver.ListPodsAsync(Context);
+        Assert.True(result.Success, $"List failed: {result.Error}");
+        Assert.Contains(result.Data, p => p.Name == name);
+      }
+      finally
+      {
+        await RemovePodAsync(name);
+      }
+    }
+
+    [Fact]
+    public async Task InspectPod_ReturnsDetails()
+    {
+      var name = UniqueName("pod");
+      try
+      {
+        await PodDriver.CreatePodAsync(Context, new PodCreateConfig { Name = name });
+
+        var result = await PodDriver.InspectPodAsync(Context, name);
+        Assert.True(result.Success, $"Inspect failed: {result.Error}");
+        Assert.Equal(name, result.Data.Name);
+        Assert.NotNull(result.Data.Id);
+      }
+      finally
+      {
+        await RemovePodAsync(name);
+      }
+    }
+
+    [Fact]
+    public async Task StartStopRestart_Lifecycle()
+    {
+      var name = UniqueName("pod");
+      try
+      {
+        await PodDriver.CreatePodAsync(Context, new PodCreateConfig { Name = name });
+
+        var startResult = await PodDriver.StartPodAsync(Context, name);
+        Assert.True(startResult.Success, $"Start failed: {startResult.Error}");
+
+        var stopResult = await PodDriver.StopPodAsync(Context, name, timeout: 5);
+        Assert.True(stopResult.Success, $"Stop failed: {stopResult.Error}");
+
+        var restartResult = await PodDriver.RestartPodAsync(Context, name);
+        Assert.True(restartResult.Success, $"Restart failed: {restartResult.Error}");
+      }
+      finally
+      {
+        await RemovePodAsync(name);
+      }
+    }
+
+    [Fact]
+    public async Task PauseUnpause_Succeeds()
+    {
+      var name = UniqueName("pod");
+      try
+      {
+        await PodDriver.CreatePodAsync(Context, new PodCreateConfig { Name = name });
+        await PodDriver.StartPodAsync(Context, name);
+
+        var pauseResult = await PodDriver.PausePodAsync(Context, name);
+        Assert.True(pauseResult.Success, $"Pause failed: {pauseResult.Error}");
+
+        var unpauseResult = await PodDriver.UnpausePodAsync(Context, name);
+        Assert.True(unpauseResult.Success, $"Unpause failed: {unpauseResult.Error}");
+      }
+      finally
+      {
+        await RemovePodAsync(name);
+      }
+    }
+
+    [Fact]
+    public async Task CreateContainerInPod_Succeeds()
+    {
+      await EnsureImageAsync(TestImage);
+      var podName = UniqueName("pod");
+      string containerId = null;
+
+      try
+      {
+        await PodDriver.CreatePodAsync(Context, new PodCreateConfig { Name = podName });
+
+        var config = new ContainerCreateConfig
+        {
+          Image = TestImage,
+          Command = new[] { "sleep", "60" },
+          Pod = podName
+        };
+
+        var createResult = await ContainerDriver.CreateAsync(Context, config);
+        Assert.True(createResult.Success, $"Container create failed: {createResult.Error}");
+        containerId = createResult.Data.Id;
+
+        // Verify the pod now shows containers
+        var inspectResult = await PodDriver.InspectPodAsync(Context, podName);
+        Assert.True(inspectResult.Success);
+        Assert.True(inspectResult.Data.NumContainers > 0 ||
+                    inspectResult.Data.Containers.Count > 0);
+      }
+      finally
+      {
+        await RemovePodAsync(podName);
+      }
+    }
+  }
 }

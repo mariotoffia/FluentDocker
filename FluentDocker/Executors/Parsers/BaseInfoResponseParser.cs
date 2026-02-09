@@ -1,4 +1,4 @@
-﻿using FluentDocker.Model;
+using FluentDocker.Model;
 using FluentDocker.Model.Containers;
 
 namespace FluentDocker.Executors.Parsers

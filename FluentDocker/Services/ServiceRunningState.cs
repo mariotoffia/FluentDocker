@@ -1,4 +1,4 @@
-﻿namespace FluentDocker.Services
+namespace FluentDocker.Services
 {
   public enum ServiceRunningState
   {

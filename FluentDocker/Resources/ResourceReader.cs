@@ -1,4 +1,4 @@
-﻿using System.Collections;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 
@@ -8,10 +8,7 @@ namespace FluentDocker.Resources
   {
     private readonly ResourceInfo[] _resources;
 
-    public ResourceReader(IEnumerable<ResourceInfo> resources)
-    {
-      _resources = resources.ToArray();
-    }
+    public ResourceReader(IEnumerable<ResourceInfo> resources) => _resources = resources.ToArray();
 
     public IEnumerator<ResourceStream> GetEnumerator()
     {
@@ -28,10 +25,7 @@ namespace FluentDocker.Resources
       private readonly ResourceInfo[] _resources;
       private int _pos = -1;
 
-      internal ResourceStreamEnumerator(ResourceInfo[] resources)
-      {
-        _resources = resources;
-      }
+      internal ResourceStreamEnumerator(ResourceInfo[] resources) => _resources = resources;
 
       public void Dispose()
       {

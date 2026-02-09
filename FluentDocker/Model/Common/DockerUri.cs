@@ -18,7 +18,7 @@ namespace FluentDocker.Model.Common
     public DockerUri(string uriString) : base(uriString)
     {
       if (uriString == DockerHostUrlMacOrLinux || uriString == DockerHostUrlWindowsNative)
-        this.IsStandardDaemon = true;
+        IsStandardDaemon = true;
     }
 
     /// <summary>
@@ -43,7 +43,7 @@ namespace FluentDocker.Model.Common
     /// <remarks>
     /// If it is a standard daemon URI, there's no need to add the -H flag
     /// </remarks>
-    public bool IsStandardDaemon {get;}
+    public bool IsStandardDaemon { get; }
 
     public override string ToString()
     {

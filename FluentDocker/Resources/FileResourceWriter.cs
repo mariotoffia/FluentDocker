@@ -1,4 +1,4 @@
-﻿using System.IO;
+using System.IO;
 using FluentDocker.Model.Common;
 
 namespace FluentDocker.Resources
@@ -7,10 +7,7 @@ namespace FluentDocker.Resources
   {
     private readonly TemplateString _basePath;
 
-    public FileResourceWriter(TemplateString basePath)
-    {
-      _basePath = basePath;
-    }
+    public FileResourceWriter(TemplateString basePath) => _basePath = basePath;
 
     public IResourceWriter Write(ResourceStream stream)
     {

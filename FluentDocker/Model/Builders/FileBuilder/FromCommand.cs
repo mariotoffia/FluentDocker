@@ -1,4 +1,4 @@
-﻿using FluentDocker.Common;
+using FluentDocker.Common;
 using FluentDocker.Model.Common;
 
 namespace FluentDocker.Model.Builders.FileBuilder
@@ -13,7 +13,8 @@ namespace FluentDocker.Model.Builders.FileBuilder
     /// <param name="platform">An optional platform such linux/amd64 or windows/amd64.</param>
     public FromCommand(TemplateString imageAndTag, TemplateString asName = null, TemplateString platform = null)
     {
-      if (null == imageAndTag || string.IsNullOrEmpty(imageAndTag.Rendered)) {
+      if (null == imageAndTag || string.IsNullOrEmpty(imageAndTag.Rendered))
+      {
         throw new FluentDockerException("FROM requires at least an image name");
       }
 
@@ -38,13 +39,15 @@ namespace FluentDocker.Model.Builders.FileBuilder
     {
       var s = "FROM";
 
-      if (!string.IsNullOrEmpty(Platform)) {
+      if (!string.IsNullOrEmpty(Platform))
+      {
         s = $"{s} --platform={Platform}";
       }
 
       s = $"{s} {ImageAndTag}";
 
-      if (!string.IsNullOrEmpty(Alias)) {
+      if (!string.IsNullOrEmpty(Alias))
+      {
         s = $"{s} AS {Alias}";
       }
 

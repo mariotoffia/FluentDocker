@@ -1,4 +1,4 @@
-﻿namespace FluentDocker.Common
+namespace FluentDocker.Common
 {
   public sealed class Result<T>
   {

@@ -1,4 +1,4 @@
-﻿namespace FluentDocker.Model.Containers
+namespace FluentDocker.Model.Containers
 {
   public interface ICertificatePaths
   {

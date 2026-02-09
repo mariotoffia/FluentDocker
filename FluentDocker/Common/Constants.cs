@@ -1,4 +1,4 @@
-﻿namespace FluentDocker.Common
+namespace FluentDocker.Common
 {
   internal static class Constants
   {

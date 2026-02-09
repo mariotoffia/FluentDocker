@@ -1,4 +1,4 @@
-﻿namespace FluentDocker.Model
+namespace FluentDocker.Model
 {
   public sealed class DockerInfoBase
   {

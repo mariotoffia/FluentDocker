@@ -1,5 +1,5 @@
-﻿using FluentDocker.Extensions;
 using System.Text;
+using FluentDocker.Extensions;
 
 namespace FluentDocker.Model.Builders.FileBuilder
 {

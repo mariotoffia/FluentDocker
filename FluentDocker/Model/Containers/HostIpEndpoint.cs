@@ -1,4 +1,4 @@
-﻿using System.Net;
+using System.Net;
 
 namespace FluentDocker.Model.Containers
 {
@@ -21,13 +21,12 @@ namespace FluentDocker.Model.Containers
 
     public string HostIp
     {
-      get { return _hostIp; }
+      get => _hostIp;
       set
       {
         _hostIp = value;
 
-        IPAddress addr;
-        if (!IPAddress.TryParse(value, out addr))
+        if (!IPAddress.TryParse(value, out var addr))
         {
           addr = IPAddress.None;
         }
@@ -38,13 +37,12 @@ namespace FluentDocker.Model.Containers
 
     public string HostPort
     {
-      get { return _hostPort; }
+      get => _hostPort;
       set
       {
         _hostPort = value;
 
-        int port;
-        int.TryParse(value, out port);
+        int.TryParse(value, out var port);
         Port = port;
       }
     }

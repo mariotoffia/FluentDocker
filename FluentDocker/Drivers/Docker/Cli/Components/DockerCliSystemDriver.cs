@@ -12,392 +12,392 @@ using Newtonsoft.Json.Linq;
 
 namespace FluentDocker.Drivers.Docker.Cli.Components
 {
+  /// <summary>
+  /// Docker CLI implementation of ISystemDriver.
+  /// </summary>
+  public class DockerCliSystemDriver : DockerCliDriverBase, ISystemDriver
+  {
     /// <summary>
-    /// Docker CLI implementation of ISystemDriver.
+    /// Creates a new instance with the specified binary resolver.
     /// </summary>
-    public class DockerCliSystemDriver : DockerCliDriverBase, ISystemDriver
+    public DockerCliSystemDriver(IBinaryResolver binaryResolver) : base(binaryResolver)
     {
-        /// <summary>
-        /// Creates a new instance with the specified binary resolver.
-        /// </summary>
-        public DockerCliSystemDriver(IBinaryResolver binaryResolver) : base(binaryResolver)
+    }
+
+    #region Information Operations
+
+    /// <inheritdoc />
+    public async Task<CommandResponse<SystemInfo>> GetInfoAsync(
+        DriverContext context,
+        CancellationToken cancellationToken = default)
+    {
+      try
+      {
+        var result = await ExecuteCommandAsync("info --format \"{{json .}}\"", cancellationToken);
+
+        if (!result.Success)
         {
+          return CommandResponse<SystemInfo>.Fail(
+              result.Error ?? "System info failed",
+              ErrorCodes.General.Unknown);
         }
 
-        #region Information Operations
+        var info = JsonConvert.DeserializeObject<DockerSystemInfo>(result.Output) ?? new DockerSystemInfo();
+        info.PopulateMeta();
+        return CommandResponse<SystemInfo>.Ok(info);
+      }
+      catch (Exception ex)
+      {
+        return CommandResponse<SystemInfo>.Fail(ex.Message, ErrorCodes.General.Unknown);
+      }
+    }
 
-        /// <inheritdoc />
-        public async Task<CommandResponse<SystemInfo>> GetInfoAsync(
-            DriverContext context,
-            CancellationToken cancellationToken = default)
+    /// <inheritdoc />
+    public async Task<CommandResponse<VersionInfo>> GetVersionAsync(
+        DriverContext context,
+        CancellationToken cancellationToken = default)
+    {
+      try
+      {
+        var result = await ExecuteCommandAsync("version --format \"{{json .}}\"", cancellationToken);
+
+        if (!result.Success)
         {
-            try
-            {
-                var result = await ExecuteCommandAsync("info --format \"{{json .}}\"", cancellationToken);
-
-                if (!result.Success)
-                {
-                    return CommandResponse<SystemInfo>.Fail(
-                        result.Error ?? "System info failed",
-                        ErrorCodes.General.Unknown);
-                }
-
-                var info = JsonConvert.DeserializeObject<DockerSystemInfo>(result.Output) ?? new DockerSystemInfo();
-                info.PopulateMeta();
-                return CommandResponse<SystemInfo>.Ok(info);
-            }
-            catch (Exception ex)
-            {
-                return CommandResponse<SystemInfo>.Fail(ex.Message, ErrorCodes.General.Unknown);
-            }
+          return CommandResponse<VersionInfo>.Fail(
+              result.Error ?? "Version check failed",
+              ErrorCodes.General.Unknown);
         }
 
-        /// <inheritdoc />
-        public async Task<CommandResponse<VersionInfo>> GetVersionAsync(
-            DriverContext context,
-            CancellationToken cancellationToken = default)
+        var version = JsonConvert.DeserializeObject<DockerVersionInfo>(result.Output) ?? new DockerVersionInfo();
+        version.PopulateMeta();
+        return CommandResponse<VersionInfo>.Ok(version);
+      }
+      catch (Exception ex)
+      {
+        return CommandResponse<VersionInfo>.Fail(ex.Message, ErrorCodes.General.Unknown);
+      }
+    }
+
+    /// <inheritdoc />
+    public async Task<CommandResponse<Unit>> PingAsync(
+        DriverContext context,
+        CancellationToken cancellationToken = default)
+    {
+      try
+      {
+        var result = await ExecuteCommandAsync("version", cancellationToken);
+        return result.Success
+            ? CommandResponse<Unit>.Ok(Unit.Default)
+            : CommandResponse<Unit>.Fail("Docker daemon not reachable", ErrorCodes.General.Unknown);
+      }
+      catch (Exception ex)
+      {
+        return CommandResponse<Unit>.Fail(ex.Message, ErrorCodes.General.Unknown);
+      }
+    }
+
+    /// <inheritdoc />
+    public async Task<CommandResponse<bool>> IsWindowsEngineAsync(
+        DriverContext context,
+        CancellationToken cancellationToken = default)
+    {
+      try
+      {
+        var versionResult = await GetVersionAsync(context, cancellationToken);
+        if (!versionResult.Success)
+          return CommandResponse<bool>.Fail(versionResult.Error, versionResult.ErrorCode);
+
+        var isWindows = versionResult.Data?.Os?.Equals("windows", StringComparison.OrdinalIgnoreCase) ?? false;
+        return CommandResponse<bool>.Ok(isWindows);
+      }
+      catch (Exception ex)
+      {
+        return CommandResponse<bool>.Fail(ex.Message, ErrorCodes.General.Unknown);
+      }
+    }
+
+    /// <inheritdoc />
+    public async Task<CommandResponse<bool>> IsLinuxEngineAsync(
+        DriverContext context,
+        CancellationToken cancellationToken = default)
+    {
+      try
+      {
+        var versionResult = await GetVersionAsync(context, cancellationToken);
+        if (!versionResult.Success)
+          return CommandResponse<bool>.Ok(true); // Default to Linux
+
+        var isLinux = !versionResult.Data?.Os?.Equals("windows", StringComparison.OrdinalIgnoreCase) ?? true;
+        return CommandResponse<bool>.Ok(isLinux);
+      }
+      catch
+      {
+        return CommandResponse<bool>.Ok(true); // Default to Linux
+      }
+    }
+
+    #endregion
+
+    #region Maintenance Operations
+
+    /// <inheritdoc />
+    public async Task<CommandResponse<DiskUsageInfo>> GetDiskUsageAsync(
+        DriverContext context,
+        CancellationToken cancellationToken = default)
+    {
+      try
+      {
+        var result = await ExecuteCommandAsync("system df --format \"{{json .}}\"", cancellationToken);
+
+        if (!result.Success)
         {
-            try
-            {
-                var result = await ExecuteCommandAsync("version --format \"{{json .}}\"", cancellationToken);
-
-                if (!result.Success)
-                {
-                    return CommandResponse<VersionInfo>.Fail(
-                        result.Error ?? "Version check failed",
-                        ErrorCodes.General.Unknown);
-                }
-
-                var version = JsonConvert.DeserializeObject<DockerVersionInfo>(result.Output) ?? new DockerVersionInfo();
-                version.PopulateMeta();
-                return CommandResponse<VersionInfo>.Ok(version);
-            }
-            catch (Exception ex)
-            {
-                return CommandResponse<VersionInfo>.Fail(ex.Message, ErrorCodes.General.Unknown);
-            }
+          return CommandResponse<DiskUsageInfo>.Fail(
+              result.Error ?? "Disk usage failed",
+              ErrorCodes.General.Unknown);
         }
 
-        /// <inheritdoc />
-        public async Task<CommandResponse<Unit>> PingAsync(
-            DriverContext context,
-            CancellationToken cancellationToken = default)
+        var info = ParseDiskUsageOutput(result.Output);
+        return CommandResponse<DiskUsageInfo>.Ok(info);
+      }
+      catch (Exception ex)
+      {
+        return CommandResponse<DiskUsageInfo>.Fail(ex.Message, ErrorCodes.General.Unknown);
+      }
+    }
+
+    /// <inheritdoc />
+    public async Task<CommandResponse<SystemPruneResult>> PruneAsync(
+        DriverContext context,
+        SystemPruneConfig config = null,
+        CancellationToken cancellationToken = default)
+    {
+      try
+      {
+        var args = "system prune -f";
+        if (config?.All == true)
+          args += " -a";
+        if (config?.Volumes == true)
+          args += " --volumes";
+
+        var result = await ExecuteCommandAsync(args, cancellationToken);
+
+        if (!result.Success)
         {
-            try
-            {
-                var result = await ExecuteCommandAsync("version", cancellationToken);
-                return result.Success
-                    ? CommandResponse<Unit>.Ok(Unit.Default)
-                    : CommandResponse<Unit>.Fail("Docker daemon not reachable", ErrorCodes.General.Unknown);
-            }
-            catch (Exception ex)
-            {
-                return CommandResponse<Unit>.Fail(ex.Message, ErrorCodes.General.Unknown);
-            }
+          return CommandResponse<SystemPruneResult>.Fail(
+              result.Error ?? "System prune failed",
+              ErrorCodes.General.Unknown);
         }
 
-        /// <inheritdoc />
-        public async Task<CommandResponse<bool>> IsWindowsEngineAsync(
-            DriverContext context,
-            CancellationToken cancellationToken = default)
-        {
-            try
-            {
-                var versionResult = await GetVersionAsync(context, cancellationToken);
-                if (!versionResult.Success)
-                    return CommandResponse<bool>.Fail(versionResult.Error, versionResult.ErrorCode);
+        return CommandResponse<SystemPruneResult>.Ok(new SystemPruneResult());
+      }
+      catch (Exception ex)
+      {
+        return CommandResponse<SystemPruneResult>.Fail(ex.Message, ErrorCodes.General.Unknown);
+      }
+    }
 
-                var isWindows = versionResult.Data?.Os?.Equals("windows", StringComparison.OrdinalIgnoreCase) ?? false;
-                return CommandResponse<bool>.Ok(isWindows);
-            }
-            catch (Exception ex)
+    #endregion
+
+    #region Daemon Operations (Docker Desktop specific)
+
+    /// <inheritdoc />
+    public async Task<CommandResponse<Unit>> SwitchDaemonAsync(
+        DriverContext context,
+        CancellationToken cancellationToken = default)
+    {
+      try
+      {
+        var result = await ExecuteDockerCliCommandAsync("-SwitchDaemon", cancellationToken);
+        return result.Success
+            ? CommandResponse<Unit>.Ok(Unit.Default)
+            : CommandResponse<Unit>.Fail(result.Error ?? "Switch daemon failed", ErrorCodes.General.Unknown);
+      }
+      catch (Exception ex)
+      {
+        return CommandResponse<Unit>.Fail(ex.Message, ErrorCodes.General.Unknown);
+      }
+    }
+
+    /// <inheritdoc />
+    public async Task<CommandResponse<Unit>> SwitchToLinuxDaemonAsync(
+        DriverContext context,
+        CancellationToken cancellationToken = default)
+    {
+      try
+      {
+        var result = await ExecuteDockerCliCommandAsync("-SwitchLinuxEngine", cancellationToken);
+        return result.Success
+            ? CommandResponse<Unit>.Ok(Unit.Default)
+            : CommandResponse<Unit>.Fail(result.Error ?? "Switch to Linux failed", ErrorCodes.General.Unknown);
+      }
+      catch (Exception ex)
+      {
+        return CommandResponse<Unit>.Fail(ex.Message, ErrorCodes.General.Unknown);
+      }
+    }
+
+    /// <inheritdoc />
+    public async Task<CommandResponse<Unit>> SwitchToWindowsDaemonAsync(
+        DriverContext context,
+        CancellationToken cancellationToken = default)
+    {
+      try
+      {
+        var result = await ExecuteDockerCliCommandAsync("-SwitchWindowsEngine", cancellationToken);
+        return result.Success
+            ? CommandResponse<Unit>.Ok(Unit.Default)
+            : CommandResponse<Unit>.Fail(result.Error ?? "Switch to Windows failed", ErrorCodes.General.Unknown);
+      }
+      catch (Exception ex)
+      {
+        return CommandResponse<Unit>.Fail(ex.Message, ErrorCodes.General.Unknown);
+      }
+    }
+
+    #endregion
+
+    #region Private Helpers
+
+    /// <summary>
+    /// Executes a Docker CLI command (Docker Desktop specific).
+    /// </summary>
+    private async Task<SimpleCommandResult> ExecuteDockerCliCommandAsync(string arguments, CancellationToken cancellationToken)
+    {
+      return await Task.Run(() =>
+      {
+        try
+        {
+          var process = new Process
+          {
+            StartInfo = new ProcessStartInfo
             {
-                return CommandResponse<bool>.Fail(ex.Message, ErrorCodes.General.Unknown);
+              FileName = BinaryResolver?.ResolveBinaryPath("dockercli") ?? "dockercli",
+              Arguments = arguments,
+              RedirectStandardOutput = true,
+              RedirectStandardError = true,
+              UseShellExecute = false,
+              CreateNoWindow = true
             }
+          };
+
+          var output = new StringBuilder();
+          var error = new StringBuilder();
+
+          process.OutputDataReceived += (s, e) =>
+          {
+            if (!string.IsNullOrEmpty(e.Data))
+              output.AppendLine(e.Data);
+          };
+
+          process.ErrorDataReceived += (s, e) =>
+          {
+            if (!string.IsNullOrEmpty(e.Data))
+              error.AppendLine(e.Data);
+          };
+
+          process.Start();
+          process.BeginOutputReadLine();
+          process.BeginErrorReadLine();
+
+          while (!process.WaitForExit(1000))
+          {
+            cancellationToken.ThrowIfCancellationRequested();
+          }
+
+          return new SimpleCommandResult
+          {
+            Success = process.ExitCode == 0,
+            Output = output.ToString(),
+            Error = error.ToString(),
+            ExitCode = process.ExitCode
+          };
         }
-
-        /// <inheritdoc />
-        public async Task<CommandResponse<bool>> IsLinuxEngineAsync(
-            DriverContext context,
-            CancellationToken cancellationToken = default)
+        catch (Exception ex)
         {
-            try
-            {
-                var versionResult = await GetVersionAsync(context, cancellationToken);
-                if (!versionResult.Success)
-                    return CommandResponse<bool>.Ok(true); // Default to Linux
-
-                var isLinux = !versionResult.Data?.Os?.Equals("windows", StringComparison.OrdinalIgnoreCase) ?? true;
-                return CommandResponse<bool>.Ok(isLinux);
-            }
-            catch
-            {
-                return CommandResponse<bool>.Ok(true); // Default to Linux
-            }
+          return new SimpleCommandResult
+          {
+            Success = false,
+            Error = ex.Message,
+            ExitCode = -1
+          };
         }
+      }, cancellationToken);
+    }
 
-        #endregion
+    #endregion
 
-        #region Maintenance Operations
+    #region Disk Usage Parsing
 
-        /// <inheritdoc />
-        public async Task<CommandResponse<DiskUsageInfo>> GetDiskUsageAsync(
-            DriverContext context,
-            CancellationToken cancellationToken = default)
+    /// <summary>
+    /// Parses Docker CLI <c>system df --format "{{json .}}"</c> output.
+    /// Each line is a JSON object with Type, TotalCount, Active, Size, Reclaimable.
+    /// </summary>
+    public static DiskUsageInfo ParseDiskUsageOutput(string output)
+    {
+      var info = new DiskUsageInfo();
+      if (string.IsNullOrWhiteSpace(output))
+        return info;
+
+      var lines = output.Split(new[] { '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries);
+      foreach (var line in lines)
+      {
+        var trimmed = line.Trim();
+        if (trimmed.Length == 0 || trimmed[0] != '{')
+          continue;
+
+        try
         {
-            try
-            {
-                var result = await ExecuteCommandAsync("system df --format \"{{json .}}\"", cancellationToken);
+          var obj = JObject.Parse(trimmed);
+          var type = obj["Type"]?.Value<string>() ?? "";
+          var item = new DiskUsageItem
+          {
+            TotalCount = obj["TotalCount"]?.Value<int>() ?? 0,
+            Active = obj["Active"]?.Value<int>() ?? 0,
+            Size = ParseHumanReadableBytes(obj["Size"]?.Value<string>()),
+            Reclaimable = ParseReclaimableBytes(obj["Reclaimable"]?.Value<string>())
+          };
 
-                if (!result.Success)
-                {
-                    return CommandResponse<DiskUsageInfo>.Fail(
-                        result.Error ?? "Disk usage failed",
-                        ErrorCodes.General.Unknown);
-                }
-
-                var info = ParseDiskUsageOutput(result.Output);
-                return CommandResponse<DiskUsageInfo>.Ok(info);
-            }
-            catch (Exception ex)
-            {
-                return CommandResponse<DiskUsageInfo>.Fail(ex.Message, ErrorCodes.General.Unknown);
-            }
+          switch (type)
+          {
+            case "Images":
+              info.Images = item;
+              break;
+            case "Containers":
+              info.Containers = item;
+              break;
+            case "Local Volumes":
+              info.Volumes = item;
+              break;
+            case "Build Cache":
+              info.BuildCache = item;
+              break;
+          }
         }
-
-        /// <inheritdoc />
-        public async Task<CommandResponse<SystemPruneResult>> PruneAsync(
-            DriverContext context,
-            SystemPruneConfig config = null,
-            CancellationToken cancellationToken = default)
+        catch
         {
-            try
-            {
-                var args = "system prune -f";
-                if (config?.All == true)
-                    args += " -a";
-                if (config?.Volumes == true)
-                    args += " --volumes";
-
-                var result = await ExecuteCommandAsync(args, cancellationToken);
-
-                if (!result.Success)
-                {
-                    return CommandResponse<SystemPruneResult>.Fail(
-                        result.Error ?? "System prune failed",
-                        ErrorCodes.General.Unknown);
-                }
-
-                return CommandResponse<SystemPruneResult>.Ok(new SystemPruneResult());
-            }
-            catch (Exception ex)
-            {
-                return CommandResponse<SystemPruneResult>.Fail(ex.Message, ErrorCodes.General.Unknown);
-            }
+          // Skip malformed lines
         }
+      }
 
-        #endregion
+      info.TotalSize = info.Images.Size + info.Containers.Size
+                       + info.Volumes.Size + info.BuildCache.Size;
+      info.Reclaimable = info.Images.Reclaimable + info.Containers.Reclaimable
+                         + info.Volumes.Reclaimable + info.BuildCache.Reclaimable;
+      return info;
+    }
 
-        #region Daemon Operations (Docker Desktop specific)
+    /// <summary>
+    /// Parses a human-readable byte string (e.g. "1.234GB", "500MB", "0B").
+    /// Uses base-1000 for B/kB/KB/MB/GB/TB and base-1024 for KiB/MiB/GiB/TiB.
+    /// </summary>
+    public static long ParseHumanReadableBytes(string value)
+    {
+      if (string.IsNullOrWhiteSpace(value))
+        return 0;
 
-        /// <inheritdoc />
-        public async Task<CommandResponse<Unit>> SwitchDaemonAsync(
-            DriverContext context,
-            CancellationToken cancellationToken = default)
-        {
-            try
-            {
-                var result = await ExecuteDockerCliCommandAsync("-SwitchDaemon", cancellationToken);
-                return result.Success
-                    ? CommandResponse<Unit>.Ok(Unit.Default)
-                    : CommandResponse<Unit>.Fail(result.Error ?? "Switch daemon failed", ErrorCodes.General.Unknown);
-            }
-            catch (Exception ex)
-            {
-                return CommandResponse<Unit>.Fail(ex.Message, ErrorCodes.General.Unknown);
-            }
-        }
-
-        /// <inheritdoc />
-        public async Task<CommandResponse<Unit>> SwitchToLinuxDaemonAsync(
-            DriverContext context,
-            CancellationToken cancellationToken = default)
-        {
-            try
-            {
-                var result = await ExecuteDockerCliCommandAsync("-SwitchLinuxEngine", cancellationToken);
-                return result.Success
-                    ? CommandResponse<Unit>.Ok(Unit.Default)
-                    : CommandResponse<Unit>.Fail(result.Error ?? "Switch to Linux failed", ErrorCodes.General.Unknown);
-            }
-            catch (Exception ex)
-            {
-                return CommandResponse<Unit>.Fail(ex.Message, ErrorCodes.General.Unknown);
-            }
-        }
-
-        /// <inheritdoc />
-        public async Task<CommandResponse<Unit>> SwitchToWindowsDaemonAsync(
-            DriverContext context,
-            CancellationToken cancellationToken = default)
-        {
-            try
-            {
-                var result = await ExecuteDockerCliCommandAsync("-SwitchWindowsEngine", cancellationToken);
-                return result.Success
-                    ? CommandResponse<Unit>.Ok(Unit.Default)
-                    : CommandResponse<Unit>.Fail(result.Error ?? "Switch to Windows failed", ErrorCodes.General.Unknown);
-            }
-            catch (Exception ex)
-            {
-                return CommandResponse<Unit>.Fail(ex.Message, ErrorCodes.General.Unknown);
-            }
-        }
-
-        #endregion
-
-        #region Private Helpers
-
-        /// <summary>
-        /// Executes a Docker CLI command (Docker Desktop specific).
-        /// </summary>
-        private async Task<SimpleCommandResult> ExecuteDockerCliCommandAsync(string arguments, CancellationToken cancellationToken)
-        {
-            return await Task.Run(() =>
-            {
-                try
-                {
-                    var process = new Process
-                    {
-                        StartInfo = new ProcessStartInfo
-                        {
-                            FileName = BinaryResolver?.ResolveBinaryPath("dockercli") ?? "dockercli",
-                            Arguments = arguments,
-                            RedirectStandardOutput = true,
-                            RedirectStandardError = true,
-                            UseShellExecute = false,
-                            CreateNoWindow = true
-                        }
-                    };
-
-                    var output = new StringBuilder();
-                    var error = new StringBuilder();
-
-                    process.OutputDataReceived += (s, e) =>
-                    {
-                        if (!string.IsNullOrEmpty(e.Data))
-                            output.AppendLine(e.Data);
-                    };
-
-                    process.ErrorDataReceived += (s, e) =>
-                    {
-                        if (!string.IsNullOrEmpty(e.Data))
-                            error.AppendLine(e.Data);
-                    };
-
-                    process.Start();
-                    process.BeginOutputReadLine();
-                    process.BeginErrorReadLine();
-
-                    while (!process.WaitForExit(1000))
-                    {
-                        cancellationToken.ThrowIfCancellationRequested();
-                    }
-
-                    return new SimpleCommandResult
-                    {
-                        Success = process.ExitCode == 0,
-                        Output = output.ToString(),
-                        Error = error.ToString(),
-                        ExitCode = process.ExitCode
-                    };
-                }
-                catch (Exception ex)
-                {
-                    return new SimpleCommandResult
-                    {
-                        Success = false,
-                        Error = ex.Message,
-                        ExitCode = -1
-                    };
-                }
-            }, cancellationToken);
-        }
-
-        #endregion
-
-        #region Disk Usage Parsing
-
-        /// <summary>
-        /// Parses Docker CLI <c>system df --format "{{json .}}"</c> output.
-        /// Each line is a JSON object with Type, TotalCount, Active, Size, Reclaimable.
-        /// </summary>
-        public static DiskUsageInfo ParseDiskUsageOutput(string output)
-        {
-            var info = new DiskUsageInfo();
-            if (string.IsNullOrWhiteSpace(output))
-                return info;
-
-            var lines = output.Split(new[] { '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries);
-            foreach (var line in lines)
-            {
-                var trimmed = line.Trim();
-                if (trimmed.Length == 0 || trimmed[0] != '{')
-                    continue;
-
-                try
-                {
-                    var obj = JObject.Parse(trimmed);
-                    var type = obj["Type"]?.Value<string>() ?? "";
-                    var item = new DiskUsageItem
-                    {
-                        TotalCount = obj["TotalCount"]?.Value<int>() ?? 0,
-                        Active = obj["Active"]?.Value<int>() ?? 0,
-                        Size = ParseHumanReadableBytes(obj["Size"]?.Value<string>()),
-                        Reclaimable = ParseReclaimableBytes(obj["Reclaimable"]?.Value<string>())
-                    };
-
-                    switch (type)
-                    {
-                        case "Images":
-                            info.Images = item;
-                            break;
-                        case "Containers":
-                            info.Containers = item;
-                            break;
-                        case "Local Volumes":
-                            info.Volumes = item;
-                            break;
-                        case "Build Cache":
-                            info.BuildCache = item;
-                            break;
-                    }
-                }
-                catch
-                {
-                    // Skip malformed lines
-                }
-            }
-
-            info.TotalSize = info.Images.Size + info.Containers.Size
-                             + info.Volumes.Size + info.BuildCache.Size;
-            info.Reclaimable = info.Images.Reclaimable + info.Containers.Reclaimable
-                               + info.Volumes.Reclaimable + info.BuildCache.Reclaimable;
-            return info;
-        }
-
-        /// <summary>
-        /// Parses a human-readable byte string (e.g. "1.234GB", "500MB", "0B").
-        /// Uses base-1000 for B/kB/KB/MB/GB/TB and base-1024 for KiB/MiB/GiB/TiB.
-        /// </summary>
-        public static long ParseHumanReadableBytes(string value)
-        {
-            if (string.IsNullOrWhiteSpace(value))
-                return 0;
-
-            var s = value.Trim();
-            var suffixes = new (string suffix, double multiplier)[]
-            {
+      var s = value.Trim();
+      var suffixes = new (string suffix, double multiplier)[]
+      {
                 ("TiB", 1024.0 * 1024 * 1024 * 1024),
                 ("GiB", 1024.0 * 1024 * 1024),
                 ("MiB", 1024.0 * 1024),
@@ -408,47 +408,47 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
                 ("kB", 1000.0),
                 ("KB", 1000.0),
                 ("B", 1.0)
-            };
+      };
 
-            foreach (var (suffix, multiplier) in suffixes)
-            {
-                if (!s.EndsWith(suffix, StringComparison.Ordinal))
-                    continue;
+      foreach (var (suffix, multiplier) in suffixes)
+      {
+        if (!s.EndsWith(suffix, StringComparison.Ordinal))
+          continue;
 
-                var numStr = s.Substring(0, s.Length - suffix.Length).Trim();
-                if (double.TryParse(numStr, NumberStyles.Float,
-                        CultureInfo.InvariantCulture, out var num))
-                    return (long)(num * multiplier);
-                return 0;
-            }
+        var numStr = s.Substring(0, s.Length - suffix.Length).Trim();
+        if (double.TryParse(numStr, NumberStyles.Float,
+                CultureInfo.InvariantCulture, out var num))
+          return (long)(num * multiplier);
+        return 0;
+      }
 
-            // No recognized suffix: try raw number
-            return double.TryParse(s, NumberStyles.Float,
-                       CultureInfo.InvariantCulture, out var raw)
-                ? (long)raw
-                : 0;
-        }
-
-        /// <summary>
-        /// Parses a reclaimable size string that may include a percentage suffix,
-        /// e.g. "500MB (40%)". Strips the parenthesized portion and parses the
-        /// remaining human-readable byte value.
-        /// </summary>
-        public static long ParseReclaimableBytes(string value)
-        {
-            if (string.IsNullOrWhiteSpace(value))
-                return 0;
-
-            var s = value.Trim();
-
-            // Strip trailing " (N%)" if present
-            var parenIndex = s.IndexOf('(');
-            if (parenIndex >= 0)
-                s = s.Substring(0, parenIndex).Trim();
-
-            return ParseHumanReadableBytes(s);
-        }
-
-        #endregion
+      // No recognized suffix: try raw number
+      return double.TryParse(s, NumberStyles.Float,
+                 CultureInfo.InvariantCulture, out var raw)
+          ? (long)raw
+          : 0;
     }
+
+    /// <summary>
+    /// Parses a reclaimable size string that may include a percentage suffix,
+    /// e.g. "500MB (40%)". Strips the parenthesized portion and parses the
+    /// remaining human-readable byte value.
+    /// </summary>
+    public static long ParseReclaimableBytes(string value)
+    {
+      if (string.IsNullOrWhiteSpace(value))
+        return 0;
+
+      var s = value.Trim();
+
+      // Strip trailing " (N%)" if present
+      var parenIndex = s.IndexOf('(');
+      if (parenIndex >= 0)
+        s = s.Substring(0, parenIndex).Trim();
+
+      return ParseHumanReadableBytes(s);
+    }
+
+    #endregion
+  }
 }

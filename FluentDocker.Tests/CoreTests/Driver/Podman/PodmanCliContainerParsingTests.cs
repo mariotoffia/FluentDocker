@@ -6,20 +6,20 @@ using Xunit;
 
 namespace FluentDocker.Tests.CoreTests.Driver.Podman
 {
-    /// <summary>
-    /// Unit tests for enriched PodmanCliContainerDriver inspect parsing,
-    /// covering Podman-specific format differences (PR #303 issues).
-    /// Part 1: Container inspect, config, health, and state parsing.
-    /// </summary>
-    [Trait("Category", "Unit")]
-    public class PodmanCliContainerParsingTests
-    {
-        #region ParseContainerInspect — Full Fields
+  /// <summary>
+  /// Unit tests for enriched PodmanCliContainerDriver inspect parsing,
+  /// covering Podman-specific format differences (PR #303 issues).
+  /// Part 1: Container inspect, config, health, and state parsing.
+  /// </summary>
+  [Trait("Category", "Unit")]
+  public class PodmanCliContainerParsingTests
+  {
+    #region ParseContainerInspect — Full Fields
 
-        [Fact]
-        public void ParseContainerInspect_FullPodmanJson_PopulatesAllFields()
-        {
-            var json = @"[{
+    [Fact]
+    public void ParseContainerInspect_FullPodmanJson_PopulatesAllFields()
+    {
+      var json = @"[{
                 ""Id"": ""abc123def456"",
                 ""Image"": ""sha256:abc123"",
                 ""Name"": ""test-container"",
@@ -85,95 +85,95 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
                 }
             }]";
 
-            var result = PodmanCliContainerDriver.ParseContainerInspect(json);
+      var result = PodmanCliContainerDriver.ParseContainerInspect(json);
 
-            Assert.Equal("abc123def456", result.Id);
-            Assert.Equal("sha256:abc123", result.Image);
-            Assert.Equal("test-container", result.Name);
-            Assert.Equal("overlay", result.Driver);
-            Assert.Equal(3, result.RestartCount);
-            Assert.Equal("/etc/resolv.conf", result.ResolvConfPath);
-            Assert.Equal("/var/run/hostname", result.HostnamePath);
-            Assert.Equal("/var/run/hosts", result.HostsPath);
-            Assert.Equal("/var/log/containers/abc123.log", result.LogPath);
-            Assert.Equal(2024, result.Created.ToUniversalTime().Year);
-            Assert.Equal(6, result.Created.ToUniversalTime().Month);
-            Assert.Equal(15, result.Created.ToUniversalTime().Day);
-            Assert.Equal(10, result.Created.ToUniversalTime().Hour);
-            Assert.Equal(30, result.Created.ToUniversalTime().Minute);
-            Assert.Equal(new[] { "--config", "/etc/app.conf" }, result.Args);
-            Assert.Equal("running", result.State.Status);
-            Assert.True(result.State.Running);
-            Assert.Equal(12345, result.State.Pid);
-            Assert.NotNull(result.Config);
-            Assert.Equal("abc123", result.Config.Hostname);
-            Assert.Equal(new[] { "/entrypoint.sh" }, result.Config.EntryPoint);
-            Assert.Single(result.Mounts);
-            Assert.NotNull(result.NetworkSettings);
-            Assert.Equal("10.88.0.5", result.NetworkSettings.IPAddress);
-        }
+      Assert.Equal("abc123def456", result.Id);
+      Assert.Equal("sha256:abc123", result.Image);
+      Assert.Equal("test-container", result.Name);
+      Assert.Equal("overlay", result.Driver);
+      Assert.Equal(3, result.RestartCount);
+      Assert.Equal("/etc/resolv.conf", result.ResolvConfPath);
+      Assert.Equal("/var/run/hostname", result.HostnamePath);
+      Assert.Equal("/var/run/hosts", result.HostsPath);
+      Assert.Equal("/var/log/containers/abc123.log", result.LogPath);
+      Assert.Equal(2024, result.Created.ToUniversalTime().Year);
+      Assert.Equal(6, result.Created.ToUniversalTime().Month);
+      Assert.Equal(15, result.Created.ToUniversalTime().Day);
+      Assert.Equal(10, result.Created.ToUniversalTime().Hour);
+      Assert.Equal(30, result.Created.ToUniversalTime().Minute);
+      Assert.Equal(new[] { "--config", "/etc/app.conf" }, result.Args);
+      Assert.Equal("running", result.State.Status);
+      Assert.True(result.State.Running);
+      Assert.Equal(12345, result.State.Pid);
+      Assert.NotNull(result.Config);
+      Assert.Equal("abc123", result.Config.Hostname);
+      Assert.Equal(new[] { "/entrypoint.sh" }, result.Config.EntryPoint);
+      Assert.Single(result.Mounts);
+      Assert.NotNull(result.NetworkSettings);
+      Assert.Equal("10.88.0.5", result.NetworkSettings.IPAddress);
+    }
 
-        [Fact]
-        public void ParseContainerInspect_UppercaseID_MapsToId()
-        {
-            var json = @"[{ ""ID"": ""upper123"", ""Name"": ""test"" }]";
-            var result = PodmanCliContainerDriver.ParseContainerInspect(json);
-            Assert.Equal("upper123", result.Id);
-        }
+    [Fact]
+    public void ParseContainerInspect_UppercaseID_MapsToId()
+    {
+      var json = @"[{ ""ID"": ""upper123"", ""Name"": ""test"" }]";
+      var result = PodmanCliContainerDriver.ParseContainerInspect(json);
+      Assert.Equal("upper123", result.Id);
+    }
 
-        [Fact]
-        public void ParseContainerInspect_MissingOptionalSections_GracefulNulls()
-        {
-            var json = @"{ ""Id"": ""abc"", ""Name"": ""minimal"" }";
-            var result = PodmanCliContainerDriver.ParseContainerInspect(json);
+    [Fact]
+    public void ParseContainerInspect_MissingOptionalSections_GracefulNulls()
+    {
+      var json = @"{ ""Id"": ""abc"", ""Name"": ""minimal"" }";
+      var result = PodmanCliContainerDriver.ParseContainerInspect(json);
 
-            Assert.Equal("abc", result.Id);
-            Assert.Null(result.Config);
-            Assert.Null(result.NetworkSettings);
-            Assert.Empty(result.Mounts);
-            Assert.NotNull(result.State);
-        }
+      Assert.Equal("abc", result.Id);
+      Assert.Null(result.Config);
+      Assert.Null(result.NetworkSettings);
+      Assert.Empty(result.Mounts);
+      Assert.NotNull(result.State);
+    }
 
-        #endregion
+    #endregion
 
-        #region ParseContainerConfig — EntryPoint Array vs String
+    #region ParseContainerConfig — EntryPoint Array vs String
 
-        [Fact]
-        public void ParseContainerConfig_EntryPointAsArray_ReturnsStringArray()
-        {
-            var token = JObject.Parse(@"{ ""Entrypoint"": [""/bin/sh"", ""-c""] }");
-            var config = PodmanCliContainerDriver.ParseContainerConfig(token);
-            Assert.Equal(new[] { "/bin/sh", "-c" }, config.EntryPoint);
-        }
+    [Fact]
+    public void ParseContainerConfig_EntryPointAsArray_ReturnsStringArray()
+    {
+      var token = JObject.Parse(@"{ ""Entrypoint"": [""/bin/sh"", ""-c""] }");
+      var config = PodmanCliContainerDriver.ParseContainerConfig(token);
+      Assert.Equal(new[] { "/bin/sh", "-c" }, config.EntryPoint);
+    }
 
-        [Fact]
-        public void ParseContainerConfig_EntryPointAsSingleString_WrapsInArray()
-        {
-            var token = JObject.Parse(@"{ ""Entrypoint"": ""/entrypoint.sh"" }");
-            var config = PodmanCliContainerDriver.ParseContainerConfig(token);
-            Assert.Equal(new[] { "/entrypoint.sh" }, config.EntryPoint);
-        }
+    [Fact]
+    public void ParseContainerConfig_EntryPointAsSingleString_WrapsInArray()
+    {
+      var token = JObject.Parse(@"{ ""Entrypoint"": ""/entrypoint.sh"" }");
+      var config = PodmanCliContainerDriver.ParseContainerConfig(token);
+      Assert.Equal(new[] { "/entrypoint.sh" }, config.EntryPoint);
+    }
 
-        [Fact]
-        public void ParseContainerConfig_EntryPointMissing_ReturnsNull()
-        {
-            var token = JObject.Parse(@"{ ""Image"": ""alpine"" }");
-            var config = PodmanCliContainerDriver.ParseContainerConfig(token);
-            Assert.Null(config.EntryPoint);
-        }
+    [Fact]
+    public void ParseContainerConfig_EntryPointMissing_ReturnsNull()
+    {
+      var token = JObject.Parse(@"{ ""Image"": ""alpine"" }");
+      var config = PodmanCliContainerDriver.ParseContainerConfig(token);
+      Assert.Null(config.EntryPoint);
+    }
 
-        [Fact]
-        public void ParseContainerConfig_CmdAsString_WrapsInArray()
-        {
-            var token = JObject.Parse(@"{ ""Cmd"": ""run-server"" }");
-            var config = PodmanCliContainerDriver.ParseContainerConfig(token);
-            Assert.Equal(new[] { "run-server" }, config.Cmd);
-        }
+    [Fact]
+    public void ParseContainerConfig_CmdAsString_WrapsInArray()
+    {
+      var token = JObject.Parse(@"{ ""Cmd"": ""run-server"" }");
+      var config = PodmanCliContainerDriver.ParseContainerConfig(token);
+      Assert.Equal(new[] { "run-server" }, config.Cmd);
+    }
 
-        [Fact]
-        public void ParseContainerConfig_AllFields_Populated()
-        {
-            var token = JObject.Parse(@"{
+    [Fact]
+    public void ParseContainerConfig_AllFields_Populated()
+    {
+      var token = JObject.Parse(@"{
                 ""Hostname"": ""myhost"",
                 ""DomainName"": ""example.com"",
                 ""User"": ""root"",
@@ -193,44 +193,44 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
                 ""Labels"": { ""maintainer"": ""ops"" }
             }");
 
-            var config = PodmanCliContainerDriver.ParseContainerConfig(token);
+      var config = PodmanCliContainerDriver.ParseContainerConfig(token);
 
-            Assert.Equal("myhost", config.Hostname);
-            Assert.Equal("example.com", config.DomainName);
-            Assert.Equal("root", config.User);
-            Assert.False(config.AttachStdin);
-            Assert.True(config.AttachStdout);
-            Assert.True(config.Tty);
-            Assert.Equal("nginx:latest", config.Image);
-            Assert.Equal("/var/www", config.WorkingDir);
-            Assert.Equal("SIGQUIT", config.StopSignal);
-            Assert.Equal(new[] { "FOO=bar", "BAZ=qux" }, config.Env);
-            Assert.Equal(2, config.ExposedPorts.Count);
-            Assert.Equal("ops", config.Labels["maintainer"]);
-        }
+      Assert.Equal("myhost", config.Hostname);
+      Assert.Equal("example.com", config.DomainName);
+      Assert.Equal("root", config.User);
+      Assert.False(config.AttachStdin);
+      Assert.True(config.AttachStdout);
+      Assert.True(config.Tty);
+      Assert.Equal("nginx:latest", config.Image);
+      Assert.Equal("/var/www", config.WorkingDir);
+      Assert.Equal("SIGQUIT", config.StopSignal);
+      Assert.Equal(new[] { "FOO=bar", "BAZ=qux" }, config.Env);
+      Assert.Equal(2, config.ExposedPorts.Count);
+      Assert.Equal("ops", config.Labels["maintainer"]);
+    }
 
-        [Fact]
-        public void ParseContainerConfig_NullToken_ReturnsNull()
-        {
-            Assert.Null(PodmanCliContainerDriver.ParseContainerConfig(null));
-        }
+    [Fact]
+    public void ParseContainerConfig_NullToken_ReturnsNull()
+    {
+      Assert.Null(PodmanCliContainerDriver.ParseContainerConfig(null));
+    }
 
-        [Fact]
-        public void ParseContainerConfig_PodmanEntryPointKey_Parsed()
-        {
-            var token = JObject.Parse(@"{ ""EntryPoint"": [""/start.sh""] }");
-            var config = PodmanCliContainerDriver.ParseContainerConfig(token);
-            Assert.Equal(new[] { "/start.sh" }, config.EntryPoint);
-        }
+    [Fact]
+    public void ParseContainerConfig_PodmanEntryPointKey_Parsed()
+    {
+      var token = JObject.Parse(@"{ ""EntryPoint"": [""/start.sh""] }");
+      var config = PodmanCliContainerDriver.ParseContainerConfig(token);
+      Assert.Equal(new[] { "/start.sh" }, config.EntryPoint);
+    }
 
-        #endregion
+    #endregion
 
-        #region ParseHealth — Healthcheck Key and Empty Status
+    #region ParseHealth — Healthcheck Key and Empty Status
 
-        [Fact]
-        public void ParseHealth_HealthyStatus_ReturnsHealthy()
-        {
-            var token = JObject.Parse(@"{
+    [Fact]
+    public void ParseHealth_HealthyStatus_ReturnsHealthy()
+    {
+      var token = JObject.Parse(@"{
                 ""Status"": ""healthy"",
                 ""FailingStreak"": 0,
                 ""Log"": [{
@@ -241,34 +241,34 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
                 }]
             }");
 
-            var health = PodmanCliContainerDriver.ParseHealth(token);
+      var health = PodmanCliContainerDriver.ParseHealth(token);
 
-            Assert.NotNull(health);
-            Assert.Equal(HealthState.Healthy, health.Status);
-            Assert.Equal(0, health.FailingStreak);
-            Assert.Single(health.Log);
-            Assert.Equal(0, health.Log[0].ExitCode);
-            Assert.Equal("OK", health.Log[0].Output);
-        }
+      Assert.NotNull(health);
+      Assert.Equal(HealthState.Healthy, health.Status);
+      Assert.Equal(0, health.FailingStreak);
+      Assert.Single(health.Log);
+      Assert.Equal(0, health.Log[0].ExitCode);
+      Assert.Equal("OK", health.Log[0].Output);
+    }
 
-        [Fact]
-        public void ParseHealth_EmptyStatus_MapsToUnknown()
-        {
-            var token = JObject.Parse(@"{ ""Status"": """" }");
-            var health = PodmanCliContainerDriver.ParseHealth(token);
-            Assert.Equal(HealthState.Unknown, health.Status);
-        }
+    [Fact]
+    public void ParseHealth_EmptyStatus_MapsToUnknown()
+    {
+      var token = JObject.Parse(@"{ ""Status"": """" }");
+      var health = PodmanCliContainerDriver.ParseHealth(token);
+      Assert.Equal(HealthState.Unknown, health.Status);
+    }
 
-        [Fact]
-        public void ParseHealth_NullToken_ReturnsNull()
-        {
-            Assert.Null(PodmanCliContainerDriver.ParseHealth(null));
-        }
+    [Fact]
+    public void ParseHealth_NullToken_ReturnsNull()
+    {
+      Assert.Null(PodmanCliContainerDriver.ParseHealth(null));
+    }
 
-        [Fact]
-        public void ParseHealth_UnhealthyWithStreak_ParsedCorrectly()
-        {
-            var token = JObject.Parse(@"{
+    [Fact]
+    public void ParseHealth_UnhealthyWithStreak_ParsedCorrectly()
+    {
+      var token = JObject.Parse(@"{
                 ""Status"": ""unhealthy"",
                 ""FailingStreak"": 5,
                 ""Log"": [
@@ -277,37 +277,37 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
                 ]
             }");
 
-            var health = PodmanCliContainerDriver.ParseHealth(token);
-            Assert.Equal(HealthState.Unhealthy, health.Status);
-            Assert.Equal(5, health.FailingStreak);
-            Assert.Equal(2, health.Log.Count);
-        }
+      var health = PodmanCliContainerDriver.ParseHealth(token);
+      Assert.Equal(HealthState.Unhealthy, health.Status);
+      Assert.Equal(5, health.FailingStreak);
+      Assert.Equal(2, health.Log.Count);
+    }
 
-        [Fact]
-        public void ParseHealth_UnknownStatusString_MapsToUnknown()
-        {
-            var token = JObject.Parse(@"{ ""Status"": ""unexpected-value"" }");
-            Assert.Equal(HealthState.Unknown,
-                PodmanCliContainerDriver.ParseHealth(token).Status);
-        }
+    [Fact]
+    public void ParseHealth_UnknownStatusString_MapsToUnknown()
+    {
+      var token = JObject.Parse(@"{ ""Status"": ""unexpected-value"" }");
+      Assert.Equal(HealthState.Unknown,
+          PodmanCliContainerDriver.ParseHealth(token).Status);
+    }
 
-        [Fact]
-        public void ParseHealth_NoLogArray_LogIsNull()
-        {
-            var token = JObject.Parse(@"{ ""Status"": ""starting"" }");
-            var health = PodmanCliContainerDriver.ParseHealth(token);
-            Assert.Equal(HealthState.Starting, health.Status);
-            Assert.Null(health.Log);
-        }
+    [Fact]
+    public void ParseHealth_NoLogArray_LogIsNull()
+    {
+      var token = JObject.Parse(@"{ ""Status"": ""starting"" }");
+      var health = PodmanCliContainerDriver.ParseHealth(token);
+      Assert.Equal(HealthState.Starting, health.Status);
+      Assert.Null(health.Log);
+    }
 
-        #endregion
+    #endregion
 
-        #region ParseContainerState — Healthcheck Key Fallback
+    #region ParseContainerState — Healthcheck Key Fallback
 
-        [Fact]
-        public void ParseContainerState_HealthKey_ParsesHealth()
-        {
-            var token = JObject.Parse(@"{
+    [Fact]
+    public void ParseContainerState_HealthKey_ParsesHealth()
+    {
+      var token = JObject.Parse(@"{
                 ""Status"": ""running"",
                 ""Running"": true,
                 ""Pid"": 999,
@@ -317,36 +317,36 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
                 ""Health"": { ""Status"": ""healthy"", ""FailingStreak"": 0 }
             }");
 
-            var state = PodmanCliContainerDriver.ParseContainerState(token);
+      var state = PodmanCliContainerDriver.ParseContainerState(token);
 
-            Assert.True(state.Running);
-            Assert.Equal(999, state.Pid);
-            Assert.NotNull(state.Health);
-            Assert.Equal(HealthState.Healthy, state.Health.Status);
-            var startedUtc = state.StartedAt.ToUniversalTime();
-            Assert.Equal(2024, startedUtc.Year);
-            Assert.Equal(10, startedUtc.Hour);
-        }
+      Assert.True(state.Running);
+      Assert.Equal(999, state.Pid);
+      Assert.NotNull(state.Health);
+      Assert.Equal(HealthState.Healthy, state.Health.Status);
+      var startedUtc = state.StartedAt.ToUniversalTime();
+      Assert.Equal(2024, startedUtc.Year);
+      Assert.Equal(10, startedUtc.Hour);
+    }
 
-        [Fact]
-        public void ParseContainerState_HealthcheckKey_FallbackParsesHealth()
-        {
-            var token = JObject.Parse(@"{
+    [Fact]
+    public void ParseContainerState_HealthcheckKey_FallbackParsesHealth()
+    {
+      var token = JObject.Parse(@"{
                 ""Status"": ""running"",
                 ""Running"": true,
                 ""Healthcheck"": { ""Status"": ""unhealthy"", ""FailingStreak"": 3 }
             }");
 
-            var state = PodmanCliContainerDriver.ParseContainerState(token);
-            Assert.NotNull(state.Health);
-            Assert.Equal(HealthState.Unhealthy, state.Health.Status);
-            Assert.Equal(3, state.Health.FailingStreak);
-        }
+      var state = PodmanCliContainerDriver.ParseContainerState(token);
+      Assert.NotNull(state.Health);
+      Assert.Equal(HealthState.Unhealthy, state.Health.Status);
+      Assert.Equal(3, state.Health.FailingStreak);
+    }
 
-        [Fact]
-        public void ParseContainerState_AllFields_Populated()
-        {
-            var token = JObject.Parse(@"{
+    [Fact]
+    public void ParseContainerState_AllFields_Populated()
+    {
+      var token = JObject.Parse(@"{
                 ""Status"": ""exited"",
                 ""Running"": false,
                 ""Paused"": false,
@@ -360,41 +360,41 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
                 ""FinishedAt"": ""2024-06-15T10:05:00Z""
             }");
 
-            var state = PodmanCliContainerDriver.ParseContainerState(token);
+      var state = PodmanCliContainerDriver.ParseContainerState(token);
 
-            Assert.Equal("exited", state.Status);
-            Assert.True(state.OOMKilled);
-            Assert.True(state.Dead);
-            Assert.Equal(137, state.ExitCode);
-            Assert.Equal("OOM killed", state.Error);
-        }
-
-        #endregion
-
-        #region ParseStringOrArray Helper
-
-        [Fact]
-        public void ParseStringOrArray_Array_ReturnsArray()
-        {
-            var token = JArray.Parse(@"[""/bin/sh"", ""-c""]");
-            Assert.Equal(new[] { "/bin/sh", "-c" },
-                PodmanCliContainerDriver.ParseStringOrArray(token));
-        }
-
-        [Fact]
-        public void ParseStringOrArray_String_WrapsInArray()
-        {
-            var token = new JValue("/entrypoint.sh");
-            Assert.Equal(new[] { "/entrypoint.sh" },
-                PodmanCliContainerDriver.ParseStringOrArray(token));
-        }
-
-        [Fact]
-        public void ParseStringOrArray_Null_ReturnsNull()
-        {
-            Assert.Null(PodmanCliContainerDriver.ParseStringOrArray(null));
-        }
-
-        #endregion
+      Assert.Equal("exited", state.Status);
+      Assert.True(state.OOMKilled);
+      Assert.True(state.Dead);
+      Assert.Equal(137, state.ExitCode);
+      Assert.Equal("OOM killed", state.Error);
     }
+
+    #endregion
+
+    #region ParseStringOrArray Helper
+
+    [Fact]
+    public void ParseStringOrArray_Array_ReturnsArray()
+    {
+      var token = JArray.Parse(@"[""/bin/sh"", ""-c""]");
+      Assert.Equal(new[] { "/bin/sh", "-c" },
+          PodmanCliContainerDriver.ParseStringOrArray(token));
+    }
+
+    [Fact]
+    public void ParseStringOrArray_String_WrapsInArray()
+    {
+      var token = new JValue("/entrypoint.sh");
+      Assert.Equal(new[] { "/entrypoint.sh" },
+          PodmanCliContainerDriver.ParseStringOrArray(token));
+    }
+
+    [Fact]
+    public void ParseStringOrArray_Null_ReturnsNull()
+    {
+      Assert.Null(PodmanCliContainerDriver.ParseStringOrArray(null));
+    }
+
+    #endregion
+  }
 }

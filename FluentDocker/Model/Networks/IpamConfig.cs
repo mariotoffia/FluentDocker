@@ -1,4 +1,4 @@
-﻿namespace FluentDocker.Model.Networks
+namespace FluentDocker.Model.Networks
 {
   public sealed class IpamConfig
   {

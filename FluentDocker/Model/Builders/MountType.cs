@@ -1,4 +1,4 @@
-﻿namespace FluentDocker.Model.Builders
+namespace FluentDocker.Model.Builders
 {
   public enum MountType
   {

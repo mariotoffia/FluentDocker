@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using FluentDocker.Model.Containers;
 using FluentDocker.Model.Volumes;
 using Newtonsoft.Json;

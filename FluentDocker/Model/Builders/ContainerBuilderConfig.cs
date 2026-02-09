@@ -8,7 +8,8 @@ using FluentDocker.Services;
 
 namespace FluentDocker.Model.Builders
 {
-  public sealed class DestroyIfExistParams {
+  public sealed class DestroyIfExistParams
+  {
     public bool Force { get; set; }
     public bool RemoveVolumes { get; set; }
     public string LinkToRemove { get; set; }

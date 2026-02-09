@@ -1,4 +1,4 @@
-﻿using FluentDocker.Model.Common;
+using FluentDocker.Model.Common;
 
 namespace FluentDocker.Model.Builders.FileBuilder
 {

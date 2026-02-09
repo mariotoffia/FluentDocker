@@ -1,6 +1,6 @@
+using System.Linq;
 using FluentDocker.Extensions;
 using FluentDocker.Model.Common;
-using System.Linq;
 
 namespace FluentDocker.Model.Builders.FileBuilder
 {

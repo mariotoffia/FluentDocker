@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
-using FluentDocker.Model.Images;
 using FluentDocker.Model.Common;
+using FluentDocker.Model.Images;
 
 namespace FluentDocker.Model.Compose
 {
@@ -30,7 +30,7 @@ namespace FluentDocker.Model.Compose
     public bool StopOnDispose { get; set; } = true;
     public bool KeepContainers { get; set; }
     public IDictionary<string, string> EnvironmentNameValue { get; set; } = new Dictionary<string, string>();
-    public TemplateString ProjectDirectory {get;set;}
+    public TemplateString ProjectDirectory { get; set; }
 
     public IDictionary<string, ContainerSpecificConfig> ContainerConfiguration { get; } =
       new Dictionary<string, ContainerSpecificConfig>();

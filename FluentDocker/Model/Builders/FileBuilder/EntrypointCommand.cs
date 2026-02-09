@@ -15,8 +15,9 @@ namespace FluentDocker.Model.Builders.FileBuilder
 
     public override string ToString()
     {
-      if (Arguments.Length == 0) {
-        return $"ENTRYPOINT [\"{Executable}\"]"; 
+      if (Arguments.Length == 0)
+      {
+        return $"ENTRYPOINT [\"{Executable}\"]";
       }
 
       return $"ENTRYPOINT [\"{Executable}\",\"{string.Join("\",\"", Arguments)}\"]";

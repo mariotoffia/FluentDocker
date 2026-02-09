@@ -11,7 +11,7 @@ namespace FluentDocker.Model.Builders.FileBuilder
     public VolumeCommand(params TemplateString[] mountpoints)
     {
       var list = new List<string>();
-      
+
       foreach (var s in mountpoints.Select(s => s.Rendered))
       {
         list.Add(s.WrapWithChar("\""));

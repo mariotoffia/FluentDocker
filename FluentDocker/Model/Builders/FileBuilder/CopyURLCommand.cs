@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.IO;
 using FluentDocker.Extensions;
 using FluentDocker.Model.Common;
@@ -21,10 +21,7 @@ namespace FluentDocker.Model.Builders.FileBuilder
     /// </param>
     public CopyURLCommand(Uri url, TemplateString from, TemplateString to,
       TemplateString chownUserAndGroup = null, TemplateString fromAlias = null) :
-      base(from, to, chownUserAndGroup, fromAlias)
-    {
-      FromURL = url;
-    }
+      base(from, to, chownUserAndGroup, fromAlias) => FromURL = url;
 
     public Uri FromURL { get; }
     public override string ToString()

@@ -18,10 +18,7 @@ namespace FluentDocker.Builders
   {
     private readonly ComposeServiceDefinition _config = new ComposeServiceDefinition();
 
-    internal ComposeServiceBuilder(string name)
-    {
-      _config.Name = name;
-    }
+    internal ComposeServiceBuilder(string name) => _config.Name = name;
 
     public ComposeServiceBuilder Image(string image)
     {

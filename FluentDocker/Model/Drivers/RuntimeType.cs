@@ -1,33 +1,33 @@
 namespace FluentDocker.Model.Drivers
 {
+  /// <summary>
+  /// Specifies the container runtime type.
+  /// </summary>
+  public enum RuntimeType
+  {
     /// <summary>
-    /// Specifies the container runtime type.
+    /// Docker runtime
     /// </summary>
-    public enum RuntimeType
-    {
-        /// <summary>
-        /// Docker runtime
-        /// </summary>
-        Docker,
+    Docker,
 
-        /// <summary>
-        /// Podman runtime
-        /// </summary>
-        Podman,
+    /// <summary>
+    /// Podman runtime
+    /// </summary>
+    Podman,
 
-        /// <summary>
-        /// Containerd runtime
-        /// </summary>
-        Containerd,
+    /// <summary>
+    /// Containerd runtime
+    /// </summary>
+    Containerd,
 
-        /// <summary>
-        /// CRI-O runtime
-        /// </summary>
-        CriO,
+    /// <summary>
+    /// CRI-O runtime
+    /// </summary>
+    CriO,
 
-        /// <summary>
-        /// Unknown or custom runtime
-        /// </summary>
-        Unknown
-    }
+    /// <summary>
+    /// Unknown or custom runtime
+    /// </summary>
+    Unknown
+  }
 }

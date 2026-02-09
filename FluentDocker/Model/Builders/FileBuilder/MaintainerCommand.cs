@@ -1,11 +1,8 @@
-﻿namespace FluentDocker.Model.Builders.FileBuilder
+namespace FluentDocker.Model.Builders.FileBuilder
 {
   public sealed class MaintainerCommand : ICommand
   {
-    public MaintainerCommand(string maintainer)
-    {
-      Maintainer = maintainer;
-    }
+    public MaintainerCommand(string maintainer) => Maintainer = maintainer;
 
     public string Maintainer { get; }
 

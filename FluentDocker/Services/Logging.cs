@@ -1,4 +1,4 @@
-﻿using FluentDocker.Common;
+using FluentDocker.Common;
 
 namespace FluentDocker.Services
 {

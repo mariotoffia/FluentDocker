@@ -9,10 +9,7 @@ namespace FluentDocker.Common
   [AttributeUsage(AttributeTargets.Class)]
   public sealed class FeatureAttribute : Attribute
   {
-    public FeatureAttribute()
-    {
-      Dependencies = new Type[0];
-    }
+    public FeatureAttribute() => Dependencies = new Type[0];
 
     public FeatureAttribute(string id, IEnumerable<Type> dependencies = null)
     {

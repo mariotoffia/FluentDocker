@@ -1,11 +1,11 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 
 namespace FluentDocker.Model.Containers
 {
   public sealed class CommandResponse<T>
   {
-    public CommandResponse(bool success, IList<string> log, string error = "", T data = default(T))
+    public CommandResponse(bool success, IList<string> log, string error = "", T data = default)
     {
       Success = success;
       Log = log;

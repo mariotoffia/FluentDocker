@@ -1,6 +1,6 @@
+using System.Collections.Generic;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Converters;
-using System.Collections.Generic;
 
 namespace FluentDocker.Model.Containers
 {
@@ -8,9 +8,9 @@ namespace FluentDocker.Model.Containers
   {
     [JsonConverter(typeof(StringEnumConverter))]
     public HealthState Status { get; set; }
-    
+
     public int FailingStreak { get; set; }
-    
+
     public List<HealthLog> Log { get; set; }
   }
 
