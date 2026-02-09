@@ -5,9 +5,7 @@ using System.Threading.Tasks;
 using FluentDocker.Drivers.Docker.Cli;
 using FluentDocker.Drivers.Podman.Cli.Binary;
 using FluentDocker.Model.Drivers;
-using Newtonsoft.Json.Linq;
 using Container = FluentDocker.Model.Containers.Container;
-using ContainerState = FluentDocker.Model.Containers.ContainerState;
 
 namespace FluentDocker.Drivers.Podman.Cli.Components
 {
@@ -389,97 +387,6 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
                 args += $" {string.Join(" ", config.Command)}";
 
             return args;
-        }
-
-        #endregion
-
-        #region JSON Parsing
-
-        private static IList<Container> ParseContainerList(string json)
-        {
-            var containers = new List<Container>();
-            if (string.IsNullOrWhiteSpace(json)) return containers;
-
-            try
-            {
-                var trimmed = json.Trim();
-                if (trimmed.StartsWith("["))
-                {
-                    var arr = JArray.Parse(trimmed);
-                    foreach (var token in arr)
-                        containers.Add(ParseContainerFromListToken(token));
-                }
-                else
-                {
-                    foreach (var line in trimmed.Split('\n', StringSplitOptions.RemoveEmptyEntries))
-                        containers.Add(ParseContainerFromListToken(JObject.Parse(line.Trim())));
-                }
-            }
-            catch { /* Return partial results */ }
-
-            return containers;
-        }
-
-        private static Container ParseContainerFromListToken(JToken token)
-        {
-            // Names can be a JSON array ["name"] or a plain string
-            var names = token["Names"] ?? token["Name"];
-            string name = null;
-            if (names is JArray namesArr && namesArr.Count > 0)
-                name = namesArr[0].Value<string>();
-            else if (names != null)
-                name = names.Value<string>();
-
-            return new Container
-            {
-                Id = token["Id"]?.Value<string>() ?? token["ID"]?.Value<string>(),
-                Image = token["Image"]?.Value<string>(),
-                Name = name,
-                State = new ContainerState
-                {
-                    Status = token["State"]?.Value<string>() ?? token["Status"]?.Value<string>()
-                }
-            };
-        }
-
-        private static Container ParseContainerInspect(string json)
-        {
-            try
-            {
-                var trimmed = json.Trim();
-                JToken token;
-                if (trimmed.StartsWith("["))
-                    token = JArray.Parse(trimmed).First;
-                else
-                    token = JObject.Parse(trimmed);
-
-                return new Container
-                {
-                    Id = token["Id"]?.Value<string>(),
-                    Image = token["Image"]?.Value<string>(),
-                    Name = token["Name"]?.Value<string>(),
-                    State = ParseContainerState(token["State"]),
-                    Driver = token["Driver"]?.Value<string>()
-                };
-            }
-            catch
-            {
-                return new Container();
-            }
-        }
-
-        private static ContainerState ParseContainerState(JToken stateToken)
-        {
-            if (stateToken == null) return new ContainerState();
-
-            return new ContainerState
-            {
-                Status = stateToken["Status"]?.Value<string>(),
-                Running = stateToken["Running"]?.Value<bool>() ?? false,
-                Paused = stateToken["Paused"]?.Value<bool>() ?? false,
-                Dead = stateToken["Dead"]?.Value<bool>() ?? false,
-                ExitCode = stateToken["ExitCode"]?.Value<int>() ?? 0
-            };
         }
 
         #endregion

@@ -397,31 +397,18 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
 
         private static IList<Container> InvokeParseContainerList(string json)
         {
-            var method = typeof(PodmanCliContainerDriver).GetMethod(
-                "ParseContainerList",
-                BindingFlags.NonPublic | BindingFlags.Static);
-            Assert.NotNull(method);
-            return (IList<Container>)method.Invoke(null, new object[] { json });
+            return PodmanCliContainerDriver.ParseContainerList(json);
         }
 
         private static Container InvokeParseContainerInspect(string json)
         {
-            var method = typeof(PodmanCliContainerDriver).GetMethod(
-                "ParseContainerInspect",
-                BindingFlags.NonPublic | BindingFlags.Static);
-            Assert.NotNull(method);
-            return (Container)method.Invoke(null, new object[] { json });
+            return PodmanCliContainerDriver.ParseContainerInspect(json);
         }
 
         private static FluentDocker.Model.Containers.ContainerState InvokeParseContainerState(
             JToken token)
         {
-            var method = typeof(PodmanCliContainerDriver).GetMethod(
-                "ParseContainerState",
-                BindingFlags.NonPublic | BindingFlags.Static);
-            Assert.NotNull(method);
-            return (FluentDocker.Model.Containers.ContainerState)method.Invoke(
-                null, new object[] { token });
+            return PodmanCliContainerDriver.ParseContainerState(token);
         }
 
         private static string InvokeBuildCreateArgs(string command, ContainerCreateConfig config)
