@@ -32,7 +32,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
             }
 
             Kernel = await FluentDockerKernel.Create()
-                .WithDriver(DriverId, d => d.UseDockerCli().AsDefault())
+                .WithDockerCli(DriverId, d => d.AsDefault())
                 .BuildAsync();
         }
 

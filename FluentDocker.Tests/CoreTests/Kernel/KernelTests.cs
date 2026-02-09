@@ -218,7 +218,7 @@ namespace FluentDocker.Tests.CoreTests.Kernel
         {
             // Act
             var kernel = await FluentDockerKernel.Create()
-                .WithDriver("docker", d => d.UseDockerCli())
+                .WithDockerCli("docker", d => d.AsDefault())
                 .BuildAsync();
 
             try
@@ -238,8 +238,8 @@ namespace FluentDocker.Tests.CoreTests.Kernel
         {
             // Act
             var kernel = await FluentDockerKernel.Create()
-                .WithDriver("docker-local", d => d.UseDockerCli())
-                .WithDriver("docker-remote", d => d.UseDockerCli())
+                .WithDockerCli("docker-local", d => d.AsDefault())
+                .WithDockerCli("docker-remote", d => d.AsDefault())
                 .BuildAsync();
 
             try
@@ -259,7 +259,7 @@ namespace FluentDocker.Tests.CoreTests.Kernel
         {
             // Act
             var kernel = await FluentDockerKernel.Create()
-                .WithDriver("docker", d => d.UseDockerCli().AsDefault())
+                .WithDockerCli("docker", d => d.AsDefault())
                 .BuildAsync();
 
             try
@@ -279,7 +279,7 @@ namespace FluentDocker.Tests.CoreTests.Kernel
             // Act & Assert
             Assert.Throws<ArgumentException>(() =>
                 FluentDockerKernel.Create()
-                    .WithDriver(null!, d => d.UseDockerCli()));
+                    .WithDockerCli(null!, d => d.AsDefault()));
         }
 
         [Fact]
@@ -288,7 +288,7 @@ namespace FluentDocker.Tests.CoreTests.Kernel
             // Act & Assert
             Assert.Throws<ArgumentNullException>(() =>
                 FluentDockerKernel.Create()
-                    .WithDriver("docker", null!));
+                    .WithDockerCli("docker", null!));
         }
 
         [Fact]
@@ -296,7 +296,7 @@ namespace FluentDocker.Tests.CoreTests.Kernel
         {
             // Act
             var kernel = FluentDockerKernel.Create()
-                .WithDriver("docker", d => d.UseDockerCli())
+                .WithDockerCli("docker", d => d.AsDefault())
                 .Build();
 
             try

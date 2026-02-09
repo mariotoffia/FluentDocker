@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using FluentDocker.Model.Common;
 
@@ -59,6 +60,24 @@ namespace FluentDocker.Model.Drivers
         /// is running during initialization.
         /// </summary>
         public AutoStartMachineConfig AutoStartMachine { get; set; }
+
+        /// <summary>
+        /// HTTP connection timeout for Docker API driver.
+        /// When null, the driver uses its default (30 seconds).
+        /// </summary>
+        public TimeSpan? ConnectionTimeout { get; set; }
+
+        /// <summary>
+        /// HTTP request timeout for Docker API driver long-running operations.
+        /// When null, the driver uses its default (5 minutes).
+        /// </summary>
+        public TimeSpan? RequestTimeout { get; set; }
+
+        /// <summary>
+        /// Docker Engine API version for Docker API driver.
+        /// When null, auto-negotiates via /_ping.
+        /// </summary>
+        public string ApiVersion { get; set; }
 
         /// <summary>
         /// Creates a new driver context.

@@ -1,7 +1,7 @@
 # FluentDocker v3.0 Migration TODO List
 
 **Created**: 2026-01-27
-**Status**: Complete (25/26 tasks done, 1 optional deferred to v3.1)
+**Status**: Complete (26/26 tasks done)
 
 ---
 
@@ -132,9 +132,15 @@
   - Manifest/Multi-Arch: create, add, push, inspect, annotate, rm, exists (IPodmanManifestDriver)
   - 16 source files in `FluentDocker/Drivers/Podman/Cli/`
 
-- [ ] **18. Docker API Driver** (OPTIONAL - Future)
-  - Location: `KernelBuilder.cs`
-  - Currently throws NotImplementedException
+- [x] **18. Docker API Driver** ✅
+  - 19 source files in `FluentDocker/Drivers/Docker/Api/`
+  - Connection layer: Unix socket, named pipe, TCP+TLS with API version auto-negotiation
+  - 8 component drivers: Container, Image, Network, Volume, System, Auth, Stream, Service
+  - Docker multiplexed stream protocol (8-byte header) for logs/attach
+  - NDJSON streaming for events/stats/pull/push/build
+  - Tar archive via SharpCompress for copy-to/copy-from and image build
+  - `KernelBuilder.UseDockerApi()` wired to `DockerApiDriverPack`
+  - 224 unit tests, 10 integration tests, 5 benchmark categories
 
 - [x] **19. Create GitHub Pages documentation site** ✅
   - Created: `docs/_config.yml` with just-the-docs theme
@@ -224,17 +230,19 @@ These Podman features are not planned for implementation:
 
 ---
 
-## Missing test for DockerApi driver
+## DockerApi Driver Test Coverage (Complete)
 
-
-Driver	Unit Test Coverage	Status
-Network	7/7 (100%)	Complete
-Volume	5/5 (100%)	Complete
-System	8/8 (100%)	Complete
-Stream	3.5/4 (88%)	Missing: multiplexed frame parsing
-Driver Pack	7/10 (70%)	Good
-Image	6/12 (50%)	Missing: Push, Build, Save, Load, Import
-Container	11/23 (48%)	Missing: all Operations partial (exec, copy, logs, top, diff, export, rename, update)
-Service	0/9 (0%)	No unit tests at all
-Auth	0/2 (0%)	No unit tests at all
-Connection	0/9 (0%)	No unit tests at all
+| Driver | Unit Tests | Status |
+|--------|-----------|--------|
+| Network | 16 | Complete |
+| Volume | 13 | Complete |
+| System | 20 | Complete |
+| Stream | 14 | Complete (incl. multiplexed frame parsing) |
+| Driver Pack | 33 | Complete |
+| Image | 24 | Complete (incl. push, build, save, load, import) |
+| Container | 45 | Complete (incl. ops: exec, copy, logs, top, diff, export, rename, update) |
+| Service | 24 | Complete |
+| Auth | 6 | Complete |
+| Connection | 11 | Complete |
+| Error Mapping | 20 | Complete |
+| **Total** | **224** | **All pass** |

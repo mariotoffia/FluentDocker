@@ -14,7 +14,7 @@ namespace DockerInDockerLinux
     static async Task Main(string[] args)
     {
       using var kernel = await FluentDockerKernel.Create()
-        .WithDriver(DriverId, d => d.UseDockerCli().AsDefault())
+        .WithDockerCli(DriverId, d => d.AsDefault())
         .BuildAsync();
 
       await using var host = new HostService(kernel, DriverId, "default", isNative: true, requireTls: false);

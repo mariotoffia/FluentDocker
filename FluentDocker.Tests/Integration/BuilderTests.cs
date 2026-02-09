@@ -17,7 +17,7 @@ namespace FluentDocker.Tests.Integration
         {
             // Arrange
             var kernel = await FluentDockerKernel.Create()
-                .WithDriver("docker", d => d.UseDockerCli())
+                .WithDockerCli("docker", d => d.AsDefault())
                 .BuildAsync();
 
             // Ensure image is available
@@ -56,8 +56,8 @@ namespace FluentDocker.Tests.Integration
         {
             // Arrange
             var kernel = await FluentDockerKernel.Create()
-                .WithDriver("docker-1", d => d.UseDockerCli())
-                .WithDriver("docker-2", d => d.UseDockerCli())
+                .WithDockerCli("docker-1", d => d.AsDefault())
+                .WithDockerCli("docker-2", d => d.AsDefault())
                 .BuildAsync();
 
             // Ensure images are available
@@ -106,8 +106,8 @@ namespace FluentDocker.Tests.Integration
             // This test demonstrates the kernel reuse pattern
 
             var kernel = await FluentDockerKernel.Create()
-                .WithDriver("docker-1", d => d.UseDockerCli())
-                .WithDriver("docker-2", d => d.UseDockerCli())
+                .WithDockerCli("docker-1", d => d.AsDefault())
+                .WithDockerCli("docker-2", d => d.AsDefault())
                 .BuildAsync();
 
             var builder = new Builder()

@@ -15,6 +15,7 @@ namespace FluentDocker.Tests.Integration.FluentBuilder
     /// Multi-container integration tests demonstrating multi-container scenarios
     /// using the fluent builder API.
     /// </summary>
+    [Collection("DockerDriver")]
     [Trait("Category", "Integration")]
     [Trait("Category", "MultiContainer")]
     public class MultiContainerTests : IAsyncLifetime
@@ -27,7 +28,7 @@ namespace FluentDocker.Tests.Integration.FluentBuilder
         public async Task InitializeAsync()
         {
             _kernel = await FluentDockerKernel.Create()
-                .WithDriver(DriverId, d => d.UseDockerCli().AsDefault())
+                .WithDockerCli(DriverId, d => d.AsDefault())
                 .BuildAsync();
 
             // Cleanup any leftover test containers from previous runs

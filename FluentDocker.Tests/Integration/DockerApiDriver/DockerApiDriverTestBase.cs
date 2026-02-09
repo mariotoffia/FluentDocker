@@ -11,6 +11,7 @@ namespace FluentDocker.Tests.Integration.DockerApiDriver
     /// Base class for Docker API driver integration tests.
     /// Builds a kernel configured with the docker-api driver pack.
     /// </summary>
+    [Collection("DockerDriver")]
     public abstract class DockerApiDriverTestBase : IAsyncLifetime
     {
         protected FluentDockerKernel Kernel { get; private set; }
@@ -23,7 +24,7 @@ namespace FluentDocker.Tests.Integration.DockerApiDriver
         public async Task InitializeAsync()
         {
             Kernel = await FluentDockerKernel.Create()
-                .WithDriver(DriverId, d => d.UseDockerApi().AsDefault())
+                .WithDockerApi(DriverId, d => d.AsDefault())
                 .BuildAsync();
         }
 

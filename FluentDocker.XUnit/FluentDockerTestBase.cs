@@ -27,7 +27,7 @@ namespace FluentDocker.XUnit
         protected virtual async Task<FluentDockerKernel> CreateKernelAsync()
         {
             return await FluentDockerKernel.Create()
-                .WithDriver(DriverId, driver => driver.UseDockerCli().AsDefault())
+                .WithDockerCli(DriverId, d => d.AsDefault())
                 .BuildAsync();
         }
 

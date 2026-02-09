@@ -53,6 +53,9 @@ namespace FluentDocker.Drivers.Docker.Api
                 Host = context.Host,
                 CertificatePath = context.CertificatePath,
                 VerifyTls = context.VerifyTls,
+                ConnectionTimeout = context.ConnectionTimeout ?? TimeSpan.FromSeconds(30),
+                RequestTimeout = context.RequestTimeout ?? TimeSpan.FromMinutes(5),
+                ApiVersion = context.ApiVersion,
             };
             _connection = new DockerApiConnection(connectionConfig);
 

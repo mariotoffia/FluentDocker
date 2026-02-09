@@ -13,6 +13,7 @@ namespace FluentDocker.Tests.Integration.PodmanCliDriver
     /// Base class for PodmanCliDriver integration tests.
     /// Skips tests gracefully if Podman is not installed.
     /// </summary>
+    [Collection("PodmanDriver")]
     [Trait("Category", "PodmanIntegration")]
     public abstract class PodmanDriverTestBase : IAsyncLifetime
     {
@@ -31,8 +32,7 @@ namespace FluentDocker.Tests.Integration.PodmanCliDriver
             }
 
             Kernel = await FluentDockerKernel.Create()
-                .WithDriver(DriverId, d => d
-                    .UsePodmanCli()
+                .WithPodmanCli(DriverId, d => d
                     .WithAutoStartMachine()
                     .AsDefault())
                 .BuildAsync();

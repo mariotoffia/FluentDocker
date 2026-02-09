@@ -22,7 +22,7 @@ class Program
     Console.WriteLine("======================================================\n");
 
     using var kernel = await FluentDockerKernel.Create()
-      .WithDriver(DriverId, d => d.UseDockerCli().AsDefault())
+      .WithDockerCli(DriverId, d => d.AsDefault())
       .BuildAsync();
 
     await RunComposeExampleAsync(kernel);

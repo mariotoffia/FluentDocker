@@ -11,6 +11,7 @@ namespace FluentDocker.Tests.Integration.PodmanCliDriver
     /// Integration tests for WithAutoStartMachine feature.
     /// Requires Podman to be installed with a running machine.
     /// </summary>
+    [Collection("PodmanDriver")]
     [Trait("Category", "LongRunning")]
     public class PodmanAutoStartMachineTests
     {
@@ -23,8 +24,7 @@ namespace FluentDocker.Tests.Integration.PodmanCliDriver
             try
             {
                 kernel = await FluentDockerKernel.Create()
-                    .WithDriver("podman", d => d
-                        .UsePodmanCli()
+                    .WithPodmanCli("podman", d => d
                         .WithAutoStartMachine()
                         .AsDefault())
                     .BuildAsync();
@@ -52,8 +52,7 @@ namespace FluentDocker.Tests.Integration.PodmanCliDriver
             try
             {
                 kernel = await FluentDockerKernel.Create()
-                    .WithDriver("podman", d => d
-                        .UsePodmanCli()
+                    .WithPodmanCli("podman", d => d
                         .WithAutoStartMachine(c =>
                         {
                             // Don't set MachineName — use default
@@ -78,8 +77,7 @@ namespace FluentDocker.Tests.Integration.PodmanCliDriver
             var ex = await Assert.ThrowsAsync<PodmanMachineNotRunningException>(async () =>
             {
                 await FluentDockerKernel.Create()
-                    .WithDriver("podman", d => d
-                        .UsePodmanCli()
+                    .WithPodmanCli("podman", d => d
                         .WithAutoStartMachine(c =>
                         {
                             c.MachineName = "nonexistent-fd-test-" +

@@ -19,7 +19,7 @@ namespace EventDriven
     static async Task Main(string[] args)
     {
       using var kernel = await FluentDockerKernel.Create()
-        .WithDriver(DriverId, d => d.UseDockerCli().AsDefault())
+        .WithDockerCli(DriverId, d => d.AsDefault())
         .BuildAsync();
 
       var streamDriver = kernel.SysCtl<IStreamDriver>(DriverId);

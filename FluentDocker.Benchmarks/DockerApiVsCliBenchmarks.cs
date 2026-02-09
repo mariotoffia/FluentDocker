@@ -42,12 +42,12 @@ namespace FluentDocker.Benchmarks
         {
             // Build CLI kernel
             _cliKernel = await FluentDockerKernel.Create()
-                .WithDriver(CliDriverId, d => d.UseDockerCli().AsDefault())
+                .WithDockerCli(CliDriverId, d => d.AsDefault())
                 .BuildAsync();
 
             // Build API kernel
             _apiKernel = await FluentDockerKernel.Create()
-                .WithDriver(ApiDriverId, d => d.UseDockerApi().AsDefault())
+                .WithDockerApi(ApiDriverId, d => d.AsDefault())
                 .BuildAsync();
 
             _cliContext = new DriverContext(CliDriverId);

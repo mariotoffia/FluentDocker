@@ -26,7 +26,7 @@ namespace Simple
     private static Task<FluentDockerKernel> CreateKernelAsync()
     {
       return FluentDockerKernel.Create()
-        .WithDriver(DriverId, d => d.UseDockerCli().AsDefault())
+        .WithDockerCli(DriverId, d => d.AsDefault())
         .BuildAsync();
     }
 

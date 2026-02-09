@@ -74,14 +74,13 @@ namespace FluentDocker.Tests.CoreTests.Kernel
 
         #endregion
 
-        #region IDriverBuilder WithAutoStartMachine
+        #region IPodmanCliDriverBuilder WithAutoStartMachine
 
         [Fact]
         public void WithAutoStartMachine_NoAction_SetsDefaultConfig()
         {
             // Build a driver configuration using reflection to access internal Build()
-            var config = BuildDriverConfig(b => b
-                .UseDockerCli()
+            var config = BuildPodmanDriverConfig(b => b
                 .WithAutoStartMachine());
 
             Assert.NotNull(config.AutoStartMachine);
@@ -92,8 +91,7 @@ namespace FluentDocker.Tests.CoreTests.Kernel
         [Fact]
         public void WithAutoStartMachine_WithConfigure_SetsProperties()
         {
-            var config = BuildDriverConfig(b => b
-                .UseDockerCli()
+            var config = BuildPodmanDriverConfig(b => b
                 .WithAutoStartMachine(c =>
                 {
                     c.MachineName = "custom";
@@ -116,8 +114,7 @@ namespace FluentDocker.Tests.CoreTests.Kernel
         [Fact]
         public void WithAutoStartMachine_NullAction_SetsDefaultConfig()
         {
-            var config = BuildDriverConfig(b => b
-                .UseDockerCli()
+            var config = BuildPodmanDriverConfig(b => b
                 .WithAutoStartMachine(null));
 
             Assert.NotNull(config.AutoStartMachine);
@@ -128,7 +125,7 @@ namespace FluentDocker.Tests.CoreTests.Kernel
         [Fact]
         public void WithoutAutoStartMachine_ConfigIsNull()
         {
-            var config = BuildDriverConfig(b => b.UseDockerCli());
+            var config = BuildPodmanDriverConfig(_ => { });
 
             Assert.Null(config.AutoStartMachine);
         }
@@ -136,8 +133,7 @@ namespace FluentDocker.Tests.CoreTests.Kernel
         [Fact]
         public void WithAutoStartMachine_ChainsCorrectly()
         {
-            var config = BuildDriverConfig(b => b
-                .UseDockerCli()
+            var config = BuildPodmanDriverConfig(b => b
                 .WithAutoStartMachine()
                 .AsDefault());
 
@@ -150,19 +146,19 @@ namespace FluentDocker.Tests.CoreTests.Kernel
         #region Helpers
 
         /// <summary>
-        /// Uses reflection to create and build a DriverBuilder (internal class)
+        /// Uses reflection to create and build a PodmanCliDriverBuilder (internal class)
         /// and extract the DriverContext from the resulting DriverConfiguration.
         /// </summary>
-        private static DriverConfigResult BuildDriverConfig(Action<IDriverBuilder> configure)
+        private static DriverConfigResult BuildPodmanDriverConfig(Action<IPodmanCliDriverBuilder> configure)
         {
             var driverBuilderType = typeof(KernelBuilder).Assembly
-                .GetType("FluentDocker.Kernel.DriverBuilder");
+                .GetType("FluentDocker.Kernel.PodmanCliDriverBuilder");
             Assert.NotNull(driverBuilderType);
 
             var instance = Activator.CreateInstance(driverBuilderType, "test-driver");
             Assert.NotNull(instance);
 
-            var builder = (IDriverBuilder)instance;
+            var builder = (IPodmanCliDriverBuilder)instance;
             configure(builder);
 
             var buildMethod = driverBuilderType.GetMethod("Build",

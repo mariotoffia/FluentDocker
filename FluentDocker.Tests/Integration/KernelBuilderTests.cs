@@ -15,7 +15,7 @@ namespace FluentDocker.Tests.Integration
         {
             // Arrange & Act
             var kernel = await FluentDockerKernel.Create()
-                .WithDriver("docker", d => d.UseDockerCli())
+                .WithDockerCli("docker", d => d.AsDefault())
                 .BuildAsync();
 
             // Assert
@@ -31,8 +31,8 @@ namespace FluentDocker.Tests.Integration
         {
             // Arrange & Act
             var kernel = await FluentDockerKernel.Create()
-                .WithDriver("docker-local", d => d.UseDockerCli())
-                .WithDriver("docker-remote", d => d.UseDockerCli())
+                .WithDockerCli("docker-local", d => d.AsDefault())
+                .WithDockerCli("docker-remote", d => d.AsDefault())
                 .BuildAsync();
 
             // Assert
@@ -49,7 +49,7 @@ namespace FluentDocker.Tests.Integration
         {
             // Arrange
             var kernel = await FluentDockerKernel.Create()
-                .WithDriver("docker", d => d.UseDockerCli())
+                .WithDockerCli("docker", d => d.AsDefault())
                 .BuildAsync();
 
             try

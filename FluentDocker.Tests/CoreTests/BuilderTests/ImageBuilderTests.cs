@@ -239,7 +239,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
         {
             // Create a minimal kernel for testing
             return FluentDockerKernel.Create()
-                .WithDriver("docker", d => d.UseDockerCli().AsDefault())
+                .WithDockerCli("docker", d => d.AsDefault())
                 .Build();
         }
     }

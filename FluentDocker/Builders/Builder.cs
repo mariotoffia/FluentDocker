@@ -12,12 +12,14 @@ namespace FluentDocker.Builders
 {
     /// <summary>
     /// v3.0.0 async builder with WithinDriver() scoping and terminal BuildAsync().
+    /// For type-safe driver-specific APIs, use <see cref="WithinDockerCli"/>,
+    /// <see cref="WithinDockerApi"/>, or <see cref="WithinPodmanCli"/>.
     /// </summary>
     public class Builder : IBuilder
     {
         private FluentDockerKernel _currentKernel;
         private string _currentDriverId;
-        private readonly List<BuildOperation> _operations = new List<BuildOperation>();
+        private readonly List<BuildOperation> _operations = new();
 
         /// <summary>
         /// Creates a new builder.
@@ -26,26 +28,60 @@ namespace FluentDocker.Builders
         {
         }
 
+        #region Driver Scoping
+
         /// <summary>
-        /// Establishes a driver scope for subsequent operations.
+        /// Establishes a driver scope for subsequent operations (generic, any driver).
+        /// Prefer <see cref="WithinDockerCli"/>, <see cref="WithinDockerApi"/>,
+        /// or <see cref="WithinPodmanCli"/> for type-safe access to driver-specific features.
         /// </summary>
         /// <param name="driverId">Driver identifier</param>
         /// <param name="kernel">Kernel instance (reuses previous if null)</param>
-        /// <returns>This builder for fluent chaining</returns>
         public Builder WithinDriver(string driverId, FluentDockerKernel kernel = null)
         {
-            _currentKernel = kernel ?? _currentKernel;
-
-            if (_currentKernel == null)
-            {
-                throw new InvalidOperationException(
-                    "Kernel required in first WithinDriver() call. " +
-                    "Provide a kernel or create one with FluentDockerKernel.Create().BuildAsync()");
-            }
-
-            _currentDriverId = driverId;
+            SetScope(driverId, kernel);
             return this;
         }
+
+        /// <summary>
+        /// Establishes a Docker CLI driver scope with type-safe access to Compose.
+        /// </summary>
+        /// <param name="driverId">Driver identifier</param>
+        /// <param name="kernel">Kernel instance (reuses previous if null)</param>
+        public DockerCliFluentBuilder WithinDockerCli(
+            string driverId, FluentDockerKernel kernel = null)
+        {
+            SetScope(driverId, kernel);
+            return new DockerCliFluentBuilder(this);
+        }
+
+        /// <summary>
+        /// Establishes a Docker API driver scope.
+        /// </summary>
+        /// <param name="driverId">Driver identifier</param>
+        /// <param name="kernel">Kernel instance (reuses previous if null)</param>
+        public DockerApiFluentBuilder WithinDockerApi(
+            string driverId, FluentDockerKernel kernel = null)
+        {
+            SetScope(driverId, kernel);
+            return new DockerApiFluentBuilder(this);
+        }
+
+        /// <summary>
+        /// Establishes a Podman CLI driver scope with type-safe access to pods.
+        /// </summary>
+        /// <param name="driverId">Driver identifier</param>
+        /// <param name="kernel">Kernel instance (reuses previous if null)</param>
+        public PodmanCliFluentBuilder WithinPodmanCli(
+            string driverId, FluentDockerKernel kernel = null)
+        {
+            SetScope(driverId, kernel);
+            return new PodmanCliFluentBuilder(this);
+        }
+
+        #endregion
+
+        #region Common Operations
 
         /// <summary>
         /// Adds a container operation to the current scope.
@@ -96,12 +132,32 @@ namespace FluentDocker.Builders
         }
 
         /// <summary>
-        /// Adds a compose operation to the current scope.
+        /// Adds a compose operation. Requires the Docker CLI driver.
+        /// Prefer using <see cref="DockerCliFluentBuilder.UseCompose"/> via
+        /// <see cref="WithinDockerCli"/> for type-safe access.
         /// </summary>
         public Builder UseCompose(Action<IComposeBuilder> configure)
         {
             ValidateScope();
             var builder = new ComposeBuilder(_currentKernel, _currentDriverId);
+            configure(builder);
+            _operations.Add(new BuildOperation
+            {
+                Kernel = _currentKernel, DriverId = _currentDriverId,
+                ExecuteAsync = ct => builder.ExecuteAsync(ct)
+            });
+            return this;
+        }
+
+        /// <summary>
+        /// Adds a pod operation. Requires the Podman CLI driver.
+        /// Prefer using <see cref="PodmanCliFluentBuilder.UsePod"/> via
+        /// <see cref="WithinPodmanCli"/> for type-safe access.
+        /// </summary>
+        public Builder UsePod(Action<IPodBuilder> configure)
+        {
+            ValidateScope();
+            var builder = new PodBuilder(_currentKernel, _currentDriverId);
             configure(builder);
             _operations.Add(new BuildOperation
             {
@@ -123,10 +179,15 @@ namespace FluentDocker.Builders
             _operations.Add(new BuildOperation
             {
                 Kernel = _currentKernel, DriverId = _currentDriverId,
-                ExecuteAsync = ct => imageBuilder.ExecuteAsync(ct).ContinueWith(t => (IService)t.Result, ct)
+                ExecuteAsync = ct => imageBuilder.ExecuteAsync(ct)
+                    .ContinueWith(t => (IService)t.Result, ct)
             });
             return this;
         }
+
+        #endregion
+
+        #region Terminal
 
         /// <summary>
         /// TERMINAL - Builds all operations synchronously.
@@ -162,7 +223,26 @@ namespace FluentDocker.Builders
             return new BuildResults(scopes.Values.ToList());
         }
 
-        private async Task StartContainersWithLinksAsync(BuildScope scope, CancellationToken cancellationToken)
+        #endregion
+
+        #region Private
+
+        private void SetScope(string driverId, FluentDockerKernel kernel)
+        {
+            _currentKernel = kernel ?? _currentKernel;
+
+            if (_currentKernel == null)
+            {
+                throw new InvalidOperationException(
+                    "Kernel required in first WithinDriver() call. " +
+                    "Provide a kernel or create one with FluentDockerKernel.Create().BuildAsync()");
+            }
+
+            _currentDriverId = driverId;
+        }
+
+        private async Task StartContainersWithLinksAsync(
+            BuildScope scope, CancellationToken cancellationToken)
         {
             var containersToStart = scope.Results
                 .OfType<IContainerService>()
@@ -190,7 +270,8 @@ namespace FluentDocker.Builders
             const int delayMs = 100;
             for (int i = 0; i < maxAttempts; i++)
             {
-                var inspectResult = await driver.InspectAsync(context, containerId, cancellationToken);
+                var inspectResult = await driver.InspectAsync(
+                    context, containerId, cancellationToken);
                 if (inspectResult.Success && inspectResult.Data?.State?.Running == true)
                     return;
                 await Task.Delay(delayMs, cancellationToken);
@@ -205,6 +286,8 @@ namespace FluentDocker.Builders
                     "Must call WithinDriver() before adding operations");
             }
         }
+
+        #endregion
     }
 
     /// <summary>
@@ -219,6 +302,10 @@ namespace FluentDocker.Builders
 
     /// <summary>
     /// Interface for the v3.0.0 fluent builder.
+    /// Exposes only operations common to all drivers. For driver-specific
+    /// operations, use the typed builder returned by
+    /// <see cref="Builder.WithinDockerCli"/>, <see cref="Builder.WithinDockerApi"/>,
+    /// or <see cref="Builder.WithinPodmanCli"/>.
     /// </summary>
     public interface IBuilder
     {
@@ -226,7 +313,6 @@ namespace FluentDocker.Builders
         Builder UseContainer(Action<IContainerBuilder> configure);
         Builder UseNetwork(Action<INetworkBuilder> configure);
         Builder UseVolume(Action<IVolumeBuilder> configure);
-        Builder UseCompose(Action<IComposeBuilder> configure);
 
         /// <summary>
         /// Adds an image build operation.
