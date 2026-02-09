@@ -27,7 +27,8 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
             string PathContains,
             HttpStatusCode StatusCode,
             string JsonBody,
-            string StreamContent);
+            string StreamContent,
+            byte[] StreamBytes);
 
         private readonly List<ResponseEntry> _entries = new();
         private readonly List<CapturedRequest> _requests = new();
@@ -41,7 +42,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
             string pathContains, int statusCode, string jsonBody)
         {
             _entries.Add(new ResponseEntry(
-                "GET", pathContains, (HttpStatusCode)statusCode, jsonBody, null));
+                "GET", pathContains, (HttpStatusCode)statusCode, jsonBody, null, null));
             return this;
         }
 
@@ -49,7 +50,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
             string pathContains, int statusCode, string jsonBody)
         {
             _entries.Add(new ResponseEntry(
-                "POST", pathContains, (HttpStatusCode)statusCode, jsonBody, null));
+                "POST", pathContains, (HttpStatusCode)statusCode, jsonBody, null, null));
             return this;
         }
 
@@ -57,7 +58,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
             string pathContains, int statusCode, string jsonBody)
         {
             _entries.Add(new ResponseEntry(
-                "PUT", pathContains, (HttpStatusCode)statusCode, jsonBody, null));
+                "PUT", pathContains, (HttpStatusCode)statusCode, jsonBody, null, null));
             return this;
         }
 
@@ -65,7 +66,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
             string pathContains, int statusCode, string jsonBody)
         {
             _entries.Add(new ResponseEntry(
-                "DELETE", pathContains, (HttpStatusCode)statusCode, jsonBody, null));
+                "DELETE", pathContains, (HttpStatusCode)statusCode, jsonBody, null, null));
             return this;
         }
 
@@ -73,7 +74,19 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
             string pathContains, string streamContent)
         {
             _entries.Add(new ResponseEntry(
-                "STREAM", pathContains, HttpStatusCode.OK, null, streamContent));
+                "STREAM", pathContains, HttpStatusCode.OK, null, streamContent, null));
+            return this;
+        }
+
+        /// <summary>
+        /// Sets up a stream endpoint that returns raw binary content.
+        /// Useful for testing multiplexed frame parsing.
+        /// </summary>
+        public MockDockerApiConnection SetupStreamBytes(
+            string pathContains, byte[] bytes)
+        {
+            _entries.Add(new ResponseEntry(
+                "STREAM", pathContains, HttpStatusCode.OK, null, null, bytes));
             return this;
         }
 
@@ -183,6 +196,9 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
             var entry = _entries
                 .Where(e => e.Method == "STREAM" && path.Contains(e.PathContains))
                 .LastOrDefault();
+
+            if (entry != default && entry.StreamBytes != null)
+                return new MemoryStream(entry.StreamBytes);
 
             var text = entry == default ? string.Empty : entry.StreamContent ?? string.Empty;
             return new MemoryStream(Encoding.UTF8.GetBytes(text));

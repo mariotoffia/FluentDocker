@@ -220,3 +220,21 @@ These Podman features are not planned for implementation:
 - Commands namespace: **COMPLETELY REMOVED** in v3.0 (user decision 2026-01-27)
 - Per CLAUDE.md: Must run `make test` successfully before completion
 - Per CLAUDE.md: Must create unit tests, integration tests, AND benchmarks
+
+
+---
+
+## Missing test for DockerApi driver
+
+
+Driver	Unit Test Coverage	Status
+Network	7/7 (100%)	Complete
+Volume	5/5 (100%)	Complete
+System	8/8 (100%)	Complete
+Stream	3.5/4 (88%)	Missing: multiplexed frame parsing
+Driver Pack	7/10 (70%)	Good
+Image	6/12 (50%)	Missing: Push, Build, Save, Load, Import
+Container	11/23 (48%)	Missing: all Operations partial (exec, copy, logs, top, diff, export, rename, update)
+Service	0/9 (0%)	No unit tests at all
+Auth	0/2 (0%)	No unit tests at all
+Connection	0/9 (0%)	No unit tests at all

@@ -169,6 +169,155 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
             Assert.Empty(lines);
         }
 
+        [Fact]
+        public async Task StreamLogsAsync_MultiplexedStdoutFrame_YieldsContent()
+        {
+            var frame = CreateMultiplexedFrame(1, "hello");
+            var (driver, mock) = CreateDriver();
+            mock.SetupStreamBytes("/containers/mux1/logs", frame);
+
+            var lines = new List<string>();
+            await foreach (var line in driver.StreamLogsAsync(Ctx, "mux1",
+                new StreamLogsConfig { Follow = false }))
+            {
+                lines.Add(line);
+            }
+
+            Assert.Single(lines);
+            Assert.Equal("hello", lines[0]);
+        }
+
+        [Fact]
+        public async Task StreamLogsAsync_MultipleFrames_YieldsAllContent()
+        {
+            var frame1 = CreateMultiplexedFrame(1, "first");
+            var frame2 = CreateMultiplexedFrame(1, "second");
+            var combined = new byte[frame1.Length + frame2.Length];
+            Array.Copy(frame1, 0, combined, 0, frame1.Length);
+            Array.Copy(frame2, 0, combined, frame1.Length, frame2.Length);
+
+            var (driver, mock) = CreateDriver();
+            mock.SetupStreamBytes("/containers/mux2/logs", combined);
+
+            var lines = new List<string>();
+            await foreach (var line in driver.StreamLogsAsync(Ctx, "mux2",
+                new StreamLogsConfig { Follow = false }))
+            {
+                lines.Add(line);
+            }
+
+            Assert.Equal(2, lines.Count);
+            Assert.Equal("first", lines[0]);
+            Assert.Equal("second", lines[1]);
+        }
+
+        [Fact]
+        public async Task StreamLogsAsync_StderrFrame_AlsoYielded()
+        {
+            var frame = CreateMultiplexedFrame(2, "error output");
+            var (driver, mock) = CreateDriver();
+            mock.SetupStreamBytes("/containers/mux3/logs", frame);
+
+            var lines = new List<string>();
+            await foreach (var line in driver.StreamLogsAsync(Ctx, "mux3",
+                new StreamLogsConfig { Follow = false }))
+            {
+                lines.Add(line);
+            }
+
+            Assert.Single(lines);
+            Assert.Equal("error output", lines[0]);
+        }
+
+        [Fact]
+        public async Task StreamLogsAsync_FrameWithNewlines_SplitsIntoLines()
+        {
+            var frame = CreateMultiplexedFrame(1, "line1\nline2\nline3");
+            var (driver, mock) = CreateDriver();
+            mock.SetupStreamBytes("/containers/mux4/logs", frame);
+
+            var lines = new List<string>();
+            await foreach (var line in driver.StreamLogsAsync(Ctx, "mux4",
+                new StreamLogsConfig { Follow = false }))
+            {
+                lines.Add(line);
+            }
+
+            Assert.Equal(3, lines.Count);
+            Assert.Equal("line1", lines[0]);
+            Assert.Equal("line2", lines[1]);
+            Assert.Equal("line3", lines[2]);
+        }
+
+        [Fact]
+        public async Task StreamLogsAsync_IncompleteHeader_FallsBackToRawText()
+        {
+            // Only 5 bytes: less than the 8-byte header required.
+            // The reader should fall back to raw text mode.
+            var bytes = Encoding.UTF8.GetBytes("hello");
+            var (driver, mock) = CreateDriver();
+            mock.SetupStreamBytes("/containers/mux5/logs", bytes);
+
+            var lines = new List<string>();
+            await foreach (var line in driver.StreamLogsAsync(Ctx, "mux5",
+                new StreamLogsConfig { Follow = false }))
+            {
+                lines.Add(line);
+            }
+
+            Assert.Single(lines);
+            Assert.Equal("hello", lines[0]);
+        }
+
+        [Fact]
+        public async Task StreamLogsAsync_ZeroSizeFrame_StopsReading()
+        {
+            // Build a valid frame followed by a zero-size frame.
+            // The reader should yield the first frame's content and then stop.
+            var goodFrame = CreateMultiplexedFrame(1, "data");
+            var zeroFrame = new byte[8]; // all zeros => stream_type=0, size=0
+            zeroFrame[0] = 1; // stdout type, but size stays 0
+
+            var combined = new byte[goodFrame.Length + zeroFrame.Length];
+            Array.Copy(goodFrame, 0, combined, 0, goodFrame.Length);
+            Array.Copy(zeroFrame, 0, combined, goodFrame.Length, zeroFrame.Length);
+
+            var (driver, mock) = CreateDriver();
+            mock.SetupStreamBytes("/containers/mux6/logs", combined);
+
+            var lines = new List<string>();
+            await foreach (var line in driver.StreamLogsAsync(Ctx, "mux6",
+                new StreamLogsConfig { Follow = false }))
+            {
+                lines.Add(line);
+            }
+
+            Assert.Single(lines);
+            Assert.Equal("data", lines[0]);
+        }
+
+        #endregion
+
+        #region Multiplexed Frame Helpers
+
+        /// <summary>
+        /// Creates a Docker multiplexed stream frame.
+        /// Header: [stream_type:1][0:3][size:4 big-endian] followed by payload.
+        /// </summary>
+        private static byte[] CreateMultiplexedFrame(byte streamType, string payload)
+        {
+            var payloadBytes = Encoding.UTF8.GetBytes(payload);
+            var frame = new byte[8 + payloadBytes.Length];
+            frame[0] = streamType; // 1=stdout, 2=stderr
+            // bytes 1-3 are zero padding (already zero-initialized)
+            frame[4] = (byte)((payloadBytes.Length >> 24) & 0xFF);
+            frame[5] = (byte)((payloadBytes.Length >> 16) & 0xFF);
+            frame[6] = (byte)((payloadBytes.Length >> 8) & 0xFF);
+            frame[7] = (byte)(payloadBytes.Length & 0xFF);
+            Array.Copy(payloadBytes, 0, frame, 8, payloadBytes.Length);
+            return frame;
+        }
+
         #endregion
 
         #region AttachAsync

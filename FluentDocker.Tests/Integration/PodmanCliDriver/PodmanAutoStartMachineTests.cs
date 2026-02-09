@@ -11,7 +11,7 @@ namespace FluentDocker.Tests.Integration.PodmanCliDriver
     /// Integration tests for WithAutoStartMachine feature.
     /// Requires Podman to be installed with a running machine.
     /// </summary>
-    [Trait("Category", "PodmanIntegration")]
+    [Trait("Category", "LongRunning")]
     public class PodmanAutoStartMachineTests
     {
         [Fact]

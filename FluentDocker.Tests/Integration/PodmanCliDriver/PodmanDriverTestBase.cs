@@ -1,7 +1,6 @@
 using System;
 using System.Diagnostics;
 using System.Threading.Tasks;
-using FluentDocker.Common;
 using FluentDocker.Drivers;
 using FluentDocker.Drivers.Podman;
 using FluentDocker.Kernel;
@@ -31,15 +30,11 @@ namespace FluentDocker.Tests.Integration.PodmanCliDriver
                 throw new SkipException("Podman is not installed or not in PATH");
             }
 
-            if (!IsPodmanMachineRunning())
-            {
-                throw new PodmanMachineNotRunningException(
-                    "Podman machine is not running. " +
-                    "Start it with: podman machine start");
-            }
-
             Kernel = await FluentDockerKernel.Create()
-                .WithDriver(DriverId, d => d.UsePodmanCli().AsDefault())
+                .WithDriver(DriverId, d => d
+                    .UsePodmanCli()
+                    .WithAutoStartMachine()
+                    .AsDefault())
                 .BuildAsync();
         }
 
@@ -155,36 +150,6 @@ namespace FluentDocker.Tests.Integration.PodmanCliDriver
             }
         }
 
-        /// <summary>
-        /// Checks if the podman machine/server is reachable (contacts the daemon).
-        /// On macOS/Windows this requires a running podman machine VM.
-        /// </summary>
-        private static bool IsPodmanMachineRunning()
-        {
-            try
-            {
-                var process = new Process
-                {
-                    StartInfo = new ProcessStartInfo
-                    {
-                        FileName = "podman",
-                        Arguments = "info",
-                        RedirectStandardOutput = true,
-                        RedirectStandardError = true,
-                        UseShellExecute = false,
-                        CreateNoWindow = true
-                    }
-                };
-
-                process.Start();
-                process.WaitForExit(10000);
-                return process.ExitCode == 0;
-            }
-            catch
-            {
-                return false;
-            }
-        }
     }
 
     /// <summary>
