@@ -33,15 +33,11 @@ clean:
 
 .PHONY: test
 test:
-	dotnet test FluentDocker.Tests/FluentDocker.Tests.csproj --configuration Debug --verbosity normal
-
-.PHONY: test-unit
-test-unit:
-	dotnet test FluentDocker.Tests/FluentDocker.Tests.csproj --filter "Category!=Integration" --configuration Debug
+	dotnet test FluentDocker.Tests/FluentDocker.Tests.csproj --filter "Category=Unit" --configuration Debug --verbosity normal
 
 .PHONY: test-integration
 test-integration:
-	dotnet test FluentDocker.Tests/FluentDocker.Tests.csproj --filter "Category=Integration" --configuration Debug
+	dotnet test FluentDocker.Tests/FluentDocker.Tests.csproj --configuration Debug --verbosity normal
 
 .PHONY: benchmark
 benchmark:
@@ -78,9 +74,8 @@ help:
 	@echo "  act-build        - Run build via act (GitHub Actions)"
 	@echo "  dep              - Install dependencies and restore packages"
 	@echo "  clean            - Clean build artifacts"
-	@echo "  test             - Run all tests"
-	@echo "  test-unit        - Run unit tests only"
-	@echo "  test-integration - Run integration tests only (requires Docker)"
+	@echo "  test             - Run unit tests only (safe for CI)"
+	@echo "  test-integration - Run all tests including integration (requires Docker/Podman)"
 	@echo "  benchmark        - Run all benchmarks"
 	@echo "  benchmark-stats  - Run container stats benchmarks only"
 	@echo "  benchmark-template - Run template string benchmarks only"
