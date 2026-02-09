@@ -299,8 +299,8 @@ await composeDriver.DownAsync(context, new ComposeDownConfig {
 
 ```csharp
 var stats = await container.GetStatsAsync();
-Console.WriteLine($"CPU: {stats.CpuPercent:F2}%");
-Console.WriteLine($"Memory: {stats.MemoryUsage} bytes");
+Console.WriteLine($"CPU: {stats.Cpu.UsagePercent:F2}%");
+Console.WriteLine($"Memory: {stats.Memory.Usage} bytes");
 ```
 
 ### Directory Copy
@@ -310,7 +310,7 @@ Console.WriteLine($"Memory: {stats.MemoryUsage} bytes");
 await container.CopyToAsync("/local/dir/", "/container/dir/");
 
 // Copy from container
-await container.CopyFromAsync("/container/logs/", "/local/logs/");
+await container.CopyFromToPathAsync("/container/logs/", "/local/logs/");
 ```
 
 ### Static IPv4/IPv6
@@ -339,7 +339,7 @@ using var cResults = new Builder()
 // All service operations are now async
 await container.StartAsync();
 await container.StopAsync();
-await container.ExecAsync("echo", "hello");
+await container.ExecuteAsync("echo hello");
 var stats = await container.GetStatsAsync();
 ```
 
@@ -356,6 +356,15 @@ var stats = await container.GetStatsAsync();
 - [ ] Update logging configuration
 - [ ] Run tests to verify
 - [ ] Update CI/CD pipelines
+
+## Detailed Migration Resources
+
+For in-depth migration guidance, see these companion documents:
+
+- [Complete API Mapping](migrate-v2-to-v3/api-mapping.md) — exhaustive v2 → v3 method and type mapping reference
+- [Code Examples (Before/After)](migrate-v2-to-v3/code-examples.md) — side-by-side migration examples for common patterns
+- [Test Migration Guide](migrate-v2-to-v3/test-migration.md) — xUnit, MSTest, and fixture migration patterns
+- [Claude Code Migration Skill](migrate-v2-to-v3/claude-skill.md) — automated migration assistant (copy to `.claude/skills/` and invoke `/migrate-v2-to-v3`)
 
 ## Getting Help
 

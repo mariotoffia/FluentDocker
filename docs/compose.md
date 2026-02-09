@@ -19,7 +19,7 @@ using FluentDocker.Builders;
 
 // Create once and reuse
 var kernel = FluentDockerKernel.Create()
-    .WithDriver("docker", d => d.UseDockerCli().AsDefault())
+    .WithDockerCli("docker", d => d.AsDefault())
     .Build();
 ```
 
@@ -27,7 +27,7 @@ For async contexts (ASP.NET, xUnit `IAsyncLifetime`), prefer the async variant:
 
 ```csharp
 var kernel = await FluentDockerKernel.Create()
-    .WithDriver("docker", d => d.UseDockerCli().AsDefault())
+    .WithDockerCli("docker", d => d.AsDefault())
     .BuildAsync();
 ```
 
@@ -550,7 +550,7 @@ public class IntegrationTestBase : IAsyncLifetime
     public async Task InitializeAsync()
     {
         _kernel = await FluentDockerKernel.Create()
-            .WithDriver("docker", d => d.UseDockerCli().AsDefault())
+            .WithDockerCli("docker", d => d.AsDefault())
             .BuildAsync();
 
         Results = await new Builder()
@@ -570,8 +570,8 @@ public class IntegrationTestBase : IAsyncLifetime
 
     public async Task DisposeAsync()
     {
-        Results?.Dispose();
-        _kernel?.Dispose();
+        if (Results is IAsyncDisposable ad) await ad.DisposeAsync();
+        if (_kernel is IAsyncDisposable kd) await kd.DisposeAsync();
     }
 }
 

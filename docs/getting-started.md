@@ -32,7 +32,7 @@ dotnet add package FluentDocker.XUnit   # For xUnit
 ## Prerequisites
 
 - **Docker** must be installed and running
-- **.NET 8.0** or later (net8.0, net10.0 supported)
+- **.NET 10.0** or later
 
 ### Verify Docker
 
@@ -55,7 +55,7 @@ using FluentDocker.Services.Extensions;
 
 // Step 1: Create a kernel (once per application lifetime)
 using var kernel = FluentDockerKernel.Create()
-    .WithDriver("docker", d => d.UseDockerCli().AsDefault())
+    .WithDockerCli("docker", d => d.AsDefault())
     .Build();
 
 // Step 2: Build and start an nginx container
@@ -123,13 +123,17 @@ Docker requires sudo by default. Configure FluentDocker:
 
 ```csharp
 // Option 1: No sudo (recommended - add user to docker group)
-SudoMechanism.None.SetSudo();
+// No configuration needed — this is the default
 
 // Option 2: Sudo without password
-SudoMechanism.NoPassword.SetSudo();
+using var kernel = FluentDockerKernel.Create()
+    .WithDockerCli("docker", d => d.WithSudo(SudoMechanism.NoPassword).AsDefault())
+    .Build();
 
 // Option 3: Sudo with password
-SudoMechanism.Password.SetSudo("your-password");
+using var kernel = FluentDockerKernel.Create()
+    .WithDockerCli("docker", d => d.WithSudo(SudoMechanism.Password, "your-password").AsDefault())
+    .Build();
 ```
 
 **Best practice**: Add your user to the docker group:

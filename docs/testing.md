@@ -112,7 +112,7 @@ public class PodmanTests : FluentDockerTestBase
     protected override async Task<FluentDockerKernel> CreateKernelAsync()
     {
         return await FluentDockerKernel.Create()
-            .WithDriver("podman", driver => driver.UsePodmanCli().AsDefault())
+            .WithPodmanCli("podman", d => d.AsDefault())
             .BuildAsync();
     }
 
@@ -190,14 +190,14 @@ using Xunit;
 public class DatabaseTests : IAsyncLifetime
 {
     private FluentDockerKernel _kernel;
-    private IBuildResults _results;
+    private BuildResults _results;
     private IContainerService _container;
     private string _connectionString;
 
     public async Task InitializeAsync()
     {
         _kernel = await FluentDockerKernel.Create()
-            .WithDriver("docker", d => d.UseDockerCli().AsDefault())
+            .WithDockerCli("docker", d => d.AsDefault())
             .BuildAsync();
 
         _results = await new Builder()
@@ -243,12 +243,12 @@ public class SharedDatabaseFixture : IAsyncLifetime
     public FluentDockerKernel Kernel { get; private set; }
     public IContainerService Container { get; private set; }
     public string ConnectionString { get; private set; }
-    private IBuildResults _results;
+    private BuildResults _results;
 
     public async Task InitializeAsync()
     {
         Kernel = await FluentDockerKernel.Create()
-            .WithDriver("docker", d => d.UseDockerCli().AsDefault())
+            .WithDockerCli("docker", d => d.AsDefault())
             .BuildAsync();
 
         _results = await new Builder()
@@ -390,12 +390,12 @@ public class KafkaTestBase : IAsyncLifetime
 {
     protected FluentDockerKernel Kernel { get; private set; }
     protected string BootstrapServers { get; private set; }
-    private IBuildResults _results;
+    private BuildResults _results;
 
     public async Task InitializeAsync()
     {
         Kernel = await FluentDockerKernel.Create()
-            .WithDriver("docker", d => d.UseDockerCli().AsDefault())
+            .WithDockerCli("docker", d => d.AsDefault())
             .BuildAsync();
 
         _results = await new Builder()
@@ -430,12 +430,12 @@ public class ApiIntegrationTestBase : IAsyncLifetime
 {
     protected FluentDockerKernel Kernel { get; private set; }
     protected HttpClient Client { get; private set; }
-    private IBuildResults _results;
+    private BuildResults _results;
 
     public async Task InitializeAsync()
     {
         Kernel = await FluentDockerKernel.Create()
-            .WithDriver("docker", d => d.UseDockerCli().AsDefault())
+            .WithDockerCli("docker", d => d.AsDefault())
             .BuildAsync();
 
         _results = await new Builder()
@@ -488,13 +488,13 @@ public class UserApiTests : ApiIntegrationTestBase
 public class MigrationTests : IAsyncLifetime
 {
     private FluentDockerKernel _kernel;
-    private IBuildResults _results;
+    private BuildResults _results;
     private string _connectionString;
 
     public async Task InitializeAsync()
     {
         _kernel = await FluentDockerKernel.Create()
-            .WithDriver("docker", d => d.UseDockerCli().AsDefault())
+            .WithDockerCli("docker", d => d.AsDefault())
             .BuildAsync();
 
         _results = await new Builder()
@@ -553,7 +553,7 @@ public class IsolatedTests
     public async Task EachTest_HasOwnDatabase()
     {
         var kernel = await FluentDockerKernel.Create()
-            .WithDriver("docker", d => d.UseDockerCli().AsDefault())
+            .WithDockerCli("docker", d => d.AsDefault())
             .BuildAsync();
 
         var results = await new Builder()

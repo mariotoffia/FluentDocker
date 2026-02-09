@@ -60,7 +60,7 @@ FluentDocker v3.0 introduces a **pluggable driver architecture** that supports m
 ```csharp
 // Kernel - BuildAsync() returns Task<FluentDockerKernel>
 var kernel = await FluentDockerKernel.Create()
-    .WithDriver("docker", d => d.UseDockerCli())
+    .WithDockerCli("docker", d => { })
     .BuildAsync();  // TERMINAL ASYNC
 
 // Container - BuildAsync() returns Task<BuildResults>
@@ -91,7 +91,7 @@ All async methods accept `CancellationToken`:
 using var cts = new CancellationTokenSource(TimeSpan.FromMinutes(5));
 
 var kernel = await FluentDockerKernel.Create()
-    .WithDriver("docker", d => d.UseDockerCli())
+    .WithDockerCli("docker", d => { })
     .BuildAsync(cts.Token);
 
 var deployment = await new Builder()
@@ -108,22 +108,13 @@ var deployment = await new Builder()
 
 ```csharp
 var kernel = await FluentDockerKernel.Create()
-    .WithDriver("docker-local", d => d
-        .UseDockerCli()
+    .WithDockerCli("docker-local", d => d
         .AtHost("unix:///var/run/docker.sock"))
-    .WithDriver("docker-remote", d => d
-        .UseDockerApi()
+    .WithDockerApi("docker-remote", d => d
         .AtHost("tcp://remote:2376")
         .WithCertificates("/path/to/certs")
-        .WithTimeout(TimeSpan.FromSeconds(30))
         .AsDefault())
-    .WithDriver("podman", d => d
-        .UsePodmanCli()
-        .AsRootless()
-        .WithPodSupport())
-    .WithRetryPolicy(p => p
-        .MaxAttempts(3)
-        .ExponentialBackoff(2.0))
+    .WithPodmanCli("podman", d => { })
     .BuildAsync();
 ```
 
@@ -134,13 +125,12 @@ Kernels are instantiable, not singletons:
 ```csharp
 // Create kernel for local Docker
 var localKernel = await FluentDockerKernel.Create()
-    .WithDriver("docker", d => d.UseDockerCli())
+    .WithDockerCli("docker", d => { })
     .BuildAsync();
 
 // Create kernel for remote Docker
 var remoteKernel = await FluentDockerKernel.Create()
-    .WithDriver("docker", d => d
-        .UseDockerApi()
+    .WithDockerApi("docker", d => d
         .AtHost("tcp://remote-host:2376")
         .WithCertificates("/certs"))
     .BuildAsync();
@@ -389,9 +379,8 @@ The driver system uses 30+ focused sub-interfaces:
 public async Task DeployAsync(CancellationToken cancellationToken)
 {
     var kernel = await FluentDockerKernel.Create()
-        .WithDriver("dev", d => d.UseDockerCli())
-        .WithDriver("prod", d => d
-            .UseDockerApi()
+        .WithDockerCli("dev", d => { })
+        .WithDockerApi("prod", d => d
             .AtHost("tcp://prod:2376")
             .WithCertificates("/certs"))
         .BuildAsync(cancellationToken);

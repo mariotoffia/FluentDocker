@@ -19,7 +19,7 @@ using FluentDocker.Builders;
 
 // Create kernel (once per application lifetime)
 using var kernel = FluentDockerKernel.Create()
-    .WithDriver("docker", d => d.UseDockerCli().AsDefault())
+    .WithDockerCli("docker", d => d.AsDefault())
     .Build();
 ```
 
@@ -80,7 +80,7 @@ if (container.State == ServiceRunningState.Running)
 
 ```csharp
 container.Pause();
-container.Resume();
+container.Start();  // Start() also resumes from Pause
 ```
 
 ## Port Exposure
@@ -361,7 +361,7 @@ using var results = new Builder()
     .Build();
 
 var container = results.Containers.First();
-var config = container.GetConfiguration(refresh: true);
+var config = container.GetConfiguration(fresh: true);
 Console.WriteLine($"ID: {config.Id}, Name: {config.Name}, State: {config.State.Status}");
 ```
 
@@ -431,7 +431,7 @@ Use these methods inside the `UseContainer(c => ...)` lambda to customize:
 ```csharp
 var container = results.Containers.First();
 
-var logs = container.Logs();
+var logs = await container.GetLogsAsync();
 foreach (var line in logs)
 {
     Console.WriteLine(line);
