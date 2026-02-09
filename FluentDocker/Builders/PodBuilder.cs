@@ -74,8 +74,10 @@ namespace FluentDocker.Builders
                     response.ErrorCode, response.ErrorContext);
             }
 
-            return new Services.Impl.PodService(
+            var service = new Services.Impl.PodService(
                 _kernel, _driverId, response.Data.Id, _name, _removeOnDispose);
+            await service.StartAsync(cancellationToken);
+            return service;
         }
     }
 }

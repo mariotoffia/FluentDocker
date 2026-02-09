@@ -61,6 +61,8 @@ namespace FluentDocker.Builders
         private bool _destroyRemoveVolumes;
         private Func<Dictionary<string, HostIpEndpoint[]>, string, Uri, IPEndPoint> _customResolver;
         private string _pod;
+        private Services.Impl.ContainerService _pendingService;
+        private bool _waitConditionsExecuted;
 
         public ContainerBuilder(FluentDockerKernel kernel, string driverId)
         {
@@ -392,6 +394,7 @@ namespace FluentDocker.Builders
                 _deleteVolumeOnDispose, _deleteNamedVolumeOnDispose,
                 _customResolver, _lifecycleHooks);
 
+            _pendingService = service;
             bool hasLinks = _links.Count > 0;
 
             if (!hasLinks)
@@ -400,6 +403,7 @@ namespace FluentDocker.Builders
                 await WaitForContainerRunningAsync(driver, context, response.Data.Id, cancellationToken);
                 await ExecuteLifecycleHooksAsync(service, ServiceRunningState.Running, cancellationToken);
                 await ExecuteWaitConditionsAsync(service, cancellationToken);
+                _waitConditionsExecuted = true;
             }
 
             return service;

@@ -94,7 +94,8 @@ namespace FluentDocker.Builders
             _operations.Add(new BuildOperation
             {
                 Kernel = _currentKernel, DriverId = _currentDriverId,
-                ExecuteAsync = ct => builder.ExecuteAsync(ct)
+                ExecuteAsync = ct => builder.ExecuteAsync(ct),
+                PostStartAsync = ct => builder.ExecuteDeferredWaitConditionsAsync(ct)
             });
             return this;
         }
@@ -211,13 +212,21 @@ namespace FluentDocker.Builders
                 var scope = new BuildScope(key.Kernel, key.DriverId);
                 scopes[key] = scope;
 
-                foreach (var operation in group)
+                var groupOperations = group.ToList();
+                foreach (var operation in groupOperations)
                 {
                     var service = await operation.ExecuteAsync(cancellationToken);
                     scope.AddResult(service);
                 }
 
                 await StartContainersWithLinksAsync(scope, cancellationToken);
+
+                // Execute deferred wait conditions for linked containers
+                foreach (var operation in groupOperations)
+                {
+                    if (operation.PostStartAsync != null)
+                        await operation.PostStartAsync(cancellationToken);
+                }
             }
 
             return new BuildResults(scopes.Values.ToList());
@@ -298,6 +307,12 @@ namespace FluentDocker.Builders
         public FluentDockerKernel Kernel { get; set; }
         public string DriverId { get; set; }
         public Func<CancellationToken, Task<IService>> ExecuteAsync { get; set; }
+
+        /// <summary>
+        /// Optional post-start callback for executing deferred operations
+        /// (e.g., wait conditions on linked containers).
+        /// </summary>
+        public Func<CancellationToken, Task> PostStartAsync { get; set; }
     }
 
     /// <summary>

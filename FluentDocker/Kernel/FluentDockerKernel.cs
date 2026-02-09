@@ -12,7 +12,7 @@ namespace FluentDocker.Kernel
     /// Non-singleton in v3.0.0 - can have multiple kernel instances.
     /// Implements ISysCtl for unified driver component access.
     /// </summary>
-    public class FluentDockerKernel : ISysCtl, IDisposable
+    public class FluentDockerKernel : ISysCtl, IAsyncDisposable, IDisposable
     {
         private readonly IDriverRegistry _registry;
         private bool _disposed;
@@ -262,12 +262,15 @@ namespace FluentDocker.Kernel
 
         #endregion
 
-        #region IDisposable
+        #region IAsyncDisposable / IDisposable
 
         /// <summary>
-        /// Disposes the kernel and all registered drivers.
+        /// Asynchronously disposes the kernel and all registered driver packs / drivers.
+        /// Driver packs implementing <see cref="IAsyncDisposable"/> are disposed asynchronously;
+        /// those implementing only <see cref="IDisposable"/> are disposed synchronously.
+        /// Regular drivers follow the same pattern.
         /// </summary>
-        public void Dispose()
+        public async ValueTask DisposeAsync()
         {
             if (_disposed)
                 return;
@@ -279,6 +282,24 @@ namespace FluentDocker.Kernel
             {
                 try
                 {
+                    // Dispose driver packs
+                    if (_registry.TryGetDriverPack(driverId, out var driverPack))
+                    {
+                        if (driverPack is IAsyncDisposable asyncDisposable)
+                            await asyncDisposable.DisposeAsync();
+                        else if (driverPack is IDisposable disposable)
+                            disposable.Dispose();
+                    }
+
+                    // Dispose regular drivers
+                    if (_registry.TryGetDriver(driverId, out var driver))
+                    {
+                        if (driver is IAsyncDisposable asyncDisposableDriver)
+                            await asyncDisposableDriver.DisposeAsync();
+                        else if (driver is IDisposable disposableDriver)
+                            disposableDriver.Dispose();
+                    }
+
                     _registry.Unregister(driverId);
                 }
                 catch
@@ -286,6 +307,18 @@ namespace FluentDocker.Kernel
                     // Ignore errors during disposal
                 }
             }
+        }
+
+        /// <summary>
+        /// Synchronously disposes the kernel and all registered driver packs / drivers.
+        /// Delegates to <see cref="DisposeAsync"/> and blocks until completion.
+        /// </summary>
+        public void Dispose()
+        {
+            if (_disposed)
+                return;
+
+            DisposeAsync().AsTask().GetAwaiter().GetResult();
         }
 
         #endregion

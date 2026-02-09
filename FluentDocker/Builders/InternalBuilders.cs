@@ -254,7 +254,10 @@ namespace FluentDocker.Builders
                 ForceRecreate = _forceRecreate, RemoveOrphans = _removeOrphans,
                 Services = _services, Detached = true,
                 NoDeps = _noDeps, NoStart = _noStart,
-                Wait = _wait, WaitTimeout = _waitTimeout, Timeout = _timeout
+                Wait = _wait, WaitTimeout = _waitTimeout, Timeout = _timeout,
+                Pull = _pull ? "always" : null,
+                Scale = _scale,
+                Profiles = _profiles
             };
 
             var response = await driver.UpAsync(context, config, cancellationToken);

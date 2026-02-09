@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 using FluentDocker.Builders;
 using FluentDocker.Drivers;
@@ -10,376 +11,310 @@ using Xunit;
 namespace FluentDocker.Tests.CoreTests.BuilderTests
 {
     /// <summary>
-    /// Unit tests for the enhanced ComposeBuilder - basic options and environment.
+    /// Unit tests for ComposeBuilder - advanced options and combined scenarios.
     /// </summary>
-    [Trait("Category", "Unit")]
     public partial class BuilderComposeTests
     {
         [Fact]
-        public async Task WithComposeFile_AddsFile()
+        public async Task WithNoStart_SetsNoStartFlag()
         {
-            // Arrange
             var (kernel, mockPack) = await MockKernelBuilderExtensions.CreateWithMockDriverAsync("docker");
+            mockPack.SetupComposeUpAsync(new ComposeUpResult { ProjectName = "test" });
 
+            try
+            {
+                await using var scope = await new Builder()
+                    .WithinDriver("docker", kernel)
+                    .UseCompose(c => c
+                        .WithComposeFile("/compose.yml")
+                        .WithNoStart())
+                    .BuildAsync();
+
+                mockPack.ComposeDriver.Verify(d => d.UpAsync(
+                    It.IsAny<DriverContext>(),
+                    It.Is<ComposeUpConfig>(c => c.NoStart == true),
+                    It.IsAny<System.Threading.CancellationToken>()), Times.Once);
+            }
+            finally { kernel.Dispose(); }
+        }
+
+        [Fact]
+        public async Task WithWait_SetsWaitFlag()
+        {
+            var (kernel, mockPack) = await MockKernelBuilderExtensions.CreateWithMockDriverAsync("docker");
+            mockPack.SetupComposeUpAsync(new ComposeUpResult { ProjectName = "test" });
+
+            try
+            {
+                await using var scope = await new Builder()
+                    .WithinDriver("docker", kernel)
+                    .UseCompose(c => c
+                        .WithComposeFile("/compose.yml")
+                        .WithWait())
+                    .BuildAsync();
+
+                mockPack.ComposeDriver.Verify(d => d.UpAsync(
+                    It.IsAny<DriverContext>(),
+                    It.Is<ComposeUpConfig>(c => c.Wait == true),
+                    It.IsAny<System.Threading.CancellationToken>()), Times.Once);
+            }
+            finally { kernel.Dispose(); }
+        }
+
+        [Fact]
+        public async Task WithWaitTimeout_SetsWaitTimeoutAndEnablesWait()
+        {
+            var (kernel, mockPack) = await MockKernelBuilderExtensions.CreateWithMockDriverAsync("docker");
+            mockPack.SetupComposeUpAsync(new ComposeUpResult { ProjectName = "test" });
+
+            try
+            {
+                await using var scope = await new Builder()
+                    .WithinDriver("docker", kernel)
+                    .UseCompose(c => c
+                        .WithComposeFile("/compose.yml")
+                        .WithWaitTimeout(120))
+                    .BuildAsync();
+
+                mockPack.ComposeDriver.Verify(d => d.UpAsync(
+                    It.IsAny<DriverContext>(),
+                    It.Is<ComposeUpConfig>(c => c.WaitTimeout == 120 && c.Wait == true),
+                    It.IsAny<System.Threading.CancellationToken>()), Times.Once);
+            }
+            finally { kernel.Dispose(); }
+        }
+
+        [Fact]
+        public async Task WithRemoveVolumes_CreatesServiceWithRemoveVolumesFlag()
+        {
+            var (kernel, mockPack) = await MockKernelBuilderExtensions.CreateWithMockDriverAsync("docker");
+            mockPack.SetupComposeUpAsync(new ComposeUpResult { ProjectName = "test" });
+            mockPack.SetupComposeDown();
+
+            try
+            {
+                await using var scope = await new Builder()
+                    .WithinDriver("docker", kernel)
+                    .UseCompose(c => c
+                        .WithComposeFile("/compose.yml")
+                        .WithRemoveVolumes())
+                    .BuildAsync();
+
+                mockPack.ComposeDriver.Verify(d => d.UpAsync(
+                    It.IsAny<DriverContext>(),
+                    It.IsAny<ComposeUpConfig>(),
+                    It.IsAny<System.Threading.CancellationToken>()), Times.Once);
+            }
+            finally { kernel.Dispose(); }
+        }
+
+        [Fact]
+        public async Task WithRemoveImages_CreatesServiceWithRemoveImagesFlag()
+        {
+            var (kernel, mockPack) = await MockKernelBuilderExtensions.CreateWithMockDriverAsync("docker");
+            mockPack.SetupComposeUpAsync(new ComposeUpResult { ProjectName = "test" });
+            mockPack.SetupComposeDown();
+
+            try
+            {
+                await using var scope = await new Builder()
+                    .WithinDriver("docker", kernel)
+                    .UseCompose(c => c
+                        .WithComposeFile("/compose.yml")
+                        .WithRemoveImages())
+                    .BuildAsync();
+
+                mockPack.ComposeDriver.Verify(d => d.UpAsync(
+                    It.IsAny<DriverContext>(),
+                    It.IsAny<ComposeUpConfig>(),
+                    It.IsAny<System.Threading.CancellationToken>()), Times.Once);
+            }
+            finally { kernel.Dispose(); }
+        }
+
+        [Fact]
+        public async Task WithScale_StoresScaleConfiguration()
+        {
+            var (kernel, mockPack) = await MockKernelBuilderExtensions.CreateWithMockDriverAsync("docker");
             mockPack.SetupComposeUpAsync(new ComposeUpResult
             {
-                ProjectName = "testproject",
+                ProjectName = "test",
                 Services = new List<string> { "web" }
             });
 
             try
             {
-                // Act - build the compose configuration
                 await using var scope = await new Builder()
                     .WithinDriver("docker", kernel)
                     .UseCompose(c => c
-                        .WithComposeFile("/path/to/docker-compose.yml")
-                        .WithProjectName("testproject"))
+                        .WithComposeFile("/compose.yml")
+                        .WithScale("web", 3))
                     .BuildAsync();
 
-                // Assert
+                // Assert - Scale config should be passed through to the driver
                 mockPack.ComposeDriver.Verify(d => d.UpAsync(
                     It.IsAny<DriverContext>(),
-                    It.Is<ComposeUpConfig>(c => c.ComposeFiles.Contains("/path/to/docker-compose.yml")),
+                    It.Is<ComposeUpConfig>(c =>
+                        c.Scale.ContainsKey("web") &&
+                        c.Scale["web"] == 3),
                     It.IsAny<System.Threading.CancellationToken>()), Times.Once);
             }
-            finally
-            {
-                kernel.Dispose();
-            }
+            finally { kernel.Dispose(); }
         }
 
         [Fact]
-        public async Task WithComposeFiles_AddsMultipleFiles()
+        public async Task WithProfiles_StoresProfilesConfiguration()
         {
-            // Arrange
             var (kernel, mockPack) = await MockKernelBuilderExtensions.CreateWithMockDriverAsync("docker");
+            mockPack.SetupComposeUpAsync(new ComposeUpResult { ProjectName = "test" });
 
+            try
+            {
+                await using var scope = await new Builder()
+                    .WithinDriver("docker", kernel)
+                    .UseCompose(c => c
+                        .WithComposeFile("/compose.yml")
+                        .WithProfiles("debug", "development"))
+                    .BuildAsync();
+
+                // Assert - Profiles should be passed through to the driver
+                mockPack.ComposeDriver.Verify(d => d.UpAsync(
+                    It.IsAny<DriverContext>(),
+                    It.Is<ComposeUpConfig>(c =>
+                        c.Profiles.Contains("debug") &&
+                        c.Profiles.Contains("development")),
+                    It.IsAny<System.Threading.CancellationToken>()), Times.Once);
+            }
+            finally { kernel.Dispose(); }
+        }
+
+        [Fact]
+        public async Task WithPull_StoresPullConfiguration()
+        {
+            var (kernel, mockPack) = await MockKernelBuilderExtensions.CreateWithMockDriverAsync("docker");
+            mockPack.SetupComposeUpAsync(new ComposeUpResult { ProjectName = "test" });
+
+            try
+            {
+                await using var scope = await new Builder()
+                    .WithinDriver("docker", kernel)
+                    .UseCompose(c => c
+                        .WithComposeFile("/compose.yml")
+                        .WithPull())
+                    .BuildAsync();
+
+                // Assert - Pull should be set to "always" in the config
+                mockPack.ComposeDriver.Verify(d => d.UpAsync(
+                    It.IsAny<DriverContext>(),
+                    It.Is<ComposeUpConfig>(c => c.Pull == "always"),
+                    It.IsAny<System.Threading.CancellationToken>()), Times.Once);
+            }
+            finally { kernel.Dispose(); }
+        }
+
+        [Fact]
+        public async Task CombinedOptions_AllOptionsPassedCorrectly()
+        {
+            var (kernel, mockPack) = await MockKernelBuilderExtensions.CreateWithMockDriverAsync("docker");
             mockPack.SetupComposeUpAsync(new ComposeUpResult
             {
-                ProjectName = "testproject",
-                Services = new List<string> { "web", "db" }
+                ProjectName = "myapp",
+                Services = new List<string> { "web", "db", "cache" }
             });
 
             try
             {
-                // Act
                 await using var scope = await new Builder()
                     .WithinDriver("docker", kernel)
                     .UseCompose(c => c
-                        .WithComposeFiles(
-                            "/path/to/docker-compose.yml",
-                            "/path/to/docker-compose.override.yml")
-                        .WithProjectName("testproject"))
+                        .WithComposeFiles("/compose.yml", "/compose.override.yml")
+                        .WithProjectName("myapp")
+                        .WithEnvironment("ENV", "production")
+                        .WithBuild()
+                        .WithForceRecreate()
+                        .WithRemoveOrphans()
+                        .ForServices("web", "db")
+                        .WithTimeout(30)
+                        .WithNoDeps()
+                        .WithWait()
+                        .WithWaitTimeout(60))
                     .BuildAsync();
 
-                // Assert
                 mockPack.ComposeDriver.Verify(d => d.UpAsync(
                     It.IsAny<DriverContext>(),
                     It.Is<ComposeUpConfig>(c =>
                         c.ComposeFiles.Count == 2 &&
-                        c.ComposeFiles.Contains("/path/to/docker-compose.yml") &&
-                        c.ComposeFiles.Contains("/path/to/docker-compose.override.yml")),
-                    It.IsAny<System.Threading.CancellationToken>()), Times.Once);
-            }
-            finally
-            {
-                kernel.Dispose();
-            }
-        }
-
-        [Fact]
-        public async Task WithProjectName_SetsProjectName()
-        {
-            // Arrange
-            var (kernel, mockPack) = await MockKernelBuilderExtensions.CreateWithMockDriverAsync("docker");
-
-            mockPack.SetupComposeUpAsync(new ComposeUpResult
-            {
-                ProjectName = "myapp",
-                Services = new List<string>()
-            });
-
-            try
-            {
-                // Act
-                await using var scope = await new Builder()
-                    .WithinDriver("docker", kernel)
-                    .UseCompose(c => c
-                        .WithComposeFile("/compose.yml")
-                        .WithProjectName("myapp"))
-                    .BuildAsync();
-
-                // Assert
-                mockPack.ComposeDriver.Verify(d => d.UpAsync(
-                    It.IsAny<DriverContext>(),
-                    It.Is<ComposeUpConfig>(c => c.ProjectName == "myapp"),
-                    It.IsAny<System.Threading.CancellationToken>()), Times.Once);
-            }
-            finally
-            {
-                kernel.Dispose();
-            }
-        }
-
-        [Fact]
-        public async Task WithEnvironment_SingleKeyValue_SetsVariable()
-        {
-            // Arrange
-            var (kernel, mockPack) = await MockKernelBuilderExtensions.CreateWithMockDriverAsync("docker");
-
-            mockPack.SetupComposeUpAsync(new ComposeUpResult { ProjectName = "test" });
-
-            try
-            {
-                // Act
-                await using var scope = await new Builder()
-                    .WithinDriver("docker", kernel)
-                    .UseCompose(c => c
-                        .WithComposeFile("/compose.yml")
-                        .WithEnvironment("DB_HOST", "localhost"))
-                    .BuildAsync();
-
-                // Assert
-                mockPack.ComposeDriver.Verify(d => d.UpAsync(
-                    It.IsAny<DriverContext>(),
-                    It.Is<ComposeUpConfig>(c =>
-                        c.Environment.ContainsKey("DB_HOST") &&
-                        c.Environment["DB_HOST"] == "localhost"),
-                    It.IsAny<System.Threading.CancellationToken>()), Times.Once);
-            }
-            finally
-            {
-                kernel.Dispose();
-            }
-        }
-
-        [Fact]
-        public async Task WithEnvironment_Dictionary_SetsMultipleVariables()
-        {
-            // Arrange
-            var (kernel, mockPack) = await MockKernelBuilderExtensions.CreateWithMockDriverAsync("docker");
-
-            mockPack.SetupComposeUpAsync(new ComposeUpResult { ProjectName = "test" });
-
-            var envVars = new Dictionary<string, string>
-            {
-                { "DB_HOST", "localhost" },
-                { "DB_PORT", "5432" },
-                { "DB_NAME", "testdb" }
-            };
-
-            try
-            {
-                // Act
-                await using var scope = await new Builder()
-                    .WithinDriver("docker", kernel)
-                    .UseCompose(c => c
-                        .WithComposeFile("/compose.yml")
-                        .WithEnvironment(envVars))
-                    .BuildAsync();
-
-                // Assert
-                mockPack.ComposeDriver.Verify(d => d.UpAsync(
-                    It.IsAny<DriverContext>(),
-                    It.Is<ComposeUpConfig>(c =>
-                        c.Environment.Count == 3 &&
-                        c.Environment["DB_HOST"] == "localhost" &&
-                        c.Environment["DB_PORT"] == "5432" &&
-                        c.Environment["DB_NAME"] == "testdb"),
-                    It.IsAny<System.Threading.CancellationToken>()), Times.Once);
-            }
-            finally
-            {
-                kernel.Dispose();
-            }
-        }
-
-        [Fact]
-        public async Task WithBuild_SetsBuildFlag()
-        {
-            // Arrange
-            var (kernel, mockPack) = await MockKernelBuilderExtensions.CreateWithMockDriverAsync("docker");
-
-            mockPack.SetupComposeUpAsync(new ComposeUpResult { ProjectName = "test" });
-
-            try
-            {
-                // Act
-                await using var scope = await new Builder()
-                    .WithinDriver("docker", kernel)
-                    .UseCompose(c => c
-                        .WithComposeFile("/compose.yml")
-                        .WithBuild())
-                    .BuildAsync();
-
-                // Assert
-                mockPack.ComposeDriver.Verify(d => d.UpAsync(
-                    It.IsAny<DriverContext>(),
-                    It.Is<ComposeUpConfig>(c => c.Build == true),
-                    It.IsAny<System.Threading.CancellationToken>()), Times.Once);
-            }
-            finally
-            {
-                kernel.Dispose();
-            }
-        }
-
-        [Fact]
-        public async Task WithForceRecreate_SetsForceRecreateFlag()
-        {
-            // Arrange
-            var (kernel, mockPack) = await MockKernelBuilderExtensions.CreateWithMockDriverAsync("docker");
-
-            mockPack.SetupComposeUpAsync(new ComposeUpResult { ProjectName = "test" });
-
-            try
-            {
-                // Act
-                await using var scope = await new Builder()
-                    .WithinDriver("docker", kernel)
-                    .UseCompose(c => c
-                        .WithComposeFile("/compose.yml")
-                        .WithForceRecreate())
-                    .BuildAsync();
-
-                // Assert
-                mockPack.ComposeDriver.Verify(d => d.UpAsync(
-                    It.IsAny<DriverContext>(),
-                    It.Is<ComposeUpConfig>(c => c.ForceRecreate == true),
-                    It.IsAny<System.Threading.CancellationToken>()), Times.Once);
-            }
-            finally
-            {
-                kernel.Dispose();
-            }
-        }
-
-        [Fact]
-        public async Task ForServices_FiltersToSpecificServices()
-        {
-            // Arrange
-            var (kernel, mockPack) = await MockKernelBuilderExtensions.CreateWithMockDriverAsync("docker");
-
-            mockPack.SetupComposeUpAsync(new ComposeUpResult
-            {
-                ProjectName = "test",
-                Services = new List<string> { "web", "api" }
-            });
-
-            try
-            {
-                // Act
-                await using var scope = await new Builder()
-                    .WithinDriver("docker", kernel)
-                    .UseCompose(c => c
-                        .WithComposeFile("/compose.yml")
-                        .ForServices("web", "api"))
-                    .BuildAsync();
-
-                // Assert
-                mockPack.ComposeDriver.Verify(d => d.UpAsync(
-                    It.IsAny<DriverContext>(),
-                    It.Is<ComposeUpConfig>(c =>
+                        c.ProjectName == "myapp" &&
+                        c.Environment.ContainsKey("ENV") &&
+                        c.Environment["ENV"] == "production" &&
+                        c.Build == true &&
+                        c.ForceRecreate == true &&
+                        c.RemoveOrphans == true &&
                         c.Services.Count == 2 &&
-                        c.Services.Contains("web") &&
-                        c.Services.Contains("api")),
+                        c.Timeout == 30 &&
+                        c.NoDeps == true &&
+                        c.Wait == true &&
+                        c.WaitTimeout == 60),
                     It.IsAny<System.Threading.CancellationToken>()), Times.Once);
             }
-            finally
-            {
-                kernel.Dispose();
-            }
+            finally { kernel.Dispose(); }
         }
 
         [Fact]
-        public async Task WithTimeout_SetsTimeout()
+        public async Task WithBuild_False_DoesNotSetBuildFlag()
         {
-            // Arrange
             var (kernel, mockPack) = await MockKernelBuilderExtensions.CreateWithMockDriverAsync("docker");
-
             mockPack.SetupComposeUpAsync(new ComposeUpResult { ProjectName = "test" });
 
             try
             {
-                // Act
                 await using var scope = await new Builder()
                     .WithinDriver("docker", kernel)
                     .UseCompose(c => c
                         .WithComposeFile("/compose.yml")
-                        .WithTimeout(60))
+                        .WithBuild(false))
                     .BuildAsync();
 
-                // Assert
                 mockPack.ComposeDriver.Verify(d => d.UpAsync(
                     It.IsAny<DriverContext>(),
-                    It.Is<ComposeUpConfig>(c => c.Timeout == 60),
+                    It.Is<ComposeUpConfig>(c => c.Build == false),
                     It.IsAny<System.Threading.CancellationToken>()), Times.Once);
             }
-            finally
-            {
-                kernel.Dispose();
-            }
+            finally { kernel.Dispose(); }
         }
 
         [Fact]
-        public async Task WithNoDeps_SetsNoDepsFlag()
+        public async Task MultipleEnvironmentCalls_MergesEnvironment()
         {
-            // Arrange
             var (kernel, mockPack) = await MockKernelBuilderExtensions.CreateWithMockDriverAsync("docker");
-
             mockPack.SetupComposeUpAsync(new ComposeUpResult { ProjectName = "test" });
 
             try
             {
-                // Act
                 await using var scope = await new Builder()
                     .WithinDriver("docker", kernel)
                     .UseCompose(c => c
                         .WithComposeFile("/compose.yml")
-                        .WithNoDeps())
+                        .WithEnvironment("VAR1", "value1")
+                        .WithEnvironment("VAR2", "value2")
+                        .WithEnvironment(new Dictionary<string, string>
+                        {
+                            { "VAR3", "value3" },
+                            { "VAR4", "value4" }
+                        }))
                     .BuildAsync();
 
-                // Assert
                 mockPack.ComposeDriver.Verify(d => d.UpAsync(
                     It.IsAny<DriverContext>(),
-                    It.Is<ComposeUpConfig>(c => c.NoDeps == true),
+                    It.Is<ComposeUpConfig>(c =>
+                        c.Environment.Count == 4 &&
+                        c.Environment["VAR1"] == "value1" &&
+                        c.Environment["VAR2"] == "value2" &&
+                        c.Environment["VAR3"] == "value3" &&
+                        c.Environment["VAR4"] == "value4"),
                     It.IsAny<System.Threading.CancellationToken>()), Times.Once);
             }
-            finally
-            {
-                kernel.Dispose();
-            }
-        }
-
-        [Fact]
-        public async Task WithRemoveOrphans_SetsRemoveOrphansFlag()
-        {
-            // Arrange
-            var (kernel, mockPack) = await MockKernelBuilderExtensions.CreateWithMockDriverAsync("docker");
-
-            mockPack.SetupComposeUpAsync(new ComposeUpResult { ProjectName = "test" });
-
-            try
-            {
-                // Act
-                await using var scope = await new Builder()
-                    .WithinDriver("docker", kernel)
-                    .UseCompose(c => c
-                        .WithComposeFile("/compose.yml")
-                        .WithRemoveOrphans())
-                    .BuildAsync();
-
-                // Assert
-                mockPack.ComposeDriver.Verify(d => d.UpAsync(
-                    It.IsAny<DriverContext>(),
-                    It.Is<ComposeUpConfig>(c => c.RemoveOrphans == true),
-                    It.IsAny<System.Threading.CancellationToken>()), Times.Once);
-            }
-            finally
-            {
-                kernel.Dispose();
-            }
+            finally { kernel.Dispose(); }
         }
     }
 }

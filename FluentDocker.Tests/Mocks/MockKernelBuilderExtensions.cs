@@ -85,10 +85,10 @@ namespace FluentDocker.Tests.Mocks
             Kernel = await MockKernelBuilderExtensions.CreateWithMockDriverAsync(driverId, mockPack);
         }
 
-        public ValueTask DisposeAsync()
+        public async ValueTask DisposeAsync()
         {
-            Kernel?.Dispose();
-            return ValueTask.CompletedTask;
+            if (Kernel != null)
+                await Kernel.DisposeAsync();
         }
     }
 }

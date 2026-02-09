@@ -314,5 +314,163 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
                     cfg.Networks.Contains("app-net")),
                 It.IsAny<System.Threading.CancellationToken>()), Times.Once);
         }
+
+        [Fact]
+        public async Task LinkedContainer_WaitConditionsExecuted()
+        {
+            // Arrange
+            MockPack
+                .SetupContainerCreate()
+                .SetupContainerStart()
+                .SetupContainerInspect(running: true)
+                .SetupContainerStop()
+                .SetupContainerRemove();
+
+            var waitConditionCalled = false;
+
+            // Act - container with link defers start; Builder calls StartContainersWithLinksAsync
+            // then PostStartAsync should execute the deferred wait condition
+            var results = await new Builder()
+                .WithinDriver(DriverId, Kernel)
+                .UseContainer(c => c
+                    .UseImage("redis:alpine")
+                    .WithName("cache"))
+                .UseContainer(c => c
+                    .UseImage("myapp:latest")
+                    .WithName("app")
+                    .WithLink("cache")
+                    .Wait((service, iteration) =>
+                    {
+                        waitConditionCalled = true;
+                        return -1; // succeed immediately
+                    }))
+                .BuildAsync();
+
+            // Assert
+            Assert.Equal(2, results.All.Count());
+            Assert.True(waitConditionCalled,
+                "Wait condition should be executed for linked containers " +
+                "after they are started by StartContainersWithLinksAsync");
+        }
+
+        [Fact]
+        public async Task LinkedContainer_MultipleWaitConditionsAllExecuted()
+        {
+            // Arrange
+            MockPack
+                .SetupContainerCreate()
+                .SetupContainerStart()
+                .SetupContainerInspect(running: true)
+                .SetupContainerStop()
+                .SetupContainerRemove();
+
+            var firstWaitCalled = false;
+            var secondWaitCalled = false;
+
+            // Act
+            var results = await new Builder()
+                .WithinDriver(DriverId, Kernel)
+                .UseContainer(c => c
+                    .UseImage("postgres:13")
+                    .WithName("db"))
+                .UseContainer(c => c
+                    .UseImage("myapp:latest")
+                    .WithName("app")
+                    .WithLink("db")
+                    .Wait((service, iteration) =>
+                    {
+                        firstWaitCalled = true;
+                        return -1;
+                    })
+                    .Wait((service, iteration) =>
+                    {
+                        secondWaitCalled = true;
+                        return -1;
+                    }))
+                .BuildAsync();
+
+            // Assert
+            Assert.Equal(2, results.All.Count());
+            Assert.True(firstWaitCalled,
+                "First wait condition should execute for linked container");
+            Assert.True(secondWaitCalled,
+                "Second wait condition should execute for linked container");
+        }
+
+        [Fact]
+        public async Task NonLinkedContainer_WaitConditionsStillExecuteNormally()
+        {
+            // Arrange
+            MockPack
+                .SetupContainerCreate()
+                .SetupContainerStart()
+                .SetupContainerInspect(running: true)
+                .SetupContainerStop()
+                .SetupContainerRemove();
+
+            var waitConditionCalled = false;
+
+            // Act - container without links should execute wait conditions inline
+            var results = await new Builder()
+                .WithinDriver(DriverId, Kernel)
+                .UseContainer(c => c
+                    .UseImage("nginx:alpine")
+                    .WithName("web")
+                    .Wait((service, iteration) =>
+                    {
+                        waitConditionCalled = true;
+                        return -1;
+                    }))
+                .BuildAsync();
+
+            // Assert
+            Assert.Single(results.All);
+            Assert.True(waitConditionCalled,
+                "Wait condition should execute for non-linked containers");
+        }
+
+        [Fact]
+        public async Task MixedLinkedAndNonLinked_AllWaitConditionsExecute()
+        {
+            // Arrange
+            MockPack
+                .SetupContainerCreate()
+                .SetupContainerStart()
+                .SetupContainerInspect(running: true)
+                .SetupContainerStop()
+                .SetupContainerRemove();
+
+            var nonLinkedWaitCalled = false;
+            var linkedWaitCalled = false;
+
+            // Act - one container without links, one with links
+            var results = await new Builder()
+                .WithinDriver(DriverId, Kernel)
+                .UseContainer(c => c
+                    .UseImage("redis:alpine")
+                    .WithName("cache")
+                    .Wait((service, iteration) =>
+                    {
+                        nonLinkedWaitCalled = true;
+                        return -1;
+                    }))
+                .UseContainer(c => c
+                    .UseImage("myapp:latest")
+                    .WithName("app")
+                    .WithLink("cache")
+                    .Wait((service, iteration) =>
+                    {
+                        linkedWaitCalled = true;
+                        return -1;
+                    }))
+                .BuildAsync();
+
+            // Assert
+            Assert.Equal(2, results.All.Count());
+            Assert.True(nonLinkedWaitCalled,
+                "Wait condition should execute for non-linked container");
+            Assert.True(linkedWaitCalled,
+                "Wait condition should execute for linked container");
+        }
     }
 }

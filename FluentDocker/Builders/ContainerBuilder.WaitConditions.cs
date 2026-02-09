@@ -15,6 +15,19 @@ namespace FluentDocker.Builders
     /// </summary>
     internal partial class ContainerBuilder
     {
+        /// <summary>
+        /// Executes wait conditions that were deferred because the container had links.
+        /// Called by Builder after all linked containers have been started.
+        /// </summary>
+        internal async Task ExecuteDeferredWaitConditionsAsync(CancellationToken cancellationToken)
+        {
+            if (_waitConditionsExecuted || _pendingService == null)
+                return;
+
+            _waitConditionsExecuted = true;
+            await ExecuteWaitConditionsAsync(_pendingService, cancellationToken);
+        }
+
         private async Task ExecuteLifecycleHooksAsync(
             Services.Impl.ContainerService service, ServiceRunningState state,
             CancellationToken cancellationToken)

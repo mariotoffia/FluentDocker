@@ -19,7 +19,7 @@ namespace FluentDocker.Services.Impl
         private readonly string _podId;
         private readonly bool _removeOnDispose;
         private readonly Dictionary<string, Func<IServiceAsync, Task>> _hooks = new();
-        private ServiceRunningState _state = ServiceRunningState.Running;
+        private ServiceRunningState _state = ServiceRunningState.Stopped;
 
         public PodService(
             FluentDockerKernel kernel, string driverId,

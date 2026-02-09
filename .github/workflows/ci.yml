@@ -37,7 +37,6 @@ jobs:
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: |
-            8.0.x
             10.0.x
 
       - name: Install GitVersion
@@ -75,8 +74,8 @@ jobs:
           dotnet test \
             --no-build \
             --configuration Release \
-            --framework net8.0 \
-            --filter "TestCategory=CI" \
+            --framework net10.0 \
+            --filter "Category=Unit" \
             --logger "console;verbosity=detailed"
 
       - name: Run tests with coverage (in GitHub)
@@ -85,8 +84,8 @@ jobs:
           dotnet test
           --no-build
           --configuration Release
-          --framework net8.0
-          --filter "TestCategory=CI"
+          --framework net10.0
+          --filter "Category=Unit"
           --collect:"XPlat Code Coverage"
           --results-directory ./coverage
           --settings coverletArgs.runsettings
@@ -156,7 +155,6 @@ jobs:
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: |
-            8.0.x
             10.0.x
 
       - name: Build for CodeQL

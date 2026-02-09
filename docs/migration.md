@@ -62,12 +62,12 @@ v3 requires a kernel with a registered driver before building containers.
 ```csharp
 // NEW - Required kernel setup (once per application / test session)
 using var kernel = FluentDockerKernel.Create()
-    .WithDriver("docker", d => d.UseDockerCli().AsDefault())
+    .WithDockerCli("docker", d => d.AsDefault())
     .Build();
 
 // Async variant
 using var kernel = await FluentDockerKernel.Create()
-    .WithDriver("docker", d => d.UseDockerCli().AsDefault())
+    .WithDockerCli("docker", d => d.AsDefault())
     .BuildAsync();
 ```
 
@@ -216,7 +216,7 @@ var machine = machines.First(x => x.Name == "default");
 
 // NEW - Create kernel and use WithinDriver
 using var kernel = FluentDockerKernel.Create()
-    .WithDriver("docker", d => d.UseDockerCli().AsDefault())
+    .WithDockerCli("docker", d => d.AsDefault())
     .Build();
 
 using var results = new Builder()
