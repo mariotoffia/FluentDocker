@@ -214,7 +214,7 @@ namespace FluentDocker.Services.Impl
 
             var config = new ExecConfig
             {
-                Command = command.Split(' ')
+                Command = ShellArgParser.Parse(command)
             };
 
             var response = await driver.ExecAsync(context, _containerId, config, cancellationToken);

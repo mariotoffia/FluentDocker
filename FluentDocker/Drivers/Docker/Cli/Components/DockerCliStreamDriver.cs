@@ -22,15 +22,18 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
         {
         }
 
-        /// <inheritdoc />
-        public async IAsyncEnumerable<string> StreamLogsAsync(
-            DriverContext context,
-            string containerId,
-            StreamLogsConfig config = null,
-            [EnumeratorCancellation] CancellationToken cancellationToken = default)
+        /// <summary>
+        /// Builds the CLI arguments string for streaming container logs.
+        /// </summary>
+        /// <param name="containerId">Container ID or name.</param>
+        /// <param name="config">Stream logs configuration (null uses defaults).</param>
+        /// <returns>The CLI arguments string.</returns>
+        public static string BuildStreamLogsArgs(string containerId, StreamLogsConfig config)
         {
             config ??= new StreamLogsConfig();
-            var args = "logs -f";
+            var args = "logs";
+            if (config.Follow)
+                args += " -f";
             if (config.Timestamps)
                 args += " -t";
             if (config.Tail.HasValue)
@@ -38,6 +41,17 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
             if (!string.IsNullOrEmpty(config.Since))
                 args += $" --since {config.Since}";
             args += $" {containerId}";
+            return args;
+        }
+
+        /// <inheritdoc />
+        public async IAsyncEnumerable<string> StreamLogsAsync(
+            DriverContext context,
+            string containerId,
+            StreamLogsConfig config = null,
+            [EnumeratorCancellation] CancellationToken cancellationToken = default)
+        {
+            var args = BuildStreamLogsArgs(containerId, config);
 
             await foreach (var line in ExecuteStreamingCommandAsync(args, cancellationToken))
             {
@@ -81,6 +95,24 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
             }
         }
 
+        /// <summary>
+        /// Builds the CLI arguments string for streaming container stats.
+        /// </summary>
+        /// <param name="containerId">Container ID or name (null for all containers).</param>
+        /// <param name="config">Stream stats configuration.</param>
+        /// <returns>The CLI arguments string.</returns>
+        public static string BuildStreamStatsArgs(string containerId, StreamStatsConfig config)
+        {
+            var args = "stats --format \"{{json .}}\"";
+            if (config?.Stream == false)
+                args += " --no-stream";
+            if (config?.All == true)
+                args += " -a";
+            if (!string.IsNullOrEmpty(containerId))
+                args += $" {containerId}";
+            return args;
+        }
+
         /// <inheritdoc />
         public async IAsyncEnumerable<ContainerStats> StreamStatsAsync(
             DriverContext context,
@@ -88,11 +120,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
             StreamStatsConfig config = null,
             [EnumeratorCancellation] CancellationToken cancellationToken = default)
         {
-            var args = "stats --format \"{{json .}}\"";
-            if (config?.All == true)
-                args += " -a";
-            if (!string.IsNullOrEmpty(containerId))
-                args += $" {containerId}";
+            var args = BuildStreamStatsArgs(containerId, config);
 
             await foreach (var line in ExecuteStreamingCommandAsync(args, cancellationToken))
             {

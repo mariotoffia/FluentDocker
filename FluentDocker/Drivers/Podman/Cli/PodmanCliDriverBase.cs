@@ -65,6 +65,26 @@ namespace FluentDocker.Drivers.Podman.Cli
             BinaryResolver = binaryResolver ?? throw new ArgumentNullException(nameof(binaryResolver));
         }
 
+        #region Global Args
+
+        /// <summary>
+        /// Builds global CLI flags from the driver context.
+        /// Podman uses --url for remote host. TLS certificate flags are not
+        /// supported via the Podman CLI, so <see cref="DriverContext.CertificatePath"/>
+        /// is ignored.
+        /// </summary>
+        /// <param name="context">The driver context (may be null).</param>
+        /// <returns>A string of global flags to prepend to Podman commands, or empty string.</returns>
+        public static string BuildGlobalArgs(DriverContext context)
+        {
+            if (context == null || string.IsNullOrEmpty(context.Host))
+                return "";
+
+            return $"--url {context.Host}";
+        }
+
+        #endregion
+
         #region Command Execution
 
         /// <summary>
@@ -74,7 +94,9 @@ namespace FluentDocker.Drivers.Podman.Cli
             string arguments, CancellationToken cancellationToken)
         {
             var podmanPath = BinaryResolver?.ResolveBinaryPath(PodmanCommand) ?? PodmanCommand;
-            return await ExecuteProcessAsync(podmanPath, arguments, cancellationToken);
+            var globalArgs = BuildGlobalArgs(Context);
+            var fullArgs = string.IsNullOrEmpty(globalArgs) ? arguments : $"{globalArgs} {arguments}";
+            return await ExecuteProcessAsync(podmanPath, fullArgs, cancellationToken);
         }
 
         /// <summary>
@@ -152,13 +174,15 @@ namespace FluentDocker.Drivers.Podman.Cli
             [EnumeratorCancellation] CancellationToken cancellationToken)
         {
             var podmanPath = BinaryResolver?.ResolveBinaryPath(PodmanCommand) ?? PodmanCommand;
+            var globalArgs = BuildGlobalArgs(Context);
+            var fullArgs = string.IsNullOrEmpty(globalArgs) ? arguments : $"{globalArgs} {arguments}";
 
             var process = new Process
             {
                 StartInfo = new ProcessStartInfo
                 {
                     FileName = podmanPath,
-                    Arguments = arguments,
+                    Arguments = fullArgs,
                     RedirectStandardOutput = true,
                     RedirectStandardError = true,
                     UseShellExecute = false,
@@ -198,13 +222,15 @@ namespace FluentDocker.Drivers.Podman.Cli
         protected AttachResult ExecuteAttachProcess(string arguments)
         {
             var podmanPath = BinaryResolver?.ResolveBinaryPath(PodmanCommand) ?? PodmanCommand;
+            var globalArgs = BuildGlobalArgs(Context);
+            var fullArgs = string.IsNullOrEmpty(globalArgs) ? arguments : $"{globalArgs} {arguments}";
 
             var process = new Process
             {
                 StartInfo = new ProcessStartInfo
                 {
                     FileName = podmanPath,
-                    Arguments = arguments,
+                    Arguments = fullArgs,
                     RedirectStandardInput = true,
                     RedirectStandardOutput = true,
                     RedirectStandardError = true,

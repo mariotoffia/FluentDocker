@@ -400,7 +400,8 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
                 if (host is JObject h)
                 {
                     result.Arch = (h["Arch"] ?? h["arch"])?.Value<string>();
-                    result.OS = (h["CurrentMachine"] ?? h["OS"] ?? h["os"])?.Value<string>();
+                    result.OS = (h["OS"] ?? h["os"])?.Value<string>();
+                    result.CurrentMachine = (h["CurrentMachine"] ?? h["currentMachine"])?.Value<string>();
                     result.VMType = (h["VMType"] ?? h["vmType"])?.Value<string>();
                     var num = h["NumberOfMachines"] ?? h["numberOfMachines"];
                     if (num != null) result.NumberOfMachines = num.Value<int>();

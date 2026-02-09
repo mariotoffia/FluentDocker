@@ -1,5 +1,6 @@
 using System;
 using System.Diagnostics;
+using System.Globalization;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -7,6 +8,7 @@ using FluentDocker.Common;
 using FluentDocker.Drivers.Docker.Cli.Binary;
 using FluentDocker.Model.Drivers;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 
 namespace FluentDocker.Drivers.Docker.Cli.Components
 {
@@ -154,8 +156,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
                         ErrorCodes.General.Unknown);
                 }
 
-                var info = new DiskUsageInfo();
-                // Parse the JSON output - simplified for now
+                var info = ParseDiskUsageOutput(result.Output);
                 return CommandResponse<DiskUsageInfo>.Ok(info);
             }
             catch (Exception ex)
@@ -321,6 +322,131 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
                     };
                 }
             }, cancellationToken);
+        }
+
+        #endregion
+
+        #region Disk Usage Parsing
+
+        /// <summary>
+        /// Parses Docker CLI <c>system df --format "{{json .}}"</c> output.
+        /// Each line is a JSON object with Type, TotalCount, Active, Size, Reclaimable.
+        /// </summary>
+        public static DiskUsageInfo ParseDiskUsageOutput(string output)
+        {
+            var info = new DiskUsageInfo();
+            if (string.IsNullOrWhiteSpace(output))
+                return info;
+
+            var lines = output.Split(new[] { '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries);
+            foreach (var line in lines)
+            {
+                var trimmed = line.Trim();
+                if (trimmed.Length == 0 || trimmed[0] != '{')
+                    continue;
+
+                try
+                {
+                    var obj = JObject.Parse(trimmed);
+                    var type = obj["Type"]?.Value<string>() ?? "";
+                    var item = new DiskUsageItem
+                    {
+                        TotalCount = obj["TotalCount"]?.Value<int>() ?? 0,
+                        Active = obj["Active"]?.Value<int>() ?? 0,
+                        Size = ParseHumanReadableBytes(obj["Size"]?.Value<string>()),
+                        Reclaimable = ParseReclaimableBytes(obj["Reclaimable"]?.Value<string>())
+                    };
+
+                    switch (type)
+                    {
+                        case "Images":
+                            info.Images = item;
+                            break;
+                        case "Containers":
+                            info.Containers = item;
+                            break;
+                        case "Local Volumes":
+                            info.Volumes = item;
+                            break;
+                        case "Build Cache":
+                            info.BuildCache = item;
+                            break;
+                    }
+                }
+                catch
+                {
+                    // Skip malformed lines
+                }
+            }
+
+            info.TotalSize = info.Images.Size + info.Containers.Size
+                             + info.Volumes.Size + info.BuildCache.Size;
+            info.Reclaimable = info.Images.Reclaimable + info.Containers.Reclaimable
+                               + info.Volumes.Reclaimable + info.BuildCache.Reclaimable;
+            return info;
+        }
+
+        /// <summary>
+        /// Parses a human-readable byte string (e.g. "1.234GB", "500MB", "0B").
+        /// Uses base-1000 for B/kB/KB/MB/GB/TB and base-1024 for KiB/MiB/GiB/TiB.
+        /// </summary>
+        public static long ParseHumanReadableBytes(string value)
+        {
+            if (string.IsNullOrWhiteSpace(value))
+                return 0;
+
+            var s = value.Trim();
+            var suffixes = new (string suffix, double multiplier)[]
+            {
+                ("TiB", 1024.0 * 1024 * 1024 * 1024),
+                ("GiB", 1024.0 * 1024 * 1024),
+                ("MiB", 1024.0 * 1024),
+                ("KiB", 1024.0),
+                ("TB", 1000.0 * 1000 * 1000 * 1000),
+                ("GB", 1000.0 * 1000 * 1000),
+                ("MB", 1000.0 * 1000),
+                ("kB", 1000.0),
+                ("KB", 1000.0),
+                ("B", 1.0)
+            };
+
+            foreach (var (suffix, multiplier) in suffixes)
+            {
+                if (!s.EndsWith(suffix, StringComparison.Ordinal))
+                    continue;
+
+                var numStr = s.Substring(0, s.Length - suffix.Length).Trim();
+                if (double.TryParse(numStr, NumberStyles.Float,
+                        CultureInfo.InvariantCulture, out var num))
+                    return (long)(num * multiplier);
+                return 0;
+            }
+
+            // No recognized suffix: try raw number
+            return double.TryParse(s, NumberStyles.Float,
+                       CultureInfo.InvariantCulture, out var raw)
+                ? (long)raw
+                : 0;
+        }
+
+        /// <summary>
+        /// Parses a reclaimable size string that may include a percentage suffix,
+        /// e.g. "500MB (40%)". Strips the parenthesized portion and parses the
+        /// remaining human-readable byte value.
+        /// </summary>
+        public static long ParseReclaimableBytes(string value)
+        {
+            if (string.IsNullOrWhiteSpace(value))
+                return 0;
+
+            var s = value.Trim();
+
+            // Strip trailing " (N%)" if present
+            var parenIndex = s.IndexOf('(');
+            if (parenIndex >= 0)
+                s = s.Substring(0, parenIndex).Trim();
+
+            return ParseHumanReadableBytes(s);
         }
 
         #endregion

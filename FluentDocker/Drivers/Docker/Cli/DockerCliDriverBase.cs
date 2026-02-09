@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.IO;
 using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading;
@@ -67,6 +68,42 @@ namespace FluentDocker.Drivers.Docker.Cli
             BinaryResolver = binaryResolver ?? throw new ArgumentNullException(nameof(binaryResolver));
         }
 
+        #region Global Args
+
+        /// <summary>
+        /// Builds global CLI flags from the driver context, including host (-H)
+        /// and TLS certificate flags (--tlsverify/--tls, --tlscacert, --tlscert, --tlskey).
+        /// </summary>
+        /// <param name="context">The driver context (may be null).</param>
+        /// <returns>A string of global flags to prepend to Docker commands, or empty string.</returns>
+        public static string BuildGlobalArgs(DriverContext context)
+        {
+            if (context == null || string.IsNullOrEmpty(context.Host))
+                return "";
+
+            var sb = new StringBuilder();
+            sb.Append($"-H {context.Host}");
+
+            if (!string.IsNullOrEmpty(context.CertificatePath))
+            {
+                var certPath = context.CertificatePath;
+                var caCert = Path.Combine(certPath, "ca.pem");
+                var cert = Path.Combine(certPath, "cert.pem");
+                var key = Path.Combine(certPath, "key.pem");
+
+                if (context.VerifyTls)
+                    sb.Append(" --tlsverify");
+                else
+                    sb.Append(" --tls");
+
+                sb.Append($" --tlscacert {caCert} --tlscert {cert} --tlskey {key}");
+            }
+
+            return sb.ToString();
+        }
+
+        #endregion
+
         #region Command Execution
 
         /// <summary>
@@ -78,7 +115,9 @@ namespace FluentDocker.Drivers.Docker.Cli
         protected async Task<SimpleCommandResult> ExecuteCommandAsync(string arguments, CancellationToken cancellationToken)
         {
             var dockerPath = BinaryResolver?.ResolveBinaryPath(DockerCommand) ?? DockerCommand;
-            return await ExecuteProcessAsync(dockerPath, arguments, null, cancellationToken);
+            var globalArgs = BuildGlobalArgs(Context);
+            var fullArgs = string.IsNullOrEmpty(globalArgs) ? arguments : $"{globalArgs} {arguments}";
+            return await ExecuteProcessAsync(dockerPath, fullArgs, null, cancellationToken);
         }
 
         /// <summary>
@@ -90,7 +129,9 @@ namespace FluentDocker.Drivers.Docker.Cli
             CancellationToken cancellationToken)
         {
             var dockerPath = BinaryResolver?.ResolveBinaryPath(DockerCommand) ?? DockerCommand;
-            return await ExecuteProcessAsync(dockerPath, arguments, environment, cancellationToken);
+            var globalArgs = BuildGlobalArgs(Context);
+            var fullArgs = string.IsNullOrEmpty(globalArgs) ? arguments : $"{globalArgs} {arguments}";
+            return await ExecuteProcessAsync(dockerPath, fullArgs, environment, cancellationToken);
         }
 
         /// <summary>
@@ -177,13 +218,15 @@ namespace FluentDocker.Drivers.Docker.Cli
         protected async IAsyncEnumerable<string> ExecuteStreamingCommandAsync(string arguments, [EnumeratorCancellation] CancellationToken cancellationToken)
         {
             var dockerPath = BinaryResolver?.ResolveBinaryPath(DockerCommand) ?? DockerCommand;
+            var globalArgs = BuildGlobalArgs(Context);
+            var fullArgs = string.IsNullOrEmpty(globalArgs) ? arguments : $"{globalArgs} {arguments}";
 
             var process = new Process
             {
                 StartInfo = new ProcessStartInfo
                 {
                     FileName = dockerPath,
-                    Arguments = arguments,
+                    Arguments = fullArgs,
                     RedirectStandardOutput = true,
                     RedirectStandardError = true,
                     UseShellExecute = false,
@@ -223,13 +266,15 @@ namespace FluentDocker.Drivers.Docker.Cli
         protected AttachResult ExecuteAttachProcess(string arguments)
         {
             var dockerPath = BinaryResolver?.ResolveBinaryPath(DockerCommand) ?? DockerCommand;
+            var globalArgs = BuildGlobalArgs(Context);
+            var fullArgs = string.IsNullOrEmpty(globalArgs) ? arguments : $"{globalArgs} {arguments}";
 
             var process = new Process
             {
                 StartInfo = new ProcessStartInfo
                 {
                     FileName = dockerPath,
-                    Arguments = arguments,
+                    Arguments = fullArgs,
                     RedirectStandardInput = true,
                     RedirectStandardOutput = true,
                     RedirectStandardError = true,

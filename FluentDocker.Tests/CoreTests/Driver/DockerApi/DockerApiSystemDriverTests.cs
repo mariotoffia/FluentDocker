@@ -154,7 +154,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
             const string json =
                 @"{""Images"":[{""Size"":100000},{""Size"":200000}],"
                 + @"""Containers"":[{""SizeRw"":5000},{""SizeRw"":3000},{""SizeRw"":2000}],"
-                + @"""Volumes"":[{""UsageData"":50000}]}";
+                + @"""Volumes"":[{""UsageData"":{""Size"":50000,""RefCount"":1}}]}";
             var (driver, mock) = CreateDriver();
             mock.SetupGet("/system/df", 200, json);
 

@@ -1,4 +1,5 @@
 using System;
+using System.Globalization;
 using System.Threading;
 using System.Threading.Tasks;
 using FluentDocker.Drivers.Docker.Cli;
@@ -112,8 +113,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
                     return CommandResponse<DiskUsageInfo>.Fail(
                         result.Error ?? "Disk usage failed", ErrorCodes.General.Unknown);
 
-                var info = new DiskUsageInfo();
-                // Podman system df JSON output is line-separated objects; simplified parsing
+                var info = ParseDiskUsageOutput(result.Output);
                 return CommandResponse<DiskUsageInfo>.Ok(info);
             }
             catch (Exception ex)
@@ -264,6 +264,139 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
             }
 
             return version;
+        }
+
+        #endregion
+
+        #region Disk Usage Parsing
+
+        /// <summary>
+        /// Parses Podman CLI <c>system df --format json</c> output.
+        /// Handles both JSON arrays and newline-delimited JSON objects.
+        /// Size/Reclaimable may be numbers (bytes) or human-readable strings.
+        /// </summary>
+        public static DiskUsageInfo ParseDiskUsageOutput(string output)
+        {
+            var info = new DiskUsageInfo();
+            if (string.IsNullOrWhiteSpace(output))
+                return info;
+
+            var trimmed = output.Trim();
+
+            // Try parsing as a JSON array first
+            if (trimmed.StartsWith("["))
+            {
+                try
+                {
+                    var arr = JArray.Parse(trimmed);
+                    foreach (var token in arr)
+                    {
+                        if (token is JObject obj)
+                            ApplyDiskUsageItem(info, obj);
+                    }
+                }
+                catch
+                {
+                    // Fall through to line-by-line parsing
+                    ParseLineByLine(info, trimmed);
+                }
+            }
+            else
+            {
+                ParseLineByLine(info, trimmed);
+            }
+
+            info.TotalSize = info.Images.Size + info.Containers.Size
+                             + info.Volumes.Size + info.BuildCache.Size;
+            info.Reclaimable = info.Images.Reclaimable + info.Containers.Reclaimable
+                               + info.Volumes.Reclaimable + info.BuildCache.Reclaimable;
+            return info;
+        }
+
+        private static void ParseLineByLine(DiskUsageInfo info, string output)
+        {
+            var lines = output.Split(new[] { '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries);
+            foreach (var line in lines)
+            {
+                var l = line.Trim();
+                if (l.Length == 0 || l[0] != '{')
+                    continue;
+
+                try
+                {
+                    var obj = JObject.Parse(l);
+                    ApplyDiskUsageItem(info, obj);
+                }
+                catch
+                {
+                    // Skip malformed lines
+                }
+            }
+        }
+
+        private static void ApplyDiskUsageItem(DiskUsageInfo info, JObject obj)
+        {
+            var type = (obj["Type"] ?? obj["type"])?.Value<string>() ?? "";
+            var item = new DiskUsageItem
+            {
+                TotalCount = ReadInt(obj, "Total", "TotalCount"),
+                Active = ReadInt(obj, "Active", "active"),
+                Size = ReadByteValue(obj, "Size", "size"),
+                Reclaimable = ReadByteValue(obj, "Reclaimable", "reclaimable")
+            };
+
+            switch (type)
+            {
+                case "Images":
+                    info.Images = item;
+                    break;
+                case "Containers":
+                    info.Containers = item;
+                    break;
+                case "Volumes":
+                case "Local Volumes":
+                    info.Volumes = item;
+                    break;
+                case "Build Cache":
+                    info.BuildCache = item;
+                    break;
+            }
+        }
+
+        private static int ReadInt(JObject obj, string key1, string key2)
+        {
+            var token = obj[key1] ?? obj[key2];
+            return token?.Value<int>() ?? 0;
+        }
+
+        /// <summary>
+        /// Reads a byte value from a JObject property. The value may be a number
+        /// (raw bytes) or a human-readable string (e.g. "500MB", "1.5GB (40%)").
+        /// </summary>
+        private static long ReadByteValue(JObject obj, string key1, string key2)
+        {
+            var token = obj[key1] ?? obj[key2];
+            if (token == null)
+                return 0;
+
+            if (token.Type == JTokenType.Integer || token.Type == JTokenType.Float)
+                return token.Value<long>();
+
+            var str = token.Value<string>();
+            if (string.IsNullOrWhiteSpace(str))
+                return 0;
+
+            // Strip trailing " (N%)" if present (reclaimable field)
+            var parenIndex = str.IndexOf('(');
+            if (parenIndex >= 0)
+                str = str.Substring(0, parenIndex).Trim();
+
+            // Try raw number first
+            if (long.TryParse(str, NumberStyles.Integer,
+                    CultureInfo.InvariantCulture, out var rawLong))
+                return rawLong;
+
+            return PodmanCliContainerDriver.ParseByteValue(str);
         }
 
         #endregion

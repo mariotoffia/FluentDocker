@@ -332,42 +332,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
             Assert.Empty(result);
         }
 
-        [Fact]
-        public void ParseStatsOutput_JsonObject_ParsesContainerIdAndName()
-        {
-            var json = @"{""ContainerID"":""abc123"",""Name"":""test""}";
-            var result = InvokeParseStatsOutput(json);
-
-            Assert.Equal("abc123", result.ContainerId);
-            Assert.Equal("test", result.Name);
-        }
-
-        [Fact]
-        public void ParseStatsOutput_JsonArray_ParsesFirst()
-        {
-            var json = @"[{""ContainerID"":""abc123"",""Name"":""test""}]";
-            var result = InvokeParseStatsOutput(json);
-
-            Assert.Equal("abc123", result.ContainerId);
-            Assert.Equal("test", result.Name);
-        }
-
-        [Fact]
-        public void ParseStatsOutput_AlternateKeys_ParsesContainerId()
-        {
-            var json = @"{""container_id"":""def456"",""name"":""web""}";
-            var result = InvokeParseStatsOutput(json);
-
-            Assert.Equal("def456", result.ContainerId);
-            Assert.Equal("web", result.Name);
-        }
-
-        [Fact]
-        public void ParseStatsOutput_EmptyString_ReturnsEmpty()
-        {
-            var result = InvokeParseStatsOutput("");
-            Assert.NotNull(result);
-        }
+        // Stats parsing tests moved to PodmanCliContainerStatsParsingTests.cs
 
         [Fact]
         public void QuoteArgumentIfNeeded_NoSpaces_ReturnsUnquoted()
@@ -435,15 +400,6 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
                 BindingFlags.NonPublic | BindingFlags.Static);
             Assert.NotNull(method);
             return (IList<FilesystemChange>)method.Invoke(null, new object[] { output });
-        }
-
-        private static ContainerStatsResult InvokeParseStatsOutput(string json)
-        {
-            var method = typeof(PodmanCliContainerDriver).GetMethod(
-                "ParseStatsOutput",
-                BindingFlags.NonPublic | BindingFlags.Static);
-            Assert.NotNull(method);
-            return (ContainerStatsResult)method.Invoke(null, new object[] { json });
         }
 
         private static string InvokeQuoteArgumentIfNeeded(string arg)

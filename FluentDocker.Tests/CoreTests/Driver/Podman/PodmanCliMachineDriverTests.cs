@@ -332,6 +332,46 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
             Assert.Null(result.Version);
         }
 
+        [Fact]
+        public void ParseMachineInfo_WithCurrentMachine_DoesNotOverwriteOS()
+        {
+            var json = @"{
+                ""Host"": {
+                    ""Arch"": ""arm64"",
+                    ""CurrentMachine"": ""podman-machine-default"",
+                    ""OS"": ""darwin"",
+                    ""VMType"": ""applehv"",
+                    ""NumberOfMachines"": 1
+                },
+                ""Version"": { ""APIVersion"": ""5.0.0"", ""Version"": ""5.0.2"" }
+            }";
+
+            var result = InvokeParseMachineInfo(json);
+
+            Assert.Equal("darwin", result.OS);
+            Assert.Equal("podman-machine-default", result.CurrentMachine);
+            Assert.Equal("arm64", result.Arch);
+        }
+
+        [Fact]
+        public void ParseMachineInfo_OnlyCurrentMachine_OSIsNull()
+        {
+            var json = @"{ ""Host"": { ""CurrentMachine"": ""default"" } }";
+
+            var result = InvokeParseMachineInfo(json);
+
+            Assert.Null(result.OS);
+            Assert.Equal("default", result.CurrentMachine);
+        }
+
+        [Fact]
+        public void ParseMachineInfo_LowercaseOS_FallsBack()
+        {
+            var json = @"{ ""Host"": { ""os"": ""linux"" } }";
+            var result = InvokeParseMachineInfo(json);
+            Assert.Equal("linux", result.OS);
+        }
+
         #endregion
 
         #region Capabilities Tests

@@ -203,6 +203,9 @@ namespace FluentDocker.Drivers.Podman
         /// <summary>Host OS.</summary>
         public string OS { get; set; }
 
+        /// <summary>Name of the currently active machine.</summary>
+        public string CurrentMachine { get; set; }
+
         /// <summary>VM type (qemu, applehv, hyperv, wsl).</summary>
         public string VMType { get; set; }
 

@@ -226,7 +226,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
                 usage.Volumes.TotalCount = volumes.Count;
                 foreach (var v in volumes)
                 {
-                    var size = v.Value<long?>("UsageData")?? 0;
+                    var size = v["UsageData"]?["Size"]?.Value<long>() ?? 0;
                     usage.Volumes.Size += size;
                     totalSize += size;
                 }
