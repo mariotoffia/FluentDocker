@@ -54,6 +54,19 @@ namespace FluentDocker.Common
                     {
                         inDoubleQuote = false;
                     }
+                    else if (c == '\\' && i + 1 < command.Length)
+                    {
+                        var next = command[i + 1];
+                        if (next == '"' || next == '\\')
+                        {
+                            current.Add(next);
+                            i++; // skip the escaped character
+                        }
+                        else
+                        {
+                            current.Add(c); // literal backslash
+                        }
+                    }
                     else
                     {
                         current.Add(c);
@@ -66,6 +79,11 @@ namespace FluentDocker.Common
                 else if (c == '"')
                 {
                     inDoubleQuote = true;
+                }
+                else if (c == '\\' && i + 1 < command.Length)
+                {
+                    current.Add(command[i + 1]);
+                    i++; // skip escaped character
                 }
                 else if (char.IsWhiteSpace(c))
                 {

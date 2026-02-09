@@ -173,7 +173,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
             try
             {
                 var result = await ExecuteCommandAsync(
-                    $"cp \"{hostPath}\" {containerId}:{containerPath}", cancellationToken);
+                    $"cp \"{hostPath}\" \"{containerId}:{containerPath}\"", cancellationToken);
                 return result.Success
                     ? CommandResponse<Unit>.Ok(Unit.Default)
                     : CommandResponse<Unit>.Fail(
@@ -194,7 +194,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
             try
             {
                 var result = await ExecuteCommandAsync(
-                    $"cp {containerId}:{containerPath} \"{hostPath}\"", cancellationToken);
+                    $"cp \"{containerId}:{containerPath}\" \"{hostPath}\"", cancellationToken);
                 return result.Success
                     ? CommandResponse<Unit>.Ok(Unit.Default)
                     : CommandResponse<Unit>.Fail(

@@ -1,12 +1,15 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using FluentDocker.Common;
 using FluentDocker.Drivers.Docker.Cli.Binary;
+using FluentDocker.Drivers.Podman.Cli.Components;
 using FluentDocker.Model.Drivers;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 
 namespace FluentDocker.Drivers.Docker.Cli.Components
 {
@@ -40,6 +43,10 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
                 args += $" --tail {config.Tail.Value}";
             if (!string.IsNullOrEmpty(config.Since))
                 args += $" --since {config.Since}";
+            if (!string.IsNullOrEmpty(config.Until))
+                args += $" --until {config.Until}";
+            if (config.Details)
+                args += " --details";
             args += $" {containerId}";
             return args;
         }
@@ -127,9 +134,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
                 ContainerStats stats = null;
                 try
                 {
-                    stats = JsonConvert.DeserializeObject<ContainerStats>(line);
-                    if (stats != null)
-                        stats.RawJson = line;
+                    stats = ParseStreamStatsLine(line);
                 }
                 catch
                 {
@@ -138,6 +143,62 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
 
                 if (stats != null)
                     yield return stats;
+            }
+        }
+
+        /// <summary>
+        /// Parses a single JSON line from <c>docker stats --format "{{json .}}"</c> output
+        /// into a <see cref="ContainerStats"/>. The CLI format uses keys like CPUPerc,
+        /// MemUsage, NetIO, BlockIO, PIDs which do not auto-map to <see cref="ContainerStats"/>
+        /// properties, so manual parsing is required.
+        /// </summary>
+        /// <param name="json">A single JSON line from docker stats CLI output.</param>
+        /// <returns>A populated <see cref="ContainerStats"/>, or null if parsing fails.</returns>
+        public static ContainerStats ParseStreamStatsLine(string json)
+        {
+            if (string.IsNullOrWhiteSpace(json)) return null;
+
+            try
+            {
+                var obj = JObject.Parse(json);
+
+                var cpuPerc = PodmanCliContainerDriver.ParsePercent(
+                    obj["CPUPerc"]?.Value<string>());
+                var memPerc = PodmanCliContainerDriver.ParsePercent(
+                    obj["MemPerc"]?.Value<string>());
+                var (memUsage, memLimit) = PodmanCliContainerDriver.ParseMemoryUsage(
+                    obj["MemUsage"]?.Value<string>());
+                var (netRx, netTx) = PodmanCliContainerDriver.ParseIOPair(
+                    obj["NetIO"]?.Value<string>());
+                var (blockRead, blockWrite) = PodmanCliContainerDriver.ParseIOPair(
+                    obj["BlockIO"]?.Value<string>());
+
+                int.TryParse(
+                    obj["PIDs"]?.Value<string>(),
+                    NumberStyles.Integer,
+                    CultureInfo.InvariantCulture,
+                    out var pids);
+
+                return new ContainerStats
+                {
+                    ContainerId = obj["ID"]?.Value<string>()
+                                  ?? obj["Container"]?.Value<string>(),
+                    Name = obj["Name"]?.Value<string>(),
+                    CpuPercentage = cpuPerc,
+                    MemoryPercentage = memPerc,
+                    MemoryUsage = memUsage,
+                    MemoryLimit = memLimit,
+                    NetworkRx = netRx,
+                    NetworkTx = netTx,
+                    BlockRead = blockRead,
+                    BlockWrite = blockWrite,
+                    Pids = pids,
+                    RawJson = json
+                };
+            }
+            catch
+            {
+                return null;
             }
         }
 

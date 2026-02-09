@@ -18,7 +18,10 @@ namespace FluentDocker.Kernel
         IPodmanCliDriverBuilder AtHost(string host);
 
         /// <summary>
-        /// Sets the certificate path for TLS connections.
+        /// Stores the certificate path in the driver context.
+        /// Note: Podman CLI does not support TLS certificate flags — this
+        /// value is stored but not applied to CLI commands. Use
+        /// <see cref="AtHost"/> with a remote socket URI instead.
         /// </summary>
         /// <param name="certificatePath">Path to certificate directory</param>
         IPodmanCliDriverBuilder WithCertificates(string certificatePath);

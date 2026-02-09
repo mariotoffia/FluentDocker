@@ -95,6 +95,8 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
                 args += " --no-stream";
             if (config?.NoHeader == true)
                 args += " --no-header";
+            if (config?.All == true)
+                args += " -a";
             if (!string.IsNullOrEmpty(containerId))
                 args += $" {containerId}";
             return args;
@@ -164,15 +166,35 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
             }
         }
 
-        private static ContainerStats ParseStats(string json)
+        /// <summary>
+        /// Parses a single JSON line from <c>podman stats --format json</c> output
+        /// into a <see cref="ContainerStats"/>. Delegates to
+        /// <see cref="PodmanCliContainerDriver.ParseStatsOutput"/> for the heavy lifting,
+        /// then maps the <see cref="ContainerStatsResult"/> to <see cref="ContainerStats"/>.
+        /// </summary>
+        /// <param name="json">A single JSON line from podman stats output.</param>
+        /// <returns>A populated <see cref="ContainerStats"/>, or null if parsing fails.</returns>
+        public static ContainerStats ParseStats(string json)
         {
+            if (string.IsNullOrWhiteSpace(json)) return null;
+
             try
             {
-                var obj = JObject.Parse(json);
+                var result = PodmanCliContainerDriver.ParseStatsOutput(json);
+
                 return new ContainerStats
                 {
-                    ContainerId = obj["ContainerID"]?.Value<string>() ?? obj["container_id"]?.Value<string>(),
-                    Name = obj["Name"]?.Value<string>() ?? obj["name"]?.Value<string>(),
+                    ContainerId = result.ContainerId,
+                    Name = result.Name,
+                    CpuPercentage = result.CpuPercent,
+                    MemoryUsage = result.MemoryUsage,
+                    MemoryLimit = result.MemoryLimit,
+                    MemoryPercentage = result.MemoryPercent,
+                    NetworkRx = result.NetworkRxBytes,
+                    NetworkTx = result.NetworkTxBytes,
+                    BlockRead = result.BlockReadBytes,
+                    BlockWrite = result.BlockWriteBytes,
+                    Pids = result.Pids,
                     RawJson = json
                 };
             }

@@ -116,9 +116,14 @@ namespace FluentDocker.Drivers.Docker.Api.Components
             StreamStatsConfig config = null,
             [EnumeratorCancellation] CancellationToken cancellationToken = default)
         {
+            // Docker Engine API requires a specific container ID for stats;
+            // there is no all-container stats endpoint.
+            if (string.IsNullOrEmpty(containerId))
+                yield break;
+
             config ??= new StreamStatsConfig();
             var stream = config.Stream ? "true" : "false";
-            var path = $"/containers/{containerId ?? "all"}/stats?stream={stream}";
+            var path = $"/containers/{containerId}/stats?stream={stream}";
 
             await foreach (var line in ReadNdjsonStreamAsync(path, cancellationToken))
             {

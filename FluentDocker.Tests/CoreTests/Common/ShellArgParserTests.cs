@@ -162,5 +162,53 @@ namespace FluentDocker.Tests.CoreTests.Common
             Assert.Equal("cmd", result[0]);
             Assert.Equal("say \"hello\"", result[1]);
         }
+
+        [Fact]
+        public void Parse_EscapedQuoteInDoubleQuotes_Preserved()
+        {
+            // Arrange & Act
+            var result = ShellArgParser.Parse("cmd \"say \\\"hello\\\"\"");
+
+            // Assert
+            Assert.Equal(2, result.Length);
+            Assert.Equal("cmd", result[0]);
+            Assert.Equal("say \"hello\"", result[1]);
+        }
+
+        [Fact]
+        public void Parse_EscapedBackslashInDoubleQuotes_Preserved()
+        {
+            // Arrange & Act
+            var result = ShellArgParser.Parse("cmd \"path\\\\to\"");
+
+            // Assert
+            Assert.Equal(2, result.Length);
+            Assert.Equal("cmd", result[0]);
+            Assert.Equal("path\\to", result[1]);
+        }
+
+        [Fact]
+        public void Parse_BackslashOutsideQuotes_EscapesNextChar()
+        {
+            // Arrange & Act
+            var result = ShellArgParser.Parse("cmd hello\\ world");
+
+            // Assert
+            Assert.Equal(2, result.Length);
+            Assert.Equal("cmd", result[0]);
+            Assert.Equal("hello world", result[1]);
+        }
+
+        [Fact]
+        public void Parse_UnmatchedQuote_TreatsRestAsArg()
+        {
+            // Arrange & Act
+            var result = ShellArgParser.Parse("cmd \"unclosed");
+
+            // Assert
+            Assert.Equal(2, result.Length);
+            Assert.Equal("cmd", result[0]);
+            Assert.Equal("unclosed", result[1]);
+        }
     }
 }

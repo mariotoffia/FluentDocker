@@ -65,6 +65,26 @@ namespace FluentDocker.Tests.CoreTests.Driver
             Assert.EndsWith("mycontainer", result);
         }
 
+        [Fact]
+        public void Docker_BuildStreamLogsArgs_WithUntil_IncludesUntilFlag()
+        {
+            var config = new StreamLogsConfig { Follow = false, Until = "2024-06-01" };
+
+            var result = DockerCliStreamDriver.BuildStreamLogsArgs("c1", config);
+
+            Assert.Contains("--until 2024-06-01", result);
+        }
+
+        [Fact]
+        public void Docker_BuildStreamLogsArgs_WithDetails_IncludesDetailsFlag()
+        {
+            var config = new StreamLogsConfig { Follow = false, Details = true };
+
+            var result = DockerCliStreamDriver.BuildStreamLogsArgs("c1", config);
+
+            Assert.Contains("--details", result);
+        }
+
         #endregion
 
         #region Docker Stats
@@ -204,6 +224,16 @@ namespace FluentDocker.Tests.CoreTests.Driver
             var result = PodmanCliStreamDriver.BuildStreamStatsArgs("abc123", config);
 
             Assert.Contains("--no-header", result);
+        }
+
+        [Fact]
+        public void Podman_BuildStreamStatsArgs_WithAll_ContainsAllFlag()
+        {
+            var config = new StreamStatsConfig { All = true };
+
+            var result = PodmanCliStreamDriver.BuildStreamStatsArgs("abc123", config);
+
+            Assert.Contains("-a", result);
         }
 
         #endregion

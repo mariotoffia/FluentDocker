@@ -129,6 +129,18 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
             Assert.Equal("ctr002", statsList[0].ContainerId);
         }
 
+        [Fact]
+        public async Task StreamStatsAsync_NullContainerId_YieldsNothing()
+        {
+            var (driver, _) = CreateDriver();
+
+            var statsList = new List<ContainerStats>();
+            await foreach (var s in driver.StreamStatsAsync(Ctx, null))
+                statsList.Add(s);
+
+            Assert.Empty(statsList);
+        }
+
         #endregion
 
         #region StreamLogsAsync

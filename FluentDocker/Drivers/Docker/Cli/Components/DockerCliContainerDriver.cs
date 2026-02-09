@@ -1101,7 +1101,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
         {
             try
             {
-                var result = await ExecuteCommandAsync($"cp \"{hostPath}\" {containerId}:{containerPath}", cancellationToken);
+                var result = await ExecuteCommandAsync($"cp \"{hostPath}\" \"{containerId}:{containerPath}\"", cancellationToken);
 
                 if (!result.Success)
                 {
@@ -1130,7 +1130,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
         {
             try
             {
-                var result = await ExecuteCommandAsync($"cp {containerId}:{containerPath} \"{hostPath}\"", cancellationToken);
+                var result = await ExecuteCommandAsync($"cp \"{containerId}:{containerPath}\" \"{hostPath}\"", cancellationToken);
 
                 if (!result.Success)
                 {
