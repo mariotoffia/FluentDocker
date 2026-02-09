@@ -409,6 +409,7 @@ namespace FluentDocker.Drivers
         /// <summary>Tag.</summary>
         public string Tag { get; set; }
         /// <summary>Image ID.</summary>
+        [Newtonsoft.Json.JsonProperty("ID")]
         public string ImageId { get; set; }
         /// <summary>Image size.</summary>
         public string Size { get; set; }

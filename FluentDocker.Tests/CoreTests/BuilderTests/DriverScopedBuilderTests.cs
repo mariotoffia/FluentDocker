@@ -17,6 +17,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
     /// Tests for IDriverScopedBuilder implementation and extension methods
     /// across all builder types (Container, Network, Volume, Compose, Image).
     /// </summary>
+    [Trait("Category", "Unit")]
     public class DriverScopedBuilderTests
     {
         private async Task<(FluentDockerKernel kernel, MockDriverPack pack)> CreateKernelWithMockPack()

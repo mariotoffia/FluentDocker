@@ -33,7 +33,12 @@ namespace FluentDocker.Tests.Integration.PodmanCliDriver
 
             Kernel = await FluentDockerKernel.Create()
                 .WithPodmanCli(DriverId, d => d
-                    .WithAutoStartMachine()
+                    .WithAutoStartMachine(c =>
+                    {
+                        c.CreateIfNotExists = true;
+                        c.InitCpus = 2;
+                        c.InitMemoryMiB = 2048;
+                    })
                     .AsDefault())
                 .BuildAsync();
         }

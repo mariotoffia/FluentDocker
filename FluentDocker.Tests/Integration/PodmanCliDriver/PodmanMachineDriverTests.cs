@@ -11,6 +11,7 @@ namespace FluentDocker.Tests.Integration.PodmanCliDriver
     /// Requires Podman to be installed.
     /// Machine operations manage Linux VMs and can be slow.
     /// </summary>
+    [Collection("PodmanDriver")]
     [Trait("Category", "LongRunning")]
     public class PodmanMachineDriverTests : PodmanDriverTestBase
     {

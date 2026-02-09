@@ -301,6 +301,13 @@ namespace FluentDocker.Drivers.Podman.Cli
             var config = context.AutoStartMachine;
             var listResult = await _machineDriver.ListAsync(context, cancellationToken);
 
+            // Retry once on transient failure (e.g. concurrent Podman CLI access)
+            if (!listResult.Success || listResult.Data.Count == 0)
+            {
+                await Task.Delay(500, cancellationToken);
+                listResult = await _machineDriver.ListAsync(context, cancellationToken);
+            }
+
             if (!listResult.Success)
                 throw new PodmanMachineNotRunningException(
                     $"Failed to list Podman machines: {listResult.Error}");

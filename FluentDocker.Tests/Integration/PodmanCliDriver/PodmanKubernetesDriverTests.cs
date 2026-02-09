@@ -7,6 +7,7 @@ using Xunit;
 
 namespace FluentDocker.Tests.Integration.PodmanCliDriver
 {
+    [Collection("PodmanDriver")]
     public class PodmanKubernetesDriverTests : PodmanDriverTestBase
     {
         private const string SimplePodYaml = @"

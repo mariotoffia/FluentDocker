@@ -13,6 +13,7 @@ namespace FluentDocker.Tests.CoreTests.Kernel
     /// Tests for TrySysCtl, SysCtl(driverId, Type), and backward-compatible
     /// SysCtl(driverId, DriverComponent) on FluentDockerKernel.
     /// </summary>
+    [Trait("Category", "Unit")]
     public class TrySysCtlTests
     {
         private async Task<(FluentDockerKernel kernel, MockDriverPack pack)> CreateKernelWithMockPack()

@@ -100,7 +100,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
                 var args = BuildComposeArgs(config) + " top";
                 var result = await ExecuteCommandAsync(args, cancellationToken);
                 return result.Success
-                    ? CommandResponse<IList<ComposeProcesses>>.Ok(new List<ComposeProcesses>())
+                    ? CommandResponse<IList<ComposeProcesses>>.Ok(ParseTopOutput(result.Output))
                     : CommandResponse<IList<ComposeProcesses>>.Fail(
                         result.Error ?? "Compose top failed", ErrorCodes.Compose.TopFailed);
             }
@@ -145,12 +145,27 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
         {
             try
             {
-                var args = BuildComposeArgs(config) + " images";
+                var args = BuildComposeArgs(config) + " images --format json";
                 var result = await ExecuteCommandAsync(args, cancellationToken);
-                return result.Success
-                    ? CommandResponse<IList<ComposeImage>>.Ok(new List<ComposeImage>())
-                    : CommandResponse<IList<ComposeImage>>.Fail(
+
+                if (!result.Success)
+                    return CommandResponse<IList<ComposeImage>>.Fail(
                         result.Error ?? "Compose images failed", ErrorCodes.Compose.ImagesFailed);
+
+                var images = new List<ComposeImage>();
+                var lines = result.Output.Split(
+                    new[] { '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries);
+                foreach (var line in lines)
+                {
+                    try
+                    {
+                        var image = JsonConvert.DeserializeObject<ComposeImage>(line);
+                        if (image != null) images.Add(image);
+                    }
+                    catch { }
+                }
+
+                return CommandResponse<IList<ComposeImage>>.Ok(images);
             }
             catch (Exception ex)
             {
@@ -438,5 +453,6 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
         }
 
         #endregion
+
     }
 }

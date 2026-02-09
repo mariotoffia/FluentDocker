@@ -17,7 +17,7 @@
     <PackageId>FluentDocker.MsTest</PackageId>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
-    <PackageTags>Docker;Docker-Compose;Docker Compose;Docker-Machine;Docker Machine;Linux;Windows;Mac;Test;NET Core</PackageTags>
+    <PackageTags>Docker;Docker-Compose;Docker Compose;Podman;Linux;Windows;Mac;Test;NET Core</PackageTags>
     <RepositoryType>git</RepositoryType>
     <RepositoryUrl>https://github.com/mariotoffia/FluentDocker</RepositoryUrl>
     <Description>

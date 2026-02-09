@@ -10,6 +10,7 @@ namespace FluentDocker.Tests.CoreTests.Kernel
     /// Unit tests for WithAutoStartMachine feature — config model,
     /// builder propagation, and DriverContext integration.
     /// </summary>
+    [Trait("Category", "Unit")]
     public class AutoStartMachineTests
     {
         #region AutoStartMachineConfig Defaults

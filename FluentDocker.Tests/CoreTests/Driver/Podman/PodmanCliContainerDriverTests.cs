@@ -121,10 +121,9 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
         }
 
         [Fact]
-        public void ParseContainerInspect_InvalidJson_ReturnsEmptyContainer()
+        public void ParseContainerInspect_InvalidJson_ThrowsException()
         {
-            var result = InvokeParseContainerInspect("not json");
-            Assert.NotNull(result);
+            Assert.ThrowsAny<Exception>(() => InvokeParseContainerInspect("not json"));
         }
 
         #endregion

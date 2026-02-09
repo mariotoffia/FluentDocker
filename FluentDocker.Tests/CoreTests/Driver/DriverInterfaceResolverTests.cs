@@ -11,6 +11,7 @@ namespace FluentDocker.Tests.CoreTests.Driver
     /// <summary>
     /// Tests for the IDriverInterfaceResolver implementation on driver packs.
     /// </summary>
+    [Trait("Category", "Unit")]
     public class DriverInterfaceResolverTests
     {
         [Fact]

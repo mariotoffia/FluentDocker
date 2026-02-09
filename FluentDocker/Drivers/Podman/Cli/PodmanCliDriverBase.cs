@@ -8,6 +8,7 @@ using System.Threading.Tasks;
 using FluentDocker.Drivers.Docker.Cli;
 using FluentDocker.Drivers.Podman.Cli.Binary;
 using FluentDocker.Model.Drivers;
+using FluentDocker.Drivers;
 
 namespace FluentDocker.Drivers.Podman.Cli
 {
@@ -189,6 +190,39 @@ namespace FluentDocker.Drivers.Podman.Cli
                     // Ignore kill errors
                 }
             }
+        }
+
+        /// <summary>
+        /// Starts a long-running attach process with stdin/stdout/stderr redirected.
+        /// </summary>
+        protected AttachResult ExecuteAttachProcess(string arguments)
+        {
+            var podmanPath = BinaryResolver?.ResolveBinaryPath(PodmanCommand) ?? PodmanCommand;
+
+            var process = new Process
+            {
+                StartInfo = new ProcessStartInfo
+                {
+                    FileName = podmanPath,
+                    Arguments = arguments,
+                    RedirectStandardInput = true,
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true,
+                    UseShellExecute = false,
+                    CreateNoWindow = true
+                }
+            };
+
+            process.Start();
+
+            return new AttachResult
+            {
+                InputStream = process.StandardInput.BaseStream,
+                OutputStream = process.StandardOutput.BaseStream,
+                ErrorStream = process.StandardError.BaseStream,
+                IsConnected = true,
+                AttachedProcess = process
+            };
         }
 
         #endregion

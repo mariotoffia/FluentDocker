@@ -14,6 +14,7 @@ namespace FluentDocker.Tests.CoreTests.Driver
     /// Tests for Podman-specific builder extensions, demonstrating
     /// the driver-aware extension pattern.
     /// </summary>
+    [Trait("Category", "Unit")]
     public class PodmanExtensionTests
     {
         private async Task<(FluentDockerKernel kernel, MockDriverPack pack)> CreateKernelWithMockPack()

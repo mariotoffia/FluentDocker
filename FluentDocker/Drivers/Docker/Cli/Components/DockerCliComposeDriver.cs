@@ -76,7 +76,8 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
                 if (config.Services.Count > 0)
                     args.AddRange(config.Services);
 
-                var result = await ExecuteCommandAsync(string.Join(" ", args), cancellationToken);
+                var result = await ExecuteCommandAsync(
+                    string.Join(" ", args), config.Environment, cancellationToken);
 
                 if (!result.Success)
                 {

@@ -86,11 +86,26 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
             AttachConfig config = null,
             CancellationToken cancellationToken = default)
         {
-            // Attach requires interactive I/O which is beyond simple CLI execution.
-            // Return a placeholder that callers can use for basic scenarios.
-            return Task.FromResult(CommandResponse<AttachResult>.Fail(
-                "Attach is not fully supported in CLI mode. Use exec instead.",
-                ErrorCodes.Container.AttachFailed));
+            try
+            {
+                config ??= new AttachConfig();
+                var args = "attach";
+
+                if (!config.SigProxy)
+                    args += " --sig-proxy=false";
+                if (!string.IsNullOrEmpty(config.DetachKeys))
+                    args += $" --detach-keys {config.DetachKeys}";
+
+                args += $" {containerId}";
+
+                var result = ExecuteAttachProcess(args);
+                return Task.FromResult(CommandResponse<AttachResult>.Ok(result));
+            }
+            catch (Exception ex)
+            {
+                return Task.FromResult(CommandResponse<AttachResult>.Fail(
+                    ex.Message, ErrorCodes.Container.AttachFailed));
+            }
         }
 
         #region Parsing

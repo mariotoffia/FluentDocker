@@ -9,6 +9,7 @@ namespace FluentDocker.Tests.Integration.PodmanCliDriver
     /// Integration tests for Podman manifest (multi-arch) driver.
     /// Requires Podman to be installed.
     /// </summary>
+    [Collection("PodmanDriver")]
     [Trait("Category", "PodmanIntegration")]
     public class PodmanManifestDriverTests : PodmanDriverTestBase
     {

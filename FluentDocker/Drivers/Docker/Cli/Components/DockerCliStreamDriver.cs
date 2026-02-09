@@ -120,11 +120,26 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
             AttachConfig config = null,
             CancellationToken cancellationToken = default)
         {
-            // Attach requires interactive process handling which is complex
-            // Return a basic implementation that can be enhanced later
-            return Task.FromResult(CommandResponse<AttachResult>.Fail(
-                "Attach is not yet fully implemented in the CLI driver",
-                ErrorCodes.Container.AttachFailed));
+            try
+            {
+                config ??= new AttachConfig();
+                var args = "attach";
+
+                if (!config.SigProxy)
+                    args += " --sig-proxy=false";
+                if (!string.IsNullOrEmpty(config.DetachKeys))
+                    args += $" --detach-keys {config.DetachKeys}";
+
+                args += $" {containerId}";
+
+                var result = ExecuteAttachProcess(args);
+                return Task.FromResult(CommandResponse<AttachResult>.Ok(result));
+            }
+            catch (Exception ex)
+            {
+                return Task.FromResult(CommandResponse<AttachResult>.Fail(
+                    ex.Message, ErrorCodes.Container.AttachFailed));
+            }
         }
     }
 }

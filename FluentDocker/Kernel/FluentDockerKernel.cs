@@ -3,6 +3,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using FluentDocker.Common;
 using FluentDocker.Drivers;
+using FluentDocker.Drivers.Podman;
 using FluentDocker.Model.Drivers;
 
 namespace FluentDocker.Kernel
@@ -128,6 +129,10 @@ namespace FluentDocker.Kernel
             DriverComponent.Volume => typeof(IVolumeDriver),
             DriverComponent.System => typeof(ISystemDriver),
             DriverComponent.Compose => typeof(IComposeDriver),
+            DriverComponent.Pod => typeof(IPodmanPodDriver),
+            DriverComponent.Kubernetes => typeof(IPodmanKubernetesDriver),
+            DriverComponent.Machine => typeof(IPodmanMachineDriver),
+            DriverComponent.Manifest => typeof(IPodmanManifestDriver),
             _ => throw new ArgumentException($"Unknown component: {component}", nameof(component))
         };
 

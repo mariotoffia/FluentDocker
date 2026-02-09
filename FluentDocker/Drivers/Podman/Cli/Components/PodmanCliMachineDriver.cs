@@ -275,7 +275,11 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
                     }
                 }
             }
-            catch { /* Return partial results */ }
+            catch (Exception ex)
+            {
+                throw new InvalidOperationException(
+                    $"Failed to parse Podman machine list JSON: {ex.Message}", ex);
+            }
 
             return machines;
         }
@@ -374,7 +378,11 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
                     }
                 }
             }
-            catch { /* Return partial results */ }
+            catch (Exception ex)
+            {
+                throw new InvalidOperationException(
+                    $"Failed to parse Podman machine inspect JSON: {ex.Message}", ex);
+            }
 
             return result;
         }
@@ -409,7 +417,11 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
                         (v["Version"] ?? v["version"])?.Value<string>();
                 }
             }
-            catch { /* Return partial results */ }
+            catch (Exception ex)
+            {
+                throw new InvalidOperationException(
+                    $"Failed to parse Podman machine info JSON: {ex.Message}", ex);
+            }
 
             return result;
         }

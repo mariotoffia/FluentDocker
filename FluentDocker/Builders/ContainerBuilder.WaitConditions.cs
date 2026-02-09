@@ -148,14 +148,19 @@ namespace FluentDocker.Builders
             var start = DateTime.UtcNow;
             var elapsed = 0L;
             var iteration = 0;
-            while (elapsed < timeoutMs && !cancellationToken.IsCancellationRequested)
+            try
             {
-                var result = condition(service, iteration++);
-                if (result < 0) return true;
-                if (result == 0) continue;
-                await Task.Delay(result, cancellationToken);
-                elapsed = (long)(DateTime.UtcNow - start).TotalMilliseconds;
+                while (elapsed < timeoutMs && !cancellationToken.IsCancellationRequested)
+                {
+                    var result = condition(service, iteration++);
+                    if (result < 0) return true;
+                    elapsed = (long)(DateTime.UtcNow - start).TotalMilliseconds;
+                    if (result == 0) { await Task.Yield(); continue; }
+                    await Task.Delay(result, cancellationToken);
+                    elapsed = (long)(DateTime.UtcNow - start).TotalMilliseconds;
+                }
             }
+            catch (OperationCanceledException) { }
             return false;
         }
 

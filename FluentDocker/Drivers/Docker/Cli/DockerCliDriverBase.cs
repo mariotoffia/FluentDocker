@@ -78,13 +78,28 @@ namespace FluentDocker.Drivers.Docker.Cli
         protected async Task<SimpleCommandResult> ExecuteCommandAsync(string arguments, CancellationToken cancellationToken)
         {
             var dockerPath = BinaryResolver?.ResolveBinaryPath(DockerCommand) ?? DockerCommand;
-            return await ExecuteProcessAsync(dockerPath, arguments, cancellationToken);
+            return await ExecuteProcessAsync(dockerPath, arguments, null, cancellationToken);
+        }
+
+        /// <summary>
+        /// Executes a Docker command asynchronously with additional environment variables.
+        /// </summary>
+        protected async Task<SimpleCommandResult> ExecuteCommandAsync(
+            string arguments,
+            IDictionary<string, string> environment,
+            CancellationToken cancellationToken)
+        {
+            var dockerPath = BinaryResolver?.ResolveBinaryPath(DockerCommand) ?? DockerCommand;
+            return await ExecuteProcessAsync(dockerPath, arguments, environment, cancellationToken);
         }
 
         /// <summary>
         /// Executes a process asynchronously.
         /// </summary>
-        private async Task<SimpleCommandResult> ExecuteProcessAsync(string fileName, string arguments, CancellationToken cancellationToken)
+        private async Task<SimpleCommandResult> ExecuteProcessAsync(
+            string fileName, string arguments,
+            IDictionary<string, string> environment,
+            CancellationToken cancellationToken)
         {
             return await Task.Run(() =>
             {
@@ -102,6 +117,12 @@ namespace FluentDocker.Drivers.Docker.Cli
                             CreateNoWindow = true
                         }
                     };
+
+                    if (environment != null)
+                    {
+                        foreach (var kvp in environment)
+                            process.StartInfo.Environment[kvp.Key] = kvp.Value;
+                    }
 
                     var output = new StringBuilder();
                     var error = new StringBuilder();
@@ -155,11 +176,13 @@ namespace FluentDocker.Drivers.Docker.Cli
         /// <returns>Async enumerable of output lines</returns>
         protected async IAsyncEnumerable<string> ExecuteStreamingCommandAsync(string arguments, [EnumeratorCancellation] CancellationToken cancellationToken)
         {
+            var dockerPath = BinaryResolver?.ResolveBinaryPath(DockerCommand) ?? DockerCommand;
+
             var process = new Process
             {
                 StartInfo = new ProcessStartInfo
                 {
-                    FileName = DockerCommand,
+                    FileName = dockerPath,
                     Arguments = arguments,
                     RedirectStandardOutput = true,
                     RedirectStandardError = true,
@@ -192,6 +215,39 @@ namespace FluentDocker.Drivers.Docker.Cli
                     // Ignore kill errors
                 }
             }
+        }
+
+        /// <summary>
+        /// Starts a long-running attach process with stdin/stdout/stderr redirected.
+        /// </summary>
+        protected AttachResult ExecuteAttachProcess(string arguments)
+        {
+            var dockerPath = BinaryResolver?.ResolveBinaryPath(DockerCommand) ?? DockerCommand;
+
+            var process = new Process
+            {
+                StartInfo = new ProcessStartInfo
+                {
+                    FileName = dockerPath,
+                    Arguments = arguments,
+                    RedirectStandardInput = true,
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true,
+                    UseShellExecute = false,
+                    CreateNoWindow = true
+                }
+            };
+
+            process.Start();
+
+            return new AttachResult
+            {
+                InputStream = process.StandardInput.BaseStream,
+                OutputStream = process.StandardOutput.BaseStream,
+                ErrorStream = process.StandardError.BaseStream,
+                IsConnected = true,
+                AttachedProcess = process
+            };
         }
 
         #endregion

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
@@ -262,6 +263,9 @@ namespace FluentDocker.Drivers
         /// <summary>Whether the attach is still connected.</summary>
         public bool IsConnected { get; set; }
 
+        /// <summary>The underlying process for CLI-based attach (used for cleanup).</summary>
+        internal Process AttachedProcess { get; set; }
+
         /// <summary>Disposes the attach connection.</summary>
         public ValueTask DisposeAsync()
         {
@@ -269,6 +273,13 @@ namespace FluentDocker.Drivers
             OutputStream?.Dispose();
             ErrorStream?.Dispose();
             IsConnected = false;
+
+            if (AttachedProcess != null && !AttachedProcess.HasExited)
+            {
+                try { AttachedProcess.Kill(); } catch { }
+                AttachedProcess.Dispose();
+            }
+
             return ValueTask.CompletedTask;
         }
     }
