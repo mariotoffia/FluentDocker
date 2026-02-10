@@ -1,3 +1,6 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using FluentDocker.Drivers.Docker.Api.Connection;
@@ -9,7 +12,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
 {
   /// <summary>
   /// Docker API implementation of ISystemDriver.
-  /// Uses GET /info, GET /version, GET /_ping, GET /system/df, POST /system/prune.
+  /// Uses GET /info, GET /version, GET /_ping, GET /system/df, and per-resource prune.
   /// </summary>
   public class DockerApiSystemDriver : DockerApiDriverBase, ISystemDriver
   {
@@ -91,21 +94,103 @@ namespace FluentDocker.Drivers.Docker.Api.Components
         DriverContext context, SystemPruneConfig config = null,
         CancellationToken cancellationToken = default)
     {
-      var path = "/system/prune";
-      var result = await PostJsonAsync<JObject>(path, null, cancellationToken);
-      if (!result.Success)
-        return CommandResponse<SystemPruneResult>.Fail(result.ErrorMessage,
-            MapHttpErrorCode(result.StatusCode),
-            CreateErrorContext("POST /system/prune", result.StatusCode, result.ResponseBody),
-            result.StatusCode);
-
+      config ??= new SystemPruneConfig();
       var pruneResult = new SystemPruneResult();
-      if (result.Data != null)
+      var filterQuery = BuildFilterQuery(config.Filter);
+
+      // 1. Prune containers
+      var ctrResult = await PostJsonAsync<JObject>(
+          $"/containers/prune{filterQuery}", null, cancellationToken);
+      if (ctrResult.Success && ctrResult.Data != null)
       {
-        pruneResult.SpaceReclaimed = result.Data.Value<long?>("SpaceReclaimed") ?? 0;
+        var deleted = ctrResult.Data["ContainersDeleted"]?.ToObject<List<string>>();
+        if (deleted != null)
+          pruneResult.ContainersDeleted.AddRange(deleted);
+        pruneResult.SpaceReclaimed += ctrResult.Data.Value<long?>("SpaceReclaimed") ?? 0;
+      }
+
+      // 2. Prune networks
+      var netResult = await PostJsonAsync<JObject>(
+          $"/networks/prune{filterQuery}", null, cancellationToken);
+      if (netResult.Success && netResult.Data != null)
+      {
+        var deleted = netResult.Data["NetworksDeleted"]?.ToObject<List<string>>();
+        if (deleted != null)
+          pruneResult.NetworksDeleted.AddRange(deleted);
+      }
+
+      // 3. Prune images (All → dangling=false to prune all unused images)
+      var imageFilterQuery = BuildImagePruneFilterQuery(config);
+      var imgResult = await PostJsonAsync<JObject>(
+          $"/images/prune{imageFilterQuery}", null, cancellationToken);
+      if (imgResult.Success && imgResult.Data != null)
+      {
+        var deleted = imgResult.Data["ImagesDeleted"]?
+            .Select(t => t.Value<string>("Untagged") ?? t.Value<string>("Deleted"))
+            .Where(s => s != null).ToList();
+        if (deleted != null)
+          pruneResult.ImagesDeleted.AddRange(deleted);
+        pruneResult.SpaceReclaimed += imgResult.Data.Value<long?>("SpaceReclaimed") ?? 0;
+      }
+
+      // 4. Prune volumes (only when opted-in, matching docker system prune)
+      if (config.Volumes)
+      {
+        var volResult = await PostJsonAsync<JObject>(
+            $"/volumes/prune{filterQuery}", null, cancellationToken);
+        if (volResult.Success && volResult.Data != null)
+        {
+          var deleted = volResult.Data["VolumesDeleted"]?.ToObject<List<string>>();
+          if (deleted != null)
+            pruneResult.VolumesDeleted.AddRange(deleted);
+          pruneResult.SpaceReclaimed += volResult.Data.Value<long?>("SpaceReclaimed") ?? 0;
+        }
+      }
+
+      // 5. Prune build cache
+      var buildResult = await PostJsonAsync<JObject>(
+          "/build/prune", null, cancellationToken);
+      if (buildResult.Success && buildResult.Data != null)
+      {
+        var cacheIds = buildResult.Data["CachesDeleted"]?.ToObject<List<string>>();
+        if (cacheIds != null)
+          pruneResult.BuildCacheDeleted.AddRange(cacheIds);
+        pruneResult.SpaceReclaimed += buildResult.Data.Value<long?>("SpaceReclaimed") ?? 0;
       }
 
       return CommandResponse<SystemPruneResult>.Ok(pruneResult);
+    }
+
+    /// <summary>
+    /// Encodes a filter dictionary as a <c>?filters={"key":["value"]}</c> query param.
+    /// </summary>
+    private static string BuildFilterQuery(Dictionary<string, string> filter)
+    {
+      if (filter == null || filter.Count == 0)
+        return string.Empty;
+
+      var dict = filter.ToDictionary(
+          kv => kv.Key,
+          kv => new List<string> { kv.Value });
+      return $"?filters={Uri.EscapeDataString(JsonConvert.SerializeObject(dict))}";
+    }
+
+    /// <summary>
+    /// Builds the filter query for image prune, combining <c>All</c> flag
+    /// (as <c>dangling=false</c>) with user-provided filters.
+    /// </summary>
+    private static string BuildImagePruneFilterQuery(SystemPruneConfig config)
+    {
+      var dict = new Dictionary<string, List<string>>();
+      if (config.All)
+        dict["dangling"] = new List<string> { "false" };
+      if (config.Filter != null)
+        foreach (var kv in config.Filter)
+          dict[kv.Key] = new List<string> { kv.Value };
+
+      return dict.Count == 0
+          ? string.Empty
+          : $"?filters={Uri.EscapeDataString(JsonConvert.SerializeObject(dict))}";
     }
 
     public Task<CommandResponse<Unit>> SwitchDaemonAsync(

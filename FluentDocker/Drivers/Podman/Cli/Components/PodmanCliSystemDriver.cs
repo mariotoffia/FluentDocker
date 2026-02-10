@@ -129,11 +129,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
     {
       try
       {
-        var args = "system prune -f";
-        if (config?.All == true)
-          args += " -a";
-        if (config?.Volumes == true)
-          args += " --volumes";
+        var args = BuildSystemPruneArgs(config);
 
         var result = await ExecuteCommandAsync(args, cancellationToken);
         if (!result.Success)
@@ -176,6 +172,28 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       return Task.FromResult(CommandResponse<Unit>.Fail(
           "Podman does not support Windows containers",
           ErrorCodes.Driver.CapabilityNotSupported));
+    }
+
+    #endregion
+
+    #region Argument Building
+
+    /// <summary>
+    /// Builds the CLI arguments string for <c>podman system prune</c>.
+    /// </summary>
+    public static string BuildSystemPruneArgs(SystemPruneConfig config)
+    {
+      var args = "system prune -f";
+      if (config?.All == true)
+        args += " -a";
+      if (config?.Volumes == true)
+        args += " --volumes";
+      if (config?.Filter != null)
+      {
+        foreach (var f in config.Filter)
+          args += $" --filter {f.Key}={f.Value}";
+      }
+      return args;
     }
 
     #endregion

@@ -32,52 +32,15 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     {
       try
       {
-        var args = new List<string> { "compose" };
-
-        foreach (var file in config.ComposeFiles)
-          args.Add($"-f {QuoteArgumentIfNeeded(file)}");
-
-        if (!string.IsNullOrEmpty(config.ProjectName))
-          args.Add($"-p {QuoteArgumentIfNeeded(config.ProjectName)}");
-
+        var args = BuildComposeArgs(config);
         if (config.Profiles != null && config.Profiles.Count > 0)
-        {
           foreach (var profile in config.Profiles)
-            args.Add($"--profile {QuoteArgumentIfNeeded(profile)}");
-        }
-
-        args.Add("up");
-
-        if (config.Detached)
-          args.Add("-d");
-        if (config.Build)
-          args.Add("--build");
-        if (config.ForceRecreate)
-          args.Add("--force-recreate");
-        if (config.RemoveOrphans)
-          args.Add("--remove-orphans");
-        if (config.NoDeps)
-          args.Add("--no-deps");
-        if (config.NoStart)
-          args.Add("--no-start");
-        if (config.Wait)
-          args.Add("--wait");
-        if (config.WaitTimeout.HasValue)
-          args.Add($"--wait-timeout {config.WaitTimeout.Value}");
-        if (!string.IsNullOrEmpty(config.Pull))
-          args.Add($"--pull {config.Pull}");
-        if (config.Scale != null && config.Scale.Count > 0)
-        {
-          foreach (var scale in config.Scale)
-            args.Add($"--scale {scale.Key}={scale.Value}");
-        }
-        if (config.Timeout.HasValue)
-          args.Add($"--timeout {config.Timeout.Value}");
+            args += $" --profile {QuoteArgumentIfNeeded(profile)}";
+        args += " " + BuildUpSubArgs(config);
         if (config.Services.Count > 0)
-          args.AddRange(config.Services);
+          args += " " + string.Join(" ", config.Services);
 
-        var result = await ExecuteCommandAsync(
-            string.Join(" ", args), config.Environment, cancellationToken);
+        var result = await ExecuteCommandAsync(args, config.Environment, cancellationToken);
 
         if (!result.Success)
         {
@@ -108,24 +71,9 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     {
       try
       {
-        var args = new List<string> { "compose" };
+        var args = BuildComposeArgs(config) + " " + BuildDownSubArgs(config);
 
-        foreach (var file in config.ComposeFiles)
-          args.Add($"-f {QuoteArgumentIfNeeded(file)}");
-
-        if (!string.IsNullOrEmpty(config.ProjectName))
-          args.Add($"-p {QuoteArgumentIfNeeded(config.ProjectName)}");
-
-        args.Add("down");
-
-        if (config.RemoveVolumes)
-          args.Add("--volumes");
-        if (!string.IsNullOrEmpty(config.RemoveImages))
-          args.Add($"--rmi {config.RemoveImages}");
-        if (config.Timeout.HasValue)
-          args.Add($"--timeout {config.Timeout.Value}");
-
-        var result = await ExecuteCommandAsync(string.Join(" ", args), cancellationToken);
+        var result = await ExecuteCommandAsync(args, cancellationToken);
 
         if (!result.Success)
         {
@@ -200,9 +148,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     {
       try
       {
-        var args = BuildComposeArgs(config) + " restart";
-        if (config.Timeout.HasValue)
-          args += $" --timeout {config.Timeout.Value}";
+        var args = BuildComposeArgs(config) + " " + BuildRestartSubArgs(config);
         if (config.Services.Count > 0)
           args += " " + string.Join(" ", config.Services);
 
@@ -294,11 +240,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     {
       try
       {
-        var args = BuildComposeArgs(config) + " rm -f";
-        if (config.Stop)
-          args += " -s";
-        if (config.Volumes)
-          args += " -v";
+        var args = BuildComposeArgs(config) + " " + BuildRemoveSubArgs(config);
         if (config.Services.Count > 0)
           args += " " + string.Join(" ", config.Services);
 

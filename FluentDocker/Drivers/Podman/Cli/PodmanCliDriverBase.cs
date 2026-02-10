@@ -93,14 +93,27 @@ namespace FluentDocker.Drivers.Podman.Cli
       var podmanPath = BinaryResolver?.ResolveBinaryPath(PodmanCommand) ?? PodmanCommand;
       var globalArgs = BuildGlobalArgs(Context);
       var fullArgs = string.IsNullOrEmpty(globalArgs) ? arguments : $"{globalArgs} {arguments}";
-      return await ExecuteProcessAsync(podmanPath, fullArgs, cancellationToken);
+      return await ExecuteProcessAsync(podmanPath, fullArgs, null, cancellationToken);
+    }
+
+    /// <summary>
+    /// Executes a Podman command asynchronously with data piped to stdin.
+    /// </summary>
+    protected async Task<SimpleCommandResult> ExecuteCommandAsync(
+        string arguments, string stdinData, CancellationToken cancellationToken)
+    {
+      var podmanPath = BinaryResolver?.ResolveBinaryPath(PodmanCommand) ?? PodmanCommand;
+      var globalArgs = BuildGlobalArgs(Context);
+      var fullArgs = string.IsNullOrEmpty(globalArgs) ? arguments : $"{globalArgs} {arguments}";
+      return await ExecuteProcessAsync(podmanPath, fullArgs, stdinData, cancellationToken);
     }
 
     /// <summary>
     /// Executes a process asynchronously.
     /// </summary>
     private async Task<SimpleCommandResult> ExecuteProcessAsync(
-        string fileName, string arguments, CancellationToken cancellationToken)
+        string fileName, string arguments,
+        string stdinData, CancellationToken cancellationToken)
     {
       return await Task.Run(() =>
       {
@@ -114,6 +127,7 @@ namespace FluentDocker.Drivers.Podman.Cli
               Arguments = arguments,
               RedirectStandardOutput = true,
               RedirectStandardError = true,
+              RedirectStandardInput = stdinData != null,
               UseShellExecute = false,
               CreateNoWindow = true
             }
@@ -135,6 +149,13 @@ namespace FluentDocker.Drivers.Podman.Cli
           };
 
           process.Start();
+
+          if (stdinData != null)
+          {
+            process.StandardInput.Write(stdinData);
+            process.StandardInput.Close();
+          }
+
           process.BeginOutputReadLine();
           process.BeginErrorReadLine();
 

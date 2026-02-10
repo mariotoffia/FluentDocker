@@ -23,11 +23,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     {
       try
       {
-        var args = BuildComposeArgs(config) + " ps --format json";
-        if (config.All)
-          args += " -a";
-        if (config.Quiet)
-          args += " -q";
+        var args = BuildComposeArgs(config) + " " + BuildListSubArgs(config);
 
         var result = await ExecuteCommandAsync(args, cancellationToken);
 
@@ -35,21 +31,8 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
           return CommandResponse<IList<ComposeServiceInfo>>.Fail(
               result.Error ?? "Compose ps failed", ErrorCodes.Compose.ListFailed);
 
-        var services = new List<ComposeServiceInfo>();
-        var lines = result.Output.Split(
-            new[] { '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries);
-        foreach (var line in lines)
-        {
-          try
-          {
-            var service = JsonConvert.DeserializeObject<ComposeServiceInfo>(line);
-            if (service != null)
-              services.Add(service);
-          }
-          catch { }
-        }
-
-        return CommandResponse<IList<ComposeServiceInfo>>.Ok(services);
+        return CommandResponse<IList<ComposeServiceInfo>>.Ok(
+            ParseServiceList(result.Output));
       }
       catch (Exception ex)
       {
@@ -66,15 +49,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     {
       try
       {
-        var args = BuildComposeArgs(config) + " logs";
-        if (config.Follow)
-          args += " -f";
-        if (config.Timestamps)
-          args += " -t";
-        if (config.Tail.HasValue)
-          args += $" --tail {config.Tail.Value}";
-        if (!string.IsNullOrEmpty(config.Since))
-          args += $" --since {QuoteArgumentIfNeeded(config.Since)}";
+        var args = BuildComposeArgs(config) + " " + BuildLogsSubArgs(config);
         if (config.Services.Count > 0)
           args += " " + string.Join(" ", config.Services);
 
@@ -120,11 +95,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     {
       try
       {
-        var args = BuildComposeArgs(config) + " config";
-        if (config.ShowServices)
-          args += " --services";
-        if (config.ShowVolumes)
-          args += " --volumes";
+        var args = BuildComposeArgs(config) + " " + BuildConfigSubArgs(config);
 
         var result = await ExecuteCommandAsync(args, cancellationToken);
         return result.Success
@@ -210,15 +181,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     {
       try
       {
-        var args = BuildComposeArgs(config) + " build";
-        if (config.NoCache)
-          args += " --no-cache";
-        if (config.Pull)
-          args += " --pull";
-        if (config.ForceRm)
-          args += " --force-rm";
-        if (config.Parallel)
-          args += " --parallel";
+        var args = BuildComposeArgs(config) + " " + BuildBuildSubArgs(config);
         if (config.Services.Count > 0)
           args += " " + string.Join(" ", config.Services);
 
@@ -242,11 +205,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     {
       try
       {
-        var args = BuildComposeArgs(config) + " pull";
-        if (config.Quiet)
-          args += " -q";
-        if (config.IgnorePullFailures)
-          args += " --ignore-pull-failures";
+        var args = BuildComposeArgs(config) + " " + BuildPullSubArgs(config);
         if (config.Services.Count > 0)
           args += " " + string.Join(" ", config.Services);
 
@@ -334,20 +293,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     {
       try
       {
-        var args = BuildComposeArgs(config) + " run";
-        if (config.Detach)
-          args += " -d";
-        if (config.Rm)
-          args += " --rm";
-        if (config.NoDeps)
-          args += " --no-deps";
-        if (!string.IsNullOrEmpty(config.Name))
-          args += $" --name {QuoteArgumentIfNeeded(config.Name)}";
-        if (!string.IsNullOrEmpty(config.User))
-          args += $" -u {QuoteArgumentIfNeeded(config.User)}";
-        args += $" {config.Service}";
-        if (config.Command != null && config.Command.Length > 0)
-          args += " " + string.Join(" ", config.Command);
+        var args = BuildComposeArgs(config) + " " + BuildRunSubArgs(config);
 
         var result = await ExecuteCommandAsync(args, cancellationToken);
         return result.Success
@@ -373,9 +319,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     {
       try
       {
-        var args = BuildComposeArgs(config) + " up -d --scale";
-        foreach (var scale in config.Scale)
-          args += $" {scale.Key}={scale.Value}";
+        var args = BuildComposeArgs(config) + " " + BuildScaleSubArgs(config);
 
         var result = await ExecuteCommandAsync(args, cancellationToken);
         return result.Success
@@ -430,15 +374,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     {
       try
       {
-        var args = BuildComposeArgs(config) + " create";
-        if (config.Build)
-          args += " --build";
-        if (config.ForceRecreate)
-          args += " --force-recreate";
-        if (config.NoRecreate)
-          args += " --no-recreate";
-        if (config.NoBuild)
-          args += " --no-build";
+        var args = BuildComposeArgs(config) + " " + BuildCreateSubArgs(config);
         if (config.Services.Count > 0)
           args += " " + string.Join(" ", config.Services);
 

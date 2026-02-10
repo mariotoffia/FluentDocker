@@ -114,7 +114,19 @@ namespace FluentDocker.Drivers.Docker.Cli
       var dockerPath = BinaryResolver?.ResolveBinaryPath(DockerCommand) ?? DockerCommand;
       var globalArgs = BuildGlobalArgs(Context);
       var fullArgs = string.IsNullOrEmpty(globalArgs) ? arguments : $"{globalArgs} {arguments}";
-      return await ExecuteProcessAsync(dockerPath, fullArgs, null, cancellationToken);
+      return await ExecuteProcessAsync(dockerPath, fullArgs, null, null, cancellationToken);
+    }
+
+    /// <summary>
+    /// Executes a Docker command asynchronously with data piped to stdin.
+    /// </summary>
+    protected async Task<SimpleCommandResult> ExecuteCommandAsync(
+        string arguments, string stdinData, CancellationToken cancellationToken)
+    {
+      var dockerPath = BinaryResolver?.ResolveBinaryPath(DockerCommand) ?? DockerCommand;
+      var globalArgs = BuildGlobalArgs(Context);
+      var fullArgs = string.IsNullOrEmpty(globalArgs) ? arguments : $"{globalArgs} {arguments}";
+      return await ExecuteProcessAsync(dockerPath, fullArgs, null, stdinData, cancellationToken);
     }
 
     /// <summary>
@@ -128,7 +140,7 @@ namespace FluentDocker.Drivers.Docker.Cli
       var dockerPath = BinaryResolver?.ResolveBinaryPath(DockerCommand) ?? DockerCommand;
       var globalArgs = BuildGlobalArgs(Context);
       var fullArgs = string.IsNullOrEmpty(globalArgs) ? arguments : $"{globalArgs} {arguments}";
-      return await ExecuteProcessAsync(dockerPath, fullArgs, environment, cancellationToken);
+      return await ExecuteProcessAsync(dockerPath, fullArgs, environment, null, cancellationToken);
     }
 
     /// <summary>
@@ -137,6 +149,7 @@ namespace FluentDocker.Drivers.Docker.Cli
     private async Task<SimpleCommandResult> ExecuteProcessAsync(
         string fileName, string arguments,
         IDictionary<string, string> environment,
+        string stdinData,
         CancellationToken cancellationToken)
     {
       return await Task.Run(() =>
@@ -151,6 +164,7 @@ namespace FluentDocker.Drivers.Docker.Cli
               Arguments = arguments,
               RedirectStandardOutput = true,
               RedirectStandardError = true,
+              RedirectStandardInput = stdinData != null,
               UseShellExecute = false,
               CreateNoWindow = true
             }
@@ -178,6 +192,13 @@ namespace FluentDocker.Drivers.Docker.Cli
           };
 
           process.Start();
+
+          if (stdinData != null)
+          {
+            process.StandardInput.Write(stdinData);
+            process.StandardInput.Close();
+          }
+
           process.BeginOutputReadLine();
           process.BeginErrorReadLine();
 

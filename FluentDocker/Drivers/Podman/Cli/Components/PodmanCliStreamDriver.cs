@@ -58,10 +58,10 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       }
     }
 
-    /// <inheritdoc />
-    public async IAsyncEnumerable<ContainerEvent> StreamEventsAsync(
-        DriverContext context, StreamEventsConfig config = null,
-        [EnumeratorCancellation] CancellationToken cancellationToken = default)
+    /// <summary>
+    /// Builds the CLI arguments string for streaming events.
+    /// </summary>
+    public static string BuildStreamEventsArgs(StreamEventsConfig config)
     {
       var args = "events --format json";
       if (!string.IsNullOrEmpty(config?.Since))
@@ -76,6 +76,20 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       if (config?.Actions != null)
         foreach (var action in config.Actions)
           args += $" --filter event={action}";
+
+      if (config?.Filters != null)
+        foreach (var filter in config.Filters)
+          args += $" --filter {filter.Key}={filter.Value}";
+
+      return args;
+    }
+
+    /// <inheritdoc />
+    public async IAsyncEnumerable<ContainerEvent> StreamEventsAsync(
+        DriverContext context, StreamEventsConfig config = null,
+        [EnumeratorCancellation] CancellationToken cancellationToken = default)
+    {
+      var args = BuildStreamEventsArgs(config);
 
       await foreach (var line in ExecuteStreamingCommandAsync(args, cancellationToken))
       {

@@ -164,24 +164,103 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
 
     // ── ExecAsync ───────────────────────────────────────────────────
 
+    /// <summary>Creates a Docker multiplexed frame (8-byte header + payload).</summary>
+    private static byte[] CreateMuxFrame(byte streamType, string text)
+    {
+      var payload = System.Text.Encoding.UTF8.GetBytes(text);
+      var frame = new byte[8 + payload.Length];
+      frame[0] = streamType;
+      frame[4] = (byte)((payload.Length >> 24) & 0xFF);
+      frame[5] = (byte)((payload.Length >> 16) & 0xFF);
+      frame[6] = (byte)((payload.Length >> 8) & 0xFF);
+      frame[7] = (byte)(payload.Length & 0xFF);
+      System.Array.Copy(payload, 0, frame, 8, payload.Length);
+      return frame;
+    }
+
     [Fact]
-    public async Task ExecAsync_ThreePhaseFlowReturnsOutput()
+    public async Task ExecAsync_TtyMode_ReturnsRawOutput()
     {
       var mock = new MockDockerApiConnection();
-      // Phase 1: exec create
-      mock.SetupPost("/exec", 201, @"{""Id"":""exec123""}");
-      // Phase 2: exec start (stream)
-      mock.SetupStream("/exec/exec123/start", "command output");
-      // Phase 3: exec inspect
-      mock.SetupGet("/exec/exec123/json", 200, @"{""ExitCode"":0,""Running"":false}");
+      mock.SetupPost("/exec", 201, @"{""Id"":""exec-tty""}");
+      mock.SetupStream("/exec/exec-tty/start", "raw tty output");
+      mock.SetupGet("/exec/exec-tty/json", 200, @"{""ExitCode"":0,""Running"":false}");
       var driver = CreateDriver(mock);
 
-      var config = new ExecConfig { Command = new[] { "echo", "hello" } };
+      var config = new ExecConfig { Command = new[] { "echo", "hello" }, Tty = true };
       var result = await driver.ExecAsync(Ctx, "ctr1", config);
 
       Assert.True(result.Success);
       Assert.Equal(0, result.Data.ExitCode);
-      Assert.Equal("command output", result.Data.StdOut);
+      Assert.Equal("raw tty output", result.Data.StdOut);
+      Assert.Equal(string.Empty, result.Data.StdErr);
+    }
+
+    [Fact]
+    public async Task ExecAsync_NonTtyMode_DemultiplexesStdoutAndStderr()
+    {
+      var mock = new MockDockerApiConnection();
+      mock.SetupPost("/exec", 201, @"{""Id"":""exec-mux""}");
+
+      // Build multiplexed frames: stdout then stderr
+      var stdoutFrame = CreateMuxFrame(1, "hello stdout");
+      var stderrFrame = CreateMuxFrame(2, "hello stderr");
+      var combined = new byte[stdoutFrame.Length + stderrFrame.Length];
+      stdoutFrame.CopyTo(combined, 0);
+      stderrFrame.CopyTo(combined, stdoutFrame.Length);
+      mock.SetupStreamBytes("/exec/exec-mux/start", combined);
+      mock.SetupGet("/exec/exec-mux/json", 200, @"{""ExitCode"":0}");
+      var driver = CreateDriver(mock);
+
+      var config = new ExecConfig { Command = new[] { "sh", "-c", "echo" }, Tty = false };
+      var result = await driver.ExecAsync(Ctx, "ctr1", config);
+
+      Assert.True(result.Success);
+      Assert.Equal("hello stdout", result.Data.StdOut);
+      Assert.Equal("hello stderr", result.Data.StdErr);
+    }
+
+    [Fact]
+    public async Task ExecAsync_NonTtyMode_MixedFrames_SeparatesCorrectly()
+    {
+      var mock = new MockDockerApiConnection();
+      mock.SetupPost("/exec", 201, @"{""Id"":""exec-mix""}");
+
+      var f1 = CreateMuxFrame(1, "out1 ");
+      var f2 = CreateMuxFrame(2, "err1 ");
+      var f3 = CreateMuxFrame(1, "out2");
+      var combined = new byte[f1.Length + f2.Length + f3.Length];
+      f1.CopyTo(combined, 0);
+      f2.CopyTo(combined, f1.Length);
+      f3.CopyTo(combined, f1.Length + f2.Length);
+      mock.SetupStreamBytes("/exec/exec-mix/start", combined);
+      mock.SetupGet("/exec/exec-mix/json", 200, @"{""ExitCode"":1}");
+      var driver = CreateDriver(mock);
+
+      var config = new ExecConfig { Command = new[] { "test" }, Tty = false };
+      var result = await driver.ExecAsync(Ctx, "ctr1", config);
+
+      Assert.True(result.Success);
+      Assert.Equal(1, result.Data.ExitCode);
+      Assert.Equal("out1 out2", result.Data.StdOut);
+      Assert.Equal("err1 ", result.Data.StdErr);
+    }
+
+    [Fact]
+    public async Task ExecAsync_NonTtyMode_EmptyStream_ReturnsEmptyStrings()
+    {
+      var mock = new MockDockerApiConnection();
+      mock.SetupPost("/exec", 201, @"{""Id"":""exec-empty""}");
+      mock.SetupStreamBytes("/exec/exec-empty/start", new byte[0]);
+      mock.SetupGet("/exec/exec-empty/json", 200, @"{""ExitCode"":0}");
+      var driver = CreateDriver(mock);
+
+      var config = new ExecConfig { Command = new[] { "true" }, Tty = false };
+      var result = await driver.ExecAsync(Ctx, "ctr1", config);
+
+      Assert.True(result.Success);
+      Assert.Equal(string.Empty, result.Data.StdOut);
+      Assert.Equal(string.Empty, result.Data.StdErr);
     }
 
     [Fact]

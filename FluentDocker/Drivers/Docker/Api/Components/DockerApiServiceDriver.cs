@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using FluentDocker.Drivers.Docker.Api.Connection;
@@ -178,14 +180,20 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       if (!string.IsNullOrEmpty(config.Since))
         path += $"&since={config.Since}";
 
-      var result = await GetJsonAsync<string>(path, cancellationToken);
-      if (!result.Success)
-        return CommandResponse<string>.Fail(result.ErrorMessage,
+      try
+      {
+        using var stream = await GetRawStreamAsync(path, cancellationToken);
+        using var reader = new StreamReader(stream, Encoding.UTF8);
+        var logs = await reader.ReadToEndAsync(cancellationToken);
+        return CommandResponse<string>.Ok(StripDockerStreamHeaders(logs));
+      }
+      catch (Exception ex)
+      {
+        return CommandResponse<string>.Fail(
+            $"Failed to get logs for service '{serviceId}': {ex.Message}",
             ErrorCodes.Service.LogsFailed,
-            CreateErrorContext($"GET /services/{serviceId}/logs", result.StatusCode),
-            result.StatusCode);
-
-      return CommandResponse<string>.Ok(result.Data ?? "");
+            CreateErrorContext($"GET /services/{serviceId}/logs", 0));
+      }
     }
 
     public async Task<CommandResponse<Unit>> ScaleAsync(

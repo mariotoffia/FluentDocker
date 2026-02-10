@@ -175,7 +175,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
 
       // Phase 2: Start exec and capture output
       var startRequest = new ExecStartRequest { Detach = config.Detach, Tty = config.Tty };
-      string output;
+      string stdout, stderr;
       try
       {
         var startContent = new StringContent(
@@ -183,8 +183,19 @@ namespace FluentDocker.Drivers.Docker.Api.Components
             Encoding.UTF8, "application/json");
         using var stream = await Connection.PostStreamAsync(
             $"/exec/{execId}/start", startContent, cancellationToken);
-        using var reader = new StreamReader(stream, Encoding.UTF8);
-        output = await reader.ReadToEndAsync(cancellationToken);
+
+        if (config.Tty)
+        {
+          // TTY mode: raw stream, no multiplexed framing
+          using var reader = new StreamReader(stream, Encoding.UTF8);
+          stdout = await reader.ReadToEndAsync(cancellationToken);
+          stderr = string.Empty;
+        }
+        else
+        {
+          // Non-TTY: demultiplex stdout (type 1) and stderr (type 2)
+          (stdout, stderr) = await DemultiplexStreamAsync(stream, cancellationToken);
+        }
       }
       catch (Exception ex)
       {
@@ -202,9 +213,49 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       return CommandResponse<ExecResult>.Ok(new ExecResult
       {
         ExitCode = exitCode,
-        StdOut = output ?? string.Empty,
-        StdErr = string.Empty
+        StdOut = stdout ?? string.Empty,
+        StdErr = stderr ?? string.Empty
       });
+    }
+
+    /// <summary>
+    /// Demultiplexes a Docker multiplexed stream into separate stdout and stderr.
+    /// Frame format: [1B stream type][3B zero padding][4B big-endian size][payload].
+    /// Stream types: 1=stdout, 2=stderr.
+    /// </summary>
+    private static async Task<(string StdOut, string StdErr)> DemultiplexStreamAsync(
+        Stream stream, CancellationToken ct)
+    {
+      var stdoutBuf = new StringBuilder();
+      var stderrBuf = new StringBuilder();
+      var header = new byte[8];
+
+      while (true)
+      {
+        var headerRead = await ReadExactAsync(stream, header, 8, ct);
+        if (headerRead < 8)
+          break;
+
+        var streamType = header[0];
+        var frameSize = (header[4] << 24) | (header[5] << 16) |
+            (header[6] << 8) | header[7];
+
+        if (frameSize <= 0)
+          continue;
+
+        var payload = new byte[frameSize];
+        var payloadRead = await ReadExactAsync(stream, payload, frameSize, ct);
+        if (payloadRead <= 0)
+          break;
+
+        var text = Encoding.UTF8.GetString(payload, 0, payloadRead);
+        if (streamType == 1)
+          stdoutBuf.Append(text);
+        else if (streamType == 2)
+          stderrBuf.Append(text);
+      }
+
+      return (stdoutBuf.ToString(), stderrBuf.ToString());
     }
 
     #endregion
@@ -403,40 +454,6 @@ namespace FluentDocker.Drivers.Docker.Api.Components
 
     #endregion
 
-    #region Helpers
-
-    /// <summary>
-    /// Strips Docker multiplexed stream 8-byte header frames from raw log output.
-    /// Frame format: [1B stream type][3B padding][4B big-endian size][payload].
-    /// </summary>
-    private static string StripDockerStreamHeaders(string raw)
-    {
-      if (string.IsNullOrEmpty(raw))
-        return string.Empty;
-
-      var bytes = Encoding.UTF8.GetBytes(raw);
-      if (bytes.Length < 8)
-        return raw;
-
-      // Check if first byte is a valid Docker stream header (0=stdin, 1=stdout, 2=stderr)
-      if (bytes[0] > 2 || bytes[1] != 0 || bytes[2] != 0 || bytes[3] != 0)
-        return raw;
-
-      var sb = new StringBuilder();
-      var offset = 0;
-      while (offset + 8 <= bytes.Length)
-      {
-        var frameSize = (bytes[offset + 4] << 24) | (bytes[offset + 5] << 16)
-                      | (bytes[offset + 6] << 8) | bytes[offset + 7];
-        offset += 8;
-        if (frameSize <= 0 || offset + frameSize > bytes.Length)
-          break;
-        sb.Append(Encoding.UTF8.GetString(bytes, offset, frameSize));
-        offset += frameSize;
-      }
-      return sb.Length > 0 ? sb.ToString() : raw;
-    }
-
-    #endregion
+    // StripDockerStreamHeaders is inherited from DockerApiDriverBase
   }
 }

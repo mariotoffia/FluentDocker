@@ -248,8 +248,8 @@ namespace FluentDocker.Drivers
     public List<string> Publish { get; set; } = new List<string>();
     /// <summary>Additional volumes.</summary>
     public List<string> Volumes { get; set; } = new List<string>();
-    /// <summary>Allocate a pseudo-TTY.</summary>
-    public bool Tty { get; set; }
+    /// <summary>Allocate a pseudo-TTY (default: true, matching docker compose run behavior).</summary>
+    public bool Tty { get; set; } = true;
   }
 
   /// <summary>

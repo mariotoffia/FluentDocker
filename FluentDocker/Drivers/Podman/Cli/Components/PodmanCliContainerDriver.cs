@@ -56,7 +56,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       {
         var args = BuildCreateArgs("run", config);
         if (config.Detach)
-          args = args.Insert(3, " -d");
+          args = "run -d" + args.Substring(3);
 
         var result = await ExecuteCommandAsync(args, cancellationToken);
         if (!result.Success)
@@ -288,18 +288,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
     {
       try
       {
-        var args = "ps --format json";
-        if (filter?.All == true)
-          args += " -a";
-        if (!string.IsNullOrEmpty(filter?.Name))
-          args += $" --filter name={filter.Name}";
-        if (!string.IsNullOrEmpty(filter?.Status))
-          args += $" --filter status={filter.Status}";
-        if (!string.IsNullOrEmpty(filter?.Id))
-          args += $" --filter id={filter.Id}";
-        if (filter?.Limit.HasValue == true)
-          args += $" --last {filter.Limit.Value}";
-
+        var args = BuildListArgs(filter);
         var result = await ExecuteCommandAsync(args, cancellationToken);
         if (!result.Success)
           return CommandResponse<IList<Container>>.Fail(
@@ -317,6 +306,38 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
     #endregion
 
     #region Argument Building
+
+    /// <summary>
+    /// Builds the CLI arguments string for <c>podman ps</c>.
+    /// </summary>
+    public static string BuildListArgs(ContainerListFilter filter)
+    {
+      var args = "ps --format json";
+      if (filter == null)
+        return args;
+
+      if (filter.All)
+        args += " -a";
+      if (!string.IsNullOrEmpty(filter.Name))
+        args += $" --filter name={filter.Name}";
+      if (!string.IsNullOrEmpty(filter.Status))
+        args += $" --filter status={filter.Status}";
+      if (!string.IsNullOrEmpty(filter.Id))
+        args += $" --filter id={filter.Id}";
+      if (!string.IsNullOrEmpty(filter.Ancestor))
+        args += $" --filter ancestor={filter.Ancestor}";
+      if (filter.Labels != null)
+      {
+        foreach (var label in filter.Labels)
+          args += string.IsNullOrEmpty(label.Value)
+              ? $" --filter label={label.Key}"
+              : $" --filter label={label.Key}={label.Value}";
+      }
+      if (filter.Limit.HasValue)
+        args += $" --last {filter.Limit.Value}";
+
+      return args;
+    }
 
     private static string BuildCreateArgs(string command, ContainerCreateConfig config)
     {

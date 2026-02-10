@@ -198,36 +198,141 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
     }
 
     [Fact]
-    public async Task PruneAsync_ReturnsSpaceReclaimed()
+    public async Task PruneAsync_DefaultConfig_CallsContainersNetworksImagesBuild()
     {
       var (driver, mock) = CreateDriver();
-      mock.SetupPost("/system/prune", 200, @"{""SpaceReclaimed"":1048576}");
+      mock.SetupPost("/containers/prune", 200,
+          @"{""ContainersDeleted"":[""c1"",""c2""],""SpaceReclaimed"":1000}");
+      mock.SetupPost("/networks/prune", 200,
+          @"{""NetworksDeleted"":[""net1""]}");
+      mock.SetupPost("/images/prune", 200,
+          @"{""ImagesDeleted"":[{""Untagged"":""img1""}],""SpaceReclaimed"":2000}");
+      mock.SetupPost("/build/prune", 200,
+          @"{""CachesDeleted"":[""cache1""],""SpaceReclaimed"":500}");
 
       var result = await driver.PruneAsync(Ctx);
+
       Assert.True(result.Success);
-      Assert.Equal(1048576L, result.Data.SpaceReclaimed);
+      Assert.Equal(new[] { "c1", "c2" }, result.Data.ContainersDeleted);
+      Assert.Equal(new[] { "net1" }, result.Data.NetworksDeleted);
+      Assert.Single(result.Data.ImagesDeleted);
+      Assert.Contains("img1", result.Data.ImagesDeleted);
+      Assert.Empty(result.Data.VolumesDeleted); // volumes not pruned by default
+      Assert.Equal(new[] { "cache1" }, result.Data.BuildCacheDeleted);
+      Assert.Equal(3500L, result.Data.SpaceReclaimed);
+
+      // Verify no volumes/prune call was made
+      var requests = mock.GetRequests();
+      Assert.DoesNotContain(requests,
+          r => r.Method == "POST" && r.Path.Contains("/volumes/prune"));
     }
 
     [Fact]
-    public async Task PruneAsync_HandlesNullSpaceReclaimed()
+    public async Task PruneAsync_WithVolumes_CallsVolumesPrune()
     {
       var (driver, mock) = CreateDriver();
-      mock.SetupPost("/system/prune", 200, "{}");
+      mock.SetupPost("/containers/prune", 200, "{}");
+      mock.SetupPost("/networks/prune", 200, "{}");
+      mock.SetupPost("/images/prune", 200, "{}");
+      mock.SetupPost("/build/prune", 200, "{}");
+      mock.SetupPost("/volumes/prune", 200,
+          @"{""VolumesDeleted"":[""vol1"",""vol2""],""SpaceReclaimed"":5000}");
+
+      var config = new SystemPruneConfig { Volumes = true };
+      var result = await driver.PruneAsync(Ctx, config);
+
+      Assert.True(result.Success);
+      Assert.Equal(new[] { "vol1", "vol2" }, result.Data.VolumesDeleted);
+      Assert.Equal(5000L, result.Data.SpaceReclaimed);
+
+      var requests = mock.GetRequests();
+      Assert.Contains(requests,
+          r => r.Method == "POST" && r.Path.Contains("/volumes/prune"));
+    }
+
+    [Fact]
+    public async Task PruneAsync_WithAll_SetsImageDanglingFilter()
+    {
+      var (driver, mock) = CreateDriver();
+      mock.SetupPost("/containers/prune", 200, "{}");
+      mock.SetupPost("/networks/prune", 200, "{}");
+      mock.SetupPost("/images/prune", 200, "{}");
+      mock.SetupPost("/build/prune", 200, "{}");
+
+      var config = new SystemPruneConfig { All = true };
+      var result = await driver.PruneAsync(Ctx, config);
+
+      Assert.True(result.Success);
+      var requests = mock.GetRequests();
+      var imgReq = requests.First(r =>
+          r.Method == "POST" && r.Path.Contains("/images/prune"));
+      Assert.Contains("dangling", imgReq.Path);
+    }
+
+    [Fact]
+    public async Task PruneAsync_WithFilter_PassesFilterToEndpoints()
+    {
+      var (driver, mock) = CreateDriver();
+      mock.SetupPost("/containers/prune", 200, "{}");
+      mock.SetupPost("/networks/prune", 200, "{}");
+      mock.SetupPost("/images/prune", 200, "{}");
+      mock.SetupPost("/build/prune", 200, "{}");
+
+      var config = new SystemPruneConfig
+      {
+        Filter = new System.Collections.Generic.Dictionary<string, string>
+        {
+          ["until"] = "24h"
+        }
+      };
+      var result = await driver.PruneAsync(Ctx, config);
+
+      Assert.True(result.Success);
+      var requests = mock.GetRequests();
+      var ctrReq = requests.First(r =>
+          r.Method == "POST" && r.Path.Contains("/containers/prune"));
+      Assert.Contains("until", ctrReq.Path);
+    }
+
+    [Fact]
+    public async Task PruneAsync_PartialFailure_StillReturnsPartialResults()
+    {
+      var (driver, mock) = CreateDriver();
+      mock.SetupPost("/containers/prune", 200,
+          @"{""ContainersDeleted"":[""c1""],""SpaceReclaimed"":100}");
+      mock.SetupPost("/networks/prune", 500,
+          @"{""message"":""network error""}");
+      mock.SetupPost("/images/prune", 200,
+          @"{""ImagesDeleted"":[{""Deleted"":""sha256:abc""}],""SpaceReclaimed"":200}");
+      mock.SetupPost("/build/prune", 200, "{}");
 
       var result = await driver.PruneAsync(Ctx);
+
       Assert.True(result.Success);
+      Assert.Single(result.Data.ContainersDeleted);
+      Assert.Single(result.Data.ImagesDeleted);
+      Assert.Empty(result.Data.NetworksDeleted); // failed endpoint
+      Assert.Equal(300L, result.Data.SpaceReclaimed);
+    }
+
+    [Fact]
+    public async Task PruneAsync_EmptyResponses_ReturnsEmptyLists()
+    {
+      var (driver, mock) = CreateDriver();
+      mock.SetupPost("/containers/prune", 200, "{}");
+      mock.SetupPost("/networks/prune", 200, "{}");
+      mock.SetupPost("/images/prune", 200, "{}");
+      mock.SetupPost("/build/prune", 200, "{}");
+
+      var result = await driver.PruneAsync(Ctx);
+
+      Assert.True(result.Success);
+      Assert.Empty(result.Data.ContainersDeleted);
+      Assert.Empty(result.Data.NetworksDeleted);
+      Assert.Empty(result.Data.ImagesDeleted);
+      Assert.Empty(result.Data.VolumesDeleted);
+      Assert.Empty(result.Data.BuildCacheDeleted);
       Assert.Equal(0L, result.Data.SpaceReclaimed);
-    }
-
-    [Fact]
-    public async Task PruneAsync_FailsOnServerError()
-    {
-      var (driver, mock) = CreateDriver();
-      mock.SetupPost("/system/prune", 500, @"{""message"":""prune failed""}");
-
-      var result = await driver.PruneAsync(Ctx);
-      Assert.False(result.Success);
-      Assert.Equal(ErrorCodes.Api.ServerError, result.ErrorCode);
     }
 
     [Theory]

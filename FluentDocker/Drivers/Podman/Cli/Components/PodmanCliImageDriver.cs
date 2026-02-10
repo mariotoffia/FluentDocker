@@ -259,9 +259,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
     {
       try
       {
-        var args = "image prune -f";
-        if (all)
-          args += " -a";
+        var args = BuildImagePruneArgs(all, filter);
 
         var result = await ExecuteCommandAsync(args, cancellationToken);
         if (!result.Success)
@@ -352,6 +350,26 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       {
         return CommandResponse<string>.Fail(ex.Message, ErrorCodes.Image.ImportFailed);
       }
+    }
+
+    #endregion
+
+    #region Argument Building
+
+    /// <summary>
+    /// Builds the CLI arguments string for <c>podman image prune</c>.
+    /// </summary>
+    public static string BuildImagePruneArgs(bool all, Dictionary<string, string> filter)
+    {
+      var args = "image prune -f";
+      if (all)
+        args += " -a";
+      if (filter != null)
+      {
+        foreach (var f in filter)
+          args += $" --filter {f.Key}={f.Value}";
+      }
+      return args;
     }
 
     #endregion

@@ -289,6 +289,61 @@ namespace FluentDocker.Drivers.Docker.Api
     {
       return ex is HttpRequestException or System.Net.Sockets.SocketException or TaskCanceledException;
     }
+
+    #region Stream Helpers
+
+    /// <summary>
+    /// Strips Docker multiplexed stream 8-byte header frames from raw log output.
+    /// Frame format: [1B stream type][3B padding][4B big-endian size][payload].
+    /// </summary>
+    protected static string StripDockerStreamHeaders(string raw)
+    {
+      if (string.IsNullOrEmpty(raw))
+        return string.Empty;
+
+      var bytes = Encoding.UTF8.GetBytes(raw);
+      if (bytes.Length < 8)
+        return raw;
+
+      // Check if first byte is a valid Docker stream header (0=stdin, 1=stdout, 2=stderr)
+      if (bytes[0] > 2 || bytes[1] != 0 || bytes[2] != 0 || bytes[3] != 0)
+        return raw;
+
+      var sb = new StringBuilder();
+      var offset = 0;
+      while (offset + 8 <= bytes.Length)
+      {
+        var frameSize = (bytes[offset + 4] << 24) | (bytes[offset + 5] << 16)
+                      | (bytes[offset + 6] << 8) | bytes[offset + 7];
+        offset += 8;
+        if (frameSize <= 0 || offset + frameSize > bytes.Length)
+          break;
+        sb.Append(Encoding.UTF8.GetString(bytes, offset, frameSize));
+        offset += frameSize;
+      }
+      return sb.Length > 0 ? sb.ToString() : raw;
+    }
+
+    /// <summary>
+    /// Reads exactly <paramref name="count"/> bytes from <paramref name="stream"/>,
+    /// handling partial reads. Returns the total number of bytes actually read.
+    /// </summary>
+    protected static async Task<int> ReadExactAsync(
+        Stream stream, byte[] buffer, int count, CancellationToken ct)
+    {
+      var totalRead = 0;
+      while (totalRead < count)
+      {
+        var read = await stream.ReadAsync(
+            buffer.AsMemory(totalRead, count - totalRead), ct);
+        if (read == 0)
+          break;
+        totalRead += read;
+      }
+      return totalRead;
+    }
+
+    #endregion
   }
 
   #region Internal Result Types

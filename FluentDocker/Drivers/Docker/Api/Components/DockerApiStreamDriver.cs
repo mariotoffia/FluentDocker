@@ -234,20 +234,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       }
     }
 
-    private static async Task<int> ReadExactAsync(
-        Stream stream, byte[] buffer, int count, CancellationToken ct)
-    {
-      var totalRead = 0;
-      while (totalRead < count)
-      {
-        var read = await stream.ReadAsync(
-            buffer.AsMemory(totalRead, count - totalRead), ct);
-        if (read == 0)
-          break;
-        totalRead += read;
-      }
-      return totalRead;
-    }
+    // ReadExactAsync is inherited from DockerApiDriverBase
 
     #endregion
 
