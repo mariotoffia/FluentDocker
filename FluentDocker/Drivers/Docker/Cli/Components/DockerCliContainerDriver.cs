@@ -1230,6 +1230,8 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
 
         if (config.MemoryLimit.HasValue)
           args.Add($"--memory {config.MemoryLimit.Value}");
+        if (config.MemorySwap.HasValue)
+          args.Add($"--memory-swap {config.MemorySwap.Value}");
         if (config.MemoryReservation.HasValue)
           args.Add($"--memory-reservation {config.MemoryReservation.Value}");
         if (config.CpuShares.HasValue)

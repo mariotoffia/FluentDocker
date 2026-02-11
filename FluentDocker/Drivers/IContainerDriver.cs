@@ -608,6 +608,9 @@ namespace FluentDocker.Drivers
     /// <summary>Memory limit in bytes.</summary>
     public long? MemoryLimit { get; set; }
 
+    /// <summary>Total memory limit (memory + swap) in bytes. Set to -1 for unlimited swap.</summary>
+    public long? MemorySwap { get; set; }
+
     /// <summary>Memory reservation in bytes.</summary>
     public long? MemoryReservation { get; set; }
 

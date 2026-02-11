@@ -277,19 +277,34 @@ namespace FluentDocker.Drivers.Docker.Api.Components
             ErrorCodes.General.InvalidArgument);
       try
       {
+        // Docker API PUT /archive extracts the tar INTO the path directory.
+        // For file-to-file copy, we extract into the parent dir with the target filename.
+        var extractPath = containerPath;
+        string tarEntryName = null;
+
+        if (File.Exists(hostPath) && !containerPath.EndsWith("/"))
+        {
+          var parentDir = containerPath.Contains('/')
+              ? containerPath[..containerPath.LastIndexOf('/')]
+              : "/";
+          if (string.IsNullOrEmpty(parentDir)) parentDir = "/";
+          tarEntryName = containerPath[(containerPath.LastIndexOf('/') + 1)..];
+          extractPath = parentDir;
+        }
+
         using var tarStream = new MemoryStream();
         using (var writer = WriterFactory.Open(tarStream, ArchiveType.Tar,
             new WriterOptions(CompressionType.None)))
         {
           if (File.Exists(hostPath))
-            writer.Write(Path.GetFileName(hostPath), hostPath);
+            writer.Write(tarEntryName ?? Path.GetFileName(hostPath), hostPath);
           else
             WriteDirectoryToTar(writer, hostPath, string.Empty);
         }
 
         tarStream.Position = 0;
         var apiPath = $"/containers/{Uri.EscapeDataString(containerId)}" +
-                      $"/archive?path={Uri.EscapeDataString(containerPath)}";
+                      $"/archive?path={Uri.EscapeDataString(extractPath)}";
         var result = await PutStreamAsync(
             apiPath, tarStream, "application/x-tar", cancellationToken);
         if (!result.Success)
@@ -431,6 +446,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       var request = new UpdateContainerRequest
       {
         Memory = config.MemoryLimit,
+        MemorySwap = config.MemorySwap,
         MemoryReservation = config.MemoryReservation,
         CpuShares = config.CpuShares,
         CpuPeriod = config.CpuPeriod,

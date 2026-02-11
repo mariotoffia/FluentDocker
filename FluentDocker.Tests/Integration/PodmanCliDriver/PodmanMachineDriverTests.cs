@@ -40,14 +40,15 @@ namespace FluentDocker.Tests.Integration.PodmanCliDriver
     [Fact]
     public async Task Inspect_DefaultMachine_ReturnsDetailsIfExists()
     {
-      // List machines first to see if default exists
+      // List machines first to find the default machine by name
       var listResult = await MachineDriver.ListAsync(Context);
       Assert.True(listResult.Success);
 
-      if (!listResult.Data.Any(m => m.Default))
+      var defaultMachine = listResult.Data.FirstOrDefault(m => m.Default);
+      if (defaultMachine == null)
         throw new SkipException("No default Podman machine available for inspect test");
 
-      var inspectResult = await MachineDriver.InspectAsync(Context);
+      var inspectResult = await MachineDriver.InspectAsync(Context, defaultMachine.Name);
       Assert.True(inspectResult.Success, $"Inspect failed: {inspectResult.Error}");
       Assert.NotNull(inspectResult.Data);
       Assert.False(string.IsNullOrEmpty(inspectResult.Data.Name));
@@ -64,7 +65,7 @@ namespace FluentDocker.Tests.Integration.PodmanCliDriver
       if (defaultMachine == null)
         throw new SkipException("No running default Podman machine for SSH test");
 
-      var result = await MachineDriver.SshAsync(Context, command: "echo hello");
+      var result = await MachineDriver.SshAsync(Context, defaultMachine.Name, "echo hello");
       Assert.True(result.Success, $"SSH failed: {result.Error}");
       Assert.Contains("hello", result.Data);
     }

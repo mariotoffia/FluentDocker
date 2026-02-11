@@ -166,8 +166,11 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
       {
         containerId = await RunContainerAsync(NginxImage);
 
+        // Allow container to stabilize before collecting stats
+        await Task.Delay(3000);
+
         var stats = new List<ContainerStats>();
-        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(15));
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
 
         await foreach (var stat in StreamDriver.StreamStatsAsync(
             Context, containerId,

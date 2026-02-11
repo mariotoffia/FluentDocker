@@ -179,6 +179,9 @@ namespace FluentDocker.Drivers.Docker.Api.ApiModels
     [JsonProperty("Memory", NullValueHandling = NullValueHandling.Ignore)]
     public long? Memory { get; set; }
 
+    [JsonProperty("MemorySwap", NullValueHandling = NullValueHandling.Ignore)]
+    public long? MemorySwap { get; set; }
+
     [JsonProperty("MemoryReservation", NullValueHandling = NullValueHandling.Ignore)]
     public long? MemoryReservation { get; set; }
 

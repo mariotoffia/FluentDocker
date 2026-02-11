@@ -267,6 +267,8 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
         var args = $"update";
         if (config.MemoryLimit.HasValue)
           args += $" --memory {config.MemoryLimit.Value}";
+        if (config.MemorySwap.HasValue)
+          args += $" --memory-swap {config.MemorySwap.Value}";
         if (config.MemoryReservation.HasValue)
           args += $" --memory-reservation {config.MemoryReservation.Value}";
         if (config.CpuShares.HasValue)

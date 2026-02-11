@@ -119,7 +119,11 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
         });
 
         var updateResult = await ContainerDriver.UpdateAsync(Context, containerId,
-            new ContainerUpdateConfig { MemoryLimit = 128 * 1024 * 1024 });
+            new ContainerUpdateConfig
+            {
+              MemoryLimit = 128 * 1024 * 1024,
+              MemorySwap = 256 * 1024 * 1024
+            });
 
         Assert.True(updateResult.Success, $"Update failed: {updateResult.Error}");
       }
@@ -166,6 +170,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
             new ContainerUpdateConfig
             {
               MemoryLimit = 256 * 1024 * 1024,
+              MemorySwap = 512 * 1024 * 1024,
               CpuShares = 256,
               PidsLimit = 100
             });
@@ -234,7 +239,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
 
         await ContainerDriver.ExecAsync(Context, containerId, new ExecConfig
         {
-          Command = new[] { "sh", "-c", "echo modified >> /etc/hostname" }
+          Command = new[] { "touch", "/tmp/diff-test-file" }
         });
 
         var diffResult = await ContainerDriver.DiffAsync(Context, containerId);
@@ -242,7 +247,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
         Assert.True(diffResult.Success, $"Diff failed: {diffResult.Error}");
         Assert.NotNull(diffResult.Data);
         Assert.Contains(diffResult.Data,
-            d => d.Path.Contains("hostname") && d.Kind == "C");
+            d => d.Path.Contains("diff-test-file") && d.Kind == "A");
       }
       finally
       {
