@@ -103,6 +103,67 @@ namespace FluentDocker.Tests.CoreTests.Driver.Docker
       Assert.Equal("api", result[0].Name);
     }
 
+    [Fact]
+    public void ParseServiceList_ScaledService_ReturnsMultipleEntriesSameName()
+    {
+      // After `docker compose up -d --scale web=3`, ps returns 3 entries
+      // with the same Service name but different container IDs/names.
+      var json = @"[
+        {""Service"":""web"",""State"":""running"",""ID"":""aaa"",""Name"":""proj-web-1""},
+        {""Service"":""web"",""State"":""running"",""ID"":""bbb"",""Name"":""proj-web-2""},
+        {""Service"":""web"",""State"":""running"",""ID"":""ccc"",""Name"":""proj-web-3""}
+      ]";
+      var result = DockerCliComposeDriver.ParseServiceList(json);
+      Assert.Equal(3, result.Count);
+      Assert.All(result, s => Assert.Equal("web", s.Name));
+      // Each container has a distinct ID
+      Assert.Equal(3, result.Select(s => s.ContainerId).Distinct().Count());
+      // Each container has a distinct container name
+      Assert.Equal(3, result.Select(s => s.ContainerName).Distinct().Count());
+    }
+
+    [Fact]
+    public void ParseServiceList_MixedScaledAndSingle_CorrectCounts()
+    {
+      // One service scaled to 2, another at 1 instance
+      var json = @"[
+        {""Service"":""web"",""State"":""running"",""ID"":""a1"",""Name"":""proj-web-1""},
+        {""Service"":""web"",""State"":""running"",""ID"":""a2"",""Name"":""proj-web-2""},
+        {""Service"":""db"",""State"":""running"",""ID"":""b1"",""Name"":""proj-db-1""}
+      ]";
+      var result = DockerCliComposeDriver.ParseServiceList(json);
+      Assert.Equal(3, result.Count);
+      Assert.Equal(2, result.Count(s => s.Name == "web"));
+      Assert.Equal(1, result.Count(s => s.Name == "db"));
+    }
+
+    [Fact]
+    public void ParseServiceList_ScaledNdjson_ReturnsMultipleEntriesSameName()
+    {
+      // Same scenario but in newline-delimited JSON format (older compose)
+      var json = "{\"Service\":\"api\",\"State\":\"running\",\"ID\":\"x1\",\"Name\":\"p-api-1\"}\n"
+               + "{\"Service\":\"api\",\"State\":\"running\",\"ID\":\"x2\",\"Name\":\"p-api-2\"}";
+      var result = DockerCliComposeDriver.ParseServiceList(json);
+      Assert.Equal(2, result.Count);
+      Assert.All(result, s => Assert.Equal("api", s.Name));
+      Assert.NotEqual(result[0].ContainerId, result[1].ContainerId);
+    }
+
+    [Fact]
+    public void ParseServiceList_ScaledWithMixedStates_AllParsed()
+    {
+      // After scale-down, some containers may be exited while others running
+      var json = @"[
+        {""Service"":""web"",""State"":""running"",""ID"":""a1""},
+        {""Service"":""web"",""State"":""exited"",""ExitCode"":0,""ID"":""a2""}
+      ]";
+      var result = DockerCliComposeDriver.ParseServiceList(json);
+      Assert.Equal(2, result.Count);
+      Assert.Equal("running", result[0].State);
+      Assert.Equal("exited", result[1].State);
+      Assert.Equal(0, result[1].ExitCode);
+    }
+
     #endregion
 
     #region T3.3 — BuildUpSubArgs (NoRecreate, NoBuild)

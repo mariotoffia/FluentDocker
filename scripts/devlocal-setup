@@ -1,0 +1,55 @@
+#!/usr/bin/env bash
+# devlocal-setup: Prepare local environment for DevLocal integration tests.
+# Ensures Docker Swarm mode is active and Podman default machine is running.
+set -euo pipefail
+
+echo "=== DevLocal Environment Setup ==="
+
+# --- Docker Swarm ---
+if command -v docker &>/dev/null; then
+  state=$(docker info --format '{{.Swarm.LocalNodeState}}' 2>/dev/null || echo "unknown")
+  if [ "$state" = "active" ]; then
+    echo "[docker] Swarm already active"
+  else
+    echo "[docker] Initializing Swarm..."
+    docker swarm init 2>&1 || {
+      # Re-check in case another process initialized it concurrently
+      state=$(docker info --format '{{.Swarm.LocalNodeState}}' 2>/dev/null || echo "unknown")
+      if [ "$state" = "active" ]; then
+        echo "[docker] Swarm became active (concurrent init)"
+      else
+        echo "[docker] WARNING: Failed to initialize Swarm"
+      fi
+    }
+    echo "[docker] Swarm initialized"
+  fi
+else
+  echo "[docker] Docker not found — skipping Swarm setup"
+fi
+
+# --- Podman Machine ---
+if command -v podman &>/dev/null; then
+  # Check if default machine exists and its state
+  machine_info=$(podman machine list --format '{{.Name}} {{.Running}}' 2>/dev/null | head -1 || echo "")
+  if [ -z "$machine_info" ]; then
+    echo "[podman] No machines found — creating default machine (2 CPUs, 2GB RAM)..."
+    podman machine init --cpus 2 --memory 2048
+    echo "[podman] Starting default machine..."
+    podman machine start
+    echo "[podman] Default machine created and started"
+  else
+    machine_name=$(echo "$machine_info" | awk '{print $1}')
+    machine_running=$(echo "$machine_info" | awk '{print $2}')
+    if [ "$machine_running" = "true" ]; then
+      echo "[podman] Machine '$machine_name' already running"
+    else
+      echo "[podman] Starting machine '$machine_name'..."
+      podman machine start "$machine_name"
+      echo "[podman] Machine '$machine_name' started"
+    fi
+  fi
+else
+  echo "[podman] Podman not found — skipping machine setup"
+fi
+
+echo "=== DevLocal Environment Ready ==="

@@ -285,7 +285,8 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
         Command = new[] { "bash", "-c", "echo hello" }
       };
       var result = InvokeBuildCreateArgs("run", config);
-      Assert.EndsWith("ubuntu bash -c echo hello", result);
+      // "echo hello" is quoted because it contains a space
+      Assert.EndsWith("ubuntu bash -c \"echo hello\"", result);
     }
 
     #endregion
@@ -349,10 +350,10 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
     }
 
     [Fact]
-    public void QuoteArgumentIfNeeded_Empty_ReturnsEmpty()
+    public void QuoteArgumentIfNeeded_Empty_ReturnsQuotedEmpty()
     {
       var result = InvokeQuoteArgumentIfNeeded("");
-      Assert.Equal("", result);
+      Assert.Equal("\"\"", result);
     }
 
     #endregion

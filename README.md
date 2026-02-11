@@ -349,7 +349,8 @@ await pods.CreatePodAsync(context, new PodCreateConfig { Name = "my-pod" });
 
 // Kubernetes
 var kube = kernel.SysCtl<IPodmanKubernetesDriver>("podman");
-await kube.PlayAsync(context, "/path/to/pod.yaml");
+await kube.PlayAsync(context,
+    new KubePlayConfig { YamlPath = "/path/to/pod.yaml" });
 
 // Machine management
 var machines = kernel.SysCtl<IPodmanMachineDriver>("podman");
@@ -357,8 +358,12 @@ var list = await machines.ListAsync(context);
 
 // Multi-arch manifests
 var manifest = kernel.SysCtl<IPodmanManifestDriver>("podman");
-await manifest.CreateAsync(context, "myapp:latest",
-    new[] { "myapp:amd64", "myapp:arm64" });
+await manifest.CreateAsync(context,
+    new ManifestCreateConfig
+    {
+        Name = "myapp:latest",
+        Images = new List<string> { "myapp:amd64", "myapp:arm64" }
+    });
 ```
 
 ### Writing Driver-Portable Code

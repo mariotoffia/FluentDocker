@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using FluentDocker.Drivers.Docker.Cli;
@@ -396,7 +397,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
         args += $" --link {link}";
 
       if (config.Entrypoint != null && config.Entrypoint.Length > 0)
-        args += $" --entrypoint {string.Join(" ", config.Entrypoint)}";
+        args += " --entrypoint " + string.Join(" ", config.Entrypoint.Select(QuoteArgumentIfNeeded));
 
       if (config.HealthCheck != null)
       {
@@ -415,7 +416,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       args += $" {config.Image}";
 
       if (config.Command != null && config.Command.Length > 0)
-        args += $" {string.Join(" ", config.Command)}";
+        args += " " + string.Join(" ", config.Command.Select(QuoteArgumentIfNeeded));
 
       return args;
     }

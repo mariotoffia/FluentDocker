@@ -13,7 +13,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
   /// </summary>
   [Trait("Category", "Integration")]
   [Collection("DockerDriver")]
-  public class ContainerDriverTests : DockerDriverTestBase
+  public partial class ContainerDriverTests : DockerDriverTestBase
   {
     [Fact]
     public async Task Run_WithoutArguments_CreatesAndStartsContainer()

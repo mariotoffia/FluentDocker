@@ -144,7 +144,8 @@ namespace FluentDocker.Drivers.Docker.Cli
     }
 
     /// <summary>
-    /// Executes a process asynchronously.
+    /// Executes a process asynchronously using direct stream reading
+    /// to avoid event-based output race conditions.
     /// </summary>
     private async Task<SimpleCommandResult> ExecuteProcessAsync(
         string fileName, string arguments,
@@ -152,79 +153,68 @@ namespace FluentDocker.Drivers.Docker.Cli
         string stdinData,
         CancellationToken cancellationToken)
     {
-      return await Task.Run(() =>
+      try
       {
-        try
+        var process = new Process
         {
-          var process = new Process
+          StartInfo = new ProcessStartInfo
           {
-            StartInfo = new ProcessStartInfo
-            {
-              FileName = fileName,
-              Arguments = arguments,
-              RedirectStandardOutput = true,
-              RedirectStandardError = true,
-              RedirectStandardInput = stdinData != null,
-              UseShellExecute = false,
-              CreateNoWindow = true
-            }
-          };
-
-          if (environment != null)
-          {
-            foreach (var kvp in environment)
-              process.StartInfo.Environment[kvp.Key] = kvp.Value;
+            FileName = fileName,
+            Arguments = arguments,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            RedirectStandardInput = stdinData != null,
+            UseShellExecute = false,
+            CreateNoWindow = true
           }
+        };
 
-          var output = new StringBuilder();
-          var error = new StringBuilder();
-
-          process.OutputDataReceived += (s, e) =>
-          {
-            if (!string.IsNullOrEmpty(e.Data))
-              output.AppendLine(e.Data);
-          };
-
-          process.ErrorDataReceived += (s, e) =>
-          {
-            if (!string.IsNullOrEmpty(e.Data))
-              error.AppendLine(e.Data);
-          };
-
-          process.Start();
-
-          if (stdinData != null)
-          {
-            process.StandardInput.Write(stdinData);
-            process.StandardInput.Close();
-          }
-
-          process.BeginOutputReadLine();
-          process.BeginErrorReadLine();
-
-          while (!process.WaitForExit(1000))
-          {
-            cancellationToken.ThrowIfCancellationRequested();
-          }
-
-          return new SimpleCommandResult
-          {
-            Success = process.ExitCode == 0,
-            Output = output.ToString(),
-            Error = error.ToString(),
-            ExitCode = process.ExitCode
-          };
-        }
-        catch (Exception ex)
+        if (environment != null)
         {
-          return new SimpleCommandResult
-          {
-            Success = false,
-            Error = ex.Message,
-            ExitCode = -1
-          };
+          foreach (var kvp in environment)
+            process.StartInfo.Environment[kvp.Key] = kvp.Value;
         }
-      }, cancellationToken);
+
+        process.Start();
+
+        if (stdinData != null)
+        {
+          await process.StandardInput.WriteAsync(stdinData);
+          process.StandardInput.Close();
+        }
+
+        // Read stdout and stderr concurrently to avoid deadlock
+        // when either pipe buffer fills up.
+        var outputTask = process.StandardOutput.ReadToEndAsync(cancellationToken);
+        var errorTask = process.StandardError.ReadToEndAsync(cancellationToken);
+
+        var output = await outputTask;
+        var error = await errorTask;
+
+        // Ensure process has fully exited and get exit code.
+        await process.WaitForExitAsync(cancellationToken);
+
+        return new SimpleCommandResult
+        {
+          Success = process.ExitCode == 0,
+          Output = output,
+          Error = error,
+          ExitCode = process.ExitCode
+        };
+      }
+      catch (OperationCanceledException)
+      {
+        throw;
+      }
+      catch (Exception ex)
+      {
+        return new SimpleCommandResult
+        {
+          Success = false,
+          Error = ex.Message,
+          ExitCode = -1
+        };
+      }
     }
 
     /// <summary>

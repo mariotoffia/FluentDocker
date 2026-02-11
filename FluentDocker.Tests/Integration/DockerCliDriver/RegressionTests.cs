@@ -174,7 +174,8 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
 
         // Verify service names are present
         var serviceNames = listResult.Data.Select(s => s.Name?.ToLower()).ToList();
-        // Should have kafka and zookeeper services
+        Assert.Contains(serviceNames, n => n != null && n.Contains("kafka"));
+        Assert.Contains(serviceNames, n => n != null && n.Contains("zookeeper"));
       }
       finally
       {

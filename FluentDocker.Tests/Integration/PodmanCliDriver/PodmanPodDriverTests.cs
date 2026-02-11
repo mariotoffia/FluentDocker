@@ -12,7 +12,7 @@ namespace FluentDocker.Tests.Integration.PodmanCliDriver
   /// </summary>
   [Collection("PodmanDriver")]
   [Trait("Category", "PodmanIntegration")]
-  public class PodmanPodDriverTests : PodmanDriverTestBase
+  public partial class PodmanPodDriverTests : PodmanDriverTestBase
   {
     [Fact]
     public async Task CreateAndRemove_Succeeds()

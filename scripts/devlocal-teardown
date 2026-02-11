@@ -1,0 +1,42 @@
+#!/usr/bin/env bash
+# devlocal-teardown: Clean up local environment after DevLocal integration tests.
+# Leaves Docker Swarm mode and stops the Podman default machine.
+set -euo pipefail
+
+echo "=== DevLocal Environment Teardown ==="
+
+# --- Docker Swarm ---
+if command -v docker &>/dev/null; then
+  state=$(docker info --format '{{.Swarm.LocalNodeState}}' 2>/dev/null || echo "unknown")
+  if [ "$state" = "active" ]; then
+    echo "[docker] Leaving Swarm..."
+    docker swarm leave --force
+    echo "[docker] Swarm left"
+  else
+    echo "[docker] Swarm not active — nothing to do"
+  fi
+else
+  echo "[docker] Docker not found — skipping"
+fi
+
+# --- Podman Machine ---
+if command -v podman &>/dev/null; then
+  machine_info=$(podman machine list --format '{{.Name}} {{.Running}}' 2>/dev/null | head -1 || echo "")
+  if [ -z "$machine_info" ]; then
+    echo "[podman] No machines found — nothing to do"
+  else
+    machine_name=$(echo "$machine_info" | awk '{print $1}')
+    machine_running=$(echo "$machine_info" | awk '{print $2}')
+    if [ "$machine_running" = "true" ]; then
+      echo "[podman] Stopping machine '$machine_name'..."
+      podman machine stop "$machine_name"
+      echo "[podman] Machine '$machine_name' stopped"
+    else
+      echo "[podman] Machine '$machine_name' already stopped"
+    fi
+  fi
+else
+  echo "[podman] Podman not found — skipping"
+fi
+
+echo "=== DevLocal Environment Cleaned Up ==="

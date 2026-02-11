@@ -7,6 +7,7 @@ using FluentDocker.Common;
 using FluentDocker.Drivers.Docker.Cli.Binary;
 using FluentDocker.Model.Drivers;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 
 namespace FluentDocker.Drivers.Docker.Cli.Components
 {
@@ -163,6 +164,15 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
         var args = "service ls --format \"{{json .}}\"";
         if (filter?.Quiet == true)
           args = "service ls -q";
+        else if (filter != null)
+        {
+          if (!string.IsNullOrEmpty(filter.Name))
+            args += $" --filter name={filter.Name}";
+          if (!string.IsNullOrEmpty(filter.Id))
+            args += $" --filter id={filter.Id}";
+          foreach (var label in filter.Labels)
+            args += $" --filter label={label.Key}={label.Value}";
+        }
 
         var result = await ExecuteCommandAsync(args, cancellationToken);
 
@@ -218,7 +228,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
               result.Error ?? "Service inspect failed", ErrorCodes.Service.InspectFailed);
         }
 
-        var details = JsonConvert.DeserializeObject<List<ServiceDetails>>(result.Output)?.FirstOrDefault();
+        var details = ParseServiceInspect(result.Output);
         return details != null
             ? CommandResponse<ServiceDetails>.Ok(details)
             : CommandResponse<ServiceDetails>.Fail("Service not found", ErrorCodes.Service.NotFound);
@@ -238,7 +248,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     {
       try
       {
-        var args = $"service ps --format '{{{{json .}}}}' {serviceId}";
+        var args = $"service ps --format \"{{{{json .}}}}\" {serviceId}";
 
         var result = await ExecuteCommandAsync(args, cancellationToken);
 
@@ -324,6 +334,76 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
       {
         return CommandResponse<Unit>.Fail(ex.Message, ErrorCodes.Service.ScaleFailed);
       }
+    }
+
+    /// <summary>
+    /// Parses the JSON output from docker service inspect into a ServiceDetails.
+    /// Handles the nested Version object (Version.Index).
+    /// </summary>
+    internal static ServiceDetails ParseServiceInspect(string json)
+    {
+      var arr = JArray.Parse(json);
+      if (arr.Count == 0) return null;
+
+      var obj = arr[0] as JObject;
+      if (obj == null) return null;
+
+      var spec = obj["Spec"] as JObject;
+      var taskTemplate = spec?["TaskTemplate"] as JObject;
+      var containerSpec = taskTemplate?["ContainerSpec"] as JObject;
+
+      var details = new ServiceDetails
+      {
+        Id = obj.Value<string>("ID"),
+        Version = obj["Version"]?.Value<long>("Index") ?? 0,
+        Name = spec?.Value<string>("Name"),
+        Image = containerSpec?.Value<string>("Image"),
+        RawJson = json
+      };
+
+      // Mode and replicas
+      var mode = spec?["Mode"] as JObject;
+      if (mode?["Replicated"] != null)
+      {
+        details.Mode = "replicated";
+        details.Replicas = (int)(mode["Replicated"]?.Value<long>("Replicas") ?? 0);
+      }
+      else if (mode?["Global"] != null)
+      {
+        details.Mode = "global";
+      }
+
+      // Command and args
+      if (containerSpec?["Command"] is JArray cmd)
+        details.Command = cmd.Select(c => c.ToString()).ToArray();
+      if (containerSpec?["Args"] is JArray args2)
+        details.Args = args2.Select(a => a.ToString()).ToArray();
+
+      // Environment
+      if (containerSpec?["Env"] is JArray env)
+      {
+        foreach (var e in env)
+        {
+          var parts = e.ToString().Split('=', 2);
+          if (parts.Length == 2)
+            details.Environment[parts[0]] = parts[1];
+        }
+      }
+
+      // Labels
+      if (spec?["Labels"] is JObject labels)
+      {
+        foreach (var prop in labels.Properties())
+          details.Labels[prop.Name] = prop.Value.ToString();
+      }
+
+      // Timestamps
+      if (obj["CreatedAt"] != null)
+        DateTime.TryParse(obj.Value<string>("CreatedAt"), out var created);
+      if (obj["UpdatedAt"] != null)
+        DateTime.TryParse(obj.Value<string>("UpdatedAt"), out var updated);
+
+      return details;
     }
   }
 }

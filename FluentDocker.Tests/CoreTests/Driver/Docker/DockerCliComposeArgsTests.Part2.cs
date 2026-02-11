@@ -372,6 +372,60 @@ namespace FluentDocker.Tests.CoreTests.Driver.Docker
       Assert.Contains("--scale worker=5", result);
     }
 
+    [Fact]
+    public void BuildScaleSubArgs_EmptyScale_ReturnsUpDetachedOnly()
+    {
+      var config = new ComposeScaleConfig
+      {
+        Scale = new Dictionary<string, int>()
+      };
+      var result = DockerCliComposeDriver.BuildScaleSubArgs(config);
+      Assert.Equal("up -d", result);
+    }
+
+    [Fact]
+    public void BuildScaleSubArgs_ScaleToZero_ProducesZeroReplica()
+    {
+      var config = new ComposeScaleConfig
+      {
+        Scale = new Dictionary<string, int> { { "worker", 0 } }
+      };
+      var result = DockerCliComposeDriver.BuildScaleSubArgs(config);
+      Assert.Contains("--scale worker=0", result);
+    }
+
+    [Fact]
+    public void BuildScaleSubArgs_LargeReplicaCount_ProducesCorrectValue()
+    {
+      var config = new ComposeScaleConfig
+      {
+        Scale = new Dictionary<string, int> { { "api", 100 } }
+      };
+      var result = DockerCliComposeDriver.BuildScaleSubArgs(config);
+      Assert.Contains("--scale api=100", result);
+    }
+
+    [Fact]
+    public void BuildScaleSubArgs_NoDepsWithMultipleServices_CombinesFlags()
+    {
+      var config = new ComposeScaleConfig
+      {
+        NoDeps = true,
+        Scale = new Dictionary<string, int>
+        {
+          { "web", 3 },
+          { "worker", 2 },
+          { "cache", 1 }
+        }
+      };
+      var result = DockerCliComposeDriver.BuildScaleSubArgs(config);
+      Assert.StartsWith("up -d", result);
+      Assert.Contains("--no-deps", result);
+      Assert.Contains("--scale web=3", result);
+      Assert.Contains("--scale worker=2", result);
+      Assert.Contains("--scale cache=1", result);
+    }
+
     #endregion
 
     #region T3.13 — BuildCreateSubArgs (Pull, RemoveOrphans)

@@ -11,7 +11,7 @@ namespace FluentDocker.Tests.Integration.DockerApiDriver
   /// Requires a running Docker daemon.
   /// </summary>
   [Trait("Category", "Integration")]
-  public class DockerApiDriverTests : DockerApiDriverTestBase
+  public partial class DockerApiDriverTests : DockerApiDriverTestBase
   {
     // ---------------------------------------------------------------
     // System tests
@@ -196,12 +196,10 @@ namespace FluentDocker.Tests.Integration.DockerApiDriver
       // Pull alpine (likely already cached, avoids Docker Hub rate limits)
       var pullResult = await ImageDriver.PullAsync(Context, "alpine", "latest");
 
-      // Skip if pull fails due to network/server issues
+      // Skip (not pass) if pull fails due to network/rate-limit issues
       if (!pullResult.Success)
-      {
-        // If it's a network/server error, skip gracefully
-        return;
-      }
+        throw new Exception("$XunitDynamicSkip$" +
+            "Image pull failed (network/rate-limit): " + pullResult.Error);
 
       // Verify the image appears in the list
       var listResult = await ImageDriver.ListAsync(Context);

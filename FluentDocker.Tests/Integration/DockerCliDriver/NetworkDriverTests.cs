@@ -194,9 +194,10 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
           Driver = "bridge",
           Subnet = "10.18.0.0/16"
         });
+        Assert.True(networkResult.Success, $"Network create failed: {networkResult.Error}");
         networkId = networkResult.Data.Id;
 
-        // Create container with network and static IP
+        // Create container with network AND the static IP
         var containerResult = await ContainerDriver.RunAsync(Context, new ContainerCreateConfig
         {
           Image = PostgresImage,
@@ -205,16 +206,21 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
             ["POSTGRES_PASSWORD"] = "mysecretpassword"
           },
           NetworkMode = networkName,
+          Ipv4Address = staticIp,
           Detach = true
         });
+        Assert.True(containerResult.Success, $"Run failed: {containerResult.Error}");
         containerId = containerResult.Data.Id;
 
-        // Assert
-        Assert.True(containerResult.Success);
-
+        // Assert — verify the static IP was actually assigned
         var inspect = await ContainerDriver.InspectAsync(Context, containerId);
         Assert.True(inspect.Success);
         Assert.NotNull(inspect.Data.NetworkSettings?.Networks);
+        Assert.True(inspect.Data.NetworkSettings.Networks.ContainsKey(networkName),
+            $"Expected network '{networkName}' in container networks; found: " +
+            string.Join(", ", inspect.Data.NetworkSettings.Networks.Keys));
+        var netEndpoint = inspect.Data.NetworkSettings.Networks[networkName];
+        Assert.Equal(staticIp, netEndpoint.IPAddress);
       }
       finally
       {

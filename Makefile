@@ -39,6 +39,18 @@ test:
 test-integration:
 	dotnet test FluentDocker.Tests/FluentDocker.Tests.csproj --configuration Debug --verbosity normal
 
+.PHONY: devlocal-setup
+devlocal-setup:
+	@bash scripts/devlocal-setup
+
+.PHONY: devlocal-teardown
+devlocal-teardown:
+	@bash scripts/devlocal-teardown
+
+.PHONY: test-devlocal
+test-devlocal:
+	dotnet test FluentDocker.Tests/FluentDocker.Tests.csproj --filter "Category=DevLocal" --configuration Debug --verbosity normal
+
 .PHONY: benchmark
 benchmark:
 	dotnet run --project FluentDocker.Benchmarks/FluentDocker.Benchmarks.csproj --configuration Release -- --filter "*"
@@ -76,6 +88,9 @@ help:
 	@echo "  clean            - Clean build artifacts"
 	@echo "  test             - Run unit tests only (safe for CI)"
 	@echo "  test-integration - Run all tests including integration (requires Docker/Podman)"
+	@echo "  devlocal-setup   - Start Swarm + Podman machine for DevLocal tests"
+	@echo "  devlocal-teardown- Stop Swarm + Podman machine after DevLocal tests"
+	@echo "  test-devlocal    - Run DevLocal tests (requires Swarm, local registry, Podman machine)"
 	@echo "  benchmark        - Run all benchmarks"
 	@echo "  benchmark-stats  - Run container stats benchmarks only"
 	@echo "  benchmark-template - Run template string benchmarks only"

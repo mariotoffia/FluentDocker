@@ -18,7 +18,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
   [Trait("Category", "Integration")]
   [Trait("Category", "Compose")]
   [Collection("DockerDriver")]
-  public class ComposeDriverTests : DockerDriverTestBase
+  public partial class ComposeDriverTests : DockerDriverTestBase
   {
     private static readonly HttpClient HttpClient = new HttpClient();
 
@@ -299,7 +299,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
 
       try
       {
-        // Arrange
+        // Arrange — bring up with 1 instance
         var upResult = await ComposeDriver.UpAsync(Context, new ComposeUpConfig
         {
           ComposeFiles = new List<string> { composeFile },
@@ -307,10 +307,58 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
           Detached = true,
           RemoveOrphans = true
         });
-        Assert.True(upResult.Success);
+        Assert.True(upResult.Success, $"Compose up failed: {upResult.Error}");
 
-        // Note: Scaling may not work with all compose files
-        // This test is mainly to verify the API works
+        // Verify initial state: exactly 1 rabbitmq instance
+        var initialList = await ComposeDriver.ListAsync(Context, new ComposeListConfig
+        {
+          ComposeFiles = new List<string> { composeFile },
+          ProjectName = projectName,
+          All = true
+        });
+        Assert.True(initialList.Success);
+        var initialCount = initialList.Data.Count(s => s.Name == "rabbitmq");
+        Assert.Equal(1, initialCount);
+
+        // Act — scale rabbitmq to 2 instances
+        var scaleUpResult = await ComposeDriver.ScaleAsync(Context, new ComposeScaleConfig
+        {
+          ComposeFiles = new List<string> { composeFile },
+          ProjectName = projectName,
+          Scale = new Dictionary<string, int> { { "rabbitmq", 2 } }
+        });
+        Assert.True(scaleUpResult.Success, $"Scale up failed: {scaleUpResult.Error}");
+
+        // Assert — should now have 2 rabbitmq instances
+        var scaledList = await ComposeDriver.ListAsync(Context, new ComposeListConfig
+        {
+          ComposeFiles = new List<string> { composeFile },
+          ProjectName = projectName,
+          All = true
+        });
+        Assert.True(scaledList.Success);
+        var scaledCount = scaledList.Data.Count(s => s.Name == "rabbitmq");
+        Assert.Equal(2, scaledCount);
+
+        // Act — scale back down to 1
+        var scaleDownResult = await ComposeDriver.ScaleAsync(Context, new ComposeScaleConfig
+        {
+          ComposeFiles = new List<string> { composeFile },
+          ProjectName = projectName,
+          Scale = new Dictionary<string, int> { { "rabbitmq", 1 } }
+        });
+        Assert.True(scaleDownResult.Success, $"Scale down failed: {scaleDownResult.Error}");
+
+        // Assert — should be back to 1 instance
+        var finalList = await ComposeDriver.ListAsync(Context, new ComposeListConfig
+        {
+          ComposeFiles = new List<string> { composeFile },
+          ProjectName = projectName,
+          All = true
+        });
+        Assert.True(finalList.Success);
+        var finalCount = finalList.Data.Count(s => s.Name == "rabbitmq");
+        Assert.Equal(1, finalCount);
       }
       finally
       {
@@ -484,10 +532,12 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
         // Assert
         Assert.True(upResult.Success, $"Compose up failed: {upResult.Error}");
 
-        // Verify network was created
+        // Verify network was created (compose prefixes with project name)
         var networks = await NetworkDriver.ListAsync(Context);
         Assert.True(networks.Success);
-        // Network name will be prefixed with project name
+        var projectNetwork = networks.Data
+            .FirstOrDefault(n => n.Name.Contains(projectName));
+        Assert.NotNull(projectNetwork);
       }
       finally
       {
@@ -559,41 +609,57 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
       var projectName = UniqueName("compose");
       var composeFile = GetResourcePath("ComposeTests/WordPress/docker-compose-test.yml");
 
-      // Arrange
-      var upResult = await ComposeDriver.UpAsync(Context, new ComposeUpConfig
+      try
       {
-        ComposeFiles = new List<string> { composeFile },
-        ProjectName = projectName,
-        Detached = true,
-        RemoveOrphans = true
-      });
-      Assert.True(upResult.Success);
+        // Arrange
+        var upResult = await ComposeDriver.UpAsync(Context, new ComposeUpConfig
+        {
+          ComposeFiles = new List<string> { composeFile },
+          ProjectName = projectName,
+          Detached = true,
+          RemoveOrphans = true
+        });
+        Assert.True(upResult.Success, $"Compose up failed: {upResult.Error}");
 
-      // Wait for volumes to be created
-      await Task.Delay(3000);
+        // Wait for volumes to be created
+        await Task.Delay(3000);
 
-      // Get volumes before down
-      var volumesBefore = await VolumeDriver.ListAsync(Context);
-      var projectVolumes = volumesBefore.Data.Where(v => v.Name.Contains(projectName)).ToList();
+        // Get volumes before down
+        var volumesBefore = await VolumeDriver.ListAsync(Context);
+        Assert.True(volumesBefore.Success);
+        var projectVolumes = volumesBefore.Data
+            .Where(v => v.Name.Contains(projectName)).ToList();
+        Assert.True(projectVolumes.Count > 0,
+            "WordPress compose should create at least one named volume");
 
-      // Act - Down without removing volumes
-      await ComposeDriver.DownAsync(Context, new ComposeDownConfig
+        // Act — down WITHOUT removing volumes
+        var downResult = await ComposeDriver.DownAsync(Context, new ComposeDownConfig
+        {
+          ComposeFiles = new List<string> { composeFile },
+          ProjectName = projectName,
+          RemoveVolumes = false
+        });
+        Assert.True(downResult.Success, $"Down failed: {downResult.Error}");
+
+        // Assert — volumes must survive the down
+        var volumesAfter = await VolumeDriver.ListAsync(Context);
+        Assert.True(volumesAfter.Success);
+        var keptVolumes = volumesAfter.Data
+            .Where(v => v.Name.Contains(projectName)).ToList();
+        Assert.True(keptVolumes.Count >= projectVolumes.Count,
+            $"Expected volumes to survive down; before={projectVolumes.Count}, " +
+            $"after={keptVolumes.Count}");
+      }
+      finally
       {
-        ComposeFiles = new List<string> { composeFile },
-        ProjectName = projectName,
-        RemoveVolumes = false
-      });
-
-      // Assert - Some volumes might persist
-      // Note: This depends on compose file configuration
-
-      // Cleanup
-      await ComposeDriver.DownAsync(Context, new ComposeDownConfig
-      {
-        ComposeFiles = new List<string> { composeFile },
-        ProjectName = projectName,
-        RemoveVolumes = true
-      });
+        // Final cleanup — remove volumes
+        await ComposeDriver.DownAsync(Context, new ComposeDownConfig
+        {
+          ComposeFiles = new List<string> { composeFile },
+          ProjectName = projectName,
+          RemoveVolumes = true
+        });
+      }
     }
 
     #endregion

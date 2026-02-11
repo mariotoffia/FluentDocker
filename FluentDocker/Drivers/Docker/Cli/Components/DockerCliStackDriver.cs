@@ -72,7 +72,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     {
       try
       {
-        var args = $"stack ps --format '{{{{json .}}}}' {stackName}";
+        var args = $"stack ps --format \"{{{{json .}}}}\" {stackName}";
         if (filter?.NoTrunc == true)
           args = args.Replace("stack ps", "stack ps --no-trunc");
 
@@ -172,7 +172,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     {
       try
       {
-        var args = $"stack services --format '{{{{json .}}}}' {stackName}";
+        var args = $"stack services --format \"{{{{json .}}}}\" {stackName}";
 
         var result = await ExecuteCommandAsync(args, cancellationToken);
 

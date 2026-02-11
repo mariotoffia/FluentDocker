@@ -109,79 +109,69 @@ namespace FluentDocker.Drivers.Podman.Cli
     }
 
     /// <summary>
-    /// Executes a process asynchronously.
+    /// Executes a process asynchronously using direct stream reading
+    /// to avoid event-based output race conditions.
     /// </summary>
     private async Task<SimpleCommandResult> ExecuteProcessAsync(
         string fileName, string arguments,
         string stdinData, CancellationToken cancellationToken)
     {
-      return await Task.Run(() =>
+      try
       {
-        try
+        var process = new Process
         {
-          var process = new Process
+          StartInfo = new ProcessStartInfo
           {
-            StartInfo = new ProcessStartInfo
-            {
-              FileName = fileName,
-              Arguments = arguments,
-              RedirectStandardOutput = true,
-              RedirectStandardError = true,
-              RedirectStandardInput = stdinData != null,
-              UseShellExecute = false,
-              CreateNoWindow = true
-            }
-          };
-
-          var output = new StringBuilder();
-          var error = new StringBuilder();
-
-          process.OutputDataReceived += (s, e) =>
-          {
-            if (!string.IsNullOrEmpty(e.Data))
-              output.AppendLine(e.Data);
-          };
-
-          process.ErrorDataReceived += (s, e) =>
-          {
-            if (!string.IsNullOrEmpty(e.Data))
-              error.AppendLine(e.Data);
-          };
-
-          process.Start();
-
-          if (stdinData != null)
-          {
-            process.StandardInput.Write(stdinData);
-            process.StandardInput.Close();
+            FileName = fileName,
+            Arguments = arguments,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            RedirectStandardInput = stdinData != null,
+            UseShellExecute = false,
+            CreateNoWindow = true
           }
+        };
 
-          process.BeginOutputReadLine();
-          process.BeginErrorReadLine();
+        process.Start();
 
-          while (!process.WaitForExit(1000))
-          {
-            cancellationToken.ThrowIfCancellationRequested();
-          }
-
-          return new SimpleCommandResult
-          {
-            Success = process.ExitCode == 0,
-            Output = output.ToString(),
-            Error = error.ToString(),
-            ExitCode = process.ExitCode
-          };
-        }
-        catch (Exception ex)
+        if (stdinData != null)
         {
-          return new SimpleCommandResult
-          {
-            Success = false,
-            Error = ex.Message,
-            ExitCode = -1
-          };
+          await process.StandardInput.WriteAsync(stdinData);
+          process.StandardInput.Close();
         }
-      }, cancellationToken);
+
+        // Read stdout and stderr concurrently to avoid deadlock
+        // when either pipe buffer fills up.
+        var outputTask = process.StandardOutput.ReadToEndAsync(cancellationToken);
+        var errorTask = process.StandardError.ReadToEndAsync(cancellationToken);
+
+        var output = await outputTask;
+        var error = await errorTask;
+
+        // Ensure process has fully exited and get exit code.
+        await process.WaitForExitAsync(cancellationToken);
+
+        return new SimpleCommandResult
+        {
+          Success = process.ExitCode == 0,
+          Output = output,
+          Error = error,
+          ExitCode = process.ExitCode
+        };
+      }
+      catch (OperationCanceledException)
+      {
+        throw;
+      }
+      catch (Exception ex)
+      {
+        return new SimpleCommandResult
+        {
+          Success = false,
+          Error = ex.Message,
+          ExitCode = -1
+        };
+      }
     }
 
     /// <summary>

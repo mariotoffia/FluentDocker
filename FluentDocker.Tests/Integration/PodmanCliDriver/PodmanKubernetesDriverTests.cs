@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Linq;
 using System.Threading.Tasks;
 using FluentDocker.Drivers;
 using FluentDocker.Drivers.Podman;
@@ -93,6 +94,15 @@ spec:
 
         Assert.True(playResult.Success, $"Play failed: {playResult.Error}");
         Assert.NotNull(playResult.Data);
+        Assert.NotEmpty(playResult.Data.Pods);
+
+        // Verify the pod is NOT in Running state
+        var pods = await PodDriver.ListPodsAsync(Context);
+        Assert.True(pods.Success, $"ListPods failed: {pods.Error}");
+        var createdPod = pods.Data.FirstOrDefault(
+            p => p.Name != null && p.Name.Contains("test-kube-play"));
+        Assert.NotNull(createdPod);
+        Assert.NotEqual("Running", createdPod.Status);
       }
       finally
       {
