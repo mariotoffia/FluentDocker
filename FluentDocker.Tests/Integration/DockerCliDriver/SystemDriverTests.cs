@@ -9,7 +9,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
   /// </summary>
   [Trait("Category", "Integration")]
   [Collection("DockerDriver")]
-  public class SystemDriverTests : DockerDriverTestBase
+  public partial class SystemDriverTests : DockerDriverTestBase
   {
     [Fact]
     public async Task GetVersion_ReturnsDockerVersion()
@@ -76,6 +76,16 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
       // Assert
       Assert.True(versionResult.Success);
       Assert.NotNull(versionResult.Data.Os);
+    }
+    [Fact]
+    public async Task Prune_RemovesUnusedResources()
+    {
+      // Act
+      var result = await SystemDriver.PruneAsync(Context);
+
+      // Assert
+      Assert.True(result.Success, $"Prune failed: {result.Error}");
+      Assert.NotNull(result.Data);
     }
   }
 }

@@ -242,8 +242,11 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
     {
       var fakeName = "nonexistent-" + Guid.NewGuid().ToString("N")[..12];
       var result = await StackDriver.RemoveAsync(Context, new[] { fakeName });
-      // Docker may succeed or fail depending on version — just verify no exception
+      // Docker may succeed or fail depending on version — verify semantics
       Assert.NotNull(result);
+      if (!result.Success)
+        Assert.False(string.IsNullOrEmpty(result.Error),
+            "Failed result should include an error message");
     }
 
     #endregion

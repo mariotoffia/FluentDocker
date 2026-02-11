@@ -180,7 +180,9 @@ The kernel resolves interfaces through `IDriverInterfaceResolver` when the drive
 | Network | `INetworkDriver` | Create, connect, disconnect networks |
 | Volume | `IVolumeDriver` | Create, mount, remove volumes |
 | Compose | `IComposeDriver` | Docker Compose operations |
-| System | `ISystemDriver` | Info, version, events, prune |
+| System | `ISystemDriver` | Info, version, ping, disk usage, prune |
+| Auth | `IAuthDriver` | Login, logout, registry authentication |
+| Stream | `IStreamDriver` | Events, logs, stats, attach |
 
 ---
 

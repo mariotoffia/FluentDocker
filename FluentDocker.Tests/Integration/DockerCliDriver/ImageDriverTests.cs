@@ -11,7 +11,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
   /// </summary>
   [Trait("Category", "Integration")]
   [Collection("DockerDriver")]
-  public class ImageDriverTests : DockerDriverTestBase
+  public partial class ImageDriverTests : DockerDriverTestBase
   {
     [Fact]
     public async Task Pull_ValidImage_PullsSuccessfully()

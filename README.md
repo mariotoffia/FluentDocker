@@ -310,6 +310,7 @@ await using var results = await new Builder()
 
 // Or access the driver layer directly for streaming
 var stream = kernel.SysCtl<IStreamDriver>("api");
+var context = new DriverContext("api");
 await foreach (var ev in stream.StreamEventsAsync(context))
     Console.WriteLine($"Event: {ev.Action} on {ev.Type}");
 ```

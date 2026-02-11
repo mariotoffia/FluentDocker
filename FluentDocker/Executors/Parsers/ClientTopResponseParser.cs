@@ -1,4 +1,3 @@
-using System;
 using System.Collections.Generic;
 using FluentDocker.Model.Containers;
 
@@ -78,8 +77,10 @@ namespace FluentDocker.Executors.Parsers
         inText = false;
       }
 
-      // TODO: Hack to handle windows container - when other lang this will break!
-      if (list.Count == 6 && row.IndexOf("Private Working Set", StringComparison.Ordinal) != -1)
+      // Windows container headers may have multi-word column names
+      // (e.g. "Private Working Set") creating 2 extra column starts.
+      // Merge them back when we detect 6 columns (expected: 4).
+      if (list.Count == 6)
       {
         list.RemoveAt(4);
         list.RemoveAt(4);

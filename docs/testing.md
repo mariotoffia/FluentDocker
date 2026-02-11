@@ -598,4 +598,4 @@ protected override async Task OnContainerTearDownAsync()
 ```
 
 ## Next Steps
-- [Utilities](utilities.html) -- [Containers](containers.html) -- [Docker Compose](compose.html)
+- [Test Categories & Run Guide](test-categories.html) -- [Utilities](utilities.html) -- [Containers](containers.html) -- [Docker Compose](compose.html)

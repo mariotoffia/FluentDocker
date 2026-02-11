@@ -124,6 +124,42 @@ namespace FluentDocker.Tests.Integration.PodmanCliDriver
       }
     }
 
+    [Fact]
+    public async Task Set_OnInitedMachine_ChangesResources()
+    {
+      var machineName = UniqueName("fd-set");
+      try
+      {
+        // Init with Cpus=1
+        var initResult = await MachineDriver.InitAsync(Context, new MachineInitConfig
+        {
+          Name = machineName,
+          Cpus = 1,
+          DiskSizeGiB = 10,
+          MemoryMiB = 512,
+          Now = false
+        });
+        Assert.True(initResult.Success, $"Init failed: {initResult.Error}");
+
+        // Set Cpus=2
+        var setResult = await MachineDriver.SetAsync(Context,
+            new MachineSetConfig { Cpus = 2 }, machineName);
+        Assert.True(setResult.Success, $"Set failed: {setResult.Error}");
+
+        // Inspect to verify
+        var inspect = await MachineDriver.InspectAsync(Context, machineName);
+        Assert.True(inspect.Success, $"Inspect failed: {inspect.Error}");
+        Assert.Equal(2, inspect.Data.Resources.Cpus);
+      }
+      finally
+      {
+        try { await MachineDriver.StopAsync(Context, machineName); }
+        catch { }
+        try { await MachineDriver.RemoveAsync(Context, machineName, force: true); }
+        catch { }
+      }
+    }
+
     #endregion
 
     #region Error handling

@@ -133,6 +133,10 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
 
         await Task.Delay(2000);
       }
+
+      Assert.Fail(
+          $"Service '{serviceName}' did not converge to {expectedReplicas} " +
+          $"replicas within {maxWaitSeconds}s");
     }
 
     private static bool IsDockerInstalled()
