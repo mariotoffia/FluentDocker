@@ -295,7 +295,8 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
     public async Task Compose_Scale_ScalesService()
     {
       var projectName = UniqueName("compose");
-      var composeFile = GetResourcePath("ComposeTests/RabbitMQ/docker-compose.yml");
+      // Use ScaleTest compose (no host port bindings) to allow multiple replicas
+      var composeFile = GetResourcePath("ComposeTests/ScaleTest/docker-compose.yml");
 
       try
       {
@@ -309,7 +310,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
         });
         Assert.True(upResult.Success, $"Compose up failed: {upResult.Error}");
 
-        // Verify initial state: exactly 1 rabbitmq instance
+        // Verify initial state: exactly 1 worker instance
         var initialList = await ComposeDriver.ListAsync(Context, new ComposeListConfig
         {
           ComposeFiles = new List<string> { composeFile },
@@ -317,19 +318,18 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
           All = true
         });
         Assert.True(initialList.Success);
-        var initialCount = initialList.Data.Count(s => s.Name == "rabbitmq");
-        Assert.Equal(1, initialCount);
+        Assert.Equal(1, initialList.Data.Count);
 
-        // Act — scale rabbitmq to 2 instances
+        // Act — scale worker to 3 instances
         var scaleUpResult = await ComposeDriver.ScaleAsync(Context, new ComposeScaleConfig
         {
           ComposeFiles = new List<string> { composeFile },
           ProjectName = projectName,
-          Scale = new Dictionary<string, int> { { "rabbitmq", 2 } }
+          Scale = new Dictionary<string, int> { { "worker", 3 } }
         });
         Assert.True(scaleUpResult.Success, $"Scale up failed: {scaleUpResult.Error}");
 
-        // Assert — should now have 2 rabbitmq instances
+        // Assert — should now have 3 worker instances
         var scaledList = await ComposeDriver.ListAsync(Context, new ComposeListConfig
         {
           ComposeFiles = new List<string> { composeFile },
@@ -337,15 +337,14 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
           All = true
         });
         Assert.True(scaledList.Success);
-        var scaledCount = scaledList.Data.Count(s => s.Name == "rabbitmq");
-        Assert.Equal(2, scaledCount);
+        Assert.Equal(3, scaledList.Data.Count);
 
         // Act — scale back down to 1
         var scaleDownResult = await ComposeDriver.ScaleAsync(Context, new ComposeScaleConfig
         {
           ComposeFiles = new List<string> { composeFile },
           ProjectName = projectName,
-          Scale = new Dictionary<string, int> { { "rabbitmq", 1 } }
+          Scale = new Dictionary<string, int> { { "worker", 1 } }
         });
         Assert.True(scaleDownResult.Success, $"Scale down failed: {scaleDownResult.Error}");
 
@@ -357,8 +356,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
           All = true
         });
         Assert.True(finalList.Success);
-        var finalCount = finalList.Data.Count(s => s.Name == "rabbitmq");
-        Assert.Equal(1, finalCount);
+        Assert.Equal(1, finalList.Data.Count);
       }
       finally
       {

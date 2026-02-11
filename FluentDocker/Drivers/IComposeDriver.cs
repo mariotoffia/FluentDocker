@@ -6,8 +6,8 @@ using FluentDocker.Model.Drivers;
 namespace FluentDocker.Drivers
 {
   /// <summary>
-  /// Compose-specific driver operations (docker-compose, podman-compose).
-  /// Supported by: Docker (V1 and V2), Podman (partial)
+  /// Compose-specific driver operations (docker compose, podman compose).
+  /// Supported by: Docker, Podman (partial)
   /// </summary>
   public interface IComposeDriver
   {

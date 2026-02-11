@@ -125,17 +125,32 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
               result.Error ?? "Compose images failed", ErrorCodes.Compose.ImagesFailed);
 
         var images = new List<ComposeImage>();
-        var lines = result.Output.Split(
-            new[] { '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries);
-        foreach (var line in lines)
+        var output = result.Output.Trim();
+
+        // Docker Compose V2 may return a JSON array or NDJSON
+        if (output.StartsWith("["))
         {
           try
           {
-            var image = JsonConvert.DeserializeObject<ComposeImage>(line);
-            if (image != null)
-              images.Add(image);
+            var arr = JsonConvert.DeserializeObject<List<ComposeImage>>(output);
+            if (arr != null) images.AddRange(arr);
           }
           catch { }
+        }
+        else
+        {
+          var lines = output.Split(
+              new[] { '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries);
+          foreach (var line in lines)
+          {
+            try
+            {
+              var image = JsonConvert.DeserializeObject<ComposeImage>(line);
+              if (image != null)
+                images.Add(image);
+            }
+            catch { }
+          }
         }
 
         return CommandResponse<IList<ComposeImage>>.Ok(images);
@@ -156,7 +171,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
       try
       {
         var args = BuildComposeArgs(config) +
-            $" port {config.Service} {config.PrivatePort}/{config.Protocol}";
+            $" port --protocol {config.Protocol} {config.Service} {config.PrivatePort}";
         var result = await ExecuteCommandAsync(args, cancellationToken);
         return result.Success
             ? CommandResponse<string>.Ok(result.Output.Trim())

@@ -47,6 +47,10 @@ devlocal-setup:
 devlocal-teardown:
 	@bash scripts/devlocal-teardown
 
+.PHONY: cleanup-test-resources
+cleanup-test-resources:
+	@bash scripts/cleanup-test-resources
+
 .PHONY: test-devlocal
 test-devlocal:
 	dotnet test FluentDocker.Tests/FluentDocker.Tests.csproj --filter "Category=DevLocal" --configuration Debug --verbosity normal
@@ -90,6 +94,7 @@ help:
 	@echo "  test-integration - Run all tests including integration (requires Docker/Podman)"
 	@echo "  devlocal-setup   - Start Swarm + Podman machine for DevLocal tests"
 	@echo "  devlocal-teardown- Stop Swarm + Podman machine after DevLocal tests"
+	@echo "  cleanup-test-resources - Remove stale Docker/Podman test containers"
 	@echo "  test-devlocal    - Run DevLocal tests (requires Swarm, local registry, Podman machine)"
 	@echo "  benchmark        - Run all benchmarks"
 	@echo "  benchmark-stats  - Run container stats benchmarks only"

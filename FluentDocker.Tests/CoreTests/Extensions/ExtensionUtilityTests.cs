@@ -47,7 +47,6 @@ namespace FluentDocker.Tests.CoreTests.Extensions
 
     [Theory]
     [InlineData("docker", true)]
-    [InlineData("docker-compose", true)]
     [InlineData("nonexistent-binary-12345", false)]
     public void BinaryResolution_ResolvesBinary(string binaryName, bool shouldExist)
     {
@@ -57,7 +56,7 @@ namespace FluentDocker.Tests.CoreTests.Extensions
 
       if (shouldExist)
       {
-        Assert.True(binaryName == "docker" || binaryName == "docker-compose");
+        Assert.Equal("docker", binaryName);
       }
       else
       {

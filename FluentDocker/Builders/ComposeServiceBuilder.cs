@@ -8,10 +8,10 @@ using FluentDocker.Model.Containers;
 namespace FluentDocker.Builders
 {
   /// <summary>
-  ///   Builds a docker-compose service.
+  ///   Builds a compose service definition.
   /// </summary>
   /// <remarks>
-  ///   This is then written to a docker-compose.yml compatible format and can be used
+  ///   This is then written to a compose file compatible format and can be used
   ///   to instantiate one or more services.
   /// </remarks>
   public class ComposeServiceBuilder

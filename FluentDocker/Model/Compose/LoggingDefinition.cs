@@ -20,8 +20,8 @@ namespace FluentDocker.Model.Compose
     /// <remarks>
     ///   The default value is json-file.
     ///   Valid drivers are: json-file, syslog, none
-    ///   Note: Only the json-file and journald drivers make the logs available directly from docker-compose up and
-    ///   docker-compose logs. Using any other driver does not print any logs.
+    ///   Note: Only the json-file and journald drivers make the logs available directly from docker compose up and
+    ///   docker compose logs. Using any other driver does not print any logs.
     /// </remarks>
     public string Driver { get; set; } = "json-file";
 

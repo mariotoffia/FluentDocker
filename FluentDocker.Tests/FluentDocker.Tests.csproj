@@ -36,6 +36,9 @@
     <None Update="Resources\ComposeTests\RabbitMQ\docker-compose.yml">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
+    <None Update="Resources\ComposeTests\ScaleTest\docker-compose.yml">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
     <!-- Hellotest (build compose) Resources -->
     <None Update="Resources\hellotest\docker-compose.yml">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>

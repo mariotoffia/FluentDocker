@@ -9,7 +9,7 @@ namespace FluentDocker.Model.Compose
   /// 
   /// </summary>
   /// <remarks>
-  /// The following sub-options (supported for docker-compose up and docker-compose run) are not supported for docker stack deploy or the deploy key.
+  /// The following sub-options (supported for docker compose up and docker compose run) are not supported for docker stack deploy or the deploy key.
   /// build
   /// cgroup_parent
   /// container_name
@@ -127,10 +127,10 @@ namespace FluentDocker.Model.Compose
     /// </summary>
     /// <remarks>
     /// Service dependencies cause the following behaviors:
-    /// docker-compose up starts services in dependency order. In the following example, db and redis are started
+    /// docker compose up starts services in dependency order. In the following example, db and redis are started
     /// before web.
-    /// docker-compose up SERVICE automatically includes SERVICE’s dependencies. In the following example,
-    /// docker-compose up web also creates and starts db and redis.
+    /// docker compose up SERVICE automatically includes SERVICE's dependencies. In the following example,
+    /// docker compose up web also creates and starts db and redis.
     /// Simple example:
     /// web:
     ///   build: .
@@ -177,7 +177,7 @@ namespace FluentDocker.Model.Compose
     /// Add environment variables from a file. Can be a single value or a list.
     /// </summary>
     /// <remarks>
-    ///  If you have specified a Compose file with docker-compose -f FILE, paths in env_file are relative to the
+    ///  If you have specified a Compose file with docker compose -f FILE, paths in env_file are relative to the
     /// directory that file is in. Environment variables declared in the environment section override these values.
     /// This holds true even if those values are empty or undefined.
     /// env_file: .env
@@ -226,7 +226,7 @@ namespace FluentDocker.Model.Compose
     /// </remarks>
     public IList<string> ExposePorts { get; set; } = new List<string>();
     /// <summary>
-    /// Link to containers started outside this docker-compose.yml or even outside of Compose.
+    /// Link to containers started outside the compose file or even outside of Compose.
     /// </summary>
     /// <remarks>
     /// Notes:

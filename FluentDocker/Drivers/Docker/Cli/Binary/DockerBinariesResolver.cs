@@ -14,8 +14,9 @@ namespace FluentDocker.Drivers.Docker.Cli.Binary
   /// Implements IBinaryResolver to provide binary resolution for the CLI driver.
   /// </summary>
   /// <remarks>
-  /// v3.0 Note: Docker Machine and Docker Toolbox support has been removed.
-  /// Only Docker CLI and Docker Compose V2 (docker compose) are supported.
+  /// v3.0 Note: Docker Machine, Docker Toolbox, and the standalone docker-compose binary
+  /// are no longer supported. Only Docker CLI and Docker Compose (docker compose subcommand)
+  /// are supported.
   /// </remarks>
   public sealed class DockerBinariesResolver : IBinaryResolver
   {
@@ -35,7 +36,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Binary
           _configuration.SearchPaths).ToArray();
 
       MainDockerClient = Binaries.FirstOrDefault(x => x.Type == DockerBinaryType.DockerClient);
-      MainDockerComposeV2 = CheckComposeV2(_configuration.Sudo, _configuration.SudoPassword);
+      MainDockerCompose = CheckCompose(_configuration.Sudo, _configuration.SudoPassword);
       MainDockerCli = Binaries.FirstOrDefault(x => x.Type == DockerBinaryType.Cli);
 
       if (MainDockerClient == null)
@@ -44,9 +45,9 @@ namespace FluentDocker.Drivers.Docker.Cli.Binary
         throw new FluentDockerException("Failed to find docker client binary - please add it to your path");
       }
 
-      if (MainDockerComposeV2 == null)
+      if (MainDockerCompose == null)
       {
-        Logger.Log("Docker Compose V2 (docker compose) is not available - compose features will not work");
+        Logger.Log("Docker Compose (docker compose) is not available - compose features will not work");
       }
     }
 
@@ -73,13 +74,13 @@ namespace FluentDocker.Drivers.Docker.Cli.Binary
     public DockerBinary MainDockerClient { get; }
 
     /// <inheritdoc />
-    public DockerBinary MainDockerComposeV2 { get; }
+    public DockerBinary MainDockerCompose { get; }
 
     /// <inheritdoc />
     public DockerBinary MainDockerCli { get; }
 
     /// <inheritdoc />
-    public bool IsDockerComposeV2Available => MainDockerComposeV2 != null;
+    public bool IsDockerComposeAvailable => MainDockerCompose != null;
 
     /// <inheritdoc />
     public DockerBinary Resolve(string binary)
@@ -88,7 +89,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Binary
 
       var resolved = type switch
       {
-        DockerBinaryType.ComposeV2 => MainDockerComposeV2,
+        DockerBinaryType.Compose => MainDockerCompose,
         DockerBinaryType.DockerClient => MainDockerClient,
         DockerBinaryType.Cli => MainDockerCli,
         _ => throw new FluentDockerException($"Cannot resolve unknown binary {binary}"),
@@ -101,20 +102,6 @@ namespace FluentDocker.Drivers.Docker.Cli.Binary
     public string ResolveBinaryPath(string dockerCommand)
     {
       var binary = Resolve(dockerCommand);
-
-      // Special handling for Docker Compose V2
-      if (binary.Type == DockerBinaryType.ComposeV2 &&
-          (dockerCommand.Equals("docker-compose", StringComparison.OrdinalIgnoreCase) ||
-           dockerCommand.Equals("compose", StringComparison.OrdinalIgnoreCase)))
-      {
-        // For V2, we need to return 'docker compose' instead of 'docker-compose'
-        if (IsWindows() || binary.Sudo == SudoMechanism.None)
-          return $"{binary.FqPath} compose";
-
-        return binary.Sudo == SudoMechanism.NoPassword
-            ? $"sudo {binary.FqPath} compose"
-            : $"echo {binary.SudoPassword} | sudo -S {binary.FqPath} compose";
-      }
 
       if (IsWindows() || binary.Sudo == SudoMechanism.None)
         return binary.FqPath;
@@ -184,7 +171,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Binary
       return list;
     }
 
-    private DockerBinary CheckComposeV2(SudoMechanism sudo, string password)
+    private DockerBinary CheckCompose(SudoMechanism sudo, string password)
     {
       if (MainDockerClient == null)
         return null;
@@ -202,12 +189,12 @@ namespace FluentDocker.Drivers.Docker.Cli.Binary
               Path.GetFileName(MainDockerClient.FqPath),
               sudo,
               password,
-              DockerBinaryType.ComposeV2);
+              DockerBinaryType.Compose);
         }
       }
       catch
       {
-        Logger.Log("Docker Compose V2 plugin is not available");
+        Logger.Log("Docker Compose plugin is not available");
       }
 
       return null;

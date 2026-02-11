@@ -14,10 +14,9 @@ namespace FluentDocker.Drivers.Docker.Cli.Binary
     /// </summary>
     Cli = 4,
     /// <summary>
-    /// Docker Compose V2 - a DockerClient that supports the 'compose' subcommand.
-    /// This is the only supported compose method in v3.0.
+    /// Docker Compose - a DockerClient that supports the 'compose' subcommand.
     /// </summary>
-    ComposeV2 = 5
+    Compose = 5
   }
 
   /// <summary>
@@ -36,10 +35,9 @@ namespace FluentDocker.Drivers.Docker.Cli.Binary
     DockerBinary MainDockerClient { get; }
 
     /// <summary>
-    /// Gets the main Docker Compose V2 binary (docker compose subcommand).
-    /// This is the only supported compose method in v3.0.
+    /// Gets the main Docker Compose binary (docker compose subcommand).
     /// </summary>
-    DockerBinary MainDockerComposeV2 { get; }
+    DockerBinary MainDockerCompose { get; }
 
     /// <summary>
     /// Gets the main Docker CLI binary.
@@ -47,9 +45,9 @@ namespace FluentDocker.Drivers.Docker.Cli.Binary
     DockerBinary MainDockerCli { get; }
 
     /// <summary>
-    /// Gets whether Docker Compose V2 is available.
+    /// Gets whether Docker Compose is available.
     /// </summary>
-    bool IsDockerComposeV2Available { get; }
+    bool IsDockerComposeAvailable { get; }
 
     /// <summary>
     /// Resolves a Docker binary by command name.

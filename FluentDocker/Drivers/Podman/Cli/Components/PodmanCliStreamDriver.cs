@@ -197,6 +197,14 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       if (string.IsNullOrWhiteSpace(json))
         return null;
 
+      // Podman stats in streaming mode may prefix lines with ANSI escape codes.
+      // Extract the JSON object portion.
+      var start = json.IndexOf('{');
+      var end = json.LastIndexOf('}');
+      if (start < 0 || end < start)
+        return null;
+      json = json[start..(end + 1)];
+
       try
       {
         var result = PodmanCliContainerDriver.ParseStatsOutput(json);

@@ -1,0 +1,4 @@
+services:
+  worker:
+    image: alpine:latest
+    command: ["sleep", "300"]

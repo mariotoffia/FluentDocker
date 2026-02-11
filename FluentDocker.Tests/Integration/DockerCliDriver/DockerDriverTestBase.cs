@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 using FluentDocker.Common;
 using FluentDocker.Drivers;
@@ -22,6 +23,10 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
     protected const string TestImage = "alpine:latest";
     protected const string PostgresImage = "postgres:13-alpine";
     protected const string NginxImage = "nginx:alpine";
+
+    /// <summary>Label applied to all test-created containers for easy cleanup.</summary>
+    protected const string TestLabelKey = "com.fluentdocker.test";
+    protected const string TestLabelValue = "integration";
 
     public async Task InitializeAsync()
     {
@@ -87,6 +92,8 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
       config ??= new ContainerCreateConfig();
       config.Image = image;
       config.Detach = true;
+      config.Labels ??= new Dictionary<string, string>();
+      config.Labels[TestLabelKey] = TestLabelValue;
 
       var result = await ContainerDriver.RunAsync(Context, config);
       Assert.True(result.Success, $"Failed to run container: {result.Error}");

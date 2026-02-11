@@ -50,8 +50,8 @@ namespace FluentDocker.Drivers.Docker.Cli.Binary
     /// <param name="binary">The binary name.</param>
     /// <returns>The corresponding DockerBinaryType.</returns>
     /// <remarks>
-    /// v3.0: docker-machine and docker-compose are no longer supported.
-    /// For compose operations, use "docker compose" (Compose V2).
+    /// v3.0: docker-machine and docker-compose (standalone) are no longer supported.
+    /// For compose operations, use "docker compose" subcommand.
     /// </remarks>
     /// <exception cref="ArgumentException">Thrown when the binary name is not recognized.</exception>
     public static DockerBinaryType Translate(string binary)
@@ -60,11 +60,10 @@ namespace FluentDocker.Drivers.Docker.Cli.Binary
       {
         "docker" or "docker.exe" => DockerBinaryType.DockerClient,
         "dockercli" or "dockercli.exe" => DockerBinaryType.Cli,
-        "compose" => DockerBinaryType.ComposeV2,
-        // Legacy names - map to appropriate types or throw
-        "docker-compose" or "docker-compose.exe" => DockerBinaryType.ComposeV2, // Redirect to V2
+        "compose" => DockerBinaryType.Compose,
         _ => throw new ArgumentException($"Cannot determine the docker type on binary {binary}. " +
-            "Note: docker-machine is no longer supported in v3.0.", nameof(binary))
+            "Note: docker-machine and docker-compose (standalone) are no longer supported in v3.0.",
+            nameof(binary))
       };
     }
 

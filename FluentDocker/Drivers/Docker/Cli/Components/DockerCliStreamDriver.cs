@@ -158,6 +158,14 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
       if (string.IsNullOrWhiteSpace(json))
         return null;
 
+      // Docker stats in streaming mode prefixes lines with ANSI escape codes
+      // (e.g. ESC[H for cursor home). Extract the JSON object portion.
+      var start = json.IndexOf('{');
+      var end = json.LastIndexOf('}');
+      if (start < 0 || end < start)
+        return null;
+      json = json[start..(end + 1)];
+
       try
       {
         var obj = JObject.Parse(json);

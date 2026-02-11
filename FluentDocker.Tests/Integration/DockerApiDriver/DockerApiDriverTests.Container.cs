@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
@@ -15,6 +16,10 @@ namespace FluentDocker.Tests.Integration.DockerApiDriver
   {
     #region Helper Methods
 
+    /// <summary>Label applied to all test-created containers for easy cleanup.</summary>
+    private const string TestLabelKey = "com.fluentdocker.test";
+    private const string TestLabelValue = "integration";
+
     private async Task<string> ApiRunContainerAsync(
         string image, string[] command = null)
     {
@@ -23,7 +28,11 @@ namespace FluentDocker.Tests.Integration.DockerApiDriver
       {
         Image = image,
         Command = command ?? new[] { "sleep", "60" },
-        Detach = true
+        Detach = true,
+        Labels = new Dictionary<string, string>
+        {
+          [TestLabelKey] = TestLabelValue
+        }
       };
       var result = await ContainerDriver.RunAsync(Context, config);
       Assert.True(result.Success, $"Run failed: {result.Error}");

@@ -7,7 +7,7 @@ namespace FluentDocker.Model.Compose
   /// </summary>
   /// <remarks>
   /// Version 3 only. This only takes effect when deploying to a swarm with docker stack deploy, and is ignored by
-  /// docker-compose up and docker-compose run.
+  /// docker compose up and docker compose run.
   /// </remarks>
   public sealed class DeployDefinition
   {
