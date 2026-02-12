@@ -111,24 +111,39 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
         string serviceName, int expectedReplicas, int maxWaitSeconds = 60)
     {
       var deadline = DateTime.UtcNow.AddSeconds(maxWaitSeconds);
+      var lastObserved = "<no poll completed>";
 
       while (DateTime.UtcNow < deadline)
       {
-        var result = await ServiceDriver.ListAsync(Context,
-            new ServiceListFilter { Name = serviceName });
-
-        if (result.Success && result.Data?.Count > 0)
+        try
         {
-          var replicas = result.Data[0].Replicas;
-          if (replicas != null && replicas.Contains("/"))
+          var result = await ServiceDriver.ListAsync(Context,
+              new ServiceListFilter { Name = serviceName });
+
+          if (result.Success && result.Data?.Count > 0)
           {
-            var parts = replicas.Split('/');
-            if (parts.Length == 2
-                && int.TryParse(parts[0], out var running)
-                && int.TryParse(parts[1], out var desired)
-                && running >= expectedReplicas && desired == expectedReplicas)
-              return;
+            lastObserved = result.Data[0].Replicas ?? "<null>";
+            var replicas = result.Data[0].Replicas;
+            if (replicas != null && replicas.Contains("/"))
+            {
+              var parts = replicas.Split('/');
+              if (parts.Length == 2
+                  && int.TryParse(parts[0], out var running)
+                  && int.TryParse(parts[1], out var desired)
+                  && running >= expectedReplicas && desired == expectedReplicas)
+                return;
+            }
           }
+          else
+          {
+            lastObserved = result.Success
+                ? "<no services returned>"
+                : $"<API error: {result.Error}>";
+          }
+        }
+        catch (Exception ex)
+        {
+          lastObserved = $"<exception: {ex.Message}>";
         }
 
         await Task.Delay(2000);
@@ -136,7 +151,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
 
       Assert.Fail(
           $"Service '{serviceName}' did not converge to {expectedReplicas} " +
-          $"replicas within {maxWaitSeconds}s");
+          $"replicas within {maxWaitSeconds}s. Last observed: {lastObserved}");
     }
 
     private static bool IsDockerInstalled()

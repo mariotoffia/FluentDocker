@@ -15,7 +15,6 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
   public partial class PodmanCliContainerDriver
   {
     #region Information Operations (continued)
-
     /// <inheritdoc />
     public async Task<CommandResponse<string>> GetLogsAsync(
         DriverContext context, string containerId,

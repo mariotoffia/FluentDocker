@@ -19,7 +19,7 @@ using FluentDocker.Builders;
 
 // Create once, reuse everywhere
 var kernel = FluentDockerKernel.Create()
-    .WithDriver("docker", d => d.UseDockerCli().AsDefault())
+    .WithDockerCli("docker", d => d.AsDefault())
     .Build();
 ```
 

@@ -532,7 +532,7 @@ public static class ContainerFactory
 
 // Usage
 using var kernel = FluentDockerKernel.Create()
-    .WithDriver("docker", d => d.UseDockerCli().AsDefault())
+    .WithDockerCli("docker", d => d.AsDefault())
     .Build();
 
 using var db = ContainerFactory.CreatePostgres(kernel);

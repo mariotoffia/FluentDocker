@@ -255,29 +255,32 @@ For full documentation on writing custom driver interfaces, builder extensions, 
 
 ## Driver Interfaces
 
-### IDriver Interface
+### IDriverPack Interface
+
+A driver pack groups related driver implementations under a single registered
+entity. Component drivers are resolved at runtime via `ISysCtl`, not through
+direct properties.
 
 ```csharp
-public interface IDriver : IDisposable
+public interface IDriverPack : ISysCtl
 {
-    string DriverTypeName { get; }  // e.g., "docker-cli"
-    string Version { get; }
-    DriverType Type { get; }        // CLI, API, Hybrid
+    DriverType Type { get; }        // DockerCli, DockerApi, PodmanCli
     RuntimeType Runtime { get; }    // Docker, Podman
 
-    // Component drivers
-    IContainerDriver Containers { get; }
-    IImageDriver Images { get; }
-    INetworkDriver Networks { get; }
-    IVolumeDriver Volumes { get; }
-    IComposeDriver Compose { get; }
-    ISystemDriver System { get; }
-
-    // Capabilities
-    DriverCapabilities GetCapabilities();
-    bool IsAvailable(DriverContext context);
-    DriverHealthStatus HealthCheck(DriverContext context);
+    Task<DriverCapabilities> GetCapabilitiesAsync(CancellationToken ct = default);
+    Task<bool> IsHealthyAsync(CancellationToken ct = default);
+    Task InitializeAsync(DriverContext context, CancellationToken ct = default);
 }
+```
+
+Component drivers (IContainerDriver, IImageDriver, INetworkDriver,
+IVolumeDriver, IComposeDriver, ISystemDriver, IAuthDriver, IStreamDriver)
+are resolved via `ISysCtl.SysCtl<T>()`:
+
+```csharp
+var containers = kernel.SysCtl<IContainerDriver>("docker-cli");
+var stream     = kernel.SysCtl<IStreamDriver>("docker-cli");
+var system     = kernel.SysCtl<ISystemDriver>("docker-cli");
 ```
 
 ### IContainerDriver Interface

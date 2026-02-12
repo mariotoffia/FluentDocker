@@ -17,6 +17,13 @@ dotnet add package FluentDocker.MsTest  # For MSTest
 dotnet add package FluentDocker.XUnit   # For xUnit
 ```
 
+## Running by Category
+
+Tests use `[Trait("Category", "...")]` attributes (`make test` runs Unit,
+`make test-integration` runs all, `dotnet test --filter "Category=X"` for a
+single category). See [Test Categories & Run Guide](test-categories.html) for
+the full reference.
+
 ## MSTest
 
 ### FluentDockerTestBase
@@ -542,8 +549,6 @@ public class MigrationTests : IAsyncLifetime
 
 ## Test Isolation
 
-### Per-Test Containers
-
 Each test method gets its own kernel and container for full isolation.
 
 ```csharp
@@ -575,19 +580,14 @@ public class IsolatedTests
 }
 ```
 
-### Unique Names for Parallel Tests
-
-```csharp
-private static string UniqueName(string prefix) => $"{prefix}-{Guid.NewGuid():N}"[..20];
-```
+Use unique names for parallel tests:
+`private static string UniqueName(string prefix) => $"{prefix}-{Guid.NewGuid():N}"[..20];`
 
 ## Debugging Failed Tests
 
 ```csharp
-// Inside ConfigureContainer -- keep container on failure for debugging
-builder.KeepContainer();
+builder.KeepContainer();  // keep container on failure
 builder.KeepRunning();
-
 // Export logs on failure (MSTest hook)
 protected override async Task OnContainerTearDownAsync()
 {
@@ -598,4 +598,4 @@ protected override async Task OnContainerTearDownAsync()
 ```
 
 ## Next Steps
-- [Test Categories & Run Guide](test-categories.html) -- [Utilities](utilities.html) -- [Containers](containers.html) -- [Docker Compose](compose.html)
+[Utilities](utilities.html) -- [Containers](containers.html) -- [Docker Compose](compose.html)
