@@ -23,7 +23,7 @@
     <RepositoryType>git</RepositoryType>
     <RepositoryUrl>https://github.com/mariotoffia/FluentDocker</RepositoryUrl>
     <Description>Library to manage docker compose and docker containers for Windows, Mac, or native Linux using .NET.</Description>
-    <Copyright>© 2016 - 2025 Mario Toffia</Copyright>
+    <Copyright>© 2016 - 2026 Mario Toffia</Copyright>
     <AssemblyOriginatorKeyFile>..\keypair.snk</AssemblyOriginatorKeyFile>
     <SignAssembly>true</SignAssembly>
     <PublicSign Condition=" '$(OS)' != 'Windows_NT' ">true</PublicSign>
