@@ -141,19 +141,9 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
               result.ExitCode);
         }
 
-        // Extract image ID from build output (usually last line with "sha256:...")
-        var lines = result.Output.Split(new[] { '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries);
-        var imageId = "";
-        for (var i = lines.Length - 1; i >= 0; i--)
-        {
-          var line = lines[i];
-          if (line.Contains("sha256:"))
-          {
-            var parts = line.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
-            imageId = parts.Where(p => p.StartsWith("sha256:")).LastOrDefault() ?? "";
-            break;
-          }
-        }
+        // Extract image ID from build output (usually last line with "sha256:...").
+        // Modern BuildKit writes progress/output to stderr, so check both streams.
+        var imageId = ExtractImageId(result.Output) ?? ExtractImageId(result.Error) ?? "";
 
         return CommandResponse<ImageBuildResult>.Ok(new ImageBuildResult
         {
@@ -294,6 +284,31 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
       public string CreatedSince { get; set; }
       public string Size { get; set; }
       public string Comment { get; set; }
+    }
+
+    /// <summary>
+    /// Scans build output lines (from the end) for a sha256 image ID.
+    /// Returns the ID or null if not found.
+    /// </summary>
+    private static string ExtractImageId(string output)
+    {
+      if (string.IsNullOrEmpty(output))
+        return null;
+
+      var lines = output.Split(new[] { '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries);
+      for (var i = lines.Length - 1; i >= 0; i--)
+      {
+        var line = lines[i];
+        if (!line.Contains("sha256:"))
+          continue;
+
+        var parts = line.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+        var id = parts.Where(p => p.StartsWith("sha256:")).LastOrDefault();
+        if (id != null)
+          return id;
+      }
+
+      return null;
     }
 
     /// <summary>

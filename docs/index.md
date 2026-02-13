@@ -37,7 +37,7 @@ using FluentDocker.Kernel;
 
 // 1. Create a kernel (once per application)
 using var kernel = FluentDockerKernel.Create()
-    .WithDriver("docker", d => d.UseDockerCli().AsDefault())
+    .WithDockerCli("docker", d => d.AsDefault())
     .Build();
 
 // 2. Start a container and wait for it to be ready

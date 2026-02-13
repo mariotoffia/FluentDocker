@@ -19,7 +19,7 @@ using FluentDocker.Builders;
 
 // Create kernel (typically once per app or test fixture)
 var kernel = FluentDockerKernel.Create()
-    .WithDriver("docker", d => d.UseDockerCli().AsDefault())
+    .WithDockerCli("docker", d => d.AsDefault())
     .Build();
 ```
 
@@ -389,7 +389,7 @@ public class CustomImageTest : IDisposable
     public CustomImageTest()
     {
         _kernel = FluentDockerKernel.Create()
-            .WithDriver("docker", d => d.UseDockerCli().AsDefault())
+            .WithDockerCli("docker", d => d.AsDefault())
             .Build();
 
         _results = new Builder()

@@ -441,7 +441,7 @@ public class DatabaseTest : IAsyncDisposable
     public DatabaseTest()
     {
         var kernel = FluentDockerKernel.Create()
-            .WithDriver("docker", d => d.UseDockerCli().AsDefault())
+            .WithDockerCli("docker", d => d.AsDefault())
             .Build();
 
         var testId = Guid.NewGuid().ToString("N")[..8];

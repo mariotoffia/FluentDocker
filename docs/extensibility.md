@@ -228,12 +228,10 @@ using FluentDocker.Drivers.Podman.BuilderExtensions;
 
 // ── Kernel with both drivers ──────────────────────────────────
 var kernel = await FluentDockerKernel.Create()
-    .WithDriver("docker", d => d
-        .UseDockerCli()
+    .WithDockerCli("docker", d => d
         .AsDefault())
-    .WithDriver("podman", d => d
-        .UsePodmanCli()
-        .AsRootless())
+    .WithPodmanCli("podman", d => d
+        .AsDefault())
     .BuildAsync();
 
 // ── Single builder, two driver scopes ─────────────────────────

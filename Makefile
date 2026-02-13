@@ -77,9 +77,15 @@ format:
 
 .PHONY: pack
 pack: build-release
+ifdef VERSION
+	dotnet pack FluentDocker/FluentDocker.csproj --configuration Release --no-build /p:Version=$(VERSION)
+	dotnet pack FluentDocker.MsTest/FluentDocker.MsTest.csproj --configuration Release --no-build /p:Version=$(VERSION)
+	dotnet pack FluentDocker.XUnit/FluentDocker.XUnit.csproj --configuration Release --no-build /p:Version=$(VERSION)
+else
 	dotnet pack FluentDocker/FluentDocker.csproj --configuration Release --no-build
 	dotnet pack FluentDocker.MsTest/FluentDocker.MsTest.csproj --configuration Release --no-build
 	dotnet pack FluentDocker.XUnit/FluentDocker.XUnit.csproj --configuration Release --no-build
+endif
 
 .PHONY: help
 help:
@@ -101,5 +107,5 @@ help:
 	@echo "  benchmark-template - Run template string benchmarks only"
 	@echo "  lint             - Check code formatting"
 	@echo "  format           - Format code"
-	@echo "  pack             - Create NuGet packages"
+	@echo "  pack             - Create NuGet packages (use VERSION=x.y.z for versioned packs)"
 	@echo "  help             - Show this help"

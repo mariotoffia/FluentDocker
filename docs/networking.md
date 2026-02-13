@@ -508,7 +508,7 @@ public class NetworkIsolatedTest : IDisposable
     public NetworkIsolatedTest()
     {
         _kernel = FluentDockerKernel.Create()
-            .WithDriver("docker", d => d.UseDockerCli().AsDefault())
+            .WithDockerCli("docker", d => d.AsDefault())
             .Build();
 
         // Each test run gets isolated network

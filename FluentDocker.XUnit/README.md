@@ -23,7 +23,7 @@ This library enables `docker` and `docker compose` interactions using a _Fluent 
 **Sample Fluent API usage**
 ```cs
 using var kernel = FluentDockerKernel.Create()
-    .WithDriver("docker", d => d.UseDockerCli().AsDefault())
+    .WithDockerCli("docker", d => d.AsDefault())
     .Build();
 
 using var results = new Builder()
