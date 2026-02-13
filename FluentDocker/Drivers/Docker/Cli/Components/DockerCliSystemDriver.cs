@@ -188,7 +188,8 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
               ErrorCodes.General.Unknown);
         }
 
-        return CommandResponse<SystemPruneResult>.Ok(new SystemPruneResult());
+        return CommandResponse<SystemPruneResult>.Ok(
+            CliPruneOutputParser.ParseSystemPruneOutput(result.Output));
       }
       catch (Exception ex)
       {

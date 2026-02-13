@@ -489,13 +489,6 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
           ? (long)raw : 0;
     }
 
-    /// <summary>Quotes an argument if it contains whitespace or shell metacharacters.</summary>
-    private static string QuoteArgumentIfNeeded(string arg)
-    {
-      if (string.IsNullOrEmpty(arg)) return "\"\"";
-      if (arg.IndexOfAny(new[] { ' ', '\t', ';', '&', '|', '>', '<', '"', '\'' }) < 0) return arg;
-      return "\"" + arg.Replace("\"", "\\\"") + "\"";
-    }
     #endregion
   }
 }

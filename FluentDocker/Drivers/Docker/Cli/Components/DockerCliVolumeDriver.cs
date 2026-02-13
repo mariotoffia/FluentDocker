@@ -205,7 +205,8 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
               ErrorCodes.Volume.PruneFailed);
         }
 
-        return CommandResponse<VolumePruneResult>.Ok(new VolumePruneResult());
+        return CommandResponse<VolumePruneResult>.Ok(
+            CliPruneOutputParser.ParseVolumePruneOutput(result.Output));
       }
       catch (Exception ex)
       {
@@ -214,4 +215,3 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     }
   }
 }
-

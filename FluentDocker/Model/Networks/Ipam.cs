@@ -6,7 +6,8 @@ namespace FluentDocker.Model.Networks
   {
     public string Driver { get; set; }
 
-    //TODO: "Options": null
+    public IDictionary<string, string> Options { get; set; }
+
     public IList<IpamConfig> Config { get; set; }
   }
 }

@@ -136,7 +136,8 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
           return CommandResponse<SystemPruneResult>.Fail(
               result.Error ?? "System prune failed", ErrorCodes.General.Unknown);
 
-        return CommandResponse<SystemPruneResult>.Ok(new SystemPruneResult());
+        return CommandResponse<SystemPruneResult>.Ok(
+            CliPruneOutputParser.ParseSystemPruneOutput(result.Output));
       }
       catch (Exception ex)
       {
@@ -152,16 +153,18 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
     public Task<CommandResponse<Unit>> SwitchDaemonAsync(
         DriverContext context, CancellationToken cancellationToken = default)
     {
-      // Podman is daemonless - no-op
-      return Task.FromResult(CommandResponse<Unit>.Ok(Unit.Default));
+      return Task.FromResult(CommandResponse<Unit>.Fail(
+          "Podman is daemonless and does not support daemon switching",
+          ErrorCodes.Driver.CapabilityNotSupported));
     }
 
     /// <inheritdoc />
     public Task<CommandResponse<Unit>> SwitchToLinuxDaemonAsync(
         DriverContext context, CancellationToken cancellationToken = default)
     {
-      // Podman always runs Linux containers - no-op
-      return Task.FromResult(CommandResponse<Unit>.Ok(Unit.Default));
+      return Task.FromResult(CommandResponse<Unit>.Fail(
+          "Podman is daemonless and always runs Linux containers",
+          ErrorCodes.Driver.CapabilityNotSupported));
     }
 
     /// <inheritdoc />

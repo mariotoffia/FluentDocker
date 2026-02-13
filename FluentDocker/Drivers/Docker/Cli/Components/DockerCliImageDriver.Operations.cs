@@ -113,7 +113,8 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
               result.ExitCode);
         }
 
-        return CommandResponse<ImagePruneResult>.Ok(new ImagePruneResult());
+        return CommandResponse<ImagePruneResult>.Ok(
+            CliPruneOutputParser.ParseImagePruneOutput(result.Output));
       }
       catch (Exception ex)
       {

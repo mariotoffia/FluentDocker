@@ -188,7 +188,8 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
           return CommandResponse<NetworkPruneResult>.Fail(
               result.Error ?? "Network prune failed", ErrorCodes.Network.PruneFailed);
 
-        return CommandResponse<NetworkPruneResult>.Ok(new NetworkPruneResult());
+        return CommandResponse<NetworkPruneResult>.Ok(
+            CliPruneOutputParser.ParseNetworkPruneOutput(result.Output));
       }
       catch (Exception ex)
       {

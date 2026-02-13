@@ -1,4 +1,5 @@
 using System.Threading.Tasks;
+using FluentDocker.Model.Drivers;
 using Xunit;
 
 namespace FluentDocker.Tests.Integration.PodmanCliDriver
@@ -58,6 +59,22 @@ namespace FluentDocker.Tests.Integration.PodmanCliDriver
     {
       var result = await SystemDriver.SwitchToWindowsDaemonAsync(Context);
       Assert.False(result.Success);
+    }
+
+    [Fact]
+    public async Task SwitchDaemon_Fails()
+    {
+      var result = await SystemDriver.SwitchDaemonAsync(Context);
+      Assert.False(result.Success);
+      Assert.Equal(ErrorCodes.Driver.CapabilityNotSupported, result.ErrorCode);
+    }
+
+    [Fact]
+    public async Task SwitchToLinuxDaemon_Fails()
+    {
+      var result = await SystemDriver.SwitchToLinuxDaemonAsync(Context);
+      Assert.False(result.Success);
+      Assert.Equal(ErrorCodes.Driver.CapabilityNotSupported, result.ErrorCode);
     }
   }
 }

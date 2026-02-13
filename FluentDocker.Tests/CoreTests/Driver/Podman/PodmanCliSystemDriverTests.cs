@@ -1,6 +1,8 @@
 using System.Reflection;
+using System.Threading.Tasks;
 using FluentDocker.Drivers;
 using FluentDocker.Drivers.Podman.Cli.Components;
+using FluentDocker.Model.Drivers;
 using Xunit;
 
 namespace FluentDocker.Tests.CoreTests.Driver.Podman
@@ -138,6 +140,32 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
     {
       var result = InvokeParseVersionInfo("not json");
       Assert.NotNull(result);
+    }
+
+    #endregion
+
+    #region Daemon Switching Tests
+
+    [Fact]
+    public async Task SwitchDaemonAsync_ReturnsCapabilityNotSupported()
+    {
+      var driver = new PodmanCliSystemDriver(null);
+
+      var result = await driver.SwitchDaemonAsync(new DriverContext("podman"));
+
+      Assert.False(result.Success);
+      Assert.Equal(ErrorCodes.Driver.CapabilityNotSupported, result.ErrorCode);
+    }
+
+    [Fact]
+    public async Task SwitchToLinuxDaemonAsync_ReturnsCapabilityNotSupported()
+    {
+      var driver = new PodmanCliSystemDriver(null);
+
+      var result = await driver.SwitchToLinuxDaemonAsync(new DriverContext("podman"));
+
+      Assert.False(result.Success);
+      Assert.Equal(ErrorCodes.Driver.CapabilityNotSupported, result.ErrorCode);
     }
 
     #endregion

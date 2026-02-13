@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using FluentDocker.Drivers.Docker.Cli;
@@ -266,7 +267,8 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
           return CommandResponse<ImagePruneResult>.Fail(
               result.Error ?? "Image prune failed", ErrorCodes.Image.PruneFailed);
 
-        return CommandResponse<ImagePruneResult>.Ok(new ImagePruneResult());
+        return CommandResponse<ImagePruneResult>.Ok(
+            CliPruneOutputParser.ParseImagePruneOutput(result.Output));
       }
       catch (Exception ex)
       {
@@ -285,7 +287,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
     {
       try
       {
-        var args = $"save -o {outputPath} {string.Join(" ", images)}";
+        var args = $"save -o {QuoteArgumentIfNeeded(outputPath)} {string.Join(" ", images.Select(QuoteArgumentIfNeeded))}";
         var result = await ExecuteCommandAsync(args, cancellationToken);
         return result.Success
             ? CommandResponse<Unit>.Ok(Unit.Default)
@@ -305,7 +307,8 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
     {
       try
       {
-        var result = await ExecuteCommandAsync($"load -i {inputPath}", cancellationToken);
+        var result = await ExecuteCommandAsync(
+            $"load -i {QuoteArgumentIfNeeded(inputPath)}", cancellationToken);
         if (!result.Success)
           return CommandResponse<IList<string>>.Fail(
               result.Error ?? "Image load failed", ErrorCodes.Image.LoadFailed);
@@ -333,7 +336,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
         var args = "import";
         if (!string.IsNullOrEmpty(message))
           args += $" --message \"{message}\"";
-        args += $" {source}";
+        args += $" {QuoteArgumentIfNeeded(source)}";
         if (!string.IsNullOrEmpty(repository))
         {
           args += string.IsNullOrEmpty(tag) ? $" {repository}" : $" {repository}:{tag}";

@@ -272,7 +272,8 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
               ErrorCodes.Network.PruneFailed);
         }
 
-        return CommandResponse<NetworkPruneResult>.Ok(new NetworkPruneResult());
+        return CommandResponse<NetworkPruneResult>.Ok(
+            CliPruneOutputParser.ParseNetworkPruneOutput(result.Output));
       }
       catch (Exception ex)
       {
@@ -281,4 +282,3 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     }
   }
 }
-

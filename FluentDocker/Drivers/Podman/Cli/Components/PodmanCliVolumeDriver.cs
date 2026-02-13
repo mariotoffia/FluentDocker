@@ -141,7 +141,8 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
           return CommandResponse<VolumePruneResult>.Fail(
               result.Error ?? "Volume prune failed", ErrorCodes.Volume.PruneFailed);
 
-        return CommandResponse<VolumePruneResult>.Ok(new VolumePruneResult());
+        return CommandResponse<VolumePruneResult>.Ok(
+            CliPruneOutputParser.ParseVolumePruneOutput(result.Output));
       }
       catch (Exception ex)
       {

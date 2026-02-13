@@ -288,5 +288,26 @@ namespace FluentDocker.Drivers.Podman.Cli
     }
 
     #endregion
+
+    #region Argument Quoting
+
+    /// <summary>
+    /// Quotes a command-line argument if it contains shell metacharacters or whitespace.
+    /// Escapes backslashes and double quotes within the argument.
+    /// </summary>
+    protected static string QuoteArgumentIfNeeded(string argument)
+    {
+      if (string.IsNullOrEmpty(argument))
+        return "\"\"";
+
+      var needsQuoting = argument.IndexOfAny(new[] { ' ', '\t', ';', '&', '|', '>', '<', '"', '\'' }) >= 0;
+      if (!needsQuoting)
+        return argument;
+
+      var escaped = argument.Replace("\\", "\\\\").Replace("\"", "\\\"");
+      return $"\"{escaped}\"";
+    }
+
+    #endregion
   }
 }

@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.Reflection;
 using FluentDocker.Drivers;
+using FluentDocker.Drivers.Podman.Cli;
 using FluentDocker.Drivers.Podman.Cli.Components;
 using Newtonsoft.Json.Linq;
 using Xunit;
@@ -356,6 +357,20 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
       Assert.Equal("\"\"", result);
     }
 
+    [Fact]
+    public void QuoteArgumentIfNeeded_Null_ReturnsQuotedEmpty()
+    {
+      var result = InvokeQuoteArgumentIfNeeded(null);
+      Assert.Equal("\"\"", result);
+    }
+
+    [Fact]
+    public void QuoteArgumentIfNeeded_PathWithBackslashesAndSpaces_EscapesCorrectly()
+    {
+      var result = InvokeQuoteArgumentIfNeeded(@"C:\Program Files\Podman");
+      Assert.Equal("\"C:\\\\Program Files\\\\Podman\"", result);
+    }
+
     #endregion
 
     #region Reflection Helpers
@@ -405,7 +420,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
 
     private static string InvokeQuoteArgumentIfNeeded(string arg)
     {
-      var method = typeof(PodmanCliContainerDriver).GetMethod(
+      var method = typeof(PodmanCliDriverBase).GetMethod(
           "QuoteArgumentIfNeeded",
           BindingFlags.NonPublic | BindingFlags.Static);
       Assert.NotNull(method);

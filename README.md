@@ -519,7 +519,7 @@ Contributions welcome! Please adhere to `.editorconfig` for code style.
 
 - [Documentation Site](https://mariotoffia.github.io/FluentDocker/) - Full documentation on GitHub Pages
 - [Migration Guide](docs/migration.md) - Upgrading from v2.x.x
-- [Architecture Docs](docs/architecture/) - v3 architecture details
+- [Architecture Docs](docs/architecture.md) - v3 architecture details
 - [NuGet Package](https://www.nuget.org/packages/FluentDocker)
 
 ---

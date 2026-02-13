@@ -36,12 +36,15 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       return CommandResponse<Unit>.Ok(Unit.Default);
     }
 
+    /// <remarks>
+    /// Docker Engine API has no logout endpoint. Logout is a client-side
+    /// operation (removing stored credentials from the Docker config file).
+    /// Returns <c>Ok</c> since there is nothing to undo server-side.
+    /// </remarks>
     public Task<CommandResponse<Unit>> LogoutAsync(
         DriverContext context, string server = null,
         CancellationToken cancellationToken = default)
     {
-      // Docker Engine API does not have a logout endpoint.
-      // Logout is a client-side operation (removing stored credentials).
       return Task.FromResult(CommandResponse<Unit>.Ok(Unit.Default));
     }
   }
