@@ -274,7 +274,8 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
 
     private async Task RemoveStackSafeAsync(string stackName)
     {
-      try { await StackDriver.RemoveAsync(Context, new[] { stackName }); }
+      try
+      { await StackDriver.RemoveAsync(Context, new[] { stackName }); }
       catch { }
 
       // Give Docker time to clean up services
@@ -284,7 +285,9 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
     private static void CleanupTempDir(string tempDir)
     {
       if (tempDir != null && Directory.Exists(tempDir))
-        try { Directory.Delete(tempDir, true); } catch { }
+        try
+        { Directory.Delete(tempDir, true); }
+        catch { }
     }
 
     #endregion

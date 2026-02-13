@@ -133,7 +133,8 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
           try
           {
             var arr = JsonConvert.DeserializeObject<List<ComposeImage>>(output);
-            if (arr != null) images.AddRange(arr);
+            if (arr != null)
+              images.AddRange(arr);
           }
           catch { }
         }

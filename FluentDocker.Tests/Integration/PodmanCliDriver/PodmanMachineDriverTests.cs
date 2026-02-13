@@ -44,9 +44,7 @@ namespace FluentDocker.Tests.Integration.PodmanCliDriver
       var listResult = await MachineDriver.ListAsync(Context);
       Assert.True(listResult.Success);
 
-      var defaultMachine = listResult.Data.FirstOrDefault(m => m.Default);
-      if (defaultMachine == null)
-        throw new SkipException("No default Podman machine available for inspect test");
+      var defaultMachine = listResult.Data.FirstOrDefault(m => m.Default) ?? throw new SkipException("No default Podman machine available for inspect test");
 
       var inspectResult = await MachineDriver.InspectAsync(Context, defaultMachine.Name);
       Assert.True(inspectResult.Success, $"Inspect failed: {inspectResult.Error}");
@@ -61,9 +59,7 @@ namespace FluentDocker.Tests.Integration.PodmanCliDriver
       var listResult = await MachineDriver.ListAsync(Context);
       Assert.True(listResult.Success);
 
-      var defaultMachine = listResult.Data.FirstOrDefault(m => m.Default && m.Running);
-      if (defaultMachine == null)
-        throw new SkipException("No running default Podman machine for SSH test");
+      var defaultMachine = listResult.Data.FirstOrDefault(m => m.Default && m.Running) ?? throw new SkipException("No running default Podman machine for SSH test");
 
       var result = await MachineDriver.SshAsync(Context, defaultMachine.Name, "echo hello");
       Assert.True(result.Success, $"SSH failed: {result.Error}");
@@ -153,9 +149,11 @@ namespace FluentDocker.Tests.Integration.PodmanCliDriver
       }
       finally
       {
-        try { await MachineDriver.StopAsync(Context, machineName); }
+        try
+        { await MachineDriver.StopAsync(Context, machineName); }
         catch { }
-        try { await MachineDriver.RemoveAsync(Context, machineName, force: true); }
+        try
+        { await MachineDriver.RemoveAsync(Context, machineName, force: true); }
         catch { }
       }
     }

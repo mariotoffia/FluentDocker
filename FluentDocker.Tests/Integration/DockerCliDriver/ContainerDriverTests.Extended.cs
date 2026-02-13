@@ -350,7 +350,8 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
       finally
       {
         await RemoveContainerAsync(containerId);
-        if (File.Exists(outputPath)) File.Delete(outputPath);
+        if (File.Exists(outputPath))
+          File.Delete(outputPath);
       }
     }
 
@@ -378,7 +379,8 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
       finally
       {
         await RemoveContainerAsync(containerId);
-        if (File.Exists(outputPath)) File.Delete(outputPath);
+        if (File.Exists(outputPath))
+          File.Delete(outputPath);
       }
     }
 
@@ -394,7 +396,8 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
       }
       finally
       {
-        if (File.Exists(outputPath)) File.Delete(outputPath);
+        if (File.Exists(outputPath))
+          File.Delete(outputPath);
       }
     }
 

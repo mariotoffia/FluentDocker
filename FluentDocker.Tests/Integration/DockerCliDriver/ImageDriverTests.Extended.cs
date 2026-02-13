@@ -40,7 +40,8 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
       }
       finally
       {
-        try { await ImageDriver.RemoveAsync(Context, tag, force: true); }
+        try
+        { await ImageDriver.RemoveAsync(Context, tag, force: true); }
         catch { }
 
         if (Directory.Exists(tempDir))
@@ -133,7 +134,8 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
         if (containerId != null)
           await RemoveContainerAsync(containerId);
 
-        try { await ImageDriver.RemoveAsync(Context, $"{repo}:{tag}", force: true); }
+        try
+        { await ImageDriver.RemoveAsync(Context, $"{repo}:{tag}", force: true); }
         catch { }
 
         if (File.Exists(tarPath))
@@ -160,7 +162,8 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
       }
       finally
       {
-        try { await ImageDriver.RemoveAsync(Context, $"{testRepo}:{testTag}"); }
+        try
+        { await ImageDriver.RemoveAsync(Context, $"{testRepo}:{testTag}"); }
         catch { }
       }
     }

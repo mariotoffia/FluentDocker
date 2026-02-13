@@ -136,7 +136,8 @@ namespace FluentDocker.Tests.Integration.PodmanCliDriver
       finally
       {
         // Unpause before remove to avoid errors
-        try { await PodDriver.UnpausePodAsync(Context, name); }
+        try
+        { await PodDriver.UnpausePodAsync(Context, name); }
         catch { }
         await RemovePodAsync(name);
       }

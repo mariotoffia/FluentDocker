@@ -50,7 +50,8 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
             cts.Token))
         {
           entries.Add(line);
-          if (entries.Count >= 5) break;
+          if (entries.Count >= 5)
+            break;
         }
 
         Assert.True(entries.Count >= 1,
@@ -127,7 +128,8 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
               cts.Token))
           {
             events.Add(evt);
-            if (events.Count >= 2) break;
+            if (events.Count >= 2)
+              break;
           }
         }, cts.Token);
 
@@ -139,7 +141,8 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
             new ContainerCreateConfig { Command = new[] { "sleep", "30" } });
 
         // Wait for events to arrive
-        try { await listenTask; }
+        try
+        { await listenTask; }
         catch (OperationCanceledException) { }
 
         Assert.True(events.Count >= 1,
@@ -178,7 +181,8 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
             cts.Token))
         {
           stats.Add(stat);
-          if (stats.Count >= 2) break;
+          if (stats.Count >= 2)
+            break;
         }
 
         Assert.True(stats.Count >= 1,
@@ -268,9 +272,11 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
           {
             var bytesRead = await attachResult.OutputStream.ReadAsync(
                 buffer.AsMemory(0, buffer.Length), cts.Token);
-            if (bytesRead == 0) break;
+            if (bytesRead == 0)
+              break;
             sb.Append(Encoding.UTF8.GetString(buffer, 0, bytesRead));
-            if (sb.ToString().Contains("attach-output-")) break;
+            if (sb.ToString().Contains("attach-output-"))
+              break;
           }
         }
         catch (OperationCanceledException) { }

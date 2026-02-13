@@ -282,7 +282,9 @@ namespace FluentDocker.Tests.Integration.PodmanCliDriver
       finally
       {
         if (listName != null)
-          try { await ManifestDriver.RemoveAsync(Context, listName); } catch { }
+          try
+          { await ManifestDriver.RemoveAsync(Context, listName); }
+          catch { }
 
         await RemoveContainerAsync(registryId);
       }
@@ -347,7 +349,9 @@ namespace FluentDocker.Tests.Integration.PodmanCliDriver
       finally
       {
         if (listName != null && !listRemoved)
-          try { await ManifestDriver.RemoveAsync(Context, listName); } catch { }
+          try
+          { await ManifestDriver.RemoveAsync(Context, listName); }
+          catch { }
 
         await RemoveContainerAsync(registryId);
       }

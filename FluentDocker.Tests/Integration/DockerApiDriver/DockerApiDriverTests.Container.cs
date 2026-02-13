@@ -283,7 +283,8 @@ namespace FluentDocker.Tests.Integration.DockerApiDriver
       finally
       {
         await ApiRemoveContainerAsync(containerId);
-        if (File.Exists(outputPath)) File.Delete(outputPath);
+        if (File.Exists(outputPath))
+          File.Delete(outputPath);
       }
     }
 
@@ -319,7 +320,8 @@ namespace FluentDocker.Tests.Integration.DockerApiDriver
       finally
       {
         await ApiRemoveContainerAsync(containerId);
-        if (File.Exists(tempFile)) File.Delete(tempFile);
+        if (File.Exists(tempFile))
+          File.Delete(tempFile);
       }
     }
 
@@ -351,7 +353,8 @@ namespace FluentDocker.Tests.Integration.DockerApiDriver
       finally
       {
         await ApiRemoveContainerAsync(containerId);
-        if (Directory.Exists(tempDir)) Directory.Delete(tempDir, true);
+        if (Directory.Exists(tempDir))
+          Directory.Delete(tempDir, true);
       }
     }
 

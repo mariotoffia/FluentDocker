@@ -287,7 +287,8 @@ namespace FluentDocker.Drivers.Docker.Api.Components
           var parentDir = containerPath.Contains('/')
               ? containerPath[..containerPath.LastIndexOf('/')]
               : "/";
-          if (string.IsNullOrEmpty(parentDir)) parentDir = "/";
+          if (string.IsNullOrEmpty(parentDir))
+            parentDir = "/";
           tarEntryName = containerPath[(containerPath.LastIndexOf('/') + 1)..];
           extractPath = parentDir;
         }

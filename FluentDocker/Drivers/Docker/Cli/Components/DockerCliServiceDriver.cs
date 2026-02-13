@@ -343,10 +343,11 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     internal static ServiceDetails ParseServiceInspect(string json)
     {
       var arr = JArray.Parse(json);
-      if (arr.Count == 0) return null;
+      if (arr.Count == 0)
+        return null;
 
-      var obj = arr[0] as JObject;
-      if (obj == null) return null;
+      if (arr[0] is not JObject obj)
+        return null;
 
       var spec = obj["Spec"] as JObject;
       var taskTemplate = spec?["TaskTemplate"] as JObject;

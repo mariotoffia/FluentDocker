@@ -198,7 +198,8 @@ namespace FluentDocker.Tests.Integration.PodmanCliDriver
       finally
       {
         await RemoveContainerAsync(containerId);
-        if (File.Exists(tempFile)) File.Delete(tempFile);
+        if (File.Exists(tempFile))
+          File.Delete(tempFile);
       }
     }
 
@@ -239,7 +240,8 @@ namespace FluentDocker.Tests.Integration.PodmanCliDriver
       finally
       {
         await RemoveContainerAsync(containerId);
-        if (Directory.Exists(tempDir)) Directory.Delete(tempDir, true);
+        if (Directory.Exists(tempDir))
+          Directory.Delete(tempDir, true);
       }
     }
 
@@ -414,7 +416,8 @@ namespace FluentDocker.Tests.Integration.PodmanCliDriver
           Assert.True(logsResult.Success,
               $"GetLogs failed: {logsResult.Error}");
           logs = logsResult.Data?.Trim();
-          if (!string.IsNullOrWhiteSpace(logs)) break;
+          if (!string.IsNullOrWhiteSpace(logs))
+            break;
           await Task.Delay(2000);
         }
 
@@ -448,7 +451,7 @@ namespace FluentDocker.Tests.Integration.PodmanCliDriver
         await Task.Delay(5000);
 
         // Retry until actual content is available
-        string[] lines = Array.Empty<string>();
+        var lines = Array.Empty<string>();
         for (var attempt = 0; attempt < 5; attempt++)
         {
           var logsResult = await ContainerDriver.GetLogsAsync(
@@ -457,7 +460,8 @@ namespace FluentDocker.Tests.Integration.PodmanCliDriver
               $"GetLogs failed: {logsResult.Error}");
           lines = logsResult.Data.Split('\n',
               StringSplitOptions.RemoveEmptyEntries);
-          if (lines.Length > 0) break;
+          if (lines.Length > 0)
+            break;
           await Task.Delay(2000);
         }
 

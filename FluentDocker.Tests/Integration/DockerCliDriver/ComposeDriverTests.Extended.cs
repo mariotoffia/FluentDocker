@@ -491,7 +491,8 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
           ProjectName = projectName,
           RemoveVolumes = true
         });
-        if (File.Exists(tempFile)) File.Delete(tempFile);
+        if (File.Exists(tempFile))
+          File.Delete(tempFile);
       }
     }
 

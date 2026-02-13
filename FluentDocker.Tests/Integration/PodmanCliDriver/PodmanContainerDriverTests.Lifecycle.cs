@@ -104,7 +104,8 @@ namespace FluentDocker.Tests.Integration.PodmanCliDriver
       finally
       {
         await RemoveContainerAsync(containerId);
-        if (File.Exists(exportPath)) File.Delete(exportPath);
+        if (File.Exists(exportPath))
+          File.Delete(exportPath);
       }
     }
 
@@ -122,7 +123,8 @@ namespace FluentDocker.Tests.Integration.PodmanCliDriver
       }
       finally
       {
-        if (File.Exists(exportPath)) File.Delete(exportPath);
+        if (File.Exists(exportPath))
+          File.Delete(exportPath);
       }
     }
 

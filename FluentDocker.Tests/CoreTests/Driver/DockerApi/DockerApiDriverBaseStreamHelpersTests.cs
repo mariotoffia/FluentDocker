@@ -229,7 +229,8 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
       public override int Read(byte[] buffer, int offset, int count)
       {
         var available = Math.Min(count, Math.Min(_chunkSize, _data.Length - _position));
-        if (available <= 0) return 0;
+        if (available <= 0)
+          return 0;
         Array.Copy(_data, _position, buffer, offset, available);
         _position += available;
         return available;
