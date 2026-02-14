@@ -408,6 +408,11 @@ namespace FluentDocker.Builders
               ? _links.Select(l => l.Alias != l.ContainerName
                   ? $"{l.ContainerName}:{l.Alias}" : l.ContainerName).ToList()
               : null,
+        NetworkAliases = _networkAliases.Count > 0
+              ? _networkAliases
+                  .GroupBy(a => a.NetworkName)
+                  .ToDictionary(g => g.Key, g => g.Select(a => a.Alias).ToList())
+              : null,
         Pod = _pod
       };
 

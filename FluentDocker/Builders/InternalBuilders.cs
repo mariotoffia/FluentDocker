@@ -169,7 +169,6 @@ namespace FluentDocker.Builders
     /// <inheritdoc />
     string IDriverScopedBuilder.DriverId => _driverId;
     private readonly List<string> _composeFiles = new List<string>();
-    private readonly List<string> _envFiles = new List<string>();
     private readonly List<string> _profiles = new List<string>();
     private string _projectName;
     private readonly Dictionary<string, string> _environment = new Dictionary<string, string>();
@@ -207,7 +206,6 @@ namespace FluentDocker.Builders
 
     public IComposeBuilder WithEnvFile(string path)
     {
-      _envFiles.Add(path);
       if (System.IO.File.Exists(path))
       {
         foreach (var line in System.IO.File.ReadAllLines(path))

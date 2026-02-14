@@ -347,13 +347,6 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
           .SetupContainerStop()
           .SetupContainerRemove();
 
-      var envVars = new Dictionary<string, string>
-            {
-                { "DB_HOST", "localhost" },
-                { "DB_PORT", "5432" },
-                { "DB_NAME", "testdb" }
-            };
-
       // Act
       await new Builder()
           .WithinDriver(DriverId, Kernel)

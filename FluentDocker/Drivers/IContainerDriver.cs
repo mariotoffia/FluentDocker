@@ -294,6 +294,12 @@ namespace FluentDocker.Drivers
 
     /// <summary>Podman pod to join (Podman-only, ignored by Docker).</summary>
     public string Pod { get; set; }
+
+    /// <summary>
+    /// Network aliases keyed by network name.
+    /// Each entry maps a network name to one or more aliases for the container on that network.
+    /// </summary>
+    public Dictionary<string, List<string>> NetworkAliases { get; set; } = new Dictionary<string, List<string>>();
   }
 
   /// <summary>
