@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -15,7 +16,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
   /// Podman CLI implementation of IImageDriver.
   /// Supports Containerfile (alias for Dockerfile) and uses Buildah under the hood.
   /// </summary>
-  public class PodmanCliImageDriver : PodmanCliDriverBase, IImageDriver
+  public partial class PodmanCliImageDriver : PodmanCliDriverBase, IImageDriver
   {
     public PodmanCliImageDriver(IPodmanBinaryResolver binaryResolver) : base(binaryResolver)
     {
@@ -68,6 +69,51 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
 
     #region Build
 
+    /// <summary>
+    /// Builds the CLI arguments for <c>podman build</c>.
+    /// The <paramref name="iidFilePath"/> is appended via <c>--iidfile</c>
+    /// so Podman writes the image ID to a deterministic file.
+    /// </summary>
+    public static string BuildBuildArgs(ImageBuildConfig config, string iidFilePath)
+    {
+      var args = "build";
+
+      foreach (var tag in config.Tags)
+        args += $" -t {tag}";
+
+      if (!string.IsNullOrEmpty(config.DockerfileName))
+        args += $" -f {config.DockerfileName}";
+      if (config.NoCache)
+        args += " --no-cache";
+      if (config.Pull)
+        args += " --pull";
+      if (config.Rm)
+        args += " --rm";
+      if (config.ForceRm)
+        args += " --force-rm";
+      if (config.Squash)
+        args += " --squash";
+
+      if (!string.IsNullOrEmpty(config.Target))
+        args += $" --target {config.Target}";
+      if (!string.IsNullOrEmpty(config.Platform))
+        args += $" --platform {config.Platform}";
+      if (!string.IsNullOrEmpty(config.NetworkMode))
+        args += $" --network {config.NetworkMode}";
+
+      foreach (var buildArg in config.BuildArgs)
+        args += $" --build-arg {buildArg.Key}={buildArg.Value}";
+      foreach (var label in config.Labels)
+        args += $" --label {label.Key}={label.Value}";
+
+      if (!string.IsNullOrEmpty(iidFilePath))
+        args += $" --iidfile \"{iidFilePath}\"";
+
+      args += $" {config.BuildContext ?? "."}";
+
+      return args;
+    }
+
     /// <inheritdoc />
     public async Task<CommandResponse<ImageBuildResult>> BuildAsync(
         DriverContext context, ImageBuildConfig config,
@@ -76,49 +122,41 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
     {
       try
       {
-        var args = "build";
+        // Write image ID to a temp file for deterministic extraction.
+        // Podman (via Buildah) honours --iidfile.
+        var iidFile = Path.Combine(Path.GetTempPath(), $"podman-iid-{Guid.NewGuid():N}");
 
-        foreach (var tag in config.Tags)
-          args += $" -t {tag}";
-
-        if (!string.IsNullOrEmpty(config.DockerfileName))
-          args += $" -f {config.DockerfileName}";
-        if (config.NoCache)
-          args += " --no-cache";
-        if (config.Pull)
-          args += " --pull";
-        if (config.Rm)
-          args += " --rm";
-        if (config.ForceRm)
-          args += " --force-rm";
-        if (config.Squash)
-          args += " --squash";
-
-        if (!string.IsNullOrEmpty(config.Target))
-          args += $" --target {config.Target}";
-        if (!string.IsNullOrEmpty(config.Platform))
-          args += $" --platform {config.Platform}";
-        if (!string.IsNullOrEmpty(config.NetworkMode))
-          args += $" --network {config.NetworkMode}";
-
-        foreach (var buildArg in config.BuildArgs)
-          args += $" --build-arg {buildArg.Key}={buildArg.Value}";
-        foreach (var label in config.Labels)
-          args += $" --label {label.Key}={label.Value}";
-
-        args += $" {config.BuildContext ?? "."}";
-
-        var result = await ExecuteCommandAsync(args, cancellationToken);
-        if (!result.Success)
-          return CommandResponse<ImageBuildResult>.Fail(
-              result.Error ?? "Image build failed", ErrorCodes.Image.BuildFailed);
-
-        return CommandResponse<ImageBuildResult>.Ok(new ImageBuildResult
+        try
         {
-          Output = new List<string>(
-                result.Output?.Split('\n', StringSplitOptions.RemoveEmptyEntries)
-                ?? Array.Empty<string>())
-        });
+          var result = await ExecuteCommandAsync(BuildBuildArgs(config, iidFile), cancellationToken);
+          if (!result.Success)
+            return CommandResponse<ImageBuildResult>.Fail(
+                result.Error ?? "Image build failed", ErrorCodes.Image.BuildFailed);
+
+          var imageId = File.Exists(iidFile)
+              ? (await File.ReadAllTextAsync(iidFile, cancellationToken)).Trim()
+              : null;
+
+          if (string.IsNullOrEmpty(imageId))
+          {
+            return CommandResponse<ImageBuildResult>.Fail(
+                "Build succeeded but image ID could not be determined",
+                ErrorCodes.Image.BuildFailed);
+          }
+
+          return CommandResponse<ImageBuildResult>.Ok(new ImageBuildResult
+          {
+            ImageId = imageId,
+            Output = new List<string>(
+                  result.Output?.Split('\n', StringSplitOptions.RemoveEmptyEntries)
+                  ?? Array.Empty<string>())
+          });
+        }
+        finally
+        {
+          if (File.Exists(iidFile))
+            File.Delete(iidFile);
+        }
       }
       catch (Exception ex)
       {
@@ -199,180 +237,6 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       {
         return CommandResponse<IList<ImageLayer>>.Fail(ex.Message, ErrorCodes.Image.HistoryFailed);
       }
-    }
-
-    #endregion
-
-    #region Tag/Remove/Prune
-
-    /// <inheritdoc />
-    public async Task<CommandResponse<Unit>> TagAsync(
-        DriverContext context, string imageId, string repository, string tag,
-        CancellationToken cancellationToken = default)
-    {
-      try
-      {
-        var result = await ExecuteCommandAsync(
-            $"tag {imageId} {repository}:{tag}", cancellationToken);
-        return result.Success
-            ? CommandResponse<Unit>.Ok(Unit.Default)
-            : CommandResponse<Unit>.Fail(
-                result.Error ?? "Image tag failed", ErrorCodes.Image.TagFailed);
-      }
-      catch (Exception ex)
-      {
-        return CommandResponse<Unit>.Fail(ex.Message, ErrorCodes.Image.TagFailed);
-      }
-    }
-
-    /// <inheritdoc />
-    public async Task<CommandResponse<ImageRemoveResult>> RemoveAsync(
-        DriverContext context, string imageId, bool force = false, bool noPrune = false,
-        CancellationToken cancellationToken = default)
-    {
-      try
-      {
-        var args = "rmi";
-        if (force)
-          args += " -f";
-        if (noPrune)
-          args += " --no-prune";
-        args += $" {imageId}";
-
-        var result = await ExecuteCommandAsync(args, cancellationToken);
-        if (!result.Success)
-          return CommandResponse<ImageRemoveResult>.Fail(
-              result.Error ?? "Image remove failed", ErrorCodes.Image.RemoveFailed);
-
-        return CommandResponse<ImageRemoveResult>.Ok(new ImageRemoveResult());
-      }
-      catch (Exception ex)
-      {
-        return CommandResponse<ImageRemoveResult>.Fail(ex.Message, ErrorCodes.Image.RemoveFailed);
-      }
-    }
-
-    /// <inheritdoc />
-    public async Task<CommandResponse<ImagePruneResult>> PruneAsync(
-        DriverContext context, bool all = false,
-        Dictionary<string, string> filter = null,
-        CancellationToken cancellationToken = default)
-    {
-      try
-      {
-        var args = BuildImagePruneArgs(all, filter);
-
-        var result = await ExecuteCommandAsync(args, cancellationToken);
-        if (!result.Success)
-          return CommandResponse<ImagePruneResult>.Fail(
-              result.Error ?? "Image prune failed", ErrorCodes.Image.PruneFailed);
-
-        return CommandResponse<ImagePruneResult>.Ok(
-            CliPruneOutputParser.ParseImagePruneOutput(result.Output));
-      }
-      catch (Exception ex)
-      {
-        return CommandResponse<ImagePruneResult>.Fail(ex.Message, ErrorCodes.Image.PruneFailed);
-      }
-    }
-
-    #endregion
-
-    #region Save/Load/Import
-
-    /// <inheritdoc />
-    public async Task<CommandResponse<Unit>> SaveAsync(
-        DriverContext context, string[] images, string outputPath,
-        CancellationToken cancellationToken = default)
-    {
-      try
-      {
-        var args = $"save -o {QuoteArgumentIfNeeded(outputPath)} {string.Join(" ", images.Select(QuoteArgumentIfNeeded))}";
-        var result = await ExecuteCommandAsync(args, cancellationToken);
-        return result.Success
-            ? CommandResponse<Unit>.Ok(Unit.Default)
-            : CommandResponse<Unit>.Fail(
-                result.Error ?? "Image save failed", ErrorCodes.Image.SaveFailed);
-      }
-      catch (Exception ex)
-      {
-        return CommandResponse<Unit>.Fail(ex.Message, ErrorCodes.Image.SaveFailed);
-      }
-    }
-
-    /// <inheritdoc />
-    public async Task<CommandResponse<IList<string>>> LoadAsync(
-        DriverContext context, string inputPath,
-        CancellationToken cancellationToken = default)
-    {
-      try
-      {
-        var result = await ExecuteCommandAsync(
-            $"load -i {QuoteArgumentIfNeeded(inputPath)}", cancellationToken);
-        if (!result.Success)
-          return CommandResponse<IList<string>>.Fail(
-              result.Error ?? "Image load failed", ErrorCodes.Image.LoadFailed);
-
-        var loaded = new List<string>();
-        if (!string.IsNullOrEmpty(result.Output))
-          loaded.Add(result.Output.Trim());
-
-        return CommandResponse<IList<string>>.Ok(loaded);
-      }
-      catch (Exception ex)
-      {
-        return CommandResponse<IList<string>>.Fail(ex.Message, ErrorCodes.Image.LoadFailed);
-      }
-    }
-
-    /// <inheritdoc />
-    public async Task<CommandResponse<string>> ImportAsync(
-        DriverContext context, string source,
-        string repository = null, string tag = null, string message = null,
-        CancellationToken cancellationToken = default)
-    {
-      try
-      {
-        var args = "import";
-        if (!string.IsNullOrEmpty(message))
-          args += $" --message \"{message}\"";
-        args += $" {QuoteArgumentIfNeeded(source)}";
-        if (!string.IsNullOrEmpty(repository))
-        {
-          args += string.IsNullOrEmpty(tag) ? $" {repository}" : $" {repository}:{tag}";
-        }
-
-        var result = await ExecuteCommandAsync(args, cancellationToken);
-        if (!result.Success)
-          return CommandResponse<string>.Fail(
-              result.Error ?? "Image import failed", ErrorCodes.Image.ImportFailed);
-
-        return CommandResponse<string>.Ok(result.Output?.Trim());
-      }
-      catch (Exception ex)
-      {
-        return CommandResponse<string>.Fail(ex.Message, ErrorCodes.Image.ImportFailed);
-      }
-    }
-
-    #endregion
-
-    #region Argument Building
-
-    /// <summary>
-    /// Builds the CLI arguments string for <c>podman image prune</c>.
-    /// </summary>
-    public static string BuildImagePruneArgs(bool all, Dictionary<string, string> filter)
-    {
-      var args = "image prune -f";
-      if (all)
-        args += " -a";
-      if (filter != null)
-      {
-        foreach (var f in filter)
-          args += $" --filter {f.Key}={f.Value}";
-      }
-      return args;
     }
 
     #endregion

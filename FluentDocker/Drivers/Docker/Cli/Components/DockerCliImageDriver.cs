@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading;
@@ -87,6 +88,53 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
 
     #region Build Operations
 
+    /// <summary>
+    /// Builds the CLI arguments for <c>docker build</c>.
+    /// The <paramref name="iidFilePath"/> is appended via <c>--iidfile</c>
+    /// so Docker writes the image ID to a deterministic file.
+    /// </summary>
+    public static string BuildBuildArgs(ImageBuildConfig config, string iidFilePath)
+    {
+      var args = new List<string> { "build" };
+
+      if (!string.IsNullOrEmpty(config.DockerfileName))
+        args.Add($"--file {config.DockerfileName}");
+
+      foreach (var tag in config.Tags)
+        args.Add($"--tag {tag}");
+
+      foreach (var buildArg in config.BuildArgs)
+        args.Add($"--build-arg {buildArg.Key}={buildArg.Value}");
+
+      foreach (var label in config.Labels)
+        args.Add($"--label {label.Key}={label.Value}");
+
+      if (!string.IsNullOrEmpty(config.Target))
+        args.Add($"--target {config.Target}");
+
+      if (config.NoCache)
+        args.Add("--no-cache");
+
+      if (config.Pull)
+        args.Add("--pull");
+
+      if (config.ForceRm)
+        args.Add("--force-rm");
+
+      if (!string.IsNullOrEmpty(config.Platform))
+        args.Add($"--platform {config.Platform}");
+
+      if (!string.IsNullOrEmpty(config.NetworkMode))
+        args.Add($"--network {config.NetworkMode}");
+
+      if (!string.IsNullOrEmpty(iidFilePath))
+        args.Add($"--iidfile \"{iidFilePath}\"");
+
+      args.Add(config.BuildContext ?? ".");
+
+      return string.Join(" ", args);
+    }
+
     /// <inheritdoc />
     public async Task<CommandResponse<ImageBuildResult>> BuildAsync(
         DriverContext context,
@@ -96,60 +144,47 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     {
       try
       {
-        var args = new List<string> { "build" };
+        // Write image ID to a temp file for deterministic extraction.
+        // Both legacy builder and BuildKit honour --iidfile.
+        var iidFile = Path.Combine(Path.GetTempPath(), $"docker-iid-{Guid.NewGuid():N}");
 
-        if (!string.IsNullOrEmpty(config.DockerfileName))
-          args.Add($"--file {config.DockerfileName}");
-
-        foreach (var tag in config.Tags)
-          args.Add($"--tag {tag}");
-
-        foreach (var buildArg in config.BuildArgs)
-          args.Add($"--build-arg {buildArg.Key}={buildArg.Value}");
-
-        foreach (var label in config.Labels)
-          args.Add($"--label {label.Key}={label.Value}");
-
-        if (!string.IsNullOrEmpty(config.Target))
-          args.Add($"--target {config.Target}");
-
-        if (config.NoCache)
-          args.Add("--no-cache");
-
-        if (config.Pull)
-          args.Add("--pull");
-
-        if (config.ForceRm)
-          args.Add("--force-rm");
-
-        if (!string.IsNullOrEmpty(config.Platform))
-          args.Add($"--platform {config.Platform}");
-
-        if (!string.IsNullOrEmpty(config.NetworkMode))
-          args.Add($"--network {config.NetworkMode}");
-
-        args.Add(config.BuildContext ?? ".");
-
-        var result = await ExecuteCommandAsync(string.Join(" ", args), cancellationToken);
-
-        if (!result.Success)
+        try
         {
-          return CommandResponse<ImageBuildResult>.Fail(
-              result.Error ?? "Image build failed",
-              ErrorCodes.Image.BuildFailed,
-              CreateErrorContext(context, "BuildImage", result),
-              result.ExitCode);
+          var result = await ExecuteCommandAsync(BuildBuildArgs(config, iidFile), cancellationToken);
+
+          if (!result.Success)
+          {
+            return CommandResponse<ImageBuildResult>.Fail(
+                result.Error ?? "Image build failed",
+                ErrorCodes.Image.BuildFailed,
+                CreateErrorContext(context, "BuildImage", result),
+                result.ExitCode);
+          }
+
+          var imageId = File.Exists(iidFile)
+              ? (await File.ReadAllTextAsync(iidFile, cancellationToken)).Trim()
+              : null;
+
+          if (string.IsNullOrEmpty(imageId))
+          {
+            return CommandResponse<ImageBuildResult>.Fail(
+                "Build succeeded but image ID could not be determined",
+                ErrorCodes.Image.BuildFailed,
+                CreateErrorContext(context, "BuildImage", result),
+                result.ExitCode);
+          }
+
+          return CommandResponse<ImageBuildResult>.Ok(new ImageBuildResult
+          {
+            ImageId = imageId,
+            Warnings = new List<string>()
+          });
         }
-
-        // Extract image ID from build output (usually last line with "sha256:...").
-        // Modern BuildKit writes progress/output to stderr, so check both streams.
-        var imageId = ExtractImageId(result.Output) ?? ExtractImageId(result.Error) ?? "";
-
-        return CommandResponse<ImageBuildResult>.Ok(new ImageBuildResult
+        finally
         {
-          ImageId = imageId,
-          Warnings = new List<string>()
-        });
+          if (File.Exists(iidFile))
+            File.Delete(iidFile);
+        }
       }
       catch (Exception ex)
       {
@@ -284,31 +319,6 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
       public string CreatedSince { get; set; }
       public string Size { get; set; }
       public string Comment { get; set; }
-    }
-
-    /// <summary>
-    /// Scans build output lines (from the end) for a sha256 image ID.
-    /// Returns the ID or null if not found.
-    /// </summary>
-    private static string ExtractImageId(string output)
-    {
-      if (string.IsNullOrEmpty(output))
-        return null;
-
-      var lines = output.Split(new[] { '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries);
-      for (var i = lines.Length - 1; i >= 0; i--)
-      {
-        var line = lines[i];
-        if (!line.Contains("sha256:"))
-          continue;
-
-        var parts = line.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
-        var id = parts.Where(p => p.StartsWith("sha256:")).LastOrDefault();
-        if (id != null)
-          return id;
-      }
-
-      return null;
     }
 
     /// <summary>
