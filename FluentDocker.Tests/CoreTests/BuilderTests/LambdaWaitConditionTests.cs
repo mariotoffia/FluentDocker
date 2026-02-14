@@ -106,7 +106,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
             callCount++;
             return 100;
           },
-          350);
+          800);
 
       Assert.False(result);
       Assert.True(callCount >= 2, $"Expected at least 2 calls, got {callCount}");

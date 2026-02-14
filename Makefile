@@ -38,6 +38,7 @@ test:
 .PHONY: test-integration
 test-integration:
 	@mkdir -p .out/test
+	@rm -rf .out/test/integration-test.txt
 	dotnet test FluentDocker.Tests/FluentDocker.Tests.csproj --configuration Debug --verbosity normal 2>&1 | tee .out/test/integration-test.txt
 
 .PHONY: devlocal-setup
@@ -54,7 +55,9 @@ cleanup-test-resources:
 
 .PHONY: test-devlocal
 test-devlocal:
-	dotnet test FluentDocker.Tests/FluentDocker.Tests.csproj --filter "Category=DevLocal" --configuration Debug --verbosity normal
+	@mkdir -p .out/test
+	@rm -rf .out/test/devlocal-test.txt
+	dotnet test FluentDocker.Tests/FluentDocker.Tests.csproj --filter "Category=DevLocal" --configuration Debug --verbosity normal 2>&1 | tee .out/test/devlocal-test.txt
 
 .PHONY: benchmark
 benchmark:

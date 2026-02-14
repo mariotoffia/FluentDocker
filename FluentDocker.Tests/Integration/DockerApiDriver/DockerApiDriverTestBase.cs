@@ -43,8 +43,16 @@ namespace FluentDocker.Tests.Integration.DockerApiDriver
     protected IImageDriver ImageDriver => GetDriver<IImageDriver>();
     protected ISystemDriver SystemDriver => GetDriver<ISystemDriver>();
 
-    protected async Task EnsureImageAsync(string image)
+    protected async Task EnsureImageAsync(string image, bool force = false)
     {
+      if (!force)
+      {
+        var existing = await ImageDriver.ListAsync(Context,
+            new ImageListFilter { Reference = image });
+        if (existing.Success && existing.Data.Count > 0)
+          return;
+      }
+
       var parts = image.Split(':');
       var name = parts[0];
       var tag = parts.Length > 1 ? parts[1] : "latest";
