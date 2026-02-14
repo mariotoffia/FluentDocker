@@ -39,6 +39,8 @@ FluentDocker v3.0.0 is a major release with significant improvements:
 - Commands namespace **removed** (use Driver Layer)
 - Compose commands use struct-based arguments
 
+💡 **Skill to automate the upgrade from V2 -> V3**
+
 📖 **[Migration Guide →](docs/migration.md)**
 
 ---
@@ -201,10 +203,123 @@ using var imgResults = new Builder()
 
 ## Drivers
 
-FluentDocker ships with three drivers. All share a common set of interfaces
-(`IContainerDriver`, `IImageDriver`, `INetworkDriver`, `IVolumeDriver`,
-`ISystemDriver`, `IAuthDriver`, `IStreamDriver`) and each adds
-driver-specific capabilities on top.
+FluentDocker ships with three drivers:
+
+- Docker CLI
+- Docker API
+- Podman CLI
+
+All drivers share a common core (`IContainerDriver`, `IImageDriver`,
+`INetworkDriver`, `IVolumeDriver`, `ISystemDriver`, `IAuthDriver`,
+`IStreamDriver`) and add driver-specific capabilities on top.
+
+### Quick Driver Examples (Start Here)
+
+Use these imports in the snippets below:
+
+```csharp
+using System.Collections.Generic;
+using System.Linq;
+using FluentDocker.Builders;
+using FluentDocker.Drivers;
+using FluentDocker.Drivers.Podman;
+using FluentDocker.Kernel;
+using FluentDocker.Model.Drivers;
+```
+
+Create one kernel with both Docker CLI and Podman CLI:
+
+```csharp
+using var kernel = await FluentDockerKernel.Create()
+    .WithDockerCli("docker", d => d.AsDefault())
+    .WithPodmanCli("podman", d => d
+        .WithAutoStartMachine() // macOS/Windows: ensure Podman VM is running
+        .AsDefault())
+    .BuildAsync();
+```
+
+#### 1) Standard container (Docker CLI)
+
+```csharp
+await using var dockerResults = await new Builder()
+    .WithinDockerCli("docker", kernel)
+    .UseContainer(c => c
+        .UseImage("nginx:alpine")
+        .ExposePort("80")
+        .WaitForPort("80/tcp", 30000))
+    .BuildAsync();
+
+var dockerEndpoint = dockerResults.Containers.First()
+    .ToHostExposedEndpoint("80/tcp");
+```
+
+#### 2) Standard container (Podman CLI)
+
+```csharp
+await using var podmanResults = await new Builder()
+    .WithinPodmanCli("podman", kernel)
+    .UseContainer(c => c
+        .UseImage("nginx:alpine")
+        .ExposePort("80")
+        .WaitForPort("80/tcp", 30000))
+    .BuildAsync();
+
+var podmanEndpoint = podmanResults.Containers.First()
+    .ToHostExposedEndpoint("80/tcp");
+```
+
+#### 3) Docker Compose (Docker CLI)
+
+```csharp
+await using var composeResults = await new Builder()
+    .WithinDockerCli("docker", kernel)
+    .UseCompose(c => c
+        .WithComposeFile("docker-compose.yml")
+        .WithRemoveOrphans()
+        .WithWait())
+    .BuildAsync();
+
+var compose = composeResults.ComposeServices.First();
+```
+
+#### 4) Kubernetes play/down (Podman CLI)
+
+```csharp
+var podmanContext = new DriverContext("podman");
+var kube = kernel.SysCtl<IPodmanKubernetesDriver>("podman");
+
+var play = await kube.PlayAsync(podmanContext,
+    new KubePlayConfig
+    {
+        YamlPath = "pod.yaml",
+        Replace = true
+    });
+
+// Teardown when done
+await kube.DownAsync(podmanContext, "pod.yaml");
+```
+
+#### 5) Swarm stack deploy/remove (Docker CLI)
+
+```csharp
+// Requires Docker Swarm mode: docker swarm init
+var dockerContext = new DriverContext("docker");
+var stacks = kernel.SysCtl<IStackDriver>("docker");
+
+var deploy = await stacks.DeployAsync(dockerContext,
+    new StackDeployConfig
+    {
+        StackName = "web",
+        ComposeFiles = new List<string> { "docker-stack.yml" }
+    });
+
+var services = await stacks.GetServicesAsync(dockerContext, "web");
+
+// Teardown when done
+await stacks.RemoveAsync(dockerContext, new[] { "web" });
+```
+
+### Capability per Driver
 
 | Capability | Docker CLI | Docker API | Podman CLI |
 |---|:---:|:---:|:---:|
@@ -220,8 +335,7 @@ driver-specific capabilities on top.
 
 ### Kernel Setup
 
-Each driver is registered with a kernel through the builder API.
-You can register multiple drivers in the same kernel.
+Register one or more drivers in the kernel builder:
 
 ```csharp
 using var kernel = await FluentDockerKernel.Create()
@@ -229,66 +343,31 @@ using var kernel = await FluentDockerKernel.Create()
     .WithDockerApi("docker-api", d => d
         .WithConnectionTimeout(TimeSpan.FromSeconds(30)))
     .WithPodmanCli("podman", d => d
-        .WithAutoStartMachine()   // auto-start Podman VM on macOS/Windows
+        .WithAutoStartMachine()
         .AsDefault())
     .BuildAsync();
 ```
 
-### Common API — Works with Any Driver
+### Common API - Works with Any Driver
 
-The builder API and shared interfaces work identically regardless of which
-driver is active. Swap the driver ID and everything else stays the same.
+The fluent builder API is shared across drivers. Switch driver scope and keep
+the same container definition style.
 
 ```csharp
-// Type-safe: WithinPodmanCli exposes only Podman-valid operations
 await using var results = await new Builder()
-    .WithinPodmanCli("podman", kernel)
+    .WithinDriver(driverId, kernel) // driverId: "docker", "docker-api", "podman"
     .UseContainer(c => c
         .UseImage("postgres:15-alpine")
         .ExposePort("5432")
         .WithEnvironment("POSTGRES_PASSWORD=secret")
         .WaitForPort("5432/tcp", 30000))
     .BuildAsync();
-
-var endpoint = results.Containers.First()
-    .ToHostExposedEndpoint("5432/tcp");
-```
-
-The generic `WithinDriver()` still works for driver-portable code:
-
-```csharp
-// Generic: works with any driver ID
-await using var results = await new Builder()
-    .WithinDriver(driverId, kernel)
-    .UseContainer(c => c.UseImage("alpine:latest"))
-    .BuildAsync();
-```
-
-### Docker CLI — Compose and Swarm
-
-The Docker CLI driver adds Compose and Swarm support.
-
-```csharp
-using var kernel = FluentDockerKernel.Create()
-    .WithDockerCli("docker", d => d.AsDefault())
-    .Build();
-
-// Docker Compose (V2 — "docker compose" subcommand)
-// UseCompose() is only visible on DockerCliFluentBuilder
-await using var results = await new Builder()
-    .WithinDockerCli("docker", kernel)
-    .UseCompose(c => c
-        .WithComposeFile("docker-compose.yml")
-        .WithRemoveOrphans()
-        .WithWait())
-    .BuildAsync();
 ```
 
 ### Docker API — Direct Engine Communication
 
-The Docker API driver talks directly to the Docker Engine REST API over
-Unix socket, named pipe, or TCP+TLS. No CLI binary needed. It auto-detects
-the transport and negotiates the API version.
+The Docker API driver talks directly to the Docker Engine REST API over Unix
+socket, named pipe, or TCP+TLS. No Docker CLI binary is required.
 
 ```csharp
 using var kernel = await FluentDockerKernel.Create()
@@ -300,7 +379,6 @@ using var kernel = await FluentDockerKernel.Create()
         .AsDefault())
     .BuildAsync();
 
-// Use the common builder API
 await using var results = await new Builder()
     .WithinDockerApi("api", kernel)
     .UseContainer(c => c
@@ -308,36 +386,13 @@ await using var results = await new Builder()
         .ExposePort("6379"))
     .BuildAsync();
 
-// Or access the driver layer directly for streaming
 var stream = kernel.SysCtl<IStreamDriver>("api");
 var context = new DriverContext("api");
 await foreach (var ev in stream.StreamEventsAsync(context))
     Console.WriteLine($"Event: {ev.Action} on {ev.Type}");
 ```
 
-### Podman CLI — Pods, Kubernetes, Machines
-
-The Podman driver adds pod management, Kubernetes integration,
-machine lifecycle, and multi-arch manifest support.
-
-```csharp
-using var kernel = await FluentDockerKernel.Create()
-    .WithPodmanCli("podman", d => d
-        .WithAutoStartMachine()   // ensures VM is running on macOS/Windows
-        .AsDefault())
-    .BuildAsync();
-
-// Common builder API works the same; UsePod() only visible here
-await using var results = await new Builder()
-    .WithinPodmanCli("podman", kernel)
-    .UsePod(p => p.WithName("my-pod").WithPort("8080", "80"))
-    .UseContainer(c => c
-        .UseImage("nginx:alpine")
-        .ExposePort("80"))
-    .BuildAsync();
-```
-
-#### Podman-Specific Features via Driver Layer
+### Podman-Specific Features via Driver Layer
 
 Access Podman-only capabilities through `SysCtl<T>` or `TrySysCtl<T>`:
 
@@ -347,11 +402,6 @@ var context = new DriverContext("podman");
 // Pods
 var pods = kernel.SysCtl<IPodmanPodDriver>("podman");
 await pods.CreatePodAsync(context, new PodCreateConfig { Name = "my-pod" });
-
-// Kubernetes
-var kube = kernel.SysCtl<IPodmanKubernetesDriver>("podman");
-await kube.PlayAsync(context,
-    new KubePlayConfig { YamlPath = "/path/to/pod.yaml" });
 
 // Machine management
 var machines = kernel.SysCtl<IPodmanMachineDriver>("podman");
@@ -369,22 +419,14 @@ await manifest.CreateAsync(context,
 
 ### Writing Driver-Portable Code
 
-Use `TrySysCtl<T>` to write code that adapts to the active driver:
+Use `TrySysCtl<T>` when you want optional driver-specific behavior:
 
 ```csharp
-// Works with any driver, uses pods only when available
 if (kernel.TrySysCtl<IPodmanPodDriver>(driverId, out var podDriver))
 {
     await podDriver.CreatePodAsync(context,
         new PodCreateConfig { Name = "my-pod" });
 }
-
-// Generic WithinDriver() for portable code
-await using var results = await new Builder()
-    .WithinDriver(driverId, kernel)
-    .UseContainer(c => c
-        .UseImage("alpine:latest"))
-    .BuildAsync();
 ```
 
 ---
