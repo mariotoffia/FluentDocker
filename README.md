@@ -48,43 +48,81 @@ FluentDocker v3.0.0 is a major release with significant improvements:
 ## Quick Start
 
 ```csharp
+using System.Linq;
 using FluentDocker.Builders;
+using FluentDocker.Drivers.Podman;
 using FluentDocker.Kernel;
+using FluentDocker.Model.Drivers;
 
-// 1. Create a kernel (multiple kernels per app are supported)
-using var kernel = FluentDockerKernel.Create()
+// Multiple kernels per app are supported.
+// This kernel registers both Docker CLI and Podman CLI.
+using var kernel = await FluentDockerKernel.Create()
     .WithDockerCli("docker", d => d.AsDefault())
-    .Build();
-
-// 2. Start a container and wait for it to be ready
-using var results = new Builder()
-    .WithinDockerCli("docker", kernel)
-    .UseContainer(c => c
-        .UseImage("postgres:15-alpine")
-        .ExposePort("5432")
-        .WithEnvironment("POSTGRES_PASSWORD=mysecretpassword")
-        .WaitForPort("5432/tcp", 30000))
-    .Build();
-
-var container = results.Containers.First();
-var endpoint = container.ToHostExposedEndpoint("5432/tcp");
-Console.WriteLine($"Connect to: {endpoint.Address}:{endpoint.Port}");
+    .WithPodmanCli("podman", d => d.WithAutoStartMachine())
+    .BuildAsync();
 ```
 
-### Docker Compose
+### 1) Standard container (Docker CLI)
 
 ```csharp
-using var results = new Builder()
+await using var results = await new Builder()
+    .WithinDockerCli("docker", kernel)
+    .UseContainer(c => c
+        .UseImage("nginx:alpine")
+        .ExposePort("80")
+        .WaitForPort("80/tcp", 30000))
+    .BuildAsync();
+
+var endpoint = results.Containers.First()
+    .ToHostExposedEndpoint("80/tcp");
+Console.WriteLine($"Docker endpoint: {endpoint.Address}:{endpoint.Port}");
+```
+
+### 2) Standard container (Podman CLI)
+
+```csharp
+await using var results = await new Builder()
+    .WithinPodmanCli("podman", kernel)
+    .UseContainer(c => c
+        .UseImage("nginx:alpine")
+        .ExposePort("80")
+        .WaitForPort("80/tcp", 30000))
+    .BuildAsync();
+
+var endpoint = results.Containers.First()
+    .ToHostExposedEndpoint("80/tcp");
+Console.WriteLine($"Podman endpoint: {endpoint.Address}:{endpoint.Port}");
+```
+
+### 3) Docker Compose (Docker CLI)
+
+```csharp
+await using var results = await new Builder()
     .WithinDockerCli("docker", kernel)
     .UseCompose(c => c
         .WithComposeFile("docker-compose.yml")
         .WithRemoveOrphans()
         .WithWait()
         .WithWaitTimeout(30))
-    .Build();
+    .BuildAsync();
 
-// Access individual containers
 var compose = results.ComposeServices.First();
+```
+
+### 4) Podman Kubernetes (kube play / kube down)
+
+```csharp
+var context = new DriverContext("podman");
+var kube = kernel.SysCtl<IPodmanKubernetesDriver>("podman");
+
+await kube.PlayAsync(context, new KubePlayConfig
+{
+    YamlPath = "pod.yaml",
+    Replace = true
+});
+
+// Teardown
+await kube.DownAsync(context, "pod.yaml");
 ```
 
 ---
