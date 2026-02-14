@@ -97,12 +97,13 @@ namespace FluentDocker.Tests.Integration.PodmanCliDriver
         await ManifestDriver.CreateAsync(
             Context, new ManifestCreateConfig { Name = listName });
 
-        await ManifestDriver.AddAsync(
+        var addResult = await ManifestDriver.AddAsync(
             Context, new ManifestAddConfig
             {
               ListName = listName,
               Image = TestImage
             });
+        Assert.True(addResult.Success, $"Add failed: {addResult.Error}");
 
         var inspectResult = await ManifestDriver.InspectAsync(Context, listName);
         Assert.True(inspectResult.Success, $"Inspect failed: {inspectResult.Error}");
