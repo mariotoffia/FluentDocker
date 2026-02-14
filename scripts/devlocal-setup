@@ -38,7 +38,7 @@ if command -v podman &>/dev/null; then
     podman machine start
     echo "[podman] Default machine created and started"
   else
-    machine_name=$(echo "$machine_info" | awk '{print $1}')
+    machine_name=$(echo "$machine_info" | awk '{print $1}' | tr -d '*')
     machine_running=$(echo "$machine_info" | awk '{print $2}')
     if [ "$machine_running" = "true" ]; then
       echo "[podman] Machine '$machine_name' already running"

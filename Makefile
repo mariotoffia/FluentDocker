@@ -37,7 +37,8 @@ test:
 
 .PHONY: test-integration
 test-integration:
-	dotnet test FluentDocker.Tests/FluentDocker.Tests.csproj --configuration Debug --verbosity normal
+	@mkdir -p .out/test
+	dotnet test FluentDocker.Tests/FluentDocker.Tests.csproj --configuration Debug --verbosity normal 2>&1 | tee .out/test/integration-test.txt
 
 .PHONY: devlocal-setup
 devlocal-setup:
