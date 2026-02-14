@@ -11,19 +11,21 @@ or inline definitions. All builder operations require a kernel and a driver scop
 
 ## Kernel Setup
 
-Before using the builder, create a kernel once per application:
+Before using the builder, create a kernel.
+Multiple kernels per application are supported:
 
 ```csharp
 using FluentDocker.Kernel;
 using FluentDocker.Builders;
 
-// Create kernel (typically once per app or test fixture)
+// Create kernel (multiple kernels per app are supported)
 var kernel = FluentDockerKernel.Create()
     .WithDockerCli("docker", d => d.AsDefault())
     .Build();
 ```
 
-The kernel manages driver lifecycle and is reused across all builder calls.
+The kernel manages driver lifecycle. Many apps reuse one kernel across builder
+calls, but using multiple kernels in the same app is supported.
 
 ## Build from Dockerfile
 

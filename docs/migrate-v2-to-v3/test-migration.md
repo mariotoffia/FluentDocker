@@ -120,8 +120,8 @@ public class PostgresTests : IAsyncLifetime
 
 ## 2. xUnit Collection Fixtures
 
-Share a single kernel and container across multiple test classes. This avoids
-creating a new container per class and speeds up large test suites.
+Share one kernel and container across multiple test classes for speed. Multiple
+kernels per application are supported when you need stronger isolation.
 
 ### v2
 

@@ -10,8 +10,9 @@ FluentDocker provides full support for Docker Compose V2 (`docker compose` comma
 
 ## Kernel Setup
 
-Before using the builder, create a `FluentDockerKernel` once per application (or test
-fixture). The kernel registers drivers and is reused across all builder calls.
+Before using the builder, create a `FluentDockerKernel`. Multiple kernels per
+application (or test fixture) are supported. Many apps still reuse one kernel
+across builder calls for simplicity.
 
 ```csharp
 using FluentDocker.Kernel;

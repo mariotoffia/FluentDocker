@@ -45,15 +45,15 @@ docker info
 
 ### Basic Example
 
-The v3 API uses a two-step approach: first create a **kernel** (once per application),
-then use the **Builder** to define and run containers.
+The v3 API uses a two-step approach: first create a **kernel** (multiple kernels
+per application are supported), then use the **Builder** to define and run containers.
 
 ```csharp
 using FluentDocker.Builders;
 using FluentDocker.Kernel;
 using FluentDocker.Services.Extensions;
 
-// Step 1: Create a kernel (once per application lifetime)
+// Step 1: Create a kernel (multiple kernels per app are supported)
 using var kernel = FluentDockerKernel.Create()
     .WithDockerCli("docker", d => d.AsDefault())
     .Build();

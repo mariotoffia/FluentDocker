@@ -39,7 +39,7 @@ FluentDocker v3.0.0 is a major release with significant improvements:
 - Commands namespace **removed** (use Driver Layer)
 - Compose commands use struct-based arguments
 
-💡 **Skill to automate the upgrade from V2 -> V3**
+💡 **LLM Skill to semi-automate the upgrade from V2 -> V3**
 
 📖 **[Migration Guide →](docs/migration.md)**
 
@@ -51,7 +51,7 @@ FluentDocker v3.0.0 is a major release with significant improvements:
 using FluentDocker.Builders;
 using FluentDocker.Kernel;
 
-// 1. Create a kernel (once per application)
+// 1. Create a kernel (multiple kernels per app are supported)
 using var kernel = FluentDockerKernel.Create()
     .WithDockerCli("docker", d => d.AsDefault())
     .Build();
@@ -227,7 +227,8 @@ using FluentDocker.Kernel;
 using FluentDocker.Model.Drivers;
 ```
 
-Create one kernel with both Docker CLI and Podman CLI:
+Example: create a kernel with both Docker CLI and Podman CLI
+(multiple kernels per app are also supported):
 
 ```csharp
 using var kernel = await FluentDockerKernel.Create()

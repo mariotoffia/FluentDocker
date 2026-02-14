@@ -47,7 +47,8 @@ using FluentDocker.Builders;
 using FluentDocker.Kernel;
 using FluentDocker.Services.Extensions;
 
-// Step 1: Create a kernel with a Docker CLI driver (once per app/test session)
+// Step 1: Create a kernel with a Docker CLI driver
+// (multiple kernels per app/test session are supported)
 using var kernel = FluentDockerKernel.Create()
     .WithDockerCli("docker", d => d.AsDefault())
     .Build();

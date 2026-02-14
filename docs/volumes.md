@@ -11,7 +11,8 @@ All operations go through the kernel and driver-scoped builder pattern.
 
 ## Kernel Setup
 
-Before using any builder, create a kernel once per application:
+Before using any builder, create a kernel.
+Multiple kernels per application are supported:
 
 ```csharp
 using FluentDocker.Kernel;

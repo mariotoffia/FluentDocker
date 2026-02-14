@@ -60,7 +60,7 @@ Get-ChildItem -Recurse -Filter *.cs | ForEach-Object {
 v3 requires a kernel with a registered driver before building containers.
 
 ```csharp
-// NEW - Required kernel setup (once per application / test session)
+// NEW - Required kernel setup (multiple kernels per app/test session are supported)
 using var kernel = FluentDockerKernel.Create()
     .WithDockerCli("docker", d => d.AsDefault())
     .Build();

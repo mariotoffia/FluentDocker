@@ -10,7 +10,8 @@ FluentDocker provides full support for Docker networks, including custom network
 
 ## Kernel Setup
 
-All v3 operations require a kernel instance. Create it once and reuse throughout your application.
+All v3 operations require a kernel instance. Multiple kernels per application are
+supported.
 
 ```csharp
 using FluentDocker.Kernel;

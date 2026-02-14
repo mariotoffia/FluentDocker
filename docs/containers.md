@@ -10,14 +10,15 @@ Complete guide to creating, configuring, and managing containers with FluentDock
 
 ## Kernel Setup
 
-Before building any containers, create a kernel once per application. The kernel manages
-driver instances and provides access to container runtimes.
+Before building any containers, create a kernel. Multiple kernels per application
+are supported. The kernel manages driver instances and provides access to
+container runtimes.
 
 ```csharp
 using FluentDocker.Kernel;
 using FluentDocker.Builders;
 
-// Create kernel (once per application lifetime)
+// Create kernel (multiple kernels per app are supported)
 using var kernel = FluentDockerKernel.Create()
     .WithDockerCli("docker", d => d.AsDefault())
     .Build();

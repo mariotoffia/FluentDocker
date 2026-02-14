@@ -35,7 +35,7 @@ See the [Migration Guide](migration.html) for upgrading from v2.x.
 using FluentDocker.Builders;
 using FluentDocker.Kernel;
 
-// 1. Create a kernel (once per application)
+// 1. Create a kernel (multiple kernels per app are supported)
 using var kernel = FluentDockerKernel.Create()
     .WithDockerCli("docker", d => d.AsDefault())
     .Build();
