@@ -41,7 +41,9 @@ namespace FluentDocker.Testing.NUnit
       }
       catch
       {
-        try { if (resource != null) await resource.DisposeAsync(); } catch { /* best effort */ }
+        try
+        { if (resource != null) await resource.DisposeAsync(); }
+        catch { /* best effort */ }
         kernel?.Dispose();
         throw;
       }
@@ -72,7 +74,9 @@ namespace FluentDocker.Testing.NUnit
       }
       catch
       {
-        try { if (resource != null) await resource.DisposeAsync(); } catch { /* best effort */ }
+        try
+        { if (resource != null) await resource.DisposeAsync(); }
+        catch { /* best effort */ }
         kernel?.Dispose();
         throw;
       }
@@ -103,7 +107,9 @@ namespace FluentDocker.Testing.NUnit
       }
       catch
       {
-        try { if (resource != null) await resource.DisposeAsync(); } catch { /* best effort */ }
+        try
+        { if (resource != null) await resource.DisposeAsync(); }
+        catch { /* best effort */ }
         kernel?.Dispose();
         throw;
       }
@@ -137,7 +143,9 @@ namespace FluentDocker.Testing.NUnit
       }
       catch
       {
-        try { if (resource != null) await resource.DisposeAsync(); } catch { /* best effort */ }
+        try
+        { if (resource != null) await resource.DisposeAsync(); }
+        catch { /* best effort */ }
         kernel?.Dispose();
         throw;
       }
@@ -171,7 +179,9 @@ namespace FluentDocker.Testing.NUnit
       }
       catch
       {
-        try { if (resource != null) await resource.DisposeAsync(); } catch { /* best effort */ }
+        try
+        { if (resource != null) await resource.DisposeAsync(); }
+        catch { /* best effort */ }
         kernel?.Dispose();
         throw;
       }
@@ -210,7 +220,9 @@ namespace FluentDocker.Testing.NUnit
       }
       catch
       {
-        try { if (resource != null) await resource.DisposeAsync(); } catch { /* best effort */ }
+        try
+        { if (resource != null) await resource.DisposeAsync(); }
+        catch { /* best effort */ }
         kernel?.Dispose();
         throw;
       }

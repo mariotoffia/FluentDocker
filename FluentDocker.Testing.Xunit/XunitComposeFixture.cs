@@ -61,7 +61,9 @@ namespace FluentDocker.Testing.Xunit
       }
       catch
       {
-        try { if (resource != null) await resource.DisposeAsync(); } catch { /* best effort */ }
+        try
+        { if (resource != null) await resource.DisposeAsync(); }
+        catch { /* best effort */ }
         kernel?.Dispose();
         throw;
       }
