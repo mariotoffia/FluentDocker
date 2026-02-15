@@ -20,7 +20,7 @@ This guide helps you migrate from v2.x.x to v3.0.0.
 | Commands namespace removed | HIGH | Use Driver Layer |
 | Compose: struct-based arguments | MEDIUM | Update Compose calls |
 | Legacy test packages removed | HIGH | Use `FluentDocker.Testing.*` adapters ([details](testing/migration-from-legacy.html)) |
-| `FluentDockerTestBase` base class removed | HIGH | Use `XunitContainerFixture` / `MsTestResourceHelpers` |
+| `FluentDockerTestBase` base class removed | HIGH | Use `XunitContainerFixture` / `MsTestResourceHelpers` / `NUnitResourceHelpers` (or generic `XunitResourceFixture<T>` / `CreateResourceAsync<T>`) |
 | xUnit v3: `IAsyncLifetime` returns `ValueTask` | MEDIUM | Update `Task` → `ValueTask` |
 
 ## Step 1: Update NuGet Packages

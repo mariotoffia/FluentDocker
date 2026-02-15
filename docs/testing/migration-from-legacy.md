@@ -259,7 +259,7 @@ public class MyDbTests
             builder => builder
                 .UseImage("postgres:16-alpine")
                 .WithEnvironment("POSTGRES_PASSWORD", "test")
-                .WithPort("5432", null)
+                .ExposePort("5432")
                 .WaitForPort("5432/tcp"));
 
         // Resolve the mapped host port from inspect data
