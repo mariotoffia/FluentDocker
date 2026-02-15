@@ -29,7 +29,7 @@ FluentDocker's extensibility model lets drivers expose custom interfaces and bui
                                  └──────────┬───────────────────┘
                                             │ delegates to
                         ┌───────────────────▼──────────────────┐
-                        │   FluentDockerKernel.SysCtl(id, Type) │
+                        │  FluentDockerKernel.SysCtl(id, Type) │
                         └───────────────────┬──────────────────┘
                                             │ resolves via
                         ┌───────────────────▼──────────────────┐

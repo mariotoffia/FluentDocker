@@ -34,11 +34,11 @@ FluentDocker v3.0 introduces a **pluggable driver architecture** that supports m
                             ↓
 ┌────────────────────────────────────────────────────────────────┐
 │         Driver Layer (Multiple Instances)                      │
-│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐            │
-│  │  dc-1       │  │  dc-2       │  │  podman-1   │            │
-│  │ Docker CLI  │  │ Docker API  │  │ Podman CLI  │            │
-│  │ localhost   │  │ remote:2376 │  │ rootless    │            │
-│  └─────────────┘  └─────────────┘  └─────────────┘            │
+│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐             │
+│  │  dc-1       │  │  dc-2       │  │  podman-1   │             │
+│  │ Docker CLI  │  │ Docker API  │  │ Podman CLI  │             │
+│  │ localhost   │  │ remote:2376 │  │ rootless    │             │
+│  └─────────────┘  └─────────────┘  └─────────────┘             │
 └────────────────────────────────────────────────────────────────┘
 ```
 
