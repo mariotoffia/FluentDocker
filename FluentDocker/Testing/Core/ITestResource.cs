@@ -5,11 +5,11 @@ using System.Threading.Tasks;
 namespace FluentDocker.Testing.Core
 {
   /// <summary>
-  /// Represents an async-lifecycle Docker test resource.
+  /// Represents an async-lifecycle test resource.
   /// All test resources (containers, compose topologies, swarm stacks, etc.)
   /// implement this interface.
   /// </summary>
-  public interface IDockerResource : IAsyncDisposable
+  public interface ITestResource : IAsyncDisposable
   {
     /// <summary>
     /// Whether the resource has been successfully initialized and is ready for use.

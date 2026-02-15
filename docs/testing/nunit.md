@@ -95,7 +95,7 @@ public async Task Setup()
 
 ### Generic / Custom Resource
 
-Use `CreateResourceAsync<T>` for plugin or custom `IDockerResource` types:
+Use `CreateResourceAsync<T>` for plugin or custom `ITestResource` types:
 
 ```csharp
 [OneTimeSetUp]

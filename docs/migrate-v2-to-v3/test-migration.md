@@ -9,7 +9,7 @@ nav_order: 3
 
 How to migrate FluentDocker v2.x.x test code to v3.0.0.
 
-> **Note:** The legacy `FluentDocker.MsTest` and `FluentDocker.XUnit` packages
+> **Note:** The legacy `Ductus.FluentDocker.MsTest` and `Ductus.FluentDocker.XUnit` packages
 > have been removed. The examples below show the builder-level API changes.
 > For test support, use the new `FluentDocker.Testing.*` packages. See
 > [Migration from Legacy](../testing/migration-from-legacy.html) for

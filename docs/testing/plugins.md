@@ -36,7 +36,7 @@ public interface ITestPluginRegistry
     void RegisterFactory<TResource>(
         string key,
         Func<IServiceProvider, TResource> factory)
-        where TResource : class, IDockerResource;
+        where TResource : class, ITestResource;
 }
 ```
 
@@ -48,8 +48,8 @@ Manages plugins and resolves resource factories at test time.
 public interface ITestPluginHost
 {
     ITestPluginHost Add(ITestPlugin plugin);
-    TResource Create<TResource>() where TResource : class, IDockerResource;
-    TResource Create<TResource>(string key) where TResource : class, IDockerResource;
+    TResource Create<TResource>() where TResource : class, ITestResource;
+    TResource Create<TResource>(string key) where TResource : class, ITestResource;
     bool HasFactory(string key);
 }
 ```

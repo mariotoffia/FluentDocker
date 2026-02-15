@@ -268,36 +268,37 @@ Logging.Disabled();
 
 ## SudoMechanism
 
-Configure sudo behavior for Linux environments.
+Configure sudo behavior for Linux environments via the kernel builder.
 
 ### No Sudo (Default)
 
 ```csharp
-using FluentDocker.Model.Common;
-
-SudoMechanism.None.SetSudo();
+using var kernel = await FluentDockerKernel.Create()
+    .WithDockerCli("docker", d => d.AsDefault())
+    .BuildAsync();
 // Commands run without sudo
 ```
 
 ### Passwordless Sudo
 
 ```csharp
-SudoMechanism.NoPassword.SetSudo();
+using var kernel = await FluentDockerKernel.Create()
+    .WithDockerCli("docker", d => d
+        .WithSudo(SudoMechanism.NoPassword)
+        .AsDefault())
+    .BuildAsync();
 // Commands prefixed with: sudo
 ```
 
 ### Sudo with Password
 
 ```csharp
-SudoMechanism.Password.SetSudo("your-password");
+using var kernel = await FluentDockerKernel.Create()
+    .WithDockerCli("docker", d => d
+        .WithSudo(SudoMechanism.Password, "your-password")
+        .AsDefault())
+    .BuildAsync();
 // Commands prefixed with: echo 'password' | sudo -S
-```
-
-### Check Current Setting
-
-```csharp
-var current = SudoMechanism.Current;
-Console.WriteLine($"Sudo mechanism: {current}");
 ```
 
 ## Model Extensions

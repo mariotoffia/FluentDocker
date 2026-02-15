@@ -12,12 +12,12 @@ namespace FluentDocker.Testing.Core
   /// Base class for all Docker test resources. Provides shared lifecycle,
   /// diagnostics, cleanup, and hook infrastructure.
   /// </summary>
-  public abstract class ResourceBase : IDockerResource
+  public abstract class ResourceBase : ITestResource
   {
-    private readonly List<Func<IDockerResource, Task>> _beforeInitHooks = new();
-    private readonly List<Func<IDockerResource, Task>> _afterReadyHooks = new();
-    private readonly List<Func<IDockerResource, Task>> _beforeDisposeHooks = new();
-    private readonly List<Func<IDockerResource, Task>> _afterDisposeHooks = new();
+    private readonly List<Func<ITestResource, Task>> _beforeInitHooks = new();
+    private readonly List<Func<ITestResource, Task>> _afterReadyHooks = new();
+    private readonly List<Func<ITestResource, Task>> _beforeDisposeHooks = new();
+    private readonly List<Func<ITestResource, Task>> _afterDisposeHooks = new();
 
     /// <summary>
     /// Creates a new resource with the given kernel and options.
@@ -61,7 +61,7 @@ namespace FluentDocker.Testing.Core
     /// <summary>
     /// Adds a hook invoked before initialization starts.
     /// </summary>
-    public ResourceBase OnBeforeInitialize(Func<IDockerResource, Task> hook)
+    public ResourceBase OnBeforeInitialize(Func<ITestResource, Task> hook)
     {
       _beforeInitHooks.Add(hook ?? throw new ArgumentNullException(nameof(hook)));
       return this;
@@ -70,7 +70,7 @@ namespace FluentDocker.Testing.Core
     /// <summary>
     /// Adds a hook invoked after the resource is ready.
     /// </summary>
-    public ResourceBase OnAfterReady(Func<IDockerResource, Task> hook)
+    public ResourceBase OnAfterReady(Func<ITestResource, Task> hook)
     {
       _afterReadyHooks.Add(hook ?? throw new ArgumentNullException(nameof(hook)));
       return this;
@@ -79,7 +79,7 @@ namespace FluentDocker.Testing.Core
     /// <summary>
     /// Adds a hook invoked before disposal starts.
     /// </summary>
-    public ResourceBase OnBeforeDispose(Func<IDockerResource, Task> hook)
+    public ResourceBase OnBeforeDispose(Func<ITestResource, Task> hook)
     {
       _beforeDisposeHooks.Add(hook ?? throw new ArgumentNullException(nameof(hook)));
       return this;
@@ -88,7 +88,7 @@ namespace FluentDocker.Testing.Core
     /// <summary>
     /// Adds a hook invoked after disposal completes.
     /// </summary>
-    public ResourceBase OnAfterDispose(Func<IDockerResource, Task> hook)
+    public ResourceBase OnAfterDispose(Func<ITestResource, Task> hook)
     {
       _afterDisposeHooks.Add(hook ?? throw new ArgumentNullException(nameof(hook)));
       return this;
@@ -96,7 +96,7 @@ namespace FluentDocker.Testing.Core
 
     #endregion
 
-    #region IDockerResource
+    #region ITestResource
 
     /// <inheritdoc />
     public async Task InitializeAsync(CancellationToken cancellationToken = default)
@@ -257,7 +257,7 @@ namespace FluentDocker.Testing.Core
     }
 
     private async Task RunHooksAsync(
-        List<Func<IDockerResource, Task>> hooks,
+        List<Func<ITestResource, Task>> hooks,
         CancellationToken cancellationToken)
     {
       foreach (var hook in hooks)

@@ -1,15 +1,15 @@
 # Migration from Legacy Test Packages
 
-This guide shows how to migrate from the legacy `FluentDocker.XUnit` and
-`FluentDocker.MsTest` packages to the new `FluentDocker.Testing.Core` system
+This guide shows how to migrate from the legacy `Ductus.FluentDocker.XUnit` and
+`Ductus.FluentDocker.MsTest` packages to the new `FluentDocker.Testing.Core` system
 with framework adapters.
 
 ## Package Changes
 
 | Legacy Package | New Package |
 |---|---|
-| `FluentDocker.XUnit` | `FluentDocker.Testing.Xunit` |
-| `FluentDocker.MsTest` | `FluentDocker.Testing.MsTest` |
+| `Ductus.FluentDocker.XUnit` | `FluentDocker.Testing.Xunit` |
+| `Ductus.FluentDocker.MsTest` | `FluentDocker.Testing.MsTest` |
 | (none) | `FluentDocker.Testing.NUnit` |
 
 The legacy packages have been removed. Use the new packages listed above.
@@ -31,7 +31,7 @@ The legacy packages have been removed. Use the new packages listed above.
 ### Before (legacy)
 
 ```csharp
-using FluentDocker.XUnit;
+using Ductus.FluentDocker.XUnit;
 
 public class RedisFixture : FluentDockerTestBase
 {
@@ -90,7 +90,7 @@ public class RedisTests : IClassFixture<RedisFixture>
 
 **What changed:**
 
-- Package reference: `FluentDocker.XUnit` to `FluentDocker.Testing.Xunit`
+- Package reference: `Ductus.FluentDocker.XUnit` to `FluentDocker.Testing.Xunit`
 - Base class: `FluentDockerTestBase` to `XunitContainerFixture`
 - Configuration: `ConfigureContainer` override to `InitializeAsync` lambda
 - No kernel management needed; the fixture handles it internally
@@ -102,7 +102,7 @@ public class RedisTests : IClassFixture<RedisFixture>
 ### Before (legacy)
 
 ```csharp
-using FluentDocker.MsTest;
+using Ductus.FluentDocker.MsTest;
 
 [TestClass]
 public class RedisTests : FluentDockerTestBase
@@ -161,7 +161,7 @@ public class RedisTests
 
 **What changed:**
 
-- Package reference: `FluentDocker.MsTest` to `FluentDocker.Testing.MsTest`
+- Package reference: `Ductus.FluentDocker.MsTest` to `FluentDocker.Testing.MsTest`
 - No more base class inheritance; uses static helper methods
 - `ClassInitialize`/`ClassCleanup` manage the lifecycle
 - Access container via `_resource.Container` instead of `Container`
@@ -173,7 +173,7 @@ public class RedisTests
 ### Before (legacy)
 
 ```csharp
-using FluentDocker.MsTest;
+using Ductus.FluentDocker.MsTest;
 
 [TestClass]
 public class ComposeTests : FluentDockerComposeTestBase
@@ -222,7 +222,7 @@ public class ComposeTests
 ### Before (legacy)
 
 ```csharp
-using FluentDocker.MsTest;
+using Ductus.FluentDocker.MsTest;
 
 [TestClass]
 public class MyDbTests : PostgresTestBase

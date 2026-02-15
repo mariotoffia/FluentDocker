@@ -5,10 +5,10 @@ The testing core lives inside the main `FluentDocker` assembly under the namespa
 
 ## Core Types
 
-### `IDockerResource`
+### `ITestResource`
 
 ```csharp
-public interface IDockerResource : IAsyncDisposable
+public interface ITestResource : IAsyncDisposable
 {
     bool IsInitialized { get; }
     Task InitializeAsync(CancellationToken cancellationToken = default);

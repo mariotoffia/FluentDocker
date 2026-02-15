@@ -111,7 +111,7 @@ public class KubeFixture : XunitPodmanKubernetesFixture
 
 ### `XunitResourceFixture<TResource>`
 
-Generic fixture for any `IDockerResource`, including plugin resources:
+Generic fixture for any `ITestResource`, including plugin resources:
 
 ```csharp
 public class MyPluginFixture : XunitResourceFixture<ContainerResource>

@@ -577,8 +577,8 @@ Legacy test packages have been removed. Use the new packages:
 
 | Legacy | New Package |
 |---|---|
-| `FluentDocker.XUnit` | `FluentDocker.Testing.Xunit` |
-| `FluentDocker.MsTest` | `FluentDocker.Testing.MsTest` |
+| `Ductus.FluentDocker.XUnit` | `FluentDocker.Testing.Xunit` |
+| `Ductus.FluentDocker.MsTest` | `FluentDocker.Testing.MsTest` |
 | (none) | `FluentDocker.Testing.NUnit` |
 
 Key changes:

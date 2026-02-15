@@ -198,7 +198,7 @@ namespace FluentDocker.Tests.CoreTests.Testing
           .SetupContainerStop()
           .SetupContainerRemove();
 
-      IDockerResource receivedInHook = null;
+      ITestResource receivedInHook = null;
 
       var resource = new ContainerResource(
           Kernel,

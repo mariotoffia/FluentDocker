@@ -149,7 +149,7 @@ namespace FluentDocker.Tests.CoreTests.Testing
 
     #region Test Doubles
 
-    private class FakeResource : IDockerResource
+    private class FakeResource : ITestResource
     {
       public bool IsInitialized => false;
       public Task InitializeAsync(CancellationToken cancellationToken = default)

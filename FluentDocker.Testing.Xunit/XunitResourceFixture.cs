@@ -6,14 +6,14 @@ using FluentDocker.Testing.Core;
 namespace FluentDocker.Testing.Xunit
 {
   /// <summary>
-  /// Generic xUnit fixture for any <see cref="IDockerResource"/>.
+  /// Generic xUnit fixture for any <see cref="ITestResource"/>.
   /// Use this for plugin resources or custom resource types.
   /// Use with <c>IClassFixture&lt;XunitResourceFixture&lt;TResource&gt;&gt;</c> or
   /// <c>ICollectionFixture&lt;XunitResourceFixture&lt;TResource&gt;&gt;</c>.
   /// </summary>
   /// <typeparam name="TResource">The resource type to manage.</typeparam>
   public class XunitResourceFixture<TResource> : IAsyncDisposable
-      where TResource : class, IDockerResource
+      where TResource : class, ITestResource
   {
     private TResource _resource;
 
@@ -37,38 +37,15 @@ namespace FluentDocker.Testing.Xunit
         Func<FluentDockerKernel, TResource> resourceFactory,
         Func<Task<FluentDockerKernel>> kernelFactory = null)
     {
-      ArgumentNullException.ThrowIfNull(resourceFactory);
-
       if (_resource != null)
         throw new InvalidOperationException(
             "Fixture has already been initialized. Dispose before re-initializing.");
 
-      FluentDockerKernel kernel = null;
-      TResource resource = null;
-      try
-      {
-        kernel = kernelFactory != null
-            ? await kernelFactory()
-            : await FluentDockerKernel.Create()
-                .WithDockerCli("docker-cli", d => d.AsDefault())
-                .BuildAsync();
+      var (kernel, resource) = await ResourceLifecycle.CreateAndInitializeAsync(
+          resourceFactory, kernelFactory);
 
-        resource = resourceFactory(kernel)
-            ?? throw new InvalidOperationException(
-                "resourceFactory returned null. The factory must return a non-null resource.");
-        await resource.InitializeAsync();
-
-        Kernel = kernel;
-        _resource = resource;
-      }
-      catch
-      {
-        try
-        { if (resource != null) await resource.DisposeAsync(); }
-        catch { /* best effort */ }
-        kernel?.Dispose();
-        throw;
-      }
+      Kernel = kernel;
+      _resource = resource;
     }
 
     /// <inheritdoc />

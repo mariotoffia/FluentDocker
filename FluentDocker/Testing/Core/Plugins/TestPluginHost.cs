@@ -65,14 +65,14 @@ namespace FluentDocker.Testing.Core.Plugins
     }
 
     /// <inheritdoc />
-    public TResource Create<TResource>() where TResource : class, IDockerResource
+    public TResource Create<TResource>() where TResource : class, ITestResource
     {
       // Use the type name as the default key
       return Create<TResource>(typeof(TResource).Name);
     }
 
     /// <inheritdoc />
-    public TResource Create<TResource>(string key) where TResource : class, IDockerResource
+    public TResource Create<TResource>(string key) where TResource : class, ITestResource
     {
       if (!_factories.TryGetValue(key, out var factory))
       {

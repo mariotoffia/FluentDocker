@@ -29,6 +29,8 @@ FluentDocker v3.0.0 is a major release with significant improvements:
 - **Static IPv4/IPv6** assignment for containers
 - **Directory copy** support (recursive copy to/from containers)
 - **Docker Compose V2** — uses `docker compose` subcommand
+- **Test Support** — `FluentDocker.Testing.Core` resource lifecycle with xUnit, MSTest, and NUnit adapters
+- **Test Plugin Architecture** — extensible `ITestResource` system with lifecycle hooks, diagnostics, and capability checks
 
 ### Breaking Changes
 

@@ -149,14 +149,17 @@ FluentDocker uses a three-layer architecture:
 
 ## Linux Users
 
-Docker requires sudo by default. Options:
+Docker requires sudo by default. Configure via the kernel builder:
 
 ```csharp
-SudoMechanism.None.SetSudo();       // Default
-SudoMechanism.NoPassword.SetSudo(); // Passwordless sudo
+using var kernel = await FluentDockerKernel.Create()
+    .WithDockerCli("docker", d => d
+        .WithSudo(SudoMechanism.NoPassword)
+        .AsDefault())
+    .BuildAsync();
 ```
 
-Or: `sudo usermod -aG docker $USER`
+Or avoid sudo entirely: `sudo usermod -aG docker $USER`
 
 ## Resources
 

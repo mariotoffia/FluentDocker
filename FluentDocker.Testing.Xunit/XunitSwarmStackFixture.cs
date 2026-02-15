@@ -46,30 +46,12 @@ namespace FluentDocker.Testing.Xunit
         throw new InvalidOperationException(
             "Fixture has already been initialized. Dispose before re-initializing.");
 
-      FluentDockerKernel kernel = null;
-      SwarmStackResource resource = null;
-      try
-      {
-        kernel = kernelFactory != null
-            ? await kernelFactory()
-            : await FluentDockerKernel.Create()
-                .WithDockerCli("docker-cli", d => d.AsDefault())
-                .BuildAsync();
+      var (kernel, resource) = await ResourceLifecycle.CreateAndInitializeAsync(
+          k => new SwarmStackResource(k, config, options),
+          kernelFactory);
 
-        resource = new SwarmStackResource(kernel, config, options);
-        await resource.InitializeAsync();
-
-        Kernel = kernel;
-        _resource = resource;
-      }
-      catch
-      {
-        try
-        { if (resource != null) await resource.DisposeAsync(); }
-        catch { /* best effort */ }
-        kernel?.Dispose();
-        throw;
-      }
+      Kernel = kernel;
+      _resource = resource;
     }
 
     /// <inheritdoc />

@@ -107,7 +107,7 @@ public static async Task ClassInit(TestContext context)
 
 ### Generic / Custom Resource
 
-Use `CreateResourceAsync<T>` for plugin or custom `IDockerResource` types:
+Use `CreateResourceAsync<T>` for plugin or custom `ITestResource` types:
 
 ```csharp
 [ClassInitialize]

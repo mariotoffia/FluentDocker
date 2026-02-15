@@ -46,30 +46,13 @@ namespace FluentDocker.Testing.Xunit
         throw new InvalidOperationException(
             "Fixture has already been initialized. Dispose before re-initializing.");
 
-      FluentDockerKernel kernel = null;
-      PodmanKubernetesResource resource = null;
-      try
-      {
-        kernel = kernelFactory != null
-            ? await kernelFactory()
-            : await FluentDockerKernel.Create()
-                .WithPodmanCli("podman-cli", d => d.AsDefault())
-                .BuildAsync();
+      var (kernel, resource) = await ResourceLifecycle.CreateAndInitializeAsync(
+          k => new PodmanKubernetesResource(k, config, options),
+          kernelFactory,
+          ResourceLifecycle.CreateDefaultPodmanKernelAsync);
 
-        resource = new PodmanKubernetesResource(kernel, config, options);
-        await resource.InitializeAsync();
-
-        Kernel = kernel;
-        _resource = resource;
-      }
-      catch
-      {
-        try
-        { if (resource != null) await resource.DisposeAsync(); }
-        catch { /* best effort */ }
-        kernel?.Dispose();
-        throw;
-      }
+      Kernel = kernel;
+      _resource = resource;
     }
 
     /// <inheritdoc />
