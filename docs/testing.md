@@ -10,8 +10,7 @@ FluentDocker v3 provides two generations of test support:
 
 | Approach | Packages | Status |
 |---|---|---|
-| **Testing.Core** (recommended) | Built into `FluentDocker` + adapters | Current |
-| **Legacy base classes** | `FluentDocker.MsTest`, `FluentDocker.XUnit` | Deprecated |
+| **Testing.Core** | Built into `FluentDocker` + adapters | Current |
 
 ## Testing.Core (Recommended)
 
@@ -130,75 +129,6 @@ Tests use `[Trait("Category", "...")]` attributes (`make test` runs Unit,
 `make test-integration` runs all, `dotnet test --filter "Category=X"` for a
 single category). See [Test Categories & Run Guide](test-categories.html) for
 the full reference.
-
----
-
-## Legacy Packages (Deprecated)
-
-The legacy packages `FluentDocker.MsTest` and `FluentDocker.XUnit` provide
-base classes that manage a single container per test class. They remain
-functional but are not recommended for new code.
-
-```bash
-dotnet add package FluentDocker.MsTest  # Legacy MSTest base classes
-dotnet add package FluentDocker.XUnit   # Legacy xUnit base classes
-```
-
-### MSTest -- FluentDockerTestBase
-
-```csharp
-using FluentDocker.MsTest;
-
-[TestClass]
-public class NginxTests : FluentDockerTestBase
-{
-    protected override void ConfigureContainer(IContainerBuilder builder)
-    {
-        builder
-            .UseImage("nginx:alpine")
-            .ExposePort("80")
-            .WaitForPort("80/tcp", 30000);
-    }
-
-    [TestMethod]
-    public void Container_IsRunning()
-    {
-        Assert.AreEqual(ServiceRunningState.Running, Container.State);
-    }
-}
-```
-
-### xUnit -- FluentDockerTestBase
-
-```csharp
-using FluentDocker.XUnit;
-
-public class NginxFixture : FluentDockerTestBase
-{
-    protected override void ConfigureContainer(IContainerBuilder builder)
-    {
-        builder
-            .UseImage("nginx:alpine")
-            .ExposePort("80")
-            .WaitForPort("80/tcp", 30000);
-    }
-}
-
-public class NginxTests : IClassFixture<NginxFixture>
-{
-    private readonly NginxFixture _fixture;
-    public NginxTests(NginxFixture fixture) => _fixture = fixture;
-
-    [Fact]
-    public void Container_IsRunning()
-    {
-        Assert.Equal(ServiceRunningState.Running, _fixture.Container.State);
-    }
-}
-```
-
-See [Migration from Legacy](testing/migration-from-legacy.html) for detailed
-migration examples from these packages to Testing.Core.
 
 ---
 

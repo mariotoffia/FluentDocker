@@ -17,8 +17,6 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution 
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "FluentDocker", "FluentDocker\FluentDocker.csproj", "{20B06EAB-41AD-4C1C-8375-5FE120F22B91}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "FluentDocker.MsTest", "FluentDocker.MsTest\FluentDocker.MsTest.csproj", "{0BA07552-BC03-43EC-8D01-087AE89BE436}"
-EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "FluentDocker.Tests", "FluentDocker.Tests\FluentDocker.Tests.csproj", "{FA836F5A-6361-4042-9B12-E38EB057CD41}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "data", "data", "{60257CD9-E6FE-4F23-A675-34B7DD1C27F1}"
@@ -26,8 +24,6 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "data", "data", "{60257CD9-E
 		data\docker_event_sample_1.json = data\docker_event_sample_1.json
 		data\docker_network_inspect.json = data\docker_network_inspect.json
 	EndProjectSection
-EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FluentDocker.XUnit", "FluentDocker.XUnit\FluentDocker.XUnit.csproj", "{F8020BBA-78F7-426A-BE28-13716CC17966}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FluentDocker.Benchmarks", "FluentDocker.Benchmarks\FluentDocker.Benchmarks.csproj", "{0294194F-ECBF-4F86-AD1C-ED9286C72AF4}"
 EndProject
@@ -59,18 +55,6 @@ Global
 		{20B06EAB-41AD-4C1C-8375-5FE120F22B91}.Release|x64.Build.0 = Release|Any CPU
 		{20B06EAB-41AD-4C1C-8375-5FE120F22B91}.Release|x86.ActiveCfg = Release|Any CPU
 		{20B06EAB-41AD-4C1C-8375-5FE120F22B91}.Release|x86.Build.0 = Release|Any CPU
-		{0BA07552-BC03-43EC-8D01-087AE89BE436}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{0BA07552-BC03-43EC-8D01-087AE89BE436}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{0BA07552-BC03-43EC-8D01-087AE89BE436}.Debug|x64.ActiveCfg = Debug|Any CPU
-		{0BA07552-BC03-43EC-8D01-087AE89BE436}.Debug|x64.Build.0 = Debug|Any CPU
-		{0BA07552-BC03-43EC-8D01-087AE89BE436}.Debug|x86.ActiveCfg = Debug|Any CPU
-		{0BA07552-BC03-43EC-8D01-087AE89BE436}.Debug|x86.Build.0 = Debug|Any CPU
-		{0BA07552-BC03-43EC-8D01-087AE89BE436}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{0BA07552-BC03-43EC-8D01-087AE89BE436}.Release|Any CPU.Build.0 = Release|Any CPU
-		{0BA07552-BC03-43EC-8D01-087AE89BE436}.Release|x64.ActiveCfg = Release|Any CPU
-		{0BA07552-BC03-43EC-8D01-087AE89BE436}.Release|x64.Build.0 = Release|Any CPU
-		{0BA07552-BC03-43EC-8D01-087AE89BE436}.Release|x86.ActiveCfg = Release|Any CPU
-		{0BA07552-BC03-43EC-8D01-087AE89BE436}.Release|x86.Build.0 = Release|Any CPU
 		{FA836F5A-6361-4042-9B12-E38EB057CD41}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{FA836F5A-6361-4042-9B12-E38EB057CD41}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{FA836F5A-6361-4042-9B12-E38EB057CD41}.Debug|x64.ActiveCfg = Debug|Any CPU
@@ -83,18 +67,6 @@ Global
 		{FA836F5A-6361-4042-9B12-E38EB057CD41}.Release|x64.Build.0 = Release|Any CPU
 		{FA836F5A-6361-4042-9B12-E38EB057CD41}.Release|x86.ActiveCfg = Release|Any CPU
 		{FA836F5A-6361-4042-9B12-E38EB057CD41}.Release|x86.Build.0 = Release|Any CPU
-		{F8020BBA-78F7-426A-BE28-13716CC17966}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{F8020BBA-78F7-426A-BE28-13716CC17966}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{F8020BBA-78F7-426A-BE28-13716CC17966}.Debug|x64.ActiveCfg = Debug|Any CPU
-		{F8020BBA-78F7-426A-BE28-13716CC17966}.Debug|x64.Build.0 = Debug|Any CPU
-		{F8020BBA-78F7-426A-BE28-13716CC17966}.Debug|x86.ActiveCfg = Debug|Any CPU
-		{F8020BBA-78F7-426A-BE28-13716CC17966}.Debug|x86.Build.0 = Debug|Any CPU
-		{F8020BBA-78F7-426A-BE28-13716CC17966}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{F8020BBA-78F7-426A-BE28-13716CC17966}.Release|Any CPU.Build.0 = Release|Any CPU
-		{F8020BBA-78F7-426A-BE28-13716CC17966}.Release|x64.ActiveCfg = Release|Any CPU
-		{F8020BBA-78F7-426A-BE28-13716CC17966}.Release|x64.Build.0 = Release|Any CPU
-		{F8020BBA-78F7-426A-BE28-13716CC17966}.Release|x86.ActiveCfg = Release|Any CPU
-		{F8020BBA-78F7-426A-BE28-13716CC17966}.Release|x86.Build.0 = Release|Any CPU
 		{0294194F-ECBF-4F86-AD1C-ED9286C72AF4}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{0294194F-ECBF-4F86-AD1C-ED9286C72AF4}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{0294194F-ECBF-4F86-AD1C-ED9286C72AF4}.Debug|x64.ActiveCfg = Debug|Any CPU

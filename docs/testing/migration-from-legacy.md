@@ -12,8 +12,7 @@ with framework adapters.
 | `FluentDocker.MsTest` | `FluentDocker.Testing.MsTest` |
 | (none) | `FluentDocker.Testing.NUnit` |
 
-The legacy packages are marked `[Obsolete]` but remain functional during the
-migration window.
+The legacy packages have been removed. Use the new packages listed above.
 
 ## Why Migrate?
 
@@ -295,7 +294,7 @@ available:
 
 ```csharp
 var host = new TestPluginHost();
-host.Add(new PostgresPlugin());
+host.Add(new PostgresPlugin(kernel));
 var resource = host.Create<ContainerResource>("postgres");
 await resource.InitializeAsync();
 ```

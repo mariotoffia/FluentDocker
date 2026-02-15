@@ -47,8 +47,8 @@ Common replacements:
 | `Ductus.FluentDocker.Model.Networks` | `FluentDocker.Model.Networks` |
 | `Ductus.FluentDocker.Model.Volumes` | `FluentDocker.Model.Volumes` |
 | `Ductus.FluentDocker.Commands` | **Removed** -- delete these imports |
-| `Ductus.FluentDocker.MsTest` | `FluentDocker.MsTest` |
-| `Ductus.FluentDocker.XUnit` | `FluentDocker.XUnit` |
+| `Ductus.FluentDocker.MsTest` | `FluentDocker.Testing.MsTest` |
+| `Ductus.FluentDocker.XUnit` | `FluentDocker.Testing.Xunit` |
 
 Add these new imports where needed:
 
@@ -70,8 +70,8 @@ In all `.csproj` files, replace:
 
 <!-- NEW -->
 <PackageReference Include="FluentDocker" Version="3.*" />
-<PackageReference Include="FluentDocker.MsTest" Version="3.*" />
-<PackageReference Include="FluentDocker.XUnit" Version="3.*" />
+<PackageReference Include="FluentDocker.Testing.MsTest" Version="3.*" />
+<PackageReference Include="FluentDocker.Testing.Xunit" Version="3.*" />
 ```
 
 ---
@@ -506,8 +506,8 @@ After all changes:
 | `Ductus.FluentDocker.Services` | `FluentDocker.Services` |
 | `Ductus.FluentDocker.Model.*` | `FluentDocker.Model.*` |
 | `Ductus.FluentDocker.Commands` | Removed (use driver layer) |
-| `Ductus.FluentDocker.MsTest` | `FluentDocker.MsTest` |
-| `Ductus.FluentDocker.XUnit` | `FluentDocker.XUnit` |
+| `Ductus.FluentDocker.MsTest` | `FluentDocker.Testing.MsTest` |
+| `Ductus.FluentDocker.XUnit` | `FluentDocker.Testing.Xunit` |
 | (new) | `FluentDocker.Kernel` |
 | (new) | `FluentDocker.Services.Extensions` |
 
@@ -580,7 +580,7 @@ After all changes:
 
 ## Step 15: Migrate test support packages
 
-Legacy test packages are obsolete. Replace them:
+Legacy test packages have been removed. Use the new packages:
 
 | Legacy | New Package |
 |---|---|

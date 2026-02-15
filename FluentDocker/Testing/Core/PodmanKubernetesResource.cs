@@ -107,10 +107,10 @@ namespace FluentDocker.Testing.Core
       if (PlayResult == null)
         return;
 
-      PlayResult = null;
       var driver = Kernel.SysCtl<IPodmanKubernetesDriver>(DriverId);
       var context = new DriverContext(DriverId);
       var result = await driver.DownAsync(context, _config.YamlPath);
+      PlayResult = null;
       if (!result.Success)
         throw new FluentDockerException(
             $"Failed to tear down Podman kube for '{_config.YamlPath}': {result.Error}");
@@ -124,11 +124,17 @@ namespace FluentDocker.Testing.Core
 
       try
       {
-        await TeardownAsync();
+        var driver = Kernel.SysCtl<IPodmanKubernetesDriver>(DriverId);
+        var context = new DriverContext(DriverId);
+        await driver.DownAsync(context, _config.YamlPath);
       }
       catch
       {
         // best effort
+      }
+      finally
+      {
+        PlayResult = null;
       }
     }
 

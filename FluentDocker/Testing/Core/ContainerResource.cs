@@ -90,13 +90,12 @@ namespace FluentDocker.Testing.Core
     /// <inheritdoc />
     protected override async Task TeardownAsync()
     {
-      var c = Container;
-      Container = null;
-      if (c == null)
+      if (Container == null)
         return;
 
-      await c.StopAsync();
-      await c.RemoveAsync(force: false);
+      await Container.StopAsync();
+      await Container.RemoveAsync(force: false);
+      Container = null;
     }
 
     /// <inheritdoc />

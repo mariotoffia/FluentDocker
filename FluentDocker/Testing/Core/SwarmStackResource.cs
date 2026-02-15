@@ -112,10 +112,10 @@ namespace FluentDocker.Testing.Core
       if (DeployResult == null)
         return;
 
-      DeployResult = null;
       var driver = Kernel.SysCtl<IStackDriver>(DriverId);
       var context = new DriverContext(DriverId);
       var result = await driver.RemoveAsync(context, new[] { _config.StackName });
+      DeployResult = null;
       if (!result.Success)
         throw new FluentDockerException(
             $"Failed to remove stack '{_config.StackName}': {result.Error}");
@@ -129,11 +129,17 @@ namespace FluentDocker.Testing.Core
 
       try
       {
-        await TeardownAsync();
+        var driver = Kernel.SysCtl<IStackDriver>(DriverId);
+        var context = new DriverContext(DriverId);
+        await driver.RemoveAsync(context, new[] { _config.StackName });
       }
       catch
       {
         // best effort
+      }
+      finally
+      {
+        DeployResult = null;
       }
     }
 

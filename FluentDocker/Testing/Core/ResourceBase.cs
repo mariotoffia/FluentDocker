@@ -115,11 +115,12 @@ namespace FluentDocker.Testing.Core
         await RunHooksAsync(_beforeInitHooks, cts.Token);
         await PreflightAsync(cts.Token);
         await ProvisionAsync(cts.Token);
-        IsInitialized = true;
         await RunHooksAsync(_afterReadyHooks, cts.Token);
+        IsInitialized = true;
       }
       catch (Exception ex)
       {
+        IsInitialized = false;
         Diagnostics = await CollectDiagnosticsAsync(ex);
         throw;
       }

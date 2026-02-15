@@ -47,14 +47,26 @@ namespace FluentDocker.Testing.Xunit
         throw new InvalidOperationException(
             "Fixture has already been initialized. Dispose before re-initializing.");
 
-      Kernel = kernelFactory != null
-          ? await kernelFactory()
-          : await FluentDockerKernel.Create()
-              .WithDockerCli("docker-cli", d => d.AsDefault())
-              .BuildAsync();
+      FluentDockerKernel kernel = null;
+      try
+      {
+        kernel = kernelFactory != null
+            ? await kernelFactory()
+            : await FluentDockerKernel.Create()
+                .WithDockerCli("docker-cli", d => d.AsDefault())
+                .BuildAsync();
 
-      _resource = new ContainerResource(Kernel, configure, options);
-      await _resource.InitializeAsync();
+        var resource = new ContainerResource(kernel, configure, options);
+        await resource.InitializeAsync();
+
+        Kernel = kernel;
+        _resource = resource;
+      }
+      catch
+      {
+        kernel?.Dispose();
+        throw;
+      }
     }
 
     /// <inheritdoc />

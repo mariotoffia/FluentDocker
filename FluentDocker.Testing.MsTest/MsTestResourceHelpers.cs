@@ -32,15 +32,24 @@ namespace FluentDocker.Testing.MsTest
             Func<Task<FluentDockerKernel>> kernelFactory = null,
             DockerResourceOptions options = null)
     {
-      var kernel = kernelFactory != null
-          ? await kernelFactory()
-          : await FluentDockerKernel.Create()
-              .WithDockerCli("docker-cli", d => d.AsDefault())
-              .BuildAsync();
+      FluentDockerKernel kernel = null;
+      try
+      {
+        kernel = kernelFactory != null
+            ? await kernelFactory()
+            : await FluentDockerKernel.Create()
+                .WithDockerCli("docker-cli", d => d.AsDefault())
+                .BuildAsync();
 
-      var resource = new ContainerResource(kernel, configure, options);
-      await resource.InitializeAsync();
-      return (kernel, resource);
+        var resource = new ContainerResource(kernel, configure, options);
+        await resource.InitializeAsync();
+        return (kernel, resource);
+      }
+      catch
+      {
+        kernel?.Dispose();
+        throw;
+      }
     }
 
     /// <summary>
@@ -52,15 +61,24 @@ namespace FluentDocker.Testing.MsTest
             Func<Task<FluentDockerKernel>> kernelFactory = null,
             DockerResourceOptions options = null)
     {
-      var kernel = kernelFactory != null
-          ? await kernelFactory()
-          : await FluentDockerKernel.Create()
-              .WithDockerCli("docker-cli", d => d.AsDefault())
-              .BuildAsync();
+      FluentDockerKernel kernel = null;
+      try
+      {
+        kernel = kernelFactory != null
+            ? await kernelFactory()
+            : await FluentDockerKernel.Create()
+                .WithDockerCli("docker-cli", d => d.AsDefault())
+                .BuildAsync();
 
-      var resource = new ComposeResource(kernel, configure, options);
-      await resource.InitializeAsync();
-      return (kernel, resource);
+        var resource = new ComposeResource(kernel, configure, options);
+        await resource.InitializeAsync();
+        return (kernel, resource);
+      }
+      catch
+      {
+        kernel?.Dispose();
+        throw;
+      }
     }
 
     /// <summary>
@@ -72,15 +90,24 @@ namespace FluentDocker.Testing.MsTest
             Func<Task<FluentDockerKernel>> kernelFactory = null,
             DockerResourceOptions options = null)
     {
-      var kernel = kernelFactory != null
-          ? await kernelFactory()
-          : await FluentDockerKernel.Create()
-              .WithDockerCli("docker-cli", d => d.AsDefault())
-              .BuildAsync();
+      FluentDockerKernel kernel = null;
+      try
+      {
+        kernel = kernelFactory != null
+            ? await kernelFactory()
+            : await FluentDockerKernel.Create()
+                .WithDockerCli("docker-cli", d => d.AsDefault())
+                .BuildAsync();
 
-      var resource = new TopologyResource(kernel, configure, options);
-      await resource.InitializeAsync();
-      return (kernel, resource);
+        var resource = new TopologyResource(kernel, configure, options);
+        await resource.InitializeAsync();
+        return (kernel, resource);
+      }
+      catch
+      {
+        kernel?.Dispose();
+        throw;
+      }
     }
 
     /// <summary>
@@ -95,15 +122,24 @@ namespace FluentDocker.Testing.MsTest
             Func<Task<FluentDockerKernel>> kernelFactory = null,
             DockerResourceOptions options = null)
     {
-      var kernel = kernelFactory != null
-          ? await kernelFactory()
-          : await FluentDockerKernel.Create()
-              .WithDockerCli("docker-cli", d => d.AsDefault())
-              .BuildAsync();
+      FluentDockerKernel kernel = null;
+      try
+      {
+        kernel = kernelFactory != null
+            ? await kernelFactory()
+            : await FluentDockerKernel.Create()
+                .WithDockerCli("docker-cli", d => d.AsDefault())
+                .BuildAsync();
 
-      var resource = new SwarmStackResource(kernel, config, options);
-      await resource.InitializeAsync();
-      return (kernel, resource);
+        var resource = new SwarmStackResource(kernel, config, options);
+        await resource.InitializeAsync();
+        return (kernel, resource);
+      }
+      catch
+      {
+        kernel?.Dispose();
+        throw;
+      }
     }
 
     /// <summary>
@@ -118,15 +154,24 @@ namespace FluentDocker.Testing.MsTest
             Func<Task<FluentDockerKernel>> kernelFactory = null,
             DockerResourceOptions options = null)
     {
-      var kernel = kernelFactory != null
-          ? await kernelFactory()
-          : await FluentDockerKernel.Create()
-              .WithPodmanCli("podman-cli", d => d.AsDefault())
-              .BuildAsync();
+      FluentDockerKernel kernel = null;
+      try
+      {
+        kernel = kernelFactory != null
+            ? await kernelFactory()
+            : await FluentDockerKernel.Create()
+                .WithPodmanCli("podman-cli", d => d.AsDefault())
+                .BuildAsync();
 
-      var resource = new PodmanKubernetesResource(kernel, config, options);
-      await resource.InitializeAsync();
-      return (kernel, resource);
+        var resource = new PodmanKubernetesResource(kernel, config, options);
+        await resource.InitializeAsync();
+        return (kernel, resource);
+      }
+      catch
+      {
+        kernel?.Dispose();
+        throw;
+      }
     }
 
     /// <summary>

@@ -13,6 +13,9 @@ namespace FluentDocker.Testing.Core.Plugins
     private readonly IServiceProvider _serviceProvider;
     private readonly HashSet<string> _registeredPlugins = new();
 
+    // Non-null during Add() to stage factories atomically.
+    private Dictionary<string, Func<IServiceProvider, object>> _staging;
+
     /// <summary>
     /// Creates a plugin host with an optional service provider for dependency injection.
     /// </summary>
@@ -33,8 +36,31 @@ namespace FluentDocker.Testing.Core.Plugins
       if (_registeredPlugins.Contains(plugin.Id))
         return this; // Already registered, idempotent
 
-      plugin.Register(this);
-      _registeredPlugins.Add(plugin.Id);
+      _staging = new Dictionary<string, Func<IServiceProvider, object>>();
+      try
+      {
+        plugin.Register(this);
+
+        // Validate no collisions with committed factories
+        foreach (var key in _staging.Keys)
+        {
+          if (_factories.ContainsKey(key))
+            throw new InvalidOperationException(
+                $"A factory for key '{key}' is already registered. " +
+                "Plugin key collisions must be resolved by using unique keys.");
+        }
+
+        // Commit all staged factories atomically
+        foreach (var kvp in _staging)
+          _factories[kvp.Key] = kvp.Value;
+
+        _registeredPlugins.Add(plugin.Id);
+      }
+      finally
+      {
+        _staging = null;
+      }
+
       return this;
     }
 
@@ -79,12 +105,20 @@ namespace FluentDocker.Testing.Core.Plugins
       if (factory == null)
         throw new ArgumentNullException(nameof(factory));
 
-      if (_factories.ContainsKey(key))
+      var target = _staging ?? _factories;
+
+      if (target.ContainsKey(key))
         throw new InvalidOperationException(
             $"A factory for key '{key}' is already registered. " +
             "Plugin key collisions must be resolved by using unique keys.");
 
-      _factories[key] = sp => factory(sp);
+      // When staging, also check committed factories for duplicates
+      if (_staging != null && _factories.ContainsKey(key))
+        throw new InvalidOperationException(
+            $"A factory for key '{key}' is already registered. " +
+            "Plugin key collisions must be resolved by using unique keys.");
+
+      target[key] = sp => factory(sp);
     }
 
     /// <summary>

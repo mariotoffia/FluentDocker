@@ -9,6 +9,12 @@ nav_order: 3
 
 How to migrate FluentDocker v2.x.x test code to v3.0.0.
 
+> **Note:** The legacy `FluentDocker.MsTest` and `FluentDocker.XUnit` packages
+> have been removed. The examples below show the builder-level API changes.
+> For test support, use the new `FluentDocker.Testing.*` packages. See
+> [Migration from Legacy](../testing/migration-from-legacy.html) for
+> side-by-side adapter examples.
+
 This guide covers the most common test patterns and shows side-by-side v2 vs v3
 code for each. The core change is that v3 requires a **kernel** with a registered
 driver, the builder uses **lambda-scoped** configuration, and `Build()` returns
