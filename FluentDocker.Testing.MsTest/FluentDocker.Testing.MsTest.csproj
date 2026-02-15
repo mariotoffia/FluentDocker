@@ -15,7 +15,7 @@
     <PackageTags>Docker;Podman;Container;Test;MSTest;NET</PackageTags>
     <RepositoryType>git</RepositoryType>
     <RepositoryUrl>https://github.com/mariotoffia/FluentDocker</RepositoryUrl>
-    <Description>MSTest adapter for FluentDocker.Testing.Core. Provides lifecycle helpers for MSTest test classes.</Description>
+    <Description>Spin up and tear down Docker and Podman containers, networks, volumes, and Compose stacks directly in your MSTest tests. Manages the full resource lifecycle so your integration tests run against real services with zero manual cleanup.</Description>
     <Copyright>© 2016 - 2026 Mario Toffia</Copyright>
     <AssemblyOriginatorKeyFile>..\keypair.snk</AssemblyOriginatorKeyFile>
     <SignAssembly>true</SignAssembly>

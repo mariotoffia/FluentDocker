@@ -15,7 +15,7 @@
     <PackageTags>Docker;Podman;Container;Test;xUnit;NET</PackageTags>
     <RepositoryType>git</RepositoryType>
     <RepositoryUrl>https://github.com/mariotoffia/FluentDocker</RepositoryUrl>
-    <Description>xUnit adapter for FluentDocker.Testing.Core. Bridges IDockerResource lifecycle into xUnit async fixtures.</Description>
+    <Description>Spin up and tear down Docker and Podman containers, networks, volumes, and Compose stacks directly in your xUnit tests. Manages the full resource lifecycle as async fixtures so your integration tests run against real services with zero manual cleanup.</Description>
     <Copyright>© 2016 - 2026 Mario Toffia</Copyright>
     <AssemblyOriginatorKeyFile>..\keypair.snk</AssemblyOriginatorKeyFile>
     <SignAssembly>true</SignAssembly>
