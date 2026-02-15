@@ -15,6 +15,9 @@ namespace FluentDocker.MsTest
   /// Base class for Docker Compose integration tests.
   /// </summary>
   [Experimental]
+  [Obsolete("Use FluentDocker.Testing.Core.ComposeResource with " +
+            "FluentDocker.Testing.MsTest.MsTestResourceHelpers instead. " +
+            "See docs/testing/migration-from-legacy.md for migration guide.")]
   public abstract class FluentDockerComposeTestBase
   {
     protected IComposeService Service { get; private set; }
@@ -61,19 +64,12 @@ namespace FluentDocker.MsTest
       builder.WithinDriver(DriverId, Kernel);
       builder.UseCompose(ConfigureCompose);
 
+      // BuildAsync already starts services. Do NOT call StartAsync again
+      // to avoid duplicate-start behavior.
       var results = await builder.BuildAsync();
       if (results.All.Count > 0 && results.All[0] is IComposeService compose)
       {
         Service = compose;
-        try
-        {
-          await Service.StartAsync();
-        }
-        catch
-        {
-          Service.Dispose();
-          throw;
-        }
       }
 
       await OnServiceInitializedAsync();

@@ -6,6 +6,9 @@ namespace FluentDocker.MsTest
   /// <summary>
   /// Base class for PostgreSQL integration tests.
   /// </summary>
+  [System.Obsolete("Use an external plugin (FluentDocker.Testing.Plugin.Postgres) with " +
+                    "FluentDocker.Testing.Core.ContainerResource instead. " +
+                    "See docs/testing/migration-from-legacy.md for migration guide.")]
   public abstract class PostgresTestBase : FluentDockerTestBase
   {
     protected const string PostgresConnectionString =
@@ -31,13 +34,12 @@ namespace FluentDocker.MsTest
       builder
           .UseImage(DockerImage)
           .WithEnvironment("POSTGRES_PASSWORD", PostgresPassword)
-          .WithPort("5432", null);
+          .WithPort("5432", null)
+          .WaitForPort("5432/tcp"); // Wait for PostgreSQL to accept connections
     }
 
     protected override async Task OnContainerInitializedAsync()
     {
-      await Task.Delay(5000);
-
       var containerInfo = await Container.InspectAsync();
       var port = "5432";
       var host = "localhost";

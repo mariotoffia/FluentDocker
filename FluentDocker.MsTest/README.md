@@ -1,5 +1,9 @@
 # FluentDocker for MsTest
 
+> **OBSOLETE**: This package is deprecated. Use `FluentDocker.Testing.MsTest` with
+> `FluentDocker.Testing.Core` instead. See
+> [migration guide](docs/testing/migration-from-legacy.md) for side-by-side examples.
+
 In addition to the standard _FluentDocker_ usage, it adds the ability to use easy testing with containers via MsTest.
 
 For example, fire up a Postgres container inside the test could look like this

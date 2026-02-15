@@ -139,6 +139,108 @@ namespace FluentDocker.Common
     }
 
     /// <summary>
+    /// Ensures the driver supports system operations.
+    /// </summary>
+    public static async Task EnsureSystemSupportAsync(
+        FluentDockerKernel kernel,
+        string driverId,
+        CancellationToken cancellationToken = default)
+    {
+      var pack = kernel.GetDriverPack(driverId);
+      var capabilities = await pack.GetCapabilitiesAsync(cancellationToken);
+
+      if (!capabilities.SupportsSystem)
+      {
+        throw new CapabilityNotSupportedException(driverId, "System");
+      }
+    }
+
+    /// <summary>
+    /// Ensures the driver supports Kubernetes YAML operations.
+    /// </summary>
+    public static async Task EnsureKubernetesSupportAsync(
+        FluentDockerKernel kernel,
+        string driverId,
+        CancellationToken cancellationToken = default)
+    {
+      var pack = kernel.GetDriverPack(driverId);
+      var capabilities = await pack.GetCapabilitiesAsync(cancellationToken);
+
+      if (!capabilities.SupportsKubernetes)
+      {
+        throw new CapabilityNotSupportedException(driverId, "Kubernetes");
+      }
+    }
+
+    /// <summary>
+    /// Ensures the driver supports Swarm stack operations.
+    /// </summary>
+    public static async Task EnsureStackSupportAsync(
+        FluentDockerKernel kernel,
+        string driverId,
+        CancellationToken cancellationToken = default)
+    {
+      var pack = kernel.GetDriverPack(driverId);
+      var capabilities = await pack.GetCapabilitiesAsync(cancellationToken);
+
+      if (!capabilities.SupportsStacks)
+      {
+        throw new CapabilityNotSupportedException(driverId, "Stacks");
+      }
+    }
+
+    /// <summary>
+    /// Ensures the driver supports Swarm service operations.
+    /// </summary>
+    public static async Task EnsureServiceSupportAsync(
+        FluentDockerKernel kernel,
+        string driverId,
+        CancellationToken cancellationToken = default)
+    {
+      var pack = kernel.GetDriverPack(driverId);
+      var capabilities = await pack.GetCapabilitiesAsync(cancellationToken);
+
+      if (!capabilities.SupportsServices)
+      {
+        throw new CapabilityNotSupportedException(driverId, "Services");
+      }
+    }
+
+    /// <summary>
+    /// Ensures the driver supports machine management.
+    /// </summary>
+    public static async Task EnsureMachineSupportAsync(
+        FluentDockerKernel kernel,
+        string driverId,
+        CancellationToken cancellationToken = default)
+    {
+      var pack = kernel.GetDriverPack(driverId);
+      var capabilities = await pack.GetCapabilitiesAsync(cancellationToken);
+
+      if (!capabilities.SupportsMachines)
+      {
+        throw new CapabilityNotSupportedException(driverId, "Machines");
+      }
+    }
+
+    /// <summary>
+    /// Ensures the driver supports manifest operations.
+    /// </summary>
+    public static async Task EnsureManifestSupportAsync(
+        FluentDockerKernel kernel,
+        string driverId,
+        CancellationToken cancellationToken = default)
+    {
+      var pack = kernel.GetDriverPack(driverId);
+      var capabilities = await pack.GetCapabilitiesAsync(cancellationToken);
+
+      if (!capabilities.SupportsManifests)
+      {
+        throw new CapabilityNotSupportedException(driverId, "Manifests");
+      }
+    }
+
+    /// <summary>
     /// Gets the capabilities for a driver.
     /// </summary>
     /// <param name="kernel">The kernel.</param>
@@ -210,6 +312,24 @@ namespace FluentDocker.Common
         case DriverCapability.Pod:
           await CapabilityChecks.EnsurePodSupportAsync(kernel, driverId, cancellationToken);
           break;
+        case DriverCapability.System:
+          await CapabilityChecks.EnsureSystemSupportAsync(kernel, driverId, cancellationToken);
+          break;
+        case DriverCapability.Kubernetes:
+          await CapabilityChecks.EnsureKubernetesSupportAsync(kernel, driverId, cancellationToken);
+          break;
+        case DriverCapability.Stack:
+          await CapabilityChecks.EnsureStackSupportAsync(kernel, driverId, cancellationToken);
+          break;
+        case DriverCapability.Service:
+          await CapabilityChecks.EnsureServiceSupportAsync(kernel, driverId, cancellationToken);
+          break;
+        case DriverCapability.Machine:
+          await CapabilityChecks.EnsureMachineSupportAsync(kernel, driverId, cancellationToken);
+          break;
+        case DriverCapability.Manifest:
+          await CapabilityChecks.EnsureManifestSupportAsync(kernel, driverId, cancellationToken);
+          break;
       }
     }
   }
@@ -225,6 +345,11 @@ namespace FluentDocker.Common
     Compose,
     Image,
     Pod,
-    System
+    System,
+    Kubernetes,
+    Stack,
+    Service,
+    Machine,
+    Manifest
   }
 }

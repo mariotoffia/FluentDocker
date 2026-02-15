@@ -11,6 +11,9 @@ namespace FluentDocker.MsTest
   /// <summary>
   /// Base class for MsTest tests that need Docker containers.
   /// </summary>
+  [Obsolete("Use FluentDocker.Testing.Core.ContainerResource with " +
+            "FluentDocker.Testing.MsTest.MsTestResourceHelpers instead. " +
+            "See docs/testing/migration-from-legacy.md for migration guide.")]
   public abstract class FluentDockerTestBase
   {
     protected IContainerService Container { get; private set; }
@@ -53,20 +56,12 @@ namespace FluentDocker.MsTest
 
       OnBeforeContainerStart();
 
+      // BuildAsync already starts containers via StartContainersWithLinksAsync.
+      // Do NOT call StartAsync again to avoid duplicate-start behavior.
       var results = await builder.BuildAsync();
       if (results.All.Count > 0 && results.All[0] is IContainerService container)
       {
         Container = container;
-        try
-        {
-          await Container.StartAsync();
-        }
-        catch (Exception ex)
-        {
-          OnBeforeDispose(Container, ex);
-          Container.Dispose();
-          throw;
-        }
       }
 
       await OnContainerInitializedAsync();

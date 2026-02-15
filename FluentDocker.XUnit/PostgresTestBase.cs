@@ -6,6 +6,9 @@ namespace FluentDocker.XUnit
   /// <summary>
   /// Base class for PostgreSQL integration tests.
   /// </summary>
+  [System.Obsolete("Use an external plugin (FluentDocker.Testing.Plugin.Postgres) with " +
+                    "FluentDocker.Testing.Core.ContainerResource instead. " +
+                    "See docs/testing/migration-from-legacy.md for migration guide.")]
   public abstract class PostgresTestBase : FluentDockerTestBase
   {
     protected const string PostgresConnectionString =
@@ -32,18 +35,14 @@ namespace FluentDocker.XUnit
           .UseImage(DockerImage)
           .WithEnvironment("POSTGRES_PASSWORD", PostgresPassword)
           .WithEnvironment("POSTGRES_HOST_AUTH_METHOD", "trust")
-          .WithPort("5432", null); // Expose to random host port
+          .WithPort("5432", null) // Expose to random host port
+          .WaitForPort("5432/tcp"); // Wait for PostgreSQL to accept connections
     }
 
     protected override async Task OnContainerInitializedAsync()
     {
-      // Wait for PostgreSQL to be ready
-      await Task.Delay(5000);
-
-      // Get the container info to find the exposed port
       var containerInfo = await Container.InspectAsync();
 
-      // Default to port 5432 if we can't get the exposed port
       var port = "5432";
       var host = "localhost";
 

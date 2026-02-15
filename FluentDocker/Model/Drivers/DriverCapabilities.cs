@@ -56,6 +56,16 @@ namespace FluentDocker.Model.Drivers
     public bool SupportsManifests { get; set; }
 
     /// <summary>
+    /// Driver supports Swarm stack operations (docker stack deploy/rm/ls).
+    /// </summary>
+    public bool SupportsStacks { get; set; }
+
+    /// <summary>
+    /// Driver supports Swarm service operations (docker service create/inspect/scale).
+    /// </summary>
+    public bool SupportsServices { get; set; }
+
+    /// <summary>
     /// Driver version string.
     /// </summary>
     public string Version { get; set; }

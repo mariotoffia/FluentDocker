@@ -10,6 +10,9 @@ namespace FluentDocker.XUnit
   /// <summary>
   /// Base class for XUnit tests that need Docker containers.
   /// </summary>
+  [Obsolete("Use FluentDocker.Testing.Core.ContainerResource with " +
+            "FluentDocker.Testing.Xunit.XunitContainerFixture instead. " +
+            "See docs/testing/migration-from-legacy.md for migration guide.")]
   public abstract class FluentDockerTestBase : IDisposable, IAsyncDisposable
   {
     protected IContainerService Container { get; private set; }
@@ -42,11 +45,12 @@ namespace FluentDocker.XUnit
       builder.WithinDriver(DriverId, Kernel);
       builder.UseContainer(ConfigureContainer);
 
+      // BuildAsync already starts containers via StartContainersWithLinksAsync.
+      // Do NOT call StartAsync again to avoid duplicate-start behavior.
       var results = await builder.BuildAsync();
       if (results.All.Count > 0 && results.All[0] is IContainerService container)
       {
         Container = container;
-        await Container.StartAsync();
       }
 
       await OnContainerInitializedAsync();

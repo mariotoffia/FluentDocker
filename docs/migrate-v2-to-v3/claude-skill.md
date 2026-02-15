@@ -401,46 +401,23 @@ For post-startup HTTP polling, access containers from `results.Containers`.
 
 ## Step 11: Fix dispose patterns
 
-### Field-based disposal
-
 ```csharp
-// OLD
-public void Dispose()
-{
-    _container?.Dispose();
-}
+// OLD: sync IDisposable
+_container?.Dispose();
 
-// NEW
-public async Task DisposeAsync()
-{
-    if (_results is IAsyncDisposable ad) await ad.DisposeAsync();
-    if (_kernel is IAsyncDisposable kd) await kd.DisposeAsync();
-}
-```
+// NEW: async IAsyncDisposable -- dispose results BEFORE kernel
+if (_results is IAsyncDisposable ad) await ad.DisposeAsync();
+if (_kernel is IAsyncDisposable kd) await kd.DisposeAsync();
 
-### Using-statement disposal
+// OLD: using statement
+using var container = new Builder().UseContainer().UseImage("nginx").Build().Start();
 
-```csharp
-// OLD
-using var container = new Builder()
-    .UseContainer()
-    .UseImage("nginx")
-    .Build()
-    .Start();
-
-// NEW
+// NEW: await using
 await using var kernel = FluentDockerKernel.Create()
-    .WithDockerCli("docker", d => d.AsDefault())
-    .Build();
-
+    .WithDockerCli("docker", d => d.AsDefault()).Build();
 await using var results = new Builder()
-    .WithinDriver("docker", kernel)
-    .UseContainer(c => c.UseImage("nginx"))
-    .Build();
+    .WithinDriver("docker", kernel).UseContainer(c => c.UseImage("nginx")).Build();
 ```
-
-**Important**: Always dispose results before the kernel. Results hold driver
-references that need the kernel for cleanup.
 
 ---
 
@@ -598,3 +575,24 @@ After all changes:
 | `Ductus.FluentDocker.Commands.*` | Replaced by driver layer |
 | `SudoMechanism.SetSudo()` | Configure via kernel `.WithSudo()` |
 | `docker-compose` (V1 binary) | V3 uses `docker compose` (V2) |
+
+---
+
+## Step 15: Migrate test support packages
+
+Legacy test packages are obsolete. Replace them:
+
+| Legacy | New Package |
+|---|---|
+| `FluentDocker.XUnit` | `FluentDocker.Testing.Xunit` |
+| `FluentDocker.MsTest` | `FluentDocker.Testing.MsTest` |
+| (none) | `FluentDocker.Testing.NUnit` |
+
+Key changes:
+- xUnit: `FluentDockerTestBase` → `XunitContainerFixture` with `InitializeAsync` lambda
+- MSTest: `FluentDockerTestBase` → `MsTestResourceHelpers.CreateContainerAsync` static helper
+- `PostgresTestBase` → configure container directly or use plugin package
+- New core namespace: `FluentDocker.Testing.Core` (inside main assembly)
+- Plugin system: `FluentDocker.Testing.Core.Plugins`
+
+See `docs/testing/migration-from-legacy.md` for complete side-by-side examples.
