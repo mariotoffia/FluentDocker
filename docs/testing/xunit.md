@@ -52,7 +52,8 @@ public class ComposeFixture : XunitComposeFixture
 
 ### `XunitTopologyFixture`
 
-For multi-container topologies:
+For multi-container topologies. The driver is automatically bound, so there is
+no need to call `WithinDriver()`:
 
 ```csharp
 public class TopologyFixture : XunitTopologyFixture
@@ -61,7 +62,6 @@ public class TopologyFixture : XunitTopologyFixture
     {
         InitializeAsync(builder =>
         {
-            builder.WithinDockerCli("docker-cli", kernel);
             builder.UseNetwork(n => n.WithName("test-net"));
             builder.UseContainer(c => c
                 .UseImage("redis:alpine")
@@ -69,6 +69,41 @@ public class TopologyFixture : XunitTopologyFixture
             builder.UseContainer(c => c
                 .UseImage("nginx:alpine")
                 .WithNetwork("test-net"));
+        }).GetAwaiter().GetResult();
+    }
+}
+```
+
+### `XunitSwarmStackFixture`
+
+For Docker Swarm stack deployments:
+
+```csharp
+public class SwarmFixture : XunitSwarmStackFixture
+{
+    public SwarmFixture()
+    {
+        InitializeAsync(new StackDeployConfig
+        {
+            StackName = "my-stack",
+            ComposeFiles = { "docker-compose.yml" }
+        }).GetAwaiter().GetResult();
+    }
+}
+```
+
+### `XunitPodmanKubernetesFixture`
+
+For Podman Kubernetes YAML deployments:
+
+```csharp
+public class KubeFixture : XunitPodmanKubernetesFixture
+{
+    public KubeFixture()
+    {
+        InitializeAsync(new KubePlayConfig
+        {
+            YamlPath = "pod.yaml"
         }).GetAwaiter().GetResult();
     }
 }

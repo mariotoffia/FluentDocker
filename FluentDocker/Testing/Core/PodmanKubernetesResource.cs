@@ -56,6 +56,9 @@ namespace FluentDocker.Testing.Core
       var driver = Kernel.SysCtl<IPodmanKubernetesDriver>(DriverId);
       var result = await driver.GenerateAsync(
           new DriverContext(DriverId), resourceName, cancellationToken);
+      if (!result.Success)
+        throw new FluentDockerException(
+            $"Failed to generate YAML for '{resourceName}': {result.Error}");
       return result.Data;
     }
 
@@ -98,7 +101,10 @@ namespace FluentDocker.Testing.Core
     {
       var driver = Kernel.SysCtl<IPodmanKubernetesDriver>(DriverId);
       var context = new DriverContext(DriverId);
-      await driver.DownAsync(context, _config.YamlPath);
+      var result = await driver.DownAsync(context, _config.YamlPath);
+      if (!result.Success)
+        throw new FluentDockerException(
+            $"Failed to tear down Podman kube for '{_config.YamlPath}': {result.Error}");
     }
 
     /// <inheritdoc />

@@ -41,8 +41,17 @@ namespace FluentDocker.MsTest
     protected override async Task OnContainerInitializedAsync()
     {
       var containerInfo = await Container.InspectAsync();
-      var port = "5432";
+
       var host = "localhost";
+      var port = "5432";
+
+      const string portKey = "5432/tcp";
+      if (containerInfo.NetworkSettings?.Ports != null
+          && containerInfo.NetworkSettings.Ports.TryGetValue(portKey, out var bindings)
+          && bindings is { Length: > 0 })
+      {
+        port = bindings[0].HostPort;
+      }
 
       ConnectionString = string.Format(
           PostgresConnectionString,

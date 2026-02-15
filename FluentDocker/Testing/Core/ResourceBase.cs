@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using FluentDocker.Common;
@@ -104,6 +105,7 @@ namespace FluentDocker.Testing.Core
         return;
 
       DriverId = ResolveDriverId();
+      ValidateExpectedDriverType();
 
       using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
       cts.CancelAfter(Options.InitializationTimeout);
@@ -222,16 +224,45 @@ namespace FluentDocker.Testing.Core
       return $"{prefix}-{Guid.NewGuid():N}"[..Math.Min(63, prefix.Length + 33)];
     }
 
-    private static async Task RunHooksAsync(
+    /// <summary>
+    /// Validates that the resolved driver matches the expected type, if specified.
+    /// </summary>
+    private void ValidateExpectedDriverType()
+    {
+      if (Options.Driver.ExpectedType.HasValue)
+      {
+        var pack = Kernel.GetDriverPack(DriverId);
+        if (pack.Type != Options.Driver.ExpectedType.Value)
+          throw new InvalidOperationException(
+              $"Expected driver type '{Options.Driver.ExpectedType.Value}' but " +
+              $"driver '{DriverId}' is type '{pack.Type}'.");
+      }
+    }
+
+    /// <summary>
+    /// Truncates log output to <see cref="DockerResourceOptions.MaxDiagnosticLogLines"/>.
+    /// </summary>
+    protected string TruncateLogLines(string logs)
+    {
+      if (string.IsNullOrEmpty(logs) || Options.MaxDiagnosticLogLines <= 0)
+        return logs;
+
+      var lines = logs.Split('\n');
+      if (lines.Length <= Options.MaxDiagnosticLogLines)
+        return logs;
+
+      return string.Join('\n', lines.Take(Options.MaxDiagnosticLogLines))
+           + $"\n... ({lines.Length - Options.MaxDiagnosticLogLines} lines truncated)";
+    }
+
+    private async Task RunHooksAsync(
         List<Func<IDockerResource, Task>> hooks,
         CancellationToken cancellationToken)
     {
-      // Not using the cancellation token to cancel individual hooks,
-      // but the linked CTS in InitializeAsync will cancel the whole operation.
       foreach (var hook in hooks)
       {
         cancellationToken.ThrowIfCancellationRequested();
-        await hook(null); // Pass null to avoid confusion; callers use closures.
+        await hook(this);
       }
     }
 

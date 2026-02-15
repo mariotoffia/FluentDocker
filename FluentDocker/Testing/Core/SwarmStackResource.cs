@@ -49,6 +49,9 @@ namespace FluentDocker.Testing.Core
       var driver = Kernel.SysCtl<IStackDriver>(DriverId);
       var result = await driver.GetServicesAsync(
           new DriverContext(DriverId), StackName, cancellationToken: cancellationToken);
+      if (!result.Success)
+        throw new FluentDockerException(
+            $"Failed to list services for stack '{StackName}': {result.Error}");
       return result.Data;
     }
 
@@ -62,6 +65,9 @@ namespace FluentDocker.Testing.Core
       var driver = Kernel.SysCtl<IStackDriver>(DriverId);
       var result = await driver.GetTasksAsync(
           new DriverContext(DriverId), StackName, cancellationToken: cancellationToken);
+      if (!result.Success)
+        throw new FluentDockerException(
+            $"Failed to list tasks for stack '{StackName}': {result.Error}");
       return result.Data;
     }
 
@@ -70,14 +76,8 @@ namespace FluentDocker.Testing.Core
     /// <inheritdoc />
     protected override async Task PreflightAsync(CancellationToken cancellationToken)
     {
-      // Ensure the driver supports stack operations.
-      var caps = await CapabilityChecks.GetCapabilitiesAsync(Kernel, DriverId, cancellationToken);
-      if (!caps.SupportsCompose)
-      {
-        throw new CapabilityNotSupportedException(DriverId, "Stack/Compose");
-      }
+      await CapabilityChecks.EnsureStackSupportAsync(Kernel, DriverId, cancellationToken);
 
-      // Verify IStackDriver is available.
       if (!Kernel.TrySysCtl<IStackDriver>(DriverId, out _))
       {
         throw new InterfaceNotSupportedException(DriverId, nameof(IStackDriver));
@@ -106,7 +106,10 @@ namespace FluentDocker.Testing.Core
     {
       var driver = Kernel.SysCtl<IStackDriver>(DriverId);
       var context = new DriverContext(DriverId);
-      await driver.RemoveAsync(context, new[] { _config.StackName });
+      var result = await driver.RemoveAsync(context, new[] { _config.StackName });
+      if (!result.Success)
+        throw new FluentDockerException(
+            $"Failed to remove stack '{_config.StackName}': {result.Error}");
     }
 
     /// <inheritdoc />

@@ -73,6 +73,7 @@ namespace FluentDocker.Testing.Core
     protected override async Task ProvisionAsync(CancellationToken cancellationToken)
     {
       var builder = new Builder();
+      builder.WithinDriver(DriverId, Kernel);
       _configure(builder);
 
       var results = await builder.BuildAsync(cancellationToken);
@@ -91,14 +92,12 @@ namespace FluentDocker.Testing.Core
       for (var i = _services.Count - 1; i >= 0; i--)
       {
         try
-        {
-          await _services[i].StopAsync();
-          await _services[i].RemoveAsync(force: false);
-        }
-        catch
-        {
-          // Continue cleaning up remaining services.
-        }
+        { await _services[i].StopAsync(); }
+        catch { /* stop failure must not prevent removal */ }
+
+        try
+        { await _services[i].RemoveAsync(force: false); }
+        catch { /* continue cleaning up remaining services */ }
       }
 
       _services.Clear();
@@ -138,7 +137,7 @@ namespace FluentDocker.Testing.Core
           }
         }
 
-        diag.Logs = string.Join("\n\n", logs);
+        diag.Logs = TruncateLogLines(string.Join("\n\n", logs));
       }
 
       return diag;

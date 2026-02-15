@@ -1,6 +1,8 @@
 using System;
 using System.Threading.Tasks;
 using FluentDocker.Builders;
+using FluentDocker.Drivers;
+using FluentDocker.Drivers.Podman;
 using FluentDocker.Kernel;
 using FluentDocker.Services;
 using FluentDocker.Testing.Core;
@@ -77,6 +79,52 @@ namespace FluentDocker.Testing.MsTest
               .BuildAsync();
 
       var resource = new TopologyResource(kernel, configure, options);
+      await resource.InitializeAsync();
+      return (kernel, resource);
+    }
+
+    /// <summary>
+    /// Creates and initializes a swarm stack resource.
+    /// </summary>
+    /// <param name="config">Stack deploy configuration.</param>
+    /// <param name="kernelFactory">Optional kernel factory. Defaults to Docker CLI.</param>
+    /// <param name="options">Optional resource options.</param>
+    public static async Task<(FluentDockerKernel kernel, SwarmStackResource resource)>
+        CreateSwarmStackAsync(
+            StackDeployConfig config,
+            Func<Task<FluentDockerKernel>> kernelFactory = null,
+            DockerResourceOptions options = null)
+    {
+      var kernel = kernelFactory != null
+          ? await kernelFactory()
+          : await FluentDockerKernel.Create()
+              .WithDockerCli("docker-cli", d => d.AsDefault())
+              .BuildAsync();
+
+      var resource = new SwarmStackResource(kernel, config, options);
+      await resource.InitializeAsync();
+      return (kernel, resource);
+    }
+
+    /// <summary>
+    /// Creates and initializes a Podman Kubernetes resource.
+    /// </summary>
+    /// <param name="config">Kubernetes play configuration.</param>
+    /// <param name="kernelFactory">Optional kernel factory. Defaults to Podman CLI.</param>
+    /// <param name="options">Optional resource options.</param>
+    public static async Task<(FluentDockerKernel kernel, PodmanKubernetesResource resource)>
+        CreatePodmanKubernetesAsync(
+            KubePlayConfig config,
+            Func<Task<FluentDockerKernel>> kernelFactory = null,
+            DockerResourceOptions options = null)
+    {
+      var kernel = kernelFactory != null
+          ? await kernelFactory()
+          : await FluentDockerKernel.Create()
+              .WithPodmanCli("podman-cli", d => d.AsDefault())
+              .BuildAsync();
+
+      var resource = new PodmanKubernetesResource(kernel, config, options);
       await resource.InitializeAsync();
       return (kernel, resource);
     }

@@ -39,7 +39,7 @@ var options = new DockerResourceOptions
     ForceRemoveOnDispose = true,                // force-remove on cleanup failure
     InitializationTimeout = TimeSpan.FromMinutes(2),
     CaptureLogsOnFailure = true,                // collect logs for diagnostics
-    MaxDiagnosticLogLines = 200
+    MaxDiagnosticLogLines = 200                 // truncate logs beyond this
 };
 ```
 
@@ -55,9 +55,33 @@ DriverSelection.PodmanCli()      // Podman CLI driver
 DriverSelection.Specific("id")   // any registered driver by ID
 ```
 
+### ExpectedType Validation
+
+When using `DriverSelection.DockerCli()`, `DockerApi()`, or `PodmanCli()`, the
+`ExpectedType` property is set automatically. During initialization, the resource
+validates that the resolved driver pack's type matches:
+
+```csharp
+// This will throw if "my-driver" is actually a PodmanCli driver
+var options = new DockerResourceOptions
+{
+    Driver = DriverSelection.DockerCli("my-driver")
+};
+```
+
+The validation runs before preflight, so mismatches fail fast with a clear error.
+
+### MaxDiagnosticLogLines
+
+When `CaptureLogsOnFailure` is true and initialization fails, diagnostic logs are
+automatically truncated to `MaxDiagnosticLogLines` (default: 200). This prevents
+excessive memory usage from very large log outputs. The truncated output includes
+a count of omitted lines.
+
 ## Lifecycle Hooks
 
-All resources support four lifecycle hooks:
+All resources support four lifecycle hooks. The resource instance is passed to
+each hook callback:
 
 ```csharp
 resource
@@ -71,7 +95,8 @@ resource
 
 When initialization fails, the `Diagnostics` property is populated with:
 - `Failure` - the exception
-- `Logs` - container/service logs (if `CaptureLogsOnFailure` is true)
+- `Logs` - container/service logs (if `CaptureLogsOnFailure` is true), truncated
+  to `MaxDiagnosticLogLines`
 - `InspectPayload` - container inspect data
 - `OperationContext` - additional context
 

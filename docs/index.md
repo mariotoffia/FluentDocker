@@ -8,9 +8,9 @@ permalink: /
 
 # FluentDocker
 
-| Build | Core | MsTest | XUnit |
-|:-----:|:----:|:------:|:-----:|
-|[![CI](https://github.com/mariotoffia/FluentDocker/actions/workflows/ci.yml/badge.svg)](https://github.com/mariotoffia/FluentDocker/actions/workflows/ci.yml)|[![NuGet](https://img.shields.io/nuget/v/FluentDocker.svg)](https://www.nuget.org/packages/FluentDocker)|[![NuGet](https://img.shields.io/nuget/v/FluentDocker.MsTest.svg)](https://www.nuget.org/packages/FluentDocker.MsTest)|[![NuGet](https://img.shields.io/nuget/v/FluentDocker.XUnit.svg)](https://www.nuget.org/packages/FluentDocker.XUnit)|
+| Build | Core | Testing.Xunit | Testing.MsTest | Testing.NUnit |
+|:-----:|:----:|:-------------:|:--------------:|:-------------:|
+|[![CI](https://github.com/mariotoffia/FluentDocker/actions/workflows/ci.yml/badge.svg)](https://github.com/mariotoffia/FluentDocker/actions/workflows/ci.yml)|[![NuGet](https://img.shields.io/nuget/v/FluentDocker.svg)](https://www.nuget.org/packages/FluentDocker)|[![NuGet](https://img.shields.io/nuget/v/FluentDocker.Testing.Xunit.svg)](https://www.nuget.org/packages/FluentDocker.Testing.Xunit)|[![NuGet](https://img.shields.io/nuget/v/FluentDocker.Testing.MsTest.svg)](https://www.nuget.org/packages/FluentDocker.Testing.MsTest)|[![NuGet](https://img.shields.io/nuget/v/FluentDocker.Testing.NUnit.svg)](https://www.nuget.org/packages/FluentDocker.Testing.NUnit)|
 
 FluentDocker is a .NET library providing a fluent API for Docker and Docker Compose. It simplifies container management for development, testing, and CI/CD pipelines.
 
@@ -113,8 +113,9 @@ await kube.DownAsync(context, "pod.yaml");
 
 ```bash
 dotnet add package FluentDocker
-dotnet add package FluentDocker.MsTest  # Optional
-dotnet add package FluentDocker.XUnit   # Optional
+dotnet add package FluentDocker.Testing.Xunit   # xUnit adapter
+dotnet add package FluentDocker.Testing.MsTest  # MSTest adapter
+dotnet add package FluentDocker.Testing.NUnit   # NUnit adapter
 ```
 
 ## Documentation
@@ -127,7 +128,7 @@ dotnet add package FluentDocker.XUnit   # Optional
 | [Networking](networking.html) | Custom networks, static IPs, drivers |
 | [Volumes](volumes.html) | Named volumes, bind mounts, drivers |
 | [Images](images.html) | Build from Dockerfile or inline |
-| [Testing](testing.html) | MSTest/xUnit fixtures and patterns |
+| [Testing](testing.html) | Testing.Core resources + framework adapters |
 | [Utilities](utilities.html) | TemplateString, Wget, resources |
 | [Extensibility](extensibility.html) | Custom driver interfaces, multi-driver patterns |
 | [Migration](migration.html) | Upgrading from v2.x to v3.0 |

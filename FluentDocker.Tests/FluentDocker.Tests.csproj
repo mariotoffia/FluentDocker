@@ -17,6 +17,9 @@
 
   <ItemGroup>
     <ProjectReference Include="..\FluentDocker\FluentDocker.csproj" />
+    <ProjectReference Include="..\FluentDocker.Testing.Xunit\FluentDocker.Testing.Xunit.csproj" />
+    <ProjectReference Include="..\FluentDocker.Testing.MsTest\FluentDocker.Testing.MsTest.csproj" />
+    <ProjectReference Include="..\FluentDocker.Testing.NUnit\FluentDocker.Testing.NUnit.csproj" />
   </ItemGroup>
 
   <ItemGroup Condition="'$(Configuration)' == 'Debug'">

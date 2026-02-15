@@ -26,6 +26,10 @@ namespace FluentDocker.Testing.Core.Plugins
       if (plugin == null)
         throw new ArgumentNullException(nameof(plugin));
 
+      if (string.IsNullOrEmpty(plugin.Id))
+        throw new ArgumentException(
+            "Plugin.Id must not be null or empty.", nameof(plugin));
+
       if (_registeredPlugins.Contains(plugin.Id))
         return this; // Already registered, idempotent
 
@@ -74,6 +78,11 @@ namespace FluentDocker.Testing.Core.Plugins
         throw new ArgumentException("Factory key must not be null or empty.", nameof(key));
       if (factory == null)
         throw new ArgumentNullException(nameof(factory));
+
+      if (_factories.ContainsKey(key))
+        throw new InvalidOperationException(
+            $"A factory for key '{key}' is already registered. " +
+            "Plugin key collisions must be resolved by using unique keys.");
 
       _factories[key] = sp => factory(sp);
     }

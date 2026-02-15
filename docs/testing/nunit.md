@@ -63,3 +63,32 @@ public class GlobalDockerSetup
     }
 }
 ```
+
+### Swarm Stack Example
+
+```csharp
+[OneTimeSetUp]
+public async Task Setup()
+{
+    (_kernel, _resource) = await NUnitResourceHelpers.CreateSwarmStackAsync(
+        new StackDeployConfig
+        {
+            StackName = "my-stack",
+            ComposeFiles = { "docker-compose.yml" }
+        });
+}
+```
+
+### Podman Kubernetes Example
+
+```csharp
+[OneTimeSetUp]
+public async Task Setup()
+{
+    (_kernel, _resource) = await NUnitResourceHelpers.CreatePodmanKubernetesAsync(
+        new KubePlayConfig { YamlPath = "pod.yaml" },
+        kernelFactory: async () => await FluentDockerKernel.Create()
+            .WithPodmanCli("podman", d => d.AsDefault())
+            .BuildAsync());
+}
+```

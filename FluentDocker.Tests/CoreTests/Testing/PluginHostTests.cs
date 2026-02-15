@@ -99,6 +99,35 @@ namespace FluentDocker.Tests.CoreTests.Testing
     }
 
     [Fact]
+    public void RegisterFactory_DuplicateKey_Throws()
+    {
+      var host = new TestPluginHost();
+      // First plugin registers key "FakeResource"
+      host.Add(new FakePlugin("plugin-a"));
+
+      // Second plugin with different ID tries to register same key
+      var ex = Assert.Throws<InvalidOperationException>(
+          () => host.Add(new FakePlugin("plugin-b")));
+      Assert.Contains("already registered", ex.Message);
+    }
+
+    [Fact]
+    public void Add_NullPluginId_Throws()
+    {
+      var host = new TestPluginHost();
+      Assert.Throws<ArgumentException>(
+          () => host.Add(new FakePlugin(null)));
+    }
+
+    [Fact]
+    public void Add_EmptyPluginId_Throws()
+    {
+      var host = new TestPluginHost();
+      Assert.Throws<ArgumentException>(
+          () => host.Add(new FakePlugin("")));
+    }
+
+    [Fact]
     public void Add_ReturnsSelf_ForFluent()
     {
       var host = new TestPluginHost();

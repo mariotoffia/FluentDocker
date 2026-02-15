@@ -8,8 +8,9 @@
 | Package | NuGet | Downloads |
 |---------|:-----:|:---------:|
 | FluentDocker | [![NuGet](https://img.shields.io/nuget/v/FluentDocker.svg)](https://www.nuget.org/packages/FluentDocker) | [![Downloads](https://img.shields.io/nuget/dt/FluentDocker.svg)](https://www.nuget.org/packages/FluentDocker) |
-| MsTest | [![NuGet](https://img.shields.io/nuget/v/FluentDocker.MsTest.svg)](https://www.nuget.org/packages/FluentDocker.MsTest) | [![Downloads](https://img.shields.io/nuget/dt/FluentDocker.MsTest.svg)](https://www.nuget.org/packages/FluentDocker.MsTest) |
-| XUnit | [![NuGet](https://img.shields.io/nuget/v/FluentDocker.XUnit.svg)](https://www.nuget.org/packages/FluentDocker.XUnit) | [![Downloads](https://img.shields.io/nuget/dt/FluentDocker.XUnit.svg)](https://www.nuget.org/packages/FluentDocker.XUnit) |
+| Testing.Xunit | [![NuGet](https://img.shields.io/nuget/v/FluentDocker.Testing.Xunit.svg)](https://www.nuget.org/packages/FluentDocker.Testing.Xunit) | [![Downloads](https://img.shields.io/nuget/dt/FluentDocker.Testing.Xunit.svg)](https://www.nuget.org/packages/FluentDocker.Testing.Xunit) |
+| Testing.MsTest | [![NuGet](https://img.shields.io/nuget/v/FluentDocker.Testing.MsTest.svg)](https://www.nuget.org/packages/FluentDocker.Testing.MsTest) | [![Downloads](https://img.shields.io/nuget/dt/FluentDocker.Testing.MsTest.svg)](https://www.nuget.org/packages/FluentDocker.Testing.MsTest) |
+| Testing.NUnit | [![NuGet](https://img.shields.io/nuget/v/FluentDocker.Testing.NUnit.svg)](https://www.nuget.org/packages/FluentDocker.Testing.NUnit) | [![Downloads](https://img.shields.io/nuget/dt/FluentDocker.Testing.NUnit.svg)](https://www.nuget.org/packages/FluentDocker.Testing.NUnit) |
 
 ---
 
@@ -131,8 +132,9 @@ await kube.DownAsync(context, "pod.yaml");
 
 ```bash
 dotnet add package FluentDocker
-dotnet add package FluentDocker.MsTest  # Optional
-dotnet add package FluentDocker.XUnit   # Optional
+dotnet add package FluentDocker.Testing.Xunit   # xUnit adapter
+dotnet add package FluentDocker.Testing.MsTest  # MSTest adapter
+dotnet add package FluentDocker.Testing.NUnit   # NUnit adapter
 ```
 
 ---
@@ -472,121 +474,77 @@ if (kernel.TrySysCtl<IPodmanPodDriver>(driverId, out var podDriver))
 
 ## Test Support
 
-### MsTest
+FluentDocker v3 includes `FluentDocker.Testing.Core` in the main assembly.
+Framework-specific adapters are available as separate packages.
+
+### xUnit (Testing.Core)
 
 ```csharp
-using FluentDocker.MsTest;
-using FluentDocker.Builders;
+using FluentDocker.Testing.Xunit;
 
-[TestClass]
-public class MyTests : FluentDockerTestBase
+public class MyFixture : XunitContainerFixture
 {
-    protected override void ConfigureContainer(IContainerBuilder builder)
+    public MyFixture()
     {
-        builder
-            .UseImage("postgres:15-alpine")
-            .WithEnvironment("POSTGRES_PASSWORD=test")
-            .ExposePort("5432")
-            .WaitForPort("5432/tcp", 30000);
-    }
-
-    [TestMethod]
-    public void Test()
-    {
-        // Container available via Container property
-    }
-}
-```
-
-### XUnit
-
-```csharp
-using FluentDocker.XUnit;
-using FluentDocker.Builders;
-
-public class MyFixture : FluentDockerTestBase
-{
-    protected override void ConfigureContainer(IContainerBuilder builder)
-    {
-        builder
-            .UseImage("postgres:15-alpine")
-            .WithEnvironment("POSTGRES_PASSWORD=test")
-            .ExposePort("5432")
-            .WaitForPort("5432/tcp", 30000);
+        InitializeAsync(builder => builder
+            .UseImage("redis:alpine")
+            .WaitForPort("6379/tcp")
+        ).GetAwaiter().GetResult();
     }
 }
 
 public class MyTests : IClassFixture<MyFixture>
 {
     private readonly MyFixture _fixture;
-
     public MyTests(MyFixture fixture) => _fixture = fixture;
 
     [Fact]
-    public void Test()
+    public async Task Redis_IsRunning()
     {
-        // _fixture.Container available
+        var info = await _fixture.Container.InspectAsync();
+        Assert.True(info.State.Running);
     }
 }
 ```
 
----
-
-## Utilities
-
-### TemplateString
+### MSTest (Testing.Core)
 
 ```csharp
-var path = new TemplateString("${TEMP}/${RND}/config");
-// Expands to: /tmp/a1b2c3d4/config
+using FluentDocker.Testing.MsTest;
 
-var envPath = new TemplateString("${E_HOME}/app");
-// Expands to: /home/user/app
+[TestClass]
+public class MyTests
+{
+    private static FluentDockerKernel _kernel;
+    private static ContainerResource _resource;
+
+    [ClassInitialize]
+    public static async Task ClassInit(TestContext context)
+    {
+        (_kernel, _resource) = await MsTestResourceHelpers.CreateContainerAsync(
+            builder => builder
+                .UseImage("redis:alpine")
+                .WaitForPort("6379/tcp"));
+    }
+
+    [ClassCleanup]
+    public static async Task ClassCleanup()
+    {
+        await MsTestResourceHelpers.DisposeAsync(_resource, _kernel);
+    }
+}
 ```
 
-### Wget Helper
-
-```csharp
-var body = await "http://localhost:8080/health".WgetAsync();
-var (status, body) = await "http://localhost/api".WgetWithStatusAsync();
-```
+See the [full testing docs](docs/testing.md) for NUnit, Compose, Topology,
+Swarm Stack, and Podman Kubernetes resource types.
 
 ---
 
 ## Linux Users
 
-Docker requires sudo by default. Configure it per-driver:
-
-```csharp
-// Via typed kernel builder
-using var kernel = FluentDockerKernel.Create()
-    .WithDockerCli("docker", d => d
-        .WithSudo(SudoMechanism.NoPassword)
-        .AsDefault())
-    .Build();
-```
-
-Or add user to docker group: `sudo usermod -aG docker $USER`
-
----
-
-## Logging
-
-```csharp
-Logging.Enabled();   // Enable logging
-Logging.Disabled();  // Disable logging
-```
-
-Configure via `appsettings.json`:
-```json
-{
-  "Logging": {
-    "LogLevel": {
-      "FluentDocker": "Debug"
-    }
-  }
-}
-```
+Docker requires sudo by default. Configure per-driver:
+`WithSudo(SudoMechanism.NoPassword)` or add user to docker group:
+`sudo usermod -aG docker $USER`
 
 ---
 

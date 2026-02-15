@@ -6,21 +6,31 @@
 
 In addition to the standard _FluentDocker_ usage, it adds the ability to use easy testing with containers via _XUnit_.
 
-For example, fire up a Postgres container inside the test could look like this
+For example, fire up a Postgres container inside the test:
 
 ```cs
-public class PostgresXUnitTests : IClassFixture<PostgresTestBase>
+public class MyPostgresFixture : PostgresTestBase
 {
-    [Fact]
-    public void Test()
+    public MyPostgresFixture()
     {
-          // We now have a running Postgres
-          // and a valid connection string to use.
+        Initialize(); // starts container and sets ConnectionString
+    }
+}
+
+public class PostgresXUnitTests : IClassFixture<MyPostgresFixture>
+{
+    private readonly MyPostgresFixture _fixture;
+    public PostgresXUnitTests(MyPostgresFixture fixture) => _fixture = fixture;
+
+    [Fact]
+    public void CanConnect()
+    {
+        using var conn = new NpgsqlConnection(_fixture.ConnectionString);
+        conn.Open();
+        Assert.Equal(ConnectionState.Open, conn.State);
     }
 }
 ```
-
-This library enables `docker` and `docker compose` interactions using a _Fluent API_. It is supported on Linux, Windows and Mac.
 
 **Have a look at the [project site](https://github.com/mariotoffia/FluentDocker) for more information.**
 
@@ -41,5 +51,5 @@ using var results = new Builder()
 
 var container = results.Containers.First();
 var config = container.GetConfiguration(true);
-Assert.AreEqual(ServiceRunningState.Running, config.State.ToServiceState());
+Assert.Equal(ServiceRunningState.Running, config.State.ToServiceState());
 ```

@@ -13,20 +13,22 @@ This guide helps you install FluentDocker and run your first container.
 ### NuGet Packages
 
 ```bash
-# Core package
+# Core package (includes Testing.Core)
 dotnet add package FluentDocker
 
-# Optional: Test support
-dotnet add package FluentDocker.MsTest  # For MSTest
-dotnet add package FluentDocker.XUnit   # For xUnit
+# Optional: Test framework adapters
+dotnet add package FluentDocker.Testing.Xunit   # xUnit adapter
+dotnet add package FluentDocker.Testing.MsTest  # MSTest adapter
+dotnet add package FluentDocker.Testing.NUnit   # NUnit adapter
 ```
 
 ### Package References
 
 ```xml
 <PackageReference Include="FluentDocker" Version="3.*" />
-<PackageReference Include="FluentDocker.MsTest" Version="3.*" />
-<PackageReference Include="FluentDocker.XUnit" Version="3.*" />
+<PackageReference Include="FluentDocker.Testing.Xunit" Version="1.*" />
+<PackageReference Include="FluentDocker.Testing.MsTest" Version="1.*" />
+<PackageReference Include="FluentDocker.Testing.NUnit" Version="1.*" />
 ```
 
 ## Prerequisites

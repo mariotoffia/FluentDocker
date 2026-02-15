@@ -92,6 +92,32 @@ namespace FluentDocker.Tests.CoreTests.Testing
     }
 
     [Fact]
+    public async Task ProvisionAsync_AutoBindsDriver()
+    {
+      MockPack
+          .SetupContainerCreate()
+          .SetupContainerStart()
+          .SetupContainerInspect(running: true)
+          .SetupContainerStop()
+          .SetupContainerRemove();
+
+      // The user callback does NOT call WithinDriver - the resource does it automatically.
+      var resource = new TopologyResource(
+          Kernel,
+          builder =>
+          {
+            builder.UseContainer(c => c.UseImage("redis:alpine").WithName("auto-bind-test"));
+          });
+
+      await resource.InitializeAsync();
+
+      Assert.True(resource.IsInitialized);
+      Assert.True(resource.Services.Count >= 1);
+
+      await resource.DisposeAsync();
+    }
+
+    [Fact]
     public void Constructor_NullKernel_Throws()
     {
       Assert.Throws<ArgumentNullException>(

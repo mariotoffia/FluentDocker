@@ -75,3 +75,32 @@ public static async Task ClassInit(TestContext context)
             .WithProjectName("integration-tests"));
 }
 ```
+
+### Swarm Stack Example
+
+```csharp
+[ClassInitialize]
+public static async Task ClassInit(TestContext context)
+{
+    (_kernel, _resource) = await MsTestResourceHelpers.CreateSwarmStackAsync(
+        new StackDeployConfig
+        {
+            StackName = "my-stack",
+            ComposeFiles = { "docker-compose.yml" }
+        });
+}
+```
+
+### Podman Kubernetes Example
+
+```csharp
+[ClassInitialize]
+public static async Task ClassInit(TestContext context)
+{
+    (_kernel, _resource) = await MsTestResourceHelpers.CreatePodmanKubernetesAsync(
+        new KubePlayConfig { YamlPath = "pod.yaml" },
+        kernelFactory: async () => await FluentDockerKernel.Create()
+            .WithPodmanCli("podman", d => d.AsDefault())
+            .BuildAsync());
+}
+```

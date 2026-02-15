@@ -6,22 +6,22 @@
 
 In addition to the standard _FluentDocker_ usage, it adds the ability to use easy testing with containers via MsTest.
 
-For example, fire up a Postgres container inside the test could look like this
+For example, fire up a Postgres container inside the test:
 
 ```cs
 [TestClass]
 public class PostgresMsTests : PostgresTestBase
 {
     [TestMethod]
-    public void Test()
+    public void CanConnect()
     {
-          // We now have a running Postgres
-          // and a valid connection string to use.
+        // ConnectionString is available from base class
+        using var conn = new NpgsqlConnection(ConnectionString);
+        conn.Open();
+        Assert.AreEqual(ConnectionState.Open, conn.State);
     }
 }
 ```
-
-This library enables `docker` and `docker compose` interactions using a _Fluent API_. It is supported on Linux, Windows and Mac.
 
 **Have a look at the [project site](https://github.com/mariotoffia/FluentDocker) for more information.**
 

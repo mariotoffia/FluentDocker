@@ -263,8 +263,15 @@ public class MyDbTests
                 .WithPort("5432", null)
                 .WaitForPort("5432/tcp"));
 
+        // Resolve the mapped host port from inspect data
+        var info = await _resource.Container.InspectAsync();
+        var port = "5432";
+        if (info.NetworkSettings?.Ports?.TryGetValue("5432/tcp", out var bindings) == true
+            && bindings is { Length: > 0 })
+            port = bindings[0].HostPort;
+
         _connectionString =
-            "Host=localhost;Port=5432;Database=postgres;" +
+            $"Host=localhost;Port={port};Database=postgres;" +
             "Username=postgres;Password=test";
     }
 

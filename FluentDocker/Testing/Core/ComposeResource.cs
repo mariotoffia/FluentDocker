@@ -114,7 +114,7 @@ namespace FluentDocker.Testing.Core
       {
         try
         {
-          diag.Logs = await Service.GetLogsAsync(false);
+          diag.Logs = TruncateLogLines(await Service.GetLogsAsync(false));
         }
         catch
         {

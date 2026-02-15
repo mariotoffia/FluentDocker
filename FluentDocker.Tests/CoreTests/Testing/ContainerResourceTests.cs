@@ -194,6 +194,53 @@ namespace FluentDocker.Tests.CoreTests.Testing
     }
 
     [Fact]
+    public async Task Hook_ReceivesResourceInstance_NotNull()
+    {
+      MockPack
+          .SetupContainerCreate()
+          .SetupContainerStart()
+          .SetupContainerInspect(running: true)
+          .SetupContainerStop()
+          .SetupContainerRemove();
+
+      IDockerResource receivedInHook = null;
+
+      var resource = new ContainerResource(
+          Kernel,
+          builder => builder.UseImage("alpine:latest"));
+
+      resource.OnAfterReady(r =>
+      {
+        receivedInHook = r;
+        return Task.CompletedTask;
+      });
+
+      await resource.InitializeAsync();
+
+      Assert.NotNull(receivedInHook);
+      Assert.Same(resource, receivedInHook);
+
+      await resource.DisposeAsync();
+    }
+
+    [Fact]
+    public async Task ExpectedType_Mismatch_ThrowsInvalidOperationException()
+    {
+      // MockDriverPack.Type is DockerCli. Request PodmanCli -> should fail.
+      var resource = new ContainerResource(
+          Kernel,
+          builder => builder.UseImage("alpine:latest"),
+          new DockerResourceOptions
+          {
+            Driver = DriverSelection.PodmanCli("docker") // wrong type for this pack
+          });
+
+      var ex = await Assert.ThrowsAsync<InvalidOperationException>(
+          () => resource.InitializeAsync());
+      Assert.Contains("Expected driver type", ex.Message);
+    }
+
+    [Fact]
     public async Task DriverSelection_Specific_UsesProvidedId()
     {
       var secondPack = new MockDriverPack();
