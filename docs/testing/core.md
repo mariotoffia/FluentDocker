@@ -100,6 +100,42 @@ When initialization fails, the `Diagnostics` property is populated with:
 - `InspectPayload` - container inspect data
 - `OperationContext` - additional context
 
+## ResourceLifecycle (Advanced)
+
+`ResourceLifecycle` is the shared static utility used by all framework adapters
+(xUnit fixtures, MsTest helpers, NUnit helpers) to create, initialize, and
+dispose resources. You only need to use it directly if you are building a custom
+adapter or managing kernel lifetime yourself.
+
+```csharp
+// Create and initialize with default Docker CLI kernel
+var (kernel, resource) = await ResourceLifecycle.CreateAndInitializeAsync(
+    k => new ContainerResource(k, b => b.UseImage("redis:alpine")));
+
+// Use resource...
+
+// Dispose resource then kernel
+await ResourceLifecycle.DisposeAsync(resource, kernel);
+```
+
+### Kernel Ownership
+
+`CreateAndInitializeAsync` **takes ownership** of the kernel returned by the
+factory. On success, the caller owns both the kernel and the resource and must
+dispose them (typically via `DisposeAsync`). On initialization failure, both are
+automatically cleaned up before the exception propagates.
+
+> **Important:** The `kernelFactory` must return a **new** kernel each time it is
+> called. Never return a shared or externally-managed kernel — it will be disposed
+> when the resource is torn down.
+
+### Default Kernel Factories
+
+| Factory | Creates |
+|---|---|
+| `CreateDefaultDockerKernelAsync()` | Docker CLI kernel (used when no factory is specified) |
+| `CreateDefaultPodmanKernelAsync()` | Podman CLI kernel |
+
 ## Usage Example
 
 ```csharp

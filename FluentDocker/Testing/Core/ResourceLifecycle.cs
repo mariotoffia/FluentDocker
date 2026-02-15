@@ -33,9 +33,19 @@ namespace FluentDocker.Testing.Core
     /// and returns the pair. On failure, disposes the resource and kernel
     /// before re-throwing.
     /// </summary>
+    /// <remarks>
+    /// <para><b>Kernel ownership:</b> This method takes ownership of the kernel
+    /// returned by the factory. Both the kernel and the resource will be disposed
+    /// on failure. On success, the caller is responsible for disposing the returned
+    /// kernel (typically via the adapter's <c>DisposeAsync</c>).</para>
+    /// <para>The <paramref name="kernelFactory"/> must return a <b>new</b> kernel
+    /// instance each time it is called. Do not return a shared or externally-managed
+    /// kernel — it will be disposed when the resource is torn down.</para>
+    /// </remarks>
     /// <typeparam name="TResource">The resource type.</typeparam>
     /// <param name="resourceFactory">Factory that receives a kernel and returns the resource.</param>
-    /// <param name="kernelFactory">Optional kernel factory. When null, uses <paramref name="defaultKernelFactory"/>.</param>
+    /// <param name="kernelFactory">Optional kernel factory. When null, uses
+    /// <paramref name="defaultKernelFactory"/>. Must return a new kernel per call.</param>
     /// <param name="defaultKernelFactory">
     /// Fallback kernel factory when <paramref name="kernelFactory"/> is null.
     /// Defaults to <see cref="CreateDefaultDockerKernelAsync"/>.
@@ -76,6 +86,9 @@ namespace FluentDocker.Testing.Core
 
     /// <summary>
     /// Disposes a resource and its kernel in the correct order.
+    /// The resource is disposed first, then the kernel. Both are assumed
+    /// to be owned by the caller (typically created via
+    /// <see cref="CreateAndInitializeAsync{TResource}"/>).
     /// </summary>
     public static async Task DisposeAsync(
         ITestResource resource, FluentDockerKernel kernel)
