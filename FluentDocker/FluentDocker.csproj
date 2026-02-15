@@ -19,10 +19,10 @@
     <AllowedOutputExtensionsInPackageBuildOutputFolder>$(AllowedOutputExtensionsInPackageBuildOutputFolder);.pdb</AllowedOutputExtensionsInPackageBuildOutputFolder>
     <EmbedUntrackedSources>true</EmbedUntrackedSources>
     <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
-    <PackageTags>Docker;Docker Compose;Linux;Windows;Mac;Fluent;NET Core</PackageTags>
+    <PackageTags>Docker;Podman;Docker Compose;Docker Swarm;Docker API;Kubernetes;Container;Linux;Windows;Mac;Fluent;NET</PackageTags>
     <RepositoryType>git</RepositoryType>
     <RepositoryUrl>https://github.com/mariotoffia/FluentDocker</RepositoryUrl>
-    <Description>Library to manage docker compose and docker containers for Windows, Mac, or native Linux using .NET.</Description>
+    <Description>Fluent API to manage Docker and Podman containers, images, networks, and volumes via CLI or Docker Engine API. Supports Docker Compose, Docker Swarm, Podman Kubernetes YAML, multi-driver kernel architecture, and runs on Windows, Mac, and Linux.</Description>
     <Copyright>© 2016 - 2026 Mario Toffia</Copyright>
     <AssemblyOriginatorKeyFile>..\keypair.snk</AssemblyOriginatorKeyFile>
     <SignAssembly>true</SignAssembly>

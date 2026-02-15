@@ -16,13 +16,10 @@
     <PackageId>FluentDocker.XUnit</PackageId>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
-    <PackageTags>Docker;Docker-Compose;Docker Compose;Podman;Linux;Windows;Mac;Test;NET Core</PackageTags>
+    <PackageTags>Docker;Podman;Docker Compose;Docker Swarm;Docker API;Kubernetes;Container;Linux;Windows;Mac;Test;xUnit;NET</PackageTags>
     <RepositoryType>git</RepositoryType>
     <RepositoryUrl>https://github.com/mariotoffia/FluentDocker</RepositoryUrl>
-    <Description>
-      XUnit Support to allow for create, run one or more docker images while testing using docker, compose, machine (Linux, Windows, Mac) using netcore or full framework.
-      Documentation: https://github.com/mariotoffia/FluentDocker
-    </Description>
+    <Description>xUnit integration for FluentDocker. Manage Docker and Podman containers, networks, volumes, and Compose/Swarm/Kubernetes resources in your test fixtures.</Description>
     <Copyright>© 2016 - 2026 Mario Toffia</Copyright>
     <AssemblyOriginatorKeyFile>..\keypair.snk</AssemblyOriginatorKeyFile>
     <SignAssembly>true</SignAssembly>
