@@ -184,26 +184,69 @@ using var imgResults = new Builder()
 
 ## Step 5: Update Test Base Classes
 
+The legacy `FluentDockerTestBase` (xUnit) and `FluentDockerTestBase` (MSTest) base
+classes have been **removed**. Use the new adapter packages instead.
+
+### xUnit — `XunitContainerFixture`
+
 ```csharp
 // OLD
-protected override ContainerBuilder Build()
+public class RedisFixture : FluentDockerTestBase
 {
-    return new Builder()
-        .UseContainer()
-        .UseImage("redis:alpine")
-        .ExposePort(6379)
-        .WaitForPort("6379/tcp", 30000);
+    protected override ContainerBuilder Build()
+        => new Builder().UseContainer().UseImage("redis:alpine")
+            .ExposePort(6379).WaitForPort("6379/tcp", 30000);
 }
 
 // NEW
-protected override void ConfigureContainer(IContainerBuilder builder)
+public class RedisFixture : XunitContainerFixture
 {
-    builder
-        .UseImage("redis:alpine")
-        .ExposePort("6379")
-        .WaitForPort("6379/tcp", 30000);
+    public RedisFixture()
+    {
+        InitializeAsync(builder => builder
+            .UseImage("redis:alpine")
+            .ExposePort("6379")
+            .WaitForPort("6379/tcp", 30000)
+        ).GetAwaiter().GetResult();
+    }
 }
 ```
+
+### MSTest — `MsTestResourceHelpers`
+
+```csharp
+// OLD
+[TestClass]
+public class RedisTests : FluentDockerTestBase
+{
+    protected override ContainerBuilder Build()
+        => new Builder().UseContainer().UseImage("redis:alpine")
+            .ExposePort(6379).WaitForPort("6379/tcp", 30000);
+}
+
+// NEW
+[TestClass]
+public class RedisTests
+{
+    private static FluentDockerKernel _kernel;
+    private static ContainerResource _resource;
+
+    [ClassInitialize]
+    public static async Task ClassInit(TestContext ctx)
+    {
+        (_kernel, _resource) = await MsTestResourceHelpers.CreateContainerAsync(
+            b => b.UseImage("redis:alpine").ExposePort("6379")
+                  .WaitForPort("6379/tcp", 30000));
+    }
+
+    [ClassCleanup]
+    public static async Task ClassCleanup()
+        => await MsTestResourceHelpers.DisposeAsync(_resource, _kernel);
+}
+```
+
+See [Test Migration Guide](migrate-v2-to-v3/test-migration.md) for NUnit, Compose,
+and collection fixture examples.
 
 ## Step 6: Remove Docker Machine Code
 
@@ -349,7 +392,7 @@ var stats = await container.GetStatsAsync();
 - [ ] Find & replace namespaces
 - [ ] Add kernel creation
 - [ ] Rewrite builder code to lambda + WithinDriver pattern
-- [ ] Update test base classes (ConfigureContainer)
+- [ ] Replace test base classes with adapter packages (see Step 5)
 - [ ] Remove Docker Machine code
 - [ ] Remove Docker Toolbox code
 - [ ] Update Compose commands to struct-based

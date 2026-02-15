@@ -29,7 +29,7 @@ namespace FluentDocker.Tests.Integration.PodmanCliDriver
     protected const string TestLabelKey = "com.fluentdocker.test";
     protected const string TestLabelValue = "integration";
 
-    public async Task InitializeAsync()
+    public async ValueTask InitializeAsync()
     {
       if (!IsPodmanInstalled())
       {
@@ -48,10 +48,10 @@ namespace FluentDocker.Tests.Integration.PodmanCliDriver
           .BuildAsync();
     }
 
-    public Task DisposeAsync()
+    public ValueTask DisposeAsync()
     {
       Kernel?.Dispose();
-      return Task.CompletedTask;
+      return default;
     }
 
     protected IContainerDriver ContainerDriver => Kernel.SysCtl<IContainerDriver>(DriverId);

@@ -92,3 +92,17 @@ public async Task Setup()
             .BuildAsync());
 }
 ```
+
+### Generic / Custom Resource
+
+Use `CreateResourceAsync<T>` for plugin or custom `IDockerResource` types:
+
+```csharp
+[OneTimeSetUp]
+public async Task Setup()
+{
+    (_kernel, _resource) = await NUnitResourceHelpers.CreateResourceAsync<ContainerResource>(
+        kernel => new ContainerResource(kernel,
+            c => c.UseImage("redis:alpine").WaitForPort("6379/tcp")));
+}
+```

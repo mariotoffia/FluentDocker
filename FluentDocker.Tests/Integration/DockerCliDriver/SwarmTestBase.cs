@@ -43,7 +43,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
     protected IStackDriver StackDriver => Kernel.SysCtl<IStackDriver>(DriverId);
     protected IServiceDriver ServiceDriver => Kernel.SysCtl<IServiceDriver>(DriverId);
 
-    public async Task InitializeAsync()
+    public async ValueTask InitializeAsync()
     {
       if (!IsDockerInstalled())
         throw new DockerSkipException("Docker is not installed or not in PATH");
@@ -61,7 +61,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
       }
     }
 
-    public Task DisposeAsync()
+    public ValueTask DisposeAsync()
     {
       // Note: We intentionally do NOT leave Swarm mode here.
       // xUnit runs test classes in parallel, so leaving Swarm would break
@@ -70,7 +70,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
       // To leave Swarm manually: docker swarm leave --force
 
       Kernel?.Dispose();
-      return Task.CompletedTask;
+      return default;
     }
 
     protected async Task EnsureImageAsync(string image, bool force = false)

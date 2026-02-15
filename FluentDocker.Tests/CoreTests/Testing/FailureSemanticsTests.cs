@@ -13,14 +13,9 @@ namespace FluentDocker.Tests.CoreTests.Testing
   [Trait("Category", "Unit")]
   public class FailureSemanticsTests : MockKernelTestBase, IAsyncLifetime
   {
-    public async Task InitializeAsync()
+    public async ValueTask InitializeAsync()
     {
       await InitializeMockKernelAsync();
-    }
-
-    public Task DisposeAsync()
-    {
-      return base.DisposeAsync().AsTask();
     }
 
     [Fact]

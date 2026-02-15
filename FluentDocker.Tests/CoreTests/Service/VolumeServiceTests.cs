@@ -78,22 +78,22 @@ namespace FluentDocker.Tests.CoreTests.Service
     }
 
     [Fact]
-    public void PauseAsync_ThrowsNotSupportedException()
+    public async Task PauseAsync_ThrowsNotSupportedException()
     {
       var kernel = new FluentDockerKernel();
       var service = new VolumeService(kernel, "docker", "my-volume", "local");
 
-      Assert.ThrowsAsync<NotSupportedException>(async () => await service.PauseAsync());
+      await Assert.ThrowsAsync<NotSupportedException>(async () => await service.PauseAsync());
       kernel.Dispose();
     }
 
     [Fact]
-    public void StopAsync_ThrowsNotSupportedException()
+    public async Task StopAsync_ThrowsNotSupportedException()
     {
       var kernel = new FluentDockerKernel();
       var service = new VolumeService(kernel, "docker", "my-volume", "local");
 
-      Assert.ThrowsAsync<NotSupportedException>(async () => await service.StopAsync());
+      await Assert.ThrowsAsync<NotSupportedException>(async () => await service.StopAsync());
       kernel.Dispose();
     }
 

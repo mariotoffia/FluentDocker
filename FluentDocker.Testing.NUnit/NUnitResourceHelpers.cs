@@ -26,6 +26,7 @@ namespace FluentDocker.Testing.NUnit
             DockerResourceOptions options = null)
     {
       FluentDockerKernel kernel = null;
+      ContainerResource resource = null;
       try
       {
         kernel = kernelFactory != null
@@ -34,12 +35,13 @@ namespace FluentDocker.Testing.NUnit
                 .WithDockerCli("docker-cli", d => d.AsDefault())
                 .BuildAsync();
 
-        var resource = new ContainerResource(kernel, configure, options);
+        resource = new ContainerResource(kernel, configure, options);
         await resource.InitializeAsync();
         return (kernel, resource);
       }
       catch
       {
+        try { if (resource != null) await resource.DisposeAsync(); } catch { /* best effort */ }
         kernel?.Dispose();
         throw;
       }
@@ -55,6 +57,7 @@ namespace FluentDocker.Testing.NUnit
             DockerResourceOptions options = null)
     {
       FluentDockerKernel kernel = null;
+      ComposeResource resource = null;
       try
       {
         kernel = kernelFactory != null
@@ -63,12 +66,13 @@ namespace FluentDocker.Testing.NUnit
                 .WithDockerCli("docker-cli", d => d.AsDefault())
                 .BuildAsync();
 
-        var resource = new ComposeResource(kernel, configure, options);
+        resource = new ComposeResource(kernel, configure, options);
         await resource.InitializeAsync();
         return (kernel, resource);
       }
       catch
       {
+        try { if (resource != null) await resource.DisposeAsync(); } catch { /* best effort */ }
         kernel?.Dispose();
         throw;
       }
@@ -84,6 +88,7 @@ namespace FluentDocker.Testing.NUnit
             DockerResourceOptions options = null)
     {
       FluentDockerKernel kernel = null;
+      TopologyResource resource = null;
       try
       {
         kernel = kernelFactory != null
@@ -92,12 +97,13 @@ namespace FluentDocker.Testing.NUnit
                 .WithDockerCli("docker-cli", d => d.AsDefault())
                 .BuildAsync();
 
-        var resource = new TopologyResource(kernel, configure, options);
+        resource = new TopologyResource(kernel, configure, options);
         await resource.InitializeAsync();
         return (kernel, resource);
       }
       catch
       {
+        try { if (resource != null) await resource.DisposeAsync(); } catch { /* best effort */ }
         kernel?.Dispose();
         throw;
       }
@@ -116,6 +122,7 @@ namespace FluentDocker.Testing.NUnit
             DockerResourceOptions options = null)
     {
       FluentDockerKernel kernel = null;
+      SwarmStackResource resource = null;
       try
       {
         kernel = kernelFactory != null
@@ -124,12 +131,13 @@ namespace FluentDocker.Testing.NUnit
                 .WithDockerCli("docker-cli", d => d.AsDefault())
                 .BuildAsync();
 
-        var resource = new SwarmStackResource(kernel, config, options);
+        resource = new SwarmStackResource(kernel, config, options);
         await resource.InitializeAsync();
         return (kernel, resource);
       }
       catch
       {
+        try { if (resource != null) await resource.DisposeAsync(); } catch { /* best effort */ }
         kernel?.Dispose();
         throw;
       }
@@ -148,6 +156,7 @@ namespace FluentDocker.Testing.NUnit
             DockerResourceOptions options = null)
     {
       FluentDockerKernel kernel = null;
+      PodmanKubernetesResource resource = null;
       try
       {
         kernel = kernelFactory != null
@@ -156,12 +165,52 @@ namespace FluentDocker.Testing.NUnit
                 .WithPodmanCli("podman-cli", d => d.AsDefault())
                 .BuildAsync();
 
-        var resource = new PodmanKubernetesResource(kernel, config, options);
+        resource = new PodmanKubernetesResource(kernel, config, options);
         await resource.InitializeAsync();
         return (kernel, resource);
       }
       catch
       {
+        try { if (resource != null) await resource.DisposeAsync(); } catch { /* best effort */ }
+        kernel?.Dispose();
+        throw;
+      }
+    }
+
+    /// <summary>
+    /// Creates and initializes any <see cref="IDockerResource"/> using a factory.
+    /// Use this for plugin resources or custom resource types.
+    /// </summary>
+    /// <typeparam name="TResource">The resource type to create.</typeparam>
+    /// <param name="resourceFactory">Factory receiving a kernel; returns the resource.</param>
+    /// <param name="kernelFactory">Optional kernel factory. Defaults to Docker CLI.</param>
+    public static async Task<(FluentDockerKernel kernel, TResource resource)>
+        CreateResourceAsync<TResource>(
+            Func<FluentDockerKernel, TResource> resourceFactory,
+            Func<Task<FluentDockerKernel>> kernelFactory = null)
+        where TResource : class, IDockerResource
+    {
+      ArgumentNullException.ThrowIfNull(resourceFactory);
+
+      FluentDockerKernel kernel = null;
+      TResource resource = null;
+      try
+      {
+        kernel = kernelFactory != null
+            ? await kernelFactory()
+            : await FluentDockerKernel.Create()
+                .WithDockerCli("docker-cli", d => d.AsDefault())
+                .BuildAsync();
+
+        resource = resourceFactory(kernel)
+            ?? throw new InvalidOperationException(
+                "resourceFactory returned null. The factory must return a non-null resource.");
+        await resource.InitializeAsync();
+        return (kernel, resource);
+      }
+      catch
+      {
+        try { if (resource != null) await resource.DisposeAsync(); } catch { /* best effort */ }
         kernel?.Dispose();
         throw;
       }

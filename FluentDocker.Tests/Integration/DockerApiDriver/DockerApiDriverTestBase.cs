@@ -21,17 +21,17 @@ namespace FluentDocker.Tests.Integration.DockerApiDriver
     protected const string TestImage = "alpine:latest";
     protected const string BusyboxImage = "busybox:latest";
 
-    public async Task InitializeAsync()
+    public async ValueTask InitializeAsync()
     {
       Kernel = await FluentDockerKernel.Create()
           .WithDockerApi(DriverId, d => d.AsDefault())
           .BuildAsync();
     }
 
-    public Task DisposeAsync()
+    public ValueTask DisposeAsync()
     {
       Kernel?.Dispose();
-      return Task.CompletedTask;
+      return default;
     }
 
     protected T GetDriver<T>() where T : class =>

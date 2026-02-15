@@ -118,13 +118,14 @@ namespace FluentDocker.Tests.CoreTests.Service
     }
 
     [Fact]
-    public void PauseAsync_ThrowsNotSupportedException()
+    public async Task PauseAsync_WithoutDriver_ThrowsDriverNotFoundException()
     {
       var kernel = new FluentDockerKernel();
       var composeFiles = new List<string> { "docker-compose.yml" };
       var service = new ComposeService(kernel, "docker", composeFiles, "my-project");
 
-      Assert.ThrowsAsync<NotSupportedException>(async () => await service.PauseAsync());
+      await Assert.ThrowsAsync<FluentDocker.Common.DriverNotFoundException>(
+          async () => await service.PauseAsync());
       kernel.Dispose();
     }
 

@@ -90,5 +90,27 @@ namespace FluentDocker.Tests.Mocks
           It.Is<VolumeCreateConfig>(c => c.Name == name),
           It.IsAny<CancellationToken>()), times);
     }
+
+    /// <summary>
+    /// Verifies StackDriver.RemoveAsync was called.
+    /// </summary>
+    public void VerifyStackRemoved(Times times)
+    {
+      StackDriver.Verify(d => d.RemoveAsync(
+          It.IsAny<DriverContext>(),
+          It.IsAny<string[]>(),
+          It.IsAny<CancellationToken>()), times);
+    }
+
+    /// <summary>
+    /// Verifies PodmanKubernetesDriver.DownAsync was called.
+    /// </summary>
+    public void VerifyKubeDown(Times times)
+    {
+      PodmanKubernetesDriver.Verify(d => d.DownAsync(
+          It.IsAny<DriverContext>(),
+          It.IsAny<string>(),
+          It.IsAny<CancellationToken>()), times);
+    }
   }
 }

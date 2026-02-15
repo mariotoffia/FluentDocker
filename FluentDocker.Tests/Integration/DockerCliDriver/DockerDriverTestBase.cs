@@ -28,7 +28,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
     protected const string TestLabelKey = "com.fluentdocker.test";
     protected const string TestLabelValue = "integration";
 
-    public async Task InitializeAsync()
+    public async ValueTask InitializeAsync()
     {
       // Ensure Linux daemon mode on Windows
       if (FdOs.IsWindows())
@@ -41,10 +41,10 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
           .BuildAsync();
     }
 
-    public Task DisposeAsync()
+    public ValueTask DisposeAsync()
     {
       Kernel?.Dispose();
-      return Task.CompletedTask;
+      return default;
     }
 
     /// <summary>

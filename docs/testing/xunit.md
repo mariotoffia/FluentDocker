@@ -109,6 +109,23 @@ public class KubeFixture : XunitPodmanKubernetesFixture
 }
 ```
 
+### `XunitResourceFixture<TResource>`
+
+Generic fixture for any `IDockerResource`, including plugin resources:
+
+```csharp
+public class MyPluginFixture : XunitResourceFixture<ContainerResource>
+{
+    public MyPluginFixture()
+    {
+        InitializeAsync(kernel =>
+            new ContainerResource(kernel,
+                c => c.UseImage("redis:alpine").WaitForPort("6379/tcp"))
+        ).GetAwaiter().GetResult();
+    }
+}
+```
+
 ## Custom Kernel
 
 All fixtures accept an optional kernel factory:
@@ -121,3 +138,12 @@ await InitializeAsync(
         .BuildAsync()
 );
 ```
+
+## Fixture Lifecycle
+
+Fixtures implement `IAsyncDisposable`. After `DisposeAsync()`, the `Resource`
+and `Kernel` properties are cleared to `null`, allowing re-initialization if
+needed. The `GetAwaiter().GetResult()` pattern in constructors is required
+because xUnit does not support async fixture constructors, and the
+fixture's `InitializeAsync` takes configuration parameters that cannot be
+passed through the parameterless `IAsyncLifetime.InitializeAsync()`.

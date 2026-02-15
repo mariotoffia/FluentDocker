@@ -16,14 +16,9 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
   [Trait("Category", "Unit")]
   public class BuilderVolumeTests : MockKernelTestBase, IAsyncLifetime
   {
-    public async Task InitializeAsync()
+    public async ValueTask InitializeAsync()
     {
       await InitializeMockKernelAsync();
-    }
-
-    public Task DisposeAsync()
-    {
-      return base.DisposeAsync().AsTask();
     }
 
     [Fact]

@@ -100,11 +100,12 @@ var kernel = await FluentDockerKernel.Create()
 ### Placement rules
 
 - **xUnit IAsyncLifetime**: Create kernel in `InitializeAsync()`, store as field.
-- **xUnit IClassFixture**: Create kernel in the fixture's `InitializeAsync()`.
+- **xUnit IClassFixture**: Use `XunitContainerFixture` -- kernel is managed automatically.
 - **xUnit Collection Fixture**: Create kernel in the collection fixture, share
   across all classes.
-- **MSTest FluentDockerTestBase**: Base class creates the kernel automatically.
-  Only override `CreateKernelAsync()` if you need custom configuration.
+- **MSTest**: Use `MsTestResourceHelpers.CreateContainerAsync()` -- kernel is returned
+  in the tuple. Pass a `kernelFactory` for custom configuration.
+- **NUnit**: Use `NUnitResourceHelpers.CreateContainerAsync()` -- same pattern as MSTest.
 - **Application code**: Create once at startup, pass via DI or store as a field.
 
 ---
@@ -421,42 +422,34 @@ await using var results = new Builder()
 
 ---
 
-## Step 12: Migrate test base classes
+## Step 12: Migrate test adapters
 
-### MSTest FluentDockerTestBase
+The legacy `FluentDockerTestBase` class has been removed. Use the new adapters:
+
+- **MSTest**: `MsTestResourceHelpers.CreateContainerAsync(builder => ...)` returns
+  `(kernel, resource)`. Cleanup with `MsTestResourceHelpers.DisposeAsync(resource, kernel)`.
+- **xUnit**: Inherit `XunitContainerFixture` and call `InitializeAsync(builder => ...)`
+  in the constructor.
+- **NUnit**: `NUnitResourceHelpers.CreateContainerAsync(builder => ...)` -- same as MSTest.
+- **Standalone xUnit IAsyncLifetime**: Create kernel + `BuildResults` fields, dispose
+  results before kernel. Use concrete `BuildResults` class (no `IBuildResults` interface).
 
 ```csharp
-// OLD
-protected override ContainerBuilder Build()
-{
-    return new Builder()
-        .UseContainer()
-        .UseImage("redis:alpine")
-        .ExposePort(6379)
-        .WaitForPort("6379/tcp", 30000);
-}
+// MSTest v3 pattern
+(_kernel, _resource) = await MsTestResourceHelpers.CreateContainerAsync(
+    builder => builder.UseImage("redis:alpine").ExposePort("6379"));
 
-// NEW
-protected override void ConfigureContainer(IContainerBuilder builder)
+// xUnit v3 pattern
+public class MyFixture : XunitContainerFixture
 {
-    builder
-        .UseImage("redis:alpine")
-        .ExposePort("6379")
-        .WaitForPort("6379/tcp", 30000);
+    public MyFixture()
+    {
+        InitializeAsync(builder => builder
+            .UseImage("redis:alpine").WaitForPort("6379/tcp")
+        ).GetAwaiter().GetResult();
+    }
 }
 ```
-
-### xUnit FluentDockerTestBase
-
-Same transformation -- override `ConfigureContainer` instead of `Build`.
-
-### xUnit IAsyncLifetime (standalone)
-
-Add kernel field, create in `InitializeAsync`, async-dispose both results and
-kernel in `DisposeAsync`. Store `BuildResults`, not `IContainerService`.
-
-**Important**: `IBuildResults` does not exist. Always use the concrete
-`BuildResults` class.
 
 ---
 

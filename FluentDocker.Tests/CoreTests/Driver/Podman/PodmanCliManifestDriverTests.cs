@@ -424,7 +424,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
     #region Capabilities
 
     [Fact]
-    public async void GetCapabilities_SupportsManifests()
+    public async Task GetCapabilities_SupportsManifests()
     {
       var pack = new PodmanCliDriverPack();
       var caps = await pack.GetCapabilitiesAsync();

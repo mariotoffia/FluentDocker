@@ -131,41 +131,37 @@ await resource.InitializeAsync();
 await resource.DisposeAsync();
 ```
 
-### With xUnit
+### With xUnit (generic fixture)
+
+Use `XunitResourceFixture<TResource>` to wrap any plugin resource:
 
 ```csharp
-public class PostgresFixture : IAsyncDisposable
+public class PostgresFixture : XunitResourceFixture<ContainerResource>
 {
-    private FluentDockerKernel _kernel;
-    private ContainerResource _resource;
-    public ContainerResource Resource => _resource;
-
     public PostgresFixture()
     {
-        InitializeAsync().GetAwaiter().GetResult();
+        InitializeAsync(kernel =>
+        {
+            var host = new TestPluginHost();
+            host.Add(new PostgresPlugin(kernel));
+            return host.Create<ContainerResource>("postgres");
+        }).GetAwaiter().GetResult();
     }
+}
 
-    private async Task InitializeAsync()
-    {
-        _kernel = await FluentDockerKernel.Create()
-            .WithDockerCli("docker", d => d.AsDefault())
-            .BuildAsync();
+public class PostgresTests : IClassFixture<PostgresFixture>
+{
+    private readonly PostgresFixture _fixture;
+    public PostgresTests(PostgresFixture fixture) => _fixture = fixture;
 
-        var host = new TestPluginHost();
-        host.Add(new PostgresPlugin(_kernel));
-        _resource = host.Create<ContainerResource>("postgres");
-        await _resource.InitializeAsync();
-    }
-
-    public async ValueTask DisposeAsync()
-    {
-        try { if (_resource != null) await _resource.DisposeAsync(); }
-        finally { _kernel?.Dispose(); }
-    }
+    [Fact]
+    public void Resource_IsInitialized() => Assert.True(_fixture.Resource.IsInitialized);
 }
 ```
 
-### With MSTest
+### With MSTest (generic helper)
+
+Use `MsTestResourceHelpers.CreateResourceAsync<T>`:
 
 ```csharp
 [TestClass]
@@ -177,21 +173,48 @@ public class PostgresTests
     [ClassInitialize]
     public static async Task Init(TestContext ctx)
     {
-        _kernel = await FluentDockerKernel.Create()
-            .WithDockerCli("docker", d => d.AsDefault())
-            .BuildAsync();
-
-        var host = new TestPluginHost();
-        host.Add(new PostgresPlugin(_kernel));
-        _resource = host.Create<ContainerResource>("postgres");
-        await _resource.InitializeAsync();
+        (_kernel, _resource) = await MsTestResourceHelpers.CreateResourceAsync<ContainerResource>(
+            kernel =>
+            {
+                var host = new TestPluginHost();
+                host.Add(new PostgresPlugin(kernel));
+                return host.Create<ContainerResource>("postgres");
+            });
     }
 
     [ClassCleanup]
     public static async Task Cleanup()
     {
-        try { if (_resource != null) await _resource.DisposeAsync(); }
-        finally { _kernel?.Dispose(); }
+        await MsTestResourceHelpers.DisposeAsync(_resource, _kernel);
+    }
+}
+```
+
+### With NUnit (generic helper)
+
+```csharp
+[TestFixture]
+public class PostgresTests
+{
+    private FluentDockerKernel _kernel;
+    private ContainerResource _resource;
+
+    [OneTimeSetUp]
+    public async Task Setup()
+    {
+        (_kernel, _resource) = await NUnitResourceHelpers.CreateResourceAsync<ContainerResource>(
+            kernel =>
+            {
+                var host = new TestPluginHost();
+                host.Add(new PostgresPlugin(kernel));
+                return host.Create<ContainerResource>("postgres");
+            });
+    }
+
+    [OneTimeTearDown]
+    public async Task Teardown()
+    {
+        await NUnitResourceHelpers.DisposeAsync(_resource, _kernel);
     }
 }
 ```

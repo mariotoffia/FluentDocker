@@ -47,6 +47,7 @@ namespace FluentDocker.Testing.Xunit
             "Fixture has already been initialized. Dispose before re-initializing.");
 
       FluentDockerKernel kernel = null;
+      PodmanKubernetesResource resource = null;
       try
       {
         kernel = kernelFactory != null
@@ -55,7 +56,7 @@ namespace FluentDocker.Testing.Xunit
                 .WithPodmanCli("podman-cli", d => d.AsDefault())
                 .BuildAsync();
 
-        var resource = new PodmanKubernetesResource(kernel, config, options);
+        resource = new PodmanKubernetesResource(kernel, config, options);
         await resource.InitializeAsync();
 
         Kernel = kernel;
@@ -63,6 +64,7 @@ namespace FluentDocker.Testing.Xunit
       }
       catch
       {
+        try { if (resource != null) await resource.DisposeAsync(); } catch { /* best effort */ }
         kernel?.Dispose();
         throw;
       }
@@ -71,10 +73,17 @@ namespace FluentDocker.Testing.Xunit
     /// <inheritdoc />
     public async ValueTask DisposeAsync()
     {
-      if (_resource != null)
-        await _resource.DisposeAsync();
-
-      Kernel?.Dispose();
+      try
+      {
+        if (_resource != null)
+          await _resource.DisposeAsync();
+      }
+      finally
+      {
+        Kernel?.Dispose();
+        _resource = null;
+        Kernel = null;
+      }
     }
   }
 }

@@ -26,9 +26,9 @@ dotnet add package FluentDocker.Testing.NUnit   # NUnit adapter
 
 ```xml
 <PackageReference Include="FluentDocker" Version="3.*" />
-<PackageReference Include="FluentDocker.Testing.Xunit" Version="1.*" />
-<PackageReference Include="FluentDocker.Testing.MsTest" Version="1.*" />
-<PackageReference Include="FluentDocker.Testing.NUnit" Version="1.*" />
+<PackageReference Include="FluentDocker.Testing.Xunit" Version="3.*" />
+<PackageReference Include="FluentDocker.Testing.MsTest" Version="3.*" />
+<PackageReference Include="FluentDocker.Testing.NUnit" Version="3.*" />
 ```
 
 ## Prerequisites

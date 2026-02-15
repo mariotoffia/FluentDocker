@@ -104,3 +104,17 @@ public static async Task ClassInit(TestContext context)
             .BuildAsync());
 }
 ```
+
+### Generic / Custom Resource
+
+Use `CreateResourceAsync<T>` for plugin or custom `IDockerResource` types:
+
+```csharp
+[ClassInitialize]
+public static async Task ClassInit(TestContext context)
+{
+    (_kernel, _resource) = await MsTestResourceHelpers.CreateResourceAsync<ContainerResource>(
+        kernel => new ContainerResource(kernel,
+            c => c.UseImage("redis:alpine").WaitForPort("6379/tcp")));
+}
+```

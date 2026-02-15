@@ -25,7 +25,7 @@ namespace FluentDocker.Tests.Integration.FluentBuilder
     private const string TestSessionLabel = "fluentdocker.test.session";
     private readonly string _sessionId = Guid.NewGuid().ToString();
 
-    public async Task InitializeAsync()
+    public async ValueTask InitializeAsync()
     {
       _kernel = await FluentDockerKernel.Create()
           .WithDockerCli(DriverId, d => d.AsDefault())
@@ -35,7 +35,7 @@ namespace FluentDocker.Tests.Integration.FluentBuilder
       await TestContainerUtils.CleanupAllTestResourcesAsync(_kernel, DriverId);
     }
 
-    public async Task DisposeAsync()
+    public async ValueTask DisposeAsync()
     {
       // Cleanup test containers and networks created in this session
       await TestContainerUtils.CleanupAllTestResourcesAsync(_kernel, DriverId, _sessionId);

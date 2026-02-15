@@ -1,30 +1,26 @@
 using System;
 using System.Threading.Tasks;
-using FluentDocker.Builders;
 using FluentDocker.Kernel;
-using FluentDocker.Services;
 using FluentDocker.Testing.Core;
 
 namespace FluentDocker.Testing.Xunit
 {
   /// <summary>
-  /// xUnit fixture that wraps a <see cref="ContainerResource"/>.
-  /// Use with <c>IClassFixture&lt;XunitContainerFixture&gt;</c> or
-  /// <c>ICollectionFixture&lt;XunitContainerFixture&gt;</c>.
+  /// Generic xUnit fixture for any <see cref="IDockerResource"/>.
+  /// Use this for plugin resources or custom resource types.
+  /// Use with <c>IClassFixture&lt;XunitResourceFixture&lt;TResource&gt;&gt;</c> or
+  /// <c>ICollectionFixture&lt;XunitResourceFixture&lt;TResource&gt;&gt;</c>.
   /// </summary>
-  public class XunitContainerFixture : IAsyncDisposable
+  /// <typeparam name="TResource">The resource type to manage.</typeparam>
+  public class XunitResourceFixture<TResource> : IAsyncDisposable
+      where TResource : class, IDockerResource
   {
-    private ContainerResource _resource;
+    private TResource _resource;
 
     /// <summary>
-    /// The underlying container resource.
+    /// The underlying resource.
     /// </summary>
-    public ContainerResource Resource => _resource;
-
-    /// <summary>
-    /// The running container service, available after initialization.
-    /// </summary>
-    public IContainerService Container => _resource?.Container;
+    public TResource Resource => _resource;
 
     /// <summary>
     /// The kernel managing drivers.
@@ -35,20 +31,20 @@ namespace FluentDocker.Testing.Xunit
     /// Configures and initializes the fixture.
     /// Call this from your fixture constructor or a setup method.
     /// </summary>
-    /// <param name="configure">Container builder configuration.</param>
+    /// <param name="resourceFactory">Factory receiving a kernel; returns the resource.</param>
     /// <param name="kernelFactory">Optional kernel factory. Defaults to Docker CLI.</param>
-    /// <param name="options">Optional resource options.</param>
     public async Task InitializeAsync(
-        Action<IContainerBuilder> configure,
-        Func<Task<FluentDockerKernel>> kernelFactory = null,
-        DockerResourceOptions options = null)
+        Func<FluentDockerKernel, TResource> resourceFactory,
+        Func<Task<FluentDockerKernel>> kernelFactory = null)
     {
+      ArgumentNullException.ThrowIfNull(resourceFactory);
+
       if (_resource != null)
         throw new InvalidOperationException(
             "Fixture has already been initialized. Dispose before re-initializing.");
 
       FluentDockerKernel kernel = null;
-      ContainerResource resource = null;
+      TResource resource = null;
       try
       {
         kernel = kernelFactory != null
@@ -57,7 +53,9 @@ namespace FluentDocker.Testing.Xunit
                 .WithDockerCli("docker-cli", d => d.AsDefault())
                 .BuildAsync();
 
-        resource = new ContainerResource(kernel, configure, options);
+        resource = resourceFactory(kernel)
+            ?? throw new InvalidOperationException(
+                "resourceFactory returned null. The factory must return a non-null resource.");
         await resource.InitializeAsync();
 
         Kernel = kernel;

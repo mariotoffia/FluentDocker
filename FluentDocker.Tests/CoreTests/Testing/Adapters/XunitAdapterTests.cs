@@ -16,14 +16,9 @@ namespace FluentDocker.Tests.CoreTests.Testing.Adapters
   [Trait("Category", "Unit")]
   public class XunitContainerFixtureTests : MockKernelTestBase, IAsyncLifetime
   {
-    public async Task InitializeAsync()
+    public async ValueTask InitializeAsync()
     {
       await InitializeMockKernelAsync();
-    }
-
-    public Task DisposeAsync()
-    {
-      return base.DisposeAsync().AsTask();
     }
 
     [Fact]
@@ -60,7 +55,7 @@ namespace FluentDocker.Tests.CoreTests.Testing.Adapters
     }
 
     [Fact]
-    public async Task DisposeAsync_CleansUpResource()
+    public async Task DisposeAsync_CleansUpResourceAndKernel()
     {
       MockPack
           .SetupContainerCreate()
@@ -78,7 +73,8 @@ namespace FluentDocker.Tests.CoreTests.Testing.Adapters
       Assert.True(fixture.Resource.IsInitialized);
 
       await fixture.DisposeAsync();
-      Assert.False(fixture.Resource.IsInitialized);
+      Assert.Null(fixture.Resource);
+      Assert.Null(fixture.Kernel);
     }
 
     [Fact]
@@ -112,19 +108,197 @@ namespace FluentDocker.Tests.CoreTests.Testing.Adapters
 
       await fixture.DisposeAsync();
     }
+
+    [Fact]
+    public async Task InitializeAsync_WhenResourceInitFails_CleansUpKernel()
+    {
+      var (testKernel, testPack) =
+          await MockKernelBuilderExtensions.CreateWithMockDriverAsync("fail-test");
+
+      // CreateAsync throws — simulates provisioning failure
+      testPack.ContainerDriver
+          .Setup(d => d.CreateAsync(
+              It.IsAny<DriverContext>(),
+              It.IsAny<ContainerCreateConfig>(),
+              It.IsAny<CancellationToken>()))
+          .ThrowsAsync(new InvalidOperationException("create failed"));
+
+      var fixture = new XunitContainerFixture();
+
+      await Assert.ThrowsAsync<InvalidOperationException>(() =>
+          fixture.InitializeAsync(
+              configure: c => c.UseImage("fail:image"),
+              kernelFactory: () => Task.FromResult(testKernel)));
+
+      // After failure, fixture state should be clean
+      Assert.Null(fixture.Resource);
+      Assert.Null(fixture.Kernel);
+    }
+
+    [Fact]
+    public async Task InitializeAsync_AfterDispose_CanReinitialize()
+    {
+      MockPack
+          .SetupContainerCreate()
+          .SetupContainerStart()
+          .SetupContainerInspect(running: true)
+          .SetupContainerStop()
+          .SetupContainerRemove();
+
+      var fixture = new XunitContainerFixture();
+
+      await fixture.InitializeAsync(
+          configure: c => c.UseImage("redis:alpine"),
+          kernelFactory: () => Task.FromResult(Kernel));
+      Assert.NotNull(fixture.Resource);
+
+      await fixture.DisposeAsync();
+      Assert.Null(fixture.Resource);
+      Assert.Null(fixture.Kernel);
+
+      // Create a new kernel for re-init since old one was disposed
+      var (newKernel, newPack) =
+          await MockKernelBuilderExtensions.CreateWithMockDriverAsync("reinit");
+      newPack
+          .SetupContainerCreate("reinit-container")
+          .SetupContainerStart()
+          .SetupContainerInspect(containerId: "reinit-container", running: true)
+          .SetupContainerStop()
+          .SetupContainerRemove();
+
+      await fixture.InitializeAsync(
+          configure: c => c.UseImage("nginx:alpine"),
+          kernelFactory: () => Task.FromResult(newKernel));
+
+      Assert.NotNull(fixture.Resource);
+      Assert.True(fixture.Resource.IsInitialized);
+
+      await fixture.DisposeAsync();
+    }
+  }
+
+  [Trait("Category", "Unit")]
+  public class XunitResourceFixtureGenericTests : MockKernelTestBase, IAsyncLifetime
+  {
+    public async ValueTask InitializeAsync()
+    {
+      await InitializeMockKernelAsync();
+    }
+
+    [Fact]
+    public async Task InitializeAsync_SuccessPath_CreatesResource()
+    {
+      MockPack
+          .SetupContainerCreate()
+          .SetupContainerStart()
+          .SetupContainerInspect(running: true)
+          .SetupContainerStop()
+          .SetupContainerRemove();
+
+      var fixture = new XunitResourceFixture<ContainerResource>();
+
+      await fixture.InitializeAsync(
+          kernel => new ContainerResource(kernel, c => c.UseImage("alpine:latest")),
+          kernelFactory: () => Task.FromResult(Kernel));
+
+      Assert.NotNull(fixture.Resource);
+      Assert.True(fixture.Resource.IsInitialized);
+      Assert.Same(Kernel, fixture.Kernel);
+
+      await fixture.DisposeAsync();
+    }
+
+    [Fact]
+    public async Task InitializeAsync_NullFactory_ThrowsArgumentNullException()
+    {
+      var fixture = new XunitResourceFixture<ContainerResource>();
+
+      await Assert.ThrowsAsync<ArgumentNullException>(() =>
+          fixture.InitializeAsync(null!));
+    }
+
+    [Fact]
+    public async Task InitializeAsync_FactoryReturnsNull_ThrowsInvalidOperationException()
+    {
+      var fixture = new XunitResourceFixture<ContainerResource>();
+
+      var ex = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+          fixture.InitializeAsync(
+              _ => null!,
+              kernelFactory: () => Task.FromResult(Kernel)));
+
+      Assert.Contains("resourceFactory returned null", ex.Message);
+    }
+
+    [Fact]
+    public async Task InitializeAsync_AfterDispose_CanReinitialize()
+    {
+      MockPack
+          .SetupContainerCreate()
+          .SetupContainerStart()
+          .SetupContainerInspect(running: true)
+          .SetupContainerStop()
+          .SetupContainerRemove();
+
+      var fixture = new XunitResourceFixture<ContainerResource>();
+
+      await fixture.InitializeAsync(
+          kernel => new ContainerResource(kernel, c => c.UseImage("alpine:latest")),
+          kernelFactory: () => Task.FromResult(Kernel));
+
+      await fixture.DisposeAsync();
+      Assert.Null(fixture.Resource);
+
+      var (newKernel, newPack) =
+          await MockKernelBuilderExtensions.CreateWithMockDriverAsync("reinit");
+      newPack
+          .SetupContainerCreate("reinit-ctr")
+          .SetupContainerStart()
+          .SetupContainerInspect(containerId: "reinit-ctr", running: true)
+          .SetupContainerStop()
+          .SetupContainerRemove();
+
+      await fixture.InitializeAsync(
+          kernel => new ContainerResource(kernel, c => c.UseImage("nginx:alpine")),
+          kernelFactory: () => Task.FromResult(newKernel));
+
+      Assert.NotNull(fixture.Resource);
+      Assert.True(fixture.Resource.IsInitialized);
+
+      await fixture.DisposeAsync();
+    }
+
+    [Fact]
+    public async Task InitializeAsync_WhenResourceInitFails_CleansUp()
+    {
+      var (testKernel, testPack) =
+          await MockKernelBuilderExtensions.CreateWithMockDriverAsync("fail-generic");
+
+      testPack.ContainerDriver
+          .Setup(d => d.CreateAsync(
+              It.IsAny<DriverContext>(),
+              It.IsAny<ContainerCreateConfig>(),
+              It.IsAny<CancellationToken>()))
+          .ThrowsAsync(new InvalidOperationException("create failed"));
+
+      var fixture = new XunitResourceFixture<ContainerResource>();
+
+      await Assert.ThrowsAsync<InvalidOperationException>(() =>
+          fixture.InitializeAsync(
+              kernel => new ContainerResource(kernel, c => c.UseImage("fail:img")),
+              kernelFactory: () => Task.FromResult(testKernel)));
+
+      Assert.Null(fixture.Resource);
+      Assert.Null(fixture.Kernel);
+    }
   }
 
   [Trait("Category", "Unit")]
   public class XunitSwarmStackFixtureTests : MockKernelTestBase, IAsyncLifetime
   {
-    public async Task InitializeAsync()
+    public async ValueTask InitializeAsync()
     {
       await InitializeMockKernelAsync();
-    }
-
-    public Task DisposeAsync()
-    {
-      return base.DisposeAsync().AsTask();
     }
 
     [Fact]
@@ -166,14 +340,9 @@ namespace FluentDocker.Tests.CoreTests.Testing.Adapters
   [Trait("Category", "Unit")]
   public class XunitPodmanKubernetesFixtureTests : MockKernelTestBase, IAsyncLifetime
   {
-    public async Task InitializeAsync()
+    public async ValueTask InitializeAsync()
     {
       await InitializeMockKernelAsync();
-    }
-
-    public Task DisposeAsync()
-    {
-      return base.DisposeAsync().AsTask();
     }
 
     [Fact]

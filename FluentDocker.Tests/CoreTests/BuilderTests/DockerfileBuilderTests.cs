@@ -226,11 +226,11 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
     }
 
     [Fact]
-    public void BuildAsync_WithoutParent_ThrowsException()
+    public async Task BuildAsync_WithoutParent_ThrowsException()
     {
       var builder = new DockerfileBuilder();
 
-      Assert.ThrowsAsync<FluentDocker.Common.FluentDockerException>(
+      await Assert.ThrowsAsync<FluentDocker.Common.FluentDockerException>(
           async () => await builder.BuildAsync());
     }
 

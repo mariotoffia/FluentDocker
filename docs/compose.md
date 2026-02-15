@@ -548,7 +548,7 @@ public class IntegrationTestBase : IAsyncLifetime
     protected BuildResults Results { get; private set; }
     protected string ApiBaseUrl { get; private set; }
 
-    public async Task InitializeAsync()
+    public async ValueTask InitializeAsync()
     {
         _kernel = await FluentDockerKernel.Create()
             .WithDockerCli("docker", d => d.AsDefault())
@@ -569,7 +569,7 @@ public class IntegrationTestBase : IAsyncLifetime
         ApiBaseUrl = $"http://localhost:{endpoint.Port}";
     }
 
-    public async Task DisposeAsync()
+    public async ValueTask DisposeAsync()
     {
         if (Results is IAsyncDisposable ad) await ad.DisposeAsync();
         if (_kernel is IAsyncDisposable kd) await kd.DisposeAsync();
@@ -595,7 +595,6 @@ public class UserApiTests : IntegrationTestBase
 ```
 
 ## Next Steps
-
 - [Containers](containers.html) - Individual container management
 - [Networking](networking.html) - Custom networks
 - [Volumes](volumes.html) - Data persistence

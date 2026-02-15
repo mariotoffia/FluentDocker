@@ -79,7 +79,7 @@ public class PostgresTests : IAsyncLifetime
     private BuildResults _results;
     private IContainerService _container;
 
-    public async Task InitializeAsync()
+    public async ValueTask InitializeAsync()
     {
         _kernel = await FluentDockerKernel.Create()
             .WithDockerCli("docker", d => d.AsDefault())
@@ -97,7 +97,7 @@ public class PostgresTests : IAsyncLifetime
         _container = _results.Containers.First();
     }
 
-    public async Task DisposeAsync()
+    public async ValueTask DisposeAsync()
     {
         if (_results is IAsyncDisposable ad) await ad.DisposeAsync();
         if (_kernel is IAsyncDisposable kd) await kd.DisposeAsync();
@@ -120,6 +120,7 @@ public class PostgresTests : IAsyncLifetime
 - `Build()` no longer returns a service. Use `_results.Containers.First()`.
 - No `.Start()` call -- `Build()` / `BuildAsync()` starts services automatically.
 - `DisposeAsync` uses `IAsyncDisposable` pattern; dispose results first, then kernel.
+- xUnit v3: `IAsyncLifetime` methods return `ValueTask` instead of `Task`.
 - Port arguments are strings in v3 (e.g., `"5432"` not `5432`).
 
 ---
@@ -183,7 +184,7 @@ public class SharedDatabaseFixture : IAsyncLifetime
     public string ConnectionString { get; private set; }
     private BuildResults _results;
 
-    public async Task InitializeAsync()
+    public async ValueTask InitializeAsync()
     {
         Kernel = await FluentDockerKernel.Create()
             .WithDockerCli("docker", d => d.AsDefault())
@@ -205,7 +206,7 @@ public class SharedDatabaseFixture : IAsyncLifetime
             "Username=postgres;Password=test";
     }
 
-    public async Task DisposeAsync()
+    public async ValueTask DisposeAsync()
     {
         if (_results is IAsyncDisposable ad) await ad.DisposeAsync();
         if (Kernel is IAsyncDisposable kd) await kd.DisposeAsync();
@@ -247,12 +248,14 @@ public class OrderRepoTests
 - Fixture implements `IAsyncLifetime` instead of `IDisposable`.
 - Kernel is created once in the fixture; all collection classes share it.
 - `BuildResults` is stored for proper async disposal.
+- xUnit v3: `IAsyncLifetime` methods return `ValueTask` instead of `Task`.
 
 ---
 
-## 3. MSTest FluentDockerTestBase
+## 3. MSTest with MsTestResourceHelpers
 
-The MSTest base class manages the kernel and container lifecycle for you.
+The `FluentDockerTestBase` base class has been removed. Use
+`MsTestResourceHelpers` static methods instead.
 
 ### v2
 
@@ -284,69 +287,69 @@ public class RedisTests : FluentDockerTestBase
 ### v3
 
 ```csharp
-using FluentDocker.MsTest;
+using FluentDocker.Testing.MsTest;
+using FluentDocker.Testing.Core;
+using FluentDocker.Kernel;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 [TestClass]
-public class RedisTests : FluentDockerTestBase
+public class RedisTests
 {
-    protected override void ConfigureContainer(IContainerBuilder builder)
+    private static FluentDockerKernel _kernel;
+    private static ContainerResource _resource;
+
+    [ClassInitialize]
+    public static async Task ClassInit(TestContext context)
     {
-        builder
-            .UseImage("redis:alpine")
-            .ExposePort("6379")
-            .WaitForPort("6379/tcp", 30000);
+        (_kernel, _resource) = await MsTestResourceHelpers.CreateContainerAsync(
+            builder => builder
+                .UseImage("redis:alpine")
+                .ExposePort("6379")
+                .WaitForPort("6379/tcp", 30000));
+    }
+
+    [ClassCleanup]
+    public static async Task ClassCleanup()
+    {
+        await MsTestResourceHelpers.DisposeAsync(_resource, _kernel);
     }
 
     [TestMethod]
     public void Container_IsRunning()
     {
-        Assert.AreEqual(ServiceRunningState.Running, Container.State);
+        Assert.IsNotNull(_resource.Container);
     }
 }
 ```
 
 **What changed:**
 
-- Override `ConfigureContainer(IContainerBuilder builder)` instead of `Build()`.
-- No return value -- configure the builder passed in.
-- The base class creates and disposes the kernel automatically.
-- No `new Builder()` or `.UseContainer()` -- the base class handles that.
+- No base class -- use `MsTestResourceHelpers.CreateContainerAsync` static method.
+- Namespace: `Ductus.FluentDocker.MsTest` to `FluentDocker.Testing.MsTest`.
+- Container configuration via lambda instead of `Build()` override.
+- Cleanup via `MsTestResourceHelpers.DisposeAsync(resource, kernel)`.
 - Ports are strings.
 
 ### Customising the Kernel (MSTest)
 
-Override `CreateKernelAsync` when you need non-default configuration:
+Pass a `kernelFactory` parameter for non-default configuration:
 
 ```csharp
-[TestClass]
-public class CustomKernelTests : FluentDockerTestBase
-{
-    protected override async Task<FluentDockerKernel> CreateKernelAsync()
-    {
-        return await FluentDockerKernel.Create()
-            .WithDockerCli("docker", d => d
-                .WithSudo(SudoMechanism.NoPassword)
-                .AsDefault())
-            .BuildAsync();
-    }
-
-    protected override void ConfigureContainer(IContainerBuilder builder)
-    {
-        builder
-            .UseImage("nginx:alpine")
-            .ExposePort("80")
-            .WaitForPort("80/tcp", 30000);
-    }
-}
+(_kernel, _resource) = await MsTestResourceHelpers.CreateContainerAsync(
+    builder => builder.UseImage("nginx:alpine").ExposePort("80"),
+    kernelFactory: async () => await FluentDockerKernel.Create()
+        .WithDockerCli("docker", d => d
+            .WithSudo(SudoMechanism.NoPassword).AsDefault())
+        .BuildAsync());
 ```
 
 ---
 
-## 4. xUnit FluentDockerTestBase with IClassFixture
+## 4. xUnit with XunitContainerFixture
 
-The xUnit base class follows the same `ConfigureContainer` pattern. Use
-`IClassFixture<T>` to share a single container across all tests in the class.
+The `FluentDockerTestBase` base class has been removed. Use
+`XunitContainerFixture` instead. It implements `IAsyncDisposable` and manages
+the kernel and resource lifecycle.
 
 ### v2
 
@@ -383,18 +386,19 @@ public class NginxTests : IClassFixture<NginxFixture>
 ### v3
 
 ```csharp
-using FluentDocker.XUnit;
+using FluentDocker.Testing.Xunit;
 using FluentDocker.Services.Extensions;
 using Xunit;
 
-public class NginxFixture : FluentDockerTestBase
+public class NginxFixture : XunitContainerFixture
 {
-    protected override void ConfigureContainer(IContainerBuilder builder)
+    public NginxFixture()
     {
-        builder
+        InitializeAsync(builder => builder
             .UseImage("nginx:alpine")
             .ExposePort("80")
-            .WaitForPort("80/tcp", 30000);
+            .WaitForPort("80/tcp", 30000)
+        ).GetAwaiter().GetResult();
     }
 }
 
@@ -406,7 +410,7 @@ public class NginxTests : IClassFixture<NginxFixture>
     [Fact]
     public void Container_IsRunning()
     {
-        Assert.Equal(ServiceRunningState.Running, _fixture.Container.State);
+        Assert.NotNull(_fixture.Container);
     }
 
     [Fact]
@@ -423,8 +427,9 @@ public class NginxTests : IClassFixture<NginxFixture>
 
 **What changed:**
 
-- Fixture overrides `ConfigureContainer` instead of `Build`.
-- Namespace changes (`Ductus.FluentDocker.XUnit` to `FluentDocker.XUnit`).
+- Fixture inherits `XunitContainerFixture` instead of `FluentDockerTestBase`.
+- Namespace: `Ductus.FluentDocker.XUnit` to `FluentDocker.Testing.Xunit`.
+- Container configuration via lambda in `InitializeAsync` instead of `Build()` override.
 - Extension methods like `ToHostExposedEndpoint` require `using FluentDocker.Services.Extensions`.
 
 ---
@@ -484,7 +489,7 @@ public class ComposeTests : IAsyncLifetime
     private FluentDockerKernel _kernel;
     private BuildResults _results;
 
-    public async Task InitializeAsync()
+    public async ValueTask InitializeAsync()
     {
         _kernel = await FluentDockerKernel.Create()
             .WithDockerCli("docker", d => d.AsDefault())
@@ -500,7 +505,7 @@ public class ComposeTests : IAsyncLifetime
             .BuildAsync();
     }
 
-    public async Task DisposeAsync()
+    public async ValueTask DisposeAsync()
     {
         if (_results is IAsyncDisposable ad) await ad.DisposeAsync();
         if (_kernel is IAsyncDisposable kd) await kd.DisposeAsync();
@@ -552,7 +557,8 @@ pattern from section 2 but use `.UseCompose()` instead of `.UseContainer()`.
 | Type for field | `IContainerService` / `ICompositeService` | `BuildResults` (concrete class) |
 | Interface `IBuildResults` | Does not exist | Does not exist -- use `BuildResults` |
 | Dispose | `IDisposable` | `IAsyncDisposable` preferred |
-| Test base override | `ContainerBuilder Build()` | `void ConfigureContainer(IContainerBuilder)` |
+| xUnit `IAsyncLifetime` | Returns `Task` | Returns `ValueTask` (xUnit v3) |
+| Test base class | `FluentDockerTestBase` | `XunitContainerFixture` / `MsTestResourceHelpers` |
 | Start call | `.Build().Start()` | `.Build()` / `.BuildAsync()` auto-starts |
 | Port args | `int` (e.g., `80`) | `string` (e.g., `"80"`) |
 | Namespace | `Ductus.FluentDocker.*` | `FluentDocker.*` |

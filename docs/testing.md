@@ -6,11 +6,7 @@ nav_order: 8
 
 # Test Support
 
-FluentDocker v3 provides two generations of test support:
-
-| Approach | Packages | Status |
-|---|---|---|
-| **Testing.Core** | Built into `FluentDocker` + adapters | Current |
+FluentDocker v3 provides test support via the Testing.Core framework:
 
 ## Testing.Core (Recommended)
 
@@ -27,6 +23,11 @@ dotnet add package FluentDocker.Testing.NUnit      # NUnit adapter
 ```
 
 ### Quick Example (xUnit)
+
+> **Note:** `GetAwaiter().GetResult()` is used because xUnit does not
+> support async fixture constructors. The fixture's `InitializeAsync`
+> requires configuration parameters, which rules out the parameterless
+> `IAsyncLifetime.InitializeAsync()`.
 
 ```csharp
 using FluentDocker.Testing.Xunit;
@@ -138,13 +139,12 @@ When you need full control, create a kernel and use the Builder directly
 without any test base class:
 
 ```csharp
-public class DatabaseTests : IAsyncLifetime
+public class NginxTests : IAsyncLifetime
 {
     private FluentDockerKernel _kernel;
     private BuildResults _results;
-    private string _connectionString;
 
-    public async Task InitializeAsync()
+    public async ValueTask InitializeAsync()
     {
         _kernel = await FluentDockerKernel.Create()
             .WithDockerCli("docker", d => d.AsDefault())
@@ -153,31 +153,27 @@ public class DatabaseTests : IAsyncLifetime
         _results = await new Builder()
             .WithinDriver("docker", _kernel)
             .UseContainer(c => c
-                .UseImage("postgres:15-alpine")
-                .WithEnvironment("POSTGRES_PASSWORD=test")
-                .ExposePort("5432")
-                .WaitForPort("5432/tcp", 30000))
+                .UseImage("nginx:alpine")
+                .ExposePort("80")
+                .WaitForPort("80/tcp", 30000))
             .BuildAsync();
-
-        var container = _results.Containers.First();
-        var endpoint = container.ToHostExposedEndpoint("5432/tcp");
-        _connectionString =
-            $"Host=localhost;Port={endpoint.Port};Database=postgres;" +
-            "Username=postgres;Password=test";
     }
 
-    public async Task DisposeAsync()
+    public async ValueTask DisposeAsync()
     {
         if (_results is IAsyncDisposable ad) await ad.DisposeAsync();
         if (_kernel is IAsyncDisposable kd) await kd.DisposeAsync();
     }
 
     [Fact]
-    public async Task Database_AcceptsConnections()
+    public async Task Nginx_AcceptsConnections()
     {
-        using var conn = new NpgsqlConnection(_connectionString);
-        await conn.OpenAsync();
-        Assert.Equal(ConnectionState.Open, conn.State);
+        var container = _results.Containers.First();
+        var endpoint = container.ToHostExposedEndpoint("80/tcp");
+        using var client = new HttpClient();
+        var response = await client.GetStringAsync(
+            $"http://localhost:{endpoint.Port}");
+        Assert.Contains("nginx", response);
     }
 }
 ```

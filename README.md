@@ -39,6 +39,9 @@ FluentDocker v3.0.0 is a major release with significant improvements:
 - Docker Toolbox support **removed** (deprecated by Docker)
 - Commands namespace **removed** (use Driver Layer)
 - Compose commands use struct-based arguments
+- Legacy test packages **removed** (`Ductus.FluentDocker.XUnit`, `Ductus.FluentDocker.MsTest`)
+- `FluentDockerTestBase` base class **removed** — use `XunitContainerFixture`, `MsTestResourceHelpers`, or `NUnitResourceHelpers`
+- xUnit v3: `IAsyncLifetime` methods return `ValueTask` (not `Task`)
 
 💡 **LLM Skill to semi-automate the upgrade from V2 -> V3**
 
@@ -127,6 +130,11 @@ await kube.DownAsync(context, "pod.yaml");
 ```
 
 ---
+
+### 5) Test Support
+
+FluentDocker supports xUnit, MSTest, and NUnit via adapter packages.
+See [Test Support](#test-support) below for examples.
 
 ## Installation
 
@@ -478,6 +486,9 @@ FluentDocker v3 includes `FluentDocker.Testing.Core` in the main assembly.
 Framework-specific adapters are available as separate packages.
 
 ### xUnit (Testing.Core)
+
+> `GetAwaiter().GetResult()` is required because xUnit does not support
+> async fixture constructors.
 
 ```csharp
 using FluentDocker.Testing.Xunit;

@@ -14,14 +14,9 @@ namespace FluentDocker.Tests.CoreTests.Testing
   [Trait("Category", "Unit")]
   public class PodmanKubernetesResourceTests : MockKernelTestBase, IAsyncLifetime
   {
-    public async Task InitializeAsync()
+    public async ValueTask InitializeAsync()
     {
       await InitializeMockKernelAsync();
-    }
-
-    public Task DisposeAsync()
-    {
-      return base.DisposeAsync().AsTask();
     }
 
     [Fact]
@@ -198,6 +193,9 @@ namespace FluentDocker.Tests.CoreTests.Testing
       // DisposeAsync should not throw — ForceRemoveAsync is best-effort
       await resource.DisposeAsync();
       Assert.False(resource.IsInitialized);
+
+      // DownAsync called twice: once from Teardown, once from ForceRemove
+      MockPack.VerifyKubeDown(Times.Exactly(2));
     }
 
     [Fact]
