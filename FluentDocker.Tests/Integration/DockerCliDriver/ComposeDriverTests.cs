@@ -318,7 +318,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
           All = true
         });
         Assert.True(initialList.Success);
-        Assert.Equal(1, initialList.Data.Count);
+        Assert.Single(initialList.Data);
 
         // Act — scale worker to 3 instances
         var scaleUpResult = await ComposeDriver.ScaleAsync(Context, new ComposeScaleConfig
@@ -356,7 +356,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
           All = true
         });
         Assert.True(finalList.Success);
-        Assert.Equal(1, finalList.Data.Count);
+        Assert.Single(finalList.Data);
       }
       finally
       {

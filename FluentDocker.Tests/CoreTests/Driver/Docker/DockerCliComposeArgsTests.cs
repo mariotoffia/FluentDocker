@@ -134,7 +134,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Docker
       var result = DockerCliComposeDriver.ParseServiceList(json);
       Assert.Equal(3, result.Count);
       Assert.Equal(2, result.Count(s => s.Name == "web"));
-      Assert.Equal(1, result.Count(s => s.Name == "db"));
+      Assert.Single(result, s => s.Name == "db");
     }
 
     [Fact]

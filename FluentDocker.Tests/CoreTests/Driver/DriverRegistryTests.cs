@@ -94,13 +94,13 @@ namespace FluentDocker.Tests.CoreTests.Driver
     }
 
     [Fact]
-    public void TryGetDriver_ExistingDriver_ReturnsTrue()
+    public async Task TryGetDriver_ExistingDriver_ReturnsTrue()
     {
       // Arrange
       var registry = new DriverRegistry();
       var driver = new MockTestDriver(DriverType.DockerCli, RuntimeType.Docker);
       var context = new DriverContext("test-driver");
-      registry.RegisterAsync("test-driver", driver, context).Wait();
+      await registry.RegisterAsync("test-driver", driver, context);
 
       // Act
       var result = registry.TryGetDriver("test-driver", out var retrieved);

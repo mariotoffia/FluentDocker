@@ -213,7 +213,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Docker
     [InlineData("", 0)]
     [InlineData(null, 0)]
     [InlineData("   ", 0)]
-    public void ParseHumanReadableBytes_EmptyOrNull_ReturnsZero(string input, long expected)
+    public void ParseHumanReadableBytes_EmptyOrNull_ReturnsZero(string? input, long expected)
     {
       Assert.Equal(expected, DockerCliSystemDriver.ParseHumanReadableBytes(input));
     }
@@ -258,7 +258,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Docker
     [Theory]
     [InlineData("", 0)]
     [InlineData(null, 0)]
-    public void ParseReclaimableBytes_EmptyOrNull_ReturnsZero(string input, long expected)
+    public void ParseReclaimableBytes_EmptyOrNull_ReturnsZero(string? input, long expected)
     {
       Assert.Equal(expected, DockerCliSystemDriver.ParseReclaimableBytes(input));
     }

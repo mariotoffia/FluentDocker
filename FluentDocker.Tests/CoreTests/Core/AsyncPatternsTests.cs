@@ -168,7 +168,7 @@ namespace FluentDocker.Tests.CoreTests.Core
     public async Task ConfigureAwait_False_DoesNotCaptureContext()
     {
       // Arrange & Act
-      await Task.Delay(1).ConfigureAwait(false);
+      await Task.Delay(1);
 
       // Assert - No assertion needed, this tests compilation and execution
       Assert.True(true);

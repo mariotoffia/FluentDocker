@@ -22,7 +22,7 @@ namespace FluentDocker.Tests.CoreTests.Driver
     [InlineData(null, null)]
     [InlineData("no-spaces", "no-spaces")]
     [InlineData("/usr/local/bin/docker", "/usr/local/bin/docker")]
-    public void QuoteArgumentIfNeeded_NoSpaces_ReturnsUnchanged(string input, string expected)
+    public void QuoteArgumentIfNeeded_NoSpaces_ReturnsUnchanged(string? input, string? expected)
     {
       var result = InvokeQuoteArgumentIfNeeded(input);
       Assert.Equal(expected, result);

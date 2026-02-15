@@ -149,7 +149,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
     [InlineData("100%", 100.0)]
     [InlineData("", 0.0)]
     [InlineData(null, 0.0)]
-    public void ParsePercent_VariousInputs_ReturnsExpected(string input, double expected)
+    public void ParsePercent_VariousInputs_ReturnsExpected(string? input, double expected)
     {
       var result = PodmanCliContainerDriver.ParsePercent(input);
       Assert.Equal(expected, result, 2);
@@ -168,7 +168,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
     [InlineData("1.5GB", 1500000000L)]
     [InlineData("", 0L)]
     [InlineData(null, 0L)]
-    public void ParseByteValue_VariousInputs_ReturnsExpected(string input, long expected)
+    public void ParseByteValue_VariousInputs_ReturnsExpected(string? input, long expected)
     {
       var result = PodmanCliContainerDriver.ParseByteValue(input);
       Assert.Equal(expected, result);

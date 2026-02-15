@@ -10,9 +10,9 @@ namespace FluentDocker.Tests.CoreTests.Extensions
     [Theory]
     [InlineData("")]
     [InlineData(null)]
-    public void NullOrEmptyString_ReturnsMinimumValue(string input)
+    public void NullOrEmptyString_ReturnsMinimumValue(string? input)
     {
-      var num = input.Convert();
+      var num = input!.Convert();
       Assert.Equal(long.MinValue, num);
     }
 

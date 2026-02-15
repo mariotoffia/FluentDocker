@@ -49,15 +49,14 @@ namespace FluentDocker.Tests.CoreTests.Kernel
     }
 
     [Fact]
-    public void Dispose_DisposesDriverPacks_Synchronously()
+    public async Task Dispose_DisposesDriverPacks_Synchronously()
     {
       // Arrange
       var kernel = new FluentDockerKernel();
       var mockPack = new AsyncDisposableMockDriverPack();
       var context = new DriverContext("docker");
 
-      kernel.RegisterDriverPackAsync("docker", mockPack, context)
-          .GetAwaiter().GetResult();
+      await kernel.RegisterDriverPackAsync("docker", mockPack, context);
 
       // Act
       kernel.Dispose();

@@ -14,52 +14,52 @@ namespace FluentDocker.Tests.CoreTests.Extensions
   public class HttpExtensionTests
   {
     [Fact]
-    public void Wget_OnNullUrl_ReturnsEmptyString()
+    public async Task Wget_OnNullUrl_ReturnsEmptyString()
     {
       // Arrange
-      string url = null;
+      string? url = null;
 
       // Act
-      var result = url.Wget().GetAwaiter().GetResult();
+      var result = await url.Wget();
 
       // Assert
       Assert.Equal(string.Empty, result);
     }
 
     [Fact]
-    public void Wget_OnEmptyUrl_ReturnsEmptyString()
+    public async Task Wget_OnEmptyUrl_ReturnsEmptyString()
     {
       // Arrange
       var url = string.Empty;
 
       // Act
-      var result = url.Wget().GetAwaiter().GetResult();
+      var result = await url.Wget();
 
       // Assert
       Assert.Equal(string.Empty, result);
     }
 
     [Fact]
-    public void Wget_OnInvalidUrl_ReturnsEmptyString()
+    public async Task Wget_OnInvalidUrl_ReturnsEmptyString()
     {
       // Arrange - invalid URL that will fail
       var url = "http://invalid-url-that-definitely-does-not-exist-12345.local/test";
 
       // Act
-      var result = url.Wget().GetAwaiter().GetResult();
+      var result = await url.Wget();
 
       // Assert - should return empty string on failure, not throw
       Assert.Equal(string.Empty, result);
     }
 
     [Fact]
-    public void Wget_OnMalformedUrl_ReturnsEmptyString()
+    public async Task Wget_OnMalformedUrl_ReturnsEmptyString()
     {
       // Arrange - malformed URL
       var url = "not-a-valid-url";
 
       // Act
-      var result = url.Wget().GetAwaiter().GetResult();
+      var result = await url.Wget();
 
       // Assert
       Assert.Equal(string.Empty, result);

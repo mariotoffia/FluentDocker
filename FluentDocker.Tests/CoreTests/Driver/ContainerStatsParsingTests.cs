@@ -46,7 +46,7 @@ namespace FluentDocker.Tests.CoreTests.Driver
     [InlineData(null, 0)]
     [InlineData("", 0)]
     [InlineData("invalid", 0)]
-    public void ParseByteValue_HandlesInvalidInput(string input, long expected)
+    public void ParseByteValue_HandlesInvalidInput(string? input, long expected)
     {
       var method = typeof(DockerCliContainerDriver).GetMethod(
           "ParseByteValue",
@@ -80,7 +80,7 @@ namespace FluentDocker.Tests.CoreTests.Driver
     [InlineData(null, 0.0)]
     [InlineData("", 0.0)]
     [InlineData("invalid", 0.0)]
-    public void ParsePercent_HandlesInvalidInput(string input, double expected)
+    public void ParsePercent_HandlesInvalidInput(string? input, double expected)
     {
       var method = typeof(DockerCliContainerDriver).GetMethod(
           "ParsePercent",
