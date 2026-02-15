@@ -88,6 +88,30 @@ namespace FluentDocker.Tests.CoreTests.Testing.Adapters
       // Should not throw even when never initialized
       await fixture.DisposeAsync();
     }
+
+    [Fact]
+    public async Task InitializeAsync_CalledTwice_ThrowsInvalidOperationException()
+    {
+      MockPack
+          .SetupContainerCreate()
+          .SetupContainerStart()
+          .SetupContainerInspect(running: true)
+          .SetupContainerStop()
+          .SetupContainerRemove();
+
+      var fixture = new XunitContainerFixture();
+
+      await fixture.InitializeAsync(
+          configure: c => c.UseImage("redis:alpine"),
+          kernelFactory: () => Task.FromResult(Kernel));
+
+      await Assert.ThrowsAsync<InvalidOperationException>(() =>
+          fixture.InitializeAsync(
+              configure: c => c.UseImage("redis:alpine"),
+              kernelFactory: () => Task.FromResult(Kernel)));
+
+      await fixture.DisposeAsync();
+    }
   }
 
   [Trait("Category", "Unit")]

@@ -63,7 +63,7 @@ namespace FluentDocker.Testing.Core
     /// </summary>
     public ResourceBase OnBeforeInitialize(Func<IDockerResource, Task> hook)
     {
-      _beforeInitHooks.Add(hook);
+      _beforeInitHooks.Add(hook ?? throw new ArgumentNullException(nameof(hook)));
       return this;
     }
 
@@ -72,7 +72,7 @@ namespace FluentDocker.Testing.Core
     /// </summary>
     public ResourceBase OnAfterReady(Func<IDockerResource, Task> hook)
     {
-      _afterReadyHooks.Add(hook);
+      _afterReadyHooks.Add(hook ?? throw new ArgumentNullException(nameof(hook)));
       return this;
     }
 
@@ -81,7 +81,7 @@ namespace FluentDocker.Testing.Core
     /// </summary>
     public ResourceBase OnBeforeDispose(Func<IDockerResource, Task> hook)
     {
-      _beforeDisposeHooks.Add(hook);
+      _beforeDisposeHooks.Add(hook ?? throw new ArgumentNullException(nameof(hook)));
       return this;
     }
 
@@ -90,7 +90,7 @@ namespace FluentDocker.Testing.Core
     /// </summary>
     public ResourceBase OnAfterDispose(Func<IDockerResource, Task> hook)
     {
-      _afterDisposeHooks.Add(hook);
+      _afterDisposeHooks.Add(hook ?? throw new ArgumentNullException(nameof(hook)));
       return this;
     }
 

@@ -213,5 +213,30 @@ namespace FluentDocker.Tests.CoreTests.Testing
       Assert.Throws<ArgumentNullException>(
           () => new PodmanKubernetesResource(Kernel, null));
     }
+
+    [Fact]
+    public void Constructor_EmptyYamlPath_ThrowsArgumentException()
+    {
+      Assert.Throws<ArgumentException>(
+          () => new PodmanKubernetesResource(Kernel, new KubePlayConfig { YamlPath = "" }));
+    }
+
+    [Fact]
+    public void Constructor_NullYamlPath_ThrowsArgumentException()
+    {
+      Assert.Throws<ArgumentException>(
+          () => new PodmanKubernetesResource(Kernel, new KubePlayConfig()));
+    }
+
+    [Fact]
+    public async Task DisposeAsync_BeforeInit_DoesNotThrow()
+    {
+      var config = new KubePlayConfig { YamlPath = "never-init.yaml" };
+      var resource = new PodmanKubernetesResource(Kernel, config);
+
+      // Should not throw — teardown guards against uninitialized state
+      await resource.DisposeAsync();
+      Assert.False(resource.IsInitialized);
+    }
   }
 }

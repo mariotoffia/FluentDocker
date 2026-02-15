@@ -27,7 +27,12 @@ namespace FluentDocker.Testing.Core
         FluentDockerKernel kernel,
         StackDeployConfig config,
         DockerResourceOptions options = null)
-        : base(kernel, options) => _config = config ?? throw new ArgumentNullException(nameof(config));
+        : base(kernel, options)
+    {
+      _config = config ?? throw new ArgumentNullException(nameof(config));
+      if (string.IsNullOrWhiteSpace(config.StackName))
+        throw new ArgumentException("StackName must not be null or empty.", nameof(config));
+    }
 
     /// <summary>
     /// The stack name used for deployment.
@@ -104,6 +109,10 @@ namespace FluentDocker.Testing.Core
     /// <inheritdoc />
     protected override async Task TeardownAsync()
     {
+      if (DeployResult == null)
+        return;
+
+      DeployResult = null;
       var driver = Kernel.SysCtl<IStackDriver>(DriverId);
       var context = new DriverContext(DriverId);
       var result = await driver.RemoveAsync(context, new[] { _config.StackName });
@@ -115,6 +124,9 @@ namespace FluentDocker.Testing.Core
     /// <inheritdoc />
     protected override async Task ForceRemoveAsync()
     {
+      if (DeployResult == null)
+        return;
+
       try
       {
         await TeardownAsync();

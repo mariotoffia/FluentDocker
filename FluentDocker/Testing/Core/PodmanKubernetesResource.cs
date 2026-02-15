@@ -28,7 +28,12 @@ namespace FluentDocker.Testing.Core
         FluentDockerKernel kernel,
         KubePlayConfig config,
         DockerResourceOptions options = null)
-        : base(kernel, options) => _config = config ?? throw new ArgumentNullException(nameof(config));
+        : base(kernel, options)
+    {
+      _config = config ?? throw new ArgumentNullException(nameof(config));
+      if (string.IsNullOrWhiteSpace(config.YamlPath))
+        throw new ArgumentException("YamlPath must not be null or empty.", nameof(config));
+    }
 
     /// <summary>
     /// Path to the Kubernetes YAML file.
@@ -99,6 +104,10 @@ namespace FluentDocker.Testing.Core
     /// <inheritdoc />
     protected override async Task TeardownAsync()
     {
+      if (PlayResult == null)
+        return;
+
+      PlayResult = null;
       var driver = Kernel.SysCtl<IPodmanKubernetesDriver>(DriverId);
       var context = new DriverContext(DriverId);
       var result = await driver.DownAsync(context, _config.YamlPath);
@@ -110,6 +119,9 @@ namespace FluentDocker.Testing.Core
     /// <inheritdoc />
     protected override async Task ForceRemoveAsync()
     {
+      if (PlayResult == null)
+        return;
+
       try
       {
         await TeardownAsync();

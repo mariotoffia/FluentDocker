@@ -58,6 +58,9 @@ public interface ITestPluginHost
 
 ### 1. Create the plugin class
 
+Plugins receive an `IServiceProvider` in their factory. If you need the kernel,
+accept it as a constructor parameter so the plugin works with or without DI:
+
 ```csharp
 // In a separate package, e.g., FluentDocker.Testing.Plugin.Postgres
 using FluentDocker.Testing.Core;
@@ -65,18 +68,23 @@ using FluentDocker.Testing.Core.Plugins;
 
 public class PostgresPlugin : ITestPlugin
 {
+    private readonly FluentDockerKernel _kernel;
+
+    public PostgresPlugin(FluentDockerKernel kernel)
+        => _kernel = kernel ?? throw new ArgumentNullException(nameof(kernel));
+
     public string Id => "FluentDocker.Testing.Plugin.Postgres";
 
     public void Register(ITestPluginRegistry registry)
     {
         registry.RegisterFactory<ContainerResource>(
             "postgres",
-            sp => new ContainerResource(
-                sp.GetRequiredService<FluentDockerKernel>(),
+            _ => new ContainerResource(
+                _kernel,
                 builder => builder
                     .UseImage("postgres:16-alpine")
                     .WithEnvironment("POSTGRES_PASSWORD", "test")
-                    .WithPort("5432", null)
+                    .ExposePort("5432")
                     .WaitForPort("5432/tcp")));
     }
 }
@@ -108,8 +116,12 @@ Optional framework companion: `FluentDocker.Testing.Plugin.Postgres.Xunit`
 ### Basic usage
 
 ```csharp
+using var kernel = await FluentDockerKernel.Create()
+    .WithDockerCli("docker", d => d.AsDefault())
+    .BuildAsync();
+
 var host = new TestPluginHost();
-host.Add(new PostgresPlugin());
+host.Add(new PostgresPlugin(kernel));
 
 var resource = host.Create<ContainerResource>("postgres");
 await resource.InitializeAsync();
@@ -119,30 +131,36 @@ await resource.InitializeAsync();
 await resource.DisposeAsync();
 ```
 
-### With dependency injection
+### With xUnit
 
 ```csharp
-var services = new ServiceCollection();
-services.AddSingleton(kernel);
-var sp = services.BuildServiceProvider();
-
-var host = new TestPluginHost(sp);
-host.Add(new PostgresPlugin());
-
-var resource = host.Create<ContainerResource>("postgres");
-```
-
-### With xUnit v3
-
-```csharp
-public class PostgresFixture : XunitContainerFixture
+public class PostgresFixture : IAsyncDisposable
 {
-    private readonly TestPluginHost _host = new();
+    private FluentDockerKernel _kernel;
+    private ContainerResource _resource;
+    public ContainerResource Resource => _resource;
 
     public PostgresFixture()
     {
-        _host.Add(new PostgresPlugin());
-        // Or use the plugin's factory directly in InitializeAsync
+        InitializeAsync().GetAwaiter().GetResult();
+    }
+
+    private async Task InitializeAsync()
+    {
+        _kernel = await FluentDockerKernel.Create()
+            .WithDockerCli("docker", d => d.AsDefault())
+            .BuildAsync();
+
+        var host = new TestPluginHost();
+        host.Add(new PostgresPlugin(_kernel));
+        _resource = host.Create<ContainerResource>("postgres");
+        await _resource.InitializeAsync();
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        try { if (_resource != null) await _resource.DisposeAsync(); }
+        finally { _kernel?.Dispose(); }
     }
 }
 ```
@@ -153,35 +171,45 @@ public class PostgresFixture : XunitContainerFixture
 [TestClass]
 public class PostgresTests
 {
-    private static TestPluginHost _host;
+    private static FluentDockerKernel _kernel;
     private static ContainerResource _resource;
 
     [ClassInitialize]
     public static async Task Init(TestContext ctx)
     {
-        _host = new TestPluginHost();
-        _host.Add(new PostgresPlugin());
-        _resource = _host.Create<ContainerResource>("postgres");
+        _kernel = await FluentDockerKernel.Create()
+            .WithDockerCli("docker", d => d.AsDefault())
+            .BuildAsync();
+
+        var host = new TestPluginHost();
+        host.Add(new PostgresPlugin(_kernel));
+        _resource = host.Create<ContainerResource>("postgres");
         await _resource.InitializeAsync();
     }
 
     [ClassCleanup]
     public static async Task Cleanup()
     {
-        await _resource.DisposeAsync();
+        try { if (_resource != null) await _resource.DisposeAsync(); }
+        finally { _kernel?.Dispose(); }
     }
 }
 ```
 
 ## Key Behaviors
 
+- **Plugin Id required**: `ITestPlugin.Id` must not be null or empty; `Add()`
+  throws `ArgumentException` otherwise.
 - **Idempotent registration**: Adding the same plugin twice (same `Id`) is safe;
   the second call is ignored.
+- **Duplicate key rejection**: If two different plugins register the same factory
+  key, `Add()` throws `InvalidOperationException`. Use unique keys per plugin.
 - **Key-based lookup**: `Create<T>("key")` resolves the factory registered under
   that key.
 - **Type-based lookup**: `Create<T>()` (no key) uses `typeof(T).Name` as the key.
 - **Null service provider**: If no `IServiceProvider` is passed to
   `TestPluginHost`, a minimal provider returning `null` for all types is used.
+  Factories that call `sp.GetRequiredService<T>()` will fail in this mode.
 - **Error on missing factory**: `Create<T>()` throws `InvalidOperationException`
   if no matching factory is registered.
 

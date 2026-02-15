@@ -36,6 +36,10 @@ namespace FluentDocker.Testing.Xunit
         Func<Task<FluentDockerKernel>> kernelFactory = null,
         DockerResourceOptions options = null)
     {
+      if (_resource != null)
+        throw new InvalidOperationException(
+            "Fixture has already been initialized. Dispose before re-initializing.");
+
       Kernel = kernelFactory != null
           ? await kernelFactory()
           : await FluentDockerKernel.Create()

@@ -135,10 +135,15 @@ namespace FluentDocker.Testing.MsTest
     /// </summary>
     public static async Task DisposeAsync(IDockerResource resource, FluentDockerKernel kernel)
     {
-      if (resource != null)
-        await resource.DisposeAsync();
-
-      kernel?.Dispose();
+      try
+      {
+        if (resource != null)
+          await resource.DisposeAsync();
+      }
+      finally
+      {
+        kernel?.Dispose();
+      }
     }
   }
 }

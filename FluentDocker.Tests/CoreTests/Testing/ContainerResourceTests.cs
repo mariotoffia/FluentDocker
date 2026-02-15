@@ -241,6 +241,50 @@ namespace FluentDocker.Tests.CoreTests.Testing
     }
 
     [Fact]
+    public void OnBeforeInitialize_NullHook_ThrowsArgumentNullException()
+    {
+      var resource = new ContainerResource(
+          Kernel,
+          builder => builder.UseImage("alpine:latest"));
+
+      Assert.Throws<ArgumentNullException>(
+          () => resource.OnBeforeInitialize(null));
+    }
+
+    [Fact]
+    public void OnAfterReady_NullHook_ThrowsArgumentNullException()
+    {
+      var resource = new ContainerResource(
+          Kernel,
+          builder => builder.UseImage("alpine:latest"));
+
+      Assert.Throws<ArgumentNullException>(
+          () => resource.OnAfterReady(null));
+    }
+
+    [Fact]
+    public void OnBeforeDispose_NullHook_ThrowsArgumentNullException()
+    {
+      var resource = new ContainerResource(
+          Kernel,
+          builder => builder.UseImage("alpine:latest"));
+
+      Assert.Throws<ArgumentNullException>(
+          () => resource.OnBeforeDispose(null));
+    }
+
+    [Fact]
+    public void OnAfterDispose_NullHook_ThrowsArgumentNullException()
+    {
+      var resource = new ContainerResource(
+          Kernel,
+          builder => builder.UseImage("alpine:latest"));
+
+      Assert.Throws<ArgumentNullException>(
+          () => resource.OnAfterDispose(null));
+    }
+
+    [Fact]
     public async Task DriverSelection_Specific_UsesProvidedId()
     {
       var secondPack = new MockDriverPack();

@@ -278,5 +278,30 @@ namespace FluentDocker.Tests.CoreTests.Testing
       Assert.Throws<ArgumentNullException>(
           () => new SwarmStackResource(Kernel, null));
     }
+
+    [Fact]
+    public void Constructor_EmptyStackName_ThrowsArgumentException()
+    {
+      Assert.Throws<ArgumentException>(
+          () => new SwarmStackResource(Kernel, new StackDeployConfig { StackName = "" }));
+    }
+
+    [Fact]
+    public void Constructor_NullStackName_ThrowsArgumentException()
+    {
+      Assert.Throws<ArgumentException>(
+          () => new SwarmStackResource(Kernel, new StackDeployConfig()));
+    }
+
+    [Fact]
+    public async Task DisposeAsync_BeforeInit_DoesNotThrow()
+    {
+      var config = new StackDeployConfig { StackName = "never-init" };
+      var resource = new SwarmStackResource(Kernel, config);
+
+      // Should not throw — teardown guards against uninitialized state
+      await resource.DisposeAsync();
+      Assert.False(resource.IsInitialized);
+    }
   }
 }
