@@ -18,15 +18,13 @@ namespace FluentDocker.Testing.Core.Plugins
     /// </summary>
     /// <param name="serviceProvider">Service provider for factory dependency resolution.
     /// If null, a minimal provider that returns null for all types is used.</param>
-    public TestPluginHost(IServiceProvider serviceProvider = null)
-    {
-      _serviceProvider = serviceProvider ?? NullServiceProvider.Instance;
-    }
+    public TestPluginHost(IServiceProvider serviceProvider = null) => _serviceProvider = serviceProvider ?? NullServiceProvider.Instance;
 
     /// <inheritdoc />
     public ITestPluginHost Add(ITestPlugin plugin)
     {
-      if (plugin == null) throw new ArgumentNullException(nameof(plugin));
+      if (plugin == null)
+        throw new ArgumentNullException(nameof(plugin));
 
       if (_registeredPlugins.Contains(plugin.Id))
         return this; // Already registered, idempotent

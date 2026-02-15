@@ -143,7 +143,8 @@ namespace FluentDocker.Testing.Core
       {
         if (Options.ForceRemoveOnDispose)
         {
-          try { await ForceRemoveAsync(); }
+          try
+          { await ForceRemoveAsync(); }
           catch { /* best effort */ }
         }
       }

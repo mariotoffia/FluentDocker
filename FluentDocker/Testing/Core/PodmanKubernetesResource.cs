@@ -28,10 +28,7 @@ namespace FluentDocker.Testing.Core
         FluentDockerKernel kernel,
         KubePlayConfig config,
         DockerResourceOptions options = null)
-        : base(kernel, options)
-    {
-      _config = config ?? throw new ArgumentNullException(nameof(config));
-    }
+        : base(kernel, options) => _config = config ?? throw new ArgumentNullException(nameof(config));
 
     /// <summary>
     /// Path to the Kubernetes YAML file.

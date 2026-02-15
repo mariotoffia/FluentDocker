@@ -27,10 +27,7 @@ namespace FluentDocker.Testing.Core
         FluentDockerKernel kernel,
         Action<IComposeBuilder> configure,
         DockerResourceOptions options = null)
-        : base(kernel, options)
-    {
-      _configure = configure ?? throw new ArgumentNullException(nameof(configure));
-    }
+        : base(kernel, options) => _configure = configure ?? throw new ArgumentNullException(nameof(configure));
 
     /// <summary>
     /// The running compose service, available after initialization.
@@ -88,7 +85,8 @@ namespace FluentDocker.Testing.Core
     {
       var s = Service;
       Service = null;
-      if (s == null) return;
+      if (s == null)
+        return;
 
       await s.StopAsync();
       await s.RemoveAsync(force: false);
@@ -99,9 +97,11 @@ namespace FluentDocker.Testing.Core
     {
       var s = Service;
       Service = null;
-      if (s == null) return;
+      if (s == null)
+        return;
 
-      try { await s.RemoveAsync(force: true); }
+      try
+      { await s.RemoveAsync(force: true); }
       catch { /* best effort */ }
     }
 

@@ -26,10 +26,7 @@ namespace FluentDocker.Testing.Core
         FluentDockerKernel kernel,
         Action<IContainerBuilder> configure,
         DockerResourceOptions options = null)
-        : base(kernel, options)
-    {
-      _configure = configure ?? throw new ArgumentNullException(nameof(configure));
-    }
+        : base(kernel, options) => _configure = configure ?? throw new ArgumentNullException(nameof(configure));
 
     /// <summary>
     /// The running container service, available after initialization.
@@ -95,7 +92,8 @@ namespace FluentDocker.Testing.Core
     {
       var c = Container;
       Container = null;
-      if (c == null) return;
+      if (c == null)
+        return;
 
       await c.StopAsync();
       await c.RemoveAsync(force: false);
@@ -106,9 +104,11 @@ namespace FluentDocker.Testing.Core
     {
       var c = Container;
       Container = null;
-      if (c == null) return;
+      if (c == null)
+        return;
 
-      try { await c.RemoveAsync(force: true); }
+      try
+      { await c.RemoveAsync(force: true); }
       catch { /* best effort */ }
     }
 

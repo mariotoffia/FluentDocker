@@ -27,10 +27,7 @@ namespace FluentDocker.Testing.Core
         FluentDockerKernel kernel,
         StackDeployConfig config,
         DockerResourceOptions options = null)
-        : base(kernel, options)
-    {
-      _config = config ?? throw new ArgumentNullException(nameof(config));
-    }
+        : base(kernel, options) => _config = config ?? throw new ArgumentNullException(nameof(config));
 
     /// <summary>
     /// The stack name used for deployment.

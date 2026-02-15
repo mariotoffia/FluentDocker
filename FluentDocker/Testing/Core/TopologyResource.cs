@@ -29,10 +29,7 @@ namespace FluentDocker.Testing.Core
         FluentDockerKernel kernel,
         Action<Builder> configure,
         DockerResourceOptions options = null)
-        : base(kernel, options)
-    {
-      _configure = configure ?? throw new ArgumentNullException(nameof(configure));
-    }
+        : base(kernel, options) => _configure = configure ?? throw new ArgumentNullException(nameof(configure));
 
     /// <summary>
     /// All services created by the topology, in build order.
@@ -112,7 +109,8 @@ namespace FluentDocker.Testing.Core
     {
       for (var i = _services.Count - 1; i >= 0; i--)
       {
-        try { await _services[i].RemoveAsync(force: true); }
+        try
+        { await _services[i].RemoveAsync(force: true); }
         catch { /* best effort */ }
       }
 
