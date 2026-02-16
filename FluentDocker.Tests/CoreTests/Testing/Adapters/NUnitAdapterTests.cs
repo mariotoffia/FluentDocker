@@ -91,6 +91,52 @@ namespace FluentDocker.Tests.CoreTests.Testing.Adapters
     }
 
     [Fact]
+    public async Task CreateComposeAsync_WithCustomKernel_ReturnsInitializedResource()
+    {
+      MockPack.SetupComposeUpAsync(new FluentDocker.Drivers.ComposeUpResult
+      {
+        ProjectName = "nunit-compose"
+      });
+      MockPack.SetupComposeStart();
+      MockPack.SetupComposeStop();
+      MockPack.SetupComposeDown();
+
+      var (kernel, resource) = await NUnitResourceHelpers.CreateComposeAsync(
+          configure: c => c.WithComposeFile("/path/docker-compose.yml")
+              .WithProjectName("nunit-compose"),
+          kernelFactory: () => Task.FromResult(Kernel),
+          cancellationToken: TestContext.Current.CancellationToken);
+
+      Assert.True(resource.IsInitialized);
+      Assert.NotNull(resource.Service);
+      Assert.Same(Kernel, kernel);
+
+      await NUnitResourceHelpers.DisposeAsync(resource, null);
+    }
+
+    [Fact]
+    public async Task CreateTopologyAsync_WithCustomKernel_ReturnsInitializedResource()
+    {
+      MockPack
+          .SetupContainerCreate()
+          .SetupContainerStart()
+          .SetupContainerInspect(running: true)
+          .SetupContainerStop()
+          .SetupContainerRemove();
+
+      var (kernel, resource) = await NUnitResourceHelpers.CreateTopologyAsync(
+          configure: b => b.UseContainer(c => c.UseImage("alpine:latest")),
+          kernelFactory: () => Task.FromResult(Kernel),
+          cancellationToken: TestContext.Current.CancellationToken);
+
+      Assert.True(resource.IsInitialized);
+      Assert.NotEmpty(resource.Services);
+      Assert.Same(Kernel, kernel);
+
+      await NUnitResourceHelpers.DisposeAsync(resource, null);
+    }
+
+    [Fact]
     public async Task DisposeAsync_NullResourceAndKernel_DoesNotThrow()
     {
       await NUnitResourceHelpers.DisposeAsync(null, null);

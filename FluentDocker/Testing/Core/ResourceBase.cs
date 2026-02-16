@@ -138,17 +138,23 @@ namespace FluentDocker.Testing.Core
         // Hooks should not prevent cleanup
       }
 
+      Exception teardownFailure = null;
+
       try
       {
         await TeardownAsync();
       }
-      catch
+      catch (Exception ex)
       {
         if (Options.ForceRemoveOnDispose)
         {
           try
           { await ForceRemoveAsync(); }
           catch { /* best effort */ }
+        }
+        else
+        {
+          teardownFailure = ex;
         }
       }
 
@@ -162,6 +168,9 @@ namespace FluentDocker.Testing.Core
       {
         // Hooks should not throw after cleanup
       }
+
+      if (teardownFailure != null)
+        throw teardownFailure;
     }
 
     #endregion

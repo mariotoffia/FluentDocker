@@ -116,20 +116,23 @@ namespace FluentDocker.Testing.Core.Plugins
       if (factory == null)
         throw new ArgumentNullException(nameof(factory));
 
-      var target = _staging ?? _factories;
+      lock (_lock)
+      {
+        var target = _staging ?? _factories;
 
-      if (target.ContainsKey(key))
-        throw new InvalidOperationException(
-            $"A factory for key '{key}' is already registered. " +
-            "Plugin key collisions must be resolved by using unique keys.");
+        if (target.ContainsKey(key))
+          throw new InvalidOperationException(
+              $"A factory for key '{key}' is already registered. " +
+              "Plugin key collisions must be resolved by using unique keys.");
 
-      // When staging, also check committed factories for duplicates
-      if (_staging != null && _factories.ContainsKey(key))
-        throw new InvalidOperationException(
-            $"A factory for key '{key}' is already registered. " +
-            "Plugin key collisions must be resolved by using unique keys.");
+        // When staging, also check committed factories for duplicates
+        if (_staging != null && _factories.ContainsKey(key))
+          throw new InvalidOperationException(
+              $"A factory for key '{key}' is already registered. " +
+              "Plugin key collisions must be resolved by using unique keys.");
 
-      target[key] = sp => factory(sp);
+        target[key] = sp => factory(sp);
+      }
     }
 
     /// <summary>

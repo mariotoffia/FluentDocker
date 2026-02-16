@@ -62,6 +62,41 @@ namespace FluentDocker.Tests.CoreTests.Testing
     }
 
     [Fact]
+    public async Task TeardownFailure_Propagates_WhenForceRemoveOnDisposeIsFalse()
+    {
+      MockPack
+          .SetupContainerCreate()
+          .SetupContainerStart()
+          .SetupContainerInspect(running: true)
+          .SetupContainerRemove();
+
+      // Make stop throw to trigger teardown failure
+      MockPack.ContainerDriver
+          .Setup(d => d.StopAsync(
+              It.IsAny<DriverContext>(),
+              It.IsAny<string>(),
+              It.IsAny<int?>(),
+              It.IsAny<CancellationToken>()))
+          .ThrowsAsync(new InvalidOperationException("Simulated stop failure"));
+
+      var resource = new ContainerResource(
+          Kernel,
+          builder => builder.UseImage("alpine:latest"),
+          new DockerResourceOptions { ForceRemoveOnDispose = false });
+
+      await resource.InitializeAsync(TestContext.Current.CancellationToken);
+      Assert.True(resource.IsInitialized);
+
+      // Dispose should throw because ForceRemoveOnDispose is false
+      var ex = await Assert.ThrowsAsync<InvalidOperationException>(
+          () => resource.DisposeAsync().AsTask());
+      Assert.Contains("stop failure", ex.Message);
+
+      // IsInitialized should still be set to false
+      Assert.False(resource.IsInitialized);
+    }
+
+    [Fact]
     public async Task OnAfterReady_Throws_IsInitializedRemainsFalse()
     {
       MockPack
