@@ -15,7 +15,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
     public async Task GetVersion_ReturnsDockerVersion()
     {
       // Act
-      var result = await SystemDriver.GetVersionAsync(Context);
+      var result = await SystemDriver.GetVersionAsync(Context, cancellationToken: TestContext.Current.CancellationToken);
 
       // Assert
       Assert.True(result.Success, $"GetVersion failed: {result.Error}");
@@ -27,7 +27,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
     public async Task GetInfo_ReturnsSystemInfo()
     {
       // Act
-      var result = await SystemDriver.GetInfoAsync(Context);
+      var result = await SystemDriver.GetInfoAsync(Context, cancellationToken: TestContext.Current.CancellationToken);
 
       // Assert
       Assert.True(result.Success, $"GetInfo failed: {result.Error}");
@@ -39,7 +39,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
     public async Task Ping_ReturnsSuccess()
     {
       // Act
-      var result = await SystemDriver.PingAsync(Context);
+      var result = await SystemDriver.PingAsync(Context, cancellationToken: TestContext.Current.CancellationToken);
 
       // Assert
       Assert.True(result.Success, $"Ping failed: {result.Error}");
@@ -49,7 +49,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
     public async Task GetDiskUsage_ReturnsDiskInfo()
     {
       // Act
-      var result = await SystemDriver.GetDiskUsageAsync(Context);
+      var result = await SystemDriver.GetDiskUsageAsync(Context, cancellationToken: TestContext.Current.CancellationToken);
 
       // Assert
       Assert.True(result.Success, $"GetDiskUsage failed: {result.Error}");
@@ -60,7 +60,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
     public async Task IsLinuxEngine_ChecksEngineType()
     {
       // Act
-      var result = await SystemDriver.IsLinuxEngineAsync(Context);
+      var result = await SystemDriver.IsLinuxEngineAsync(Context, cancellationToken: TestContext.Current.CancellationToken);
 
       // Assert
       Assert.True(result.Success, $"IsLinuxEngine failed: {result.Error}");
@@ -71,7 +71,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
     public async Task GetVersion_ContainsOsInfo()
     {
       // Act
-      var versionResult = await SystemDriver.GetVersionAsync(Context);
+      var versionResult = await SystemDriver.GetVersionAsync(Context, cancellationToken: TestContext.Current.CancellationToken);
 
       // Assert
       Assert.True(versionResult.Success);
@@ -81,7 +81,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
     public async Task Prune_RemovesUnusedResources()
     {
       // Act
-      var result = await SystemDriver.PruneAsync(Context);
+      var result = await SystemDriver.PruneAsync(Context, cancellationToken: TestContext.Current.CancellationToken);
 
       // Assert
       Assert.True(result.Success, $"Prune failed: {result.Error}");

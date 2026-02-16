@@ -25,7 +25,7 @@ namespace FluentDocker.Tests.Integration.PodmanCliDriver
       {
         listName = UniqueName("manifest");
         var result = await ManifestDriver.CreateAsync(
-            Context, new ManifestCreateConfig { Name = listName });
+            Context, new ManifestCreateConfig { Name = listName }, TestContext.Current.CancellationToken);
 
         Assert.True(result.Success, $"Create failed: {result.Error}");
         Assert.False(string.IsNullOrEmpty(result.Data), "Should return manifest ID");
@@ -34,7 +34,7 @@ namespace FluentDocker.Tests.Integration.PodmanCliDriver
       {
         if (listName != null)
           try
-          { await ManifestDriver.RemoveAsync(Context, listName); }
+          { await ManifestDriver.RemoveAsync(Context, listName, TestContext.Current.CancellationToken); }
           catch { }
       }
     }
@@ -44,10 +44,10 @@ namespace FluentDocker.Tests.Integration.PodmanCliDriver
     {
       var listName = UniqueName("manifest");
       var createResult = await ManifestDriver.CreateAsync(
-          Context, new ManifestCreateConfig { Name = listName });
+          Context, new ManifestCreateConfig { Name = listName }, TestContext.Current.CancellationToken);
       Assert.True(createResult.Success, $"Create failed: {createResult.Error}");
 
-      var removeResult = await ManifestDriver.RemoveAsync(Context, listName);
+      var removeResult = await ManifestDriver.RemoveAsync(Context, listName, TestContext.Current.CancellationToken);
       Assert.True(removeResult.Success, $"Remove failed: {removeResult.Error}");
     }
 
@@ -65,14 +65,14 @@ namespace FluentDocker.Tests.Integration.PodmanCliDriver
         listName = UniqueName("manifest");
 
         await ManifestDriver.CreateAsync(
-            Context, new ManifestCreateConfig { Name = listName });
+            Context, new ManifestCreateConfig { Name = listName }, TestContext.Current.CancellationToken);
 
         var addResult = await ManifestDriver.AddAsync(
             Context, new ManifestAddConfig
             {
               ListName = listName,
               Image = TestImage
-            });
+            }, TestContext.Current.CancellationToken);
 
         Assert.True(addResult.Success, $"Add failed: {addResult.Error}");
       }
@@ -80,7 +80,7 @@ namespace FluentDocker.Tests.Integration.PodmanCliDriver
       {
         if (listName != null)
           try
-          { await ManifestDriver.RemoveAsync(Context, listName); }
+          { await ManifestDriver.RemoveAsync(Context, listName, TestContext.Current.CancellationToken); }
           catch { }
       }
     }
@@ -95,17 +95,17 @@ namespace FluentDocker.Tests.Integration.PodmanCliDriver
         listName = UniqueName("manifest");
 
         await ManifestDriver.CreateAsync(
-            Context, new ManifestCreateConfig { Name = listName });
+            Context, new ManifestCreateConfig { Name = listName }, TestContext.Current.CancellationToken);
 
         var addResult = await ManifestDriver.AddAsync(
             Context, new ManifestAddConfig
             {
               ListName = listName,
               Image = TestImage
-            });
+            }, TestContext.Current.CancellationToken);
         Assert.True(addResult.Success, $"Add failed: {addResult.Error}");
 
-        var inspectResult = await ManifestDriver.InspectAsync(Context, listName);
+        var inspectResult = await ManifestDriver.InspectAsync(Context, listName, TestContext.Current.CancellationToken);
         Assert.True(inspectResult.Success, $"Inspect failed: {inspectResult.Error}");
         Assert.NotNull(inspectResult.Data);
         Assert.NotEmpty(inspectResult.Data.Manifests);
@@ -115,7 +115,7 @@ namespace FluentDocker.Tests.Integration.PodmanCliDriver
       {
         if (listName != null)
           try
-          { await ManifestDriver.RemoveAsync(Context, listName); }
+          { await ManifestDriver.RemoveAsync(Context, listName, TestContext.Current.CancellationToken); }
           catch { }
       }
     }
@@ -134,17 +134,17 @@ namespace FluentDocker.Tests.Integration.PodmanCliDriver
         listName = UniqueName("manifest");
 
         await ManifestDriver.CreateAsync(
-            Context, new ManifestCreateConfig { Name = listName });
+            Context, new ManifestCreateConfig { Name = listName }, TestContext.Current.CancellationToken);
 
         await ManifestDriver.AddAsync(
             Context, new ManifestAddConfig
             {
               ListName = listName,
               Image = TestImage
-            });
+            }, TestContext.Current.CancellationToken);
 
         // Get the digest of the added image
-        var inspectResult = await ManifestDriver.InspectAsync(Context, listName);
+        var inspectResult = await ManifestDriver.InspectAsync(Context, listName, TestContext.Current.CancellationToken);
         Assert.True(inspectResult.Success);
         var digest = inspectResult.Data.Manifests[0].Digest;
 
@@ -154,11 +154,11 @@ namespace FluentDocker.Tests.Integration.PodmanCliDriver
               ListName = listName,
               Image = digest,
               Arch = "arm64"
-            });
+            }, TestContext.Current.CancellationToken);
         Assert.True(annotateResult.Success, $"Annotate failed: {annotateResult.Error}");
 
         // Re-inspect to verify the architecture was actually set
-        var verifyResult = await ManifestDriver.InspectAsync(Context, listName);
+        var verifyResult = await ManifestDriver.InspectAsync(Context, listName, TestContext.Current.CancellationToken);
         Assert.True(verifyResult.Success, $"Re-inspect failed: {verifyResult.Error}");
         Assert.NotEmpty(verifyResult.Data.Manifests);
         var entry = verifyResult.Data.Manifests[0];
@@ -169,7 +169,7 @@ namespace FluentDocker.Tests.Integration.PodmanCliDriver
       {
         if (listName != null)
           try
-          { await ManifestDriver.RemoveAsync(Context, listName); }
+          { await ManifestDriver.RemoveAsync(Context, listName, TestContext.Current.CancellationToken); }
           catch { }
       }
     }
@@ -186,9 +186,9 @@ namespace FluentDocker.Tests.Integration.PodmanCliDriver
       {
         listName = UniqueName("manifest");
         await ManifestDriver.CreateAsync(
-            Context, new ManifestCreateConfig { Name = listName });
+            Context, new ManifestCreateConfig { Name = listName }, TestContext.Current.CancellationToken);
 
-        var result = await ManifestDriver.ExistsAsync(Context, listName);
+        var result = await ManifestDriver.ExistsAsync(Context, listName, TestContext.Current.CancellationToken);
         Assert.True(result.Success);
         Assert.True(result.Data);
       }
@@ -196,7 +196,7 @@ namespace FluentDocker.Tests.Integration.PodmanCliDriver
       {
         if (listName != null)
           try
-          { await ManifestDriver.RemoveAsync(Context, listName); }
+          { await ManifestDriver.RemoveAsync(Context, listName, TestContext.Current.CancellationToken); }
           catch { }
       }
     }
@@ -205,7 +205,7 @@ namespace FluentDocker.Tests.Integration.PodmanCliDriver
     public async Task Exists_NonExistent_ReturnsFalse()
     {
       var fakeName = "nonexistent-" + Guid.NewGuid().ToString("N")[..12];
-      var result = await ManifestDriver.ExistsAsync(Context, fakeName);
+      var result = await ManifestDriver.ExistsAsync(Context, fakeName, TestContext.Current.CancellationToken);
       Assert.True(result.Success);
       Assert.False(result.Data);
     }
@@ -218,7 +218,7 @@ namespace FluentDocker.Tests.Integration.PodmanCliDriver
     public async Task Remove_NonExistent_FailsGracefully()
     {
       var fakeName = "nonexistent-" + Guid.NewGuid().ToString("N")[..12];
-      var result = await ManifestDriver.RemoveAsync(Context, fakeName);
+      var result = await ManifestDriver.RemoveAsync(Context, fakeName, TestContext.Current.CancellationToken);
       Assert.False(result.Success);
     }
 
@@ -252,12 +252,12 @@ namespace FluentDocker.Tests.Integration.PodmanCliDriver
                 ["5000/tcp"] = registryPort
               }
             });
-        await Task.Delay(5000); // Wait for registry to be ready (Podman VM timing)
+        await Task.Delay(5000, TestContext.Current.CancellationToken); // Wait for registry to be ready (Podman VM timing)
 
         // 3. Create a manifest list
         listName = UniqueName("manifest");
         var createResult = await ManifestDriver.CreateAsync(
-            Context, new ManifestCreateConfig { Name = listName });
+            Context, new ManifestCreateConfig { Name = listName }, TestContext.Current.CancellationToken);
         Assert.True(createResult.Success, $"Create failed: {createResult.Error}");
 
         // 4. Add the test image to the manifest
@@ -266,7 +266,7 @@ namespace FluentDocker.Tests.Integration.PodmanCliDriver
             {
               ListName = listName,
               Image = TestImage
-            });
+            }, TestContext.Current.CancellationToken);
         Assert.True(addResult.Success, $"Add failed: {addResult.Error}");
 
         // 5. Push manifest to local registry (TLS disabled for local registry)
@@ -277,14 +277,14 @@ namespace FluentDocker.Tests.Integration.PodmanCliDriver
               Destination = $"localhost:{registryPort}/{listName}:latest",
               TlsVerify = false,
               All = true
-            });
+            }, TestContext.Current.CancellationToken);
         Assert.True(pushResult.Success, $"Push failed: {pushResult.Error}");
       }
       finally
       {
         if (listName != null)
           try
-          { await ManifestDriver.RemoveAsync(Context, listName); }
+          { await ManifestDriver.RemoveAsync(Context, listName, TestContext.Current.CancellationToken); }
           catch { }
 
         await RemoveContainerAsync(registryId);
@@ -315,11 +315,11 @@ namespace FluentDocker.Tests.Integration.PodmanCliDriver
                 ["5000/tcp"] = registryPort
               }
             });
-        await Task.Delay(5000);
+        await Task.Delay(5000, TestContext.Current.CancellationToken);
 
         listName = UniqueName("manifest");
         var createResult = await ManifestDriver.CreateAsync(
-            Context, new ManifestCreateConfig { Name = listName });
+            Context, new ManifestCreateConfig { Name = listName }, TestContext.Current.CancellationToken);
         Assert.True(createResult.Success, $"Create failed: {createResult.Error}");
 
         await ManifestDriver.AddAsync(
@@ -327,7 +327,7 @@ namespace FluentDocker.Tests.Integration.PodmanCliDriver
             {
               ListName = listName,
               Image = TestImage
-            });
+            }, TestContext.Current.CancellationToken);
 
         // Push with Rm = true — manifest list should be removed after push
         var pushResult = await ManifestDriver.PushAsync(
@@ -338,11 +338,11 @@ namespace FluentDocker.Tests.Integration.PodmanCliDriver
               TlsVerify = false,
               All = true,
               Rm = true
-            });
+            }, TestContext.Current.CancellationToken);
         Assert.True(pushResult.Success, $"Push failed: {pushResult.Error}");
 
         // Verify the manifest list no longer exists locally
-        var existsResult = await ManifestDriver.ExistsAsync(Context, listName);
+        var existsResult = await ManifestDriver.ExistsAsync(Context, listName, TestContext.Current.CancellationToken);
         Assert.True(existsResult.Success);
         Assert.False(existsResult.Data, "Manifest list should be removed after push with Rm=true");
         listRemoved = true;
@@ -351,7 +351,7 @@ namespace FluentDocker.Tests.Integration.PodmanCliDriver
       {
         if (listName != null && !listRemoved)
           try
-          { await ManifestDriver.RemoveAsync(Context, listName); }
+          { await ManifestDriver.RemoveAsync(Context, listName, TestContext.Current.CancellationToken); }
           catch { }
 
         await RemoveContainerAsync(registryId);

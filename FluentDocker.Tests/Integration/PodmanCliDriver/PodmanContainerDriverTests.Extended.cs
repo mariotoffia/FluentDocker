@@ -27,11 +27,11 @@ namespace FluentDocker.Tests.Integration.PodmanCliDriver
               Image = TestImage,
               Command = new[] { "true" },
               Detach = true
-            });
+            }, cancellationToken: TestContext.Current.CancellationToken);
         Assert.True(result.Success, $"Run failed: {result.Error}");
         containerId = result.Data.Id;
 
-        var waitResult = await ContainerDriver.WaitAsync(Context, containerId);
+        var waitResult = await ContainerDriver.WaitAsync(Context, containerId, cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.True(waitResult.Success,
             $"Wait failed: {waitResult.Error}");
@@ -58,11 +58,11 @@ namespace FluentDocker.Tests.Integration.PodmanCliDriver
               Image = TestImage,
               Command = new[] { "sh", "-c", "sleep 1; exit 17" },
               Detach = true
-            });
+            }, cancellationToken: TestContext.Current.CancellationToken);
         Assert.True(result.Success, $"Run failed: {result.Error}");
         containerId = result.Data.Id;
 
-        var waitResult = await ContainerDriver.WaitAsync(Context, containerId);
+        var waitResult = await ContainerDriver.WaitAsync(Context, containerId, cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.True(waitResult.Success,
             $"Wait failed: {waitResult.Error}");
@@ -78,7 +78,7 @@ namespace FluentDocker.Tests.Integration.PodmanCliDriver
     public async Task Wait_NonExistentContainer_Fails()
     {
       var fakeId = "nonexistent" + Guid.NewGuid().ToString("N")[..12];
-      var result = await ContainerDriver.WaitAsync(Context, fakeId);
+      var result = await ContainerDriver.WaitAsync(Context, fakeId, cancellationToken: TestContext.Current.CancellationToken);
       Assert.False(result.Success);
     }
 
@@ -100,7 +100,7 @@ namespace FluentDocker.Tests.Integration.PodmanCliDriver
             });
 
         var topResult = await ContainerDriver.TopAsync(
-            Context, containerId);
+            Context, containerId, cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.True(topResult.Success,
             $"Top failed: {topResult.Error}");
@@ -135,10 +135,10 @@ namespace FluentDocker.Tests.Integration.PodmanCliDriver
             new ExecConfig
             {
               Command = new[] { "touch", "/tmp/podman-diff-test.txt" }
-            });
+            }, cancellationToken: TestContext.Current.CancellationToken);
 
         var diffResult = await ContainerDriver.DiffAsync(
-            Context, containerId);
+            Context, containerId, cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.True(diffResult.Success,
             $"Diff failed: {diffResult.Error}");
@@ -156,7 +156,7 @@ namespace FluentDocker.Tests.Integration.PodmanCliDriver
     public async Task Diff_NonExistentContainer_Fails()
     {
       var fakeId = "nonexistent" + Guid.NewGuid().ToString("N")[..12];
-      var result = await ContainerDriver.DiffAsync(Context, fakeId);
+      var result = await ContainerDriver.DiffAsync(Context, fakeId, cancellationToken: TestContext.Current.CancellationToken);
       Assert.False(result.Success);
     }
 
@@ -180,7 +180,7 @@ namespace FluentDocker.Tests.Integration.PodmanCliDriver
         File.WriteAllText(tempFile, "podman-copy-test");
 
         var copyResult = await ContainerDriver.CopyToAsync(
-            Context, containerId, tempFile, "/tmp/copied.txt");
+            Context, containerId, tempFile, "/tmp/copied.txt", cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.True(copyResult.Success,
             $"CopyTo failed: {copyResult.Error}");
@@ -191,7 +191,7 @@ namespace FluentDocker.Tests.Integration.PodmanCliDriver
             new ExecConfig
             {
               Command = new[] { "cat", "/tmp/copied.txt" }
-            });
+            }, cancellationToken: TestContext.Current.CancellationToken);
         Assert.True(execResult.Success);
         Assert.Contains("podman-copy-test", execResult.Data.StdOut);
       }
@@ -228,11 +228,11 @@ namespace FluentDocker.Tests.Integration.PodmanCliDriver
             {
               Command = new[] { "sh", "-c",
                   "echo 'podman-from-container' > /tmp/from-container.txt" }
-            });
-        await Task.Delay(200);
+            }, cancellationToken: TestContext.Current.CancellationToken);
+        await Task.Delay(200, cancellationToken: TestContext.Current.CancellationToken);
 
         var copyResult = await ContainerDriver.CopyFromAsync(
-            Context, containerId, "/tmp/from-container.txt", tempDir);
+            Context, containerId, "/tmp/from-container.txt", tempDir, cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.True(copyResult.Success,
             $"CopyFrom failed: {copyResult.Error}");
@@ -259,7 +259,7 @@ namespace FluentDocker.Tests.Integration.PodmanCliDriver
         containerId = await RunContainerAsync(NginxImage);
 
         var statsResult = await ContainerDriver.StatsAsync(
-            Context, containerId);
+            Context, containerId, cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.True(statsResult.Success,
             $"Stats failed: {statsResult.Error}");
@@ -289,15 +289,15 @@ namespace FluentDocker.Tests.Integration.PodmanCliDriver
             });
 
         var killResult = await ContainerDriver.KillAsync(
-            Context, containerId);
+            Context, containerId, cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.True(killResult.Success,
             $"Kill failed: {killResult.Error}");
 
         // Verify container is no longer running
-        await Task.Delay(500);
+        await Task.Delay(500, cancellationToken: TestContext.Current.CancellationToken);
         var inspectResult = await ContainerDriver.InspectAsync(
-            Context, containerId);
+            Context, containerId, cancellationToken: TestContext.Current.CancellationToken);
         if (inspectResult.Success)
         {
           Assert.NotEqual("running",
@@ -324,7 +324,7 @@ namespace FluentDocker.Tests.Integration.PodmanCliDriver
             });
 
         var killResult = await ContainerDriver.KillAsync(
-            Context, containerId, signal: "SIGTERM");
+            Context, containerId, signal: "SIGTERM", cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.True(killResult.Success,
             $"Kill SIGTERM failed: {killResult.Error}");
@@ -354,24 +354,24 @@ namespace FluentDocker.Tests.Integration.PodmanCliDriver
 
         // Pause
         var pauseResult = await ContainerDriver.PauseAsync(
-            Context, containerId);
+            Context, containerId, cancellationToken: TestContext.Current.CancellationToken);
         Assert.True(pauseResult.Success,
             $"Pause failed: {pauseResult.Error}");
 
         var inspectResult = await ContainerDriver.InspectAsync(
-            Context, containerId);
+            Context, containerId, cancellationToken: TestContext.Current.CancellationToken);
         Assert.True(inspectResult.Success);
         Assert.Equal("paused",
             inspectResult.Data.State?.Status?.ToLower());
 
         // Unpause
         var unpauseResult = await ContainerDriver.UnpauseAsync(
-            Context, containerId);
+            Context, containerId, cancellationToken: TestContext.Current.CancellationToken);
         Assert.True(unpauseResult.Success,
             $"Unpause failed: {unpauseResult.Error}");
 
         inspectResult = await ContainerDriver.InspectAsync(
-            Context, containerId);
+            Context, containerId, cancellationToken: TestContext.Current.CancellationToken);
         Assert.True(inspectResult.Success);
         Assert.Equal("running",
             inspectResult.Data.State?.Status?.ToLower());
@@ -404,7 +404,7 @@ namespace FluentDocker.Tests.Integration.PodmanCliDriver
 
         // Podman machine (VM) may need extra time for container to start
         // and flush log output to the log driver.
-        await Task.Delay(5000);
+        await Task.Delay(5000, cancellationToken: TestContext.Current.CancellationToken);
 
         // Retry with content check — ReadToEnd may return "\n" before
         // actual log lines are available.
@@ -412,13 +412,13 @@ namespace FluentDocker.Tests.Integration.PodmanCliDriver
         for (var attempt = 0; attempt < 5; attempt++)
         {
           var logsResult = await ContainerDriver.GetLogsAsync(
-              Context, containerId, tail: 10);
+              Context, containerId, tail: 10, cancellationToken: TestContext.Current.CancellationToken);
           Assert.True(logsResult.Success,
               $"GetLogs failed: {logsResult.Error}");
           logs = logsResult.Data?.Trim();
           if (!string.IsNullOrWhiteSpace(logs))
             break;
-          await Task.Delay(2000);
+          await Task.Delay(2000, cancellationToken: TestContext.Current.CancellationToken);
         }
 
         Assert.True(!string.IsNullOrWhiteSpace(logs),
@@ -448,21 +448,21 @@ namespace FluentDocker.Tests.Integration.PodmanCliDriver
             });
 
         // Podman machine (VM) may need extra time for output to flush
-        await Task.Delay(5000);
+        await Task.Delay(5000, cancellationToken: TestContext.Current.CancellationToken);
 
         // Retry until actual content is available
         var lines = Array.Empty<string>();
         for (var attempt = 0; attempt < 5; attempt++)
         {
           var logsResult = await ContainerDriver.GetLogsAsync(
-              Context, containerId, tail: 3);
+              Context, containerId, tail: 3, cancellationToken: TestContext.Current.CancellationToken);
           Assert.True(logsResult.Success,
               $"GetLogs failed: {logsResult.Error}");
           lines = logsResult.Data.Split('\n',
               StringSplitOptions.RemoveEmptyEntries);
           if (lines.Length > 0)
             break;
-          await Task.Delay(2000);
+          await Task.Delay(2000, cancellationToken: TestContext.Current.CancellationToken);
         }
 
         Assert.True(lines.Length > 0, "Expected some log output");

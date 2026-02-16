@@ -32,7 +32,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
           + @"""VirtualSize"":187654321,""Labels"":{""maintainer"":""test""},""Containers"":3}]");
 
       var driver = CreateDriver(conn);
-      var result = await driver.ListAsync(Ctx);
+      var result = await driver.ListAsync(Ctx, cancellationToken: TestContext.Current.CancellationToken);
 
       Assert.True(result.Success);
       Assert.Single(result.Data);
@@ -63,7 +63,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
         Labels = new Dictionary<string, string> { { "env", "prod" } }
       };
 
-      var result = await driver.ListAsync(Ctx, filter);
+      var result = await driver.ListAsync(Ctx, filter, cancellationToken: TestContext.Current.CancellationToken);
       Assert.True(result.Success);
 
       var request = conn.GetRequests()
@@ -82,7 +82,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
       conn.SetupGet("/images/json", 200, "[]");
       var driver = CreateDriver(conn);
 
-      var result = await driver.ListAsync(Ctx);
+      var result = await driver.ListAsync(Ctx, cancellationToken: TestContext.Current.CancellationToken);
       Assert.True(result.Success);
       Assert.Empty(result.Data);
     }
@@ -103,7 +103,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
           + @"""Config"":{""Labels"":{""version"":""2.0"",""app"":""myapp""}}}");
 
       var driver = CreateDriver(conn);
-      var result = await driver.InspectAsync(Ctx, "myapp:v2");
+      var result = await driver.InspectAsync(Ctx, "myapp:v2", cancellationToken: TestContext.Current.CancellationToken);
       Assert.True(result.Success);
 
       var img = result.Data;
@@ -128,7 +128,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
           @"{""message"":""no such image: nonexistent:latest""}");
       var driver = CreateDriver(conn);
 
-      var result = await driver.InspectAsync(Ctx, "nonexistent:latest");
+      var result = await driver.InspectAsync(Ctx, "nonexistent:latest", cancellationToken: TestContext.Current.CancellationToken);
       Assert.False(result.Success);
       Assert.Equal(ErrorCodes.Image.NotFound, result.ErrorCode);
       Assert.Contains("no such image", result.Error);
@@ -153,7 +153,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
           + @"""Comment"":"""",""Tags"":[]}]");
 
       var driver = CreateDriver(conn);
-      var result = await driver.HistoryAsync(Ctx, "nginx:latest");
+      var result = await driver.HistoryAsync(Ctx, "nginx:latest", cancellationToken: TestContext.Current.CancellationToken);
       Assert.True(result.Success);
       Assert.Equal(2, result.Data.Count);
 
@@ -180,7 +180,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
       conn.SetupPost("/images/", 201, "");
       var driver = CreateDriver(conn);
 
-      var result = await driver.TagAsync(Ctx, "nginx:latest", "myrepo/nginx", "v1");
+      var result = await driver.TagAsync(Ctx, "nginx:latest", "myrepo/nginx", "v1", cancellationToken: TestContext.Current.CancellationToken);
       Assert.True(result.Success);
 
       var request = conn.GetRequests()
@@ -196,7 +196,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
       conn.SetupPost("/images/", 404, @"{""message"":""no such image""}");
       var driver = CreateDriver(conn);
 
-      var result = await driver.TagAsync(Ctx, "missing:latest", "myrepo/nginx", "v1");
+      var result = await driver.TagAsync(Ctx, "missing:latest", "myrepo/nginx", "v1", cancellationToken: TestContext.Current.CancellationToken);
       Assert.False(result.Success);
       Assert.Equal(ErrorCodes.Image.TagFailed, result.ErrorCode);
     }
@@ -214,7 +214,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
           + @"{""Deleted"":""sha256:def456""},{""Untagged"":""nginx:1.25""}]");
       var driver = CreateDriver(conn);
 
-      var result = await driver.RemoveAsync(Ctx, "nginx:latest");
+      var result = await driver.RemoveAsync(Ctx, "nginx:latest", cancellationToken: TestContext.Current.CancellationToken);
       Assert.True(result.Success);
       Assert.Equal(2, result.Data.Deleted.Count);
       Assert.Contains("sha256:abc123", result.Data.Deleted);
@@ -231,7 +231,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
       conn.SetupDelete("/images/", 404, @"{""message"":""no such image""}");
       var driver = CreateDriver(conn);
 
-      var result = await driver.RemoveAsync(Ctx, "missing:latest");
+      var result = await driver.RemoveAsync(Ctx, "missing:latest", cancellationToken: TestContext.Current.CancellationToken);
       Assert.False(result.Success);
       Assert.Equal(ErrorCodes.Image.RemoveFailed, result.ErrorCode);
     }
@@ -249,7 +249,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
           + @"[{""Deleted"":""sha256:abc""},{""Untagged"":""old:latest""}]}");
       var driver = CreateDriver(conn);
 
-      var result = await driver.PruneAsync(Ctx);
+      var result = await driver.PruneAsync(Ctx, cancellationToken: TestContext.Current.CancellationToken);
       Assert.True(result.Success);
       Assert.Equal(1024L, result.Data.SpaceReclaimed);
       Assert.Equal(2, result.Data.ImagesDeleted.Count);
@@ -265,7 +265,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
           @"{""SpaceReclaimed"":0,""ImagesDeleted"":[]}");
       var driver = CreateDriver(conn);
 
-      var result = await driver.PruneAsync(Ctx, all: true);
+      var result = await driver.PruneAsync(Ctx, all: true, cancellationToken: TestContext.Current.CancellationToken);
       Assert.True(result.Success);
 
       var request = conn.GetRequests()
@@ -281,7 +281,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
       conn.SetupPost("/images/prune", 500, @"{""message"":""prune failed""}");
       var driver = CreateDriver(conn);
 
-      var result = await driver.PruneAsync(Ctx);
+      var result = await driver.PruneAsync(Ctx, cancellationToken: TestContext.Current.CancellationToken);
       Assert.False(result.Success);
       Assert.Equal(ErrorCodes.Image.PruneFailed, result.ErrorCode);
     }
@@ -302,7 +302,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
       var progress = new List<ImagePullProgress>();
       var reporter = new Progress<ImagePullProgress>(p => progress.Add(p));
 
-      var result = await driver.PullAsync(Ctx, "nginx", "latest", reporter, default);
+      var result = await driver.PullAsync(Ctx, "nginx", "latest", reporter, TestContext.Current.CancellationToken);
       Assert.True(result.Success);
     }
 
@@ -314,7 +314,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
           "{\"error\":\"repository not found\",\"errorDetail\":{\"message\":\"repository not found\"}}\n");
       var driver = CreateDriver(conn);
 
-      var result = await driver.PullAsync(Ctx, "nonexistent/image", "latest", null, default);
+      var result = await driver.PullAsync(Ctx, "nonexistent/image", "latest", null, TestContext.Current.CancellationToken);
       Assert.False(result.Success);
       Assert.Equal(ErrorCodes.Image.PullFailed, result.ErrorCode);
       Assert.Contains("repository not found", result.Error);
@@ -334,7 +334,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
           + @"{""Id"":""sha256:img3"",""RepoTags"":[""redis:7""],""Created"":1700002000,""Size"":130000000}]");
       var driver = CreateDriver(conn);
 
-      var result = await driver.ListAsync(Ctx);
+      var result = await driver.ListAsync(Ctx, cancellationToken: TestContext.Current.CancellationToken);
       Assert.True(result.Success);
       Assert.Equal(3, result.Data.Count);
       Assert.Equal("sha256:img1", result.Data[0].Id);

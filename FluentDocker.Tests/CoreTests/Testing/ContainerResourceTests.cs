@@ -30,7 +30,7 @@ namespace FluentDocker.Tests.CoreTests.Testing
           Kernel,
           builder => builder.UseImage("alpine:latest").WithName("test"));
 
-      await resource.InitializeAsync();
+      await resource.InitializeAsync(TestContext.Current.CancellationToken);
 
       Assert.True(resource.IsInitialized);
       Assert.NotNull(resource.Container);
@@ -50,7 +50,7 @@ namespace FluentDocker.Tests.CoreTests.Testing
           Kernel,
           builder => builder.UseImage("alpine:latest"));
 
-      await resource.InitializeAsync();
+      await resource.InitializeAsync(TestContext.Current.CancellationToken);
       await resource.DisposeAsync();
 
       Assert.False(resource.IsInitialized);
@@ -70,8 +70,8 @@ namespace FluentDocker.Tests.CoreTests.Testing
           Kernel,
           builder => builder.UseImage("alpine:latest"));
 
-      await resource.InitializeAsync();
-      await resource.InitializeAsync(); // second call is no-op
+      await resource.InitializeAsync(TestContext.Current.CancellationToken);
+      await resource.InitializeAsync(TestContext.Current.CancellationToken); // second call is no-op
 
       Assert.True(resource.IsInitialized);
     }
@@ -89,7 +89,7 @@ namespace FluentDocker.Tests.CoreTests.Testing
           builder => builder.UseImage("alpine:latest"));
 
       await Assert.ThrowsAsync<FluentDocker.Common.CapabilityNotSupportedException>(
-          () => resource.InitializeAsync());
+          () => resource.InitializeAsync(TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -114,7 +114,7 @@ namespace FluentDocker.Tests.CoreTests.Testing
           builder => builder.UseImage("alpine:latest"));
 
       await Assert.ThrowsAsync<InvalidOperationException>(
-          () => resource.GetLogsAsync());
+          () => resource.GetLogsAsync(TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -125,7 +125,7 @@ namespace FluentDocker.Tests.CoreTests.Testing
           builder => builder.UseImage("alpine:latest"));
 
       await Assert.ThrowsAsync<InvalidOperationException>(
-          () => resource.ExecuteAsync("echo hello"));
+          () => resource.ExecuteAsync("echo hello", TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -150,7 +150,7 @@ namespace FluentDocker.Tests.CoreTests.Testing
           .OnBeforeDispose(_ => { order.Add("beforeDispose"); return Task.CompletedTask; })
           .OnAfterDispose(_ => { order.Add("afterDispose"); return Task.CompletedTask; });
 
-      await resource.InitializeAsync();
+      await resource.InitializeAsync(TestContext.Current.CancellationToken);
       await resource.DisposeAsync();
 
       Assert.Equal(new[] { "beforeInit", "afterReady", "beforeDispose", "afterDispose" }, order);
@@ -183,7 +183,7 @@ namespace FluentDocker.Tests.CoreTests.Testing
           Kernel,
           builder => builder.UseImage("alpine:latest"));
 
-      await resource.InitializeAsync();
+      await resource.InitializeAsync(TestContext.Current.CancellationToken);
 
       Assert.Equal(DriverId, resource.DriverId);
     }
@@ -210,7 +210,7 @@ namespace FluentDocker.Tests.CoreTests.Testing
         return Task.CompletedTask;
       });
 
-      await resource.InitializeAsync();
+      await resource.InitializeAsync(TestContext.Current.CancellationToken);
 
       Assert.NotNull(receivedInHook);
       Assert.Same(resource, receivedInHook);
@@ -231,7 +231,7 @@ namespace FluentDocker.Tests.CoreTests.Testing
           });
 
       var ex = await Assert.ThrowsAsync<InvalidOperationException>(
-          () => resource.InitializeAsync());
+          () => resource.InitializeAsync(TestContext.Current.CancellationToken));
       Assert.Contains("Expected driver type", ex.Message);
     }
 
@@ -284,8 +284,8 @@ namespace FluentDocker.Tests.CoreTests.Testing
     {
       var secondPack = new MockDriverPack();
       var context = new DriverContext("custom-docker");
-      await secondPack.InitializeAsync(context);
-      await Kernel.RegisterDriverPackAsync("custom-docker", secondPack, context);
+      await secondPack.InitializeAsync(context, TestContext.Current.CancellationToken);
+      await Kernel.RegisterDriverPackAsync("custom-docker", secondPack, context, TestContext.Current.CancellationToken);
 
       secondPack
           .SetupContainerCreate()
@@ -302,7 +302,7 @@ namespace FluentDocker.Tests.CoreTests.Testing
             Driver = DriverSelection.Specific("custom-docker")
           });
 
-      await resource.InitializeAsync();
+      await resource.InitializeAsync(TestContext.Current.CancellationToken);
 
       Assert.Equal("custom-docker", resource.DriverId);
     }

@@ -26,7 +26,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
         {
           Image = NginxImage,
           Detach = true
-        });
+        }, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result.Success, $"Run failed: {result.Error}");
@@ -47,7 +47,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
       var containerId = await RunContainerAsync(NginxImage);
 
       // Act
-      var result = await ContainerDriver.RemoveAsync(Context, containerId, force: true, removeVolumes: true);
+      var result = await ContainerDriver.RemoveAsync(Context, containerId, force: true, removeVolumes: true, cancellationToken: TestContext.Current.CancellationToken);
 
       // Assert
       Assert.True(result.Success);
@@ -63,7 +63,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
         containerId = await RunContainerAsync(NginxImage);
 
         // Act
-        var result = await ContainerDriver.ListAsync(Context);
+        var result = await ContainerDriver.ListAsync(Context, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result.Success);
@@ -86,7 +86,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
         containerId = await RunContainerAsync(NginxImage);
 
         // Act
-        var result = await ContainerDriver.InspectAsync(Context, containerId);
+        var result = await ContainerDriver.InspectAsync(Context, containerId, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result.Success);
@@ -110,13 +110,13 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
         containerId = await RunContainerAsync(NginxImage);
 
         // Act
-        var result = await ContainerDriver.StopAsync(Context, containerId, timeout: 5);
+        var result = await ContainerDriver.StopAsync(Context, containerId, timeout: 5, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result.Success);
 
         // Verify it's stopped
-        var inspect = await ContainerDriver.InspectAsync(Context, containerId);
+        var inspect = await ContainerDriver.InspectAsync(Context, containerId, cancellationToken: TestContext.Current.CancellationToken);
         Assert.False(inspect.Data.State.Running);
       }
       finally
@@ -133,15 +133,15 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
       {
         // Arrange
         containerId = await RunContainerAsync(NginxImage);
-        await ContainerDriver.StopAsync(Context, containerId, timeout: 5);
+        await ContainerDriver.StopAsync(Context, containerId, timeout: 5, cancellationToken: TestContext.Current.CancellationToken);
 
         // Act
-        var result = await ContainerDriver.StartAsync(Context, containerId);
+        var result = await ContainerDriver.StartAsync(Context, containerId, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result.Success);
 
-        var inspect = await ContainerDriver.InspectAsync(Context, containerId);
+        var inspect = await ContainerDriver.InspectAsync(Context, containerId, cancellationToken: TestContext.Current.CancellationToken);
         Assert.True(inspect.Data.State.Running);
       }
       finally
@@ -160,12 +160,12 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
         containerId = await RunContainerAsync(NginxImage);
 
         // Act
-        var result = await ContainerDriver.PauseAsync(Context, containerId);
+        var result = await ContainerDriver.PauseAsync(Context, containerId, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result.Success);
 
-        var inspect = await ContainerDriver.InspectAsync(Context, containerId);
+        var inspect = await ContainerDriver.InspectAsync(Context, containerId, cancellationToken: TestContext.Current.CancellationToken);
         Assert.True(inspect.Data.State.Paused);
       }
       finally
@@ -182,15 +182,15 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
       {
         // Arrange
         containerId = await RunContainerAsync(NginxImage);
-        await ContainerDriver.PauseAsync(Context, containerId);
+        await ContainerDriver.PauseAsync(Context, containerId, cancellationToken: TestContext.Current.CancellationToken);
 
         // Act
-        var result = await ContainerDriver.UnpauseAsync(Context, containerId);
+        var result = await ContainerDriver.UnpauseAsync(Context, containerId, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result.Success);
 
-        var inspect = await ContainerDriver.InspectAsync(Context, containerId);
+        var inspect = await ContainerDriver.InspectAsync(Context, containerId, cancellationToken: TestContext.Current.CancellationToken);
         Assert.False(inspect.Data.State.Paused);
         Assert.True(inspect.Data.State.Running);
       }
@@ -217,12 +217,12 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
             ["ANOTHER_VAR"] = "another_value"
           },
           Detach = true
-        });
+        }, cancellationToken: TestContext.Current.CancellationToken);
 
         containerId = result.Data.Id;
 
         // Assert
-        var inspect = await ContainerDriver.InspectAsync(Context, containerId);
+        var inspect = await ContainerDriver.InspectAsync(Context, containerId, cancellationToken: TestContext.Current.CancellationToken);
         Assert.True(inspect.Success);
         Assert.Contains(inspect.Data.Config.Env, e => e == "TEST_VAR=test_value");
         Assert.Contains(inspect.Data.Config.Env, e => e == "ANOTHER_VAR=another_value");
@@ -248,12 +248,12 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
             ["80/tcp"] = "8888"
           },
           Detach = true
-        });
+        }, cancellationToken: TestContext.Current.CancellationToken);
 
         containerId = result.Data.Id;
 
         // Assert
-        var inspect = await ContainerDriver.InspectAsync(Context, containerId);
+        var inspect = await ContainerDriver.InspectAsync(Context, containerId, cancellationToken: TestContext.Current.CancellationToken);
         Assert.True(inspect.Success);
 
         // Check port binding exists
@@ -278,14 +278,14 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
           Image = TestImage,
           Command = new[] { "sh", "-c", "echo 'Hello from container'" },
           Detach = true
-        });
+        }, cancellationToken: TestContext.Current.CancellationToken);
         containerId = runResult.Data.Id;
 
         // Wait a bit for container to finish
-        await Task.Delay(1000);
+        await Task.Delay(1000, cancellationToken: TestContext.Current.CancellationToken);
 
         // Act
-        var result = await ContainerDriver.GetLogsAsync(Context, containerId);
+        var result = await ContainerDriver.GetLogsAsync(Context, containerId, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result.Success);

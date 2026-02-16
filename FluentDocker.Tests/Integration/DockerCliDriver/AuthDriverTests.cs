@@ -39,7 +39,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
           Server = $"localhost:{RegistryPort}",
           Username = TestUser,
           Password = TestPassword
-        });
+        }, TestContext.Current.CancellationToken);
 
         Assert.True(result.Success, $"Login failed: {result.Error}");
       }
@@ -48,7 +48,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
         // Logout to clean credential store
         try
         {
-          await AuthDriver.LogoutAsync(Context, $"localhost:{RegistryPort}");
+          await AuthDriver.LogoutAsync(Context, $"localhost:{RegistryPort}", TestContext.Current.CancellationToken);
         }
         catch { }
 
@@ -75,7 +75,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
           Server = "localhost:5061",
           Username = TestUser,
           Password = "wrongpassword"
-        });
+        }, TestContext.Current.CancellationToken);
 
         Assert.False(result.Success, "Login should fail with wrong password");
       }
@@ -105,11 +105,11 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
           Server = "localhost:5062",
           Username = TestUser,
           Password = TestPassword
-        });
+        }, TestContext.Current.CancellationToken);
         Assert.True(loginResult.Success, $"Login failed: {loginResult.Error}");
 
         // Logout
-        var logoutResult = await AuthDriver.LogoutAsync(Context, "localhost:5062");
+        var logoutResult = await AuthDriver.LogoutAsync(Context, "localhost:5062", TestContext.Current.CancellationToken);
         Assert.True(logoutResult.Success, $"Logout failed: {logoutResult.Error}");
       }
       finally
@@ -138,7 +138,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
           Username = TestUser,
           Password = TestPassword,
           PasswordStdin = true
-        });
+        }, TestContext.Current.CancellationToken);
 
         Assert.True(result.Success, $"Login via stdin failed: {result.Error}");
       }
@@ -146,7 +146,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
       {
         try
         {
-          await AuthDriver.LogoutAsync(Context, "localhost:5063");
+          await AuthDriver.LogoutAsync(Context, "localhost:5063", TestContext.Current.CancellationToken);
         }
         catch { }
 

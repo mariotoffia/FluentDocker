@@ -39,7 +39,7 @@ namespace FluentDocker.Tests.CoreTests.Testing
 
       var resource = new SwarmStackResource(Kernel, config);
 
-      await resource.InitializeAsync();
+      await resource.InitializeAsync(TestContext.Current.CancellationToken);
       Assert.True(resource.IsInitialized);
       Assert.Equal("my-stack", resource.StackName);
       Assert.NotNull(resource.DeployResult);
@@ -61,7 +61,7 @@ namespace FluentDocker.Tests.CoreTests.Testing
       var resource = new SwarmStackResource(Kernel, config);
 
       await Assert.ThrowsAsync<CapabilityNotSupportedException>(
-          () => resource.InitializeAsync());
+          () => resource.InitializeAsync(TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -78,7 +78,7 @@ namespace FluentDocker.Tests.CoreTests.Testing
       var resource = new SwarmStackResource(Kernel, config);
 
       await Assert.ThrowsAsync<InterfaceNotSupportedException>(
-          () => resource.InitializeAsync());
+          () => resource.InitializeAsync(TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -103,7 +103,7 @@ namespace FluentDocker.Tests.CoreTests.Testing
       var resource = new SwarmStackResource(Kernel, config);
 
       var ex = await Assert.ThrowsAsync<FluentDockerException>(
-          () => resource.InitializeAsync());
+          () => resource.InitializeAsync(TestContext.Current.CancellationToken));
       Assert.Contains("fail-stack", ex.Message);
     }
 
@@ -123,9 +123,9 @@ namespace FluentDocker.Tests.CoreTests.Testing
 
       var config = new StackDeployConfig { StackName = "svc-stack" };
       var resource = new SwarmStackResource(Kernel, config);
-      await resource.InitializeAsync();
+      await resource.InitializeAsync(TestContext.Current.CancellationToken);
 
-      var services = await resource.ListServicesAsync();
+      var services = await resource.ListServicesAsync(TestContext.Current.CancellationToken);
 
       Assert.Single(services);
       Assert.Equal("web", services[0].Name);
@@ -149,9 +149,9 @@ namespace FluentDocker.Tests.CoreTests.Testing
 
       var config = new StackDeployConfig { StackName = "task-stack" };
       var resource = new SwarmStackResource(Kernel, config);
-      await resource.InitializeAsync();
+      await resource.InitializeAsync(TestContext.Current.CancellationToken);
 
-      var tasks = await resource.ListTasksAsync();
+      var tasks = await resource.ListTasksAsync(TestContext.Current.CancellationToken);
 
       Assert.Single(tasks);
       Assert.Equal("running", tasks[0].CurrentState);
@@ -166,7 +166,7 @@ namespace FluentDocker.Tests.CoreTests.Testing
       var resource = new SwarmStackResource(Kernel, config);
 
       await Assert.ThrowsAsync<InvalidOperationException>(
-          () => resource.ListServicesAsync());
+          () => resource.ListServicesAsync(TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -191,10 +191,10 @@ namespace FluentDocker.Tests.CoreTests.Testing
 
       var config = new StackDeployConfig { StackName = "fail-svc" };
       var resource = new SwarmStackResource(Kernel, config);
-      await resource.InitializeAsync();
+      await resource.InitializeAsync(TestContext.Current.CancellationToken);
 
       var ex = await Assert.ThrowsAsync<FluentDockerException>(
-          () => resource.ListServicesAsync());
+          () => resource.ListServicesAsync(TestContext.Current.CancellationToken));
       Assert.Contains("service list error", ex.Message);
 
       await resource.DisposeAsync();
@@ -222,10 +222,10 @@ namespace FluentDocker.Tests.CoreTests.Testing
 
       var config = new StackDeployConfig { StackName = "fail-task" };
       var resource = new SwarmStackResource(Kernel, config);
-      await resource.InitializeAsync();
+      await resource.InitializeAsync(TestContext.Current.CancellationToken);
 
       var ex = await Assert.ThrowsAsync<FluentDockerException>(
-          () => resource.ListTasksAsync());
+          () => resource.ListTasksAsync(TestContext.Current.CancellationToken));
       Assert.Contains("task list error", ex.Message);
 
       await resource.DisposeAsync();
@@ -253,7 +253,7 @@ namespace FluentDocker.Tests.CoreTests.Testing
       var config = new StackDeployConfig { StackName = "rm-fail" };
       var resource = new SwarmStackResource(Kernel, config,
           new DockerResourceOptions { ForceRemoveOnDispose = true });
-      await resource.InitializeAsync();
+      await resource.InitializeAsync(TestContext.Current.CancellationToken);
 
       // DisposeAsync should not throw — ForceRemoveAsync is best-effort
       await resource.DisposeAsync();

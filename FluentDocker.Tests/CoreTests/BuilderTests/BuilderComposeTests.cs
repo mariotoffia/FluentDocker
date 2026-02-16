@@ -35,7 +35,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
             .UseCompose(c => c
                 .WithComposeFile("/path/to/docker-compose.yml")
                 .WithProjectName("testproject"))
-            .BuildAsync();
+            .BuildAsync(cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         mockPack.ComposeDriver.Verify(d => d.UpAsync(
@@ -71,7 +71,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
                     "/path/to/docker-compose.yml",
                     "/path/to/docker-compose.override.yml")
                 .WithProjectName("testproject"))
-            .BuildAsync();
+            .BuildAsync(cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         mockPack.ComposeDriver.Verify(d => d.UpAsync(
@@ -108,7 +108,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
             .UseCompose(c => c
                 .WithComposeFile("/compose.yml")
                 .WithProjectName("myapp"))
-            .BuildAsync();
+            .BuildAsync(cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         mockPack.ComposeDriver.Verify(d => d.UpAsync(
@@ -138,7 +138,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
             .UseCompose(c => c
                 .WithComposeFile("/compose.yml")
                 .WithEnvironment("DB_HOST", "localhost"))
-            .BuildAsync();
+            .BuildAsync(cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         mockPack.ComposeDriver.Verify(d => d.UpAsync(
@@ -177,7 +177,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
             .UseCompose(c => c
                 .WithComposeFile("/compose.yml")
                 .WithEnvironment(envVars))
-            .BuildAsync();
+            .BuildAsync(cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         mockPack.ComposeDriver.Verify(d => d.UpAsync(
@@ -211,7 +211,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
             .UseCompose(c => c
                 .WithComposeFile("/compose.yml")
                 .WithBuild())
-            .BuildAsync();
+            .BuildAsync(cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         mockPack.ComposeDriver.Verify(d => d.UpAsync(
@@ -241,7 +241,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
             .UseCompose(c => c
                 .WithComposeFile("/compose.yml")
                 .WithForceRecreate())
-            .BuildAsync();
+            .BuildAsync(cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         mockPack.ComposeDriver.Verify(d => d.UpAsync(
@@ -275,7 +275,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
             .UseCompose(c => c
                 .WithComposeFile("/compose.yml")
                 .ForServices("web", "api"))
-            .BuildAsync();
+            .BuildAsync(cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         mockPack.ComposeDriver.Verify(d => d.UpAsync(
@@ -308,7 +308,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
             .UseCompose(c => c
                 .WithComposeFile("/compose.yml")
                 .WithTimeout(60))
-            .BuildAsync();
+            .BuildAsync(cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         mockPack.ComposeDriver.Verify(d => d.UpAsync(
@@ -338,7 +338,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
             .UseCompose(c => c
                 .WithComposeFile("/compose.yml")
                 .WithNoDeps())
-            .BuildAsync();
+            .BuildAsync(cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         mockPack.ComposeDriver.Verify(d => d.UpAsync(
@@ -368,7 +368,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
             .UseCompose(c => c
                 .WithComposeFile("/compose.yml")
                 .WithRemoveOrphans())
-            .BuildAsync();
+            .BuildAsync(cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         mockPack.ComposeDriver.Verify(d => d.UpAsync(

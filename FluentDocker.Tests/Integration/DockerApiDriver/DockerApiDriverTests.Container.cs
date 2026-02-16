@@ -62,7 +62,7 @@ namespace FluentDocker.Tests.Integration.DockerApiDriver
             new ExecConfig
             {
               Command = new[] { "echo", "hello-api" }
-            });
+            }, cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.True(execResult.Success, $"Exec failed: {execResult.Error}");
         Assert.Contains("hello-api", execResult.Data.StdOut);
@@ -86,7 +86,7 @@ namespace FluentDocker.Tests.Integration.DockerApiDriver
             new ExecConfig
             {
               Command = new[] { "sh", "-c", "exit 7" }
-            });
+            }, cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.True(execResult.Success, $"Exec call failed: {execResult.Error}");
         Assert.Equal(7, execResult.Data.ExitCode);
@@ -109,10 +109,10 @@ namespace FluentDocker.Tests.Integration.DockerApiDriver
       {
         containerId = await ApiRunContainerAsync(TestImage,
             new[] { "sh", "-c", "echo 'api-log-test'; sleep 5" });
-        await Task.Delay(2000);
+        await Task.Delay(2000, cancellationToken: TestContext.Current.CancellationToken);
 
         var logsResult = await ContainerDriver.GetLogsAsync(
-            Context, containerId, tail: 10);
+            Context, containerId, tail: 10, cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.True(logsResult.Success, $"Logs failed: {logsResult.Error}");
         Assert.NotNull(logsResult.Data);
@@ -135,7 +135,7 @@ namespace FluentDocker.Tests.Integration.DockerApiDriver
       {
         containerId = await ApiRunContainerAsync(TestImage);
 
-        var topResult = await ContainerDriver.TopAsync(Context, containerId);
+        var topResult = await ContainerDriver.TopAsync(Context, containerId, cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.True(topResult.Success, $"Top failed: {topResult.Error}");
         Assert.NotNull(topResult.Data);
@@ -164,9 +164,9 @@ namespace FluentDocker.Tests.Integration.DockerApiDriver
             new ExecConfig
             {
               Command = new[] { "touch", "/tmp/api-diff-test.txt" }
-            });
+            }, cancellationToken: TestContext.Current.CancellationToken);
 
-        var diffResult = await ContainerDriver.DiffAsync(Context, containerId);
+        var diffResult = await ContainerDriver.DiffAsync(Context, containerId, cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.True(diffResult.Success, $"Diff failed: {diffResult.Error}");
         Assert.NotNull(diffResult.Data);
@@ -192,7 +192,7 @@ namespace FluentDocker.Tests.Integration.DockerApiDriver
         containerId = await ApiRunContainerAsync(TestImage,
             new[] { "sh", "-c", "exit 3" });
 
-        var waitResult = await ContainerDriver.WaitAsync(Context, containerId);
+        var waitResult = await ContainerDriver.WaitAsync(Context, containerId, cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.True(waitResult.Success, $"Wait failed: {waitResult.Error}");
         Assert.Equal(3, waitResult.Data.ExitCode);
@@ -217,12 +217,12 @@ namespace FluentDocker.Tests.Integration.DockerApiDriver
         containerId = await ApiRunContainerAsync(TestImage);
 
         var renameResult = await ContainerDriver.RenameAsync(
-            Context, containerId, newName);
+            Context, containerId, newName, cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.True(renameResult.Success,
             $"Rename failed: {renameResult.Error}");
 
-        var inspect = await ContainerDriver.InspectAsync(Context, containerId);
+        var inspect = await ContainerDriver.InspectAsync(Context, containerId, cancellationToken: TestContext.Current.CancellationToken);
         Assert.True(inspect.Success);
         Assert.Contains(newName, inspect.Data.Name);
       }
@@ -245,7 +245,7 @@ namespace FluentDocker.Tests.Integration.DockerApiDriver
         containerId = await ApiRunContainerAsync(TestImage);
 
         var statsResult = await ContainerDriver.StatsAsync(
-            Context, containerId);
+            Context, containerId, cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.True(statsResult.Success,
             $"Stats failed: {statsResult.Error}");
@@ -273,7 +273,7 @@ namespace FluentDocker.Tests.Integration.DockerApiDriver
         containerId = await ApiRunContainerAsync(TestImage);
 
         var exportResult = await ContainerDriver.ExportAsync(
-            Context, containerId, outputPath);
+            Context, containerId, outputPath, cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.True(exportResult.Success,
             $"Export failed: {exportResult.Error}");
@@ -303,7 +303,7 @@ namespace FluentDocker.Tests.Integration.DockerApiDriver
         File.WriteAllText(tempFile, "api-copy-test-content");
 
         var copyResult = await ContainerDriver.CopyToAsync(
-            Context, containerId, tempFile, "/tmp/api-test.txt");
+            Context, containerId, tempFile, "/tmp/api-test.txt", cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.True(copyResult.Success,
             $"CopyTo failed: {copyResult.Error}");
@@ -313,7 +313,7 @@ namespace FluentDocker.Tests.Integration.DockerApiDriver
             Context, containerId, new ExecConfig
             {
               Command = new[] { "cat", "/tmp/api-test.txt" }
-            });
+            }, cancellationToken: TestContext.Current.CancellationToken);
         Assert.True(verifyResult.Success);
         Assert.Contains("api-copy-test-content", verifyResult.Data.StdOut);
       }
@@ -341,11 +341,11 @@ namespace FluentDocker.Tests.Integration.DockerApiDriver
             {
               Command = new[] { "sh", "-c",
                   "echo 'api-from-container' > /tmp/container-file.txt" }
-            });
-        await Task.Delay(200);
+            }, cancellationToken: TestContext.Current.CancellationToken);
+        await Task.Delay(200, cancellationToken: TestContext.Current.CancellationToken);
 
         var copyResult = await ContainerDriver.CopyFromAsync(
-            Context, containerId, "/tmp/container-file.txt", tempDir);
+            Context, containerId, "/tmp/container-file.txt", tempDir, cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.True(copyResult.Success,
             $"CopyFrom failed: {copyResult.Error}");
@@ -367,7 +367,7 @@ namespace FluentDocker.Tests.Integration.DockerApiDriver
     {
       var fakeId = "nonexistent" + Guid.NewGuid().ToString("N")[..12];
       var result = await ContainerDriver.ExecAsync(Context, fakeId,
-          new ExecConfig { Command = new[] { "echo" } });
+          new ExecConfig { Command = new[] { "echo" } }, cancellationToken: TestContext.Current.CancellationToken);
       Assert.False(result.Success);
     }
 
@@ -375,7 +375,7 @@ namespace FluentDocker.Tests.Integration.DockerApiDriver
     public async Task Container_Wait_NonExistent_Fails()
     {
       var fakeId = "nonexistent" + Guid.NewGuid().ToString("N")[..12];
-      var result = await ContainerDriver.WaitAsync(Context, fakeId);
+      var result = await ContainerDriver.WaitAsync(Context, fakeId, cancellationToken: TestContext.Current.CancellationToken);
       Assert.False(result.Success);
     }
 

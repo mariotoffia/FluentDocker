@@ -40,7 +40,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
       mock.SetupStream("/events", ndjson);
 
       var events = new List<ContainerEvent>();
-      await foreach (var evt in driver.StreamEventsAsync(Ctx))
+      await foreach (var evt in driver.StreamEventsAsync(Ctx, cancellationToken: TestContext.Current.CancellationToken))
         events.Add(evt);
 
       Assert.Equal(2, events.Count);
@@ -66,7 +66,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
       mock.SetupStream("/events", ndjson);
 
       var events = new List<ContainerEvent>();
-      await foreach (var evt in driver.StreamEventsAsync(Ctx))
+      await foreach (var evt in driver.StreamEventsAsync(Ctx, cancellationToken: TestContext.Current.CancellationToken))
         events.Add(evt);
 
       Assert.Single(events);
@@ -93,7 +93,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
       mock.SetupStream("/stats", statsJson);
 
       var statsList = new List<ContainerStats>();
-      await foreach (var s in driver.StreamStatsAsync(Ctx, "ctr001"))
+      await foreach (var s in driver.StreamStatsAsync(Ctx, "ctr001", cancellationToken: TestContext.Current.CancellationToken))
         statsList.Add(s);
 
       Assert.Single(statsList);
@@ -122,7 +122,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
       mock.SetupStream("/stats", ndjson);
 
       var statsList = new List<ContainerStats>();
-      await foreach (var s in driver.StreamStatsAsync(Ctx, "ctr002"))
+      await foreach (var s in driver.StreamStatsAsync(Ctx, "ctr002", cancellationToken: TestContext.Current.CancellationToken))
         statsList.Add(s);
 
       Assert.Single(statsList);
@@ -135,7 +135,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
       var (driver, _) = CreateDriver();
 
       var statsList = new List<ContainerStats>();
-      await foreach (var s in driver.StreamStatsAsync(Ctx, null))
+      await foreach (var s in driver.StreamStatsAsync(Ctx, null, cancellationToken: TestContext.Current.CancellationToken))
         statsList.Add(s);
 
       Assert.Empty(statsList);
@@ -159,7 +159,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
 
       var lines = new List<string>();
       await foreach (var line in driver.StreamLogsAsync(Ctx, "ctr",
-          new StreamLogsConfig { Follow = false }))
+          new StreamLogsConfig { Follow = false }, cancellationToken: TestContext.Current.CancellationToken))
       {
         lines.Add(line);
       }
@@ -175,7 +175,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
       mock.SetupStream("/containers/empty/logs", "");
 
       var lines = new List<string>();
-      await foreach (var line in driver.StreamLogsAsync(Ctx, "empty"))
+      await foreach (var line in driver.StreamLogsAsync(Ctx, "empty", cancellationToken: TestContext.Current.CancellationToken))
         lines.Add(line);
 
       Assert.Empty(lines);
@@ -190,7 +190,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
 
       var lines = new List<string>();
       await foreach (var line in driver.StreamLogsAsync(Ctx, "mux1",
-          new StreamLogsConfig { Follow = false }))
+          new StreamLogsConfig { Follow = false }, cancellationToken: TestContext.Current.CancellationToken))
       {
         lines.Add(line);
       }
@@ -213,7 +213,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
 
       var lines = new List<string>();
       await foreach (var line in driver.StreamLogsAsync(Ctx, "mux2",
-          new StreamLogsConfig { Follow = false }))
+          new StreamLogsConfig { Follow = false }, cancellationToken: TestContext.Current.CancellationToken))
       {
         lines.Add(line);
       }
@@ -232,7 +232,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
 
       var lines = new List<string>();
       await foreach (var line in driver.StreamLogsAsync(Ctx, "mux3",
-          new StreamLogsConfig { Follow = false }))
+          new StreamLogsConfig { Follow = false }, cancellationToken: TestContext.Current.CancellationToken))
       {
         lines.Add(line);
       }
@@ -250,7 +250,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
 
       var lines = new List<string>();
       await foreach (var line in driver.StreamLogsAsync(Ctx, "mux4",
-          new StreamLogsConfig { Follow = false }))
+          new StreamLogsConfig { Follow = false }, cancellationToken: TestContext.Current.CancellationToken))
       {
         lines.Add(line);
       }
@@ -272,7 +272,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
 
       var lines = new List<string>();
       await foreach (var line in driver.StreamLogsAsync(Ctx, "mux5",
-          new StreamLogsConfig { Follow = false }))
+          new StreamLogsConfig { Follow = false }, cancellationToken: TestContext.Current.CancellationToken))
       {
         lines.Add(line);
       }
@@ -299,7 +299,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
 
       var lines = new List<string>();
       await foreach (var line in driver.StreamLogsAsync(Ctx, "mux6",
-          new StreamLogsConfig { Follow = false }))
+          new StreamLogsConfig { Follow = false }, cancellationToken: TestContext.Current.CancellationToken))
       {
         lines.Add(line);
       }
@@ -340,7 +340,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
       var (driver, mock) = CreateDriver();
       mock.SetupStream("/containers/ctr/attach", "attached-stream-data");
 
-      var result = await driver.AttachAsync(Ctx, "ctr");
+      var result = await driver.AttachAsync(Ctx, "ctr", cancellationToken: TestContext.Current.CancellationToken);
       Assert.True(result.Success);
       Assert.True(result.Data.IsConnected);
       Assert.NotNull(result.Data.OutputStream);
@@ -355,7 +355,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
       var driver = new DockerApiStreamDriver(conn);
       driver.Initialize(new DriverContext("docker-api-stream-test"));
 
-      var result = await driver.AttachAsync(Ctx, "fail-ctr");
+      var result = await driver.AttachAsync(Ctx, "fail-ctr", cancellationToken: TestContext.Current.CancellationToken);
       Assert.False(result.Success);
       Assert.Contains("Attach failed", result.Error);
       Assert.Equal(ErrorCodes.Container.AttachFailed, result.ErrorCode);

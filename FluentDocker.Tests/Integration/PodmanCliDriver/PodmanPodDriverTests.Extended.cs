@@ -23,7 +23,7 @@ namespace FluentDocker.Tests.Integration.PodmanCliDriver
       {
         await EnsureImageAsync(TestImage);
         await PodDriver.CreatePodAsync(Context,
-            new PodCreateConfig { Name = name });
+            new PodCreateConfig { Name = name }, cancellationToken: TestContext.Current.CancellationToken);
 
         // Add a container to the pod so it has something to run
         await ContainerDriver.RunAsync(Context,
@@ -33,17 +33,17 @@ namespace FluentDocker.Tests.Integration.PodmanCliDriver
               Command = new[] { "sleep", "300" },
               Detach = true,
               Pod = name
-            });
+            }, cancellationToken: TestContext.Current.CancellationToken);
 
-        await PodDriver.StartPodAsync(Context, name);
+        await PodDriver.StartPodAsync(Context, name, cancellationToken: TestContext.Current.CancellationToken);
 
-        var killResult = await PodDriver.KillPodAsync(Context, name);
+        var killResult = await PodDriver.KillPodAsync(Context, name, cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.True(killResult.Success,
             $"Kill failed: {killResult.Error}");
 
         // Verify pod is no longer running
-        var pods = await PodDriver.ListPodsAsync(Context);
+        var pods = await PodDriver.ListPodsAsync(Context, cancellationToken: TestContext.Current.CancellationToken);
         Assert.True(pods.Success);
         var pod = pods.Data.FirstOrDefault(p => p.Name == name);
         Assert.NotNull(pod);
@@ -63,7 +63,7 @@ namespace FluentDocker.Tests.Integration.PodmanCliDriver
       {
         await EnsureImageAsync(TestImage);
         await PodDriver.CreatePodAsync(Context,
-            new PodCreateConfig { Name = name });
+            new PodCreateConfig { Name = name }, cancellationToken: TestContext.Current.CancellationToken);
 
         await ContainerDriver.RunAsync(Context,
             new ContainerCreateConfig
@@ -72,12 +72,12 @@ namespace FluentDocker.Tests.Integration.PodmanCliDriver
               Command = new[] { "sleep", "300" },
               Detach = true,
               Pod = name
-            });
+            }, cancellationToken: TestContext.Current.CancellationToken);
 
-        await PodDriver.StartPodAsync(Context, name);
+        await PodDriver.StartPodAsync(Context, name, cancellationToken: TestContext.Current.CancellationToken);
 
         var killResult = await PodDriver.KillPodAsync(
-            Context, name, signal: "SIGTERM");
+            Context, name, signal: "SIGTERM", cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.True(killResult.Success,
             $"Kill with signal failed: {killResult.Error}");
@@ -92,7 +92,7 @@ namespace FluentDocker.Tests.Integration.PodmanCliDriver
     public async Task KillPod_NonExistent_Fails()
     {
       var fakeName = "nonexistent-" + Guid.NewGuid().ToString("N")[..12];
-      var result = await PodDriver.KillPodAsync(Context, fakeName);
+      var result = await PodDriver.KillPodAsync(Context, fakeName, cancellationToken: TestContext.Current.CancellationToken);
       Assert.False(result.Success);
     }
 
@@ -108,7 +108,7 @@ namespace FluentDocker.Tests.Integration.PodmanCliDriver
       {
         await EnsureImageAsync(TestImage);
         await PodDriver.CreatePodAsync(Context,
-            new PodCreateConfig { Name = name });
+            new PodCreateConfig { Name = name }, cancellationToken: TestContext.Current.CancellationToken);
 
         await ContainerDriver.RunAsync(Context,
             new ContainerCreateConfig
@@ -117,17 +117,17 @@ namespace FluentDocker.Tests.Integration.PodmanCliDriver
               Command = new[] { "sleep", "300" },
               Detach = true,
               Pod = name
-            });
+            }, cancellationToken: TestContext.Current.CancellationToken);
 
-        await PodDriver.StartPodAsync(Context, name);
+        await PodDriver.StartPodAsync(Context, name, cancellationToken: TestContext.Current.CancellationToken);
 
-        var pauseResult = await PodDriver.PausePodAsync(Context, name);
+        var pauseResult = await PodDriver.PausePodAsync(Context, name, cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.True(pauseResult.Success,
             $"Pause failed: {pauseResult.Error}");
 
         // Verify pod is paused
-        var pods = await PodDriver.ListPodsAsync(Context);
+        var pods = await PodDriver.ListPodsAsync(Context, cancellationToken: TestContext.Current.CancellationToken);
         Assert.True(pods.Success);
         var pod = pods.Data.FirstOrDefault(p => p.Name == name);
         Assert.NotNull(pod);
@@ -137,7 +137,7 @@ namespace FluentDocker.Tests.Integration.PodmanCliDriver
       {
         // Unpause before remove to avoid errors
         try
-        { await PodDriver.UnpausePodAsync(Context, name); }
+        { await PodDriver.UnpausePodAsync(Context, name, cancellationToken: TestContext.Current.CancellationToken); }
         catch { }
         await RemovePodAsync(name);
       }
@@ -151,7 +151,7 @@ namespace FluentDocker.Tests.Integration.PodmanCliDriver
       {
         await EnsureImageAsync(TestImage);
         await PodDriver.CreatePodAsync(Context,
-            new PodCreateConfig { Name = name });
+            new PodCreateConfig { Name = name }, cancellationToken: TestContext.Current.CancellationToken);
 
         await ContainerDriver.RunAsync(Context,
             new ContainerCreateConfig
@@ -160,18 +160,18 @@ namespace FluentDocker.Tests.Integration.PodmanCliDriver
               Command = new[] { "sleep", "300" },
               Detach = true,
               Pod = name
-            });
+            }, cancellationToken: TestContext.Current.CancellationToken);
 
-        await PodDriver.StartPodAsync(Context, name);
-        await PodDriver.PausePodAsync(Context, name);
+        await PodDriver.StartPodAsync(Context, name, cancellationToken: TestContext.Current.CancellationToken);
+        await PodDriver.PausePodAsync(Context, name, cancellationToken: TestContext.Current.CancellationToken);
 
-        var unpauseResult = await PodDriver.UnpausePodAsync(Context, name);
+        var unpauseResult = await PodDriver.UnpausePodAsync(Context, name, cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.True(unpauseResult.Success,
             $"Unpause failed: {unpauseResult.Error}");
 
         // Verify pod is running again
-        var pods = await PodDriver.ListPodsAsync(Context);
+        var pods = await PodDriver.ListPodsAsync(Context, cancellationToken: TestContext.Current.CancellationToken);
         Assert.True(pods.Success);
         var pod = pods.Data.FirstOrDefault(p => p.Name == name);
         Assert.NotNull(pod);
@@ -195,7 +195,7 @@ namespace FluentDocker.Tests.Integration.PodmanCliDriver
       {
         await EnsureImageAsync(TestImage);
         await PodDriver.CreatePodAsync(Context,
-            new PodCreateConfig { Name = name });
+            new PodCreateConfig { Name = name }, cancellationToken: TestContext.Current.CancellationToken);
 
         await ContainerDriver.RunAsync(Context,
             new ContainerCreateConfig
@@ -204,18 +204,18 @@ namespace FluentDocker.Tests.Integration.PodmanCliDriver
               Command = new[] { "sleep", "300" },
               Detach = true,
               Pod = name
-            });
+            }, cancellationToken: TestContext.Current.CancellationToken);
 
-        await PodDriver.StartPodAsync(Context, name);
+        await PodDriver.StartPodAsync(Context, name, cancellationToken: TestContext.Current.CancellationToken);
 
-        var restartResult = await PodDriver.RestartPodAsync(Context, name);
+        var restartResult = await PodDriver.RestartPodAsync(Context, name, cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.True(restartResult.Success,
             $"Restart failed: {restartResult.Error}");
 
         // Verify pod is running after restart
-        await Task.Delay(2000);
-        var pods = await PodDriver.ListPodsAsync(Context);
+        await Task.Delay(2000, cancellationToken: TestContext.Current.CancellationToken);
+        var pods = await PodDriver.ListPodsAsync(Context, cancellationToken: TestContext.Current.CancellationToken);
         Assert.True(pods.Success);
         var pod = pods.Data.FirstOrDefault(p => p.Name == name);
         Assert.NotNull(pod);
@@ -231,7 +231,7 @@ namespace FluentDocker.Tests.Integration.PodmanCliDriver
     public async Task RestartPod_NonExistent_Fails()
     {
       var fakeName = "nonexistent-" + Guid.NewGuid().ToString("N")[..12];
-      var result = await PodDriver.RestartPodAsync(Context, fakeName);
+      var result = await PodDriver.RestartPodAsync(Context, fakeName, cancellationToken: TestContext.Current.CancellationToken);
       Assert.False(result.Success);
     }
 
@@ -246,9 +246,9 @@ namespace FluentDocker.Tests.Integration.PodmanCliDriver
       try
       {
         await PodDriver.CreatePodAsync(Context,
-            new PodCreateConfig { Name = name });
+            new PodCreateConfig { Name = name }, cancellationToken: TestContext.Current.CancellationToken);
 
-        var inspectResult = await PodDriver.InspectPodAsync(Context, name);
+        var inspectResult = await PodDriver.InspectPodAsync(Context, name, cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.True(inspectResult.Success,
             $"Inspect failed: {inspectResult.Error}");
@@ -270,7 +270,7 @@ namespace FluentDocker.Tests.Integration.PodmanCliDriver
       {
         await EnsureImageAsync(TestImage);
         await PodDriver.CreatePodAsync(Context,
-            new PodCreateConfig { Name = name });
+            new PodCreateConfig { Name = name }, cancellationToken: TestContext.Current.CancellationToken);
 
         await ContainerDriver.RunAsync(Context,
             new ContainerCreateConfig
@@ -279,9 +279,9 @@ namespace FluentDocker.Tests.Integration.PodmanCliDriver
               Command = new[] { "sleep", "300" },
               Detach = true,
               Pod = name
-            });
+            }, cancellationToken: TestContext.Current.CancellationToken);
 
-        var inspectResult = await PodDriver.InspectPodAsync(Context, name);
+        var inspectResult = await PodDriver.InspectPodAsync(Context, name, cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.True(inspectResult.Success);
         // Pod should have at least the infra container + our container
@@ -298,7 +298,7 @@ namespace FluentDocker.Tests.Integration.PodmanCliDriver
     public async Task InspectPod_NonExistent_Fails()
     {
       var fakeName = "nonexistent-" + Guid.NewGuid().ToString("N")[..12];
-      var result = await PodDriver.InspectPodAsync(Context, fakeName);
+      var result = await PodDriver.InspectPodAsync(Context, fakeName, cancellationToken: TestContext.Current.CancellationToken);
       Assert.False(result.Success);
     }
 

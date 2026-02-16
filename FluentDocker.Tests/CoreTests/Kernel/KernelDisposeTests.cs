@@ -22,7 +22,7 @@ namespace FluentDocker.Tests.CoreTests.Kernel
       var mockPack = new AsyncDisposableMockDriverPack();
       var context = new DriverContext("docker");
 
-      await kernel.RegisterDriverPackAsync("docker", mockPack, context);
+      await kernel.RegisterDriverPackAsync("docker", mockPack, context, TestContext.Current.CancellationToken);
 
       // Act
       await kernel.DisposeAsync();
@@ -39,7 +39,7 @@ namespace FluentDocker.Tests.CoreTests.Kernel
       var mockPack = new DisposableMockDriverPack();
       var context = new DriverContext("docker");
 
-      await kernel.RegisterDriverPackAsync("docker", mockPack, context);
+      await kernel.RegisterDriverPackAsync("docker", mockPack, context, TestContext.Current.CancellationToken);
 
       // Act
       await kernel.DisposeAsync();
@@ -56,7 +56,7 @@ namespace FluentDocker.Tests.CoreTests.Kernel
       var mockPack = new AsyncDisposableMockDriverPack();
       var context = new DriverContext("docker");
 
-      await kernel.RegisterDriverPackAsync("docker", mockPack, context);
+      await kernel.RegisterDriverPackAsync("docker", mockPack, context, TestContext.Current.CancellationToken);
 
       // Act
       kernel.Dispose();
@@ -73,8 +73,8 @@ namespace FluentDocker.Tests.CoreTests.Kernel
       var asyncPack = new AsyncDisposableMockDriverPack();
       var syncPack = new DisposableMockDriverPack();
 
-      await kernel.RegisterDriverPackAsync("async-driver", asyncPack, new DriverContext("async-driver"));
-      await kernel.RegisterDriverPackAsync("sync-driver", syncPack, new DriverContext("sync-driver"));
+      await kernel.RegisterDriverPackAsync("async-driver", asyncPack, new DriverContext("async-driver"), TestContext.Current.CancellationToken);
+      await kernel.RegisterDriverPackAsync("sync-driver", syncPack, new DriverContext("sync-driver"), TestContext.Current.CancellationToken);
 
       // Act
       await kernel.DisposeAsync();
@@ -92,7 +92,7 @@ namespace FluentDocker.Tests.CoreTests.Kernel
       var mockPack = new AsyncDisposableMockDriverPack();
       var context = new DriverContext("docker");
 
-      await kernel.RegisterDriverPackAsync("docker", mockPack, context);
+      await kernel.RegisterDriverPackAsync("docker", mockPack, context, TestContext.Current.CancellationToken);
 
       // Act - dispose twice
       await kernel.DisposeAsync();
@@ -110,8 +110,8 @@ namespace FluentDocker.Tests.CoreTests.Kernel
       var throwingPack = new ThrowingDisposableMockDriverPack();
       var normalPack = new AsyncDisposableMockDriverPack();
 
-      await kernel.RegisterDriverPackAsync("throwing", throwingPack, new DriverContext("throwing"));
-      await kernel.RegisterDriverPackAsync("normal", normalPack, new DriverContext("normal"));
+      await kernel.RegisterDriverPackAsync("throwing", throwingPack, new DriverContext("throwing"), TestContext.Current.CancellationToken);
+      await kernel.RegisterDriverPackAsync("normal", normalPack, new DriverContext("normal"), TestContext.Current.CancellationToken);
 
       // Act - should not throw even though one pack throws during disposal
       await kernel.DisposeAsync();
@@ -128,7 +128,7 @@ namespace FluentDocker.Tests.CoreTests.Kernel
       var mockPack = new AsyncDisposableMockDriverPack();
       var context = new DriverContext("docker");
 
-      await kernel.RegisterDriverPackAsync("docker", mockPack, context);
+      await kernel.RegisterDriverPackAsync("docker", mockPack, context, TestContext.Current.CancellationToken);
 
       // Act
       await kernel.DisposeAsync();

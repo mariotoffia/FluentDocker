@@ -32,7 +32,7 @@ namespace FluentDocker.Tests.Integration.PodmanCliDriver
             new ContainerUpdateConfig
             {
               MemoryLimit = 128 * 1024 * 1024 // 128 MB
-            });
+            }, TestContext.Current.CancellationToken);
 
         Assert.True(updateResult.Success,
             $"Update failed: {updateResult.Error}");
@@ -61,7 +61,7 @@ namespace FluentDocker.Tests.Integration.PodmanCliDriver
             new ContainerUpdateConfig
             {
               RestartPolicy = "on-failure"
-            });
+            }, TestContext.Current.CancellationToken);
 
         Assert.True(updateResult.Success,
             $"Update restart policy failed: {updateResult.Error}");
@@ -92,7 +92,7 @@ namespace FluentDocker.Tests.Integration.PodmanCliDriver
             });
 
         var exportResult = await ContainerDriver.ExportAsync(
-            Context, containerId, exportPath);
+            Context, containerId, exportPath, TestContext.Current.CancellationToken);
 
         Assert.True(exportResult.Success,
             $"Export failed: {exportResult.Error}");
@@ -118,7 +118,7 @@ namespace FluentDocker.Tests.Integration.PodmanCliDriver
       try
       {
         var result = await ContainerDriver.ExportAsync(
-            Context, fakeId, exportPath);
+            Context, fakeId, exportPath, TestContext.Current.CancellationToken);
         Assert.False(result.Success);
       }
       finally
@@ -149,14 +149,14 @@ namespace FluentDocker.Tests.Integration.PodmanCliDriver
 
         var newName = UniqueName("rename-new");
         var renameResult = await ContainerDriver.RenameAsync(
-            Context, containerId, newName);
+            Context, containerId, newName, TestContext.Current.CancellationToken);
 
         Assert.True(renameResult.Success,
             $"Rename failed: {renameResult.Error}");
 
         // Verify name changed via inspect
         var inspectResult = await ContainerDriver.InspectAsync(
-            Context, containerId);
+            Context, containerId, TestContext.Current.CancellationToken);
         Assert.True(inspectResult.Success);
         Assert.Contains(newName, inspectResult.Data.Name);
       }

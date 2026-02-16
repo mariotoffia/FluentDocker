@@ -25,25 +25,25 @@ namespace FluentDocker.Tests.Integration.DockerApiDriver
             new NetworkCreateConfig
             {
               Name = UniqueName("api-net")
-            });
+            }, cancellationToken: TestContext.Current.CancellationToken);
         Assert.True(networkResult.Success,
             $"Network create failed: {networkResult.Error}");
         networkId = networkResult.Data.Id;
 
         // Connect
         var connectResult = await NetworkDriver.ConnectAsync(
-            Context, networkId, containerId);
+            Context, networkId, containerId, cancellationToken: TestContext.Current.CancellationToken);
         Assert.True(connectResult.Success,
             $"Connect failed: {connectResult.Error}");
 
         // Verify via inspect
-        var inspect = await ContainerDriver.InspectAsync(Context, containerId);
+        var inspect = await ContainerDriver.InspectAsync(Context, containerId, cancellationToken: TestContext.Current.CancellationToken);
         Assert.True(inspect.Success);
         Assert.NotNull(inspect.Data.NetworkSettings?.Networks);
 
         // Disconnect
         var disconnectResult = await NetworkDriver.DisconnectAsync(
-            Context, networkId, containerId);
+            Context, networkId, containerId, cancellationToken: TestContext.Current.CancellationToken);
         Assert.True(disconnectResult.Success,
             $"Disconnect failed: {disconnectResult.Error}");
       }
@@ -51,7 +51,7 @@ namespace FluentDocker.Tests.Integration.DockerApiDriver
       {
         await ApiRemoveContainerAsync(containerId);
         if (!string.IsNullOrEmpty(networkId))
-          await NetworkDriver.RemoveAsync(Context, networkId);
+          await NetworkDriver.RemoveAsync(Context, networkId, cancellationToken: TestContext.Current.CancellationToken);
       }
     }
 
@@ -69,12 +69,12 @@ namespace FluentDocker.Tests.Integration.DockerApiDriver
             new NetworkCreateConfig
             {
               Name = UniqueName("api-inspect")
-            });
+            }, cancellationToken: TestContext.Current.CancellationToken);
         Assert.True(networkResult.Success);
         networkId = networkResult.Data.Id;
 
         var inspectResult = await NetworkDriver.InspectAsync(
-            Context, networkId);
+            Context, networkId, cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.True(inspectResult.Success,
             $"Inspect failed: {inspectResult.Error}");
@@ -84,7 +84,7 @@ namespace FluentDocker.Tests.Integration.DockerApiDriver
       finally
       {
         if (!string.IsNullOrEmpty(networkId))
-          await NetworkDriver.RemoveAsync(Context, networkId);
+          await NetworkDriver.RemoveAsync(Context, networkId, cancellationToken: TestContext.Current.CancellationToken);
       }
     }
 
@@ -92,7 +92,7 @@ namespace FluentDocker.Tests.Integration.DockerApiDriver
     public async Task Network_Inspect_NonExistent_Fails()
     {
       var fakeId = "nonexistent" + Guid.NewGuid().ToString("N")[..12];
-      var result = await NetworkDriver.InspectAsync(Context, fakeId);
+      var result = await NetworkDriver.InspectAsync(Context, fakeId, cancellationToken: TestContext.Current.CancellationToken);
       Assert.False(result.Success);
     }
 
@@ -103,7 +103,7 @@ namespace FluentDocker.Tests.Integration.DockerApiDriver
     [Fact]
     public async Task Network_Prune_Succeeds()
     {
-      var pruneResult = await NetworkDriver.PruneAsync(Context);
+      var pruneResult = await NetworkDriver.PruneAsync(Context, cancellationToken: TestContext.Current.CancellationToken);
 
       Assert.True(pruneResult.Success,
           $"Prune failed: {pruneResult.Error}");
@@ -121,11 +121,11 @@ namespace FluentDocker.Tests.Integration.DockerApiDriver
       {
         volumeName = UniqueName("api-vol");
         var createResult = await VolumeDriver.CreateAsync(Context,
-            new VolumeCreateConfig { Name = volumeName });
+            new VolumeCreateConfig { Name = volumeName }, cancellationToken: TestContext.Current.CancellationToken);
         Assert.True(createResult.Success);
 
         var inspectResult = await VolumeDriver.InspectAsync(
-            Context, volumeName);
+            Context, volumeName, cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.True(inspectResult.Success,
             $"Inspect failed: {inspectResult.Error}");
@@ -135,7 +135,7 @@ namespace FluentDocker.Tests.Integration.DockerApiDriver
       finally
       {
         if (!string.IsNullOrEmpty(volumeName))
-          await VolumeDriver.RemoveAsync(Context, volumeName, force: true);
+          await VolumeDriver.RemoveAsync(Context, volumeName, force: true, cancellationToken: TestContext.Current.CancellationToken);
       }
     }
 
@@ -143,7 +143,7 @@ namespace FluentDocker.Tests.Integration.DockerApiDriver
     public async Task Volume_Inspect_NonExistent_Fails()
     {
       var fakeName = "nonexistent-" + Guid.NewGuid().ToString("N")[..12];
-      var result = await VolumeDriver.InspectAsync(Context, fakeName);
+      var result = await VolumeDriver.InspectAsync(Context, fakeName, cancellationToken: TestContext.Current.CancellationToken);
       Assert.False(result.Success);
     }
 
@@ -154,7 +154,7 @@ namespace FluentDocker.Tests.Integration.DockerApiDriver
     [Fact]
     public async Task Volume_Prune_Succeeds()
     {
-      var pruneResult = await VolumeDriver.PruneAsync(Context);
+      var pruneResult = await VolumeDriver.PruneAsync(Context, cancellationToken: TestContext.Current.CancellationToken);
 
       Assert.True(pruneResult.Success,
           $"Prune failed: {pruneResult.Error}");
@@ -167,7 +167,7 @@ namespace FluentDocker.Tests.Integration.DockerApiDriver
     [Fact]
     public async Task System_GetDiskUsage_ReturnsInfo()
     {
-      var result = await SystemDriver.GetDiskUsageAsync(Context);
+      var result = await SystemDriver.GetDiskUsageAsync(Context, cancellationToken: TestContext.Current.CancellationToken);
 
       Assert.True(result.Success,
           $"DiskUsage failed: {result.Error}");
@@ -181,7 +181,7 @@ namespace FluentDocker.Tests.Integration.DockerApiDriver
     [Fact]
     public async Task System_IsLinuxEngine_ReturnsBool()
     {
-      var result = await SystemDriver.IsLinuxEngineAsync(Context);
+      var result = await SystemDriver.IsLinuxEngineAsync(Context, cancellationToken: TestContext.Current.CancellationToken);
 
       Assert.True(result.Success,
           $"IsLinuxEngine failed: {result.Error}");

@@ -36,7 +36,7 @@ spec:
         await EnsureImageAsync(TestImage);
 
         var playResult = await KubernetesDriver.PlayAsync(
-            Context, new KubePlayConfig { YamlPath = yamlPath });
+            Context, new KubePlayConfig { YamlPath = yamlPath }, TestContext.Current.CancellationToken);
 
         Assert.True(playResult.Success, $"Play failed: {playResult.Error}");
         Assert.NotNull(playResult.Data);
@@ -59,7 +59,7 @@ spec:
 
         // First play
         var firstResult = await KubernetesDriver.PlayAsync(
-            Context, new KubePlayConfig { YamlPath = yamlPath });
+            Context, new KubePlayConfig { YamlPath = yamlPath }, TestContext.Current.CancellationToken);
         Assert.True(firstResult.Success, $"First play failed: {firstResult.Error}");
 
         // Second play with replace
@@ -68,7 +68,7 @@ spec:
             {
               YamlPath = yamlPath,
               Replace = true
-            });
+            }, TestContext.Current.CancellationToken);
         Assert.True(replaceResult.Success, $"Replace play failed: {replaceResult.Error}");
       }
       finally
@@ -91,14 +91,14 @@ spec:
             {
               YamlPath = yamlPath,
               Start = false
-            });
+            }, TestContext.Current.CancellationToken);
 
         Assert.True(playResult.Success, $"Play failed: {playResult.Error}");
         Assert.NotNull(playResult.Data);
         Assert.NotEmpty(playResult.Data.Pods);
 
         // Verify the pod is NOT in Running state
-        var pods = await PodDriver.ListPodsAsync(Context);
+        var pods = await PodDriver.ListPodsAsync(Context, TestContext.Current.CancellationToken);
         Assert.True(pods.Success, $"ListPods failed: {pods.Error}");
         var createdPod = pods.Data.FirstOrDefault(
             p => p.Name != null && p.Name.Contains("test-kube-play"));
@@ -121,10 +121,10 @@ spec:
         await EnsureImageAsync(TestImage);
 
         var playResult = await KubernetesDriver.PlayAsync(
-            Context, new KubePlayConfig { YamlPath = yamlPath });
+            Context, new KubePlayConfig { YamlPath = yamlPath }, TestContext.Current.CancellationToken);
         Assert.True(playResult.Success, $"Play failed: {playResult.Error}");
 
-        var downResult = await KubernetesDriver.DownAsync(Context, yamlPath);
+        var downResult = await KubernetesDriver.DownAsync(Context, yamlPath, TestContext.Current.CancellationToken);
         Assert.True(downResult.Success, $"Down failed: {downResult.Error}");
       }
       finally
@@ -137,7 +137,7 @@ spec:
     public async Task Down_NonExistentFile_FailsGracefully()
     {
       var result = await KubernetesDriver.DownAsync(
-          Context, "/tmp/nonexistent-file-" + Guid.NewGuid().ToString("N") + ".yaml");
+          Context, "/tmp/nonexistent-file-" + Guid.NewGuid().ToString("N") + ".yaml", TestContext.Current.CancellationToken);
 
       Assert.False(result.Success);
     }
@@ -155,7 +155,7 @@ spec:
         await EnsureImageAsync(TestImage);
         podName = UniqueName("kube-gen");
         var createResult = await PodDriver.CreatePodAsync(
-            Context, new PodCreateConfig { Name = podName });
+            Context, new PodCreateConfig { Name = podName }, TestContext.Current.CancellationToken);
         Assert.True(createResult.Success, $"Pod create failed: {createResult.Error}");
 
         // Pod must have at least one non-infra container for kube generate
@@ -165,11 +165,11 @@ spec:
               Image = TestImage,
               Command = new[] { "sleep", "300" },
               Pod = podName
-            });
+            }, TestContext.Current.CancellationToken);
         Assert.True(containerResult.Success,
             $"Container create failed: {containerResult.Error}");
 
-        var genResult = await KubernetesDriver.GenerateAsync(Context, podName);
+        var genResult = await KubernetesDriver.GenerateAsync(Context, podName, TestContext.Current.CancellationToken);
         Assert.True(genResult.Success, $"Generate failed: {genResult.Error}");
         Assert.NotNull(genResult.Data);
         Assert.Contains("apiVersion", genResult.Data);
@@ -190,7 +190,7 @@ spec:
     public async Task GenerateKube_NonExistentResource_FailsGracefully()
     {
       var result = await KubernetesDriver.GenerateAsync(
-          Context, "nonexistent-" + Guid.NewGuid().ToString("N")[..12]);
+          Context, "nonexistent-" + Guid.NewGuid().ToString("N")[..12], TestContext.Current.CancellationToken);
 
       Assert.False(result.Success);
     }

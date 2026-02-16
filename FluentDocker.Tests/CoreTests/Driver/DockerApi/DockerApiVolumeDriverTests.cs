@@ -28,7 +28,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
           @"{""Name"":""my-vol"",""Driver"":""local""}");
 
       var config = new VolumeCreateConfig { Name = "my-vol" };
-      var result = await driver.CreateAsync(Ctx, config);
+      var result = await driver.CreateAsync(Ctx, config, cancellationToken: TestContext.Current.CancellationToken);
 
       Assert.True(result.Success);
       Assert.Equal("my-vol", result.Data.Name);
@@ -42,7 +42,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
       mock.SetupPost("/volumes/create", 200, "{}");
 
       var config = new VolumeCreateConfig { Name = "fallback", Driver = "nfs" };
-      var result = await driver.CreateAsync(Ctx, config);
+      var result = await driver.CreateAsync(Ctx, config, cancellationToken: TestContext.Current.CancellationToken);
 
       Assert.True(result.Success);
       Assert.Equal("fallback", result.Data.Name);
@@ -57,7 +57,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
           @"{""message"":""create failed""}");
 
       var config = new VolumeCreateConfig { Name = "fail-vol" };
-      var result = await driver.CreateAsync(Ctx, config);
+      var result = await driver.CreateAsync(Ctx, config, cancellationToken: TestContext.Current.CancellationToken);
 
       Assert.False(result.Success);
       Assert.Equal(ErrorCodes.Volume.CreateFailed, result.ErrorCode);
@@ -71,7 +71,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
           @"{""Volumes"":[{""Name"":""v1"",""Driver"":""local"",""Scope"":""local""},"
           + @"{""Name"":""v2"",""Driver"":""nfs"",""Scope"":""global""}]}");
 
-      var result = await driver.ListAsync(Ctx);
+      var result = await driver.ListAsync(Ctx, cancellationToken: TestContext.Current.CancellationToken);
 
       Assert.True(result.Success);
       Assert.Equal(2, result.Data.Count);
@@ -89,7 +89,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
       var (driver, mock) = CreateDriver();
       mock.SetupGet("/volumes", 200, @"{""Volumes"":[]}");
 
-      var result = await driver.ListAsync(Ctx);
+      var result = await driver.ListAsync(Ctx, cancellationToken: TestContext.Current.CancellationToken);
 
       Assert.True(result.Success);
       Assert.Empty(result.Data);
@@ -101,7 +101,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
       var (driver, mock) = CreateDriver();
       mock.SetupGet("/volumes", 200, "{}");
 
-      var result = await driver.ListAsync(Ctx);
+      var result = await driver.ListAsync(Ctx, cancellationToken: TestContext.Current.CancellationToken);
 
       Assert.True(result.Success);
       Assert.Empty(result.Data);
@@ -115,7 +115,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
           @"{""Name"":""data-vol"",""Driver"":""local"","
           + @"""Scope"":""local"",""CreatedAt"":""2024-01-15T10:30:00Z""}");
 
-      var result = await driver.InspectAsync(Ctx, "data-vol");
+      var result = await driver.InspectAsync(Ctx, "data-vol", cancellationToken: TestContext.Current.CancellationToken);
 
       Assert.True(result.Success);
       Assert.Equal("data-vol", result.Data.Name);
@@ -131,7 +131,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
       mock.SetupGet("/volumes/missing", 404,
           @"{""message"":""volume missing not found""}");
 
-      var result = await driver.InspectAsync(Ctx, "missing");
+      var result = await driver.InspectAsync(Ctx, "missing", cancellationToken: TestContext.Current.CancellationToken);
 
       Assert.False(result.Success);
       Assert.Equal(ErrorCodes.Volume.NotFound, result.ErrorCode);
@@ -144,7 +144,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
       var (driver, mock) = CreateDriver();
       mock.SetupDelete("/volumes/old-vol", 204, "");
 
-      var result = await driver.RemoveAsync(Ctx, "old-vol");
+      var result = await driver.RemoveAsync(Ctx, "old-vol", cancellationToken: TestContext.Current.CancellationToken);
 
       Assert.True(result.Success);
 
@@ -159,7 +159,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
       var (driver, mock) = CreateDriver();
       mock.SetupDelete("/volumes/stuck-vol", 204, "");
 
-      var result = await driver.RemoveAsync(Ctx, "stuck-vol", force: true);
+      var result = await driver.RemoveAsync(Ctx, "stuck-vol", force: true, cancellationToken: TestContext.Current.CancellationToken);
 
       Assert.True(result.Success);
 
@@ -175,7 +175,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
       var (driver, mock) = CreateDriver();
       mock.SetupDelete("/volumes/normal-vol", 204, "");
 
-      var result = await driver.RemoveAsync(Ctx, "normal-vol");
+      var result = await driver.RemoveAsync(Ctx, "normal-vol", cancellationToken: TestContext.Current.CancellationToken);
 
       Assert.True(result.Success);
 
@@ -192,7 +192,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
       mock.SetupPost("/volumes/prune", 200,
           @"{""VolumesDeleted"":[""old1"",""old2""],""SpaceReclaimed"":2097152}");
 
-      var result = await driver.PruneAsync(Ctx);
+      var result = await driver.PruneAsync(Ctx, cancellationToken: TestContext.Current.CancellationToken);
 
       Assert.True(result.Success);
       Assert.Equal(2097152L, result.Data.SpaceReclaimed);
@@ -207,7 +207,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
       var (driver, mock) = CreateDriver();
       mock.SetupPost("/volumes/prune", 200, "{}");
 
-      var result = await driver.PruneAsync(Ctx);
+      var result = await driver.PruneAsync(Ctx, cancellationToken: TestContext.Current.CancellationToken);
 
       Assert.True(result.Success);
       Assert.Equal(0L, result.Data.SpaceReclaimed);
@@ -221,7 +221,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
       mock.SetupPost("/volumes/prune", 500,
           @"{""message"":""prune error""}");
 
-      var result = await driver.PruneAsync(Ctx);
+      var result = await driver.PruneAsync(Ctx, cancellationToken: TestContext.Current.CancellationToken);
 
       Assert.False(result.Success);
       Assert.Equal(ErrorCodes.Volume.PruneFailed, result.ErrorCode);

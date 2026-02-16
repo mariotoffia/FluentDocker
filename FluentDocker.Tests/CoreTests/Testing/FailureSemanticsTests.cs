@@ -43,7 +43,7 @@ namespace FluentDocker.Tests.CoreTests.Testing
           builder => builder.UseImage("alpine:latest"),
           new DockerResourceOptions { ForceRemoveOnDispose = true });
 
-      await resource.InitializeAsync();
+      await resource.InitializeAsync(TestContext.Current.CancellationToken);
       Assert.True(resource.IsInitialized);
 
       // Dispose should not throw — teardown fails but force-remove kicks in
@@ -79,7 +79,7 @@ namespace FluentDocker.Tests.CoreTests.Testing
           throw new InvalidOperationException("Hook failure"));
 
       await Assert.ThrowsAsync<InvalidOperationException>(
-          () => resource.InitializeAsync());
+          () => resource.InitializeAsync(TestContext.Current.CancellationToken));
 
       // IsInitialized must be false because the hook threw
       Assert.False(resource.IsInitialized);
@@ -109,7 +109,7 @@ namespace FluentDocker.Tests.CoreTests.Testing
         return Task.CompletedTask;
       });
 
-      await resource.InitializeAsync();
+      await resource.InitializeAsync(TestContext.Current.CancellationToken);
 
       Assert.True(hookCalled);
       Assert.True(resource.IsInitialized);

@@ -151,7 +151,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
     {
       var driver = new PodmanCliSystemDriver(null);
 
-      var result = await driver.SwitchDaemonAsync(new DriverContext("podman"));
+      var result = await driver.SwitchDaemonAsync(new DriverContext("podman"), TestContext.Current.CancellationToken);
 
       Assert.False(result.Success);
       Assert.Equal(ErrorCodes.Driver.CapabilityNotSupported, result.ErrorCode);
@@ -162,7 +162,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
     {
       var driver = new PodmanCliSystemDriver(null);
 
-      var result = await driver.SwitchToLinuxDaemonAsync(new DriverContext("podman"));
+      var result = await driver.SwitchToLinuxDaemonAsync(new DriverContext("podman"), TestContext.Current.CancellationToken);
 
       Assert.False(result.Success);
       Assert.Equal(ErrorCodes.Driver.CapabilityNotSupported, result.ErrorCode);

@@ -28,7 +28,7 @@ namespace FluentDocker.Tests.Integration.PodmanCliDriver
           Command = new[] { "sleep", "60" }
         };
 
-        var createResult = await ContainerDriver.CreateAsync(Context, config);
+        var createResult = await ContainerDriver.CreateAsync(Context, config, TestContext.Current.CancellationToken);
         Assert.True(createResult.Success, $"Create failed: {createResult.Error}");
         containerId = createResult.Data.Id;
         Assert.NotNull(containerId);
@@ -54,7 +54,7 @@ namespace FluentDocker.Tests.Integration.PodmanCliDriver
           Command = new[] { "sleep", "60" }
         };
 
-        var runResult = await ContainerDriver.RunAsync(Context, config);
+        var runResult = await ContainerDriver.RunAsync(Context, config, TestContext.Current.CancellationToken);
         Assert.True(runResult.Success, $"Run failed: {runResult.Error}");
         containerId = runResult.Data.Id;
         Assert.NotNull(containerId);
@@ -79,20 +79,20 @@ namespace FluentDocker.Tests.Integration.PodmanCliDriver
           Command = new[] { "sleep", "60" }
         };
 
-        var createResult = await ContainerDriver.CreateAsync(Context, config);
+        var createResult = await ContainerDriver.CreateAsync(Context, config, TestContext.Current.CancellationToken);
         Assert.True(createResult.Success);
         containerId = createResult.Data.Id;
 
         // Start
-        var startResult = await ContainerDriver.StartAsync(Context, containerId);
+        var startResult = await ContainerDriver.StartAsync(Context, containerId, TestContext.Current.CancellationToken);
         Assert.True(startResult.Success, $"Start failed: {startResult.Error}");
 
         // Stop
-        var stopResult = await ContainerDriver.StopAsync(Context, containerId, timeout: 5);
+        var stopResult = await ContainerDriver.StopAsync(Context, containerId, timeout: 5, TestContext.Current.CancellationToken);
         Assert.True(stopResult.Success, $"Stop failed: {stopResult.Error}");
 
         // Restart
-        var restartResult = await ContainerDriver.RestartAsync(Context, containerId, timeout: 5);
+        var restartResult = await ContainerDriver.RestartAsync(Context, containerId, timeout: 5, TestContext.Current.CancellationToken);
         Assert.True(restartResult.Success, $"Restart failed: {restartResult.Error}");
       }
       finally
@@ -114,7 +114,7 @@ namespace FluentDocker.Tests.Integration.PodmanCliDriver
           Command = new[] { "sleep", "60" }
         });
 
-        var result = await ContainerDriver.InspectAsync(Context, containerId);
+        var result = await ContainerDriver.InspectAsync(Context, containerId, TestContext.Current.CancellationToken);
         Assert.True(result.Success, $"Inspect failed: {result.Error}");
         Assert.NotNull(result.Data.Id);
         Assert.NotNull(result.Data.State);
@@ -139,7 +139,7 @@ namespace FluentDocker.Tests.Integration.PodmanCliDriver
         });
 
         var result = await ContainerDriver.ListAsync(Context,
-            new ContainerListFilter { All = true });
+            new ContainerListFilter { All = true }, TestContext.Current.CancellationToken);
         Assert.True(result.Success, $"List failed: {result.Error}");
         Assert.NotEmpty(result.Data);
       }

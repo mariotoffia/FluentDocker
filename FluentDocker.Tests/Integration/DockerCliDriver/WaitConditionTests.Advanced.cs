@@ -38,13 +38,13 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
             ["5432/tcp"] = "0"
           },
           Detach = true
-        });
+        }, TestContext.Current.CancellationToken);
 
         Assert.True(runResult.Success);
         containerId = runResult.Data.Id;
 
         // Get port
-        var inspect = await ContainerDriver.InspectAsync(Context, containerId);
+        var inspect = await ContainerDriver.InspectAsync(Context, containerId, TestContext.Current.CancellationToken);
         var portBinding = inspect.Data.NetworkSettings?.Ports?["5432/tcp"];
         Assert.NotNull(portBinding);
         var hostPort = int.Parse(portBinding[0].HostPort);

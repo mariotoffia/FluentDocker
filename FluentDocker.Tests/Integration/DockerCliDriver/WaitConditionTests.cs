@@ -38,13 +38,13 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
             ["80/tcp"] = "0" // Random port
           },
           Detach = true
-        });
+        }, TestContext.Current.CancellationToken);
 
         Assert.True(runResult.Success);
         containerId = runResult.Data.Id;
 
         // Get the mapped port
-        var inspect = await ContainerDriver.InspectAsync(Context, containerId);
+        var inspect = await ContainerDriver.InspectAsync(Context, containerId, TestContext.Current.CancellationToken);
         Assert.True(inspect.Success);
 
         var portBinding = inspect.Data.NetworkSettings?.Ports?["80/tcp"];
@@ -85,13 +85,13 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
             ["5432/tcp"] = "0" // Random port
           },
           Detach = true
-        });
+        }, TestContext.Current.CancellationToken);
 
         Assert.True(runResult.Success);
         containerId = runResult.Data.Id;
 
         // Get the mapped port
-        var inspect = await ContainerDriver.InspectAsync(Context, containerId);
+        var inspect = await ContainerDriver.InspectAsync(Context, containerId, TestContext.Current.CancellationToken);
         Assert.True(inspect.Success);
 
         var portBinding = inspect.Data.NetworkSettings?.Ports?["5432/tcp"];
@@ -130,7 +130,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
             ["POSTGRES_PASSWORD"] = "mysecretpassword"
           },
           Detach = true
-        });
+        }, TestContext.Current.CancellationToken);
 
         Assert.True(runResult.Success);
         containerId = runResult.Data.Id;
@@ -167,13 +167,13 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
             ["80/tcp"] = "0"
           },
           Detach = true
-        });
+        }, TestContext.Current.CancellationToken);
 
         Assert.True(runResult.Success);
         containerId = runResult.Data.Id;
 
         // Get the mapped port
-        var inspect = await ContainerDriver.InspectAsync(Context, containerId);
+        var inspect = await ContainerDriver.InspectAsync(Context, containerId, TestContext.Current.CancellationToken);
         var portBinding = inspect.Data.NetworkSettings?.Ports?["80/tcp"];
         Assert.NotNull(portBinding);
         var hostPort = int.Parse(portBinding[0].HostPort);
@@ -207,13 +207,13 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
             ["80/tcp"] = "0"
           },
           Detach = true
-        });
+        }, TestContext.Current.CancellationToken);
 
         Assert.True(runResult.Success);
         containerId = runResult.Data.Id;
 
         // Get the mapped port
-        var inspect = await ContainerDriver.InspectAsync(Context, containerId);
+        var inspect = await ContainerDriver.InspectAsync(Context, containerId, TestContext.Current.CancellationToken);
         var portBinding = inspect.Data.NetworkSettings?.Ports?["80/tcp"];
         Assert.NotNull(portBinding);
         var hostPort = int.Parse(portBinding[0].HostPort);
@@ -256,7 +256,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
             StartPeriod = "1s"
           },
           Detach = true
-        });
+        }, TestContext.Current.CancellationToken);
 
         Assert.True(runResult.Success, $"Container run failed: {runResult.Error}");
         containerId = runResult.Data.Id;

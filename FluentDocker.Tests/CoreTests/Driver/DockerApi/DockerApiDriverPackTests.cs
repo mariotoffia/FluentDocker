@@ -40,7 +40,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
     [Fact]
     public async Task GetCapabilities_ReturnsCorrectValues()
     {
-      var caps = await _pack.GetCapabilitiesAsync();
+      var caps = await _pack.GetCapabilitiesAsync(TestContext.Current.CancellationToken);
       Assert.True(caps.SupportsContainers);
       Assert.True(caps.SupportsImages);
       Assert.True(caps.SupportsNetworks);
@@ -86,7 +86,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
 
     [Fact]
     public async Task IsHealthy_BeforeInit_ReturnsFalse() =>
-        Assert.False(await _pack.IsHealthyAsync());
+        Assert.False(await _pack.IsHealthyAsync(TestContext.Current.CancellationToken));
 
     // ── Post-init: SysCtl resolves all 8 interfaces by Type ─────────
 
@@ -214,10 +214,10 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
     {
       var mock = new MockDockerApiConnection().SetupPing(true);
       await using var pack = new DockerApiDriverPack();
-      await pack.InitializeAsync(CreateContext());
+      await pack.InitializeAsync(CreateContext(), TestContext.Current.CancellationToken);
       InjectConnection(pack, mock);
 
-      Assert.True(await pack.IsHealthyAsync());
+      Assert.True(await pack.IsHealthyAsync(TestContext.Current.CancellationToken));
       var requests = mock.GetRequests();
       Assert.Single(requests);
       Assert.Equal("PING", requests[0].Method);
@@ -228,10 +228,10 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
     {
       var mock = new MockDockerApiConnection().SetupPing(false);
       await using var pack = new DockerApiDriverPack();
-      await pack.InitializeAsync(CreateContext());
+      await pack.InitializeAsync(CreateContext(), TestContext.Current.CancellationToken);
       InjectConnection(pack, mock);
 
-      Assert.False(await pack.IsHealthyAsync());
+      Assert.False(await pack.IsHealthyAsync(TestContext.Current.CancellationToken));
     }
 
     // ── Helpers ─────────────────────────────────────────────────────

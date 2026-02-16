@@ -227,7 +227,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
     public async Task GetCapabilities_SupportsKubernetes()
     {
       var pack = new PodmanCliDriverPack();
-      var caps = await pack.GetCapabilitiesAsync();
+      var caps = await pack.GetCapabilitiesAsync(TestContext.Current.CancellationToken);
 
       Assert.True(caps.SupportsKubernetes);
     }

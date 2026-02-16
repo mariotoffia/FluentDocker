@@ -141,7 +141,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
       };
 
       await using var conn = new DockerApiConnection(config);
-      var result = await conn.PingAsync();
+      var result = await conn.PingAsync(TestContext.Current.CancellationToken);
 
       Assert.False(result);
     }

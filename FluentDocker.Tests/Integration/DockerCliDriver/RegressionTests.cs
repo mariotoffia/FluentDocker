@@ -42,18 +42,18 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
           ProjectName = projectName,
           Detached = true,
           RemoveOrphans = true
-        });
+        }, cancellationToken: TestContext.Current.CancellationToken);
         Assert.True(upResult.Success, $"Compose up failed: {upResult.Error}");
 
         // Wait for container to start
-        await Task.Delay(3000);
+        await Task.Delay(3000, cancellationToken: TestContext.Current.CancellationToken);
 
         // Get containers in project
         var listResult = await ComposeDriver.ListAsync(Context, new ComposeListConfig
         {
           ComposeFiles = new List<string> { composeFile },
           ProjectName = projectName
-        });
+        }, cancellationToken: TestContext.Current.CancellationToken);
         Assert.True(listResult.Success);
         Assert.True(listResult.Data.Count > 0);
 
@@ -63,7 +63,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
 
         if (!string.IsNullOrEmpty(containerId))
         {
-          var inspect = await ContainerDriver.InspectAsync(Context, containerId);
+          var inspect = await ContainerDriver.InspectAsync(Context, containerId, cancellationToken: TestContext.Current.CancellationToken);
 
           // Assert
           Assert.True(inspect.Success);
@@ -79,7 +79,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
           ComposeFiles = new List<string> { composeFile },
           ProjectName = projectName,
           RemoveVolumes = true
-        });
+        }, cancellationToken: TestContext.Current.CancellationToken);
       }
     }
 
@@ -106,13 +106,13 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
             ["80/tcp"] = "0" // Random port
           },
           Detach = true
-        });
+        }, cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.True(runResult.Success);
         containerId = runResult.Data.Id;
 
         // Get the mapped port
-        var inspect = await ContainerDriver.InspectAsync(Context, containerId);
+        var inspect = await ContainerDriver.InspectAsync(Context, containerId, cancellationToken: TestContext.Current.CancellationToken);
         Assert.True(inspect.Success);
 
         var portBinding = inspect.Data.NetworkSettings?.Ports?["80/tcp"];
@@ -154,11 +154,11 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
           ProjectName = projectName,
           Detached = true,
           RemoveOrphans = true
-        });
+        }, cancellationToken: TestContext.Current.CancellationToken);
         Assert.True(upResult.Success);
 
         // Wait for services to start
-        await Task.Delay(5000);
+        await Task.Delay(5000, cancellationToken: TestContext.Current.CancellationToken);
 
         // Act
         var listResult = await ComposeDriver.ListAsync(Context, new ComposeListConfig
@@ -166,7 +166,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
           ComposeFiles = new List<string> { composeFile },
           ProjectName = projectName,
           All = true
-        });
+        }, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(listResult.Success);
@@ -184,7 +184,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
           ComposeFiles = new List<string> { composeFile },
           ProjectName = projectName,
           RemoveVolumes = true
-        });
+        }, cancellationToken: TestContext.Current.CancellationToken);
       }
     }
 
@@ -210,7 +210,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
           Name = containerName,
           Command = new[] { "sleep", "60" },
           Detach = true
-        });
+        }, cancellationToken: TestContext.Current.CancellationToken);
         Assert.True(result1.Success);
         container1Id = result1.Data.Id;
 
@@ -221,7 +221,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
           Name = containerName,
           Command = new[] { "sleep", "60" },
           Detach = true
-        });
+        }, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert - Second create should fail (name in use)
         Assert.False(result2.Success);
@@ -250,7 +250,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
       try
       {
         // Arrange - Create volume
-        await VolumeDriver.CreateAsync(Context, new VolumeCreateConfig { Name = volumeName });
+        await VolumeDriver.CreateAsync(Context, new VolumeCreateConfig { Name = volumeName }, cancellationToken: TestContext.Current.CancellationToken);
 
         // Write data in first container
         var result1 = await ContainerDriver.RunAsync(Context, new ContainerCreateConfig
@@ -262,7 +262,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
           },
           Command = new[] { "sh", "-c", $"echo \"{testData}\" > /data/test.txt" },
           Detach = false
-        });
+        }, cancellationToken: TestContext.Current.CancellationToken);
         Assert.True(result1.Success);
 
         // Remove first container
@@ -279,14 +279,14 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
           },
           Command = new[] { "cat", "/data/test.txt" },
           Detach = false
-        });
+        }, cancellationToken: TestContext.Current.CancellationToken);
         containerId = result2.Data?.Id;
 
         // Get logs to see output
-        await Task.Delay(1000);
+        await Task.Delay(1000, cancellationToken: TestContext.Current.CancellationToken);
         if (containerId != null)
         {
-          var logs = await ContainerDriver.GetLogsAsync(Context, containerId);
+          var logs = await ContainerDriver.GetLogsAsync(Context, containerId, cancellationToken: TestContext.Current.CancellationToken);
 
           // Assert
           Assert.True(result2.Success);
@@ -341,7 +341,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
           NetworkMode = network1Name,
           Command = new[] { "sleep", "60" },
           Detach = true
-        });
+        }, cancellationToken: TestContext.Current.CancellationToken);
         Assert.True(result1.Success);
         container1Id = result1.Data.Id;
 
@@ -351,12 +351,12 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
           NetworkMode = network2Name,
           Command = new[] { "sleep", "60" },
           Detach = true
-        });
+        }, cancellationToken: TestContext.Current.CancellationToken);
         Assert.True(result2.Success);
         container2Id = result2.Data.Id;
 
         // Get container1's IP
-        var inspect1 = await ContainerDriver.InspectAsync(Context, container1Id);
+        var inspect1 = await ContainerDriver.InspectAsync(Context, container1Id, cancellationToken: TestContext.Current.CancellationToken);
         var container1Ip = inspect1.Data.NetworkSettings?.Networks?[network1Name]?.IPAddress;
         Assert.NotNull(container1Ip);
 
@@ -364,7 +364,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
         var pingResult = await ContainerDriver.ExecAsync(Context, container2Id, new ExecConfig
         {
           Command = new[] { "ping", "-c", "1", "-W", "2", container1Ip }
-        });
+        }, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert - Ping should fail (different networks)
         Assert.True(pingResult.Success == false || pingResult.Data.ExitCode != 0);

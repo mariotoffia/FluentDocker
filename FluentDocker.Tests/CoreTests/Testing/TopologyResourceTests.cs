@@ -35,7 +35,7 @@ namespace FluentDocker.Tests.CoreTests.Testing
             builder.UseContainer(c => c.UseImage("nginx:alpine").WithName("nginx"));
           });
 
-      await resource.InitializeAsync();
+      await resource.InitializeAsync(TestContext.Current.CancellationToken);
 
       Assert.True(resource.IsInitialized);
       Assert.True(resource.Services.Count >= 2);
@@ -59,7 +59,7 @@ namespace FluentDocker.Tests.CoreTests.Testing
             builder.UseContainer(c => c.UseImage("redis:alpine"));
           });
 
-      await resource.InitializeAsync();
+      await resource.InitializeAsync(TestContext.Current.CancellationToken);
       await resource.DisposeAsync();
 
       Assert.False(resource.IsInitialized);
@@ -83,7 +83,7 @@ namespace FluentDocker.Tests.CoreTests.Testing
           });
 
       await Assert.ThrowsAsync<FluentDocker.Common.CapabilityNotSupportedException>(
-          () => resource.InitializeAsync());
+          () => resource.InitializeAsync(TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -104,7 +104,7 @@ namespace FluentDocker.Tests.CoreTests.Testing
             builder.UseContainer(c => c.UseImage("redis:alpine").WithName("auto-bind-test"));
           });
 
-      await resource.InitializeAsync();
+      await resource.InitializeAsync(TestContext.Current.CancellationToken);
 
       Assert.True(resource.IsInitialized);
       Assert.True(resource.Services.Count >= 1);

@@ -59,7 +59,7 @@ namespace FluentDocker.Tests.CoreTests.Core
         }
       }, cts.Token);
 
-      await Task.Delay(50); // Let it start
+      await Task.Delay(50, TestContext.Current.CancellationToken); // Let it start
       cts.Cancel();
 
       // Assert - TaskCanceledException inherits from OperationCanceledException
@@ -168,7 +168,7 @@ namespace FluentDocker.Tests.CoreTests.Core
     public async Task ConfigureAwait_False_DoesNotCaptureContext()
     {
       // Arrange & Act
-      await Task.Delay(1);
+      await Task.Delay(1, TestContext.Current.CancellationToken);
 
       // Assert - No assertion needed, this tests compilation and execution
       Assert.True(true);
@@ -185,7 +185,7 @@ namespace FluentDocker.Tests.CoreTests.Core
       {
         await Task.Delay(50);
         tcs.SetResult("completed");
-      });
+      }, TestContext.Current.CancellationToken);
 
       var result = await tcs.Task;
 
@@ -204,7 +204,7 @@ namespace FluentDocker.Tests.CoreTests.Core
       {
         await Task.Delay(50);
         tcs.SetException(new InvalidOperationException("Manual exception"));
-      });
+      }, TestContext.Current.CancellationToken);
 
       // Assert
       await Assert.ThrowsAsync<InvalidOperationException>(async () => await tcs.Task);

@@ -27,7 +27,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
               Image = NginxImage,
               Replicas = 1,
               Detach = true
-            });
+            }, cancellationToken: TestContext.Current.CancellationToken);
 
         await WaitForServiceReplicasAsync(serviceName, 1, 30);
 
@@ -38,14 +38,14 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
             {
               Image = TestImage,
               Detach = true
-            });
+            }, cancellationToken: TestContext.Current.CancellationToken);
         Assert.True(updateResult.Success,
             $"Update failed: {updateResult.Error}");
 
         // Wait for convergence and verify
-        await Task.Delay(5000);
+        await Task.Delay(5000, cancellationToken: TestContext.Current.CancellationToken);
         var inspectResult = await ServiceDriver.InspectAsync(
-            Context, serviceName);
+            Context, serviceName, cancellationToken: TestContext.Current.CancellationToken);
         Assert.True(inspectResult.Success);
         Assert.Contains("alpine", inspectResult.Data.Image);
       }
@@ -68,7 +68,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
               Image = NginxImage,
               Replicas = 1,
               Detach = true
-            });
+            }, cancellationToken: TestContext.Current.CancellationToken);
 
         await WaitForServiceReplicasAsync(serviceName, 1, 30);
 
@@ -81,7 +81,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
                 ["MY_TEST_VAR"] = "hello"
               },
               Detach = true
-            });
+            }, cancellationToken: TestContext.Current.CancellationToken);
         Assert.True(updateResult.Success,
             $"Update env failed: {updateResult.Error}");
       }
@@ -109,7 +109,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
               Image = NginxImage,
               Replicas = 1,
               Detach = true
-            });
+            }, cancellationToken: TestContext.Current.CancellationToken);
         await WaitForServiceReplicasAsync(serviceName, 1, 30);
 
         // Update to alpine
@@ -118,19 +118,19 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
             {
               Image = TestImage,
               Detach = true
-            });
-        await Task.Delay(5000);
+            }, cancellationToken: TestContext.Current.CancellationToken);
+        await Task.Delay(5000, cancellationToken: TestContext.Current.CancellationToken);
 
         // Rollback
         var rollbackResult = await ServiceDriver.RollbackAsync(
-            Context, serviceName, detach: true);
+            Context, serviceName, detach: true, cancellationToken: TestContext.Current.CancellationToken);
         Assert.True(rollbackResult.Success,
             $"Rollback failed: {rollbackResult.Error}");
 
         // Verify we're back to nginx
-        await Task.Delay(5000);
+        await Task.Delay(5000, cancellationToken: TestContext.Current.CancellationToken);
         var inspectResult = await ServiceDriver.InspectAsync(
-            Context, serviceName);
+            Context, serviceName, cancellationToken: TestContext.Current.CancellationToken);
         Assert.True(inspectResult.Success);
         Assert.Contains("nginx", inspectResult.Data.Image);
       }
@@ -157,12 +157,12 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
               Image = NginxImage,
               Replicas = 2,
               Detach = true
-            });
+            }, cancellationToken: TestContext.Current.CancellationToken);
 
         await WaitForServiceReplicasAsync(serviceName, 2, 60);
 
         var tasksResult = await ServiceDriver.GetTasksAsync(
-            Context, serviceName);
+            Context, serviceName, cancellationToken: TestContext.Current.CancellationToken);
         Assert.True(tasksResult.Success,
             $"GetTasks failed: {tasksResult.Error}");
         Assert.NotNull(tasksResult.Data);
@@ -199,16 +199,16 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
               Image = NginxImage,
               Replicas = 1,
               Detach = true
-            });
+            }, cancellationToken: TestContext.Current.CancellationToken);
 
         await WaitForServiceReplicasAsync(serviceName, 1, 30);
 
         // Give nginx time to produce startup logs
-        await Task.Delay(5000);
+        await Task.Delay(5000, cancellationToken: TestContext.Current.CancellationToken);
 
         var logsResult = await ServiceDriver.GetLogsAsync(Context,
             serviceName,
-            new ServiceLogsConfig { Tail = 10 });
+            new ServiceLogsConfig { Tail = 10 }, cancellationToken: TestContext.Current.CancellationToken);
         Assert.True(logsResult.Success,
             $"GetLogs failed: {logsResult.Error}");
         // Nginx typically produces some startup output
@@ -229,7 +229,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
     {
       var fakeName = "nonexistent-" + Guid.NewGuid().ToString("N")[..12];
       var result = await ServiceDriver.RemoveAsync(
-          Context, new[] { fakeName });
+          Context, new[] { fakeName }, cancellationToken: TestContext.Current.CancellationToken);
       Assert.False(result.Success,
           "Removing non-existent service should fail");
     }
@@ -238,7 +238,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
     public async Task Inspect_NonExistentService_FailsGracefully()
     {
       var fakeName = "nonexistent-" + Guid.NewGuid().ToString("N")[..12];
-      var result = await ServiceDriver.InspectAsync(Context, fakeName);
+      var result = await ServiceDriver.InspectAsync(Context, fakeName, cancellationToken: TestContext.Current.CancellationToken);
       Assert.False(result.Success,
           "Inspecting non-existent service should fail");
     }

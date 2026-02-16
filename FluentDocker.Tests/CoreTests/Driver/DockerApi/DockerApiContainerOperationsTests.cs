@@ -29,7 +29,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
       mock.SetupStream("/logs", "hello from container\n");
       var driver = CreateDriver(mock);
 
-      var result = await driver.GetLogsAsync(Ctx, "ctr1");
+      var result = await driver.GetLogsAsync(Ctx, "ctr1", cancellationToken: TestContext.Current.CancellationToken);
 
       Assert.True(result.Success);
       Assert.Contains("hello from container", result.Data);
@@ -42,7 +42,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
       mock.SetupStream("/logs", "2025-01-01T00:00:00Z log line\n");
       var driver = CreateDriver(mock);
 
-      var result = await driver.GetLogsAsync(Ctx, "ctr1", timestamps: true);
+      var result = await driver.GetLogsAsync(Ctx, "ctr1", timestamps: true, cancellationToken: TestContext.Current.CancellationToken);
 
       Assert.True(result.Success);
       var req = mock.GetRequests().First(r => r.Method == "GET_STREAM");
@@ -56,7 +56,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
       mock.SetupStream("/logs", "some logs");
       var driver = CreateDriver(mock);
 
-      await driver.GetLogsAsync(Ctx, "ctr1");
+      await driver.GetLogsAsync(Ctx, "ctr1", cancellationToken: TestContext.Current.CancellationToken);
 
       var req = mock.GetRequests().First(r => r.Method == "GET_STREAM");
       Assert.Contains("follow=false", req.Path);
@@ -69,7 +69,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
       mock.SetupStream("/logs", "last 10 lines");
       var driver = CreateDriver(mock);
 
-      await driver.GetLogsAsync(Ctx, "ctr1", tail: 10);
+      await driver.GetLogsAsync(Ctx, "ctr1", tail: 10, cancellationToken: TestContext.Current.CancellationToken);
 
       var req = mock.GetRequests().First(r => r.Method == "GET_STREAM");
       Assert.Contains("tail=10", req.Path);
@@ -85,7 +85,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
           @"{""Titles"":[""PID"",""CMD""],""Processes"":[[""1"",""sleep""]]}");
       var driver = CreateDriver(mock);
 
-      var result = await driver.TopAsync(Ctx, "ctr1");
+      var result = await driver.TopAsync(Ctx, "ctr1", cancellationToken: TestContext.Current.CancellationToken);
 
       Assert.True(result.Success);
       Assert.Equal(new List<string> { "PID", "CMD" }, result.Data.Titles);
@@ -101,7 +101,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
           @"{""Titles"":[""PID""],""Processes"":[[""1""]]}");
       var driver = CreateDriver(mock);
 
-      await driver.TopAsync(Ctx, "ctr1", psOptions: "aux --sort=-rss");
+      await driver.TopAsync(Ctx, "ctr1", psOptions: "aux --sort=-rss", cancellationToken: TestContext.Current.CancellationToken);
 
       var req = mock.GetRequests().First(r => r.Method == "GET");
       Assert.Contains("ps_args=", req.Path);
@@ -116,7 +116,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
       mock.SetupGet("/top", 404, @"{""message"":""no such container""}");
       var driver = CreateDriver(mock);
 
-      var result = await driver.TopAsync(Ctx, "gone");
+      var result = await driver.TopAsync(Ctx, "gone", cancellationToken: TestContext.Current.CancellationToken);
 
       Assert.False(result.Success);
       Assert.Equal(ErrorCodes.Container.TopFailed, result.ErrorCode);
@@ -134,7 +134,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
           + @"{""Path"":""/old"",""Kind"":2}]");
       var driver = CreateDriver(mock);
 
-      var result = await driver.DiffAsync(Ctx, "ctr1");
+      var result = await driver.DiffAsync(Ctx, "ctr1", cancellationToken: TestContext.Current.CancellationToken);
 
       Assert.True(result.Success);
       Assert.Equal(3, result.Data.Count);
@@ -156,7 +156,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
       mock.SetupGet("/changes", 200, "[]");
       var driver = CreateDriver(mock);
 
-      var result = await driver.DiffAsync(Ctx, "ctr1");
+      var result = await driver.DiffAsync(Ctx, "ctr1", cancellationToken: TestContext.Current.CancellationToken);
 
       Assert.True(result.Success);
       Assert.Empty(result.Data);
@@ -188,7 +188,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
       var driver = CreateDriver(mock);
 
       var config = new ExecConfig { Command = new[] { "echo", "hello" }, Tty = true };
-      var result = await driver.ExecAsync(Ctx, "ctr1", config);
+      var result = await driver.ExecAsync(Ctx, "ctr1", config, cancellationToken: TestContext.Current.CancellationToken);
 
       Assert.True(result.Success);
       Assert.Equal(0, result.Data.ExitCode);
@@ -213,7 +213,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
       var driver = CreateDriver(mock);
 
       var config = new ExecConfig { Command = new[] { "sh", "-c", "echo" }, Tty = false };
-      var result = await driver.ExecAsync(Ctx, "ctr1", config);
+      var result = await driver.ExecAsync(Ctx, "ctr1", config, cancellationToken: TestContext.Current.CancellationToken);
 
       Assert.True(result.Success);
       Assert.Equal("hello stdout", result.Data.StdOut);
@@ -238,7 +238,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
       var driver = CreateDriver(mock);
 
       var config = new ExecConfig { Command = new[] { "test" }, Tty = false };
-      var result = await driver.ExecAsync(Ctx, "ctr1", config);
+      var result = await driver.ExecAsync(Ctx, "ctr1", config, cancellationToken: TestContext.Current.CancellationToken);
 
       Assert.True(result.Success);
       Assert.Equal(1, result.Data.ExitCode);
@@ -256,7 +256,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
       var driver = CreateDriver(mock);
 
       var config = new ExecConfig { Command = new[] { "true" }, Tty = false };
-      var result = await driver.ExecAsync(Ctx, "ctr1", config);
+      var result = await driver.ExecAsync(Ctx, "ctr1", config, cancellationToken: TestContext.Current.CancellationToken);
 
       Assert.True(result.Success);
       Assert.Equal(string.Empty, result.Data.StdOut);
@@ -281,7 +281,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
           ["OTHER"] = "world"
         }
       };
-      await driver.ExecAsync(Ctx, "ctr1", config);
+      await driver.ExecAsync(Ctx, "ctr1", config, cancellationToken: TestContext.Current.CancellationToken);
 
       // Verify the POST body for exec create contains KEY=VALUE format
       var createReq = mock.GetRequests()
@@ -298,7 +298,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
       var driver = CreateDriver(mock);
 
       var config = new ExecConfig { Command = new[] { "ls" } };
-      var result = await driver.ExecAsync(Ctx, "ctr1", config);
+      var result = await driver.ExecAsync(Ctx, "ctr1", config, cancellationToken: TestContext.Current.CancellationToken);
 
       Assert.False(result.Success);
       Assert.Equal(ErrorCodes.Container.ExecFailed, result.ErrorCode);
@@ -316,7 +316,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
       var result = await driver.CopyToAsync(
           Ctx, "ctr1",
           "/nonexistent/path/to/file.txt",
-          "/container/dest");
+          "/container/dest", cancellationToken: TestContext.Current.CancellationToken);
 
       Assert.False(result.Success);
       Assert.Equal(ErrorCodes.General.InvalidArgument, result.ErrorCode);
@@ -332,7 +332,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
       mock.SetupPost("/rename", 204, "{}");
       var driver = CreateDriver(mock);
 
-      var result = await driver.RenameAsync(Ctx, "ctr1", "new-name");
+      var result = await driver.RenameAsync(Ctx, "ctr1", "new-name", cancellationToken: TestContext.Current.CancellationToken);
 
       Assert.True(result.Success);
       var req = mock.GetRequests().First(r => r.Method == "POST");
@@ -346,7 +346,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
       mock.SetupPost("/rename", 404, @"{""message"":""no such container""}");
       var driver = CreateDriver(mock);
 
-      var result = await driver.RenameAsync(Ctx, "ghost", "new-name");
+      var result = await driver.RenameAsync(Ctx, "ghost", "new-name", cancellationToken: TestContext.Current.CancellationToken);
 
       Assert.False(result.Success);
       Assert.Equal(ErrorCodes.Container.RenameFailed, result.ErrorCode);
@@ -370,7 +370,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
         CpusetCpus = "0-3",
         PidsLimit = 100
       };
-      var result = await driver.UpdateAsync(Ctx, "ctr1", config);
+      var result = await driver.UpdateAsync(Ctx, "ctr1", config, cancellationToken: TestContext.Current.CancellationToken);
 
       Assert.True(result.Success);
       var req = mock.GetRequests().First(r => r.Method == "POST");
@@ -393,7 +393,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
       {
         RestartPolicy = "on-failure"
       };
-      var result = await driver.UpdateAsync(Ctx, "ctr1", config);
+      var result = await driver.UpdateAsync(Ctx, "ctr1", config, cancellationToken: TestContext.Current.CancellationToken);
 
       Assert.True(result.Success);
       var req = mock.GetRequests().First(r => r.Method == "POST");
@@ -409,7 +409,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
       var driver = CreateDriver(mock);
 
       var config = new ContainerUpdateConfig { MemoryLimit = 1024 };
-      var result = await driver.UpdateAsync(Ctx, "ghost", config);
+      var result = await driver.UpdateAsync(Ctx, "ghost", config, cancellationToken: TestContext.Current.CancellationToken);
 
       Assert.False(result.Success);
       Assert.Equal(ErrorCodes.Container.UpdateFailed, result.ErrorCode);

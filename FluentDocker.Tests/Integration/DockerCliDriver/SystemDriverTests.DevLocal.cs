@@ -13,14 +13,14 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
     [Fact]
     public async Task SwitchDaemon_ExecutesWithoutException()
     {
-      var result = await SystemDriver.SwitchDaemonAsync(Context);
+      var result = await SystemDriver.SwitchDaemonAsync(Context, TestContext.Current.CancellationToken);
       Assert.NotNull(result);
     }
 
     [Fact]
     public async Task SwitchToLinuxDaemon_ExecutesWithoutException()
     {
-      var result = await SystemDriver.SwitchToLinuxDaemonAsync(Context);
+      var result = await SystemDriver.SwitchToLinuxDaemonAsync(Context, TestContext.Current.CancellationToken);
       Assert.NotNull(result);
     }
   }

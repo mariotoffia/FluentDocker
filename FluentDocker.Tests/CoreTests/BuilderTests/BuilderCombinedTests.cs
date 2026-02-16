@@ -49,7 +49,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
               .UseImage("nginx:alpine")
               .WithName("web")
               .WithNetwork("app-network"))
-          .BuildAsync();
+          .BuildAsync(cancellationToken: TestContext.Current.CancellationToken);
 
       // Assert
       Assert.Equal(2, results.All.Count());
@@ -96,7 +96,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
           .UseContainer(c => c
               .UseImage("postgres:13")
               .WithVolume("data-volume", "/var/lib/postgresql/data"))
-          .BuildAsync();
+          .BuildAsync(cancellationToken: TestContext.Current.CancellationToken);
 
       // Assert
       Assert.Equal(2, results.All.Count());
@@ -141,7 +141,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
               .WithName("web")
               .WithNetwork("app-network")
               .WithPort("80/tcp", "8080"))
-          .BuildAsync();
+          .BuildAsync(cancellationToken: TestContext.Current.CancellationToken);
 
       // Assert
       Assert.Equal(4, results.All.Count());
@@ -171,7 +171,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
           .UseNetwork(n => n.WithName("net").RemoveOnDispose())
           .UseVolume(v => v.WithName("vol").RemoveOnDispose())
           .UseContainer(c => c.UseImage("alpine"))
-          .BuildAsync();
+          .BuildAsync(cancellationToken: TestContext.Current.CancellationToken);
 
       // Act
       await results.DisposeAllAsync();
@@ -205,7 +205,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
       var results = await new Builder()
           .WithinDriver(DriverId, Kernel)
           .UseContainer(c => c.UseImage("nginx"))
-          .BuildAsync();
+          .BuildAsync(cancellationToken: TestContext.Current.CancellationToken);
 
       // Assert
       var dockerResults = results.ForDriver(DriverId);
@@ -220,7 +220,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
       {
         await new Builder()
                   .UseContainer(c => c.UseImage("nginx"))
-                  .BuildAsync();
+                  .BuildAsync(cancellationToken: TestContext.Current.CancellationToken);
       });
 
       Assert.Contains("WithinDriver", ex.Message);
@@ -273,7 +273,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
               .WithName("app")
               .WithLink("cache")
               .WithLink("db"))
-          .BuildAsync();
+          .BuildAsync(cancellationToken: TestContext.Current.CancellationToken);
 
       // Assert
       Assert.Equal(3, results.All.Count());
@@ -299,7 +299,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
           .UseContainer(c => c
               .UseImage("nginx")
               .WithNetworkAlias("app-net", "web-service"))
-          .BuildAsync();
+          .BuildAsync(cancellationToken: TestContext.Current.CancellationToken);
 
       // Assert - Verify container was created with network
       MockPack.ContainerDriver.Verify(d => d.CreateAsync(
@@ -339,7 +339,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
                 waitConditionCalled = true;
                 return -1; // succeed immediately
               }))
-          .BuildAsync();
+          .BuildAsync(cancellationToken: TestContext.Current.CancellationToken);
 
       // Assert
       Assert.Equal(2, results.All.Count());
@@ -382,7 +382,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
                 secondWaitCalled = true;
                 return -1;
               }))
-          .BuildAsync();
+          .BuildAsync(cancellationToken: TestContext.Current.CancellationToken);
 
       // Assert
       Assert.Equal(2, results.All.Count());
@@ -416,7 +416,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
                 waitConditionCalled = true;
                 return -1;
               }))
-          .BuildAsync();
+          .BuildAsync(cancellationToken: TestContext.Current.CancellationToken);
 
       // Assert
       Assert.Single(results.All);
@@ -458,7 +458,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
                 linkedWaitCalled = true;
                 return -1;
               }))
-          .BuildAsync();
+          .BuildAsync(cancellationToken: TestContext.Current.CancellationToken);
 
       // Assert
       Assert.Equal(2, results.All.Count());

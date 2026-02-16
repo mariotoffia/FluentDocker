@@ -34,7 +34,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
     public async Task GetCapabilities_SupportsPods()
     {
       var pack = new PodmanCliDriverPack();
-      var caps = await pack.GetCapabilitiesAsync();
+      var caps = await pack.GetCapabilitiesAsync(TestContext.Current.CancellationToken);
 
       Assert.True(caps.SupportsPods);
       Assert.True(caps.SupportsContainers);
@@ -97,7 +97,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
     public async Task IsHealthy_BeforeInitialize_ReturnsFalse()
     {
       var pack = new PodmanCliDriverPack();
-      var healthy = await pack.IsHealthyAsync();
+      var healthy = await pack.IsHealthyAsync(TestContext.Current.CancellationToken);
       Assert.False(healthy);
     }
 
@@ -196,7 +196,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
     public async Task GetCapabilities_SupportsKubernetes()
     {
       var pack = new PodmanCliDriverPack();
-      var caps = await pack.GetCapabilitiesAsync();
+      var caps = await pack.GetCapabilitiesAsync(TestContext.Current.CancellationToken);
       Assert.True(caps.SupportsKubernetes);
     }
 
@@ -219,7 +219,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
     public async Task GetCapabilities_SupportsMachines()
     {
       var pack = new PodmanCliDriverPack();
-      var caps = await pack.GetCapabilitiesAsync();
+      var caps = await pack.GetCapabilitiesAsync(TestContext.Current.CancellationToken);
       Assert.True(caps.SupportsMachines);
     }
 
@@ -242,7 +242,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
     public async Task GetCapabilities_SupportsManifests()
     {
       var pack = new PodmanCliDriverPack();
-      var caps = await pack.GetCapabilitiesAsync();
+      var caps = await pack.GetCapabilitiesAsync(TestContext.Current.CancellationToken);
       Assert.True(caps.SupportsManifests);
     }
   }

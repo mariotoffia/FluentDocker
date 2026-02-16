@@ -34,7 +34,7 @@ namespace FluentDocker.Tests.CoreTests.Testing
       var config = new KubePlayConfig { YamlPath = "test.yaml" };
       var resource = new PodmanKubernetesResource(Kernel, config);
 
-      await resource.InitializeAsync();
+      await resource.InitializeAsync(TestContext.Current.CancellationToken);
       Assert.True(resource.IsInitialized);
       Assert.Equal("test.yaml", resource.YamlPath);
       Assert.NotNull(resource.PlayResult);
@@ -57,7 +57,7 @@ namespace FluentDocker.Tests.CoreTests.Testing
       var resource = new PodmanKubernetesResource(Kernel, config);
 
       await Assert.ThrowsAsync<CapabilityNotSupportedException>(
-          () => resource.InitializeAsync());
+          () => resource.InitializeAsync(TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -74,7 +74,7 @@ namespace FluentDocker.Tests.CoreTests.Testing
       var resource = new PodmanKubernetesResource(Kernel, config);
 
       await Assert.ThrowsAsync<InterfaceNotSupportedException>(
-          () => resource.InitializeAsync());
+          () => resource.InitializeAsync(TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -98,7 +98,7 @@ namespace FluentDocker.Tests.CoreTests.Testing
       var resource = new PodmanKubernetesResource(Kernel, config);
 
       var ex = await Assert.ThrowsAsync<FluentDockerException>(
-          () => resource.InitializeAsync());
+          () => resource.InitializeAsync(TestContext.Current.CancellationToken));
       Assert.Contains("bad.yaml", ex.Message);
     }
 
@@ -117,9 +117,9 @@ namespace FluentDocker.Tests.CoreTests.Testing
 
       var config = new KubePlayConfig { YamlPath = "test.yaml" };
       var resource = new PodmanKubernetesResource(Kernel, config);
-      await resource.InitializeAsync();
+      await resource.InitializeAsync(TestContext.Current.CancellationToken);
 
-      var yaml = await resource.GenerateYamlAsync("my-pod");
+      var yaml = await resource.GenerateYamlAsync("my-pod", TestContext.Current.CancellationToken);
 
       Assert.Contains("kind: Pod", yaml);
 
@@ -133,7 +133,7 @@ namespace FluentDocker.Tests.CoreTests.Testing
       var resource = new PodmanKubernetesResource(Kernel, config);
 
       await Assert.ThrowsAsync<InvalidOperationException>(
-          () => resource.GenerateYamlAsync("test"));
+          () => resource.GenerateYamlAsync("test", TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -157,10 +157,10 @@ namespace FluentDocker.Tests.CoreTests.Testing
 
       var config = new KubePlayConfig { YamlPath = "test.yaml" };
       var resource = new PodmanKubernetesResource(Kernel, config);
-      await resource.InitializeAsync();
+      await resource.InitializeAsync(TestContext.Current.CancellationToken);
 
       var ex = await Assert.ThrowsAsync<FluentDockerException>(
-          () => resource.GenerateYamlAsync("my-pod"));
+          () => resource.GenerateYamlAsync("my-pod", TestContext.Current.CancellationToken));
       Assert.Contains("generate failed", ex.Message);
 
       await resource.DisposeAsync();
@@ -188,7 +188,7 @@ namespace FluentDocker.Tests.CoreTests.Testing
       var config = new KubePlayConfig { YamlPath = "test.yaml" };
       var resource = new PodmanKubernetesResource(Kernel, config,
           new DockerResourceOptions { ForceRemoveOnDispose = true });
-      await resource.InitializeAsync();
+      await resource.InitializeAsync(TestContext.Current.CancellationToken);
 
       // DisposeAsync should not throw — ForceRemoveAsync is best-effort
       await resource.DisposeAsync();

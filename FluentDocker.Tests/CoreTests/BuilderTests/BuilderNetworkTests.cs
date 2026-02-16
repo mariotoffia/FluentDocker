@@ -37,7 +37,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
           .WithinDriver(DriverId, Kernel)
           .UseNetwork(n => n
               .WithName("test-network"))
-          .BuildAsync();
+          .BuildAsync(cancellationToken: TestContext.Current.CancellationToken);
 
       // Assert
       Assert.NotNull(results);
@@ -65,7 +65,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
           .UseNetwork(n => n
               .WithName("test-network")
               .UseDriver("overlay"))
-          .BuildAsync();
+          .BuildAsync(cancellationToken: TestContext.Current.CancellationToken);
 
       // Assert
       MockPack.NetworkDriver.Verify(d => d.CreateAsync(
@@ -90,7 +90,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
               .WithName("test-network")
               .WithSubnet("172.20.0.0/16")
               .WithGateway("172.20.0.1"))
-          .BuildAsync();
+          .BuildAsync(cancellationToken: TestContext.Current.CancellationToken);
 
       // Assert
       MockPack.NetworkDriver.Verify(d => d.CreateAsync(
@@ -117,7 +117,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
               .WithName("test-network")
               .WithLabel("env", "test")
               .WithLabel("project", "myapp"))
-          .BuildAsync();
+          .BuildAsync(cancellationToken: TestContext.Current.CancellationToken);
 
       // Assert
       MockPack.NetworkDriver.Verify(d => d.CreateAsync(
@@ -144,7 +144,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
           .UseNetwork(n => n
               .WithName("internal-network")
               .AsInternal())
-          .BuildAsync();
+          .BuildAsync(cancellationToken: TestContext.Current.CancellationToken);
 
       // Assert
       MockPack.NetworkDriver.Verify(d => d.CreateAsync(
@@ -168,7 +168,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
           .UseNetwork(n => n
               .WithName("ipv6-network")
               .WithIPv6())
-          .BuildAsync();
+          .BuildAsync(cancellationToken: TestContext.Current.CancellationToken);
 
       // Assert
       MockPack.NetworkDriver.Verify(d => d.CreateAsync(
@@ -193,7 +193,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
           .WithinDriver(DriverId, Kernel)
           .UseNetwork(n => n
               .WithName("test-network"))
-          .BuildAsync();
+          .BuildAsync(cancellationToken: TestContext.Current.CancellationToken);
 
       // Assert - Should not call Create since network exists
       Assert.Single(results.All);
@@ -223,7 +223,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
           .UseNetwork(n => n
               .WithName("temp-network")
               .RemoveOnDispose())
-          .BuildAsync();
+          .BuildAsync(cancellationToken: TestContext.Current.CancellationToken);
 
       await results.DisposeAllAsync();
 
@@ -248,7 +248,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
           .WithinDriver(DriverId, Kernel)
           .UseNetwork(n => n.WithName("network-1"))
           .UseNetwork(n => n.WithName("network-2"))
-          .BuildAsync();
+          .BuildAsync(cancellationToken: TestContext.Current.CancellationToken);
 
       // Assert
       Assert.Equal(2, results.All.Count());
@@ -273,7 +273,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
           .UseNetwork(n => n
               .WithName("custom-network")
               .WithOption("com.docker.network.bridge.name", "my-bridge"))
-          .BuildAsync();
+          .BuildAsync(cancellationToken: TestContext.Current.CancellationToken);
 
       // Assert
       MockPack.NetworkDriver.Verify(d => d.CreateAsync(

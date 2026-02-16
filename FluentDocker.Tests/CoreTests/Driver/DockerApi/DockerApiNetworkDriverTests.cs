@@ -28,7 +28,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
           @"{""Id"":""net123"",""Warning"":""some warning""}");
 
       var config = new NetworkCreateConfig { Name = "my-net" };
-      var result = await driver.CreateAsync(Ctx, config);
+      var result = await driver.CreateAsync(Ctx, config, cancellationToken: TestContext.Current.CancellationToken);
 
       Assert.True(result.Success);
       Assert.Equal("net123", result.Data.Id);
@@ -44,7 +44,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
           @"{""Id"":""net456"",""Warning"":""""}");
 
       var config = new NetworkCreateConfig { Name = "net2" };
-      var result = await driver.CreateAsync(Ctx, config);
+      var result = await driver.CreateAsync(Ctx, config, cancellationToken: TestContext.Current.CancellationToken);
 
       Assert.True(result.Success);
       Assert.Equal("net456", result.Data.Id);
@@ -59,7 +59,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
           @"[{""Id"":""n1"",""Name"":""bridge"",""Driver"":""bridge"",""Scope"":""local""},"
           + @"{""Id"":""n2"",""Name"":""host"",""Driver"":""host"",""Scope"":""local""}]");
 
-      var result = await driver.ListAsync(Ctx);
+      var result = await driver.ListAsync(Ctx, cancellationToken: TestContext.Current.CancellationToken);
 
       Assert.True(result.Success);
       Assert.Equal(2, result.Data.Count);
@@ -77,7 +77,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
       var (driver, mock) = CreateDriver();
       mock.SetupGet("/networks", 200, "[]");
 
-      var result = await driver.ListAsync(Ctx);
+      var result = await driver.ListAsync(Ctx, cancellationToken: TestContext.Current.CancellationToken);
 
       Assert.True(result.Success);
       Assert.Empty(result.Data);
@@ -92,7 +92,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
           + @"""Scope"":""swarm"",""Internal"":true,""EnableIPv6"":false,"
           + @"""Labels"":{""env"":""test""}}");
 
-      var result = await driver.InspectAsync(Ctx, "net789");
+      var result = await driver.InspectAsync(Ctx, "net789", cancellationToken: TestContext.Current.CancellationToken);
 
       Assert.True(result.Success);
       Assert.Equal("net789", result.Data.Id);
@@ -111,7 +111,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
       mock.SetupGet("/networks/missing", 404,
           @"{""message"":""network missing not found""}");
 
-      var result = await driver.InspectAsync(Ctx, "missing");
+      var result = await driver.InspectAsync(Ctx, "missing", cancellationToken: TestContext.Current.CancellationToken);
 
       Assert.False(result.Success);
       Assert.Equal(ErrorCodes.Network.NotFound, result.ErrorCode);
@@ -124,7 +124,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
       var (driver, mock) = CreateDriver();
       mock.SetupDelete("/networks/net-del", 204, "");
 
-      var result = await driver.RemoveAsync(Ctx, "net-del");
+      var result = await driver.RemoveAsync(Ctx, "net-del", cancellationToken: TestContext.Current.CancellationToken);
 
       Assert.True(result.Success);
 
@@ -139,7 +139,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
       mock.SetupDelete("/networks/gone", 404,
           @"{""message"":""network gone not found""}");
 
-      var result = await driver.RemoveAsync(Ctx, "gone");
+      var result = await driver.RemoveAsync(Ctx, "gone", cancellationToken: TestContext.Current.CancellationToken);
 
       Assert.False(result.Success);
       Assert.Equal(ErrorCodes.Network.NotFound, result.ErrorCode);
@@ -151,7 +151,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
       var (driver, mock) = CreateDriver();
       mock.SetupPost("/networks/net1/connect", 200, "{}");
 
-      var result = await driver.ConnectAsync(Ctx, "net1", "container-abc");
+      var result = await driver.ConnectAsync(Ctx, "net1", "container-abc", cancellationToken: TestContext.Current.CancellationToken);
 
       Assert.True(result.Success);
 
@@ -168,7 +168,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
       mock.SetupPost("/networks/net1/connect", 500,
           @"{""message"":""internal error""}");
 
-      var result = await driver.ConnectAsync(Ctx, "net1", "ctr1");
+      var result = await driver.ConnectAsync(Ctx, "net1", "ctr1", cancellationToken: TestContext.Current.CancellationToken);
 
       Assert.False(result.Success);
       Assert.Equal(ErrorCodes.Network.ConnectFailed, result.ErrorCode);
@@ -180,7 +180,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
       var (driver, mock) = CreateDriver();
       mock.SetupPost("/networks/net2/disconnect", 200, "{}");
 
-      var result = await driver.DisconnectAsync(Ctx, "net2", "container-xyz");
+      var result = await driver.DisconnectAsync(Ctx, "net2", "container-xyz", cancellationToken: TestContext.Current.CancellationToken);
 
       Assert.True(result.Success);
 
@@ -197,7 +197,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
       mock.SetupPost("/networks/net2/disconnect", 403,
           @"{""message"":""forbidden""}");
 
-      var result = await driver.DisconnectAsync(Ctx, "net2", "ctr1");
+      var result = await driver.DisconnectAsync(Ctx, "net2", "ctr1", cancellationToken: TestContext.Current.CancellationToken);
 
       Assert.False(result.Success);
       Assert.Equal(ErrorCodes.Network.DisconnectFailed, result.ErrorCode);
@@ -210,7 +210,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
       mock.SetupPost("/networks/prune", 200,
           @"{""NetworksDeleted"":[""old-net-1"",""old-net-2""]}");
 
-      var result = await driver.PruneAsync(Ctx);
+      var result = await driver.PruneAsync(Ctx, cancellationToken: TestContext.Current.CancellationToken);
 
       Assert.True(result.Success);
       Assert.Equal(2, result.Data.NetworksDeleted.Count);
@@ -224,7 +224,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
       var (driver, mock) = CreateDriver();
       mock.SetupPost("/networks/prune", 200, "{}");
 
-      var result = await driver.PruneAsync(Ctx);
+      var result = await driver.PruneAsync(Ctx, cancellationToken: TestContext.Current.CancellationToken);
 
       Assert.True(result.Success);
       Assert.Empty(result.Data.NetworksDeleted);
@@ -237,7 +237,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
       mock.SetupPost("/networks/prune", 500,
           @"{""message"":""prune failed""}");
 
-      var result = await driver.PruneAsync(Ctx);
+      var result = await driver.PruneAsync(Ctx, cancellationToken: TestContext.Current.CancellationToken);
 
       Assert.False(result.Success);
       Assert.Equal(ErrorCodes.Network.PruneFailed, result.ErrorCode);

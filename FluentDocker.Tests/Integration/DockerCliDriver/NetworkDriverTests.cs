@@ -18,7 +18,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
     public async Task List_ReturnsDefaultNetworks()
     {
       // Act
-      var result = await NetworkDriver.ListAsync(Context);
+      var result = await NetworkDriver.ListAsync(Context, cancellationToken: TestContext.Current.CancellationToken);
 
       // Assert
       Assert.True(result.Success);
@@ -31,11 +31,11 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
     public async Task Inspect_BridgeNetwork_ReturnsDetails()
     {
       // Arrange
-      var networks = await NetworkDriver.ListAsync(Context);
+      var networks = await NetworkDriver.ListAsync(Context, cancellationToken: TestContext.Current.CancellationToken);
       var bridge = networks.Data.First(n => n.Name == "bridge");
 
       // Act
-      var result = await NetworkDriver.InspectAsync(Context, bridge.Id);
+      var result = await NetworkDriver.InspectAsync(Context, bridge.Id, cancellationToken: TestContext.Current.CancellationToken);
 
       // Assert
       Assert.True(result.Success);
@@ -55,7 +55,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
         {
           Name = networkName,
           Driver = "bridge"
-        });
+        }, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result.Success, $"Create failed: {result.Error}");
@@ -63,7 +63,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
         Assert.NotNull(networkId);
 
         // Verify network exists
-        var inspect = await NetworkDriver.InspectAsync(Context, networkId);
+        var inspect = await NetworkDriver.InspectAsync(Context, networkId, cancellationToken: TestContext.Current.CancellationToken);
         Assert.True(inspect.Success);
         Assert.Equal(networkName, inspect.Data.Name);
       }
@@ -81,17 +81,17 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
       var createResult = await NetworkDriver.CreateAsync(Context, new NetworkCreateConfig
       {
         Name = networkName
-      });
+      }, cancellationToken: TestContext.Current.CancellationToken);
       var networkId = createResult.Data.Id;
 
       // Act
-      var result = await NetworkDriver.RemoveAsync(Context, networkId);
+      var result = await NetworkDriver.RemoveAsync(Context, networkId, cancellationToken: TestContext.Current.CancellationToken);
 
       // Assert
       Assert.True(result.Success);
 
       // Verify network is gone
-      var inspect = await NetworkDriver.InspectAsync(Context, networkId);
+      var inspect = await NetworkDriver.InspectAsync(Context, networkId, cancellationToken: TestContext.Current.CancellationToken);
       Assert.False(inspect.Success);
     }
 
@@ -108,13 +108,13 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
           Name = networkName,
           Driver = "bridge",
           Subnet = "10.20.0.0/16"
-        });
+        }, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result.Success, $"Create failed: {result.Error}");
         networkId = result.Data.Id;
 
-        var inspect = await NetworkDriver.InspectAsync(Context, networkId);
+        var inspect = await NetworkDriver.InspectAsync(Context, networkId, cancellationToken: TestContext.Current.CancellationToken);
         Assert.True(inspect.Success);
       }
       finally
@@ -136,13 +136,13 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
         containerId = await RunContainerAsync(NginxImage);
 
         // Act
-        var result = await NetworkDriver.ConnectAsync(Context, networkId, containerId);
+        var result = await NetworkDriver.ConnectAsync(Context, networkId, containerId, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result.Success, $"Connect failed: {result.Error}");
 
         // Verify container is connected
-        var inspect = await NetworkDriver.InspectAsync(Context, networkId);
+        var inspect = await NetworkDriver.InspectAsync(Context, networkId, cancellationToken: TestContext.Current.CancellationToken);
         Assert.True(inspect.Success);
       }
       finally
@@ -163,10 +163,10 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
         var networkName = UniqueName("network");
         networkId = await CreateNetworkAsync(networkName);
         containerId = await RunContainerAsync(NginxImage);
-        await NetworkDriver.ConnectAsync(Context, networkId, containerId);
+        await NetworkDriver.ConnectAsync(Context, networkId, containerId, cancellationToken: TestContext.Current.CancellationToken);
 
         // Act
-        var result = await NetworkDriver.DisconnectAsync(Context, networkId, containerId, force: true);
+        var result = await NetworkDriver.DisconnectAsync(Context, networkId, containerId, force: true, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result.Success, $"Disconnect failed: {result.Error}");
@@ -193,7 +193,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
           Name = networkName,
           Driver = "bridge",
           Subnet = "10.18.0.0/16"
-        });
+        }, cancellationToken: TestContext.Current.CancellationToken);
         Assert.True(networkResult.Success, $"Network create failed: {networkResult.Error}");
         networkId = networkResult.Data.Id;
 
@@ -208,12 +208,12 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
           NetworkMode = networkName,
           Ipv4Address = staticIp,
           Detach = true
-        });
+        }, cancellationToken: TestContext.Current.CancellationToken);
         Assert.True(containerResult.Success, $"Run failed: {containerResult.Error}");
         containerId = containerResult.Data.Id;
 
         // Assert — verify the static IP was actually assigned
-        var inspect = await ContainerDriver.InspectAsync(Context, containerId);
+        var inspect = await ContainerDriver.InspectAsync(Context, containerId, cancellationToken: TestContext.Current.CancellationToken);
         Assert.True(inspect.Success);
         Assert.NotNull(inspect.Data.NetworkSettings?.Networks);
         Assert.True(inspect.Data.NetworkSettings.Networks.ContainsKey(networkName),
@@ -242,13 +242,13 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
           Name = networkName,
           Driver = "bridge",
           Internal = true
-        });
+        }, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result.Success, $"Create failed: {result.Error}");
         networkId = result.Data.Id;
 
-        var inspect = await NetworkDriver.InspectAsync(Context, networkId);
+        var inspect = await NetworkDriver.InspectAsync(Context, networkId, cancellationToken: TestContext.Current.CancellationToken);
         Assert.True(inspect.Success);
         Assert.True(inspect.Data.Internal);
       }
@@ -272,7 +272,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
         var result = await NetworkDriver.ListAsync(Context, new NetworkListFilter
         {
           Name = networkName
-        });
+        }, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result.Success);

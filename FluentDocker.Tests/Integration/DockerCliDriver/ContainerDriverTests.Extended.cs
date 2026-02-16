@@ -24,11 +24,11 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
           Image = TestImage,
           Command = new[] { "true" },
           Detach = true
-        });
+        }, TestContext.Current.CancellationToken);
         Assert.True(result.Success, $"Run failed: {result.Error}");
         containerId = result.Data.Id;
 
-        var waitResult = await ContainerDriver.WaitAsync(Context, containerId);
+        var waitResult = await ContainerDriver.WaitAsync(Context, containerId, TestContext.Current.CancellationToken);
 
         Assert.True(waitResult.Success, $"Wait failed: {waitResult.Error}");
         Assert.Equal(0, waitResult.Data.ExitCode);
@@ -50,11 +50,11 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
           Image = TestImage,
           Command = new[] { "sh", "-c", "exit 42" },
           Detach = true
-        });
+        }, TestContext.Current.CancellationToken);
         Assert.True(result.Success, $"Run failed: {result.Error}");
         containerId = result.Data.Id;
 
-        var waitResult = await ContainerDriver.WaitAsync(Context, containerId);
+        var waitResult = await ContainerDriver.WaitAsync(Context, containerId, TestContext.Current.CancellationToken);
 
         Assert.True(waitResult.Success, $"Wait failed: {waitResult.Error}");
         Assert.Equal(42, waitResult.Data.ExitCode);
@@ -76,15 +76,15 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
           Image = TestImage,
           Command = new[] { "echo", "done" },
           Detach = true
-        });
+        }, TestContext.Current.CancellationToken);
         Assert.True(result.Success, $"Run failed: {result.Error}");
         containerId = result.Data.Id;
 
         // Container should exit almost immediately
-        await Task.Delay(2000);
+        await Task.Delay(2000, TestContext.Current.CancellationToken);
 
         // WaitAsync on already-exited container should return immediately
-        var waitResult = await ContainerDriver.WaitAsync(Context, containerId);
+        var waitResult = await ContainerDriver.WaitAsync(Context, containerId, TestContext.Current.CancellationToken);
 
         Assert.True(waitResult.Success, $"Wait failed: {waitResult.Error}");
         Assert.Equal(0, waitResult.Data.ExitCode);
@@ -99,7 +99,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
     public async Task Wait_NonExistentContainer_Fails()
     {
       var fakeId = "nonexistent" + Guid.NewGuid().ToString("N")[..12];
-      var result = await ContainerDriver.WaitAsync(Context, fakeId);
+      var result = await ContainerDriver.WaitAsync(Context, fakeId, TestContext.Current.CancellationToken);
       Assert.False(result.Success);
     }
 
@@ -123,7 +123,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
             {
               MemoryLimit = 128 * 1024 * 1024,
               MemorySwap = 256 * 1024 * 1024
-            });
+            }, TestContext.Current.CancellationToken);
 
         Assert.True(updateResult.Success, $"Update failed: {updateResult.Error}");
       }
@@ -145,7 +145,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
         });
 
         var updateResult = await ContainerDriver.UpdateAsync(Context, containerId,
-            new ContainerUpdateConfig { CpuShares = 512 });
+            new ContainerUpdateConfig { CpuShares = 512 }, TestContext.Current.CancellationToken);
 
         Assert.True(updateResult.Success, $"Update failed: {updateResult.Error}");
       }
@@ -173,7 +173,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
               MemorySwap = 512 * 1024 * 1024,
               CpuShares = 256,
               PidsLimit = 100
-            });
+            }, TestContext.Current.CancellationToken);
 
         Assert.True(updateResult.Success, $"Update failed: {updateResult.Error}");
       }
@@ -188,7 +188,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
     {
       var fakeId = "nonexistent" + Guid.NewGuid().ToString("N")[..12];
       var result = await ContainerDriver.UpdateAsync(Context, fakeId,
-          new ContainerUpdateConfig { MemoryLimit = 128 * 1024 * 1024 });
+          new ContainerUpdateConfig { MemoryLimit = 128 * 1024 * 1024 }, TestContext.Current.CancellationToken);
       Assert.False(result.Success);
     }
 
@@ -210,9 +210,9 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
         await ContainerDriver.ExecAsync(Context, containerId, new ExecConfig
         {
           Command = new[] { "touch", "/tmp/newfile.txt" }
-        });
+        }, TestContext.Current.CancellationToken);
 
-        var diffResult = await ContainerDriver.DiffAsync(Context, containerId);
+        var diffResult = await ContainerDriver.DiffAsync(Context, containerId, TestContext.Current.CancellationToken);
 
         Assert.True(diffResult.Success, $"Diff failed: {diffResult.Error}");
         Assert.NotNull(diffResult.Data);
@@ -240,9 +240,9 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
         await ContainerDriver.ExecAsync(Context, containerId, new ExecConfig
         {
           Command = new[] { "touch", "/tmp/diff-test-file" }
-        });
+        }, TestContext.Current.CancellationToken);
 
-        var diffResult = await ContainerDriver.DiffAsync(Context, containerId);
+        var diffResult = await ContainerDriver.DiffAsync(Context, containerId, TestContext.Current.CancellationToken);
 
         Assert.True(diffResult.Success, $"Diff failed: {diffResult.Error}");
         Assert.NotNull(diffResult.Data);
@@ -269,9 +269,9 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
         await ContainerDriver.ExecAsync(Context, containerId, new ExecConfig
         {
           Command = new[] { "rm", "/etc/motd" }
-        });
+        }, TestContext.Current.CancellationToken);
 
-        var diffResult = await ContainerDriver.DiffAsync(Context, containerId);
+        var diffResult = await ContainerDriver.DiffAsync(Context, containerId, TestContext.Current.CancellationToken);
 
         Assert.True(diffResult.Success, $"Diff failed: {diffResult.Error}");
         Assert.NotNull(diffResult.Data);
@@ -300,9 +300,9 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
         {
           Command = new[] { "sh", "-c",
               "touch /tmp/added.txt && echo x >> /etc/hostname && rm /etc/motd" }
-        });
+        }, TestContext.Current.CancellationToken);
 
-        var diffResult = await ContainerDriver.DiffAsync(Context, containerId);
+        var diffResult = await ContainerDriver.DiffAsync(Context, containerId, TestContext.Current.CancellationToken);
 
         Assert.True(diffResult.Success, $"Diff failed: {diffResult.Error}");
         Assert.NotNull(diffResult.Data);
@@ -319,7 +319,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
     public async Task Diff_NonExistentContainer_Fails()
     {
       var fakeId = "nonexistent" + Guid.NewGuid().ToString("N")[..12];
-      var result = await ContainerDriver.DiffAsync(Context, fakeId);
+      var result = await ContainerDriver.DiffAsync(Context, fakeId, TestContext.Current.CancellationToken);
       Assert.False(result.Success);
     }
 
@@ -340,7 +340,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
         });
 
         var exportResult = await ContainerDriver.ExportAsync(
-            Context, containerId, outputPath);
+            Context, containerId, outputPath, TestContext.Current.CancellationToken);
 
         Assert.True(exportResult.Success, $"Export failed: {exportResult.Error}");
         Assert.True(File.Exists(outputPath), "Export tar file should exist");
@@ -366,10 +366,10 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
         {
           Command = new[] { "sleep", "60" }
         });
-        await ContainerDriver.StopAsync(Context, containerId, timeout: 5);
+        await ContainerDriver.StopAsync(Context, containerId, timeout: 5, TestContext.Current.CancellationToken);
 
         var exportResult = await ContainerDriver.ExportAsync(
-            Context, containerId, outputPath);
+            Context, containerId, outputPath, TestContext.Current.CancellationToken);
 
         Assert.True(exportResult.Success, $"Export failed: {exportResult.Error}");
         Assert.True(File.Exists(outputPath), "Export tar file should exist");
@@ -391,7 +391,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
       var outputPath = Path.Combine(Path.GetTempPath(), $"export-fail-{Guid.NewGuid():N}.tar");
       try
       {
-        var result = await ContainerDriver.ExportAsync(Context, fakeId, outputPath);
+        var result = await ContainerDriver.ExportAsync(Context, fakeId, outputPath, TestContext.Current.CancellationToken);
         Assert.False(result.Success);
       }
       finally

@@ -44,7 +44,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
           ProjectName = projectName,
           Detached = true,
           RemoveOrphans = true
-        });
+        }, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(upResult.Success, $"Compose up failed: {upResult.Error}");
@@ -55,7 +55,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
           ComposeFiles = new List<string> { composeFile },
           ProjectName = projectName,
           All = true
-        });
+        }, TestContext.Current.CancellationToken);
 
         Assert.True(listResult.Success);
         Assert.True(listResult.Data.Count >= 1, "Should have at least one service");
@@ -67,7 +67,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
           ComposeFiles = new List<string> { composeFile },
           ProjectName = projectName,
           RemoveVolumes = true
-        });
+        }, TestContext.Current.CancellationToken);
       }
     }
 
@@ -84,7 +84,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
         ProjectName = projectName,
         Detached = true,
         RemoveOrphans = true
-      });
+      }, TestContext.Current.CancellationToken);
       Assert.True(upResult.Success);
 
       // Act
@@ -93,7 +93,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
         ComposeFiles = new List<string> { composeFile },
         ProjectName = projectName,
         RemoveVolumes = true
-      });
+      }, TestContext.Current.CancellationToken);
 
       // Assert
       Assert.True(downResult.Success);
@@ -104,7 +104,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
         ComposeFiles = new List<string> { composeFile },
         ProjectName = projectName,
         All = true
-      });
+      }, TestContext.Current.CancellationToken);
 
       Assert.True(listResult.Data.Count == 0 || !listResult.Data.Any(s => s.State == "running"));
     }
@@ -128,18 +128,18 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
           ProjectName = projectName,
           Detached = true,
           RemoveOrphans = true
-        });
+        }, TestContext.Current.CancellationToken);
         Assert.True(upResult.Success, $"Compose up failed: {upResult.Error}");
 
         // Wait for services to start
-        await Task.Delay(5000);
+        await Task.Delay(5000, TestContext.Current.CancellationToken);
 
         // Act - Pause
         var pauseResult = await ComposeDriver.PauseAsync(Context, new ComposeFileConfig
         {
           ComposeFiles = new List<string> { composeFile },
           ProjectName = projectName
-        });
+        }, TestContext.Current.CancellationToken);
         Assert.True(pauseResult.Success, $"Pause failed: {pauseResult.Error}");
 
         // Verify paused
@@ -147,7 +147,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
         {
           ComposeFiles = new List<string> { composeFile },
           ProjectName = projectName
-        });
+        }, TestContext.Current.CancellationToken);
         Assert.True(listResult.Success);
 
         // Act - Unpause
@@ -155,7 +155,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
         {
           ComposeFiles = new List<string> { composeFile },
           ProjectName = projectName
-        });
+        }, TestContext.Current.CancellationToken);
         Assert.True(unpauseResult.Success, $"Unpause failed: {unpauseResult.Error}");
       }
       finally
@@ -165,7 +165,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
           ComposeFiles = new List<string> { composeFile },
           ProjectName = projectName,
           RemoveVolumes = true
-        });
+        }, TestContext.Current.CancellationToken);
       }
     }
 
@@ -188,11 +188,11 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
           ProjectName = projectName,
           Detached = true,
           RemoveOrphans = true
-        });
+        }, TestContext.Current.CancellationToken);
         Assert.True(upResult.Success);
 
         // Wait for some logs
-        await Task.Delay(5000);
+        await Task.Delay(5000, TestContext.Current.CancellationToken);
 
         // Act
         var logsResult = await ComposeDriver.GetLogsAsync(Context, new ComposeLogsConfig
@@ -200,7 +200,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
           ComposeFiles = new List<string> { composeFile },
           ProjectName = projectName,
           Tail = 50
-        });
+        }, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(logsResult.Success);
@@ -213,7 +213,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
           ComposeFiles = new List<string> { composeFile },
           ProjectName = projectName,
           RemoveVolumes = true
-        });
+        }, TestContext.Current.CancellationToken);
       }
     }
 
@@ -230,7 +230,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
       var configResult = await ComposeDriver.ConfigAsync(Context, new ComposeConfigConfig
       {
         ComposeFiles = new List<string> { composeFile }
-      });
+      }, TestContext.Current.CancellationToken);
 
       // Assert
       Assert.True(configResult.Success, $"Config failed: {configResult.Error}");
@@ -257,11 +257,11 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
           ProjectName = projectName,
           Detached = true,
           RemoveOrphans = true
-        });
+        }, TestContext.Current.CancellationToken);
         Assert.True(upResult.Success);
 
         // Wait for service to be ready
-        await Task.Delay(10000);
+        await Task.Delay(10000, TestContext.Current.CancellationToken);
 
         // Act
         var execResult = await ComposeDriver.ExecuteAsync(Context, new ComposeExecConfig
@@ -271,7 +271,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
           Service = "rabbitmq",
           Command = new[] { "rabbitmqctl", "status" },
           Tty = false
-        });
+        }, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(execResult.Success, $"Exec failed: {execResult.Error}");
@@ -283,7 +283,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
           ComposeFiles = new List<string> { composeFile },
           ProjectName = projectName,
           RemoveVolumes = true
-        });
+        }, TestContext.Current.CancellationToken);
       }
     }
 
@@ -307,7 +307,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
           ProjectName = projectName,
           Detached = true,
           RemoveOrphans = true
-        });
+        }, TestContext.Current.CancellationToken);
         Assert.True(upResult.Success, $"Compose up failed: {upResult.Error}");
 
         // Verify initial state: exactly 1 worker instance
@@ -316,7 +316,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
           ComposeFiles = new List<string> { composeFile },
           ProjectName = projectName,
           All = true
-        });
+        }, TestContext.Current.CancellationToken);
         Assert.True(initialList.Success);
         Assert.Single(initialList.Data);
 
@@ -326,7 +326,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
           ComposeFiles = new List<string> { composeFile },
           ProjectName = projectName,
           Scale = new Dictionary<string, int> { { "worker", 3 } }
-        });
+        }, TestContext.Current.CancellationToken);
         Assert.True(scaleUpResult.Success, $"Scale up failed: {scaleUpResult.Error}");
 
         // Assert — should now have 3 worker instances
@@ -335,7 +335,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
           ComposeFiles = new List<string> { composeFile },
           ProjectName = projectName,
           All = true
-        });
+        }, TestContext.Current.CancellationToken);
         Assert.True(scaledList.Success);
         Assert.Equal(3, scaledList.Data.Count);
 
@@ -345,7 +345,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
           ComposeFiles = new List<string> { composeFile },
           ProjectName = projectName,
           Scale = new Dictionary<string, int> { { "worker", 1 } }
-        });
+        }, TestContext.Current.CancellationToken);
         Assert.True(scaleDownResult.Success, $"Scale down failed: {scaleDownResult.Error}");
 
         // Assert — should be back to 1 instance
@@ -354,7 +354,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
           ComposeFiles = new List<string> { composeFile },
           ProjectName = projectName,
           All = true
-        });
+        }, TestContext.Current.CancellationToken);
         Assert.True(finalList.Success);
         Assert.Single(finalList.Data);
       }
@@ -365,7 +365,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
           ComposeFiles = new List<string> { composeFile },
           ProjectName = projectName,
           RemoveVolumes = true
-        });
+        }, TestContext.Current.CancellationToken);
       }
     }
 

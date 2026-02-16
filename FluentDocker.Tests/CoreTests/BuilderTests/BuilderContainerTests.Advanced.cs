@@ -36,7 +36,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
           .UseContainer(c => c
               .UseImage("nginx:alpine")
               .WithMemoryLimit(536870912)) // 512MB
-          .BuildAsync();
+          .BuildAsync(cancellationToken: TestContext.Current.CancellationToken);
 
       // Assert
       MockPack.ContainerDriver.Verify(d => d.CreateAsync(
@@ -62,7 +62,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
           .UseContainer(c => c
               .UseImage("nginx:alpine")
               .WithCpuShares(512))
-          .BuildAsync();
+          .BuildAsync(cancellationToken: TestContext.Current.CancellationToken);
 
       // Assert
       MockPack.ContainerDriver.Verify(d => d.CreateAsync(
@@ -88,7 +88,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
           .UseContainer(c => c
               .UseImage("alpine")
               .WithAutoRemove())
-          .BuildAsync();
+          .BuildAsync(cancellationToken: TestContext.Current.CancellationToken);
 
       // Assert
       MockPack.ContainerDriver.Verify(d => d.CreateAsync(
@@ -114,7 +114,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
           .UseContainer(c => c
               .UseImage("nginx:alpine")
               .WithNetwork("my-network"))
-          .BuildAsync();
+          .BuildAsync(cancellationToken: TestContext.Current.CancellationToken);
 
       // Assert
       MockPack.ContainerDriver.Verify(d => d.CreateAsync(
@@ -142,7 +142,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
           .UseContainer(c => c
               .UseImage("nginx:alpine")
               .WithNetworkAlias("my-network", "webserver"))
-          .BuildAsync();
+          .BuildAsync(cancellationToken: TestContext.Current.CancellationToken);
 
       // Assert - verify driver was called (NetworkAliases are handled at container run level)
       MockPack.ContainerDriver.Verify(d => d.CreateAsync(
@@ -168,7 +168,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
           .UseContainer(c => c
               .UseImage("nginx:alpine")
               .WithLink("database", "db"))
-          .BuildAsync();
+          .BuildAsync(cancellationToken: TestContext.Current.CancellationToken);
 
       // Assert
       MockPack.ContainerDriver.Verify(d => d.CreateAsync(
@@ -196,7 +196,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
           .UseContainer(c => c
               .UseImage("nginx:alpine")
               .WithLinks("database", "cache", "queue"))
-          .BuildAsync();
+          .BuildAsync(cancellationToken: TestContext.Current.CancellationToken);
 
       // Assert
       MockPack.ContainerDriver.Verify(d => d.CreateAsync(
@@ -224,7 +224,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
           .UseContainer(c => c
               .UseImage("nginx:alpine")
               .ExposePort(8080, 80))
-          .BuildAsync();
+          .BuildAsync(cancellationToken: TestContext.Current.CancellationToken);
 
       // Assert
       MockPack.ContainerDriver.Verify(d => d.CreateAsync(
@@ -252,7 +252,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
           .UseContainer(c => c
               .UseImage("nginx:alpine")
               .KeepRunning())
-          .BuildAsync();
+          .BuildAsync(cancellationToken: TestContext.Current.CancellationToken);
 
       // Dispose
       await results.DisposeAllAsync();
@@ -278,7 +278,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
           .UseContainer(c => c
               .UseImage("nginx:alpine")
               .ForcePullImage())
-          .BuildAsync();
+          .BuildAsync(cancellationToken: TestContext.Current.CancellationToken);
 
       // Assert - Just verify the container was created
       // The force pull flag should trigger image pull before create
@@ -307,7 +307,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
               .UseImage("nginx:alpine")
               .WithName("test-container")
               .ReuseIfExists())
-          .BuildAsync();
+          .BuildAsync(cancellationToken: TestContext.Current.CancellationToken);
 
       // Assert - container was created (in mock, no existing container)
       MockPack.ContainerDriver.Verify(d => d.CreateAsync(
@@ -335,7 +335,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
               .UseImage("nginx:alpine")
               .WithName("test-container")
               .DestroyIfExists(force: true, removeVolumes: true))
-          .BuildAsync();
+          .BuildAsync(cancellationToken: TestContext.Current.CancellationToken);
 
       // Assert - container was created
       MockPack.ContainerDriver.Verify(d => d.CreateAsync(
@@ -361,7 +361,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
           .UseContainer(c => c
               .UseImage("nginx:alpine")
               .DeleteVolumeOnDispose())
-          .BuildAsync();
+          .BuildAsync(cancellationToken: TestContext.Current.CancellationToken);
 
       // Assert - container was created
       MockPack.ContainerDriver.Verify(d => d.CreateAsync(
@@ -387,7 +387,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
           .UseContainer(c => c
               .UseImage("nginx:alpine")
               .DeleteNamedVolumeOnDispose())
-          .BuildAsync();
+          .BuildAsync(cancellationToken: TestContext.Current.CancellationToken);
 
       // Assert - container was created
       MockPack.ContainerDriver.Verify(d => d.CreateAsync(
@@ -424,7 +424,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
               .WithMemoryLimit(268435456) // 256MB
               .WithCpuShares(256)
               .WithPrivileged(false))
-          .BuildAsync();
+          .BuildAsync(cancellationToken: TestContext.Current.CancellationToken);
 
       // Assert
       MockPack.ContainerDriver.Verify(d => d.CreateAsync(

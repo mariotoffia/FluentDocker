@@ -23,7 +23,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
         Directory.CreateDirectory(tempDir);
         await File.WriteAllTextAsync(
             Path.Combine(tempDir, "Dockerfile"),
-            "FROM alpine:latest\nRUN echo hello\n");
+            "FROM alpine:latest\nRUN echo hello\n", cancellationToken: TestContext.Current.CancellationToken);
 
         await EnsureImageAsync(TestImage);
 
@@ -31,7 +31,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
         {
           BuildContext = tempDir,
           Tags = new List<string> { tag }
-        });
+        }, cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.True(result.Success, $"Build failed: {result.Error}");
         Assert.NotNull(result.Data);
@@ -41,7 +41,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
       finally
       {
         try
-        { await ImageDriver.RemoveAsync(Context, tag, force: true); }
+        { await ImageDriver.RemoveAsync(Context, tag, force: true, cancellationToken: TestContext.Current.CancellationToken); }
         catch { }
 
         if (Directory.Exists(tempDir))
@@ -59,7 +59,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
         await EnsureImageAsync(TestImage);
 
         var result = await ImageDriver.SaveAsync(
-            Context, new[] { "alpine:latest" }, tarPath);
+            Context, new[] { "alpine:latest" }, tarPath, cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.True(result.Success, $"Save failed: {result.Error}");
         Assert.True(File.Exists(tarPath), "Tar file should exist");
@@ -82,10 +82,10 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
         await EnsureImageAsync(TestImage);
 
         var saveResult = await ImageDriver.SaveAsync(
-            Context, new[] { "alpine:latest" }, tarPath);
+            Context, new[] { "alpine:latest" }, tarPath, cancellationToken: TestContext.Current.CancellationToken);
         Assert.True(saveResult.Success, $"Save failed: {saveResult.Error}");
 
-        var loadResult = await ImageDriver.LoadAsync(Context, tarPath);
+        var loadResult = await ImageDriver.LoadAsync(Context, tarPath, cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.True(loadResult.Success, $"Load failed: {loadResult.Error}");
       }
@@ -116,14 +116,14 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
         });
 
         // Allow container to finish
-        await Task.Delay(2000);
+        await Task.Delay(2000, cancellationToken: TestContext.Current.CancellationToken);
 
         var exportResult = await ContainerDriver.ExportAsync(
-            Context, containerId, tarPath);
+            Context, containerId, tarPath, cancellationToken: TestContext.Current.CancellationToken);
         Assert.True(exportResult.Success, $"Export failed: {exportResult.Error}");
 
         var importResult = await ImageDriver.ImportAsync(
-            Context, tarPath, repo, tag);
+            Context, tarPath, repo, tag, cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.True(importResult.Success, $"Import failed: {importResult.Error}");
         Assert.False(string.IsNullOrEmpty(importResult.Data),
@@ -135,7 +135,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
           await RemoveContainerAsync(containerId);
 
         try
-        { await ImageDriver.RemoveAsync(Context, $"{repo}:{tag}", force: true); }
+        { await ImageDriver.RemoveAsync(Context, $"{repo}:{tag}", force: true, cancellationToken: TestContext.Current.CancellationToken); }
         catch { }
 
         if (File.Exists(tarPath))
@@ -153,17 +153,17 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
       try
       {
         await EnsureImageAsync(TestImage);
-        await ImageDriver.TagAsync(Context, "alpine:latest", testRepo, testTag);
+        await ImageDriver.TagAsync(Context, "alpine:latest", testRepo, testTag, cancellationToken: TestContext.Current.CancellationToken);
 
         var result = await ImageDriver.PushAsync(
-            Context, $"{testRepo}:{testTag}");
+            Context, $"{testRepo}:{testTag}", cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.False(result.Success, "Push to non-existent registry should fail");
       }
       finally
       {
         try
-        { await ImageDriver.RemoveAsync(Context, $"{testRepo}:{testTag}"); }
+        { await ImageDriver.RemoveAsync(Context, $"{testRepo}:{testTag}", cancellationToken: TestContext.Current.CancellationToken); }
         catch { }
       }
     }

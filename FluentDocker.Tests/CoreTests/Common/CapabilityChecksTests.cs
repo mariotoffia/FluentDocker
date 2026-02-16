@@ -24,7 +24,7 @@ namespace FluentDocker.Tests.CoreTests.Common
       try
       {
         // Act & Assert - should not throw
-        await CapabilityChecks.EnsureContainerSupportAsync(kernel, "docker");
+        await CapabilityChecks.EnsureContainerSupportAsync(kernel, "docker", TestContext.Current.CancellationToken);
       }
       finally
       {
@@ -43,7 +43,7 @@ namespace FluentDocker.Tests.CoreTests.Common
       {
         // Act & Assert
         await Assert.ThrowsAsync<CapabilityNotSupportedException>(() =>
-            CapabilityChecks.EnsureContainerSupportAsync(kernel, "docker"));
+            CapabilityChecks.EnsureContainerSupportAsync(kernel, "docker", TestContext.Current.CancellationToken));
       }
       finally
       {
@@ -61,7 +61,7 @@ namespace FluentDocker.Tests.CoreTests.Common
       try
       {
         // Act & Assert - should not throw
-        await CapabilityChecks.EnsureNetworkSupportAsync(kernel, "docker");
+        await CapabilityChecks.EnsureNetworkSupportAsync(kernel, "docker", TestContext.Current.CancellationToken);
       }
       finally
       {
@@ -80,7 +80,7 @@ namespace FluentDocker.Tests.CoreTests.Common
       {
         // Act & Assert
         await Assert.ThrowsAsync<CapabilityNotSupportedException>(() =>
-            CapabilityChecks.EnsureNetworkSupportAsync(kernel, "docker"));
+            CapabilityChecks.EnsureNetworkSupportAsync(kernel, "docker", TestContext.Current.CancellationToken));
       }
       finally
       {
@@ -98,7 +98,7 @@ namespace FluentDocker.Tests.CoreTests.Common
       try
       {
         // Act & Assert - should not throw
-        await CapabilityChecks.EnsureVolumeSupportAsync(kernel, "docker");
+        await CapabilityChecks.EnsureVolumeSupportAsync(kernel, "docker", TestContext.Current.CancellationToken);
       }
       finally
       {
@@ -117,7 +117,7 @@ namespace FluentDocker.Tests.CoreTests.Common
       {
         // Act & Assert
         await Assert.ThrowsAsync<CapabilityNotSupportedException>(() =>
-            CapabilityChecks.EnsureVolumeSupportAsync(kernel, "docker"));
+            CapabilityChecks.EnsureVolumeSupportAsync(kernel, "docker", TestContext.Current.CancellationToken));
       }
       finally
       {
@@ -135,7 +135,7 @@ namespace FluentDocker.Tests.CoreTests.Common
       try
       {
         // Act & Assert - should not throw
-        await CapabilityChecks.EnsureComposeSupportAsync(kernel, "docker");
+        await CapabilityChecks.EnsureComposeSupportAsync(kernel, "docker", TestContext.Current.CancellationToken);
       }
       finally
       {
@@ -154,7 +154,7 @@ namespace FluentDocker.Tests.CoreTests.Common
       {
         // Act & Assert
         await Assert.ThrowsAsync<CapabilityNotSupportedException>(() =>
-            CapabilityChecks.EnsureComposeSupportAsync(kernel, "docker"));
+            CapabilityChecks.EnsureComposeSupportAsync(kernel, "docker", TestContext.Current.CancellationToken));
       }
       finally
       {
@@ -172,7 +172,7 @@ namespace FluentDocker.Tests.CoreTests.Common
       try
       {
         // Act & Assert - should not throw
-        await CapabilityChecks.EnsureImageSupportAsync(kernel, "docker");
+        await CapabilityChecks.EnsureImageSupportAsync(kernel, "docker", TestContext.Current.CancellationToken);
       }
       finally
       {
@@ -191,7 +191,7 @@ namespace FluentDocker.Tests.CoreTests.Common
       {
         // Act & Assert
         await Assert.ThrowsAsync<CapabilityNotSupportedException>(() =>
-            CapabilityChecks.EnsureImageSupportAsync(kernel, "docker"));
+            CapabilityChecks.EnsureImageSupportAsync(kernel, "docker", TestContext.Current.CancellationToken));
       }
       finally
       {
@@ -209,7 +209,7 @@ namespace FluentDocker.Tests.CoreTests.Common
       try
       {
         // Act & Assert - should not throw
-        await CapabilityChecks.EnsurePodSupportAsync(kernel, "docker");
+        await CapabilityChecks.EnsurePodSupportAsync(kernel, "docker", TestContext.Current.CancellationToken);
       }
       finally
       {
@@ -228,7 +228,7 @@ namespace FluentDocker.Tests.CoreTests.Common
       {
         // Act & Assert
         await Assert.ThrowsAsync<CapabilityNotSupportedException>(() =>
-            CapabilityChecks.EnsurePodSupportAsync(kernel, "docker"));
+            CapabilityChecks.EnsurePodSupportAsync(kernel, "docker", TestContext.Current.CancellationToken));
       }
       finally
       {
@@ -255,7 +255,7 @@ namespace FluentDocker.Tests.CoreTests.Common
       try
       {
         // Act
-        var capabilities = await CapabilityChecks.GetCapabilitiesAsync(kernel, "docker");
+        var capabilities = await CapabilityChecks.GetCapabilitiesAsync(kernel, "docker", TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(capabilities.SupportsContainers);
@@ -280,7 +280,7 @@ namespace FluentDocker.Tests.CoreTests.Common
       try
       {
         // Act
-        var isHealthy = await CapabilityChecks.IsHealthyAsync(kernel, "docker");
+        var isHealthy = await CapabilityChecks.IsHealthyAsync(kernel, "docker", TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(isHealthy);
@@ -301,7 +301,7 @@ namespace FluentDocker.Tests.CoreTests.Common
       try
       {
         // Act
-        var isHealthy = await CapabilityChecks.IsHealthyAsync(kernel, "docker");
+        var isHealthy = await CapabilityChecks.IsHealthyAsync(kernel, "docker", TestContext.Current.CancellationToken);
 
         // Assert
         Assert.False(isHealthy);
@@ -329,7 +329,7 @@ namespace FluentDocker.Tests.CoreTests.Common
       try
       {
         // Act & Assert - should not throw
-        await kernel.EnsureCapabilityAsync("docker", DriverCapability.Container);
+        await kernel.EnsureCapabilityAsync("docker", DriverCapability.Container, TestContext.Current.CancellationToken);
       }
       finally
       {
@@ -348,7 +348,7 @@ namespace FluentDocker.Tests.CoreTests.Common
       {
         // Act & Assert
         await Assert.ThrowsAsync<CapabilityNotSupportedException>(() =>
-            kernel.EnsureCapabilityAsync("docker", DriverCapability.Network));
+            kernel.EnsureCapabilityAsync("docker", DriverCapability.Network, TestContext.Current.CancellationToken));
       }
       finally
       {
@@ -366,11 +366,11 @@ namespace FluentDocker.Tests.CoreTests.Common
       try
       {
         // Act & Assert - all should not throw
-        await kernel.EnsureCapabilityAsync("docker", DriverCapability.Container);
-        await kernel.EnsureCapabilityAsync("docker", DriverCapability.Image);
-        await kernel.EnsureCapabilityAsync("docker", DriverCapability.Network);
-        await kernel.EnsureCapabilityAsync("docker", DriverCapability.Volume);
-        await kernel.EnsureCapabilityAsync("docker", DriverCapability.Compose);
+        await kernel.EnsureCapabilityAsync("docker", DriverCapability.Container, TestContext.Current.CancellationToken);
+        await kernel.EnsureCapabilityAsync("docker", DriverCapability.Image, TestContext.Current.CancellationToken);
+        await kernel.EnsureCapabilityAsync("docker", DriverCapability.Network, TestContext.Current.CancellationToken);
+        await kernel.EnsureCapabilityAsync("docker", DriverCapability.Volume, TestContext.Current.CancellationToken);
+        await kernel.EnsureCapabilityAsync("docker", DriverCapability.Compose, TestContext.Current.CancellationToken);
       }
       finally
       {

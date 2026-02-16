@@ -34,7 +34,7 @@ namespace FluentDocker.Tests.CoreTests.Service
       try
       {
         // Act
-        var container = await service.InspectAsync();
+        var container = await service.InspectAsync(cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(container);
@@ -66,7 +66,7 @@ namespace FluentDocker.Tests.CoreTests.Service
       try
       {
         // Act
-        var logs = await service.GetLogsAsync();
+        var logs = await service.GetLogsAsync(cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Contains("Application started", logs);
@@ -100,7 +100,7 @@ namespace FluentDocker.Tests.CoreTests.Service
       try
       {
         // Act
-        var result = await service.ExecuteAsync("ls -la");
+        var result = await service.ExecuteAsync("ls -la", cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Contains("file1.txt", result);
@@ -131,7 +131,7 @@ namespace FluentDocker.Tests.CoreTests.Service
       try
       {
         // Act
-        await service.StartAsync();
+        await service.StartAsync(cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(ServiceRunningState.Running, service.State);
@@ -161,7 +161,7 @@ namespace FluentDocker.Tests.CoreTests.Service
       try
       {
         // Act
-        await service.StopAsync();
+        await service.StopAsync(cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(ServiceRunningState.Stopped, service.State);
@@ -192,7 +192,7 @@ namespace FluentDocker.Tests.CoreTests.Service
       try
       {
         // Act
-        await service.PauseAsync();
+        await service.PauseAsync(cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(ServiceRunningState.Paused, service.State);
@@ -223,7 +223,7 @@ namespace FluentDocker.Tests.CoreTests.Service
       try
       {
         // Act
-        await service.RemoveAsync();
+        await service.RemoveAsync(cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(ServiceRunningState.Removed, service.State);
@@ -264,7 +264,7 @@ namespace FluentDocker.Tests.CoreTests.Service
       try
       {
         // Act
-        var stats = await service.GetStatsAsync();
+        var stats = await service.GetStatsAsync(cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(stats);

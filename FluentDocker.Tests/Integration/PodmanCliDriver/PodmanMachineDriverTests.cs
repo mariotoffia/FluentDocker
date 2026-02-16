@@ -20,7 +20,7 @@ namespace FluentDocker.Tests.Integration.PodmanCliDriver
     [Fact]
     public async Task List_ReturnsWithoutError()
     {
-      var result = await MachineDriver.ListAsync(Context);
+      var result = await MachineDriver.ListAsync(Context, cancellationToken: TestContext.Current.CancellationToken);
       Assert.True(result.Success, $"List failed: {result.Error}");
       Assert.NotNull(result.Data);
     }
@@ -28,7 +28,7 @@ namespace FluentDocker.Tests.Integration.PodmanCliDriver
     [Fact]
     public async Task Info_ReturnsMachineHostInfo()
     {
-      var result = await MachineDriver.InfoAsync(Context);
+      var result = await MachineDriver.InfoAsync(Context, cancellationToken: TestContext.Current.CancellationToken);
       Assert.True(result.Success, $"Info failed: {result.Error}");
       Assert.NotNull(result.Data);
       Assert.False(string.IsNullOrEmpty(result.Data.Arch),
@@ -41,12 +41,12 @@ namespace FluentDocker.Tests.Integration.PodmanCliDriver
     public async Task Inspect_DefaultMachine_ReturnsDetailsIfExists()
     {
       // List machines first to find the default machine by name
-      var listResult = await MachineDriver.ListAsync(Context);
+      var listResult = await MachineDriver.ListAsync(Context, cancellationToken: TestContext.Current.CancellationToken);
       Assert.True(listResult.Success);
 
       var defaultMachine = listResult.Data.FirstOrDefault(m => m.Default) ?? throw new SkipException("No default Podman machine available for inspect test");
 
-      var inspectResult = await MachineDriver.InspectAsync(Context, defaultMachine.Name);
+      var inspectResult = await MachineDriver.InspectAsync(Context, defaultMachine.Name, cancellationToken: TestContext.Current.CancellationToken);
       Assert.True(inspectResult.Success, $"Inspect failed: {inspectResult.Error}");
       Assert.NotNull(inspectResult.Data);
       Assert.False(string.IsNullOrEmpty(inspectResult.Data.Name));
@@ -56,12 +56,12 @@ namespace FluentDocker.Tests.Integration.PodmanCliDriver
     public async Task Ssh_DefaultMachine_ExecutesCommandIfRunning()
     {
       // Check if default machine is running
-      var listResult = await MachineDriver.ListAsync(Context);
+      var listResult = await MachineDriver.ListAsync(Context, cancellationToken: TestContext.Current.CancellationToken);
       Assert.True(listResult.Success);
 
       var defaultMachine = listResult.Data.FirstOrDefault(m => m.Default && m.Running) ?? throw new SkipException("No running default Podman machine for SSH test");
 
-      var result = await MachineDriver.SshAsync(Context, defaultMachine.Name, "echo hello");
+      var result = await MachineDriver.SshAsync(Context, defaultMachine.Name, "echo hello", cancellationToken: TestContext.Current.CancellationToken);
       Assert.True(result.Success, $"SSH failed: {result.Error}");
       Assert.Contains("hello", result.Data);
     }
@@ -84,16 +84,16 @@ namespace FluentDocker.Tests.Integration.PodmanCliDriver
           DiskSizeGiB = 10,
           MemoryMiB = 512,
           Now = false
-        });
+        }, cancellationToken: TestContext.Current.CancellationToken);
         Assert.True(initResult.Success, $"Init failed: {initResult.Error}");
 
         // Verify it appears in list
-        var listResult = await MachineDriver.ListAsync(Context);
+        var listResult = await MachineDriver.ListAsync(Context, cancellationToken: TestContext.Current.CancellationToken);
         Assert.True(listResult.Success);
         Assert.Contains(listResult.Data, m => m.Name == machineName);
 
         // Inspect (works without starting)
-        var inspectResult = await MachineDriver.InspectAsync(Context, machineName);
+        var inspectResult = await MachineDriver.InspectAsync(Context, machineName, cancellationToken: TestContext.Current.CancellationToken);
         Assert.True(inspectResult.Success, $"Inspect failed: {inspectResult.Error}");
         Assert.Equal(machineName, inspectResult.Data.Name);
 
@@ -102,20 +102,20 @@ namespace FluentDocker.Tests.Integration.PodmanCliDriver
         var hasRunning = listResult.Data.Any(m => m.Running && m.Name != machineName);
         if (!hasRunning)
         {
-          var startResult = await MachineDriver.StartAsync(Context, machineName);
+          var startResult = await MachineDriver.StartAsync(Context, machineName, cancellationToken: TestContext.Current.CancellationToken);
           Assert.True(startResult.Success, $"Start failed: {startResult.Error}");
 
-          var stopResult = await MachineDriver.StopAsync(Context, machineName);
+          var stopResult = await MachineDriver.StopAsync(Context, machineName, cancellationToken: TestContext.Current.CancellationToken);
           Assert.True(stopResult.Success, $"Stop failed: {stopResult.Error}");
         }
       }
       finally
       {
         try
-        { await MachineDriver.StopAsync(Context, machineName); }
+        { await MachineDriver.StopAsync(Context, machineName, cancellationToken: TestContext.Current.CancellationToken); }
         catch { }
         try
-        { await MachineDriver.RemoveAsync(Context, machineName, force: true); }
+        { await MachineDriver.RemoveAsync(Context, machineName, force: true, cancellationToken: TestContext.Current.CancellationToken); }
         catch { }
       }
     }
@@ -134,26 +134,26 @@ namespace FluentDocker.Tests.Integration.PodmanCliDriver
           DiskSizeGiB = 10,
           MemoryMiB = 512,
           Now = false
-        });
+        }, cancellationToken: TestContext.Current.CancellationToken);
         Assert.True(initResult.Success, $"Init failed: {initResult.Error}");
 
         // Set Cpus=2
         var setResult = await MachineDriver.SetAsync(Context,
-            new MachineSetConfig { Cpus = 2 }, machineName);
+            new MachineSetConfig { Cpus = 2 }, machineName, cancellationToken: TestContext.Current.CancellationToken);
         Assert.True(setResult.Success, $"Set failed: {setResult.Error}");
 
         // Inspect to verify
-        var inspect = await MachineDriver.InspectAsync(Context, machineName);
+        var inspect = await MachineDriver.InspectAsync(Context, machineName, cancellationToken: TestContext.Current.CancellationToken);
         Assert.True(inspect.Success, $"Inspect failed: {inspect.Error}");
         Assert.Equal(2, inspect.Data.Resources.Cpus);
       }
       finally
       {
         try
-        { await MachineDriver.StopAsync(Context, machineName); }
+        { await MachineDriver.StopAsync(Context, machineName, cancellationToken: TestContext.Current.CancellationToken); }
         catch { }
         try
-        { await MachineDriver.RemoveAsync(Context, machineName, force: true); }
+        { await MachineDriver.RemoveAsync(Context, machineName, force: true, cancellationToken: TestContext.Current.CancellationToken); }
         catch { }
       }
     }
@@ -166,7 +166,7 @@ namespace FluentDocker.Tests.Integration.PodmanCliDriver
     public async Task Remove_NonExistent_FailsGracefully()
     {
       var fakeName = "nonexistent-" + Guid.NewGuid().ToString("N")[..12];
-      var result = await MachineDriver.RemoveAsync(Context, fakeName);
+      var result = await MachineDriver.RemoveAsync(Context, fakeName, cancellationToken: TestContext.Current.CancellationToken);
       Assert.False(result.Success);
     }
 
@@ -174,7 +174,7 @@ namespace FluentDocker.Tests.Integration.PodmanCliDriver
     public async Task Stop_NonExistent_FailsGracefully()
     {
       var fakeName = "nonexistent-" + Guid.NewGuid().ToString("N")[..12];
-      var result = await MachineDriver.StopAsync(Context, fakeName);
+      var result = await MachineDriver.StopAsync(Context, fakeName, cancellationToken: TestContext.Current.CancellationToken);
       Assert.False(result.Success);
     }
 
@@ -182,7 +182,7 @@ namespace FluentDocker.Tests.Integration.PodmanCliDriver
     public async Task Inspect_NonExistent_FailsGracefully()
     {
       var fakeName = "nonexistent-" + Guid.NewGuid().ToString("N")[..12];
-      var result = await MachineDriver.InspectAsync(Context, fakeName);
+      var result = await MachineDriver.InspectAsync(Context, fakeName, cancellationToken: TestContext.Current.CancellationToken);
       Assert.False(result.Success);
     }
 

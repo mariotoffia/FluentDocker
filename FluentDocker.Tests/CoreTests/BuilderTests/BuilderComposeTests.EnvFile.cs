@@ -32,14 +32,14 @@ DB_NAME=testdb
 # Another comment
 API_KEY=secret123
 EMPTY_VALUE=
-");
+", cancellationToken: TestContext.Current.CancellationToken);
 
         await using var scope = await new Builder()
             .WithinDriver("docker", kernel)
             .UseCompose(c => c
                 .WithComposeFile("/compose.yml")
                 .WithEnvFile(tempEnvFile))
-            .BuildAsync();
+            .BuildAsync(cancellationToken: TestContext.Current.CancellationToken);
 
         mockPack.ComposeDriver.Verify(d => d.UpAsync(
             It.IsAny<DriverContext>(),
@@ -76,7 +76,7 @@ EMPTY_VALUE=
         await File.WriteAllTextAsync(tempEnvFile, @"
 FILE_VAR=from_file
 OVERRIDE_VAR=file_value
-");
+", cancellationToken: TestContext.Current.CancellationToken);
 
         await using var scope = await new Builder()
             .WithinDriver("docker", kernel)
@@ -85,7 +85,7 @@ OVERRIDE_VAR=file_value
                 .WithEnvFile(tempEnvFile)
                 .WithEnvironment("MANUAL_VAR", "manual_value")
                 .WithEnvironment("OVERRIDE_VAR", "manual_override"))
-            .BuildAsync();
+            .BuildAsync(cancellationToken: TestContext.Current.CancellationToken);
 
         mockPack.ComposeDriver.Verify(d => d.UpAsync(
             It.IsAny<DriverContext>(),
@@ -120,7 +120,7 @@ OVERRIDE_VAR=file_value
                 .WithComposeFile("/compose.yml")
                 .WithEnvFile("/non/existent/path/.env")
                 .WithEnvironment("FALLBACK", "value"))
-            .BuildAsync();
+            .BuildAsync(cancellationToken: TestContext.Current.CancellationToken);
 
         mockPack.ComposeDriver.Verify(d => d.UpAsync(
             It.IsAny<DriverContext>(),
@@ -146,14 +146,14 @@ OVERRIDE_VAR=file_value
 SIMPLE=simple_value
 WITH_SPACES=value with spaces
 EQUALS_IN_VALUE=key=value=more
-");
+", cancellationToken: TestContext.Current.CancellationToken);
 
         await using var scope = await new Builder()
             .WithinDriver("docker", kernel)
             .UseCompose(c => c
                 .WithComposeFile("/compose.yml")
                 .WithEnvFile(tempEnvFile))
-            .BuildAsync();
+            .BuildAsync(cancellationToken: TestContext.Current.CancellationToken);
 
         mockPack.ComposeDriver.Verify(d => d.UpAsync(
             It.IsAny<DriverContext>(),

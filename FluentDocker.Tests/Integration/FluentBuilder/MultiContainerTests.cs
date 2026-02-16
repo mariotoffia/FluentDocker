@@ -56,7 +56,7 @@ namespace FluentDocker.Tests.Integration.FluentBuilder
               .UseImage("alpine:latest")
               .WithName("multi-test-2")
               .WithCommand("sh", "-c", "sleep 60"))
-          .BuildAsync();
+          .BuildAsync(cancellationToken: TestContext.Current.CancellationToken);
 
       // Assert
       Assert.Equal(2, results.Containers.Count);
@@ -85,7 +85,7 @@ namespace FluentDocker.Tests.Integration.FluentBuilder
               .WithName("link-frontend")
               .WithLink("link-backend", "backend")
               .WithCommand("sh", "-c", "sleep 60"))
-          .BuildAsync();
+          .BuildAsync(cancellationToken: TestContext.Current.CancellationToken);
 
       // Assert
       Assert.Equal(2, results.Containers.Count);
@@ -95,7 +95,7 @@ namespace FluentDocker.Tests.Integration.FluentBuilder
 
       // The linked container should be resolvable by its alias
       // We can verify this by checking /etc/hosts in the frontend container
-      var hostsContent = await frontend.ExecuteAsync("cat /etc/hosts");
+      var hostsContent = await frontend.ExecuteAsync("cat /etc/hosts", cancellationToken: TestContext.Current.CancellationToken);
       Assert.Contains("backend", hostsContent);
     }
 
@@ -118,7 +118,7 @@ namespace FluentDocker.Tests.Integration.FluentBuilder
               .WithName("net-test-2")
               .WithNetwork("multi-test-network")
               .WithCommand("sh", "-c", "sleep 60"))
-          .BuildAsync();
+          .BuildAsync(cancellationToken: TestContext.Current.CancellationToken);
 
       // Assert
       Assert.Equal(2, results.Containers.Count);
@@ -148,7 +148,7 @@ namespace FluentDocker.Tests.Integration.FluentBuilder
               .WithName("alias-frontend")
               .WithNetwork("alias-test-network")
               .WithCommand("sh", "-c", "sleep 60"))
-          .BuildAsync();
+          .BuildAsync(cancellationToken: TestContext.Current.CancellationToken);
 
       // Assert
       Assert.Equal(2, results.Containers.Count);
@@ -174,7 +174,7 @@ namespace FluentDocker.Tests.Integration.FluentBuilder
               .WithName("volume-test")
               .WithVolume("multi-test-volume", "/data")
               .WithCommand("sh", "-c", "echo 'test' > /data/test.txt && sleep 60"))
-          .BuildAsync();
+          .BuildAsync(cancellationToken: TestContext.Current.CancellationToken);
 
       // Assert
       Assert.Single(results.Containers);
@@ -197,7 +197,7 @@ namespace FluentDocker.Tests.Integration.FluentBuilder
               .UseImage("alpine:latest")
               .WithName("all-services-container")
               .WithCommand("sh", "-c", "sleep 60"))
-          .BuildAsync();
+          .BuildAsync(cancellationToken: TestContext.Current.CancellationToken);
 
       // Assert
       Assert.Equal(3, results.All.Count);
@@ -216,7 +216,7 @@ namespace FluentDocker.Tests.Integration.FluentBuilder
               .UseImage("alpine:latest")
               .WithName("driver-filter-test")
               .WithCommand("sh", "-c", "sleep 60"))
-          .BuildAsync();
+          .BuildAsync(cancellationToken: TestContext.Current.CancellationToken);
 
       // Assert
       var services = results.ForDriver(DriverId);
@@ -244,7 +244,7 @@ namespace FluentDocker.Tests.Integration.FluentBuilder
               .WithName("chain-app")
               .WithLinks("chain-cache", "chain-db")
               .WithCommand("sh", "-c", "sleep 60"))
-          .BuildAsync();
+          .BuildAsync(cancellationToken: TestContext.Current.CancellationToken);
 
       // Assert
       Assert.Equal(3, results.Containers.Count);
@@ -253,7 +253,7 @@ namespace FluentDocker.Tests.Integration.FluentBuilder
       Assert.NotNull(app);
 
       // Verify app can see both linked containers
-      var hostsContent = await app.ExecuteAsync("cat /etc/hosts");
+      var hostsContent = await app.ExecuteAsync("cat /etc/hosts", cancellationToken: TestContext.Current.CancellationToken);
       Assert.Contains("chain-cache", hostsContent);
       Assert.Contains("chain-db", hostsContent);
     }
@@ -268,7 +268,7 @@ namespace FluentDocker.Tests.Integration.FluentBuilder
               .UseImage("alpine:latest")
               .WithName("CaSeInSeNsItIvE")
               .WithCommand("sh", "-c", "sleep 60"))
-          .BuildAsync();
+          .BuildAsync(cancellationToken: TestContext.Current.CancellationToken);
 
       // Assert - Both cases should find the container
       var lower = results.GetContainer("caseinsensitive");
@@ -293,7 +293,7 @@ namespace FluentDocker.Tests.Integration.FluentBuilder
               .UseImage("alpine:latest")
               .WithName("oftype-test-container")
               .WithCommand("sh", "-c", "sleep 60"))
-          .BuildAsync();
+          .BuildAsync(cancellationToken: TestContext.Current.CancellationToken);
 
       // Assert
       var containers = results.OfType<IContainerService>();

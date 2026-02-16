@@ -40,7 +40,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
           .UseContainer(c => c
               .UseImage("nginx:alpine")
               .WithName("test-web"))
-          .BuildAsync();
+          .BuildAsync(cancellationToken: TestContext.Current.CancellationToken);
 
       // Assert
       Assert.NotNull(results);
@@ -68,7 +68,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
               .UseImage("nginx:alpine")
               .WithEnvironment("NGINX_HOST", "localhost")
               .WithEnvironment("NGINX_PORT", "8080"))
-          .BuildAsync();
+          .BuildAsync(cancellationToken: TestContext.Current.CancellationToken);
 
       // Assert - Verify create was called with environment
       MockPack.ContainerDriver.Verify(d => d.CreateAsync(
@@ -98,7 +98,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
               .UseImage("nginx:alpine")
               .WithPort("80/tcp", "8080")
               .ExposePort("443"))
-          .BuildAsync();
+          .BuildAsync(cancellationToken: TestContext.Current.CancellationToken);
 
       // Assert
       MockPack.ContainerDriver.Verify(d => d.CreateAsync(
@@ -126,7 +126,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
           .UseContainer(c => c
               .UseImage("nginx:alpine")
               .WithVolume("/host/data", "/container/data"))
-          .BuildAsync();
+          .BuildAsync(cancellationToken: TestContext.Current.CancellationToken);
 
       // Assert
       MockPack.ContainerDriver.Verify(d => d.CreateAsync(
@@ -156,7 +156,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
               .UseImage("nginx:alpine")
               .WithLabel("app", "web")
               .WithLabel("env", "test"))
-          .BuildAsync();
+          .BuildAsync(cancellationToken: TestContext.Current.CancellationToken);
 
       // Assert
       MockPack.ContainerDriver.Verify(d => d.CreateAsync(
@@ -185,7 +185,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
           .UseContainer(c => c
               .UseImage("alpine")
               .WithCommand("echo", "hello", "world"))
-          .BuildAsync();
+          .BuildAsync(cancellationToken: TestContext.Current.CancellationToken);
 
       // Assert
       MockPack.ContainerDriver.Verify(d => d.CreateAsync(
@@ -214,7 +214,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
           .UseContainer(c => c
               .UseImage("alpine")
               .WithPrivileged())
-          .BuildAsync();
+          .BuildAsync(cancellationToken: TestContext.Current.CancellationToken);
 
       // Assert
       MockPack.ContainerDriver.Verify(d => d.CreateAsync(
@@ -240,7 +240,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
           .UseContainer(c => c
               .UseImage("alpine")
               .WithNetworkMode("host"))
-          .BuildAsync();
+          .BuildAsync(cancellationToken: TestContext.Current.CancellationToken);
 
       // Assert
       MockPack.ContainerDriver.Verify(d => d.CreateAsync(
@@ -266,7 +266,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
           .UseContainer(c => c
               .UseImage("nginx:alpine")
               .WithRestartPolicy("unless-stopped"))
-          .BuildAsync();
+          .BuildAsync(cancellationToken: TestContext.Current.CancellationToken);
 
       // Assert
       MockPack.ContainerDriver.Verify(d => d.CreateAsync(
@@ -292,7 +292,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
           .UseContainer(c => c.UseImage("nginx:alpine").WithName("web1"))
           .UseContainer(c => c.UseImage("nginx:alpine").WithName("web2"))
           .UseContainer(c => c.UseImage("redis:alpine").WithName("cache"))
-          .BuildAsync();
+          .BuildAsync(cancellationToken: TestContext.Current.CancellationToken);
 
       // Assert
       Assert.Equal(3, results.All.Count());
@@ -319,7 +319,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
           .UseContainer(c => c
               .UseImage("nginx:alpine")
               .KeepContainer())
-          .BuildAsync();
+          .BuildAsync(cancellationToken: TestContext.Current.CancellationToken);
 
       // Dispose
       await results.DisposeAllAsync();
@@ -350,7 +350,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
               .WithEnvironment("DB_HOST", "localhost")
               .WithEnvironment("DB_PORT", "5432")
               .WithEnvironment("DB_NAME", "testdb"))
-          .BuildAsync();
+          .BuildAsync(cancellationToken: TestContext.Current.CancellationToken);
 
       // Assert
       MockPack.ContainerDriver.Verify(d => d.CreateAsync(
@@ -381,7 +381,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
           .UseContainer(c => c
               .UseImage("alpine")
               .WithEnvironment("MY_VAR=my_value"))
-          .BuildAsync();
+          .BuildAsync(cancellationToken: TestContext.Current.CancellationToken);
 
       // Assert
       MockPack.ContainerDriver.Verify(d => d.CreateAsync(
@@ -410,7 +410,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
           .UseContainer(c => c
               .UseImage("nginx:alpine")
               .WithHostname("my-container-host"))
-          .BuildAsync();
+          .BuildAsync(cancellationToken: TestContext.Current.CancellationToken);
 
       // Assert
       MockPack.ContainerDriver.Verify(d => d.CreateAsync(
@@ -436,7 +436,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
           .UseContainer(c => c
               .UseImage("nginx:alpine")
               .WithUser("nginx"))
-          .BuildAsync();
+          .BuildAsync(cancellationToken: TestContext.Current.CancellationToken);
 
       // Assert
       MockPack.ContainerDriver.Verify(d => d.CreateAsync(
@@ -462,7 +462,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
           .UseContainer(c => c
               .UseImage("node:alpine")
               .WithWorkingDirectory("/app"))
-          .BuildAsync();
+          .BuildAsync(cancellationToken: TestContext.Current.CancellationToken);
 
       // Assert
       MockPack.ContainerDriver.Verify(d => d.CreateAsync(

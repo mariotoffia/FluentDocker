@@ -31,7 +31,7 @@ namespace FluentDocker.Tests.CoreTests.Testing
               .WithComposeFile("/path/to/docker-compose.yml")
               .WithProjectName("test-project"));
 
-      await resource.InitializeAsync();
+      await resource.InitializeAsync(TestContext.Current.CancellationToken);
 
       Assert.True(resource.IsInitialized);
       Assert.NotNull(resource.Service);
@@ -52,7 +52,7 @@ namespace FluentDocker.Tests.CoreTests.Testing
           Kernel,
           builder => builder.WithComposeFile("/path/to/docker-compose.yml"));
 
-      await resource.InitializeAsync();
+      await resource.InitializeAsync(TestContext.Current.CancellationToken);
       await resource.DisposeAsync();
 
       Assert.False(resource.IsInitialized);
@@ -72,7 +72,7 @@ namespace FluentDocker.Tests.CoreTests.Testing
           builder => builder.WithComposeFile("/path/to/docker-compose.yml"));
 
       await Assert.ThrowsAsync<FluentDocker.Common.CapabilityNotSupportedException>(
-          () => resource.InitializeAsync());
+          () => resource.InitializeAsync(TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -97,7 +97,7 @@ namespace FluentDocker.Tests.CoreTests.Testing
           builder => builder.WithComposeFile("/path/to/docker-compose.yml"));
 
       await Assert.ThrowsAsync<InvalidOperationException>(
-          () => resource.GetLogsAsync());
+          () => resource.GetLogsAsync(TestContext.Current.CancellationToken));
     }
   }
 }

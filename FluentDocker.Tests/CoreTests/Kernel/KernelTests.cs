@@ -35,7 +35,7 @@ namespace FluentDocker.Tests.CoreTests.Kernel
       var context = new DriverContext("docker");
 
       // Act
-      await kernel.RegisterDriverPackAsync("docker", mockPack, context);
+      await kernel.RegisterDriverPackAsync("docker", mockPack, context, cancellationToken: TestContext.Current.CancellationToken);
 
       // Assert
       Assert.True(kernel.IsDriverRegistered("docker"));
@@ -107,11 +107,11 @@ namespace FluentDocker.Tests.CoreTests.Kernel
       var kernel = new FluentDockerKernel();
       var mockPack1 = new MockDriverPack();
       var mockPack2 = new MockDriverPack();
-      await mockPack1.InitializeAsync(new DriverContext("driver1"));
-      await mockPack2.InitializeAsync(new DriverContext("driver2"));
+      await mockPack1.InitializeAsync(new DriverContext("driver1"), cancellationToken: TestContext.Current.CancellationToken);
+      await mockPack2.InitializeAsync(new DriverContext("driver2"), cancellationToken: TestContext.Current.CancellationToken);
 
-      await kernel.RegisterDriverPackAsync("driver1", mockPack1, new DriverContext("driver1"));
-      await kernel.RegisterDriverPackAsync("driver2", mockPack2, new DriverContext("driver2"));
+      await kernel.RegisterDriverPackAsync("driver1", mockPack1, new DriverContext("driver1"), cancellationToken: TestContext.Current.CancellationToken);
+      await kernel.RegisterDriverPackAsync("driver2", mockPack2, new DriverContext("driver2"), cancellationToken: TestContext.Current.CancellationToken);
 
       // Act
       kernel.SetDefaultDriver("driver2");
@@ -129,11 +129,11 @@ namespace FluentDocker.Tests.CoreTests.Kernel
       var kernel = new FluentDockerKernel();
       var mockPack1 = new MockDriverPack();
       var mockPack2 = new MockDriverPack();
-      await mockPack1.InitializeAsync(new DriverContext("docker-local"));
-      await mockPack2.InitializeAsync(new DriverContext("docker-remote"));
+      await mockPack1.InitializeAsync(new DriverContext("docker-local"), cancellationToken: TestContext.Current.CancellationToken);
+      await mockPack2.InitializeAsync(new DriverContext("docker-remote"), cancellationToken: TestContext.Current.CancellationToken);
 
-      await kernel.RegisterDriverPackAsync("docker-local", mockPack1, new DriverContext("docker-local"));
-      await kernel.RegisterDriverPackAsync("docker-remote", mockPack2, new DriverContext("docker-remote"));
+      await kernel.RegisterDriverPackAsync("docker-local", mockPack1, new DriverContext("docker-local"), cancellationToken: TestContext.Current.CancellationToken);
+      await kernel.RegisterDriverPackAsync("docker-remote", mockPack2, new DriverContext("docker-remote"), cancellationToken: TestContext.Current.CancellationToken);
 
       // Assert - both drivers are registered
       Assert.True(kernel.IsDriverRegistered("docker-local"));
@@ -219,7 +219,7 @@ namespace FluentDocker.Tests.CoreTests.Kernel
       // Act
       var kernel = await FluentDockerKernel.Create()
           .WithDockerCli("docker", d => d.AsDefault())
-          .BuildAsync();
+          .BuildAsync(cancellationToken: TestContext.Current.CancellationToken);
 
       try
       {
@@ -240,7 +240,7 @@ namespace FluentDocker.Tests.CoreTests.Kernel
       var kernel = await FluentDockerKernel.Create()
           .WithDockerCli("docker-local", d => d.AsDefault())
           .WithDockerCli("docker-remote", d => d.AsDefault())
-          .BuildAsync();
+          .BuildAsync(cancellationToken: TestContext.Current.CancellationToken);
 
       try
       {
@@ -260,7 +260,7 @@ namespace FluentDocker.Tests.CoreTests.Kernel
       // Act
       var kernel = await FluentDockerKernel.Create()
           .WithDockerCli("docker", d => d.AsDefault())
-          .BuildAsync();
+          .BuildAsync(cancellationToken: TestContext.Current.CancellationToken);
 
       try
       {

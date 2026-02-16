@@ -20,13 +20,13 @@ namespace FluentDocker.Tests.Integration.DockerApiDriver
     {
       await EnsureImageAsync(TestImage);
 
-      var listResult = await ImageDriver.ListAsync(Context);
+      var listResult = await ImageDriver.ListAsync(Context, cancellationToken: TestContext.Current.CancellationToken);
       Assert.True(listResult.Success);
 
       var alpine = listResult.Data.FirstOrDefault(
           i => i.RepoTags?.Any(t => t.Contains("alpine")) == true) ?? throw new Exception("$XunitDynamicSkip$Alpine image not found");
 
-      var inspectResult = await ImageDriver.InspectAsync(Context, alpine.Id);
+      var inspectResult = await ImageDriver.InspectAsync(Context, alpine.Id, cancellationToken: TestContext.Current.CancellationToken);
 
       Assert.True(inspectResult.Success,
           $"Inspect failed: {inspectResult.Error}");
@@ -45,20 +45,20 @@ namespace FluentDocker.Tests.Integration.DockerApiDriver
 
       try
       {
-        var listResult = await ImageDriver.ListAsync(Context);
+        var listResult = await ImageDriver.ListAsync(Context, cancellationToken: TestContext.Current.CancellationToken);
         Assert.True(listResult.Success);
 
         var alpine = listResult.Data.FirstOrDefault(
             i => i.RepoTags?.Any(t => t.Contains("alpine")) == true) ?? throw new Exception("$XunitDynamicSkip$Alpine image not found");
 
         var tagResult = await ImageDriver.TagAsync(
-            Context, alpine.Id, "localhost/test-repo", tagName);
+            Context, alpine.Id, "localhost/test-repo", tagName, cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.True(tagResult.Success,
             $"Tag failed: {tagResult.Error}");
 
         // Verify new tag exists
-        var verifyList = await ImageDriver.ListAsync(Context);
+        var verifyList = await ImageDriver.ListAsync(Context, cancellationToken: TestContext.Current.CancellationToken);
         Assert.Contains(verifyList.Data,
             i => i.RepoTags?.Any(
                 t => t.Contains(tagName)) == true);
@@ -69,7 +69,7 @@ namespace FluentDocker.Tests.Integration.DockerApiDriver
         try
         {
           await ImageDriver.RemoveAsync(
-              Context, $"localhost/test-repo:{tagName}");
+              Context, $"localhost/test-repo:{tagName}", cancellationToken: TestContext.Current.CancellationToken);
         }
         catch { }
       }
@@ -84,12 +84,12 @@ namespace FluentDocker.Tests.Integration.DockerApiDriver
     {
       await EnsureImageAsync(TestImage);
 
-      var listResult = await ImageDriver.ListAsync(Context);
+      var listResult = await ImageDriver.ListAsync(Context, cancellationToken: TestContext.Current.CancellationToken);
       var alpine = listResult.Data.FirstOrDefault(
           i => i.RepoTags?.Any(t => t.Contains("alpine")) == true) ?? throw new Exception("$XunitDynamicSkip$Alpine image not found");
 
       var historyResult = await ImageDriver.HistoryAsync(
-          Context, alpine.Id);
+          Context, alpine.Id, cancellationToken: TestContext.Current.CancellationToken);
 
       Assert.True(historyResult.Success,
           $"History failed: {historyResult.Error}");
@@ -109,16 +109,16 @@ namespace FluentDocker.Tests.Integration.DockerApiDriver
       await EnsureImageAsync(BusyboxImage);
 
       // Tag it so we can safely remove the tag without losing the base image
-      var listResult = await ImageDriver.ListAsync(Context);
+      var listResult = await ImageDriver.ListAsync(Context, cancellationToken: TestContext.Current.CancellationToken);
       var busybox = listResult.Data.FirstOrDefault(
           i => i.RepoTags?.Any(t => t.Contains("busybox")) == true) ?? throw new Exception("$XunitDynamicSkip$Busybox image not found");
 
       var tempTag = $"remove-test-{Guid.NewGuid():N}"[..20];
       await ImageDriver.TagAsync(
-          Context, busybox.Id, "localhost/remove-test", tempTag);
+          Context, busybox.Id, "localhost/remove-test", tempTag, cancellationToken: TestContext.Current.CancellationToken);
 
       var removeResult = await ImageDriver.RemoveAsync(
-          Context, $"localhost/remove-test:{tempTag}");
+          Context, $"localhost/remove-test:{tempTag}", cancellationToken: TestContext.Current.CancellationToken);
 
       Assert.True(removeResult.Success,
           $"Remove failed: {removeResult.Error}");
@@ -131,7 +131,7 @@ namespace FluentDocker.Tests.Integration.DockerApiDriver
     [Fact]
     public async Task Image_Prune_Succeeds()
     {
-      var pruneResult = await ImageDriver.PruneAsync(Context);
+      var pruneResult = await ImageDriver.PruneAsync(Context, cancellationToken: TestContext.Current.CancellationToken);
 
       Assert.True(pruneResult.Success,
           $"Prune failed: {pruneResult.Error}");
@@ -145,7 +145,7 @@ namespace FluentDocker.Tests.Integration.DockerApiDriver
     public async Task Image_Inspect_NonExistent_Fails()
     {
       var fakeId = "sha256:" + new string('a', 64);
-      var result = await ImageDriver.InspectAsync(Context, fakeId);
+      var result = await ImageDriver.InspectAsync(Context, fakeId, cancellationToken: TestContext.Current.CancellationToken);
       Assert.False(result.Success);
     }
 
@@ -153,7 +153,7 @@ namespace FluentDocker.Tests.Integration.DockerApiDriver
     public async Task Image_Remove_NonExistent_Fails()
     {
       var fakeImage = $"nonexistent-{Guid.NewGuid():N}"[..20] + ":latest";
-      var result = await ImageDriver.RemoveAsync(Context, fakeImage);
+      var result = await ImageDriver.RemoveAsync(Context, fakeImage, cancellationToken: TestContext.Current.CancellationToken);
       Assert.False(result.Success);
     }
 

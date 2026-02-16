@@ -56,7 +56,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
       mock.SetupPost("/services/create", 200, @"{""ID"":""svc123""}");
 
       var config = new ServiceCreateConfig { Name = "web", Image = "nginx:latest" };
-      var result = await driver.CreateAsync(Ctx, config);
+      var result = await driver.CreateAsync(Ctx, config, cancellationToken: TestContext.Current.CancellationToken);
 
       Assert.True(result.Success);
       Assert.Equal("svc123", result.Data.Id);
@@ -81,7 +81,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
                 },
         Labels = new Dictionary<string, string> { ["env"] = "prod" }
       };
-      var result = await driver.CreateAsync(Ctx, config);
+      var result = await driver.CreateAsync(Ctx, config, cancellationToken: TestContext.Current.CancellationToken);
 
       Assert.True(result.Success);
       Assert.Equal("svc456", result.Data.Id);
@@ -97,7 +97,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
           @"{""message"":""internal error""}");
 
       var config = new ServiceCreateConfig { Name = "fail", Image = "bad" };
-      var result = await driver.CreateAsync(Ctx, config);
+      var result = await driver.CreateAsync(Ctx, config, cancellationToken: TestContext.Current.CancellationToken);
 
       Assert.False(result.Success);
       Assert.Equal(ErrorCodes.Service.CreateFailed, result.ErrorCode);
@@ -111,7 +111,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
       var (driver, mock) = CreateDriver();
       mock.SetupDelete("/services/svc1", 200, "");
 
-      var result = await driver.RemoveAsync(Ctx, new[] { "svc1" });
+      var result = await driver.RemoveAsync(Ctx, new[] { "svc1" }, cancellationToken: TestContext.Current.CancellationToken);
 
       Assert.True(result.Success);
       var requests = mock.GetRequests();
@@ -126,7 +126,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
       mock.SetupDelete("/services/missing", 404,
           @"{""message"":""service not found""}");
 
-      var result = await driver.RemoveAsync(Ctx, new[] { "missing" });
+      var result = await driver.RemoveAsync(Ctx, new[] { "missing" }, cancellationToken: TestContext.Current.CancellationToken);
 
       Assert.False(result.Success);
       Assert.Equal(ErrorCodes.Service.NotFound, result.ErrorCode);
@@ -142,7 +142,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
       mock.SetupPost("/services/svc-abc/update", 200, "{}");
 
       var config = new ServiceUpdateConfig { Replicas = 5 };
-      var result = await driver.UpdateAsync(Ctx, "svc-abc", config);
+      var result = await driver.UpdateAsync(Ctx, "svc-abc", config, cancellationToken: TestContext.Current.CancellationToken);
 
       Assert.True(result.Success);
       var requests = mock.GetRequests();
@@ -161,7 +161,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
           @"{""message"":""service not found""}");
 
       var config = new ServiceUpdateConfig { Replicas = 2 };
-      var result = await driver.UpdateAsync(Ctx, "gone", config);
+      var result = await driver.UpdateAsync(Ctx, "gone", config, cancellationToken: TestContext.Current.CancellationToken);
 
       Assert.False(result.Success);
       Assert.Equal(ErrorCodes.Service.NotFound, result.ErrorCode);
@@ -176,7 +176,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
       mock.SetupGet("/services/svc-abc", 200, ServiceJson);
       mock.SetupPost("/services/svc-abc/update", 200, "{}");
 
-      var result = await driver.RollbackAsync(Ctx, "svc-abc");
+      var result = await driver.RollbackAsync(Ctx, "svc-abc", cancellationToken: TestContext.Current.CancellationToken);
 
       Assert.True(result.Success);
       var requests = mock.GetRequests();
@@ -193,7 +193,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
       mock.SetupGet("/services/gone", 404,
           @"{""message"":""not found""}");
 
-      var result = await driver.RollbackAsync(Ctx, "gone");
+      var result = await driver.RollbackAsync(Ctx, "gone", cancellationToken: TestContext.Current.CancellationToken);
 
       Assert.False(result.Success);
       Assert.Equal(ErrorCodes.Service.NotFound, result.ErrorCode);
@@ -207,7 +207,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
       var (driver, mock) = CreateDriver();
       mock.SetupGet("/services", 200, ServiceListJson);
 
-      var result = await driver.ListAsync(Ctx);
+      var result = await driver.ListAsync(Ctx, cancellationToken: TestContext.Current.CancellationToken);
 
       Assert.True(result.Success);
       Assert.Equal(2, result.Data.Count);
@@ -228,7 +228,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
       var (driver, mock) = CreateDriver();
       mock.SetupGet("/services", 200, "[]");
 
-      var result = await driver.ListAsync(Ctx);
+      var result = await driver.ListAsync(Ctx, cancellationToken: TestContext.Current.CancellationToken);
 
       Assert.True(result.Success);
       Assert.Empty(result.Data);
@@ -240,7 +240,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
       var (driver, mock) = CreateDriver();
       mock.SetupGet("/services", 500, @"{""message"":""err""}");
 
-      var result = await driver.ListAsync(Ctx);
+      var result = await driver.ListAsync(Ctx, cancellationToken: TestContext.Current.CancellationToken);
 
       Assert.False(result.Success);
       Assert.Equal(ErrorCodes.Service.ListFailed, result.ErrorCode);
@@ -254,7 +254,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
       var (driver, mock) = CreateDriver();
       mock.SetupGet("/services/svc-abc", 200, ServiceJson);
 
-      var result = await driver.InspectAsync(Ctx, "svc-abc");
+      var result = await driver.InspectAsync(Ctx, "svc-abc", cancellationToken: TestContext.Current.CancellationToken);
 
       Assert.True(result.Success);
       Assert.Equal("svc-abc", result.Data.Id);
@@ -275,7 +275,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
           + @"""TaskTemplate"":{""ContainerSpec"":{""Image"":""redis""}},"
           + @"""Mode"":{""Global"":{}}}}");
 
-      var result = await driver.InspectAsync(Ctx, "gsvc");
+      var result = await driver.InspectAsync(Ctx, "gsvc", cancellationToken: TestContext.Current.CancellationToken);
 
       Assert.True(result.Success);
       Assert.Equal("global", result.Data.Mode);
@@ -289,7 +289,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
       mock.SetupGet("/services/missing", 404,
           @"{""message"":""service not found""}");
 
-      var result = await driver.InspectAsync(Ctx, "missing");
+      var result = await driver.InspectAsync(Ctx, "missing", cancellationToken: TestContext.Current.CancellationToken);
 
       Assert.False(result.Success);
       Assert.Equal(ErrorCodes.Service.NotFound, result.ErrorCode);
@@ -303,7 +303,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
       var (driver, mock) = CreateDriver();
       mock.SetupGet("/tasks", 200, TaskListJson);
 
-      var result = await driver.GetTasksAsync(Ctx, "web");
+      var result = await driver.GetTasksAsync(Ctx, "web", cancellationToken: TestContext.Current.CancellationToken);
 
       Assert.True(result.Success);
       Assert.Equal(2, result.Data.Count);
@@ -326,7 +326,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
       var (driver, mock) = CreateDriver();
       mock.SetupGet("/tasks", 200, "[]");
 
-      var result = await driver.GetTasksAsync(Ctx, "empty-svc");
+      var result = await driver.GetTasksAsync(Ctx, "empty-svc", cancellationToken: TestContext.Current.CancellationToken);
 
       Assert.True(result.Success);
       Assert.Empty(result.Data);
@@ -338,7 +338,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
       var (driver, mock) = CreateDriver();
       mock.SetupGet("/tasks", 500, @"{""message"":""err""}");
 
-      var result = await driver.GetTasksAsync(Ctx, "web");
+      var result = await driver.GetTasksAsync(Ctx, "web", cancellationToken: TestContext.Current.CancellationToken);
 
       Assert.False(result.Success);
       Assert.Equal(ErrorCodes.Service.TasksFailed, result.ErrorCode);
@@ -352,7 +352,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
       var (driver, mock) = CreateDriver();
       mock.SetupStream("/services/svc1/logs", "line1\nline2\nline3");
 
-      var result = await driver.GetLogsAsync(Ctx, "svc1");
+      var result = await driver.GetLogsAsync(Ctx, "svc1", cancellationToken: TestContext.Current.CancellationToken);
 
       Assert.True(result.Success);
       Assert.Contains("line1", result.Data);
@@ -374,7 +374,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
       System.Array.Copy(payload, 0, frame, 8, payload.Length);
       mock.SetupStreamBytes("/services/svc1/logs", frame);
 
-      var result = await driver.GetLogsAsync(Ctx, "svc1");
+      var result = await driver.GetLogsAsync(Ctx, "svc1", cancellationToken: TestContext.Current.CancellationToken);
 
       Assert.True(result.Success);
       Assert.Equal("hello logs", result.Data);
@@ -389,7 +389,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
       var (driver, mock) = CreateDriver();
       mock.SetupStream("/services/svc1/logs", "");
 
-      var result = await driver.GetLogsAsync(Ctx, "svc1");
+      var result = await driver.GetLogsAsync(Ctx, "svc1", cancellationToken: TestContext.Current.CancellationToken);
 
       Assert.True(result.Success);
       Assert.Equal(string.Empty, result.Data);
@@ -402,7 +402,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
       mock.SetupStream("/services/svc1/logs", "ok");
 
       var config = new ServiceLogsConfig { Tail = 50, Timestamps = true };
-      var result = await driver.GetLogsAsync(Ctx, "svc1", config);
+      var result = await driver.GetLogsAsync(Ctx, "svc1", config, cancellationToken: TestContext.Current.CancellationToken);
 
       Assert.True(result.Success);
       var requests = mock.GetRequests();
@@ -419,7 +419,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
       mock.SetupStream("/services/svc1/logs", "log data");
 
       var config = new ServiceLogsConfig { Since = "2024-01-01" };
-      var result = await driver.GetLogsAsync(Ctx, "svc1", config);
+      var result = await driver.GetLogsAsync(Ctx, "svc1", config, cancellationToken: TestContext.Current.CancellationToken);
 
       Assert.True(result.Success);
       var req = mock.GetRequests().First(r =>
@@ -437,7 +437,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
       mock.SetupPost("/services/svc-abc/update", 200, "{}");
 
       var replicas = new Dictionary<string, int> { ["svc-abc"] = 10 };
-      var result = await driver.ScaleAsync(Ctx, replicas);
+      var result = await driver.ScaleAsync(Ctx, replicas, cancellationToken: TestContext.Current.CancellationToken);
 
       Assert.True(result.Success);
       var requests = mock.GetRequests();
@@ -464,7 +464,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
         ["svc-abc"] = 5,
         ["svc-def"] = 3
       };
-      var result = await driver.ScaleAsync(Ctx, replicas);
+      var result = await driver.ScaleAsync(Ctx, replicas, cancellationToken: TestContext.Current.CancellationToken);
 
       Assert.True(result.Success);
     }
@@ -477,7 +477,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
           @"{""message"":""not found""}");
 
       var replicas = new Dictionary<string, int> { ["gone"] = 5 };
-      var result = await driver.ScaleAsync(Ctx, replicas);
+      var result = await driver.ScaleAsync(Ctx, replicas, cancellationToken: TestContext.Current.CancellationToken);
 
       Assert.False(result.Success);
     }

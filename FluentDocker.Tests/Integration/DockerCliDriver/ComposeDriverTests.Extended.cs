@@ -24,7 +24,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
           ComposeFiles = new List<string> { composeFile },
           ProjectName = projectName,
           NoCache = true
-        });
+        }, TestContext.Current.CancellationToken);
 
         Assert.True(buildResult.Success, $"Build failed: {buildResult.Error}");
       }
@@ -36,7 +36,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
           ComposeFiles = new List<string> { composeFile },
           ProjectName = projectName,
           RemoveImages = "local"
-        });
+        }, TestContext.Current.CancellationToken);
       }
     }
 
@@ -47,7 +47,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
       {
         ComposeFiles = new List<string> { "/nonexistent/docker-compose.yml" },
         ProjectName = "fail-test"
-      });
+      }, TestContext.Current.CancellationToken);
 
       Assert.False(result.Success);
     }
@@ -67,7 +67,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
         {
           ComposeFiles = new List<string> { composeFile },
           ProjectName = projectName
-        });
+        }, TestContext.Current.CancellationToken);
         Assert.True(createResult.Success, $"Create failed: {createResult.Error}");
 
         // Containers should exist but NOT be running
@@ -76,7 +76,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
           ComposeFiles = new List<string> { composeFile },
           ProjectName = projectName,
           All = true
-        });
+        }, TestContext.Current.CancellationToken);
         Assert.True(listResult.Success);
         Assert.True(listResult.Data.Count >= 1, "Should have created containers");
         Assert.DoesNotContain(listResult.Data,
@@ -89,7 +89,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
           ComposeFiles = new List<string> { composeFile },
           ProjectName = projectName,
           RemoveVolumes = true
-        });
+        }, TestContext.Current.CancellationToken);
       }
     }
 
@@ -105,22 +105,22 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
         {
           ComposeFiles = new List<string> { composeFile },
           ProjectName = projectName
-        });
+        }, TestContext.Current.CancellationToken);
 
         var startResult = await ComposeDriver.StartAsync(Context, new ComposeFileConfig
         {
           ComposeFiles = new List<string> { composeFile },
           ProjectName = projectName
-        });
+        }, TestContext.Current.CancellationToken);
         Assert.True(startResult.Success, $"Start failed: {startResult.Error}");
 
-        await Task.Delay(3000);
+        await Task.Delay(3000, TestContext.Current.CancellationToken);
 
         var listResult = await ComposeDriver.ListAsync(Context, new ComposeListConfig
         {
           ComposeFiles = new List<string> { composeFile },
           ProjectName = projectName
-        });
+        }, TestContext.Current.CancellationToken);
         Assert.True(listResult.Success);
         Assert.Contains(listResult.Data,
             s => s.State?.ToLower() == "running");
@@ -132,7 +132,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
           ComposeFiles = new List<string> { composeFile },
           ProjectName = projectName,
           RemoveVolumes = true
-        });
+        }, TestContext.Current.CancellationToken);
       }
     }
 
@@ -153,8 +153,8 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
           ProjectName = projectName,
           Detached = true,
           RemoveOrphans = true
-        });
-        await Task.Delay(5000);
+        }, TestContext.Current.CancellationToken);
+        await Task.Delay(5000, TestContext.Current.CancellationToken);
 
         var restartResult = await ComposeDriver.RestartAsync(Context,
             new ComposeRestartConfig
@@ -162,18 +162,18 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
               ComposeFiles = new List<string> { composeFile },
               ProjectName = projectName,
               Timeout = 10
-            });
+            }, TestContext.Current.CancellationToken);
         Assert.True(restartResult.Success,
             $"Restart failed: {restartResult.Error}");
 
-        await Task.Delay(3000);
+        await Task.Delay(3000, TestContext.Current.CancellationToken);
 
         // Verify service is still running after restart
         var listResult = await ComposeDriver.ListAsync(Context, new ComposeListConfig
         {
           ComposeFiles = new List<string> { composeFile },
           ProjectName = projectName
-        });
+        }, TestContext.Current.CancellationToken);
         Assert.True(listResult.Success);
         Assert.Contains(listResult.Data,
             s => s.State?.ToLower() == "running");
@@ -185,7 +185,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
           ComposeFiles = new List<string> { composeFile },
           ProjectName = projectName,
           RemoveVolumes = true
-        });
+        }, TestContext.Current.CancellationToken);
       }
     }
 
@@ -207,8 +207,8 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
           ProjectName = projectName,
           Detached = true,
           RemoveOrphans = true
-        });
-        await Task.Delay(3000);
+        }, TestContext.Current.CancellationToken);
+        await Task.Delay(3000, TestContext.Current.CancellationToken);
 
         // Stop services first
         await ComposeDriver.StopAsync(Context, new ComposeStopConfig
@@ -216,7 +216,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
           ComposeFiles = new List<string> { composeFile },
           ProjectName = projectName,
           Timeout = 10
-        });
+        }, TestContext.Current.CancellationToken);
 
         // Remove stopped containers
         var removeResult = await ComposeDriver.RemoveAsync(Context,
@@ -225,7 +225,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
               ComposeFiles = new List<string> { composeFile },
               ProjectName = projectName,
               Force = true
-            });
+            }, TestContext.Current.CancellationToken);
         Assert.True(removeResult.Success,
             $"Remove failed: {removeResult.Error}");
 
@@ -235,7 +235,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
           ComposeFiles = new List<string> { composeFile },
           ProjectName = projectName,
           All = true
-        });
+        }, TestContext.Current.CancellationToken);
         Assert.True(listResult.Success);
         Assert.True(listResult.Data.Count == 0,
             $"Expected 0 containers after remove, got {listResult.Data.Count}");
@@ -247,7 +247,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
           ComposeFiles = new List<string> { composeFile },
           ProjectName = projectName,
           RemoveVolumes = true
-        });
+        }, TestContext.Current.CancellationToken);
       }
     }
 
@@ -269,14 +269,14 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
           ProjectName = projectName,
           Detached = true,
           RemoveOrphans = true
-        });
-        await Task.Delay(5000);
+        }, TestContext.Current.CancellationToken);
+        await Task.Delay(5000, TestContext.Current.CancellationToken);
 
         var topResult = await ComposeDriver.TopAsync(Context, new ComposeFileConfig
         {
           ComposeFiles = new List<string> { composeFile },
           ProjectName = projectName
-        });
+        }, TestContext.Current.CancellationToken);
 
         Assert.True(topResult.Success, $"Top failed: {topResult.Error}");
         Assert.NotNull(topResult.Data);
@@ -289,7 +289,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
           ComposeFiles = new List<string> { composeFile },
           ProjectName = projectName,
           RemoveVolumes = true
-        });
+        }, TestContext.Current.CancellationToken);
       }
     }
 
@@ -311,15 +311,15 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
           ProjectName = projectName,
           Detached = true,
           RemoveOrphans = true
-        });
-        await Task.Delay(3000);
+        }, TestContext.Current.CancellationToken);
+        await Task.Delay(3000, TestContext.Current.CancellationToken);
 
         var imagesResult = await ComposeDriver.ImagesAsync(Context,
             new ComposeFileConfig
             {
               ComposeFiles = new List<string> { composeFile },
               ProjectName = projectName
-            });
+            }, TestContext.Current.CancellationToken);
 
         Assert.True(imagesResult.Success, $"Images failed: {imagesResult.Error}");
         Assert.NotNull(imagesResult.Data);
@@ -334,7 +334,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
           ComposeFiles = new List<string> { composeFile },
           ProjectName = projectName,
           RemoveVolumes = true
-        });
+        }, TestContext.Current.CancellationToken);
       }
     }
 
@@ -356,8 +356,8 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
           ProjectName = projectName,
           Detached = true,
           RemoveOrphans = true
-        });
-        await Task.Delay(5000);
+        }, TestContext.Current.CancellationToken);
+        await Task.Delay(5000, TestContext.Current.CancellationToken);
 
         var portResult = await ComposeDriver.PortAsync(Context, new ComposePortConfig
         {
@@ -365,7 +365,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
           ProjectName = projectName,
           Service = "rabbitmq",
           PrivatePort = 5672
-        });
+        }, TestContext.Current.CancellationToken);
 
         Assert.True(portResult.Success, $"Port failed: {portResult.Error}");
         Assert.NotNull(portResult.Data);
@@ -378,7 +378,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
           ComposeFiles = new List<string> { composeFile },
           ProjectName = projectName,
           RemoveVolumes = true
-        });
+        }, TestContext.Current.CancellationToken);
       }
     }
 
@@ -394,7 +394,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
       var pullResult = await ComposeDriver.PullAsync(Context, new ComposePullConfig
       {
         ComposeFiles = new List<string> { composeFile }
-      });
+      }, TestContext.Current.CancellationToken);
 
       Assert.True(pullResult.Success, $"Pull failed: {pullResult.Error}");
     }
@@ -420,7 +420,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
           Rm = true,
           NoDeps = true,
           Tty = false
-        });
+        }, TestContext.Current.CancellationToken);
 
         Assert.True(runResult.Success, $"Run failed: {runResult.Error}");
         Assert.Contains("hello-from-run", runResult.Data);
@@ -432,7 +432,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
           ComposeFiles = new List<string> { composeFile },
           ProjectName = projectName,
           RemoveVolumes = true
-        });
+        }, TestContext.Current.CancellationToken);
       }
     }
 
@@ -455,8 +455,8 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
           ProjectName = projectName,
           Detached = true,
           RemoveOrphans = true
-        });
-        await Task.Delay(5000);
+        }, TestContext.Current.CancellationToken);
+        await Task.Delay(5000, TestContext.Current.CancellationToken);
 
         File.WriteAllText(tempFile, "test content from host");
 
@@ -466,7 +466,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
           ProjectName = projectName,
           Source = tempFile,
           Destination = "rabbitmq:/tmp/testfile.txt"
-        });
+        }, TestContext.Current.CancellationToken);
 
         Assert.True(copyResult.Success, $"Copy failed: {copyResult.Error}");
 
@@ -479,7 +479,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
               Service = "rabbitmq",
               Command = new[] { "cat", "/tmp/testfile.txt" },
               Tty = false
-            });
+            }, TestContext.Current.CancellationToken);
         Assert.True(execResult.Success, $"Verify exec failed: {execResult.Error}");
         Assert.Contains("test content from host", execResult.Data);
       }
@@ -490,7 +490,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
           ComposeFiles = new List<string> { composeFile },
           ProjectName = projectName,
           RemoveVolumes = true
-        });
+        }, TestContext.Current.CancellationToken);
         if (File.Exists(tempFile))
           File.Delete(tempFile);
       }

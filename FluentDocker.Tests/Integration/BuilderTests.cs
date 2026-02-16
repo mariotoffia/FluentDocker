@@ -18,14 +18,14 @@ namespace FluentDocker.Tests.Integration
       // Arrange
       var kernel = await FluentDockerKernel.Create()
           .WithDockerCli("docker", d => d.AsDefault())
-          .BuildAsync();
+          .BuildAsync(cancellationToken: TestContext.Current.CancellationToken);
 
       // Ensure image is available
       var imageDriver = kernel.SysCtl<FluentDocker.Drivers.IImageDriver>("docker");
       await imageDriver.PullAsync(
           new Model.Drivers.DriverContext("docker"),
           "alpine",
-          "latest");
+          "latest", cancellationToken: TestContext.Current.CancellationToken);
 
       try
       {
@@ -35,7 +35,7 @@ namespace FluentDocker.Tests.Integration
                 .UseContainer(c => c
                     .UseImage("alpine:latest")
                     .WithName($"test-builder-{Guid.NewGuid():N}"))
-            .BuildAsync();
+            .BuildAsync(cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(results);
@@ -58,13 +58,13 @@ namespace FluentDocker.Tests.Integration
       var kernel = await FluentDockerKernel.Create()
           .WithDockerCli("docker-1", d => d.AsDefault())
           .WithDockerCli("docker-2", d => d.AsDefault())
-          .BuildAsync();
+          .BuildAsync(cancellationToken: TestContext.Current.CancellationToken);
 
       // Ensure images are available
       var imageDriver1 = kernel.SysCtl<FluentDocker.Drivers.IImageDriver>("docker-1");
       var imageDriver2 = kernel.SysCtl<FluentDocker.Drivers.IImageDriver>("docker-2");
-      await imageDriver1.PullAsync(new Model.Drivers.DriverContext("docker-1"), "alpine", "latest");
-      await imageDriver2.PullAsync(new Model.Drivers.DriverContext("docker-2"), "alpine", "latest");
+      await imageDriver1.PullAsync(new Model.Drivers.DriverContext("docker-1"), "alpine", "latest", cancellationToken: TestContext.Current.CancellationToken);
+      await imageDriver2.PullAsync(new Model.Drivers.DriverContext("docker-2"), "alpine", "latest", cancellationToken: TestContext.Current.CancellationToken);
 
       try
       {
@@ -75,7 +75,7 @@ namespace FluentDocker.Tests.Integration
                 .UseContainer(c => c.UseImage("alpine:latest").WithName($"d1-c2-{Guid.NewGuid():N}"))
             .WithinDriver("docker-2")  // Reuses kernel
                 .UseContainer(c => c.UseImage("alpine:latest").WithName($"d2-c1-{Guid.NewGuid():N}"))
-            .BuildAsync();
+            .BuildAsync(cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(results);
@@ -108,7 +108,7 @@ namespace FluentDocker.Tests.Integration
       var kernel = await FluentDockerKernel.Create()
           .WithDockerCli("docker-1", d => d.AsDefault())
           .WithDockerCli("docker-2", d => d.AsDefault())
-          .BuildAsync();
+          .BuildAsync(cancellationToken: TestContext.Current.CancellationToken);
 
       var builder = new Builder()
           .WithinDriver("docker-1", kernel)  // Sets kernel

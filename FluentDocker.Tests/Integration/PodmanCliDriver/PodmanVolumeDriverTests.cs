@@ -20,13 +20,13 @@ namespace FluentDocker.Tests.Integration.PodmanCliDriver
       try
       {
         var config = new VolumeCreateConfig { Name = name };
-        var createResult = await VolumeDriver.CreateAsync(Context, config);
+        var createResult = await VolumeDriver.CreateAsync(Context, config, cancellationToken: TestContext.Current.CancellationToken);
         Assert.True(createResult.Success, $"Create failed: {createResult.Error}");
         Assert.Equal(name, createResult.Data.Name);
       }
       finally
       {
-        await VolumeDriver.RemoveAsync(Context, name, force: true);
+        await VolumeDriver.RemoveAsync(Context, name, force: true, cancellationToken: TestContext.Current.CancellationToken);
       }
     }
 
@@ -36,15 +36,15 @@ namespace FluentDocker.Tests.Integration.PodmanCliDriver
       var name = UniqueName("vol");
       try
       {
-        await VolumeDriver.CreateAsync(Context, new VolumeCreateConfig { Name = name });
+        await VolumeDriver.CreateAsync(Context, new VolumeCreateConfig { Name = name }, cancellationToken: TestContext.Current.CancellationToken);
 
-        var result = await VolumeDriver.InspectAsync(Context, name);
+        var result = await VolumeDriver.InspectAsync(Context, name, cancellationToken: TestContext.Current.CancellationToken);
         Assert.True(result.Success, $"Inspect failed: {result.Error}");
         Assert.Equal(name, result.Data.Name);
       }
       finally
       {
-        await VolumeDriver.RemoveAsync(Context, name, force: true);
+        await VolumeDriver.RemoveAsync(Context, name, force: true, cancellationToken: TestContext.Current.CancellationToken);
       }
     }
 
@@ -54,15 +54,15 @@ namespace FluentDocker.Tests.Integration.PodmanCliDriver
       var name = UniqueName("vol");
       try
       {
-        await VolumeDriver.CreateAsync(Context, new VolumeCreateConfig { Name = name });
+        await VolumeDriver.CreateAsync(Context, new VolumeCreateConfig { Name = name }, cancellationToken: TestContext.Current.CancellationToken);
 
-        var result = await VolumeDriver.ListAsync(Context);
+        var result = await VolumeDriver.ListAsync(Context, cancellationToken: TestContext.Current.CancellationToken);
         Assert.True(result.Success, $"List failed: {result.Error}");
         Assert.NotEmpty(result.Data);
       }
       finally
       {
-        await VolumeDriver.RemoveAsync(Context, name, force: true);
+        await VolumeDriver.RemoveAsync(Context, name, force: true, cancellationToken: TestContext.Current.CancellationToken);
       }
     }
   }

@@ -380,7 +380,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
     public async Task GetCapabilities_SupportsMachines()
     {
       var pack = new PodmanCliDriverPack();
-      var caps = await pack.GetCapabilitiesAsync();
+      var caps = await pack.GetCapabilitiesAsync(TestContext.Current.CancellationToken);
       Assert.True(caps.SupportsMachines);
     }
 

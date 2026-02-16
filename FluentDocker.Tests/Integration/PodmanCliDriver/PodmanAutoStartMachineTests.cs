@@ -27,14 +27,14 @@ namespace FluentDocker.Tests.Integration.PodmanCliDriver
             .WithPodmanCli("podman", d => d
                 .WithAutoStartMachine()
                 .AsDefault())
-            .BuildAsync();
+            .BuildAsync(cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.NotNull(kernel);
 
         // Verify the kernel is functional by checking health
         var pack = kernel.GetDriverPack("podman");
         Assert.NotNull(pack);
-        var healthy = await pack.IsHealthyAsync();
+        var healthy = await pack.IsHealthyAsync(cancellationToken: TestContext.Current.CancellationToken);
         Assert.True(healthy, "Podman driver should be healthy after auto-start");
       }
       finally
@@ -59,7 +59,7 @@ namespace FluentDocker.Tests.Integration.PodmanCliDriver
                   // Don't set CreateIfNotExists — just start existing
                 })
                 .AsDefault())
-            .BuildAsync();
+            .BuildAsync(cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.NotNull(kernel);
       }
@@ -85,7 +85,7 @@ namespace FluentDocker.Tests.Integration.PodmanCliDriver
                         c.CreateIfNotExists = false;
                       })
                       .AsDefault())
-                  .BuildAsync();
+                  .BuildAsync(cancellationToken: TestContext.Current.CancellationToken);
       });
 
       Assert.Contains("No Podman machine found", ex.Message);

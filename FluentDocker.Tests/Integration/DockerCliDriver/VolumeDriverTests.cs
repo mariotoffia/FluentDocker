@@ -24,7 +24,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
         var result = await VolumeDriver.CreateAsync(Context, new VolumeCreateConfig
         {
           Name = volumeName
-        });
+        }, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result.Success, $"Create failed: {result.Error}");
@@ -46,10 +46,10 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
         await VolumeDriver.CreateAsync(Context, new VolumeCreateConfig
         {
           Name = volumeName
-        });
+        }, cancellationToken: TestContext.Current.CancellationToken);
 
         // Act
-        var result = await VolumeDriver.InspectAsync(Context, volumeName);
+        var result = await VolumeDriver.InspectAsync(Context, volumeName, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result.Success, $"Inspect failed: {result.Error}");
@@ -72,10 +72,10 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
         await VolumeDriver.CreateAsync(Context, new VolumeCreateConfig
         {
           Name = volumeName
-        });
+        }, cancellationToken: TestContext.Current.CancellationToken);
 
         // Act
-        var result = await VolumeDriver.ListAsync(Context);
+        var result = await VolumeDriver.ListAsync(Context, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result.Success);
@@ -95,16 +95,16 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
       await VolumeDriver.CreateAsync(Context, new VolumeCreateConfig
       {
         Name = volumeName
-      });
+      }, cancellationToken: TestContext.Current.CancellationToken);
 
       // Act
-      var result = await VolumeDriver.RemoveAsync(Context, volumeName);
+      var result = await VolumeDriver.RemoveAsync(Context, volumeName, cancellationToken: TestContext.Current.CancellationToken);
 
       // Assert
       Assert.True(result.Success);
 
       // Verify volume is gone
-      var inspect = await VolumeDriver.InspectAsync(Context, volumeName);
+      var inspect = await VolumeDriver.InspectAsync(Context, volumeName, cancellationToken: TestContext.Current.CancellationToken);
       Assert.False(inspect.Success);
     }
 
@@ -119,7 +119,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
         await VolumeDriver.CreateAsync(Context, new VolumeCreateConfig
         {
           Name = volumeName
-        });
+        }, cancellationToken: TestContext.Current.CancellationToken);
 
         // Act - Create container with volume mounted
         var runResult = await ContainerDriver.RunAsync(Context, new ContainerCreateConfig
@@ -134,13 +134,13 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
             [volumeName] = "/var/lib/postgresql/data"
           },
           Detach = true
-        });
+        }, cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.True(runResult.Success, $"Run failed: {runResult.Error}");
         containerId = runResult.Data.Id;
 
         // Assert
-        var inspect = await ContainerDriver.InspectAsync(Context, containerId);
+        var inspect = await ContainerDriver.InspectAsync(Context, containerId, cancellationToken: TestContext.Current.CancellationToken);
         Assert.True(inspect.Success);
         Assert.NotNull(inspect.Data.Mounts);
         Assert.Contains(inspect.Data.Mounts, m => m.Name == volumeName);
@@ -167,13 +167,13 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
             ["test.label"] = "test-value",
             ["another.label"] = "another-value"
           }
-        });
+        }, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result.Success, $"Create failed: {result.Error}");
 
         // Volume was created with labels (labels may not be exposed in inspect result)
-        var inspect = await VolumeDriver.InspectAsync(Context, volumeName);
+        var inspect = await VolumeDriver.InspectAsync(Context, volumeName, cancellationToken: TestContext.Current.CancellationToken);
         Assert.True(inspect.Success);
         Assert.Equal(volumeName, inspect.Data.Name);
       }
@@ -194,11 +194,11 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
         var createResult = await VolumeDriver.CreateAsync(Context, new VolumeCreateConfig
         {
           Name = volumeName
-        });
+        }, cancellationToken: TestContext.Current.CancellationToken);
         Assert.True(createResult.Success);
 
         // Verify volume exists
-        var inspectResult = await VolumeDriver.InspectAsync(Context, volumeName);
+        var inspectResult = await VolumeDriver.InspectAsync(Context, volumeName, cancellationToken: TestContext.Current.CancellationToken);
         Assert.True(inspectResult.Success);
         Assert.Equal(volumeName, inspectResult.Data.Name);
       }
@@ -219,13 +219,13 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
         await VolumeDriver.CreateAsync(Context, new VolumeCreateConfig
         {
           Name = volumeName
-        });
+        }, cancellationToken: TestContext.Current.CancellationToken);
 
         // Act
         var result = await VolumeDriver.ListAsync(Context, new VolumeListFilter
         {
           Name = volumeName
-        });
+        }, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result.Success);

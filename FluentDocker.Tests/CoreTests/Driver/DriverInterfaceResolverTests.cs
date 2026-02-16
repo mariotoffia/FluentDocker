@@ -19,7 +19,7 @@ namespace FluentDocker.Tests.CoreTests.Driver
     {
       // Arrange
       var pack = new MockDriverPack();
-      await pack.InitializeAsync(new DriverContext("test"));
+      await pack.InitializeAsync(new DriverContext("test"), TestContext.Current.CancellationToken);
 
       // Act
       var result = pack.TryResolve(typeof(IContainerDriver), out var impl);
@@ -35,7 +35,7 @@ namespace FluentDocker.Tests.CoreTests.Driver
     {
       // Arrange
       var pack = new MockDriverPack();
-      await pack.InitializeAsync(new DriverContext("test"));
+      await pack.InitializeAsync(new DriverContext("test"), TestContext.Current.CancellationToken);
 
       // Act
       var result = pack.TryResolve(typeof(IDisposable), out var impl);
@@ -50,7 +50,7 @@ namespace FluentDocker.Tests.CoreTests.Driver
     {
       // Arrange
       var pack = new MockDriverPack();
-      await pack.InitializeAsync(new DriverContext("test"));
+      await pack.InitializeAsync(new DriverContext("test"), TestContext.Current.CancellationToken);
 
       // Act
       var interfaces = pack.GetSupportedInterfaces();
@@ -92,7 +92,7 @@ namespace FluentDocker.Tests.CoreTests.Driver
     {
       // Arrange
       var pack = new MockDriverPack();
-      await pack.InitializeAsync(new DriverContext("test"));
+      await pack.InitializeAsync(new DriverContext("test"), TestContext.Current.CancellationToken);
 
       var mockCustom = new Moq.Mock<ICustomTestDriver>();
       pack.RegisterCustomDriver(mockCustom.Object);

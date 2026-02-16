@@ -29,7 +29,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
               Image = NginxImage,
               Replicas = 1,
               Detach = true
-            });
+            }, cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.True(result.Success, $"Create failed: {result.Error}");
         Assert.NotNull(result.Data);
@@ -55,10 +55,10 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
               Image = NginxImage,
               Replicas = 1,
               Detach = true
-            });
+            }, cancellationToken: TestContext.Current.CancellationToken);
 
         var removeResult = await ServiceDriver.RemoveAsync(
-            Context, new[] { serviceName });
+            Context, new[] { serviceName }, cancellationToken: TestContext.Current.CancellationToken);
         Assert.True(removeResult.Success, $"Remove failed: {removeResult.Error}");
       }
       finally
@@ -84,11 +84,11 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
               Image = NginxImage,
               Replicas = 1,
               Detach = true
-            });
+            }, cancellationToken: TestContext.Current.CancellationToken);
 
         await WaitForServiceReplicasAsync(serviceName, 1, 30);
 
-        var listResult = await ServiceDriver.ListAsync(Context);
+        var listResult = await ServiceDriver.ListAsync(Context, cancellationToken: TestContext.Current.CancellationToken);
         Assert.True(listResult.Success, $"List failed: {listResult.Error}");
         Assert.NotNull(listResult.Data);
         Assert.Contains(listResult.Data, s => s.Name == serviceName);
@@ -112,12 +112,12 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
               Image = NginxImage,
               Replicas = 1,
               Detach = true
-            });
+            }, cancellationToken: TestContext.Current.CancellationToken);
 
         await WaitForServiceReplicasAsync(serviceName, 1, 30);
 
         var listResult = await ServiceDriver.ListAsync(Context,
-            new ServiceListFilter { Name = serviceName });
+            new ServiceListFilter { Name = serviceName }, cancellationToken: TestContext.Current.CancellationToken);
         Assert.True(listResult.Success, $"List failed: {listResult.Error}");
         Assert.Single(listResult.Data);
         Assert.Equal(serviceName, listResult.Data[0].Name);
@@ -149,12 +149,12 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
               {
                 ["test-label"] = "test-value"
               }
-            });
+            }, cancellationToken: TestContext.Current.CancellationToken);
 
         await WaitForServiceReplicasAsync(serviceName, 1, 30);
 
         var inspectResult = await ServiceDriver.InspectAsync(
-            Context, serviceName);
+            Context, serviceName, cancellationToken: TestContext.Current.CancellationToken);
         Assert.True(inspectResult.Success,
             $"Inspect failed: {inspectResult.Error}");
         Assert.NotNull(inspectResult.Data);
@@ -187,14 +187,14 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
               Image = NginxImage,
               Replicas = 1,
               Detach = true
-            });
+            }, cancellationToken: TestContext.Current.CancellationToken);
 
         await WaitForServiceReplicasAsync(serviceName, 1, 30);
 
         // Scale up to 3
         var scaleResult = await ServiceDriver.ScaleAsync(Context,
             new Dictionary<string, int> { [serviceName] = 3 },
-            detach: true);
+            detach: true, cancellationToken: TestContext.Current.CancellationToken);
         Assert.True(scaleResult.Success,
             $"Scale failed: {scaleResult.Error}");
 
@@ -202,7 +202,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
 
         // Verify via inspect
         var inspectResult = await ServiceDriver.InspectAsync(
-            Context, serviceName);
+            Context, serviceName, cancellationToken: TestContext.Current.CancellationToken);
         Assert.True(inspectResult.Success);
         Assert.Equal(3, inspectResult.Data.Replicas);
       }

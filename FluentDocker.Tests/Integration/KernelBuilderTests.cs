@@ -16,7 +16,7 @@ namespace FluentDocker.Tests.Integration
       // Arrange & Act
       var kernel = await FluentDockerKernel.Create()
           .WithDockerCli("docker", d => d.AsDefault())
-          .BuildAsync();
+          .BuildAsync(cancellationToken: TestContext.Current.CancellationToken);
 
       // Assert
       Assert.NotNull(kernel);
@@ -33,7 +33,7 @@ namespace FluentDocker.Tests.Integration
       var kernel = await FluentDockerKernel.Create()
           .WithDockerCli("docker-local", d => d.AsDefault())
           .WithDockerCli("docker-remote", d => d.AsDefault())
-          .BuildAsync();
+          .BuildAsync(cancellationToken: TestContext.Current.CancellationToken);
 
       // Assert
       Assert.NotNull(kernel);
@@ -50,7 +50,7 @@ namespace FluentDocker.Tests.Integration
       // Arrange
       var kernel = await FluentDockerKernel.Create()
           .WithDockerCli("docker", d => d.AsDefault())
-          .BuildAsync();
+          .BuildAsync(cancellationToken: TestContext.Current.CancellationToken);
 
       try
       {

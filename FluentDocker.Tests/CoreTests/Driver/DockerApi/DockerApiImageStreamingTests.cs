@@ -39,7 +39,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
           + "{\"status\":\"latest: digest: sha256:abc123\"}\n");
 
       var driver = CreateDriver(conn);
-      var result = await driver.PushAsync(Ctx, "myrepo/myimage:latest", null, default);
+      var result = await driver.PushAsync(Ctx, "myrepo/myimage:latest", null, TestContext.Current.CancellationToken);
 
       Assert.True(result.Success);
     }
@@ -53,7 +53,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
           + "{\"error\":\"denied: access forbidden\",\"errorDetail\":{\"message\":\"denied\"}}\n");
 
       var driver = CreateDriver(conn);
-      var result = await driver.PushAsync(Ctx, "myrepo/secret:latest", null, default);
+      var result = await driver.PushAsync(Ctx, "myrepo/secret:latest", null, TestContext.Current.CancellationToken);
 
       Assert.False(result.Success);
       Assert.Equal(ErrorCodes.Image.PushFailed, result.ErrorCode);
@@ -67,7 +67,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
           new HttpRequestException("Connection refused"));
 
       var driver = CreateDriver(conn);
-      var result = await driver.PushAsync(Ctx, "myrepo/myimage:latest", null, default);
+      var result = await driver.PushAsync(Ctx, "myrepo/myimage:latest", null, TestContext.Current.CancellationToken);
 
       Assert.False(result.Success);
       Assert.Equal(ErrorCodes.Image.PushFailed, result.ErrorCode);
@@ -86,7 +86,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
       conn.SetupStream("/images/create", "");
 
       var driver = CreateDriver(conn);
-      var result = await driver.PullAsync(Ctx, "ghost/image", "latest", null, default);
+      var result = await driver.PullAsync(Ctx, "ghost/image", "latest", null, TestContext.Current.CancellationToken);
 
       Assert.False(result.Success);
       Assert.Equal(ErrorCodes.Image.PullFailed, result.ErrorCode);
@@ -108,11 +108,11 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
       try
       {
         var result = await driver.SaveAsync(
-            Ctx, new[] { "nginx:latest" }, tempFile, default);
+            Ctx, new[] { "nginx:latest" }, tempFile, TestContext.Current.CancellationToken);
 
         Assert.True(result.Success);
         Assert.True(File.Exists(tempFile));
-        var content = await File.ReadAllTextAsync(tempFile);
+        var content = await File.ReadAllTextAsync(tempFile, cancellationToken: TestContext.Current.CancellationToken);
         Assert.Equal("fake-tar-content-bytes-here", content);
       }
       finally
@@ -133,7 +133,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
       try
       {
         var result = await driver.SaveAsync(
-            Ctx, new[] { "nginx:latest" }, tempFile, default);
+            Ctx, new[] { "nginx:latest" }, tempFile, TestContext.Current.CancellationToken);
 
         Assert.False(result.Success);
         Assert.Equal(ErrorCodes.Image.SaveFailed, result.ErrorCode);
@@ -156,7 +156,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
       var driver = CreateDriver(conn);
 
       var result = await driver.LoadAsync(
-          Ctx, "/tmp/nonexistent-file-12345.tar", default);
+          Ctx, "/tmp/nonexistent-file-12345.tar", TestContext.Current.CancellationToken);
 
       Assert.False(result.Success);
       Assert.Equal(ErrorCodes.Image.LoadFailed, result.ErrorCode);
@@ -175,7 +175,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
 
       var result = await driver.ImportAsync(
           Ctx, "/tmp/nonexistent-import-67890.tar",
-          "myrepo", "latest", null, default);
+          "myrepo", "latest", null, TestContext.Current.CancellationToken);
 
       Assert.False(result.Success);
       Assert.Equal(ErrorCodes.Image.ImportFailed, result.ErrorCode);

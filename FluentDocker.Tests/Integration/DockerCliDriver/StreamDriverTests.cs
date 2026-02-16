@@ -34,12 +34,12 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
               Command = new[] { "sh", "-c",
                   "for i in 1 2 3 4 5; do echo \"log-line-$i\"; done" },
               Detach = true
-            });
+            }, TestContext.Current.CancellationToken);
         Assert.True(runResult.Success, $"Run failed: {runResult.Error}");
         containerId = runResult.Data.Id;
 
         // Wait for output
-        await Task.Delay(2000);
+        await Task.Delay(2000, TestContext.Current.CancellationToken);
 
         var entries = new List<string>();
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
@@ -77,10 +77,10 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
               Command = new[] { "sh", "-c",
                   "for i in $(seq 1 20); do echo \"line-$i\"; done" },
               Detach = true
-            });
+            }, TestContext.Current.CancellationToken);
         Assert.True(runResult.Success, $"Run failed: {runResult.Error}");
         containerId = runResult.Data.Id;
-        await Task.Delay(2000);
+        await Task.Delay(2000, TestContext.Current.CancellationToken);
 
         var entries = new List<string>();
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
@@ -134,7 +134,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
         }, cts.Token);
 
         // Give the listener a moment to start
-        await Task.Delay(1000);
+        await Task.Delay(1000, TestContext.Current.CancellationToken);
 
         // Trigger a container create + start event
         containerId = await RunContainerAsync(TestImage,
@@ -170,7 +170,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
         containerId = await RunContainerAsync(NginxImage);
 
         // Allow container to stabilize before collecting stats
-        await Task.Delay(3000);
+        await Task.Delay(3000, TestContext.Current.CancellationToken);
 
         var stats = new List<ContainerStats>();
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
@@ -221,10 +221,10 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
               Interactive = true
             });
 
-        await Task.Delay(1000);
+        await Task.Delay(1000, TestContext.Current.CancellationToken);
 
         var result = await StreamDriver.AttachAsync(Context, containerId,
-            new AttachConfig { Stdout = true });
+            new AttachConfig { Stdout = true }, TestContext.Current.CancellationToken);
 
         Assert.True(result.Success, $"AttachAsync failed: {result.Error}");
         attachResult = result.Data;
@@ -255,10 +255,10 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
               Interactive = true
             });
 
-        await Task.Delay(1000);
+        await Task.Delay(1000, TestContext.Current.CancellationToken);
 
         var result = await StreamDriver.AttachAsync(Context, containerId,
-            new AttachConfig { Stdout = true });
+            new AttachConfig { Stdout = true }, TestContext.Current.CancellationToken);
         Assert.True(result.Success, $"AttachAsync failed: {result.Error}");
         attachResult = result.Data;
 
@@ -306,10 +306,10 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
               Interactive = true
             });
 
-        await Task.Delay(500);
+        await Task.Delay(500, TestContext.Current.CancellationToken);
 
         var result = await StreamDriver.AttachAsync(Context, containerId,
-            new AttachConfig { Stdout = true });
+            new AttachConfig { Stdout = true }, TestContext.Current.CancellationToken);
         Assert.True(result.Success, $"AttachAsync failed: {result.Error}");
 
         var attachResult = result.Data;

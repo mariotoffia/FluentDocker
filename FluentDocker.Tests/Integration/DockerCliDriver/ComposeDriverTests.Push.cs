@@ -39,7 +39,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
                 ["5000/tcp"] = registryPort
               }
             });
-        await Task.Delay(3000); // Wait for registry to be ready
+        await Task.Delay(3000, TestContext.Current.CancellationToken); // Wait for registry to be ready
 
         // 2. Create temp compose project with a buildable service
         tempDir = Path.Combine(Path.GetTempPath(), $"push-test-{Guid.NewGuid():N}");
@@ -65,7 +65,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
               ComposeFiles = new List<string> { composeFile },
               ProjectName = projectName,
               NoCache = true
-            });
+            }, TestContext.Current.CancellationToken);
         Assert.True(buildResult.Success, $"Build failed: {buildResult.Error}");
 
         // 4. Push to the local registry
@@ -74,7 +74,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
             {
               ComposeFiles = new List<string> { composeFile },
               ProjectName = projectName
-            });
+            }, TestContext.Current.CancellationToken);
         Assert.True(pushResult.Success, $"Push failed: {pushResult.Error}");
       }
       finally
@@ -88,7 +88,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
                 { Path.Combine(tempDir, "docker-compose.yml") },
             ProjectName = projectName,
             RemoveImages = "local"
-          });
+          }, TestContext.Current.CancellationToken);
         }
 
         // Clean up registry container
@@ -122,7 +122,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
                 ["5000/tcp"] = registryPort
               }
             });
-        await Task.Delay(3000);
+        await Task.Delay(3000, TestContext.Current.CancellationToken);
 
         tempDir = Path.Combine(Path.GetTempPath(), $"push-svc-{Guid.NewGuid():N}");
         Directory.CreateDirectory(tempDir);
@@ -151,7 +151,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
               ComposeFiles = new List<string> { composeFile },
               ProjectName = projectName,
               NoCache = true
-            });
+            }, TestContext.Current.CancellationToken);
         Assert.True(buildResult.Success, $"Build failed: {buildResult.Error}");
 
         // Push only svc-a
@@ -161,7 +161,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
               ComposeFiles = new List<string> { composeFile },
               ProjectName = projectName,
               Services = new List<string> { "svc-a" }
-            });
+            }, TestContext.Current.CancellationToken);
         Assert.True(pushResult.Success,
             $"Push svc-a failed: {pushResult.Error}");
       }
@@ -175,7 +175,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
                 { Path.Combine(tempDir, "docker-compose.yml") },
             ProjectName = projectName,
             RemoveImages = "local"
-          });
+          }, TestContext.Current.CancellationToken);
         }
 
         await RemoveContainerAsync(registryId);

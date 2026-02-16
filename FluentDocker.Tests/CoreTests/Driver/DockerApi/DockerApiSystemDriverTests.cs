@@ -33,7 +33,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
       var (driver, mock) = CreateDriver();
       mock.SetupGet("/info", 200, json);
 
-      var result = await driver.GetInfoAsync(Ctx);
+      var result = await driver.GetInfoAsync(Ctx, cancellationToken: TestContext.Current.CancellationToken);
       Assert.True(result.Success);
       Assert.Equal("Docker Desktop", result.Data.OperatingSystem);
       Assert.Equal("linux", result.Data.OSType);
@@ -62,7 +62,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
       mock.SetupGet("/info", 200,
           @"{""OperatingSystem"":""Docker Desktop"",""OSType"":""linux"",""NCPU"":8}");
 
-      var result = await driver.GetInfoAsync(Ctx);
+      var result = await driver.GetInfoAsync(Ctx, cancellationToken: TestContext.Current.CancellationToken);
       Assert.True(result.Success);
       Assert.Equal("Docker Desktop", result.Data.MetaInfo[SystemInfoMetaKeys.OperatingSystem]);
       Assert.Equal("linux", result.Data.MetaInfo[SystemInfoMetaKeys.OSType]);
@@ -75,7 +75,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
       var (driver, mock) = CreateDriver();
       mock.SetupGet("/info", 500, @"{""message"":""internal error""}");
 
-      var result = await driver.GetInfoAsync(Ctx);
+      var result = await driver.GetInfoAsync(Ctx, cancellationToken: TestContext.Current.CancellationToken);
       Assert.False(result.Success);
       Assert.Contains("internal error", result.Error);
       Assert.Equal(ErrorCodes.Api.ServerError, result.ErrorCode);
@@ -92,7 +92,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
       var (driver, mock) = CreateDriver();
       mock.SetupGet("/version", 200, json);
 
-      var result = await driver.GetVersionAsync(Ctx);
+      var result = await driver.GetVersionAsync(Ctx, cancellationToken: TestContext.Current.CancellationToken);
       Assert.True(result.Success);
       Assert.Equal("24.0.7", result.Data.ServerVersion);
       Assert.Equal("1.43", result.Data.ServerApiVersion);
@@ -111,7 +111,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
       var (driver, mock) = CreateDriver();
       mock.SetupGet("/version", 200, @"{""Version"":""24.0.7"",""ApiVersion"":""1.43""}");
 
-      var result = await driver.GetVersionAsync(Ctx);
+      var result = await driver.GetVersionAsync(Ctx, cancellationToken: TestContext.Current.CancellationToken);
       Assert.True(result.Success);
       Assert.Equal(result.Data.ServerVersion, result.Data.ClientVersion);
       Assert.Equal(result.Data.ServerApiVersion, result.Data.ClientApiVersion);
@@ -123,7 +123,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
       var (driver, mock) = CreateDriver();
       mock.SetupGet("/version", 401, @"{""message"":""unauthorized""}");
 
-      var result = await driver.GetVersionAsync(Ctx);
+      var result = await driver.GetVersionAsync(Ctx, cancellationToken: TestContext.Current.CancellationToken);
       Assert.False(result.Success);
       Assert.Equal(ErrorCodes.Api.Unauthorized, result.ErrorCode);
     }
@@ -133,7 +133,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
     {
       var (driver, mock) = CreateDriver();
       mock.SetupPing(true);
-      Assert.True((await driver.PingAsync(Ctx)).Success);
+      Assert.True((await driver.PingAsync(Ctx, cancellationToken: TestContext.Current.CancellationToken)).Success);
     }
 
     [Fact]
@@ -142,7 +142,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
       var (driver, mock) = CreateDriver();
       mock.SetupPing(false);
 
-      var result = await driver.PingAsync(Ctx);
+      var result = await driver.PingAsync(Ctx, cancellationToken: TestContext.Current.CancellationToken);
       Assert.False(result.Success);
       Assert.Equal(ErrorCodes.Driver.NotAvailable, result.ErrorCode);
       Assert.Contains("not responding", result.Error);
@@ -158,7 +158,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
       var (driver, mock) = CreateDriver();
       mock.SetupGet("/system/df", 200, json);
 
-      var result = await driver.GetDiskUsageAsync(Ctx);
+      var result = await driver.GetDiskUsageAsync(Ctx, cancellationToken: TestContext.Current.CancellationToken);
       Assert.True(result.Success);
       Assert.Equal(2, result.Data.Images.TotalCount);
       Assert.Equal(300000L, result.Data.Images.Size);
@@ -176,7 +176,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
       mock.SetupGet("/system/df", 200,
           @"{""Images"":[],""Containers"":[],""Volumes"":[]}");
 
-      var result = await driver.GetDiskUsageAsync(Ctx);
+      var result = await driver.GetDiskUsageAsync(Ctx, cancellationToken: TestContext.Current.CancellationToken);
       Assert.True(result.Success);
       Assert.Equal(0, result.Data.Images.TotalCount);
       Assert.Equal(0L, result.Data.Containers.Size);
@@ -189,7 +189,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
       var (driver, mock) = CreateDriver();
       mock.SetupGet("/system/df", 200, "{}");
 
-      var result = await driver.GetDiskUsageAsync(Ctx);
+      var result = await driver.GetDiskUsageAsync(Ctx, cancellationToken: TestContext.Current.CancellationToken);
       Assert.True(result.Success);
       Assert.Equal(0, result.Data.Images.TotalCount);
       Assert.Equal(0, result.Data.Containers.TotalCount);
@@ -210,7 +210,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
       mock.SetupPost("/build/prune", 200,
           @"{""CachesDeleted"":[""cache1""],""SpaceReclaimed"":500}");
 
-      var result = await driver.PruneAsync(Ctx);
+      var result = await driver.PruneAsync(Ctx, cancellationToken: TestContext.Current.CancellationToken);
 
       Assert.True(result.Success);
       Assert.Equal(new[] { "c1", "c2" }, result.Data.ContainersDeleted);
@@ -239,7 +239,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
           @"{""VolumesDeleted"":[""vol1"",""vol2""],""SpaceReclaimed"":5000}");
 
       var config = new SystemPruneConfig { Volumes = true };
-      var result = await driver.PruneAsync(Ctx, config);
+      var result = await driver.PruneAsync(Ctx, config, cancellationToken: TestContext.Current.CancellationToken);
 
       Assert.True(result.Success);
       Assert.Equal(new[] { "vol1", "vol2" }, result.Data.VolumesDeleted);
@@ -260,7 +260,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
       mock.SetupPost("/build/prune", 200, "{}");
 
       var config = new SystemPruneConfig { All = true };
-      var result = await driver.PruneAsync(Ctx, config);
+      var result = await driver.PruneAsync(Ctx, config, cancellationToken: TestContext.Current.CancellationToken);
 
       Assert.True(result.Success);
       var requests = mock.GetRequests();
@@ -285,7 +285,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
           ["until"] = "24h"
         }
       };
-      var result = await driver.PruneAsync(Ctx, config);
+      var result = await driver.PruneAsync(Ctx, config, cancellationToken: TestContext.Current.CancellationToken);
 
       Assert.True(result.Success);
       var requests = mock.GetRequests();
@@ -306,7 +306,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
           @"{""ImagesDeleted"":[{""Deleted"":""sha256:abc""}],""SpaceReclaimed"":200}");
       mock.SetupPost("/build/prune", 200, "{}");
 
-      var result = await driver.PruneAsync(Ctx);
+      var result = await driver.PruneAsync(Ctx, cancellationToken: TestContext.Current.CancellationToken);
 
       Assert.True(result.Success);
       Assert.Single(result.Data.ContainersDeleted);
@@ -324,7 +324,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
       mock.SetupPost("/images/prune", 200, "{}");
       mock.SetupPost("/build/prune", 200, "{}");
 
-      var result = await driver.PruneAsync(Ctx);
+      var result = await driver.PruneAsync(Ctx, cancellationToken: TestContext.Current.CancellationToken);
 
       Assert.True(result.Success);
       Assert.Empty(result.Data.ContainersDeleted);
@@ -342,7 +342,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
     {
       var (driver, mock) = CreateDriver();
       mock.SetupGet("/info", 200, @"{""OSType"":""" + osType + @"""}");
-      var result = await driver.IsWindowsEngineAsync(Ctx);
+      var result = await driver.IsWindowsEngineAsync(Ctx, cancellationToken: TestContext.Current.CancellationToken);
       Assert.True(result.Success);
       Assert.Equal(expected, result.Data);
     }
@@ -354,7 +354,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
     {
       var (driver, mock) = CreateDriver();
       mock.SetupGet("/info", 200, @"{""OSType"":""" + osType + @"""}");
-      var result = await driver.IsLinuxEngineAsync(Ctx);
+      var result = await driver.IsLinuxEngineAsync(Ctx, cancellationToken: TestContext.Current.CancellationToken);
       Assert.True(result.Success);
       Assert.Equal(expected, result.Data);
     }
@@ -364,16 +364,16 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
     {
       var (driver, mock) = CreateDriver();
       mock.SetupGet("/info", 500, @"{""message"":""server error""}");
-      Assert.False((await driver.IsLinuxEngineAsync(Ctx)).Success);
+      Assert.False((await driver.IsLinuxEngineAsync(Ctx, cancellationToken: TestContext.Current.CancellationToken)).Success);
     }
 
     [Fact]
     public async Task SwitchDaemonAsync_ReturnsCapabilityNotSupported()
     {
       var (driver, _) = CreateDriver();
-      var r1 = await driver.SwitchDaemonAsync(Ctx);
-      var r2 = await driver.SwitchToLinuxDaemonAsync(Ctx);
-      var r3 = await driver.SwitchToWindowsDaemonAsync(Ctx);
+      var r1 = await driver.SwitchDaemonAsync(Ctx, cancellationToken: TestContext.Current.CancellationToken);
+      var r2 = await driver.SwitchToLinuxDaemonAsync(Ctx, cancellationToken: TestContext.Current.CancellationToken);
+      var r3 = await driver.SwitchToWindowsDaemonAsync(Ctx, cancellationToken: TestContext.Current.CancellationToken);
       Assert.False(r1.Success);
       Assert.False(r2.Success);
       Assert.False(r3.Success);

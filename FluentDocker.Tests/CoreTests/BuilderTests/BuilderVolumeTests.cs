@@ -34,7 +34,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
           .WithinDriver(DriverId, Kernel)
           .UseVolume(v => v
               .WithName("test-volume"))
-          .BuildAsync();
+          .BuildAsync(cancellationToken: TestContext.Current.CancellationToken);
 
       // Assert
       Assert.NotNull(results);
@@ -60,7 +60,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
           .UseVolume(v => v
               .WithName("nfs-volume")
               .UseDriver("local"))
-          .BuildAsync();
+          .BuildAsync(cancellationToken: TestContext.Current.CancellationToken);
 
       // Assert
       MockPack.VolumeDriver.Verify(d => d.CreateAsync(
@@ -86,7 +86,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
               .WithDriverOption("type", "nfs")
               .WithDriverOption("o", "addr=nfs-server,rw")
               .WithDriverOption("device", ":/path/to/dir"))
-          .BuildAsync();
+          .BuildAsync(cancellationToken: TestContext.Current.CancellationToken);
 
       // Assert
       MockPack.VolumeDriver.Verify(d => d.CreateAsync(
@@ -113,7 +113,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
               .WithName("labeled-volume")
               .WithLabel("backup", "true")
               .WithLabel("retention", "7d"))
-          .BuildAsync();
+          .BuildAsync(cancellationToken: TestContext.Current.CancellationToken);
 
       // Assert
       MockPack.VolumeDriver.Verify(d => d.CreateAsync(
@@ -139,7 +139,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
           .UseVolume(v => v
               .WithName("temp-volume")
               .RemoveOnDispose())
-          .BuildAsync();
+          .BuildAsync(cancellationToken: TestContext.Current.CancellationToken);
 
       await results.DisposeAllAsync();
 
@@ -164,7 +164,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
           .WithinDriver(DriverId, Kernel)
           .UseVolume(v => v
               .WithName("persistent-volume"))
-          .BuildAsync();
+          .BuildAsync(cancellationToken: TestContext.Current.CancellationToken);
 
       await results.DisposeAllAsync();
 
@@ -190,7 +190,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
           .UseVolume(v => v.WithName("data-volume"))
           .UseVolume(v => v.WithName("config-volume"))
           .UseVolume(v => v.WithName("logs-volume"))
-          .BuildAsync();
+          .BuildAsync(cancellationToken: TestContext.Current.CancellationToken);
 
       // Assert
       Assert.Equal(3, results.All.Count());
@@ -212,7 +212,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
       await new Builder()
           .WithinDriver(DriverId, Kernel)
           .UseVolume(v => v.WithName("default-driver-volume"))
-          .BuildAsync();
+          .BuildAsync(cancellationToken: TestContext.Current.CancellationToken);
 
       // Assert - Default driver should be "local"
       MockPack.VolumeDriver.Verify(d => d.CreateAsync(

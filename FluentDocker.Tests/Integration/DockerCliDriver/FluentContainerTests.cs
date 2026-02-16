@@ -33,13 +33,13 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
           {
             ["POSTGRES_PASSWORD"] = "mysecretpassword"
           }
-        });
+        }, TestContext.Current.CancellationToken);
 
         Assert.True(result.Success, $"Create failed: {result.Error}");
         containerId = result.Data.Id;
 
         // Assert - Container should not be running
-        var inspect = await ContainerDriver.InspectAsync(Context, containerId);
+        var inspect = await ContainerDriver.InspectAsync(Context, containerId, TestContext.Current.CancellationToken);
         Assert.True(inspect.Success);
         Assert.False(inspect.Data.State.Running);
       }
@@ -65,13 +65,13 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
             ["POSTGRES_PASSWORD"] = "mysecretpassword"
           },
           Detach = true
-        });
+        }, TestContext.Current.CancellationToken);
 
         Assert.True(result.Success, $"Run failed: {result.Error}");
         containerId = result.Data.Id;
 
         // Assert
-        var inspect = await ContainerDriver.InspectAsync(Context, containerId);
+        var inspect = await ContainerDriver.InspectAsync(Context, containerId, TestContext.Current.CancellationToken);
         Assert.True(inspect.Success);
         Assert.True(inspect.Data.State.Running);
         Assert.Contains(inspect.Data.Config.Env, e => e == "POSTGRES_PASSWORD=mysecretpassword");
@@ -98,27 +98,27 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
             ["POSTGRES_PASSWORD"] = "mysecretpassword"
           },
           Detach = true
-        });
+        }, TestContext.Current.CancellationToken);
         Assert.True(runResult.Success);
         containerId = runResult.Data.Id;
 
-        var inspect = await ContainerDriver.InspectAsync(Context, containerId);
+        var inspect = await ContainerDriver.InspectAsync(Context, containerId, TestContext.Current.CancellationToken);
         Assert.True(inspect.Data.State.Running);
 
         // Act - Pause
-        var pauseResult = await ContainerDriver.PauseAsync(Context, containerId);
+        var pauseResult = await ContainerDriver.PauseAsync(Context, containerId, TestContext.Current.CancellationToken);
         Assert.True(pauseResult.Success);
 
         // Assert - Paused
-        inspect = await ContainerDriver.InspectAsync(Context, containerId);
+        inspect = await ContainerDriver.InspectAsync(Context, containerId, TestContext.Current.CancellationToken);
         Assert.True(inspect.Data.State.Paused);
 
         // Act - Unpause
-        var unpauseResult = await ContainerDriver.UnpauseAsync(Context, containerId);
+        var unpauseResult = await ContainerDriver.UnpauseAsync(Context, containerId, TestContext.Current.CancellationToken);
         Assert.True(unpauseResult.Success);
 
         // Assert - Running again
-        inspect = await ContainerDriver.InspectAsync(Context, containerId);
+        inspect = await ContainerDriver.InspectAsync(Context, containerId, TestContext.Current.CancellationToken);
         Assert.True(inspect.Data.State.Running);
         Assert.False(inspect.Data.State.Paused);
       }
@@ -152,13 +152,13 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
             ["5432/tcp"] = "40001"
           },
           Detach = true
-        });
+        }, TestContext.Current.CancellationToken);
 
         Assert.True(result.Success, $"Run failed: {result.Error}");
         containerId = result.Data.Id;
 
         // Assert
-        var inspect = await ContainerDriver.InspectAsync(Context, containerId);
+        var inspect = await ContainerDriver.InspectAsync(Context, containerId, TestContext.Current.CancellationToken);
         Assert.True(inspect.Success);
         Assert.NotNull(inspect.Data.NetworkSettings?.Ports);
 
@@ -193,17 +193,17 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
             ["POSTGRES_PASSWORD"] = "mysecretpassword"
           },
           Detach = true
-        });
+        }, TestContext.Current.CancellationToken);
 
         Assert.True(runResult.Success);
         containerId = runResult.Data.Id;
 
         // Stop the container
-        var stopResult = await ContainerDriver.StopAsync(Context, containerId, timeout: 5);
+        var stopResult = await ContainerDriver.StopAsync(Context, containerId, timeout: 5, TestContext.Current.CancellationToken);
         Assert.True(stopResult.Success);
 
         // Assert - Container should still exist (not auto-removed)
-        var inspect = await ContainerDriver.InspectAsync(Context, containerId);
+        var inspect = await ContainerDriver.InspectAsync(Context, containerId, TestContext.Current.CancellationToken);
         Assert.True(inspect.Success);
         Assert.False(inspect.Data.State.Running);
       }
@@ -228,12 +228,12 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
         Command = new[] { "echo", "hello" },
         AutoRemove = true,
         Detach = false // Wait for completion
-      });
+      }, TestContext.Current.CancellationToken);
 
       // Assert - Container should be auto-removed after command completes
-      await Task.Delay(2000); // Give Docker time to clean up
+      await Task.Delay(2000, TestContext.Current.CancellationToken); // Give Docker time to clean up
 
-      var inspect = await ContainerDriver.InspectAsync(Context, containerName);
+      var inspect = await ContainerDriver.InspectAsync(Context, containerName, TestContext.Current.CancellationToken);
       // Container should not exist (auto-removed)
       Assert.False(inspect.Success);
     }
@@ -251,7 +251,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
       try
       {
         // Arrange - Create volume
-        await VolumeDriver.CreateAsync(Context, new VolumeCreateConfig { Name = volumeName });
+        await VolumeDriver.CreateAsync(Context, new VolumeCreateConfig { Name = volumeName }, TestContext.Current.CancellationToken);
 
         // Act
         var result = await ContainerDriver.RunAsync(Context, new ContainerCreateConfig
@@ -266,13 +266,13 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
             [volumeName] = "/var/lib/postgresql/data"
           },
           Detach = true
-        });
+        }, TestContext.Current.CancellationToken);
 
         Assert.True(result.Success, $"Run failed: {result.Error}");
         containerId = result.Data.Id;
 
         // Assert
-        var inspect = await ContainerDriver.InspectAsync(Context, containerId);
+        var inspect = await ContainerDriver.InspectAsync(Context, containerId, TestContext.Current.CancellationToken);
         Assert.True(inspect.Success);
         Assert.NotNull(inspect.Data.Mounts);
         Assert.Contains(inspect.Data.Mounts, m => m.Name == volumeName);

@@ -36,12 +36,12 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
             ["POSTGRES_PASSWORD"] = "mysecretpassword"
           },
           Detach = true
-        });
+        }, TestContext.Current.CancellationToken);
         Assert.True(runResult.Success);
         containerId = runResult.Data.Id;
 
         // Act - Copy from container
-        var result = await ContainerDriver.CopyFromAsync(Context, containerId, "/etc/passwd", hostPath);
+        var result = await ContainerDriver.CopyFromAsync(Context, containerId, "/etc/passwd", hostPath, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result.Success, $"Copy failed: {result.Error}");
@@ -73,12 +73,12 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
           Image = TestImage,
           Command = new[] { "sleep", "60" },
           Detach = true
-        });
+        }, TestContext.Current.CancellationToken);
         Assert.True(runResult.Success);
         containerId = runResult.Data.Id;
 
         // Act
-        var result = await ContainerDriver.CopyToAsync(Context, containerId, testFile, "/tmp/");
+        var result = await ContainerDriver.CopyToAsync(Context, containerId, testFile, "/tmp/", TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result.Success, $"Copy failed: {result.Error}");
@@ -87,7 +87,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
         var execResult = await ContainerDriver.ExecAsync(Context, containerId, new ExecConfig
         {
           Command = new[] { "cat", "/tmp/test.txt" }
-        });
+        }, TestContext.Current.CancellationToken);
         Assert.True(execResult.Success);
         Assert.Contains("Hello from host!", execResult.Data.StdOut);
       }
@@ -118,12 +118,12 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
           Image = TestImage,
           Command = new[] { "sleep", "60" },
           Detach = true
-        });
+        }, TestContext.Current.CancellationToken);
         Assert.True(runResult.Success);
         containerId = runResult.Data.Id;
 
         // Act
-        var result = await ContainerDriver.ExportAsync(Context, containerId, exportPath);
+        var result = await ContainerDriver.ExportAsync(Context, containerId, exportPath, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result.Success, $"Export failed: {result.Error}");
@@ -160,15 +160,15 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
           Name = containerName,
           Command = new[] { "sleep", "60" },
           Detach = true
-        });
+        }, TestContext.Current.CancellationToken);
         Assert.True(firstResult.Success);
         firstContainerId = firstResult.Data.Id;
 
         // Stop it
-        await ContainerDriver.StopAsync(Context, firstContainerId, timeout: 1);
+        await ContainerDriver.StopAsync(Context, firstContainerId, timeout: 1, TestContext.Current.CancellationToken);
 
         // Act - Try to get existing container by name
-        var inspect = await ContainerDriver.InspectAsync(Context, containerName);
+        var inspect = await ContainerDriver.InspectAsync(Context, containerName, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(inspect.Success);
@@ -206,13 +206,13 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
             Retries = 3
           },
           Detach = true
-        });
+        }, TestContext.Current.CancellationToken);
 
         Assert.True(result.Success, $"Run failed: {result.Error}");
         containerId = result.Data.Id;
 
         // Assert - Health check is configured
-        var inspect = await ContainerDriver.InspectAsync(Context, containerId);
+        var inspect = await ContainerDriver.InspectAsync(Context, containerId, TestContext.Current.CancellationToken);
         Assert.True(inspect.Success);
         Assert.NotNull(inspect.Data.State.Health);
       }
@@ -240,13 +240,13 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
           Command = new[] { "sleep", "60" },
           MemoryLimit = 128 * 1024 * 1024, // 128MB
           Detach = true
-        });
+        }, TestContext.Current.CancellationToken);
 
         Assert.True(result.Success, $"Run failed: {result.Error}");
         containerId = result.Data.Id;
 
         // Assert
-        var inspect = await ContainerDriver.InspectAsync(Context, containerId);
+        var inspect = await ContainerDriver.InspectAsync(Context, containerId, TestContext.Current.CancellationToken);
         Assert.True(inspect.Success);
       }
       finally
@@ -272,7 +272,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
           Image = TestImage,
           Command = new[] { "sleep", "60" },
           Detach = true
-        });
+        }, TestContext.Current.CancellationToken);
         Assert.True(runResult.Success);
         containerId = runResult.Data.Id;
 
@@ -280,10 +280,10 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
         await ContainerDriver.ExecAsync(Context, containerId, new ExecConfig
         {
           Command = new[] { "touch", "/tmp/newfile.txt" }
-        });
+        }, TestContext.Current.CancellationToken);
 
         // Act
-        var result = await ContainerDriver.DiffAsync(Context, containerId);
+        var result = await ContainerDriver.DiffAsync(Context, containerId, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result.Success, $"Diff failed: {result.Error}");

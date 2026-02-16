@@ -14,7 +14,7 @@ namespace FluentDocker.Tests.Integration.PodmanCliDriver
     [Fact]
     public async Task Pull_Succeeds()
     {
-      var result = await ImageDriver.PullAsync(Context, "alpine", "latest");
+      var result = await ImageDriver.PullAsync(Context, "alpine", "latest", cancellationToken: TestContext.Current.CancellationToken);
       Assert.True(result.Success, $"Pull failed: {result.Error}");
     }
 
@@ -23,7 +23,7 @@ namespace FluentDocker.Tests.Integration.PodmanCliDriver
     {
       await EnsureImageAsync(TestImage);
 
-      var result = await ImageDriver.ListAsync(Context);
+      var result = await ImageDriver.ListAsync(Context, cancellationToken: TestContext.Current.CancellationToken);
       Assert.True(result.Success, $"List failed: {result.Error}");
       Assert.NotEmpty(result.Data);
     }
@@ -33,7 +33,7 @@ namespace FluentDocker.Tests.Integration.PodmanCliDriver
     {
       await EnsureImageAsync(TestImage);
 
-      var result = await ImageDriver.InspectAsync(Context, TestImage);
+      var result = await ImageDriver.InspectAsync(Context, TestImage, cancellationToken: TestContext.Current.CancellationToken);
       Assert.True(result.Success, $"Inspect failed: {result.Error}");
       Assert.NotNull(result.Data.Id);
     }
@@ -43,7 +43,7 @@ namespace FluentDocker.Tests.Integration.PodmanCliDriver
     {
       await EnsureImageAsync(TestImage);
 
-      var result = await ImageDriver.HistoryAsync(Context, TestImage);
+      var result = await ImageDriver.HistoryAsync(Context, TestImage, cancellationToken: TestContext.Current.CancellationToken);
       Assert.True(result.Success, $"History failed: {result.Error}");
       Assert.NotEmpty(result.Data);
     }

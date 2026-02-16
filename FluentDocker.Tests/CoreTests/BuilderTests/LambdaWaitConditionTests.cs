@@ -56,7 +56,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
       var result = await InvokeWaitForLambda(
           builder,
           (_, _) => -1,
-          5000);
+          5000, TestContext.Current.CancellationToken);
 
       Assert.True(result);
     }
@@ -74,7 +74,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
             callCount++;
             return iteration < 3 ? 0 : -1;
           },
-          5000);
+          5000, TestContext.Current.CancellationToken);
 
       Assert.True(result);
       Assert.Equal(4, callCount);
@@ -88,7 +88,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
       var result = await InvokeWaitForLambda(
           builder,
           (_, _) => 0,
-          200);
+          200, TestContext.Current.CancellationToken);
 
       Assert.False(result);
     }
@@ -106,7 +106,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
             callCount++;
             return 500;
           },
-          5000);
+          5000, TestContext.Current.CancellationToken);
 
       Assert.False(result);
       Assert.True(callCount >= 2, $"Expected at least 2 calls, got {callCount}");

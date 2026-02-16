@@ -33,7 +33,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
         Password = "pass1",
         Server = "https://registry.example.com"
       };
-      var result = await driver.LoginAsync(Ctx, config);
+      var result = await driver.LoginAsync(Ctx, config, cancellationToken: TestContext.Current.CancellationToken);
 
       Assert.True(result.Success);
       var requests = mock.GetRequests();
@@ -56,7 +56,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
         Password = "wrong",
         Server = "https://registry.example.com"
       };
-      var result = await driver.LoginAsync(Ctx, config);
+      var result = await driver.LoginAsync(Ctx, config, cancellationToken: TestContext.Current.CancellationToken);
 
       Assert.False(result.Success);
       Assert.Equal(ErrorCodes.Auth.InvalidCredentials, result.ErrorCode);
@@ -75,7 +75,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
         Password = "pass1",
         Server = "https://registry.example.com"
       };
-      var result = await driver.LoginAsync(Ctx, config);
+      var result = await driver.LoginAsync(Ctx, config, cancellationToken: TestContext.Current.CancellationToken);
 
       Assert.False(result.Success);
       Assert.Equal(ErrorCodes.Auth.LoginFailed, result.ErrorCode);
@@ -93,7 +93,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
         Password = "pass1",
         Server = null
       };
-      var result = await driver.LoginAsync(Ctx, config);
+      var result = await driver.LoginAsync(Ctx, config, cancellationToken: TestContext.Current.CancellationToken);
 
       Assert.True(result.Success);
       var requests = mock.GetRequests();
@@ -106,7 +106,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
     {
       var (driver, _) = CreateDriver();
 
-      var result = await driver.LogoutAsync(Ctx);
+      var result = await driver.LogoutAsync(Ctx, cancellationToken: TestContext.Current.CancellationToken);
 
       Assert.True(result.Success);
     }
@@ -116,7 +116,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
     {
       var (driver, _) = CreateDriver();
 
-      var result = await driver.LogoutAsync(Ctx, "https://registry.example.com");
+      var result = await driver.LogoutAsync(Ctx, "https://registry.example.com", cancellationToken: TestContext.Current.CancellationToken);
 
       Assert.True(result.Success);
     }
