@@ -12,6 +12,11 @@ namespace FluentDocker.Testing.Xunit
   /// Use with <c>IClassFixture&lt;XunitPodmanKubernetesFixture&gt;</c> or
   /// <c>ICollectionFixture&lt;XunitPodmanKubernetesFixture&gt;</c>.
   /// </summary>
+  /// <remarks>
+  /// <para>This fixture requires explicit initialization via
+  /// <see cref="InitializeAsync"/>. No abstract fixture base is provided for
+  /// Podman Kubernetes because it uses a config object rather than a builder.</para>
+  /// </remarks>
   public class XunitPodmanKubernetesFixture : IAsyncDisposable
   {
     private PodmanKubernetesResource _resource;

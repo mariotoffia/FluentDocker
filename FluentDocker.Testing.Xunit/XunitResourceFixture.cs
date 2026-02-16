@@ -12,6 +12,14 @@ namespace FluentDocker.Testing.Xunit
   /// Use with <c>IClassFixture&lt;XunitResourceFixture&lt;TResource&gt;&gt;</c> or
   /// <c>ICollectionFixture&lt;XunitResourceFixture&lt;TResource&gt;&gt;</c>.
   /// </summary>
+  /// <remarks>
+  /// <para>For container, compose, or topology resources, prefer the typed
+  /// abstract fixture bases (<see cref="XunitContainerFixtureBase"/>,
+  /// <see cref="XunitComposeFixtureBase"/>, <see cref="XunitTopologyFixtureBase"/>)
+  /// which provide automatic async lifecycle via <c>IAsyncLifetime</c>.</para>
+  /// <para>Use this class for custom or plugin resource types, or when you need
+  /// programmatic control over initialization.</para>
+  /// </remarks>
   /// <typeparam name="TResource">The resource type to manage.</typeparam>
   public class XunitResourceFixture<TResource> : IAsyncDisposable
       where TResource : class, ITestResource

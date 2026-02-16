@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using FluentDocker.Common;
@@ -49,7 +50,8 @@ namespace FluentDocker.Testing.Core
     /// All pod IDs created by the play operation.
     /// </summary>
     public IReadOnlyList<KubePlayPodResult> Pods =>
-        (IReadOnlyList<KubePlayPodResult>)PlayResult?.Pods ?? Array.Empty<KubePlayPodResult>();
+        PlayResult?.Pods?.ToList().AsReadOnly()
+        ?? (IReadOnlyList<KubePlayPodResult>)Array.Empty<KubePlayPodResult>();
 
     /// <summary>
     /// Generates Kubernetes YAML from a running resource.

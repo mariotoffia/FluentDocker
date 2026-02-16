@@ -12,6 +12,11 @@ namespace FluentDocker.Testing.Xunit
   /// Use with <c>IClassFixture&lt;XunitSwarmStackFixture&gt;</c> or
   /// <c>ICollectionFixture&lt;XunitSwarmStackFixture&gt;</c>.
   /// </summary>
+  /// <remarks>
+  /// <para>This fixture requires explicit initialization via
+  /// <see cref="InitializeAsync"/>. No abstract fixture base is provided for
+  /// Swarm stacks because Swarm mode is not commonly used in unit tests.</para>
+  /// </remarks>
   public class XunitSwarmStackFixture : IAsyncDisposable
   {
     private SwarmStackResource _resource;

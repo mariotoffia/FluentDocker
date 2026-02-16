@@ -117,6 +117,7 @@ namespace FluentDocker.Testing.Core
         await PreflightAsync(cts.Token);
         await ProvisionAsync(cts.Token);
         await RunHooksAsync(_afterReadyHooks, cts.Token);
+        Diagnostics = null;
         IsInitialized = true;
       }
       catch (Exception ex)
@@ -222,6 +223,11 @@ namespace FluentDocker.Testing.Core
     /// </summary>
     protected string ResolveDriverId()
     {
+      if (Options.Driver == null)
+        throw new InvalidOperationException(
+            "DockerResourceOptions.Driver is null. " +
+            "Use DriverSelection.Default or DriverSelection.Specific(id) instead.");
+
       if (Options.Driver.UseDefault)
         return Kernel.DefaultDriverId;
 

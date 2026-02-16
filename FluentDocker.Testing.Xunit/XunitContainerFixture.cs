@@ -13,6 +13,13 @@ namespace FluentDocker.Testing.Xunit
   /// Use with <c>IClassFixture&lt;XunitContainerFixture&gt;</c> or
   /// <c>ICollectionFixture&lt;XunitContainerFixture&gt;</c>.
   /// </summary>
+  /// <remarks>
+  /// <para><b>Prefer <see cref="XunitContainerFixtureBase"/></b> for most use cases.
+  /// Subclass it and override <see cref="XunitContainerFixtureBase.ConfigureContainer"/>
+  /// — xUnit handles the async lifecycle automatically.</para>
+  /// <para>Use this class only when you need programmatic control over
+  /// initialization (e.g., dynamic configuration, conditional setup).</para>
+  /// </remarks>
   public class XunitContainerFixture : IAsyncDisposable
   {
     private ContainerResource _resource;

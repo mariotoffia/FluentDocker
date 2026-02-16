@@ -184,6 +184,24 @@ namespace FluentDocker.Tests.CoreTests.Testing
       Assert.True(host.HasFactory("key2"));
     }
 
+    [Fact]
+    public async Task NullDriver_ThrowsDescriptiveError()
+    {
+      MockPack
+          .SetupContainerCreate()
+          .SetupContainerStart()
+          .SetupContainerInspect(running: true);
+
+      var resource = new ContainerResource(
+          Kernel,
+          builder => builder.UseImage("alpine:latest"),
+          new DockerResourceOptions { Driver = null });
+
+      var ex = await Assert.ThrowsAsync<InvalidOperationException>(
+          () => resource.InitializeAsync(TestContext.Current.CancellationToken));
+      Assert.Contains("Driver is null", ex.Message);
+    }
+
     #region Test Doubles
 
     private class FakeResource : ITestResource
