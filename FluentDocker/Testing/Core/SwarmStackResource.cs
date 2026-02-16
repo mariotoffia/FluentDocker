@@ -102,19 +102,20 @@ namespace FluentDocker.Testing.Core
             $"Stack deploy failed for '{_config.StackName}': {result.Error}");
       }
 
-      DeployResult = result.Data;
+      DeployResult = result.Data
+          ?? throw new FluentDockerException(
+              $"Stack deploy for '{_config.StackName}' returned Success " +
+              "but no result payload.");
       ResourceName = _config.StackName;
     }
 
     /// <inheritdoc />
-    protected override async Task TeardownAsync()
+    protected override async Task TeardownAsync(CancellationToken cancellationToken)
     {
-      if (DeployResult == null)
-        return;
-
       var driver = Kernel.SysCtl<IStackDriver>(DriverId);
       var context = new DriverContext(DriverId);
-      var result = await driver.RemoveAsync(context, new[] { _config.StackName });
+      var result = await driver.RemoveAsync(
+          context, new[] { _config.StackName }, cancellationToken);
       if (!result.Success)
         throw new FluentDockerException(
             $"Failed to remove stack '{_config.StackName}': {result.Error}");
@@ -122,16 +123,14 @@ namespace FluentDocker.Testing.Core
     }
 
     /// <inheritdoc />
-    protected override async Task ForceRemoveAsync()
+    protected override async Task ForceRemoveAsync(CancellationToken cancellationToken)
     {
-      if (DeployResult == null)
-        return;
-
       try
       {
         var driver = Kernel.SysCtl<IStackDriver>(DriverId);
         var context = new DriverContext(DriverId);
-        await driver.RemoveAsync(context, new[] { _config.StackName });
+        await driver.RemoveAsync(
+            context, new[] { _config.StackName }, cancellationToken);
       }
       catch
       {

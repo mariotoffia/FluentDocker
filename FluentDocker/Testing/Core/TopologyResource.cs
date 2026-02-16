@@ -86,7 +86,7 @@ namespace FluentDocker.Testing.Core
     }
 
     /// <inheritdoc />
-    protected override async Task TeardownAsync()
+    protected override async Task TeardownAsync(CancellationToken cancellationToken)
     {
       var failures = new List<Exception>();
 
@@ -94,11 +94,11 @@ namespace FluentDocker.Testing.Core
       for (var i = _services.Count - 1; i >= 0; i--)
       {
         try
-        { await _services[i].StopAsync(); }
+        { await _services[i].StopAsync(cancellationToken); }
         catch { /* stop failure must not prevent removal */ }
 
         try
-        { await _services[i].RemoveAsync(force: false); }
+        { await _services[i].RemoveAsync(force: false, cancellationToken); }
         catch (Exception ex) { failures.Add(ex); }
       }
 
@@ -111,12 +111,12 @@ namespace FluentDocker.Testing.Core
     }
 
     /// <inheritdoc />
-    protected override async Task ForceRemoveAsync()
+    protected override async Task ForceRemoveAsync(CancellationToken cancellationToken)
     {
       for (var i = _services.Count - 1; i >= 0; i--)
       {
         try
-        { await _services[i].RemoveAsync(force: true); }
+        { await _services[i].RemoveAsync(force: true, cancellationToken); }
         catch { /* best effort */ }
       }
 

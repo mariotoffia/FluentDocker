@@ -142,18 +142,19 @@ namespace FluentDocker.Testing.Core
         // Hooks should not prevent cleanup
       }
 
+      using var cts = new CancellationTokenSource(Options.TeardownTimeout);
       Exception teardownFailure = null;
 
       try
       {
-        await TeardownAsync();
+        await TeardownAsync(cts.Token);
       }
       catch (Exception ex)
       {
         if (Options.ForceRemoveOnDispose)
         {
           try
-          { await ForceRemoveAsync(); }
+          { await ForceRemoveAsync(cts.Token); }
           catch { /* best effort */ }
         }
         else
@@ -194,12 +195,16 @@ namespace FluentDocker.Testing.Core
     /// <summary>
     /// Gracefully stops and removes the resource.
     /// </summary>
-    protected abstract Task TeardownAsync();
+    /// <param name="cancellationToken">Cancellation token bound to
+    /// <see cref="DockerResourceOptions.TeardownTimeout"/>.</param>
+    protected abstract Task TeardownAsync(CancellationToken cancellationToken);
 
     /// <summary>
     /// Force-removes the resource when graceful teardown fails.
     /// </summary>
-    protected abstract Task ForceRemoveAsync();
+    /// <param name="cancellationToken">Cancellation token bound to
+    /// <see cref="DockerResourceOptions.TeardownTimeout"/>.</param>
+    protected abstract Task ForceRemoveAsync(CancellationToken cancellationToken);
 
     /// <summary>
     /// Collects diagnostic information when initialization fails.

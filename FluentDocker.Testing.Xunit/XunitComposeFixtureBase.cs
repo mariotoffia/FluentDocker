@@ -23,7 +23,7 @@ namespace FluentDocker.Testing.Xunit
   /// public class AppFixture : XunitComposeFixtureBase
   /// {
   ///   protected override void ConfigureCompose(IComposeBuilder b)
-  ///       =&gt; b.FromFile("docker-compose.yml");
+  ///       =&gt; b.WithComposeFile("docker-compose.yml");
   /// }
   ///
   /// public class AppTests : IClassFixture&lt;AppFixture&gt;

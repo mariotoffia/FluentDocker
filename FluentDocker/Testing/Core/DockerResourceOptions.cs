@@ -31,5 +31,11 @@ namespace FluentDocker.Testing.Core
     /// Maximum log lines to capture on failure.
     /// </summary>
     public int MaxDiagnosticLogLines { get; set; } = 200;
+
+    /// <summary>
+    /// Timeout for teardown (stop + remove) during disposal.
+    /// Prevents hung cleanup from blocking CI pipelines indefinitely.
+    /// </summary>
+    public TimeSpan TeardownTimeout { get; set; } = TimeSpan.FromSeconds(60);
   }
 }

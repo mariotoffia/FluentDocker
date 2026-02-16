@@ -81,18 +81,18 @@ namespace FluentDocker.Testing.Core
     }
 
     /// <inheritdoc />
-    protected override async Task TeardownAsync()
+    protected override async Task TeardownAsync(CancellationToken cancellationToken)
     {
       if (Service == null)
         return;
 
-      await Service.StopAsync();
-      await Service.RemoveAsync(force: false);
+      await Service.StopAsync(cancellationToken);
+      await Service.RemoveAsync(force: false, cancellationToken);
       Service = null;
     }
 
     /// <inheritdoc />
-    protected override async Task ForceRemoveAsync()
+    protected override async Task ForceRemoveAsync(CancellationToken cancellationToken)
     {
       var s = Service;
       Service = null;
@@ -100,7 +100,7 @@ namespace FluentDocker.Testing.Core
         return;
 
       try
-      { await s.RemoveAsync(force: true); }
+      { await s.RemoveAsync(force: true, cancellationToken); }
       catch { /* best effort */ }
     }
 
