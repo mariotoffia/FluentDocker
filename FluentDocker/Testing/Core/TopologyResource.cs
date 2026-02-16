@@ -34,7 +34,7 @@ namespace FluentDocker.Testing.Core
     /// <summary>
     /// All services created by the topology, in build order.
     /// </summary>
-    public IReadOnlyList<IServiceAsync> Services => _services;
+    public IReadOnlyList<IServiceAsync> Services => _services.AsReadOnly();
 
     /// <summary>
     /// Gets a container service by name.
@@ -88,6 +88,8 @@ namespace FluentDocker.Testing.Core
     /// <inheritdoc />
     protected override async Task TeardownAsync()
     {
+      var failures = new List<Exception>();
+
       // Tear down in reverse order for dependency safety.
       for (var i = _services.Count - 1; i >= 0; i--)
       {
@@ -97,8 +99,13 @@ namespace FluentDocker.Testing.Core
 
         try
         { await _services[i].RemoveAsync(force: false); }
-        catch { /* continue cleaning up remaining services */ }
+        catch (Exception ex) { failures.Add(ex); }
       }
+
+      if (failures.Count > 0)
+        throw new AggregateException(
+            $"{failures.Count} service(s) failed to remove during teardown.",
+            failures);
 
       _services.Clear();
     }

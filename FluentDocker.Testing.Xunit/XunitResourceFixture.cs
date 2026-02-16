@@ -1,4 +1,5 @@
 using System;
+using System.Threading;
 using System.Threading.Tasks;
 using FluentDocker.Kernel;
 using FluentDocker.Testing.Core;
@@ -35,14 +36,16 @@ namespace FluentDocker.Testing.Xunit
     /// <param name="kernelFactory">Optional kernel factory. Defaults to Docker CLI.</param>
     public async Task InitializeAsync(
         Func<FluentDockerKernel, TResource> resourceFactory,
-        Func<Task<FluentDockerKernel>> kernelFactory = null)
+        Func<Task<FluentDockerKernel>> kernelFactory = null,
+        CancellationToken cancellationToken = default)
     {
       if (_resource != null)
         throw new InvalidOperationException(
             "Fixture has already been initialized. Dispose before re-initializing.");
 
       var (kernel, resource) = await ResourceLifecycle.CreateAndInitializeAsync(
-          resourceFactory, kernelFactory);
+          resourceFactory, kernelFactory,
+          cancellationToken: cancellationToken);
 
       Kernel = kernel;
       _resource = resource;

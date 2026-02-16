@@ -33,7 +33,8 @@ namespace FluentDocker.Tests.CoreTests.Testing.Adapters
 
       var (kernel, resource) = await MsTestResourceHelpers.CreateContainerAsync(
           configure: c => c.UseImage("redis:alpine"),
-          kernelFactory: () => Task.FromResult(Kernel));
+          kernelFactory: () => Task.FromResult(Kernel),
+          cancellationToken: TestContext.Current.CancellationToken);
 
       Assert.True(resource.IsInitialized);
       Assert.Same(Kernel, kernel);
@@ -55,7 +56,8 @@ namespace FluentDocker.Tests.CoreTests.Testing.Adapters
 
       var (kernel, resource) = await MsTestResourceHelpers.CreateSwarmStackAsync(
           new StackDeployConfig { StackName = "mstest-stack" },
-          kernelFactory: () => Task.FromResult(Kernel));
+          kernelFactory: () => Task.FromResult(Kernel),
+          cancellationToken: TestContext.Current.CancellationToken);
 
       Assert.True(resource.IsInitialized);
       Assert.Equal("mstest-stack", resource.StackName);
@@ -78,7 +80,8 @@ namespace FluentDocker.Tests.CoreTests.Testing.Adapters
 
       var (kernel, resource) = await MsTestResourceHelpers.CreatePodmanKubernetesAsync(
           new FluentDocker.Drivers.Podman.KubePlayConfig { YamlPath = "mstest.yaml" },
-          kernelFactory: () => Task.FromResult(Kernel));
+          kernelFactory: () => Task.FromResult(Kernel),
+          cancellationToken: TestContext.Current.CancellationToken);
 
       Assert.True(resource.IsInitialized);
       Assert.Equal("mstest.yaml", resource.YamlPath);
@@ -119,7 +122,8 @@ namespace FluentDocker.Tests.CoreTests.Testing.Adapters
       await Assert.ThrowsAsync<InvalidOperationException>(() =>
           MsTestResourceHelpers.CreateContainerAsync(
               configure: c => c.UseImage("fail:image"),
-              kernelFactory: () => Task.FromResult(testKernel)));
+              kernelFactory: () => Task.FromResult(testKernel),
+              cancellationToken: TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -134,7 +138,8 @@ namespace FluentDocker.Tests.CoreTests.Testing.Adapters
 
       var (kernel, resource) = await MsTestResourceHelpers.CreateResourceAsync<ContainerResource>(
           k => new ContainerResource(k, c => c.UseImage("alpine:latest")),
-          kernelFactory: () => Task.FromResult(Kernel));
+          kernelFactory: () => Task.FromResult(Kernel),
+          cancellationToken: TestContext.Current.CancellationToken);
 
       Assert.True(resource.IsInitialized);
       Assert.Same(Kernel, kernel);
@@ -146,7 +151,8 @@ namespace FluentDocker.Tests.CoreTests.Testing.Adapters
     public async Task CreateResourceAsync_NullFactory_ThrowsArgumentNullException()
     {
       await Assert.ThrowsAsync<ArgumentNullException>(() =>
-          MsTestResourceHelpers.CreateResourceAsync<ContainerResource>(null!));
+          MsTestResourceHelpers.CreateResourceAsync<ContainerResource>(null!,
+              cancellationToken: TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -155,7 +161,8 @@ namespace FluentDocker.Tests.CoreTests.Testing.Adapters
       var ex = await Assert.ThrowsAsync<InvalidOperationException>(() =>
           MsTestResourceHelpers.CreateResourceAsync<ContainerResource>(
               _ => null!,
-              kernelFactory: () => Task.FromResult(Kernel)));
+              kernelFactory: () => Task.FromResult(Kernel),
+              cancellationToken: TestContext.Current.CancellationToken));
 
       Assert.Contains("resourceFactory returned null", ex.Message);
     }
@@ -176,7 +183,8 @@ namespace FluentDocker.Tests.CoreTests.Testing.Adapters
       await Assert.ThrowsAsync<InvalidOperationException>(() =>
           MsTestResourceHelpers.CreateResourceAsync<ContainerResource>(
               k => new ContainerResource(k, c => c.UseImage("fail:img")),
-              kernelFactory: () => Task.FromResult(testKernel)));
+              kernelFactory: () => Task.FromResult(testKernel),
+              cancellationToken: TestContext.Current.CancellationToken));
     }
   }
 }

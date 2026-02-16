@@ -45,7 +45,8 @@ namespace FluentDocker.Tests.CoreTests.Testing.Adapters
 
       await fixture.InitializeAsync(
           configure: c => c.UseImage("redis:alpine"),
-          kernelFactory: () => Task.FromResult(capturedKernel));
+          kernelFactory: () => Task.FromResult(capturedKernel),
+          cancellationToken: TestContext.Current.CancellationToken);
 
       Assert.NotNull(fixture.Resource);
       Assert.Same(capturedKernel, fixture.Kernel);
@@ -68,7 +69,8 @@ namespace FluentDocker.Tests.CoreTests.Testing.Adapters
 
       await fixture.InitializeAsync(
           configure: c => c.UseImage("alpine:latest"),
-          kernelFactory: () => Task.FromResult(Kernel));
+          kernelFactory: () => Task.FromResult(Kernel),
+          cancellationToken: TestContext.Current.CancellationToken);
 
       Assert.True(fixture.Resource.IsInitialized);
 
@@ -99,12 +101,14 @@ namespace FluentDocker.Tests.CoreTests.Testing.Adapters
 
       await fixture.InitializeAsync(
           configure: c => c.UseImage("redis:alpine"),
-          kernelFactory: () => Task.FromResult(Kernel));
+          kernelFactory: () => Task.FromResult(Kernel),
+          cancellationToken: TestContext.Current.CancellationToken);
 
       await Assert.ThrowsAsync<InvalidOperationException>(() =>
           fixture.InitializeAsync(
               configure: c => c.UseImage("redis:alpine"),
-              kernelFactory: () => Task.FromResult(Kernel)));
+              kernelFactory: () => Task.FromResult(Kernel),
+              cancellationToken: TestContext.Current.CancellationToken));
 
       await fixture.DisposeAsync();
     }
@@ -128,7 +132,8 @@ namespace FluentDocker.Tests.CoreTests.Testing.Adapters
       await Assert.ThrowsAsync<InvalidOperationException>(() =>
           fixture.InitializeAsync(
               configure: c => c.UseImage("fail:image"),
-              kernelFactory: () => Task.FromResult(testKernel)));
+              kernelFactory: () => Task.FromResult(testKernel),
+              cancellationToken: TestContext.Current.CancellationToken));
 
       // After failure, fixture state should be clean
       Assert.Null(fixture.Resource);
@@ -149,7 +154,8 @@ namespace FluentDocker.Tests.CoreTests.Testing.Adapters
 
       await fixture.InitializeAsync(
           configure: c => c.UseImage("redis:alpine"),
-          kernelFactory: () => Task.FromResult(Kernel));
+          kernelFactory: () => Task.FromResult(Kernel),
+          cancellationToken: TestContext.Current.CancellationToken);
       Assert.NotNull(fixture.Resource);
 
       await fixture.DisposeAsync();
@@ -168,7 +174,8 @@ namespace FluentDocker.Tests.CoreTests.Testing.Adapters
 
       await fixture.InitializeAsync(
           configure: c => c.UseImage("nginx:alpine"),
-          kernelFactory: () => Task.FromResult(newKernel));
+          kernelFactory: () => Task.FromResult(newKernel),
+          cancellationToken: TestContext.Current.CancellationToken);
 
       Assert.NotNull(fixture.Resource);
       Assert.True(fixture.Resource.IsInitialized);
@@ -199,7 +206,8 @@ namespace FluentDocker.Tests.CoreTests.Testing.Adapters
 
       await fixture.InitializeAsync(
           kernel => new ContainerResource(kernel, c => c.UseImage("alpine:latest")),
-          kernelFactory: () => Task.FromResult(Kernel));
+          kernelFactory: () => Task.FromResult(Kernel),
+          cancellationToken: TestContext.Current.CancellationToken);
 
       Assert.NotNull(fixture.Resource);
       Assert.True(fixture.Resource.IsInitialized);
@@ -214,7 +222,8 @@ namespace FluentDocker.Tests.CoreTests.Testing.Adapters
       var fixture = new XunitResourceFixture<ContainerResource>();
 
       await Assert.ThrowsAsync<ArgumentNullException>(() =>
-          fixture.InitializeAsync(null!));
+          fixture.InitializeAsync(null!,
+              cancellationToken: TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -225,7 +234,8 @@ namespace FluentDocker.Tests.CoreTests.Testing.Adapters
       var ex = await Assert.ThrowsAsync<InvalidOperationException>(() =>
           fixture.InitializeAsync(
               _ => null!,
-              kernelFactory: () => Task.FromResult(Kernel)));
+              kernelFactory: () => Task.FromResult(Kernel),
+              cancellationToken: TestContext.Current.CancellationToken));
 
       Assert.Contains("resourceFactory returned null", ex.Message);
     }
@@ -244,7 +254,8 @@ namespace FluentDocker.Tests.CoreTests.Testing.Adapters
 
       await fixture.InitializeAsync(
           kernel => new ContainerResource(kernel, c => c.UseImage("alpine:latest")),
-          kernelFactory: () => Task.FromResult(Kernel));
+          kernelFactory: () => Task.FromResult(Kernel),
+          cancellationToken: TestContext.Current.CancellationToken);
 
       await fixture.DisposeAsync();
       Assert.Null(fixture.Resource);
@@ -260,7 +271,8 @@ namespace FluentDocker.Tests.CoreTests.Testing.Adapters
 
       await fixture.InitializeAsync(
           kernel => new ContainerResource(kernel, c => c.UseImage("nginx:alpine")),
-          kernelFactory: () => Task.FromResult(newKernel));
+          kernelFactory: () => Task.FromResult(newKernel),
+          cancellationToken: TestContext.Current.CancellationToken);
 
       Assert.NotNull(fixture.Resource);
       Assert.True(fixture.Resource.IsInitialized);
@@ -286,7 +298,8 @@ namespace FluentDocker.Tests.CoreTests.Testing.Adapters
       await Assert.ThrowsAsync<InvalidOperationException>(() =>
           fixture.InitializeAsync(
               kernel => new ContainerResource(kernel, c => c.UseImage("fail:img")),
-              kernelFactory: () => Task.FromResult(testKernel)));
+              kernelFactory: () => Task.FromResult(testKernel),
+              cancellationToken: TestContext.Current.CancellationToken));
 
       Assert.Null(fixture.Resource);
       Assert.Null(fixture.Kernel);
@@ -327,7 +340,8 @@ namespace FluentDocker.Tests.CoreTests.Testing.Adapters
 
       await fixture.InitializeAsync(
           new StackDeployConfig { StackName = "fixture-stack" },
-          kernelFactory: () => Task.FromResult(capturedKernel));
+          kernelFactory: () => Task.FromResult(capturedKernel),
+          cancellationToken: TestContext.Current.CancellationToken);
 
       Assert.NotNull(fixture.Resource);
       Assert.Same(capturedKernel, fixture.Kernel);
@@ -371,7 +385,8 @@ namespace FluentDocker.Tests.CoreTests.Testing.Adapters
 
       await fixture.InitializeAsync(
           new KubePlayConfig { YamlPath = "fixture.yaml" },
-          kernelFactory: () => Task.FromResult(capturedKernel));
+          kernelFactory: () => Task.FromResult(capturedKernel),
+          cancellationToken: TestContext.Current.CancellationToken);
 
       Assert.NotNull(fixture.Resource);
       Assert.Same(capturedKernel, fixture.Kernel);

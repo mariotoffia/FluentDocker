@@ -9,6 +9,7 @@ namespace FluentDocker.Testing.Core.Plugins
   /// </summary>
   public class TestPluginHost : ITestPluginHost, ITestPluginRegistry
   {
+    private readonly object _lock = new();
     private readonly Dictionary<string, Func<IServiceProvider, object>> _factories = new();
     private readonly IServiceProvider _serviceProvider;
     private readonly HashSet<string> _registeredPlugins = new();
@@ -33,35 +34,38 @@ namespace FluentDocker.Testing.Core.Plugins
         throw new ArgumentException(
             "Plugin.Id must not be null or empty.", nameof(plugin));
 
-      if (_registeredPlugins.Contains(plugin.Id))
-        return this; // Already registered, idempotent
-
-      _staging = new Dictionary<string, Func<IServiceProvider, object>>();
-      try
+      lock (_lock)
       {
-        plugin.Register(this);
+        if (_registeredPlugins.Contains(plugin.Id))
+          return this; // Already registered, idempotent
 
-        // Validate no collisions with committed factories
-        foreach (var key in _staging.Keys)
+        _staging = new Dictionary<string, Func<IServiceProvider, object>>();
+        try
         {
-          if (_factories.ContainsKey(key))
-            throw new InvalidOperationException(
-                $"A factory for key '{key}' is already registered. " +
-                "Plugin key collisions must be resolved by using unique keys.");
+          plugin.Register(this);
+
+          // Validate no collisions with committed factories
+          foreach (var key in _staging.Keys)
+          {
+            if (_factories.ContainsKey(key))
+              throw new InvalidOperationException(
+                  $"A factory for key '{key}' is already registered. " +
+                  "Plugin key collisions must be resolved by using unique keys.");
+          }
+
+          // Commit all staged factories atomically
+          foreach (var kvp in _staging)
+            _factories[kvp.Key] = kvp.Value;
+
+          _registeredPlugins.Add(plugin.Id);
+        }
+        finally
+        {
+          _staging = null;
         }
 
-        // Commit all staged factories atomically
-        foreach (var kvp in _staging)
-          _factories[kvp.Key] = kvp.Value;
-
-        _registeredPlugins.Add(plugin.Id);
+        return this;
       }
-      finally
-      {
-        _staging = null;
-      }
-
-      return this;
     }
 
     /// <inheritdoc />
@@ -74,11 +78,15 @@ namespace FluentDocker.Testing.Core.Plugins
     /// <inheritdoc />
     public TResource Create<TResource>(string key) where TResource : class, ITestResource
     {
-      if (!_factories.TryGetValue(key, out var factory))
+      Func<IServiceProvider, object> factory;
+      lock (_lock)
       {
-        throw new InvalidOperationException(
-            $"No factory registered for key '{key}'. " +
-            "Ensure the plugin providing this resource has been added via Add().");
+        if (!_factories.TryGetValue(key, out factory))
+        {
+          throw new InvalidOperationException(
+              $"No factory registered for key '{key}'. " +
+              "Ensure the plugin providing this resource has been added via Add().");
+        }
       }
 
       var result = factory(_serviceProvider);
@@ -93,7 +101,10 @@ namespace FluentDocker.Testing.Core.Plugins
     /// <inheritdoc />
     public bool HasFactory(string key)
     {
-      return _factories.ContainsKey(key);
+      lock (_lock)
+      {
+        return _factories.ContainsKey(key);
+      }
     }
 
     /// <inheritdoc />

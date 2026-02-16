@@ -261,4 +261,4 @@ dotnet_naming_rule.members_are_pascal_case.style = member_style
 # Test-specific settings
 [*.Tests/**/*.cs]
 # IDE0005: Remove unnecessary imports/using
-dotnet_diagnostic.IDE0005.severity = none
+# do not enable this! - dotnet_diagnostic.IDE0005.severity = none

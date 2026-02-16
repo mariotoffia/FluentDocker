@@ -1,9 +1,13 @@
 using System;
+using System.Collections.Generic;
+using System.Threading;
 using System.Threading.Tasks;
 using FluentDocker.Builders;
 using FluentDocker.Model.Drivers;
+using FluentDocker.Services;
 using FluentDocker.Testing.Core;
 using FluentDocker.Tests.Mocks;
+using Moq;
 using Xunit;
 
 namespace FluentDocker.Tests.CoreTests.Testing
@@ -124,6 +128,110 @@ namespace FluentDocker.Tests.CoreTests.Testing
     {
       Assert.Throws<ArgumentNullException>(
           () => new TopologyResource(Kernel, null));
+    }
+
+    [Fact]
+    public async Task TeardownAsync_RemoveFails_TriggersForceRemove()
+    {
+      MockPack
+          .SetupContainerCreate()
+          .SetupContainerStart()
+          .SetupContainerInspect(running: true)
+          .SetupContainerStop();
+
+      // RemoveAsync with force=false throws
+      MockPack.ContainerDriver
+          .Setup(d => d.RemoveAsync(
+              It.IsAny<DriverContext>(),
+              It.IsAny<string>(),
+              false,
+              It.IsAny<bool>(),
+              It.IsAny<CancellationToken>()))
+          .ThrowsAsync(new InvalidOperationException("remove failed"));
+
+      // RemoveAsync with force=true succeeds (for ForceRemoveAsync)
+      MockPack.ContainerDriver
+          .Setup(d => d.RemoveAsync(
+              It.IsAny<DriverContext>(),
+              It.IsAny<string>(),
+              true,
+              It.IsAny<bool>(),
+              It.IsAny<CancellationToken>()))
+          .ReturnsAsync(CommandResponse<Unit>.Ok(Unit.Default));
+
+      var resource = new TopologyResource(
+          Kernel,
+          builder =>
+          {
+            builder.UseContainer(c => c.UseImage("redis:alpine"));
+          },
+          new DockerResourceOptions { ForceRemoveOnDispose = true });
+
+      await resource.InitializeAsync(TestContext.Current.CancellationToken);
+
+      // Dispose should not throw — teardown fails, force-remove kicks in
+      await resource.DisposeAsync();
+      Assert.False(resource.IsInitialized);
+
+      // Verify force-remove was called
+      MockPack.ContainerDriver.Verify(
+          d => d.RemoveAsync(
+              It.IsAny<DriverContext>(),
+              It.IsAny<string>(),
+              true,
+              It.IsAny<bool>(),
+              It.IsAny<CancellationToken>()),
+          Times.AtLeastOnce());
+    }
+
+    [Fact]
+    public async Task TeardownAsync_AllSucceed_ClearsList()
+    {
+      MockPack
+          .SetupContainerCreate()
+          .SetupContainerStart()
+          .SetupContainerInspect(running: true)
+          .SetupContainerStop()
+          .SetupContainerRemove();
+
+      var resource = new TopologyResource(
+          Kernel,
+          builder =>
+          {
+            builder.UseContainer(c => c.UseImage("redis:alpine"));
+            builder.UseContainer(c => c.UseImage("nginx:alpine"));
+          });
+
+      await resource.InitializeAsync(TestContext.Current.CancellationToken);
+      Assert.True(resource.Services.Count >= 2);
+
+      await resource.DisposeAsync();
+      Assert.Empty(resource.Services);
+    }
+
+    [Fact]
+    public async Task Services_CannotBeMutatedExternally()
+    {
+      MockPack
+          .SetupContainerCreate()
+          .SetupContainerStart()
+          .SetupContainerInspect(running: true)
+          .SetupContainerStop()
+          .SetupContainerRemove();
+
+      var resource = new TopologyResource(
+          Kernel,
+          builder =>
+          {
+            builder.UseContainer(c => c.UseImage("redis:alpine"));
+          });
+
+      await resource.InitializeAsync(TestContext.Current.CancellationToken);
+
+      // Should not be castable back to List<IServiceAsync>
+      Assert.IsNotType<List<IServiceAsync>>(resource.Services);
+
+      await resource.DisposeAsync();
     }
   }
 }

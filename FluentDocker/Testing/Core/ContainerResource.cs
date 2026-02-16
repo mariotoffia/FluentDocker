@@ -6,6 +6,7 @@ using FluentDocker.Common;
 using FluentDocker.Kernel;
 using FluentDocker.Model.Containers;
 using FluentDocker.Services;
+using Newtonsoft.Json;
 
 namespace FluentDocker.Testing.Core
 {
@@ -130,7 +131,9 @@ namespace FluentDocker.Testing.Core
         try
         {
           var info = await Container.InspectAsync();
-          diag.InspectPayload = info?.ToString();
+          diag.InspectPayload = info != null
+              ? JsonConvert.SerializeObject(info, Formatting.Indented)
+              : null;
         }
         catch
         {

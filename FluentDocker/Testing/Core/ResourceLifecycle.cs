@@ -1,4 +1,5 @@
 using System;
+using System.Threading;
 using System.Threading.Tasks;
 using FluentDocker.Kernel;
 
@@ -50,11 +51,14 @@ namespace FluentDocker.Testing.Core
     /// Fallback kernel factory when <paramref name="kernelFactory"/> is null.
     /// Defaults to <see cref="CreateDefaultDockerKernelAsync"/>.
     /// </param>
+    /// <param name="cancellationToken">Optional cancellation token propagated to
+    /// <see cref="ITestResource.InitializeAsync"/>.</param>
     public static async Task<(FluentDockerKernel kernel, TResource resource)>
         CreateAndInitializeAsync<TResource>(
             Func<FluentDockerKernel, TResource> resourceFactory,
             Func<Task<FluentDockerKernel>> kernelFactory = null,
-            Func<Task<FluentDockerKernel>> defaultKernelFactory = null)
+            Func<Task<FluentDockerKernel>> defaultKernelFactory = null,
+            CancellationToken cancellationToken = default)
         where TResource : class, ITestResource
     {
       ArgumentNullException.ThrowIfNull(resourceFactory);
@@ -71,7 +75,7 @@ namespace FluentDocker.Testing.Core
         resource = resourceFactory(kernel)
             ?? throw new InvalidOperationException(
                 "resourceFactory returned null. The factory must return a non-null resource.");
-        await resource.InitializeAsync();
+        await resource.InitializeAsync(cancellationToken);
         return (kernel, resource);
       }
       catch

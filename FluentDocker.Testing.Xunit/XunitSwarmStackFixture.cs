@@ -1,4 +1,5 @@
 using System;
+using System.Threading;
 using System.Threading.Tasks;
 using FluentDocker.Drivers;
 using FluentDocker.Kernel;
@@ -40,7 +41,8 @@ namespace FluentDocker.Testing.Xunit
     public async Task InitializeAsync(
         StackDeployConfig config,
         Func<Task<FluentDockerKernel>> kernelFactory = null,
-        DockerResourceOptions options = null)
+        DockerResourceOptions options = null,
+        CancellationToken cancellationToken = default)
     {
       if (_resource != null)
         throw new InvalidOperationException(
@@ -48,7 +50,8 @@ namespace FluentDocker.Testing.Xunit
 
       var (kernel, resource) = await ResourceLifecycle.CreateAndInitializeAsync(
           k => new SwarmStackResource(k, config, options),
-          kernelFactory);
+          kernelFactory,
+          cancellationToken: cancellationToken);
 
       Kernel = kernel;
       _resource = resource;

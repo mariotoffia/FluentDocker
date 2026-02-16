@@ -147,7 +147,47 @@ namespace FluentDocker.Tests.CoreTests.Testing
       Assert.NotNull(resource);
     }
 
+    [Fact]
+    public async Task Add_ConcurrentRegistration_DoesNotCorrupt()
+    {
+      var host = new TestPluginHost();
+      var tasks = new Task[10];
+
+      for (var i = 0; i < 10; i++)
+      {
+        var id = $"plugin-{i}";
+        var key = $"Resource-{i}";
+        tasks[i] = Task.Run(() =>
+        {
+          host.Add(new UniqueKeyPlugin(id, key));
+        }, TestContext.Current.CancellationToken);
+      }
+
+      await Task.WhenAll(tasks);
+
+      for (var i = 0; i < 10; i++)
+      {
+        Assert.True(host.HasFactory($"Resource-{i}"));
+      }
+    }
+
     #region Test Doubles
+
+    private class UniqueKeyPlugin : ITestPlugin
+    {
+      private readonly string _key;
+      public string Id { get; }
+      public UniqueKeyPlugin(string id, string key)
+      {
+        Id = id;
+        _key = key;
+      }
+
+      public void Register(ITestPluginRegistry registry)
+      {
+        registry.RegisterFactory<FakeResource>(_key, _ => new FakeResource());
+      }
+    }
 
     private class FakeResource : ITestResource
     {

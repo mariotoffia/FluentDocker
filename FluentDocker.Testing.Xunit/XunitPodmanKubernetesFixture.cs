@@ -1,4 +1,5 @@
 using System;
+using System.Threading;
 using System.Threading.Tasks;
 using FluentDocker.Drivers.Podman;
 using FluentDocker.Kernel;
@@ -40,7 +41,8 @@ namespace FluentDocker.Testing.Xunit
     public async Task InitializeAsync(
         KubePlayConfig config,
         Func<Task<FluentDockerKernel>> kernelFactory = null,
-        DockerResourceOptions options = null)
+        DockerResourceOptions options = null,
+        CancellationToken cancellationToken = default)
     {
       if (_resource != null)
         throw new InvalidOperationException(
@@ -49,7 +51,8 @@ namespace FluentDocker.Testing.Xunit
       var (kernel, resource) = await ResourceLifecycle.CreateAndInitializeAsync(
           k => new PodmanKubernetesResource(k, config, options),
           kernelFactory,
-          ResourceLifecycle.CreateDefaultPodmanKernelAsync);
+          ResourceLifecycle.CreateDefaultPodmanKernelAsync,
+          cancellationToken);
 
       Kernel = kernel;
       _resource = resource;

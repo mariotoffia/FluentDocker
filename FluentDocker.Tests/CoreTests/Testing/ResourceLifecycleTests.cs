@@ -27,7 +27,8 @@ namespace FluentDocker.Tests.CoreTests.Testing
           .CreateAndInitializeAsync(
               k => new ContainerResource(
                   k, b => b.UseImage("alpine:latest")),
-              kernelFactory: () => Task.FromResult(kernel));
+              kernelFactory: () => Task.FromResult(kernel),
+              cancellationToken: TestContext.Current.CancellationToken);
 
       Assert.Same(kernel, returnedKernel);
       Assert.True(resource.IsInitialized);
@@ -59,7 +60,8 @@ namespace FluentDocker.Tests.CoreTests.Testing
               {
                 defaultFactoryCalled = true;
                 return Task.FromResult(kernel);
-              });
+              },
+              cancellationToken: TestContext.Current.CancellationToken);
 
       Assert.True(defaultFactoryCalled);
       Assert.Same(kernel, returnedKernel);
@@ -97,7 +99,8 @@ namespace FluentDocker.Tests.CoreTests.Testing
               {
                 defaultCalled = true;
                 return Task.FromResult(kernel);
-              });
+              },
+              cancellationToken: TestContext.Current.CancellationToken);
 
       Assert.True(customCalled);
       Assert.False(defaultCalled);
@@ -112,7 +115,8 @@ namespace FluentDocker.Tests.CoreTests.Testing
       await Assert.ThrowsAsync<ArgumentNullException>(
           () => ResourceLifecycle.CreateAndInitializeAsync<FakeResource>(
               null,
-              () => Task.FromResult<FluentDockerKernel>(null)));
+              () => Task.FromResult<FluentDockerKernel>(null),
+              cancellationToken: TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -124,7 +128,8 @@ namespace FluentDocker.Tests.CoreTests.Testing
       var ex = await Assert.ThrowsAsync<InvalidOperationException>(
           () => ResourceLifecycle.CreateAndInitializeAsync<FakeResource>(
               _ => null,
-              () => Task.FromResult(kernel)));
+              () => Task.FromResult(kernel),
+              cancellationToken: TestContext.Current.CancellationToken));
 
       Assert.Contains("returned null", ex.Message);
       // Kernel should have been disposed by cleanup
@@ -144,7 +149,8 @@ namespace FluentDocker.Tests.CoreTests.Testing
       await Assert.ThrowsAsync<InvalidOperationException>(
           () => ResourceLifecycle.CreateAndInitializeAsync(
               _ => fakeResource,
-              () => Task.FromResult(kernel)));
+              () => Task.FromResult(kernel),
+              cancellationToken: TestContext.Current.CancellationToken));
 
       Assert.True(disposeWasCalled, "Resource should be disposed on init failure");
     }
@@ -200,7 +206,69 @@ namespace FluentDocker.Tests.CoreTests.Testing
       await ResourceLifecycle.DisposeAsync(fakeResource, null);
     }
 
+    [Fact]
+    public async Task CreateAndInitializeAsync_PropagatesCancellationToken()
+    {
+      var (kernel, mockPack) = await MockKernelBuilderExtensions
+          .CreateWithMockDriverAsync();
+      mockPack
+          .SetupContainerCreate()
+          .SetupContainerStart()
+          .SetupContainerInspect(running: true)
+          .SetupContainerStop()
+          .SetupContainerRemove();
+
+      using var cts = new CancellationTokenSource();
+
+      var (returnedKernel, resource) = await ResourceLifecycle
+          .CreateAndInitializeAsync(
+              k => new ContainerResource(
+                  k, b => b.UseImage("alpine:latest")),
+              kernelFactory: () => Task.FromResult(kernel),
+              cancellationToken: cts.Token);
+
+      Assert.True(resource.IsInitialized);
+
+      await resource.DisposeAsync();
+      returnedKernel.Dispose();
+    }
+
+    [Fact]
+    public async Task CreateAndInitializeAsync_CancelledToken_ThrowsOperationCancelled()
+    {
+      var (kernel, _) = await MockKernelBuilderExtensions
+          .CreateWithMockDriverAsync();
+
+      using var cts = new CancellationTokenSource();
+      cts.Cancel(); // pre-cancel
+
+      // Use a FakeResource that observes the cancellation token
+      await Assert.ThrowsAnyAsync<OperationCanceledException>(
+          () => ResourceLifecycle.CreateAndInitializeAsync(
+              _ => new CancellationAwareFakeResource(),
+              kernelFactory: () => Task.FromResult(kernel),
+              cancellationToken: cts.Token));
+    }
+
     #region Test Doubles
+
+    private class CancellationAwareFakeResource : ITestResource
+    {
+      public bool IsInitialized { get; private set; }
+
+      public Task InitializeAsync(CancellationToken cancellationToken = default)
+      {
+        cancellationToken.ThrowIfCancellationRequested();
+        IsInitialized = true;
+        return Task.CompletedTask;
+      }
+
+      public ValueTask DisposeAsync()
+      {
+        IsInitialized = false;
+        return ValueTask.CompletedTask;
+      }
+    }
 
     private class FakeResource : ITestResource
     {

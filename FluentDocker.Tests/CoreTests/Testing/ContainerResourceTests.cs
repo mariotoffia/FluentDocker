@@ -280,6 +280,39 @@ namespace FluentDocker.Tests.CoreTests.Testing
     }
 
     [Fact]
+    public async Task Diagnostics_InspectPayload_ContainsJsonNotTypeName()
+    {
+      MockPack
+          .SetupContainerCreate()
+          .SetupContainerStart()
+          .SetupContainerInspect(running: true)
+          .SetupContainerStop()
+          .SetupContainerRemove();
+
+      var resource = new ContainerResource(
+          Kernel,
+          builder => builder.UseImage("alpine:latest"),
+          new DockerResourceOptions { CaptureLogsOnFailure = true });
+
+      resource.OnAfterReady(_ =>
+          throw new InvalidOperationException("Trigger diagnostics"));
+
+      await Assert.ThrowsAsync<InvalidOperationException>(
+          () => resource.InitializeAsync(TestContext.Current.CancellationToken));
+
+      Assert.NotNull(resource.Diagnostics);
+      Assert.NotNull(resource.Diagnostics.InspectPayload);
+
+      // Must NOT be the type name
+      Assert.DoesNotContain(
+          "FluentDocker.Model.Containers.Container",
+          resource.Diagnostics.InspectPayload);
+
+      // Must contain JSON from the mock inspect (container id)
+      Assert.Contains("test-container-123", resource.Diagnostics.InspectPayload);
+    }
+
+    [Fact]
     public async Task DriverSelection_Specific_UsesProvidedId()
     {
       var secondPack = new MockDriverPack();
