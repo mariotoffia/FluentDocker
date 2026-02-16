@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.ExceptionServices;
 using System.Threading;
 using System.Threading.Tasks;
 using FluentDocker.Common;
@@ -121,7 +122,9 @@ namespace FluentDocker.Testing.Core
       catch (Exception ex)
       {
         IsInitialized = false;
-        Diagnostics = await CollectDiagnosticsAsync(ex);
+        try
+        { Diagnostics = await CollectDiagnosticsAsync(ex); }
+        catch { /* diagnostics must not mask the original failure */ }
         throw;
       }
     }
@@ -170,7 +173,7 @@ namespace FluentDocker.Testing.Core
       }
 
       if (teardownFailure != null)
-        throw teardownFailure;
+        ExceptionDispatchInfo.Capture(teardownFailure).Throw();
     }
 
     #endregion
