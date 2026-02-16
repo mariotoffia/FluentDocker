@@ -22,42 +22,59 @@ dotnet add package FluentDocker.Testing.MsTest     # MSTest adapter
 dotnet add package FluentDocker.Testing.NUnit      # NUnit adapter
 ```
 
-### Quick Example (xUnit)
+## Quick Examples
 
-> **Note:** `GetAwaiter().GetResult()` is used because xUnit does not
-> support async fixture constructors. The fixture's `InitializeAsync`
-> requires configuration parameters, which rules out the parameterless
-> `IAsyncLifetime.InitializeAsync()`.
+### xUnit — Per-Test (Test Base)
+
+Inherit from `XunitContainerTestBase`. xUnit calls `InitializeAsync` and
+`DisposeAsync` automatically for each test:
 
 ```csharp
 using FluentDocker.Testing.Xunit;
 
-public class MyFixture : XunitContainerFixture
+public class RedisTests : XunitContainerTestBase
 {
-    public MyFixture()
-    {
-        InitializeAsync(builder => builder
-            .UseImage("redis:alpine")
-            .WaitForPort("6379/tcp")
-        ).GetAwaiter().GetResult();
-    }
-}
-
-public class RedisTests : IClassFixture<MyFixture>
-{
-    private readonly MyFixture _fixture;
-    public RedisTests(MyFixture fixture) => _fixture = fixture;
+    protected override void ConfigureContainer(IContainerBuilder b) =>
+        b.UseImage("redis:alpine").WaitForPort("6379/tcp");
 
     [Fact]
     public async Task Redis_IsRunning()
     {
-        var info = await _fixture.Container.InspectAsync();
+        var info = await Resource.InspectAsync();
         Assert.True(info.State.Running);
     }
 }
 ```
 
-### Quick Example (MSTest)
+### xUnit — Shared Fixture (Fixture Base)
+
+Inherit from `XunitContainerFixtureBase`. xUnit calls `InitializeAsync`
+once and shares the fixture across tests in the class:
+
+```csharp
+using FluentDocker.Testing.Xunit;
+
+public class RedisFixture : XunitContainerFixtureBase
+{
+    protected override void ConfigureContainer(IContainerBuilder b) =>
+        b.UseImage("redis:alpine").WaitForPort("6379/tcp");
+}
+
+public class RedisTests : IClassFixture<RedisFixture>
+{
+    private readonly RedisFixture _f;
+    public RedisTests(RedisFixture f) => _f = f;
+
+    [Fact]
+    public async Task Redis_IsRunning()
+    {
+        var info = await _f.Resource.InspectAsync();
+        Assert.True(info.State.Running);
+    }
+}
+```
+
+### MSTest
 
 ```csharp
 using FluentDocker.Testing.MsTest;
@@ -82,10 +99,17 @@ public class RedisTests
     {
         await MsTestResourceHelpers.DisposeAsync(_resource, _kernel);
     }
+
+    [TestMethod]
+    public async Task Redis_IsRunning()
+    {
+        var info = await _resource.InspectAsync();
+        Assert.IsTrue(info.State.Running);
+    }
 }
 ```
 
-### Quick Example (NUnit)
+### NUnit
 
 ```csharp
 using FluentDocker.Testing.NUnit;
@@ -110,15 +134,22 @@ public class RedisTests
     {
         await NUnitResourceHelpers.DisposeAsync(_resource, _kernel);
     }
+
+    [Test]
+    public async Task Redis_IsRunning()
+    {
+        var info = await _resource.InspectAsync();
+        Assert.That(info.State.Running, Is.True);
+    }
 }
 ```
 
-### Detailed Documentation
+## Detailed Documentation
 
 | Topic | Description |
 |---|---|
-| [Core Types](testing/core.html) | Resource types, options, diagnostics, hooks |
-| [xUnit Adapter](testing/xunit.html) | Fixtures for container, compose, topology, swarm, podman |
+| [Core Types](testing/core.html) | Resource types, options, diagnostics, hooks, wait strategies |
+| [xUnit Adapter](testing/xunit.html) | Test bases, fixture bases, concrete fixtures |
 | [MSTest Adapter](testing/mstest.html) | Helper methods for all resource types |
 | [NUnit Adapter](testing/nunit.html) | Helper methods for all resource types |
 | [Plugins](testing/plugins.html) | Extending resources with custom plugins |
