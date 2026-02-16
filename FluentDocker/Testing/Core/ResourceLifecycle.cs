@@ -83,7 +83,8 @@ namespace FluentDocker.Testing.Core
         try
         { if (resource != null) await resource.DisposeAsync(); }
         catch { /* best effort */ }
-        kernel?.Dispose();
+        if (kernel != null)
+          await kernel.DisposeAsync();
         throw;
       }
     }
@@ -104,7 +105,8 @@ namespace FluentDocker.Testing.Core
       }
       finally
       {
-        kernel?.Dispose();
+        if (kernel != null)
+          await kernel.DisposeAsync();
       }
     }
   }

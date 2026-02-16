@@ -34,7 +34,7 @@ namespace FluentDocker.Tests.CoreTests.Testing
       Assert.True(resource.IsInitialized);
 
       await resource.DisposeAsync();
-      kernel.Dispose();
+      await kernel.DisposeAsync();
     }
 
     [Fact]
@@ -68,7 +68,7 @@ namespace FluentDocker.Tests.CoreTests.Testing
       Assert.True(resource.IsInitialized);
 
       await resource.DisposeAsync();
-      kernel.Dispose();
+      await kernel.DisposeAsync();
     }
 
     [Fact]
@@ -106,7 +106,7 @@ namespace FluentDocker.Tests.CoreTests.Testing
       Assert.False(defaultCalled);
 
       await resource.DisposeAsync();
-      kernel.Dispose();
+      await kernel.DisposeAsync();
     }
 
     [Fact]
@@ -230,7 +230,7 @@ namespace FluentDocker.Tests.CoreTests.Testing
       Assert.True(resource.IsInitialized);
 
       await resource.DisposeAsync();
-      returnedKernel.Dispose();
+      await returnedKernel.DisposeAsync();
     }
 
     [Fact]

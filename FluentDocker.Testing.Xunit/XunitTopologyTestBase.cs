@@ -65,7 +65,8 @@ namespace FluentDocker.Testing.Xunit
       }
       finally
       {
-        Kernel?.Dispose();
+        if (Kernel != null)
+          await Kernel.DisposeAsync();
         Resource = null;
         Kernel = null;
       }
