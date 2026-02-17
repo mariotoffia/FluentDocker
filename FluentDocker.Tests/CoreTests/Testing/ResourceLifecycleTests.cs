@@ -120,6 +120,18 @@ namespace FluentDocker.Tests.CoreTests.Testing
     }
 
     [Fact]
+    public async Task CreateAndInitializeAsync_NullKernel_ThrowsInvalidOperationException()
+    {
+      var ex = await Assert.ThrowsAsync<InvalidOperationException>(
+          () => ResourceLifecycle.CreateAndInitializeAsync<FakeResource>(
+              _ => new FakeResource(),
+              () => Task.FromResult<FluentDockerKernel>(null),
+              cancellationToken: TestContext.Current.CancellationToken));
+
+      Assert.Contains("Kernel factory returned null", ex.Message);
+    }
+
+    [Fact]
     public async Task CreateAndInitializeAsync_FactoryReturnsNull_ThrowsInvalidOperationException()
     {
       var (kernel, _) = await MockKernelBuilderExtensions

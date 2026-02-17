@@ -67,6 +67,10 @@ namespace FluentDocker.Testing.Xunit
     /// <inheritdoc />
     public async ValueTask InitializeAsync()
     {
+      if (Resource != null)
+        throw new InvalidOperationException(
+            "Already initialized. Dispose before re-initializing.");
+
       var (kernel, resource) = await ResourceLifecycle.CreateAndInitializeAsync(
           k => new TopologyResource(k, ConfigureTopology, GetOptions()),
           KernelFactory);

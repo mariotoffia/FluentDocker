@@ -72,6 +72,29 @@ namespace FluentDocker.Tests.CoreTests.Testing.Adapters
     }
 
     [Fact]
+    public async Task DoubleInit_ThrowsInvalidOperationException()
+    {
+      var (kernel, mockPack) = await MockKernelBuilderExtensions
+          .CreateWithMockDriverAsync();
+      mockPack
+          .SetupContainerCreate()
+          .SetupContainerStart()
+          .SetupContainerInspect(running: true)
+          .SetupContainerStop()
+          .SetupContainerRemove();
+
+      var fixture = new TestContainerFixture(
+          () => Task.FromResult(kernel));
+
+      await fixture.InitializeAsync();
+
+      await Assert.ThrowsAsync<InvalidOperationException>(
+          () => fixture.InitializeAsync().AsTask());
+
+      await fixture.DisposeAsync();
+    }
+
+    [Fact]
     public void DefaultKernelFactory_IsNull()
     {
       var fixture = new TestContainerFixture(null);
@@ -128,6 +151,30 @@ namespace FluentDocker.Tests.CoreTests.Testing.Adapters
     }
 
     [Fact]
+    public async Task DoubleInit_ThrowsInvalidOperationException()
+    {
+      var (kernel, mockPack) = await MockKernelBuilderExtensions
+          .CreateWithMockDriverAsync();
+      mockPack.SetupComposeUpAsync(new ComposeUpResult
+      {
+        ProjectName = "fixture-base-compose"
+      });
+      mockPack.SetupComposeStart();
+      mockPack.SetupComposeStop();
+      mockPack.SetupComposeDown();
+
+      var fixture = new TestComposeFixture(
+          () => Task.FromResult(kernel));
+
+      await fixture.InitializeAsync();
+
+      await Assert.ThrowsAsync<InvalidOperationException>(
+          () => fixture.InitializeAsync().AsTask());
+
+      await fixture.DisposeAsync();
+    }
+
+    [Fact]
     public async Task DisposeAsync_BeforeInit_DoesNotThrow()
     {
       var fixture = new TestComposeFixture(null);
@@ -177,6 +224,29 @@ namespace FluentDocker.Tests.CoreTests.Testing.Adapters
       await fixture.DisposeAsync();
       Assert.Null(fixture.Resource);
       Assert.Null(fixture.Kernel);
+    }
+
+    [Fact]
+    public async Task DoubleInit_ThrowsInvalidOperationException()
+    {
+      var (kernel, mockPack) = await MockKernelBuilderExtensions
+          .CreateWithMockDriverAsync();
+      mockPack
+          .SetupContainerCreate()
+          .SetupContainerStart()
+          .SetupContainerInspect(running: true)
+          .SetupContainerStop()
+          .SetupContainerRemove();
+
+      var fixture = new TestTopologyFixture(
+          () => Task.FromResult(kernel));
+
+      await fixture.InitializeAsync();
+
+      await Assert.ThrowsAsync<InvalidOperationException>(
+          () => fixture.InitializeAsync().AsTask());
+
+      await fixture.DisposeAsync();
     }
 
     [Fact]
