@@ -1,12 +1,18 @@
 ---
 layout: default
 title: Containers
-nav_order: 3
+nav_order: 4
 ---
 
 # Container Management
 
 Complete guide to creating, configuring, and managing containers with FluentDocker v3.
+
+## Step by Step
+
+- Basics: [Kernel Setup](#kernel-setup), [Container Lifecycle](#container-lifecycle), [Port Exposure](#port-exposure), [Environment Variables](#environment-variables)
+- Intermediate: [Wait Strategies](#wait-strategies), [Execute Commands](#execute-commands), [Container Logs](#container-logs), [Cleanup and Dispose Behavior](#cleanup-and-dispose-behavior)
+- Advanced: [Resource Limits](#resource-limits), [Advanced Container Options](#advanced-container-options), [Container Existence Behavior](#container-existence-behavior), [File Operations](#file-operations)
 
 ## Kernel Setup
 

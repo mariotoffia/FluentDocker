@@ -1,13 +1,19 @@
 ---
 layout: default
 title: Volumes
-nav_order: 6
+nav_order: 7
 ---
 
 # Volume Management
 
 FluentDocker v3 provides full support for Docker volumes, including named volumes and bind mounts.
 All operations go through the kernel and driver-scoped builder pattern.
+
+## Step by Step
+
+- Basics: [Kernel Setup](#kernel-setup), [Named Volumes](#named-volumes), [Bind Mounts](#bind-mounts)
+- Intermediate: [Multiple Volumes](#multiple-volumes), [Database Volume Examples](#database-volume-examples), [Volume Inspection](#volume-inspection)
+- Advanced: [Volume Drivers](#volume-drivers), [Volume Backup Example](#volume-backup-example), [Cleanup](#cleanup), [Testing with Volumes](#testing-with-volumes)
 
 ## Kernel Setup
 

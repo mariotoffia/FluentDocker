@@ -34,13 +34,17 @@ namespace FluentDocker.Testing.Core
     /// <summary>
     /// All services created by the topology, in build order.
     /// </summary>
-    public IReadOnlyList<IServiceAsync> Services => _services.AsReadOnly();
+    public IReadOnlyList<IServiceAsync> Services
+    {
+      get { EnsureInitialized(); return _services.AsReadOnly(); }
+    }
 
     /// <summary>
     /// Gets a container service by name.
     /// </summary>
     public IContainerService GetContainer(string name)
     {
+      EnsureInitialized();
       return _services.OfType<IContainerService>()
           .FirstOrDefault(c => c.Name == name);
     }
@@ -50,6 +54,7 @@ namespace FluentDocker.Testing.Core
     /// </summary>
     public INetworkService GetNetwork(string name)
     {
+      EnsureInitialized();
       return _services.OfType<INetworkService>()
           .FirstOrDefault(n => n.NetworkName == name || n.Name == name);
     }
@@ -57,8 +62,10 @@ namespace FluentDocker.Testing.Core
     /// <summary>
     /// Gets all container services.
     /// </summary>
-    public IReadOnlyList<IContainerService> Containers =>
-        _services.OfType<IContainerService>().ToList();
+    public IReadOnlyList<IContainerService> Containers
+    {
+      get { EnsureInitialized(); return _services.OfType<IContainerService>().ToList(); }
+    }
 
     #region ResourceBase overrides
 
@@ -155,5 +162,12 @@ namespace FluentDocker.Testing.Core
     }
 
     #endregion
+
+    private void EnsureInitialized()
+    {
+      if (!IsInitialized)
+        throw new InvalidOperationException(
+            "Topology resource is not initialized. Call InitializeAsync first.");
+    }
   }
 }

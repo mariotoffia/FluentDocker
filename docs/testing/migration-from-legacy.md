@@ -1,8 +1,21 @@
+---
+layout: default
+title: Legacy Test Migration
+parent: Testing
+nav_order: 6
+---
+
 # Migration from Legacy Test Packages
 
 This guide shows how to migrate from the legacy `Ductus.FluentDocker.XUnit` and
 `Ductus.FluentDocker.MsTest` packages to the new `FluentDocker.Testing.Core` system
 with framework adapters.
+
+## Step by Step
+
+- Basics: [Package Changes](#package-changes), [Why Migrate?](#why-migrate)
+- Intermediate: [xUnit: FluentDockerTestBase to XunitContainerFixture](#xunit-fluentdockertestbase-to-xunitcontainerfixture), [MSTest: FluentDockerTestBase to MsTestResourceHelpers](#mstest-fluentdockertestbase-to-mstestresourcehelpers)
+- Advanced: [Legacy PostgresTestBase to Plugin Pattern](#legacy-postgrestestbase-to-plugin-pattern), [Driver Selection](#driver-selection)
 
 ## Package Changes
 

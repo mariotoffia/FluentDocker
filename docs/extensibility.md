@@ -1,13 +1,21 @@
 ---
 layout: default
 title: Driver Extensibility
-nav_order: 11
+nav_order: 14
 description: "Custom driver interfaces, driver-aware builder extensions, and multi-driver patterns"
 ---
 
 # Driver Extensibility
 
 FluentDocker's extensibility model lets drivers expose custom interfaces and builder extensions without kernel changes. This enables driver-specific features (Podman pods, Docker Swarm, etc.) to integrate cleanly with the fluent API.
+
+## Step by Step
+
+This is an advanced guide. Complete [Architecture](architecture.html) before implementing custom extensions.
+
+- Foundation: [Architecture Overview](#architecture-overview), [Interface Resolution](#interface-resolution), [Driver-Aware Builders](#driver-aware-builders)
+- Implementation: [Writing Custom Extensions](#writing-custom-extensions), [Real-World Example: Multi-Driver Deployment](#real-world-example-multi-driver-deployment)
+- Reference: [Extension Conventions](#extension-conventions), [DriverPackBase Helper](#driverpackbase-helper)
 
 ## Architecture Overview
 

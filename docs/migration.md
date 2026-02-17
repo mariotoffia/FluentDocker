@@ -1,12 +1,19 @@
 ---
 layout: default
 title: Migration Guide
-nav_order: 10
+nav_order: 11
+has_children: true
 ---
 
 # Migrating to FluentDocker v3.0.0
 
 This guide helps you migrate from v2.x.x to v3.0.0.
+
+## Step by Step
+
+- Basics: [Breaking Changes Summary](#breaking-changes-summary), [Step 1: Update NuGet Packages](#step-1-update-nuget-packages), [Step 2: Update Namespaces](#step-2-update-namespaces), [Step 3: Create a Kernel](#step-3-create-a-kernel)
+- Intermediate: [Step 4: Update Builder API](#step-4-update-builder-api), [Step 5: Update Test Base Classes](#step-5-update-test-base-classes), [Step 7: Update Compose Commands](#step-7-update-compose-commands)
+- Advanced: [Step 8: Update Logging Configuration](#step-8-update-logging-configuration), [Removed Features](#removed-features), [Detailed Migration Resources](#detailed-migration-resources)
 
 ## Breaking Changes Summary
 
@@ -248,7 +255,7 @@ public class RedisTests
 }
 ```
 
-See [Test Migration Guide](migrate-v2-to-v3/test-migration.md) for NUnit, Compose,
+See [Test Migration Guide](migrate-v2-to-v3/test-migration.html) for NUnit, Compose,
 and collection fixture examples.
 
 ## Step 6: Remove Docker Machine Code
@@ -407,10 +414,10 @@ var stats = await container.GetStatsAsync();
 
 For in-depth migration guidance, see these companion documents:
 
-- [Complete API Mapping](migrate-v2-to-v3/api-mapping.md) — exhaustive v2 → v3 method and type mapping reference
-- [Code Examples (Before/After)](migrate-v2-to-v3/code-examples.md) — side-by-side migration examples for common patterns
-- [Test Migration Guide](migrate-v2-to-v3/test-migration.md) — xUnit, MSTest, and fixture migration patterns
-- [Claude Code Migration Skill](migrate-v2-to-v3/claude-skill.md) — automated migration assistant (copy to `.claude/skills/` and invoke `/migrate-v2-to-v3`)
+- [Complete API Mapping](migrate-v2-to-v3/api-mapping.html) — exhaustive v2 → v3 method and type mapping reference
+- [Code Examples (Before/After)](migrate-v2-to-v3/code-examples.html) — side-by-side migration examples for common patterns
+- [Test Migration Guide](migrate-v2-to-v3/test-migration.html) — xUnit, MSTest, and fixture migration patterns
+- [Claude Code Migration Skill](migrate-v2-to-v3/claude-skill.html) — automated migration assistant (copy to `.claude/skills/` and invoke `/migrate-v2-to-v3`)
 
 ## Getting Help
 

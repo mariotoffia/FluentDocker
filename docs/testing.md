@@ -1,12 +1,19 @@
 ---
 layout: default
 title: Testing
-nav_order: 8
+nav_order: 9
+has_children: true
 ---
 
 # Test Support
 
 FluentDocker v3 provides test support via the Testing.Core framework:
+
+## Step by Step
+
+- Basics: [Testing.Core (Recommended)](#testingcore-recommended), [Quick Examples](#quick-examples)
+- Intermediate: [Detailed Documentation](#detailed-documentation), [Running by Category](#running-by-category)
+- Advanced: [Standalone Kernel + Builder](#standalone-kernel--builder)
 
 ## Testing.Core (Recommended)
 

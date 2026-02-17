@@ -1,12 +1,18 @@
 ---
 layout: default
 title: Networking
-nav_order: 5
+nav_order: 6
 ---
 
 # Networking
 
 FluentDocker provides full support for Docker networks, including custom networks, static IP assignment, and multi-network configurations.
+
+## Step by Step
+
+- Basics: [Kernel Setup](#kernel-setup), [Basic Network Creation](#basic-network-creation), [Multiple Containers on Same Network](#multiple-containers-on-same-network)
+- Intermediate: [Network with Subnet](#network-with-subnet), [Static IP Assignment](#static-ip-assignment), [DNS and Aliases](#dns-and-aliases), [Network Inspection](#network-inspection)
+- Advanced: [Network Drivers](#network-drivers), [Network Options](#network-options), [Multi-Network Containers](#multi-network-containers), [Testing with Isolated Networks](#testing-with-isolated-networks)
 
 ## Kernel Setup
 

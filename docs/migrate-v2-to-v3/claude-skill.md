@@ -1,6 +1,8 @@
 ---
 description: Migrate FluentDocker v2.x.x code to v3.0.0
 # Installation: Copy this file to your project's .claude/skills/migrate-v2-to-v3.md
+nav_exclude: true
+search_exclude: true
 ---
 
 # FluentDocker v2.x.x to v3.0.0 Migration Skill

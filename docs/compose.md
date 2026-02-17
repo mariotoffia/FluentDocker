@@ -1,12 +1,18 @@
 ---
 layout: default
 title: Docker Compose
-nav_order: 4
+nav_order: 5
 ---
 
 # Docker Compose
 
 FluentDocker provides full support for Docker Compose V2 (`docker compose` command).
+
+## Step by Step
+
+- Basics: [Kernel Setup](#kernel-setup), [Basic Usage](#basic-usage), [Waiting for Services](#waiting-for-services)
+- Intermediate: [Project Configuration](#project-configuration), [Multiple Compose Files](#multiple-compose-files), [Access Containers](#access-containers), [Environment Variables](#environment-variables)
+- Advanced: [Profiles](#profiles), [Target Specific Services](#target-specific-services), [Integration Tests Example](#integration-tests-example), [Cleanup Options](#cleanup-options)
 
 ## Kernel Setup
 

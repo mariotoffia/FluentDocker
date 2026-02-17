@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using FluentDocker.Drivers.Podman;
 using FluentDocker.Kernel;
 using FluentDocker.Testing.Core;
+using Xunit;
 
 namespace FluentDocker.Testing.Xunit
 {
@@ -13,17 +14,21 @@ namespace FluentDocker.Testing.Xunit
   /// <c>ICollectionFixture&lt;XunitPodmanKubernetesFixture&gt;</c>.
   /// </summary>
   /// <remarks>
-  /// <para>This fixture requires explicit initialization via
-  /// <see cref="InitializeAsync"/>. No abstract fixture base is provided for
-  /// Podman Kubernetes because it uses a config object rather than a builder.</para>
-  /// <para>You <b>must</b> call <see cref="InitializeAsync"/> before accessing
-  /// any properties — accessing them before initialization throws
+  /// <para>This fixture requires explicit configuration via <see cref="Configure"/>
+  /// (recommended) or <see cref="InitializeAsync(KubePlayConfig,Func{Task{FluentDockerKernel}},DockerResourceOptions,CancellationToken)"/>
+  /// (manual). No abstract fixture base is provided for Podman Kubernetes because
+  /// it uses a config object rather than a builder.</para>
+  /// <para>Accessing properties before initialization throws
   /// <see cref="InvalidOperationException"/>.</para>
   /// </remarks>
-  public class XunitPodmanKubernetesFixture : IAsyncDisposable
+  public class XunitPodmanKubernetesFixture : IAsyncLifetime
   {
     private PodmanKubernetesResource _resource;
     private FluentDockerKernel _kernel;
+    private KubePlayConfig _deferredConfig;
+    private Func<Task<FluentDockerKernel>> _deferredKernelFactory;
+    private DockerResourceOptions _deferredOptions;
+    private bool _configured;
 
     /// <summary>
     /// The underlying Podman Kubernetes resource.
@@ -50,12 +55,40 @@ namespace FluentDocker.Testing.Xunit
     }
 
     /// <summary>
-    /// Configures and initializes the fixture.
-    /// Call this from your fixture constructor or a setup method.
+    /// Stores configuration for deferred initialization via <see cref="IAsyncLifetime"/>.
+    /// Call this in your fixture constructor, then let xUnit call
+    /// <see cref="IAsyncLifetime.InitializeAsync"/>.
     /// </summary>
     /// <param name="config">Kubernetes play configuration.</param>
     /// <param name="kernelFactory">Optional kernel factory. Defaults to Podman CLI.</param>
     /// <param name="options">Optional resource options.</param>
+    /// <returns>This fixture for fluent chaining.</returns>
+    public XunitPodmanKubernetesFixture Configure(
+        KubePlayConfig config,
+        Func<Task<FluentDockerKernel>> kernelFactory = null,
+        DockerResourceOptions options = null)
+    {
+      _deferredConfig = config ?? throw new ArgumentNullException(nameof(config));
+      _deferredKernelFactory = kernelFactory;
+      _deferredOptions = options;
+      _configured = true;
+      return this;
+    }
+
+    /// <summary>
+    /// Called by xUnit when using <c>IClassFixture</c> or <c>ICollectionFixture</c>.
+    /// Requires <see cref="Configure"/> to have been called first; otherwise no-ops.
+    /// </summary>
+    async ValueTask IAsyncLifetime.InitializeAsync()
+    {
+      if (!_configured)
+        return;
+      await InitializeAsync(_deferredConfig, _deferredKernelFactory, _deferredOptions);
+    }
+
+    /// <summary>
+    /// Configures and initializes the fixture immediately.
+    /// </summary>
     public async Task InitializeAsync(
         KubePlayConfig config,
         Func<Task<FluentDockerKernel>> kernelFactory = null,

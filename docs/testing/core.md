@@ -1,7 +1,20 @@
+---
+layout: default
+title: Testing Core
+parent: Testing
+nav_order: 1
+---
+
 # FluentDocker Testing Core
 
 The testing core lives inside the main `FluentDocker` assembly under the namespace
 `FluentDocker.Testing.Core`. No separate NuGet package is needed.
+
+## Step by Step
+
+- Basics: [Core Types](#core-types), [Wait Conditions (Builder)](#wait-conditions-builder)
+- Intermediate: [Lifecycle Hooks](#lifecycle-hooks), [Diagnostics](#diagnostics), [Usage Example](#usage-example)
+- Advanced: [ResourceLifecycle (Advanced)](#resourcelifecycle-advanced)
 
 ## Core Types
 

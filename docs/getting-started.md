@@ -1,12 +1,22 @@
 ---
 layout: default
 title: Getting Started
-nav_order: 2
+nav_order: 3
 ---
 
 # Getting Started
 
 This guide helps you install FluentDocker and run your first container.
+For the complete beginner-to-advanced map, see [Learning Path](learning-path.html).
+
+## Read This Guide in Order
+
+- Step 1: Installation and prerequisites
+- Step 2: Basic container example
+- Step 3: Add one wait strategy
+- Step 4: Optional next steps (named container, compose, async, multiple containers)
+
+If you are new to FluentDocker, complete Step 1-3 before jumping to later sections.
 
 ## Installation
 

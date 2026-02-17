@@ -27,6 +27,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="xunit.v3.extensibility.core" Version="3.2.2" PrivateAssets="all" />
+    <PackageReference Include="xunit.v3.extensibility.core" Version="3.2.2" PrivateAssets="contentfiles;analyzers;build" />
   </ItemGroup>
 </Project>

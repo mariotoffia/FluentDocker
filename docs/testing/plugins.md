@@ -1,3 +1,10 @@
+---
+layout: default
+title: Testing Plugins
+parent: Testing
+nav_order: 5
+---
+
 # Plugin System
 
 Package: `FluentDocker` (built-in under `FluentDocker.Testing.Core.Plugins`)
@@ -9,6 +16,12 @@ The plugin system allows external assemblies to provide focused test resources
 
 Plugins register resource factories with a host, and tests resolve them by type
 or key.
+
+## Step by Step
+
+- Basics: [Overview](#overview), [Core Contracts](#core-contracts), [Writing a Plugin](#writing-a-plugin)
+- Intermediate: [Using Plugins in Tests](#using-plugins-in-tests), [Key Behaviors](#key-behaviors)
+- Advanced: [Plugin Project Template](#plugin-project-template)
 
 ## Core Contracts
 

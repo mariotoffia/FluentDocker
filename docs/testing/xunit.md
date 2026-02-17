@@ -1,3 +1,10 @@
+---
+layout: default
+title: xUnit Adapter
+parent: Testing
+nav_order: 2
+---
+
 # xUnit Adapter
 
 Package: `FluentDocker.Testing.Xunit`
@@ -9,6 +16,12 @@ The xUnit adapter offers three patterns, from simplest to most flexible:
 | **Test base** | Per-test (fresh container each test) | Isolated tests |
 | **Fixture base** | Per-class or per-collection (shared) | Integration suites |
 | **Concrete fixture** | Manual init (programmatic control) | Dynamic config |
+
+## Step by Step
+
+- Basics: [Test Bases (Per-Test Lifecycle)](#test-bases-per-test-lifecycle), [Fixture Bases (Shared Lifecycle)](#fixture-bases-shared-lifecycle)
+- Intermediate: [Collection Fixtures](#collection-fixtures), [Lifecycle Hooks with Wait Strategies](#lifecycle-hooks-with-wait-strategies)
+- Advanced: [Concrete Fixtures (Advanced)](#concrete-fixtures-advanced), [Choosing the Right Pattern](#choosing-the-right-pattern)
 
 ## Test Bases (Per-Test Lifecycle)
 
@@ -216,22 +229,32 @@ public class RedisReadTests
 
 Use concrete fixtures when you need programmatic control over
 initialization -- e.g., dynamic configuration, conditional setup, or
-runtime-computed parameters. These require explicit `InitializeAsync` calls.
+runtime-computed parameters.
 
-### `XunitContainerFixture`
+### Using `Configure` (Recommended)
+
+Call `Configure(...)` in your constructor. xUnit calls `IAsyncLifetime`
+automatically -- no sync-over-async needed:
 
 ```csharp
 public class DynamicFixture : XunitContainerFixture
 {
     public DynamicFixture()
     {
-        // Must use sync-over-async because xUnit constructors aren't async
-        InitializeAsync(builder => builder
+        Configure(builder => builder
             .UseImage(Environment.GetEnvironmentVariable("TEST_IMAGE")
                 ?? "redis:alpine")
-            .WaitForPort("6379/tcp")
-        ).GetAwaiter().GetResult();
+            .WaitForPort("6379/tcp"));
     }
+}
+
+public class RedisTests : IClassFixture<DynamicFixture>
+{
+    private readonly DynamicFixture _f;
+    public RedisTests(DynamicFixture f) => _f = f;
+
+    [Fact]
+    public void Container_IsRunning() => Assert.NotNull(_f.Container);
 }
 ```
 
@@ -244,9 +267,24 @@ public class CustomFixture : XunitResourceFixture<ContainerResource>
 {
     public CustomFixture()
     {
-        InitializeAsync(kernel =>
+        Configure(kernel =>
             new ContainerResource(kernel,
-                c => c.UseImage("redis:alpine"))
+                c => c.UseImage("redis:alpine")));
+    }
+}
+```
+
+### Manual `InitializeAsync` (Legacy)
+
+For backward compatibility, you can still call `InitializeAsync` directly:
+
+```csharp
+public class ManualFixture : XunitContainerFixture
+{
+    public ManualFixture()
+    {
+        InitializeAsync(builder => builder
+            .UseImage("redis:alpine")
         ).GetAwaiter().GetResult();
     }
 }
@@ -259,7 +297,8 @@ public class CustomFixture : XunitResourceFixture<ContainerResource>
 - `XunitSwarmStackFixture` -- Docker Swarm stacks
 - `XunitPodmanKubernetesFixture` -- Podman `kube play`
 
-All accept an optional `kernelFactory` and `DockerResourceOptions`.
+All support `Configure(...)` with optional `kernelFactory` and
+`DockerResourceOptions`.
 
 ---
 

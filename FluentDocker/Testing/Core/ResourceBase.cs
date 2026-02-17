@@ -19,6 +19,7 @@ namespace FluentDocker.Testing.Core
     private readonly List<Func<ITestResource, Task>> _afterReadyHooks = new();
     private readonly List<Func<ITestResource, Task>> _beforeDisposeHooks = new();
     private readonly List<Func<ITestResource, Task>> _afterDisposeHooks = new();
+    private readonly SemaphoreSlim _lifecycleLock = new(1, 1);
     private bool _provisioned;
 
     /// <summary>
@@ -103,89 +104,105 @@ namespace FluentDocker.Testing.Core
     /// <inheritdoc />
     public async Task InitializeAsync(CancellationToken cancellationToken = default)
     {
-      if (IsInitialized)
-        return;
-
-      DriverId = ResolveDriverId();
-      ValidateExpectedDriverType();
-
-      using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-      cts.CancelAfter(Options.InitializationTimeout);
-
+      await _lifecycleLock.WaitAsync(cancellationToken);
       try
       {
-        await RunHooksAsync(_beforeInitHooks, cts.Token);
-        await PreflightAsync(cts.Token);
-        _provisioned = true;
-        await ProvisionAsync(cts.Token);
-        Diagnostics = null;
-        IsInitialized = true;
-        await RunHooksAsync(_afterReadyHooks, cts.Token);
-      }
-      catch (Exception ex)
-      {
-        IsInitialized = false;
+        if (IsInitialized)
+          return;
+
+        DriverId = ResolveDriverId();
+        ValidateExpectedDriverType();
+
+        using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        cts.CancelAfter(Options.InitializationTimeout);
+
         try
-        { Diagnostics = await CollectDiagnosticsAsync(ex, cts.Token); }
-        catch { /* diagnostics must not mask the original failure */ }
-        throw;
+        {
+          await RunHooksAsync(_beforeInitHooks, cts.Token);
+          await PreflightAsync(cts.Token);
+          _provisioned = true;
+          await ProvisionAsync(cts.Token);
+          Diagnostics = null;
+          IsInitialized = true;
+          await RunHooksAsync(_afterReadyHooks, cts.Token);
+        }
+        catch (Exception ex)
+        {
+          IsInitialized = false;
+          try
+          { Diagnostics = await CollectDiagnosticsAsync(ex, cts.Token); }
+          catch { /* diagnostics must not mask the original failure */ }
+          throw;
+        }
+      }
+      finally
+      {
+        _lifecycleLock.Release();
       }
     }
 
     /// <inheritdoc />
     public async ValueTask DisposeAsync()
     {
-      using var cts = new CancellationTokenSource(Options.TeardownTimeout);
-
+      await _lifecycleLock.WaitAsync();
       try
       {
-        await RunHooksAsync(_beforeDisposeHooks, cts.Token);
-      }
-      catch
-      {
-        // Hooks should not prevent cleanup
-      }
+        using var cts = new CancellationTokenSource(Options.TeardownTimeout);
 
-      Exception teardownFailure = null;
-
-      if (_provisioned)
-      {
         try
         {
-          await TeardownAsync(cts.Token);
-          _provisioned = false;
+          await RunHooksAsync(_beforeDisposeHooks, cts.Token);
         }
-        catch (Exception ex)
+        catch
         {
-          if (Options.ForceRemoveOnDispose)
+          // Hooks should not prevent cleanup
+        }
+
+        Exception teardownFailure = null;
+
+        if (_provisioned)
+        {
+          try
           {
-            using var forceCts = new CancellationTokenSource(Options.TeardownTimeout);
-            try
-            { await ForceRemoveAsync(forceCts.Token); }
-            catch { /* best effort */ }
+            await TeardownAsync(cts.Token);
             _provisioned = false;
           }
-          else
+          catch (Exception ex)
           {
-            teardownFailure = ex;
-            // _provisioned stays true so next DisposeAsync retries
+            if (Options.ForceRemoveOnDispose)
+            {
+              using var forceCts = new CancellationTokenSource(Options.TeardownTimeout);
+              try
+              { await ForceRemoveAsync(forceCts.Token); }
+              catch { /* best effort */ }
+              _provisioned = false;
+            }
+            else
+            {
+              teardownFailure = ex;
+              // _provisioned stays true so next DisposeAsync retries
+            }
           }
         }
+
+        IsInitialized = false;
+
+        try
+        {
+          await RunHooksAsync(_afterDisposeHooks, cts.Token);
+        }
+        catch
+        {
+          // Hooks should not throw after cleanup
+        }
+
+        if (teardownFailure != null)
+          ExceptionDispatchInfo.Capture(teardownFailure).Throw();
       }
-
-      IsInitialized = false;
-
-      try
+      finally
       {
-        await RunHooksAsync(_afterDisposeHooks, cts.Token);
+        _lifecycleLock.Release();
       }
-      catch
-      {
-        // Hooks should not throw after cleanup
-      }
-
-      if (teardownFailure != null)
-        ExceptionDispatchInfo.Capture(teardownFailure).Throw();
     }
 
     #endregion

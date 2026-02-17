@@ -1,13 +1,19 @@
 ---
 layout: default
 title: Error Handling
-nav_order: 11
+nav_order: 12
 description: "FluentDocker v3.0 error handling - Exception hierarchy, error codes, diagnostics"
 ---
 
 # Error Handling
 
 FluentDocker v3.0 introduces a comprehensive error handling system with typed exceptions, error codes, and rich diagnostic context.
+
+## Step by Step
+
+- Basics: [Overview](#overview), [Exception Hierarchy](#exception-hierarchy), [Error Codes](#error-codes)
+- Intermediate: [Error Context](#error-context), [Migration Examples](#migration-examples), [Exception Type Mapping](#exception-type-mapping)
+- Advanced: [Retry Support](#retry-support), [Best Practices](#best-practices)
 
 ## Overview
 

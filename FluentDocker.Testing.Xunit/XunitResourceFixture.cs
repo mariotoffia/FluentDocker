@@ -3,6 +3,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using FluentDocker.Kernel;
 using FluentDocker.Testing.Core;
+using Xunit;
 
 namespace FluentDocker.Testing.Xunit
 {
@@ -17,17 +18,23 @@ namespace FluentDocker.Testing.Xunit
   /// abstract fixture bases (<see cref="XunitContainerFixtureBase"/>,
   /// <see cref="XunitComposeFixtureBase"/>, <see cref="XunitTopologyFixtureBase"/>)
   /// which provide automatic async lifecycle via <c>IAsyncLifetime</c>.</para>
-  /// <para>Use this class for custom or plugin resource types, or when you need
-  /// programmatic control over initialization. You <b>must</b> call
-  /// <see cref="InitializeAsync"/> before accessing any properties — accessing
-  /// them before initialization throws <see cref="InvalidOperationException"/>.</para>
+  /// <para>Use this class for custom or plugin resource types. Call
+  /// <see cref="Configure"/> in your subclass constructor and let xUnit drive
+  /// the lifecycle via <see cref="IAsyncLifetime"/>, or call the parameterized
+  /// <see cref="InitializeAsync(Func{FluentDockerKernel,TResource},Func{Task{FluentDockerKernel}},CancellationToken)"/>
+  /// directly for full manual control.</para>
+  /// <para>Accessing properties before initialization throws
+  /// <see cref="InvalidOperationException"/>.</para>
   /// </remarks>
   /// <typeparam name="TResource">The resource type to manage.</typeparam>
-  public class XunitResourceFixture<TResource> : IAsyncDisposable
+  public class XunitResourceFixture<TResource> : IAsyncLifetime
       where TResource : class, ITestResource
   {
     private TResource _resource;
     private FluentDockerKernel _kernel;
+    private Func<FluentDockerKernel, TResource> _deferredFactory;
+    private Func<Task<FluentDockerKernel>> _deferredKernelFactory;
+    private bool _configured;
 
     /// <summary>
     /// The underlying resource.
@@ -46,11 +53,40 @@ namespace FluentDocker.Testing.Xunit
     }
 
     /// <summary>
-    /// Configures and initializes the fixture.
-    /// Call this from your fixture constructor or a setup method.
+    /// Stores configuration for deferred initialization via <see cref="IAsyncLifetime"/>.
+    /// Call this in your fixture constructor, then let xUnit call
+    /// <see cref="IAsyncLifetime.InitializeAsync"/>.
     /// </summary>
     /// <param name="resourceFactory">Factory receiving a kernel; returns the resource.</param>
     /// <param name="kernelFactory">Optional kernel factory. Defaults to Docker CLI.</param>
+    /// <returns>This fixture for fluent chaining.</returns>
+    public XunitResourceFixture<TResource> Configure(
+        Func<FluentDockerKernel, TResource> resourceFactory,
+        Func<Task<FluentDockerKernel>> kernelFactory = null)
+    {
+      _deferredFactory = resourceFactory ?? throw new ArgumentNullException(nameof(resourceFactory));
+      _deferredKernelFactory = kernelFactory;
+      _configured = true;
+      return this;
+    }
+
+    /// <summary>
+    /// Called by xUnit when using <c>IClassFixture</c> or <c>ICollectionFixture</c>.
+    /// Requires <see cref="Configure"/> to have been called first; otherwise no-ops.
+    /// </summary>
+    async ValueTask IAsyncLifetime.InitializeAsync()
+    {
+      if (!_configured)
+        return;
+      await InitializeAsync(_deferredFactory, _deferredKernelFactory);
+    }
+
+    /// <summary>
+    /// Configures and initializes the fixture immediately.
+    /// </summary>
+    /// <param name="resourceFactory">Factory receiving a kernel; returns the resource.</param>
+    /// <param name="kernelFactory">Optional kernel factory. Defaults to Docker CLI.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
     public async Task InitializeAsync(
         Func<FluentDockerKernel, TResource> resourceFactory,
         Func<Task<FluentDockerKernel>> kernelFactory = null,

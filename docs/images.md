@@ -1,13 +1,19 @@
 ---
 layout: default
 title: Images
-nav_order: 7
+nav_order: 8
 ---
 
 # Image Building
 
 FluentDocker v3 provides a lambda-based API for building Docker images from Dockerfiles
 or inline definitions. All builder operations require a kernel and a driver scope.
+
+## Step by Step
+
+- Basics: [Kernel Setup](#kernel-setup), [Build from Dockerfile](#build-from-dockerfile), [Inline Dockerfile](#inline-dockerfile)
+- Intermediate: [Dockerfile Instructions](#dockerfile-instructions), [.NET Application Examples](#net-application-examples), [Build Arguments in Dockerfile](#build-arguments-in-dockerfile)
+- Advanced: [Build with Container](#build-with-container), [Accessing Build Results](#accessing-build-results), [Testing with Custom Images](#testing-with-custom-images)
 
 ## Kernel Setup
 

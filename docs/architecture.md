@@ -1,13 +1,21 @@
 ---
 layout: default
 title: Architecture
-nav_order: 10
+nav_order: 13
 description: "FluentDocker v3.0 architecture - Driver layer, kernel configuration, async patterns"
 ---
 
 # FluentDocker v3.0 Architecture
 
 This document describes the v3.0 architecture with the pluggable driver layer, kernel configuration, and async patterns.
+
+## Step by Step
+
+This is an advanced guide. If you are new to FluentDocker, complete [Getting Started](getting-started.html) first.
+
+- Foundation: [Overview](#overview), [Async Pattern](#async-pattern), [Kernel Configuration](#kernel-configuration)
+- Advanced internals: [SysCtl() Driver Access](#sysctl-driver-access), [Scoped Builder Pattern](#scoped-builder-pattern), [Driver-Aware Builder Extensions](#driver-aware-builder-extensions), [Capabilities System](#capabilities-system)
+- Design rationale: [Key Architecture Decisions](#key-architecture-decisions)
 
 ## Overview
 

@@ -1,12 +1,18 @@
 ---
 layout: default
 title: Utilities
-nav_order: 9
+nav_order: 10
 ---
 
 # Utilities
 
 FluentDocker provides several utility classes and extension methods to simplify common operations.
+
+## Step by Step
+
+- Basics: [TemplateString](#templatestring), [HTTP Extensions (Wget)](#http-extensions-wget)
+- Intermediate: [Resource Extensions](#resource-extensions), [Logging](#logging), [Model Extensions](#model-extensions)
+- Advanced: [SudoMechanism](#sudomechanism), [Endpoint Resolution](#endpoint-resolution), [Command Response Handling](#command-response-handling), [Container Stats Parsing](#container-stats-parsing)
 
 ## TemplateString
 

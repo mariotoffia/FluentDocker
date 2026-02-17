@@ -1,3 +1,10 @@
+---
+layout: default
+title: Test Categories
+parent: Testing
+nav_order: 7
+---
+
 # Test Categories & Run Guide
 
 FluentDocker uses xUnit `[Trait("Category", "...")]` attributes to classify tests.

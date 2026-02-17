@@ -67,7 +67,7 @@ namespace FluentDocker.Tests.CoreTests.Testing
       await resource.DisposeAsync();
 
       Assert.False(resource.IsInitialized);
-      Assert.Empty(resource.Services);
+      Assert.Throws<InvalidOperationException>(() => _ = resource.Services);
     }
 
     [Fact]
@@ -206,7 +206,20 @@ namespace FluentDocker.Tests.CoreTests.Testing
       Assert.True(resource.Services.Count >= 2);
 
       await resource.DisposeAsync();
-      Assert.Empty(resource.Services);
+      Assert.Throws<InvalidOperationException>(() => _ = resource.Services);
+    }
+
+    [Fact]
+    public void PropertiesBeforeInit_ThrowInvalidOperationException()
+    {
+      var resource = new TopologyResource(
+          Kernel,
+          builder => builder.UseContainer(c => c.UseImage("alpine:latest")));
+
+      Assert.Throws<InvalidOperationException>(() => _ = resource.Services);
+      Assert.Throws<InvalidOperationException>(() => _ = resource.Containers);
+      Assert.Throws<InvalidOperationException>(() => resource.GetContainer("x"));
+      Assert.Throws<InvalidOperationException>(() => resource.GetNetwork("x"));
     }
 
     [Fact]

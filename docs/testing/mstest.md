@@ -1,6 +1,19 @@
+---
+layout: default
+title: MSTest Adapter
+parent: Testing
+nav_order: 3
+---
+
 # MSTest Adapter
 
 Package: `FluentDocker.Testing.MsTest`
+
+## Step by Step
+
+- Basics: [Helper Methods](#helper-methods), [Container Example](#container-example), [Per-Test Lifecycle](#per-test-lifecycle)
+- Intermediate: [Compose Example](#compose-example), [Swarm Stack Example](#swarm-stack-example), [Podman Kubernetes Example](#podman-kubernetes-example)
+- Advanced: [Generic / Custom Resource](#generic--custom-resource)
 
 ## Helper Methods
 
