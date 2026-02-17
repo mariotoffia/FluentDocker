@@ -80,13 +80,10 @@ namespace FluentDocker.Testing.Xunit
     {
       try
       {
-        if (Resource != null)
-          await Resource.DisposeAsync();
+        await ResourceLifecycle.DisposeAsync(Resource, Kernel);
       }
       finally
       {
-        if (Kernel != null)
-          await Kernel.DisposeAsync();
         Resource = null;
         Kernel = null;
       }

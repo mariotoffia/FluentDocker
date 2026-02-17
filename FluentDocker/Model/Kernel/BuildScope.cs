@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Threading;
 using System.Threading.Tasks;
 using FluentDocker.Services;
 
@@ -54,24 +55,24 @@ namespace FluentDocker.Model.Kernel
     /// <summary>
     /// Disposes all services in this scope asynchronously.
     /// </summary>
-    public async Task DisposeAllAsync()
+    /// <param name="cancellationToken">
+    /// Optional token that bounds the total cleanup time.
+    /// When cancelled, remaining service disposals are abandoned.
+    /// </param>
+    public async Task DisposeAllAsync(CancellationToken cancellationToken = default)
     {
       foreach (var service in _results)
       {
         try
         {
-          if (service is IAsyncDisposable asyncDisposable)
-          {
-            await asyncDisposable.DisposeAsync();
-          }
-          else
-          {
-            service.Dispose();
-          }
+          var task = service is IAsyncDisposable asyncDisposable
+              ? asyncDisposable.DisposeAsync().AsTask()
+              : Task.Run(() => service.Dispose(), CancellationToken.None);
+          await task.WaitAsync(cancellationToken);
         }
         catch
         {
-          // Ignore disposal errors
+          // Ignore disposal errors (including cancellation)
         }
       }
       _results.Clear();

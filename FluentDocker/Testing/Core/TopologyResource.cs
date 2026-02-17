@@ -76,7 +76,7 @@ namespace FluentDocker.Testing.Core
       builder.WithinDriver(DriverId, Kernel);
       _configure(builder);
 
-      var results = await builder.BuildAsync(cancellationToken);
+      var results = await builder.BuildAsync(cancellationToken: cancellationToken);
       foreach (var service in results.All.OfType<IServiceAsync>())
       {
         _services.Add(service);

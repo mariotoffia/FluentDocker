@@ -207,8 +207,16 @@ namespace FluentDocker.Builders
     /// <summary>
     /// TERMINAL - Builds all operations asynchronously.
     /// </summary>
-    public async Task<BuildResults> BuildAsync(CancellationToken cancellationToken = default)
+    /// <param name="cancellationToken">Token to cancel the build.</param>
+    /// <param name="cleanupTimeout">
+    /// Maximum time allowed for cleanup on build failure.
+    /// Defaults to 120 seconds.
+    /// </param>
+    public async Task<BuildResults> BuildAsync(
+        TimeSpan? cleanupTimeout = null,
+        CancellationToken cancellationToken = default)
     {
+      var effectiveCleanupTimeout = cleanupTimeout ?? TimeSpan.FromSeconds(120);
       var scopes = new Dictionary<(FluentDockerKernel, string), BuildScope>();
       var groupedOps = _operations.GroupBy(op => (op.Kernel, op.DriverId));
 
@@ -240,8 +248,10 @@ namespace FluentDocker.Builders
       catch
       {
         // Clean up all services created so far to prevent resource leaks.
+        // Use a bounded timeout so cleanup cannot hang indefinitely when the daemon is unhealthy.
+        using var cleanupCts = new CancellationTokenSource(effectiveCleanupTimeout);
         foreach (var scope in scopes.Values)
-          await scope.DisposeAllAsync();
+          await scope.DisposeAllAsync(cleanupCts.Token);
         throw;
       }
 
@@ -359,6 +369,13 @@ namespace FluentDocker.Builders
     /// <summary>
     /// Builds all operations asynchronously (TERMINAL operation).
     /// </summary>
-    Task<BuildResults> BuildAsync(CancellationToken cancellationToken = default);
+    /// <param name="cleanupTimeout">
+    /// Maximum time allowed for cleanup on build failure.
+    /// Defaults to 120 seconds.
+    /// </param>
+    /// <param name="cancellationToken">Token to cancel the build.</param>
+    Task<BuildResults> BuildAsync(
+        TimeSpan? cleanupTimeout = null,
+        CancellationToken cancellationToken = default);
   }
 }

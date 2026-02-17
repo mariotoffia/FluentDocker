@@ -36,6 +36,6 @@ namespace FluentDocker.Testing.Core
     /// Timeout for teardown (stop + remove) during disposal.
     /// Prevents hung cleanup from blocking CI pipelines indefinitely.
     /// </summary>
-    public TimeSpan TeardownTimeout { get; set; } = TimeSpan.FromSeconds(60);
+    public TimeSpan TeardownTimeout { get; set; } = TimeSpan.FromSeconds(120);
   }
 }

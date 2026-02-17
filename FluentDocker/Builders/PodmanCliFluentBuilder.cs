@@ -71,7 +71,9 @@ namespace FluentDocker.Builders
     /// <summary>
     /// TERMINAL - Builds all operations asynchronously.
     /// </summary>
-    public Task<BuildResults> BuildAsync(CancellationToken cancellationToken = default)
-        => _inner.BuildAsync(cancellationToken);
+    public Task<BuildResults> BuildAsync(
+        TimeSpan? cleanupTimeout = null,
+        CancellationToken cancellationToken = default)
+        => _inner.BuildAsync(cleanupTimeout, cancellationToken);
   }
 }

@@ -1,6 +1,7 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
+using FluentDocker.Kernel;
 using FluentDocker.Model.Drivers;
 using FluentDocker.Testing.Core;
 using FluentDocker.Testing.Core.Plugins;
@@ -263,33 +264,15 @@ namespace FluentDocker.Tests.CoreTests.Testing
       // ResourceLifecycle.DisposeAsync should wrap both in AggregateException.
       var throwingResource = new ThrowingResource(
           new InvalidOperationException("resource disposal failed"));
+      var throwingKernel = new ThrowingKernel(
+          new ObjectDisposedException("kernel disposal failed"));
 
-      // Create a second kernel to pass to ResourceLifecycle.DisposeAsync.
-      // We register a custom driver pack that throws on disposal.
-      var (failKernel, _) =
-          await MockKernelBuilderExtensions.CreateWithMockDriverAsync("fail-driver");
+      var agg = await Assert.ThrowsAsync<AggregateException>(
+          () => ResourceLifecycle.DisposeAsync(throwingResource, throwingKernel));
 
-      // Dispose kernel first — if DisposeAsync throws on double-dispose, we
-      // get the AggregateException. If it is idempotent, we fall through
-      // to the single-failure branch instead.
-      await failKernel.DisposeAsync();
-
-      // If kernel double-dispose is idempotent, at least verify
-      // ResourceLifecycle.DisposeAsync properly rethrows the resource failure.
-      try
-      {
-        await ResourceLifecycle.DisposeAsync(throwingResource, failKernel);
-        Assert.Fail("Expected an exception from DisposeAsync");
-      }
-      catch (AggregateException agg)
-      {
-        Assert.Equal(2, agg.InnerExceptions.Count);
-      }
-      catch (InvalidOperationException ex)
-      {
-        // Kernel was idempotent — only resource exception surfaced.
-        Assert.Contains("resource disposal failed", ex.Message);
-      }
+      Assert.Equal(2, agg.InnerExceptions.Count);
+      Assert.IsType<InvalidOperationException>(agg.InnerExceptions[0]);
+      Assert.IsType<ObjectDisposedException>(agg.InnerExceptions[1]);
     }
 
     [Fact]
@@ -319,6 +302,14 @@ namespace FluentDocker.Tests.CoreTests.Testing
           => Task.CompletedTask;
 
       public ValueTask DisposeAsync()
+          => new ValueTask(Task.FromException(_exception));
+    }
+
+    private sealed class ThrowingKernel : FluentDockerKernel
+    {
+      private readonly Exception _exception;
+      public ThrowingKernel(Exception exception) => _exception = exception;
+      public override ValueTask DisposeAsync()
           => new ValueTask(Task.FromException(_exception));
     }
 

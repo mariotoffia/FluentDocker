@@ -76,7 +76,7 @@ namespace FluentDocker.Testing.Core
       builder.WithinDriver(DriverId, Kernel);
       builder.UseContainer(_configure);
 
-      var results = await builder.BuildAsync(cancellationToken);
+      var results = await builder.BuildAsync(cancellationToken: cancellationToken);
       if (results.All.Count > 0 && results.All[0] is IContainerService container)
       {
         Container = container;

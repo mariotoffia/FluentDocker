@@ -272,7 +272,7 @@ namespace FluentDocker.Kernel
     /// those implementing only <see cref="IDisposable"/> are disposed synchronously.
     /// Regular drivers follow the same pattern.
     /// </summary>
-    public async ValueTask DisposeAsync()
+    public virtual async ValueTask DisposeAsync()
     {
       if (_disposed)
         return;

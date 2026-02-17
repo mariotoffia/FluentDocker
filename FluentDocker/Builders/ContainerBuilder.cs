@@ -443,8 +443,12 @@ namespace FluentDocker.Builders
         catch
         {
           // Container was created (and possibly started). Force-remove to prevent leaks.
+          // Use a bounded timeout so cleanup cannot hang indefinitely when the daemon is unhealthy.
           try
-          { await driver.RemoveAsync(context, response.Data.Id, true, false, CancellationToken.None); }
+          {
+            using var cleanupCts = new CancellationTokenSource(TimeSpan.FromSeconds(120));
+            await driver.RemoveAsync(context, response.Data.Id, true, false, cleanupCts.Token);
+          }
           catch { /* best effort cleanup */ }
           throw;
         }
