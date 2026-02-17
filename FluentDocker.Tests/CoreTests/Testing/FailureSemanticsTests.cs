@@ -12,7 +12,7 @@ using Xunit;
 namespace FluentDocker.Tests.CoreTests.Testing
 {
   [Trait("Category", "Unit")]
-  public class FailureSemanticsTests : MockKernelTestBase, IAsyncLifetime
+  public partial class FailureSemanticsTests : MockKernelTestBase, IAsyncLifetime
   {
     public async ValueTask InitializeAsync()
     {

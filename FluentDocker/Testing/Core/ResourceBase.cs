@@ -126,7 +126,7 @@ namespace FluentDocker.Testing.Core
       {
         IsInitialized = false;
         try
-        { Diagnostics = await CollectDiagnosticsAsync(ex); }
+        { Diagnostics = await CollectDiagnosticsAsync(ex, cts.Token); }
         catch { /* diagnostics must not mask the original failure */ }
         throw;
       }
@@ -135,16 +135,17 @@ namespace FluentDocker.Testing.Core
     /// <inheritdoc />
     public async ValueTask DisposeAsync()
     {
+      using var cts = new CancellationTokenSource(Options.TeardownTimeout);
+
       try
       {
-        await RunHooksAsync(_beforeDisposeHooks, CancellationToken.None);
+        await RunHooksAsync(_beforeDisposeHooks, cts.Token);
       }
       catch
       {
         // Hooks should not prevent cleanup
       }
 
-      using var cts = new CancellationTokenSource(Options.TeardownTimeout);
       Exception teardownFailure = null;
 
       if (_provisioned)
@@ -152,6 +153,7 @@ namespace FluentDocker.Testing.Core
         try
         {
           await TeardownAsync(cts.Token);
+          _provisioned = false;
         }
         catch (Exception ex)
         {
@@ -161,21 +163,21 @@ namespace FluentDocker.Testing.Core
             try
             { await ForceRemoveAsync(forceCts.Token); }
             catch { /* best effort */ }
+            _provisioned = false;
           }
           else
           {
             teardownFailure = ex;
+            // _provisioned stays true so next DisposeAsync retries
           }
         }
-
-        _provisioned = false;
       }
 
       IsInitialized = false;
 
       try
       {
-        await RunHooksAsync(_afterDisposeHooks, CancellationToken.None);
+        await RunHooksAsync(_afterDisposeHooks, cts.Token);
       }
       catch
       {
@@ -217,7 +219,9 @@ namespace FluentDocker.Testing.Core
     /// <summary>
     /// Collects diagnostic information when initialization fails.
     /// </summary>
-    protected virtual Task<ResourceDiagnostics> CollectDiagnosticsAsync(Exception failure)
+    protected virtual Task<ResourceDiagnostics> CollectDiagnosticsAsync(
+        Exception failure,
+        CancellationToken cancellationToken = default)
     {
       return Task.FromResult(new ResourceDiagnostics
       {
@@ -294,7 +298,15 @@ namespace FluentDocker.Testing.Core
       foreach (var hook in hooks)
       {
         cancellationToken.ThrowIfCancellationRequested();
-        await hook(this);
+        var hookTask = hook(this);
+        var completed = await Task.WhenAny(
+            hookTask,
+            Task.Delay(Timeout.Infinite, cancellationToken));
+
+        if (completed != hookTask)
+          cancellationToken.ThrowIfCancellationRequested();
+
+        await hookTask;
       }
     }
 

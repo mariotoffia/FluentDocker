@@ -76,7 +76,9 @@ namespace FluentDocker.Testing.Core
       builder.WithinDriver(DriverId, Kernel);
       _configure(builder);
 
-      var results = await builder.BuildAsync(cancellationToken: cancellationToken);
+      var results = await builder.BuildAsync(
+          cleanupTimeout: Options.TeardownTimeout,
+          cancellationToken: cancellationToken);
       foreach (var service in results.All.OfType<IServiceAsync>())
       {
         _services.Add(service);
@@ -124,9 +126,11 @@ namespace FluentDocker.Testing.Core
     }
 
     /// <inheritdoc />
-    protected override async Task<ResourceDiagnostics> CollectDiagnosticsAsync(Exception failure)
+    protected override async Task<ResourceDiagnostics> CollectDiagnosticsAsync(
+        Exception failure,
+        CancellationToken cancellationToken = default)
     {
-      var diag = await base.CollectDiagnosticsAsync(failure);
+      var diag = await base.CollectDiagnosticsAsync(failure, cancellationToken);
 
       if (Options.CaptureLogsOnFailure)
       {
@@ -135,7 +139,7 @@ namespace FluentDocker.Testing.Core
         {
           try
           {
-            var log = await container.GetLogsAsync(false);
+            var log = await container.GetLogsAsync(false, cancellationToken);
             logs.Add($"--- {container.Name ?? container.Id} ---\n{log}");
           }
           catch

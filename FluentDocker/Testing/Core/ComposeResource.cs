@@ -68,7 +68,9 @@ namespace FluentDocker.Testing.Core
       builder.WithinDriver(DriverId, Kernel);
       builder.UseCompose(_configure);
 
-      var results = await builder.BuildAsync(cancellationToken: cancellationToken);
+      var results = await builder.BuildAsync(
+          cleanupTimeout: Options.TeardownTimeout,
+          cancellationToken: cancellationToken);
       if (results.All.Count > 0 && results.All[0] is IComposeService compose)
       {
         Service = compose;
@@ -105,15 +107,18 @@ namespace FluentDocker.Testing.Core
     }
 
     /// <inheritdoc />
-    protected override async Task<ResourceDiagnostics> CollectDiagnosticsAsync(Exception failure)
+    protected override async Task<ResourceDiagnostics> CollectDiagnosticsAsync(
+        Exception failure,
+        CancellationToken cancellationToken = default)
     {
-      var diag = await base.CollectDiagnosticsAsync(failure);
+      var diag = await base.CollectDiagnosticsAsync(failure, cancellationToken);
 
       if (Service != null && Options.CaptureLogsOnFailure)
       {
         try
         {
-          diag.Logs = TruncateLogLines(await Service.GetLogsAsync(false));
+          diag.Logs = TruncateLogLines(
+              await Service.GetLogsAsync(false, cancellationToken));
         }
         catch
         {
