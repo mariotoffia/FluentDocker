@@ -18,12 +18,12 @@ namespace FluentDocker.Tests.CoreTests.Testing.Adapters
     }
 
     [Fact]
-    public void PropertiesBeforeInit_ReturnNull()
+    public void PropertiesBeforeInit_ThrowInvalidOperationException()
     {
       var fixture = new XunitComposeFixture();
-      Assert.Null(fixture.Resource);
-      Assert.Null(fixture.Service);
-      Assert.Null(fixture.Kernel);
+      Assert.Throws<InvalidOperationException>(() => _ = fixture.Resource);
+      Assert.Throws<InvalidOperationException>(() => _ = fixture.Service);
+      Assert.Throws<InvalidOperationException>(() => _ = fixture.Kernel);
     }
 
     [Fact]
@@ -74,8 +74,8 @@ namespace FluentDocker.Tests.CoreTests.Testing.Adapters
       Assert.True(fixture.Resource.IsInitialized);
 
       await fixture.DisposeAsync();
-      Assert.Null(fixture.Resource);
-      Assert.Null(fixture.Kernel);
+      Assert.Throws<InvalidOperationException>(() => _ = fixture.Resource);
+      Assert.Throws<InvalidOperationException>(() => _ = fixture.Kernel);
     }
 
     [Fact]
@@ -122,11 +122,11 @@ namespace FluentDocker.Tests.CoreTests.Testing.Adapters
     }
 
     [Fact]
-    public void PropertiesBeforeInit_ReturnNull()
+    public void PropertiesBeforeInit_ThrowInvalidOperationException()
     {
       var fixture = new XunitTopologyFixture();
-      Assert.Null(fixture.Resource);
-      Assert.Null(fixture.Kernel);
+      Assert.Throws<InvalidOperationException>(() => _ = fixture.Resource);
+      Assert.Throws<InvalidOperationException>(() => _ = fixture.Kernel);
     }
 
     [Fact]
@@ -172,8 +172,8 @@ namespace FluentDocker.Tests.CoreTests.Testing.Adapters
           cancellationToken: TestContext.Current.CancellationToken);
 
       await fixture.DisposeAsync();
-      Assert.Null(fixture.Resource);
-      Assert.Null(fixture.Kernel);
+      Assert.Throws<InvalidOperationException>(() => _ = fixture.Resource);
+      Assert.Throws<InvalidOperationException>(() => _ = fixture.Kernel);
     }
 
     [Fact]

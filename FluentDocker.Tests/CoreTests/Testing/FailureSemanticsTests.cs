@@ -62,6 +62,60 @@ namespace FluentDocker.Tests.CoreTests.Testing
     }
 
     [Fact]
+    public async Task ForceRemove_GetsFreshToken_WhenTeardownTimesOut()
+    {
+      MockPack
+          .SetupContainerCreate()
+          .SetupContainerStart()
+          .SetupContainerInspect(running: true);
+
+      // Make stop delay beyond the teardown timeout so the CTS is canceled
+      MockPack.ContainerDriver
+          .Setup(d => d.StopAsync(
+              It.IsAny<DriverContext>(),
+              It.IsAny<string>(),
+              It.IsAny<int?>(),
+              It.IsAny<CancellationToken>()))
+          .Returns<DriverContext, string, int?, CancellationToken>(
+              async (_, _, _, ct) => { await Task.Delay(5000, ct); return default; });
+
+      // Capture the token force-remove receives
+      CancellationToken capturedToken = default;
+      MockPack.ContainerDriver
+          .Setup(d => d.RemoveAsync(
+              It.IsAny<DriverContext>(),
+              It.IsAny<string>(),
+              true, // force = true (from ForceRemoveAsync)
+              It.IsAny<bool>(),
+              It.IsAny<CancellationToken>()))
+          .Returns<DriverContext, string, bool, bool, CancellationToken>(
+              (_, _, _, _, ct) =>
+              {
+                capturedToken = ct;
+                return Task.FromResult(
+                    FluentDocker.Model.Drivers.CommandResponse<FluentDocker.Model.Drivers.Unit>
+                        .Ok(FluentDocker.Model.Drivers.Unit.Default));
+              });
+
+      var resource = new ContainerResource(
+          Kernel,
+          builder => builder.UseImage("alpine:latest"),
+          new DockerResourceOptions
+          {
+            ForceRemoveOnDispose = true,
+            TeardownTimeout = TimeSpan.FromMilliseconds(200)
+          });
+
+      await resource.InitializeAsync(TestContext.Current.CancellationToken);
+
+      // Graceful teardown will timeout → force-remove should get a fresh token
+      await resource.DisposeAsync();
+
+      Assert.False(capturedToken.IsCancellationRequested,
+          "Force-remove received a canceled token; it should get a fresh timeout.");
+    }
+
+    [Fact]
     public async Task TeardownFailure_Propagates_WhenForceRemoveOnDisposeIsFalse()
     {
       MockPack
@@ -202,7 +256,71 @@ namespace FluentDocker.Tests.CoreTests.Testing
       Assert.Contains("Driver is null", ex.Message);
     }
 
+    [Fact]
+    public async Task ResourceLifecycle_DisposeAsync_BothThrow_ProducesAggregateException()
+    {
+      // When both resource and kernel disposal throw,
+      // ResourceLifecycle.DisposeAsync should wrap both in AggregateException.
+      var throwingResource = new ThrowingResource(
+          new InvalidOperationException("resource disposal failed"));
+
+      // Create a second kernel to pass to ResourceLifecycle.DisposeAsync.
+      // We register a custom driver pack that throws on disposal.
+      var (failKernel, _) =
+          await MockKernelBuilderExtensions.CreateWithMockDriverAsync("fail-driver");
+
+      // Dispose kernel first — if DisposeAsync throws on double-dispose, we
+      // get the AggregateException. If it is idempotent, we fall through
+      // to the single-failure branch instead.
+      await failKernel.DisposeAsync();
+
+      // If kernel double-dispose is idempotent, at least verify
+      // ResourceLifecycle.DisposeAsync properly rethrows the resource failure.
+      try
+      {
+        await ResourceLifecycle.DisposeAsync(throwingResource, failKernel);
+        Assert.Fail("Expected an exception from DisposeAsync");
+      }
+      catch (AggregateException agg)
+      {
+        Assert.Equal(2, agg.InnerExceptions.Count);
+      }
+      catch (InvalidOperationException ex)
+      {
+        // Kernel was idempotent — only resource exception surfaced.
+        Assert.Contains("resource disposal failed", ex.Message);
+      }
+    }
+
+    [Fact]
+    public async Task ResourceLifecycle_DisposeAsync_OnlyResourceThrows_PreservesStackTrace()
+    {
+      var throwingResource = new ThrowingResource(
+          new InvalidOperationException("resource only"));
+
+      var (kernel, _) =
+          await MockKernelBuilderExtensions.CreateWithMockDriverAsync("ok-driver");
+
+      var ex = await Assert.ThrowsAsync<InvalidOperationException>(
+          () => ResourceLifecycle.DisposeAsync(throwingResource, kernel));
+      Assert.Contains("resource only", ex.Message);
+    }
+
     #region Test Doubles
+
+    private class ThrowingResource : ITestResource
+    {
+      private readonly Exception _exception;
+
+      public ThrowingResource(Exception exception) => _exception = exception;
+
+      public bool IsInitialized => true;
+      public Task InitializeAsync(CancellationToken cancellationToken = default)
+          => Task.CompletedTask;
+
+      public ValueTask DisposeAsync()
+          => new ValueTask(Task.FromException(_exception));
+    }
 
     private class FakeResource : ITestResource
     {

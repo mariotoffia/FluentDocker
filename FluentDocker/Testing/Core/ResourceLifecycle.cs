@@ -1,4 +1,5 @@
 using System;
+using System.Runtime.ExceptionServices;
 using System.Threading;
 using System.Threading.Tasks;
 using FluentDocker.Kernel;
@@ -83,8 +84,9 @@ namespace FluentDocker.Testing.Core
         try
         { if (resource != null) await resource.DisposeAsync(); }
         catch { /* best effort */ }
-        if (kernel != null)
-          await kernel.DisposeAsync();
+        try
+        { if (kernel != null) await kernel.DisposeAsync(); }
+        catch { /* cleanup must not mask the original failure */ }
         throw;
       }
     }
@@ -98,16 +100,31 @@ namespace FluentDocker.Testing.Core
     public static async Task DisposeAsync(
         ITestResource resource, FluentDockerKernel kernel)
     {
+      Exception resourceFailure = null;
       try
       {
         if (resource != null)
           await resource.DisposeAsync();
       }
-      finally
+      catch (Exception ex)
+      {
+        resourceFailure = ex;
+      }
+
+      try
       {
         if (kernel != null)
           await kernel.DisposeAsync();
       }
+      catch (Exception ex)
+      {
+        if (resourceFailure != null)
+          throw new AggregateException(resourceFailure, ex);
+        throw;
+      }
+
+      if (resourceFailure != null)
+        ExceptionDispatchInfo.Capture(resourceFailure).Throw();
     }
   }
 }

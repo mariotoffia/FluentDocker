@@ -212,27 +212,37 @@ namespace FluentDocker.Builders
       var scopes = new Dictionary<(FluentDockerKernel, string), BuildScope>();
       var groupedOps = _operations.GroupBy(op => (op.Kernel, op.DriverId));
 
-      foreach (var group in groupedOps)
+      try
       {
-        var key = group.Key;
-        var scope = new BuildScope(key.Kernel, key.DriverId);
-        scopes[key] = scope;
-
-        var groupOperations = group.ToList();
-        foreach (var operation in groupOperations)
+        foreach (var group in groupedOps)
         {
-          var service = await operation.ExecuteAsync(cancellationToken);
-          scope.AddResult(service);
-        }
+          var key = group.Key;
+          var scope = new BuildScope(key.Kernel, key.DriverId);
+          scopes[key] = scope;
 
-        await StartContainersWithLinksAsync(scope, cancellationToken);
+          var groupOperations = group.ToList();
+          foreach (var operation in groupOperations)
+          {
+            var service = await operation.ExecuteAsync(cancellationToken);
+            scope.AddResult(service);
+          }
 
-        // Execute deferred wait conditions for linked containers
-        foreach (var operation in groupOperations)
-        {
-          if (operation.PostStartAsync != null)
-            await operation.PostStartAsync(cancellationToken);
+          await StartContainersWithLinksAsync(scope, cancellationToken);
+
+          // Execute deferred wait conditions for linked containers
+          foreach (var operation in groupOperations)
+          {
+            if (operation.PostStartAsync != null)
+              await operation.PostStartAsync(cancellationToken);
+          }
         }
+      }
+      catch
+      {
+        // Clean up all services created so far to prevent resource leaks.
+        foreach (var scope in scopes.Values)
+          await scope.DisposeAllAsync();
+        throw;
       }
 
       return new BuildResults(scopes.Values.ToList());

@@ -432,11 +432,22 @@ namespace FluentDocker.Builders
 
       if (!hasLinks)
       {
-        await service.StartAsync(cancellationToken);
-        await WaitForContainerRunningAsync(driver, context, response.Data.Id, cancellationToken);
-        await ExecuteLifecycleHooksAsync(service, ServiceRunningState.Running, cancellationToken);
-        await ExecuteWaitConditionsAsync(service, cancellationToken);
-        _waitConditionsExecuted = true;
+        try
+        {
+          await service.StartAsync(cancellationToken);
+          await WaitForContainerRunningAsync(driver, context, response.Data.Id, cancellationToken);
+          await ExecuteLifecycleHooksAsync(service, ServiceRunningState.Running, cancellationToken);
+          await ExecuteWaitConditionsAsync(service, cancellationToken);
+          _waitConditionsExecuted = true;
+        }
+        catch
+        {
+          // Container was created (and possibly started). Force-remove to prevent leaks.
+          try
+          { await driver.RemoveAsync(context, response.Data.Id, true, false, CancellationToken.None); }
+          catch { /* best effort cleanup */ }
+          throw;
+        }
       }
 
       return service;

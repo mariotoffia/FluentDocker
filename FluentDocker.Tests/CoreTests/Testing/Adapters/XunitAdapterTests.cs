@@ -22,12 +22,12 @@ namespace FluentDocker.Tests.CoreTests.Testing.Adapters
     }
 
     [Fact]
-    public void PropertiesBeforeInit_ReturnNull()
+    public void PropertiesBeforeInit_ThrowInvalidOperationException()
     {
       var fixture = new XunitContainerFixture();
-      Assert.Null(fixture.Resource);
-      Assert.Null(fixture.Container);
-      Assert.Null(fixture.Kernel);
+      Assert.Throws<InvalidOperationException>(() => _ = fixture.Resource);
+      Assert.Throws<InvalidOperationException>(() => _ = fixture.Container);
+      Assert.Throws<InvalidOperationException>(() => _ = fixture.Kernel);
     }
 
     [Fact]
@@ -75,8 +75,8 @@ namespace FluentDocker.Tests.CoreTests.Testing.Adapters
       Assert.True(fixture.Resource.IsInitialized);
 
       await fixture.DisposeAsync();
-      Assert.Null(fixture.Resource);
-      Assert.Null(fixture.Kernel);
+      Assert.Throws<InvalidOperationException>(() => _ = fixture.Resource);
+      Assert.Throws<InvalidOperationException>(() => _ = fixture.Kernel);
     }
 
     [Fact]
@@ -135,9 +135,9 @@ namespace FluentDocker.Tests.CoreTests.Testing.Adapters
               kernelFactory: () => Task.FromResult(testKernel),
               cancellationToken: TestContext.Current.CancellationToken));
 
-      // After failure, fixture state should be clean
-      Assert.Null(fixture.Resource);
-      Assert.Null(fixture.Kernel);
+      // After failure, fixture state should be clean (getters throw)
+      Assert.Throws<InvalidOperationException>(() => _ = fixture.Resource);
+      Assert.Throws<InvalidOperationException>(() => _ = fixture.Kernel);
     }
 
     [Fact]
@@ -159,8 +159,8 @@ namespace FluentDocker.Tests.CoreTests.Testing.Adapters
       Assert.NotNull(fixture.Resource);
 
       await fixture.DisposeAsync();
-      Assert.Null(fixture.Resource);
-      Assert.Null(fixture.Kernel);
+      Assert.Throws<InvalidOperationException>(() => _ = fixture.Resource);
+      Assert.Throws<InvalidOperationException>(() => _ = fixture.Kernel);
 
       // Create a new kernel for re-init since old one was disposed
       var (newKernel, newPack) =
@@ -258,7 +258,7 @@ namespace FluentDocker.Tests.CoreTests.Testing.Adapters
           cancellationToken: TestContext.Current.CancellationToken);
 
       await fixture.DisposeAsync();
-      Assert.Null(fixture.Resource);
+      Assert.Throws<InvalidOperationException>(() => _ = fixture.Resource);
 
       var (newKernel, newPack) =
           await MockKernelBuilderExtensions.CreateWithMockDriverAsync("reinit");
@@ -301,8 +301,8 @@ namespace FluentDocker.Tests.CoreTests.Testing.Adapters
               kernelFactory: () => Task.FromResult(testKernel),
               cancellationToken: TestContext.Current.CancellationToken));
 
-      Assert.Null(fixture.Resource);
-      Assert.Null(fixture.Kernel);
+      Assert.Throws<InvalidOperationException>(() => _ = fixture.Resource);
+      Assert.Throws<InvalidOperationException>(() => _ = fixture.Kernel);
     }
   }
 
@@ -315,12 +315,12 @@ namespace FluentDocker.Tests.CoreTests.Testing.Adapters
     }
 
     [Fact]
-    public void PropertiesBeforeInit_ReturnNull()
+    public void PropertiesBeforeInit_ThrowInvalidOperationException()
     {
       var fixture = new XunitSwarmStackFixture();
-      Assert.Null(fixture.Resource);
-      Assert.Null(fixture.StackName);
-      Assert.Null(fixture.Kernel);
+      Assert.Throws<InvalidOperationException>(() => _ = fixture.Resource);
+      Assert.Throws<InvalidOperationException>(() => _ = fixture.StackName);
+      Assert.Throws<InvalidOperationException>(() => _ = fixture.Kernel);
     }
 
     [Fact]
@@ -360,12 +360,12 @@ namespace FluentDocker.Tests.CoreTests.Testing.Adapters
     }
 
     [Fact]
-    public void PropertiesBeforeInit_ReturnNull()
+    public void PropertiesBeforeInit_ThrowInvalidOperationException()
     {
       var fixture = new XunitPodmanKubernetesFixture();
-      Assert.Null(fixture.Resource);
-      Assert.Null(fixture.YamlPath);
-      Assert.Null(fixture.Kernel);
+      Assert.Throws<InvalidOperationException>(() => _ = fixture.Resource);
+      Assert.Throws<InvalidOperationException>(() => _ = fixture.YamlPath);
+      Assert.Throws<InvalidOperationException>(() => _ = fixture.Kernel);
     }
 
     [Fact]

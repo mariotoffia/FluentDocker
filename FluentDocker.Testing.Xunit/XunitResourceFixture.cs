@@ -18,23 +18,32 @@ namespace FluentDocker.Testing.Xunit
   /// <see cref="XunitComposeFixtureBase"/>, <see cref="XunitTopologyFixtureBase"/>)
   /// which provide automatic async lifecycle via <c>IAsyncLifetime</c>.</para>
   /// <para>Use this class for custom or plugin resource types, or when you need
-  /// programmatic control over initialization.</para>
+  /// programmatic control over initialization. You <b>must</b> call
+  /// <see cref="InitializeAsync"/> before accessing any properties — accessing
+  /// them before initialization throws <see cref="InvalidOperationException"/>.</para>
   /// </remarks>
   /// <typeparam name="TResource">The resource type to manage.</typeparam>
   public class XunitResourceFixture<TResource> : IAsyncDisposable
       where TResource : class, ITestResource
   {
     private TResource _resource;
+    private FluentDockerKernel _kernel;
 
     /// <summary>
     /// The underlying resource.
     /// </summary>
-    public TResource Resource => _resource;
+    public TResource Resource
+    {
+      get { EnsureInitialized(); return _resource; }
+    }
 
     /// <summary>
     /// The kernel managing drivers.
     /// </summary>
-    public FluentDockerKernel Kernel { get; private set; }
+    public FluentDockerKernel Kernel
+    {
+      get { EnsureInitialized(); return _kernel; }
+    }
 
     /// <summary>
     /// Configures and initializes the fixture.
@@ -55,7 +64,7 @@ namespace FluentDocker.Testing.Xunit
           resourceFactory, kernelFactory,
           cancellationToken: cancellationToken);
 
-      Kernel = kernel;
+      _kernel = kernel;
       _resource = resource;
     }
 
@@ -64,16 +73,20 @@ namespace FluentDocker.Testing.Xunit
     {
       try
       {
-        if (_resource != null)
-          await _resource.DisposeAsync();
+        await ResourceLifecycle.DisposeAsync(_resource, _kernel);
       }
       finally
       {
-        if (Kernel != null)
-          await Kernel.DisposeAsync();
         _resource = null;
-        Kernel = null;
+        _kernel = null;
       }
+    }
+
+    private void EnsureInitialized()
+    {
+      if (_resource == null)
+        throw new InvalidOperationException(
+            "Fixture has not been initialized. Call InitializeAsync first.");
     }
   }
 }

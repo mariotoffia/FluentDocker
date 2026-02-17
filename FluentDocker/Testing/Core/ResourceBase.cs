@@ -19,6 +19,7 @@ namespace FluentDocker.Testing.Core
     private readonly List<Func<ITestResource, Task>> _afterReadyHooks = new();
     private readonly List<Func<ITestResource, Task>> _beforeDisposeHooks = new();
     private readonly List<Func<ITestResource, Task>> _afterDisposeHooks = new();
+    private bool _provisioned;
 
     /// <summary>
     /// Creates a new resource with the given kernel and options.
@@ -115,10 +116,11 @@ namespace FluentDocker.Testing.Core
       {
         await RunHooksAsync(_beforeInitHooks, cts.Token);
         await PreflightAsync(cts.Token);
+        _provisioned = true;
         await ProvisionAsync(cts.Token);
-        await RunHooksAsync(_afterReadyHooks, cts.Token);
         Diagnostics = null;
         IsInitialized = true;
+        await RunHooksAsync(_afterReadyHooks, cts.Token);
       }
       catch (Exception ex)
       {
@@ -145,22 +147,28 @@ namespace FluentDocker.Testing.Core
       using var cts = new CancellationTokenSource(Options.TeardownTimeout);
       Exception teardownFailure = null;
 
-      try
+      if (_provisioned)
       {
-        await TeardownAsync(cts.Token);
-      }
-      catch (Exception ex)
-      {
-        if (Options.ForceRemoveOnDispose)
+        try
         {
-          try
-          { await ForceRemoveAsync(cts.Token); }
-          catch { /* best effort */ }
+          await TeardownAsync(cts.Token);
         }
-        else
+        catch (Exception ex)
         {
-          teardownFailure = ex;
+          if (Options.ForceRemoveOnDispose)
+          {
+            using var forceCts = new CancellationTokenSource(Options.TeardownTimeout);
+            try
+            { await ForceRemoveAsync(forceCts.Token); }
+            catch { /* best effort */ }
+          }
+          else
+          {
+            teardownFailure = ex;
+          }
         }
+
+        _provisioned = false;
       }
 
       IsInitialized = false;

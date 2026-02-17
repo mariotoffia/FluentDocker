@@ -129,6 +129,28 @@ namespace FluentDocker.Tests.CoreTests.Testing
     }
 
     [Fact]
+    public async Task DisposeAsync_AfterFailedInit_SkipsTeardown()
+    {
+      MockPack.SetCapabilities(new DriverCapabilities
+      {
+        SupportsContainers = false // preflight will fail
+      });
+
+      var resource = new ContainerResource(
+          Kernel,
+          builder => builder.UseImage("alpine:latest"),
+          new DockerResourceOptions { ForceRemoveOnDispose = false });
+
+      await Assert.ThrowsAsync<FluentDocker.Common.CapabilityNotSupportedException>(
+          () => resource.InitializeAsync(TestContext.Current.CancellationToken));
+
+      // DisposeAsync must not attempt teardown when provisioning never ran.
+      // With ForceRemoveOnDispose=false, an attempted teardown would propagate.
+      await resource.DisposeAsync();
+      Assert.False(resource.IsInitialized);
+    }
+
+    [Fact]
     public async Task LifecycleHooks_AreCalledInOrder()
     {
       MockPack
@@ -277,6 +299,34 @@ namespace FluentDocker.Tests.CoreTests.Testing
 
       Assert.Throws<ArgumentNullException>(
           () => resource.OnAfterDispose(null));
+    }
+
+    [Fact]
+    public async Task OnAfterReady_CanCallGuardedApis()
+    {
+      MockPack
+          .SetupContainerCreate()
+          .SetupContainerStart()
+          .SetupContainerInspect(running: true)
+          .SetupContainerStop()
+          .SetupContainerRemove();
+
+      var resource = new ContainerResource(
+          Kernel,
+          builder => builder.UseImage("alpine:latest"));
+
+      FluentDocker.Model.Containers.Container inspected = null;
+
+      resource.OnAfterReady(async r =>
+      {
+        var cr = (ContainerResource)r;
+        inspected = await cr.InspectAsync(TestContext.Current.CancellationToken);
+      });
+
+      await resource.InitializeAsync(TestContext.Current.CancellationToken);
+
+      Assert.NotNull(inspected);
+      await resource.DisposeAsync();
     }
 
     [Fact]
