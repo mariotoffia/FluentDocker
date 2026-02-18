@@ -189,8 +189,14 @@ The kernel resolves interfaces through `IDriverInterfaceResolver` when the drive
 | Volume | `IVolumeDriver` | Create, mount, remove volumes |
 | Compose | `IComposeDriver` | Docker Compose operations |
 | System | `ISystemDriver` | Info, version, ping, disk usage, prune |
-| Auth | `IAuthDriver` | Login, logout, registry authentication |
-| Stream | `IStreamDriver` | Events, logs, stats, attach |
+| Pod | `IPodmanPodDriver` | Podman pod operations (Podman-only) |
+| Kubernetes | *(Podman-only)* | Kubernetes YAML play, down, generate |
+| Machine | *(Podman-only)* | Podman machine init, start, stop |
+| Manifest | *(Podman-only)* | Multi-arch manifest create, add, push |
+
+> **Note:** `Auth` (`IAuthDriver`) and `Stream` (`IStreamDriver`) are **not** members of the
+> `DriverComponent` enum. They are resolved directly via `IDriverInterfaceResolver` on the
+> driver pack (e.g., `kernel.SysCtl<IStreamDriver>("docker")`).
 
 ---
 
@@ -223,20 +229,36 @@ var remoteServices = deployment.ForDriver("docker-remote");
 ### BuildResults
 
 ```csharp
-public class BuildResults : IAsyncDisposable
+public class BuildResults : IAsyncDisposable, IDisposable
 {
-    // Get all services
+    // All services across all scopes
     IReadOnlyList<IService> All { get; }
 
-    // Get services by driver
+    // Filter services by driver ID
     IReadOnlyList<IService> ForDriver(string driverId);
 
-    // Get services by kernel
-    IReadOnlyList<IService> ForKernel(FluentDockerKernel kernel);
+    // Build scopes (one per WithinDriver call)
+    IReadOnlyList<BuildScope> Scopes { get; }
 
-    // Async disposal
+    // Typed accessors
+    IReadOnlyList<IContainerService> Containers { get; }
+    IReadOnlyList<INetworkService> Networks { get; }
+    IReadOnlyList<IVolumeService> Volumes { get; }
+    IReadOnlyList<IComposeService> ComposeServices { get; }
+
+    // Lookup by name (returns null if not found)
+    IContainerService GetContainer(string name);
+    INetworkService GetNetwork(string name);
+    IVolumeService GetVolume(string name);
+
+    // Filter by service type
+    IReadOnlyList<T> OfType<T>() where T : IService;
+
+    // Disposal
     ValueTask DisposeAsync();
     Task DisposeAllAsync();
+    void Dispose();
+    void DisposeAll();
 }
 ```
 
@@ -291,7 +313,9 @@ var stream     = kernel.SysCtl<IStreamDriver>("docker-cli");
 var system     = kernel.SysCtl<ISystemDriver>("docker-cli");
 ```
 
-### IContainerDriver Interface
+### IContainerDriver Interface (Simplified)
+
+The following shows the core methods. The full interface also includes `RunAsync`, `RestartAsync`, `PauseAsync`, `UnpauseAsync`, `KillAsync`, `RemoveAsync`, and more.
 
 ```csharp
 public interface IContainerDriver
@@ -333,7 +357,8 @@ public interface IContainerDriver
 FluentDocker provides granular capability detection with 100+ feature flags:
 
 ```csharp
-var caps = kernel.GetDriver("docker").GetCapabilities();
+var driverPack = await kernel.GetDriverPack("docker");
+var caps = await driverPack.GetCapabilitiesAsync();
 
 // Container capabilities
 if (caps.Container.SupportsHealthChecks) { /* ... */ }
@@ -348,41 +373,23 @@ if (caps.DockerSpecific.SupportsSwarm) { /* ... */ }
 if (caps.DockerSpecific.SupportsContentTrust) { /* ... */ }
 ```
 
-### Type-Safe Capability Checking
+### Interface Discovery
+
+Driver packs that implement `IDriverInterfaceResolver` allow runtime discovery of supported interfaces:
 
 ```csharp
-// Check if driver implements specific interface
-if (driver.Implements<IContainerStats>())
-{
-    var stats = driver as IContainerStats;
-    var containerStats = await stats.GetStatsAsync(containerId);
-}
+// Check supported interfaces via IDriverInterfaceResolver
+var resolver = driverPack as IDriverInterfaceResolver;
+IReadOnlyCollection<Type> supported = resolver.GetSupportedInterfaces();
 
-// Get all implemented interfaces
-var interfaces = driver.GetImplementedInterfaces();
+// Try to resolve a specific interface
+if (resolver.TryResolve(typeof(IStreamDriver), out var impl))
+{
+    var stream = (IStreamDriver)impl;
+}
 ```
 
-### Composable Sub-Interfaces
-
-The driver system uses 30+ focused sub-interfaces:
-
-**IContainerDriver** breaks down into:
-- `IContainerLifecycle` - Create, start, stop, remove
-- `IContainerInspection` - Inspect, list
-- `IContainerExecution` - Exec, attach
-- `IContainerFiles` - Copy to/from
-- `IContainerLogs` - Log streaming
-- `IContainerStats` - Resource monitoring
-- `IContainerProcesses` - Process listing (top)
-- `IContainerHealth` - Health checks
-
-**IImageDriver** breaks down into:
-- `IImageLifecycle` - Pull, push, remove, tag
-- `IImageBuild` - Basic Dockerfile builds
-- `IImageBuildAdvanced` - BuildX, multi-platform
-- `IImageRegistry` - Login, logout
-- `IImageInspection` - Inspect, list, history
-- `IImageExport` - Save, load
+The driver interfaces (`IContainerDriver`, `IImageDriver`, `INetworkDriver`, `IVolumeDriver`, `IComposeDriver`, `ISystemDriver`) provide the full API surface. Each driver pack exposes the interfaces it supports, discoverable via `GetSupportedInterfaces()`.
 
 ---
 
@@ -457,6 +464,38 @@ await driver.PullAsync(
 
 ### 5. Services Reference Kernel
 **Rationale:** Access to full kernel capabilities; can switch drivers dynamically; cleaner API.
+
+---
+
+## Error Handling
+
+FluentDocker uses a simple exception hierarchy:
+
+- `FluentDockerException` -- base exception (message + innerException)
+- `FluentDockerNotSupportedException` -- operation not supported by driver
+- `DriverException` -- driver-level failure with `ErrorCode`, `Context` (ErrorContext), and `IsTransient` properties
+  - `DriverNotFoundException` -- driver ID not registered
+  - `DriverNotAvailableException` -- driver not healthy/reachable
+- `ContainerNotFoundException`, `ContainerStartException`
+- `ImageNotFoundException`, `ImagePullException`
+- `CapabilityNotSupportedException`, `InterfaceNotSupportedException`
+- `PodmanMachineNotRunningException`
+
+Error codes use a category-prefixed format defined in `ErrorCodes`:
+
+| Category | Format | Examples |
+|----------|--------|---------|
+| General | `GEN_NNN` | `GEN_000` (Unknown), `GEN_003` (Timeout) |
+| Driver | `DRV_NNN` | `DRV_001` (NotFound), `DRV_006` (InterfaceNotSupported) |
+| Container | `CNT_NNN` | `CNT_001` (NotFound), `CNT_006` (CreateFailed) |
+| Image | `IMG_NNN` | `IMG_001` (NotFound), `IMG_002` (PullFailed) |
+| Network | `NET_NNN` | `NET_001` (NotFound), `NET_003` (CreateFailed) |
+| Volume | `VOL_NNN` | `VOL_001` (NotFound), `VOL_003` (CreateFailed) |
+| Compose | `CMP_NNN` | `CMP_001` (FileNotFound), `CMP_003` (UpFailed) |
+| Pod | `POD_NNN` | `POD_001` (NotFound), `POD_002` (CreateFailed) |
+| API | `API_NNN` | `API_404` (NotFound), `API_CONN` (ConnectionFailed) |
+
+`ErrorContext` provides diagnostic details: `OperationId`, `DriverId`, `Host`, `Operation`, `ExitCode`, `StdOut`, `StdErr`, `Metadata`, and `Timestamp`.
 
 ---
 

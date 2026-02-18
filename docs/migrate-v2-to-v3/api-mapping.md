@@ -168,8 +168,8 @@ that holds every resource created during the build.
 | `results.Volumes` | `IReadOnlyList<IVolumeService>` | All volumes |
 | `results.ComposeServices` | `IReadOnlyList<IComposeService>` | All compose stacks |
 | `results.GetContainer("name")` | `IContainerService` | Lookup by name |
-| `results.All` | `IEnumerable<IService>` | Every service |
-| `results.ForDriver("driverId")` | `IEnumerable<IService>` | Filter by driver |
+| `results.All` | `IReadOnlyList<IService>` | Every service |
+| `results.ForDriver("driverId")` | `IReadOnlyList<IService>` | Filter by driver |
 
 `BuildResults` implements `IDisposable` / `IAsyncDisposable`, so wrapping it in
 a `using` block tears down every resource:

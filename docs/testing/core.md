@@ -52,7 +52,8 @@ var options = new DockerResourceOptions
     ForceRemoveOnDispose = true,                // force-remove on cleanup failure
     InitializationTimeout = TimeSpan.FromMinutes(2),
     CaptureLogsOnFailure = true,                // collect logs for diagnostics
-    MaxDiagnosticLogLines = 200                 // truncate logs beyond this
+    MaxDiagnosticLogLines = 200,                // truncate logs beyond this
+    TeardownTimeout = TimeSpan.FromSeconds(120) // Max time for teardown (default: 120s)
 };
 ```
 
@@ -314,6 +315,8 @@ When initialization fails, the `Diagnostics` property is populated with:
   to `MaxDiagnosticLogLines`
 - `InspectPayload` - container inspect data as JSON
 - `OperationContext` - additional context
+- `ResourceName` (string) - the name of the resource that failed
+- `DriverId` (string) - the driver ID used by the resource
 
 ## ResourceLifecycle (Advanced)
 

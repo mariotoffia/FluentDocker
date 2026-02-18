@@ -536,7 +536,7 @@ using var results2 = new Builder()
 | `Ductus.FluentDocker.Builders` | `FluentDocker.Builders` |
 | `Ductus.FluentDocker.Services` | `FluentDocker.Services` |
 | `Ductus.FluentDocker.Extensions` | `FluentDocker.Services.Extensions` |
-| `Ductus.FluentDocker.Model.Common` | `FluentDocker.Model.Containers` |
+| `Ductus.FluentDocker.Model.Common` | `FluentDocker.Model.Common` |
 | *(n/a)* | `FluentDocker.Kernel` |
 | *(n/a)* | `FluentDocker.Model.Kernel` |
 

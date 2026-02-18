@@ -85,6 +85,32 @@ var results = new Builder()
     .Build();
 ```
 
+**Important**: The `UseImage(name, configure)` lambda receives a `DockerfileBuilder`, not an
+`IImageBuilder`. The `DockerfileBuilder` provides Dockerfile instructions (`.From()`, `.Run()`,
+`.Copy()`, etc.). The `IImageBuilder` methods listed below are set at a different level -- on the
+`ImageBuilder` that wraps the `DockerfileBuilder`. See the [IImageBuilder Methods](#iimagebuilder-methods)
+section for details.
+
+### IImageBuilder Methods
+
+The `ImageBuilder` class (which implements `IImageBuilder`) provides build-level configuration
+that is separate from the Dockerfile instructions. These methods are not available inside the
+`UseImage` lambda directly. Instead, they can be accessed by calling `.ToImage()` on the
+`DockerfileBuilder` to return to the `ImageBuilder`:
+
+| Method | Description |
+|--------|-------------|
+| `ReuseIfAlreadyExists()` | Skip the build if an image with the same name/tag already exists |
+| `AsImageName(string name)` | Set or override the image name |
+| `ImageTag(params string[] tags)` | Add additional tags to the built image |
+| `BuildArguments(params string[] args)` | Pass build arguments (format: `"KEY=VALUE"`) |
+| `Label(params string[] labels)` | Add labels to the image metadata (format: `"key=value"`) |
+| `NoCache()` | Disable the build cache |
+| `AlwaysPull()` | Always pull the base image, even if cached locally |
+| `RemoveIntermediate(bool force = false)` | Remove intermediate containers after a successful build |
+| `Platform(string platform)` | Set the target platform (e.g., `"linux/amd64"`) |
+| `Target(string target)` | Set the target build stage in a multi-stage Dockerfile |
+
 ### With Environment Variables
 
 ```csharp
@@ -353,7 +379,9 @@ The `Build()` and `BuildAsync()` methods return a `BuildResults` object:
 var results = new Builder()
     .WithinDriver("docker", kernel)
     .UseImage("myapp:latest", img => img.From("alpine:latest"))
-    .UseContainer(c => c.UseImage("myapp:latest"))
+    .UseContainer(c => c
+        .UseImage("myapp:latest")
+        .WithName("myapp"))
     .Build();
 
 // All services
@@ -363,12 +391,24 @@ var allServices = results.All;
 var images = results.OfType<IImageService>();
 var containers = results.Containers;
 
-// By name
+// By name (requires .WithName("myapp") on the container builder)
 var myContainer = results.GetContainer("myapp");
 
 // Dispose all services when done
 results.Dispose();
 ```
+
+**Note**: `BuildResults` does not have an `Images` property. To access built images, use the
+generic `OfType<T>()` method:
+
+```csharp
+var images = results.OfType<IImageService>();
+// or equivalently:
+var images = results.All.OfType<IImageService>().ToList();
+```
+
+The available typed convenience properties on `BuildResults` are: `Containers`, `Networks`,
+`Volumes`, and `ComposeServices`. For images, always use `OfType<IImageService>()`.
 
 ### Async Build
 
@@ -421,7 +461,7 @@ public class CustomImageTest : IDisposable
     {
         var container = _results.Containers.First();
         var endpoint = container.ToHostExposedEndpoint("3000/tcp");
-        var response = await $"http://localhost:{endpoint.Port}/health".WgetAsync();
+        var response = await $"http://localhost:{endpoint.Port}/health".Wget();
         Assert.Contains("healthy", response);
     }
 

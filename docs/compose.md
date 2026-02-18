@@ -62,25 +62,20 @@ services:
     image: nginx:alpine
     ports:
       - "80"
-    depends_on:
-      - api
-
+    depends_on: [api]
   api:
     image: myapi:latest
     ports:
       - "8080"
     environment:
       - DATABASE_URL=postgres://db:5432/mydb
-    depends_on:
-      - db
-
+    depends_on: [db]
   db:
     image: postgres:15-alpine
     environment:
       - POSTGRES_PASSWORD=secret
     volumes:
       - db_data:/var/lib/postgresql/data
-
 volumes:
   db_data:
 ```
@@ -407,14 +402,11 @@ using var results = new Builder()
         .WithWaitTimeout(60))
     .Build();
 
-var rmqContainer = results.Containers
-    .First(c => c.Name.Contains("rabbitmq"));
-
-var amqpEndpoint = rmqContainer.ToHostExposedEndpoint("5672/tcp");
-var mgmtEndpoint = rmqContainer.ToHostExposedEndpoint("15672/tcp");
-
-Console.WriteLine($"AMQP: amqp://guest:guest@localhost:{amqpEndpoint.Port}");
-Console.WriteLine($"Management: http://localhost:{mgmtEndpoint.Port}");
+var rmq = results.Containers.First(c => c.Name.Contains("rabbitmq"));
+var amqp = rmq.ToHostExposedEndpoint("5672/tcp");
+var mgmt = rmq.ToHostExposedEndpoint("15672/tcp");
+Console.WriteLine($"AMQP: amqp://guest:guest@localhost:{amqp.Port}");
+Console.WriteLine($"Management: http://localhost:{mgmt.Port}");
 ```
 
 ## Build Services
@@ -518,9 +510,16 @@ using var results = new Builder()
     .Build();
 ```
 
-> **Note**: To keep containers after dispose (e.g. for debugging), use
-> `.KeepContainer()` on individual container builders via `UseContainer(...)`.
-> Compose services are always torn down on dispose.
+By default, compose services are torn down on dispose. Use `.WithRemoveVolumes()`
+and `.WithRemoveImages()` to also remove volumes and images during teardown.
+
+## Additional Builder Methods
+
+The compose builder also supports these options:
+
+- `WithTimeout(int seconds)` -- sets a timeout (in seconds) for the compose operation.
+- `WithNoStart(bool)` -- runs `docker compose up` without starting services (create only).
+- `WithPull(bool)` -- pulls images before starting services.
 
 ## Profiles
 
@@ -587,14 +586,8 @@ public class UserApiTests : IntegrationTestBase
     [Fact]
     public async Task CreateUser_ReturnsCreated()
     {
-        var client = new HttpClient
-        {
-            BaseAddress = new Uri(ApiBaseUrl)
-        };
-
-        var response = await client.PostAsJsonAsync(
-            "/users", new { name = "Test" });
-
+        var client = new HttpClient { BaseAddress = new Uri(ApiBaseUrl) };
+        var response = await client.PostAsJsonAsync("/users", new { name = "Test" });
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
     }
 }

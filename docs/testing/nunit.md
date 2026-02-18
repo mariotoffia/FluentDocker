@@ -12,7 +12,7 @@ Package: `FluentDocker.Testing.NUnit`
 ## Step by Step
 
 - Basics: [Helper Methods](#helper-methods), [OneTimeSetUp Example](#onetimesetup-example), [Assembly-Level SetUpFixture](#assembly-level-setupfixture)
-- Intermediate: [Swarm Stack Example](#swarm-stack-example), [Podman Kubernetes Example](#podman-kubernetes-example)
+- Intermediate: [Compose Example](#compose-example), [Swarm Stack Example](#swarm-stack-example), [Podman Kubernetes Example](#podman-kubernetes-example)
 - Advanced: [Generic / Custom Resource](#generic--custom-resource)
 
 ## Helper Methods
@@ -47,7 +47,7 @@ public class RedisTests
     [Test]
     public async Task Redis_IsRunning()
     {
-        var info = await _resource.Container.InspectAsync();
+        var info = await _resource.InspectAsync();
         Assert.That(info.State.Running, Is.True);
     }
 }
@@ -74,6 +74,19 @@ public class GlobalDockerSetup
     {
         await NUnitResourceHelpers.DisposeAsync(_resource, _kernel);
     }
+}
+```
+
+### Compose Example
+
+```csharp
+[OneTimeSetUp]
+public async Task Setup()
+{
+    (_kernel, _resource) = await NUnitResourceHelpers.CreateComposeAsync(
+        c => c
+            .WithComposeFile("docker-compose.yml")
+            .WithRemoveOrphans());
 }
 ```
 

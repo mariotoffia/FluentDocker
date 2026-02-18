@@ -61,6 +61,7 @@ The v3 API uses a two-step approach: first create a **kernel** (multiple kernels
 per application are supported), then use the **Builder** to define and run containers.
 
 ```csharp
+using System.Linq;
 using FluentDocker.Builders;
 using FluentDocker.Kernel;
 using FluentDocker.Services.Extensions;
@@ -134,6 +135,9 @@ Console.WriteLine($"Container: {container.Name}");
 Docker requires sudo by default. Configure FluentDocker:
 
 ```csharp
+using FluentDocker.Kernel;
+using FluentDocker.Model.Common;
+
 // Option 1: No sudo (recommended - add user to docker group)
 // No configuration needed — this is the default
 
@@ -247,23 +251,16 @@ See [Docker Compose](compose.html) for detailed examples.
 
 ## Logging
 
-Enable debug logging to troubleshoot issues:
+FluentDocker has built-in diagnostic logging that you can toggle at runtime:
 
 ```csharp
-// Enable logging
+using FluentDocker.Services;
+
+// Enable diagnostic logging
 Logging.Enabled();
 
-// Or configure in appsettings.json
-```
-
-```json
-{
-  "Logging": {
-    "LogLevel": {
-      "FluentDocker": "Debug"
-    }
-  }
-}
+// Disable logging
+Logging.Disabled();
 ```
 
 ## Exception Handling

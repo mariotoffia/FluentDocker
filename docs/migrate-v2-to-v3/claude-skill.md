@@ -56,7 +56,7 @@ Add these new imports where needed:
 
 - `using FluentDocker.Kernel;` -- wherever kernel is created or referenced.
 - `using FluentDocker.Services.Extensions;` -- wherever extension methods are
-  used (`ToHostExposedEndpoint`, `GetConfiguration`, `WgetAsync`).
+  used (`ToHostExposedEndpoint`, `GetConfiguration`, `Wget`).
 
 ---
 
@@ -260,8 +260,8 @@ The container stats model was restructured:
 | `stats.MemoryPercent` | `stats.Memory.UsagePercent` |
 | `stats.NetworkRx` | `stats.Network.RxBytes` |
 | `stats.NetworkTx` | `stats.Network.TxBytes` |
-| `stats.BlockRead` | `stats.BlockIO.ReadBytes` |
-| `stats.BlockWrite` | `stats.BlockIO.WriteBytes` |
+| `stats.BlockRead` | `stats.Disk.ReadBytes` |
+| `stats.BlockWrite` | `stats.Disk.WriteBytes` |
 
 ---
 
@@ -545,8 +545,8 @@ After all changes:
 | `stats.MemoryPercent` | `stats.Memory.UsagePercent` |
 | `stats.NetworkRx` | `stats.Network.RxBytes` |
 | `stats.NetworkTx` | `stats.Network.TxBytes` |
-| `stats.BlockRead` | `stats.BlockIO.ReadBytes` |
-| `stats.BlockWrite` | `stats.BlockIO.WriteBytes` |
+| `stats.BlockRead` | `stats.Disk.ReadBytes` |
+| `stats.BlockWrite` | `stats.Disk.WriteBytes` |
 
 ### Compose method mapping
 

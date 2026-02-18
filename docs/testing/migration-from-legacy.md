@@ -101,11 +101,13 @@ public class RedisTests : IClassFixture<RedisFixture>
 }
 ```
 
+> **Tip:** For new code, prefer the `Configure()` pattern shown in [xUnit Testing](../testing/xunit.html) which avoids the `GetAwaiter().GetResult()` blocking call.
+
 **What changed:**
 
 - Package reference: `Ductus.FluentDocker.XUnit` to `FluentDocker.Testing.Xunit`
 - Base class: `FluentDockerTestBase` to `XunitContainerFixture`
-- Configuration: `ConfigureContainer` override to `InitializeAsync` lambda
+- Configuration: `ConfigureContainer` override to `InitializeAsync` lambda (or `Configure()` for new code)
 - No kernel management needed; the fixture handles it internally
 
 ---

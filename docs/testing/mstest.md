@@ -46,7 +46,7 @@ public class RedisTests
     [TestMethod]
     public async Task Redis_IsRunning()
     {
-        var info = await _resource.Container.InspectAsync();
+        var info = await _resource.InspectAsync();
         Assert.IsTrue(info.State.Running);
     }
 }

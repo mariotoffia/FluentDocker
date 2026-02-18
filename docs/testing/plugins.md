@@ -146,19 +146,19 @@ await resource.DisposeAsync();
 
 ### With xUnit (generic fixture)
 
-Use `XunitResourceFixture<TResource>` to wrap any plugin resource:
+Use `XunitResourceFixture<TResource>` to wrap any plugin resource. The preferred pattern uses `Configure()`:
 
 ```csharp
 public class PostgresFixture : XunitResourceFixture<ContainerResource>
 {
     public PostgresFixture()
     {
-        InitializeAsync(kernel =>
+        Configure(kernel =>
         {
             var host = new TestPluginHost();
             host.Add(new PostgresPlugin(kernel));
             return host.Create<ContainerResource>("postgres");
-        }).GetAwaiter().GetResult();
+        });
     }
 }
 

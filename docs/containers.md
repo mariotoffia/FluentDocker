@@ -90,6 +90,8 @@ container.Pause();
 container.Start();  // Start() also resumes from Pause
 ```
 
+> **Async alternatives:** `IServiceAsync` provides `StartAsync`, `StopAsync`, and `PauseAsync`.
+
 ## Port Exposure
 
 ### Explicit Port Mapping
@@ -241,7 +243,8 @@ using var results = new Builder()
             try
             {
                 var ep = service.ToHostExposedEndpoint("8080/tcp");
-                var response = $"http://localhost:{ep.Port}/health".Wget();
+                var response = $"http://localhost:{ep.Port}/health".Wget()
+                    .GetAwaiter().GetResult();
                 return response.Contains("ok") ? -1 : 500;
             }
             catch
@@ -344,15 +347,15 @@ using var results = new Builder()
 ```csharp
 var container = results.Containers.First();
 
-var result = await container.ExecAsync("echo", "Hello World");
+var result = await container.ExecuteAsync("echo Hello World");
 Console.WriteLine(result);  // "Hello World"
 
 // Shell commands
-var output = await container.ExecAsync("sh", "-c", "ls -la /app && cat /app/config.json");
+var output = await container.ExecuteAsync("sh -c 'ls -la /app && cat /app/config.json'");
 
 // Redis example
-await container.ExecAsync("redis-cli", "SET", "mykey", "myvalue");
-var value = await container.ExecAsync("redis-cli", "GET", "mykey");
+await container.ExecuteAsync("redis-cli SET mykey myvalue");
+var value = await container.ExecuteAsync("redis-cli GET mykey");
 ```
 
 ## Names, Labels, and Configuration
@@ -439,7 +442,7 @@ Use these methods inside the `UseContainer(c => ...)` lambda to customize:
 var container = results.Containers.First();
 
 var logs = await container.GetLogsAsync();
-foreach (var line in logs)
+foreach (var line in logs.Split('\n'))
 {
     Console.WriteLine(line);
 }

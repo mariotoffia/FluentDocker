@@ -327,26 +327,25 @@ When writing driver-specific extensions, follow these conventions:
 
 ## DriverPackBase Helper
 
-For new driver packs, `DriverPackBase` provides a dictionary-backed implementation of `IDriverInterfaceResolver` and `ISysCtl` methods:
+For new driver packs, `DriverPackBase` provides a dictionary-backed implementation of `IDriverInterfaceResolver`:
 
 ```csharp
-public abstract class DriverPackBase : IDriverPack, IDriverInterfaceResolver
+public abstract class DriverPackBase : IDriverInterfaceResolver
 {
-    // Register an interface implementation
-    protected void RegisterDriver<T>(T implementation) where T : class;
+    // Register an interface implementation during initialization
+    protected void RegisterDriver<T>(T driver) where T : class;
 
     // IDriverInterfaceResolver — automatically implemented
     bool TryResolve(Type interfaceType, out object implementation);
     IReadOnlyCollection<Type> GetSupportedInterfaces();
 
-    // ISysCtl — automatically implemented
-    T SysCtl<T>(string driverId) where T : class;
-    object SysCtl(string driverId, Type interfaceType);
-    bool TrySysCtl<T>(string driverId, out T instance) where T : class;
+    // Protected helpers for subclass use
+    protected object ResolveSysCtl(string driverId, Type interfaceType);
+    protected bool TryResolveSysCtl<T>(out T instance) where T : class;
 }
 ```
 
-Override `OnInitializeAsync` to register your driver interfaces. Existing driver packs like `DockerCliDriverPack` implement `IDriverInterfaceResolver` directly (they don't inherit `DriverPackBase`), but new packs can use the base class to avoid boilerplate.
+Register your driver interfaces via `RegisterDriver<T>()` during initialization. Existing driver packs like `DockerCliDriverPack` implement `IDriverInterfaceResolver` directly (they don't inherit `DriverPackBase`), but new packs can use the base class to avoid boilerplate.
 
 ---
 

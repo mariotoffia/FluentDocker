@@ -29,7 +29,7 @@ var tempPath = new TemplateString("${TEMP}/myapp");
 
 // With random suffix
 var uniquePath = new TemplateString("${TEMP}/test-${RND}");
-// Expands to: /tmp/test-a1b2c3d4
+// Expands to: /tmp/test-tmpk4xz0f.tmp
 
 // Current directory
 var workPath = new TemplateString("${PWD}/config");
@@ -52,15 +52,16 @@ var customPath = new TemplateString("${E_MY_VAR}/data");
 // Expands to: custom-value/data
 ```
 
-### Default Values
+### Custom Environment Variables
 
 ```csharp
-// Default value if variable not set
-var path = new TemplateString("${E_CUSTOM_PATH:-/default/path}");
-// Expands to: /default/path (if CUSTOM_PATH not set)
+// If the environment variable is not set, the token remains unexpanded
+var path = new TemplateString("${E_CUSTOM_PATH}");
+// Expands to: value of CUSTOM_PATH env var, or literal "${E_CUSTOM_PATH}" if unset
 
-var config = new TemplateString("${E_CONFIG_DIR:-${TEMP}/config}");
-// Expands to: environment value or temp/config
+// Combine with other variables
+var config = new TemplateString("${E_CONFIG_DIR}/data");
+// Expands to: <CONFIG_DIR value>/data
 ```
 
 ### Supported Variables
@@ -69,7 +70,7 @@ var config = new TemplateString("${E_CONFIG_DIR:-${TEMP}/config}");
 |----------|-------------|---------|
 | `${TEMP}` | System temp directory | `/tmp` |
 | `${TMP}` | Same as TEMP | `/tmp` |
-| `${RND}` | Random 8-char hex string | `a1b2c3d4` |
+| `${RND}` | Random filename via `Path.GetRandomFileName()` | `tmpk4xz0f.tmp` |
 | `${PWD}` | Current working directory | `/home/user/project` |
 | `${E_*}` | Environment variable | `${E_HOME}` -> `/home/user` |
 
@@ -87,11 +88,11 @@ using var results = new Builder()
     .Build();
 ```
 
-### Nested Templates
+### Combined Variables
 
 ```csharp
-var path = new TemplateString("${TEMP}/${E_USER:-anonymous}/session-${RND}");
-// Might expand to: /tmp/john/session-deadbeef
+var path = new TemplateString("${TEMP}/${E_USER}/session-${RND}");
+// Might expand to: /tmp/john/session-tmpk4xz0f.tmp
 ```
 
 ## HTTP Extensions (Wget)
@@ -104,19 +105,28 @@ Simple HTTP operations for health checks and API testing.
 using FluentDocker.Extensions;
 
 // Simple GET
-var response = await "http://localhost:8080/health".WgetAsync();
+var response = await "http://localhost:8080/health".Wget();
 Console.WriteLine(response);  // Response body
 ```
 
-### With Status Code
+### Full Request with Status Code
 
 ```csharp
-var (statusCode, body) = await "http://localhost:8080/api/users".WgetWithStatusAsync();
+using FluentDocker.Common;
 
-if (statusCode == HttpStatusCode.OK)
+// DoRequest returns a RequestResponse struct with Code, Body, Headers, Err
+var result = await "http://localhost:8080/api/users".DoRequest();
+
+if (result.Code == HttpStatusCode.OK)
 {
-    Console.WriteLine($"Users: {body}");
+    Console.WriteLine($"Users: {result.Body}");
 }
+
+// POST with JSON body
+var postResult = await "http://localhost:8080/api/users".DoRequest(
+    method: HttpMethod.Post,
+    contentType: "application/json",
+    body: "{\"name\":\"test\"}");
 ```
 
 ### Health Check Pattern
@@ -138,7 +148,7 @@ for (int i = 0; i < 30; i++)
 {
     try
     {
-        var response = await healthUrl.WgetAsync();
+        var response = await healthUrl.Wget();
         if (response.Contains("healthy"))
         {
             Console.WriteLine("Service is healthy!");
@@ -157,7 +167,7 @@ for (int i = 0; i < 30; i++)
 
 ```csharp
 var url = new Uri("https://example.com/file.zip");
-await url.DownloadAsync("/local/path/file.zip");
+await url.Download("/local/path/file.zip");
 ```
 
 ## Resource Extensions
@@ -169,14 +179,13 @@ Extract embedded resources from assemblies.
 ```csharp
 using FluentDocker.Extensions;
 
-// Extract embedded resource to temp directory
-var configPath = typeof(MyTests).ResourceExtract(
+// Extract embedded resource to temp directory (returns void)
+typeof(MyTests).ResourceExtract(
     new TemplateString("${TEMP}/test-config"),
     "config.json"
 );
 
-// File is now at temp path
-Console.WriteLine($"Config at: {configPath}");
+// File is now at: ${TEMP}/test-config/config.json
 ```
 
 ### Extract Multiple Files
@@ -205,8 +214,8 @@ foreach (var resource in resources)
 ### Extract to File
 
 ```csharp
-// Extract and get ResourceInfo
-var resourceInfo = typeof(MyTests)
+// Extract matching resources to a directory (returns void)
+typeof(MyTests)
     .ResourceQuery()
     .Where(r => r.Name.EndsWith("config.json"))
     .ToFile(new TemplateString("${TEMP}/extracted"));
@@ -216,8 +225,9 @@ var resourceInfo = typeof(MyTests)
 
 ```csharp
 // Extract test fixtures and mount in container
-var fixturesPath = typeof(MyTests).ResourceExtract(
-    new TemplateString("${TEMP}/fixtures-${RND}"),
+var fixturesPath = new TemplateString("${TEMP}/fixtures-${RND}");
+typeof(MyTests).ResourceExtract(
+    fixturesPath,
     "test-data.sql",
     "seed-data.json"
 );
@@ -242,7 +252,7 @@ Control FluentDocker's logging output.
 ### Enable/Disable
 
 ```csharp
-using FluentDocker.Common;
+using FluentDocker.Services;
 
 // Enable debug logging
 Logging.Enabled();
@@ -288,6 +298,8 @@ using var kernel = await FluentDockerKernel.Create()
 ### Passwordless Sudo
 
 ```csharp
+using FluentDocker.Model.Common;
+
 using var kernel = await FluentDockerKernel.Create()
     .WithDockerCli("docker", d => d
         .WithSudo(SudoMechanism.NoPassword)
@@ -342,7 +354,7 @@ if (container.State == ServiceRunningState.Running)
 }
 
 // Or check configuration
-var config = container.GetConfiguration(refresh: true);
+var config = container.GetConfiguration(fresh: true);
 if (config.State.Running)
 {
     Console.WriteLine($"Container running since: {config.State.StartedAt}");
@@ -362,24 +374,34 @@ var endpoint = container.ToHostExposedEndpoint("8080/tcp");
 
 ### Custom Resolver
 
+The custom resolver is set via `UseCustomResolver()` on the container builder, not passed
+to `ToHostExposedEndpoint()`. The resolver signature is:
+`Func<Dictionary<string, HostIpEndpoint[]>, string, Uri, IPEndPoint>`
+
 ```csharp
-// For Docker Desktop on Mac/Windows
-Func<IContainerService, string, IPEndPoint> customResolver = (container, port) =>
-{
-    var config = container.GetConfiguration();
-    var portBinding = config.NetworkSettings.Ports[port]?.FirstOrDefault();
+using FluentDocker.Model.Containers;
 
-    if (portBinding != null)
-    {
-        // Force localhost for Docker Desktop
-        return new IPEndPoint(IPAddress.Loopback, int.Parse(portBinding.HostPort));
-    }
+// Configure custom resolver on the builder
+using var results = new Builder()
+    .WithinDriver("docker", kernel)
+    .UseContainer(c => c
+        .UseImage("myapp:latest")
+        .ExposePort("8080")
+        .UseCustomResolver((portBindings, portAndProto, requestUrl) =>
+        {
+            if (portBindings.TryGetValue(portAndProto, out var endpoints)
+                && endpoints.Length > 0)
+            {
+                // Force localhost for Docker Desktop on Mac/Windows
+                return new IPEndPoint(IPAddress.Loopback, endpoints[0].Port);
+            }
 
-    return null;
-};
+            return null;
+        }))
+    .Build();
 
-// Use custom resolver
-var endpoint = container.ToHostExposedEndpoint("8080/tcp", customResolver);
+// ToHostExposedEndpoint uses the custom resolver automatically
+var endpoint = results.Containers.First().ToHostExposedEndpoint("8080/tcp");
 ```
 
 ## Command Response Handling
@@ -433,19 +455,19 @@ Parse Docker stats output.
 var stats = await container.GetStatsAsync();
 
 // CPU usage
-Console.WriteLine($"CPU: {stats.CpuPercent:F2}%");
+Console.WriteLine($"CPU: {stats.Cpu.UsagePercent:F2}%");
 
 // Memory
-Console.WriteLine($"Memory: {FormatBytes(stats.MemoryUsage)} / {FormatBytes(stats.MemoryLimit)}");
-Console.WriteLine($"Memory %: {stats.MemoryPercent:F2}%");
+Console.WriteLine($"Memory: {FormatBytes(stats.Memory.Usage)} / {FormatBytes(stats.Memory.Limit)}");
+Console.WriteLine($"Memory %: {stats.Memory.UsagePercent:F2}%");
 
 // Network
-Console.WriteLine($"Network RX: {FormatBytes(stats.NetworkRxBytes)}");
-Console.WriteLine($"Network TX: {FormatBytes(stats.NetworkTxBytes)}");
+Console.WriteLine($"Network RX: {FormatBytes(stats.Network.RxBytes)}");
+Console.WriteLine($"Network TX: {FormatBytes(stats.Network.TxBytes)}");
 
 // Block I/O
-Console.WriteLine($"Block Read: {FormatBytes(stats.BlockReadBytes)}");
-Console.WriteLine($"Block Write: {FormatBytes(stats.BlockWriteBytes)}");
+Console.WriteLine($"Block Read: {FormatBytes(stats.Disk.ReadBytes)}");
+Console.WriteLine($"Block Write: {FormatBytes(stats.Disk.WriteBytes)}");
 
 string FormatBytes(long bytes)
 {
@@ -479,7 +501,7 @@ public static class TestDataGenerator
         {
             try
             {
-                var response = await url.WgetAsync();
+                var response = await url.Wget();
                 if (!string.IsNullOrEmpty(response))
                     return response;
             }

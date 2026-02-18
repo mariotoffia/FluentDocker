@@ -53,6 +53,8 @@ using var kernel = await FluentDockerKernel.Create()
 ### 1) Run one container
 
 ```csharp
+using FluentDocker.Services.Extensions;
+
 await using var results = await new Builder()
     .WithinDriver("docker", kernel)
     .UseContainer(c => c
@@ -146,7 +148,7 @@ dotnet add package FluentDocker.Testing.NUnit   # NUnit adapter
 | [Images](images.html) | Build image workflows |
 | [Testing](testing.html) | Testing.Core and adapters |
 | [Utilities](utilities.html) | Helpers and extension methods |
-| [Error Handling](error_handling.html) | Exceptions, diagnostics, retry |
+| [Error Handling](architecture.html#error-handling) | Exceptions and error codes |
 
 ### Level 3: Advanced
 
@@ -175,6 +177,8 @@ FluentDocker uses a three-layer architecture:
 Docker requires sudo by default. Configure via the kernel builder:
 
 ```csharp
+using FluentDocker.Model.Common;
+
 using var kernel = await FluentDockerKernel.Create()
     .WithDockerCli("docker", d => d
         .WithSudo(SudoMechanism.NoPassword)

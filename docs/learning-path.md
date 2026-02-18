@@ -35,7 +35,7 @@ If this is your first time with FluentDocker, finish the four steps above before
 | Build custom images | [Images](images.html) |
 | Write test resources and fixtures | [Testing](testing.html) |
 | Use helper APIs and diagnostics helpers | [Utilities](utilities.html) |
-| Handle failures predictably | [Error Handling](error_handling.html) |
+| Handle failures predictably | [Error Handling](architecture.html#error-handling) |
 
 ## Layer 3: Advanced Internals and Customization
 
@@ -53,7 +53,7 @@ If this is your first time with FluentDocker, finish the four steps above before
 2. [Containers](containers.html)
 3. [Compose](compose.html)
 4. [Volumes](volumes.html)
-5. [Error Handling](error_handling.html)
+5. [Error Handling](architecture.html#error-handling)
 
 ### Test Engineer
 
@@ -68,5 +68,5 @@ If this is your first time with FluentDocker, finish the four steps above before
 1. [Getting Started](getting-started.html)
 2. [Architecture](architecture.html)
 3. [Driver Extensibility](extensibility.html)
-4. [Error Handling](error_handling.html)
+4. [Error Handling](architecture.html#error-handling)
 5. [Migration Guide](migration.html)

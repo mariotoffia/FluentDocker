@@ -42,6 +42,8 @@ using var results = new Builder()
 
 var network = results.Networks.First();
 Console.WriteLine($"Network: {network.Name}");
+// Note: INetworkService also exposes a NetworkName property that returns
+// the Docker network name. Both network.Name and network.NetworkName are available.
 ```
 
 ### Use Network with Container
@@ -133,6 +135,27 @@ using var containerResults = new Builder()
     .Build();
 
 // Container gets IP from 10.10.0.0/16 range
+```
+
+### Restricting IP Allocation Range
+
+Use `WithIPRange(string ipRange)` on `INetworkBuilder` to restrict the IP range
+for allocation within the subnet. This limits which IPs Docker will auto-assign
+to containers, keeping the rest of the subnet available for static assignment:
+
+```csharp
+using var netResults = new Builder()
+    .WithinDriver("docker", kernel)
+    .UseNetwork(n => n
+        .WithName("my-net")
+        .WithSubnet("10.18.0.0/16")
+        .WithIPRange("10.18.1.0/24")
+        .WithGateway("10.18.0.1")
+        .RemoveOnDispose())
+    .Build();
+
+// Docker will only auto-assign IPs from 10.18.1.0/24
+// IPs outside that range (e.g. 10.18.2.x) can be used for static assignment
 ```
 
 ### IPv6 Subnet

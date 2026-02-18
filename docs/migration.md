@@ -308,24 +308,18 @@ await composeDriver.DownAsync(context, new ComposeDownConfig {
 
 ## Step 8: Update Logging Configuration
 
-```json
-// OLD
-{
-  "Logging": {
-    "LogLevel": {
-      "Ductus.FluentDocker": "Debug"
-    }
-  }
-}
+FluentDocker uses its own static logging toggle, not `Microsoft.Extensions.Logging`.
 
-// NEW
-{
-  "Logging": {
-    "LogLevel": {
-      "FluentDocker": "Debug"
-    }
-  }
-}
+```csharp
+// OLD
+using Ductus.FluentDocker.Services;
+Logging.Enabled();   // enable diagnostic logging
+Logging.Disabled();  // disable
+
+// NEW — unchanged API, just different namespace
+using FluentDocker.Services;
+Logging.Enabled();   // enable diagnostic logging
+Logging.Disabled();  // disable
 ```
 
 ## Removed Features
