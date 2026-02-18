@@ -119,6 +119,43 @@ namespace FluentDocker.Tests.CoreTests.Testing
     }
 
     [Fact]
+    public async Task InitializeAsync_WhenProvisionedButNotInitialized_ThrowsInvalidOperation()
+    {
+      MockPack
+          .SetupContainerCreate()
+          .SetupContainerStart()
+          .SetupContainerInspect(running: true)
+          .SetupContainerRemove();
+
+      // Make stop throw so teardown fails
+      MockPack.ContainerDriver
+          .Setup(d => d.StopAsync(
+              It.IsAny<DriverContext>(),
+              It.IsAny<string>(),
+              It.IsAny<int?>(),
+              It.IsAny<CancellationToken>()))
+          .ThrowsAsync(new InvalidOperationException("stop failure"));
+
+      var resource = new ContainerResource(
+          Kernel,
+          builder => builder.UseImage("alpine:latest"),
+          new DockerResourceOptions { ForceRemoveOnDispose = false });
+
+      await resource.InitializeAsync(TestContext.Current.CancellationToken);
+
+      // Dispose fails — _provisioned stays true, IsInitialized becomes false
+      await Assert.ThrowsAsync<InvalidOperationException>(
+          () => resource.DisposeAsync().AsTask());
+
+      Assert.False(resource.IsInitialized);
+
+      // Re-init must be blocked to prevent orphaning the old container
+      var ex = await Assert.ThrowsAsync<InvalidOperationException>(
+          () => resource.InitializeAsync(TestContext.Current.CancellationToken));
+      Assert.Contains("provisioned but is not initialized", ex.Message);
+    }
+
+    [Fact]
     public async Task Diagnostics_RespectsInitializationTimeout()
     {
       MockPack

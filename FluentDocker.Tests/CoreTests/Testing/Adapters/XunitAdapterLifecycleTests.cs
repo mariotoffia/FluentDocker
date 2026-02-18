@@ -47,18 +47,14 @@ namespace FluentDocker.Tests.CoreTests.Testing.Adapters
     }
 
     [Fact]
-    public async Task UnconfiguredFixture_LifecycleInit_IsNoOp()
+    public async Task UnconfiguredFixture_LifecycleInit_ThrowsInvalidOperation()
     {
       var fixture = new XunitContainerFixture();
 
-      // xUnit calls InitializeAsync on unconfigured fixture — should not throw
-      await ((IAsyncLifetime)fixture).InitializeAsync();
-
-      // Properties should still throw since nothing was initialized
-      Assert.Throws<InvalidOperationException>(() => _ = fixture.Resource);
-      Assert.Throws<InvalidOperationException>(() => _ = fixture.Kernel);
-
-      await fixture.DisposeAsync();
+      // xUnit calls InitializeAsync on unconfigured fixture — should throw
+      var ex = await Assert.ThrowsAsync<InvalidOperationException>(
+          () => ((IAsyncLifetime)fixture).InitializeAsync().AsTask());
+      Assert.Contains("has not been configured", ex.Message);
     }
 
     [Fact]
@@ -103,16 +99,13 @@ namespace FluentDocker.Tests.CoreTests.Testing.Adapters
     }
 
     [Fact]
-    public async Task UnconfiguredFixture_LifecycleInit_IsNoOp()
+    public async Task UnconfiguredFixture_LifecycleInit_ThrowsInvalidOperation()
     {
       var fixture = new XunitResourceFixture<ContainerResource>();
 
-      await ((IAsyncLifetime)fixture).InitializeAsync();
-
-      Assert.Throws<InvalidOperationException>(() => _ = fixture.Resource);
-      Assert.Throws<InvalidOperationException>(() => _ = fixture.Kernel);
-
-      await fixture.DisposeAsync();
+      var ex = await Assert.ThrowsAsync<InvalidOperationException>(
+          () => ((IAsyncLifetime)fixture).InitializeAsync().AsTask());
+      Assert.Contains("has not been configured", ex.Message);
     }
 
     [Fact]

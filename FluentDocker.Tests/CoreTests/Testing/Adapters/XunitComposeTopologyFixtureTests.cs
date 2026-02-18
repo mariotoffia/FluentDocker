@@ -1,4 +1,5 @@
 using System;
+using System.Threading;
 using System.Threading.Tasks;
 using FluentDocker.Builders;
 using FluentDocker.Kernel;
@@ -206,6 +207,61 @@ namespace FluentDocker.Tests.CoreTests.Testing.Adapters
               kernelFactory: () => Task.FromResult(Kernel),
               cancellationToken: TestContext.Current.CancellationToken));
 
+      await fixture.DisposeAsync();
+    }
+  }
+
+  [Trait("Category", "Unit")]
+  public class UnconfiguredFixtureTests
+  {
+    [Fact]
+    public async Task XunitContainerFixture_InitializeAsync_WithoutConfigure_Throws()
+    {
+      var fixture = new XunitContainerFixture();
+      var lifetime = (IAsyncLifetime)fixture;
+
+      var ex = await Assert.ThrowsAsync<InvalidOperationException>(
+          () => lifetime.InitializeAsync().AsTask());
+      Assert.Contains("has not been configured", ex.Message);
+    }
+
+    [Fact]
+    public async Task XunitComposeFixture_InitializeAsync_WithoutConfigure_Throws()
+    {
+      var fixture = new XunitComposeFixture();
+      var lifetime = (IAsyncLifetime)fixture;
+
+      var ex = await Assert.ThrowsAsync<InvalidOperationException>(
+          () => lifetime.InitializeAsync().AsTask());
+      Assert.Contains("has not been configured", ex.Message);
+    }
+
+    [Fact]
+    public async Task XunitTopologyFixture_InitializeAsync_WithoutConfigure_Throws()
+    {
+      var fixture = new XunitTopologyFixture();
+      var lifetime = (IAsyncLifetime)fixture;
+
+      var ex = await Assert.ThrowsAsync<InvalidOperationException>(
+          () => lifetime.InitializeAsync().AsTask());
+      Assert.Contains("has not been configured", ex.Message);
+    }
+
+    [Fact]
+    public async Task XunitResourceFixture_InitializeAsync_WithoutConfigure_Throws()
+    {
+      var fixture = new XunitResourceFixture<ContainerResource>();
+      var lifetime = (IAsyncLifetime)fixture;
+
+      var ex = await Assert.ThrowsAsync<InvalidOperationException>(
+          () => lifetime.InitializeAsync().AsTask());
+      Assert.Contains("has not been configured", ex.Message);
+    }
+
+    [Fact]
+    public async Task XunitContainerFixture_DisposeAsync_WithoutConfigure_DoesNotThrow()
+    {
+      var fixture = new XunitContainerFixture();
       await fixture.DisposeAsync();
     }
   }

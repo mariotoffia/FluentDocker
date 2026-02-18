@@ -82,12 +82,15 @@ namespace FluentDocker.Testing.Xunit
 
     /// <summary>
     /// Called by xUnit when using <c>IClassFixture</c> or <c>ICollectionFixture</c>.
-    /// Requires <see cref="Configure"/> to have been called first; otherwise no-ops.
+    /// Requires <see cref="Configure"/> to have been called first; otherwise throws.
     /// </summary>
     async ValueTask IAsyncLifetime.InitializeAsync()
     {
       if (!_configured)
-        return;
+        throw new InvalidOperationException(
+            $"{GetType().Name} has not been configured. " +
+            "Call Configure() in the fixture constructor, or use " +
+            "XunitContainerFixtureBase instead.");
       await InitializeAsync(_deferredConfigure, _deferredKernelFactory, _deferredOptions);
     }
 

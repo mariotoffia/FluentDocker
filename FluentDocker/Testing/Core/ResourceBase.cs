@@ -110,6 +110,12 @@ namespace FluentDocker.Testing.Core
         if (IsInitialized)
           return;
 
+        if (_provisioned)
+          throw new InvalidOperationException(
+              "Resource has been provisioned but is not initialized " +
+              "(teardown may have failed). Call DisposeAsync to clean up " +
+              "before re-initializing.");
+
         DriverId = ResolveDriverId();
         ValidateExpectedDriverType();
 
