@@ -394,10 +394,11 @@ namespace FluentDocker.Builders
       return Path.GetFileName(source);
     }
 
+    private static readonly HttpClient s_httpClient = new();
+
     private static async Task DownloadFileAsync(Uri url, string destinationPath)
     {
-      using var client = new HttpClient();
-      var response = await client.GetAsync(url);
+      var response = await s_httpClient.GetAsync(url);
       response.EnsureSuccessStatusCode();
 
       var content = await response.Content.ReadAsByteArrayAsync();

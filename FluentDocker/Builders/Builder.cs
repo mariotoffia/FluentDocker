@@ -186,8 +186,7 @@ namespace FluentDocker.Builders
       {
         Kernel = _currentKernel,
         DriverId = _currentDriverId,
-        ExecuteAsync = ct => imageBuilder.ExecuteAsync(ct)
-            .ContinueWith(t => (IService)t.Result, ct)
+        ExecuteAsync = async ct => (IService)await imageBuilder.ExecuteAsync(ct)
       });
       return this;
     }

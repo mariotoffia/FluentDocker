@@ -1,6 +1,8 @@
 using System;
+using System.Diagnostics;
 using System.Linq;
 using System.Net;
+using System.Net.Http;
 using System.Net.Sockets;
 using System.Threading;
 using System.Threading.Tasks;
@@ -118,16 +120,16 @@ namespace FluentDocker.Services.Extensions
         long timeout = 30000,
         CancellationToken cancellationToken = default)
     {
-      var start = DateTime.UtcNow;
-      var elapsed = 0L;
+      var sw = Stopwatch.StartNew();
 
-      while (elapsed < timeout && !cancellationToken.IsCancellationRequested)
+      while (sw.ElapsedMilliseconds < timeout && !cancellationToken.IsCancellationRequested)
       {
         try
         {
           using var client = new TcpClient();
           var connectTask = client.ConnectAsync(host, port);
-          var timeoutTask = Task.Delay((int)Math.Max(100, timeout - elapsed), cancellationToken);
+          var remaining = (int)Math.Max(100, timeout - sw.ElapsedMilliseconds);
+          var timeoutTask = Task.Delay(remaining, cancellationToken);
 
           var completed = await Task.WhenAny(connectTask, timeoutTask).ConfigureAwait(false);
 
@@ -144,7 +146,6 @@ namespace FluentDocker.Services.Extensions
         }
 
         await Task.Delay(100, cancellationToken).ConfigureAwait(false);
-        elapsed = (long)(DateTime.UtcNow - start).TotalMilliseconds;
       }
 
       return false;
@@ -164,10 +165,9 @@ namespace FluentDocker.Services.Extensions
         long timeout = 30000,
         CancellationToken cancellationToken = default)
     {
-      var start = DateTime.UtcNow;
-      var elapsed = 0L;
+      var sw = Stopwatch.StartNew();
 
-      while (elapsed < timeout && !cancellationToken.IsCancellationRequested)
+      while (sw.ElapsedMilliseconds < timeout && !cancellationToken.IsCancellationRequested)
       {
         try
         {
@@ -184,7 +184,6 @@ namespace FluentDocker.Services.Extensions
         }
 
         await Task.Delay(500, cancellationToken).ConfigureAwait(false);
-        elapsed = (long)(DateTime.UtcNow - start).TotalMilliseconds;
       }
 
       return false;
@@ -199,6 +198,11 @@ namespace FluentDocker.Services.Extensions
     /// <param name="timeout">Timeout in milliseconds.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>True if the endpoint responds successfully, false if timeout.</returns>
+    private static readonly HttpClient s_httpClient = new()
+    {
+      Timeout = Timeout.InfiniteTimeSpan
+    };
+
     public static async Task<bool> WaitForHttpAsync(
         this IContainerService service,
         string portAndProto,
@@ -209,22 +213,21 @@ namespace FluentDocker.Services.Extensions
       var endpoint = await service.ToHostExposedEndpointAsync(portAndProto, cancellationToken)
           .ConfigureAwait(false) ?? throw new FluentDockerException($"Port {portAndProto} is not exposed on container {service.Id}");
 
-      var start = DateTime.UtcNow;
-      var elapsed = 0L;
+      var sw = Stopwatch.StartNew();
       var url = $"http://{endpoint.Address}:{endpoint.Port}{path}";
 
-      using var httpClient = new System.Net.Http.HttpClient();
-      httpClient.Timeout = TimeSpan.FromMilliseconds(timeout);
-
-      while (elapsed < timeout && !cancellationToken.IsCancellationRequested)
+      while (sw.ElapsedMilliseconds < timeout && !cancellationToken.IsCancellationRequested)
       {
         try
         {
-          var response = await httpClient.GetAsync(url, cancellationToken).ConfigureAwait(false);
+          using var requestCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+          requestCts.CancelAfter(TimeSpan.FromMilliseconds(timeout));
+
+          var response = await s_httpClient.GetAsync(url, requestCts.Token).ConfigureAwait(false);
           if (response.IsSuccessStatusCode)
             return true;
         }
-        catch (System.Net.Http.HttpRequestException)
+        catch (HttpRequestException)
         {
           // Not ready yet
         }
@@ -234,7 +237,6 @@ namespace FluentDocker.Services.Extensions
         }
 
         await Task.Delay(500, cancellationToken).ConfigureAwait(false);
-        elapsed = (long)(DateTime.UtcNow - start).TotalMilliseconds;
       }
 
       return false;
@@ -254,10 +256,9 @@ namespace FluentDocker.Services.Extensions
         long timeout = 30000,
         CancellationToken cancellationToken = default)
     {
-      var start = DateTime.UtcNow;
-      var elapsed = 0L;
+      var sw = Stopwatch.StartNew();
 
-      while (elapsed < timeout && !cancellationToken.IsCancellationRequested)
+      while (sw.ElapsedMilliseconds < timeout && !cancellationToken.IsCancellationRequested)
       {
         try
         {
@@ -271,7 +272,6 @@ namespace FluentDocker.Services.Extensions
         }
 
         await Task.Delay(500, cancellationToken).ConfigureAwait(false);
-        elapsed = (long)(DateTime.UtcNow - start).TotalMilliseconds;
       }
 
       return false;

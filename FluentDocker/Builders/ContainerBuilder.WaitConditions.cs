@@ -1,4 +1,5 @@
 using System;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Net.Http;
@@ -127,9 +128,8 @@ namespace FluentDocker.Builders
     private async Task<bool> WaitForHealthyAsync(
         Services.Impl.ContainerService service, long timeoutMs, CancellationToken cancellationToken)
     {
-      var start = DateTime.UtcNow;
-      var elapsed = 0L;
-      while (elapsed < timeoutMs && !cancellationToken.IsCancellationRequested)
+      var sw = Stopwatch.StartNew();
+      while (sw.ElapsedMilliseconds < timeoutMs && !cancellationToken.IsCancellationRequested)
       {
         var config = await service.InspectAsync(cancellationToken);
         var health = config?.State?.Health?.Status;
@@ -138,7 +138,6 @@ namespace FluentDocker.Builders
         if (health == HealthState.Unhealthy)
           return false;
         await Task.Delay(1000, cancellationToken);
-        elapsed = (long)(DateTime.UtcNow - start).TotalMilliseconds;
       }
       return false;
     }
@@ -147,43 +146,44 @@ namespace FluentDocker.Builders
         IContainerService service, Func<IContainerService, int, int> condition,
         long timeoutMs, CancellationToken cancellationToken)
     {
-      var start = DateTime.UtcNow;
-      var elapsed = 0L;
+      var sw = Stopwatch.StartNew();
       var iteration = 0;
       try
       {
-        while (elapsed < timeoutMs && !cancellationToken.IsCancellationRequested)
+        while (sw.ElapsedMilliseconds < timeoutMs && !cancellationToken.IsCancellationRequested)
         {
           var result = condition(service, iteration++);
           if (result < 0)
             return true;
-          elapsed = (long)(DateTime.UtcNow - start).TotalMilliseconds;
           if (result == 0)
           { await Task.Yield(); continue; }
           await Task.Delay(result, cancellationToken);
-          elapsed = (long)(DateTime.UtcNow - start).TotalMilliseconds;
         }
       }
       catch (OperationCanceledException) { }
       return false;
     }
 
+    private static readonly HttpClient s_httpClient = new()
+    {
+      Timeout = Timeout.InfiniteTimeSpan
+    };
+
     private async Task<bool> WaitForHttpUrlAsync(
         string url, long timeoutMs, HttpMethod method, string contentType,
         string body, Func<RequestResponse, int, long> continuation,
         CancellationToken cancellationToken)
     {
-      var start = DateTime.UtcNow;
-      var elapsed = 0L;
+      var sw = Stopwatch.StartNew();
       var iteration = 0;
 
-      using var httpClient = new HttpClient();
-      httpClient.Timeout = TimeSpan.FromMilliseconds(timeoutMs);
-
-      while (elapsed < timeoutMs && !cancellationToken.IsCancellationRequested)
+      while (sw.ElapsedMilliseconds < timeoutMs && !cancellationToken.IsCancellationRequested)
       {
         try
         {
+          using var requestCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+          requestCts.CancelAfter(TimeSpan.FromMilliseconds(timeoutMs));
+
           var request = new HttpRequestMessage(method ?? HttpMethod.Get, url);
           if (!string.IsNullOrEmpty(body))
           {
@@ -193,8 +193,8 @@ namespace FluentDocker.Builders
                   new System.Net.Http.Headers.MediaTypeHeaderValue(contentType);
           }
 
-          var response = await httpClient.SendAsync(request, cancellationToken);
-          var responseBody = await response.Content.ReadAsStringAsync(cancellationToken);
+          var response = await s_httpClient.SendAsync(request, requestCts.Token);
+          var responseBody = await response.Content.ReadAsStringAsync(requestCts.Token);
 
           if (continuation != null)
           {
@@ -215,7 +215,6 @@ namespace FluentDocker.Builders
         catch (TaskCanceledException) { }
 
         await Task.Delay(500, cancellationToken);
-        elapsed = (long)(DateTime.UtcNow - start).TotalMilliseconds;
       }
       return false;
     }
