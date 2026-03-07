@@ -4,6 +4,8 @@
     <OutputType>Exe</OutputType>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+    <!-- Benchmark-specific suppressions -->
+    <NoWarn>$(NoWarn);CA1707;CA1852</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>

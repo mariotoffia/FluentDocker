@@ -29,8 +29,8 @@ namespace FluentDocker.Testing.MsTest
     public static Task<(FluentDockerKernel kernel, ContainerResource resource)>
         CreateContainerAsync(
             Action<IContainerBuilder> configure,
-            Func<Task<FluentDockerKernel>> kernelFactory = null,
-            DockerResourceOptions options = null,
+            Func<Task<FluentDockerKernel>>? kernelFactory = null,
+            DockerResourceOptions? options = null,
             CancellationToken cancellationToken = default)
         => ResourceLifecycle.CreateAndInitializeAsync(
             kernel => new ContainerResource(kernel, configure, options),
@@ -43,8 +43,8 @@ namespace FluentDocker.Testing.MsTest
     public static Task<(FluentDockerKernel kernel, ComposeResource resource)>
         CreateComposeAsync(
             Action<IComposeBuilder> configure,
-            Func<Task<FluentDockerKernel>> kernelFactory = null,
-            DockerResourceOptions options = null,
+            Func<Task<FluentDockerKernel>>? kernelFactory = null,
+            DockerResourceOptions? options = null,
             CancellationToken cancellationToken = default)
         => ResourceLifecycle.CreateAndInitializeAsync(
             kernel => new ComposeResource(kernel, configure, options),
@@ -57,8 +57,8 @@ namespace FluentDocker.Testing.MsTest
     public static Task<(FluentDockerKernel kernel, TopologyResource resource)>
         CreateTopologyAsync(
             Action<Builder> configure,
-            Func<Task<FluentDockerKernel>> kernelFactory = null,
-            DockerResourceOptions options = null,
+            Func<Task<FluentDockerKernel>>? kernelFactory = null,
+            DockerResourceOptions? options = null,
             CancellationToken cancellationToken = default)
         => ResourceLifecycle.CreateAndInitializeAsync(
             kernel => new TopologyResource(kernel, configure, options),
@@ -75,8 +75,8 @@ namespace FluentDocker.Testing.MsTest
     public static Task<(FluentDockerKernel kernel, SwarmStackResource resource)>
         CreateSwarmStackAsync(
             StackDeployConfig config,
-            Func<Task<FluentDockerKernel>> kernelFactory = null,
-            DockerResourceOptions options = null,
+            Func<Task<FluentDockerKernel>>? kernelFactory = null,
+            DockerResourceOptions? options = null,
             CancellationToken cancellationToken = default)
         => ResourceLifecycle.CreateAndInitializeAsync(
             kernel => new SwarmStackResource(kernel, config, options),
@@ -93,8 +93,8 @@ namespace FluentDocker.Testing.MsTest
     public static Task<(FluentDockerKernel kernel, PodmanKubernetesResource resource)>
         CreatePodmanKubernetesAsync(
             KubePlayConfig config,
-            Func<Task<FluentDockerKernel>> kernelFactory = null,
-            DockerResourceOptions options = null,
+            Func<Task<FluentDockerKernel>>? kernelFactory = null,
+            DockerResourceOptions? options = null,
             CancellationToken cancellationToken = default)
         => ResourceLifecycle.CreateAndInitializeAsync(
             kernel => new PodmanKubernetesResource(kernel, config, options),
@@ -113,7 +113,7 @@ namespace FluentDocker.Testing.MsTest
     public static Task<(FluentDockerKernel kernel, TResource resource)>
         CreateResourceAsync<TResource>(
             Func<FluentDockerKernel, TResource> resourceFactory,
-            Func<Task<FluentDockerKernel>> kernelFactory = null,
+            Func<Task<FluentDockerKernel>>? kernelFactory = null,
             CancellationToken cancellationToken = default)
         where TResource : class, ITestResource
         => ResourceLifecycle.CreateAndInitializeAsync(

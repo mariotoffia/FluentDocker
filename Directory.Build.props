@@ -10,5 +10,11 @@
     <Copyright>&#169; 2016 - 2026 Mario Toffia</Copyright>
     <RepositoryType>git</RepositoryType>
     <RepositoryUrl>https://github.com/mariotoffia/FluentDocker</RepositoryUrl>
+    <AnalysisLevel>latest-recommended</AnalysisLevel>
+    <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+    <!-- Suppress until nullable is fully enabled in main lib -->
+    <NoWarn>$(NoWarn);CA1062</NoWarn>
+    <!-- Suppress culture-specific string rules (library targets invariant culture) -->
+    <NoWarn>$(NoWarn);CA1305;CA1304;CA1310;CA1311</NoWarn>
   </PropertyGroup>
 </Project>

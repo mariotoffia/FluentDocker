@@ -42,17 +42,17 @@ namespace FluentDocker.Testing.Xunit
     /// <summary>
     /// The underlying compose resource, available after initialization.
     /// </summary>
-    public ComposeResource Resource { get; private set; }
+    public ComposeResource? Resource { get; private set; }
 
     /// <summary>
     /// Shorthand access to the running compose service.
     /// </summary>
-    public IComposeService Service => Resource?.Service;
+    public IComposeService? Service => Resource?.Service;
 
     /// <summary>
     /// The kernel managing drivers for this fixture.
     /// </summary>
-    public FluentDockerKernel Kernel { get; private set; }
+    public FluentDockerKernel? Kernel { get; private set; }
 
     /// <summary>
     /// Override to configure the compose service. Called during initialization.
@@ -62,13 +62,13 @@ namespace FluentDocker.Testing.Xunit
     /// <summary>
     /// Override to provide custom resource options. Returns null for defaults.
     /// </summary>
-    protected virtual DockerResourceOptions GetOptions() => null;
+    protected virtual DockerResourceOptions? GetOptions() => null;
 
     /// <summary>
     /// Override to provide a custom kernel factory.
     /// Returns null to use the default Docker CLI kernel.
     /// </summary>
-    protected virtual Func<Task<FluentDockerKernel>> KernelFactory => null;
+    protected virtual Func<Task<FluentDockerKernel>>? KernelFactory => null;
 
     /// <inheritdoc />
     public async ValueTask InitializeAsync()

@@ -23,11 +23,11 @@ namespace FluentDocker.Testing.Xunit
   /// </remarks>
   public class XunitPodmanKubernetesFixture : IAsyncLifetime
   {
-    private PodmanKubernetesResource _resource;
-    private FluentDockerKernel _kernel;
-    private KubePlayConfig _deferredConfig;
-    private Func<Task<FluentDockerKernel>> _deferredKernelFactory;
-    private DockerResourceOptions _deferredOptions;
+    private PodmanKubernetesResource? _resource;
+    private FluentDockerKernel? _kernel;
+    private KubePlayConfig? _deferredConfig;
+    private Func<Task<FluentDockerKernel>>? _deferredKernelFactory;
+    private DockerResourceOptions? _deferredOptions;
     private bool _configured;
 
     /// <summary>
@@ -35,7 +35,7 @@ namespace FluentDocker.Testing.Xunit
     /// </summary>
     public PodmanKubernetesResource Resource
     {
-      get { EnsureInitialized(); return _resource; }
+      get { EnsureInitialized(); return _resource!; }
     }
 
     /// <summary>
@@ -43,7 +43,7 @@ namespace FluentDocker.Testing.Xunit
     /// </summary>
     public string YamlPath
     {
-      get { EnsureInitialized(); return _resource.YamlPath; }
+      get { EnsureInitialized(); return _resource!.YamlPath; }
     }
 
     /// <summary>
@@ -51,7 +51,7 @@ namespace FluentDocker.Testing.Xunit
     /// </summary>
     public FluentDockerKernel Kernel
     {
-      get { EnsureInitialized(); return _kernel; }
+      get { EnsureInitialized(); return _kernel!; }
     }
 
     /// <summary>
@@ -65,8 +65,8 @@ namespace FluentDocker.Testing.Xunit
     /// <returns>This fixture for fluent chaining.</returns>
     public XunitPodmanKubernetesFixture Configure(
         KubePlayConfig config,
-        Func<Task<FluentDockerKernel>> kernelFactory = null,
-        DockerResourceOptions options = null)
+        Func<Task<FluentDockerKernel>>? kernelFactory = null,
+        DockerResourceOptions? options = null)
     {
       _deferredConfig = config ?? throw new ArgumentNullException(nameof(config));
       _deferredKernelFactory = kernelFactory;
@@ -85,7 +85,7 @@ namespace FluentDocker.Testing.Xunit
         throw new InvalidOperationException(
             $"{GetType().Name} has not been configured. " +
             "Call Configure() in the fixture constructor.");
-      await InitializeAsync(_deferredConfig, _deferredKernelFactory, _deferredOptions);
+      await InitializeAsync(_deferredConfig!, _deferredKernelFactory, _deferredOptions);
     }
 
     /// <summary>
@@ -93,8 +93,8 @@ namespace FluentDocker.Testing.Xunit
     /// </summary>
     public async Task InitializeAsync(
         KubePlayConfig config,
-        Func<Task<FluentDockerKernel>> kernelFactory = null,
-        DockerResourceOptions options = null,
+        Func<Task<FluentDockerKernel>>? kernelFactory = null,
+        DockerResourceOptions? options = null,
         CancellationToken cancellationToken = default)
     {
       if (_resource != null)

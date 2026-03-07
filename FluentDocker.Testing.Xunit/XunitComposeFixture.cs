@@ -28,11 +28,11 @@ namespace FluentDocker.Testing.Xunit
   /// </remarks>
   public class XunitComposeFixture : IAsyncLifetime
   {
-    private ComposeResource _resource;
-    private FluentDockerKernel _kernel;
-    private Action<IComposeBuilder> _deferredConfigure;
-    private Func<Task<FluentDockerKernel>> _deferredKernelFactory;
-    private DockerResourceOptions _deferredOptions;
+    private ComposeResource? _resource;
+    private FluentDockerKernel? _kernel;
+    private Action<IComposeBuilder>? _deferredConfigure;
+    private Func<Task<FluentDockerKernel>>? _deferredKernelFactory;
+    private DockerResourceOptions? _deferredOptions;
     private bool _configured;
 
     /// <summary>
@@ -40,7 +40,7 @@ namespace FluentDocker.Testing.Xunit
     /// </summary>
     public ComposeResource Resource
     {
-      get { EnsureInitialized(); return _resource; }
+      get { EnsureInitialized(); return _resource!; }
     }
 
     /// <summary>
@@ -48,7 +48,7 @@ namespace FluentDocker.Testing.Xunit
     /// </summary>
     public IComposeService Service
     {
-      get { EnsureInitialized(); return _resource.Service; }
+      get { EnsureInitialized(); return _resource!.Service; }
     }
 
     /// <summary>
@@ -56,7 +56,7 @@ namespace FluentDocker.Testing.Xunit
     /// </summary>
     public FluentDockerKernel Kernel
     {
-      get { EnsureInitialized(); return _kernel; }
+      get { EnsureInitialized(); return _kernel!; }
     }
 
     /// <summary>
@@ -70,8 +70,8 @@ namespace FluentDocker.Testing.Xunit
     /// <returns>This fixture for fluent chaining.</returns>
     public XunitComposeFixture Configure(
         Action<IComposeBuilder> configure,
-        Func<Task<FluentDockerKernel>> kernelFactory = null,
-        DockerResourceOptions options = null)
+        Func<Task<FluentDockerKernel>>? kernelFactory = null,
+        DockerResourceOptions? options = null)
     {
       _deferredConfigure = configure ?? throw new ArgumentNullException(nameof(configure));
       _deferredKernelFactory = kernelFactory;
@@ -91,7 +91,7 @@ namespace FluentDocker.Testing.Xunit
             $"{GetType().Name} has not been configured. " +
             "Call Configure() in the fixture constructor, or use " +
             "XunitComposeFixtureBase instead.");
-      await InitializeAsync(_deferredConfigure, _deferredKernelFactory, _deferredOptions);
+      await InitializeAsync(_deferredConfigure!, _deferredKernelFactory, _deferredOptions);
     }
 
     /// <summary>
@@ -99,8 +99,8 @@ namespace FluentDocker.Testing.Xunit
     /// </summary>
     public async Task InitializeAsync(
         Action<IComposeBuilder> configure,
-        Func<Task<FluentDockerKernel>> kernelFactory = null,
-        DockerResourceOptions options = null,
+        Func<Task<FluentDockerKernel>>? kernelFactory = null,
+        DockerResourceOptions? options = null,
         CancellationToken cancellationToken = default)
     {
       if (_resource != null)

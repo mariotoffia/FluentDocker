@@ -30,10 +30,10 @@ namespace FluentDocker.Testing.Xunit
   public class XunitResourceFixture<TResource> : IAsyncLifetime
       where TResource : class, ITestResource
   {
-    private TResource _resource;
-    private FluentDockerKernel _kernel;
-    private Func<FluentDockerKernel, TResource> _deferredFactory;
-    private Func<Task<FluentDockerKernel>> _deferredKernelFactory;
+    private TResource? _resource;
+    private FluentDockerKernel? _kernel;
+    private Func<FluentDockerKernel, TResource>? _deferredFactory;
+    private Func<Task<FluentDockerKernel>>? _deferredKernelFactory;
     private bool _configured;
 
     /// <summary>
@@ -41,7 +41,7 @@ namespace FluentDocker.Testing.Xunit
     /// </summary>
     public TResource Resource
     {
-      get { EnsureInitialized(); return _resource; }
+      get { EnsureInitialized(); return _resource!; }
     }
 
     /// <summary>
@@ -49,7 +49,7 @@ namespace FluentDocker.Testing.Xunit
     /// </summary>
     public FluentDockerKernel Kernel
     {
-      get { EnsureInitialized(); return _kernel; }
+      get { EnsureInitialized(); return _kernel!; }
     }
 
     /// <summary>
@@ -62,7 +62,7 @@ namespace FluentDocker.Testing.Xunit
     /// <returns>This fixture for fluent chaining.</returns>
     public XunitResourceFixture<TResource> Configure(
         Func<FluentDockerKernel, TResource> resourceFactory,
-        Func<Task<FluentDockerKernel>> kernelFactory = null)
+        Func<Task<FluentDockerKernel>>? kernelFactory = null)
     {
       _deferredFactory = resourceFactory ?? throw new ArgumentNullException(nameof(resourceFactory));
       _deferredKernelFactory = kernelFactory;
@@ -80,7 +80,7 @@ namespace FluentDocker.Testing.Xunit
         throw new InvalidOperationException(
             $"{GetType().Name} has not been configured. " +
             "Call Configure() in the fixture constructor.");
-      await InitializeAsync(_deferredFactory, _deferredKernelFactory);
+      await InitializeAsync(_deferredFactory!, _deferredKernelFactory);
     }
 
     /// <summary>
@@ -91,7 +91,7 @@ namespace FluentDocker.Testing.Xunit
     /// <param name="cancellationToken">Cancellation token.</param>
     public async Task InitializeAsync(
         Func<FluentDockerKernel, TResource> resourceFactory,
-        Func<Task<FluentDockerKernel>> kernelFactory = null,
+        Func<Task<FluentDockerKernel>>? kernelFactory = null,
         CancellationToken cancellationToken = default)
     {
       if (_resource != null)

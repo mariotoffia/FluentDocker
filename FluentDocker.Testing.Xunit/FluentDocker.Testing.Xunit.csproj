@@ -12,6 +12,7 @@
     <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
     <PackageTags>Docker;Podman;Container;Test;xUnit;NET</PackageTags>
     <Description>Spin up and tear down Docker and Podman containers, networks, volumes, and Compose stacks directly in your xUnit tests. Manages the full resource lifecycle as async fixtures so your integration tests run against real services with zero manual cleanup.</Description>
+    <Nullable>enable</Nullable>
   </PropertyGroup>
 
   <ItemGroup>
