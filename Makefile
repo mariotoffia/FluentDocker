@@ -79,16 +79,21 @@ lint:
 format:
 	dotnet format $(SOLUTION)
 
+.PHONY: check
+check: lint test
+
 .PHONY: pack
 pack: build-release
 ifdef VERSION
 	dotnet pack FluentDocker/FluentDocker.csproj --configuration Release --no-build /p:Version=$(VERSION)
-	dotnet pack FluentDocker.MsTest/FluentDocker.MsTest.csproj --configuration Release --no-build /p:Version=$(VERSION)
-	dotnet pack FluentDocker.XUnit/FluentDocker.XUnit.csproj --configuration Release --no-build /p:Version=$(VERSION)
+	dotnet pack FluentDocker.Testing.Xunit/FluentDocker.Testing.Xunit.csproj --configuration Release --no-build /p:Version=$(VERSION)
+	dotnet pack FluentDocker.Testing.MsTest/FluentDocker.Testing.MsTest.csproj --configuration Release --no-build /p:Version=$(VERSION)
+	dotnet pack FluentDocker.Testing.NUnit/FluentDocker.Testing.NUnit.csproj --configuration Release --no-build /p:Version=$(VERSION)
 else
 	dotnet pack FluentDocker/FluentDocker.csproj --configuration Release --no-build
-	dotnet pack FluentDocker.MsTest/FluentDocker.MsTest.csproj --configuration Release --no-build
-	dotnet pack FluentDocker.XUnit/FluentDocker.XUnit.csproj --configuration Release --no-build
+	dotnet pack FluentDocker.Testing.Xunit/FluentDocker.Testing.Xunit.csproj --configuration Release --no-build
+	dotnet pack FluentDocker.Testing.MsTest/FluentDocker.Testing.MsTest.csproj --configuration Release --no-build
+	dotnet pack FluentDocker.Testing.NUnit/FluentDocker.Testing.NUnit.csproj --configuration Release --no-build
 endif
 
 .PHONY: help
@@ -112,4 +117,5 @@ help:
 	@echo "  lint             - Check code formatting"
 	@echo "  format           - Format code"
 	@echo "  pack             - Create NuGet packages (use VERSION=x.y.z for versioned packs)"
+	@echo "  check            - Run lint + unit tests"
 	@echo "  help             - Show this help"
