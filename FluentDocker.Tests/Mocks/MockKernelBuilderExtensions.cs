@@ -62,8 +62,8 @@ namespace FluentDocker.Tests.Mocks
   /// </summary>
   public abstract class MockKernelTestBase : IAsyncDisposable
   {
-    protected FluentDockerKernel Kernel { get; private set; }
-    protected MockDriverPack MockPack { get; private set; }
+    protected FluentDockerKernel Kernel { get; private set; } = null!;
+    protected MockDriverPack MockPack { get; private set; } = null!;
     protected string DriverId { get; private set; } = "docker";
 
     /// <summary>

@@ -157,7 +157,7 @@ namespace FluentDocker.Tests.CoreTests.Testing.Adapters
       private readonly Func<Task<FluentDockerKernel>> _kernelFactory;
 
       public TestComposeTestBase(
-          Func<Task<FluentDockerKernel>> kernelFactory = null)
+          Func<Task<FluentDockerKernel>>? kernelFactory = null)
           => _kernelFactory = kernelFactory;
 
       protected override void ConfigureCompose(IComposeBuilder builder)
@@ -207,7 +207,7 @@ namespace FluentDocker.Tests.CoreTests.Testing.Adapters
       private readonly Func<Task<FluentDockerKernel>> _kernelFactory;
 
       public TestTopologyTestBase(
-          Func<Task<FluentDockerKernel>> kernelFactory = null)
+          Func<Task<FluentDockerKernel>>? kernelFactory = null)
           => _kernelFactory = kernelFactory;
 
       protected override void ConfigureTopology(Builder builder)

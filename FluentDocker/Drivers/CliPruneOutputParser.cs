@@ -266,7 +266,7 @@ namespace FluentDocker.Drivers
     private static bool IsAnyDeletedSectionHeader(string line)
     {
       return line.StartsWith("Deleted ", StringComparison.OrdinalIgnoreCase)
-             && line.EndsWith(":", StringComparison.Ordinal);
+             && line.EndsWith(':');
     }
 
     private static bool TryGetSection(string line, out PruneSection section)

@@ -111,7 +111,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
     }
 
     public async Task<HttpResponseMessage> PostAsync(
-        string path, HttpContent content = null, CancellationToken ct = default)
+        string path, HttpContent? content = null, CancellationToken ct = default)
     {
       var body = content is not null
           ? await content.ReadAsStringAsync(ct)
@@ -147,7 +147,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
     }
 
     public Task<Stream> PostStreamAsync(
-        string path, HttpContent content = null, CancellationToken ct = default)
+        string path, HttpContent? content = null, CancellationToken ct = default)
     {
       Record("POST_STREAM", path, null);
       return Task.FromResult(ResolveStream(path));

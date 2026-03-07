@@ -184,7 +184,7 @@ namespace FluentDocker.Tests.CoreTests.Kernel
 
     private class DriverConfigResult
     {
-      public AutoStartMachineConfig AutoStartMachine { get; set; }
+      public required AutoStartMachineConfig AutoStartMachine { get; set; }
       public bool IsDefault { get; set; }
     }
 

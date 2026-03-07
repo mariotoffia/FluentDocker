@@ -205,7 +205,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
     #region Helpers
 
     private static IPodBuilder CreatePodBuilder(
-        string driverId, FluentDockerKernel kernel = null)
+        string driverId, FluentDockerKernel? kernel = null)
     {
       kernel ??= new FluentDockerKernel();
       var builderType = typeof(Builder).Assembly

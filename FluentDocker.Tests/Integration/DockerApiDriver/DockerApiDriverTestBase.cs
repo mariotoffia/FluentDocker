@@ -14,7 +14,7 @@ namespace FluentDocker.Tests.Integration.DockerApiDriver
   [Collection("DockerDriver")]
   public abstract class DockerApiDriverTestBase : IAsyncLifetime
   {
-    protected FluentDockerKernel Kernel { get; private set; }
+    protected FluentDockerKernel Kernel { get; private set; } = null!;
     protected string DriverId => "docker-api";
     protected DriverContext Context => new DriverContext(DriverId);
 

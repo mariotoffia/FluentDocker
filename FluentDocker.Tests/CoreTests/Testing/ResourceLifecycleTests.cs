@@ -293,7 +293,7 @@ namespace FluentDocker.Tests.CoreTests.Testing
       public FakeResource(
           bool throwOnInit = false,
           bool throwOnDispose = false,
-          Action onDispose = null)
+          Action? onDispose = null)
       {
         _throwOnInit = throwOnInit;
         _throwOnDispose = throwOnDispose;

@@ -31,7 +31,7 @@ namespace FluentDocker.Tests.Utilities
     /// <param name="sessionId">Optional session ID for this test run</param>
     /// <param name="additionalLabels">Additional labels to include</param>
     /// <returns>Dictionary of labels</returns>
-    public static Dictionary<string, string> CreateTestLabels(string sessionId = null, Dictionary<string, string> additionalLabels = null)
+    public static Dictionary<string, string> CreateTestLabels(string? sessionId = null, Dictionary<string, string>? additionalLabels = null)
     {
       var labels = new Dictionary<string, string>
       {
@@ -60,8 +60,8 @@ namespace FluentDocker.Tests.Utilities
     public static async Task CleanupTestContainersAsync(
         FluentDockerKernel kernel,
         string driverId,
-        string sessionId = null,
-        string[] namePrefixes = null)
+        string? sessionId = null,
+        string[]? namePrefixes = null)
     {
       try
       {
@@ -141,7 +141,7 @@ namespace FluentDocker.Tests.Utilities
     public static async Task CleanupTestNetworksAsync(
         FluentDockerKernel kernel,
         string driverId,
-        string[] namePrefixes = null)
+        string[]? namePrefixes = null)
     {
       try
       {
@@ -185,7 +185,7 @@ namespace FluentDocker.Tests.Utilities
     public static async Task CleanupAllTestResourcesAsync(
         FluentDockerKernel kernel,
         string driverId,
-        string sessionId = null)
+        string? sessionId = null)
     {
       var namePrefixes = new[]
       {
@@ -210,7 +210,7 @@ namespace FluentDocker.Tests.Utilities
         FluentDockerKernel kernel,
         string driverId,
         string labelKey,
-        string labelValue = null,
+        string? labelValue = null,
         bool includeAll = true)
     {
       try
@@ -251,7 +251,7 @@ namespace FluentDocker.Tests.Utilities
         FluentDockerKernel kernel,
         string driverId,
         string labelKey,
-        string labelValue = null)
+        string? labelValue = null)
     {
       try
       {
@@ -304,7 +304,7 @@ namespace FluentDocker.Tests.Utilities
     public static async Task<int> RemoveTestContainersByLabelAsync(
         FluentDockerKernel kernel,
         string driverId,
-        string sessionId = null)
+        string? sessionId = null)
     {
       if (sessionId != null)
       {

@@ -27,7 +27,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
   [Trait("Category", "DevLocal")]
   public abstract class SwarmTestBase : IAsyncLifetime
   {
-    protected FluentDockerKernel Kernel { get; private set; }
+    protected FluentDockerKernel Kernel { get; private set; } = null!;
     protected string DriverId => "docker";
     protected DriverContext Context => new DriverContext(DriverId);
 
@@ -90,7 +90,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
     }
 
     protected async Task<string> RunContainerAsync(
-        string image, ContainerCreateConfig config = null)
+        string image, ContainerCreateConfig? config = null)
     {
       config ??= new ContainerCreateConfig();
       config.Image = image;

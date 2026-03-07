@@ -146,11 +146,7 @@ namespace FluentDocker.Services.Impl
       }
     }
 
-#if NETSTANDARD2_0
-        public async Task DisposeAsync()
-#else
     public async ValueTask DisposeAsync()
-#endif
     {
       if (_disposed)
         return;

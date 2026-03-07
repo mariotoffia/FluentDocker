@@ -20,7 +20,7 @@ namespace FluentDocker.Tests.Integration.FluentBuilder
   [Trait("Category", "MultiContainer")]
   public class MultiContainerTests : IAsyncLifetime
   {
-    private FluentDockerKernel _kernel;
+    private FluentDockerKernel _kernel = null!;
     private const string DriverId = "docker";
     private const string TestSessionLabel = "fluentdocker.test.session";
     private readonly string _sessionId = Guid.NewGuid().ToString();

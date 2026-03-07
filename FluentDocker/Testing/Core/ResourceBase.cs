@@ -59,6 +59,11 @@ namespace FluentDocker.Testing.Core
     /// </summary>
     public ResourceDiagnostics Diagnostics { get; private set; }
 
+    /// <summary>
+    /// Diagnostics captured when teardown fails during disposal.
+    /// </summary>
+    public TeardownDiagnostics? LastTeardownDiagnostics { get; private set; }
+
     #region Lifecycle Hooks
 
     /// <summary>
@@ -177,11 +182,17 @@ namespace FluentDocker.Testing.Core
           {
             if (Options.ForceRemoveOnDispose)
             {
+              Exception? forceRemoveFailure = null;
               using var forceCts = new CancellationTokenSource(Options.TeardownTimeout);
               try
               { await ForceRemoveAsync(forceCts.Token); }
-              catch { /* best effort */ }
+              catch (Exception forceEx) { forceRemoveFailure = forceEx; }
               _provisioned = false;
+              LastTeardownDiagnostics = new TeardownDiagnostics
+              {
+                TeardownException = ex,
+                ForceRemoveException = forceRemoveFailure
+              };
             }
             else
             {
@@ -370,5 +381,21 @@ namespace FluentDocker.Testing.Core
     /// Additional context about the operation.
     /// </summary>
     public string OperationContext { get; set; }
+  }
+
+  /// <summary>
+  /// Diagnostics captured when teardown fails during disposal.
+  /// </summary>
+  public class TeardownDiagnostics
+  {
+    /// <summary>
+    /// The exception from the graceful teardown attempt.
+    /// </summary>
+    public Exception? TeardownException { get; init; }
+
+    /// <summary>
+    /// The exception from the force-remove attempt, or null if it succeeded.
+    /// </summary>
+    public Exception? ForceRemoveException { get; init; }
   }
 }

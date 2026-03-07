@@ -18,7 +18,7 @@ namespace FluentDocker.Tests.Integration.PodmanCliDriver
   [Trait("Category", "PodmanIntegration")]
   public abstract class PodmanDriverTestBase : IAsyncLifetime
   {
-    protected FluentDockerKernel Kernel { get; private set; }
+    protected FluentDockerKernel Kernel { get; private set; } = null!;
     protected string DriverId => "podman";
     protected DriverContext Context => new DriverContext(DriverId);
 
@@ -118,7 +118,7 @@ namespace FluentDocker.Tests.Integration.PodmanCliDriver
       await ImageDriver.PullAsync(Context, name, tag);
     }
 
-    protected async Task<string> RunContainerAsync(string image, ContainerCreateConfig config = null)
+    protected async Task<string> RunContainerAsync(string image, ContainerCreateConfig? config = null)
     {
       config ??= new ContainerCreateConfig();
       config.Image = image;

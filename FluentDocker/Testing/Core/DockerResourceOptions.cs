@@ -20,7 +20,18 @@ namespace FluentDocker.Testing.Core
     /// <summary>
     /// Timeout for initialization (including readiness waits).
     /// </summary>
-    public TimeSpan InitializationTimeout { get; set; } = TimeSpan.FromMinutes(2);
+    private TimeSpan _initializationTimeout = TimeSpan.FromMinutes(2);
+    public TimeSpan InitializationTimeout
+    {
+      get => _initializationTimeout;
+      set
+      {
+        if (value <= TimeSpan.Zero)
+          throw new ArgumentOutOfRangeException(
+              nameof(value), value, "InitializationTimeout must be positive.");
+        _initializationTimeout = value;
+      }
+    }
 
     /// <summary>
     /// Whether to capture logs on failure for diagnostics.
@@ -30,12 +41,34 @@ namespace FluentDocker.Testing.Core
     /// <summary>
     /// Maximum log lines to capture on failure.
     /// </summary>
-    public int MaxDiagnosticLogLines { get; set; } = 200;
+    private int _maxDiagnosticLogLines = 200;
+    public int MaxDiagnosticLogLines
+    {
+      get => _maxDiagnosticLogLines;
+      set
+      {
+        if (value < 0)
+          throw new ArgumentOutOfRangeException(
+              nameof(value), value, "MaxDiagnosticLogLines must be >= 0.");
+        _maxDiagnosticLogLines = value;
+      }
+    }
 
     /// <summary>
     /// Timeout for teardown (stop + remove) during disposal.
     /// Prevents hung cleanup from blocking CI pipelines indefinitely.
     /// </summary>
-    public TimeSpan TeardownTimeout { get; set; } = TimeSpan.FromSeconds(120);
+    private TimeSpan _teardownTimeout = TimeSpan.FromSeconds(120);
+    public TimeSpan TeardownTimeout
+    {
+      get => _teardownTimeout;
+      set
+      {
+        if (value <= TimeSpan.Zero)
+          throw new ArgumentOutOfRangeException(
+              nameof(value), value, "TeardownTimeout must be positive.");
+        _teardownTimeout = value;
+      }
+    }
   }
 }

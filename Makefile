@@ -73,7 +73,8 @@ benchmark-template:
 
 .PHONY: lint
 lint:
-	dotnet format $(SOLUTION) --verify-no-changes --verbosity diagnostic
+	dotnet format whitespace $(SOLUTION) --verify-no-changes
+	dotnet format style $(SOLUTION) --verify-no-changes
 
 .PHONY: format
 format:

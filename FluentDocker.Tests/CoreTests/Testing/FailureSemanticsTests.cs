@@ -152,6 +152,75 @@ namespace FluentDocker.Tests.CoreTests.Testing
     }
 
     [Fact]
+    public async Task TeardownFails_ForceRemoveSucceeds_CapturesTeardownDiagnostics()
+    {
+      MockPack
+          .SetupContainerCreate()
+          .SetupContainerStart()
+          .SetupContainerInspect(running: true)
+          .SetupContainerRemove();
+
+      MockPack.ContainerDriver
+          .Setup(d => d.StopAsync(
+              It.IsAny<DriverContext>(),
+              It.IsAny<string>(),
+              It.IsAny<int?>(),
+              It.IsAny<CancellationToken>()))
+          .ThrowsAsync(new InvalidOperationException("stop failed"));
+
+      var resource = new ContainerResource(
+          Kernel,
+          builder => builder.UseImage("alpine:latest"),
+          new DockerResourceOptions { ForceRemoveOnDispose = true });
+
+      await resource.InitializeAsync(TestContext.Current.CancellationToken);
+      await resource.DisposeAsync();
+
+      Assert.NotNull(resource.LastTeardownDiagnostics);
+      Assert.IsType<InvalidOperationException>(resource.LastTeardownDiagnostics.TeardownException);
+      Assert.Null(resource.LastTeardownDiagnostics.ForceRemoveException);
+    }
+
+    [Fact]
+    public async Task TeardownFails_ForceRemoveAlsoFails_CapturesBothExceptions()
+    {
+      var resource = new FailingTeardownResource(
+          Kernel,
+          teardownEx: new InvalidOperationException("teardown failed"),
+          forceRemoveEx: new InvalidOperationException("force-remove failed"),
+          new DockerResourceOptions { ForceRemoveOnDispose = true });
+
+      await resource.InitializeAsync(TestContext.Current.CancellationToken);
+      await resource.DisposeAsync();
+
+      Assert.NotNull(resource.LastTeardownDiagnostics);
+      Assert.NotNull(resource.LastTeardownDiagnostics.TeardownException);
+      Assert.NotNull(resource.LastTeardownDiagnostics.ForceRemoveException);
+      Assert.Contains("teardown failed", resource.LastTeardownDiagnostics.TeardownException.Message);
+      Assert.Contains("force-remove failed", resource.LastTeardownDiagnostics.ForceRemoveException.Message);
+    }
+
+    [Fact]
+    public async Task TeardownSucceeds_DiagnosticsIsNull()
+    {
+      MockPack
+          .SetupContainerCreate()
+          .SetupContainerStart()
+          .SetupContainerInspect(running: true)
+          .SetupContainerStop()
+          .SetupContainerRemove();
+
+      var resource = new ContainerResource(
+          Kernel,
+          builder => builder.UseImage("alpine:latest"));
+
+      await resource.InitializeAsync(TestContext.Current.CancellationToken);
+      await resource.DisposeAsync();
+
+      Assert.Null(resource.LastTeardownDiagnostics);
+    }
+
+    [Fact]
     public async Task OnAfterReady_Throws_IsInitializedRemainsFalse()
     {
       MockPack
@@ -290,6 +359,40 @@ namespace FluentDocker.Tests.CoreTests.Testing
     }
 
     #region Test Doubles
+
+    private class FailingTeardownResource : ResourceBase
+    {
+      private readonly Exception _teardownEx;
+      private readonly Exception _forceRemoveEx;
+
+      public FailingTeardownResource(
+          FluentDockerKernel kernel,
+          Exception teardownEx,
+          Exception forceRemoveEx,
+          DockerResourceOptions options)
+          : base(kernel, options)
+      {
+        _teardownEx = teardownEx;
+        _forceRemoveEx = forceRemoveEx;
+      }
+
+      protected override Task PreflightAsync(CancellationToken cancellationToken)
+          => Task.CompletedTask;
+
+      protected override Task ProvisionAsync(CancellationToken cancellationToken)
+      {
+        ResourceName = "test-failing-resource";
+        return Task.CompletedTask;
+      }
+
+      protected override Task TeardownAsync(CancellationToken cancellationToken)
+          => Task.FromException(_teardownEx);
+
+      protected override Task ForceRemoveAsync(CancellationToken cancellationToken)
+          => _forceRemoveEx != null
+              ? Task.FromException(_forceRemoveEx)
+              : Task.CompletedTask;
+    }
 
     private class ThrowingResource : ITestResource
     {

@@ -86,6 +86,9 @@ namespace FluentDocker.Testing.Xunit
     /// </summary>
     async ValueTask IAsyncLifetime.InitializeAsync()
     {
+      if (_resource != null)
+        return; // Already initialized via manual InitializeAsync() call
+
       if (!_configured)
         throw new InvalidOperationException(
             $"{GetType().Name} has not been configured. " +

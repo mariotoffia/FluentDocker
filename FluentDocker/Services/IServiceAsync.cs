@@ -9,11 +9,7 @@ namespace FluentDocker.Services
   /// <summary>
   /// Async service interface with kernel/driver architecture.
   /// </summary>
-#if NETSTANDARD2_0
-    public interface IServiceAsync : IService
-#else
   public interface IServiceAsync : IService, IAsyncDisposable
-#endif
   {
     /// <summary>
     /// The kernel instance managing this service.

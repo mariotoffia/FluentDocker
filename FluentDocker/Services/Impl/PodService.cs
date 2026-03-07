@@ -104,18 +104,10 @@ namespace FluentDocker.Services.Impl
 
     public void Dispose()
     {
-#if NETSTANDARD2_0
-            DisposeAsync().GetAwaiter().GetResult();
-#else
       DisposeAsync().AsTask().GetAwaiter().GetResult();
-#endif
     }
 
-#if NETSTANDARD2_0
-        public async Task DisposeAsync()
-#else
     public async ValueTask DisposeAsync()
-#endif
     {
       if (!_removeOnDispose)
         return;

@@ -174,7 +174,7 @@ namespace FluentDocker.Tests.CoreTests.Core
       public void Pause() { }
       public void Stop() { }
       public void Remove(bool force = false) { }
-      public IService AddHook(ServiceRunningState state, System.Action<IService> hook, string uniqueName = null) => this;
+      public IService AddHook(ServiceRunningState state, System.Action<IService> hook, string? uniqueName = null) => this;
       public IService RemoveHook(string uniqueName) => this;
 #pragma warning disable CS0067
       public event ServiceDelegates.StateChange StateChange;

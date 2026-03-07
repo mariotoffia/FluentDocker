@@ -236,7 +236,11 @@ namespace FluentDocker.Drivers.Docker.Api.Connection
             var caPath = Path.Combine(config.CertificatePath, "ca.pem");
             if (File.Exists(caPath))
             {
+#if NET9_0_OR_GREATER
               var caCert = X509CertificateLoader.LoadCertificateFromFile(caPath);
+#else
+              var caCert = X509Certificate2.CreateFromPemFile(caPath);
+#endif
               sslOptions.RemoteCertificateValidationCallback = (_, cert, chain, errors) =>
               {
                 if (errors == SslPolicyErrors.None)

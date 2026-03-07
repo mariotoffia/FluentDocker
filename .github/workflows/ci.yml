@@ -9,6 +9,13 @@ on:
   pull_request:
   schedule:
     - cron: '0 6 * * 1'  # Monday 06:00 UTC
+  workflow_dispatch:
+    inputs:
+      run_integration:
+        description: 'Run integration tests'
+        required: false
+        type: boolean
+        default: false
 
 jobs:
   build:
@@ -45,6 +52,7 @@ jobs:
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: |
+            8.0.x
             10.0.x
 
       - name: Install GitVersion
@@ -181,6 +189,7 @@ jobs:
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: |
+            8.0.x
             10.0.x
 
       - name: Build for CodeQL
@@ -197,7 +206,9 @@ jobs:
   integration-tests:
     name: Integration Tests
     runs-on: ubuntu-latest
-    if: github.event_name == 'schedule'
+    if: >
+      github.event_name == 'schedule' ||
+      (github.event_name == 'workflow_dispatch' && inputs.run_integration == true)
     env:
       DOTNET_NOLOGO: 'true'
       DOTNET_CLI_TELEMETRY_OPTOUT: 'true'
@@ -206,7 +217,9 @@ jobs:
 
       - uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '10.0.x'
+          dotnet-version: |
+            8.0.x
+            10.0.x
 
       - run: dotnet restore
 

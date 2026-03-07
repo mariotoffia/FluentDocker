@@ -408,7 +408,7 @@ namespace FluentDocker.Tests.Integration.PodmanCliDriver
 
         // Retry with content check — ReadToEnd may return "\n" before
         // actual log lines are available.
-        string logs = null;
+        string? logs = null;
         for (var attempt = 0; attempt < 5; attempt++)
         {
           var logsResult = await ContainerDriver.GetLogsAsync(

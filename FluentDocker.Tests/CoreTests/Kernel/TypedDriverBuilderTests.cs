@@ -387,10 +387,10 @@ namespace FluentDocker.Tests.CoreTests.Kernel
 
     private class DriverConfigResult
     {
-      public DriverContext Context { get; set; }
+      public required DriverContext Context { get; set; }
       public bool IsDefault { get; set; }
-      public string DriverId { get; set; }
-      public string DriverPackTypeName { get; set; }
+      public required string DriverId { get; set; }
+      public required string DriverPackTypeName { get; set; }
     }
 
     #endregion

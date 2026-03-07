@@ -63,6 +63,35 @@ namespace FluentDocker.Tests.CoreTests.Testing.Adapters
       var fixture = new XunitContainerFixture();
       Assert.Throws<ArgumentNullException>(() => fixture.Configure(null));
     }
+
+    [Fact]
+    public async Task ManualInit_ThenLifecycleInit_NoOps()
+    {
+      MockPack
+          .SetupContainerCreate()
+          .SetupContainerStart()
+          .SetupContainerInspect(running: true)
+          .SetupContainerStop()
+          .SetupContainerRemove();
+
+      var capturedKernel = Kernel;
+      var fixture = new XunitContainerFixture();
+
+      // Manual init (old pattern)
+      await fixture.InitializeAsync(
+          c => c.UseImage("redis:alpine"),
+          kernelFactory: () => Task.FromResult(capturedKernel));
+
+      var resourceBefore = fixture.Resource;
+      Assert.NotNull(resourceBefore);
+
+      // xUnit also calls IAsyncLifetime.InitializeAsync — should no-op
+      await ((IAsyncLifetime)fixture).InitializeAsync();
+
+      Assert.Same(resourceBefore, fixture.Resource);
+
+      await fixture.DisposeAsync();
+    }
   }
 
   [Trait("Category", "Unit")]

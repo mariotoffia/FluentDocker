@@ -4,6 +4,7 @@ using Xunit;
 
 namespace FluentDocker.Tests.CoreTests.Testing
 {
+  [Trait("Category", "Unit")]
   public class DockerResourceOptionsTests
   {
     [Fact]
@@ -35,6 +36,48 @@ namespace FluentDocker.Tests.CoreTests.Testing
       Assert.Equal(TimeSpan.FromSeconds(30), options.InitializationTimeout);
       Assert.False(options.CaptureLogsOnFailure);
       Assert.Equal(50, options.MaxDiagnosticLogLines);
+    }
+
+    [Fact]
+    public void InitializationTimeout_Zero_Throws()
+    {
+      var opts = new DockerResourceOptions();
+      Assert.Throws<ArgumentOutOfRangeException>(() => opts.InitializationTimeout = TimeSpan.Zero);
+    }
+
+    [Fact]
+    public void InitializationTimeout_Negative_Throws()
+    {
+      var opts = new DockerResourceOptions();
+      Assert.Throws<ArgumentOutOfRangeException>(() => opts.InitializationTimeout = TimeSpan.FromSeconds(-1));
+    }
+
+    [Fact]
+    public void TeardownTimeout_Zero_Throws()
+    {
+      var opts = new DockerResourceOptions();
+      Assert.Throws<ArgumentOutOfRangeException>(() => opts.TeardownTimeout = TimeSpan.Zero);
+    }
+
+    [Fact]
+    public void TeardownTimeout_Negative_Throws()
+    {
+      var opts = new DockerResourceOptions();
+      Assert.Throws<ArgumentOutOfRangeException>(() => opts.TeardownTimeout = TimeSpan.FromSeconds(-1));
+    }
+
+    [Fact]
+    public void MaxDiagnosticLogLines_Negative_Throws()
+    {
+      var opts = new DockerResourceOptions();
+      Assert.Throws<ArgumentOutOfRangeException>(() => opts.MaxDiagnosticLogLines = -1);
+    }
+
+    [Fact]
+    public void MaxDiagnosticLogLines_Zero_Allowed()
+    {
+      var opts = new DockerResourceOptions { MaxDiagnosticLogLines = 0 };
+      Assert.Equal(0, opts.MaxDiagnosticLogLines);
     }
   }
 }

@@ -15,7 +15,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
   /// </summary>
   public abstract class DockerDriverTestBase : IAsyncLifetime
   {
-    protected FluentDockerKernel Kernel { get; private set; }
+    protected FluentDockerKernel Kernel { get; private set; } = null!;
     protected string DriverId => "docker";
     protected DriverContext Context => new DriverContext(DriverId);
 
@@ -95,7 +95,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
     /// <summary>
     /// Creates and runs a container, returning its ID.
     /// </summary>
-    protected async Task<string> RunContainerAsync(string image, ContainerCreateConfig config = null)
+    protected async Task<string> RunContainerAsync(string image, ContainerCreateConfig? config = null)
     {
       config ??= new ContainerCreateConfig();
       config.Image = image;
@@ -122,7 +122,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
     /// <summary>
     /// Creates a network and returns its ID.
     /// </summary>
-    protected async Task<string> CreateNetworkAsync(string name, NetworkCreateConfig config = null)
+    protected async Task<string> CreateNetworkAsync(string name, NetworkCreateConfig? config = null)
     {
       config ??= new NetworkCreateConfig();
       config.Name = name;
@@ -146,7 +146,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
     /// <summary>
     /// Creates a volume and returns its name.
     /// </summary>
-    protected async Task<string> CreateVolumeAsync(string name = null)
+    protected async Task<string> CreateVolumeAsync(string? name = null)
     {
       var config = new VolumeCreateConfig { Name = name ?? $"test-vol-{Guid.NewGuid():N}" };
       var result = await VolumeDriver.CreateAsync(Context, config);

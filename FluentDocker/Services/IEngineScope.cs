@@ -18,11 +18,7 @@ namespace FluentDocker.Services
   /// Async interface for switching Docker daemon between Windows and Linux modes.
   /// This is primarily for Docker Desktop on Windows.
   /// </summary>
-#if NETSTANDARD2_0
-    public interface IEngineScope : IDisposable
-#else
   public interface IEngineScope : IDisposable, IAsyncDisposable
-#endif
   {
     /// <summary>
     /// The current scope/mode of the engine.
@@ -54,9 +50,6 @@ namespace FluentDocker.Services
     /// <summary>
     /// Disposes the scope asynchronously, restoring the original engine mode if changed.
     /// </summary>
-#if NETSTANDARD2_0
-        Task DisposeAsync();
-#endif
   }
 }
 

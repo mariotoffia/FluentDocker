@@ -489,34 +489,27 @@ Framework-specific adapters are available as separate packages.
 
 ### xUnit (Testing.Core)
 
-> `GetAwaiter().GetResult()` is required because xUnit does not support
-> async fixture constructors.
-
 ```csharp
-using FluentDocker.Testing.Xunit;
-
-public class MyFixture : XunitContainerFixture
+// Option A — Abstract base (recommended):
+public class MyRedisFixture : XunitContainerFixtureBase
 {
-    public MyFixture()
-    {
-        InitializeAsync(builder => builder
-            .UseImage("redis:alpine")
-            .WaitForPort("6379/tcp")
-        ).GetAwaiter().GetResult();
-    }
+  protected override void ConfigureContainer(IContainerBuilder builder)
+    => builder
+        .UseImage("redis:alpine")
+        .ExposePort(6379)
+        .WaitForPort("6379/tcp");
 }
 
-public class MyTests : IClassFixture<MyFixture>
+// Option B — Configure + IAsyncLifetime:
+public class MyRedisFixture : XunitContainerFixture
 {
-    private readonly MyFixture _fixture;
-    public MyTests(MyFixture fixture) => _fixture = fixture;
-
-    [Fact]
-    public async Task Redis_IsRunning()
-    {
-        var info = await _fixture.Container.InspectAsync();
-        Assert.True(info.State.Running);
-    }
+  public MyRedisFixture()
+  {
+    Configure(builder => builder
+        .UseImage("redis:alpine")
+        .ExposePort(6379)
+        .WaitForPort("6379/tcp"));
+  }
 }
 ```
 

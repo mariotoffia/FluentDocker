@@ -12,7 +12,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
   {
     private static DriverContext Ctx => new("docker-api-error-test");
 
-    private static TestableDriverBase CreateDriver(MockDockerApiConnection mock = null)
+    private static TestableDriverBase CreateDriver(MockDockerApiConnection? mock = null)
     {
       mock ??= new MockDockerApiConnection();
       var driver = new TestableDriverBase(mock);
@@ -181,14 +181,14 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
     {
       public TestableDriverBase(IDockerApiConnection conn) : base(conn) { }
 
-      public new string TestMapHttpErrorCode(int statusCode) =>
+      public string TestMapHttpErrorCode(int statusCode) =>
           MapHttpErrorCode(statusCode);
 
-      public new string TestMapNotFoundErrorCode(int statusCode, string defaultCode) =>
+      public string TestMapNotFoundErrorCode(int statusCode, string defaultCode) =>
           MapNotFoundErrorCode(statusCode, defaultCode);
 
-      public new ErrorContext TestCreateErrorContext(
-          string op, int statusCode, string body = null) =>
+      public ErrorContext TestCreateErrorContext(
+          string op, int statusCode, string? body = null) =>
           CreateErrorContext(op, statusCode, body);
 
       public Task<ApiResult<T>> TestGetJsonAsync<T>(

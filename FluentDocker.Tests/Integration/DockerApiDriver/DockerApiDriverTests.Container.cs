@@ -21,7 +21,7 @@ namespace FluentDocker.Tests.Integration.DockerApiDriver
     private const string TestLabelValue = "integration";
 
     private async Task<string> ApiRunContainerAsync(
-        string image, string[] command = null)
+        string image, string[]? command = null)
     {
       await EnsureImageAsync(image);
       var config = new ContainerCreateConfig
