@@ -29,8 +29,8 @@
   </ItemGroup>
 
   <ItemGroup>    
-    <PackageReference Include="Microsoft.SourceLink.GitHub" Version="1.0.0" PrivateAssets="All" />
-    <PackageReference Include="Newtonsoft.Json" Version="13.0.1" />
-    <PackageReference Include="SharpCompress" Version="0.29.0" />
+    <PackageReference Include="Microsoft.SourceLink.GitHub" PrivateAssets="All" />
+    <PackageReference Include="Newtonsoft.Json" />
+    <PackageReference Include="SharpCompress" />
   </ItemGroup>
 </Project>
