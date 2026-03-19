@@ -42,8 +42,8 @@ namespace FluentDocker.Drivers.Docker.Api
     {
       try
       {
-        var response = await Connection.GetAsync(path, ct);
-        return await HandleResponseAsync<T>(response, ct);
+        var response = await Connection.GetAsync(path, ct).ConfigureAwait(false);
+        return await HandleResponseAsync<T>(response, ct).ConfigureAwait(false);
       }
       catch (Exception ex) when (IsConnectionError(ex))
       {
@@ -62,8 +62,8 @@ namespace FluentDocker.Drivers.Docker.Api
                 JsonHelper.Serialize(body), Encoding.UTF8, "application/json")
             : null;
 
-        var response = await Connection.PostAsync(path, content, ct);
-        return await HandleResponseAsync<T>(response, ct);
+        var response = await Connection.PostAsync(path, content, ct).ConfigureAwait(false);
+        return await HandleResponseAsync<T>(response, ct).ConfigureAwait(false);
       }
       catch (Exception ex) when (IsConnectionError(ex))
       {
@@ -81,8 +81,8 @@ namespace FluentDocker.Drivers.Docker.Api
                 JsonHelper.Serialize(body), Encoding.UTF8, "application/json")
             : null;
 
-        var response = await Connection.PostAsync(path, content, ct);
-        return await HandleResponseAsync(response, ct);
+        var response = await Connection.PostAsync(path, content, ct).ConfigureAwait(false);
+        return await HandleResponseAsync(response, ct).ConfigureAwait(false);
       }
       catch (Exception ex) when (IsConnectionError(ex))
       {
@@ -95,8 +95,8 @@ namespace FluentDocker.Drivers.Docker.Api
     {
       try
       {
-        var response = await Connection.DeleteAsync(path, ct);
-        return await HandleResponseAsync(response, ct);
+        var response = await Connection.DeleteAsync(path, ct).ConfigureAwait(false);
+        return await HandleResponseAsync(response, ct).ConfigureAwait(false);
       }
       catch (Exception ex) when (IsConnectionError(ex))
       {
@@ -113,8 +113,8 @@ namespace FluentDocker.Drivers.Docker.Api
         var content = new StreamContent(stream);
         content.Headers.ContentType =
             new System.Net.Http.Headers.MediaTypeHeaderValue(contentType);
-        var response = await Connection.PutAsync(path, content, ct);
-        return await HandleResponseAsync(response, ct);
+        var response = await Connection.PutAsync(path, content, ct).ConfigureAwait(false);
+        return await HandleResponseAsync(response, ct).ConfigureAwait(false);
       }
       catch (Exception ex) when (IsConnectionError(ex))
       {
@@ -128,8 +128,8 @@ namespace FluentDocker.Drivers.Docker.Api
     {
       try
       {
-        var response = await Connection.GetAsync(path, ct);
-        var body = await response.Content.ReadAsStringAsync(ct);
+        var response = await Connection.GetAsync(path, ct).ConfigureAwait(false);
+        var body = await response.Content.ReadAsStringAsync(ct).ConfigureAwait(false);
 
         if (response.IsSuccessStatusCode)
         {
@@ -160,8 +160,8 @@ namespace FluentDocker.Drivers.Docker.Api
                 JsonHelper.Serialize(body), Encoding.UTF8, "application/json")
             : null;
 
-        var response = await Connection.PostAsync(path, content, ct);
-        var responseBody = await response.Content.ReadAsStringAsync(ct);
+        var response = await Connection.PostAsync(path, content, ct).ConfigureAwait(false);
+        var responseBody = await response.Content.ReadAsStringAsync(ct).ConfigureAwait(false);
 
         if (response.IsSuccessStatusCode)
         {
@@ -184,7 +184,7 @@ namespace FluentDocker.Drivers.Docker.Api
 
     protected async Task<Stream> GetRawStreamAsync(string path, CancellationToken ct)
     {
-      return await Connection.GetStreamAsync(path, ct);
+      return await Connection.GetStreamAsync(path, ct).ConfigureAwait(false);
     }
 
     protected async IAsyncEnumerable<string> ReadNdjsonStreamAsync(
@@ -193,7 +193,7 @@ namespace FluentDocker.Drivers.Docker.Api
       Stream stream;
       try
       {
-        stream = await Connection.GetStreamAsync(path, ct);
+        stream = await Connection.GetStreamAsync(path, ct).ConfigureAwait(false);
       }
       catch (Exception ex)
       {
@@ -207,7 +207,7 @@ namespace FluentDocker.Drivers.Docker.Api
         string line;
         try
         {
-          line = await reader.ReadLineAsync(ct);
+          line = await reader.ReadLineAsync(ct).ConfigureAwait(false);
         }
         catch (OperationCanceledException)
         {
@@ -233,7 +233,7 @@ namespace FluentDocker.Drivers.Docker.Api
       Stream stream;
       try
       {
-        stream = await Connection.PostStreamAsync(path, content, ct);
+        stream = await Connection.PostStreamAsync(path, content, ct).ConfigureAwait(false);
       }
       catch (Exception ex)
       {
@@ -247,7 +247,7 @@ namespace FluentDocker.Drivers.Docker.Api
         string line;
         try
         {
-          line = await reader.ReadLineAsync(ct);
+          line = await reader.ReadLineAsync(ct).ConfigureAwait(false);
         }
         catch (OperationCanceledException)
         {
@@ -274,7 +274,7 @@ namespace FluentDocker.Drivers.Docker.Api
     private static async Task<ApiResult<T>> HandleResponseAsync<T>(
         HttpResponseMessage response, CancellationToken ct)
     {
-      var body = await response.Content.ReadAsStringAsync(ct);
+      var body = await response.Content.ReadAsStringAsync(ct).ConfigureAwait(false);
 
       if (response.IsSuccessStatusCode)
       {
@@ -296,7 +296,7 @@ namespace FluentDocker.Drivers.Docker.Api
       if (response.IsSuccessStatusCode || response.StatusCode == HttpStatusCode.NotModified)
         return ApiResult.Ok();
 
-      var body = await response.Content.ReadAsStringAsync(ct);
+      var body = await response.Content.ReadAsStringAsync(ct).ConfigureAwait(false);
       var errorMessage = ExtractErrorMessage(body) ??
           $"Docker API returned {(int)response.StatusCode}: {response.ReasonPhrase}";
       return ApiResult.Failure((int)response.StatusCode, errorMessage, body);

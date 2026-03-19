@@ -56,14 +56,14 @@ namespace FluentDocker.Drivers.Docker.Api.Components
         DriverContext context, ContainerCreateConfig config,
         CancellationToken cancellationToken = default)
     {
-      var createResult = await CreateAsync(context, config, cancellationToken);
+      var createResult = await CreateAsync(context, config, cancellationToken).ConfigureAwait(false);
       if (!createResult.Success)
         return CommandResponse<ContainerRunResult>.Fail(
             createResult.Error, createResult.ErrorCode,
             createResult.ErrorContext, createResult.ExitCode);
 
       var containerId = createResult.Data.Id;
-      var startResult = await StartAsync(context, containerId, cancellationToken);
+      var startResult = await StartAsync(context, containerId, cancellationToken).ConfigureAwait(false);
       if (!startResult.Success)
         return CommandResponse<ContainerRunResult>.Fail(
             startResult.Error, startResult.ErrorCode,
@@ -82,7 +82,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
         CancellationToken cancellationToken = default)
     {
       var path = $"/containers/{Uri.EscapeDataString(containerId)}/start";
-      var result = await PostAsync(path, null, cancellationToken);
+      var result = await PostAsync(path, null, cancellationToken).ConfigureAwait(false);
       return result.Success
           ? CommandResponse<Unit>.Ok(Unit.Default)
           : FailUnit(result, $"POST /containers/{containerId}/start");
@@ -97,7 +97,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       if (timeout.HasValue)
         path += $"?t={timeout.Value}";
 
-      var result = await PostAsync(path, null, cancellationToken);
+      var result = await PostAsync(path, null, cancellationToken).ConfigureAwait(false);
       return result.Success
           ? CommandResponse<Unit>.Ok(Unit.Default)
           : FailUnit(result, $"POST /containers/{containerId}/stop");
@@ -112,7 +112,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       if (timeout.HasValue)
         path += $"?t={timeout.Value}";
 
-      var result = await PostAsync(path, null, cancellationToken);
+      var result = await PostAsync(path, null, cancellationToken).ConfigureAwait(false);
       return result.Success
           ? CommandResponse<Unit>.Ok(Unit.Default)
           : FailUnit(result, $"POST /containers/{containerId}/restart");
@@ -124,7 +124,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
         CancellationToken cancellationToken = default)
     {
       var path = $"/containers/{Uri.EscapeDataString(containerId)}/pause";
-      var result = await PostAsync(path, null, cancellationToken);
+      var result = await PostAsync(path, null, cancellationToken).ConfigureAwait(false);
       return result.Success
           ? CommandResponse<Unit>.Ok(Unit.Default)
           : FailUnit(result, $"POST /containers/{containerId}/pause");
@@ -136,7 +136,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
         CancellationToken cancellationToken = default)
     {
       var path = $"/containers/{Uri.EscapeDataString(containerId)}/unpause";
-      var result = await PostAsync(path, null, cancellationToken);
+      var result = await PostAsync(path, null, cancellationToken).ConfigureAwait(false);
       return result.Success
           ? CommandResponse<Unit>.Ok(Unit.Default)
           : FailUnit(result, $"POST /containers/{containerId}/unpause");
@@ -151,7 +151,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       if (!string.IsNullOrEmpty(signal))
         path += $"?signal={Uri.EscapeDataString(signal)}";
 
-      var result = await PostAsync(path, null, cancellationToken);
+      var result = await PostAsync(path, null, cancellationToken).ConfigureAwait(false);
       return result.Success
           ? CommandResponse<Unit>.Ok(Unit.Default)
           : FailUnit(result, $"POST /containers/{containerId}/kill");
@@ -166,7 +166,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       var id = Uri.EscapeDataString(containerId);
       var path = $"/containers/{id}?force={Fmt(force)}&v={Fmt(removeVolumes)}";
 
-      var result = await DeleteAsync(path, cancellationToken);
+      var result = await DeleteAsync(path, cancellationToken).ConfigureAwait(false);
       return result.Success
           ? CommandResponse<Unit>.Ok(Unit.Default)
           : FailUnit(result, $"DELETE /containers/{containerId}");
@@ -205,7 +205,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
         CancellationToken cancellationToken = default)
     {
       var path = $"/containers/{Uri.EscapeDataString(containerId)}/json";
-      var result = await GetJsonElementAsync(path, cancellationToken);
+      var result = await GetJsonElementAsync(path, cancellationToken).ConfigureAwait(false);
       if (!result.Success)
         return CommandResponse<Container>.Fail(
             result.ErrorMessage,
@@ -223,7 +223,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
         CancellationToken cancellationToken = default)
     {
       var path = BuildListPath(filter);
-      var result = await GetJsonElementAsync(path, cancellationToken);
+      var result = await GetJsonElementAsync(path, cancellationToken).ConfigureAwait(false);
       if (!result.Success)
         return CommandResponse<IList<Container>>.Fail(
             result.ErrorMessage,
@@ -242,7 +242,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
     {
       var path = $"/containers/{Uri.EscapeDataString(containerId)}" +
                  "/stats?stream=false";
-      var result = await GetJsonElementAsync(path, cancellationToken);
+      var result = await GetJsonElementAsync(path, cancellationToken).ConfigureAwait(false);
       if (!result.Success)
         return CommandResponse<ContainerStatsResult>.Fail(
             result.ErrorMessage,

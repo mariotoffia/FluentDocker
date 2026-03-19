@@ -62,7 +62,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
 
         args.Add(config.Name);
 
-        var result = await ExecuteCommandAsync(string.Join(" ", args), cancellationToken);
+        var result = await ExecuteCommandAsync(string.Join(" ", args), cancellationToken).ConfigureAwait(false);
 
         if (!result.Success)
         {
@@ -90,7 +90,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     {
       try
       {
-        var result = await ExecuteCommandAsync($"network rm {networkId}", cancellationToken);
+        var result = await ExecuteCommandAsync($"network rm {networkId}", cancellationToken).ConfigureAwait(false);
 
         if (!result.Success)
         {
@@ -131,7 +131,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
           }
         }
 
-        var result = await ExecuteCommandAsync(args, cancellationToken);
+        var result = await ExecuteCommandAsync(args, cancellationToken).ConfigureAwait(false);
 
         if (!result.Success)
         {
@@ -175,7 +175,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     {
       try
       {
-        var result = await ExecuteCommandAsync($"network inspect {networkId}", cancellationToken);
+        var result = await ExecuteCommandAsync($"network inspect {networkId}", cancellationToken).ConfigureAwait(false);
 
         if (!result.Success)
         {
@@ -204,7 +204,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     {
       try
       {
-        var result = await ExecuteCommandAsync($"network connect {networkId} {containerId}", cancellationToken);
+        var result = await ExecuteCommandAsync($"network connect {networkId} {containerId}", cancellationToken).ConfigureAwait(false);
 
         if (!result.Success)
         {
@@ -238,7 +238,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
           args += " --force";
         args += $" {networkId} {containerId}";
 
-        var result = await ExecuteCommandAsync(args, cancellationToken);
+        var result = await ExecuteCommandAsync(args, cancellationToken).ConfigureAwait(false);
 
         if (!result.Success)
         {
@@ -264,7 +264,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     {
       try
       {
-        var result = await ExecuteCommandAsync("network prune --force", cancellationToken);
+        var result = await ExecuteCommandAsync("network prune --force", cancellationToken).ConfigureAwait(false);
 
         if (!result.Success)
         {

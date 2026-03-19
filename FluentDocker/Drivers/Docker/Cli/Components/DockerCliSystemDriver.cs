@@ -33,7 +33,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     {
       try
       {
-        var result = await ExecuteCommandAsync("info --format \"{{json .}}\"", cancellationToken);
+        var result = await ExecuteCommandAsync("info --format \"{{json .}}\"", cancellationToken).ConfigureAwait(false);
 
         if (!result.Success)
         {
@@ -59,7 +59,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     {
       try
       {
-        var result = await ExecuteCommandAsync("version --format \"{{json .}}\"", cancellationToken);
+        var result = await ExecuteCommandAsync("version --format \"{{json .}}\"", cancellationToken).ConfigureAwait(false);
 
         if (!result.Success)
         {
@@ -85,7 +85,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     {
       try
       {
-        var result = await ExecuteCommandAsync("version", cancellationToken);
+        var result = await ExecuteCommandAsync("version", cancellationToken).ConfigureAwait(false);
         return result.Success
             ? CommandResponse<Unit>.Ok(Unit.Default)
             : CommandResponse<Unit>.Fail("Docker daemon not reachable", ErrorCodes.General.Unknown);
@@ -103,7 +103,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     {
       try
       {
-        var versionResult = await GetVersionAsync(context, cancellationToken);
+        var versionResult = await GetVersionAsync(context, cancellationToken).ConfigureAwait(false);
         if (!versionResult.Success)
           return CommandResponse<bool>.Fail(versionResult.Error, versionResult.ErrorCode);
 
@@ -123,7 +123,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     {
       try
       {
-        var versionResult = await GetVersionAsync(context, cancellationToken);
+        var versionResult = await GetVersionAsync(context, cancellationToken).ConfigureAwait(false);
         if (!versionResult.Success)
           return CommandResponse<bool>.Ok(true); // Default to Linux
 
@@ -148,7 +148,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     {
       try
       {
-        var result = await ExecuteCommandAsync("system df --format \"{{json .}}\"", cancellationToken);
+        var result = await ExecuteCommandAsync("system df --format \"{{json .}}\"", cancellationToken).ConfigureAwait(false);
 
         if (!result.Success)
         {
@@ -180,7 +180,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
         if (config?.Volumes == true)
           args += " --volumes";
 
-        var result = await ExecuteCommandAsync(args, cancellationToken);
+        var result = await ExecuteCommandAsync(args, cancellationToken).ConfigureAwait(false);
 
         if (!result.Success)
         {
@@ -209,7 +209,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     {
       try
       {
-        var result = await ExecuteDockerCliCommandAsync("-SwitchDaemon", cancellationToken);
+        var result = await ExecuteDockerCliCommandAsync("-SwitchDaemon", cancellationToken).ConfigureAwait(false);
         return result.Success
             ? CommandResponse<Unit>.Ok(Unit.Default)
             : CommandResponse<Unit>.Fail(result.Error ?? "Switch daemon failed", ErrorCodes.General.Unknown);
@@ -227,7 +227,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     {
       try
       {
-        var result = await ExecuteDockerCliCommandAsync("-SwitchLinuxEngine", cancellationToken);
+        var result = await ExecuteDockerCliCommandAsync("-SwitchLinuxEngine", cancellationToken).ConfigureAwait(false);
         return result.Success
             ? CommandResponse<Unit>.Ok(Unit.Default)
             : CommandResponse<Unit>.Fail(result.Error ?? "Switch to Linux failed", ErrorCodes.General.Unknown);
@@ -245,7 +245,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     {
       try
       {
-        var result = await ExecuteDockerCliCommandAsync("-SwitchWindowsEngine", cancellationToken);
+        var result = await ExecuteDockerCliCommandAsync("-SwitchWindowsEngine", cancellationToken).ConfigureAwait(false);
         return result.Success
             ? CommandResponse<Unit>.Ok(Unit.Default)
             : CommandResponse<Unit>.Fail(result.Error ?? "Switch to Windows failed", ErrorCodes.General.Unknown);

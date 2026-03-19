@@ -25,7 +25,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
         CancellationToken cancellationToken = default)
     {
       var body = BuildServiceSpec(config);
-      var result = await PostJsonElementAsync("/services/create", body, cancellationToken);
+      var result = await PostJsonElementAsync("/services/create", body, cancellationToken).ConfigureAwait(false);
       if (!result.Success)
         return CommandResponse<ServiceCreateResult>.Fail(result.ErrorMessage,
             ErrorCodes.Service.CreateFailed,
@@ -47,7 +47,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
     {
       foreach (var id in serviceIds)
       {
-        var result = await DeleteAsync($"/services/{id}", cancellationToken);
+        var result = await DeleteAsync($"/services/{id}", cancellationToken).ConfigureAwait(false);
         if (!result.Success)
           return CommandResponse<Unit>.Fail(result.ErrorMessage,
               MapNotFoundErrorCode(result.StatusCode, ErrorCodes.Service.NotFound),
@@ -63,7 +63,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
         CancellationToken cancellationToken = default)
     {
       // First get current service spec and version
-      var inspectResult = await InspectAsync(context, serviceId, cancellationToken: cancellationToken);
+      var inspectResult = await InspectAsync(context, serviceId, cancellationToken: cancellationToken).ConfigureAwait(false);
       if (!inspectResult.Success)
         return CommandResponse<Unit>.Fail(inspectResult.Error, inspectResult.ErrorCode);
 
@@ -85,7 +85,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
         DriverContext context, string serviceId, bool detach = false,
         CancellationToken cancellationToken = default)
     {
-      var inspectResult = await InspectAsync(context, serviceId, cancellationToken: cancellationToken);
+      var inspectResult = await InspectAsync(context, serviceId, cancellationToken: cancellationToken).ConfigureAwait(false);
       if (!inspectResult.Success)
         return CommandResponse<Unit>.Fail(inspectResult.Error, inspectResult.ErrorCode);
 
@@ -120,7 +120,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
           path += $"?filters={Uri.EscapeDataString(JsonHelper.Serialize(filters))}";
       }
 
-      var result = await GetJsonElementAsync(path, cancellationToken);
+      var result = await GetJsonElementAsync(path, cancellationToken).ConfigureAwait(false);
       if (!result.Success)
         return CommandResponse<IList<ServiceInfo>>.Fail(result.ErrorMessage,
             ErrorCodes.Service.ListFailed,
@@ -137,7 +137,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
         DriverContext context, string serviceId, bool pretty = false,
         CancellationToken cancellationToken = default)
     {
-      var result = await GetJsonElementAsync($"/services/{serviceId}", cancellationToken);
+      var result = await GetJsonElementAsync($"/services/{serviceId}", cancellationToken).ConfigureAwait(false);
       if (!result.Success)
         return CommandResponse<ServiceDetails>.Fail(result.ErrorMessage,
             MapNotFoundErrorCode(result.StatusCode, ErrorCodes.Service.NotFound),
@@ -157,7 +157,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
         filters["desired-state"] = [filter.DesiredState];
       var path = $"/tasks?filters={Uri.EscapeDataString(JsonHelper.Serialize(filters))}";
 
-      var result = await GetJsonElementAsync(path, cancellationToken);
+      var result = await GetJsonElementAsync(path, cancellationToken).ConfigureAwait(false);
       if (!result.Success)
         return CommandResponse<IList<ServiceTask>>.Fail(result.ErrorMessage,
             ErrorCodes.Service.TasksFailed,
@@ -186,9 +186,9 @@ namespace FluentDocker.Drivers.Docker.Api.Components
 
       try
       {
-        using var stream = await GetRawStreamAsync(path, cancellationToken);
+        using var stream = await GetRawStreamAsync(path, cancellationToken).ConfigureAwait(false);
         using var ms = new MemoryStream();
-        await stream.CopyToAsync(ms, cancellationToken);
+        await stream.CopyToAsync(ms, cancellationToken).ConfigureAwait(false);
         var logs = StripDockerStreamHeaders(ms.ToArray());
         return CommandResponse<string>.Ok(logs);
       }
@@ -208,7 +208,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       foreach (var (serviceId, replicas) in serviceReplicas)
       {
         var updateConfig = new ServiceUpdateConfig { Replicas = replicas };
-        var result = await UpdateAsync(context, serviceId, updateConfig, cancellationToken);
+        var result = await UpdateAsync(context, serviceId, updateConfig, cancellationToken).ConfigureAwait(false);
         if (!result.Success)
           return result;
       }

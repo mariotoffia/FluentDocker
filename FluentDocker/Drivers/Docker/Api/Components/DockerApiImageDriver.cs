@@ -46,7 +46,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       if (query.Count > 0)
         path += "?" + string.Join("&", query);
 
-      var result = await GetJsonElementAsync(path, cancellationToken);
+      var result = await GetJsonElementAsync(path, cancellationToken).ConfigureAwait(false);
       if (!result.Success)
         return CommandResponse<IList<Image>>.Fail(result.ErrorMessage,
             MapHttpErrorCode(result.StatusCode),
@@ -65,7 +65,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
         CancellationToken cancellationToken = default)
     {
       var path = $"/images/{Uri.EscapeDataString(imageId)}/json";
-      var result = await GetJsonElementAsync(path, cancellationToken);
+      var result = await GetJsonElementAsync(path, cancellationToken).ConfigureAwait(false);
       if (!result.Success)
         return CommandResponse<Image>.Fail(result.ErrorMessage,
             MapNotFoundErrorCode(result.StatusCode, ErrorCodes.Image.NotFound),
@@ -81,7 +81,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
         CancellationToken cancellationToken = default)
     {
       var path = $"/images/{Uri.EscapeDataString(imageId)}/history";
-      var result = await GetJsonElementAsync(path, cancellationToken);
+      var result = await GetJsonElementAsync(path, cancellationToken).ConfigureAwait(false);
       if (!result.Success)
         return CommandResponse<IList<ImageLayer>>.Fail(result.ErrorMessage,
             MapNotFoundErrorCode(result.StatusCode, ErrorCodes.Image.HistoryFailed),
@@ -107,7 +107,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
                  $"?repo={Uri.EscapeDataString(repository)}" +
                  $"&tag={Uri.EscapeDataString(tag)}";
 
-      var result = await PostAsync(path, null, cancellationToken);
+      var result = await PostAsync(path, null, cancellationToken).ConfigureAwait(false);
       if (!result.Success)
         return CommandResponse<Unit>.Fail(result.ErrorMessage,
             MapNotFoundErrorCode(result.StatusCode, ErrorCodes.Image.TagFailed),
@@ -131,7 +131,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       HttpResponseMessage response;
       try
       {
-        response = await Connection.DeleteAsync(path, cancellationToken);
+        response = await Connection.DeleteAsync(path, cancellationToken).ConfigureAwait(false);
       }
       catch (Exception ex) when (ex is HttpRequestException
           or System.Net.Sockets.SocketException or TaskCanceledException)
@@ -143,7 +143,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
             (int)HttpStatusCode.ServiceUnavailable);
       }
 
-      var body = await response.Content.ReadAsStringAsync(cancellationToken);
+      var body = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
       if (!response.IsSuccessStatusCode)
       {
         var errorMsg = TryExtractErrorMessage(body) ??
@@ -196,7 +196,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
         path += $"?filters={Uri.EscapeDataString(json)}";
       }
 
-      var result = await PostJsonElementAsync(path, null, cancellationToken);
+      var result = await PostJsonElementAsync(path, null, cancellationToken).ConfigureAwait(false);
       if (!result.Success)
         return CommandResponse<ImagePruneResult>.Fail(result.ErrorMessage,
             ErrorCodes.Image.PruneFailed,
@@ -238,7 +238,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
 
       Stream stream;
       try
-      { stream = await GetRawStreamAsync(path, cancellationToken); }
+      { stream = await GetRawStreamAsync(path, cancellationToken).ConfigureAwait(false); }
       catch (Exception ex)
       {
         return CommandResponse<Unit>.Fail($"Failed to save images: {ex.Message}",
@@ -249,7 +249,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       {
         await using (stream)
         await using (var fileStream = File.Create(outputPath))
-          await stream.CopyToAsync(fileStream, cancellationToken);
+          await stream.CopyToAsync(fileStream, cancellationToken).ConfigureAwait(false);
         return CommandResponse<Unit>.Ok(Unit.Default);
       }
       catch (Exception ex)

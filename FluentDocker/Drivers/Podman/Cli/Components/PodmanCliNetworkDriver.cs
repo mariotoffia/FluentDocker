@@ -47,7 +47,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
         if (!string.IsNullOrEmpty(config.Name))
           args += $" {config.Name}";
 
-        var result = await ExecuteCommandAsync(args, cancellationToken);
+        var result = await ExecuteCommandAsync(args, cancellationToken).ConfigureAwait(false);
         if (!result.Success)
           return CommandResponse<NetworkCreateResult>.Fail(
               result.Error ?? "Network create failed", ErrorCodes.Network.CreateFailed);
@@ -70,7 +70,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
     {
       try
       {
-        var result = await ExecuteCommandAsync($"network rm {networkId}", cancellationToken);
+        var result = await ExecuteCommandAsync($"network rm {networkId}", cancellationToken).ConfigureAwait(false);
         return result.Success
             ? CommandResponse<Unit>.Ok(Unit.Default)
             : CommandResponse<Unit>.Fail(
@@ -99,7 +99,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
               args += $" --filter label={label.Key}={label.Value}";
         }
 
-        var result = await ExecuteCommandAsync(args, cancellationToken);
+        var result = await ExecuteCommandAsync(args, cancellationToken).ConfigureAwait(false);
         if (!result.Success)
           return CommandResponse<IList<Network>>.Fail(
               result.Error ?? "Network list failed", ErrorCodes.General.Unknown);
@@ -144,7 +144,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
             ? $"network disconnect -f {networkId} {containerId}"
             : $"network disconnect {networkId} {containerId}";
 
-        var result = await ExecuteCommandAsync(args, cancellationToken);
+        var result = await ExecuteCommandAsync(args, cancellationToken).ConfigureAwait(false);
         return result.Success
             ? CommandResponse<Unit>.Ok(Unit.Default)
             : CommandResponse<Unit>.Fail(
@@ -184,7 +184,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
     {
       try
       {
-        var result = await ExecuteCommandAsync("network prune -f", cancellationToken);
+        var result = await ExecuteCommandAsync("network prune -f", cancellationToken).ConfigureAwait(false);
         if (!result.Success)
           return CommandResponse<NetworkPruneResult>.Fail(
               result.Error ?? "Network prune failed", ErrorCodes.Network.PruneFailed);

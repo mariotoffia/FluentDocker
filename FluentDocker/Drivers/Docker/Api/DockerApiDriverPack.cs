@@ -123,7 +123,7 @@ namespace FluentDocker.Drivers.Docker.Api
 
       try
       {
-        return await _connection.PingAsync(cancellationToken);
+        return await _connection.PingAsync(cancellationToken).ConfigureAwait(false);
       }
       catch (Exception ex)
       {
@@ -248,7 +248,7 @@ namespace FluentDocker.Drivers.Docker.Api
     public async ValueTask DisposeAsync()
     {
       if (_connection != null)
-        await _connection.DisposeAsync();
+        await _connection.DisposeAsync().ConfigureAwait(false);
 
       GC.SuppressFinalize(this);
     }

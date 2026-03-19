@@ -37,7 +37,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
       try
       {
         var fullImage = string.IsNullOrEmpty(tag) ? image : $"{image}:{tag}";
-        var result = await ExecuteCommandAsync($"pull {fullImage}", cancellationToken);
+        var result = await ExecuteCommandAsync($"pull {fullImage}", cancellationToken).ConfigureAwait(false);
 
         if (!result.Success)
         {
@@ -65,7 +65,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     {
       try
       {
-        var result = await ExecuteCommandAsync($"push {image}", cancellationToken);
+        var result = await ExecuteCommandAsync($"push {image}", cancellationToken).ConfigureAwait(false);
 
         if (!result.Success)
         {
@@ -150,7 +150,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
 
         try
         {
-          var result = await ExecuteCommandAsync(BuildBuildArgs(config, iidFile), cancellationToken);
+          var result = await ExecuteCommandAsync(BuildBuildArgs(config, iidFile), cancellationToken).ConfigureAwait(false);
 
           if (!result.Success)
           {
@@ -235,7 +235,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
           }
         }
 
-        var result = await ExecuteCommandAsync(args.ToString(), cancellationToken);
+        var result = await ExecuteCommandAsync(args.ToString(), cancellationToken).ConfigureAwait(false);
 
         if (!result.Success)
         {
@@ -365,7 +365,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     {
       try
       {
-        var result = await ExecuteCommandAsync($"image inspect {imageId}", cancellationToken);
+        var result = await ExecuteCommandAsync($"image inspect {imageId}", cancellationToken).ConfigureAwait(false);
 
         if (!result.Success)
         {
@@ -401,7 +401,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
       try
       {
         // Quote the format string to ensure it's treated as a single argument
-        var result = await ExecuteCommandAsync($"history --format \"{{{{json .}}}}\" --no-trunc {imageId}", cancellationToken);
+        var result = await ExecuteCommandAsync($"history --format \"{{{{json .}}}}\" --no-trunc {imageId}", cancellationToken).ConfigureAwait(false);
 
         if (!result.Success)
         {

@@ -109,7 +109,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
             ? "machine inspect"
             : $"machine inspect {name}";
 
-        var result = await ExecuteCommandAsync(args, cancellationToken);
+        var result = await ExecuteCommandAsync(args, cancellationToken).ConfigureAwait(false);
 
         if (!result.Success)
           return CommandResponse<MachineInspectResult>.Fail(
@@ -168,7 +168,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
         if (!string.IsNullOrEmpty(command))
           args += $" {command}";
 
-        var result = await ExecuteCommandAsync(args, cancellationToken);
+        var result = await ExecuteCommandAsync(args, cancellationToken).ConfigureAwait(false);
 
         if (!result.Success)
           return CommandResponse<string>.Fail(
@@ -464,7 +464,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
     {
       try
       {
-        var result = await ExecuteCommandAsync(args, cancellationToken);
+        var result = await ExecuteCommandAsync(args, cancellationToken).ConfigureAwait(false);
         return result.Success
             ? CommandResponse<Unit>.Ok(Unit.Default)
             : CommandResponse<Unit>.Fail(

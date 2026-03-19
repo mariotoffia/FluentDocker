@@ -42,7 +42,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
         if (config.Services.Count > 0)
           args += " " + string.Join(" ", config.Services);
 
-        var result = await ExecuteCommandAsync(args, config.Environment, cancellationToken);
+        var result = await ExecuteCommandAsync(args, config.Environment, cancellationToken).ConfigureAwait(false);
 
         if (!result.Success)
         {
@@ -75,7 +75,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
       {
         var args = BuildComposeArgs(config) + " " + BuildDownSubArgs(config);
 
-        var result = await ExecuteCommandAsync(args, cancellationToken);
+        var result = await ExecuteCommandAsync(args, cancellationToken).ConfigureAwait(false);
 
         if (!result.Success)
         {
@@ -106,7 +106,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
         if (config.Services.Count > 0)
           args += " " + string.Join(" ", config.Services);
 
-        var result = await ExecuteCommandAsync(args, cancellationToken);
+        var result = await ExecuteCommandAsync(args, cancellationToken).ConfigureAwait(false);
         return result.Success
             ? CommandResponse<Unit>.Ok(Unit.Default)
             : CommandResponse<Unit>.Fail(result.Error ?? "Compose start failed", ErrorCodes.Compose.StartFailed);
@@ -131,7 +131,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
         if (config.Services.Count > 0)
           args += " " + string.Join(" ", config.Services);
 
-        var result = await ExecuteCommandAsync(args, cancellationToken);
+        var result = await ExecuteCommandAsync(args, cancellationToken).ConfigureAwait(false);
         return result.Success
             ? CommandResponse<Unit>.Ok(Unit.Default)
             : CommandResponse<Unit>.Fail(result.Error ?? "Compose stop failed", ErrorCodes.Compose.StopFailed);
@@ -154,7 +154,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
         if (config.Services.Count > 0)
           args += " " + string.Join(" ", config.Services);
 
-        var result = await ExecuteCommandAsync(args, cancellationToken);
+        var result = await ExecuteCommandAsync(args, cancellationToken).ConfigureAwait(false);
         return result.Success
             ? CommandResponse<Unit>.Ok(Unit.Default)
             : CommandResponse<Unit>.Fail(result.Error ?? "Compose restart failed", ErrorCodes.Compose.RestartFailed);
@@ -177,7 +177,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
         if (config.Services.Count > 0)
           args += " " + string.Join(" ", config.Services);
 
-        var result = await ExecuteCommandAsync(args, cancellationToken);
+        var result = await ExecuteCommandAsync(args, cancellationToken).ConfigureAwait(false);
         return result.Success
             ? CommandResponse<Unit>.Ok(Unit.Default)
             : CommandResponse<Unit>.Fail(result.Error ?? "Compose pause failed", ErrorCodes.Compose.PauseFailed);
@@ -200,7 +200,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
         if (config.Services.Count > 0)
           args += " " + string.Join(" ", config.Services);
 
-        var result = await ExecuteCommandAsync(args, cancellationToken);
+        var result = await ExecuteCommandAsync(args, cancellationToken).ConfigureAwait(false);
         return result.Success
             ? CommandResponse<Unit>.Ok(Unit.Default)
             : CommandResponse<Unit>.Fail(result.Error ?? "Compose unpause failed", ErrorCodes.Compose.UnpauseFailed);
@@ -223,7 +223,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
         if (config.Services.Count > 0)
           args += " " + string.Join(" ", config.Services);
 
-        var result = await ExecuteCommandAsync(args, cancellationToken);
+        var result = await ExecuteCommandAsync(args, cancellationToken).ConfigureAwait(false);
         return result.Success
             ? CommandResponse<Unit>.Ok(Unit.Default)
             : CommandResponse<Unit>.Fail(result.Error ?? "Compose kill failed", ErrorCodes.Compose.KillFailed);
@@ -246,7 +246,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
         if (config.Services.Count > 0)
           args += " " + string.Join(" ", config.Services);
 
-        var result = await ExecuteCommandAsync(args, cancellationToken);
+        var result = await ExecuteCommandAsync(args, cancellationToken).ConfigureAwait(false);
         return result.Success
             ? CommandResponse<Unit>.Ok(Unit.Default)
             : CommandResponse<Unit>.Fail(result.Error ?? "Compose rm failed", ErrorCodes.Compose.RemoveFailed);

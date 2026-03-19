@@ -40,7 +40,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
         if (!string.IsNullOrEmpty(config.Name))
           args += $" {config.Name}";
 
-        var result = await ExecuteCommandAsync(args, cancellationToken);
+        var result = await ExecuteCommandAsync(args, cancellationToken).ConfigureAwait(false);
         if (!result.Success)
           return CommandResponse<VolumeCreateResult>.Fail(
               result.Error ?? "Volume create failed", ErrorCodes.Volume.CreateFailed);
@@ -65,7 +65,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       try
       {
         var args = force ? $"volume rm -f {volumeName}" : $"volume rm {volumeName}";
-        var result = await ExecuteCommandAsync(args, cancellationToken);
+        var result = await ExecuteCommandAsync(args, cancellationToken).ConfigureAwait(false);
         return result.Success
             ? CommandResponse<Unit>.Ok(Unit.Default)
             : CommandResponse<Unit>.Fail(
@@ -95,7 +95,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
               args += $" --filter label={label.Key}={label.Value}";
         }
 
-        var result = await ExecuteCommandAsync(args, cancellationToken);
+        var result = await ExecuteCommandAsync(args, cancellationToken).ConfigureAwait(false);
         if (!result.Success)
           return CommandResponse<IList<Volume>>.Fail(
               result.Error ?? "Volume list failed", ErrorCodes.General.Unknown);
@@ -116,7 +116,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
     {
       try
       {
-        var result = await ExecuteCommandAsync($"volume inspect {volumeName}", cancellationToken);
+        var result = await ExecuteCommandAsync($"volume inspect {volumeName}", cancellationToken).ConfigureAwait(false);
         if (!result.Success)
           return CommandResponse<Volume>.Fail(
               result.Error ?? "Volume inspect failed", ErrorCodes.Volume.InspectFailed);
@@ -136,7 +136,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
     {
       try
       {
-        var result = await ExecuteCommandAsync("volume prune -f", cancellationToken);
+        var result = await ExecuteCommandAsync("volume prune -f", cancellationToken).ConfigureAwait(false);
         if (!result.Success)
           return CommandResponse<VolumePruneResult>.Fail(
               result.Error ?? "Volume prune failed", ErrorCodes.Volume.PruneFailed);

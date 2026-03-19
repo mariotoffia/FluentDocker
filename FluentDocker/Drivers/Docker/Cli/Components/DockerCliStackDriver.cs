@@ -32,7 +32,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
       {
         var args = "stack ls --format \"{{json .}}\"";
 
-        var result = await ExecuteCommandAsync(args, cancellationToken);
+        var result = await ExecuteCommandAsync(args, cancellationToken).ConfigureAwait(false);
 
         if (!result.Success)
         {
@@ -77,7 +77,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
         if (filter?.NoTrunc == true)
           args = args.Replace("stack ps", "stack ps --no-trunc");
 
-        var result = await ExecuteCommandAsync(args, cancellationToken);
+        var result = await ExecuteCommandAsync(args, cancellationToken).ConfigureAwait(false);
 
         if (!result.Success)
         {
@@ -126,7 +126,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
           args += " --with-registry-auth";
         args += $" {config.StackName}";
 
-        var result = await ExecuteCommandAsync(args, cancellationToken);
+        var result = await ExecuteCommandAsync(args, cancellationToken).ConfigureAwait(false);
 
         if (!result.Success)
         {
@@ -152,7 +152,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
       {
         var args = $"stack rm {string.Join(" ", stackNames)}";
 
-        var result = await ExecuteCommandAsync(args, cancellationToken);
+        var result = await ExecuteCommandAsync(args, cancellationToken).ConfigureAwait(false);
 
         return result.Success
             ? CommandResponse<Unit>.Ok(Unit.Default)
@@ -175,7 +175,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
       {
         var args = $"stack services --format \"{{{{json .}}}}\" {stackName}";
 
-        var result = await ExecuteCommandAsync(args, cancellationToken);
+        var result = await ExecuteCommandAsync(args, cancellationToken).ConfigureAwait(false);
 
         if (!result.Success)
         {

@@ -38,9 +38,9 @@ namespace FluentDocker.Drivers.Docker.Api.Components
 
       try
       {
-        using var stream = await GetRawStreamAsync(path, cancellationToken);
+        using var stream = await GetRawStreamAsync(path, cancellationToken).ConfigureAwait(false);
         using var ms = new MemoryStream();
-        await stream.CopyToAsync(ms, cancellationToken);
+        await stream.CopyToAsync(ms, cancellationToken).ConfigureAwait(false);
         var logs = StripDockerStreamHeaders(ms.ToArray());
         return CommandResponse<string>.Ok(logs);
       }
@@ -66,7 +66,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       if (!string.IsNullOrEmpty(psOptions))
         path += $"?ps_args={Uri.EscapeDataString(psOptions)}";
 
-      var result = await GetJsonElementAsync(path, cancellationToken);
+      var result = await GetJsonElementAsync(path, cancellationToken).ConfigureAwait(false);
       if (!result.Success)
         return CommandResponse<ContainerProcesses>.Fail(result.ErrorMessage,
             MapNotFoundErrorCode(result.StatusCode, ErrorCodes.Container.TopFailed),
@@ -102,7 +102,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
         CancellationToken cancellationToken = default)
     {
       var path = $"/containers/{Uri.EscapeDataString(containerId)}/changes";
-      var result = await GetJsonElementAsync(path, cancellationToken);
+      var result = await GetJsonElementAsync(path, cancellationToken).ConfigureAwait(false);
       if (!result.Success)
         return CommandResponse<IList<FilesystemChange>>.Fail(result.ErrorMessage,
             MapNotFoundErrorCode(result.StatusCode, ErrorCodes.Container.DiffFailed),
@@ -193,13 +193,13 @@ namespace FluentDocker.Drivers.Docker.Api.Components
         {
           // TTY mode: raw stream, no multiplexed framing
           using var reader = new StreamReader(stream, Encoding.UTF8);
-          stdout = await reader.ReadToEndAsync(cancellationToken);
+          stdout = await reader.ReadToEndAsync(cancellationToken).ConfigureAwait(false);
           stderr = string.Empty;
         }
         else
         {
           // Non-TTY: demultiplex stdout (type 1) and stderr (type 2)
-          (stdout, stderr) = await DemultiplexStreamAsync(stream, cancellationToken);
+          (stdout, stderr) = await DemultiplexStreamAsync(stream, cancellationToken).ConfigureAwait(false);
         }
       }
       catch (Exception ex)
@@ -237,7 +237,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
 
       while (true)
       {
-        var headerRead = await ReadExactAsync(stream, header, 8, ct);
+        var headerRead = await ReadExactAsync(stream, header, 8, ct).ConfigureAwait(false);
         if (headerRead < 8)
           break;
 
@@ -249,7 +249,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
           continue;
 
         var payload = new byte[frameSize];
-        var payloadRead = await ReadExactAsync(stream, payload, frameSize, ct);
+        var payloadRead = await ReadExactAsync(stream, payload, frameSize, ct).ConfigureAwait(false);
         if (payloadRead <= 0)
           break;
 
@@ -365,7 +365,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       {
         var apiPath = $"/containers/{Uri.EscapeDataString(containerId)}" +
                       $"/archive?path={Uri.EscapeDataString(containerPath)}";
-        using var stream = await GetRawStreamAsync(apiPath, cancellationToken);
+        using var stream = await GetRawStreamAsync(apiPath, cancellationToken).ConfigureAwait(false);
         Directory.CreateDirectory(hostPath);
         using var reader = ReaderFactory.Open(stream);
         while (reader.MoveToNextEntry())
@@ -401,13 +401,13 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       try
       {
         var apiPath = $"/containers/{Uri.EscapeDataString(containerId)}/export";
-        using var stream = await GetRawStreamAsync(apiPath, cancellationToken);
+        using var stream = await GetRawStreamAsync(apiPath, cancellationToken).ConfigureAwait(false);
         var outputDir = Path.GetDirectoryName(outputPath);
         if (!string.IsNullOrEmpty(outputDir))
           Directory.CreateDirectory(outputDir);
         await using var fileStream = new FileStream(
             outputPath, FileMode.Create, FileAccess.Write, FileShare.None);
-        await stream.CopyToAsync(fileStream, cancellationToken);
+        await stream.CopyToAsync(fileStream, cancellationToken).ConfigureAwait(false);
         return CommandResponse<Unit>.Ok(Unit.Default);
       }
       catch (Exception ex)
@@ -430,7 +430,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
     {
       var path = $"/containers/{Uri.EscapeDataString(containerId)}" +
                  $"/rename?name={Uri.EscapeDataString(newName)}";
-      var result = await PostAsync(path, null, cancellationToken);
+      var result = await PostAsync(path, null, cancellationToken).ConfigureAwait(false);
       if (!result.Success)
         return CommandResponse<Unit>.Fail(result.ErrorMessage,
             MapNotFoundErrorCode(result.StatusCode, ErrorCodes.Container.RenameFailed),
@@ -464,7 +464,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
         request.RestartPolicy = new RestartPolicyRequest { Name = config.RestartPolicy };
 
       var path = $"/containers/{Uri.EscapeDataString(containerId)}/update";
-      var result = await PostJsonElementAsync(path, request, cancellationToken);
+      var result = await PostJsonElementAsync(path, request, cancellationToken).ConfigureAwait(false);
       if (!result.Success)
         return CommandResponse<Unit>.Fail(result.ErrorMessage,
             MapNotFoundErrorCode(result.StatusCode, ErrorCodes.Container.UpdateFailed),

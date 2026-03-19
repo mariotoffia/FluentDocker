@@ -25,7 +25,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     {
       try
       {
-        var result = await ExecuteCommandAsync($"tag {imageId} {repository}:{tag}", cancellationToken);
+        var result = await ExecuteCommandAsync($"tag {imageId} {repository}:{tag}", cancellationToken).ConfigureAwait(false);
 
         if (!result.Success)
         {
@@ -59,7 +59,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
           args += " --no-prune";
         args += $" {imageId}";
 
-        var result = await ExecuteCommandAsync(args, cancellationToken);
+        var result = await ExecuteCommandAsync(args, cancellationToken).ConfigureAwait(false);
 
         if (!result.Success)
         {
@@ -103,7 +103,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
           foreach (var f in filter)
             args += $" --filter {f.Key}={f.Value}";
 
-        var result = await ExecuteCommandAsync(args, cancellationToken);
+        var result = await ExecuteCommandAsync(args, cancellationToken).ConfigureAwait(false);
 
         if (!result.Success)
         {
@@ -136,7 +136,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     {
       try
       {
-        var result = await ExecuteCommandAsync($"save -o \"{outputPath}\" {string.Join(" ", images)}", cancellationToken);
+        var result = await ExecuteCommandAsync($"save -o \"{outputPath}\" {string.Join(" ", images)}", cancellationToken).ConfigureAwait(false);
 
         if (!result.Success)
         {
@@ -163,7 +163,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     {
       try
       {
-        var result = await ExecuteCommandAsync($"load -i \"{inputPath}\"", cancellationToken);
+        var result = await ExecuteCommandAsync($"load -i \"{inputPath}\"", cancellationToken).ConfigureAwait(false);
 
         if (!result.Success)
         {
@@ -217,7 +217,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
             args += $":{tag}";
         }
 
-        var result = await ExecuteCommandAsync(args, cancellationToken);
+        var result = await ExecuteCommandAsync(args, cancellationToken).ConfigureAwait(false);
 
         if (!result.Success)
         {

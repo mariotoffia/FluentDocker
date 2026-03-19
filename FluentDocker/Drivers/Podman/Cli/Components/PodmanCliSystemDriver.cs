@@ -29,7 +29,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
     {
       try
       {
-        var result = await ExecuteCommandAsync("info --format json", cancellationToken);
+        var result = await ExecuteCommandAsync("info --format json", cancellationToken).ConfigureAwait(false);
         if (!result.Success)
           return CommandResponse<SystemInfo>.Fail(
               result.Error ?? "System info failed", ErrorCodes.General.Unknown);
@@ -50,7 +50,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
     {
       try
       {
-        var result = await ExecuteCommandAsync("version --format json", cancellationToken);
+        var result = await ExecuteCommandAsync("version --format json", cancellationToken).ConfigureAwait(false);
         if (!result.Success)
           return CommandResponse<VersionInfo>.Fail(
               result.Error ?? "Version check failed", ErrorCodes.General.Unknown);
@@ -72,7 +72,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       try
       {
         // Podman is daemonless; verify it works by running 'podman info'
-        var result = await ExecuteCommandAsync("info", cancellationToken);
+        var result = await ExecuteCommandAsync("info", cancellationToken).ConfigureAwait(false);
         return result.Success
             ? CommandResponse<Unit>.Ok(Unit.Default)
             : CommandResponse<Unit>.Fail("Podman is not reachable", ErrorCodes.General.Unknown);
@@ -109,7 +109,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
     {
       try
       {
-        var result = await ExecuteCommandAsync("system df --format json", cancellationToken);
+        var result = await ExecuteCommandAsync("system df --format json", cancellationToken).ConfigureAwait(false);
         if (!result.Success)
           return CommandResponse<DiskUsageInfo>.Fail(
               result.Error ?? "Disk usage failed", ErrorCodes.General.Unknown);
@@ -132,7 +132,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       {
         var args = BuildSystemPruneArgs(config);
 
-        var result = await ExecuteCommandAsync(args, cancellationToken);
+        var result = await ExecuteCommandAsync(args, cancellationToken).ConfigureAwait(false);
         if (!result.Success)
           return CommandResponse<SystemPruneResult>.Fail(
               result.Error ?? "System prune failed", ErrorCodes.General.Unknown);

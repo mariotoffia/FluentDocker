@@ -29,7 +29,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     {
       try
       {
-        var result = await ExecuteCommandAsync($"inspect {containerId}", cancellationToken);
+        var result = await ExecuteCommandAsync($"inspect {containerId}", cancellationToken).ConfigureAwait(false);
 
         if (!result.Success)
         {
@@ -99,7 +99,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
         if (!string.IsNullOrEmpty(filter?.Ancestor))
           args += $" --filter \"ancestor={filter.Ancestor}\"";
 
-        var result = await ExecuteCommandAsync(args, cancellationToken);
+        var result = await ExecuteCommandAsync(args, cancellationToken).ConfigureAwait(false);
 
         if (!result.Success)
         {
@@ -179,7 +179,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
           args += " -t";
         args += $" {containerId}";
 
-        var result = await ExecuteCommandAsync(args, cancellationToken);
+        var result = await ExecuteCommandAsync(args, cancellationToken).ConfigureAwait(false);
 
         if (!result.Success)
         {
@@ -214,7 +214,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
         if (!string.IsNullOrEmpty(psOptions))
           args += $" {psOptions}";
 
-        var result = await ExecuteCommandAsync(args, cancellationToken);
+        var result = await ExecuteCommandAsync(args, cancellationToken).ConfigureAwait(false);
 
         if (!result.Success)
         {
@@ -252,7 +252,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     {
       try
       {
-        var result = await ExecuteCommandAsync($"diff {containerId}", cancellationToken);
+        var result = await ExecuteCommandAsync($"diff {containerId}", cancellationToken).ConfigureAwait(false);
 
         if (!result.Success)
         {

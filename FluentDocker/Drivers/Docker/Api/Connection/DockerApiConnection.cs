@@ -46,55 +46,55 @@ namespace FluentDocker.Drivers.Docker.Api.Connection
 
     public async Task<HttpResponseMessage> GetAsync(string path, CancellationToken ct = default)
     {
-      var versionedPath = await GetVersionedPathAsync(path, ct);
-      return await _httpClient.GetAsync(versionedPath, ct);
+      var versionedPath = await GetVersionedPathAsync(path, ct).ConfigureAwait(false);
+      return await _httpClient.GetAsync(versionedPath, ct).ConfigureAwait(false);
     }
 
     public async Task<HttpResponseMessage> PostAsync(
         string path, HttpContent content = null, CancellationToken ct = default)
     {
-      var versionedPath = await GetVersionedPathAsync(path, ct);
-      return await _httpClient.PostAsync(versionedPath, content, ct);
+      var versionedPath = await GetVersionedPathAsync(path, ct).ConfigureAwait(false);
+      return await _httpClient.PostAsync(versionedPath, content, ct).ConfigureAwait(false);
     }
 
     public async Task<HttpResponseMessage> PutAsync(
         string path, HttpContent content, CancellationToken ct = default)
     {
-      var versionedPath = await GetVersionedPathAsync(path, ct);
-      return await _httpClient.PutAsync(versionedPath, content, ct);
+      var versionedPath = await GetVersionedPathAsync(path, ct).ConfigureAwait(false);
+      return await _httpClient.PutAsync(versionedPath, content, ct).ConfigureAwait(false);
     }
 
     public async Task<HttpResponseMessage> DeleteAsync(string path, CancellationToken ct = default)
     {
-      var versionedPath = await GetVersionedPathAsync(path, ct);
-      return await _httpClient.DeleteAsync(versionedPath, ct);
+      var versionedPath = await GetVersionedPathAsync(path, ct).ConfigureAwait(false);
+      return await _httpClient.DeleteAsync(versionedPath, ct).ConfigureAwait(false);
     }
 
     public async Task<Stream> GetStreamAsync(string path, CancellationToken ct = default)
     {
-      var versionedPath = await GetVersionedPathAsync(path, ct);
+      var versionedPath = await GetVersionedPathAsync(path, ct).ConfigureAwait(false);
       var response = await _httpClient.GetAsync(
           versionedPath, HttpCompletionOption.ResponseHeadersRead, ct);
       response.EnsureSuccessStatusCode();
-      return await response.Content.ReadAsStreamAsync(ct);
+      return await response.Content.ReadAsStreamAsync(ct).ConfigureAwait(false);
     }
 
     public async Task<Stream> PostStreamAsync(
         string path, HttpContent content = null, CancellationToken ct = default)
     {
-      var versionedPath = await GetVersionedPathAsync(path, ct);
+      var versionedPath = await GetVersionedPathAsync(path, ct).ConfigureAwait(false);
       var request = new HttpRequestMessage(HttpMethod.Post, versionedPath) { Content = content };
       var response = await _httpClient.SendAsync(
           request, HttpCompletionOption.ResponseHeadersRead, ct);
       response.EnsureSuccessStatusCode();
-      return await response.Content.ReadAsStreamAsync(ct);
+      return await response.Content.ReadAsStreamAsync(ct).ConfigureAwait(false);
     }
 
     public async Task<bool> PingAsync(CancellationToken ct = default)
     {
       try
       {
-        var response = await _httpClient.GetAsync("/_ping", ct);
+        var response = await _httpClient.GetAsync("/_ping", ct).ConfigureAwait(false);
         return response.IsSuccessStatusCode;
       }
       catch (Exception ex)
@@ -116,13 +116,13 @@ namespace FluentDocker.Drivers.Docker.Api.Connection
     {
       if (!_versionNegotiated && string.IsNullOrEmpty(_apiVersion))
       {
-        await _negotiationLock.WaitAsync(ct);
+        await _negotiationLock.WaitAsync(ct).ConfigureAwait(false);
         try
         {
           // Double-check after acquiring the lock.
           if (!_versionNegotiated && string.IsNullOrEmpty(_apiVersion))
           {
-            await NegotiateApiVersionAsync(ct);
+            await NegotiateApiVersionAsync(ct).ConfigureAwait(false);
           }
         }
         finally
@@ -138,7 +138,7 @@ namespace FluentDocker.Drivers.Docker.Api.Connection
     {
       try
       {
-        var response = await _httpClient.GetAsync("/_ping", ct);
+        var response = await _httpClient.GetAsync("/_ping", ct).ConfigureAwait(false);
         if (response.Headers.TryGetValues("API-Version", out var values))
         {
           foreach (var version in values)
@@ -193,7 +193,7 @@ namespace FluentDocker.Drivers.Docker.Api.Connection
           var socket = new Socket(
                       AddressFamily.Unix, SocketType.Stream, ProtocolType.Unspecified);
           var endpoint = new UnixDomainSocketEndPoint(socketPath);
-          await socket.ConnectAsync(endpoint, ct);
+          await socket.ConnectAsync(endpoint, ct).ConfigureAwait(false);
           return new NetworkStream(socket, ownsSocket: true);
         },
         ConnectTimeout = config.ConnectionTimeout
@@ -212,7 +212,7 @@ namespace FluentDocker.Drivers.Docker.Api.Connection
         {
           var pipe = new NamedPipeClientStream(
                       ".", pipeName, PipeDirection.InOut, PipeOptions.Asynchronous);
-          await pipe.ConnectAsync((int)config.ConnectionTimeout.TotalMilliseconds, ct);
+          await pipe.ConnectAsync((int)config.ConnectionTimeout.TotalMilliseconds, ct).ConfigureAwait(false);
           return pipe;
         },
         ConnectTimeout = config.ConnectionTimeout

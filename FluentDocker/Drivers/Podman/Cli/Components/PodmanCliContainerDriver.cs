@@ -30,7 +30,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       try
       {
         var args = BuildCreateArgs("create", config);
-        var result = await ExecuteCommandAsync(args, cancellationToken);
+        var result = await ExecuteCommandAsync(args, cancellationToken).ConfigureAwait(false);
         if (!result.Success)
           return CommandResponse<ContainerCreateResult>.Fail(
               result.Error ?? "Container create failed", ErrorCodes.Container.CreateFailed);
@@ -57,7 +57,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       {
         var args = BuildCreateArgs("run", config, config.Detach);
 
-        var result = await ExecuteCommandAsync(args, cancellationToken);
+        var result = await ExecuteCommandAsync(args, cancellationToken).ConfigureAwait(false);
         if (!result.Success)
           return CommandResponse<ContainerRunResult>.Fail(
               result.Error ?? "Container run failed", ErrorCodes.Container.CreateFailed);
@@ -82,7 +82,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
     {
       try
       {
-        var result = await ExecuteCommandAsync($"start {containerId}", cancellationToken);
+        var result = await ExecuteCommandAsync($"start {containerId}", cancellationToken).ConfigureAwait(false);
         return result.Success
             ? CommandResponse<Unit>.Ok(Unit.Default)
             : CommandResponse<Unit>.Fail(
@@ -106,7 +106,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
           args += $" -t {timeout.Value}";
         args += $" {containerId}";
 
-        var result = await ExecuteCommandAsync(args, cancellationToken);
+        var result = await ExecuteCommandAsync(args, cancellationToken).ConfigureAwait(false);
         return result.Success
             ? CommandResponse<Unit>.Ok(Unit.Default)
             : CommandResponse<Unit>.Fail(
@@ -130,7 +130,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
           args += $" -t {timeout.Value}";
         args += $" {containerId}";
 
-        var result = await ExecuteCommandAsync(args, cancellationToken);
+        var result = await ExecuteCommandAsync(args, cancellationToken).ConfigureAwait(false);
         return result.Success
             ? CommandResponse<Unit>.Ok(Unit.Default)
             : CommandResponse<Unit>.Fail(
@@ -149,7 +149,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
     {
       try
       {
-        var result = await ExecuteCommandAsync($"pause {containerId}", cancellationToken);
+        var result = await ExecuteCommandAsync($"pause {containerId}", cancellationToken).ConfigureAwait(false);
         return result.Success
             ? CommandResponse<Unit>.Ok(Unit.Default)
             : CommandResponse<Unit>.Fail(
@@ -168,7 +168,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
     {
       try
       {
-        var result = await ExecuteCommandAsync($"unpause {containerId}", cancellationToken);
+        var result = await ExecuteCommandAsync($"unpause {containerId}", cancellationToken).ConfigureAwait(false);
         return result.Success
             ? CommandResponse<Unit>.Ok(Unit.Default)
             : CommandResponse<Unit>.Fail(
@@ -215,7 +215,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
           args += " -v";
         args += $" {containerId}";
 
-        var result = await ExecuteCommandAsync(args, cancellationToken);
+        var result = await ExecuteCommandAsync(args, cancellationToken).ConfigureAwait(false);
         return result.Success
             ? CommandResponse<Unit>.Ok(Unit.Default)
             : CommandResponse<Unit>.Fail(
@@ -234,7 +234,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
     {
       try
       {
-        var result = await ExecuteCommandAsync($"wait {containerId}", cancellationToken);
+        var result = await ExecuteCommandAsync($"wait {containerId}", cancellationToken).ConfigureAwait(false);
         if (!result.Success)
           return CommandResponse<ContainerWaitResult>.Fail(
               result.Error ?? "Container wait failed", ErrorCodes.Container.WaitFailed);
@@ -288,7 +288,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       try
       {
         var args = BuildListArgs(filter);
-        var result = await ExecuteCommandAsync(args, cancellationToken);
+        var result = await ExecuteCommandAsync(args, cancellationToken).ConfigureAwait(false);
         if (!result.Success)
           return CommandResponse<IList<Container>>.Fail(
               result.Error ?? "Container list failed", ErrorCodes.General.Unknown);

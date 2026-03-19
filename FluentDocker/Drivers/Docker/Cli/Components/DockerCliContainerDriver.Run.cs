@@ -199,7 +199,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
           }
         }
 
-        var result = await ExecuteCommandAsync(string.Join(" ", args), cancellationToken);
+        var result = await ExecuteCommandAsync(string.Join(" ", args), cancellationToken).ConfigureAwait(false);
 
         if (!result.Success)
         {
@@ -226,7 +226,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
           // Use the name if specified, otherwise get the last created container
           if (!string.IsNullOrEmpty(config.Name))
           {
-            var listResult = await ExecuteCommandAsync($"ps -a --filter \"name={config.Name}\" --format \"{{{{.ID}}}}\" -n 1", cancellationToken);
+            var listResult = await ExecuteCommandAsync($"ps -a --filter \"name={config.Name}\" --format \"{{{{.ID}}}}\" -n 1", cancellationToken).ConfigureAwait(false);
             if (listResult.Success && !string.IsNullOrEmpty(listResult.Output))
             {
               runResult.Id = listResult.Output.Trim().Split('\n')[0];
@@ -235,7 +235,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
           else
           {
             // Get the most recently created container
-            var listResult = await ExecuteCommandAsync("ps -a --format \"{{.ID}}\" -n 1", cancellationToken);
+            var listResult = await ExecuteCommandAsync("ps -a --format \"{{.ID}}\" -n 1", cancellationToken).ConfigureAwait(false);
             if (listResult.Success && !string.IsNullOrEmpty(listResult.Output))
             {
               runResult.Id = listResult.Output.Trim().Split('\n')[0];
@@ -259,7 +259,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     {
       try
       {
-        var result = await ExecuteCommandAsync($"wait {containerId}", cancellationToken);
+        var result = await ExecuteCommandAsync($"wait {containerId}", cancellationToken).ConfigureAwait(false);
 
         if (!result.Success)
         {

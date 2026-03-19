@@ -21,7 +21,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
     public async Task<CommandResponse<SystemInfo>> GetInfoAsync(
         DriverContext context, CancellationToken cancellationToken = default)
     {
-      var result = await GetJsonElementAsync("/info", cancellationToken);
+      var result = await GetJsonElementAsync("/info", cancellationToken).ConfigureAwait(false);
       if (!result.Success)
         return CommandResponse<SystemInfo>.Fail(result.ErrorMessage,
             MapHttpErrorCode(result.StatusCode),
@@ -35,7 +35,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
     public async Task<CommandResponse<VersionInfo>> GetVersionAsync(
         DriverContext context, CancellationToken cancellationToken = default)
     {
-      var result = await GetJsonElementAsync("/version", cancellationToken);
+      var result = await GetJsonElementAsync("/version", cancellationToken).ConfigureAwait(false);
       if (!result.Success)
         return CommandResponse<VersionInfo>.Fail(result.ErrorMessage,
             MapHttpErrorCode(result.StatusCode),
@@ -49,7 +49,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
     public async Task<CommandResponse<Unit>> PingAsync(
         DriverContext context, CancellationToken cancellationToken = default)
     {
-      var ok = await Connection.PingAsync(cancellationToken);
+      var ok = await Connection.PingAsync(cancellationToken).ConfigureAwait(false);
       return ok
           ? CommandResponse<Unit>.Ok(Unit.Default)
           : CommandResponse<Unit>.Fail("Docker daemon is not responding",
@@ -59,7 +59,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
     public async Task<CommandResponse<bool>> IsWindowsEngineAsync(
         DriverContext context, CancellationToken cancellationToken = default)
     {
-      var infoResult = await GetInfoAsync(context, cancellationToken);
+      var infoResult = await GetInfoAsync(context, cancellationToken).ConfigureAwait(false);
       if (!infoResult.Success)
         return CommandResponse<bool>.Fail(infoResult.Error, infoResult.ErrorCode);
       return CommandResponse<bool>.Ok(
@@ -69,7 +69,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
     public async Task<CommandResponse<bool>> IsLinuxEngineAsync(
         DriverContext context, CancellationToken cancellationToken = default)
     {
-      var infoResult = await GetInfoAsync(context, cancellationToken);
+      var infoResult = await GetInfoAsync(context, cancellationToken).ConfigureAwait(false);
       if (!infoResult.Success)
         return CommandResponse<bool>.Fail(infoResult.Error, infoResult.ErrorCode);
       return CommandResponse<bool>.Ok(
@@ -79,7 +79,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
     public async Task<CommandResponse<DiskUsageInfo>> GetDiskUsageAsync(
         DriverContext context, CancellationToken cancellationToken = default)
     {
-      var result = await GetJsonElementAsync("/system/df", cancellationToken);
+      var result = await GetJsonElementAsync("/system/df", cancellationToken).ConfigureAwait(false);
       if (!result.Success)
         return CommandResponse<DiskUsageInfo>.Fail(result.ErrorMessage,
             MapHttpErrorCode(result.StatusCode),

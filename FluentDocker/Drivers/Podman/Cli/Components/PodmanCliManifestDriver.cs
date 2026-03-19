@@ -33,7 +33,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       try
       {
         var args = BuildCreateArgs(config);
-        var result = await ExecuteCommandAsync(args, cancellationToken);
+        var result = await ExecuteCommandAsync(args, cancellationToken).ConfigureAwait(false);
 
         if (!result.Success)
           return CommandResponse<string>.Fail(
@@ -96,7 +96,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       try
       {
         var args = BuildAddArgs(config);
-        var result = await ExecuteCommandAsync(args, cancellationToken);
+        var result = await ExecuteCommandAsync(args, cancellationToken).ConfigureAwait(false);
 
         if (!result.Success)
           return CommandResponse<string>.Fail(
@@ -127,7 +127,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       try
       {
         var args = BuildAnnotateArgs(config);
-        var result = await ExecuteCommandAsync(args, cancellationToken);
+        var result = await ExecuteCommandAsync(args, cancellationToken).ConfigureAwait(false);
 
         if (!result.Success)
           return CommandResponse<Unit>.Fail(
@@ -162,7 +162,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       try
       {
         var args = BuildPushArgs(config);
-        var result = await ExecuteCommandAsync(args, cancellationToken);
+        var result = await ExecuteCommandAsync(args, cancellationToken).ConfigureAwait(false);
 
         if (!result.Success)
           return CommandResponse<Unit>.Fail(

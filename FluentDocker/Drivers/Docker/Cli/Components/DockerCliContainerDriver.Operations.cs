@@ -50,7 +50,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
           }
         }
 
-        var result = await ExecuteCommandAsync(string.Join(" ", args), cancellationToken);
+        var result = await ExecuteCommandAsync(string.Join(" ", args), cancellationToken).ConfigureAwait(false);
 
         return CommandResponse<ExecResult>.Ok(new ExecResult
         {
@@ -79,7 +79,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     {
       try
       {
-        var result = await ExecuteCommandAsync($"cp \"{hostPath}\" \"{containerId}:{containerPath}\"", cancellationToken);
+        var result = await ExecuteCommandAsync($"cp \"{hostPath}\" \"{containerId}:{containerPath}\"", cancellationToken).ConfigureAwait(false);
 
         if (!result.Success)
         {
@@ -108,7 +108,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     {
       try
       {
-        var result = await ExecuteCommandAsync($"cp \"{containerId}:{containerPath}\" \"{hostPath}\"", cancellationToken);
+        var result = await ExecuteCommandAsync($"cp \"{containerId}:{containerPath}\" \"{hostPath}\"", cancellationToken).ConfigureAwait(false);
 
         if (!result.Success)
         {
@@ -140,7 +140,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     {
       try
       {
-        var result = await ExecuteCommandAsync($"export -o \"{outputPath}\" {containerId}", cancellationToken);
+        var result = await ExecuteCommandAsync($"export -o \"{outputPath}\" {containerId}", cancellationToken).ConfigureAwait(false);
 
         if (!result.Success)
         {
@@ -168,7 +168,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     {
       try
       {
-        var result = await ExecuteCommandAsync($"rename {containerId} {newName}", cancellationToken);
+        var result = await ExecuteCommandAsync($"rename {containerId} {newName}", cancellationToken).ConfigureAwait(false);
 
         if (!result.Success)
         {
@@ -219,7 +219,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
 
         args.Add(containerId);
 
-        var result = await ExecuteCommandAsync(string.Join(" ", args), cancellationToken);
+        var result = await ExecuteCommandAsync(string.Join(" ", args), cancellationToken).ConfigureAwait(false);
 
         if (!result.Success)
         {

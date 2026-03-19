@@ -35,7 +35,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
           args += " --timestamps";
         args += $" {containerId}";
 
-        var result = await ExecuteCommandAsync(args, cancellationToken);
+        var result = await ExecuteCommandAsync(args, cancellationToken).ConfigureAwait(false);
         if (!result.Success)
           return CommandResponse<string>.Fail(
               result.Error ?? "Get logs failed", ErrorCodes.Container.LogsFailed);
@@ -64,7 +64,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
         if (!string.IsNullOrEmpty(psOptions))
           args += $" {psOptions}";
 
-        var result = await ExecuteCommandAsync(args, cancellationToken);
+        var result = await ExecuteCommandAsync(args, cancellationToken).ConfigureAwait(false);
         if (!result.Success)
           return CommandResponse<ContainerProcesses>.Fail(
               result.Error ?? "Container top failed", ErrorCodes.Container.TopFailed);
@@ -86,7 +86,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
     {
       try
       {
-        var result = await ExecuteCommandAsync($"diff {containerId}", cancellationToken);
+        var result = await ExecuteCommandAsync($"diff {containerId}", cancellationToken).ConfigureAwait(false);
         if (!result.Success)
           return CommandResponse<IList<FilesystemChange>>.Fail(
               result.Error ?? "Container diff failed", ErrorCodes.Container.DiffFailed);
@@ -159,7 +159,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
           foreach (var cmd in config.Command)
             args += $" {QuoteArgumentIfNeeded(cmd)}";
 
-        var result = await ExecuteCommandAsync(args, cancellationToken);
+        var result = await ExecuteCommandAsync(args, cancellationToken).ConfigureAwait(false);
         return CommandResponse<ExecResult>.Ok(new ExecResult
         {
           ExitCode = result.ExitCode,
@@ -293,7 +293,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
 
         args += $" {containerId}";
 
-        var result = await ExecuteCommandAsync(args, cancellationToken);
+        var result = await ExecuteCommandAsync(args, cancellationToken).ConfigureAwait(false);
         return result.Success
             ? CommandResponse<Unit>.Ok(Unit.Default)
             : CommandResponse<Unit>.Fail(

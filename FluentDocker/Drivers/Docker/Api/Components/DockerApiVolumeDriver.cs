@@ -31,7 +31,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
         Labels = config.Labels?.Count > 0 ? config.Labels : null
       };
 
-      var result = await PostJsonElementAsync("/volumes/create", body, cancellationToken);
+      var result = await PostJsonElementAsync("/volumes/create", body, cancellationToken).ConfigureAwait(false);
       if (!result.Success)
         return CommandResponse<VolumeCreateResult>.Fail(result.ErrorMessage,
             ErrorCodes.Volume.CreateFailed,
@@ -50,7 +50,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
         CancellationToken cancellationToken = default)
     {
       var path = $"/volumes/{volumeName}?force={force.ToString().ToLower()}";
-      var result = await DeleteAsync(path, cancellationToken);
+      var result = await DeleteAsync(path, cancellationToken).ConfigureAwait(false);
       if (!result.Success)
         return CommandResponse<Unit>.Fail(result.ErrorMessage,
             MapNotFoundErrorCode(result.StatusCode, ErrorCodes.Volume.NotFound),
@@ -71,7 +71,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
         path += $"?filters={System.Uri.EscapeDataString(filters)}";
       }
 
-      var result = await GetJsonElementAsync(path, cancellationToken);
+      var result = await GetJsonElementAsync(path, cancellationToken).ConfigureAwait(false);
       if (!result.Success)
         return CommandResponse<IList<Volume>>.Fail(result.ErrorMessage,
             MapHttpErrorCode(result.StatusCode),
@@ -92,7 +92,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
         DriverContext context, string volumeName,
         CancellationToken cancellationToken = default)
     {
-      var result = await GetJsonElementAsync($"/volumes/{volumeName}", cancellationToken);
+      var result = await GetJsonElementAsync($"/volumes/{volumeName}", cancellationToken).ConfigureAwait(false);
       if (!result.Success)
         return CommandResponse<Volume>.Fail(result.ErrorMessage,
             MapNotFoundErrorCode(result.StatusCode, ErrorCodes.Volume.NotFound),
@@ -105,7 +105,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
     public async Task<CommandResponse<VolumePruneResult>> PruneAsync(
         DriverContext context, CancellationToken cancellationToken = default)
     {
-      var result = await PostJsonElementAsync("/volumes/prune", null, cancellationToken);
+      var result = await PostJsonElementAsync("/volumes/prune", null, cancellationToken).ConfigureAwait(false);
       if (!result.Success)
         return CommandResponse<VolumePruneResult>.Fail(result.ErrorMessage,
             ErrorCodes.Volume.PruneFailed,

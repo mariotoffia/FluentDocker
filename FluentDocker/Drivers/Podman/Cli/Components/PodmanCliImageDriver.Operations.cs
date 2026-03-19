@@ -49,7 +49,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
           args += " --no-prune";
         args += $" {imageId}";
 
-        var result = await ExecuteCommandAsync(args, cancellationToken);
+        var result = await ExecuteCommandAsync(args, cancellationToken).ConfigureAwait(false);
         if (!result.Success)
           return CommandResponse<ImageRemoveResult>.Fail(
               result.Error ?? "Image remove failed", ErrorCodes.Image.RemoveFailed);
@@ -72,7 +72,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       {
         var args = BuildImagePruneArgs(all, filter);
 
-        var result = await ExecuteCommandAsync(args, cancellationToken);
+        var result = await ExecuteCommandAsync(args, cancellationToken).ConfigureAwait(false);
         if (!result.Success)
           return CommandResponse<ImagePruneResult>.Fail(
               result.Error ?? "Image prune failed", ErrorCodes.Image.PruneFailed);
@@ -98,7 +98,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       try
       {
         var args = $"save -o {QuoteArgumentIfNeeded(outputPath)} {string.Join(" ", images.Select(QuoteArgumentIfNeeded))}";
-        var result = await ExecuteCommandAsync(args, cancellationToken);
+        var result = await ExecuteCommandAsync(args, cancellationToken).ConfigureAwait(false);
         return result.Success
             ? CommandResponse<Unit>.Ok(Unit.Default)
             : CommandResponse<Unit>.Fail(
@@ -152,7 +152,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
           args += string.IsNullOrEmpty(tag) ? $" {repository}" : $" {repository}:{tag}";
         }
 
-        var result = await ExecuteCommandAsync(args, cancellationToken);
+        var result = await ExecuteCommandAsync(args, cancellationToken).ConfigureAwait(false);
         if (!result.Success)
           return CommandResponse<string>.Fail(
               result.Error ?? "Image import failed", ErrorCodes.Image.ImportFailed);

@@ -43,7 +43,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       Stream stream;
       try
       {
-        stream = await Connection.PostStreamAsync(path, null, cancellationToken);
+        stream = await Connection.PostStreamAsync(path, null, cancellationToken).ConfigureAwait(false);
       }
       catch (HttpRequestException ex)
       {
@@ -60,7 +60,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       {
         string line;
         try
-        { line = await reader.ReadLineAsync(cancellationToken); }
+        { line = await reader.ReadLineAsync(cancellationToken).ConfigureAwait(false); }
         catch { break; }
         if (line == null)
           break;
@@ -120,7 +120,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       Stream stream;
       try
       {
-        stream = await Connection.PostStreamAsync(path, null, cancellationToken);
+        stream = await Connection.PostStreamAsync(path, null, cancellationToken).ConfigureAwait(false);
       }
       catch (HttpRequestException ex)
       {
@@ -136,7 +136,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       {
         string line;
         try
-        { line = await reader.ReadLineAsync(cancellationToken); }
+        { line = await reader.ReadLineAsync(cancellationToken).ConfigureAwait(false); }
         catch { break; }
         if (line == null)
           break;
@@ -244,7 +244,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       }
 
       // Dispose the tar stream after build completes
-      await tarStream.DisposeAsync();
+      await tarStream.DisposeAsync().ConfigureAwait(false);
 
       if (!string.IsNullOrWhiteSpace(lastError))
         return CommandResponse<ImageBuildResult>.Fail(lastError,

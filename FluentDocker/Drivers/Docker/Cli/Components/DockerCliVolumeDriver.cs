@@ -51,7 +51,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
 
         args.Add(config.Name);
 
-        var result = await ExecuteCommandAsync(string.Join(" ", args), cancellationToken);
+        var result = await ExecuteCommandAsync(string.Join(" ", args), cancellationToken).ConfigureAwait(false);
 
         if (!result.Success)
         {
@@ -85,7 +85,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
           args += " --force";
         args += $" {volumeName}";
 
-        var result = await ExecuteCommandAsync(args, cancellationToken);
+        var result = await ExecuteCommandAsync(args, cancellationToken).ConfigureAwait(false);
 
         if (!result.Success)
         {
@@ -126,7 +126,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
           }
         }
 
-        var result = await ExecuteCommandAsync(args, cancellationToken);
+        var result = await ExecuteCommandAsync(args, cancellationToken).ConfigureAwait(false);
 
         if (!result.Success)
         {
@@ -170,7 +170,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     {
       try
       {
-        var result = await ExecuteCommandAsync($"volume inspect {volumeName}", cancellationToken);
+        var result = await ExecuteCommandAsync($"volume inspect {volumeName}", cancellationToken).ConfigureAwait(false);
 
         if (!result.Success)
         {
@@ -197,7 +197,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     {
       try
       {
-        var result = await ExecuteCommandAsync("volume prune --force", cancellationToken);
+        var result = await ExecuteCommandAsync("volume prune --force", cancellationToken).ConfigureAwait(false);
 
         if (!result.Success)
         {

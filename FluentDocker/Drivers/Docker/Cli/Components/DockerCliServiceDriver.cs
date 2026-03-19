@@ -56,7 +56,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
         if (config.Command != null)
           args.AddRange(config.Command);
 
-        var result = await ExecuteCommandAsync(string.Join(" ", args), cancellationToken);
+        var result = await ExecuteCommandAsync(string.Join(" ", args), cancellationToken).ConfigureAwait(false);
 
         if (!result.Success)
         {
@@ -80,7 +80,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     {
       try
       {
-        var result = await ExecuteCommandAsync($"service rm {string.Join(" ", serviceIds)}", cancellationToken);
+        var result = await ExecuteCommandAsync($"service rm {string.Join(" ", serviceIds)}", cancellationToken).ConfigureAwait(false);
         return result.Success
             ? CommandResponse<Unit>.Ok(Unit.Default)
             : CommandResponse<Unit>.Fail(result.Error ?? "Service rm failed", ErrorCodes.Service.RemoveFailed);
@@ -117,7 +117,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
 
         args.Add(serviceId);
 
-        var result = await ExecuteCommandAsync(string.Join(" ", args), cancellationToken);
+        var result = await ExecuteCommandAsync(string.Join(" ", args), cancellationToken).ConfigureAwait(false);
         return result.Success
             ? CommandResponse<Unit>.Ok(Unit.Default)
             : CommandResponse<Unit>.Fail(result.Error ?? "Service update failed", ErrorCodes.Service.UpdateFailed);
@@ -142,7 +142,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
           args += " -d";
         args += $" {serviceId}";
 
-        var result = await ExecuteCommandAsync(args, cancellationToken);
+        var result = await ExecuteCommandAsync(args, cancellationToken).ConfigureAwait(false);
         return result.Success
             ? CommandResponse<Unit>.Ok(Unit.Default)
             : CommandResponse<Unit>.Fail(result.Error ?? "Service rollback failed", ErrorCodes.Service.RollbackFailed);
@@ -174,7 +174,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
             args += $" --filter label={label.Key}={label.Value}";
         }
 
-        var result = await ExecuteCommandAsync(args, cancellationToken);
+        var result = await ExecuteCommandAsync(args, cancellationToken).ConfigureAwait(false);
 
         if (!result.Success)
         {
@@ -220,7 +220,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
           args += " --pretty";
         args += $" {serviceId}";
 
-        var result = await ExecuteCommandAsync(args, cancellationToken);
+        var result = await ExecuteCommandAsync(args, cancellationToken).ConfigureAwait(false);
 
         if (!result.Success)
         {
@@ -250,7 +250,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
       {
         var args = $"service ps --format \"{{{{json .}}}}\" {serviceId}";
 
-        var result = await ExecuteCommandAsync(args, cancellationToken);
+        var result = await ExecuteCommandAsync(args, cancellationToken).ConfigureAwait(false);
 
         if (!result.Success)
         {
@@ -300,7 +300,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
           args += $" --tail {config.Tail.Value}";
         args += $" {serviceId}";
 
-        var result = await ExecuteCommandAsync(args, cancellationToken);
+        var result = await ExecuteCommandAsync(args, cancellationToken).ConfigureAwait(false);
         return result.Success
             ? CommandResponse<string>.Ok(result.Output)
             : CommandResponse<string>.Fail(result.Error ?? "Service logs failed", ErrorCodes.Service.LogsFailed);
@@ -325,7 +325,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
         if (detach)
           args = args.Replace("service scale", "service scale -d");
 
-        var result = await ExecuteCommandAsync(args, cancellationToken);
+        var result = await ExecuteCommandAsync(args, cancellationToken).ConfigureAwait(false);
         return result.Success
             ? CommandResponse<Unit>.Ok(Unit.Default)
             : CommandResponse<Unit>.Fail(result.Error ?? "Service scale failed", ErrorCodes.Service.ScaleFailed);

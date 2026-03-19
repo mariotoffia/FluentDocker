@@ -24,7 +24,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
         serveraddress = config.Server ?? "https://index.docker.io/v1/"
       };
 
-      var result = await PostAsync("/auth", body, cancellationToken);
+      var result = await PostAsync("/auth", body, cancellationToken).ConfigureAwait(false);
       if (!result.Success)
         return CommandResponse<Unit>.Fail(result.ErrorMessage,
             result.StatusCode == 401

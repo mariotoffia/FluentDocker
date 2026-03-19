@@ -36,7 +36,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       try
       {
         var args = BuildPlayArgs(config);
-        var result = await ExecuteCommandAsync(args, cancellationToken);
+        var result = await ExecuteCommandAsync(args, cancellationToken).ConfigureAwait(false);
 
         if (!result.Success)
           return CommandResponse<KubePlayResult>.Fail(

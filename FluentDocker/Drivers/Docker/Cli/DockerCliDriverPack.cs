@@ -127,7 +127,7 @@ namespace FluentDocker.Drivers.Docker.Cli
 
       try
       {
-        var result = await _systemDriver.PingAsync(_context, cancellationToken);
+        var result = await _systemDriver.PingAsync(_context, cancellationToken).ConfigureAwait(false);
         return result.Success;
       }
       catch (Exception ex)

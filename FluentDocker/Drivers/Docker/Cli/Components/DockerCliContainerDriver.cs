@@ -132,7 +132,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
           }
         }
 
-        var result = await ExecuteCommandAsync(string.Join(" ", args), cancellationToken);
+        var result = await ExecuteCommandAsync(string.Join(" ", args), cancellationToken).ConfigureAwait(false);
 
         if (!result.Success)
         {
@@ -164,7 +164,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     {
       try
       {
-        var result = await ExecuteCommandAsync($"start {containerId}", cancellationToken);
+        var result = await ExecuteCommandAsync($"start {containerId}", cancellationToken).ConfigureAwait(false);
 
         if (!result.Success)
         {
@@ -197,7 +197,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
           args += $" -t {timeout.Value}";
         args += $" {containerId}";
 
-        var result = await ExecuteCommandAsync(args, cancellationToken);
+        var result = await ExecuteCommandAsync(args, cancellationToken).ConfigureAwait(false);
 
         if (!result.Success)
         {
@@ -230,7 +230,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
           args += $" -t {timeout.Value}";
         args += $" {containerId}";
 
-        var result = await ExecuteCommandAsync(args, cancellationToken);
+        var result = await ExecuteCommandAsync(args, cancellationToken).ConfigureAwait(false);
 
         if (!result.Success)
         {
@@ -257,7 +257,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     {
       try
       {
-        var result = await ExecuteCommandAsync($"pause {containerId}", cancellationToken);
+        var result = await ExecuteCommandAsync($"pause {containerId}", cancellationToken).ConfigureAwait(false);
 
         if (!result.Success)
         {
@@ -284,7 +284,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     {
       try
       {
-        var result = await ExecuteCommandAsync($"unpause {containerId}", cancellationToken);
+        var result = await ExecuteCommandAsync($"unpause {containerId}", cancellationToken).ConfigureAwait(false);
 
         if (!result.Success)
         {
@@ -313,7 +313,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
       try
       {
         var args = $"kill --signal {signal} {containerId}";
-        var result = await ExecuteCommandAsync(args, cancellationToken);
+        var result = await ExecuteCommandAsync(args, cancellationToken).ConfigureAwait(false);
 
         if (!result.Success)
         {
@@ -349,7 +349,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
           args += " -v";
         args += $" {containerId}";
 
-        var result = await ExecuteCommandAsync(args, cancellationToken);
+        var result = await ExecuteCommandAsync(args, cancellationToken).ConfigureAwait(false);
 
         if (!result.Success)
         {

@@ -50,7 +50,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
         };
       }
 
-      var result = await PostJsonElementAsync("/networks/create", body, cancellationToken);
+      var result = await PostJsonElementAsync("/networks/create", body, cancellationToken).ConfigureAwait(false);
       if (!result.Success)
         return CommandResponse<NetworkCreateResult>.Fail(result.ErrorMessage,
             ErrorCodes.Network.CreateFailed,
@@ -74,7 +74,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
         DriverContext context, string networkId,
         CancellationToken cancellationToken = default)
     {
-      var result = await DeleteAsync($"/networks/{networkId}", cancellationToken);
+      var result = await DeleteAsync($"/networks/{networkId}", cancellationToken).ConfigureAwait(false);
       if (!result.Success)
         return CommandResponse<Unit>.Fail(result.ErrorMessage,
             MapNotFoundErrorCode(result.StatusCode, ErrorCodes.Network.NotFound),
@@ -95,7 +95,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
         path += $"?filters={Uri.EscapeDataString(filters)}";
       }
 
-      var result = await GetJsonElementAsync(path, cancellationToken);
+      var result = await GetJsonElementAsync(path, cancellationToken).ConfigureAwait(false);
       if (!result.Success)
         return CommandResponse<IList<Network>>.Fail(result.ErrorMessage,
             MapHttpErrorCode(result.StatusCode),
@@ -144,7 +144,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
         DriverContext context, string networkId,
         CancellationToken cancellationToken = default)
     {
-      var result = await GetJsonElementAsync($"/networks/{networkId}", cancellationToken);
+      var result = await GetJsonElementAsync($"/networks/{networkId}", cancellationToken).ConfigureAwait(false);
       if (!result.Success)
         return CommandResponse<Network>.Fail(result.ErrorMessage,
             MapNotFoundErrorCode(result.StatusCode, ErrorCodes.Network.NotFound),
@@ -157,7 +157,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
     public async Task<CommandResponse<NetworkPruneResult>> PruneAsync(
         DriverContext context, CancellationToken cancellationToken = default)
     {
-      var result = await PostJsonElementAsync("/networks/prune", null, cancellationToken);
+      var result = await PostJsonElementAsync("/networks/prune", null, cancellationToken).ConfigureAwait(false);
       if (!result.Success)
         return CommandResponse<NetworkPruneResult>.Fail(result.ErrorMessage,
             ErrorCodes.Network.PruneFailed,

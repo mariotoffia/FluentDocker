@@ -34,7 +34,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       try
       {
         var imageRef = string.IsNullOrEmpty(tag) ? image : $"{image}:{tag}";
-        var result = await ExecuteCommandAsync($"pull {imageRef}", cancellationToken);
+        var result = await ExecuteCommandAsync($"pull {imageRef}", cancellationToken).ConfigureAwait(false);
         return result.Success
             ? CommandResponse<Unit>.Ok(Unit.Default)
             : CommandResponse<Unit>.Fail(
@@ -54,7 +54,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
     {
       try
       {
-        var result = await ExecuteCommandAsync($"push {image}", cancellationToken);
+        var result = await ExecuteCommandAsync($"push {image}", cancellationToken).ConfigureAwait(false);
         return result.Success
             ? CommandResponse<Unit>.Ok(Unit.Default)
             : CommandResponse<Unit>.Fail(
@@ -129,7 +129,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
 
         try
         {
-          var result = await ExecuteCommandAsync(BuildBuildArgs(config, iidFile), cancellationToken);
+          var result = await ExecuteCommandAsync(BuildBuildArgs(config, iidFile), cancellationToken).ConfigureAwait(false);
           if (!result.Success)
             return CommandResponse<ImageBuildResult>.Fail(
                 result.Error ?? "Image build failed", ErrorCodes.Image.BuildFailed);
@@ -182,7 +182,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
         if (!string.IsNullOrEmpty(filter?.Reference))
           args += $" --filter reference={filter.Reference}";
 
-        var result = await ExecuteCommandAsync(args, cancellationToken);
+        var result = await ExecuteCommandAsync(args, cancellationToken).ConfigureAwait(false);
         if (!result.Success)
           return CommandResponse<IList<Image>>.Fail(
               result.Error ?? "Image list failed", ErrorCodes.General.Unknown);

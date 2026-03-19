@@ -108,7 +108,7 @@ namespace FluentDocker.Drivers.Podman.Cli
 
       // Auto-start machine if configured
       if (context.AutoStartMachine != null)
-        await AutoStartMachineAsync(context, cancellationToken);
+        await AutoStartMachineAsync(context, cancellationToken).ConfigureAwait(false);
 
       _initialized = true;
     }
@@ -140,7 +140,7 @@ namespace FluentDocker.Drivers.Podman.Cli
 
       try
       {
-        var result = await _systemDriver.PingAsync(_context, cancellationToken);
+        var result = await _systemDriver.PingAsync(_context, cancellationToken).ConfigureAwait(false);
         return result.Success;
       }
       catch (Exception ex)
@@ -303,13 +303,13 @@ namespace FluentDocker.Drivers.Podman.Cli
         DriverContext context, CancellationToken cancellationToken)
     {
       var config = context.AutoStartMachine;
-      var listResult = await _machineDriver.ListAsync(context, cancellationToken);
+      var listResult = await _machineDriver.ListAsync(context, cancellationToken).ConfigureAwait(false);
 
       // Retry once on transient failure (e.g. concurrent Podman CLI access)
       if (!listResult.Success || listResult.Data.Count == 0)
       {
-        await Task.Delay(500, cancellationToken);
-        listResult = await _machineDriver.ListAsync(context, cancellationToken);
+        await Task.Delay(500, cancellationToken).ConfigureAwait(false);
+        listResult = await _machineDriver.ListAsync(context, cancellationToken).ConfigureAwait(false);
       }
 
       if (!listResult.Success)

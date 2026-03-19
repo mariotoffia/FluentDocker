@@ -46,7 +46,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       Stream stream;
       try
       {
-        stream = await Connection.GetStreamAsync(path, cancellationToken);
+        stream = await Connection.GetStreamAsync(path, cancellationToken).ConfigureAwait(false);
       }
       catch (Exception ex)
       {
@@ -66,7 +66,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       }
       finally
       {
-        await stream.DisposeAsync();
+        await stream.DisposeAsync().ConfigureAwait(false);
       }
     }
 
@@ -170,7 +170,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       try
       {
         var content = new StringContent("", Encoding.UTF8);
-        var stream = await Connection.PostStreamAsync(path, content, cancellationToken);
+        var stream = await Connection.PostStreamAsync(path, content, cancellationToken).ConfigureAwait(false);
 
         return CommandResponse<AttachResult>.Ok(new AttachResult
         {
@@ -205,7 +205,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
         int bytesRead;
         try
         {
-          bytesRead = await ReadExactAsync(stream, header, 8, ct);
+          bytesRead = await ReadExactAsync(stream, header, 8, ct).ConfigureAwait(false);
         }
         catch (OperationCanceledException) { yield break; }
         catch { yield break; }
@@ -218,7 +218,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
             var partial = Encoding.UTF8.GetString(header, 0, bytesRead);
             using var reader = new StreamReader(stream, Encoding.UTF8, detectEncodingFromByteOrderMarks: false,
                 bufferSize: 1024, leaveOpen: true);
-            var rest = await reader.ReadToEndAsync(ct);
+            var rest = await reader.ReadToEndAsync(ct).ConfigureAwait(false);
             foreach (var line in (partial + rest).Split('\n'))
             {
               if (!string.IsNullOrEmpty(line))
@@ -235,7 +235,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
           yield break;
 
         var payload = new byte[frameSize];
-        var payloadRead = await ReadExactAsync(stream, payload, frameSize, ct);
+        var payloadRead = await ReadExactAsync(stream, payload, frameSize, ct).ConfigureAwait(false);
         if (payloadRead < frameSize)
           yield break;
 
