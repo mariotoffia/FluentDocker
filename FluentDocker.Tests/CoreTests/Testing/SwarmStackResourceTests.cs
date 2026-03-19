@@ -274,7 +274,7 @@ namespace FluentDocker.Tests.CoreTests.Testing
     public void Constructor_NullConfig_Throws()
     {
       Assert.Throws<ArgumentNullException>(
-          () => new SwarmStackResource(Kernel, null));
+          () => new SwarmStackResource(Kernel, null!));
     }
 
     [Fact]

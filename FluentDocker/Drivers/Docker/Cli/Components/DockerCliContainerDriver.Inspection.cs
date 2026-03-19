@@ -3,9 +3,9 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Text.Json;
 using FluentDocker.Common;
 using FluentDocker.Model.Drivers;
-using Newtonsoft.Json;
 using Container = FluentDocker.Model.Containers.Container;
 using ContainerState = FluentDocker.Model.Containers.ContainerState;
 
@@ -16,6 +16,9 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
   /// </summary>
   public partial class DockerCliContainerDriver
   {
+    private static readonly char[] LineSeparators = ['\n', '\r'];
+    private static readonly char[] SpaceSeparator = [' '];
+    private static readonly string[] SlashSeparator = [" / "];
     #region Information Operations
 
     /// <inheritdoc />
@@ -37,7 +40,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
               result.ExitCode);
         }
 
-        var containers = JsonConvert.DeserializeObject<List<Container>>(result.Output);
+        var containers = JsonSerializer.Deserialize<List<Container>>(result.Output, JsonHelper.CaseInsensitiveOptions);
         var container = containers?.FirstOrDefault();
 
         if (container == null)
@@ -106,14 +109,14 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
         }
 
         var containers = new List<Container>();
-        var lines = result.Output.Split(new[] { '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries);
+        var lines = result.Output.Split(LineSeparators, StringSplitOptions.RemoveEmptyEntries);
 
         foreach (var line in lines)
         {
           try
           {
             // Docker ps JSON has different field names than our Container model
-            var dto = JsonConvert.DeserializeObject<DockerPsDto>(line);
+            var dto = JsonSerializer.Deserialize<DockerPsDto>(line, JsonHelper.CaseInsensitiveOptions);
             if (dto != null)
             {
               var container = new Container
@@ -142,9 +145,9 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
               containers.Add(container);
             }
           }
-          catch
+          catch (Exception ex)
           {
-            // Skip invalid JSON lines
+            Logger.Log($"Container inspect JSON parsing failed: {ex.Message}");
           }
         }
 
@@ -182,10 +185,15 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
         {
           return CommandResponse<string>.Fail(
               result.Error ?? "Get logs failed",
-              ErrorCodes.General.Unknown);
+              ErrorCodes.Container.LogsFailed);
         }
 
-        return CommandResponse<string>.Ok(result.Output);
+        // docker logs writes to both stdout and stderr.
+        // Combine both to capture all container output.
+        var logs = !string.IsNullOrEmpty(result.Error)
+            ? result.Output + result.Error
+            : result.Output;
+        return CommandResponse<string>.Ok(logs);
       }
       catch (Exception ex)
       {
@@ -218,13 +226,13 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
         }
 
         var processes = new ContainerProcesses();
-        var lines = result.Output.Split(new[] { '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries);
+        var lines = result.Output.Split(LineSeparators, StringSplitOptions.RemoveEmptyEntries);
         if (lines.Length > 0)
         {
-          processes.Titles = lines[0].Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries).ToList();
+          processes.Titles = lines[0].Split(SpaceSeparator, StringSplitOptions.RemoveEmptyEntries).ToList();
           for (var i = 1; i < lines.Length; i++)
           {
-            processes.Processes.Add(lines[i].Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries).ToList());
+            processes.Processes.Add(lines[i].Split(SpaceSeparator, StringSplitOptions.RemoveEmptyEntries).ToList());
           }
         }
 
@@ -256,7 +264,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
         }
 
         var changes = new List<FilesystemChange>();
-        var lines = result.Output.Split(new[] { '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries);
+        var lines = result.Output.Split(LineSeparators, StringSplitOptions.RemoveEmptyEntries);
         foreach (var line in lines)
         {
           if (line.Length > 2)
@@ -317,10 +325,9 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     {
       var stats = new ContainerStatsResult { ContainerId = containerId };
 
-      // Parse the JSON output from docker stats --format '{{json .}}'
       try
       {
-        var json = System.Text.Json.JsonDocument.Parse(output.Trim());
+        using var json = JsonDocument.Parse(output.Trim());
         var root = json.RootElement;
 
         if (root.TryGetProperty("Name", out var name))
@@ -359,9 +366,9 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
             stats.Pids = pidCount;
         }
       }
-      catch
+      catch (Exception ex)
       {
-        // If JSON parsing fails, return stats with just the container ID
+        Logger.Log($"Container stats JSON parsing failed: {ex.Message}");
       }
 
       return stats;
@@ -382,7 +389,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
       if (string.IsNullOrEmpty(value))
         return (0, 0);
 
-      var parts = value.Split(new[] { " / " }, StringSplitOptions.None);
+      var parts = value.Split(SlashSeparator, StringSplitOptions.None);
       if (parts.Length != 2)
         return (0, 0);
 
@@ -395,7 +402,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
       if (string.IsNullOrEmpty(value))
         return (0, 0);
 
-      var parts = value.Split(new[] { " / " }, StringSplitOptions.None);
+      var parts = value.Split(SlashSeparator, StringSplitOptions.None);
       if (parts.Length != 2)
         return (0, 0);
 
@@ -470,10 +477,8 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
 
     #region Helper Types
 
-    /// <summary>
-    /// DTO for docker ps JSON output.
-    /// </summary>
-    private class DockerPsDto
+    /// <summary>DTO for docker ps JSON output.</summary>
+    private sealed class DockerPsDto
     {
       public string ID { get; set; }
       public string Image { get; set; }

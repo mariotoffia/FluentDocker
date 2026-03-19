@@ -7,10 +7,10 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
   [Trait("Category", "Unit")]
   public class PodmanCliAuthDriverTests
   {
-    #region BuildLoginArgs — Password Inline
+    #region BuildLoginArgs — Password Always Via Stdin
 
     [Fact]
-    public void BuildLoginArgs_PasswordInline_ContainsPasswordFlag()
+    public void BuildLoginArgs_PasswordInline_AlwaysUsesPasswordStdin()
     {
       var config = new RegistryLoginConfig
       {
@@ -21,9 +21,10 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
 
       var (args, stdinData) = PodmanCliAuthDriver.BuildLoginArgs(config);
 
-      Assert.Contains("-p secret", args);
-      Assert.DoesNotContain("--password-stdin", args);
-      Assert.Null(stdinData);
+      // Password is always via stdin for security, regardless of PasswordStdin flag
+      Assert.Contains("--password-stdin", args);
+      Assert.DoesNotContain("-p ", args);
+      Assert.Equal("secret", stdinData);
     }
 
     #endregion
@@ -48,7 +49,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
     }
 
     [Fact]
-    public void BuildLoginArgs_PasswordStdinNoPassword_StdinDataIsNull()
+    public void BuildLoginArgs_PasswordStdinNoPassword_NoStdinFlag()
     {
       var config = new RegistryLoginConfig
       {
@@ -58,7 +59,8 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
 
       var (args, stdinData) = PodmanCliAuthDriver.BuildLoginArgs(config);
 
-      Assert.Contains("--password-stdin", args);
+      // No password provided, so no --password-stdin flag
+      Assert.DoesNotContain("--password-stdin", args);
       Assert.Null(stdinData);
     }
 
@@ -90,9 +92,10 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
         Password = "pass"
       };
 
-      var (args, _) = PodmanCliAuthDriver.BuildLoginArgs(config);
+      var (args, stdinData) = PodmanCliAuthDriver.BuildLoginArgs(config);
 
-      Assert.Equal("login -u user1 -p pass", args);
+      Assert.Equal("login -u user1 --password-stdin", args);
+      Assert.Equal("pass", stdinData);
     }
 
     #endregion
@@ -107,10 +110,12 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
         Password = "pass"
       };
 
-      var (args, _) = PodmanCliAuthDriver.BuildLoginArgs(config);
+      var (args, stdinData) = PodmanCliAuthDriver.BuildLoginArgs(config);
 
       Assert.DoesNotContain("-u ", args);
-      Assert.Contains("-p pass", args);
+      Assert.Contains("--password-stdin", args);
+      Assert.DoesNotContain("-p ", args);
+      Assert.Equal("pass", stdinData);
     }
 
     [Fact]
@@ -152,14 +157,11 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
         Server = "quay.io"
       };
 
-      var (args, _) = PodmanCliAuthDriver.BuildLoginArgs(config);
+      var (args, stdinData) = PodmanCliAuthDriver.BuildLoginArgs(config);
 
-      Assert.StartsWith("login", args);
-      var uPos = args.IndexOf("-u user1");
-      var pPos = args.IndexOf("-p pass");
-      var sPos = args.IndexOf("quay.io");
-      Assert.True(uPos < pPos, "Username should come before password");
-      Assert.True(pPos < sPos, "Password should come before server");
+      // Expected: login -u user1 --password-stdin quay.io
+      Assert.Equal("login -u user1 --password-stdin quay.io", args);
+      Assert.Equal("pass", stdinData);
     }
 
     [Fact]

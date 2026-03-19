@@ -63,6 +63,29 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
     }
 
     [Fact]
+    public async Task CreateAsync_WithNetworkAliases_IncludesAliasesInEndpointConfig()
+    {
+      var (driver, mock) = CreateDriver();
+      mock.SetupPost("/containers/create", 201, @"{""Id"":""alias1"",""Warnings"":[]}");
+
+      var config = new ContainerCreateConfig
+      {
+        Image = "alpine",
+        Networks = new List<string> { "my-net" },
+        NetworkAliases = new Dictionary<string, List<string>>
+        {
+          { "my-net", new List<string> { "web", "frontend" } }
+        }
+      };
+      await driver.CreateAsync(Ctx, config, cancellationToken: TestContext.Current.CancellationToken);
+
+      var req = mock.GetRequests().First(r => r.Method == "POST");
+      Assert.Contains("web", req.Body);
+      Assert.Contains("frontend", req.Body);
+      Assert.Contains("Aliases", req.Body);
+    }
+
+    [Fact]
     public async Task CreateAsync_404_ReturnsCreateFailedErrorCode()
     {
       var (driver, mock) = CreateDriver();

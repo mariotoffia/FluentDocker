@@ -1,7 +1,8 @@
 using System;
 using System.Collections.Generic;
+using System.Text.Json;
+using FluentDocker.Common;
 using FluentDocker.Drivers;
-using Newtonsoft.Json;
 using Xunit;
 
 namespace FluentDocker.Tests.CoreTests.Driver.Docker
@@ -22,7 +23,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Docker
     {
       var json = @"{""Container"":""myapp-web-1"",""Repository"":""nginx"",""Tag"":""latest"",""ID"":""sha256:abc123"",""Size"":""187MB""}";
 
-      var image = JsonConvert.DeserializeObject<ComposeImage>(json);
+      var image = JsonSerializer.Deserialize<ComposeImage>(json, JsonHelper.CaseInsensitiveOptions);
 
       Assert.NotNull(image);
       Assert.Equal("myapp-web-1", image.Container);
@@ -37,7 +38,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Docker
     {
       var json = @"{""ID"":""sha256:deadbeef""}";
 
-      var image = JsonConvert.DeserializeObject<ComposeImage>(json);
+      var image = JsonSerializer.Deserialize<ComposeImage>(json, JsonHelper.CaseInsensitiveOptions);
 
       Assert.NotNull(image);
       Assert.Equal("sha256:deadbeef", image.ImageId);
@@ -48,7 +49,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Docker
     {
       var json = @"{""Container"":""web-1""}";
 
-      var image = JsonConvert.DeserializeObject<ComposeImage>(json);
+      var image = JsonSerializer.Deserialize<ComposeImage>(json, JsonHelper.CaseInsensitiveOptions);
 
       Assert.NotNull(image);
       Assert.Equal("web-1", image.Container);
@@ -63,7 +64,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Docker
     {
       var json = @"{}";
 
-      var image = JsonConvert.DeserializeObject<ComposeImage>(json);
+      var image = JsonSerializer.Deserialize<ComposeImage>(json, JsonHelper.CaseInsensitiveOptions);
 
       Assert.NotNull(image);
       Assert.Null(image.Container);
@@ -179,7 +180,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Docker
     {
       var json = @"{""Container"":""web-1"",""Repository"":""nginx"",""Tag"":""latest"",""ID"":""sha256:abc"",""Size"":""100MB"",""ExtraField"":""ignored""}";
 
-      var image = JsonConvert.DeserializeObject<ComposeImage>(json);
+      var image = JsonSerializer.Deserialize<ComposeImage>(json, JsonHelper.CaseInsensitiveOptions);
 
       Assert.NotNull(image);
       Assert.Equal("web-1", image.Container);
@@ -191,7 +192,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Docker
     {
       var json = @"{""Container"":null,""Repository"":null,""Tag"":null,""ID"":null,""Size"":null}";
 
-      var image = JsonConvert.DeserializeObject<ComposeImage>(json);
+      var image = JsonSerializer.Deserialize<ComposeImage>(json, JsonHelper.CaseInsensitiveOptions);
 
       Assert.NotNull(image);
       Assert.Null(image.Container);
@@ -207,7 +208,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Docker
       var longId = "sha256:e4720093a3c13555d7e73629483e2027c41de13tried5098fe0f0cbfb743a7b0";
       var json = $@"{{""ID"":""{longId}""}}";
 
-      var image = JsonConvert.DeserializeObject<ComposeImage>(json);
+      var image = JsonSerializer.Deserialize<ComposeImage>(json, JsonHelper.CaseInsensitiveOptions);
 
       Assert.NotNull(image);
       Assert.Equal(longId, image.ImageId);
@@ -269,7 +270,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Docker
       {
         try
         {
-          var image = JsonConvert.DeserializeObject<ComposeImage>(line);
+          var image = JsonSerializer.Deserialize<ComposeImage>(line, JsonHelper.CaseInsensitiveOptions);
           if (image != null)
             images.Add(image);
         }

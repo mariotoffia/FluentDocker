@@ -18,26 +18,24 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
 
     /// <summary>
     /// Builds CLI arguments and optional stdin data for <c>podman login</c>.
+    /// The password is always passed via stdin (--password-stdin) and never
+    /// placed on the command line, to prevent exposure in process listings.
     /// </summary>
     public static (string args, string stdinData) BuildLoginArgs(RegistryLoginConfig config)
     {
       var args = "login";
       if (!string.IsNullOrEmpty(config.Username))
         args += $" -u {config.Username}";
-      if (config.PasswordStdin)
-      {
+
+      // Always use --password-stdin when a password is provided.
+      // Never pass password via -p flag (visible in process listings).
+      if (!string.IsNullOrEmpty(config.Password))
         args += " --password-stdin";
-      }
-      else if (!string.IsNullOrEmpty(config.Password))
-      {
-        args += $" -p {config.Password}";
-      }
+
       if (!string.IsNullOrEmpty(config.Server))
         args += $" {config.Server}";
 
-      var stdinData = config.PasswordStdin && !string.IsNullOrEmpty(config.Password)
-          ? config.Password
-          : null;
+      var stdinData = !string.IsNullOrEmpty(config.Password) ? config.Password : null;
 
       return (args, stdinData);
     }

@@ -7,6 +7,8 @@ using FluentDocker.Drivers;
 using FluentDocker.Kernel;
 using FluentDocker.Model.Drivers;
 
+#pragma warning disable CS0618 // IService obsolete — intentional usage
+
 namespace FluentDocker.Services.Impl
 {
   /// <summary>
@@ -29,9 +31,12 @@ namespace FluentDocker.Services.Impl
         string networkName,
         bool removeOnDispose = false)
     {
-      _kernel = kernel ?? throw new ArgumentNullException(nameof(kernel));
-      _driverId = driverId ?? throw new ArgumentNullException(nameof(driverId));
-      _networkId = networkId ?? throw new ArgumentNullException(nameof(networkId));
+      ArgumentNullException.ThrowIfNull(kernel);
+      ArgumentNullException.ThrowIfNull(driverId);
+      ArgumentNullException.ThrowIfNull(networkId);
+      _kernel = kernel;
+      _driverId = driverId;
+      _networkId = networkId;
       _networkName = networkName ?? $"network-{networkId}";
       _removeOnDispose = removeOnDispose;
     }
@@ -43,7 +48,9 @@ namespace FluentDocker.Services.Impl
     public string Id => _networkId;
     public string NetworkName => _networkName;
 
+#pragma warning disable CA1710 // Delegate name 'StateChange' — intentional API design
     public event ServiceDelegates.StateChange StateChange;
+#pragma warning restore CA1710
 
     public async Task ConnectAsync(string containerId, CancellationToken cancellationToken = default)
     {
@@ -167,20 +174,27 @@ namespace FluentDocker.Services.Impl
     public void Dispose()
     {
       DisposeAsync().AsTask().GetAwaiter().GetResult();
+      GC.SuppressFinalize(this);
     }
 
     public async ValueTask DisposeAsync()
     {
       if (!_removeOnDispose)
+      {
+        GC.SuppressFinalize(this);
         return;
+      }
 
       try
       {
         await RemoveAsync(force: true);
       }
-      catch
+      catch (Exception ex)
       {
+        Logger.Log($"NetworkService DisposeAsync failed: {ex.Message}");
       }
+
+      GC.SuppressFinalize(this);
     }
 
     private void UpdateState(ServiceRunningState newState)
@@ -197,8 +211,9 @@ namespace FluentDocker.Services.Impl
         {
           await hook(this);
         }
-        catch
+        catch (Exception ex)
         {
+          Logger.Log($"NetworkService hook execution failed: {ex.Message}");
         }
       }
     }

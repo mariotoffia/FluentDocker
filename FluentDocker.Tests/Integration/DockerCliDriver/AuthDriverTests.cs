@@ -27,8 +27,8 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
     [Fact]
     public async Task Login_ValidCredentials_Succeeds()
     {
-      string registryId = null;
-      string tempDir = null;
+      string? registryId = null;
+      string? tempDir = null;
 
       try
       {
@@ -52,8 +52,8 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
         }
         catch { }
 
-        await RemoveContainerAsync(registryId);
-        CleanupTempDir(tempDir);
+        await RemoveContainerAsync(registryId!);
+        CleanupTempDir(tempDir!);
       }
     }
 
@@ -63,8 +63,8 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
     [Fact]
     public async Task Login_InvalidPassword_Fails()
     {
-      string registryId = null;
-      string tempDir = null;
+      string? registryId = null;
+      string? tempDir = null;
 
       try
       {
@@ -81,8 +81,8 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
       }
       finally
       {
-        await RemoveContainerAsync(registryId);
-        CleanupTempDir(tempDir);
+        await RemoveContainerAsync(registryId!);
+        CleanupTempDir(tempDir!);
       }
     }
 
@@ -92,8 +92,8 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
     [Fact]
     public async Task Logout_AfterLogin_Succeeds()
     {
-      string registryId = null;
-      string tempDir = null;
+      string? registryId = null;
+      string? tempDir = null;
 
       try
       {
@@ -114,8 +114,8 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
       }
       finally
       {
-        await RemoveContainerAsync(registryId);
-        CleanupTempDir(tempDir);
+        await RemoveContainerAsync(registryId!);
+        CleanupTempDir(tempDir!);
       }
     }
 
@@ -125,8 +125,8 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
     [Fact]
     public async Task Login_WithPasswordStdin_Succeeds()
     {
-      string registryId = null;
-      string tempDir = null;
+      string? registryId = null;
+      string? tempDir = null;
 
       try
       {
@@ -150,8 +150,8 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
         }
         catch { }
 
-        await RemoveContainerAsync(registryId);
-        CleanupTempDir(tempDir);
+        await RemoveContainerAsync(registryId!);
+        CleanupTempDir(tempDir!);
       }
     }
 
@@ -232,7 +232,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
       }
       finally
       {
-        await RemoveContainerAsync(containerId);
+        await RemoveContainerAsync(containerId!);
       }
     }
 

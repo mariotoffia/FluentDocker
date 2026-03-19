@@ -78,8 +78,8 @@ namespace FluentDocker.Testing.Xunit
             "Already initialized. Dispose before re-initializing.");
 
       var (kernel, resource) = await ResourceLifecycle.CreateAndInitializeAsync(
-          k => new ContainerResource(k, ConfigureContainer, GetOptions()),
-          KernelFactory);
+          k => new ContainerResource(k, ConfigureContainer, GetOptions()!),
+          KernelFactory!);
 
       Kernel = kernel;
       Resource = resource;
@@ -90,13 +90,15 @@ namespace FluentDocker.Testing.Xunit
     {
       try
       {
-        await ResourceLifecycle.DisposeAsync(Resource, Kernel);
+        await ResourceLifecycle.DisposeAsync(Resource!, Kernel!);
       }
       finally
       {
         Resource = null;
         Kernel = null;
       }
+
+      GC.SuppressFinalize(this);
     }
   }
 }

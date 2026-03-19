@@ -9,7 +9,7 @@ namespace FluentDocker.Model.Compose
     /// Rollback:  The number of containers to rollback at a time. If set to 0, all containers rollback simultaneously.
     /// Update: The number of containers to update at a time.
     /// </remarks>
-    public int Parallelism { get; set; } = 0;
+    public int Parallelism { get; set; }
     /// <summary>
     /// The time to wait.
     /// </summary>
@@ -36,7 +36,7 @@ namespace FluentDocker.Model.Compose
     /// <summary>
     ///  Failure rate to tolerate during rollback or update, default 0.
     /// </summary>
-    public int MaxFailureRatio { get; set; } = 0;
+    public int MaxFailureRatio { get; set; }
     /// <summary>
     /// Order of operations during updates or rollback.
     /// </summary>

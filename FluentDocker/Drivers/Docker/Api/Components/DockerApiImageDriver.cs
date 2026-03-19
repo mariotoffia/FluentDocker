@@ -4,12 +4,12 @@ using System.IO;
 using System.Linq;
 using System.Net;
 using System.Net.Http;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
+using FluentDocker.Common;
 using FluentDocker.Drivers.Docker.Api.Connection;
 using FluentDocker.Model.Drivers;
-using Newtonsoft.Json;
-using Newtonsoft.Json.Linq;
 using Image = FluentDocker.Drivers.Image;
 
 namespace FluentDocker.Drivers.Docker.Api.Components
@@ -37,7 +37,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
         var filters = BuildListFilters(filter);
         if (filters.Count > 0)
         {
-          var json = JsonConvert.SerializeObject(filters);
+          var json = JsonHelper.Serialize(filters);
           query.Add($"filters={Uri.EscapeDataString(json)}");
         }
       }
@@ -46,14 +46,16 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       if (query.Count > 0)
         path += "?" + string.Join("&", query);
 
-      var result = await GetJsonAsync<JArray>(path, cancellationToken);
+      var result = await GetJsonElementAsync(path, cancellationToken);
       if (!result.Success)
         return CommandResponse<IList<Image>>.Fail(result.ErrorMessage,
             MapHttpErrorCode(result.StatusCode),
             CreateErrorContext("GET /images/json", result.StatusCode, result.ResponseBody),
             result.StatusCode);
 
-      var images = result.Data?.Select(ParseImage).ToList() ?? new List<Image>();
+      var images = result.Data.ValueKind == JsonValueKind.Array
+          ? result.Data.EnumerateArray().Select(ParseImage).ToList()
+          : new List<Image>();
       return CommandResponse<IList<Image>>.Ok(images);
     }
 
@@ -63,7 +65,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
         CancellationToken cancellationToken = default)
     {
       var path = $"/images/{Uri.EscapeDataString(imageId)}/json";
-      var result = await GetJsonAsync<JObject>(path, cancellationToken);
+      var result = await GetJsonElementAsync(path, cancellationToken);
       if (!result.Success)
         return CommandResponse<Image>.Fail(result.ErrorMessage,
             MapNotFoundErrorCode(result.StatusCode, ErrorCodes.Image.NotFound),
@@ -79,14 +81,16 @@ namespace FluentDocker.Drivers.Docker.Api.Components
         CancellationToken cancellationToken = default)
     {
       var path = $"/images/{Uri.EscapeDataString(imageId)}/history";
-      var result = await GetJsonAsync<JArray>(path, cancellationToken);
+      var result = await GetJsonElementAsync(path, cancellationToken);
       if (!result.Success)
         return CommandResponse<IList<ImageLayer>>.Fail(result.ErrorMessage,
             MapNotFoundErrorCode(result.StatusCode, ErrorCodes.Image.HistoryFailed),
             CreateErrorContext($"GET {path}", result.StatusCode, result.ResponseBody),
             result.StatusCode);
 
-      var layers = result.Data?.Select(ParseImageLayer).ToList() ?? new List<ImageLayer>();
+      var layers = result.Data.ValueKind == JsonValueKind.Array
+          ? result.Data.EnumerateArray().Select(ParseImageLayer).ToList()
+          : new List<ImageLayer>();
       return CommandResponse<IList<ImageLayer>>.Ok(layers);
     }
 
@@ -153,15 +157,18 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       var removeResult = new ImageRemoveResult();
       if (!string.IsNullOrWhiteSpace(body))
       {
-        var items = JsonConvert.DeserializeObject<JArray>(body);
-        foreach (var item in items ?? new JArray())
+        var items = JsonHelper.ParseElement(body);
+        if (items.ValueKind == JsonValueKind.Array)
         {
-          var deleted = item.Value<string>("Deleted");
-          var untagged = item.Value<string>("Untagged");
-          if (!string.IsNullOrEmpty(deleted))
-            removeResult.Deleted.Add(deleted);
-          if (!string.IsNullOrEmpty(untagged))
-            removeResult.Untagged.Add(untagged);
+          foreach (var item in items.EnumerateArray())
+          {
+            var deleted = item.GetStringOrDefault("Deleted");
+            var untagged = item.GetStringOrDefault("Untagged");
+            if (!string.IsNullOrEmpty(deleted))
+              removeResult.Deleted.Add(deleted);
+            if (!string.IsNullOrEmpty(untagged))
+              removeResult.Untagged.Add(untagged);
+          }
         }
       }
 
@@ -185,11 +192,11 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       var path = "/images/prune";
       if (filters.Count > 0)
       {
-        var json = JsonConvert.SerializeObject(filters);
+        var json = JsonHelper.Serialize(filters);
         path += $"?filters={Uri.EscapeDataString(json)}";
       }
 
-      var result = await PostJsonAsync<JObject>(path, null, cancellationToken);
+      var result = await GetJsonElementAsync(path, cancellationToken);
       if (!result.Success)
         return CommandResponse<ImagePruneResult>.Fail(result.ErrorMessage,
             ErrorCodes.Image.PruneFailed,
@@ -198,14 +205,15 @@ namespace FluentDocker.Drivers.Docker.Api.Components
 
       var pruneResult = new ImagePruneResult
       {
-        SpaceReclaimed = result.Data?.Value<long?>("SpaceReclaimed") ?? 0
+        SpaceReclaimed = result.Data.GetInt64OrDefault("SpaceReclaimed")
       };
-      if (result.Data?["ImagesDeleted"] is JArray deleted)
+      var deletedEl = result.Data.Prop("ImagesDeleted");
+      if (deletedEl?.ValueKind == JsonValueKind.Array)
       {
-        foreach (var item in deleted)
+        foreach (var item in deletedEl.Value.EnumerateArray())
         {
-          var d = item.Value<string>("Deleted");
-          var u = item.Value<string>("Untagged");
+          var d = item.GetStringOrDefault("Deleted");
+          var u = item.GetStringOrDefault("Untagged");
           if (!string.IsNullOrEmpty(d))
             pruneResult.ImagesDeleted.Add(d);
           else if (!string.IsNullOrEmpty(u))
@@ -269,8 +277,8 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       await foreach (var line in ReadNdjsonFromPostStreamAsync(
           "/images/load", content, cancellationToken))
       {
-        var json = JObject.Parse(line);
-        var streamVal = json.Value<string>("stream");
+        var json = JsonHelper.ParseElement(line);
+        var streamVal = json.GetStringOrDefault("stream");
         if (!string.IsNullOrWhiteSpace(streamVal))
         {
           var trimmed = streamVal.Trim();
@@ -288,7 +296,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
           }
         }
 
-        var error = json.Value<string>("error");
+        var error = json.GetStringOrDefault("error");
         if (!string.IsNullOrWhiteSpace(error))
           return CommandResponse<IList<string>>.Fail(error,
               ErrorCodes.Image.LoadFailed, CreateErrorContext("POST /images/load", 0));
@@ -326,12 +334,12 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       await foreach (var line in ReadNdjsonFromPostStreamAsync(
           path, content, cancellationToken))
       {
-        var json = JObject.Parse(line);
-        var status = json.Value<string>("status");
+        var json = JsonHelper.ParseElement(line);
+        var status = json.GetStringOrDefault("status");
         if (!string.IsNullOrWhiteSpace(status))
           importedId = status.Trim();
 
-        var error = json.Value<string>("error");
+        var error = json.GetStringOrDefault("error");
         if (!string.IsNullOrWhiteSpace(error))
           return CommandResponse<string>.Fail(error,
               ErrorCodes.Image.ImportFailed, CreateErrorContext("POST /images/create", 0));
@@ -360,66 +368,66 @@ namespace FluentDocker.Drivers.Docker.Api.Components
 
     #region JSON Parsing Helpers
 
-    private static Image ParseImage(JToken token)
+    private static Image ParseImage(JsonElement token)
     {
-      if (token == null)
+      if (token.ValueKind != JsonValueKind.Object)
         return new Image();
       return new Image
       {
-        Id = token.Value<string>("Id"),
-        ParentId = token.Value<string>("ParentId") ?? string.Empty,
-        RepoTags = token["RepoTags"]?.ToObject<List<string>>() ?? new List<string>(),
-        RepoDigests = token["RepoDigests"]?.ToObject<List<string>>() ?? new List<string>(),
+        Id = token.GetStringOrDefault("Id"),
+        ParentId = token.GetStringOrDefault("ParentId") ?? string.Empty,
+        RepoTags = token.GetStringArray("RepoTags").ToList(),
+        RepoDigests = token.GetStringArray("RepoDigests").ToList(),
         Created = DateTimeOffset.FromUnixTimeSeconds(
-              token.Value<long?>("Created") ?? 0).UtcDateTime,
-        Size = token.Value<long?>("Size") ?? 0,
-        VirtualSize = token.Value<long?>("VirtualSize") ?? 0,
-        Labels = token["Labels"]?.ToObject<Dictionary<string, string>>()
-              ?? new Dictionary<string, string>(),
-        Containers = token.Value<int?>("Containers") ?? -1
+              token.GetInt64OrDefault("Created")).UtcDateTime,
+        Size = token.GetInt64OrDefault("Size"),
+        VirtualSize = token.GetInt64OrDefault("VirtualSize"),
+        Labels = token.GetStringDictionary("Labels"),
+        Containers = token.GetInt32OrDefault("Containers", -1)
       };
     }
 
-    private static Image ParseInspectImage(JObject token)
+    private static Image ParseInspectImage(JsonElement token)
     {
-      if (token == null)
+      if (token.ValueKind != JsonValueKind.Object)
         return new Image();
       return new Image
       {
-        Id = token.Value<string>("Id"),
-        ParentId = token.Value<string>("Parent") ?? string.Empty,
-        RepoTags = token["RepoTags"]?.ToObject<List<string>>() ?? new List<string>(),
-        RepoDigests = token["RepoDigests"]?.ToObject<List<string>>() ?? new List<string>(),
-        Created = token.Value<DateTime?>("Created") ?? DateTime.MinValue,
-        Size = token.Value<long?>("Size") ?? 0,
-        VirtualSize = token.Value<long?>("VirtualSize") ?? 0,
-        Architecture = token.Value<string>("Architecture"),
-        Os = token.Value<string>("Os"),
+        Id = token.GetStringOrDefault("Id"),
+        ParentId = token.GetStringOrDefault("Parent") ?? string.Empty,
+        RepoTags = token.GetStringArray("RepoTags").ToList(),
+        RepoDigests = token.GetStringArray("RepoDigests").ToList(),
+        Created = token.GetDateTimeOrDefault("Created"),
+        Size = token.GetInt64OrDefault("Size"),
+        VirtualSize = token.GetInt64OrDefault("VirtualSize"),
+        Architecture = token.GetStringOrDefault("Architecture"),
+        Os = token.GetStringOrDefault("Os"),
         Labels = ExtractLabels(token),
         Containers = -1
       };
     }
 
-    private static Dictionary<string, string> ExtractLabels(JObject token)
+    private static Dictionary<string, string> ExtractLabels(JsonElement token)
     {
-      var config = token["Config"] as JObject;
-      return config?["Labels"]?.ToObject<Dictionary<string, string>>()
-          ?? new Dictionary<string, string>();
+      var config = token.Prop("Config");
+      if (config == null || config.Value.ValueKind != JsonValueKind.Object)
+        return new Dictionary<string, string>();
+      return config.Value.GetStringDictionary("Labels");
     }
 
-    private static ImageLayer ParseImageLayer(JToken token)
+    private static ImageLayer ParseImageLayer(JsonElement token)
     {
-      if (token == null)
+      if (token.ValueKind != JsonValueKind.Object)
         return new ImageLayer();
       return new ImageLayer
       {
-        Id = token.Value<string>("Id") ?? string.Empty,
-        CreatedBy = token.Value<string>("CreatedBy") ?? string.Empty,
+        Id = token.GetStringOrDefault("Id") ?? string.Empty,
+        CreatedBy = token.GetStringOrDefault("CreatedBy") ?? string.Empty,
         Created = DateTimeOffset.FromUnixTimeSeconds(
-              token.Value<long?>("Created") ?? 0).UtcDateTime,
-        Size = token.Value<long?>("Size") ?? 0,
-        Comment = token.Value<string>("Comment") ?? string.Empty,
-        Tags = token["Tags"]?.ToObject<List<string>>() ?? new List<string>()
+              token.GetInt64OrDefault("Created")).UtcDateTime,
+        Size = token.GetInt64OrDefault("Size"),
+        Comment = token.GetStringOrDefault("Comment") ?? string.Empty,
+        Tags = token.GetStringArray("Tags").ToList()
       };
     }
 
@@ -448,7 +456,10 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       if (string.IsNullOrWhiteSpace(body))
         return null;
       try
-      { return JObject.Parse(body).Value<string>("message"); }
+      {
+        var el = JsonHelper.ParseElement(body);
+        return el.GetStringOrDefault("message");
+      }
       catch { return body.Length > 500 ? body[..500] : body; }
     }
 

@@ -7,7 +7,7 @@ namespace FluentDocker.Kernel
   /// <summary>
   /// Internal builder for configuring the Docker API driver.
   /// </summary>
-  internal class DockerApiDriverBuilder(string driverId) : IDockerApiDriverBuilder
+  internal sealed class DockerApiDriverBuilder(string driverId) : IDockerApiDriverBuilder
   {
     private readonly string _driverId = driverId;
     private string _host;

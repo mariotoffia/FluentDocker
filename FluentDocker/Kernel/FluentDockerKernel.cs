@@ -6,6 +6,8 @@ using FluentDocker.Drivers;
 using FluentDocker.Drivers.Podman;
 using FluentDocker.Model.Drivers;
 
+#pragma warning disable CS0618 // DriverComponent obsolete — intentional usage
+
 namespace FluentDocker.Kernel
 {
   /// <summary>
@@ -29,7 +31,11 @@ namespace FluentDocker.Kernel
     /// Creates a new kernel with a custom registry.
     /// </summary>
     /// <param name="registry">Driver registry</param>
-    public FluentDockerKernel(IDriverRegistry registry) => _registry = registry ?? throw new ArgumentNullException(nameof(registry));
+    public FluentDockerKernel(IDriverRegistry registry)
+    {
+      ArgumentNullException.ThrowIfNull(registry);
+      _registry = registry;
+    }
 
     #region ISysCtl Implementation
 
@@ -37,7 +43,7 @@ namespace FluentDocker.Kernel
     /// Resolves a driver interface by driver ID and runtime type.
     /// This is the unified resolution path used by all other SysCtl overloads.
     /// Resolution order:
-    /// 1. If driver pack implements IDriverInterfaceResolver, ask it.
+    /// 1. Driver pack's IDriverInterfaceResolver.TryResolve.
     /// 2. Else delegate to the driver pack's ISysCtl.
     /// 3. If regular driver implements IDriverInterfaceResolver, ask it.
     /// 4. Else fallback to direct cast (driver is T).
@@ -49,9 +55,8 @@ namespace FluentDocker.Kernel
       // First check if driverId refers to a driver pack
       if (_registry.TryGetDriverPack(driverId, out var driverPack))
       {
-        // If the pack is an IDriverInterfaceResolver, use it
-        if (driverPack is IDriverInterfaceResolver resolver &&
-            resolver.TryResolve(interfaceType, out var resolved))
+        // IDriverPack extends IDriverInterfaceResolver — use it directly
+        if (driverPack.TryResolve(interfaceType, out var resolved))
           return resolved;
 
         // Fallback: delegate to pack's type-based SysCtl
@@ -174,7 +179,7 @@ namespace FluentDocker.Kernel
     public async Task RegisterDriverAsync(string driverId, IDriver driver, DriverContext context, CancellationToken cancellationToken = default)
     {
       ThrowIfDisposed();
-      await _registry.RegisterAsync(driverId, driver, context, cancellationToken);
+      await _registry.RegisterAsync(driverId, driver, context, cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -183,7 +188,7 @@ namespace FluentDocker.Kernel
     public async Task RegisterDriverPackAsync(string driverId, IDriverPack driverPack, DriverContext context, CancellationToken cancellationToken = default)
     {
       ThrowIfDisposed();
-      await _registry.RegisterDriverPackAsync(driverId, driverPack, context, cancellationToken);
+      await _registry.RegisterDriverPackAsync(driverId, driverPack, context, cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -256,10 +261,7 @@ namespace FluentDocker.Kernel
 
     private void ThrowIfDisposed()
     {
-      if (_disposed)
-      {
-        throw new ObjectDisposedException(nameof(FluentDockerKernel));
-      }
+      ObjectDisposedException.ThrowIf(_disposed, this);
     }
 
     #endregion
@@ -288,7 +290,7 @@ namespace FluentDocker.Kernel
           if (_registry.TryGetDriverPack(driverId, out var driverPack))
           {
             if (driverPack is IAsyncDisposable asyncDisposable)
-              await asyncDisposable.DisposeAsync();
+              await asyncDisposable.DisposeAsync().ConfigureAwait(false);
             else if (driverPack is IDisposable disposable)
               disposable.Dispose();
           }
@@ -297,23 +299,27 @@ namespace FluentDocker.Kernel
           if (_registry.TryGetDriver(driverId, out var driver))
           {
             if (driver is IAsyncDisposable asyncDisposableDriver)
-              await asyncDisposableDriver.DisposeAsync();
+              await asyncDisposableDriver.DisposeAsync().ConfigureAwait(false);
             else if (driver is IDisposable disposableDriver)
               disposableDriver.Dispose();
           }
 
           _registry.Unregister(driverId);
         }
-        catch
+        catch (Exception ex)
         {
-          // Ignore errors during disposal
+          Logger.Log($"Kernel DisposeAsync cleanup failed: {ex.Message}");
         }
       }
+
+      GC.SuppressFinalize(this);
     }
 
     /// <summary>
     /// Synchronously disposes the kernel and all registered driver packs / drivers.
-    /// Delegates to <see cref="DisposeAsync"/> and blocks until completion.
+    /// Delegates to <see cref="DisposeAsync"/> via Task.Run to avoid deadlocks
+    /// on single-threaded synchronization contexts (ASP.NET, WPF).
+    /// Prefer <see cref="DisposeAsync"/> when possible.
     /// </summary>
     public void Dispose()
     {
@@ -321,6 +327,7 @@ namespace FluentDocker.Kernel
         return;
 
       DisposeAsync().AsTask().GetAwaiter().GetResult();
+      GC.SuppressFinalize(this);
     }
 
     #endregion

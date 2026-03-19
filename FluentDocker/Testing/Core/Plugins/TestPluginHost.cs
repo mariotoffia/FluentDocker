@@ -27,8 +27,7 @@ namespace FluentDocker.Testing.Core.Plugins
     /// <inheritdoc />
     public ITestPluginHost Add(ITestPlugin plugin)
     {
-      if (plugin == null)
-        throw new ArgumentNullException(nameof(plugin));
+      ArgumentNullException.ThrowIfNull(plugin);
 
       if (string.IsNullOrEmpty(plugin.Id))
         throw new ArgumentException(
@@ -113,8 +112,7 @@ namespace FluentDocker.Testing.Core.Plugins
     {
       if (string.IsNullOrEmpty(key))
         throw new ArgumentException("Factory key must not be null or empty.", nameof(key));
-      if (factory == null)
-        throw new ArgumentNullException(nameof(factory));
+      ArgumentNullException.ThrowIfNull(factory);
 
       lock (_lock)
       {

@@ -8,7 +8,7 @@ namespace FluentDocker.Kernel
   /// <summary>
   /// Internal builder for configuring the Podman CLI driver.
   /// </summary>
-  internal class PodmanCliDriverBuilder(string driverId) : IPodmanCliDriverBuilder
+  internal sealed class PodmanCliDriverBuilder(string driverId) : IPodmanCliDriverBuilder
   {
     private readonly string _driverId = driverId;
     private string _host;

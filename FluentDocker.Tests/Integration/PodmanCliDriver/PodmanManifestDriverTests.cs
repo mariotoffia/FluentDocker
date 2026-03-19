@@ -20,7 +20,7 @@ namespace FluentDocker.Tests.Integration.PodmanCliDriver
     [Fact]
     public async Task Create_SimpleManifest_ReturnsId()
     {
-      string listName = null;
+      string? listName = null;
       try
       {
         listName = UniqueName("manifest");
@@ -58,7 +58,7 @@ namespace FluentDocker.Tests.Integration.PodmanCliDriver
     [Fact]
     public async Task AddImage_ToManifest_Succeeds()
     {
-      string listName = null;
+      string? listName = null;
       try
       {
         await EnsureImageAsync(TestImage);
@@ -88,7 +88,7 @@ namespace FluentDocker.Tests.Integration.PodmanCliDriver
     [Fact]
     public async Task Inspect_AfterAdd_ShowsEntries()
     {
-      string listName = null;
+      string? listName = null;
       try
       {
         await EnsureImageAsync(TestImage);
@@ -127,7 +127,7 @@ namespace FluentDocker.Tests.Integration.PodmanCliDriver
     [Fact]
     public async Task Annotate_SetArch_Succeeds()
     {
-      string listName = null;
+      string? listName = null;
       try
       {
         await EnsureImageAsync(TestImage);
@@ -181,7 +181,7 @@ namespace FluentDocker.Tests.Integration.PodmanCliDriver
     [Fact]
     public async Task Exists_AfterCreate_ReturnsTrue()
     {
-      string listName = null;
+      string? listName = null;
       try
       {
         listName = UniqueName("manifest");
@@ -235,8 +235,8 @@ namespace FluentDocker.Tests.Integration.PodmanCliDriver
     public async Task Push_ToLocalRegistry_Succeeds()
     {
       const string registryPort = "5053";
-      string registryId = null;
-      string listName = null;
+      string? registryId = null;
+      string? listName = null;
 
       try
       {
@@ -287,7 +287,7 @@ namespace FluentDocker.Tests.Integration.PodmanCliDriver
           { await ManifestDriver.RemoveAsync(Context, listName, TestContext.Current.CancellationToken); }
           catch { }
 
-        await RemoveContainerAsync(registryId);
+        await RemoveContainerAsync(registryId!);
       }
     }
 
@@ -299,8 +299,8 @@ namespace FluentDocker.Tests.Integration.PodmanCliDriver
     public async Task Push_WithRm_RemovesListAfterPush()
     {
       const string registryPort = "5054";
-      string registryId = null;
-      string listName = null;
+      string? registryId = null;
+      string? listName = null;
       var listRemoved = false;
 
       try
@@ -354,7 +354,7 @@ namespace FluentDocker.Tests.Integration.PodmanCliDriver
           { await ManifestDriver.RemoveAsync(Context, listName, TestContext.Current.CancellationToken); }
           catch { }
 
-        await RemoveContainerAsync(registryId);
+        await RemoveContainerAsync(registryId!);
       }
     }
 

@@ -18,7 +18,7 @@ namespace FluentDocker.Tests.Integration.PodmanCliDriver
     public async Task Update_MemoryLimit_Succeeds()
     {
       await EnsureImageAsync(TestImage);
-      string containerId = null;
+      string? containerId = null;
       try
       {
         containerId = await RunContainerAsync(TestImage,
@@ -39,7 +39,7 @@ namespace FluentDocker.Tests.Integration.PodmanCliDriver
       }
       finally
       {
-        await RemoveContainerAsync(containerId);
+        await RemoveContainerAsync(containerId!);
       }
     }
 
@@ -47,7 +47,7 @@ namespace FluentDocker.Tests.Integration.PodmanCliDriver
     public async Task Update_RestartPolicy_Succeeds()
     {
       await EnsureImageAsync(TestImage);
-      string containerId = null;
+      string? containerId = null;
       try
       {
         containerId = await RunContainerAsync(TestImage,
@@ -68,7 +68,7 @@ namespace FluentDocker.Tests.Integration.PodmanCliDriver
       }
       finally
       {
-        await RemoveContainerAsync(containerId);
+        await RemoveContainerAsync(containerId!);
       }
     }
 
@@ -80,7 +80,7 @@ namespace FluentDocker.Tests.Integration.PodmanCliDriver
     public async Task Export_RunningContainer_CreatesArchive()
     {
       await EnsureImageAsync(TestImage);
-      string containerId = null;
+      string? containerId = null;
       var exportPath = Path.Combine(Path.GetTempPath(),
           $"podman-export-{Guid.NewGuid():N}.tar");
       try
@@ -103,7 +103,7 @@ namespace FluentDocker.Tests.Integration.PodmanCliDriver
       }
       finally
       {
-        await RemoveContainerAsync(containerId);
+        await RemoveContainerAsync(containerId!);
         if (File.Exists(exportPath))
           File.Delete(exportPath);
       }
@@ -136,7 +136,7 @@ namespace FluentDocker.Tests.Integration.PodmanCliDriver
     public async Task Rename_RunningContainer_ChangesName()
     {
       await EnsureImageAsync(TestImage);
-      string containerId = null;
+      string? containerId = null;
       try
       {
         var originalName = UniqueName("rename-orig");
@@ -162,7 +162,7 @@ namespace FluentDocker.Tests.Integration.PodmanCliDriver
       }
       finally
       {
-        await RemoveContainerAsync(containerId);
+        await RemoveContainerAsync(containerId!);
       }
     }
 

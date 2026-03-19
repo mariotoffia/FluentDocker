@@ -27,7 +27,11 @@ namespace FluentDocker.Testing.Core
         FluentDockerKernel kernel,
         Action<IComposeBuilder> configure,
         DockerResourceOptions options = null)
-        : base(kernel, options) => _configure = configure ?? throw new ArgumentNullException(nameof(configure));
+        : base(kernel, options)
+    {
+      ArgumentNullException.ThrowIfNull(configure);
+      _configure = configure;
+    }
 
     /// <summary>
     /// The running compose service, available after initialization.
@@ -120,8 +124,9 @@ namespace FluentDocker.Testing.Core
           diag.Logs = TruncateLogLines(
               await Service.GetLogsAsync(false, cancellationToken));
         }
-        catch
+        catch (Exception ex)
         {
+          Logger.Log($"Compose diagnostics log collection failed: {ex.Message}");
           diag.Logs = "(failed to collect compose logs)";
         }
       }

@@ -8,11 +8,13 @@ namespace FluentDocker.Common
   [AttributeUsage(AttributeTargets.All)]
   public sealed class ExperimentalAttribute : Attribute
   {
+    /// <summary>Creates a new instance with optional documentation URL and target version.</summary>
+    /// <param name="documentation">URL or description of the experimental feature documentation.</param>
+    /// <param name="targetVersion">The version when this feature is expected to be stable.</param>
     public ExperimentalAttribute(string documentation = null, string targetVersion = null)
     {
       Documentation = documentation ?? string.Empty;
       TargetVersion = targetVersion ?? string.Empty;
-
     }
 
     /// <summary>

@@ -18,7 +18,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
     [Fact]
     public async Task Create_SimpleService_ReturnsId()
     {
-      string serviceName = null;
+      string? serviceName = null;
       try
       {
         serviceName = UniqueName("svc");

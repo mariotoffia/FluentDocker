@@ -2,6 +2,7 @@ using System;
 using System.Runtime.ExceptionServices;
 using System.Threading;
 using System.Threading.Tasks;
+using FluentDocker.Common;
 using FluentDocker.Kernel;
 
 namespace FluentDocker.Testing.Core
@@ -83,14 +84,15 @@ namespace FluentDocker.Testing.Core
         await resource.InitializeAsync(cancellationToken);
         return (kernel, resource);
       }
-      catch
+      catch (Exception ex)
       {
+        Logger.Log($"Resource initialization failed: {ex.Message}");
         try
         { if (resource != null) await resource.DisposeAsync(); }
-        catch { /* best effort */ }
+        catch (Exception resEx) { Logger.Log($"Resource cleanup failed: {resEx.Message}"); }
         try
         { if (kernel != null) await kernel.DisposeAsync(); }
-        catch { /* cleanup must not mask the original failure */ }
+        catch (Exception kernelEx) { Logger.Log($"Kernel cleanup failed: {kernelEx.Message}"); }
         throw;
       }
     }

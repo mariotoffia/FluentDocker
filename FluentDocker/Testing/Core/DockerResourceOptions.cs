@@ -55,6 +55,25 @@ namespace FluentDocker.Testing.Core
     }
 
     /// <summary>
+    /// Session ID used for orphan tracking labels. Defaults to a unique ID per options instance.
+    /// Share the same options (or set the same SessionId) across resources to group them.
+    /// </summary>
+    public string SessionId { get; set; } = SessionLabel.NewSessionId();
+
+    /// <summary>
+    /// Whether to apply session-tracking labels to created resources.
+    /// When enabled, resources are tagged with <see cref="SessionLabel.Key"/>
+    /// for orphan cleanup detection. Default: true.
+    /// </summary>
+    public bool EnableSessionLabels { get; set; } = true;
+
+    /// <summary>
+    /// Whether to clean up orphaned resources from previous sessions
+    /// during <see cref="ResourceBase.InitializeAsync"/>. Default: false.
+    /// </summary>
+    public bool CleanupOrphansOnInit { get; set; }
+
+    /// <summary>
     /// Timeout for teardown (stop + remove) during disposal.
     /// Prevents hung cleanup from blocking CI pipelines indefinitely.
     /// </summary>

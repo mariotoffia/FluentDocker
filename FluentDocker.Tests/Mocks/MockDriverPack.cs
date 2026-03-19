@@ -12,11 +12,12 @@ using Moq;
 using DriverCapabilities = FluentDocker.Model.Drivers.DriverCapabilities;
 using DriverComponent = FluentDocker.Model.Drivers.DriverComponent;
 using DriverContext = FluentDocker.Model.Drivers.DriverContext;
-// Alias to avoid ambiguity with Model.Containers.CommandResponse
 using DriverResponse = FluentDocker.Model.Drivers.CommandResponse<FluentDocker.Model.Drivers.Unit>;
 using DriverType = FluentDocker.Model.Drivers.DriverType;
 using RuntimeType = FluentDocker.Model.Drivers.RuntimeType;
 using Unit = FluentDocker.Model.Drivers.Unit;
+
+#pragma warning disable CS0618 // DriverComponent obsolete — intentional usage
 
 namespace FluentDocker.Tests.Mocks
 {
@@ -24,7 +25,7 @@ namespace FluentDocker.Tests.Mocks
   /// Mock driver pack for unit testing FluentDocker components.
   /// Provides mock implementations of all driver interfaces.
   /// </summary>
-  public partial class MockDriverPack : IDriverPack, IDriverInterfaceResolver
+  public partial class MockDriverPack : IDriverPack
   {
     private readonly Dictionary<Type, object> _drivers = new Dictionary<Type, object>();
     private bool _initialized;
@@ -463,6 +464,56 @@ namespace FluentDocker.Tests.Mocks
             Name = volumeName,
             Driver = "local"
           }));
+      return this;
+    }
+
+    /// <summary>
+    /// Sets up ImageDriver.PullAsync to return success.
+    /// </summary>
+    public MockDriverPack SetupImagePull()
+    {
+      ImageDriver
+          .Setup(d => d.PullAsync(
+              It.IsAny<DriverContext>(),
+              It.IsAny<string>(),
+              It.IsAny<string>(),
+              It.IsAny<IProgress<ImagePullProgress>>(),
+              It.IsAny<CancellationToken>()))
+          .ReturnsAsync(FluentDocker.Model.Drivers.CommandResponse<Unit>.Ok(Unit.Default));
+      return this;
+    }
+
+    /// <summary>
+    /// Sets up ImageDriver.InspectAsync to return image details.
+    /// </summary>
+    public MockDriverPack SetupImageInspect(string imageId = "sha256:abc123")
+    {
+      ImageDriver
+          .Setup(d => d.InspectAsync(
+              It.IsAny<DriverContext>(),
+              It.IsAny<string>(),
+              It.IsAny<CancellationToken>()))
+          .ReturnsAsync(FluentDocker.Model.Drivers.CommandResponse<Image>.Ok(new Image
+          {
+            Id = imageId
+          }));
+      return this;
+    }
+
+    /// <summary>
+    /// Sets up ImageDriver.RemoveAsync to return success.
+    /// </summary>
+    public MockDriverPack SetupImageRemove()
+    {
+      ImageDriver
+          .Setup(d => d.RemoveAsync(
+              It.IsAny<DriverContext>(),
+              It.IsAny<string>(),
+              It.IsAny<bool>(),
+              It.IsAny<bool>(),
+              It.IsAny<CancellationToken>()))
+          .ReturnsAsync(FluentDocker.Model.Drivers.CommandResponse<ImageRemoveResult>.Ok(
+              new ImageRemoveResult()));
       return this;
     }
 

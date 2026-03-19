@@ -54,8 +54,9 @@ namespace FluentDocker.Extensions
         var result = await DoRequest(url);
         return result.Body ?? string.Empty;
       }
-      catch
+      catch (Exception ex)
       {
+        Logger.Log($"HTTP request failed: {ex.Message}");
         return string.Empty;
       }
     }

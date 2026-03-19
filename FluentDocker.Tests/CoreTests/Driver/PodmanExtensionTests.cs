@@ -17,7 +17,7 @@ namespace FluentDocker.Tests.CoreTests.Driver
   [Trait("Category", "Unit")]
   public class PodmanExtensionTests
   {
-    private async Task<(FluentDockerKernel kernel, MockDriverPack pack)> CreateKernelWithMockPack()
+    private static async Task<(FluentDockerKernel kernel, MockDriverPack pack)> CreateKernelWithMockPack()
     {
       var pack = new MockDriverPack();
       var kernel = new FluentDockerKernel();
@@ -33,7 +33,7 @@ namespace FluentDocker.Tests.CoreTests.Driver
       var mockPodDriver = new Mock<IPodmanPodDriver>();
       pack.RegisterCustomDriver(mockPodDriver.Object);
 
-      string appliedLabel = null;
+      string? _appliedLabel = null;
 
       // Act - call UsePod inside a container builder lambda
       new Builder()

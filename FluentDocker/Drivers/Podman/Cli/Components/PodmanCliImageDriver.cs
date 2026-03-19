@@ -2,13 +2,14 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
+using FluentDocker.Common;
 using FluentDocker.Drivers.Docker.Cli;
 using FluentDocker.Drivers.Podman.Cli.Binary;
 using FluentDocker.Model.Drivers;
 using FluentDocker.Model.Images;
-using Newtonsoft.Json.Linq;
 
 namespace FluentDocker.Drivers.Podman.Cli.Components
 {
@@ -243,7 +244,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
 
     #region JSON Parsing
 
-    private static IList<Image> ParseImageList(string json)
+    private static List<Image> ParseImageList(string json)
     {
       var images = new List<Image>();
       if (string.IsNullOrWhiteSpace(json))
@@ -252,16 +253,16 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       try
       {
         var trimmed = json.Trim();
-        if (trimmed.StartsWith("["))
+        if (trimmed.StartsWith('['))
         {
-          var arr = JArray.Parse(trimmed);
-          foreach (var token in arr)
+          var root = JsonHelper.ParseElement(trimmed);
+          foreach (var token in root.EnumerateArraySafe())
             images.Add(ParseImageFromToken(token));
         }
         else
         {
           foreach (var line in trimmed.Split('\n', StringSplitOptions.RemoveEmptyEntries))
-            images.Add(ParseImageFromToken(JObject.Parse(line.Trim())));
+            images.Add(ParseImageFromToken(JsonHelper.ParseElement(line.Trim())));
         }
       }
       catch { /* Return partial results */ }
@@ -269,24 +270,24 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       return images;
     }
 
-    private static Image ParseImageFromToken(JToken token)
+    private static Image ParseImageFromToken(JsonElement token)
     {
       var image = new Image
       {
-        Id = token["Id"]?.Value<string>() ?? token["ID"]?.Value<string>(),
-        Size = token["Size"]?.Value<long>() ?? 0,
-        VirtualSize = token["VirtualSize"]?.Value<long>() ?? 0
+        Id = token.GetStringOrDefault("Id") ?? token.GetStringOrDefault("ID"),
+        Size = token.GetInt64OrDefault("Size"),
+        VirtualSize = token.GetInt64OrDefault("VirtualSize")
       };
 
-      var tags = token["Names"] ?? token["RepoTags"];
-      if (tags is JArray tagArray)
-        foreach (var t in tagArray)
-          image.RepoTags.Add(t.Value<string>());
+      var tagsProp = token.Prop("Names") ?? token.Prop("RepoTags");
+      if (tagsProp.HasValue && tagsProp.Value.ValueKind == JsonValueKind.Array)
+        foreach (var t in tagsProp.Value.EnumerateArray())
+          image.RepoTags.Add(t.GetString());
 
-      var digests = token["RepoDigests"] ?? token["Digests"];
-      if (digests is JArray digestArray)
-        foreach (var d in digestArray)
-          image.RepoDigests.Add(d.Value<string>());
+      var digestsProp = token.Prop("RepoDigests") ?? token.Prop("Digests");
+      if (digestsProp.HasValue && digestsProp.Value.ValueKind == JsonValueKind.Array)
+        foreach (var d in digestsProp.Value.EnumerateArray())
+          image.RepoDigests.Add(d.GetString());
 
       return image;
     }
@@ -296,35 +297,41 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       try
       {
         var trimmed = json.Trim();
-        JToken token;
-        if (trimmed.StartsWith("["))
-          token = JArray.Parse(trimmed).First;
+        JsonElement token;
+        if (trimmed.StartsWith('['))
+        {
+          var root = JsonHelper.ParseElement(trimmed);
+          token = root.EnumerateArray().First();
+        }
         else
-          token = JObject.Parse(trimmed);
+        {
+          token = JsonHelper.ParseElement(trimmed);
+        }
 
         var image = new Image
         {
-          Id = token["Id"]?.Value<string>(),
-          Architecture = token["Architecture"]?.Value<string>(),
-          Os = token["Os"]?.Value<string>(),
-          Size = token["Size"]?.Value<long>() ?? 0,
-          VirtualSize = token["VirtualSize"]?.Value<long>() ?? 0
+          Id = token.GetStringOrDefault("Id"),
+          Architecture = token.GetStringOrDefault("Architecture"),
+          Os = token.GetStringOrDefault("Os"),
+          Size = token.GetInt64OrDefault("Size"),
+          VirtualSize = token.GetInt64OrDefault("VirtualSize")
         };
 
-        var tags = token["RepoTags"];
-        if (tags is JArray tagArray)
-          foreach (var t in tagArray)
-            image.RepoTags.Add(t.Value<string>());
+        var tagsProp = token.Prop("RepoTags");
+        if (tagsProp.HasValue && tagsProp.Value.ValueKind == JsonValueKind.Array)
+          foreach (var t in tagsProp.Value.EnumerateArray())
+            image.RepoTags.Add(t.GetString());
 
         return image;
       }
-      catch
+      catch (Exception ex)
       {
+        Logger.Log($"Podman image inspect parsing failed: {ex.Message}");
         return new Image();
       }
     }
 
-    private static IList<ImageLayer> ParseHistory(string json)
+    private static List<ImageLayer> ParseHistory(string json)
     {
       var layers = new List<ImageLayer>();
       if (string.IsNullOrWhiteSpace(json))
@@ -333,20 +340,20 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       try
       {
         var trimmed = json.Trim();
-        JArray arr;
-        if (trimmed.StartsWith("["))
-          arr = JArray.Parse(trimmed);
-        else
+        if (!trimmed.StartsWith('['))
           return layers;
 
-        foreach (var token in arr)
+        var root = JsonHelper.ParseElement(trimmed);
+        foreach (var token in root.EnumerateArraySafe())
         {
           layers.Add(new ImageLayer
           {
-            Id = token["id"]?.Value<string>() ?? token["Id"]?.Value<string>(),
-            CreatedBy = token["createdBy"]?.Value<string>() ?? token["CreatedBy"]?.Value<string>(),
-            Size = token["size"]?.Value<long>() ?? token["Size"]?.Value<long>() ?? 0,
-            Comment = token["comment"]?.Value<string>() ?? token["Comment"]?.Value<string>()
+            Id = token.GetStringOrDefault("id") ?? token.GetStringOrDefault("Id"),
+            CreatedBy = token.GetStringOrDefault("createdBy")
+                        ?? token.GetStringOrDefault("CreatedBy"),
+            Size = token.GetInt64OrDefault("size", token.GetInt64OrDefault("Size")),
+            Comment = token.GetStringOrDefault("comment")
+                      ?? token.GetStringOrDefault("Comment")
           });
         }
       }

@@ -2,7 +2,10 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using FluentDocker.Common;
 using FluentDocker.Services;
+
+#pragma warning disable CS0618 // IService obsolete — intentional usage
 
 namespace FluentDocker.Model.Kernel
 {
@@ -70,9 +73,9 @@ namespace FluentDocker.Model.Kernel
               : Task.Run(() => service.Dispose(), CancellationToken.None);
           await task.WaitAsync(cancellationToken);
         }
-        catch
+        catch (Exception ex)
         {
-          // Ignore disposal errors (including cancellation)
+          Logger.Log($"BuildScope async disposal failed: {ex.Message}");
         }
       }
       _results.Clear();
@@ -89,9 +92,9 @@ namespace FluentDocker.Model.Kernel
         {
           service.Dispose();
         }
-        catch
+        catch (Exception ex)
         {
-          // Ignore disposal errors
+          Logger.Log($"BuildScope sync disposal failed: {ex.Message}");
         }
       }
       _results.Clear();

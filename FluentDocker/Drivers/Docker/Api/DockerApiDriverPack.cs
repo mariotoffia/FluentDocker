@@ -9,17 +9,22 @@ using FluentDocker.Drivers.Docker.Api.Connection;
 using FluentDocker.Kernel;
 using FluentDocker.Model.Drivers;
 
+#pragma warning disable CS0618 // DriverComponent obsolete — intentional usage
+
 namespace FluentDocker.Drivers.Docker.Api
 {
   /// <summary>
   /// Docker Engine REST API driver pack. Composes all Docker API driver components.
-  /// Implements IDriverPack and IDriverInterfaceResolver for unified access.
+  /// Implements IDriverPack for unified access.
   /// </summary>
-  public class DockerApiDriverPack : IDriverPack, IDriverInterfaceResolver, IAsyncDisposable
+  public class DockerApiDriverPack : IDriverPack, IAsyncDisposable
   {
     private readonly Dictionary<Type, object> _drivers = new();
     private DriverContext _context;
+    // CA1859: Must stay as interface — tests inject MockDockerApiConnection via reflection.
+#pragma warning disable CA1859
     private IDockerApiConnection _connection;
+#pragma warning restore CA1859
     private bool _initialized;
 
     private DockerApiContainerDriver _containerDriver;
@@ -46,7 +51,8 @@ namespace FluentDocker.Drivers.Docker.Api
     public async Task InitializeAsync(
         DriverContext context, CancellationToken cancellationToken = default)
     {
-      _context = context ?? throw new ArgumentNullException(nameof(context));
+      ArgumentNullException.ThrowIfNull(context);
+      _context = context;
 
       var connectionConfig = new DockerApiConnectionConfig
       {
@@ -119,8 +125,9 @@ namespace FluentDocker.Drivers.Docker.Api
       {
         return await _connection.PingAsync(cancellationToken);
       }
-      catch
+      catch (Exception ex)
       {
+        Logger.Log($"Docker API ping failed: {ex.Message}");
         return false;
       }
     }
@@ -242,6 +249,8 @@ namespace FluentDocker.Drivers.Docker.Api
     {
       if (_connection != null)
         await _connection.DisposeAsync();
+
+      GC.SuppressFinalize(this);
     }
 
     private void ThrowIfNotInitialized()

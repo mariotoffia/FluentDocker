@@ -55,7 +55,7 @@ namespace FluentDocker.Tests.Integration.DockerApiDriver
     public async Task Container_CreateStartStopRemove_FullLifecycle()
     {
       await EnsureImageAsync(TestImage);
-      string containerId = null;
+      string? containerId = null;
 
       try
       {
@@ -97,7 +97,7 @@ namespace FluentDocker.Tests.Integration.DockerApiDriver
     public async Task Container_Inspect_ReturnsContainerDetails()
     {
       await EnsureImageAsync(TestImage);
-      string containerId = null;
+      string? containerId = null;
 
       try
       {
@@ -135,7 +135,7 @@ namespace FluentDocker.Tests.Integration.DockerApiDriver
     {
       await EnsureImageAsync(TestImage);
       var name = UniqueName("list");
-      string containerId = null;
+      string? containerId = null;
 
       try
       {
@@ -198,7 +198,7 @@ namespace FluentDocker.Tests.Integration.DockerApiDriver
 
       // Skip (not pass) if pull fails due to network/rate-limit issues
       if (!pullResult.Success)
-        throw new Exception("$XunitDynamicSkip$" +
+        throw new InvalidOperationException("$XunitDynamicSkip$" +
             "Image pull failed (network/rate-limit): " + pullResult.Error);
 
       // Verify the image appears in the list
@@ -219,7 +219,7 @@ namespace FluentDocker.Tests.Integration.DockerApiDriver
     public async Task Network_CreateAndRemove()
     {
       var name = UniqueName("net");
-      string networkId = null;
+      string? networkId = null;
 
       try
       {

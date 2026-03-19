@@ -53,7 +53,7 @@ namespace FluentDocker.Model.Common
         return baseString.TrimEnd('/');
 
       if (Scheme == "npipe")
-        return baseString.Substring(0, 6) + "//" + baseString.Substring(6);
+        return string.Concat(baseString.AsSpan(0, 6), "//", baseString.AsSpan(6));
 
       return baseString;
     }

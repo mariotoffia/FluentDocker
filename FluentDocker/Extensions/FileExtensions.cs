@@ -8,10 +8,10 @@ namespace FluentDocker.Extensions
   {
     public static string EscapePath(this string path)
     {
-      if (string.IsNullOrEmpty(path) || -1 == path.IndexOf(' '))
+      if (string.IsNullOrEmpty(path) || !path.Contains(' '))
         return path;
 
-      return path.StartsWith("\"") ? path : $"\"{path}\"";
+      return path.StartsWith('"') ? path : $"\"{path}\"";
     }
 
     public static TemplateString EscapePath(this TemplateString path)
@@ -20,10 +20,10 @@ namespace FluentDocker.Extensions
         return path;
 
       var p = path.Rendered;
-      if (-1 == p.IndexOf(' '))
+      if (!p.Contains(' '))
         return path;
 
-      return p.StartsWith("\"") ? path : new TemplateString($"\"{p}\"");
+      return p.StartsWith('"') ? path : new TemplateString($"\"{p}\"");
     }
 
     public static void ToFile(this string contents, TemplateString fqPath)

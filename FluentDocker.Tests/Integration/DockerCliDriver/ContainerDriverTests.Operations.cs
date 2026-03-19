@@ -16,7 +16,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
     [Fact]
     public async Task Exec_InRunningContainer_ExecutesCommand()
     {
-      string containerId = null;
+      string? containerId = null;
       try
       {
         // Arrange
@@ -34,14 +34,14 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
       }
       finally
       {
-        await RemoveContainerAsync(containerId);
+        await RemoveContainerAsync(containerId!);
       }
     }
 
     [Fact]
     public async Task Top_RunningContainer_ReturnsProcesses()
     {
-      string containerId = null;
+      string? containerId = null;
       try
       {
         // Arrange
@@ -57,14 +57,14 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
       }
       finally
       {
-        await RemoveContainerAsync(containerId);
+        await RemoveContainerAsync(containerId!);
       }
     }
 
     [Fact]
     public async Task Rename_ExistingContainer_RenamesSuccessfully()
     {
-      string containerId = null;
+      string? containerId = null;
       var newName = UniqueName("renamed");
       try
       {
@@ -82,14 +82,14 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
       }
       finally
       {
-        await RemoveContainerAsync(containerId);
+        await RemoveContainerAsync(containerId!);
       }
     }
 
     [Fact]
     public async Task Kill_RunningContainer_KillsContainer()
     {
-      string containerId = null;
+      string? containerId = null;
       try
       {
         // Arrange
@@ -107,14 +107,14 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
       }
       finally
       {
-        await RemoveContainerAsync(containerId);
+        await RemoveContainerAsync(containerId!);
       }
     }
 
     [Fact]
     public async Task Stats_RunningContainer_ReturnsResourceUsage()
     {
-      string containerId = null;
+      string? containerId = null;
       try
       {
         // Arrange
@@ -136,14 +136,14 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
       }
       finally
       {
-        await RemoveContainerAsync(containerId);
+        await RemoveContainerAsync(containerId!);
       }
     }
 
     [Fact]
     public async Task CopyTo_FileToContainer_Succeeds()
     {
-      string containerId = null;
+      string? containerId = null;
       var tempFile = System.IO.Path.GetTempFileName();
       try
       {
@@ -180,7 +180,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
       }
       finally
       {
-        await RemoveContainerAsync(containerId);
+        await RemoveContainerAsync(containerId!);
         if (System.IO.File.Exists(tempFile))
           System.IO.File.Delete(tempFile);
       }
@@ -189,7 +189,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
     [Fact]
     public async Task CopyFrom_FileFromContainer_Succeeds()
     {
-      string containerId = null;
+      string? containerId = null;
       var tempDir = System.IO.Path.Combine(System.IO.Path.GetTempPath(), System.Guid.NewGuid().ToString());
       try
       {
@@ -232,7 +232,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
       }
       finally
       {
-        await RemoveContainerAsync(containerId);
+        await RemoveContainerAsync(containerId!);
         if (System.IO.Directory.Exists(tempDir))
           System.IO.Directory.Delete(tempDir, true);
       }
@@ -241,7 +241,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
     [Fact]
     public async Task CopyTo_DirectoryToContainer_Succeeds()
     {
-      string containerId = null;
+      string? containerId = null;
       var tempDir = System.IO.Path.Combine(System.IO.Path.GetTempPath(), System.Guid.NewGuid().ToString());
       try
       {
@@ -271,7 +271,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
       }
       finally
       {
-        await RemoveContainerAsync(containerId);
+        await RemoveContainerAsync(containerId!);
         if (System.IO.Directory.Exists(tempDir))
           System.IO.Directory.Delete(tempDir, true);
       }
@@ -280,8 +280,8 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
     [Fact]
     public async Task Run_WithStaticIPv4_AssignsIPAddress()
     {
-      string containerId = null;
-      string networkId = null;
+      string? containerId = null;
+      string? networkId = null;
       var networkName = UniqueName("ipv4-test-net");
       // Use a less common subnet to avoid conflicts with existing Docker networks
       var staticIp = "10.199.0.100";
@@ -325,7 +325,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
       }
       finally
       {
-        await RemoveContainerAsync(containerId);
+        await RemoveContainerAsync(containerId!);
         await RemoveNetworkAsync(networkId);
       }
     }

@@ -40,8 +40,8 @@ namespace FluentDocker.Model.Builders
     public bool IsWindowsImage { get; set; }
     public bool StopOnDispose { get; set; } = true;
     public bool DeleteOnDispose { get; set; } = true;
-    public bool DeleteVolumeOnDispose { get; set; } = false;
-    public bool DeleteNamedVolumeOnDispose { get; set; } = false;
+    public bool DeleteVolumeOnDispose { get; set; }
+    public bool DeleteNamedVolumeOnDispose { get; set; }
     public Func<Dictionary<string, HostIpEndpoint[]>, string, Uri, IPEndPoint> CustomResolver { get; set; }
     public string Command { get; set; }
     public string[] Arguments { get; set; }

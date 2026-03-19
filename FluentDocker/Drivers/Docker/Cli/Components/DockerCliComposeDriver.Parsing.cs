@@ -26,7 +26,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
         return result;
 
       // Split into blocks separated by one or more blank lines.
-      var lines = output.Split(new[] { '\n' });
+      var lines = output.Split(NewlineSeparator);
       var blocks = new List<List<string>>();
       var currentBlock = new List<string>();
 

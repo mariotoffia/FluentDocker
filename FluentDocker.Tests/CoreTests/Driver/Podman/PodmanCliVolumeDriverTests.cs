@@ -79,6 +79,53 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
       Assert.NotNull(result);
     }
 
+    [Fact]
+    public void ParseVolumeList_WithMountpointLabelsOptions_ParsesAll()
+    {
+      var json = @"[{
+        ""Name"":""data-vol"",""Driver"":""local"",""Scope"":""local"",
+        ""Mountpoint"":""/var/lib/containers/storage/volumes/data-vol/_data"",
+        ""Labels"":{""env"":""staging"",""app"":""web""},
+        ""Options"":{""type"":""tmpfs"",""device"":""tmpfs""}
+      }]";
+
+      var result = InvokeParseVolumeList(json);
+      Assert.Single(result);
+      Assert.Equal("/var/lib/containers/storage/volumes/data-vol/_data", result[0].Mountpoint);
+      Assert.Equal("staging", result[0].Labels["env"]);
+      Assert.Equal("web", result[0].Labels["app"]);
+      Assert.Equal("tmpfs", result[0].Options["type"]);
+    }
+
+    [Fact]
+    public void ParseVolumeInspect_WithExpandedFields_ParsesAll()
+    {
+      var json = @"[{
+        ""Name"":""nfs-vol"",""Driver"":""local"",""Scope"":""local"",
+        ""Mountpoint"":""/data/nfs"",
+        ""Labels"":{""team"":""infra""},
+        ""Options"":{""o"":""addr=10.0.0.1,rw""}
+      }]";
+
+      var result = InvokeParseVolumeInspect(json);
+      Assert.Equal("nfs-vol", result.Name);
+      Assert.Equal("/data/nfs", result.Mountpoint);
+      Assert.Equal("infra", result.Labels["team"]);
+      Assert.Equal("addr=10.0.0.1,rw", result.Options["o"]);
+    }
+
+    [Fact]
+    public void ParseVolumeList_WithoutOptionalFields_ReturnsNulls()
+    {
+      var json = @"[{""Name"":""basic"",""Driver"":""local""}]";
+
+      var result = InvokeParseVolumeList(json);
+      Assert.Single(result);
+      Assert.Null(result[0].Mountpoint);
+      Assert.Null(result[0].Labels);
+      Assert.Null(result[0].Options);
+    }
+
     #region Reflection Helpers
 
     private static IList<Volume> InvokeParseVolumeList(string json)

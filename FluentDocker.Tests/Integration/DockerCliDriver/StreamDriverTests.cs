@@ -24,7 +24,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
     [Fact]
     public async Task StreamLogs_RunningContainer_ReturnsLogEntries()
     {
-      string containerId = null;
+      string? containerId = null;
       try
       {
         var runResult = await ContainerDriver.RunAsync(Context,
@@ -60,14 +60,14 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
       }
       finally
       {
-        await RemoveContainerAsync(containerId);
+        await RemoveContainerAsync(containerId!);
       }
     }
 
     [Fact]
     public async Task StreamLogs_WithTail_LimitsOutput()
     {
-      string containerId = null;
+      string? containerId = null;
       try
       {
         var runResult = await ContainerDriver.RunAsync(Context,
@@ -98,7 +98,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
       }
       finally
       {
-        await RemoveContainerAsync(containerId);
+        await RemoveContainerAsync(containerId!);
       }
     }
 
@@ -109,7 +109,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
     [Fact]
     public async Task StreamEvents_ContainerCreate_CapturesEvent()
     {
-      string containerId = null;
+      string? containerId = null;
       try
       {
         var events = new List<ContainerEvent>();
@@ -153,7 +153,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
       }
       finally
       {
-        await RemoveContainerAsync(containerId);
+        await RemoveContainerAsync(containerId!);
       }
     }
 
@@ -164,7 +164,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
     [Fact]
     public async Task StreamStats_RunningContainer_ReturnsCpuMemory()
     {
-      string containerId = null;
+      string? containerId = null;
       try
       {
         containerId = await RunContainerAsync(NginxImage);
@@ -195,7 +195,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
       }
       finally
       {
-        await RemoveContainerAsync(containerId);
+        await RemoveContainerAsync(containerId!);
       }
     }
 
@@ -209,7 +209,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
       // NOTE: Container must NOT use Tty=true because the CLI attach process
       // uses redirected stdio (not a real TTY), and docker attach to a TTY
       // container fails with "the input device is not a TTY".
-      string containerId = null;
+      string? containerId = null;
       AttachResult attachResult = null;
       try
       {
@@ -235,14 +235,14 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
       {
         if (attachResult != null)
           await attachResult.DisposeAsync();
-        await RemoveContainerAsync(containerId);
+        await RemoveContainerAsync(containerId!);
       }
     }
 
     [Fact]
     public async Task AttachAsync_ToRunningContainer_CanReadOutput()
     {
-      string containerId = null;
+      string? containerId = null;
       AttachResult attachResult = null;
       try
       {
@@ -289,14 +289,14 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
       {
         if (attachResult != null)
           await attachResult.DisposeAsync();
-        await RemoveContainerAsync(containerId);
+        await RemoveContainerAsync(containerId!);
       }
     }
 
     [Fact]
     public async Task AttachAsync_DisposeAsync_DisconnectsCleanly()
     {
-      string containerId = null;
+      string? containerId = null;
       try
       {
         containerId = await RunContainerAsync(TestImage,
@@ -322,7 +322,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
       }
       finally
       {
-        await RemoveContainerAsync(containerId);
+        await RemoveContainerAsync(containerId!);
       }
     }
 

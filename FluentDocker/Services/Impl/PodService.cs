@@ -2,9 +2,12 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using FluentDocker.Common;
 using FluentDocker.Drivers.Podman;
 using FluentDocker.Kernel;
 using FluentDocker.Model.Drivers;
+
+#pragma warning disable CS0618 // IService obsolete — intentional usage
 
 namespace FluentDocker.Services.Impl
 {
@@ -25,9 +28,12 @@ namespace FluentDocker.Services.Impl
         FluentDockerKernel kernel, string driverId,
         string podId, string podName, bool removeOnDispose = false)
     {
-      _kernel = kernel ?? throw new ArgumentNullException(nameof(kernel));
-      _driverId = driverId ?? throw new ArgumentNullException(nameof(driverId));
-      _podId = podId ?? throw new ArgumentNullException(nameof(podId));
+      ArgumentNullException.ThrowIfNull(kernel);
+      ArgumentNullException.ThrowIfNull(driverId);
+      ArgumentNullException.ThrowIfNull(podId);
+      _kernel = kernel;
+      _driverId = driverId;
+      _podId = podId;
       _podName = podName ?? podId;
       _removeOnDispose = removeOnDispose;
     }
@@ -38,7 +44,9 @@ namespace FluentDocker.Services.Impl
     public FluentDockerKernel Kernel => _kernel;
     public string DriverId => _driverId;
 
+#pragma warning disable CA1710 // Delegate name 'StateChange' — intentional API design
     public event ServiceDelegates.StateChange StateChange;
+#pragma warning restore CA1710
 
     public async Task StartAsync(CancellationToken cancellationToken = default)
     {
@@ -105,15 +113,21 @@ namespace FluentDocker.Services.Impl
     public void Dispose()
     {
       DisposeAsync().AsTask().GetAwaiter().GetResult();
+      GC.SuppressFinalize(this);
     }
 
     public async ValueTask DisposeAsync()
     {
       if (!_removeOnDispose)
+      {
+        GC.SuppressFinalize(this);
         return;
+      }
+
       try
       { await RemoveAsync(force: true); }
-      catch { }
+      catch (Exception ex) { Logger.Log($"PodService DisposeAsync failed: {ex.Message}"); }
+      GC.SuppressFinalize(this);
     }
 
     private void UpdateState(ServiceRunningState newState)

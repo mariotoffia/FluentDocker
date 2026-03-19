@@ -8,8 +8,11 @@ namespace FluentDocker.Services
 {
   /// <summary>
   /// Async service interface with kernel/driver architecture.
+  /// This is the preferred service interface — use this instead of <see cref="IService"/>.
   /// </summary>
+#pragma warning disable CS0618 // IServiceAsync intentionally extends IService for backwards compat
   public interface IServiceAsync : IService, IAsyncDisposable
+#pragma warning restore CS0618
   {
     /// <summary>
     /// The kernel instance managing this service.

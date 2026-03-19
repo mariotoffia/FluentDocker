@@ -69,7 +69,7 @@ namespace FluentDocker.Tests.CoreTests.Extensions
     {
       // Arrange
 #pragma warning disable CS8600
-      string nullString = null;
+      string? nullString = null;
 #pragma warning restore CS8600
       var emptyString = "";
       var whitespace = "   ";
@@ -226,7 +226,7 @@ namespace FluentDocker.Tests.CoreTests.Extensions
 
       // Act
       sb.Append("docker");
-      sb.Append(" ");
+      sb.Append(' ');
       sb.Append("run");
       sb.Append(" -d");
 

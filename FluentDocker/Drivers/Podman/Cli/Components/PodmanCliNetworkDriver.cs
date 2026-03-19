@@ -1,11 +1,12 @@
 using System;
 using System.Collections.Generic;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
+using FluentDocker.Common;
 using FluentDocker.Drivers.Docker.Cli;
 using FluentDocker.Drivers.Podman.Cli.Binary;
 using FluentDocker.Model.Drivers;
-using Newtonsoft.Json.Linq;
 
 namespace FluentDocker.Drivers.Podman.Cli.Components
 {
@@ -199,7 +200,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
 
     #region JSON Parsing
 
-    private static IList<Network> ParseNetworkList(string json)
+    private static List<Network> ParseNetworkList(string json)
     {
       var networks = new List<Network>();
       if (string.IsNullOrWhiteSpace(json))
@@ -208,16 +209,16 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       try
       {
         var trimmed = json.Trim();
-        if (trimmed.StartsWith("["))
+        if (trimmed.StartsWith('['))
         {
-          var arr = JArray.Parse(trimmed);
-          foreach (var token in arr)
+          var root = JsonHelper.ParseElement(trimmed);
+          foreach (var token in root.EnumerateArraySafe())
             networks.Add(ParseNetworkFromToken(token));
         }
         else
         {
           foreach (var line in trimmed.Split('\n', StringSplitOptions.RemoveEmptyEntries))
-            networks.Add(ParseNetworkFromToken(JObject.Parse(line.Trim())));
+            networks.Add(ParseNetworkFromToken(JsonHelper.ParseElement(line.Trim())));
         }
       }
       catch { /* Return partial results */ }
@@ -225,18 +226,17 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       return networks;
     }
 
-    private static Network ParseNetworkFromToken(JToken token)
+    private static Network ParseNetworkFromToken(JsonElement token)
     {
       return new Network
       {
-        Id = token["ID"]?.Value<string>() ?? token["Id"]?.Value<string>(),
-        Name = token["Name"]?.Value<string>() ?? token["name"]?.Value<string>(),
-        Driver = token["Driver"]?.Value<string>() ?? token["driver"]?.Value<string>(),
-        Scope = token["Scope"]?.Value<string>(),
-        IPv6 = token["IPv6Enabled"]?.Value<bool>() ?? token["ipv6_enabled"]?.Value<bool>() ?? false,
-        Internal = token["Internal"]?.Value<bool>() ?? token["internal"]?.Value<bool>() ?? false,
-        Labels = token["Labels"]?.ToObject<Dictionary<string, string>>()
-                   ?? new Dictionary<string, string>()
+        Id = token.GetStringOrDefault("ID") ?? token.GetStringOrDefault("Id"),
+        Name = token.GetStringOrDefault("Name") ?? token.GetStringOrDefault("name"),
+        Driver = token.GetStringOrDefault("Driver") ?? token.GetStringOrDefault("driver"),
+        Scope = token.GetStringOrDefault("Scope"),
+        IPv6 = token.GetBoolOrDefault("IPv6Enabled") || token.GetBoolOrDefault("ipv6_enabled"),
+        Internal = token.GetBoolOrDefault("Internal") || token.GetBoolOrDefault("internal"),
+        Labels = token.GetStringDictionary("Labels")
       };
     }
 
@@ -245,21 +245,25 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       try
       {
         var trimmed = json.Trim();
-        JToken token;
-        if (trimmed.StartsWith("["))
+        JsonElement token;
+        if (trimmed.StartsWith('['))
         {
-          var arr = JArray.Parse(trimmed);
-          token = arr.First;
+          var root = JsonHelper.ParseElement(trimmed);
+          using var enumerator = root.EnumerateArray();
+          if (!enumerator.MoveNext())
+            return new Network();
+          token = enumerator.Current;
         }
         else
         {
-          token = JObject.Parse(trimmed);
+          token = JsonHelper.ParseElement(trimmed);
         }
 
         return ParseNetworkFromToken(token);
       }
-      catch
+      catch (Exception ex)
       {
+        Logger.Log($"Podman network inspect parsing failed: {ex.Message}");
         return new Network();
       }
     }

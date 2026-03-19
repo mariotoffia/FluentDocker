@@ -24,7 +24,7 @@ namespace FluentDocker.Tests.Integration.DockerApiDriver
       Assert.True(listResult.Success);
 
       var alpine = listResult.Data.FirstOrDefault(
-          i => i.RepoTags?.Any(t => t.Contains("alpine")) == true) ?? throw new Exception("$XunitDynamicSkip$Alpine image not found");
+          i => i.RepoTags?.Any(t => t.Contains("alpine")) == true) ?? throw new InvalidOperationException("$XunitDynamicSkip$Alpine image not found");
 
       var inspectResult = await ImageDriver.InspectAsync(Context, alpine.Id, cancellationToken: TestContext.Current.CancellationToken);
 
@@ -49,7 +49,7 @@ namespace FluentDocker.Tests.Integration.DockerApiDriver
         Assert.True(listResult.Success);
 
         var alpine = listResult.Data.FirstOrDefault(
-            i => i.RepoTags?.Any(t => t.Contains("alpine")) == true) ?? throw new Exception("$XunitDynamicSkip$Alpine image not found");
+            i => i.RepoTags?.Any(t => t.Contains("alpine")) == true) ?? throw new InvalidOperationException("$XunitDynamicSkip$Alpine image not found");
 
         var tagResult = await ImageDriver.TagAsync(
             Context, alpine.Id, "localhost/test-repo", tagName, cancellationToken: TestContext.Current.CancellationToken);
@@ -86,7 +86,7 @@ namespace FluentDocker.Tests.Integration.DockerApiDriver
 
       var listResult = await ImageDriver.ListAsync(Context, cancellationToken: TestContext.Current.CancellationToken);
       var alpine = listResult.Data.FirstOrDefault(
-          i => i.RepoTags?.Any(t => t.Contains("alpine")) == true) ?? throw new Exception("$XunitDynamicSkip$Alpine image not found");
+          i => i.RepoTags?.Any(t => t.Contains("alpine")) == true) ?? throw new InvalidOperationException("$XunitDynamicSkip$Alpine image not found");
 
       var historyResult = await ImageDriver.HistoryAsync(
           Context, alpine.Id, cancellationToken: TestContext.Current.CancellationToken);
@@ -111,7 +111,7 @@ namespace FluentDocker.Tests.Integration.DockerApiDriver
       // Tag it so we can safely remove the tag without losing the base image
       var listResult = await ImageDriver.ListAsync(Context, cancellationToken: TestContext.Current.CancellationToken);
       var busybox = listResult.Data.FirstOrDefault(
-          i => i.RepoTags?.Any(t => t.Contains("busybox")) == true) ?? throw new Exception("$XunitDynamicSkip$Busybox image not found");
+          i => i.RepoTags?.Any(t => t.Contains("busybox")) == true) ?? throw new InvalidOperationException("$XunitDynamicSkip$Busybox image not found");
 
       var tempTag = $"remove-test-{Guid.NewGuid():N}"[..20];
       await ImageDriver.TagAsync(

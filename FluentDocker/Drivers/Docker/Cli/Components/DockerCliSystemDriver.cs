@@ -5,10 +5,9 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using FluentDocker.Common;
+using System.Text.Json;
 using FluentDocker.Drivers.Docker.Cli.Binary;
 using FluentDocker.Model.Drivers;
-using Newtonsoft.Json;
-using Newtonsoft.Json.Linq;
 
 namespace FluentDocker.Drivers.Docker.Cli.Components
 {
@@ -17,6 +16,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
   /// </summary>
   public class DockerCliSystemDriver : DockerCliDriverBase, ISystemDriver
   {
+    private static readonly char[] LineSeparators = ['\n', '\r'];
     /// <summary>
     /// Creates a new instance with the specified binary resolver.
     /// </summary>
@@ -42,7 +42,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
               ErrorCodes.General.Unknown);
         }
 
-        var info = JsonConvert.DeserializeObject<DockerSystemInfo>(result.Output) ?? new DockerSystemInfo();
+        var info = JsonSerializer.Deserialize<DockerSystemInfo>(result.Output, JsonHelper.CaseInsensitiveOptions) ?? new DockerSystemInfo();
         info.PopulateMeta();
         return CommandResponse<SystemInfo>.Ok(info);
       }
@@ -68,7 +68,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
               ErrorCodes.General.Unknown);
         }
 
-        var version = JsonConvert.DeserializeObject<DockerVersionInfo>(result.Output) ?? new DockerVersionInfo();
+        var version = JsonSerializer.Deserialize<DockerVersionInfo>(result.Output, JsonHelper.CaseInsensitiveOptions) ?? new DockerVersionInfo();
         version.PopulateMeta();
         return CommandResponse<VersionInfo>.Ok(version);
       }
@@ -130,8 +130,9 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
         var isLinux = !versionResult.Data?.Os?.Equals("windows", StringComparison.OrdinalIgnoreCase) ?? true;
         return CommandResponse<bool>.Ok(isLinux);
       }
-      catch
+      catch (Exception ex)
       {
+        Logger.Log($"Windows engine detection failed: {ex.Message}");
         return CommandResponse<bool>.Ok(true); // Default to Linux
       }
     }
@@ -339,7 +340,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
       if (string.IsNullOrWhiteSpace(output))
         return info;
 
-      var lines = output.Split(new[] { '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries);
+      var lines = output.Split(LineSeparators, StringSplitOptions.RemoveEmptyEntries);
       foreach (var line in lines)
       {
         var trimmed = line.Trim();
@@ -348,14 +349,14 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
 
         try
         {
-          var obj = JObject.Parse(trimmed);
-          var type = obj["Type"]?.Value<string>() ?? "";
+          var obj = JsonHelper.ParseElement(trimmed);
+          var type = obj.GetStringOrDefault("Type") ?? "";
           var item = new DiskUsageItem
           {
-            TotalCount = obj["TotalCount"]?.Value<int>() ?? 0,
-            Active = obj["Active"]?.Value<int>() ?? 0,
-            Size = ParseHumanReadableBytes(obj["Size"]?.Value<string>()),
-            Reclaimable = ParseReclaimableBytes(obj["Reclaimable"]?.Value<string>())
+            TotalCount = obj.GetInt32OrDefault("TotalCount"),
+            Active = obj.GetInt32OrDefault("Active"),
+            Size = ParseHumanReadableBytes(obj.GetStringOrDefault("Size")),
+            Reclaimable = ParseReclaimableBytes(obj.GetStringOrDefault("Reclaimable"))
           };
 
           switch (type)
@@ -374,9 +375,9 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
               break;
           }
         }
-        catch
+        catch (Exception ex)
         {
-          // Skip malformed lines
+          Logger.Log($"Disk usage JSON parsing failed: {ex.Message}");
         }
       }
 

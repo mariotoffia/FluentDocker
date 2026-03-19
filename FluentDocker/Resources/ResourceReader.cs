@@ -1,3 +1,4 @@
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
@@ -30,6 +31,7 @@ namespace FluentDocker.Resources
       public void Dispose()
       {
         _pos = -2;
+        GC.SuppressFinalize(this);
       }
 
       public bool MoveNext()

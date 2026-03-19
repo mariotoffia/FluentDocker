@@ -7,6 +7,8 @@ using FluentDocker.Model.Drivers;
 using FluentDocker.Tests.Mocks;
 using Xunit;
 
+#pragma warning disable CS0618 // DriverComponent obsolete — intentional usage
+
 namespace FluentDocker.Tests.CoreTests.Kernel
 {
   /// <summary>

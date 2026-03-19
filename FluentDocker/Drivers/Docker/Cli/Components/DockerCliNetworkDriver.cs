@@ -4,9 +4,9 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using FluentDocker.Common;
+using System.Text.Json;
 using FluentDocker.Drivers.Docker.Cli.Binary;
 using FluentDocker.Model.Drivers;
-using Newtonsoft.Json;
 
 namespace FluentDocker.Drivers.Docker.Cli.Components
 {
@@ -15,6 +15,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
   /// </summary>
   public class DockerCliNetworkDriver : DockerCliDriverBase, INetworkDriver
   {
+    private static readonly char[] LineSeparators = ['\n', '\r'];
     /// <summary>
     /// Creates a new instance with the specified binary resolver.
     /// </summary>
@@ -142,19 +143,19 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
         }
 
         var networks = new List<Network>();
-        var lines = result.Output.Split(new[] { '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries);
+        var lines = result.Output.Split(LineSeparators, StringSplitOptions.RemoveEmptyEntries);
 
         foreach (var line in lines)
         {
           try
           {
-            var network = JsonConvert.DeserializeObject<Network>(line);
+            var network = JsonSerializer.Deserialize<Network>(line, JsonHelper.CaseInsensitiveOptions);
             if (network != null)
               networks.Add(network);
           }
-          catch
+          catch (Exception ex)
           {
-            // Skip malformed lines
+            Logger.Log($"Network list JSON parsing failed: {ex.Message}");
           }
         }
 
@@ -185,7 +186,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
               result.ExitCode);
         }
 
-        var networks = JsonConvert.DeserializeObject<List<Network>>(result.Output);
+        var networks = JsonSerializer.Deserialize<List<Network>>(result.Output, JsonHelper.CaseInsensitiveOptions);
         return CommandResponse<Network>.Ok(networks?.FirstOrDefault() ?? new Network());
       }
       catch (Exception ex)

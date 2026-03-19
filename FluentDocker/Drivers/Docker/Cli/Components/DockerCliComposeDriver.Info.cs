@@ -3,8 +3,8 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using FluentDocker.Common;
+using System.Text.Json;
 using FluentDocker.Model.Drivers;
-using Newtonsoft.Json;
 
 namespace FluentDocker.Drivers.Docker.Cli.Components
 {
@@ -128,29 +128,29 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
         var output = result.Output.Trim();
 
         // Docker Compose V2 may return a JSON array or NDJSON
-        if (output.StartsWith("["))
+        if (output.StartsWith('['))
         {
           try
           {
-            var arr = JsonConvert.DeserializeObject<List<ComposeImage>>(output);
+            var arr = JsonSerializer.Deserialize<List<ComposeImage>>(output, JsonHelper.CaseInsensitiveOptions);
             if (arr != null)
               images.AddRange(arr);
           }
-          catch { }
+          catch (Exception ex) { Logger.Log($"Compose images array JSON parsing failed: {ex.Message}"); }
         }
         else
         {
           var lines = output.Split(
-              new[] { '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries);
+              LineSeparators, StringSplitOptions.RemoveEmptyEntries);
           foreach (var line in lines)
           {
             try
             {
-              var image = JsonConvert.DeserializeObject<ComposeImage>(line);
+              var image = JsonSerializer.Deserialize<ComposeImage>(line, JsonHelper.CaseInsensitiveOptions);
               if (image != null)
                 images.Add(image);
             }
-            catch { }
+            catch (Exception ex) { Logger.Log($"Compose image line JSON parsing failed: {ex.Message}"); }
           }
         }
 

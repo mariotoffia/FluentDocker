@@ -76,12 +76,12 @@ namespace FluentDocker.Kernel
         if (config.DriverPack != null)
         {
           await kernel.RegisterDriverPackAsync(
-              config.DriverId, config.DriverPack, config.Context, cancellationToken);
+              config.DriverId, config.DriverPack, config.Context, cancellationToken).ConfigureAwait(false);
         }
         else if (config.Driver != null)
         {
           await kernel.RegisterDriverAsync(
-              config.DriverId, config.Driver, config.Context, cancellationToken);
+              config.DriverId, config.Driver, config.Context, cancellationToken).ConfigureAwait(false);
         }
 
         if (config.IsDefault)
@@ -95,11 +95,10 @@ namespace FluentDocker.Kernel
     {
       if (string.IsNullOrWhiteSpace(driverId))
         throw new ArgumentException("Driver ID cannot be null or empty", nameof(driverId));
-      if (configure == null)
-        throw new ArgumentNullException(nameof(configure));
+      ArgumentNullException.ThrowIfNull(configure);
     }
 
-    internal class DriverConfiguration
+    internal sealed class DriverConfiguration
     {
       public string DriverId { get; set; }
       public IDriver Driver { get; set; }
@@ -112,7 +111,7 @@ namespace FluentDocker.Kernel
   /// <summary>
   /// Builder for configuring a custom driver (via <see cref="IKernelBuilder.WithDriver"/>).
   /// </summary>
-  internal class DriverBuilder(string driverId) : IDriverBuilder
+  internal sealed class DriverBuilder(string driverId) : IDriverBuilder
   {
     private readonly string _driverId = driverId;
     private IDriver _driver;
@@ -123,14 +122,16 @@ namespace FluentDocker.Kernel
 
     public IDriverBuilder UseCustomDriver(IDriver driver)
     {
-      _driver = driver ?? throw new ArgumentNullException(nameof(driver));
+      ArgumentNullException.ThrowIfNull(driver);
+      _driver = driver;
       _driverPack = null;
       return this;
     }
 
     public IDriverBuilder UseCustomDriverPack(IDriverPack driverPack)
     {
-      _driverPack = driverPack ?? throw new ArgumentNullException(nameof(driverPack));
+      ArgumentNullException.ThrowIfNull(driverPack);
+      _driverPack = driverPack;
       _driver = null;
       return this;
     }

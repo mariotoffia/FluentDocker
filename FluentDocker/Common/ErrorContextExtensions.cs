@@ -18,8 +18,7 @@ namespace FluentDocker.Common
     /// <returns>The same error context for fluent chaining.</returns>
     public static ErrorContext WithMetadata(this ErrorContext context, string key, string value)
     {
-      if (context == null)
-        throw new ArgumentNullException(nameof(context));
+      ArgumentNullException.ThrowIfNull(context);
       context.Metadata ??= new Dictionary<string, string>();
       context.Metadata[key] = value;
       return context;
@@ -33,8 +32,7 @@ namespace FluentDocker.Common
     /// <returns>The same error context for fluent chaining.</returns>
     public static ErrorContext WithDriverId(this ErrorContext context, string driverId)
     {
-      if (context == null)
-        throw new ArgumentNullException(nameof(context));
+      ArgumentNullException.ThrowIfNull(context);
       context.DriverId = driverId;
       return context;
     }
@@ -47,8 +45,7 @@ namespace FluentDocker.Common
     /// <returns>The same error context for fluent chaining.</returns>
     public static ErrorContext WithHost(this ErrorContext context, string host)
     {
-      if (context == null)
-        throw new ArgumentNullException(nameof(context));
+      ArgumentNullException.ThrowIfNull(context);
       context.Host = host;
       return context;
     }
@@ -61,8 +58,7 @@ namespace FluentDocker.Common
     /// <returns>The same error context for fluent chaining.</returns>
     public static ErrorContext WithExitCode(this ErrorContext context, int exitCode)
     {
-      if (context == null)
-        throw new ArgumentNullException(nameof(context));
+      ArgumentNullException.ThrowIfNull(context);
       context.ExitCode = exitCode;
       return context;
     }
@@ -75,8 +71,7 @@ namespace FluentDocker.Common
     /// <returns>The same error context for fluent chaining.</returns>
     public static ErrorContext WithStdOut(this ErrorContext context, string stdOut)
     {
-      if (context == null)
-        throw new ArgumentNullException(nameof(context));
+      ArgumentNullException.ThrowIfNull(context);
       context.StdOut = stdOut;
       return context;
     }
@@ -89,8 +84,7 @@ namespace FluentDocker.Common
     /// <returns>The same error context for fluent chaining.</returns>
     public static ErrorContext WithStdErr(this ErrorContext context, string stdErr)
     {
-      if (context == null)
-        throw new ArgumentNullException(nameof(context));
+      ArgumentNullException.ThrowIfNull(context);
       context.StdErr = stdErr;
       return context;
     }
@@ -103,8 +97,7 @@ namespace FluentDocker.Common
     /// <returns>The same error context for fluent chaining.</returns>
     public static ErrorContext WithOperationId(this ErrorContext context, string operationId)
     {
-      if (context == null)
-        throw new ArgumentNullException(nameof(context));
+      ArgumentNullException.ThrowIfNull(context);
       context.OperationId = operationId;
       return context;
     }
@@ -117,8 +110,7 @@ namespace FluentDocker.Common
     /// <returns>The same error context for fluent chaining.</returns>
     public static ErrorContext WithOperation(this ErrorContext context, string operation)
     {
-      if (context == null)
-        throw new ArgumentNullException(nameof(context));
+      ArgumentNullException.ThrowIfNull(context);
       context.Operation = operation;
       return context;
     }

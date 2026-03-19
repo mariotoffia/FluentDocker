@@ -1,5 +1,6 @@
+using System.Text.Json;
+using FluentDocker.Common;
 using FluentDocker.Drivers.Podman.Cli.Components;
-using Newtonsoft.Json.Linq;
 using Xunit;
 
 namespace FluentDocker.Tests.CoreTests.Driver.Podman
@@ -16,7 +17,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
     [Fact]
     public void ParseMounts_ArrayOfMounts_ParsesAllFields()
     {
-      var token = JArray.Parse(@"[
+      JsonElement? token = JsonHelper.ParseElement(@"[
                 {
                     ""Name"": ""data-vol"",
                     ""Source"": ""/host/path"",
@@ -59,7 +60,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
     [Fact]
     public void ParseMounts_EmptyArray_ReturnsEmptyArray()
     {
-      var token = JArray.Parse("[]");
+      JsonElement? token = JsonHelper.ParseElement("[]");
       var mounts = PodmanCliContainerDriver.ParseMounts(token);
       Assert.Empty(mounts);
     }
@@ -71,7 +72,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
     [Fact]
     public void ParseNetworkSettings_FullSettings_ParsesAllFields()
     {
-      var token = JObject.Parse(@"{
+      JsonElement? token = JsonHelper.ParseElement(@"{
                 ""Bridge"": ""podman0"",
                 ""SandboxID"": ""sandbox123"",
                 ""HairpinMode"": true,
@@ -136,7 +137,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
     [Fact]
     public void ParseNetworkSettings_SingleNetworkPodmanStyle_Parsed()
     {
-      var token = JObject.Parse(@"{
+      JsonElement? token = JsonHelper.ParseElement(@"{
                 ""Gateway"": ""10.88.0.1"",
                 ""IPAddress"": ""10.88.0.2"",
                 ""Networks"": {
@@ -157,7 +158,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
     [Fact]
     public void ParseNetworkSettings_NoPortsOrNetworks_NullCollections()
     {
-      var token = JObject.Parse(@"{ ""IPAddress"": ""10.0.0.1"" }");
+      JsonElement? token = JsonHelper.ParseElement(@"{ ""IPAddress"": ""10.0.0.1"" }");
       var ns = PodmanCliContainerDriver.ParseNetworkSettings(token);
 
       Assert.Equal("10.0.0.1", ns.IPAddress);
@@ -172,7 +173,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
     [Fact]
     public void ParsePorts_MultipleBindings_ParsedCorrectly()
     {
-      var token = JObject.Parse(@"{
+      JsonElement? token = JsonHelper.ParseElement(@"{
                 ""80/tcp"": [
                     { ""HostIp"": ""0.0.0.0"", ""HostPort"": ""8080"" },
                     { ""HostIp"": ""::"", ""HostPort"": ""8080"" }
@@ -193,7 +194,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
     [Fact]
     public void ParsePorts_NullBindings_EmptyArray()
     {
-      var token = JObject.Parse(@"{ ""9090/tcp"": null }");
+      JsonElement? token = JsonHelper.ParseElement(@"{ ""9090/tcp"": null }");
       var ports = PodmanCliContainerDriver.ParsePorts(token);
       Assert.Empty(ports["9090/tcp"]);
     }
@@ -211,7 +212,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
     [Fact]
     public void ParseNetworks_MultipleNetworks_AllParsed()
     {
-      var token = JObject.Parse(@"{
+      JsonElement? token = JsonHelper.ParseElement(@"{
                 ""frontend"": {
                     ""NetworkID"": ""net-front"",
                     ""IPAddress"": ""10.0.1.2"",
@@ -243,7 +244,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
     [Fact]
     public void ParseNetworks_NetworkWithAliases_ParsedCorrectly()
     {
-      var token = JObject.Parse(@"{
+      JsonElement? token = JsonHelper.ParseElement(@"{
                 ""mynet"": {
                     ""NetworkID"": ""net1"",
                     ""IPAddress"": ""10.0.0.5"",

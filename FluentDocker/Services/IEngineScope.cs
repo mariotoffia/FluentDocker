@@ -46,10 +46,6 @@ namespace FluentDocker.Services
     /// </summary>
     /// <returns>True if successful or already in Windows mode.</returns>
     Task<bool> UseWindowsAsync(CancellationToken cancellationToken = default);
-
-    /// <summary>
-    /// Disposes the scope asynchronously, restoring the original engine mode if changed.
-    /// </summary>
   }
 }
 

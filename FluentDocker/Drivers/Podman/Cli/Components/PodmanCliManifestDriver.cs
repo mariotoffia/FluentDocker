@@ -2,12 +2,12 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using FluentDocker.Common;
 using FluentDocker.Drivers.Podman.Cli.Binary;
 using FluentDocker.Model.Drivers;
-using Newtonsoft.Json.Linq;
 
 namespace FluentDocker.Drivers.Podman.Cli.Components
 {
@@ -26,8 +26,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
         DriverContext context, ManifestCreateConfig config,
         CancellationToken cancellationToken = default)
     {
-      if (config == null)
-        throw new ArgumentNullException(nameof(config));
+      ArgumentNullException.ThrowIfNull(config);
       if (string.IsNullOrEmpty(config.Name))
         throw new ArgumentException("Manifest name is required", nameof(config));
 
@@ -88,8 +87,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
         DriverContext context, ManifestAddConfig config,
         CancellationToken cancellationToken = default)
     {
-      if (config == null)
-        throw new ArgumentNullException(nameof(config));
+      ArgumentNullException.ThrowIfNull(config);
       if (string.IsNullOrEmpty(config.ListName))
         throw new ArgumentException("List name is required", nameof(config));
       if (string.IsNullOrEmpty(config.Image))
@@ -120,8 +118,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
         DriverContext context, ManifestAnnotateConfig config,
         CancellationToken cancellationToken = default)
     {
-      if (config == null)
-        throw new ArgumentNullException(nameof(config));
+      ArgumentNullException.ThrowIfNull(config);
       if (string.IsNullOrEmpty(config.ListName))
         throw new ArgumentException("List name is required", nameof(config));
       if (string.IsNullOrEmpty(config.Image))
@@ -156,8 +153,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
         DriverContext context, ManifestPushConfig config,
         CancellationToken cancellationToken = default)
     {
-      if (config == null)
-        throw new ArgumentNullException(nameof(config));
+      ArgumentNullException.ThrowIfNull(config);
       if (string.IsNullOrEmpty(config.ListName))
         throw new ArgumentException("List name is required", nameof(config));
       if (string.IsNullOrEmpty(config.Destination))
@@ -349,17 +345,19 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
 
       try
       {
-        var obj = JObject.Parse(json.Trim());
+        var obj = JsonHelper.ParseElement(json.Trim());
 
-        result.SchemaVersion =
-            (obj["schemaVersion"] ?? obj["SchemaVersion"])?.Value<int>() ?? 0;
-        result.MediaType =
-            (obj["mediaType"] ?? obj["MediaType"])?.Value<string>();
+        var svProp = obj.Prop("schemaVersion", "SchemaVersion");
+        if (svProp.HasValue && svProp.Value.ValueKind == JsonValueKind.Number)
+          result.SchemaVersion = svProp.Value.GetInt32();
 
-        var manifests = obj["manifests"] ?? obj["Manifests"];
-        if (manifests is JArray arr)
+        result.MediaType = obj.GetStringOrDefault("mediaType")
+                           ?? obj.GetStringOrDefault("MediaType");
+
+        var manifests = obj.Prop("manifests", "Manifests");
+        if (manifests.HasValue && manifests.Value.ValueKind == JsonValueKind.Array)
         {
-          foreach (var item in arr)
+          foreach (var item in manifests.Value.EnumerateArray())
             result.Manifests.Add(ParseManifestEntry(item));
         }
       }
@@ -368,39 +366,48 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       return result;
     }
 
-    private static ManifestEntry ParseManifestEntry(JToken token)
+    private static ManifestEntry ParseManifestEntry(JsonElement token)
     {
       var entry = new ManifestEntry
       {
-        MediaType = (token["mediaType"] ?? token["MediaType"])?.Value<string>(),
-        Size = (token["size"] ?? token["Size"])?.Value<long>() ?? 0,
-        Digest = (token["digest"] ?? token["Digest"])?.Value<string>()
+        MediaType = token.GetStringOrDefault("mediaType")
+                    ?? token.GetStringOrDefault("MediaType"),
+        Size = token.GetInt64OrDefault("size", token.GetInt64OrDefault("Size")),
+        Digest = token.GetStringOrDefault("digest")
+                 ?? token.GetStringOrDefault("Digest")
       };
 
-      var platform = token["platform"] ?? token["Platform"];
-      if (platform != null)
+      var platform = token.Prop("platform", "Platform");
+      if (platform.HasValue && !platform.Value.IsNullOrUndefined())
       {
+        var p = platform.Value;
         entry.Platform = new ManifestPlatform
         {
-          Architecture =
-                (platform["architecture"] ?? platform["Architecture"])?.Value<string>(),
-          Os = (platform["os"] ?? platform["Os"])?.Value<string>(),
-          Variant =
-                (platform["variant"] ?? platform["Variant"])?.Value<string>(),
-          OsVersion =
-                (platform["os.version"] ?? platform["OsVersion"])?.Value<string>()
+          Architecture = p.GetStringOrDefault("architecture")
+                         ?? p.GetStringOrDefault("Architecture"),
+          Os = p.GetStringOrDefault("os")
+               ?? p.GetStringOrDefault("Os"),
+          Variant = p.GetStringOrDefault("variant")
+                    ?? p.GetStringOrDefault("Variant"),
+          OsVersion = p.GetStringOrDefault("os.version")
+                      ?? p.GetStringOrDefault("OsVersion")
         };
 
-        var features = platform["features"] ?? platform["Features"];
-        if (features is JArray featArr)
-          entry.Platform.Features = featArr.Select(f => f.Value<string>()).ToList();
+        var features = p.Prop("features", "Features");
+        if (features.HasValue && features.Value.ValueKind == JsonValueKind.Array)
+        {
+          entry.Platform.Features = new List<string>();
+          foreach (var f in features.Value.EnumerateArray())
+            entry.Platform.Features.Add(f.GetString());
+        }
       }
 
-      var annotations = token["annotations"] ?? token["Annotations"];
-      if (annotations is JObject annObj)
+      var annotations = token.Prop("annotations", "Annotations");
+      if (annotations.HasValue && annotations.Value.ValueKind == JsonValueKind.Object)
       {
-        entry.Annotations = annObj.Properties()
-            .ToDictionary(p => p.Name, p => p.Value.Value<string>());
+        entry.Annotations = new Dictionary<string, string>();
+        foreach (var prop in annotations.Value.EnumerateObject())
+          entry.Annotations[prop.Name] = prop.Value.GetString();
       }
 
       return entry;

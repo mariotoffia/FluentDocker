@@ -1,3 +1,5 @@
+using System;
+
 namespace FluentDocker.Model.Stacks
 {
   public sealed class StackLsResponse
@@ -14,9 +16,9 @@ namespace FluentDocker.Model.Stacks
 
       value = value.ToLower();
 
-      if (value.Equals("kubernetes"))
+      if (value.Equals("kubernetes", StringComparison.Ordinal))
         return Orchestrator.Kubernetes;
-      return value.Equals("swarm") ? Orchestrator.Swarm : Orchestrator.All;
+      return value.Equals("swarm", StringComparison.Ordinal) ? Orchestrator.Swarm : Orchestrator.All;
     }
   }
 }

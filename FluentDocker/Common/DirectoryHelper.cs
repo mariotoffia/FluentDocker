@@ -11,7 +11,7 @@ namespace FluentDocker.Common
   ///   Helper to proper delete a directory and subdirectories.
   /// </summary>
   /// <remarks>
-  ///   This class is taken from the <see cref="LibGit2Sharp.Tests.TestHelpers" />.
+  ///   This class is taken from LibGit2Sharp.Tests.TestHelpers.
   /// </remarks>
   public static class DirectoryHelper
   {
@@ -35,6 +35,9 @@ namespace FluentDocker.Common
     /// </remarks>
     public static Func<string> GetTempPath { get; set; }
 
+    /// <summary>Recursively copies all files and subdirectories from source to target.</summary>
+    /// <param name="source">The source directory to copy from.</param>
+    /// <param name="target">The target directory to copy into.</param>
     public static void CopyFilesRecursively(DirectoryInfo source, DirectoryInfo target)
     {
       // From http://stackoverflow.com/questions/58744/best-way-to-copy-the-entire-contents-of-a-directory-in-c/58779#58779
@@ -47,9 +50,11 @@ namespace FluentDocker.Common
 
     private static string Rename(string name)
     {
-      return ToRename.ContainsKey(name) ? ToRename[name] : name;
+      return ToRename.TryGetValue(name, out var renamed) ? renamed : name;
     }
 
+    /// <summary>Deletes a directory and all its contents, retrying on transient IO errors.</summary>
+    /// <param name="directoryPath">The path of the directory to delete.</param>
     public static void DeleteDirectory(string directoryPath)
     {
       if (!Directory.Exists(directoryPath))

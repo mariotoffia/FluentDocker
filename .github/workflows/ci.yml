@@ -202,11 +202,17 @@ jobs:
         with:
           category: "/language:csharp"
 
-  # Scheduled integration tests
+  # Integration tests — run on PRs (ubuntu only), schedule, or manual dispatch
   integration-tests:
-    name: Integration Tests
-    runs-on: ubuntu-latest
+    name: Integration Tests (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        # PRs: ubuntu only (fast feedback). Schedule/dispatch: full matrix.
+        os: ${{ (github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.run_integration == true)) && fromJson('["ubuntu-latest","macos-latest","windows-latest"]') || fromJson('["ubuntu-latest"]') }}
+    runs-on: ${{ matrix.os }}
     if: >
+      github.event_name == 'pull_request' ||
       github.event_name == 'schedule' ||
       (github.event_name == 'workflow_dispatch' && inputs.run_integration == true)
     env:
@@ -221,10 +227,27 @@ jobs:
             8.0.x
             10.0.x
 
+      - name: Check Docker availability
+        id: docker-check
+        shell: bash
+        run: |
+          if docker info > /dev/null 2>&1; then
+            echo "available=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "available=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - run: dotnet restore
 
       - run: dotnet build --configuration Debug --no-restore
 
       - name: Run integration tests
+        if: steps.docker-check.outputs.available == 'true'
         run: dotnet test FluentDocker.Tests/FluentDocker.Tests.csproj --configuration Debug --no-build --verbosity normal
         timeout-minutes: 30
+
+      - name: Skip integration tests (no Docker)
+        if: steps.docker-check.outputs.available != 'true'
+        shell: bash
+        run: |
+          echo "Docker not available on this runner — skipping integration tests"

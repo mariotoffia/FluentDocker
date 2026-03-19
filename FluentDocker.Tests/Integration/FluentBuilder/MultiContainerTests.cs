@@ -37,6 +37,7 @@ namespace FluentDocker.Tests.Integration.FluentBuilder
 
     public async ValueTask DisposeAsync()
     {
+      GC.SuppressFinalize(this);
       // Cleanup test containers and networks created in this session
       await TestContainerUtils.CleanupAllTestResourcesAsync(_kernel, DriverId, _sessionId);
       _kernel?.Dispose();

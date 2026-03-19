@@ -1,13 +1,13 @@
 using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Runtime.CompilerServices;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
+using FluentDocker.Common;
 using FluentDocker.Drivers.Docker.Cli;
 using FluentDocker.Drivers.Podman.Cli.Binary;
 using FluentDocker.Model.Drivers;
-using Newtonsoft.Json.Linq;
 
 namespace FluentDocker.Drivers.Podman.Cli.Components
 {
@@ -169,17 +169,23 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
     {
       try
       {
-        var obj = JObject.Parse(json);
+        var obj = JsonHelper.ParseElement(json);
+        var actorProp = obj.Prop("Actor");
+        string actorId = null;
+        if (actorProp.HasValue)
+          actorId = actorProp.Value.GetStringOrDefault("ID");
+
         return new ContainerEvent
         {
-          Type = obj["Type"]?.Value<string>() ?? obj["type"]?.Value<string>(),
-          Action = obj["Action"]?.Value<string>() ?? obj["Status"]?.Value<string>(),
-          ActorId = obj["Actor"]?["ID"]?.Value<string>() ?? obj["id"]?.Value<string>(),
+          Type = obj.GetStringOrDefault("Type") ?? obj.GetStringOrDefault("type"),
+          Action = obj.GetStringOrDefault("Action") ?? obj.GetStringOrDefault("Status"),
+          ActorId = actorId ?? obj.GetStringOrDefault("id"),
           RawJson = json
         };
       }
-      catch
+      catch (Exception ex)
       {
+        Logger.Log($"Podman event parsing failed: {ex.Message}");
         return null;
       }
     }
@@ -225,8 +231,9 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
           RawJson = json
         };
       }
-      catch
+      catch (Exception ex)
       {
+        Logger.Log($"Podman stats parsing failed: {ex.Message}");
         return null;
       }
     }

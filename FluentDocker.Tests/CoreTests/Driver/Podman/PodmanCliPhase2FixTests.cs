@@ -355,8 +355,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
         Name = "web",
         Detach = true
       };
-      var baseArgs = InvokeBuildCreateArgs("run", config);
-      var args = "run -d" + baseArgs.Substring(3);
+      var args = InvokeBuildCreateArgs("run", config, detach: true);
 
       Assert.StartsWith("run -d", args);
       Assert.Contains("--name web", args);
@@ -371,8 +370,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
         Image = "nginx",
         Detach = true
       };
-      var baseArgs = InvokeBuildCreateArgs("run", config);
-      var args = "run -d" + baseArgs.Substring(3);
+      var args = InvokeBuildCreateArgs("run", config, detach: true);
 
       Assert.StartsWith("run -d", args);
       Assert.EndsWith("nginx", args);
@@ -391,8 +389,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
         Detach = true,
         Environment = new Dictionary<string, string> { { "FOO", "bar" } }
       };
-      var baseArgs = InvokeBuildCreateArgs("run", config);
-      var args = "run -d" + baseArgs.Substring(3);
+      var args = InvokeBuildCreateArgs("run", config, detach: true);
 
       Assert.StartsWith("run -d", args);
       Assert.Contains("--name web", args);
@@ -411,23 +408,23 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
         Image = "nginx",
         Detach = false
       };
-      var baseArgs = InvokeBuildCreateArgs("run", config);
+      var args = InvokeBuildCreateArgs("run", config, detach: false);
 
-      Assert.StartsWith("run", baseArgs);
-      Assert.DoesNotContain("-d", baseArgs);
+      Assert.StartsWith("run", args);
+      Assert.DoesNotContain("-d", args);
     }
 
     #endregion
 
     #region Helpers
 
-    private static string InvokeBuildCreateArgs(string command, ContainerCreateConfig config)
+    private static string InvokeBuildCreateArgs(string command, ContainerCreateConfig config, bool detach = false)
     {
       var method = typeof(PodmanCliContainerDriver).GetMethod(
           "BuildCreateArgs",
           BindingFlags.NonPublic | BindingFlags.Static);
       Assert.NotNull(method);
-      return (string)method.Invoke(null, new object[] { command, config });
+      return (string)method.Invoke(null, new object[] { command, config, detach });
     }
 
     #endregion

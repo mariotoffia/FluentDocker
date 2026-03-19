@@ -350,7 +350,7 @@ namespace FluentDocker.Tests.CoreTests.Common
       // Arrange
       var response = CommandResponse<int>.Fail("error message", "ERR_001");
       var executed = false;
-      string capturedError = null;
+      string? capturedError = null;
 
       // Act
       response.OnFailure((error, context) => { executed = true; capturedError = error; });

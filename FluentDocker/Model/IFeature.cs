@@ -2,8 +2,11 @@ using System;
 using System.Collections.Generic;
 using FluentDocker.Services;
 
+#pragma warning disable CS0618 // IService obsolete — intentional usage
+
 namespace FluentDocker.Model
 {
+  [Obsolete("v2 legacy type. Will be removed in v4.")]
   public static class FeatureConstants
   {
     /// <summary>
@@ -24,6 +27,7 @@ namespace FluentDocker.Model
     public const string HostService = "globa.host.service";
   }
 
+  [Obsolete("v2 legacy type. Will be removed in v4.")]
   public interface IFeature : IDisposable
   {
     /// <summary>

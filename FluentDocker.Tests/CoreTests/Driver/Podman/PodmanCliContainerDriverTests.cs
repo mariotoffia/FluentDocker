@@ -1,9 +1,10 @@
 using System.Collections.Generic;
 using System.Reflection;
+using System.Text.Json;
+using FluentDocker.Common;
 using FluentDocker.Drivers;
 using FluentDocker.Drivers.Podman.Cli;
 using FluentDocker.Drivers.Podman.Cli.Components;
-using Newtonsoft.Json.Linq;
 using Xunit;
 using Container = FluentDocker.Model.Containers.Container;
 
@@ -124,7 +125,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
     [Fact]
     public void ParseContainerInspect_InvalidJson_ThrowsException()
     {
-      Assert.ThrowsAny<Exception>(() => InvokeParseContainerInspect("not json"));
+      Assert.ThrowsAny<System.Exception>(() => InvokeParseContainerInspect("not json"));
     }
 
     #endregion
@@ -141,7 +142,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
     [Fact]
     public void ParseContainerState_ValidToken_ParsesAllFields()
     {
-      var token = JObject.Parse(@"{
+      var token = JsonHelper.ParseElement(@"{
                 ""Status"": ""paused"",
                 ""Running"": false,
                 ""Paused"": true,
@@ -290,6 +291,30 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
       Assert.EndsWith("ubuntu bash -c \"echo hello\"", result);
     }
 
+    [Fact]
+    public void BuildCreateArgs_WithNetworkAliases_IncludesAliasFlags()
+    {
+      var config = new ContainerCreateConfig
+      {
+        Image = "nginx",
+        NetworkAliases = new Dictionary<string, List<string>>
+        {
+          { "frontend", new List<string> { "web", "proxy" } }
+        }
+      };
+      var result = InvokeBuildCreateArgs("create", config);
+      Assert.Contains("--network-alias web", result);
+      Assert.Contains("--network-alias proxy", result);
+    }
+
+    [Fact]
+    public void BuildCreateArgs_WithEmptyNetworkAliases_NoAliasFlags()
+    {
+      var config = new ContainerCreateConfig { Image = "nginx" };
+      var result = InvokeBuildCreateArgs("create", config);
+      Assert.DoesNotContain("--network-alias", result);
+    }
+
     #endregion
 
     #region Operations Parsing Tests
@@ -386,18 +411,18 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
     }
 
     private static FluentDocker.Model.Containers.ContainerState InvokeParseContainerState(
-        JToken token)
+        JsonElement? token)
     {
       return PodmanCliContainerDriver.ParseContainerState(token);
     }
 
-    private static string InvokeBuildCreateArgs(string command, ContainerCreateConfig config)
+    private static string InvokeBuildCreateArgs(string command, ContainerCreateConfig config, bool detach = false)
     {
       var method = typeof(PodmanCliContainerDriver).GetMethod(
           "BuildCreateArgs",
           BindingFlags.NonPublic | BindingFlags.Static);
       Assert.NotNull(method);
-      return (string)method.Invoke(null, new object[] { command, config });
+      return (string)method.Invoke(null, new object[] { command, config, detach });
     }
 
     private static ContainerProcesses InvokeParseTopOutput(string output)

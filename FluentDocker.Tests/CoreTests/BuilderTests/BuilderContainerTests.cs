@@ -45,7 +45,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
       // Assert
       Assert.NotNull(results);
       Assert.Single(results.All);
-      var container = results.All.First() as IContainerService;
+      var container = results.All[0] as IContainerService;
       Assert.NotNull(container);
       Assert.Equal("nginx:alpine", container.Image);
     }
@@ -295,7 +295,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
           .BuildAsync(cancellationToken: TestContext.Current.CancellationToken);
 
       // Assert
-      Assert.Equal(3, results.All.Count());
+      Assert.Equal(3, results.All.Count);
       MockPack.ContainerDriver.Verify(d => d.CreateAsync(
           It.IsAny<FluentDocker.Model.Drivers.DriverContext>(),
           It.IsAny<ContainerCreateConfig>(),

@@ -12,8 +12,19 @@
     <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
     <PackageTags>Docker;Podman;Container;Test;xUnit;NET</PackageTags>
     <Description>Spin up and tear down Docker and Podman containers, networks, volumes, and Compose stacks directly in your xUnit tests. Manages the full resource lifecycle as async fixtures so your integration tests run against real services with zero manual cleanup.</Description>
+    <PackageIcon>fluent-docker.png</PackageIcon>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PublishRepositoryUrl>true</PublishRepositoryUrl>
+    <EmbedUntrackedSources>true</EmbedUntrackedSources>
     <Nullable>enable</Nullable>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
   </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="..\FluentDocker\README.md" Pack="true" PackagePath="\" />
+    <None Include="..\icon\fluent-docker.png" Pack="true" PackagePath="\" />
+  </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\FluentDocker\FluentDocker.csproj" />

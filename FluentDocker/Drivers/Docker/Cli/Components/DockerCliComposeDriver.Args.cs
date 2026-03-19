@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
-using Newtonsoft.Json;
+using System.Text.Json;
+using FluentDocker.Common;
 
 namespace FluentDocker.Drivers.Docker.Cli.Components
 {
@@ -267,25 +268,25 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
         return services;
 
       var trimmed = json.Trim();
-      if (trimmed.StartsWith("["))
+      if (trimmed.StartsWith('['))
       {
-        var list = JsonConvert.DeserializeObject<List<ComposeServiceInfo>>(trimmed);
+        var list = JsonSerializer.Deserialize<List<ComposeServiceInfo>>(trimmed, JsonHelper.CaseInsensitiveOptions);
         if (list != null)
           services.AddRange(list);
       }
       else
       {
         var lines = trimmed.Split(
-            new[] { '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries);
+            LineSeparators, StringSplitOptions.RemoveEmptyEntries);
         foreach (var line in lines)
         {
           try
           {
-            var service = JsonConvert.DeserializeObject<ComposeServiceInfo>(line);
+            var service = JsonSerializer.Deserialize<ComposeServiceInfo>(line, JsonHelper.CaseInsensitiveOptions);
             if (service != null)
               services.Add(service);
           }
-          catch { }
+          catch (Exception ex) { Logger.Log($"Compose service info JSON parsing failed: {ex.Message}"); }
         }
       }
 

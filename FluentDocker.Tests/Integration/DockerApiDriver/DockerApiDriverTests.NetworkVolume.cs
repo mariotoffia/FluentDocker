@@ -15,8 +15,8 @@ namespace FluentDocker.Tests.Integration.DockerApiDriver
     [Fact]
     public async Task Network_ConnectAndDisconnect_Succeeds()
     {
-      string containerId = null;
-      string networkId = null;
+      string? containerId = null;
+      string? networkId = null;
       try
       {
         containerId = await ApiRunContainerAsync(TestImage);
@@ -49,7 +49,7 @@ namespace FluentDocker.Tests.Integration.DockerApiDriver
       }
       finally
       {
-        await ApiRemoveContainerAsync(containerId);
+        await ApiRemoveContainerAsync(containerId!);
         if (!string.IsNullOrEmpty(networkId))
           await NetworkDriver.RemoveAsync(Context, networkId, cancellationToken: TestContext.Current.CancellationToken);
       }
@@ -62,7 +62,7 @@ namespace FluentDocker.Tests.Integration.DockerApiDriver
     [Fact]
     public async Task Network_Inspect_ReturnsDetails()
     {
-      string networkId = null;
+      string? networkId = null;
       try
       {
         var networkResult = await NetworkDriver.CreateAsync(Context,
@@ -116,7 +116,7 @@ namespace FluentDocker.Tests.Integration.DockerApiDriver
     [Fact]
     public async Task Volume_Inspect_ReturnsDetails()
     {
-      string volumeName = null;
+      string? volumeName = null;
       try
       {
         volumeName = UniqueName("api-vol");

@@ -135,6 +135,11 @@ namespace FluentDocker.Services.Extensions
 
           if (completed == connectTask && client.Connected)
             return true;
+
+          // Observe faulted connectTask to prevent unobserved exceptions.
+          _ = connectTask.ContinueWith(
+              static t => { _ = t.Exception; },
+              TaskContinuationOptions.OnlyOnFaulted);
         }
         catch (SocketException)
         {
@@ -178,9 +183,9 @@ namespace FluentDocker.Services.Extensions
           if (!string.IsNullOrWhiteSpace(result))
             return true;
         }
-        catch
+        catch (Exception ex)
         {
-          // Process not found yet or command failed
+          Logger.Log($"Process wait check failed: {ex.Message}");
         }
 
         await Task.Delay(500, cancellationToken).ConfigureAwait(false);
@@ -188,6 +193,11 @@ namespace FluentDocker.Services.Extensions
 
       return false;
     }
+
+    private static readonly HttpClient s_httpClient = new()
+    {
+      Timeout = Timeout.InfiniteTimeSpan
+    };
 
     /// <summary>
     /// Waits for a HTTP endpoint to return a successful response.
@@ -198,11 +208,6 @@ namespace FluentDocker.Services.Extensions
     /// <param name="timeout">Timeout in milliseconds.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>True if the endpoint responds successfully, false if timeout.</returns>
-    private static readonly HttpClient s_httpClient = new()
-    {
-      Timeout = Timeout.InfiniteTimeSpan
-    };
-
     public static async Task<bool> WaitForHttpAsync(
         this IContainerService service,
         string portAndProto,
@@ -221,7 +226,8 @@ namespace FluentDocker.Services.Extensions
         try
         {
           using var requestCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-          requestCts.CancelAfter(TimeSpan.FromMilliseconds(timeout));
+          var remainingMs = Math.Max(100, timeout - sw.ElapsedMilliseconds);
+          requestCts.CancelAfter(TimeSpan.FromMilliseconds(remainingMs));
 
           var response = await s_httpClient.GetAsync(url, requestCts.Token).ConfigureAwait(false);
           if (response.IsSuccessStatusCode)
@@ -266,9 +272,9 @@ namespace FluentDocker.Services.Extensions
           if (logs?.Contains(text) == true)
             return true;
         }
-        catch
+        catch (Exception ex)
         {
-          // Logs not available yet
+          Logger.Log($"Log content wait check failed: {ex.Message}");
         }
 
         await Task.Delay(500, cancellationToken).ConfigureAwait(false);

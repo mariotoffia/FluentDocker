@@ -21,8 +21,8 @@ namespace FluentDocker.Tests.CoreTests.Testing.Adapters
   /// </summary>
   public class MockContainerRunnerFixture : XunitContainerFixtureBase
   {
-    protected override void ConfigureContainer(IContainerBuilder b)
-        => b.UseImage("alpine:latest");
+    protected override void ConfigureContainer(IContainerBuilder builder)
+        => builder.UseImage("alpine:latest");
 
     protected override Func<Task<FluentDockerKernel>> KernelFactory
         => CreateMockKernelAsync;

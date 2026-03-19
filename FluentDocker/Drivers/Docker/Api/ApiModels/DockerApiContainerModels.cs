@@ -1,5 +1,5 @@
 using System.Collections.Generic;
-using Newtonsoft.Json;
+using System.Text.Json.Serialization;
 
 namespace FluentDocker.Drivers.Docker.Api.ApiModels
 {
@@ -7,216 +7,252 @@ namespace FluentDocker.Drivers.Docker.Api.ApiModels
   /// Request body for POST /containers/create.
   /// Maps from ContainerCreateConfig to Docker Engine API JSON format.
   /// </summary>
-  internal class CreateContainerRequest
+  internal sealed class CreateContainerRequest
   {
-    [JsonProperty("Image")] public string Image { get; set; }
-    [JsonProperty("Cmd")] public string[] Cmd { get; set; }
-    [JsonProperty("Entrypoint")] public string[] Entrypoint { get; set; }
-    [JsonProperty("Env")] public string[] Env { get; set; }
-    [JsonProperty("WorkingDir")] public string WorkingDir { get; set; }
-    [JsonProperty("User")] public string User { get; set; }
-    [JsonProperty("Hostname")] public string Hostname { get; set; }
-    [JsonProperty("Tty")] public bool Tty { get; set; }
-    [JsonProperty("OpenStdin")] public bool OpenStdin { get; set; }
-    [JsonProperty("StopSignal")] public string StopSignal { get; set; }
-    [JsonProperty("StopTimeout", NullValueHandling = NullValueHandling.Ignore)]
+    [JsonPropertyName("Image")] public string Image { get; set; }
+    [JsonPropertyName("Cmd")] public string[] Cmd { get; set; }
+    [JsonPropertyName("Entrypoint")] public string[] Entrypoint { get; set; }
+    [JsonPropertyName("Env")] public string[] Env { get; set; }
+    [JsonPropertyName("WorkingDir")] public string WorkingDir { get; set; }
+    [JsonPropertyName("User")] public string User { get; set; }
+    [JsonPropertyName("Hostname")] public string Hostname { get; set; }
+    [JsonPropertyName("Tty")] public bool Tty { get; set; }
+    [JsonPropertyName("OpenStdin")] public bool OpenStdin { get; set; }
+    [JsonPropertyName("StopSignal")] public string StopSignal { get; set; }
+    [JsonPropertyName("StopTimeout")]
     public int? StopTimeout { get; set; }
 
-    [JsonProperty("Labels", NullValueHandling = NullValueHandling.Ignore)]
+    [JsonPropertyName("Labels")]
     public Dictionary<string, string> Labels { get; set; }
 
-    [JsonProperty("ExposedPorts", NullValueHandling = NullValueHandling.Ignore)]
+    [JsonPropertyName("ExposedPorts")]
     public Dictionary<string, object> ExposedPorts { get; set; }
 
-    [JsonProperty("HostConfig")] public HostConfigRequest HostConfig { get; set; }
-    [JsonProperty("NetworkingConfig", NullValueHandling = NullValueHandling.Ignore)]
+    [JsonPropertyName("HostConfig")] public HostConfigRequest HostConfig { get; set; }
+    [JsonPropertyName("NetworkingConfig")]
     public NetworkingConfigRequest NetworkingConfig { get; set; }
 
-    [JsonProperty("Healthcheck", NullValueHandling = NullValueHandling.Ignore)]
+    [JsonPropertyName("Healthcheck")]
     public HealthcheckRequest Healthcheck { get; set; }
+
+    [JsonPropertyName("Platform")]
+    public string Platform { get; set; }
   }
 
-  internal class HostConfigRequest
+  internal sealed class HostConfigRequest
   {
-    [JsonProperty("PortBindings", NullValueHandling = NullValueHandling.Ignore)]
+    [JsonPropertyName("PortBindings")]
     public Dictionary<string, List<PortBindingRequest>> PortBindings { get; set; }
 
-    [JsonProperty("Binds", NullValueHandling = NullValueHandling.Ignore)]
+    [JsonPropertyName("Binds")]
     public string[] Binds { get; set; }
 
-    [JsonProperty("NetworkMode", NullValueHandling = NullValueHandling.Ignore)]
+    [JsonPropertyName("NetworkMode")]
     public string NetworkMode { get; set; }
 
-    [JsonProperty("RestartPolicy", NullValueHandling = NullValueHandling.Ignore)]
+    [JsonPropertyName("RestartPolicy")]
     public RestartPolicyRequest RestartPolicy { get; set; }
 
-    [JsonProperty("AutoRemove")] public bool AutoRemove { get; set; }
-    [JsonProperty("Privileged")] public bool Privileged { get; set; }
+    [JsonPropertyName("AutoRemove")] public bool AutoRemove { get; set; }
+    [JsonPropertyName("Privileged")] public bool Privileged { get; set; }
 
-    [JsonProperty("Memory", NullValueHandling = NullValueHandling.Ignore)]
+    [JsonPropertyName("Memory")]
     public long? Memory { get; set; }
 
-    [JsonProperty("CpuShares", NullValueHandling = NullValueHandling.Ignore)]
+    [JsonPropertyName("CpuShares")]
     public long? CpuShares { get; set; }
 
-    [JsonProperty("Dns", NullValueHandling = NullValueHandling.Ignore)]
+    [JsonPropertyName("Dns")]
     public string[] Dns { get; set; }
 
-    [JsonProperty("ExtraHosts", NullValueHandling = NullValueHandling.Ignore)]
+    [JsonPropertyName("ExtraHosts")]
     public string[] ExtraHosts { get; set; }
 
-    [JsonProperty("Links", NullValueHandling = NullValueHandling.Ignore)]
+    [JsonPropertyName("Links")]
     public string[] Links { get; set; }
+
+    [JsonPropertyName("CapAdd")]
+    public string[] CapAdd { get; set; }
+
+    [JsonPropertyName("CapDrop")]
+    public string[] CapDrop { get; set; }
+
+    [JsonPropertyName("SecurityOpt")]
+    public string[] SecurityOpt { get; set; }
+
+    [JsonPropertyName("ShmSize")]
+    public long? ShmSize { get; set; }
+
+    [JsonPropertyName("Tmpfs")]
+    public Dictionary<string, string> Tmpfs { get; set; }
+
+    [JsonPropertyName("Devices")]
+    public List<DeviceMappingRequest> Devices { get; set; }
+
+    [JsonPropertyName("ReadonlyRootfs")] public bool ReadonlyRootfs { get; set; }
+
+    [JsonPropertyName("Runtime")]
+    public string Runtime { get; set; }
   }
 
-  internal class PortBindingRequest
+  internal sealed class DeviceMappingRequest
   {
-    [JsonProperty("HostIp")] public string HostIp { get; set; } = "";
-    [JsonProperty("HostPort")] public string HostPort { get; set; }
+    [JsonPropertyName("PathOnHost")] public string PathOnHost { get; set; }
+    [JsonPropertyName("PathInContainer")] public string PathInContainer { get; set; }
+    [JsonPropertyName("CgroupPermissions")] public string CgroupPermissions { get; set; } = "rwm";
   }
 
-  internal class RestartPolicyRequest
+  internal sealed class PortBindingRequest
   {
-    [JsonProperty("Name")] public string Name { get; set; }
-    [JsonProperty("MaximumRetryCount")] public int MaximumRetryCount { get; set; }
+    [JsonPropertyName("HostIp")] public string HostIp { get; set; } = "";
+    [JsonPropertyName("HostPort")] public string HostPort { get; set; }
   }
 
-  internal class NetworkingConfigRequest
+  internal sealed class RestartPolicyRequest
   {
-    [JsonProperty("EndpointsConfig", NullValueHandling = NullValueHandling.Ignore)]
+    [JsonPropertyName("Name")] public string Name { get; set; }
+    [JsonPropertyName("MaximumRetryCount")] public int MaximumRetryCount { get; set; }
+  }
+
+  internal sealed class NetworkingConfigRequest
+  {
+    [JsonPropertyName("EndpointsConfig")]
     public Dictionary<string, EndpointConfigRequest> EndpointsConfig { get; set; }
   }
 
-  internal class EndpointConfigRequest
+  internal sealed class EndpointConfigRequest
   {
-    [JsonProperty("IPAMConfig", NullValueHandling = NullValueHandling.Ignore)]
+    [JsonPropertyName("IPAMConfig")]
     public IpamConfigRequest IpamConfig { get; set; }
+
+    [JsonPropertyName("Aliases")]
+    public List<string> Aliases { get; set; }
   }
 
-  internal class IpamConfigRequest
+  internal sealed class IpamConfigRequest
   {
-    [JsonProperty("IPv4Address", NullValueHandling = NullValueHandling.Ignore)]
+    [JsonPropertyName("IPv4Address")]
     public string Ipv4Address { get; set; }
 
-    [JsonProperty("IPv6Address", NullValueHandling = NullValueHandling.Ignore)]
+    [JsonPropertyName("IPv6Address")]
     public string Ipv6Address { get; set; }
   }
 
-  internal class HealthcheckRequest
+  internal sealed class HealthcheckRequest
   {
-    [JsonProperty("Test")] public string[] Test { get; set; }
-    [JsonProperty("Interval", NullValueHandling = NullValueHandling.Ignore)] public long? Interval { get; set; }
-    [JsonProperty("Timeout", NullValueHandling = NullValueHandling.Ignore)] public long? Timeout { get; set; }
-    [JsonProperty("Retries", NullValueHandling = NullValueHandling.Ignore)] public int? Retries { get; set; }
-    [JsonProperty("StartPeriod", NullValueHandling = NullValueHandling.Ignore)]
+    [JsonPropertyName("Test")] public string[] Test { get; set; }
+    [JsonPropertyName("Interval")] public long? Interval { get; set; }
+    [JsonPropertyName("Timeout")] public long? Timeout { get; set; }
+    [JsonPropertyName("Retries")] public int? Retries { get; set; }
+    [JsonPropertyName("StartPeriod")]
     public long? StartPeriod { get; set; }
   }
 
   /// <summary>
   /// Response from POST /containers/create.
   /// </summary>
-  internal class CreateContainerResponse
+  internal sealed class CreateContainerResponse
   {
-    [JsonProperty("Id")] public string Id { get; set; }
-    [JsonProperty("Warnings")] public List<string> Warnings { get; set; }
+    [JsonPropertyName("Id")] public string Id { get; set; }
+    [JsonPropertyName("Warnings")] public List<string> Warnings { get; set; }
   }
 
   /// <summary>
   /// Request body for POST /containers/{id}/exec.
   /// </summary>
-  internal class ExecCreateRequest
+  internal sealed class ExecCreateRequest
   {
-    [JsonProperty("AttachStdout")] public bool AttachStdout { get; set; } = true;
-    [JsonProperty("AttachStderr")] public bool AttachStderr { get; set; } = true;
-    [JsonProperty("AttachStdin")] public bool AttachStdin { get; set; }
-    [JsonProperty("Tty")] public bool Tty { get; set; }
-    [JsonProperty("Cmd")] public string[] Cmd { get; set; }
+    [JsonPropertyName("AttachStdout")] public bool AttachStdout { get; set; } = true;
+    [JsonPropertyName("AttachStderr")] public bool AttachStderr { get; set; } = true;
+    [JsonPropertyName("AttachStdin")] public bool AttachStdin { get; set; }
+    [JsonPropertyName("Tty")] public bool Tty { get; set; }
+    [JsonPropertyName("Cmd")] public string[] Cmd { get; set; }
 
-    [JsonProperty("Env", NullValueHandling = NullValueHandling.Ignore)]
+    [JsonPropertyName("Env")]
     public string[] Env { get; set; }
 
-    [JsonProperty("WorkingDir", NullValueHandling = NullValueHandling.Ignore)]
+    [JsonPropertyName("WorkingDir")]
     public string WorkingDir { get; set; }
 
-    [JsonProperty("User", NullValueHandling = NullValueHandling.Ignore)]
+    [JsonPropertyName("User")]
     public string User { get; set; }
 
-    [JsonProperty("Privileged")] public bool Privileged { get; set; }
-    [JsonProperty("Detach")] public bool Detach { get; set; }
+    [JsonPropertyName("Privileged")] public bool Privileged { get; set; }
+    [JsonPropertyName("Detach")] public bool Detach { get; set; }
   }
 
   /// <summary>
   /// Response from POST /containers/{id}/exec.
   /// </summary>
-  internal class ExecCreateResponse
+  internal sealed class ExecCreateResponse
   {
-    [JsonProperty("Id")] public string Id { get; set; }
+    [JsonPropertyName("Id")] public string Id { get; set; }
   }
 
   /// <summary>
   /// Request body for POST /exec/{id}/start.
   /// </summary>
-  internal class ExecStartRequest
+  internal sealed class ExecStartRequest
   {
-    [JsonProperty("Detach")] public bool Detach { get; set; }
-    [JsonProperty("Tty")] public bool Tty { get; set; }
+    [JsonPropertyName("Detach")] public bool Detach { get; set; }
+    [JsonPropertyName("Tty")] public bool Tty { get; set; }
   }
 
   /// <summary>
   /// Response from GET /exec/{id}/json.
   /// </summary>
-  internal class ExecInspectResponse
+  internal sealed class ExecInspectResponse
   {
-    [JsonProperty("ExitCode")] public int ExitCode { get; set; }
-    [JsonProperty("Running")] public bool Running { get; set; }
+    [JsonPropertyName("ExitCode")] public int ExitCode { get; set; }
+    [JsonPropertyName("Running")] public bool Running { get; set; }
   }
 
   /// <summary>
   /// Request body for POST /containers/{id}/update.
   /// </summary>
-  internal class UpdateContainerRequest
+  internal sealed class UpdateContainerRequest
   {
-    [JsonProperty("Memory", NullValueHandling = NullValueHandling.Ignore)]
+    [JsonPropertyName("Memory")]
     public long? Memory { get; set; }
 
-    [JsonProperty("MemorySwap", NullValueHandling = NullValueHandling.Ignore)]
+    [JsonPropertyName("MemorySwap")]
     public long? MemorySwap { get; set; }
 
-    [JsonProperty("MemoryReservation", NullValueHandling = NullValueHandling.Ignore)]
+    [JsonPropertyName("MemoryReservation")]
     public long? MemoryReservation { get; set; }
 
-    [JsonProperty("CpuShares", NullValueHandling = NullValueHandling.Ignore)]
+    [JsonPropertyName("CpuShares")]
     public long? CpuShares { get; set; }
 
-    [JsonProperty("CpuPeriod", NullValueHandling = NullValueHandling.Ignore)]
+    [JsonPropertyName("CpuPeriod")]
     public long? CpuPeriod { get; set; }
 
-    [JsonProperty("CpuQuota", NullValueHandling = NullValueHandling.Ignore)]
+    [JsonPropertyName("CpuQuota")]
     public long? CpuQuota { get; set; }
 
-    [JsonProperty("CpusetCpus", NullValueHandling = NullValueHandling.Ignore)]
+    [JsonPropertyName("CpusetCpus")]
     public string CpusetCpus { get; set; }
 
-    [JsonProperty("RestartPolicy", NullValueHandling = NullValueHandling.Ignore)]
+    [JsonPropertyName("RestartPolicy")]
     public RestartPolicyRequest RestartPolicy { get; set; }
 
-    [JsonProperty("PidsLimit", NullValueHandling = NullValueHandling.Ignore)]
+    [JsonPropertyName("PidsLimit")]
     public long? PidsLimit { get; set; }
   }
 
   /// <summary>
   /// Response from POST /containers/{id}/wait.
   /// </summary>
-  internal class WaitContainerResponse
+  internal sealed class WaitContainerResponse
   {
-    [JsonProperty("StatusCode")] public int StatusCode { get; set; }
+    [JsonPropertyName("StatusCode")] public int StatusCode { get; set; }
 
-    [JsonProperty("Error", NullValueHandling = NullValueHandling.Ignore)]
+    [JsonPropertyName("Error")]
     public WaitContainerError Error { get; set; }
   }
 
-  internal class WaitContainerError
+  internal sealed class WaitContainerError
   {
-    [JsonProperty("Message")] public string Message { get; set; }
+    [JsonPropertyName("Message")] public string Message { get; set; }
   }
 }

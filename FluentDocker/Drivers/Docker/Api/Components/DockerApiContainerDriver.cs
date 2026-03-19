@@ -1,11 +1,12 @@
 using System;
 using System.Collections.Generic;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
+using FluentDocker.Common;
 using FluentDocker.Drivers.Docker.Api.ApiModels;
 using FluentDocker.Drivers.Docker.Api.Connection;
 using FluentDocker.Model.Drivers;
-using Newtonsoft.Json.Linq;
 using Container = FluentDocker.Model.Containers.Container;
 
 namespace FluentDocker.Drivers.Docker.Api.Components
@@ -204,7 +205,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
         CancellationToken cancellationToken = default)
     {
       var path = $"/containers/{Uri.EscapeDataString(containerId)}/json";
-      var result = await GetJsonAsync<JObject>(path, cancellationToken);
+      var result = await GetJsonElementAsync(path, cancellationToken);
       if (!result.Success)
         return CommandResponse<Container>.Fail(
             result.ErrorMessage,
@@ -222,7 +223,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
         CancellationToken cancellationToken = default)
     {
       var path = BuildListPath(filter);
-      var result = await GetJsonAsync<JArray>(path, cancellationToken);
+      var result = await GetJsonElementAsync(path, cancellationToken);
       if (!result.Success)
         return CommandResponse<IList<Container>>.Fail(
             result.ErrorMessage,
@@ -241,7 +242,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
     {
       var path = $"/containers/{Uri.EscapeDataString(containerId)}" +
                  "/stats?stream=false";
-      var result = await GetJsonAsync<JObject>(path, cancellationToken);
+      var result = await GetJsonElementAsync(path, cancellationToken);
       if (!result.Success)
         return CommandResponse<ContainerStatsResult>.Fail(
             result.ErrorMessage,

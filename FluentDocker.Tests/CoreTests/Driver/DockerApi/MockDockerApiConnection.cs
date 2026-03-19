@@ -191,7 +191,9 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
       };
     }
 
+#pragma warning disable CA1859 // return type must be Stream for Task<Stream> callers
     private Stream ResolveStream(string path)
+#pragma warning restore CA1859
     {
       var entry = _entries
           .Where(e => e.Method == "STREAM" && path.Contains(e.PathContains))

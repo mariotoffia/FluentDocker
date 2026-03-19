@@ -4,6 +4,8 @@ using System.Linq;
 using System.Threading.Tasks;
 using FluentDocker.Services;
 
+#pragma warning disable CS0618 // IService obsolete — intentional usage
+
 namespace FluentDocker.Model.Kernel
 {
   /// <summary>
@@ -116,6 +118,8 @@ namespace FluentDocker.Model.Kernel
           service?.Dispose();
         }
       }
+
+      GC.SuppressFinalize(this);
     }
 
     /// <summary>
@@ -132,6 +136,7 @@ namespace FluentDocker.Model.Kernel
     public void Dispose()
     {
       DisposeAsync().AsTask().GetAwaiter().GetResult();
+      GC.SuppressFinalize(this);
     }
 
     /// <summary>

@@ -1,11 +1,12 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
+using FluentDocker.Common;
 using FluentDocker.Drivers.Podman.Cli.Binary;
 using FluentDocker.Model.Drivers;
-using Newtonsoft.Json.Linq;
 
 namespace FluentDocker.Drivers.Podman.Cli.Components
 {
@@ -28,8 +29,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
         DriverContext context, KubePlayConfig config,
         CancellationToken cancellationToken = default)
     {
-      if (config == null)
-        throw new ArgumentNullException(nameof(config));
+      ArgumentNullException.ThrowIfNull(config);
       if (string.IsNullOrWhiteSpace(config.YamlPath))
         throw new ArgumentException("YamlPath is required", nameof(config));
 
@@ -156,7 +156,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       var trimmed = output.Trim();
 
       // Try JSON format first (newer Podman versions)
-      if (trimmed.StartsWith("{") || trimmed.StartsWith("["))
+      if (trimmed.StartsWith('{') || trimmed.StartsWith('['))
       {
         try
         {
@@ -173,51 +173,54 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
     {
       var result = new KubePlayResult();
 
-      JToken token;
-      if (json.StartsWith("["))
-        token = JArray.Parse(json);
-      else
-        token = JObject.Parse(json);
+      var token = JsonHelper.ParseElement(json);
 
       // Handle {"Pods": [...]} format
-      if (token is JObject obj)
+      if (token.ValueKind == JsonValueKind.Object)
       {
-        var podsToken = obj["Pods"] ?? obj["pods"];
-        if (podsToken is JArray podsArr)
+        var podsToken = token.Prop("Pods") ?? token.Prop("pods");
+        if (podsToken.HasValue && podsToken.Value.ValueKind == JsonValueKind.Array)
         {
-          foreach (var pod in podsArr)
+          foreach (var pod in podsToken.Value.EnumerateArray())
             result.Pods.Add(ParsePodResultFromToken(pod));
         }
         else
         {
           // Single pod object
-          result.Pods.Add(ParsePodResultFromToken(obj));
+          result.Pods.Add(ParsePodResultFromToken(token));
         }
       }
-      else if (token is JArray arr)
+      else if (token.ValueKind == JsonValueKind.Array)
       {
-        foreach (var pod in arr)
+        foreach (var pod in token.EnumerateArray())
           result.Pods.Add(ParsePodResultFromToken(pod));
       }
 
       return result;
     }
 
-    private static KubePlayPodResult ParsePodResultFromToken(JToken token)
+    private static KubePlayPodResult ParsePodResultFromToken(JsonElement token)
     {
       var pod = new KubePlayPodResult
       {
-        Id = (token["ID"] ?? token["Id"] ?? token["id"])?.Value<string>()
+        Id = token.GetStringOrDefault("ID")
+             ?? token.GetStringOrDefault("Id")
+             ?? token.GetStringOrDefault("id")
       };
 
-      var containers = token["Containers"] ?? token["containers"];
-      if (containers is JArray arr)
+      var containers = token.Prop("Containers") ?? token.Prop("containers");
+      if (containers.HasValue && containers.Value.ValueKind == JsonValueKind.Array)
       {
-        foreach (var c in arr)
+        foreach (var c in containers.Value.EnumerateArray())
         {
-          var id = c.Type == JTokenType.String
-              ? c.Value<string>()
-              : (c["ID"] ?? c["Id"] ?? c["id"])?.Value<string>();
+          string id;
+          if (c.ValueKind == JsonValueKind.String)
+            id = c.GetString();
+          else
+            id = c.GetStringOrDefault("ID")
+                 ?? c.GetStringOrDefault("Id")
+                 ?? c.GetStringOrDefault("id");
+
           if (!string.IsNullOrEmpty(id))
             pod.Containers.Add(id);
         }

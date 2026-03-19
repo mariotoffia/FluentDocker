@@ -21,6 +21,9 @@
     <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
     <PackageTags>Docker;Podman;Docker Compose;Docker Swarm;Docker API;Kubernetes;Container;Linux;Windows;Mac;Fluent;NET</PackageTags>
     <Description>Fluent API to manage Docker and Podman containers, images, networks, and volumes via CLI or Docker Engine API. Supports Docker Compose, Docker Swarm, Podman Kubernetes YAML, multi-driver kernel architecture, and runs on Windows, Mac, and Linux.</Description>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <!-- Suppress CS1591 (missing XML doc) globally; we add docs incrementally. -->
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>
@@ -30,7 +33,6 @@
 
   <ItemGroup>    
     <PackageReference Include="Microsoft.SourceLink.GitHub" PrivateAssets="All" />
-    <PackageReference Include="Newtonsoft.Json" />
     <PackageReference Include="SharpCompress" />
   </ItemGroup>
 </Project>

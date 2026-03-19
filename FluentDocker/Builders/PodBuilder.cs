@@ -7,12 +7,14 @@ using FluentDocker.Kernel;
 using FluentDocker.Model.Drivers;
 using FluentDocker.Services;
 
+#pragma warning disable CS0618 // IService obsolete — intentional usage
+
 namespace FluentDocker.Builders
 {
   /// <summary>
   /// Pod builder implementation. Creates a Podman pod.
   /// </summary>
-  internal class PodBuilder : IPodBuilder, IDriverScopedBuilder
+  internal sealed class PodBuilder : IPodBuilder, IDriverScopedBuilder
   {
     private readonly FluentDockerKernel _kernel;
     private readonly string _driverId;
@@ -66,7 +68,7 @@ namespace FluentDocker.Builders
         Ports = _ports,
       };
 
-      var response = await driver.CreatePodAsync(context, config, cancellationToken);
+      var response = await driver.CreatePodAsync(context, config, cancellationToken).ConfigureAwait(false);
       if (!response.Success)
       {
         throw new DriverException(
@@ -76,7 +78,7 @@ namespace FluentDocker.Builders
 
       var service = new Services.Impl.PodService(
           _kernel, _driverId, response.Data.Id, _name, _removeOnDispose);
-      await service.StartAsync(cancellationToken);
+      await service.StartAsync(cancellationToken).ConfigureAwait(false);
       return service;
     }
   }

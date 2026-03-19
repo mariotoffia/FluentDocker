@@ -60,7 +60,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
       finally
       {
         if (containerId != null)
-          await RemoveContainerAsync(containerId);
+          await RemoveContainerAsync(containerId!);
         if (networkId != null)
           await RemoveNetworkAsync(networkId);
       }
@@ -206,7 +206,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
       finally
       {
         if (containerId != null)
-          await RemoveContainerAsync(containerId);
+          await RemoveContainerAsync(containerId!);
         if (networkId != null)
           await RemoveNetworkAsync(networkId);
       }
@@ -248,7 +248,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
       finally
       {
         if (containerId != null)
-          await RemoveContainerAsync(containerId);
+          await RemoveContainerAsync(containerId!);
         if (networkId != null)
           await RemoveNetworkAsync(networkId);
       }
@@ -291,7 +291,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
       finally
       {
         if (containerId != null)
-          await RemoveContainerAsync(containerId);
+          await RemoveContainerAsync(containerId!);
         if (networkId != null)
           await RemoveNetworkAsync(networkId);
       }

@@ -45,7 +45,7 @@ namespace FluentDocker.Builders
     /// <returns>Working directory path</returns>
     internal async Task<string> PrepareBuildAsync()
     {
-      await CopyToWorkDirAsync(_workingFolder);
+      await CopyToWorkDirAsync(_workingFolder).ConfigureAwait(false);
       RenderDockerfile(_workingFolder);
       return _workingFolder;
     }
@@ -79,7 +79,7 @@ namespace FluentDocker.Builders
     /// <returns>Dockerfile content</returns>
     public async Task<string> ToDockerfileStringAsync()
     {
-      await PrepareBuildAsync();
+      await PrepareBuildAsync().ConfigureAwait(false);
       return _lastContents;
     }
 
@@ -348,7 +348,7 @@ namespace FluentDocker.Builders
           if (!string.IsNullOrEmpty(dd) && !Directory.Exists(dd))
             Directory.CreateDirectory(dd);
 
-          await DownloadFileAsync(urlCmd.FromURL, wdlp);
+          await DownloadFileAsync(urlCmd.FromURL, wdlp).ConfigureAwait(false);
           continue;
         }
 
@@ -398,11 +398,11 @@ namespace FluentDocker.Builders
 
     private static async Task DownloadFileAsync(Uri url, string destinationPath)
     {
-      var response = await s_httpClient.GetAsync(url);
+      var response = await s_httpClient.GetAsync(url).ConfigureAwait(false);
       response.EnsureSuccessStatusCode();
 
-      var content = await response.Content.ReadAsByteArrayAsync();
-      await File.WriteAllBytesAsync(destinationPath, content);
+      var content = await response.Content.ReadAsByteArrayAsync().ConfigureAwait(false);
+      await File.WriteAllBytesAsync(destinationPath, content).ConfigureAwait(false);
     }
 
     private void RenderDockerfile(string workingFolder)

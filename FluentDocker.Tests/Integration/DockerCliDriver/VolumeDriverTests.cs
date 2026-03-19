@@ -112,7 +112,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
     public async Task MountVolume_InContainer_VolumeMounted()
     {
       var volumeName = UniqueName("volume");
-      string containerId = null;
+      string? containerId = null;
       try
       {
         // Arrange
@@ -147,7 +147,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
       }
       finally
       {
-        await RemoveContainerAsync(containerId);
+        await RemoveContainerAsync(containerId!);
         await RemoveVolumeAsync(volumeName);
       }
     }

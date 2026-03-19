@@ -1,13 +1,13 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
+using FluentDocker.Common;
 using FluentDocker.Drivers.Docker.Cli;
 using FluentDocker.Drivers.Podman.Cli.Binary;
 using FluentDocker.Model.Drivers;
 using FluentDocker.Model.Volumes;
-using Newtonsoft.Json.Linq;
 
 namespace FluentDocker.Drivers.Podman.Cli.Components
 {
@@ -152,7 +152,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
 
     #region JSON Parsing
 
-    private static IList<Volume> ParseVolumeList(string json)
+    private static List<Volume> ParseVolumeList(string json)
     {
       var volumes = new List<Volume>();
       if (string.IsNullOrWhiteSpace(json))
@@ -162,18 +162,16 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       {
         // Podman outputs one JSON object per line or a JSON array
         var trimmed = json.Trim();
-        if (trimmed.StartsWith("["))
+        if (trimmed.StartsWith('['))
         {
-          var arr = JArray.Parse(trimmed);
-          volumes.AddRange(arr.Select(ParseVolumeFromToken));
+          var root = JsonHelper.ParseElement(trimmed);
+          foreach (var token in root.EnumerateArraySafe())
+            volumes.Add(ParseVolumeFromToken(token));
         }
         else
         {
           foreach (var line in trimmed.Split('\n', StringSplitOptions.RemoveEmptyEntries))
-          {
-            var obj = JObject.Parse(line.Trim());
-            volumes.Add(ParseVolumeFromToken(obj));
-          }
+            volumes.Add(ParseVolumeFromToken(JsonHelper.ParseElement(line.Trim())));
         }
       }
       catch { /* Return partial results */ }
@@ -181,14 +179,25 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       return volumes;
     }
 
-    private static Volume ParseVolumeFromToken(JToken token)
+    private static Volume ParseVolumeFromToken(JsonElement token)
     {
-      return new Volume
+      var volume = new Volume
       {
-        Name = token["Name"]?.Value<string>(),
-        Driver = token["Driver"]?.Value<string>(),
-        Scope = token["Scope"]?.Value<string>()
+        Name = token.GetStringOrDefault("Name"),
+        Driver = token.GetStringOrDefault("Driver"),
+        Scope = token.GetStringOrDefault("Scope"),
+        Mountpoint = token.GetStringOrDefault("Mountpoint")
       };
+
+      var labels = token.Prop("Labels");
+      if (labels.HasValue && labels.Value.ValueKind == JsonValueKind.Object)
+        volume.Labels = token.GetStringDictionary("Labels");
+
+      var options = token.Prop("Options");
+      if (options.HasValue && options.Value.ValueKind == JsonValueKind.Object)
+        volume.Options = token.GetStringDictionary("Options");
+
+      return volume;
     }
 
     private static Volume ParseVolumeInspect(string json)
@@ -196,21 +205,25 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       try
       {
         var trimmed = json.Trim();
-        JToken token;
-        if (trimmed.StartsWith("["))
+        JsonElement token;
+        if (trimmed.StartsWith('['))
         {
-          var arr = JArray.Parse(trimmed);
-          token = arr.First;
+          var root = JsonHelper.ParseElement(trimmed);
+          using var enumerator = root.EnumerateArray();
+          if (!enumerator.MoveNext())
+            return new Volume();
+          token = enumerator.Current;
         }
         else
         {
-          token = JObject.Parse(trimmed);
+          token = JsonHelper.ParseElement(trimmed);
         }
 
         return ParseVolumeFromToken(token);
       }
-      catch
+      catch (Exception ex)
       {
+        Logger.Log($"Podman volume inspect parsing failed: {ex.Message}");
         return new Volume();
       }
     }

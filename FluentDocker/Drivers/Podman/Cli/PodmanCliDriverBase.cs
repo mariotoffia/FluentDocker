@@ -5,9 +5,11 @@ using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using FluentDocker.Common;
 using FluentDocker.Drivers;
 using FluentDocker.Drivers.Docker.Cli;
 using FluentDocker.Drivers.Podman.Cli.Binary;
+using FluentDocker.Model.Common;
 using FluentDocker.Model.Drivers;
 
 namespace FluentDocker.Drivers.Podman.Cli
@@ -50,7 +52,8 @@ namespace FluentDocker.Drivers.Podman.Cli
     /// </summary>
     public virtual void Initialize(DriverContext context)
     {
-      Context = context ?? throw new ArgumentNullException(nameof(context));
+      ArgumentNullException.ThrowIfNull(context);
+      Context = context;
     }
 
     /// <summary>
@@ -58,8 +61,10 @@ namespace FluentDocker.Drivers.Podman.Cli
     /// </summary>
     public virtual void Initialize(DriverContext context, IPodmanBinaryResolver binaryResolver)
     {
-      Context = context ?? throw new ArgumentNullException(nameof(context));
-      BinaryResolver = binaryResolver ?? throw new ArgumentNullException(nameof(binaryResolver));
+      ArgumentNullException.ThrowIfNull(context);
+      ArgumentNullException.ThrowIfNull(binaryResolver);
+      Context = context;
+      BinaryResolver = binaryResolver;
     }
 
     #region Global Args
@@ -85,15 +90,28 @@ namespace FluentDocker.Drivers.Podman.Cli
     #region Command Execution
 
     /// <summary>
+    /// Resolves the binary info for the Podman command, extracting
+    /// the binary path and sudo configuration separately for safe execution.
+    /// </summary>
+    private (string BinaryPath, SudoMechanism Sudo, string SudoPassword) ResolveBinaryInfo()
+    {
+      if (BinaryResolver == null)
+        return (PodmanCommand, SudoMechanism.None, null);
+
+      var binary = BinaryResolver.Resolve(PodmanCommand);
+      return (binary.FqPath, binary.Sudo, binary.SudoPassword);
+    }
+
+    /// <summary>
     /// Executes a Podman command asynchronously.
     /// </summary>
     protected async Task<SimpleCommandResult> ExecuteCommandAsync(
         string arguments, CancellationToken cancellationToken)
     {
-      var podmanPath = BinaryResolver?.ResolveBinaryPath(PodmanCommand) ?? PodmanCommand;
+      var (binaryPath, sudo, sudoPassword) = ResolveBinaryInfo();
       var globalArgs = BuildGlobalArgs(Context);
       var fullArgs = string.IsNullOrEmpty(globalArgs) ? arguments : $"{globalArgs} {arguments}";
-      return await ExecuteProcessAsync(podmanPath, fullArgs, null, cancellationToken);
+      return await ExecuteProcessAsync(binaryPath, fullArgs, null, sudo, sudoPassword, cancellationToken);
     }
 
     /// <summary>
@@ -102,31 +120,41 @@ namespace FluentDocker.Drivers.Podman.Cli
     protected async Task<SimpleCommandResult> ExecuteCommandAsync(
         string arguments, string stdinData, CancellationToken cancellationToken)
     {
-      var podmanPath = BinaryResolver?.ResolveBinaryPath(PodmanCommand) ?? PodmanCommand;
+      var (binaryPath, sudo, sudoPassword) = ResolveBinaryInfo();
       var globalArgs = BuildGlobalArgs(Context);
       var fullArgs = string.IsNullOrEmpty(globalArgs) ? arguments : $"{globalArgs} {arguments}";
-      return await ExecuteProcessAsync(podmanPath, fullArgs, stdinData, cancellationToken);
+      return await ExecuteProcessAsync(binaryPath, fullArgs, stdinData, sudo, sudoPassword, cancellationToken);
     }
 
     /// <summary>
     /// Executes a process asynchronously using direct stream reading
     /// to avoid event-based output race conditions.
+    /// Handles sudo by setting the process FileName to "sudo" and passing the
+    /// password via stdin (never on the command line).
     /// </summary>
-    private async Task<SimpleCommandResult> ExecuteProcessAsync(
+    private static async Task<SimpleCommandResult> ExecuteProcessAsync(
         string fileName, string arguments,
-        string stdinData, CancellationToken cancellationToken)
+        string stdinData,
+        SudoMechanism sudo, string sudoPassword,
+        CancellationToken cancellationToken)
     {
+      var (processFileName, processArguments, passwordForStdin) =
+          BuildSudoCommand(fileName, arguments, sudo, sudoPassword);
+
+      var needsStdin = stdinData != null || passwordForStdin != null;
+
+      Process process = null;
       try
       {
-        var process = new Process
+        process = new Process
         {
           StartInfo = new ProcessStartInfo
           {
-            FileName = fileName,
-            Arguments = arguments,
+            FileName = processFileName,
+            Arguments = processArguments,
             RedirectStandardOutput = true,
             RedirectStandardError = true,
-            RedirectStandardInput = stdinData != null,
+            RedirectStandardInput = needsStdin,
             UseShellExecute = false,
             CreateNoWindow = true
           }
@@ -134,9 +162,14 @@ namespace FluentDocker.Drivers.Podman.Cli
 
         process.Start();
 
-        if (stdinData != null)
+        if (needsStdin)
         {
-          await process.StandardInput.WriteAsync(stdinData);
+          if (passwordForStdin != null)
+            await process.StandardInput.WriteLineAsync(passwordForStdin);
+
+          if (stdinData != null)
+            await process.StandardInput.WriteAsync(stdinData);
+
           process.StandardInput.Close();
         }
 
@@ -161,6 +194,7 @@ namespace FluentDocker.Drivers.Podman.Cli
       }
       catch (OperationCanceledException)
       {
+        KillProcessSafely(process);
         throw;
       }
       catch (Exception ex)
@@ -172,6 +206,10 @@ namespace FluentDocker.Drivers.Podman.Cli
           ExitCode = -1
         };
       }
+      finally
+      {
+        process?.Dispose();
+      }
     }
 
     /// <summary>
@@ -181,18 +219,22 @@ namespace FluentDocker.Drivers.Podman.Cli
         string arguments,
         [EnumeratorCancellation] CancellationToken cancellationToken)
     {
-      var podmanPath = BinaryResolver?.ResolveBinaryPath(PodmanCommand) ?? PodmanCommand;
+      var (binaryPath, sudo, sudoPassword) = ResolveBinaryInfo();
       var globalArgs = BuildGlobalArgs(Context);
       var fullArgs = string.IsNullOrEmpty(globalArgs) ? arguments : $"{globalArgs} {arguments}";
 
-      var process = new Process
+      var (processFileName, processArguments, passwordForStdin) =
+          BuildSudoCommand(binaryPath, fullArgs, sudo, sudoPassword);
+
+      using var process = new Process
       {
         StartInfo = new ProcessStartInfo
         {
-          FileName = podmanPath,
-          Arguments = fullArgs,
+          FileName = processFileName,
+          Arguments = processArguments,
           RedirectStandardOutput = true,
           RedirectStandardError = true,
+          RedirectStandardInput = passwordForStdin != null,
           UseShellExecute = false,
           CreateNoWindow = true
         }
@@ -200,27 +242,28 @@ namespace FluentDocker.Drivers.Podman.Cli
 
       process.Start();
 
-      var reader = process.StandardOutput;
-
-      while (!cancellationToken.IsCancellationRequested)
+      if (passwordForStdin != null)
       {
-        var line = await reader.ReadLineAsync();
-        if (line == null)
-          break;
-
-        yield return line;
+        await process.StandardInput.WriteLineAsync(passwordForStdin);
+        process.StandardInput.Close();
       }
 
-      if (!process.HasExited)
+      var reader = process.StandardOutput;
+
+      try
       {
-        try
+        while (!cancellationToken.IsCancellationRequested)
         {
-          process.Kill();
+          var line = await reader.ReadLineAsync(cancellationToken);
+          if (line == null)
+            break;
+
+          yield return line;
         }
-        catch
-        {
-          // Ignore kill errors
-        }
+      }
+      finally
+      {
+        KillProcessSafely(process);
       }
     }
 
@@ -229,16 +272,19 @@ namespace FluentDocker.Drivers.Podman.Cli
     /// </summary>
     protected AttachResult ExecuteAttachProcess(string arguments)
     {
-      var podmanPath = BinaryResolver?.ResolveBinaryPath(PodmanCommand) ?? PodmanCommand;
+      var (binaryPath, sudo, _) = ResolveBinaryInfo();
       var globalArgs = BuildGlobalArgs(Context);
       var fullArgs = string.IsNullOrEmpty(globalArgs) ? arguments : $"{globalArgs} {arguments}";
+
+      var (processFileName, processArguments, _) =
+          BuildSudoCommand(binaryPath, fullArgs, sudo, null);
 
       var process = new Process
       {
         StartInfo = new ProcessStartInfo
         {
-          FileName = podmanPath,
-          Arguments = fullArgs,
+          FileName = processFileName,
+          Arguments = processArguments,
           RedirectStandardInput = true,
           RedirectStandardOutput = true,
           RedirectStandardError = true,
@@ -266,7 +312,7 @@ namespace FluentDocker.Drivers.Podman.Cli
     /// <summary>
     /// Creates an error context from a command result.
     /// </summary>
-    protected ErrorContext CreateErrorContext(
+    protected static ErrorContext CreateErrorContext(
         DriverContext context, string operation, SimpleCommandResult result)
     {
       return new ErrorContext(operation)
@@ -289,7 +335,49 @@ namespace FluentDocker.Drivers.Podman.Cli
 
     #endregion
 
+    #region Process Lifecycle
+
+    /// <summary>
+    /// Builds the actual process FileName and Arguments for sudo-aware execution.
+    /// The password is NEVER placed on the command line — it is returned separately
+    /// for writing to stdin.
+    /// </summary>
+    private static (string FileName, string Arguments, string PasswordForStdin) BuildSudoCommand(
+        string binaryPath, string arguments, SudoMechanism sudo, string sudoPassword)
+    {
+      return sudo switch
+      {
+        SudoMechanism.NoPassword => ("sudo", $"{binaryPath} {arguments}", null),
+        SudoMechanism.Password => ("sudo", $"-S {binaryPath} {arguments}", sudoPassword),
+        _ => (binaryPath, arguments, null)
+      };
+    }
+
+    /// <summary>
+    /// Safely kills a process if it is still running, suppressing any errors.
+    /// </summary>
+    private static void KillProcessSafely(Process process)
+    {
+      if (process == null)
+        return;
+
+      try
+      {
+        if (!process.HasExited)
+          process.Kill(entireProcessTree: true);
+      }
+      catch (Exception ex)
+      {
+        Logger.Log($"Process kill failed: {ex.Message}");
+      }
+    }
+
+    #endregion
+
     #region Argument Quoting
+
+    private static readonly System.Buffers.SearchValues<char> ShellMetaCharacters =
+        System.Buffers.SearchValues.Create([' ', '\t', ';', '&', '|', '>', '<', '"', '\'', '$', '`', '!', '*', '?']);
 
     /// <summary>
     /// Quotes a command-line argument if it contains shell metacharacters or whitespace.
@@ -300,7 +388,7 @@ namespace FluentDocker.Drivers.Podman.Cli
       if (string.IsNullOrEmpty(argument))
         return "\"\"";
 
-      var needsQuoting = argument.IndexOfAny(new[] { ' ', '\t', ';', '&', '|', '>', '<', '"', '\'' }) >= 0;
+      var needsQuoting = argument.AsSpan().IndexOfAny(ShellMetaCharacters) >= 0;
       if (!needsQuoting)
         return argument;
 

@@ -5,11 +5,10 @@ using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using FluentDocker.Common;
+using System.Text.Json;
 using FluentDocker.Drivers.Docker.Cli.Binary;
 using FluentDocker.Drivers.Podman.Cli.Components;
 using FluentDocker.Model.Drivers;
-using Newtonsoft.Json;
-using Newtonsoft.Json.Linq;
 
 namespace FluentDocker.Drivers.Docker.Cli.Components
 {
@@ -88,12 +87,13 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
         ContainerEvent evt = null;
         try
         {
-          evt = JsonConvert.DeserializeObject<ContainerEvent>(line);
-          evt?.RawJson = line;
+          evt = JsonSerializer.Deserialize<ContainerEvent>(line, JsonHelper.CaseInsensitiveOptions);
+          if (evt != null)
+            evt.RawJson = line;
         }
-        catch
+        catch (Exception ex)
         {
-          // Skip malformed lines
+          Logger.Log($"Event stream JSON parsing failed: {ex.Message}");
         }
 
         if (evt != null)
@@ -135,9 +135,9 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
         {
           stats = ParseStreamStatsLine(line);
         }
-        catch
+        catch (Exception ex)
         {
-          // Skip malformed lines
+          Logger.Log($"Stats stream JSON parsing failed: {ex.Message}");
         }
 
         if (stats != null)
@@ -168,30 +168,30 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
 
       try
       {
-        var obj = JObject.Parse(json);
+        var obj = JsonHelper.ParseElement(json);
 
         var cpuPerc = PodmanCliContainerDriver.ParsePercent(
-            obj["CPUPerc"]?.Value<string>());
+            obj.GetStringOrDefault("CPUPerc"));
         var memPerc = PodmanCliContainerDriver.ParsePercent(
-            obj["MemPerc"]?.Value<string>());
+            obj.GetStringOrDefault("MemPerc"));
         var (memUsage, memLimit) = PodmanCliContainerDriver.ParseMemoryUsage(
-            obj["MemUsage"]?.Value<string>());
+            obj.GetStringOrDefault("MemUsage"));
         var (netRx, netTx) = PodmanCliContainerDriver.ParseIOPair(
-            obj["NetIO"]?.Value<string>());
+            obj.GetStringOrDefault("NetIO"));
         var (blockRead, blockWrite) = PodmanCliContainerDriver.ParseIOPair(
-            obj["BlockIO"]?.Value<string>());
+            obj.GetStringOrDefault("BlockIO"));
 
         int.TryParse(
-            obj["PIDs"]?.Value<string>(),
+            obj.GetStringOrDefault("PIDs"),
             NumberStyles.Integer,
             CultureInfo.InvariantCulture,
             out var pids);
 
         return new ContainerStats
         {
-          ContainerId = obj["ID"]?.Value<string>()
-                          ?? obj["Container"]?.Value<string>(),
-          Name = obj["Name"]?.Value<string>(),
+          ContainerId = obj.GetStringOrDefault("ID")
+                          ?? obj.GetStringOrDefault("Container"),
+          Name = obj.GetStringOrDefault("Name"),
           CpuPercentage = cpuPerc,
           MemoryPercentage = memPerc,
           MemoryUsage = memUsage,
@@ -204,8 +204,9 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
           RawJson = json
         };
       }
-      catch
+      catch (Exception ex)
       {
+        Logger.Log($"Stats line parsing failed: {ex.Message}");
         return null;
       }
     }

@@ -16,8 +16,8 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
   public abstract class DockerDriverTestBase : IAsyncLifetime
   {
     protected FluentDockerKernel Kernel { get; private set; } = null!;
-    protected string DriverId => "docker";
-    protected DriverContext Context => new DriverContext(DriverId);
+    protected static string DriverId => "docker";
+    protected static DriverContext Context => new DriverContext(DriverId);
 
     // Standard test image - small and fast
     protected const string TestImage = "alpine:latest";
@@ -43,6 +43,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
 
     public ValueTask DisposeAsync()
     {
+      GC.SuppressFinalize(this);
       Kernel?.Dispose();
       return default;
     }
@@ -168,7 +169,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
     /// <summary>
     /// Generates a unique name for test resources.
     /// </summary>
-    protected string UniqueName(string prefix = "test") => $"{prefix}-{Guid.NewGuid():N}".Substring(0, 20);
+    protected static string UniqueName(string prefix = "test") => $"{prefix}-{Guid.NewGuid():N}".Substring(0, 20);
   }
 }
 

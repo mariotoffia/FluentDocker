@@ -31,7 +31,8 @@ namespace FluentDocker.Testing.Core
         DockerResourceOptions options = null)
         : base(kernel, options)
     {
-      _config = config ?? throw new ArgumentNullException(nameof(config));
+      ArgumentNullException.ThrowIfNull(config);
+      _config = config;
       if (string.IsNullOrWhiteSpace(config.YamlPath))
         throw new ArgumentException("YamlPath must not be null or empty.", nameof(config));
     }
@@ -129,9 +130,9 @@ namespace FluentDocker.Testing.Core
         await driver.DownAsync(
             context, _config.YamlPath, cancellationToken);
       }
-      catch
+      catch (Exception ex)
       {
-        // best effort
+        Logger.Log($"PodmanKubernetes teardown failed: {ex.Message}");
       }
       finally
       {

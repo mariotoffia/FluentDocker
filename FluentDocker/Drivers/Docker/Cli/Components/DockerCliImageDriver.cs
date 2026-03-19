@@ -6,9 +6,9 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using FluentDocker.Common;
+using System.Text.Json;
 using FluentDocker.Drivers.Docker.Cli.Binary;
 using FluentDocker.Model.Drivers;
-using Newtonsoft.Json;
 
 namespace FluentDocker.Drivers.Docker.Cli.Components
 {
@@ -245,7 +245,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
         }
 
         var images = new List<Image>();
-        var lines = result.Output.Split(new[] { '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries);
+        var lines = result.Output.Split(LineSeparators, StringSplitOptions.RemoveEmptyEntries);
 
         foreach (var line in lines)
         {
@@ -253,7 +253,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
           {
             // docker images JSON has Repository, Tag, ID fields
             // We need to map to Image class with RepoTags
-            var dto = JsonConvert.DeserializeObject<DockerImageDto>(line);
+            var dto = JsonSerializer.Deserialize<DockerImageDto>(line, JsonHelper.CaseInsensitiveOptions);
             if (dto != null)
             {
               var image = new Image
@@ -279,9 +279,9 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
               images.Add(image);
             }
           }
-          catch
+          catch (Exception ex)
           {
-            // Skip invalid JSON lines
+            Logger.Log($"Image list JSON parsing failed: {ex.Message}");
           }
         }
 
@@ -296,7 +296,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     /// <summary>
     /// DTO for docker images JSON output.
     /// </summary>
-    private class DockerImageDto
+    private sealed class DockerImageDto
     {
       public string ID { get; set; }
       public string Repository { get; set; }
@@ -311,7 +311,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     /// <summary>
     /// DTO for docker history JSON output.
     /// </summary>
-    private class DockerHistoryDto
+    private sealed class DockerHistoryDto
     {
       public string ID { get; set; }
       public string CreatedBy { get; set; }
@@ -374,7 +374,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
               ErrorCodes.Image.InspectFailed);
         }
 
-        var images = JsonConvert.DeserializeObject<List<Image>>(result.Output);
+        var images = JsonSerializer.Deserialize<List<Image>>(result.Output, JsonHelper.CaseInsensitiveOptions);
         var image = images?.FirstOrDefault();
 
         if (image == null)
@@ -413,13 +413,13 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
         }
 
         var layers = new List<ImageLayer>();
-        var lines = result.Output.Split(new[] { '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries);
+        var lines = result.Output.Split(LineSeparators, StringSplitOptions.RemoveEmptyEntries);
         foreach (var line in lines)
         {
           try
           {
             // Docker history JSON has ID, CreatedAt, CreatedBy, Size, Comment fields
-            var dto = JsonConvert.DeserializeObject<DockerHistoryDto>(line);
+            var dto = JsonSerializer.Deserialize<DockerHistoryDto>(line, JsonHelper.CaseInsensitiveOptions);
             if (dto != null)
             {
               var layer = new ImageLayer
@@ -439,9 +439,9 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
               layers.Add(layer);
             }
           }
-          catch
+          catch (Exception ex)
           {
-            // Skip invalid JSON lines
+            Logger.Log($"Image history JSON parsing failed: {ex.Message}");
           }
         }
 

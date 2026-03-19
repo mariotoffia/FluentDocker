@@ -1,6 +1,6 @@
 using System;
+using System.Text.Json;
 using FluentDocker.Drivers.Podman.Cli.Components;
-using Newtonsoft.Json;
 using Xunit;
 
 namespace FluentDocker.Tests.CoreTests.Driver.Podman

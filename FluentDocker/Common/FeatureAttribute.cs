@@ -7,9 +7,10 @@ using FluentDocker.Model;
 namespace FluentDocker.Common
 {
   [AttributeUsage(AttributeTargets.Class)]
+  [Obsolete("v2 legacy type. Will be removed in v4.")]
   public sealed class FeatureAttribute : Attribute
   {
-    public FeatureAttribute() => Dependencies = new Type[0];
+    public FeatureAttribute() => Dependencies = Array.Empty<Type>();
 
     public FeatureAttribute(string id, IEnumerable<Type> dependencies = null)
     {

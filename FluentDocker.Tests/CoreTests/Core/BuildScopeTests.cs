@@ -4,6 +4,8 @@ using FluentDocker.Model.Kernel;
 using FluentDocker.Services;
 using Xunit;
 
+#pragma warning disable CS0618 // IService obsolete — intentional test usage
+
 namespace FluentDocker.Tests.CoreTests.Core
 {
   /// <summary>
@@ -43,7 +45,7 @@ namespace FluentDocker.Tests.CoreTests.Core
 
       // Assert
       Assert.Single(scope.Results);
-      Assert.Equal(service, scope.Results.First());
+      Assert.Equal(service, scope.Results[0]);
 
       // Cleanup
       kernel.Dispose();
@@ -131,4 +133,3 @@ namespace FluentDocker.Tests.CoreTests.Core
     }
   }
 }
-

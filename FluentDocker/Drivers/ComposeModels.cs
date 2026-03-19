@@ -337,7 +337,7 @@ namespace FluentDocker.Drivers
   public class ComposeServiceInfo
   {
     /// <summary>Service name (from compose file).</summary>
-    [Newtonsoft.Json.JsonProperty("Service")]
+    [System.Text.Json.Serialization.JsonPropertyName("Service")]
     public string Name { get; set; }
     /// <summary>Current state (running, exited, etc.).</summary>
     public string State { get; set; }
@@ -346,10 +346,10 @@ namespace FluentDocker.Drivers
     /// <summary>Health status.</summary>
     public string Health { get; set; }
     /// <summary>Container ID.</summary>
-    [Newtonsoft.Json.JsonProperty("ID")]
+    [System.Text.Json.Serialization.JsonPropertyName("ID")]
     public string ContainerId { get; set; }
     /// <summary>Container name.</summary>
-    [Newtonsoft.Json.JsonProperty("Name")]
+    [System.Text.Json.Serialization.JsonPropertyName("Name")]
     public string ContainerName { get; set; }
     /// <summary>Image being used.</summary>
     public string Image { get; set; }
@@ -409,7 +409,7 @@ namespace FluentDocker.Drivers
     /// <summary>Tag.</summary>
     public string Tag { get; set; }
     /// <summary>Image ID.</summary>
-    [Newtonsoft.Json.JsonProperty("ID")]
+    [System.Text.Json.Serialization.JsonPropertyName("ID")]
     public string ImageId { get; set; }
     /// <summary>Image size.</summary>
     public string Size { get; set; }

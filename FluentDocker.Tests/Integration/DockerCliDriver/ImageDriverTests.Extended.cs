@@ -99,7 +99,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
     [Fact]
     public async Task Import_ContainerExport_CreatesImage()
     {
-      string containerId = null;
+      string? containerId = null;
       var tarPath = Path.Combine(Path.GetTempPath(), $"fd-import-{Guid.NewGuid():N}.tar");
       var repo = UniqueName("fd-import");
       var tag = "v1";
@@ -132,7 +132,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
       finally
       {
         if (containerId != null)
-          await RemoveContainerAsync(containerId);
+          await RemoveContainerAsync(containerId!);
 
         try
         { await ImageDriver.RemoveAsync(Context, $"{repo}:{tag}", force: true, cancellationToken: TestContext.Current.CancellationToken); }

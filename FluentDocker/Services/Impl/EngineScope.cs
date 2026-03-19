@@ -1,6 +1,7 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
+using FluentDocker.Common;
 using FluentDocker.Drivers;
 using FluentDocker.Kernel;
 using FluentDocker.Model.Drivers;
@@ -28,8 +29,10 @@ namespace FluentDocker.Services.Impl
         string driverId,
         EngineScopeType targetScope)
     {
-      _kernel = kernel ?? throw new ArgumentNullException(nameof(kernel));
-      _driverId = driverId ?? throw new ArgumentNullException(nameof(driverId));
+      ArgumentNullException.ThrowIfNull(kernel);
+      ArgumentNullException.ThrowIfNull(driverId);
+      _kernel = kernel;
+      _driverId = driverId;
       _targetScope = targetScope;
 
       _originalScope = DetectCurrentScopeSync();
@@ -123,7 +126,10 @@ namespace FluentDocker.Services.Impl
     public void Dispose()
     {
       if (_disposed)
+      {
+        GC.SuppressFinalize(this);
         return;
+      }
 
       _disposed = true;
 
@@ -140,16 +146,22 @@ namespace FluentDocker.Services.Impl
             UseWindowsAsync().GetAwaiter().GetResult();
           }
         }
-        catch
+        catch (Exception ex)
         {
+          Logger.Log($"Engine scope restore failed: {ex.Message}");
         }
       }
+
+      GC.SuppressFinalize(this);
     }
 
     public async ValueTask DisposeAsync()
     {
       if (_disposed)
+      {
+        GC.SuppressFinalize(this);
         return;
+      }
 
       _disposed = true;
 
@@ -166,10 +178,13 @@ namespace FluentDocker.Services.Impl
             await UseWindowsAsync();
           }
         }
-        catch
+        catch (Exception ex)
         {
+          Logger.Log($"Engine scope async restore failed: {ex.Message}");
         }
       }
+
+      GC.SuppressFinalize(this);
     }
 
     private EngineScopeType DetectCurrentScopeSync()
@@ -186,8 +201,9 @@ namespace FluentDocker.Services.Impl
           return response.Data ? EngineScopeType.Windows : EngineScopeType.Linux;
         }
       }
-      catch
+      catch (Exception ex)
       {
+        Logger.Log($"Engine scope detection failed: {ex.Message}");
       }
 
       return EngineScopeType.Unknown;

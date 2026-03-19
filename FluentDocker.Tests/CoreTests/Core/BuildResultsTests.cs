@@ -6,6 +6,8 @@ using FluentDocker.Model.Kernel;
 using FluentDocker.Services;
 using Xunit;
 
+#pragma warning disable CS0618 // IService obsolete — intentional test usage
+
 namespace FluentDocker.Tests.CoreTests.Core
 {
   /// <summary>
@@ -199,4 +201,3 @@ namespace FluentDocker.Tests.CoreTests.Core
     }
   }
 }
-

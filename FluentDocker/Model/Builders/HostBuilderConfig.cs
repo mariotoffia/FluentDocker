@@ -2,7 +2,7 @@ namespace FluentDocker.Model.Builders
 {
   public sealed class HostBuilderConfig
   {
-    public bool UseNative { get; set; } = false;
+    public bool UseNative { get; set; }
     public string Name { get; set; } = "default";
     public int MemoryMb { get; set; } = 1024;
     public int CpuCount { get; set; } = 1;

@@ -28,8 +28,8 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
   public abstract class SwarmTestBase : IAsyncLifetime
   {
     protected FluentDockerKernel Kernel { get; private set; } = null!;
-    protected string DriverId => "docker";
-    protected DriverContext Context => new DriverContext(DriverId);
+    protected static string DriverId => "docker";
+    protected static DriverContext Context => new DriverContext(DriverId);
 
     protected const string TestImage = "alpine:latest";
     protected const string NginxImage = "nginx:alpine";
@@ -63,6 +63,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
 
     public ValueTask DisposeAsync()
     {
+      GC.SuppressFinalize(this);
       // Note: We intentionally do NOT leave Swarm mode here.
       // xUnit runs test classes in parallel, so leaving Swarm would break
       // other Swarm-dependent tests still running. Since these are DevLocal
@@ -109,7 +110,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
             force: true, removeVolumes: true);
     }
 
-    protected string UniqueName(string prefix = "test") =>
+    protected static string UniqueName(string prefix = "test") =>
         $"{prefix}-{Guid.NewGuid():N}"[..20];
 
     /// <summary>
@@ -132,7 +133,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
           {
             lastObserved = result.Data[0].Replicas ?? "<null>";
             var replicas = result.Data[0].Replicas;
-            if (replicas != null && replicas.Contains("/"))
+            if (replicas != null && replicas.Contains('/'))
             {
               var parts = replicas.Split('/');
               if (parts.Length == 2

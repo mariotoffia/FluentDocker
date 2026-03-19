@@ -75,7 +75,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
       finally
       {
         if (containerId != null)
-          await RemoveContainerAsync(containerId);
+          await RemoveContainerAsync(containerId!);
       }
     }
 
@@ -107,7 +107,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
 
     #region Helper Methods
 
-    private async Task<bool> WaitForPortAsync(string host, int port, TimeSpan timeout)
+    private static async Task<bool> WaitForPortAsync(string host, int port, TimeSpan timeout)
     {
       var endTime = DateTime.UtcNow + timeout;
 
@@ -159,7 +159,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
       return false;
     }
 
-    private async Task<bool> WaitForHttpAsync(string url, TimeSpan timeout)
+    private static async Task<bool> WaitForHttpAsync(string url, TimeSpan timeout)
     {
       var endTime = DateTime.UtcNow + timeout;
 
@@ -182,7 +182,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
       return false;
     }
 
-    private async Task<bool> WaitForHttpWithContentAsync(string url, string expectedContent, TimeSpan timeout)
+    private static async Task<bool> WaitForHttpWithContentAsync(string url, string expectedContent, TimeSpan timeout)
     {
       var endTime = DateTime.UtcNow + timeout;
 
@@ -228,7 +228,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
       return false;
     }
 
-    private async Task<bool> WaitWithConditionAsync(Func<Task<bool>> condition, TimeSpan timeout)
+    private static async Task<bool> WaitWithConditionAsync(Func<Task<bool>> condition, TimeSpan timeout)
     {
       var endTime = DateTime.UtcNow + timeout;
 

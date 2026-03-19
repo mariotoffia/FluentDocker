@@ -114,7 +114,7 @@ namespace FluentDocker.Tests.Integration.DockerApiDriver
     [Fact]
     public async Task Image_Import_ContainerExport_CreatesImage()
     {
-      string containerId = null;
+      string? containerId = null;
       var tarPath = Path.Combine(Path.GetTempPath(), $"fd-api-import-{Guid.NewGuid():N}.tar");
       var repo = UniqueName("fd-api-imp");
       var tag = "v1";

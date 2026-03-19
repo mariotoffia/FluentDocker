@@ -6,7 +6,10 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <!-- Test-specific suppressions -->
+    <!-- CA1707: test method names use underscores; CA1852: sealed types; CA1861: const arrays -->
     <NoWarn>$(NoWarn);CA1707;CA1852;CA1861</NoWarn>
+    <!-- Nullable warnings: test code intentionally passes null to verify null-handling behaviour -->
+    <NoWarn>$(NoWarn);CS8600;CS8601;CS8602;CS8603;CS8604;CS8605;CS8618;CS8625;CS0219</NoWarn>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="coverlet.collector" PrivateAssets="all" />

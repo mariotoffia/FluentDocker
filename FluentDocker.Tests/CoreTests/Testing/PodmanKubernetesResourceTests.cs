@@ -209,7 +209,7 @@ namespace FluentDocker.Tests.CoreTests.Testing
     public void Constructor_NullConfig_Throws()
     {
       Assert.Throws<ArgumentNullException>(
-          () => new PodmanKubernetesResource(Kernel, null));
+          () => new PodmanKubernetesResource(Kernel, null!));
     }
 
     [Fact]

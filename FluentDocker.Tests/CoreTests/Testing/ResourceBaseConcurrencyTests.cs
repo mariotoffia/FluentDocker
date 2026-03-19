@@ -22,6 +22,7 @@ namespace FluentDocker.Tests.CoreTests.Testing
 
     public async ValueTask DisposeAsync()
     {
+      GC.SuppressFinalize(this);
       if (_kernel != null)
         await _kernel.DisposeAsync();
     }

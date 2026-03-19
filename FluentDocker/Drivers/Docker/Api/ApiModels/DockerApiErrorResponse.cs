@@ -1,13 +1,13 @@
-using Newtonsoft.Json;
+using System.Text.Json.Serialization;
 
 namespace FluentDocker.Drivers.Docker.Api.ApiModels
 {
   /// <summary>
   /// Error response from the Docker Engine REST API.
   /// </summary>
-  internal class DockerApiErrorResponse
+  internal sealed class DockerApiErrorResponse
   {
-    [JsonProperty("message")]
+    [JsonPropertyName("message")]
     public string Message { get; set; }
   }
 }

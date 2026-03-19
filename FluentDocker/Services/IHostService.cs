@@ -4,6 +4,8 @@ using System.Threading;
 using System.Threading.Tasks;
 using FluentDocker.Drivers;
 
+#pragma warning disable CS0618 // Services.NetworkCreateConfig obsolete — intentional usage in public API
+
 namespace FluentDocker.Services
 {
   /// <summary>
@@ -210,6 +212,8 @@ namespace FluentDocker.Services
   /// <summary>
   /// Configuration for creating a network.
   /// </summary>
+  [Obsolete("Use FluentDocker.Drivers.NetworkCreateConfig instead. " +
+            "This duplicate type in the Services namespace will be removed in v4.")]
   public class NetworkCreateConfig
   {
     /// <summary>Network driver (default: bridge).</summary>

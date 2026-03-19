@@ -15,6 +15,8 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
   /// </summary>
   public partial class DockerCliComposeDriver : DockerCliDriverBase, IComposeDriver
   {
+    private static readonly char[] LineSeparators = ['\n', '\r'];
+    private static readonly char[] NewlineSeparator = ['\n'];
     /// <summary>
     /// Creates a new instance with the specified binary resolver.
     /// </summary>
@@ -259,7 +261,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
 
     #region Private Helpers
 
-    private string BuildComposeArgs(ComposeFileConfig config)
+    private static string BuildComposeArgs(ComposeFileConfig config)
     {
       var args = "compose";
       foreach (var file in config.ComposeFiles)

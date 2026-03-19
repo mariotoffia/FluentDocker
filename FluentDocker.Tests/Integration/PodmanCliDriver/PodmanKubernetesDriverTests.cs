@@ -29,7 +29,7 @@ spec:
     [Fact]
     public async Task PlayAndDown_SimplePod_Succeeds()
     {
-      string yamlPath = null;
+      string? yamlPath = null;
       try
       {
         yamlPath = CreateTempYaml(SimplePodYaml);
@@ -51,7 +51,7 @@ spec:
     [Fact]
     public async Task Play_WithReplace_Succeeds()
     {
-      string yamlPath = null;
+      string? yamlPath = null;
       try
       {
         yamlPath = CreateTempYaml(SimplePodYaml);
@@ -80,7 +80,7 @@ spec:
     [Fact]
     public async Task Play_WithNoStart_CreatesButDoesNotStart()
     {
-      string yamlPath = null;
+      string? yamlPath = null;
       try
       {
         yamlPath = CreateTempYaml(SimplePodYaml);
@@ -114,7 +114,7 @@ spec:
     [Fact]
     public async Task Down_AfterPlay_RemovesResources()
     {
-      string yamlPath = null;
+      string? yamlPath = null;
       try
       {
         yamlPath = CreateTempYaml(SimplePodYaml);
@@ -149,7 +149,7 @@ spec:
     [Fact]
     public async Task GenerateKube_FromPod_ReturnsYaml()
     {
-      string podName = null;
+      string? podName = null;
       try
       {
         await EnsureImageAsync(TestImage);

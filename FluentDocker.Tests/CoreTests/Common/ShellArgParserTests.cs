@@ -102,7 +102,7 @@ namespace FluentDocker.Tests.CoreTests.Common
     public void Parse_Null_ReturnsEmptyArray()
     {
       // Arrange & Act
-      var result = ShellArgParser.Parse(null);
+      var result = ShellArgParser.Parse(null!);
 
       // Assert
       Assert.Empty(result);

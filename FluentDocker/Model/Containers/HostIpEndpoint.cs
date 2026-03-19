@@ -42,7 +42,7 @@ namespace FluentDocker.Model.Containers
       {
         _hostPort = value;
 
-        int.TryParse(value, out var port);
+        _ = int.TryParse(value, out var port);
         Port = port;
       }
     }

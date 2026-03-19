@@ -15,14 +15,20 @@ namespace FluentDocker.Drivers
     /// <summary>
     /// Type-to-implementation map for registered driver interfaces.
     /// </summary>
-    protected readonly Dictionary<Type, object> Drivers = new Dictionary<Type, object>();
+    private readonly Dictionary<Type, object> _drivers = new Dictionary<Type, object>();
+
+    /// <summary>
+    /// Gets the driver dictionary for subclass use.
+    /// </summary>
+    protected Dictionary<Type, object> Drivers => _drivers;
 
     /// <summary>
     /// Registers a driver implementation by its interface type.
     /// </summary>
     protected void RegisterDriver<T>(T driver) where T : class
     {
-      Drivers[typeof(T)] = driver ?? throw new ArgumentNullException(nameof(driver));
+      ArgumentNullException.ThrowIfNull(driver);
+      Drivers[typeof(T)] = driver;
     }
 
     /// <inheritdoc />

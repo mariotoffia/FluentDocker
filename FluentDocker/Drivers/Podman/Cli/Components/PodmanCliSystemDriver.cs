@@ -1,12 +1,12 @@
 using System;
 using System.Globalization;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
+using FluentDocker.Common;
 using FluentDocker.Drivers.Docker.Cli;
 using FluentDocker.Drivers.Podman.Cli.Binary;
 using FluentDocker.Model.Drivers;
-using Newtonsoft.Json;
-using Newtonsoft.Json.Linq;
 
 namespace FluentDocker.Drivers.Podman.Cli.Components
 {
@@ -16,6 +16,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
   /// </summary>
   public class PodmanCliSystemDriver : PodmanCliDriverBase, ISystemDriver
   {
+    private static readonly char[] LineSeparators = ['\n', '\r'];
     public PodmanCliSystemDriver(IPodmanBinaryResolver binaryResolver) : base(binaryResolver)
     {
     }
@@ -208,42 +209,46 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       var info = new SystemInfo();
       try
       {
-        var obj = JObject.Parse(json);
+        var obj = JsonHelper.ParseElement(json);
 
         // Podman info structure: { host: {...}, store: {...}, ... }
-        var host = obj["host"];
-        if (host != null)
+        var host = obj.Prop("host");
+        if (host.HasValue)
         {
-          info.OperatingSystem = host["os"]?.Value<string>();
-          info.Architecture = host["arch"]?.Value<string>();
-          info.Hostname = host["hostname"]?.Value<string>();
-          info.KernelVersion = host["kernel"]?.Value<string>();
-          info.CPUs = host["cpus"]?.Value<int>() ?? 0;
-          info.MemoryTotal = host["memTotal"]?.Value<long>() ?? 0;
+          var h = host.Value;
+          info.OperatingSystem = h.GetStringOrDefault("os");
+          info.Architecture = h.GetStringOrDefault("arch");
+          info.Hostname = h.GetStringOrDefault("hostname");
+          info.KernelVersion = h.GetStringOrDefault("kernel");
+          info.CPUs = h.GetInt32OrDefault("cpus");
+          info.MemoryTotal = h.GetInt64OrDefault("memTotal");
 
-          var conmon = host["conmon"];
-          if (conmon != null)
-            info.EngineVersion = conmon["version"]?.Value<string>();
+          var conmon = h.Prop("conmon");
+          if (conmon.HasValue)
+            info.EngineVersion = conmon.Value.GetStringOrDefault("version");
         }
 
-        var store = obj["store"];
-        if (store != null)
+        var store = obj.Prop("store");
+        if (store.HasValue)
         {
-          info.StorageBackend = store["graphDriverName"]?.Value<string>();
-          info.DataRoot = store["graphRoot"]?.Value<string>();
-          info.Images = store["imageStore"]?["number"]?.Value<int>() ?? 0;
+          var s = store.Value;
+          info.StorageBackend = s.GetStringOrDefault("graphDriverName");
+          info.DataRoot = s.GetStringOrDefault("graphRoot");
+          var imgStore = s.Prop("imageStore");
+          if (imgStore.HasValue)
+            info.Images = imgStore.Value.GetInt32OrDefault("number");
         }
 
         // Podman version info
-        var version = obj["version"];
-        if (version != null)
-          info.EngineVersion = version["Version"]?.Value<string>() ?? info.EngineVersion;
+        var version = obj.Prop("version");
+        if (version.HasValue)
+          info.EngineVersion = version.Value.GetStringOrDefault("Version") ?? info.EngineVersion;
 
         info.OSType = "linux"; // Podman always runs Linux containers
       }
-      catch
+      catch (Exception ex)
       {
-        // Return partial info on parse failure
+        Logger.Log($"Podman system info parsing failed: {ex.Message}");
       }
 
       return info;
@@ -254,23 +259,25 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       var version = new VersionInfo();
       try
       {
-        var obj = JObject.Parse(json);
+        var obj = JsonHelper.ParseElement(json);
 
         // Podman version JSON: { Client: {...}, Server: {...} } or flat structure
-        var client = obj["Client"] ?? obj;
-        version.ClientVersion = client["Version"]?.Value<string>();
-        version.ClientApiVersion = client["APIVersion"]?.Value<string>();
-        version.GitCommit = client["GitCommit"]?.Value<string>();
-        version.RuntimeVersion = client["GoVersion"]?.Value<string>();
-        version.Os = client["Os"]?.Value<string>() ?? client["OsArch"]?.Value<string>();
-        version.Arch = client["Arch"]?.Value<string>();
-        version.BuildTime = client["Built"]?.Value<string>();
+        var clientProp = obj.Prop("Client");
+        var client = clientProp ?? obj;
+        version.ClientVersion = client.GetStringOrDefault("Version");
+        version.ClientApiVersion = client.GetStringOrDefault("APIVersion");
+        version.GitCommit = client.GetStringOrDefault("GitCommit");
+        version.RuntimeVersion = client.GetStringOrDefault("GoVersion");
+        version.Os = client.GetStringOrDefault("Os") ?? client.GetStringOrDefault("OsArch");
+        version.Arch = client.GetStringOrDefault("Arch");
+        version.BuildTime = client.GetStringOrDefault("Built");
 
-        var server = obj["Server"];
-        if (server != null)
+        var server = obj.Prop("Server");
+        if (server.HasValue)
         {
-          version.ServerVersion = server["Version"]?.Value<string>();
-          version.ServerApiVersion = server["APIVersion"]?.Value<string>();
+          var s = server.Value;
+          version.ServerVersion = s.GetStringOrDefault("Version");
+          version.ServerApiVersion = s.GetStringOrDefault("APIVersion");
         }
         else
         {
@@ -281,9 +288,9 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
 
         version.PlatformName = "Podman";
       }
-      catch
+      catch (Exception ex)
       {
-        // Return partial info on parse failure
+        Logger.Log($"Podman version info parsing failed: {ex.Message}");
       }
 
       return version;
@@ -307,20 +314,20 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       var trimmed = output.Trim();
 
       // Try parsing as a JSON array first
-      if (trimmed.StartsWith("["))
+      if (trimmed.StartsWith('['))
       {
         try
         {
-          var arr = JArray.Parse(trimmed);
-          foreach (var token in arr)
+          var root = JsonHelper.ParseElement(trimmed);
+          foreach (var token in root.EnumerateArraySafe())
           {
-            if (token is JObject obj)
-              ApplyDiskUsageItem(info, obj);
+            if (token.ValueKind == JsonValueKind.Object)
+              ApplyDiskUsageItem(info, token);
           }
         }
-        catch
+        catch (Exception ex)
         {
-          // Fall through to line-by-line parsing
+          Logger.Log($"Podman disk usage JSON parsing failed: {ex.Message}");
           ParseLineByLine(info, trimmed);
         }
       }
@@ -338,7 +345,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
 
     private static void ParseLineByLine(DiskUsageInfo info, string output)
     {
-      var lines = output.Split(new[] { '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries);
+      var lines = output.Split(LineSeparators, StringSplitOptions.RemoveEmptyEntries);
       foreach (var line in lines)
       {
         var l = line.Trim();
@@ -347,19 +354,19 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
 
         try
         {
-          var obj = JObject.Parse(l);
+          var obj = JsonHelper.ParseElement(l);
           ApplyDiskUsageItem(info, obj);
         }
-        catch
+        catch (Exception ex)
         {
-          // Skip malformed lines
+          Logger.Log($"Podman disk usage line parsing failed: {ex.Message}");
         }
       }
     }
 
-    private static void ApplyDiskUsageItem(DiskUsageInfo info, JObject obj)
+    private static void ApplyDiskUsageItem(DiskUsageInfo info, JsonElement obj)
     {
-      var type = (obj["Type"] ?? obj["type"])?.Value<string>() ?? "";
+      var type = obj.GetStringOrDefault("Type") ?? obj.GetStringOrDefault("type") ?? "";
       var item = new DiskUsageItem
       {
         TotalCount = ReadInt(obj, "Total", "TotalCount"),
@@ -386,26 +393,32 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       }
     }
 
-    private static int ReadInt(JObject obj, string key1, string key2)
+    private static int ReadInt(JsonElement obj, string key1, string key2)
     {
-      var token = obj[key1] ?? obj[key2];
-      return token?.Value<int>() ?? 0;
+      var prop = obj.Prop(key1, key2);
+      if (!prop.HasValue) return 0;
+      var p = prop.Value;
+      if (p.ValueKind == JsonValueKind.Number && p.TryGetInt32(out var v))
+        return v;
+      if (p.ValueKind == JsonValueKind.String && int.TryParse(p.GetString(), out v))
+        return v;
+      return 0;
     }
 
     /// <summary>
-    /// Reads a byte value from a JObject property. The value may be a number
+    /// Reads a byte value from a JsonElement property. The value may be a number
     /// (raw bytes) or a human-readable string (e.g. "500MB", "1.5GB (40%)").
     /// </summary>
-    private static long ReadByteValue(JObject obj, string key1, string key2)
+    private static long ReadByteValue(JsonElement obj, string key1, string key2)
     {
-      var token = obj[key1] ?? obj[key2];
-      if (token == null)
-        return 0;
+      var prop = obj.Prop(key1, key2);
+      if (!prop.HasValue) return 0;
+      var p = prop.Value;
 
-      if (token.Type == JTokenType.Integer || token.Type == JTokenType.Float)
-        return token.Value<long>();
+      if (p.ValueKind == JsonValueKind.Number)
+        return p.TryGetInt64(out var lv) ? lv : 0;
 
-      var str = token.Value<string>();
+      var str = p.GetStringValue();
       if (string.IsNullOrWhiteSpace(str))
         return 0;
 

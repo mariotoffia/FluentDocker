@@ -8,6 +8,8 @@ using FluentDocker.Drivers.Podman;
 using FluentDocker.Model.Drivers;
 using Xunit;
 
+#pragma warning disable CS0618 // DriverComponent obsolete — intentional usage
+
 namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
 {
   /// Unit tests for DockerApiDriverPack: resolution, capabilities, and SysCtl wiring.
@@ -22,8 +24,11 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
     private async Task InitializePackAsync() =>
         await _pack.InitializeAsync(CreateContext());
 
-    public async ValueTask DisposeAsync() =>
-        await _pack.DisposeAsync();
+    public async ValueTask DisposeAsync()
+    {
+      GC.SuppressFinalize(this);
+      await _pack.DisposeAsync();
+    }
 
     // ── Basic properties ────────────────────────────────────────────
 
@@ -66,9 +71,13 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
             () => _pack.SysCtl("docker-api", DriverComponent.Container));
 
     [Fact]
-    public void SysCtlByType_BeforeInit_Throws() =>
-        Assert.Throws<InvalidOperationException>(
-            () => _pack.SysCtl("docker-api", typeof(IContainerDriver)));
+    public void SysCtlByType_BeforeInit_Throws()
+    {
+#pragma warning disable CA2263 // Intentionally testing the non-generic SysCtl(string, Type) overload
+      Assert.Throws<InvalidOperationException>(
+          () => _pack.SysCtl("docker-api", typeof(IContainerDriver)));
+#pragma warning restore CA2263
+    }
 
     [Fact]
     public void TrySysCtl_BeforeInit_Throws() =>

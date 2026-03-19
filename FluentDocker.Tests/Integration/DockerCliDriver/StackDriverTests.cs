@@ -20,7 +20,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
     public async Task Deploy_SimpleStack_Succeeds()
     {
       var stackName = UniqueName("stack");
-      string tempDir = null;
+      string? tempDir = null;
 
       try
       {
@@ -43,7 +43,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
       finally
       {
         await RemoveStackSafeAsync(stackName);
-        CleanupTempDir(tempDir);
+        CleanupTempDir(tempDir!);
       }
     }
 
@@ -51,7 +51,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
     public async Task Deploy_AndRemove_Succeeds()
     {
       var stackName = UniqueName("stack");
-      string tempDir = null;
+      string? tempDir = null;
 
       try
       {
@@ -74,7 +74,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
       finally
       {
         await RemoveStackSafeAsync(stackName);
-        CleanupTempDir(tempDir);
+        CleanupTempDir(tempDir!);
       }
     }
 
@@ -86,7 +86,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
     public async Task List_AfterDeploy_ReturnsStack()
     {
       var stackName = UniqueName("stack");
-      string tempDir = null;
+      string? tempDir = null;
 
       try
       {
@@ -110,7 +110,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
       finally
       {
         await RemoveStackSafeAsync(stackName);
-        CleanupTempDir(tempDir);
+        CleanupTempDir(tempDir!);
       }
     }
 
@@ -122,7 +122,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
     public async Task GetServices_AfterDeploy_ReturnsServices()
     {
       var stackName = UniqueName("stack");
-      string tempDir = null;
+      string? tempDir = null;
 
       try
       {
@@ -147,7 +147,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
       finally
       {
         await RemoveStackSafeAsync(stackName);
-        CleanupTempDir(tempDir);
+        CleanupTempDir(tempDir!);
       }
     }
 
@@ -159,7 +159,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
     public async Task GetTasks_AfterDeploy_ReturnsTasks()
     {
       var stackName = UniqueName("stack");
-      string tempDir = null;
+      string? tempDir = null;
 
       try
       {
@@ -187,7 +187,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
       finally
       {
         await RemoveStackSafeAsync(stackName);
-        CleanupTempDir(tempDir);
+        CleanupTempDir(tempDir!);
       }
     }
 
@@ -199,7 +199,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
     public async Task Deploy_WithPrune_Succeeds()
     {
       var stackName = UniqueName("stack");
-      string tempDir = null;
+      string? tempDir = null;
 
       try
       {
@@ -229,7 +229,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
       finally
       {
         await RemoveStackSafeAsync(stackName);
-        CleanupTempDir(tempDir);
+        CleanupTempDir(tempDir!);
       }
     }
 
@@ -253,7 +253,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
 
     #region Helpers
 
-    private string CreateComposeDir(string stackName)
+    private static string CreateComposeDir(string stackName)
     {
       var tempDir = Path.Combine(Path.GetTempPath(),
           $"stack-test-{Guid.NewGuid():N}");

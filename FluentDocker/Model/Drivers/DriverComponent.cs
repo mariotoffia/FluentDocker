@@ -1,8 +1,13 @@
+using System;
+
 namespace FluentDocker.Model.Drivers
 {
   /// <summary>
   /// Specifies the driver component/capability type.
   /// </summary>
+  [Obsolete("Use the generic SysCtl<T>(driverId) or SysCtl(driverId, Type) overloads instead. " +
+            "The enum must be extended for each new driver type, which doesn't scale. " +
+            "This enum will be removed in v4.")]
   public enum DriverComponent
   {
     /// <summary>

@@ -78,7 +78,7 @@ namespace FluentDocker.Model.Common
 
     private static string Render(string str)
     {
-      str = Templates.Keys.Where(key => -1 != str.IndexOf(key, StringComparison.Ordinal))
+      str = Templates.Keys.Where(key => str.Contains(key, StringComparison.Ordinal))
         .Aggregate(str, (current, key) => current.Replace(key, Templates[key]()));
 
       return RenderEnvironment(str);
@@ -89,7 +89,7 @@ namespace FluentDocker.Model.Common
       foreach (DictionaryEntry env in Environment.GetEnvironmentVariables())
       {
         var tmpEnv = "${E_" + env.Key + "}";
-        if (-1 != str.IndexOf(tmpEnv, StringComparison.Ordinal))
+        if (str.Contains(tmpEnv, StringComparison.Ordinal))
           str = str.Replace(tmpEnv, (string)env.Value);
       }
 

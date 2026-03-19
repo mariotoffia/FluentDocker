@@ -58,6 +58,7 @@ namespace FluentDocker.Model.Drivers
       public const string RenameFailed = "CNT_020";
       public const string UpdateFailed = "CNT_021";
       public const string StatsFailed = "CNT_022";
+      public const string LogsFailed = "CNT_023";
     }
 
     /// <summary>
@@ -236,7 +237,9 @@ namespace FluentDocker.Model.Drivers
     /// <summary>
     /// Stack-related error codes (Docker Swarm / Kubernetes)
     /// </summary>
+#pragma warning disable CA1711 // Type name ends in 'Stack' — intentional domain name for Docker Swarm stacks
     public static class Stack
+#pragma warning restore CA1711
     {
       public const string NotFound = "STK_001";
       public const string ListFailed = "STK_002";

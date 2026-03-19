@@ -4,12 +4,12 @@ using System.IO;
 using System.Net.Http;
 using System.Runtime.CompilerServices;
 using System.Text;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
+using FluentDocker.Common;
 using FluentDocker.Drivers.Docker.Api.Connection;
 using FluentDocker.Model.Drivers;
-using Newtonsoft.Json;
-using Newtonsoft.Json.Linq;
 
 namespace FluentDocker.Drivers.Docker.Api.Components
 {
@@ -19,6 +19,9 @@ namespace FluentDocker.Drivers.Docker.Api.Components
   /// </summary>
   public class DockerApiStreamDriver : DockerApiDriverBase, IStreamDriver
   {
+    /// <summary>Maximum allowed frame size in the Docker multiplexed stream protocol (10 MB).</summary>
+    private const int MaxFrameSizeBytes = 10 * 1024 * 1024;
+
     public DockerApiStreamDriver(IDockerApiConnection connection) : base(connection) { }
 
     public async IAsyncEnumerable<string> StreamLogsAsync(
@@ -45,16 +48,25 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       {
         stream = await Connection.GetStreamAsync(path, cancellationToken);
       }
-      catch
+      catch (Exception ex)
       {
+        Logger.Log($"Docker log stream open failed: {ex.Message}");
         yield break;
       }
 
       // Docker log streams use multiplexed format with 8-byte headers
-      // unless the container was started with TTY mode
-      await foreach (var line in ReadMultiplexedStreamAsync(stream, cancellationToken))
+      // unless the container was started with TTY mode.
+      // Use try/finally to dispose the stream when the caller breaks out.
+      try
       {
-        yield return line;
+        await foreach (var line in ReadMultiplexedStreamAsync(stream, cancellationToken))
+        {
+          yield return line;
+        }
+      }
+      finally
+      {
+        await stream.DisposeAsync();
       }
     }
 
@@ -72,7 +84,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
         filters["event"] = config.Actions;
 
       if (filters.Count > 0)
-        path += $"filters={Uri.EscapeDataString(JsonConvert.SerializeObject(filters))}";
+        path += $"filters={Uri.EscapeDataString(JsonHelper.Serialize(filters))}";
       if (!string.IsNullOrEmpty(config.Since))
         path += $"&since={config.Since}";
       if (!string.IsNullOrEmpty(config.Until))
@@ -83,28 +95,28 @@ namespace FluentDocker.Drivers.Docker.Api.Components
         ContainerEvent evt;
         try
         {
-          var json = JObject.Parse(line);
+          var json = JsonHelper.ParseElement(line);
           evt = new ContainerEvent
           {
-            Type = json.Value<string>("Type"),
-            Action = json.Value<string>("Action"),
+            Type = json.GetStringOrDefault("Type"),
+            Action = json.GetStringOrDefault("Action"),
             Timestamp = DateTimeOffset.FromUnixTimeSeconds(
-                  json.Value<long?>("time") ?? 0).UtcDateTime,
-            TimeNano = json.Value<long?>("timeNano") ?? 0,
-            Scope = json.Value<string>("scope"),
+                  json.GetInt64OrDefault("time")).UtcDateTime,
+            TimeNano = json.GetInt64OrDefault("timeNano"),
+            Scope = json.GetStringOrDefault("scope"),
             RawJson = line
           };
 
-          if (json["Actor"] is JObject actor)
+          var actor = json.Prop("Actor");
+          if (actor?.ValueKind == JsonValueKind.Object)
           {
-            evt.ActorId = actor.Value<string>("ID");
-            evt.ActorAttributes = actor["Attributes"]?
-                .ToObject<Dictionary<string, string>>()
-                ?? new Dictionary<string, string>();
+            evt.ActorId = actor.Value.GetStringOrDefault("ID");
+            evt.ActorAttributes = actor.Value.GetStringDictionary("Attributes");
           }
         }
-        catch
+        catch (Exception ex)
         {
+          Logger.Log($"Event stream JSON parsing failed: {ex.Message}");
           continue;
         }
 
@@ -133,8 +145,9 @@ namespace FluentDocker.Drivers.Docker.Api.Components
         {
           stats = ParseContainerStats(line);
         }
-        catch
+        catch (Exception ex)
         {
+          Logger.Log($"Stats stream JSON parsing failed: {ex.Message}");
           continue;
         }
 
@@ -186,7 +199,6 @@ namespace FluentDocker.Drivers.Docker.Api.Components
         Stream stream, [EnumeratorCancellation] CancellationToken ct)
     {
       var header = new byte[8];
-      var reader = new StreamReader(stream, Encoding.UTF8);
 
       while (!ct.IsCancellationRequested)
       {
@@ -200,10 +212,12 @@ namespace FluentDocker.Drivers.Docker.Api.Components
 
         if (bytesRead < 8)
         {
-          // Possibly a raw (TTY) stream — try reading as plain text
+          // Possibly a raw (TTY) stream -- try reading as plain text
           if (bytesRead > 0)
           {
             var partial = Encoding.UTF8.GetString(header, 0, bytesRead);
+            using var reader = new StreamReader(stream, Encoding.UTF8, detectEncodingFromByteOrderMarks: false,
+                bufferSize: 1024, leaveOpen: true);
             var rest = await reader.ReadToEndAsync(ct);
             foreach (var line in (partial + rest).Split('\n'))
             {
@@ -217,7 +231,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
         var frameSize = (header[4] << 24) | (header[5] << 16) |
             (header[6] << 8) | header[7];
 
-        if (frameSize <= 0 || frameSize > 10 * 1024 * 1024) // 10MB safety limit
+        if (frameSize <= 0 || frameSize > MaxFrameSizeBytes)
           yield break;
 
         var payload = new byte[frameSize];
@@ -242,53 +256,64 @@ namespace FluentDocker.Drivers.Docker.Api.Components
 
     private static ContainerStats ParseContainerStats(string json)
     {
-      var obj = JObject.Parse(json);
+      var obj = JsonHelper.ParseElement(json);
       var stats = new ContainerStats
       {
-        ContainerId = obj.Value<string>("id"),
-        Name = obj.Value<string>("name")?.TrimStart('/'),
+        ContainerId = obj.GetStringOrDefault("id"),
+        Name = obj.GetStringOrDefault("name")?.TrimStart('/'),
         RawJson = json,
-        Timestamp = obj.Value<DateTime?>("read") ?? DateTime.UtcNow
+        Timestamp = obj.GetDateTimeOrDefault("read")
       };
-      if (obj["cpu_stats"] is JObject cpuStats && obj["precpu_stats"] is JObject preCpuStats)
+      if (stats.Timestamp == DateTime.MinValue)
+        stats.Timestamp = DateTime.UtcNow;
+
+      var cpuStats = obj.Prop("cpu_stats");
+      var preCpuStats = obj.Prop("precpu_stats");
+      if (cpuStats?.ValueKind == JsonValueKind.Object &&
+          preCpuStats?.ValueKind == JsonValueKind.Object)
       {
-        var cpuDelta = (cpuStats["cpu_usage"]?.Value<long?>("total_usage") ?? 0) -
-            (preCpuStats["cpu_usage"]?.Value<long?>("total_usage") ?? 0);
-        var systemDelta = (cpuStats.Value<long?>("system_cpu_usage") ?? 0) -
-            (preCpuStats.Value<long?>("system_cpu_usage") ?? 0);
-        var numCpus = cpuStats.Value<int?>("online_cpus") ?? 1;
+        var cpuDelta =
+            (cpuStats.Value.Prop("cpu_usage")?.GetInt64OrDefault("total_usage") ?? 0) -
+            (preCpuStats.Value.Prop("cpu_usage")?.GetInt64OrDefault("total_usage") ?? 0);
+        var systemDelta =
+            cpuStats.Value.GetInt64OrDefault("system_cpu_usage") -
+            preCpuStats.Value.GetInt64OrDefault("system_cpu_usage");
+        var numCpus = cpuStats.Value.GetInt32OrDefault("online_cpus", 1);
 
         if (systemDelta > 0 && cpuDelta > 0)
           stats.CpuPercentage = (double)cpuDelta / systemDelta * numCpus * 100.0;
       }
 
       // Memory
-      if (obj["memory_stats"] is JObject memStats)
+      var memStats = obj.Prop("memory_stats");
+      if (memStats?.ValueKind == JsonValueKind.Object)
       {
-        stats.MemoryUsage = memStats.Value<long?>("usage") ?? 0;
-        stats.MemoryLimit = memStats.Value<long?>("limit") ?? 0;
+        stats.MemoryUsage = memStats.Value.GetInt64OrDefault("usage");
+        stats.MemoryLimit = memStats.Value.GetInt64OrDefault("limit");
         if (stats.MemoryLimit > 0)
           stats.MemoryPercentage = (double)stats.MemoryUsage / stats.MemoryLimit * 100.0;
       }
 
       // Network
-      if (obj["networks"] is JObject networks)
+      var networks = obj.Prop("networks");
+      if (networks?.ValueKind == JsonValueKind.Object)
       {
-        foreach (var prop in networks.Properties())
+        foreach (var prop in networks.Value.EnumerateObject())
         {
-          var net = prop.Value as JObject;
-          stats.NetworkRx += net?.Value<long?>("rx_bytes") ?? 0;
-          stats.NetworkTx += net?.Value<long?>("tx_bytes") ?? 0;
+          stats.NetworkRx += prop.Value.GetInt64OrDefault("rx_bytes");
+          stats.NetworkTx += prop.Value.GetInt64OrDefault("tx_bytes");
         }
       }
 
       // Block IO
-      if (obj["blkio_stats"]?["io_service_bytes_recursive"] is JArray blkio)
+      var blkioStats = obj.Prop("blkio_stats");
+      var blkio = blkioStats?.Prop("io_service_bytes_recursive");
+      if (blkio?.ValueKind == JsonValueKind.Array)
       {
-        foreach (var entry in blkio)
+        foreach (var entry in blkio.Value.EnumerateArray())
         {
-          var op = entry.Value<string>("op")?.ToLower();
-          var value = entry.Value<long?>("value") ?? 0;
+          var op = entry.GetStringOrDefault("op")?.ToLower();
+          var value = entry.GetInt64OrDefault("value");
           if (op == "read")
             stats.BlockRead += value;
           else if (op == "write")
@@ -296,7 +321,8 @@ namespace FluentDocker.Drivers.Docker.Api.Components
         }
       }
 
-      stats.Pids = obj["pids_stats"]?.Value<int?>("current") ?? 0;
+      var pidsStats = obj.Prop("pids_stats");
+      stats.Pids = pidsStats?.GetInt32OrDefault("current") ?? 0;
       return stats;
     }
 

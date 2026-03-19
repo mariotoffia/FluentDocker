@@ -6,7 +6,9 @@ using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using FluentDocker.Common;
 using FluentDocker.Drivers.Docker.Cli.Binary;
+using FluentDocker.Model.Common;
 using FluentDocker.Model.Drivers;
 
 namespace FluentDocker.Drivers.Docker.Cli
@@ -51,7 +53,8 @@ namespace FluentDocker.Drivers.Docker.Cli
     /// <param name="context">Driver context</param>
     public virtual void Initialize(DriverContext context)
     {
-      Context = context ?? throw new ArgumentNullException(nameof(context));
+      ArgumentNullException.ThrowIfNull(context);
+      Context = context;
     }
 
     /// <summary>
@@ -61,8 +64,10 @@ namespace FluentDocker.Drivers.Docker.Cli
     /// <param name="binaryResolver">Binary resolver</param>
     public virtual void Initialize(DriverContext context, IBinaryResolver binaryResolver)
     {
-      Context = context ?? throw new ArgumentNullException(nameof(context));
-      BinaryResolver = binaryResolver ?? throw new ArgumentNullException(nameof(binaryResolver));
+      ArgumentNullException.ThrowIfNull(context);
+      ArgumentNullException.ThrowIfNull(binaryResolver);
+      Context = context;
+      BinaryResolver = binaryResolver;
     }
 
     #region Global Args
@@ -104,6 +109,19 @@ namespace FluentDocker.Drivers.Docker.Cli
     #region Command Execution
 
     /// <summary>
+    /// Resolves the binary info for the Docker command, extracting
+    /// the binary path and sudo configuration separately for safe execution.
+    /// </summary>
+    private (string BinaryPath, SudoMechanism Sudo, string SudoPassword) ResolveBinaryInfo()
+    {
+      if (BinaryResolver == null)
+        return (DockerCommand, SudoMechanism.None, null);
+
+      var binary = BinaryResolver.Resolve(DockerCommand);
+      return (binary.FqPath, binary.Sudo, binary.SudoPassword);
+    }
+
+    /// <summary>
     /// Executes a Docker command asynchronously.
     /// </summary>
     /// <param name="arguments">Command arguments</param>
@@ -111,10 +129,10 @@ namespace FluentDocker.Drivers.Docker.Cli
     /// <returns>Command result</returns>
     protected async Task<SimpleCommandResult> ExecuteCommandAsync(string arguments, CancellationToken cancellationToken)
     {
-      var dockerPath = BinaryResolver?.ResolveBinaryPath(DockerCommand) ?? DockerCommand;
+      var (binaryPath, sudo, sudoPassword) = ResolveBinaryInfo();
       var globalArgs = BuildGlobalArgs(Context);
       var fullArgs = string.IsNullOrEmpty(globalArgs) ? arguments : $"{globalArgs} {arguments}";
-      return await ExecuteProcessAsync(dockerPath, fullArgs, null, null, cancellationToken);
+      return await ExecuteProcessAsync(binaryPath, fullArgs, null, null, sudo, sudoPassword, cancellationToken);
     }
 
     /// <summary>
@@ -123,10 +141,10 @@ namespace FluentDocker.Drivers.Docker.Cli
     protected async Task<SimpleCommandResult> ExecuteCommandAsync(
         string arguments, string stdinData, CancellationToken cancellationToken)
     {
-      var dockerPath = BinaryResolver?.ResolveBinaryPath(DockerCommand) ?? DockerCommand;
+      var (binaryPath, sudo, sudoPassword) = ResolveBinaryInfo();
       var globalArgs = BuildGlobalArgs(Context);
       var fullArgs = string.IsNullOrEmpty(globalArgs) ? arguments : $"{globalArgs} {arguments}";
-      return await ExecuteProcessAsync(dockerPath, fullArgs, null, stdinData, cancellationToken);
+      return await ExecuteProcessAsync(binaryPath, fullArgs, null, stdinData, sudo, sudoPassword, cancellationToken);
     }
 
     /// <summary>
@@ -137,33 +155,44 @@ namespace FluentDocker.Drivers.Docker.Cli
         IDictionary<string, string> environment,
         CancellationToken cancellationToken)
     {
-      var dockerPath = BinaryResolver?.ResolveBinaryPath(DockerCommand) ?? DockerCommand;
+      var (binaryPath, sudo, sudoPassword) = ResolveBinaryInfo();
       var globalArgs = BuildGlobalArgs(Context);
       var fullArgs = string.IsNullOrEmpty(globalArgs) ? arguments : $"{globalArgs} {arguments}";
-      return await ExecuteProcessAsync(dockerPath, fullArgs, environment, null, cancellationToken);
+      return await ExecuteProcessAsync(binaryPath, fullArgs, environment, null, sudo, sudoPassword, cancellationToken);
     }
 
     /// <summary>
     /// Executes a process asynchronously using direct stream reading
     /// to avoid event-based output race conditions.
+    /// Handles sudo by setting the process FileName to "sudo" and passing the
+    /// password via stdin (never on the command line).
     /// </summary>
-    private async Task<SimpleCommandResult> ExecuteProcessAsync(
+    private static async Task<SimpleCommandResult> ExecuteProcessAsync(
         string fileName, string arguments,
         IDictionary<string, string> environment,
         string stdinData,
+        SudoMechanism sudo, string sudoPassword,
         CancellationToken cancellationToken)
     {
+      // Build the actual process command based on sudo mechanism.
+      // The password is NEVER placed on the command line.
+      var (processFileName, processArguments, passwordForStdin) =
+          BuildSudoCommand(fileName, arguments, sudo, sudoPassword);
+
+      var needsStdin = stdinData != null || passwordForStdin != null;
+
+      Process process = null;
       try
       {
-        var process = new Process
+        process = new Process
         {
           StartInfo = new ProcessStartInfo
           {
-            FileName = fileName,
-            Arguments = arguments,
+            FileName = processFileName,
+            Arguments = processArguments,
             RedirectStandardOutput = true,
             RedirectStandardError = true,
-            RedirectStandardInput = stdinData != null,
+            RedirectStandardInput = needsStdin,
             UseShellExecute = false,
             CreateNoWindow = true
           }
@@ -177,9 +206,15 @@ namespace FluentDocker.Drivers.Docker.Cli
 
         process.Start();
 
-        if (stdinData != null)
+        if (needsStdin)
         {
-          await process.StandardInput.WriteAsync(stdinData);
+          // Write sudo password first (if any), then caller data.
+          if (passwordForStdin != null)
+            await process.StandardInput.WriteLineAsync(passwordForStdin);
+
+          if (stdinData != null)
+            await process.StandardInput.WriteAsync(stdinData);
+
           process.StandardInput.Close();
         }
 
@@ -204,6 +239,8 @@ namespace FluentDocker.Drivers.Docker.Cli
       }
       catch (OperationCanceledException)
       {
+        // Kill the child process on cancellation to prevent orphans.
+        KillProcessSafely(process);
         throw;
       }
       catch (Exception ex)
@@ -215,6 +252,10 @@ namespace FluentDocker.Drivers.Docker.Cli
           ExitCode = -1
         };
       }
+      finally
+      {
+        process?.Dispose();
+      }
     }
 
     /// <summary>
@@ -225,18 +266,22 @@ namespace FluentDocker.Drivers.Docker.Cli
     /// <returns>Async enumerable of output lines</returns>
     protected async IAsyncEnumerable<string> ExecuteStreamingCommandAsync(string arguments, [EnumeratorCancellation] CancellationToken cancellationToken)
     {
-      var dockerPath = BinaryResolver?.ResolveBinaryPath(DockerCommand) ?? DockerCommand;
+      var (binaryPath, sudo, sudoPassword) = ResolveBinaryInfo();
       var globalArgs = BuildGlobalArgs(Context);
       var fullArgs = string.IsNullOrEmpty(globalArgs) ? arguments : $"{globalArgs} {arguments}";
 
-      var process = new Process
+      var (processFileName, processArguments, passwordForStdin) =
+          BuildSudoCommand(binaryPath, fullArgs, sudo, sudoPassword);
+
+      using var process = new Process
       {
         StartInfo = new ProcessStartInfo
         {
-          FileName = dockerPath,
-          Arguments = fullArgs,
+          FileName = processFileName,
+          Arguments = processArguments,
           RedirectStandardOutput = true,
           RedirectStandardError = true,
+          RedirectStandardInput = passwordForStdin != null,
           UseShellExecute = false,
           CreateNoWindow = true
         }
@@ -244,27 +289,28 @@ namespace FluentDocker.Drivers.Docker.Cli
 
       process.Start();
 
-      var reader = process.StandardOutput;
-
-      while (!cancellationToken.IsCancellationRequested)
+      if (passwordForStdin != null)
       {
-        var line = await reader.ReadLineAsync();
-        if (line == null)
-          break;
-
-        yield return line;
+        await process.StandardInput.WriteLineAsync(passwordForStdin);
+        process.StandardInput.Close();
       }
 
-      if (!process.HasExited)
+      var reader = process.StandardOutput;
+
+      try
       {
-        try
+        while (!cancellationToken.IsCancellationRequested)
         {
-          process.Kill();
+          var line = await reader.ReadLineAsync(cancellationToken);
+          if (line == null)
+            break;
+
+          yield return line;
         }
-        catch
-        {
-          // Ignore kill errors
-        }
+      }
+      finally
+      {
+        KillProcessSafely(process);
       }
     }
 
@@ -273,16 +319,20 @@ namespace FluentDocker.Drivers.Docker.Cli
     /// </summary>
     protected AttachResult ExecuteAttachProcess(string arguments)
     {
-      var dockerPath = BinaryResolver?.ResolveBinaryPath(DockerCommand) ?? DockerCommand;
+      var (binaryPath, sudo, _) = ResolveBinaryInfo();
       var globalArgs = BuildGlobalArgs(Context);
       var fullArgs = string.IsNullOrEmpty(globalArgs) ? arguments : $"{globalArgs} {arguments}";
+
+      // Attach does not support sudo with password (would conflict with stdin).
+      var (processFileName, processArguments, _) =
+          BuildSudoCommand(binaryPath, fullArgs, sudo, null);
 
       var process = new Process
       {
         StartInfo = new ProcessStartInfo
         {
-          FileName = dockerPath,
-          Arguments = fullArgs,
+          FileName = processFileName,
+          Arguments = processArguments,
           RedirectStandardInput = true,
           RedirectStandardOutput = true,
           RedirectStandardError = true,
@@ -314,7 +364,7 @@ namespace FluentDocker.Drivers.Docker.Cli
     /// <param name="operation">Operation name</param>
     /// <param name="result">Command result</param>
     /// <returns>Error context</returns>
-    protected ErrorContext CreateErrorContext(DriverContext context, string operation, SimpleCommandResult result)
+    protected static ErrorContext CreateErrorContext(DriverContext context, string operation, SimpleCommandResult result)
     {
       return new ErrorContext(operation)
       {
@@ -339,21 +389,60 @@ namespace FluentDocker.Drivers.Docker.Cli
 
     #endregion
 
-    #region Argument Quoting
+    #region Process Lifecycle
 
     /// <summary>
-    /// Quotes a command-line argument if it contains spaces or tabs.
+    /// Builds the actual process FileName and Arguments for sudo-aware execution.
+    /// The password is NEVER placed on the command line — it is returned separately
+    /// for writing to stdin.
+    /// </summary>
+    private static (string FileName, string Arguments, string PasswordForStdin) BuildSudoCommand(
+        string binaryPath, string arguments, SudoMechanism sudo, string sudoPassword)
+    {
+      return sudo switch
+      {
+        SudoMechanism.NoPassword => ("sudo", $"{binaryPath} {arguments}", null),
+        SudoMechanism.Password => ("sudo", $"-S {binaryPath} {arguments}", sudoPassword),
+        _ => (binaryPath, arguments, null)
+      };
+    }
+
+    /// <summary>
+    /// Safely kills a process if it is still running, suppressing any errors.
+    /// </summary>
+    private static void KillProcessSafely(Process process)
+    {
+      if (process == null)
+        return;
+
+      try
+      {
+        if (!process.HasExited)
+          process.Kill(entireProcessTree: true);
+      }
+      catch (Exception ex)
+      {
+        Logger.Log($"Process kill failed: {ex.Message}");
+      }
+    }
+
+    #endregion
+
+    #region Argument Quoting
+
+    private static readonly System.Buffers.SearchValues<char> ShellMetaCharacters =
+        System.Buffers.SearchValues.Create([' ', '\t', ';', '&', '|', '>', '<', '"', '\'', '$', '`', '!', '*', '?']);
+
+    /// <summary>
+    /// Quotes a command-line argument if it contains shell metacharacters or whitespace.
     /// Escapes backslashes and double quotes within the argument.
     /// </summary>
-    /// <param name="argument">The argument to potentially quote</param>
-    /// <returns>The argument, quoted if necessary</returns>
     protected static string QuoteArgumentIfNeeded(string argument)
     {
       if (string.IsNullOrEmpty(argument))
-        return argument;
+        return "\"\"";
 
-      var needsQuoting = argument.Contains(' ') || argument.Contains('\t');
-
+      var needsQuoting = argument.AsSpan().IndexOfAny(ShellMetaCharacters) >= 0;
       if (!needsQuoting)
         return argument;
 

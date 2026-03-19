@@ -2,8 +2,9 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
+using System.Text.Json;
+using FluentDocker.Common;
 using FluentDocker.Model.Containers;
-using Newtonsoft.Json.Linq;
 using Container = FluentDocker.Model.Containers.Container;
 using ContainerState = FluentDocker.Model.Containers.ContainerState;
 
@@ -24,38 +25,44 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
         return containers;
 
       var trimmed = json.Trim();
-      if (trimmed.StartsWith("["))
+      if (trimmed.StartsWith('['))
       {
-        var arr = JArray.Parse(trimmed);
-        foreach (var token in arr)
+        var root = JsonHelper.ParseElement(trimmed);
+        foreach (var token in root.EnumerateArraySafe())
           containers.Add(ParseContainerFromListToken(token));
       }
       else
       {
         foreach (var line in trimmed.Split('\n', StringSplitOptions.RemoveEmptyEntries))
-          containers.Add(ParseContainerFromListToken(JObject.Parse(line.Trim())));
+          containers.Add(ParseContainerFromListToken(JsonHelper.ParseElement(line.Trim())));
       }
 
       return containers;
     }
 
-    private static Container ParseContainerFromListToken(JToken token)
+    private static Container ParseContainerFromListToken(JsonElement token)
     {
-      var names = token["Names"] ?? token["Name"];
+      var names = token.Prop("Names") ?? token.Prop("Name");
       string name = null;
-      if (names is JArray namesArr && namesArr.Count > 0)
-        name = namesArr[0].Value<string>();
-      else if (names != null)
-        name = names.Value<string>();
+      if (names.HasValue && names.Value.ValueKind == JsonValueKind.Array)
+      {
+        var namesArr = names.Value;
+        if (namesArr.GetArrayLength() > 0)
+          name = namesArr[0].GetString();
+      }
+      else if (names.HasValue)
+      {
+        name = names.Value.GetStringValue();
+      }
 
       return new Container
       {
-        Id = token["Id"]?.Value<string>() ?? token["ID"]?.Value<string>(),
-        Image = token["Image"]?.Value<string>(),
+        Id = token.GetStringOrDefault("Id") ?? token.GetStringOrDefault("ID"),
+        Image = token.GetStringOrDefault("Image"),
         Name = name,
         State = new ContainerState
         {
-          Status = token["State"]?.Value<string>() ?? token["Status"]?.Value<string>()
+          Status = token.GetStringOrDefault("State") ?? token.GetStringOrDefault("Status")
         }
       };
     }
@@ -63,60 +70,67 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
     public static Container ParseContainerInspect(string json)
     {
       var trimmed = json.Trim();
-      JToken token;
-      if (trimmed.StartsWith("["))
-        token = JArray.Parse(trimmed).First;
+      JsonElement token;
+      if (trimmed.StartsWith('['))
+      {
+        var root = JsonHelper.ParseElement(trimmed);
+        token = root.EnumerateArray().First();
+      }
       else
-        token = JObject.Parse(trimmed);
+      {
+        token = JsonHelper.ParseElement(trimmed);
+      }
 
       return new Container
       {
-        Id = token["Id"]?.Value<string>() ?? token["ID"]?.Value<string>(),
-        Image = token["Image"]?.Value<string>(),
-        Name = token["Name"]?.Value<string>(),
-        Created = ParseDateTime(token["Created"]),
-        ResolvConfPath = token["ResolvConfPath"]?.Value<string>(),
-        HostnamePath = token["HostnamePath"]?.Value<string>(),
-        HostsPath = token["HostsPath"]?.Value<string>(),
-        LogPath = token["LogPath"]?.Value<string>(),
-        RestartCount = token["RestartCount"]?.Value<int>() ?? 0,
-        Driver = token["Driver"]?.Value<string>(),
-        Args = ParseStringArray(token["Args"]),
-        State = ParseContainerState(token["State"]),
-        Config = ParseContainerConfig(token["Config"]),
-        Mounts = ParseMounts(token["Mounts"]),
-        NetworkSettings = ParseNetworkSettings(token["NetworkSettings"])
+        Id = token.GetStringOrDefault("Id") ?? token.GetStringOrDefault("ID"),
+        Image = token.GetStringOrDefault("Image"),
+        Name = token.GetStringOrDefault("Name"),
+        Created = ParseDateTime(token.Prop("Created")),
+        ResolvConfPath = token.GetStringOrDefault("ResolvConfPath"),
+        HostnamePath = token.GetStringOrDefault("HostnamePath"),
+        HostsPath = token.GetStringOrDefault("HostsPath"),
+        LogPath = token.GetStringOrDefault("LogPath"),
+        RestartCount = token.GetInt32OrDefault("RestartCount"),
+        Driver = token.GetStringOrDefault("Driver"),
+        Args = ParseStringArray(token.Prop("Args")),
+        State = ParseContainerState(token.Prop("State")),
+        Config = ParseContainerConfig(token.Prop("Config")),
+        Mounts = ParseMounts(token.Prop("Mounts")),
+        NetworkSettings = ParseNetworkSettings(token.Prop("NetworkSettings"))
       };
     }
 
-    public static ContainerState ParseContainerState(JToken stateToken)
+    public static ContainerState ParseContainerState(JsonElement? stateToken)
     {
-      if (stateToken == null)
+      if (stateToken == null || stateToken.Value.IsNullOrUndefined())
         return new ContainerState();
 
+      var el = stateToken.Value;
       return new ContainerState
       {
-        Status = stateToken["Status"]?.Value<string>(),
-        Running = stateToken["Running"]?.Value<bool>() ?? false,
-        Paused = stateToken["Paused"]?.Value<bool>() ?? false,
-        Restarting = stateToken["Restarting"]?.Value<bool>() ?? false,
-        OOMKilled = stateToken["OOMKilled"]?.Value<bool>() ?? false,
-        Dead = stateToken["Dead"]?.Value<bool>() ?? false,
-        Pid = stateToken["Pid"]?.Value<int>() ?? 0,
-        ExitCode = stateToken["ExitCode"]?.Value<int>() ?? 0,
-        Error = stateToken["Error"]?.Value<string>(),
-        StartedAt = ParseDateTime(stateToken["StartedAt"]),
-        FinishedAt = ParseDateTime(stateToken["FinishedAt"]),
-        Health = ParseHealth(stateToken["Health"] ?? stateToken["Healthcheck"])
+        Status = el.GetStringOrDefault("Status"),
+        Running = el.GetBoolOrDefault("Running"),
+        Paused = el.GetBoolOrDefault("Paused"),
+        Restarting = el.GetBoolOrDefault("Restarting"),
+        OOMKilled = el.GetBoolOrDefault("OOMKilled"),
+        Dead = el.GetBoolOrDefault("Dead"),
+        Pid = el.GetInt32OrDefault("Pid"),
+        ExitCode = el.GetInt32OrDefault("ExitCode"),
+        Error = el.GetStringOrDefault("Error"),
+        StartedAt = ParseDateTime(el.Prop("StartedAt")),
+        FinishedAt = ParseDateTime(el.Prop("FinishedAt")),
+        Health = ParseHealth(el.Prop("Health") ?? el.Prop("Healthcheck"))
       };
     }
 
-    public static Health ParseHealth(JToken healthToken)
+    public static Health ParseHealth(JsonElement? healthToken)
     {
-      if (healthToken == null)
+      if (healthToken == null || healthToken.Value.IsNullOrUndefined())
         return null;
 
-      var statusStr = healthToken["Status"]?.Value<string>();
+      var el = healthToken.Value;
+      var statusStr = el.GetStringOrDefault("Status");
       HealthState status;
       if (string.IsNullOrEmpty(statusStr))
         status = HealthState.Unknown;
@@ -126,112 +140,133 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       var health = new Health
       {
         Status = status,
-        FailingStreak = healthToken["FailingStreak"]?.Value<int>() ?? 0
+        FailingStreak = el.GetInt32OrDefault("FailingStreak")
       };
 
-      if (healthToken["Log"] is JArray logArray)
+      var logProp = el.Prop("Log");
+      if (logProp.HasValue && logProp.Value.ValueKind == JsonValueKind.Array)
       {
-        health.Log = logArray.Select(entry => new HealthLog
+        health.Log = new List<HealthLog>();
+        foreach (var entry in logProp.Value.EnumerateArray())
         {
-          Start = entry["Start"]?.Value<string>(),
-          End = entry["End"]?.Value<string>(),
-          ExitCode = entry["ExitCode"]?.Value<int>() ?? 0,
-          Output = entry["Output"]?.Value<string>()
-        }).ToList();
+          health.Log.Add(new HealthLog
+          {
+            Start = entry.GetStringOrDefault("Start"),
+            End = entry.GetStringOrDefault("End"),
+            ExitCode = entry.GetInt32OrDefault("ExitCode"),
+            Output = entry.GetStringOrDefault("Output")
+          });
+        }
       }
 
       return health;
     }
 
-    public static ContainerConfig ParseContainerConfig(JToken configToken)
+    public static ContainerConfig ParseContainerConfig(JsonElement? configToken)
     {
-      if (configToken == null)
+      if (configToken == null || configToken.Value.IsNullOrUndefined())
         return null;
 
+      var el = configToken.Value;
       return new ContainerConfig
       {
-        Hostname = configToken["Hostname"]?.Value<string>(),
-        DomainName = configToken["DomainName"]?.Value<string>()
-                       ?? configToken["Domainname"]?.Value<string>(),
-        User = configToken["User"]?.Value<string>(),
-        AttachStdin = configToken["AttachStdin"]?.Value<bool>() ?? false,
-        AttachStdout = configToken["AttachStdout"]?.Value<bool>() ?? false,
-        AttachStderr = configToken["AttachStderr"]?.Value<bool>() ?? false,
-        Tty = configToken["Tty"]?.Value<bool>() ?? false,
-        OpenStdin = configToken["OpenStdin"]?.Value<bool>() ?? false,
-        StdinOnce = configToken["StdinOnce"]?.Value<bool>() ?? false,
-        Image = configToken["Image"]?.Value<string>(),
-        WorkingDir = configToken["WorkingDir"]?.Value<string>(),
-        StopSignal = configToken["StopSignal"]?.Value<string>(),
-        Env = ParseStringArray(configToken["Env"]),
-        Cmd = ParseStringOrArray(configToken["Cmd"]),
+        Hostname = el.GetStringOrDefault("Hostname"),
+        DomainName = el.GetStringOrDefault("DomainName")
+                       ?? el.GetStringOrDefault("Domainname"),
+        User = el.GetStringOrDefault("User"),
+        AttachStdin = el.GetBoolOrDefault("AttachStdin"),
+        AttachStdout = el.GetBoolOrDefault("AttachStdout"),
+        AttachStderr = el.GetBoolOrDefault("AttachStderr"),
+        Tty = el.GetBoolOrDefault("Tty"),
+        OpenStdin = el.GetBoolOrDefault("OpenStdin"),
+        StdinOnce = el.GetBoolOrDefault("StdinOnce"),
+        Image = el.GetStringOrDefault("Image"),
+        WorkingDir = el.GetStringOrDefault("WorkingDir"),
+        StopSignal = el.GetStringOrDefault("StopSignal"),
+        Env = ParseStringArray(el.Prop("Env")),
+        Cmd = ParseStringOrArray(el.Prop("Cmd")),
         EntryPoint = ParseStringOrArray(
-              configToken["Entrypoint"] ?? configToken["EntryPoint"]),
-        ExposedPorts = ParseExposedPorts(configToken["ExposedPorts"]),
-        Labels = ParseStringDictionary(configToken["Labels"])
+              el.Prop("Entrypoint") ?? el.Prop("EntryPoint")),
+        ExposedPorts = ParseExposedPorts(el.Prop("ExposedPorts")),
+        Labels = ParseStringDictionary(el.Prop("Labels"))
       };
     }
 
-    public static ContainerMount[] ParseMounts(JToken mountsToken)
+    public static ContainerMount[] ParseMounts(JsonElement? mountsToken)
     {
-      if (mountsToken is not JArray mountsArray || mountsArray.Count == 0)
+      if (mountsToken == null || mountsToken.Value.ValueKind != JsonValueKind.Array)
         return Array.Empty<ContainerMount>();
 
-      return mountsArray.Select(m => new ContainerMount
+      var mountsArray = mountsToken.Value;
+      if (mountsArray.GetArrayLength() == 0)
+        return Array.Empty<ContainerMount>();
+
+      var result = new List<ContainerMount>();
+      foreach (var m in mountsArray.EnumerateArray())
       {
-        Name = m["Name"]?.Value<string>(),
-        Source = m["Source"]?.Value<string>(),
-        Destination = m["Destination"]?.Value<string>(),
-        Driver = m["Driver"]?.Value<string>(),
-        Mode = m["Mode"]?.Value<string>(),
-        RW = m["RW"]?.Value<bool>() ?? false,
-        Propagation = m["Propagation"]?.Value<string>()
-      }).ToArray();
+        result.Add(new ContainerMount
+        {
+          Name = m.GetStringOrDefault("Name"),
+          Source = m.GetStringOrDefault("Source"),
+          Destination = m.GetStringOrDefault("Destination"),
+          Driver = m.GetStringOrDefault("Driver"),
+          Mode = m.GetStringOrDefault("Mode"),
+          RW = m.GetBoolOrDefault("RW"),
+          Propagation = m.GetStringOrDefault("Propagation")
+        });
+      }
+      return result.ToArray();
     }
 
-    public static ContainerNetworkSettings ParseNetworkSettings(JToken nsToken)
+    public static ContainerNetworkSettings ParseNetworkSettings(JsonElement? nsToken)
     {
-      if (nsToken == null)
+      if (nsToken == null || nsToken.Value.IsNullOrUndefined())
         return null;
 
+      var el = nsToken.Value;
       return new ContainerNetworkSettings
       {
-        Bridge = nsToken["Bridge"]?.Value<string>(),
-        SandboxID = nsToken["SandboxID"]?.Value<string>(),
-        HairpinMode = nsToken["HairpinMode"]?.Value<bool>() ?? false,
-        LinkLocalIPv6Address = nsToken["LinkLocalIPv6Address"]?.Value<string>(),
-        LinkLocalIPv6PrefixLen = nsToken["LinkLocalIPv6PrefixLen"]?.Value<string>(),
-        SandboxKey = nsToken["SandboxKey"]?.Value<string>(),
-        SecondaryIPAddresses = nsToken["SecondaryIPAddresses"]?.Value<string>(),
-        SecondaryIPv6Addresses = nsToken["SecondaryIPv6Addresses"]?.Value<string>(),
-        EndpointID = nsToken["EndpointID"]?.Value<string>(),
-        Gateway = nsToken["Gateway"]?.Value<string>(),
-        GlobalIPv6Address = nsToken["GlobalIPv6Address"]?.Value<string>(),
-        GlobalIPv6PrefixLen = nsToken["GlobalIPv6PrefixLen"]?.Value<string>(),
-        IPAddress = nsToken["IPAddress"]?.Value<string>(),
-        IPPrefixLen = nsToken["IPPrefixLen"]?.Value<string>(),
-        IPv6Gateway = nsToken["IPv6Gateway"]?.Value<string>(),
-        MacAddress = nsToken["MacAddress"]?.Value<string>(),
-        Ports = ParsePorts(nsToken["Ports"]),
-        Networks = ParseNetworks(nsToken["Networks"])
+        Bridge = el.GetStringOrDefault("Bridge"),
+        SandboxID = el.GetStringOrDefault("SandboxID"),
+        HairpinMode = el.GetBoolOrDefault("HairpinMode"),
+        LinkLocalIPv6Address = el.GetStringOrDefault("LinkLocalIPv6Address"),
+        LinkLocalIPv6PrefixLen = el.GetStringOrDefault("LinkLocalIPv6PrefixLen"),
+        SandboxKey = el.GetStringOrDefault("SandboxKey"),
+        SecondaryIPAddresses = el.GetStringOrDefault("SecondaryIPAddresses"),
+        SecondaryIPv6Addresses = el.GetStringOrDefault("SecondaryIPv6Addresses"),
+        EndpointID = el.GetStringOrDefault("EndpointID"),
+        Gateway = el.GetStringOrDefault("Gateway"),
+        GlobalIPv6Address = el.GetStringOrDefault("GlobalIPv6Address"),
+        GlobalIPv6PrefixLen = el.GetStringOrDefault("GlobalIPv6PrefixLen"),
+        IPAddress = el.GetStringOrDefault("IPAddress"),
+        IPPrefixLen = el.GetStringOrDefault("IPPrefixLen"),
+        IPv6Gateway = el.GetStringOrDefault("IPv6Gateway"),
+        MacAddress = el.GetStringOrDefault("MacAddress"),
+        Ports = ParsePorts(el.Prop("Ports")),
+        Networks = ParseNetworks(el.Prop("Networks"))
       };
     }
 
-    public static Dictionary<string, HostIpEndpoint[]> ParsePorts(JToken portsToken)
+    public static Dictionary<string, HostIpEndpoint[]> ParsePorts(JsonElement? portsToken)
     {
-      if (portsToken is not JObject portsObj)
+      if (portsToken == null || portsToken.Value.ValueKind != JsonValueKind.Object)
         return null;
 
       var result = new Dictionary<string, HostIpEndpoint[]>();
-      foreach (var prop in portsObj.Properties())
+      foreach (var prop in portsToken.Value.EnumerateObject())
       {
-        if (prop.Value is JArray bindings && bindings.Count > 0)
+        if (prop.Value.ValueKind == JsonValueKind.Array && prop.Value.GetArrayLength() > 0)
         {
-          result[prop.Name] = bindings.Select(b => new HostIpEndpoint
+          var bindings = new List<HostIpEndpoint>();
+          foreach (var b in prop.Value.EnumerateArray())
           {
-            HostIp = b["HostIp"]?.Value<string>(),
-            HostPort = b["HostPort"]?.Value<string>()
-          }).ToArray();
+            bindings.Add(new HostIpEndpoint
+            {
+              HostIp = b.GetStringOrDefault("HostIp"),
+              HostPort = b.GetStringOrDefault("HostPort")
+            });
+          }
+          result[prop.Name] = bindings.ToArray();
         }
         else
         {
@@ -242,27 +277,27 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       return result;
     }
 
-    public static Dictionary<string, BridgeNetwork> ParseNetworks(JToken networksToken)
+    public static Dictionary<string, BridgeNetwork> ParseNetworks(JsonElement? networksToken)
     {
-      if (networksToken is not JObject networksObj)
+      if (networksToken == null || networksToken.Value.ValueKind != JsonValueKind.Object)
         return null;
 
       var result = new Dictionary<string, BridgeNetwork>();
-      foreach (var prop in networksObj.Properties())
+      foreach (var prop in networksToken.Value.EnumerateObject())
       {
         var n = prop.Value;
         result[prop.Name] = new BridgeNetwork
         {
-          NetworkID = n["NetworkID"]?.Value<string>(),
-          EndpointID = n["EndpointID"]?.Value<string>(),
-          Gateway = n["Gateway"]?.Value<string>(),
-          IPAddress = n["IPAddress"]?.Value<string>(),
-          IPPrefixLen = n["IPPrefixLen"]?.Value<int>() ?? 0,
-          IPv6Gateway = n["IPv6Gateway"]?.Value<string>(),
-          GlobalIPv6Address = n["GlobalIPv6Address"]?.Value<string>(),
-          GlobalIPv6PrefixLen = n["GlobalIPv6PrefixLen"]?.Value<int>() ?? 0,
-          MacAddress = n["MacAddress"]?.Value<string>(),
-          Aliases = ParseStringArray(n["Aliases"])
+          NetworkID = n.GetStringOrDefault("NetworkID"),
+          EndpointID = n.GetStringOrDefault("EndpointID"),
+          Gateway = n.GetStringOrDefault("Gateway"),
+          IPAddress = n.GetStringOrDefault("IPAddress"),
+          IPPrefixLen = n.GetInt32OrDefault("IPPrefixLen"),
+          IPv6Gateway = n.GetStringOrDefault("IPv6Gateway"),
+          GlobalIPv6Address = n.GetStringOrDefault("GlobalIPv6Address"),
+          GlobalIPv6PrefixLen = n.GetInt32OrDefault("GlobalIPv6PrefixLen"),
+          MacAddress = n.GetStringOrDefault("MacAddress"),
+          Aliases = ParseStringArray(n.Prop("Aliases"))
         };
       }
 
@@ -274,51 +309,66 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
     #region Parsing Helpers
 
     /// <summary>
-    /// Parses a JToken that may be a JSON array of strings or a single string value.
+    /// Parses a JsonElement that may be a JSON array of strings or a single string value.
     /// Handles the Podman quirk where fields like EntryPoint and Cmd can be either format.
     /// </summary>
-    public static string[] ParseStringOrArray(JToken token)
+    public static string[] ParseStringOrArray(JsonElement? token)
     {
-      if (token == null)
+      if (token == null || token.Value.IsNullOrUndefined())
         return null;
 
-      if (token is JArray arr)
-        return arr.Select(t => t.Value<string>()).ToArray();
+      var el = token.Value;
+      if (el.ValueKind == JsonValueKind.Array)
+      {
+        var result = new List<string>();
+        foreach (var item in el.EnumerateArray())
+          result.Add(item.GetString());
+        return result.ToArray();
+      }
 
-      var str = token.Value<string>();
-      return str != null ? new[] { str } : null;
+      var str = el.GetStringValue();
+      return str != null ? [str] : null;
     }
 
-    internal static string[] ParseStringArray(JToken token)
+    internal static string[] ParseStringArray(JsonElement? token)
     {
-      if (token is not JArray arr)
+      if (token == null || token.Value.ValueKind != JsonValueKind.Array)
         return null;
-      return arr.Select(t => t.Value<string>()).ToArray();
+
+      var result = new List<string>();
+      foreach (var item in token.Value.EnumerateArray())
+        result.Add(item.GetString());
+      return result.ToArray();
     }
 
-    internal static IDictionary<string, string> ParseStringDictionary(JToken token)
+    internal static IDictionary<string, string> ParseStringDictionary(JsonElement? token)
     {
-      if (token is not JObject obj)
+      if (token == null || token.Value.ValueKind != JsonValueKind.Object)
         return null;
-      return obj.Properties().ToDictionary(p => p.Name, p => p.Value.Value<string>());
+
+      var dict = new Dictionary<string, string>();
+      foreach (var prop in token.Value.EnumerateObject())
+        dict[prop.Name] = prop.Value.GetString();
+      return dict;
     }
 
-    internal static IDictionary<string, object> ParseExposedPorts(JToken token)
+    internal static IDictionary<string, object> ParseExposedPorts(JsonElement? token)
     {
-      if (token is not JObject obj)
+      if (token == null || token.Value.ValueKind != JsonValueKind.Object)
         return null;
-      return obj.Properties().ToDictionary(p => p.Name, p => (object)new { });
+
+      var dict = new Dictionary<string, object>();
+      foreach (var prop in token.Value.EnumerateObject())
+        dict[prop.Name] = new { };
+      return dict;
     }
 
-    internal static DateTime ParseDateTime(JToken token)
+    internal static DateTime ParseDateTime(JsonElement? token)
     {
-      if (token == null)
+      if (token == null || token.Value.IsNullOrUndefined())
         return default;
 
-      if (token.Type == JTokenType.Date)
-        return ((DateTime)token).ToUniversalTime();
-
-      var str = token.Value<string>();
+      var str = token.Value.GetStringValue();
       if (string.IsNullOrEmpty(str))
         return default;
 

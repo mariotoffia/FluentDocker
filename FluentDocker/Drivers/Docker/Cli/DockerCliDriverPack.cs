@@ -9,13 +9,15 @@ using FluentDocker.Drivers.Docker.Cli.Components;
 using FluentDocker.Kernel;
 using FluentDocker.Model.Drivers;
 
+#pragma warning disable CS0618 // DriverComponent obsolete — intentional usage
+
 namespace FluentDocker.Drivers.Docker.Cli
 {
   /// <summary>
   /// Docker CLI driver pack that composes all individual Docker CLI driver implementations.
-  /// Implements IDriverPack and IDriverInterfaceResolver for unified access.
+  /// Implements IDriverPack for unified access.
   /// </summary>
-  public class DockerCliDriverPack : IDriverPack, IDriverInterfaceResolver
+  public class DockerCliDriverPack : IDriverPack
   {
     private readonly Dictionary<Type, object> _drivers = new Dictionary<Type, object>();
     private DriverContext _context;
@@ -50,7 +52,8 @@ namespace FluentDocker.Drivers.Docker.Cli
     /// <inheritdoc />
     public async Task InitializeAsync(DriverContext context, CancellationToken cancellationToken = default)
     {
-      _context = context ?? throw new ArgumentNullException(nameof(context));
+      ArgumentNullException.ThrowIfNull(context);
+      _context = context;
 
       // Initialize the binary resolver with context configuration
       var binaryConfig = new BinaryConfiguration
@@ -127,8 +130,9 @@ namespace FluentDocker.Drivers.Docker.Cli
         var result = await _systemDriver.PingAsync(_context, cancellationToken);
         return result.Success;
       }
-      catch
+      catch (Exception ex)
       {
+        Logger.Log($"Docker CLI ping failed: {ex.Message}");
         return false;
       }
     }

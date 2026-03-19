@@ -80,7 +80,8 @@ namespace FluentDocker.Tests.CoreTests.Testing.Adapters
       // Manual init (old pattern)
       await fixture.InitializeAsync(
           c => c.UseImage("redis:alpine"),
-          kernelFactory: () => Task.FromResult(capturedKernel));
+          kernelFactory: () => Task.FromResult(capturedKernel),
+          cancellationToken: TestContext.Current.CancellationToken);
 
       var resourceBefore = fixture.Resource;
       Assert.NotNull(resourceBefore);

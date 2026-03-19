@@ -7,6 +7,8 @@ using FluentDocker.Model.Drivers;
 using FluentDocker.Tests.Mocks;
 using Xunit;
 
+#pragma warning disable CS0618 // DriverComponent obsolete — intentional usage
+
 namespace FluentDocker.Tests.CoreTests.Kernel
 {
   /// <summary>
@@ -16,7 +18,7 @@ namespace FluentDocker.Tests.CoreTests.Kernel
   [Trait("Category", "Unit")]
   public class TrySysCtlTests
   {
-    private async Task<(FluentDockerKernel kernel, MockDriverPack pack)> CreateKernelWithMockPack()
+    private static async Task<(FluentDockerKernel kernel, MockDriverPack pack)> CreateKernelWithMockPack()
     {
       var pack = new MockDriverPack();
       var kernel = new FluentDockerKernel();
@@ -81,8 +83,10 @@ namespace FluentDocker.Tests.CoreTests.Kernel
       // Arrange
       var (kernel, _) = await CreateKernelWithMockPack();
 
-      // Act
+      // Act — intentionally testing the non-generic SysCtl(string, Type) overload
+#pragma warning disable CA2263
       var result = kernel.SysCtl("test", typeof(IContainerDriver));
+#pragma warning restore CA2263
 
       // Assert
       Assert.NotNull(result);
@@ -95,9 +99,11 @@ namespace FluentDocker.Tests.CoreTests.Kernel
       // Arrange
       var (kernel, _) = await CreateKernelWithMockPack();
 
-      // Act & Assert
+      // Act & Assert — intentionally testing the non-generic SysCtl(string, Type) overload
+#pragma warning disable CA2263
       Assert.Throws<InterfaceNotSupportedException>(() =>
           kernel.SysCtl("test", typeof(IDisposable)));
+#pragma warning restore CA2263
     }
 
     [Fact]

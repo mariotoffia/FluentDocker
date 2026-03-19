@@ -2,7 +2,6 @@ using System;
 using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
-using FluentDocker.Kernel;
 using FluentDocker.Services;
 using Moq;
 using Xunit;
@@ -24,37 +23,23 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
     private static readonly MethodInfo WaitForLambdaMethod =
         ContainerBuilderType.GetMethod(
             "WaitForLambdaAsync",
-            BindingFlags.Instance | BindingFlags.NonPublic)!;
-
-    private static object CreateBuilder()
-    {
-      return Activator.CreateInstance(
-          ContainerBuilderType,
-          BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic,
-          null,
-          [new FluentDockerKernel(), "test"],
-          null)!;
-    }
+            BindingFlags.Static | BindingFlags.NonPublic)!;
 
     private static Task<bool> InvokeWaitForLambda(
-        object builder,
         Func<IContainerService, int, int> condition,
         long timeoutMs,
         CancellationToken cancellationToken = default)
     {
       var mockService = new Mock<IContainerService>();
       return (Task<bool>)WaitForLambdaMethod.Invoke(
-          builder,
+          null,
           [mockService.Object, condition, timeoutMs, cancellationToken])!;
     }
 
     [Fact]
     public async Task Lambda_ReturnsNegative_ImmediateSuccess()
     {
-      var builder = CreateBuilder();
-
       var result = await InvokeWaitForLambda(
-          builder,
           (_, _) => -1,
           5000, TestContext.Current.CancellationToken);
 
@@ -64,11 +49,9 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
     [Fact]
     public async Task Lambda_ReturnsZeroThenNegative_SucceedsWithoutSpinning()
     {
-      var builder = CreateBuilder();
       var callCount = 0;
 
       var result = await InvokeWaitForLambda(
-          builder,
           (_, iteration) =>
           {
             callCount++;
@@ -83,10 +66,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
     [Fact]
     public async Task Lambda_ReturnsZeroForever_TimesOut()
     {
-      var builder = CreateBuilder();
-
       var result = await InvokeWaitForLambda(
-          builder,
           (_, _) => 0,
           200, TestContext.Current.CancellationToken);
 
@@ -96,11 +76,9 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
     [Fact]
     public async Task Lambda_ReturnsPositiveDelay_RespectsTimeout()
     {
-      var builder = CreateBuilder();
       var callCount = 0;
 
       var result = await InvokeWaitForLambda(
-          builder,
           (_, _) =>
           {
             callCount++;
@@ -115,11 +93,9 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
     [Fact]
     public async Task Lambda_RespectsCancellationToken()
     {
-      var builder = CreateBuilder();
       using var cts = new CancellationTokenSource(100);
 
       var result = await InvokeWaitForLambda(
-          builder,
           (_, _) => 50,
           10000,
           cts.Token);

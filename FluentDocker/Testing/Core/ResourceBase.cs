@@ -27,7 +27,8 @@ namespace FluentDocker.Testing.Core
     /// </summary>
     protected ResourceBase(FluentDockerKernel kernel, DockerResourceOptions options = null)
     {
-      Kernel = kernel ?? throw new ArgumentNullException(nameof(kernel));
+      ArgumentNullException.ThrowIfNull(kernel);
+      Kernel = kernel;
       Options = options ?? new DockerResourceOptions();
     }
 
@@ -71,7 +72,8 @@ namespace FluentDocker.Testing.Core
     /// </summary>
     public ResourceBase OnBeforeInitialize(Func<ITestResource, Task> hook)
     {
-      _beforeInitHooks.Add(hook ?? throw new ArgumentNullException(nameof(hook)));
+      ArgumentNullException.ThrowIfNull(hook);
+      _beforeInitHooks.Add(hook);
       return this;
     }
 
@@ -80,7 +82,8 @@ namespace FluentDocker.Testing.Core
     /// </summary>
     public ResourceBase OnAfterReady(Func<ITestResource, Task> hook)
     {
-      _afterReadyHooks.Add(hook ?? throw new ArgumentNullException(nameof(hook)));
+      ArgumentNullException.ThrowIfNull(hook);
+      _afterReadyHooks.Add(hook);
       return this;
     }
 
@@ -89,7 +92,8 @@ namespace FluentDocker.Testing.Core
     /// </summary>
     public ResourceBase OnBeforeDispose(Func<ITestResource, Task> hook)
     {
-      _beforeDisposeHooks.Add(hook ?? throw new ArgumentNullException(nameof(hook)));
+      ArgumentNullException.ThrowIfNull(hook);
+      _beforeDisposeHooks.Add(hook);
       return this;
     }
 
@@ -98,7 +102,8 @@ namespace FluentDocker.Testing.Core
     /// </summary>
     public ResourceBase OnAfterDispose(Func<ITestResource, Task> hook)
     {
-      _afterDisposeHooks.Add(hook ?? throw new ArgumentNullException(nameof(hook)));
+      ArgumentNullException.ThrowIfNull(hook);
+      _afterDisposeHooks.Add(hook);
       return this;
     }
 
@@ -131,6 +136,17 @@ namespace FluentDocker.Testing.Core
         {
           await RunHooksAsync(_beforeInitHooks, cts.Token);
           await PreflightAsync(cts.Token);
+
+          if (Options.CleanupOrphansOnInit)
+          {
+            try
+            {
+              await OrphanCleanup.CleanupOrphanedResourcesAsync(
+                  Kernel, DriverId, Options.SessionId, cts.Token);
+            }
+            catch { /* orphan cleanup is best-effort */ }
+          }
+
           _provisioned = true;
           await ProvisionAsync(cts.Token);
           Diagnostics = null;
@@ -164,9 +180,9 @@ namespace FluentDocker.Testing.Core
         {
           await RunHooksAsync(_beforeDisposeHooks, cts.Token);
         }
-        catch
+        catch (Exception ex)
         {
-          // Hooks should not prevent cleanup
+          Logger.Log($"Before-dispose hook failed: {ex.Message}");
         }
 
         Exception teardownFailure = null;
@@ -208,9 +224,9 @@ namespace FluentDocker.Testing.Core
         {
           await RunHooksAsync(_afterDisposeHooks, cts.Token);
         }
-        catch
+        catch (Exception ex)
         {
-          // Hooks should not throw after cleanup
+          Logger.Log($"After-dispose hook failed: {ex.Message}");
         }
 
         if (teardownFailure != null)
@@ -220,6 +236,8 @@ namespace FluentDocker.Testing.Core
       {
         _lifecycleLock.Release();
       }
+
+      GC.SuppressFinalize(this);
     }
 
     #endregion

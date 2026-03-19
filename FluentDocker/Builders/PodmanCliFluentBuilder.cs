@@ -14,7 +14,11 @@ namespace FluentDocker.Builders
   {
     private readonly Builder _inner;
 
-    internal PodmanCliFluentBuilder(Builder inner) => _inner = inner ?? throw new ArgumentNullException(nameof(inner));
+    internal PodmanCliFluentBuilder(Builder inner)
+    {
+      ArgumentNullException.ThrowIfNull(inner);
+      _inner = inner;
+    }
 
     /// <summary>
     /// Adds a container operation.

@@ -18,7 +18,7 @@ namespace FluentDocker.Tests.Integration.PodmanCliDriver
     public async Task Wait_ShortLivedContainer_ReturnsZeroExitCode()
     {
       await EnsureImageAsync(TestImage);
-      string containerId = null;
+      string? containerId = null;
       try
       {
         var result = await ContainerDriver.RunAsync(Context,
@@ -39,7 +39,7 @@ namespace FluentDocker.Tests.Integration.PodmanCliDriver
       }
       finally
       {
-        await RemoveContainerAsync(containerId);
+        await RemoveContainerAsync(containerId!);
       }
     }
 
@@ -47,7 +47,7 @@ namespace FluentDocker.Tests.Integration.PodmanCliDriver
     public async Task Wait_ContainerExitsWithError_ReturnsNonZeroExitCode()
     {
       await EnsureImageAsync(TestImage);
-      string containerId = null;
+      string? containerId = null;
       try
       {
         // Use a short sleep before exit to give the Podman machine VM
@@ -70,7 +70,7 @@ namespace FluentDocker.Tests.Integration.PodmanCliDriver
       }
       finally
       {
-        await RemoveContainerAsync(containerId);
+        await RemoveContainerAsync(containerId!);
       }
     }
 
@@ -90,7 +90,7 @@ namespace FluentDocker.Tests.Integration.PodmanCliDriver
     public async Task Top_RunningContainer_ReturnsProcesses()
     {
       await EnsureImageAsync(TestImage);
-      string containerId = null;
+      string? containerId = null;
       try
       {
         containerId = await RunContainerAsync(TestImage,
@@ -110,7 +110,7 @@ namespace FluentDocker.Tests.Integration.PodmanCliDriver
       }
       finally
       {
-        await RemoveContainerAsync(containerId);
+        await RemoveContainerAsync(containerId!);
       }
     }
 
@@ -122,7 +122,7 @@ namespace FluentDocker.Tests.Integration.PodmanCliDriver
     public async Task Diff_AfterFileCreation_ShowsAddedFile()
     {
       await EnsureImageAsync(TestImage);
-      string containerId = null;
+      string? containerId = null;
       try
       {
         containerId = await RunContainerAsync(TestImage,
@@ -148,7 +148,7 @@ namespace FluentDocker.Tests.Integration.PodmanCliDriver
       }
       finally
       {
-        await RemoveContainerAsync(containerId);
+        await RemoveContainerAsync(containerId!);
       }
     }
 
@@ -168,7 +168,7 @@ namespace FluentDocker.Tests.Integration.PodmanCliDriver
     public async Task CopyTo_FileToContainer_Succeeds()
     {
       await EnsureImageAsync(TestImage);
-      string containerId = null;
+      string? containerId = null;
       var tempFile = Path.GetTempFileName();
       try
       {
@@ -197,7 +197,7 @@ namespace FluentDocker.Tests.Integration.PodmanCliDriver
       }
       finally
       {
-        await RemoveContainerAsync(containerId);
+        await RemoveContainerAsync(containerId!);
         if (File.Exists(tempFile))
           File.Delete(tempFile);
       }
@@ -211,7 +211,7 @@ namespace FluentDocker.Tests.Integration.PodmanCliDriver
     public async Task CopyFrom_FileFromContainer_Succeeds()
     {
       await EnsureImageAsync(TestImage);
-      string containerId = null;
+      string? containerId = null;
       var tempDir = Path.Combine(
           Path.GetTempPath(), Guid.NewGuid().ToString());
       try
@@ -239,7 +239,7 @@ namespace FluentDocker.Tests.Integration.PodmanCliDriver
       }
       finally
       {
-        await RemoveContainerAsync(containerId);
+        await RemoveContainerAsync(containerId!);
         if (Directory.Exists(tempDir))
           Directory.Delete(tempDir, true);
       }
@@ -253,7 +253,7 @@ namespace FluentDocker.Tests.Integration.PodmanCliDriver
     public async Task Stats_RunningContainer_ReturnsResourceUsage()
     {
       await EnsureImageAsync(NginxImage);
-      string containerId = null;
+      string? containerId = null;
       try
       {
         containerId = await RunContainerAsync(NginxImage);
@@ -267,7 +267,7 @@ namespace FluentDocker.Tests.Integration.PodmanCliDriver
       }
       finally
       {
-        await RemoveContainerAsync(containerId);
+        await RemoveContainerAsync(containerId!);
       }
     }
 
@@ -279,7 +279,7 @@ namespace FluentDocker.Tests.Integration.PodmanCliDriver
     public async Task Kill_RunningContainer_TerminatesContainer()
     {
       await EnsureImageAsync(TestImage);
-      string containerId = null;
+      string? containerId = null;
       try
       {
         containerId = await RunContainerAsync(TestImage,
@@ -306,7 +306,7 @@ namespace FluentDocker.Tests.Integration.PodmanCliDriver
       }
       finally
       {
-        await RemoveContainerAsync(containerId);
+        await RemoveContainerAsync(containerId!);
       }
     }
 
@@ -314,7 +314,7 @@ namespace FluentDocker.Tests.Integration.PodmanCliDriver
     public async Task Kill_WithSignal_SendsSpecifiedSignal()
     {
       await EnsureImageAsync(TestImage);
-      string containerId = null;
+      string? containerId = null;
       try
       {
         containerId = await RunContainerAsync(TestImage,
@@ -331,7 +331,7 @@ namespace FluentDocker.Tests.Integration.PodmanCliDriver
       }
       finally
       {
-        await RemoveContainerAsync(containerId);
+        await RemoveContainerAsync(containerId!);
       }
     }
 
@@ -343,7 +343,7 @@ namespace FluentDocker.Tests.Integration.PodmanCliDriver
     public async Task PauseUnpause_RunningContainer_PausesAndResumes()
     {
       await EnsureImageAsync(TestImage);
-      string containerId = null;
+      string? containerId = null;
       try
       {
         containerId = await RunContainerAsync(TestImage,
@@ -378,7 +378,7 @@ namespace FluentDocker.Tests.Integration.PodmanCliDriver
       }
       finally
       {
-        await RemoveContainerAsync(containerId);
+        await RemoveContainerAsync(containerId!);
       }
     }
 
@@ -390,7 +390,7 @@ namespace FluentDocker.Tests.Integration.PodmanCliDriver
     public async Task GetLogs_ContainerWithOutput_ReturnsLogText()
     {
       await EnsureImageAsync(TestImage);
-      string containerId = null;
+      string? containerId = null;
       try
       {
         // Use a running container that echoes then sleeps to avoid
@@ -428,7 +428,7 @@ namespace FluentDocker.Tests.Integration.PodmanCliDriver
       }
       finally
       {
-        await RemoveContainerAsync(containerId);
+        await RemoveContainerAsync(containerId!);
       }
     }
 
@@ -436,7 +436,7 @@ namespace FluentDocker.Tests.Integration.PodmanCliDriver
     public async Task GetLogs_WithTail_LimitsOutput()
     {
       await EnsureImageAsync(TestImage);
-      string containerId = null;
+      string? containerId = null;
       try
       {
         // Use a running container to avoid timing issues
@@ -471,7 +471,7 @@ namespace FluentDocker.Tests.Integration.PodmanCliDriver
       }
       finally
       {
-        await RemoveContainerAsync(containerId);
+        await RemoveContainerAsync(containerId!);
       }
     }
 

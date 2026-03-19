@@ -46,7 +46,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
     [Fact]
     public async Task Create_WithName_CreatesNetwork()
     {
-      string networkId = null;
+      string? networkId = null;
       var networkName = UniqueName("network");
       try
       {
@@ -98,7 +98,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
     [Fact]
     public async Task Create_WithSubnet_CreatesNetworkWithSubnet()
     {
-      string networkId = null;
+      string? networkId = null;
       var networkName = UniqueName("network");
       try
       {
@@ -126,8 +126,8 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
     [Fact]
     public async Task Connect_ContainerToNetwork_ConnectsSuccessfully()
     {
-      string containerId = null;
-      string networkId = null;
+      string? containerId = null;
+      string? networkId = null;
       try
       {
         // Arrange
@@ -147,7 +147,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
       }
       finally
       {
-        await RemoveContainerAsync(containerId);
+        await RemoveContainerAsync(containerId!);
         await RemoveNetworkAsync(networkId);
       }
     }
@@ -155,8 +155,8 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
     [Fact]
     public async Task Disconnect_ConnectedContainer_DisconnectsSuccessfully()
     {
-      string containerId = null;
-      string networkId = null;
+      string? containerId = null;
+      string? networkId = null;
       try
       {
         // Arrange
@@ -173,7 +173,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
       }
       finally
       {
-        await RemoveContainerAsync(containerId);
+        await RemoveContainerAsync(containerId!);
         await RemoveNetworkAsync(networkId);
       }
     }
@@ -181,8 +181,8 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
     [Fact]
     public async Task Create_ContainerWithStaticIp_UsesStaticIp()
     {
-      string containerId = null;
-      string networkId = null;
+      string? containerId = null;
+      string? networkId = null;
       var networkName = UniqueName("network");
       var staticIp = "10.18.0.22";
       try
@@ -224,7 +224,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
       }
       finally
       {
-        await RemoveContainerAsync(containerId);
+        await RemoveContainerAsync(containerId!);
         await RemoveNetworkAsync(networkId);
       }
     }
@@ -232,7 +232,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
     [Fact]
     public async Task Create_InternalNetwork_CreatesInternalNetwork()
     {
-      string networkId = null;
+      string? networkId = null;
       var networkName = UniqueName("internal");
       try
       {
@@ -261,7 +261,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
     [Fact]
     public async Task List_WithNameFilter_FiltersResults()
     {
-      string networkId = null;
+      string? networkId = null;
       var networkName = UniqueName("filtertest");
       try
       {

@@ -62,7 +62,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
       finally
       {
         if (containerId != null)
-          await RemoveContainerAsync(containerId);
+          await RemoveContainerAsync(containerId!);
       }
     }
 
@@ -107,7 +107,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
       finally
       {
         if (containerId != null)
-          await RemoveContainerAsync(containerId);
+          await RemoveContainerAsync(containerId!);
       }
     }
 
@@ -144,7 +144,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
       finally
       {
         if (containerId != null)
-          await RemoveContainerAsync(containerId);
+          await RemoveContainerAsync(containerId!);
       }
     }
 
@@ -188,7 +188,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
       finally
       {
         if (containerId != null)
-          await RemoveContainerAsync(containerId);
+          await RemoveContainerAsync(containerId!);
       }
     }
 
@@ -228,7 +228,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
       finally
       {
         if (containerId != null)
-          await RemoveContainerAsync(containerId);
+          await RemoveContainerAsync(containerId!);
       }
     }
 
@@ -270,7 +270,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
       finally
       {
         if (containerId != null)
-          await RemoveContainerAsync(containerId);
+          await RemoveContainerAsync(containerId!);
       }
     }
 

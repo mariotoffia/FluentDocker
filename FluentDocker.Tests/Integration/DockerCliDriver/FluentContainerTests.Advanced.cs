@@ -49,7 +49,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
       finally
       {
         if (containerId != null)
-          await RemoveContainerAsync(containerId);
+          await RemoveContainerAsync(containerId!);
         if (Directory.Exists(hostPath))
           Directory.Delete(hostPath, true);
       }
@@ -94,7 +94,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
       finally
       {
         if (containerId != null)
-          await RemoveContainerAsync(containerId);
+          await RemoveContainerAsync(containerId!);
         if (Directory.Exists(hostPath))
           Directory.Delete(hostPath, true);
       }
@@ -135,7 +135,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
       finally
       {
         if (containerId != null)
-          await RemoveContainerAsync(containerId);
+          await RemoveContainerAsync(containerId!);
         if (File.Exists(exportPath))
           File.Delete(exportPath);
       }
@@ -219,7 +219,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
       finally
       {
         if (containerId != null)
-          await RemoveContainerAsync(containerId);
+          await RemoveContainerAsync(containerId!);
       }
     }
 
@@ -252,7 +252,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
       finally
       {
         if (containerId != null)
-          await RemoveContainerAsync(containerId);
+          await RemoveContainerAsync(containerId!);
       }
     }
 
@@ -292,7 +292,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
       finally
       {
         if (containerId != null)
-          await RemoveContainerAsync(containerId);
+          await RemoveContainerAsync(containerId!);
       }
     }
 

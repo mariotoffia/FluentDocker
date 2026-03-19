@@ -1,9 +1,9 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using FluentDocker.Common;
-using FluentDocker.Executors;
 using FluentDocker.Model.Common;
 using static FluentDocker.Common.FdOs;
 
@@ -99,6 +99,11 @@ namespace FluentDocker.Drivers.Docker.Cli.Binary
     }
 
     /// <inheritdoc />
+    /// <remarks>
+    /// Returns the binary path with sudo prefix when configured.
+    /// The sudo password is never included in the returned string for security reasons.
+    /// Use <see cref="Resolve"/> to access the full <see cref="DockerBinary"/> with sudo details.
+    /// </remarks>
     public string ResolveBinaryPath(string dockerCommand)
     {
       var binary = Resolve(dockerCommand);
@@ -106,16 +111,9 @@ namespace FluentDocker.Drivers.Docker.Cli.Binary
       if (IsWindows() || binary.Sudo == SudoMechanism.None)
         return binary.FqPath;
 
-      var cmd = binary.Sudo == SudoMechanism.NoPassword
+      return binary.Sudo == SudoMechanism.NoPassword
           ? $"sudo {binary.FqPath}"
-          : $"echo {binary.SudoPassword} | sudo -S {binary.FqPath}";
-
-      if (string.IsNullOrEmpty(cmd))
-      {
-        throw new FluentDockerException($"Could not find {dockerCommand} - make sure it is on your path.");
-      }
-
-      return cmd;
+          : $"sudo -S {binary.FqPath}";
     }
 
     private static IEnumerable<DockerBinary> ResolveFromPaths(SudoMechanism sudo, string password, params string[] paths)
@@ -144,7 +142,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Binary
           {
             list.AddRange(from file in Directory.GetFiles(path, "docker*.*")
                           let f = Path.GetFileName(file.ToLower())
-                          where f != null && f.Equals("docker.exe")
+                          where f != null && f.Equals("docker.exe", StringComparison.Ordinal)
                           select new DockerBinary(path, f, sudo, password));
 
             var dockercli = Path.GetFullPath(Path.Combine(path, "..\\.."));
@@ -159,7 +157,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Binary
           list.AddRange(from file in Directory.GetFiles(path, "docker*")
                         let f = Path.GetFileName(file)
                         let f2 = f.ToLower()
-                        where f2.Equals("docker")
+                        where f2.Equals("docker", StringComparison.Ordinal)
                         select new DockerBinary(path, f, sudo, password));
         }
         catch (Exception e)
@@ -178,23 +176,35 @@ namespace FluentDocker.Drivers.Docker.Cli.Binary
 
       try
       {
-        var result = new ProcessExecutor<Executors.Parsers.StringListResponseParser, IList<string>>(
-            MainDockerClient.FqPath,
-            "compose version").Execute();
+        using var process = new Process
+        {
+          StartInfo = new ProcessStartInfo
+          {
+            FileName = MainDockerClient.FqPath,
+            Arguments = "compose version",
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            UseShellExecute = false,
+            CreateNoWindow = true
+          }
+        };
 
-        if (result.Success)
+        process.Start();
+        var output = process.StandardOutput.ReadToEnd();
+        process.StandardError.ReadToEnd(); // drain stderr to avoid deadlock
+        process.WaitForExit();
+
+        if (process.ExitCode == 0 && !string.IsNullOrWhiteSpace(output))
         {
           return new DockerBinary(
               Path.GetDirectoryName(MainDockerClient.FqPath),
               Path.GetFileName(MainDockerClient.FqPath),
-              sudo,
-              password,
-              DockerBinaryType.Compose);
+              sudo, password, DockerBinaryType.Compose);
         }
       }
-      catch
+      catch (Exception ex)
       {
-        Logger.Log("Docker Compose plugin is not available");
+        Logger.Log($"Docker Compose plugin is not available: {ex.Message}");
       }
 
       return null;

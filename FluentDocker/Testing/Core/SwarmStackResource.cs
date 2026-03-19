@@ -29,7 +29,8 @@ namespace FluentDocker.Testing.Core
         DockerResourceOptions options = null)
         : base(kernel, options)
     {
-      _config = config ?? throw new ArgumentNullException(nameof(config));
+      ArgumentNullException.ThrowIfNull(config);
+      _config = config;
       if (string.IsNullOrWhiteSpace(config.StackName))
         throw new ArgumentException("StackName must not be null or empty.", nameof(config));
     }
@@ -115,7 +116,7 @@ namespace FluentDocker.Testing.Core
       var driver = Kernel.SysCtl<IStackDriver>(DriverId);
       var context = new DriverContext(DriverId);
       var result = await driver.RemoveAsync(
-          context, new[] { _config.StackName }, cancellationToken);
+          context, [_config.StackName], cancellationToken);
       if (!result.Success)
         throw new FluentDockerException(
             $"Failed to remove stack '{_config.StackName}': {result.Error}");
@@ -130,11 +131,11 @@ namespace FluentDocker.Testing.Core
         var driver = Kernel.SysCtl<IStackDriver>(DriverId);
         var context = new DriverContext(DriverId);
         await driver.RemoveAsync(
-            context, new[] { _config.StackName }, cancellationToken);
+            context, [_config.StackName], cancellationToken);
       }
-      catch
+      catch (Exception ex)
       {
-        // best effort
+        Logger.Log($"SwarmStack teardown failed: {ex.Message}");
       }
       finally
       {

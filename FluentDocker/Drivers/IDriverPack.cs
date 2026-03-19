@@ -9,8 +9,9 @@ namespace FluentDocker.Drivers
   /// A driver pack is a composite driver that contains multiple individual driver implementations.
   /// It allows grouping of related driver implementations under a single registered entity
   /// and provides SysCtl-style resolution of driver interfaces.
+  /// Also acts as a <see cref="IDriverInterfaceResolver"/> for runtime interface discovery.
   /// </summary>
-  public interface IDriverPack : ISysCtl
+  public interface IDriverPack : ISysCtl, IDriverInterfaceResolver
   {
     /// <summary>
     /// Gets the driver type (DockerCli, DockerApi, PodmanCli, etc.).

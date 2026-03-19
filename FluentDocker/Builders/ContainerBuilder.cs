@@ -12,13 +12,16 @@ using FluentDocker.Model.Containers;
 using FluentDocker.Model.Drivers;
 using FluentDocker.Services;
 
+#pragma warning disable CS0618 // IService obsolete — intentional usage
+
 namespace FluentDocker.Builders
 {
   /// <summary>
   /// Container builder implementation.
   /// </summary>
-  internal partial class ContainerBuilder : IContainerBuilder, IDriverScopedBuilder
+  internal sealed partial class ContainerBuilder : IContainerBuilder, IDriverScopedBuilder
   {
+    private static readonly char[] EqualsSeparator = ['='];
     private readonly FluentDockerKernel _kernel;
     private readonly string _driverId;
 
@@ -61,6 +64,16 @@ namespace FluentDocker.Builders
     private bool _destroyRemoveVolumes;
     private Func<Dictionary<string, HostIpEndpoint[]>, string, Uri, IPEndPoint> _customResolver;
     private string _pod;
+    private readonly List<string> _capAdd = new();
+    private readonly List<string> _capDrop = new();
+    private readonly List<string> _securityOpt = new();
+    private long? _shmSize;
+    private readonly Dictionary<string, string> _tmpfs = new();
+    private readonly Dictionary<string, string> _devices = new();
+    private bool _readonlyRootfs;
+    private string _platform;
+    private string _runtime;
+    private int _waitPollIntervalMs = 500;
     private Services.Impl.ContainerService _pendingService;
     private bool _waitConditionsExecuted;
 
@@ -83,7 +96,7 @@ namespace FluentDocker.Builders
 
     public IContainerBuilder WithEnvironment(string keyValue)
     {
-      var parts = keyValue.Split(new[] { '=' }, 2);
+      var parts = keyValue.Split(EqualsSeparator, 2);
       if (parts.Length == 2)
         _environment[parts[0]] = parts[1];
       else
@@ -99,7 +112,7 @@ namespace FluentDocker.Builders
 
     public IContainerBuilder ExposePort(string containerPort)
     {
-      var normalized = containerPort.Contains("/") ? containerPort : $"{containerPort}/tcp";
+      var normalized = containerPort.Contains('/') ? containerPort : $"{containerPort}/tcp";
       _ports[normalized] = "";
       return this;
     }
@@ -128,8 +141,10 @@ namespace FluentDocker.Builders
       return this;
     }
 
-    public IContainerBuilder UseIpV4(string ipv4Address) { _ipv4Address = ipv4Address; return this; }
-    public IContainerBuilder UseIpV6(string ipv6Address) { _ipv6Address = ipv6Address; return this; }
+    public IContainerBuilder WithIPv4(string ipv4Address) { _ipv4Address = ipv4Address; return this; }
+    public IContainerBuilder WithIPv6(string ipv6Address) { _ipv6Address = ipv6Address; return this; }
+    public IContainerBuilder UseIpV4(string ipv4Address) => WithIPv4(ipv4Address);
+    public IContainerBuilder UseIpV6(string ipv6Address) => WithIPv6(ipv6Address);
     public IContainerBuilder WithMemoryLimit(long bytes) { _memoryLimit = bytes; return this; }
     public IContainerBuilder WithCpuShares(long shares) { _cpuShares = shares; return this; }
     public IContainerBuilder WithPrivileged(bool privileged = true) { _privileged = privileged; return this; }
@@ -149,6 +164,15 @@ namespace FluentDocker.Builders
     }
 
     public IContainerBuilder WithPod(string podName) { _pod = podName; return this; }
+    public IContainerBuilder WithCapAdd(string capability) { _capAdd.Add(capability); return this; }
+    public IContainerBuilder WithCapDrop(string capability) { _capDrop.Add(capability); return this; }
+    public IContainerBuilder WithSecurityOpt(string option) { _securityOpt.Add(option); return this; }
+    public IContainerBuilder WithShmSize(long bytes) { _shmSize = bytes; return this; }
+    public IContainerBuilder WithTmpfs(string containerPath, string options = null) { _tmpfs[containerPath] = options ?? ""; return this; }
+    public IContainerBuilder WithDevice(string hostDevice, string containerDevice = null) { _devices[hostDevice] = containerDevice ?? hostDevice; return this; }
+    public IContainerBuilder WithReadonlyRootfs() { _readonlyRootfs = true; return this; }
+    public IContainerBuilder WithPlatform(string platform) { _platform = platform; return this; }
+    public IContainerBuilder WithRuntime(string runtime) { _runtime = runtime; return this; }
 
     #endregion
 
@@ -170,13 +194,20 @@ namespace FluentDocker.Builders
 
     #region Wait Conditions
 
+    public IContainerBuilder WithWaitPollInterval(int intervalMs)
+    {
+      _waitPollIntervalMs = intervalMs;
+      return this;
+    }
+
     public IContainerBuilder WaitForPort(string portAndProto, long timeoutMs = 30000)
     {
       _waitConditions.Add(new WaitCondition
       {
         Type = WaitConditionType.Port,
-        Target = portAndProto.Contains("/") ? portAndProto : $"{portAndProto}/tcp",
-        TimeoutMs = timeoutMs
+        Target = portAndProto.Contains('/') ? portAndProto : $"{portAndProto}/tcp",
+        TimeoutMs = timeoutMs,
+        PollIntervalMs = _waitPollIntervalMs
       });
       return this;
     }
@@ -186,16 +217,21 @@ namespace FluentDocker.Builders
       _waitConditions.Add(new WaitCondition
       {
         Type = WaitConditionType.Port,
-        Target = portAndProto.Contains("/") ? portAndProto : $"{portAndProto}/tcp",
+        Target = portAndProto.Contains('/') ? portAndProto : $"{portAndProto}/tcp",
         Path = address,
-        TimeoutMs = timeoutMs
+        TimeoutMs = timeoutMs,
+        PollIntervalMs = _waitPollIntervalMs
       });
       return this;
     }
 
     public IContainerBuilder WaitForProcess(string processName, long timeoutMs = 30000)
     {
-      _waitConditions.Add(new WaitCondition { Type = WaitConditionType.Process, Target = processName, TimeoutMs = timeoutMs });
+      _waitConditions.Add(new WaitCondition
+      {
+        Type = WaitConditionType.Process, Target = processName,
+        TimeoutMs = timeoutMs, PollIntervalMs = _waitPollIntervalMs
+      });
       return this;
     }
 
@@ -204,10 +240,11 @@ namespace FluentDocker.Builders
       _waitConditions.Add(new WaitCondition
       {
         Type = WaitConditionType.Http,
-        Target = portAndProto.Contains("/") ? portAndProto : $"{portAndProto}/tcp",
+        Target = portAndProto.Contains('/') ? portAndProto : $"{portAndProto}/tcp",
         Path = path,
         TimeoutMs = timeoutMs,
-        HttpMethod = HttpMethod.Get
+        HttpMethod = HttpMethod.Get,
+        PollIntervalMs = _waitPollIntervalMs
       });
       return this;
     }
@@ -224,101 +261,38 @@ namespace FluentDocker.Builders
         HttpMethod = method ?? HttpMethod.Get,
         ContentType = contentType,
         Body = body,
-        HttpContinuation = continuation
+        HttpContinuation = continuation,
+        PollIntervalMs = _waitPollIntervalMs
       });
       return this;
     }
 
     public IContainerBuilder WaitForLogMessage(string message, long timeoutMs = 30000)
     {
-      _waitConditions.Add(new WaitCondition { Type = WaitConditionType.LogMessage, Target = message, TimeoutMs = timeoutMs });
+      _waitConditions.Add(new WaitCondition
+      {
+        Type = WaitConditionType.LogMessage, Target = message,
+        TimeoutMs = timeoutMs, PollIntervalMs = _waitPollIntervalMs
+      });
       return this;
     }
 
     public IContainerBuilder WaitForHealthy(long timeoutMs = 30000)
     {
-      _waitConditions.Add(new WaitCondition { Type = WaitConditionType.Healthy, TimeoutMs = timeoutMs });
+      _waitConditions.Add(new WaitCondition
+      {
+        Type = WaitConditionType.Healthy, TimeoutMs = timeoutMs,
+        PollIntervalMs = _waitPollIntervalMs
+      });
       return this;
     }
 
     public IContainerBuilder Wait(Func<IContainerService, int, int> condition)
     {
-      _waitConditions.Add(new WaitCondition { Type = WaitConditionType.Lambda, LambdaCondition = condition, TimeoutMs = 60000 });
-      return this;
-    }
-
-    #endregion
-
-    #region Lifecycle Hooks
-
-    public IContainerBuilder CopyToOnStart(string hostPath, string containerPath)
-    {
-      _lifecycleHooks.Add(new LifecycleHook
+      _waitConditions.Add(new WaitCondition
       {
-        Type = LifecycleHookType.CopyTo,
-        TriggerState = ServiceRunningState.Running,
-        HostPath = hostPath,
-        ContainerPath = containerPath
-      });
-      return this;
-    }
-
-    public IContainerBuilder CopyFromOnDispose(string containerPath, string hostPath)
-    {
-      _lifecycleHooks.Add(new LifecycleHook
-      {
-        Type = LifecycleHookType.CopyFrom,
-        TriggerState = ServiceRunningState.Removing,
-        HostPath = hostPath,
-        ContainerPath = containerPath
-      });
-      return this;
-    }
-
-    public IContainerBuilder ExportOnDispose(string hostPath, bool explode = false)
-    {
-      _lifecycleHooks.Add(new LifecycleHook
-      {
-        Type = LifecycleHookType.Export,
-        TriggerState = ServiceRunningState.Removing,
-        HostPath = hostPath,
-        Explode = explode,
-        Condition = _ => true
-      });
-      return this;
-    }
-
-    public IContainerBuilder ExportOnDispose(string hostPath, Func<IContainerService, bool> condition, bool explode = false)
-    {
-      _lifecycleHooks.Add(new LifecycleHook
-      {
-        Type = LifecycleHookType.Export,
-        TriggerState = ServiceRunningState.Removing,
-        HostPath = hostPath,
-        Explode = explode,
-        Condition = condition
-      });
-      return this;
-    }
-
-    public IContainerBuilder ExecuteOnRunning(params string[] command)
-    {
-      _lifecycleHooks.Add(new LifecycleHook
-      {
-        Type = LifecycleHookType.Execute,
-        TriggerState = ServiceRunningState.Running,
-        Command = command
-      });
-      return this;
-    }
-
-    public IContainerBuilder ExecuteOnDisposing(params string[] command)
-    {
-      _lifecycleHooks.Add(new LifecycleHook
-      {
-        Type = LifecycleHookType.Execute,
-        TriggerState = ServiceRunningState.Removing,
-        Command = command
+        Type = WaitConditionType.Lambda, LambdaCondition = condition,
+        TimeoutMs = 60000, PollIntervalMs = _waitPollIntervalMs
       });
       return this;
     }
@@ -345,10 +319,52 @@ namespace FluentDocker.Builders
 
     #endregion
 
+    #region Validation
+
+    private void Validate()
+    {
+      if (string.IsNullOrEmpty(_image))
+        throw new FluentDockerException(
+            "Container image is required. Call UseImage() before building.");
+
+      if (_autoRemove && _keepContainer)
+        throw new FluentDockerException(
+            "WithAutoRemove() and KeepContainer() are mutually exclusive. " +
+            "AutoRemove causes Docker to remove the container on exit.");
+
+      if (_autoRemove && !string.IsNullOrEmpty(_restartPolicy) &&
+          _restartPolicy != "no")
+        throw new FluentDockerException(
+            "WithAutoRemove() and a restart policy other than 'no' are mutually exclusive.");
+
+      foreach (var port in _ports)
+      {
+        var containerPort = port.Key;
+        var hostPort = port.Value;
+
+        // Validate container port is numeric (with optional protocol suffix)
+        var portPart = containerPort.Contains('/')
+            ? containerPort.Substring(0, containerPort.IndexOf('/'))
+            : containerPort;
+        if (!int.TryParse(portPart, out var cp) || cp < 1 || cp > 65535)
+          throw new FluentDockerException(
+              $"Invalid container port '{containerPort}'. Port must be 1-65535.");
+
+        // Validate host port if specified
+        if (!string.IsNullOrEmpty(hostPort) &&
+            int.TryParse(hostPort, out var hp) && (hp < 0 || hp > 65535))
+          throw new FluentDockerException(
+              $"Invalid host port '{hostPort}'. Port must be 0-65535 (0 for random).");
+      }
+    }
+
+    #endregion
+
     #region Execute
 
     public async Task<IService> ExecuteAsync(CancellationToken cancellationToken)
     {
+      Validate();
       var driver = _kernel.SysCtl<Drivers.IContainerDriver>(_driverId);
       var imageDriver = _kernel.SysCtl<Drivers.IImageDriver>(_driverId);
       var context = new DriverContext(_driverId);
@@ -356,7 +372,7 @@ namespace FluentDocker.Builders
       // Handle existing container
       if (!string.IsNullOrEmpty(_name) && _existsBehavior != ContainerExistsBehavior.Default)
       {
-        var existing = await FindExistingContainerAsync(driver, context, _name, cancellationToken);
+        var existing = await FindExistingContainerAsync(driver, context, _name, cancellationToken).ConfigureAwait(false);
         if (existing != null)
         {
           if (_existsBehavior == ContainerExistsBehavior.Reuse)
@@ -367,21 +383,21 @@ namespace FluentDocker.Builders
                 _deleteVolumeOnDispose, _deleteNamedVolumeOnDispose,
                 _customResolver, _lifecycleHooks);
 
-            var inspectResult = await driver.InspectAsync(context, existing, cancellationToken);
+            var inspectResult = await driver.InspectAsync(context, existing, cancellationToken).ConfigureAwait(false);
             if (inspectResult.Success && inspectResult.Data?.State?.Running != true)
-              await reuseService.StartAsync(cancellationToken);
+              await reuseService.StartAsync(cancellationToken).ConfigureAwait(false);
 
             return reuseService;
           }
           else if (_existsBehavior == ContainerExistsBehavior.Destroy)
           {
-            await driver.RemoveAsync(context, existing, _destroyForce, _destroyRemoveVolumes, cancellationToken);
+            await driver.RemoveAsync(context, existing, _destroyForce, _destroyRemoveVolumes, cancellationToken).ConfigureAwait(false);
           }
         }
       }
 
       if (_forcePullImage && imageDriver != null)
-        await imageDriver.PullAsync(context, _image, "latest", null, cancellationToken);
+        await imageDriver.PullAsync(context, _image, "latest", null, cancellationToken).ConfigureAwait(false);
 
       var config = new Drivers.ContainerCreateConfig
       {
@@ -413,10 +429,19 @@ namespace FluentDocker.Builders
                   .GroupBy(a => a.NetworkName)
                   .ToDictionary(g => g.Key, g => g.Select(a => a.Alias).ToList())
               : null,
-        Pod = _pod
+        Pod = _pod,
+        CapAdd = _capAdd.Count > 0 ? _capAdd : null,
+        CapDrop = _capDrop.Count > 0 ? _capDrop : null,
+        SecurityOpt = _securityOpt.Count > 0 ? _securityOpt : null,
+        ShmSize = _shmSize,
+        Tmpfs = _tmpfs.Count > 0 ? _tmpfs : null,
+        Devices = _devices.Count > 0 ? _devices : null,
+        ReadonlyRootfs = _readonlyRootfs,
+        Platform = _platform,
+        Runtime = _runtime
       };
 
-      var response = await driver.CreateAsync(context, config, cancellationToken);
+      var response = await driver.CreateAsync(context, config, cancellationToken).ConfigureAwait(false);
       if (!response.Success)
         throw new DriverException($"Failed to create container: {response.Error}",
             response.ErrorCode, response.ErrorContext);
@@ -434,20 +459,21 @@ namespace FluentDocker.Builders
       {
         try
         {
-          await service.StartAsync(cancellationToken);
-          await WaitForContainerRunningAsync(driver, context, response.Data.Id, cancellationToken);
-          await ExecuteLifecycleHooksAsync(service, ServiceRunningState.Running, cancellationToken);
-          await ExecuteWaitConditionsAsync(service, cancellationToken);
+          await service.StartAsync(cancellationToken).ConfigureAwait(false);
+          await WaitForContainerRunningAsync(driver, context, response.Data.Id, cancellationToken).ConfigureAwait(false);
+          await ExecuteLifecycleHooksAsync(service, ServiceRunningState.Running, cancellationToken).ConfigureAwait(false);
+          await ExecuteWaitConditionsAsync(service, cancellationToken).ConfigureAwait(false);
           _waitConditionsExecuted = true;
         }
-        catch
+        catch (Exception ex)
         {
+          Logger.Log($"Container build failed: {ex.Message}");
           // Container was created (and possibly started). Force-remove to prevent leaks.
           // Use a bounded timeout so cleanup cannot hang indefinitely when the daemon is unhealthy.
           try
           {
             using var cleanupCts = new CancellationTokenSource(TimeSpan.FromSeconds(120));
-            await driver.RemoveAsync(context, response.Data.Id, true, false, cleanupCts.Token);
+            await driver.RemoveAsync(context, response.Data.Id, true, false, cleanupCts.Token).ConfigureAwait(false);
           }
           catch { /* best effort cleanup */ }
           throw;
@@ -455,39 +481,6 @@ namespace FluentDocker.Builders
       }
 
       return service;
-    }
-
-    private async Task WaitForContainerRunningAsync(
-        Drivers.IContainerDriver driver, DriverContext context,
-        string containerId, CancellationToken cancellationToken)
-    {
-      const int maxAttempts = 30;
-      const int delayMs = 100;
-      for (var i = 0; i < maxAttempts; i++)
-      {
-        var inspectResult = await driver.InspectAsync(context, containerId, cancellationToken);
-        if (inspectResult.Success && inspectResult.Data?.State?.Running == true)
-          return;
-        await Task.Delay(delayMs, cancellationToken);
-      }
-    }
-
-    private async Task<string> FindExistingContainerAsync(
-        Drivers.IContainerDriver driver, DriverContext context,
-        string name, CancellationToken cancellationToken)
-    {
-      var listResult = await driver.ListAsync(context,
-          new Drivers.ContainerListFilter { All = true, Name = name }, cancellationToken);
-      if (!listResult.Success)
-        return null;
-
-      var normalizedName = name.StartsWith("/") ? name.Substring(1) : name;
-      var container = listResult.Data?.FirstOrDefault(c =>
-      {
-        var containerName = c.Name?.TrimStart('/');
-        return string.Equals(containerName, normalizedName, StringComparison.OrdinalIgnoreCase);
-      });
-      return container?.Id;
     }
 
     #endregion

@@ -1,11 +1,12 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
+using FluentDocker.Common;
 using FluentDocker.Drivers.Docker.Api.Connection;
 using FluentDocker.Model.Drivers;
-using Newtonsoft.Json.Linq;
 
 namespace FluentDocker.Drivers.Docker.Api.Components
 {
@@ -49,20 +50,22 @@ namespace FluentDocker.Drivers.Docker.Api.Components
         };
       }
 
-      var result = await PostJsonAsync<JObject>("/networks/create", body, cancellationToken);
+      var result = await PostJsonElementAsync("/networks/create", body, cancellationToken);
       if (!result.Success)
         return CommandResponse<NetworkCreateResult>.Fail(result.ErrorMessage,
             ErrorCodes.Network.CreateFailed,
             CreateErrorContext("POST /networks/create", result.StatusCode, result.ResponseBody),
             result.StatusCode);
 
+      var data = result.Data;
       var createResult = new NetworkCreateResult
       {
-        Id = result.Data?.Value<string>("Id")
+        Id = data.GetStringOrDefault("Id")
       };
 
-      if (result.Data?["Warning"] != null)
-        createResult.Warnings.Add(result.Data.Value<string>("Warning"));
+      var warningEl = data.Prop("Warning");
+      if (warningEl != null && warningEl.Value.ValueKind == JsonValueKind.String)
+        createResult.Warnings.Add(warningEl.Value.GetString());
 
       return CommandResponse<NetworkCreateResult>.Ok(createResult);
     }
@@ -92,15 +95,16 @@ namespace FluentDocker.Drivers.Docker.Api.Components
         path += $"?filters={Uri.EscapeDataString(filters)}";
       }
 
-      var result = await GetJsonAsync<JArray>(path, cancellationToken);
+      var result = await GetJsonElementAsync(path, cancellationToken);
       if (!result.Success)
         return CommandResponse<IList<Network>>.Fail(result.ErrorMessage,
             MapHttpErrorCode(result.StatusCode),
             CreateErrorContext("GET /networks", result.StatusCode, result.ResponseBody),
             result.StatusCode);
 
-      var networks = result.Data?.Select(ParseNetwork).ToList()
-          ?? new List<Network>();
+      var networks = result.Data.ValueKind == JsonValueKind.Array
+          ? result.Data.EnumerateArray().Select(ParseNetwork).ToList()
+          : new List<Network>();
       return CommandResponse<IList<Network>>.Ok(networks);
     }
 
@@ -140,7 +144,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
         DriverContext context, string networkId,
         CancellationToken cancellationToken = default)
     {
-      var result = await GetJsonAsync<JObject>($"/networks/{networkId}", cancellationToken);
+      var result = await GetJsonElementAsync($"/networks/{networkId}", cancellationToken);
       if (!result.Success)
         return CommandResponse<Network>.Fail(result.ErrorMessage,
             MapNotFoundErrorCode(result.StatusCode, ErrorCodes.Network.NotFound),
@@ -153,7 +157,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
     public async Task<CommandResponse<NetworkPruneResult>> PruneAsync(
         DriverContext context, CancellationToken cancellationToken = default)
     {
-      var result = await PostJsonAsync<JObject>("/networks/prune", null, cancellationToken);
+      var result = await PostJsonElementAsync("/networks/prune", null, cancellationToken);
       if (!result.Success)
         return CommandResponse<NetworkPruneResult>.Fail(result.ErrorMessage,
             ErrorCodes.Network.PruneFailed,
@@ -161,28 +165,29 @@ namespace FluentDocker.Drivers.Docker.Api.Components
             result.StatusCode);
 
       var pruneResult = new NetworkPruneResult();
-      if (result.Data?["NetworksDeleted"] is JArray deleted)
+      var deletedEl = result.Data.Prop("NetworksDeleted");
+      if (deletedEl?.ValueKind == JsonValueKind.Array)
       {
-        pruneResult.NetworksDeleted = deleted.Select(n => n.Value<string>()).ToList();
+        pruneResult.NetworksDeleted = deletedEl.Value.EnumerateArray()
+            .Select(n => n.GetString()).ToList();
       }
 
       return CommandResponse<NetworkPruneResult>.Ok(pruneResult);
     }
 
-    private static Network ParseNetwork(JToken token)
+    private static Network ParseNetwork(JsonElement token)
     {
-      if (token == null)
+      if (token.ValueKind != JsonValueKind.Object)
         return new Network();
       return new Network
       {
-        Id = token.Value<string>("Id"),
-        Name = token.Value<string>("Name"),
-        Driver = token.Value<string>("Driver"),
-        Scope = token.Value<string>("Scope"),
-        Internal = token.Value<bool?>("Internal") ?? false,
-        IPv6 = token.Value<bool?>("EnableIPv6") ?? false,
-        Labels = token["Labels"]?.ToObject<Dictionary<string, string>>()
-              ?? new Dictionary<string, string>()
+        Id = token.GetStringOrDefault("Id"),
+        Name = token.GetStringOrDefault("Name"),
+        Driver = token.GetStringOrDefault("Driver"),
+        Scope = token.GetStringOrDefault("Scope"),
+        Internal = token.GetBoolOrDefault("Internal"),
+        IPv6 = token.GetBoolOrDefault("EnableIPv6"),
+        Labels = token.GetStringDictionary("Labels")
       };
     }
   }

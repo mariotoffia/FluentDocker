@@ -5,6 +5,7 @@ namespace FluentDocker.Extensions
 {
   public static class ConversionExtension
   {
+    private static readonly string[] DefaultUnits = ["b", "k", "m", "g"];
     /// <summary>
     ///   Converts a numeric expression combined with an optional suffix to denote
     ///   b, k, m, g.
@@ -15,7 +16,7 @@ namespace FluentDocker.Extensions
     public static long Convert(this string value, params string[] unit)
     {
       if (null == unit || 0 == unit.Length)
-        unit = new[] { "b", "k", "m", "g" };
+        unit = DefaultUnits;
 
       if (string.IsNullOrWhiteSpace(value))
         return long.MinValue;

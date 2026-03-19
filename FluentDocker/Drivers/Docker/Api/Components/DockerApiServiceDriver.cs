@@ -3,12 +3,12 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
+using FluentDocker.Common;
 using FluentDocker.Drivers.Docker.Api.Connection;
 using FluentDocker.Model.Drivers;
-using Newtonsoft.Json;
-using Newtonsoft.Json.Linq;
 
 namespace FluentDocker.Drivers.Docker.Api.Components
 {
@@ -25,7 +25,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
         CancellationToken cancellationToken = default)
     {
       var body = BuildServiceSpec(config);
-      var result = await PostJsonAsync<JObject>("/services/create", body, cancellationToken);
+      var result = await PostJsonElementAsync("/services/create", body, cancellationToken);
       if (!result.Success)
         return CommandResponse<ServiceCreateResult>.Fail(result.ErrorMessage,
             ErrorCodes.Service.CreateFailed,
@@ -34,8 +34,10 @@ namespace FluentDocker.Drivers.Docker.Api.Components
 
       return CommandResponse<ServiceCreateResult>.Ok(new ServiceCreateResult
       {
-        Id = result.Data?.Value<string>("ID"),
-        Warnings = result.Data?["Warnings"]?.ToObject<List<string>>() ?? new List<string>()
+        Id = result.Data.GetStringOrDefault("ID"),
+        Warnings = result.Data.Prop("Warnings")?.ValueKind == JsonValueKind.Array
+            ? result.Data.Prop("Warnings").Value.Deserialize<List<string>>()
+            : new List<string>()
       });
     }
 
@@ -115,18 +117,19 @@ namespace FluentDocker.Drivers.Docker.Api.Components
         if (!string.IsNullOrEmpty(filter.Mode))
           filters["mode"] = [filter.Mode];
         if (filters.Count > 0)
-          path += $"?filters={Uri.EscapeDataString(JsonConvert.SerializeObject(filters))}";
+          path += $"?filters={Uri.EscapeDataString(JsonHelper.Serialize(filters))}";
       }
 
-      var result = await GetJsonAsync<JArray>(path, cancellationToken);
+      var result = await GetJsonElementAsync(path, cancellationToken);
       if (!result.Success)
         return CommandResponse<IList<ServiceInfo>>.Fail(result.ErrorMessage,
             ErrorCodes.Service.ListFailed,
             CreateErrorContext("GET /services", result.StatusCode, result.ResponseBody),
             result.StatusCode);
 
-      var services = result.Data?.Select(ParseServiceInfo).ToList()
-          ?? new List<ServiceInfo>();
+      var services = result.Data.ValueKind == JsonValueKind.Array
+          ? result.Data.EnumerateArray().Select(ParseServiceInfo).ToList()
+          : new List<ServiceInfo>();
       return CommandResponse<IList<ServiceInfo>>.Ok(services);
     }
 
@@ -134,7 +137,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
         DriverContext context, string serviceId, bool pretty = false,
         CancellationToken cancellationToken = default)
     {
-      var result = await GetJsonAsync<JObject>($"/services/{serviceId}", cancellationToken);
+      var result = await GetJsonElementAsync($"/services/{serviceId}", cancellationToken);
       if (!result.Success)
         return CommandResponse<ServiceDetails>.Fail(result.ErrorMessage,
             MapNotFoundErrorCode(result.StatusCode, ErrorCodes.Service.NotFound),
@@ -152,17 +155,18 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       var filters = new Dictionary<string, List<string>> { ["service"] = [serviceId] };
       if (filter?.DesiredState != null)
         filters["desired-state"] = [filter.DesiredState];
-      var path = $"/tasks?filters={Uri.EscapeDataString(JsonConvert.SerializeObject(filters))}";
+      var path = $"/tasks?filters={Uri.EscapeDataString(JsonHelper.Serialize(filters))}";
 
-      var result = await GetJsonAsync<JArray>(path, cancellationToken);
+      var result = await GetJsonElementAsync(path, cancellationToken);
       if (!result.Success)
         return CommandResponse<IList<ServiceTask>>.Fail(result.ErrorMessage,
             ErrorCodes.Service.TasksFailed,
             CreateErrorContext("GET /tasks", result.StatusCode, result.ResponseBody),
             result.StatusCode);
 
-      var tasks = result.Data?.Select(ParseServiceTask).ToList()
-          ?? new List<ServiceTask>();
+      var tasks = result.Data.ValueKind == JsonValueKind.Array
+          ? result.Data.EnumerateArray().Select(ParseServiceTask).ToList()
+          : new List<ServiceTask>();
       return CommandResponse<IList<ServiceTask>>.Ok(tasks);
     }
 
@@ -183,9 +187,10 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       try
       {
         using var stream = await GetRawStreamAsync(path, cancellationToken);
-        using var reader = new StreamReader(stream, Encoding.UTF8);
-        var logs = await reader.ReadToEndAsync(cancellationToken);
-        return CommandResponse<string>.Ok(StripDockerStreamHeaders(logs));
+        using var ms = new MemoryStream();
+        await stream.CopyToAsync(ms, cancellationToken);
+        var logs = StripDockerStreamHeaders(ms.ToArray());
+        return CommandResponse<string>.Ok(logs);
       }
       catch (Exception ex)
       {
@@ -213,7 +218,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
 
     #region Spec Builders
 
-    private static object BuildServiceSpec(ServiceCreateConfig config)
+    private static Dictionary<string, object> BuildServiceSpec(ServiceCreateConfig config)
     {
       var spec = new Dictionary<string, object>
       {
@@ -257,7 +262,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       return spec;
     }
 
-    private static object BuildContainerSpec(ServiceCreateConfig config)
+    private static Dictionary<string, object> BuildContainerSpec(ServiceCreateConfig config)
     {
       var containerSpec = new Dictionary<string, object> { ["Image"] = config.Image };
 
@@ -286,12 +291,9 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       return containerSpec;
     }
 
-    private static object BuildUpdateSpec(ServiceDetails current, ServiceUpdateConfig config)
+    private static Dictionary<string, object> BuildUpdateSpec(ServiceDetails current, ServiceUpdateConfig config)
     {
-      // Build a minimal update spec based on what changed
       var spec = new Dictionary<string, object>();
-      // The actual implementation would merge current spec with updates
-      // For now, return a basic spec with replicas change
       if (config.Replicas.HasValue)
       {
         spec["Mode"] = new Dictionary<string, object>
@@ -307,51 +309,56 @@ namespace FluentDocker.Drivers.Docker.Api.Components
 
     #region JSON Parsing
 
-    private static ServiceInfo ParseServiceInfo(JToken token)
+    private static ServiceInfo ParseServiceInfo(JsonElement token)
     {
-      var spec = token["Spec"] as JObject;
+      var spec = token.Prop("Spec");
+      var containerSpec = spec?.Prop("TaskTemplate")?.Prop("ContainerSpec");
       return new ServiceInfo
       {
-        Id = token.Value<string>("ID"),
-        Name = spec?.Value<string>("Name"),
-        Image = (spec?["TaskTemplate"]?["ContainerSpec"] as JObject)?.Value<string>("Image"),
-        Mode = spec?["Mode"]?["Replicated"] != null ? "replicated" : "global"
+        Id = token.GetStringOrDefault("ID"),
+        Name = spec?.GetStringOrDefault("Name"),
+        Image = containerSpec?.GetStringOrDefault("Image"),
+        Mode = spec?.Prop("Mode")?.Prop("Replicated") != null ? "replicated" : "global"
       };
     }
 
-    private static ServiceDetails ParseServiceDetails(JObject json)
+    private static ServiceDetails ParseServiceDetails(JsonElement json)
     {
-      if (json == null)
+      if (json.ValueKind != JsonValueKind.Object)
         return new ServiceDetails();
-      var spec = json["Spec"] as JObject;
-      var containerSpec = spec?["TaskTemplate"]?["ContainerSpec"] as JObject;
-      var version = json["Version"] as JObject;
+      var spec = json.Prop("Spec");
+      var containerSpec = spec?.Prop("TaskTemplate")?.Prop("ContainerSpec");
+      var version = json.Prop("Version");
+
+      var replicatedEl = spec?.Prop("Mode")?.Prop("Replicated");
 
       return new ServiceDetails
       {
-        Id = json.Value<string>("ID"),
-        Version = version?.Value<long?>("Index") ?? 0,
-        Name = spec?.Value<string>("Name"),
-        Image = containerSpec?.Value<string>("Image"),
-        Mode = spec?["Mode"]?["Replicated"] != null ? "replicated" : "global",
-        Replicas = (int?)(spec?["Mode"]?["Replicated"]?.Value<long?>("Replicas")) ?? 0,
-        CreatedAt = json.Value<DateTime?>("CreatedAt") ?? DateTime.MinValue,
-        UpdatedAt = json.Value<DateTime?>("UpdatedAt") ?? DateTime.MinValue,
-        RawJson = json.ToString(Formatting.Indented)
+        Id = json.GetStringOrDefault("ID"),
+        Version = version?.GetInt64OrDefault("Index") ?? 0,
+        Name = spec?.GetStringOrDefault("Name"),
+        Image = containerSpec?.GetStringOrDefault("Image"),
+        Mode = replicatedEl != null ? "replicated" : "global",
+        Replicas = (int)(replicatedEl?.GetInt64OrDefault("Replicas") ?? 0),
+        CreatedAt = json.GetDateTimeOrDefault("CreatedAt"),
+        UpdatedAt = json.GetDateTimeOrDefault("UpdatedAt"),
+        RawJson = JsonSerializer.Serialize(json, JsonHelper.IndentedOptions)
       };
     }
 
-    private static ServiceTask ParseServiceTask(JToken token)
+    private static ServiceTask ParseServiceTask(JsonElement token)
     {
+      var containerSpec = token.Prop("Spec")?.Prop("ContainerSpec");
+      var status = token.Prop("Status");
       return new ServiceTask
       {
-        Id = token.Value<string>("ID"),
-        Name = token.Value<string>("Name"),
-        Image = (token["Spec"]?["ContainerSpec"] as JObject)?.Value<string>("Image"),
-        Node = token.Value<string>("NodeID"),
-        DesiredState = token.Value<string>("DesiredState"),
-        CurrentState = (token["Status"] as JObject)?.Value<string>("State"),
-        Error = (token["Status"] as JObject)?.Value<string>("Err")
+        Id = token.GetStringOrDefault("ID"),
+        Name = token.GetStringOrDefault("Name"),
+        Image = containerSpec?.GetStringOrDefault("Image"),
+        Node = token.GetStringOrDefault("NodeID"),
+        DesiredState = token.GetStringOrDefault("DesiredState"),
+        CurrentState = status?.GetStringOrDefault("State"),
+        Error = status?.GetStringOrDefault("Err")
       };
     }
 

@@ -39,7 +39,7 @@ namespace FluentDocker.Tests.CoreTests.Testing.Adapters
       Assert.True(resource.IsInitialized);
       Assert.Same(Kernel, kernel);
 
-      await MsTestResourceHelpers.DisposeAsync(resource, null);
+      await MsTestResourceHelpers.DisposeAsync(resource, null!);
     }
 
     [Fact]
@@ -63,7 +63,7 @@ namespace FluentDocker.Tests.CoreTests.Testing.Adapters
       Assert.Equal("mstest-stack", resource.StackName);
       Assert.Same(Kernel, kernel);
 
-      await MsTestResourceHelpers.DisposeAsync(resource, null);
+      await MsTestResourceHelpers.DisposeAsync(resource, null!);
     }
 
     [Fact]
@@ -87,7 +87,7 @@ namespace FluentDocker.Tests.CoreTests.Testing.Adapters
       Assert.Equal("mstest.yaml", resource.YamlPath);
       Assert.Same(Kernel, kernel);
 
-      await MsTestResourceHelpers.DisposeAsync(resource, null);
+      await MsTestResourceHelpers.DisposeAsync(resource, null!);
     }
 
     [Fact]
@@ -111,7 +111,7 @@ namespace FluentDocker.Tests.CoreTests.Testing.Adapters
       Assert.NotNull(resource.Service);
       Assert.Same(Kernel, kernel);
 
-      await MsTestResourceHelpers.DisposeAsync(resource, null);
+      await MsTestResourceHelpers.DisposeAsync(resource, null!);
     }
 
     [Fact]
@@ -133,13 +133,13 @@ namespace FluentDocker.Tests.CoreTests.Testing.Adapters
       Assert.NotEmpty(resource.Services);
       Assert.Same(Kernel, kernel);
 
-      await MsTestResourceHelpers.DisposeAsync(resource, null);
+      await MsTestResourceHelpers.DisposeAsync(resource, null!);
     }
 
     [Fact]
     public async Task DisposeAsync_NullResourceAndKernel_DoesNotThrow()
     {
-      await MsTestResourceHelpers.DisposeAsync(null, null);
+      await MsTestResourceHelpers.DisposeAsync(null!, null!);
     }
 
     [Fact]
@@ -190,7 +190,7 @@ namespace FluentDocker.Tests.CoreTests.Testing.Adapters
       Assert.True(resource.IsInitialized);
       Assert.Same(Kernel, kernel);
 
-      await MsTestResourceHelpers.DisposeAsync(resource, null);
+      await MsTestResourceHelpers.DisposeAsync(resource, null!);
     }
 
     [Fact]

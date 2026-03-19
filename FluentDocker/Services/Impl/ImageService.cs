@@ -7,6 +7,8 @@ using FluentDocker.Drivers;
 using FluentDocker.Kernel;
 using FluentDocker.Model.Drivers;
 
+#pragma warning disable CS0618 // IService obsolete — intentional usage
+
 namespace FluentDocker.Services.Impl
 {
   /// <summary>
@@ -29,9 +31,12 @@ namespace FluentDocker.Services.Impl
         string repository,
         string tag)
     {
-      _kernel = kernel ?? throw new ArgumentNullException(nameof(kernel));
-      _driverId = driverId ?? throw new ArgumentNullException(nameof(driverId));
-      _imageId = imageId ?? throw new ArgumentNullException(nameof(imageId));
+      ArgumentNullException.ThrowIfNull(kernel);
+      ArgumentNullException.ThrowIfNull(driverId);
+      ArgumentNullException.ThrowIfNull(imageId);
+      _kernel = kernel;
+      _driverId = driverId;
+      _imageId = imageId;
       _repository = repository;
       _tag = tag ?? "latest";
     }
@@ -44,7 +49,9 @@ namespace FluentDocker.Services.Impl
     public string Tag => _tag;
     public string FullName => string.IsNullOrEmpty(_repository) ? _imageId : $"{_repository}:{_tag}";
 
+#pragma warning disable CA1710 // Delegate name 'StateChange' — intentional API design
     public event ServiceDelegates.StateChange StateChange;
+#pragma warning restore CA1710
 
     public async Task<Image> InspectAsync(CancellationToken cancellationToken = default)
     {
@@ -119,7 +126,7 @@ namespace FluentDocker.Services.Impl
       var driver = _kernel.SysCtl<IImageDriver>(_driverId);
       var context = new DriverContext(_driverId);
 
-      var response = await driver.SaveAsync(context, new[] { FullName }, outputPath, cancellationToken);
+      var response = await driver.SaveAsync(context, [FullName], outputPath, cancellationToken);
 
       if (!response.Success)
       {
@@ -196,11 +203,13 @@ namespace FluentDocker.Services.Impl
     public void Dispose()
     {
       DisposeAsync().AsTask().GetAwaiter().GetResult();
+      GC.SuppressFinalize(this);
     }
 
     public async ValueTask DisposeAsync()
     {
       await Task.CompletedTask;
+      GC.SuppressFinalize(this);
     }
 
     private void UpdateState(ServiceRunningState newState)
@@ -217,8 +226,9 @@ namespace FluentDocker.Services.Impl
         {
           await hook(this);
         }
-        catch
+        catch (Exception ex)
         {
+          Logger.Log($"ImageService hook execution failed: {ex.Message}");
         }
       }
     }

@@ -17,7 +17,7 @@ namespace FluentDocker.Tests.Integration.PodmanCliDriver
     public async Task CreateAndRemove_Succeeds()
     {
       await EnsureImageAsync(TestImage);
-      string containerId = null;
+      string? containerId = null;
 
       try
       {
@@ -35,7 +35,7 @@ namespace FluentDocker.Tests.Integration.PodmanCliDriver
       }
       finally
       {
-        await RemoveContainerAsync(containerId);
+        await RemoveContainerAsync(containerId!);
       }
     }
 
@@ -43,7 +43,7 @@ namespace FluentDocker.Tests.Integration.PodmanCliDriver
     public async Task RunDetached_Succeeds()
     {
       await EnsureImageAsync(TestImage);
-      string containerId = null;
+      string? containerId = null;
 
       try
       {
@@ -61,7 +61,7 @@ namespace FluentDocker.Tests.Integration.PodmanCliDriver
       }
       finally
       {
-        await RemoveContainerAsync(containerId);
+        await RemoveContainerAsync(containerId!);
       }
     }
 
@@ -69,7 +69,7 @@ namespace FluentDocker.Tests.Integration.PodmanCliDriver
     public async Task StartStopRestart_Lifecycle()
     {
       await EnsureImageAsync(TestImage);
-      string containerId = null;
+      string? containerId = null;
 
       try
       {
@@ -97,7 +97,7 @@ namespace FluentDocker.Tests.Integration.PodmanCliDriver
       }
       finally
       {
-        await RemoveContainerAsync(containerId);
+        await RemoveContainerAsync(containerId!);
       }
     }
 
@@ -105,7 +105,7 @@ namespace FluentDocker.Tests.Integration.PodmanCliDriver
     public async Task Inspect_ReturnsContainerDetails()
     {
       await EnsureImageAsync(TestImage);
-      string containerId = null;
+      string? containerId = null;
 
       try
       {
@@ -121,7 +121,7 @@ namespace FluentDocker.Tests.Integration.PodmanCliDriver
       }
       finally
       {
-        await RemoveContainerAsync(containerId);
+        await RemoveContainerAsync(containerId!);
       }
     }
 
@@ -129,7 +129,7 @@ namespace FluentDocker.Tests.Integration.PodmanCliDriver
     public async Task ListContainers_ReturnsResults()
     {
       await EnsureImageAsync(TestImage);
-      string containerId = null;
+      string? containerId = null;
 
       try
       {
@@ -145,7 +145,7 @@ namespace FluentDocker.Tests.Integration.PodmanCliDriver
       }
       finally
       {
-        await RemoveContainerAsync(containerId);
+        await RemoveContainerAsync(containerId!);
       }
     }
   }

@@ -1,11 +1,12 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
+using FluentDocker.Common;
 using FluentDocker.Drivers.Docker.Cli;
 using FluentDocker.Model.Drivers;
-using Newtonsoft.Json.Linq;
 
 namespace FluentDocker.Drivers.Podman.Cli.Components
 {
@@ -14,6 +15,8 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
   /// </summary>
   public partial class PodmanCliContainerDriver
   {
+    private static readonly char[] WhitespaceSeparators = [' ', '\t'];
+    private static readonly string[] SlashSeparator = [" / "];
     #region Information Operations (continued)
     /// <inheritdoc />
     public async Task<CommandResponse<string>> GetLogsAsync(
@@ -35,9 +38,14 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
         var result = await ExecuteCommandAsync(args, cancellationToken);
         if (!result.Success)
           return CommandResponse<string>.Fail(
-              result.Error ?? "Get logs failed", ErrorCodes.General.Unknown);
+              result.Error ?? "Get logs failed", ErrorCodes.Container.LogsFailed);
 
-        return CommandResponse<string>.Ok(result.Output);
+        // podman logs writes to both stdout and stderr.
+        // Combine both to capture all container output.
+        var logs = !string.IsNullOrEmpty(result.Error)
+            ? result.Output + result.Error
+            : result.Output;
+        return CommandResponse<string>.Ok(logs);
       }
       catch (Exception ex)
       {
@@ -313,19 +321,19 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
 
       // First line is header
       processes.Titles = new List<string>(lines[0].Split(
-          new[] { ' ', '\t' }, StringSplitOptions.RemoveEmptyEntries));
+          WhitespaceSeparators, StringSplitOptions.RemoveEmptyEntries));
 
       for (var i = 1; i < lines.Length; i++)
       {
         var fields = lines[i].Split(
-            new[] { ' ', '\t' }, StringSplitOptions.RemoveEmptyEntries);
+            WhitespaceSeparators, StringSplitOptions.RemoveEmptyEntries);
         processes.Processes.Add(new List<string>(fields));
       }
 
       return processes;
     }
 
-    private static IList<FilesystemChange> ParseDiffOutput(string output)
+    private static List<FilesystemChange> ParseDiffOutput(string output)
     {
       var changes = new List<FilesystemChange>();
       if (string.IsNullOrWhiteSpace(output))
@@ -359,25 +367,32 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       try
       {
         var trimmed = json.Trim();
-        JToken token;
+        JsonElement token;
 
-        if (trimmed.StartsWith("["))
-          token = JArray.Parse(trimmed).First;
+        if (trimmed.StartsWith('['))
+        {
+          var root = JsonHelper.ParseElement(trimmed);
+          var enumerator = root.EnumerateArray();
+          enumerator.MoveNext();
+          token = enumerator.Current;
+        }
         else
-          token = JObject.Parse(trimmed);
+        {
+          token = JsonHelper.ParseElement(trimmed);
+        }
 
-        var cpuStr = token["CPUPerc"]?.Value<string>()
-                     ?? token["cpu_perc"]?.Value<string>();
-        var memUsageStr = token["MemUsage"]?.Value<string>()
-                          ?? token["mem_usage"]?.Value<string>();
-        var memPercStr = token["MemPerc"]?.Value<string>()
-                         ?? token["mem_perc"]?.Value<string>();
-        var netIoStr = token["NetIO"]?.Value<string>()
-                       ?? token["net_io"]?.Value<string>();
-        var blockIoStr = token["BlockIO"]?.Value<string>()
-                         ?? token["block_io"]?.Value<string>();
-        var pidsStr = token["PIDs"]?.Value<string>()
-                      ?? token["pids"]?.Value<string>();
+        var cpuStr = token.GetStringOrDefault("CPUPerc")
+                     ?? token.GetStringOrDefault("cpu_perc");
+        var memUsageStr = token.GetStringOrDefault("MemUsage")
+                          ?? token.GetStringOrDefault("mem_usage");
+        var memPercStr = token.GetStringOrDefault("MemPerc")
+                         ?? token.GetStringOrDefault("mem_perc");
+        var netIoStr = token.GetStringOrDefault("NetIO")
+                       ?? token.GetStringOrDefault("net_io");
+        var blockIoStr = token.GetStringOrDefault("BlockIO")
+                         ?? token.GetStringOrDefault("block_io");
+        var pidsStr = token.GetStringOrDefault("PIDs")
+                      ?? token.GetStringOrDefault("pids");
 
         var (memUsage, memLimit) = ParseMemoryUsage(memUsageStr);
         var (netRx, netTx) = ParseIOPair(netIoStr);
@@ -387,10 +402,10 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
 
         return new ContainerStatsResult
         {
-          ContainerId = token["ContainerID"]?.Value<string>()
-                          ?? token["container_id"]?.Value<string>(),
-          Name = token["Name"]?.Value<string>()
-                   ?? token["name"]?.Value<string>(),
+          ContainerId = token.GetStringOrDefault("ContainerID")
+                          ?? token.GetStringOrDefault("container_id"),
+          Name = token.GetStringOrDefault("Name")
+                   ?? token.GetStringOrDefault("name"),
           CpuPercent = ParsePercent(cpuStr),
           MemoryUsage = memUsage,
           MemoryLimit = memLimit,
@@ -402,91 +417,66 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
           Pids = pids
         };
       }
-      catch
+      catch (Exception ex)
       {
+        Logger.Log($"Podman container stats parsing failed: {ex.Message}");
         return new ContainerStatsResult();
       }
     }
 
-    /// <summary>
-    /// Parses a percentage string (e.g. "5.23%") into a double. Returns 0 on failure.
-    /// </summary>
+    /// <summary>Parses a percentage string (e.g. "5.23%") into a double. Returns 0 on failure.</summary>
     public static double ParsePercent(string value)
     {
-      if (string.IsNullOrWhiteSpace(value))
-        return 0;
+      if (string.IsNullOrWhiteSpace(value)) return 0;
       var clean = value.TrimEnd('%').Trim();
       return double.TryParse(clean, NumberStyles.Float, CultureInfo.InvariantCulture, out var result)
           ? result : 0;
     }
 
-    /// <summary>
-    /// Parses a memory usage string (e.g. "100MiB / 2GiB") into (usage, limit) in bytes.
-    /// </summary>
+    /// <summary>Parses a memory usage string (e.g. "100MiB / 2GiB") into (usage, limit) in bytes.</summary>
     public static (long usage, long limit) ParseMemoryUsage(string value)
     {
-      if (string.IsNullOrWhiteSpace(value))
-        return (0, 0);
-      var parts = value.Split(new[] { " / " }, 2, StringSplitOptions.None);
-      var usage = parts.Length > 0 ? ParseByteValue(parts[0].Trim()) : 0;
-      var limit = parts.Length > 1 ? ParseByteValue(parts[1].Trim()) : 0;
-      return (usage, limit);
+      if (string.IsNullOrWhiteSpace(value)) return (0, 0);
+      var parts = value.Split(SlashSeparator, 2, StringSplitOptions.None);
+      return (
+        parts.Length > 0 ? ParseByteValue(parts[0].Trim()) : 0,
+        parts.Length > 1 ? ParseByteValue(parts[1].Trim()) : 0);
     }
 
-    /// <summary>
-    /// Parses an I/O pair string (e.g. "1.5kB / 2.3kB") into (first, second) in bytes.
-    /// </summary>
+    /// <summary>Parses an I/O pair string (e.g. "1.5kB / 2.3kB") into (first, second) in bytes.</summary>
     public static (long first, long second) ParseIOPair(string value)
     {
-      if (string.IsNullOrWhiteSpace(value))
-        return (0, 0);
-      var parts = value.Split(new[] { " / " }, 2, StringSplitOptions.None);
-      var first = parts.Length > 0 ? ParseByteValue(parts[0].Trim()) : 0;
-      var second = parts.Length > 1 ? ParseByteValue(parts[1].Trim()) : 0;
-      return (first, second);
+      if (string.IsNullOrWhiteSpace(value)) return (0, 0);
+      var parts = value.Split(SlashSeparator, 2, StringSplitOptions.None);
+      return (
+        parts.Length > 0 ? ParseByteValue(parts[0].Trim()) : 0,
+        parts.Length > 1 ? ParseByteValue(parts[1].Trim()) : 0);
     }
 
-    /// <summary>
-    /// Parses a byte value string with suffix (e.g. "1.5kB", "100MiB", "2GiB").
-    /// Uses base-1000 for kB/MB/GB/TB and base-1024 for KiB/MiB/GiB/TiB.
-    /// </summary>
+    /// <summary>Parses a byte value string with suffix. Uses base-1000 for kB/MB/GB/TB and base-1024 for KiB/MiB/GiB/TiB.</summary>
     public static long ParseByteValue(string value)
     {
-      if (string.IsNullOrWhiteSpace(value))
-        return 0;
+      if (string.IsNullOrWhiteSpace(value)) return 0;
       var s = value.Trim();
-
       // Order matters: check longer suffixes first to avoid partial matches.
-      var suffixes = new (string suffix, double multiplier)[]
-      {
-                ("TiB", 1024.0 * 1024 * 1024 * 1024),
-                ("GiB", 1024.0 * 1024 * 1024),
-                ("MiB", 1024.0 * 1024),
-                ("KiB", 1024.0),
-                ("TB", 1000.0 * 1000 * 1000 * 1000),
-                ("GB", 1000.0 * 1000 * 1000),
-                ("MB", 1000.0 * 1000),
-                ("kB", 1000.0),
-                ("KB", 1000.0),
-                ("B", 1.0)
-      };
-
+      (string suffix, double multiplier)[] suffixes =
+      [
+        ("TiB", 1024.0 * 1024 * 1024 * 1024), ("GiB", 1024.0 * 1024 * 1024),
+        ("MiB", 1024.0 * 1024), ("KiB", 1024.0),
+        ("TB", 1000.0 * 1000 * 1000 * 1000), ("GB", 1000.0 * 1000 * 1000),
+        ("MB", 1000.0 * 1000), ("kB", 1000.0), ("KB", 1000.0), ("B", 1.0)
+      ];
       foreach (var (suffix, multiplier) in suffixes)
       {
-        if (!s.EndsWith(suffix, StringComparison.Ordinal))
-          continue;
-
+        if (!s.EndsWith(suffix, StringComparison.Ordinal)) continue;
         var numStr = s.Substring(0, s.Length - suffix.Length).Trim();
         if (double.TryParse(numStr, NumberStyles.Float,
                 CultureInfo.InvariantCulture, out var num))
           return (long)(num * multiplier);
         return 0;
       }
-
-      // No suffix: try parsing as raw number.
       return double.TryParse(s, NumberStyles.Float,
-                 CultureInfo.InvariantCulture, out var raw)
-          ? (long)raw : 0;
+                 CultureInfo.InvariantCulture, out var raw) ? (long)raw : 0;
     }
 
     #endregion

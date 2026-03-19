@@ -53,7 +53,7 @@ namespace FluentDocker.Tests.Integration.DockerApiDriver
     [Fact]
     public async Task Container_Exec_ReturnsOutput()
     {
-      string containerId = null;
+      string? containerId = null;
       try
       {
         containerId = await ApiRunContainerAsync(TestImage);
@@ -70,14 +70,14 @@ namespace FluentDocker.Tests.Integration.DockerApiDriver
       }
       finally
       {
-        await ApiRemoveContainerAsync(containerId);
+        await ApiRemoveContainerAsync(containerId!);
       }
     }
 
     [Fact]
     public async Task Container_Exec_NonZeroExitCode()
     {
-      string containerId = null;
+      string? containerId = null;
       try
       {
         containerId = await ApiRunContainerAsync(TestImage);
@@ -93,7 +93,7 @@ namespace FluentDocker.Tests.Integration.DockerApiDriver
       }
       finally
       {
-        await ApiRemoveContainerAsync(containerId);
+        await ApiRemoveContainerAsync(containerId!);
       }
     }
 
@@ -104,7 +104,7 @@ namespace FluentDocker.Tests.Integration.DockerApiDriver
     [Fact]
     public async Task Container_GetLogs_ReturnsOutput()
     {
-      string containerId = null;
+      string? containerId = null;
       try
       {
         containerId = await ApiRunContainerAsync(TestImage,
@@ -119,7 +119,7 @@ namespace FluentDocker.Tests.Integration.DockerApiDriver
       }
       finally
       {
-        await ApiRemoveContainerAsync(containerId);
+        await ApiRemoveContainerAsync(containerId!);
       }
     }
 
@@ -130,7 +130,7 @@ namespace FluentDocker.Tests.Integration.DockerApiDriver
     [Fact]
     public async Task Container_Top_ReturnsProcesses()
     {
-      string containerId = null;
+      string? containerId = null;
       try
       {
         containerId = await ApiRunContainerAsync(TestImage);
@@ -144,7 +144,7 @@ namespace FluentDocker.Tests.Integration.DockerApiDriver
       }
       finally
       {
-        await ApiRemoveContainerAsync(containerId);
+        await ApiRemoveContainerAsync(containerId!);
       }
     }
 
@@ -155,7 +155,7 @@ namespace FluentDocker.Tests.Integration.DockerApiDriver
     [Fact]
     public async Task Container_Diff_ShowsAddedFile()
     {
-      string containerId = null;
+      string? containerId = null;
       try
       {
         containerId = await ApiRunContainerAsync(TestImage);
@@ -175,7 +175,7 @@ namespace FluentDocker.Tests.Integration.DockerApiDriver
       }
       finally
       {
-        await ApiRemoveContainerAsync(containerId);
+        await ApiRemoveContainerAsync(containerId!);
       }
     }
 
@@ -186,7 +186,7 @@ namespace FluentDocker.Tests.Integration.DockerApiDriver
     [Fact]
     public async Task Container_Wait_ReturnsExitCode()
     {
-      string containerId = null;
+      string? containerId = null;
       try
       {
         containerId = await ApiRunContainerAsync(TestImage,
@@ -199,7 +199,7 @@ namespace FluentDocker.Tests.Integration.DockerApiDriver
       }
       finally
       {
-        await ApiRemoveContainerAsync(containerId);
+        await ApiRemoveContainerAsync(containerId!);
       }
     }
 
@@ -210,7 +210,7 @@ namespace FluentDocker.Tests.Integration.DockerApiDriver
     [Fact]
     public async Task Container_Rename_ChangesName()
     {
-      string containerId = null;
+      string? containerId = null;
       var newName = UniqueName("api-renamed");
       try
       {
@@ -228,7 +228,7 @@ namespace FluentDocker.Tests.Integration.DockerApiDriver
       }
       finally
       {
-        await ApiRemoveContainerAsync(containerId);
+        await ApiRemoveContainerAsync(containerId!);
       }
     }
 
@@ -239,7 +239,7 @@ namespace FluentDocker.Tests.Integration.DockerApiDriver
     [Fact]
     public async Task Container_Stats_ReturnsResourceUsage()
     {
-      string containerId = null;
+      string? containerId = null;
       try
       {
         containerId = await ApiRunContainerAsync(TestImage);
@@ -254,7 +254,7 @@ namespace FluentDocker.Tests.Integration.DockerApiDriver
       }
       finally
       {
-        await ApiRemoveContainerAsync(containerId);
+        await ApiRemoveContainerAsync(containerId!);
       }
     }
 
@@ -265,7 +265,7 @@ namespace FluentDocker.Tests.Integration.DockerApiDriver
     [Fact]
     public async Task Container_Export_CreatesArchive()
     {
-      string containerId = null;
+      string? containerId = null;
       var outputPath = Path.Combine(
           Path.GetTempPath(), $"api-export-{Guid.NewGuid():N}.tar");
       try
@@ -282,7 +282,7 @@ namespace FluentDocker.Tests.Integration.DockerApiDriver
       }
       finally
       {
-        await ApiRemoveContainerAsync(containerId);
+        await ApiRemoveContainerAsync(containerId!);
         if (File.Exists(outputPath))
           File.Delete(outputPath);
       }
@@ -295,7 +295,7 @@ namespace FluentDocker.Tests.Integration.DockerApiDriver
     [Fact]
     public async Task Container_CopyTo_CopiesFile()
     {
-      string containerId = null;
+      string? containerId = null;
       var tempFile = Path.GetTempFileName();
       try
       {
@@ -319,7 +319,7 @@ namespace FluentDocker.Tests.Integration.DockerApiDriver
       }
       finally
       {
-        await ApiRemoveContainerAsync(containerId);
+        await ApiRemoveContainerAsync(containerId!);
         if (File.Exists(tempFile))
           File.Delete(tempFile);
       }
@@ -328,7 +328,7 @@ namespace FluentDocker.Tests.Integration.DockerApiDriver
     [Fact]
     public async Task Container_CopyFrom_CopiesFile()
     {
-      string containerId = null;
+      string? containerId = null;
       var tempDir = Path.Combine(
           Path.GetTempPath(), Guid.NewGuid().ToString());
       try
@@ -352,7 +352,7 @@ namespace FluentDocker.Tests.Integration.DockerApiDriver
       }
       finally
       {
-        await ApiRemoveContainerAsync(containerId);
+        await ApiRemoveContainerAsync(containerId!);
         if (Directory.Exists(tempDir))
           Directory.Delete(tempDir, true);
       }

@@ -24,8 +24,8 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
     public async Task Push_ToLocalRegistry_Succeeds()
     {
       const string registryPort = "5051";
-      string registryId = null;
-      string tempDir = null;
+      string? registryId = null;
+      string? tempDir = null;
       var projectName = UniqueName("push");
 
       try
@@ -92,7 +92,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
         }
 
         // Clean up registry container
-        await RemoveContainerAsync(registryId);
+        await RemoveContainerAsync(registryId!);
 
         // Clean up temp directory
         if (tempDir != null && Directory.Exists(tempDir))
@@ -108,8 +108,8 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
     public async Task Push_SpecificService_ToLocalRegistry_Succeeds()
     {
       const string registryPort = "5052";
-      string registryId = null;
-      string tempDir = null;
+      string? registryId = null;
+      string? tempDir = null;
       var projectName = UniqueName("push");
 
       try
@@ -178,7 +178,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
           }, TestContext.Current.CancellationToken);
         }
 
-        await RemoveContainerAsync(registryId);
+        await RemoveContainerAsync(registryId!);
 
         if (tempDir != null && Directory.Exists(tempDir))
           Directory.Delete(tempDir, true);

@@ -52,7 +52,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
           .BuildAsync(cancellationToken: TestContext.Current.CancellationToken);
 
       // Assert
-      Assert.Equal(2, results.All.Count());
+      Assert.Equal(2, results.All.Count);
       Assert.Single(results.All.OfType<INetworkService>());
       Assert.Single(results.All.OfType<IContainerService>());
 
@@ -99,7 +99,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
           .BuildAsync(cancellationToken: TestContext.Current.CancellationToken);
 
       // Assert
-      Assert.Equal(2, results.All.Count());
+      Assert.Equal(2, results.All.Count);
       Assert.Single(results.All.OfType<IVolumeService>());
       Assert.Single(results.All.OfType<IContainerService>());
     }
@@ -144,7 +144,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
           .BuildAsync(cancellationToken: TestContext.Current.CancellationToken);
 
       // Assert
-      Assert.Equal(4, results.All.Count());
+      Assert.Equal(4, results.All.Count);
       Assert.Single(results.All.OfType<INetworkService>());
       Assert.Single(results.All.OfType<IVolumeService>());
       Assert.Equal(2, results.All.OfType<IContainerService>().Count());
@@ -276,7 +276,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
           .BuildAsync(cancellationToken: TestContext.Current.CancellationToken);
 
       // Assert
-      Assert.Equal(3, results.All.Count());
+      Assert.Equal(3, results.All.Count);
     }
 
     [Fact]
@@ -342,7 +342,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
           .BuildAsync(cancellationToken: TestContext.Current.CancellationToken);
 
       // Assert
-      Assert.Equal(2, results.All.Count());
+      Assert.Equal(2, results.All.Count);
       Assert.True(waitConditionCalled,
           "Wait condition should be executed for linked containers " +
           "after they are started by StartContainersWithLinksAsync");
@@ -385,7 +385,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
           .BuildAsync(cancellationToken: TestContext.Current.CancellationToken);
 
       // Assert
-      Assert.Equal(2, results.All.Count());
+      Assert.Equal(2, results.All.Count);
       Assert.True(firstWaitCalled,
           "First wait condition should execute for linked container");
       Assert.True(secondWaitCalled,
@@ -461,7 +461,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
           .BuildAsync(cancellationToken: TestContext.Current.CancellationToken);
 
       // Assert
-      Assert.Equal(2, results.All.Count());
+      Assert.Equal(2, results.All.Count);
       Assert.True(nonLinkedWaitCalled,
           "Wait condition should execute for non-linked container");
       Assert.True(linkedWaitCalled,

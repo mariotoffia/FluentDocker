@@ -12,21 +12,18 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
   [Trait("Category", "Unit")]
   public class DockerApiDriverBaseStreamHelpersTests
   {
-    /// <summary>
-    /// Test subclass to expose protected static methods for direct testing.
-    /// </summary>
     private sealed class TestableDriverBase : DockerApiDriverBase
     {
       public TestableDriverBase() : base(new MockDockerApiConnection()) { }
 
-      public static string TestStripHeaders(string raw) => StripDockerStreamHeaders(raw);
+      public static string TestStripHeaders(byte[] bytes) => StripDockerStreamHeaders(bytes);
 
       public static Task<int> TestReadExact(
           Stream stream, byte[] buffer, int count, CancellationToken ct)
           => ReadExactAsync(stream, buffer, count, ct);
     }
 
-    #region StripDockerStreamHeaders
+    #region StripDockerStreamHeaders — Basic
 
     [Fact]
     public void StripDockerStreamHeaders_NullInput_ReturnsEmpty()
@@ -37,21 +34,22 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
     [Fact]
     public void StripDockerStreamHeaders_EmptyInput_ReturnsEmpty()
     {
-      Assert.Equal(string.Empty, TestableDriverBase.TestStripHeaders(""));
+      Assert.Equal(string.Empty, TestableDriverBase.TestStripHeaders(Array.Empty<byte>()));
     }
 
     [Fact]
     public void StripDockerStreamHeaders_ShortInput_ReturnsRaw()
     {
-      Assert.Equal("hello", TestableDriverBase.TestStripHeaders("hello"));
+      var bytes = Encoding.UTF8.GetBytes("hello");
+      Assert.Equal("hello", TestableDriverBase.TestStripHeaders(bytes));
     }
 
     [Fact]
     public void StripDockerStreamHeaders_NoValidHeader_ReturnsRaw()
     {
-      // First byte > 2 means not a valid Docker stream header
       var text = "This is plain text log output without any framing";
-      Assert.Equal(text, TestableDriverBase.TestStripHeaders(text));
+      var bytes = Encoding.UTF8.GetBytes(text);
+      Assert.Equal(text, TestableDriverBase.TestStripHeaders(bytes));
     }
 
     [Fact]
@@ -59,9 +57,8 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
     {
       var payload = "hello world";
       var frame = CreateFrame(1, payload);
-      var raw = Encoding.UTF8.GetString(frame);
 
-      var result = TestableDriverBase.TestStripHeaders(raw);
+      var result = TestableDriverBase.TestStripHeaders(frame);
 
       Assert.Equal(payload, result);
     }
@@ -71,9 +68,8 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
     {
       var payload = "error output";
       var frame = CreateFrame(2, payload);
-      var raw = Encoding.UTF8.GetString(frame);
 
-      var result = TestableDriverBase.TestStripHeaders(raw);
+      var result = TestableDriverBase.TestStripHeaders(frame);
 
       Assert.Equal(payload, result);
     }
@@ -83,12 +79,9 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
     {
       var frame1 = CreateFrame(1, "first ");
       var frame2 = CreateFrame(1, "second");
-      var combined = new byte[frame1.Length + frame2.Length];
-      Array.Copy(frame1, 0, combined, 0, frame1.Length);
-      Array.Copy(frame2, 0, combined, frame1.Length, frame2.Length);
-      var raw = Encoding.UTF8.GetString(combined);
+      var combined = CombineFrames(frame1, frame2);
 
-      var result = TestableDriverBase.TestStripHeaders(raw);
+      var result = TestableDriverBase.TestStripHeaders(combined);
 
       Assert.Equal("first second", result);
     }
@@ -98,14 +91,78 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
     {
       var stdout = CreateFrame(1, "out ");
       var stderr = CreateFrame(2, "err");
-      var combined = new byte[stdout.Length + stderr.Length];
-      Array.Copy(stdout, 0, combined, 0, stdout.Length);
-      Array.Copy(stderr, 0, combined, stdout.Length, stderr.Length);
-      var raw = Encoding.UTF8.GetString(combined);
+      var combined = CombineFrames(stdout, stderr);
 
-      var result = TestableDriverBase.TestStripHeaders(raw);
+      var result = TestableDriverBase.TestStripHeaders(combined);
 
       Assert.Equal("out err", result);
+    }
+
+    #endregion
+
+    #region StripDockerStreamHeaders — Non-ASCII (UTF-8 correctness)
+
+    [Fact]
+    public void StripDockerStreamHeaders_CjkCharacters_RoundTripsCorrectly()
+    {
+      // CJK characters are 3-byte UTF-8 sequences
+      var payload = "Hello 世界";
+      var frame = CreateFrame(1, payload);
+
+      var result = TestableDriverBase.TestStripHeaders(frame);
+
+      Assert.Equal(payload, result);
+    }
+
+    [Fact]
+    public void StripDockerStreamHeaders_Emoji_RoundTripsCorrectly()
+    {
+      // Emoji are 4-byte UTF-8 sequences
+      var payload = "\U0001F680 rocket \U0001F4A5 boom";
+      var frame = CreateFrame(1, payload);
+
+      var result = TestableDriverBase.TestStripHeaders(frame);
+
+      Assert.Equal(payload, result);
+    }
+
+    [Fact]
+    public void StripDockerStreamHeaders_AccentedCharacters_RoundTripsCorrectly()
+    {
+      var payload = "caf\u00e9 na\u00efve r\u00e9sum\u00e9";
+      var frame = CreateFrame(1, payload);
+
+      var result = TestableDriverBase.TestStripHeaders(frame);
+
+      Assert.Equal(payload, result);
+    }
+
+    [Fact]
+    public void StripDockerStreamHeaders_MultiFrameNonAscii_FrameBoundaryCorrect()
+    {
+      // Frame 1 ends with a CJK character, frame 2 starts with an emoji
+      var frame1 = CreateFrame(1, "Hello 世界");
+      var frame2 = CreateFrame(2, "\U0001F680 rocket");
+      var combined = CombineFrames(frame1, frame2);
+
+      var result = TestableDriverBase.TestStripHeaders(combined);
+
+      Assert.Equal("Hello 世界\U0001F680 rocket", result);
+    }
+
+    [Fact]
+    public void StripDockerStreamHeaders_LargeNonAsciiPayload_ExceedsStackallocThreshold()
+    {
+      // Each CJK char is 3 bytes in UTF-8. 200 chars × 3 = 600 bytes per frame.
+      // Two frames = 1200 bytes total payload, exceeding the 1024-byte stackalloc threshold.
+      var cjkChars = new string('\u4e16', 200); // 200 × '世'
+      var frame1 = CreateFrame(1, cjkChars);
+      var frame2 = CreateFrame(1, cjkChars);
+      var combined = CombineFrames(frame1, frame2);
+
+      var result = TestableDriverBase.TestStripHeaders(combined);
+
+      Assert.Equal(cjkChars + cjkChars, result);
     }
 
     #endregion
@@ -155,9 +212,8 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
     [Fact]
     public async Task ReadExactAsync_HandlesPartialReads()
     {
-      // Use a stream that delivers data in small chunks
       var data = Encoding.UTF8.GetBytes("abcdefghij");
-      using var stream = new ChunkedStream(data, 3); // delivers 3 bytes at a time
+      using var stream = new ChunkedStream(data, 3);
       var buffer = new byte[10];
 
       var read = await TestableDriverBase.TestReadExact(
@@ -184,10 +240,6 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
 
     #region Helpers
 
-    /// <summary>
-    /// Creates a Docker multiplexed stream frame.
-    /// Header: [stream_type:1][0:3][size:4 big-endian] followed by payload.
-    /// </summary>
     private static byte[] CreateFrame(byte streamType, string payload)
     {
       var payloadBytes = Encoding.UTF8.GetBytes(payload);
@@ -201,9 +253,14 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
       return frame;
     }
 
-    /// <summary>
-    /// A stream that delivers data in fixed-size chunks to simulate partial reads.
-    /// </summary>
+    private static byte[] CombineFrames(byte[] a, byte[] b)
+    {
+      var combined = new byte[a.Length + b.Length];
+      Array.Copy(a, 0, combined, 0, a.Length);
+      Array.Copy(b, 0, combined, a.Length, b.Length);
+      return combined;
+    }
+
     private sealed class ChunkedStream : Stream
     {
       private readonly byte[] _data;

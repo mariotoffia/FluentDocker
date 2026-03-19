@@ -120,8 +120,9 @@ namespace FluentDocker.Services.Extensions
         var cgroup = System.IO.File.ReadAllText("/proc/1/cgroup");
         return cgroup.Contains("docker") || cgroup.Contains("kubepods");
       }
-      catch
+      catch (Exception ex)
       {
+        Logger.Log($"Container environment check failed: {ex.Message}");
         return false;
       }
     }

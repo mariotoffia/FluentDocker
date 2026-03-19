@@ -55,9 +55,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
     {
       try
       {
-        var args = BuildCreateArgs("run", config);
-        if (config.Detach)
-          args = "run -d" + args.Substring(3);
+        var args = BuildCreateArgs("run", config, config.Detach);
 
         var result = await ExecuteCommandAsync(args, cancellationToken);
         if (!result.Success)
@@ -241,7 +239,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
           return CommandResponse<ContainerWaitResult>.Fail(
               result.Error ?? "Container wait failed", ErrorCodes.Container.WaitFailed);
 
-        int.TryParse(result.Output?.Trim(), out var exitCode);
+        _ = int.TryParse(result.Output?.Trim(), out var exitCode);
         return CommandResponse<ContainerWaitResult>.Ok(new ContainerWaitResult
         {
           ExitCode = exitCode
@@ -340,9 +338,9 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       return args;
     }
 
-    private static string BuildCreateArgs(string command, ContainerCreateConfig config)
+    private static string BuildCreateArgs(string command, ContainerCreateConfig config, bool detach = false)
     {
-      var args = command;
+      var args = detach ? $"{command} -d" : command;
 
       if (!string.IsNullOrEmpty(config.Name))
         args += $" --name {config.Name}";
@@ -378,9 +376,29 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
         args += $" --ip6 {config.Ipv6Address}";
       if (!string.IsNullOrEmpty(config.Pod))
         args += $" --pod {config.Pod}";
+      if (config.ReadonlyRootfs)
+        args += " --read-only";
+      if (config.ShmSize.HasValue)
+        args += $" --shm-size {config.ShmSize.Value}";
+      if (!string.IsNullOrEmpty(config.Platform))
+        args += $" --platform {config.Platform}";
+      if (!string.IsNullOrEmpty(config.Runtime))
+        args += $" --runtime {config.Runtime}";
 
+      foreach (var cap in config.CapAdd)
+        args += $" --cap-add {cap}";
+      foreach (var cap in config.CapDrop)
+        args += $" --cap-drop {cap}";
+      foreach (var opt in config.SecurityOpt)
+        args += $" --security-opt {QuoteArgumentIfNeeded(opt)}";
+      foreach (var tmpfs in config.Tmpfs)
+        args += string.IsNullOrEmpty(tmpfs.Value)
+            ? $" --tmpfs {tmpfs.Key}" : $" --tmpfs {tmpfs.Key}:{tmpfs.Value}";
+      foreach (var dev in config.Devices)
+        args += dev.Key == dev.Value
+            ? $" --device {dev.Key}" : $" --device {dev.Key}:{dev.Value}";
       foreach (var env in config.Environment)
-        args += $" -e {env.Key}={env.Value}";
+        args += $" -e {QuoteArgumentIfNeeded($"{env.Key}={env.Value}")}";
       foreach (var port in config.PortBindings)
         args += $" -p {port.Value}:{port.Key}";
       foreach (var vol in config.Volumes)
@@ -395,9 +413,19 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
         args += $" --add-host {host.Key}:{host.Value}";
       foreach (var link in config.Links)
         args += $" --link {link}";
+      foreach (var networkAlias in config.NetworkAliases)
+        foreach (var alias in networkAlias.Value)
+          args += $" --network-alias {QuoteArgumentIfNeeded(alias)}";
 
+      // Entrypoint — Podman CLI --entrypoint only accepts the executable.
+      // Additional arguments from the entrypoint array are prepended to Command below.
+      string[] entrypointArgs = null;
       if (config.Entrypoint != null && config.Entrypoint.Length > 0)
-        args += " --entrypoint " + string.Join(" ", config.Entrypoint.Select(QuoteArgumentIfNeeded));
+      {
+        args += $" --entrypoint {QuoteArgumentIfNeeded(config.Entrypoint[0])}";
+        if (config.Entrypoint.Length > 1)
+          entrypointArgs = config.Entrypoint[1..];
+      }
 
       if (config.HealthCheck != null)
       {
@@ -414,6 +442,10 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       }
 
       args += $" {config.Image}";
+
+      // Entrypoint overflow args come before Command
+      if (entrypointArgs != null)
+        args += " " + string.Join(" ", entrypointArgs.Select(QuoteArgumentIfNeeded));
 
       if (config.Command != null && config.Command.Length > 0)
         args += " " + string.Join(" ", config.Command.Select(QuoteArgumentIfNeeded));

@@ -23,7 +23,7 @@ namespace FluentDocker.Builders
   /// <summary>
   /// Represents a wait condition configuration.
   /// </summary>
-  internal class WaitCondition
+  internal sealed class WaitCondition
   {
     public WaitConditionType Type { get; set; }
     public string Target { get; set; }
@@ -34,6 +34,11 @@ namespace FluentDocker.Builders
     public string Body { get; set; }
     public Func<RequestResponse, int, long> HttpContinuation { get; set; }
     public Func<IContainerService, int, int> LambdaCondition { get; set; }
+
+    /// <summary>
+    /// Delay in milliseconds between poll iterations (default 500ms).
+    /// </summary>
+    public int PollIntervalMs { get; set; } = 500;
   }
 
   /// <summary>

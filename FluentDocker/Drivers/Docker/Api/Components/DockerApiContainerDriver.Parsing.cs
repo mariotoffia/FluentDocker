@@ -1,11 +1,11 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text.Json;
+using FluentDocker.Common;
 using FluentDocker.Drivers;
 using FluentDocker.Drivers.Docker.Api.ApiModels;
 using FluentDocker.Model.Containers;
-using Newtonsoft.Json;
-using Newtonsoft.Json.Linq;
 using Container = FluentDocker.Model.Containers.Container;
 using ContainerConfig = FluentDocker.Model.Containers.ContainerConfig;
 using ContainerState = FluentDocker.Model.Containers.ContainerState;
@@ -55,6 +55,9 @@ namespace FluentDocker.Drivers.Docker.Api.Components
 
       if (config.HealthCheck != null)
         request.Healthcheck = BuildHealthcheck(config.HealthCheck);
+
+      if (!string.IsNullOrEmpty(config.Platform))
+        request.Platform = config.Platform;
 
       return request;
     }
@@ -108,6 +111,25 @@ namespace FluentDocker.Drivers.Docker.Api.Components
 
       if (config.Links?.Count > 0)
         hc.Links = config.Links.ToArray();
+      if (config.CapAdd?.Count > 0)
+        hc.CapAdd = config.CapAdd.ToArray();
+      if (config.CapDrop?.Count > 0)
+        hc.CapDrop = config.CapDrop.ToArray();
+      if (config.SecurityOpt?.Count > 0)
+        hc.SecurityOpt = config.SecurityOpt.ToArray();
+      if (config.ShmSize.HasValue)
+        hc.ShmSize = config.ShmSize;
+      if (config.Tmpfs?.Count > 0)
+        hc.Tmpfs = config.Tmpfs;
+      if (config.Devices?.Count > 0)
+        hc.Devices = config.Devices.Select(d => new DeviceMappingRequest
+        {
+          PathOnHost = d.Key,
+          PathInContainer = d.Value
+        }).ToList();
+      hc.ReadonlyRootfs = config.ReadonlyRootfs;
+      if (!string.IsNullOrEmpty(config.Runtime))
+        hc.Runtime = config.Runtime;
 
       return hc;
     }
@@ -130,6 +152,13 @@ namespace FluentDocker.Drivers.Docker.Api.Components
             Ipv4Address = config.Ipv4Address,
             Ipv6Address = config.Ipv6Address
           };
+        }
+
+        if (config.NetworkAliases != null &&
+            config.NetworkAliases.TryGetValue(network, out var aliases) &&
+            aliases?.Count > 0)
+        {
+          endpoint.Aliases = aliases;
         }
 
         endpoints[network] = endpoint;
@@ -159,11 +188,11 @@ namespace FluentDocker.Drivers.Docker.Api.Components
           long.TryParse(duration[..^2], out var ms))
         return ms * 1_000_000;
 
-      if (duration.EndsWith("s") &&
+      if (duration.EndsWith('s') &&
           long.TryParse(duration[..^1], out var sec))
         return sec * 1_000_000_000;
 
-      if (duration.EndsWith("m") &&
+      if (duration.EndsWith('m') &&
           long.TryParse(duration[..^1], out var min))
         return min * 60 * 1_000_000_000;
 
@@ -213,105 +242,120 @@ namespace FluentDocker.Drivers.Docker.Api.Components
             .ToList();
       }
 
-      return dict.Count > 0 ? JsonConvert.SerializeObject(dict) : null;
+      return dict.Count > 0 ? JsonHelper.Serialize(dict) : null;
     }
 
     #endregion
 
     #region JSON Parsing
 
-    private static Container ParseContainerInspect(JObject json)
+    private static Container ParseContainerInspect(JsonElement json)
     {
-      if (json == null)
+      if (json.ValueKind != JsonValueKind.Object)
         return new Container();
       return new Container
       {
-        Id = json.Value<string>("Id"),
-        Name = json.Value<string>("Name")?.TrimStart('/'),
-        Image = json.Value<string>("Image"),
-        Created = json.Value<DateTime?>("Created") ?? DateTime.MinValue,
-        Driver = json.Value<string>("Driver"),
-        State = ParseContainerState(json["State"]),
-        Config = ParseContainerConfig(json["Config"]),
-        NetworkSettings = ParseNetworkSettings(json["NetworkSettings"])
+        Id = json.GetStringOrDefault("Id"),
+        Name = json.GetStringOrDefault("Name")?.TrimStart('/'),
+        Image = json.GetStringOrDefault("Image"),
+        Created = json.GetDateTimeOrDefault("Created"),
+        Driver = json.GetStringOrDefault("Driver"),
+        State = ParseContainerState(json.Prop("State")),
+        Config = ParseContainerConfig(json.Prop("Config")),
+        NetworkSettings = ParseNetworkSettings(json.Prop("NetworkSettings"))
       };
     }
 
-    private static ContainerState ParseContainerState(JToken token)
+    private static ContainerState ParseContainerState(JsonElement? element)
     {
-      if (token == null)
+      if (element == null || element.Value.ValueKind != JsonValueKind.Object)
         return new ContainerState();
+      var el = element.Value;
       return new ContainerState
       {
-        Status = token.Value<string>("Status"),
-        Running = token.Value<bool?>("Running") ?? false,
-        Paused = token.Value<bool?>("Paused") ?? false,
-        Restarting = token.Value<bool?>("Restarting") ?? false,
-        OOMKilled = token.Value<bool?>("OOMKilled") ?? false,
-        Dead = token.Value<bool?>("Dead") ?? false,
-        Pid = token.Value<int?>("Pid") ?? 0,
-        ExitCode = token.Value<long?>("ExitCode") ?? 0,
-        Error = token.Value<string>("Error"),
-        StartedAt = token.Value<DateTime?>("StartedAt") ?? DateTime.MinValue,
-        FinishedAt = token.Value<DateTime?>("FinishedAt") ?? DateTime.MinValue
+        Status = el.GetStringOrDefault("Status"),
+        Running = el.GetBoolOrDefault("Running"),
+        Paused = el.GetBoolOrDefault("Paused"),
+        Restarting = el.GetBoolOrDefault("Restarting"),
+        OOMKilled = el.GetBoolOrDefault("OOMKilled"),
+        Dead = el.GetBoolOrDefault("Dead"),
+        Pid = el.GetInt32OrDefault("Pid"),
+        ExitCode = el.GetInt64OrDefault("ExitCode"),
+        Error = el.GetStringOrDefault("Error"),
+        StartedAt = el.GetDateTimeOrDefault("StartedAt"),
+        FinishedAt = el.GetDateTimeOrDefault("FinishedAt")
       };
     }
 
-    private static ContainerConfig ParseContainerConfig(JToken token)
+    private static ContainerConfig ParseContainerConfig(JsonElement? element)
     {
-      if (token == null)
+      if (element == null || element.Value.ValueKind != JsonValueKind.Object)
         return null;
+      var el = element.Value;
       return new ContainerConfig
       {
-        Hostname = token.Value<string>("Hostname"),
-        User = token.Value<string>("User"),
-        Tty = token.Value<bool?>("Tty") ?? false,
-        OpenStdin = token.Value<bool?>("OpenStdin") ?? false,
-        Image = token.Value<string>("Image"),
-        WorkingDir = token.Value<string>("WorkingDir"),
-        Cmd = token["Cmd"]?.ToObject<string[]>(),
-        EntryPoint = token["Entrypoint"]?.ToObject<string[]>(),
-        Env = token["Env"]?.ToObject<string[]>(),
-        Labels = token["Labels"]?.ToObject<Dictionary<string, string>>(),
-        StopSignal = token.Value<string>("StopSignal")
+        Hostname = el.GetStringOrDefault("Hostname"),
+        User = el.GetStringOrDefault("User"),
+        Tty = el.GetBoolOrDefault("Tty"),
+        OpenStdin = el.GetBoolOrDefault("OpenStdin"),
+        Image = el.GetStringOrDefault("Image"),
+        WorkingDir = el.GetStringOrDefault("WorkingDir"),
+        Cmd = el.GetStringArray("Cmd"),
+        EntryPoint = el.GetStringArray("Entrypoint"),
+        Env = el.GetStringArray("Env"),
+        Labels = el.GetStringDictionary("Labels"),
+        StopSignal = el.GetStringOrDefault("StopSignal")
       };
     }
 
-    private static ContainerNetworkSettings ParseNetworkSettings(JToken token)
+    private static ContainerNetworkSettings ParseNetworkSettings(JsonElement? element)
     {
-      if (token == null)
+      if (element == null || element.Value.ValueKind != JsonValueKind.Object)
         return null;
+      var el = element.Value;
+      var networks = el.Prop("Networks");
       return new ContainerNetworkSettings
       {
-        Bridge = token.Value<string>("Bridge"),
-        Gateway = token.Value<string>("Gateway"),
-        IPAddress = token.Value<string>("IPAddress"),
-        MacAddress = token.Value<string>("MacAddress"),
-        Networks = token["Networks"]
-              ?.ToObject<Dictionary<string, BridgeNetwork>>()
+        Bridge = el.GetStringOrDefault("Bridge"),
+        Gateway = el.GetStringOrDefault("Gateway"),
+        IPAddress = el.GetStringOrDefault("IPAddress"),
+        MacAddress = el.GetStringOrDefault("MacAddress"),
+        Networks = networks?.ValueKind == JsonValueKind.Object
+            ? networks.Value.Deserialize<Dictionary<string, BridgeNetwork>>()
+            : null
       };
     }
 
-    private static IList<Container> ParseContainerList(JArray array)
+    private static List<Container> ParseContainerList(JsonElement json)
     {
       var containers = new List<Container>();
-      if (array == null)
+      if (json.ValueKind != JsonValueKind.Array)
         return containers;
 
-      foreach (var token in array)
+      foreach (var token in json.EnumerateArray())
       {
+        var namesEl = token.Prop("Names");
+        string firstName = null;
+        if (namesEl?.ValueKind == JsonValueKind.Array)
+        {
+          foreach (var n in namesEl.Value.EnumerateArray())
+          {
+            firstName = n.GetString()?.TrimStart('/');
+            break;
+          }
+        }
+
         containers.Add(new Container
         {
-          Id = token.Value<string>("Id"),
-          Image = token.Value<string>("Image"),
+          Id = token.GetStringOrDefault("Id"),
+          Image = token.GetStringOrDefault("Image"),
           Created = DateTimeOffset
-                .FromUnixTimeSeconds(token.Value<long?>("Created") ?? 0)
+                .FromUnixTimeSeconds(token.GetInt64OrDefault("Created"))
                 .UtcDateTime,
-          Name = (token["Names"] as JArray)?
-                .FirstOrDefault()?.Value<string>()?.TrimStart('/'),
+          Name = firstName,
           State = new ContainerState
           {
-            Status = token.Value<string>("State")
+            Status = token.GetStringOrDefault("State")
           }
         });
       }
@@ -320,50 +364,51 @@ namespace FluentDocker.Drivers.Docker.Api.Components
     }
 
     private static ContainerStatsResult ParseContainerStats(
-        JObject json, string containerId)
+        JsonElement json, string containerId)
     {
-      if (json == null)
+      if (json.ValueKind != JsonValueKind.Object)
         return new ContainerStatsResult { ContainerId = containerId };
 
       var stats = new ContainerStatsResult
       {
         ContainerId = containerId,
-        Name = json.Value<string>("name")?.TrimStart('/'),
-        Pids = json["pids_stats"]?.Value<int?>("current") ?? 0
+        Name = json.GetStringOrDefault("name")?.TrimStart('/'),
+        Pids = GetPidsCount(json)
       };
 
-      var cpuStats = json["cpu_stats"];
-      var preCpu = json["precpu_stats"];
+      var cpuStats = json.Prop("cpu_stats");
+      var preCpu = json.Prop("precpu_stats");
       if (cpuStats != null && preCpu != null)
-        stats.CpuPercent = CalculateCpuPercent(cpuStats, preCpu);
+        stats.CpuPercent = CalculateCpuPercent(cpuStats.Value, preCpu.Value);
 
-      var memStats = json["memory_stats"];
-      if (memStats != null)
+      var memStats = json.Prop("memory_stats");
+      if (memStats != null && memStats.Value.ValueKind == JsonValueKind.Object)
       {
-        stats.MemoryUsage = memStats.Value<long?>("usage") ?? 0;
-        stats.MemoryLimit = memStats.Value<long?>("limit") ?? 0;
+        stats.MemoryUsage = memStats.Value.GetInt64OrDefault("usage");
+        stats.MemoryLimit = memStats.Value.GetInt64OrDefault("limit");
         if (stats.MemoryLimit > 0)
           stats.MemoryPercent =
               (double)stats.MemoryUsage / stats.MemoryLimit * 100.0;
       }
 
-      if (json["networks"] is JObject netObj)
+      var netObj = json.Prop("networks");
+      if (netObj != null && netObj.Value.ValueKind == JsonValueKind.Object)
       {
-        foreach (var prop in netObj.Properties())
+        foreach (var prop in netObj.Value.EnumerateObject())
         {
-          stats.NetworkRxBytes +=
-              prop.Value.Value<long?>("rx_bytes") ?? 0;
-          stats.NetworkTxBytes +=
-              prop.Value.Value<long?>("tx_bytes") ?? 0;
+          stats.NetworkRxBytes += prop.Value.GetInt64OrDefault("rx_bytes");
+          stats.NetworkTxBytes += prop.Value.GetInt64OrDefault("tx_bytes");
         }
       }
 
-      if (json["blkio_stats"]?["io_service_bytes_recursive"] is JArray blk)
+      var blkioStats = json.Prop("blkio_stats");
+      var blk = blkioStats?.Prop("io_service_bytes_recursive");
+      if (blk != null && blk.Value.ValueKind == JsonValueKind.Array)
       {
-        foreach (var entry in blk)
+        foreach (var entry in blk.Value.EnumerateArray())
         {
-          var op = entry.Value<string>("op")?.ToLowerInvariant();
-          var val = entry.Value<long?>("value") ?? 0;
+          var op = entry.GetStringOrDefault("op")?.ToLowerInvariant();
+          var val = entry.GetInt64OrDefault("value");
           if (op == "read")
             stats.BlockReadBytes += val;
           else if (op == "write")
@@ -374,19 +419,29 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       return stats;
     }
 
-    private static double CalculateCpuPercent(JToken cpuStats, JToken preCpu)
+    private static int GetPidsCount(JsonElement json)
     {
+      var pidsStats = json.Prop("pids_stats");
+      if (pidsStats == null || pidsStats.Value.ValueKind != JsonValueKind.Object)
+        return 0;
+      return pidsStats.Value.GetInt32OrDefault("current");
+    }
+
+    private static double CalculateCpuPercent(JsonElement cpuStats, JsonElement preCpu)
+    {
+      var cpuUsage = cpuStats.Prop("cpu_usage");
+      var preCpuUsage = preCpu.Prop("cpu_usage");
       var cpuDelta =
-          (cpuStats["cpu_usage"]?.Value<long?>("total_usage") ?? 0) -
-          (preCpu["cpu_usage"]?.Value<long?>("total_usage") ?? 0);
+          (cpuUsage?.GetInt64OrDefault("total_usage") ?? 0) -
+          (preCpuUsage?.GetInt64OrDefault("total_usage") ?? 0);
       var systemDelta =
-          (cpuStats.Value<long?>("system_cpu_usage") ?? 0) -
-          (preCpu.Value<long?>("system_cpu_usage") ?? 0);
+          cpuStats.GetInt64OrDefault("system_cpu_usage") -
+          preCpu.GetInt64OrDefault("system_cpu_usage");
 
       if (systemDelta <= 0 || cpuDelta <= 0)
         return 0.0;
 
-      var onlineCpus = cpuStats.Value<int?>("online_cpus") ?? 1;
+      var onlineCpus = cpuStats.GetInt32OrDefault("online_cpus", 1);
       return (double)cpuDelta / systemDelta * onlineCpus * 100.0;
     }
 

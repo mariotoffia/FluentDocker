@@ -1,11 +1,12 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
+using FluentDocker.Common;
 using FluentDocker.Drivers.Podman.Cli.Binary;
 using FluentDocker.Model.Drivers;
-using Newtonsoft.Json.Linq;
 
 namespace FluentDocker.Drivers.Podman.Cli.Components
 {
@@ -211,7 +212,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
 
     #region JSON Parsing
 
-    private static IList<PodInfo> ParsePodList(string json)
+    private static List<PodInfo> ParsePodList(string json)
     {
       var pods = new List<PodInfo>();
       if (string.IsNullOrWhiteSpace(json))
@@ -220,19 +221,17 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       try
       {
         var trimmed = json.Trim();
-        if (trimmed.StartsWith("["))
+        if (trimmed.StartsWith('['))
         {
-          var arr = JArray.Parse(trimmed);
-          pods.AddRange(arr.Select(ParsePodInfoFromToken));
+          var root = JsonHelper.ParseElement(trimmed);
+          foreach (var token in root.EnumerateArraySafe())
+            pods.Add(ParsePodInfoFromToken(token));
         }
         else
         {
           foreach (var line in trimmed.Split('\n',
               StringSplitOptions.RemoveEmptyEntries))
-          {
-            var obj = JObject.Parse(line.Trim());
-            pods.Add(ParsePodInfoFromToken(obj));
-          }
+            pods.Add(ParsePodInfoFromToken(JsonHelper.ParseElement(line.Trim())));
         }
       }
       catch { /* Return partial results */ }
@@ -240,25 +239,25 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       return pods;
     }
 
-    private static PodInfo ParsePodInfoFromToken(JToken token)
+    private static PodInfo ParsePodInfoFromToken(JsonElement token)
     {
       var info = new PodInfo
       {
-        Id = (token["Id"] ?? token["id"])?.Value<string>(),
-        Name = (token["Name"] ?? token["name"])?.Value<string>(),
-        Status = (token["Status"] ?? token["status"])?.Value<string>(),
-        Created = (token["Created"] ?? token["created"])?.Value<string>(),
-        InfraId = (token["InfraId"] ?? token["infraId"])?.Value<string>()
+        Id = token.GetStringOrDefault("Id", "id"),
+        Name = token.GetStringOrDefault("Name", "name"),
+        Status = token.GetStringOrDefault("Status", "status"),
+        Created = token.GetStringOrDefault("Created", "created"),
+        InfraId = token.GetStringOrDefault("InfraId", "infraId")
       };
 
-      var numContainers = token["NumContainers"] ?? token["num_containers"];
-      if (numContainers != null)
-        info.NumContainers = numContainers.Value<int>();
+      var numProp = token.Prop("NumContainers", "num_containers");
+      if (numProp.HasValue && numProp.Value.ValueKind == JsonValueKind.Number)
+        info.NumContainers = numProp.Value.GetInt32();
 
-      var containers = token["Containers"] ?? token["containers"];
-      if (containers is JArray arr)
+      var containers = token.Prop("Containers", "containers");
+      if (containers.HasValue && containers.Value.ValueKind == JsonValueKind.Array)
       {
-        foreach (var c in arr)
+        foreach (var c in containers.Value.EnumerateArray())
           info.Containers.Add(ParsePodContainerInfoFromToken(c));
       }
 
@@ -274,34 +273,39 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       try
       {
         var trimmed = json.Trim();
-        JToken obj;
-        if (trimmed.StartsWith("["))
-          obj = JArray.Parse(trimmed).First;
+        JsonElement obj;
+        if (trimmed.StartsWith('['))
+        {
+          var root = JsonHelper.ParseElement(trimmed);
+          obj = root.EnumerateArray().First();
+        }
         else
-          obj = JObject.Parse(trimmed);
+        {
+          obj = JsonHelper.ParseElement(trimmed);
+        }
 
-        result.Id = (obj["Id"] ?? obj["id"])?.Value<string>();
-        result.Name = (obj["Name"] ?? obj["name"])?.Value<string>();
-        result.Created = (obj["Created"] ?? obj["created"])?.Value<string>();
-        result.Hostname = (obj["Hostname"] ?? obj["hostname"])?.Value<string>();
+        result.Id = obj.GetStringOrDefault("Id", "id");
+        result.Name = obj.GetStringOrDefault("Name", "name");
+        result.Created = obj.GetStringOrDefault("Created", "created");
+        result.Hostname = obj.GetStringOrDefault("Hostname", "hostname");
 
-        var state = obj["State"] ?? obj["state"];
-        if (state != null)
-          result.State = state.Type == JTokenType.String
-              ? state.Value<string>()
-              : state.ToString();
+        var state = obj.Prop("State", "state");
+        if (state.HasValue)
+          result.State = state.Value.ValueKind == JsonValueKind.String
+              ? state.Value.GetString()
+              : state.Value.GetRawText();
 
         result.InfraContainerId =
-            (obj["InfraContainerId"] ?? obj["infraContainerId"])?.Value<string>();
+            obj.GetStringOrDefault("InfraContainerId", "infraContainerId");
 
-        var numContainers = obj["NumContainers"] ?? obj["num_containers"];
-        if (numContainers != null)
-          result.NumContainers = numContainers.Value<int>();
+        var numProp = obj.Prop("NumContainers", "num_containers");
+        if (numProp.HasValue && numProp.Value.ValueKind == JsonValueKind.Number)
+          result.NumContainers = numProp.Value.GetInt32();
 
-        var containers = obj["Containers"] ?? obj["containers"];
-        if (containers is JArray arr)
+        var containers = obj.Prop("Containers", "containers");
+        if (containers.HasValue && containers.Value.ValueKind == JsonValueKind.Array)
         {
-          foreach (var c in arr)
+          foreach (var c in containers.Value.EnumerateArray())
             result.Containers.Add(ParsePodContainerInfoFromToken(c));
         }
       }
@@ -310,13 +314,13 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       return result;
     }
 
-    private static PodContainerInfo ParsePodContainerInfoFromToken(JToken token)
+    private static PodContainerInfo ParsePodContainerInfoFromToken(JsonElement token)
     {
       return new PodContainerInfo
       {
-        Id = (token["Id"] ?? token["id"])?.Value<string>(),
-        Name = (token["Name"] ?? token["name"])?.Value<string>(),
-        State = (token["State"] ?? token["state"])?.Value<string>()
+        Id = token.GetStringOrDefault("Id", "id"),
+        Name = token.GetStringOrDefault("Name", "name"),
+        State = token.GetStringOrDefault("State", "state")
       };
     }
 

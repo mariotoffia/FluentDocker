@@ -206,10 +206,19 @@ namespace FluentDocker.Drivers
   /// </summary>
   public class ImagePullProgress
   {
+    /// <summary>Status message for the current pull step (e.g. "Downloading", "Pull complete").</summary>
     public string Status { get; set; }
+
+    /// <summary>Human-readable progress bar (e.g. "[=====>   ] 5.12MB/10.24MB").</summary>
     public string Progress { get; set; }
+
+    /// <summary>Layer digest being processed. Null for non-layer-specific messages.</summary>
     public string Id { get; set; }
+
+    /// <summary>Bytes downloaded so far for the current layer.</summary>
     public long Current { get; set; }
+
+    /// <summary>Total bytes to download for the current layer.</summary>
     public long Total { get; set; }
   }
 
@@ -218,10 +227,19 @@ namespace FluentDocker.Drivers
   /// </summary>
   public class ImagePushProgress
   {
+    /// <summary>Status message for the current push step (e.g. "Pushing", "Layer already exists").</summary>
     public string Status { get; set; }
+
+    /// <summary>Human-readable progress bar for the upload.</summary>
     public string Progress { get; set; }
+
+    /// <summary>Layer digest being uploaded. Null for non-layer-specific messages.</summary>
     public string Id { get; set; }
+
+    /// <summary>Bytes uploaded so far for the current layer.</summary>
     public long Current { get; set; }
+
+    /// <summary>Total bytes to upload for the current layer.</summary>
     public long Total { get; set; }
   }
 
@@ -230,9 +248,16 @@ namespace FluentDocker.Drivers
   /// </summary>
   public class ImageBuildProgress
   {
+    /// <summary>Build output stream text (e.g. "Step 1/5 : FROM alpine:latest").</summary>
     public string Stream { get; set; }
+
+    /// <summary>Status message for the build step.</summary>
     public string Status { get; set; }
+
+    /// <summary>Image ID associated with the build event. Null for regular stream output.</summary>
     public string Id { get; set; }
+
+    /// <summary>Error message if the build step failed. Null on success.</summary>
     public string Error { get; set; }
   }
 

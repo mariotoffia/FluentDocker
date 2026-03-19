@@ -167,6 +167,68 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
           });
       Assert.True(configured);
     }
+
+    [Fact]
+    public void WithWaitPollInterval_SetsIntervalOnSubsequentConditions()
+    {
+      // Use reflection to access internal _waitConditions list
+      var containerBuilderType = typeof(Builder).Assembly
+          .GetTypes().First(t => t.Name == "ContainerBuilder");
+      var waitField = containerBuilderType
+          .GetField("_waitConditions",
+              System.Reflection.BindingFlags.NonPublic |
+              System.Reflection.BindingFlags.Instance);
+      var conditionType = typeof(Builder).Assembly
+          .GetTypes().First(t => t.Name == "WaitCondition");
+      var pollProp = conditionType.GetProperty("PollIntervalMs");
+
+      IContainerBuilder captured = null;
+      new Builder()
+          .WithinDriver("test", new FluentDockerKernel())
+          .UseContainer(c =>
+          {
+            c.UseImage("test")
+                .WithWaitPollInterval(200)
+                .WaitForPort("5432/tcp")
+                .WaitForHealthy(5000);
+            captured = c;
+          });
+
+      Assert.NotNull(captured);
+      var conditions = waitField.GetValue(captured) as System.Collections.IList;
+      Assert.Equal(2, conditions.Count);
+
+      // Both conditions should have the custom poll interval
+      Assert.Equal(200, (int)pollProp.GetValue(conditions[0]));
+      Assert.Equal(200, (int)pollProp.GetValue(conditions[1]));
+    }
+
+    [Fact]
+    public void WaitCondition_DefaultPollIntervalMs_Is500()
+    {
+      var containerBuilderType = typeof(Builder).Assembly
+          .GetTypes().First(t => t.Name == "ContainerBuilder");
+      var waitField = containerBuilderType
+          .GetField("_waitConditions",
+              System.Reflection.BindingFlags.NonPublic |
+              System.Reflection.BindingFlags.Instance);
+      var conditionType = typeof(Builder).Assembly
+          .GetTypes().First(t => t.Name == "WaitCondition");
+      var pollProp = conditionType.GetProperty("PollIntervalMs");
+
+      IContainerBuilder captured = null;
+      new Builder()
+          .WithinDriver("test", new FluentDockerKernel())
+          .UseContainer(c =>
+          {
+            c.UseImage("test").WaitForLogMessage("ready");
+            captured = c;
+          });
+
+      var conditions = waitField.GetValue(captured) as System.Collections.IList;
+      Assert.Single(conditions);
+      Assert.Equal(500, (int)pollProp.GetValue(conditions[0]));
+    }
   }
 }
 

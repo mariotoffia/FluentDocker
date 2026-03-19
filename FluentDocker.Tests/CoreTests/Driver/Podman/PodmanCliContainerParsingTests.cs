@@ -1,7 +1,8 @@
 using System;
+using System.Text.Json;
+using FluentDocker.Common;
 using FluentDocker.Drivers.Podman.Cli.Components;
 using FluentDocker.Model.Containers;
-using Newtonsoft.Json.Linq;
 using Xunit;
 
 namespace FluentDocker.Tests.CoreTests.Driver.Podman
@@ -141,7 +142,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
     [Fact]
     public void ParseContainerConfig_EntryPointAsArray_ReturnsStringArray()
     {
-      var token = JObject.Parse(@"{ ""Entrypoint"": [""/bin/sh"", ""-c""] }");
+      JsonElement? token = JsonHelper.ParseElement(@"{ ""Entrypoint"": [""/bin/sh"", ""-c""] }");
       var config = PodmanCliContainerDriver.ParseContainerConfig(token);
       Assert.Equal(new[] { "/bin/sh", "-c" }, config.EntryPoint);
     }
@@ -149,7 +150,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
     [Fact]
     public void ParseContainerConfig_EntryPointAsSingleString_WrapsInArray()
     {
-      var token = JObject.Parse(@"{ ""Entrypoint"": ""/entrypoint.sh"" }");
+      JsonElement? token = JsonHelper.ParseElement(@"{ ""Entrypoint"": ""/entrypoint.sh"" }");
       var config = PodmanCliContainerDriver.ParseContainerConfig(token);
       Assert.Equal(new[] { "/entrypoint.sh" }, config.EntryPoint);
     }
@@ -157,7 +158,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
     [Fact]
     public void ParseContainerConfig_EntryPointMissing_ReturnsNull()
     {
-      var token = JObject.Parse(@"{ ""Image"": ""alpine"" }");
+      JsonElement? token = JsonHelper.ParseElement(@"{ ""Image"": ""alpine"" }");
       var config = PodmanCliContainerDriver.ParseContainerConfig(token);
       Assert.Null(config.EntryPoint);
     }
@@ -165,7 +166,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
     [Fact]
     public void ParseContainerConfig_CmdAsString_WrapsInArray()
     {
-      var token = JObject.Parse(@"{ ""Cmd"": ""run-server"" }");
+      JsonElement? token = JsonHelper.ParseElement(@"{ ""Cmd"": ""run-server"" }");
       var config = PodmanCliContainerDriver.ParseContainerConfig(token);
       Assert.Equal(new[] { "run-server" }, config.Cmd);
     }
@@ -173,7 +174,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
     [Fact]
     public void ParseContainerConfig_AllFields_Populated()
     {
-      var token = JObject.Parse(@"{
+      JsonElement? token = JsonHelper.ParseElement(@"{
                 ""Hostname"": ""myhost"",
                 ""DomainName"": ""example.com"",
                 ""User"": ""root"",
@@ -218,7 +219,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
     [Fact]
     public void ParseContainerConfig_PodmanEntryPointKey_Parsed()
     {
-      var token = JObject.Parse(@"{ ""EntryPoint"": [""/start.sh""] }");
+      JsonElement? token = JsonHelper.ParseElement(@"{ ""EntryPoint"": [""/start.sh""] }");
       var config = PodmanCliContainerDriver.ParseContainerConfig(token);
       Assert.Equal(new[] { "/start.sh" }, config.EntryPoint);
     }
@@ -230,7 +231,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
     [Fact]
     public void ParseHealth_HealthyStatus_ReturnsHealthy()
     {
-      var token = JObject.Parse(@"{
+      JsonElement? token = JsonHelper.ParseElement(@"{
                 ""Status"": ""healthy"",
                 ""FailingStreak"": 0,
                 ""Log"": [{
@@ -254,7 +255,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
     [Fact]
     public void ParseHealth_EmptyStatus_MapsToUnknown()
     {
-      var token = JObject.Parse(@"{ ""Status"": """" }");
+      JsonElement? token = JsonHelper.ParseElement(@"{ ""Status"": """" }");
       var health = PodmanCliContainerDriver.ParseHealth(token);
       Assert.Equal(HealthState.Unknown, health.Status);
     }
@@ -268,7 +269,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
     [Fact]
     public void ParseHealth_UnhealthyWithStreak_ParsedCorrectly()
     {
-      var token = JObject.Parse(@"{
+      JsonElement? token = JsonHelper.ParseElement(@"{
                 ""Status"": ""unhealthy"",
                 ""FailingStreak"": 5,
                 ""Log"": [
@@ -286,7 +287,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
     [Fact]
     public void ParseHealth_UnknownStatusString_MapsToUnknown()
     {
-      var token = JObject.Parse(@"{ ""Status"": ""unexpected-value"" }");
+      JsonElement? token = JsonHelper.ParseElement(@"{ ""Status"": ""unexpected-value"" }");
       Assert.Equal(HealthState.Unknown,
           PodmanCliContainerDriver.ParseHealth(token).Status);
     }
@@ -294,7 +295,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
     [Fact]
     public void ParseHealth_NoLogArray_LogIsNull()
     {
-      var token = JObject.Parse(@"{ ""Status"": ""starting"" }");
+      JsonElement? token = JsonHelper.ParseElement(@"{ ""Status"": ""starting"" }");
       var health = PodmanCliContainerDriver.ParseHealth(token);
       Assert.Equal(HealthState.Starting, health.Status);
       Assert.Null(health.Log);
@@ -307,7 +308,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
     [Fact]
     public void ParseContainerState_HealthKey_ParsesHealth()
     {
-      var token = JObject.Parse(@"{
+      JsonElement? token = JsonHelper.ParseElement(@"{
                 ""Status"": ""running"",
                 ""Running"": true,
                 ""Pid"": 999,
@@ -331,7 +332,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
     [Fact]
     public void ParseContainerState_HealthcheckKey_FallbackParsesHealth()
     {
-      var token = JObject.Parse(@"{
+      JsonElement? token = JsonHelper.ParseElement(@"{
                 ""Status"": ""running"",
                 ""Running"": true,
                 ""Healthcheck"": { ""Status"": ""unhealthy"", ""FailingStreak"": 3 }
@@ -346,7 +347,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
     [Fact]
     public void ParseContainerState_AllFields_Populated()
     {
-      var token = JObject.Parse(@"{
+      JsonElement? token = JsonHelper.ParseElement(@"{
                 ""Status"": ""exited"",
                 ""Running"": false,
                 ""Paused"": false,
@@ -376,7 +377,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
     [Fact]
     public void ParseStringOrArray_Array_ReturnsArray()
     {
-      var token = JArray.Parse(@"[""/bin/sh"", ""-c""]");
+      JsonElement? token = JsonHelper.ParseElement(@"[""/bin/sh"", ""-c""]");
       Assert.Equal(new[] { "/bin/sh", "-c" },
           PodmanCliContainerDriver.ParseStringOrArray(token));
     }
@@ -384,7 +385,8 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
     [Fact]
     public void ParseStringOrArray_String_WrapsInArray()
     {
-      var token = new JValue("/entrypoint.sh");
+      // Parse a JSON string value; ParseElement will give us a JsonElement of type String
+      JsonElement? token = JsonHelper.ParseElement(@"""/entrypoint.sh""");
       Assert.Equal(new[] { "/entrypoint.sh" },
           PodmanCliContainerDriver.ParseStringOrArray(token));
     }

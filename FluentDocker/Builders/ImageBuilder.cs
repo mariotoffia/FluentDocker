@@ -110,6 +110,7 @@ namespace FluentDocker.Builders
 
     /// <inheritdoc />
     string IDriverScopedBuilder.DriverId => _driverId;
+    private static readonly char[] EqualsSeparator = ['='];
     private readonly ImageBuilderConfig _config = new ImageBuilderConfig();
     private DockerfileBuilder _dockerfileBuilder;
 
@@ -130,8 +131,10 @@ namespace FluentDocker.Builders
     /// </summary>
     public ImageBuilder(FluentDockerKernel kernel, string driverId)
     {
-      _kernel = kernel ?? throw new ArgumentNullException(nameof(kernel));
-      _driverId = driverId ?? throw new ArgumentNullException(nameof(driverId));
+      ArgumentNullException.ThrowIfNull(kernel);
+      ArgumentNullException.ThrowIfNull(driverId);
+      _kernel = kernel;
+      _driverId = driverId;
     }
 
     /// <summary>
@@ -195,7 +198,7 @@ namespace FluentDocker.Builders
     {
       foreach (var arg in args)
       {
-        var parts = arg.Split(new[] { '=' }, 2);
+        var parts = arg.Split(EqualsSeparator, 2);
         if (parts.Length == 2)
           _buildArgs[parts[0]] = parts[1];
         else
@@ -208,7 +211,7 @@ namespace FluentDocker.Builders
     {
       foreach (var label in labels)
       {
-        var parts = label.Split(new[] { '=' }, 2);
+        var parts = label.Split(EqualsSeparator, 2);
         if (parts.Length == 2)
           _labels[parts[0]] = parts[1];
         else
@@ -273,7 +276,7 @@ namespace FluentDocker.Builders
         var existingImages = await driver.ListAsync(context, new ImageListFilter
         {
           Reference = $"{_imageName}:{tag}"
-        }, cancellationToken);
+        }, cancellationToken).ConfigureAwait(false);
 
         if (existingImages.Success && existingImages.Data.Count > 0)
         {
@@ -283,7 +286,7 @@ namespace FluentDocker.Builders
       }
 
       // Prepare build context (copy files, render Dockerfile)
-      var buildContext = await _dockerfileBuilder.PrepareBuildAsync();
+      var buildContext = await _dockerfileBuilder.PrepareBuildAsync().ConfigureAwait(false);
 
       // Ensure at least one tag
       if (_tags.Count == 0)
@@ -304,7 +307,7 @@ namespace FluentDocker.Builders
         Target = _target
       };
 
-      var result = await driver.BuildAsync(context, buildConfig, null, cancellationToken);
+      var result = await driver.BuildAsync(context, buildConfig, null, cancellationToken).ConfigureAwait(false);
 
       if (!result.Success)
         throw new FluentDockerException($"Failed to build image {_imageName}: {result.Error}");

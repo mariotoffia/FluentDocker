@@ -1,6 +1,6 @@
 using System.Collections.Generic;
+using System.Text.Json;
 using FluentDocker.Model.Containers;
-using Newtonsoft.Json.Linq;
 using Container = FluentDocker.Model.Containers.Container;
 using ContainerState = FluentDocker.Model.Containers.ContainerState;
 
@@ -17,28 +17,28 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
     public static Container ParseContainerInspect(string json)
         => PodmanContainerParser.ParseContainerInspect(json);
 
-    public static ContainerState ParseContainerState(JToken stateToken)
+    public static ContainerState ParseContainerState(JsonElement? stateToken)
         => PodmanContainerParser.ParseContainerState(stateToken);
 
-    public static Health ParseHealth(JToken healthToken)
+    public static Health ParseHealth(JsonElement? healthToken)
         => PodmanContainerParser.ParseHealth(healthToken);
 
-    public static ContainerConfig ParseContainerConfig(JToken configToken)
+    public static ContainerConfig ParseContainerConfig(JsonElement? configToken)
         => PodmanContainerParser.ParseContainerConfig(configToken);
 
-    public static ContainerMount[] ParseMounts(JToken mountsToken)
+    public static ContainerMount[] ParseMounts(JsonElement? mountsToken)
         => PodmanContainerParser.ParseMounts(mountsToken);
 
-    public static ContainerNetworkSettings ParseNetworkSettings(JToken nsToken)
+    public static ContainerNetworkSettings ParseNetworkSettings(JsonElement? nsToken)
         => PodmanContainerParser.ParseNetworkSettings(nsToken);
 
-    public static Dictionary<string, HostIpEndpoint[]> ParsePorts(JToken portsToken)
+    public static Dictionary<string, HostIpEndpoint[]> ParsePorts(JsonElement? portsToken)
         => PodmanContainerParser.ParsePorts(portsToken);
 
-    public static Dictionary<string, BridgeNetwork> ParseNetworks(JToken networksToken)
+    public static Dictionary<string, BridgeNetwork> ParseNetworks(JsonElement? networksToken)
         => PodmanContainerParser.ParseNetworks(networksToken);
 
-    public static string[] ParseStringOrArray(JToken token)
+    public static string[] ParseStringOrArray(JsonElement? token)
         => PodmanContainerParser.ParseStringOrArray(token);
   }
 }

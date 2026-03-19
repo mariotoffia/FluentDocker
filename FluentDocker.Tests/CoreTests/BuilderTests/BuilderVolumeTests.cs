@@ -39,7 +39,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
       // Assert
       Assert.NotNull(results);
       Assert.Single(results.All);
-      var volume = results.All.First() as IVolumeService;
+      var volume = results.All[0] as IVolumeService;
       Assert.NotNull(volume);
       Assert.Equal("test-volume", volume.VolumeName);
 
@@ -193,7 +193,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
           .BuildAsync(cancellationToken: TestContext.Current.CancellationToken);
 
       // Assert
-      Assert.Equal(3, results.All.Count());
+      Assert.Equal(3, results.All.Count);
       MockPack.VolumeDriver.Verify(d => d.CreateAsync(
           It.IsAny<FluentDocker.Model.Drivers.DriverContext>(),
           It.IsAny<VolumeCreateConfig>(),

@@ -6,7 +6,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <!-- Benchmark-specific suppressions -->
-    <NoWarn>$(NoWarn);CA1707;CA1852</NoWarn>
+    <NoWarn>$(NoWarn);CA1707;CA1822;CA1852</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>

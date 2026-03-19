@@ -39,7 +39,7 @@ namespace FluentDocker.Tests.CoreTests.Testing.Adapters
       Assert.True(resource.IsInitialized);
       Assert.Same(Kernel, kernel);
 
-      await NUnitResourceHelpers.DisposeAsync(resource, null);
+      await NUnitResourceHelpers.DisposeAsync(resource, null!);
     }
 
     [Fact]
@@ -63,7 +63,7 @@ namespace FluentDocker.Tests.CoreTests.Testing.Adapters
       Assert.Equal("nunit-stack", resource.StackName);
       Assert.Same(Kernel, kernel);
 
-      await NUnitResourceHelpers.DisposeAsync(resource, null);
+      await NUnitResourceHelpers.DisposeAsync(resource, null!);
     }
 
     [Fact]
@@ -87,7 +87,7 @@ namespace FluentDocker.Tests.CoreTests.Testing.Adapters
       Assert.Equal("nunit.yaml", resource.YamlPath);
       Assert.Same(Kernel, kernel);
 
-      await NUnitResourceHelpers.DisposeAsync(resource, null);
+      await NUnitResourceHelpers.DisposeAsync(resource, null!);
     }
 
     [Fact]
@@ -111,7 +111,7 @@ namespace FluentDocker.Tests.CoreTests.Testing.Adapters
       Assert.NotNull(resource.Service);
       Assert.Same(Kernel, kernel);
 
-      await NUnitResourceHelpers.DisposeAsync(resource, null);
+      await NUnitResourceHelpers.DisposeAsync(resource, null!);
     }
 
     [Fact]
@@ -133,13 +133,13 @@ namespace FluentDocker.Tests.CoreTests.Testing.Adapters
       Assert.NotEmpty(resource.Services);
       Assert.Same(Kernel, kernel);
 
-      await NUnitResourceHelpers.DisposeAsync(resource, null);
+      await NUnitResourceHelpers.DisposeAsync(resource, null!);
     }
 
     [Fact]
     public async Task DisposeAsync_NullResourceAndKernel_DoesNotThrow()
     {
-      await NUnitResourceHelpers.DisposeAsync(null, null);
+      await NUnitResourceHelpers.DisposeAsync(null!, null!);
     }
 
     [Fact]
@@ -188,7 +188,7 @@ namespace FluentDocker.Tests.CoreTests.Testing.Adapters
       Assert.True(resource.IsInitialized);
       Assert.Same(Kernel, kernel);
 
-      await NUnitResourceHelpers.DisposeAsync(resource, null);
+      await NUnitResourceHelpers.DisposeAsync(resource, null!);
     }
 
     [Fact]

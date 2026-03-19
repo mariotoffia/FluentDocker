@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Net;
 using System.Threading;
@@ -10,6 +11,8 @@ using FluentDocker.Drivers;
 using FluentDocker.Kernel;
 using FluentDocker.Model.Containers;
 using FluentDocker.Model.Drivers;
+
+#pragma warning disable CS0618 // IService obsolete — intentional usage
 
 namespace FluentDocker.Services.Impl
 {
@@ -34,6 +37,17 @@ namespace FluentDocker.Services.Impl
         new Dictionary<ServiceRunningState, List<Func<IServiceAsync, Task>>>();
     private ServiceRunningState _state = ServiceRunningState.Unknown;
 
+    // Short-lived inspect cache to avoid redundant API/CLI calls during wait polling.
+    // Thread-safety: Volatile/Interlocked used so concurrent wait-condition polls see
+    // consistent state without a full lock.
+    private volatile Container? _inspectCache;
+    private long _inspectCacheTimestamp; // accessed via Interlocked
+
+    /// <summary>
+    /// Time-to-live in milliseconds for the InspectAsync result cache.
+    /// </summary>
+    public const long InspectCacheTtlMs = 500;
+
     /// <summary>
     /// Creates a new container service.
     /// </summary>
@@ -50,9 +64,12 @@ namespace FluentDocker.Services.Impl
         Func<Dictionary<string, HostIpEndpoint[]>, string, Uri, IPEndPoint> customResolver = null,
         List<LifecycleHook> lifecycleHooks = null)
     {
-      _kernel = kernel ?? throw new ArgumentNullException(nameof(kernel));
-      _driverId = driverId ?? throw new ArgumentNullException(nameof(driverId));
-      _containerId = containerId ?? throw new ArgumentNullException(nameof(containerId));
+      ArgumentNullException.ThrowIfNull(kernel);
+      ArgumentNullException.ThrowIfNull(driverId);
+      ArgumentNullException.ThrowIfNull(containerId);
+      _kernel = kernel;
+      _driverId = driverId;
+      _containerId = containerId;
       _image = image;
       _name = name ?? $"container-{containerId}";
       _stopOnDispose = stopOnDispose;
@@ -63,7 +80,7 @@ namespace FluentDocker.Services.Impl
       _lifecycleHooks = lifecycleHooks ?? new List<LifecycleHook>();
 
       // Initialize state hook lists
-      foreach (ServiceRunningState state in Enum.GetValues(typeof(ServiceRunningState)))
+      foreach (var state in Enum.GetValues<ServiceRunningState>())
       {
         _stateHooks[state] = new List<Func<IServiceAsync, Task>>();
       }
@@ -76,7 +93,9 @@ namespace FluentDocker.Services.Impl
     public string Id => _containerId;
     public string Image => _image;
 
+#pragma warning disable CA1710 // Delegate name 'StateChange' — intentional API design
     public event ServiceDelegates.StateChange StateChange;
+#pragma warning restore CA1710
 
     public async Task StartAsync(CancellationToken cancellationToken = default)
     {
@@ -84,9 +103,9 @@ namespace FluentDocker.Services.Impl
       var context = new DriverContext(_driverId);
 
       UpdateState(ServiceRunningState.Starting);
-      await ExecuteHooksAsync(ServiceRunningState.Starting);
+      await ExecuteHooksAsync(ServiceRunningState.Starting).ConfigureAwait(false);
 
-      var response = await driver.StartAsync(context, _containerId, cancellationToken);
+      var response = await driver.StartAsync(context, _containerId, cancellationToken).ConfigureAwait(false);
 
       if (!response.Success)
       {
@@ -97,8 +116,8 @@ namespace FluentDocker.Services.Impl
       }
 
       UpdateState(ServiceRunningState.Running);
-      await ExecuteHooksAsync(ServiceRunningState.Running);
-      await ExecuteLifecycleHooksAsync(ServiceRunningState.Running, cancellationToken);
+      await ExecuteHooksAsync(ServiceRunningState.Running).ConfigureAwait(false);
+      await ExecuteLifecycleHooksAsync(ServiceRunningState.Running, cancellationToken).ConfigureAwait(false);
     }
 
     public async Task PauseAsync(CancellationToken cancellationToken = default)
@@ -106,7 +125,7 @@ namespace FluentDocker.Services.Impl
       var driver = _kernel.SysCtl<IContainerDriver>(_driverId);
       var context = new DriverContext(_driverId);
 
-      var response = await driver.PauseAsync(context, _containerId, cancellationToken);
+      var response = await driver.PauseAsync(context, _containerId, cancellationToken).ConfigureAwait(false);
 
       if (!response.Success)
       {
@@ -117,7 +136,7 @@ namespace FluentDocker.Services.Impl
       }
 
       UpdateState(ServiceRunningState.Paused);
-      await ExecuteHooksAsync(ServiceRunningState.Paused);
+      await ExecuteHooksAsync(ServiceRunningState.Paused).ConfigureAwait(false);
     }
 
     public async Task StopAsync(CancellationToken cancellationToken = default)
@@ -126,9 +145,9 @@ namespace FluentDocker.Services.Impl
       var context = new DriverContext(_driverId);
 
       UpdateState(ServiceRunningState.Stopping);
-      await ExecuteHooksAsync(ServiceRunningState.Stopping);
+      await ExecuteHooksAsync(ServiceRunningState.Stopping).ConfigureAwait(false);
 
-      var response = await driver.StopAsync(context, _containerId, null, cancellationToken);
+      var response = await driver.StopAsync(context, _containerId, null, cancellationToken).ConfigureAwait(false);
 
       if (!response.Success)
       {
@@ -139,7 +158,7 @@ namespace FluentDocker.Services.Impl
       }
 
       UpdateState(ServiceRunningState.Stopped);
-      await ExecuteHooksAsync(ServiceRunningState.Stopped);
+      await ExecuteHooksAsync(ServiceRunningState.Stopped).ConfigureAwait(false);
     }
 
     public async Task RemoveAsync(bool force = false, CancellationToken cancellationToken = default)
@@ -148,11 +167,11 @@ namespace FluentDocker.Services.Impl
       var context = new DriverContext(_driverId);
 
       UpdateState(ServiceRunningState.Removing);
-      await ExecuteHooksAsync(ServiceRunningState.Removing);
-      await ExecuteLifecycleHooksAsync(ServiceRunningState.Removing, cancellationToken);
+      await ExecuteHooksAsync(ServiceRunningState.Removing).ConfigureAwait(false);
+      await ExecuteLifecycleHooksAsync(ServiceRunningState.Removing, cancellationToken).ConfigureAwait(false);
 
       var removeVolumes = _deleteVolumeOnDispose || _deleteNamedVolumeOnDispose;
-      var response = await driver.RemoveAsync(context, _containerId, force, removeVolumes, cancellationToken);
+      var response = await driver.RemoveAsync(context, _containerId, force, removeVolumes, cancellationToken).ConfigureAwait(false);
 
       if (!response.Success)
       {
@@ -163,15 +182,26 @@ namespace FluentDocker.Services.Impl
       }
 
       UpdateState(ServiceRunningState.Removed);
-      await ExecuteHooksAsync(ServiceRunningState.Removed);
+      await ExecuteHooksAsync(ServiceRunningState.Removed).ConfigureAwait(false);
     }
 
     public async Task<Container> InspectAsync(CancellationToken cancellationToken = default)
     {
+      // Return cached result if still valid (reduces redundant calls during wait polling).
+      // Uses volatile read for _inspectCache and Interlocked for _inspectCacheTimestamp
+      // so concurrent callers see a consistent snapshot without locking.
+      var cached = _inspectCache;
+      var now = Stopwatch.GetTimestamp();
+      if (cached != null &&
+          Stopwatch.GetElapsedTime(Interlocked.Read(ref _inspectCacheTimestamp), now).TotalMilliseconds < InspectCacheTtlMs)
+      {
+        return cached;
+      }
+
       var driver = _kernel.SysCtl<IContainerDriver>(_driverId);
       var context = new DriverContext(_driverId);
 
-      var response = await driver.InspectAsync(context, _containerId, cancellationToken);
+      var response = await driver.InspectAsync(context, _containerId, cancellationToken).ConfigureAwait(false);
 
       if (!response.Success)
       {
@@ -187,7 +217,22 @@ namespace FluentDocker.Services.Impl
         _state = ParseState(response.Data.State.Status);
       }
 
+      // Store result and timestamp atomically relative to each other:
+      // write timestamp first, then the reference (volatile write is release-fence).
+      Interlocked.Exchange(ref _inspectCacheTimestamp, Stopwatch.GetTimestamp());
+      _inspectCache = response.Data;
+
       return response.Data;
+    }
+
+    /// <summary>
+    /// Invalidates the inspect cache so the next InspectAsync call fetches fresh data.
+    /// Called automatically by state-changing operations (Start, Stop, Pause, Remove).
+    /// </summary>
+    private void InvalidateInspectCache()
+    {
+      _inspectCache = null;
+      Interlocked.Exchange(ref _inspectCacheTimestamp, 0);
     }
 
     #region Hooks
@@ -240,6 +285,7 @@ namespace FluentDocker.Services.Impl
     public void Dispose()
     {
       DisposeAsync().AsTask().GetAwaiter().GetResult();
+      GC.SuppressFinalize(this);
     }
 
     public async ValueTask DisposeAsync()
@@ -249,18 +295,20 @@ namespace FluentDocker.Services.Impl
         if (_stopOnDispose &&
             (_state == ServiceRunningState.Running || _state == ServiceRunningState.Paused))
         {
-          await StopAsync();
+          await StopAsync().ConfigureAwait(false);
         }
 
         if (_deleteOnDispose)
         {
-          await RemoveAsync(force: true);
+          await RemoveAsync(force: true).ConfigureAwait(false);
         }
       }
-      catch
+      catch (Exception ex)
       {
-        // Ignore errors during disposal
+        Logger.Log($"ContainerService DisposeAsync failed: {ex.Message}");
       }
+
+      GC.SuppressFinalize(this);
     }
 
     #endregion
@@ -271,6 +319,7 @@ namespace FluentDocker.Services.Impl
     {
       var oldState = _state;
       _state = newState;
+      InvalidateInspectCache();
       StateChange?.Invoke(this, new StateChangeEventArgs(this, newState));
     }
 
@@ -283,11 +332,11 @@ namespace FluentDocker.Services.Impl
       {
         try
         {
-          await hook(this);
+          await hook(this).ConfigureAwait(false);
         }
-        catch
+        catch (Exception ex)
         {
-          // Ignore hook errors
+          Logger.Log($"ContainerService hook execution failed: {ex.Message}");
         }
       }
     }
@@ -307,19 +356,19 @@ namespace FluentDocker.Services.Impl
               if (File.Exists(hook.HostPath) || Directory.Exists(hook.HostPath))
               {
                 // Use path-based copy which supports both files and directories
-                await CopyToAsync(hook.HostPath, hook.ContainerPath, cancellationToken);
+                await CopyToAsync(hook.HostPath, hook.ContainerPath, cancellationToken).ConfigureAwait(false);
               }
               break;
 
             case LifecycleHookType.CopyFrom:
               // Use path-based copy which supports both files and directories
-              await CopyFromToPathAsync(hook.ContainerPath, hook.HostPath, cancellationToken);
+              await CopyFromToPathAsync(hook.ContainerPath, hook.HostPath, cancellationToken).ConfigureAwait(false);
               break;
 
             case LifecycleHookType.Export:
               if (hook.Condition == null || hook.Condition(this))
               {
-                var exportData = await ExportAsync(cancellationToken);
+                var exportData = await ExportAsync(cancellationToken).ConfigureAwait(false);
                 var exportDir = Path.GetDirectoryName(hook.HostPath);
                 if (!string.IsNullOrEmpty(exportDir) && !Directory.Exists(exportDir))
                   Directory.CreateDirectory(exportDir);
@@ -328,11 +377,11 @@ namespace FluentDocker.Services.Impl
                 {
                   // Extract tar to directory
                   // Simplified - would need proper tar extraction
-                  await File.WriteAllBytesAsync(hook.HostPath + ".tar", exportData, cancellationToken);
+                  await File.WriteAllBytesAsync(hook.HostPath + ".tar", exportData, cancellationToken).ConfigureAwait(false);
                 }
                 else
                 {
-                  await File.WriteAllBytesAsync(hook.HostPath, exportData, cancellationToken);
+                  await File.WriteAllBytesAsync(hook.HostPath, exportData, cancellationToken).ConfigureAwait(false);
                 }
               }
               break;
@@ -340,7 +389,7 @@ namespace FluentDocker.Services.Impl
             case LifecycleHookType.Execute:
               if (hook.Command?.Length > 0)
               {
-                await ExecuteAsync(string.Join(" ", hook.Command), cancellationToken);
+                await ExecuteAsync(string.Join(" ", hook.Command), cancellationToken).ConfigureAwait(false);
               }
               break;
           }
@@ -353,7 +402,7 @@ namespace FluentDocker.Services.Impl
       }
     }
 
-    private ServiceRunningState ParseState(string state)
+    private static ServiceRunningState ParseState(string state)
     {
       return state?.ToLower() switch
       {

@@ -42,7 +42,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
       // Assert
       Assert.NotNull(results);
       Assert.Single(results.All);
-      var network = results.All.First() as INetworkService;
+      var network = results.All[0] as INetworkService;
       Assert.NotNull(network);
       Assert.Equal("test-network", network.NetworkName);
 
@@ -197,7 +197,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
 
       // Assert - Should not call Create since network exists
       Assert.Single(results.All);
-      var network = results.All.First() as INetworkService;
+      var network = results.All[0] as INetworkService;
       Assert.NotNull(network);
       Assert.Equal("existing-network-id", network.Id);
 
@@ -251,7 +251,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
           .BuildAsync(cancellationToken: TestContext.Current.CancellationToken);
 
       // Assert
-      Assert.Equal(2, results.All.Count());
+      Assert.Equal(2, results.All.Count);
       MockPack.NetworkDriver.Verify(d => d.CreateAsync(
           It.IsAny<FluentDocker.Model.Drivers.DriverContext>(),
           It.IsAny<NetworkCreateConfig>(),

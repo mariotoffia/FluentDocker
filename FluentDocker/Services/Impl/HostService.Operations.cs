@@ -7,6 +7,8 @@ using FluentDocker.Common;
 using FluentDocker.Drivers;
 using FluentDocker.Model.Drivers;
 
+#pragma warning disable CS0618 // Services.NetworkCreateConfig obsolete — intentional internal usage
+
 namespace FluentDocker.Services.Impl
 {
   /// <summary>

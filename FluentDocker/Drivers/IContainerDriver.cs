@@ -300,6 +300,33 @@ namespace FluentDocker.Drivers
     /// Each entry maps a network name to one or more aliases for the container on that network.
     /// </summary>
     public Dictionary<string, List<string>> NetworkAliases { get; set; } = new Dictionary<string, List<string>>();
+
+    /// <summary>Linux capabilities to add (e.g. SYS_PTRACE, NET_ADMIN).</summary>
+    public List<string> CapAdd { get; set; } = new List<string>();
+
+    /// <summary>Linux capabilities to drop (e.g. NET_RAW, MKNOD).</summary>
+    public List<string> CapDrop { get; set; } = new List<string>();
+
+    /// <summary>Security options (e.g. seccomp=unconfined, apparmor=docker-default).</summary>
+    public List<string> SecurityOpt { get; set; } = new List<string>();
+
+    /// <summary>Size of /dev/shm in bytes.</summary>
+    public long? ShmSize { get; set; }
+
+    /// <summary>Tmpfs mounts. Key = container path, Value = options (e.g. "rw,noexec,size=64m").</summary>
+    public Dictionary<string, string> Tmpfs { get; set; } = new Dictionary<string, string>();
+
+    /// <summary>Device mappings. Key = host device, Value = container device path.</summary>
+    public Dictionary<string, string> Devices { get; set; } = new Dictionary<string, string>();
+
+    /// <summary>Whether the root filesystem is read-only.</summary>
+    public bool ReadonlyRootfs { get; set; }
+
+    /// <summary>Platform for multi-arch images (e.g. linux/arm64).</summary>
+    public string Platform { get; set; }
+
+    /// <summary>OCI runtime to use (e.g. runc, crun, runsc).</summary>
+    public string Runtime { get; set; }
   }
 
   /// <summary>

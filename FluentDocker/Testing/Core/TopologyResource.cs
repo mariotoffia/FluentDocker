@@ -29,7 +29,11 @@ namespace FluentDocker.Testing.Core
         FluentDockerKernel kernel,
         Action<Builder> configure,
         DockerResourceOptions options = null)
-        : base(kernel, options) => _configure = configure ?? throw new ArgumentNullException(nameof(configure));
+        : base(kernel, options)
+    {
+      ArgumentNullException.ThrowIfNull(configure);
+      _configure = configure;
+    }
 
     /// <summary>
     /// All services created by the topology, in build order.
@@ -149,8 +153,9 @@ namespace FluentDocker.Testing.Core
             var log = await container.GetLogsAsync(false, cancellationToken);
             logs.Add($"--- {container.Name ?? container.Id} ---\n{log}");
           }
-          catch
+          catch (Exception ex)
           {
+            Logger.Log($"Topology diagnostics log collection failed: {ex.Message}");
             logs.Add($"--- {container.Name ?? container.Id} --- (failed to collect)");
           }
         }

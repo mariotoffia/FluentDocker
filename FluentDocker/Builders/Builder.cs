@@ -3,10 +3,13 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using FluentDocker.Common;
 using FluentDocker.Kernel;
 using FluentDocker.Model.Drivers;
 using FluentDocker.Model.Kernel;
 using FluentDocker.Services;
+
+#pragma warning disable CS0618 // IService obsolete — intentional usage
 
 namespace FluentDocker.Builders
 {
@@ -186,7 +189,7 @@ namespace FluentDocker.Builders
       {
         Kernel = _currentKernel,
         DriverId = _currentDriverId,
-        ExecuteAsync = async ct => (IService)await imageBuilder.ExecuteAsync(ct)
+        ExecuteAsync = async ct => (IService)await imageBuilder.ExecuteAsync(ct).ConfigureAwait(false)
       });
       return this;
     }
@@ -230,27 +233,28 @@ namespace FluentDocker.Builders
           var groupOperations = group.ToList();
           foreach (var operation in groupOperations)
           {
-            var service = await operation.ExecuteAsync(cancellationToken);
+            var service = await operation.ExecuteAsync(cancellationToken).ConfigureAwait(false);
             scope.AddResult(service);
           }
 
-          await StartContainersWithLinksAsync(scope, cancellationToken);
+          await StartContainersWithLinksAsync(scope, cancellationToken).ConfigureAwait(false);
 
           // Execute deferred wait conditions for linked containers
           foreach (var operation in groupOperations)
           {
             if (operation.PostStartAsync != null)
-              await operation.PostStartAsync(cancellationToken);
+              await operation.PostStartAsync(cancellationToken).ConfigureAwait(false);
           }
         }
       }
-      catch
+      catch (Exception ex)
       {
+        Logger.Log($"Builder build failed: {ex.Message}");
         // Clean up all services created so far to prevent resource leaks.
         // Use a bounded timeout so cleanup cannot hang indefinitely when the daemon is unhealthy.
         using var cleanupCts = new CancellationTokenSource(effectiveCleanupTimeout);
         foreach (var scope in scopes.Values)
-          await scope.DisposeAllAsync(cleanupCts.Token);
+          await scope.DisposeAllAsync(cleanupCts.Token).ConfigureAwait(false);
         throw;
       }
 
@@ -275,7 +279,7 @@ namespace FluentDocker.Builders
       _currentDriverId = driverId;
     }
 
-    private async Task StartContainersWithLinksAsync(
+    private static async Task StartContainersWithLinksAsync(
         BuildScope scope, CancellationToken cancellationToken)
     {
       var containersToStart = scope.Results
@@ -291,12 +295,12 @@ namespace FluentDocker.Builders
 
       foreach (var container in containersToStart)
       {
-        await container.StartAsync(cancellationToken);
-        await WaitForContainerRunningAsync(driver, context, container.Id, cancellationToken);
+        await container.StartAsync(cancellationToken).ConfigureAwait(false);
+        await WaitForContainerRunningAsync(driver, context, container.Id, cancellationToken).ConfigureAwait(false);
       }
     }
 
-    private async Task WaitForContainerRunningAsync(
+    private static async Task WaitForContainerRunningAsync(
         Drivers.IContainerDriver driver, DriverContext context,
         string containerId, CancellationToken cancellationToken)
     {
@@ -305,10 +309,10 @@ namespace FluentDocker.Builders
       for (var i = 0; i < maxAttempts; i++)
       {
         var inspectResult = await driver.InspectAsync(
-            context, containerId, cancellationToken);
+            context, containerId, cancellationToken).ConfigureAwait(false);
         if (inspectResult.Success && inspectResult.Data?.State?.Running == true)
           return;
-        await Task.Delay(delayMs, cancellationToken);
+        await Task.Delay(delayMs, cancellationToken).ConfigureAwait(false);
       }
     }
 
@@ -327,7 +331,7 @@ namespace FluentDocker.Builders
   /// <summary>
   /// Represents a build operation to be executed.
   /// </summary>
-  internal class BuildOperation
+  internal sealed class BuildOperation
   {
     public FluentDockerKernel Kernel { get; set; }
     public string DriverId { get; set; }

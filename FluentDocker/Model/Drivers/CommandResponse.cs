@@ -2,45 +2,48 @@ namespace FluentDocker.Model.Drivers
 {
   /// <summary>
   /// Represents the result of a driver command execution.
-  /// Replaces the old ConsoleStream<T> pattern.
+  /// All driver interfaces return <see cref="CommandResponse{T}"/> from their operations.
+  /// For kernel/builder build results, use <see cref="FluentDocker.Common.Result{T}"/> instead.
+  /// Properties are init-only; use the <see cref="Ok(T)"/> and <see cref="Fail(string, string, int)"/> factory methods.
   /// </summary>
   /// <typeparam name="T">The type of data returned by the command</typeparam>
+#pragma warning disable CA1000 // Static members on generic type — factory pattern is intentional API design
   public class CommandResponse<T>
   {
     /// <summary>
     /// Indicates whether the command executed successfully.
     /// </summary>
-    public bool Success { get; set; }
+    public bool Success { get; init; }
 
     /// <summary>
     /// The data returned by the command (if successful).
     /// </summary>
-    public T Data { get; set; }
+    public T Data { get; init; }
 
     /// <summary>
     /// Error message (if not successful).
     /// </summary>
-    public string Error { get; set; }
+    public string Error { get; init; }
 
     /// <summary>
     /// Error code for programmatic handling.
     /// </summary>
-    public string ErrorCode { get; set; }
+    public string ErrorCode { get; init; }
 
     /// <summary>
     /// Diagnostic context information.
     /// </summary>
-    public ErrorContext ErrorContext { get; set; }
+    public ErrorContext ErrorContext { get; init; }
 
     /// <summary>
     /// Exit code from the command execution.
     /// </summary>
-    public int ExitCode { get; set; }
+    public int ExitCode { get; init; }
 
     /// <summary>
     /// Standard output from the command.
     /// </summary>
-    public string Output { get; set; }
+    public string Output { get; init; }
 
     /// <summary>
     /// Creates a successful command response.
@@ -98,4 +101,5 @@ namespace FluentDocker.Model.Drivers
       };
     }
   }
+#pragma warning restore CA1000
 }

@@ -27,8 +27,8 @@ namespace FluentDocker.Testing.NUnit
             DockerResourceOptions? options = null,
             CancellationToken cancellationToken = default)
         => ResourceLifecycle.CreateAndInitializeAsync(
-            kernel => new ContainerResource(kernel, configure, options),
-            kernelFactory,
+            kernel => new ContainerResource(kernel, configure, options!),
+            kernelFactory!,
             cancellationToken: cancellationToken);
 
     /// <summary>
@@ -41,8 +41,8 @@ namespace FluentDocker.Testing.NUnit
             DockerResourceOptions? options = null,
             CancellationToken cancellationToken = default)
         => ResourceLifecycle.CreateAndInitializeAsync(
-            kernel => new ComposeResource(kernel, configure, options),
-            kernelFactory,
+            kernel => new ComposeResource(kernel, configure, options!),
+            kernelFactory!,
             cancellationToken: cancellationToken);
 
     /// <summary>
@@ -55,8 +55,8 @@ namespace FluentDocker.Testing.NUnit
             DockerResourceOptions? options = null,
             CancellationToken cancellationToken = default)
         => ResourceLifecycle.CreateAndInitializeAsync(
-            kernel => new TopologyResource(kernel, configure, options),
-            kernelFactory,
+            kernel => new TopologyResource(kernel, configure, options!),
+            kernelFactory!,
             cancellationToken: cancellationToken);
 
     /// <summary>
@@ -73,8 +73,8 @@ namespace FluentDocker.Testing.NUnit
             DockerResourceOptions? options = null,
             CancellationToken cancellationToken = default)
         => ResourceLifecycle.CreateAndInitializeAsync(
-            kernel => new SwarmStackResource(kernel, config, options),
-            kernelFactory,
+            kernel => new SwarmStackResource(kernel, config, options!),
+            kernelFactory!,
             cancellationToken: cancellationToken);
 
     /// <summary>
@@ -91,8 +91,8 @@ namespace FluentDocker.Testing.NUnit
             DockerResourceOptions? options = null,
             CancellationToken cancellationToken = default)
         => ResourceLifecycle.CreateAndInitializeAsync(
-            kernel => new PodmanKubernetesResource(kernel, config, options),
-            kernelFactory,
+            kernel => new PodmanKubernetesResource(kernel, config, options!),
+            kernelFactory!,
             ResourceLifecycle.CreateDefaultPodmanKernelAsync,
             cancellationToken);
 
@@ -111,7 +111,7 @@ namespace FluentDocker.Testing.NUnit
             CancellationToken cancellationToken = default)
         where TResource : class, ITestResource
         => ResourceLifecycle.CreateAndInitializeAsync(
-            resourceFactory, kernelFactory,
+            resourceFactory, kernelFactory!,
             cancellationToken: cancellationToken);
 
     /// <summary>

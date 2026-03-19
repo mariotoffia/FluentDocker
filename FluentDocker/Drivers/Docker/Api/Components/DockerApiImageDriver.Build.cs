@@ -4,12 +4,13 @@ using System.IO;
 using System.Linq;
 using System.Net.Http;
 using System.Text;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
+using FluentDocker.Common;
 using FluentDocker.Drivers.Docker.Api.ApiModels;
 using FluentDocker.Drivers.Docker.Api.Connection;
 using FluentDocker.Model.Drivers;
-using Newtonsoft.Json;
 using SharpCompress.Common;
 using SharpCompress.Writers;
 using SharpCompress.Writers.Tar;
@@ -67,7 +68,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
           continue;
 
         receivedProgress = true;
-        var parsed = JsonConvert.DeserializeObject<PullProgressLine>(line);
+        var parsed = JsonHelper.TryDeserialize<PullProgressLine>(line);
         if (parsed == null)
           continue;
 
@@ -142,7 +143,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
         if (string.IsNullOrWhiteSpace(line))
           continue;
 
-        var parsed = JsonConvert.DeserializeObject<PushProgressLine>(line);
+        var parsed = JsonHelper.TryDeserialize<PushProgressLine>(line);
         if (parsed == null)
           continue;
 
@@ -210,7 +211,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       await foreach (var line in ReadNdjsonFromPostStreamAsync(
           path, content, cancellationToken))
       {
-        var parsed = JsonConvert.DeserializeObject<BuildOutputLine>(line);
+        var parsed = JsonHelper.TryDeserialize<BuildOutputLine>(line);
         if (parsed == null)
           continue;
 
@@ -321,13 +322,13 @@ namespace FluentDocker.Drivers.Docker.Api.Components
 
       if (config.BuildArgs?.Count > 0)
       {
-        var json = JsonConvert.SerializeObject(config.BuildArgs);
+        var json = JsonHelper.Serialize(config.BuildArgs);
         query.Add($"buildargs={Uri.EscapeDataString(json)}");
       }
 
       if (config.Labels?.Count > 0)
       {
-        var json = JsonConvert.SerializeObject(config.Labels);
+        var json = JsonHelper.Serialize(config.Labels);
         query.Add($"labels={Uri.EscapeDataString(json)}");
       }
 

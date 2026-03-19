@@ -8,6 +8,8 @@ using FluentDocker.Drivers;
 using FluentDocker.Kernel;
 using FluentDocker.Model.Drivers;
 
+#pragma warning disable CS0618 // IService obsolete — intentional usage
+
 namespace FluentDocker.Services.Impl
 {
   /// <summary>
@@ -30,8 +32,10 @@ namespace FluentDocker.Services.Impl
         bool isNative = true,
         bool requireTls = false)
     {
-      _kernel = kernel ?? throw new ArgumentNullException(nameof(kernel));
-      _driverId = driverId ?? throw new ArgumentNullException(nameof(driverId));
+      ArgumentNullException.ThrowIfNull(kernel);
+      ArgumentNullException.ThrowIfNull(driverId);
+      _kernel = kernel;
+      _driverId = driverId;
       _hostName = hostName ?? "native";
       _isNative = isNative;
       _requireTls = requireTls;
@@ -44,7 +48,10 @@ namespace FluentDocker.Services.Impl
     public bool IsNative => _isNative;
     public bool RequireTls => _requireTls;
 
+    // Host services have a fixed Running state — event is required by IService but never raised.
+#pragma warning disable CS0067, CA1710
     public event ServiceDelegates.StateChange StateChange;
+#pragma warning restore CS0067, CA1710
 
     #region System Information
 
@@ -163,12 +170,12 @@ namespace FluentDocker.Services.Impl
 
     public async Task<IContainerService> CreateContainerAsync(
         string image,
-        ContainerCreateOptions options = null,
+        ContainerCreateOptions config = null,
         CancellationToken cancellationToken = default)
     {
-      options ??= new ContainerCreateOptions();
+      config ??= new ContainerCreateOptions();
 
-      if (options.ForcePull)
+      if (config.ForcePull)
       {
         var imageDriver = _kernel.SysCtl<IImageDriver>(_driverId);
         var pullContext = new DriverContext(_driverId);
@@ -186,49 +193,49 @@ namespace FluentDocker.Services.Impl
       var driver = _kernel.SysCtl<IContainerDriver>(_driverId);
       var context = new DriverContext(_driverId);
 
-      var config = new ContainerCreateConfig
+      var createConfig = new ContainerCreateConfig
       {
         Image = image,
-        Name = options.Name,
-        Command = options.Command,
-        WorkingDirectory = options.WorkingDir,
-        User = options.User,
-        Privileged = options.Privileged,
-        Labels = options.Labels ?? new Dictionary<string, string>()
+        Name = config.Name,
+        Command = config.Command,
+        WorkingDirectory = config.WorkingDir,
+        User = config.User,
+        Privileged = config.Privileged,
+        Labels = config.Labels ?? new Dictionary<string, string>()
       };
 
-      if (options.Environment?.Count > 0)
+      if (config.Environment?.Count > 0)
       {
-        config.Environment = options.Environment;
+        createConfig.Environment = config.Environment;
       }
 
-      if (options.Ports?.Count > 0)
+      if (config.Ports?.Count > 0)
       {
-        config.PortBindings = options.Ports;
+        createConfig.PortBindings = config.Ports;
       }
 
-      if (options.Volumes?.Count > 0)
+      if (config.Volumes?.Count > 0)
       {
-        config.Volumes = options.Volumes
+        createConfig.Volumes = config.Volumes
             .ToDictionary(v => v.Split(':').First(), v => v.Contains(':') ? v.Split(':').Last() : v);
       }
 
-      if (!string.IsNullOrEmpty(options.Network))
+      if (!string.IsNullOrEmpty(config.Network))
       {
-        config.NetworkMode = options.Network;
+        createConfig.NetworkMode = config.Network;
       }
 
-      if (options.MemoryLimit.HasValue)
+      if (config.MemoryLimit.HasValue)
       {
-        config.MemoryLimit = options.MemoryLimit.Value;
+        createConfig.MemoryLimit = config.MemoryLimit.Value;
       }
 
-      if (options.CpuQuota.HasValue)
+      if (config.CpuQuota.HasValue)
       {
-        config.CpuShares = options.CpuQuota.Value;
+        createConfig.CpuShares = config.CpuQuota.Value;
       }
 
-      var response = await driver.CreateAsync(context, config, cancellationToken);
+      var response = await driver.CreateAsync(context, createConfig, cancellationToken);
 
       if (!response.Success)
       {
@@ -243,7 +250,7 @@ namespace FluentDocker.Services.Impl
           _driverId,
           response.Data.Id,
           image,
-          options.Name ?? response.Data.Name ?? response.Data.Id);
+          config.Name ?? response.Data.Name ?? response.Data.Id);
     }
 
     #endregion
@@ -302,11 +309,13 @@ namespace FluentDocker.Services.Impl
     public void Dispose()
     {
       DisposeAsync().AsTask().GetAwaiter().GetResult();
+      GC.SuppressFinalize(this);
     }
 
     public async ValueTask DisposeAsync()
     {
       await Task.CompletedTask;
+      GC.SuppressFinalize(this);
     }
 
     #endregion

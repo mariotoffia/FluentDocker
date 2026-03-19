@@ -8,12 +8,14 @@ using FluentDocker.Kernel;
 using FluentDocker.Model.Drivers;
 using FluentDocker.Services;
 
+#pragma warning disable CS0618 // IService obsolete — intentional usage
+
 namespace FluentDocker.Builders
 {
   /// <summary>
   /// Network builder implementation.
   /// </summary>
-  internal class NetworkBuilder : INetworkBuilder, IDriverScopedBuilder
+  internal sealed class NetworkBuilder : INetworkBuilder, IDriverScopedBuilder
   {
     private readonly FluentDockerKernel _kernel;
     private readonly string _driverId;
@@ -56,7 +58,7 @@ namespace FluentDocker.Builders
       var driver = _kernel.SysCtl<Drivers.INetworkDriver>(_driverId);
       var context = new DriverContext(_driverId);
 
-      var listResult = await driver.ListAsync(context, null, cancellationToken);
+      var listResult = await driver.ListAsync(context, null, cancellationToken).ConfigureAwait(false);
       if (listResult.Success)
       {
         var existingNetwork = listResult.Data?.FirstOrDefault(n =>
@@ -66,7 +68,7 @@ namespace FluentDocker.Builders
         {
           if (_removeOnDispose)
           {
-            await driver.RemoveAsync(context, existingNetwork.Id, cancellationToken);
+            await driver.RemoveAsync(context, existingNetwork.Id, cancellationToken).ConfigureAwait(false);
           }
           else
           {
@@ -91,7 +93,7 @@ namespace FluentDocker.Builders
       if (!string.IsNullOrEmpty(_ipRange))
         config.Options["com.docker.network.bridge.ip-range"] = _ipRange;
 
-      var response = await driver.CreateAsync(context, config, cancellationToken);
+      var response = await driver.CreateAsync(context, config, cancellationToken).ConfigureAwait(false);
       if (!response.Success)
         throw new DriverException($"Failed to create network: {response.Error}",
             response.ErrorCode, response.ErrorContext);
@@ -104,7 +106,7 @@ namespace FluentDocker.Builders
   /// <summary>
   /// Volume builder implementation.
   /// </summary>
-  internal class VolumeBuilder : IVolumeBuilder, IDriverScopedBuilder
+  internal sealed class VolumeBuilder : IVolumeBuilder, IDriverScopedBuilder
   {
     private readonly FluentDockerKernel _kernel;
     private readonly string _driverId;
@@ -145,7 +147,7 @@ namespace FluentDocker.Builders
         Labels = _labels
       };
 
-      var response = await driver.CreateAsync(context, config, cancellationToken);
+      var response = await driver.CreateAsync(context, config, cancellationToken).ConfigureAwait(false);
       if (!response.Success)
         throw new DriverException($"Failed to create volume: {response.Error}",
             response.ErrorCode, response.ErrorContext);
@@ -158,7 +160,7 @@ namespace FluentDocker.Builders
   /// <summary>
   /// Compose builder implementation.
   /// </summary>
-  internal class ComposeBuilder : IComposeBuilder, IDriverScopedBuilder
+  internal sealed class ComposeBuilder : IComposeBuilder, IDriverScopedBuilder
   {
     private readonly FluentDockerKernel _kernel;
     private readonly string _driverId;
@@ -211,7 +213,7 @@ namespace FluentDocker.Builders
         foreach (var line in System.IO.File.ReadAllLines(path))
         {
           var trimmed = line.Trim();
-          if (string.IsNullOrEmpty(trimmed) || trimmed.StartsWith("#"))
+          if (string.IsNullOrEmpty(trimmed) || trimmed.StartsWith('#'))
             continue;
           var eqIndex = trimmed.IndexOf('=');
           if (eqIndex > 0)
@@ -272,7 +274,7 @@ namespace FluentDocker.Builders
         Profiles = _profiles
       };
 
-      var response = await driver.UpAsync(context, config, cancellationToken);
+      var response = await driver.UpAsync(context, config, cancellationToken).ConfigureAwait(false);
       if (!response.Success)
         throw new DriverException($"Failed to start compose: {response.Error}",
             response.ErrorCode, response.ErrorContext);

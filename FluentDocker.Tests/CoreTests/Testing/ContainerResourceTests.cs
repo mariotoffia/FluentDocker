@@ -103,7 +103,7 @@ namespace FluentDocker.Tests.CoreTests.Testing
     public void Constructor_NullConfigure_Throws()
     {
       Assert.Throws<ArgumentNullException>(
-          () => new ContainerResource(Kernel, null));
+          () => new ContainerResource(Kernel, null!));
     }
 
     [Fact]

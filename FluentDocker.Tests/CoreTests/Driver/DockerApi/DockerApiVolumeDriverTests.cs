@@ -125,6 +125,43 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
     }
 
     [Fact]
+    public async Task InspectAsync_ParsesMountpointLabelsAndOptions()
+    {
+      var (driver, mock) = CreateDriver();
+      mock.SetupGet("/volumes/full-vol", 200,
+          @"{""Name"":""full-vol"",""Driver"":""local"",""Scope"":""local"","
+          + @"""Mountpoint"":""/var/lib/docker/volumes/full-vol/_data"","
+          + @"""Labels"":{""env"":""prod"",""team"":""infra""},"
+          + @"""Options"":{""type"":""nfs"",""o"":""addr=10.0.0.1""}}");
+
+      var result = await driver.InspectAsync(Ctx, "full-vol", cancellationToken: TestContext.Current.CancellationToken);
+
+      Assert.True(result.Success);
+      Assert.Equal("/var/lib/docker/volumes/full-vol/_data", result.Data.Mountpoint);
+      Assert.NotNull(result.Data.Labels);
+      Assert.Equal("prod", result.Data.Labels["env"]);
+      Assert.Equal("infra", result.Data.Labels["team"]);
+      Assert.NotNull(result.Data.Options);
+      Assert.Equal("nfs", result.Data.Options["type"]);
+      Assert.Equal("addr=10.0.0.1", result.Data.Options["o"]);
+    }
+
+    [Fact]
+    public async Task InspectAsync_MissingOptionalFields_ReturnsNulls()
+    {
+      var (driver, mock) = CreateDriver();
+      mock.SetupGet("/volumes/minimal", 200,
+          @"{""Name"":""minimal"",""Driver"":""local""}");
+
+      var result = await driver.InspectAsync(Ctx, "minimal", cancellationToken: TestContext.Current.CancellationToken);
+
+      Assert.True(result.Success);
+      Assert.Null(result.Data.Mountpoint);
+      Assert.Null(result.Data.Labels);
+      Assert.Null(result.Data.Options);
+    }
+
+    [Fact]
     public async Task InspectAsync_404_ReturnsNotFoundError()
     {
       var (driver, mock) = CreateDriver();

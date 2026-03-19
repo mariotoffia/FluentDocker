@@ -135,7 +135,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
     [Fact]
     public async Task ImageIsExposed_OnRunningContainer()
     {
-      string containerId = null;
+      string? containerId = null;
       try
       {
         // Arrange
@@ -164,7 +164,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
       }
       finally
       {
-        await RemoveContainerAsync(containerId);
+        await RemoveContainerAsync(containerId!);
       }
     }
 

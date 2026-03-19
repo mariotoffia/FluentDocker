@@ -4,10 +4,9 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using FluentDocker.Common;
+using System.Text.Json;
 using FluentDocker.Drivers.Docker.Cli.Binary;
 using FluentDocker.Model.Drivers;
-using Newtonsoft.Json;
-using Newtonsoft.Json.Linq;
 
 namespace FluentDocker.Drivers.Docker.Cli.Components
 {
@@ -16,6 +15,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
   /// </summary>
   public class DockerCliServiceDriver : DockerCliDriverBase, IServiceDriver
   {
+    private static readonly char[] LineSeparators = ['\n', '\r'];
     /// <summary>
     /// Creates a new instance with the specified binary resolver.
     /// </summary>
@@ -183,18 +183,18 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
         }
 
         var services = new List<ServiceInfo>();
-        var lines = result.Output.Split(new[] { '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries);
+        var lines = result.Output.Split(LineSeparators, StringSplitOptions.RemoveEmptyEntries);
         foreach (var line in lines)
         {
           try
           {
-            var svc = JsonConvert.DeserializeObject<ServiceInfo>(line);
+            var svc = JsonSerializer.Deserialize<ServiceInfo>(line, JsonHelper.CaseInsensitiveOptions);
             if (svc != null)
               services.Add(svc);
           }
-          catch
+          catch (Exception ex)
           {
-            // Skip malformed lines
+            Logger.Log($"Service list JSON parsing failed: {ex.Message}");
           }
         }
 
@@ -259,18 +259,18 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
         }
 
         var tasks = new List<ServiceTask>();
-        var lines = result.Output.Split(new[] { '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries);
+        var lines = result.Output.Split(LineSeparators, StringSplitOptions.RemoveEmptyEntries);
         foreach (var line in lines)
         {
           try
           {
-            var task = JsonConvert.DeserializeObject<ServiceTask>(line);
+            var task = JsonSerializer.Deserialize<ServiceTask>(line, JsonHelper.CaseInsensitiveOptions);
             if (task != null)
               tasks.Add(task);
           }
-          catch
+          catch (Exception ex)
           {
-            // Skip malformed lines
+            Logger.Log($"Service task JSON parsing failed: {ex.Message}");
           }
         }
 
@@ -342,67 +342,77 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     /// </summary>
     internal static ServiceDetails ParseServiceInspect(string json)
     {
-      var arr = JArray.Parse(json);
-      if (arr.Count == 0)
+      var root = JsonHelper.ParseElement(json);
+      if (root.ValueKind != JsonValueKind.Array || root.GetArrayLength() == 0)
         return null;
 
-      if (arr[0] is not JObject obj)
+      var obj = root[0];
+      if (obj.ValueKind != JsonValueKind.Object)
         return null;
 
-      var spec = obj["Spec"] as JObject;
-      var taskTemplate = spec?["TaskTemplate"] as JObject;
-      var containerSpec = taskTemplate?["ContainerSpec"] as JObject;
+      var spec = obj.Prop("Spec");
+      var taskTemplate = spec?.Prop("TaskTemplate");
+      var containerSpec = taskTemplate?.Prop("ContainerSpec");
 
       var details = new ServiceDetails
       {
-        Id = obj.Value<string>("ID"),
-        Version = obj["Version"]?.Value<long>("Index") ?? 0,
-        Name = spec?.Value<string>("Name"),
-        Image = containerSpec?.Value<string>("Image"),
+        Id = obj.GetStringOrDefault("ID"),
+        Version = spec != null ? obj.Prop("Version")?.GetInt64OrDefault("Index") ?? 0 : 0,
+        Name = spec?.GetStringOrDefault("Name"),
+        Image = containerSpec?.GetStringOrDefault("Image"),
         RawJson = json
       };
 
+      // Fix: Version is from obj, not spec
+      var versionEl = obj.Prop("Version");
+      if (versionEl.HasValue)
+        details.Version = versionEl.Value.GetInt64OrDefault("Index");
+
       // Mode and replicas
-      var mode = spec?["Mode"] as JObject;
-      if (mode?["Replicated"] != null)
+      var mode = spec?.Prop("Mode");
+      if (mode.HasValue)
       {
-        details.Mode = "replicated";
-        details.Replicas = (int)(mode["Replicated"]?.Value<long>("Replicas") ?? 0);
-      }
-      else if (mode?["Global"] != null)
-      {
-        details.Mode = "global";
+        var replicated = mode.Value.Prop("Replicated");
+        if (replicated.HasValue)
+        {
+          details.Mode = "replicated";
+          details.Replicas = (int)(replicated.Value.GetInt64OrDefault("Replicas"));
+        }
+        else if (mode.Value.Prop("Global").HasValue)
+        {
+          details.Mode = "global";
+        }
       }
 
       // Command and args
-      if (containerSpec?["Command"] is JArray cmd)
-        details.Command = cmd.Select(c => c.ToString()).ToArray();
-      if (containerSpec?["Args"] is JArray args2)
-        details.Args = args2.Select(a => a.ToString()).ToArray();
-
-      // Environment
-      if (containerSpec?["Env"] is JArray env)
+      if (containerSpec.HasValue)
       {
-        foreach (var e in env)
+        details.Command = containerSpec.Value.GetStringArray("Command");
+        details.Args = containerSpec.Value.GetStringArray("Args");
+
+        // Environment
+        var envArr = containerSpec.Value.GetStringArray("Env");
+        foreach (var e in envArr)
         {
-          var parts = e.ToString().Split('=', 2);
+          var parts = e.Split('=', 2);
           if (parts.Length == 2)
             details.Environment[parts[0]] = parts[1];
         }
       }
 
       // Labels
-      if (spec?["Labels"] is JObject labels)
+      if (spec.HasValue)
       {
-        foreach (var prop in labels.Properties())
-          details.Labels[prop.Name] = prop.Value.ToString();
+        var labelsDict = spec.Value.GetStringDictionary("Labels");
+        foreach (var kv in labelsDict)
+          details.Labels[kv.Key] = kv.Value;
       }
 
-      // Timestamps
-      if (obj["CreatedAt"] != null)
-        DateTime.TryParse(obj.Value<string>("CreatedAt"), out var created);
-      if (obj["UpdatedAt"] != null)
-        DateTime.TryParse(obj.Value<string>("UpdatedAt"), out var updated);
+      // Timestamps — ServiceDetails does not yet have date fields; parse is a no-op placeholder
+      if (obj.Prop("CreatedAt").HasValue)
+        _ = DateTime.TryParse(obj.GetStringOrDefault("CreatedAt"), out _);
+      if (obj.Prop("UpdatedAt").HasValue)
+        _ = DateTime.TryParse(obj.GetStringOrDefault("UpdatedAt"), out _);
 
       return details;
     }

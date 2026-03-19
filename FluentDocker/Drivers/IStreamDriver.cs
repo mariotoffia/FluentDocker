@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
+using FluentDocker.Common;
 using FluentDocker.Model.Drivers;
 
 namespace FluentDocker.Drivers
@@ -278,10 +279,11 @@ namespace FluentDocker.Drivers
       {
         try
         { AttachedProcess.Kill(); }
-        catch { }
+        catch (Exception ex) { Logger.Log($"Process kill failed: {ex.Message}"); }
         AttachedProcess.Dispose();
       }
 
+      GC.SuppressFinalize(this);
       return ValueTask.CompletedTask;
     }
   }

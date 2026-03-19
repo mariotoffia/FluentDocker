@@ -7,6 +7,8 @@ using FluentDocker.Drivers.Podman.Cli;
 using FluentDocker.Model.Drivers;
 using Xunit;
 
+#pragma warning disable CS0618 // DriverComponent obsolete — intentional usage
+
 namespace FluentDocker.Tests.CoreTests.Driver.Podman
 {
   /// <summary>
@@ -73,8 +75,10 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
     public void SysCtlByType_BeforeInitialize_ThrowsInvalidOperation()
     {
       var pack = new PodmanCliDriverPack();
+#pragma warning disable CA2263 // Intentionally testing the non-generic SysCtl(string, Type) overload
       Assert.Throws<InvalidOperationException>(() =>
           pack.SysCtl("podman", typeof(IContainerDriver)));
+#pragma warning restore CA2263
     }
 
     [Fact]

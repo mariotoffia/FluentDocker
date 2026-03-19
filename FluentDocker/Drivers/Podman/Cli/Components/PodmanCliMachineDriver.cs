@@ -1,11 +1,12 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
+using FluentDocker.Common;
 using FluentDocker.Drivers.Podman.Cli.Binary;
 using FluentDocker.Model.Drivers;
-using Newtonsoft.Json.Linq;
 
 namespace FluentDocker.Drivers.Podman.Cli.Components
 {
@@ -26,8 +27,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
         DriverContext context, MachineInitConfig config,
         CancellationToken cancellationToken = default)
     {
-      if (config == null)
-        throw new ArgumentNullException(nameof(config));
+      ArgumentNullException.ThrowIfNull(config);
 
       var args = BuildInitArgs(config);
       return await ExecuteSimpleMachineCommandAsync(
@@ -193,8 +193,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
         DriverContext context, MachineSetConfig config, string name = null,
         CancellationToken cancellationToken = default)
     {
-      if (config == null)
-        throw new ArgumentNullException(nameof(config));
+      ArgumentNullException.ThrowIfNull(config);
 
       var args = BuildSetArgs(config, name);
       return await ExecuteSimpleMachineCommandAsync(
@@ -265,19 +264,17 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       try
       {
         var trimmed = json.Trim();
-        if (trimmed.StartsWith("["))
+        if (trimmed.StartsWith('['))
         {
-          var arr = JArray.Parse(trimmed);
-          machines.AddRange(arr.Select(ParseMachineInfoFromToken));
+          var root = JsonHelper.ParseElement(trimmed);
+          foreach (var token in root.EnumerateArraySafe())
+            machines.Add(ParseMachineInfoFromToken(token));
         }
         else
         {
           foreach (var line in trimmed.Split('\n',
               StringSplitOptions.RemoveEmptyEntries))
-          {
-            var obj = JObject.Parse(line.Trim());
-            machines.Add(ParseMachineInfoFromToken(obj));
-          }
+            machines.Add(ParseMachineInfoFromToken(JsonHelper.ParseElement(line.Trim())));
         }
       }
       catch (Exception ex)
@@ -289,35 +286,33 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       return machines;
     }
 
-    private static MachineInfo ParseMachineInfoFromToken(JToken token)
+    private static MachineInfo ParseMachineInfoFromToken(JsonElement token)
     {
       var info = new MachineInfo
       {
-        Name = (token["Name"] ?? token["name"])?.Value<string>(),
-        VMType = (token["VMType"] ?? token["vmType"] ?? token["vmtype"])?.Value<string>(),
-        Created = (token["Created"] ?? token["created"])?.Value<string>(),
-        LastUp = (token["LastUp"] ?? token["lastUp"] ?? token["lastup"])?.Value<string>()
+        Name = token.GetStringOrDefault("Name", "name"),
+        VMType = token.GetStringOrDefault("VMType")
+                 ?? token.GetStringOrDefault("vmType")
+                 ?? token.GetStringOrDefault("vmtype"),
+        Created = token.GetStringOrDefault("Created", "created"),
+        LastUp = token.GetStringOrDefault("LastUp")
+                 ?? token.GetStringOrDefault("lastUp")
+                 ?? token.GetStringOrDefault("lastup"),
+        Default = token.GetBoolOrDefault("Default") || token.GetBoolOrDefault("default"),
+        Running = token.GetBoolOrDefault("Running") || token.GetBoolOrDefault("running")
       };
 
-      var def = token["Default"] ?? token["default"];
-      if (def != null)
-        info.Default = def.Value<bool>();
+      var cpusProp = token.Prop("CPUs", "cpus") ?? token.Prop("Cpus");
+      if (cpusProp.HasValue && cpusProp.Value.ValueKind == JsonValueKind.Number)
+        info.Cpus = cpusProp.Value.GetInt32();
 
-      var running = token["Running"] ?? token["running"];
-      if (running != null)
-        info.Running = running.Value<bool>();
+      var memProp = token.Prop("Memory", "memory");
+      if (memProp.HasValue)
+        info.Memory = ParseLongValue(memProp.Value);
 
-      var cpus = token["CPUs"] ?? token["cpus"] ?? token["Cpus"];
-      if (cpus != null)
-        info.Cpus = cpus.Value<int>();
-
-      var mem = token["Memory"] ?? token["memory"];
-      if (mem != null)
-        info.Memory = ParseLongValue(mem);
-
-      var disk = token["DiskSize"] ?? token["diskSize"] ?? token["disk_size"];
-      if (disk != null)
-        info.DiskSize = ParseLongValue(disk);
+      var diskProp = token.Prop("DiskSize", "diskSize") ?? token.Prop("disk_size");
+      if (diskProp.HasValue)
+        info.DiskSize = ParseLongValue(diskProp.Value);
 
       return info;
     }
@@ -331,60 +326,66 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       try
       {
         var trimmed = json.Trim();
-        // inspect can return a JSON array with one element
-        JObject obj;
-        if (trimmed.StartsWith("["))
+        JsonElement obj;
+        if (trimmed.StartsWith('['))
         {
-          var arr = JArray.Parse(trimmed);
-          obj = arr.FirstOrDefault() as JObject;
-          if (obj == null)
+          var root = JsonHelper.ParseElement(trimmed);
+          using var enumerator = root.EnumerateArray();
+          if (!enumerator.MoveNext())
             return result;
+          obj = enumerator.Current;
         }
         else
         {
-          obj = JObject.Parse(trimmed);
+          obj = JsonHelper.ParseElement(trimmed);
         }
 
-        result.Name = (obj["Name"] ?? obj["name"])?.Value<string>();
-        result.Created = (obj["Created"] ?? obj["created"])?.Value<string>();
-        result.LastUp = (obj["LastUp"] ?? obj["lastUp"])?.Value<string>();
+        result.Name = obj.GetStringOrDefault("Name", "name");
+        result.Created = obj.GetStringOrDefault("Created", "created");
+        result.LastUp = obj.GetStringOrDefault("LastUp", "lastUp");
 
-        var state = obj["State"] ?? obj["state"];
-        if (state != null)
-          result.State = state.Type == JTokenType.String
-              ? state.Value<string>()
-              : state.ToString();
+        var state = obj.Prop("State", "state");
+        if (state.HasValue)
+          result.State = state.Value.ValueKind == JsonValueKind.String
+              ? state.Value.GetString()
+              : state.Value.GetRawText();
 
-        var rootful = obj["Rootful"] ?? obj["rootful"];
-        if (rootful != null)
-          result.Rootful = rootful.Value<bool>();
+        result.Rootful = obj.GetBoolOrDefault("Rootful") || obj.GetBoolOrDefault("rootful");
 
-        var configDir = obj["ConfigDir"] ?? obj["configDir"];
-        if (configDir is JObject cd)
-          result.ConfigDir = (cd["Path"] ?? cd["path"])?.Value<string>();
-        else if (configDir != null)
-          result.ConfigDir = configDir.Value<string>();
-
-        var resources = obj["Resources"] ?? obj["resources"];
-        if (resources is JObject res)
+        var configDir = obj.Prop("ConfigDir", "configDir");
+        if (configDir.HasValue)
         {
+          if (configDir.Value.ValueKind == JsonValueKind.Object)
+            result.ConfigDir = configDir.Value.GetStringOrDefault("Path")
+                               ?? configDir.Value.GetStringOrDefault("path");
+          else
+            result.ConfigDir = configDir.Value.GetStringValue();
+        }
+
+        var resources = obj.Prop("Resources", "resources");
+        if (resources.HasValue && resources.Value.ValueKind == JsonValueKind.Object)
+        {
+          var res = resources.Value;
           result.Resources = new MachineResources
           {
-            Cpus = (res["CPUs"] ?? res["cpus"] ?? res["Cpus"])?.Value<int>() ?? 0,
-            MemoryMiB = (res["Memory"] ?? res["memory"])?.Value<int>() ?? 0,
-            DiskSizeGiB = (res["DiskSize"] ?? res["diskSize"])?.Value<int>() ?? 0
+            Cpus = res.GetInt32OrDefault("CPUs",
+                     res.GetInt32OrDefault("cpus", res.GetInt32OrDefault("Cpus"))),
+            MemoryMiB = res.GetInt32OrDefault("Memory", res.GetInt32OrDefault("memory")),
+            DiskSizeGiB = res.GetInt32OrDefault("DiskSize", res.GetInt32OrDefault("diskSize"))
           };
         }
 
-        var connInfo = obj["ConnectionInfo"] ?? obj["connectionInfo"];
-        if (connInfo is JObject ci)
+        var connInfo = obj.Prop("ConnectionInfo", "connectionInfo");
+        if (connInfo.HasValue && connInfo.Value.ValueKind == JsonValueKind.Object)
         {
-          var socket = ci["PodmanSocket"] ?? ci["podmanSocket"];
-          if (socket is JObject sock)
+          var ci = connInfo.Value;
+          var socket = ci.Prop("PodmanSocket", "podmanSocket");
+          if (socket.HasValue && socket.Value.ValueKind == JsonValueKind.Object)
           {
             result.ConnectionInfo = new MachineConnectionInfo
             {
-              PodmanSocketPath = (sock["Path"] ?? sock["path"])?.Value<string>()
+              PodmanSocketPath = socket.Value.GetStringOrDefault("Path")
+                                 ?? socket.Value.GetStringOrDefault("path")
             };
           }
         }
@@ -406,29 +407,34 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
 
       try
       {
-        var obj = JObject.Parse(json.Trim());
+        var obj = JsonHelper.ParseElement(json.Trim());
 
-        var host = obj["Host"] ?? obj["host"];
-        if (host is JObject h)
+        var host = obj.Prop("Host", "host");
+        if (host.HasValue && host.Value.ValueKind == JsonValueKind.Object)
         {
-          result.Arch = (h["Arch"] ?? h["arch"])?.Value<string>();
-          result.OS = (h["OS"] ?? h["os"])?.Value<string>();
-          result.CurrentMachine = (h["CurrentMachine"] ?? h["currentMachine"])?.Value<string>();
-          result.VMType = (h["VMType"] ?? h["vmType"])?.Value<string>();
-          var num = h["NumberOfMachines"] ?? h["numberOfMachines"];
-          if (num != null)
-            result.NumberOfMachines = num.Value<int>();
+          var h = host.Value;
+          result.Arch = h.GetStringOrDefault("Arch", "arch");
+          result.OS = h.GetStringOrDefault("OS", "os");
+          result.CurrentMachine = h.GetStringOrDefault("CurrentMachine", "currentMachine");
+          result.VMType = h.GetStringOrDefault("VMType", "vmType");
+          var numProp = h.Prop("NumberOfMachines", "numberOfMachines");
+          if (numProp.HasValue && numProp.Value.ValueKind == JsonValueKind.Number)
+            result.NumberOfMachines = numProp.Value.GetInt32();
           result.MachineConfigDir =
-              (h["MachineConfigDir"] ?? h["machineConfigDir"])?.Value<string>();
+              h.GetStringOrDefault("MachineConfigDir", "machineConfigDir");
         }
 
-        var version = obj["Version"] ?? obj["version"];
-        if (version is JObject v)
+        var version = obj.Prop("Version", "version");
+        if (version.HasValue && version.Value.ValueKind == JsonValueKind.Object)
         {
+          var v = version.Value;
           result.ApiVersion =
-              (v["APIVersion"] ?? v["apiVersion"] ?? v["ApiVersion"])?.Value<string>();
+              v.GetStringOrDefault("APIVersion")
+              ?? v.GetStringOrDefault("apiVersion")
+              ?? v.GetStringOrDefault("ApiVersion");
           result.Version =
-              (v["Version"] ?? v["version"])?.Value<string>();
+              v.GetStringOrDefault("Version")
+              ?? v.GetStringOrDefault("version");
         }
       }
       catch (Exception ex)
@@ -440,11 +446,13 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       return result;
     }
 
-    private static long ParseLongValue(JToken token)
+    private static long ParseLongValue(JsonElement token)
     {
-      if (token.Type == JTokenType.String)
-        return long.TryParse(token.Value<string>(), out var v) ? v : 0;
-      return token.Value<long>();
+      if (token.ValueKind == JsonValueKind.String)
+        return long.TryParse(token.GetString(), out var v) ? v : 0;
+      if (token.ValueKind == JsonValueKind.Number)
+        return token.TryGetInt64(out var lv) ? lv : 0;
+      return 0;
     }
 
     #endregion

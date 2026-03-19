@@ -15,8 +15,8 @@ namespace FluentDocker.Tests.Integration.DockerApiDriver
   public abstract class DockerApiDriverTestBase : IAsyncLifetime
   {
     protected FluentDockerKernel Kernel { get; private set; } = null!;
-    protected string DriverId => "docker-api";
-    protected DriverContext Context => new DriverContext(DriverId);
+    protected static string DriverId => "docker-api";
+    protected static DriverContext Context => new DriverContext(DriverId);
 
     protected const string TestImage = "alpine:latest";
     protected const string BusyboxImage = "busybox:latest";
@@ -30,6 +30,7 @@ namespace FluentDocker.Tests.Integration.DockerApiDriver
 
     public ValueTask DisposeAsync()
     {
+      GC.SuppressFinalize(this);
       Kernel?.Dispose();
       return default;
     }
@@ -59,7 +60,7 @@ namespace FluentDocker.Tests.Integration.DockerApiDriver
       await ImageDriver.PullAsync(Context, name, tag);
     }
 
-    protected string UniqueName(string prefix = "test") =>
+    protected static string UniqueName(string prefix = "test") =>
         $"{prefix}-{Guid.NewGuid():N}"[..20];
   }
 }

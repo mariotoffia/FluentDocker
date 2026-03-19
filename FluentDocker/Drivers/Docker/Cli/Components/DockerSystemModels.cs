@@ -1,7 +1,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using FluentDocker.Drivers;
-using Newtonsoft.Json;
+using System.Text.Json.Serialization;
 
 namespace FluentDocker.Drivers.Docker.Cli.Components
 {
@@ -18,56 +18,56 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
   {
     private Dictionary<string, DockerRuntimeInfo> _dockerRuntimes = new Dictionary<string, DockerRuntimeInfo>();
 
-    [JsonProperty("Driver")]
+    [JsonPropertyName("Driver")]
     public string DockerStorageDriver
     {
       get => StorageBackend;
       set => StorageBackend = value;
     }
 
-    [JsonProperty("LoggingDriver")]
+    [JsonPropertyName("LoggingDriver")]
     public string DockerLoggingDriver
     {
       get => LoggingBackend;
       set => LoggingBackend = value;
     }
 
-    [JsonProperty("Name")]
+    [JsonPropertyName("Name")]
     public string DockerHostname
     {
       get => Hostname;
       set => Hostname = value;
     }
 
-    [JsonProperty("MemTotal")]
+    [JsonPropertyName("MemTotal")]
     public long DockerMemoryTotal
     {
       get => MemoryTotal;
       set => MemoryTotal = value;
     }
 
-    [JsonProperty("NCPU")]
+    [JsonPropertyName("NCPU")]
     public int DockerCpus
     {
       get => CPUs;
       set => CPUs = value;
     }
 
-    [JsonProperty("DockerRootDir")]
+    [JsonPropertyName("DockerRootDir")]
     public string DockerDataRoot
     {
       get => DataRoot;
       set => DataRoot = value;
     }
 
-    [JsonProperty("ServerVersion")]
+    [JsonPropertyName("ServerVersion")]
     public string DockerEngineVersion
     {
       get => EngineVersion;
       set => EngineVersion = value;
     }
 
-    [JsonProperty("Runtimes")]
+    [JsonPropertyName("Runtimes")]
     public Dictionary<string, DockerRuntimeInfo> DockerRuntimes
     {
       get => _dockerRuntimes;
@@ -78,7 +78,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
       }
     }
 
-    [JsonProperty("Swarm")]
+    [JsonPropertyName("Swarm")]
     public DockerSwarmInfo Swarm { get; set; }
 
     [JsonIgnore]
@@ -96,10 +96,10 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
   /// </summary>
   public class DockerRuntimeInfo
   {
-    [JsonProperty("path")]
+    [JsonPropertyName("path")]
     public string Path { get; set; }
 
-    [JsonProperty("runtimeArgs")]
+    [JsonPropertyName("runtimeArgs")]
     public List<string> RuntimeArgs { get; set; } = new List<string>();
   }
 
@@ -118,10 +118,10 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
   /// </summary>
   public class DockerVersionInfo : VersionInfo
   {
-    [JsonProperty("Client")]
+    [JsonPropertyName("Client")]
     public DockerVersionComponent Client { get; set; }
 
-    [JsonProperty("Server")]
+    [JsonPropertyName("Server")]
     public DockerVersionComponent Server { get; set; }
 
     /// <summary>
@@ -171,10 +171,10 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     public string Experimental { get; set; }
     public string KernelVersion { get; set; }
 
-    [JsonProperty("Platform")]
+    [JsonPropertyName("Platform")]
     public DockerVersionPlatform Platform { get; set; }
 
-    [JsonProperty("Components")]
+    [JsonPropertyName("Components")]
     public IList<DockerVersionComponentDetail> Components { get; set; } = new List<DockerVersionComponentDetail>();
 
     internal bool? IsExperimental => GetExperimentalFlag();

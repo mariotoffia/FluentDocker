@@ -141,6 +141,10 @@ namespace FluentDocker.Common
     /// <summary>
     /// Ensures the driver supports system operations.
     /// </summary>
+    /// <param name="kernel">The kernel to check.</param>
+    /// <param name="driverId">The driver ID.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <exception cref="CapabilityNotSupportedException">Thrown when system operations are not supported.</exception>
     public static async Task EnsureSystemSupportAsync(
         FluentDockerKernel kernel,
         string driverId,
@@ -158,6 +162,10 @@ namespace FluentDocker.Common
     /// <summary>
     /// Ensures the driver supports Kubernetes YAML operations.
     /// </summary>
+    /// <param name="kernel">The kernel to check.</param>
+    /// <param name="driverId">The driver ID.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <exception cref="CapabilityNotSupportedException">Thrown when Kubernetes operations are not supported.</exception>
     public static async Task EnsureKubernetesSupportAsync(
         FluentDockerKernel kernel,
         string driverId,
@@ -175,6 +183,10 @@ namespace FluentDocker.Common
     /// <summary>
     /// Ensures the driver supports Swarm stack operations.
     /// </summary>
+    /// <param name="kernel">The kernel to check.</param>
+    /// <param name="driverId">The driver ID.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <exception cref="CapabilityNotSupportedException">Thrown when stack operations are not supported.</exception>
     public static async Task EnsureStackSupportAsync(
         FluentDockerKernel kernel,
         string driverId,
@@ -192,6 +204,10 @@ namespace FluentDocker.Common
     /// <summary>
     /// Ensures the driver supports Swarm service operations.
     /// </summary>
+    /// <param name="kernel">The kernel to check.</param>
+    /// <param name="driverId">The driver ID.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <exception cref="CapabilityNotSupportedException">Thrown when service operations are not supported.</exception>
     public static async Task EnsureServiceSupportAsync(
         FluentDockerKernel kernel,
         string driverId,
@@ -209,6 +225,10 @@ namespace FluentDocker.Common
     /// <summary>
     /// Ensures the driver supports machine management.
     /// </summary>
+    /// <param name="kernel">The kernel to check.</param>
+    /// <param name="driverId">The driver ID.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <exception cref="CapabilityNotSupportedException">Thrown when machine operations are not supported.</exception>
     public static async Task EnsureMachineSupportAsync(
         FluentDockerKernel kernel,
         string driverId,
@@ -226,6 +246,10 @@ namespace FluentDocker.Common
     /// <summary>
     /// Ensures the driver supports manifest operations.
     /// </summary>
+    /// <param name="kernel">The kernel to check.</param>
+    /// <param name="driverId">The driver ID.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <exception cref="CapabilityNotSupportedException">Thrown when manifest operations are not supported.</exception>
     public static async Task EnsureManifestSupportAsync(
         FluentDockerKernel kernel,
         string driverId,
@@ -339,17 +363,29 @@ namespace FluentDocker.Common
   /// </summary>
   public enum DriverCapability
   {
+    /// <summary>Container lifecycle operations (create, start, stop, remove).</summary>
     Container,
+    /// <summary>Network management operations.</summary>
     Network,
+    /// <summary>Volume management operations.</summary>
     Volume,
+    /// <summary>Docker Compose / Podman Compose operations.</summary>
     Compose,
+    /// <summary>Image pull, build, and management operations.</summary>
     Image,
+    /// <summary>Pod management operations (Podman only).</summary>
     Pod,
+    /// <summary>System-level operations (info, version, ping).</summary>
     System,
+    /// <summary>Kubernetes YAML play/generate operations (Podman only).</summary>
     Kubernetes,
+    /// <summary>Docker Swarm stack operations.</summary>
     Stack,
+    /// <summary>Docker Swarm service operations.</summary>
     Service,
+    /// <summary>Machine management operations (docker-machine, podman machine).</summary>
     Machine,
+    /// <summary>Multi-architecture manifest operations.</summary>
     Manifest
   }
 }

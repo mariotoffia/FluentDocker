@@ -18,8 +18,8 @@ namespace FluentDocker.Tests.CoreTests.Driver
 
     [Theory]
     [InlineData("hello", "hello")]
-    [InlineData("", "")]
-    [InlineData(null, null)]
+    [InlineData("", "\"\"")]
+    [InlineData(null, "\"\"")]
     [InlineData("no-spaces", "no-spaces")]
     [InlineData("/usr/local/bin/docker", "/usr/local/bin/docker")]
     public void QuoteArgumentIfNeeded_NoSpaces_ReturnsUnchanged(string? input, string? expected)
@@ -159,12 +159,11 @@ namespace FluentDocker.Tests.CoreTests.Driver
 
     private static string InvokeBuildComposeArgs(ComposeFileConfig config)
     {
-      var driver = new DockerCliComposeDriver(null);
       var method = typeof(DockerCliComposeDriver).GetMethod(
           "BuildComposeArgs",
-          BindingFlags.NonPublic | BindingFlags.Instance);
+          BindingFlags.NonPublic | BindingFlags.Static);
       Assert.NotNull(method);
-      return (string)method.Invoke(driver, new object[] { config });
+      return (string)method.Invoke(null, new object[] { config });
     }
 
     #endregion

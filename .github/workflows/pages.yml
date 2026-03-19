@@ -7,6 +7,7 @@ on:
       - main
     paths:
       - 'docs/**'
+      - 'FluentDocker/**'
       - '.github/workflows/pages.yml'
   workflow_dispatch:
 
@@ -25,6 +26,19 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Generate API reference from XML docs
+        run: |
+          dotnet restore FluentDocker/FluentDocker.csproj
+          dotnet build FluentDocker/FluentDocker.csproj --configuration Release --no-restore
+          dotnet tool install -g xmldoc2md || true
+          mkdir -p docs/api-reference
+          xmldoc2md FluentDocker/bin/Release/net10.0/FluentDocker.dll docs/api-reference --github-pages
 
       - name: Setup Ruby
         uses: ruby/setup-ruby@v1

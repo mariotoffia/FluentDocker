@@ -13,7 +13,7 @@ namespace FluentDocker.Model.Common
     public EmbeddedUri(string embedded) : base(embedded)
     {
       var split = embedded.Split(':');
-      if (split[0].ToLower() != Prefix)
+      if (!string.Equals(split[0], Prefix, StringComparison.OrdinalIgnoreCase))
       {
         throw new ArgumentException($"Incorrect scheme (expecting: {Prefix}) for embedded uri - {embedded}",
           nameof(embedded));

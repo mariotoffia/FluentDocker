@@ -20,7 +20,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
   [Trait("Category", "Unit")]
   public class DriverScopedBuilderTests
   {
-    private async Task<(FluentDockerKernel kernel, MockDriverPack pack)> CreateKernelWithMockPack()
+    private static async Task<(FluentDockerKernel kernel, MockDriverPack pack)> CreateKernelWithMockPack()
     {
       var pack = new MockDriverPack();
       var kernel = new FluentDockerKernel();

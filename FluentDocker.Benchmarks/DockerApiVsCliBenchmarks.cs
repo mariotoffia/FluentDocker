@@ -21,6 +21,7 @@ namespace FluentDocker.Benchmarks
     private const string CliDriverId = "docker-cli";
     private const string ApiDriverId = "docker-api";
     private const string TestImage = "alpine:latest";
+    private static readonly string[] SleepCommand = ["sleep", "3600"];
 
     private FluentDockerKernel _cliKernel = null!;
     private FluentDockerKernel _apiKernel = null!;
@@ -67,7 +68,7 @@ namespace FluentDocker.Benchmarks
       var runResult = await _cliContainerDriver.RunAsync(_cliContext, new ContainerCreateConfig
       {
         Image = TestImage,
-        Command = new[] { "sleep", "3600" },
+        Command = SleepCommand,
         Detach = true
       });
 

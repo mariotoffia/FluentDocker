@@ -1,12 +1,13 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
+using FluentDocker.Common;
 using FluentDocker.Drivers.Docker.Api.Connection;
 using FluentDocker.Model.Drivers;
 using FluentDocker.Model.Volumes;
-using Newtonsoft.Json.Linq;
 
 namespace FluentDocker.Drivers.Docker.Api.Components
 {
@@ -30,7 +31,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
         Labels = config.Labels?.Count > 0 ? config.Labels : null
       };
 
-      var result = await PostJsonAsync<JObject>("/volumes/create", body, cancellationToken);
+      var result = await PostJsonElementAsync("/volumes/create", body, cancellationToken);
       if (!result.Success)
         return CommandResponse<VolumeCreateResult>.Fail(result.ErrorMessage,
             ErrorCodes.Volume.CreateFailed,
@@ -39,8 +40,8 @@ namespace FluentDocker.Drivers.Docker.Api.Components
 
       return CommandResponse<VolumeCreateResult>.Ok(new VolumeCreateResult
       {
-        Name = result.Data?.Value<string>("Name") ?? config.Name,
-        Driver = result.Data?.Value<string>("Driver") ?? config.Driver
+        Name = result.Data.GetStringOrDefault("Name") ?? config.Name,
+        Driver = result.Data.GetStringOrDefault("Driver") ?? config.Driver
       });
     }
 
@@ -70,7 +71,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
         path += $"?filters={System.Uri.EscapeDataString(filters)}";
       }
 
-      var result = await GetJsonAsync<JObject>(path, cancellationToken);
+      var result = await GetJsonElementAsync(path, cancellationToken);
       if (!result.Success)
         return CommandResponse<IList<Volume>>.Fail(result.ErrorMessage,
             MapHttpErrorCode(result.StatusCode),
@@ -78,9 +79,10 @@ namespace FluentDocker.Drivers.Docker.Api.Components
             result.StatusCode);
 
       var volumes = new List<Volume>();
-      if (result.Data?["Volumes"] is JArray arr)
+      var arr = result.Data.Prop("Volumes");
+      if (arr?.ValueKind == JsonValueKind.Array)
       {
-        volumes.AddRange(arr.Select(ParseVolume));
+        volumes.AddRange(arr.Value.EnumerateArray().Select(ParseVolume));
       }
 
       return CommandResponse<IList<Volume>>.Ok(volumes);
@@ -90,7 +92,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
         DriverContext context, string volumeName,
         CancellationToken cancellationToken = default)
     {
-      var result = await GetJsonAsync<JObject>($"/volumes/{volumeName}", cancellationToken);
+      var result = await GetJsonElementAsync($"/volumes/{volumeName}", cancellationToken);
       if (!result.Success)
         return CommandResponse<Volume>.Fail(result.ErrorMessage,
             MapNotFoundErrorCode(result.StatusCode, ErrorCodes.Volume.NotFound),
@@ -103,7 +105,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
     public async Task<CommandResponse<VolumePruneResult>> PruneAsync(
         DriverContext context, CancellationToken cancellationToken = default)
     {
-      var result = await PostJsonAsync<JObject>("/volumes/prune", null, cancellationToken);
+      var result = await PostJsonElementAsync("/volumes/prune", null, cancellationToken);
       if (!result.Success)
         return CommandResponse<VolumePruneResult>.Fail(result.ErrorMessage,
             ErrorCodes.Volume.PruneFailed,
@@ -112,28 +114,38 @@ namespace FluentDocker.Drivers.Docker.Api.Components
 
       var pruneResult = new VolumePruneResult
       {
-        SpaceReclaimed = result.Data?.Value<long?>("SpaceReclaimed") ?? 0
+        SpaceReclaimed = result.Data.GetInt64OrDefault("SpaceReclaimed")
       };
 
-      if (result.Data?["VolumesDeleted"] is JArray deleted)
+      var deleted = result.Data.Prop("VolumesDeleted");
+      if (deleted?.ValueKind == JsonValueKind.Array)
       {
-        pruneResult.VolumesDeleted = deleted.Select(v => v.Value<string>()).ToList();
+        pruneResult.VolumesDeleted = deleted.Value.EnumerateArray()
+            .Select(v => v.GetString()).ToList();
       }
 
       return CommandResponse<VolumePruneResult>.Ok(pruneResult);
     }
 
-    private static Volume ParseVolume(JToken token)
+    private static Volume ParseVolume(JsonElement token)
     {
-      if (token == null)
+      if (token.ValueKind != JsonValueKind.Object)
         return new Volume();
-      return new Volume
+      var volume = new Volume
       {
-        Name = token.Value<string>("Name"),
-        Driver = token.Value<string>("Driver"),
-        Created = token.Value<DateTime?>("CreatedAt") ?? DateTime.MinValue,
-        Scope = token.Value<string>("Scope")
+        Name = token.GetStringOrDefault("Name"),
+        Driver = token.GetStringOrDefault("Driver"),
+        Created = token.GetDateTimeOrDefault("CreatedAt"),
+        Scope = token.GetStringOrDefault("Scope"),
+        Mountpoint = token.GetStringOrDefault("Mountpoint")
       };
+      var labels = token.Prop("Labels");
+      if (labels?.ValueKind == JsonValueKind.Object)
+        volume.Labels = labels.Value.Deserialize<Dictionary<string, string>>();
+      var options = token.Prop("Options");
+      if (options?.ValueKind == JsonValueKind.Object)
+        volume.Options = options.Value.Deserialize<Dictionary<string, string>>();
+      return volume;
     }
   }
 }

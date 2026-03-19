@@ -6,7 +6,6 @@ using FluentDocker.Common;
 using FluentDocker.Kernel;
 using FluentDocker.Model.Containers;
 using FluentDocker.Services;
-using Newtonsoft.Json;
 
 namespace FluentDocker.Testing.Core
 {
@@ -27,7 +26,11 @@ namespace FluentDocker.Testing.Core
         FluentDockerKernel kernel,
         Action<IContainerBuilder> configure,
         DockerResourceOptions options = null)
-        : base(kernel, options) => _configure = configure ?? throw new ArgumentNullException(nameof(configure));
+        : base(kernel, options)
+    {
+      ArgumentNullException.ThrowIfNull(configure);
+      _configure = configure;
+    }
 
     /// <summary>
     /// The running container service, available after initialization.
@@ -74,7 +77,15 @@ namespace FluentDocker.Testing.Core
     {
       var builder = new Builder();
       builder.WithinDriver(DriverId, Kernel);
-      builder.UseContainer(_configure);
+      builder.UseContainer(c =>
+      {
+        _configure(c);
+        if (Options.EnableSessionLabels)
+        {
+          foreach (var label in SessionLabel.CreateLabels(Options.SessionId))
+            c.WithLabel(label.Key, label.Value);
+        }
+      });
 
       var results = await builder.BuildAsync(
           cleanupTimeout: Options.TeardownTimeout,
@@ -128,8 +139,9 @@ namespace FluentDocker.Testing.Core
           diag.Logs = TruncateLogLines(
               await Container.GetLogsAsync(false, cancellationToken));
         }
-        catch
+        catch (Exception ex)
         {
+          Logger.Log($"Container diagnostics log collection failed: {ex.Message}");
           diag.Logs = "(failed to collect logs)";
         }
 
@@ -137,11 +149,12 @@ namespace FluentDocker.Testing.Core
         {
           var info = await Container.InspectAsync(cancellationToken);
           diag.InspectPayload = info != null
-              ? JsonConvert.SerializeObject(info, Formatting.Indented)
+              ? JsonHelper.SerializeIndented(info)
               : null;
         }
-        catch
+        catch (Exception ex)
         {
+          Logger.Log($"Container diagnostics inspect collection failed: {ex.Message}");
           diag.InspectPayload = "(failed to collect inspect data)";
         }
       }

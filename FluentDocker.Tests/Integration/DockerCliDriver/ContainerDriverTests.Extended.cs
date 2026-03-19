@@ -16,7 +16,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
     [Fact]
     public async Task Wait_ShortLivedContainer_ReturnsZeroExitCode()
     {
-      string containerId = null;
+      string? containerId = null;
       try
       {
         var result = await ContainerDriver.RunAsync(Context, new ContainerCreateConfig
@@ -35,14 +35,14 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
       }
       finally
       {
-        await RemoveContainerAsync(containerId);
+        await RemoveContainerAsync(containerId!);
       }
     }
 
     [Fact]
     public async Task Wait_ContainerExitsWithError_ReturnsNonZeroExitCode()
     {
-      string containerId = null;
+      string? containerId = null;
       try
       {
         var result = await ContainerDriver.RunAsync(Context, new ContainerCreateConfig
@@ -61,14 +61,14 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
       }
       finally
       {
-        await RemoveContainerAsync(containerId);
+        await RemoveContainerAsync(containerId!);
       }
     }
 
     [Fact]
     public async Task Wait_AlreadyExitedContainer_ReturnsImmediately()
     {
-      string containerId = null;
+      string? containerId = null;
       try
       {
         var result = await ContainerDriver.RunAsync(Context, new ContainerCreateConfig
@@ -91,7 +91,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
       }
       finally
       {
-        await RemoveContainerAsync(containerId);
+        await RemoveContainerAsync(containerId!);
       }
     }
 
@@ -110,7 +110,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
     [Fact]
     public async Task Update_MemoryLimit_Succeeds()
     {
-      string containerId = null;
+      string? containerId = null;
       try
       {
         containerId = await RunContainerAsync(TestImage, new ContainerCreateConfig
@@ -129,14 +129,14 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
       }
       finally
       {
-        await RemoveContainerAsync(containerId);
+        await RemoveContainerAsync(containerId!);
       }
     }
 
     [Fact]
     public async Task Update_CpuShares_Succeeds()
     {
-      string containerId = null;
+      string? containerId = null;
       try
       {
         containerId = await RunContainerAsync(TestImage, new ContainerCreateConfig
@@ -151,14 +151,14 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
       }
       finally
       {
-        await RemoveContainerAsync(containerId);
+        await RemoveContainerAsync(containerId!);
       }
     }
 
     [Fact]
     public async Task Update_MultipleConstraints_Succeeds()
     {
-      string containerId = null;
+      string? containerId = null;
       try
       {
         containerId = await RunContainerAsync(TestImage, new ContainerCreateConfig
@@ -179,7 +179,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
       }
       finally
       {
-        await RemoveContainerAsync(containerId);
+        await RemoveContainerAsync(containerId!);
       }
     }
 
@@ -199,7 +199,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
     [Fact]
     public async Task Diff_AfterFileCreation_ShowsAddedFile()
     {
-      string containerId = null;
+      string? containerId = null;
       try
       {
         containerId = await RunContainerAsync(TestImage, new ContainerCreateConfig
@@ -222,14 +222,14 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
       }
       finally
       {
-        await RemoveContainerAsync(containerId);
+        await RemoveContainerAsync(containerId!);
       }
     }
 
     [Fact]
     public async Task Diff_AfterFileModification_ShowsChangedFile()
     {
-      string containerId = null;
+      string? containerId = null;
       try
       {
         containerId = await RunContainerAsync(TestImage, new ContainerCreateConfig
@@ -251,14 +251,14 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
       }
       finally
       {
-        await RemoveContainerAsync(containerId);
+        await RemoveContainerAsync(containerId!);
       }
     }
 
     [Fact]
     public async Task Diff_AfterFileDeletion_ShowsDeletedFile()
     {
-      string containerId = null;
+      string? containerId = null;
       try
       {
         containerId = await RunContainerAsync(TestImage, new ContainerCreateConfig
@@ -280,14 +280,14 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
       }
       finally
       {
-        await RemoveContainerAsync(containerId);
+        await RemoveContainerAsync(containerId!);
       }
     }
 
     [Fact]
     public async Task Diff_MultipleChanges_ReturnsAllTypes()
     {
-      string containerId = null;
+      string? containerId = null;
       try
       {
         containerId = await RunContainerAsync(TestImage, new ContainerCreateConfig
@@ -311,7 +311,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
       }
       finally
       {
-        await RemoveContainerAsync(containerId);
+        await RemoveContainerAsync(containerId!);
       }
     }
 
@@ -330,7 +330,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
     [Fact]
     public async Task Export_RunningContainer_CreatesArchive()
     {
-      string containerId = null;
+      string? containerId = null;
       var outputPath = Path.Combine(Path.GetTempPath(), $"export-{Guid.NewGuid():N}.tar");
       try
       {
@@ -349,7 +349,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
       }
       finally
       {
-        await RemoveContainerAsync(containerId);
+        await RemoveContainerAsync(containerId!);
         if (File.Exists(outputPath))
           File.Delete(outputPath);
       }
@@ -358,7 +358,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
     [Fact]
     public async Task Export_StoppedContainer_CreatesArchive()
     {
-      string containerId = null;
+      string? containerId = null;
       var outputPath = Path.Combine(Path.GetTempPath(), $"export-{Guid.NewGuid():N}.tar");
       try
       {
@@ -378,7 +378,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
       }
       finally
       {
-        await RemoveContainerAsync(containerId);
+        await RemoveContainerAsync(containerId!);
         if (File.Exists(outputPath))
           File.Delete(outputPath);
       }

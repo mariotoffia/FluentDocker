@@ -51,7 +51,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
         containerId = containerResult.Data.Id;
 
         // Remove container
-        await RemoveContainerAsync(containerId);
+        await RemoveContainerAsync(containerId!);
         containerId = null;
 
         // Assert - Volume should still exist
@@ -62,7 +62,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
       finally
       {
         if (containerId != null)
-          await RemoveContainerAsync(containerId);
+          await RemoveContainerAsync(containerId!);
         await RemoveVolumeAsync(volumeName);
       }
     }
@@ -93,7 +93,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
         // Remove container
         if (containerId != null)
         {
-          await RemoveContainerAsync(containerId);
+          await RemoveContainerAsync(containerId!);
           containerId = null;
         }
 
@@ -109,7 +109,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
       finally
       {
         if (containerId != null)
-          await RemoveContainerAsync(containerId);
+          await RemoveContainerAsync(containerId!);
         await RemoveVolumeAsync(volumeName);
       }
     }
@@ -156,7 +156,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
       finally
       {
         if (containerId != null)
-          await RemoveContainerAsync(containerId);
+          await RemoveContainerAsync(containerId!);
         await RemoveVolumeAsync(volumeName);
       }
     }
@@ -299,7 +299,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
       finally
       {
         if (containerId != null)
-          await RemoveContainerAsync(containerId);
+          await RemoveContainerAsync(containerId!);
       }
     }
 

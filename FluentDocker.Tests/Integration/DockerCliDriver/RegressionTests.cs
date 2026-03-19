@@ -128,7 +128,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
       finally
       {
         if (containerId != null)
-          await RemoveContainerAsync(containerId);
+          await RemoveContainerAsync(containerId!);
       }
     }
 
@@ -296,7 +296,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
       finally
       {
         if (containerId != null)
-          await RemoveContainerAsync(containerId);
+          await RemoveContainerAsync(containerId!);
         await RemoveVolumeAsync(volumeName);
       }
     }
@@ -386,7 +386,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
 
     #region Helper Methods
 
-    private string GetResourcePath(string relativePath)
+    private static string GetResourcePath(string relativePath)
     {
       var basePath = Path.GetDirectoryName(typeof(RegressionTests).Assembly.Location);
       var resourcePath = Path.Combine(basePath ?? "", "Resources", relativePath);
@@ -399,7 +399,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
       return resourcePath;
     }
 
-    private async Task<bool> WaitForHttpAsync(string url, TimeSpan timeout)
+    private static async Task<bool> WaitForHttpAsync(string url, TimeSpan timeout)
     {
       var endTime = DateTime.UtcNow + timeout;
       using var client = new System.Net.Http.HttpClient { Timeout = TimeSpan.FromSeconds(5) };

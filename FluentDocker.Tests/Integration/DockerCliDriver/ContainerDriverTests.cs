@@ -18,7 +18,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
     [Fact]
     public async Task Run_WithoutArguments_CreatesAndStartsContainer()
     {
-      string containerId = null;
+      string? containerId = null;
       try
       {
         // Act
@@ -36,7 +36,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
       }
       finally
       {
-        await RemoveContainerAsync(containerId);
+        await RemoveContainerAsync(containerId!);
       }
     }
 
@@ -56,7 +56,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
     [Fact]
     public async Task List_WithRunningContainer_ReturnsContainer()
     {
-      string containerId = null;
+      string? containerId = null;
       try
       {
         // Arrange
@@ -72,14 +72,14 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
       }
       finally
       {
-        await RemoveContainerAsync(containerId);
+        await RemoveContainerAsync(containerId!);
       }
     }
 
     [Fact]
     public async Task Inspect_RunningContainer_ReturnsDetails()
     {
-      string containerId = null;
+      string? containerId = null;
       try
       {
         // Arrange
@@ -96,14 +96,14 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
       }
       finally
       {
-        await RemoveContainerAsync(containerId);
+        await RemoveContainerAsync(containerId!);
       }
     }
 
     [Fact]
     public async Task Stop_RunningContainer_StopsSuccessfully()
     {
-      string containerId = null;
+      string? containerId = null;
       try
       {
         // Arrange
@@ -121,14 +121,14 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
       }
       finally
       {
-        await RemoveContainerAsync(containerId);
+        await RemoveContainerAsync(containerId!);
       }
     }
 
     [Fact]
     public async Task Start_StoppedContainer_StartsSuccessfully()
     {
-      string containerId = null;
+      string? containerId = null;
       try
       {
         // Arrange
@@ -146,14 +146,14 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
       }
       finally
       {
-        await RemoveContainerAsync(containerId);
+        await RemoveContainerAsync(containerId!);
       }
     }
 
     [Fact]
     public async Task Pause_RunningContainer_PausesSuccessfully()
     {
-      string containerId = null;
+      string? containerId = null;
       try
       {
         // Arrange
@@ -170,14 +170,14 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
       }
       finally
       {
-        await RemoveContainerAsync(containerId);
+        await RemoveContainerAsync(containerId!);
       }
     }
 
     [Fact]
     public async Task Unpause_PausedContainer_ResumesSuccessfully()
     {
-      string containerId = null;
+      string? containerId = null;
       try
       {
         // Arrange
@@ -196,14 +196,14 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
       }
       finally
       {
-        await RemoveContainerAsync(containerId);
+        await RemoveContainerAsync(containerId!);
       }
     }
 
     [Fact]
     public async Task Run_WithEnvironmentVariables_SetsEnvironment()
     {
-      string containerId = null;
+      string? containerId = null;
       try
       {
         // Act
@@ -229,14 +229,14 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
       }
       finally
       {
-        await RemoveContainerAsync(containerId);
+        await RemoveContainerAsync(containerId!);
       }
     }
 
     [Fact]
     public async Task Run_WithExplicitPortMapping_MapsPort()
     {
-      string containerId = null;
+      string? containerId = null;
       try
       {
         // Act
@@ -262,14 +262,14 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
       }
       finally
       {
-        await RemoveContainerAsync(containerId);
+        await RemoveContainerAsync(containerId!);
       }
     }
 
     [Fact]
     public async Task GetLogs_RunningContainer_ReturnsLogs()
     {
-      string containerId = null;
+      string? containerId = null;
       try
       {
         // Arrange - run container that produces output
@@ -293,7 +293,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
       }
       finally
       {
-        await RemoveContainerAsync(containerId);
+        await RemoveContainerAsync(containerId!);
       }
     }
 

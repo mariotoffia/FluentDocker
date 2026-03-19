@@ -19,7 +19,7 @@ namespace FluentDocker.Model.Containers
 
       foreach (var column in Columns)
       {
-        sb.Append(column).Append("\t");
+        sb.Append(column).Append('\t');
       }
 
       sb.AppendLine();
@@ -35,7 +35,7 @@ namespace FluentDocker.Model.Containers
       {
         foreach (var column in row.FullRow)
         {
-          sb.Append(column).Append("\t");
+          sb.Append(column).Append('\t');
         }
 
         sb.AppendLine();

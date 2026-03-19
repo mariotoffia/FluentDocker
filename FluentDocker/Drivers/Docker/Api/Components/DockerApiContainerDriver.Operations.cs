@@ -4,12 +4,12 @@ using System.IO;
 using System.Linq;
 using System.Net.Http;
 using System.Text;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
+using FluentDocker.Common;
 using FluentDocker.Drivers.Docker.Api.ApiModels;
 using FluentDocker.Model.Drivers;
-using Newtonsoft.Json;
-using Newtonsoft.Json.Linq;
 using SharpCompress.Common;
 using SharpCompress.Readers;
 using SharpCompress.Writers;
@@ -39,15 +39,16 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       try
       {
         using var stream = await GetRawStreamAsync(path, cancellationToken);
-        using var reader = new StreamReader(stream, Encoding.UTF8);
-        var logs = await reader.ReadToEndAsync(cancellationToken);
-        return CommandResponse<string>.Ok(StripDockerStreamHeaders(logs));
+        using var ms = new MemoryStream();
+        await stream.CopyToAsync(ms, cancellationToken);
+        var logs = StripDockerStreamHeaders(ms.ToArray());
+        return CommandResponse<string>.Ok(logs);
       }
       catch (Exception ex)
       {
         return CommandResponse<string>.Fail(
             $"Failed to get logs for container '{containerId}': {ex.Message}",
-            ErrorCodes.Container.AttachFailed,
+            ErrorCodes.Container.LogsFailed,
             CreateErrorContext($"GET /containers/{containerId}/logs", 0));
       }
     }
@@ -65,7 +66,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       if (!string.IsNullOrEmpty(psOptions))
         path += $"?ps_args={Uri.EscapeDataString(psOptions)}";
 
-      var result = await GetJsonAsync<JObject>(path, cancellationToken);
+      var result = await GetJsonElementAsync(path, cancellationToken);
       if (!result.Success)
         return CommandResponse<ContainerProcesses>.Fail(result.ErrorMessage,
             MapNotFoundErrorCode(result.StatusCode, ErrorCodes.Container.TopFailed),
@@ -74,13 +75,17 @@ namespace FluentDocker.Drivers.Docker.Api.Components
             result.StatusCode);
 
       var processes = new ContainerProcesses();
-      if (result.Data?["Titles"] is JArray titles)
-        processes.Titles = titles.Select(t => t.Value<string>()).ToList();
-      if (result.Data?["Processes"] is JArray rows)
+      var data = result.Data;
+      var titlesEl = data.Prop("Titles");
+      if (titlesEl?.ValueKind == JsonValueKind.Array)
+        processes.Titles = titlesEl.Value.EnumerateArray()
+            .Select(t => t.GetString()).ToList();
+      var rowsEl = data.Prop("Processes");
+      if (rowsEl?.ValueKind == JsonValueKind.Array)
       {
-        processes.Processes = rows
-            .Select(row => row is JArray cols
-                ? cols.Select(c => c.Value<string>()).ToList()
+        processes.Processes = rowsEl.Value.EnumerateArray()
+            .Select(row => row.ValueKind == JsonValueKind.Array
+                ? row.EnumerateArray().Select(c => c.GetString()).ToList()
                 : new List<string>())
             .ToList();
       }
@@ -97,7 +102,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
         CancellationToken cancellationToken = default)
     {
       var path = $"/containers/{Uri.EscapeDataString(containerId)}/changes";
-      var result = await GetJsonAsync<JArray>(path, cancellationToken);
+      var result = await GetJsonElementAsync(path, cancellationToken);
       if (!result.Success)
         return CommandResponse<IList<FilesystemChange>>.Fail(result.ErrorMessage,
             MapNotFoundErrorCode(result.StatusCode, ErrorCodes.Container.DiffFailed),
@@ -106,14 +111,14 @@ namespace FluentDocker.Drivers.Docker.Api.Components
             result.StatusCode);
 
       var changes = new List<FilesystemChange>();
-      if (result.Data != null)
+      if (result.Data.ValueKind == JsonValueKind.Array)
       {
-        foreach (var item in result.Data)
+        foreach (var item in result.Data.EnumerateArray())
         {
           changes.Add(new FilesystemChange
           {
-            Path = item.Value<string>("Path"),
-            Kind = MapDiffKind(item.Value<int>("Kind"))
+            Path = item.GetStringOrDefault("Path"),
+            Kind = MapDiffKind(item.GetInt32OrDefault("Kind"))
           });
         }
       }
@@ -179,7 +184,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       try
       {
         var startContent = new StringContent(
-            JsonConvert.SerializeObject(startRequest),
+            JsonHelper.Serialize(startRequest),
             Encoding.UTF8, "application/json");
         using var stream = await Connection.PostStreamAsync(
             $"/exec/{execId}/start", startContent, cancellationToken);
@@ -282,7 +287,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
         var extractPath = containerPath;
         string tarEntryName = null;
 
-        if (File.Exists(hostPath) && !containerPath.EndsWith("/"))
+        if (File.Exists(hostPath) && !containerPath.EndsWith('/'))
         {
           var parentDir = containerPath.Contains('/')
               ? containerPath[..containerPath.LastIndexOf('/')]
@@ -459,7 +464,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
         request.RestartPolicy = new RestartPolicyRequest { Name = config.RestartPolicy };
 
       var path = $"/containers/{Uri.EscapeDataString(containerId)}/update";
-      var result = await PostJsonAsync<JObject>(path, request, cancellationToken);
+      var result = await PostJsonElementAsync(path, request, cancellationToken);
       if (!result.Success)
         return CommandResponse<Unit>.Fail(result.ErrorMessage,
             MapNotFoundErrorCode(result.StatusCode, ErrorCodes.Container.UpdateFailed),

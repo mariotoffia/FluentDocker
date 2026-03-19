@@ -121,7 +121,7 @@ namespace FluentDocker.Tests.CoreTests.Model
       var escaped = path.EscapePath();
 
       // Paths without spaces should not be quoted
-      Assert.False(escaped.Rendered.StartsWith("\""));
+      Assert.False(escaped.Rendered.StartsWith('"'));
     }
 
     [Fact]
@@ -153,7 +153,7 @@ namespace FluentDocker.Tests.CoreTests.Model
     [Fact]
     public void NullString_ImplicitConversion_ReturnsNull()
     {
-      string nullString = null;
+      string? nullString = null;
       TemplateString ts = nullString;
       Assert.Null(ts);
     }
@@ -162,7 +162,7 @@ namespace FluentDocker.Tests.CoreTests.Model
     public void EnvironmentVariable_IsRendered()
     {
       // Set a test environment variable
-      var testKey = "FD_TEST_VAR_" + Guid.NewGuid().ToString("N").Substring(0, 8);
+      var testKey = string.Concat("FD_TEST_VAR_", Guid.NewGuid().ToString("N").AsSpan(0, 8));
       var testValue = "test_value_123";
 
       try

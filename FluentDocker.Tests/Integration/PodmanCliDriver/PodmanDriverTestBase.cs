@@ -19,8 +19,8 @@ namespace FluentDocker.Tests.Integration.PodmanCliDriver
   public abstract class PodmanDriverTestBase : IAsyncLifetime
   {
     protected FluentDockerKernel Kernel { get; private set; } = null!;
-    protected string DriverId => "podman";
-    protected DriverContext Context => new DriverContext(DriverId);
+    protected static string DriverId => "podman";
+    protected static DriverContext Context => new DriverContext(DriverId);
 
     protected const string TestImage = "alpine:latest";
     protected const string NginxImage = "nginx:alpine";
@@ -50,6 +50,7 @@ namespace FluentDocker.Tests.Integration.PodmanCliDriver
 
     public ValueTask DisposeAsync()
     {
+      GC.SuppressFinalize(this);
       Kernel?.Dispose();
       return default;
     }
@@ -137,7 +138,7 @@ namespace FluentDocker.Tests.Integration.PodmanCliDriver
         await ContainerDriver.RemoveAsync(Context, containerId, force: true, removeVolumes: true);
     }
 
-    protected string UniqueName(string prefix = "test") =>
+    protected static string UniqueName(string prefix = "test") =>
         $"{prefix}-{Guid.NewGuid():N}"[..20];
 
     /// <summary>

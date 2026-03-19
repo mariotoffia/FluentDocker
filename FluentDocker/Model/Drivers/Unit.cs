@@ -9,7 +9,7 @@ namespace FluentDocker.Model.Drivers
     /// <summary>
     /// Default instance of Unit.
     /// </summary>
-    public static readonly Unit Default = new Unit();
+    public static readonly Unit Default;
 
     /// <summary>
     /// Returns a string representation of this Unit.
@@ -25,5 +25,8 @@ namespace FluentDocker.Model.Drivers
     /// Returns the hash code for this Unit.
     /// </summary>
     public override int GetHashCode() => 0;
+
+    public static bool operator ==(Unit left, Unit right) => true;
+    public static bool operator !=(Unit left, Unit right) => false;
   }
 }

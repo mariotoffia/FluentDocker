@@ -77,6 +77,11 @@ namespace FluentDocker.Drivers.Podman.Cli.Binary
     }
 
     /// <inheritdoc />
+    /// <remarks>
+    /// Returns the binary path with sudo prefix when configured.
+    /// The sudo password is never included in the returned string for security reasons.
+    /// Use <see cref="Resolve"/> to access the full <see cref="PodmanBinary"/> with sudo details.
+    /// </remarks>
     public string ResolveBinaryPath(string podmanCommand)
     {
       var binary = Resolve(podmanCommand);
@@ -84,17 +89,9 @@ namespace FluentDocker.Drivers.Podman.Cli.Binary
       if (IsWindows() || binary.Sudo == SudoMechanism.None)
         return binary.FqPath;
 
-      var cmd = binary.Sudo == SudoMechanism.NoPassword
+      return binary.Sudo == SudoMechanism.NoPassword
           ? $"sudo {binary.FqPath}"
-          : $"echo {binary.SudoPassword} | sudo -S {binary.FqPath}";
-
-      if (string.IsNullOrEmpty(cmd))
-      {
-        throw new FluentDockerException(
-            $"Could not find {podmanCommand} - make sure it is on your path.");
-      }
-
-      return cmd;
+          : $"sudo -S {binary.FqPath}";
     }
 
     private static IEnumerable<PodmanBinary> ResolveFromPaths(
@@ -123,7 +120,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Binary
           {
             list.AddRange(from file in Directory.GetFiles(path, "podman*.*")
                           let f = Path.GetFileName(file.ToLower())
-                          where f != null && (f.Equals("podman.exe") || f.Equals("podman-remote.exe"))
+                          where f != null && (f.Equals("podman.exe", StringComparison.Ordinal) || f.Equals("podman-remote.exe", StringComparison.Ordinal))
                           select new PodmanBinary(path, f, sudo, password));
             continue;
           }
@@ -131,7 +128,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Binary
           list.AddRange(from file in Directory.GetFiles(path, "podman*")
                         let f = Path.GetFileName(file)
                         let f2 = f.ToLower()
-                        where f2.Equals("podman") || f2.Equals("podman-remote")
+                        where f2.Equals("podman", StringComparison.Ordinal) || f2.Equals("podman-remote", StringComparison.Ordinal)
                         select new PodmanBinary(path, f, sudo, password));
         }
         catch (Exception e)

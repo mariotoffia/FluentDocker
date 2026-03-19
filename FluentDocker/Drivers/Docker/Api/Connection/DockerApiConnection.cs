@@ -9,6 +9,7 @@ using System.Runtime.InteropServices;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
+using FluentDocker.Common;
 
 namespace FluentDocker.Drivers.Docker.Api.Connection
 {
@@ -20,12 +21,14 @@ namespace FluentDocker.Drivers.Docker.Api.Connection
   {
     private readonly HttpClient _httpClient;
     private readonly DockerApiConnectionConfig _config;
+    private readonly SemaphoreSlim _negotiationLock = new(1, 1);
     private string _apiVersion;
-    private bool _versionNegotiated;
+    private volatile bool _versionNegotiated;
 
     public DockerApiConnection(DockerApiConnectionConfig config)
     {
-      _config = config ?? throw new ArgumentNullException(nameof(config));
+      ArgumentNullException.ThrowIfNull(config);
+      _config = config;
 
       var host = config.Host ?? GetDefaultHost();
       var (handler, baseAddress) = CreateHandler(host, config);
@@ -94,15 +97,18 @@ namespace FluentDocker.Drivers.Docker.Api.Connection
         var response = await _httpClient.GetAsync("/_ping", ct);
         return response.IsSuccessStatusCode;
       }
-      catch
+      catch (Exception ex)
       {
+        Logger.Log($"Docker API ping failed: {ex.Message}");
         return false;
       }
     }
 
     public ValueTask DisposeAsync()
     {
+      _negotiationLock.Dispose();
       _httpClient.Dispose();
+      GC.SuppressFinalize(this);
       return ValueTask.CompletedTask;
     }
 
@@ -110,7 +116,19 @@ namespace FluentDocker.Drivers.Docker.Api.Connection
     {
       if (!_versionNegotiated && string.IsNullOrEmpty(_apiVersion))
       {
-        await NegotiateApiVersionAsync(ct);
+        await _negotiationLock.WaitAsync(ct);
+        try
+        {
+          // Double-check after acquiring the lock.
+          if (!_versionNegotiated && string.IsNullOrEmpty(_apiVersion))
+          {
+            await NegotiateApiVersionAsync(ct);
+          }
+        }
+        finally
+        {
+          _negotiationLock.Release();
+        }
       }
 
       return string.IsNullOrEmpty(_apiVersion) ? path : $"/v{_apiVersion}{path}";
@@ -133,9 +151,10 @@ namespace FluentDocker.Drivers.Docker.Api.Connection
         // Also check Docker-Experimental and OSType headers for diagnostics
         _versionNegotiated = true;
       }
-      catch
+      catch (Exception ex)
       {
         // If negotiation fails, proceed without version prefix
+        Logger.Log($"Docker API version negotiation failed ({ex.Message}); proceeding without version prefix");
         _versionNegotiated = true;
       }
     }
@@ -229,7 +248,9 @@ namespace FluentDocker.Drivers.Docker.Api.Connection
 
           if (!config.VerifyTls)
           {
+#pragma warning disable CA5359 // Intentional: user opted out of TLS verification via VerifyTls=false
             sslOptions.RemoteCertificateValidationCallback = (_, _, _, _) => true;
+#pragma warning restore CA5359
           }
           else
           {
@@ -256,7 +277,9 @@ namespace FluentDocker.Drivers.Docker.Api.Connection
         }
         else if (!config.VerifyTls)
         {
+#pragma warning disable CA5359 // Intentional: user opted out of TLS verification via VerifyTls=false
           sslOptions.RemoteCertificateValidationCallback = (_, _, _, _) => true;
+#pragma warning restore CA5359
         }
 
         handler.SslOptions = sslOptions;

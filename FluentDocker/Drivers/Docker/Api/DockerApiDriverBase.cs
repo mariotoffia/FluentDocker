@@ -7,10 +7,11 @@ using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Text.Json;
+using FluentDocker.Common;
 using FluentDocker.Drivers.Docker.Api.ApiModels;
 using FluentDocker.Drivers.Docker.Api.Connection;
 using FluentDocker.Model.Drivers;
-using Newtonsoft.Json;
 
 namespace FluentDocker.Drivers.Docker.Api
 {
@@ -23,11 +24,16 @@ namespace FluentDocker.Drivers.Docker.Api
     protected IDockerApiConnection Connection { get; private set; }
     protected DriverContext Context { get; private set; }
 
-    protected DockerApiDriverBase(IDockerApiConnection connection) => Connection = connection ?? throw new ArgumentNullException(nameof(connection));
+    protected DockerApiDriverBase(IDockerApiConnection connection)
+    {
+      ArgumentNullException.ThrowIfNull(connection);
+      Connection = connection;
+    }
 
     public virtual void Initialize(DriverContext context)
     {
-      Context = context ?? throw new ArgumentNullException(nameof(context));
+      ArgumentNullException.ThrowIfNull(context);
+      Context = context;
     }
 
     #region JSON Request/Response Helpers
@@ -53,7 +59,7 @@ namespace FluentDocker.Drivers.Docker.Api
       {
         var content = body != null
             ? new StringContent(
-                JsonConvert.SerializeObject(body), Encoding.UTF8, "application/json")
+                JsonHelper.Serialize(body), Encoding.UTF8, "application/json")
             : null;
 
         var response = await Connection.PostAsync(path, content, ct);
@@ -72,7 +78,7 @@ namespace FluentDocker.Drivers.Docker.Api
       {
         var content = body != null
             ? new StringContent(
-                JsonConvert.SerializeObject(body), Encoding.UTF8, "application/json")
+                JsonHelper.Serialize(body), Encoding.UTF8, "application/json")
             : null;
 
         var response = await Connection.PostAsync(path, content, ct);
@@ -117,6 +123,65 @@ namespace FluentDocker.Drivers.Docker.Api
       }
     }
 
+    protected async Task<ApiResult<JsonElement>> GetJsonElementAsync(
+        string path, CancellationToken ct)
+    {
+      try
+      {
+        var response = await Connection.GetAsync(path, ct);
+        var body = await response.Content.ReadAsStringAsync(ct);
+
+        if (response.IsSuccessStatusCode)
+        {
+          if (string.IsNullOrWhiteSpace(body))
+            return ApiResult<JsonElement>.Ok(default);
+          var element = JsonHelper.ParseElement(body);
+          return ApiResult<JsonElement>.Ok(element);
+        }
+
+        var errorMessage = ExtractErrorMessage(body) ??
+            $"Docker API returned {(int)response.StatusCode}: {response.ReasonPhrase}";
+        return ApiResult<JsonElement>.Failure((int)response.StatusCode, errorMessage, body);
+      }
+      catch (Exception ex) when (IsConnectionError(ex))
+      {
+        return ApiResult<JsonElement>.Failure((int)HttpStatusCode.ServiceUnavailable,
+            $"Cannot connect to Docker daemon: {ex.Message}");
+      }
+    }
+
+    protected async Task<ApiResult<JsonElement>> PostJsonElementAsync(
+        string path, object body, CancellationToken ct)
+    {
+      try
+      {
+        var content = body != null
+            ? new StringContent(
+                JsonHelper.Serialize(body), Encoding.UTF8, "application/json")
+            : null;
+
+        var response = await Connection.PostAsync(path, content, ct);
+        var responseBody = await response.Content.ReadAsStringAsync(ct);
+
+        if (response.IsSuccessStatusCode)
+        {
+          if (string.IsNullOrWhiteSpace(responseBody))
+            return ApiResult<JsonElement>.Ok(default);
+          var element = JsonHelper.ParseElement(responseBody);
+          return ApiResult<JsonElement>.Ok(element);
+        }
+
+        var errorMessage = ExtractErrorMessage(responseBody) ??
+            $"Docker API returned {(int)response.StatusCode}: {response.ReasonPhrase}";
+        return ApiResult<JsonElement>.Failure((int)response.StatusCode, errorMessage, responseBody);
+      }
+      catch (Exception ex) when (IsConnectionError(ex))
+      {
+        return ApiResult<JsonElement>.Failure((int)HttpStatusCode.ServiceUnavailable,
+            $"Cannot connect to Docker daemon: {ex.Message}");
+      }
+    }
+
     protected async Task<Stream> GetRawStreamAsync(string path, CancellationToken ct)
     {
       return await Connection.GetStreamAsync(path, ct);
@@ -130,8 +195,9 @@ namespace FluentDocker.Drivers.Docker.Api
       {
         stream = await Connection.GetStreamAsync(path, ct);
       }
-      catch
+      catch (Exception ex)
       {
+        Logger.Log($"NDJSON stream open failed: {ex.Message}");
         yield break;
       }
 
@@ -147,8 +213,9 @@ namespace FluentDocker.Drivers.Docker.Api
         {
           yield break;
         }
-        catch
+        catch (Exception ex)
         {
+          Logger.Log($"NDJSON stream read failed: {ex.Message}");
           yield break;
         }
 
@@ -168,8 +235,9 @@ namespace FluentDocker.Drivers.Docker.Api
       {
         stream = await Connection.PostStreamAsync(path, content, ct);
       }
-      catch
+      catch (Exception ex)
       {
+        Logger.Log($"NDJSON POST stream open failed: {ex.Message}");
         yield break;
       }
 
@@ -185,8 +253,9 @@ namespace FluentDocker.Drivers.Docker.Api
         {
           yield break;
         }
-        catch
+        catch (Exception ex)
         {
+          Logger.Log($"NDJSON POST stream read failed: {ex.Message}");
           yield break;
         }
 
@@ -202,7 +271,7 @@ namespace FluentDocker.Drivers.Docker.Api
 
     #region Response Handling
 
-    private async Task<ApiResult<T>> HandleResponseAsync<T>(
+    private static async Task<ApiResult<T>> HandleResponseAsync<T>(
         HttpResponseMessage response, CancellationToken ct)
     {
       var body = await response.Content.ReadAsStringAsync(ct);
@@ -212,7 +281,7 @@ namespace FluentDocker.Drivers.Docker.Api
         if (string.IsNullOrWhiteSpace(body))
           return ApiResult<T>.Ok(default);
 
-        var data = JsonConvert.DeserializeObject<T>(body);
+        var data = JsonSerializer.Deserialize<T>(body, JsonHelper.CaseInsensitiveOptions);
         return ApiResult<T>.Ok(data);
       }
 
@@ -221,7 +290,7 @@ namespace FluentDocker.Drivers.Docker.Api
       return ApiResult<T>.Failure((int)response.StatusCode, errorMessage, body);
     }
 
-    private async Task<ApiResult> HandleResponseAsync(
+    private static async Task<ApiResult> HandleResponseAsync(
         HttpResponseMessage response, CancellationToken ct)
     {
       if (response.IsSuccessStatusCode || response.StatusCode == HttpStatusCode.NotModified)
@@ -239,11 +308,12 @@ namespace FluentDocker.Drivers.Docker.Api
         return null;
       try
       {
-        var error = JsonConvert.DeserializeObject<DockerApiErrorResponse>(body);
+        var error = JsonHelper.TryDeserialize<DockerApiErrorResponse>(body);
         return error?.Message;
       }
-      catch
+      catch (Exception ex)
       {
+        Logger.Log($"Error response JSON parsing failed: {ex.Message}");
         return body.Length > 500 ? body[..500] : body;
       }
     }
@@ -265,7 +335,7 @@ namespace FluentDocker.Drivers.Docker.Api
       };
     }
 
-    protected string MapNotFoundErrorCode(int statusCode, string defaultErrorCode)
+    protected static string MapNotFoundErrorCode(int statusCode, string defaultErrorCode)
     {
       return statusCode == 404 ? defaultErrorCode : MapHttpErrorCode(statusCode);
     }
@@ -293,23 +363,34 @@ namespace FluentDocker.Drivers.Docker.Api
     #region Stream Helpers
 
     /// <summary>
-    /// Strips Docker multiplexed stream 8-byte header frames from raw log output.
+    /// Strips Docker multiplexed stream 8-byte header frames from raw log bytes.
     /// Frame format: [1B stream type][3B padding][4B big-endian size][payload].
+    /// Operates on raw bytes to avoid UTF-8 round-trip corruption of binary headers.
+    /// Uses Span-based processing for minimal allocations.
     /// </summary>
-    protected static string StripDockerStreamHeaders(string raw)
+    protected static string StripDockerStreamHeaders(byte[] bytes)
     {
-      if (string.IsNullOrEmpty(raw))
+      if (bytes == null || bytes.Length == 0)
         return string.Empty;
 
-      var bytes = Encoding.UTF8.GetBytes(raw);
+      return StripDockerStreamHeaders(bytes.AsSpan());
+    }
+
+    /// <summary>
+    /// Span-based overload that strips Docker multiplexed stream headers.
+    /// Single-pass: computes total payload size, allocates once, decodes in place.
+    /// </summary>
+    protected static string StripDockerStreamHeaders(ReadOnlySpan<byte> bytes)
+    {
       if (bytes.Length < 8)
-        return raw;
+        return Encoding.UTF8.GetString(bytes);
 
       // Check if first byte is a valid Docker stream header (0=stdin, 1=stdout, 2=stderr)
       if (bytes[0] > 2 || bytes[1] != 0 || bytes[2] != 0 || bytes[3] != 0)
-        return raw;
+        return Encoding.UTF8.GetString(bytes);
 
-      var sb = new StringBuilder();
+      // First pass: compute total payload size to allocate once
+      var totalPayload = 0;
       var offset = 0;
       while (offset + 8 <= bytes.Length)
       {
@@ -318,10 +399,33 @@ namespace FluentDocker.Drivers.Docker.Api
         offset += 8;
         if (frameSize <= 0 || offset + frameSize > bytes.Length)
           break;
-        sb.Append(Encoding.UTF8.GetString(bytes, offset, frameSize));
+        totalPayload += frameSize;
         offset += frameSize;
       }
-      return sb.Length > 0 ? sb.ToString() : raw;
+
+      if (totalPayload == 0)
+        return Encoding.UTF8.GetString(bytes);
+
+      // Second pass: concatenate payload bytes into a single buffer
+      var payloadBuffer = totalPayload <= 1024
+          ? stackalloc byte[totalPayload]
+          : new byte[totalPayload];
+
+      offset = 0;
+      var writePos = 0;
+      while (offset + 8 <= bytes.Length)
+      {
+        var frameSize = (bytes[offset + 4] << 24) | (bytes[offset + 5] << 16)
+                      | (bytes[offset + 6] << 8) | bytes[offset + 7];
+        offset += 8;
+        if (frameSize <= 0 || offset + frameSize > bytes.Length)
+          break;
+        bytes.Slice(offset, frameSize).CopyTo(payloadBuffer[writePos..]);
+        writePos += frameSize;
+        offset += frameSize;
+      }
+
+      return Encoding.UTF8.GetString(payloadBuffer[..writePos]);
     }
 
     /// <summary>
@@ -348,6 +452,7 @@ namespace FluentDocker.Drivers.Docker.Api
 
   #region Internal Result Types
 
+#pragma warning disable CA1000 // Static members on generic type — factory pattern is intentional API design
   public class ApiResult<T>
   {
     public bool Success { get; private init; }
@@ -362,6 +467,7 @@ namespace FluentDocker.Drivers.Docker.Api
     public static ApiResult<T> Failure(int statusCode, string error, string body = null) =>
         new() { Success = false, StatusCode = statusCode, ErrorMessage = error, ResponseBody = body };
   }
+#pragma warning restore CA1000
 
   public class ApiResult
   {

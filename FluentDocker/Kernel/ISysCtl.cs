@@ -15,6 +15,7 @@ namespace FluentDocker.Kernel
     /// <param name="driverId">Driver identifier</param>
     /// <param name="component">Driver component type</param>
     /// <returns>Driver component instance</returns>
+    [Obsolete("Use SysCtl<T>(driverId) or SysCtl(driverId, Type) instead. Will be removed in v4.")]
     object SysCtl(string driverId, DriverComponent component);
 
     /// <summary>

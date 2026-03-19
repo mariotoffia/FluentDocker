@@ -37,7 +37,7 @@ namespace FluentDocker.Benchmarks
     [GlobalSetup]
     public void Setup()
     {
-      _driver = new DockerCliContainerDriver(null);
+      _driver = new DockerCliContainerDriver(null!);
     }
 
     [Benchmark(Description = "Parse simple stats JSON")]

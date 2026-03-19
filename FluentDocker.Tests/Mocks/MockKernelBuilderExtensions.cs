@@ -87,6 +87,7 @@ namespace FluentDocker.Tests.Mocks
 
     public async ValueTask DisposeAsync()
     {
+      GC.SuppressFinalize(this);
       if (Kernel != null)
         await Kernel.DisposeAsync();
     }

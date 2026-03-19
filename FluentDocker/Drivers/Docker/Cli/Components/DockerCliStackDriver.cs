@@ -3,9 +3,9 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using FluentDocker.Common;
+using System.Text.Json;
 using FluentDocker.Drivers.Docker.Cli.Binary;
 using FluentDocker.Model.Drivers;
-using Newtonsoft.Json;
 
 namespace FluentDocker.Drivers.Docker.Cli.Components
 {
@@ -14,6 +14,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
   /// </summary>
   public class DockerCliStackDriver : DockerCliDriverBase, IStackDriver
   {
+    private static readonly char[] LineSeparators = ['\n', '\r'];
     /// <summary>
     /// Creates a new instance with the specified binary resolver.
     /// </summary>
@@ -40,18 +41,18 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
         }
 
         var stacks = new List<StackInfo>();
-        var lines = result.Output.Split(new[] { '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries);
+        var lines = result.Output.Split(LineSeparators, StringSplitOptions.RemoveEmptyEntries);
         foreach (var line in lines)
         {
           try
           {
-            var stack = JsonConvert.DeserializeObject<StackInfo>(line);
+            var stack = JsonSerializer.Deserialize<StackInfo>(line, JsonHelper.CaseInsensitiveOptions);
             if (stack != null)
               stacks.Add(stack);
           }
-          catch
+          catch (Exception ex)
           {
-            // Skip malformed lines
+            Logger.Log($"Stack list JSON parsing failed: {ex.Message}");
           }
         }
 
@@ -85,18 +86,18 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
         }
 
         var tasks = new List<StackTask>();
-        var lines = result.Output.Split(new[] { '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries);
+        var lines = result.Output.Split(LineSeparators, StringSplitOptions.RemoveEmptyEntries);
         foreach (var line in lines)
         {
           try
           {
-            var task = JsonConvert.DeserializeObject<StackTask>(line);
+            var task = JsonSerializer.Deserialize<StackTask>(line, JsonHelper.CaseInsensitiveOptions);
             if (task != null)
               tasks.Add(task);
           }
-          catch
+          catch (Exception ex)
           {
-            // Skip malformed lines
+            Logger.Log($"Stack task JSON parsing failed: {ex.Message}");
           }
         }
 
@@ -183,18 +184,18 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
         }
 
         var services = new List<StackServiceInfo>();
-        var lines = result.Output.Split(new[] { '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries);
+        var lines = result.Output.Split(LineSeparators, StringSplitOptions.RemoveEmptyEntries);
         foreach (var line in lines)
         {
           try
           {
-            var svc = JsonConvert.DeserializeObject<StackServiceInfo>(line);
+            var svc = JsonSerializer.Deserialize<StackServiceInfo>(line, JsonHelper.CaseInsensitiveOptions);
             if (svc != null)
               services.Add(svc);
           }
-          catch
+          catch (Exception ex)
           {
-            // Skip malformed lines
+            Logger.Log($"Stack service JSON parsing failed: {ex.Message}");
           }
         }
 

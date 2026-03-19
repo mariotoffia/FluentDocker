@@ -412,8 +412,11 @@ namespace FluentDocker.Tests.CoreTests.Testing
     {
       private readonly Exception _exception;
       public ThrowingKernel(Exception exception) => _exception = exception;
-      public override ValueTask DisposeAsync()
-          => new ValueTask(Task.FromException(_exception));
+      public override async ValueTask DisposeAsync()
+      {
+        await base.DisposeAsync();
+        throw _exception;
+      }
     }
 
     private class FakeResource : ITestResource

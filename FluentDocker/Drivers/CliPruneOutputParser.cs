@@ -1,5 +1,6 @@
 using System;
 using System.Text.RegularExpressions;
+using FluentDocker.Common;
 using FluentDocker.Drivers.Docker.Cli.Components;
 
 namespace FluentDocker.Drivers
@@ -64,8 +65,9 @@ namespace FluentDocker.Drivers
             result.ImagesDeleted.Add(deleted);
         }
       }
-      catch
+      catch (Exception ex)
       {
+        Logger.Log($"Image prune output parsing failed: {ex.Message}");
         return new ImagePruneResult();
       }
 
@@ -121,8 +123,9 @@ namespace FluentDocker.Drivers
           result.NetworksDeleted.Add(line);
         }
       }
-      catch
+      catch (Exception ex)
       {
+        Logger.Log($"Network prune output parsing failed: {ex.Message}");
         return new NetworkPruneResult();
       }
 
@@ -181,8 +184,9 @@ namespace FluentDocker.Drivers
           result.VolumesDeleted.Add(line);
         }
       }
-      catch
+      catch (Exception ex)
       {
+        Logger.Log($"Volume prune output parsing failed: {ex.Message}");
         return new VolumePruneResult();
       }
 
@@ -245,8 +249,9 @@ namespace FluentDocker.Drivers
           }
         }
       }
-      catch
+      catch (Exception ex)
       {
+        Logger.Log($"System prune output parsing failed: {ex.Message}");
         return new SystemPruneResult();
       }
 

@@ -117,7 +117,7 @@ namespace FluentDocker.Tests.Integration.PodmanCliDriver
     {
       await EnsureImageAsync(TestImage);
       var podName = UniqueName("pod");
-      string containerId = null;
+      string? containerId = null;
 
       try
       {

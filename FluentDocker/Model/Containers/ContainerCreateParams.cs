@@ -74,7 +74,7 @@ namespace FluentDocker.Model.Containers
     ///   the container to see all of the processes on the system. For example, you could build a container with debugging
     ///   tools like strace or gdb, but want to use these tools when debugging processes within the container.
     ///   Example: run htop inside a container
-    ///   Create this Dockerfile: FROM alpine:latest RUN apk add --update htop && rm -rf /var/cache/apk/* CMD ["htop"]
+    ///   Create this Dockerfile: FROM alpine:latest RUN apk add --update htop &amp;&amp; rm -rf /var/cache/apk/* CMD ["htop"]
     ///   Build the Dockerfile and tag the image as myhtop: docker build -t myhtop .
     ///   Use the following command to run htop inside a container: docker run -it --rm --pid=host myhtop
     ///   --pid

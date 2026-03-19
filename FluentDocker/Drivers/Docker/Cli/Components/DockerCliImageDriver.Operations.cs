@@ -12,6 +12,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
   /// </summary>
   public partial class DockerCliImageDriver
   {
+    private static readonly char[] LineSeparators = ['\n', '\r'];
     #region Tag/Remove Operations
 
     /// <inheritdoc />
@@ -69,7 +70,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
 
         // Parse removed/untagged images from output
         var removeResult = new ImageRemoveResult();
-        var lines = result.Output.Split(new[] { '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries);
+        var lines = result.Output.Split(LineSeparators, StringSplitOptions.RemoveEmptyEntries);
         foreach (var line in lines)
         {
           if (line.StartsWith("Deleted:"))
@@ -175,7 +176,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
 
         // Parse loaded image names from output
         var images = new List<string>();
-        var lines = result.Output.Split(new[] { '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries);
+        var lines = result.Output.Split(LineSeparators, StringSplitOptions.RemoveEmptyEntries);
         foreach (var line in lines)
         {
           if (line.Contains("Loaded image:"))

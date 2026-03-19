@@ -83,6 +83,38 @@ format:
 .PHONY: check
 check: lint test
 
+.PHONY: coverage
+coverage:
+	@mkdir -p .out/coverage
+	dotnet test FluentDocker.Tests/FluentDocker.Tests.csproj \
+		--filter "Category=Unit" \
+		--configuration Debug \
+		--collect:"XPlat Code Coverage" \
+		--results-directory .out/coverage \
+		--settings coverletArgs.runsettings
+	@echo ""
+	@echo "Coverage XML written to .out/coverage/"
+	@echo "To generate HTML report, install reportgenerator and run:"
+	@echo "  dotnet tool install -g dotnet-reportgenerator-globaltool"
+	@echo "  reportgenerator -reports:.out/coverage/**/coverage.opencover.xml -targetdir:.out/coverage/html -reporttypes:Html"
+	@echo "  open .out/coverage/html/index.html"
+
+.PHONY: coverage-html
+coverage-html: coverage
+	reportgenerator \
+		-reports:".out/coverage/**/coverage.opencover.xml" \
+		-targetdir:.out/coverage/html \
+		-reporttypes:Html
+	@echo "Coverage report: .out/coverage/html/index.html"
+
+.PHONY: docs
+docs:
+	cd docs && bundle exec jekyll serve --livereload
+
+.PHONY: docs-install
+docs-install:
+	cd docs && bundle install
+
 .PHONY: pack
 pack: build-release
 ifdef VERSION
@@ -117,6 +149,10 @@ help:
 	@echo "  benchmark-template - Run template string benchmarks only"
 	@echo "  lint             - Check code formatting"
 	@echo "  format           - Format code"
+	@echo "  coverage         - Run unit tests with code coverage (XML output)"
+	@echo "  coverage-html    - Generate HTML coverage report (requires reportgenerator)"
+	@echo "  docs             - Serve Jekyll docs locally with live reload"
+	@echo "  docs-install     - Install Jekyll dependencies for docs"
 	@echo "  pack             - Create NuGet packages (use VERSION=x.y.z for versioned packs)"
 	@echo "  check            - Run lint + unit tests"
 	@echo "  help             - Show this help"

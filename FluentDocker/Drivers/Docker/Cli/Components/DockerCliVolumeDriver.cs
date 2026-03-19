@@ -5,9 +5,9 @@ using System.Threading;
 using System.Threading.Tasks;
 using FluentDocker.Common;
 using FluentDocker.Drivers.Docker.Cli.Binary;
+using System.Text.Json;
 using FluentDocker.Model.Drivers;
 using FluentDocker.Model.Volumes;
-using Newtonsoft.Json;
 
 namespace FluentDocker.Drivers.Docker.Cli.Components
 {
@@ -16,6 +16,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
   /// </summary>
   public class DockerCliVolumeDriver : DockerCliDriverBase, IVolumeDriver
   {
+    private static readonly char[] LineSeparators = ['\n', '\r'];
     /// <summary>
     /// Creates a new instance with the specified binary resolver.
     /// </summary>
@@ -137,19 +138,19 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
         }
 
         var volumes = new List<Volume>();
-        var lines = result.Output.Split(new[] { '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries);
+        var lines = result.Output.Split(LineSeparators, StringSplitOptions.RemoveEmptyEntries);
 
         foreach (var line in lines)
         {
           try
           {
-            var volume = JsonConvert.DeserializeObject<Volume>(line);
+            var volume = JsonSerializer.Deserialize<Volume>(line, JsonHelper.CaseInsensitiveOptions);
             if (volume != null)
               volumes.Add(volume);
           }
-          catch
+          catch (Exception ex)
           {
-            // Skip malformed lines
+            Logger.Log($"Volume list JSON parsing failed: {ex.Message}");
           }
         }
 
@@ -180,7 +181,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
               result.ExitCode);
         }
 
-        var volumes = JsonConvert.DeserializeObject<List<Volume>>(result.Output);
+        var volumes = JsonSerializer.Deserialize<List<Volume>>(result.Output, JsonHelper.CaseInsensitiveOptions);
         return CommandResponse<Volume>.Ok(volumes?.FirstOrDefault() ?? new Volume());
       }
       catch (Exception ex)
