@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Text.Json.Serialization;
 
 namespace FluentDocker.Model.Containers
 {
@@ -14,6 +15,7 @@ namespace FluentDocker.Model.Containers
     public string Hostname { get; set; }
 
     [Obsolete("Please use the properly spelled `DomainName` method instead.")]
+    [JsonIgnore]
     public string Domainname
     {
       get => DomainName;

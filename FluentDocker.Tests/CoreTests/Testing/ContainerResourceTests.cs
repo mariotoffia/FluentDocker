@@ -336,6 +336,7 @@ namespace FluentDocker.Tests.CoreTests.Testing
           .SetupContainerCreate()
           .SetupContainerStart()
           .SetupContainerInspect(running: true)
+          .SetupContainerGetLogs()
           .SetupContainerStop()
           .SetupContainerRemove();
 

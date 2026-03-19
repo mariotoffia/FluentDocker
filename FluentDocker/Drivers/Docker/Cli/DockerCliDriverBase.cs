@@ -132,7 +132,7 @@ namespace FluentDocker.Drivers.Docker.Cli
       var (binaryPath, sudo, sudoPassword) = ResolveBinaryInfo();
       var globalArgs = BuildGlobalArgs(Context);
       var fullArgs = string.IsNullOrEmpty(globalArgs) ? arguments : $"{globalArgs} {arguments}";
-      return await ExecuteProcessAsync(binaryPath, fullArgs, null, null, sudo, sudoPassword, cancellationToken);
+      return await ExecuteProcessAsync(binaryPath, fullArgs, null, null, sudo, sudoPassword, cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -144,7 +144,7 @@ namespace FluentDocker.Drivers.Docker.Cli
       var (binaryPath, sudo, sudoPassword) = ResolveBinaryInfo();
       var globalArgs = BuildGlobalArgs(Context);
       var fullArgs = string.IsNullOrEmpty(globalArgs) ? arguments : $"{globalArgs} {arguments}";
-      return await ExecuteProcessAsync(binaryPath, fullArgs, null, stdinData, sudo, sudoPassword, cancellationToken);
+      return await ExecuteProcessAsync(binaryPath, fullArgs, null, stdinData, sudo, sudoPassword, cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -158,7 +158,7 @@ namespace FluentDocker.Drivers.Docker.Cli
       var (binaryPath, sudo, sudoPassword) = ResolveBinaryInfo();
       var globalArgs = BuildGlobalArgs(Context);
       var fullArgs = string.IsNullOrEmpty(globalArgs) ? arguments : $"{globalArgs} {arguments}";
-      return await ExecuteProcessAsync(binaryPath, fullArgs, environment, null, sudo, sudoPassword, cancellationToken);
+      return await ExecuteProcessAsync(binaryPath, fullArgs, environment, null, sudo, sudoPassword, cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -210,10 +210,10 @@ namespace FluentDocker.Drivers.Docker.Cli
         {
           // Write sudo password first (if any), then caller data.
           if (passwordForStdin != null)
-            await process.StandardInput.WriteLineAsync(passwordForStdin);
+            await process.StandardInput.WriteLineAsync(passwordForStdin).ConfigureAwait(false);
 
           if (stdinData != null)
-            await process.StandardInput.WriteAsync(stdinData);
+            await process.StandardInput.WriteAsync(stdinData).ConfigureAwait(false);
 
           process.StandardInput.Close();
         }
@@ -223,11 +223,11 @@ namespace FluentDocker.Drivers.Docker.Cli
         var outputTask = process.StandardOutput.ReadToEndAsync(cancellationToken);
         var errorTask = process.StandardError.ReadToEndAsync(cancellationToken);
 
-        var output = await outputTask;
-        var error = await errorTask;
+        var output = await outputTask.ConfigureAwait(false);
+        var error = await errorTask.ConfigureAwait(false);
 
         // Ensure process has fully exited and get exit code.
-        await process.WaitForExitAsync(cancellationToken);
+        await process.WaitForExitAsync(cancellationToken).ConfigureAwait(false);
 
         return new SimpleCommandResult
         {
@@ -291,7 +291,7 @@ namespace FluentDocker.Drivers.Docker.Cli
 
       if (passwordForStdin != null)
       {
-        await process.StandardInput.WriteLineAsync(passwordForStdin);
+        await process.StandardInput.WriteLineAsync(passwordForStdin).ConfigureAwait(false);
         process.StandardInput.Close();
       }
 
@@ -301,7 +301,7 @@ namespace FluentDocker.Drivers.Docker.Cli
       {
         while (!cancellationToken.IsCancellationRequested)
         {
-          var line = await reader.ReadLineAsync(cancellationToken);
+          var line = await reader.ReadLineAsync(cancellationToken).ConfigureAwait(false);
           if (line == null)
             break;
 

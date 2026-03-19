@@ -60,7 +60,7 @@ namespace FluentDocker.Services.Impl
       var driver = _kernel.SysCtl<ISystemDriver>(_driverId);
       var context = new DriverContext(_driverId);
 
-      var response = await driver.GetInfoAsync(context, cancellationToken);
+      var response = await driver.GetInfoAsync(context, cancellationToken).ConfigureAwait(false);
 
       if (!response.Success)
       {
@@ -78,7 +78,7 @@ namespace FluentDocker.Services.Impl
       var driver = _kernel.SysCtl<ISystemDriver>(_driverId);
       var context = new DriverContext(_driverId);
 
-      var response = await driver.GetVersionAsync(context, cancellationToken);
+      var response = await driver.GetVersionAsync(context, cancellationToken).ConfigureAwait(false);
 
       if (!response.Success)
       {
@@ -96,7 +96,7 @@ namespace FluentDocker.Services.Impl
       var driver = _kernel.SysCtl<ISystemDriver>(_driverId);
       var context = new DriverContext(_driverId);
 
-      var response = await driver.PingAsync(context, cancellationToken);
+      var response = await driver.PingAsync(context, cancellationToken).ConfigureAwait(false);
       return response.Success;
     }
 
@@ -105,7 +105,7 @@ namespace FluentDocker.Services.Impl
       var driver = _kernel.SysCtl<ISystemDriver>(_driverId);
       var context = new DriverContext(_driverId);
 
-      var response = await driver.GetDiskUsageAsync(context, cancellationToken);
+      var response = await driver.GetDiskUsageAsync(context, cancellationToken).ConfigureAwait(false);
 
       if (!response.Success)
       {
@@ -124,7 +124,7 @@ namespace FluentDocker.Services.Impl
 
     public async Task<IList<IContainerService>> GetRunningContainersAsync(CancellationToken cancellationToken = default)
     {
-      return await GetContainersAsync(false, null, cancellationToken);
+      return await GetContainersAsync(false, null, cancellationToken).ConfigureAwait(false);
     }
 
     public async Task<IList<IContainerService>> GetContainersAsync(
@@ -144,7 +144,7 @@ namespace FluentDocker.Services.Impl
         }
       }
 
-      var response = await driver.ListAsync(context, filter, cancellationToken);
+      var response = await driver.ListAsync(context, filter, cancellationToken).ConfigureAwait(false);
 
       if (!response.Success)
       {
@@ -179,7 +179,7 @@ namespace FluentDocker.Services.Impl
       {
         var imageDriver = _kernel.SysCtl<IImageDriver>(_driverId);
         var pullContext = new DriverContext(_driverId);
-        var pullResponse = await imageDriver.PullAsync(pullContext, image, "latest", null, cancellationToken);
+        var pullResponse = await imageDriver.PullAsync(pullContext, image, "latest", null, cancellationToken).ConfigureAwait(false);
 
         if (!pullResponse.Success)
         {
@@ -235,7 +235,7 @@ namespace FluentDocker.Services.Impl
         createConfig.CpuShares = config.CpuQuota.Value;
       }
 
-      var response = await driver.CreateAsync(context, createConfig, cancellationToken);
+      var response = await driver.CreateAsync(context, createConfig, cancellationToken).ConfigureAwait(false);
 
       if (!response.Success)
       {
@@ -314,7 +314,7 @@ namespace FluentDocker.Services.Impl
 
     public async ValueTask DisposeAsync()
     {
-      await Task.CompletedTask;
+      await Task.CompletedTask.ConfigureAwait(false);
       GC.SuppressFinalize(this);
     }
 

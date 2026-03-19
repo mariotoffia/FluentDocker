@@ -114,7 +114,7 @@ namespace FluentDocker.Testing.Core
     /// <inheritdoc />
     public async Task InitializeAsync(CancellationToken cancellationToken = default)
     {
-      await _lifecycleLock.WaitAsync(cancellationToken);
+      await _lifecycleLock.WaitAsync(cancellationToken).ConfigureAwait(false);
       try
       {
         if (IsInitialized)
@@ -134,30 +134,30 @@ namespace FluentDocker.Testing.Core
 
         try
         {
-          await RunHooksAsync(_beforeInitHooks, cts.Token);
-          await PreflightAsync(cts.Token);
+          await RunHooksAsync(_beforeInitHooks, cts.Token).ConfigureAwait(false);
+          await PreflightAsync(cts.Token).ConfigureAwait(false);
 
           if (Options.CleanupOrphansOnInit)
           {
             try
             {
               await OrphanCleanup.CleanupOrphanedResourcesAsync(
-                  Kernel, DriverId, Options.SessionId, cts.Token);
+                  Kernel, DriverId, Options.SessionId, cts.Token).ConfigureAwait(false);
             }
             catch { /* orphan cleanup is best-effort */ }
           }
 
           _provisioned = true;
-          await ProvisionAsync(cts.Token);
+          await ProvisionAsync(cts.Token).ConfigureAwait(false);
           Diagnostics = null;
           IsInitialized = true;
-          await RunHooksAsync(_afterReadyHooks, cts.Token);
+          await RunHooksAsync(_afterReadyHooks, cts.Token).ConfigureAwait(false);
         }
         catch (Exception ex)
         {
           IsInitialized = false;
           try
-          { Diagnostics = await CollectDiagnosticsAsync(ex, cts.Token); }
+          { Diagnostics = await CollectDiagnosticsAsync(ex, cts.Token).ConfigureAwait(false); }
           catch { /* diagnostics must not mask the original failure */ }
           throw;
         }
@@ -171,14 +171,14 @@ namespace FluentDocker.Testing.Core
     /// <inheritdoc />
     public async ValueTask DisposeAsync()
     {
-      await _lifecycleLock.WaitAsync();
+      await _lifecycleLock.WaitAsync().ConfigureAwait(false);
       try
       {
         using var cts = new CancellationTokenSource(Options.TeardownTimeout);
 
         try
         {
-          await RunHooksAsync(_beforeDisposeHooks, cts.Token);
+          await RunHooksAsync(_beforeDisposeHooks, cts.Token).ConfigureAwait(false);
         }
         catch (Exception ex)
         {
@@ -191,7 +191,7 @@ namespace FluentDocker.Testing.Core
         {
           try
           {
-            await TeardownAsync(cts.Token);
+            await TeardownAsync(cts.Token).ConfigureAwait(false);
             _provisioned = false;
           }
           catch (Exception ex)
@@ -201,7 +201,7 @@ namespace FluentDocker.Testing.Core
               Exception? forceRemoveFailure = null;
               using var forceCts = new CancellationTokenSource(Options.TeardownTimeout);
               try
-              { await ForceRemoveAsync(forceCts.Token); }
+              { await ForceRemoveAsync(forceCts.Token).ConfigureAwait(false); }
               catch (Exception forceEx) { forceRemoveFailure = forceEx; }
               _provisioned = false;
               LastTeardownDiagnostics = new TeardownDiagnostics
@@ -222,7 +222,7 @@ namespace FluentDocker.Testing.Core
 
         try
         {
-          await RunHooksAsync(_afterDisposeHooks, cts.Token);
+          await RunHooksAsync(_afterDisposeHooks, cts.Token).ConfigureAwait(false);
         }
         catch (Exception ex)
         {
@@ -353,12 +353,12 @@ namespace FluentDocker.Testing.Core
         var hookTask = hook(this);
         var completed = await Task.WhenAny(
             hookTask,
-            Task.Delay(Timeout.Infinite, cancellationToken));
+            Task.Delay(Timeout.Infinite, cancellationToken)).ConfigureAwait(false);
 
         if (completed != hookTask)
           cancellationToken.ThrowIfCancellationRequested();
 
-        await hookTask;
+        await hookTask.ConfigureAwait(false);
       }
     }
 

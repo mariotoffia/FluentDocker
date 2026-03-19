@@ -71,8 +71,8 @@ namespace FluentDocker.Testing.Core
       try
       {
         kernel = kernelFactory != null
-            ? await kernelFactory()
-            : await defaultKernelFactory();
+            ? await kernelFactory().ConfigureAwait(false)
+            : await defaultKernelFactory().ConfigureAwait(false);
 
         if (kernel == null)
           throw new InvalidOperationException(
@@ -81,17 +81,17 @@ namespace FluentDocker.Testing.Core
         resource = resourceFactory(kernel)
             ?? throw new InvalidOperationException(
                 "resourceFactory returned null. The factory must return a non-null resource.");
-        await resource.InitializeAsync(cancellationToken);
+        await resource.InitializeAsync(cancellationToken).ConfigureAwait(false);
         return (kernel, resource);
       }
       catch (Exception ex)
       {
         Logger.Log($"Resource initialization failed: {ex.Message}");
         try
-        { if (resource != null) await resource.DisposeAsync(); }
+        { if (resource != null) await resource.DisposeAsync().ConfigureAwait(false); }
         catch (Exception resEx) { Logger.Log($"Resource cleanup failed: {resEx.Message}"); }
         try
-        { if (kernel != null) await kernel.DisposeAsync(); }
+        { if (kernel != null) await kernel.DisposeAsync().ConfigureAwait(false); }
         catch (Exception kernelEx) { Logger.Log($"Kernel cleanup failed: {kernelEx.Message}"); }
         throw;
       }
@@ -110,7 +110,7 @@ namespace FluentDocker.Testing.Core
       try
       {
         if (resource != null)
-          await resource.DisposeAsync();
+          await resource.DisposeAsync().ConfigureAwait(false);
       }
       catch (Exception ex)
       {
@@ -120,7 +120,7 @@ namespace FluentDocker.Testing.Core
       try
       {
         if (kernel != null)
-          await kernel.DisposeAsync();
+          await kernel.DisposeAsync().ConfigureAwait(false);
       }
       catch (Exception ex)
       {

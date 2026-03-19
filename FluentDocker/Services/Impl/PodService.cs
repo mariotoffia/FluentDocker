@@ -52,7 +52,7 @@ namespace FluentDocker.Services.Impl
     {
       var driver = _kernel.SysCtl<IPodmanPodDriver>(_driverId);
       var context = new DriverContext(_driverId);
-      var response = await driver.StartPodAsync(context, _podName, cancellationToken);
+      var response = await driver.StartPodAsync(context, _podName, cancellationToken).ConfigureAwait(false);
       if (response.Success)
         UpdateState(ServiceRunningState.Running);
     }
@@ -61,7 +61,7 @@ namespace FluentDocker.Services.Impl
     {
       var driver = _kernel.SysCtl<IPodmanPodDriver>(_driverId);
       var context = new DriverContext(_driverId);
-      var response = await driver.StopPodAsync(context, _podName, 10, cancellationToken);
+      var response = await driver.StopPodAsync(context, _podName, 10, cancellationToken).ConfigureAwait(false);
       if (response.Success)
         UpdateState(ServiceRunningState.Stopped);
     }
@@ -77,7 +77,7 @@ namespace FluentDocker.Services.Impl
       var driver = _kernel.SysCtl<IPodmanPodDriver>(_driverId);
       var context = new DriverContext(_driverId);
       var response = await driver.RemovePodAsync(
-          context, _podName, force, cancellationToken);
+          context, _podName, force, cancellationToken).ConfigureAwait(false);
       if (response.Success)
         UpdateState(ServiceRunningState.Removed);
     }
@@ -125,7 +125,7 @@ namespace FluentDocker.Services.Impl
       }
 
       try
-      { await RemoveAsync(force: true); }
+      { await RemoveAsync(force: true).ConfigureAwait(false); }
       catch (Exception ex) { Logger.Log($"PodService DisposeAsync failed: {ex.Message}"); }
       GC.SuppressFinalize(this);
     }

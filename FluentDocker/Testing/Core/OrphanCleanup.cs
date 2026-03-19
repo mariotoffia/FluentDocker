@@ -97,9 +97,9 @@ namespace FluentDocker.Testing.Core
       var context = new DriverContext(driverId);
 
       // Clean up in dependency order: containers first, then networks, then volumes
-      await CleanupContainersAsync(kernel, driverId, context, currentSessionId, result, cancellationToken);
-      await CleanupNetworksAsync(kernel, driverId, context, currentSessionId, result, cancellationToken);
-      await CleanupVolumesAsync(kernel, driverId, context, currentSessionId, result, cancellationToken);
+      await CleanupContainersAsync(kernel, driverId, context, currentSessionId, result, cancellationToken).ConfigureAwait(false);
+      await CleanupNetworksAsync(kernel, driverId, context, currentSessionId, result, cancellationToken).ConfigureAwait(false);
+      await CleanupVolumesAsync(kernel, driverId, context, currentSessionId, result, cancellationToken).ConfigureAwait(false);
 
       return result;
     }
@@ -118,7 +118,7 @@ namespace FluentDocker.Testing.Core
         Labels = { [SessionLabel.ManagedKey] = "true" }
       };
 
-      var listResult = await driver.ListAsync(context, filter, cancellationToken);
+      var listResult = await driver.ListAsync(context, filter, cancellationToken).ConfigureAwait(false);
       if (!listResult.Success)
         return;
 
@@ -131,7 +131,7 @@ namespace FluentDocker.Testing.Core
         try
         {
           await driver.RemoveAsync(context, container.Id, force: true,
-              removeVolumes: false, cancellationToken);
+              removeVolumes: false, cancellationToken).ConfigureAwait(false);
           result.ContainersRemoved++;
         }
         catch (Exception ex)
@@ -154,7 +154,7 @@ namespace FluentDocker.Testing.Core
         Labels = { [SessionLabel.ManagedKey] = "true" }
       };
 
-      var listResult = await driver.ListAsync(context, filter, cancellationToken);
+      var listResult = await driver.ListAsync(context, filter, cancellationToken).ConfigureAwait(false);
       if (!listResult.Success)
         return;
 
@@ -165,7 +165,7 @@ namespace FluentDocker.Testing.Core
 
         try
         {
-          await driver.RemoveAsync(context, network.Id ?? network.Name, cancellationToken);
+          await driver.RemoveAsync(context, network.Id ?? network.Name, cancellationToken).ConfigureAwait(false);
           result.NetworksRemoved++;
         }
         catch (Exception ex)
@@ -188,7 +188,7 @@ namespace FluentDocker.Testing.Core
         Labels = { [SessionLabel.ManagedKey] = "true" }
       };
 
-      var listResult = await driver.ListAsync(context, filter, cancellationToken);
+      var listResult = await driver.ListAsync(context, filter, cancellationToken).ConfigureAwait(false);
       if (!listResult.Success)
         return;
 
@@ -199,7 +199,7 @@ namespace FluentDocker.Testing.Core
 
         try
         {
-          await driver.RemoveAsync(context, volume.Name, force: true, cancellationToken);
+          await driver.RemoveAsync(context, volume.Name, force: true, cancellationToken).ConfigureAwait(false);
           result.VolumesRemoved++;
         }
         catch (Exception ex)

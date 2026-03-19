@@ -111,7 +111,7 @@ namespace FluentDocker.Drivers.Podman.Cli
       var (binaryPath, sudo, sudoPassword) = ResolveBinaryInfo();
       var globalArgs = BuildGlobalArgs(Context);
       var fullArgs = string.IsNullOrEmpty(globalArgs) ? arguments : $"{globalArgs} {arguments}";
-      return await ExecuteProcessAsync(binaryPath, fullArgs, null, sudo, sudoPassword, cancellationToken);
+      return await ExecuteProcessAsync(binaryPath, fullArgs, null, sudo, sudoPassword, cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -123,7 +123,7 @@ namespace FluentDocker.Drivers.Podman.Cli
       var (binaryPath, sudo, sudoPassword) = ResolveBinaryInfo();
       var globalArgs = BuildGlobalArgs(Context);
       var fullArgs = string.IsNullOrEmpty(globalArgs) ? arguments : $"{globalArgs} {arguments}";
-      return await ExecuteProcessAsync(binaryPath, fullArgs, stdinData, sudo, sudoPassword, cancellationToken);
+      return await ExecuteProcessAsync(binaryPath, fullArgs, stdinData, sudo, sudoPassword, cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -165,10 +165,10 @@ namespace FluentDocker.Drivers.Podman.Cli
         if (needsStdin)
         {
           if (passwordForStdin != null)
-            await process.StandardInput.WriteLineAsync(passwordForStdin);
+            await process.StandardInput.WriteLineAsync(passwordForStdin).ConfigureAwait(false);
 
           if (stdinData != null)
-            await process.StandardInput.WriteAsync(stdinData);
+            await process.StandardInput.WriteAsync(stdinData).ConfigureAwait(false);
 
           process.StandardInput.Close();
         }
@@ -178,11 +178,11 @@ namespace FluentDocker.Drivers.Podman.Cli
         var outputTask = process.StandardOutput.ReadToEndAsync(cancellationToken);
         var errorTask = process.StandardError.ReadToEndAsync(cancellationToken);
 
-        var output = await outputTask;
-        var error = await errorTask;
+        var output = await outputTask.ConfigureAwait(false);
+        var error = await errorTask.ConfigureAwait(false);
 
         // Ensure process has fully exited and get exit code.
-        await process.WaitForExitAsync(cancellationToken);
+        await process.WaitForExitAsync(cancellationToken).ConfigureAwait(false);
 
         return new SimpleCommandResult
         {
@@ -244,7 +244,7 @@ namespace FluentDocker.Drivers.Podman.Cli
 
       if (passwordForStdin != null)
       {
-        await process.StandardInput.WriteLineAsync(passwordForStdin);
+        await process.StandardInput.WriteLineAsync(passwordForStdin).ConfigureAwait(false);
         process.StandardInput.Close();
       }
 
@@ -254,7 +254,7 @@ namespace FluentDocker.Drivers.Podman.Cli
       {
         while (!cancellationToken.IsCancellationRequested)
         {
-          var line = await reader.ReadLineAsync(cancellationToken);
+          var line = await reader.ReadLineAsync(cancellationToken).ConfigureAwait(false);
           if (line == null)
             break;
 

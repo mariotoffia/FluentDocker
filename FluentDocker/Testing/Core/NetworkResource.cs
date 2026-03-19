@@ -50,7 +50,7 @@ namespace FluentDocker.Testing.Core
       EnsureInitialized();
       var driver = Kernel.SysCtl<INetworkDriver>(DriverId);
       var result = await driver.InspectAsync(
-          new DriverContext(DriverId), NetworkId, cancellationToken);
+          new DriverContext(DriverId), NetworkId, cancellationToken).ConfigureAwait(false);
       return result.Success ? result.Data : null;
     }
 
@@ -59,7 +59,7 @@ namespace FluentDocker.Testing.Core
     /// <inheritdoc />
     protected override async Task PreflightAsync(CancellationToken cancellationToken)
     {
-      await CapabilityChecks.EnsureNetworkSupportAsync(Kernel, DriverId, cancellationToken);
+      await CapabilityChecks.EnsureNetworkSupportAsync(Kernel, DriverId, cancellationToken).ConfigureAwait(false);
     }
 
     /// <inheritdoc />
@@ -81,7 +81,7 @@ namespace FluentDocker.Testing.Core
 
       var driver = Kernel.SysCtl<INetworkDriver>(DriverId);
       var result = await driver.CreateAsync(
-          new DriverContext(DriverId), config, cancellationToken);
+          new DriverContext(DriverId), config, cancellationToken).ConfigureAwait(false);
 
       if (!result.Success)
         throw new FluentDockerException(
@@ -98,7 +98,7 @@ namespace FluentDocker.Testing.Core
 
       var driver = Kernel.SysCtl<INetworkDriver>(DriverId);
       await driver.RemoveAsync(
-          new DriverContext(DriverId), NetworkId, cancellationToken);
+          new DriverContext(DriverId), NetworkId, cancellationToken).ConfigureAwait(false);
       NetworkId = null;
     }
 
@@ -113,7 +113,7 @@ namespace FluentDocker.Testing.Core
       try
       {
         var driver = Kernel.SysCtl<INetworkDriver>(DriverId);
-        await driver.RemoveAsync(new DriverContext(DriverId), id, cancellationToken);
+        await driver.RemoveAsync(new DriverContext(DriverId), id, cancellationToken).ConfigureAwait(false);
       }
       catch { /* best effort */ }
     }

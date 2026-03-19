@@ -57,7 +57,7 @@ namespace FluentDocker.Services.Impl
       var driver = _kernel.SysCtl<INetworkDriver>(_driverId);
       var context = new DriverContext(_driverId);
 
-      var response = await driver.ConnectAsync(context, _networkId, containerId, cancellationToken);
+      var response = await driver.ConnectAsync(context, _networkId, containerId, cancellationToken).ConfigureAwait(false);
 
       if (!response.Success)
       {
@@ -73,7 +73,7 @@ namespace FluentDocker.Services.Impl
       var driver = _kernel.SysCtl<INetworkDriver>(_driverId);
       var context = new DriverContext(_driverId);
 
-      var response = await driver.DisconnectAsync(context, _networkId, containerId, force, cancellationToken);
+      var response = await driver.DisconnectAsync(context, _networkId, containerId, force, cancellationToken).ConfigureAwait(false);
 
       if (!response.Success)
       {
@@ -86,7 +86,7 @@ namespace FluentDocker.Services.Impl
 
     public async Task<IList<string>> GetConnectedContainersAsync(CancellationToken cancellationToken = default)
     {
-      await InspectAsync(cancellationToken);
+      await InspectAsync(cancellationToken).ConfigureAwait(false);
       return new List<string>();
     }
 
@@ -95,7 +95,7 @@ namespace FluentDocker.Services.Impl
       var driver = _kernel.SysCtl<INetworkDriver>(_driverId);
       var context = new DriverContext(_driverId);
 
-      var response = await driver.InspectAsync(context, _networkId, cancellationToken);
+      var response = await driver.InspectAsync(context, _networkId, cancellationToken).ConfigureAwait(false);
 
       if (!response.Success)
       {
@@ -128,7 +128,7 @@ namespace FluentDocker.Services.Impl
       var driver = _kernel.SysCtl<INetworkDriver>(_driverId);
       var context = new DriverContext(_driverId);
 
-      var response = await driver.RemoveAsync(context, _networkId, cancellationToken);
+      var response = await driver.RemoveAsync(context, _networkId, cancellationToken).ConfigureAwait(false);
 
       if (!response.Success)
       {
@@ -139,7 +139,7 @@ namespace FluentDocker.Services.Impl
       }
 
       UpdateState(ServiceRunningState.Removed);
-      await ExecuteHooksAsync(ServiceRunningState.Removed);
+      await ExecuteHooksAsync(ServiceRunningState.Removed).ConfigureAwait(false);
     }
 
     public IServiceAsync AddHook(ServiceRunningState state, Func<IServiceAsync, Task> hook, string uniqueName = null)
@@ -187,7 +187,7 @@ namespace FluentDocker.Services.Impl
 
       try
       {
-        await RemoveAsync(force: true);
+        await RemoveAsync(force: true).ConfigureAwait(false);
       }
       catch (Exception ex)
       {
@@ -209,7 +209,7 @@ namespace FluentDocker.Services.Impl
       {
         try
         {
-          await hook(this);
+          await hook(this).ConfigureAwait(false);
         }
         catch (Exception ex)
         {

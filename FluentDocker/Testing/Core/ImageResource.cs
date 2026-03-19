@@ -58,7 +58,7 @@ namespace FluentDocker.Testing.Core
       EnsureInitialized();
       var driver = Kernel.SysCtl<IImageDriver>(DriverId);
       var result = await driver.InspectAsync(
-          new DriverContext(DriverId), ImageReference, cancellationToken);
+          new DriverContext(DriverId), ImageReference, cancellationToken).ConfigureAwait(false);
       return result.Success ? result.Data : null;
     }
 
@@ -67,7 +67,7 @@ namespace FluentDocker.Testing.Core
     /// <inheritdoc />
     protected override async Task PreflightAsync(CancellationToken cancellationToken)
     {
-      await CapabilityChecks.EnsureImageSupportAsync(Kernel, DriverId, cancellationToken);
+      await CapabilityChecks.EnsureImageSupportAsync(Kernel, DriverId, cancellationToken).ConfigureAwait(false);
     }
 
     /// <inheritdoc />
@@ -77,7 +77,7 @@ namespace FluentDocker.Testing.Core
 
       var driver = Kernel.SysCtl<IImageDriver>(DriverId);
       var result = await driver.PullAsync(
-          new DriverContext(DriverId), _image, _tag, null, cancellationToken);
+          new DriverContext(DriverId), _image, _tag, null, cancellationToken).ConfigureAwait(false);
 
       if (!result.Success)
         throw new FluentDockerException(
@@ -85,7 +85,7 @@ namespace FluentDocker.Testing.Core
 
       // Resolve the image ID via inspect
       var inspect = await driver.InspectAsync(
-          new DriverContext(DriverId), ImageReference, cancellationToken);
+          new DriverContext(DriverId), ImageReference, cancellationToken).ConfigureAwait(false);
       ImageId = inspect.Success ? inspect.Data?.Id : null;
     }
 
@@ -97,7 +97,7 @@ namespace FluentDocker.Testing.Core
 
       var driver = Kernel.SysCtl<IImageDriver>(DriverId);
       await driver.RemoveAsync(
-          new DriverContext(DriverId), ImageReference, false, false, cancellationToken);
+          new DriverContext(DriverId), ImageReference, false, false, cancellationToken).ConfigureAwait(false);
       ImageId = null;
     }
 
@@ -116,7 +116,7 @@ namespace FluentDocker.Testing.Core
       {
         var driver = Kernel.SysCtl<IImageDriver>(DriverId);
         await driver.RemoveAsync(
-            new DriverContext(DriverId), id, true, false, cancellationToken);
+            new DriverContext(DriverId), id, true, false, cancellationToken).ConfigureAwait(false);
       }
       catch { /* best effort */ }
     }

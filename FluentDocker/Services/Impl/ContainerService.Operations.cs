@@ -20,7 +20,7 @@ namespace FluentDocker.Services.Impl
       var driver = _kernel.SysCtl<IContainerDriver>(_driverId);
       var context = new DriverContext(_driverId);
 
-      var response = await driver.GetLogsAsync(context, _containerId, follow, null, false, cancellationToken);
+      var response = await driver.GetLogsAsync(context, _containerId, follow, null, false, cancellationToken).ConfigureAwait(false);
 
       if (!response.Success)
       {
@@ -42,7 +42,7 @@ namespace FluentDocker.Services.Impl
         Command = ShellArgParser.Parse(command)
       };
 
-      var response = await driver.ExecAsync(context, _containerId, config, cancellationToken);
+      var response = await driver.ExecAsync(context, _containerId, config, cancellationToken).ConfigureAwait(false);
 
       if (!response.Success)
       {
@@ -63,7 +63,7 @@ namespace FluentDocker.Services.Impl
       var tempPath = Path.GetTempFileName();
       try
       {
-        var response = await driver.ExportAsync(context, _containerId, tempPath, cancellationToken);
+        var response = await driver.ExportAsync(context, _containerId, tempPath, cancellationToken).ConfigureAwait(false);
 
         if (!response.Success)
         {
@@ -72,7 +72,7 @@ namespace FluentDocker.Services.Impl
               response.ErrorCode);
         }
 
-        return await File.ReadAllBytesAsync(tempPath, cancellationToken);
+        return await File.ReadAllBytesAsync(tempPath, cancellationToken).ConfigureAwait(false);
       }
       finally
       {
@@ -90,7 +90,7 @@ namespace FluentDocker.Services.Impl
       var tempPath = Path.GetTempFileName();
       try
       {
-        var response = await driver.CopyFromAsync(context, _containerId, containerPath, tempPath, cancellationToken);
+        var response = await driver.CopyFromAsync(context, _containerId, containerPath, tempPath, cancellationToken).ConfigureAwait(false);
 
         if (!response.Success)
         {
@@ -99,7 +99,7 @@ namespace FluentDocker.Services.Impl
               response.ErrorCode);
         }
 
-        return await File.ReadAllBytesAsync(tempPath, cancellationToken);
+        return await File.ReadAllBytesAsync(tempPath, cancellationToken).ConfigureAwait(false);
       }
       finally
       {
@@ -117,9 +117,9 @@ namespace FluentDocker.Services.Impl
       var tempPath = Path.GetTempFileName();
       try
       {
-        await File.WriteAllBytesAsync(tempPath, data, cancellationToken);
+        await File.WriteAllBytesAsync(tempPath, data, cancellationToken).ConfigureAwait(false);
 
-        var response = await driver.CopyToAsync(context, _containerId, tempPath, containerPath, cancellationToken);
+        var response = await driver.CopyToAsync(context, _containerId, tempPath, containerPath, cancellationToken).ConfigureAwait(false);
 
         if (!response.Success)
         {
@@ -151,7 +151,7 @@ namespace FluentDocker.Services.Impl
       var driver = _kernel.SysCtl<IContainerDriver>(_driverId);
       var context = new DriverContext(_driverId);
 
-      var response = await driver.CopyToAsync(context, _containerId, hostPath, containerPath, cancellationToken);
+      var response = await driver.CopyToAsync(context, _containerId, hostPath, containerPath, cancellationToken).ConfigureAwait(false);
 
       if (!response.Success)
       {
@@ -179,7 +179,7 @@ namespace FluentDocker.Services.Impl
         Directory.CreateDirectory(dir);
       }
 
-      var response = await driver.CopyFromAsync(context, _containerId, containerPath, hostPath, cancellationToken);
+      var response = await driver.CopyFromAsync(context, _containerId, containerPath, hostPath, cancellationToken).ConfigureAwait(false);
 
       if (!response.Success)
       {
@@ -193,7 +193,7 @@ namespace FluentDocker.Services.Impl
     {
       var driver = _kernel.SysCtl<IContainerDriver>(_driverId);
       var context = new DriverContext(_driverId);
-      var response = await driver.StatsAsync(context, _containerId, cancellationToken);
+      var response = await driver.StatsAsync(context, _containerId, cancellationToken).ConfigureAwait(false);
 
       if (!response.Success)
       {
@@ -238,7 +238,7 @@ namespace FluentDocker.Services.Impl
     /// </summary>
     public async Task<int> GetHostPortAsync(string portAndProto, CancellationToken cancellationToken = default)
     {
-      var config = await InspectAsync(cancellationToken);
+      var config = await InspectAsync(cancellationToken).ConfigureAwait(false);
 
       if (_customResolver != null && config?.NetworkSettings?.Ports != null)
       {

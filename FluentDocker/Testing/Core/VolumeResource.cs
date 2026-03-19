@@ -46,7 +46,7 @@ namespace FluentDocker.Testing.Core
       EnsureInitialized();
       var driver = Kernel.SysCtl<IVolumeDriver>(DriverId);
       var result = await driver.InspectAsync(
-          new DriverContext(DriverId), ResourceName, cancellationToken);
+          new DriverContext(DriverId), ResourceName, cancellationToken).ConfigureAwait(false);
       return result.Success ? result.Data : null;
     }
 
@@ -55,7 +55,7 @@ namespace FluentDocker.Testing.Core
     /// <inheritdoc />
     protected override async Task PreflightAsync(CancellationToken cancellationToken)
     {
-      await CapabilityChecks.EnsureVolumeSupportAsync(Kernel, DriverId, cancellationToken);
+      await CapabilityChecks.EnsureVolumeSupportAsync(Kernel, DriverId, cancellationToken).ConfigureAwait(false);
     }
 
     /// <inheritdoc />
@@ -77,7 +77,7 @@ namespace FluentDocker.Testing.Core
 
       var driver = Kernel.SysCtl<IVolumeDriver>(DriverId);
       var result = await driver.CreateAsync(
-          new DriverContext(DriverId), config, cancellationToken);
+          new DriverContext(DriverId), config, cancellationToken).ConfigureAwait(false);
 
       if (!result.Success)
         throw new FluentDockerException(
@@ -92,7 +92,7 @@ namespace FluentDocker.Testing.Core
 
       var driver = Kernel.SysCtl<IVolumeDriver>(DriverId);
       await driver.RemoveAsync(
-          new DriverContext(DriverId), ResourceName, false, cancellationToken);
+          new DriverContext(DriverId), ResourceName, false, cancellationToken).ConfigureAwait(false);
     }
 
     /// <inheritdoc />
@@ -106,7 +106,7 @@ namespace FluentDocker.Testing.Core
       {
         var driver = Kernel.SysCtl<IVolumeDriver>(DriverId);
         await driver.RemoveAsync(
-            new DriverContext(DriverId), name, true, cancellationToken);
+            new DriverContext(DriverId), name, true, cancellationToken).ConfigureAwait(false);
       }
       catch { /* best effort */ }
     }

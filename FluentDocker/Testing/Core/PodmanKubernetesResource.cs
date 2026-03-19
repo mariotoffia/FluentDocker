@@ -63,7 +63,7 @@ namespace FluentDocker.Testing.Core
       EnsureInitialized();
       var driver = Kernel.SysCtl<IPodmanKubernetesDriver>(DriverId);
       var result = await driver.GenerateAsync(
-          new DriverContext(DriverId), resourceName, cancellationToken);
+          new DriverContext(DriverId), resourceName, cancellationToken).ConfigureAwait(false);
       if (!result.Success)
         throw new FluentDockerException(
             $"Failed to generate YAML for '{resourceName}': {result.Error}");
@@ -75,7 +75,7 @@ namespace FluentDocker.Testing.Core
     /// <inheritdoc />
     protected override async Task PreflightAsync(CancellationToken cancellationToken)
     {
-      var caps = await CapabilityChecks.GetCapabilitiesAsync(Kernel, DriverId, cancellationToken);
+      var caps = await CapabilityChecks.GetCapabilitiesAsync(Kernel, DriverId, cancellationToken).ConfigureAwait(false);
       if (!caps.SupportsKubernetes)
       {
         throw new CapabilityNotSupportedException(DriverId, "Kubernetes");
@@ -93,7 +93,7 @@ namespace FluentDocker.Testing.Core
       var driver = Kernel.SysCtl<IPodmanKubernetesDriver>(DriverId);
       var context = new DriverContext(DriverId);
 
-      var result = await driver.PlayAsync(context, _config, cancellationToken);
+      var result = await driver.PlayAsync(context, _config, cancellationToken).ConfigureAwait(false);
       if (!result.Success)
       {
         throw new FluentDockerException(
@@ -113,7 +113,7 @@ namespace FluentDocker.Testing.Core
       var driver = Kernel.SysCtl<IPodmanKubernetesDriver>(DriverId);
       var context = new DriverContext(DriverId);
       var result = await driver.DownAsync(
-          context, _config.YamlPath, cancellationToken);
+          context, _config.YamlPath, cancellationToken).ConfigureAwait(false);
       if (!result.Success)
         throw new FluentDockerException(
             $"Failed to tear down Podman kube for '{_config.YamlPath}': {result.Error}");
@@ -128,7 +128,7 @@ namespace FluentDocker.Testing.Core
         var driver = Kernel.SysCtl<IPodmanKubernetesDriver>(DriverId);
         var context = new DriverContext(DriverId);
         await driver.DownAsync(
-            context, _config.YamlPath, cancellationToken);
+            context, _config.YamlPath, cancellationToken).ConfigureAwait(false);
       }
       catch (Exception ex)
       {

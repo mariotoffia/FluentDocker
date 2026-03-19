@@ -69,7 +69,7 @@ namespace FluentDocker.Testing.Core
     /// <inheritdoc />
     protected override async Task PreflightAsync(CancellationToken cancellationToken)
     {
-      await CapabilityChecks.EnsureContainerSupportAsync(Kernel, DriverId, cancellationToken);
+      await CapabilityChecks.EnsureContainerSupportAsync(Kernel, DriverId, cancellationToken).ConfigureAwait(false);
     }
 
     /// <inheritdoc />
@@ -89,7 +89,7 @@ namespace FluentDocker.Testing.Core
 
       var results = await builder.BuildAsync(
           cleanupTimeout: Options.TeardownTimeout,
-          cancellationToken: cancellationToken);
+          cancellationToken: cancellationToken).ConfigureAwait(false);
       if (results.All.Count > 0 && results.All[0] is IContainerService container)
       {
         Container = container;
@@ -107,8 +107,8 @@ namespace FluentDocker.Testing.Core
       if (Container == null)
         return;
 
-      await Container.StopAsync(cancellationToken);
-      await Container.RemoveAsync(force: false, cancellationToken);
+      await Container.StopAsync(cancellationToken).ConfigureAwait(false);
+      await Container.RemoveAsync(force: false, cancellationToken).ConfigureAwait(false);
       Container = null;
     }
 
@@ -121,7 +121,7 @@ namespace FluentDocker.Testing.Core
         return;
 
       try
-      { await c.RemoveAsync(force: true, cancellationToken); }
+      { await c.RemoveAsync(force: true, cancellationToken).ConfigureAwait(false); }
       catch { /* best effort */ }
     }
 
@@ -130,14 +130,14 @@ namespace FluentDocker.Testing.Core
         Exception failure,
         CancellationToken cancellationToken = default)
     {
-      var diag = await base.CollectDiagnosticsAsync(failure, cancellationToken);
+      var diag = await base.CollectDiagnosticsAsync(failure, cancellationToken).ConfigureAwait(false);
 
       if (Container != null && Options.CaptureLogsOnFailure)
       {
         try
         {
           diag.Logs = TruncateLogLines(
-              await Container.GetLogsAsync(false, cancellationToken));
+              await Container.GetLogsAsync(false, cancellationToken).ConfigureAwait(false));
         }
         catch (Exception ex)
         {
@@ -147,7 +147,7 @@ namespace FluentDocker.Testing.Core
 
         try
         {
-          var info = await Container.InspectAsync(cancellationToken);
+          var info = await Container.InspectAsync(cancellationToken).ConfigureAwait(false);
           diag.InspectPayload = info != null
               ? JsonHelper.SerializeIndented(info)
               : null;

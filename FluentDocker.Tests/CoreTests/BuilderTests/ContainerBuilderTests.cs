@@ -4,6 +4,8 @@ using FluentDocker.Builders;
 using FluentDocker.Kernel;
 using Xunit;
 
+#pragma warning disable CS0618 // Tests exercise deprecated UseIpV4/UseIpV6 methods intentionally
+
 namespace FluentDocker.Tests.CoreTests.BuilderTests
 {
   /// <summary>

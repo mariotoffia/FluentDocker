@@ -54,11 +54,11 @@ namespace FluentDocker.Services.Impl
       {
         if (targetScope == EngineScopeType.Linux)
         {
-          await scope.UseLinuxAsync(cancellationToken);
+          await scope.UseLinuxAsync(cancellationToken).ConfigureAwait(false);
         }
         else if (targetScope == EngineScopeType.Windows)
         {
-          await scope.UseWindowsAsync(cancellationToken);
+          await scope.UseWindowsAsync(cancellationToken).ConfigureAwait(false);
         }
       }
 
@@ -72,7 +72,7 @@ namespace FluentDocker.Services.Impl
       var driver = _kernel.SysCtl<ISystemDriver>(_driverId);
       var context = new DriverContext(_driverId);
 
-      var response = await driver.IsWindowsEngineAsync(context, cancellationToken);
+      var response = await driver.IsWindowsEngineAsync(context, cancellationToken).ConfigureAwait(false);
       return response.Success && response.Data;
     }
 
@@ -81,7 +81,7 @@ namespace FluentDocker.Services.Impl
       var driver = _kernel.SysCtl<ISystemDriver>(_driverId);
       var context = new DriverContext(_driverId);
 
-      var response = await driver.IsLinuxEngineAsync(context, cancellationToken);
+      var response = await driver.IsLinuxEngineAsync(context, cancellationToken).ConfigureAwait(false);
       return response.Success && response.Data;
     }
 
@@ -93,7 +93,7 @@ namespace FluentDocker.Services.Impl
       var driver = _kernel.SysCtl<ISystemDriver>(_driverId);
       var context = new DriverContext(_driverId);
 
-      var response = await driver.SwitchToLinuxDaemonAsync(context, cancellationToken);
+      var response = await driver.SwitchToLinuxDaemonAsync(context, cancellationToken).ConfigureAwait(false);
 
       if (response.Success)
       {
@@ -112,7 +112,7 @@ namespace FluentDocker.Services.Impl
       var driver = _kernel.SysCtl<ISystemDriver>(_driverId);
       var context = new DriverContext(_driverId);
 
-      var response = await driver.SwitchToWindowsDaemonAsync(context, cancellationToken);
+      var response = await driver.SwitchToWindowsDaemonAsync(context, cancellationToken).ConfigureAwait(false);
 
       if (response.Success)
       {
@@ -171,11 +171,11 @@ namespace FluentDocker.Services.Impl
         {
           if (_originalScope == EngineScopeType.Linux)
           {
-            await UseLinuxAsync();
+            await UseLinuxAsync().ConfigureAwait(false);
           }
           else if (_originalScope == EngineScopeType.Windows)
           {
-            await UseWindowsAsync();
+            await UseWindowsAsync().ConfigureAwait(false);
           }
         }
         catch (Exception ex)

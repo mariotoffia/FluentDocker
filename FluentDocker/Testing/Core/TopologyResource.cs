@@ -77,7 +77,7 @@ namespace FluentDocker.Testing.Core
     protected override async Task PreflightAsync(CancellationToken cancellationToken)
     {
       // Topology requires at least container support.
-      await CapabilityChecks.EnsureContainerSupportAsync(Kernel, DriverId, cancellationToken);
+      await CapabilityChecks.EnsureContainerSupportAsync(Kernel, DriverId, cancellationToken).ConfigureAwait(false);
     }
 
     /// <inheritdoc />
@@ -89,7 +89,7 @@ namespace FluentDocker.Testing.Core
 
       var results = await builder.BuildAsync(
           cleanupTimeout: Options.TeardownTimeout,
-          cancellationToken: cancellationToken);
+          cancellationToken: cancellationToken).ConfigureAwait(false);
       foreach (var service in results.All.OfType<IServiceAsync>())
       {
         _services.Add(service);
@@ -107,11 +107,11 @@ namespace FluentDocker.Testing.Core
       for (var i = _services.Count - 1; i >= 0; i--)
       {
         try
-        { await _services[i].StopAsync(cancellationToken); }
+        { await _services[i].StopAsync(cancellationToken).ConfigureAwait(false); }
         catch { /* stop failure must not prevent removal */ }
 
         try
-        { await _services[i].RemoveAsync(force: false, cancellationToken); }
+        { await _services[i].RemoveAsync(force: false, cancellationToken).ConfigureAwait(false); }
         catch (Exception ex) { failures.Add(ex); }
       }
 
@@ -129,7 +129,7 @@ namespace FluentDocker.Testing.Core
       for (var i = _services.Count - 1; i >= 0; i--)
       {
         try
-        { await _services[i].RemoveAsync(force: true, cancellationToken); }
+        { await _services[i].RemoveAsync(force: true, cancellationToken).ConfigureAwait(false); }
         catch { /* best effort */ }
       }
 
@@ -141,7 +141,7 @@ namespace FluentDocker.Testing.Core
         Exception failure,
         CancellationToken cancellationToken = default)
     {
-      var diag = await base.CollectDiagnosticsAsync(failure, cancellationToken);
+      var diag = await base.CollectDiagnosticsAsync(failure, cancellationToken).ConfigureAwait(false);
 
       if (Options.CaptureLogsOnFailure)
       {
@@ -150,7 +150,7 @@ namespace FluentDocker.Testing.Core
         {
           try
           {
-            var log = await container.GetLogsAsync(false, cancellationToken);
+            var log = await container.GetLogsAsync(false, cancellationToken).ConfigureAwait(false);
             logs.Add($"--- {container.Name ?? container.Id} ---\n{log}");
           }
           catch (Exception ex)

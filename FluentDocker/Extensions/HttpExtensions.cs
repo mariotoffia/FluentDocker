@@ -22,13 +22,13 @@ namespace FluentDocker.Extensions
     /// <returns></returns>
     public static async Task<bool> Download(this Uri url, string fqPath)
     {
-      var response = await Client.GetAsync(url);
+      var response = await Client.GetAsync(url).ConfigureAwait(false);
 
       if (response.IsSuccessStatusCode)
       {
         using (var fs = new FileStream(fqPath, FileMode.Create))
         {
-          await response.Content.CopyToAsync(fs);
+          await response.Content.CopyToAsync(fs).ConfigureAwait(false);
           fs.Flush();
         }
       }
@@ -51,7 +51,7 @@ namespace FluentDocker.Extensions
     {
       try
       {
-        var result = await DoRequest(url);
+        var result = await DoRequest(url).ConfigureAwait(false);
         return result.Body ?? string.Empty;
       }
       catch (Exception ex)
@@ -95,13 +95,13 @@ namespace FluentDocker.Extensions
       try
       {
         if (method.Equals(HttpMethod.Get))
-          response = await Client.GetAsync(url);
+          response = await Client.GetAsync(url).ConfigureAwait(false);
         if (method.Equals(HttpMethod.Post))
-          response = await Client.PostAsync(url, content);
+          response = await Client.PostAsync(url, content).ConfigureAwait(false);
         if (method.Equals(HttpMethod.Put))
-          response = await Client.PutAsync(url, content);
+          response = await Client.PutAsync(url, content).ConfigureAwait(false);
         if (method.Equals(HttpMethod.Delete))
-          response = await Client.DeleteAsync(url);
+          response = await Client.DeleteAsync(url).ConfigureAwait(false);
 
       }
       catch (Exception err)
@@ -117,7 +117,7 @@ namespace FluentDocker.Extensions
         throw new ArgumentException(
           $"Unsupported HttpMethod specified '{method} - supported are GET, POST, PUT, DELETE", nameof(method));
 
-      body = await response.Content.ReadAsStringAsync();
+      body = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
       return new RequestResponse(response.Headers, response.StatusCode, body, null);
     }
   }

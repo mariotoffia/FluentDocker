@@ -54,7 +54,7 @@ namespace FluentDocker.Testing.Core
       EnsureInitialized();
       var driver = Kernel.SysCtl<IStackDriver>(DriverId);
       var result = await driver.GetServicesAsync(
-          new DriverContext(DriverId), StackName, cancellationToken: cancellationToken);
+          new DriverContext(DriverId), StackName, cancellationToken: cancellationToken).ConfigureAwait(false);
       if (!result.Success)
         throw new FluentDockerException(
             $"Failed to list services for stack '{StackName}': {result.Error}");
@@ -70,7 +70,7 @@ namespace FluentDocker.Testing.Core
       EnsureInitialized();
       var driver = Kernel.SysCtl<IStackDriver>(DriverId);
       var result = await driver.GetTasksAsync(
-          new DriverContext(DriverId), StackName, cancellationToken: cancellationToken);
+          new DriverContext(DriverId), StackName, cancellationToken: cancellationToken).ConfigureAwait(false);
       if (!result.Success)
         throw new FluentDockerException(
             $"Failed to list tasks for stack '{StackName}': {result.Error}");
@@ -82,7 +82,7 @@ namespace FluentDocker.Testing.Core
     /// <inheritdoc />
     protected override async Task PreflightAsync(CancellationToken cancellationToken)
     {
-      await CapabilityChecks.EnsureStackSupportAsync(Kernel, DriverId, cancellationToken);
+      await CapabilityChecks.EnsureStackSupportAsync(Kernel, DriverId, cancellationToken).ConfigureAwait(false);
 
       if (!Kernel.TrySysCtl<IStackDriver>(DriverId, out _))
       {
@@ -96,7 +96,7 @@ namespace FluentDocker.Testing.Core
       var driver = Kernel.SysCtl<IStackDriver>(DriverId);
       var context = new DriverContext(DriverId);
 
-      var result = await driver.DeployAsync(context, _config, cancellationToken);
+      var result = await driver.DeployAsync(context, _config, cancellationToken).ConfigureAwait(false);
       if (!result.Success)
       {
         throw new FluentDockerException(
@@ -116,7 +116,7 @@ namespace FluentDocker.Testing.Core
       var driver = Kernel.SysCtl<IStackDriver>(DriverId);
       var context = new DriverContext(DriverId);
       var result = await driver.RemoveAsync(
-          context, [_config.StackName], cancellationToken);
+          context, [_config.StackName], cancellationToken).ConfigureAwait(false);
       if (!result.Success)
         throw new FluentDockerException(
             $"Failed to remove stack '{_config.StackName}': {result.Error}");
@@ -131,7 +131,7 @@ namespace FluentDocker.Testing.Core
         var driver = Kernel.SysCtl<IStackDriver>(DriverId);
         var context = new DriverContext(DriverId);
         await driver.RemoveAsync(
-            context, [_config.StackName], cancellationToken);
+            context, [_config.StackName], cancellationToken).ConfigureAwait(false);
       }
       catch (Exception ex)
       {

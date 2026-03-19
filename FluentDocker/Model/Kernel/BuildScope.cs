@@ -71,7 +71,7 @@ namespace FluentDocker.Model.Kernel
           var task = service is IAsyncDisposable asyncDisposable
               ? asyncDisposable.DisposeAsync().AsTask()
               : Task.Run(() => service.Dispose(), CancellationToken.None);
-          await task.WaitAsync(cancellationToken);
+          await task.WaitAsync(cancellationToken).ConfigureAwait(false);
         }
         catch (Exception ex)
         {

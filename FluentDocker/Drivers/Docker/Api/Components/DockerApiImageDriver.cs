@@ -196,7 +196,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
         path += $"?filters={Uri.EscapeDataString(json)}";
       }
 
-      var result = await GetJsonElementAsync(path, cancellationToken);
+      var result = await PostJsonElementAsync(path, null, cancellationToken);
       if (!result.Success)
         return CommandResponse<ImagePruneResult>.Fail(result.ErrorMessage,
             ErrorCodes.Image.PruneFailed,

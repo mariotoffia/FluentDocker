@@ -111,7 +111,7 @@ namespace FluentDocker.Model.Kernel
       {
         if (service is IAsyncDisposable asyncDisposable)
         {
-          await asyncDisposable.DisposeAsync();
+          await asyncDisposable.DisposeAsync().ConfigureAwait(false);
         }
         else
         {
@@ -127,7 +127,7 @@ namespace FluentDocker.Model.Kernel
     /// </summary>
     public async Task DisposeAllAsync()
     {
-      await DisposeAsync();
+      await DisposeAsync().ConfigureAwait(false);
     }
 
     /// <summary>

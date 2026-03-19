@@ -62,7 +62,7 @@ namespace FluentDocker.Testing.Core
     /// <inheritdoc />
     protected override async Task PreflightAsync(CancellationToken cancellationToken)
     {
-      await CapabilityChecks.EnsureComposeSupportAsync(Kernel, DriverId, cancellationToken);
+      await CapabilityChecks.EnsureComposeSupportAsync(Kernel, DriverId, cancellationToken).ConfigureAwait(false);
     }
 
     /// <inheritdoc />
@@ -74,7 +74,7 @@ namespace FluentDocker.Testing.Core
 
       var results = await builder.BuildAsync(
           cleanupTimeout: Options.TeardownTimeout,
-          cancellationToken: cancellationToken);
+          cancellationToken: cancellationToken).ConfigureAwait(false);
       if (results.All.Count > 0 && results.All[0] is IComposeService compose)
       {
         Service = compose;
@@ -92,8 +92,8 @@ namespace FluentDocker.Testing.Core
       if (Service == null)
         return;
 
-      await Service.StopAsync(cancellationToken);
-      await Service.RemoveAsync(force: false, cancellationToken);
+      await Service.StopAsync(cancellationToken).ConfigureAwait(false);
+      await Service.RemoveAsync(force: false, cancellationToken).ConfigureAwait(false);
       Service = null;
     }
 
@@ -106,7 +106,7 @@ namespace FluentDocker.Testing.Core
         return;
 
       try
-      { await s.RemoveAsync(force: true, cancellationToken); }
+      { await s.RemoveAsync(force: true, cancellationToken).ConfigureAwait(false); }
       catch { /* best effort */ }
     }
 
@@ -115,14 +115,14 @@ namespace FluentDocker.Testing.Core
         Exception failure,
         CancellationToken cancellationToken = default)
     {
-      var diag = await base.CollectDiagnosticsAsync(failure, cancellationToken);
+      var diag = await base.CollectDiagnosticsAsync(failure, cancellationToken).ConfigureAwait(false);
 
       if (Service != null && Options.CaptureLogsOnFailure)
       {
         try
         {
           diag.Logs = TruncateLogLines(
-              await Service.GetLogsAsync(false, cancellationToken));
+              await Service.GetLogsAsync(false, cancellationToken).ConfigureAwait(false));
         }
         catch (Exception ex)
         {

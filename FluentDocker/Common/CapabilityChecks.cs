@@ -25,7 +25,7 @@ namespace FluentDocker.Common
         CancellationToken cancellationToken = default)
     {
       var pack = kernel.GetDriverPack(driverId);
-      var capabilities = await pack.GetCapabilitiesAsync(cancellationToken);
+      var capabilities = await pack.GetCapabilitiesAsync(cancellationToken).ConfigureAwait(false);
 
       if (!capabilities.SupportsContainers)
       {
@@ -46,7 +46,7 @@ namespace FluentDocker.Common
         CancellationToken cancellationToken = default)
     {
       var pack = kernel.GetDriverPack(driverId);
-      var capabilities = await pack.GetCapabilitiesAsync(cancellationToken);
+      var capabilities = await pack.GetCapabilitiesAsync(cancellationToken).ConfigureAwait(false);
 
       if (!capabilities.SupportsNetworks)
       {
@@ -67,7 +67,7 @@ namespace FluentDocker.Common
         CancellationToken cancellationToken = default)
     {
       var pack = kernel.GetDriverPack(driverId);
-      var capabilities = await pack.GetCapabilitiesAsync(cancellationToken);
+      var capabilities = await pack.GetCapabilitiesAsync(cancellationToken).ConfigureAwait(false);
 
       if (!capabilities.SupportsVolumes)
       {
@@ -88,7 +88,7 @@ namespace FluentDocker.Common
         CancellationToken cancellationToken = default)
     {
       var pack = kernel.GetDriverPack(driverId);
-      var capabilities = await pack.GetCapabilitiesAsync(cancellationToken);
+      var capabilities = await pack.GetCapabilitiesAsync(cancellationToken).ConfigureAwait(false);
 
       if (!capabilities.SupportsCompose)
       {
@@ -109,7 +109,7 @@ namespace FluentDocker.Common
         CancellationToken cancellationToken = default)
     {
       var pack = kernel.GetDriverPack(driverId);
-      var capabilities = await pack.GetCapabilitiesAsync(cancellationToken);
+      var capabilities = await pack.GetCapabilitiesAsync(cancellationToken).ConfigureAwait(false);
 
       if (!capabilities.SupportsImages)
       {
@@ -130,7 +130,7 @@ namespace FluentDocker.Common
         CancellationToken cancellationToken = default)
     {
       var pack = kernel.GetDriverPack(driverId);
-      var capabilities = await pack.GetCapabilitiesAsync(cancellationToken);
+      var capabilities = await pack.GetCapabilitiesAsync(cancellationToken).ConfigureAwait(false);
 
       if (!capabilities.SupportsPods)
       {
@@ -151,7 +151,7 @@ namespace FluentDocker.Common
         CancellationToken cancellationToken = default)
     {
       var pack = kernel.GetDriverPack(driverId);
-      var capabilities = await pack.GetCapabilitiesAsync(cancellationToken);
+      var capabilities = await pack.GetCapabilitiesAsync(cancellationToken).ConfigureAwait(false);
 
       if (!capabilities.SupportsSystem)
       {
@@ -172,7 +172,7 @@ namespace FluentDocker.Common
         CancellationToken cancellationToken = default)
     {
       var pack = kernel.GetDriverPack(driverId);
-      var capabilities = await pack.GetCapabilitiesAsync(cancellationToken);
+      var capabilities = await pack.GetCapabilitiesAsync(cancellationToken).ConfigureAwait(false);
 
       if (!capabilities.SupportsKubernetes)
       {
@@ -193,7 +193,7 @@ namespace FluentDocker.Common
         CancellationToken cancellationToken = default)
     {
       var pack = kernel.GetDriverPack(driverId);
-      var capabilities = await pack.GetCapabilitiesAsync(cancellationToken);
+      var capabilities = await pack.GetCapabilitiesAsync(cancellationToken).ConfigureAwait(false);
 
       if (!capabilities.SupportsStacks)
       {
@@ -214,7 +214,7 @@ namespace FluentDocker.Common
         CancellationToken cancellationToken = default)
     {
       var pack = kernel.GetDriverPack(driverId);
-      var capabilities = await pack.GetCapabilitiesAsync(cancellationToken);
+      var capabilities = await pack.GetCapabilitiesAsync(cancellationToken).ConfigureAwait(false);
 
       if (!capabilities.SupportsServices)
       {
@@ -235,7 +235,7 @@ namespace FluentDocker.Common
         CancellationToken cancellationToken = default)
     {
       var pack = kernel.GetDriverPack(driverId);
-      var capabilities = await pack.GetCapabilitiesAsync(cancellationToken);
+      var capabilities = await pack.GetCapabilitiesAsync(cancellationToken).ConfigureAwait(false);
 
       if (!capabilities.SupportsMachines)
       {
@@ -256,7 +256,7 @@ namespace FluentDocker.Common
         CancellationToken cancellationToken = default)
     {
       var pack = kernel.GetDriverPack(driverId);
-      var capabilities = await pack.GetCapabilitiesAsync(cancellationToken);
+      var capabilities = await pack.GetCapabilitiesAsync(cancellationToken).ConfigureAwait(false);
 
       if (!capabilities.SupportsManifests)
       {
@@ -277,7 +277,7 @@ namespace FluentDocker.Common
         CancellationToken cancellationToken = default)
     {
       var pack = kernel.GetDriverPack(driverId);
-      return await pack.GetCapabilitiesAsync(cancellationToken);
+      return await pack.GetCapabilitiesAsync(cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -293,7 +293,7 @@ namespace FluentDocker.Common
         CancellationToken cancellationToken = default)
     {
       var pack = kernel.GetDriverPack(driverId);
-      return await pack.IsHealthyAsync(cancellationToken);
+      return await pack.IsHealthyAsync(cancellationToken).ConfigureAwait(false);
     }
   }
 
@@ -319,40 +319,40 @@ namespace FluentDocker.Common
       switch (capability)
       {
         case DriverCapability.Container:
-          await CapabilityChecks.EnsureContainerSupportAsync(kernel, driverId, cancellationToken);
+          await CapabilityChecks.EnsureContainerSupportAsync(kernel, driverId, cancellationToken).ConfigureAwait(false);
           break;
         case DriverCapability.Network:
-          await CapabilityChecks.EnsureNetworkSupportAsync(kernel, driverId, cancellationToken);
+          await CapabilityChecks.EnsureNetworkSupportAsync(kernel, driverId, cancellationToken).ConfigureAwait(false);
           break;
         case DriverCapability.Volume:
-          await CapabilityChecks.EnsureVolumeSupportAsync(kernel, driverId, cancellationToken);
+          await CapabilityChecks.EnsureVolumeSupportAsync(kernel, driverId, cancellationToken).ConfigureAwait(false);
           break;
         case DriverCapability.Compose:
-          await CapabilityChecks.EnsureComposeSupportAsync(kernel, driverId, cancellationToken);
+          await CapabilityChecks.EnsureComposeSupportAsync(kernel, driverId, cancellationToken).ConfigureAwait(false);
           break;
         case DriverCapability.Image:
-          await CapabilityChecks.EnsureImageSupportAsync(kernel, driverId, cancellationToken);
+          await CapabilityChecks.EnsureImageSupportAsync(kernel, driverId, cancellationToken).ConfigureAwait(false);
           break;
         case DriverCapability.Pod:
-          await CapabilityChecks.EnsurePodSupportAsync(kernel, driverId, cancellationToken);
+          await CapabilityChecks.EnsurePodSupportAsync(kernel, driverId, cancellationToken).ConfigureAwait(false);
           break;
         case DriverCapability.System:
-          await CapabilityChecks.EnsureSystemSupportAsync(kernel, driverId, cancellationToken);
+          await CapabilityChecks.EnsureSystemSupportAsync(kernel, driverId, cancellationToken).ConfigureAwait(false);
           break;
         case DriverCapability.Kubernetes:
-          await CapabilityChecks.EnsureKubernetesSupportAsync(kernel, driverId, cancellationToken);
+          await CapabilityChecks.EnsureKubernetesSupportAsync(kernel, driverId, cancellationToken).ConfigureAwait(false);
           break;
         case DriverCapability.Stack:
-          await CapabilityChecks.EnsureStackSupportAsync(kernel, driverId, cancellationToken);
+          await CapabilityChecks.EnsureStackSupportAsync(kernel, driverId, cancellationToken).ConfigureAwait(false);
           break;
         case DriverCapability.Service:
-          await CapabilityChecks.EnsureServiceSupportAsync(kernel, driverId, cancellationToken);
+          await CapabilityChecks.EnsureServiceSupportAsync(kernel, driverId, cancellationToken).ConfigureAwait(false);
           break;
         case DriverCapability.Machine:
-          await CapabilityChecks.EnsureMachineSupportAsync(kernel, driverId, cancellationToken);
+          await CapabilityChecks.EnsureMachineSupportAsync(kernel, driverId, cancellationToken).ConfigureAwait(false);
           break;
         case DriverCapability.Manifest:
-          await CapabilityChecks.EnsureManifestSupportAsync(kernel, driverId, cancellationToken);
+          await CapabilityChecks.EnsureManifestSupportAsync(kernel, driverId, cancellationToken).ConfigureAwait(false);
           break;
       }
     }
