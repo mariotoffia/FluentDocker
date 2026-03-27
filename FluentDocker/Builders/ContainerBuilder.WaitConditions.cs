@@ -208,6 +208,7 @@ namespace FluentDocker.Builders
         int pollIntervalMs, CancellationToken cancellationToken)
     {
       var sw = Stopwatch.StartNew();
+      var sawNonNullHealth = false;
       while (sw.ElapsedMilliseconds < timeoutMs && !cancellationToken.IsCancellationRequested)
       {
         var config = await service.InspectAsync(cancellationToken).ConfigureAwait(false);
@@ -216,9 +217,21 @@ namespace FluentDocker.Builders
           return true;
         if (health == HealthState.Unhealthy)
           return false;
-        // Fast-fail: no HEALTHCHECK configured on the image
-        if (health == null || health == HealthState.Unknown)
-          return false;
+
+        if (health != null && health != HealthState.Unknown)
+          sawNonNullHealth = true;
+
+        // If health remains null/Unknown after container has had time to start,
+        // it likely has no HEALTHCHECK configured. Give a clear error instead
+        // of waiting silently until timeout.
+        if (!sawNonNullHealth && (health == null || health == HealthState.Unknown)
+            && sw.ElapsedMilliseconds > Math.Min(5000, timeoutMs / 2))
+        {
+          throw new FluentDockerException(
+              "Container has no HEALTHCHECK configured. " +
+              "Use WaitForPort or WaitForLogMessage instead of WaitForHealthy.");
+        }
+
         await Task.Delay(pollIntervalMs, cancellationToken).ConfigureAwait(false);
       }
       return false;
@@ -248,7 +261,10 @@ namespace FluentDocker.Builders
 
     private static readonly HttpClient s_httpClient = new()
     {
-      Timeout = Timeout.InfiniteTimeSpan
+      // Per-request timeout is handled via CancellationToken.
+      // Set a generous but finite default to prevent truly infinite waits
+      // if a caller passes CancellationToken.None.
+      Timeout = TimeSpan.FromMinutes(10)
     };
 
     private static async Task<bool> WaitForHttpUrlAsync(

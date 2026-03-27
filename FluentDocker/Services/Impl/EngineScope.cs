@@ -22,9 +22,12 @@ namespace FluentDocker.Services.Impl
     private bool _disposed;
 
     /// <summary>
-    /// Creates an engine scope that automatically switches to the target scope.
+    /// Creates an engine scope. Use <see cref="CreateAsync"/> for async initialization.
+    /// The constructor detects the current scope synchronously which may deadlock
+    /// in environments with a SynchronizationContext (e.g. ASP.NET, WPF).
+    /// Prefer <see cref="CreateAsync"/> in all new code.
     /// </summary>
-    public EngineScope(
+    internal EngineScope(
         FluentDockerKernel kernel,
         string driverId,
         EngineScopeType targetScope)
@@ -126,10 +129,7 @@ namespace FluentDocker.Services.Impl
     public void Dispose()
     {
       if (_disposed)
-      {
-        GC.SuppressFinalize(this);
         return;
-      }
 
       _disposed = true;
 
@@ -137,13 +137,15 @@ namespace FluentDocker.Services.Impl
       {
         try
         {
+          // Use Task.Run to avoid SynchronizationContext deadlock when called
+          // from UI threads or ASP.NET contexts. Prefer DisposeAsync instead.
           if (_originalScope == EngineScopeType.Linux)
           {
-            UseLinuxAsync().GetAwaiter().GetResult();
+            Task.Run(() => UseLinuxAsync()).GetAwaiter().GetResult();
           }
           else if (_originalScope == EngineScopeType.Windows)
           {
-            UseWindowsAsync().GetAwaiter().GetResult();
+            Task.Run(() => UseWindowsAsync()).GetAwaiter().GetResult();
           }
         }
         catch (Exception ex)
@@ -158,10 +160,7 @@ namespace FluentDocker.Services.Impl
     public async ValueTask DisposeAsync()
     {
       if (_disposed)
-      {
-        GC.SuppressFinalize(this);
         return;
-      }
 
       _disposed = true;
 
@@ -194,7 +193,8 @@ namespace FluentDocker.Services.Impl
         var driver = _kernel.SysCtl<ISystemDriver>(_driverId);
         var context = new DriverContext(_driverId);
 
-        var response = driver.IsWindowsEngineAsync(context).GetAwaiter().GetResult();
+        // Use Task.Run to avoid SynchronizationContext deadlock.
+        var response = Task.Run(() => driver.IsWindowsEngineAsync(context)).GetAwaiter().GetResult();
 
         if (response.Success)
         {

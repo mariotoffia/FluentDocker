@@ -243,7 +243,11 @@ namespace FluentDocker.Drivers.Docker.Api
         yield break;
       }
 
-      using var reader = new StreamReader(stream, Encoding.UTF8);
+      // StreamReader with leaveOpen:false (default) will dispose the stream.
+      // Wrapping in await using ensures cleanup even if StreamReader ctor throws.
+      await using var _ = stream.ConfigureAwait(false);
+      using var reader = new StreamReader(stream, Encoding.UTF8, detectEncodingFromByteOrderMarks: false,
+          bufferSize: 1024, leaveOpen: true);
       while (!ct.IsCancellationRequested)
       {
         string line;
@@ -283,7 +287,9 @@ namespace FluentDocker.Drivers.Docker.Api
         yield break;
       }
 
-      using var reader = new StreamReader(stream, Encoding.UTF8);
+      await using var _ = stream.ConfigureAwait(false);
+      using var reader = new StreamReader(stream, Encoding.UTF8, detectEncodingFromByteOrderMarks: false,
+          bufferSize: 1024, leaveOpen: true);
       while (!ct.IsCancellationRequested)
       {
         string line;
@@ -328,6 +334,7 @@ namespace FluentDocker.Drivers.Docker.Api
         yield break;
       }
 
+      await using var _ = stream.ConfigureAwait(false);
       await foreach (var item in ReadNdjsonLinesAsync(stream, typeInfo, ct)
           .ConfigureAwait(false))
         yield return item;
@@ -352,6 +359,7 @@ namespace FluentDocker.Drivers.Docker.Api
         yield break;
       }
 
+      await using var __ = stream.ConfigureAwait(false);
       await foreach (var item in ReadNdjsonLinesAsync(stream, typeInfo, ct)
           .ConfigureAwait(false))
         yield return item;
@@ -445,56 +453,12 @@ namespace FluentDocker.Drivers.Docker.Api
     {
       if (string.IsNullOrWhiteSpace(body))
         return null;
-      try
-      {
-        var error = JsonHelper.TryDeserialize<DockerApiErrorResponse>(body);
-        return error?.Message;
-      }
-      catch (Exception ex)
-      {
-        Logger.Log($"Error response JSON parsing failed: {ex.Message}");
-        return body.Length > 500 ? body[..500] : body;
-      }
+
+      // TryDeserialize already catches JsonException and returns default.
+      var error = JsonHelper.TryDeserialize<DockerApiErrorResponse>(body);
+      return error?.Message;
     }
 
     #endregion
-
-    #region Error Context
-
-    protected ErrorContext CreateErrorContext(
-        string operation, int statusCode, string responseBody = null)
-    {
-      return new ErrorContext(operation)
-      {
-        DriverId = Context?.DriverId,
-        Host = Context?.Host,
-        ExitCode = statusCode,
-        StdOut = responseBody,
-        Metadata = { ["HttpStatusCode"] = statusCode.ToString() }
-      };
-    }
-
-    protected static string MapNotFoundErrorCode(int statusCode, string defaultErrorCode)
-    {
-      return statusCode == 404 ? defaultErrorCode : MapHttpErrorCode(statusCode);
-    }
-
-    protected static string MapHttpErrorCode(int statusCode)
-    {
-      return statusCode switch
-      {
-        400 => ErrorCodes.Api.BadRequest,
-        401 => ErrorCodes.Api.Unauthorized,
-        404 => ErrorCodes.Api.NotFound,
-        409 => ErrorCodes.Api.Conflict,
-        >= 500 => ErrorCodes.Api.ServerError,
-        _ => ErrorCodes.Api.BadRequest
-      };
-    }
-
-    #endregion
-
-    private static bool IsConnectionError(Exception ex) =>
-        ex is HttpRequestException or System.Net.Sockets.SocketException or TaskCanceledException;
   }
 }

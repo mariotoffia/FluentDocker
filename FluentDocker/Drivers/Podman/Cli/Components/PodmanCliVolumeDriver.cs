@@ -174,7 +174,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
             volumes.Add(ParseVolumeFromToken(JsonHelper.ParseElement(line.Trim())));
         }
       }
-      catch { /* Return partial results */ }
+      catch (Exception ex) { Logger.Log($"Volume JSON parsing skipped: {ex.Message}"); }
 
       return volumes;
     }

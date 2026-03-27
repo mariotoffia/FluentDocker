@@ -34,13 +34,13 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
         var args = new List<string> { "network", "create" };
 
         if (!string.IsNullOrEmpty(config.Driver))
-          args.Add($"--driver {config.Driver}");
+          args.Add($"--driver {QuoteArgumentIfNeeded(config.Driver)}");
 
         if (!string.IsNullOrEmpty(config.Subnet))
-          args.Add($"--subnet {config.Subnet}");
+          args.Add($"--subnet {QuoteArgumentIfNeeded(config.Subnet)}");
 
         if (!string.IsNullOrEmpty(config.Gateway))
-          args.Add($"--gateway {config.Gateway}");
+          args.Add($"--gateway {QuoteArgumentIfNeeded(config.Gateway)}");
 
         if (config.EnableIPv6)
           args.Add("--ipv6");
@@ -51,16 +51,16 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
         if (config.Options != null)
         {
           foreach (var opt in config.Options)
-            args.Add($"--opt {opt.Key}={opt.Value}");
+            args.Add($"--opt {QuoteArgumentIfNeeded($"{opt.Key}={opt.Value}")}");
         }
 
         if (config.Labels != null)
         {
           foreach (var label in config.Labels)
-            args.Add($"--label {label.Key}={label.Value}");
+            args.Add($"--label {QuoteArgumentIfNeeded($"{label.Key}={label.Value}")}");
         }
 
-        args.Add(config.Name);
+        args.Add(QuoteArgumentIfNeeded(config.Name));
 
         var result = await ExecuteCommandAsync(string.Join(" ", args), cancellationToken).ConfigureAwait(false);
 
@@ -90,7 +90,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     {
       try
       {
-        var result = await ExecuteCommandAsync($"network rm {networkId}", cancellationToken).ConfigureAwait(false);
+        var result = await ExecuteCommandAsync($"network rm {QuoteArgumentIfNeeded(networkId)}", cancellationToken).ConfigureAwait(false);
 
         if (!result.Success)
         {
@@ -122,12 +122,12 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
         if (filter != null)
         {
           if (!string.IsNullOrEmpty(filter.Name))
-            args += $" --filter name={filter.Name}";
+            args += $" --filter name={QuoteArgumentIfNeeded(filter.Name)}";
 
           if (filter.Labels != null)
           {
             foreach (var label in filter.Labels)
-              args += $" --filter label={label.Key}={label.Value}";
+              args += $" --filter label={QuoteArgumentIfNeeded($"{label.Key}={label.Value}")}";
           }
         }
 
@@ -175,7 +175,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     {
       try
       {
-        var result = await ExecuteCommandAsync($"network inspect {networkId}", cancellationToken).ConfigureAwait(false);
+        var result = await ExecuteCommandAsync($"network inspect {QuoteArgumentIfNeeded(networkId)}", cancellationToken).ConfigureAwait(false);
 
         if (!result.Success)
         {
@@ -204,7 +204,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     {
       try
       {
-        var result = await ExecuteCommandAsync($"network connect {networkId} {containerId}", cancellationToken).ConfigureAwait(false);
+        var result = await ExecuteCommandAsync($"network connect {QuoteArgumentIfNeeded(networkId)} {QuoteArgumentIfNeeded(containerId)}", cancellationToken).ConfigureAwait(false);
 
         if (!result.Success)
         {
@@ -236,7 +236,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
         var args = "network disconnect";
         if (force)
           args += " --force";
-        args += $" {networkId} {containerId}";
+        args += $" {QuoteArgumentIfNeeded(networkId)} {QuoteArgumentIfNeeded(containerId)}";
 
         var result = await ExecuteCommandAsync(args, cancellationToken).ConfigureAwait(false);
 

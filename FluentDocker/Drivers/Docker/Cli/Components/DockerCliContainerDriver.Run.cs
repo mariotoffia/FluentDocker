@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -21,6 +22,8 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
         ContainerCreateConfig config,
         CancellationToken cancellationToken = default)
     {
+      // Use --cidfile for race-free container ID discovery in non-detached mode.
+      string cidFile = null;
       try
       {
         var args = new List<string> { "run" };
@@ -28,8 +31,14 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
         if (config.Detach)
           args.Add("-d");
 
+        if (!config.Detach)
+        {
+          cidFile = Path.Combine(Path.GetTempPath(), $"docker-cid-{Guid.NewGuid():N}");
+          args.Add($"--cidfile {QuoteArgumentIfNeeded(cidFile)}");
+        }
+
         if (!string.IsNullOrEmpty(config.Name))
-          args.Add($"--name {config.Name}");
+          args.Add($"--name {QuoteArgumentIfNeeded(config.Name)}");
 
         if (config.Environment != null)
           foreach (var env in config.Environment)
@@ -37,35 +46,35 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
 
         if (config.PortBindings != null)
           foreach (var port in config.PortBindings)
-            args.Add($"-p {port.Value}:{port.Key}");
+            args.Add($"-p {QuoteArgumentIfNeeded($"{port.Value}:{port.Key}")}");
 
         if (config.Volumes != null)
           foreach (var volume in config.Volumes)
-            args.Add($"-v {volume.Key}:{volume.Value}");
+            args.Add($"-v {QuoteArgumentIfNeeded($"{volume.Key}:{volume.Value}")}");
 
         if (!string.IsNullOrEmpty(config.NetworkMode))
-          args.Add($"--network {config.NetworkMode}");
+          args.Add($"--network {QuoteArgumentIfNeeded(config.NetworkMode)}");
 
         // Static IPv4 address (requires custom network with subnet)
         if (!string.IsNullOrEmpty(config.Ipv4Address))
-          args.Add($"--ip {config.Ipv4Address}");
+          args.Add($"--ip {QuoteArgumentIfNeeded(config.Ipv4Address)}");
 
         // Static IPv6 address (requires custom network with IPv6 enabled)
         if (!string.IsNullOrEmpty(config.Ipv6Address))
-          args.Add($"--ip6 {config.Ipv6Address}");
+          args.Add($"--ip6 {QuoteArgumentIfNeeded(config.Ipv6Address)}");
 
         if (config.Labels != null)
           foreach (var label in config.Labels)
-            args.Add($"--label {label.Key}={label.Value}");
+            args.Add($"--label {QuoteArgumentIfNeeded($"{label.Key}={label.Value}")}");
 
         if (!string.IsNullOrEmpty(config.WorkingDirectory))
-          args.Add($"-w {config.WorkingDirectory}");
+          args.Add($"-w {QuoteArgumentIfNeeded(config.WorkingDirectory)}");
 
         if (!string.IsNullOrEmpty(config.User))
-          args.Add($"-u {config.User}");
+          args.Add($"-u {QuoteArgumentIfNeeded(config.User)}");
 
         if (!string.IsNullOrEmpty(config.RestartPolicy))
-          args.Add($"--restart {config.RestartPolicy}");
+          args.Add($"--restart {QuoteArgumentIfNeeded(config.RestartPolicy)}");
 
         if (config.Privileged)
           args.Add("--privileged");
@@ -76,7 +85,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
         // Links (legacy Docker feature)
         if (config.Links != null)
           foreach (var link in config.Links)
-            args.Add($"--link {link}");
+            args.Add($"--link {QuoteArgumentIfNeeded(link)}");
 
         // Network aliases
         if (config.NetworkAliases != null)
@@ -90,26 +99,26 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
         if (config.ShmSize.HasValue)
           args.Add($"--shm-size {config.ShmSize.Value}");
         if (!string.IsNullOrEmpty(config.Platform))
-          args.Add($"--platform {config.Platform}");
+          args.Add($"--platform {QuoteArgumentIfNeeded(config.Platform)}");
         if (!string.IsNullOrEmpty(config.Runtime))
-          args.Add($"--runtime {config.Runtime}");
+          args.Add($"--runtime {QuoteArgumentIfNeeded(config.Runtime)}");
         if (config.CapAdd != null)
           foreach (var cap in config.CapAdd)
-            args.Add($"--cap-add {cap}");
+            args.Add($"--cap-add {QuoteArgumentIfNeeded(cap)}");
         if (config.CapDrop != null)
           foreach (var cap in config.CapDrop)
-            args.Add($"--cap-drop {cap}");
+            args.Add($"--cap-drop {QuoteArgumentIfNeeded(cap)}");
         if (config.SecurityOpt != null)
           foreach (var opt in config.SecurityOpt)
             args.Add($"--security-opt {QuoteArgumentIfNeeded(opt)}");
         if (config.Tmpfs != null)
           foreach (var tmpfs in config.Tmpfs)
             args.Add(string.IsNullOrEmpty(tmpfs.Value)
-                ? $"--tmpfs {tmpfs.Key}" : $"--tmpfs {tmpfs.Key}:{tmpfs.Value}");
+                ? $"--tmpfs {QuoteArgumentIfNeeded(tmpfs.Key)}" : $"--tmpfs {QuoteArgumentIfNeeded($"{tmpfs.Key}:{tmpfs.Value}")}");
         if (config.Devices != null)
           foreach (var dev in config.Devices)
             args.Add(dev.Key == dev.Value
-                ? $"--device {dev.Key}" : $"--device {dev.Key}:{dev.Value}");
+                ? $"--device {QuoteArgumentIfNeeded(dev.Key)}" : $"--device {QuoteArgumentIfNeeded($"{dev.Key}:{dev.Value}")}");
 
         if (config.Tty)
           args.Add("-t");
@@ -151,17 +160,17 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
 
         // Hostname
         if (!string.IsNullOrEmpty(config.Hostname))
-          args.Add($"--hostname {config.Hostname}");
+          args.Add($"--hostname {QuoteArgumentIfNeeded(config.Hostname)}");
 
         // DNS servers
         if (config.Dns != null)
           foreach (var dns in config.Dns)
-            args.Add($"--dns {dns}");
+            args.Add($"--dns {QuoteArgumentIfNeeded(dns)}");
 
         // Extra hosts
         if (config.ExtraHosts != null)
           foreach (var host in config.ExtraHosts)
-            args.Add($"--add-host {host.Key}:{host.Value}");
+            args.Add($"--add-host {QuoteArgumentIfNeeded($"{host.Key}:{host.Value}")}");
 
         // Entrypoint — Docker CLI --entrypoint only accepts the executable.
         // Additional arguments from the entrypoint array are prepended to Command.
@@ -222,24 +231,10 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
           // When not detached, output is the container's stdout/stderr
           runResult.Output = result.Output;
 
-          // Find the container ID by listing the most recently created container
-          // Use the name if specified, otherwise get the last created container
-          if (!string.IsNullOrEmpty(config.Name))
+          // Read container ID from --cidfile (race-free, set earlier in args).
+          if (cidFile != null && File.Exists(cidFile))
           {
-            var listResult = await ExecuteCommandAsync($"ps -a --filter \"name={config.Name}\" --format \"{{{{.ID}}}}\" -n 1", cancellationToken).ConfigureAwait(false);
-            if (listResult.Success && !string.IsNullOrEmpty(listResult.Output))
-            {
-              runResult.Id = listResult.Output.Trim().Split('\n')[0];
-            }
-          }
-          else
-          {
-            // Get the most recently created container
-            var listResult = await ExecuteCommandAsync("ps -a --format \"{{.ID}}\" -n 1", cancellationToken).ConfigureAwait(false);
-            if (listResult.Success && !string.IsNullOrEmpty(listResult.Output))
-            {
-              runResult.Id = listResult.Output.Trim().Split('\n')[0];
-            }
+            runResult.Id = (await File.ReadAllTextAsync(cidFile, cancellationToken)).Trim();
           }
         }
 
@@ -248,6 +243,15 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
       catch (Exception ex)
       {
         return CommandResponse<ContainerRunResult>.Fail(ex.Message, ErrorCodes.Container.CreateFailed);
+      }
+      finally
+      {
+        if (cidFile != null && File.Exists(cidFile))
+        {
+          try
+          { File.Delete(cidFile); }
+          catch { /* best effort cleanup */ }
+        }
       }
     }
 
@@ -259,7 +263,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     {
       try
       {
-        var result = await ExecuteCommandAsync($"wait {containerId}", cancellationToken).ConfigureAwait(false);
+        var result = await ExecuteCommandAsync($"wait {QuoteArgumentIfNeeded(containerId)}", cancellationToken).ConfigureAwait(false);
 
         if (!result.Success)
         {

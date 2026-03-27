@@ -234,7 +234,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
             pods.Add(ParsePodInfoFromToken(JsonHelper.ParseElement(line.Trim())));
         }
       }
-      catch { /* Return partial results */ }
+      catch (Exception ex) { Logger.Log($"Pod JSON parsing skipped: {ex.Message}"); }
 
       return pods;
     }
@@ -309,7 +309,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
             result.Containers.Add(ParsePodContainerInfoFromToken(c));
         }
       }
-      catch { /* Return partial results */ }
+      catch (Exception ex) { Logger.Log($"Pod JSON parsing skipped: {ex.Message}"); }
 
       return result;
     }

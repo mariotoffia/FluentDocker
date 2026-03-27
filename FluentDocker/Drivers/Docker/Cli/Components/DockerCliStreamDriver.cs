@@ -7,7 +7,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using FluentDocker.Common;
 using FluentDocker.Drivers.Docker.Cli.Binary;
-using FluentDocker.Drivers.Podman.Cli.Components;
 using FluentDocker.Model.Drivers;
 
 namespace FluentDocker.Drivers.Docker.Cli.Components
@@ -41,12 +40,12 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
       if (config.Tail.HasValue)
         args += $" --tail {config.Tail.Value}";
       if (!string.IsNullOrEmpty(config.Since))
-        args += $" --since {config.Since}";
+        args += $" --since {QuoteArgumentIfNeeded(config.Since)}";
       if (!string.IsNullOrEmpty(config.Until))
-        args += $" --until {config.Until}";
+        args += $" --until {QuoteArgumentIfNeeded(config.Until)}";
       if (config.Details)
         args += " --details";
-      args += $" {containerId}";
+      args += $" {QuoteArgumentIfNeeded(containerId)}";
       return args;
     }
 
@@ -73,13 +72,13 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     {
       var args = "events --format \"{{json .}}\"";
       if (config?.Since != null)
-        args += $" --since {config.Since}";
+        args += $" --since {QuoteArgumentIfNeeded(config.Since)}";
       if (config?.Until != null)
-        args += $" --until {config.Until}";
+        args += $" --until {QuoteArgumentIfNeeded(config.Until)}";
       if (config?.Filters != null)
       {
         foreach (var filter in config.Filters)
-          args += $" --filter {filter.Key}={filter.Value}";
+          args += $" --filter {QuoteArgumentIfNeeded($"{filter.Key}={filter.Value}")}";
       }
 
       await foreach (var line in ExecuteStreamingCommandAsync(args, cancellationToken))
@@ -114,7 +113,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
       if (config?.All == true)
         args += " -a";
       if (!string.IsNullOrEmpty(containerId))
-        args += $" {containerId}";
+        args += $" {QuoteArgumentIfNeeded(containerId)}";
       return args;
     }
 
@@ -169,15 +168,15 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
       {
         var obj = JsonHelper.ParseElement(json);
 
-        var cpuPerc = PodmanCliContainerDriver.ParsePercent(
+        var cpuPerc = CliOutputParser.ParsePercent(
             obj.GetStringOrDefault("CPUPerc"));
-        var memPerc = PodmanCliContainerDriver.ParsePercent(
+        var memPerc = CliOutputParser.ParsePercent(
             obj.GetStringOrDefault("MemPerc"));
-        var (memUsage, memLimit) = PodmanCliContainerDriver.ParseMemoryUsage(
+        var (memUsage, memLimit) = CliOutputParser.ParseMemoryUsage(
             obj.GetStringOrDefault("MemUsage"));
-        var (netRx, netTx) = PodmanCliContainerDriver.ParseIOPair(
+        var (netRx, netTx) = CliOutputParser.ParseIOPair(
             obj.GetStringOrDefault("NetIO"));
-        var (blockRead, blockWrite) = PodmanCliContainerDriver.ParseIOPair(
+        var (blockRead, blockWrite) = CliOutputParser.ParseIOPair(
             obj.GetStringOrDefault("BlockIO"));
 
         int.TryParse(
@@ -225,9 +224,9 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
         if (!config.SigProxy)
           args += " --sig-proxy=false";
         if (!string.IsNullOrEmpty(config.DetachKeys))
-          args += $" --detach-keys {config.DetachKeys}";
+          args += $" --detach-keys {QuoteArgumentIfNeeded(config.DetachKeys)}";
 
-        args += $" {containerId}";
+        args += $" {QuoteArgumentIfNeeded(containerId)}";
 
         var result = ExecuteAttachProcess(args);
         return Task.FromResult(CommandResponse<AttachResult>.Ok(result));

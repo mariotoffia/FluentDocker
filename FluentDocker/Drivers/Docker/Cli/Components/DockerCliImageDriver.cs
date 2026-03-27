@@ -37,7 +37,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
       try
       {
         var fullImage = string.IsNullOrEmpty(tag) ? image : $"{image}:{tag}";
-        var result = await ExecuteCommandAsync($"pull {fullImage}", cancellationToken).ConfigureAwait(false);
+        var result = await ExecuteCommandAsync($"pull {QuoteArgumentIfNeeded(fullImage)}", cancellationToken).ConfigureAwait(false);
 
         if (!result.Success)
         {
@@ -65,7 +65,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     {
       try
       {
-        var result = await ExecuteCommandAsync($"push {image}", cancellationToken).ConfigureAwait(false);
+        var result = await ExecuteCommandAsync($"push {QuoteArgumentIfNeeded(image)}", cancellationToken).ConfigureAwait(false);
 
         if (!result.Success)
         {
@@ -98,19 +98,19 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
       var args = new List<string> { "build" };
 
       if (!string.IsNullOrEmpty(config.DockerfileName))
-        args.Add($"--file {config.DockerfileName}");
+        args.Add($"--file {QuoteArgumentIfNeeded(config.DockerfileName)}");
 
       foreach (var tag in config.Tags)
-        args.Add($"--tag {tag}");
+        args.Add($"--tag {QuoteArgumentIfNeeded(tag)}");
 
       foreach (var buildArg in config.BuildArgs)
-        args.Add($"--build-arg {buildArg.Key}={buildArg.Value}");
+        args.Add($"--build-arg {QuoteArgumentIfNeeded($"{buildArg.Key}={buildArg.Value}")}");
 
       foreach (var label in config.Labels)
-        args.Add($"--label {label.Key}={label.Value}");
+        args.Add($"--label {QuoteArgumentIfNeeded($"{label.Key}={label.Value}")}");
 
       if (!string.IsNullOrEmpty(config.Target))
-        args.Add($"--target {config.Target}");
+        args.Add($"--target {QuoteArgumentIfNeeded(config.Target)}");
 
       if (config.NoCache)
         args.Add("--no-cache");
@@ -122,15 +122,15 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
         args.Add("--force-rm");
 
       if (!string.IsNullOrEmpty(config.Platform))
-        args.Add($"--platform {config.Platform}");
+        args.Add($"--platform {QuoteArgumentIfNeeded(config.Platform)}");
 
       if (!string.IsNullOrEmpty(config.NetworkMode))
-        args.Add($"--network {config.NetworkMode}");
+        args.Add($"--network {QuoteArgumentIfNeeded(config.NetworkMode)}");
 
       if (!string.IsNullOrEmpty(iidFilePath))
         args.Add($"--iidfile \"{iidFilePath}\"");
 
-      args.Add(config.BuildContext ?? ".");
+      args.Add(QuoteArgumentIfNeeded(config.BuildContext ?? "."));
 
       return string.Join(" ", args);
     }
@@ -323,6 +323,8 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
 
     /// <summary>
     /// Parses size string like "1.05GB", "125MB", "9.18MB" to bytes.
+    /// Docker CLI uses SI units (base-1000): KB=1000, MB=1000000, etc.
+    /// Longer suffixes are checked first to avoid "TB" matching "B".
     /// </summary>
     private static long ParseSize(string sizeStr)
     {
@@ -333,24 +335,24 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
       if (sizeStr == "N/A" || sizeStr == "0B")
         return 0;
 
-      var multipliers = new Dictionary<string, long>
-            {
-                { "B", 1L },
-                { "KB", 1024L },
-                { "MB", 1024L * 1024 },
-                { "GB", 1024L * 1024 * 1024 },
-                { "TB", 1024L * 1024 * 1024 * 1024 }
-            };
+      // Ordered longest-suffix-first to prevent "TB" matching "B" suffix.
+      ReadOnlySpan<(string Suffix, long Multiplier)> units =
+      [
+        ("TB", 1_000_000_000_000L),
+        ("GB", 1_000_000_000L),
+        ("MB", 1_000_000L),
+        ("KB", 1_000L),
+        ("B", 1L),
+      ];
 
-      foreach (var unit in multipliers.Keys)
+      foreach (var (suffix, multiplier) in units)
       {
-        if (sizeStr.EndsWith(unit, StringComparison.OrdinalIgnoreCase))
+        if (sizeStr.EndsWith(suffix, StringComparison.OrdinalIgnoreCase))
         {
-          var numberPart = sizeStr.Substring(0, sizeStr.Length - unit.Length).Trim();
-          if (double.TryParse(numberPart, out var number))
-          {
-            return (long)(number * multipliers[unit]);
-          }
+          var numberPart = sizeStr.Substring(0, sizeStr.Length - suffix.Length).Trim();
+          if (double.TryParse(numberPart, System.Globalization.NumberStyles.Float,
+              System.Globalization.CultureInfo.InvariantCulture, out var number))
+            return (long)(number * multiplier);
         }
       }
 
@@ -365,7 +367,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     {
       try
       {
-        var result = await ExecuteCommandAsync($"image inspect {imageId}", cancellationToken).ConfigureAwait(false);
+        var result = await ExecuteCommandAsync($"image inspect {QuoteArgumentIfNeeded(imageId)}", cancellationToken).ConfigureAwait(false);
 
         if (!result.Success)
         {
@@ -401,7 +403,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
       try
       {
         // Quote the format string to ensure it's treated as a single argument
-        var result = await ExecuteCommandAsync($"history --format \"{{{{json .}}}}\" --no-trunc {imageId}", cancellationToken).ConfigureAwait(false);
+        var result = await ExecuteCommandAsync($"history --format \"{{{{json .}}}}\" --no-trunc {QuoteArgumentIfNeeded(imageId)}", cancellationToken).ConfigureAwait(false);
 
         if (!result.Success)
         {

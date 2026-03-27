@@ -190,9 +190,21 @@ namespace FluentDocker.Drivers.Docker.Cli.Binary
         };
 
         process.Start();
-        var output = process.StandardOutput.ReadToEnd();
-        process.StandardError.ReadToEnd(); // drain stderr to avoid deadlock
-        process.WaitForExit();
+        // Read stdout and stderr concurrently to avoid deadlock
+        // when either pipe buffer fills up.
+        var outputTask = process.StandardOutput.ReadToEndAsync();
+        var errorTask = process.StandardError.ReadToEndAsync();
+        // Wait for exit first with timeout — ReadToEndAsync completes
+        // only after the process closes its pipes (i.e. exits).
+        if (!process.WaitForExit(10_000))
+        {
+          try
+          { process.Kill(); }
+          catch { /* best effort */ }
+          return null;
+        }
+        var output = outputTask.GetAwaiter().GetResult();
+        errorTask.GetAwaiter().GetResult();
 
         if (process.ExitCode == 0 && !string.IsNullOrWhiteSpace(output))
         {

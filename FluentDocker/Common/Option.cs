@@ -31,8 +31,11 @@ namespace FluentDocker.Common
     /// <summary>True if a value is present (Some); false otherwise (None).</summary>
     public bool HasValue { get; }
 
-    /// <summary>Implicitly unwraps the option to its value.</summary>
-    public static implicit operator T(Option<T> option) => option.Value;
+    /// <summary>
+    /// Explicitly unwraps the option to its value. Returns default(T) for None options.
+    /// Use <see cref="HasValue"/> to check before unwrapping.
+    /// </summary>
+    public static explicit operator T(Option<T> option) => option.Value;
 
     /// <summary>Explicitly wraps a value in an option.</summary>
     public static explicit operator Option<T>(T value) => new Option<T>(value);

@@ -34,14 +34,14 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
         if (config.Privileged)
           args.Add("--privileged");
         if (!string.IsNullOrEmpty(config.User))
-          args.Add($"-u {config.User}");
+          args.Add($"-u {QuoteArgumentIfNeeded(config.User)}");
         if (!string.IsNullOrEmpty(config.WorkingDir))
-          args.Add($"-w {config.WorkingDir}");
+          args.Add($"-w {QuoteArgumentIfNeeded(config.WorkingDir)}");
         if (config.Environment != null)
           foreach (var env in config.Environment)
             args.Add($"-e {QuoteArgumentIfNeeded($"{env.Key}={env.Value}")}");
 
-        args.Add(containerId);
+        args.Add(QuoteArgumentIfNeeded(containerId));
         if (config.Command != null)
         {
           foreach (var cmdArg in config.Command)
@@ -140,7 +140,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     {
       try
       {
-        var result = await ExecuteCommandAsync($"export -o \"{outputPath}\" {containerId}", cancellationToken).ConfigureAwait(false);
+        var result = await ExecuteCommandAsync($"export -o \"{outputPath}\" {QuoteArgumentIfNeeded(containerId)}", cancellationToken).ConfigureAwait(false);
 
         if (!result.Success)
         {
@@ -168,7 +168,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     {
       try
       {
-        var result = await ExecuteCommandAsync($"rename {containerId} {newName}", cancellationToken).ConfigureAwait(false);
+        var result = await ExecuteCommandAsync($"rename {QuoteArgumentIfNeeded(containerId)} {QuoteArgumentIfNeeded(newName)}", cancellationToken).ConfigureAwait(false);
 
         if (!result.Success)
         {
@@ -211,13 +211,13 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
         if (config.CpuQuota.HasValue)
           args.Add($"--cpu-quota {config.CpuQuota.Value}");
         if (!string.IsNullOrEmpty(config.CpusetCpus))
-          args.Add($"--cpuset-cpus {config.CpusetCpus}");
+          args.Add($"--cpuset-cpus {QuoteArgumentIfNeeded(config.CpusetCpus)}");
         if (!string.IsNullOrEmpty(config.RestartPolicy))
-          args.Add($"--restart {config.RestartPolicy}");
+          args.Add($"--restart {QuoteArgumentIfNeeded(config.RestartPolicy)}");
         if (config.PidsLimit.HasValue)
           args.Add($"--pids-limit {config.PidsLimit.Value}");
 
-        args.Add(containerId);
+        args.Add(QuoteArgumentIfNeeded(containerId));
 
         var result = await ExecuteCommandAsync(string.Join(" ", args), cancellationToken).ConfigureAwait(false);
 

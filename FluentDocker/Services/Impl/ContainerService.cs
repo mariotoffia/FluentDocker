@@ -35,13 +35,18 @@ namespace FluentDocker.Services.Impl
     private readonly Dictionary<string, Func<IServiceAsync, Task>> _hooks = new Dictionary<string, Func<IServiceAsync, Task>>();
     private readonly Dictionary<ServiceRunningState, List<Func<IServiceAsync, Task>>> _stateHooks =
         new Dictionary<ServiceRunningState, List<Func<IServiceAsync, Task>>>();
-    private ServiceRunningState _state = ServiceRunningState.Unknown;
+    private volatile ServiceRunningState _state = ServiceRunningState.Unknown;
 
     // Short-lived inspect cache to avoid redundant API/CLI calls during wait polling.
-    // Thread-safety: Volatile/Interlocked used so concurrent wait-condition polls see
-    // consistent state without a full lock.
-    private volatile Container? _inspectCache;
-    private long _inspectCacheTimestamp; // accessed via Interlocked
+    // Thread-safety: Single immutable record reference ensures atomic read/write
+    // of both data and timestamp together, preventing torn reads.
+    private volatile InspectCacheEntry _inspectCacheEntry;
+
+    /// <summary>
+    /// Immutable cache entry pairing inspect data with its timestamp.
+    /// Using a single reference ensures atomic reads/writes.
+    /// </summary>
+    private sealed record InspectCacheEntry(Container Data, long Timestamp);
 
     /// <summary>
     /// Time-to-live in milliseconds for the InspectAsync result cache.
@@ -188,14 +193,13 @@ namespace FluentDocker.Services.Impl
     public async Task<Container> InspectAsync(CancellationToken cancellationToken = default)
     {
       // Return cached result if still valid (reduces redundant calls during wait polling).
-      // Uses volatile read for _inspectCache and Interlocked for _inspectCacheTimestamp
-      // so concurrent callers see a consistent snapshot without locking.
-      var cached = _inspectCache;
+      // Single volatile reference read ensures data and timestamp are always consistent.
+      var entry = _inspectCacheEntry;
       var now = Stopwatch.GetTimestamp();
-      if (cached != null &&
-          Stopwatch.GetElapsedTime(Interlocked.Read(ref _inspectCacheTimestamp), now).TotalMilliseconds < InspectCacheTtlMs)
+      if (entry != null &&
+          Stopwatch.GetElapsedTime(entry.Timestamp, now).TotalMilliseconds < InspectCacheTtlMs)
       {
-        return cached;
+        return entry.Data;
       }
 
       var driver = _kernel.SysCtl<IContainerDriver>(_driverId);
@@ -217,10 +221,8 @@ namespace FluentDocker.Services.Impl
         _state = ParseState(response.Data.State.Status);
       }
 
-      // Store result and timestamp atomically relative to each other:
-      // write timestamp first, then the reference (volatile write is release-fence).
-      Interlocked.Exchange(ref _inspectCacheTimestamp, Stopwatch.GetTimestamp());
-      _inspectCache = response.Data;
+      // Store data and timestamp as a single atomic reference write.
+      _inspectCacheEntry = new InspectCacheEntry(response.Data, Stopwatch.GetTimestamp());
 
       return response.Data;
     }
@@ -231,8 +233,7 @@ namespace FluentDocker.Services.Impl
     /// </summary>
     private void InvalidateInspectCache()
     {
-      _inspectCache = null;
-      Interlocked.Exchange(ref _inspectCacheTimestamp, 0);
+      _inspectCacheEntry = null;
     }
 
     #region Hooks
@@ -290,22 +291,29 @@ namespace FluentDocker.Services.Impl
 
     public async ValueTask DisposeAsync()
     {
-      try
+      if (_stopOnDispose &&
+          (_state == ServiceRunningState.Running || _state == ServiceRunningState.Paused))
       {
-        if (_stopOnDispose &&
-            (_state == ServiceRunningState.Running || _state == ServiceRunningState.Paused))
+        try
         {
           await StopAsync().ConfigureAwait(false);
         }
+        catch (Exception ex)
+        {
+          Logger.Log($"ContainerService stop on dispose failed: {ex.Message}");
+        }
+      }
 
-        if (_deleteOnDispose)
+      if (_deleteOnDispose)
+      {
+        try
         {
           await RemoveAsync(force: true).ConfigureAwait(false);
         }
-      }
-      catch (Exception ex)
-      {
-        Logger.Log($"ContainerService DisposeAsync failed: {ex.Message}");
+        catch (Exception ex)
+        {
+          Logger.Log($"ContainerService remove on dispose failed: {ex.Message}");
+        }
       }
 
       GC.SuppressFinalize(this);

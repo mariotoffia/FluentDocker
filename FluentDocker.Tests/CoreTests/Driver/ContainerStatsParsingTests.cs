@@ -1,4 +1,5 @@
 using System.Reflection;
+using FluentDocker.Common;
 using FluentDocker.Drivers;
 using FluentDocker.Drivers.Docker.Cli.Components;
 using Xunit;
@@ -6,7 +7,7 @@ using Xunit;
 namespace FluentDocker.Tests.CoreTests.Driver
 {
   /// <summary>
-  /// Unit tests for container stats parsing in DockerCliContainerDriver.
+  /// Unit tests for container stats parsing (CliOutputParser and DockerCliContainerDriver).
   /// </summary>
   [Trait("Category", "Unit")]
   public class ContainerStatsParsingTests
@@ -28,14 +29,7 @@ namespace FluentDocker.Tests.CoreTests.Driver
     [InlineData("1TiB", 1099511627776)]
     public void ParseByteValue_ParsesCorrectly(string input, long expected)
     {
-      // Use reflection to call private method
-      var method = typeof(DockerCliContainerDriver).GetMethod(
-          "ParseByteValue",
-          BindingFlags.NonPublic | BindingFlags.Static);
-
-      Assert.NotNull(method);
-
-      var result = (long)method.Invoke(null, new object[] { input });
+      var result = CliOutputParser.ParseByteValue(input);
 
       // Allow for floating point rounding (larger tolerance for large numbers)
       var tolerance = Math.Max(1, expected / 1000000);  // 0.0001% tolerance
@@ -48,13 +42,7 @@ namespace FluentDocker.Tests.CoreTests.Driver
     [InlineData("invalid", 0)]
     public void ParseByteValue_HandlesInvalidInput(string? input, long expected)
     {
-      var method = typeof(DockerCliContainerDriver).GetMethod(
-          "ParseByteValue",
-          BindingFlags.NonPublic | BindingFlags.Static);
-
-      Assert.NotNull(method);
-
-      var result = (long)method.Invoke(null, new object[] { input });
+      var result = CliOutputParser.ParseByteValue(input);
       Assert.Equal(expected, result);
     }
 
@@ -66,13 +54,7 @@ namespace FluentDocker.Tests.CoreTests.Driver
     [InlineData("99.99%", 99.99)]
     public void ParsePercent_ParsesCorrectly(string input, double expected)
     {
-      var method = typeof(DockerCliContainerDriver).GetMethod(
-          "ParsePercent",
-          BindingFlags.NonPublic | BindingFlags.Static);
-
-      Assert.NotNull(method);
-
-      var result = (double)method.Invoke(null, new object[] { input });
+      var result = CliOutputParser.ParsePercent(input);
       Assert.Equal(expected, result, 2);
     }
 
@@ -82,13 +64,7 @@ namespace FluentDocker.Tests.CoreTests.Driver
     [InlineData("invalid", 0.0)]
     public void ParsePercent_HandlesInvalidInput(string? input, double expected)
     {
-      var method = typeof(DockerCliContainerDriver).GetMethod(
-          "ParsePercent",
-          BindingFlags.NonPublic | BindingFlags.Static);
-
-      Assert.NotNull(method);
-
-      var result = (double)method.Invoke(null, new object[] { input });
+      var result = CliOutputParser.ParsePercent(input);
       Assert.Equal(expected, result);
     }
 

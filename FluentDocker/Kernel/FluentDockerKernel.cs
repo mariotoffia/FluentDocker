@@ -18,7 +18,7 @@ namespace FluentDocker.Kernel
   public class FluentDockerKernel : ISysCtl, IAsyncDisposable, IDisposable
   {
     private readonly IDriverRegistry _registry;
-    private bool _disposed;
+    private int _disposed; // 0=not disposed, 1=disposed; use Interlocked for atomic check-and-set
 
     /// <summary>
     /// Creates a new kernel with the default registry.
@@ -261,7 +261,7 @@ namespace FluentDocker.Kernel
 
     private void ThrowIfDisposed()
     {
-      ObjectDisposedException.ThrowIf(_disposed, this);
+      ObjectDisposedException.ThrowIf(Volatile.Read(ref _disposed) != 0, this);
     }
 
     #endregion
@@ -276,40 +276,21 @@ namespace FluentDocker.Kernel
     /// </summary>
     public virtual async ValueTask DisposeAsync()
     {
-      if (_disposed)
+      if (Interlocked.CompareExchange(ref _disposed, 1, 0) != 0)
         return;
 
-      _disposed = true;
-
-      var driverIds = _registry.GetAllDriverIds();
-      foreach (var driverId in driverIds)
+      // Delegate disposal to the registry which owns the driver lifecycle.
+      // This avoids double-disposal if both kernel and registry are disposed.
+      try
       {
-        try
-        {
-          // Dispose driver packs
-          if (_registry.TryGetDriverPack(driverId, out var driverPack))
-          {
-            if (driverPack is IAsyncDisposable asyncDisposable)
-              await asyncDisposable.DisposeAsync().ConfigureAwait(false);
-            else if (driverPack is IDisposable disposable)
-              disposable.Dispose();
-          }
-
-          // Dispose regular drivers
-          if (_registry.TryGetDriver(driverId, out var driver))
-          {
-            if (driver is IAsyncDisposable asyncDisposableDriver)
-              await asyncDisposableDriver.DisposeAsync().ConfigureAwait(false);
-            else if (driver is IDisposable disposableDriver)
-              disposableDriver.Dispose();
-          }
-
-          _registry.Unregister(driverId);
-        }
-        catch (Exception ex)
-        {
-          Logger.Log($"Kernel DisposeAsync cleanup failed: {ex.Message}");
-        }
+        if (_registry is IAsyncDisposable asyncDisposable)
+          await asyncDisposable.DisposeAsync().ConfigureAwait(false);
+        else if (_registry is IDisposable disposable)
+          disposable.Dispose();
+      }
+      catch (Exception ex)
+      {
+        Logger.Log($"Kernel DisposeAsync cleanup failed: {ex.Message}");
       }
 
       GC.SuppressFinalize(this);
@@ -323,9 +304,8 @@ namespace FluentDocker.Kernel
     /// </summary>
     public void Dispose()
     {
-      if (_disposed)
-        return;
-
+      // DisposeAsync uses Interlocked.CompareExchange for atomic guard,
+      // so this just delegates without a separate check.
       DisposeAsync().AsTask().GetAwaiter().GetResult();
       GC.SuppressFinalize(this);
     }

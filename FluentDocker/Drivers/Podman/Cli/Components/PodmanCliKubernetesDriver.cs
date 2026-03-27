@@ -162,7 +162,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
         {
           return ParsePlayOutputJson(trimmed);
         }
-        catch { /* Fall through to line-based parsing */ }
+        catch (Exception ex) { Logger.Log($"JSON parsing failed, falling through to line-based: {ex.Message}"); }
       }
 
       // Line-based parsing for older versions

@@ -30,7 +30,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
         [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
       config ??= new StreamLogsConfig();
-      var path = $"/containers/{containerId}/logs?" +
+      var path = $"/containers/{Uri.EscapeDataString(containerId)}/logs?" +
           $"follow={config.Follow.ToString().ToLower()}" +
           $"&stdout={config.Stdout.ToString().ToLower()}" +
           $"&stderr={config.Stderr.ToString().ToLower()}" +
@@ -39,9 +39,9 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       if (config.Tail.HasValue)
         path += $"&tail={config.Tail.Value}";
       if (!string.IsNullOrEmpty(config.Since))
-        path += $"&since={config.Since}";
+        path += $"&since={Uri.EscapeDataString(config.Since)}";
       if (!string.IsNullOrEmpty(config.Until))
-        path += $"&until={config.Until}";
+        path += $"&until={Uri.EscapeDataString(config.Until)}";
 
       Stream stream;
       try
@@ -75,7 +75,6 @@ namespace FluentDocker.Drivers.Docker.Api.Components
         [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
       config ??= new StreamEventsConfig();
-      var path = "/events?";
 
       var filters = new Dictionary<string, List<string>>();
       if (config.Types?.Count > 0)
@@ -83,12 +82,17 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       if (config.Actions?.Count > 0)
         filters["event"] = config.Actions;
 
+      var queryParams = new List<string>();
       if (filters.Count > 0)
-        path += $"filters={Uri.EscapeDataString(JsonHelper.Serialize(filters))}";
+        queryParams.Add($"filters={Uri.EscapeDataString(JsonHelper.Serialize(filters))}");
       if (!string.IsNullOrEmpty(config.Since))
-        path += $"&since={config.Since}";
+        queryParams.Add($"since={Uri.EscapeDataString(config.Since)}");
       if (!string.IsNullOrEmpty(config.Until))
-        path += $"&until={config.Until}";
+        queryParams.Add($"until={Uri.EscapeDataString(config.Until)}");
+
+      var path = queryParams.Count > 0
+          ? $"/events?{string.Join("&", queryParams)}"
+          : "/events";
 
       await foreach (var line in ReadNdjsonStreamAsync(path, cancellationToken))
       {
@@ -136,7 +140,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
 
       config ??= new StreamStatsConfig();
       var stream = config.Stream ? "true" : "false";
-      var path = $"/containers/{containerId}/stats?stream={stream}";
+      var path = $"/containers/{Uri.EscapeDataString(containerId)}/stats?stream={stream}";
 
       await foreach (var line in ReadNdjsonStreamAsync(path, cancellationToken))
       {
@@ -161,7 +165,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
         AttachConfig config = null, CancellationToken cancellationToken = default)
     {
       config ??= new AttachConfig();
-      var path = $"/containers/{containerId}/attach?" +
+      var path = $"/containers/{Uri.EscapeDataString(containerId)}/attach?" +
           $"stream=1" +
           $"&stdout={config.Stdout.ToString().ToLower()}" +
           $"&stderr={config.Stderr.ToString().ToLower()}" +
@@ -169,7 +173,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
 
       try
       {
-        var content = new StringContent("", Encoding.UTF8);
+        using var content = new StringContent("", Encoding.UTF8);
         var stream = await Connection.PostStreamAsync(path, content, cancellationToken).ConfigureAwait(false);
 
         return CommandResponse<AttachResult>.Ok(new AttachResult
@@ -208,7 +212,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
           bytesRead = await ReadExactAsync(stream, header, 8, ct).ConfigureAwait(false);
         }
         catch (OperationCanceledException) { yield break; }
-        catch { yield break; }
+        catch (Exception ex) { Logger.Log($"Multiplexed stream read error: {ex.Message}"); yield break; }
 
         if (bytesRead < 8)
         {

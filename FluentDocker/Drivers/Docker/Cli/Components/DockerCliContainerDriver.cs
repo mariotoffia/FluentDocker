@@ -30,74 +30,82 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     {
       try
       {
+        if (string.IsNullOrEmpty(config.Image))
+        {
+          return CommandResponse<ContainerCreateResult>.Fail(
+              "Container image is required but was not specified",
+              ErrorCodes.Container.CreateFailed);
+        }
+
         var args = new List<string> { "create" };
 
         // Name
         if (!string.IsNullOrEmpty(config.Name))
-          args.Add($"--name {config.Name}");
+          args.Add($"--name {QuoteArgumentIfNeeded(config.Name)}");
 
         // Environment variables
         if (config.Environment != null)
         {
           foreach (var env in config.Environment)
-            args.Add($"-e {env.Key}={env.Value}");
+            args.Add($"-e {QuoteArgumentIfNeeded($"{env.Key}={env.Value}")}");
         }
 
-        // Port bindings (container:host)
+        // Port bindings: PortBindings dict is Key=containerPort, Value=hostPort.
+        // Docker -p syntax is hostPort:containerPort, so we emit Value:Key.
         if (config.PortBindings != null)
         {
           foreach (var port in config.PortBindings)
-            args.Add($"-p {port.Value}:{port.Key}");
+            args.Add($"-p {QuoteArgumentIfNeeded($"{port.Value}:{port.Key}")}");
         }
 
         // Volume mounts (host:container)
         if (config.Volumes != null)
         {
           foreach (var volume in config.Volumes)
-            args.Add($"-v {volume.Key}:{volume.Value}");
+            args.Add($"-v {QuoteArgumentIfNeeded($"{volume.Key}:{volume.Value}")}");
         }
 
         // Network mode
         if (!string.IsNullOrEmpty(config.NetworkMode))
-          args.Add($"--network {config.NetworkMode}");
+          args.Add($"--network {QuoteArgumentIfNeeded(config.NetworkMode)}");
 
         // Networks
         if (config.Networks != null)
         {
           foreach (var network in config.Networks)
-            args.Add($"--network {network}");
+            args.Add($"--network {QuoteArgumentIfNeeded(network)}");
         }
 
         // Labels
         if (config.Labels != null)
         {
           foreach (var label in config.Labels)
-            args.Add($"--label {label.Key}={label.Value}");
+            args.Add($"--label {QuoteArgumentIfNeeded($"{label.Key}={label.Value}")}");
         }
 
         // Working directory
         if (!string.IsNullOrEmpty(config.WorkingDirectory))
-          args.Add($"-w {config.WorkingDirectory}");
+          args.Add($"-w {QuoteArgumentIfNeeded(config.WorkingDirectory)}");
 
         // User
         if (!string.IsNullOrEmpty(config.User))
-          args.Add($"-u {config.User}");
+          args.Add($"-u {QuoteArgumentIfNeeded(config.User)}");
 
         // Restart policy
         if (!string.IsNullOrEmpty(config.RestartPolicy))
-          args.Add($"--restart {config.RestartPolicy}");
+          args.Add($"--restart {QuoteArgumentIfNeeded(config.RestartPolicy)}");
 
         // Hostname
         if (!string.IsNullOrEmpty(config.Hostname))
-          args.Add($"--hostname {config.Hostname}");
+          args.Add($"--hostname {QuoteArgumentIfNeeded(config.Hostname)}");
 
         // Static IPv4 address
         if (!string.IsNullOrEmpty(config.Ipv4Address))
-          args.Add($"--ip {config.Ipv4Address}");
+          args.Add($"--ip {QuoteArgumentIfNeeded(config.Ipv4Address)}");
 
         // Static IPv6 address
         if (!string.IsNullOrEmpty(config.Ipv6Address))
-          args.Add($"--ip6 {config.Ipv6Address}");
+          args.Add($"--ip6 {QuoteArgumentIfNeeded(config.Ipv6Address)}");
 
         // Memory limit
         if (config.MemoryLimit.HasValue)
@@ -118,10 +126,10 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
         // Links (legacy Docker feature)
         if (config.Links != null)
           foreach (var link in config.Links)
-            args.Add($"--link {link}");
+            args.Add($"--link {QuoteArgumentIfNeeded(link)}");
 
         // Image (required)
-        args.Add(config.Image);
+        args.Add(QuoteArgumentIfNeeded(config.Image));
 
         // Command - properly quote arguments that contain spaces or special characters
         if (config.Command != null && config.Command.Length > 0)
@@ -164,7 +172,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     {
       try
       {
-        var result = await ExecuteCommandAsync($"start {containerId}", cancellationToken).ConfigureAwait(false);
+        var result = await ExecuteCommandAsync($"start {QuoteArgumentIfNeeded(containerId)}", cancellationToken).ConfigureAwait(false);
 
         if (!result.Success)
         {
@@ -195,7 +203,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
         var args = "stop";
         if (timeout.HasValue)
           args += $" -t {timeout.Value}";
-        args += $" {containerId}";
+        args += $" {QuoteArgumentIfNeeded(containerId)}";
 
         var result = await ExecuteCommandAsync(args, cancellationToken).ConfigureAwait(false);
 
@@ -228,7 +236,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
         var args = "restart";
         if (timeout.HasValue)
           args += $" -t {timeout.Value}";
-        args += $" {containerId}";
+        args += $" {QuoteArgumentIfNeeded(containerId)}";
 
         var result = await ExecuteCommandAsync(args, cancellationToken).ConfigureAwait(false);
 
@@ -257,7 +265,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     {
       try
       {
-        var result = await ExecuteCommandAsync($"pause {containerId}", cancellationToken).ConfigureAwait(false);
+        var result = await ExecuteCommandAsync($"pause {QuoteArgumentIfNeeded(containerId)}", cancellationToken).ConfigureAwait(false);
 
         if (!result.Success)
         {
@@ -284,7 +292,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     {
       try
       {
-        var result = await ExecuteCommandAsync($"unpause {containerId}", cancellationToken).ConfigureAwait(false);
+        var result = await ExecuteCommandAsync($"unpause {QuoteArgumentIfNeeded(containerId)}", cancellationToken).ConfigureAwait(false);
 
         if (!result.Success)
         {
@@ -312,7 +320,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     {
       try
       {
-        var args = $"kill --signal {signal} {containerId}";
+        var args = $"kill --signal {QuoteArgumentIfNeeded(signal)} {QuoteArgumentIfNeeded(containerId)}";
         var result = await ExecuteCommandAsync(args, cancellationToken).ConfigureAwait(false);
 
         if (!result.Success)
@@ -347,7 +355,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
           args += " -f";
         if (removeVolumes)
           args += " -v";
-        args += $" {containerId}";
+        args += $" {QuoteArgumentIfNeeded(containerId)}";
 
         var result = await ExecuteCommandAsync(args, cancellationToken).ConfigureAwait(false);
 

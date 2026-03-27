@@ -221,7 +221,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
             networks.Add(ParseNetworkFromToken(JsonHelper.ParseElement(line.Trim())));
         }
       }
-      catch { /* Return partial results */ }
+      catch (Exception ex) { Logger.Log($"Network JSON parsing skipped: {ex.Message}"); }
 
       return networks;
     }

@@ -313,13 +313,13 @@ namespace FluentDocker.Kernel
     /// </summary>
     public void SetDefaultDriver(string driverId)
     {
-      if (!IsRegistered(driverId))
-      {
-        throw new DriverNotFoundException(driverId);
-      }
-
       lock (_defaultDriverLock)
       {
+        // Check inside lock to prevent TOCTOU race where another thread
+        // could unregister the driver between check and set.
+        if (!IsRegistered(driverId))
+          throw new DriverNotFoundException(driverId);
+
         _defaultDriverId = driverId;
       }
     }

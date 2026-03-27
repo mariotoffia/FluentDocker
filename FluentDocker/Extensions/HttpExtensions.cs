@@ -35,7 +35,7 @@ namespace FluentDocker.Extensions
       else
       {
         throw new FluentDockerException(
-          $"Could not download file ${url} code: ${response.StatusCode}"
+          $"Could not download file {url} code: {response.StatusCode}"
         );
       }
 
@@ -83,26 +83,32 @@ namespace FluentDocker.Extensions
     public static async Task<RequestResponse> DoRequest(this string url, HttpMethod method = null,
       string contentType = "application/json", string body = null, bool noThrow = true)
     {
-      if (null == method)
-        method = HttpMethod.Get;
-      if (null == body)
-        body = string.Empty;
-
-      HttpContent content = new StringContent(body);
-      content.Headers.ContentType = new MediaTypeHeaderValue(contentType);
+      method ??= HttpMethod.Get;
+      body ??= string.Empty;
 
       HttpResponseMessage response = null;
       try
       {
         if (method.Equals(HttpMethod.Get))
+        {
           response = await Client.GetAsync(url).ConfigureAwait(false);
-        if (method.Equals(HttpMethod.Post))
+        }
+        else if (method.Equals(HttpMethod.Post))
+        {
+          using var content = new StringContent(body);
+          content.Headers.ContentType = new MediaTypeHeaderValue(contentType);
           response = await Client.PostAsync(url, content).ConfigureAwait(false);
-        if (method.Equals(HttpMethod.Put))
+        }
+        else if (method.Equals(HttpMethod.Put))
+        {
+          using var content = new StringContent(body);
+          content.Headers.ContentType = new MediaTypeHeaderValue(contentType);
           response = await Client.PutAsync(url, content).ConfigureAwait(false);
-        if (method.Equals(HttpMethod.Delete))
+        }
+        else if (method.Equals(HttpMethod.Delete))
+        {
           response = await Client.DeleteAsync(url).ConfigureAwait(false);
-
+        }
       }
       catch (Exception err)
       {

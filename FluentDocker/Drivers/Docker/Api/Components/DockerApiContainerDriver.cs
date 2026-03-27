@@ -88,7 +88,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       var result = await PostAsync(path, null, cancellationToken).ConfigureAwait(false);
       return result.Success
           ? CommandResponse<Unit>.Ok(Unit.Default)
-          : FailUnit(result, $"POST /containers/{containerId}/start");
+          : FailUnit(result, $"POST /containers/{containerId}/start", ErrorCodes.Container.StartFailed);
     }
 
     /// <inheritdoc />
@@ -103,7 +103,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       var result = await PostAsync(path, null, cancellationToken).ConfigureAwait(false);
       return result.Success
           ? CommandResponse<Unit>.Ok(Unit.Default)
-          : FailUnit(result, $"POST /containers/{containerId}/stop");
+          : FailUnit(result, $"POST /containers/{containerId}/stop", ErrorCodes.Container.StopFailed);
     }
 
     /// <inheritdoc />
@@ -118,7 +118,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       var result = await PostAsync(path, null, cancellationToken).ConfigureAwait(false);
       return result.Success
           ? CommandResponse<Unit>.Ok(Unit.Default)
-          : FailUnit(result, $"POST /containers/{containerId}/restart");
+          : FailUnit(result, $"POST /containers/{containerId}/restart", ErrorCodes.Container.RestartFailed);
     }
 
     /// <inheritdoc />
@@ -130,7 +130,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       var result = await PostAsync(path, null, cancellationToken).ConfigureAwait(false);
       return result.Success
           ? CommandResponse<Unit>.Ok(Unit.Default)
-          : FailUnit(result, $"POST /containers/{containerId}/pause");
+          : FailUnit(result, $"POST /containers/{containerId}/pause", ErrorCodes.Container.PauseFailed);
     }
 
     /// <inheritdoc />
@@ -142,7 +142,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       var result = await PostAsync(path, null, cancellationToken).ConfigureAwait(false);
       return result.Success
           ? CommandResponse<Unit>.Ok(Unit.Default)
-          : FailUnit(result, $"POST /containers/{containerId}/unpause");
+          : FailUnit(result, $"POST /containers/{containerId}/unpause", ErrorCodes.Container.UnpauseFailed);
     }
 
     /// <inheritdoc />
@@ -157,7 +157,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       var result = await PostAsync(path, null, cancellationToken).ConfigureAwait(false);
       return result.Success
           ? CommandResponse<Unit>.Ok(Unit.Default)
-          : FailUnit(result, $"POST /containers/{containerId}/kill");
+          : FailUnit(result, $"POST /containers/{containerId}/kill", ErrorCodes.Container.KillFailed);
     }
 
     /// <inheritdoc />
@@ -172,7 +172,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       var result = await DeleteAsync(path, cancellationToken).ConfigureAwait(false);
       return result.Success
           ? CommandResponse<Unit>.Ok(Unit.Default)
-          : FailUnit(result, $"DELETE /containers/{containerId}");
+          : FailUnit(result, $"DELETE /containers/{containerId}", ErrorCodes.Container.RemoveFailed);
     }
 
     /// <inheritdoc />
@@ -262,11 +262,12 @@ namespace FluentDocker.Drivers.Docker.Api.Components
 
     #region Helpers
 
-    private CommandResponse<Unit> FailUnit(ApiResult result, string operation)
+    private CommandResponse<Unit> FailUnit(ApiResult result, string operation,
+        string notFoundCode = null)
     {
       return CommandResponse<Unit>.Fail(
           result.ErrorMessage,
-          MapNotFoundErrorCode(result.StatusCode, ErrorCodes.Container.NotFound),
+          MapNotFoundErrorCode(result.StatusCode, notFoundCode ?? ErrorCodes.Container.NotFound),
           CreateErrorContext(operation, result.StatusCode, result.ResponseBody),
           result.StatusCode);
     }

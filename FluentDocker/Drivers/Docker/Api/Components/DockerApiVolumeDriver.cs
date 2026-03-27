@@ -49,7 +49,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
         DriverContext context, string volumeName, bool force = false,
         CancellationToken cancellationToken = default)
     {
-      var path = $"/volumes/{volumeName}?force={force.ToString().ToLower()}";
+      var path = $"/volumes/{Uri.EscapeDataString(volumeName)}?force={force.ToString().ToLower()}";
       var result = await DeleteAsync(path, cancellationToken).ConfigureAwait(false);
       if (!result.Success)
         return CommandResponse<Unit>.Fail(result.ErrorMessage,
@@ -92,7 +92,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
         DriverContext context, string volumeName,
         CancellationToken cancellationToken = default)
     {
-      var result = await GetJsonElementAsync($"/volumes/{volumeName}", cancellationToken).ConfigureAwait(false);
+      var result = await GetJsonElementAsync($"/volumes/{Uri.EscapeDataString(volumeName)}", cancellationToken).ConfigureAwait(false);
       if (!result.Success)
         return CommandResponse<Volume>.Fail(result.ErrorMessage,
             MapNotFoundErrorCode(result.StatusCode, ErrorCodes.Volume.NotFound),

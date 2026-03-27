@@ -361,7 +361,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
             result.Manifests.Add(ParseManifestEntry(item));
         }
       }
-      catch { /* Return partial results */ }
+      catch (Exception ex) { Logger.Log($"Manifest JSON parsing skipped: {ex.Message}"); }
 
       return result;
     }

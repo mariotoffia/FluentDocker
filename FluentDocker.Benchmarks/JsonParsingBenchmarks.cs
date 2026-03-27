@@ -218,7 +218,8 @@ namespace FluentDocker.Benchmarks
       var mounts = el.Prop("Mounts");
       var mountCount = 0;
       if (mounts.HasValue && mounts.Value.ValueKind == JsonValueKind.Array)
-        foreach (var _ in mounts.Value.EnumerateArray()) mountCount++;
+        foreach (var _ in mounts.Value.EnumerateArray())
+          mountCount++;
       var nets = el.Prop("NetworkSettings");
       var bridge = nets.HasValue ? nets.Value.Prop("Networks") : null;
       var bridgeNet = bridge.HasValue ? bridge.Value.Prop("bridge") : null;

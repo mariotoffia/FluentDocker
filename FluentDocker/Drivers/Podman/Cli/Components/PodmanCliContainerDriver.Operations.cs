@@ -26,14 +26,19 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
     {
       try
       {
-        var args = "logs";
         if (follow)
-          args += " --follow";
+        {
+          throw new NotSupportedException(
+              "GetLogsAsync does not support follow=true because 'podman logs --follow' " +
+              "streams indefinitely. Use IStreamDriver.StreamLogsAsync instead.");
+        }
+
+        var args = "logs";
         if (tail.HasValue)
           args += $" --tail {tail.Value}";
         if (timestamps)
           args += " --timestamps";
-        args += $" {containerId}";
+        args += $" {QuoteArgumentIfNeeded(containerId)}";
 
         var result = await ExecuteCommandAsync(args, cancellationToken).ConfigureAwait(false);
         if (!result.Success)
@@ -60,7 +65,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
     {
       try
       {
-        var args = $"top {containerId}";
+        var args = $"top {QuoteArgumentIfNeeded(containerId)}";
         if (!string.IsNullOrEmpty(psOptions))
           args += $" {psOptions}";
 
@@ -86,7 +91,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
     {
       try
       {
-        var result = await ExecuteCommandAsync($"diff {containerId}", cancellationToken).ConfigureAwait(false);
+        var result = await ExecuteCommandAsync($"diff {QuoteArgumentIfNeeded(containerId)}", cancellationToken).ConfigureAwait(false);
         if (!result.Success)
           return CommandResponse<IList<FilesystemChange>>.Fail(
               result.Error ?? "Container diff failed", ErrorCodes.Container.DiffFailed);
@@ -109,7 +114,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       try
       {
         var result = await ExecuteCommandAsync(
-            $"stats --no-stream --format json {containerId}", cancellationToken);
+            $"stats --no-stream --format json {QuoteArgumentIfNeeded(containerId)}", cancellationToken);
         if (!result.Success)
           return CommandResponse<ContainerStatsResult>.Fail(
               result.Error ?? "Container stats failed", ErrorCodes.Container.StatsFailed);
@@ -145,15 +150,15 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
         if (config.Privileged)
           args += " --privileged";
         if (!string.IsNullOrEmpty(config.User))
-          args += $" --user {config.User}";
+          args += $" --user {QuoteArgumentIfNeeded(config.User)}";
         if (!string.IsNullOrEmpty(config.WorkingDir))
-          args += $" -w {config.WorkingDir}";
+          args += $" -w {QuoteArgumentIfNeeded(config.WorkingDir)}";
 
         if (config.Environment != null)
           foreach (var env in config.Environment)
-            args += $" -e {env.Key}={env.Value}";
+            args += $" -e {QuoteArgumentIfNeeded($"{env.Key}={env.Value}")}";
 
-        args += $" {containerId}";
+        args += $" {QuoteArgumentIfNeeded(containerId)}";
 
         if (config.Command != null)
           foreach (var cmd in config.Command)
@@ -232,7 +237,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       try
       {
         var result = await ExecuteCommandAsync(
-            $"export -o \"{outputPath}\" {containerId}", cancellationToken);
+            $"export -o \"{outputPath}\" {QuoteArgumentIfNeeded(containerId)}", cancellationToken);
         return result.Success
             ? CommandResponse<Unit>.Ok(Unit.Default)
             : CommandResponse<Unit>.Fail(
@@ -252,7 +257,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       try
       {
         var result = await ExecuteCommandAsync(
-            $"rename {containerId} {newName}", cancellationToken);
+            $"rename {QuoteArgumentIfNeeded(containerId)} {QuoteArgumentIfNeeded(newName)}", cancellationToken);
         return result.Success
             ? CommandResponse<Unit>.Ok(Unit.Default)
             : CommandResponse<Unit>.Fail(
@@ -285,13 +290,13 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
         if (config.CpuQuota.HasValue)
           args += $" --cpu-quota {config.CpuQuota.Value}";
         if (!string.IsNullOrEmpty(config.CpusetCpus))
-          args += $" --cpuset-cpus {config.CpusetCpus}";
+          args += $" --cpuset-cpus {QuoteArgumentIfNeeded(config.CpusetCpus)}";
         if (!string.IsNullOrEmpty(config.RestartPolicy))
-          args += $" --restart {config.RestartPolicy}";
+          args += $" --restart {QuoteArgumentIfNeeded(config.RestartPolicy)}";
         if (config.PidsLimit.HasValue)
           args += $" --pids-limit {config.PidsLimit.Value}";
 
-        args += $" {containerId}";
+        args += $" {QuoteArgumentIfNeeded(containerId)}";
 
         var result = await ExecuteCommandAsync(args, cancellationToken).ConfigureAwait(false);
         return result.Success
@@ -424,65 +429,17 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       }
     }
 
-    /// <summary>Parses a percentage string (e.g. "5.23%") into a double. Returns 0 on failure.</summary>
-    public static double ParsePercent(string value)
-    {
-      if (string.IsNullOrWhiteSpace(value))
-        return 0;
-      var clean = value.TrimEnd('%').Trim();
-      return double.TryParse(clean, NumberStyles.Float, CultureInfo.InvariantCulture, out var result)
-          ? result : 0;
-    }
+    /// <summary>Parses a percentage string. Delegates to <see cref="CliOutputParser"/>.</summary>
+    public static double ParsePercent(string value) => CliOutputParser.ParsePercent(value);
 
-    /// <summary>Parses a memory usage string (e.g. "100MiB / 2GiB") into (usage, limit) in bytes.</summary>
-    public static (long usage, long limit) ParseMemoryUsage(string value)
-    {
-      if (string.IsNullOrWhiteSpace(value))
-        return (0, 0);
-      var parts = value.Split(SlashSeparator, 2, StringSplitOptions.None);
-      return (
-        parts.Length > 0 ? ParseByteValue(parts[0].Trim()) : 0,
-        parts.Length > 1 ? ParseByteValue(parts[1].Trim()) : 0);
-    }
+    /// <summary>Parses a memory usage string. Delegates to <see cref="CliOutputParser"/>.</summary>
+    public static (long usage, long limit) ParseMemoryUsage(string value) => CliOutputParser.ParseMemoryUsage(value);
 
-    /// <summary>Parses an I/O pair string (e.g. "1.5kB / 2.3kB") into (first, second) in bytes.</summary>
-    public static (long first, long second) ParseIOPair(string value)
-    {
-      if (string.IsNullOrWhiteSpace(value))
-        return (0, 0);
-      var parts = value.Split(SlashSeparator, 2, StringSplitOptions.None);
-      return (
-        parts.Length > 0 ? ParseByteValue(parts[0].Trim()) : 0,
-        parts.Length > 1 ? ParseByteValue(parts[1].Trim()) : 0);
-    }
+    /// <summary>Parses an I/O pair string. Delegates to <see cref="CliOutputParser"/>.</summary>
+    public static (long first, long second) ParseIOPair(string value) => CliOutputParser.ParseIOPair(value);
 
-    /// <summary>Parses a byte value string with suffix. Uses base-1000 for kB/MB/GB/TB and base-1024 for KiB/MiB/GiB/TiB.</summary>
-    public static long ParseByteValue(string value)
-    {
-      if (string.IsNullOrWhiteSpace(value))
-        return 0;
-      var s = value.Trim();
-      // Order matters: check longer suffixes first to avoid partial matches.
-      (string suffix, double multiplier)[] suffixes =
-      [
-        ("TiB", 1024.0 * 1024 * 1024 * 1024), ("GiB", 1024.0 * 1024 * 1024),
-        ("MiB", 1024.0 * 1024), ("KiB", 1024.0),
-        ("TB", 1000.0 * 1000 * 1000 * 1000), ("GB", 1000.0 * 1000 * 1000),
-        ("MB", 1000.0 * 1000), ("kB", 1000.0), ("KB", 1000.0), ("B", 1.0)
-      ];
-      foreach (var (suffix, multiplier) in suffixes)
-      {
-        if (!s.EndsWith(suffix, StringComparison.Ordinal))
-          continue;
-        var numStr = s.Substring(0, s.Length - suffix.Length).Trim();
-        if (double.TryParse(numStr, NumberStyles.Float,
-                CultureInfo.InvariantCulture, out var num))
-          return (long)(num * multiplier);
-        return 0;
-      }
-      return double.TryParse(s, NumberStyles.Float,
-                 CultureInfo.InvariantCulture, out var raw) ? (long)raw : 0;
-    }
+    /// <summary>Parses a byte value string with suffix. Delegates to <see cref="CliOutputParser"/>.</summary>
+    public static long ParseByteValue(string value) => CliOutputParser.ParseByteValue(value);
 
     #endregion
   }

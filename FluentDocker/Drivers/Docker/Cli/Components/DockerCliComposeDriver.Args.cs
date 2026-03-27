@@ -163,7 +163,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
         args += " --parallel";
       if (config.BuildArgs != null)
         foreach (var ba in config.BuildArgs)
-          args += $" --build-arg {ba.Key}={ba.Value}";
+          args += $" --build-arg {QuoteIfNeeded($"{ba.Key}={ba.Value}")}";
       return args;
     }
 
@@ -297,15 +297,10 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
 
     #region Private Helpers (static)
 
-    private static string QuoteIfNeeded(string argument)
-    {
-      if (string.IsNullOrEmpty(argument))
-        return argument;
-      if (!argument.Contains(' ') && !argument.Contains('\t'))
-        return argument;
-      var escaped = argument.Replace("\\", "\\\\").Replace("\"", "\\\"");
-      return $"\"{escaped}\"";
-    }
+    // Delegates to the base class QuoteArgumentIfNeeded which checks
+    // a broader set of shell metacharacters (;, &, |, $, `, etc.)
+    // not just spaces and tabs.
+    private static string QuoteIfNeeded(string argument) => QuoteArgumentIfNeeded(argument);
 
     #endregion
   }

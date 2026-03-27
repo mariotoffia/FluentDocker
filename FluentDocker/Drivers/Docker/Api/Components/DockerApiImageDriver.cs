@@ -460,7 +460,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
         var el = JsonHelper.ParseElement(body);
         return el.GetStringOrDefault("message");
       }
-      catch { return body.Length > 500 ? body[..500] : body; }
+      catch (Exception ex) { Logger.Log($"Error message JSON parse failed: {ex.Message}"); return body.Length > 500 ? body[..500] : body; }
     }
 
     #endregion

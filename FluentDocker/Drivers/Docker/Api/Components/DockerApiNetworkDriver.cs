@@ -74,7 +74,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
         DriverContext context, string networkId,
         CancellationToken cancellationToken = default)
     {
-      var result = await DeleteAsync($"/networks/{networkId}", cancellationToken).ConfigureAwait(false);
+      var result = await DeleteAsync($"/networks/{Uri.EscapeDataString(networkId)}", cancellationToken).ConfigureAwait(false);
       if (!result.Success)
         return CommandResponse<Unit>.Fail(result.ErrorMessage,
             MapNotFoundErrorCode(result.StatusCode, ErrorCodes.Network.NotFound),
@@ -114,7 +114,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
     {
       var body = new { Container = containerId };
       var result = await PostAsync(
-          $"/networks/{networkId}/connect", body, cancellationToken);
+          $"/networks/{Uri.EscapeDataString(networkId)}/connect", body, cancellationToken);
       if (!result.Success)
         return CommandResponse<Unit>.Fail(result.ErrorMessage,
             ErrorCodes.Network.ConnectFailed,
@@ -130,7 +130,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
     {
       var body = new { Container = containerId, Force = force };
       var result = await PostAsync(
-          $"/networks/{networkId}/disconnect", body, cancellationToken);
+          $"/networks/{Uri.EscapeDataString(networkId)}/disconnect", body, cancellationToken);
       if (!result.Success)
         return CommandResponse<Unit>.Fail(result.ErrorMessage,
             ErrorCodes.Network.DisconnectFailed,
@@ -144,7 +144,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
         DriverContext context, string networkId,
         CancellationToken cancellationToken = default)
     {
-      var result = await GetJsonElementAsync($"/networks/{networkId}", cancellationToken).ConfigureAwait(false);
+      var result = await GetJsonElementAsync($"/networks/{Uri.EscapeDataString(networkId)}", cancellationToken).ConfigureAwait(false);
       if (!result.Success)
         return CommandResponse<Network>.Fail(result.ErrorMessage,
             MapNotFoundErrorCode(result.StatusCode, ErrorCodes.Network.NotFound),

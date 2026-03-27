@@ -174,16 +174,22 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
               result.ExitCode);
         }
 
-        // Parse loaded image names from output
+        // Parse loaded image names from output.
+        // Output format: "Loaded image: nginx:latest" or "Loaded image ID: sha256:abc..."
+        // Use substring instead of Split(':') to preserve the tag after the colon.
         var images = new List<string>();
         var lines = result.Output.Split(LineSeparators, StringSplitOptions.RemoveEmptyEntries);
+        const string loadedPrefix = "Loaded image:";
+        const string loadedIdPrefix = "Loaded image ID:";
         foreach (var line in lines)
         {
-          if (line.Contains("Loaded image:"))
+          if (line.StartsWith(loadedIdPrefix, StringComparison.OrdinalIgnoreCase))
           {
-            var parts = line.Split(':');
-            if (parts.Length > 1)
-              images.Add(parts[1].Trim());
+            images.Add(line.Substring(loadedIdPrefix.Length).Trim());
+          }
+          else if (line.StartsWith(loadedPrefix, StringComparison.OrdinalIgnoreCase))
+          {
+            images.Add(line.Substring(loadedPrefix.Length).Trim());
           }
         }
 

@@ -35,21 +35,21 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
         var args = new List<string> { "volume", "create" };
 
         if (!string.IsNullOrEmpty(config.Driver))
-          args.Add($"--driver {config.Driver}");
+          args.Add($"--driver {QuoteArgumentIfNeeded(config.Driver)}");
 
         if (config.Labels != null)
         {
           foreach (var label in config.Labels)
-            args.Add($"--label {label.Key}={label.Value}");
+            args.Add($"--label {QuoteArgumentIfNeeded($"{label.Key}={label.Value}")}");
         }
 
         if (config.DriverOpts != null)
         {
           foreach (var opt in config.DriverOpts)
-            args.Add($"--opt {opt.Key}={opt.Value}");
+            args.Add($"--opt {QuoteArgumentIfNeeded($"{opt.Key}={opt.Value}")}");
         }
 
-        args.Add(config.Name);
+        args.Add(QuoteArgumentIfNeeded(config.Name));
 
         var result = await ExecuteCommandAsync(string.Join(" ", args), cancellationToken).ConfigureAwait(false);
 
@@ -83,7 +83,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
         var args = "volume rm";
         if (force)
           args += " --force";
-        args += $" {volumeName}";
+        args += $" {QuoteArgumentIfNeeded(volumeName)}";
 
         var result = await ExecuteCommandAsync(args, cancellationToken).ConfigureAwait(false);
 
@@ -117,12 +117,12 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
         if (filter != null)
         {
           if (!string.IsNullOrEmpty(filter.Name))
-            args += $" --filter name={filter.Name}";
+            args += $" --filter name={QuoteArgumentIfNeeded(filter.Name)}";
 
           if (filter.Labels != null)
           {
             foreach (var label in filter.Labels)
-              args += $" --filter label={label.Key}={label.Value}";
+              args += $" --filter label={QuoteArgumentIfNeeded($"{label.Key}={label.Value}")}";
           }
         }
 
@@ -170,7 +170,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     {
       try
       {
-        var result = await ExecuteCommandAsync($"volume inspect {volumeName}", cancellationToken).ConfigureAwait(false);
+        var result = await ExecuteCommandAsync($"volume inspect {QuoteArgumentIfNeeded(volumeName)}", cancellationToken).ConfigureAwait(false);
 
         if (!result.Success)
         {

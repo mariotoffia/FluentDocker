@@ -265,7 +265,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
             images.Add(ParseImageFromToken(JsonHelper.ParseElement(line.Trim())));
         }
       }
-      catch { /* Return partial results */ }
+      catch (Exception ex) { Logger.Log($"Image JSON parsing skipped: {ex.Message}"); }
 
       return images;
     }
@@ -357,7 +357,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
           });
         }
       }
-      catch { /* Return partial results */ }
+      catch (Exception ex) { Logger.Log($"Image JSON parsing skipped: {ex.Message}"); }
 
       return layers;
     }

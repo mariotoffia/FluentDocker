@@ -42,26 +42,26 @@ namespace FluentDocker.Tests.CoreTests.Common
     }
 
     [Fact]
-    public void Option_ImplicitOperatorT_ReturnsInnerValue()
+    public void Option_ExplicitOperatorT_ReturnsInnerValue()
     {
       // Arrange
       var option = new Option<string>("world");
 
       // Act
-      string value = option!;
+      var value = (string)option!;
 
       // Assert
       Assert.Equal("world", value);
     }
 
     [Fact]
-    public void Option_ImplicitOperatorT_NoneOption_ReturnsNull()
+    public void Option_ExplicitOperatorT_NoneOption_ReturnsNull()
     {
       // Arrange
       var option = new Option<string>(null!);
 
       // Act
-      string? value = option;
+      var value = (string?)option;
 
       // Assert
       Assert.Null(value);
@@ -96,14 +96,14 @@ namespace FluentDocker.Tests.CoreTests.Common
     }
 
     [Fact]
-    public void Option_RoundTrip_ExplicitWrapThenImplicitUnwrap()
+    public void Option_RoundTrip_ExplicitWrapThenExplicitUnwrap()
     {
       // Arrange
       var original = "roundtrip";
 
       // Act
       var option = (Option<string>)original;
-      string unwrapped = option;
+      var unwrapped = (string)option;
 
       // Assert
       Assert.Equal(original, unwrapped);
