@@ -427,7 +427,8 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
     /// <summary>Parses a percentage string (e.g. "5.23%") into a double. Returns 0 on failure.</summary>
     public static double ParsePercent(string value)
     {
-      if (string.IsNullOrWhiteSpace(value)) return 0;
+      if (string.IsNullOrWhiteSpace(value))
+        return 0;
       var clean = value.TrimEnd('%').Trim();
       return double.TryParse(clean, NumberStyles.Float, CultureInfo.InvariantCulture, out var result)
           ? result : 0;
@@ -436,7 +437,8 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
     /// <summary>Parses a memory usage string (e.g. "100MiB / 2GiB") into (usage, limit) in bytes.</summary>
     public static (long usage, long limit) ParseMemoryUsage(string value)
     {
-      if (string.IsNullOrWhiteSpace(value)) return (0, 0);
+      if (string.IsNullOrWhiteSpace(value))
+        return (0, 0);
       var parts = value.Split(SlashSeparator, 2, StringSplitOptions.None);
       return (
         parts.Length > 0 ? ParseByteValue(parts[0].Trim()) : 0,
@@ -446,7 +448,8 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
     /// <summary>Parses an I/O pair string (e.g. "1.5kB / 2.3kB") into (first, second) in bytes.</summary>
     public static (long first, long second) ParseIOPair(string value)
     {
-      if (string.IsNullOrWhiteSpace(value)) return (0, 0);
+      if (string.IsNullOrWhiteSpace(value))
+        return (0, 0);
       var parts = value.Split(SlashSeparator, 2, StringSplitOptions.None);
       return (
         parts.Length > 0 ? ParseByteValue(parts[0].Trim()) : 0,
@@ -456,7 +459,8 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
     /// <summary>Parses a byte value string with suffix. Uses base-1000 for kB/MB/GB/TB and base-1024 for KiB/MiB/GiB/TiB.</summary>
     public static long ParseByteValue(string value)
     {
-      if (string.IsNullOrWhiteSpace(value)) return 0;
+      if (string.IsNullOrWhiteSpace(value))
+        return 0;
       var s = value.Trim();
       // Order matters: check longer suffixes first to avoid partial matches.
       (string suffix, double multiplier)[] suffixes =
@@ -468,7 +472,8 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       ];
       foreach (var (suffix, multiplier) in suffixes)
       {
-        if (!s.EndsWith(suffix, StringComparison.Ordinal)) continue;
+        if (!s.EndsWith(suffix, StringComparison.Ordinal))
+          continue;
         var numStr = s.Substring(0, s.Length - suffix.Length).Trim();
         if (double.TryParse(numStr, NumberStyles.Float,
                 CultureInfo.InvariantCulture, out var num))

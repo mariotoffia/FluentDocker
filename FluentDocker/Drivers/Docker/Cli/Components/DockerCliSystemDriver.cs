@@ -2,10 +2,10 @@ using System;
 using System.Diagnostics;
 using System.Globalization;
 using System.Text;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using FluentDocker.Common;
-using System.Text.Json;
 using FluentDocker.Drivers.Docker.Cli.Binary;
 using FluentDocker.Model.Drivers;
 

@@ -1,6 +1,7 @@
 using System;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using System.Text.Json.Serialization.Metadata;
 
 namespace FluentDocker.Common
 {
@@ -39,6 +40,25 @@ namespace FluentDocker.Common
       try
       {
         return JsonSerializer.Deserialize<T>(json, CaseInsensitiveOptions);
+      }
+      catch (JsonException)
+      {
+        return default;
+      }
+    }
+
+    /// <summary>
+    /// Deserializes a JSON string using a source-generated <see cref="JsonTypeInfo{T}"/>.
+    /// Returns <c>default</c> on failure instead of throwing.
+    /// </summary>
+    public static T TryDeserialize<T>(string json, JsonTypeInfo<T> typeInfo)
+    {
+      if (string.IsNullOrWhiteSpace(json))
+        return default;
+
+      try
+      {
+        return JsonSerializer.Deserialize(json, typeInfo);
       }
       catch (JsonException)
       {

@@ -1,7 +1,7 @@
 using System.Collections.Generic;
 using System.Linq;
-using FluentDocker.Drivers;
 using System.Text.Json.Serialization;
+using FluentDocker.Drivers;
 
 namespace FluentDocker.Drivers.Docker.Cli.Components
 {

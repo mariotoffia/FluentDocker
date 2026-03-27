@@ -1,11 +1,11 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using FluentDocker.Common;
 using FluentDocker.Drivers.Docker.Cli.Binary;
-using System.Text.Json;
 using FluentDocker.Model.Drivers;
 using FluentDocker.Model.Volumes;
 

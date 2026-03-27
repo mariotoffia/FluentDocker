@@ -1,9 +1,9 @@
 using System;
 using System.Collections.Generic;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using FluentDocker.Common;
-using System.Text.Json;
 using FluentDocker.Model.Drivers;
 
 namespace FluentDocker.Drivers.Docker.Cli.Components

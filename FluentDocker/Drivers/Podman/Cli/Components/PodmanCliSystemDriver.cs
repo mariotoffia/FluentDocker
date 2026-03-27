@@ -396,7 +396,8 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
     private static int ReadInt(JsonElement obj, string key1, string key2)
     {
       var prop = obj.Prop(key1, key2);
-      if (!prop.HasValue) return 0;
+      if (!prop.HasValue)
+        return 0;
       var p = prop.Value;
       if (p.ValueKind == JsonValueKind.Number && p.TryGetInt32(out var v))
         return v;
@@ -412,7 +413,8 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
     private static long ReadByteValue(JsonElement obj, string key1, string key2)
     {
       var prop = obj.Prop(key1, key2);
-      if (!prop.HasValue) return 0;
+      if (!prop.HasValue)
+        return 0;
       var p = prop.Value;
 
       if (p.ValueKind == JsonValueKind.Number)

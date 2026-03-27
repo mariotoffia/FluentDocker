@@ -31,8 +31,9 @@
     <None Include="..\icon\fluent-docker.png" Pack="true" PackagePath="\"/>
   </ItemGroup>
 
-  <ItemGroup>    
+  <ItemGroup>
     <PackageReference Include="Microsoft.SourceLink.GitHub" PrivateAssets="All" />
     <PackageReference Include="SharpCompress" />
+    <PackageReference Include="System.IO.Pipelines" Condition="'$(TargetFramework)' == 'net8.0'" />
   </ItemGroup>
 </Project>

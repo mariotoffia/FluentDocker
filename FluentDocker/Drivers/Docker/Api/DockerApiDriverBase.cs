@@ -3,11 +3,13 @@ using System.Collections.Generic;
 using System.IO;
 using System.Net;
 using System.Net.Http;
+using System.Net.Http.Json;
 using System.Runtime.CompilerServices;
 using System.Text;
+using System.Text.Json;
+using System.Text.Json.Serialization.Metadata;
 using System.Threading;
 using System.Threading.Tasks;
-using System.Text.Json;
 using FluentDocker.Common;
 using FluentDocker.Drivers.Docker.Api.ApiModels;
 using FluentDocker.Drivers.Docker.Api.Connection;
@@ -19,7 +21,7 @@ namespace FluentDocker.Drivers.Docker.Api
   /// Base class for Docker API driver components.
   /// Provides HTTP request/response helpers, JSON serialization, and error mapping.
   /// </summary>
-  public abstract class DockerApiDriverBase
+  public abstract partial class DockerApiDriverBase
   {
     protected IDockerApiConnection Connection { get; private set; }
     protected DriverContext Context { get; private set; }
@@ -52,6 +54,25 @@ namespace FluentDocker.Drivers.Docker.Api
       }
     }
 
+    /// <summary>
+    /// Source-gen-aware GET that deserializes the response directly from the HTTP stream.
+    /// </summary>
+    protected async Task<ApiResult<T>> GetJsonAsync<T>(
+        string path, JsonTypeInfo<T> responseTypeInfo, CancellationToken ct)
+    {
+      try
+      {
+        var response = await Connection.GetAsync(path, ct).ConfigureAwait(false);
+        return await HandleResponseFromStreamAsync(response, responseTypeInfo, ct)
+            .ConfigureAwait(false);
+      }
+      catch (Exception ex) when (IsConnectionError(ex))
+      {
+        return ApiResult<T>.Failure((int)HttpStatusCode.ServiceUnavailable,
+            $"Cannot connect to Docker daemon: {ex.Message}");
+      }
+    }
+
     protected async Task<ApiResult<T>> PostJsonAsync<T>(
         string path, object body, CancellationToken ct)
     {
@@ -64,6 +85,51 @@ namespace FluentDocker.Drivers.Docker.Api
 
         var response = await Connection.PostAsync(path, content, ct).ConfigureAwait(false);
         return await HandleResponseAsync<T>(response, ct).ConfigureAwait(false);
+      }
+      catch (Exception ex) when (IsConnectionError(ex))
+      {
+        return ApiResult<T>.Failure((int)HttpStatusCode.ServiceUnavailable,
+            $"Cannot connect to Docker daemon: {ex.Message}");
+      }
+    }
+
+    /// <summary>
+    /// Source-gen-aware POST that serializes the body and deserializes the response
+    /// directly from the HTTP stream, skipping intermediate string allocations.
+    /// </summary>
+    protected async Task<ApiResult<TResponse>> PostJsonAsync<TBody, TResponse>(
+        string path, TBody body,
+        JsonTypeInfo<TBody> bodyTypeInfo, JsonTypeInfo<TResponse> responseTypeInfo,
+        CancellationToken ct)
+    {
+      try
+      {
+        var content = body != null
+            ? JsonContent.Create(body, bodyTypeInfo)
+            : null;
+
+        var response = await Connection.PostAsync(path, content, ct).ConfigureAwait(false);
+        return await HandleResponseFromStreamAsync(response, responseTypeInfo, ct)
+            .ConfigureAwait(false);
+      }
+      catch (Exception ex) when (IsConnectionError(ex))
+      {
+        return ApiResult<TResponse>.Failure((int)HttpStatusCode.ServiceUnavailable,
+            $"Cannot connect to Docker daemon: {ex.Message}");
+      }
+    }
+
+    /// <summary>
+    /// Source-gen-aware POST with no body, deserializes the response directly from stream.
+    /// </summary>
+    protected async Task<ApiResult<T>> PostJsonAsync<T>(
+        string path, JsonTypeInfo<T> responseTypeInfo, CancellationToken ct)
+    {
+      try
+      {
+        var response = await Connection.PostAsync(path, null, ct).ConfigureAwait(false);
+        return await HandleResponseFromStreamAsync(response, responseTypeInfo, ct)
+            .ConfigureAwait(false);
       }
       catch (Exception ex) when (IsConnectionError(ex))
       {
@@ -129,19 +195,7 @@ namespace FluentDocker.Drivers.Docker.Api
       try
       {
         var response = await Connection.GetAsync(path, ct).ConfigureAwait(false);
-        var body = await response.Content.ReadAsStringAsync(ct).ConfigureAwait(false);
-
-        if (response.IsSuccessStatusCode)
-        {
-          if (string.IsNullOrWhiteSpace(body))
-            return ApiResult<JsonElement>.Ok(default);
-          var element = JsonHelper.ParseElement(body);
-          return ApiResult<JsonElement>.Ok(element);
-        }
-
-        var errorMessage = ExtractErrorMessage(body) ??
-            $"Docker API returned {(int)response.StatusCode}: {response.ReasonPhrase}";
-        return ApiResult<JsonElement>.Failure((int)response.StatusCode, errorMessage, body);
+        return await HandleJsonElementResponseAsync(response, ct).ConfigureAwait(false);
       }
       catch (Exception ex) when (IsConnectionError(ex))
       {
@@ -161,19 +215,7 @@ namespace FluentDocker.Drivers.Docker.Api
             : null;
 
         var response = await Connection.PostAsync(path, content, ct).ConfigureAwait(false);
-        var responseBody = await response.Content.ReadAsStringAsync(ct).ConfigureAwait(false);
-
-        if (response.IsSuccessStatusCode)
-        {
-          if (string.IsNullOrWhiteSpace(responseBody))
-            return ApiResult<JsonElement>.Ok(default);
-          var element = JsonHelper.ParseElement(responseBody);
-          return ApiResult<JsonElement>.Ok(element);
-        }
-
-        var errorMessage = ExtractErrorMessage(responseBody) ??
-            $"Docker API returned {(int)response.StatusCode}: {response.ReasonPhrase}";
-        return ApiResult<JsonElement>.Failure((int)response.StatusCode, errorMessage, responseBody);
+        return await HandleJsonElementResponseAsync(response, ct).ConfigureAwait(false);
       }
       catch (Exception ex) when (IsConnectionError(ex))
       {
@@ -267,6 +309,54 @@ namespace FluentDocker.Drivers.Docker.Api
       }
     }
 
+    /// <summary>
+    /// Source-gen-aware GET NDJSON stream: deserializes each line from UTF-8 bytes
+    /// via <see cref="System.IO.Pipelines.PipeReader"/>, skipping per-line string allocation.
+    /// </summary>
+    protected async IAsyncEnumerable<T> ReadNdjsonStreamAsync<T>(
+        string path, JsonTypeInfo<T> typeInfo,
+        [EnumeratorCancellation] CancellationToken ct) where T : class
+    {
+      Stream stream;
+      try
+      {
+        stream = await Connection.GetStreamAsync(path, ct).ConfigureAwait(false);
+      }
+      catch (Exception ex)
+      {
+        Logger.Log($"NDJSON stream open failed: {ex.Message}");
+        yield break;
+      }
+
+      await foreach (var item in ReadNdjsonLinesAsync(stream, typeInfo, ct)
+          .ConfigureAwait(false))
+        yield return item;
+    }
+
+    /// <summary>
+    /// Source-gen-aware POST NDJSON stream: deserializes each line from UTF-8 bytes
+    /// via <see cref="System.IO.Pipelines.PipeReader"/>.
+    /// </summary>
+    protected async IAsyncEnumerable<T> ReadNdjsonFromPostStreamAsync<T>(
+        string path, HttpContent content, JsonTypeInfo<T> typeInfo,
+        [EnumeratorCancellation] CancellationToken ct) where T : class
+    {
+      Stream stream;
+      try
+      {
+        stream = await Connection.PostStreamAsync(path, content, ct).ConfigureAwait(false);
+      }
+      catch (Exception ex)
+      {
+        Logger.Log($"NDJSON POST stream open failed: {ex.Message}");
+        yield break;
+      }
+
+      await foreach (var item in ReadNdjsonLinesAsync(stream, typeInfo, ct)
+          .ConfigureAwait(false))
+        yield return item;
+    }
+
     #endregion
 
     #region Response Handling
@@ -288,6 +378,55 @@ namespace FluentDocker.Drivers.Docker.Api
       var errorMessage = ExtractErrorMessage(body) ??
           $"Docker API returned {(int)response.StatusCode}: {response.ReasonPhrase}";
       return ApiResult<T>.Failure((int)response.StatusCode, errorMessage, body);
+    }
+
+    /// <summary>
+    /// Stream-based response handler that deserializes directly from the HTTP stream
+    /// using source-generated <see cref="JsonTypeInfo{T}"/>, skipping the intermediate string.
+    /// Error paths still read as string for error message extraction.
+    /// </summary>
+    private static async Task<ApiResult<T>> HandleResponseFromStreamAsync<T>(
+        HttpResponseMessage response, JsonTypeInfo<T> typeInfo, CancellationToken ct)
+    {
+      if (response.IsSuccessStatusCode)
+      {
+        if (response.Content.Headers.ContentLength == 0)
+          return ApiResult<T>.Ok(default);
+
+        var stream = await response.Content.ReadAsStreamAsync(ct).ConfigureAwait(false);
+        var data = await JsonSerializer.DeserializeAsync(stream, typeInfo, ct)
+            .ConfigureAwait(false);
+        return ApiResult<T>.Ok(data);
+      }
+
+      var body = await response.Content.ReadAsStringAsync(ct).ConfigureAwait(false);
+      var errorMessage = ExtractErrorMessage(body) ??
+          $"Docker API returned {(int)response.StatusCode}: {response.ReasonPhrase}";
+      return ApiResult<T>.Failure((int)response.StatusCode, errorMessage, body);
+    }
+
+    /// <summary>
+    /// Stream-based response handler for <see cref="JsonElement"/> results.
+    /// Parses the JSON document directly from the HTTP stream.
+    /// </summary>
+    private static async Task<ApiResult<JsonElement>> HandleJsonElementResponseAsync(
+        HttpResponseMessage response, CancellationToken ct)
+    {
+      if (response.IsSuccessStatusCode)
+      {
+        if (response.Content.Headers.ContentLength == 0)
+          return ApiResult<JsonElement>.Ok(default);
+
+        var stream = await response.Content.ReadAsStreamAsync(ct).ConfigureAwait(false);
+        using var doc = await JsonDocument.ParseAsync(stream, cancellationToken: ct)
+            .ConfigureAwait(false);
+        return ApiResult<JsonElement>.Ok(doc.RootElement.Clone());
+      }
+
+      var body = await response.Content.ReadAsStringAsync(ct).ConfigureAwait(false);
+      var errorMessage = ExtractErrorMessage(body) ??
+          $"Docker API returned {(int)response.StatusCode}: {response.ReasonPhrase}";
+      return ApiResult<JsonElement>.Failure((int)response.StatusCode, errorMessage, body);
     }
 
     private static async Task<ApiResult> HandleResponseAsync(
@@ -355,133 +494,7 @@ namespace FluentDocker.Drivers.Docker.Api
 
     #endregion
 
-    private static bool IsConnectionError(Exception ex)
-    {
-      return ex is HttpRequestException or System.Net.Sockets.SocketException or TaskCanceledException;
-    }
-
-    #region Stream Helpers
-
-    /// <summary>
-    /// Strips Docker multiplexed stream 8-byte header frames from raw log bytes.
-    /// Frame format: [1B stream type][3B padding][4B big-endian size][payload].
-    /// Operates on raw bytes to avoid UTF-8 round-trip corruption of binary headers.
-    /// Uses Span-based processing for minimal allocations.
-    /// </summary>
-    protected static string StripDockerStreamHeaders(byte[] bytes)
-    {
-      if (bytes == null || bytes.Length == 0)
-        return string.Empty;
-
-      return StripDockerStreamHeaders(bytes.AsSpan());
-    }
-
-    /// <summary>
-    /// Span-based overload that strips Docker multiplexed stream headers.
-    /// Single-pass: computes total payload size, allocates once, decodes in place.
-    /// </summary>
-    protected static string StripDockerStreamHeaders(ReadOnlySpan<byte> bytes)
-    {
-      if (bytes.Length < 8)
-        return Encoding.UTF8.GetString(bytes);
-
-      // Check if first byte is a valid Docker stream header (0=stdin, 1=stdout, 2=stderr)
-      if (bytes[0] > 2 || bytes[1] != 0 || bytes[2] != 0 || bytes[3] != 0)
-        return Encoding.UTF8.GetString(bytes);
-
-      // First pass: compute total payload size to allocate once
-      var totalPayload = 0;
-      var offset = 0;
-      while (offset + 8 <= bytes.Length)
-      {
-        var frameSize = (bytes[offset + 4] << 24) | (bytes[offset + 5] << 16)
-                      | (bytes[offset + 6] << 8) | bytes[offset + 7];
-        offset += 8;
-        if (frameSize <= 0 || offset + frameSize > bytes.Length)
-          break;
-        totalPayload += frameSize;
-        offset += frameSize;
-      }
-
-      if (totalPayload == 0)
-        return Encoding.UTF8.GetString(bytes);
-
-      // Second pass: concatenate payload bytes into a single buffer
-      var payloadBuffer = totalPayload <= 1024
-          ? stackalloc byte[totalPayload]
-          : new byte[totalPayload];
-
-      offset = 0;
-      var writePos = 0;
-      while (offset + 8 <= bytes.Length)
-      {
-        var frameSize = (bytes[offset + 4] << 24) | (bytes[offset + 5] << 16)
-                      | (bytes[offset + 6] << 8) | bytes[offset + 7];
-        offset += 8;
-        if (frameSize <= 0 || offset + frameSize > bytes.Length)
-          break;
-        bytes.Slice(offset, frameSize).CopyTo(payloadBuffer[writePos..]);
-        writePos += frameSize;
-        offset += frameSize;
-      }
-
-      return Encoding.UTF8.GetString(payloadBuffer[..writePos]);
-    }
-
-    /// <summary>
-    /// Reads exactly <paramref name="count"/> bytes from <paramref name="stream"/>,
-    /// handling partial reads. Returns the total number of bytes actually read.
-    /// </summary>
-    protected static async Task<int> ReadExactAsync(
-        Stream stream, byte[] buffer, int count, CancellationToken ct)
-    {
-      var totalRead = 0;
-      while (totalRead < count)
-      {
-        var read = await stream.ReadAsync(
-            buffer.AsMemory(totalRead, count - totalRead), ct);
-        if (read == 0)
-          break;
-        totalRead += read;
-      }
-      return totalRead;
-    }
-
-    #endregion
+    private static bool IsConnectionError(Exception ex) =>
+        ex is HttpRequestException or System.Net.Sockets.SocketException or TaskCanceledException;
   }
-
-  #region Internal Result Types
-
-#pragma warning disable CA1000 // Static members on generic type — factory pattern is intentional API design
-  public class ApiResult<T>
-  {
-    public bool Success { get; private init; }
-    public T Data { get; private init; }
-    public int StatusCode { get; private init; }
-    public string ErrorMessage { get; private init; }
-    public string ResponseBody { get; private init; }
-
-    public static ApiResult<T> Ok(T data) =>
-        new() { Success = true, Data = data, StatusCode = 200 };
-
-    public static ApiResult<T> Failure(int statusCode, string error, string body = null) =>
-        new() { Success = false, StatusCode = statusCode, ErrorMessage = error, ResponseBody = body };
-  }
-#pragma warning restore CA1000
-
-  public class ApiResult
-  {
-    public bool Success { get; private init; }
-    public int StatusCode { get; private init; }
-    public string ErrorMessage { get; private init; }
-    public string ResponseBody { get; private init; }
-
-    public static ApiResult Ok() =>
-        new() { Success = true, StatusCode = 200 };
-
-    public static ApiResult Failure(int statusCode, string error, string body = null) =>
-        new() { Success = false, StatusCode = statusCode, ErrorMessage = error, ResponseBody = body };
-  }
-
-  #endregion
 }

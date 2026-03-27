@@ -72,7 +72,8 @@ namespace FluentDocker.Common
     public static int GetInt32OrDefault(this JsonElement el, string propName, int defaultValue = 0)
     {
       var prop = el.Prop(propName);
-      if (prop == null) return defaultValue;
+      if (prop == null)
+        return defaultValue;
       var p = prop.Value;
       if (p.ValueKind == JsonValueKind.Number && p.TryGetInt32(out var v))
         return v;
@@ -87,7 +88,8 @@ namespace FluentDocker.Common
     public static long GetInt64OrDefault(this JsonElement el, string propName, long defaultValue = 0)
     {
       var prop = el.Prop(propName);
-      if (prop == null) return defaultValue;
+      if (prop == null)
+        return defaultValue;
       var p = prop.Value;
       if (p.ValueKind == JsonValueKind.Number && p.TryGetInt64(out var v))
         return v;
@@ -102,7 +104,8 @@ namespace FluentDocker.Common
     public static ulong GetUInt64OrDefault(this JsonElement el, string propName, ulong defaultValue = 0)
     {
       var prop = el.Prop(propName);
-      if (prop == null) return defaultValue;
+      if (prop == null)
+        return defaultValue;
       var p = prop.Value;
       if (p.ValueKind == JsonValueKind.Number && p.TryGetUInt64(out var v))
         return v;
@@ -117,7 +120,8 @@ namespace FluentDocker.Common
     public static double GetDoubleOrDefault(this JsonElement el, string propName, double defaultValue = 0)
     {
       var prop = el.Prop(propName);
-      if (prop == null) return defaultValue;
+      if (prop == null)
+        return defaultValue;
       var p = prop.Value;
       if (p.ValueKind == JsonValueKind.Number && p.TryGetDouble(out var v))
         return v;
@@ -132,7 +136,8 @@ namespace FluentDocker.Common
     public static bool GetBoolOrDefault(this JsonElement el, string propName, bool defaultValue = false)
     {
       var prop = el.Prop(propName);
-      if (prop == null) return defaultValue;
+      if (prop == null)
+        return defaultValue;
       var p = prop.Value;
       return p.ValueKind switch
       {
@@ -150,7 +155,8 @@ namespace FluentDocker.Common
     public static DateTime GetDateTimeOrDefault(this JsonElement el, string propName)
     {
       var s = el.GetStringOrDefault(propName);
-      if (s == null) return DateTime.MinValue;
+      if (s == null)
+        return DateTime.MinValue;
       return DateTimeOffset.TryParse(s, CultureInfo.InvariantCulture, DateTimeStyles.None, out var dto)
           ? dto.DateTime
           : DateTime.MinValue;
@@ -234,7 +240,7 @@ namespace FluentDocker.Common
     /// </summary>
     public static T Deserialize<T>(this JsonElement el)
     {
-      return JsonSerializer.Deserialize<T>(el.GetRawText(), JsonHelper.CaseInsensitiveOptions);
+      return el.Deserialize<T>(JsonHelper.CaseInsensitiveOptions);
     }
 
     /// <summary>

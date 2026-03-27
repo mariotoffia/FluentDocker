@@ -2,10 +2,10 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Runtime.CompilerServices;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using FluentDocker.Common;
-using System.Text.Json;
 using FluentDocker.Drivers.Docker.Cli.Binary;
 using FluentDocker.Drivers.Podman.Cli.Components;
 using FluentDocker.Model.Drivers;
@@ -88,8 +88,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
         try
         {
           evt = JsonSerializer.Deserialize<ContainerEvent>(line, JsonHelper.CaseInsensitiveOptions);
-          if (evt != null)
-            evt.RawJson = line;
+          evt?.RawJson = line;
         }
         catch (Exception ex)
         {

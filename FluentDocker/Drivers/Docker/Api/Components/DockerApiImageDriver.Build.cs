@@ -3,13 +3,10 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Net.Http;
-using System.Text;
-using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using FluentDocker.Common;
 using FluentDocker.Drivers.Docker.Api.ApiModels;
-using FluentDocker.Drivers.Docker.Api.Connection;
 using FluentDocker.Model.Drivers;
 using SharpCompress.Common;
 using SharpCompress.Writers;
@@ -55,22 +52,11 @@ namespace FluentDocker.Drivers.Docker.Api.Components
 
       string lastError = null;
       var receivedProgress = false;
-      using var reader = new StreamReader(stream, Encoding.UTF8);
-      while (!cancellationToken.IsCancellationRequested)
-      {
-        string line;
-        try
-        { line = await reader.ReadLineAsync(cancellationToken).ConfigureAwait(false); }
-        catch { break; }
-        if (line == null)
-          break;
-        if (string.IsNullOrWhiteSpace(line))
-          continue;
 
+      await foreach (var parsed in ReadNdjsonLinesAsync(
+          stream, DockerApiJsonContext.Default.PullProgressLine, cancellationToken))
+      {
         receivedProgress = true;
-        var parsed = JsonHelper.TryDeserialize<PullProgressLine>(line);
-        if (parsed == null)
-          continue;
 
         if (!string.IsNullOrWhiteSpace(parsed.Error))
         {
@@ -131,22 +117,10 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       }
 
       string lastError = null;
-      using var reader = new StreamReader(stream, Encoding.UTF8);
-      while (!cancellationToken.IsCancellationRequested)
+
+      await foreach (var parsed in ReadNdjsonLinesAsync(
+          stream, DockerApiJsonContext.Default.PushProgressLine, cancellationToken))
       {
-        string line;
-        try
-        { line = await reader.ReadLineAsync(cancellationToken).ConfigureAwait(false); }
-        catch { break; }
-        if (line == null)
-          break;
-        if (string.IsNullOrWhiteSpace(line))
-          continue;
-
-        var parsed = JsonHelper.TryDeserialize<PushProgressLine>(line);
-        if (parsed == null)
-          continue;
-
         if (!string.IsNullOrWhiteSpace(parsed.Error))
         {
           lastError = parsed.Error;
@@ -197,61 +171,53 @@ namespace FluentDocker.Drivers.Docker.Api.Components
 
       // Create tar archive of the build context
       var tarStream = CreateBuildContextTar(config.BuildContext);
-
-      var query = BuildBuildQueryParams(config);
-      var path = "/build" + (query.Count > 0 ? "?" + string.Join("&", query) : "");
-
-      var content = new StreamContent(tarStream);
-      content.Headers.ContentType =
-          new System.Net.Http.Headers.MediaTypeHeaderValue("application/x-tar");
-
-      var buildResult = new ImageBuildResult();
-      string lastError = null;
-
-      await foreach (var line in ReadNdjsonFromPostStreamAsync(
-          path, content, cancellationToken))
+      try
       {
-        var parsed = JsonHelper.TryDeserialize<BuildOutputLine>(line);
-        if (parsed == null)
-          continue;
+        var query = BuildBuildQueryParams(config);
+        var path = "/build" + (query.Count > 0 ? "?" + string.Join("&", query) : "");
 
-        // Extract image ID from aux message
-        if (parsed.Aux?.Id != null)
+        var content = new StreamContent(tarStream);
+        content.Headers.ContentType =
+            new System.Net.Http.Headers.MediaTypeHeaderValue("application/x-tar");
+
+        var buildResult = new ImageBuildResult();
+        string lastError = null;
+
+        await foreach (var parsed in ReadNdjsonFromPostStreamAsync(
+            path, content, DockerApiJsonContext.Default.BuildOutputLine, cancellationToken))
         {
-          buildResult.ImageId = parsed.Aux.Id;
+          if (parsed.Aux?.Id != null)
+            buildResult.ImageId = parsed.Aux.Id;
+
+          if (!string.IsNullOrEmpty(parsed.Stream))
+            buildResult.Output.Add(parsed.Stream.TrimEnd('\n'));
+
+          if (!string.IsNullOrWhiteSpace(parsed.Error))
+          {
+            lastError = parsed.ErrorDetail?.Message ?? parsed.Error;
+            break;
+          }
+
+          progress?.Report(new ImageBuildProgress
+          {
+            Stream = parsed.Stream,
+            Status = parsed.Aux != null ? $"Built: {parsed.Aux.Id}" : null,
+            Id = parsed.Aux?.Id,
+            Error = parsed.Error
+          });
         }
 
-        // Collect build output
-        if (!string.IsNullOrEmpty(parsed.Stream))
-        {
-          buildResult.Output.Add(parsed.Stream.TrimEnd('\n'));
-        }
+        if (!string.IsNullOrWhiteSpace(lastError))
+          return CommandResponse<ImageBuildResult>.Fail(lastError,
+              ErrorCodes.Image.BuildFailed,
+              CreateErrorContext("POST /build", 0));
 
-        // Check for errors
-        if (!string.IsNullOrWhiteSpace(parsed.Error))
-        {
-          lastError = parsed.ErrorDetail?.Message ?? parsed.Error;
-          break;
-        }
-
-        progress?.Report(new ImageBuildProgress
-        {
-          Stream = parsed.Stream,
-          Status = parsed.Aux != null ? $"Built: {parsed.Aux.Id}" : null,
-          Id = parsed.Aux?.Id,
-          Error = parsed.Error
-        });
+        return CommandResponse<ImageBuildResult>.Ok(buildResult);
       }
-
-      // Dispose the tar stream after build completes
-      await tarStream.DisposeAsync().ConfigureAwait(false);
-
-      if (!string.IsNullOrWhiteSpace(lastError))
-        return CommandResponse<ImageBuildResult>.Fail(lastError,
-            ErrorCodes.Image.BuildFailed,
-            CreateErrorContext("POST /build", 0));
-
-      return CommandResponse<ImageBuildResult>.Ok(buildResult);
+      finally
+      {
+        await tarStream.DisposeAsync().ConfigureAwait(false);
+      }
     }
 
     #endregion

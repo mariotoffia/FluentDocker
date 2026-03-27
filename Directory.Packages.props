@@ -6,6 +6,7 @@
     <!-- Main library -->
     <PackageVersion Include="Microsoft.SourceLink.GitHub" Version="8.0.0" />
     <PackageVersion Include="SharpCompress" Version="0.38.0" />
+    <PackageVersion Include="System.IO.Pipelines" Version="9.0.3" />
 
     <!-- Testing adapters -->
     <PackageVersion Include="xunit.v3.extensibility.core" Version="3.2.2" />

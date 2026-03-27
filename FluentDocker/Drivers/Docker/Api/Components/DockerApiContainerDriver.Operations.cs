@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Net.Http;
+using System.Net.Http.Json;
 using System.Text;
 using System.Text.Json;
 using System.Threading;
@@ -164,8 +165,11 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       };
 
       var createPath = $"/containers/{Uri.EscapeDataString(containerId)}/exec";
-      var createResult = await PostJsonAsync<ExecCreateResponse>(
-          createPath, createRequest, cancellationToken);
+      var createResult = await PostJsonAsync(
+          createPath, createRequest,
+          DockerApiJsonContext.Default.ExecCreateRequest,
+          DockerApiJsonContext.Default.ExecCreateResponse,
+          cancellationToken);
       if (!createResult.Success)
         return CommandResponse<ExecResult>.Fail(createResult.ErrorMessage,
             MapNotFoundErrorCode(createResult.StatusCode, ErrorCodes.Container.ExecFailed),
@@ -183,9 +187,8 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       string stdout, stderr;
       try
       {
-        var startContent = new StringContent(
-            JsonHelper.Serialize(startRequest),
-            Encoding.UTF8, "application/json");
+        var startContent = JsonContent.Create(
+            startRequest, DockerApiJsonContext.Default.ExecStartRequest);
         using var stream = await Connection.PostStreamAsync(
             $"/exec/{execId}/start", startContent, cancellationToken);
 
@@ -211,8 +214,9 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       }
 
       // Phase 3: Inspect exec for exit code
-      var inspectResult = await GetJsonAsync<ExecInspectResponse>(
-          $"/exec/{execId}/json", cancellationToken);
+      var inspectResult = await GetJsonAsync(
+          $"/exec/{execId}/json",
+          DockerApiJsonContext.Default.ExecInspectResponse, cancellationToken);
       var exitCode = inspectResult.Success ? inspectResult.Data?.ExitCode ?? -1 : -1;
 
       return CommandResponse<ExecResult>.Ok(new ExecResult

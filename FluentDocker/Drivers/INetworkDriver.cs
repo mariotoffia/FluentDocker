@@ -1,11 +1,11 @@
 using System;
 using System.Collections.Generic;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
 using FluentDocker.Model.Drivers;
 using FluentDocker.Model.Networks;
-using System.Text.Json;
-using System.Text.Json.Serialization;
 
 namespace FluentDocker.Drivers
 {

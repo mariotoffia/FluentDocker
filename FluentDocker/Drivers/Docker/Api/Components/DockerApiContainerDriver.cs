@@ -33,8 +33,11 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       if (!string.IsNullOrEmpty(config.Name))
         path += $"?name={Uri.EscapeDataString(config.Name)}";
 
-      var result = await PostJsonAsync<CreateContainerResponse>(
-          path, request, cancellationToken);
+      var result = await PostJsonAsync(
+          path, request,
+          DockerApiJsonContext.Default.CreateContainerRequest,
+          DockerApiJsonContext.Default.CreateContainerResponse,
+          cancellationToken);
       if (!result.Success)
         return CommandResponse<ContainerCreateResult>.Fail(
             result.ErrorMessage,
@@ -178,8 +181,8 @@ namespace FluentDocker.Drivers.Docker.Api.Components
         CancellationToken cancellationToken = default)
     {
       var path = $"/containers/{Uri.EscapeDataString(containerId)}/wait";
-      var result = await PostJsonAsync<WaitContainerResponse>(
-          path, null, cancellationToken);
+      var result = await PostJsonAsync(
+          path, DockerApiJsonContext.Default.WaitContainerResponse, cancellationToken);
       if (!result.Success)
         return CommandResponse<ContainerWaitResult>.Fail(
             result.ErrorMessage,

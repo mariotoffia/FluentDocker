@@ -229,8 +229,10 @@ namespace FluentDocker.Builders
     {
       _waitConditions.Add(new WaitCondition
       {
-        Type = WaitConditionType.Process, Target = processName,
-        TimeoutMs = timeoutMs, PollIntervalMs = _waitPollIntervalMs
+        Type = WaitConditionType.Process,
+        Target = processName,
+        TimeoutMs = timeoutMs,
+        PollIntervalMs = _waitPollIntervalMs
       });
       return this;
     }
@@ -271,8 +273,10 @@ namespace FluentDocker.Builders
     {
       _waitConditions.Add(new WaitCondition
       {
-        Type = WaitConditionType.LogMessage, Target = message,
-        TimeoutMs = timeoutMs, PollIntervalMs = _waitPollIntervalMs
+        Type = WaitConditionType.LogMessage,
+        Target = message,
+        TimeoutMs = timeoutMs,
+        PollIntervalMs = _waitPollIntervalMs
       });
       return this;
     }
@@ -281,7 +285,8 @@ namespace FluentDocker.Builders
     {
       _waitConditions.Add(new WaitCondition
       {
-        Type = WaitConditionType.Healthy, TimeoutMs = timeoutMs,
+        Type = WaitConditionType.Healthy,
+        TimeoutMs = timeoutMs,
         PollIntervalMs = _waitPollIntervalMs
       });
       return this;
@@ -291,8 +296,10 @@ namespace FluentDocker.Builders
     {
       _waitConditions.Add(new WaitCondition
       {
-        Type = WaitConditionType.Lambda, LambdaCondition = condition,
-        TimeoutMs = 60000, PollIntervalMs = _waitPollIntervalMs
+        Type = WaitConditionType.Lambda,
+        LambdaCondition = condition,
+        TimeoutMs = 60000,
+        PollIntervalMs = _waitPollIntervalMs
       });
       return this;
     }
