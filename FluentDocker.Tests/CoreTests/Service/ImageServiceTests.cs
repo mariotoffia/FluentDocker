@@ -20,7 +20,7 @@ namespace FluentDocker.Tests.CoreTests.Service
   /// Unit tests for ImageService.
   /// </summary>
   [Trait("Category", "Unit")]
-  public class ImageServiceTests
+  public partial class ImageServiceTests
   {
     #region Constructor Tests
 

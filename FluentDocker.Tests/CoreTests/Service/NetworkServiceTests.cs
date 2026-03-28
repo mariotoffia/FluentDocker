@@ -10,7 +10,7 @@ namespace FluentDocker.Tests.CoreTests.Service
   /// Unit tests for NetworkService.
   /// </summary>
   [Trait("Category", "Unit")]
-  public class NetworkServiceTests
+  public partial class NetworkServiceTests
   {
     [Fact]
     public void Constructor_SetsProperties()

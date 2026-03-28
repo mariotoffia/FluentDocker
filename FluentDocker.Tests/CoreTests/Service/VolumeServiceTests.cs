@@ -10,7 +10,7 @@ namespace FluentDocker.Tests.CoreTests.Service
   /// Unit tests for VolumeService.
   /// </summary>
   [Trait("Category", "Unit")]
-  public class VolumeServiceTests
+  public partial class VolumeServiceTests
   {
     [Fact]
     public void Constructor_SetsProperties()
