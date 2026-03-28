@@ -259,14 +259,6 @@ namespace FluentDocker.Builders
       return false;
     }
 
-    private static readonly HttpClient s_httpClient = new()
-    {
-      // Per-request timeout is handled via CancellationToken.
-      // Set a generous but finite default to prevent truly infinite waits
-      // if a caller passes CancellationToken.None.
-      Timeout = TimeSpan.FromMinutes(10)
-    };
-
     private static async Task<bool> WaitForHttpUrlAsync(
         string url, long timeoutMs, HttpMethod method, string contentType,
         string body, Func<RequestResponse, int, long> continuation,
@@ -292,7 +284,7 @@ namespace FluentDocker.Builders
                   new System.Net.Http.Headers.MediaTypeHeaderValue(contentType);
           }
 
-          var response = await s_httpClient.SendAsync(request, requestCts.Token).ConfigureAwait(false);
+          var response = await Common.SharedHttpClient.Instance.SendAsync(request, requestCts.Token).ConfigureAwait(false);
           var responseBody = await response.Content.ReadAsStringAsync(requestCts.Token).ConfigureAwait(false);
 
           if (continuation != null)

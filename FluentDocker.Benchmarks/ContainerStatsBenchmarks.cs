@@ -1,11 +1,12 @@
 using BenchmarkDotNet.Attributes;
-using FluentDocker.Drivers.Docker.Cli.Components;
+using FluentDocker.Common;
 
 namespace FluentDocker.Benchmarks
 {
   /// <summary>
   /// Benchmarks for container stats parsing operations.
-  /// These measure the performance of parsing Docker stats output.
+  /// Uses the public <see cref="CliOutputParser"/> API directly instead of
+  /// reflection against private methods.
   /// </summary>
   [MemoryDiagnoser]
   public class ContainerStatsBenchmarks
@@ -21,6 +22,16 @@ namespace FluentDocker.Benchmarks
             ""PIDs"": ""3""
         }";
 
+    private System.Text.Json.JsonElement _simpleRoot;
+    private System.Text.Json.JsonElement _complexRoot;
+
+    [GlobalSetup]
+    public void Setup()
+    {
+      _simpleRoot = System.Text.Json.JsonDocument.Parse(SampleStatsJson.Trim()).RootElement;
+      _complexRoot = System.Text.Json.JsonDocument.Parse(ComplexStatsJson.Trim()).RootElement;
+    }
+
     private const string ComplexStatsJson = @"{
             ""Container"": ""abc123def456789012345678901234567890123456789012345678901234"",
             ""Name"": ""complex-service-with-long-name"",
@@ -32,76 +43,39 @@ namespace FluentDocker.Benchmarks
             ""PIDs"": ""256""
         }";
 
-    private DockerCliContainerDriver _driver = null!;
-
-    [GlobalSetup]
-    public void Setup()
-    {
-      _driver = new DockerCliContainerDriver(null!);
-    }
-
-    [Benchmark(Description = "Parse simple stats JSON")]
+    [Benchmark(Description = "Parse simple stats via CliOutputParser")]
     public void ParseSimpleStats()
     {
-      // Use reflection to call the private method for benchmarking
-      var method = typeof(DockerCliContainerDriver).GetMethod(
-          "ParseStatsOutput",
-          System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
-      method?.Invoke(null, new object[] { SampleStatsJson });
+      CliOutputParser.ParsePercent(_simpleRoot.GetProperty("CPUPerc").GetString());
+      CliOutputParser.ParsePercent(_simpleRoot.GetProperty("MemPerc").GetString());
+      CliOutputParser.ParseMemoryUsage(_simpleRoot.GetProperty("MemUsage").GetString());
+      CliOutputParser.ParseIOPair(_simpleRoot.GetProperty("NetIO").GetString());
+      CliOutputParser.ParseIOPair(_simpleRoot.GetProperty("BlockIO").GetString());
     }
 
-    [Benchmark(Description = "Parse complex stats JSON")]
+    [Benchmark(Description = "Parse complex stats via CliOutputParser")]
     public void ParseComplexStats()
     {
-      var method = typeof(DockerCliContainerDriver).GetMethod(
-          "ParseStatsOutput",
-          System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
-      method?.Invoke(null, new object[] { ComplexStatsJson });
+      CliOutputParser.ParsePercent(_complexRoot.GetProperty("CPUPerc").GetString());
+      CliOutputParser.ParsePercent(_complexRoot.GetProperty("MemPerc").GetString());
+      CliOutputParser.ParseMemoryUsage(_complexRoot.GetProperty("MemUsage").GetString());
+      CliOutputParser.ParseIOPair(_complexRoot.GetProperty("NetIO").GetString());
+      CliOutputParser.ParseIOPair(_complexRoot.GetProperty("BlockIO").GetString());
     }
 
     [Benchmark(Description = "Parse byte value - bytes")]
-    public void ParseByteValue_Bytes()
-    {
-      var method = typeof(DockerCliContainerDriver).GetMethod(
-          "ParseByteValue",
-          System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
-      method?.Invoke(null, new object[] { "1234B" });
-    }
+    public long ParseByteValue_Bytes() => CliOutputParser.ParseByteValue("1234B");
 
     [Benchmark(Description = "Parse byte value - MiB")]
-    public void ParseByteValue_MiB()
-    {
-      var method = typeof(DockerCliContainerDriver).GetMethod(
-          "ParseByteValue",
-          System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
-      method?.Invoke(null, new object[] { "256.5MiB" });
-    }
+    public long ParseByteValue_MiB() => CliOutputParser.ParseByteValue("256.5MiB");
 
     [Benchmark(Description = "Parse byte value - GiB")]
-    public void ParseByteValue_GiB()
-    {
-      var method = typeof(DockerCliContainerDriver).GetMethod(
-          "ParseByteValue",
-          System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
-      method?.Invoke(null, new object[] { "7.8GiB" });
-    }
+    public long ParseByteValue_GiB() => CliOutputParser.ParseByteValue("7.8GiB");
 
     [Benchmark(Description = "Parse percentage")]
-    public void ParsePercent()
-    {
-      var method = typeof(DockerCliContainerDriver).GetMethod(
-          "ParsePercent",
-          System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
-      method?.Invoke(null, new object[] { "45.78%" });
-    }
+    public double ParsePercent() => CliOutputParser.ParsePercent("45.78%");
 
     [Benchmark(Description = "Parse memory usage")]
-    public void ParseMemoryUsage()
-    {
-      var method = typeof(DockerCliContainerDriver).GetMethod(
-          "ParseMemoryUsage",
-          System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
-      method?.Invoke(null, new object[] { "256.5MiB / 2GiB" });
-    }
+    public (long, long) ParseMemoryUsage() => CliOutputParser.ParseMemoryUsage("256.5MiB / 2GiB");
   }
 }

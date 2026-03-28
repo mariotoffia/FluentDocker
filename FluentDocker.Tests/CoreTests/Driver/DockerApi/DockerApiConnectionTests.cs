@@ -177,6 +177,43 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
 
     #endregion
 
+    #region Version Negotiation State
+
+    [Fact]
+    public async Task ApiVersion_WhenSetInConfig_SkipsNegotiation()
+    {
+      // When ApiVersion is pre-set, the negotiation state object should
+      // reflect it immediately without needing a network call.
+      var config = new DockerApiConnectionConfig
+      {
+        Host = "tcp://localhost:2375",
+        ApiVersion = "1.45"
+      };
+
+      await using var conn = new DockerApiConnection(config);
+
+      // The negotiation state should hold the configured version atomically.
+      Assert.Equal("1.45", conn.ApiVersion);
+      Assert.True(conn.IsVersionNegotiated);
+    }
+
+    [Fact]
+    public async Task ApiVersion_WhenNotSetInConfig_NegotiationNotCompleted()
+    {
+      var config = new DockerApiConnectionConfig
+      {
+        Host = "tcp://localhost:2375"
+      };
+
+      await using var conn = new DockerApiConnection(config);
+
+      // No version set and no negotiation yet
+      Assert.Null(conn.ApiVersion);
+      Assert.False(conn.IsVersionNegotiated);
+    }
+
+    #endregion
+
     #region DisposeAsync
 
     [Fact]

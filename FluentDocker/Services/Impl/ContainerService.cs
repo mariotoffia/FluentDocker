@@ -19,7 +19,7 @@ namespace FluentDocker.Services.Impl
   /// <summary>
   /// Container service implementation using kernel and driver.
   /// </summary>
-  public partial class ContainerService : IContainerService
+  public partial class ContainerService : IContainerService, IServiceCapabilities
   {
     private readonly FluentDockerKernel _kernel;
     private readonly string _driverId;
@@ -40,7 +40,10 @@ namespace FluentDocker.Services.Impl
     // Short-lived inspect cache to avoid redundant API/CLI calls during wait polling.
     // Thread-safety: Single immutable record reference ensures atomic read/write
     // of both data and timestamp together, preventing torn reads.
+    // The _cacheVersion counter prevents stale writes: if a state change occurs
+    // while an InspectAsync is in-flight, the result is discarded rather than cached.
     private volatile InspectCacheEntry _inspectCacheEntry;
+    private volatile int _cacheVersion;
 
     /// <summary>
     /// Immutable cache entry pairing inspect data with its timestamp.
@@ -97,6 +100,12 @@ namespace FluentDocker.Services.Impl
     public string DriverId => _driverId;
     public string Id => _containerId;
     public string Image => _image;
+
+    // IServiceCapabilities
+    bool IServiceCapabilities.CanStart => true;
+    bool IServiceCapabilities.CanStop => true;
+    bool IServiceCapabilities.CanPause => true;
+    bool IServiceCapabilities.CanRemove => true;
 
 #pragma warning disable CA1710 // Delegate name 'StateChange' — intentional API design
     public event ServiceDelegates.StateChange StateChange;
@@ -202,6 +211,11 @@ namespace FluentDocker.Services.Impl
         return entry.Data;
       }
 
+      // Capture the cache version before the async call. If a state change
+      // occurs during the fetch, the version will have incremented and we
+      // must not store the now-stale result in the cache.
+      var versionBefore = _cacheVersion;
+
       var driver = _kernel.SysCtl<IContainerDriver>(_driverId);
       var context = new DriverContext(_driverId);
 
@@ -221,8 +235,11 @@ namespace FluentDocker.Services.Impl
         _state = ParseState(response.Data.State.Status);
       }
 
-      // Store data and timestamp as a single atomic reference write.
-      _inspectCacheEntry = new InspectCacheEntry(response.Data, Stopwatch.GetTimestamp());
+      // Only cache the result if no state change occurred during the fetch.
+      if (versionBefore == _cacheVersion)
+      {
+        _inspectCacheEntry = new InspectCacheEntry(response.Data, Stopwatch.GetTimestamp());
+      }
 
       return response.Data;
     }
@@ -230,9 +247,12 @@ namespace FluentDocker.Services.Impl
     /// <summary>
     /// Invalidates the inspect cache so the next InspectAsync call fetches fresh data.
     /// Called automatically by state-changing operations (Start, Stop, Pause, Remove).
+    /// Incrementing _cacheVersion also prevents any in-flight InspectAsync from
+    /// storing its now-stale result.
     /// </summary>
     private void InvalidateInspectCache()
     {
+      Interlocked.Increment(ref _cacheVersion);
       _inspectCacheEntry = null;
     }
 
@@ -283,13 +303,25 @@ namespace FluentDocker.Services.Impl
 
     #region Dispose
 
+    private int _disposed;
+
     public void Dispose()
     {
-      DisposeAsync().AsTask().GetAwaiter().GetResult();
+      if (Interlocked.CompareExchange(ref _disposed, 1, 0) != 0)
+        return;
+      DisposeCoreAsync().AsTask().GetAwaiter().GetResult();
       GC.SuppressFinalize(this);
     }
 
     public async ValueTask DisposeAsync()
+    {
+      if (Interlocked.CompareExchange(ref _disposed, 1, 0) != 0)
+        return;
+      await DisposeCoreAsync().ConfigureAwait(false);
+      GC.SuppressFinalize(this);
+    }
+
+    private async ValueTask DisposeCoreAsync()
     {
       if (_stopOnDispose &&
           (_state == ServiceRunningState.Running || _state == ServiceRunningState.Paused))
@@ -315,8 +347,6 @@ namespace FluentDocker.Services.Impl
           Logger.Log($"ContainerService remove on dispose failed: {ex.Message}");
         }
       }
-
-      GC.SuppressFinalize(this);
     }
 
     #endregion

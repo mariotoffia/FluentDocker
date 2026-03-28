@@ -14,8 +14,14 @@ namespace FluentDocker.Services.Impl
   /// <summary>
   /// Compose service implementation using kernel and driver.
   /// </summary>
-  public class ComposeService : IComposeService
+  public class ComposeService : IComposeService, IServiceCapabilities
   {
+    // IServiceCapabilities
+    bool IServiceCapabilities.CanStart => true;
+    bool IServiceCapabilities.CanStop => true;
+    bool IServiceCapabilities.CanPause => false;
+    bool IServiceCapabilities.CanRemove => true;
+
     private readonly FluentDockerKernel _kernel;
     private readonly string _driverId;
     private readonly List<string> _composeFiles;
@@ -285,13 +291,25 @@ namespace FluentDocker.Services.Impl
       return this;
     }
 
+    private int _disposed;
+
     public void Dispose()
     {
-      DisposeAsync().AsTask().GetAwaiter().GetResult();
+      if (Interlocked.CompareExchange(ref _disposed, 1, 0) != 0)
+        return;
+      DisposeCoreAsync().AsTask().GetAwaiter().GetResult();
       GC.SuppressFinalize(this);
     }
 
     public async ValueTask DisposeAsync()
+    {
+      if (Interlocked.CompareExchange(ref _disposed, 1, 0) != 0)
+        return;
+      await DisposeCoreAsync().ConfigureAwait(false);
+      GC.SuppressFinalize(this);
+    }
+
+    private async ValueTask DisposeCoreAsync()
     {
       try
       {
@@ -301,8 +319,6 @@ namespace FluentDocker.Services.Impl
       {
         Logger.Log($"ComposeService DisposeAsync failed: {ex.Message}");
       }
-
-      GC.SuppressFinalize(this);
     }
 
     private void UpdateState(ServiceRunningState newState)

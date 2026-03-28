@@ -23,10 +23,10 @@ namespace FluentDocker.Model.Containers
     /// </summary>
     /// <remarks>
     ///   For instance, if the host machine has two CPUs and you set --cpus="1.5", the container is guaranteed at
-    ///   most one and a half of the CPUs. If set to <see cref="float.MinValue" /> it will use the default.
+    ///   most one and a half of the CPUs. When null, the Docker default is used.
     ///   See: https://docs.docker.com/config/containers/resource_constraints/#cpu
     /// </remarks>
-    public float Cpus { get; set; } = float.MinValue;
+    public float? Cpus { get; set; }
 
     /// <summary>
     ///   Limit the specific CPUs or cores a container can use.
@@ -48,10 +48,10 @@ namespace FluentDocker.Model.Containers
     ///   all containers use as much CPU as they need. In that way, this is a soft limit. --cpu-shares does
     ///   not prevent containers from being scheduled in swarm mode. It prioritizes container CPU resources
     ///   for the available CPU cycles. It does not guarantee or reserve any specific CPU access.
-    ///   Set the value to <see cref="int.MinValue" /> to use the default. --cpu-shares
+    ///   When null, the Docker default (1024) is used. --cpu-shares
     ///   See: https://docs.docker.com/config/containers/resource_constraints/#cpu
     /// </remarks>
-    public int CpuShares { get; set; } = int.MinValue;
+    public int? CpuShares { get; set; }
 
     /// <summary>
     ///   Write the container ID to the file

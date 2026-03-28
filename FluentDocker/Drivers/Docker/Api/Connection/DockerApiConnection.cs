@@ -22,8 +22,15 @@ namespace FluentDocker.Drivers.Docker.Api.Connection
     private readonly HttpClient _httpClient;
     private readonly DockerApiConnectionConfig _config;
     private readonly SemaphoreSlim _negotiationLock = new(1, 1);
-    private string _apiVersion;
-    private volatile bool _versionNegotiated;
+
+    /// <summary>
+    /// Immutable record holding the negotiation result. A single volatile reference
+    /// ensures both the API version and the negotiated flag are published atomically,
+    /// preventing other threads from observing a partially-written state.
+    /// </summary>
+    private sealed record NegotiationState(string ApiVersion, bool Negotiated);
+
+    private volatile NegotiationState _negotiation;
 
     public DockerApiConnection(DockerApiConnectionConfig config)
     {
@@ -39,10 +46,18 @@ namespace FluentDocker.Drivers.Docker.Api.Connection
         Timeout = config.RequestTimeout
       };
 
-      _apiVersion = config.ApiVersion;
+      // If the user pre-set ApiVersion, mark negotiation as already done.
+      _negotiation = !string.IsNullOrEmpty(config.ApiVersion)
+          ? new NegotiationState(config.ApiVersion, Negotiated: true)
+          : new NegotiationState(null, Negotiated: false);
     }
 
-    public string ApiVersion => _apiVersion;
+    public string ApiVersion => _negotiation.ApiVersion;
+
+    /// <summary>
+    /// Whether API version negotiation has completed (either via config or ping).
+    /// </summary>
+    public bool IsVersionNegotiated => _negotiation.Negotiated;
 
     public async Task<HttpResponseMessage> GetAsync(string path, CancellationToken ct = default)
     {
@@ -74,9 +89,10 @@ namespace FluentDocker.Drivers.Docker.Api.Connection
     {
       var versionedPath = await GetVersionedPathAsync(path, ct).ConfigureAwait(false);
       var response = await _httpClient.GetAsync(
-          versionedPath, HttpCompletionOption.ResponseHeadersRead, ct);
+          versionedPath, HttpCompletionOption.ResponseHeadersRead, ct).ConfigureAwait(false);
       response.EnsureSuccessStatusCode();
-      return await response.Content.ReadAsStreamAsync(ct).ConfigureAwait(false);
+      var stream = await response.Content.ReadAsStreamAsync(ct).ConfigureAwait(false);
+      return new ResponseOwningStream(stream, response);
     }
 
     public async Task<Stream> PostStreamAsync(
@@ -85,16 +101,17 @@ namespace FluentDocker.Drivers.Docker.Api.Connection
       var versionedPath = await GetVersionedPathAsync(path, ct).ConfigureAwait(false);
       var request = new HttpRequestMessage(HttpMethod.Post, versionedPath) { Content = content };
       var response = await _httpClient.SendAsync(
-          request, HttpCompletionOption.ResponseHeadersRead, ct);
+          request, HttpCompletionOption.ResponseHeadersRead, ct).ConfigureAwait(false);
       response.EnsureSuccessStatusCode();
-      return await response.Content.ReadAsStreamAsync(ct).ConfigureAwait(false);
+      var stream = await response.Content.ReadAsStreamAsync(ct).ConfigureAwait(false);
+      return new ResponseOwningStream(stream, response);
     }
 
     public async Task<bool> PingAsync(CancellationToken ct = default)
     {
       try
       {
-        var response = await _httpClient.GetAsync("/_ping", ct).ConfigureAwait(false);
+        using var response = await _httpClient.GetAsync("/_ping", ct).ConfigureAwait(false);
         return response.IsSuccessStatusCode;
       }
       catch (Exception ex)
@@ -114,15 +131,18 @@ namespace FluentDocker.Drivers.Docker.Api.Connection
 
     private async Task<string> GetVersionedPathAsync(string path, CancellationToken ct)
     {
-      if (!_versionNegotiated && string.IsNullOrEmpty(_apiVersion))
+      var state = _negotiation;
+      if (!state.Negotiated)
       {
         await _negotiationLock.WaitAsync(ct).ConfigureAwait(false);
         try
         {
           // Double-check after acquiring the lock.
-          if (!_versionNegotiated && string.IsNullOrEmpty(_apiVersion))
+          state = _negotiation;
+          if (!state.Negotiated)
           {
             await NegotiateApiVersionAsync(ct).ConfigureAwait(false);
+            state = _negotiation;
           }
         }
         finally
@@ -131,31 +151,34 @@ namespace FluentDocker.Drivers.Docker.Api.Connection
         }
       }
 
-      return string.IsNullOrEmpty(_apiVersion) ? path : $"/v{_apiVersion}{path}";
+      return string.IsNullOrEmpty(state.ApiVersion)
+          ? path
+          : $"/v{state.ApiVersion}{path}";
     }
 
     private async Task NegotiateApiVersionAsync(CancellationToken ct)
     {
       try
       {
-        var response = await _httpClient.GetAsync("/_ping", ct).ConfigureAwait(false);
+        using var response = await _httpClient.GetAsync("/_ping", ct).ConfigureAwait(false);
+        string version = null;
         if (response.Headers.TryGetValues("API-Version", out var values))
         {
-          foreach (var version in values)
+          foreach (var v in values)
           {
-            _apiVersion = version;
+            version = v;
             break;
           }
         }
 
-        // Also check Docker-Experimental and OSType headers for diagnostics
-        _versionNegotiated = true;
+        // Atomically publish both the version and the negotiated flag.
+        _negotiation = new NegotiationState(version, Negotiated: true);
       }
       catch (Exception ex)
       {
         // If negotiation fails, proceed without version prefix
         Logger.Log($"Docker API version negotiation failed ({ex.Message}); proceeding without version prefix");
-        _versionNegotiated = true;
+        _negotiation = new NegotiationState(null, Negotiated: true);
       }
     }
 

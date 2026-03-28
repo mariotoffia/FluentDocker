@@ -14,8 +14,14 @@ namespace FluentDocker.Services.Impl
   /// <summary>
   /// Pod service implementation using kernel and Podman pod driver.
   /// </summary>
-  public class PodService : IPodService
+  public class PodService : IPodService, IServiceCapabilities
   {
+    // IServiceCapabilities
+    bool IServiceCapabilities.CanStart => true;
+    bool IServiceCapabilities.CanStop => true;
+    bool IServiceCapabilities.CanPause => false;
+    bool IServiceCapabilities.CanRemove => true;
+
     private readonly FluentDockerKernel _kernel;
     private readonly string _driverId;
     private readonly string _podName;
@@ -110,24 +116,32 @@ namespace FluentDocker.Services.Impl
       return this;
     }
 
+    private int _disposed;
+
     public void Dispose()
     {
-      DisposeAsync().AsTask().GetAwaiter().GetResult();
+      if (Interlocked.CompareExchange(ref _disposed, 1, 0) != 0)
+        return;
+      DisposeCoreAsync().AsTask().GetAwaiter().GetResult();
       GC.SuppressFinalize(this);
     }
 
     public async ValueTask DisposeAsync()
     {
-      if (!_removeOnDispose)
-      {
-        GC.SuppressFinalize(this);
+      if (Interlocked.CompareExchange(ref _disposed, 1, 0) != 0)
         return;
-      }
+      await DisposeCoreAsync().ConfigureAwait(false);
+      GC.SuppressFinalize(this);
+    }
+
+    private async ValueTask DisposeCoreAsync()
+    {
+      if (!_removeOnDispose)
+        return;
 
       try
       { await RemoveAsync(force: true).ConfigureAwait(false); }
       catch (Exception ex) { Logger.Log($"PodService DisposeAsync failed: {ex.Message}"); }
-      GC.SuppressFinalize(this);
     }
 
     private void UpdateState(ServiceRunningState newState)

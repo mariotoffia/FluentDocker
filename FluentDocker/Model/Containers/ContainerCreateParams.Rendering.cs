@@ -125,11 +125,11 @@ namespace FluentDocker.Model.Containers
         sb.Append(" --oom-kill-disable");
 
       // Cpu management
-      if (!Cpus.IsApproximatelyEqualTo(float.MinValue))
-        sb.Append($" --cpus=\"{Cpus}\"");
+      if (Cpus.HasValue)
+        sb.Append($" --cpus=\"{Cpus.Value}\"");
       sb.OptionIfExists("--cpuset-cpus=", CpusetCpus);
-      if (CpuShares != int.MinValue)
-        sb.Append($" --cpu-shares=\"{CpuShares}\"");
+      if (CpuShares.HasValue)
+        sb.Append($" --cpu-shares=\"{CpuShares.Value}\"");
 
       // Runtime
       if (Runtime != ContainerRuntime.Default)

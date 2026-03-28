@@ -15,8 +15,14 @@ namespace FluentDocker.Services.Impl
   /// <summary>
   /// Host service implementation using kernel and driver.
   /// </summary>
-  public partial class HostService : IHostService
+  public partial class HostService : IHostService, IServiceCapabilities
   {
+    // IServiceCapabilities
+    bool IServiceCapabilities.CanStart => true;
+    bool IServiceCapabilities.CanStop => true;
+    bool IServiceCapabilities.CanPause => false;
+    bool IServiceCapabilities.CanRemove => true;
+
     private readonly FluentDockerKernel _kernel;
     private readonly string _driverId;
     private readonly string _hostName;
@@ -306,16 +312,27 @@ namespace FluentDocker.Services.Impl
       return this;
     }
 
+    private int _disposed;
+
     public void Dispose()
     {
-      DisposeAsync().AsTask().GetAwaiter().GetResult();
+      if (Interlocked.CompareExchange(ref _disposed, 1, 0) != 0)
+        return;
+      DisposeCoreAsync().AsTask().GetAwaiter().GetResult();
       GC.SuppressFinalize(this);
     }
 
     public async ValueTask DisposeAsync()
     {
-      await Task.CompletedTask.ConfigureAwait(false);
+      if (Interlocked.CompareExchange(ref _disposed, 1, 0) != 0)
+        return;
+      await DisposeCoreAsync().ConfigureAwait(false);
       GC.SuppressFinalize(this);
+    }
+
+    private async ValueTask DisposeCoreAsync()
+    {
+      await Task.CompletedTask.ConfigureAwait(false);
     }
 
     #endregion

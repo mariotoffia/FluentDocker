@@ -12,7 +12,7 @@ namespace FluentDocker.Extensions
 {
   public static class HttpExtensions
   {
-    private static readonly HttpClient Client = new HttpClient();
+    private static HttpClient Client => SharedHttpClient.Instance;
 
     /// <summary>
     /// Downloads a resource to local path and filename.

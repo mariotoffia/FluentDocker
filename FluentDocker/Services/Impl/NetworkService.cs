@@ -14,8 +14,14 @@ namespace FluentDocker.Services.Impl
   /// <summary>
   /// Network service implementation using kernel and driver.
   /// </summary>
-  public class NetworkService : INetworkService
+  public class NetworkService : INetworkService, IServiceCapabilities
   {
+    // IServiceCapabilities
+    bool IServiceCapabilities.CanStart => false;
+    bool IServiceCapabilities.CanStop => false;
+    bool IServiceCapabilities.CanPause => false;
+    bool IServiceCapabilities.CanRemove => true;
+
     private readonly FluentDockerKernel _kernel;
     private readonly string _driverId;
     private readonly string _networkId;
@@ -171,19 +177,28 @@ namespace FluentDocker.Services.Impl
       return this;
     }
 
+    private int _disposed;
+
     public void Dispose()
     {
-      DisposeAsync().AsTask().GetAwaiter().GetResult();
+      if (Interlocked.CompareExchange(ref _disposed, 1, 0) != 0)
+        return;
+      DisposeCoreAsync().AsTask().GetAwaiter().GetResult();
       GC.SuppressFinalize(this);
     }
 
     public async ValueTask DisposeAsync()
     {
-      if (!_removeOnDispose)
-      {
-        GC.SuppressFinalize(this);
+      if (Interlocked.CompareExchange(ref _disposed, 1, 0) != 0)
         return;
-      }
+      await DisposeCoreAsync().ConfigureAwait(false);
+      GC.SuppressFinalize(this);
+    }
+
+    private async ValueTask DisposeCoreAsync()
+    {
+      if (!_removeOnDispose)
+        return;
 
       try
       {
@@ -193,8 +208,6 @@ namespace FluentDocker.Services.Impl
       {
         Logger.Log($"NetworkService DisposeAsync failed: {ex.Message}");
       }
-
-      GC.SuppressFinalize(this);
     }
 
     private void UpdateState(ServiceRunningState newState)

@@ -194,11 +194,6 @@ namespace FluentDocker.Services.Extensions
       return false;
     }
 
-    private static readonly HttpClient s_httpClient = new()
-    {
-      Timeout = Timeout.InfiniteTimeSpan
-    };
-
     /// <summary>
     /// Waits for a HTTP endpoint to return a successful response.
     /// </summary>
@@ -229,7 +224,7 @@ namespace FluentDocker.Services.Extensions
           var remainingMs = Math.Max(100, timeout - sw.ElapsedMilliseconds);
           requestCts.CancelAfter(TimeSpan.FromMilliseconds(remainingMs));
 
-          var response = await s_httpClient.GetAsync(url, requestCts.Token).ConfigureAwait(false);
+          var response = await Common.SharedHttpClient.Instance.GetAsync(url, requestCts.Token).ConfigureAwait(false);
           if (response.IsSuccessStatusCode)
             return true;
         }
