@@ -9,8 +9,6 @@ using FluentDocker.Drivers.Docker.Api.Connection;
 using FluentDocker.Kernel;
 using FluentDocker.Model.Drivers;
 
-#pragma warning disable CS0618 // DriverComponent obsolete — intentional usage
-
 namespace FluentDocker.Drivers.Docker.Api
 {
   /// <summary>
@@ -141,22 +139,6 @@ namespace FluentDocker.Drivers.Docker.Api
       if (_drivers.TryGetValue(typeof(T), out var driver))
         return (T)driver;
       throw new InterfaceNotSupportedException(driverId, typeof(T).Name);
-    }
-
-    /// <inheritdoc />
-    public object SysCtl(string driverId, DriverComponent component)
-    {
-      ThrowIfNotInitialized();
-      return component switch
-      {
-        DriverComponent.Container => _containerDriver,
-        DriverComponent.Image => _imageDriver,
-        DriverComponent.Network => _networkDriver,
-        DriverComponent.Volume => _volumeDriver,
-        DriverComponent.System => _systemDriver,
-        _ => throw new ArgumentException(
-            $"Component {component} not supported by Docker API driver", nameof(component))
-      };
     }
 
     /// <inheritdoc />

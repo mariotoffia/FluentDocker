@@ -7,13 +7,10 @@ using FluentDocker.Model.Drivers;
 using FluentDocker.Tests.Mocks;
 using Xunit;
 
-#pragma warning disable CS0618 // DriverComponent obsolete — intentional usage
-
 namespace FluentDocker.Tests.CoreTests.Kernel
 {
   /// <summary>
-  /// Tests for TrySysCtl, SysCtl(driverId, Type), and backward-compatible
-  /// SysCtl(driverId, DriverComponent) on FluentDockerKernel.
+  /// Tests for TrySysCtl and SysCtl(driverId, Type) on FluentDockerKernel.
   /// </summary>
   [Trait("Category", "Unit")]
   public class TrySysCtlTests
@@ -104,29 +101,6 @@ namespace FluentDocker.Tests.CoreTests.Kernel
       Assert.Throws<InterfaceNotSupportedException>(() =>
           kernel.SysCtl("test", typeof(IDisposable)));
 #pragma warning restore CA2263
-    }
-
-    [Fact]
-    public async Task SysCtlByComponent_DelegatesToTypeResolution()
-    {
-      // Arrange
-      var (kernel, _) = await CreateKernelWithMockPack();
-
-      // Act - use the legacy DriverComponent enum
-      var container = kernel.SysCtl("test", DriverComponent.Container);
-      var image = kernel.SysCtl("test", DriverComponent.Image);
-      var network = kernel.SysCtl("test", DriverComponent.Network);
-      var volume = kernel.SysCtl("test", DriverComponent.Volume);
-
-      // Assert
-      Assert.NotNull(container);
-      Assert.IsAssignableFrom<IContainerDriver>(container);
-      Assert.NotNull(image);
-      Assert.IsAssignableFrom<IImageDriver>(image);
-      Assert.NotNull(network);
-      Assert.IsAssignableFrom<INetworkDriver>(network);
-      Assert.NotNull(volume);
-      Assert.IsAssignableFrom<IVolumeDriver>(volume);
     }
 
     [Fact]

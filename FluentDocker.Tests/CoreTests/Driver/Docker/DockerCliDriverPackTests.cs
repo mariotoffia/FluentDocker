@@ -6,14 +6,10 @@ using System.Threading.Tasks;
 using FluentDocker.Common;
 using FluentDocker.Drivers;
 using FluentDocker.Drivers.Docker.Cli;
-using FluentDocker.Drivers.Docker.Cli.Binary;
-using FluentDocker.Drivers.Docker.Cli.Components;
 using FluentDocker.Model.Common;
 using FluentDocker.Model.Drivers;
 using Moq;
 using Xunit;
-
-#pragma warning disable CS0618 // DriverComponent obsolete -- intentional usage
 
 namespace FluentDocker.Tests.CoreTests.Driver.Docker
 {
@@ -85,14 +81,6 @@ namespace FluentDocker.Tests.CoreTests.Driver.Docker
       var pack = new DockerCliDriverPack();
       Assert.Throws<InvalidOperationException>(() =>
           pack.TrySysCtl<IContainerDriver>("docker", out _));
-    }
-
-    [Fact]
-    public void SysCtlByComponent_BeforeInitialize_ThrowsInvalidOperation()
-    {
-      var pack = new DockerCliDriverPack();
-      Assert.Throws<InvalidOperationException>(() =>
-          pack.SysCtl("docker", DriverComponent.Container));
     }
 
     [Fact]
@@ -368,32 +356,6 @@ namespace FluentDocker.Tests.CoreTests.Driver.Docker
       Assert.Null(instance);
     }
 
-    [Theory]
-    [InlineData(DriverComponent.Container)]
-    [InlineData(DriverComponent.Image)]
-    [InlineData(DriverComponent.Network)]
-    [InlineData(DriverComponent.Volume)]
-    [InlineData(DriverComponent.System)]
-    [InlineData(DriverComponent.Compose)]
-    public void SysCtlByComponent_AfterInit_KnownComponent_ReturnsNonNull(
-        DriverComponent component)
-    {
-      // Use reflection to set the private driver fields so the component switch works
-      var pack = CreateInitializedPackWithDriverFields();
-
-      var result = pack.SysCtl("docker", component);
-      Assert.NotNull(result);
-    }
-
-    [Fact]
-    public void SysCtlByComponent_AfterInit_UnknownComponent_ThrowsArgumentException()
-    {
-      var pack = CreateInitializedPackWithDriverFields();
-
-      Assert.Throws<ArgumentException>(() =>
-          pack.SysCtl("docker", DriverComponent.Pod));
-    }
-
     [Fact]
     public void SysCtlByType_AfterInit_KnownType_ReturnsDriver()
     {
@@ -416,40 +378,6 @@ namespace FluentDocker.Tests.CoreTests.Driver.Docker
       Assert.Throws<InterfaceNotSupportedException>(() =>
           pack.SysCtl("docker", typeof(IDisposable)));
 #pragma warning restore CA2263
-    }
-
-    /// <summary>
-    /// Creates an initialized pack with the private driver fields populated
-    /// using real concrete driver instances (needed for the SysCtl(string,
-    /// DriverComponent) overload which reads the concrete _containerDriver,
-    /// _imageDriver, etc. fields directly).
-    /// </summary>
-    private static DockerCliDriverPack CreateInitializedPackWithDriverFields()
-    {
-      var pack = CreateInitializedPack(out var drivers);
-      PopulateWithMocks(drivers);
-
-      var mockResolver = new Mock<IBinaryResolver>().Object;
-      var bindingFlags = BindingFlags.NonPublic | BindingFlags.Instance;
-
-      // The private fields are typed as concrete classes, not interfaces,
-      // so we must use actual instances rather than Moq proxies.
-      SetField(pack, "_containerDriver", new DockerCliContainerDriver(mockResolver), bindingFlags);
-      SetField(pack, "_imageDriver", new DockerCliImageDriver(mockResolver), bindingFlags);
-      SetField(pack, "_networkDriver", new DockerCliNetworkDriver(mockResolver), bindingFlags);
-      SetField(pack, "_volumeDriver", new DockerCliVolumeDriver(mockResolver), bindingFlags);
-      SetField(pack, "_systemDriver", new DockerCliSystemDriver(mockResolver), bindingFlags);
-      SetField(pack, "_composeDriver", new DockerCliComposeDriver(mockResolver), bindingFlags);
-
-      return pack;
-    }
-
-    private static void SetField(object obj, string fieldName, object value,
-        BindingFlags flags)
-    {
-      var field = obj.GetType().GetField(fieldName, flags);
-      Assert.NotNull(field);
-      field.SetValue(obj, value);
     }
 
     #endregion

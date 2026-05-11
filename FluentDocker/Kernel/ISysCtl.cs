@@ -1,5 +1,4 @@
 using System;
-using FluentDocker.Model.Drivers;
 
 namespace FluentDocker.Kernel
 {
@@ -9,15 +8,6 @@ namespace FluentDocker.Kernel
   /// </summary>
   public interface ISysCtl
   {
-    /// <summary>
-    /// Gets a driver component interface by driver ID and component enum.
-    /// </summary>
-    /// <param name="driverId">Driver identifier</param>
-    /// <param name="component">Driver component type</param>
-    /// <returns>Driver component instance</returns>
-    [Obsolete("Use SysCtl<T>(driverId) or SysCtl(driverId, Type) instead. Will be removed in v4.")]
-    object SysCtl(string driverId, DriverComponent component);
-
     /// <summary>
     /// Gets a driver component interface by driver ID and type.
     /// </summary>

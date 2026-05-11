@@ -33,7 +33,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Deprecated
 
 - `IService` (sync) — use `IServiceAsync` instead; sync methods wrap async with `.GetAwaiter().GetResult()` which can deadlock
-- `DriverComponent` enum — use generic `SysCtl<T>(driverId)` or `SysCtl(driverId, Type)` instead
 - `FluentDocker.Model.Containers.CommandResponse<T>` — use `FluentDocker.Model.Drivers.CommandResponse<T>` instead
 - `FluentDocker.Services.NetworkCreateConfig` — use `FluentDocker.Drivers.NetworkCreateConfig` instead
 - `IFeature`, `FeatureAttribute`, `FeatureConstants` — v2 legacy types, will be removed in v4
@@ -43,6 +42,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Legacy `Fd` static helper class
 - Old Docker Machine command argument structures
 - `FluentDocker.XUnit` and `FluentDocker.MsTest` packages (replaced by `FluentDocker.Testing.*`)
+- `DriverComponent` enum and `ISysCtl.SysCtl(string, DriverComponent)` overload — use generic `SysCtl<T>(driverId)` or `SysCtl(driverId, Type)` instead
 
 ### Fixed
 

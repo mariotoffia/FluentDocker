@@ -9,8 +9,6 @@ using FluentDocker.Drivers.Podman.Cli.Components;
 using FluentDocker.Kernel;
 using FluentDocker.Model.Drivers;
 
-#pragma warning disable CS0618 // DriverComponent obsolete — intentional usage
-
 namespace FluentDocker.Drivers.Podman.Cli
 {
   /// <summary>
@@ -159,28 +157,6 @@ namespace FluentDocker.Drivers.Podman.Cli
         return (T)driver;
 
       throw new InterfaceNotSupportedException(driverId, typeof(T).Name);
-    }
-
-    /// <inheritdoc />
-    public object SysCtl(string driverId, DriverComponent component)
-    {
-      ThrowIfNotInitialized();
-
-      return component switch
-      {
-        DriverComponent.Container => _containerDriver,
-        DriverComponent.Image => _imageDriver,
-        DriverComponent.Network => _networkDriver,
-        DriverComponent.Volume => _volumeDriver,
-        DriverComponent.System => _systemDriver,
-        DriverComponent.Pod => _podDriver,
-        DriverComponent.Kubernetes => _kubernetesDriver,
-        DriverComponent.Machine => _machineDriver,
-        DriverComponent.Manifest => _manifestDriver,
-        _ => throw new ArgumentException(
-            $"Component '{component}' is not supported by Podman driver",
-            nameof(component))
-      };
     }
 
     #region IDriverInterfaceResolver

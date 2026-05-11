@@ -9,8 +9,6 @@ using FluentDocker.Drivers.Docker.Cli.Components;
 using FluentDocker.Kernel;
 using FluentDocker.Model.Drivers;
 
-#pragma warning disable CS0618 // DriverComponent obsolete — intentional usage
-
 namespace FluentDocker.Drivers.Docker.Cli
 {
   /// <summary>
@@ -150,23 +148,6 @@ namespace FluentDocker.Drivers.Docker.Cli
       }
 
       throw new InterfaceNotSupportedException(driverId, requestedType.Name);
-    }
-
-    /// <inheritdoc />
-    public object SysCtl(string driverId, DriverComponent component)
-    {
-      ThrowIfNotInitialized();
-
-      return component switch
-      {
-        DriverComponent.Container => _containerDriver,
-        DriverComponent.Image => _imageDriver,
-        DriverComponent.Network => _networkDriver,
-        DriverComponent.Volume => _volumeDriver,
-        DriverComponent.System => _systemDriver,
-        DriverComponent.Compose => _composeDriver,
-        _ => throw new ArgumentException($"Unknown component: {component}", nameof(component))
-      };
     }
 
     #region IDriverInterfaceResolver

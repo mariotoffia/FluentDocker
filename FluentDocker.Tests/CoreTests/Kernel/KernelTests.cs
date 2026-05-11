@@ -7,8 +7,6 @@ using FluentDocker.Model.Drivers;
 using FluentDocker.Tests.Mocks;
 using Xunit;
 
-#pragma warning disable CS0618 // DriverComponent obsolete — intentional usage
-
 namespace FluentDocker.Tests.CoreTests.Kernel
 {
   /// <summary>
@@ -74,27 +72,6 @@ namespace FluentDocker.Tests.CoreTests.Kernel
         // Act & Assert
         Assert.Throws<DriverNotFoundException>(() =>
             kernel.SysCtl<IContainerDriver>("non-existent"));
-      }
-      finally
-      {
-        kernel.Dispose();
-      }
-    }
-
-    [Fact]
-    public async Task SysCtl_ByComponent_ReturnsCorrectInterface()
-    {
-      // Arrange
-      var (kernel, _) = await MockKernelBuilderExtensions.CreateWithMockDriverAsync("docker");
-
-      try
-      {
-        // Act
-        var driver = kernel.SysCtl("docker", DriverComponent.Container);
-
-        // Assert
-        Assert.NotNull(driver);
-        Assert.IsAssignableFrom<IContainerDriver>(driver);
       }
       finally
       {

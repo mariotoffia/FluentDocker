@@ -172,16 +172,11 @@ if (kernel.TrySysCtl<IPodmanPodDriver>("podman", out var podDriver))
 {
     await podDriver.CreatePodAsync(context, "my-pod");
 }
-
-// Component-based access (legacy, delegates to type-based internally)
-var networkDriver = kernel.SysCtl("docker", DriverComponent.Network);
 ```
-
-> **Note:** `DriverComponent` is `[Obsolete]` and slated for removal in v4 — prefer `SysCtl<T>(driverId)` (or the type-based `SysCtl(driverId, typeof(...))` overload) for new code.
 
 The kernel resolves interfaces through `IDriverInterfaceResolver` when the driver pack or driver implements it, falling back to direct `ISysCtl` delegation and then direct cast. This means any driver can expose custom interfaces without kernel changes. See [Driver Extensibility](extensibility.html) for details.
 
-### Available Driver Components
+### Available Driver Interfaces
 
 | Component | Interface | Purpose |
 |-----------|-----------|---------|
@@ -196,9 +191,9 @@ The kernel resolves interfaces through `IDriverInterfaceResolver` when the drive
 | Machine | *(Podman-only)* | Podman machine init, start, stop |
 | Manifest | *(Podman-only)* | Multi-arch manifest create, add, push |
 
-> **Note:** `Auth` (`IAuthDriver`) and `Stream` (`IStreamDriver`) are **not** members of the
-> `DriverComponent` enum. They are resolved directly via `IDriverInterfaceResolver` on the
-> driver pack (e.g., `kernel.SysCtl<IStreamDriver>("docker")`).
+> **Note:** `Auth` (`IAuthDriver`) and `Stream` (`IStreamDriver`) are also accessible the same
+> way — `kernel.SysCtl<IAuthDriver>("docker")` / `kernel.SysCtl<IStreamDriver>("docker")` —
+> resolved via `IDriverInterfaceResolver` on the driver pack.
 
 ---
 

@@ -8,8 +8,6 @@ using FluentDocker.Drivers.Podman;
 using FluentDocker.Model.Drivers;
 using Xunit;
 
-#pragma warning disable CS0618 // DriverComponent obsolete — intentional usage
-
 namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
 {
   /// Unit tests for DockerApiDriverPack: resolution, capabilities, and SysCtl wiring.
@@ -64,11 +62,6 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
     public void SysCtlGeneric_BeforeInit_Throws() =>
         Assert.Throws<InvalidOperationException>(
             () => _pack.SysCtl<IContainerDriver>("docker-api"));
-
-    [Fact]
-    public void SysCtlByComponent_BeforeInit_Throws() =>
-        Assert.Throws<InvalidOperationException>(
-            () => _pack.SysCtl("docker-api", DriverComponent.Container));
 
     [Fact]
     public void SysCtlByType_BeforeInit_Throws()
@@ -192,28 +185,6 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
       Assert.Contains(typeof(IAuthDriver), ifaces);
       Assert.Contains(typeof(IStreamDriver), ifaces);
       Assert.Contains(typeof(IServiceDriver), ifaces);
-    }
-
-    // ── Post-init: SysCtl by DriverComponent ────────────────────────
-
-    [Theory]
-    [InlineData(DriverComponent.Container)]
-    [InlineData(DriverComponent.Image)]
-    [InlineData(DriverComponent.Network)]
-    [InlineData(DriverComponent.Volume)]
-    [InlineData(DriverComponent.System)]
-    public async Task SysCtlByComponent_AfterInit_Resolves(DriverComponent component)
-    {
-      await InitializePackAsync();
-      Assert.NotNull(_pack.SysCtl("docker-api", component));
-    }
-
-    [Fact]
-    public async Task SysCtlByComponent_Compose_ThrowsArgumentException()
-    {
-      await InitializePackAsync();
-      Assert.Throws<ArgumentException>(
-          () => _pack.SysCtl("docker-api", DriverComponent.Compose));
     }
 
     // ── IsHealthyAsync delegates to connection PingAsync ────────────

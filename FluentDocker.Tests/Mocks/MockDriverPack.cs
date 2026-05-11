@@ -10,14 +10,11 @@ using FluentDocker.Model.Containers;
 using FluentDocker.Model.Volumes;
 using Moq;
 using DriverCapabilities = FluentDocker.Model.Drivers.DriverCapabilities;
-using DriverComponent = FluentDocker.Model.Drivers.DriverComponent;
 using DriverContext = FluentDocker.Model.Drivers.DriverContext;
 using DriverResponse = FluentDocker.Model.Drivers.CommandResponse<FluentDocker.Model.Drivers.Unit>;
 using DriverType = FluentDocker.Model.Drivers.DriverType;
 using RuntimeType = FluentDocker.Model.Drivers.RuntimeType;
 using Unit = FluentDocker.Model.Drivers.Unit;
-
-#pragma warning disable CS0618 // DriverComponent obsolete — intentional usage
 
 namespace FluentDocker.Tests.Mocks
 {
@@ -135,24 +132,6 @@ namespace FluentDocker.Tests.Mocks
       }
 
       throw new InterfaceNotSupportedException(driverId, requestedType.Name);
-    }
-
-    /// <inheritdoc />
-    public object SysCtl(string driverId, DriverComponent component)
-    {
-      if (!_initialized)
-        throw new InvalidOperationException("MockDriverPack not initialized. Call InitializeAsync first.");
-
-      return component switch
-      {
-        DriverComponent.Container => ContainerDriver.Object,
-        DriverComponent.Image => ImageDriver.Object,
-        DriverComponent.Network => NetworkDriver.Object,
-        DriverComponent.Volume => VolumeDriver.Object,
-        DriverComponent.System => SystemDriver.Object,
-        DriverComponent.Compose => ComposeDriver.Object,
-        _ => throw new InterfaceNotSupportedException(driverId, component.ToString())
-      };
     }
 
     #region IDriverInterfaceResolver

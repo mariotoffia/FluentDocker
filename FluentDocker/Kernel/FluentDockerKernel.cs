@@ -3,10 +3,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using FluentDocker.Common;
 using FluentDocker.Drivers;
-using FluentDocker.Drivers.Podman;
 using FluentDocker.Model.Drivers;
-
-#pragma warning disable CS0618 // DriverComponent obsolete — intentional usage
 
 namespace FluentDocker.Kernel
 {
@@ -111,32 +108,6 @@ namespace FluentDocker.Kernel
       // DriverNotFoundException intentionally propagates -
       // a missing driver is a hard error, not a "not supported" case
     }
-
-    /// <summary>
-    /// Gets a driver component interface by driver ID and component enum.
-    /// Maps the enum to the well-known interface type and delegates.
-    /// </summary>
-    public object SysCtl(string driverId, DriverComponent component)
-    {
-      ThrowIfDisposed();
-      var interfaceType = ComponentToType(component);
-      return SysCtl(driverId, interfaceType);
-    }
-
-    private static Type ComponentToType(DriverComponent component) => component switch
-    {
-      DriverComponent.Container => typeof(IContainerDriver),
-      DriverComponent.Image => typeof(IImageDriver),
-      DriverComponent.Network => typeof(INetworkDriver),
-      DriverComponent.Volume => typeof(IVolumeDriver),
-      DriverComponent.System => typeof(ISystemDriver),
-      DriverComponent.Compose => typeof(IComposeDriver),
-      DriverComponent.Pod => typeof(IPodmanPodDriver),
-      DriverComponent.Kubernetes => typeof(IPodmanKubernetesDriver),
-      DriverComponent.Machine => typeof(IPodmanMachineDriver),
-      DriverComponent.Manifest => typeof(IPodmanManifestDriver),
-      _ => throw new ArgumentException($"Unknown component: {component}", nameof(component))
-    };
 
     #endregion
 

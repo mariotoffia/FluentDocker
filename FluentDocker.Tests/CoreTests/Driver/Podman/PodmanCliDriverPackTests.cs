@@ -7,8 +7,6 @@ using FluentDocker.Drivers.Podman.Cli;
 using FluentDocker.Model.Drivers;
 using Xunit;
 
-#pragma warning disable CS0618 // DriverComponent obsolete — intentional usage
-
 namespace FluentDocker.Tests.CoreTests.Driver.Podman
 {
   /// <summary>
@@ -64,14 +62,6 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
     }
 
     [Fact]
-    public void SysCtlByComponent_BeforeInitialize_ThrowsInvalidOperation()
-    {
-      var pack = new PodmanCliDriverPack();
-      Assert.Throws<InvalidOperationException>(() =>
-          pack.SysCtl("podman", DriverComponent.Container));
-    }
-
-    [Fact]
     public void SysCtlByType_BeforeInitialize_ThrowsInvalidOperation()
     {
       var pack = new PodmanCliDriverPack();
@@ -103,18 +93,6 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
       var pack = new PodmanCliDriverPack();
       var healthy = await pack.IsHealthyAsync(TestContext.Current.CancellationToken);
       Assert.False(healthy);
-    }
-
-    [Fact]
-    public void SysCtlByComponent_Compose_ThrowsArgumentException()
-    {
-      // Podman does not support Compose
-      // This test validates the behavior *after* initialization,
-      // but since we can't initialize without podman binary,
-      // we test the pre-init state instead
-      var pack = new PodmanCliDriverPack();
-      Assert.Throws<InvalidOperationException>(() =>
-          pack.SysCtl("podman", DriverComponent.Compose));
     }
 
     [Fact]
@@ -174,26 +152,10 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
     }
 
     [Fact]
-    public void SysCtlByComponent_Pod_BeforeInit_ThrowsInvalidOperation()
-    {
-      var pack = new PodmanCliDriverPack();
-      Assert.Throws<InvalidOperationException>(() =>
-          pack.SysCtl("podman", DriverComponent.Pod));
-    }
-
-    [Fact]
     public void DirectAccess_KubernetesDriver_BeforeInit_ThrowsInvalidOperation()
     {
       var pack = new PodmanCliDriverPack();
       Assert.Throws<InvalidOperationException>(() => _ = pack.KubernetesDriver);
-    }
-
-    [Fact]
-    public void SysCtlByComponent_Kubernetes_BeforeInit_ThrowsInvalidOperation()
-    {
-      var pack = new PodmanCliDriverPack();
-      Assert.Throws<InvalidOperationException>(() =>
-          pack.SysCtl("podman", DriverComponent.Kubernetes));
     }
 
     [Fact]
@@ -212,14 +174,6 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
     }
 
     [Fact]
-    public void SysCtlByComponent_Machine_BeforeInit_ThrowsInvalidOperation()
-    {
-      var pack = new PodmanCliDriverPack();
-      Assert.Throws<InvalidOperationException>(() =>
-          pack.SysCtl("podman", DriverComponent.Machine));
-    }
-
-    [Fact]
     public async Task GetCapabilities_SupportsMachines()
     {
       var pack = new PodmanCliDriverPack();
@@ -232,14 +186,6 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
     {
       var pack = new PodmanCliDriverPack();
       Assert.Throws<InvalidOperationException>(() => _ = pack.ManifestDriver);
-    }
-
-    [Fact]
-    public void SysCtlByComponent_Manifest_BeforeInit_ThrowsInvalidOperation()
-    {
-      var pack = new PodmanCliDriverPack();
-      Assert.Throws<InvalidOperationException>(() =>
-          pack.SysCtl("podman", DriverComponent.Manifest));
     }
 
     [Fact]
