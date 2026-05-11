@@ -46,7 +46,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
     public void FqPath_CombinesPathAndBinary()
     {
       var binary = new PodmanBinary("/usr/bin", "podman", SudoMechanism.None, null);
-      Assert.Equal("/usr/bin/podman", binary.FqPath);
+      Assert.Equal(System.IO.Path.Combine("/usr/bin", "podman"), binary.FqPath);
     }
 
     [Fact]

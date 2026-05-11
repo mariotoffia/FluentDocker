@@ -13,7 +13,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
   public class DockerApiConnectionTimeoutTests
   {
     [Fact]
-    public async Task GetAsync_WhenConnectionRefused_ThrowsHttpRequestException()
+    public async Task GetAsync_WhenConnectionRefused_ThrowsHttpOrTimeoutException()
     {
       var config = new DockerApiConnectionConfig
       {
@@ -25,12 +25,17 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
 
       await using var conn = new DockerApiConnection(config);
 
-      await Assert.ThrowsAsync<HttpRequestException>(
+      // Linux/macOS refuse the connection synchronously -> HttpRequestException.
+      // Windows lets the unreachable port hit the timeout first -> TaskCanceledException.
+      var ex = await Record.ExceptionAsync(
           () => conn.GetAsync("/containers/json", TestContext.Current.CancellationToken));
+      Assert.NotNull(ex);
+      Assert.True(ex is HttpRequestException || ex is TaskCanceledException,
+          $"Expected HttpRequestException or TaskCanceledException, got {ex.GetType().FullName}");
     }
 
     [Fact]
-    public async Task PostAsync_WhenConnectionRefused_ThrowsHttpRequestException()
+    public async Task PostAsync_WhenConnectionRefused_ThrowsHttpOrTimeoutException()
     {
       var config = new DockerApiConnectionConfig
       {
@@ -42,8 +47,11 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
 
       await using var conn = new DockerApiConnection(config);
 
-      await Assert.ThrowsAsync<HttpRequestException>(
+      var ex = await Record.ExceptionAsync(
           () => conn.PostAsync("/containers/create", null, TestContext.Current.CancellationToken));
+      Assert.NotNull(ex);
+      Assert.True(ex is HttpRequestException || ex is TaskCanceledException,
+          $"Expected HttpRequestException or TaskCanceledException, got {ex.GetType().FullName}");
     }
 
     [Fact]

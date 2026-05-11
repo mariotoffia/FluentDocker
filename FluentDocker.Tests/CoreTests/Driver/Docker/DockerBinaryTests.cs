@@ -93,7 +93,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Docker
     public void FqPath_CombinesPathAndBinary()
     {
       var binary = new DockerBinary("/usr/bin", "docker", SudoMechanism.None, null);
-      Assert.Equal("/usr/bin/docker", binary.FqPath);
+      Assert.Equal(System.IO.Path.Combine("/usr/bin", "docker"), binary.FqPath);
     }
 
     [Fact]
