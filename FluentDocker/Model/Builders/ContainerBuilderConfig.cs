@@ -30,12 +30,6 @@ namespace FluentDocker.Model.Builders
     public bool VerifyExistence { get; set; }
     public ContainerCreateParams CreateParams { get; }
     public string Image { get; set; }
-    [Obsolete("Please use the properly spelled `ImageForcePull` method instead.")]
-    public bool ImageFocrePull
-    {
-      get => ImageForcePull;
-      set => ImageForcePull = value;
-    }
     public bool ImageForcePull { get; set; }
     public bool IsWindowsImage { get; set; }
     public bool StopOnDispose { get; set; } = true;

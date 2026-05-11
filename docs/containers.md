@@ -65,11 +65,13 @@ using var results = new Builder()
 var container = results.Containers.First();
 
 // Stop the running container
-container.Stop();
+await container.StopAsync();
 
 // Start again
-container.Start();
+await container.StartAsync();
 ```
+
+(The sync `Stop()` / `Start()` overloads still work but are `[Obsolete]` in v3 — prefer the `Async` forms on `IServiceAsync`.)
 
 ### Container States
 
@@ -86,11 +88,11 @@ if (container.State == ServiceRunningState.Running)
 ### Pause and Resume
 
 ```csharp
-container.Pause();
-container.Start();  // Start() also resumes from Pause
+await container.PauseAsync();
+await container.StartAsync();  // StartAsync() also resumes from Pause
 ```
 
-> **Async alternatives:** `IServiceAsync` provides `StartAsync`, `StopAsync`, and `PauseAsync`.
+(The sync `Pause()` / `Start()` overloads still work but are `[Obsolete]` in v3 — prefer the `Async` forms on `IServiceAsync`.)
 
 ## Port Exposure
 
@@ -404,7 +406,7 @@ using var results = new Builder()
         .WithUser("appuser")
         .WithNetwork("my-network")            // Attach to named network
         .WithNetworkAlias("my-network", "app") // DNS alias on network
-        .UseIpV4("10.18.0.22"))               // Static IP (requires custom subnet)
+        .WithIPv4("10.18.0.22"))               // Static IP (requires custom subnet)
     .Build();
 ```
 

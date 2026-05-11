@@ -177,6 +177,8 @@ if (kernel.TrySysCtl<IPodmanPodDriver>("podman", out var podDriver))
 var networkDriver = kernel.SysCtl("docker", DriverComponent.Network);
 ```
 
+> **Note:** `DriverComponent` is `[Obsolete]` and slated for removal in v4 — prefer `SysCtl<T>(driverId)` (or the type-based `SysCtl(driverId, typeof(...))` overload) for new code.
+
 The kernel resolves interfaces through `IDriverInterfaceResolver` when the driver pack or driver implements it, falling back to direct `ISysCtl` delegation and then direct cast. This means any driver can expose custom interfaces without kernel changes. See [Driver Extensibility](extensibility.html) for details.
 
 ### Available Driver Components
@@ -294,8 +296,10 @@ direct properties.
 ```csharp
 public interface IDriverPack : ISysCtl
 {
-    DriverType Type { get; }        // DockerCli, DockerApi, PodmanCli
-    RuntimeType Runtime { get; }    // Docker, Podman
+    DriverType Type { get; }        // values: DockerCli, DockerApi, PodmanCli, PodmanApi, Custom
+                                    // (PodmanApi and Custom are reserved for future use)
+    RuntimeType Runtime { get; }    // values: Docker, Podman, Containerd, CriO, Unknown
+                                    // (Containerd and CriO are reserved for future use)
 
     Task<DriverCapabilities> GetCapabilitiesAsync(CancellationToken ct = default);
     Task<bool> IsHealthyAsync(CancellationToken ct = default);
@@ -357,7 +361,7 @@ public interface IContainerDriver
 FluentDocker provides granular capability detection with 100+ feature flags:
 
 ```csharp
-var driverPack = await kernel.GetDriverPack("docker");
+var driverPack = kernel.GetDriverPack("docker");
 var caps = await driverPack.GetCapabilitiesAsync();
 
 // Container capabilities

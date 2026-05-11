@@ -432,6 +432,8 @@ public class NginxTests : IClassFixture<NginxFixture>
 - Container configuration via lambda in `InitializeAsync` instead of `Build()` override.
 - Extension methods like `ToHostExposedEndpoint` require `using FluentDocker.Services.Extensions`.
 
+> **Tip:** For new code, prefer the `Configure(...)` pattern shown in [docs/testing/xunit.md](../testing/xunit.html) — avoids deadlock risk vs. sync-over-async in constructors.
+
 ---
 
 ## 5. Compose in Tests

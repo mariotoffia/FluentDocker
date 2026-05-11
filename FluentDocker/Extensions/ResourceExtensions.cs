@@ -9,10 +9,6 @@ namespace FluentDocker.Extensions
 {
   public static class ResourceExtensions
   {
-    [Obsolete("Please use the properly spelled `ResourceQuery` method instead.")]
-    public static IEnumerable<ResourceInfo> ResuorceQuery(this Type assemblyAndNamespace, bool recursive = true)
-      => ResourceQuery(assemblyAndNamespace, recursive);
-
     /// <summary>
     ///   Queries for embedded resources from the <paramref name="assemblyAndNamespace" /> parameters
     ///   <see cref="Assembly" /> and <see cref="Type.Namespace" />.

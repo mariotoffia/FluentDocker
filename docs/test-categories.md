@@ -14,21 +14,27 @@ This document lists every category, how to run it, and what infrastructure it ne
 
 | Category | Count | CI-Safe? | Infrastructure Required | Makefile Target |
 |---|---|---|---|---|
-| `Unit` | ~107 | Yes | None | `make test` |
-| `Integration` | ~16 | Yes | Docker daemon | `make test-integration` |
-| `PodmanIntegration` | ~8 | Yes* | Podman + running machine | `make test-integration` |
-| `DevLocal` | ~6 | No | Docker Swarm + local registry | `make test-devlocal` |
-| `LongRunning` | ~2 | No | Podman machine (may start/stop) | manual |
-| `ManualOnly` | ~6 | No | Local registry, manual config | manual |
-| `WaitCondition` | ~1 | Yes | Docker daemon | `make test-integration` |
-| `Regression` | ~1 | Yes | Docker daemon | `make test-integration` |
-| `MultiContainer` | ~1 | Yes | Docker daemon | `make test-integration` |
-| `FluentVolume` | ~1 | Yes | Docker daemon | `make test-integration` |
-| `FluentNetwork` | ~1 | Yes | Docker daemon | `make test-integration` |
-| `FluentContainer` | ~1 | Yes | Docker daemon | `make test-integration` |
-| `Compose` | ~1 | Yes | Docker daemon + Compose | `make test-integration` |
+| `Unit` | ~2,700 | Yes | None | `make test` |
+| `Integration` | ~140 | Yes | Docker daemon | `make test-integration` |
+| `PodmanIntegration` | ~45 | Yes* | Podman + running machine | `make test-integration` |
+| `DevLocal` | ~25 | No | Docker Swarm + local registry | `make test-devlocal` |
+| `LongRunning` | ~12 | No | Podman machine (may start/stop) | manual |
+| `ManualOnly` | ~20 | No | Local registry, manual config | manual |
+| `WaitCondition` | ~10 | Yes | Docker daemon | `make test-integration` |
+| `Regression` | ~6 | Yes | Docker daemon | `make test-integration` |
+| `MultiContainer` | ~10 | Yes | Docker daemon | `make test-integration` |
+| `FluentVolume` | ~6 | Yes | Docker daemon | `make test-integration` |
+| `FluentNetwork` | ~6 | Yes | Docker daemon | `make test-integration` |
+| `FluentContainer` | ~14 | Yes | Docker daemon | `make test-integration` |
+| `Compose` | ~13 | Yes | Docker daemon + Compose | `make test-integration` |
 
 \* PodmanIntegration is CI-safe only when a Podman machine is pre-provisioned in the CI environment.
+
+> Counts as of 2026-05-11; numbers reflect `[Fact]` + `[Theory]` occurrences in files
+> carrying the matching `[Trait("Category", ...)]` attribute. Refresh by running
+> `dotnet test --list-tests --filter "Category=Unit"` (or the appropriate category)
+> against the test project. Some categories overlap (a test may carry both
+> `Integration` and `WaitCondition`, for example).
 
 ## Running Tests
 

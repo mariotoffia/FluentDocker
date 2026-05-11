@@ -143,8 +143,6 @@ namespace FluentDocker.Builders
 
     public IContainerBuilder WithIPv4(string ipv4Address) { _ipv4Address = ipv4Address; return this; }
     public IContainerBuilder WithIPv6(string ipv6Address) { _ipv6Address = ipv6Address; return this; }
-    public IContainerBuilder UseIpV4(string ipv4Address) => WithIPv4(ipv4Address);
-    public IContainerBuilder UseIpV6(string ipv6Address) => WithIPv6(ipv6Address);
     public IContainerBuilder WithMemoryLimit(long bytes) { _memoryLimit = bytes; return this; }
     public IContainerBuilder WithCpuShares(long shares) { _cpuShares = shares; return this; }
     public IContainerBuilder WithPrivileged(bool privileged = true) { _privileged = privileged; return this; }

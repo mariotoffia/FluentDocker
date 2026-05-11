@@ -119,6 +119,8 @@ await kube.PlayAsync(context, new KubePlayConfig { YamlPath = "pod.yaml", Replac
 await kube.DownAsync(context, "pod.yaml");
 ```
 
+`DriverContext` carries per-operation driver state (driver ID, host URI, certs, sudo, timeouts). End-users only construct one when invoking a driver via `SysCtl<T>` directly — the builder/kernel flow supplies it implicitly.
+
 ## Installation
 
 ```bash

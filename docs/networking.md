@@ -192,7 +192,7 @@ using var c1Results = new Builder()
         .WithName("server1")
         .UseImage("nginx:alpine")
         .WithNetwork("static-ip-net")
-        .UseIpV4("10.20.0.10"))
+        .WithIPv4("10.20.0.10"))
     .Build();
 
 using var c2Results = new Builder()
@@ -201,7 +201,7 @@ using var c2Results = new Builder()
         .WithName("server2")
         .UseImage("nginx:alpine")
         .WithNetwork("static-ip-net")
-        .UseIpV4("10.20.0.11"))
+        .WithIPv4("10.20.0.11"))
     .Build();
 
 // Containers have predictable IPs
@@ -227,7 +227,7 @@ using var containerResults = new Builder()
     .UseContainer(c => c
         .UseImage("nginx:alpine")
         .WithNetwork("ipv6-static-net")
-        .UseIpV6("2001:db8:1::100"))
+        .WithIPv6("2001:db8:1::100"))
     .Build();
 ```
 
@@ -249,8 +249,8 @@ using var containerResults = new Builder()
     .UseContainer(c => c
         .UseImage("nginx:alpine")
         .WithNetwork("dual-stack-net")
-        .UseIpV4("10.30.0.50")
-        .UseIpV6("2001:db8:2::50"))
+        .WithIPv4("10.30.0.50")
+        .WithIPv6("2001:db8:2::50"))
     .Build();
 ```
 
@@ -367,7 +367,7 @@ using var apiResults = new Builder()
         .WithName("api")
         .UseImage("myapi:latest")
         .WithNetwork("frontend")
-        .UseIpV4("10.40.0.10")
+        .WithIPv4("10.40.0.10")
         .ExposePort("8080"))
     .Build();
 
@@ -384,7 +384,7 @@ using var dbResults = new Builder()
         .UseImage("postgres:15-alpine")
         .WithEnvironment("POSTGRES_PASSWORD=secret")
         .WithNetwork("backend")
-        .UseIpV4("10.41.0.20"))
+        .WithIPv4("10.41.0.20"))
     .Build();
 
 // API can reach both frontend and backend
@@ -452,7 +452,7 @@ using var gatewayResults = new Builder()
         .WithName("gateway")
         .UseImage("kong:latest")
         .WithNetwork("microservices")
-        .UseIpV4("10.100.0.10")
+        .WithIPv4("10.100.0.10")
         .ExposePort(8000, 8000)
         .ExposePort(8443, 8443))
     .Build();
@@ -464,7 +464,7 @@ using var userResults = new Builder()
         .WithName("user-service")
         .UseImage("user-service:latest")
         .WithNetwork("microservices")
-        .UseIpV4("10.100.1.10"))
+        .WithIPv4("10.100.1.10"))
     .Build();
 
 // Order Service
@@ -474,7 +474,7 @@ using var orderResults = new Builder()
         .WithName("order-service")
         .UseImage("order-service:latest")
         .WithNetwork("microservices")
-        .UseIpV4("10.100.2.10"))
+        .WithIPv4("10.100.2.10"))
     .Build();
 
 // Product Service
@@ -484,7 +484,7 @@ using var productResults = new Builder()
         .WithName("product-service")
         .UseImage("product-service:latest")
         .WithNetwork("microservices")
-        .UseIpV4("10.100.3.10"))
+        .WithIPv4("10.100.3.10"))
     .Build();
 
 // Services communicate via DNS names or static IPs
@@ -559,7 +559,7 @@ public class NetworkIsolatedTest : IDisposable
                 .UseImage("postgres:15-alpine")
                 .WithEnvironment("POSTGRES_PASSWORD=test")
                 .WithNetwork($"test-{testId}")
-                .UseIpV4("10.200.0.10")
+                .WithIPv4("10.200.0.10")
                 .WaitForPort("5432/tcp", 30000))
             .Build();
 

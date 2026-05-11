@@ -243,7 +243,7 @@ var results = new Builder()
 | `container.ExecAsync(...)` | `await container.ExecuteAsync(...)` |
 | `container.CopyFromAsync(containerPath, hostPath)` | `await container.CopyFromToPathAsync(containerPath, hostPath)` |
 | `container.CopyToAsync(hostPath, containerPath)` | `await container.CopyToAsync(hostPath, containerPath)` |
-| `container.GetRunningProcesses()` | `await container.GetProcessesAsync()` |
+| `container.GetRunningProcesses()` | `await container.ExecuteAsync("ps", "-ef")` -- no direct equivalent; workaround is `ExecuteAsync` |
 | `container.Export()` | `await container.ExportAsync()` |
 
 ---
@@ -532,7 +532,7 @@ After all changes:
 | `container.Logs()` | `await container.GetLogsAsync()` |
 | `container.ExecAsync(...)` | `await container.ExecuteAsync(...)` |
 | `container.CopyFromAsync(a, b)` | `await container.CopyFromToPathAsync(a, b)` |
-| `container.GetRunningProcesses()` | `await container.GetProcessesAsync()` |
+| `container.GetRunningProcesses()` | `await container.ExecuteAsync("ps", "-ef")` -- no direct equivalent; workaround is `ExecuteAsync` |
 | `container.Export()` | `await container.ExportAsync()` |
 
 ### Stats model mapping

@@ -94,6 +94,8 @@ if (kernel.TrySysCtl<IPodmanPodDriver>("podman", out var podDriver))
 var networkDriver = kernel.SysCtl("docker", DriverComponent.Network);
 ```
 
+> **Note:** `DriverComponent` is `[Obsolete]` and slated for removal in v4 — prefer `SysCtl<T>(driverId)` (or the type-based resolver shown above) for new code.
+
 `TrySysCtl<T>()` returns `false` when the interface is not supported, but still throws `DriverNotFoundException` if the driver ID itself is invalid. This distinction is intentional: a missing driver is a configuration error, while an unsupported interface is a feature check.
 
 ---

@@ -157,14 +157,6 @@ namespace FluentDocker.Builders
     /// <returns>The builder instance for method chaining.</returns>
     IContainerBuilder WithIPv6(string ipv6Address);
 
-    /// <inheritdoc cref="WithIPv4"/>
-    [Obsolete("Use WithIPv4 instead.")]
-    IContainerBuilder UseIpV4(string ipv4Address);
-
-    /// <inheritdoc cref="WithIPv6"/>
-    [Obsolete("Use WithIPv6 instead.")]
-    IContainerBuilder UseIpV6(string ipv6Address);
-
     /// <summary>Sets the memory limit in bytes.</summary>
     /// <param name="bytes">The maximum memory in bytes (e.g. 536870912 for 512 MB).</param>
     /// <returns>The builder instance for method chaining.</returns>

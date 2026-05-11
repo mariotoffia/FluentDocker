@@ -112,7 +112,7 @@ Console.WriteLine(response);  // Response body
 ### Full Request with Status Code
 
 ```csharp
-using FluentDocker.Common;
+using FluentDocker.Extensions;
 
 // DoRequest returns a RequestResponse struct with Code, Body, Headers, Err
 var result = await "http://localhost:8080/api/users".DoRequest();
@@ -326,7 +326,7 @@ Useful extension methods for FluentDocker models.
 ### Get Exposed Endpoint
 
 ```csharp
-using FluentDocker.Extensions;
+using FluentDocker.Services.Extensions;
 
 var container = /* ... */;
 
@@ -431,19 +431,14 @@ var result = await containerDriver.ExecAsync(context, containerId, "ls", "-la");
 
 if (result.Success)
 {
-    // Standard output
-    foreach (var line in result.StdOut)
-    {
-        Console.WriteLine(line);
-    }
+    Console.WriteLine(result.Data);          // Typed payload
+    Console.WriteLine(result.Output);        // Combined stdout (string)
 }
 else
 {
-    // Standard error
-    foreach (var line in result.StdErr)
-    {
-        Console.Error.WriteLine(line);
-    }
+    Console.WriteLine($"{result.ErrorCode}: {result.Error}");
+    var ctx = result.ErrorContext;
+    Console.WriteLine($"stdout:\n{ctx?.StdOut}\nstderr:\n{ctx?.StdErr}");
 }
 ```
 

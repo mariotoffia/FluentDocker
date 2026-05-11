@@ -222,6 +222,10 @@ public class RedisFixture : XunitContainerFixture
 }
 ```
 
+> **Tip:** For new code, prefer the `Configure(...)` pattern shown in
+> [docs/testing/xunit.md](testing/xunit.html) instead of the sync-over-async
+> constructor — it avoids deadlock risk in some sync contexts.
+
 ### MSTest — `MsTestResourceHelpers`
 
 ```csharp
@@ -375,8 +379,8 @@ using var cResults = new Builder()
     .UseContainer(c => c
         .UseImage("nginx:alpine")
         .WithNetwork("mynet")
-        .UseIpV4("10.10.0.100")
-        .UseIpV6("2001:db8::100"))
+        .WithIPv4("10.10.0.100")
+        .WithIPv6("2001:db8::100"))
     .Build();
 ```
 

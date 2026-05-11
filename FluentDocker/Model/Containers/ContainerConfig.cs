@@ -14,13 +14,6 @@ namespace FluentDocker.Model.Containers
     /// <summary>Hostname assigned to the container.</summary>
     public string Hostname { get; set; }
 
-    [Obsolete("Please use the properly spelled `DomainName` method instead.")]
-    [JsonIgnore]
-    public string Domainname
-    {
-      get => DomainName;
-      set => DomainName = value;
-    }
 
     /// <summary>Domain name for the container.</summary>
     public string DomainName { get; set; }
