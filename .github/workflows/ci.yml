@@ -6,6 +6,7 @@ on:
       - master
       - main
       - fdv3
+      - 'support/**'
   pull_request:
   schedule:
     - cron: '0 6 * * 1'  # Monday 06:00 UTC
@@ -149,13 +150,13 @@ jobs:
         continue-on-error: ${{ steps.detect-env.outputs.running_in_act == 'true' }}
 
       - name: Publish NuGet packages
-        if: matrix.os == 'ubuntu-latest' && (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main')
+        if: matrix.os == 'ubuntu-latest' && (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/support/'))
         run: |
           dotnet nuget push "packages/*.nupkg" --api-key ${{ secrets.NUGET_API_KEY }} --source https://api.nuget.org/v3/index.json --skip-duplicate
         continue-on-error: ${{ steps.detect-env.outputs.running_in_act == 'true' }}
 
       - name: Create and push Git tag for release
-        if: matrix.os == 'ubuntu-latest' && (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main') && steps.detect-env.outputs.running_in_act != 'true'
+        if: matrix.os == 'ubuntu-latest' && (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/support/')) && steps.detect-env.outputs.running_in_act != 'true'
         env:
           GV_NUGET: ${{ steps.gitversion.outputs.NuGetVersion }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
