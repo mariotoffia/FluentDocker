@@ -38,7 +38,7 @@ jobs:
           dotnet build FluentDocker/FluentDocker.csproj --configuration Release --no-restore
           dotnet tool install -g XMLDoc2Markdown
           mkdir -p docs/api-reference
-          xmldoc2md FluentDocker/bin/Release/net10.0/FluentDocker.dll docs/api-reference --github-pages
+          xmldoc2md FluentDocker/bin/Release/net10.0/FluentDocker.dll --output docs/api-reference --github-pages
 
       - name: Setup Ruby
         uses: ruby/setup-ruby@v1
