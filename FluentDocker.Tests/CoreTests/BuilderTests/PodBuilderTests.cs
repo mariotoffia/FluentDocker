@@ -12,8 +12,6 @@ using FluentDocker.Tests.Mocks;
 using Moq;
 using Xunit;
 
-#pragma warning disable CS0618 // IService obsolete — intentional test usage
-
 namespace FluentDocker.Tests.CoreTests.BuilderTests
 {
   /// <summary>
@@ -215,14 +213,14 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
       return (IPodBuilder)Activator.CreateInstance(builderType, kernel, driverId);
     }
 
-    private static async Task<IService> InvokeExecuteAsync(IPodBuilder builder)
+    private static async Task<IServiceAsync> InvokeExecuteAsync(IPodBuilder builder)
     {
       var builderType = builder.GetType();
       var executeMethod = builderType.GetMethod("ExecuteAsync",
           BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
       Assert.NotNull(executeMethod);
 
-      var task = (Task<IService>)executeMethod.Invoke(
+      var task = (Task<IServiceAsync>)executeMethod.Invoke(
           builder, new object[] { CancellationToken.None });
       return await task;
     }

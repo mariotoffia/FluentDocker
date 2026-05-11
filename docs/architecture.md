@@ -234,10 +234,10 @@ var remoteServices = deployment.ForDriver("docker-remote");
 public class BuildResults : IAsyncDisposable, IDisposable
 {
     // All services across all scopes
-    IReadOnlyList<IService> All { get; }
+    IReadOnlyList<IServiceAsync> All { get; }
 
     // Filter services by driver ID
-    IReadOnlyList<IService> ForDriver(string driverId);
+    IReadOnlyList<IServiceAsync> ForDriver(string driverId);
 
     // Build scopes (one per WithinDriver call)
     IReadOnlyList<BuildScope> Scopes { get; }
@@ -254,7 +254,7 @@ public class BuildResults : IAsyncDisposable, IDisposable
     IVolumeService GetVolume(string name);
 
     // Filter by service type
-    IReadOnlyList<T> OfType<T>() where T : IService;
+    IReadOnlyList<T> OfType<T>() where T : IServiceAsync;
 
     // Disposal
     ValueTask DisposeAsync();

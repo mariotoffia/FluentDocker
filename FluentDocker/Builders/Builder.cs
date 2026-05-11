@@ -9,8 +9,6 @@ using FluentDocker.Model.Drivers;
 using FluentDocker.Model.Kernel;
 using FluentDocker.Services;
 
-#pragma warning disable CS0618 // IService obsolete — intentional usage
-
 namespace FluentDocker.Builders
 {
   /// <summary>
@@ -189,7 +187,7 @@ namespace FluentDocker.Builders
       {
         Kernel = _currentKernel,
         DriverId = _currentDriverId,
-        ExecuteAsync = async ct => (IService)await imageBuilder.ExecuteAsync(ct).ConfigureAwait(false)
+        ExecuteAsync = async ct => (IServiceAsync)await imageBuilder.ExecuteAsync(ct).ConfigureAwait(false)
       });
       return this;
     }
@@ -335,7 +333,7 @@ namespace FluentDocker.Builders
   {
     public FluentDockerKernel Kernel { get; set; }
     public string DriverId { get; set; }
-    public Func<CancellationToken, Task<IService>> ExecuteAsync { get; set; }
+    public Func<CancellationToken, Task<IServiceAsync>> ExecuteAsync { get; set; }
 
     /// <summary>
     /// Optional post-start callback for executing deferred operations

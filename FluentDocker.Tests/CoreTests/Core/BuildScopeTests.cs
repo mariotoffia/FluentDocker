@@ -1,10 +1,10 @@
-using System.Linq;
+using System;
+using System.Threading;
+using System.Threading.Tasks;
 using FluentDocker.Kernel;
 using FluentDocker.Model.Kernel;
 using FluentDocker.Services;
 using Xunit;
-
-#pragma warning disable CS0618 // IService obsolete — intentional test usage
 
 namespace FluentDocker.Tests.CoreTests.Core
 {
@@ -106,30 +106,33 @@ namespace FluentDocker.Tests.CoreTests.Core
       var results = scope.Results;
 
       // Assert
-      Assert.IsAssignableFrom<System.Collections.Generic.IReadOnlyList<IService>>(results);
+      Assert.IsAssignableFrom<System.Collections.Generic.IReadOnlyList<IServiceAsync>>(results);
 
       // Cleanup
       kernel.Dispose();
     }
 
     // Mock service for testing
-    private class MockService : IService
+    private class MockService : IServiceAsync
     {
       public MockService(string name) => Name = name;
 
       public string Name { get; }
       public ServiceRunningState State => ServiceRunningState.Unknown;
+      public FluentDockerKernel Kernel => null;
+      public string DriverId => "mock";
 
-      public void Start() { }
-      public void Pause() { }
-      public void Stop() { }
-      public void Remove(bool force = false) { }
-      public IService AddHook(ServiceRunningState state, System.Action<IService> hook, string? uniqueName = null) => this;
-      public IService RemoveHook(string uniqueName) => this;
+      public Task StartAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
+      public Task PauseAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
+      public Task StopAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
+      public Task RemoveAsync(bool force = false, CancellationToken cancellationToken = default) => Task.CompletedTask;
+      public IServiceAsync AddHook(ServiceRunningState state, Func<IServiceAsync, Task> hook, string? uniqueName = null) => this;
+      public IServiceAsync RemoveHook(string? uniqueName) => this;
 #pragma warning disable CS0067
       public event ServiceDelegates.StateChange StateChange;
 #pragma warning restore CS0067
       public void Dispose() { }
+      public ValueTask DisposeAsync() => ValueTask.CompletedTask;
     }
   }
 }

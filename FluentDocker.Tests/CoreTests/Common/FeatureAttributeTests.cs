@@ -102,7 +102,7 @@ namespace FluentDocker.Tests.CoreTests.Common
     private sealed class DummyFeature : IFeature
     {
       public string Id => throw new NotImplementedException();
-      public IEnumerable<IService> Services => throw new NotImplementedException();
+      public IEnumerable<IServiceAsync> Services => throw new NotImplementedException();
       public void Initialize(IDictionary<string, object> settings = null!) =>
         throw new NotImplementedException();
       public void Execute(params string[] arguments) =>

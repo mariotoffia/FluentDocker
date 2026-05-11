@@ -7,8 +7,6 @@ using FluentDocker.Kernel;
 using FluentDocker.Model.Drivers;
 using FluentDocker.Services;
 
-#pragma warning disable CS0618 // IService obsolete — intentional usage
-
 namespace FluentDocker.Builders
 {
   /// <summary>
@@ -54,7 +52,7 @@ namespace FluentDocker.Builders
     public IPodBuilder WithHostname(string hostname) { _hostname = hostname; return this; }
     public IPodBuilder RemoveOnDispose() { _removeOnDispose = true; return this; }
 
-    public async Task<IService> ExecuteAsync(CancellationToken cancellationToken)
+    public async Task<IServiceAsync> ExecuteAsync(CancellationToken cancellationToken)
     {
       var driver = _kernel.SysCtl<IPodmanPodDriver>(_driverId);
       var context = new DriverContext(_driverId);

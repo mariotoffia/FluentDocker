@@ -8,12 +8,11 @@ using FluentDocker.Services.Impl;
 using FluentDocker.Tests.Mocks;
 using Xunit;
 
-#pragma warning disable CS0618 // IService obsolete — intentional test usage
 
 namespace FluentDocker.Tests.CoreTests.Services
 {
   /// <summary>
-  /// Tests for IService/IServiceAsync hook registration, removal, firing,
+  /// Tests for IServiceAsync hook registration, removal, firing,
   /// StateChange event system, and reflection-based private method invocation.
   /// </summary>
   [Trait("Category", "Unit")]
@@ -178,7 +177,7 @@ namespace FluentDocker.Tests.CoreTests.Services
       var (service, kernel) = CreateService();
       try
       {
-        IService capturedService = null;
+        IServiceAsync capturedService = null;
         ServiceRunningState? capturedState = null;
         service.StateChange += (_, args) =>
         {
@@ -314,68 +313,56 @@ namespace FluentDocker.Tests.CoreTests.Services
       finally { kernel.Dispose(); }
     }
 
-    // 10. IService sync AddHook — wraps async version correctly
+#pragma warning disable CA1859 // Intent: verify IServiceAsync interface contract via interface reference
+    // 10. IServiceAsync AddHook — returns same instance for chaining
     [Fact]
-    public async Task IService_SyncAddHook_WrapsAsyncCorrectly()
-    {
-      var (service, kernel) = await CreateServiceWithDriverAsync();
-      try
-      {
-        var hookFired = false;
-        IService iservice = service;
-        iservice.AddHook(ServiceRunningState.Running, _ => { hookFired = true; }, "sync-wrap");
-
-        await service.StartAsync(cancellationToken: TestContext.Current.CancellationToken);
-
-        Assert.True(hookFired, "Sync IService.AddHook hook should fire via the async pipeline");
-      }
-      finally { kernel.Dispose(); }
-    }
-
-    [Fact]
-    public void IService_SyncAddHook_ReturnsSameInstance()
+    public void IServiceAsync_AddHook_ReturnsSameInstance()
     {
       var (service, kernel) = CreateService();
       try
       {
-        IService iservice = service;
-        var result = iservice.AddHook(ServiceRunningState.Running, _ => { }, "chain");
+        IServiceAsync asyncService = service;
+        var result = asyncService.AddHook(
+            ServiceRunningState.Running, _ => Task.CompletedTask, "chain");
         Assert.Same(service, result);
       }
       finally { kernel.Dispose(); }
     }
 
     [Fact]
-    public void IService_SyncRemoveHook_ReturnsSameInstance()
+    public void IServiceAsync_RemoveHook_ReturnsSameInstance()
     {
       var (service, kernel) = CreateService();
       try
       {
-        IService iservice = service;
-        iservice.AddHook(ServiceRunningState.Running, _ => { }, "remove-me");
-        var result = iservice.RemoveHook("remove-me");
+        IServiceAsync asyncService = service;
+        asyncService.AddHook(
+            ServiceRunningState.Running, _ => Task.CompletedTask, "remove-me");
+        var result = asyncService.RemoveHook("remove-me");
         Assert.Same(service, result);
       }
       finally { kernel.Dispose(); }
     }
 
     [Fact]
-    public void IService_SyncAddHook_IsStoredInHooksDictionary()
+    public void IServiceAsync_AddHook_IsStoredInHooksDictionary()
     {
       var (service, kernel) = CreateService();
       try
       {
-        IService iservice = service;
-        iservice.AddHook(ServiceRunningState.Stopped, _ => { }, "sync-stored");
+        IServiceAsync asyncService = service;
+        asyncService.AddHook(
+            ServiceRunningState.Stopped, _ => Task.CompletedTask, "stored");
 
         var hooks = GetHooksDictionary(service);
-        Assert.True(hooks.ContainsKey("sync-stored"));
+        Assert.True(hooks.ContainsKey("stored"));
 
         var stateHooks = GetStateHooksDictionary(service);
         Assert.Single(stateHooks[ServiceRunningState.Stopped]);
       }
       finally { kernel.Dispose(); }
     }
+#pragma warning restore CA1859
 
     // Edge cases
     [Fact]

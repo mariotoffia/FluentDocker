@@ -12,8 +12,6 @@ using FluentDocker.Model.Containers;
 using FluentDocker.Model.Drivers;
 using FluentDocker.Services;
 
-#pragma warning disable CS0618 // IService obsolete — intentional usage
-
 namespace FluentDocker.Builders
 {
   /// <summary>
@@ -367,7 +365,7 @@ namespace FluentDocker.Builders
 
     #region Execute
 
-    public async Task<IService> ExecuteAsync(CancellationToken cancellationToken)
+    public async Task<IServiceAsync> ExecuteAsync(CancellationToken cancellationToken)
     {
       Validate();
       var driver = _kernel.SysCtl<Drivers.IContainerDriver>(_driverId);

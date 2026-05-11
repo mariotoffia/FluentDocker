@@ -7,8 +7,6 @@ using FluentDocker.Drivers.Podman;
 using FluentDocker.Kernel;
 using FluentDocker.Model.Drivers;
 
-#pragma warning disable CS0618 // IService obsolete — intentional usage
-
 namespace FluentDocker.Services.Impl
 {
   /// <summary>
@@ -98,21 +96,6 @@ namespace FluentDocker.Services.Impl
     public IServiceAsync RemoveHook(string uniqueName)
     {
       _hooks.Remove(uniqueName);
-      return this;
-    }
-
-    void IService.Start() => StartAsync().GetAwaiter().GetResult();
-    void IService.Pause() => PauseAsync().GetAwaiter().GetResult();
-    void IService.Stop() => StopAsync().GetAwaiter().GetResult();
-    void IService.Remove(bool force) => RemoveAsync(force).GetAwaiter().GetResult();
-
-    IService IService.AddHook(
-        ServiceRunningState state, Action<IService> hook, string uniqueName)
-        => AddHook(state, async service => hook(service), uniqueName);
-
-    IService IService.RemoveHook(string uniqueName)
-    {
-      RemoveHook(uniqueName);
       return this;
     }
 

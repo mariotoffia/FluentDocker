@@ -4,8 +4,6 @@ using System.Linq;
 using System.Threading.Tasks;
 using FluentDocker.Services;
 
-#pragma warning disable CS0618 // IService obsolete — intentional usage
-
 namespace FluentDocker.Model.Kernel
 {
   /// <summary>
@@ -23,7 +21,7 @@ namespace FluentDocker.Model.Kernel
     /// <summary>
     /// Gets all services across all scopes.
     /// </summary>
-    public IReadOnlyList<IService> All =>
+    public IReadOnlyList<IServiceAsync> All =>
         _scopes.SelectMany(s => s.Results).ToList();
 
     /// <summary>
@@ -31,7 +29,7 @@ namespace FluentDocker.Model.Kernel
     /// </summary>
     /// <param name="driverId">Driver identifier</param>
     /// <returns>Services for the specified driver</returns>
-    public IReadOnlyList<IService> ForDriver(string driverId) =>
+    public IReadOnlyList<IServiceAsync> ForDriver(string driverId) =>
         _scopes
             .Where(s => s.DriverId == driverId)
             .SelectMany(s => s.Results)
@@ -99,7 +97,7 @@ namespace FluentDocker.Model.Kernel
     /// </summary>
     /// <typeparam name="T">Service type</typeparam>
     /// <returns>Services of the specified type</returns>
-    public IReadOnlyList<T> OfType<T>() where T : IService =>
+    public IReadOnlyList<T> OfType<T>() where T : IServiceAsync =>
         All.OfType<T>().ToList();
 
     /// <summary>

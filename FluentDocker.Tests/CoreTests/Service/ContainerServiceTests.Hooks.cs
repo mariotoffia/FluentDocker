@@ -7,7 +7,6 @@ using FluentDocker.Services.Impl;
 using FluentDocker.Tests.Mocks;
 using Xunit;
 
-#pragma warning disable CS0618 // IService obsolete — intentional test usage
 
 namespace FluentDocker.Tests.CoreTests.Service
 {
@@ -313,7 +312,7 @@ namespace FluentDocker.Tests.CoreTests.Service
 
       var kernel = await MockKernelBuilderExtensions.CreateWithMockDriverAsync("docker", mockPack);
       var service = new ContainerService(kernel, "docker", "c1", "nginx", "test");
-      IService capturedService = null;
+      IServiceAsync capturedService = null;
 
       service.StateChange += (_, args) =>
       {
@@ -334,16 +333,18 @@ namespace FluentDocker.Tests.CoreTests.Service
       }
     }
 
+#pragma warning disable CA1859 // Intent: verify IServiceAsync interface contract via interface reference
     [Fact]
-    public async Task IService_AddHook_FluentChaining()
+    public void IServiceAsync_AddHook_FluentChaining()
     {
       // Arrange
       var kernel = new FluentDockerKernel();
       var service = new ContainerService(kernel, "docker", "c1", "nginx", "test");
-      IService iservice = service;
+      IServiceAsync asyncService = service;
 
-      // Act — IService.AddHook should return IService for chaining
-      var result = iservice.AddHook(ServiceRunningState.Running, _ => { }, "chain-test");
+      // Act — IServiceAsync.AddHook should return IServiceAsync for chaining
+      var result = asyncService.AddHook(
+          ServiceRunningState.Running, _ => Task.CompletedTask, "chain-test");
 
       // Assert
       Assert.Same(service, result);
@@ -352,22 +353,24 @@ namespace FluentDocker.Tests.CoreTests.Service
     }
 
     [Fact]
-    public async Task IService_RemoveHook_FluentChaining()
+    public void IServiceAsync_RemoveHook_FluentChaining()
     {
       // Arrange
       var kernel = new FluentDockerKernel();
       var service = new ContainerService(kernel, "docker", "c1", "nginx", "test");
-      IService iservice = service;
-      iservice.AddHook(ServiceRunningState.Running, _ => { }, "chain-test");
+      IServiceAsync asyncService = service;
+      asyncService.AddHook(
+          ServiceRunningState.Running, _ => Task.CompletedTask, "chain-test");
 
       // Act
-      var result = iservice.RemoveHook("chain-test");
+      var result = asyncService.RemoveHook("chain-test");
 
       // Assert
       Assert.Same(service, result);
 
       kernel.Dispose();
     }
+#pragma warning restore CA1859
 
     #endregion
   }

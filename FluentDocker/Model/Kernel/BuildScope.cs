@@ -5,8 +5,6 @@ using System.Threading.Tasks;
 using FluentDocker.Common;
 using FluentDocker.Services;
 
-#pragma warning disable CS0618 // IService obsolete — intentional usage
-
 namespace FluentDocker.Model.Kernel
 {
   /// <summary>
@@ -15,7 +13,7 @@ namespace FluentDocker.Model.Kernel
   /// </summary>
   public class BuildScope
   {
-    private readonly List<IService> _results = new List<IService>();
+    private readonly List<IServiceAsync> _results = new List<IServiceAsync>();
 
     /// <summary>
     /// Creates a new build scope.
@@ -41,13 +39,13 @@ namespace FluentDocker.Model.Kernel
     /// <summary>
     /// Gets the results (services) for this scope.
     /// </summary>
-    public IReadOnlyList<IService> Results => _results;
+    public IReadOnlyList<IServiceAsync> Results => _results;
 
     /// <summary>
     /// Adds a result to this scope.
     /// </summary>
     /// <param name="service">Service to add</param>
-    public void AddResult(IService service)
+    public void AddResult(IServiceAsync service)
     {
       if (service != null)
       {

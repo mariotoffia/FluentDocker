@@ -14,7 +14,6 @@ using FluentDocker.Tests.Mocks;
 using Moq;
 using Xunit;
 
-#pragma warning disable CS0618 // IService obsolete -- intentional test usage
 
 namespace FluentDocker.Tests.CoreTests.Service
 {

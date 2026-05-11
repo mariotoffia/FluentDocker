@@ -9,7 +9,6 @@ using FluentDocker.Tests.Mocks;
 using Moq;
 using Xunit;
 
-#pragma warning disable CS0618 // IService obsolete — intentional test usage
 
 namespace FluentDocker.Tests.CoreTests.Service
 {
@@ -178,55 +177,19 @@ namespace FluentDocker.Tests.CoreTests.Service
     }
 
     [Fact]
-    public void IService_Start_CallsAsync()
-    {
-      // This test just verifies the sync wrapper exists
-      // Actual functionality requires a real driver
-      var kernel = new FluentDockerKernel();
-      var service = new ContainerService(kernel, "docker", "abc123", "nginx", "test");
-
-      // Verify interface implementation
-      IService iservice = service;
-      Assert.NotNull(iservice);
-
-      kernel.Dispose();
-    }
-
-    [Fact]
-    public void IService_Pause_CallsAsync()
+    public void Service_ImplementsIServiceAsync()
     {
       var kernel = new FluentDockerKernel();
       var service = new ContainerService(kernel, "docker", "abc123", "nginx", "test");
 
-      IService iservice = service;
-      Assert.NotNull(iservice);
+#pragma warning disable CA1859 // Intent: verify interface contract via interface reference
+      IServiceAsync asyncService = service;
+#pragma warning restore CA1859
+      Assert.NotNull(asyncService);
+      Assert.Equal("test", asyncService.Name);
+      Assert.Equal("docker", asyncService.DriverId);
 
       kernel.Dispose();
     }
-
-    [Fact]
-    public void IService_Stop_CallsAsync()
-    {
-      var kernel = new FluentDockerKernel();
-      var service = new ContainerService(kernel, "docker", "abc123", "nginx", "test");
-
-      IService iservice = service;
-      Assert.NotNull(iservice);
-
-      kernel.Dispose();
-    }
-
-    [Fact]
-    public void IService_Remove_CallsAsync()
-    {
-      var kernel = new FluentDockerKernel();
-      var service = new ContainerService(kernel, "docker", "abc123", "nginx", "test");
-
-      IService iservice = service;
-      Assert.NotNull(iservice);
-
-      kernel.Dispose();
-    }
-
   }
 }

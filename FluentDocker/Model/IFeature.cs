@@ -2,8 +2,6 @@ using System;
 using System.Collections.Generic;
 using FluentDocker.Services;
 
-#pragma warning disable CS0618 // IService obsolete — intentional usage
-
 namespace FluentDocker.Model
 {
   [Obsolete("v2 legacy type. Will be removed in v4.")]
@@ -48,7 +46,7 @@ namespace FluentDocker.Model
     ///   several services. Those are not flatten out in this property. Note that if any <see cref="IHostService" />
     ///   is used, it too will be exposed through this property.
     /// </remarks>
-    IEnumerable<IService> Services { get; }
+    IEnumerable<IServiceAsync> Services { get; }
 
     /// <summary>
     ///   Initializes the feature.

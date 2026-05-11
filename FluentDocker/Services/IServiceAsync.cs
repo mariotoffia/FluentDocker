@@ -1,19 +1,22 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
-using FluentDocker.Common;
 using FluentDocker.Kernel;
 
 namespace FluentDocker.Services
 {
   /// <summary>
   /// Async service interface with kernel/driver architecture.
-  /// This is the preferred service interface — use this instead of <see cref="IService"/>.
+  /// This is the root service interface for all FluentDocker services.
   /// </summary>
-#pragma warning disable CS0618 // IServiceAsync intentionally extends IService for backwards compat
-  public interface IServiceAsync : IService, IAsyncDisposable
-#pragma warning restore CS0618
+  public interface IServiceAsync : IDisposable, IAsyncDisposable
   {
+    /// <summary>Name or identifier of the service.</summary>
+    string Name { get; }
+
+    /// <summary>Current running state of the service.</summary>
+    ServiceRunningState State { get; }
+
     /// <summary>
     /// The kernel instance managing this service.
     /// </summary>
@@ -45,14 +48,18 @@ namespace FluentDocker.Services
     Task RemoveAsync(bool force = false, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Adds a state change hook (async version).
+    /// Adds a state change hook.
     /// </summary>
     IServiceAsync AddHook(ServiceRunningState state, Func<IServiceAsync, Task> hook, string uniqueName = null);
 
     /// <summary>
-    /// Removes a hook by name (async version).
+    /// Removes a hook by name.
     /// </summary>
-    new IServiceAsync RemoveHook(string uniqueName);
+    IServiceAsync RemoveHook(string uniqueName);
+
+    /// <summary>Raised when the service transitions to a new running state.</summary>
+#pragma warning disable CA1710 // Delegate name 'StateChange' — intentional API design
+    event ServiceDelegates.StateChange StateChange;
+#pragma warning restore CA1710
   }
 }
-

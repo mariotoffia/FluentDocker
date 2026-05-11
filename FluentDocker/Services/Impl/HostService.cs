@@ -8,8 +8,6 @@ using FluentDocker.Drivers;
 using FluentDocker.Kernel;
 using FluentDocker.Model.Drivers;
 
-#pragma warning disable CS0618 // IService obsolete — intentional usage
-
 namespace FluentDocker.Services.Impl
 {
   /// <summary>
@@ -54,7 +52,7 @@ namespace FluentDocker.Services.Impl
     public bool IsNative => _isNative;
     public bool RequireTls => _requireTls;
 
-    // Host services have a fixed Running state — event is required by IService but never raised.
+    // Host services have a fixed Running state — event is required by IServiceAsync but never raised.
 #pragma warning disable CS0067, CA1710
     public event ServiceDelegates.StateChange StateChange;
 #pragma warning restore CS0067, CA1710
@@ -293,22 +291,6 @@ namespace FluentDocker.Services.Impl
     public IServiceAsync RemoveHook(string uniqueName)
     {
       _hooks.Remove(uniqueName);
-      return this;
-    }
-
-    void IService.Start() => StartAsync().GetAwaiter().GetResult();
-    void IService.Pause() => PauseAsync().GetAwaiter().GetResult();
-    void IService.Stop() => StopAsync().GetAwaiter().GetResult();
-    void IService.Remove(bool force) => RemoveAsync(force).GetAwaiter().GetResult();
-
-    IService IService.AddHook(ServiceRunningState state, Action<IService> hook, string uniqueName)
-    {
-      return AddHook(state, async service => hook(service), uniqueName);
-    }
-
-    IService IService.RemoveHook(string uniqueName)
-    {
-      RemoveHook(uniqueName);
       return this;
     }
 

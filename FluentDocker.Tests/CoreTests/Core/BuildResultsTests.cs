@@ -1,12 +1,11 @@
+using System;
 using System.Collections.Generic;
-using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using FluentDocker.Kernel;
 using FluentDocker.Model.Kernel;
 using FluentDocker.Services;
 using Xunit;
-
-#pragma warning disable CS0618 // IService obsolete — intentional test usage
 
 namespace FluentDocker.Tests.CoreTests.Core
 {
@@ -165,39 +164,44 @@ namespace FluentDocker.Tests.CoreTests.Core
     }
 
     // Mock services for testing
-    private class MockService : IService
+    private class MockService : IServiceAsync
     {
       public MockService(string name = "test") => Name = name;
 
       public string Name { get; }
       public ServiceRunningState State => ServiceRunningState.Unknown;
+      public FluentDockerKernel Kernel => null;
+      public string DriverId => "mock";
 
-      public void Start() { }
-      public void Pause() { }
-      public void Stop() { }
-      public void Remove(bool force = false) { }
-      public IService AddHook(ServiceRunningState state, System.Action<IService> hook, string? uniqueName = null) => this;
-      public IService RemoveHook(string uniqueName) => this;
+      public Task StartAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
+      public Task PauseAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
+      public Task StopAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
+      public Task RemoveAsync(bool force = false, CancellationToken cancellationToken = default) => Task.CompletedTask;
+      public IServiceAsync AddHook(ServiceRunningState state, Func<IServiceAsync, Task> hook, string? uniqueName = null) => this;
+      public IServiceAsync RemoveHook(string? uniqueName) => this;
 #pragma warning disable CS0067
       public event ServiceDelegates.StateChange StateChange;
 #pragma warning restore CS0067
-      public void Dispose() { }
+      public virtual void Dispose() { }
+      public virtual ValueTask DisposeAsync() => ValueTask.CompletedTask;
     }
 
-    private class MockDisposableService : MockService, System.IAsyncDisposable
+    private class MockDisposableService : MockService
     {
       public bool WasDisposed { get; private set; }
 
-      public ValueTask DisposeAsync()
+#pragma warning disable CA2215 // Base Dispose/DisposeAsync are no-ops in this mock
+      public override ValueTask DisposeAsync()
       {
         WasDisposed = true;
         return ValueTask.CompletedTask;
       }
 
-      public new void Dispose()
+      public override void Dispose()
       {
         WasDisposed = true;
       }
+#pragma warning restore CA2215
     }
   }
 }

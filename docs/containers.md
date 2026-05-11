@@ -71,8 +71,6 @@ await container.StopAsync();
 await container.StartAsync();
 ```
 
-(The sync `Stop()` / `Start()` overloads still work but are `[Obsolete]` in v3 — prefer the `Async` forms on `IServiceAsync`.)
-
 ### Container States
 
 ```csharp
@@ -91,8 +89,6 @@ if (container.State == ServiceRunningState.Running)
 await container.PauseAsync();
 await container.StartAsync();  // StartAsync() also resumes from Pause
 ```
-
-(The sync `Pause()` / `Start()` overloads still work but are `[Obsolete]` in v3 — prefer the `Async` forms on `IServiceAsync`.)
 
 ## Port Exposure
 

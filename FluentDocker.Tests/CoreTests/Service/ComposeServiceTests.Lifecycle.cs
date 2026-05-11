@@ -12,13 +12,11 @@ using FluentDocker.Tests.Mocks;
 using Moq;
 using Xunit;
 
-#pragma warning disable CS0618 // IService obsolete -- intentional test usage
-
 namespace FluentDocker.Tests.CoreTests.Service
 {
   /// <summary>
   /// Tests for ComposeService lifecycle: StateChange events, hook execution,
-  /// dispose behavior, sync IService wrappers, and full lifecycle transitions.
+  /// dispose behavior, and full lifecycle transitions.
   /// </summary>
   [Trait("Category", "Unit")]
   public class ComposeServiceLifecycleTests
@@ -420,19 +418,20 @@ namespace FluentDocker.Tests.CoreTests.Service
 
     #endregion
 
-    #region IService Sync Wrappers
+    #region IServiceAsync Hook Wrappers
 
+#pragma warning disable CA1859 // Intent: verify IServiceAsync interface contract via interface reference
     [Fact]
-    public void IService_AddHook_ReturnsSelf()
+    public void IServiceAsync_AddHook_ReturnsSelf()
     {
       var kernel = new FluentDockerKernel();
       try
       {
         var service = CreateService(kernel);
-        IService syncService = service;
+        IServiceAsync asyncService = service;
 
-        var result = syncService.AddHook(
-            ServiceRunningState.Running, _ => { }, "sync-hook");
+        var result = asyncService.AddHook(
+            ServiceRunningState.Running, _ => Task.CompletedTask, "hook");
 
         Assert.Same(service, result);
       }
@@ -440,22 +439,23 @@ namespace FluentDocker.Tests.CoreTests.Service
     }
 
     [Fact]
-    public void IService_RemoveHook_ReturnsSelf()
+    public void IServiceAsync_RemoveHook_ReturnsSelf()
     {
       var kernel = new FluentDockerKernel();
       try
       {
         var service = CreateService(kernel);
-        IService syncService = service;
-        syncService.AddHook(
-            ServiceRunningState.Running, _ => { }, "sync-hook");
+        IServiceAsync asyncService = service;
+        asyncService.AddHook(
+            ServiceRunningState.Running, _ => Task.CompletedTask, "hook");
 
-        var result = syncService.RemoveHook("sync-hook");
+        var result = asyncService.RemoveHook("hook");
 
         Assert.Same(service, result);
       }
       finally { kernel.Dispose(); }
     }
+#pragma warning restore CA1859
 
     #endregion
   }

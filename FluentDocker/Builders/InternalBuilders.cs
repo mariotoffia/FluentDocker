@@ -8,8 +8,6 @@ using FluentDocker.Kernel;
 using FluentDocker.Model.Drivers;
 using FluentDocker.Services;
 
-#pragma warning disable CS0618 // IService obsolete — intentional usage
-
 namespace FluentDocker.Builders
 {
   /// <summary>
@@ -53,7 +51,7 @@ namespace FluentDocker.Builders
     public INetworkBuilder WithLabel(string key, string value) { _labels[key] = value; return this; }
     public INetworkBuilder WithOption(string key, string value) { _options[key] = value; return this; }
 
-    public async Task<IService> ExecuteAsync(CancellationToken cancellationToken)
+    public async Task<IServiceAsync> ExecuteAsync(CancellationToken cancellationToken)
     {
       var driver = _kernel.SysCtl<Drivers.INetworkDriver>(_driverId);
       var context = new DriverContext(_driverId);
@@ -134,7 +132,7 @@ namespace FluentDocker.Builders
     public IVolumeBuilder WithDriverOption(string key, string value) { _driverOpts[key] = value; return this; }
     public IVolumeBuilder WithLabel(string key, string value) { _labels[key] = value; return this; }
 
-    public async Task<IService> ExecuteAsync(CancellationToken cancellationToken)
+    public async Task<IServiceAsync> ExecuteAsync(CancellationToken cancellationToken)
     {
       var driver = _kernel.SysCtl<Drivers.IVolumeDriver>(_driverId);
       var context = new DriverContext(_driverId);
@@ -249,7 +247,7 @@ namespace FluentDocker.Builders
 
     public IComposeBuilder WithProfiles(params string[] profiles) { _profiles.AddRange(profiles); return this; }
 
-    public async Task<IService> ExecuteAsync(CancellationToken cancellationToken)
+    public async Task<IServiceAsync> ExecuteAsync(CancellationToken cancellationToken)
     {
       var driver = _kernel.SysCtl<Drivers.IComposeDriver>(_driverId);
       var context = new DriverContext(_driverId);
