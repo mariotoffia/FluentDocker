@@ -17,6 +17,14 @@ branches:
     increment: Minor
     prevent-increment-of-merged-branch-version: true
     track-merge-target: false
+  support:
+    regex: ^support[/-]
+    tag: ''
+    increment: Patch
+    prevent-increment-of-merged-branch-version: true
+    track-merge-target: false
+    is-mainline: true
+    source-branches: ['master', 'main']
   feature:
     regex: ^features?[/-]
     tag: 'beta'

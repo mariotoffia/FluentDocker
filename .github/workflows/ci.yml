@@ -6,6 +6,7 @@ on:
       - master
       - main
       - ci-gh-action-migration  # For testing GitHub Action Workflows
+      - 'support/**'
   pull_request:
 
 jobs:
@@ -153,14 +154,14 @@ jobs:
         continue-on-error: ${{ steps.detect-env.outputs.running_in_act == 'true' }}
 
       - name: Publish NuGet packages
-        if: github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main'
+        if: github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/support/')
         run: |
           echo "Publishing NuGet packages with version: ${{ steps.gitversion.outputs.NuGetVersion }}"
           dotnet nuget push "packages/*.nupkg" --api-key ${{ secrets.NUGET_API_KEY }} --source https://api.nuget.org/v3/index.json --skip-duplicate
         continue-on-error: ${{ steps.detect-env.outputs.running_in_act == 'true' }}
         
       - name: Create and push Git tag for release
-        if: (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main') && steps.detect-env.outputs.running_in_act != 'true'
+        if: (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/support/')) && steps.detect-env.outputs.running_in_act != 'true'
         run: |
           echo "Creating Git tag for version: ${{ steps.gitversion.outputs.NuGetVersion }}"
           git config --global user.name "GitHub Actions"
