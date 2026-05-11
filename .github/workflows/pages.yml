@@ -47,6 +47,7 @@ jobs:
           mkdir -p docs/api-reference
           xmldocmd /tmp/fd-publish/FluentDocker.dll docs/api-reference \
               --source https://github.com/mariotoffia/FluentDocker/tree/master/FluentDocker \
+              --front-matter docs/_api-frontmatter.tpl \
               --clean
 
       - name: Setup Ruby
