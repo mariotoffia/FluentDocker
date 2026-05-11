@@ -188,9 +188,12 @@ namespace FluentDocker.Tests.CoreTests.Kernel
   }
 
   /// <summary>
-  /// Unit tests for KernelBuilder.
+  /// Tests for KernelBuilder. Each test builds a real kernel with
+  /// WithDockerCli(...) which resolves the docker binary at runtime, so
+  /// these are categorised as Integration to keep the Unit matrix green
+  /// on macOS/Windows runners (which lack Docker by default).
   /// </summary>
-  [Trait("Category", "Unit")]
+  [Trait("Category", "Integration")]
   public class KernelBuilderTests
   {
     [Fact]

@@ -7,7 +7,12 @@ using Xunit;
 
 namespace FluentDocker.Tests.CoreTests.BuilderTests
 {
-  [Trait("Category", "Unit")]
+  // Tests build a real FluentDockerKernel via CreateMockKernel(), which
+  // resolves the docker CLI binary at runtime. Reclassified as Integration
+  // so the unit-test matrix on macOS/Windows runners (no Docker installed)
+  // does not fail; truly mocking the kernel would require a kernel-stub
+  // infrastructure that does not yet exist.
+  [Trait("Category", "Integration")]
   public class ImageBuilderTests
   {
     [Fact]
