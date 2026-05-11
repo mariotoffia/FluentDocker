@@ -36,7 +36,7 @@ jobs:
         run: |
           dotnet restore FluentDocker/FluentDocker.csproj
           dotnet build FluentDocker/FluentDocker.csproj --configuration Release --no-restore
-          dotnet tool install -g xmldoc2md || true
+          dotnet tool install -g XMLDoc2Markdown
           mkdir -p docs/api-reference
           xmldoc2md FluentDocker/bin/Release/net10.0/FluentDocker.dll docs/api-reference --github-pages
 
