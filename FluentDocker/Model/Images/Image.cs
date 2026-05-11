@@ -21,12 +21,12 @@ namespace FluentDocker.Model.Images
     /// <summary>
     /// Image tags (e.g., "latest", "1.0.0").
     /// </summary>
-    public List<string> Tags { get; set; } = new List<string>();
+    public List<string> Tags { get; set; } = [];
 
     /// <summary>
     /// Image digests (sha256 content hashes).
     /// </summary>
-    public List<string> Digests { get; set; } = new List<string>();
+    public List<string> Digests { get; set; } = [];
 
     /// <summary>
     /// Created timestamp.
@@ -46,7 +46,7 @@ namespace FluentDocker.Model.Images
     /// <summary>
     /// Image labels.
     /// </summary>
-    public Dictionary<string, string> Labels { get; set; } = new Dictionary<string, string>();
+    public Dictionary<string, string> Labels { get; set; } = [];
 
     /// <summary>
     /// Operating system.

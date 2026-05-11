@@ -56,7 +56,7 @@ namespace FluentDocker.Tests.CoreTests.Driver
     {
       var config = new ComposeFileConfig
       {
-        ComposeFiles = new List<string> { "docker-compose.yml" },
+        ComposeFiles = ["docker-compose.yml"],
         ProjectName = "myproject"
       };
 
@@ -70,7 +70,7 @@ namespace FluentDocker.Tests.CoreTests.Driver
     {
       var config = new ComposeFileConfig
       {
-        ComposeFiles = new List<string> { "/my path/docker-compose.yml" },
+        ComposeFiles = ["/my path/docker-compose.yml"],
         ProjectName = "myproject"
       };
 
@@ -84,7 +84,7 @@ namespace FluentDocker.Tests.CoreTests.Driver
     {
       var config = new ComposeFileConfig
       {
-        ComposeFiles = new List<string> { "docker-compose.yml" },
+        ComposeFiles = ["docker-compose.yml"],
         ProjectName = "my project"
       };
 
@@ -98,7 +98,7 @@ namespace FluentDocker.Tests.CoreTests.Driver
     {
       var config = new ComposeFileConfig
       {
-        ComposeFiles = new List<string> { "docker-compose.yml" },
+        ComposeFiles = ["docker-compose.yml"],
         ProjectDirectory = "/home/user/my project"
       };
 
@@ -112,11 +112,11 @@ namespace FluentDocker.Tests.CoreTests.Driver
     {
       var config = new ComposeFileConfig
       {
-        ComposeFiles = new List<string>
-                {
+        ComposeFiles =
+                [
                     "/my path/docker-compose.yml",
                     "/my path/docker-compose.override.yml"
-                },
+                ],
         ProjectName = "my project",
         ProjectDirectory = "/my dir"
       };
@@ -134,7 +134,7 @@ namespace FluentDocker.Tests.CoreTests.Driver
     {
       var config = new ComposeFileConfig
       {
-        ComposeFiles = new List<string> { "C:\\Program Files\\docker-compose.yml" },
+        ComposeFiles = ["C:\\Program Files\\docker-compose.yml"],
         ProjectDirectory = "C:\\My Projects\\app"
       };
 
@@ -154,7 +154,7 @@ namespace FluentDocker.Tests.CoreTests.Driver
           "QuoteArgumentIfNeeded",
           BindingFlags.NonPublic | BindingFlags.Static);
       Assert.NotNull(method);
-      return (string)method.Invoke(null, new object[] { arg });
+      return (string)method.Invoke(null, [arg]);
     }
 
     private static string InvokeBuildComposeArgs(ComposeFileConfig config)
@@ -163,7 +163,7 @@ namespace FluentDocker.Tests.CoreTests.Driver
           "BuildComposeArgs",
           BindingFlags.NonPublic | BindingFlags.Static);
       Assert.NotNull(method);
-      return (string)method.Invoke(null, new object[] { config });
+      return (string)method.Invoke(null, [config]);
     }
 
     #endregion

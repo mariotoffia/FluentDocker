@@ -218,10 +218,10 @@ namespace FluentDocker.Drivers
   public class ContainerProcesses
   {
     /// <summary>Column titles.</summary>
-    public List<string> Titles { get; set; } = new List<string>();
+    public List<string> Titles { get; set; } = [];
 
     /// <summary>Process rows.</summary>
-    public List<List<string>> Processes { get; set; } = new List<List<string>>();
+    public List<List<string>> Processes { get; set; } = [];
   }
 
   /// <summary>
@@ -291,7 +291,7 @@ namespace FluentDocker.Drivers
     public string WorkingDir { get; set; }
 
     /// <summary>Environment variables.</summary>
-    public Dictionary<string, string> Environment { get; set; } = new Dictionary<string, string>();
+    public Dictionary<string, string> Environment { get; set; } = [];
 
     /// <summary>User to run as.</summary>
     public string User { get; set; }

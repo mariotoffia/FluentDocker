@@ -81,7 +81,7 @@ namespace FluentDocker.Tests.CoreTests.Common
     [Fact]
     public void TryDeserialize_EmptyBytes_ReturnsDefault()
     {
-      var result = JsonHelper.TryDeserialize<SampleDto>(System.ReadOnlySpan<byte>.Empty);
+      var result = JsonHelper.TryDeserialize<SampleDto>([]);
       Assert.Null(result);
     }
 

@@ -41,7 +41,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
         Image = "quay.io/podman/machine-os:5.0",
         Username = "testuser",
         Now = true,
-        Volumes = new List<string> { "/host:/vm" }
+        Volumes = ["/host:/vm"]
       };
 
       var result = InvokeBuildInitArgs(config);
@@ -394,7 +394,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
           "BuildInitArgs",
           BindingFlags.NonPublic | BindingFlags.Static | BindingFlags.Public);
       Assert.NotNull(method);
-      return (string)method.Invoke(null, new object[] { config });
+      return (string)method.Invoke(null, [config]);
     }
 
     private static string InvokeBuildSetArgs(MachineSetConfig config, string name)
@@ -403,7 +403,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
           "BuildSetArgs",
           BindingFlags.NonPublic | BindingFlags.Static | BindingFlags.Public);
       Assert.NotNull(method);
-      return (string)method.Invoke(null, new object[] { config, name });
+      return (string)method.Invoke(null, [config, name]);
     }
 
     private static IList<MachineInfo> InvokeParseMachineList(string json)
@@ -412,7 +412,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
           "ParseMachineList",
           BindingFlags.NonPublic | BindingFlags.Static | BindingFlags.Public);
       Assert.NotNull(method);
-      return (IList<MachineInfo>)method.Invoke(null, new object[] { json });
+      return (IList<MachineInfo>)method.Invoke(null, [json]);
     }
 
     private static MachineInspectResult InvokeParseMachineInspect(string json)
@@ -421,7 +421,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
           "ParseMachineInspect",
           BindingFlags.NonPublic | BindingFlags.Static | BindingFlags.Public);
       Assert.NotNull(method);
-      return (MachineInspectResult)method.Invoke(null, new object[] { json });
+      return (MachineInspectResult)method.Invoke(null, [json]);
     }
 
     private static MachineHostInfo InvokeParseMachineInfo(string json)
@@ -430,7 +430,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
           "ParseMachineInfo",
           BindingFlags.NonPublic | BindingFlags.Static | BindingFlags.Public);
       Assert.NotNull(method);
-      return (MachineHostInfo)method.Invoke(null, new object[] { json });
+      return (MachineHostInfo)method.Invoke(null, [json]);
     }
 
     #endregion

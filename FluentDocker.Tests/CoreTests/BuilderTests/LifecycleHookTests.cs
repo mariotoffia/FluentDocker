@@ -1,6 +1,7 @@
 using FluentDocker.Builders;
 using FluentDocker.Kernel;
 using FluentDocker.Services;
+using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 
 namespace FluentDocker.Tests.CoreTests.BuilderTests
@@ -16,7 +17,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
     {
       var builder = new Builder();
       var configured = false;
-      builder.WithinDriver("test", new FluentDockerKernel())
+      builder.WithinDriver("test", new FluentDockerKernel(new DriverRegistry(NullLoggerFactory.Instance), NullLoggerFactory.Instance))
           .UseContainer(c =>
           {
             c.UseImage("test")
@@ -31,7 +32,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
     {
       var builder = new Builder();
       var configured = false;
-      builder.WithinDriver("test", new FluentDockerKernel())
+      builder.WithinDriver("test", new FluentDockerKernel(new DriverRegistry(NullLoggerFactory.Instance), NullLoggerFactory.Instance))
           .UseContainer(c =>
           {
             c.UseImage("test")
@@ -46,7 +47,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
     {
       var builder = new Builder();
       var configured = false;
-      builder.WithinDriver("test", new FluentDockerKernel())
+      builder.WithinDriver("test", new FluentDockerKernel(new DriverRegistry(NullLoggerFactory.Instance), NullLoggerFactory.Instance))
           .UseContainer(c =>
           {
             c.UseImage("test")
@@ -61,7 +62,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
     {
       var builder = new Builder();
       var configured = false;
-      builder.WithinDriver("test", new FluentDockerKernel())
+      builder.WithinDriver("test", new FluentDockerKernel(new DriverRegistry(NullLoggerFactory.Instance), NullLoggerFactory.Instance))
           .UseContainer(c =>
           {
             c.UseImage("test")
@@ -76,7 +77,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
     {
       var builder = new Builder();
       var configured = false;
-      builder.WithinDriver("test", new FluentDockerKernel())
+      builder.WithinDriver("test", new FluentDockerKernel(new DriverRegistry(NullLoggerFactory.Instance), NullLoggerFactory.Instance))
           .UseContainer(c =>
           {
             c.UseImage("test")
@@ -93,7 +94,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
     {
       var builder = new Builder();
       var configured = false;
-      builder.WithinDriver("test", new FluentDockerKernel())
+      builder.WithinDriver("test", new FluentDockerKernel(new DriverRegistry(NullLoggerFactory.Instance), NullLoggerFactory.Instance))
           .UseContainer(c =>
           {
             c.UseImage("test")
@@ -108,7 +109,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
     {
       var builder = new Builder();
       var configured = false;
-      builder.WithinDriver("test", new FluentDockerKernel())
+      builder.WithinDriver("test", new FluentDockerKernel(new DriverRegistry(NullLoggerFactory.Instance), NullLoggerFactory.Instance))
           .UseContainer(c =>
           {
             c.UseImage("test")
@@ -123,7 +124,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
     {
       var builder = new Builder();
       var configured = false;
-      builder.WithinDriver("test", new FluentDockerKernel())
+      builder.WithinDriver("test", new FluentDockerKernel(new DriverRegistry(NullLoggerFactory.Instance), NullLoggerFactory.Instance))
           .UseContainer(c =>
           {
             c.UseImage("test")
@@ -180,7 +181,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
       {
         Type = LifecycleHookType.Execute,
         TriggerState = ServiceRunningState.Running,
-        Command = new[] { "sh", "-c", "echo hello" }
+        Command = ["sh", "-c", "echo hello"]
       };
 
       // Assert

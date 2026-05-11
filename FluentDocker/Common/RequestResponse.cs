@@ -7,7 +7,7 @@ namespace FluentDocker.Common
   /// <summary>
   /// Represents the response from an HTTP request to the Docker/Podman API.
   /// </summary>
-  public struct RequestResponse
+  public readonly struct RequestResponse
   {
     internal RequestResponse(HttpResponseHeaders headers, HttpStatusCode code, string body, Exception err)
     {

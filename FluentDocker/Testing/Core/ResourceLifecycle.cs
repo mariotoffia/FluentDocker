@@ -2,8 +2,9 @@ using System;
 using System.Runtime.ExceptionServices;
 using System.Threading;
 using System.Threading.Tasks;
-using FluentDocker.Common;
 using FluentDocker.Kernel;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace FluentDocker.Testing.Core
 {
@@ -13,21 +14,34 @@ namespace FluentDocker.Testing.Core
   /// Used by framework-specific adapters (xUnit, MSTest, NUnit) to avoid
   /// duplicating the kernel-creation + resource-init + cleanup flow.
   /// </summary>
+  /// <remarks>
+  /// The <c>loggerFactory</c> parameter defaults to
+  /// <see cref="NullLoggerFactory.Instance"/> on the test-adapter helpers because
+  /// fixture authors typically don't want logs from the test resource plumbing.
+  /// Pass a real factory (or override the fixture's <c>LoggerFactory</c> property)
+  /// to capture lifecycle diagnostics.
+  /// </remarks>
   public static class ResourceLifecycle
   {
     /// <summary>
     /// Creates a default Docker CLI kernel.
     /// </summary>
-    public static Task<FluentDockerKernel> CreateDefaultDockerKernelAsync()
-        => FluentDockerKernel.Create()
+    /// <param name="loggerFactory">Logger factory for the kernel.
+    /// Defaults to <see cref="NullLoggerFactory.Instance"/>.</param>
+    public static Task<FluentDockerKernel> CreateDefaultDockerKernelAsync(
+        ILoggerFactory loggerFactory = null)
+        => FluentDockerKernel.Create(loggerFactory ?? NullLoggerFactory.Instance)
             .WithDockerCli("docker-cli", d => d.AsDefault())
             .BuildAsync();
 
     /// <summary>
     /// Creates a default Podman CLI kernel.
     /// </summary>
-    public static Task<FluentDockerKernel> CreateDefaultPodmanKernelAsync()
-        => FluentDockerKernel.Create()
+    /// <param name="loggerFactory">Logger factory for the kernel.
+    /// Defaults to <see cref="NullLoggerFactory.Instance"/>.</param>
+    public static Task<FluentDockerKernel> CreateDefaultPodmanKernelAsync(
+        ILoggerFactory loggerFactory = null)
+        => FluentDockerKernel.Create(loggerFactory ?? NullLoggerFactory.Instance)
             .WithPodmanCli("podman-cli", d => d.AsDefault())
             .BuildAsync();
 
@@ -55,17 +69,21 @@ namespace FluentDocker.Testing.Core
     /// </param>
     /// <param name="cancellationToken">Optional cancellation token propagated to
     /// <see cref="ITestResource.InitializeAsync"/>.</param>
+    /// <param name="loggerFactory"></param>
     public static async Task<(FluentDockerKernel kernel, TResource resource)>
         CreateAndInitializeAsync<TResource>(
             Func<FluentDockerKernel, TResource> resourceFactory,
             Func<Task<FluentDockerKernel>> kernelFactory = null,
             Func<Task<FluentDockerKernel>> defaultKernelFactory = null,
-            CancellationToken cancellationToken = default)
+            CancellationToken cancellationToken = default,
+            ILoggerFactory loggerFactory = null)
         where TResource : class, ITestResource
     {
       ArgumentNullException.ThrowIfNull(resourceFactory);
-      defaultKernelFactory ??= CreateDefaultDockerKernelAsync;
+      loggerFactory ??= NullLoggerFactory.Instance;
+      defaultKernelFactory ??= () => CreateDefaultDockerKernelAsync(loggerFactory);
 
+      var logger = loggerFactory.CreateLogger(typeof(ResourceLifecycle));
       FluentDockerKernel kernel = null;
       TResource resource = null;
       try
@@ -86,13 +104,13 @@ namespace FluentDocker.Testing.Core
       }
       catch (Exception ex)
       {
-        Logger.Log($"Resource initialization failed: {ex.Message}");
+        logger.LogError(ex, "Resource initialization failed");
         try
         { if (resource != null) await resource.DisposeAsync().ConfigureAwait(false); }
-        catch (Exception resEx) { Logger.Log($"Resource cleanup failed: {resEx.Message}"); }
+        catch (Exception resEx) { logger.LogWarning(resEx, "Resource cleanup failed"); }
         try
         { if (kernel != null) await kernel.DisposeAsync().ConfigureAwait(false); }
-        catch (Exception kernelEx) { Logger.Log($"Kernel cleanup failed: {kernelEx.Message}"); }
+        catch (Exception kernelEx) { logger.LogWarning(kernelEx, "Kernel cleanup failed"); }
         throw;
       }
     }

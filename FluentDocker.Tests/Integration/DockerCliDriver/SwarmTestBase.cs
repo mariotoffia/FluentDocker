@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using FluentDocker.Drivers;
 using FluentDocker.Kernel;
 using FluentDocker.Model.Drivers;
+using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 
 namespace FluentDocker.Tests.Integration.DockerCliDriver
@@ -13,10 +14,8 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
   /// Exception used to skip tests when prerequisites are not available.
   /// Uses xUnit dynamic skip convention ($XunitDynamicSkip$).
   /// </summary>
-  public class DockerSkipException : Exception
+  public class DockerSkipException(string message) : Exception("$XunitDynamicSkip$" + message)
   {
-    public DockerSkipException(string message)
-        : base("$XunitDynamicSkip$" + message) { }
   }
 
   /// <summary>
@@ -29,7 +28,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
   {
     protected FluentDockerKernel Kernel { get; private set; } = null!;
     protected static string DriverId => "docker";
-    protected static DriverContext Context => new DriverContext(DriverId);
+    protected static DriverContext Context => new(DriverId);
 
     protected const string TestImage = "alpine:latest";
     protected const string NginxImage = "nginx:alpine";
@@ -48,16 +47,16 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
       if (!IsDockerInstalled())
         throw new DockerSkipException("Docker is not installed or not in PATH");
 
-      Kernel = await FluentDockerKernel.Create()
+      Kernel = await FluentDockerKernel.Create(NullLoggerFactory.Instance)
           .WithDockerCli(DriverId, d => d.AsDefault())
           .BuildAsync();
 
       if (!IsSwarmActive())
       {
-        var initResult = RunDockerCommand("swarm init");
-        if (initResult.exitCode != 0 && !IsSwarmActive())
+        var (exitCode, output, error) = RunDockerCommand("swarm init");
+        if (exitCode != 0 && !IsSwarmActive())
           throw new DockerSkipException(
-              $"Failed to initialize Docker Swarm: {initResult.error}");
+              $"Failed to initialize Docker Swarm: {error}");
       }
     }
 
@@ -96,7 +95,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
       config ??= new ContainerCreateConfig();
       config.Image = image;
       config.Detach = true;
-      config.Labels ??= new Dictionary<string, string>();
+      config.Labels ??= [];
       config.Labels[TestLabelKey] = TestLabelValue;
       var result = await ContainerDriver.RunAsync(Context, config);
       Assert.True(result.Success, $"Failed to run container: {result.Error}");
@@ -165,15 +164,15 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
 
     private static bool IsDockerInstalled()
     {
-      var result = RunDockerCommand("--version");
-      return result.exitCode == 0;
+      var (exitCode, _, _) = RunDockerCommand("--version");
+      return exitCode == 0;
     }
 
     private static bool IsSwarmActive()
     {
-      var result = RunDockerCommand("info --format {{.Swarm.LocalNodeState}}");
-      return result.exitCode == 0
-             && result.output.Trim().Equals("active", StringComparison.OrdinalIgnoreCase);
+      var (exitCode, output, _) = RunDockerCommand("info --format {{.Swarm.LocalNodeState}}");
+      return exitCode == 0
+             && output.Trim().Equals("active", StringComparison.OrdinalIgnoreCase);
     }
 
     private static (int exitCode, string output, string error) RunDockerCommand(

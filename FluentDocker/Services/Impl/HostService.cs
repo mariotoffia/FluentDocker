@@ -26,8 +26,8 @@ namespace FluentDocker.Services.Impl
     private readonly string _hostName;
     private readonly bool _isNative;
     private readonly bool _requireTls;
-    private readonly Dictionary<string, Func<IServiceAsync, Task>> _hooks = new Dictionary<string, Func<IServiceAsync, Task>>();
-    private ServiceRunningState _state = ServiceRunningState.Running;
+    private readonly Dictionary<string, Func<IServiceAsync, Task>> _hooks = [];
+    private readonly ServiceRunningState _state = ServiceRunningState.Running;
 
     public HostService(
         FluentDockerKernel kernel,
@@ -205,7 +205,7 @@ namespace FluentDocker.Services.Impl
         WorkingDirectory = config.WorkingDir,
         User = config.User,
         Privileged = config.Privileged,
-        Labels = config.Labels ?? new Dictionary<string, string>()
+        Labels = config.Labels ?? []
       };
 
       if (config.Environment?.Count > 0)
@@ -300,7 +300,7 @@ namespace FluentDocker.Services.Impl
     {
       if (Interlocked.CompareExchange(ref _disposed, 1, 0) != 0)
         return;
-      DisposeCoreAsync().AsTask().GetAwaiter().GetResult();
+      HostService.DisposeCoreAsync().AsTask().GetAwaiter().GetResult();
       GC.SuppressFinalize(this);
     }
 
@@ -308,11 +308,11 @@ namespace FluentDocker.Services.Impl
     {
       if (Interlocked.CompareExchange(ref _disposed, 1, 0) != 0)
         return;
-      await DisposeCoreAsync().ConfigureAwait(false);
+      await HostService.DisposeCoreAsync().ConfigureAwait(false);
       GC.SuppressFinalize(this);
     }
 
-    private async ValueTask DisposeCoreAsync()
+    private static async ValueTask DisposeCoreAsync()
     {
       await Task.CompletedTask.ConfigureAwait(false);
     }

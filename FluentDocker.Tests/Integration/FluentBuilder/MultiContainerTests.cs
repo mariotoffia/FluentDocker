@@ -7,6 +7,7 @@ using FluentDocker.Kernel;
 using FluentDocker.Model.Drivers;
 using FluentDocker.Services;
 using FluentDocker.Tests.Utilities;
+using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 
 namespace FluentDocker.Tests.Integration.FluentBuilder
@@ -27,7 +28,7 @@ namespace FluentDocker.Tests.Integration.FluentBuilder
 
     public async ValueTask InitializeAsync()
     {
-      _kernel = await FluentDockerKernel.Create()
+      _kernel = await FluentDockerKernel.Create(NullLoggerFactory.Instance)
           .WithDockerCli(DriverId, d => d.AsDefault())
           .BuildAsync();
 

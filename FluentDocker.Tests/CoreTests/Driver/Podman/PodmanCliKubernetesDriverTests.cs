@@ -27,7 +27,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
       {
         YamlPath = "/tmp/app.yaml",
         Network = "my-net",
-        ConfigMaps = new List<string> { "/tmp/cm1.yaml", "/tmp/cm2.yaml" },
+        ConfigMaps = ["/tmp/cm1.yaml", "/tmp/cm2.yaml"],
         LogDriver = "journald",
         Replace = true,
         Start = false,
@@ -242,7 +242,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
           "BuildPlayArgs",
           BindingFlags.NonPublic | BindingFlags.Static | BindingFlags.Public);
       Assert.NotNull(method);
-      return (string)method.Invoke(null, new object[] { config });
+      return (string)method.Invoke(null, [config]);
     }
 
     private static KubePlayResult InvokeParsePlayOutput(string output)
@@ -251,7 +251,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
           "ParsePlayOutput",
           BindingFlags.NonPublic | BindingFlags.Static | BindingFlags.Public);
       Assert.NotNull(method);
-      return (KubePlayResult)method.Invoke(null, new object[] { output });
+      return (KubePlayResult)method.Invoke(null, [output]);
     }
 
     #endregion

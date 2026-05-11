@@ -413,7 +413,7 @@ namespace FluentDocker.Tests.CoreTests.Common
     public void IsNullOrMissing_NullJsonValue_ReturnsTrue()
     {
       var root = JsonHelper.ParseElement("""{"x":null}""");
-      JsonElement? prop = root.Prop("x");
+      var prop = root.Prop("x");
       Assert.True(prop.IsNullOrMissing());
     }
 

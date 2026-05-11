@@ -117,7 +117,7 @@ namespace FluentDocker.Tests.CoreTests.Common
     public void ResourceReader_EmptyCollection_YieldsNoElements()
     {
       // Arrange
-      var reader = new ResourceReader(Array.Empty<ResourceInfo>());
+      var reader = new ResourceReader([]);
 
       // Act
       var items = reader.ToList();
@@ -130,7 +130,7 @@ namespace FluentDocker.Tests.CoreTests.Common
     public void ResourceReader_Enumerator_Reset_AllowsReIteration()
     {
       // Arrange - use empty collection to test enumerator mechanics
-      var reader = new ResourceReader(Array.Empty<ResourceInfo>());
+      var reader = new ResourceReader([]);
 
       // Act
       using var enumerator = reader.GetEnumerator();
@@ -147,7 +147,7 @@ namespace FluentDocker.Tests.CoreTests.Common
     public void ResourceReader_NonGenericEnumerator_Works()
     {
       // Arrange
-      var reader = new ResourceReader(Array.Empty<ResourceInfo>());
+      var reader = new ResourceReader([]);
       var enumerable = (System.Collections.IEnumerable)reader;
 
       // Act
@@ -168,7 +168,7 @@ namespace FluentDocker.Tests.CoreTests.Common
       // If no embedded resources exist, this test verifies the empty path
       if (resourceNames.Length == 0)
       {
-        var reader = new ResourceReader(Array.Empty<ResourceInfo>());
+        var reader = new ResourceReader([]);
         Assert.Empty(reader.ToList());
         return;
       }

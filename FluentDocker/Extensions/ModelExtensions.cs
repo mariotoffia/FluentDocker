@@ -86,17 +86,13 @@ namespace FluentDocker.Extensions
 
     public static string ToDocker(this ContainerIsolationTechnology isolation)
     {
-      switch (isolation)
+      return isolation switch
       {
-        case ContainerIsolationTechnology.Default:
-          return "default";
-        case ContainerIsolationTechnology.Hyperv:
-          return "hyperv";
-        case ContainerIsolationTechnology.Process:
-          return "process";
-        default:
-          return null;
-      }
+        ContainerIsolationTechnology.Default => "default",
+        ContainerIsolationTechnology.Hyperv => "hyperv",
+        ContainerIsolationTechnology.Process => "process",
+        _ => null,
+      };
     }
 
     public static TemplateString AsTemplate(this string str)
@@ -122,14 +118,11 @@ namespace FluentDocker.Extensions
         return ServiceRunningState.Running;
 
       var status = state.Status?.ToLower() ?? string.Empty;
-      switch (status)
+      return status switch
       {
-        case "created":
-        case "exited":
-          return ServiceRunningState.Stopped;
-      }
-
-      return ServiceRunningState.Unknown;
+        "created" or "exited" => ServiceRunningState.Stopped,
+        _ => ServiceRunningState.Unknown,
+      };
     }
 
     public static string ToDocker(this MountType access)
@@ -144,7 +137,7 @@ namespace FluentDocker.Extensions
 
     public static string[] ArrayAddDistinct(this string[] arr, params string[] values)
     {
-      return ArrayAdd(arr, values).Distinct().ToArray();
+      return [.. ArrayAdd(arr, values).Distinct()];
     }
 
     public static string[] ArrayAdd(this string[] arr, params string[] values)

@@ -26,7 +26,7 @@ namespace FluentDocker.Common
     public static string[] Parse(string command)
     {
       if (string.IsNullOrWhiteSpace(command))
-        return Array.Empty<string>();
+        return [];
 
       var args = new List<string>();
       var current = new List<char>();
@@ -89,7 +89,7 @@ namespace FluentDocker.Common
         {
           if (current.Count > 0)
           {
-            args.Add(new string(current.ToArray()));
+            args.Add(new string([.. current]));
             current.Clear();
           }
         }
@@ -101,10 +101,10 @@ namespace FluentDocker.Common
 
       if (current.Count > 0)
       {
-        args.Add(new string(current.ToArray()));
+        args.Add(new string([.. current]));
       }
 
-      return args.ToArray();
+      return [.. args];
     }
   }
 }

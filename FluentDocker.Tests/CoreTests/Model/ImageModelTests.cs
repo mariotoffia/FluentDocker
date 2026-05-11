@@ -65,7 +65,7 @@ namespace FluentDocker.Tests.CoreTests.Model
       {
         Id = "sha256:abc123",
         Name = "nginx",
-        Tags = new[] { "latest", "1.25", "1.25.3" }
+        Tags = ["latest", "1.25", "1.25.3"]
       };
 
       // Assert
@@ -85,7 +85,7 @@ namespace FluentDocker.Tests.CoreTests.Model
       {
         Id = "sha256:def456",
         Name = "custom-image",
-        Tags = Array.Empty<string>()
+        Tags = []
       };
 
       // Assert
@@ -101,7 +101,7 @@ namespace FluentDocker.Tests.CoreTests.Model
       {
         Id = "sha256:aaa",
         Name = "alpine",
-        Tags = new[] { "3.19" }
+        Tags = ["3.19"]
       };
 
       // Assert
@@ -213,11 +213,11 @@ namespace FluentDocker.Tests.CoreTests.Model
       {
         Id = "sha256:e4720093a3c1381245b53a5a51b417963b3c4472d3f47fc301930a4f3b17b869",
         Repository = "myregistry.com/myapp",
-        Tags = new List<string> { "latest", "v2.1.0", "v2" },
-        Digests = new List<string>
-        {
+        Tags = ["latest", "v2.1.0", "v2"],
+        Digests =
+        [
           "sha256:abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890"
-        },
+        ],
         Created = created,
         Size = 142_000_000L,
         VirtualSize = 285_000_000L,
@@ -324,7 +324,7 @@ namespace FluentDocker.Tests.CoreTests.Model
       image.Tags.Add("old-tag");
 
       // Act
-      image.Tags = new List<string> { "new-tag" };
+      image.Tags = ["new-tag"];
 
       // Assert
       Assert.Single(image.Tags);
@@ -372,12 +372,12 @@ namespace FluentDocker.Tests.CoreTests.Model
       // Arrange & Act
       var image = new Image
       {
-        Digests = new List<string>
-        {
+        Digests =
+        [
           "sha256:aaaa",
           "sha256:bbbb",
           "sha256:cccc"
-        }
+        ]
       };
 
       // Assert
@@ -399,14 +399,14 @@ namespace FluentDocker.Tests.CoreTests.Model
       {
         Id = "sha256:abc",
         Name = "nginx",
-        Tags = new[] { "latest" }
+        Tags = ["latest"]
       };
 
       var image = new Image
       {
         Id = "sha256:abc",
         Repository = "nginx",
-        Tags = new List<string> { "latest" }
+        Tags = ["latest"]
       };
 
       // Assert -- same data can be represented in both models

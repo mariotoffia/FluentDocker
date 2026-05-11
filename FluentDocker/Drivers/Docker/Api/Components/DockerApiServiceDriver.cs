@@ -16,10 +16,8 @@ namespace FluentDocker.Drivers.Docker.Api.Components
   /// Docker API implementation of IServiceDriver for Docker Swarm services.
   /// Uses /services and /tasks endpoints.
   /// </summary>
-  public class DockerApiServiceDriver : DockerApiDriverBase, IServiceDriver
+  public class DockerApiServiceDriver(IDockerApiConnection connection) : DockerApiDriverBase(connection), IServiceDriver
   {
-    public DockerApiServiceDriver(IDockerApiConnection connection) : base(connection) { }
-
     public async Task<CommandResponse<ServiceCreateResult>> CreateAsync(
         DriverContext context, ServiceCreateConfig config,
         CancellationToken cancellationToken = default)
@@ -37,7 +35,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
         Id = result.Data.GetStringOrDefault("ID"),
         Warnings = result.Data.Prop("Warnings")?.ValueKind == JsonValueKind.Array
             ? result.Data.Prop("Warnings").Value.Deserialize<List<string>>()
-            : new List<string>()
+            : []
       });
     }
 
@@ -129,7 +127,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
 
       var services = result.Data.ValueKind == JsonValueKind.Array
           ? result.Data.EnumerateArray().Select(ParseServiceInfo).ToList()
-          : new List<ServiceInfo>();
+          : [];
       return CommandResponse<IList<ServiceInfo>>.Ok(services);
     }
 
@@ -166,7 +164,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
 
       var tasks = result.Data.ValueKind == JsonValueKind.Array
           ? result.Data.EnumerateArray().Select(ParseServiceTask).ToList()
-          : new List<ServiceTask>();
+          : [];
       return CommandResponse<IList<ServiceTask>>.Ok(tasks);
     }
 
@@ -249,8 +247,8 @@ namespace FluentDocker.Drivers.Docker.Api.Components
         {
           ["Ports"] = config.Ports.Select(p => new
           {
-            TargetPort = p.TargetPort,
-            PublishedPort = p.PublishedPort,
+            p.TargetPort,
+            p.PublishedPort,
             Protocol = p.Protocol ?? "tcp",
             PublishMode = p.PublishMode ?? "ingress"
           }).ToList()
@@ -283,9 +281,9 @@ namespace FluentDocker.Drivers.Docker.Api.Components
         containerSpec["Mounts"] = config.Mounts.Select(m => new
         {
           Type = m.Type ?? "volume",
-          Source = m.Source,
-          Target = m.Target,
-          ReadOnly = m.ReadOnly
+          m.Source,
+          m.Target,
+          m.ReadOnly
         }).ToList();
 
       return containerSpec;

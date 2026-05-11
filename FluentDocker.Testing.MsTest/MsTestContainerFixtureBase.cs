@@ -1,4 +1,5 @@
 using System;
+using System.Threading;
 using System.Threading.Tasks;
 using FluentDocker.Builders;
 using FluentDocker.Kernel;
@@ -34,7 +35,7 @@ namespace FluentDocker.Testing.MsTest
 #pragma warning disable CA1822 // Instance properties intentional — provides consistent API across test frameworks
   public abstract class MsTestContainerFixtureBase
   {
-    private static readonly object Lock = new();
+    private static readonly object Lock = new object();
     private static ContainerResource? _resource;
     private static FluentDockerKernel? _kernel;
     private static int _refCount;

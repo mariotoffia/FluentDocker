@@ -124,7 +124,7 @@ namespace FluentDocker.Tests.CoreTests.Extensions
     public void OptionIfExists_StringArray_NonEmpty_AppendsAll()
     {
       var sb = new StringBuilder("cmd");
-      sb.OptionIfExists("--env=", new[] { "A=1", "B=2" });
+      sb.OptionIfExists("--env=", ["A=1", "B=2"]);
       Assert.Equal("cmd --env=A=1 --env=B=2", sb.ToString());
     }
 
@@ -140,7 +140,7 @@ namespace FluentDocker.Tests.CoreTests.Extensions
     public void OptionIfExists_StringArray_Empty_ReturnsUnchanged()
     {
       var sb = new StringBuilder("cmd");
-      sb.OptionIfExists("--env=", Array.Empty<string>());
+      sb.OptionIfExists("--env=", []);
       Assert.Equal("cmd", sb.ToString());
     }
 
@@ -237,7 +237,7 @@ namespace FluentDocker.Tests.CoreTests.Extensions
     [Fact]
     public void AsTemplate_ConvertsStringToTemplateString()
     {
-      TemplateString template = "hello-world".AsTemplate();
+      var template = "hello-world".AsTemplate();
       Assert.NotNull(template);
       Assert.Equal("hello-world", template.ToString());
     }
@@ -390,7 +390,7 @@ namespace FluentDocker.Tests.CoreTests.Extensions
       var result = new StringBuilder("docker run")
         .OptionIfExists("--name=", "web")
         .OptionIfExists("--detach", true)
-        .OptionIfExists("--port=", new[] { "80:80", "443:443" })
+        .OptionIfExists("--port=", ["80:80", "443:443"])
         .OptionIfExists("--memory=", (string)null!)
         .ToString();
 

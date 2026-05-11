@@ -67,7 +67,7 @@ namespace FluentDocker.Common
       {
         if (!s.EndsWith(suffix, StringComparison.Ordinal))
           continue;
-        var numStr = s.Substring(0, s.Length - suffix.Length).Trim();
+        var numStr = s[..^suffix.Length].Trim();
         if (double.TryParse(numStr, NumberStyles.Float,
                 CultureInfo.InvariantCulture, out var num))
           return (long)(num * multiplier);

@@ -146,7 +146,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       var logProp = el.Prop("Log");
       if (logProp.HasValue && logProp.Value.ValueKind == JsonValueKind.Array)
       {
-        health.Log = new List<HealthLog>();
+        health.Log = [];
         foreach (var entry in logProp.Value.EnumerateArray())
         {
           health.Log.Add(new HealthLog
@@ -195,11 +195,11 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
     public static ContainerMount[] ParseMounts(JsonElement? mountsToken)
     {
       if (mountsToken == null || mountsToken.Value.ValueKind != JsonValueKind.Array)
-        return Array.Empty<ContainerMount>();
+        return [];
 
       var mountsArray = mountsToken.Value;
       if (mountsArray.GetArrayLength() == 0)
-        return Array.Empty<ContainerMount>();
+        return [];
 
       var result = new List<ContainerMount>();
       foreach (var m in mountsArray.EnumerateArray())
@@ -215,7 +215,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
           Propagation = m.GetStringOrDefault("Propagation")
         });
       }
-      return result.ToArray();
+      return [.. result];
     }
 
     public static ContainerNetworkSettings ParseNetworkSettings(JsonElement? nsToken)
@@ -266,11 +266,11 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
               HostPort = b.GetStringOrDefault("HostPort")
             });
           }
-          result[prop.Name] = bindings.ToArray();
+          result[prop.Name] = [.. bindings];
         }
         else
         {
-          result[prop.Name] = Array.Empty<HostIpEndpoint>();
+          result[prop.Name] = [];
         }
       }
 
@@ -323,7 +323,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
         var result = new List<string>();
         foreach (var item in el.EnumerateArray())
           result.Add(item.GetString());
-        return result.ToArray();
+        return [.. result];
       }
 
       var str = el.GetStringValue();
@@ -338,7 +338,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       var result = new List<string>();
       foreach (var item in token.Value.EnumerateArray())
         result.Add(item.GetString());
-      return result.ToArray();
+      return [.. result];
     }
 
     internal static IDictionary<string, string> ParseStringDictionary(JsonElement? token)

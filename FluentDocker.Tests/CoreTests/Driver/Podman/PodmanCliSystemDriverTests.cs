@@ -178,7 +178,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
           "ParseSystemInfo",
           BindingFlags.NonPublic | BindingFlags.Static);
       Assert.NotNull(method);
-      return (SystemInfo)method.Invoke(null, new object[] { json });
+      return (SystemInfo)method.Invoke(null, [json]);
     }
 
     private static VersionInfo InvokeParseVersionInfo(string json)
@@ -187,7 +187,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
           "ParseVersionInfo",
           BindingFlags.NonPublic | BindingFlags.Static);
       Assert.NotNull(method);
-      return (VersionInfo)method.Invoke(null, new object[] { json });
+      return (VersionInfo)method.Invoke(null, [json]);
     }
 
     #endregion

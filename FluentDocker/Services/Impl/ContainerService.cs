@@ -11,6 +11,7 @@ using FluentDocker.Drivers;
 using FluentDocker.Kernel;
 using FluentDocker.Model.Containers;
 using FluentDocker.Model.Drivers;
+using Microsoft.Extensions.Logging;
 
 namespace FluentDocker.Services.Impl
 {
@@ -20,6 +21,7 @@ namespace FluentDocker.Services.Impl
   public partial class ContainerService : IContainerService, IServiceCapabilities
   {
     private readonly FluentDockerKernel _kernel;
+    private readonly ILogger<ContainerService> _logger;
     private readonly string _driverId;
     private readonly string _containerId;
     private readonly string _image;
@@ -30,9 +32,9 @@ namespace FluentDocker.Services.Impl
     private readonly bool _deleteNamedVolumeOnDispose;
     private readonly Func<Dictionary<string, HostIpEndpoint[]>, string, Uri, IPEndPoint> _customResolver;
     private readonly List<LifecycleHook> _lifecycleHooks;
-    private readonly Dictionary<string, Func<IServiceAsync, Task>> _hooks = new Dictionary<string, Func<IServiceAsync, Task>>();
+    private readonly Dictionary<string, Func<IServiceAsync, Task>> _hooks = [];
     private readonly Dictionary<ServiceRunningState, List<Func<IServiceAsync, Task>>> _stateHooks =
-        new Dictionary<ServiceRunningState, List<Func<IServiceAsync, Task>>>();
+        [];
     private volatile ServiceRunningState _state = ServiceRunningState.Unknown;
 
     // Short-lived inspect cache to avoid redundant API/CLI calls during wait polling.
@@ -74,6 +76,7 @@ namespace FluentDocker.Services.Impl
       ArgumentNullException.ThrowIfNull(driverId);
       ArgumentNullException.ThrowIfNull(containerId);
       _kernel = kernel;
+      _logger = kernel.LoggerFactory.CreateLogger<ContainerService>();
       _driverId = driverId;
       _containerId = containerId;
       _image = image;
@@ -83,12 +86,12 @@ namespace FluentDocker.Services.Impl
       _deleteVolumeOnDispose = deleteVolumeOnDispose;
       _deleteNamedVolumeOnDispose = deleteNamedVolumeOnDispose;
       _customResolver = customResolver;
-      _lifecycleHooks = lifecycleHooks ?? new List<LifecycleHook>();
+      _lifecycleHooks = lifecycleHooks ?? [];
 
       // Initialize state hook lists
       foreach (var state in Enum.GetValues<ServiceRunningState>())
       {
-        _stateHooks[state] = new List<Func<IServiceAsync, Task>>();
+        _stateHooks[state] = [];
       }
     }
 
@@ -310,7 +313,7 @@ namespace FluentDocker.Services.Impl
         }
         catch (Exception ex)
         {
-          Logger.Log($"ContainerService stop on dispose failed: {ex.Message}");
+          _logger.LogWarning(ex, "ContainerService stop on dispose failed");
         }
       }
 
@@ -322,7 +325,7 @@ namespace FluentDocker.Services.Impl
         }
         catch (Exception ex)
         {
-          Logger.Log($"ContainerService remove on dispose failed: {ex.Message}");
+          _logger.LogWarning(ex, "ContainerService remove on dispose failed");
         }
       }
     }
@@ -352,7 +355,7 @@ namespace FluentDocker.Services.Impl
         }
         catch (Exception ex)
         {
-          Logger.Log($"ContainerService hook execution failed: {ex.Message}");
+          _logger.LogError(ex, "ContainerService hook execution failed");
         }
       }
     }
@@ -413,7 +416,7 @@ namespace FluentDocker.Services.Impl
         catch (Exception ex)
         {
           // Log but don't fail on lifecycle hook errors
-          Logger.Log($"Lifecycle hook failed: {ex.Message}");
+          _logger.LogError(ex, "Lifecycle hook failed");
         }
       }
     }

@@ -40,7 +40,7 @@ namespace FluentDocker.Resources
       foreach (var res in assembly.GetManifestResourceNames().Where(x => x.StartsWith(_namespace)))
       {
         var file = ExtractFile(res);
-        var ns = res.Substring(0, res.Length - file.Length - 1);
+        var ns = res[..(res.Length - file.Length - 1)];
         if (ns.Length < _namespace.Length)
         {
           continue;
@@ -60,7 +60,7 @@ namespace FluentDocker.Resources
           Assembly = assembly,
           Namespace = ns,
           Root = _namespace,
-          RelativeRootNamespace = nseqlen ? string.Empty : ns.Substring(_namespace.Length + 1),
+          RelativeRootNamespace = nseqlen ? string.Empty : ns[(_namespace.Length + 1)..],
           Resource = file
         };
       }

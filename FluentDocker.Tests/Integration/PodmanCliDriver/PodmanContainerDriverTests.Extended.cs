@@ -25,7 +25,7 @@ namespace FluentDocker.Tests.Integration.PodmanCliDriver
             new ContainerCreateConfig
             {
               Image = TestImage,
-              Command = new[] { "true" },
+              Command = ["true"],
               Detach = true
             }, cancellationToken: TestContext.Current.CancellationToken);
         Assert.True(result.Success, $"Run failed: {result.Error}");
@@ -56,7 +56,7 @@ namespace FluentDocker.Tests.Integration.PodmanCliDriver
             new ContainerCreateConfig
             {
               Image = TestImage,
-              Command = new[] { "sh", "-c", "sleep 1; exit 17" },
+              Command = ["sh", "-c", "sleep 1; exit 17"],
               Detach = true
             }, cancellationToken: TestContext.Current.CancellationToken);
         Assert.True(result.Success, $"Run failed: {result.Error}");
@@ -96,7 +96,7 @@ namespace FluentDocker.Tests.Integration.PodmanCliDriver
         containerId = await RunContainerAsync(TestImage,
             new ContainerCreateConfig
             {
-              Command = new[] { "sleep", "60" }
+              Command = ["sleep", "60"]
             });
 
         var topResult = await ContainerDriver.TopAsync(
@@ -128,13 +128,13 @@ namespace FluentDocker.Tests.Integration.PodmanCliDriver
         containerId = await RunContainerAsync(TestImage,
             new ContainerCreateConfig
             {
-              Command = new[] { "sleep", "60" }
+              Command = ["sleep", "60"]
             });
 
         await ContainerDriver.ExecAsync(Context, containerId,
             new ExecConfig
             {
-              Command = new[] { "touch", "/tmp/podman-diff-test.txt" }
+              Command = ["touch", "/tmp/podman-diff-test.txt"]
             }, cancellationToken: TestContext.Current.CancellationToken);
 
         var diffResult = await ContainerDriver.DiffAsync(
@@ -175,7 +175,7 @@ namespace FluentDocker.Tests.Integration.PodmanCliDriver
         containerId = await RunContainerAsync(TestImage,
             new ContainerCreateConfig
             {
-              Command = new[] { "sleep", "60" }
+              Command = ["sleep", "60"]
             });
         File.WriteAllText(tempFile, "podman-copy-test");
 
@@ -190,7 +190,7 @@ namespace FluentDocker.Tests.Integration.PodmanCliDriver
             Context, containerId,
             new ExecConfig
             {
-              Command = new[] { "cat", "/tmp/copied.txt" }
+              Command = ["cat", "/tmp/copied.txt"]
             }, cancellationToken: TestContext.Current.CancellationToken);
         Assert.True(execResult.Success);
         Assert.Contains("podman-copy-test", execResult.Data.StdOut);
@@ -219,15 +219,15 @@ namespace FluentDocker.Tests.Integration.PodmanCliDriver
         containerId = await RunContainerAsync(TestImage,
             new ContainerCreateConfig
             {
-              Command = new[] { "sleep", "60" }
+              Command = ["sleep", "60"]
             });
         Directory.CreateDirectory(tempDir);
 
         await ContainerDriver.ExecAsync(Context, containerId,
             new ExecConfig
             {
-              Command = new[] { "sh", "-c",
-                  "echo 'podman-from-container' > /tmp/from-container.txt" }
+              Command = [ "sh", "-c",
+                  "echo 'podman-from-container' > /tmp/from-container.txt" ]
             }, cancellationToken: TestContext.Current.CancellationToken);
         await Task.Delay(200, cancellationToken: TestContext.Current.CancellationToken);
 
@@ -285,7 +285,7 @@ namespace FluentDocker.Tests.Integration.PodmanCliDriver
         containerId = await RunContainerAsync(TestImage,
             new ContainerCreateConfig
             {
-              Command = new[] { "sleep", "300" }
+              Command = ["sleep", "300"]
             });
 
         var killResult = await ContainerDriver.KillAsync(
@@ -320,7 +320,7 @@ namespace FluentDocker.Tests.Integration.PodmanCliDriver
         containerId = await RunContainerAsync(TestImage,
             new ContainerCreateConfig
             {
-              Command = new[] { "sleep", "300" }
+              Command = ["sleep", "300"]
             });
 
         var killResult = await ContainerDriver.KillAsync(
@@ -349,7 +349,7 @@ namespace FluentDocker.Tests.Integration.PodmanCliDriver
         containerId = await RunContainerAsync(TestImage,
             new ContainerCreateConfig
             {
-              Command = new[] { "sleep", "300" }
+              Command = ["sleep", "300"]
             });
 
         // Pause
@@ -398,8 +398,8 @@ namespace FluentDocker.Tests.Integration.PodmanCliDriver
         containerId = await RunContainerAsync(TestImage,
             new ContainerCreateConfig
             {
-              Command = new[] { "sh", "-c",
-                  "echo podman-log-line-1; echo podman-log-line-2; sleep 300" }
+              Command = [ "sh", "-c",
+                  "echo podman-log-line-1; echo podman-log-line-2; sleep 300" ]
             });
 
         // Podman machine (VM) may need extra time for container to start
@@ -443,8 +443,8 @@ namespace FluentDocker.Tests.Integration.PodmanCliDriver
         containerId = await RunContainerAsync(TestImage,
             new ContainerCreateConfig
             {
-              Command = new[] { "sh", "-c",
-                  "for i in $(seq 1 20); do echo line-$i; done; sleep 300" }
+              Command = [ "sh", "-c",
+                  "for i in $(seq 1 20); do echo line-$i; done; sleep 300" ]
             });
 
         // Podman machine (VM) may need extra time for output to flush

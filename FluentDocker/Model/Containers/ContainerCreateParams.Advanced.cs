@@ -346,7 +346,7 @@ namespace FluentDocker.Model.Containers
     ///   The key is the ulimit name and the value is soft and optionally the hard limit.
     ///   --ulimit
     /// </remarks>
-    public IList<ULimitItem> Ulimit { get; } = new List<ULimitItem>();
+    public IList<ULimitItem> Ulimit { get; } = [];
 
     /// <summary>
     /// Specify a container runtime. Default is docker built-in.

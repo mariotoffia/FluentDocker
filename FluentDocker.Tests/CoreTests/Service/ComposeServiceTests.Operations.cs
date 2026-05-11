@@ -9,6 +9,7 @@ using FluentDocker.Model.Drivers;
 using FluentDocker.Services;
 using FluentDocker.Services.Impl;
 using FluentDocker.Tests.Mocks;
+using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using Xunit;
 
@@ -29,7 +30,7 @@ namespace FluentDocker.Tests.CoreTests.Service
     {
       return new ComposeService(
           kernel, "docker",
-          new List<string> { "docker-compose.yml" },
+          ["docker-compose.yml"],
           "test-project",
           removeVolumes: removeVolumes,
           removeImages: removeImages);
@@ -135,7 +136,7 @@ namespace FluentDocker.Tests.CoreTests.Service
         var service = CreateService(kernel);
         var ex = await Assert.ThrowsAsync<DriverException>(
             () => service.ExecuteAsync(
-                "web", new[] { "ls" },
+                "web", ["ls"],
                 cancellationToken: TestContext.Current.CancellationToken));
         Assert.Contains("execute command", ex.Message.ToLowerInvariant());
       }
@@ -410,7 +411,7 @@ namespace FluentDocker.Tests.CoreTests.Service
     [Fact]
     public void ServiceCapabilities_ReportsCorrectValues()
     {
-      var kernel = new FluentDockerKernel();
+      var kernel = new FluentDockerKernel(new DriverRegistry(NullLoggerFactory.Instance), NullLoggerFactory.Instance);
       try
       {
         var service = CreateService(kernel);

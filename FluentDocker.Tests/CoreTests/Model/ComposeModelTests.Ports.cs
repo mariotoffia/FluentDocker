@@ -214,12 +214,12 @@ namespace FluentDocker.Tests.CoreTests.Model
       var svc = new ComposeServiceDefinition();
 
       string[] entries =
-      {
+      [
         "3000",
         "8000:8000",
         "49100:22",
         "6060:6060/udp"
-      };
+      ];
 
       foreach (var e in entries)
         svc.Ports.Add(new PortsShortDefinition { Entry = e });

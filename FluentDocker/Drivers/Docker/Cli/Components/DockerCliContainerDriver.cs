@@ -11,14 +11,11 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
   /// <summary>
   /// Docker CLI implementation of IContainerDriver.
   /// </summary>
-  public partial class DockerCliContainerDriver : DockerCliDriverBase, IContainerDriver
+  /// <remarks>
+  /// Creates a new instance with the specified binary resolver.
+  /// </remarks>
+  public partial class DockerCliContainerDriver(IBinaryResolver binaryResolver) : DockerCliDriverBase(binaryResolver), IContainerDriver
   {
-    /// <summary>
-    /// Creates a new instance with the specified binary resolver.
-    /// </summary>
-    public DockerCliContainerDriver(IBinaryResolver binaryResolver) : base(binaryResolver)
-    {
-    }
 
     #region Lifecycle Operations
 

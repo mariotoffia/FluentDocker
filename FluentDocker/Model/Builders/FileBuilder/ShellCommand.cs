@@ -2,16 +2,10 @@ using System;
 
 namespace FluentDocker.Model.Builders.FileBuilder
 {
-  public sealed class ShellCommand : ICommand
+  public sealed class ShellCommand(string shell, params string[] args) : ICommand
   {
-    public ShellCommand(string shell, params string[] args)
-    {
-      Shell = shell;
-      Arguments = args ?? Array.Empty<string>();
-    }
-
-    public string Shell { get; }
-    public string[] Arguments { get; }
+    public string Shell { get; } = shell;
+    public string[] Arguments { get; } = args ?? [];
 
     public override string ToString()
     {

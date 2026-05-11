@@ -8,6 +8,7 @@ using FluentDocker.Drivers;
 using FluentDocker.Kernel;
 using FluentDocker.Model.Drivers;
 using FluentDocker.Tests.Mocks;
+using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 
 namespace FluentDocker.Tests.CoreTests.Kernel
@@ -21,7 +22,7 @@ namespace FluentDocker.Tests.CoreTests.Kernel
     [Fact]
     public async Task RegisterMultipleDrivers_Concurrently_AllSucceed()
     {
-      var kernel = new FluentDockerKernel();
+      var kernel = new FluentDockerKernel(new DriverRegistry(NullLoggerFactory.Instance), NullLoggerFactory.Instance);
       try
       {
         var tasks = new List<Task>();
@@ -53,7 +54,7 @@ namespace FluentDocker.Tests.CoreTests.Kernel
     [Fact]
     public async Task RegisterDuplicateId_Concurrently_OnlyOneSucceeds()
     {
-      var kernel = new FluentDockerKernel();
+      var kernel = new FluentDockerKernel(new DriverRegistry(NullLoggerFactory.Instance), NullLoggerFactory.Instance);
       try
       {
         const string driverId = "shared-id";
@@ -96,7 +97,7 @@ namespace FluentDocker.Tests.CoreTests.Kernel
     [Fact]
     public async Task RegisterAndQuery_Concurrently_NoErrors()
     {
-      var kernel = new FluentDockerKernel();
+      var kernel = new FluentDockerKernel(new DriverRegistry(NullLoggerFactory.Instance), NullLoggerFactory.Instance);
       try
       {
         // Register a driver first

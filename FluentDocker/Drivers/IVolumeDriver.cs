@@ -116,12 +116,12 @@ namespace FluentDocker.Drivers
     /// Driver-specific options as key-value pairs (e.g., mount type, device path).
     /// The available options depend on the selected <see cref="Driver"/>.
     /// </summary>
-    public Dictionary<string, string> DriverOpts { get; set; } = new Dictionary<string, string>();
+    public Dictionary<string, string> DriverOpts { get; set; } = [];
 
     /// <summary>
     /// User-defined labels to attach to the volume as key-value metadata.
     /// </summary>
-    public Dictionary<string, string> Labels { get; set; } = new Dictionary<string, string>();
+    public Dictionary<string, string> Labels { get; set; } = [];
   }
 
   /// <summary>
@@ -143,7 +143,7 @@ namespace FluentDocker.Drivers
     /// <summary>
     /// Any warnings generated during volume creation (e.g., deprecated options).
     /// </summary>
-    public List<string> Warnings { get; set; } = new List<string>();
+    public List<string> Warnings { get; set; } = [];
   }
 
   /// <summary>
@@ -159,7 +159,7 @@ namespace FluentDocker.Drivers
     /// <summary>
     /// Filters volumes by labels. Only volumes that have all specified key-value pairs are returned.
     /// </summary>
-    public Dictionary<string, string> Labels { get; set; } = new Dictionary<string, string>();
+    public Dictionary<string, string> Labels { get; set; } = [];
   }
 
   /// <summary>
@@ -171,7 +171,7 @@ namespace FluentDocker.Drivers
     /// <summary>
     /// The names of volumes that were deleted during the prune operation.
     /// </summary>
-    public List<string> VolumesDeleted { get; set; } = new List<string>();
+    public List<string> VolumesDeleted { get; set; } = [];
 
     /// <summary>
     /// The total amount of disk space reclaimed, in bytes.

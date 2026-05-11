@@ -336,7 +336,7 @@ namespace FluentDocker.Builders
       if (!listResult.Success)
         return null;
 
-      var normalizedName = name.StartsWith('/') ? name.Substring(1) : name;
+      var normalizedName = name.StartsWith('/') ? name[1..] : name;
       var container = listResult.Data?.FirstOrDefault(c =>
       {
         var containerName = c.Name?.TrimStart('/');

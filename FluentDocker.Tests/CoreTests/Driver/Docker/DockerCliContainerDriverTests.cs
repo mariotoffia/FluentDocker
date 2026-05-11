@@ -245,7 +245,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Docker
       var args = BuildCreateArgs(new ContainerCreateConfig
       {
         Image = "nginx",
-        Links = new List<string> { "db:database", "cache:redis" }
+        Links = ["db:database", "cache:redis"]
       });
       Assert.Contains("--link db:database", args);
       Assert.Contains("--link cache:redis", args);
@@ -257,7 +257,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Docker
       var args = BuildCreateArgs(new ContainerCreateConfig
       {
         Image = "ubuntu",
-        Command = new[] { "bash", "-c", "echo hello" }
+        Command = ["bash", "-c", "echo hello"]
       });
       Assert.EndsWith("ubuntu bash -c \"echo hello\"", args);
     }
@@ -268,7 +268,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Docker
       var args = BuildCreateArgs(new ContainerCreateConfig
       {
         Image = "nginx",
-        Networks = new List<string> { "frontend", "backend" }
+        Networks = ["frontend", "backend"]
       });
       Assert.Contains("--network frontend", args);
       Assert.Contains("--network backend", args);
@@ -292,7 +292,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Docker
       {
         Image = "ubuntu",
         Name = "test",
-        Command = new[] { "sleep", "infinity" }
+        Command = ["sleep", "infinity"]
       });
       var imageIdx = args.IndexOf("ubuntu", StringComparison.Ordinal);
       var cmdIdx = args.IndexOf("sleep", StringComparison.Ordinal);
@@ -309,7 +309,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Docker
           "QuoteArgumentIfNeeded",
           BindingFlags.NonPublic | BindingFlags.Static);
       Assert.NotNull(method);
-      return (string)method.Invoke(null, new object[] { arg });
+      return (string)method.Invoke(null, [arg]);
     }
 
     /// <summary>

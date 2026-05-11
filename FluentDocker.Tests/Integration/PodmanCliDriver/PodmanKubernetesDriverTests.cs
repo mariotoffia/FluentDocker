@@ -163,7 +163,7 @@ spec:
             new ContainerCreateConfig
             {
               Image = TestImage,
-              Command = new[] { "sleep", "300" },
+              Command = ["sleep", "300"],
               Pod = podName
             }, TestContext.Current.CancellationToken);
         Assert.True(containerResult.Success,

@@ -79,7 +79,7 @@ namespace FluentDocker.Tests.CoreTests.Driver
 
       Assert.NotNull(method);
 
-      var result = (ContainerStatsResult)method.Invoke(null, new object[] { json, "abc123" });
+      var result = (ContainerStatsResult)method.Invoke(null, [json, "abc123", null]);
 
       Assert.NotNull(result);
       Assert.Equal("abc123", result.ContainerId);
@@ -100,7 +100,7 @@ namespace FluentDocker.Tests.CoreTests.Driver
 
       Assert.NotNull(method);
 
-      var result = (ContainerStatsResult)method.Invoke(null, new object[] { invalidJson, "abc123" });
+      var result = (ContainerStatsResult)method.Invoke(null, [invalidJson, "abc123", null]);
 
       // Should not throw, just return empty stats with container ID
       Assert.NotNull(result);
@@ -119,7 +119,7 @@ namespace FluentDocker.Tests.CoreTests.Driver
 
       Assert.NotNull(method);
 
-      var result = (ContainerStatsResult)method.Invoke(null, new object[] { partialJson, "abc123" });
+      var result = (ContainerStatsResult)method.Invoke(null, [partialJson, "abc123", null]);
 
       Assert.NotNull(result);
       Assert.Equal("abc123", result.ContainerId);

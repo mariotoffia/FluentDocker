@@ -3,18 +3,10 @@ using System.Linq;
 
 namespace FluentDocker.Model.Builders.FileBuilder
 {
-  public sealed class CmdCommand : ICommand
+  public sealed class CmdCommand(string cmd, params string[] args) : ICommand
   {
-    public CmdCommand(string cmd, params string[] args)
-    {
-      Cmd = cmd;
-      Arguments = (args ?? Array.Empty<string>())
-        .Select(arg => $"\"{arg}\"")
-        .ToArray();
-    }
-
-    public string Cmd { get; }
-    public string[] Arguments { get; }
+    public string Cmd { get; } = cmd;
+    public string[] Arguments { get; } = [.. (args ?? []).Select(arg => $"\"{arg}\"")];
 
     public override string ToString()
     {

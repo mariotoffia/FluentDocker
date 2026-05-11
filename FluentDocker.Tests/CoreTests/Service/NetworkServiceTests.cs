@@ -2,6 +2,7 @@ using System;
 using FluentDocker.Kernel;
 using FluentDocker.Services;
 using FluentDocker.Services.Impl;
+using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 
 namespace FluentDocker.Tests.CoreTests.Service
@@ -16,7 +17,7 @@ namespace FluentDocker.Tests.CoreTests.Service
     public void Constructor_SetsProperties()
     {
       // Arrange
-      var kernel = new FluentDockerKernel();
+      var kernel = new FluentDockerKernel(new DriverRegistry(NullLoggerFactory.Instance), NullLoggerFactory.Instance);
 
       // Act
       var service = new NetworkService(kernel, "docker", "net123", "my-network");
@@ -42,7 +43,7 @@ namespace FluentDocker.Tests.CoreTests.Service
     [Fact]
     public void Constructor_NullDriverId_ThrowsArgumentNullException()
     {
-      var kernel = new FluentDockerKernel();
+      var kernel = new FluentDockerKernel(new DriverRegistry(NullLoggerFactory.Instance), NullLoggerFactory.Instance);
       Assert.Throws<ArgumentNullException>(() =>
           new NetworkService(kernel, null!, "net123", "my-network"));
       kernel.Dispose();
@@ -51,7 +52,7 @@ namespace FluentDocker.Tests.CoreTests.Service
     [Fact]
     public void Constructor_NullNetworkId_ThrowsArgumentNullException()
     {
-      var kernel = new FluentDockerKernel();
+      var kernel = new FluentDockerKernel(new DriverRegistry(NullLoggerFactory.Instance), NullLoggerFactory.Instance);
       Assert.Throws<ArgumentNullException>(() =>
           new NetworkService(kernel, "docker", null!, "my-network"));
       kernel.Dispose();
@@ -60,7 +61,7 @@ namespace FluentDocker.Tests.CoreTests.Service
     [Fact]
     public void Constructor_WithRemoveOnDispose_SetsFlag()
     {
-      var kernel = new FluentDockerKernel();
+      var kernel = new FluentDockerKernel(new DriverRegistry(NullLoggerFactory.Instance), NullLoggerFactory.Instance);
       var service = new NetworkService(kernel, "docker", "net123", "my-network", removeOnDispose: true);
 
       // Just verify creation
@@ -71,7 +72,7 @@ namespace FluentDocker.Tests.CoreTests.Service
     [Fact]
     public void AddHook_AddsHook()
     {
-      var kernel = new FluentDockerKernel();
+      var kernel = new FluentDockerKernel(new DriverRegistry(NullLoggerFactory.Instance), NullLoggerFactory.Instance);
       var service = new NetworkService(kernel, "docker", "net123", "my-network");
 
       service.AddHook(ServiceRunningState.Removed, async _ => { }, "test-hook");
@@ -83,7 +84,7 @@ namespace FluentDocker.Tests.CoreTests.Service
     [Fact]
     public void RemoveHook_RemovesHook()
     {
-      var kernel = new FluentDockerKernel();
+      var kernel = new FluentDockerKernel(new DriverRegistry(NullLoggerFactory.Instance), NullLoggerFactory.Instance);
       var service = new NetworkService(kernel, "docker", "net123", "my-network");
       service.AddHook(ServiceRunningState.Removed, async _ => { }, "test-hook");
 

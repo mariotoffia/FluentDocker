@@ -2,11 +2,9 @@ using FluentDocker.Model.Common;
 
 namespace FluentDocker.Model.Builders.FileBuilder
 {
-  public sealed class RunCommand : ICommand
+  public sealed class RunCommand(TemplateString run) : ICommand
   {
-    public RunCommand(TemplateString run) => Run = run;
-
-    public TemplateString Run { get; }
+    public TemplateString Run { get; } = run;
 
     public override string ToString()
     {

@@ -117,7 +117,6 @@ namespace FluentDocker.Tests.Integration.PodmanCliDriver
     {
       await EnsureImageAsync(TestImage);
       var podName = UniqueName("pod");
-      string? containerId = null;
 
       try
       {
@@ -126,13 +125,15 @@ namespace FluentDocker.Tests.Integration.PodmanCliDriver
         var config = new ContainerCreateConfig
         {
           Image = TestImage,
-          Command = new[] { "sleep", "60" },
+          Command = ["sleep", "60"],
           Pod = podName
         };
 
         var createResult = await ContainerDriver.CreateAsync(Context, config, cancellationToken: TestContext.Current.CancellationToken);
         Assert.True(createResult.Success, $"Container create failed: {createResult.Error}");
-        containerId = createResult.Data.Id;
+
+        _ = createResult.Data.Id;
+
 
         // Verify the pod now shows containers
         var inspectResult = await PodDriver.InspectPodAsync(Context, podName, cancellationToken: TestContext.Current.CancellationToken);

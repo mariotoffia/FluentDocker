@@ -2,6 +2,7 @@ using System;
 using System.Threading.Tasks;
 using FluentDocker.Builders;
 using FluentDocker.Kernel;
+using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 
 namespace FluentDocker.Tests.Integration
@@ -16,7 +17,7 @@ namespace FluentDocker.Tests.Integration
     public async Task Builder_WithSingleContainer_CreatesBuildResults()
     {
       // Arrange
-      var kernel = await FluentDockerKernel.Create()
+      var kernel = await FluentDockerKernel.Create(NullLoggerFactory.Instance)
           .WithDockerCli("docker", d => d.AsDefault())
           .BuildAsync(cancellationToken: TestContext.Current.CancellationToken);
 
@@ -55,7 +56,7 @@ namespace FluentDocker.Tests.Integration
     public async Task Builder_WithMultipleScopes_CreatesBuildResultsForEachScope()
     {
       // Arrange
-      var kernel = await FluentDockerKernel.Create()
+      var kernel = await FluentDockerKernel.Create(NullLoggerFactory.Instance)
           .WithDockerCli("docker-1", d => d.AsDefault())
           .WithDockerCli("docker-2", d => d.AsDefault())
           .BuildAsync(cancellationToken: TestContext.Current.CancellationToken);
@@ -105,7 +106,7 @@ namespace FluentDocker.Tests.Integration
     {
       // This test demonstrates the kernel reuse pattern
 
-      var kernel = await FluentDockerKernel.Create()
+      var kernel = await FluentDockerKernel.Create(NullLoggerFactory.Instance)
           .WithDockerCli("docker-1", d => d.AsDefault())
           .WithDockerCli("docker-2", d => d.AsDefault())
           .BuildAsync(cancellationToken: TestContext.Current.CancellationToken);

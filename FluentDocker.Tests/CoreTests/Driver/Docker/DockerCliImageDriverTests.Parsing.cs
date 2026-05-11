@@ -259,9 +259,9 @@ namespace FluentDocker.Tests.CoreTests.Driver.Docker
       foreach (var line in lines)
       {
         if (line.StartsWith("Deleted:"))
-          removeResult.Deleted.Add(line.Substring(8).Trim());
+          removeResult.Deleted.Add(line[8..].Trim());
         else if (line.StartsWith("Untagged:"))
-          removeResult.Untagged.Add(line.Substring(9).Trim());
+          removeResult.Untagged.Add(line[9..].Trim());
       }
 
       return removeResult;
@@ -283,11 +283,11 @@ namespace FluentDocker.Tests.CoreTests.Driver.Docker
       {
         if (line.StartsWith(loadedIdPrefix, System.StringComparison.OrdinalIgnoreCase))
         {
-          images.Add(line.Substring(loadedIdPrefix.Length).Trim());
+          images.Add(line[loadedIdPrefix.Length..].Trim());
         }
         else if (line.StartsWith(loadedPrefix, System.StringComparison.OrdinalIgnoreCase))
         {
-          images.Add(line.Substring(loadedPrefix.Length).Trim());
+          images.Add(line[loadedPrefix.Length..].Trim());
         }
       }
 

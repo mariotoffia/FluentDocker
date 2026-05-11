@@ -2,11 +2,9 @@ using FluentDocker.Model.Common;
 
 namespace FluentDocker.Model.Builders.FileBuilder
 {
-  public sealed class WorkdirCommand : ICommand
+  public sealed class WorkdirCommand(string workdir) : ICommand
   {
-    public WorkdirCommand(string workdir) => Workdir = workdir;
-
-    public string Workdir { get; }
+    public string Workdir { get; } = workdir;
 
     public override string ToString()
     {

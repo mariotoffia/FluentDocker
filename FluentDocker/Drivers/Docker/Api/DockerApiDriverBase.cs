@@ -14,6 +14,8 @@ using FluentDocker.Common;
 using FluentDocker.Drivers.Docker.Api.ApiModels;
 using FluentDocker.Drivers.Docker.Api.Connection;
 using FluentDocker.Model.Drivers;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace FluentDocker.Drivers.Docker.Api
 {
@@ -26,6 +28,11 @@ namespace FluentDocker.Drivers.Docker.Api
     protected IDockerApiConnection Connection { get; private set; }
     protected DriverContext Context { get; private set; }
 
+    /// <summary>
+    /// Logger for this driver component. Category equals the concrete derived type's FQN.
+    /// </summary>
+    protected ILogger Logger { get; private set; } = NullLogger.Instance;
+
     protected DockerApiDriverBase(IDockerApiConnection connection)
     {
       ArgumentNullException.ThrowIfNull(connection);
@@ -36,6 +43,7 @@ namespace FluentDocker.Drivers.Docker.Api
     {
       ArgumentNullException.ThrowIfNull(context);
       Context = context;
+      Logger = context.LoggerFactory.CreateLogger(GetType());
     }
 
     #region JSON Request/Response Helpers
@@ -239,7 +247,7 @@ namespace FluentDocker.Drivers.Docker.Api
       }
       catch (Exception ex)
       {
-        Logger.Log($"NDJSON stream open failed: {ex.Message}");
+        Logger.LogError(ex, "NDJSON stream open failed");
         yield break;
       }
 
@@ -261,7 +269,7 @@ namespace FluentDocker.Drivers.Docker.Api
         }
         catch (Exception ex)
         {
-          Logger.Log($"NDJSON stream read failed: {ex.Message}");
+          Logger.LogDebug(ex, "NDJSON stream read failed");
           yield break;
         }
 
@@ -283,7 +291,7 @@ namespace FluentDocker.Drivers.Docker.Api
       }
       catch (Exception ex)
       {
-        Logger.Log($"NDJSON POST stream open failed: {ex.Message}");
+        Logger.LogError(ex, "NDJSON POST stream open failed");
         yield break;
       }
 
@@ -303,7 +311,7 @@ namespace FluentDocker.Drivers.Docker.Api
         }
         catch (Exception ex)
         {
-          Logger.Log($"NDJSON POST stream read failed: {ex.Message}");
+          Logger.LogDebug(ex, "NDJSON POST stream read failed");
           yield break;
         }
 
@@ -330,7 +338,7 @@ namespace FluentDocker.Drivers.Docker.Api
       }
       catch (Exception ex)
       {
-        Logger.Log($"NDJSON stream open failed: {ex.Message}");
+        Logger.LogError(ex, "NDJSON stream open failed");
         yield break;
       }
 
@@ -355,7 +363,7 @@ namespace FluentDocker.Drivers.Docker.Api
       }
       catch (Exception ex)
       {
-        Logger.Log($"NDJSON POST stream open failed: {ex.Message}");
+        Logger.LogError(ex, "NDJSON POST stream open failed");
         yield break;
       }
 

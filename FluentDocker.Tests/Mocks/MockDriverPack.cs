@@ -24,7 +24,7 @@ namespace FluentDocker.Tests.Mocks
   /// </summary>
   public partial class MockDriverPack : IDriverPack
   {
-    private readonly Dictionary<Type, object> _drivers = new Dictionary<Type, object>();
+    private readonly Dictionary<Type, object> _drivers = [];
     private bool _initialized;
     private DriverCapabilities _capabilities;
     private bool _isHealthy = true;
@@ -317,7 +317,7 @@ namespace FluentDocker.Tests.Mocks
               It.IsAny<ContainerListFilter>(),
               It.IsAny<CancellationToken>()))
           .ReturnsAsync(FluentDocker.Model.Drivers.CommandResponse<IList<Container>>.Ok(
-              new List<Container>(containers)));
+              [.. containers]));
       return this;
     }
 
@@ -361,7 +361,7 @@ namespace FluentDocker.Tests.Mocks
               It.IsAny<NetworkListFilter>(),
               It.IsAny<CancellationToken>()))
           .ReturnsAsync(FluentDocker.Model.Drivers.CommandResponse<IList<Network>>.Ok(
-              new List<Network>(networks)));
+              [.. networks]));
       return this;
     }
 

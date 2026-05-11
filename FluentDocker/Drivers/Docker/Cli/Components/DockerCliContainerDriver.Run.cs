@@ -135,7 +135,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
             // If the first element is "CMD-SHELL" or "CMD", skip it as it's only for Dockerfile format
             var testCommands = config.HealthCheck.Test;
             if (testCommands[0] == "CMD-SHELL" || testCommands[0] == "CMD")
-              testCommands = testCommands.Skip(1).ToArray();
+              testCommands = [.. testCommands.Skip(1)];
 
             var cmd = string.Join(" ", testCommands);
             args.Add($"--health-cmd \"{cmd}\"");

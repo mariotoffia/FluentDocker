@@ -125,7 +125,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
           Image = TestImage,
           Name = UniqueName("cont1"),
           NetworkMode = networkName,
-          Command = new[] { "sleep", "60" },
+          Command = ["sleep", "60"],
           Detach = true
         }, TestContext.Current.CancellationToken);
         Assert.True(container1Result.Success);
@@ -137,7 +137,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
           Image = TestImage,
           Name = UniqueName("cont2"),
           NetworkMode = networkName,
-          Command = new[] { "sleep", "60" },
+          Command = ["sleep", "60"],
           Detach = true
         }, TestContext.Current.CancellationToken);
         Assert.True(container2Result.Success);
@@ -153,7 +153,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
         // Ping from container2 to container1
         var pingResult = await ContainerDriver.ExecAsync(Context, container2Id, new ExecConfig
         {
-          Command = new[] { "ping", "-c", "1", "-W", "3", container1Ip }
+          Command = ["ping", "-c", "1", "-W", "3", container1Ip]
         }, TestContext.Current.CancellationToken);
 
         // Assert
@@ -188,7 +188,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
         var runResult = await ContainerDriver.RunAsync(Context, new ContainerCreateConfig
         {
           Image = TestImage,
-          Command = new[] { "sleep", "60" },
+          Command = ["sleep", "60"],
           Detach = true
         }, TestContext.Current.CancellationToken);
         Assert.True(runResult.Success);
@@ -229,7 +229,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
         {
           Image = TestImage,
           NetworkMode = networkName,
-          Command = new[] { "sleep", "60" },
+          Command = ["sleep", "60"],
           Detach = true
         }, TestContext.Current.CancellationToken);
         Assert.True(containerResult.Success);
@@ -274,7 +274,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
         {
           Image = TestImage,
           NetworkMode = networkName,
-          Command = new[] { "sleep", "60" },
+          Command = ["sleep", "60"],
           Detach = true
         }, TestContext.Current.CancellationToken);
         Assert.True(containerResult.Success);

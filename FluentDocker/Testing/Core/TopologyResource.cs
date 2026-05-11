@@ -7,6 +7,7 @@ using FluentDocker.Builders;
 using FluentDocker.Common;
 using FluentDocker.Kernel;
 using FluentDocker.Services;
+using Microsoft.Extensions.Logging;
 
 namespace FluentDocker.Testing.Core
 {
@@ -17,7 +18,7 @@ namespace FluentDocker.Testing.Core
   public class TopologyResource : ResourceBase
   {
     private readonly Action<Builder> _configure;
-    private readonly List<IServiceAsync> _services = new();
+    private readonly List<IServiceAsync> _services = [];
 
     /// <summary>
     /// Creates a topology resource.
@@ -68,7 +69,7 @@ namespace FluentDocker.Testing.Core
     /// </summary>
     public IReadOnlyList<IContainerService> Containers
     {
-      get { EnsureInitialized(); return _services.OfType<IContainerService>().ToList(); }
+      get { EnsureInitialized(); return [.. _services.OfType<IContainerService>()]; }
     }
 
     #region ResourceBase overrides
@@ -155,7 +156,7 @@ namespace FluentDocker.Testing.Core
           }
           catch (Exception ex)
           {
-            Logger.Log($"Topology diagnostics log collection failed: {ex.Message}");
+            Logger.LogWarning(ex, "Topology diagnostics log collection failed");
             logs.Add($"--- {container.Name ?? container.Id} --- (failed to collect)");
           }
         }

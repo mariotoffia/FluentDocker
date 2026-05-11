@@ -161,7 +161,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
           "ParseImageList",
           BindingFlags.NonPublic | BindingFlags.Static);
       Assert.NotNull(method);
-      return (IList<Image>)method.Invoke(null, new object[] { json });
+      return (IList<Image>)method.Invoke(null, [json]);
     }
 
     private static Image InvokeParseImageInspect(string json)
@@ -170,7 +170,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
           "ParseImageInspect",
           BindingFlags.NonPublic | BindingFlags.Static);
       Assert.NotNull(method);
-      return (Image)method.Invoke(null, new object[] { json });
+      return (Image)method.Invoke(null, [json]);
     }
 
     private static IList<ImageLayer> InvokeParseHistory(string json)
@@ -179,7 +179,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
           "ParseHistory",
           BindingFlags.NonPublic | BindingFlags.Static);
       Assert.NotNull(method);
-      return (IList<ImageLayer>)method.Invoke(null, new object[] { json });
+      return (IList<ImageLayer>)method.Invoke(null, [json]);
     }
 
     #endregion

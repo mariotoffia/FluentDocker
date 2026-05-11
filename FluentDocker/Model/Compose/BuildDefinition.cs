@@ -48,7 +48,7 @@ namespace FluentDocker.Model.Compose
     ///   - buildno
     ///   - gitcommithash
     /// </remarks>
-    public IList<string> Args { get; set; } = new List<string>();
+    public IList<string> Args { get; set; } = [];
     /// <summary>
     /// A list of images that the engine uses for cache resolution.
     /// </summary>
@@ -58,7 +58,7 @@ namespace FluentDocker.Model.Compose
     ///   - alpine:latest
     ///   - corp/web_app:3.14
     /// </remarks>
-    public IList<string> CacheFrom { get; set; } = new List<string>();
+    public IList<string> CacheFrom { get; set; } = [];
     /// <summary>
     /// Add metadata to the resulting image using Docker labels.
     /// </summary>

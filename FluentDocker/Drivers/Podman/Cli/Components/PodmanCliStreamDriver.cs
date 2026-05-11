@@ -8,6 +8,8 @@ using FluentDocker.Common;
 using FluentDocker.Drivers.Docker.Cli;
 using FluentDocker.Drivers.Podman.Cli.Binary;
 using FluentDocker.Model.Drivers;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace FluentDocker.Drivers.Podman.Cli.Components
 {
@@ -185,7 +187,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       }
       catch (Exception ex)
       {
-        Logger.Log($"Podman event parsing failed: {ex.Message}");
+        NullLogger.Instance.LogDebug(ex, "Podman event parsing failed");
         return null;
       }
     }
@@ -233,7 +235,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       }
       catch (Exception ex)
       {
-        Logger.Log($"Podman stats parsing failed: {ex.Message}");
+        NullLogger.Instance.LogDebug(ex, "Podman stats parsing failed");
         return null;
       }
     }

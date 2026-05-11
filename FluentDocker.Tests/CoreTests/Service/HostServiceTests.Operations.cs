@@ -34,11 +34,11 @@ namespace FluentDocker.Tests.CoreTests.Service
               It.IsAny<DriverContext>(),
               It.IsAny<ImageListFilter>(),
               It.IsAny<CancellationToken>()))
-          .ReturnsAsync(CommandResponse<IList<Image>>.Ok(new List<Image>
-          {
-            new Image { Id = "sha256:aaa", RepoTags = new List<string> { "nginx:latest" } },
-            new Image { Id = "sha256:bbb", RepoTags = new List<string> { "redis:7-alpine" } }
-          }));
+          .ReturnsAsync(CommandResponse<IList<Image>>.Ok(
+          [
+            new Image { Id = "sha256:aaa", RepoTags = ["nginx:latest"] },
+            new Image { Id = "sha256:bbb", RepoTags = ["redis:7-alpine"] }
+          ]));
 
       var kernel = await MockKernelBuilderExtensions.CreateWithMockDriverAsync("docker", mockPack);
       try
@@ -66,7 +66,7 @@ namespace FluentDocker.Tests.CoreTests.Service
               It.IsAny<DriverContext>(),
               It.IsAny<ImageListFilter>(),
               It.IsAny<CancellationToken>()))
-          .ReturnsAsync(CommandResponse<IList<Image>>.Ok(new List<Image>()));
+          .ReturnsAsync(CommandResponse<IList<Image>>.Ok([]));
 
       var kernel = await MockKernelBuilderExtensions.CreateWithMockDriverAsync("docker", mockPack);
       try
@@ -119,10 +119,10 @@ namespace FluentDocker.Tests.CoreTests.Service
               It.IsAny<DriverContext>(),
               It.IsAny<ImageListFilter>(),
               It.IsAny<CancellationToken>()))
-          .ReturnsAsync(CommandResponse<IList<Image>>.Ok(new List<Image>
-          {
-            new Image { Id = "sha256:ccc", RepoTags = new List<string>() }
-          }));
+          .ReturnsAsync(CommandResponse<IList<Image>>.Ok(
+          [
+            new Image { Id = "sha256:ccc", RepoTags = [] }
+          ]));
 
       var kernel = await MockKernelBuilderExtensions.CreateWithMockDriverAsync("docker", mockPack);
       try
@@ -264,7 +264,7 @@ namespace FluentDocker.Tests.CoreTests.Service
         var config = new ImageBuildConfig
         {
           BuildContext = "/tmp/build",
-          Tags = new List<string> { "myapp:v1.0" }
+          Tags = ["myapp:v1.0"]
         };
         var image = await service.BuildImageAsync(
             config, cancellationToken: TestContext.Current.CancellationToken);
@@ -431,7 +431,7 @@ namespace FluentDocker.Tests.CoreTests.Service
         var config = new ContainerCreateOptions
         {
           Name = "my-container",
-          Command = new[] { "/bin/sh", "-c", "echo hello" },
+          Command = ["/bin/sh", "-c", "echo hello"],
           WorkingDir = "/app",
           User = "appuser",
           Privileged = true,

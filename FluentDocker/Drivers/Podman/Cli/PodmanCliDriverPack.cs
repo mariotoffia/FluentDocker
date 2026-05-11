@@ -8,6 +8,8 @@ using FluentDocker.Drivers.Podman.Cli.Binary;
 using FluentDocker.Drivers.Podman.Cli.Components;
 using FluentDocker.Kernel;
 using FluentDocker.Model.Drivers;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace FluentDocker.Drivers.Podman.Cli
 {
@@ -21,9 +23,10 @@ namespace FluentDocker.Drivers.Podman.Cli
   /// </remarks>
   public class PodmanCliDriverPack : IDriverPack
   {
-    private readonly Dictionary<Type, object> _drivers = new Dictionary<Type, object>();
+    private readonly Dictionary<Type, object> _drivers = [];
     private DriverContext _context;
     private IPodmanBinaryResolver _binaryResolver;
+    private ILogger<PodmanCliDriverPack> _logger = NullLogger<PodmanCliDriverPack>.Instance;
     private bool _initialized;
 
     /// <summary>
@@ -56,6 +59,7 @@ namespace FluentDocker.Drivers.Podman.Cli
     {
       ArgumentNullException.ThrowIfNull(context);
       _context = context;
+      _logger = context.LoggerFactory.CreateLogger<PodmanCliDriverPack>();
 
       var binaryConfig = new PodmanBinaryConfiguration
       {
@@ -143,7 +147,7 @@ namespace FluentDocker.Drivers.Podman.Cli
       }
       catch (Exception ex)
       {
-        Logger.Log($"Podman CLI ping failed: {ex.Message}");
+        _logger.LogError(ex, "Podman CLI ping failed");
         return false;
       }
     }

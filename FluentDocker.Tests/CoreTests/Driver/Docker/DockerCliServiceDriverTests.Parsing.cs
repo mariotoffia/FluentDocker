@@ -26,7 +26,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Docker
     {
       Assert.NotNull(ParseServiceInspectMethod);
       return (ServiceDetails)ParseServiceInspectMethod.Invoke(
-          null, new object[] { json });
+          null, [json]);
     }
 
     #region ParseServiceInspect -- Replicated Mode

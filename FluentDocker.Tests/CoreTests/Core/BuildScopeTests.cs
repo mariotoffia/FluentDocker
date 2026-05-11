@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using FluentDocker.Kernel;
 using FluentDocker.Model.Kernel;
 using FluentDocker.Services;
+using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 
 namespace FluentDocker.Tests.CoreTests.Core
@@ -18,7 +19,7 @@ namespace FluentDocker.Tests.CoreTests.Core
     public void Constructor_CreatesScope()
     {
       // Arrange
-      var kernel = new FluentDockerKernel();
+      var kernel = new FluentDockerKernel(new DriverRegistry(NullLoggerFactory.Instance), NullLoggerFactory.Instance);
 
       // Act
       var scope = new BuildScope(kernel, "docker");
@@ -36,7 +37,7 @@ namespace FluentDocker.Tests.CoreTests.Core
     public void AddResult_AddsService()
     {
       // Arrange
-      var kernel = new FluentDockerKernel();
+      var kernel = new FluentDockerKernel(new DriverRegistry(NullLoggerFactory.Instance), NullLoggerFactory.Instance);
       var scope = new BuildScope(kernel, "docker");
       var service = new MockService("test");
 
@@ -55,7 +56,7 @@ namespace FluentDocker.Tests.CoreTests.Core
     public void AddResult_MultipleServices_AllAdded()
     {
       // Arrange
-      var kernel = new FluentDockerKernel();
+      var kernel = new FluentDockerKernel(new DriverRegistry(NullLoggerFactory.Instance), NullLoggerFactory.Instance);
       var scope = new BuildScope(kernel, "docker");
       var service1 = new MockService("service1");
       var service2 = new MockService("service2");
@@ -80,7 +81,7 @@ namespace FluentDocker.Tests.CoreTests.Core
     public void AddResult_NullService_NotAdded()
     {
       // Arrange
-      var kernel = new FluentDockerKernel();
+      var kernel = new FluentDockerKernel(new DriverRegistry(NullLoggerFactory.Instance), NullLoggerFactory.Instance);
       var scope = new BuildScope(kernel, "docker");
 
       // Act
@@ -97,7 +98,7 @@ namespace FluentDocker.Tests.CoreTests.Core
     public void Results_IsReadOnly()
     {
       // Arrange
-      var kernel = new FluentDockerKernel();
+      var kernel = new FluentDockerKernel(new DriverRegistry(NullLoggerFactory.Instance), NullLoggerFactory.Instance);
       var scope = new BuildScope(kernel, "docker");
       var service = new MockService("test");
       scope.AddResult(service);
@@ -113,11 +114,9 @@ namespace FluentDocker.Tests.CoreTests.Core
     }
 
     // Mock service for testing
-    private class MockService : IServiceAsync
+    private class MockService(string name) : IServiceAsync
     {
-      public MockService(string name) => Name = name;
-
-      public string Name { get; }
+      public string Name { get; } = name;
       public ServiceRunningState State => ServiceRunningState.Unknown;
       public FluentDockerKernel Kernel => null;
       public string DriverId => "mock";

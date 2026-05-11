@@ -18,7 +18,7 @@ namespace FluentDocker.Builders
   /// </summary>
   public sealed class DockerfileBuilder
   {
-    private readonly FileBuilderConfig _config = new FileBuilderConfig();
+    private readonly FileBuilderConfig _config = new();
     private readonly ImageBuilder _parent;
     private TemplateString _workingFolder;
     private string _lastContents;
@@ -149,7 +149,7 @@ namespace FluentDocker.Builders
     /// <param name="nameValue">Name=value pairs</param>
     public DockerfileBuilder Label(params string[] nameValue)
     {
-      _config.Commands.Add(new LabelCommand(nameValue.Select(x => (TemplateString)x).ToArray()));
+      _config.Commands.Add(new LabelCommand([.. nameValue.Select(x => (TemplateString)x)]));
       return this;
     }
 
@@ -251,7 +251,7 @@ namespace FluentDocker.Builders
     /// <param name="nameValue">Name=value pairs</param>
     public DockerfileBuilder Environment(params string[] nameValue)
     {
-      _config.Commands.Add(new EnvCommand(nameValue.Select(x => (TemplateString)x).ToArray()));
+      _config.Commands.Add(new EnvCommand([.. nameValue.Select(x => (TemplateString)x)]));
       return this;
     }
 
@@ -260,7 +260,7 @@ namespace FluentDocker.Builders
     /// </summary>
     public DockerfileBuilder Volume(params string[] mountpoints)
     {
-      _config.Commands.Add(new VolumeCommand(mountpoints.Select(x => (TemplateString)x).ToArray()));
+      _config.Commands.Add(new VolumeCommand([.. mountpoints.Select(x => (TemplateString)x)]));
       return this;
     }
 

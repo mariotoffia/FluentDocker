@@ -9,6 +9,7 @@ using FluentDocker.Model.Drivers;
 using FluentDocker.Services;
 using FluentDocker.Services.Impl;
 using FluentDocker.Tests.Mocks;
+using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using Xunit;
 
@@ -27,7 +28,7 @@ namespace FluentDocker.Tests.CoreTests.Service
     public void Constructor_SetsProperties()
     {
       // Arrange
-      var kernel = new FluentDockerKernel();
+      var kernel = new FluentDockerKernel(new DriverRegistry(NullLoggerFactory.Instance), NullLoggerFactory.Instance);
 
       // Act
       var service = new ImageService(kernel, "docker", "sha256:abc123", "nginx", "1.25");
@@ -54,7 +55,7 @@ namespace FluentDocker.Tests.CoreTests.Service
     [Fact]
     public void Constructor_NullDriverId_ThrowsArgumentNullException()
     {
-      var kernel = new FluentDockerKernel();
+      var kernel = new FluentDockerKernel(new DriverRegistry(NullLoggerFactory.Instance), NullLoggerFactory.Instance);
       Assert.Throws<ArgumentNullException>(() =>
           new ImageService(kernel, null!, "sha256:abc123", "nginx", "latest"));
       kernel.Dispose();
@@ -63,7 +64,7 @@ namespace FluentDocker.Tests.CoreTests.Service
     [Fact]
     public void Constructor_NullImageId_ThrowsArgumentNullException()
     {
-      var kernel = new FluentDockerKernel();
+      var kernel = new FluentDockerKernel(new DriverRegistry(NullLoggerFactory.Instance), NullLoggerFactory.Instance);
       Assert.Throws<ArgumentNullException>(() =>
           new ImageService(kernel, "docker", null!, "nginx", "latest"));
       kernel.Dispose();
@@ -72,7 +73,7 @@ namespace FluentDocker.Tests.CoreTests.Service
     [Fact]
     public void Constructor_NullTag_DefaultsToLatest()
     {
-      var kernel = new FluentDockerKernel();
+      var kernel = new FluentDockerKernel(new DriverRegistry(NullLoggerFactory.Instance), NullLoggerFactory.Instance);
 
       var service = new ImageService(kernel, "docker", "sha256:abc123", "nginx", null);
 
@@ -87,7 +88,7 @@ namespace FluentDocker.Tests.CoreTests.Service
     [Fact]
     public void FullName_WithRepository_CombinesRepositoryAndTag()
     {
-      var kernel = new FluentDockerKernel();
+      var kernel = new FluentDockerKernel(new DriverRegistry(NullLoggerFactory.Instance), NullLoggerFactory.Instance);
 
       var service = new ImageService(kernel, "docker", "sha256:abc123", "myregistry/nginx", "2.0");
 
@@ -98,7 +99,7 @@ namespace FluentDocker.Tests.CoreTests.Service
     [Fact]
     public void FullName_WithoutRepository_ReturnsImageId()
     {
-      var kernel = new FluentDockerKernel();
+      var kernel = new FluentDockerKernel(new DriverRegistry(NullLoggerFactory.Instance), NullLoggerFactory.Instance);
 
       var service = new ImageService(kernel, "docker", "sha256:abc123", null, "latest");
 
@@ -174,8 +175,8 @@ namespace FluentDocker.Tests.CoreTests.Service
       // Arrange
       var layers = new List<ImageLayer>
       {
-        new ImageLayer { Id = "layer1", CreatedBy = "ADD file:abc", Size = 1024 },
-        new ImageLayer { Id = "layer2", CreatedBy = "RUN apt-get update", Size = 2048 }
+        new() { Id = "layer1", CreatedBy = "ADD file:abc", Size = 1024 },
+        new() { Id = "layer2", CreatedBy = "RUN apt-get update", Size = 2048 }
       };
 
       var mockPack = new MockDriverPack();
@@ -327,7 +328,7 @@ namespace FluentDocker.Tests.CoreTests.Service
     [Fact]
     public async Task PauseAsync_ThrowsNotSupportedException()
     {
-      var kernel = new FluentDockerKernel();
+      var kernel = new FluentDockerKernel(new DriverRegistry(NullLoggerFactory.Instance), NullLoggerFactory.Instance);
       var service = new ImageService(kernel, "docker", "sha256:abc123", "nginx", "latest");
 
       await Assert.ThrowsAsync<NotSupportedException>(
@@ -339,7 +340,7 @@ namespace FluentDocker.Tests.CoreTests.Service
     [Fact]
     public async Task StopAsync_ThrowsNotSupportedException()
     {
-      var kernel = new FluentDockerKernel();
+      var kernel = new FluentDockerKernel(new DriverRegistry(NullLoggerFactory.Instance), NullLoggerFactory.Instance);
       var service = new ImageService(kernel, "docker", "sha256:abc123", "nginx", "latest");
 
       await Assert.ThrowsAsync<NotSupportedException>(
@@ -351,7 +352,7 @@ namespace FluentDocker.Tests.CoreTests.Service
     [Fact]
     public async Task StartAsync_CompletesSuccessfully()
     {
-      var kernel = new FluentDockerKernel();
+      var kernel = new FluentDockerKernel(new DriverRegistry(NullLoggerFactory.Instance), NullLoggerFactory.Instance);
       var service = new ImageService(kernel, "docker", "sha256:abc123", "nginx", "latest");
 
       // Act — should complete without throwing
@@ -369,7 +370,7 @@ namespace FluentDocker.Tests.CoreTests.Service
     [Fact]
     public void AddHook_StoresHook_RemoveHook_RemovesHook()
     {
-      var kernel = new FluentDockerKernel();
+      var kernel = new FluentDockerKernel(new DriverRegistry(NullLoggerFactory.Instance), NullLoggerFactory.Instance);
       var service = new ImageService(kernel, "docker", "sha256:abc123", "nginx", "latest");
 
       // Act — add hook, returns self for fluent chaining

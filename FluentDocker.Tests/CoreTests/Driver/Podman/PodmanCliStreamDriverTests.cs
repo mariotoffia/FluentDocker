@@ -179,7 +179,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
     {
       var config = new StreamEventsConfig
       {
-        Types = new List<string> { "container", "image" }
+        Types = ["container", "image"]
       };
 
       var result = PodmanCliStreamDriver.BuildStreamEventsArgs(config);
@@ -193,7 +193,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
     {
       var config = new StreamEventsConfig
       {
-        Actions = new List<string> { "start", "stop", "die" }
+        Actions = ["start", "stop", "die"]
       };
 
       var result = PodmanCliStreamDriver.BuildStreamEventsArgs(config);
@@ -228,8 +228,8 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
       {
         Since = "2024-01-01",
         Until = "2024-12-31",
-        Types = new List<string> { "container" },
-        Actions = new List<string> { "start", "stop" },
+        Types = ["container"],
+        Actions = ["start", "stop"],
         Filters = new Dictionary<string, string>
         {
           { "name", "web-server" }
@@ -252,9 +252,9 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
     {
       var config = new StreamEventsConfig
       {
-        Types = new List<string>(),
-        Actions = new List<string>(),
-        Filters = new Dictionary<string, string>()
+        Types = [],
+        Actions = [],
+        Filters = []
       };
 
       var result = PodmanCliStreamDriver.BuildStreamEventsArgs(config);

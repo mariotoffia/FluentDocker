@@ -31,7 +31,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
             new StackDeployConfig
             {
               StackName = stackName,
-              ComposeFiles = new List<string> { composeFile }
+              ComposeFiles = [composeFile]
             }, cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.True(result.Success, $"Deploy failed: {result.Error}");
@@ -62,13 +62,13 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
             new StackDeployConfig
             {
               StackName = stackName,
-              ComposeFiles = new List<string> { composeFile }
+              ComposeFiles = [composeFile]
             }, cancellationToken: TestContext.Current.CancellationToken);
 
         await WaitForServiceReplicasAsync($"{stackName}_web", 1, 30);
 
         var removeResult = await StackDriver.RemoveAsync(
-            Context, new[] { stackName }, cancellationToken: TestContext.Current.CancellationToken);
+            Context, [stackName], cancellationToken: TestContext.Current.CancellationToken);
         Assert.True(removeResult.Success, $"Remove failed: {removeResult.Error}");
       }
       finally
@@ -97,7 +97,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
             new StackDeployConfig
             {
               StackName = stackName,
-              ComposeFiles = new List<string> { composeFile }
+              ComposeFiles = [composeFile]
             }, cancellationToken: TestContext.Current.CancellationToken);
 
         await WaitForServiceReplicasAsync($"{stackName}_web", 1, 30);
@@ -133,7 +133,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
             new StackDeployConfig
             {
               StackName = stackName,
-              ComposeFiles = new List<string> { composeFile }
+              ComposeFiles = [composeFile]
             }, cancellationToken: TestContext.Current.CancellationToken);
 
         await WaitForServiceReplicasAsync($"{stackName}_web", 1, 30);
@@ -170,7 +170,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
             new StackDeployConfig
             {
               StackName = stackName,
-              ComposeFiles = new List<string> { composeFile }
+              ComposeFiles = [composeFile]
             }, cancellationToken: TestContext.Current.CancellationToken);
 
         await WaitForServiceReplicasAsync($"{stackName}_web", 1, 30);
@@ -211,7 +211,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
             new StackDeployConfig
             {
               StackName = stackName,
-              ComposeFiles = new List<string> { composeFile }
+              ComposeFiles = [composeFile]
             }, cancellationToken: TestContext.Current.CancellationToken);
 
         await WaitForServiceReplicasAsync($"{stackName}_web", 1, 30);
@@ -221,7 +221,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
             new StackDeployConfig
             {
               StackName = stackName,
-              ComposeFiles = new List<string> { composeFile },
+              ComposeFiles = [composeFile],
               Prune = true
             }, cancellationToken: TestContext.Current.CancellationToken);
         Assert.True(result.Success, $"Re-deploy with prune failed: {result.Error}");
@@ -241,7 +241,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
     public async Task Remove_NonExistentStack_FailsGracefully()
     {
       var fakeName = "nonexistent-" + Guid.NewGuid().ToString("N")[..12];
-      var result = await StackDriver.RemoveAsync(Context, new[] { fakeName }, cancellationToken: TestContext.Current.CancellationToken);
+      var result = await StackDriver.RemoveAsync(Context, [fakeName], cancellationToken: TestContext.Current.CancellationToken);
       // Docker may succeed or fail depending on version — verify semantics
       Assert.NotNull(result);
       if (!result.Success)
@@ -275,7 +275,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
     private async Task RemoveStackSafeAsync(string stackName)
     {
       try
-      { await StackDriver.RemoveAsync(Context, new[] { stackName }); }
+      { await StackDriver.RemoveAsync(Context, [stackName]); }
       catch { }
 
       // Give Docker time to clean up services

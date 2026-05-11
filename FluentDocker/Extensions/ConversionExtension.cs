@@ -3,7 +3,7 @@ using System.Text.RegularExpressions;
 
 namespace FluentDocker.Extensions
 {
-  public static class ConversionExtension
+  public static partial class ConversionExtension
   {
     private static readonly string[] DefaultUnits = ["b", "k", "m", "g"];
     /// <summary>
@@ -21,7 +21,7 @@ namespace FluentDocker.Extensions
       if (string.IsNullOrWhiteSpace(value))
         return long.MinValue;
 
-      var regex = new Regex(@"(\d+)([a-zA-Z]+)");
+      var regex = MyRegex();
       var result = regex.Match(value);
 
       if (!result.Success)
@@ -39,19 +39,17 @@ namespace FluentDocker.Extensions
       if (letters == "b")
         return val;
 
-      switch (letters)
+      return letters switch
       {
-        case "b":
-          return val;
-        case "k":
-          return val * 1024;
-        case "m":
-          return val * 1024 * 1024;
-        case "g":
-          return val * 1024 * 1024 * 1024;
-        default:
-          return long.MinValue;
-      }
+        "b" => val,
+        "k" => val * 1024,
+        "m" => val * 1024 * 1024,
+        "g" => val * 1024 * 1024 * 1024,
+        _ => long.MinValue,
+      };
     }
+
+    [GeneratedRegex(@"(\d+)([a-zA-Z]+)")]
+    private static partial Regex MyRegex();
   }
 }

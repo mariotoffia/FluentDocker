@@ -13,12 +13,8 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
   /// <summary>
   /// Podman CLI implementation of machine (VM) management operations.
   /// </summary>
-  public class PodmanCliMachineDriver : PodmanCliDriverBase, IPodmanMachineDriver
+  public class PodmanCliMachineDriver(IPodmanBinaryResolver binaryResolver) : PodmanCliDriverBase(binaryResolver), IPodmanMachineDriver
   {
-    public PodmanCliMachineDriver(IPodmanBinaryResolver binaryResolver)
-        : base(binaryResolver)
-    {
-    }
 
     #region Lifecycle
 

@@ -13,16 +13,13 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
   /// Docker CLI implementation of IComposeDriver.
   /// Lifecycle operations are in this file; info/query operations are in the partial class.
   /// </summary>
-  public partial class DockerCliComposeDriver : DockerCliDriverBase, IComposeDriver
+  /// <remarks>
+  /// Creates a new instance with the specified binary resolver.
+  /// </remarks>
+  public partial class DockerCliComposeDriver(IBinaryResolver binaryResolver) : DockerCliDriverBase(binaryResolver), IComposeDriver
   {
     private static readonly char[] LineSeparators = ['\n', '\r'];
     private static readonly char[] NewlineSeparator = ['\n'];
-    /// <summary>
-    /// Creates a new instance with the specified binary resolver.
-    /// </summary>
-    public DockerCliComposeDriver(IBinaryResolver binaryResolver) : base(binaryResolver)
-    {
-    }
 
     #region Lifecycle Operations
 
@@ -56,7 +53,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
         return CommandResponse<ComposeUpResult>.Ok(new ComposeUpResult
         {
           ProjectName = config.ProjectName ?? "default",
-          Services = config.Services.ToList()
+          Services = [.. config.Services]
         });
       }
       catch (Exception ex)

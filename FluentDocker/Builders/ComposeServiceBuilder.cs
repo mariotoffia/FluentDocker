@@ -16,7 +16,7 @@ namespace FluentDocker.Builders
   /// </remarks>
   public class ComposeServiceBuilder
   {
-    private readonly ComposeServiceDefinition _config = new ComposeServiceDefinition();
+    private readonly ComposeServiceDefinition _config = new();
 
     internal ComposeServiceBuilder(string name) => _config.Name = name;
 
@@ -99,7 +99,7 @@ namespace FluentDocker.Builders
           throw new FluentDockerException(
             "Either specify name=value format or every even is name and every odd is value.");
 
-        _config.Environment.Add(v.Substring(0, idx), v.Substring(idx + 1));
+        _config.Environment.Add(v[..idx], v[(idx + 1)..]);
       }
 
       return this;

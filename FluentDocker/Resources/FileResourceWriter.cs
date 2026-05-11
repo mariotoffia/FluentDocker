@@ -3,11 +3,9 @@ using FluentDocker.Model.Common;
 
 namespace FluentDocker.Resources
 {
-  public sealed class FileResourceWriter : IResourceWriter
+  public sealed class FileResourceWriter(TemplateString basePath) : IResourceWriter
   {
-    private readonly TemplateString _basePath;
-
-    public FileResourceWriter(TemplateString basePath) => _basePath = basePath;
+    private readonly TemplateString _basePath = basePath;
 
     public IResourceWriter Write(ResourceStream stream)
     {

@@ -6,7 +6,7 @@ namespace FluentDocker.Model.Builders.FileBuilder
   public sealed class ExposeCommand : ICommand
   {
     public ExposeCommand(params int[] ports)
-      => Ports = ports.Select(p => p.ToString()) ?? Enumerable.Empty<string>();
+      => Ports = ports.Select(p => p.ToString()) ?? [];
 
     public ExposeCommand(params string[] ports)
       => Ports = ports ?? Enumerable.Empty<string>();

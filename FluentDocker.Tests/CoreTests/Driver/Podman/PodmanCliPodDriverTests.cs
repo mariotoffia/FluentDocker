@@ -202,8 +202,8 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
         InfraImage = "k8s.gcr.io/pause:3.5",
         Share = "ipc,net,uts",
         Labels = new Dictionary<string, string> { { "env", "test" } },
-        Dns = new System.Collections.Generic.List<string> { "8.8.8.8" },
-        Ports = new System.Collections.Generic.List<string> { "8080:80" }
+        Dns = ["8.8.8.8"],
+        Ports = ["8080:80"]
       };
 
       var result = InvokeBuildCreateArgs(config);
@@ -236,7 +236,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
           "ParsePodList",
           BindingFlags.NonPublic | BindingFlags.Static);
       Assert.NotNull(method);
-      return (IList<PodInfo>)method.Invoke(null, new object[] { json });
+      return (IList<PodInfo>)method.Invoke(null, [json]);
     }
 
     private static PodInspectResult InvokeParsePodInspect(string json)
@@ -245,7 +245,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
           "ParsePodInspect",
           BindingFlags.NonPublic | BindingFlags.Static);
       Assert.NotNull(method);
-      return (PodInspectResult)method.Invoke(null, new object[] { json });
+      return (PodInspectResult)method.Invoke(null, [json]);
     }
 
     private static string InvokeBuildCreateArgs(PodCreateConfig config)
@@ -254,7 +254,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
           "BuildCreateArgs",
           BindingFlags.NonPublic | BindingFlags.Static);
       Assert.NotNull(method);
-      return (string)method.Invoke(null, new object[] { config });
+      return (string)method.Invoke(null, [config]);
     }
 
     #endregion

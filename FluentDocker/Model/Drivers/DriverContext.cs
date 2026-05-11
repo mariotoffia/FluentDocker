@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
 using FluentDocker.Model.Common;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace FluentDocker.Model.Drivers
 {
@@ -9,6 +11,14 @@ namespace FluentDocker.Model.Drivers
   /// </summary>
   public class DriverContext
   {
+    /// <summary>
+    /// Logger factory used by the driver pack and its components.
+    /// Written by <see cref="FluentDocker.Kernel.DriverRegistry"/> before
+    /// <see cref="FluentDocker.Drivers.IDriverPack.InitializeAsync"/> is invoked,
+    /// so packs can rely on it being the consumer-supplied factory at initialization time.
+    /// </summary>
+    public ILoggerFactory LoggerFactory { get; set; } = NullLoggerFactory.Instance;
+
     /// <summary>
     /// The driver ID for this operation.
     /// </summary>
@@ -37,7 +47,7 @@ namespace FluentDocker.Model.Drivers
     /// <summary>
     /// Additional metadata for this operation.
     /// </summary>
-    public Dictionary<string, string> Metadata { get; set; } = new Dictionary<string, string>();
+    public Dictionary<string, string> Metadata { get; set; } = [];
 
     /// <summary>
     /// Sudo mechanism for Docker commands.

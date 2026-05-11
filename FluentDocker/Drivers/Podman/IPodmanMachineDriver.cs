@@ -85,7 +85,7 @@ namespace FluentDocker.Drivers.Podman
     public string Username { get; set; }
 
     /// <summary>Volume mounts (e.g., "/host/path:/vm/path").</summary>
-    public List<string> Volumes { get; set; } = new List<string>();
+    public List<string> Volumes { get; set; } = [];
 
     /// <summary>Start the machine immediately after init.</summary>
     public bool Now { get; set; }

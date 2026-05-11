@@ -9,6 +9,7 @@ using FluentDocker.Model.Drivers;
 using FluentDocker.Services;
 using FluentDocker.Services.Impl;
 using FluentDocker.Tests.Mocks;
+using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using Xunit;
 
@@ -48,7 +49,7 @@ namespace FluentDocker.Tests.CoreTests.Service
     [Fact]
     public void Constructor_NullDriverId_ThrowsArgumentNullException()
     {
-      var kernel = new FluentDockerKernel();
+      var kernel = new FluentDockerKernel(new DriverRegistry(NullLoggerFactory.Instance), NullLoggerFactory.Instance);
       try
       {
         Assert.Throws<ArgumentNullException>(() =>

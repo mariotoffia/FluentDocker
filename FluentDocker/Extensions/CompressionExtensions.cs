@@ -8,17 +8,13 @@ namespace FluentDocker.Extensions
   {
     public static void UnTar(this string file, string destPath)
     {
-      using (var stream = File.OpenRead(file))
+      using var stream = File.OpenRead(file);
+      using var reader = ReaderFactory.OpenReader(stream);
+      while (reader.MoveToNextEntry())
       {
-        using (var reader = ReaderFactory.OpenReader(stream))
+        if (!reader.Entry.IsDirectory)
         {
-          while (reader.MoveToNextEntry())
-          {
-            if (!reader.Entry.IsDirectory)
-            {
-              reader.WriteEntryToDirectory(destPath, new ExtractionOptions { ExtractFullPath = true, Overwrite = true });
-            }
-          }
+          reader.WriteEntryToDirectory(destPath, new ExtractionOptions { ExtractFullPath = true, Overwrite = true });
         }
       }
     }

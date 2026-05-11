@@ -258,7 +258,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
         "ParseEvent",
         BindingFlags.NonPublic | BindingFlags.Static);
       Assert.NotNull(method);
-      return (ContainerEvent)method.Invoke(null, new object[] { json });
+      return (ContainerEvent)method.Invoke(null, [json]);
     }
 
     [Fact]

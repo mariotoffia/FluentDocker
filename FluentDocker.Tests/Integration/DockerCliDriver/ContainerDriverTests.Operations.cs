@@ -25,7 +25,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
         // Act
         var result = await ContainerDriver.ExecAsync(Context, containerId, new ExecConfig
         {
-          Command = new[] { "echo", "hello" }
+          Command = ["echo", "hello"]
         }, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
@@ -150,7 +150,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
         // Arrange - use alpine with sleep command
         containerId = await RunContainerAsync(TestImage, new ContainerCreateConfig
         {
-          Command = new[] { "sleep", "60" }
+          Command = ["sleep", "60"]
         });
         System.IO.File.WriteAllText(tempFile, "Hello from host!");
 
@@ -166,14 +166,14 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
         // Verify file exists in container using ls first
         var lsResult = await ContainerDriver.ExecAsync(Context, containerId, new ExecConfig
         {
-          Command = new[] { "ls", "-la", "/tmp/" }
+          Command = ["ls", "-la", "/tmp/"]
         }, cancellationToken: TestContext.Current.CancellationToken);
         Assert.True(lsResult.Success, $"ls failed: {lsResult.Error}");
 
         // Verify file content
         var execResult = await ContainerDriver.ExecAsync(Context, containerId, new ExecConfig
         {
-          Command = new[] { "cat", "/tmp/testfile.txt" }
+          Command = ["cat", "/tmp/testfile.txt"]
         }, cancellationToken: TestContext.Current.CancellationToken);
         Assert.True(execResult.Success, $"cat failed: {execResult.Error}. ls output: {lsResult.Data.StdOut}");
         Assert.Contains("Hello from host!", execResult.Data.StdOut);
@@ -196,14 +196,14 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
         // Arrange
         containerId = await RunContainerAsync(TestImage, new ContainerCreateConfig
         {
-          Command = new[] { "sleep", "60" }
+          Command = ["sleep", "60"]
         });
         System.IO.Directory.CreateDirectory(tempDir);
 
         // Create a file in the container
         var execResult = await ContainerDriver.ExecAsync(Context, containerId, new ExecConfig
         {
-          Command = new[] { "/bin/sh", "-c", "echo 'Hello from container!' > /tmp/containerfile.txt" }
+          Command = ["/bin/sh", "-c", "echo 'Hello from container!' > /tmp/containerfile.txt"]
         }, cancellationToken: TestContext.Current.CancellationToken);
         Assert.True(execResult.Success, $"Exec failed: {execResult.Error}");
 
@@ -213,7 +213,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
         // Verify file was created
         var verifyResult = await ContainerDriver.ExecAsync(Context, containerId, new ExecConfig
         {
-          Command = new[] { "cat", "/tmp/containerfile.txt" }
+          Command = ["cat", "/tmp/containerfile.txt"]
         }, cancellationToken: TestContext.Current.CancellationToken);
         Assert.True(verifyResult.Success, $"File verification failed: {verifyResult.Error}");
         Assert.Contains("Hello from container!", verifyResult.Data.StdOut);
@@ -248,7 +248,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
         // Arrange
         containerId = await RunContainerAsync(TestImage, new ContainerCreateConfig
         {
-          Command = new[] { "sleep", "60" }
+          Command = ["sleep", "60"]
         });
         System.IO.Directory.CreateDirectory(tempDir);
         System.IO.File.WriteAllText(System.IO.Path.Combine(tempDir, "file1.txt"), "Content 1");
@@ -263,7 +263,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
         // Verify files exist in container
         var execResult = await ContainerDriver.ExecAsync(Context, containerId, new ExecConfig
         {
-          Command = new[] { "ls", "/tmp/testdir" }
+          Command = ["ls", "/tmp/testdir"]
         }, cancellationToken: TestContext.Current.CancellationToken);
         Assert.True(execResult.Success);
         Assert.Contains("file1.txt", execResult.Data.StdOut);
@@ -302,7 +302,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
         var result = await ContainerDriver.RunAsync(Context, new ContainerCreateConfig
         {
           Image = TestImage,
-          Command = new[] { "sleep", "60" },
+          Command = ["sleep", "60"],
           Detach = true,
           NetworkMode = networkName,
           Ipv4Address = staticIp

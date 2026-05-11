@@ -8,6 +8,7 @@ using FluentDocker.Drivers;
 using FluentDocker.Drivers.Podman;
 using FluentDocker.Kernel;
 using FluentDocker.Model.Drivers;
+using Microsoft.Extensions.Logging;
 
 namespace FluentDocker.Testing.Core
 {
@@ -52,7 +53,7 @@ namespace FluentDocker.Testing.Core
     /// </summary>
     public IReadOnlyList<KubePlayPodResult> Pods =>
         PlayResult?.Pods?.ToList().AsReadOnly()
-        ?? (IReadOnlyList<KubePlayPodResult>)Array.Empty<KubePlayPodResult>();
+        ?? (IReadOnlyList<KubePlayPodResult>)[];
 
     /// <summary>
     /// Generates Kubernetes YAML from a running resource.
@@ -132,7 +133,7 @@ namespace FluentDocker.Testing.Core
       }
       catch (Exception ex)
       {
-        Logger.Log($"PodmanKubernetes teardown failed: {ex.Message}");
+        Logger.LogWarning(ex, "PodmanKubernetes teardown failed");
       }
       finally
       {

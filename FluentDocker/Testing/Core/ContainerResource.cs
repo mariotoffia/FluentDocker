@@ -6,6 +6,7 @@ using FluentDocker.Common;
 using FluentDocker.Kernel;
 using FluentDocker.Model.Containers;
 using FluentDocker.Services;
+using Microsoft.Extensions.Logging;
 
 namespace FluentDocker.Testing.Core
 {
@@ -141,7 +142,7 @@ namespace FluentDocker.Testing.Core
         }
         catch (Exception ex)
         {
-          Logger.Log($"Container diagnostics log collection failed: {ex.Message}");
+          Logger.LogWarning(ex, "Container diagnostics log collection failed");
           diag.Logs = "(failed to collect logs)";
         }
 
@@ -154,7 +155,7 @@ namespace FluentDocker.Testing.Core
         }
         catch (Exception ex)
         {
-          Logger.Log($"Container diagnostics inspect collection failed: {ex.Message}");
+          Logger.LogWarning(ex, "Container diagnostics inspect collection failed");
           diag.InspectPayload = "(failed to collect inspect data)";
         }
       }

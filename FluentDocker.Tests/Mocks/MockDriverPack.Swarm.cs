@@ -67,7 +67,7 @@ namespace FluentDocker.Tests.Mocks
               It.IsAny<StackServiceFilter>(),
               It.IsAny<CancellationToken>()))
           .ReturnsAsync(CommandResponse<IList<StackServiceInfo>>.Ok(
-              new List<StackServiceInfo>(services)));
+              [.. services]));
       return this;
     }
 
@@ -83,7 +83,7 @@ namespace FluentDocker.Tests.Mocks
               It.IsAny<StackTaskFilter>(),
               It.IsAny<CancellationToken>()))
           .ReturnsAsync(CommandResponse<IList<StackTask>>.Ok(
-              new List<StackTask>(tasks)));
+              [.. tasks]));
       return this;
     }
   }

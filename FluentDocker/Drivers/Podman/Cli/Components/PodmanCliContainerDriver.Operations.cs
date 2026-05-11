@@ -7,6 +7,8 @@ using System.Threading.Tasks;
 using FluentDocker.Common;
 using FluentDocker.Drivers.Docker.Cli;
 using FluentDocker.Model.Drivers;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace FluentDocker.Drivers.Podman.Cli.Components
 {
@@ -325,14 +327,14 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
         return processes;
 
       // First line is header
-      processes.Titles = new List<string>(lines[0].Split(
-          WhitespaceSeparators, StringSplitOptions.RemoveEmptyEntries));
+      processes.Titles = [.. lines[0].Split(
+          WhitespaceSeparators, StringSplitOptions.RemoveEmptyEntries)];
 
       for (var i = 1; i < lines.Length; i++)
       {
         var fields = lines[i].Split(
             WhitespaceSeparators, StringSplitOptions.RemoveEmptyEntries);
-        processes.Processes.Add(new List<string>(fields));
+        processes.Processes.Add([.. fields]);
       }
 
       return processes;
@@ -353,7 +355,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
         changes.Add(new FilesystemChange
         {
           Kind = trimmed[0].ToString(),
-          Path = trimmed.Substring(2).Trim()
+          Path = trimmed[2..].Trim()
         });
       }
 
@@ -424,7 +426,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       }
       catch (Exception ex)
       {
-        Logger.Log($"Podman container stats parsing failed: {ex.Message}");
+        NullLogger.Instance.LogError(ex, "Podman container stats parsing failed");
         return new ContainerStatsResult();
       }
     }

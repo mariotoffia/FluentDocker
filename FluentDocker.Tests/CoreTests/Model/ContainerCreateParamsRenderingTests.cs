@@ -41,7 +41,7 @@ namespace FluentDocker.Tests.CoreTests.Model
       // Arrange
       var p = new ContainerCreateParams
       {
-        PortMappings = new[] { "8080:80", "9090:90" }
+        PortMappings = ["8080:80", "9090:90"]
       };
 
       // Act
@@ -59,7 +59,7 @@ namespace FluentDocker.Tests.CoreTests.Model
       var p = new ContainerCreateParams
       {
         PublishAllPorts = true,
-        PortMappings = new[] { "8080:80" }
+        PortMappings = ["8080:80"]
       };
 
       // Act
@@ -76,7 +76,7 @@ namespace FluentDocker.Tests.CoreTests.Model
       // Arrange
       var p = new ContainerCreateParams
       {
-        Environment = new[] { "FOO=bar", "BAZ=qux" }
+        Environment = ["FOO=bar", "BAZ=qux"]
       };
 
       // Act
@@ -93,7 +93,7 @@ namespace FluentDocker.Tests.CoreTests.Model
       // Arrange
       var p = new ContainerCreateParams
       {
-        Volumes = new[] { "/host:/container", "/data:/data:ro" }
+        Volumes = ["/host:/container", "/data:/data:ro"]
       };
 
       // Act
@@ -262,7 +262,7 @@ namespace FluentDocker.Tests.CoreTests.Model
       // Arrange
       var p = new ContainerCreateParams
       {
-        Labels = new[] { "env=prod", "team=backend" }
+        Labels = ["env=prod", "team=backend"]
       };
 
       // Act
@@ -279,11 +279,11 @@ namespace FluentDocker.Tests.CoreTests.Model
       // Arrange
       var p = new ContainerCreateParams
       {
-        HostIpMappings = new List<Tuple<string, IPAddress>>
-        {
+        HostIpMappings =
+        [
           Tuple.Create("myhost", IPAddress.Parse("192.168.1.100")),
           Tuple.Create("dbhost", IPAddress.Parse("10.0.0.5"))
-        }
+        ]
       };
 
       // Act

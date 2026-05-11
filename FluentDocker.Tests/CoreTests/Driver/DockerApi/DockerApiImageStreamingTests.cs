@@ -108,7 +108,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
       try
       {
         var result = await driver.SaveAsync(
-            Ctx, new[] { "nginx:latest" }, tempFile, TestContext.Current.CancellationToken);
+            Ctx, ["nginx:latest"], tempFile, TestContext.Current.CancellationToken);
 
         Assert.True(result.Success);
         Assert.True(File.Exists(tempFile));
@@ -133,7 +133,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
       try
       {
         var result = await driver.SaveAsync(
-            Ctx, new[] { "nginx:latest" }, tempFile, TestContext.Current.CancellationToken);
+            Ctx, ["nginx:latest"], tempFile, TestContext.Current.CancellationToken);
 
         Assert.False(result.Success);
         Assert.Equal(ErrorCodes.Image.SaveFailed, result.ErrorCode);
@@ -190,17 +190,11 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
     /// A mock connection that throws on PostStreamAsync and/or GetStreamAsync
     /// to simulate connection failures.
     /// </summary>
-    private sealed class ThrowingDockerApiConnection : IDockerApiConnection
+    private sealed class ThrowingDockerApiConnection(
+        Exception exception, bool throwOnGetStream = false) : IDockerApiConnection
     {
-      private readonly Exception _exception;
-      private readonly bool _throwOnGetStream;
-
-      public ThrowingDockerApiConnection(
-          Exception exception, bool throwOnGetStream = false)
-      {
-        _exception = exception;
-        _throwOnGetStream = throwOnGetStream;
-      }
+      private readonly Exception _exception = exception;
+      private readonly bool _throwOnGetStream = throwOnGetStream;
 
       public string ApiVersion => "1.45";
 

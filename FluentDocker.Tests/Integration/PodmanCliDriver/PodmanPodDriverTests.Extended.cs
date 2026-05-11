@@ -30,7 +30,7 @@ namespace FluentDocker.Tests.Integration.PodmanCliDriver
             new ContainerCreateConfig
             {
               Image = TestImage,
-              Command = new[] { "sleep", "300" },
+              Command = ["sleep", "300"],
               Detach = true,
               Pod = name
             }, cancellationToken: TestContext.Current.CancellationToken);
@@ -69,7 +69,7 @@ namespace FluentDocker.Tests.Integration.PodmanCliDriver
             new ContainerCreateConfig
             {
               Image = TestImage,
-              Command = new[] { "sleep", "300" },
+              Command = ["sleep", "300"],
               Detach = true,
               Pod = name
             }, cancellationToken: TestContext.Current.CancellationToken);
@@ -114,7 +114,7 @@ namespace FluentDocker.Tests.Integration.PodmanCliDriver
             new ContainerCreateConfig
             {
               Image = TestImage,
-              Command = new[] { "sleep", "300" },
+              Command = ["sleep", "300"],
               Detach = true,
               Pod = name
             }, cancellationToken: TestContext.Current.CancellationToken);
@@ -157,7 +157,7 @@ namespace FluentDocker.Tests.Integration.PodmanCliDriver
             new ContainerCreateConfig
             {
               Image = TestImage,
-              Command = new[] { "sleep", "300" },
+              Command = ["sleep", "300"],
               Detach = true,
               Pod = name
             }, cancellationToken: TestContext.Current.CancellationToken);
@@ -201,7 +201,7 @@ namespace FluentDocker.Tests.Integration.PodmanCliDriver
             new ContainerCreateConfig
             {
               Image = TestImage,
-              Command = new[] { "sleep", "300" },
+              Command = ["sleep", "300"],
               Detach = true,
               Pod = name
             }, cancellationToken: TestContext.Current.CancellationToken);
@@ -276,7 +276,7 @@ namespace FluentDocker.Tests.Integration.PodmanCliDriver
             new ContainerCreateConfig
             {
               Image = TestImage,
-              Command = new[] { "sleep", "300" },
+              Command = ["sleep", "300"],
               Detach = true,
               Pod = name
             }, cancellationToken: TestContext.Current.CancellationToken);

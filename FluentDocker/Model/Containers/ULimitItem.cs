@@ -3,18 +3,11 @@ namespace FluentDocker.Model.Containers
   /// <summary>
   /// A item with a <see cref="Ulimit"/> and at least a soft limit but may include a hard as well.
   /// </summary>
-  public class ULimitItem
+  public class ULimitItem(Ulimit ulimit, string soft, string hard = null)
   {
-    public ULimitItem(Ulimit ulimit, string soft, string hard = null)
-    {
-      Ulimit = ulimit;
-      Soft = soft;
-      Hard = hard;
-    }
-
-    public Ulimit Ulimit { get; }
-    public string Soft { get; }
-    public string Hard { get; }
+    public Ulimit Ulimit { get; } = ulimit;
+    public string Soft { get; } = soft;
+    public string Hard { get; } = hard;
 
     public override string ToString()
     {

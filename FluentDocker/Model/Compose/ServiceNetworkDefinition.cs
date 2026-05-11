@@ -57,7 +57,7 @@ namespace FluentDocker.Model.Compose
     ///   networks. Note: A network-wide alias can be shared by multiple containers, and even by multiple services.
     ///   If it is, then exactly which container the name resolves to is not guaranteed.
     /// </remarks>
-    public IList<string> Aliases { get; set; } = new List<string>();
+    public IList<string> Aliases { get; set; } = [];
 
     /// <summary>
     ///   Specify a static IP address for containers for this service when joining the network.

@@ -19,7 +19,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
     private static (ResponseOwningStream wrapper, TrackingStream inner, HttpResponseMessage response)
         CreateTestSubjects(byte[] content = null)
     {
-      content ??= new byte[] { 1, 2, 3, 4, 5 };
+      content ??= [1, 2, 3, 4, 5];
       var inner = new TrackingStream(content);
       var response = new HttpResponseMessage(HttpStatusCode.OK)
       {
@@ -34,7 +34,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
     [Fact]
     public void DisposingStream_DisposesUnderlyingResponse()
     {
-      var (wrapper, inner, response) = CreateTestSubjects();
+      var (wrapper, inner, _) = CreateTestSubjects();
 
       wrapper.Dispose();
 
@@ -47,7 +47,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
     [Fact]
     public async Task DisposingStreamAsync_DisposesUnderlyingResponse()
     {
-      var (wrapper, inner, response) = CreateTestSubjects();
+      var (wrapper, inner, _) = CreateTestSubjects();
 
       await wrapper.DisposeAsync();
 
@@ -156,11 +156,9 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
     /// <summary>
     /// A MemoryStream wrapper that tracks whether Dispose was called.
     /// </summary>
-    private sealed class TrackingStream : MemoryStream
+    private sealed class TrackingStream(byte[] buffer) : MemoryStream(buffer)
     {
       public bool IsDisposed { get; private set; }
-
-      public TrackingStream(byte[] buffer) : base(buffer) { }
 
       protected override void Dispose(bool disposing)
       {

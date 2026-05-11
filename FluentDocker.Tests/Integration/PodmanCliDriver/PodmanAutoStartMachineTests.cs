@@ -3,6 +3,7 @@ using System.Diagnostics;
 using System.Threading.Tasks;
 using FluentDocker.Common;
 using FluentDocker.Kernel;
+using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 
 namespace FluentDocker.Tests.Integration.PodmanCliDriver
@@ -23,7 +24,7 @@ namespace FluentDocker.Tests.Integration.PodmanCliDriver
       FluentDockerKernel kernel = null;
       try
       {
-        kernel = await FluentDockerKernel.Create()
+        kernel = await FluentDockerKernel.Create(NullLoggerFactory.Instance)
             .WithPodmanCli("podman", d => d
                 .WithAutoStartMachine()
                 .AsDefault())
@@ -51,7 +52,7 @@ namespace FluentDocker.Tests.Integration.PodmanCliDriver
       FluentDockerKernel kernel = null;
       try
       {
-        kernel = await FluentDockerKernel.Create()
+        kernel = await FluentDockerKernel.Create(NullLoggerFactory.Instance)
             .WithPodmanCli("podman", d => d
                 .WithAutoStartMachine(c =>
                 {
@@ -76,7 +77,7 @@ namespace FluentDocker.Tests.Integration.PodmanCliDriver
 
       var ex = await Assert.ThrowsAsync<PodmanMachineNotRunningException>(async () =>
       {
-        await FluentDockerKernel.Create()
+        await FluentDockerKernel.Create(NullLoggerFactory.Instance)
                   .WithPodmanCli("podman", d => d
                       .WithAutoStartMachine(c =>
                       {

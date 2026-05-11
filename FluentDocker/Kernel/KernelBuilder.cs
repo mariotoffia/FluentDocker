@@ -4,6 +4,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using FluentDocker.Drivers;
 using FluentDocker.Model.Drivers;
+using Microsoft.Extensions.Logging;
 
 namespace FluentDocker.Kernel
 {
@@ -12,7 +13,20 @@ namespace FluentDocker.Kernel
   /// </summary>
   public class KernelBuilder : IKernelBuilder
   {
-    private readonly List<DriverConfiguration> _driverConfigurations = new();
+    private readonly List<DriverConfiguration> _driverConfigurations = [];
+    private readonly ILoggerFactory _loggerFactory;
+
+    /// <summary>
+    /// Creates a new kernel builder with the consumer-supplied logger factory.
+    /// </summary>
+    /// <param name="loggerFactory">Logger factory; required. Pass
+    /// <see cref="Microsoft.Extensions.Logging.Abstractions.NullLoggerFactory.Instance"/>
+    /// to suppress all logging from the constructed kernel.</param>
+    public KernelBuilder(ILoggerFactory loggerFactory)
+    {
+      ArgumentNullException.ThrowIfNull(loggerFactory);
+      _loggerFactory = loggerFactory;
+    }
 
     /// <inheritdoc />
     public IKernelBuilder WithDockerCli(string driverId, Action<IDockerCliDriverBuilder> configure)
@@ -69,7 +83,7 @@ namespace FluentDocker.Kernel
     /// <inheritdoc />
     public async Task<FluentDockerKernel> BuildAsync(CancellationToken cancellationToken = default)
     {
-      var kernel = new FluentDockerKernel();
+      var kernel = new FluentDockerKernel(new DriverRegistry(_loggerFactory), _loggerFactory);
 
       foreach (var config in _driverConfigurations)
       {

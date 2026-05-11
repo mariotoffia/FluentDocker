@@ -5,6 +5,7 @@ using FluentDocker.Common;
 using FluentDocker.Drivers;
 using FluentDocker.Kernel;
 using FluentDocker.Model.Drivers;
+using Microsoft.Extensions.Logging;
 
 namespace FluentDocker.Services.Impl
 {
@@ -15,6 +16,7 @@ namespace FluentDocker.Services.Impl
   public class EngineScope : IEngineScope
   {
     private readonly FluentDockerKernel _kernel;
+    private readonly ILogger<EngineScope> _logger;
     private readonly string _driverId;
     private readonly EngineScopeType _originalScope;
     private readonly EngineScopeType _targetScope;
@@ -35,6 +37,7 @@ namespace FluentDocker.Services.Impl
       ArgumentNullException.ThrowIfNull(kernel);
       ArgumentNullException.ThrowIfNull(driverId);
       _kernel = kernel;
+      _logger = kernel.LoggerFactory.CreateLogger<EngineScope>();
       _driverId = driverId;
       _targetScope = targetScope;
 
@@ -150,7 +153,7 @@ namespace FluentDocker.Services.Impl
         }
         catch (Exception ex)
         {
-          Logger.Log($"Engine scope restore failed: {ex.Message}");
+          _logger.LogError(ex, "Engine scope restore failed");
         }
       }
 
@@ -179,7 +182,7 @@ namespace FluentDocker.Services.Impl
         }
         catch (Exception ex)
         {
-          Logger.Log($"Engine scope async restore failed: {ex.Message}");
+          _logger.LogError(ex, "Engine scope async restore failed");
         }
       }
 
@@ -203,7 +206,7 @@ namespace FluentDocker.Services.Impl
       }
       catch (Exception ex)
       {
-        Logger.Log($"Engine scope detection failed: {ex.Message}");
+        _logger.LogError(ex, "Engine scope detection failed");
       }
 
       return EngineScopeType.Unknown;

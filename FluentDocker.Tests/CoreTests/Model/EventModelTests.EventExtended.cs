@@ -313,14 +313,14 @@ namespace FluentDocker.Tests.CoreTests.Model
     public void AllContainerEvents_ShareContainerType()
     {
       FdEvent[] events =
-      {
+      [
         new ContainerCreateEvent(),
         new ContainerStartEvent(),
         new ContainerStopEvent(),
         new ContainerDieEvent(),
         new ContainerDestroyEvent(),
         new ContainerKillEvent()
-      };
+      ];
 
       foreach (var evt in events)
       {
@@ -332,7 +332,7 @@ namespace FluentDocker.Tests.CoreTests.Model
     public void AllEvents_AreAssignableToFdEvent()
     {
       FdEvent[] events =
-      {
+      [
         new ContainerCreateEvent(),
         new ContainerStartEvent(),
         new ContainerStopEvent(),
@@ -343,7 +343,7 @@ namespace FluentDocker.Tests.CoreTests.Model
         new NetworkConnectEvent(),
         new NetworkDisconnectEvent(),
         new UnknownEvent("test", "test")
-      };
+      ];
 
       Assert.Equal(10, events.Length);
       foreach (var evt in events)

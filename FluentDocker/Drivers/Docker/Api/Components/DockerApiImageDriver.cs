@@ -10,6 +10,8 @@ using System.Threading.Tasks;
 using FluentDocker.Common;
 using FluentDocker.Drivers.Docker.Api.Connection;
 using FluentDocker.Model.Drivers;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using Image = FluentDocker.Drivers.Image;
 
 namespace FluentDocker.Drivers.Docker.Api.Components
@@ -460,7 +462,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
         var el = JsonHelper.ParseElement(body);
         return el.GetStringOrDefault("message");
       }
-      catch (Exception ex) { Logger.Log($"Error message JSON parse failed: {ex.Message}"); return body.Length > 500 ? body[..500] : body; }
+      catch (Exception ex) { NullLogger.Instance.LogDebug(ex, "Error message JSON parse failed"); return body.Length > 500 ? body[..500] : body; }
     }
 
     #endregion

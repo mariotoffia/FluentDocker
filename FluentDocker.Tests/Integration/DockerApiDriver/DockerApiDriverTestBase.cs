@@ -3,6 +3,7 @@ using System.Threading.Tasks;
 using FluentDocker.Drivers;
 using FluentDocker.Kernel;
 using FluentDocker.Model.Drivers;
+using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 
 namespace FluentDocker.Tests.Integration.DockerApiDriver
@@ -16,14 +17,14 @@ namespace FluentDocker.Tests.Integration.DockerApiDriver
   {
     protected FluentDockerKernel Kernel { get; private set; } = null!;
     protected static string DriverId => "docker-api";
-    protected static DriverContext Context => new DriverContext(DriverId);
+    protected static DriverContext Context => new(DriverId);
 
     protected const string TestImage = "alpine:latest";
     protected const string BusyboxImage = "busybox:latest";
 
     public async ValueTask InitializeAsync()
     {
-      Kernel = await FluentDockerKernel.Create()
+      Kernel = await FluentDockerKernel.Create(NullLoggerFactory.Instance)
           .WithDockerApi(DriverId, d => d.AsDefault())
           .BuildAsync();
     }

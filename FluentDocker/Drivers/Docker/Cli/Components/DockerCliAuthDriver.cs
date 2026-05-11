@@ -10,14 +10,11 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
   /// <summary>
   /// Docker CLI implementation of IAuthDriver.
   /// </summary>
-  public class DockerCliAuthDriver : DockerCliDriverBase, IAuthDriver
+  /// <remarks>
+  /// Creates a new instance with the specified binary resolver.
+  /// </remarks>
+  public class DockerCliAuthDriver(IBinaryResolver binaryResolver) : DockerCliDriverBase(binaryResolver), IAuthDriver
   {
-    /// <summary>
-    /// Creates a new instance with the specified binary resolver.
-    /// </summary>
-    public DockerCliAuthDriver(IBinaryResolver binaryResolver) : base(binaryResolver)
-    {
-    }
 
     /// <summary>
     /// Builds CLI arguments and optional stdin data for <c>docker login</c>.

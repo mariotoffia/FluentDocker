@@ -27,7 +27,7 @@ namespace FluentDocker.Tests.Integration.DockerApiDriver
       var config = new ContainerCreateConfig
       {
         Image = image,
-        Command = command ?? new[] { "sleep", "60" },
+        Command = command ?? ["sleep", "60"],
         Detach = true,
         Labels = new Dictionary<string, string>
         {
@@ -61,7 +61,7 @@ namespace FluentDocker.Tests.Integration.DockerApiDriver
         var execResult = await ContainerDriver.ExecAsync(Context, containerId,
             new ExecConfig
             {
-              Command = new[] { "echo", "hello-api" }
+              Command = ["echo", "hello-api"]
             }, cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.True(execResult.Success, $"Exec failed: {execResult.Error}");
@@ -85,7 +85,7 @@ namespace FluentDocker.Tests.Integration.DockerApiDriver
         var execResult = await ContainerDriver.ExecAsync(Context, containerId,
             new ExecConfig
             {
-              Command = new[] { "sh", "-c", "exit 7" }
+              Command = ["sh", "-c", "exit 7"]
             }, cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.True(execResult.Success, $"Exec call failed: {execResult.Error}");
@@ -108,7 +108,7 @@ namespace FluentDocker.Tests.Integration.DockerApiDriver
       try
       {
         containerId = await ApiRunContainerAsync(TestImage,
-            new[] { "sh", "-c", "echo 'api-log-test'; sleep 5" });
+            ["sh", "-c", "echo 'api-log-test'; sleep 5"]);
         await Task.Delay(2000, cancellationToken: TestContext.Current.CancellationToken);
 
         var logsResult = await ContainerDriver.GetLogsAsync(
@@ -163,7 +163,7 @@ namespace FluentDocker.Tests.Integration.DockerApiDriver
         await ContainerDriver.ExecAsync(Context, containerId,
             new ExecConfig
             {
-              Command = new[] { "touch", "/tmp/api-diff-test.txt" }
+              Command = ["touch", "/tmp/api-diff-test.txt"]
             }, cancellationToken: TestContext.Current.CancellationToken);
 
         var diffResult = await ContainerDriver.DiffAsync(Context, containerId, cancellationToken: TestContext.Current.CancellationToken);
@@ -190,7 +190,7 @@ namespace FluentDocker.Tests.Integration.DockerApiDriver
       try
       {
         containerId = await ApiRunContainerAsync(TestImage,
-            new[] { "sh", "-c", "exit 3" });
+            ["sh", "-c", "exit 3"]);
 
         var waitResult = await ContainerDriver.WaitAsync(Context, containerId, cancellationToken: TestContext.Current.CancellationToken);
 
@@ -312,7 +312,7 @@ namespace FluentDocker.Tests.Integration.DockerApiDriver
         var verifyResult = await ContainerDriver.ExecAsync(
             Context, containerId, new ExecConfig
             {
-              Command = new[] { "cat", "/tmp/api-test.txt" }
+              Command = ["cat", "/tmp/api-test.txt"]
             }, cancellationToken: TestContext.Current.CancellationToken);
         Assert.True(verifyResult.Success);
         Assert.Contains("api-copy-test-content", verifyResult.Data.StdOut);
@@ -339,8 +339,8 @@ namespace FluentDocker.Tests.Integration.DockerApiDriver
         await ContainerDriver.ExecAsync(Context, containerId,
             new ExecConfig
             {
-              Command = new[] { "sh", "-c",
-                  "echo 'api-from-container' > /tmp/container-file.txt" }
+              Command = [ "sh", "-c",
+                  "echo 'api-from-container' > /tmp/container-file.txt" ]
             }, cancellationToken: TestContext.Current.CancellationToken);
         await Task.Delay(200, cancellationToken: TestContext.Current.CancellationToken);
 
@@ -367,7 +367,7 @@ namespace FluentDocker.Tests.Integration.DockerApiDriver
     {
       var fakeId = "nonexistent" + Guid.NewGuid().ToString("N")[..12];
       var result = await ContainerDriver.ExecAsync(Context, fakeId,
-          new ExecConfig { Command = new[] { "echo" } }, cancellationToken: TestContext.Current.CancellationToken);
+          new ExecConfig { Command = ["echo"] }, cancellationToken: TestContext.Current.CancellationToken);
       Assert.False(result.Success);
     }
 

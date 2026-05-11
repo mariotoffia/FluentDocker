@@ -17,9 +17,8 @@ namespace FluentDocker.Drivers.Docker.Api.Components
   /// Operations such as exec, copy, logs, diff, top, export, rename, and update
   /// are implemented in the separate Operations partial file.
   /// </summary>
-  public partial class DockerApiContainerDriver : DockerApiDriverBase, IContainerDriver
+  public partial class DockerApiContainerDriver(IDockerApiConnection connection) : DockerApiDriverBase(connection), IContainerDriver
   {
-    public DockerApiContainerDriver(IDockerApiConnection connection) : base(connection) { }
 
     #region Lifecycle Operations
 
@@ -50,7 +49,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       {
         Id = result.Data?.Id,
         Name = config.Name,
-        Warnings = result.Data?.Warnings ?? new List<string>()
+        Warnings = result.Data?.Warnings ?? []
       });
     }
 

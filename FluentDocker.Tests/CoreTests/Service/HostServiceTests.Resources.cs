@@ -130,11 +130,11 @@ namespace FluentDocker.Tests.CoreTests.Service
               It.IsAny<DriverContext>(),
               It.IsAny<VolumeListFilter>(),
               It.IsAny<CancellationToken>()))
-          .ReturnsAsync(CommandResponse<IList<Volume>>.Ok(new List<Volume>
-          {
+          .ReturnsAsync(CommandResponse<IList<Volume>>.Ok(
+          [
             new Volume { Name = "vol1", Driver = "local" },
             new Volume { Name = "vol2", Driver = "local" }
-          }));
+          ]));
 
       var kernel = await MockKernelBuilderExtensions.CreateWithMockDriverAsync("docker", mockPack);
       try
@@ -259,8 +259,8 @@ namespace FluentDocker.Tests.CoreTests.Service
     {
       var expected = new SystemPruneResult
       {
-        ContainersDeleted = new List<string> { "c1" },
-        ImagesDeleted = new List<string> { "img1" }
+        ContainersDeleted = ["c1"],
+        ImagesDeleted = ["img1"]
       };
       var mockPack = new MockDriverPack();
       mockPack.SystemDriver
@@ -405,10 +405,10 @@ namespace FluentDocker.Tests.CoreTests.Service
               It.IsAny<CancellationToken>()))
           .Callback<DriverContext, ContainerListFilter, CancellationToken>(
               (_, f, _) => capturedFilter = f)
-          .ReturnsAsync(CommandResponse<IList<Container>>.Ok(new List<Container>
-          {
+          .ReturnsAsync(CommandResponse<IList<Container>>.Ok(
+          [
             new Container { Id = "run1", Image = "nginx", Name = "web" }
-          }));
+          ]));
 
       var kernel = await MockKernelBuilderExtensions.CreateWithMockDriverAsync("docker", mockPack);
       try
@@ -459,7 +459,7 @@ namespace FluentDocker.Tests.CoreTests.Service
               It.IsAny<CancellationToken>()))
           .Callback<DriverContext, ContainerListFilter, CancellationToken>(
               (_, f, _) => capturedFilter = f)
-          .ReturnsAsync(CommandResponse<IList<Container>>.Ok(new List<Container>()));
+          .ReturnsAsync(CommandResponse<IList<Container>>.Ok([]));
 
       var kernel = await MockKernelBuilderExtensions.CreateWithMockDriverAsync("docker", mockPack);
       try

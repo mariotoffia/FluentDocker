@@ -8,6 +8,8 @@ using System.Threading.Tasks;
 using FluentDocker.Common;
 using FluentDocker.Drivers.Docker.Cli.Binary;
 using FluentDocker.Model.Drivers;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace FluentDocker.Drivers.Docker.Cli.Components
 {
@@ -91,7 +93,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
         }
         catch (Exception ex)
         {
-          Logger.Log($"Event stream JSON parsing failed: {ex.Message}");
+          Logger.LogDebug(ex, "Event stream JSON parsing failed");
         }
 
         if (evt != null)
@@ -135,7 +137,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
         }
         catch (Exception ex)
         {
-          Logger.Log($"Stats stream JSON parsing failed: {ex.Message}");
+          Logger.LogDebug(ex, "Stats stream JSON parsing failed");
         }
 
         if (stats != null)
@@ -204,7 +206,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
       }
       catch (Exception ex)
       {
-        Logger.Log($"Stats line parsing failed: {ex.Message}");
+        NullLogger.Instance.LogDebug(ex, "Stats line parsing failed");
         return null;
       }
     }

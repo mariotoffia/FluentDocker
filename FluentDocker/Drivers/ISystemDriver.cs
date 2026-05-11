@@ -225,10 +225,10 @@ namespace FluentDocker.Drivers
     public string Hostname { get; set; }
 
     /// <summary>Security options.</summary>
-    public List<string> SecurityOptions { get; set; } = new List<string>();
+    public List<string> SecurityOptions { get; set; } = [];
 
     /// <summary>Available runtimes reported by the engine.</summary>
-    public Dictionary<string, object> Runtimes { get; set; } = new Dictionary<string, object>();
+    public Dictionary<string, object> Runtimes { get; set; } = [];
 
     /// <summary>Default runtime.</summary>
     public string DefaultRuntime { get; set; }
@@ -364,7 +364,7 @@ namespace FluentDocker.Drivers
     public bool Volumes { get; set; }
 
     /// <summary>Filter to provide.</summary>
-    public Dictionary<string, string> Filter { get; set; } = new Dictionary<string, string>();
+    public Dictionary<string, string> Filter { get; set; } = [];
   }
 
   #endregion
@@ -374,19 +374,19 @@ namespace FluentDocker.Drivers
   public class SystemPruneResult
   {
     /// <summary>Deleted container IDs.</summary>
-    public List<string> ContainersDeleted { get; set; } = new List<string>();
+    public List<string> ContainersDeleted { get; set; } = [];
 
     /// <summary>Deleted image IDs.</summary>
-    public List<string> ImagesDeleted { get; set; } = new List<string>();
+    public List<string> ImagesDeleted { get; set; } = [];
 
     /// <summary>Deleted network IDs.</summary>
-    public List<string> NetworksDeleted { get; set; } = new List<string>();
+    public List<string> NetworksDeleted { get; set; } = [];
 
     /// <summary>Deleted volume names.</summary>
-    public List<string> VolumesDeleted { get; set; } = new List<string>();
+    public List<string> VolumesDeleted { get; set; } = [];
 
     /// <summary>Build cache entries deleted.</summary>
-    public List<string> BuildCacheDeleted { get; set; } = new List<string>();
+    public List<string> BuildCacheDeleted { get; set; } = [];
 
     /// <summary>Space reclaimed in bytes.</summary>
     public long SpaceReclaimed { get; set; }

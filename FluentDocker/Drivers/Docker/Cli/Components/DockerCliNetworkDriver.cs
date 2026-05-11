@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using FluentDocker.Common;
 using FluentDocker.Drivers.Docker.Cli.Binary;
 using FluentDocker.Model.Drivers;
+using Microsoft.Extensions.Logging;
 
 namespace FluentDocker.Drivers.Docker.Cli.Components
 {
@@ -155,7 +156,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
           }
           catch (Exception ex)
           {
-            Logger.Log($"Network list JSON parsing failed: {ex.Message}");
+            Logger.LogError(ex, "Network list JSON parsing failed");
           }
         }
 

@@ -5,6 +5,7 @@ using FluentDocker.Common;
 using FluentDocker.Drivers;
 using FluentDocker.Kernel;
 using FluentDocker.Model.Drivers;
+using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 
 namespace FluentDocker.Tests.CoreTests.Driver
@@ -19,7 +20,7 @@ namespace FluentDocker.Tests.CoreTests.Driver
     public async Task RegisterAsync_SingleDriver_RegistersSuccessfully()
     {
       // Arrange
-      var registry = new DriverRegistry();
+      var registry = new DriverRegistry(NullLoggerFactory.Instance);
       var driver = new MockTestDriver(DriverType.DockerCli, RuntimeType.Docker);
       var context = new DriverContext("test-driver");
 
@@ -36,7 +37,7 @@ namespace FluentDocker.Tests.CoreTests.Driver
     public async Task RegisterAsync_MultipleDrivers_AllRegistered()
     {
       // Arrange
-      var registry = new DriverRegistry();
+      var registry = new DriverRegistry(NullLoggerFactory.Instance);
       var driver1 = new MockTestDriver(DriverType.DockerCli, RuntimeType.Docker);
       var driver2 = new MockTestDriver(DriverType.PodmanCli, RuntimeType.Podman);
       var context1 = new DriverContext("driver-1");
@@ -56,7 +57,7 @@ namespace FluentDocker.Tests.CoreTests.Driver
     public async Task RegisterAsync_DuplicateId_ThrowsException()
     {
       // Arrange
-      var registry = new DriverRegistry();
+      var registry = new DriverRegistry(NullLoggerFactory.Instance);
       var driver = new MockTestDriver(DriverType.DockerCli, RuntimeType.Docker);
       var context = new DriverContext("test-driver");
       await registry.RegisterAsync("test-driver", driver, context, TestContext.Current.CancellationToken);
@@ -70,7 +71,7 @@ namespace FluentDocker.Tests.CoreTests.Driver
     public async Task Unregister_RegisteredDriver_RemovesDriver()
     {
       // Arrange
-      var registry = new DriverRegistry();
+      var registry = new DriverRegistry(NullLoggerFactory.Instance);
       var driver = new MockTestDriver(DriverType.DockerCli, RuntimeType.Docker);
       var context = new DriverContext("test-driver");
       await registry.RegisterAsync("test-driver", driver, context, TestContext.Current.CancellationToken);
@@ -86,7 +87,7 @@ namespace FluentDocker.Tests.CoreTests.Driver
     public void GetDriver_NonExistentDriver_ThrowsException()
     {
       // Arrange
-      var registry = new DriverRegistry();
+      var registry = new DriverRegistry(NullLoggerFactory.Instance);
 
       // Act & Assert
       Assert.Throws<DriverNotFoundException>(() =>
@@ -97,7 +98,7 @@ namespace FluentDocker.Tests.CoreTests.Driver
     public async Task TryGetDriver_ExistingDriver_ReturnsTrue()
     {
       // Arrange
-      var registry = new DriverRegistry();
+      var registry = new DriverRegistry(NullLoggerFactory.Instance);
       var driver = new MockTestDriver(DriverType.DockerCli, RuntimeType.Docker);
       var context = new DriverContext("test-driver");
       await registry.RegisterAsync("test-driver", driver, context, TestContext.Current.CancellationToken);
@@ -114,7 +115,7 @@ namespace FluentDocker.Tests.CoreTests.Driver
     public void TryGetDriver_NonExistentDriver_ReturnsFalse()
     {
       // Arrange
-      var registry = new DriverRegistry();
+      var registry = new DriverRegistry(NullLoggerFactory.Instance);
 
       // Act
       var result = registry.TryGetDriver("non-existent", out var retrieved);
@@ -128,7 +129,7 @@ namespace FluentDocker.Tests.CoreTests.Driver
     public async Task GetDriversByType_FiltersCorrectly()
     {
       // Arrange
-      var registry = new DriverRegistry();
+      var registry = new DriverRegistry(NullLoggerFactory.Instance);
       var cliDriver = new MockTestDriver(DriverType.DockerCli, RuntimeType.Docker);
       var apiDriver = new MockTestDriver(DriverType.DockerApi, RuntimeType.Docker);
       await registry.RegisterAsync("cli-1", cliDriver, new DriverContext("cli-1"), TestContext.Current.CancellationToken);
@@ -146,7 +147,7 @@ namespace FluentDocker.Tests.CoreTests.Driver
     public async Task GetDriversByRuntime_FiltersCorrectly()
     {
       // Arrange
-      var registry = new DriverRegistry();
+      var registry = new DriverRegistry(NullLoggerFactory.Instance);
       var dockerDriver = new MockTestDriver(DriverType.DockerCli, RuntimeType.Docker);
       var podmanDriver = new MockTestDriver(DriverType.PodmanCli, RuntimeType.Podman);
       await registry.RegisterAsync("docker-1", dockerDriver, new DriverContext("docker-1"), TestContext.Current.CancellationToken);
@@ -164,7 +165,7 @@ namespace FluentDocker.Tests.CoreTests.Driver
     public async Task DefaultDriver_FirstRegistered_SetAsDefault()
     {
       // Arrange
-      var registry = new DriverRegistry();
+      var registry = new DriverRegistry(NullLoggerFactory.Instance);
       var driver = new MockTestDriver(DriverType.DockerCli, RuntimeType.Docker);
       var context = new DriverContext("test-driver");
 
@@ -179,7 +180,7 @@ namespace FluentDocker.Tests.CoreTests.Driver
     public async Task SetDefaultDriver_ChangesDefault()
     {
       // Arrange
-      var registry = new DriverRegistry();
+      var registry = new DriverRegistry(NullLoggerFactory.Instance);
       var driver1 = new MockTestDriver(DriverType.DockerCli, RuntimeType.Docker);
       var driver2 = new MockTestDriver(DriverType.DockerCli, RuntimeType.Docker);
       await registry.RegisterAsync("driver-1", driver1, new DriverContext("driver-1"), TestContext.Current.CancellationToken);
@@ -196,7 +197,7 @@ namespace FluentDocker.Tests.CoreTests.Driver
     public async Task SetDefaultDriver_NonExistentDriver_ThrowsException()
     {
       // Arrange
-      var registry = new DriverRegistry();
+      var registry = new DriverRegistry(NullLoggerFactory.Instance);
       var driver = new MockTestDriver(DriverType.DockerCli, RuntimeType.Docker);
       await registry.RegisterAsync("driver-1", driver, new DriverContext("driver-1"), TestContext.Current.CancellationToken);
 
@@ -209,7 +210,7 @@ namespace FluentDocker.Tests.CoreTests.Driver
     public async Task GetContext_ReturnsCorrectContext()
     {
       // Arrange
-      var registry = new DriverRegistry();
+      var registry = new DriverRegistry(NullLoggerFactory.Instance);
       var driver = new MockTestDriver(DriverType.DockerCli, RuntimeType.Docker);
       var context = new DriverContext("test-driver")
       {
@@ -225,16 +226,10 @@ namespace FluentDocker.Tests.CoreTests.Driver
     }
 
     // Mock driver for testing
-    private class MockTestDriver : IDriver
+    private class MockTestDriver(DriverType type, RuntimeType runtime) : IDriver
     {
-      public MockTestDriver(DriverType type, RuntimeType runtime)
-      {
-        Type = type;
-        Runtime = runtime;
-      }
-
-      public DriverType Type { get; }
-      public RuntimeType Runtime { get; }
+      public DriverType Type { get; } = type;
+      public RuntimeType Runtime { get; } = runtime;
 
       public Task<DriverCapabilities> GetCapabilitiesAsync(System.Threading.CancellationToken cancellationToken = default)
       {

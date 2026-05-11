@@ -310,21 +310,50 @@ await composeDriver.DownAsync(context, new ComposeDownConfig {
 });
 ```
 
-## Step 8: Update Logging Configuration
+## Step 8: Switch to Microsoft.Extensions.Logging
 
-FluentDocker uses its own static logging toggle, not `Microsoft.Extensions.Logging`.
+**BREAKING CHANGE in v3.0.0** — the static `Logging.Enabled()` /
+`Logging.Disabled()` toggle and the `FluentDocker.Common.Logger` static class
+are removed entirely. FluentDocker now logs through
+`Microsoft.Extensions.Logging.Abstractions`, and an `ILoggerFactory` is a
+required constructor argument on `KernelBuilder` and `FluentDockerKernel.Create`.
+
+The compiler enforces this: any code that calls `FluentDockerKernel.Create()`
+or constructs `KernelBuilder` / `FluentDockerKernel` / `DriverRegistry` without
+supplying a factory fails to compile.
 
 ```csharp
-// OLD
+// OLD (v2)
 using Ductus.FluentDocker.Services;
-Logging.Enabled();   // enable diagnostic logging
-Logging.Disabled();  // disable
+Logging.Enabled();
+Logging.Disabled();
 
-// NEW — unchanged API, just different namespace
-using FluentDocker.Services;
-Logging.Enabled();   // enable diagnostic logging
-Logging.Disabled();  // disable
+// NEW (v3) — supply an ILoggerFactory to the kernel builder
+using Microsoft.Extensions.Logging;
+using FluentDocker.Kernel;
+
+using var factory = LoggerFactory.Create(b => b.AddConsole());
+var kernel = await FluentDockerKernel.Create(factory)
+    .WithDockerCli("docker", d => d.AsDefault())
+    .BuildAsync();
 ```
+
+To suppress all logging (equivalent to v2's `Logging.Disabled()`), pass
+`NullLoggerFactory.Instance` explicitly:
+
+```csharp
+using Microsoft.Extensions.Logging.Abstractions;
+
+var silentKernel = await FluentDockerKernel.Create(NullLoggerFactory.Instance)
+    .WithDockerCli("docker", d => d.AsDefault())
+    .BuildAsync();
+```
+
+The factory is automatically propagated through `DriverContext.LoggerFactory`
+to all driver packs and component drivers, so third-party `IDriverPack`
+implementations receive it without any interface change. Each FluentDocker type
+uses its FQN as its log category for fine-grained filtering — see
+[Utilities → Logging](utilities.html#logging) for details.
 
 ## Removed Features
 

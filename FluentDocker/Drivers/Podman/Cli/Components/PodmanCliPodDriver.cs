@@ -7,6 +7,8 @@ using System.Threading.Tasks;
 using FluentDocker.Common;
 using FluentDocker.Drivers.Podman.Cli.Binary;
 using FluentDocker.Model.Drivers;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace FluentDocker.Drivers.Podman.Cli.Components
 {
@@ -234,7 +236,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
             pods.Add(ParsePodInfoFromToken(JsonHelper.ParseElement(line.Trim())));
         }
       }
-      catch (Exception ex) { Logger.Log($"Pod JSON parsing skipped: {ex.Message}"); }
+      catch (Exception ex) { NullLogger.Instance.LogError(ex, "Pod JSON parsing skipped"); }
 
       return pods;
     }
@@ -309,7 +311,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
             result.Containers.Add(ParsePodContainerInfoFromToken(c));
         }
       }
-      catch (Exception ex) { Logger.Log($"Pod JSON parsing skipped: {ex.Message}"); }
+      catch (Exception ex) { NullLogger.Instance.LogError(ex, "Pod JSON parsing skipped"); }
 
       return result;
     }

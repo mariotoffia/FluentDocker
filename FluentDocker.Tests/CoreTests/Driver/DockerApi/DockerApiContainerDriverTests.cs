@@ -71,7 +71,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
       var config = new ContainerCreateConfig
       {
         Image = "alpine",
-        Networks = new List<string> { "my-net" },
+        Networks = ["my-net"],
         NetworkAliases = new Dictionary<string, List<string>>
         {
           { "my-net", new List<string> { "web", "frontend" } }

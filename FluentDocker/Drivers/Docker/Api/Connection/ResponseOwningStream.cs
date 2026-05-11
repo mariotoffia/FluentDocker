@@ -11,17 +11,11 @@ namespace FluentDocker.Drivers.Docker.Api.Connection
   /// and disposes it when the stream is disposed. This prevents resource leaks
   /// when streaming responses from the Docker API.
   /// </summary>
-  public sealed class ResponseOwningStream : Stream
+  public sealed class ResponseOwningStream(Stream inner, HttpResponseMessage response) : Stream
   {
-    private readonly Stream _inner;
-    private readonly HttpResponseMessage _response;
+    private readonly Stream _inner = inner ?? throw new ArgumentNullException(nameof(inner));
+    private readonly HttpResponseMessage _response = response ?? throw new ArgumentNullException(nameof(response));
     private int _disposed;
-
-    public ResponseOwningStream(Stream inner, HttpResponseMessage response)
-    {
-      _inner = inner ?? throw new ArgumentNullException(nameof(inner));
-      _response = response ?? throw new ArgumentNullException(nameof(response));
-    }
 
     public override bool CanRead => !IsDisposed && _inner.CanRead;
     public override bool CanSeek => !IsDisposed && _inner.CanSeek;

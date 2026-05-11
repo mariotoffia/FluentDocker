@@ -282,23 +282,16 @@ namespace FluentDocker.Tests.CoreTests.Testing
       }
     }
 
-    private class FakeResource : ITestResource
+    private class FakeResource(
+        bool throwOnInit = false,
+        bool throwOnDispose = false,
+        Action? onDispose = null) : ITestResource
     {
-      private readonly bool _throwOnInit;
-      private readonly bool _throwOnDispose;
-      private readonly Action _onDispose;
+      private readonly bool _throwOnInit = throwOnInit;
+      private readonly bool _throwOnDispose = throwOnDispose;
+      private readonly Action _onDispose = onDispose;
 
       public bool IsInitialized { get; private set; }
-
-      public FakeResource(
-          bool throwOnInit = false,
-          bool throwOnDispose = false,
-          Action? onDispose = null)
-      {
-        _throwOnInit = throwOnInit;
-        _throwOnDispose = throwOnDispose;
-        _onDispose = onDispose;
-      }
 
       public Task InitializeAsync(CancellationToken cancellationToken = default)
       {

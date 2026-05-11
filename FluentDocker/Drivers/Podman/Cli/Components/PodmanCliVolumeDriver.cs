@@ -8,6 +8,8 @@ using FluentDocker.Drivers.Docker.Cli;
 using FluentDocker.Drivers.Podman.Cli.Binary;
 using FluentDocker.Model.Drivers;
 using FluentDocker.Model.Volumes;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace FluentDocker.Drivers.Podman.Cli.Components
 {
@@ -174,7 +176,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
             volumes.Add(ParseVolumeFromToken(JsonHelper.ParseElement(line.Trim())));
         }
       }
-      catch (Exception ex) { Logger.Log($"Volume JSON parsing skipped: {ex.Message}"); }
+      catch (Exception ex) { NullLogger.Instance.LogError(ex, "Volume JSON parsing skipped"); }
 
       return volumes;
     }
@@ -223,7 +225,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       }
       catch (Exception ex)
       {
-        Logger.Log($"Podman volume inspect parsing failed: {ex.Message}");
+        NullLogger.Instance.LogError(ex, "Podman volume inspect parsing failed");
         return new Volume();
       }
     }

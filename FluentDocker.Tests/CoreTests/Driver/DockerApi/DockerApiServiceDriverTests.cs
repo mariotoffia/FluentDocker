@@ -75,10 +75,10 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
         Name = "api",
         Image = "myapp:v2",
         Replicas = 3,
-        Ports = new List<ServicePort>
-                {
+        Ports =
+                [
                     new() { TargetPort = 80, PublishedPort = 8080, Protocol = "tcp" }
-                },
+                ],
         Labels = new Dictionary<string, string> { ["env"] = "prod" }
       };
       var result = await driver.CreateAsync(Ctx, config, cancellationToken: TestContext.Current.CancellationToken);
@@ -111,7 +111,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
       var (driver, mock) = CreateDriver();
       mock.SetupDelete("/services/svc1", 200, "");
 
-      var result = await driver.RemoveAsync(Ctx, new[] { "svc1" }, cancellationToken: TestContext.Current.CancellationToken);
+      var result = await driver.RemoveAsync(Ctx, ["svc1"], cancellationToken: TestContext.Current.CancellationToken);
 
       Assert.True(result.Success);
       var requests = mock.GetRequests();
@@ -126,7 +126,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
       mock.SetupDelete("/services/missing", 404,
           @"{""message"":""service not found""}");
 
-      var result = await driver.RemoveAsync(Ctx, new[] { "missing" }, cancellationToken: TestContext.Current.CancellationToken);
+      var result = await driver.RemoveAsync(Ctx, ["missing"], cancellationToken: TestContext.Current.CancellationToken);
 
       Assert.False(result.Success);
       Assert.Equal(ErrorCodes.Service.NotFound, result.ErrorCode);

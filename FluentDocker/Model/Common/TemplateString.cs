@@ -8,10 +8,10 @@ using FluentDocker.Common;
 
 namespace FluentDocker.Model.Common
 {
-  public sealed class TemplateString
+  public sealed partial class TemplateString(string str, bool handleWindowsPathIfNeeded = false)
   {
     private static readonly Dictionary<string, Func<string>> Templates;
-    private static readonly Regex UrlDetector = new Regex("((\"|')http(|s)://.*?(\"|'))", RegexOptions.Compiled);
+    private static readonly Regex UrlDetector = MyRegex();
 
     static TemplateString() => Templates =
         new Dictionary<string, Func<string>>
@@ -22,7 +22,7 @@ namespace FluentDocker.Model.Common
               var path = DirectoryHelper.GetTempPath();
               if (path.StartsWith("/var/") && FdOs.IsOsx()) path = "/private/" + path;
 
-              return path.Substring(0, path.Length - 1);
+              return path[..^1];
             }
           },
           {
@@ -31,21 +31,15 @@ namespace FluentDocker.Model.Common
               var path = DirectoryHelper.GetTempPath();
               if (path.StartsWith("/var/") && FdOs.IsOsx()) path = "/private/" + path;
 
-              return path.Substring(0, path.Length - 1);
+              return path[..^1];
             }
           },
           {"${RND}", Path.GetRandomFileName},
           {"${PWD}", Directory.GetCurrentDirectory}
         };
 
-    public TemplateString(string str, bool handleWindowsPathIfNeeded = false)
-    {
-      Original = str;
-      Rendered = Render(ToTargetOs(str, handleWindowsPathIfNeeded));
-    }
-
-    public string Original { get; }
-    public string Rendered { get; }
+    public string Original { get; } = str;
+    public string Rendered { get; } = Render(ToTargetOs(str, handleWindowsPathIfNeeded));
 
     private static string ToTargetOs(string str, bool handleWindowsPathIfNeeded)
     {
@@ -65,14 +59,14 @@ namespace FluentDocker.Model.Common
       var idx = 0;
       while (match.Success)
       {
-        res += str.Substring(idx, match.Index - idx).Replace('/', '\\');
+        res += str[idx..match.Index].Replace('/', '\\');
         res += str.Substring(match.Index, match.Length);
         idx = match.Index + match.Length;
 
         match = match.NextMatch();
       }
 
-      res += str.Substring(idx).Replace('/', '\\');
+      res += str[idx..].Replace('/', '\\');
       return res;
     }
 
@@ -104,5 +98,8 @@ namespace FluentDocker.Model.Common
     {
       return Rendered;
     }
+
+    [GeneratedRegex("((\"|')http(|s)://.*?(\"|'))", RegexOptions.Compiled)]
+    private static partial Regex MyRegex();
   }
 }

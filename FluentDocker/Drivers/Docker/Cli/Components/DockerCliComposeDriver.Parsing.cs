@@ -38,7 +38,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
           if (currentBlock.Count > 0)
           {
             blocks.Add(currentBlock);
-            currentBlock = new List<string>();
+            currentBlock = [];
           }
         }
         else

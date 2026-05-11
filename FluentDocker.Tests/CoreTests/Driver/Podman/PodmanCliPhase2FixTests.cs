@@ -253,7 +253,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
     {
       var config = new SystemPruneConfig
       {
-        Filter = new Dictionary<string, string>()
+        Filter = []
       };
       var result = PodmanCliSystemDriver.BuildSystemPruneArgs(config);
       Assert.DoesNotContain("--filter", result);
@@ -288,7 +288,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
     {
       var config = new StreamEventsConfig
       {
-        Types = new List<string> { "container", "image" }
+        Types = ["container", "image"]
       };
       var result = PodmanCliStreamDriver.BuildStreamEventsArgs(config);
       Assert.Contains("--filter type=container", result);
@@ -300,7 +300,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
     {
       var config = new StreamEventsConfig
       {
-        Actions = new List<string> { "start", "stop" }
+        Actions = ["start", "stop"]
       };
       var result = PodmanCliStreamDriver.BuildStreamEventsArgs(config);
       Assert.Contains("--filter event=start", result);
@@ -330,8 +330,8 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
       {
         Since = "1h",
         Until = "now",
-        Types = new List<string> { "container" },
-        Actions = new List<string> { "die" },
+        Types = ["container"],
+        Actions = ["die"],
         Filters = new Dictionary<string, string> { { "name", "web" } }
       };
       var result = PodmanCliStreamDriver.BuildStreamEventsArgs(config);
@@ -424,7 +424,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
           "BuildCreateArgs",
           BindingFlags.NonPublic | BindingFlags.Static);
       Assert.NotNull(method);
-      return (string)method.Invoke(null, new object[] { command, config, detach });
+      return (string)method.Invoke(null, [command, config, detach]);
     }
 
     #endregion

@@ -9,6 +9,7 @@ using FluentDocker.Model.Drivers;
 using FluentDocker.Services;
 using FluentDocker.Services.Impl;
 using FluentDocker.Tests.Mocks;
+using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using Xunit;
 
@@ -28,7 +29,7 @@ namespace FluentDocker.Tests.CoreTests.Service
     {
       return new ComposeService(
           kernel, "docker",
-          new List<string> { "docker-compose.yml" },
+          ["docker-compose.yml"],
           "test-project",
           removeVolumes: removeVolumes,
           removeImages: removeImages);
@@ -424,7 +425,7 @@ namespace FluentDocker.Tests.CoreTests.Service
     [Fact]
     public void IServiceAsync_AddHook_ReturnsSelf()
     {
-      var kernel = new FluentDockerKernel();
+      var kernel = new FluentDockerKernel(new DriverRegistry(NullLoggerFactory.Instance), NullLoggerFactory.Instance);
       try
       {
         var service = CreateService(kernel);
@@ -441,7 +442,7 @@ namespace FluentDocker.Tests.CoreTests.Service
     [Fact]
     public void IServiceAsync_RemoveHook_ReturnsSelf()
     {
-      var kernel = new FluentDockerKernel();
+      var kernel = new FluentDockerKernel(new DriverRegistry(NullLoggerFactory.Instance), NullLoggerFactory.Instance);
       try
       {
         var service = CreateService(kernel);

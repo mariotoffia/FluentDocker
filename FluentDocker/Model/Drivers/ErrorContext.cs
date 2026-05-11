@@ -45,7 +45,7 @@ namespace FluentDocker.Model.Drivers
     /// <summary>
     /// Additional metadata about the error.
     /// </summary>
-    public Dictionary<string, string> Metadata { get; set; } = new Dictionary<string, string>();
+    public Dictionary<string, string> Metadata { get; set; } = [];
 
     /// <summary>
     /// Timestamp when the error occurred.

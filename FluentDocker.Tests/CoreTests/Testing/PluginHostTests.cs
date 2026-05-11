@@ -173,15 +173,10 @@ namespace FluentDocker.Tests.CoreTests.Testing
 
     #region Test Doubles
 
-    private class UniqueKeyPlugin : ITestPlugin
+    private class UniqueKeyPlugin(string id, string key) : ITestPlugin
     {
-      private readonly string _key;
-      public string Id { get; }
-      public UniqueKeyPlugin(string id, string key)
-      {
-        Id = id;
-        _key = key;
-      }
+      private readonly string _key = key;
+      public string Id { get; } = id;
 
       public void Register(ITestPluginRegistry registry)
       {
@@ -197,10 +192,9 @@ namespace FluentDocker.Tests.CoreTests.Testing
       public ValueTask DisposeAsync() => ValueTask.CompletedTask;
     }
 
-    private class FakePlugin : ITestPlugin
+    private class FakePlugin(string id) : ITestPlugin
     {
-      public string Id { get; }
-      public FakePlugin(string id) => Id = id;
+      public string Id { get; } = id;
 
       public void Register(ITestPluginRegistry registry)
       {

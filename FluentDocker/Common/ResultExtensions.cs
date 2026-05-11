@@ -72,7 +72,7 @@ namespace FluentDocker.Common
     {
       if (string.IsNullOrEmpty(log))
       {
-        return Array.Empty<string>();
+        return [];
       }
 
       return log.Split(LineSeparators, StringSplitOptions.RemoveEmptyEntries);

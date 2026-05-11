@@ -43,8 +43,8 @@ namespace FluentDocker.Model.Builders
     public Tuple<long /*waitTimeout*/> WaitForHealthy { get; set; }
     public Tuple<long/*waitTimeout*/, string /*message*/> WaitForMessageInLog { get; set; }
     public List<ContainerSpecificConfig.WaitForHttpParams> WaitForHttp { get; } =
-      new List<ContainerSpecificConfig.WaitForHttpParams>();
-    public List<Func<IContainerService, int, int>> WaitLambda { get; } = new List<Func<IContainerService, int, int>>();
+      [];
+    public List<Func<IContainerService, int, int>> WaitLambda { get; } = [];
     public Tuple<string /*process*/, long /*waitTimeout*/> WaitForProcess { get; set; }
     public List<Tuple<TemplateString /*host*/, TemplateString /*container*/>> CpToOnStart { get; set; }
     public List<Tuple<TemplateString /*host*/, TemplateString /*container*/>> CpFromOnDispose { get; set; }

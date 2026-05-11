@@ -34,7 +34,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
     [Fact]
     public void StripDockerStreamHeaders_EmptyInput_ReturnsEmpty()
     {
-      Assert.Equal(string.Empty, TestableDriverBase.TestStripHeaders(Array.Empty<byte>()));
+      Assert.Equal(string.Empty, TestableDriverBase.TestStripHeaders([]));
     }
 
     [Fact]
@@ -200,7 +200,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
     [Fact]
     public async Task ReadExactAsync_EmptyStream_ReturnsZero()
     {
-      using var stream = new MemoryStream(Array.Empty<byte>());
+      using var stream = new MemoryStream([]);
       var buffer = new byte[8];
 
       var read = await TestableDriverBase.TestReadExact(
@@ -261,17 +261,11 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
       return combined;
     }
 
-    private sealed class ChunkedStream : Stream
+    private sealed class ChunkedStream(byte[] data, int chunkSize) : Stream
     {
-      private readonly byte[] _data;
-      private readonly int _chunkSize;
+      private readonly byte[] _data = data;
+      private readonly int _chunkSize = chunkSize;
       private int _position;
-
-      public ChunkedStream(byte[] data, int chunkSize)
-      {
-        _data = data;
-        _chunkSize = chunkSize;
-      }
 
       public override bool CanRead => true;
       public override bool CanSeek => false;

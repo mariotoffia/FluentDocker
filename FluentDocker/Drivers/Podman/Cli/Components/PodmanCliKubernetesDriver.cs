@@ -7,6 +7,8 @@ using System.Threading.Tasks;
 using FluentDocker.Common;
 using FluentDocker.Drivers.Podman.Cli.Binary;
 using FluentDocker.Model.Drivers;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace FluentDocker.Drivers.Podman.Cli.Components
 {
@@ -162,7 +164,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
         {
           return ParsePlayOutputJson(trimmed);
         }
-        catch (Exception ex) { Logger.Log($"JSON parsing failed, falling through to line-based: {ex.Message}"); }
+        catch (Exception ex) { NullLogger.Instance.LogDebug(ex, "JSON parsing failed, falling through to line-based"); }
       }
 
       // Line-based parsing for older versions

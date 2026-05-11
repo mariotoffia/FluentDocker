@@ -6,6 +6,7 @@ using FluentDocker.Model.Drivers;
 using FluentDocker.Testing.Core;
 using FluentDocker.Testing.Core.Plugins;
 using FluentDocker.Tests.Mocks;
+using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using Xunit;
 
@@ -360,21 +361,14 @@ namespace FluentDocker.Tests.CoreTests.Testing
 
     #region Test Doubles
 
-    private class FailingTeardownResource : ResourceBase
+    private class FailingTeardownResource(
+        FluentDockerKernel kernel,
+        Exception teardownEx,
+        Exception forceRemoveEx,
+        DockerResourceOptions options) : ResourceBase(kernel, options)
     {
-      private readonly Exception _teardownEx;
-      private readonly Exception _forceRemoveEx;
-
-      public FailingTeardownResource(
-          FluentDockerKernel kernel,
-          Exception teardownEx,
-          Exception forceRemoveEx,
-          DockerResourceOptions options)
-          : base(kernel, options)
-      {
-        _teardownEx = teardownEx;
-        _forceRemoveEx = forceRemoveEx;
-      }
+      private readonly Exception _teardownEx = teardownEx;
+      private readonly Exception _forceRemoveEx = forceRemoveEx;
 
       protected override Task PreflightAsync(CancellationToken cancellationToken)
           => Task.CompletedTask;
@@ -394,24 +388,22 @@ namespace FluentDocker.Tests.CoreTests.Testing
               : Task.CompletedTask;
     }
 
-    private class ThrowingResource : ITestResource
+    private class ThrowingResource(Exception exception) : ITestResource
     {
-      private readonly Exception _exception;
-
-      public ThrowingResource(Exception exception) => _exception = exception;
+      private readonly Exception _exception = exception;
 
       public bool IsInitialized => true;
       public Task InitializeAsync(CancellationToken cancellationToken = default)
           => Task.CompletedTask;
 
       public ValueTask DisposeAsync()
-          => new ValueTask(Task.FromException(_exception));
+          => new(Task.FromException(_exception));
     }
 
-    private sealed class ThrowingKernel : FluentDockerKernel
+    private sealed class ThrowingKernel(Exception exception) : FluentDockerKernel(new DriverRegistry(NullLoggerFactory.Instance), NullLoggerFactory.Instance)
     {
-      private readonly Exception _exception;
-      public ThrowingKernel(Exception exception) => _exception = exception;
+      private readonly Exception _exception = exception;
+
       public override async ValueTask DisposeAsync()
       {
         await base.DisposeAsync();
@@ -427,16 +419,10 @@ namespace FluentDocker.Tests.CoreTests.Testing
       public ValueTask DisposeAsync() => ValueTask.CompletedTask;
     }
 
-    private class SingleKeyPlugin : ITestPlugin
+    private class SingleKeyPlugin(string id, string key) : ITestPlugin
     {
-      private readonly string _key;
-      public string Id { get; }
-
-      public SingleKeyPlugin(string id, string key)
-      {
-        Id = id;
-        _key = key;
-      }
+      private readonly string _key = key;
+      public string Id { get; } = id;
 
       public void Register(ITestPluginRegistry registry)
       {
@@ -444,18 +430,11 @@ namespace FluentDocker.Tests.CoreTests.Testing
       }
     }
 
-    private class DualKeyPlugin : ITestPlugin
+    private class DualKeyPlugin(string id, string key1, string key2) : ITestPlugin
     {
-      private readonly string _key1;
-      private readonly string _key2;
-      public string Id { get; }
-
-      public DualKeyPlugin(string id, string key1, string key2)
-      {
-        Id = id;
-        _key1 = key1;
-        _key2 = key2;
-      }
+      private readonly string _key1 = key1;
+      private readonly string _key2 = key2;
+      public string Id { get; } = id;
 
       public void Register(ITestPluginRegistry registry)
       {

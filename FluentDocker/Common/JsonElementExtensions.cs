@@ -169,7 +169,7 @@ namespace FluentDocker.Common
     {
       var prop = el.Prop(propName);
       if (prop == null || prop.Value.ValueKind != JsonValueKind.Array)
-        return Array.Empty<string>();
+        return [];
 
       var arr = prop.Value;
       var result = new string[arr.GetArrayLength()];
@@ -186,10 +186,10 @@ namespace FluentDocker.Common
     {
       var prop = el.Prop(propName);
       if (prop == null || prop.Value.ValueKind == JsonValueKind.Null)
-        return Array.Empty<string>();
+        return [];
 
       if (prop.Value.ValueKind == JsonValueKind.String)
-        return new[] { prop.Value.GetString() };
+        return [prop.Value.GetString()];
 
       if (prop.Value.ValueKind == JsonValueKind.Array)
       {
@@ -201,7 +201,7 @@ namespace FluentDocker.Common
         return result;
       }
 
-      return Array.Empty<string>();
+      return [];
     }
 
     /// <summary>
@@ -211,7 +211,7 @@ namespace FluentDocker.Common
     {
       var prop = el.Prop(propName);
       if (prop == null || prop.Value.ValueKind != JsonValueKind.Object)
-        return new Dictionary<string, string>();
+        return [];
 
       var dict = new Dictionary<string, string>();
       foreach (var kv in prop.Value.EnumerateObject())

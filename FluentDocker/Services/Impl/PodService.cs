@@ -6,6 +6,7 @@ using FluentDocker.Common;
 using FluentDocker.Drivers.Podman;
 using FluentDocker.Kernel;
 using FluentDocker.Model.Drivers;
+using Microsoft.Extensions.Logging;
 
 namespace FluentDocker.Services.Impl
 {
@@ -21,11 +22,12 @@ namespace FluentDocker.Services.Impl
     bool IServiceCapabilities.CanRemove => true;
 
     private readonly FluentDockerKernel _kernel;
+    private readonly ILogger<PodService> _logger;
     private readonly string _driverId;
     private readonly string _podName;
     private readonly string _podId;
     private readonly bool _removeOnDispose;
-    private readonly Dictionary<string, Func<IServiceAsync, Task>> _hooks = new();
+    private readonly Dictionary<string, Func<IServiceAsync, Task>> _hooks = [];
     private ServiceRunningState _state = ServiceRunningState.Stopped;
 
     public PodService(
@@ -36,6 +38,7 @@ namespace FluentDocker.Services.Impl
       ArgumentNullException.ThrowIfNull(driverId);
       ArgumentNullException.ThrowIfNull(podId);
       _kernel = kernel;
+      _logger = kernel.LoggerFactory.CreateLogger<PodService>();
       _driverId = driverId;
       _podId = podId;
       _podName = podName ?? podId;
@@ -124,7 +127,7 @@ namespace FluentDocker.Services.Impl
 
       try
       { await RemoveAsync(force: true).ConfigureAwait(false); }
-      catch (Exception ex) { Logger.Log($"PodService DisposeAsync failed: {ex.Message}"); }
+      catch (Exception ex) { _logger.LogWarning(ex, "PodService DisposeAsync failed"); }
     }
 
     private void UpdateState(ServiceRunningState newState)

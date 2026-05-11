@@ -33,8 +33,7 @@ namespace FluentDocker.Tests.CoreTests.Testing
               It.IsAny<ContainerListFilter>(),
               It.IsAny<CancellationToken>()))
           .ReturnsAsync(FluentDocker.Model.Drivers.CommandResponse<IList<Container>>.Ok(
-              new List<Container>
-              {
+              [
                 new Container
                 {
                   Id = "orphan-1",
@@ -59,7 +58,7 @@ namespace FluentDocker.Tests.CoreTests.Testing
                     }
                   }
                 }
-              }));
+              ]));
 
       SetupRemoveDrivers();
 
@@ -94,8 +93,7 @@ namespace FluentDocker.Tests.CoreTests.Testing
               It.IsAny<NetworkListFilter>(),
               It.IsAny<CancellationToken>()))
           .ReturnsAsync(FluentDocker.Model.Drivers.CommandResponse<IList<Network>>.Ok(
-              new List<Network>
-              {
+              [
                 new Network
                 {
                   Id = "net-orphan",
@@ -106,7 +104,7 @@ namespace FluentDocker.Tests.CoreTests.Testing
                     [SessionLabel.ManagedKey] = "true"
                   }
                 }
-              }));
+              ]));
 
       MockPack.SetupNetworkRemove();
 
@@ -131,8 +129,7 @@ namespace FluentDocker.Tests.CoreTests.Testing
               It.IsAny<VolumeListFilter>(),
               It.IsAny<CancellationToken>()))
           .ReturnsAsync(FluentDocker.Model.Drivers.CommandResponse<IList<Volume>>.Ok(
-              new List<Volume>
-              {
+              [
                 new Volume
                 {
                   Name = "vol-orphan",
@@ -142,7 +139,7 @@ namespace FluentDocker.Tests.CoreTests.Testing
                     [SessionLabel.ManagedKey] = "true"
                   }
                 }
-              }));
+              ]));
 
       MockPack.SetupVolumeRemove();
 
@@ -161,8 +158,7 @@ namespace FluentDocker.Tests.CoreTests.Testing
               It.IsAny<ContainerListFilter>(),
               It.IsAny<CancellationToken>()))
           .ReturnsAsync(FluentDocker.Model.Drivers.CommandResponse<IList<Container>>.Ok(
-              new List<Container>
-              {
+              [
                 new Container
                 {
                   Id = "any-container",
@@ -175,7 +171,7 @@ namespace FluentDocker.Tests.CoreTests.Testing
                     }
                   }
                 }
-              }));
+              ]));
 
       SetupRemoveDrivers();
 
@@ -197,8 +193,7 @@ namespace FluentDocker.Tests.CoreTests.Testing
               It.IsAny<ContainerListFilter>(),
               It.IsAny<CancellationToken>()))
           .ReturnsAsync(FluentDocker.Model.Drivers.CommandResponse<IList<Container>>.Ok(
-              new List<Container>
-              {
+              [
                 new Container
                 {
                   Id = "mine",
@@ -211,7 +206,7 @@ namespace FluentDocker.Tests.CoreTests.Testing
                     }
                   }
                 }
-              }));
+              ]));
 
       SetupEmptyNetworkList();
       SetupEmptyVolumeList();
@@ -261,7 +256,7 @@ namespace FluentDocker.Tests.CoreTests.Testing
               It.IsAny<ContainerListFilter>(),
               It.IsAny<CancellationToken>()))
           .ReturnsAsync(FluentDocker.Model.Drivers.CommandResponse<IList<Container>>.Ok(
-              new List<Container>()));
+              []));
     }
 
     private void SetupEmptyNetworkList()
@@ -272,7 +267,7 @@ namespace FluentDocker.Tests.CoreTests.Testing
               It.IsAny<NetworkListFilter>(),
               It.IsAny<CancellationToken>()))
           .ReturnsAsync(FluentDocker.Model.Drivers.CommandResponse<IList<Network>>.Ok(
-              new List<Network>()));
+              []));
     }
 
     private void SetupEmptyVolumeList()
@@ -283,7 +278,7 @@ namespace FluentDocker.Tests.CoreTests.Testing
               It.IsAny<VolumeListFilter>(),
               It.IsAny<CancellationToken>()))
           .ReturnsAsync(FluentDocker.Model.Drivers.CommandResponse<IList<Volume>>.Ok(
-              new List<Volume>()));
+              []));
     }
 
     #endregion

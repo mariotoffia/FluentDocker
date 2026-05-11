@@ -47,7 +47,7 @@ namespace FluentDocker.Tests.CoreTests.Services
           "InvalidateInspectCache",
           BindingFlags.NonPublic | BindingFlags.Instance);
       Assert.NotNull(method);
-      method.Invoke(service, Array.Empty<object>());
+      method.Invoke(service, []);
     }
 
     public async ValueTask DisposeAsync()

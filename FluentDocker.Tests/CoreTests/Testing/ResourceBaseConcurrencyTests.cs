@@ -113,20 +113,13 @@ namespace FluentDocker.Tests.CoreTests.Testing
     /// <summary>
     /// Minimal <see cref="ResourceBase"/> subclass for concurrency testing.
     /// </summary>
-    private sealed class ConcurrencyTestResource : ResourceBase
+    private sealed class ConcurrencyTestResource(
+        FluentDockerKernel kernel,
+        Func<CancellationToken, Task>? onProvision = null,
+        Func<CancellationToken, Task>? onTeardown = null) : ResourceBase(kernel)
     {
-      private readonly Func<CancellationToken, Task> _onProvision;
-      private readonly Func<CancellationToken, Task> _onTeardown;
-
-      public ConcurrencyTestResource(
-          FluentDockerKernel kernel,
-          Func<CancellationToken, Task>? onProvision = null,
-          Func<CancellationToken, Task>? onTeardown = null)
-          : base(kernel)
-      {
-        _onProvision = onProvision ?? (_ => Task.CompletedTask);
-        _onTeardown = onTeardown ?? (_ => Task.CompletedTask);
-      }
+      private readonly Func<CancellationToken, Task> _onProvision = onProvision ?? (_ => Task.CompletedTask);
+      private readonly Func<CancellationToken, Task> _onTeardown = onTeardown ?? (_ => Task.CompletedTask);
 
       protected override Task PreflightAsync(CancellationToken cancellationToken)
           => Task.CompletedTask;

@@ -71,7 +71,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
         var runResult = await ContainerDriver.RunAsync(Context, new ContainerCreateConfig
         {
           Image = TestImage,
-          Command = new[] { "sleep", "60" },
+          Command = ["sleep", "60"],
           Detach = true
         }, TestContext.Current.CancellationToken);
         Assert.True(runResult.Success);
@@ -86,7 +86,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
         // Verify file was copied
         var execResult = await ContainerDriver.ExecAsync(Context, containerId, new ExecConfig
         {
-          Command = new[] { "cat", "/tmp/test.txt" }
+          Command = ["cat", "/tmp/test.txt"]
         }, TestContext.Current.CancellationToken);
         Assert.True(execResult.Success);
         Assert.Contains("Hello from host!", execResult.Data.StdOut);
@@ -116,7 +116,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
         var runResult = await ContainerDriver.RunAsync(Context, new ContainerCreateConfig
         {
           Image = TestImage,
-          Command = new[] { "sleep", "60" },
+          Command = ["sleep", "60"],
           Detach = true
         }, TestContext.Current.CancellationToken);
         Assert.True(runResult.Success);
@@ -158,7 +158,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
         {
           Image = TestImage,
           Name = containerName,
-          Command = new[] { "sleep", "60" },
+          Command = ["sleep", "60"],
           Detach = true
         }, TestContext.Current.CancellationToken);
         Assert.True(firstResult.Success);
@@ -201,7 +201,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
           },
           HealthCheck = new HealthCheckConfig
           {
-            Test = new[] { "CMD-SHELL", "pg_isready -U postgres || exit 1" },
+            Test = ["CMD-SHELL", "pg_isready -U postgres || exit 1"],
             Interval = "5s",
             Retries = 3
           },
@@ -237,7 +237,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
         var result = await ContainerDriver.RunAsync(Context, new ContainerCreateConfig
         {
           Image = TestImage,
-          Command = new[] { "sleep", "60" },
+          Command = ["sleep", "60"],
           MemoryLimit = 128 * 1024 * 1024, // 128MB
           Detach = true
         }, TestContext.Current.CancellationToken);
@@ -270,7 +270,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
         var runResult = await ContainerDriver.RunAsync(Context, new ContainerCreateConfig
         {
           Image = TestImage,
-          Command = new[] { "sleep", "60" },
+          Command = ["sleep", "60"],
           Detach = true
         }, TestContext.Current.CancellationToken);
         Assert.True(runResult.Success);
@@ -279,7 +279,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
         // Make a change in the container
         await ContainerDriver.ExecAsync(Context, containerId, new ExecConfig
         {
-          Command = new[] { "touch", "/tmp/newfile.txt" }
+          Command = ["touch", "/tmp/newfile.txt"]
         }, TestContext.Current.CancellationToken);
 
         // Act

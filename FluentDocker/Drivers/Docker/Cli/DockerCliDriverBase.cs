@@ -6,10 +6,11 @@ using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using FluentDocker.Common;
 using FluentDocker.Drivers.Docker.Cli.Binary;
 using FluentDocker.Model.Common;
 using FluentDocker.Model.Drivers;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace FluentDocker.Drivers.Docker.Cli
 {
@@ -28,6 +29,12 @@ namespace FluentDocker.Drivers.Docker.Cli
     /// The driver context.
     /// </summary>
     protected DriverContext Context { get; private set; }
+
+    /// <summary>
+    /// Logger for this driver component. Category equals the concrete derived type's FQN.
+    /// Defaults to <see cref="NullLogger.Instance"/> until <see cref="Initialize(DriverContext)"/> is called.
+    /// </summary>
+    protected ILogger Logger { get; private set; } = NullLogger.Instance;
 
     /// <summary>
     /// The binary resolver for resolving Docker command paths.
@@ -55,6 +62,7 @@ namespace FluentDocker.Drivers.Docker.Cli
     {
       ArgumentNullException.ThrowIfNull(context);
       Context = context;
+      Logger = context.LoggerFactory.CreateLogger(GetType());
     }
 
     /// <summary>
@@ -68,6 +76,7 @@ namespace FluentDocker.Drivers.Docker.Cli
       ArgumentNullException.ThrowIfNull(binaryResolver);
       Context = context;
       BinaryResolver = binaryResolver;
+      Logger = context.LoggerFactory.CreateLogger(GetType());
     }
 
     #region Global Args
@@ -310,7 +319,7 @@ namespace FluentDocker.Drivers.Docker.Cli
       }
       finally
       {
-        KillProcessSafely(process);
+        KillProcessSafely(process, Logger);
       }
     }
 
@@ -410,7 +419,7 @@ namespace FluentDocker.Drivers.Docker.Cli
     /// <summary>
     /// Safely kills a process if it is still running, suppressing any errors.
     /// </summary>
-    private static void KillProcessSafely(Process process)
+    private static void KillProcessSafely(Process process, ILogger logger = null)
     {
       if (process == null)
         return;
@@ -422,7 +431,7 @@ namespace FluentDocker.Drivers.Docker.Cli
       }
       catch (Exception ex)
       {
-        Logger.Log($"Process kill failed: {ex.Message}");
+        (logger ?? NullLogger.Instance).LogWarning(ex, "Process kill failed");
       }
     }
 

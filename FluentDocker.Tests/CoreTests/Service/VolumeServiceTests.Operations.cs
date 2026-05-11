@@ -8,6 +8,7 @@ using FluentDocker.Model.Drivers;
 using FluentDocker.Services;
 using FluentDocker.Services.Impl;
 using FluentDocker.Tests.Mocks;
+using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using Xunit;
 
@@ -265,7 +266,7 @@ namespace FluentDocker.Tests.CoreTests.Service
     [Fact]
     public async Task PauseAsync_MessageContainsCannotBePaused()
     {
-      var kernel = new FluentDockerKernel();
+      var kernel = new FluentDockerKernel(new DriverRegistry(NullLoggerFactory.Instance), NullLoggerFactory.Instance);
       var service = new VolumeService(kernel, "docker", "my-volume", "local");
 
       var ex = await Assert.ThrowsAsync<NotSupportedException>(
@@ -278,7 +279,7 @@ namespace FluentDocker.Tests.CoreTests.Service
     [Fact]
     public async Task StopAsync_MessageContainsCannotBeStopped()
     {
-      var kernel = new FluentDockerKernel();
+      var kernel = new FluentDockerKernel(new DriverRegistry(NullLoggerFactory.Instance), NullLoggerFactory.Instance);
       var service = new VolumeService(kernel, "docker", "my-volume", "local");
 
       var ex = await Assert.ThrowsAsync<NotSupportedException>(

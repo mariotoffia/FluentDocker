@@ -10,15 +10,15 @@ namespace FluentDocker.Drivers
   public class ComposeFileConfig
   {
     /// <summary>Path to compose file(s).</summary>
-    public List<string> ComposeFiles { get; set; } = new List<string>();
+    public List<string> ComposeFiles { get; set; } = [];
     /// <summary>Project name.</summary>
     public string ProjectName { get; set; }
     /// <summary>Project directory.</summary>
     public string ProjectDirectory { get; set; }
     /// <summary>Environment variables.</summary>
-    public Dictionary<string, string> Environment { get; set; } = new Dictionary<string, string>();
+    public Dictionary<string, string> Environment { get; set; } = [];
     /// <summary>Specific services to target.</summary>
-    public List<string> Services { get; set; } = new List<string>();
+    public List<string> Services { get; set; } = [];
   }
 
   /// <summary>
@@ -51,9 +51,9 @@ namespace FluentDocker.Drivers
     /// <summary>Pull image policy (always, missing, never).</summary>
     public string Pull { get; set; }
     /// <summary>Scale service replicas (service=count) for the up command.</summary>
-    public Dictionary<string, int> Scale { get; set; } = new Dictionary<string, int>();
+    public Dictionary<string, int> Scale { get; set; } = [];
     /// <summary>Compose profiles to activate.</summary>
-    public List<string> Profiles { get; set; } = new List<string>();
+    public List<string> Profiles { get; set; } = [];
   }
 
   /// <summary>
@@ -174,7 +174,7 @@ namespace FluentDocker.Drivers
     /// <summary>Remove intermediate containers.</summary>
     public bool ForceRm { get; set; }
     /// <summary>Build arguments.</summary>
-    public Dictionary<string, string> BuildArgs { get; set; } = new Dictionary<string, string>();
+    public Dictionary<string, string> BuildArgs { get; set; } = [];
     /// <summary>Build in parallel.</summary>
     public bool Parallel { get; set; }
     /// <summary>Compress build context.</summary>
@@ -245,9 +245,9 @@ namespace FluentDocker.Drivers
     /// <summary>Publish service ports.</summary>
     public bool ServicePorts { get; set; }
     /// <summary>Additional ports to expose.</summary>
-    public List<string> Publish { get; set; } = new List<string>();
+    public List<string> Publish { get; set; } = [];
     /// <summary>Additional volumes.</summary>
-    public List<string> Volumes { get; set; } = new List<string>();
+    public List<string> Volumes { get; set; } = [];
     /// <summary>Allocate a pseudo-TTY (default: true, matching docker compose run behavior).</summary>
     public bool Tty { get; set; } = true;
   }
@@ -258,7 +258,7 @@ namespace FluentDocker.Drivers
   public class ComposeScaleConfig : ComposeFileConfig
   {
     /// <summary>Service replicas (service=count).</summary>
-    public Dictionary<string, int> Scale { get; set; } = new Dictionary<string, int>();
+    public Dictionary<string, int> Scale { get; set; } = [];
     /// <summary>Don't start linked services.</summary>
     public bool NoDeps { get; set; }
   }
@@ -324,11 +324,11 @@ namespace FluentDocker.Drivers
   public class ComposeUpResult
   {
     /// <summary>List of started services.</summary>
-    public List<string> Services { get; set; } = new List<string>();
+    public List<string> Services { get; set; } = [];
     /// <summary>Project name.</summary>
     public string ProjectName { get; set; }
     /// <summary>Warnings from the operation.</summary>
-    public List<string> Warnings { get; set; } = new List<string>();
+    public List<string> Warnings { get; set; } = [];
   }
 
   /// <summary>
@@ -366,7 +366,7 @@ namespace FluentDocker.Drivers
     /// <summary>Running time description.</summary>
     public string RunningFor { get; set; }
     /// <summary>Publishers (structured port info).</summary>
-    public List<ComposePublisher> Publishers { get; set; } = new List<ComposePublisher>();
+    public List<ComposePublisher> Publishers { get; set; } = [];
   }
 
   /// <summary>
@@ -394,7 +394,7 @@ namespace FluentDocker.Drivers
     /// <summary>Container ID.</summary>
     public string ContainerId { get; set; }
     /// <summary>Process information.</summary>
-    public List<Dictionary<string, string>> Processes { get; set; } = new List<Dictionary<string, string>>();
+    public List<Dictionary<string, string>> Processes { get; set; } = [];
   }
 
   /// <summary>

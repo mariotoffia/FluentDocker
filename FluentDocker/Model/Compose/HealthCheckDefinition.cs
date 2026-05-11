@@ -60,7 +60,7 @@ namespace FluentDocker.Model.Compose
     ///   (only the first 4096 bytes are stored currently).
     ///   When the health status of a container changes, a health_status event is generated with the new status.
     /// </remarks>
-    public IList<string> Test { get; set; } = new List<string>();
+    public IList<string> Test { get; set; } = [];
 
     /// <summary>
     ///   How often the health check shall be executed.

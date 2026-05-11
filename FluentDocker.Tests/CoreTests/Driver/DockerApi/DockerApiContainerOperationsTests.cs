@@ -88,9 +88,9 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
       var result = await driver.TopAsync(Ctx, "ctr1", cancellationToken: TestContext.Current.CancellationToken);
 
       Assert.True(result.Success);
-      Assert.Equal(new List<string> { "PID", "CMD" }, result.Data.Titles);
+      Assert.Equal(["PID", "CMD"], result.Data.Titles);
       Assert.Single(result.Data.Processes);
-      Assert.Equal(new List<string> { "1", "sleep" }, result.Data.Processes[0]);
+      Assert.Equal(["1", "sleep"], result.Data.Processes[0]);
     }
 
     [Fact]
@@ -187,7 +187,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
       mock.SetupGet("/exec/exec-tty/json", 200, @"{""ExitCode"":0,""Running"":false}");
       var driver = CreateDriver(mock);
 
-      var config = new ExecConfig { Command = new[] { "echo", "hello" }, Tty = true };
+      var config = new ExecConfig { Command = ["echo", "hello"], Tty = true };
       var result = await driver.ExecAsync(Ctx, "ctr1", config, cancellationToken: TestContext.Current.CancellationToken);
 
       Assert.True(result.Success);
@@ -212,7 +212,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
       mock.SetupGet("/exec/exec-mux/json", 200, @"{""ExitCode"":0}");
       var driver = CreateDriver(mock);
 
-      var config = new ExecConfig { Command = new[] { "sh", "-c", "echo" }, Tty = false };
+      var config = new ExecConfig { Command = ["sh", "-c", "echo"], Tty = false };
       var result = await driver.ExecAsync(Ctx, "ctr1", config, cancellationToken: TestContext.Current.CancellationToken);
 
       Assert.True(result.Success);
@@ -237,7 +237,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
       mock.SetupGet("/exec/exec-mix/json", 200, @"{""ExitCode"":1}");
       var driver = CreateDriver(mock);
 
-      var config = new ExecConfig { Command = new[] { "test" }, Tty = false };
+      var config = new ExecConfig { Command = ["test"], Tty = false };
       var result = await driver.ExecAsync(Ctx, "ctr1", config, cancellationToken: TestContext.Current.CancellationToken);
 
       Assert.True(result.Success);
@@ -251,11 +251,11 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
     {
       var mock = new MockDockerApiConnection();
       mock.SetupPost("/exec", 201, @"{""Id"":""exec-empty""}");
-      mock.SetupStreamBytes("/exec/exec-empty/start", Array.Empty<byte>());
+      mock.SetupStreamBytes("/exec/exec-empty/start", []);
       mock.SetupGet("/exec/exec-empty/json", 200, @"{""ExitCode"":0}");
       var driver = CreateDriver(mock);
 
-      var config = new ExecConfig { Command = new[] { "true" }, Tty = false };
+      var config = new ExecConfig { Command = ["true"], Tty = false };
       var result = await driver.ExecAsync(Ctx, "ctr1", config, cancellationToken: TestContext.Current.CancellationToken);
 
       Assert.True(result.Success);
@@ -274,7 +274,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
 
       var config = new ExecConfig
       {
-        Command = new[] { "env" },
+        Command = ["env"],
         Environment = new Dictionary<string, string>
         {
           ["MY_VAR"] = "hello",
@@ -297,7 +297,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
       mock.SetupPost("/exec", 201, @"{""Id"":""""}");
       var driver = CreateDriver(mock);
 
-      var config = new ExecConfig { Command = new[] { "ls" } };
+      var config = new ExecConfig { Command = ["ls"] };
       var result = await driver.ExecAsync(Ctx, "ctr1", config, cancellationToken: TestContext.Current.CancellationToken);
 
       Assert.False(result.Success);

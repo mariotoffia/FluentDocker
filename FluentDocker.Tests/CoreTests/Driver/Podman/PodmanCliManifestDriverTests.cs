@@ -32,7 +32,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
       var config = new ManifestCreateConfig
       {
         Name = "mylist",
-        Images = new List<string> { "alpine:latest", "nginx:latest" }
+        Images = ["alpine:latest", "nginx:latest"]
       };
       var result = InvokeBuildCreateArgs(config);
       Assert.Equal("manifest create mylist alpine:latest nginx:latest", result);
@@ -149,7 +149,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
       {
         ListName = "mylist",
         Image = "alpine:latest",
-        Features = new List<string> { "sse4", "avx" }
+        Features = ["sse4", "avx"]
       };
       var result = InvokeBuildAddArgs(config);
       Assert.Contains("--features sse4", result);
@@ -295,7 +295,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
       {
         ListName = "mylist",
         Image = "sha256:abc123",
-        OsFeatures = new List<string> { "win32k" }
+        OsFeatures = ["win32k"]
       };
       var result = InvokeBuildAnnotateArgs(config);
       Assert.Contains("--os-features win32k", result);
@@ -441,7 +441,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
           "BuildCreateArgs",
           BindingFlags.NonPublic | BindingFlags.Static | BindingFlags.Public);
       Assert.NotNull(method);
-      return (string)method.Invoke(null, new object[] { config });
+      return (string)method.Invoke(null, [config]);
     }
 
     private static string InvokeBuildAddArgs(ManifestAddConfig config)
@@ -450,7 +450,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
           "BuildAddArgs",
           BindingFlags.NonPublic | BindingFlags.Static | BindingFlags.Public);
       Assert.NotNull(method);
-      return (string)method.Invoke(null, new object[] { config });
+      return (string)method.Invoke(null, [config]);
     }
 
     private static string InvokeBuildPushArgs(ManifestPushConfig config)
@@ -459,7 +459,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
           "BuildPushArgs",
           BindingFlags.NonPublic | BindingFlags.Static | BindingFlags.Public);
       Assert.NotNull(method);
-      return (string)method.Invoke(null, new object[] { config });
+      return (string)method.Invoke(null, [config]);
     }
 
     private static string InvokeBuildAnnotateArgs(ManifestAnnotateConfig config)
@@ -468,7 +468,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
           "BuildAnnotateArgs",
           BindingFlags.NonPublic | BindingFlags.Static | BindingFlags.Public);
       Assert.NotNull(method);
-      return (string)method.Invoke(null, new object[] { config });
+      return (string)method.Invoke(null, [config]);
     }
 
     private static ManifestInspectResult InvokeParseManifestInspect(string json)
@@ -477,7 +477,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
           "ParseManifestInspect",
           BindingFlags.NonPublic | BindingFlags.Static | BindingFlags.Public);
       Assert.NotNull(method);
-      return (ManifestInspectResult)method.Invoke(null, new object[] { json });
+      return (ManifestInspectResult)method.Invoke(null, [json]);
     }
 
     #endregion

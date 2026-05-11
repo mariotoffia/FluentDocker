@@ -8,6 +8,7 @@ using FluentDocker.Drivers.Podman;
 using FluentDocker.Kernel;
 using FluentDocker.Model.Drivers;
 using FluentDocker.Tests.Mocks;
+using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using Xunit;
 
@@ -23,7 +24,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
     private static async Task<(FluentDockerKernel kernel, MockDriverPack pack)> CreateKernelWithMockPack()
     {
       var pack = new MockDriverPack();
-      var kernel = new FluentDockerKernel();
+      var kernel = new FluentDockerKernel(new DriverRegistry(NullLoggerFactory.Instance), NullLoggerFactory.Instance);
       await kernel.RegisterDriverPackAsync("test", pack, new DriverContext("test"));
       return (kernel, pack);
     }

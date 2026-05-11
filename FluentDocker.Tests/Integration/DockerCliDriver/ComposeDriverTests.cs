@@ -20,7 +20,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
   [Collection("DockerDriver")]
   public partial class ComposeDriverTests : DockerDriverTestBase
   {
-    private static readonly HttpClient HttpClient = new HttpClient();
+    private static readonly HttpClient HttpClient = new();
 
     /// <summary>
     /// Gets the compose driver.
@@ -40,7 +40,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
         // Act
         var upResult = await ComposeDriver.UpAsync(Context, new ComposeUpConfig
         {
-          ComposeFiles = new List<string> { composeFile },
+          ComposeFiles = [composeFile],
           ProjectName = projectName,
           Detached = true,
           RemoveOrphans = true
@@ -52,7 +52,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
         // List services
         var listResult = await ComposeDriver.ListAsync(Context, new ComposeListConfig
         {
-          ComposeFiles = new List<string> { composeFile },
+          ComposeFiles = [composeFile],
           ProjectName = projectName,
           All = true
         }, TestContext.Current.CancellationToken);
@@ -64,7 +64,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
       {
         await ComposeDriver.DownAsync(Context, new ComposeDownConfig
         {
-          ComposeFiles = new List<string> { composeFile },
+          ComposeFiles = [composeFile],
           ProjectName = projectName,
           RemoveVolumes = true
         }, TestContext.Current.CancellationToken);
@@ -80,7 +80,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
       // Arrange
       var upResult = await ComposeDriver.UpAsync(Context, new ComposeUpConfig
       {
-        ComposeFiles = new List<string> { composeFile },
+        ComposeFiles = [composeFile],
         ProjectName = projectName,
         Detached = true,
         RemoveOrphans = true
@@ -90,7 +90,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
       // Act
       var downResult = await ComposeDriver.DownAsync(Context, new ComposeDownConfig
       {
-        ComposeFiles = new List<string> { composeFile },
+        ComposeFiles = [composeFile],
         ProjectName = projectName,
         RemoveVolumes = true
       }, TestContext.Current.CancellationToken);
@@ -101,7 +101,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
       // Verify services are gone
       var listResult = await ComposeDriver.ListAsync(Context, new ComposeListConfig
       {
-        ComposeFiles = new List<string> { composeFile },
+        ComposeFiles = [composeFile],
         ProjectName = projectName,
         All = true
       }, TestContext.Current.CancellationToken);
@@ -124,7 +124,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
         // Arrange
         var upResult = await ComposeDriver.UpAsync(Context, new ComposeUpConfig
         {
-          ComposeFiles = new List<string> { composeFile },
+          ComposeFiles = [composeFile],
           ProjectName = projectName,
           Detached = true,
           RemoveOrphans = true
@@ -137,7 +137,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
         // Act - Pause
         var pauseResult = await ComposeDriver.PauseAsync(Context, new ComposeFileConfig
         {
-          ComposeFiles = new List<string> { composeFile },
+          ComposeFiles = [composeFile],
           ProjectName = projectName
         }, TestContext.Current.CancellationToken);
         Assert.True(pauseResult.Success, $"Pause failed: {pauseResult.Error}");
@@ -145,7 +145,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
         // Verify paused
         var listResult = await ComposeDriver.ListAsync(Context, new ComposeListConfig
         {
-          ComposeFiles = new List<string> { composeFile },
+          ComposeFiles = [composeFile],
           ProjectName = projectName
         }, TestContext.Current.CancellationToken);
         Assert.True(listResult.Success);
@@ -153,7 +153,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
         // Act - Unpause
         var unpauseResult = await ComposeDriver.UnpauseAsync(Context, new ComposeFileConfig
         {
-          ComposeFiles = new List<string> { composeFile },
+          ComposeFiles = [composeFile],
           ProjectName = projectName
         }, TestContext.Current.CancellationToken);
         Assert.True(unpauseResult.Success, $"Unpause failed: {unpauseResult.Error}");
@@ -162,7 +162,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
       {
         await ComposeDriver.DownAsync(Context, new ComposeDownConfig
         {
-          ComposeFiles = new List<string> { composeFile },
+          ComposeFiles = [composeFile],
           ProjectName = projectName,
           RemoveVolumes = true
         }, TestContext.Current.CancellationToken);
@@ -184,7 +184,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
         // Arrange
         var upResult = await ComposeDriver.UpAsync(Context, new ComposeUpConfig
         {
-          ComposeFiles = new List<string> { composeFile },
+          ComposeFiles = [composeFile],
           ProjectName = projectName,
           Detached = true,
           RemoveOrphans = true
@@ -197,7 +197,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
         // Act
         var logsResult = await ComposeDriver.GetLogsAsync(Context, new ComposeLogsConfig
         {
-          ComposeFiles = new List<string> { composeFile },
+          ComposeFiles = [composeFile],
           ProjectName = projectName,
           Tail = 50
         }, TestContext.Current.CancellationToken);
@@ -210,7 +210,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
       {
         await ComposeDriver.DownAsync(Context, new ComposeDownConfig
         {
-          ComposeFiles = new List<string> { composeFile },
+          ComposeFiles = [composeFile],
           ProjectName = projectName,
           RemoveVolumes = true
         }, TestContext.Current.CancellationToken);
@@ -229,7 +229,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
       // Act
       var configResult = await ComposeDriver.ConfigAsync(Context, new ComposeConfigConfig
       {
-        ComposeFiles = new List<string> { composeFile }
+        ComposeFiles = [composeFile]
       }, TestContext.Current.CancellationToken);
 
       // Assert
@@ -253,7 +253,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
         // Arrange
         var upResult = await ComposeDriver.UpAsync(Context, new ComposeUpConfig
         {
-          ComposeFiles = new List<string> { composeFile },
+          ComposeFiles = [composeFile],
           ProjectName = projectName,
           Detached = true,
           RemoveOrphans = true
@@ -266,10 +266,10 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
         // Act
         var execResult = await ComposeDriver.ExecuteAsync(Context, new ComposeExecConfig
         {
-          ComposeFiles = new List<string> { composeFile },
+          ComposeFiles = [composeFile],
           ProjectName = projectName,
           Service = "rabbitmq",
-          Command = new[] { "rabbitmqctl", "status" },
+          Command = ["rabbitmqctl", "status"],
           Tty = false
         }, TestContext.Current.CancellationToken);
 
@@ -280,7 +280,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
       {
         await ComposeDriver.DownAsync(Context, new ComposeDownConfig
         {
-          ComposeFiles = new List<string> { composeFile },
+          ComposeFiles = [composeFile],
           ProjectName = projectName,
           RemoveVolumes = true
         }, TestContext.Current.CancellationToken);
@@ -303,7 +303,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
         // Arrange — bring up with 1 instance
         var upResult = await ComposeDriver.UpAsync(Context, new ComposeUpConfig
         {
-          ComposeFiles = new List<string> { composeFile },
+          ComposeFiles = [composeFile],
           ProjectName = projectName,
           Detached = true,
           RemoveOrphans = true
@@ -313,7 +313,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
         // Verify initial state: exactly 1 worker instance
         var initialList = await ComposeDriver.ListAsync(Context, new ComposeListConfig
         {
-          ComposeFiles = new List<string> { composeFile },
+          ComposeFiles = [composeFile],
           ProjectName = projectName,
           All = true
         }, TestContext.Current.CancellationToken);
@@ -323,7 +323,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
         // Act — scale worker to 3 instances
         var scaleUpResult = await ComposeDriver.ScaleAsync(Context, new ComposeScaleConfig
         {
-          ComposeFiles = new List<string> { composeFile },
+          ComposeFiles = [composeFile],
           ProjectName = projectName,
           Scale = new Dictionary<string, int> { { "worker", 3 } }
         }, TestContext.Current.CancellationToken);
@@ -332,7 +332,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
         // Assert — should now have 3 worker instances
         var scaledList = await ComposeDriver.ListAsync(Context, new ComposeListConfig
         {
-          ComposeFiles = new List<string> { composeFile },
+          ComposeFiles = [composeFile],
           ProjectName = projectName,
           All = true
         }, TestContext.Current.CancellationToken);
@@ -342,7 +342,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
         // Act — scale back down to 1
         var scaleDownResult = await ComposeDriver.ScaleAsync(Context, new ComposeScaleConfig
         {
-          ComposeFiles = new List<string> { composeFile },
+          ComposeFiles = [composeFile],
           ProjectName = projectName,
           Scale = new Dictionary<string, int> { { "worker", 1 } }
         }, TestContext.Current.CancellationToken);
@@ -351,7 +351,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
         // Assert — should be back to 1 instance
         var finalList = await ComposeDriver.ListAsync(Context, new ComposeListConfig
         {
-          ComposeFiles = new List<string> { composeFile },
+          ComposeFiles = [composeFile],
           ProjectName = projectName,
           All = true
         }, TestContext.Current.CancellationToken);
@@ -362,7 +362,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
       {
         await ComposeDriver.DownAsync(Context, new ComposeDownConfig
         {
-          ComposeFiles = new List<string> { composeFile },
+          ComposeFiles = [composeFile],
           ProjectName = projectName,
           RemoveVolumes = true
         }, TestContext.Current.CancellationToken);

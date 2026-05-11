@@ -225,8 +225,8 @@ namespace FluentDocker.Services.Impl
       {
         Name = name,
         Driver = driver,
-        Labels = labels != null ? new Dictionary<string, string>(labels) : new Dictionary<string, string>(),
-        DriverOpts = options != null ? new Dictionary<string, string>(options) : new Dictionary<string, string>()
+        Labels = labels != null ? new Dictionary<string, string>(labels) : [],
+        DriverOpts = options != null ? new Dictionary<string, string>(options) : []
       };
 
       var response = await volumeDriver.CreateAsync(context, config, cancellationToken).ConfigureAwait(false);

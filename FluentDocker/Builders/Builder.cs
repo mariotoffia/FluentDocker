@@ -8,6 +8,8 @@ using FluentDocker.Kernel;
 using FluentDocker.Model.Drivers;
 using FluentDocker.Model.Kernel;
 using FluentDocker.Services;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace FluentDocker.Builders
 {
@@ -20,7 +22,7 @@ namespace FluentDocker.Builders
   {
     private FluentDockerKernel _currentKernel;
     private string _currentDriverId;
-    private readonly List<BuildOperation> _operations = new();
+    private readonly List<BuildOperation> _operations = [];
 
     /// <summary>
     /// Creates a new builder.
@@ -247,7 +249,9 @@ namespace FluentDocker.Builders
       }
       catch (Exception ex)
       {
-        Logger.Log($"Builder build failed: {ex.Message}");
+        (_currentKernel?.LoggerFactory ?? NullLoggerFactory.Instance)
+            .CreateLogger<Builder>()
+            .LogError(ex, "Builder build failed");
         // Clean up all services created so far to prevent resource leaks.
         // Use a bounded timeout so cleanup cannot hang indefinitely when the daemon is unhealthy.
         using var cleanupCts = new CancellationTokenSource(effectiveCleanupTimeout);
@@ -256,7 +260,7 @@ namespace FluentDocker.Builders
         throw;
       }
 
-      return new BuildResults(scopes.Values.ToList());
+      return new BuildResults([.. scopes.Values]);
     }
 
     #endregion

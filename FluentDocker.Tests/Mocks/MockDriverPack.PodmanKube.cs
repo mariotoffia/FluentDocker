@@ -40,14 +40,14 @@ namespace FluentDocker.Tests.Mocks
           .ReturnsAsync(CommandResponse<KubePlayResult>.Ok(
               new KubePlayResult
               {
-                Pods = new List<KubePlayPodResult>
-                {
+                Pods =
+                [
                   new KubePlayPodResult
                   {
                     Id = "pod-123",
-                    Containers = new List<string> { "container-456" }
+                    Containers = ["container-456"]
                   }
-                }
+                ]
               }));
       return this;
     }

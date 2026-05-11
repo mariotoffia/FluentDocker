@@ -34,35 +34,35 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
     public void MapHttpErrorCode_MapsStatusCodeToExpectedError(
         int statusCode, string expectedCode)
     {
-      var driver = CreateDriver();
+      _ = CreateDriver();
       Assert.Equal(expectedCode, TestableDriverBase.TestMapHttpErrorCode(statusCode));
     }
 
     [Fact]
     public void MapHttpErrorCode_400_ReturnsBadRequest()
     {
-      var driver = CreateDriver();
+      _ = CreateDriver();
       Assert.Equal(ErrorCodes.Api.BadRequest, TestableDriverBase.TestMapHttpErrorCode(400));
     }
 
     [Fact]
     public void MapHttpErrorCode_401_ReturnsUnauthorized()
     {
-      var driver = CreateDriver();
+      _ = CreateDriver();
       Assert.Equal(ErrorCodes.Api.Unauthorized, TestableDriverBase.TestMapHttpErrorCode(401));
     }
 
     [Fact]
     public void MapHttpErrorCode_404_ReturnsNotFound()
     {
-      var driver = CreateDriver();
+      _ = CreateDriver();
       Assert.Equal(ErrorCodes.Api.NotFound, TestableDriverBase.TestMapHttpErrorCode(404));
     }
 
     [Fact]
     public void MapHttpErrorCode_500_ReturnsServerError()
     {
-      var driver = CreateDriver();
+      _ = CreateDriver();
       Assert.Equal(ErrorCodes.Api.ServerError, TestableDriverBase.TestMapHttpErrorCode(500));
     }
 
@@ -73,7 +73,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
     [Fact]
     public void MapNotFoundErrorCode_404_UsesDefaultCode()
     {
-      var driver = CreateDriver();
+      _ = CreateDriver();
       var result = TestableDriverBase.TestMapNotFoundErrorCode(404, ErrorCodes.Container.NotFound);
       Assert.Equal(ErrorCodes.Container.NotFound, result);
     }
@@ -81,7 +81,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
     [Fact]
     public void MapNotFoundErrorCode_Non404_FallsBackToMapHttpErrorCode()
     {
-      var driver = CreateDriver();
+      _ = CreateDriver();
       Assert.Equal(ErrorCodes.Api.Conflict,
           TestableDriverBase.TestMapNotFoundErrorCode(409, ErrorCodes.Container.NotFound));
       Assert.Equal(ErrorCodes.Api.ServerError,
@@ -177,10 +177,8 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
     /// <summary>
     /// Test subclass that exposes protected members of DockerApiDriverBase.
     /// </summary>
-    private class TestableDriverBase : DockerApiDriverBase
+    private class TestableDriverBase(IDockerApiConnection conn) : DockerApiDriverBase(conn)
     {
-      public TestableDriverBase(IDockerApiConnection conn) : base(conn) { }
-
       public static string TestMapHttpErrorCode(int statusCode) =>
           MapHttpErrorCode(statusCode);
 

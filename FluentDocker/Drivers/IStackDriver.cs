@@ -223,7 +223,7 @@ namespace FluentDocker.Drivers
     public string Name { get; set; }
 
     /// <summary>Filter by label.</summary>
-    public Dictionary<string, string> Labels { get; set; } = new Dictionary<string, string>();
+    public Dictionary<string, string> Labels { get; set; } = [];
 
     /// <summary>Only display service IDs.</summary>
     public bool Quiet { get; set; }
@@ -250,7 +250,7 @@ namespace FluentDocker.Drivers
     public string StackName { get; set; }
 
     /// <summary>Compose file paths.</summary>
-    public List<string> ComposeFiles { get; set; } = new List<string>();
+    public List<string> ComposeFiles { get; set; } = [];
 
     /// <summary>Orchestrator (swarm, kubernetes).</summary>
     public string Orchestrator { get; set; }
@@ -271,7 +271,7 @@ namespace FluentDocker.Drivers
     public bool ResolveImage { get; set; }
 
     /// <summary>Environment variables.</summary>
-    public Dictionary<string, string> Environment { get; set; } = new Dictionary<string, string>();
+    public Dictionary<string, string> Environment { get; set; } = [];
   }
 
   #endregion
@@ -287,16 +287,16 @@ namespace FluentDocker.Drivers
     public string StackName { get; set; }
 
     /// <summary>Services created.</summary>
-    public List<string> ServicesCreated { get; set; } = new List<string>();
+    public List<string> ServicesCreated { get; set; } = [];
 
     /// <summary>Services updated.</summary>
-    public List<string> ServicesUpdated { get; set; } = new List<string>();
+    public List<string> ServicesUpdated { get; set; } = [];
 
     /// <summary>Networks created.</summary>
-    public List<string> NetworksCreated { get; set; } = new List<string>();
+    public List<string> NetworksCreated { get; set; } = [];
 
     /// <summary>Warnings from the operation.</summary>
-    public List<string> Warnings { get; set; } = new List<string>();
+    public List<string> Warnings { get; set; } = [];
   }
 
   #endregion

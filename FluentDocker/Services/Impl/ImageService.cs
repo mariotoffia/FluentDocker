@@ -6,6 +6,7 @@ using FluentDocker.Common;
 using FluentDocker.Drivers;
 using FluentDocker.Kernel;
 using FluentDocker.Model.Drivers;
+using Microsoft.Extensions.Logging;
 
 namespace FluentDocker.Services.Impl
 {
@@ -21,11 +22,12 @@ namespace FluentDocker.Services.Impl
     bool IServiceCapabilities.CanRemove => true;
 
     private readonly FluentDockerKernel _kernel;
+    private readonly ILogger<ImageService> _logger;
     private readonly string _driverId;
     private readonly string _imageId;
     private readonly string _repository;
     private readonly string _tag;
-    private readonly Dictionary<string, Func<IServiceAsync, Task>> _hooks = new Dictionary<string, Func<IServiceAsync, Task>>();
+    private readonly Dictionary<string, Func<IServiceAsync, Task>> _hooks = [];
     private ServiceRunningState _state = ServiceRunningState.Running;
 
     public ImageService(
@@ -39,6 +41,7 @@ namespace FluentDocker.Services.Impl
       ArgumentNullException.ThrowIfNull(driverId);
       ArgumentNullException.ThrowIfNull(imageId);
       _kernel = kernel;
+      _logger = kernel.LoggerFactory.CreateLogger<ImageService>();
       _driverId = driverId;
       _imageId = imageId;
       _repository = repository;
@@ -194,7 +197,7 @@ namespace FluentDocker.Services.Impl
     {
       if (Interlocked.CompareExchange(ref _disposed, 1, 0) != 0)
         return;
-      DisposeCoreAsync().AsTask().GetAwaiter().GetResult();
+      ImageService.DisposeCoreAsync().AsTask().GetAwaiter().GetResult();
       GC.SuppressFinalize(this);
     }
 
@@ -202,11 +205,11 @@ namespace FluentDocker.Services.Impl
     {
       if (Interlocked.CompareExchange(ref _disposed, 1, 0) != 0)
         return;
-      await DisposeCoreAsync().ConfigureAwait(false);
+      await ImageService.DisposeCoreAsync().ConfigureAwait(false);
       GC.SuppressFinalize(this);
     }
 
-    private async ValueTask DisposeCoreAsync()
+    private static async ValueTask DisposeCoreAsync()
     {
       await Task.CompletedTask.ConfigureAwait(false);
     }
@@ -227,7 +230,7 @@ namespace FluentDocker.Services.Impl
         }
         catch (Exception ex)
         {
-          Logger.Log($"ImageService hook execution failed: {ex.Message}");
+          _logger.LogError(ex, "ImageService hook execution failed");
         }
       }
     }

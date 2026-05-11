@@ -38,12 +38,11 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       };
 
       if (config.Environment?.Count > 0)
-        request.Env = config.Environment
-            .Select(kv => $"{kv.Key}={kv.Value}").ToArray();
+        request.Env = [.. config.Environment.Select(kv => $"{kv.Key}={kv.Value}")];
 
       if (config.PortBindings?.Count > 0)
       {
-        request.ExposedPorts = new Dictionary<string, object>();
+        request.ExposedPorts = [];
         foreach (var port in config.PortBindings.Keys)
         {
           var key = port.Contains('/') ? port : $"{port}/tcp";
@@ -75,21 +74,20 @@ namespace FluentDocker.Drivers.Docker.Api.Components
 
       if (config.PortBindings?.Count > 0)
       {
-        hc.PortBindings = new Dictionary<string, List<PortBindingRequest>>();
+        hc.PortBindings = [];
         foreach (var (containerPort, hostPort) in config.PortBindings)
         {
           var key = containerPort.Contains('/')
               ? containerPort : $"{containerPort}/tcp";
-          hc.PortBindings[key] = new List<PortBindingRequest>
-                    {
+          hc.PortBindings[key] =
+                    [
                         new() { HostPort = hostPort }
-                    };
+                    ];
         }
       }
 
       if (config.Volumes?.Count > 0)
-        hc.Binds = config.Volumes
-            .Select(kv => $"{kv.Key}:{kv.Value}").ToArray();
+        hc.Binds = [.. config.Volumes.Select(kv => $"{kv.Key}:{kv.Value}")];
 
       if (!string.IsNullOrEmpty(config.RestartPolicy))
       {
@@ -103,30 +101,29 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       }
 
       if (config.Dns?.Count > 0)
-        hc.Dns = config.Dns.ToArray();
+        hc.Dns = [.. config.Dns];
 
       if (config.ExtraHosts?.Count > 0)
-        hc.ExtraHosts = config.ExtraHosts
-            .Select(kv => $"{kv.Key}:{kv.Value}").ToArray();
+        hc.ExtraHosts = [.. config.ExtraHosts.Select(kv => $"{kv.Key}:{kv.Value}")];
 
       if (config.Links?.Count > 0)
-        hc.Links = config.Links.ToArray();
+        hc.Links = [.. config.Links];
       if (config.CapAdd?.Count > 0)
-        hc.CapAdd = config.CapAdd.ToArray();
+        hc.CapAdd = [.. config.CapAdd];
       if (config.CapDrop?.Count > 0)
-        hc.CapDrop = config.CapDrop.ToArray();
+        hc.CapDrop = [.. config.CapDrop];
       if (config.SecurityOpt?.Count > 0)
-        hc.SecurityOpt = config.SecurityOpt.ToArray();
+        hc.SecurityOpt = [.. config.SecurityOpt];
       if (config.ShmSize.HasValue)
         hc.ShmSize = config.ShmSize;
       if (config.Tmpfs?.Count > 0)
         hc.Tmpfs = config.Tmpfs;
       if (config.Devices?.Count > 0)
-        hc.Devices = config.Devices.Select(d => new DeviceMappingRequest
+        hc.Devices = [.. config.Devices.Select(d => new DeviceMappingRequest
         {
           PathOnHost = d.Key,
           PathInContainer = d.Value
-        }).ToList();
+        })];
       hc.ReadonlyRootfs = config.ReadonlyRootfs;
       if (!string.IsNullOrEmpty(config.Runtime))
         hc.Runtime = config.Runtime;
@@ -227,19 +224,18 @@ namespace FluentDocker.Drivers.Docker.Api.Components
 
       var dict = new Dictionary<string, List<string>>();
       if (!string.IsNullOrEmpty(filter.Status))
-        dict["status"] = new List<string> { filter.Status };
+        dict["status"] = [filter.Status];
       if (!string.IsNullOrEmpty(filter.Name))
-        dict["name"] = new List<string> { filter.Name };
+        dict["name"] = [filter.Name];
       if (!string.IsNullOrEmpty(filter.Id))
-        dict["id"] = new List<string> { filter.Id };
+        dict["id"] = [filter.Id];
       if (!string.IsNullOrEmpty(filter.Ancestor))
-        dict["ancestor"] = new List<string> { filter.Ancestor };
+        dict["ancestor"] = [filter.Ancestor];
       if (filter.Labels?.Count > 0)
       {
-        dict["label"] = filter.Labels
+        dict["label"] = [.. filter.Labels
             .Select(kv => string.IsNullOrEmpty(kv.Value)
-                ? kv.Key : $"{kv.Key}={kv.Value}")
-            .ToList();
+                ? kv.Key : $"{kv.Key}={kv.Value}")];
       }
 
       return dict.Count > 0 ? JsonHelper.Serialize(dict) : null;

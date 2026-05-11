@@ -24,7 +24,7 @@ namespace FluentDocker.Tests.Integration.PodmanCliDriver
         containerId = await RunContainerAsync(TestImage,
             new ContainerCreateConfig
             {
-              Command = new[] { "sleep", "300" }
+              Command = ["sleep", "300"]
             });
 
         var updateResult = await ContainerDriver.UpdateAsync(
@@ -53,7 +53,7 @@ namespace FluentDocker.Tests.Integration.PodmanCliDriver
         containerId = await RunContainerAsync(TestImage,
             new ContainerCreateConfig
             {
-              Command = new[] { "sleep", "300" }
+              Command = ["sleep", "300"]
             });
 
         var updateResult = await ContainerDriver.UpdateAsync(
@@ -88,7 +88,7 @@ namespace FluentDocker.Tests.Integration.PodmanCliDriver
         containerId = await RunContainerAsync(TestImage,
             new ContainerCreateConfig
             {
-              Command = new[] { "sleep", "60" }
+              Command = ["sleep", "60"]
             });
 
         var exportResult = await ContainerDriver.ExportAsync(
@@ -144,7 +144,7 @@ namespace FluentDocker.Tests.Integration.PodmanCliDriver
             new ContainerCreateConfig
             {
               Name = originalName,
-              Command = new[] { "sleep", "300" }
+              Command = ["sleep", "300"]
             });
 
         var newName = UniqueName("rename-new");

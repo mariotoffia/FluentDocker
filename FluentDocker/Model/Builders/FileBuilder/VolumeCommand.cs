@@ -17,7 +17,7 @@ namespace FluentDocker.Model.Builders.FileBuilder
         list.Add(s.WrapWithChar("\""));
       }
 
-      Mountpoints = list.ToArray();
+      Mountpoints = [.. list];
     }
 
     public string[] Mountpoints { get; }

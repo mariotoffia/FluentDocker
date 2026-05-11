@@ -7,6 +7,7 @@ using FluentDocker.Drivers;
 using FluentDocker.Kernel;
 using FluentDocker.Model.Drivers;
 using FluentDocker.Model.Volumes;
+using Microsoft.Extensions.Logging;
 
 namespace FluentDocker.Services.Impl
 {
@@ -22,11 +23,12 @@ namespace FluentDocker.Services.Impl
     bool IServiceCapabilities.CanRemove => true;
 
     private readonly FluentDockerKernel _kernel;
+    private readonly ILogger<VolumeService> _logger;
     private readonly string _driverId;
     private readonly string _volumeName;
     private readonly string _driver;
     private readonly bool _removeOnDispose;
-    private readonly Dictionary<string, Func<IServiceAsync, Task>> _hooks = new Dictionary<string, Func<IServiceAsync, Task>>();
+    private readonly Dictionary<string, Func<IServiceAsync, Task>> _hooks = [];
     private ServiceRunningState _state = ServiceRunningState.Running;
 
     public VolumeService(
@@ -40,6 +42,7 @@ namespace FluentDocker.Services.Impl
       ArgumentNullException.ThrowIfNull(driverId);
       ArgumentNullException.ThrowIfNull(volumeName);
       _kernel = kernel;
+      _logger = kernel.LoggerFactory.CreateLogger<VolumeService>();
       _driverId = driverId;
       _volumeName = volumeName;
       _driver = driver ?? "local";
@@ -151,7 +154,7 @@ namespace FluentDocker.Services.Impl
       }
       catch (Exception ex)
       {
-        Logger.Log($"VolumeService DisposeAsync failed: {ex.Message}");
+        _logger.LogWarning(ex, "VolumeService DisposeAsync failed");
       }
     }
 
@@ -171,7 +174,7 @@ namespace FluentDocker.Services.Impl
         }
         catch (Exception ex)
         {
-          Logger.Log($"VolumeService hook execution failed: {ex.Message}");
+          _logger.LogError(ex, "VolumeService hook execution failed");
         }
       }
     }

@@ -6,6 +6,8 @@ using System.Threading;
 using System.Threading.Tasks;
 using FluentDocker.Common;
 using FluentDocker.Model.Drivers;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace FluentDocker.Drivers
 {
@@ -114,13 +116,13 @@ namespace FluentDocker.Drivers
     public string Until { get; set; }
 
     /// <summary>Filter events by type (container, image, volume, network, daemon).</summary>
-    public List<string> Types { get; set; } = new List<string>();
+    public List<string> Types { get; set; } = [];
 
     /// <summary>Filter events by action (create, start, stop, etc.).</summary>
-    public List<string> Actions { get; set; } = new List<string>();
+    public List<string> Actions { get; set; } = [];
 
     /// <summary>Filter by container/image/network/etc. name or ID.</summary>
-    public Dictionary<string, string> Filters { get; set; } = new Dictionary<string, string>();
+    public Dictionary<string, string> Filters { get; set; } = [];
   }
 
   /// <summary>
@@ -187,7 +189,7 @@ namespace FluentDocker.Drivers
     public string ActorId { get; set; }
 
     /// <summary>Actor attributes.</summary>
-    public Dictionary<string, string> ActorAttributes { get; set; } = new Dictionary<string, string>();
+    public Dictionary<string, string> ActorAttributes { get; set; } = [];
 
     /// <summary>Timestamp of the event.</summary>
     public DateTime Timestamp { get; set; }
@@ -279,7 +281,7 @@ namespace FluentDocker.Drivers
       {
         try
         { AttachedProcess.Kill(); }
-        catch (Exception ex) { Logger.Log($"Process kill failed: {ex.Message}"); }
+        catch (Exception ex) { NullLogger.Instance.LogWarning(ex, "Process kill failed"); }
         AttachedProcess.Dispose();
       }
 

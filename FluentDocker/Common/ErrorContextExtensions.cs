@@ -19,7 +19,7 @@ namespace FluentDocker.Common
     public static ErrorContext WithMetadata(this ErrorContext context, string key, string value)
     {
       ArgumentNullException.ThrowIfNull(context);
-      context.Metadata ??= new Dictionary<string, string>();
+      context.Metadata ??= [];
       context.Metadata[key] = value;
       return context;
     }

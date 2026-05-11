@@ -6,6 +6,7 @@ using FluentDocker.Kernel;
 using FluentDocker.Services;
 using FluentDocker.Services.Impl;
 using FluentDocker.Tests.Mocks;
+using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 
 
@@ -20,7 +21,7 @@ namespace FluentDocker.Tests.CoreTests.Services
   {
     private static (ContainerService service, FluentDockerKernel kernel) CreateService()
     {
-      var kernel = new FluentDockerKernel();
+      var kernel = new FluentDockerKernel(new DriverRegistry(NullLoggerFactory.Instance), NullLoggerFactory.Instance);
       var service = new ContainerService(kernel, "docker", "c1", "nginx", "hook-test");
       return (service, kernel);
     }
@@ -42,7 +43,7 @@ namespace FluentDocker.Tests.CoreTests.Services
       var method = typeof(ContainerService).GetMethod(
           "UpdateState", BindingFlags.NonPublic | BindingFlags.Instance);
       Assert.NotNull(method);
-      method.Invoke(service, new object[] { newState });
+      method.Invoke(service, [newState]);
     }
 
     private static async Task InvokeExecuteHooksAsync(
@@ -51,7 +52,7 @@ namespace FluentDocker.Tests.CoreTests.Services
       var method = typeof(ContainerService).GetMethod(
           "ExecuteHooksAsync", BindingFlags.NonPublic | BindingFlags.Instance);
       Assert.NotNull(method);
-      await (Task)method.Invoke(service, new object[] { state });
+      await (Task)method.Invoke(service, [state]);
     }
 
     private static Dictionary<string, Func<IServiceAsync, Task>> GetHooksDictionary(

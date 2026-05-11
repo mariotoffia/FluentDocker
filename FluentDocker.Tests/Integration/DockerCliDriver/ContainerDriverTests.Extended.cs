@@ -22,7 +22,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
         var result = await ContainerDriver.RunAsync(Context, new ContainerCreateConfig
         {
           Image = TestImage,
-          Command = new[] { "true" },
+          Command = ["true"],
           Detach = true
         }, TestContext.Current.CancellationToken);
         Assert.True(result.Success, $"Run failed: {result.Error}");
@@ -48,7 +48,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
         var result = await ContainerDriver.RunAsync(Context, new ContainerCreateConfig
         {
           Image = TestImage,
-          Command = new[] { "sh", "-c", "exit 42" },
+          Command = ["sh", "-c", "exit 42"],
           Detach = true
         }, TestContext.Current.CancellationToken);
         Assert.True(result.Success, $"Run failed: {result.Error}");
@@ -74,7 +74,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
         var result = await ContainerDriver.RunAsync(Context, new ContainerCreateConfig
         {
           Image = TestImage,
-          Command = new[] { "echo", "done" },
+          Command = ["echo", "done"],
           Detach = true
         }, TestContext.Current.CancellationToken);
         Assert.True(result.Success, $"Run failed: {result.Error}");
@@ -115,7 +115,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
       {
         containerId = await RunContainerAsync(TestImage, new ContainerCreateConfig
         {
-          Command = new[] { "sleep", "60" }
+          Command = ["sleep", "60"]
         });
 
         var updateResult = await ContainerDriver.UpdateAsync(Context, containerId,
@@ -141,7 +141,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
       {
         containerId = await RunContainerAsync(TestImage, new ContainerCreateConfig
         {
-          Command = new[] { "sleep", "60" }
+          Command = ["sleep", "60"]
         });
 
         var updateResult = await ContainerDriver.UpdateAsync(Context, containerId,
@@ -163,7 +163,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
       {
         containerId = await RunContainerAsync(TestImage, new ContainerCreateConfig
         {
-          Command = new[] { "sleep", "60" }
+          Command = ["sleep", "60"]
         });
 
         var updateResult = await ContainerDriver.UpdateAsync(Context, containerId,
@@ -204,12 +204,12 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
       {
         containerId = await RunContainerAsync(TestImage, new ContainerCreateConfig
         {
-          Command = new[] { "sleep", "60" }
+          Command = ["sleep", "60"]
         });
 
         await ContainerDriver.ExecAsync(Context, containerId, new ExecConfig
         {
-          Command = new[] { "touch", "/tmp/newfile.txt" }
+          Command = ["touch", "/tmp/newfile.txt"]
         }, TestContext.Current.CancellationToken);
 
         var diffResult = await ContainerDriver.DiffAsync(Context, containerId, TestContext.Current.CancellationToken);
@@ -234,12 +234,12 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
       {
         containerId = await RunContainerAsync(TestImage, new ContainerCreateConfig
         {
-          Command = new[] { "sleep", "60" }
+          Command = ["sleep", "60"]
         });
 
         await ContainerDriver.ExecAsync(Context, containerId, new ExecConfig
         {
-          Command = new[] { "touch", "/tmp/diff-test-file" }
+          Command = ["touch", "/tmp/diff-test-file"]
         }, TestContext.Current.CancellationToken);
 
         var diffResult = await ContainerDriver.DiffAsync(Context, containerId, TestContext.Current.CancellationToken);
@@ -263,12 +263,12 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
       {
         containerId = await RunContainerAsync(TestImage, new ContainerCreateConfig
         {
-          Command = new[] { "sleep", "60" }
+          Command = ["sleep", "60"]
         });
 
         await ContainerDriver.ExecAsync(Context, containerId, new ExecConfig
         {
-          Command = new[] { "rm", "/etc/motd" }
+          Command = ["rm", "/etc/motd"]
         }, TestContext.Current.CancellationToken);
 
         var diffResult = await ContainerDriver.DiffAsync(Context, containerId, TestContext.Current.CancellationToken);
@@ -292,14 +292,14 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
       {
         containerId = await RunContainerAsync(TestImage, new ContainerCreateConfig
         {
-          Command = new[] { "sleep", "60" }
+          Command = ["sleep", "60"]
         });
 
         // Add, change, and delete in one go
         await ContainerDriver.ExecAsync(Context, containerId, new ExecConfig
         {
-          Command = new[] { "sh", "-c",
-              "touch /tmp/added.txt && echo x >> /etc/hostname && rm /etc/motd" }
+          Command = [ "sh", "-c",
+              "touch /tmp/added.txt && echo x >> /etc/hostname && rm /etc/motd" ]
         }, TestContext.Current.CancellationToken);
 
         var diffResult = await ContainerDriver.DiffAsync(Context, containerId, TestContext.Current.CancellationToken);
@@ -336,7 +336,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
       {
         containerId = await RunContainerAsync(TestImage, new ContainerCreateConfig
         {
-          Command = new[] { "sleep", "60" }
+          Command = ["sleep", "60"]
         });
 
         var exportResult = await ContainerDriver.ExportAsync(
@@ -364,7 +364,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
       {
         containerId = await RunContainerAsync(TestImage, new ContainerCreateConfig
         {
-          Command = new[] { "sleep", "60" }
+          Command = ["sleep", "60"]
         });
         await ContainerDriver.StopAsync(Context, containerId, timeout: 5, TestContext.Current.CancellationToken);
 

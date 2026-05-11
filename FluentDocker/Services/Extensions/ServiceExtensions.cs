@@ -8,6 +8,8 @@ using System.Threading;
 using System.Threading.Tasks;
 using FluentDocker.Common;
 using FluentDocker.Model.Containers;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace FluentDocker.Services.Extensions
 {
@@ -185,7 +187,7 @@ namespace FluentDocker.Services.Extensions
         }
         catch (Exception ex)
         {
-          Logger.Log($"Process wait check failed: {ex.Message}");
+          NullLogger.Instance.LogDebug(ex, "Process wait check failed");
         }
 
         await Task.Delay(500, cancellationToken).ConfigureAwait(false);
@@ -269,7 +271,7 @@ namespace FluentDocker.Services.Extensions
         }
         catch (Exception ex)
         {
-          Logger.Log($"Log content wait check failed: {ex.Message}");
+          NullLogger.Instance.LogDebug(ex, "Log content wait check failed");
         }
 
         await Task.Delay(500, cancellationToken).ConfigureAwait(false);

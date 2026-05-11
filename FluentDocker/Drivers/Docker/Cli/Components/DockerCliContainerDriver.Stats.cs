@@ -4,6 +4,8 @@ using System.Threading;
 using System.Threading.Tasks;
 using FluentDocker.Common;
 using FluentDocker.Model.Drivers;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace FluentDocker.Drivers.Docker.Cli.Components
 {
@@ -46,8 +48,9 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
 
     #region Stats Parsing
 
-    private static ContainerStatsResult ParseStatsOutput(string output, string containerId)
+    private static ContainerStatsResult ParseStatsOutput(string output, string containerId, ILogger logger = null)
     {
+      logger ??= NullLogger.Instance;
       var stats = new ContainerStatsResult { ContainerId = containerId };
 
       try
@@ -93,7 +96,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
       }
       catch (Exception ex)
       {
-        Logger.Log($"Container stats JSON parsing failed: {ex.Message}");
+        logger.LogError(ex, "Container stats JSON parsing failed");
       }
 
       return stats;

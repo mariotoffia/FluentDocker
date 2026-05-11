@@ -25,7 +25,7 @@ namespace FluentDocker.Tests.Integration.PodmanCliDriver
         {
           Image = TestImage,
           Name = UniqueName("create-test"),
-          Command = new[] { "sleep", "60" }
+          Command = ["sleep", "60"]
         };
 
         var createResult = await ContainerDriver.CreateAsync(Context, config, TestContext.Current.CancellationToken);
@@ -51,7 +51,7 @@ namespace FluentDocker.Tests.Integration.PodmanCliDriver
         {
           Image = TestImage,
           Detach = true,
-          Command = new[] { "sleep", "60" }
+          Command = ["sleep", "60"]
         };
 
         var runResult = await ContainerDriver.RunAsync(Context, config, TestContext.Current.CancellationToken);
@@ -76,7 +76,7 @@ namespace FluentDocker.Tests.Integration.PodmanCliDriver
         var config = new ContainerCreateConfig
         {
           Image = TestImage,
-          Command = new[] { "sleep", "60" }
+          Command = ["sleep", "60"]
         };
 
         var createResult = await ContainerDriver.CreateAsync(Context, config, TestContext.Current.CancellationToken);
@@ -111,7 +111,7 @@ namespace FluentDocker.Tests.Integration.PodmanCliDriver
       {
         containerId = await RunContainerAsync(TestImage, new ContainerCreateConfig
         {
-          Command = new[] { "sleep", "60" }
+          Command = ["sleep", "60"]
         });
 
         var result = await ContainerDriver.InspectAsync(Context, containerId, TestContext.Current.CancellationToken);
@@ -135,7 +135,7 @@ namespace FluentDocker.Tests.Integration.PodmanCliDriver
       {
         containerId = await RunContainerAsync(TestImage, new ContainerCreateConfig
         {
-          Command = new[] { "sleep", "60" }
+          Command = ["sleep", "60"]
         });
 
         var result = await ContainerDriver.ListAsync(Context,

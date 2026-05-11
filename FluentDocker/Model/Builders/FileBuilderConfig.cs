@@ -9,7 +9,7 @@ namespace FluentDocker.Model.Builders
   {
     public string DockerFileString { get; set; }
     public TemplateString UseFile { get; set; }
-    public IList<ICommand> Commands { get; } = new List<ICommand>();
+    public IList<ICommand> Commands { get; } = [];
 
     public override string ToString()
     {

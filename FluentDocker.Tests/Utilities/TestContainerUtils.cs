@@ -229,13 +229,13 @@ namespace FluentDocker.Tests.Utilities
 
         var result = await driver.ListAsync(context, filter);
         if (!result.Success || result.Data == null)
-          return new List<string>();
+          return [];
 
-        return result.Data.Select(c => c.Id).ToList();
+        return [.. result.Data.Select(c => c.Id)];
       }
       catch
       {
-        return new List<string>();
+        return [];
       }
     }
 

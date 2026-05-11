@@ -24,11 +24,11 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
       var ctor = typeof(ComposeServiceBuilder).GetConstructor(
         BindingFlags.NonPublic | BindingFlags.Instance,
         binder: null,
-        types: new[] { typeof(string) },
+        types: [typeof(string)],
         modifiers: null);
 
       Assert.NotNull(ctor);
-      return (ComposeServiceBuilder)ctor.Invoke(new object[] { name });
+      return (ComposeServiceBuilder)ctor.Invoke([name]);
     }
 
     /// <summary>
@@ -213,7 +213,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
       var builder = CreateBuilder();
 
       // Act
-      var result = builder.DependsOn(Array.Empty<string>());
+      var result = builder.DependsOn([]);
 
       // Assert
       Assert.Empty(GetConfig(builder).DependsOn);

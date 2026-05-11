@@ -17,13 +17,13 @@ namespace FluentDocker.Common
   {
     static DirectoryHelper() => GetTempPath = Path.GetTempPath;
 
-    private static readonly Dictionary<string, string> ToRename = new Dictionary<string, string>
+    private static readonly Dictionary<string, string> ToRename = new()
     {
       {"dot_git", ".git"},
       {"gitmodules", ".gitmodules"}
     };
 
-    private static readonly Type[] Whitelist = { typeof(IOException), typeof(UnauthorizedAccessException) };
+    private static readonly Type[] Whitelist = [typeof(IOException), typeof(UnauthorizedAccessException)];
 
     /// <summary>
     /// Gets a path to a temporary folder that is writeable.

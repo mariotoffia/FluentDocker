@@ -8,6 +8,8 @@ using FluentDocker.Drivers.Docker.Api.Components;
 using FluentDocker.Drivers.Docker.Api.Connection;
 using FluentDocker.Kernel;
 using FluentDocker.Model.Drivers;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace FluentDocker.Drivers.Docker.Api
 {
@@ -17,12 +19,13 @@ namespace FluentDocker.Drivers.Docker.Api
   /// </summary>
   public class DockerApiDriverPack : IDriverPack, IAsyncDisposable
   {
-    private readonly Dictionary<Type, object> _drivers = new();
+    private readonly Dictionary<Type, object> _drivers = [];
     private DriverContext _context;
     // CA1859: Must stay as interface — tests inject MockDockerApiConnection via reflection.
 #pragma warning disable CA1859
     private IDockerApiConnection _connection;
 #pragma warning restore CA1859
+    private ILogger<DockerApiDriverPack> _logger = NullLogger<DockerApiDriverPack>.Instance;
     private bool _initialized;
 
     private DockerApiContainerDriver _containerDriver;
@@ -51,6 +54,7 @@ namespace FluentDocker.Drivers.Docker.Api
     {
       ArgumentNullException.ThrowIfNull(context);
       _context = context;
+      _logger = context.LoggerFactory.CreateLogger<DockerApiDriverPack>();
 
       var connectionConfig = new DockerApiConnectionConfig
       {
@@ -61,7 +65,7 @@ namespace FluentDocker.Drivers.Docker.Api
         RequestTimeout = context.RequestTimeout ?? TimeSpan.FromMinutes(5),
         ApiVersion = context.ApiVersion,
       };
-      _connection = new DockerApiConnection(connectionConfig);
+      _connection = new DockerApiConnection(connectionConfig, context.LoggerFactory);
 
       _containerDriver = new DockerApiContainerDriver(_connection);
       _imageDriver = new DockerApiImageDriver(_connection);
@@ -125,7 +129,7 @@ namespace FluentDocker.Drivers.Docker.Api
       }
       catch (Exception ex)
       {
-        Logger.Log($"Docker API ping failed: {ex.Message}");
+        _logger.LogError(ex, "Docker API ping failed");
         return false;
       }
     }

@@ -14,10 +14,8 @@ namespace FluentDocker.Drivers.Docker.Api.Components
   /// Docker API implementation of INetworkDriver.
   /// Uses /networks endpoints.
   /// </summary>
-  public class DockerApiNetworkDriver : DockerApiDriverBase, INetworkDriver
+  public class DockerApiNetworkDriver(IDockerApiConnection connection) : DockerApiDriverBase(connection), INetworkDriver
   {
-    public DockerApiNetworkDriver(IDockerApiConnection connection) : base(connection) { }
-
     public async Task<CommandResponse<NetworkCreateResult>> CreateAsync(
         DriverContext context, NetworkCreateConfig config,
         CancellationToken cancellationToken = default)
@@ -104,7 +102,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
 
       var networks = result.Data.ValueKind == JsonValueKind.Array
           ? result.Data.EnumerateArray().Select(ParseNetwork).ToList()
-          : new List<Network>();
+          : [];
       return CommandResponse<IList<Network>>.Ok(networks);
     }
 
@@ -168,8 +166,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       var deletedEl = result.Data.Prop("NetworksDeleted");
       if (deletedEl?.ValueKind == JsonValueKind.Array)
       {
-        pruneResult.NetworksDeleted = deletedEl.Value.EnumerateArray()
-            .Select(n => n.GetString()).ToList();
+        pruneResult.NetworksDeleted = [.. deletedEl.Value.EnumerateArray().Select(n => n.GetString())];
       }
 
       return CommandResponse<NetworkPruneResult>.Ok(pruneResult);

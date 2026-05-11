@@ -171,7 +171,7 @@ namespace FluentDocker.Drivers
     public string Name { get; set; }
 
     /// <summary>Warnings from the create operation.</summary>
-    public List<string> Warnings { get; set; } = new List<string>();
+    public List<string> Warnings { get; set; } = [];
   }
 
   /// <summary>
@@ -186,7 +186,7 @@ namespace FluentDocker.Drivers
     public string Output { get; set; }
 
     /// <summary>Warnings from the run operation.</summary>
-    public List<string> Warnings { get; set; } = new List<string>();
+    public List<string> Warnings { get; set; } = [];
   }
 
   #endregion
@@ -208,19 +208,19 @@ namespace FluentDocker.Drivers
     public string[] Command { get; set; }
 
     /// <summary>Environment variables.</summary>
-    public Dictionary<string, string> Environment { get; set; } = new Dictionary<string, string>();
+    public Dictionary<string, string> Environment { get; set; } = [];
 
     /// <summary>Port bindings (container port -> host port).</summary>
-    public Dictionary<string, string> PortBindings { get; set; } = new Dictionary<string, string>();
+    public Dictionary<string, string> PortBindings { get; set; } = [];
 
     /// <summary>Volume bindings (host path -> container path or volume name).</summary>
-    public Dictionary<string, string> Volumes { get; set; } = new Dictionary<string, string>();
+    public Dictionary<string, string> Volumes { get; set; } = [];
 
     /// <summary>Network mode.</summary>
     public string NetworkMode { get; set; }
 
     /// <summary>Additional labels.</summary>
-    public Dictionary<string, string> Labels { get; set; } = new Dictionary<string, string>();
+    public Dictionary<string, string> Labels { get; set; } = [];
 
     /// <summary>Working directory inside the container.</summary>
     public string WorkingDirectory { get; set; }
@@ -235,7 +235,7 @@ namespace FluentDocker.Drivers
     public string Hostname { get; set; }
 
     /// <summary>Networks to attach the container to.</summary>
-    public List<string> Networks { get; set; } = new List<string>();
+    public List<string> Networks { get; set; } = [];
 
     /// <summary>Static IPv4 address for the container (requires custom network with subnet).</summary>
     public string Ipv4Address { get; set; }
@@ -277,10 +277,10 @@ namespace FluentDocker.Drivers
     public HealthCheckConfig HealthCheck { get; set; }
 
     /// <summary>DNS servers.</summary>
-    public List<string> Dns { get; set; } = new List<string>();
+    public List<string> Dns { get; set; } = [];
 
     /// <summary>Extra hosts (/etc/hosts entries).</summary>
-    public Dictionary<string, string> ExtraHosts { get; set; } = new Dictionary<string, string>();
+    public Dictionary<string, string> ExtraHosts { get; set; } = [];
 
     /// <summary>
     /// Container links (legacy Docker feature).
@@ -290,7 +290,7 @@ namespace FluentDocker.Drivers
     /// Container linking is a legacy Docker feature. User-defined networks are the preferred approach.
     /// Links allow containers to discover each other and securely transfer information.
     /// </remarks>
-    public List<string> Links { get; set; } = new List<string>();
+    public List<string> Links { get; set; } = [];
 
     /// <summary>Podman pod to join (Podman-only, ignored by Docker).</summary>
     public string Pod { get; set; }
@@ -299,25 +299,25 @@ namespace FluentDocker.Drivers
     /// Network aliases keyed by network name.
     /// Each entry maps a network name to one or more aliases for the container on that network.
     /// </summary>
-    public Dictionary<string, List<string>> NetworkAliases { get; set; } = new Dictionary<string, List<string>>();
+    public Dictionary<string, List<string>> NetworkAliases { get; set; } = [];
 
     /// <summary>Linux capabilities to add (e.g. SYS_PTRACE, NET_ADMIN).</summary>
-    public List<string> CapAdd { get; set; } = new List<string>();
+    public List<string> CapAdd { get; set; } = [];
 
     /// <summary>Linux capabilities to drop (e.g. NET_RAW, MKNOD).</summary>
-    public List<string> CapDrop { get; set; } = new List<string>();
+    public List<string> CapDrop { get; set; } = [];
 
     /// <summary>Security options (e.g. seccomp=unconfined, apparmor=docker-default).</summary>
-    public List<string> SecurityOpt { get; set; } = new List<string>();
+    public List<string> SecurityOpt { get; set; } = [];
 
     /// <summary>Size of /dev/shm in bytes.</summary>
     public long? ShmSize { get; set; }
 
     /// <summary>Tmpfs mounts. Key = container path, Value = options (e.g. "rw,noexec,size=64m").</summary>
-    public Dictionary<string, string> Tmpfs { get; set; } = new Dictionary<string, string>();
+    public Dictionary<string, string> Tmpfs { get; set; } = [];
 
     /// <summary>Device mappings. Key = host device, Value = container device path.</summary>
-    public Dictionary<string, string> Devices { get; set; } = new Dictionary<string, string>();
+    public Dictionary<string, string> Devices { get; set; } = [];
 
     /// <summary>Whether the root filesystem is read-only.</summary>
     public bool ReadonlyRootfs { get; set; }
@@ -371,7 +371,7 @@ namespace FluentDocker.Drivers
     public string Ancestor { get; set; }
 
     /// <summary>Filter by label.</summary>
-    public Dictionary<string, string> Labels { get; set; } = new Dictionary<string, string>();
+    public Dictionary<string, string> Labels { get; set; } = [];
 
     /// <summary>Limit number of results.</summary>
     public int? Limit { get; set; }

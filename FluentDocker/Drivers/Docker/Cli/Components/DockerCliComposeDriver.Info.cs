@@ -5,6 +5,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using FluentDocker.Common;
 using FluentDocker.Model.Drivers;
+using Microsoft.Extensions.Logging;
 
 namespace FluentDocker.Drivers.Docker.Cli.Components
 {
@@ -136,7 +137,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
             if (arr != null)
               images.AddRange(arr);
           }
-          catch (Exception ex) { Logger.Log($"Compose images array JSON parsing failed: {ex.Message}"); }
+          catch (Exception ex) { Logger.LogDebug(ex, "Compose images array JSON parsing failed"); }
         }
         else
         {
@@ -150,7 +151,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
               if (image != null)
                 images.Add(image);
             }
-            catch (Exception ex) { Logger.Log($"Compose image line JSON parsing failed: {ex.Message}"); }
+            catch (Exception ex) { Logger.LogDebug(ex, "Compose image line JSON parsing failed"); }
           }
         }
 
@@ -287,7 +288,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
         if (config.Index.HasValue)
           args += $" --index {config.Index.Value}";
         args += $" {config.Service} " +
-            string.Join(" ", config.Command ?? Array.Empty<string>());
+            string.Join(" ", config.Command ?? []);
 
         var result = await ExecuteCommandAsync(args, cancellationToken).ConfigureAwait(false);
         return result.Success

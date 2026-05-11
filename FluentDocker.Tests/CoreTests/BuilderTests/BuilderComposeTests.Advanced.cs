@@ -139,7 +139,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
       mockPack.SetupComposeUpAsync(new ComposeUpResult
       {
         ProjectName = "test",
-        Services = new List<string> { "web" }
+        Services = ["web"]
       });
 
       try
@@ -219,7 +219,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
       mockPack.SetupComposeUpAsync(new ComposeUpResult
       {
         ProjectName = "myapp",
-        Services = new List<string> { "web", "db", "cache" }
+        Services = ["web", "db", "cache"]
       });
 
       try

@@ -73,7 +73,7 @@ namespace FluentDocker.Drivers.Podman
     public string Name { get; set; }
 
     /// <summary>Labels to attach to the pod.</summary>
-    public Dictionary<string, string> Labels { get; set; } = new Dictionary<string, string>();
+    public Dictionary<string, string> Labels { get; set; } = [];
 
     /// <summary>Network to connect the pod to.</summary>
     public string Network { get; set; }
@@ -82,7 +82,7 @@ namespace FluentDocker.Drivers.Podman
     public string Hostname { get; set; }
 
     /// <summary>DNS servers for the pod.</summary>
-    public List<string> Dns { get; set; } = new List<string>();
+    public List<string> Dns { get; set; } = [];
 
     /// <summary>Custom infra container image.</summary>
     public string InfraImage { get; set; }
@@ -91,7 +91,7 @@ namespace FluentDocker.Drivers.Podman
     public string Share { get; set; }
 
     /// <summary>Port mappings for the pod (e.g., "8080:80").</summary>
-    public List<string> Ports { get; set; } = new List<string>();
+    public List<string> Ports { get; set; } = [];
   }
 
   /// <summary>Result of creating a pod.</summary>
@@ -125,7 +125,7 @@ namespace FluentDocker.Drivers.Podman
     public int NumContainers { get; set; }
 
     /// <summary>Container summaries within this pod.</summary>
-    public IList<PodContainerInfo> Containers { get; set; } = new List<PodContainerInfo>();
+    public IList<PodContainerInfo> Containers { get; set; } = [];
   }
 
   /// <summary>
@@ -155,7 +155,7 @@ namespace FluentDocker.Drivers.Podman
     public int NumContainers { get; set; }
 
     /// <summary>Containers within this pod.</summary>
-    public IList<PodContainerInfo> Containers { get; set; } = new List<PodContainerInfo>();
+    public IList<PodContainerInfo> Containers { get; set; } = [];
   }
 
   /// <summary>

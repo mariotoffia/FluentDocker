@@ -134,7 +134,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
           "ParseVolumeList",
           BindingFlags.NonPublic | BindingFlags.Static);
       Assert.NotNull(method);
-      return (IList<Volume>)method.Invoke(null, new object[] { json });
+      return (IList<Volume>)method.Invoke(null, [json]);
     }
 
     private static Volume InvokeParseVolumeInspect(string json)
@@ -143,7 +143,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
           "ParseVolumeInspect",
           BindingFlags.NonPublic | BindingFlags.Static);
       Assert.NotNull(method);
-      return (Volume)method.Invoke(null, new object[] { json });
+      return (Volume)method.Invoke(null, [json]);
     }
 
     #endregion

@@ -22,7 +22,7 @@ namespace FluentDocker.Extensions
 
       if (!s.EndsWith(c))
       {
-        s = s + c;
+        s += c;
       }
 
       return s;

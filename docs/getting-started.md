@@ -251,17 +251,29 @@ See [Docker Compose](compose.html) for detailed examples.
 
 ## Logging
 
-FluentDocker has built-in diagnostic logging that you can toggle at runtime:
+FluentDocker logs through `Microsoft.Extensions.Logging.Abstractions`. The
+kernel builder requires an `ILoggerFactory` — there is no library-side default.
+Pass `NullLoggerFactory.Instance` when you want silence:
 
 ```csharp
-using FluentDocker.Services;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
+using FluentDocker.Kernel;
 
-// Enable diagnostic logging
-Logging.Enabled();
+// Receive structured logs via any provider
+using var factory = LoggerFactory.Create(b => b.AddConsole());
+var kernel = await FluentDockerKernel.Create(factory)
+    .WithDockerCli("docker", d => d.AsDefault())
+    .BuildAsync();
 
-// Disable logging
-Logging.Disabled();
+// Or suppress all logs explicitly
+var silent = await FluentDockerKernel.Create(NullLoggerFactory.Instance)
+    .WithDockerCli("docker", d => d.AsDefault())
+    .BuildAsync();
 ```
+
+See [Utilities → Logging](utilities.html#logging) for filtering, categories,
+and the per-level severity policy.
 
 ## Exception Handling
 

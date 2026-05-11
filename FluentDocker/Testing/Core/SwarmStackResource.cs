@@ -6,6 +6,7 @@ using FluentDocker.Common;
 using FluentDocker.Drivers;
 using FluentDocker.Kernel;
 using FluentDocker.Model.Drivers;
+using Microsoft.Extensions.Logging;
 
 namespace FluentDocker.Testing.Core
 {
@@ -135,7 +136,7 @@ namespace FluentDocker.Testing.Core
       }
       catch (Exception ex)
       {
-        Logger.Log($"SwarmStack teardown failed: {ex.Message}");
+        Logger.LogWarning(ex, "SwarmStack teardown failed");
       }
       finally
       {

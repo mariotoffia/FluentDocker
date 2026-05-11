@@ -15,17 +15,15 @@ namespace FluentDocker.Drivers.Docker.Api.Components
   /// Docker API implementation of IVolumeDriver.
   /// Uses /volumes endpoints.
   /// </summary>
-  public class DockerApiVolumeDriver : DockerApiDriverBase, IVolumeDriver
+  public class DockerApiVolumeDriver(IDockerApiConnection connection) : DockerApiDriverBase(connection), IVolumeDriver
   {
-    public DockerApiVolumeDriver(IDockerApiConnection connection) : base(connection) { }
-
     public async Task<CommandResponse<VolumeCreateResult>> CreateAsync(
         DriverContext context, VolumeCreateConfig config,
         CancellationToken cancellationToken = default)
     {
       var body = new
       {
-        Name = config.Name,
+        config.Name,
         Driver = config.Driver ?? "local",
         DriverOpts = config.DriverOpts?.Count > 0 ? config.DriverOpts : null,
         Labels = config.Labels?.Count > 0 ? config.Labels : null
@@ -120,8 +118,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       var deleted = result.Data.Prop("VolumesDeleted");
       if (deleted?.ValueKind == JsonValueKind.Array)
       {
-        pruneResult.VolumesDeleted = deleted.Value.EnumerateArray()
-            .Select(v => v.GetString()).ToList();
+        pruneResult.VolumesDeleted = [.. deleted.Value.EnumerateArray().Select(v => v.GetString())];
       }
 
       return CommandResponse<VolumePruneResult>.Ok(pruneResult);

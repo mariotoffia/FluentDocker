@@ -239,7 +239,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Docker
       var config = new ComposeRunConfig
       {
         Service = "web",
-        Publish = new List<string> { "8080:80", "443:443" }
+        Publish = ["8080:80", "443:443"]
       };
       var result = DockerCliComposeDriver.BuildRunSubArgs(config);
       Assert.Contains("-p 8080:80", result);
@@ -252,7 +252,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Docker
       var config = new ComposeRunConfig
       {
         Service = "web",
-        Volumes = new List<string> { "/data:/app/data", "/logs:/app/logs" }
+        Volumes = ["/data:/app/data", "/logs:/app/logs"]
       };
       var result = DockerCliComposeDriver.BuildRunSubArgs(config);
       Assert.Contains("-v /data:/app/data", result);
@@ -306,10 +306,10 @@ namespace FluentDocker.Tests.CoreTests.Driver.Docker
         Entrypoint = "/bin/bash",
         WorkDir = "/app",
         ServicePorts = true,
-        Publish = new List<string> { "8080:80" },
-        Volumes = new List<string> { "/data:/data" },
+        Publish = ["8080:80"],
+        Volumes = ["/data:/data"],
         Tty = false,
-        Command = new[] { "echo", "hello" }
+        Command = ["echo", "hello"]
       };
       var result = DockerCliComposeDriver.BuildRunSubArgs(config);
       Assert.StartsWith("run", result);
@@ -377,7 +377,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Docker
     {
       var config = new ComposeScaleConfig
       {
-        Scale = new Dictionary<string, int>()
+        Scale = []
       };
       var result = DockerCliComposeDriver.BuildScaleSubArgs(config);
       Assert.Equal("up -d", result);

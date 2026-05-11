@@ -24,7 +24,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
       mockPack.SetupComposeUpAsync(new ComposeUpResult
       {
         ProjectName = "testproject",
-        Services = new List<string> { "web" }
+        Services = ["web"]
       });
 
       try
@@ -58,7 +58,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
       mockPack.SetupComposeUpAsync(new ComposeUpResult
       {
         ProjectName = "testproject",
-        Services = new List<string> { "web", "db" }
+        Services = ["web", "db"]
       });
 
       try
@@ -97,7 +97,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
       mockPack.SetupComposeUpAsync(new ComposeUpResult
       {
         ProjectName = "myapp",
-        Services = new List<string>()
+        Services = []
       });
 
       try
@@ -264,7 +264,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
       mockPack.SetupComposeUpAsync(new ComposeUpResult
       {
         ProjectName = "test",
-        Services = new List<string> { "web", "api" }
+        Services = ["web", "api"]
       });
 
       try

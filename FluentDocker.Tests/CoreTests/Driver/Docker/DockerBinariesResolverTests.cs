@@ -70,18 +70,41 @@ namespace FluentDocker.Tests.CoreTests.Driver.Docker
     }
 
     /// <summary>
-    /// Invokes the private static ResolveFromPaths method via reflection.
+    /// Invokes the private ResolveFromPaths instance method via reflection.
+    /// In v3 the method was changed from static → instance so it can use the
+    /// resolver's ILogger field for parse-failure warnings. The test stages
+    /// a throwaway directory containing a fake "docker" binary so the resolver
+    /// ctor doesn't throw "client not found", then reflects against the instance.
     /// </summary>
     private static IEnumerable<DockerBinary> InvokeResolveFromPaths(
         SudoMechanism sudo, string password, params string[] paths)
     {
-      var method = typeof(DockerBinariesResolver).GetMethod(
-          "ResolveFromPaths",
-          BindingFlags.NonPublic | BindingFlags.Static);
-      Assert.NotNull(method);
+      var fakeDir = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName());
+      Directory.CreateDirectory(fakeDir);
+      try
+      {
+        var binaryName = RuntimeInformation.IsOSPlatform(OSPlatform.Windows)
+            ? "docker.exe" : "docker";
+        File.WriteAllText(Path.Combine(fakeDir, binaryName), "fake");
 
-      var result = method.Invoke(null, [sudo, password, paths]);
-      return (IEnumerable<DockerBinary>)result;
+        var instance = new DockerBinariesResolver(new BinaryConfiguration
+        {
+          SearchPaths = [fakeDir]
+        });
+        var method = typeof(DockerBinariesResolver).GetMethod(
+            "ResolveFromPaths",
+            BindingFlags.NonPublic | BindingFlags.Instance);
+        Assert.NotNull(method);
+
+        var result = method.Invoke(instance, [sudo, password, paths]);
+        return (IEnumerable<DockerBinary>)result;
+      }
+      finally
+      {
+        try
+        { Directory.Delete(fakeDir, recursive: true); }
+        catch { /* ignore */ }
+      }
     }
 
     #endregion
@@ -382,7 +405,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Docker
     public void ResolveFromPaths_EmptyArrayPaths_FallsBackToEnvPath()
     {
       var binaries = InvokeResolveFromPaths(
-          SudoMechanism.None, null, Array.Empty<string>());
+          SudoMechanism.None, null, []);
       Assert.NotNull(binaries);
     }
 

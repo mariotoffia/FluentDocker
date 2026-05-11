@@ -153,7 +153,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Docker
           "{\"ID\":\"def456\",\"Image\":\"redis\",\"Names\":\"cache\"," +
           "\"State\":\"exited\",\"Status\":\"Exited (0)\"}";
 
-      var lines = output.Split(new[] { '\n', '\r' },
+      var lines = output.Split(['\n', '\r'],
           StringSplitOptions.RemoveEmptyEntries);
 
       Assert.Equal(2, lines.Length);
@@ -170,7 +170,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Docker
     [Fact]
     public void ListParsing_EmptyOutput_ProducesNoContainers()
     {
-      var lines = "".Split(new[] { '\n', '\r' },
+      var lines = "".Split(['\n', '\r'],
           StringSplitOptions.RemoveEmptyEntries);
       Assert.Empty(lines);
     }
@@ -407,7 +407,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Docker
     private static List<FilesystemChange> ParseDiffOutput(string output)
     {
       var changes = new List<FilesystemChange>();
-      var lines = output.Split(new[] { '\n', '\r' },
+      var lines = output.Split(['\n', '\r'],
           StringSplitOptions.RemoveEmptyEntries);
       foreach (var line in lines)
       {
@@ -415,8 +415,8 @@ namespace FluentDocker.Tests.CoreTests.Driver.Docker
         {
           changes.Add(new FilesystemChange
           {
-            Kind = line.Substring(0, 1),
-            Path = line.Substring(2)
+            Kind = line[..1],
+            Path = line[2..]
           });
         }
       }
@@ -431,16 +431,16 @@ namespace FluentDocker.Tests.CoreTests.Driver.Docker
     {
       var titles = new List<string>();
       var processes = new List<List<string>>();
-      var lines = output.Split(new[] { '\n', '\r' },
+      var lines = output.Split(['\n', '\r'],
           StringSplitOptions.RemoveEmptyEntries);
       if (lines.Length > 0)
       {
-        titles = lines[0].Split(new[] { ' ' },
-            StringSplitOptions.RemoveEmptyEntries).ToList();
+        titles = [.. lines[0].Split([' '],
+            StringSplitOptions.RemoveEmptyEntries)];
         for (var i = 1; i < lines.Length; i++)
         {
-          processes.Add(lines[i].Split(new[] { ' ' },
-              StringSplitOptions.RemoveEmptyEntries).ToList());
+          processes.Add([.. lines[i].Split([' '],
+              StringSplitOptions.RemoveEmptyEntries)]);
         }
       }
       return (titles, processes);
@@ -456,8 +456,11 @@ namespace FluentDocker.Tests.CoreTests.Driver.Docker
           "ParseStatsOutput",
           BindingFlags.NonPublic | BindingFlags.Static);
       Assert.NotNull(method);
+      // ParseStatsOutput gained an optional `ILogger logger = null` param in v3
+      // when static logging helpers were replaced by Microsoft.Extensions.Logging.
+      // Reflection doesn't auto-apply default values, so we pass null explicitly.
       return (ContainerStatsResult)method.Invoke(
-          null, new object[] { output, containerId });
+          null, [output, containerId, null]);
     }
 
     #endregion

@@ -31,8 +31,8 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
             new ContainerCreateConfig
             {
               Image = TestImage,
-              Command = new[] { "sh", "-c",
-                  "for i in 1 2 3 4 5; do echo \"log-line-$i\"; done" },
+              Command = [ "sh", "-c",
+                  "for i in 1 2 3 4 5; do echo \"log-line-$i\"; done" ],
               Detach = true
             }, TestContext.Current.CancellationToken);
         Assert.True(runResult.Success, $"Run failed: {runResult.Error}");
@@ -74,8 +74,8 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
             new ContainerCreateConfig
             {
               Image = TestImage,
-              Command = new[] { "sh", "-c",
-                  "for i in $(seq 1 20); do echo \"line-$i\"; done" },
+              Command = [ "sh", "-c",
+                  "for i in $(seq 1 20); do echo \"line-$i\"; done" ],
               Detach = true
             }, TestContext.Current.CancellationToken);
         Assert.True(runResult.Success, $"Run failed: {runResult.Error}");
@@ -122,8 +122,8 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
               Context,
               new StreamEventsConfig
               {
-                Types = new List<string> { "container" },
-                Actions = new List<string> { "create", "start" }
+                Types = ["container"],
+                Actions = ["create", "start"]
               },
               cts.Token))
           {
@@ -138,7 +138,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
 
         // Trigger a container create + start event
         containerId = await RunContainerAsync(TestImage,
-            new ContainerCreateConfig { Command = new[] { "sleep", "30" } });
+            new ContainerCreateConfig { Command = ["sleep", "30"] });
 
         // Wait for events to arrive
         try
@@ -216,8 +216,8 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
         containerId = await RunContainerAsync(TestImage,
             new ContainerCreateConfig
             {
-              Command = new[] { "sh", "-c",
-                  "while true; do echo hello; sleep 1; done" },
+              Command = [ "sh", "-c",
+                  "while true; do echo hello; sleep 1; done" ],
               Interactive = true
             });
 
@@ -250,8 +250,8 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
         containerId = await RunContainerAsync(TestImage,
             new ContainerCreateConfig
             {
-              Command = new[] { "sh", "-c",
-                  "while true; do echo attach-output-line; sleep 1; done" },
+              Command = [ "sh", "-c",
+                  "while true; do echo attach-output-line; sleep 1; done" ],
               Interactive = true
             });
 
@@ -302,7 +302,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
         containerId = await RunContainerAsync(TestImage,
             new ContainerCreateConfig
             {
-              Command = new[] { "sleep", "300" },
+              Command = ["sleep", "300"],
               Interactive = true
             });
 

@@ -5,12 +5,13 @@ using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using FluentDocker.Common;
 using FluentDocker.Drivers;
 using FluentDocker.Drivers.Docker.Cli;
 using FluentDocker.Drivers.Podman.Cli.Binary;
 using FluentDocker.Model.Common;
 using FluentDocker.Model.Drivers;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace FluentDocker.Drivers.Podman.Cli
 {
@@ -29,6 +30,11 @@ namespace FluentDocker.Drivers.Podman.Cli
     /// The driver context.
     /// </summary>
     protected DriverContext Context { get; private set; }
+
+    /// <summary>
+    /// Logger for this driver component. Category equals the concrete derived type's FQN.
+    /// </summary>
+    protected ILogger Logger { get; private set; } = NullLogger.Instance;
 
     /// <summary>
     /// The binary resolver for resolving Podman command paths.
@@ -54,6 +60,7 @@ namespace FluentDocker.Drivers.Podman.Cli
     {
       ArgumentNullException.ThrowIfNull(context);
       Context = context;
+      Logger = context.LoggerFactory.CreateLogger(GetType());
     }
 
     /// <summary>
@@ -65,6 +72,7 @@ namespace FluentDocker.Drivers.Podman.Cli
       ArgumentNullException.ThrowIfNull(binaryResolver);
       Context = context;
       BinaryResolver = binaryResolver;
+      Logger = context.LoggerFactory.CreateLogger(GetType());
     }
 
     #region Global Args
@@ -194,7 +202,7 @@ namespace FluentDocker.Drivers.Podman.Cli
       }
       catch (OperationCanceledException)
       {
-        KillProcessSafely(process);
+        KillProcessSafely(process, null);
         throw;
       }
       catch (Exception ex)
@@ -263,7 +271,7 @@ namespace FluentDocker.Drivers.Podman.Cli
       }
       finally
       {
-        KillProcessSafely(process);
+        KillProcessSafely(process, Logger);
       }
     }
 
@@ -356,7 +364,7 @@ namespace FluentDocker.Drivers.Podman.Cli
     /// <summary>
     /// Safely kills a process if it is still running, suppressing any errors.
     /// </summary>
-    private static void KillProcessSafely(Process process)
+    private static void KillProcessSafely(Process process, ILogger logger = null)
     {
       if (process == null)
         return;
@@ -368,7 +376,7 @@ namespace FluentDocker.Drivers.Podman.Cli
       }
       catch (Exception ex)
       {
-        Logger.Log($"Process kill failed: {ex.Message}");
+        (logger ?? NullLogger.Instance).LogWarning(ex, "Process kill failed");
       }
     }
 

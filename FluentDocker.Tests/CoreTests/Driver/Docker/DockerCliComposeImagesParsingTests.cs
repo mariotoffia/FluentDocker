@@ -265,7 +265,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Docker
     {
       var images = new List<ComposeImage>();
       var lines = output.Split(
-          new[] { '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries);
+          ['\n', '\r'], StringSplitOptions.RemoveEmptyEntries);
       foreach (var line in lines)
       {
         try

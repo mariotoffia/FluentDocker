@@ -2,16 +2,10 @@ using System;
 
 namespace FluentDocker.Model.Builders.FileBuilder
 {
-  public sealed class EntrypointCommand : ICommand
+  public sealed class EntrypointCommand(string executable, params string[] args) : ICommand
   {
-    public EntrypointCommand(string executable, params string[] args)
-    {
-      Executable = executable;
-      Arguments = args ?? Array.Empty<string>();
-    }
-
-    public string Executable { get; }
-    public string[] Arguments { get; }
+    public string Executable { get; } = executable;
+    public string[] Arguments { get; } = args ?? [];
 
     public override string ToString()
     {

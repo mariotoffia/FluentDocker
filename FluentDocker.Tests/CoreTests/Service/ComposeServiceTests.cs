@@ -6,6 +6,7 @@ using FluentDocker.Kernel;
 using FluentDocker.Services;
 using FluentDocker.Services.Impl;
 using FluentDocker.Tests.Mocks;
+using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using Xunit;
 
@@ -21,7 +22,7 @@ namespace FluentDocker.Tests.CoreTests.Service
     public void Constructor_SetsProperties()
     {
       // Arrange
-      var kernel = new FluentDockerKernel();
+      var kernel = new FluentDockerKernel(new DriverRegistry(NullLoggerFactory.Instance), NullLoggerFactory.Instance);
       var composeFiles = new List<string> { "docker-compose.yml" };
 
       // Act
@@ -50,7 +51,7 @@ namespace FluentDocker.Tests.CoreTests.Service
     [Fact]
     public void Constructor_NullDriverId_ThrowsArgumentNullException()
     {
-      var kernel = new FluentDockerKernel();
+      var kernel = new FluentDockerKernel(new DriverRegistry(NullLoggerFactory.Instance), NullLoggerFactory.Instance);
       var composeFiles = new List<string> { "docker-compose.yml" };
       Assert.Throws<ArgumentNullException>(() =>
           new ComposeService(kernel, null!, composeFiles, "my-project"));
@@ -60,7 +61,7 @@ namespace FluentDocker.Tests.CoreTests.Service
     [Fact]
     public void Constructor_NullComposeFiles_ThrowsArgumentNullException()
     {
-      var kernel = new FluentDockerKernel();
+      var kernel = new FluentDockerKernel(new DriverRegistry(NullLoggerFactory.Instance), NullLoggerFactory.Instance);
       Assert.Throws<ArgumentNullException>(() =>
           new ComposeService(kernel, "docker", null!, "my-project"));
       kernel.Dispose();
@@ -69,7 +70,7 @@ namespace FluentDocker.Tests.CoreTests.Service
     [Fact]
     public void Constructor_NullProjectName_ThrowsArgumentNullException()
     {
-      var kernel = new FluentDockerKernel();
+      var kernel = new FluentDockerKernel(new DriverRegistry(NullLoggerFactory.Instance), NullLoggerFactory.Instance);
       var composeFiles = new List<string> { "docker-compose.yml" };
       Assert.Throws<ArgumentNullException>(() =>
           new ComposeService(kernel, "docker", composeFiles, null!));
@@ -79,7 +80,7 @@ namespace FluentDocker.Tests.CoreTests.Service
     [Fact]
     public void Constructor_WithRemoveVolumes_SetsFlag()
     {
-      var kernel = new FluentDockerKernel();
+      var kernel = new FluentDockerKernel(new DriverRegistry(NullLoggerFactory.Instance), NullLoggerFactory.Instance);
       var composeFiles = new List<string> { "docker-compose.yml" };
       var service = new ComposeService(kernel, "docker", composeFiles, "my-project",
           removeVolumes: true);
@@ -91,7 +92,7 @@ namespace FluentDocker.Tests.CoreTests.Service
     [Fact]
     public void Constructor_WithRemoveImages_SetsFlag()
     {
-      var kernel = new FluentDockerKernel();
+      var kernel = new FluentDockerKernel(new DriverRegistry(NullLoggerFactory.Instance), NullLoggerFactory.Instance);
       var composeFiles = new List<string> { "docker-compose.yml" };
       var service = new ComposeService(kernel, "docker", composeFiles, "my-project",
           removeImages: true);
@@ -103,7 +104,7 @@ namespace FluentDocker.Tests.CoreTests.Service
     [Fact]
     public void Constructor_MultipleComposeFiles_AllStored()
     {
-      var kernel = new FluentDockerKernel();
+      var kernel = new FluentDockerKernel(new DriverRegistry(NullLoggerFactory.Instance), NullLoggerFactory.Instance);
       var composeFiles = new List<string>
             {
                 "docker-compose.yml",
@@ -120,7 +121,7 @@ namespace FluentDocker.Tests.CoreTests.Service
     [Fact]
     public async Task PauseAsync_WithoutDriver_ThrowsDriverNotFoundException()
     {
-      var kernel = new FluentDockerKernel();
+      var kernel = new FluentDockerKernel(new DriverRegistry(NullLoggerFactory.Instance), NullLoggerFactory.Instance);
       var composeFiles = new List<string> { "docker-compose.yml" };
       var service = new ComposeService(kernel, "docker", composeFiles, "my-project");
 
@@ -132,7 +133,7 @@ namespace FluentDocker.Tests.CoreTests.Service
     [Fact]
     public void AddHook_AddsHook()
     {
-      var kernel = new FluentDockerKernel();
+      var kernel = new FluentDockerKernel(new DriverRegistry(NullLoggerFactory.Instance), NullLoggerFactory.Instance);
       var composeFiles = new List<string> { "docker-compose.yml" };
       var service = new ComposeService(kernel, "docker", composeFiles, "my-project");
 
@@ -145,7 +146,7 @@ namespace FluentDocker.Tests.CoreTests.Service
     [Fact]
     public void RemoveHook_RemovesHook()
     {
-      var kernel = new FluentDockerKernel();
+      var kernel = new FluentDockerKernel(new DriverRegistry(NullLoggerFactory.Instance), NullLoggerFactory.Instance);
       var composeFiles = new List<string> { "docker-compose.yml" };
       var service = new ComposeService(kernel, "docker", composeFiles, "my-project");
       service.AddHook(ServiceRunningState.Removed, async _ => { }, "test-hook");
@@ -242,7 +243,7 @@ namespace FluentDocker.Tests.CoreTests.Service
       try
       {
         // Act
-        var result = await service.ExecuteAsync("web", new[] { "ls", "-la" }, cancellationToken: TestContext.Current.CancellationToken);
+        var result = await service.ExecuteAsync("web", ["ls", "-la"], cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal("command executed successfully", result);

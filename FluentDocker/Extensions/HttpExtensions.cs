@@ -5,6 +5,8 @@ using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Threading.Tasks;
 using FluentDocker.Common;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 
 // ReSharper disable IdentifierTypo
 
@@ -26,11 +28,9 @@ namespace FluentDocker.Extensions
 
       if (response.IsSuccessStatusCode)
       {
-        using (var fs = new FileStream(fqPath, FileMode.Create))
-        {
-          await response.Content.CopyToAsync(fs).ConfigureAwait(false);
-          fs.Flush();
-        }
+        using var fs = new FileStream(fqPath, FileMode.Create);
+        await response.Content.CopyToAsync(fs).ConfigureAwait(false);
+        fs.Flush();
       }
       else
       {
@@ -56,7 +56,7 @@ namespace FluentDocker.Extensions
       }
       catch (Exception ex)
       {
-        Logger.Log($"HTTP request failed: {ex.Message}");
+        NullLogger.Instance.LogError(ex, "HTTP request failed");
         return string.Empty;
       }
     }

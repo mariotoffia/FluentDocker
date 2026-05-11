@@ -62,7 +62,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
         var buildResult = await ComposeDriver.BuildAsync(Context,
             new ComposeBuildConfig
             {
-              ComposeFiles = new List<string> { composeFile },
+              ComposeFiles = [composeFile],
               ProjectName = projectName,
               NoCache = true
             }, TestContext.Current.CancellationToken);
@@ -72,7 +72,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
         var pushResult = await ComposeDriver.PushAsync(Context,
             new ComposeFileConfig
             {
-              ComposeFiles = new List<string> { composeFile },
+              ComposeFiles = [composeFile],
               ProjectName = projectName
             }, TestContext.Current.CancellationToken);
         Assert.True(pushResult.Success, $"Push failed: {pushResult.Error}");
@@ -84,8 +84,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
         {
           await ComposeDriver.DownAsync(Context, new ComposeDownConfig
           {
-            ComposeFiles = new List<string>
-                { Path.Combine(tempDir, "docker-compose.yml") },
+            ComposeFiles = [Path.Combine(tempDir, "docker-compose.yml")],
             ProjectName = projectName,
             RemoveImages = "local"
           }, TestContext.Current.CancellationToken);
@@ -148,7 +147,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
         var buildResult = await ComposeDriver.BuildAsync(Context,
             new ComposeBuildConfig
             {
-              ComposeFiles = new List<string> { composeFile },
+              ComposeFiles = [composeFile],
               ProjectName = projectName,
               NoCache = true
             }, TestContext.Current.CancellationToken);
@@ -158,9 +157,9 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
         var pushResult = await ComposeDriver.PushAsync(Context,
             new ComposeFileConfig
             {
-              ComposeFiles = new List<string> { composeFile },
+              ComposeFiles = [composeFile],
               ProjectName = projectName,
-              Services = new List<string> { "svc-a" }
+              Services = ["svc-a"]
             }, TestContext.Current.CancellationToken);
         Assert.True(pushResult.Success,
             $"Push svc-a failed: {pushResult.Error}");
@@ -171,8 +170,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
         {
           await ComposeDriver.DownAsync(Context, new ComposeDownConfig
           {
-            ComposeFiles = new List<string>
-                { Path.Combine(tempDir, "docker-compose.yml") },
+            ComposeFiles = [Path.Combine(tempDir, "docker-compose.yml")],
             ProjectName = projectName,
             RemoveImages = "local"
           }, TestContext.Current.CancellationToken);

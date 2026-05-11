@@ -263,7 +263,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
         Image = "nginx",
         HealthCheck = new HealthCheckConfig
         {
-          Test = new[] { "CMD", "curl", "-f", "http://localhost/" },
+          Test = ["CMD", "curl", "-f", "http://localhost/"],
           Interval = "30s",
           Timeout = "10s",
           Retries = 3,
@@ -284,7 +284,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
       var config = new ContainerCreateConfig
       {
         Image = "ubuntu",
-        Command = new[] { "bash", "-c", "echo hello" }
+        Command = ["bash", "-c", "echo hello"]
       };
       var result = InvokeBuildCreateArgs("run", config);
       // "echo hello" is quoted because it contains a space
@@ -422,7 +422,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
           "BuildCreateArgs",
           BindingFlags.NonPublic | BindingFlags.Static);
       Assert.NotNull(method);
-      return (string)method.Invoke(null, new object[] { command, config, detach });
+      return (string)method.Invoke(null, [command, config, detach]);
     }
 
     private static ContainerProcesses InvokeParseTopOutput(string output)
@@ -431,7 +431,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
           "ParseTopOutput",
           BindingFlags.NonPublic | BindingFlags.Static);
       Assert.NotNull(method);
-      return (ContainerProcesses)method.Invoke(null, new object[] { output });
+      return (ContainerProcesses)method.Invoke(null, [output]);
     }
 
     private static IList<FilesystemChange> InvokeParseDiffOutput(string output)
@@ -440,7 +440,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
           "ParseDiffOutput",
           BindingFlags.NonPublic | BindingFlags.Static);
       Assert.NotNull(method);
-      return (IList<FilesystemChange>)method.Invoke(null, new object[] { output });
+      return (IList<FilesystemChange>)method.Invoke(null, [output]);
     }
 
     private static string InvokeQuoteArgumentIfNeeded(string arg)
@@ -449,7 +449,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
           "QuoteArgumentIfNeeded",
           BindingFlags.NonPublic | BindingFlags.Static);
       Assert.NotNull(method);
-      return (string)method.Invoke(null, new object[] { arg });
+      return (string)method.Invoke(null, [arg]);
     }
 
     #endregion

@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using FluentDocker.Kernel;
 using FluentDocker.Model.Kernel;
 using FluentDocker.Services;
+using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 
 namespace FluentDocker.Tests.CoreTests.Core
@@ -34,14 +35,14 @@ namespace FluentDocker.Tests.CoreTests.Core
     public void All_ReturnsAllServices()
     {
       // Arrange
-      var kernel = new FluentDockerKernel();
+      var kernel = new FluentDockerKernel(new DriverRegistry(NullLoggerFactory.Instance), NullLoggerFactory.Instance);
       var scope = new BuildScope(kernel, "docker");
       var service1 = new MockService("service1");
       var service2 = new MockService("service2");
       scope.AddResult(service1);
       scope.AddResult(service2);
 
-      var results = new BuildResults(new List<BuildScope> { scope });
+      var results = new BuildResults([scope]);
 
       // Act
       var all = results.All;
@@ -59,7 +60,7 @@ namespace FluentDocker.Tests.CoreTests.Core
     public void ForDriver_FiltersCorrectly()
     {
       // Arrange
-      var kernel = new FluentDockerKernel();
+      var kernel = new FluentDockerKernel(new DriverRegistry(NullLoggerFactory.Instance), NullLoggerFactory.Instance);
       var scope1 = new BuildScope(kernel, "docker-1");
       var scope2 = new BuildScope(kernel, "docker-2");
 
@@ -71,7 +72,7 @@ namespace FluentDocker.Tests.CoreTests.Core
       scope1.AddResult(service2);
       scope2.AddResult(service3);
 
-      var results = new BuildResults(new List<BuildScope> { scope1, scope2 });
+      var results = new BuildResults([scope1, scope2]);
 
       // Act
       var driver1Services = results.ForDriver("docker-1");
@@ -92,7 +93,7 @@ namespace FluentDocker.Tests.CoreTests.Core
     public void Scopes_ReturnsAllScopes()
     {
       // Arrange
-      var kernel = new FluentDockerKernel();
+      var kernel = new FluentDockerKernel(new DriverRegistry(NullLoggerFactory.Instance), NullLoggerFactory.Instance);
       var scope1 = new BuildScope(kernel, "docker-1");
       var scope2 = new BuildScope(kernel, "docker-2");
       var scopes = new List<BuildScope> { scope1, scope2 };
@@ -113,12 +114,12 @@ namespace FluentDocker.Tests.CoreTests.Core
     public async Task DisposeAllAsync_DisposesServices()
     {
       // Arrange
-      var kernel = new FluentDockerKernel();
+      var kernel = new FluentDockerKernel(new DriverRegistry(NullLoggerFactory.Instance), NullLoggerFactory.Instance);
       var scope = new BuildScope(kernel, "docker");
       var service = new MockDisposableService();
       scope.AddResult(service);
 
-      var results = new BuildResults(new List<BuildScope> { scope });
+      var results = new BuildResults([scope]);
 
       // Act
       await results.DisposeAllAsync();
@@ -134,12 +135,12 @@ namespace FluentDocker.Tests.CoreTests.Core
     public void Dispose_DisposesServices()
     {
       // Arrange
-      var kernel = new FluentDockerKernel();
+      var kernel = new FluentDockerKernel(new DriverRegistry(NullLoggerFactory.Instance), NullLoggerFactory.Instance);
       var scope = new BuildScope(kernel, "docker");
       var service = new MockDisposableService();
       scope.AddResult(service);
 
-      var results = new BuildResults(new List<BuildScope> { scope });
+      var results = new BuildResults([scope]);
 
       // Act
       results.Dispose();
@@ -155,7 +156,7 @@ namespace FluentDocker.Tests.CoreTests.Core
     public void EmptyResults_HandledCorrectly()
     {
       // Act
-      var results = new BuildResults(new List<BuildScope>());
+      var results = new BuildResults([]);
 
       // Assert
       Assert.Empty(results.All);
@@ -164,11 +165,9 @@ namespace FluentDocker.Tests.CoreTests.Core
     }
 
     // Mock services for testing
-    private class MockService : IServiceAsync
+    private class MockService(string name = "test") : IServiceAsync
     {
-      public MockService(string name = "test") => Name = name;
-
-      public string Name { get; }
+      public string Name { get; } = name;
       public ServiceRunningState State => ServiceRunningState.Unknown;
       public FluentDockerKernel Kernel => null;
       public string DriverId => "mock";

@@ -10,6 +10,8 @@ using System.Threading.Tasks;
 using FluentDocker.Common;
 using FluentDocker.Drivers.Docker.Api.Connection;
 using FluentDocker.Model.Drivers;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace FluentDocker.Drivers.Docker.Api.Components
 {
@@ -50,7 +52,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       }
       catch (Exception ex)
       {
-        Logger.Log($"Docker log stream open failed: {ex.Message}");
+        Logger.LogError(ex, "Docker log stream open failed");
         yield break;
       }
 
@@ -120,7 +122,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
         }
         catch (Exception ex)
         {
-          Logger.Log($"Event stream JSON parsing failed: {ex.Message}");
+          Logger.LogError(ex, "Event stream JSON parsing failed");
           continue;
         }
 
@@ -151,7 +153,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
         }
         catch (Exception ex)
         {
-          Logger.Log($"Stats stream JSON parsing failed: {ex.Message}");
+          Logger.LogError(ex, "Stats stream JSON parsing failed");
           continue;
         }
 
@@ -212,7 +214,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
           bytesRead = await ReadExactAsync(stream, header, 8, ct).ConfigureAwait(false);
         }
         catch (OperationCanceledException) { yield break; }
-        catch (Exception ex) { Logger.Log($"Multiplexed stream read error: {ex.Message}"); yield break; }
+        catch (Exception ex) { NullLogger.Instance.LogError(ex, "Multiplexed stream read error"); yield break; }
 
         if (bytesRead < 8)
         {

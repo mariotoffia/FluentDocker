@@ -48,7 +48,7 @@ namespace FluentDocker.Model.Compose
     ///  Engine.labels apply to Docker Engine labels like operating system, drivers, etc. Swarm administrators add
     /// node.labels for operational purposes by using the docker node update command.
     /// </remarks>
-    public IList<string> Constraints { get; set; } = new List<string>();
+    public IList<string> Constraints { get; set; } = [];
     /// <summary>
     /// Set up the service to divide tasks evenly over different categories of nodes. 
     /// </summary>

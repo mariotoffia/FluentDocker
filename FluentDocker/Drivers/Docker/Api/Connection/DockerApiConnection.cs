@@ -10,6 +10,8 @@ using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
 using FluentDocker.Common;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace FluentDocker.Drivers.Docker.Api.Connection
 {
@@ -31,11 +33,13 @@ namespace FluentDocker.Drivers.Docker.Api.Connection
     private sealed record NegotiationState(string ApiVersion, bool Negotiated);
 
     private volatile NegotiationState _negotiation;
+    private readonly ILogger<DockerApiConnection> _logger;
 
-    public DockerApiConnection(DockerApiConnectionConfig config)
+    public DockerApiConnection(DockerApiConnectionConfig config, ILoggerFactory loggerFactory = null)
     {
       ArgumentNullException.ThrowIfNull(config);
       _config = config;
+      _logger = (loggerFactory ?? NullLoggerFactory.Instance).CreateLogger<DockerApiConnection>();
 
       var host = config.Host ?? GetDefaultHost();
       var (handler, baseAddress) = CreateHandler(host, config);
@@ -116,7 +120,7 @@ namespace FluentDocker.Drivers.Docker.Api.Connection
       }
       catch (Exception ex)
       {
-        Logger.Log($"Docker API ping failed: {ex.Message}");
+        _logger.LogError(ex, "Docker API ping failed");
         return false;
       }
     }
@@ -177,7 +181,7 @@ namespace FluentDocker.Drivers.Docker.Api.Connection
       catch (Exception ex)
       {
         // If negotiation fails, proceed without version prefix
-        Logger.Log($"Docker API version negotiation failed ({ex.Message}); proceeding without version prefix");
+        _logger.LogWarning(ex, "Docker API version negotiation failed; proceeding without version prefix");
         _negotiation = new NegotiationState(null, Negotiated: true);
       }
     }
@@ -266,7 +270,7 @@ namespace FluentDocker.Drivers.Docker.Api.Connection
           if (File.Exists(certPath) && File.Exists(keyPath))
           {
             var clientCert = X509Certificate2.CreateFromPemFile(certPath, keyPath);
-            sslOptions.ClientCertificates = new X509CertificateCollection { clientCert };
+            sslOptions.ClientCertificates = [clientCert];
           }
 
           if (!config.VerifyTls)

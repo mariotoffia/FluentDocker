@@ -6,7 +6,7 @@ namespace FluentDocker.Tests.CoreTests.Extensions
   /// Tests for utility extension methods and helpers.
   /// </summary>
   [Trait("Category", "Unit")]
-  public class ExtensionUtilityTests
+  public partial class ExtensionUtilityTests
   {
     [Theory]
     [InlineData("1KB", 1024L)]
@@ -139,7 +139,7 @@ namespace FluentDocker.Tests.CoreTests.Extensions
     public void ContainerNameValidation_ValidatesCorrectly(string name, bool isValid)
     {
       // Docker container names: ^[a-zA-Z0-9][a-zA-Z0-9_.-]*$
-      var pattern = new System.Text.RegularExpressions.Regex("^[a-zA-Z0-9][a-zA-Z0-9_.-]*$");
+      var pattern = MyRegex();
       Assert.Equal(isValid, pattern.IsMatch(name));
     }
 
@@ -273,6 +273,9 @@ namespace FluentDocker.Tests.CoreTests.Extensions
       // Assert
       Assert.Equal(shouldContain, contains);
     }
+
+    [System.Text.RegularExpressions.GeneratedRegex("^[a-zA-Z0-9][a-zA-Z0-9_.-]*$")]
+    private static partial System.Text.RegularExpressions.Regex MyRegex();
   }
 }
 

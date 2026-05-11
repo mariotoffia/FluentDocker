@@ -5,6 +5,7 @@ using FluentDocker.Kernel;
 using FluentDocker.Services;
 using FluentDocker.Services.Impl;
 using FluentDocker.Tests.Mocks;
+using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 
 
@@ -218,7 +219,7 @@ namespace FluentDocker.Tests.CoreTests.Service
     public void RemoveHook_NonExistentName_DoesNotThrow()
     {
       // Arrange
-      var kernel = new FluentDockerKernel();
+      var kernel = new FluentDockerKernel(new DriverRegistry(NullLoggerFactory.Instance), NullLoggerFactory.Instance);
       var service = new ContainerService(kernel, "docker", "c1", "nginx", "test");
 
       // Act & Assert — should not throw
@@ -231,7 +232,7 @@ namespace FluentDocker.Tests.CoreTests.Service
     public void AddHook_NullName_GeneratesUniqueName()
     {
       // Arrange
-      var kernel = new FluentDockerKernel();
+      var kernel = new FluentDockerKernel(new DriverRegistry(NullLoggerFactory.Instance), NullLoggerFactory.Instance);
       var service = new ContainerService(kernel, "docker", "c1", "nginx", "test");
 
       // Act — null uniqueName should auto-generate a GUID name
@@ -338,7 +339,7 @@ namespace FluentDocker.Tests.CoreTests.Service
     public void IServiceAsync_AddHook_FluentChaining()
     {
       // Arrange
-      var kernel = new FluentDockerKernel();
+      var kernel = new FluentDockerKernel(new DriverRegistry(NullLoggerFactory.Instance), NullLoggerFactory.Instance);
       var service = new ContainerService(kernel, "docker", "c1", "nginx", "test");
       IServiceAsync asyncService = service;
 
@@ -356,7 +357,7 @@ namespace FluentDocker.Tests.CoreTests.Service
     public void IServiceAsync_RemoveHook_FluentChaining()
     {
       // Arrange
-      var kernel = new FluentDockerKernel();
+      var kernel = new FluentDockerKernel(new DriverRegistry(NullLoggerFactory.Instance), NullLoggerFactory.Instance);
       var service = new ContainerService(kernel, "docker", "c1", "nginx", "test");
       IServiceAsync asyncService = service;
       asyncService.AddHook(

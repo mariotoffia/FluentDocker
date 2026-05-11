@@ -10,11 +10,11 @@ namespace FluentDocker.Model.Builders.FileBuilder
     {
       if (nameValue == null || 0 == nameValue.Length)
       {
-        NameValue = System.Array.Empty<string>();
+        NameValue = [];
       }
       else
       {
-        NameValue = NameValue = nameValue.WrapValue().ToArray();
+        NameValue = NameValue = [.. nameValue.WrapValue()];
       }
     }
 

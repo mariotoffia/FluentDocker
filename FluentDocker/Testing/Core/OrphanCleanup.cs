@@ -71,7 +71,7 @@ namespace FluentDocker.Testing.Core
       public int VolumesRemoved { get; set; }
 
       /// <summary>Errors encountered during cleanup (non-fatal).</summary>
-      public List<string> Errors { get; set; } = new();
+      public List<string> Errors { get; set; } = [];
 
       /// <summary>Total resources removed.</summary>
       public int TotalRemoved => ContainersRemoved + NetworksRemoved + VolumesRemoved;

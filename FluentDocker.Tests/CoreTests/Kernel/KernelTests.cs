@@ -5,6 +5,7 @@ using FluentDocker.Drivers;
 using FluentDocker.Kernel;
 using FluentDocker.Model.Drivers;
 using FluentDocker.Tests.Mocks;
+using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 
 namespace FluentDocker.Tests.CoreTests.Kernel
@@ -19,7 +20,7 @@ namespace FluentDocker.Tests.CoreTests.Kernel
     public void Create_ReturnsKernelBuilder()
     {
       // Act
-      var builder = FluentDockerKernel.Create();
+      var builder = FluentDockerKernel.Create(NullLoggerFactory.Instance);
 
       // Assert
       Assert.NotNull(builder);
@@ -30,7 +31,7 @@ namespace FluentDocker.Tests.CoreTests.Kernel
     public async Task RegisterDriverPackAsync_RegistersSuccessfully()
     {
       // Arrange
-      var kernel = new FluentDockerKernel();
+      var kernel = new FluentDockerKernel(new DriverRegistry(NullLoggerFactory.Instance), NullLoggerFactory.Instance);
       var mockPack = new MockDriverPack();
       var context = new DriverContext("docker");
 
@@ -45,7 +46,7 @@ namespace FluentDocker.Tests.CoreTests.Kernel
     public async Task SysCtl_ReturnsCorrectInterface()
     {
       // Arrange
-      var (kernel, mockPack) = await MockKernelBuilderExtensions.CreateWithMockDriverAsync("docker");
+      var (kernel, _) = await MockKernelBuilderExtensions.CreateWithMockDriverAsync("docker");
 
       try
       {
@@ -83,7 +84,7 @@ namespace FluentDocker.Tests.CoreTests.Kernel
     public async Task SetDefaultDriver_SetsDefault()
     {
       // Arrange
-      var kernel = new FluentDockerKernel();
+      var kernel = new FluentDockerKernel(new DriverRegistry(NullLoggerFactory.Instance), NullLoggerFactory.Instance);
       var mockPack1 = new MockDriverPack();
       var mockPack2 = new MockDriverPack();
       await mockPack1.InitializeAsync(new DriverContext("driver1"), cancellationToken: TestContext.Current.CancellationToken);
@@ -105,7 +106,7 @@ namespace FluentDocker.Tests.CoreTests.Kernel
     public async Task GetAllDriverIds_ReturnsAllRegistered()
     {
       // Arrange
-      var kernel = new FluentDockerKernel();
+      var kernel = new FluentDockerKernel(new DriverRegistry(NullLoggerFactory.Instance), NullLoggerFactory.Instance);
       var mockPack1 = new MockDriverPack();
       var mockPack2 = new MockDriverPack();
       await mockPack1.InitializeAsync(new DriverContext("docker-local"), cancellationToken: TestContext.Current.CancellationToken);
@@ -141,7 +142,7 @@ namespace FluentDocker.Tests.CoreTests.Kernel
     public void Dispose_MultipleCallsSafe()
     {
       // Arrange
-      var kernel = new FluentDockerKernel();
+      var kernel = new FluentDockerKernel(new DriverRegistry(NullLoggerFactory.Instance), NullLoggerFactory.Instance);
 
       // Act & Assert - should not throw
       kernel.Dispose();
@@ -196,7 +197,7 @@ namespace FluentDocker.Tests.CoreTests.Kernel
     public async Task BuildAsync_WithDockerCli_CreatesKernel()
     {
       // Act
-      var kernel = await FluentDockerKernel.Create()
+      var kernel = await FluentDockerKernel.Create(NullLoggerFactory.Instance)
           .WithDockerCli("docker", d => d.AsDefault())
           .BuildAsync(cancellationToken: TestContext.Current.CancellationToken);
 
@@ -216,7 +217,7 @@ namespace FluentDocker.Tests.CoreTests.Kernel
     public async Task BuildAsync_WithMultipleDrivers_RegistersAll()
     {
       // Act
-      var kernel = await FluentDockerKernel.Create()
+      var kernel = await FluentDockerKernel.Create(NullLoggerFactory.Instance)
           .WithDockerCli("docker-local", d => d.AsDefault())
           .WithDockerCli("docker-remote", d => d.AsDefault())
           .BuildAsync(cancellationToken: TestContext.Current.CancellationToken);
@@ -237,7 +238,7 @@ namespace FluentDocker.Tests.CoreTests.Kernel
     public async Task BuildAsync_WithDefault_SetsDefault()
     {
       // Act
-      var kernel = await FluentDockerKernel.Create()
+      var kernel = await FluentDockerKernel.Create(NullLoggerFactory.Instance)
           .WithDockerCli("docker", d => d.AsDefault())
           .BuildAsync(cancellationToken: TestContext.Current.CancellationToken);
 
@@ -257,7 +258,7 @@ namespace FluentDocker.Tests.CoreTests.Kernel
     {
       // Act & Assert
       Assert.Throws<ArgumentException>(() =>
-          FluentDockerKernel.Create()
+          FluentDockerKernel.Create(NullLoggerFactory.Instance)
               .WithDockerCli(null!, d => d.AsDefault()));
     }
 
@@ -266,7 +267,7 @@ namespace FluentDocker.Tests.CoreTests.Kernel
     {
       // Act & Assert
       Assert.Throws<ArgumentNullException>(() =>
-          FluentDockerKernel.Create()
+          FluentDockerKernel.Create(NullLoggerFactory.Instance)
               .WithDockerCli("docker", null!));
     }
 
@@ -274,7 +275,7 @@ namespace FluentDocker.Tests.CoreTests.Kernel
     public void Build_Sync_CreatesKernel()
     {
       // Act
-      var kernel = FluentDockerKernel.Create()
+      var kernel = FluentDockerKernel.Create(NullLoggerFactory.Instance)
           .WithDockerCli("docker", d => d.AsDefault())
           .Build();
 

@@ -22,7 +22,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Docker
       var args = BuildDeployArgs(new StackDeployConfig
       {
         StackName = "mystack",
-        ComposeFiles = new List<string> { "docker-compose.yml" }
+        ComposeFiles = ["docker-compose.yml"]
       });
 
       Assert.StartsWith("stack deploy", args);
@@ -36,12 +36,12 @@ namespace FluentDocker.Tests.CoreTests.Driver.Docker
       var args = BuildDeployArgs(new StackDeployConfig
       {
         StackName = "multi",
-        ComposeFiles = new List<string>
-        {
+        ComposeFiles =
+        [
           "docker-compose.yml",
           "docker-compose.override.yml",
           "docker-compose.prod.yml"
-        }
+        ]
       });
 
       Assert.Contains("-c docker-compose.yml", args);
@@ -55,7 +55,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Docker
       var args = BuildDeployArgs(new StackDeployConfig
       {
         StackName = "pruned",
-        ComposeFiles = new List<string> { "compose.yml" },
+        ComposeFiles = ["compose.yml"],
         Prune = true
       });
 
@@ -68,7 +68,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Docker
       var args = BuildDeployArgs(new StackDeployConfig
       {
         StackName = "nopruned",
-        ComposeFiles = new List<string> { "compose.yml" },
+        ComposeFiles = ["compose.yml"],
         Prune = false
       });
 
@@ -81,7 +81,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Docker
       var args = BuildDeployArgs(new StackDeployConfig
       {
         StackName = "authed",
-        ComposeFiles = new List<string> { "compose.yml" },
+        ComposeFiles = ["compose.yml"],
         WithRegistryAuth = true
       });
 
@@ -94,7 +94,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Docker
       var args = BuildDeployArgs(new StackDeployConfig
       {
         StackName = "noauth",
-        ComposeFiles = new List<string> { "compose.yml" },
+        ComposeFiles = ["compose.yml"],
         WithRegistryAuth = false
       });
 
@@ -107,7 +107,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Docker
       var args = BuildDeployArgs(new StackDeployConfig
       {
         StackName = "thestack",
-        ComposeFiles = new List<string> { "f1.yml" },
+        ComposeFiles = ["f1.yml"],
         Prune = true,
         WithRegistryAuth = true
       });
@@ -121,7 +121,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Docker
       var args = BuildDeployArgs(new StackDeployConfig
       {
         StackName = "full",
-        ComposeFiles = new List<string> { "a.yml", "b.yml" },
+        ComposeFiles = ["a.yml", "b.yml"],
         Prune = true,
         WithRegistryAuth = true
       });
@@ -155,7 +155,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Docker
     [Fact]
     public void RemoveArgs_SingleStack_CorrectFormat()
     {
-      var args = BuildRemoveArgs(new[] { "mystack" });
+      var args = BuildRemoveArgs(["mystack"]);
 
       Assert.Equal("stack rm mystack", args);
     }
@@ -163,7 +163,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Docker
     [Fact]
     public void RemoveArgs_MultipleStacks_AllIncluded()
     {
-      var args = BuildRemoveArgs(new[] { "stack1", "stack2", "stack3" });
+      var args = BuildRemoveArgs(["stack1", "stack2", "stack3"]);
 
       Assert.Equal("stack rm stack1 stack2 stack3", args);
     }
@@ -171,7 +171,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Docker
     [Fact]
     public void RemoveArgs_StartsWithStackRm()
     {
-      var args = BuildRemoveArgs(new[] { "a", "b" });
+      var args = BuildRemoveArgs(["a", "b"]);
 
       Assert.StartsWith("stack rm", args);
     }
@@ -202,7 +202,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Docker
           "{\"Name\":\"web\",\"Services\":3,\"Orchestrator\":\"swarm\"}\n" +
           "{\"Name\":\"api\",\"Services\":5,\"Orchestrator\":\"swarm\"}";
 
-      var lines = output.Split(new[] { '\n', '\r' },
+      var lines = output.Split(['\n', '\r'],
           System.StringSplitOptions.RemoveEmptyEntries);
       var stacks = new List<StackInfo>();
       foreach (var line in lines)
@@ -261,7 +261,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Docker
           "{\"ID\":\"s1\",\"Name\":\"web\",\"Mode\":\"replicated\",\"Replicas\":\"2/2\",\"Image\":\"nginx\",\"Ports\":\"*:80->80/tcp\"}\n" +
           "{\"ID\":\"s2\",\"Name\":\"api\",\"Mode\":\"replicated\",\"Replicas\":\"3/3\",\"Image\":\"api:v1\",\"Ports\":\"*:8080->8080/tcp\"}";
 
-      var lines = output.Split(new[] { '\n', '\r' },
+      var lines = output.Split(['\n', '\r'],
           System.StringSplitOptions.RemoveEmptyEntries);
       var services = new List<StackServiceInfo>();
       foreach (var line in lines)

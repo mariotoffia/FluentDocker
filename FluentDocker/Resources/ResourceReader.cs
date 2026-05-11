@@ -5,11 +5,9 @@ using System.Linq;
 
 namespace FluentDocker.Resources
 {
-  public sealed class ResourceReader : IEnumerable<ResourceStream>
+  public sealed class ResourceReader(IEnumerable<ResourceInfo> resources) : IEnumerable<ResourceStream>
   {
-    private readonly ResourceInfo[] _resources;
-
-    public ResourceReader(IEnumerable<ResourceInfo> resources) => _resources = resources.ToArray();
+    private readonly ResourceInfo[] _resources = [.. resources];
 
     public IEnumerator<ResourceStream> GetEnumerator()
     {

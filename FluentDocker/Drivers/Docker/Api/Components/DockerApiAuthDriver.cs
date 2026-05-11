@@ -9,10 +9,8 @@ namespace FluentDocker.Drivers.Docker.Api.Components
   /// Docker API implementation of IAuthDriver.
   /// Uses POST /auth for registry authentication.
   /// </summary>
-  public class DockerApiAuthDriver : DockerApiDriverBase, IAuthDriver
+  public class DockerApiAuthDriver(IDockerApiConnection connection) : DockerApiDriverBase(connection), IAuthDriver
   {
-    public DockerApiAuthDriver(IDockerApiConnection connection) : base(connection) { }
-
     public async Task<CommandResponse<Unit>> LoginAsync(
         DriverContext context, RegistryLoginConfig config,
         CancellationToken cancellationToken = default)

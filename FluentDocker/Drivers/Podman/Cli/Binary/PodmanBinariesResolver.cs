@@ -4,6 +4,8 @@ using System.IO;
 using System.Linq;
 using FluentDocker.Common;
 using FluentDocker.Model.Common;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using static FluentDocker.Common.FdOs;
 
 namespace FluentDocker.Drivers.Podman.Cli.Binary
@@ -14,25 +16,31 @@ namespace FluentDocker.Drivers.Podman.Cli.Binary
   public sealed class PodmanBinariesResolver : IPodmanBinaryResolver
   {
     private readonly PodmanBinaryConfiguration _configuration;
+    private readonly ILogger<PodmanBinariesResolver> _logger;
 
     /// <summary>
     /// Creates a new resolver using the provided configuration.
     /// </summary>
-    public PodmanBinariesResolver(PodmanBinaryConfiguration configuration)
+    /// <param name="configuration">The binary configuration.</param>
+    /// <param name="loggerFactory">Optional logger factory; defaults to
+    /// <see cref="NullLoggerFactory.Instance"/>. The Podman CLI driver pack supplies
+    /// the consumer-provided factory automatically.</param>
+    public PodmanBinariesResolver(PodmanBinaryConfiguration configuration, ILoggerFactory loggerFactory = null)
     {
       _configuration = configuration ?? new PodmanBinaryConfiguration();
+      _logger = (loggerFactory ?? NullLoggerFactory.Instance).CreateLogger<PodmanBinariesResolver>();
 
-      Binaries = ResolveFromPaths(
+      Binaries = [.. ResolveFromPaths(
           _configuration.Sudo,
           _configuration.SudoPassword,
-          _configuration.SearchPaths).ToArray();
+          _configuration.SearchPaths)];
 
       MainPodmanClient = Binaries.FirstOrDefault(x => x.Type == PodmanBinaryType.PodmanClient);
       PodmanRemote = Binaries.FirstOrDefault(x => x.Type == PodmanBinaryType.PodmanRemote);
 
       if (MainPodmanClient == null)
       {
-        Logger.Log("Failed to find podman client binary - please add it to your path");
+        _logger.LogError("Failed to find podman client binary - please add it to your path");
         throw new FluentDockerException(
             "Failed to find podman client binary - please add it to your path");
       }
@@ -94,7 +102,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Binary
           : $"sudo -S {binary.FqPath}";
     }
 
-    private static IEnumerable<PodmanBinary> ResolveFromPaths(
+    private IEnumerable<PodmanBinary> ResolveFromPaths(
         SudoMechanism sudo, string password, params string[] paths)
     {
       var isWindows = IsWindows();
@@ -102,11 +110,11 @@ namespace FluentDocker.Drivers.Podman.Cli.Binary
       {
         var envpaths = Environment.GetEnvironmentVariable("PATH")
             ?.Split(isWindows ? ';' : ':');
-        paths = envpaths ?? Array.Empty<string>();
+        paths = envpaths ?? [];
       }
 
       if (paths == null || paths.Length == 0)
-        return Array.Empty<PodmanBinary>();
+        return [];
 
       var list = new List<PodmanBinary>();
       foreach (var path in paths)
@@ -133,8 +141,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Binary
         }
         catch (Exception e)
         {
-          Logger.Log("Failed to get podman binary from path: " + path +
-                     Environment.NewLine + e);
+          _logger.LogWarning(e, "Failed to get podman binary from path {Path}", path);
         }
       }
 

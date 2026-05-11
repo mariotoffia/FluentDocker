@@ -10,11 +10,8 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
   /// <summary>
   /// Podman CLI implementation of IAuthDriver.
   /// </summary>
-  public class PodmanCliAuthDriver : PodmanCliDriverBase, IAuthDriver
+  public class PodmanCliAuthDriver(IPodmanBinaryResolver binaryResolver) : PodmanCliDriverBase(binaryResolver), IAuthDriver
   {
-    public PodmanCliAuthDriver(IPodmanBinaryResolver binaryResolver) : base(binaryResolver)
-    {
-    }
 
     /// <summary>
     /// Builds CLI arguments and optional stdin data for <c>podman login</c>.

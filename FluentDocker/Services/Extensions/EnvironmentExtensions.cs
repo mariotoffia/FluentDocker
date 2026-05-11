@@ -2,6 +2,8 @@ using System;
 using System.Net;
 using System.Net.Sockets;
 using FluentDocker.Common;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace FluentDocker.Services.Extensions
 {
@@ -122,7 +124,7 @@ namespace FluentDocker.Services.Extensions
       }
       catch (Exception ex)
       {
-        Logger.Log($"Container environment check failed: {ex.Message}");
+        NullLogger.Instance.LogDebug(ex, "Container environment check failed");
         return false;
       }
     }

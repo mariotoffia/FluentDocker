@@ -207,8 +207,8 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
       var config = new ContainerCreateConfig
       {
         Image = "httpd:alpine",
-        Entrypoint = new[] { "htpasswd" },
-        Command = new[] { "-Bbn", TestUser, TestPassword }
+        Entrypoint = ["htpasswd"],
+        Command = ["-Bbn", TestUser, TestPassword]
       };
 
       var result = await ContainerDriver.RunAsync(Context, config);

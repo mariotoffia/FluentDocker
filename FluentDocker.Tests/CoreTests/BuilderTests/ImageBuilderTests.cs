@@ -2,6 +2,7 @@ using System;
 using FluentDocker.Builders;
 using FluentDocker.Common;
 using FluentDocker.Kernel;
+using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 
 namespace FluentDocker.Tests.CoreTests.BuilderTests
@@ -238,7 +239,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
     private static FluentDockerKernel CreateMockKernel()
     {
       // Create a minimal kernel for testing
-      return FluentDockerKernel.Create()
+      return FluentDockerKernel.Create(NullLoggerFactory.Instance)
           .WithDockerCli("docker", d => d.AsDefault())
           .Build();
     }

@@ -72,12 +72,9 @@ namespace FluentDocker.Tests.CoreTests.Testing.Adapters
   /// <see cref="XunitContainerFixtureBase"/> subclass via <c>IClassFixture</c>.
   /// </summary>
   [Trait("Category", "Unit")]
-  public class XunitRunnerAbstractFixtureTests : IClassFixture<MockContainerRunnerFixture>
+  public class XunitRunnerAbstractFixtureTests(MockContainerRunnerFixture fixture) : IClassFixture<MockContainerRunnerFixture>
   {
-    private readonly MockContainerRunnerFixture _fixture;
-
-    public XunitRunnerAbstractFixtureTests(MockContainerRunnerFixture fixture)
-        => _fixture = fixture;
+    private readonly MockContainerRunnerFixture _fixture = fixture;
 
     [Fact]
     public void Resource_IsInitialized()
@@ -98,12 +95,9 @@ namespace FluentDocker.Tests.CoreTests.Testing.Adapters
   /// via <c>IClassFixture</c>.
   /// </summary>
   [Trait("Category", "Unit")]
-  public class XunitRunnerConfiguredFixtureTests : IClassFixture<ConfiguredContainerRunnerFixture>
+  public class XunitRunnerConfiguredFixtureTests(ConfiguredContainerRunnerFixture fixture) : IClassFixture<ConfiguredContainerRunnerFixture>
   {
-    private readonly ConfiguredContainerRunnerFixture _fixture;
-
-    public XunitRunnerConfiguredFixtureTests(ConfiguredContainerRunnerFixture fixture)
-        => _fixture = fixture;
+    private readonly ConfiguredContainerRunnerFixture _fixture = fixture;
 
     [Fact]
     public void Resource_IsInitialized()

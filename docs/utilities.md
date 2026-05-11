@@ -247,40 +247,71 @@ using var results = new Builder()
 
 ## Logging
 
-Control FluentDocker's logging output.
+FluentDocker logs through `Microsoft.Extensions.Logging.Abstractions`. An
+`ILoggerFactory` is **required** when constructing the kernel — there is no
+library-side default. To suppress logs entirely, pass
+`NullLoggerFactory.Instance` explicitly at the call site.
 
-### Enable/Disable
+### Plug in any logging provider
 
 ```csharp
-using FluentDocker.Services;
+using Microsoft.Extensions.Logging;
+using FluentDocker.Kernel;
 
-// Enable debug logging
-Logging.Enabled();
+using var factory = LoggerFactory.Create(b => b
+    .SetMinimumLevel(LogLevel.Debug)
+    .AddSimpleConsole(o => o.SingleLine = true));
 
-// Disable logging
-Logging.Disabled();
+var kernel = await FluentDockerKernel.Create(factory)
+    .WithDockerCli("docker", d => d.AsDefault())
+    .BuildAsync();
 ```
 
-### Configure via appsettings.json
+### Suppress all logging explicitly
+
+```csharp
+using Microsoft.Extensions.Logging.Abstractions;
+
+var kernel = await FluentDockerKernel.Create(NullLoggerFactory.Instance)
+    .WithDockerCli("docker", d => d.AsDefault())
+    .BuildAsync();
+```
+
+### Categories
+
+Each FluentDocker type uses its fully-qualified type name as its log category,
+so you can filter at any granularity:
+
+```csharp
+using var factory = LoggerFactory.Create(b => b
+    .AddFilter("FluentDocker.Drivers.Docker.Cli", LogLevel.Warning)
+    .AddFilter("FluentDocker.Services.Impl.ContainerService", LogLevel.Debug)
+    .AddConsole());
+```
+
+`appsettings.json` configuration works the same way via the standard MEL
+`AddConfiguration(IConfiguration)` glue in your host:
 
 ```json
 {
   "Logging": {
     "LogLevel": {
       "Default": "Information",
-      "FluentDocker": "Debug"
+      "FluentDocker.Drivers": "Warning",
+      "FluentDocker.Services.Impl.ContainerService": "Debug"
     }
   }
 }
 ```
 
-### Log Levels
+### Log levels used by the library
 
-- **Trace**: Very detailed, includes command output
-- **Debug**: Detailed operation info
-- **Information**: Container start/stop events
-- **Warning**: Non-fatal issues
-- **Error**: Failures
+- **Debug**: best-effort parse skips inside streaming JSON readers (stats,
+  events, compose service info) — these are routine when output formats vary.
+- **Warning**: cleanup-time failures during dispose/teardown — non-fatal but
+  flagged for visibility.
+- **Error**: operation failures that the library catches and surfaces back to
+  the caller as a failed `CommandResponse`.
 
 ## SudoMechanism
 

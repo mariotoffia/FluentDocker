@@ -76,8 +76,8 @@ namespace FluentDocker.Extensions
     public static string ToFile(this EmbeddedUri resource, TemplateString targetPath)
     {
       new FileResourceWriter(targetPath).Write(
-        new ResourceReader(new[]
-        {
+        new ResourceReader(
+        [
           new ResourceInfo
           {
             Assembly = GetAssembly(resource.Assembly),
@@ -85,7 +85,7 @@ namespace FluentDocker.Extensions
             RelativeRootNamespace = string.Empty,
             Resource = resource.Resource
           }
-        }));
+        ]));
 
       return resource.Resource;
     }

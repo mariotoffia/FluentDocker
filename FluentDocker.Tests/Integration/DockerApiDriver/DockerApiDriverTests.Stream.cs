@@ -25,7 +25,7 @@ namespace FluentDocker.Tests.Integration.DockerApiDriver
       try
       {
         containerId = await ApiRunContainerAsync(TestImage,
-            new[] { "sh", "-c", "for i in 1 2 3 4 5; do echo \"api-log-$i\"; done; sleep 5" });
+            ["sh", "-c", "for i in 1 2 3 4 5; do echo \"api-log-$i\"; done; sleep 5"]);
 
         await Task.Delay(2000, TestContext.Current.CancellationToken);
 
@@ -59,7 +59,7 @@ namespace FluentDocker.Tests.Integration.DockerApiDriver
       try
       {
         containerId = await ApiRunContainerAsync(TestImage,
-            new[] { "sh", "-c", "for i in $(seq 1 20); do echo \"tail-$i\"; done; sleep 5" });
+            ["sh", "-c", "for i in $(seq 1 20); do echo \"tail-$i\"; done; sleep 5"]);
 
         await Task.Delay(2000, TestContext.Current.CancellationToken);
 
@@ -90,7 +90,7 @@ namespace FluentDocker.Tests.Integration.DockerApiDriver
       try
       {
         containerId = await ApiRunContainerAsync(TestImage,
-            new[] { "sh", "-c", "echo 'stderr-msg' >&2; sleep 5" });
+            ["sh", "-c", "echo 'stderr-msg' >&2; sleep 5"]);
 
         await Task.Delay(2000, TestContext.Current.CancellationToken);
 
@@ -135,8 +135,8 @@ namespace FluentDocker.Tests.Integration.DockerApiDriver
               Context,
               new StreamEventsConfig
               {
-                Types = new List<string> { "container" },
-                Actions = new List<string> { "create", "start" }
+                Types = ["container"],
+                Actions = ["create", "start"]
               },
               cts.Token))
           {
@@ -151,7 +151,7 @@ namespace FluentDocker.Tests.Integration.DockerApiDriver
 
         // Trigger container create + start event
         containerId = await ApiRunContainerAsync(TestImage,
-            new[] { "sleep", "30" });
+            ["sleep", "30"]);
 
         // Wait for events to arrive
         try
@@ -185,8 +185,8 @@ namespace FluentDocker.Tests.Integration.DockerApiDriver
               Context,
               new StreamEventsConfig
               {
-                Types = new List<string> { "container" },
-                Actions = new List<string> { "start" }
+                Types = ["container"],
+                Actions = ["start"]
               },
               cts.Token))
           {
@@ -199,7 +199,7 @@ namespace FluentDocker.Tests.Integration.DockerApiDriver
         await Task.Delay(1000, TestContext.Current.CancellationToken);
 
         containerId = await ApiRunContainerAsync(TestImage,
-            new[] { "sleep", "30" });
+            ["sleep", "30"]);
 
         try
         { await listenTask; }
@@ -335,8 +335,8 @@ namespace FluentDocker.Tests.Integration.DockerApiDriver
         var config = new ContainerCreateConfig
         {
           Image = TestImage,
-          Command = new[] { "sh", "-c",
-              "while true; do echo api-attach-output; sleep 1; done" },
+          Command = [ "sh", "-c",
+              "while true; do echo api-attach-output; sleep 1; done" ],
           Detach = true,
           Interactive = true,
           Labels = new Dictionary<string, string>
@@ -380,8 +380,8 @@ namespace FluentDocker.Tests.Integration.DockerApiDriver
         var config = new ContainerCreateConfig
         {
           Image = TestImage,
-          Command = new[] { "sh", "-c",
-              "while true; do echo api-stream-data; sleep 1; done" },
+          Command = [ "sh", "-c",
+              "while true; do echo api-stream-data; sleep 1; done" ],
           Detach = true,
           Interactive = true,
           Labels = new Dictionary<string, string>
@@ -442,7 +442,7 @@ namespace FluentDocker.Tests.Integration.DockerApiDriver
         var config = new ContainerCreateConfig
         {
           Image = TestImage,
-          Command = new[] { "sleep", "300" },
+          Command = ["sleep", "300"],
           Detach = true,
           Interactive = true,
           Labels = new Dictionary<string, string>

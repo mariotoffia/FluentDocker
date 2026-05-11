@@ -21,7 +21,7 @@ namespace FluentDocker.Tests.CoreTests.Testing
       MockPack.SetupComposeUpAsync(new FluentDocker.Drivers.ComposeUpResult
       {
         ProjectName = "test-project",
-        Services = new System.Collections.Generic.List<string> { "web", "db" }
+        Services = ["web", "db"]
       });
       MockPack.SetupComposeStart();
 

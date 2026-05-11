@@ -284,13 +284,13 @@ namespace FluentDocker.Tests.CoreTests.Model
       var svc = new ComposeServiceDefinition();
 
       string[] entries =
-      {
+      [
         "/var/lib/mysql",
         "/opt/data:/var/lib/mysql",
         "./cache:/tmp/cache",
         "~/configs:/etc/configs/:ro",
         "datavolume:/var/lib/mysql"
-      };
+      ];
 
       foreach (var e in entries)
         svc.Volumes.Add(new ShortServiceVolumeDefinition { Entry = e });

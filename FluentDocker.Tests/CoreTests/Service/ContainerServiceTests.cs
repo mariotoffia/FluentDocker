@@ -6,6 +6,7 @@ using FluentDocker.Model.Containers;
 using FluentDocker.Services;
 using FluentDocker.Services.Impl;
 using FluentDocker.Tests.Mocks;
+using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using Xunit;
 
@@ -22,7 +23,7 @@ namespace FluentDocker.Tests.CoreTests.Service
     public void Constructor_SetsProperties()
     {
       // Arrange
-      var kernel = new FluentDockerKernel();
+      var kernel = new FluentDockerKernel(new DriverRegistry(NullLoggerFactory.Instance), NullLoggerFactory.Instance);
       var driverId = "docker";
       var containerId = "abc123";
       var image = "nginx:latest";
@@ -55,7 +56,7 @@ namespace FluentDocker.Tests.CoreTests.Service
     public void Constructor_NullDriverId_ThrowsArgumentNullException()
     {
       // Arrange
-      var kernel = new FluentDockerKernel();
+      var kernel = new FluentDockerKernel(new DriverRegistry(NullLoggerFactory.Instance), NullLoggerFactory.Instance);
 
       // Act & Assert
       Assert.Throws<ArgumentNullException>(() =>
@@ -68,7 +69,7 @@ namespace FluentDocker.Tests.CoreTests.Service
     public void Constructor_NullContainerId_ThrowsArgumentNullException()
     {
       // Arrange
-      var kernel = new FluentDockerKernel();
+      var kernel = new FluentDockerKernel(new DriverRegistry(NullLoggerFactory.Instance), NullLoggerFactory.Instance);
 
       // Act & Assert
       Assert.Throws<ArgumentNullException>(() =>
@@ -81,7 +82,7 @@ namespace FluentDocker.Tests.CoreTests.Service
     public void Constructor_NullName_GeneratesDefault()
     {
       // Arrange
-      var kernel = new FluentDockerKernel();
+      var kernel = new FluentDockerKernel(new DriverRegistry(NullLoggerFactory.Instance), NullLoggerFactory.Instance);
 
       // Act
       var service = new ContainerService(kernel, "docker", "abc123", "nginx", null);
@@ -97,7 +98,7 @@ namespace FluentDocker.Tests.CoreTests.Service
     public void AddHook_AddsHook()
     {
       // Arrange
-      var kernel = new FluentDockerKernel();
+      var kernel = new FluentDockerKernel(new DriverRegistry(NullLoggerFactory.Instance), NullLoggerFactory.Instance);
       var service = new ContainerService(kernel, "docker", "abc123", "nginx", "test");
       var hookCalled = false;
 
@@ -114,7 +115,7 @@ namespace FluentDocker.Tests.CoreTests.Service
     public void RemoveHook_RemovesHook()
     {
       // Arrange
-      var kernel = new FluentDockerKernel();
+      var kernel = new FluentDockerKernel(new DriverRegistry(NullLoggerFactory.Instance), NullLoggerFactory.Instance);
       var service = new ContainerService(kernel, "docker", "abc123", "nginx", "test");
       service.AddHook(ServiceRunningState.Running, async _ => { }, "test-hook");
 
@@ -131,7 +132,7 @@ namespace FluentDocker.Tests.CoreTests.Service
     public void StateChange_Event_CanBeSubscribed()
     {
       // Arrange
-      var kernel = new FluentDockerKernel();
+      var kernel = new FluentDockerKernel(new DriverRegistry(NullLoggerFactory.Instance), NullLoggerFactory.Instance);
       var service = new ContainerService(kernel, "docker", "abc123", "nginx", "test");
       var eventRaised = false;
 
@@ -148,7 +149,7 @@ namespace FluentDocker.Tests.CoreTests.Service
     public void Dispose_CanBeCalledMultipleTimes()
     {
       // Arrange
-      var kernel = new FluentDockerKernel();
+      var kernel = new FluentDockerKernel(new DriverRegistry(NullLoggerFactory.Instance), NullLoggerFactory.Instance);
       var service = new ContainerService(kernel, "docker", "abc123", "nginx", "test",
           stopOnDispose: false, deleteOnDispose: false);
 
@@ -164,7 +165,7 @@ namespace FluentDocker.Tests.CoreTests.Service
     public async Task DisposeAsync_CanBeCalledMultipleTimes()
     {
       // Arrange
-      var kernel = new FluentDockerKernel();
+      var kernel = new FluentDockerKernel(new DriverRegistry(NullLoggerFactory.Instance), NullLoggerFactory.Instance);
       var service = new ContainerService(kernel, "docker", "abc123", "nginx", "test",
           stopOnDispose: false, deleteOnDispose: false);
 
@@ -179,7 +180,7 @@ namespace FluentDocker.Tests.CoreTests.Service
     [Fact]
     public void Service_ImplementsIServiceAsync()
     {
-      var kernel = new FluentDockerKernel();
+      var kernel = new FluentDockerKernel(new DriverRegistry(NullLoggerFactory.Instance), NullLoggerFactory.Instance);
       var service = new ContainerService(kernel, "docker", "abc123", "nginx", "test");
 
 #pragma warning disable CA1859 // Intent: verify interface contract via interface reference

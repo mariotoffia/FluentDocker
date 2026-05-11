@@ -9,20 +9,18 @@ namespace FluentDocker.Model.Kernel
   /// <summary>
   /// Results from a BuildAsync() operation containing all built services.
   /// </summary>
-  public class BuildResults : IAsyncDisposable, IDisposable
+  /// <remarks>
+  /// Creates build results from a list of scopes.
+  /// </remarks>
+  public class BuildResults(List<BuildScope> scopes) : IAsyncDisposable, IDisposable
   {
-    private readonly List<BuildScope> _scopes;
-
-    /// <summary>
-    /// Creates build results from a list of scopes.
-    /// </summary>
-    public BuildResults(List<BuildScope> scopes) => _scopes = scopes ?? new List<BuildScope>();
+    private readonly List<BuildScope> _scopes = scopes ?? [];
 
     /// <summary>
     /// Gets all services across all scopes.
     /// </summary>
     public IReadOnlyList<IServiceAsync> All =>
-        _scopes.SelectMany(s => s.Results).ToList();
+        [.. _scopes.SelectMany(s => s.Results)];
 
     /// <summary>
     /// Gets services for a specific driver.
@@ -30,10 +28,9 @@ namespace FluentDocker.Model.Kernel
     /// <param name="driverId">Driver identifier</param>
     /// <returns>Services for the specified driver</returns>
     public IReadOnlyList<IServiceAsync> ForDriver(string driverId) =>
-        _scopes
+        [.. _scopes
             .Where(s => s.DriverId == driverId)
-            .SelectMany(s => s.Results)
-            .ToList();
+            .SelectMany(s => s.Results)];
 
     /// <summary>
     /// Gets all scopes.
@@ -44,25 +41,25 @@ namespace FluentDocker.Model.Kernel
     /// Gets all container services across all scopes.
     /// </summary>
     public IReadOnlyList<IContainerService> Containers =>
-        All.OfType<IContainerService>().ToList();
+        [.. All.OfType<IContainerService>()];
 
     /// <summary>
     /// Gets all network services across all scopes.
     /// </summary>
     public IReadOnlyList<INetworkService> Networks =>
-        All.OfType<INetworkService>().ToList();
+        [.. All.OfType<INetworkService>()];
 
     /// <summary>
     /// Gets all volume services across all scopes.
     /// </summary>
     public IReadOnlyList<IVolumeService> Volumes =>
-        All.OfType<IVolumeService>().ToList();
+        [.. All.OfType<IVolumeService>()];
 
     /// <summary>
     /// Gets all compose services across all scopes.
     /// </summary>
     public IReadOnlyList<IComposeService> ComposeServices =>
-        All.OfType<IComposeService>().ToList();
+        [.. All.OfType<IComposeService>()];
 
     /// <summary>
     /// Gets a container service by name.
@@ -98,7 +95,7 @@ namespace FluentDocker.Model.Kernel
     /// <typeparam name="T">Service type</typeparam>
     /// <returns>Services of the specified type</returns>
     public IReadOnlyList<T> OfType<T>() where T : IServiceAsync =>
-        All.OfType<T>().ToList();
+        [.. All.OfType<T>()];
 
     /// <summary>
     /// Async disposal of all services.

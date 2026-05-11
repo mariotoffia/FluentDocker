@@ -14,11 +14,8 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
   /// Podman CLI implementation of IContainerDriver.
   /// Core lifecycle and information operations.
   /// </summary>
-  public partial class PodmanCliContainerDriver : PodmanCliDriverBase, IContainerDriver
+  public partial class PodmanCliContainerDriver(IPodmanBinaryResolver binaryResolver) : PodmanCliDriverBase(binaryResolver), IContainerDriver
   {
-    public PodmanCliContainerDriver(IPodmanBinaryResolver binaryResolver) : base(binaryResolver)
-    {
-    }
 
     #region Lifecycle Operations
 

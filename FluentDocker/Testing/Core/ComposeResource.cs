@@ -7,6 +7,7 @@ using FluentDocker.Common;
 using FluentDocker.Drivers;
 using FluentDocker.Kernel;
 using FluentDocker.Services;
+using Microsoft.Extensions.Logging;
 
 namespace FluentDocker.Testing.Core
 {
@@ -126,7 +127,7 @@ namespace FluentDocker.Testing.Core
         }
         catch (Exception ex)
         {
-          Logger.Log($"Compose diagnostics log collection failed: {ex.Message}");
+          Logger.LogWarning(ex, "Compose diagnostics log collection failed");
           diag.Logs = "(failed to collect compose logs)";
         }
       }

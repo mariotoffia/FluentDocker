@@ -111,13 +111,13 @@ namespace FluentDocker.Builders
     /// <inheritdoc />
     string IDriverScopedBuilder.DriverId => _driverId;
     private static readonly char[] EqualsSeparator = ['='];
-    private readonly ImageBuilderConfig _config = new ImageBuilderConfig();
+    private readonly ImageBuilderConfig _config = new();
     private DockerfileBuilder _dockerfileBuilder;
 
     private string _imageName;
-    private List<string> _tags = new List<string>();
-    private Dictionary<string, string> _buildArgs = new Dictionary<string, string>();
-    private Dictionary<string, string> _labels = new Dictionary<string, string>();
+    private readonly List<string> _tags = [];
+    private readonly Dictionary<string, string> _buildArgs = [];
+    private readonly Dictionary<string, string> _labels = [];
     private bool _reuseIfExists;
     private bool _noCache;
     private bool _alwaysPull;
@@ -296,7 +296,7 @@ namespace FluentDocker.Builders
       var buildConfig = new ImageBuildConfig
       {
         BuildContext = buildContext,
-        Tags = _tags.Select(t => $"{_imageName}:{t}").ToList(),
+        Tags = [.. _tags.Select(t => $"{_imageName}:{t}")],
         BuildArgs = _buildArgs,
         Labels = _labels,
         NoCache = _noCache,

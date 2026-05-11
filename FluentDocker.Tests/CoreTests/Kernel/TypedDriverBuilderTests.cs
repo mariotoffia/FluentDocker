@@ -3,6 +3,7 @@ using System.Reflection;
 using FluentDocker.Kernel;
 using FluentDocker.Model.Common;
 using FluentDocker.Model.Drivers;
+using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 
 namespace FluentDocker.Tests.CoreTests.Kernel
@@ -277,7 +278,7 @@ namespace FluentDocker.Tests.CoreTests.Kernel
     public void WithDockerCli_NullId_Throws()
     {
       Assert.Throws<ArgumentException>(() =>
-          FluentDockerKernel.Create()
+          FluentDockerKernel.Create(NullLoggerFactory.Instance)
               .WithDockerCli(null!, d => d.AsDefault()));
     }
 
@@ -285,7 +286,7 @@ namespace FluentDocker.Tests.CoreTests.Kernel
     public void WithDockerCli_EmptyId_Throws()
     {
       Assert.Throws<ArgumentException>(() =>
-          FluentDockerKernel.Create()
+          FluentDockerKernel.Create(NullLoggerFactory.Instance)
               .WithDockerCli("", d => d.AsDefault()));
     }
 
@@ -293,7 +294,7 @@ namespace FluentDocker.Tests.CoreTests.Kernel
     public void WithDockerCli_NullConfigure_Throws()
     {
       Assert.Throws<ArgumentNullException>(() =>
-          FluentDockerKernel.Create()
+          FluentDockerKernel.Create(NullLoggerFactory.Instance)
               .WithDockerCli("docker", null!));
     }
 
@@ -301,7 +302,7 @@ namespace FluentDocker.Tests.CoreTests.Kernel
     public void WithDockerApi_NullConfigure_Throws()
     {
       Assert.Throws<ArgumentNullException>(() =>
-          FluentDockerKernel.Create()
+          FluentDockerKernel.Create(NullLoggerFactory.Instance)
               .WithDockerApi("api", null!));
     }
 
@@ -309,7 +310,7 @@ namespace FluentDocker.Tests.CoreTests.Kernel
     public void WithPodmanCli_NullConfigure_Throws()
     {
       Assert.Throws<ArgumentNullException>(() =>
-          FluentDockerKernel.Create()
+          FluentDockerKernel.Create(NullLoggerFactory.Instance)
               .WithPodmanCli("podman", null!));
     }
 
@@ -317,7 +318,7 @@ namespace FluentDocker.Tests.CoreTests.Kernel
     public void WithDriver_CustomPack_NullConfigure_Throws()
     {
       Assert.Throws<ArgumentNullException>(() =>
-          FluentDockerKernel.Create()
+          FluentDockerKernel.Create(NullLoggerFactory.Instance)
               .WithDriver("custom", null!));
     }
 

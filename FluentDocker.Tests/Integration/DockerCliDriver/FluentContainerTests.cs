@@ -220,12 +220,13 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
       // Note: With --rm flag, container is automatically removed when it stops
       var containerName = UniqueName("autorm");
 
+
       // Act - Run container with command that exits quickly
-      var result = await ContainerDriver.RunAsync(Context, new ContainerCreateConfig
+      _ = await ContainerDriver.RunAsync(Context, new ContainerCreateConfig
       {
         Image = TestImage,
         Name = containerName,
-        Command = new[] { "echo", "hello" },
+        Command = ["echo", "hello"],
         AutoRemove = true,
         Detach = false // Wait for completion
       }, TestContext.Current.CancellationToken);

@@ -188,7 +188,7 @@ namespace FluentDocker.Tests.CoreTests.Common
       try
       {
         // Arrange
-        var stream = new MemoryStream(Array.Empty<byte>());
+        var stream = new MemoryStream([]);
         var info = new ResourceInfo
         {
           Resource = "empty.txt",
@@ -224,7 +224,7 @@ namespace FluentDocker.Tests.CoreTests.Common
       try
       {
         // Arrange
-        var reader = new ResourceReader(Array.Empty<ResourceInfo>());
+        var reader = new ResourceReader([]);
         var writer = new FileResourceWriter(tempDir);
 
         // Act
@@ -354,24 +354,24 @@ namespace FluentDocker.Tests.CoreTests.Common
       Assert.NotNull(method);
 
       // Standard extension: "Ns.Sub.file.txt" -> "file.txt"
-      var result1 = (string)method.Invoke(null, new object[] { "Ns.Sub.file.txt" });
+      var result1 = (string)method.Invoke(null, ["Ns.Sub.file.txt"]);
       Assert.Equal("file.txt", result1);
 
       // No dots at all: "filename" -> "filename"
-      var result2 = (string)method.Invoke(null, new object[] { "filename" });
+      var result2 = (string)method.Invoke(null, ["filename"]);
       Assert.Equal("filename", result2);
 
       // Long extension (>5 chars) treated as dotless filename:
       // "Ns.Dockerfile" -> "Dockerfile"
-      var result3 = (string)method.Invoke(null, new object[] { "Ns.Dockerfile" });
+      var result3 = (string)method.Invoke(null, ["Ns.Dockerfile"]);
       Assert.Equal("Dockerfile", result3);
 
       // Short extension with namespace: "A.B.C.config.json" -> "config.json"
-      var result4 = (string)method.Invoke(null, new object[] { "A.B.C.config.json" });
+      var result4 = (string)method.Invoke(null, ["A.B.C.config.json"]);
       Assert.Equal("config.json", result4);
 
       // Single dot file: "file.cs" -> "file.cs" (no namespace separator)
-      var result5 = (string)method.Invoke(null, new object[] { "file.cs" });
+      var result5 = (string)method.Invoke(null, ["file.cs"]);
       Assert.Equal("file.cs", result5);
     }
 

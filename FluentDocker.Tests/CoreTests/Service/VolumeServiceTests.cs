@@ -2,6 +2,7 @@ using System;
 using FluentDocker.Kernel;
 using FluentDocker.Services;
 using FluentDocker.Services.Impl;
+using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 
 namespace FluentDocker.Tests.CoreTests.Service
@@ -16,7 +17,7 @@ namespace FluentDocker.Tests.CoreTests.Service
     public void Constructor_SetsProperties()
     {
       // Arrange
-      var kernel = new FluentDockerKernel();
+      var kernel = new FluentDockerKernel(new DriverRegistry(NullLoggerFactory.Instance), NullLoggerFactory.Instance);
 
       // Act
       var service = new VolumeService(kernel, "docker", "my-volume", "local");
@@ -42,7 +43,7 @@ namespace FluentDocker.Tests.CoreTests.Service
     [Fact]
     public void Constructor_NullDriverId_ThrowsArgumentNullException()
     {
-      var kernel = new FluentDockerKernel();
+      var kernel = new FluentDockerKernel(new DriverRegistry(NullLoggerFactory.Instance), NullLoggerFactory.Instance);
       Assert.Throws<ArgumentNullException>(() =>
           new VolumeService(kernel, null!, "my-volume", "local"));
       kernel.Dispose();
@@ -51,7 +52,7 @@ namespace FluentDocker.Tests.CoreTests.Service
     [Fact]
     public void Constructor_NullVolumeName_ThrowsArgumentNullException()
     {
-      var kernel = new FluentDockerKernel();
+      var kernel = new FluentDockerKernel(new DriverRegistry(NullLoggerFactory.Instance), NullLoggerFactory.Instance);
       Assert.Throws<ArgumentNullException>(() =>
           new VolumeService(kernel, "docker", null!, "local"));
       kernel.Dispose();
@@ -60,7 +61,7 @@ namespace FluentDocker.Tests.CoreTests.Service
     [Fact]
     public void Constructor_NullDriver_DefaultsToLocal()
     {
-      var kernel = new FluentDockerKernel();
+      var kernel = new FluentDockerKernel(new DriverRegistry(NullLoggerFactory.Instance), NullLoggerFactory.Instance);
       var service = new VolumeService(kernel, "docker", "my-volume", null);
 
       Assert.Equal("local", service.Driver);
@@ -70,7 +71,7 @@ namespace FluentDocker.Tests.CoreTests.Service
     [Fact]
     public void Constructor_WithRemoveOnDispose_SetsFlag()
     {
-      var kernel = new FluentDockerKernel();
+      var kernel = new FluentDockerKernel(new DriverRegistry(NullLoggerFactory.Instance), NullLoggerFactory.Instance);
       var service = new VolumeService(kernel, "docker", "my-volume", "local", removeOnDispose: true);
 
       Assert.NotNull(service);
@@ -80,7 +81,7 @@ namespace FluentDocker.Tests.CoreTests.Service
     [Fact]
     public async Task PauseAsync_ThrowsNotSupportedException()
     {
-      var kernel = new FluentDockerKernel();
+      var kernel = new FluentDockerKernel(new DriverRegistry(NullLoggerFactory.Instance), NullLoggerFactory.Instance);
       var service = new VolumeService(kernel, "docker", "my-volume", "local");
 
       await Assert.ThrowsAsync<NotSupportedException>(async () => await service.PauseAsync(TestContext.Current.CancellationToken));
@@ -90,7 +91,7 @@ namespace FluentDocker.Tests.CoreTests.Service
     [Fact]
     public async Task StopAsync_ThrowsNotSupportedException()
     {
-      var kernel = new FluentDockerKernel();
+      var kernel = new FluentDockerKernel(new DriverRegistry(NullLoggerFactory.Instance), NullLoggerFactory.Instance);
       var service = new VolumeService(kernel, "docker", "my-volume", "local");
 
       await Assert.ThrowsAsync<NotSupportedException>(async () => await service.StopAsync(TestContext.Current.CancellationToken));
@@ -100,7 +101,7 @@ namespace FluentDocker.Tests.CoreTests.Service
     [Fact]
     public void AddHook_AddsHook()
     {
-      var kernel = new FluentDockerKernel();
+      var kernel = new FluentDockerKernel(new DriverRegistry(NullLoggerFactory.Instance), NullLoggerFactory.Instance);
       var service = new VolumeService(kernel, "docker", "my-volume", "local");
 
       service.AddHook(ServiceRunningState.Removed, async _ => { }, "test-hook");
@@ -112,7 +113,7 @@ namespace FluentDocker.Tests.CoreTests.Service
     [Fact]
     public void RemoveHook_RemovesHook()
     {
-      var kernel = new FluentDockerKernel();
+      var kernel = new FluentDockerKernel(new DriverRegistry(NullLoggerFactory.Instance), NullLoggerFactory.Instance);
       var service = new VolumeService(kernel, "docker", "my-volume", "local");
       service.AddHook(ServiceRunningState.Removed, async _ => { }, "test-hook");
 

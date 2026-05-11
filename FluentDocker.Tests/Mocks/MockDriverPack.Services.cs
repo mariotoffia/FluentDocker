@@ -181,7 +181,7 @@ namespace FluentDocker.Tests.Mocks
     /// </summary>
     public MockDriverPack SetupImageHistory(IList<ImageLayer> layers = null)
     {
-      layers ??= new List<ImageLayer>();
+      layers ??= [];
       ImageDriver
           .Setup(d => d.HistoryAsync(
               It.IsAny<DriverContext>(),

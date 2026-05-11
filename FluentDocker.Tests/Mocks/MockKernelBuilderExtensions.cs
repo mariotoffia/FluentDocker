@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using FluentDocker.Drivers;
 using FluentDocker.Kernel;
 using FluentDocker.Model.Drivers;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace FluentDocker.Tests.Mocks
 {
@@ -23,7 +24,7 @@ namespace FluentDocker.Tests.Mocks
       var context = new DriverContext(driverId);
       await mockPack.InitializeAsync(context);
 
-      var kernel = new FluentDockerKernel();
+      var kernel = new FluentDockerKernel(new DriverRegistry(NullLoggerFactory.Instance), NullLoggerFactory.Instance);
       await kernel.RegisterDriverPackAsync(driverId, mockPack, context);
 
       if (asDefault)
@@ -45,7 +46,7 @@ namespace FluentDocker.Tests.Mocks
       var context = new DriverContext(driverId);
       await mockPack.InitializeAsync(context);
 
-      var kernel = new FluentDockerKernel();
+      var kernel = new FluentDockerKernel(new DriverRegistry(NullLoggerFactory.Instance), NullLoggerFactory.Instance);
       await kernel.RegisterDriverPackAsync(driverId, mockPack, context);
 
       if (asDefault)

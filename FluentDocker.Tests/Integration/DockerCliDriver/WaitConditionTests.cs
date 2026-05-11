@@ -19,7 +19,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
   [Collection("DockerDriver")]
   public partial class WaitConditionTests : DockerDriverTestBase
   {
-    private static readonly HttpClient HttpClient = new HttpClient { Timeout = TimeSpan.FromSeconds(5) };
+    private static readonly HttpClient HttpClient = new() { Timeout = TimeSpan.FromSeconds(5) };
 
     #region Wait For Port Tests
 
@@ -246,10 +246,10 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
         var runResult = await ContainerDriver.RunAsync(Context, new ContainerCreateConfig
         {
           Image = TestImage, // alpine
-          Command = new[] { "sleep", "120" },
+          Command = ["sleep", "120"],
           HealthCheck = new HealthCheckConfig
           {
-            Test = new[] { "CMD", "true" }, // Simple command that always succeeds
+            Test = ["CMD", "true"], // Simple command that always succeeds
             Interval = "1s",
             Retries = 3,
             Timeout = "3s",

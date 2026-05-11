@@ -5,6 +5,8 @@ using System.IO;
 using System.Linq;
 using FluentDocker.Common;
 using FluentDocker.Model.Common;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using static FluentDocker.Common.FdOs;
 
 namespace FluentDocker.Drivers.Docker.Cli.Binary
@@ -21,19 +23,24 @@ namespace FluentDocker.Drivers.Docker.Cli.Binary
   public sealed class DockerBinariesResolver : IBinaryResolver
   {
     private readonly BinaryConfiguration _configuration;
+    private readonly ILogger<DockerBinariesResolver> _logger;
 
     /// <summary>
     /// Creates a new resolver using the provided configuration.
     /// </summary>
     /// <param name="configuration">The binary configuration.</param>
-    public DockerBinariesResolver(BinaryConfiguration configuration)
+    /// <param name="loggerFactory">Optional logger factory; defaults to
+    /// <see cref="NullLoggerFactory.Instance"/> when omitted. The Docker CLI
+    /// driver pack supplies the consumer-provided factory automatically.</param>
+    public DockerBinariesResolver(BinaryConfiguration configuration, ILoggerFactory loggerFactory = null)
     {
       _configuration = configuration ?? new BinaryConfiguration();
+      _logger = (loggerFactory ?? NullLoggerFactory.Instance).CreateLogger<DockerBinariesResolver>();
 
-      Binaries = ResolveFromPaths(
+      Binaries = [.. ResolveFromPaths(
           _configuration.Sudo,
           _configuration.SudoPassword,
-          _configuration.SearchPaths).ToArray();
+          _configuration.SearchPaths)];
 
       MainDockerClient = Binaries.FirstOrDefault(x => x.Type == DockerBinaryType.DockerClient);
       MainDockerCompose = CheckCompose(_configuration.Sudo, _configuration.SudoPassword);
@@ -41,13 +48,13 @@ namespace FluentDocker.Drivers.Docker.Cli.Binary
 
       if (MainDockerClient == null)
       {
-        Logger.Log("Failed to find docker client binary - please add it to your path");
+        _logger.LogError("Failed to find docker client binary - please add it to your path");
         throw new FluentDockerException("Failed to find docker client binary - please add it to your path");
       }
 
       if (MainDockerCompose == null)
       {
-        Logger.Log("Docker Compose (docker compose) is not available - compose features will not work");
+        _logger.LogWarning("Docker Compose (docker compose) is not available - compose features will not work");
       }
     }
 
@@ -116,17 +123,17 @@ namespace FluentDocker.Drivers.Docker.Cli.Binary
           : $"sudo -S {binary.FqPath}";
     }
 
-    private static IEnumerable<DockerBinary> ResolveFromPaths(SudoMechanism sudo, string password, params string[] paths)
+    private IEnumerable<DockerBinary> ResolveFromPaths(SudoMechanism sudo, string password, params string[] paths)
     {
       var isWindows = IsWindows();
       if (paths == null || paths.Length == 0)
       {
         var envpaths = Environment.GetEnvironmentVariable("PATH")?.Split(isWindows ? ';' : ':');
-        paths = envpaths ?? Array.Empty<string>();
+        paths = envpaths ?? [];
       }
 
       if (paths == null || paths.Length == 0)
-        return Array.Empty<DockerBinary>();
+        return [];
 
       var list = new List<DockerBinary>();
       foreach (var path in paths)
@@ -162,7 +169,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Binary
         }
         catch (Exception e)
         {
-          Logger.Log("Failed to get docker binary from path: " + path + Environment.NewLine + e);
+          _logger.LogWarning(e, "Failed to get docker binary from path {Path}", path);
         }
       }
 
@@ -216,7 +223,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Binary
       }
       catch (Exception ex)
       {
-        Logger.Log($"Docker Compose plugin is not available: {ex.Message}");
+        _logger.LogDebug(ex, "Docker Compose plugin is not available");
       }
 
       return null;

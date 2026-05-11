@@ -66,7 +66,7 @@ namespace FluentDocker.Tests.Mocks
               It.IsAny<ComposeListConfig>(),
               It.IsAny<CancellationToken>()))
           .ReturnsAsync(FluentDocker.Model.Drivers.CommandResponse<IList<ComposeServiceInfo>>.Ok(
-              new List<ComposeServiceInfo>(services)));
+              [.. services]));
       return this;
     }
 

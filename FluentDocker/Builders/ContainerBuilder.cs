@@ -11,17 +11,19 @@ using FluentDocker.Kernel;
 using FluentDocker.Model.Containers;
 using FluentDocker.Model.Drivers;
 using FluentDocker.Services;
+using Microsoft.Extensions.Logging;
 
 namespace FluentDocker.Builders
 {
   /// <summary>
   /// Container builder implementation.
   /// </summary>
-  internal sealed partial class ContainerBuilder : IContainerBuilder, IDriverScopedBuilder
+  internal sealed partial class ContainerBuilder(FluentDockerKernel kernel, string driverId) : IContainerBuilder, IDriverScopedBuilder
   {
     private static readonly char[] EqualsSeparator = ['='];
-    private readonly FluentDockerKernel _kernel;
-    private readonly string _driverId;
+    private readonly FluentDockerKernel _kernel = kernel;
+    private readonly ILogger<ContainerBuilder> _logger = kernel.LoggerFactory.CreateLogger<ContainerBuilder>();
+    private readonly string _driverId = driverId;
 
     /// <inheritdoc />
     FluentDockerKernel IDriverScopedBuilder.Kernel => _kernel;
@@ -30,16 +32,16 @@ namespace FluentDocker.Builders
     string IDriverScopedBuilder.DriverId => _driverId;
     private string _image;
     private string _name;
-    private readonly Dictionary<string, string> _environment = new Dictionary<string, string>();
-    private readonly Dictionary<string, string> _ports = new Dictionary<string, string>();
-    private readonly List<string> _command = new List<string>();
-    private readonly Dictionary<string, string> _volumes = new Dictionary<string, string>();
-    private readonly Dictionary<string, string> _labels = new Dictionary<string, string>();
-    private readonly List<string> _networks = new List<string>();
-    private readonly List<NetworkAlias> _networkAliases = new List<NetworkAlias>();
-    private readonly List<WaitCondition> _waitConditions = new List<WaitCondition>();
-    private readonly List<LifecycleHook> _lifecycleHooks = new List<LifecycleHook>();
-    private readonly List<ContainerLink> _links = new List<ContainerLink>();
+    private readonly Dictionary<string, string> _environment = [];
+    private readonly Dictionary<string, string> _ports = [];
+    private readonly List<string> _command = [];
+    private readonly Dictionary<string, string> _volumes = [];
+    private readonly Dictionary<string, string> _labels = [];
+    private readonly List<string> _networks = [];
+    private readonly List<NetworkAlias> _networkAliases = [];
+    private readonly List<WaitCondition> _waitConditions = [];
+    private readonly List<LifecycleHook> _lifecycleHooks = [];
+    private readonly List<ContainerLink> _links = [];
 
     private string _workingDir;
     private string _user;
@@ -62,24 +64,18 @@ namespace FluentDocker.Builders
     private bool _destroyRemoveVolumes;
     private Func<Dictionary<string, HostIpEndpoint[]>, string, Uri, IPEndPoint> _customResolver;
     private string _pod;
-    private readonly List<string> _capAdd = new();
-    private readonly List<string> _capDrop = new();
-    private readonly List<string> _securityOpt = new();
+    private readonly List<string> _capAdd = [];
+    private readonly List<string> _capDrop = [];
+    private readonly List<string> _securityOpt = [];
     private long? _shmSize;
-    private readonly Dictionary<string, string> _tmpfs = new();
-    private readonly Dictionary<string, string> _devices = new();
+    private readonly Dictionary<string, string> _tmpfs = [];
+    private readonly Dictionary<string, string> _devices = [];
     private bool _readonlyRootfs;
     private string _platform;
     private string _runtime;
     private int _waitPollIntervalMs = 500;
     private Services.Impl.ContainerService _pendingService;
     private bool _waitConditionsExecuted;
-
-    public ContainerBuilder(FluentDockerKernel kernel, string driverId)
-    {
-      _kernel = kernel;
-      _driverId = driverId;
-    }
 
     #region Basic Configuration
 
@@ -347,7 +343,7 @@ namespace FluentDocker.Builders
 
         // Validate container port is numeric (with optional protocol suffix)
         var portPart = containerPort.Contains('/')
-            ? containerPort.Substring(0, containerPort.IndexOf('/'))
+            ? containerPort[..containerPort.IndexOf('/')]
             : containerPort;
         if (!int.TryParse(portPart, out var cp) || cp < 1 || cp > 65535)
           throw new FluentDockerException(
@@ -408,7 +404,7 @@ namespace FluentDocker.Builders
         Name = _name,
         Environment = _environment,
         PortBindings = _ports,
-        Command = _command.Count > 0 ? _command.ToArray() : null,
+        Command = _command.Count > 0 ? [.. _command] : null,
         Labels = _labels.Count > 0 ? _labels : null,
         Volumes = _volumes.Count > 0 ? _volumes : null,
         Networks = _networks.Count > 0 ? _networks : null,
@@ -424,8 +420,8 @@ namespace FluentDocker.Builders
         Privileged = _privileged,
         AutoRemove = _autoRemove,
         Links = _links.Count > 0
-              ? _links.Select(l => l.Alias != l.ContainerName
-                  ? $"{l.ContainerName}:{l.Alias}" : l.ContainerName).ToList()
+              ? [.. _links.Select(l => l.Alias != l.ContainerName
+                  ? $"{l.ContainerName}:{l.Alias}" : l.ContainerName)]
               : null,
         NetworkAliases = _networkAliases.Count > 0
               ? _networkAliases
@@ -470,7 +466,7 @@ namespace FluentDocker.Builders
         }
         catch (Exception ex)
         {
-          Logger.Log($"Container build failed: {ex.Message}");
+          _logger.LogError(ex, "Container build failed");
           // Container was created (and possibly started). Force-remove to prevent leaks.
           // Use a bounded timeout so cleanup cannot hang indefinitely when the daemon is unhealthy.
           try

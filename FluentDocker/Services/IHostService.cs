@@ -162,13 +162,13 @@ namespace FluentDocker.Services
     public string[] Command { get; set; }
 
     /// <summary>Environment variables.</summary>
-    public Dictionary<string, string> Environment { get; set; } = new Dictionary<string, string>();
+    public Dictionary<string, string> Environment { get; set; } = [];
 
     /// <summary>Port mappings (container:host).</summary>
-    public Dictionary<string, string> Ports { get; set; } = new Dictionary<string, string>();
+    public Dictionary<string, string> Ports { get; set; } = [];
 
     /// <summary>Volume mounts.</summary>
-    public List<string> Volumes { get; set; } = new List<string>();
+    public List<string> Volumes { get; set; } = [];
 
     /// <summary>Network to connect to.</summary>
     public string Network { get; set; }
@@ -192,7 +192,7 @@ namespace FluentDocker.Services
     public bool DeleteNamedVolumeOnDispose { get; set; }
 
     /// <summary>Labels to apply.</summary>
-    public Dictionary<string, string> Labels { get; set; } = new Dictionary<string, string>();
+    public Dictionary<string, string> Labels { get; set; } = [];
 
     /// <summary>Memory limit in bytes.</summary>
     public long? MemoryLimit { get; set; }

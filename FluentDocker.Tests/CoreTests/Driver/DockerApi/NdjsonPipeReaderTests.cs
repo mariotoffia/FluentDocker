@@ -350,17 +350,11 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
     /// <summary>
     /// Stream that delivers data in fixed-size chunks to simulate network fragmentation.
     /// </summary>
-    private sealed class ChunkedStream : Stream
+    private sealed class ChunkedStream(byte[] data, int chunkSize) : Stream
     {
-      private readonly byte[] _data;
-      private readonly int _chunkSize;
+      private readonly byte[] _data = data;
+      private readonly int _chunkSize = chunkSize;
       private int _position;
-
-      public ChunkedStream(byte[] data, int chunkSize)
-      {
-        _data = data;
-        _chunkSize = chunkSize;
-      }
 
       public override bool CanRead => true;
       public override bool CanSeek => false;

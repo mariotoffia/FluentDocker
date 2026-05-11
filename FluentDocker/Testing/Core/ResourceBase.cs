@@ -4,8 +4,8 @@ using System.Linq;
 using System.Runtime.ExceptionServices;
 using System.Threading;
 using System.Threading.Tasks;
-using FluentDocker.Common;
 using FluentDocker.Kernel;
+using Microsoft.Extensions.Logging;
 
 namespace FluentDocker.Testing.Core
 {
@@ -15,10 +15,10 @@ namespace FluentDocker.Testing.Core
   /// </summary>
   public abstract class ResourceBase : ITestResource
   {
-    private readonly List<Func<ITestResource, Task>> _beforeInitHooks = new();
-    private readonly List<Func<ITestResource, Task>> _afterReadyHooks = new();
-    private readonly List<Func<ITestResource, Task>> _beforeDisposeHooks = new();
-    private readonly List<Func<ITestResource, Task>> _afterDisposeHooks = new();
+    private readonly List<Func<ITestResource, Task>> _beforeInitHooks = [];
+    private readonly List<Func<ITestResource, Task>> _afterReadyHooks = [];
+    private readonly List<Func<ITestResource, Task>> _beforeDisposeHooks = [];
+    private readonly List<Func<ITestResource, Task>> _afterDisposeHooks = [];
     private readonly SemaphoreSlim _lifecycleLock = new(1, 1);
     private bool _provisioned;
 
@@ -30,7 +30,14 @@ namespace FluentDocker.Testing.Core
       ArgumentNullException.ThrowIfNull(kernel);
       Kernel = kernel;
       Options = options ?? new DockerResourceOptions();
+      // Logger uses the *concrete* derived type as its category so users can filter per-resource.
+      Logger = kernel.LoggerFactory.CreateLogger(GetType());
     }
+
+    /// <summary>
+    /// Logger for this resource. Category equals the concrete derived type's FQN.
+    /// </summary>
+    protected ILogger Logger { get; }
 
     /// <summary>
     /// The kernel managing drivers for this resource.
@@ -182,7 +189,7 @@ namespace FluentDocker.Testing.Core
         }
         catch (Exception ex)
         {
-          Logger.Log($"Before-dispose hook failed: {ex.Message}");
+          Logger.LogWarning(ex, "Before-dispose hook failed");
         }
 
         Exception teardownFailure = null;
@@ -226,7 +233,7 @@ namespace FluentDocker.Testing.Core
         }
         catch (Exception ex)
         {
-          Logger.Log($"After-dispose hook failed: {ex.Message}");
+          Logger.LogWarning(ex, "After-dispose hook failed");
         }
 
         if (teardownFailure != null)

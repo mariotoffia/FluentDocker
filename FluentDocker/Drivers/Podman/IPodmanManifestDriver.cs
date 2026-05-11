@@ -73,7 +73,7 @@ namespace FluentDocker.Drivers.Podman
     public string Name { get; set; }
 
     /// <summary>Optional images to include during creation.</summary>
-    public List<string> Images { get; set; } = new List<string>();
+    public List<string> Images { get; set; } = [];
 
     /// <summary>When true, include all contents from nested manifest lists.</summary>
     public bool All { get; set; }
@@ -82,7 +82,7 @@ namespace FluentDocker.Drivers.Podman
     public bool Amend { get; set; }
 
     /// <summary>Optional annotations to set on the manifest list.</summary>
-    public Dictionary<string, string> Annotations { get; set; } = new Dictionary<string, string>();
+    public Dictionary<string, string> Annotations { get; set; } = [];
   }
 
   /// <summary>
@@ -109,13 +109,13 @@ namespace FluentDocker.Drivers.Podman
     public string OsVersion { get; set; }
 
     /// <summary>Features required for the image entry.</summary>
-    public List<string> Features { get; set; } = new List<string>();
+    public List<string> Features { get; set; } = [];
 
     /// <summary>Include all contents from a source manifest list.</summary>
     public bool All { get; set; }
 
     /// <summary>Optional annotations for the entry.</summary>
-    public Dictionary<string, string> Annotations { get; set; } = new Dictionary<string, string>();
+    public Dictionary<string, string> Annotations { get; set; } = [];
   }
 
   /// <summary>
@@ -166,13 +166,13 @@ namespace FluentDocker.Drivers.Podman
     public string OsVersion { get; set; }
 
     /// <summary>OS features for the entry.</summary>
-    public List<string> OsFeatures { get; set; } = new List<string>();
+    public List<string> OsFeatures { get; set; } = [];
 
     /// <summary>Features for the entry.</summary>
-    public List<string> Features { get; set; } = new List<string>();
+    public List<string> Features { get; set; } = [];
 
     /// <summary>Annotations for the entry.</summary>
-    public Dictionary<string, string> Annotations { get; set; } = new Dictionary<string, string>();
+    public Dictionary<string, string> Annotations { get; set; } = [];
 
     /// <summary>When true, apply annotations to the index itself.</summary>
     public bool IndexAnnotation { get; set; }
@@ -189,7 +189,7 @@ namespace FluentDocker.Drivers.Podman
   {
     public int SchemaVersion { get; set; }
     public string MediaType { get; set; }
-    public List<ManifestEntry> Manifests { get; set; } = new List<ManifestEntry>();
+    public List<ManifestEntry> Manifests { get; set; } = [];
   }
 
   /// <summary>
@@ -201,7 +201,7 @@ namespace FluentDocker.Drivers.Podman
     public long Size { get; set; }
     public string Digest { get; set; }
     public ManifestPlatform Platform { get; set; }
-    public Dictionary<string, string> Annotations { get; set; } = new Dictionary<string, string>();
+    public Dictionary<string, string> Annotations { get; set; } = [];
   }
 
   /// <summary>
@@ -213,7 +213,7 @@ namespace FluentDocker.Drivers.Podman
     public string Os { get; set; }
     public string Variant { get; set; }
     public string OsVersion { get; set; }
-    public List<string> Features { get; set; } = new List<string>();
+    public List<string> Features { get; set; } = [];
   }
 
   #endregion

@@ -37,7 +37,7 @@ namespace FluentDocker.Model.Compose
     /// cap_add:
     ///   - ALL
     /// </remarks>
-    public IList<string> CapAdd { get; set; } = new List<string>();
+    public IList<string> CapAdd { get; set; } = [];
     /// <summary>
     /// Drop container capabilities. See man 7 capabilities for a full list.
     /// </summary>
@@ -47,7 +47,7 @@ namespace FluentDocker.Model.Compose
     ///   - NET_ADMIN
     ///   - SYS_ADMIN
     /// </remarks>
-    public IList<string> CapDrop { get; set; } = new List<string>();
+    public IList<string> CapDrop { get; set; } = [];
     /// <summary>
     /// Override the default command.
     /// </summary>
@@ -72,7 +72,7 @@ namespace FluentDocker.Model.Compose
     /// <remarks>
     /// Note: config definitions are only supported in version 3.3 and higher of the compose file format.
     /// </remarks>
-    public IList<ConfigLongDefinition> ConfigLong { get; set; } = new List<ConfigLongDefinition>();
+    public IList<ConfigLongDefinition> ConfigLong { get; set; } = [];
 
     /// <summary>
     /// Specify an optional parent cgroup for the container.
@@ -121,7 +121,7 @@ namespace FluentDocker.Model.Compose
     /// devices:
     ///   - "/dev/ttyUSB0:/dev/ttyUSB0"
     /// </remarks>
-    public IList<string> Devices { get; set; } = new List<string>();
+    public IList<string> Devices { get; set; } = [];
     /// <summary>
     /// Express dependency between services.
     /// </summary>
@@ -142,18 +142,18 @@ namespace FluentDocker.Model.Compose
     /// db:
     ///   image: postgres
     /// </remarks>
-    public IList<string> DependsOn { get; set; } = new List<string>();
+    public IList<string> DependsOn { get; set; } = [];
     /// <summary>
     /// Custom dns entries.
     /// </summary>
-    public IList<string> Dns { get; set; } = new List<string>();
+    public IList<string> Dns { get; set; } = [];
     /// <summary>
     /// Custom DNS search domains.
     /// </summary>
     /// <remarks>
     /// For example dc1.example.com, dc2.example.com.
     /// </remarks>
-    public IList<string> DnsSearch { get; set; } = new List<string>();
+    public IList<string> DnsSearch { get; set; } = [];
     /// <summary>
     /// Mount a temporary file system inside the container.
     /// </summary>
@@ -163,7 +163,7 @@ namespace FluentDocker.Model.Compose
     /// For example /run, /tmp
     /// If specify more than <see cref="TmpFsDefinition.Target"/> it requires that the version is 3.6 or more.
     /// </remarks>
-    public IList<TmpFsDefinition> TmpFs { get; set; } = new List<TmpFsDefinition>();
+    public IList<TmpFsDefinition> TmpFs { get; set; } = [];
     /// <summary>
     /// Override the default entrypoint.
     /// </summary>
@@ -172,7 +172,7 @@ namespace FluentDocker.Model.Compose
     ///  Dockerfile instruction, and clears out any default command on the image - meaning that if there’s a CMD
     ///  instruction in the Dockerfile, it is ignored.
     /// </remarks>
-    public IList<string> EntryPoint { get; set; } = new List<string>();
+    public IList<string> EntryPoint { get; set; } = [];
     /// <summary>
     /// Add environment variables from a file. Can be a single value or a list.
     /// </summary>
@@ -200,7 +200,7 @@ namespace FluentDocker.Model.Compose
     /// file a.env and assigned a different value in file b.env, if b.env is listed below (after), then the value from
     /// b.env stands.
     /// </remarks>
-    public IList<string> EnvFiles { get; set; } = new List<string>();
+    public IList<string> EnvFiles { get; set; } = [];
     /// <summary>
     /// Add environment variables.
     /// </summary>
@@ -224,7 +224,7 @@ namespace FluentDocker.Model.Compose
     /// <remarks>
     ///  Only the internal port can be specified.
     /// </remarks>
-    public IList<string> ExposePorts { get; set; } = new List<string>();
+    public IList<string> ExposePorts { get; set; } = [];
     /// <summary>
     /// Link to containers started outside the compose file or even outside of Compose.
     /// </summary>
@@ -241,7 +241,7 @@ namespace FluentDocker.Model.Compose
     /// - project_db_1:mysql
     /// - project_db_1:postgresql
     /// </remarks>
-    public IList<string> ExternalLinks { get; set; } = new List<string>();
+    public IList<string> ExternalLinks { get; set; } = [];
     /// <summary>
     /// Add hostname mappings.
     /// </summary>
@@ -333,7 +333,7 @@ namespace FluentDocker.Model.Compose
     /// Networks to join, referencing entries under the top-level networks key. It also support alias function and
     /// other functionality.
     /// </summary>
-    public IList<ServiceNetworkDefinition> Networks { get; set; } = new List<ServiceNetworkDefinition>();
+    public IList<ServiceNetworkDefinition> Networks { get; set; } = [];
     /// <summary>
     /// Sets the PID mode to the host PID mode.
     /// </summary>
@@ -346,14 +346,14 @@ namespace FluentDocker.Model.Compose
     /// <summary>
     /// Expose ports to outside container.
     /// </summary>
-    public IList<IPortsDefinition> Ports { get; set; } = new List<IPortsDefinition>();
+    public IList<IPortsDefinition> Ports { get; set; } = [];
     /// <summary>
     /// Service secret. 
     /// </summary>
     /// <remarks>
     /// Note that it has to be defined and named globally in order to reference the secret from the service.
     /// </remarks>
-    public IList<ISecret> Secrets { get; set; } = new List<ISecret>();
+    public IList<ISecret> Secrets { get; set; } = [];
     /// <summary>
     /// Override the default labeling scheme for each container.
     /// </summary>
@@ -365,7 +365,7 @@ namespace FluentDocker.Model.Compose
     ///   - label:user:USER
     ///   - label:role:ROLE
     /// </example>
-    public IList<string> SecurityOpt { get; set; } = new List<string>();
+    public IList<string> SecurityOpt { get; set; } = [];
 
     /// <summary>
     /// Specify how long to wait when attempting to stop a container.
@@ -413,6 +413,6 @@ namespace FluentDocker.Model.Compose
     /// <summary>
     /// Volume defined in this service.
     /// </summary>
-    public IList<IServiceVolumeDefinition> Volumes { get; } = new List<IServiceVolumeDefinition>();
+    public IList<IServiceVolumeDefinition> Volumes { get; } = [];
   }
 }

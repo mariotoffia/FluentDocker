@@ -185,7 +185,7 @@ namespace FluentDocker.Tests.CoreTests.Service
     public async Task IsWindowsEngineAsync_ReturnsDriverResult()
     {
       // Arrange: engine reports windows
-      var (kernel, mockPack) = await CreateKernelAsync(isWindowsEngine: true);
+      var (kernel, _) = await CreateKernelAsync(isWindowsEngine: true);
       try
       {
         var scope = await EngineScope.CreateAsync(kernel, DriverId, EngineScopeType.Windows, TestContext.Current.CancellationToken);

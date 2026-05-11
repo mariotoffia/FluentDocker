@@ -68,7 +68,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
         // Assert
         Assert.True(result.Success);
         Assert.True(result.Data.Count >= 1);
-        Assert.Contains(result.Data, c => c.Id.StartsWith(containerId.Substring(0, 12)) || containerId.StartsWith(c.Id));
+        Assert.Contains(result.Data, c => c.Id.StartsWith(containerId[..12]) || containerId.StartsWith(c.Id));
       }
       finally
       {
@@ -210,7 +210,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
         var result = await ContainerDriver.RunAsync(Context, new ContainerCreateConfig
         {
           Image = TestImage,
-          Command = new[] { "sleep", "30" },
+          Command = ["sleep", "30"],
           Environment = new Dictionary<string, string>
           {
             ["TEST_VAR"] = "test_value",
@@ -276,7 +276,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
         var runResult = await ContainerDriver.RunAsync(Context, new ContainerCreateConfig
         {
           Image = TestImage,
-          Command = new[] { "sh", "-c", "echo 'Hello from container'" },
+          Command = ["sh", "-c", "echo 'Hello from container'"],
           Detach = true
         }, cancellationToken: TestContext.Current.CancellationToken);
         containerId = runResult.Data.Id;

@@ -50,7 +50,7 @@ namespace FluentDocker.Drivers.Podman
     public string Network { get; set; }
 
     /// <summary>Path(s) to ConfigMap YAML files (--configmap).</summary>
-    public List<string> ConfigMaps { get; set; } = new List<string>();
+    public List<string> ConfigMaps { get; set; } = [];
 
     /// <summary>Log driver for containers (--log-driver).</summary>
     public string LogDriver { get; set; }
@@ -66,7 +66,7 @@ namespace FluentDocker.Drivers.Podman
 
     /// <summary>Annotations to add to pods (--annotation key=value).</summary>
     public Dictionary<string, string> Annotations { get; set; }
-        = new Dictionary<string, string>();
+        = [];
   }
 
   /// <summary>
@@ -75,7 +75,7 @@ namespace FluentDocker.Drivers.Podman
   public class KubePlayResult
   {
     /// <summary>Pods created by the play operation.</summary>
-    public IList<KubePlayPodResult> Pods { get; set; } = new List<KubePlayPodResult>();
+    public IList<KubePlayPodResult> Pods { get; set; } = [];
   }
 
   /// <summary>
@@ -87,6 +87,6 @@ namespace FluentDocker.Drivers.Podman
     public string Id { get; set; }
 
     /// <summary>Container identifiers within this pod.</summary>
-    public IList<string> Containers { get; set; } = new List<string>();
+    public IList<string> Containers { get; set; } = [];
   }
 }

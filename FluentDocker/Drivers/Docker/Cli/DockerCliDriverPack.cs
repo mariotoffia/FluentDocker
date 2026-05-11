@@ -8,6 +8,8 @@ using FluentDocker.Drivers.Docker.Cli.Binary;
 using FluentDocker.Drivers.Docker.Cli.Components;
 using FluentDocker.Kernel;
 using FluentDocker.Model.Drivers;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace FluentDocker.Drivers.Docker.Cli
 {
@@ -17,9 +19,10 @@ namespace FluentDocker.Drivers.Docker.Cli
   /// </summary>
   public class DockerCliDriverPack : IDriverPack
   {
-    private readonly Dictionary<Type, object> _drivers = new Dictionary<Type, object>();
+    private readonly Dictionary<Type, object> _drivers = [];
     private DriverContext _context;
     private IBinaryResolver _binaryResolver;
+    private ILogger<DockerCliDriverPack> _logger = NullLogger<DockerCliDriverPack>.Instance;
     private bool _initialized;
 
     /// <summary>
@@ -52,6 +55,7 @@ namespace FluentDocker.Drivers.Docker.Cli
     {
       ArgumentNullException.ThrowIfNull(context);
       _context = context;
+      _logger = context.LoggerFactory.CreateLogger<DockerCliDriverPack>();
 
       // Initialize the binary resolver with context configuration
       var binaryConfig = new BinaryConfiguration
@@ -130,7 +134,7 @@ namespace FluentDocker.Drivers.Docker.Cli
       }
       catch (Exception ex)
       {
-        Logger.Log($"Docker CLI ping failed: {ex.Message}");
+        _logger.LogError(ex, "Docker CLI ping failed");
         return false;
       }
     }

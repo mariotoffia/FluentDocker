@@ -28,7 +28,7 @@ namespace FluentDocker.Extensions
             );
         }
 
-        var name = s.Substring(0, index);
+        var name = s[..index];
         var value = s[(index + 1)..].WrapWithChar("\"");
 
         list.Add($"{name}={value}");

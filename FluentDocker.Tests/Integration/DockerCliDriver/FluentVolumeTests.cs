@@ -85,7 +85,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
           {
             [volumeName] = "/data"
           },
-          Command = new[] { "sleep", "5" },
+          Command = ["sleep", "5"],
           Detach = true
         }, cancellationToken: TestContext.Current.CancellationToken);
         containerId = containerResult.Data?.Id;
@@ -182,7 +182,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
           {
             [volumeName] = "/data"
           },
-          Command = new[] { "sh", "-c", $"echo \"{testData}\" > /data/test.txt && sleep 5" },
+          Command = ["sh", "-c", $"echo \"{testData}\" > /data/test.txt && sleep 5"],
           Detach = true
         }, cancellationToken: TestContext.Current.CancellationToken);
         container1Id = container1Result.Data?.Id;
@@ -205,7 +205,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
           {
             [volumeName] = "/data"
           },
-          Command = new[] { "sleep", "60" },
+          Command = ["sleep", "60"],
           Detach = true
         }, cancellationToken: TestContext.Current.CancellationToken);
         container2Id = container2Result.Data?.Id;
@@ -214,7 +214,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
         // Act - Read the data
         var readResult = await ContainerDriver.ExecAsync(Context, container2Id, new ExecConfig
         {
-          Command = new[] { "cat", "/data/test.txt" }
+          Command = ["cat", "/data/test.txt"]
         }, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert

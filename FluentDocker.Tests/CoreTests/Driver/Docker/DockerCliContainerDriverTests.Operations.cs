@@ -19,7 +19,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Docker
     public void ExecArgs_MinimalCommand_StartsWithExecAndContainerId()
     {
       var args = BuildExecArgs("ctr123", new ExecConfig
-      { Command = new[] { "ls", "-la" } });
+      { Command = ["ls", "-la"] });
       Assert.StartsWith("exec", args);
       Assert.Contains("ctr123", args);
       Assert.EndsWith("ls -la", args);
@@ -29,7 +29,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Docker
     public void ExecArgs_WithDetach_IncludesDetachFlag()
     {
       var args = BuildExecArgs("ctr123", new ExecConfig
-      { Detach = true, Command = new[] { "bash" } });
+      { Detach = true, Command = ["bash"] });
       Assert.Contains("-d", args);
     }
 
@@ -37,7 +37,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Docker
     public void ExecArgs_WithInteractive_IncludesInteractiveFlag()
     {
       var args = BuildExecArgs("ctr123", new ExecConfig
-      { Interactive = true, Command = new[] { "bash" } });
+      { Interactive = true, Command = ["bash"] });
       Assert.Contains("-i", args);
     }
 
@@ -45,7 +45,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Docker
     public void ExecArgs_WithTty_IncludesTtyFlag()
     {
       var args = BuildExecArgs("ctr123", new ExecConfig
-      { Tty = true, Command = new[] { "bash" } });
+      { Tty = true, Command = ["bash"] });
       Assert.Contains("-t", args);
     }
 
@@ -53,7 +53,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Docker
     public void ExecArgs_WithPrivileged_IncludesPrivilegedFlag()
     {
       var args = BuildExecArgs("ctr123", new ExecConfig
-      { Privileged = true, Command = new[] { "bash" } });
+      { Privileged = true, Command = ["bash"] });
       Assert.Contains("--privileged", args);
     }
 
@@ -61,7 +61,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Docker
     public void ExecArgs_WithUser_IncludesUserFlag()
     {
       var args = BuildExecArgs("ctr123", new ExecConfig
-      { User = "root", Command = new[] { "bash" } });
+      { User = "root", Command = ["bash"] });
       Assert.Contains("-u root", args);
     }
 
@@ -69,7 +69,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Docker
     public void ExecArgs_WithWorkDir_IncludesWorkDirFlag()
     {
       var args = BuildExecArgs("ctr123", new ExecConfig
-      { WorkingDir = "/app", Command = new[] { "ls" } });
+      { WorkingDir = "/app", Command = ["ls"] });
       Assert.Contains("-w /app", args);
     }
 
@@ -80,7 +80,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Docker
       {
         Environment = new Dictionary<string, string>
           { { "FOO", "bar" }, { "BAZ", "qux" } },
-        Command = new[] { "env" }
+        Command = ["env"]
       });
       Assert.Contains("-e FOO=bar", args);
       Assert.Contains("-e BAZ=qux", args);
@@ -98,7 +98,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Docker
         User = "root",
         WorkingDir = "/app",
         Environment = new Dictionary<string, string> { { "K", "V" } },
-        Command = new[] { "bash" }
+        Command = ["bash"]
       });
       var ctrIdx = args.IndexOf("ctr123", StringComparison.Ordinal);
       Assert.True(args.IndexOf("-d", StringComparison.Ordinal) < ctrIdx);
@@ -110,7 +110,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Docker
     public void ExecArgs_CommandWithSpaces_QuotesCorrectly()
     {
       var args = BuildExecArgs("ctr123", new ExecConfig
-      { Command = new[] { "sh", "-c", "echo hello world" } });
+      { Command = ["sh", "-c", "echo hello world"] });
       Assert.Contains("\"echo hello world\"", args);
     }
 
@@ -226,8 +226,8 @@ namespace FluentDocker.Tests.CoreTests.Driver.Docker
       {
         Image = "nginx",
         Detach = true,
-        CapAdd = new List<string> { "SYS_PTRACE" },
-        CapDrop = new List<string> { "NET_RAW" }
+        CapAdd = ["SYS_PTRACE"],
+        CapDrop = ["NET_RAW"]
       });
       Assert.Contains("--cap-add SYS_PTRACE", args);
       Assert.Contains("--cap-drop NET_RAW", args);
@@ -256,7 +256,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Docker
         Detach = true,
         HealthCheck = new HealthCheckConfig
         {
-          Test = new[] { "CMD-SHELL", "curl -f http://localhost/" },
+          Test = ["CMD-SHELL", "curl -f http://localhost/"],
           Interval = "30s",
           Timeout = "10s",
           Retries = 3
@@ -274,8 +274,8 @@ namespace FluentDocker.Tests.CoreTests.Driver.Docker
       {
         Image = "ubuntu",
         Detach = true,
-        Entrypoint = new[] { "/bin/sh", "-c" },
-        Command = new[] { "echo", "test" }
+        Entrypoint = ["/bin/sh", "-c"],
+        Command = ["echo", "test"]
       });
       Assert.Contains("--entrypoint /bin/sh", args);
       var imgIdx = args.IndexOf("ubuntu", StringComparison.Ordinal);
@@ -292,7 +292,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Docker
       {
         Image = "nginx",
         Detach = true,
-        Dns = new List<string> { "8.8.8.8" },
+        Dns = ["8.8.8.8"],
         ExtraHosts = new Dictionary<string, string>
           { { "host1", "192.168.1.1" } }
       });

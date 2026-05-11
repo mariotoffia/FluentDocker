@@ -4,7 +4,7 @@ namespace FluentDocker.Model.Drivers
   /// Represents a void return type for CommandResponse when no data is returned.
   /// Similar to F# unit type or void in C#.
   /// </summary>
-  public struct Unit
+  public readonly struct Unit
   {
     /// <summary>
     /// Default instance of Unit.

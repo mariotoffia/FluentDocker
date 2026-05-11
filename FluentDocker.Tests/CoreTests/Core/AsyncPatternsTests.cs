@@ -116,7 +116,7 @@ namespace FluentDocker.Tests.CoreTests.Core
     public async Task TaskWhenAll_MultipleAsyncOperations_CompletesAll()
     {
       // Arrange
-      async Task<int> GetValueAsync(int value)
+      static async Task<int> GetValueAsync(int value)
       {
         await Task.Delay(10);
         return value;
@@ -214,7 +214,7 @@ namespace FluentDocker.Tests.CoreTests.Core
     public async Task ValueTask_Completion_WorksLikeTask()
     {
       // Arrange
-      async ValueTask<int> GetValueAsync()
+      static async ValueTask<int> GetValueAsync()
       {
         await Task.Delay(10);
         return 42;
@@ -241,11 +241,9 @@ namespace FluentDocker.Tests.CoreTests.Core
     }
 
     // Helper class for testing IAsyncDisposable
-    private class TestAsyncDisposable : IAsyncDisposable
+    private class TestAsyncDisposable(Action onDispose) : IAsyncDisposable
     {
-      private readonly Action _onDispose;
-
-      public TestAsyncDisposable(Action onDispose) => _onDispose = onDispose;
+      private readonly Action _onDispose = onDispose;
 
       public ValueTask DisposeAsync()
       {

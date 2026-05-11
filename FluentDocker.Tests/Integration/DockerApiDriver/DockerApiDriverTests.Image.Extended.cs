@@ -33,7 +33,7 @@ namespace FluentDocker.Tests.Integration.DockerApiDriver
         var result = await ImageDriver.BuildAsync(Context, new ImageBuildConfig
         {
           BuildContext = tempDir,
-          Tags = new List<string> { tag }
+          Tags = [tag]
         }, cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.True(result.Success, $"Build failed: {result.Error}");
@@ -66,7 +66,7 @@ namespace FluentDocker.Tests.Integration.DockerApiDriver
         await EnsureImageAsync(TestImage);
 
         var result = await ImageDriver.SaveAsync(
-            Context, new[] { "alpine:latest" }, tarPath, cancellationToken: TestContext.Current.CancellationToken);
+            Context, ["alpine:latest"], tarPath, cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.True(result.Success, $"Save failed: {result.Error}");
         Assert.True(File.Exists(tarPath), "Tar file should exist");
@@ -93,7 +93,7 @@ namespace FluentDocker.Tests.Integration.DockerApiDriver
         await EnsureImageAsync(TestImage);
 
         var saveResult = await ImageDriver.SaveAsync(
-            Context, new[] { "alpine:latest" }, tarPath, cancellationToken: TestContext.Current.CancellationToken);
+            Context, ["alpine:latest"], tarPath, cancellationToken: TestContext.Current.CancellationToken);
         Assert.True(saveResult.Success, $"Save failed: {saveResult.Error}");
 
         var loadResult = await ImageDriver.LoadAsync(Context, tarPath, cancellationToken: TestContext.Current.CancellationToken);
@@ -128,7 +128,7 @@ namespace FluentDocker.Tests.Integration.DockerApiDriver
         {
           Image = "alpine:latest",
           Name = UniqueName("fd-api-exp"),
-          Command = new[] { "sh", "-c", "echo imported" }
+          Command = ["sh", "-c", "echo imported"]
         }, cancellationToken: TestContext.Current.CancellationToken);
         Assert.True(createResult.Success, $"Create failed: {createResult.Error}");
         containerId = createResult.Data.Id;

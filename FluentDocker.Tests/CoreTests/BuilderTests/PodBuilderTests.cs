@@ -9,6 +9,7 @@ using FluentDocker.Kernel;
 using FluentDocker.Model.Drivers;
 using FluentDocker.Services;
 using FluentDocker.Tests.Mocks;
+using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using Xunit;
 
@@ -207,7 +208,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
     private static IPodBuilder CreatePodBuilder(
         string driverId, FluentDockerKernel? kernel = null)
     {
-      kernel ??= new FluentDockerKernel();
+      kernel ??= new FluentDockerKernel(new DriverRegistry(NullLoggerFactory.Instance), NullLoggerFactory.Instance);
       var builderType = typeof(Builder).Assembly
           .GetType("FluentDocker.Builders.PodBuilder");
       return (IPodBuilder)Activator.CreateInstance(builderType, kernel, driverId);
@@ -221,7 +222,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
       Assert.NotNull(executeMethod);
 
       var task = (Task<IServiceAsync>)executeMethod.Invoke(
-          builder, new object[] { CancellationToken.None });
+          builder, [CancellationToken.None]);
       return await task;
     }
 

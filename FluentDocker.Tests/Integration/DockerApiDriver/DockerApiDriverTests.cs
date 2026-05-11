@@ -65,7 +65,7 @@ namespace FluentDocker.Tests.Integration.DockerApiDriver
         {
           Image = TestImage,
           Name = name,
-          Command = new[] { "sleep", "60" }
+          Command = ["sleep", "60"]
         };
 
         var createResult = await ContainerDriver.CreateAsync(Context, config, cancellationToken: TestContext.Current.CancellationToken);
@@ -105,7 +105,7 @@ namespace FluentDocker.Tests.Integration.DockerApiDriver
         {
           Image = TestImage,
           Name = UniqueName("inspect"),
-          Command = new[] { "sleep", "60" }
+          Command = ["sleep", "60"]
         };
 
         var createResult = await ContainerDriver.CreateAsync(Context, config, cancellationToken: TestContext.Current.CancellationToken);
@@ -143,7 +143,7 @@ namespace FluentDocker.Tests.Integration.DockerApiDriver
         {
           Image = TestImage,
           Name = name,
-          Command = new[] { "sleep", "60" }
+          Command = ["sleep", "60"]
         };
 
         var createResult = await ContainerDriver.CreateAsync(Context, config, cancellationToken: TestContext.Current.CancellationToken);

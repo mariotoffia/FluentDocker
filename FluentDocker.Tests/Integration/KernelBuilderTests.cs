@@ -1,5 +1,6 @@
 using System.Threading.Tasks;
 using FluentDocker.Kernel;
+using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 
 namespace FluentDocker.Tests.Integration
@@ -14,7 +15,7 @@ namespace FluentDocker.Tests.Integration
     public async Task KernelBuilder_WithSingleDriver_CreatesKernel()
     {
       // Arrange & Act
-      var kernel = await FluentDockerKernel.Create()
+      var kernel = await FluentDockerKernel.Create(NullLoggerFactory.Instance)
           .WithDockerCli("docker", d => d.AsDefault())
           .BuildAsync(cancellationToken: TestContext.Current.CancellationToken);
 
@@ -30,7 +31,7 @@ namespace FluentDocker.Tests.Integration
     public async Task KernelBuilder_WithMultipleDrivers_CreatesKernel()
     {
       // Arrange & Act
-      var kernel = await FluentDockerKernel.Create()
+      var kernel = await FluentDockerKernel.Create(NullLoggerFactory.Instance)
           .WithDockerCli("docker-local", d => d.AsDefault())
           .WithDockerCli("docker-remote", d => d.AsDefault())
           .BuildAsync(cancellationToken: TestContext.Current.CancellationToken);
@@ -48,7 +49,7 @@ namespace FluentDocker.Tests.Integration
     public async Task KernelSysCtl_CanAccessContainerDriver()
     {
       // Arrange
-      var kernel = await FluentDockerKernel.Create()
+      var kernel = await FluentDockerKernel.Create(NullLoggerFactory.Instance)
           .WithDockerCli("docker", d => d.AsDefault())
           .BuildAsync(cancellationToken: TestContext.Current.CancellationToken);
 
@@ -72,7 +73,7 @@ namespace FluentDocker.Tests.Integration
     {
       // This test verifies builder API compilation
 
-      var builder = FluentDockerKernel.Create();
+      var builder = FluentDockerKernel.Create(NullLoggerFactory.Instance);
       Assert.NotNull(builder);
     }
   }

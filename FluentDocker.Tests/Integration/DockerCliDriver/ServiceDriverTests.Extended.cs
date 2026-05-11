@@ -229,7 +229,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
     {
       var fakeName = "nonexistent-" + Guid.NewGuid().ToString("N")[..12];
       var result = await ServiceDriver.RemoveAsync(
-          Context, new[] { fakeName }, cancellationToken: TestContext.Current.CancellationToken);
+          Context, [fakeName], cancellationToken: TestContext.Current.CancellationToken);
       Assert.False(result.Success,
           "Removing non-existent service should fail");
     }

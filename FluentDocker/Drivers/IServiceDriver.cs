@@ -107,7 +107,7 @@ namespace FluentDocker.Drivers
     public string Image { get; set; }
 
     /// <summary>Ports exposed.</summary>
-    public List<string> Ports { get; set; } = new List<string>();
+    public List<string> Ports { get; set; } = [];
   }
 
   /// <summary>
@@ -140,19 +140,19 @@ namespace FluentDocker.Drivers
     public string[] Args { get; set; }
 
     /// <summary>Environment variables.</summary>
-    public Dictionary<string, string> Environment { get; set; } = new Dictionary<string, string>();
+    public Dictionary<string, string> Environment { get; set; } = [];
 
     /// <summary>Labels.</summary>
-    public Dictionary<string, string> Labels { get; set; } = new Dictionary<string, string>();
+    public Dictionary<string, string> Labels { get; set; } = [];
 
     /// <summary>Published ports.</summary>
-    public List<ServicePort> Ports { get; set; } = new List<ServicePort>();
+    public List<ServicePort> Ports { get; set; } = [];
 
     /// <summary>Networks attached.</summary>
-    public List<string> Networks { get; set; } = new List<string>();
+    public List<string> Networks { get; set; } = [];
 
     /// <summary>Mounts.</summary>
-    public List<ServiceMount> Mounts { get; set; } = new List<ServiceMount>();
+    public List<ServiceMount> Mounts { get; set; } = [];
 
     /// <summary>Update configuration.</summary>
     public ServiceUpdateSettings UpdateConfig { get; set; }
@@ -167,7 +167,7 @@ namespace FluentDocker.Drivers
     public ServiceResources Reservations { get; set; }
 
     /// <summary>Placement constraints.</summary>
-    public List<string> Constraints { get; set; } = new List<string>();
+    public List<string> Constraints { get; set; } = [];
 
     /// <summary>Creation time.</summary>
     public DateTime CreatedAt { get; set; }
@@ -279,22 +279,22 @@ namespace FluentDocker.Drivers
     public string Mode { get; set; }
 
     /// <summary>Environment variables.</summary>
-    public Dictionary<string, string> Environment { get; set; } = new Dictionary<string, string>();
+    public Dictionary<string, string> Environment { get; set; } = [];
 
     /// <summary>Labels.</summary>
-    public Dictionary<string, string> Labels { get; set; } = new Dictionary<string, string>();
+    public Dictionary<string, string> Labels { get; set; } = [];
 
     /// <summary>Container labels.</summary>
-    public Dictionary<string, string> ContainerLabels { get; set; } = new Dictionary<string, string>();
+    public Dictionary<string, string> ContainerLabels { get; set; } = [];
 
     /// <summary>Published ports.</summary>
-    public List<ServicePort> Ports { get; set; } = new List<ServicePort>();
+    public List<ServicePort> Ports { get; set; } = [];
 
     /// <summary>Networks to attach.</summary>
-    public List<string> Networks { get; set; } = new List<string>();
+    public List<string> Networks { get; set; } = [];
 
     /// <summary>Mounts.</summary>
-    public List<ServiceMount> Mounts { get; set; } = new List<ServiceMount>();
+    public List<ServiceMount> Mounts { get; set; } = [];
 
     /// <summary>Working directory.</summary>
     public string WorkDir { get; set; }
@@ -303,7 +303,7 @@ namespace FluentDocker.Drivers
     public string User { get; set; }
 
     /// <summary>Placement constraints.</summary>
-    public List<string> Constraints { get; set; } = new List<string>();
+    public List<string> Constraints { get; set; } = [];
 
     /// <summary>Resource limits.</summary>
     public ServiceResources Limits { get; set; }
@@ -345,16 +345,16 @@ namespace FluentDocker.Drivers
     public string HealthStartPeriod { get; set; }
 
     /// <summary>Secrets to expose.</summary>
-    public List<string> Secrets { get; set; } = new List<string>();
+    public List<string> Secrets { get; set; } = [];
 
     /// <summary>Configs to expose.</summary>
-    public List<string> Configs { get; set; } = new List<string>();
+    public List<string> Configs { get; set; } = [];
 
     /// <summary>Log driver.</summary>
     public string LogDriver { get; set; }
 
     /// <summary>Log driver options.</summary>
-    public Dictionary<string, string> LogOpts { get; set; } = new Dictionary<string, string>();
+    public Dictionary<string, string> LogOpts { get; set; } = [];
 
     /// <summary>Endpoint mode (vip, dnsrr).</summary>
     public string EndpointMode { get; set; }
@@ -378,40 +378,40 @@ namespace FluentDocker.Drivers
     public string Image { get; set; }
 
     /// <summary>Environment variables to add.</summary>
-    public Dictionary<string, string> EnvAdd { get; set; } = new Dictionary<string, string>();
+    public Dictionary<string, string> EnvAdd { get; set; } = [];
 
     /// <summary>Environment variables to remove.</summary>
-    public List<string> EnvRm { get; set; } = new List<string>();
+    public List<string> EnvRm { get; set; } = [];
 
     /// <summary>Labels to add.</summary>
-    public Dictionary<string, string> LabelAdd { get; set; } = new Dictionary<string, string>();
+    public Dictionary<string, string> LabelAdd { get; set; } = [];
 
     /// <summary>Labels to remove.</summary>
-    public List<string> LabelRm { get; set; } = new List<string>();
+    public List<string> LabelRm { get; set; } = [];
 
     /// <summary>Mounts to add.</summary>
-    public List<ServiceMount> MountAdd { get; set; } = new List<ServiceMount>();
+    public List<ServiceMount> MountAdd { get; set; } = [];
 
     /// <summary>Mounts to remove.</summary>
-    public List<string> MountRm { get; set; } = new List<string>();
+    public List<string> MountRm { get; set; } = [];
 
     /// <summary>Ports to add.</summary>
-    public List<ServicePort> PublishAdd { get; set; } = new List<ServicePort>();
+    public List<ServicePort> PublishAdd { get; set; } = [];
 
     /// <summary>Ports to remove.</summary>
-    public List<int> PublishRm { get; set; } = new List<int>();
+    public List<int> PublishRm { get; set; } = [];
 
     /// <summary>Constraints to add.</summary>
-    public List<string> ConstraintAdd { get; set; } = new List<string>();
+    public List<string> ConstraintAdd { get; set; } = [];
 
     /// <summary>Constraints to remove.</summary>
-    public List<string> ConstraintRm { get; set; } = new List<string>();
+    public List<string> ConstraintRm { get; set; } = [];
 
     /// <summary>Networks to add.</summary>
-    public List<string> NetworkAdd { get; set; } = new List<string>();
+    public List<string> NetworkAdd { get; set; } = [];
 
     /// <summary>Networks to remove.</summary>
-    public List<string> NetworkRm { get; set; } = new List<string>();
+    public List<string> NetworkRm { get; set; } = [];
 
     /// <summary>Number of replicas.</summary>
     public int? Replicas { get; set; }
@@ -447,7 +447,7 @@ namespace FluentDocker.Drivers
     public string Name { get; set; }
 
     /// <summary>Filter by label.</summary>
-    public Dictionary<string, string> Labels { get; set; } = new Dictionary<string, string>();
+    public Dictionary<string, string> Labels { get; set; } = [];
 
     /// <summary>Filter by mode.</summary>
     public string Mode { get; set; }
@@ -472,7 +472,7 @@ namespace FluentDocker.Drivers
     public string Id { get; set; }
 
     /// <summary>Warnings from the operation.</summary>
-    public List<string> Warnings { get; set; } = new List<string>();
+    public List<string> Warnings { get; set; } = [];
   }
 
   #endregion

@@ -101,11 +101,9 @@ namespace FluentDocker.Tests.CoreTests.Testing.Adapters
       await testBase.DisposeAsync();
     }
 
-    private class TestContainerTestBase : XunitContainerTestBase
+    private class TestContainerTestBase(Func<Task<FluentDockerKernel>> kernelFactory) : XunitContainerTestBase
     {
-      private readonly Func<Task<FluentDockerKernel>> _kernelFactory;
-
-      public TestContainerTestBase(Func<Task<FluentDockerKernel>> kernelFactory) => _kernelFactory = kernelFactory;
+      private readonly Func<Task<FluentDockerKernel>> _kernelFactory = kernelFactory;
 
       protected override void ConfigureContainer(IContainerBuilder builder)
           => builder.UseImage("alpine:latest");
@@ -152,13 +150,10 @@ namespace FluentDocker.Tests.CoreTests.Testing.Adapters
       await testBase.DisposeAsync();
     }
 
-    private class TestComposeTestBase : XunitComposeTestBase
+    private class TestComposeTestBase(
+        Func<Task<FluentDockerKernel>>? kernelFactory = null) : XunitComposeTestBase
     {
-      private readonly Func<Task<FluentDockerKernel>> _kernelFactory;
-
-      public TestComposeTestBase(
-          Func<Task<FluentDockerKernel>>? kernelFactory = null)
-          => _kernelFactory = kernelFactory;
+      private readonly Func<Task<FluentDockerKernel>> _kernelFactory = kernelFactory;
 
       protected override void ConfigureCompose(IComposeBuilder builder)
           => builder.WithComposeFile("docker-compose.yml")
@@ -202,13 +197,10 @@ namespace FluentDocker.Tests.CoreTests.Testing.Adapters
       await testBase.DisposeAsync();
     }
 
-    private class TestTopologyTestBase : XunitTopologyTestBase
+    private class TestTopologyTestBase(
+        Func<Task<FluentDockerKernel>>? kernelFactory = null) : XunitTopologyTestBase
     {
-      private readonly Func<Task<FluentDockerKernel>> _kernelFactory;
-
-      public TestTopologyTestBase(
-          Func<Task<FluentDockerKernel>>? kernelFactory = null)
-          => _kernelFactory = kernelFactory;
+      private readonly Func<Task<FluentDockerKernel>> _kernelFactory = kernelFactory;
 
       protected override void ConfigureTopology(Builder builder)
           => builder.UseContainer(c => c.UseImage("alpine:latest"));

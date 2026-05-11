@@ -7,6 +7,8 @@ using FluentDocker.Common;
 using FluentDocker.Drivers.Docker.Cli;
 using FluentDocker.Drivers.Podman.Cli.Binary;
 using FluentDocker.Model.Drivers;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace FluentDocker.Drivers.Podman.Cli.Components
 {
@@ -221,7 +223,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
             networks.Add(ParseNetworkFromToken(JsonHelper.ParseElement(line.Trim())));
         }
       }
-      catch (Exception ex) { Logger.Log($"Network JSON parsing skipped: {ex.Message}"); }
+      catch (Exception ex) { NullLogger.Instance.LogDebug(ex, "Network JSON parsing skipped"); }
 
       return networks;
     }
@@ -263,7 +265,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       }
       catch (Exception ex)
       {
-        Logger.Log($"Podman network inspect parsing failed: {ex.Message}");
+        NullLogger.Instance.LogDebug(ex, "Podman network inspect parsing failed");
         return new Network();
       }
     }

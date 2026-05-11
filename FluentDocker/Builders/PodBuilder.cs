@@ -12,10 +12,10 @@ namespace FluentDocker.Builders
   /// <summary>
   /// Pod builder implementation. Creates a Podman pod.
   /// </summary>
-  internal sealed class PodBuilder : IPodBuilder, IDriverScopedBuilder
+  internal sealed class PodBuilder(FluentDockerKernel kernel, string driverId) : IPodBuilder, IDriverScopedBuilder
   {
-    private readonly FluentDockerKernel _kernel;
-    private readonly string _driverId;
+    private readonly FluentDockerKernel _kernel = kernel;
+    private readonly string _driverId = driverId;
 
     FluentDockerKernel IDriverScopedBuilder.Kernel => _kernel;
     string IDriverScopedBuilder.DriverId => _driverId;
@@ -24,14 +24,8 @@ namespace FluentDocker.Builders
     private string _hostname;
     private string _network;
     private bool _removeOnDispose;
-    private readonly List<string> _ports = new();
-    private readonly Dictionary<string, string> _labels = new();
-
-    public PodBuilder(FluentDockerKernel kernel, string driverId)
-    {
-      _kernel = kernel;
-      _driverId = driverId;
-    }
+    private readonly List<string> _ports = [];
+    private readonly Dictionary<string, string> _labels = [];
 
     public IPodBuilder WithName(string name) { _name = name; return this; }
 

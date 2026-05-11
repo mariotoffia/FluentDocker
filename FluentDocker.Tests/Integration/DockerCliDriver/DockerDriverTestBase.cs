@@ -5,6 +5,7 @@ using FluentDocker.Common;
 using FluentDocker.Drivers;
 using FluentDocker.Kernel;
 using FluentDocker.Model.Drivers;
+using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 
 namespace FluentDocker.Tests.Integration.DockerCliDriver
@@ -17,7 +18,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
   {
     protected FluentDockerKernel Kernel { get; private set; } = null!;
     protected static string DriverId => "docker";
-    protected static DriverContext Context => new DriverContext(DriverId);
+    protected static DriverContext Context => new(DriverId);
 
     // Standard test image - small and fast
     protected const string TestImage = "alpine:latest";
@@ -36,7 +37,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
         // Will attempt to switch to Linux mode
       }
 
-      Kernel = await FluentDockerKernel.Create()
+      Kernel = await FluentDockerKernel.Create(NullLoggerFactory.Instance)
           .WithDockerCli(DriverId, d => d.AsDefault())
           .BuildAsync();
     }
@@ -101,7 +102,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
       config ??= new ContainerCreateConfig();
       config.Image = image;
       config.Detach = true;
-      config.Labels ??= new Dictionary<string, string>();
+      config.Labels ??= [];
       config.Labels[TestLabelKey] = TestLabelValue;
 
       var result = await ContainerDriver.RunAsync(Context, config);
@@ -169,7 +170,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
     /// <summary>
     /// Generates a unique name for test resources.
     /// </summary>
-    protected static string UniqueName(string prefix = "test") => $"{prefix}-{Guid.NewGuid():N}".Substring(0, 20);
+    protected static string UniqueName(string prefix = "test") => $"{prefix}-{Guid.NewGuid():N}"[..20];
   }
 }
 

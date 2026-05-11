@@ -14,10 +14,8 @@ namespace FluentDocker.Drivers.Docker.Api.Components
   /// Docker API implementation of ISystemDriver.
   /// Uses GET /info, GET /version, GET /_ping, GET /system/df, and per-resource prune.
   /// </summary>
-  public class DockerApiSystemDriver : DockerApiDriverBase, ISystemDriver
+  public class DockerApiSystemDriver(IDockerApiConnection connection) : DockerApiDriverBase(connection), ISystemDriver
   {
-    public DockerApiSystemDriver(IDockerApiConnection connection) : base(connection) { }
-
     public async Task<CommandResponse<SystemInfo>> GetInfoAsync(
         DriverContext context, CancellationToken cancellationToken = default)
     {
@@ -202,10 +200,10 @@ namespace FluentDocker.Drivers.Docker.Api.Components
     {
       var dict = new Dictionary<string, List<string>>();
       if (config.All)
-        dict["dangling"] = new List<string> { "false" };
+        dict["dangling"] = ["false"];
       if (config.Filter != null)
         foreach (var kv in config.Filter)
-          dict[kv.Key] = new List<string> { kv.Value };
+          dict[kv.Key] = [kv.Value];
 
       return dict.Count == 0
           ? string.Empty

@@ -4,6 +4,7 @@ using FluentDocker.Drivers;
 using FluentDocker.Kernel;
 using FluentDocker.Model.Drivers;
 using FluentDocker.Tests.Mocks;
+using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 
 namespace FluentDocker.Tests.CoreTests.Kernel
@@ -18,7 +19,7 @@ namespace FluentDocker.Tests.CoreTests.Kernel
     public async Task DisposeAsync_DisposesAsyncDisposableDriverPacks()
     {
       // Arrange
-      var kernel = new FluentDockerKernel();
+      var kernel = new FluentDockerKernel(new DriverRegistry(NullLoggerFactory.Instance), NullLoggerFactory.Instance);
       var mockPack = new AsyncDisposableMockDriverPack();
       var context = new DriverContext("docker");
 
@@ -35,7 +36,7 @@ namespace FluentDocker.Tests.CoreTests.Kernel
     public async Task DisposeAsync_DisposesDisposableOnlyDriverPacks()
     {
       // Arrange
-      var kernel = new FluentDockerKernel();
+      var kernel = new FluentDockerKernel(new DriverRegistry(NullLoggerFactory.Instance), NullLoggerFactory.Instance);
       var mockPack = new DisposableMockDriverPack();
       var context = new DriverContext("docker");
 
@@ -52,7 +53,7 @@ namespace FluentDocker.Tests.CoreTests.Kernel
     public async Task Dispose_DisposesDriverPacks_Synchronously()
     {
       // Arrange
-      var kernel = new FluentDockerKernel();
+      var kernel = new FluentDockerKernel(new DriverRegistry(NullLoggerFactory.Instance), NullLoggerFactory.Instance);
       var mockPack = new AsyncDisposableMockDriverPack();
       var context = new DriverContext("docker");
 
@@ -69,7 +70,7 @@ namespace FluentDocker.Tests.CoreTests.Kernel
     public async Task DisposeAsync_DisposesMultipleDriverPacks()
     {
       // Arrange
-      var kernel = new FluentDockerKernel();
+      var kernel = new FluentDockerKernel(new DriverRegistry(NullLoggerFactory.Instance), NullLoggerFactory.Instance);
       var asyncPack = new AsyncDisposableMockDriverPack();
       var syncPack = new DisposableMockDriverPack();
 
@@ -88,7 +89,7 @@ namespace FluentDocker.Tests.CoreTests.Kernel
     public async Task DisposeAsync_MultipleCallsSafe()
     {
       // Arrange
-      var kernel = new FluentDockerKernel();
+      var kernel = new FluentDockerKernel(new DriverRegistry(NullLoggerFactory.Instance), NullLoggerFactory.Instance);
       var mockPack = new AsyncDisposableMockDriverPack();
       var context = new DriverContext("docker");
 
@@ -106,7 +107,7 @@ namespace FluentDocker.Tests.CoreTests.Kernel
     public async Task DisposeAsync_ContinuesOnDisposalError()
     {
       // Arrange
-      var kernel = new FluentDockerKernel();
+      var kernel = new FluentDockerKernel(new DriverRegistry(NullLoggerFactory.Instance), NullLoggerFactory.Instance);
       var throwingPack = new ThrowingDisposableMockDriverPack();
       var normalPack = new AsyncDisposableMockDriverPack();
 
@@ -124,7 +125,7 @@ namespace FluentDocker.Tests.CoreTests.Kernel
     public async Task DisposeAsync_AfterDispose_ThrowsObjectDisposedException()
     {
       // Arrange
-      var kernel = new FluentDockerKernel();
+      var kernel = new FluentDockerKernel(new DriverRegistry(NullLoggerFactory.Instance), NullLoggerFactory.Instance);
       var mockPack = new AsyncDisposableMockDriverPack();
       var context = new DriverContext("docker");
 

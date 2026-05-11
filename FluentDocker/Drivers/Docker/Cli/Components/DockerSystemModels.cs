@@ -16,7 +16,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
   /// </summary>
   public class DockerSystemInfo : SystemInfo
   {
-    private Dictionary<string, DockerRuntimeInfo> _dockerRuntimes = new Dictionary<string, DockerRuntimeInfo>();
+    private Dictionary<string, DockerRuntimeInfo> _dockerRuntimes = [];
 
     [JsonPropertyName("Driver")]
     public string DockerStorageDriver
@@ -73,7 +73,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
       get => _dockerRuntimes;
       set
       {
-        _dockerRuntimes = value ?? new Dictionary<string, DockerRuntimeInfo>();
+        _dockerRuntimes = value ?? [];
         Runtimes = _dockerRuntimes.ToDictionary(kvp => kvp.Key, kvp => (object)kvp.Value);
       }
     }
@@ -100,7 +100,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     public string Path { get; set; }
 
     [JsonPropertyName("runtimeArgs")]
-    public List<string> RuntimeArgs { get; set; } = new List<string>();
+    public List<string> RuntimeArgs { get; set; } = [];
   }
 
   /// <summary>
@@ -175,7 +175,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     public DockerVersionPlatform Platform { get; set; }
 
     [JsonPropertyName("Components")]
-    public IList<DockerVersionComponentDetail> Components { get; set; } = new List<DockerVersionComponentDetail>();
+    public IList<DockerVersionComponentDetail> Components { get; set; } = [];
 
     internal bool? IsExperimental => GetExperimentalFlag();
 
@@ -246,7 +246,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
   {
     public string Name { get; set; }
     public string Version { get; set; }
-    public Dictionary<string, object> Details { get; set; } = new Dictionary<string, object>();
+    public Dictionary<string, object> Details { get; set; } = [];
   }
 
   public class DockerVersionPlatform

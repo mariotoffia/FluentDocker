@@ -38,7 +38,7 @@ namespace FluentDocker.Common
     public static explicit operator T(Option<T> option) => option.Value;
 
     /// <summary>Explicitly wraps a value in an option.</summary>
-    public static explicit operator Option<T>(T value) => new Option<T>(value);
+    public static explicit operator Option<T>(T value) => new(value);
   }
 #pragma warning restore CA1000
 #pragma warning restore CA1716

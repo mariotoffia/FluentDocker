@@ -58,7 +58,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
             }, cancellationToken: TestContext.Current.CancellationToken);
 
         var removeResult = await ServiceDriver.RemoveAsync(
-            Context, new[] { serviceName }, cancellationToken: TestContext.Current.CancellationToken);
+            Context, [serviceName], cancellationToken: TestContext.Current.CancellationToken);
         Assert.True(removeResult.Success, $"Remove failed: {removeResult.Error}");
       }
       finally
@@ -221,7 +221,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
       if (!string.IsNullOrEmpty(serviceName))
         try
         {
-          await ServiceDriver.RemoveAsync(Context, new[] { serviceName });
+          await ServiceDriver.RemoveAsync(Context, [serviceName]);
         }
         catch { }
     }

@@ -74,7 +74,7 @@ namespace FluentDocker.Tests.CoreTests.Service
       // Arrange
       var ports = new Dictionary<string, HostIpEndpoint[]>
       {
-        ["5432/tcp"] = new[] { CreateBinding("192.168.1.10", "32768") }
+        ["5432/tcp"] = [CreateBinding("192.168.1.10", "32768")]
       };
       var container = CreateContainerWithPorts(ports);
       var mock = CreateContainerServiceMock(container);
@@ -94,7 +94,7 @@ namespace FluentDocker.Tests.CoreTests.Service
       // Arrange
       var ports = new Dictionary<string, HostIpEndpoint[]>
       {
-        ["8080/tcp"] = new[] { CreateBinding("0.0.0.0", "9090") }
+        ["8080/tcp"] = [CreateBinding("0.0.0.0", "9090")]
       };
       var container = CreateContainerWithPorts(ports);
       var mock = CreateContainerServiceMock(container);
@@ -114,7 +114,7 @@ namespace FluentDocker.Tests.CoreTests.Service
       // Arrange
       var ports = new Dictionary<string, HostIpEndpoint[]>
       {
-        ["3306/tcp"] = new[] { CreateBinding("", "33060") }
+        ["3306/tcp"] = [CreateBinding("", "33060")]
       };
       var container = CreateContainerWithPorts(ports);
       var mock = CreateContainerServiceMock(container);
@@ -134,7 +134,7 @@ namespace FluentDocker.Tests.CoreTests.Service
       // Arrange
       var ports = new Dictionary<string, HostIpEndpoint[]>
       {
-        ["5432/tcp"] = new[] { CreateBinding("127.0.0.1", "32768") }
+        ["5432/tcp"] = [CreateBinding("127.0.0.1", "32768")]
       };
       var container = CreateContainerWithPorts(ports);
       var mock = CreateContainerServiceMock(container);
@@ -190,7 +190,7 @@ namespace FluentDocker.Tests.CoreTests.Service
       // Arrange
       var ports = new Dictionary<string, HostIpEndpoint[]>
       {
-        ["5432/tcp"] = System.Array.Empty<HostIpEndpoint>()
+        ["5432/tcp"] = []
       };
       var container = CreateContainerWithPorts(ports);
       var mock = CreateContainerServiceMock(container);
@@ -247,7 +247,7 @@ namespace FluentDocker.Tests.CoreTests.Service
       // Arrange
       var ports = new Dictionary<string, HostIpEndpoint[]>
       {
-        [portAndProto] = new[] { CreateBinding(bindIp, bindPort) }
+        [portAndProto] = [CreateBinding(bindIp, bindPort)]
       };
       var container = CreateContainerWithPorts(ports);
       var mock = CreateContainerServiceMock(container);
@@ -267,11 +267,11 @@ namespace FluentDocker.Tests.CoreTests.Service
       // Arrange - Docker may return multiple bindings for a port
       var ports = new Dictionary<string, HostIpEndpoint[]>
       {
-        ["80/tcp"] = new[]
-        {
+        ["80/tcp"] =
+        [
           CreateBinding("127.0.0.1", "8080"),
           CreateBinding("192.168.1.10", "8081")
-        }
+        ]
       };
       var container = CreateContainerWithPorts(ports);
       var mock = CreateContainerServiceMock(container);
@@ -295,7 +295,7 @@ namespace FluentDocker.Tests.CoreTests.Service
       // Arrange
       var ports = new Dictionary<string, HostIpEndpoint[]>
       {
-        ["5432/tcp"] = new[] { CreateBinding("127.0.0.1", "32768") }
+        ["5432/tcp"] = [CreateBinding("127.0.0.1", "32768")]
       };
       var container = CreateContainerWithPorts(ports);
       var mock = CreateContainerServiceMock(container);
@@ -313,7 +313,7 @@ namespace FluentDocker.Tests.CoreTests.Service
       // Arrange
       var ports = new Dictionary<string, HostIpEndpoint[]>
       {
-        ["5432/tcp"] = new[] { CreateBinding("127.0.0.1", "32768") }
+        ["5432/tcp"] = [CreateBinding("127.0.0.1", "32768")]
       };
       var container = CreateContainerWithPorts(ports);
       var mock = CreateContainerServiceMock(container);
@@ -349,8 +349,8 @@ namespace FluentDocker.Tests.CoreTests.Service
       // Arrange
       var ports = new Dictionary<string, HostIpEndpoint[]>
       {
-        ["80/tcp"] = new[] { CreateBinding("127.0.0.1", "8080") },
-        ["443/tcp"] = new[] { CreateBinding("127.0.0.1", "8443") }
+        ["80/tcp"] = [CreateBinding("127.0.0.1", "8080")],
+        ["443/tcp"] = [CreateBinding("127.0.0.1", "8443")]
       };
       var container = CreateContainerWithPorts(ports);
       var mock = CreateContainerServiceMock(container);

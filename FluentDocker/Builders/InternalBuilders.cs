@@ -13,10 +13,10 @@ namespace FluentDocker.Builders
   /// <summary>
   /// Network builder implementation.
   /// </summary>
-  internal sealed class NetworkBuilder : INetworkBuilder, IDriverScopedBuilder
+  internal sealed class NetworkBuilder(FluentDockerKernel kernel, string driverId) : INetworkBuilder, IDriverScopedBuilder
   {
-    private readonly FluentDockerKernel _kernel;
-    private readonly string _driverId;
+    private readonly FluentDockerKernel _kernel = kernel;
+    private readonly string _driverId = driverId;
 
     /// <inheritdoc />
     FluentDockerKernel IDriverScopedBuilder.Kernel => _kernel;
@@ -31,14 +31,8 @@ namespace FluentDocker.Builders
     private bool _enableIPv6;
     private bool _internal;
     private bool _removeOnDispose;
-    private readonly Dictionary<string, string> _labels = new Dictionary<string, string>();
-    private readonly Dictionary<string, string> _options = new Dictionary<string, string>();
-
-    public NetworkBuilder(FluentDockerKernel kernel, string driverId)
-    {
-      _kernel = kernel;
-      _driverId = driverId;
-    }
+    private readonly Dictionary<string, string> _labels = [];
+    private readonly Dictionary<string, string> _options = [];
 
     public INetworkBuilder WithName(string name) { _name = name; return this; }
     public INetworkBuilder UseDriver(string driver) { _driver = driver; return this; }
@@ -104,10 +98,10 @@ namespace FluentDocker.Builders
   /// <summary>
   /// Volume builder implementation.
   /// </summary>
-  internal sealed class VolumeBuilder : IVolumeBuilder, IDriverScopedBuilder
+  internal sealed class VolumeBuilder(FluentDockerKernel kernel, string driverId) : IVolumeBuilder, IDriverScopedBuilder
   {
-    private readonly FluentDockerKernel _kernel;
-    private readonly string _driverId;
+    private readonly FluentDockerKernel _kernel = kernel;
+    private readonly string _driverId = driverId;
 
     /// <inheritdoc />
     FluentDockerKernel IDriverScopedBuilder.Kernel => _kernel;
@@ -117,14 +111,8 @@ namespace FluentDocker.Builders
     private string _name;
     private string _driver = "local";
     private bool _removeOnDispose;
-    private readonly Dictionary<string, string> _driverOpts = new Dictionary<string, string>();
-    private readonly Dictionary<string, string> _labels = new Dictionary<string, string>();
-
-    public VolumeBuilder(FluentDockerKernel kernel, string driverId)
-    {
-      _kernel = kernel;
-      _driverId = driverId;
-    }
+    private readonly Dictionary<string, string> _driverOpts = [];
+    private readonly Dictionary<string, string> _labels = [];
 
     public IVolumeBuilder WithName(string name) { _name = name; return this; }
     public IVolumeBuilder UseDriver(string driver) { _driver = driver; return this; }
@@ -158,21 +146,21 @@ namespace FluentDocker.Builders
   /// <summary>
   /// Compose builder implementation.
   /// </summary>
-  internal sealed class ComposeBuilder : IComposeBuilder, IDriverScopedBuilder
+  internal sealed class ComposeBuilder(FluentDockerKernel kernel, string driverId) : IComposeBuilder, IDriverScopedBuilder
   {
-    private readonly FluentDockerKernel _kernel;
-    private readonly string _driverId;
+    private readonly FluentDockerKernel _kernel = kernel;
+    private readonly string _driverId = driverId;
 
     /// <inheritdoc />
     FluentDockerKernel IDriverScopedBuilder.Kernel => _kernel;
 
     /// <inheritdoc />
     string IDriverScopedBuilder.DriverId => _driverId;
-    private readonly List<string> _composeFiles = new List<string>();
-    private readonly List<string> _profiles = new List<string>();
+    private readonly List<string> _composeFiles = [];
+    private readonly List<string> _profiles = [];
     private string _projectName;
-    private readonly Dictionary<string, string> _environment = new Dictionary<string, string>();
-    private readonly Dictionary<string, int> _scale = new Dictionary<string, int>();
+    private readonly Dictionary<string, string> _environment = [];
+    private readonly Dictionary<string, int> _scale = [];
     private bool _build;
     private bool _forceRecreate;
     private bool _removeOrphans;
@@ -184,13 +172,7 @@ namespace FluentDocker.Builders
     private bool _wait;
     private int? _timeout;
     private int? _waitTimeout;
-    private readonly List<string> _services = new List<string>();
-
-    public ComposeBuilder(FluentDockerKernel kernel, string driverId)
-    {
-      _kernel = kernel;
-      _driverId = driverId;
-    }
+    private readonly List<string> _services = [];
 
     public IComposeBuilder WithComposeFile(string path) { _composeFiles.Add(path); return this; }
     public IComposeBuilder WithComposeFiles(params string[] paths) { _composeFiles.AddRange(paths); return this; }
@@ -216,8 +198,8 @@ namespace FluentDocker.Builders
           var eqIndex = trimmed.IndexOf('=');
           if (eqIndex > 0)
           {
-            var key = trimmed.Substring(0, eqIndex);
-            var value = trimmed.Substring(eqIndex + 1);
+            var key = trimmed[..eqIndex];
+            var value = trimmed[(eqIndex + 1)..];
             _environment[key] = value;
           }
         }

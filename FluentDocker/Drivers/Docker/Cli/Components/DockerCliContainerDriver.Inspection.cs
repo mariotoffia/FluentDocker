@@ -6,6 +6,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using FluentDocker.Common;
 using FluentDocker.Model.Drivers;
+using Microsoft.Extensions.Logging;
 using Container = FluentDocker.Model.Containers.Container;
 using ContainerState = FluentDocker.Model.Containers.ContainerState;
 
@@ -147,7 +148,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
           }
           catch (Exception ex)
           {
-            Logger.Log($"Container inspect JSON parsing failed: {ex.Message}");
+            Logger.LogError(ex, "Container inspect JSON parsing failed");
           }
         }
 
@@ -234,10 +235,10 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
         var lines = result.Output.Split(LineSeparators, StringSplitOptions.RemoveEmptyEntries);
         if (lines.Length > 0)
         {
-          processes.Titles = lines[0].Split(SpaceSeparator, StringSplitOptions.RemoveEmptyEntries).ToList();
+          processes.Titles = [.. lines[0].Split(SpaceSeparator, StringSplitOptions.RemoveEmptyEntries)];
           for (var i = 1; i < lines.Length; i++)
           {
-            processes.Processes.Add(lines[i].Split(SpaceSeparator, StringSplitOptions.RemoveEmptyEntries).ToList());
+            processes.Processes.Add([.. lines[i].Split(SpaceSeparator, StringSplitOptions.RemoveEmptyEntries)]);
           }
         }
 
@@ -276,8 +277,8 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
           {
             changes.Add(new FilesystemChange
             {
-              Kind = line.Substring(0, 1),
-              Path = line.Substring(2)
+              Kind = line[..1],
+              Path = line[2..]
             });
           }
         }

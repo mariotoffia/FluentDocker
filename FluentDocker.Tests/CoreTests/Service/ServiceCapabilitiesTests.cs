@@ -131,7 +131,7 @@ namespace FluentDocker.Tests.CoreTests.Service
         Assert.IsAssignableFrom<IServiceCapabilities>(
             new PodService(kernel, "docker", "pod1", "test-pod"));
         Assert.IsAssignableFrom<IServiceCapabilities>(
-            new ComposeService(kernel, "docker", new() { "compose.yml" }, "test-project"));
+            new ComposeService(kernel, "docker", ["compose.yml"], "test-project"));
       }
       finally { kernel.Dispose(); }
     }

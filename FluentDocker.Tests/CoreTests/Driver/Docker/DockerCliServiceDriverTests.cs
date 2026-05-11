@@ -144,7 +144,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Docker
       var config = new ServiceCreateConfig
       {
         Image = "nginx",
-        Command = new[] { "nginx", "-g", "daemon off;" }
+        Command = ["nginx", "-g", "daemon off;"]
       };
 
       var args = BuildCreateArgs(config);
@@ -184,7 +184,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Docker
         Protocol = "tcp"
       });
       config.Networks.Add("overlay-net");
-      config.Command = new[] { "/bin/sh", "-c", "start" };
+      config.Command = ["/bin/sh", "-c", "start"];
 
       var args = BuildCreateArgs(config);
 

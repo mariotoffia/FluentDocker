@@ -30,8 +30,8 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
         string StreamContent,
         byte[] StreamBytes);
 
-    private readonly List<ResponseEntry> _entries = new();
-    private readonly List<CapturedRequest> _requests = new();
+    private readonly List<ResponseEntry> _entries = [];
+    private readonly List<CapturedRequest> _requests = [];
     private bool _pingSuccess = true;
 
     public string ApiVersion { get; set; } = "1.45";

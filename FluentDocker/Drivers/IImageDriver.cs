@@ -277,16 +277,16 @@ namespace FluentDocker.Drivers
     public string DockerfileName { get; set; }
 
     /// <summary>Tags to apply to the built image.</summary>
-    public List<string> Tags { get; set; } = new List<string>();
+    public List<string> Tags { get; set; } = [];
 
     /// <summary>Build arguments.</summary>
-    public Dictionary<string, string> BuildArgs { get; set; } = new Dictionary<string, string>();
+    public Dictionary<string, string> BuildArgs { get; set; } = [];
 
     /// <summary>Target build stage (for multi-stage builds).</summary>
     public string Target { get; set; }
 
     /// <summary>Labels to apply.</summary>
-    public Dictionary<string, string> Labels { get; set; } = new Dictionary<string, string>();
+    public Dictionary<string, string> Labels { get; set; } = [];
 
     /// <summary>Don't use cache when building.</summary>
     public bool NoCache { get; set; }
@@ -331,7 +331,7 @@ namespace FluentDocker.Drivers
     public bool? Dangling { get; set; }
 
     /// <summary>Filter by label.</summary>
-    public Dictionary<string, string> Labels { get; set; } = new Dictionary<string, string>();
+    public Dictionary<string, string> Labels { get; set; } = [];
 
     /// <summary>Filter by before image.</summary>
     public string Before { get; set; }
@@ -353,10 +353,10 @@ namespace FluentDocker.Drivers
     public string ImageId { get; set; }
 
     /// <summary>Build warnings.</summary>
-    public List<string> Warnings { get; set; } = new List<string>();
+    public List<string> Warnings { get; set; } = [];
 
     /// <summary>Build output.</summary>
-    public List<string> Output { get; set; } = new List<string>();
+    public List<string> Output { get; set; } = [];
   }
 
   /// <summary>
@@ -365,10 +365,10 @@ namespace FluentDocker.Drivers
   public class ImageRemoveResult
   {
     /// <summary>Deleted image IDs.</summary>
-    public List<string> Deleted { get; set; } = new List<string>();
+    public List<string> Deleted { get; set; } = [];
 
     /// <summary>Untagged image references.</summary>
-    public List<string> Untagged { get; set; } = new List<string>();
+    public List<string> Untagged { get; set; } = [];
   }
 
   /// <summary>
@@ -377,7 +377,7 @@ namespace FluentDocker.Drivers
   public class ImagePruneResult
   {
     /// <summary>Deleted image IDs.</summary>
-    public List<string> ImagesDeleted { get; set; } = new List<string>();
+    public List<string> ImagesDeleted { get; set; } = [];
 
     /// <summary>Space reclaimed in bytes.</summary>
     public long SpaceReclaimed { get; set; }
@@ -404,7 +404,7 @@ namespace FluentDocker.Drivers
     public string Comment { get; set; }
 
     /// <summary>Tags associated with this layer.</summary>
-    public List<string> Tags { get; set; } = new List<string>();
+    public List<string> Tags { get; set; } = [];
   }
 
   /// <summary>
@@ -419,10 +419,10 @@ namespace FluentDocker.Drivers
     public string ParentId { get; set; }
 
     /// <summary>Repository tags.</summary>
-    public List<string> RepoTags { get; set; } = new List<string>();
+    public List<string> RepoTags { get; set; } = [];
 
     /// <summary>Repository digests.</summary>
-    public List<string> RepoDigests { get; set; } = new List<string>();
+    public List<string> RepoDigests { get; set; } = [];
 
     /// <summary>Creation time.</summary>
     public DateTime Created { get; set; }
@@ -434,7 +434,7 @@ namespace FluentDocker.Drivers
     public long VirtualSize { get; set; }
 
     /// <summary>Image labels.</summary>
-    public Dictionary<string, string> Labels { get; set; } = new Dictionary<string, string>();
+    public Dictionary<string, string> Labels { get; set; } = [];
 
     /// <summary>Number of containers using this image.</summary>
     public int Containers { get; set; }

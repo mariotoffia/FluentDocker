@@ -8,6 +8,8 @@ using System.Threading.Tasks;
 using FluentDocker.Common;
 using FluentDocker.Drivers.Docker.Cli.Binary;
 using FluentDocker.Model.Drivers;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace FluentDocker.Drivers.Docker.Cli.Components
 {
@@ -132,7 +134,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
       }
       catch (Exception ex)
       {
-        Logger.Log($"Windows engine detection failed: {ex.Message}");
+        Logger.LogError(ex, "Windows engine detection failed");
         return CommandResponse<bool>.Ok(true); // Default to Linux
       }
     }
@@ -377,7 +379,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
         }
         catch (Exception ex)
         {
-          Logger.Log($"Disk usage JSON parsing failed: {ex.Message}");
+          NullLogger.Instance.LogError(ex, "Disk usage JSON parsing failed");
         }
       }
 

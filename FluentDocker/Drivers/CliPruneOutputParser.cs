@@ -2,18 +2,20 @@ using System;
 using System.Text.RegularExpressions;
 using FluentDocker.Common;
 using FluentDocker.Drivers.Docker.Cli.Components;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace FluentDocker.Drivers
 {
   /// <summary>
   /// Parses human-readable CLI prune output from Docker and Podman.
   /// </summary>
-  public static class CliPruneOutputParser
+  public static partial class CliPruneOutputParser
   {
     private static readonly Regex BareImageIdRegex =
-        new Regex(@"^(?:sha256:)?[a-f0-9]{12,}$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+        MyRegex();
     private static readonly Regex SimpleNameRegex =
-        new Regex(@"^[A-Za-z0-9][A-Za-z0-9_.-]*$", RegexOptions.Compiled);
+        new(@"^[A-Za-z0-9][A-Za-z0-9_.-]*$", RegexOptions.Compiled);
 
     /// <summary>
     /// Parses output from image prune.
@@ -67,7 +69,7 @@ namespace FluentDocker.Drivers
       }
       catch (Exception ex)
       {
-        Logger.Log($"Image prune output parsing failed: {ex.Message}");
+        NullLogger.Instance.LogDebug(ex, "Image prune output parsing failed");
         return new ImagePruneResult();
       }
 
@@ -125,7 +127,7 @@ namespace FluentDocker.Drivers
       }
       catch (Exception ex)
       {
-        Logger.Log($"Network prune output parsing failed: {ex.Message}");
+        NullLogger.Instance.LogDebug(ex, "Network prune output parsing failed");
         return new NetworkPruneResult();
       }
 
@@ -186,7 +188,7 @@ namespace FluentDocker.Drivers
       }
       catch (Exception ex)
       {
-        Logger.Log($"Volume prune output parsing failed: {ex.Message}");
+        NullLogger.Instance.LogDebug(ex, "Volume prune output parsing failed");
         return new VolumePruneResult();
       }
 
@@ -251,7 +253,7 @@ namespace FluentDocker.Drivers
       }
       catch (Exception ex)
       {
-        Logger.Log($"System prune output parsing failed: {ex.Message}");
+        NullLogger.Instance.LogDebug(ex, "System prune output parsing failed");
         return new SystemPruneResult();
       }
 
@@ -346,7 +348,7 @@ namespace FluentDocker.Drivers
         return true;
       }
 
-      var value = line.Substring(colonIndex + 1).Trim();
+      var value = line[(colonIndex + 1)..].Trim();
       bytes = DockerCliSystemDriver.ParseHumanReadableBytes(value);
       return true;
     }
@@ -355,13 +357,13 @@ namespace FluentDocker.Drivers
     {
       if (line.StartsWith("deleted:", StringComparison.OrdinalIgnoreCase))
       {
-        deleted = line.Substring("deleted:".Length).Trim();
+        deleted = line["deleted:".Length..].Trim();
         return !string.IsNullOrEmpty(deleted);
       }
 
       if (line.StartsWith("untagged:", StringComparison.OrdinalIgnoreCase))
       {
-        deleted = line.Substring("untagged:".Length).Trim();
+        deleted = line["untagged:".Length..].Trim();
         return !string.IsNullOrEmpty(deleted);
       }
 
@@ -384,5 +386,8 @@ namespace FluentDocker.Drivers
       Volumes,
       BuildCache
     }
+
+    [GeneratedRegex(@"^(?:sha256:)?[a-f0-9]{12,}$", RegexOptions.IgnoreCase | RegexOptions.Compiled, "en-US")]
+    private static partial Regex MyRegex();
   }
 }

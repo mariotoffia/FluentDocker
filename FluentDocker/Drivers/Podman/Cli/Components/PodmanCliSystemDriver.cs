@@ -7,6 +7,8 @@ using FluentDocker.Common;
 using FluentDocker.Drivers.Docker.Cli;
 using FluentDocker.Drivers.Podman.Cli.Binary;
 using FluentDocker.Model.Drivers;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace FluentDocker.Drivers.Podman.Cli.Components
 {
@@ -248,7 +250,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       }
       catch (Exception ex)
       {
-        Logger.Log($"Podman system info parsing failed: {ex.Message}");
+        NullLogger.Instance.LogError(ex, "Podman system info parsing failed");
       }
 
       return info;
@@ -290,7 +292,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       }
       catch (Exception ex)
       {
-        Logger.Log($"Podman version info parsing failed: {ex.Message}");
+        NullLogger.Instance.LogError(ex, "Podman version info parsing failed");
       }
 
       return version;
@@ -327,7 +329,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
         }
         catch (Exception ex)
         {
-          Logger.Log($"Podman disk usage JSON parsing failed: {ex.Message}");
+          NullLogger.Instance.LogError(ex, "Podman disk usage JSON parsing failed");
           ParseLineByLine(info, trimmed);
         }
       }
@@ -359,7 +361,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
         }
         catch (Exception ex)
         {
-          Logger.Log($"Podman disk usage line parsing failed: {ex.Message}");
+          NullLogger.Instance.LogError(ex, "Podman disk usage line parsing failed");
         }
       }
     }

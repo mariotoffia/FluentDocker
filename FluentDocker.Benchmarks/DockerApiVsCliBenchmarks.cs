@@ -4,6 +4,7 @@ using BenchmarkDotNet.Attributes;
 using FluentDocker.Drivers;
 using FluentDocker.Kernel;
 using FluentDocker.Model.Drivers;
+using Microsoft.Extensions.Logging.Abstractions;
 using Container = FluentDocker.Model.Containers.Container;
 using DriverResponse = FluentDocker.Model.Drivers.CommandResponse<FluentDocker.Model.Drivers.Unit>;
 
@@ -42,12 +43,12 @@ namespace FluentDocker.Benchmarks
     public async Task Setup()
     {
       // Build CLI kernel
-      _cliKernel = await FluentDockerKernel.Create()
+      _cliKernel = await FluentDockerKernel.Create(NullLoggerFactory.Instance)
           .WithDockerCli(CliDriverId, d => d.AsDefault())
           .BuildAsync();
 
       // Build API kernel
-      _apiKernel = await FluentDockerKernel.Create()
+      _apiKernel = await FluentDockerKernel.Create(NullLoggerFactory.Instance)
           .WithDockerApi(ApiDriverId, d => d.AsDefault())
           .BuildAsync();
 

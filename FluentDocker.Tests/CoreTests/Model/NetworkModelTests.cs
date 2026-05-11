@@ -228,7 +228,7 @@ namespace FluentDocker.Tests.CoreTests.Model
       var options = new Dictionary<string, string> { ["foo"] = "bar" };
       var configs = new List<IpamConfig>
       {
-        new IpamConfig { Subnet = "172.20.0.0/16", Gateway = "172.20.0.1" }
+        new() { Subnet = "172.20.0.0/16", Gateway = "172.20.0.1" }
       };
 
       // Act
@@ -254,12 +254,12 @@ namespace FluentDocker.Tests.CoreTests.Model
       var ipam = new Ipam
       {
         Driver = "default",
-        Config = new List<IpamConfig>
-        {
+        Config =
+        [
           new IpamConfig { Subnet = "10.0.0.0/24", Gateway = "10.0.0.1" },
           new IpamConfig { Subnet = "10.1.0.0/24", Gateway = "10.1.0.1" },
           new IpamConfig { Subnet = "10.2.0.0/24", Gateway = "10.2.0.1" }
-        }
+        ]
       };
 
       // Assert
@@ -273,7 +273,7 @@ namespace FluentDocker.Tests.CoreTests.Model
     public void Ipam_ConfigListIsMutable_CanAddAfterCreation()
     {
       // Arrange
-      var ipam = new Ipam { Config = new List<IpamConfig>() };
+      var ipam = new Ipam { Config = [] };
 
       // Act
       ipam.Config.Add(new IpamConfig { Subnet = "192.168.0.0/16" });
@@ -355,15 +355,15 @@ namespace FluentDocker.Tests.CoreTests.Model
         IPAM = new Ipam
         {
           Driver = "default",
-          Config = new List<IpamConfig>
-          {
+          Config =
+          [
             new IpamConfig
             {
               Subnet = "172.28.0.0/16",
               Gateway = "172.28.0.1",
               IPRange = "172.28.5.0/24"
             }
-          }
+          ]
         }
       };
 
@@ -451,14 +451,14 @@ namespace FluentDocker.Tests.CoreTests.Model
         {
           Driver = "default",
           Options = new Dictionary<string, string>(),
-          Config = new List<IpamConfig>
-          {
+          Config =
+          [
             new IpamConfig
             {
               Subnet = "10.0.9.0/24",
               Gateway = "10.0.9.1"
             }
-          }
+          ]
         },
         Containers = new Dictionary<string, NetworkedContainer>
         {

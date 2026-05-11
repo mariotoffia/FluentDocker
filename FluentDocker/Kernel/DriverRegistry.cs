@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using FluentDocker.Common;
 using FluentDocker.Drivers;
 using FluentDocker.Model.Drivers;
+using Microsoft.Extensions.Logging;
 
 namespace FluentDocker.Kernel
 {
@@ -16,11 +17,31 @@ namespace FluentDocker.Kernel
   /// </summary>
   public class DriverRegistry : IDriverRegistry, IDisposable, IAsyncDisposable
   {
-    private readonly ConcurrentDictionary<string, DriverRegistration> _drivers = new ConcurrentDictionary<string, DriverRegistration>();
-    private readonly ConcurrentDictionary<string, DriverPackRegistration> _driverPacks = new ConcurrentDictionary<string, DriverPackRegistration>();
-    private readonly SemaphoreSlim _registrationLock = new SemaphoreSlim(1, 1);
+    private readonly ConcurrentDictionary<string, DriverRegistration> _drivers = new();
+    private readonly ConcurrentDictionary<string, DriverPackRegistration> _driverPacks = new();
+    private readonly SemaphoreSlim _registrationLock = new(1, 1);
+    private readonly ILoggerFactory _loggerFactory;
+    private readonly ILogger<DriverRegistry> _logger;
     private string _defaultDriverId;
     private readonly object _defaultDriverLock = new object();
+
+    /// <summary>
+    /// Creates a new driver registry with the consumer-supplied logger factory.
+    /// </summary>
+    /// <param name="loggerFactory">Logger factory; required, must not be null.
+    /// Pass <see cref="Microsoft.Extensions.Logging.Abstractions.NullLoggerFactory.Instance"/> to suppress logging.</param>
+    public DriverRegistry(ILoggerFactory loggerFactory)
+    {
+      ArgumentNullException.ThrowIfNull(loggerFactory);
+      _loggerFactory = loggerFactory;
+      _logger = loggerFactory.CreateLogger<DriverRegistry>();
+    }
+
+    /// <summary>
+    /// Logger factory provided at construction. Exposed so packs/services
+    /// constructed by the registry can create their own typed loggers.
+    /// </summary>
+    public ILoggerFactory LoggerFactory => _loggerFactory;
 
     #region Driver Registration
 
@@ -51,6 +72,10 @@ namespace FluentDocker.Kernel
         if (string.IsNullOrEmpty(context.DriverId))
           context.DriverId = driverId;
 
+        // Inject the consumer-supplied logger factory so the driver's
+        // InitializeAsync sees the real factory, not the context's default null sink.
+        context.LoggerFactory = _loggerFactory;
+
         // Initialize the driver
         await driver.InitializeAsync(context, cancellationToken).ConfigureAwait(false);
 
@@ -66,7 +91,7 @@ namespace FluentDocker.Kernel
         // If it somehow fails, dispose the initialized driver.
         if (!_drivers.TryAdd(driverId, registration))
         {
-          await DisposeDriverSafelyAsync(driver).ConfigureAwait(false);
+          await DisposeDriverSafelyAsync(driver, _logger).ConfigureAwait(false);
           throw new DriverException($"Driver '{driverId}' is already registered", ErrorCodes.Driver.AlreadyRegistered);
         }
 
@@ -155,6 +180,10 @@ namespace FluentDocker.Kernel
         if (string.IsNullOrEmpty(context.DriverId))
           context.DriverId = driverId;
 
+        // Inject the consumer-supplied logger factory so the pack's
+        // InitializeAsync sees the real factory, not the context's default null sink.
+        context.LoggerFactory = _loggerFactory;
+
         // Initialize the driver pack
         await driverPack.InitializeAsync(context, cancellationToken).ConfigureAwait(false);
 
@@ -170,7 +199,7 @@ namespace FluentDocker.Kernel
         // If it somehow fails, dispose the initialized driver pack.
         if (!_driverPacks.TryAdd(driverId, registration))
         {
-          await DisposeDriverPackSafelyAsync(driverPack).ConfigureAwait(false);
+          await DisposeDriverPackSafelyAsync(driverPack, _logger).ConfigureAwait(false);
           throw new DriverException($"Driver pack '{driverId}' is already registered", ErrorCodes.Driver.AlreadyRegistered);
         }
 
@@ -254,7 +283,7 @@ namespace FluentDocker.Kernel
     /// </summary>
     public IReadOnlyList<string> GetAllDriverIds()
     {
-      return _drivers.Keys.Concat(_driverPacks.Keys).ToList();
+      return [.. _drivers.Keys, .. _driverPacks.Keys];
     }
 
     #endregion
@@ -274,7 +303,7 @@ namespace FluentDocker.Kernel
           .Where(kvp => kvp.Value.Type == driverType)
           .Select(kvp => kvp.Key);
 
-      return fromDrivers.Concat(fromPacks).ToList();
+      return [.. fromDrivers, .. fromPacks];
     }
 
     /// <summary>
@@ -290,7 +319,7 @@ namespace FluentDocker.Kernel
           .Where(kvp => kvp.Value.Runtime == runtime)
           .Select(kvp => kvp.Key);
 
-      return fromDrivers.Concat(fromPacks).ToList();
+      return [.. fromDrivers, .. fromPacks];
     }
 
     #endregion
@@ -332,17 +361,14 @@ namespace FluentDocker.Kernel
     {
       lock (_defaultDriverLock)
       {
-        if (_defaultDriverId == null)
-        {
-          _defaultDriverId = driverId;
-        }
+        _defaultDriverId ??= driverId;
       }
     }
 
     /// <summary>
     /// Safely disposes a driver that was initialized but could not be registered.
     /// </summary>
-    private static async Task DisposeDriverSafelyAsync(IDriver driver)
+    private static async Task DisposeDriverSafelyAsync(IDriver driver, ILogger logger)
     {
       try
       {
@@ -353,14 +379,14 @@ namespace FluentDocker.Kernel
       }
       catch (Exception ex)
       {
-        Logger.Log($"Driver disposal cleanup failed: {ex.Message}");
+        logger.LogWarning(ex, "Driver disposal cleanup failed");
       }
     }
 
     /// <summary>
     /// Safely disposes a driver pack that was initialized but could not be registered.
     /// </summary>
-    private static async Task DisposeDriverPackSafelyAsync(IDriverPack driverPack)
+    private static async Task DisposeDriverPackSafelyAsync(IDriverPack driverPack, ILogger logger)
     {
       try
       {
@@ -371,7 +397,7 @@ namespace FluentDocker.Kernel
       }
       catch (Exception ex)
       {
-        Logger.Log($"Driver pack disposal cleanup failed: {ex.Message}");
+        logger.LogWarning(ex, "Driver pack disposal cleanup failed");
       }
     }
 
@@ -399,7 +425,7 @@ namespace FluentDocker.Kernel
         }
         catch (Exception ex)
         {
-          Logger.Log($"Failed to dispose driver pack '{kvp.Key}': {ex.Message}");
+          _logger.LogWarning(ex, "Failed to dispose driver pack {DriverId}", kvp.Key);
         }
       }
 
@@ -415,7 +441,7 @@ namespace FluentDocker.Kernel
         }
         catch (Exception ex)
         {
-          Logger.Log($"Failed to dispose driver '{kvp.Key}': {ex.Message}");
+          _logger.LogWarning(ex, "Failed to dispose driver {DriverId}", kvp.Key);
         }
       }
 

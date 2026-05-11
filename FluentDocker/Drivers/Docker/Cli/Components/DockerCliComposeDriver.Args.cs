@@ -2,6 +2,8 @@ using System;
 using System.Collections.Generic;
 using System.Text.Json;
 using FluentDocker.Common;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace FluentDocker.Drivers.Docker.Cli.Components
 {
@@ -261,8 +263,9 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     /// Handles both JSON array format (Docker Compose v2.21+) and
     /// newline-delimited JSON (older versions).
     /// </summary>
-    public static IList<ComposeServiceInfo> ParseServiceList(string json)
+    public static IList<ComposeServiceInfo> ParseServiceList(string json, ILogger logger = null)
     {
+      logger ??= NullLogger.Instance;
       var services = new List<ComposeServiceInfo>();
       if (string.IsNullOrWhiteSpace(json))
         return services;
@@ -286,7 +289,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
             if (service != null)
               services.Add(service);
           }
-          catch (Exception ex) { Logger.Log($"Compose service info JSON parsing failed: {ex.Message}"); }
+          catch (Exception ex) { logger.LogDebug(ex, "Compose service info JSON parsing failed"); }
         }
       }
 

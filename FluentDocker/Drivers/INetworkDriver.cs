@@ -150,7 +150,7 @@ namespace FluentDocker.Drivers
     /// Driver-specific options as key-value pairs. The available options depend on the
     /// selected <see cref="Driver"/>.
     /// </summary>
-    public Dictionary<string, string> Options { get; set; } = new Dictionary<string, string>();
+    public Dictionary<string, string> Options { get; set; } = [];
 
     /// <summary>
     /// The subnet for the network in CIDR notation (e.g., "172.28.0.0/16").
@@ -178,7 +178,7 @@ namespace FluentDocker.Drivers
     /// <summary>
     /// User-defined labels to attach to the network as key-value metadata.
     /// </summary>
-    public Dictionary<string, string> Labels { get; set; } = new Dictionary<string, string>();
+    public Dictionary<string, string> Labels { get; set; } = [];
   }
 
   /// <summary>
@@ -195,7 +195,7 @@ namespace FluentDocker.Drivers
     /// <summary>
     /// Any warnings generated during network creation (e.g., deprecated options).
     /// </summary>
-    public List<string> Warnings { get; set; } = new List<string>();
+    public List<string> Warnings { get; set; } = [];
   }
 
   /// <summary>
@@ -211,7 +211,7 @@ namespace FluentDocker.Drivers
     /// <summary>
     /// Filters networks by labels. Only networks that have all specified key-value pairs are returned.
     /// </summary>
-    public Dictionary<string, string> Labels { get; set; } = new Dictionary<string, string>();
+    public Dictionary<string, string> Labels { get; set; } = [];
   }
 
   /// <summary>
@@ -257,7 +257,7 @@ namespace FluentDocker.Drivers
     /// while the API returns a JSON object; the converter handles both formats.
     /// </summary>
     [JsonConverter(typeof(LabelsConverter))]
-    public Dictionary<string, string> Labels { get; set; } = new Dictionary<string, string>();
+    public Dictionary<string, string> Labels { get; set; } = [];
   }
 
   /// <summary>
@@ -271,7 +271,7 @@ namespace FluentDocker.Drivers
     {
       if (reader.TokenType == JsonTokenType.StartObject)
         return JsonSerializer.Deserialize<Dictionary<string, string>>(ref reader, options)
-               ?? new Dictionary<string, string>();
+               ?? [];
 
       var result = new Dictionary<string, string>();
       if (reader.TokenType != JsonTokenType.String)
@@ -309,6 +309,6 @@ namespace FluentDocker.Drivers
     /// <summary>
     /// The names or IDs of networks that were deleted during the prune operation.
     /// </summary>
-    public List<string> NetworksDeleted { get; set; } = new List<string>();
+    public List<string> NetworksDeleted { get; set; } = [];
   }
 }

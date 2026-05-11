@@ -50,7 +50,7 @@ namespace FluentDocker.Tests.CoreTests.Common
     public void ToSuccess_WithLogList_JoinsEntries()
     {
       // Arrange
-      IList<string> log = new List<string> { "line1", "line2", "line3" };
+      IList<string> log = ["line1", "line2", "line3"];
 
       // Act
       var result = 99.ToSuccess(log);
@@ -104,7 +104,7 @@ namespace FluentDocker.Tests.CoreTests.Common
     public void ToFailure_WithLogList_JoinsEntries()
     {
       // Arrange
-      IList<string> log = new List<string> { "step1", "step2" };
+      IList<string> log = ["step1", "step2"];
 
       // Act
       var result = (-1).ToFailure("failed", log);
@@ -137,7 +137,7 @@ namespace FluentDocker.Tests.CoreTests.Common
     public void FromLog_EmptyList_ReturnsEmpty()
     {
       // Arrange
-      IList<string> entries = new List<string>();
+      IList<string> entries = [];
 
       // Act
       var result = entries.FromLog();
@@ -150,7 +150,7 @@ namespace FluentDocker.Tests.CoreTests.Common
     public void FromLog_MultipleEntries_JoinsWithNewline()
     {
       // Arrange
-      IList<string> entries = new List<string> { "alpha", "beta", "gamma" };
+      IList<string> entries = ["alpha", "beta", "gamma"];
 
       // Act
       var result = entries.FromLog();

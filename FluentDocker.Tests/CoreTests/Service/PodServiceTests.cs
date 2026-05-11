@@ -7,6 +7,7 @@ using FluentDocker.Model.Drivers;
 using FluentDocker.Services;
 using FluentDocker.Services.Impl;
 using FluentDocker.Tests.Mocks;
+using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using Xunit;
 
@@ -36,7 +37,7 @@ namespace FluentDocker.Tests.CoreTests.Service
     public void Constructor_SetsProperties()
     {
       // Arrange
-      var kernel = new FluentDockerKernel();
+      var kernel = new FluentDockerKernel(new DriverRegistry(NullLoggerFactory.Instance), NullLoggerFactory.Instance);
       var driverId = "podman";
       var podId = "pod-abc123";
       var podName = "my-pod";
@@ -64,7 +65,7 @@ namespace FluentDocker.Tests.CoreTests.Service
     [Fact]
     public void Constructor_NullDriverId_ThrowsArgumentNullException()
     {
-      var kernel = new FluentDockerKernel();
+      var kernel = new FluentDockerKernel(new DriverRegistry(NullLoggerFactory.Instance), NullLoggerFactory.Instance);
 
       Assert.Throws<ArgumentNullException>(() =>
           new PodService(kernel, null!, "pod-abc123", "my-pod"));
@@ -75,7 +76,7 @@ namespace FluentDocker.Tests.CoreTests.Service
     [Fact]
     public void Constructor_NullPodId_ThrowsArgumentNullException()
     {
-      var kernel = new FluentDockerKernel();
+      var kernel = new FluentDockerKernel(new DriverRegistry(NullLoggerFactory.Instance), NullLoggerFactory.Instance);
 
       Assert.Throws<ArgumentNullException>(() =>
           new PodService(kernel, "podman", null!, "my-pod"));
@@ -87,7 +88,7 @@ namespace FluentDocker.Tests.CoreTests.Service
     public void Constructor_NullPodName_DefaultsToPodId()
     {
       // Arrange
-      var kernel = new FluentDockerKernel();
+      var kernel = new FluentDockerKernel(new DriverRegistry(NullLoggerFactory.Instance), NullLoggerFactory.Instance);
       var podId = "pod-abc123";
 
       // Act
@@ -103,7 +104,7 @@ namespace FluentDocker.Tests.CoreTests.Service
     public void State_InitialValue_IsStopped()
     {
       // Arrange
-      var kernel = new FluentDockerKernel();
+      var kernel = new FluentDockerKernel(new DriverRegistry(NullLoggerFactory.Instance), NullLoggerFactory.Instance);
 
       // Act
       var service = new PodService(kernel, "podman", "pod-abc123", "my-pod");
@@ -288,7 +289,7 @@ namespace FluentDocker.Tests.CoreTests.Service
     public void AddHook_StoresHook_RemoveHook_RemovesHook()
     {
       // Arrange
-      var kernel = new FluentDockerKernel();
+      var kernel = new FluentDockerKernel(new DriverRegistry(NullLoggerFactory.Instance), NullLoggerFactory.Instance);
       var service = new PodService(kernel, "podman", "pod-abc123", "my-pod");
       var hookCalled = false;
 

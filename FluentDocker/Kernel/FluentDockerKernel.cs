@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using FluentDocker.Common;
 using FluentDocker.Drivers;
 using FluentDocker.Model.Drivers;
+using Microsoft.Extensions.Logging;
 
 namespace FluentDocker.Kernel
 {
@@ -15,24 +16,32 @@ namespace FluentDocker.Kernel
   public class FluentDockerKernel : ISysCtl, IAsyncDisposable, IDisposable
   {
     private readonly IDriverRegistry _registry;
+    private readonly ILoggerFactory _loggerFactory;
+    private readonly ILogger<FluentDockerKernel> _logger;
     private int _disposed; // 0=not disposed, 1=disposed; use Interlocked for atomic check-and-set
 
     /// <summary>
-    /// Creates a new kernel with the default registry.
+    /// Creates a new kernel with a registry and the consumer-supplied logger factory.
+    /// Both parameters are required and must not be null.
     /// </summary>
-    public FluentDockerKernel() : this(new DriverRegistry())
+    /// <param name="registry">Driver registry that owns the driver/pack lifecycle.</param>
+    /// <param name="loggerFactory">Logger factory used to create per-type loggers
+    /// inside the kernel and propagated through <see cref="DriverContext"/> to packs.
+    /// Pass <see cref="Microsoft.Extensions.Logging.Abstractions.NullLoggerFactory.Instance"/> to suppress logging.</param>
+    public FluentDockerKernel(IDriverRegistry registry, ILoggerFactory loggerFactory)
     {
+      ArgumentNullException.ThrowIfNull(registry);
+      ArgumentNullException.ThrowIfNull(loggerFactory);
+      _registry = registry;
+      _loggerFactory = loggerFactory;
+      _logger = loggerFactory.CreateLogger<FluentDockerKernel>();
     }
 
     /// <summary>
-    /// Creates a new kernel with a custom registry.
+    /// Logger factory provided at construction. Builders, services, and resources
+    /// constructed via this kernel use it to create their per-type loggers.
     /// </summary>
-    /// <param name="registry">Driver registry</param>
-    public FluentDockerKernel(IDriverRegistry registry)
-    {
-      ArgumentNullException.ThrowIfNull(registry);
-      _registry = registry;
-    }
+    public ILoggerFactory LoggerFactory => _loggerFactory;
 
     #region ISysCtl Implementation
 
@@ -219,11 +228,14 @@ namespace FluentDocker.Kernel
     #region Builder
 
     /// <summary>
-    /// Creates a new kernel builder.
+    /// Creates a new kernel builder with the consumer-supplied logger factory.
     /// </summary>
-    public static IKernelBuilder Create()
+    /// <param name="loggerFactory">Logger factory; required. Pass
+    /// <see cref="Microsoft.Extensions.Logging.Abstractions.NullLoggerFactory.Instance"/>
+    /// to suppress all logging from the constructed kernel and its drivers.</param>
+    public static IKernelBuilder Create(ILoggerFactory loggerFactory)
     {
-      return new KernelBuilder();
+      return new KernelBuilder(loggerFactory);
     }
 
     #endregion
@@ -261,7 +273,7 @@ namespace FluentDocker.Kernel
       }
       catch (Exception ex)
       {
-        Logger.Log($"Kernel DisposeAsync cleanup failed: {ex.Message}");
+        _logger.LogWarning(ex, "Kernel DisposeAsync cleanup failed");
       }
 
       GC.SuppressFinalize(this);

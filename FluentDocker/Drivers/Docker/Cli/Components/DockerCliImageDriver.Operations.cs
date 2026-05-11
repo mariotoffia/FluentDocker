@@ -74,9 +74,9 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
         foreach (var line in lines)
         {
           if (line.StartsWith("Deleted:"))
-            removeResult.Deleted.Add(line.Substring(8).Trim());
+            removeResult.Deleted.Add(line[8..].Trim());
           else if (line.StartsWith("Untagged:"))
-            removeResult.Untagged.Add(line.Substring(9).Trim());
+            removeResult.Untagged.Add(line[9..].Trim());
         }
 
         return CommandResponse<ImageRemoveResult>.Ok(removeResult);
@@ -185,11 +185,11 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
         {
           if (line.StartsWith(loadedIdPrefix, StringComparison.OrdinalIgnoreCase))
           {
-            images.Add(line.Substring(loadedIdPrefix.Length).Trim());
+            images.Add(line[loadedIdPrefix.Length..].Trim());
           }
           else if (line.StartsWith(loadedPrefix, StringComparison.OrdinalIgnoreCase))
           {
-            images.Add(line.Substring(loadedPrefix.Length).Trim());
+            images.Add(line[loadedPrefix.Length..].Trim());
           }
         }
 

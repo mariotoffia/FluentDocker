@@ -38,7 +38,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
         // Arrange
         var upResult = await ComposeDriver.UpAsync(Context, new ComposeUpConfig
         {
-          ComposeFiles = new List<string> { composeFile },
+          ComposeFiles = [composeFile],
           ProjectName = projectName,
           Detached = true,
           RemoveOrphans = true
@@ -51,7 +51,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
         // Get containers in project
         var listResult = await ComposeDriver.ListAsync(Context, new ComposeListConfig
         {
-          ComposeFiles = new List<string> { composeFile },
+          ComposeFiles = [composeFile],
           ProjectName = projectName
         }, cancellationToken: TestContext.Current.CancellationToken);
         Assert.True(listResult.Success);
@@ -76,7 +76,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
       {
         await ComposeDriver.DownAsync(Context, new ComposeDownConfig
         {
-          ComposeFiles = new List<string> { composeFile },
+          ComposeFiles = [composeFile],
           ProjectName = projectName,
           RemoveVolumes = true
         }, cancellationToken: TestContext.Current.CancellationToken);
@@ -150,7 +150,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
         // Arrange
         var upResult = await ComposeDriver.UpAsync(Context, new ComposeUpConfig
         {
-          ComposeFiles = new List<string> { composeFile },
+          ComposeFiles = [composeFile],
           ProjectName = projectName,
           Detached = true,
           RemoveOrphans = true
@@ -163,7 +163,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
         // Act
         var listResult = await ComposeDriver.ListAsync(Context, new ComposeListConfig
         {
-          ComposeFiles = new List<string> { composeFile },
+          ComposeFiles = [composeFile],
           ProjectName = projectName,
           All = true
         }, cancellationToken: TestContext.Current.CancellationToken);
@@ -181,7 +181,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
       {
         await ComposeDriver.DownAsync(Context, new ComposeDownConfig
         {
-          ComposeFiles = new List<string> { composeFile },
+          ComposeFiles = [composeFile],
           ProjectName = projectName,
           RemoveVolumes = true
         }, cancellationToken: TestContext.Current.CancellationToken);
@@ -208,7 +208,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
         {
           Image = TestImage,
           Name = containerName,
-          Command = new[] { "sleep", "60" },
+          Command = ["sleep", "60"],
           Detach = true
         }, cancellationToken: TestContext.Current.CancellationToken);
         Assert.True(result1.Success);
@@ -219,7 +219,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
         {
           Image = TestImage,
           Name = containerName,
-          Command = new[] { "sleep", "60" },
+          Command = ["sleep", "60"],
           Detach = true
         }, cancellationToken: TestContext.Current.CancellationToken);
 
@@ -260,7 +260,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
           {
             [volumeName] = "/data"
           },
-          Command = new[] { "sh", "-c", $"echo \"{testData}\" > /data/test.txt" },
+          Command = ["sh", "-c", $"echo \"{testData}\" > /data/test.txt"],
           Detach = false
         }, cancellationToken: TestContext.Current.CancellationToken);
         Assert.True(result1.Success);
@@ -277,7 +277,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
           {
             [volumeName] = "/data"
           },
-          Command = new[] { "cat", "/data/test.txt" },
+          Command = ["cat", "/data/test.txt"],
           Detach = false
         }, cancellationToken: TestContext.Current.CancellationToken);
         containerId = result2.Data?.Id;
@@ -339,7 +339,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
         {
           Image = TestImage,
           NetworkMode = network1Name,
-          Command = new[] { "sleep", "60" },
+          Command = ["sleep", "60"],
           Detach = true
         }, cancellationToken: TestContext.Current.CancellationToken);
         Assert.True(result1.Success);
@@ -349,7 +349,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
         {
           Image = TestImage,
           NetworkMode = network2Name,
-          Command = new[] { "sleep", "60" },
+          Command = ["sleep", "60"],
           Detach = true
         }, cancellationToken: TestContext.Current.CancellationToken);
         Assert.True(result2.Success);
@@ -363,7 +363,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
         // Act - Try to ping from container2 to container1 (should fail)
         var pingResult = await ContainerDriver.ExecAsync(Context, container2Id, new ExecConfig
         {
-          Command = new[] { "ping", "-c", "1", "-W", "2", container1Ip }
+          Command = ["ping", "-c", "1", "-W", "2", container1Ip]
         }, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert - Ping should fail (different networks)
