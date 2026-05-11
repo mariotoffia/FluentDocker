@@ -33,18 +33,21 @@ jobs:
           dotnet-version: '10.0.x'
 
       - name: Generate API reference from XML docs
-        # Marked continue-on-error because XMLDoc2Markdown 5.x cannot
-        # currently resolve net10.0/net8.0 transitive ref assemblies on
-        # this project (System.IO.Pipelines 9.0). Swap to docfx or
-        # xmldocmd in a follow-up. The docs site still builds without
-        # the auto-generated API reference page.
-        continue-on-error: true
         run: |
-          dotnet restore FluentDocker/FluentDocker.csproj
-          dotnet build FluentDocker/FluentDocker.csproj --configuration Release --no-restore
-          dotnet tool install -g XMLDoc2Markdown
+          # `dotnet publish` co-locates all transitive deps next to the dll;
+          # xmldocmd uses Assembly.LoadFrom under the hood and needs every
+          # referenced assembly resolvable at the same path. Without publish,
+          # only FluentDocker.dll would be in bin/Release/ and the loader
+          # would fail on Microsoft.Extensions.Logging.Abstractions etc.
+          dotnet publish FluentDocker/FluentDocker.csproj \
+              --configuration Release \
+              --framework net10.0 \
+              --output /tmp/fd-publish
+          dotnet tool install -g xmldocmd
           mkdir -p docs/api-reference
-          xmldoc2md FluentDocker/bin/Release/net8.0/FluentDocker.dll --output docs/api-reference --github-pages
+          xmldocmd /tmp/fd-publish/FluentDocker.dll docs/api-reference \
+              --source https://github.com/mariotoffia/FluentDocker/tree/master/FluentDocker \
+              --clean
 
       - name: Setup Ruby
         uses: ruby/setup-ruby@v1
