@@ -4,8 +4,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using FluentDocker.Drivers;
 
-#pragma warning disable CS0618 // Services.NetworkCreateConfig obsolete — intentional usage in public API
-
 namespace FluentDocker.Services
 {
   /// <summary>
@@ -207,32 +205,6 @@ namespace FluentDocker.Services
 
     /// <summary>Privileged mode.</summary>
     public bool Privileged { get; set; }
-  }
-
-  /// <summary>
-  /// Configuration for creating a network.
-  /// </summary>
-  [Obsolete("Use FluentDocker.Drivers.NetworkCreateConfig instead. " +
-            "This duplicate type in the Services namespace will be removed in v4.")]
-  public class NetworkCreateConfig
-  {
-    /// <summary>Network driver (default: bridge).</summary>
-    public string Driver { get; set; } = "bridge";
-
-    /// <summary>Internal network (no external connectivity).</summary>
-    public bool Internal { get; set; }
-
-    /// <summary>Enable IPv6.</summary>
-    public bool EnableIPv6 { get; set; }
-
-    /// <summary>Network labels.</summary>
-    public Dictionary<string, string> Labels { get; set; } = new Dictionary<string, string>();
-
-    /// <summary>Driver options.</summary>
-    public Dictionary<string, string> Options { get; set; } = new Dictionary<string, string>();
-
-    /// <summary>Remove on service dispose.</summary>
-    public bool RemoveOnDispose { get; set; }
   }
 }
 

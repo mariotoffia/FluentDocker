@@ -7,8 +7,6 @@ using FluentDocker.Tests.Mocks;
 using Moq;
 using Xunit;
 
-using NetworkCreateConfig = FluentDocker.Drivers.NetworkCreateConfig;
-
 namespace FluentDocker.Tests.CoreTests.BuilderTests
 {
   /// <summary>

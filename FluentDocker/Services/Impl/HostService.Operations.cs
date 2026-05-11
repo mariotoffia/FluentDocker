@@ -7,8 +7,6 @@ using FluentDocker.Common;
 using FluentDocker.Drivers;
 using FluentDocker.Model.Drivers;
 
-#pragma warning disable CS0618 // Services.NetworkCreateConfig obsolete — intentional internal usage
-
 namespace FluentDocker.Services.Impl
 {
   /// <summary>
@@ -162,18 +160,9 @@ namespace FluentDocker.Services.Impl
       var context = new DriverContext(_driverId);
 
       config ??= new NetworkCreateConfig();
+      config.Name = name;
 
-      var driverConfig = new Drivers.NetworkCreateConfig
-      {
-        Name = name,
-        Driver = config.Driver,
-        Internal = config.Internal,
-        EnableIPv6 = config.EnableIPv6,
-        Labels = config.Labels ?? new Dictionary<string, string>(),
-        Options = config.Options ?? new Dictionary<string, string>()
-      };
-
-      var response = await driver.CreateAsync(context, driverConfig, cancellationToken).ConfigureAwait(false);
+      var response = await driver.CreateAsync(context, config, cancellationToken).ConfigureAwait(false);
 
       if (!response.Success)
       {
