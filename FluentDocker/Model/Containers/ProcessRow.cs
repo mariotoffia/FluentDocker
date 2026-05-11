@@ -65,10 +65,10 @@ namespace FluentDocker.Model.Containers
             break;
           case StartConst:
           case StartTimeConst:
-            row.Started = TimeSpan.Parse(fullRow[i]);
+            row.Started = ParseDuration(fullRow[i]);
             break;
           case TimeConst:
-            row.Time = TimeSpan.Parse(fullRow[i]);
+            row.Time = ParseDuration(fullRow[i]);
             break;
           case TerminalConst:
             row.Tty = fullRow[i];
@@ -77,7 +77,7 @@ namespace FluentDocker.Model.Containers
             row.Status = fullRow[i];
             break;
           case CpuTime:
-            if (TimeSpan.TryParse(fullRow[i], out var cpuTime))
+            if (TryParseDuration(fullRow[i], out var cpuTime))
               row.Cpu = cpuTime;
             break;
           case PercentCpuConst:
@@ -90,6 +90,30 @@ namespace FluentDocker.Model.Containers
       }
 
       return row;
+    }
+
+    // Podman top emits durations like "0s", "12m34s", "1h2m3s" rather than the
+    // hh:mm:ss form that TimeSpan.Parse accepts. Fall back through the podman
+    // shapes so cross-engine consumers don't get FormatException.
+    private static TimeSpan ParseDuration(string value)
+    {
+      if (TryParseDuration(value, out var result))
+        return result;
+
+      return TimeSpan.Parse(value, CultureInfo.InvariantCulture);
+    }
+
+    private static bool TryParseDuration(string value, out TimeSpan result)
+    {
+      if (TimeSpan.TryParse(value, CultureInfo.InvariantCulture, out result))
+        return true;
+      if (TimeSpan.TryParseExact(value, @"%s\s", CultureInfo.InvariantCulture, out result))
+        return true;
+      if (TimeSpan.TryParseExact(value, @"%m\m%s\s", CultureInfo.InvariantCulture, out result))
+        return true;
+      if (TimeSpan.TryParseExact(value, @"%h\h%m\m%s\s", CultureInfo.InvariantCulture, out result))
+        return true;
+      return false;
     }
   }
 }
