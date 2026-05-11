@@ -1,5 +1,9 @@
 <Project>
   <PropertyGroup>
+    <!-- Single source of truth for NuGet package version. Bump here, commit, push -->
+    <!-- master. CI reads this via `dotnet msbuild -getProperty:Version` and uses it -->
+    <!-- for both `dotnet pack` and the git tag. No GitVersion, no override flags. -->
+    <Version>3.0.1</Version>
     <TargetFrameworks>net8.0;net10.0</TargetFrameworks>
     <LangVersion>latest</LangVersion>
     <ImplicitUsings>disable</ImplicitUsings>

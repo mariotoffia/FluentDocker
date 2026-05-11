@@ -2,8 +2,9 @@
 
 [![CI](https://github.com/mariotoffia/FluentDocker/actions/workflows/ci.yml/badge.svg)](https://github.com/mariotoffia/FluentDocker/actions/workflows/ci.yml)
 [![codecov](https://codecov.io/gh/mariotoffia/FluentDocker/branch/master/graph/badge.svg)](https://codecov.io/gh/mariotoffia/FluentDocker)
+[![Release](https://img.shields.io/github/v/release/mariotoffia/FluentDocker?sort=semver&display_name=tag&color=brightgreen)](https://github.com/mariotoffia/FluentDocker/releases/latest)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
-[![.NET](https://img.shields.io/badge/.NET-net10.0-blueviolet)](https://dotnet.microsoft.com/)
+[![.NET](https://img.shields.io/badge/.NET-net8.0%20%7C%20net10.0-blueviolet)](https://dotnet.microsoft.com/)
 
 | Package | NuGet | Downloads |
 |---------|:-----:|:---------:|
@@ -11,43 +12,6 @@
 | Testing.Xunit | [![NuGet](https://img.shields.io/nuget/v/FluentDocker.Testing.Xunit.svg)](https://www.nuget.org/packages/FluentDocker.Testing.Xunit) | [![Downloads](https://img.shields.io/nuget/dt/FluentDocker.Testing.Xunit.svg)](https://www.nuget.org/packages/FluentDocker.Testing.Xunit) |
 | Testing.MsTest | [![NuGet](https://img.shields.io/nuget/v/FluentDocker.Testing.MsTest.svg)](https://www.nuget.org/packages/FluentDocker.Testing.MsTest) | [![Downloads](https://img.shields.io/nuget/dt/FluentDocker.Testing.MsTest.svg)](https://www.nuget.org/packages/FluentDocker.Testing.MsTest) |
 | Testing.NUnit | [![NuGet](https://img.shields.io/nuget/v/FluentDocker.Testing.NUnit.svg)](https://www.nuget.org/packages/FluentDocker.Testing.NUnit) | [![Downloads](https://img.shields.io/nuget/dt/FluentDocker.Testing.NUnit.svg)](https://www.nuget.org/packages/FluentDocker.Testing.NUnit) |
-
----
-
-## What's New in v3.0.0
-
-FluentDocker v3.0.0 is a major release with significant improvements:
-
-- **Namespace renamed**: `Ductus.FluentDocker` → `FluentDocker`
-- **Full async/await support** with CancellationToken throughout
-- **Driver Layer architecture** replacing Commands namespace
-- **Kernel + typed driver scoping** — `WithinDockerCli()`, `WithinDockerApi()`, `WithinPodmanCli()`
-- **Type-safe builder API** — compile-time safety for driver-specific features
-- **Lambda-based builder API** — `UseContainer(Action<IContainerBuilder>)`
-- **Container Stats** — CPU, memory, network, and block I/O monitoring
-- **Label-based filtering** — 5.5x faster container cleanup
-- **Static IPv4/IPv6** assignment for containers
-- **Directory copy** support (recursive copy to/from containers)
-- **Docker Compose V2** — uses `docker compose` subcommand
-- **Test Support** — `FluentDocker.Testing.Core` resource lifecycle with xUnit, MSTest, and NUnit adapters
-- **Test Plugin Architecture** — extensible `ITestResource` system with lifecycle hooks, diagnostics, and capability checks
-
-### Breaking Changes
-
-- `Ductus.FluentDocker` namespace → `FluentDocker`
-- Builder API now requires `WithinDriver()` scoping and lambda-based configuration
-- `Build()` returns `BuildResults` (containers auto-start; no separate `.Start()`)
-- Docker Machine support **removed** (deprecated by Docker)
-- Docker Toolbox support **removed** (deprecated by Docker)
-- Commands namespace **removed** (use Driver Layer)
-- Compose commands use struct-based arguments
-- Legacy test packages **removed** (`Ductus.FluentDocker.XUnit`, `Ductus.FluentDocker.MsTest`)
-- `FluentDockerTestBase` base class **removed** — use `XunitContainerFixture`, `MsTestResourceHelpers`, or `NUnitResourceHelpers`
-- xUnit v3: `IAsyncLifetime` methods return `ValueTask` (not `Task`)
-
-💡 **LLM Skill to semi-automate the upgrade from V2 -> V3**
-
-📖 **[Migration Guide →](docs/migration.md)**
 
 ---
 
@@ -148,6 +112,8 @@ dotnet add package FluentDocker.Testing.NUnit   # NUnit adapter
 ```
 
 ---
+
+> **v3.0.0** is a major rewrite — multi-driver kernel, async-first API, Podman support, new test packages. See the [3.0.0 release notes](https://github.com/mariotoffia/FluentDocker/releases/tag/3.0.0) and the [migration guide](docs/migration.md) for the full feature list and breaking changes.
 
 ## Features
 

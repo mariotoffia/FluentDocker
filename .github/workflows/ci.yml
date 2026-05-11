@@ -46,8 +46,6 @@ jobs:
 
       - name: Checkout code
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0  # Required for GitVersion to work properly
 
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
@@ -56,36 +54,20 @@ jobs:
             8.0.x
             10.0.x
 
-      - name: Install GitVersion
-        uses: gittools/actions/gitversion/setup@v1
-        with:
-          versionSpec: '5.x'
-
-      - name: Determine version
-        id: gitversion
-        uses: gittools/actions/gitversion/execute@v1
-        with:
-          useConfigFile: true
-          configFilePath: GitVersion.yml
-
-      - name: Display GitVersion outputs
+      - name: Read release version
+        id: version
         shell: bash
-        env:
-          GV_MAJOR: ${{ steps.gitversion.outputs.Major }}
-          GV_MINOR: ${{ steps.gitversion.outputs.Minor }}
-          GV_PATCH: ${{ steps.gitversion.outputs.Patch }}
-          GV_NUGET: ${{ steps.gitversion.outputs.NuGetVersion }}
         run: |
-          echo "Major: $GV_MAJOR"
-          echo "Minor: $GV_MINOR"
-          echo "Patch: $GV_PATCH"
-          echo "NuGetVersion: $GV_NUGET"
+          # Single source of truth: <Version> in Directory.Build.props.
+          VERSION=$(dotnet msbuild FluentDocker/FluentDocker.csproj -getProperty:Version -nologo -verbosity:quiet | tr -d '[:space:]')
+          echo "Release version: $VERSION"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
 
       - name: Restore dependencies
         run: dotnet restore
 
       - name: Build solution
-        run: dotnet build --configuration Release --no-restore /p:Version=3.0.0 /p:AssemblyVersion=3.0.0.0 /p:FileVersion=3.0.0.0
+        run: dotnet build --configuration Release --no-restore
 
       - name: Run tests (in act)
         if: steps.detect-env.outputs.running_in_act == 'true'
@@ -122,8 +104,8 @@ jobs:
       - name: Create NuGet packages
         if: matrix.os == 'ubuntu-latest'
         run: |
-          echo "Creating NuGet packages"
-          dotnet pack --configuration Release --no-build --output packages /p:Version=3.0.0 /p:AssemblyVersion=3.0.0.0 /p:FileVersion=3.0.0.0
+          echo "Creating NuGet packages at version ${{ steps.version.outputs.version }}"
+          dotnet pack --configuration Release --no-build --output packages
 
       - name: Validate NuGet packages
         if: matrix.os == 'ubuntu-latest'
@@ -158,7 +140,7 @@ jobs:
       - name: Create and push Git tag for release
         if: matrix.os == 'ubuntu-latest' && (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/support/')) && steps.detect-env.outputs.running_in_act != 'true'
         env:
-          RELEASE_VERSION: '3.0.0'
+          RELEASE_VERSION: ${{ steps.version.outputs.version }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           echo "Creating Git tag for version: $RELEASE_VERSION"
