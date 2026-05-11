@@ -85,7 +85,7 @@ jobs:
         run: dotnet restore
 
       - name: Build solution
-        run: dotnet build --configuration Release --no-restore /p:Version=${{ steps.gitversion.outputs.NuGetVersion }} /p:AssemblyVersion=${{ steps.gitversion.outputs.AssemblySemVer }} /p:FileVersion=${{ steps.gitversion.outputs.AssemblySemFileVer }}
+        run: dotnet build --configuration Release --no-restore /p:Version=3.0.0 /p:AssemblyVersion=3.0.0.0 /p:FileVersion=3.0.0.0
 
       - name: Run tests (in act)
         if: steps.detect-env.outputs.running_in_act == 'true'
@@ -123,7 +123,7 @@ jobs:
         if: matrix.os == 'ubuntu-latest'
         run: |
           echo "Creating NuGet packages"
-          dotnet pack --configuration Release --no-build --output packages /p:Version=${{ steps.gitversion.outputs.NuGetVersion }} /p:AssemblyVersion=${{ steps.gitversion.outputs.AssemblySemVer }} /p:FileVersion=${{ steps.gitversion.outputs.AssemblySemFileVer }}
+          dotnet pack --configuration Release --no-build --output packages /p:Version=3.0.0 /p:AssemblyVersion=3.0.0.0 /p:FileVersion=3.0.0.0
 
       - name: Validate NuGet packages
         if: matrix.os == 'ubuntu-latest'
@@ -158,14 +158,18 @@ jobs:
       - name: Create and push Git tag for release
         if: matrix.os == 'ubuntu-latest' && (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/support/')) && steps.detect-env.outputs.running_in_act != 'true'
         env:
-          GV_NUGET: ${{ steps.gitversion.outputs.NuGetVersion }}
+          RELEASE_VERSION: '3.0.0'
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          echo "Creating Git tag for version: $GV_NUGET"
+          echo "Creating Git tag for version: $RELEASE_VERSION"
           git config --global user.name "GitHub Actions"
           git config --global user.email "actions@github.com"
-          git tag "$GV_NUGET"
-          git push origin "$GV_NUGET"
+          if git rev-parse "$RELEASE_VERSION" >/dev/null 2>&1; then
+            echo "Tag $RELEASE_VERSION already exists, skipping"
+          else
+            git tag "$RELEASE_VERSION"
+            git push origin "$RELEASE_VERSION"
+          fi
 
   # CodeQL Security Analysis
   codeql:

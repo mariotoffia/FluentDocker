@@ -5,6 +5,7 @@
     <OutputType>Exe</OutputType>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
     <!-- Benchmark-specific suppressions -->
     <NoWarn>$(NoWarn);CA1707;CA1822;CA1852</NoWarn>
   </PropertyGroup>
