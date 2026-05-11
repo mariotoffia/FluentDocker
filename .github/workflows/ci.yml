@@ -143,12 +143,15 @@ jobs:
           RELEASE_VERSION: ${{ steps.version.outputs.version }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          echo "Creating Git tag for version: $RELEASE_VERSION"
-          git config --global user.name "GitHub Actions"
-          git config --global user.email "actions@github.com"
-          if git rev-parse "$RELEASE_VERSION" >/dev/null 2>&1; then
-            echo "Tag $RELEASE_VERSION already exists, skipping"
+          # actions/checkout@v4 does not fetch tags, so check the remote
+          # directly. `--exit-code` makes ls-remote return non-zero when no
+          # matching ref exists, which we use to decide whether to push.
+          if git ls-remote --exit-code --tags origin "refs/tags/$RELEASE_VERSION" >/dev/null 2>&1; then
+            echo "Tag $RELEASE_VERSION already exists on remote, skipping"
           else
+            echo "Creating Git tag for version: $RELEASE_VERSION"
+            git config --global user.name "GitHub Actions"
+            git config --global user.email "actions@github.com"
             git tag "$RELEASE_VERSION"
             git push origin "$RELEASE_VERSION"
           fi
