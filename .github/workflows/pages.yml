@@ -33,6 +33,12 @@ jobs:
           dotnet-version: '10.0.x'
 
       - name: Generate API reference from XML docs
+        # Marked continue-on-error because XMLDoc2Markdown 5.x cannot
+        # currently resolve net10.0/net8.0 transitive ref assemblies on
+        # this project (System.IO.Pipelines 9.0). Swap to docfx or
+        # xmldocmd in a follow-up. The docs site still builds without
+        # the auto-generated API reference page.
+        continue-on-error: true
         run: |
           dotnet restore FluentDocker/FluentDocker.csproj
           dotnet build FluentDocker/FluentDocker.csproj --configuration Release --no-restore
