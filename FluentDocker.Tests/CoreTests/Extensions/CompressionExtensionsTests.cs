@@ -31,7 +31,7 @@ namespace FluentDocker.Tests.CoreTests.Extensions
     {
       var tarPath = Path.Combine(_tempDir, "test.tar");
       using var fileStream = File.Create(tarPath);
-      using var writer = WriterFactory.Open(
+      using var writer = WriterFactory.OpenWriter(
         fileStream, ArchiveType.Tar, new WriterOptions(CompressionType.None));
 
       using var contentStream = new MemoryStream(Encoding.UTF8.GetBytes(content));
@@ -44,7 +44,7 @@ namespace FluentDocker.Tests.CoreTests.Extensions
     {
       var tarPath = Path.Combine(_tempDir, "test.tar");
       using var fileStream = File.Create(tarPath);
-      using var writer = WriterFactory.Open(
+      using var writer = WriterFactory.OpenWriter(
         fileStream, ArchiveType.Tar, new WriterOptions(CompressionType.None));
 
       foreach (var (fileName, content) in entries)

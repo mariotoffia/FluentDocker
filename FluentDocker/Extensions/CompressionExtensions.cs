@@ -10,7 +10,7 @@ namespace FluentDocker.Extensions
     {
       using (var stream = File.OpenRead(file))
       {
-        using (var reader = ReaderFactory.Open(stream))
+        using (var reader = ReaderFactory.OpenReader(stream))
         {
           while (reader.MoveToNextEntry())
           {

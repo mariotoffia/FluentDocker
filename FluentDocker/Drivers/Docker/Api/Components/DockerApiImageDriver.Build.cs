@@ -227,7 +227,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
     private static MemoryStream CreateBuildContextTar(string contextPath)
     {
       var memoryStream = new MemoryStream();
-      using (var writer = WriterFactory.Open(
+      using (var writer = WriterFactory.OpenWriter(
           memoryStream, ArchiveType.Tar, new TarWriterOptions(CompressionType.None, true)))
       {
         var contextDir = new DirectoryInfo(contextPath);

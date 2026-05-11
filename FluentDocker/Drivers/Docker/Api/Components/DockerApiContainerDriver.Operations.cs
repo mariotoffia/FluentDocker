@@ -303,7 +303,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
         }
 
         using var tarStream = new MemoryStream();
-        using (var writer = WriterFactory.Open(tarStream, ArchiveType.Tar,
+        using (var writer = WriterFactory.OpenWriter(tarStream, ArchiveType.Tar,
             new WriterOptions(CompressionType.None)))
         {
           if (File.Exists(hostPath))
@@ -371,7 +371,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
                       $"/archive?path={Uri.EscapeDataString(containerPath)}";
         using var stream = await GetRawStreamAsync(apiPath, cancellationToken).ConfigureAwait(false);
         Directory.CreateDirectory(hostPath);
-        using var reader = ReaderFactory.Open(stream);
+        using var reader = ReaderFactory.OpenReader(stream);
         while (reader.MoveToNextEntry())
         {
           if (reader.Entry.IsDirectory)
