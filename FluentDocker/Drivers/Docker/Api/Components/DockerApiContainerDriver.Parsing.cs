@@ -279,8 +279,50 @@ namespace FluentDocker.Drivers.Docker.Api.Components
         ExitCode = el.GetInt64OrDefault("ExitCode"),
         Error = el.GetStringOrDefault("Error"),
         StartedAt = el.GetDateTimeOrDefault("StartedAt"),
-        FinishedAt = el.GetDateTimeOrDefault("FinishedAt")
+        FinishedAt = el.GetDateTimeOrDefault("FinishedAt"),
+        Health = ParseHealth(el.Prop("Health") ?? el.Prop("Healthcheck"))
       };
+    }
+
+    // Podman-compat (and some Docker versions) emit Health.Status as an empty
+    // string instead of omitting the field. Default to HealthState.Unknown so
+    // enum parsing doesn't throw.
+    private static Health ParseHealth(JsonElement? healthToken)
+    {
+      if (healthToken == null || healthToken.Value.IsNullOrUndefined())
+        return null;
+
+      var el = healthToken.Value;
+      var statusStr = el.GetStringOrDefault("Status");
+      HealthState status;
+      if (string.IsNullOrEmpty(statusStr))
+        status = HealthState.Unknown;
+      else if (!Enum.TryParse(statusStr, ignoreCase: true, out status))
+        status = HealthState.Unknown;
+
+      var health = new Health
+      {
+        Status = status,
+        FailingStreak = el.GetInt32OrDefault("FailingStreak")
+      };
+
+      var logProp = el.Prop("Log");
+      if (logProp.HasValue && logProp.Value.ValueKind == JsonValueKind.Array)
+      {
+        health.Log = [];
+        foreach (var entry in logProp.Value.EnumerateArray())
+        {
+          health.Log.Add(new HealthLog
+          {
+            Start = entry.GetStringOrDefault("Start"),
+            End = entry.GetStringOrDefault("End"),
+            ExitCode = entry.GetInt32OrDefault("ExitCode"),
+            Output = entry.GetStringOrDefault("Output")
+          });
+        }
+      }
+
+      return health;
     }
 
     private static ContainerConfig ParseContainerConfig(JsonElement? element)
@@ -296,8 +338,8 @@ namespace FluentDocker.Drivers.Docker.Api.Components
         OpenStdin = el.GetBoolOrDefault("OpenStdin"),
         Image = el.GetStringOrDefault("Image"),
         WorkingDir = el.GetStringOrDefault("WorkingDir"),
-        Cmd = el.GetStringArray("Cmd"),
-        EntryPoint = el.GetStringArray("Entrypoint"),
+        Cmd = el.GetStringOrArray("Cmd"),
+        EntryPoint = el.GetStringOrArray("Entrypoint"),
         Env = el.GetStringArray("Env"),
         Labels = el.GetStringDictionary("Labels"),
         StopSignal = el.GetStringOrDefault("StopSignal")
