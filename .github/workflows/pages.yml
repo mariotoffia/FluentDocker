@@ -41,7 +41,7 @@ jobs:
           # would fail on Microsoft.Extensions.Logging.Abstractions etc.
           dotnet publish FluentDocker/FluentDocker.csproj \
               --configuration Release \
-              --framework net10.0 \
+              --framework net8.0 \
               --output /tmp/fd-publish
           dotnet tool install -g xmldocmd
           mkdir -p docs/api-reference
