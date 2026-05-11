@@ -1,0 +1,394 @@
+using System;
+using System.Collections.Generic;
+using System.Threading.Tasks;
+using FluentDocker.Model.Drivers;
+using FluentDocker.Testing.Core;
+using FluentDocker.Tests.Mocks;
+using Xunit;
+
+namespace FluentDocker.Tests.CoreTests.Testing
+{
+  [Trait("Category", "Unit")]
+  public class ContainerResourceTests : MockKernelTestBase, IAsyncLifetime
+  {
+    public async ValueTask InitializeAsync()
+    {
+      await InitializeMockKernelAsync();
+    }
+
+    [Fact]
+    public async Task InitializeAsync_CreatesAndStartsContainer()
+    {
+      MockPack
+          .SetupContainerCreate()
+          .SetupContainerStart()
+          .SetupContainerInspect(running: true)
+          .SetupContainerStop()
+          .SetupContainerRemove();
+
+      var resource = new ContainerResource(
+          Kernel,
+          builder => builder.UseImage("alpine:latest").WithName("test"));
+
+      await resource.InitializeAsync(TestContext.Current.CancellationToken);
+
+      Assert.True(resource.IsInitialized);
+      Assert.NotNull(resource.Container);
+    }
+
+    [Fact]
+    public async Task DisposeAsync_StopsAndRemovesContainer()
+    {
+      MockPack
+          .SetupContainerCreate()
+          .SetupContainerStart()
+          .SetupContainerInspect(running: true)
+          .SetupContainerStop()
+          .SetupContainerRemove();
+
+      var resource = new ContainerResource(
+          Kernel,
+          builder => builder.UseImage("alpine:latest"));
+
+      await resource.InitializeAsync(TestContext.Current.CancellationToken);
+      await resource.DisposeAsync();
+
+      Assert.False(resource.IsInitialized);
+    }
+
+    [Fact]
+    public async Task InitializeAsync_CalledTwice_IsIdempotent()
+    {
+      MockPack
+          .SetupContainerCreate()
+          .SetupContainerStart()
+          .SetupContainerInspect(running: true)
+          .SetupContainerStop()
+          .SetupContainerRemove();
+
+      var resource = new ContainerResource(
+          Kernel,
+          builder => builder.UseImage("alpine:latest"));
+
+      await resource.InitializeAsync(TestContext.Current.CancellationToken);
+      await resource.InitializeAsync(TestContext.Current.CancellationToken); // second call is no-op
+
+      Assert.True(resource.IsInitialized);
+    }
+
+    [Fact]
+    public async Task InitializeAsync_FailsPreflightWhenContainersNotSupported()
+    {
+      MockPack.SetCapabilities(new DriverCapabilities
+      {
+        SupportsContainers = false
+      });
+
+      var resource = new ContainerResource(
+          Kernel,
+          builder => builder.UseImage("alpine:latest"));
+
+      await Assert.ThrowsAsync<FluentDocker.Common.CapabilityNotSupportedException>(
+          () => resource.InitializeAsync(TestContext.Current.CancellationToken));
+    }
+
+    [Fact]
+    public void Constructor_NullKernel_Throws()
+    {
+      Assert.Throws<ArgumentNullException>(
+          () => new ContainerResource(null, _ => { }));
+    }
+
+    [Fact]
+    public void Constructor_NullConfigure_Throws()
+    {
+      Assert.Throws<ArgumentNullException>(
+          () => new ContainerResource(Kernel, null!));
+    }
+
+    [Fact]
+    public async Task GetLogsAsync_BeforeInit_Throws()
+    {
+      var resource = new ContainerResource(
+          Kernel,
+          builder => builder.UseImage("alpine:latest"));
+
+      await Assert.ThrowsAsync<InvalidOperationException>(
+          () => resource.GetLogsAsync(TestContext.Current.CancellationToken));
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_BeforeInit_Throws()
+    {
+      var resource = new ContainerResource(
+          Kernel,
+          builder => builder.UseImage("alpine:latest"));
+
+      await Assert.ThrowsAsync<InvalidOperationException>(
+          () => resource.ExecuteAsync("echo hello", TestContext.Current.CancellationToken));
+    }
+
+    [Fact]
+    public async Task DisposeAsync_AfterFailedInit_SkipsTeardown()
+    {
+      MockPack.SetCapabilities(new DriverCapabilities
+      {
+        SupportsContainers = false // preflight will fail
+      });
+
+      var resource = new ContainerResource(
+          Kernel,
+          builder => builder.UseImage("alpine:latest"),
+          new DockerResourceOptions { ForceRemoveOnDispose = false });
+
+      await Assert.ThrowsAsync<FluentDocker.Common.CapabilityNotSupportedException>(
+          () => resource.InitializeAsync(TestContext.Current.CancellationToken));
+
+      // DisposeAsync must not attempt teardown when provisioning never ran.
+      // With ForceRemoveOnDispose=false, an attempted teardown would propagate.
+      await resource.DisposeAsync();
+      Assert.False(resource.IsInitialized);
+    }
+
+    [Fact]
+    public async Task LifecycleHooks_AreCalledInOrder()
+    {
+      MockPack
+          .SetupContainerCreate()
+          .SetupContainerStart()
+          .SetupContainerInspect(running: true)
+          .SetupContainerStop()
+          .SetupContainerRemove();
+
+      var order = new List<string>();
+
+      var resource = new ContainerResource(
+          Kernel,
+          builder => builder.UseImage("alpine:latest"));
+
+      resource
+          .OnBeforeInitialize(_ => { order.Add("beforeInit"); return Task.CompletedTask; })
+          .OnAfterReady(_ => { order.Add("afterReady"); return Task.CompletedTask; })
+          .OnBeforeDispose(_ => { order.Add("beforeDispose"); return Task.CompletedTask; })
+          .OnAfterDispose(_ => { order.Add("afterDispose"); return Task.CompletedTask; });
+
+      await resource.InitializeAsync(TestContext.Current.CancellationToken);
+      await resource.DisposeAsync();
+
+      Assert.Equal(new[] { "beforeInit", "afterReady", "beforeDispose", "afterDispose" }, order);
+    }
+
+    [Fact]
+    public void Options_DefaultValues_AreReasonable()
+    {
+      var resource = new ContainerResource(
+          Kernel,
+          builder => builder.UseImage("alpine:latest"));
+
+      Assert.True(resource.Options.ForceRemoveOnDispose);
+      Assert.True(resource.Options.CaptureLogsOnFailure);
+      Assert.Equal(TimeSpan.FromMinutes(2), resource.Options.InitializationTimeout);
+      Assert.Equal(200, resource.Options.MaxDiagnosticLogLines);
+    }
+
+    [Fact]
+    public async Task DriverSelection_Default_UsesKernelDefault()
+    {
+      MockPack
+          .SetupContainerCreate()
+          .SetupContainerStart()
+          .SetupContainerInspect(running: true)
+          .SetupContainerStop()
+          .SetupContainerRemove();
+
+      var resource = new ContainerResource(
+          Kernel,
+          builder => builder.UseImage("alpine:latest"));
+
+      await resource.InitializeAsync(TestContext.Current.CancellationToken);
+
+      Assert.Equal(DriverId, resource.DriverId);
+    }
+
+    [Fact]
+    public async Task Hook_ReceivesResourceInstance_NotNull()
+    {
+      MockPack
+          .SetupContainerCreate()
+          .SetupContainerStart()
+          .SetupContainerInspect(running: true)
+          .SetupContainerStop()
+          .SetupContainerRemove();
+
+      ITestResource receivedInHook = null;
+
+      var resource = new ContainerResource(
+          Kernel,
+          builder => builder.UseImage("alpine:latest"));
+
+      resource.OnAfterReady(r =>
+      {
+        receivedInHook = r;
+        return Task.CompletedTask;
+      });
+
+      await resource.InitializeAsync(TestContext.Current.CancellationToken);
+
+      Assert.NotNull(receivedInHook);
+      Assert.Same(resource, receivedInHook);
+
+      await resource.DisposeAsync();
+    }
+
+    [Fact]
+    public async Task ExpectedType_Mismatch_ThrowsInvalidOperationException()
+    {
+      // MockDriverPack.Type is DockerCli. Request PodmanCli -> should fail.
+      var resource = new ContainerResource(
+          Kernel,
+          builder => builder.UseImage("alpine:latest"),
+          new DockerResourceOptions
+          {
+            Driver = DriverSelection.PodmanCli("docker") // wrong type for this pack
+          });
+
+      var ex = await Assert.ThrowsAsync<InvalidOperationException>(
+          () => resource.InitializeAsync(TestContext.Current.CancellationToken));
+      Assert.Contains("Expected driver type", ex.Message);
+    }
+
+    [Fact]
+    public void OnBeforeInitialize_NullHook_ThrowsArgumentNullException()
+    {
+      var resource = new ContainerResource(
+          Kernel,
+          builder => builder.UseImage("alpine:latest"));
+
+      Assert.Throws<ArgumentNullException>(
+          () => resource.OnBeforeInitialize(null));
+    }
+
+    [Fact]
+    public void OnAfterReady_NullHook_ThrowsArgumentNullException()
+    {
+      var resource = new ContainerResource(
+          Kernel,
+          builder => builder.UseImage("alpine:latest"));
+
+      Assert.Throws<ArgumentNullException>(
+          () => resource.OnAfterReady(null));
+    }
+
+    [Fact]
+    public void OnBeforeDispose_NullHook_ThrowsArgumentNullException()
+    {
+      var resource = new ContainerResource(
+          Kernel,
+          builder => builder.UseImage("alpine:latest"));
+
+      Assert.Throws<ArgumentNullException>(
+          () => resource.OnBeforeDispose(null));
+    }
+
+    [Fact]
+    public void OnAfterDispose_NullHook_ThrowsArgumentNullException()
+    {
+      var resource = new ContainerResource(
+          Kernel,
+          builder => builder.UseImage("alpine:latest"));
+
+      Assert.Throws<ArgumentNullException>(
+          () => resource.OnAfterDispose(null));
+    }
+
+    [Fact]
+    public async Task OnAfterReady_CanCallGuardedApis()
+    {
+      MockPack
+          .SetupContainerCreate()
+          .SetupContainerStart()
+          .SetupContainerInspect(running: true)
+          .SetupContainerStop()
+          .SetupContainerRemove();
+
+      var resource = new ContainerResource(
+          Kernel,
+          builder => builder.UseImage("alpine:latest"));
+
+      FluentDocker.Model.Containers.Container inspected = null;
+
+      resource.OnAfterReady(async r =>
+      {
+        var cr = (ContainerResource)r;
+        inspected = await cr.InspectAsync(TestContext.Current.CancellationToken);
+      });
+
+      await resource.InitializeAsync(TestContext.Current.CancellationToken);
+
+      Assert.NotNull(inspected);
+      await resource.DisposeAsync();
+    }
+
+    [Fact]
+    public async Task Diagnostics_InspectPayload_ContainsJsonNotTypeName()
+    {
+      MockPack
+          .SetupContainerCreate()
+          .SetupContainerStart()
+          .SetupContainerInspect(running: true)
+          .SetupContainerGetLogs()
+          .SetupContainerStop()
+          .SetupContainerRemove();
+
+      var resource = new ContainerResource(
+          Kernel,
+          builder => builder.UseImage("alpine:latest"),
+          new DockerResourceOptions { CaptureLogsOnFailure = true });
+
+      resource.OnAfterReady(_ =>
+          throw new InvalidOperationException("Trigger diagnostics"));
+
+      await Assert.ThrowsAsync<InvalidOperationException>(
+          () => resource.InitializeAsync(TestContext.Current.CancellationToken));
+
+      Assert.NotNull(resource.Diagnostics);
+      Assert.NotNull(resource.Diagnostics.InspectPayload);
+
+      // Must NOT be the type name
+      Assert.DoesNotContain(
+          "FluentDocker.Model.Containers.Container",
+          resource.Diagnostics.InspectPayload);
+
+      // Must contain JSON from the mock inspect (container id)
+      Assert.Contains("test-container-123", resource.Diagnostics.InspectPayload);
+    }
+
+    [Fact]
+    public async Task DriverSelection_Specific_UsesProvidedId()
+    {
+      var secondPack = new MockDriverPack();
+      var context = new DriverContext("custom-docker");
+      await secondPack.InitializeAsync(context, TestContext.Current.CancellationToken);
+      await Kernel.RegisterDriverPackAsync("custom-docker", secondPack, context, TestContext.Current.CancellationToken);
+
+      secondPack
+          .SetupContainerCreate()
+          .SetupContainerStart()
+          .SetupContainerInspect(running: true)
+          .SetupContainerStop()
+          .SetupContainerRemove();
+
+      var resource = new ContainerResource(
+          Kernel,
+          builder => builder.UseImage("alpine:latest"),
+          new DockerResourceOptions
+          {
+            Driver = DriverSelection.Specific("custom-docker")
+          });
+
+      await resource.InitializeAsync(TestContext.Current.CancellationToken);
+
+      Assert.Equal("custom-docker", resource.DriverId);
+    }
+  }
+}

@@ -1,0 +1,36 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <Version>1.0.0</Version>
+    <AssemblyVersion>1.0.0.0</AssemblyVersion>
+    <FileVersion>1.0.0.0</FileVersion>
+    <VersionSuffix>$(VersionSuffix)</VersionSuffix>
+    <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
+    <AssemblyTitle>FluentDocker.Testing.MsTest</AssemblyTitle>
+    <PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
+    <PackageProjectUrl>https://github.com/mariotoffia/FluentDocker</PackageProjectUrl>
+    <PackageId>FluentDocker.Testing.MsTest</PackageId>
+    <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
+    <PackageTags>Docker;Podman;Container;Test;MSTest;NET</PackageTags>
+    <Description>Spin up and tear down Docker and Podman containers, networks, volumes, and Compose stacks directly in your MSTest tests. Manages the full resource lifecycle so your integration tests run against real services with zero manual cleanup.</Description>
+    <PackageIcon>fluent-docker.png</PackageIcon>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PublishRepositoryUrl>true</PublishRepositoryUrl>
+    <EmbedUntrackedSources>true</EmbedUntrackedSources>
+    <Nullable>enable</Nullable>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="..\FluentDocker\README.md" Pack="true" PackagePath="\" />
+    <None Include="..\icon\fluent-docker.png" Pack="true" PackagePath="\" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\FluentDocker\FluentDocker.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="MSTest.TestFramework" />
+  </ItemGroup>
+</Project>

@@ -1,0 +1,41 @@
+#!/usr/bin/env bash
+# cleanup-test-resources: Remove stale Docker/Podman containers created by
+# integration tests. Containers are identified by the label
+# com.fluentdocker.test=integration, which all test base classes inject.
+set -euo pipefail
+
+LABEL="com.fluentdocker.test=integration"
+
+echo "=== Cleaning Up Test Resources ==="
+
+# --- Docker ---
+if command -v docker &>/dev/null; then
+  ids=$(docker ps -aq --filter "label=$LABEL" 2>/dev/null || true)
+  if [ -n "$ids" ]; then
+    count=$(echo "$ids" | wc -l | tr -d ' ')
+    echo "[docker] Removing $count container(s) with label $LABEL ..."
+    docker rm -f $ids
+    echo "[docker] Done"
+  else
+    echo "[docker] No test containers found"
+  fi
+else
+  echo "[docker] Docker not found — skipping"
+fi
+
+# --- Podman ---
+if command -v podman &>/dev/null; then
+  ids=$(podman ps -aq --filter "label=$LABEL" 2>/dev/null || true)
+  if [ -n "$ids" ]; then
+    count=$(echo "$ids" | wc -l | tr -d ' ')
+    echo "[podman] Removing $count container(s) with label $LABEL ..."
+    podman rm -f $ids
+    echo "[podman] Done"
+  else
+    echo "[podman] No test containers found"
+  fi
+else
+  echo "[podman] Podman not found — skipping"
+fi
+
+echo "=== Test Resource Cleanup Complete ==="

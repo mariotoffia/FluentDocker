@@ -225,3 +225,7 @@ ModelManifest.xml
 
 # JetBrains IDEs
 .idea
+.claude
+
+# Build/test output
+.out/

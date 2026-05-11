@@ -1,0 +1,294 @@
+using System;
+using System.Threading.Tasks;
+using FluentDocker.Common;
+using FluentDocker.Drivers;
+using FluentDocker.Kernel;
+using FluentDocker.Model.Drivers;
+using FluentDocker.Tests.Mocks;
+using Microsoft.Extensions.Logging.Abstractions;
+using Xunit;
+
+namespace FluentDocker.Tests.CoreTests.Kernel
+{
+  /// <summary>
+  /// Unit tests for FluentDockerKernel.
+  /// </summary>
+  [Trait("Category", "Unit")]
+  public class FluentDockerKernelTests
+  {
+    [Fact]
+    public void Create_ReturnsKernelBuilder()
+    {
+      // Act
+      var builder = FluentDockerKernel.Create(NullLoggerFactory.Instance);
+
+      // Assert
+      Assert.NotNull(builder);
+      Assert.IsType<KernelBuilder>(builder);
+    }
+
+    [Fact]
+    public async Task RegisterDriverPackAsync_RegistersSuccessfully()
+    {
+      // Arrange
+      var kernel = new FluentDockerKernel(new DriverRegistry(NullLoggerFactory.Instance), NullLoggerFactory.Instance);
+      var mockPack = new MockDriverPack();
+      var context = new DriverContext("docker");
+
+      // Act
+      await kernel.RegisterDriverPackAsync("docker", mockPack, context, cancellationToken: TestContext.Current.CancellationToken);
+
+      // Assert
+      Assert.True(kernel.IsDriverRegistered("docker"));
+    }
+
+    [Fact]
+    public async Task SysCtl_ReturnsCorrectInterface()
+    {
+      // Arrange
+      var (kernel, _) = await MockKernelBuilderExtensions.CreateWithMockDriverAsync("docker");
+
+      try
+      {
+        // Act
+        var containerDriver = kernel.SysCtl<IContainerDriver>("docker");
+
+        // Assert
+        Assert.NotNull(containerDriver);
+      }
+      finally
+      {
+        kernel.Dispose();
+      }
+    }
+
+    [Fact]
+    public async Task SysCtl_NonExistentDriver_ThrowsException()
+    {
+      // Arrange
+      var (kernel, _) = await MockKernelBuilderExtensions.CreateWithMockDriverAsync("docker");
+
+      try
+      {
+        // Act & Assert
+        Assert.Throws<DriverNotFoundException>(() =>
+            kernel.SysCtl<IContainerDriver>("non-existent"));
+      }
+      finally
+      {
+        kernel.Dispose();
+      }
+    }
+
+    [Fact]
+    public async Task SetDefaultDriver_SetsDefault()
+    {
+      // Arrange
+      var kernel = new FluentDockerKernel(new DriverRegistry(NullLoggerFactory.Instance), NullLoggerFactory.Instance);
+      var mockPack1 = new MockDriverPack();
+      var mockPack2 = new MockDriverPack();
+      await mockPack1.InitializeAsync(new DriverContext("driver1"), cancellationToken: TestContext.Current.CancellationToken);
+      await mockPack2.InitializeAsync(new DriverContext("driver2"), cancellationToken: TestContext.Current.CancellationToken);
+
+      await kernel.RegisterDriverPackAsync("driver1", mockPack1, new DriverContext("driver1"), cancellationToken: TestContext.Current.CancellationToken);
+      await kernel.RegisterDriverPackAsync("driver2", mockPack2, new DriverContext("driver2"), cancellationToken: TestContext.Current.CancellationToken);
+
+      // Act
+      kernel.SetDefaultDriver("driver2");
+
+      // Assert
+      Assert.Equal("driver2", kernel.DefaultDriverId);
+
+      kernel.Dispose();
+    }
+
+    [Fact]
+    public async Task GetAllDriverIds_ReturnsAllRegistered()
+    {
+      // Arrange
+      var kernel = new FluentDockerKernel(new DriverRegistry(NullLoggerFactory.Instance), NullLoggerFactory.Instance);
+      var mockPack1 = new MockDriverPack();
+      var mockPack2 = new MockDriverPack();
+      await mockPack1.InitializeAsync(new DriverContext("docker-local"), cancellationToken: TestContext.Current.CancellationToken);
+      await mockPack2.InitializeAsync(new DriverContext("docker-remote"), cancellationToken: TestContext.Current.CancellationToken);
+
+      await kernel.RegisterDriverPackAsync("docker-local", mockPack1, new DriverContext("docker-local"), cancellationToken: TestContext.Current.CancellationToken);
+      await kernel.RegisterDriverPackAsync("docker-remote", mockPack2, new DriverContext("docker-remote"), cancellationToken: TestContext.Current.CancellationToken);
+
+      // Assert - both drivers are registered
+      Assert.True(kernel.IsDriverRegistered("docker-local"));
+      Assert.True(kernel.IsDriverRegistered("docker-remote"));
+      Assert.False(kernel.IsDriverRegistered("nonexistent"));
+
+      kernel.Dispose();
+    }
+
+    [Fact]
+    public async Task UnregisterDriver_RemovesDriver()
+    {
+      // Arrange
+      var (kernel, _) = await MockKernelBuilderExtensions.CreateWithMockDriverAsync("docker");
+
+      // Act
+      kernel.UnregisterDriver("docker");
+
+      // Assert
+      Assert.False(kernel.IsDriverRegistered("docker"));
+
+      kernel.Dispose();
+    }
+
+    [Fact]
+    public void Dispose_MultipleCallsSafe()
+    {
+      // Arrange
+      var kernel = new FluentDockerKernel(new DriverRegistry(NullLoggerFactory.Instance), NullLoggerFactory.Instance);
+
+      // Act & Assert - should not throw
+      kernel.Dispose();
+      kernel.Dispose();
+    }
+
+    [Fact]
+    public async Task SysCtl_AfterDispose_ThrowsException()
+    {
+      // Arrange
+      var (kernel, _) = await MockKernelBuilderExtensions.CreateWithMockDriverAsync("docker");
+      kernel.Dispose();
+
+      // Act & Assert
+      Assert.Throws<ObjectDisposedException>(() =>
+          kernel.SysCtl<IContainerDriver>("docker"));
+    }
+
+    [Fact]
+    public async Task MultipleKernelInstances_AreIndependent()
+    {
+      // Arrange
+      var (kernel1, mockPack1) = await MockKernelBuilderExtensions.CreateWithMockDriverAsync("docker");
+      var (kernel2, mockPack2) = await MockKernelBuilderExtensions.CreateWithMockDriverAsync("docker");
+
+      try
+      {
+        // Assert - kernels are different instances
+        Assert.NotSame(kernel1, kernel2);
+        Assert.NotSame(mockPack1, mockPack2);
+
+        // Each kernel has its own driver
+        var driver1 = kernel1.SysCtl<IContainerDriver>("docker");
+        var driver2 = kernel2.SysCtl<IContainerDriver>("docker");
+        Assert.NotSame(driver1, driver2);
+      }
+      finally
+      {
+        kernel1.Dispose();
+        kernel2.Dispose();
+      }
+    }
+  }
+
+  /// <summary>
+  /// Unit tests for KernelBuilder.
+  /// </summary>
+  [Trait("Category", "Unit")]
+  public class KernelBuilderTests
+  {
+    [Fact]
+    public async Task BuildAsync_WithDockerCli_CreatesKernel()
+    {
+      // Act
+      var kernel = await FluentDockerKernel.Create(NullLoggerFactory.Instance)
+          .WithDockerCli("docker", d => d.AsDefault())
+          .BuildAsync(cancellationToken: TestContext.Current.CancellationToken);
+
+      try
+      {
+        // Assert
+        Assert.NotNull(kernel);
+        Assert.True(kernel.IsDriverRegistered("docker"));
+      }
+      finally
+      {
+        kernel.Dispose();
+      }
+    }
+
+    [Fact]
+    public async Task BuildAsync_WithMultipleDrivers_RegistersAll()
+    {
+      // Act
+      var kernel = await FluentDockerKernel.Create(NullLoggerFactory.Instance)
+          .WithDockerCli("docker-local", d => d.AsDefault())
+          .WithDockerCli("docker-remote", d => d.AsDefault())
+          .BuildAsync(cancellationToken: TestContext.Current.CancellationToken);
+
+      try
+      {
+        // Assert
+        Assert.True(kernel.IsDriverRegistered("docker-local"));
+        Assert.True(kernel.IsDriverRegistered("docker-remote"));
+      }
+      finally
+      {
+        kernel.Dispose();
+      }
+    }
+
+    [Fact]
+    public async Task BuildAsync_WithDefault_SetsDefault()
+    {
+      // Act
+      var kernel = await FluentDockerKernel.Create(NullLoggerFactory.Instance)
+          .WithDockerCli("docker", d => d.AsDefault())
+          .BuildAsync(cancellationToken: TestContext.Current.CancellationToken);
+
+      try
+      {
+        // Assert
+        Assert.Equal("docker", kernel.DefaultDriverId);
+      }
+      finally
+      {
+        kernel.Dispose();
+      }
+    }
+
+    [Fact]
+    public void WithDriver_NullDriverId_ThrowsException()
+    {
+      // Act & Assert
+      Assert.Throws<ArgumentException>(() =>
+          FluentDockerKernel.Create(NullLoggerFactory.Instance)
+              .WithDockerCli(null!, d => d.AsDefault()));
+    }
+
+    [Fact]
+    public void WithDriver_NullConfigure_ThrowsException()
+    {
+      // Act & Assert
+      Assert.Throws<ArgumentNullException>(() =>
+          FluentDockerKernel.Create(NullLoggerFactory.Instance)
+              .WithDockerCli("docker", null!));
+    }
+
+    [Fact]
+    public void Build_Sync_CreatesKernel()
+    {
+      // Act
+      var kernel = FluentDockerKernel.Create(NullLoggerFactory.Instance)
+          .WithDockerCli("docker", d => d.AsDefault())
+          .Build();
+
+      try
+      {
+        // Assert
+        Assert.NotNull(kernel);
+        Assert.True(kernel.IsDriverRegistered("docker"));
+      }
+      finally
+      {
+        kernel.Dispose();
+      }
+    }
+  }
+}

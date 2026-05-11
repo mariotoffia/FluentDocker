@@ -1,1 +1,44 @@
-theme: jekyll-theme-hacker
+title: FluentDocker
+description: A fluent API for Docker and Docker Compose in .NET
+url: https://mariotoffia.github.io
+baseurl: /FluentDocker
+
+# Theme - just-the-docs is excellent for documentation
+remote_theme: just-the-docs/just-the-docs@v0.8.2
+color_scheme: light
+
+# Aux links (top right)
+aux_links:
+  "GitHub":
+    - "https://github.com/mariotoffia/FluentDocker"
+  "NuGet":
+    - "https://www.nuget.org/packages/FluentDocker"
+
+aux_links_new_tab: true
+
+# Footer
+footer_content: "FluentDocker - Apache 2.0 License"
+
+# Navigation
+nav_enabled: true
+nav_sort: case_insensitive
+
+# Search
+search_enabled: true
+search:
+  heading_level: 2
+  previews: 3
+
+# Heading anchors
+heading_anchors: true
+
+# Back to top
+back_to_top: true
+back_to_top_text: "Back to top"
+
+# Exclude from build
+exclude:
+  - Gemfile
+  - Gemfile.lock
+  - node_modules
+  - vendor

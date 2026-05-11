@@ -5,26 +5,42 @@ on:
     branches:
       - master
       - main
-      - ci-gh-action-migration  # For testing GitHub Action Workflows
+      - fdv3
+      - 'support/**'
   pull_request:
+  schedule:
+    - cron: '0 6 * * 1'  # Monday 06:00 UTC
+  workflow_dispatch:
+    inputs:
+      run_integration:
+        description: 'Run integration tests'
+        required: false
+        type: boolean
+        default: false
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
     env:
       DOTNET_NOLOGO: 'true'
       DOTNET_CLI_TELEMETRY_OPTOUT: 'true'
     steps:
       - name: Detect environment
         id: detect-env
+        shell: bash
         run: |
           if [ "$GITHUB_ACTOR" == "nektos/act" ]; then
             echo "running_in_act=true" >> $GITHUB_OUTPUT
           else
             echo "running_in_act=false" >> $GITHUB_OUTPUT
           fi
-      
+
       - name: Echo environment
+        shell: bash
         run: |
           echo "Running in act environment: ${{ steps.detect-env.outputs.running_in_act }}"
 
@@ -37,15 +53,14 @@ jobs:
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: |
-            6.0.x
             8.0.x
-            9.0.x
+            10.0.x
 
       - name: Install GitVersion
         uses: gittools/actions/gitversion/setup@v1
         with:
           versionSpec: '5.x'
-      
+
       - name: Determine version
         id: gitversion
         uses: gittools/actions/gitversion/execute@v1
@@ -54,11 +69,17 @@ jobs:
           configFilePath: GitVersion.yml
 
       - name: Display GitVersion outputs
+        shell: bash
+        env:
+          GV_MAJOR: ${{ steps.gitversion.outputs.Major }}
+          GV_MINOR: ${{ steps.gitversion.outputs.Minor }}
+          GV_PATCH: ${{ steps.gitversion.outputs.Patch }}
+          GV_NUGET: ${{ steps.gitversion.outputs.NuGetVersion }}
         run: |
-          echo "Major: ${{ steps.gitversion.outputs.Major }}"
-          echo "Minor: ${{ steps.gitversion.outputs.Minor }}"
-          echo "Patch: ${{ steps.gitversion.outputs.Patch }}"
-          echo "NuGetVersion: ${{ steps.gitversion.outputs.NuGetVersion }}"
+          echo "Major: $GV_MAJOR"
+          echo "Minor: $GV_MINOR"
+          echo "Patch: $GV_PATCH"
+          echo "NuGetVersion: $GV_NUGET"
 
       - name: Restore dependencies
         run: dotnet restore
@@ -76,75 +97,51 @@ jobs:
           dotnet test \
             --no-build \
             --configuration Release \
-            --framework net8.0 \
-            --filter "TestCategory=CI" \
+            --framework net10.0 \
+            --filter "Category=Unit" \
             --logger "console;verbosity=detailed"
 
-      - name: Run tests (in GitHub)
+      - name: Run tests with coverage (in GitHub)
         if: steps.detect-env.outputs.running_in_act != 'true'
         run: >
-          dotnet test 
-          --no-build 
-          --configuration Release 
-          --framework net8.0
-          --filter "TestCategory=CI"
-          --collect:"XPlat Code Coverage" 
+          dotnet test
+          --no-build
+          --configuration Release
+          --framework net10.0
+          --filter "Category=Unit"
+          --collect:"XPlat Code Coverage"
           --results-directory ./coverage
           --settings coverletArgs.runsettings
 
-      - name: Detect branch for SonarCloud
-        id: detect-branch
-        run: |
-          if [ "${{ steps.detect-env.outputs.running_in_act }}" == "true" ]; then
-            # Use git to determine branch name when running in act
-            BRANCH_NAME=$(git rev-parse --abbrev-ref HEAD)
-            echo "Using git to determine branch: $BRANCH_NAME"
-            echo "branch=$BRANCH_NAME" >> $GITHUB_OUTPUT
-          else
-            # In GitHub Actions, we can use GitHub's environment variables
-            echo "Using GitHub environment for branch info"
-            echo "branch=$GITHUB_REF_NAME" >> $GITHUB_OUTPUT
-          fi
-
-      # Prepare environment variables for SonarCloud
-      - name: Setup SonarCloud environment variables
-        id: sonar-env
-        run: |
-          # Ensure the token is available regardless of environment
-          if [ "${{ steps.detect-env.outputs.running_in_act }}" == "true" ] && [ -n "$SONAR_TOKEN" ]; then
-            echo "Using SONAR_TOKEN from environment file"
-            echo "token=$SONAR_TOKEN" >> $GITHUB_OUTPUT
-          else
-            echo "Using SONAR_TOKEN from GitHub secrets"
-            echo "token=${{ secrets.SONAR_TOKEN }}" >> $GITHUB_OUTPUT
-          fi
-
-      # Single SonarCloud scan step for both environments
-      - name: SonarCloud Scan
-        uses: SonarSource/sonarqube-scan-action@master
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          SONAR_TOKEN: ${{ steps.sonar-env.outputs.token }}
+      - name: Upload coverage reports to Codecov
+        if: steps.detect-env.outputs.running_in_act != 'true' && matrix.os == 'ubuntu-latest'
+        uses: codecov/codecov-action@v5
         with:
-          args: >
-            -Dsonar.projectKey=mariotoffia_FluentDocker
-            -Dsonar.organization=mariotoffia
-            -Dsonar.cs.opencover.reportsPaths=./coverage/**/coverage.opencover.xml
-            -Dsonar.coverage.exclusions=**Tests*.cs
-            -Dsonar.branch.name=${{ steps.detect-branch.outputs.branch }}
-            -Dsonar.projectVersion=${{ steps.gitversion.outputs.AssemblySemVer }}
-            
+          token: ${{ secrets.CODECOV_TOKEN }}
+
       - name: Create NuGet packages
+        if: matrix.os == 'ubuntu-latest'
         run: |
-          echo "Creating NuGet packages with version: ${{ steps.gitversion.outputs.NuGetVersion }}"
+          echo "Creating NuGet packages"
           dotnet pack --configuration Release --no-build --output packages /p:Version=${{ steps.gitversion.outputs.NuGetVersion }} /p:AssemblyVersion=${{ steps.gitversion.outputs.AssemblySemVer }} /p:FileVersion=${{ steps.gitversion.outputs.AssemblySemFileVer }}
 
+      - name: Validate NuGet packages
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          EXPECTED=("FluentDocker" "FluentDocker.Testing.Xunit" "FluentDocker.Testing.MsTest" "FluentDocker.Testing.NUnit")
+          for pkg in "${EXPECTED[@]}"; do
+            ls packages/${pkg}.*.nupkg 1>/dev/null 2>&1 || { echo "MISSING: ${pkg}"; exit 1; }
+            echo "OK: ${pkg}"
+          done
+
       - name: List NuGet packages
+        if: matrix.os == 'ubuntu-latest'
         run: |
           echo "Created NuGet packages:"
           ls -la packages/*.nupkg
-          
+
       - name: Upload NuGet packages as artifacts
+        if: matrix.os == 'ubuntu-latest'
         uses: actions/upload-artifact@v4
         with:
           name: nuget-packages
@@ -153,19 +150,105 @@ jobs:
         continue-on-error: ${{ steps.detect-env.outputs.running_in_act == 'true' }}
 
       - name: Publish NuGet packages
-        if: github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main'
+        if: matrix.os == 'ubuntu-latest' && (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/support/'))
         run: |
-          echo "Publishing NuGet packages with version: ${{ steps.gitversion.outputs.NuGetVersion }}"
           dotnet nuget push "packages/*.nupkg" --api-key ${{ secrets.NUGET_API_KEY }} --source https://api.nuget.org/v3/index.json --skip-duplicate
         continue-on-error: ${{ steps.detect-env.outputs.running_in_act == 'true' }}
-        
+
       - name: Create and push Git tag for release
-        if: (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main') && steps.detect-env.outputs.running_in_act != 'true'
+        if: matrix.os == 'ubuntu-latest' && (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/support/')) && steps.detect-env.outputs.running_in_act != 'true'
+        env:
+          GV_NUGET: ${{ steps.gitversion.outputs.NuGetVersion }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          echo "Creating Git tag for version: ${{ steps.gitversion.outputs.NuGetVersion }}"
+          echo "Creating Git tag for version: $GV_NUGET"
           git config --global user.name "GitHub Actions"
           git config --global user.email "actions@github.com"
-          git tag ${{ steps.gitversion.outputs.NuGetVersion }}
-          git push origin ${{ steps.gitversion.outputs.NuGetVersion }}
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          git tag "$GV_NUGET"
+          git push origin "$GV_NUGET"
+
+  # CodeQL Security Analysis
+  codeql:
+    name: CodeQL Security Analysis
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request' || github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main'
+    permissions:
+      security-events: write
+      actions: read
+      contents: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: csharp
+          queries: +security-and-quality
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: |
+            8.0.x
+            10.0.x
+
+      - name: Build for CodeQL
+        run: |
+          dotnet restore
+          dotnet build --configuration Release
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v3
+        with:
+          category: "/language:csharp"
+
+  # Integration tests — run on PRs (ubuntu only), schedule, or manual dispatch
+  integration-tests:
+    name: Integration Tests (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        # PRs: ubuntu only (fast feedback). Schedule/dispatch: full matrix.
+        os: ${{ (github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.run_integration == true)) && fromJson('["ubuntu-latest","macos-latest","windows-latest"]') || fromJson('["ubuntu-latest"]') }}
+    runs-on: ${{ matrix.os }}
+    if: >
+      github.event_name == 'pull_request' ||
+      github.event_name == 'schedule' ||
+      (github.event_name == 'workflow_dispatch' && inputs.run_integration == true)
+    env:
+      DOTNET_NOLOGO: 'true'
+      DOTNET_CLI_TELEMETRY_OPTOUT: 'true'
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: |
+            8.0.x
+            10.0.x
+
+      - name: Check Docker availability
+        id: docker-check
+        shell: bash
+        run: |
+          if docker info > /dev/null 2>&1; then
+            echo "available=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "available=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - run: dotnet restore
+
+      - run: dotnet build --configuration Debug --no-restore
+
+      - name: Run integration tests
+        if: steps.docker-check.outputs.available == 'true'
+        run: dotnet test FluentDocker.Tests/FluentDocker.Tests.csproj --configuration Debug --no-build --verbosity normal
+        timeout-minutes: 30
+
+      - name: Skip integration tests (no Docker)
+        if: steps.docker-check.outputs.available != 'true'
+        shell: bash
+        run: |
+          echo "Docker not available on this runner — skipping integration tests"

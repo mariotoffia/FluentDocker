@@ -1,0 +1,102 @@
+using System;
+using System.Collections.Generic;
+using System.Net;
+using FluentDocker.Model.Common;
+using FluentDocker.Model.Compose;
+using FluentDocker.Model.Containers;
+using FluentDocker.Services;
+
+namespace FluentDocker.Model.Builders
+{
+  public sealed class DestroyIfExistParams
+  {
+    public bool Force { get; set; }
+    public bool RemoveVolumes { get; set; }
+    public string LinkToRemove { get; set; }
+  }
+
+  public sealed class ContainerBuilderConfig
+  {
+    public ContainerBuilderConfig() => CreateParams = new ContainerCreateParams();
+
+    /// <summary>
+    /// When set to true, the container will be removed if it exists before creating it.
+    /// </summary>
+    /// <value>true if it shall be destroyed if exists, false if skip checking and destroy.</value>
+    /// <remarks>
+    /// Default is false.
+    /// </remarks>
+    public DestroyIfExistParams DestroyIfExists { get; set; }
+    public bool VerifyExistence { get; set; }
+    public ContainerCreateParams CreateParams { get; }
+    public string Image { get; set; }
+    public bool ImageForcePull { get; set; }
+    public bool IsWindowsImage { get; set; }
+    public bool StopOnDispose { get; set; } = true;
+    public bool DeleteOnDispose { get; set; } = true;
+    public bool DeleteVolumeOnDispose { get; set; }
+    public bool DeleteNamedVolumeOnDispose { get; set; }
+    public Func<Dictionary<string, HostIpEndpoint[]>, string, Uri, IPEndPoint> CustomResolver { get; set; }
+    public string Command { get; set; }
+    public string[] Arguments { get; set; }
+    public Tuple<string /*portAndProto*/, string /*address*/ , long /*waitTimeout*/> WaitForPort { get; set; }
+    public Tuple<long /*waitTimeout*/> WaitForHealthy { get; set; }
+    public Tuple<long/*waitTimeout*/, string /*message*/> WaitForMessageInLog { get; set; }
+    public List<ContainerSpecificConfig.WaitForHttpParams> WaitForHttp { get; } =
+      [];
+    public List<Func<IContainerService, int, int>> WaitLambda { get; } = [];
+    public Tuple<string /*process*/, long /*waitTimeout*/> WaitForProcess { get; set; }
+    public List<Tuple<TemplateString /*host*/, TemplateString /*container*/>> CpToOnStart { get; set; }
+    public List<Tuple<TemplateString /*host*/, TemplateString /*container*/>> CpFromOnDispose { get; set; }
+    public Tuple<TemplateString /*host*/, bool /*explode*/,
+      Func<IContainerService, bool> /*condition*/> ExportOnDispose
+    { get; set; }
+    public List<INetworkService> Networks { get; set; }
+    public List<NetworkWithAlias<INetworkService>> NetworksWithAlias { get; set; }
+    public List<string> NetworkNames { get; set; }
+    public List<NetworkWithAlias<string>> NetworkNamesWithAlias { get; set; }
+    public List<string> ExecuteOnRunningArguments { get; set; }
+    public List<string> ExecuteOnDisposingArguments { get; set; }
+
+    public NetworkWithAlias<string> FindFirstNetworkNameAndAlias()
+    {
+
+      if (Networks != null && Networks.Count > 0)
+      {
+        return new NetworkWithAlias<string>
+        {
+          Network = Networks[0].Name,
+        };
+      }
+      else if (NetworksWithAlias != null && NetworksWithAlias.Count > 0)
+      {
+        return new NetworkWithAlias<string>
+        {
+          Network = NetworksWithAlias[0].Network.Name,
+          Alias = NetworksWithAlias[0].Alias
+        };
+      }
+      else if (NetworkNames != null && NetworkNames.Count > 0)
+      {
+        return new NetworkWithAlias<string>
+        {
+          Network = NetworkNames[0],
+        };
+      }
+      else if (NetworkNamesWithAlias != null && NetworkNamesWithAlias.Count > 0)
+      {
+        return new NetworkWithAlias<string>
+        {
+          Network = NetworkNamesWithAlias[0].Network,
+          Alias = NetworkNamesWithAlias[0].Alias
+        };
+      }
+
+      return new NetworkWithAlias<string>
+      {
+        Network = string.Empty,
+        Alias = string.Empty
+      };
+    }
+  }
+}

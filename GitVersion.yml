@@ -1,5 +1,6 @@
 # GitVersion configuration file
 # This file is used by the GitVersion GitHub Action in the CI pipeline
+next-version: 3.0.0
 mode: Mainline
 major-version-bump-message: '\+semver:\s?(breaking|major)'
 minor-version-bump-message: '\+semver:\s?(feature|minor)'
@@ -17,6 +18,14 @@ branches:
     increment: Minor
     prevent-increment-of-merged-branch-version: true
     track-merge-target: false
+  support:
+    regex: ^support[/-]
+    tag: ''
+    increment: Patch
+    prevent-increment-of-merged-branch-version: true
+    track-merge-target: false
+    is-mainline: true
+    source-branches: ['master', 'main']
   feature:
     regex: ^features?[/-]
     tag: 'beta'

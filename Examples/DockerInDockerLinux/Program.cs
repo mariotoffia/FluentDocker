@@ -1,22 +1,36 @@
 ﻿using System;
 using System.Linq;
-using Ductus.FluentDocker.Commands;
-using Ductus.FluentDocker.Services;
+using System.Threading.Tasks;
+using FluentDocker.Kernel;
+using FluentDocker.Services.Impl;
+using FluentDocker.Services;
 
 namespace DockerInDockerLinux
 {
-    class Program
+  class Program
+  {
+    private const string DriverId = "docker";
+
+    static async Task Main(string[] args)
     {
-        static void Main(string[] args)
-        {
-            var hosts = new Hosts().Discover();
-                
-            var docker = hosts.FirstOrDefault(x => x.IsNative) ?? hosts.FirstOrDefault(x => x.Name == "default");
-            Console.WriteLine($"Docker host: {docker?.Host.Host}, {docker?.Host.AbsolutePath}, {docker?.Host.AbsoluteUri}");
-            
-            var containers = docker?.GetContainers();
-            Console.WriteLine(docker?.Host.Host);
-            Console.WriteLine($"Number of containers: {containers?.Count}");
-        }
+      using var kernel = await FluentDockerKernel.Create()
+        .WithDockerCli(DriverId, d => d.AsDefault())
+        .BuildAsync();
+
+      await using var host = new HostService(kernel, DriverId, "default", isNative: true, requireTls: false);
+
+      Console.WriteLine($"Docker driver: {DriverId}");
+
+      var version = await host.GetVersionAsync();
+      Console.WriteLine($"Server version: {version.ServerVersion}");
+
+      var containers = await host.GetContainersAsync();
+      Console.WriteLine($"Number of containers: {containers.Count}");
+
+      foreach (var container in containers.Take(5))
+      {
+        Console.WriteLine($"{container.Name} ({container.Id})");
+      }
     }
+  }
 }

@@ -1,0 +1,426 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Runtime.ExceptionServices;
+using System.Threading;
+using System.Threading.Tasks;
+using FluentDocker.Kernel;
+using Microsoft.Extensions.Logging;
+
+namespace FluentDocker.Testing.Core
+{
+  /// <summary>
+  /// Base class for all Docker test resources. Provides shared lifecycle,
+  /// diagnostics, cleanup, and hook infrastructure.
+  /// </summary>
+  public abstract class ResourceBase : ITestResource
+  {
+    private readonly List<Func<ITestResource, Task>> _beforeInitHooks = [];
+    private readonly List<Func<ITestResource, Task>> _afterReadyHooks = [];
+    private readonly List<Func<ITestResource, Task>> _beforeDisposeHooks = [];
+    private readonly List<Func<ITestResource, Task>> _afterDisposeHooks = [];
+    private readonly SemaphoreSlim _lifecycleLock = new(1, 1);
+    private bool _provisioned;
+
+    /// <summary>
+    /// Creates a new resource with the given kernel and options.
+    /// </summary>
+    protected ResourceBase(FluentDockerKernel kernel, DockerResourceOptions options = null)
+    {
+      ArgumentNullException.ThrowIfNull(kernel);
+      Kernel = kernel;
+      Options = options ?? new DockerResourceOptions();
+      // Logger uses the *concrete* derived type as its category so users can filter per-resource.
+      Logger = kernel.LoggerFactory.CreateLogger(GetType());
+    }
+
+    /// <summary>
+    /// Logger for this resource. Category equals the concrete derived type's FQN.
+    /// </summary>
+    protected ILogger Logger { get; }
+
+    /// <summary>
+    /// The kernel managing drivers for this resource.
+    /// </summary>
+    public FluentDockerKernel Kernel { get; }
+
+    /// <summary>
+    /// Resource configuration.
+    /// </summary>
+    public DockerResourceOptions Options { get; }
+
+    /// <inheritdoc />
+    public bool IsInitialized { get; private set; }
+
+    /// <summary>
+    /// The resolved driver ID for this resource.
+    /// </summary>
+    public string DriverId { get; private set; }
+
+    /// <summary>
+    /// Unique name generated for this resource. Set during initialization.
+    /// </summary>
+    public string ResourceName { get; protected set; }
+
+    /// <summary>
+    /// Diagnostics collected on failure.
+    /// </summary>
+    public ResourceDiagnostics Diagnostics { get; private set; }
+
+    /// <summary>
+    /// Diagnostics captured when teardown fails during disposal.
+    /// </summary>
+    public TeardownDiagnostics? LastTeardownDiagnostics { get; private set; }
+
+    #region Lifecycle Hooks
+
+    /// <summary>
+    /// Adds a hook invoked before initialization starts.
+    /// </summary>
+    public ResourceBase OnBeforeInitialize(Func<ITestResource, Task> hook)
+    {
+      ArgumentNullException.ThrowIfNull(hook);
+      _beforeInitHooks.Add(hook);
+      return this;
+    }
+
+    /// <summary>
+    /// Adds a hook invoked after the resource is ready.
+    /// </summary>
+    public ResourceBase OnAfterReady(Func<ITestResource, Task> hook)
+    {
+      ArgumentNullException.ThrowIfNull(hook);
+      _afterReadyHooks.Add(hook);
+      return this;
+    }
+
+    /// <summary>
+    /// Adds a hook invoked before disposal starts.
+    /// </summary>
+    public ResourceBase OnBeforeDispose(Func<ITestResource, Task> hook)
+    {
+      ArgumentNullException.ThrowIfNull(hook);
+      _beforeDisposeHooks.Add(hook);
+      return this;
+    }
+
+    /// <summary>
+    /// Adds a hook invoked after disposal completes.
+    /// </summary>
+    public ResourceBase OnAfterDispose(Func<ITestResource, Task> hook)
+    {
+      ArgumentNullException.ThrowIfNull(hook);
+      _afterDisposeHooks.Add(hook);
+      return this;
+    }
+
+    #endregion
+
+    #region ITestResource
+
+    /// <inheritdoc />
+    public async Task InitializeAsync(CancellationToken cancellationToken = default)
+    {
+      await _lifecycleLock.WaitAsync(cancellationToken).ConfigureAwait(false);
+      try
+      {
+        if (IsInitialized)
+          return;
+
+        if (_provisioned)
+          throw new InvalidOperationException(
+              "Resource has been provisioned but is not initialized " +
+              "(teardown may have failed). Call DisposeAsync to clean up " +
+              "before re-initializing.");
+
+        DriverId = ResolveDriverId();
+        ValidateExpectedDriverType();
+
+        using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        cts.CancelAfter(Options.InitializationTimeout);
+
+        try
+        {
+          await RunHooksAsync(_beforeInitHooks, cts.Token).ConfigureAwait(false);
+          await PreflightAsync(cts.Token).ConfigureAwait(false);
+
+          if (Options.CleanupOrphansOnInit)
+          {
+            try
+            {
+              await OrphanCleanup.CleanupOrphanedResourcesAsync(
+                  Kernel, DriverId, Options.SessionId, cts.Token).ConfigureAwait(false);
+            }
+            catch { /* orphan cleanup is best-effort */ }
+          }
+
+          _provisioned = true;
+          await ProvisionAsync(cts.Token).ConfigureAwait(false);
+          Diagnostics = null;
+          IsInitialized = true;
+          await RunHooksAsync(_afterReadyHooks, cts.Token).ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+          IsInitialized = false;
+          try
+          { Diagnostics = await CollectDiagnosticsAsync(ex, cts.Token).ConfigureAwait(false); }
+          catch { /* diagnostics must not mask the original failure */ }
+          throw;
+        }
+      }
+      finally
+      {
+        _lifecycleLock.Release();
+      }
+    }
+
+    /// <inheritdoc />
+    public async ValueTask DisposeAsync()
+    {
+      await _lifecycleLock.WaitAsync().ConfigureAwait(false);
+      try
+      {
+        using var cts = new CancellationTokenSource(Options.TeardownTimeout);
+
+        try
+        {
+          await RunHooksAsync(_beforeDisposeHooks, cts.Token).ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+          Logger.LogWarning(ex, "Before-dispose hook failed");
+        }
+
+        Exception teardownFailure = null;
+
+        if (_provisioned)
+        {
+          try
+          {
+            await TeardownAsync(cts.Token).ConfigureAwait(false);
+            _provisioned = false;
+          }
+          catch (Exception ex)
+          {
+            if (Options.ForceRemoveOnDispose)
+            {
+              Exception? forceRemoveFailure = null;
+              using var forceCts = new CancellationTokenSource(Options.TeardownTimeout);
+              try
+              { await ForceRemoveAsync(forceCts.Token).ConfigureAwait(false); }
+              catch (Exception forceEx) { forceRemoveFailure = forceEx; }
+              _provisioned = false;
+              LastTeardownDiagnostics = new TeardownDiagnostics
+              {
+                TeardownException = ex,
+                ForceRemoveException = forceRemoveFailure
+              };
+            }
+            else
+            {
+              teardownFailure = ex;
+              // _provisioned stays true so next DisposeAsync retries
+            }
+          }
+        }
+
+        IsInitialized = false;
+
+        try
+        {
+          await RunHooksAsync(_afterDisposeHooks, cts.Token).ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+          Logger.LogWarning(ex, "After-dispose hook failed");
+        }
+
+        if (teardownFailure != null)
+          ExceptionDispatchInfo.Capture(teardownFailure).Throw();
+      }
+      finally
+      {
+        _lifecycleLock.Release();
+      }
+
+      GC.SuppressFinalize(this);
+    }
+
+    #endregion
+
+    #region Template Methods
+
+    /// <summary>
+    /// Checks that the driver supports the required capabilities for this resource type.
+    /// </summary>
+    protected abstract Task PreflightAsync(CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Creates, starts, and waits for the resource to be ready.
+    /// </summary>
+    protected abstract Task ProvisionAsync(CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Gracefully stops and removes the resource.
+    /// </summary>
+    /// <param name="cancellationToken">Cancellation token bound to
+    /// <see cref="DockerResourceOptions.TeardownTimeout"/>.</param>
+    protected abstract Task TeardownAsync(CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Force-removes the resource when graceful teardown fails.
+    /// </summary>
+    /// <param name="cancellationToken">Cancellation token bound to
+    /// <see cref="DockerResourceOptions.TeardownTimeout"/>.</param>
+    protected abstract Task ForceRemoveAsync(CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Collects diagnostic information when initialization fails.
+    /// </summary>
+    protected virtual Task<ResourceDiagnostics> CollectDiagnosticsAsync(
+        Exception failure,
+        CancellationToken cancellationToken = default)
+    {
+      return Task.FromResult(new ResourceDiagnostics
+      {
+        Failure = failure,
+        ResourceName = ResourceName,
+        DriverId = DriverId
+      });
+    }
+
+    #endregion
+
+    #region Helpers
+
+    /// <summary>
+    /// Resolves which driver ID to use based on <see cref="Options"/>.
+    /// </summary>
+    protected string ResolveDriverId()
+    {
+      if (Options.Driver == null)
+        throw new InvalidOperationException(
+            "DockerResourceOptions.Driver is null. " +
+            "Use DriverSelection.Default or DriverSelection.Specific(id) instead.");
+
+      if (Options.Driver.UseDefault)
+        return Kernel.DefaultDriverId;
+
+      return Options.Driver.DriverId
+             ?? throw new InvalidOperationException("DriverSelection has no DriverId set");
+    }
+
+    /// <summary>
+    /// Generates a unique name for parallel-safe resource creation.
+    /// </summary>
+    protected static string GenerateUniqueName(string prefix)
+    {
+      return $"{prefix}-{Guid.NewGuid():N}"[..Math.Min(63, prefix.Length + 33)];
+    }
+
+    /// <summary>
+    /// Validates that the resolved driver matches the expected type, if specified.
+    /// </summary>
+    private void ValidateExpectedDriverType()
+    {
+      if (Options.Driver.ExpectedType.HasValue)
+      {
+        var pack = Kernel.GetDriverPack(DriverId);
+        if (pack.Type != Options.Driver.ExpectedType.Value)
+          throw new InvalidOperationException(
+              $"Expected driver type '{Options.Driver.ExpectedType.Value}' but " +
+              $"driver '{DriverId}' is type '{pack.Type}'.");
+      }
+    }
+
+    /// <summary>
+    /// Truncates log output to <see cref="DockerResourceOptions.MaxDiagnosticLogLines"/>.
+    /// </summary>
+    protected string TruncateLogLines(string logs)
+    {
+      if (string.IsNullOrEmpty(logs) || Options.MaxDiagnosticLogLines <= 0)
+        return logs;
+
+      var lines = logs.Split('\n');
+      if (lines.Length <= Options.MaxDiagnosticLogLines)
+        return logs;
+
+      return string.Join('\n', lines.Take(Options.MaxDiagnosticLogLines))
+           + $"\n... ({lines.Length - Options.MaxDiagnosticLogLines} lines truncated)";
+    }
+
+    private async Task RunHooksAsync(
+        List<Func<ITestResource, Task>> hooks,
+        CancellationToken cancellationToken)
+    {
+      foreach (var hook in hooks)
+      {
+        cancellationToken.ThrowIfCancellationRequested();
+        var hookTask = hook(this);
+        var completed = await Task.WhenAny(
+            hookTask,
+            Task.Delay(Timeout.Infinite, cancellationToken)).ConfigureAwait(false);
+
+        if (completed != hookTask)
+          cancellationToken.ThrowIfCancellationRequested();
+
+        await hookTask.ConfigureAwait(false);
+      }
+    }
+
+    #endregion
+  }
+
+  /// <summary>
+  /// Diagnostic information collected when a resource fails to initialize.
+  /// </summary>
+  public class ResourceDiagnostics
+  {
+    /// <summary>
+    /// The exception that caused the failure.
+    /// </summary>
+    public Exception Failure { get; set; }
+
+    /// <summary>
+    /// Resource name at the time of failure.
+    /// </summary>
+    public string ResourceName { get; set; }
+
+    /// <summary>
+    /// Driver ID used.
+    /// </summary>
+    public string DriverId { get; set; }
+
+    /// <summary>
+    /// Container/service inspect payload (JSON), if available.
+    /// </summary>
+    public string InspectPayload { get; set; }
+
+    /// <summary>
+    /// Logs collected from the resource, if available.
+    /// </summary>
+    public string Logs { get; set; }
+
+    /// <summary>
+    /// Additional context about the operation.
+    /// </summary>
+    public string OperationContext { get; set; }
+  }
+
+  /// <summary>
+  /// Diagnostics captured when teardown fails during disposal.
+  /// </summary>
+  public class TeardownDiagnostics
+  {
+    /// <summary>
+    /// The exception from the graceful teardown attempt.
+    /// </summary>
+    public Exception? TeardownException { get; init; }
+
+    /// <summary>
+    /// The exception from the force-remove attempt, or null if it succeeded.
+    /// </summary>
+    public Exception? ForceRemoveException { get; init; }
+  }
+}

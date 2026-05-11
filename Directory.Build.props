@@ -1,0 +1,22 @@
+<Project>
+  <PropertyGroup>
+    <TargetFrameworks>net8.0;net10.0</TargetFrameworks>
+    <LangVersion>latest</LangVersion>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <SignAssembly>true</SignAssembly>
+    <AssemblyOriginatorKeyFile>$(MSBuildThisFileDirectory)keypair.snk</AssemblyOriginatorKeyFile>
+    <PublicSign Condition=" '$(OS)' != 'Windows_NT' ">true</PublicSign>
+    <Authors>Mario Toffia</Authors>
+    <Copyright>&#169; 2016 - 2026 Mario Toffia</Copyright>
+    <RepositoryType>git</RepositoryType>
+    <RepositoryUrl>https://github.com/mariotoffia/FluentDocker</RepositoryUrl>
+    <AnalysisLevel>latest-recommended</AnalysisLevel>
+    <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+    <!-- Suppress until nullable is fully enabled in main lib -->
+    <NoWarn>$(NoWarn);CA1062</NoWarn>
+    <!-- Suppress culture-specific string rules (library targets invariant culture) -->
+    <NoWarn>$(NoWarn);CA1305;CA1304;CA1310;CA1311</NoWarn>
+    <!-- CA1507: all hits are [JsonProperty] serialization keys, not symbol refs — nameof is wrong here -->
+    <NoWarn>$(NoWarn);CA1507</NoWarn>
+  </PropertyGroup>
+</Project>
