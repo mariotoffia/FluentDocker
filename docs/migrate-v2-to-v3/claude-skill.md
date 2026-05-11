@@ -24,9 +24,13 @@ Search the entire codebase for files that reference FluentDocker:
 Grep for: Ductus\.FluentDocker
 Grep for: FluentDocker\.Builders\.Builder
 Grep for: using Ductus\.FluentDocker
+Grep for: Logging\.Enabled\(\)
+Grep for: Logging\.Disabled\(\)
 ```
 
-List all files found. These are the files you will modify.
+The last two patterns find call sites of v2's static logging toggle, which is
+removed in v3 (see Step 13). List all files found. These are the files you
+will modify.
 
 ---
 
@@ -455,10 +459,69 @@ public class MyFixture : XunitContainerFixture
 
 ---
 
-## Step 13: Update logging configuration
+## Step 13: Switch logging to Microsoft.Extensions.Logging
+
+**BREAKING CHANGE.** v2 used a static toggle (`Logging.Enabled()` /
+`Logging.Disabled()`) that wrote to `System.Diagnostics.Trace`. v3 removes that
+class entirely and integrates with `Microsoft.Extensions.Logging.Abstractions`.
+
+An `ILoggerFactory` is **required** at the kernel entry point — the compiler
+will refuse to build any code that calls `FluentDockerKernel.Create()` or
+constructs `KernelBuilder` / `FluentDockerKernel` / `DriverRegistry` without
+one. There is no library-side default; consumers who want silence must pass
+`NullLoggerFactory.Instance` explicitly.
+
+### Find and remove the old toggle
+
+Search for and delete every occurrence of these statements:
+
+```
+Grep for: Logging\.Enabled\(\)
+Grep for: Logging\.Disabled\(\)
+Grep for: using FluentDocker\.Common;\s*$    (only if Logger was its sole use)
+Grep for: Logger\.Log\(                       (the static helper is gone)
+```
+
+### Rewrite kernel construction
+
+```csharp
+// OLD (v2)
+using Ductus.FluentDocker.Services;
+
+Logging.Enabled();   // toggle on
+Logging.Disabled();  // toggle off
+
+// NEW (v3) -- supply an ILoggerFactory to the kernel
+using Microsoft.Extensions.Logging;
+using FluentDocker.Kernel;
+
+using var factory = LoggerFactory.Create(b => b.AddConsole());
+var kernel = await FluentDockerKernel.Create(factory)
+    .WithDockerCli("docker", d => d.AsDefault())
+    .BuildAsync();
+```
+
+To preserve v2's `Logging.Disabled()` semantics (no log output at all), pass
+`NullLoggerFactory.Instance`:
+
+```csharp
+using Microsoft.Extensions.Logging.Abstractions;
+
+var kernel = await FluentDockerKernel.Create(NullLoggerFactory.Instance)
+    .WithDockerCli("docker", d => d.AsDefault())
+    .BuildAsync();
+```
+
+### Update appsettings.json category names
+
+In v2 the `appsettings.json` `Logging` section did **not** actually flow into
+FluentDocker -- the library only checked the static `Enabled` bool. In v3 the
+library logs through MEL, so `appsettings.json` filters work as expected. Each
+FluentDocker type uses its FQN as the log category, so you can filter at any
+granularity:
 
 ```json
-// OLD
+// OLD (v2) -- this block was a no-op for FluentDocker itself, only the host
 {
   "Logging": {
     "LogLevel": {
@@ -467,15 +530,43 @@ public class MyFixture : XunitContainerFixture
   }
 }
 
-// NEW
+// NEW (v3) -- consumed by FluentDocker via your host's LoggerFactory
 {
   "Logging": {
     "LogLevel": {
-      "FluentDocker": "Debug"
+      "Default": "Information",
+      "FluentDocker.Drivers": "Warning",
+      "FluentDocker.Services.Impl.ContainerService": "Debug",
+      "FluentDocker.Kernel": "Information"
     }
   }
 }
 ```
+
+The factory built from `appsettings.json` is passed to
+`FluentDockerKernel.Create(factory)` -- the configuration does not flow into
+the library automatically.
+
+### Package reference
+
+Ensure the consumer project has the MEL abstractions package (transitively
+provided by FluentDocker 3.x, but list it explicitly if you create the factory
+in this project):
+
+```xml
+<PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="9.0.3" />
+<!-- Plus whichever provider you want, e.g. Microsoft.Extensions.Logging.Console -->
+```
+
+### Severity policy (so the AI knows what to expect)
+
+FluentDocker v3 logs at these levels:
+
+- `Debug` -- best-effort parse skips in streaming readers (stats, events,
+  compose service info). Routine.
+- `Warning` -- cleanup/disposal failures. Non-fatal but flagged.
+- `Error` -- operation failures the library catches and returns as a failed
+  `CommandResponse`.
 
 ---
 
