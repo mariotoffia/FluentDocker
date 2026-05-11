@@ -88,13 +88,11 @@ namespace FluentDocker.Testing.Core
       TResource resource = null;
       try
       {
-        kernel = kernelFactory != null
+        kernel = (kernelFactory != null
             ? await kernelFactory().ConfigureAwait(false)
-            : await defaultKernelFactory().ConfigureAwait(false);
-
-        if (kernel == null)
-          throw new InvalidOperationException(
-              "Kernel factory returned null. The factory must return a non-null kernel.");
+            : await defaultKernelFactory().ConfigureAwait(false))
+            ?? throw new InvalidOperationException(
+                "Kernel factory returned null. The factory must return a non-null kernel.");
 
         resource = resourceFactory(kernel)
             ?? throw new InvalidOperationException(

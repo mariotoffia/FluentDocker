@@ -269,14 +269,9 @@ namespace FluentDocker.Builders
 
     private void SetScope(string driverId, FluentDockerKernel kernel)
     {
-      _currentKernel = kernel ?? _currentKernel;
-
-      if (_currentKernel == null)
-      {
-        throw new InvalidOperationException(
-            "Kernel required in first WithinDriver() call. " +
-            "Provide a kernel or create one with FluentDockerKernel.Create().BuildAsync()");
-      }
+      _currentKernel = kernel ?? _currentKernel ?? throw new InvalidOperationException(
+          "Kernel required in first WithinDriver() call. " +
+          "Provide a kernel or create one with FluentDockerKernel.Create().BuildAsync()");
 
       _currentDriverId = driverId;
     }
