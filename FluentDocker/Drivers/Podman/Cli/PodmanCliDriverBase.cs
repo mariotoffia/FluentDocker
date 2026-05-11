@@ -164,7 +164,9 @@ namespace FluentDocker.Drivers.Podman.Cli
             RedirectStandardError = true,
             RedirectStandardInput = needsStdin,
             UseShellExecute = false,
-            CreateNoWindow = true
+            CreateNoWindow = true,
+            StandardOutputEncoding = Encoding.UTF8,
+            StandardErrorEncoding = Encoding.UTF8
           }
         };
 
@@ -244,7 +246,9 @@ namespace FluentDocker.Drivers.Podman.Cli
           RedirectStandardError = true,
           RedirectStandardInput = passwordForStdin != null,
           UseShellExecute = false,
-          CreateNoWindow = true
+          CreateNoWindow = true,
+          StandardOutputEncoding = Encoding.UTF8,
+          StandardErrorEncoding = Encoding.UTF8
         }
       };
 
@@ -297,7 +301,9 @@ namespace FluentDocker.Drivers.Podman.Cli
           RedirectStandardOutput = true,
           RedirectStandardError = true,
           UseShellExecute = false,
-          CreateNoWindow = true
+          CreateNoWindow = true,
+          StandardOutputEncoding = Encoding.UTF8,
+          StandardErrorEncoding = Encoding.UTF8
         }
       };
 
