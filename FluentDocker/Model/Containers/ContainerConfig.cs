@@ -1,10 +1,7 @@
-using System;
 using System.Collections.Generic;
-using System.Text.Json.Serialization;
 
 namespace FluentDocker.Model.Containers
 {
-#pragma warning disable CA1708 // Domainname/DomainName differ by case — legacy compat with Obsolete redirect
   /// <summary>
   /// Container configuration as returned by Docker/Podman inspect.
   /// Maps to the "Config" section of the container inspect JSON.
