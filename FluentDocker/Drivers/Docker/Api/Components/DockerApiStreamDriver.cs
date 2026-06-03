@@ -31,7 +31,32 @@ namespace FluentDocker.Drivers.Docker.Api.Components
         StreamLogsConfig config = null,
         [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
-      config ??= new StreamLogsConfig();
+      await foreach (var entry in StreamEntriesAsync(containerId, config, cancellationToken)
+          .ConfigureAwait(false))
+      {
+        yield return entry.Line;
+      }
+    }
+
+    /// <summary>
+    /// Streams source-tagged log entries. The originating stream (stdout/stderr) is taken
+    /// from the Docker multiplexed stream header, which the line-based <see cref="StreamLogsAsync"/>
+    /// discards.
+    /// </summary>
+    public async IAsyncEnumerable<LogEntry> StreamLogEntriesAsync(
+        DriverContext context, string containerId,
+        StreamLogsConfig config = null,
+        [EnumeratorCancellation] CancellationToken cancellationToken = default)
+    {
+      await foreach (var entry in StreamEntriesAsync(containerId, config, cancellationToken)
+          .ConfigureAwait(false))
+      {
+        yield return entry;
+      }
+    }
+
+    private static string BuildLogsPath(string containerId, StreamLogsConfig config)
+    {
       var path = $"/containers/{Uri.EscapeDataString(containerId)}/logs?" +
           $"follow={config.Follow.ToString().ToLower()}" +
           $"&stdout={config.Stdout.ToString().ToLower()}" +
@@ -44,6 +69,15 @@ namespace FluentDocker.Drivers.Docker.Api.Components
         path += $"&since={Uri.EscapeDataString(config.Since)}";
       if (!string.IsNullOrEmpty(config.Until))
         path += $"&until={Uri.EscapeDataString(config.Until)}";
+      return path;
+    }
+
+    private async IAsyncEnumerable<LogEntry> StreamEntriesAsync(
+        string containerId, StreamLogsConfig config,
+        [EnumeratorCancellation] CancellationToken cancellationToken)
+    {
+      config ??= new StreamLogsConfig();
+      var path = BuildLogsPath(containerId, config);
 
       Stream stream;
       try
@@ -61,9 +95,9 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       // Use try/finally to dispose the stream when the caller breaks out.
       try
       {
-        await foreach (var line in ReadMultiplexedStreamAsync(stream, cancellationToken))
+        await foreach (var entry in ReadMultiplexedStreamAsync(stream, cancellationToken))
         {
-          yield return line;
+          yield return entry;
         }
       }
       finally
@@ -197,11 +231,11 @@ namespace FluentDocker.Drivers.Docker.Api.Components
     #region Multiplexed Stream Reader
 
     /// <summary>
-    /// Reads Docker multiplexed stream format.
+    /// Reads Docker multiplexed stream format, tagging each line with its source stream.
     /// Header: [stream_type:1][0:3][size:4 big-endian] followed by payload.
     /// stream_type: 0=stdin, 1=stdout, 2=stderr.
     /// </summary>
-    private static async IAsyncEnumerable<string> ReadMultiplexedStreamAsync(
+    private static async IAsyncEnumerable<LogEntry> ReadMultiplexedStreamAsync(
         Stream stream, [EnumeratorCancellation] CancellationToken ct)
     {
       var header = new byte[8];
@@ -218,7 +252,8 @@ namespace FluentDocker.Drivers.Docker.Api.Components
 
         if (bytesRead < 8)
         {
-          // Possibly a raw (TTY) stream -- try reading as plain text
+          // Possibly a raw (TTY) stream -- try reading as plain text.
+          // Raw streams carry no source byte, so everything is treated as stdout.
           if (bytesRead > 0)
           {
             var partial = Encoding.UTF8.GetString(header, 0, bytesRead);
@@ -228,11 +263,13 @@ namespace FluentDocker.Drivers.Docker.Api.Components
             foreach (var line in (partial + rest).Split('\n'))
             {
               if (!string.IsNullOrEmpty(line))
-                yield return line;
+                yield return new LogEntry { Source = LogStreamSource.Stdout, Line = line };
             }
           }
           yield break;
         }
+
+        var source = MapSource(header[0]);
 
         var frameSize = (header[4] << 24) | (header[5] << 16) |
             (header[6] << 8) | header[7];
@@ -249,10 +286,17 @@ namespace FluentDocker.Drivers.Docker.Api.Components
         foreach (var line in text.Split('\n'))
         {
           if (!string.IsNullOrEmpty(line))
-            yield return line;
+            yield return new LogEntry { Source = source, Line = line };
         }
       }
     }
+
+    private static LogStreamSource MapSource(byte streamType) => streamType switch
+    {
+      0 => LogStreamSource.Stdin,
+      2 => LogStreamSource.Stderr,
+      _ => LogStreamSource.Stdout,
+    };
 
     // ReadExactAsync is inherited from DockerApiDriverBase
 

@@ -310,6 +310,54 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
 
     #endregion
 
+    #region StreamLogEntriesAsync (source tagging, issue #326)
+
+    [Fact]
+    public async Task StreamLogEntriesAsync_TagsStdoutAndStderrPerFrame()
+    {
+      var f1 = CreateMultiplexedFrame(1, "out-line");
+      var f2 = CreateMultiplexedFrame(2, "err-line");
+      var combined = new byte[f1.Length + f2.Length];
+      Array.Copy(f1, 0, combined, 0, f1.Length);
+      Array.Copy(f2, 0, combined, f1.Length, f2.Length);
+
+      var (driver, mock) = CreateDriver();
+      mock.SetupStreamBytes("/containers/src1/logs", combined);
+
+      var entries = new List<LogEntry>();
+      await foreach (var entry in driver.StreamLogEntriesAsync(Ctx, "src1",
+          new StreamLogsConfig { Follow = false }, cancellationToken: TestContext.Current.CancellationToken))
+      {
+        entries.Add(entry);
+      }
+
+      Assert.Equal(2, entries.Count);
+      Assert.Equal(LogStreamSource.Stdout, entries[0].Source);
+      Assert.Equal("out-line", entries[0].Line);
+      Assert.Equal(LogStreamSource.Stderr, entries[1].Source);
+      Assert.Equal("err-line", entries[1].Line);
+    }
+
+    [Fact]
+    public async Task StreamLogEntriesAsync_RawTtyStream_DefaultsToStdout()
+    {
+      // Fewer than 8 bytes triggers the raw/TTY fallback path.
+      var (driver, mock) = CreateDriver();
+      mock.SetupStream("/containers/src2/logs", "ab\ncd");
+
+      var entries = new List<LogEntry>();
+      await foreach (var entry in driver.StreamLogEntriesAsync(Ctx, "src2",
+          new StreamLogsConfig { Follow = false }, cancellationToken: TestContext.Current.CancellationToken))
+      {
+        entries.Add(entry);
+      }
+
+      Assert.NotEmpty(entries);
+      Assert.All(entries, e => Assert.Equal(LogStreamSource.Stdout, e.Source));
+    }
+
+    #endregion
+
     #region Multiplexed Frame Helpers
 
     /// <summary>

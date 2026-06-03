@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using FluentDocker.Common;
@@ -30,6 +31,30 @@ namespace FluentDocker.Drivers
         string containerId,
         StreamLogsConfig config = null,
         CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Streams container logs as <see cref="LogEntry"/> values tagged with the originating
+    /// stream (stdout/stderr). The Docker Engine API driver populates the real source from the
+    /// multiplexed stream header; CLI-based drivers, which cannot distinguish the streams at
+    /// the line level, tag every line as <see cref="LogStreamSource.Stdout"/> by default.
+    /// </summary>
+    /// <param name="context">Driver context</param>
+    /// <param name="containerId">Container ID or name</param>
+    /// <param name="config">Stream configuration</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>Async enumerable of source-tagged log entries</returns>
+    async IAsyncEnumerable<LogEntry> StreamLogEntriesAsync(
+        DriverContext context,
+        string containerId,
+        StreamLogsConfig config = null,
+        [EnumeratorCancellation] CancellationToken cancellationToken = default)
+    {
+      await foreach (var line in StreamLogsAsync(context, containerId, config, cancellationToken)
+          .WithCancellation(cancellationToken).ConfigureAwait(false))
+      {
+        yield return new LogEntry { Source = LogStreamSource.Stdout, Line = line };
+      }
+    }
 
     /// <summary>
     /// Streams system events.
@@ -70,6 +95,35 @@ namespace FluentDocker.Drivers
         string containerId,
         AttachConfig config = null,
         CancellationToken cancellationToken = default);
+  }
+
+  /// <summary>
+  /// Identifies which container stream a log line originated from. Values match the Docker
+  /// multiplexed stream-type byte (0 = stdin, 1 = stdout, 2 = stderr).
+  /// </summary>
+  public enum LogStreamSource
+  {
+    /// <summary>The container's standard input.</summary>
+    Stdin = 0,
+    /// <summary>The container's standard output.</summary>
+    Stdout = 1,
+    /// <summary>The container's standard error.</summary>
+    Stderr = 2
+  }
+
+  /// <summary>
+  /// A single container log line together with the stream it came from.
+  /// </summary>
+  public sealed class LogEntry
+  {
+    /// <summary>The stream the line was written to.</summary>
+    public LogStreamSource Source { get; set; }
+
+    /// <summary>The log line (without the trailing newline).</summary>
+    public string Line { get; set; }
+
+    /// <summary>Optional timestamp when timestamps are requested in the stream config.</summary>
+    public DateTime? Timestamp { get; set; }
   }
 
   #region Config Types
