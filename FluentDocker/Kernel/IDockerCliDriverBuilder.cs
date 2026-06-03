@@ -31,5 +31,16 @@ namespace FluentDocker.Kernel
     /// <param name="mechanism">Sudo mechanism to use</param>
     /// <param name="password">Password when using <see cref="SudoMechanism.Password"/></param>
     IDockerCliDriverBuilder WithSudo(SudoMechanism mechanism, string password = null);
+
+    /// <summary>
+    /// Drives a docker-compatible CLI other than <c>docker</c> (best-effort) — for example
+    /// <c>finch</c> or <c>nerdctl</c> — without aliasing it to <c>docker</c>. Note that some
+    /// engines differ on a few global flags (e.g. <c>-H</c>/<c>--tlsverify</c>).
+    /// </summary>
+    /// <param name="binaryName">The client binary name, e.g. "finch" or "nerdctl".</param>
+    /// <param name="searchPaths">
+    /// Optional directories to search for the binary. When omitted, <c>PATH</c> is used.
+    /// </param>
+    IDockerCliDriverBuilder WithBinary(string binaryName, params string[] searchPaths);
   }
 }

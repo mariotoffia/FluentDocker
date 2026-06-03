@@ -96,7 +96,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Docker
             BindingFlags.NonPublic | BindingFlags.Instance);
         Assert.NotNull(method);
 
-        var result = method.Invoke(instance, [sudo, password, paths]);
+        var result = method.Invoke(instance, [sudo, password, "docker", paths]);
         return (IEnumerable<DockerBinary>)result;
       }
       finally

@@ -40,6 +40,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Binary
       Binaries = [.. ResolveFromPaths(
           _configuration.Sudo,
           _configuration.SudoPassword,
+          _configuration.BinaryName,
           _configuration.SearchPaths)];
 
       MainDockerClient = Binaries.FirstOrDefault(x => x.Type == DockerBinaryType.DockerClient);
@@ -123,9 +124,13 @@ namespace FluentDocker.Drivers.Docker.Cli.Binary
           : $"sudo -S {binary.FqPath}";
     }
 
-    private IEnumerable<DockerBinary> ResolveFromPaths(SudoMechanism sudo, string password, params string[] paths)
+    private IEnumerable<DockerBinary> ResolveFromPaths(
+        SudoMechanism sudo, string password, string binaryName, params string[] paths)
     {
       var isWindows = IsWindows();
+      var clientName = string.IsNullOrWhiteSpace(binaryName) ? "docker" : binaryName;
+      var isDocker = string.Equals(clientName, "docker", StringComparison.OrdinalIgnoreCase);
+
       if (paths == null || paths.Length == 0)
       {
         var envpaths = Environment.GetEnvironmentVariable("PATH")?.Split(isWindows ? ';' : ':');
@@ -134,6 +139,11 @@ namespace FluentDocker.Drivers.Docker.Cli.Binary
 
       if (paths == null || paths.Length == 0)
         return [];
+
+      // The resolved client binary always maps to DockerClient so MainDockerClient is
+      // found, even for docker-compatible CLIs (finch, nerdctl) whose name does not
+      // translate to a known DockerBinaryType.
+      var clientFile = isWindows ? $"{clientName}.exe" : clientName;
 
       var list = new List<DockerBinary>();
       foreach (var path in paths)
@@ -147,25 +157,28 @@ namespace FluentDocker.Drivers.Docker.Cli.Binary
 
           if (isWindows)
           {
-            list.AddRange(from file in Directory.GetFiles(path, "docker*.*")
-                          let f = Path.GetFileName(file.ToLower())
-                          where f != null && f.Equals("docker.exe", StringComparison.Ordinal)
-                          select new DockerBinary(path, f, sudo, password));
+            list.AddRange(from file in Directory.GetFiles(path, $"{clientName}*.*")
+                          let f = Path.GetFileName(file)
+                          where f != null && f.Equals(clientFile, StringComparison.OrdinalIgnoreCase)
+                          select new DockerBinary(path, f, sudo, password, DockerBinaryType.DockerClient));
 
-            var dockercli = Path.GetFullPath(Path.Combine(path, "..\\.."));
-            if (File.Exists(Path.Combine(dockercli, "dockercli.exe")))
+            // Docker Desktop's dockercli.exe is docker-specific; skip for custom binaries.
+            if (isDocker)
             {
-              list.Add(new DockerBinary(dockercli, "dockercli.exe", sudo, password));
+              var dockercli = Path.GetFullPath(Path.Combine(path, "..\\.."));
+              if (File.Exists(Path.Combine(dockercli, "dockercli.exe")))
+              {
+                list.Add(new DockerBinary(dockercli, "dockercli.exe", sudo, password));
+              }
             }
 
             continue;
           }
 
-          list.AddRange(from file in Directory.GetFiles(path, "docker*")
+          list.AddRange(from file in Directory.GetFiles(path, $"{clientName}*")
                         let f = Path.GetFileName(file)
-                        let f2 = f.ToLower()
-                        where f2.Equals("docker", StringComparison.Ordinal)
-                        select new DockerBinary(path, f, sudo, password));
+                        where f.Equals(clientFile, StringComparison.Ordinal)
+                        select new DockerBinary(path, f, sudo, password, DockerBinaryType.DockerClient));
         }
         catch (Exception e)
         {
