@@ -141,6 +141,20 @@ namespace FluentDocker.Tests.Mocks
     }
 
     /// <summary>
+    /// Sets up ComposeDriver.RestartAsync to return success.
+    /// </summary>
+    public MockDriverPack SetupComposeRestart()
+    {
+      ComposeDriver
+          .Setup(d => d.RestartAsync(
+              It.IsAny<DriverContext>(),
+              It.IsAny<ComposeRestartConfig>(),
+              It.IsAny<CancellationToken>()))
+          .ReturnsAsync(FluentDocker.Model.Drivers.CommandResponse<Unit>.Ok(Unit.Default));
+      return this;
+    }
+
+    /// <summary>
     /// Sets up ComposeDriver.PauseAsync to return success.
     /// </summary>
     public MockDriverPack SetupComposePause()
