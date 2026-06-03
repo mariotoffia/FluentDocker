@@ -172,6 +172,7 @@ namespace FluentDocker.Builders
     private bool _wait;
     private int? _timeout;
     private int? _waitTimeout;
+    private bool _attachToExisting;
     private readonly List<string> _services = [];
 
     public IComposeBuilder WithComposeFile(string path) { _composeFiles.Add(path); return this; }
@@ -228,11 +229,24 @@ namespace FluentDocker.Builders
     }
 
     public IComposeBuilder WithProfiles(params string[] profiles) { _profiles.AddRange(profiles); return this; }
+    public IComposeBuilder ConnectToExisting(bool connect = true) { _attachToExisting = connect; return this; }
 
     public async Task<IServiceAsync> ExecuteAsync(CancellationToken cancellationToken)
     {
       var driver = _kernel.SysCtl<Drivers.IComposeDriver>(_driverId);
       var context = new DriverContext(_driverId);
+
+      // Attach to an already-running project: do NOT run `compose up`, just hand back a
+      // service bound to the existing project (issue #305).
+      if (_attachToExisting)
+      {
+        if (string.IsNullOrEmpty(_projectName) && _composeFiles.Count == 0)
+          throw new FluentDockerException(
+              "ConnectToExisting requires WithProjectName and/or WithComposeFile to identify the project.");
+
+        return new Services.Impl.ComposeService(
+            _kernel, _driverId, _composeFiles, _projectName, _removeVolumes, _removeImages);
+      }
 
       var config = new Drivers.ComposeUpConfig
       {

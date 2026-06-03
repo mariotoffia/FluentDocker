@@ -161,6 +161,30 @@ namespace FluentDocker.Services.Impl
       }
     }
 
+    public async Task RefreshStateAsync(CancellationToken cancellationToken = default)
+    {
+      var services = await ListServicesAsync(cancellationToken).ConfigureAwait(false);
+
+      if (services == null || services.Count == 0)
+      {
+        UpdateState(ServiceRunningState.Unknown);
+        return;
+      }
+
+      var anyRunning = false;
+      foreach (var s in services)
+      {
+        if (!string.IsNullOrEmpty(s.State) &&
+            s.State.Contains("running", StringComparison.OrdinalIgnoreCase))
+        {
+          anyRunning = true;
+          break;
+        }
+      }
+
+      UpdateState(anyRunning ? ServiceRunningState.Running : ServiceRunningState.Stopped);
+    }
+
     public async Task StartAsync(CancellationToken cancellationToken = default)
     {
       var driver = _kernel.SysCtl<IComposeDriver>(_driverId);
