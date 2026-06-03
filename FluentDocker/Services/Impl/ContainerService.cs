@@ -178,6 +178,28 @@ namespace FluentDocker.Services.Impl
       await ExecuteHooksAsync(ServiceRunningState.Stopped).ConfigureAwait(false);
     }
 
+    public async Task KillAsync(string signal = "SIGKILL", CancellationToken cancellationToken = default)
+    {
+      var driver = _kernel.SysCtl<IContainerDriver>(_driverId);
+      var context = new DriverContext(_driverId);
+
+      UpdateState(ServiceRunningState.Stopping);
+      await ExecuteHooksAsync(ServiceRunningState.Stopping).ConfigureAwait(false);
+
+      var response = await driver.KillAsync(context, _containerId, signal, cancellationToken).ConfigureAwait(false);
+
+      if (!response.Success)
+      {
+        throw new DriverException(
+            $"Failed to kill container '{_name}': {response.Error}",
+            response.ErrorCode,
+            response.ErrorContext);
+      }
+
+      UpdateState(ServiceRunningState.Stopped);
+      await ExecuteHooksAsync(ServiceRunningState.Stopped).ConfigureAwait(false);
+    }
+
     public async Task RemoveAsync(bool force = false, CancellationToken cancellationToken = default)
     {
       var driver = _kernel.SysCtl<IContainerDriver>(_driverId);
