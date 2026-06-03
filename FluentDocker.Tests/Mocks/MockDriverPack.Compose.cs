@@ -270,5 +270,20 @@ namespace FluentDocker.Tests.Mocks
               }));
       return this;
     }
+
+    /// <summary>
+    /// Sets up ContainerDriver.KillAsync to return success.
+    /// </summary>
+    public MockDriverPack SetupContainerKill()
+    {
+      ContainerDriver
+          .Setup(d => d.KillAsync(
+              It.IsAny<DriverContext>(),
+              It.IsAny<string>(),
+              It.IsAny<string>(),
+              It.IsAny<CancellationToken>()))
+          .ReturnsAsync(FluentDocker.Model.Drivers.CommandResponse<Unit>.Ok(Unit.Default));
+      return this;
+    }
   }
 }
