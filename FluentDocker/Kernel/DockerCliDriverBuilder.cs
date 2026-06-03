@@ -16,6 +16,8 @@ namespace FluentDocker.Kernel
     private bool _isDefault;
     private SudoMechanism _sudo = SudoMechanism.None;
     private string _sudoPassword;
+    private string _binaryName;
+    private string[] _searchPaths;
 
     public IDockerCliDriverBuilder AtHost(string host)
     {
@@ -42,6 +44,13 @@ namespace FluentDocker.Kernel
       return this;
     }
 
+    public IDockerCliDriverBuilder WithBinary(string binaryName, params string[] searchPaths)
+    {
+      _binaryName = binaryName;
+      _searchPaths = searchPaths is { Length: > 0 } ? searchPaths : null;
+      return this;
+    }
+
     internal KernelBuilder.DriverConfiguration Build()
     {
       var context = new DriverContext(_driverId)
@@ -50,6 +59,8 @@ namespace FluentDocker.Kernel
         CertificatePath = _certificatePath,
         Sudo = _sudo,
         SudoPassword = _sudoPassword,
+        BinaryName = _binaryName,
+        SearchPaths = _searchPaths,
       };
 
       return new KernelBuilder.DriverConfiguration

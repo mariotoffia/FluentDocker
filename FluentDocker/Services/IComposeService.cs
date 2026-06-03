@@ -41,6 +41,20 @@ namespace FluentDocker.Services
     Task ScaleAsync(string service, int replicas, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Restarts the whole compose project (<c>docker compose restart</c>).
+    /// </summary>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    Task RestartAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Restarts specific services in the compose project
+    /// (<c>docker compose restart &lt;service&gt; …</c>).
+    /// </summary>
+    /// <param name="services">The services to restart. When null or empty, the whole project is restarted.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    Task RestartAsync(IEnumerable<string> services, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Refreshes <see cref="IServiceAsync.State"/> by querying the live per-service status
     /// (<c>docker compose ps</c>). Useful after attaching to an existing project (see
     /// <c>ConnectToExisting</c>) so the aggregate state reflects what the daemon reports

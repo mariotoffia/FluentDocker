@@ -260,6 +260,35 @@ namespace FluentDocker.Services.Impl
       await ExecuteHooksAsync(ServiceRunningState.Stopped).ConfigureAwait(false);
     }
 
+    public Task RestartAsync(CancellationToken cancellationToken = default) =>
+        RestartAsync(null, cancellationToken);
+
+    public async Task RestartAsync(IEnumerable<string> services, CancellationToken cancellationToken = default)
+    {
+      var driver = _kernel.SysCtl<IComposeDriver>(_driverId);
+      var context = new DriverContext(_driverId);
+
+      var config = new ComposeRestartConfig
+      {
+        ComposeFiles = _composeFiles,
+        ProjectName = _projectName,
+        Services = services is null ? [] : [.. services]
+      };
+
+      var response = await driver.RestartAsync(context, config, cancellationToken).ConfigureAwait(false);
+
+      if (!response.Success)
+      {
+        throw new DriverException(
+            $"Failed to restart compose project '{_projectName}': {response.Error}",
+            response.ErrorCode,
+            response.ErrorContext);
+      }
+
+      UpdateState(ServiceRunningState.Running);
+      await ExecuteHooksAsync(ServiceRunningState.Running).ConfigureAwait(false);
+    }
+
     public async Task RemoveAsync(bool force = false, CancellationToken cancellationToken = default)
     {
       var driver = _kernel.SysCtl<IComposeDriver>(_driverId);

@@ -89,6 +89,30 @@ namespace FluentDocker.Builders
     /// <returns>The builder instance for method chaining.</returns>
     IContainerBuilder WithCommand(params string[] command);
 
+    /// <summary>
+    /// Keeps STDIN open on the container (<c>docker run -i</c>). Combined with
+    /// <see cref="WithTty"/>, this keeps an otherwise short-lived image (e.g. an SDK base
+    /// image) alive so commands can be run into it via <c>ExecuteAsync</c>.
+    /// </summary>
+    /// <param name="interactive">Whether to keep STDIN open. Defaults to <c>true</c>.</param>
+    /// <returns>The builder instance for method chaining.</returns>
+    IContainerBuilder WithInteractive(bool interactive = true);
+
+    /// <summary>
+    /// Allocates a pseudo-TTY for the container (<c>docker run -t</c>).
+    /// </summary>
+    /// <param name="tty">Whether to allocate a TTY. Defaults to <c>true</c>.</param>
+    /// <returns>The builder instance for method chaining.</returns>
+    IContainerBuilder WithTty(bool tty = true);
+
+    /// <summary>
+    /// Overrides the image entrypoint (<c>docker run --entrypoint</c>). Each element is a
+    /// separate token; the first is the executable and the rest are its arguments.
+    /// </summary>
+    /// <param name="entrypoint">The entrypoint executable and arguments.</param>
+    /// <returns>The builder instance for method chaining.</returns>
+    IContainerBuilder WithEntrypoint(params string[] entrypoint);
+
     /// <summary>Binds a host path to a container path as a volume mount.</summary>
     /// <param name="hostPath">The absolute path on the host filesystem.</param>
     /// <param name="containerPath">The mount point inside the container.</param>

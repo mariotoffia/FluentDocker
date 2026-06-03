@@ -426,5 +426,73 @@ namespace FluentDocker.Tests.CoreTests.Service
     }
 
     #endregion
+
+    #region RestartAsync (issue #318)
+
+    [Fact]
+    public async Task RestartAsync_WholeProject_CallsDriverWithNoServices()
+    {
+      var mockPack = new MockDriverPack();
+      mockPack.SetupComposeRestart();
+
+      var kernel = await MockKernelBuilderExtensions.CreateWithMockDriverAsync("docker", mockPack);
+      try
+      {
+        var service = CreateService(kernel);
+        await service.RestartAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal(ServiceRunningState.Running, service.State);
+        mockPack.ComposeDriver.Verify(d => d.RestartAsync(
+            It.IsAny<DriverContext>(),
+            It.Is<ComposeRestartConfig>(c => c.Services.Count == 0 && c.ProjectName == "test-project"),
+            It.IsAny<CancellationToken>()), Times.Once);
+      }
+      finally { kernel.Dispose(); }
+    }
+
+    [Fact]
+    public async Task RestartAsync_SpecificServices_PassesServiceList()
+    {
+      var mockPack = new MockDriverPack();
+      mockPack.SetupComposeRestart();
+
+      var kernel = await MockKernelBuilderExtensions.CreateWithMockDriverAsync("docker", mockPack);
+      try
+      {
+        var service = CreateService(kernel);
+        await service.RestartAsync(["web", "db"], TestContext.Current.CancellationToken);
+
+        mockPack.ComposeDriver.Verify(d => d.RestartAsync(
+            It.IsAny<DriverContext>(),
+            It.Is<ComposeRestartConfig>(c =>
+                c.Services.Count == 2 && c.Services[0] == "web" && c.Services[1] == "db"),
+            It.IsAny<CancellationToken>()), Times.Once);
+      }
+      finally { kernel.Dispose(); }
+    }
+
+    [Fact]
+    public async Task RestartAsync_Failure_ThrowsDriverException()
+    {
+      var mockPack = new MockDriverPack();
+      mockPack.ComposeDriver
+          .Setup(d => d.RestartAsync(
+              It.IsAny<DriverContext>(),
+              It.IsAny<ComposeRestartConfig>(),
+              It.IsAny<CancellationToken>()))
+          .ReturnsAsync(CommandResponse<Unit>.Fail("boom", "COMPOSE_RESTART_FAILED"));
+
+      var kernel = await MockKernelBuilderExtensions.CreateWithMockDriverAsync("docker", mockPack);
+      try
+      {
+        var service = CreateService(kernel);
+        var ex = await Assert.ThrowsAsync<DriverException>(
+            () => service.RestartAsync(TestContext.Current.CancellationToken));
+        Assert.Contains("restart compose project", ex.Message.ToLowerInvariant());
+      }
+      finally { kernel.Dispose(); }
+    }
+
+    #endregion
   }
 }

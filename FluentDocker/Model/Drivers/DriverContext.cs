@@ -65,6 +65,19 @@ namespace FluentDocker.Model.Drivers
     public string DefaultShell { get; set; } = "bash";
 
     /// <summary>
+    /// Name of the CLI binary the Docker CLI driver should invoke. Defaults to
+    /// <c>docker</c>. Set to a docker-compatible CLI (e.g. <c>finch</c> or <c>nerdctl</c>)
+    /// to drive that engine without aliasing it to <c>docker</c>.
+    /// </summary>
+    public string BinaryName { get; set; }
+
+    /// <summary>
+    /// Custom directories to search for the CLI binary. When null or empty, the
+    /// <c>PATH</c> environment variable is used.
+    /// </summary>
+    public string[] SearchPaths { get; set; }
+
+    /// <summary>
     /// Configuration for automatic Podman machine start.
     /// When non-null, the Podman driver pack will ensure a machine
     /// is running during initialization.
