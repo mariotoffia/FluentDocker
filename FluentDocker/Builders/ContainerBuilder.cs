@@ -73,6 +73,9 @@ namespace FluentDocker.Builders
     private bool _readonlyRootfs;
     private string _platform;
     private string _runtime;
+    private bool _interactive;
+    private bool _tty;
+    private string[] _entrypoint;
     private int _waitPollIntervalMs = 500;
     private Services.Impl.ContainerService _pendingService;
     private bool _waitConditionsExecuted;
@@ -118,6 +121,9 @@ namespace FluentDocker.Builders
     }
 
     public IContainerBuilder WithCommand(params string[] command) { _command.AddRange(command); return this; }
+    public IContainerBuilder WithInteractive(bool interactive = true) { _interactive = interactive; return this; }
+    public IContainerBuilder WithTty(bool tty = true) { _tty = tty; return this; }
+    public IContainerBuilder WithEntrypoint(params string[] entrypoint) { _entrypoint = entrypoint; return this; }
     public IContainerBuilder WithVolume(string hostPath, string containerPath) { _volumes[hostPath] = containerPath; return this; }
     public IContainerBuilder WithLabel(string key, string value) { _labels[key] = value; return this; }
     public IContainerBuilder WithWorkingDirectory(string workingDir) { _workingDir = workingDir; return this; }
@@ -437,7 +443,10 @@ namespace FluentDocker.Builders
         Devices = _devices.Count > 0 ? _devices : null,
         ReadonlyRootfs = _readonlyRootfs,
         Platform = _platform,
-        Runtime = _runtime
+        Runtime = _runtime,
+        Interactive = _interactive,
+        Tty = _tty,
+        Entrypoint = _entrypoint?.Length > 0 ? _entrypoint : null
       };
 
       var response = await driver.CreateAsync(context, config, cancellationToken).ConfigureAwait(false);
