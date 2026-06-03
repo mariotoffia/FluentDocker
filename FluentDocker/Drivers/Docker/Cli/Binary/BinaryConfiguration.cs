@@ -30,6 +30,13 @@ namespace FluentDocker.Drivers.Docker.Cli.Binary
     public string[] SearchPaths { get; set; }
 
     /// <summary>
+    /// Gets or sets the name of the client binary to resolve and invoke.
+    /// Defaults to <c>docker</c>; set to a docker-compatible CLI such as
+    /// <c>finch</c> or <c>nerdctl</c> to drive that engine.
+    /// </summary>
+    public string BinaryName { get; set; } = "docker";
+
+    /// <summary>
     /// Creates a new instance with default settings.
     /// </summary>
     public BinaryConfiguration()
