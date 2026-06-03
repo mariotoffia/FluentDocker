@@ -103,24 +103,49 @@ namespace FluentDocker.Builders
         return;
 
       _waitConditionsExecuted = true;
-      await ExecuteWaitConditionsAsync(_pendingService, cancellationToken).ConfigureAwait(false);
+      await RunPostStartAsync(_pendingService, cancellationToken).ConfigureAwait(false);
     }
 
-    private async Task ExecuteLifecycleHooksAsync(
-        Services.Impl.ContainerService service, ServiceRunningState state,
+    /// <summary>
+    /// Runs the post-start sequence for a started container: setup hooks (CopyToOnStart) first,
+    /// then wait conditions, then ExecuteOnRunning commands. Running Execute hooks AFTER the wait
+    /// conditions means commands fire only once the container is actually ready (issue #283).
+    /// </summary>
+    internal async Task RunPostStartAsync(
+        Services.Impl.ContainerService service, CancellationToken cancellationToken)
+    {
+      await RunRunningLifecycleHooksAsync(service, executeCommands: false, cancellationToken).ConfigureAwait(false);
+      await ExecuteWaitConditionsAsync(service, cancellationToken).ConfigureAwait(false);
+      await RunRunningLifecycleHooksAsync(service, executeCommands: true, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Runs Running-triggered lifecycle hooks. When <paramref name="executeCommands"/> is false,
+    /// only setup hooks (CopyToOnStart) run; when true, only ExecuteOnRunning commands run.
+    /// Each element of an Execute hook's command array is executed as a separate command,
+    /// and failures propagate (the v2 contract) rather than being silently swallowed.
+    /// </summary>
+    private async Task RunRunningLifecycleHooksAsync(
+        Services.Impl.ContainerService service, bool executeCommands,
         CancellationToken cancellationToken)
     {
-      var hooks = _lifecycleHooks.Where(h => h.TriggerState == state);
-      foreach (var hook in hooks)
+      foreach (var hook in _lifecycleHooks)
       {
+        if (hook.TriggerState != ServiceRunningState.Running)
+          continue;
+
         switch (hook.Type)
         {
-          case LifecycleHookType.CopyTo:
+          case LifecycleHookType.CopyTo when !executeCommands:
             await service.CopyToAsync(hook.ContainerPath,
                 File.ReadAllBytes(hook.HostPath), cancellationToken).ConfigureAwait(false);
             break;
-          case LifecycleHookType.Execute:
-            await service.ExecuteAsync(string.Join(" ", hook.Command), cancellationToken).ConfigureAwait(false);
+          case LifecycleHookType.Execute when executeCommands:
+            if (hook.Command != null)
+            {
+              foreach (var command in hook.Command)
+                await service.ExecuteAsync(command, cancellationToken).ConfigureAwait(false);
+            }
             break;
         }
       }
