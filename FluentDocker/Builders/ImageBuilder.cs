@@ -296,6 +296,7 @@ namespace FluentDocker.Builders
       var buildConfig = new ImageBuildConfig
       {
         BuildContext = buildContext,
+        DockerfileName = _dockerfileBuilder.PreparedDockerfileName,
         Tags = [.. _tags.Select(t => $"{_imageName}:{t}")],
         BuildArgs = _buildArgs,
         Labels = _labels,

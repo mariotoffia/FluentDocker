@@ -21,7 +21,19 @@ namespace FluentDocker.Builders
     private readonly FileBuilderConfig _config = new();
     private readonly ImageBuilder _parent;
     private TemplateString _workingFolder;
+    private TemplateString _buildContext;
     private string _lastContents;
+    private string _preparedDockerfileName;
+
+    /// <summary>
+    /// When an in-place build context is used (see <see cref="WithBuildContext"/>), this is
+    /// the name of the existing Dockerfile relative to the build context, suitable for the
+    /// driver's <c>--file</c> argument. <c>null</c> for the default (rendered) build path.
+    /// </summary>
+    internal string PreparedDockerfileName => _preparedDockerfileName;
+
+    private bool IsInPlaceBuild =>
+        _buildContext != null && !string.IsNullOrEmpty(_config.UseFile?.Rendered);
 
     /// <summary>
     /// Creates a standalone DockerfileBuilder for generating Dockerfile content.
@@ -45,9 +57,43 @@ namespace FluentDocker.Builders
     /// <returns>Working directory path</returns>
     internal async Task<string> PrepareBuildAsync()
     {
+      if (IsInPlaceBuild)
+        return PrepareInPlaceBuild();
+
       await CopyToWorkDirAsync(_workingFolder).ConfigureAwait(false);
       RenderDockerfile(_workingFolder);
       return _workingFolder;
+    }
+
+    /// <summary>
+    /// Prepares an in-place build: uses an existing Dockerfile within the caller-provided
+    /// build context without copying or rendering anything, so no generated Dockerfile is
+    /// left behind (issue #280).
+    /// </summary>
+    private string PrepareInPlaceBuild()
+    {
+      var context = _buildContext.Rendered;
+      if (string.IsNullOrEmpty(context) || !Directory.Exists(context))
+        throw new FluentDockerException(
+            $"WithBuildContext path '{context}' does not exist.");
+
+      var dockerfilePath = _config.UseFile.Rendered;
+      if (string.IsNullOrEmpty(dockerfilePath) || !File.Exists(dockerfilePath))
+        throw new FluentDockerException(
+            $"FromFile path '{dockerfilePath}' does not exist.");
+
+      // The Dockerfile must live inside the build context so docker/podman (and the
+      // Engine API context tarball) can reference it via --file relative to the context.
+      var fullContext = Path.GetFullPath(context);
+      var fullDockerfile = Path.GetFullPath(dockerfilePath);
+      var relative = Path.GetRelativePath(fullContext, fullDockerfile);
+      if (relative.StartsWith("..", StringComparison.Ordinal) || Path.IsPathRooted(relative))
+        throw new FluentDockerException(
+            $"The Dockerfile '{fullDockerfile}' must reside inside the build context '{fullContext}'.");
+
+      _preparedDockerfileName = relative.Replace('\\', '/');
+      _lastContents = File.ReadAllText(fullDockerfile);
+      return fullContext;
     }
 
     /// <summary>
@@ -101,6 +147,22 @@ namespace FluentDocker.Builders
     public DockerfileBuilder WorkingFolder(string workingFolder)
     {
       _workingFolder = workingFolder;
+      return this;
+    }
+
+    /// <summary>
+    /// Builds an existing Dockerfile (set via <see cref="FromFile"/>) in place, using
+    /// <paramref name="contextPath"/> as the build context. The existing Dockerfile is
+    /// passed to the engine via <c>--file</c> instead of being copied or rendered, so no
+    /// generated <c>Dockerfile</c> is left in your working directory (issue #280).
+    /// </summary>
+    /// <param name="contextPath">
+    /// The build context directory. The Dockerfile passed to <see cref="FromFile"/> must
+    /// reside inside this directory (it may be in a sub-directory).
+    /// </param>
+    public DockerfileBuilder WithBuildContext(string contextPath)
+    {
+      _buildContext = contextPath;
       return this;
     }
 
