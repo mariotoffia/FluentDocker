@@ -11,7 +11,7 @@ Complete guide to creating, configuring, and managing containers with FluentDock
 ## Step by Step
 
 - Basics: [Kernel Setup](#kernel-setup), [Container Lifecycle](#container-lifecycle), [Port Exposure](#port-exposure), [Environment Variables](#environment-variables)
-- Intermediate: [Wait Strategies](#wait-strategies), [Execute Commands](#execute-commands), [Container Logs](#container-logs), [Cleanup and Dispose Behavior](#cleanup-and-dispose-behavior)
+- Intermediate: [Wait Strategies](#wait-strategies), [Execute Commands](#execute-commands), [Container Logs](#container-logs), [Inspecting Container Info](#inspecting-container-info), [Cleanup and Dispose Behavior](#cleanup-and-dispose-behavior)
 - Advanced: [Resource Limits](#resource-limits), [Advanced Container Options](#advanced-container-options), [Container Existence Behavior](#container-existence-behavior), [File Operations](#file-operations)
 
 ## Kernel Setup
@@ -371,6 +371,37 @@ using var results = new Builder()
 var container = results.Containers.First();
 var config = container.GetConfiguration(fresh: true);
 Console.WriteLine($"ID: {config.Id}, Name: {config.Name}, State: {config.State.Status}");
+```
+
+### Inspecting Container Info
+
+`GetConfiguration(fresh: true)` (or the async `GetConfigurationAsync()`) returns the full
+inspected `Container`, so you can read the creation time, the resolved image config,
+environment, exposed ports, and labels without shelling out to `docker inspect`:
+
+```csharp
+var config = container.GetConfiguration(fresh: true);
+
+Console.WriteLine($"Created:    {config.Created:O}");
+Console.WriteLine($"Image:      {config.Config.Image}");
+Console.WriteLine($"WorkingDir: {config.Config.WorkingDir}");
+
+foreach (var env in config.Config.Env ?? Array.Empty<string>())
+    Console.WriteLine($"Env:     {env}");
+
+foreach (var port in config.Config.ExposedPorts?.Keys ?? Enumerable.Empty<string>())
+    Console.WriteLine($"Exposed: {port}");
+
+foreach (var (key, value) in config.Config.Labels ?? new Dictionary<string, string>())
+    Console.WriteLine($"Label:   {key}={value}");
+```
+
+To get the **host** port a container port is mapped to, use `ToHostExposedEndpoint`
+(see [Port Exposure](#port-exposure)):
+
+```csharp
+var endpoint = container.ToHostExposedEndpoint("80/tcp"); // e.g. 127.0.0.1:49162
+Console.WriteLine($"Reachable at {endpoint.Address}:{endpoint.Port}");
 ```
 
 ## Resource Limits

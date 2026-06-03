@@ -132,7 +132,9 @@ namespace FluentDocker.Services.Impl
 
       UpdateState(ServiceRunningState.Running);
       await ExecuteHooksAsync(ServiceRunningState.Running).ConfigureAwait(false);
-      await ExecuteLifecycleHooksAsync(ServiceRunningState.Running, cancellationToken).ConfigureAwait(false);
+      // Running lifecycle hooks (CopyToOnStart / ExecuteOnRunning) are orchestrated by the
+      // builder so they run exactly once and Execute hooks fire AFTER wait conditions. They
+      // are intentionally NOT run here to avoid double execution and premature ordering.
     }
 
     public async Task PauseAsync(CancellationToken cancellationToken = default)
@@ -168,6 +170,28 @@ namespace FluentDocker.Services.Impl
       {
         throw new DriverException(
             $"Failed to stop container '{_name}': {response.Error}",
+            response.ErrorCode,
+            response.ErrorContext);
+      }
+
+      UpdateState(ServiceRunningState.Stopped);
+      await ExecuteHooksAsync(ServiceRunningState.Stopped).ConfigureAwait(false);
+    }
+
+    public async Task KillAsync(string signal = "SIGKILL", CancellationToken cancellationToken = default)
+    {
+      var driver = _kernel.SysCtl<IContainerDriver>(_driverId);
+      var context = new DriverContext(_driverId);
+
+      UpdateState(ServiceRunningState.Stopping);
+      await ExecuteHooksAsync(ServiceRunningState.Stopping).ConfigureAwait(false);
+
+      var response = await driver.KillAsync(context, _containerId, signal, cancellationToken).ConfigureAwait(false);
+
+      if (!response.Success)
+      {
+        throw new DriverException(
+            $"Failed to kill container '{_name}': {response.Error}",
             response.ErrorCode,
             response.ErrorContext);
       }
@@ -406,9 +430,11 @@ namespace FluentDocker.Services.Impl
               break;
 
             case LifecycleHookType.Execute:
-              if (hook.Command?.Length > 0)
+              // Each element is a separate command (matches the v2 contract).
+              if (hook.Command != null)
               {
-                await ExecuteAsync(string.Join(" ", hook.Command), cancellationToken).ConfigureAwait(false);
+                foreach (var command in hook.Command)
+                  await ExecuteAsync(command, cancellationToken).ConfigureAwait(false);
               }
               break;
           }

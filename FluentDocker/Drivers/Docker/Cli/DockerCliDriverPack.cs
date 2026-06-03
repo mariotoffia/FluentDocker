@@ -62,9 +62,11 @@ namespace FluentDocker.Drivers.Docker.Cli
       {
         Sudo = context.Sudo,
         SudoPassword = context.SudoPassword,
-        DefaultShell = context.DefaultShell
+        DefaultShell = context.DefaultShell,
+        BinaryName = string.IsNullOrWhiteSpace(context.BinaryName) ? "docker" : context.BinaryName,
+        SearchPaths = context.SearchPaths
       };
-      _binaryResolver = new DockerBinariesResolver(binaryConfig);
+      _binaryResolver = new DockerBinariesResolver(binaryConfig, context.LoggerFactory);
 
       // Create and initialize all driver components with binary resolver
       _containerDriver = new DockerCliContainerDriver(_binaryResolver);

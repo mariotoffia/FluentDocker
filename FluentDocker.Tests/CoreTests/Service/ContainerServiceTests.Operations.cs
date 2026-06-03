@@ -179,6 +179,90 @@ namespace FluentDocker.Tests.CoreTests.Service
 
     [Fact]
     [Trait("Category", "Unit")]
+    public async Task KillAsync_CallsDriverWithSignalAndUpdatesState()
+    {
+      // Arrange
+      var mockPack = new MockDriverPack();
+      mockPack.SetupContainerKill();
+
+      var kernel = await MockKernelBuilderExtensions.CreateWithMockDriverAsync("docker", mockPack);
+
+      var service = new ContainerService(kernel, "docker", "test-container-123", "nginx:latest", "test-container");
+
+      try
+      {
+        // Act
+        await service.KillAsync("SIGTERM", cancellationToken: TestContext.Current.CancellationToken);
+
+        // Assert
+        Assert.Equal(ServiceRunningState.Stopped, service.State);
+        mockPack.ContainerDriver.Verify(d => d.KillAsync(
+            It.IsAny<FluentDocker.Model.Drivers.DriverContext>(),
+            It.Is<string>(s => s == "test-container-123"),
+            It.Is<string>(sig => sig == "SIGTERM"),
+            It.IsAny<System.Threading.CancellationToken>()), Times.Once);
+      }
+      finally
+      {
+        kernel.Dispose();
+      }
+    }
+
+    [Fact]
+    [Trait("Category", "Unit")]
+    public async Task KillAsync_DefaultsToSigkill()
+    {
+      var mockPack = new MockDriverPack();
+      mockPack.SetupContainerKill();
+      var kernel = await MockKernelBuilderExtensions.CreateWithMockDriverAsync("docker", mockPack);
+      var service = new ContainerService(kernel, "docker", "test-container-123", "nginx:latest", "test-container");
+
+      try
+      {
+        await service.KillAsync(cancellationToken: TestContext.Current.CancellationToken);
+
+        mockPack.ContainerDriver.Verify(d => d.KillAsync(
+            It.IsAny<FluentDocker.Model.Drivers.DriverContext>(),
+            It.IsAny<string>(),
+            It.Is<string>(sig => sig == "SIGKILL"),
+            It.IsAny<System.Threading.CancellationToken>()), Times.Once);
+      }
+      finally
+      {
+        kernel.Dispose();
+      }
+    }
+
+    [Fact]
+    [Trait("Category", "Unit")]
+    public async Task KillAsync_DriverFailure_ThrowsDriverException()
+    {
+      var mockPack = new MockDriverPack();
+      mockPack.ContainerDriver
+          .Setup(d => d.KillAsync(
+              It.IsAny<FluentDocker.Model.Drivers.DriverContext>(),
+              It.IsAny<string>(),
+              It.IsAny<string>(),
+              It.IsAny<System.Threading.CancellationToken>()))
+          .ReturnsAsync(FluentDocker.Model.Drivers.CommandResponse<FluentDocker.Model.Drivers.Unit>.Fail(
+              "no such container", "CONTAINER_KILL_FAILED"));
+
+      var kernel = await MockKernelBuilderExtensions.CreateWithMockDriverAsync("docker", mockPack);
+      var service = new ContainerService(kernel, "docker", "test-container-123", "nginx:latest", "test-container");
+
+      try
+      {
+        await Assert.ThrowsAsync<FluentDocker.Common.DriverException>(
+            () => service.KillAsync(cancellationToken: TestContext.Current.CancellationToken));
+      }
+      finally
+      {
+        kernel.Dispose();
+      }
+    }
+
+    [Fact]
+    [Trait("Category", "Unit")]
     public async Task PauseAsync_CallsDriverAndUpdatesState()
     {
       // Arrange

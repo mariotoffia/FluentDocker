@@ -77,6 +77,16 @@ namespace FluentDocker.Services
     /// Gets real-time stats from the container.
     /// </summary>
     Task<ContainerStats> GetStatsAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Kills the container by sending it a signal (defaults to <c>SIGKILL</c>).
+    /// Unlike <see cref="IServiceAsync.StopAsync"/>, kill does not give the container a
+    /// graceful shutdown period — it is the fast, forceful teardown typically wanted for
+    /// disposable integration-test containers.
+    /// </summary>
+    /// <param name="signal">The signal to send, e.g. <c>SIGKILL</c> or <c>SIGTERM</c>.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    Task KillAsync(string signal = "SIGKILL", CancellationToken cancellationToken = default);
   }
 
   /// <summary>
