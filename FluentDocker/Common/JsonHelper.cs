@@ -169,6 +169,7 @@ namespace FluentDocker.Common
         PropertyNameCaseInsensitive = false
       };
       options.Converters.Add(new JsonStringEnumConverter());
+      options.Converters.Add(new TolerantStringConverter());
       return options;
     }
 
@@ -183,6 +184,7 @@ namespace FluentDocker.Common
         PropertyNameCaseInsensitive = true
       };
       options.Converters.Add(new JsonStringEnumConverter());
+      options.Converters.Add(new TolerantStringConverter());
       return options;
     }
 
@@ -197,6 +199,7 @@ namespace FluentDocker.Common
         PropertyNameCaseInsensitive = true
       };
       options.Converters.Add(new JsonStringEnumConverter());
+      options.Converters.Add(new TolerantStringConverter());
       return options;
     }
   }
