@@ -469,9 +469,8 @@ namespace FluentDocker.Builders
         {
           await service.StartAsync(cancellationToken).ConfigureAwait(false);
           await WaitForContainerRunningAsync(driver, context, response.Data.Id, cancellationToken).ConfigureAwait(false);
-          await ExecuteLifecycleHooksAsync(service, ServiceRunningState.Running, cancellationToken).ConfigureAwait(false);
-          await ExecuteWaitConditionsAsync(service, cancellationToken).ConfigureAwait(false);
           _waitConditionsExecuted = true;
+          await RunPostStartAsync(service, cancellationToken).ConfigureAwait(false);
         }
         catch (Exception ex)
         {
