@@ -8,8 +8,12 @@ on:
       - fdv3
       - 'support/**'
   pull_request:
-  schedule:
-    - cron: '0 6 * * 1'  # Monday 06:00 UTC
+  # Disabled: the weekly scheduled integration-test run fails every time (no Docker
+  # daemon available on the hosted runners for the full OS matrix). Run integration
+  # tests on demand via workflow_dispatch (run_integration: true) instead. Re-enable
+  # by uncommenting once the scheduled run is reliable.
+  # schedule:
+  #   - cron: '0 6 * * 1'  # Monday 06:00 UTC
   workflow_dispatch:
     inputs:
       run_integration:
