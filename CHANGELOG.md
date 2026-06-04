@@ -5,6 +5,30 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.1.0] - 2026-06-04
+
+### Added
+
+- **Container `KillAsync`** — `IContainerService.KillAsync(signal = "SIGKILL")` for fast, forceful teardown of disposable containers without a graceful stop (#267)
+- **Compose `RestartAsync`** — `IComposeService.RestartAsync()` and `RestartAsync(services)` to restart a whole project or individual services (#318)
+- **Builder interactive/entrypoint options** — `WithInteractive()`, `WithTty()`, and `WithEntrypoint(...)` to keep short-lived images alive for `ExecuteAsync` and to override the entrypoint (#264)
+- **In-place image builds** — `DockerfileBuilder.WithBuildContext(...)` builds an existing Dockerfile in place via the engine's `--file`, leaving no generated `Dockerfile` behind (#280)
+- **Attach to an existing compose project** — `IComposeBuilder.ConnectToExisting()` returns a service bound to a running project without `docker compose up`, plus `IComposeService.RefreshStateAsync()` to read live state (#305)
+- **Custom container CLI** — `IDockerCliDriverBuilder.WithBinary("finch"/"nerdctl", ...)` drives docker-compatible engines without aliasing them to `docker` (best-effort) (#315)
+- **Log source tagging** — `IStreamDriver.StreamLogEntriesAsync(...)` yields `LogEntry` values tagged with `LogStreamSource` (stdout/stderr); the Docker Engine API driver reports the real source from the multiplexed stream (#326)
+
+### Changed
+
+- **`ExecuteOnRunning` / `ExecuteOnDisposing` semantics** — each string argument is now executed as a **separate** command (restoring the v2 contract); Running commands run **after** wait conditions, exactly once, and command failures now surface instead of being swallowed (#283)
+
+### Fixed
+
+- **`GetConfiguration` inspect parsing** — `NetworkSettings.LinkLocalIPv6PrefixLen`, `GlobalIPv6PrefixLen` and `IPPrefixLen` are emitted by the engine as JSON numbers; a tolerant `string` converter prevents the `DriverException: Failed to inspect container` regression introduced by the System.Text.Json switch (#335)
+
+### Documentation
+
+- Added an "Inspecting Container Info" section showing how to read the created date, image config, environment, exposed ports, labels, and the mapped host port (#197)
+
 ## [3.0.0] - 2026-05-11
 
 ### Added
