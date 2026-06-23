@@ -30,6 +30,8 @@ namespace FluentDocker.Builders
     private IReadOnlyList<string> _runtimeFlags;
     private ModelRunnerEndpoint _endpoint;
     private bool _pullIfMissing;
+    private IModelInferenceDriver _inferenceDriver;
+    private string _inferenceDriverId;
 
     /// <inheritdoc />
     FluentDockerKernel IDriverScopedBuilder.Kernel => _kernel;
@@ -76,6 +78,20 @@ namespace FluentDocker.Builders
     }
 
     /// <inheritdoc />
+    public IModelRunnerBuilder WithInferenceDriver(IModelInferenceDriver inference)
+    {
+      _inferenceDriver = inference ?? throw new ArgumentNullException(nameof(inference));
+      return this;
+    }
+
+    /// <inheritdoc />
+    public IModelRunnerBuilder WithInferenceDriver(string driverId)
+    {
+      _inferenceDriverId = driverId ?? throw new ArgumentNullException(nameof(driverId));
+      return this;
+    }
+
+    /// <inheritdoc />
     public IModelRunnerBuilder PullIfMissing(bool pull = true)
     {
       _pullIfMissing = pull;
@@ -88,11 +104,23 @@ namespace FluentDocker.Builders
     /// <inheritdoc />
     public async Task<IModelRunner> BuildAsync(CancellationToken cancellationToken = default)
     {
-      // A custom endpoint needs its own inference connection bound to that address;
-      // for the default (host) endpoint the driver pack's inference adapter is used.
+      // Resolve the inference plane (management/runtime always come from the scoped
+      // driver). Precedence: an explicitly supplied driver, then one resolved from
+      // another registered driver, then an auto-built connection for a custom
+      // endpoint, else the scoped driver pack's own inference adapter. Only the
+      // auto-built connection is owned (disposed) by the runner — caller-supplied or
+      // kernel-resolved drivers are owned elsewhere.
       IModelInferenceDriver inferenceOverride = null;
       IAsyncDisposable owned = null;
-      if (_endpoint != null)
+      if (_inferenceDriver != null)
+      {
+        inferenceOverride = _inferenceDriver;
+      }
+      else if (_inferenceDriverId != null)
+      {
+        inferenceOverride = _kernel.SysCtl<IModelInferenceDriver>(_inferenceDriverId);
+      }
+      else if (_endpoint != null)
       {
         var connection = new ModelApiConnection(_endpoint, loggerFactory: _kernel.LoggerFactory);
         inferenceOverride = new DockerApiModelInferenceDriver(connection, _endpoint);

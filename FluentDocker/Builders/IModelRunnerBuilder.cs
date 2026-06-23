@@ -1,5 +1,6 @@
 using System.Threading;
 using System.Threading.Tasks;
+using FluentDocker.Drivers;
 using FluentDocker.Model.Models;
 using FluentDocker.Services;
 
@@ -27,6 +28,22 @@ namespace FluentDocker.Builders
 
     /// <summary>Overrides the inference endpoint.</summary>
     IModelRunnerBuilder WithEndpoint(ModelRunnerEndpoint endpoint);
+
+    /// <summary>
+    /// Routes inference to an explicit <see cref="IModelInferenceDriver"/> instead of
+    /// the scoped driver's inference port — e.g. to run inference on a different
+    /// engine/endpoint while management/runtime stay on the scoped driver. The
+    /// supplied driver's lifetime is owned by the caller (not disposed by the runner).
+    /// Takes precedence over <see cref="WithEndpoint"/>.
+    /// </summary>
+    IModelRunnerBuilder WithInferenceDriver(IModelInferenceDriver inference);
+
+    /// <summary>
+    /// Routes inference to the <see cref="IModelInferenceDriver"/> registered under a
+    /// different <paramref name="driverId"/> in the same kernel (resolved at build
+    /// time), while management/runtime stay on the scoped driver.
+    /// </summary>
+    IModelRunnerBuilder WithInferenceDriver(string driverId);
 
     /// <summary>Pulls the default model at build time if it is not present.</summary>
     IModelRunnerBuilder PullIfMissing(bool pull = true);

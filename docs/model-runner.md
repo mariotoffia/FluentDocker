@@ -172,6 +172,24 @@ there is no transport to pick. *How* a driver satisfies the inference contract
 (HTTP, here — the `docker model` CLI cannot stream tokens or embed) is an internal
 adapter detail, never a caller-facing choice.
 
+## Manage with one driver, infer with another
+
+Management/runtime and inference are independent ports, so you can keep the control
+plane on the scoped driver while routing inference elsewhere. Use `WithEndpoint` to
+repoint inference at a different address, or `WithInferenceDriver` to hand it an
+explicit `IModelInferenceDriver` or the inference port of another registered driver
+(resolved at build time). The supplied/resolved inference plane is owned by the
+caller, and `WithInferenceDriver` takes precedence over `WithEndpoint`:
+
+```csharp
+await using var runner = await new Builder().WithinDriver("docker", kernel) // manage here
+    .UseModelRunner().ForModel("ai/qwen3")
+    .WithInferenceDriver("remote-dmr")          // infer via another registered driver…
+    // .WithInferenceDriver(myInferenceDriver)  // …or an explicit IModelInferenceDriver
+    // .WithEndpoint(ModelRunnerEndpoint.ContainerInternal()) // …or just a different address
+    .BuildAsync();
+```
+
 ## Compose `models:` integration
 
 Docker Compose has a first-class `models:` element. FluentDocker emits it as a

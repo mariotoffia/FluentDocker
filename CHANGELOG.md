@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - **Managed `IModelService`** (`IServiceAsync`) that loads on `StartAsync`, unloads on `StopAsync`/dispose, participating in the same state-machine + hook pipeline as containers.
   - **`WithModel(...)` container extension** injecting `LLM_URL`/`LLM_MODEL` and a host-gateway alias (no network/volume created), and **`ModelRunnerEnvironment.FromEnvironment()`** to reconstruct a runner from injected env vars.
   - **`GenericOpenAiModelRunner`** targeting any OpenAI-compatible endpoint (with optional bearer token).
+  - **Split control and data planes** — inference is HTTP-only (no transport selector; the `docker model` CLI cannot stream or embed, so `DockerCliDriverPack` composes the HTTP inference adapter and owns its connection). `IModelRunnerBuilder.WithEndpoint(...)` repoints inference at a different address, and `WithInferenceDriver(IModelInferenceDriver)` / `WithInferenceDriver(string driverId)` run inference on an explicit driver or another registered driver's inference port while management/runtime stay on the scoped driver.
   - New driver ports `IModelManagementDriver` / `IModelRuntimeDriver` / `IModelInferenceDriver`, additive `DriverCapabilities.SupportsModels` / `SupportsModelInference`, and `ErrorCodes.Model` / `ErrorCodes.ModelInference` groups.
   - DMR-availability-gated integration tests (tiny `ai/smollm2` / `ai/embeddinggemma`) that skip cleanly when the runner is absent, and `ModelRunnerBenchmarks`.
 

@@ -7,6 +7,7 @@ using FluentDocker.Drivers.Docker.Cli;
 using FluentDocker.Drivers.Podman.Cli;
 using FluentDocker.Model.Drivers;
 using FluentDocker.Model.Models;
+using FluentDocker.Model.Models.Inference;
 using FluentDocker.Services;
 using FluentDocker.Tests.Mocks;
 using Moq;
@@ -87,6 +88,60 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
           var reply = await runner.ChatAsync("hello", TestContext.Current.CancellationToken);
           Assert.Equal("hi there", reply);
         }
+      }
+    }
+
+    [Fact]
+    public async Task WithInferenceDriver_Explicit_RoutesInferenceToSuppliedDriver()
+    {
+      // Scoped "docker" pack provides management + its OWN inference ("from-pack").
+      var pack = new MockDriverPack().SetupModelChat("from-pack").EnableModelDrivers();
+      var kernel = await MockKernelBuilderExtensions.CreateWithMockDriverAsync("docker", pack);
+      await using (kernel)
+      {
+        // A separately-constructed inference driver returns "from-injected".
+        var injected = new Mock<IModelInferenceDriver>();
+        injected.Setup(d => d.ChatCompletionAsync(It.IsAny<DriverContext>(), It.IsAny<ChatCompletionRequest>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(CommandResponse<ChatCompletionResponse>.Ok(new ChatCompletionResponse
+            {
+              Choices = [new ChatChoice { Index = 0, FinishReason = "stop", Message = new ChatMessage { Role = "assistant", Content = "from-injected" } }]
+            }));
+
+        await using var runner = await new Builder().WithinDriver("docker", kernel)
+            .UseModelRunner()
+            .ForModel("ai/smollm2")
+            .WithInferenceDriver(injected.Object)
+            .BuildAsync(TestContext.Current.CancellationToken);
+
+        // Inference is served by the injected driver; management still resolves from "docker".
+        var reply = await runner.ChatAsync("hi", TestContext.Current.CancellationToken);
+        Assert.Equal("from-injected", reply);
+      }
+    }
+
+    [Fact]
+    public async Task WithInferenceDriver_ByDriverId_ResolvesInferenceFromAnotherRegisteredDriver()
+    {
+      // "docker" = management plane (+ its own inference "from-docker").
+      var docker = new MockDriverPack().SetupModelChat("from-docker").EnableModelDrivers();
+      var kernel = await MockKernelBuilderExtensions.CreateWithMockDriverAsync("docker", docker);
+      await using (kernel)
+      {
+        // A SECOND registered driver "remote" whose inference returns "from-remote".
+        var remote = new MockDriverPack().SetupModelChat("from-remote").EnableModelDrivers();
+        var remoteCtx = new DriverContext("remote");
+        await remote.InitializeAsync(remoteCtx);
+        await kernel.RegisterDriverPackAsync("remote", remote, remoteCtx);
+
+        await using var runner = await new Builder().WithinDriver("docker", kernel)
+            .UseModelRunner()
+            .ForModel("ai/smollm2")
+            .WithInferenceDriver("remote")
+            .BuildAsync(TestContext.Current.CancellationToken);
+
+        // Inference resolves from "remote", not from the scoped "docker" driver.
+        var reply = await runner.ChatAsync("hi", TestContext.Current.CancellationToken);
+        Assert.Equal("from-remote", reply);
       }
     }
 

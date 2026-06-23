@@ -1323,6 +1323,8 @@ public interface IModelRunnerBuilder : IDriverScopedBuilder
   IModelRunnerBuilder WithBackend(string backend);
   IModelRunnerBuilder WithRuntimeFlags(params string[] flags);
   IModelRunnerBuilder WithEndpoint(ModelRunnerEndpoint endpoint);
+  IModelRunnerBuilder WithInferenceDriver(IModelInferenceDriver inference); // §13.6
+  IModelRunnerBuilder WithInferenceDriver(string driverId);                 // §13.6
   IModelRunnerBuilder PullIfMissing(bool pull = true);
   IModelRunner Build();
   Task<IModelRunner> BuildAsync(CancellationToken cancellationToken = default);
@@ -1476,12 +1478,24 @@ await using var runner = new ModelRunnerService(
 // management/runtime → the "docker" pack; inference → the injected driver
 ```
 
-What does **not** exist yet is a fluent shortcut to resolve inference from *another
-driver already registered in the same kernel* (e.g. manage with `"docker"`, infer
-with a separately-registered `"remote-dmr"` pack). That is a natural one-method
-addition — `WithInferenceDriver(string driverId)` / `WithInferenceDriver(IModel\
-InferenceDriver)` on `IModelRunnerBuilder`, resolving via `kernel.SysCtl<IModel\
-InferenceDriver>(otherDriverId)` — should the need become common.
+**(d) Fluent shortcut — `WithInferenceDriver` (recommended).** Patterns (b)/(c) are
+also a single fluent call: supply an explicit `IModelInferenceDriver`, or name
+*another driver registered in the same kernel* and let the builder resolve its
+inference port (`kernel.SysCtl<IModelInferenceDriver>(driverId)`) at build time.
+Management/runtime stay on the scoped driver; the supplied/resolved inference plane
+is owned by the caller (the runner never disposes it), and this takes precedence
+over `WithEndpoint` (which only repoints the auto-built HTTP connection):
+
+```csharp
+await using var runner = await new Builder().WithinDriver("docker", kernel)  // manage here
+    .UseModelRunner().ForModel("ai/qwen3")
+    .WithInferenceDriver("remote-dmr")          // infer via another registered driver…
+    // .WithInferenceDriver(myInferenceDriver)  // …or an explicit IModelInferenceDriver
+    .BuildAsync();
+```
+
+This makes "create/load with driver A, infer with driver B" a first-class one-liner
+without dropping to the `ModelRunnerService` constructor.
 
 ---
 
