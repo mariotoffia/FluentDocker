@@ -105,6 +105,32 @@ namespace FluentDocker.Builders
     }
 
     /// <summary>
+    /// Begins building an <see cref="Services.IModelRunner"/> in the current scope
+    /// (set by <see cref="WithinDriver(string, FluentDockerKernel)"/>). Unlike the
+    /// other <c>UseXxx</c> operations this returns the runner builder directly
+    /// (the runner is not part of the deferred build pipeline).
+    /// </summary>
+    /// <returns>A model runner builder.</returns>
+    public IModelRunnerBuilder UseModelRunner()
+    {
+      ValidateScope();
+      return new ModelRunnerBuilder(_currentKernel, _currentDriverId);
+    }
+
+    /// <summary>
+    /// Begins building a managed single-model <see cref="Services.IModelService"/> in
+    /// the current scope.
+    /// </summary>
+    /// <param name="reference">The model reference.</param>
+    /// <returns>A model service builder.</returns>
+    public IModelServiceBuilder UseModel(string reference)
+    {
+      ValidateScope();
+      return new ModelServiceBuilder(_currentKernel, _currentDriverId)
+          .ForModel(Model.Models.ModelReference.Parse(reference));
+    }
+
+    /// <summary>
     /// Adds a network operation to the current scope.
     /// </summary>
     public Builder UseNetwork(Action<INetworkBuilder> configure)

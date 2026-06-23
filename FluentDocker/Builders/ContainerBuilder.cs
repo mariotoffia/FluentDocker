@@ -33,6 +33,7 @@ namespace FluentDocker.Builders
     private string _image;
     private string _name;
     private readonly Dictionary<string, string> _environment = [];
+    private readonly Dictionary<string, string> _extraHosts = [];
     private readonly Dictionary<string, string> _ports = [];
     private readonly List<string> _command = [];
     private readonly Dictionary<string, string> _volumes = [];
@@ -130,6 +131,9 @@ namespace FluentDocker.Builders
     public IContainerBuilder WithUser(string user) { _user = user; return this; }
     public IContainerBuilder WithRestartPolicy(string policy) { _restartPolicy = policy; return this; }
     public IContainerBuilder WithHostname(string hostname) { _hostname = hostname; return this; }
+
+    /// <inheritdoc />
+    public IContainerBuilder WithExtraHost(string host, string ip) { _extraHosts[host] = ip; return this; }
     public IContainerBuilder WithNetworkMode(string networkMode) { _networkMode = networkMode; return this; }
     public IContainerBuilder WithNetwork(string networkName) { _networks.Add(networkName); return this; }
 
@@ -418,6 +422,7 @@ namespace FluentDocker.Builders
         User = _user,
         RestartPolicy = _restartPolicy,
         Hostname = _hostname,
+        ExtraHosts = _extraHosts,
         NetworkMode = _networkMode,
         Ipv4Address = _ipv4Address,
         Ipv6Address = _ipv6Address,

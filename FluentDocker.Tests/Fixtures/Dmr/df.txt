@@ -1,0 +1,3 @@
+TYPE              SIZE      
+Models            1.20GB    
+Inference engine  103.56kB  

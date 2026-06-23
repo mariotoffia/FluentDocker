@@ -1,0 +1,89 @@
+using System.Collections.Generic;
+using System.Text.Json.Serialization;
+
+namespace FluentDocker.Model.Models.Inference
+{
+  /// <summary>
+  /// An OpenAI-compatible text completion request. (Preview)
+  /// </summary>
+  public sealed class CompletionRequest
+  {
+    /// <summary>The model id.</summary>
+    [JsonPropertyName("model")] public string Model { get; set; }
+
+    /// <summary>The prompt text.</summary>
+    [JsonPropertyName("prompt")] public string Prompt { get; set; }
+
+    /// <summary>The maximum number of tokens to generate.</summary>
+    [JsonPropertyName("max_tokens")] public int? MaxTokens { get; set; }
+
+    /// <summary>Sampling temperature.</summary>
+    [JsonPropertyName("temperature")] public double? Temperature { get; set; }
+
+    /// <summary>Nucleus sampling probability.</summary>
+    [JsonPropertyName("top_p")] public double? TopP { get; set; }
+
+    /// <summary>Whether to stream the response as SSE.</summary>
+    [JsonPropertyName("stream")] public bool? Stream { get; set; }
+
+    /// <summary>Stop sequences.</summary>
+    [JsonPropertyName("stop")] public IList<string> Stop { get; set; }
+
+    /// <summary>Sampling seed.</summary>
+    [JsonPropertyName("seed")] public int? Seed { get; set; }
+  }
+
+  /// <summary>
+  /// An OpenAI-compatible text completion response. (Preview)
+  /// </summary>
+  public sealed class CompletionResponse
+  {
+    /// <summary>The response id.</summary>
+    [JsonPropertyName("id")] public string Id { get; set; }
+
+    /// <summary>The object type (<c>text_completion</c>).</summary>
+    [JsonPropertyName("object")] public string Object { get; set; }
+
+    /// <summary>Creation timestamp (unix seconds).</summary>
+    [JsonPropertyName("created")] public long Created { get; set; }
+
+    /// <summary>The model that produced the response.</summary>
+    [JsonPropertyName("model")] public string Model { get; set; }
+
+    /// <summary>The choices.</summary>
+    [JsonPropertyName("choices")] public IList<CompletionChoice> Choices { get; set; }
+
+    /// <summary>Token usage.</summary>
+    [JsonPropertyName("usage")] public Usage Usage { get; set; }
+  }
+
+  /// <summary>
+  /// A single text completion choice. (Preview)
+  /// </summary>
+  public sealed class CompletionChoice
+  {
+    /// <summary>The choice index.</summary>
+    [JsonPropertyName("index")] public int Index { get; set; }
+
+    /// <summary>The generated text.</summary>
+    [JsonPropertyName("text")] public string Text { get; set; }
+
+    /// <summary>The finish reason.</summary>
+    [JsonPropertyName("finish_reason")] public string FinishReason { get; set; }
+  }
+
+  /// <summary>
+  /// A streaming text completion chunk (one SSE <c>data:</c> line). (Preview)
+  /// </summary>
+  public sealed class CompletionChunk
+  {
+    /// <summary>The response id.</summary>
+    [JsonPropertyName("id")] public string Id { get; set; }
+
+    /// <summary>The model.</summary>
+    [JsonPropertyName("model")] public string Model { get; set; }
+
+    /// <summary>The choices.</summary>
+    [JsonPropertyName("choices")] public IList<CompletionChoice> Choices { get; set; }
+  }
+}

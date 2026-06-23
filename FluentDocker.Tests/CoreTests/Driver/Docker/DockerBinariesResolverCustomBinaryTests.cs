@@ -24,7 +24,8 @@ namespace FluentDocker.Tests.CoreTests.Driver.Docker
 
     public void Dispose()
     {
-      try { if (Directory.Exists(_tempDir)) Directory.Delete(_tempDir, true); }
+      try
+      { if (Directory.Exists(_tempDir)) Directory.Delete(_tempDir, true); }
       catch { /* best effort */ }
       GC.SuppressFinalize(this);
     }

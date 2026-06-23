@@ -148,6 +148,7 @@ dotnet add package FluentDocker.Testing.NUnit   # NUnit adapter
 | [Networking](networking.html) | Networks, aliases, static IPs |
 | [Volumes](volumes.html) | Persistence and bind mounts |
 | [Images](images.html) | Build image workflows |
+| [Model Runner (LLMs)](model-runner.html) | Manage and consume local LLMs via Docker Model Runner |
 | [Testing](testing.html) | Testing.Core and adapters |
 | [Utilities](utilities.html) | Helpers and extension methods |
 | [Error Handling](architecture.html#error-handling) | Exceptions and error codes |

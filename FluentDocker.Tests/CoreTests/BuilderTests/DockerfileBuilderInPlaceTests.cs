@@ -31,7 +31,8 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
 
     private static void SafeDelete(string dir)
     {
-      try { if (Directory.Exists(dir)) Directory.Delete(dir, recursive: true); }
+      try
+      { if (Directory.Exists(dir)) Directory.Delete(dir, recursive: true); }
       catch (IOException) { /* best effort */ }
     }
 

@@ -66,6 +66,18 @@ namespace FluentDocker.Model.Drivers
     public bool SupportsServices { get; set; }
 
     /// <summary>
+    /// Driver supports model management operations (OCI/AI model pull/list/run/configure),
+    /// e.g. Docker Model Runner. Defaults to <c>false</c>.
+    /// </summary>
+    public bool SupportsModels { get; set; }
+
+    /// <summary>
+    /// Driver supports model inference operations (OpenAI-compatible chat/completion/embeddings).
+    /// Defaults to <c>false</c>.
+    /// </summary>
+    public bool SupportsModelInference { get; set; }
+
+    /// <summary>
     /// Driver version string.
     /// </summary>
     public string Version { get; set; }

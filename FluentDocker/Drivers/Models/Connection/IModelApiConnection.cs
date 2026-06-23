@@ -1,0 +1,50 @@
+using System;
+using System.IO;
+using System.Net.Http;
+using System.Threading;
+using System.Threading.Tasks;
+
+namespace FluentDocker.Drivers.Models.Connection
+{
+  /// <summary>
+  /// A thin HTTP abstraction for a model runner's OpenAI-compatible endpoint.
+  /// Parallel to the Docker API connection, but NOT Docker-versioned and NOT
+  /// wrapped in the Docker response envelope — DMR speaks raw OpenAI JSON.
+  /// </summary>
+  public interface IModelApiConnection : IAsyncDisposable
+  {
+    /// <summary>The base address the connection targets.</summary>
+    Uri BaseAddress { get; }
+
+    /// <summary>Issues a GET request.</summary>
+    /// <param name="path">The request path.</param>
+    /// <param name="ct">A token to cancel the request.</param>
+    /// <returns>The HTTP response.</returns>
+    Task<HttpResponseMessage> GetAsync(string path, CancellationToken ct = default);
+
+    /// <summary>Issues a POST request.</summary>
+    /// <param name="path">The request path.</param>
+    /// <param name="content">The request body.</param>
+    /// <param name="ct">A token to cancel the request.</param>
+    /// <returns>The HTTP response.</returns>
+    Task<HttpResponseMessage> PostAsync(string path, HttpContent content, CancellationToken ct = default);
+
+    /// <summary>Issues a DELETE request.</summary>
+    /// <param name="path">The request path.</param>
+    /// <param name="ct">A token to cancel the request.</param>
+    /// <returns>The HTTP response.</returns>
+    Task<HttpResponseMessage> DeleteAsync(string path, CancellationToken ct = default);
+
+    /// <summary>Issues a POST request and returns the response body stream (for SSE).</summary>
+    /// <param name="path">The request path.</param>
+    /// <param name="content">The request body.</param>
+    /// <param name="ct">A token to cancel the request.</param>
+    /// <returns>The response body stream (the caller disposes it).</returns>
+    Task<Stream> PostStreamAsync(string path, HttpContent content, CancellationToken ct = default);
+
+    /// <summary>Probes endpoint reachability.</summary>
+    /// <param name="ct">A token to cancel the request.</param>
+    /// <returns><c>true</c> when the endpoint responds.</returns>
+    Task<bool> PingAsync(CancellationToken ct = default);
+  }
+}

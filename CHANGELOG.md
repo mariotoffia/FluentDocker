@@ -5,6 +5,25 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.2.0] - Unreleased
+
+### Added
+
+- **Docker Model Runner (local LLMs)** — first-class support for managing and consuming local LLMs through Docker Model Runner, behind the existing `Builder → WithinDriver → UseModelRunner()` pattern. Highlights:
+  - **`IModelRunner` façade** composing small capability interfaces (`IModelStore` for pull/ls/inspect/rm/tag/push/package/df/prune, `IModelEngine` for status/version/ps/load/unload/configure/logs/install, `IModelInference` for chat/completion/embeddings), plus ergonomic `ChatAsync` / `ChatStreamAsync` / `EmbedAsync` bound to a default model.
+  - **CLI management/runtime adapters** (`docker model …`) and an **HTTP inference adapter** speaking the OpenAI-compatible API on `:12434` (TCP or unix socket), with **SSE streaming** (`[DONE]` termination, mid-stream fault → `ModelRunnerException`, cancellation), and a **native `/models*` management adapter**.
+  - **`ModelReference`** value object (Docker Hub `ai/…`, Hugging Face `hf.co/…`, fully-qualified registries, digests) and **`LlamaCppRuntimeFlags`** typed, range-validated flag builder.
+  - **Managed `IModelService`** (`IServiceAsync`) that loads on `StartAsync`, unloads on `StopAsync`/dispose, participating in the same state-machine + hook pipeline as containers.
+  - **`WithModel(...)` container extension** injecting `LLM_URL`/`LLM_MODEL` and a host-gateway alias (no network/volume created), and **`ModelRunnerEnvironment.FromEnvironment()`** to reconstruct a runner from injected env vars.
+  - **`GenericOpenAiModelRunner`** targeting any OpenAI-compatible endpoint (with optional bearer token).
+  - New driver ports `IModelManagementDriver` / `IModelRuntimeDriver` / `IModelInferenceDriver`, additive `DriverCapabilities.SupportsModels` / `SupportsModelInference`, and `ErrorCodes.Model` / `ErrorCodes.ModelInference` groups.
+  - DMR-availability-gated integration tests (tiny `ai/smollm2` / `ai/embeddinggemma`) that skip cleanly when the runner is absent, and `ModelRunnerBenchmarks`.
+
+### Changed
+
+- `IContainerBuilder` gains `WithExtraHost(host, ip)` (used by `WithModel` for the Engine host-gateway alias).
+- `DockerCliDriverPack` registers the model ports and reports `SupportsModels` / `SupportsModelInference`; `PodmanCliDriverPack` reports no model support (RamaLama pack is future work).
+
 ## [3.1.0] - 2026-06-04
 
 ### Added

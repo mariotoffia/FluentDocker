@@ -231,6 +231,20 @@ jobs:
             echo "available=false" >> "$GITHUB_OUTPUT"
           fi
 
+      - name: Check Docker Model Runner availability
+        id: dmr-check
+        shell: bash
+        run: |
+          # The DMR (model-runner) integration tests self-skip via the xUnit dynamic-skip
+          # sentinel when the runner is absent; this step only surfaces availability in logs.
+          if docker model status > /dev/null 2>&1; then
+            echo "Docker Model Runner is available — DMR integration tests will run"
+            echo "available=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "Docker Model Runner not available — DMR integration tests will skip cleanly"
+            echo "available=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - run: dotnet restore
 
       - run: dotnet build --configuration Debug --no-restore

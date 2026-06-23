@@ -4,10 +4,13 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using FluentDocker.Common;
+using FluentDocker.Drivers.Docker.Api.Components;
 using FluentDocker.Drivers.Docker.Cli.Binary;
 using FluentDocker.Drivers.Docker.Cli.Components;
+using FluentDocker.Drivers.Models.Connection;
 using FluentDocker.Kernel;
 using FluentDocker.Model.Drivers;
+using FluentDocker.Model.Models;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 
@@ -17,7 +20,7 @@ namespace FluentDocker.Drivers.Docker.Cli
   /// Docker CLI driver pack that composes all individual Docker CLI driver implementations.
   /// Implements IDriverPack for unified access.
   /// </summary>
-  public class DockerCliDriverPack : IDriverPack
+  public class DockerCliDriverPack : IDriverPack, IAsyncDisposable
   {
     private readonly Dictionary<Type, object> _drivers = [];
     private DriverContext _context;
@@ -43,6 +46,13 @@ namespace FluentDocker.Drivers.Docker.Cli
     private DockerCliStreamDriver _streamDriver;
     private DockerCliStackDriver _stackDriver;
     private DockerCliServiceDriver _serviceDriver;
+    private Components.DockerCliModelManagementDriver _modelManagementDriver;
+    private Components.DockerCliModelRuntimeDriver _modelRuntimeDriver;
+    // Inference is served over the OpenAI-compatible :12434 HTTP data plane — the
+    // `docker model` CLI cannot stream tokens or embed, so transport here is an
+    // adapter detail, not a user choice. The pack owns the connection's lifetime.
+    private ModelApiConnection _modelInferenceConnection;
+    private DockerApiModelInferenceDriver _modelInferenceDriver;
 
     /// <inheritdoc />
     public DriverType Type => DriverType.DockerCli;
@@ -79,6 +89,13 @@ namespace FluentDocker.Drivers.Docker.Cli
       _streamDriver = new DockerCliStreamDriver(_binaryResolver);
       _stackDriver = new DockerCliStackDriver(_binaryResolver);
       _serviceDriver = new DockerCliServiceDriver(_binaryResolver);
+      _modelManagementDriver = new Components.DockerCliModelManagementDriver(_binaryResolver);
+      _modelRuntimeDriver = new Components.DockerCliModelRuntimeDriver(_binaryResolver);
+      // Inference adapter: HTTP over the resolved OpenAI-compatible DMR endpoint
+      // (DOCKER_MODEL_RUNNER_URL when set, else host TCP).
+      var inferenceEndpoint = ModelRunnerEndpoint.Default();
+      _modelInferenceConnection = new ModelApiConnection(inferenceEndpoint, loggerFactory: context.LoggerFactory);
+      _modelInferenceDriver = new DockerApiModelInferenceDriver(_modelInferenceConnection, inferenceEndpoint);
 
       // Initialize all components with context
       _containerDriver.Initialize(context);
@@ -91,6 +108,8 @@ namespace FluentDocker.Drivers.Docker.Cli
       _streamDriver.Initialize(context);
       _stackDriver.Initialize(context);
       _serviceDriver.Initialize(context);
+      _modelManagementDriver.Initialize(context);
+      _modelRuntimeDriver.Initialize(context);
 
       // Register all drivers by interface type
       _drivers[typeof(IContainerDriver)] = _containerDriver;
@@ -103,6 +122,11 @@ namespace FluentDocker.Drivers.Docker.Cli
       _drivers[typeof(IStreamDriver)] = _streamDriver;
       _drivers[typeof(IStackDriver)] = _stackDriver;
       _drivers[typeof(IServiceDriver)] = _serviceDriver;
+      // Docker Model Runner ports: management + runtime via the docker CLI;
+      // inference via the OpenAI-compatible HTTP data plane (an adapter detail).
+      _drivers[typeof(IModelManagementDriver)] = _modelManagementDriver;
+      _drivers[typeof(IModelRuntimeDriver)] = _modelRuntimeDriver;
+      _drivers[typeof(IModelInferenceDriver)] = _modelInferenceDriver;
 
       _initialized = true;
       await Task.CompletedTask;
@@ -119,7 +143,9 @@ namespace FluentDocker.Drivers.Docker.Cli
         SupportsVolumes = true,
         SupportsCompose = true,
         SupportsSystem = true,
-        SupportsPods = false
+        SupportsPods = false,
+        SupportsModels = true,
+        SupportsModelInference = true
       });
     }
 
@@ -320,6 +346,26 @@ namespace FluentDocker.Drivers.Docker.Cli
         ThrowIfNotInitialized();
         return _serviceDriver;
       }
+    }
+
+    #endregion
+
+    #region IAsyncDisposable
+
+    /// <summary>
+    /// Disposes pack-owned resources — currently the inference connection's
+    /// <see cref="System.Net.Http.HttpClient"/>. Invoked by the kernel's driver
+    /// registry when the kernel is disposed.
+    /// </summary>
+    public async ValueTask DisposeAsync()
+    {
+      if (_modelInferenceConnection != null)
+      {
+        await _modelInferenceConnection.DisposeAsync().ConfigureAwait(false);
+        _modelInferenceConnection = null;
+      }
+
+      GC.SuppressFinalize(this);
     }
 
     #endregion

@@ -265,5 +265,47 @@ namespace FluentDocker.Model.Drivers
       public const string LogsFailed = "SVC_009";
       public const string ScaleFailed = "SVC_010";
     }
+
+    /// <summary>
+    /// Model management / runtime error codes (Docker Model Runner and equivalents).
+    /// </summary>
+    public static class Model
+    {
+      public const string NotFound = "MDL_001";
+      public const string PullFailed = "MDL_002";
+      public const string RunFailed = "MDL_003";
+      public const string ListFailed = "MDL_004";
+      public const string ConfigureFailed = "MDL_005";
+      public const string RemoveFailed = "MDL_006";
+      public const string InspectFailed = "MDL_007";
+      public const string TagFailed = "MDL_008";
+      public const string PushFailed = "MDL_009";
+      public const string PackageFailed = "MDL_010";
+      public const string PruneFailed = "MDL_011";
+      public const string LoadFailed = "MDL_012";
+      public const string UnloadFailed = "MDL_013";
+      public const string RunnerNotRunning = "MDL_014";
+      public const string RunnerNotInstalled = "MDL_015";
+      public const string InvalidReference = "MDL_016";
+      public const string DiskUsageFailed = "MDL_017";
+      public const string StatusFailed = "MDL_018";
+      public const string VersionFailed = "MDL_019";
+      public const string LogsFailed = "MDL_020";
+      public const string InstallFailed = "MDL_021";
+      public const string NotSupported = "MDL_022";
+    }
+
+    /// <summary>
+    /// Model inference (OpenAI-compatible data plane) error codes.
+    /// </summary>
+    public static class ModelInference
+    {
+      public const string RequestFailed = "MIN_001";
+      public const string StreamParseError = "MIN_002";
+      public const string EndpointUnreachable = "MIN_003";
+      public const string ModelNotLoaded = "MIN_004";
+      public const string NotSupported = "MIN_005";
+      public const string Unauthorized = "MIN_401";
+    }
   }
 }

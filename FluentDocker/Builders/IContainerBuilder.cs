@@ -58,6 +58,12 @@ namespace FluentDocker.Builders
     /// <returns>The builder instance for method chaining.</returns>
     IContainerBuilder WithEnvironment(string keyValue);
 
+    /// <summary>Adds an extra <c>/etc/hosts</c> entry (e.g. <c>model-runner.docker.internal</c> → <c>host-gateway</c>).</summary>
+    /// <param name="host">The host name.</param>
+    /// <param name="ip">The IP or special value (e.g. <c>host-gateway</c>).</param>
+    /// <returns>The builder instance for method chaining.</returns>
+    IContainerBuilder WithExtraHost(string host, string ip);
+
     /// <summary>Maps a container port to a specific host port.</summary>
     /// <param name="containerPort">
     /// The container port with optional protocol (e.g. "8080/tcp", "53/udp").

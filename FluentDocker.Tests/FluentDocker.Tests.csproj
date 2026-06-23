@@ -27,6 +27,14 @@
     <ProjectReference Include="..\FluentDocker.Testing.NUnit\FluentDocker.Testing.NUnit.csproj" />
   </ItemGroup>
 
+  <!-- DMR (Docker Model Runner) fixtures — embedded so they survive Release test runs -->
+  <ItemGroup>
+    <EmbeddedResource Include="Fixtures\Dmr\**\*.json" />
+    <EmbeddedResource Include="Fixtures\Dmr\**\*.sse" />
+    <EmbeddedResource Include="Fixtures\Dmr\**\*.txt" />
+    <EmbeddedResource Include="Fixtures\Dmr\**\*.ndjson" />
+  </ItemGroup>
+
   <ItemGroup Condition="'$(Configuration)' == 'Debug'">
     <!-- Compose Test Resources -->
     <None Update="Resources\ComposeTests\MongoDbAndNetwork\docker-compose.yml">

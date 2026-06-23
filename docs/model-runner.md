@@ -1,0 +1,244 @@
+---
+layout: default
+title: Model Runner (LLMs)
+nav_order: 10
+---
+
+# Docker Model Runner (local LLMs)
+
+FluentDocker can manage and consume local LLMs through **Docker Model Runner (DMR)**
+— and, by extension, any OpenAI-compatible endpoint (a bare `llama-server`, vLLM,
+LM Studio, or a hosted endpoint). It mirrors the existing
+`Builder → WithinDriver → UseXxx` pattern, so a model handle lives in the *same*
+kernel and lifecycle as your containers, networks and volumes.
+
+> **Preview.** The inference DTOs are marked preview; their shapes may change
+> before this subsystem reaches 1.0. Available from FluentDocker **v3.2.0**.
+
+## Two surfaces, one façade
+
+DMR exposes two surfaces, and FluentDocker keeps them behind one interface family:
+
+| Surface | What it does | Backed by |
+|---|---|---|
+| **Management / runtime** | pull / ls / inspect / rm / tag / push / package / df / prune, status / version / ps / load / unload / **configure** / logs / install | the `docker model …` CLI |
+| **Inference** | chat (uni + streaming), completion, embeddings, engine-model list | the OpenAI-compatible REST API on `:12434` |
+
+The public `IModelRunner` composes three small capability interfaces
+(`IModelStore`, `IModelEngine`, `IModelInference`) plus a few ergonomic helpers.
+Implementations may support only a subset; feature-detect via `runner.Capabilities`.
+
+## Quick start
+
+```csharp
+using FluentDocker.Builders;
+using FluentDocker.Kernel;
+using Microsoft.Extensions.Logging.Abstractions;
+
+var kernel = await FluentDockerKernel.Create(NullLoggerFactory.Instance)
+    .WithDockerCli("docker", d => d.AsDefault())
+    .BuildAsync();
+
+await using var runner = new Builder()
+    .WithinDriver("docker", kernel)
+    .UseModelRunner()
+    .ForModel("ai/smollm2")
+    .WithContextSize(8192)        // optional — persisted via `docker model configure`
+    .PullIfMissing()             // optional — pulls at build if absent
+    .Build();
+
+// One-shot chat against the default model
+var reply = await runner.ChatAsync("Reply with a single word.");
+
+// Streaming, token by token
+await foreach (var token in runner.ChatStreamAsync("Count: one two three"))
+    Console.Write(token);
+
+// Embeddings
+var vector = await runner.EmbedAsync("hello world",
+    model: FluentDocker.Model.Models.ModelReference.Parse("ai/embeddinggemma"));
+```
+
+By default `UseModelRunner()` uses **CLI** for management/runtime and **HTTP**
+(`:12434`) for inference. Management failures surface as `ModelRunnerException`
+carrying the originating error code and diagnostic context; streaming faults are
+thrown mid-enumeration.
+
+## Managing models
+
+```csharp
+await runner.PullAsync(ModelReference.Parse("ai/smollm2"), progress: p =>
+    Console.WriteLine($"{p.Status} {p.Fraction:P0}"));
+
+var models  = await runner.ListAsync();
+var info    = await runner.InspectAsync(ModelReference.Parse("ai/smollm2"));
+var running = await runner.ListRunningAsync();
+var usage   = await runner.DiskUsageAsync();
+
+await runner.ConfigureAsync(ModelReference.Parse("ai/smollm2"),
+    new ModelConfigureOptions { ContextSize = 4096 });
+
+await runner.UnloadAsync(ModelReference.Parse("ai/smollm2"));
+await runner.RemoveAsync(ModelReference.Parse("ai/smollm2"), force: true);
+```
+
+### Runtime flags (typed)
+
+`docker model configure` passes engine flags verbatim after a `--` separator.
+Use the raw list, or the validated `LlamaCppRuntimeFlags` builder which renders
+into it and fails fast on out-of-range values:
+
+```csharp
+var flags = new LlamaCppRuntimeFlags { Temperature = 0.7, TopP = 0.9, TopK = 40 };
+await runner.ConfigureAsync(model, new ModelConfigureOptions { RuntimeFlags = flags.ToArgs() });
+```
+
+## A model as a managed service
+
+`IModelService` is an `IServiceAsync` — it participates in the same state machine
+and hook pipeline as containers, so you can `using` it for automatic unload:
+
+```csharp
+await using var model = new Builder()
+    .WithinDriver("docker", kernel)
+    .UseModel("ai/smollm2")
+    .WithContextSize(8192)
+    .KeepRunning(false)          // unload on dispose
+    .Build();
+
+await model.StartAsync();        // load
+var answer = await model.Runner.ChatAsync("Hi");
+// disposed -> unloaded
+```
+
+## Wiring a model into a container
+
+A model has **no network and no volume** — it is reached at a fixed *endpoint*.
+`WithModel(...)` injects that endpoint into a container's environment
+(`LLM_URL` / `LLM_MODEL`) and ensures reachability (a host-gateway alias on Docker
+Engine; the internal DNS name resolves automatically on Desktop). It never creates
+a network or a volume.
+
+```csharp
+new Builder()
+  .WithinDriver("docker", kernel)
+  .UseContainer(c => c
+      .UseImage("my-app:latest")
+      .WithModel(ModelReference.Parse("ai/smollm2")))   // injects LLM_URL=…/engines/v1, LLM_MODEL
+  .Build();
+```
+
+`localhost` is rejected for container consumers (it would resolve to the container
+itself); the default is the container-internal DNS `model-runner.docker.internal`.
+
+### Closing the loop from inside the container
+
+Code running *inside* a model-bound workload can reconstruct a runner from the
+injected variables:
+
+```csharp
+var runner = ModelRunnerEnvironment.FromEnvironment();        // reads LLM_URL / LLM_MODEL
+// or a custom prefix matching endpoint_var / model_var:
+var runner = ModelRunnerEnvironment.FromEnvironment("AI_MODEL");
+```
+
+This builds a `GenericOpenAiModelRunner` against the injected URL — which also
+targets any OpenAI-compatible endpoint directly (with an optional API key).
+
+## Endpoints
+
+`ModelRunnerEndpoint` describes where (and how) to reach the inference surface:
+
+```csharp
+ModelRunnerEndpoint.HostTcp();            // http://localhost:12434 (host process)
+ModelRunnerEndpoint.ContainerInternal();  // http://model-runner.docker.internal:12434
+ModelRunnerEndpoint.UnixSocket();         // $HOME/.docker/run/docker.sock
+ModelRunnerEndpoint.Custom(new Uri("https://api.example.com"));
+```
+
+Resolution order when unspecified: the `DOCKER_MODEL_RUNNER_URL` env var, then host
+TCP, then container-internal DNS, then the unix socket.
+
+## Capabilities
+
+```csharp
+if (runner.Capabilities.SupportsStreaming) { /* … */ }
+```
+
+A runner advertises what its resolved driver can do. Inference is served over the
+OpenAI-compatible HTTP data plane (the `:12434` endpoint), so whenever an
+inference port is present the runner supports both streaming **and** embeddings —
+there is no transport to pick. *How* a driver satisfies the inference contract
+(HTTP, here — the `docker model` CLI cannot stream tokens or embed) is an internal
+adapter detail, never a caller-facing choice.
+
+## Compose `models:` integration
+
+Docker Compose has a first-class `models:` element. FluentDocker emits it as a
+small **overlay** file that merges with your own compose file (Compose merges
+multiple `-f` files), so it slots into the existing file-path compose builder:
+
+```csharp
+var overlay = new ComposeModelBuilder();
+overlay.AddModel("llm", m => m
+    .WithModel("ai/smollm2")
+    .WithContextSize(4096)
+    .WithRuntimeFlags("--temp", "0.7"));
+overlay.BindToService("app", "llm");                                   // short: LLM_URL / LLM_MODEL
+overlay.BindToService("worker", "llm", "AI_MODEL_URL", "AI_MODEL_NAME"); // long: custom env vars
+
+var overlayPath = overlay.WriteOverlay(Path.Combine(Path.GetTempPath(), "models.overlay.yaml"));
+
+new Builder().WithinDriver("docker", kernel)
+  .UseCompose(c => c.WithComposeFiles("docker-compose.yml", overlayPath))
+  .Build();
+```
+
+The overlay renders the top-level `models:` map and per-service `models:` bindings:
+
+```yaml
+services:
+  app:
+    models:
+      - llm
+  worker:
+    models:
+      llm:
+        endpoint_var: AI_MODEL_URL
+        model_var: AI_MODEL_NAME
+models:
+  llm:
+    model: ai/smollm2
+    context_size: 4096
+    runtime_flags:
+      - "--temp"
+      - "0.7"
+```
+
+When attaching to an existing compose project, `ComposeModelBuilder.Parse(yaml)`
+reads the `models:` map and per-service bindings back out. A service that binds a
+model receives `LLM_URL` / `LLM_MODEL` (or the custom names), so code inside it can
+reconstruct a runner via `ModelRunnerEnvironment.FromVariables(endpointVar, modelVar)`.
+
+## Enablement
+
+The library detects but does not install DMR:
+
+- **Docker Desktop** — enable under *Settings → AI → Enable Docker Model Runner*
+  (and turn on host-side TCP for inference).
+- **Docker Engine (CE)** — install the `docker-model-plugin`; TCP is on by default.
+  `runner.InstallRunnerAsync(...)` drives `docker model install-runner`.
+
+`runner.StatusAsync()` reports whether the runner is running.
+
+## Testing
+
+The model integration tests are tagged `[Trait("Category", "Integration")]` and
+**skip cleanly** when DMR is not running. Unit tests use `MockDriverPack`
+(model ports) and a hand-rolled `MockModelApiConnection` (programmable JSON + SSE),
+plus embedded fixtures captured from a real DMR.
+
+## See also
+
+- [Containers](containers.html) · [Compose](compose.html) · [Architecture](architecture.html)
+- Design spec: `docs/dmr/DESIGN.md`
