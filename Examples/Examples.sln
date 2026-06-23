@@ -15,6 +15,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FluentDocker", "..\FluentDo
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ComposeV2", "ComposeV2\ComposeV2.csproj", "{6BE8AB53-E1AE-4F5E-8254-7842A14909C0}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ModelRunner", "ModelRunner\ModelRunner.csproj", "{76B6E7DB-9832-45E1-B867-DBC3FC56C482}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -97,6 +99,18 @@ Global
 		{6BE8AB53-E1AE-4F5E-8254-7842A14909C0}.Release|x64.Build.0 = Release|Any CPU
 		{6BE8AB53-E1AE-4F5E-8254-7842A14909C0}.Release|x86.ActiveCfg = Release|Any CPU
 		{6BE8AB53-E1AE-4F5E-8254-7842A14909C0}.Release|x86.Build.0 = Release|Any CPU
+		{76B6E7DB-9832-45E1-B867-DBC3FC56C482}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{76B6E7DB-9832-45E1-B867-DBC3FC56C482}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{76B6E7DB-9832-45E1-B867-DBC3FC56C482}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{76B6E7DB-9832-45E1-B867-DBC3FC56C482}.Debug|x64.Build.0 = Debug|Any CPU
+		{76B6E7DB-9832-45E1-B867-DBC3FC56C482}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{76B6E7DB-9832-45E1-B867-DBC3FC56C482}.Debug|x86.Build.0 = Debug|Any CPU
+		{76B6E7DB-9832-45E1-B867-DBC3FC56C482}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{76B6E7DB-9832-45E1-B867-DBC3FC56C482}.Release|Any CPU.Build.0 = Release|Any CPU
+		{76B6E7DB-9832-45E1-B867-DBC3FC56C482}.Release|x64.ActiveCfg = Release|Any CPU
+		{76B6E7DB-9832-45E1-B867-DBC3FC56C482}.Release|x64.Build.0 = Release|Any CPU
+		{76B6E7DB-9832-45E1-B867-DBC3FC56C482}.Release|x86.ActiveCfg = Release|Any CPU
+		{76B6E7DB-9832-45E1-B867-DBC3FC56C482}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

@@ -67,8 +67,8 @@ thrown mid-enumeration.
 ## Managing models
 
 ```csharp
-await runner.PullAsync(ModelReference.Parse("ai/smollm2"), progress: p =>
-    Console.WriteLine($"{p.Status} {p.Fraction:P0}"));
+await runner.PullAsync(ModelReference.Parse("ai/smollm2"),
+    progress: new Progress<ModelPullProgress>(p => Console.WriteLine($"{p.Status} {p.Fraction:P0}")));
 
 var models  = await runner.ListAsync();
 var info    = await runner.InspectAsync(ModelReference.Parse("ai/smollm2"));
@@ -190,6 +190,53 @@ await using var runner = await new Builder().WithinDriver("docker", kernel) // m
     .BuildAsync();
 ```
 
+## Architecture (how it's wired)
+
+The public `IModelRunner` is a thin façade over **three internal hexagonal ports**,
+each resolved from the driver pack per `driverId`:
+
+| Port | Concern | Backed by |
+|---|---|---|
+| `IModelManagementDriver` | distribution & local store (pull/ls/inspect/rm/tag/push/package/df/prune) | the `docker model …` CLI |
+| `IModelRuntimeDriver` | runner control plane (status/version/ps/load/unload/configure/logs/install) | the `docker model …` CLI |
+| `IModelInferenceDriver` | data plane (chat/completion/embeddings/engine-model list, **streaming**) | the OpenAI-compatible HTTP API on `:12434` |
+
+Three points fall out of this split:
+
+- **Transport is an adapter detail, never a caller choice.** The `docker model` CLI
+  cannot stream tokens or embed, so the Docker CLI driver pack *composes* the HTTP
+  inference adapter to satisfy `IModelInferenceDriver`. There is no transport
+  selector — you ask for the port and get a full, streaming-capable implementation.
+- **The pack owns the inference connection.** `DockerCliDriverPack` is
+  `IAsyncDisposable`; its `HttpClient` is released when the kernel is disposed. A
+  custom endpoint (`WithEndpoint`) or an injected driver (`WithInferenceDriver`)
+  is instead owned by whoever supplied it.
+- **One default-endpoint source of truth.** `ModelRunnerEndpoint.Default()` resolves
+  `DOCKER_MODEL_RUNNER_URL` (if set) else host TCP, and is used by both the pack and
+  the builder. See [architecture](architecture.html) for the kernel/driver model.
+
+## Error handling & known limitations
+
+Management/runtime failures throw `ModelRunnerException` carrying the originating
+`ErrorCode` and a diagnostic `ErrorContext` (driver, operation, exit code, stderr).
+Streaming faults are thrown **mid-enumeration**. Common cases:
+
+| Situation | Surfaced as |
+|---|---|
+| Runner not running / TCP endpoint disabled | inference throws `EndpointUnreachable`; management/runtime still work over the CLI |
+| Model not pulled | inference throws `ModelNotLoaded` (auto-pull with `PullIfMissing`) |
+| Malformed SSE chunk | `ModelRunnerException` mid-stream |
+
+Known limitations (acceptable for v3.2.0; revisit as needed):
+
+- **Re-pull of an already-present model** is reported as success even if the
+  underlying `docker model pull` errors — `PullAsync` confirms availability via
+  `InspectAsync`, so a genuine *first* pull failure is still caught.
+- **`StatusAsync` running-detection is substring-based** and does not distinguish
+  "installed-but-down" from "not installed".
+- Native `/models/create` NDJSON **error** events aren't surfaced as failures (only
+  progress is parsed); `PullAsync` confirms via inspect.
+
 ## Compose `models:` integration
 
 Docker Compose has a first-class `models:` element. FluentDocker emits it as a
@@ -258,5 +305,5 @@ plus embedded fixtures captured from a real DMR.
 
 ## See also
 
-- [Containers](containers.html) · [Compose](compose.html) · [Architecture](architecture.html)
-- Design spec: `docs/dmr/DESIGN.md`
+- [Getting Started](getting-started.html) · [Containers](containers.html) · [Compose](compose.html) · [Architecture](architecture.html)
+- Runnable sample: [`Examples/ModelRunner`](https://github.com/mariotoffia/FluentDocker/tree/master/Examples/ModelRunner)

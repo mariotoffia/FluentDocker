@@ -215,6 +215,46 @@ using var imgResults = new Builder()
     .Build();
 ```
 
+### Local LLMs (Docker Model Runner)
+
+Manage and consume local LLMs through **Docker Model Runner** — and any
+OpenAI-compatible endpoint — behind the same `Builder → WithinDriver → UseXxx`
+pattern, so a model handle lives in the same kernel and lifecycle as your containers.
+
+```csharp
+await using var runner = new Builder()
+    .WithinDriver("docker", kernel)
+    .UseModelRunner()
+    .ForModel("ai/smollm2")
+    .WithContextSize(8192)   // optional, persisted via `docker model configure`
+    .PullIfMissing()         // optional, pulls at build if absent
+    .Build();
+
+var reply = await runner.ChatAsync("Reply with a single word.");          // one-shot
+await foreach (var token in runner.ChatStreamAsync("Count to five"))       // streaming
+    Console.Write(token);
+var vector = await runner.EmbedAsync("hello world",                        // embeddings
+    ModelReference.Parse("ai/embeddinggemma"));
+```
+
+- **Three internal ports behind one façade** — management (pull/ls/inspect/rm/…),
+  runtime control (status/load/unload/configure/…), and inference (chat/completion/
+  embeddings). Inference is the OpenAI-compatible HTTP API on `:12434`; management
+  uses the `docker model` CLI. Transport is an adapter detail — you code only against
+  `IModelRunner`.
+- **A model as a managed service** — `UseModel("ai/smollm2")` returns an
+  `IModelService` that loads on `StartAsync`, unloads on dispose, in the same state
+  machine and hook pipeline as containers.
+- **Wire a model into a container** — `UseContainer(c => c.WithModel(...))` injects
+  `LLM_URL`/`LLM_MODEL` and ensures reachability (no network/volume created).
+- **Split control and data planes** — `WithEndpoint(...)` repoints inference at a
+  different address; `WithInferenceDriver(...)` runs inference on an explicit driver
+  or another registered driver while management stays on the scoped driver.
+
+Requires Docker Model Runner enabled (Docker Desktop → *Settings → AI*). See the full
+guide in [docs/model-runner.md](docs/model-runner.md) and the runnable
+[Examples/ModelRunner](Examples/ModelRunner).
+
 ---
 
 ## Drivers
@@ -531,6 +571,7 @@ Contributions welcome! Please adhere to `.editorconfig` for code style.
 - [Documentation Site](https://mariotoffia.github.io/FluentDocker/) - Full documentation on GitHub Pages
 - [Migration Guide](docs/migration.md) - Upgrading from v2.x.x
 - [Architecture Docs](docs/architecture.md) - v3 architecture details
+- [Model Runner (local LLMs)](docs/model-runner.md) - Managing & consuming local models
 - [NuGet Package](https://www.nuget.org/packages/FluentDocker)
 
 ---

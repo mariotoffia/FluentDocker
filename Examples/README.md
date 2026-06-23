@@ -45,6 +45,17 @@ Demonstrates new v3 features:
 cd ComposeV2 && dotnet run
 ```
 
+### ModelRunner (v3.2 Feature)
+Demonstrates Docker Model Runner (local LLMs):
+- Pull/list models, one-shot and **streaming** chat, embeddings
+- A model as a managed service (`UseModel`) that loads on start, unloads on dispose
+
+Requires Docker Model Runner enabled (Docker Desktop → Settings → AI). Uses tiny models.
+
+```bash
+cd ModelRunner && dotnet run
+```
+
 ## Running All Examples
 
 ```bash

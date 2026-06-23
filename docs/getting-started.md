@@ -302,6 +302,39 @@ catch (Exception ex)
 }
 ```
 
+## Local LLMs (Model Runner)
+
+FluentDocker can also manage and consume **local LLMs** through Docker Model Runner,
+using the same `Builder → WithinDriver → UseXxx` pattern. First enable it in Docker
+Desktop (*Settings → AI → Enable Docker Model Runner*, with host-side TCP on).
+
+```csharp
+// kernel created as shown above
+
+await using var runner = new Builder()
+    .WithinDriver("docker", kernel)
+    .UseModelRunner()
+    .ForModel("ai/smollm2")   // tiny chat model (~256 MiB)
+    .PullIfMissing()          // pull at build if not already present
+    .Build();
+
+if ((await runner.StatusAsync()).Running)
+{
+    // One-shot chat
+    var reply = await runner.ChatAsync("Reply with a single word.");
+    Console.WriteLine(reply);
+
+    // Streaming, token by token
+    await foreach (var token in runner.ChatStreamAsync("Count from one to five"))
+        Console.Write(token);
+}
+```
+
+Inference runs over the OpenAI-compatible HTTP API on `:12434`; management uses the
+`docker model` CLI — but you only ever code against `IModelRunner`. A model can also
+be a managed `IModelService` (loads on start, unloads on dispose) or be wired into a
+container with `WithModel(...)`. See the full guide for details.
+
 ## Next Steps
 
 - [Containers](containers.html) - Container lifecycle, configuration, and operations
@@ -309,4 +342,5 @@ catch (Exception ex)
 - [Networking](networking.html) - Custom networks and static IPs
 - [Volumes](volumes.html) - Data persistence
 - [Images](images.html) - Building custom images
+- [Model Runner (local LLMs)](model-runner.html) - Managing & consuming local models
 - [Testing](testing.html) - Test fixtures and base classes
