@@ -3,17 +3,18 @@ using System.Linq;
 using System.Threading.Tasks;
 using FluentDocker.Builders;
 using FluentDocker.Kernel;
-using FluentDocker.Model.Models;
 using FluentDocker.Services;
 using Microsoft.Extensions.Logging.Abstractions;
 
 namespace ModelRunner
 {
   /// <summary>
-  /// Demonstrates FluentDocker's Docker Model Runner (local LLM) support: pull/list,
-  /// one-shot + streaming chat, embeddings, and a managed model lifecycle — all
-  /// behind the same <c>Builder → WithinDriver → UseModelRunner()</c> pattern used
-  /// for containers, networks and volumes.
+  /// Demonstrates FluentDocker's Docker Model Runner (local LLM) support. Each
+  /// scenario uses its OWN fluent builder chain to *declare the setup* — select the
+  /// model, set a persistent context size, pull it if absent — and then runs
+  /// inference. Setup is expressed through the builder, not through imperative calls
+  /// after the fact, mirroring the <c>Builder → WithinDriver → UseXxx</c> pattern
+  /// used for containers, networks and volumes.
   ///
   /// Prerequisite: Docker Model Runner must be enabled (Docker Desktop →
   /// Settings → AI → Enable Docker Model Runner, with host-side TCP turned on).
@@ -33,7 +34,18 @@ namespace ModelRunner
 
       try
       {
-        await RunAsync(kernel);
+        if (!await RunnerIsReachableAsync(kernel))
+        {
+          Console.WriteLine("Docker Model Runner is not running.");
+          Console.WriteLine("Enable it: Docker Desktop → Settings → AI → Enable Docker Model Runner (with host-side TCP).");
+          return;
+        }
+
+        await ChatAsync(kernel);
+        await StreamChatAsync(kernel);
+        await EmbeddingsAsync(kernel);
+        await ManagedServiceAsync(kernel);
+        await ListModelsAsync(kernel);
       }
       catch (Exception ex)
       {
@@ -42,7 +54,8 @@ namespace ModelRunner
       }
     }
 
-    private static async Task RunAsync(FluentDockerKernel kernel)
+    /// <summary>Builds a minimal runner to confirm the runner is reachable.</summary>
+    private static async Task<bool> RunnerIsReachableAsync(FluentDockerKernel kernel)
     {
       await using var runner = new Builder()
           .WithinDriver(DriverId, kernel)
@@ -51,73 +64,71 @@ namespace ModelRunner
           .Build();
 
       var status = await runner.StatusAsync();
-      if (!status.Running)
-      {
-        Console.WriteLine("Docker Model Runner is not running.");
-        Console.WriteLine("Enable it: Docker Desktop → Settings → AI → Enable Docker Model Runner (with host-side TCP).");
-        return;
-      }
+      if (status.Running)
+        Console.WriteLine($"Model Runner reachable at {status.Endpoint}\n");
 
-      Console.WriteLine($"Model Runner reachable at {status.Endpoint}\n");
-
-      await ManageModelsAsync(runner);
-      await ChatAsync(runner);
-      await StreamChatAsync(runner);
-      await EmbeddingsAsync(runner);
-      await ManagedServiceAsync(kernel);
+      return status.Running;
     }
 
-    /// <summary>1) Pull (with progress) and list local models.</summary>
-    private static async Task ManageModelsAsync(IModelRunner runner)
-    {
-      Console.WriteLine("== Managing models ==");
-      await runner.PullAsync(ModelReference.Parse(ChatModel),
-          new Progress<ModelPullProgress>(p =>
-          {
-            if (p.Total > 0)
-              Console.WriteLine($"  {p.Status} {p.Fraction:P0}");
-          }));
-
-      foreach (var m in await runner.ListAsync())
-        Console.WriteLine($"  {m.Reference}  ({m.ParameterCount}, {m.Quantization}, {m.Size / (1024 * 1024)} MiB)");
-      Console.WriteLine();
-    }
-
-    /// <summary>2) One-shot chat against the default model.</summary>
-    private static async Task ChatAsync(IModelRunner runner)
+    /// <summary>
+    /// One-shot chat. The builder declares the setup — select the model, set a
+    /// persistent context size, pull it if missing — then we run inference.
+    /// </summary>
+    private static async Task ChatAsync(FluentDockerKernel kernel)
     {
       Console.WriteLine("== Chat (one-shot) ==");
-      var reply = await runner.ChatAsync("Reply with exactly one word: the capital of France.");
+      await using var llm = new Builder()
+          .WithinDriver(DriverId, kernel)
+          .UseModelRunner()
+          .ForModel(ChatModel)
+          .WithContextSize(8192)
+          .PullIfMissing()
+          .Build();
+
+      var reply = await llm.ChatAsync("Reply with exactly one word: the capital of France.");
       Console.WriteLine($"  {reply?.Trim()}\n");
     }
 
-    /// <summary>3) Streaming chat — tokens arrive as they are generated.</summary>
-    private static async Task StreamChatAsync(IModelRunner runner)
+    /// <summary>Streaming chat — tokens arrive as they are generated.</summary>
+    private static async Task StreamChatAsync(FluentDockerKernel kernel)
     {
-      if (!runner.Capabilities.SupportsStreaming)
-        return;
-
       Console.WriteLine("== Chat (streaming) ==");
+      await using var llm = new Builder()
+          .WithinDriver(DriverId, kernel)
+          .UseModelRunner()
+          .ForModel(ChatModel)
+          .PullIfMissing()
+          .Build();
+
       Console.Write("  ");
-      await foreach (var token in runner.ChatStreamAsync("Count from one to five."))
+      await foreach (var token in llm.ChatStreamAsync("Count from one to five."))
         Console.Write(token);
       Console.WriteLine("\n");
     }
 
-    /// <summary>4) Embeddings — needs a dedicated embedding model.</summary>
-    private static async Task EmbeddingsAsync(IModelRunner runner)
+    /// <summary>
+    /// Embeddings — a separate runner set up for a dedicated embedding model. The
+    /// builder pulls it if missing; <c>EmbedAsync</c> then uses that default model.
+    /// </summary>
+    private static async Task EmbeddingsAsync(FluentDockerKernel kernel)
     {
-      if (!runner.Capabilities.SupportsEmbeddings)
-        return;
-
       Console.WriteLine("== Embeddings ==");
-      await runner.PullAsync(ModelReference.Parse(EmbedModel));
-      var vector = await runner.EmbedAsync("FluentDocker manages local LLMs.", ModelReference.Parse(EmbedModel));
+      await using var embedder = new Builder()
+          .WithinDriver(DriverId, kernel)
+          .UseModelRunner()
+          .ForModel(EmbedModel)
+          .PullIfMissing()
+          .Build();
+
+      var vector = await embedder.EmbedAsync("FluentDocker manages local LLMs.");
       var preview = string.Join(", ", vector.Take(4).Select(v => v.ToString("0.000")));
       Console.WriteLine($"  {vector.Count}-dim vector, first few: [{preview} …]\n");
     }
 
-    /// <summary>5) A model as a managed service — loads on Start, unloads on dispose.</summary>
+    /// <summary>
+    /// A model as a managed service — the builder sets it up (pull, context size),
+    /// then it loads on <c>StartAsync</c> and unloads on dispose.
+    /// </summary>
     private static async Task ManagedServiceAsync(FluentDockerKernel kernel)
     {
       Console.WriteLine("== Managed model service ==");
@@ -125,13 +136,28 @@ namespace ModelRunner
           .WithinDriver(DriverId, kernel)
           .UseModel(ChatModel)
           .WithContextSize(4096)
+          .PullIfMissing()
           .KeepRunning(false)   // unload on dispose
           .Build();
 
       await model.StartAsync();
       var answer = await model.Runner.ChatAsync("Say hello in French, one word.");
-      Console.WriteLine($"  {answer?.Trim()}");
+      Console.WriteLine($"  {answer?.Trim()}\n");
       // disposed here -> model unloaded
+    }
+
+    /// <summary>Lists local models — a runtime query over a fluently-built runner.</summary>
+    private static async Task ListModelsAsync(FluentDockerKernel kernel)
+    {
+      Console.WriteLine("== Local models ==");
+      await using var runner = new Builder()
+          .WithinDriver(DriverId, kernel)
+          .UseModelRunner()
+          .Build();
+
+      foreach (var m in await runner.ListAsync())
+        Console.WriteLine($"  {m.Reference}  ({m.ParameterCount}, {m.Quantization}, {m.Size / (1024 * 1024)} MiB)");
+      Console.WriteLine();
     }
   }
 }

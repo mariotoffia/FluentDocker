@@ -3,10 +3,13 @@
 Demonstrates FluentDocker's **Docker Model Runner** (local LLM) support behind the
 same `Builder → WithinDriver → UseModelRunner()` pattern used for containers:
 
-- Pull (with progress) and list local models
+- **Declarative setup via the fluent builder** — each scenario selects its model and
+  pulls it if missing in the builder chain (`ForModel` / `WithContextSize` /
+  `PullIfMissing`), then runs inference
 - One-shot chat (`ChatAsync`) and **streaming** chat (`ChatStreamAsync`)
 - Embeddings (`EmbedAsync`) with a dedicated embedding model
 - A model as a **managed service** (`UseModel`) that loads on start and unloads on dispose
+- Listing local models
 
 Inference is served over the OpenAI-compatible HTTP API on `:12434`; management and
 runtime control use the `docker model` CLI. Transport is an internal adapter detail —
