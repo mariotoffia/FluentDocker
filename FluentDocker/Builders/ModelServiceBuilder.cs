@@ -74,9 +74,10 @@ namespace FluentDocker.Builders
     }
 
     /// <inheritdoc />
-    public IModelService Build() => Task.Run(BuildAsync).GetAwaiter().GetResult();
+    public IModelService Build() => Task.Run(() => BuildAsync(CancellationToken.None)).GetAwaiter().GetResult();
 
-    private async Task<IModelService> BuildAsync()
+    /// <inheritdoc />
+    public async Task<IModelService> BuildAsync(CancellationToken cancellationToken = default)
     {
       if (_model == null)
         throw new InvalidOperationException("A model reference is required (use UseModel(reference)).");
@@ -89,7 +90,8 @@ namespace FluentDocker.Builders
       if (_pullIfMissing)
         runnerBuilder.PullIfMissing();
 
-      var runner = await runnerBuilder.BuildAsync(CancellationToken.None).ConfigureAwait(false);
+      // Pass the caller's token through to the build-time pull/configure work.
+      var runner = await runnerBuilder.BuildAsync(cancellationToken).ConfigureAwait(false);
       return new ModelService(_kernel, _driverId, _model, runner, _runOptions, _keepRunning);
     }
   }

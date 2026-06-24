@@ -1,5 +1,3 @@
-using System.Collections.Generic;
-
 namespace FluentDocker.Model.Models.Options
 {
   /// <summary>
@@ -17,10 +15,9 @@ namespace FluentDocker.Model.Models.Options
     /// <summary>Push the produced artifact after building (<c>--push</c>).</summary>
     public bool Push { get; init; }
 
-    /// <summary>Optional OCI labels (<c>--label</c>).</summary>
-    public IReadOnlyDictionary<string, string> Labels { get; init; }
-
-    /// <summary>Optional license identifier.</summary>
+    /// <summary>
+    /// Optional path to a license file to embed in the artifact (<c>--license &lt;path&gt;</c>).
+    /// </summary>
     public string License { get; init; }
   }
 }

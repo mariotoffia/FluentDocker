@@ -12,8 +12,10 @@ LM Studio, or a hosted endpoint). It mirrors the existing
 `Builder → WithinDriver → UseXxx` pattern, so a model handle lives in the *same*
 kernel and lifecycle as your containers, networks and volumes.
 
-> **Preview.** The inference DTOs are marked preview; their shapes may change
-> before this subsystem reaches 1.0. Available from FluentDocker **v3.2.0**.
+> **Preview / unreleased.** This subsystem is slated for FluentDocker **v3.2.0**,
+> which has **not been released yet** — it is available only by building from source on
+> the feature branch. The inference DTOs are marked preview; their shapes may change
+> before the subsystem reaches 1.0.
 
 ## Two surfaces, one façade
 
@@ -137,9 +139,13 @@ Code running *inside* a model-bound workload can reconstruct a runner from the
 injected variables:
 
 ```csharp
-var runner = ModelRunnerEnvironment.FromEnvironment();        // reads LLM_URL / LLM_MODEL
-// or a custom prefix matching endpoint_var / model_var:
-var runner = ModelRunnerEnvironment.FromEnvironment("AI_MODEL");
+// Default prefix LLM -> reads LLM_URL / LLM_MODEL:
+var runner = ModelRunnerEnvironment.FromEnvironment();
+// A custom PREFIX -> reads <PREFIX>_URL / <PREFIX>_MODEL:
+var runner = ModelRunnerEnvironment.FromEnvironment("AI_MODEL");   // AI_MODEL_URL / AI_MODEL_MODEL
+// Arbitrary variable NAMES (e.g. the Compose long-form endpoint_var / model_var,
+// where the model variable is AI_MODEL_NAME, not AI_MODEL_MODEL):
+var runner = ModelRunnerEnvironment.FromVariables("AI_MODEL_URL", "AI_MODEL_NAME");
 ```
 
 This builds a `GenericOpenAiModelRunner` against the injected URL — which also
@@ -156,8 +162,11 @@ ModelRunnerEndpoint.UnixSocket();         // $HOME/.docker/run/docker.sock
 ModelRunnerEndpoint.Custom(new Uri("https://api.example.com"));
 ```
 
-Resolution order when unspecified: the `DOCKER_MODEL_RUNNER_URL` env var, then host
-TCP, then container-internal DNS, then the unix socket.
+Resolution when unspecified: `ModelRunnerEndpoint.Default()` returns the
+`DOCKER_MODEL_RUNNER_URL` env var when set, otherwise host TCP
+(`http://localhost:12434`). The container-internal DNS and unix-socket forms are
+*not* probed automatically — select them explicitly via `ContainerInternal()` /
+`UnixSocket()` (or `WithEndpoint(...)`).
 
 ## Capabilities
 
@@ -244,6 +253,10 @@ small **overlay** file that merges with your own compose file (Compose merges
 multiple `-f` files), so it slots into the existing file-path compose builder:
 
 ```csharp
+using System;
+using System.IO;
+using FluentDocker.Builders.Compose;
+
 var overlay = new ComposeModelBuilder();
 overlay.AddModel("llm", m => m
     .WithModel("ai/smollm2")
@@ -252,7 +265,9 @@ overlay.AddModel("llm", m => m
 overlay.BindToService("app", "llm");                                   // short: LLM_URL / LLM_MODEL
 overlay.BindToService("worker", "llm", "AI_MODEL_URL", "AI_MODEL_NAME"); // long: custom env vars
 
-var overlayPath = overlay.WriteOverlay(Path.Combine(Path.GetTempPath(), "models.overlay.yaml"));
+// Use a unique file name — a fixed temp path can collide between processes/runs.
+var overlayPath = overlay.WriteOverlay(
+    Path.Combine(Path.GetTempPath(), $"fluentdocker-models-{Guid.NewGuid():N}.overlay.yaml"));
 
 new Builder().WithinDriver("docker", kernel)
   .UseCompose(c => c.WithComposeFiles("docker-compose.yml", overlayPath))

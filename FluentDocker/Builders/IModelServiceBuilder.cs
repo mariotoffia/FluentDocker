@@ -1,4 +1,6 @@
 using System;
+using System.Threading;
+using System.Threading.Tasks;
 using FluentDocker.Services;
 
 namespace FluentDocker.Builders
@@ -12,7 +14,11 @@ namespace FluentDocker.Builders
     /// <summary>Sets the persistent context size.</summary>
     IModelServiceBuilder WithContextSize(int tokens);
 
-    /// <summary>Selects the backend.</summary>
+    /// <summary>
+    /// Selects the inference backend/engine. The default (<c>"auto"</c> / unset) lets the
+    /// runner pick the engine from the model format; an explicit value is applied only
+    /// when the installed <c>docker model configure</c> supports <c>--backend</c>.
+    /// </summary>
     IModelServiceBuilder WithBackend(string backend);
 
     /// <summary>Configures load (run) options.</summary>
@@ -24,8 +30,14 @@ namespace FluentDocker.Builders
     /// <summary>Pulls the model at build time if it is not present.</summary>
     IModelServiceBuilder PullIfMissing(bool pull = true);
 
-    /// <summary>Builds the model service.</summary>
+    /// <summary>Builds the model service (synchronous; prefer <see cref="BuildAsync"/>).</summary>
     IModelService Build();
+
+    /// <summary>
+    /// Builds the model service asynchronously, honoring <paramref name="cancellationToken"/>
+    /// for the build-time pull/configure work.
+    /// </summary>
+    Task<IModelService> BuildAsync(CancellationToken cancellationToken = default);
   }
 
   /// <summary>
@@ -34,28 +46,12 @@ namespace FluentDocker.Builders
   public sealed class ModelRunOptionsBuilder
   {
     private bool _detach;
-    private bool _ignoreRuntimeMemoryCheck;
     private bool _debug;
-    private string _backend;
 
     /// <summary>Run detached (load and keep resident).</summary>
     public ModelRunOptionsBuilder WithDetach(bool detach = true)
     {
       _detach = detach;
-      return this;
-    }
-
-    /// <summary>Skip the host runtime-memory check.</summary>
-    public ModelRunOptionsBuilder IgnoreRuntimeMemoryCheck(bool ignore = true)
-    {
-      _ignoreRuntimeMemoryCheck = ignore;
-      return this;
-    }
-
-    /// <summary>Override the backend for this run.</summary>
-    public ModelRunOptionsBuilder WithBackend(string backend)
-    {
-      _backend = backend;
       return this;
     }
 
@@ -69,8 +65,6 @@ namespace FluentDocker.Builders
     internal Model.Models.Options.ModelRunOptions Build() => new()
     {
       Detach = _detach,
-      IgnoreRuntimeMemoryCheck = _ignoreRuntimeMemoryCheck,
-      Backend = _backend,
       Debug = _debug
     };
   }

@@ -73,6 +73,10 @@ jobs:
       - name: Build solution
         run: dotnet build --configuration Release --no-restore
 
+      - name: Build examples
+        if: matrix.os == 'ubuntu-latest'
+        run: dotnet build Examples/Examples.sln --configuration Release
+
       - name: Run tests (in act)
         if: steps.detect-env.outputs.running_in_act == 'true'
         env:
@@ -98,6 +102,15 @@ jobs:
           --collect:"XPlat Code Coverage"
           --results-directory ./coverage
           --settings coverletArgs.runsettings
+
+      - name: Run unit tests (net8.0)
+        # The product ships net8.0;net10.0, so verify the unit suite on net8.0 too.
+        run: >
+          dotnet test
+          --no-build
+          --configuration Release
+          --framework net8.0
+          --filter "Category=Unit"
 
       - name: Upload coverage reports to Codecov
         if: steps.detect-env.outputs.running_in_act != 'true' && matrix.os == 'ubuntu-latest'
@@ -236,14 +249,28 @@ jobs:
         shell: bash
         run: |
           # The DMR (model-runner) integration tests self-skip via the xUnit dynamic-skip
-          # sentinel when the runner is absent; this step only surfaces availability in logs.
+          # sentinel when the runner is absent.
           if docker model status > /dev/null 2>&1; then
             echo "Docker Model Runner is available — DMR integration tests will run"
             echo "available=true" >> "$GITHUB_OUTPUT"
           else
-            echo "Docker Model Runner not available — DMR integration tests will skip cleanly"
+            echo "Docker Model Runner not available — DMR integration tests will skip"
             echo "available=false" >> "$GITHUB_OUTPUT"
           fi
+
+      - name: Require DMR for explicitly-requested integration runs
+        # On a scheduled or manually-requested (run_integration=true) run, a missing DMR
+        # must FAIL — otherwise the DMR tests self-skip and the run passes with zero real
+        # Model Runner coverage. PR runs still skip cleanly (hosted runners lack DMR).
+        if: >
+          steps.dmr-check.outputs.available != 'true' &&
+          (github.event_name == 'schedule' ||
+           (github.event_name == 'workflow_dispatch' && inputs.run_integration == true))
+        shell: bash
+        run: |
+          echo "::error::Docker Model Runner is unavailable, but a DMR integration run was explicitly requested."
+          echo "DMR integration tests would self-skip, masking zero real coverage. Use a DMR-capable runner."
+          exit 1
 
       - run: dotnet restore
 

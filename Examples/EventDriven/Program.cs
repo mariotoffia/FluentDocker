@@ -6,6 +6,7 @@ using FluentDocker.Builders;
 using FluentDocker.Drivers;
 using FluentDocker.Extensions;
 using FluentDocker.Kernel;
+using Microsoft.Extensions.Logging.Abstractions;
 using FluentDocker.Model.Drivers;
 using FluentDocker.Services;
 
@@ -18,7 +19,7 @@ namespace EventDriven
 
     static async Task Main(string[] args)
     {
-      using var kernel = await FluentDockerKernel.Create()
+      using var kernel = await FluentDockerKernel.Create(NullLoggerFactory.Instance)
         .WithDockerCli(DriverId, d => d.AsDefault())
         .BuildAsync();
 

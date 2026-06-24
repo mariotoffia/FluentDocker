@@ -15,7 +15,7 @@ namespace FluentDocker.Services.Impl
   /// <summary>
   /// An inference-only <see cref="IModelRunner"/> targeting any OpenAI-compatible
   /// endpoint (DMR, a bare llama-server, vLLM, LM Studio, or a hosted endpoint).
-  /// It owns its <see cref="IModelApiConnection"/>; management / runtime-control
+  /// It owns its <see cref="FluentDocker.Drivers.Models.Connection.IModelApiConnection"/>; management / runtime-control
   /// operations are not supported (<see cref="ModelRunnerCapabilities.SupportsManagement"/>
   /// is <c>false</c>).
   /// </summary>

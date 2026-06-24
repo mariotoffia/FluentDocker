@@ -103,6 +103,25 @@ namespace FluentDocker.Tests.CoreTests.Model
     }
 
     [Fact]
+    public void TryFromEnvironment_PathBearingUrl_PreservesEnginePath()
+    {
+      const string var = "DOCKER_MODEL_RUNNER_URL";
+      var previous = Environment.GetEnvironmentVariable(var);
+      try
+      {
+        // A path-bearing injected URL must be preserved, not discarded — otherwise the
+        // engine prefix is re-appended and inference hits the wrong path.
+        Environment.SetEnvironmentVariable(var, "http://10.0.0.5:12434/engines/v1");
+        Assert.True(ModelRunnerEndpoint.TryFromEnvironment(out var ep));
+        Assert.Equal(new Uri("http://10.0.0.5:12434/engines/v1/chat/completions"), ep.ResolveUri("/chat/completions"));
+      }
+      finally
+      {
+        Environment.SetEnvironmentVariable(var, previous);
+      }
+    }
+
+    [Fact]
     public void TryFromEnvironment_Unset_ReturnsFalse()
     {
       const string var = "DOCKER_MODEL_RUNNER_URL";

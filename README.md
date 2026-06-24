@@ -222,6 +222,8 @@ OpenAI-compatible endpoint — behind the same `Builder → WithinDriver → Use
 pattern, so a model handle lives in the same kernel and lifecycle as your containers.
 
 ```csharp
+using FluentDocker.Model.Models; // ModelReference
+
 await using var runner = new Builder()
     .WithinDriver("docker", kernel)
     .UseModelRunner()
@@ -251,7 +253,8 @@ var vector = await runner.EmbedAsync("hello world",                        // em
   different address; `WithInferenceDriver(...)` runs inference on an explicit driver
   or another registered driver while management stays on the scoped driver.
 
-Requires Docker Model Runner enabled (Docker Desktop → *Settings → AI*). See the full
+Requires Docker Model Runner enabled (Docker Desktop → *Settings → AI*, with
+host-side TCP on for inference). See the full
 guide in [docs/model-runner.md](docs/model-runner.md) and the runnable
 [Examples/ModelRunner](Examples/ModelRunner).
 

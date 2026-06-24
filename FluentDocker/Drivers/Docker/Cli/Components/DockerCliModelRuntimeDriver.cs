@@ -22,10 +22,41 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
   /// </summary>
   public class DockerCliModelRuntimeDriver : DockerCliModelDriverBase, IModelRuntimeDriver
   {
+    // Cached one-shot probe of whether `docker model configure` advertises `--backend`.
+    // Only consulted when an explicit (non-auto) backend is requested.
+    private readonly object _backendProbeGate = new();
+    private Task<bool> _configureBackendSupported;
+
     /// <summary>Initializes the driver with a binary resolver.</summary>
     /// <param name="binaryResolver">The binary resolver.</param>
     public DockerCliModelRuntimeDriver(IBinaryResolver binaryResolver) : base(binaryResolver)
     {
+    }
+
+    /// <summary>
+    /// Returns (and caches) whether the installed <c>docker model configure</c> exposes a
+    /// <c>--backend</c> flag, by inspecting its <c>--help</c> output. Defaults to
+    /// <c>false</c> (unsupported) when the probe itself fails, so an explicit backend
+    /// never silently emits a flag we are unsure about.
+    /// </summary>
+    private Task<bool> SupportsConfigureBackendAsync(CancellationToken cancellationToken)
+    {
+      lock (_backendProbeGate)
+        return _configureBackendSupported ??= ProbeConfigureBackendAsync(cancellationToken);
+    }
+
+    private async Task<bool> ProbeConfigureBackendAsync(CancellationToken cancellationToken)
+    {
+      try
+      {
+        var result = await RunAsync("model configure --help", cancellationToken).ConfigureAwait(false);
+        var help = $"{result.Output} {result.Error}";
+        return help.Contains("--backend", StringComparison.Ordinal);
+      }
+      catch (Exception ex) when (ex is not OperationCanceledException)
+      {
+        return false;
+      }
     }
 
     /// <inheritdoc />
@@ -36,8 +67,23 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
       {
         var result = await RunAsync("model status", cancellationToken).ConfigureAwait(false);
         var output = result.Output ?? string.Empty;
-        var running = output.Contains("is running", StringComparison.OrdinalIgnoreCase)
-            && !output.Contains("is not running", StringComparison.OrdinalIgnoreCase);
+        var combined = $"{output} {result.Error}";
+
+        // Match the runner's specific phrasing ("Docker Model Runner is [not] running"),
+        // NOT a loose "not running" substring — an unrelated error that happens to contain
+        // those words must not be misread as a clean stopped state.
+        var knownNotRunning = combined.Contains("model runner is not running", StringComparison.OrdinalIgnoreCase);
+        var running = !knownNotRunning
+            && combined.Contains("model runner is running", StringComparison.OrdinalIgnoreCase);
+
+        // A non-zero exit that is NOT a recognizable running/not-running status is a
+        // genuine failure (docker missing, not permitted, plugin error) — surface it
+        // rather than silently reporting Running=false.
+        if (!result.Success && !running && !knownNotRunning)
+          return CommandResponse<ModelRunnerStatus>.Fail(
+              FirstNonEmpty(result.Error, output, "docker model status failed"),
+              ErrorCodes.Model.StatusFailed,
+              result.ExitCode);
 
         return CommandResponse<ModelRunnerStatus>.Ok(new ModelRunnerStatus
         {
@@ -102,15 +148,8 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
         ModelReference model, ModelRunOptions options = null, CancellationToken cancellationToken = default)
     {
       var sb = new StringBuilder("model run -d");
-      if (options != null)
-      {
-        if (options.IgnoreRuntimeMemoryCheck)
-          sb.Append(" --ignore-runtime-memory-check");
-        if (options.Debug)
-          sb.Append(" --debug");
-        if (!string.IsNullOrEmpty(options.Backend))
-          sb.Append(" --backend ").Append(QuoteArgumentIfNeeded(options.Backend));
-      }
+      if (options is { Debug: true })
+        sb.Append(" --debug");
 
       sb.Append(' ').Append(QuoteArgumentIfNeeded(model.ToString()));
       return await SimpleUnitAsync(context, sb.ToString(), "LoadModel", ErrorCodes.Model.LoadFailed, cancellationToken).ConfigureAwait(false);
@@ -141,8 +180,19 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
       else if (options.ContextSize.HasValue)
         sb.Append(" --context-size ").Append(options.ContextSize.Value.ToString(CultureInfo.InvariantCulture));
 
-      if (!options.Backend.IsDefault)
-        sb.Append(" --backend ").Append(QuoteArgumentIfNeeded(options.Backend.Name));
+      if (!options.IsAutoBackend)
+      {
+        // `--backend` is auto/implicit on current DMR (engine chosen from model format).
+        // Only emit an explicit backend when the installed CLI actually advertises the
+        // flag — otherwise fail clearly rather than send a flag the CLI would reject.
+        if (!await SupportsConfigureBackendAsync(cancellationToken).ConfigureAwait(false))
+          return CommandResponse<Unit>.Fail(
+              $"The installed 'docker model configure' does not support explicit backend selection ('--backend'); " +
+              $"the backend is auto-selected from the model format. Use the default backend (\"auto\") or upgrade Docker Model Runner. (requested: '{options.Backend}')",
+              ErrorCodes.Model.ConfigureFailed);
+
+        sb.Append(" --backend ").Append(QuoteArgumentIfNeeded(options.Backend));
+      }
 
       if (!string.IsNullOrEmpty(options.HfOverridesJson))
         sb.Append(" --hf_overrides ").Append(QuoteArgumentIfNeeded(options.HfOverridesJson));

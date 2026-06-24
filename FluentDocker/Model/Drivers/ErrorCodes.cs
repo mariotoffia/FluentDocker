@@ -29,6 +29,7 @@ namespace FluentDocker.Model.Drivers
       public const string HealthCheckFailed = "DRV_005";
       public const string InterfaceNotSupported = "DRV_006";
       public const string CapabilityNotSupported = "DRV_007";
+      public const string CommandExecutionFailed = "DRV_008";
     }
 
     /// <summary>

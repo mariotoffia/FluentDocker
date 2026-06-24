@@ -77,6 +77,58 @@ namespace FluentDocker.Tests.CoreTests.Driver
     }
 
     [Fact]
+    public async Task StatusAsync_NonZeroExit_NotRunningShape_IsTreatedAsNotRunning()
+    {
+      // A non-zero exit whose output is the recognizable "not running" shape is a
+      // legitimate state, not a command failure.
+      var driver = new FakeRuntimeDriver
+      {
+        Responder = _ => new SimpleCommandResult { Success = false, ExitCode = 1, Output = "Docker Model Runner is not running\n" }
+      };
+      var result = await driver.StatusAsync(Ctx, TestContext.Current.CancellationToken);
+
+      Assert.True(result.Success);
+      Assert.False(result.Data.Running);
+    }
+
+    [Fact]
+    public async Task StatusAsync_NonZeroExit_UnrelatedNotRunningMessage_Fails()
+    {
+      // A genuine command error whose text merely *contains* "not running" (e.g. an
+      // unrelated daemon error about a container) must NOT be mistaken for the runner's
+      // clean stopped state — only the specific "Model Runner is not running" phrase is.
+      var driver = new FakeRuntimeDriver
+      {
+        Responder = _ => new SimpleCommandResult
+        {
+          Success = false,
+          ExitCode = 1,
+          Error = "Error response from daemon: container abc is not running"
+        }
+      };
+      var result = await driver.StatusAsync(Ctx, TestContext.Current.CancellationToken);
+
+      Assert.False(result.Success);
+      Assert.Equal(ErrorCodes.Model.StatusFailed, result.ErrorCode);
+    }
+
+    [Fact]
+    public async Task StatusAsync_NonZeroExit_UnrecognizedOutput_Fails()
+    {
+      // A non-zero exit that is NOT a recognizable status (e.g. docker missing) must
+      // surface as a failure rather than silently reporting Running=false.
+      var driver = new FakeRuntimeDriver
+      {
+        Responder = _ => new SimpleCommandResult { Success = false, ExitCode = 127, Error = "docker: command not found", Output = string.Empty }
+      };
+      var result = await driver.StatusAsync(Ctx, TestContext.Current.CancellationToken);
+
+      Assert.False(result.Success);
+      Assert.Equal(ErrorCodes.Model.StatusFailed, result.ErrorCode);
+      Assert.Equal(127, result.ExitCode);
+    }
+
+    [Fact]
     public async Task VersionAsync_Parses()
     {
       var driver = new FakeRuntimeDriver { Responder = _ => Ok("Client:\n Version:    v1.2.1\n") };
@@ -98,17 +150,20 @@ namespace FluentDocker.Tests.CoreTests.Driver
     }
 
     [Fact]
-    public async Task LoadAsync_DetachedWithMemoryCheckSkip()
+    public async Task LoadAsync_DetachedWithDebug_NeverEmitsUnsupportedFlags()
     {
       var driver = new FakeRuntimeDriver { Responder = _ => Ok() };
       await driver.LoadAsync(Ctx, ModelReference.Parse("ai/smollm2"),
-          new ModelRunOptions { IgnoreRuntimeMemoryCheck = true }, TestContext.Current.CancellationToken);
+          new ModelRunOptions { Detach = true, Debug = true }, TestContext.Current.CancellationToken);
 
       var cmd = driver.Commands.Single();
       Assert.Contains("model run", cmd);
       Assert.Contains("-d", cmd);
-      Assert.Contains("--ignore-runtime-memory-check", cmd);
+      Assert.Contains("--debug", cmd);
       Assert.Contains("ai/smollm2", cmd);
+      // `docker model run` v1.2.1 exposes neither of these — emitting them fails the command.
+      Assert.DoesNotContain("--ignore-runtime-memory-check", cmd);
+      Assert.DoesNotContain("--backend", cmd);
     }
 
     [Fact]
@@ -150,14 +205,62 @@ namespace FluentDocker.Tests.CoreTests.Driver
       Assert.Contains("--context-size -1", driver.Commands.Single());
     }
 
-    [Fact]
-    public async Task ConfigureAsync_Backend()
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("auto")]
+    [InlineData("AUTO")]
+    public async Task ConfigureAsync_AutoBackend_EmitsNoBackendFlag_AndDoesNotProbe(string backend)
     {
+      // The default ("auto" / unset) lets DMR pick the engine from the model format —
+      // no `--backend` is emitted and the capability `--help` probe is never spawned.
       var driver = new FakeRuntimeDriver { Responder = _ => Ok() };
       await driver.ConfigureAsync(Ctx, ModelReference.Parse("ai/x"),
-          new ModelConfigureOptions { Backend = ModelBackend.Vllm }, TestContext.Current.CancellationToken);
+          new ModelConfigureOptions { ContextSize = 4096, Backend = backend }, TestContext.Current.CancellationToken);
 
-      Assert.Contains("--backend vllm", driver.Commands.Single());
+      Assert.DoesNotContain("--backend", driver.Commands.Single());
+      Assert.DoesNotContain(driver.Commands, c => c.Contains("--help"));
+    }
+
+    [Fact]
+    public async Task ConfigureAsync_ExplicitBackend_Unsupported_FailsClearly()
+    {
+      // Installed `docker model configure --help` does NOT advertise `--backend`, so an
+      // explicit backend must fail with a clear message — not emit a rejected flag.
+      var driver = new FakeRuntimeDriver
+      {
+        Responder = args => args.Contains("--help")
+            ? Ok("Options:\n  --context-size int32\n  --mode string\n  --think\n")
+            : Ok()
+      };
+
+      var result = await driver.ConfigureAsync(Ctx, ModelReference.Parse("ai/x"),
+          new ModelConfigureOptions { Backend = "vllm" }, TestContext.Current.CancellationToken);
+
+      Assert.False(result.Success);
+      Assert.Equal(ErrorCodes.Model.ConfigureFailed, result.ErrorCode);
+      Assert.Contains("backend", result.Error, StringComparison.OrdinalIgnoreCase);
+      // The unsupported flag was never sent to a real `configure` invocation.
+      Assert.DoesNotContain(driver.Commands, c => c.Contains("--backend"));
+    }
+
+    [Fact]
+    public async Task ConfigureAsync_ExplicitBackend_Supported_EmitsBackend()
+    {
+      // Forward-compatible: when a future `docker model configure` advertises `--backend`,
+      // the explicit backend is emitted.
+      var driver = new FakeRuntimeDriver
+      {
+        Responder = args => args.Contains("--help")
+            ? Ok("Options:\n  --backend string   inference backend\n  --context-size int32\n")
+            : Ok()
+      };
+
+      var result = await driver.ConfigureAsync(Ctx, ModelReference.Parse("ai/x"),
+          new ModelConfigureOptions { Backend = "vllm" }, TestContext.Current.CancellationToken);
+
+      Assert.True(result.Success);
+      Assert.Contains(driver.Commands, c => c.Contains("--backend vllm") && !c.Contains("--help"));
     }
 
     [Fact]

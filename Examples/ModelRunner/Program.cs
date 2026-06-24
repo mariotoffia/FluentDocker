@@ -49,12 +49,20 @@ namespace ModelRunner
       }
       catch (Exception ex)
       {
-        Console.WriteLine($"\nModel Runner example aborted: {ex.Message}");
-        Console.WriteLine("Ensure Docker Model Runner is enabled (Docker Desktop → Settings → AI) with host-side TCP.");
+        // Unexpected failures must signal a non-zero exit code (e.g. for CI), unlike
+        // the expected "runner not enabled" path which exits 0 with guidance.
+        Console.Error.WriteLine($"\nModel Runner example failed: {ex.Message}");
+        Console.Error.WriteLine("Ensure Docker Model Runner is enabled (Docker Desktop → Settings → AI) with host-side TCP.");
+        Environment.ExitCode = 1;
       }
     }
 
-    /// <summary>Builds a minimal runner to confirm the runner is reachable.</summary>
+    /// <summary>
+    /// Confirms the runner is usable on BOTH planes: the CLI control plane
+    /// (<c>StatusAsync</c>) AND the HTTP inference data plane (a lightweight
+    /// <c>ListEngineModelsAsync</c> probe) — a runner can report "running" while its
+    /// host-side TCP inference port is still unreachable.
+    /// </summary>
     private static async Task<bool> RunnerIsReachableAsync(FluentDockerKernel kernel)
     {
       await using var runner = new Builder()
@@ -64,10 +72,23 @@ namespace ModelRunner
           .Build();
 
       var status = await runner.StatusAsync();
-      if (status.Running)
-        Console.WriteLine($"Model Runner reachable at {status.Endpoint}\n");
+      if (!status.Running)
+        return false;
 
-      return status.Running;
+      try
+      {
+        // Data-plane probe: does the OpenAI-compatible endpoint actually answer?
+        await runner.ListEngineModelsAsync();
+      }
+      catch (Exception ex)
+      {
+        Console.WriteLine($"The runner is running but its inference endpoint is unreachable: {ex.Message}");
+        Console.WriteLine("Enable host-side TCP for Model Runner (Docker Desktop → Settings → AI).");
+        return false;
+      }
+
+      Console.WriteLine($"Model Runner reachable at {status.Endpoint}\n");
+      return true;
     }
 
     /// <summary>

@@ -20,7 +20,13 @@ namespace FluentDocker.Builders
     /// <summary>Sets the persistent context size (applied via configure at build).</summary>
     IModelRunnerBuilder WithContextSize(int tokens);
 
-    /// <summary>Selects the backend (applied via configure at build).</summary>
+    /// <summary>
+    /// Selects the inference backend/engine, applied via configure at build. The default
+    /// (<c>"auto"</c> / unset) lets the runner pick the engine from the model format and
+    /// emits nothing. An explicit value (e.g. <c>"vllm"</c>) is applied only when the
+    /// installed <c>docker model configure</c> supports <c>--backend</c>; otherwise the
+    /// build fails with a clear message (current DMR auto-selects).
+    /// </summary>
     IModelRunnerBuilder WithBackend(string backend);
 
     /// <summary>Sets raw engine runtime flags (applied via configure at build).</summary>

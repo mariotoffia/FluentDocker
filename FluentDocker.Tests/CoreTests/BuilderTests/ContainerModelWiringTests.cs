@@ -100,5 +100,22 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
                 .UseContainer(c => c.UseImage("app").WithModel(Model, ModelRunnerEndpoint.HostTcp())));
       }
     }
+
+    [Theory]
+    [InlineData("http://[::1]:12434")]      // IPv6 loopback
+    [InlineData("http://127.0.0.2:12434")]  // any 127.0.0.0/8 address is loopback
+    [InlineData("http://[::1]:12434/engines/v1")]
+    public async Task WithModel_LoopbackAlias_Rejected(string url)
+    {
+      // A container cannot reach the runner via ANY loopback alias (not just
+      // localhost/127.0.0.1) — they resolve to the container itself.
+      var kernel = await KernelAsync();
+      await using (kernel)
+      {
+        Assert.Throws<ArgumentException>(() =>
+            new Builder().WithinDriver("docker", kernel)
+                .UseContainer(c => c.UseImage("app").WithModel(Model, ModelRunnerEndpoint.Custom(new Uri(url)))));
+      }
+    }
   }
 }

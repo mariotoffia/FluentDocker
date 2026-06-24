@@ -78,9 +78,14 @@ namespace FluentDocker.Drivers
     Task<CommandResponse<ModelInfo>> PackageAsync(DriverContext context,
         ModelPackageRequest request, CancellationToken cancellationToken = default);
 
-    /// <summary>Prunes unused models.</summary>
+    /// <summary>
+    /// Removes models from the local store. The Docker Model Runner CLI exposes only a
+    /// purge-all operation (<c>docker model purge</c>), so this always removes <em>all</em>
+    /// local models; <paramref name="all"/> is accepted for forward compatibility but does
+    /// not narrow the scope.
+    /// </summary>
     /// <param name="context">The driver context.</param>
-    /// <param name="all">Whether to prune all (not just dangling).</param>
+    /// <param name="all">Retained for the port contract; purge always removes all models.</param>
     /// <param name="cancellationToken">A token to cancel the operation.</param>
     /// <returns>The prune result.</returns>
     Task<CommandResponse<ModelPruneResult>> PruneAsync(DriverContext context,

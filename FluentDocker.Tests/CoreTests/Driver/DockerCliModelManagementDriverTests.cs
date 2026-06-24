@@ -70,6 +70,30 @@ namespace FluentDocker.Tests.CoreTests.Driver
     }
 
     [Fact]
+    public async Task ListAsync_MalformedJsonDespiteZeroExit_Fails()
+    {
+      // A zero-exit run that prints non-JSON (e.g. a warning) must surface as a failure,
+      // not a silent "zero models" success.
+      var driver = new FakeMgmtDriver { Responder = _ => Ok("WARNING: something went wrong, not json") };
+
+      var result = await driver.ListAsync(Ctx, TestContext.Current.CancellationToken);
+
+      Assert.False(result.Success);
+      Assert.Equal(ErrorCodes.Model.ListFailed, result.ErrorCode);
+    }
+
+    [Fact]
+    public async Task ListAsync_EmptyOutput_IsSuccessfulEmptyList()
+    {
+      var driver = new FakeMgmtDriver { Responder = _ => Ok(string.Empty) };
+
+      var result = await driver.ListAsync(Ctx, TestContext.Current.CancellationToken);
+
+      Assert.True(result.Success);
+      Assert.Empty(result.Data);
+    }
+
+    [Fact]
     public async Task InspectAsync_EmitsInspectWithoutJsonFlag_AndParses()
     {
       var driver = new FakeMgmtDriver { Responder = _ => Ok(DmrFixtures.Load("inspect.json")) };
@@ -167,6 +191,43 @@ namespace FluentDocker.Tests.CoreTests.Driver
       Assert.Contains("/tmp/m.gguf", cmd);
       Assert.Contains("--push", cmd);
       Assert.Contains("ai/mine:1", cmd);
+    }
+
+    [Fact]
+    public async Task PackageAsync_EmitsLicense_NeverUnsupportedLabel()
+    {
+      // `docker model package` supports `--license <path>`, NOT `--label`. The
+      // license must be emitted and the (unsupported) label flag must never appear.
+      var driver = new FakeMgmtDriver { Responder = _ => Ok() };
+
+      await driver.PackageAsync(Ctx, new ModelPackageRequest
+      {
+        GgufPath = "/tmp/m.gguf",
+        Target = ModelReference.Parse("ai/mine:1"),
+        License = "/tmp/LICENSE.txt"
+      }, TestContext.Current.CancellationToken);
+
+      var cmd = driver.Commands.Single();
+      Assert.Contains("--license", cmd);
+      Assert.Contains("/tmp/LICENSE.txt", cmd);
+      Assert.DoesNotContain("--label", cmd);
+    }
+
+    [Fact]
+    public async Task PruneAsync_EmitsPurgeForce_NeverNonExistentPrune()
+    {
+      // DMR v1.2.1 has no `model prune` (it prints top-level help and exits 0, a
+      // false success). The real verb is `model purge --force`.
+      var driver = new FakeMgmtDriver { Responder = _ => Ok("Removed 2 models, reclaimed 1.5 GB") };
+
+      var result = await driver.PruneAsync(Ctx, all: true, TestContext.Current.CancellationToken);
+
+      Assert.True(result.Success);
+      var cmd = driver.Commands.Single();
+      Assert.Contains("model purge", cmd);
+      Assert.Contains("--force", cmd);
+      Assert.DoesNotContain("model prune", cmd);
+      Assert.Equal("Removed 2 models, reclaimed 1.5 GB", result.Data.RawOutput);
     }
 
     [Fact]

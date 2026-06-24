@@ -1,4 +1,3 @@
-using System.Collections.Generic;
 using FluentDocker.Model.Models;
 using FluentDocker.Model.Models.Options;
 using Xunit;
@@ -18,9 +17,7 @@ namespace FluentDocker.Tests.CoreTests.Model
       var o = new ModelRunOptions();
 
       Assert.False(o.Detach);
-      Assert.False(o.IgnoreRuntimeMemoryCheck);
       Assert.False(o.Debug);
-      Assert.Null(o.Backend);
     }
 
     [Fact]
@@ -30,9 +27,20 @@ namespace FluentDocker.Tests.CoreTests.Model
 
       Assert.Null(o.ContextSize);
       Assert.False(o.ResetContextSize);
-      Assert.True(o.Backend.IsDefault);
+      Assert.Null(o.Backend);
+      Assert.True(o.IsAutoBackend);
       Assert.Null(o.RuntimeFlags);
       Assert.Null(o.HfOverridesJson);
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("auto")]
+    [InlineData("AUTO")]
+    public void ModelConfigureOptions_AutoBackend_IsAuto(string backend)
+    {
+      Assert.True(new ModelConfigureOptions { Backend = backend }.IsAutoBackend);
     }
 
     [Fact]
@@ -42,14 +50,15 @@ namespace FluentDocker.Tests.CoreTests.Model
       {
         ContextSize = 8192,
         ResetContextSize = true,
-        Backend = ModelBackend.Vllm,
+        Backend = "vllm",
         RuntimeFlags = new[] { "--temp", "0.7" },
         HfOverridesJson = "{\"max_model_len\":8192}"
       };
 
       Assert.Equal(8192, o.ContextSize);
       Assert.True(o.ResetContextSize);
-      Assert.Equal("vllm", o.Backend.Name);
+      Assert.Equal("vllm", o.Backend);
+      Assert.False(o.IsAutoBackend);
       Assert.Equal(2, o.RuntimeFlags.Count);
       Assert.Equal("{\"max_model_len\":8192}", o.HfOverridesJson);
     }
@@ -62,15 +71,13 @@ namespace FluentDocker.Tests.CoreTests.Model
         GgufPath = "/tmp/m.gguf",
         Target = ModelReference.Parse("ai/mine:1"),
         Push = true,
-        Labels = new Dictionary<string, string> { ["k"] = "v" },
-        License = "MIT"
+        License = "/tmp/LICENSE.txt"
       };
 
       Assert.Equal("/tmp/m.gguf", r.GgufPath);
       Assert.Equal("ai/mine:1", r.Target.ToString());
       Assert.True(r.Push);
-      Assert.Equal("v", r.Labels["k"]);
-      Assert.Equal("MIT", r.License);
+      Assert.Equal("/tmp/LICENSE.txt", r.License);
     }
 
     [Fact]

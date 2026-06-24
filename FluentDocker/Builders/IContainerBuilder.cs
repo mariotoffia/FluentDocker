@@ -62,7 +62,14 @@ namespace FluentDocker.Builders
     /// <param name="host">The host name.</param>
     /// <param name="ip">The IP or special value (e.g. <c>host-gateway</c>).</param>
     /// <returns>The builder instance for method chaining.</returns>
-    IContainerBuilder WithExtraHost(string host, string ip);
+    /// <remarks>
+    /// Implemented as a <b>default interface method</b> so that adding it does not
+    /// break existing third-party <see cref="IContainerBuilder"/> implementations or
+    /// mocks (a source/binary-compatible addition). The built-in builder overrides it;
+    /// implementations that do not support extra hosts throw <see cref="NotSupportedException"/>.
+    /// </remarks>
+    IContainerBuilder WithExtraHost(string host, string ip) =>
+        throw new NotSupportedException("This IContainerBuilder implementation does not support WithExtraHost.");
 
     /// <summary>Maps a container port to a specific host port.</summary>
     /// <param name="containerPort">

@@ -7,6 +7,7 @@ using FluentDocker.Services.Impl;
 using FluentDocker.Extensions;
 using FluentDocker.Kernel;
 using FluentDocker.Services;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Simple
 {
@@ -25,7 +26,7 @@ namespace Simple
 
     private static Task<FluentDockerKernel> CreateKernelAsync()
     {
-      return FluentDockerKernel.Create()
+      return FluentDockerKernel.Create(NullLoggerFactory.Instance)
         .WithDockerCli(DriverId, d => d.AsDefault())
         .BuildAsync();
     }

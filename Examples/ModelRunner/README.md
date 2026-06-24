@@ -26,8 +26,10 @@ run stays quick. If the runner is not enabled the program prints guidance and ex
 
 ## Run
 
+From the repository root:
+
 ```bash
-cd ModelRunner && dotnet run
+dotnet run --project Examples/ModelRunner
 ```
 
 See [docs/model-runner.md](../../docs/model-runner.md) for the full guide, including

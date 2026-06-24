@@ -6,6 +6,7 @@ using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using FluentDocker.Common;
 using FluentDocker.Drivers.Docker.Cli.Binary;
 using FluentDocker.Model.Common;
 using FluentDocker.Model.Drivers;
@@ -308,22 +309,51 @@ namespace FluentDocker.Drivers.Docker.Cli
         process.StandardInput.Close();
       }
 
+      // Drain stderr concurrently so a chatty child cannot deadlock by filling the
+      // stderr pipe buffer while we only read stdout.
+      var errorTask = process.StandardError.ReadToEndAsync(cancellationToken);
       var reader = process.StandardOutput;
+      string failure = null;
 
       try
       {
-        while (!cancellationToken.IsCancellationRequested)
-        {
-          var line = await reader.ReadLineAsync(cancellationToken).ConfigureAwait(false);
-          if (line == null)
-            break;
-
+        string line;
+        while ((line = await reader.ReadLineAsync(cancellationToken).ConfigureAwait(false)) != null)
           yield return line;
+
+        // Stdout reached EOF — wait for the process and surface a non-zero exit as a
+        // failure rather than ending the stream silently (a failed pull/logs must throw).
+        await process.WaitForExitAsync(cancellationToken).ConfigureAwait(false);
+        var error = await errorTask.ConfigureAwait(false);
+        if (process.ExitCode != 0)
+        {
+          var trimmed = (error ?? string.Empty).Trim();
+          if (trimmed.Length > 2000)
+            trimmed = trimmed[..2000] + "…";
+          failure = $"exit code {process.ExitCode}{(trimmed.Length == 0 ? string.Empty : $": {trimmed}")}";
         }
       }
       finally
       {
         KillProcessSafely(process, Logger);
+        await ObserveQuietlyAsync(errorTask).ConfigureAwait(false);
+      }
+
+      if (failure != null)
+        throw new DriverException($"Streaming command failed ({failure}).", ErrorCodes.Driver.CommandExecutionFailed);
+    }
+
+    /// <summary>Awaits a task, swallowing any fault — used to observe a best-effort
+    /// background read (e.g. stderr drain) when a stream is torn down early.</summary>
+    private static async Task ObserveQuietlyAsync(Task task)
+    {
+      try
+      {
+        await task.ConfigureAwait(false);
+      }
+      catch (Exception)
+      {
+        // The stream is ending (early break/cancel); the drain result is irrelevant.
       }
     }
 

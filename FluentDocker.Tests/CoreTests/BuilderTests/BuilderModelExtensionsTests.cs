@@ -145,6 +145,101 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
       }
     }
 
+    [Fact]
+    public async Task RunnerBuilder_WithBackend_Auto_DoesNotForceConfigure()
+    {
+      // "auto" is the default no-op — it must not, on its own, trigger a configure call.
+      var pack = new MockDriverPack().SetupModelConfigure().EnableModelDrivers();
+      var kernel = await MockKernelBuilderExtensions.CreateWithMockDriverAsync("docker", pack);
+      await using (kernel)
+      {
+        await using var runner = await new Builder().WithinDriver("docker", kernel)
+            .UseModelRunner()
+            .ForModel("ai/smollm2")
+            .WithBackend("auto")
+            .BuildAsync(TestContext.Current.CancellationToken);
+
+        pack.ModelRuntimeDriver.Verify(d => d.ConfigureAsync(
+            It.IsAny<DriverContext>(), It.IsAny<ModelReference>(),
+            It.IsAny<FluentDocker.Model.Models.Options.ModelConfigureOptions>(),
+            It.IsAny<CancellationToken>()), Times.Never);
+      }
+    }
+
+    [Fact]
+    public async Task RunnerBuilder_WithBackend_Explicit_FlowsToConfigure()
+    {
+      var pack = new MockDriverPack().SetupModelConfigure().EnableModelDrivers();
+      var kernel = await MockKernelBuilderExtensions.CreateWithMockDriverAsync("docker", pack);
+      await using (kernel)
+      {
+        await using var runner = await new Builder().WithinDriver("docker", kernel)
+            .UseModelRunner()
+            .ForModel("ai/smollm2")
+            .WithBackend("vllm")
+            .BuildAsync(TestContext.Current.CancellationToken);
+
+        pack.ModelRuntimeDriver.Verify(d => d.ConfigureAsync(
+            It.IsAny<DriverContext>(), It.IsAny<ModelReference>(),
+            It.Is<FluentDocker.Model.Models.Options.ModelConfigureOptions>(o => o.Backend == "vllm" && !o.IsAutoBackend),
+            It.IsAny<CancellationToken>()), Times.Once);
+      }
+    }
+
+    [Fact]
+    public async Task RunnerBuilder_PostBuildPullFailure_Propagates_WithoutLeakingOwnedConnection()
+    {
+      // A custom endpoint makes the builder create + OWN an inference connection. If the
+      // build-time pull then fails, the builder must dispose the runner (and its owned
+      // connection) and rethrow — not leak it.
+      var pack = new MockDriverPack().SetupModelConfigure().EnableModelDrivers();
+      pack.ModelManagementDriver
+          .Setup(d => d.PullAsync(It.IsAny<DriverContext>(), It.IsAny<ModelReference>(),
+              It.IsAny<System.IProgress<ModelPullProgress>>(), It.IsAny<CancellationToken>()))
+          .ThrowsAsync(new System.InvalidOperationException("pull boom"));
+      var kernel = await MockKernelBuilderExtensions.CreateWithMockDriverAsync("docker", pack);
+      await using (kernel)
+      {
+        await Assert.ThrowsAsync<System.InvalidOperationException>(() =>
+            new Builder().WithinDriver("docker", kernel)
+                .UseModelRunner()
+                .ForModel("ai/smollm2")
+                .WithEndpoint(ModelRunnerEndpoint.ContainerInternal())
+                .PullIfMissing()
+                .BuildAsync(TestContext.Current.CancellationToken));
+      }
+    }
+
+    [Fact]
+    public async Task ModelRunnerService_DisposeAsync_DisposesOwnedResource()
+    {
+      // The owned-resource disposal contract the builder relies on for cleanup.
+      var kernel = await FluentDocker.Kernel.FluentDockerKernel
+          .Create(Microsoft.Extensions.Logging.Abstractions.NullLoggerFactory.Instance).BuildAsync();
+      await using (kernel)
+      {
+        var owned = new DisposeSpy();
+        var service = new FluentDocker.Services.Impl.ModelRunnerService(
+            kernel, "docker", ModelRunnerEndpoint.HostTcp(), ownedResource: owned);
+
+        await service.DisposeAsync();
+        await service.DisposeAsync(); // idempotent
+
+        Assert.Equal(1, owned.DisposeCount);
+      }
+    }
+
+    private sealed class DisposeSpy : System.IAsyncDisposable
+    {
+      public int DisposeCount { get; private set; }
+
+      public ValueTask DisposeAsync()
+      {
+        DisposeCount++;
+        return ValueTask.CompletedTask;
+      }
+    }
+
     // ---- B2: ModelServiceBuilder ---------------------------------------------
 
     [Fact]
@@ -163,6 +258,35 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
         {
           Assert.Equal("ai/smollm2:latest", service.Model.ToString());
           Assert.Equal(ServiceRunningState.Unknown, service.State);
+        }
+      }
+    }
+
+    [Fact]
+    public async Task ServiceBuilder_BuildAsync_PassesCancellationToPull()
+    {
+      using var cts = new CancellationTokenSource();
+      var pack = new MockDriverPack()
+          .SetupModelPull(new ModelInfo { Reference = ModelReference.Parse("ai/smollm2") })
+          .SetupModelConfigure()
+          .EnableModelDrivers();
+      var kernel = await MockKernelBuilderExtensions.CreateWithMockDriverAsync("docker", pack);
+      await using (kernel)
+      {
+        var service = await new Builder().WithinDriver("docker", kernel)
+            .UseModel("ai/smollm2")
+            .PullIfMissing()
+            .BuildAsync(cts.Token);
+
+        await using ((System.IAsyncDisposable)service)
+        {
+          Assert.Equal("ai/smollm2:latest", service.Model.ToString());
+
+          // The build-time pull must receive the caller's cancellation token.
+          pack.ModelManagementDriver.Verify(d => d.PullAsync(
+              It.IsAny<DriverContext>(), It.IsAny<ModelReference>(),
+              It.IsAny<System.IProgress<ModelPullProgress>>(),
+              It.Is<CancellationToken>(t => t == cts.Token)), Times.Once);
         }
       }
     }

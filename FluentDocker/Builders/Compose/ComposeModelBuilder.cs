@@ -4,6 +4,7 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Text.RegularExpressions;
 using FluentDocker.Model.Compose;
 
 namespace FluentDocker.Builders.Compose
@@ -15,6 +16,14 @@ namespace FluentDocker.Builders.Compose
   /// </summary>
   public sealed class ComposeModelBuilder : IComposeModelBuilder
   {
+    // Compose keys (service / model keys) and env-var names are validated as strict
+    // identifiers; the free-form model reference is restricted to its legal charset.
+    // This is the YAML-injection boundary: a newline/control character in any scalar
+    // could otherwise inject arbitrary Compose entries into the emitted overlay.
+    private static readonly Regex KeyPattern = new(@"^[A-Za-z0-9][A-Za-z0-9._-]*$", RegexOptions.Compiled);
+    private static readonly Regex EnvNamePattern = new(@"^[A-Za-z_][A-Za-z0-9_]*$", RegexOptions.Compiled);
+    private static readonly Regex ModelReferencePattern = new(@"^[A-Za-z0-9][A-Za-z0-9._/:@+-]*$", RegexOptions.Compiled);
+
     private readonly List<ComposeModelSpec> _models = [];
     private readonly List<ComposeServiceModelBinding> _bindings = [];
 
@@ -63,7 +72,7 @@ namespace FluentDocker.Builders.Compose
         sb.Append("services:\n");
         foreach (var group in _bindings.GroupBy(b => b.Service))
         {
-          sb.Append("  ").Append(group.Key).Append(":\n");
+          sb.Append("  ").Append(ValidateKey(group.Key, "service name")).Append(":\n");
           sb.Append("    models:\n");
 
           var asMap = group.Any(b => b.IsLong);
@@ -71,15 +80,15 @@ namespace FluentDocker.Builders.Compose
           {
             if (asMap)
             {
-              sb.Append("      ").Append(binding.ModelKey).Append(":\n");
+              sb.Append("      ").Append(ValidateKey(binding.ModelKey, "model key")).Append(":\n");
               if (binding.EndpointVar != null)
-                sb.Append("        endpoint_var: ").Append(binding.EndpointVar).Append('\n');
+                sb.Append("        endpoint_var: ").Append(ValidateEnvName(binding.EndpointVar)).Append('\n');
               if (binding.ModelVar != null)
-                sb.Append("        model_var: ").Append(binding.ModelVar).Append('\n');
+                sb.Append("        model_var: ").Append(ValidateEnvName(binding.ModelVar)).Append('\n');
             }
             else
             {
-              sb.Append("      - ").Append(binding.ModelKey).Append('\n');
+              sb.Append("      - ").Append(ValidateKey(binding.ModelKey, "model key")).Append('\n');
             }
           }
         }
@@ -90,15 +99,15 @@ namespace FluentDocker.Builders.Compose
         sb.Append("models:\n");
         foreach (var model in _models)
         {
-          sb.Append("  ").Append(model.Key).Append(":\n");
-          sb.Append("    model: ").Append(model.Model).Append('\n');
+          sb.Append("  ").Append(ValidateKey(model.Key, "model key")).Append(":\n");
+          sb.Append("    model: ").Append(ValidateModelReference(model.Model)).Append('\n');
           if (model.ContextSize.HasValue)
             sb.Append("    context_size: ").Append(model.ContextSize.Value.ToString(CultureInfo.InvariantCulture)).Append('\n');
           if (model.RuntimeFlags is { Count: > 0 })
           {
             sb.Append("    runtime_flags:\n");
             foreach (var flag in model.RuntimeFlags)
-              sb.Append("      - \"").Append(flag).Append("\"\n");
+              sb.Append("      - ").Append(QuoteScalar(flag)).Append('\n');
           }
         }
       }
@@ -311,10 +320,64 @@ namespace FluentDocker.Builders.Compose
 
     private static string Unquote(string value)
     {
-      if (value.Length >= 2 && value[0] == '"' && value[^1] == '"')
-        return value[1..^1];
+      if (value.Length < 2 || value[0] != '"' || value[^1] != '"')
+        return value;
+
+      // Reverse QuoteScalar's escaping (\\ -> \, \" -> "). A NUL placeholder guards the
+      // backslash pass so an escaped backslash is not re-interpreted; NUL can never
+      // occur in a round-tripped value (QuoteScalar rejects control characters).
+      return value[1..^1]
+          .Replace("\\\\", "\0")
+          .Replace("\\\"", "\"")
+          .Replace("\0", "\\");
+    }
+
+    private static string ValidateKey(string value, string what)
+    {
+      if (string.IsNullOrEmpty(value) || !KeyPattern.IsMatch(value))
+        throw new ArgumentException(
+            $"Invalid Compose {what} '{Describe(value)}': must match [A-Za-z0-9][A-Za-z0-9._-]* (no whitespace, line breaks or YAML metacharacters).");
       return value;
     }
+
+    private static string ValidateEnvName(string value)
+    {
+      if (string.IsNullOrEmpty(value) || !EnvNamePattern.IsMatch(value))
+        throw new ArgumentException(
+            $"Invalid environment variable name '{Describe(value)}': must match [A-Za-z_][A-Za-z0-9_]* (no whitespace, line breaks or YAML metacharacters).");
+      return value;
+    }
+
+    private static string ValidateModelReference(string value)
+    {
+      if (string.IsNullOrEmpty(value) || !ModelReferencePattern.IsMatch(value))
+        throw new ArgumentException(
+            $"Invalid model reference '{Describe(value)}': contains characters that are not allowed in a Compose model reference (no whitespace, line breaks or YAML metacharacters).");
+      return value;
+    }
+
+    /// <summary>
+    /// Emits a free-form scalar (runtime flag) as an escaped double-quoted YAML
+    /// scalar. Line breaks and control characters are rejected outright (they have no
+    /// legitimate place in a flag and are the primary injection vector); <c>\</c> and
+    /// <c>"</c> are escaped so the value can never terminate the quoted scalar early.
+    /// </summary>
+    private static string QuoteScalar(string value)
+    {
+      value ??= string.Empty;
+      foreach (var ch in value)
+      {
+        if (ch < 0x20 || ch == 0x7f)
+          throw new ArgumentException(
+              $"Invalid runtime flag '{Describe(value)}': line breaks and control characters are not allowed.");
+      }
+
+      return "\"" + value.Replace("\\", "\\\\").Replace("\"", "\\\"") + "\"";
+    }
+
+    /// <summary>Renders a value for an error message with line breaks made visible.</summary>
+    private static string Describe(string value) =>
+        value == null ? "<null>" : value.Replace("\r", "\\r").Replace("\n", "\\n");
 
     private sealed class SpecBuilder(string key) : IComposeModelSpecBuilder
     {

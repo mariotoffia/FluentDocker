@@ -14,7 +14,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
 {
   /// <summary>
   /// Docker Model Runner CLI adapter for model distribution / local-store
-  /// operations (<c>docker model pull/ls/inspect/rm/tag/push/package/prune/df</c>).
+  /// operations (<c>docker model pull/ls/inspect/rm/tag/push/package/purge/df</c>).
   /// </summary>
   public class DockerCliModelManagementDriver : DockerCliModelDriverBase, IModelManagementDriver
   {
@@ -73,7 +73,14 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
               CreateErrorContext(context, "ListModels", result),
               result.ExitCode);
 
-        return CommandResponse<IList<ModelInfo>>.Ok(ModelJsonParser.ParseList(result.Output));
+        if (!ModelJsonParser.TryParseList(result.Output, out var models))
+          return CommandResponse<IList<ModelInfo>>.Fail(
+              "Unable to parse 'model ls --json' output",
+              ErrorCodes.Model.ListFailed,
+              CreateErrorContext(context, "ListModels", result),
+              result.ExitCode);
+
+        return CommandResponse<IList<ModelInfo>>.Ok(models);
       }
       catch (Exception ex) when (ex is not OperationCanceledException)
       {
@@ -167,13 +174,10 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
         var sb = new StringBuilder("model package");
         if (!string.IsNullOrEmpty(request.GgufPath))
           sb.Append(" --gguf ").Append(QuoteArgumentIfNeeded(request.GgufPath));
+        if (!string.IsNullOrEmpty(request.License))
+          sb.Append(" --license ").Append(QuoteArgumentIfNeeded(request.License));
         if (request.Push)
           sb.Append(" --push");
-        if (request.Labels != null)
-        {
-          foreach (var label in request.Labels)
-            sb.Append(" --label ").Append(QuoteArgumentIfNeeded($"{label.Key}={label.Value}"));
-        }
 
         if (request.Target != null)
           sb.Append(' ').Append(QuoteArgumentIfNeeded(request.Target.ToString()));
@@ -200,19 +204,22 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     {
       try
       {
-        var args = "model prune";
-        if (all)
-          args += " -a";
+        // DMR has no `model prune` (it would print top-level help and exit 0 — a
+        // false success). The actual verb is `model purge`, which removes ALL models;
+        // `--force` keeps it non-interactive. The `all` parameter is retained for the
+        // port contract but purge is always all-encompassing.
+        _ = all;
+        var args = "model purge --force";
 
         var result = await RunAsync(args, cancellationToken).ConfigureAwait(false);
         if (!result.Success)
           return CommandResponse<ModelPruneResult>.Fail(
-              result.Error ?? "model prune failed",
+              result.Error ?? "model purge failed",
               ErrorCodes.Model.PruneFailed,
               CreateErrorContext(context, "PruneModels", result),
               result.ExitCode);
 
-        return CommandResponse<ModelPruneResult>.Ok(new ModelPruneResult { Removed = [], ReclaimedBytes = 0 });
+        return CommandResponse<ModelPruneResult>.Ok(ModelJsonParser.ParsePruneResult(result.Output));
       }
       catch (Exception ex) when (ex is not OperationCanceledException)
       {

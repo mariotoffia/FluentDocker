@@ -2,6 +2,7 @@
 using System.Linq;
 using System.Threading.Tasks;
 using FluentDocker.Kernel;
+using Microsoft.Extensions.Logging.Abstractions;
 using FluentDocker.Services.Impl;
 using FluentDocker.Services;
 
@@ -13,7 +14,7 @@ namespace DockerInDockerLinux
 
     static async Task Main(string[] args)
     {
-      using var kernel = await FluentDockerKernel.Create()
+      using var kernel = await FluentDockerKernel.Create(NullLoggerFactory.Instance)
         .WithDockerCli(DriverId, d => d.AsDefault())
         .BuildAsync();
 

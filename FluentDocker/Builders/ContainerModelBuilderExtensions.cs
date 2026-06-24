@@ -1,4 +1,5 @@
 using System;
+using System.Net;
 using FluentDocker.Model.Models;
 
 namespace FluentDocker.Builders
@@ -42,9 +43,9 @@ namespace FluentDocker.Builders
       endpoint ??= ModelRunnerEndpoint.ContainerInternal().WithEngineInPath(false);
 
       var host = endpoint.BaseAddress.Host;
-      if (string.Equals(host, "localhost", StringComparison.OrdinalIgnoreCase) || host == "127.0.0.1")
+      if (IsLoopback(host))
         throw new ArgumentException(
-            "A container cannot reach the model runner at 'localhost' (that resolves to the container itself). " +
+            $"A container cannot reach the model runner at a loopback address ('{host}' resolves to the container itself). " +
             "Use the container-internal DNS name (model-runner.docker.internal) or the bridge gateway (e.g. 172.17.0.1).",
             nameof(endpoint));
 
@@ -58,6 +59,22 @@ namespace FluentDocker.Builders
         builder.WithExtraHost(InternalDns, "host-gateway");
 
       return builder;
+    }
+
+    /// <summary>
+    /// True for any loopback host — the literal <c>localhost</c> or any IPv4/IPv6
+    /// loopback address (127.0.0.0/8, ::1), including the bracketed IPv6 form
+    /// <c>[::1]</c> returned by <see cref="Uri.Host"/>.
+    /// </summary>
+    private static bool IsLoopback(string host)
+    {
+      if (string.IsNullOrEmpty(host))
+        return false;
+      if (string.Equals(host, "localhost", StringComparison.OrdinalIgnoreCase))
+        return true;
+
+      var literal = host.Length > 1 && host[0] == '[' && host[^1] == ']' ? host[1..^1] : host;
+      return IPAddress.TryParse(literal, out var ip) && IPAddress.IsLoopback(ip);
     }
   }
 }

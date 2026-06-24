@@ -1,6 +1,7 @@
 using FluentDocker.Builders;
 using FluentDocker.Extensions;
 using FluentDocker.Kernel;
+using Microsoft.Extensions.Logging.Abstractions;
 using FluentDocker.Services;
 using FluentDocker.Services.Extensions;
 
@@ -21,7 +22,7 @@ class Program
     Console.WriteLine("FluentDocker v3 - Container Stats & Static IP Example");
     Console.WriteLine("======================================================\n");
 
-    using var kernel = await FluentDockerKernel.Create()
+    using var kernel = await FluentDockerKernel.Create(NullLoggerFactory.Instance)
       .WithDockerCli(DriverId, d => d.AsDefault())
       .BuildAsync();
 
@@ -55,7 +56,7 @@ class Program
 
     Console.WriteLine("\nGenerating load...");
     using var client = new HttpClient();
-    for (int i = 0; i < 10; i++)
+    for (var i = 0; i < 10; i++)
     {
       try { await client.GetAsync(url); } catch { /* ignore */ }
       await Task.Delay(100);
@@ -104,7 +105,7 @@ class Program
         .UseImage("nginx:alpine")
         .WithName("fd-static-ip-demo")
         .WithNetwork(network.Name)
-        .UseIpV4("10.100.0.50")
+        .WithIPv4("10.100.0.50")
         .ExposePort("80/tcp")
         .WaitForPort("80/tcp", 30000))
       .BuildAsync();
@@ -131,7 +132,7 @@ class Program
   private static string FormatBytes(long bytes)
   {
     string[] sizes = { "B", "KB", "MB", "GB", "TB" };
-    int order = 0;
+    var order = 0;
     double len = bytes;
     while (len >= 1024 && order < sizes.Length - 1)
     {

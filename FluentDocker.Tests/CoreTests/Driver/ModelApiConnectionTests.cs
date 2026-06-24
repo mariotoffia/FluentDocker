@@ -33,10 +33,54 @@ namespace FluentDocker.Tests.CoreTests.Driver
       }
     }
 
+    private sealed class DelayHandler : HttpMessageHandler
+    {
+      private readonly TimeSpan _delay;
+      private readonly Func<HttpResponseMessage> _factory;
+      public DelayHandler(TimeSpan delay, Func<HttpResponseMessage> factory)
+      {
+        _delay = delay;
+        _factory = factory;
+      }
+
+      protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+      {
+        await Task.Delay(_delay, cancellationToken).ConfigureAwait(false);
+        return _factory();
+      }
+    }
+
+    private sealed class TrackingContent : HttpContent
+    {
+      private readonly byte[] _bytes;
+      private readonly Action _onDispose;
+      public TrackingContent(string text, Action onDispose)
+      {
+        _bytes = Encoding.UTF8.GetBytes(text);
+        _onDispose = onDispose;
+      }
+
+      protected override Task SerializeToStreamAsync(Stream stream, TransportContext context) =>
+          stream.WriteAsync(_bytes, 0, _bytes.Length);
+
+      protected override bool TryComputeLength(out long length)
+      {
+        length = _bytes.Length;
+        return true;
+      }
+
+      protected override void Dispose(bool disposing)
+      {
+        if (disposing)
+          _onDispose();
+        base.Dispose(disposing);
+      }
+    }
+
     private static HttpResponseMessage Json(HttpStatusCode code, string body) =>
         new(code) { Content = new StringContent(body, Encoding.UTF8, "application/json") };
 
-    private static ModelApiConnection Create(FuncHandler handler) =>
+    private static ModelApiConnection Create(HttpMessageHandler handler) =>
         new(new Uri("http://localhost:12434"), handler);
 
     [Fact]
@@ -45,6 +89,29 @@ namespace FluentDocker.Tests.CoreTests.Driver
       using var handler = new FuncHandler(_ => Json(HttpStatusCode.OK, "{}"));
       var conn = Create(handler);
       Assert.Equal(new Uri("http://localhost:12434"), conn.BaseAddress);
+    }
+
+    [Fact]
+    public async Task Constructor_IPv6Endpoint_ProducesBracketedBaseAddress()
+    {
+      // An IPv6 literal must be bracketed in the rebuilt authority — otherwise the URI
+      // (http://::1:12434) is invalid and construction would throw.
+      await using var conn = new ModelApiConnection(
+          FluentDocker.Model.Models.ModelRunnerEndpoint.Custom(new Uri("http://[::1]:12434")));
+
+      Assert.Equal("http://[::1]:12434/", conn.BaseAddress.ToString());
+    }
+
+    [Fact]
+    public async Task UnixSocket_NonexistentPath_PingReturnsFalse()
+    {
+      // Exercises the unix-socket connect-failure path (the socket is disposed on a
+      // failed connect); ping swallows the failure and reports unreachable.
+      var socketPath = Path.Combine(Path.GetTempPath(), $"fd-no-such-{Guid.NewGuid():N}.sock");
+      await using var conn = new ModelApiConnection(
+          FluentDocker.Model.Models.ModelRunnerEndpoint.UnixSocket(socketPath));
+
+      Assert.False(await conn.PingAsync(TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -130,6 +197,70 @@ namespace FluentDocker.Tests.CoreTests.Driver
       using var handler = new FuncHandler(_ => Json(HttpStatusCode.OK, "{}"));
       var conn = Create(handler);
       await conn.DisposeAsync();
+    }
+
+    [Fact]
+    public async Task GetAsync_NonStreaming_TimesOutPerRequestTimeout()
+    {
+      using var handler = new DelayHandler(TimeSpan.FromSeconds(5), () => Json(HttpStatusCode.OK, "{}"));
+      var conn = new ModelApiConnection(new Uri("http://localhost:12434"), handler,
+          requestTimeout: TimeSpan.FromMilliseconds(100));
+
+      await Assert.ThrowsAsync<TimeoutException>(() => conn.GetAsync("/x", TestContext.Current.CancellationToken));
+    }
+
+    [Fact]
+    public async Task PostStreamAsync_NotSubjectToRequestTimeout()
+    {
+      // Delay exceeds the (tiny) request timeout, yet the stream call must still succeed —
+      // streaming is intentionally exempt from the non-streaming request timeout.
+      using var handler = new DelayHandler(TimeSpan.FromMilliseconds(150),
+          () => new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent("data: [DONE]\n\n") });
+      var conn = new ModelApiConnection(new Uri("http://localhost:12434"), handler,
+          requestTimeout: TimeSpan.FromMilliseconds(30));
+
+      using var body = new StringContent("{}", Encoding.UTF8, "application/json");
+      await using var stream = await conn.PostStreamAsync("/x", body, TestContext.Current.CancellationToken);
+      using var reader = new StreamReader(stream);
+      Assert.Contains("[DONE]", await reader.ReadToEndAsync(TestContext.Current.CancellationToken));
+    }
+
+    [Fact]
+    public async Task PostStreamAsync_DisposesResponseOnNonSuccess()
+    {
+      var disposed = false;
+      using var handler = new FuncHandler(_ => new HttpResponseMessage(HttpStatusCode.InternalServerError)
+      {
+        Content = new TrackingContent("boom", () => disposed = true)
+      });
+      var conn = Create(handler);
+
+      using var body = new StringContent("{}", Encoding.UTF8, "application/json");
+      await Assert.ThrowsAsync<HttpRequestException>(() => conn.PostStreamAsync("/x", body, TestContext.Current.CancellationToken));
+      Assert.True(disposed, "the failed response/content must be disposed, not leaked");
+    }
+
+    [Fact]
+    public async Task PingAsync_RethrowsOnCallerCancellation()
+    {
+      using var handler = new DelayHandler(TimeSpan.FromSeconds(5), () => Json(HttpStatusCode.OK, "ok"));
+      var conn = Create(handler);
+      using var cts = new CancellationTokenSource();
+      cts.Cancel();
+
+      await Assert.ThrowsAnyAsync<OperationCanceledException>(() => conn.PingAsync(cts.Token));
+    }
+
+    [Fact]
+    public async Task PingAsync_ExceedingRequestTimeout_ReturnsFalse()
+    {
+      // A hung endpoint must not make ping block forever (HttpClient.Timeout is infinite).
+      // The request timeout bounds it, and a ping timeout reports unreachable (false).
+      using var handler = new DelayHandler(TimeSpan.FromSeconds(5), () => Json(HttpStatusCode.OK, "{}"));
+      var conn = new ModelApiConnection(new Uri("http://localhost:12434"), handler,
+          requestTimeout: TimeSpan.FromMilliseconds(100));
+
+      Assert.False(await conn.PingAsync(TestContext.Current.CancellationToken));
     }
   }
 }

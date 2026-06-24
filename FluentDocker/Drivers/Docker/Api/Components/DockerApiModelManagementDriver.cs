@@ -83,7 +83,14 @@ namespace FluentDocker.Drivers.Docker.Api.Components
               (int)response.StatusCode);
 
         var body = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
-        return CommandResponse<IList<ModelInfo>>.Ok(ModelJsonParser.ParseList(body));
+        if (!ModelJsonParser.TryParseList(body, out var models))
+          return CommandResponse<IList<ModelInfo>>.Fail(
+              "Unable to parse model list response",
+              ErrorCodes.Model.ListFailed,
+              CreateApiErrorContext(context, "ListModels", response),
+              (int)response.StatusCode);
+
+        return CommandResponse<IList<ModelInfo>>.Ok(models);
       }
       catch (Exception ex) when (ex is not OperationCanceledException)
       {
@@ -97,7 +104,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
     {
       try
       {
-        using var response = await _connection.GetAsync(ModelPath(model), cancellationToken).ConfigureAwait(false);
+        using var response = await _connection.GetAsync(ModelApiPaths.ForModel(model), cancellationToken).ConfigureAwait(false);
         if (!response.IsSuccessStatusCode)
           return CommandResponse<ModelInfo>.Fail(
               await SafeReadError(response, cancellationToken).ConfigureAwait(false),
@@ -123,7 +130,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
     {
       try
       {
-        using var response = await _connection.DeleteAsync(ModelPath(model), cancellationToken).ConfigureAwait(false);
+        using var response = await _connection.DeleteAsync(ModelApiPaths.ForModel(model), cancellationToken).ConfigureAwait(false);
         if (!response.IsSuccessStatusCode)
           return CommandResponse<Unit>.Fail(
               await SafeReadError(response, cancellationToken).ConfigureAwait(false),
@@ -164,20 +171,17 @@ namespace FluentDocker.Drivers.Docker.Api.Components
         CancellationToken cancellationToken = default) =>
         Task.FromException<CommandResponse<ModelDiskUsage>>(new NotSupportedException(Unsupported));
 
-    private static string ModelPath(ModelReference model)
-    {
-      var path = "/models/";
-      if (!string.IsNullOrEmpty(model.Namespace))
-        path += model.Namespace + "/";
-      return path + model.Name;
-    }
-
     private static async Task<string> SafeReadError(HttpResponseMessage response, CancellationToken cancellationToken)
     {
       try
       {
         var body = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
         return string.IsNullOrWhiteSpace(body) ? $"HTTP {(int)response.StatusCode}" : body;
+      }
+      catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+      {
+        // Caller cancellation must propagate, not be masked as a generic HTTP error.
+        throw;
       }
       catch (Exception)
       {

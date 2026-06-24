@@ -28,6 +28,19 @@ namespace FluentDocker.Tests.CoreTests.Kernel
     }
 
     [Fact]
+    public async Task Create_NoArgs_UsesNullLogger_AndBuilds()
+    {
+      // The parameterless overload (used throughout the docs) must compile and build a
+      // working kernel that suppresses logging.
+      var builder = FluentDockerKernel.Create();
+      Assert.NotNull(builder);
+      Assert.IsType<KernelBuilder>(builder);
+
+      await using var kernel = await builder.BuildAsync(TestContext.Current.CancellationToken);
+      Assert.NotNull(kernel);
+    }
+
+    [Fact]
     public async Task RegisterDriverPackAsync_RegistersSuccessfully()
     {
       // Arrange

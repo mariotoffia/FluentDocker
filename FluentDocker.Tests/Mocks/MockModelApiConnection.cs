@@ -113,10 +113,11 @@ namespace FluentDocker.Tests.Mocks
     }
 
     /// <inheritdoc />
-    public Task<Stream> PostStreamAsync(string path, HttpContent content, CancellationToken ct = default)
+    public async Task<Stream> PostStreamAsync(string path, HttpContent content, CancellationToken ct = default)
     {
-      Record("POST_STREAM", path, null);
-      return Task.FromResult(ResolveStream(path));
+      var body = content is not null ? await content.ReadAsStringAsync(ct) : null;
+      Record("POST_STREAM", path, body);
+      return ResolveStream(path);
     }
 
     /// <inheritdoc />
@@ -132,9 +133,19 @@ namespace FluentDocker.Tests.Mocks
     private void Record(string method, string path, string body) =>
         _requests.Add(new CapturedModelRequest(method, path, body));
 
+    // Route by path SUFFIX (after stripping any query), not a loose Contains — a
+    // registered "/models" must not silently satisfy a request for the wrong endpoint
+    // (e.g. "/models/ai/x"), which would mask a path bug in the code under test.
+    private static bool MatchesPath(string actual, string registered)
+    {
+      var q = actual.IndexOf('?');
+      var p = q >= 0 ? actual[..q] : actual;
+      return p.EndsWith(registered, StringComparison.Ordinal);
+    }
+
     private HttpResponseMessage Resolve(string method, string path)
     {
-      var match = _entries.Where(e => e.Method == method && path.Contains(e.PathContains, StringComparison.Ordinal))
+      var match = _entries.Where(e => e.Method == method && MatchesPath(path, e.PathContains))
           .Select(e => (ResponseEntry?)e).LastOrDefault();
 
       if (match is null)
@@ -151,7 +162,7 @@ namespace FluentDocker.Tests.Mocks
 
     private Stream ResolveStream(string path)
     {
-      var entry = _entries.Where(e => e.Method == "STREAM" && path.Contains(e.PathContains, StringComparison.Ordinal))
+      var entry = _entries.Where(e => e.Method == "STREAM" && MatchesPath(path, e.PathContains))
           .Select(e => (ResponseEntry?)e).LastOrDefault()
           ?? throw new InvalidOperationException($"no mock stream for {path}");
       var bytes = entry.StreamBytes ?? Encoding.UTF8.GetBytes(entry.StreamContent ?? string.Empty);

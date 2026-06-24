@@ -17,8 +17,19 @@ namespace FluentDocker.Model.Models.Options
     /// <summary>Emit <c>--context-size -1</c> to reset the context size to the engine default.</summary>
     public bool ResetContextSize { get; init; }
 
-    /// <summary>Select the backend (<c>--backend llama.cpp|vllm|diffusers</c>). Default ("leave unset") emits nothing.</summary>
-    public ModelBackend Backend { get; init; }
+    /// <summary>
+    /// Inference backend (engine) override. The default — <c>null</c> or <c>"auto"</c> —
+    /// lets the runner pick the engine from the model format (gguf → llama.cpp,
+    /// safetensors → vLLM), emitting no flag. An explicit value (e.g. <c>"vllm"</c>) is
+    /// applied as <c>--backend</c> ONLY when the installed <c>docker model configure</c>
+    /// supports it; otherwise <c>ConfigureAsync</c> fails with a clear message, since
+    /// current DMR auto-selects and exposes no such flag.
+    /// </summary>
+    public string Backend { get; init; }
+
+    /// <summary>True when <see cref="Backend"/> is unset / <c>"auto"</c> (no <c>--backend</c> emitted).</summary>
+    public bool IsAutoBackend =>
+        string.IsNullOrWhiteSpace(Backend) || string.Equals(Backend, "auto", System.StringComparison.OrdinalIgnoreCase);
 
     /// <summary>
     /// Raw flags passed verbatim AFTER the <c>--</c> separator, e.g.

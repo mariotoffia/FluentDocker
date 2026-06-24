@@ -238,6 +238,15 @@ namespace FluentDocker.Kernel
       return new KernelBuilder(loggerFactory);
     }
 
+    /// <summary>
+    /// Creates a new kernel builder with logging suppressed
+    /// (<see cref="Microsoft.Extensions.Logging.Abstractions.NullLoggerFactory"/>).
+    /// A convenience for callers that do not need diagnostics; equivalent to
+    /// <c>Create(NullLoggerFactory.Instance)</c>.
+    /// </summary>
+    public static IKernelBuilder Create() =>
+        Create(Microsoft.Extensions.Logging.Abstractions.NullLoggerFactory.Instance);
+
     #endregion
 
     #region Private Helpers

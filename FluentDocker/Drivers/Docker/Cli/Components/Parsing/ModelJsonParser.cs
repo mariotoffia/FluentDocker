@@ -19,23 +19,44 @@ namespace FluentDocker.Drivers.Docker.Cli.Components.Parsing
     private static readonly char[] LineSeparators = ['\n', '\r'];
     private static readonly Regex MultiSpace = new(@"\s{2,}", RegexOptions.Compiled);
     private static readonly Regex SizeRegex = new(@"^([\d.]+)\s*([KMGTP]?)(i?)B$", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+    private static readonly Regex SizeTokenRegex = new(@"[\d.]+\s*[KMGTP]?i?B", RegexOptions.IgnoreCase | RegexOptions.Compiled);
     private static readonly Regex HexId = new(@"^[0-9a-f]{12,}$", RegexOptions.Compiled);
     private static readonly Regex PullRegex = new(@"([\d.]+\s*[KMGTP]?i?B)\s+of\s+([\d.]+\s*[KMGTP]?i?B)", RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
-    /// <summary>Parses a <c>docker model ls --json</c> array.</summary>
+    /// <summary>Parses a <c>docker model ls --json</c> array (exception-safe; <c>[]</c> on malformed).</summary>
     public static IList<ModelInfo> ParseList(string json)
     {
+      TryParseList(json, out var models);
+      return models;
+    }
+
+    /// <summary>
+    /// Parses a <c>docker model ls --json</c> array, distinguishing a genuinely empty
+    /// result from a parse failure. Empty/whitespace input is a successful empty list;
+    /// non-empty input that is not a JSON array (malformed, or an error object) returns
+    /// <c>false</c> so callers do not silently report "zero models".
+    /// </summary>
+    /// <param name="json">The raw <c>ls --json</c> output.</param>
+    /// <param name="models">The parsed models (empty on failure).</param>
+    /// <returns><c>true</c> when parsed (possibly empty); <c>false</c> on a malformed payload.</returns>
+    public static bool TryParseList(string json, out IList<ModelInfo> models)
+    {
+      models = [];
+      if (string.IsNullOrWhiteSpace(json))
+        return true;
+
       try
       {
         var root = JsonHelper.ParseElement(json);
         if (root.ValueKind != JsonValueKind.Array)
-          return [];
+          return false;
 
-        return [.. root.EnumerateArray().Select(MapModel)];
+        models = [.. root.EnumerateArray().Select(MapModel)];
+        return true;
       }
       catch (JsonException)
       {
-        return [];
+        return false;
       }
     }
 
@@ -110,6 +131,40 @@ namespace FluentDocker.Drivers.Docker.Cli.Components.Parsing
       }
 
       return new ModelDiskUsage { ModelsSizeBytes = modelsBytes };
+    }
+
+    /// <summary>
+    /// Best-effort parse of <c>docker model prune</c> output. The exact format is not
+    /// guaranteed across DMR versions, so the raw output is always preserved verbatim;
+    /// removed-model lines and a reclaimed size are extracted only when recognizable.
+    /// </summary>
+    public static ModelPruneResult ParsePruneResult(string output)
+    {
+      output ??= string.Empty;
+      var removed = new List<string>();
+      long reclaimed = 0;
+
+      foreach (var raw in output.Split(LineSeparators, StringSplitOptions.RemoveEmptyEntries))
+      {
+        var line = raw.Trim();
+        if (line.Length == 0)
+          continue;
+
+        if (line.Contains("reclaim", StringComparison.OrdinalIgnoreCase))
+        {
+          var match = SizeTokenRegex.Match(line);
+          if (match.Success)
+            reclaimed = ParseSize(match.Value);
+          continue;
+        }
+
+        if (line.StartsWith("deleted", StringComparison.OrdinalIgnoreCase) ||
+            line.StartsWith("untagged", StringComparison.OrdinalIgnoreCase) ||
+            line.StartsWith("removed", StringComparison.OrdinalIgnoreCase))
+          removed.Add(line);
+      }
+
+      return new ModelPruneResult { Removed = removed, ReclaimedBytes = reclaimed, RawOutput = output.Trim() };
     }
 
     /// <summary>Parses <c>docker model version</c> output.</summary>

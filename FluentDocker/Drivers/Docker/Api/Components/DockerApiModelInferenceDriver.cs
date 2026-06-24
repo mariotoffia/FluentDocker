@@ -126,6 +126,11 @@ namespace FluentDocker.Drivers.Docker.Api.Components
         var body = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
         return string.IsNullOrWhiteSpace(body) ? $"HTTP {(int)response.StatusCode}" : Truncate(body, 512);
       }
+      catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+      {
+        // Caller cancellation must propagate, not be masked as a generic HTTP error.
+        throw;
+      }
       catch (Exception)
       {
         return $"HTTP {(int)response.StatusCode}";

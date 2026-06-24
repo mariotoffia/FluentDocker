@@ -108,6 +108,36 @@ namespace FluentDocker.Tests.CoreTests.Model
 
     [Theory]
     [InlineData("")]
+    [InlineData("   ")]
+    [InlineData(null)]
+    public void TryParseList_EmptyOrWhitespace_IsGenuinelyEmpty(string input)
+    {
+      // No output (the runner has no models) is a successful empty result.
+      Assert.True(ModelJsonParser.TryParseList(input, out var models));
+      Assert.Empty(models);
+    }
+
+    [Fact]
+    public void TryParseList_ValidArray_ReturnsTrueWithItems()
+    {
+      Assert.True(ModelJsonParser.TryParseList(DmrFixtures.Load("ls.json"), out var models));
+      Assert.NotEmpty(models);
+    }
+
+    [Theory]
+    [InlineData("not json")]
+    [InlineData("{ broken")]
+    [InlineData("{\"message\":\"error\"}")] // valid JSON, but an object, not the expected array
+    public void TryParseList_MalformedNonEmpty_ReturnsFalse(string input)
+    {
+      // A non-empty payload that is not a JSON array is a parse FAILURE — it must not be
+      // silently reported as "zero models".
+      Assert.False(ModelJsonParser.TryParseList(input, out var models));
+      Assert.Empty(models);
+    }
+
+    [Theory]
+    [InlineData("")]
     [InlineData("garbage")]
     public void ParseInfo_Malformed_ReturnsNull(string input)
     {

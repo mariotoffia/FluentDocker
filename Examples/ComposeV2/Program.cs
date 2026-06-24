@@ -1,6 +1,7 @@
 using FluentDocker.Builders;
 using FluentDocker.Extensions;
 using FluentDocker.Kernel;
+using Microsoft.Extensions.Logging.Abstractions;
 using FluentDocker.Model.Common;
 using FluentDocker.Services;
 
@@ -21,7 +22,7 @@ class Program
     Console.WriteLine("FluentDocker v3 - Compose V2 & Directory Copy Example");
     Console.WriteLine("======================================================\n");
 
-    using var kernel = await FluentDockerKernel.Create()
+    using var kernel = await FluentDockerKernel.Create(NullLoggerFactory.Instance)
       .WithDockerCli(DriverId, d => d.AsDefault())
       .BuildAsync();
 

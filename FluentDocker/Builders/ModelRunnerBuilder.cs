@@ -130,21 +130,34 @@ namespace FluentDocker.Builders
       var endpoint = _endpoint ?? ModelRunnerEndpoint.Default();
       var runner = new ModelRunnerService(_kernel, _driverId, endpoint, _model, inferenceOverride, owned);
 
-      if (_pullIfMissing && _model != null)
-        await runner.PullAsync(_model, null, cancellationToken).ConfigureAwait(false);
+      try
+      {
+        if (_pullIfMissing && _model != null)
+          await runner.PullAsync(_model, null, cancellationToken).ConfigureAwait(false);
 
-      if (_model != null && NeedsConfigure())
-        await runner.ConfigureAsync(_model, BuildConfigureOptions(), cancellationToken).ConfigureAwait(false);
+        if (_model != null && NeedsConfigure())
+          await runner.ConfigureAsync(_model, BuildConfigureOptions(), cancellationToken).ConfigureAwait(false);
+      }
+      catch
+      {
+        // The runner is never returned to the caller on a build-time failure — dispose
+        // it here so its owned inference connection (if any) does not leak.
+        await runner.DisposeAsync().ConfigureAwait(false);
+        throw;
+      }
 
       return runner;
     }
 
-    private bool NeedsConfigure() => _contextSize.HasValue || !string.IsNullOrEmpty(_backend) || _runtimeFlags is { Count: > 0 };
+    private bool NeedsConfigure() => _contextSize.HasValue || _runtimeFlags is { Count: > 0 } || IsExplicitBackend(_backend);
+
+    private static bool IsExplicitBackend(string backend) =>
+        !string.IsNullOrWhiteSpace(backend) && !string.Equals(backend, "auto", StringComparison.OrdinalIgnoreCase);
 
     private ModelConfigureOptions BuildConfigureOptions() => new()
     {
       ContextSize = _contextSize,
-      Backend = string.IsNullOrEmpty(_backend) ? default : ModelBackend.Custom(_backend),
+      Backend = _backend,
       RuntimeFlags = _runtimeFlags
     };
   }

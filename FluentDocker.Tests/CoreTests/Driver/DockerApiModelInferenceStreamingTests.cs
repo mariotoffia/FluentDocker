@@ -52,9 +52,11 @@ namespace FluentDocker.Tests.CoreTests.Driver
       {
       }
 
-      // PostStream path captured; the request itself carried stream=true (no body capture for streams,
-      // but the path must be the chat endpoint)
-      Assert.Contains(conn.GetRequests(), r => r.Method == "POST_STREAM" && r.Path.Contains("/chat/completions"));
+      // The streaming request body is now captured: it must carry stream=true so the
+      // server actually streams (and target the chat endpoint).
+      var request = conn.GetRequests().Single(r => r.Method == "POST_STREAM");
+      Assert.Contains("/chat/completions", request.Path);
+      Assert.Contains("\"stream\":true", request.Body.Replace(" ", string.Empty));
     }
 
     [Fact]

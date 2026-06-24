@@ -23,6 +23,10 @@ namespace FluentDocker.Drivers.Models.Connection
   {
     private readonly HttpClient _httpClient;
     private readonly ILogger _logger;
+    // Applied to non-streaming requests via a linked CTS so they cannot hang forever;
+    // streaming (PostStreamAsync) is intentionally exempt and relies on the caller's
+    // token, since inference/SSE can legitimately run for a long time.
+    private readonly TimeSpan _requestTimeout;
 
     /// <summary>
     /// Creates a connection from a resolved endpoint (TCP or unix socket).
@@ -47,6 +51,7 @@ namespace FluentDocker.Drivers.Models.Connection
         // operation HttpClient timeout (which would abort long generations/streams).
         Timeout = Timeout.InfiniteTimeSpan
       };
+      _requestTimeout = Normalize(config.RequestTimeout);
 
       if (!string.IsNullOrEmpty(apiKey))
         _httpClient.DefaultRequestHeaders.Authorization =
@@ -60,7 +65,12 @@ namespace FluentDocker.Drivers.Models.Connection
     /// <param name="baseAddress">The base address.</param>
     /// <param name="handler">The message handler.</param>
     /// <param name="loggerFactory">Optional logger factory.</param>
-    public ModelApiConnection(Uri baseAddress, HttpMessageHandler handler, ILoggerFactory loggerFactory = null)
+    /// <param name="requestTimeout">
+    /// Per-request timeout for non-streaming calls (default = infinite). Streaming
+    /// calls are always exempt.
+    /// </param>
+    public ModelApiConnection(Uri baseAddress, HttpMessageHandler handler, ILoggerFactory loggerFactory = null,
+        TimeSpan requestTimeout = default)
     {
       ArgumentNullException.ThrowIfNull(baseAddress);
       ArgumentNullException.ThrowIfNull(handler);
@@ -70,45 +80,116 @@ namespace FluentDocker.Drivers.Models.Connection
         BaseAddress = baseAddress,
         Timeout = Timeout.InfiniteTimeSpan
       };
+      _requestTimeout = Normalize(requestTimeout);
     }
+
+    /// <summary>Treats non-positive timeouts (incl. <c>default</c>) as infinite.</summary>
+    private static TimeSpan Normalize(TimeSpan timeout) =>
+        timeout > TimeSpan.Zero ? timeout : Timeout.InfiniteTimeSpan;
 
     /// <inheritdoc />
     public Uri BaseAddress => _httpClient.BaseAddress;
 
     /// <inheritdoc />
     public Task<HttpResponseMessage> GetAsync(string path, CancellationToken ct = default) =>
-        _httpClient.GetAsync(path, ct);
+        SendWithTimeoutAsync(c => _httpClient.GetAsync(path, c), ct);
 
     /// <inheritdoc />
     public Task<HttpResponseMessage> PostAsync(string path, HttpContent content, CancellationToken ct = default) =>
-        _httpClient.PostAsync(path, content, ct);
+        SendWithTimeoutAsync(c => _httpClient.PostAsync(path, content, c), ct);
 
     /// <inheritdoc />
     public Task<HttpResponseMessage> DeleteAsync(string path, CancellationToken ct = default) =>
-        _httpClient.DeleteAsync(path, ct);
+        SendWithTimeoutAsync(c => _httpClient.DeleteAsync(path, c), ct);
 
     /// <inheritdoc />
     public async Task<Stream> PostStreamAsync(string path, HttpContent content, CancellationToken ct = default)
     {
+      // Streaming is exempt from the request timeout (SSE can run for a long time) —
+      // we use the caller's token directly.
       var request = new HttpRequestMessage(HttpMethod.Post, path) { Content = content };
       var response = await _httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, ct).ConfigureAwait(false);
-      response.EnsureSuccessStatusCode();
-      var stream = await response.Content.ReadAsStreamAsync(ct).ConfigureAwait(false);
+      if (!response.IsSuccessStatusCode)
+      {
+        // Dispose the failed response (and its content) before throwing so it does
+        // not leak — ownership has not yet been transferred to ResponseOwningStream.
+        try
+        {
+          response.EnsureSuccessStatusCode();
+        }
+        catch
+        {
+          response.Dispose();
+          throw;
+        }
+      }
+
+      Stream stream;
+      try
+      {
+        stream = await response.Content.ReadAsStreamAsync(ct).ConfigureAwait(false);
+      }
+      catch
+      {
+        // Ownership has not yet transferred to ResponseOwningStream — dispose the
+        // response so it (and its connection) do not leak on a read failure.
+        response.Dispose();
+        throw;
+      }
+
       return new ResponseOwningStream(stream, response);
     }
 
     /// <inheritdoc />
     public async Task<bool> PingAsync(CancellationToken ct = default)
     {
+      // Bound the probe by the request timeout — HttpClient.Timeout is infinite, so an
+      // endpoint that accepts the connection but never responds would otherwise hang the
+      // ping forever. A ping that times out reports unreachable (false), not an exception.
+      using var linked = _requestTimeout == Timeout.InfiniteTimeSpan
+          ? null
+          : CancellationTokenSource.CreateLinkedTokenSource(ct);
+      linked?.CancelAfter(_requestTimeout);
+      var token = linked?.Token ?? ct;
+
       try
       {
-        using var response = await _httpClient.GetAsync("/", ct).ConfigureAwait(false);
+        using var response = await _httpClient.GetAsync("/", token).ConfigureAwait(false);
         return response.IsSuccessStatusCode;
+      }
+      catch (OperationCanceledException) when (ct.IsCancellationRequested)
+      {
+        // Caller-requested cancellation is not a "ping failed" signal — propagate it.
+        throw;
       }
       catch (Exception ex)
       {
+        // Includes a ping-timeout (the linked token fired but the caller's did not).
         _logger.LogDebug(ex, "Model API ping failed");
         return false;
+      }
+    }
+
+    /// <summary>
+    /// Runs a non-streaming request under <see cref="_requestTimeout"/> (when finite)
+    /// via a linked CTS, surfacing a timeout as <see cref="TimeoutException"/> while
+    /// still honoring the caller's cancellation token.
+    /// </summary>
+    private async Task<HttpResponseMessage> SendWithTimeoutAsync(
+        Func<CancellationToken, Task<HttpResponseMessage>> send, CancellationToken ct)
+    {
+      if (_requestTimeout == Timeout.InfiniteTimeSpan)
+        return await send(ct).ConfigureAwait(false);
+
+      using var linked = CancellationTokenSource.CreateLinkedTokenSource(ct);
+      linked.CancelAfter(_requestTimeout);
+      try
+      {
+        return await send(linked.Token).ConfigureAwait(false);
+      }
+      catch (OperationCanceledException) when (!ct.IsCancellationRequested)
+      {
+        throw new TimeoutException($"The model API request exceeded the configured request timeout of {_requestTimeout}.");
       }
     }
 
@@ -135,9 +216,19 @@ namespace FluentDocker.Drivers.Models.Connection
         ConnectCallback = async (_, ct) =>
         {
           var socket = new Socket(AddressFamily.Unix, SocketType.Stream, ProtocolType.Unspecified);
-          var endpoint = new UnixDomainSocketEndPoint(socketPath);
-          await socket.ConnectAsync(endpoint, ct).ConfigureAwait(false);
-          return new NetworkStream(socket, ownsSocket: true);
+          try
+          {
+            var endpoint = new UnixDomainSocketEndPoint(socketPath);
+            await socket.ConnectAsync(endpoint, ct).ConfigureAwait(false);
+            return new NetworkStream(socket, ownsSocket: true);
+          }
+          catch
+          {
+            // NetworkStream never took ownership — dispose the socket so a failed
+            // connect (bad path, timeout, cancellation) does not leak the descriptor.
+            socket.Dispose();
+            throw;
+          }
         },
         ConnectTimeout = config.ConnectionTimeout
       };
@@ -156,7 +247,16 @@ namespace FluentDocker.Drivers.Models.Connection
 
       var scheme = (useTls || hasCerts) ? "https" : "http";
       var port = uri.Port > 0 ? uri.Port : 12434;
-      return (handler, new Uri($"{scheme}://{uri.Host}:{port}"));
+      // Rebuild the authority via UriBuilder (not string interpolation) so an IPv6
+      // literal host is bracketed correctly (e.g. http://[::1]:12434) and any path /
+      // query / user-info on the source URI is dropped.
+      var baseAddress = new UriBuilder
+      {
+        Scheme = scheme,
+        Host = uri.Host,
+        Port = port
+      }.Uri;
+      return (handler, baseAddress);
     }
 
     private static SslClientAuthenticationOptions BuildSslOptions(ModelApiConnectionConfig config)
@@ -187,16 +287,10 @@ namespace FluentDocker.Drivers.Models.Connection
 #else
             var caCert = X509Certificate2.CreateFromPemFile(caPath);
 #endif
+            // Trust the custom CA for chain validation only — hostname mismatch and a
+            // missing certificate are still rejected (see ModelTlsValidation).
             sslOptions.RemoteCertificateValidationCallback = (_, cert, chain, errors) =>
-            {
-              if (errors == SslPolicyErrors.None)
-                return true;
-              if (chain == null || cert == null)
-                return false;
-              chain.ChainPolicy.TrustMode = X509ChainTrustMode.CustomRootTrust;
-              chain.ChainPolicy.CustomTrustStore.Add(caCert);
-              return chain.Build(new X509Certificate2(cert));
-            };
+                ModelTlsValidation.ValidateWithCustomRoot(caCert, cert, chain, errors);
           }
         }
       }

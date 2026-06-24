@@ -146,7 +146,9 @@ namespace FluentDocker.Model.Models
       var value = Environment.GetEnvironmentVariable(UrlEnvironmentVariable);
       if (!string.IsNullOrWhiteSpace(value) && Uri.TryCreate(value, UriKind.Absolute, out var uri))
       {
-        endpoint = Custom(uri);
+        // Raw() preserves a path-bearing URL (e.g. an injected
+        // http://host:12434/engines/v1) instead of discarding it like Custom() would.
+        endpoint = Raw(uri);
         return true;
       }
 
