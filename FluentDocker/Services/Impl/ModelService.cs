@@ -94,26 +94,52 @@ namespace FluentDocker.Services.Impl
     /// <inheritdoc />
     public async Task StartAsync(CancellationToken cancellationToken = default)
     {
+      ThrowIfDisposed();
       UpdateState(ServiceRunningState.Starting);
       await ExecuteHooksAsync(ServiceRunningState.Starting).ConfigureAwait(false);
 
-      await _runner.LoadAsync(_model, _runOptions, cancellationToken).ConfigureAwait(false);
+      try
+      {
+        await _runner.LoadAsync(_model, _runOptions, cancellationToken).ConfigureAwait(false);
+      }
+      catch
+      {
+        UpdateState(ServiceRunningState.Unknown);
+        throw;
+      }
 
       UpdateState(ServiceRunningState.Running);
       await ExecuteHooksAsync(ServiceRunningState.Running).ConfigureAwait(false);
     }
 
     /// <inheritdoc />
-    public Task PauseAsync(CancellationToken cancellationToken = default) =>
-        throw new NotSupportedException("Models cannot be paused; use Stop (unload) instead.");
+    public Task PauseAsync(CancellationToken cancellationToken = default)
+    {
+      ThrowIfDisposed();
+      throw new NotSupportedException("Models cannot be paused; use Stop (unload) instead.");
+    }
 
     /// <inheritdoc />
-    public async Task StopAsync(CancellationToken cancellationToken = default)
+    public Task StopAsync(CancellationToken cancellationToken = default)
+    {
+      ThrowIfDisposed();
+      return StopCoreAsync(cancellationToken);
+    }
+
+    private async Task StopCoreAsync(CancellationToken cancellationToken = default)
     {
       UpdateState(ServiceRunningState.Stopping);
       await ExecuteHooksAsync(ServiceRunningState.Stopping).ConfigureAwait(false);
 
-      await _runner.UnloadAsync(_model, false, cancellationToken).ConfigureAwait(false);
+      try
+      {
+        await _runner.UnloadAsync(_model, false, cancellationToken).ConfigureAwait(false);
+      }
+      catch
+      {
+        UpdateState(ServiceRunningState.Unknown);
+        throw;
+      }
 
       UpdateState(ServiceRunningState.Stopped);
       await ExecuteHooksAsync(ServiceRunningState.Stopped).ConfigureAwait(false);
@@ -122,26 +148,42 @@ namespace FluentDocker.Services.Impl
     /// <inheritdoc />
     public async Task RemoveAsync(bool force = false, CancellationToken cancellationToken = default)
     {
+      ThrowIfDisposed();
       UpdateState(ServiceRunningState.Removing);
       await ExecuteHooksAsync(ServiceRunningState.Removing).ConfigureAwait(false);
 
-      await _runner.RemoveAsync(_model, force, cancellationToken).ConfigureAwait(false);
+      try
+      {
+        await _runner.RemoveAsync(_model, force, cancellationToken).ConfigureAwait(false);
+      }
+      catch
+      {
+        UpdateState(ServiceRunningState.Unknown);
+        throw;
+      }
 
       UpdateState(ServiceRunningState.Removed);
       await ExecuteHooksAsync(ServiceRunningState.Removed).ConfigureAwait(false);
     }
 
     /// <inheritdoc />
-    public Task<ModelInfo> InspectAsync(CancellationToken cancellationToken = default) =>
-        _runner.InspectAsync(_model, cancellationToken);
+    public Task<ModelInfo> InspectAsync(CancellationToken cancellationToken = default)
+    {
+      ThrowIfDisposed();
+      return _runner.InspectAsync(_model, cancellationToken);
+    }
 
     /// <inheritdoc />
-    public Task ConfigureAsync(ModelConfigureOptions options, CancellationToken cancellationToken = default) =>
-        _runner.ConfigureAsync(_model, options, cancellationToken);
+    public Task ConfigureAsync(ModelConfigureOptions options, CancellationToken cancellationToken = default)
+    {
+      ThrowIfDisposed();
+      return _runner.ConfigureAsync(_model, options, cancellationToken);
+    }
 
     /// <inheritdoc />
     public IServiceAsync AddHook(ServiceRunningState state, Func<IServiceAsync, Task> hook, string uniqueName = null)
     {
+      ThrowIfDisposed();
       ArgumentNullException.ThrowIfNull(hook);
       _stateHooks[state].Add(hook);
       _hooks[uniqueName ?? Guid.NewGuid().ToString()] = hook;
@@ -151,6 +193,7 @@ namespace FluentDocker.Services.Impl
     /// <inheritdoc />
     public IServiceAsync RemoveHook(string uniqueName)
     {
+      ThrowIfDisposed();
       if (uniqueName != null && _hooks.Remove(uniqueName, out var hook))
       {
         foreach (var list in _stateHooks.Values)
@@ -191,18 +234,26 @@ namespace FluentDocker.Services.Impl
 
     private async ValueTask DisposeCoreAsync()
     {
-      if (_keepRunning || _state != ServiceRunningState.Running)
-        return;
-
       try
       {
-        await StopAsync().ConfigureAwait(false);
+        // _keepRunning controls only whether the model is unloaded — it must NOT
+        // gate disposal of the owned runner (which may hold an inference connection,
+        // X509 cert, HttpClient, etc.).
+        if (!_keepRunning && _state == ServiceRunningState.Running)
+          await StopCoreAsync().ConfigureAwait(false);
       }
       catch (Exception ex)
       {
         _logger.LogWarning(ex, "ModelService dispose unload failed for '{Model}'", _model);
       }
+      finally
+      {
+        await _runner.DisposeAsync().ConfigureAwait(false);
+      }
     }
+
+    private void ThrowIfDisposed() =>
+        ObjectDisposedException.ThrowIf(Volatile.Read(ref _disposed) != 0, this);
 
     private void UpdateState(ServiceRunningState newState)
     {

@@ -222,7 +222,9 @@ OpenAI-compatible endpoint — behind the same `Builder → WithinDriver → Use
 pattern, so a model handle lives in the same kernel and lifecycle as your containers.
 
 > **Note:** Docker Model Runner support is a preview feature slated for **v3.2.0**;
-> the inference DTO shapes may change before stabilization.
+> the inference DTO shapes may change before stabilization. v3.2.0 is **not yet on
+> NuGet** (the latest published package is **3.1.0**) — it is currently available only
+> by building from source on the feature branch.
 
 ```csharp
 using FluentDocker.Model.Models; // ModelReference

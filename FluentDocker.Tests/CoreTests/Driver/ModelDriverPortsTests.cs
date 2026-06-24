@@ -30,7 +30,7 @@ namespace FluentDocker.Tests.CoreTests.Driver
     [InlineData("TagAsync")]
     [InlineData("PushAsync")]
     [InlineData("PackageAsync")]
-    [InlineData("PruneAsync")]
+    [InlineData("PurgeAllAsync")]
     [InlineData("DiskUsageAsync")]
     public void ManagementDriver_HasMethod_WithDriverContextFirst(string method)
     {

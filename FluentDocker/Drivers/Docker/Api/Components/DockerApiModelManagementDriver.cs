@@ -162,8 +162,8 @@ namespace FluentDocker.Drivers.Docker.Api.Components
         Task.FromException<CommandResponse<ModelInfo>>(new NotSupportedException(Unsupported));
 
     /// <inheritdoc />
-    public Task<CommandResponse<ModelPruneResult>> PruneAsync(DriverContext context,
-        bool all = false, CancellationToken cancellationToken = default) =>
+    public Task<CommandResponse<ModelPruneResult>> PurgeAllAsync(DriverContext context,
+        CancellationToken cancellationToken = default) =>
         Task.FromException<CommandResponse<ModelPruneResult>>(new NotSupportedException(Unsupported));
 
     /// <inheritdoc />

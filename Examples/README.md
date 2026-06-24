@@ -50,7 +50,7 @@ Demonstrates Docker Model Runner (local LLMs):
 - Pull/list models, one-shot and **streaming** chat, embeddings
 - A model as a managed service (`UseModel`) that loads on start, unloads on dispose
 
-Requires Docker Model Runner enabled (Docker Desktop → Settings → AI). Uses tiny models.
+Requires Docker Model Runner enabled (Docker Desktop → Settings → AI), with host-side TCP turned on for inference. Uses tiny models.
 
 ```bash
 cd ModelRunner && dotnet run

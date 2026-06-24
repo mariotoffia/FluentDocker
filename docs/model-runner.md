@@ -41,13 +41,13 @@ var kernel = await FluentDockerKernel.Create(NullLoggerFactory.Instance)
     .WithDockerCli("docker", d => d.AsDefault())
     .BuildAsync();
 
-await using var runner = new Builder()
+await using var runner = await new Builder()
     .WithinDriver("docker", kernel)
     .UseModelRunner()
     .ForModel("ai/smollm2")
     .WithContextSize(8192)        // optional — persisted via `docker model configure`
     .PullIfMissing()             // optional — pulls at build if absent
-    .Build();
+    .BuildAsync();               // async — avoids sync-over-async on the model pull
 
 // One-shot chat against the default model
 var reply = await runner.ChatAsync("Reply with a single word.");
@@ -369,4 +369,4 @@ plus embedded fixtures captured from a real DMR.
 ## See also
 
 - [Getting Started](getting-started.md) · [Containers](containers.md) · [Compose](compose.md) · [Architecture](architecture.md)
-- Runnable sample: [`Examples/ModelRunner`](https://github.com/mariotoffia/FluentDocker/tree/master/Examples/ModelRunner)
+- Runnable sample: [`Examples/ModelRunner`](https://github.com/mariotoffia/FluentDocker/tree/featrure/model-support/Examples/ModelRunner)

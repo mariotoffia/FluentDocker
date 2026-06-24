@@ -45,15 +45,7 @@ namespace FluentDocker.Builders
   /// </summary>
   public sealed class ModelRunOptionsBuilder
   {
-    private bool _detach;
     private bool _debug;
-
-    /// <summary>Run detached (load and keep resident).</summary>
-    public ModelRunOptionsBuilder WithDetach(bool detach = true)
-    {
-      _detach = detach;
-      return this;
-    }
 
     /// <summary>Enable engine debug output.</summary>
     public ModelRunOptionsBuilder WithDebug(bool debug = true)
@@ -64,7 +56,6 @@ namespace FluentDocker.Builders
 
     internal Model.Models.Options.ModelRunOptions Build() => new()
     {
-      Detach = _detach,
       Debug = _debug
     };
   }

@@ -158,7 +158,7 @@ namespace FluentDocker.Tests.CoreTests.Driver
     {
       var driver = new FakeRuntimeDriver { Responder = _ => Ok() };
       await driver.LoadAsync(Ctx, ModelReference.Parse("ai/smollm2"),
-          new ModelRunOptions { Detach = true, Debug = true }, TestContext.Current.CancellationToken);
+          new ModelRunOptions { Debug = true }, TestContext.Current.CancellationToken);
 
       var cmd = driver.Commands.Single();
       Assert.Contains("model run", cmd);

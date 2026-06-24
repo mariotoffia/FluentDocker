@@ -199,16 +199,14 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     }
 
     /// <inheritdoc />
-    public async Task<CommandResponse<ModelPruneResult>> PruneAsync(DriverContext context,
-        bool all = false, CancellationToken cancellationToken = default)
+    public async Task<CommandResponse<ModelPruneResult>> PurgeAllAsync(DriverContext context,
+        CancellationToken cancellationToken = default)
     {
       try
       {
         // DMR has no `model prune` (it would print top-level help and exit 0 — a
         // false success). The actual verb is `model purge`, which removes ALL models;
-        // `--force` keeps it non-interactive. The `all` parameter is retained for the
-        // port contract but purge is always all-encompassing.
-        _ = all;
+        // `--force` keeps it non-interactive.
         var args = "model purge --force";
 
         var result = await RunAsync(args, cancellationToken).ConfigureAwait(false);

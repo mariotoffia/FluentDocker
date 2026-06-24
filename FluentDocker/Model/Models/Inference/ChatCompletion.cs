@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Text.Json.Serialization;
 
@@ -20,6 +21,7 @@ namespace FluentDocker.Model.Models.Inference
     /// <param name="other">The request to copy.</param>
     public ChatCompletionRequest(ChatCompletionRequest other)
     {
+      ArgumentNullException.ThrowIfNull(other);
       Model = other.Model;
       Messages = other.Messages;
       MaxTokens = other.MaxTokens;

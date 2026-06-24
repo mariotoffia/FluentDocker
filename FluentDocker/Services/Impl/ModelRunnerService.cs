@@ -64,6 +64,11 @@ namespace FluentDocker.Services.Impl
     public ModelReference DefaultModel => _defaultModel;
 
     /// <inheritdoc />
+    /// <remarks>
+    /// Returns the base authority only (scheme://host:port). Engine path, env-injected
+    /// raw path, and unix-socket detail held by the underlying ModelRunnerEndpoint are
+    /// not exposed through this Uri.
+    /// </remarks>
     public Uri Endpoint => _endpoint.BaseAddress;
 
     /// <inheritdoc />
@@ -72,9 +77,10 @@ namespace FluentDocker.Services.Impl
     /// <inheritdoc />
     public async Task<string> ChatAsync(string prompt, CancellationToken cancellationToken = default)
     {
+      ThrowIfDisposed();
       var request = new ChatCompletionRequest
       {
-        Model = _defaultModel?.ToString(),
+        Model = RequireModelId(),
         Messages = new List<ChatMessage> { new() { Role = "user", Content = prompt } }
       };
 
@@ -85,15 +91,16 @@ namespace FluentDocker.Services.Impl
     /// <inheritdoc />
     public async IAsyncEnumerable<string> ChatStreamAsync(string prompt, [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
+      ThrowIfDisposed();
       var request = new ChatCompletionRequest
       {
-        Model = _defaultModel?.ToString(),
+        Model = RequireModelId(),
         Messages = new List<ChatMessage> { new() { Role = "user", Content = prompt } }
       };
 
       await foreach (var chunk in ChatCompletionStreamAsync(request, cancellationToken).ConfigureAwait(false))
       {
-        var delta = chunk.Choices is { Count: > 0 } ? chunk.Choices[0].Delta?.Content : null;
+        var delta = chunk?.Choices is { Count: > 0 } ? chunk.Choices[0]?.Delta?.Content : null;
         if (!string.IsNullOrEmpty(delta))
           yield return delta;
       }
@@ -102,9 +109,10 @@ namespace FluentDocker.Services.Impl
     /// <inheritdoc />
     public async Task<IReadOnlyList<float>> EmbedAsync(string text, ModelReference model = null, CancellationToken cancellationToken = default)
     {
+      ThrowIfDisposed();
       var request = new EmbeddingsRequest
       {
-        Model = (model ?? _defaultModel)?.ToString(),
+        Model = RequireModelId(model),
         Input = new List<string> { text }
       };
 
@@ -146,6 +154,18 @@ namespace FluentDocker.Services.Impl
         AvailableBackends = ["llama.cpp"]
       };
     }
+
+    private string RequireModelId(ModelReference model = null)
+    {
+      var id = (model ?? _defaultModel)?.ToString();
+      if (string.IsNullOrEmpty(id))
+        throw new ArgumentException(
+          "No model specified and no default model was configured. Pass a model or configure one via ForModel/WithModel.", nameof(model));
+      return id;
+    }
+
+    private void ThrowIfDisposed() =>
+        ObjectDisposedException.ThrowIf(Volatile.Read(ref _disposed) != 0, this);
 
     private IModelManagementDriver Management() => _kernel.SysCtl<IModelManagementDriver>(_driverId);
 

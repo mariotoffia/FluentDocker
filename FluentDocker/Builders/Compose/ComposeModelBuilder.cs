@@ -5,6 +5,7 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
+using FluentDocker.Common;
 using FluentDocker.Model.Compose;
 
 namespace FluentDocker.Builders.Compose
@@ -21,7 +22,6 @@ namespace FluentDocker.Builders.Compose
     // This is the YAML-injection boundary: a newline/control character in any scalar
     // could otherwise inject arbitrary Compose entries into the emitted overlay.
     private static readonly Regex KeyPattern = new(@"^[A-Za-z0-9][A-Za-z0-9._-]*$", RegexOptions.Compiled);
-    private static readonly Regex EnvNamePattern = new(@"^[A-Za-z_][A-Za-z0-9_]*$", RegexOptions.Compiled);
     private static readonly Regex ModelReferencePattern = new(@"^[A-Za-z0-9][A-Za-z0-9._/:@+-]*$", RegexOptions.Compiled);
 
     private readonly List<ComposeModelSpec> _models = [];
@@ -75,6 +75,7 @@ namespace FluentDocker.Builders.Compose
           sb.Append("  ").Append(ValidateKey(group.Key, "service name")).Append(":\n");
           sb.Append("    models:\n");
 
+          // Computed per service group on purpose: short and long forms never mix within one service.
           var asMap = group.Any(b => b.IsLong);
           foreach (var binding in group)
           {
@@ -128,6 +129,17 @@ namespace FluentDocker.Builders.Compose
     /// Parses the <c>models:</c> map and per-service <c>models:</c> bindings out of a
     /// Compose document (the inverse of <see cref="EmitOverlay"/>).
     /// </summary>
+    /// <remarks>
+    /// This is a deliberately narrow, hand-rolled line/indent reader — NOT a general
+    /// YAML parser. It recognises ONLY the top-level <c>models:</c> map and the
+    /// per-service <c>models:</c> subset that <see cref="EmitOverlay"/> produces, and it
+    /// assumes strict 2-space indentation (2/4/6/8 spaces for the respective nesting
+    /// levels). It does NOT support YAML flow style (<c>{}</c>/<c>[]</c>), block scalars
+    /// (<c>|</c>/<c>&gt;</c>), anchors/aliases, tabs, or comments inside the
+    /// <c>models:</c> regions; any of those will be mis-parsed or ignored. It is intended
+    /// for re-reading FluentDocker-emitted overlays plus simple hand-written
+    /// <c>models:</c> blocks, and must NOT be pointed at arbitrary Compose documents.
+    /// </remarks>
     /// <param name="yaml">The compose YAML.</param>
     /// <returns>A populated builder.</returns>
     public static ComposeModelBuilder Parse(string yaml)
@@ -142,6 +154,8 @@ namespace FluentDocker.Builders.Compose
       return builder;
     }
 
+    // Counts leading spaces only. The parser keys off exact indent values (2/4/6/8),
+    // so it has a hard dependency on 2-space indentation and treats tabs as content.
     private static int Indent(string line)
     {
       var i = 0;
@@ -340,13 +354,7 @@ namespace FluentDocker.Builders.Compose
       return value;
     }
 
-    private static string ValidateEnvName(string value)
-    {
-      if (string.IsNullOrEmpty(value) || !EnvNamePattern.IsMatch(value))
-        throw new ArgumentException(
-            $"Invalid environment variable name '{Describe(value)}': must match [A-Za-z_][A-Za-z0-9_]* (no whitespace, line breaks or YAML metacharacters).");
-      return value;
-    }
+    private static string ValidateEnvName(string value) => ModelEnvName.Validate(value, "envName");
 
     private static string ValidateModelReference(string value)
     {

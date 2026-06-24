@@ -1,5 +1,6 @@
 using System;
 using System.Net;
+using FluentDocker.Common;
 using FluentDocker.Model.Models;
 
 namespace FluentDocker.Builders
@@ -38,6 +39,11 @@ namespace FluentDocker.Builders
     {
       ArgumentNullException.ThrowIfNull(builder);
       ArgumentNullException.ThrowIfNull(model);
+
+      // Validate the env-var names exactly as the Compose models: path does — these are
+      // injected verbatim into the container environment, so they must be strict identifiers.
+      ModelEnvName.Validate(endpointVar, nameof(endpointVar));
+      ModelEnvName.Validate(modelVar, nameof(modelVar));
 
       // Default to the container-internal DNS base (…/engines/v1), NOT host TCP.
       endpoint ??= ModelRunnerEndpoint.ContainerInternal().WithEngineInPath(false);

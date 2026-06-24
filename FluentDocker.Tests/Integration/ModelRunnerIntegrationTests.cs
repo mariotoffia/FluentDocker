@@ -20,8 +20,10 @@ namespace FluentDocker.Tests.Integration
   /// <summary>
   /// End-to-end integration tests against a real Docker Model Runner. Gated: when
   /// DMR is not running, every test SKIPS cleanly (xUnit dynamic-skip sentinel).
-  /// Uses the tiny <c>ai/smollm2</c> (chat) and <c>ai/embeddinggemma</c> (embeddings)
-  /// models to keep runs fast.
+  /// Per-test setup (<see cref="IAsyncLifetime"/> runs once per test method, NOT once
+  /// per collection — no <c>ICollectionFixture</c> is used) pulls + pins both models,
+  /// which are cached after the first test. Uses the tiny <c>ai/smollm2</c> (chat) and
+  /// <c>ai/embeddinggemma</c> (embeddings) models to keep runs fast.
   /// </summary>
   [Trait("Category", "Integration")]
   [Collection("DockerModelRunner")]
@@ -36,6 +38,18 @@ namespace FluentDocker.Tests.Integration
     private FluentDockerKernel _kernel = null!;
     private bool _seeded;
 
+    // On must-run CI lanes (schedule / manual run_integration=true) the workflow sets
+    // FLUENTDOCKER_REQUIRE_DMR=1. When set, a DMR that is absent/unavailable/unstable must
+    // HARD-FAIL instead of self-skipping — otherwise a broken DMR code path passes CI green
+    // with zero real Model Runner coverage. On PRs the flag is empty, so we still skip cleanly.
+    private static bool RequireDmr =>
+        !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("FLUENTDOCKER_REQUIRE_DMR"));
+
+    private static Exception SkipOrFail(string reason) =>
+        RequireDmr
+            ? new InvalidOperationException($"DMR required but unavailable: {reason}")
+            : new InvalidOperationException("$XunitDynamicSkip$" + reason);
+
     public async ValueTask InitializeAsync()
     {
       try
@@ -46,7 +60,7 @@ namespace FluentDocker.Tests.Integration
       }
       catch (Exception ex)
       {
-        throw new InvalidOperationException("$XunitDynamicSkip$Docker is not available: " + ex.Message);
+        throw SkipOrFail("Docker is not available: " + ex.Message);
       }
 
       try
@@ -54,7 +68,7 @@ namespace FluentDocker.Tests.Integration
         var runtime = _kernel.SysCtl<IModelRuntimeDriver>(DriverId);
         var status = await runtime.StatusAsync(new DriverContext(DriverId), CancellationToken.None);
         if (!status.Success || !status.Data.Running)
-          throw new InvalidOperationException("$XunitDynamicSkip$Docker Model Runner is not running");
+          throw SkipOrFail("Docker Model Runner is not running");
       }
       catch (InvalidOperationException)
       {
@@ -62,11 +76,12 @@ namespace FluentDocker.Tests.Integration
       }
       catch (Exception ex)
       {
-        throw new InvalidOperationException("$XunitDynamicSkip$Docker Model Runner not available: " + ex.Message);
+        throw SkipOrFail("Docker Model Runner not available: " + ex.Message);
       }
 
-      // Collection-level setup: pull + pin BOTH test models ONCE so individual tests
-      // never assume a model is already present.
+      // Per-test setup (IAsyncLifetime runs once per test method): pull + pin BOTH test
+      // models (cached after the first test) so individual tests never assume a model is
+      // already present.
       try
       {
         var seed = new Builder().WithinDriver(DriverId, _kernel).UseModelRunner().Build();
@@ -79,14 +94,15 @@ namespace FluentDocker.Tests.Integration
       }
       catch (Exception ex)
       {
-        throw new InvalidOperationException("$XunitDynamicSkip$Could not pull DMR test models: " + ex.Message);
+        throw SkipOrFail("Could not pull DMR test models: " + ex.Message);
       }
     }
 
     public async ValueTask DisposeAsync()
     {
-      // Guaranteed cleanup: reset config mutated by tests and unload the models, so the
-      // host is left in a clean state regardless of which tests ran or failed.
+      // Per-test cleanup (DisposeAsync runs once per test method): reset config mutated by
+      // tests and unload the models, so the host is left in a clean state regardless of
+      // which tests ran or failed.
       if (_kernel != null && _seeded)
       {
         var cleanup = new Builder().WithinDriver(DriverId, _kernel).UseModelRunner().Build();
@@ -131,8 +147,8 @@ namespace FluentDocker.Tests.Integration
           message.Contains("terminated unexpectedly", StringComparison.OrdinalIgnoreCase);
 
       if (unstable)
-        throw new InvalidOperationException(
-            "$XunitDynamicSkip$Inference runtime is unstable on this host (engine failed to load the model): " + message);
+        throw SkipOrFail(
+            "Inference runtime is unstable on this host (engine failed to load the model): " + message);
     }
 
     private IModelRunner BuildRunner(string model, bool pullIfMissing = false, int? contextSize = null)
@@ -173,7 +189,7 @@ namespace FluentDocker.Tests.Integration
       // load (detached) — a plain `docker model run -d` (no unsupported flags).
       try
       {
-        await runner.LoadAsync(reference, new ModelRunOptions { Detach = true }, ct);
+        await runner.LoadAsync(reference, new ModelRunOptions(), ct);
       }
       catch (ModelRunnerException ex)
       {

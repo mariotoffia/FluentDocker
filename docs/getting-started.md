@@ -341,6 +341,7 @@ await using var runner = await new Builder()
     .WithinDriver("docker", kernel)
     .UseModelRunner()
     .ForModel("ai/smollm2")   // tiny chat model (~256 MiB)
+    .WithContextSize(4096)    // required on DMR v1.2.1: chat models crash on load without it
     .PullIfMissing()          // pull at build if not already present
     .BuildAsync();
 
@@ -377,8 +378,8 @@ if (scoped.TryUseModelRunner(out var runnerBuilder))
 }
 ```
 
-**Driver support**: Model Runner currently supports the **Docker CLI** and **Docker
-API** drivers only. **Podman is not supported** — calling `UseModelRunner()` on a
+**Driver support**: Model Runner currently supports the **Docker CLI** driver only.
+Docker API driver model support is not yet available. **Podman is not supported** — calling `UseModelRunner()` on a
 Podman scope throws `InterfaceNotSupportedException`. Use `TryUseModelRunner(out ...)`
 when you need to handle unsupported drivers gracefully.
 

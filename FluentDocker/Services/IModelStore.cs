@@ -37,8 +37,12 @@ namespace FluentDocker.Services
     /// <summary>Packages a GGUF file into an OCI model artifact.</summary>
     Task<ModelInfo> PackageAsync(ModelPackageRequest request, CancellationToken cancellationToken = default);
 
-    /// <summary>Prunes unused models.</summary>
-    Task<ModelPruneResult> PruneAsync(bool all = false, CancellationToken cancellationToken = default);
+    /// <summary>
+    /// Removes ALL locally-stored models (irreversible). Docker Model Runner has no
+    /// 'unused-only' prune; this maps to <c>docker model purge --force</c> and deletes
+    /// every model in the local store. There is no confirmation prompt.
+    /// </summary>
+    Task<ModelPruneResult> PurgeAllAsync(CancellationToken cancellationToken = default);
 
     /// <summary>Reports model-store disk usage.</summary>
     Task<ModelDiskUsage> DiskUsageAsync(CancellationToken cancellationToken = default);

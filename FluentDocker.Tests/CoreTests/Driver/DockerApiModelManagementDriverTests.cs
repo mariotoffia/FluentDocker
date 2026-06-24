@@ -98,7 +98,7 @@ namespace FluentDocker.Tests.CoreTests.Driver
       await Assert.ThrowsAsync<NotSupportedException>(() => driver.TagAsync(Ctx, ModelReference.Parse("ai/a"), ModelReference.Parse("ai/b")));
       await Assert.ThrowsAsync<NotSupportedException>(() => driver.PushAsync(Ctx, ModelReference.Parse("ai/a")));
       await Assert.ThrowsAsync<NotSupportedException>(() => driver.PackageAsync(Ctx, new ModelPackageRequest()));
-      await Assert.ThrowsAsync<NotSupportedException>(() => driver.PruneAsync(Ctx, false));
+      await Assert.ThrowsAsync<NotSupportedException>(() => driver.PurgeAllAsync(Ctx));
       await Assert.ThrowsAsync<NotSupportedException>(() => driver.DiskUsageAsync(Ctx));
     }
 
@@ -143,7 +143,7 @@ namespace FluentDocker.Tests.CoreTests.Driver
       /// </summary>
       public async Task<IReadOnlyList<T>> WaitForReportsAsync(CancellationToken cancellationToken)
       {
-        var failsafe = Task.Delay(TimeSpan.FromSeconds(30), cancellationToken);
+        var failsafe = Task.Delay(TimeSpan.FromSeconds(5), cancellationToken);
         var winner = await Task.WhenAny(_completed.Task, failsafe).ConfigureAwait(false);
         Assert.True(winner == _completed.Task,
             $"Timed out waiting for {_expected} progress report(s).");

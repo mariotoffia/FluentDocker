@@ -19,6 +19,7 @@ namespace FluentDocker.Tests.CoreTests.Driver
   /// Uses a real POSIX shell, so the test is skipped on Windows.
   /// </summary>
   [Trait("Category", "Unit")]
+  [Trait("Requires", "PosixShell")]
   public class DockerCliStreamingExitTests
   {
     private sealed class ShellStreamDriver : DockerCliDriverBase
@@ -64,6 +65,33 @@ namespace FluentDocker.Tests.CoreTests.Driver
       Assert.Equal(new[] { "line1", "line2" }, lines);
       Assert.Equal(ErrorCodes.Driver.CommandExecutionFailed, ex.ErrorCode);
       Assert.Contains("errpadding", ex.Message); // stderr was captured and surfaced
+    }
+
+    [Fact]
+    public async Task Streaming_DeliversAllEmittedLines_BeforeThrowingOnNonZeroExit()
+    {
+      if (OperatingSystem.IsWindows())
+        Assert.Skip("POSIX shell/signal streaming semantics; not applicable on Windows");
+
+      var driver = CreateShellDriver();
+
+      // Emit several stdout lines, then exit non-zero. Consumers (logs/events/stats)
+      // must receive every line first, and only then observe the failure surfaced as a
+      // DriverException once the stream ends.
+      const string script = "printf 'one\\ntwo\\nthree\\nfour\\n'; exit 7";
+      var args = $"-c \"{script}\"";
+
+      var lines = new List<string>();
+      var ex = await Assert.ThrowsAsync<DriverException>(async () =>
+      {
+        await foreach (var line in driver.Stream(args, TestContext.Current.CancellationToken))
+          lines.Add(line);
+      });
+
+      // (a) all emitted lines were delivered to the enumerator before the throw.
+      Assert.Equal(new[] { "one", "two", "three", "four" }, lines);
+      // (b) enumerating to completion threw the documented failure once the stream ended.
+      Assert.Equal(ErrorCodes.Driver.CommandExecutionFailed, ex.ErrorCode);
     }
 
     [Fact]

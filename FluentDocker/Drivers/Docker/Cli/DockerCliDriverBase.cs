@@ -487,7 +487,24 @@ namespace FluentDocker.Drivers.Docker.Cli
       if (string.IsNullOrEmpty(argument))
         return "\"\"";
 
-      var needsQuoting = argument.AsSpan().IndexOfAny(ShellMetaCharacters) >= 0;
+      var span = argument.AsSpan();
+      var needsQuoting = span.IndexOfAny(ShellMetaCharacters) >= 0;
+      if (!needsQuoting)
+      {
+        // ShellMetaCharacters only covers space and tab among whitespace. Because the
+        // execution path uses the string ProcessStartInfo.Arguments (not ArgumentList),
+        // any other whitespace/control char (e.g. \n, \r, vertical tab, form feed) could
+        // split a single argument into multiple tokens. Quote on those too.
+        foreach (var c in span)
+        {
+          if (char.IsWhiteSpace(c) || char.IsControl(c))
+          {
+            needsQuoting = true;
+            break;
+          }
+        }
+      }
+
       if (!needsQuoting)
         return argument;
 

@@ -278,6 +278,12 @@ jobs:
 
       - name: Run integration tests
         if: steps.docker-check.outputs.available == 'true'
+        env:
+          # On must-run lanes (schedule / manual run_integration=true) a missing or unstable
+          # DMR must HARD-FAIL the test rather than self-skip — otherwise the DMR tests emit
+          # the xUnit dynamic-skip sentinel and the run passes green with zero real coverage.
+          # Empty on PRs so they continue to skip cleanly on DMR-less hosted runners.
+          FLUENTDOCKER_REQUIRE_DMR: ${{ (github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.run_integration == true)) && '1' || '' }}
         run: dotnet test FluentDocker.Tests/FluentDocker.Tests.csproj --configuration Debug --no-build --verbosity normal --filter "Category=Integration"
         timeout-minutes: 30
 

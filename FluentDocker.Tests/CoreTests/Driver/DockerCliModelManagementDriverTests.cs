@@ -214,13 +214,13 @@ namespace FluentDocker.Tests.CoreTests.Driver
     }
 
     [Fact]
-    public async Task PruneAsync_EmitsPurgeForce_NeverNonExistentPrune()
+    public async Task PurgeAllAsync_EmitsPurgeForce_NeverEmitsPrune()
     {
       // DMR v1.2.1 has no `model prune` (it prints top-level help and exits 0, a
       // false success). The real verb is `model purge --force`.
       var driver = new FakeMgmtDriver { Responder = _ => Ok("Removed 2 models, reclaimed 1.5 GB") };
 
-      var result = await driver.PruneAsync(Ctx, all: true, TestContext.Current.CancellationToken);
+      var result = await driver.PurgeAllAsync(Ctx, TestContext.Current.CancellationToken);
 
       Assert.True(result.Success);
       var cmd = driver.Commands.Single();
@@ -318,7 +318,7 @@ namespace FluentDocker.Tests.CoreTests.Driver
       /// </summary>
       public async Task<IReadOnlyList<T>> WaitForReportsAsync(CancellationToken cancellationToken)
       {
-        var failsafe = Task.Delay(TimeSpan.FromSeconds(30), cancellationToken);
+        var failsafe = Task.Delay(TimeSpan.FromSeconds(5), cancellationToken);
         var winner = await Task.WhenAny(_completed.Task, failsafe).ConfigureAwait(false);
         Assert.True(winner == _completed.Task,
             $"Timed out waiting for {_expected} progress report(s).");

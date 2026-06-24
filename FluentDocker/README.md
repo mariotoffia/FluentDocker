@@ -115,9 +115,11 @@ await using var results = await new Builder()
 
 ### Docker Model Runner (preview)
 
-> **Preview (v3.2)** — manage local LLMs and run inference (chat, completions, embeddings) through the same fluent builder. Requires [Docker Model Runner](https://docs.docker.com/model-runner/).
+> **Preview (v3.2)** — manage local LLMs and run inference (chat, completions, embeddings) through the same fluent builder. Requires [Docker Model Runner](https://docs.docker.com/model-runner/). Not yet in the published NuGet package (latest is 3.1.0); build from source on the feature branch.
 
 ```csharp
+using FluentDocker.Model.Models; // ModelReference
+
 await using var kernel = await FluentDockerKernel.Create()
     .WithDockerCli("docker", d => d.AsDefault())
     .BuildAsync();
@@ -136,8 +138,8 @@ var reply = await runner.ChatAsync("Reply with a single word.");
 await foreach (var token in runner.ChatStreamAsync("Count: one two three"))
     Console.Write(token);
 
-// Embeddings
-var vector = await runner.EmbedAsync("hello world");
+// Embeddings — use a dedicated embedding model — a chat model cannot embed
+var vector = await runner.EmbedAsync("hello world", ModelReference.Parse("ai/embeddinggemma"));
 ```
 
 See the [Docker Model Runner guide](https://github.com/mariotoffia/FluentDocker/blob/master/docs/model-runner.md) for endpoints, configuration, and advanced inference routing.

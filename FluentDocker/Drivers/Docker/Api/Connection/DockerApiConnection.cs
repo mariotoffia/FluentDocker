@@ -11,6 +11,7 @@ using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
 using FluentDocker.Common;
+using FluentDocker.Drivers.Models.Connection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 
@@ -316,18 +317,7 @@ namespace FluentDocker.Drivers.Docker.Api.Connection
 #endif
               ownedCertificates.Add(caCert);
               sslOptions.RemoteCertificateValidationCallback = (_, cert, chain, errors) =>
-              {
-                if (errors == SslPolicyErrors.None)
-                  return true;
-                if (chain == null || cert == null)
-                  return false;
-                chain.ChainPolicy.TrustMode = X509ChainTrustMode.CustomRootTrust;
-                chain.ChainPolicy.CustomTrustStore.Add(caCert);
-                // Dispose the per-handshake X509Certificate2 copy so it does not leak a
-                // native handle on every TLS validation.
-                using var copy = new X509Certificate2(cert);
-                return chain.Build(copy);
-              };
+                  ModelTlsValidation.ValidateWithCustomRoot(caCert, cert, chain, errors);
             }
           }
         }

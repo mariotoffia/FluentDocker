@@ -22,7 +22,7 @@ namespace FluentDocker.Tests.CoreTests.Service
   /// capability computation and the ergonomic chat/embed helpers.
   /// </summary>
   [Trait("Category", "Unit")]
-  public class ModelRunnerServiceTests
+  public partial class ModelRunnerServiceTests
   {
     private static async Task<(FluentDocker.Kernel.FluentDockerKernel kernel, ModelRunnerService runner)> BuildAsync(
         Action<MockDriverPack> configure = null, bool enable = true)

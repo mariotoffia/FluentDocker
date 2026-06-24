@@ -69,7 +69,19 @@ namespace FluentDocker.Drivers.Docker.Api.Components
 
       while (true)
       {
-        var line = await reader.ReadLineAsync(cancellationToken).ConfigureAwait(false);
+        string line;
+        try
+        {
+          line = await reader.ReadLineAsync(cancellationToken).ConfigureAwait(false);
+        }
+        catch (Exception ex) when (ex is IOException or HttpRequestException)
+        {
+          // Transport faults mid-stream (connection reset, socket error) must map to the
+          // same typed ModelRunnerException as the open path — never escape as a raw fault.
+          throw new ModelRunnerException(
+              "Inference stream transport failure", ErrorCodes.ModelInference.EndpointUnreachable, ex);
+        }
+
         if (line == null)
           yield break;
 
@@ -89,6 +101,11 @@ namespace FluentDocker.Drivers.Docker.Api.Components
         {
           throw new ModelRunnerException("Malformed SSE chunk", ErrorCodes.ModelInference.StreamParseError, ex);
         }
+
+        // STJ deserializes a literal `data: null` frame to default(T) without throwing;
+        // emitting it would surface as a downstream NullReferenceException.
+        if (chunk == null)
+          throw new ModelRunnerException("Null SSE chunk", ErrorCodes.ModelInference.StreamParseError);
 
         yield return chunk;
       }

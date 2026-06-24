@@ -117,6 +117,7 @@ namespace ModelRunner
           .WithinDriver(DriverId, kernel)
           .UseModelRunner()
           .ForModel(ChatModel)
+          .WithContextSize(8192)
           .PullIfMissing()
           .Build();
 

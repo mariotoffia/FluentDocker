@@ -67,6 +67,23 @@ namespace FluentDocker.Builders
     }
 
     /// <summary>
+    /// Enters the Docker Model Runner fluent builder to manage local models and
+    /// run inference (Docker Model Runner is a preview feature). Unlike the other
+    /// <c>UseXxx</c> operations this returns the runner builder directly; the runner
+    /// is not part of the deferred build pipeline.
+    /// </summary>
+    /// <returns>A model runner builder.</returns>
+    public IModelRunnerBuilder UseModelRunner() => _inner.UseModelRunner();
+
+    /// <summary>
+    /// Begins building a managed single-model <see cref="Services.IModelService"/>
+    /// in the current Docker CLI scope.
+    /// </summary>
+    /// <param name="reference">The model reference.</param>
+    /// <returns>A model service builder.</returns>
+    public IModelServiceBuilder UseModel(string reference) => _inner.UseModel(reference);
+
+    /// <summary>
     /// TERMINAL - Builds all operations synchronously.
     /// For async contexts, prefer <see cref="BuildAsync"/>.
     /// </summary>

@@ -16,7 +16,6 @@ namespace FluentDocker.Tests.CoreTests.Model
     {
       var o = new ModelRunOptions();
 
-      Assert.False(o.Detach);
       Assert.False(o.Debug);
     }
 

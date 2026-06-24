@@ -59,6 +59,11 @@ namespace FluentDocker.Services.Impl
     public ModelReference DefaultModel => _defaultModel;
 
     /// <inheritdoc />
+    /// <remarks>
+    /// Returns the base authority only (scheme://host:port). Engine path, env-injected
+    /// raw path, and unix-socket detail held by the underlying ModelRunnerEndpoint are
+    /// not exposed through this Uri.
+    /// </remarks>
     public Uri Endpoint => _endpoint.BaseAddress;
 
     /// <inheritdoc />
@@ -77,28 +82,44 @@ namespace FluentDocker.Services.Impl
     // ---- Inference (supported) ------------------------------------------------
 
     /// <inheritdoc />
-    public async Task<ChatCompletionResponse> ChatCompletionAsync(ChatCompletionRequest request, CancellationToken cancellationToken = default) =>
-        Unwrap(await _inference.ChatCompletionAsync(Ctx, request, cancellationToken).ConfigureAwait(false), "Chat completion");
+    public async Task<ChatCompletionResponse> ChatCompletionAsync(ChatCompletionRequest request, CancellationToken cancellationToken = default)
+    {
+      ThrowIfDisposed();
+      return Unwrap(await _inference.ChatCompletionAsync(Ctx, request, cancellationToken).ConfigureAwait(false), "Chat completion");
+    }
 
     /// <inheritdoc />
-    public IAsyncEnumerable<ChatCompletionChunk> ChatCompletionStreamAsync(ChatCompletionRequest request, CancellationToken cancellationToken = default) =>
-        _inference.ChatCompletionStreamAsync(Ctx, request, cancellationToken);
+    public IAsyncEnumerable<ChatCompletionChunk> ChatCompletionStreamAsync(ChatCompletionRequest request, CancellationToken cancellationToken = default)
+    {
+      ThrowIfDisposed();
+      return _inference.ChatCompletionStreamAsync(Ctx, request, cancellationToken);
+    }
 
     /// <inheritdoc />
-    public async Task<CompletionResponse> CompletionAsync(CompletionRequest request, CancellationToken cancellationToken = default) =>
-        Unwrap(await _inference.CompletionAsync(Ctx, request, cancellationToken).ConfigureAwait(false), "Completion");
+    public async Task<CompletionResponse> CompletionAsync(CompletionRequest request, CancellationToken cancellationToken = default)
+    {
+      ThrowIfDisposed();
+      return Unwrap(await _inference.CompletionAsync(Ctx, request, cancellationToken).ConfigureAwait(false), "Completion");
+    }
 
     /// <inheritdoc />
-    public IAsyncEnumerable<CompletionChunk> CompletionStreamAsync(CompletionRequest request, CancellationToken cancellationToken = default) =>
-        _inference.CompletionStreamAsync(Ctx, request, cancellationToken);
+    public IAsyncEnumerable<CompletionChunk> CompletionStreamAsync(CompletionRequest request, CancellationToken cancellationToken = default)
+    {
+      ThrowIfDisposed();
+      return _inference.CompletionStreamAsync(Ctx, request, cancellationToken);
+    }
 
     /// <inheritdoc />
-    public async Task<EmbeddingsResponse> EmbeddingsAsync(EmbeddingsRequest request, CancellationToken cancellationToken = default) =>
-        Unwrap(await _inference.EmbeddingsAsync(Ctx, request, cancellationToken).ConfigureAwait(false), "Embeddings");
+    public async Task<EmbeddingsResponse> EmbeddingsAsync(EmbeddingsRequest request, CancellationToken cancellationToken = default)
+    {
+      ThrowIfDisposed();
+      return Unwrap(await _inference.EmbeddingsAsync(Ctx, request, cancellationToken).ConfigureAwait(false), "Embeddings");
+    }
 
     /// <inheritdoc />
     public async Task<IReadOnlyList<OpenAiModel>> ListEngineModelsAsync(CancellationToken cancellationToken = default)
     {
+      ThrowIfDisposed();
       var data = Unwrap(await _inference.ListEngineModelsAsync(Ctx, cancellationToken).ConfigureAwait(false), "List engine models");
       return data as IReadOnlyList<OpenAiModel> ?? [.. data ?? []];
     }
@@ -108,9 +129,10 @@ namespace FluentDocker.Services.Impl
     /// <inheritdoc />
     public async Task<string> ChatAsync(string prompt, CancellationToken cancellationToken = default)
     {
+      ThrowIfDisposed();
       var response = await ChatCompletionAsync(new ChatCompletionRequest
       {
-        Model = _defaultModel?.ToString(),
+        Model = RequireModelId(),
         Messages = new List<ChatMessage> { new() { Role = "user", Content = prompt } }
       }, cancellationToken).ConfigureAwait(false);
 
@@ -120,15 +142,16 @@ namespace FluentDocker.Services.Impl
     /// <inheritdoc />
     public async IAsyncEnumerable<string> ChatStreamAsync(string prompt, [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
+      ThrowIfDisposed();
       var request = new ChatCompletionRequest
       {
-        Model = _defaultModel?.ToString(),
+        Model = RequireModelId(),
         Messages = new List<ChatMessage> { new() { Role = "user", Content = prompt } }
       };
 
       await foreach (var chunk in ChatCompletionStreamAsync(request, cancellationToken).ConfigureAwait(false))
       {
-        var delta = chunk.Choices is { Count: > 0 } ? chunk.Choices[0].Delta?.Content : null;
+        var delta = chunk?.Choices is { Count: > 0 } ? chunk.Choices[0]?.Delta?.Content : null;
         if (!string.IsNullOrEmpty(delta))
           yield return delta;
       }
@@ -137,9 +160,10 @@ namespace FluentDocker.Services.Impl
     /// <inheritdoc />
     public async Task<IReadOnlyList<float>> EmbedAsync(string text, ModelReference model = null, CancellationToken cancellationToken = default)
     {
+      ThrowIfDisposed();
       var response = await EmbeddingsAsync(new EmbeddingsRequest
       {
-        Model = (model ?? _defaultModel)?.ToString(),
+        Model = RequireModelId(model),
         Input = new List<string> { text }
       }, cancellationToken).ConfigureAwait(false);
 
@@ -151,59 +175,124 @@ namespace FluentDocker.Services.Impl
     // ---- Management / runtime (not supported) ---------------------------------
 
     /// <inheritdoc />
-    public Task<ModelInfo> PullAsync(ModelReference model, IProgress<ModelPullProgress> progress = null, CancellationToken cancellationToken = default) => throw Fail();
+    public Task<ModelInfo> PullAsync(ModelReference model, IProgress<ModelPullProgress> progress = null, CancellationToken cancellationToken = default)
+    {
+      ThrowIfDisposed();
+      throw Fail();
+    }
 
     /// <inheritdoc />
-    public Task<IReadOnlyList<ModelInfo>> ListAsync(CancellationToken cancellationToken = default) => throw Fail();
+    public Task<IReadOnlyList<ModelInfo>> ListAsync(CancellationToken cancellationToken = default)
+    {
+      ThrowIfDisposed();
+      throw Fail();
+    }
 
     /// <inheritdoc />
-    public Task<ModelInfo> InspectAsync(ModelReference model, CancellationToken cancellationToken = default) => throw Fail();
+    public Task<ModelInfo> InspectAsync(ModelReference model, CancellationToken cancellationToken = default)
+    {
+      ThrowIfDisposed();
+      throw Fail();
+    }
 
     /// <inheritdoc />
-    public Task RemoveAsync(ModelReference model, bool force = false, CancellationToken cancellationToken = default) => throw Fail();
+    public Task RemoveAsync(ModelReference model, bool force = false, CancellationToken cancellationToken = default)
+    {
+      ThrowIfDisposed();
+      throw Fail();
+    }
 
     /// <inheritdoc />
-    public Task TagAsync(ModelReference source, ModelReference target, CancellationToken cancellationToken = default) => throw Fail();
+    public Task TagAsync(ModelReference source, ModelReference target, CancellationToken cancellationToken = default)
+    {
+      ThrowIfDisposed();
+      throw Fail();
+    }
 
     /// <inheritdoc />
-    public Task PushAsync(ModelReference model, CancellationToken cancellationToken = default) => throw Fail();
+    public Task PushAsync(ModelReference model, CancellationToken cancellationToken = default)
+    {
+      ThrowIfDisposed();
+      throw Fail();
+    }
 
     /// <inheritdoc />
-    public Task<ModelInfo> PackageAsync(ModelPackageRequest request, CancellationToken cancellationToken = default) => throw Fail();
+    public Task<ModelInfo> PackageAsync(ModelPackageRequest request, CancellationToken cancellationToken = default)
+    {
+      ThrowIfDisposed();
+      throw Fail();
+    }
 
     /// <inheritdoc />
-    public Task<ModelPruneResult> PruneAsync(bool all = false, CancellationToken cancellationToken = default) => throw Fail();
+    public Task<ModelPruneResult> PurgeAllAsync(CancellationToken cancellationToken = default)
+    {
+      ThrowIfDisposed();
+      throw Fail();
+    }
 
     /// <inheritdoc />
-    public Task<ModelDiskUsage> DiskUsageAsync(CancellationToken cancellationToken = default) => throw Fail();
+    public Task<ModelDiskUsage> DiskUsageAsync(CancellationToken cancellationToken = default)
+    {
+      ThrowIfDisposed();
+      throw Fail();
+    }
 
     /// <inheritdoc />
     public async Task<ModelRunnerStatus> StatusAsync(CancellationToken cancellationToken = default)
     {
+      ThrowIfDisposed();
       var running = _statusProbe == null || await _statusProbe(cancellationToken).ConfigureAwait(false);
       return new ModelRunnerStatus { Running = running, Endpoint = _endpoint.BaseAddress, Error = running ? null : "Endpoint unreachable" };
     }
 
     /// <inheritdoc />
-    public Task<ModelRunnerVersion> VersionAsync(CancellationToken cancellationToken = default) => throw Fail();
+    public Task<ModelRunnerVersion> VersionAsync(CancellationToken cancellationToken = default)
+    {
+      ThrowIfDisposed();
+      throw Fail();
+    }
 
     /// <inheritdoc />
-    public Task<IReadOnlyList<RunningModel>> ListRunningAsync(CancellationToken cancellationToken = default) => throw Fail();
+    public Task<IReadOnlyList<RunningModel>> ListRunningAsync(CancellationToken cancellationToken = default)
+    {
+      ThrowIfDisposed();
+      throw Fail();
+    }
 
     /// <inheritdoc />
-    public Task LoadAsync(ModelReference model, ModelRunOptions options = null, CancellationToken cancellationToken = default) => throw Fail();
+    public Task LoadAsync(ModelReference model, ModelRunOptions options = null, CancellationToken cancellationToken = default)
+    {
+      ThrowIfDisposed();
+      throw Fail();
+    }
 
     /// <inheritdoc />
-    public Task UnloadAsync(ModelReference model, bool all = false, CancellationToken cancellationToken = default) => throw Fail();
+    public Task UnloadAsync(ModelReference model, bool all = false, CancellationToken cancellationToken = default)
+    {
+      ThrowIfDisposed();
+      throw Fail();
+    }
 
     /// <inheritdoc />
-    public Task ConfigureAsync(ModelReference model, ModelConfigureOptions options, CancellationToken cancellationToken = default) => throw Fail();
+    public Task ConfigureAsync(ModelReference model, ModelConfigureOptions options, CancellationToken cancellationToken = default)
+    {
+      ThrowIfDisposed();
+      throw Fail();
+    }
 
     /// <inheritdoc />
-    public IAsyncEnumerable<string> LogsAsync(bool follow = false, CancellationToken cancellationToken = default) => throw Fail();
+    public IAsyncEnumerable<string> LogsAsync(bool follow = false, CancellationToken cancellationToken = default)
+    {
+      ThrowIfDisposed();
+      throw Fail();
+    }
 
     /// <inheritdoc />
-    public Task InstallRunnerAsync(ModelRunnerInstallOptions options = null, CancellationToken cancellationToken = default) => throw Fail();
+    public Task InstallRunnerAsync(ModelRunnerInstallOptions options = null, CancellationToken cancellationToken = default)
+    {
+      ThrowIfDisposed();
+      throw Fail();
+    }
 
     /// <inheritdoc />
     public async ValueTask DisposeAsync()
@@ -215,6 +304,18 @@ namespace FluentDocker.Services.Impl
         await _ownedResource.DisposeAsync().ConfigureAwait(false);
       GC.SuppressFinalize(this);
     }
+
+    private string RequireModelId(ModelReference model = null)
+    {
+      var id = (model ?? _defaultModel)?.ToString();
+      if (string.IsNullOrEmpty(id))
+        throw new ArgumentException(
+          "No model specified and no default model was configured. Pass a model or configure one via ForModel/WithModel.", nameof(model));
+      return id;
+    }
+
+    private void ThrowIfDisposed() =>
+        ObjectDisposedException.ThrowIf(Volatile.Read(ref _disposed) != 0, this);
 
     private static NotSupportedException Fail() => new(Unsupported);
 

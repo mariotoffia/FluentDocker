@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Text.Json.Serialization;
 
@@ -20,6 +21,7 @@ namespace FluentDocker.Model.Models.Inference
     /// <param name="other">The request to copy.</param>
     public CompletionRequest(CompletionRequest other)
     {
+      ArgumentNullException.ThrowIfNull(other);
       Model = other.Model;
       Prompt = other.Prompt;
       MaxTokens = other.MaxTokens;

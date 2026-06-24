@@ -7,9 +7,6 @@ namespace FluentDocker.Model.Models.Options
   /// </summary>
   public sealed class ModelRunOptions
   {
-    /// <summary>Run detached (<c>-d</c>) — load and keep resident.</summary>
-    public bool Detach { get; init; }
-
     /// <summary>Enable engine debug output (<c>--debug</c>).</summary>
     public bool Debug { get; init; }
   }
