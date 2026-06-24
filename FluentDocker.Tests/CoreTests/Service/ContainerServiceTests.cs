@@ -162,6 +162,24 @@ namespace FluentDocker.Tests.CoreTests.Service
     }
 
     [Fact]
+    public async Task SyncDispose_CompletesWithoutHanging()
+    {
+      // Arrange
+      var kernel = new FluentDockerKernel(new DriverRegistry(NullLoggerFactory.Instance), NullLoggerFactory.Instance);
+      var service = new ContainerService(kernel, "docker", "abc123", "nginx", "test",
+          stopOnDispose: false, deleteOnDispose: false);
+
+      // Synchronous Dispose must complete promptly without deadlocking on the
+      // thread-pool-dispatched async disposal.
+      var disposeTask = Task.Run(service.Dispose, TestContext.Current.CancellationToken);
+      var completed = await Task.WhenAny(disposeTask, Task.Delay(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken)) == disposeTask;
+      Assert.True(completed, "Synchronous Dispose() did not complete in time (possible deadlock).");
+      await disposeTask; // surface any exception thrown by Dispose()
+
+      kernel.Dispose();
+    }
+
+    [Fact]
     public async Task DisposeAsync_CanBeCalledMultipleTimes()
     {
       // Arrange

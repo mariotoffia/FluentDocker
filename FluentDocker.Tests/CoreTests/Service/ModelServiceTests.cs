@@ -147,6 +147,68 @@ namespace FluentDocker.Tests.CoreTests.Service
     }
 
     [Fact]
+    public async Task SyncDispose_UnloadsWhenNotKeepRunning_WithoutHanging()
+    {
+      var pack = new MockDriverPack().SetupModelLoad().SetupModelUnload().EnableModelDrivers();
+      var kernel = await MockKernelBuilderExtensions.CreateWithMockDriverAsync("docker", pack);
+      var runner = new ModelRunnerService(kernel, "docker", ModelRunnerEndpoint.HostTcp(), Model);
+      var service = new ModelService(kernel, "docker", Model, runner, null, keepRunning: false);
+
+      await service.StartAsync(TestContext.Current.CancellationToken);
+
+      // Synchronous Dispose must complete promptly without deadlocking on the
+      // thread-pool-dispatched async unload.
+      var disposeTask = Task.Run(service.Dispose, TestContext.Current.CancellationToken);
+      var completed = await Task.WhenAny(disposeTask, Task.Delay(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken)) == disposeTask;
+      Assert.True(completed, "Synchronous Dispose() did not complete in time (possible deadlock).");
+      await disposeTask; // surface any exception thrown by Dispose()
+
+      pack.ModelRuntimeDriver.Verify(d => d.UnloadAsync(
+          It.IsAny<DriverContext>(), It.IsAny<ModelReference>(), It.IsAny<bool>(), It.IsAny<System.Threading.CancellationToken>()),
+          Times.Once);
+
+      await kernel.DisposeAsync();
+    }
+
+    [Fact]
+    public async Task SyncDispose_KeepRunning_DoesNotUnload()
+    {
+      var pack = new MockDriverPack().SetupModelLoad().SetupModelUnload().EnableModelDrivers();
+      var kernel = await MockKernelBuilderExtensions.CreateWithMockDriverAsync("docker", pack);
+      var runner = new ModelRunnerService(kernel, "docker", ModelRunnerEndpoint.HostTcp(), Model);
+      var service = new ModelService(kernel, "docker", Model, runner, null, keepRunning: true);
+
+      await service.StartAsync(TestContext.Current.CancellationToken);
+      service.Dispose();
+
+      pack.ModelRuntimeDriver.Verify(d => d.UnloadAsync(
+          It.IsAny<DriverContext>(), It.IsAny<ModelReference>(), It.IsAny<bool>(), It.IsAny<System.Threading.CancellationToken>()),
+          Times.Never);
+
+      await kernel.DisposeAsync();
+    }
+
+    [Fact]
+    public async Task SyncDispose_IsIdempotent()
+    {
+      var pack = new MockDriverPack().SetupModelLoad().SetupModelUnload().EnableModelDrivers();
+      var kernel = await MockKernelBuilderExtensions.CreateWithMockDriverAsync("docker", pack);
+      var runner = new ModelRunnerService(kernel, "docker", ModelRunnerEndpoint.HostTcp(), Model);
+      var service = new ModelService(kernel, "docker", Model, runner, null, keepRunning: false);
+
+      await service.StartAsync(TestContext.Current.CancellationToken);
+
+      service.Dispose();
+      service.Dispose(); // second call must be a no-op (no second unload)
+
+      pack.ModelRuntimeDriver.Verify(d => d.UnloadAsync(
+          It.IsAny<DriverContext>(), It.IsAny<ModelReference>(), It.IsAny<bool>(), It.IsAny<System.Threading.CancellationToken>()),
+          Times.Once);
+
+      await kernel.DisposeAsync();
+    }
+
+    [Fact]
     public async Task Runner_And_Model_Exposed()
     {
       var (kernel, service) = await BuildAsync();

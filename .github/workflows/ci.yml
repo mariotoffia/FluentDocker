@@ -278,7 +278,7 @@ jobs:
 
       - name: Run integration tests
         if: steps.docker-check.outputs.available == 'true'
-        run: dotnet test FluentDocker.Tests/FluentDocker.Tests.csproj --configuration Debug --no-build --verbosity normal
+        run: dotnet test FluentDocker.Tests/FluentDocker.Tests.csproj --configuration Debug --no-build --verbosity normal --filter "Category=Integration"
         timeout-minutes: 30
 
       - name: Skip integration tests (no Docker)
@@ -286,3 +286,40 @@ jobs:
         shell: bash
         run: |
           echo "Docker not available on this runner — skipping integration tests"
+
+  # Model Runner benchmarks — deterministic (no DMR), so they run anywhere. Kept off
+  # PRs to keep them fast; runs on schedule or manual dispatch only. A perf blip must
+  # never fail CI, so this job is non-gating (continue-on-error) and uploads results.
+  model-runner-benchmarks:
+    name: Model Runner Benchmarks
+    runs-on: ubuntu-latest
+    if: >
+      github.event_name == 'schedule' ||
+      github.event_name == 'workflow_dispatch'
+    continue-on-error: true
+    env:
+      DOTNET_NOLOGO: 'true'
+      DOTNET_CLI_TELEMETRY_OPTOUT: 'true'
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: |
+            8.0.x
+            10.0.x
+
+      - name: Run Model Runner benchmarks (short job)
+        run: >
+          dotnet run -c Release --project FluentDocker.Benchmarks --
+          --filter "*ModelRunner*"
+          --job short
+
+      - name: Upload benchmark results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: model-runner-benchmarks
+          path: BenchmarkDotNet.Artifacts/**
+          retention-days: 7
+          if-no-files-found: warn

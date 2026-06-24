@@ -29,9 +29,9 @@ dotnet add package FluentDocker.Testing.MsTest
 using FluentDocker.Builders;
 using FluentDocker.Kernel;
 
-await using var kernel = FluentDockerKernel.Create()
+await using var kernel = await FluentDockerKernel.Create()
     .WithDockerCli("docker", d => d.AsDefault())
-    .Build();
+    .BuildAsync();
 
 await using var results = await new Builder()
     .WithinDriver("docker", kernel)
@@ -46,12 +46,14 @@ var container = results.Containers.First();
 // Container is running and ready to accept connections on port 5432
 ```
 
+> **Sync vs async:** every builder exposes both `Build()` and `BuildAsync()`. The examples below use `await ...BuildAsync()` throughout — prefer it in async contexts (ASP.NET, UI). Use the synchronous `Build()` in console apps, scripts, or test fixtures.
+
 ### Docker Engine API (no CLI required)
 
 ```csharp
-await using var kernel = FluentDockerKernel.Create()
+await using var kernel = await FluentDockerKernel.Create()
     .WithDockerApi("docker-api", d => d.AsDefault())
-    .Build();
+    .BuildAsync();
 
 // Same builder API — just a different driver
 await using var results = await new Builder()
@@ -66,9 +68,9 @@ await using var results = await new Builder()
 ### Podman
 
 ```csharp
-await using var kernel = FluentDockerKernel.Create()
+await using var kernel = await FluentDockerKernel.Create()
     .WithPodmanCli("podman", d => d.AsDefault())
-    .Build();
+    .BuildAsync();
 
 await using var results = await new Builder()
     .WithinDriver("podman", kernel)
@@ -111,6 +113,35 @@ await using var results = await new Builder()
     .BuildAsync();
 ```
 
+### Docker Model Runner (preview)
+
+> **Preview (v3.2)** — manage local LLMs and run inference (chat, completions, embeddings) through the same fluent builder. Requires [Docker Model Runner](https://docs.docker.com/model-runner/).
+
+```csharp
+await using var kernel = await FluentDockerKernel.Create()
+    .WithDockerCli("docker", d => d.AsDefault())
+    .BuildAsync();
+
+await using var runner = await new Builder()
+    .WithinDriver("docker", kernel)
+    .UseModelRunner()
+    .ForModel("ai/smollm2")
+    .PullIfMissing()              // pulls the model at build if absent
+    .BuildAsync();
+
+// One-shot chat against the default model
+var reply = await runner.ChatAsync("Reply with a single word.");
+
+// Streaming, token by token
+await foreach (var token in runner.ChatStreamAsync("Count: one two three"))
+    Console.Write(token);
+
+// Embeddings
+var vector = await runner.EmbedAsync("hello world");
+```
+
+See the [Docker Model Runner guide](https://github.com/mariotoffia/FluentDocker/blob/master/docs/model-runner.md) for endpoints, configuration, and advanced inference routing.
+
 ## Features
 
 - **Multi-driver kernel** — run Docker CLI, Docker API, and Podman side by side
@@ -119,6 +150,7 @@ await using var results = await new Builder()
 - **Async-first** — all operations are async with `CancellationToken` support
 - **Auto-cleanup** — resources are disposed when the builder result is disposed
 - **Testing integration** — xUnit, NUnit, and MSTest fixtures with full lifecycle management
+- **Docker Model Runner** *(preview, v3.2)* — manage local LLMs and run chat, completions, and embeddings via the same builder
 - **Security options** — capabilities, read-only root, security-opt, user namespace
 - **Cross-platform** — Linux, macOS, Windows; .NET 8 and .NET 10
 

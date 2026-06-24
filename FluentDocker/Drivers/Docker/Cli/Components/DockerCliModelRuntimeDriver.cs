@@ -22,8 +22,10 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
   /// </summary>
   public class DockerCliModelRuntimeDriver : DockerCliModelDriverBase, IModelRuntimeDriver
   {
-    // Cached one-shot probe of whether `docker model configure` advertises `--backend`.
-    // Only consulted when an explicit (non-auto) backend is requested.
+    // Cached probe of whether `docker model configure` advertises `--backend`. Only
+    // consulted when an explicit (non-auto) backend is requested. The probe runs with
+    // CancellationToken.None so no single caller can cancel the shared task; a task that
+    // ends Canceled/Faulted is evicted (re-probed next time) instead of poisoning callers.
     private readonly object _backendProbeGate = new();
     private Task<bool> _configureBackendSupported;
 
@@ -39,10 +41,23 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     /// <c>false</c> (unsupported) when the probe itself fails, so an explicit backend
     /// never silently emits a flag we are unsure about.
     /// </summary>
-    private Task<bool> SupportsConfigureBackendAsync(CancellationToken cancellationToken)
+    /// <remarks>
+    /// The shared probe is run with <see cref="CancellationToken.None"/> so a single
+    /// caller cancelling its own request can never cancel (and thereby poison) the cached
+    /// task for every other caller. As a second safety net, a cached task that ended up
+    /// Canceled or Faulted is evicted so the next caller re-probes rather than inheriting
+    /// a dead task.
+    /// </remarks>
+    private Task<bool> SupportsConfigureBackendAsync()
     {
       lock (_backendProbeGate)
-        return _configureBackendSupported ??= ProbeConfigureBackendAsync(cancellationToken);
+      {
+        var cached = _configureBackendSupported;
+        if (cached is null || (cached.IsCompleted && (cached.IsCanceled || cached.IsFaulted)))
+          cached = _configureBackendSupported = ProbeConfigureBackendAsync(CancellationToken.None);
+
+        return cached;
+      }
     }
 
     private async Task<bool> ProbeConfigureBackendAsync(CancellationToken cancellationToken)
@@ -185,7 +200,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
         // `--backend` is auto/implicit on current DMR (engine chosen from model format).
         // Only emit an explicit backend when the installed CLI actually advertises the
         // flag — otherwise fail clearly rather than send a flag the CLI would reject.
-        if (!await SupportsConfigureBackendAsync(cancellationToken).ConfigureAwait(false))
+        if (!await SupportsConfigureBackendAsync().ConfigureAwait(false))
           return CommandResponse<Unit>.Fail(
               $"The installed 'docker model configure' does not support explicit backend selection ('--backend'); " +
               $"the backend is auto-selected from the model format. Use the default backend (\"auto\") or upgrade Docker Model Runner. (requested: '{options.Backend}')",

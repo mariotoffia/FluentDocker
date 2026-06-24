@@ -61,6 +61,42 @@ namespace FluentDocker.Tests.CoreTests.Driver
     }
 
     [Fact]
+    public async Task ChatCompletionStreamAsync_DoesNotMutateCallersRequest()
+    {
+      var conn = new MockModelApiConnection().SetupStream("/chat/completions", "data: [DONE]\n\n");
+      var driver = Create(conn);
+
+      // Caller leaves Stream unset (null); streaming must force stream=true on the WIRE
+      // without touching the caller's instance.
+      var request = new ChatCompletionRequest { Model = "ai/x" };
+
+      await foreach (var _ in driver.ChatCompletionStreamAsync(Ctx, request, TestContext.Current.CancellationToken))
+      {
+      }
+
+      Assert.Null(request.Stream); // caller's object untouched
+      var sent = conn.GetRequests().Single(r => r.Method == "POST_STREAM");
+      Assert.Contains("\"stream\":true", sent.Body.Replace(" ", string.Empty));
+    }
+
+    [Fact]
+    public async Task CompletionStreamAsync_DoesNotMutateCallersRequest()
+    {
+      var conn = new MockModelApiConnection().SetupStream("/completions", "data: [DONE]\n\n");
+      var driver = Create(conn);
+
+      var request = new CompletionRequest { Model = "ai/x", Prompt = "p" };
+
+      await foreach (var _ in driver.CompletionStreamAsync(Ctx, request, TestContext.Current.CancellationToken))
+      {
+      }
+
+      Assert.Null(request.Stream); // caller's object untouched
+      var sent = conn.GetRequests().Single(r => r.Method == "POST_STREAM");
+      Assert.Contains("\"stream\":true", sent.Body.Replace(" ", string.Empty));
+    }
+
+    [Fact]
     public async Task ChatCompletionStreamAsync_MalformedChunk_ThrowsStreamParseError()
     {
       var conn = new MockModelApiConnection().SetupStream("/chat/completions", "data: {not valid json\n\n");

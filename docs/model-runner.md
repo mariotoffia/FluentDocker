@@ -69,6 +69,10 @@ thrown mid-enumeration.
 ## Managing models
 
 ```csharp
+using System;
+using FluentDocker.Model.Models;          // ModelReference, ModelPullProgress
+using FluentDocker.Model.Models.Options;  // ModelConfigureOptions
+
 await runner.PullAsync(ModelReference.Parse("ai/smollm2"),
     progress: new Progress<ModelPullProgress>(p => Console.WriteLine($"{p.Status} {p.Fraction:P0}")));
 
@@ -91,6 +95,8 @@ Use the raw list, or the validated `LlamaCppRuntimeFlags` builder which renders
 into it and fails fast on out-of-range values:
 
 ```csharp
+using FluentDocker.Model.Models.Options;  // LlamaCppRuntimeFlags, ModelConfigureOptions
+
 var flags = new LlamaCppRuntimeFlags { Temperature = 0.7, TopP = 0.9, TopK = 40 };
 await runner.ConfigureAsync(model, new ModelConfigureOptions { RuntimeFlags = flags.ToArgs() });
 ```
@@ -222,22 +228,55 @@ Three points fall out of this split:
   is instead owned by whoever supplied it.
 - **One default-endpoint source of truth.** `ModelRunnerEndpoint.Default()` resolves
   `DOCKER_MODEL_RUNNER_URL` (if set) else host TCP, and is used by both the pack and
-  the builder. See [architecture](architecture.html) for the kernel/driver model.
+  the builder. See [architecture](architecture.md) for the kernel/driver model.
 
 ## Error handling & known limitations
 
-Management/runtime failures throw `ModelRunnerException` carrying the originating
-`ErrorCode` and a diagnostic `ErrorContext` (driver, operation, exit code, stderr).
-Streaming faults are thrown **mid-enumeration**. Common cases:
+Every failure surfaces as a single typed exception — `ModelRunnerException` (in
+`FluentDocker.Common`) — carrying the originating string error **code** in its
+`ErrorCode` property plus a diagnostic `Context` (driver, operation, exit code,
+stderr). The codes are *constants*, not exception types: switch on `ex.ErrorCode`
+against the `ErrorCodes.ModelInference.*` / `ErrorCodes.Model.*` constants (from
+`FluentDocker.Model.Drivers`). Streaming faults are thrown **mid-enumeration**.
 
-| Situation | Surfaced as |
+```csharp
+using FluentDocker.Common;        // ModelRunnerException
+using FluentDocker.Model.Drivers; // ErrorCodes
+
+try
+{
+    var reply = await runner.ChatAsync("Hi");
+}
+catch (ModelRunnerException ex) when (ex.ErrorCode == ErrorCodes.ModelInference.EndpointUnreachable)
+{
+    // Runner not running / TCP endpoint disabled — management still works over the CLI.
+}
+catch (ModelRunnerException ex) when (ex.ErrorCode == ErrorCodes.ModelInference.ModelNotLoaded)
+{
+    // Model not pulled — auto-pull at build with PullIfMissing().
+}
+```
+
+Common cases:
+
+| Situation | `ex.ErrorCode` |
 |---|---|
-| Runner not running / TCP endpoint disabled | inference throws `EndpointUnreachable`; management/runtime still work over the CLI |
-| Model not pulled | inference throws `ModelNotLoaded` (auto-pull with `PullIfMissing`) |
-| Malformed SSE chunk | `ModelRunnerException` mid-stream |
+| Runner not running / TCP endpoint disabled | `ErrorCodes.ModelInference.EndpointUnreachable` (inference fails; management/runtime still work over the CLI) |
+| Model not pulled | `ErrorCodes.ModelInference.ModelNotLoaded` (auto-pull with `PullIfMissing`) |
+| Malformed SSE chunk | `ErrorCodes.ModelInference.StreamParseError` (thrown mid-stream) |
 
 Known limitations (acceptable for v3.2.0; revisit as needed):
 
+- **Chat models can crash on load (Docker Model Runner v1.2.1) unless a context size
+  is pinned.** The bundled llama.cpp aborts — `GGML_ASSERT(n_outputs >= 1)` in its
+  auto *fit-params-to-device-memory* step — when a chat model is loaded with no
+  explicit context. This reproduces with a raw call to
+  `…/engines/llama.cpp/v1/chat/completions` (FluentDocker not involved), so it is an
+  engine bug, not a library one; the engine log even suggests `-fit off`.
+  **Workaround:** pin a context size — `.WithContextSize(4096)` on the runner/service
+  builder (or `docker model configure <model> --context-size 4096`) — which skips the
+  buggy probe and lets the model load and stream normally. Embedding models (e.g.
+  `ai/embeddinggemma`) are unaffected.
 - **Re-pull of an already-present model** is reported as success even if the
   underlying `docker model pull` errors — `PullAsync` confirms availability via
   `InspectAsync`, so a genuine *first* pull failure is still caught.
@@ -269,9 +308,18 @@ overlay.BindToService("worker", "llm", "AI_MODEL_URL", "AI_MODEL_NAME"); // long
 var overlayPath = overlay.WriteOverlay(
     Path.Combine(Path.GetTempPath(), $"fluentdocker-models-{Guid.NewGuid():N}.overlay.yaml"));
 
-new Builder().WithinDriver("docker", kernel)
-  .UseCompose(c => c.WithComposeFiles("docker-compose.yml", overlayPath))
-  .Build();
+try
+{
+    new Builder().WithinDriver("docker", kernel)
+      .UseCompose(c => c.WithComposeFiles("docker-compose.yml", overlayPath))
+      .Build();
+}
+finally
+{
+    // FluentDocker never deletes the overlay it wrote — the caller owns its lifetime.
+    if (File.Exists(overlayPath))
+        File.Delete(overlayPath);
+}
 ```
 
 The overlay renders the top-level `models:` map and per-service `models:` bindings:
@@ -320,5 +368,5 @@ plus embedded fixtures captured from a real DMR.
 
 ## See also
 
-- [Getting Started](getting-started.html) · [Containers](containers.html) · [Compose](compose.html) · [Architecture](architecture.html)
+- [Getting Started](getting-started.md) · [Containers](containers.md) · [Compose](compose.md) · [Architecture](architecture.md)
 - Runnable sample: [`Examples/ModelRunner`](https://github.com/mariotoffia/FluentDocker/tree/master/Examples/ModelRunner)

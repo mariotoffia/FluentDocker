@@ -407,7 +407,8 @@ namespace FluentDocker.Kernel
 
     public void Dispose()
     {
-      DisposeAsync().AsTask().GetAwaiter().GetResult();
+      // Dispatched to the thread pool to avoid sync-over-async deadlocks.
+      Task.Run(() => DisposeAsync().AsTask()).GetAwaiter().GetResult();
       GC.SuppressFinalize(this);
     }
 

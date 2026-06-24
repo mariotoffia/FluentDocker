@@ -23,7 +23,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - `IContainerBuilder` gains `WithExtraHost(host, ip)` (used by `WithModel` for the Engine host-gateway alias).
-- `DockerCliDriverPack` registers the model ports and reports `SupportsModels` / `SupportsModelInference`; `PodmanCliDriverPack` reports no model support (RamaLama pack is future work).
+- `DockerCliDriverPack` registers the model ports and reports `SupportsModels` / `SupportsModelInference`; `PodmanCliDriverPack` reports no model support (RamaLama pack is future work). For portable/driver-agnostic code, prefer `TryUseModelRunner(out IModelRunnerBuilder runner)` to degrade gracefully on drivers that lack model support (e.g. Podman) instead of `UseModelRunner()`, which throws `InterfaceNotSupportedException`.
 
 ## [3.1.0] - 2026-06-04
 

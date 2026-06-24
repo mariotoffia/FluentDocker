@@ -6,6 +6,9 @@
         <Configuration>
           <Format>xml,opencover</Format>
           <MergeWith>output/coverage.opencover.xml</MergeWith>
+          <Include>[FluentDocker]*</Include>
+          <Exclude>[FluentDocker.Tests]*,[FluentDocker.Benchmarks]*</Exclude>
+          <ExcludeByAttribute>Obsolete,GeneratedCodeAttribute,CompilerGeneratedAttribute</ExcludeByAttribute>
         </Configuration>
       </DataCollector>
     </DataCollectors>

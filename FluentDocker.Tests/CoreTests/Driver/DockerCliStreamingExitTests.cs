@@ -45,7 +45,7 @@ namespace FluentDocker.Tests.CoreTests.Driver
     public async Task Streaming_DrainsStderr_AndThrowsOnNonZeroExit()
     {
       if (OperatingSystem.IsWindows())
-        return; // POSIX shell only
+        Assert.Skip("POSIX shell/signal streaming semantics; not applicable on Windows");
 
       var driver = CreateShellDriver();
 
@@ -70,7 +70,7 @@ namespace FluentDocker.Tests.CoreTests.Driver
     public async Task Streaming_ZeroExit_CompletesWithoutThrowing()
     {
       if (OperatingSystem.IsWindows())
-        return;
+        Assert.Skip("POSIX shell/signal streaming semantics; not applicable on Windows");
 
       var driver = CreateShellDriver();
 

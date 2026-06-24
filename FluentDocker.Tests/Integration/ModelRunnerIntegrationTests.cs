@@ -135,11 +135,18 @@ namespace FluentDocker.Tests.Integration
             "$XunitDynamicSkip$Inference runtime is unstable on this host (engine failed to load the model): " + message);
     }
 
-    private IModelRunner BuildRunner(string model, bool pullIfMissing = false)
+    private IModelRunner BuildRunner(string model, bool pullIfMissing = false, int? contextSize = null)
     {
       var builder = new Builder().WithinDriver(DriverId, _kernel).UseModelRunner().ForModel(model);
       if (pullIfMissing)
         builder.PullIfMissing();
+      // Pin an explicit context size for inference. DMR v1.2.1's bundled llama.cpp
+      // crashes (GGML_ASSERT(n_outputs >= 1) in the auto "fit-params-to-device-memory"
+      // step) whenever a chat model is loaded WITHOUT an explicit context — the engine
+      // log itself suggests "-fit off". Pinning a size skips that buggy probe so the
+      // model loads and serves. This is an engine workaround, not a FluentDocker need.
+      if (contextSize.HasValue)
+        builder.WithContextSize(contextSize.Value);
       return builder.Build();
     }
 
@@ -148,7 +155,7 @@ namespace FluentDocker.Tests.Integration
     {
       var ct = TestContext.Current.CancellationToken;
       var reference = ModelReference.Parse(TestModel);
-      await using var runner = BuildRunner(TestModel);
+      await using var runner = BuildRunner(TestModel, contextSize: 4096);
 
       // pull (cached if present)
       var pulled = await runner.PullAsync(reference, null, ct);
@@ -180,11 +187,13 @@ namespace FluentDocker.Tests.Integration
         var reply = await runner.ChatAsync("Reply with a single word.", ct);
         Assert.False(string.IsNullOrWhiteSpace(reply));
 
-        // chat (stream)
+        // chat (stream) — must yield MULTIPLE SSE deltas (true token-by-token streaming,
+        // not one buffered payload), and they must reassemble into non-empty content.
         var tokens = new List<string>();
-        await foreach (var token in runner.ChatStreamAsync("Count: one two three", ct))
+        await foreach (var token in runner.ChatStreamAsync("Count from one to five.", ct))
           tokens.Add(token);
-        Assert.NotEmpty(tokens);
+        Assert.True(tokens.Count > 1, $"Expected multiple streamed chunks, got {tokens.Count}");
+        Assert.False(string.IsNullOrWhiteSpace(string.Concat(tokens)));
 
         // running models
         var running = await runner.ListRunningAsync(ct);
@@ -203,10 +212,45 @@ namespace FluentDocker.Tests.Integration
     }
 
     [Fact]
+    public async Task Build_WithPullIfMissing_AutoPullsModel()
+    {
+      var ct = TestContext.Current.CancellationToken;
+      var reference = ModelReference.Parse(TestModel);
+
+      // Arrange: remove smollm2 from the local store so PullIfMissing() has real work to
+      // do — without this the fixture has already seeded the model and the auto-pull
+      // would be a silent no-op, proving nothing. Tests in this [Collection] run
+      // sequentially in arbitrary order, so the finally re-pulls the model afterwards to
+      // restore the fixture's "model present" precondition for whichever test runs next.
+      await using (var admin = BuildRunner(TestModel))
+      {
+        await SafeAsync(() => admin.UnloadAsync(reference, false, ct)); // a loaded model can't be removed
+        await admin.RemoveAsync(reference, force: true, ct);
+        Assert.DoesNotContain(await admin.ListAsync(ct), m => m.Reference.Name == "smollm2");
+      }
+
+      try
+      {
+        // Act: the fluent PullIfMissing() must auto-pull the model at Build() time
+        // (ModelRunnerBuilder.BuildAsync calls PullAsync when the flag is set).
+        await using var runner = BuildRunner(TestModel, pullIfMissing: true);
+
+        // Assert: the model is now present in the local store.
+        Assert.Contains(await runner.ListAsync(ct), m => m.Reference.Name == "smollm2");
+      }
+      finally
+      {
+        // Restore the fixture invariant regardless of outcome.
+        await using var restore = BuildRunner(TestModel);
+        await SafeAsync(() => restore.PullAsync(reference, null, ct));
+      }
+    }
+
+    [Fact]
     public async Task Chat_NonStreaming_ReturnsUsage()
     {
       var ct = TestContext.Current.CancellationToken;
-      await using var runner = BuildRunner(TestModel);
+      await using var runner = BuildRunner(TestModel, contextSize: 4096);
 
       ChatCompletionResponse response;
       try

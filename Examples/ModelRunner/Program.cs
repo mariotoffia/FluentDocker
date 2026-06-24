@@ -4,7 +4,6 @@ using System.Threading.Tasks;
 using FluentDocker.Builders;
 using FluentDocker.Kernel;
 using FluentDocker.Services;
-using Microsoft.Extensions.Logging.Abstractions;
 
 namespace ModelRunner
 {
@@ -28,7 +27,7 @@ namespace ModelRunner
 
     private static async Task Main()
     {
-      using var kernel = await FluentDockerKernel.Create(NullLoggerFactory.Instance)
+      using var kernel = await FluentDockerKernel.Create()
           .WithDockerCli(DriverId, d => d.AsDefault())
           .BuildAsync();
 

@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Net.Http;
 using System.Net.Security;
@@ -23,6 +24,12 @@ namespace FluentDocker.Drivers.Models.Connection
   {
     private readonly HttpClient _httpClient;
     private readonly ILogger _logger;
+    // X509Certificate2 instances we created (client cert(s) + custom CA) — they own
+    // native handles and must be disposed when the connection is. They are kept alive
+    // for the lifetime of the connection because the CA cert is captured by the TLS
+    // validation callback and the client certs are referenced by the handler; they are
+    // disposed only AFTER _httpClient.Dispose() in DisposeAsync. Empty when there is no TLS.
+    private readonly IReadOnlyList<X509Certificate2> _ownedCertificates;
     // Applied to non-streaming requests via a linked CTS so they cannot hang forever;
     // streaming (PostStreamAsync) is intentionally exempt and relies on the caller's
     // token, since inference/SSE can legitimately run for a long time.
@@ -42,7 +49,9 @@ namespace FluentDocker.Drivers.Models.Connection
       config ??= new ModelApiConnectionConfig();
       _logger = (loggerFactory ?? NullLoggerFactory.Instance).CreateLogger<ModelApiConnection>();
 
-      var (handler, baseAddress) = CreateHandler(endpoint, config);
+      var ownedCertificates = new List<X509Certificate2>();
+      var (handler, baseAddress) = CreateHandler(endpoint, config, ownedCertificates);
+      _ownedCertificates = ownedCertificates;
       _httpClient = new HttpClient(handler, disposeHandler: true)
       {
         BaseAddress = baseAddress,
@@ -75,6 +84,8 @@ namespace FluentDocker.Drivers.Models.Connection
       ArgumentNullException.ThrowIfNull(baseAddress);
       ArgumentNullException.ThrowIfNull(handler);
       _logger = (loggerFactory ?? NullLoggerFactory.Instance).CreateLogger<ModelApiConnection>();
+      // This overload wraps a caller-supplied handler and creates no certificates of its own.
+      _ownedCertificates = Array.Empty<X509Certificate2>();
       _httpClient = new HttpClient(handler, disposeHandler: true)
       {
         BaseAddress = baseAddress,
@@ -230,16 +241,28 @@ namespace FluentDocker.Drivers.Models.Connection
     public ValueTask DisposeAsync()
     {
       _httpClient.Dispose();
+
+      // Dispose any X509Certificate2 we created (client cert(s) + custom CA) to release
+      // their native handles. This runs AFTER _httpClient.Dispose() so the handler is no
+      // longer using the client certificates, and the CA cert captured by the TLS
+      // validation callback is no longer reachable. Disposing an X509Certificate2 twice
+      // is a no-op, so this is safe to call again (idempotent dispose).
+      foreach (var certificate in _ownedCertificates)
+        certificate.Dispose();
+
       GC.SuppressFinalize(this);
       return ValueTask.CompletedTask;
     }
 
-    private static (SocketsHttpHandler handler, Uri baseAddress) CreateHandler(ModelRunnerEndpoint endpoint, ModelApiConnectionConfig config)
+    // ownedCertificates collects every X509Certificate2 created here so the connection
+    // instance can dispose them; the unix-socket path adds none.
+    private static (SocketsHttpHandler handler, Uri baseAddress) CreateHandler(
+        ModelRunnerEndpoint endpoint, ModelApiConnectionConfig config, List<X509Certificate2> ownedCertificates)
     {
       if (!string.IsNullOrEmpty(endpoint.UnixSocketPath))
         return CreateUnixSocketHandler(endpoint.UnixSocketPath, config);
 
-      return CreateTcpHandler(endpoint.BaseAddress, config);
+      return CreateTcpHandler(endpoint.BaseAddress, config, ownedCertificates);
     }
 
     private static (SocketsHttpHandler, Uri) CreateUnixSocketHandler(string socketPath, ModelApiConnectionConfig config)
@@ -269,14 +292,15 @@ namespace FluentDocker.Drivers.Models.Connection
       return (handler, new Uri("http://localhost"));
     }
 
-    private static (SocketsHttpHandler, Uri) CreateTcpHandler(Uri uri, ModelApiConnectionConfig config)
+    private static (SocketsHttpHandler, Uri) CreateTcpHandler(
+        Uri uri, ModelApiConnectionConfig config, List<X509Certificate2> ownedCertificates)
     {
       var handler = new SocketsHttpHandler { ConnectTimeout = config.ConnectionTimeout };
       var hasCerts = !string.IsNullOrEmpty(config.CertificatePath);
       var useTls = string.Equals(uri.Scheme, "https", StringComparison.OrdinalIgnoreCase);
 
       if (useTls || hasCerts)
-        handler.SslOptions = BuildSslOptions(config);
+        handler.SslOptions = BuildSslOptions(config, ownedCertificates);
 
       var scheme = (useTls || hasCerts) ? "https" : "http";
       var port = uri.Port > 0 ? uri.Port : 12434;
@@ -292,7 +316,12 @@ namespace FluentDocker.Drivers.Models.Connection
       return (handler, baseAddress);
     }
 
-    private static SslClientAuthenticationOptions BuildSslOptions(ModelApiConnectionConfig config)
+    // Every X509Certificate2 created here is added to ownedCertificates so the connection
+    // instance can dispose them (they own native handles); they outlive this method
+    // because the client certs are referenced by the handler and the CA cert is captured
+    // by the validation callback below.
+    private static SslClientAuthenticationOptions BuildSslOptions(
+        ModelApiConnectionConfig config, List<X509Certificate2> ownedCertificates)
     {
       var sslOptions = new SslClientAuthenticationOptions();
       var hasCerts = !string.IsNullOrEmpty(config.CertificatePath);
@@ -302,7 +331,11 @@ namespace FluentDocker.Drivers.Models.Connection
         var certPath = Path.Combine(config.CertificatePath, "cert.pem");
         var keyPath = Path.Combine(config.CertificatePath, "key.pem");
         if (File.Exists(certPath) && File.Exists(keyPath))
-          sslOptions.ClientCertificates = [X509Certificate2.CreateFromPemFile(certPath, keyPath)];
+        {
+          var clientCert = X509Certificate2.CreateFromPemFile(certPath, keyPath);
+          ownedCertificates.Add(clientCert);
+          sslOptions.ClientCertificates = [clientCert];
+        }
 
         if (!config.VerifyTls)
         {
@@ -320,6 +353,7 @@ namespace FluentDocker.Drivers.Models.Connection
 #else
             var caCert = X509Certificate2.CreateFromPemFile(caPath);
 #endif
+            ownedCertificates.Add(caCert);
             // Trust the custom CA for chain validation only — hostname mismatch and a
             // missing certificate are still rejected (see ModelTlsValidation).
             sslOptions.RemoteCertificateValidationCallback = (_, cert, chain, errors) =>

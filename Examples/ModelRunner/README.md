@@ -1,4 +1,4 @@
-# ModelRunner (v3.2 Feature)
+# ModelRunner (v3.2 Preview)
 
 Demonstrates FluentDocker's **Docker Model Runner** (local LLM) support behind the
 same `Builder → WithinDriver → UseModelRunner()` pattern used for containers:
@@ -17,7 +17,8 @@ you only ever code against `IModelRunner`.
 
 ## Prerequisites
 
-- .NET 10.0 SDK and Docker Desktop / Docker Engine
+- .NET 8.0 or .NET 10.0 SDK and Docker Desktop / Docker Engine
+- Requires Docker Desktop 4.40+ (or Docker Engine with the `docker-model-plugin` installed).
 - **Docker Model Runner enabled** — Docker Desktop → *Settings → AI → Enable Docker
   Model Runner*, with host-side TCP turned on (Engine: install `docker-model-plugin`).
 
@@ -26,10 +27,11 @@ run stays quick. If the runner is not enabled the program prints guidance and ex
 
 ## Run
 
-From the repository root:
+From the repository root (the project multi-targets `net8.0` and `net10.0`, so pick a
+framework):
 
 ```bash
-dotnet run --project Examples/ModelRunner
+dotnet run --project Examples/ModelRunner -f net10.0
 ```
 
 See [docs/model-runner.md](../../docs/model-runner.md) for the full guide, including

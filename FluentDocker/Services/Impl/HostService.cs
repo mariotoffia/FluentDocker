@@ -300,7 +300,8 @@ namespace FluentDocker.Services.Impl
     {
       if (Interlocked.CompareExchange(ref _disposed, 1, 0) != 0)
         return;
-      HostService.DisposeCoreAsync().AsTask().GetAwaiter().GetResult();
+      // Dispatched to the thread pool to avoid sync-over-async deadlocks.
+      Task.Run(() => HostService.DisposeCoreAsync().AsTask()).GetAwaiter().GetResult();
       GC.SuppressFinalize(this);
     }
 

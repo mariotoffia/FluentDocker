@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.IO.Pipes;
 using System.Net;
@@ -24,6 +25,12 @@ namespace FluentDocker.Drivers.Docker.Api.Connection
     private readonly HttpClient _httpClient;
     private readonly DockerApiConnectionConfig _config;
     private readonly SemaphoreSlim _negotiationLock = new(1, 1);
+    // X509Certificate2 instances we created (client cert + custom CA) — they own
+    // native handles and must be disposed when the connection is. They are kept alive
+    // for the lifetime of the connection because the CA cert is captured by the TLS
+    // validation callback and the client cert is referenced by the handler; they are
+    // disposed only AFTER _httpClient.Dispose() in DisposeAsync. Empty when there is no TLS.
+    private readonly IReadOnlyList<X509Certificate2> _ownedCertificates;
 
     /// <summary>
     /// Immutable record holding the negotiation result. A single volatile reference
@@ -42,7 +49,9 @@ namespace FluentDocker.Drivers.Docker.Api.Connection
       _logger = (loggerFactory ?? NullLoggerFactory.Instance).CreateLogger<DockerApiConnection>();
 
       var host = config.Host ?? GetDefaultHost();
-      var (handler, baseAddress) = CreateHandler(host, config);
+      var ownedCertificates = new List<X509Certificate2>();
+      var (handler, baseAddress) = CreateHandler(host, config, ownedCertificates);
+      _ownedCertificates = ownedCertificates;
 
       _httpClient = new HttpClient(handler, disposeHandler: true)
       {
@@ -129,6 +138,15 @@ namespace FluentDocker.Drivers.Docker.Api.Connection
     {
       _negotiationLock.Dispose();
       _httpClient.Dispose();
+
+      // Dispose any X509Certificate2 we created (client cert + custom CA) to release
+      // their native handles. This runs AFTER _httpClient.Dispose() so the handler is no
+      // longer using the client certificate, and the CA cert captured by the TLS
+      // validation callback is no longer reachable. Disposing an X509Certificate2 twice
+      // is a no-op, so this is safe to call again (idempotent dispose).
+      foreach (var certificate in _ownedCertificates)
+        certificate.Dispose();
+
       GC.SuppressFinalize(this);
       return ValueTask.CompletedTask;
     }
@@ -193,8 +211,10 @@ namespace FluentDocker.Drivers.Docker.Api.Connection
           : "unix:///var/run/docker.sock";
     }
 
+    // ownedCertificates collects every X509Certificate2 created here so the connection
+    // instance can dispose them; the unix-socket and named-pipe paths add none.
     private static (SocketsHttpHandler handler, string baseAddress) CreateHandler(
-        string host, DockerApiConnectionConfig config)
+        string host, DockerApiConnectionConfig config, List<X509Certificate2> ownedCertificates)
     {
       var uri = new Uri(host);
 
@@ -202,8 +222,8 @@ namespace FluentDocker.Drivers.Docker.Api.Connection
       {
         "unix" => CreateUnixSocketHandler(uri, config),
         "npipe" => CreateNamedPipeHandler(uri, config),
-        "tcp" or "http" => CreateTcpHandler(uri, config, useTls: false),
-        "https" => CreateTcpHandler(uri, config, useTls: true),
+        "tcp" or "http" => CreateTcpHandler(uri, config, useTls: false, ownedCertificates),
+        "https" => CreateTcpHandler(uri, config, useTls: true, ownedCertificates),
         _ => throw new ArgumentException($"Unsupported URI scheme: {uri.Scheme}. " +
             "Use unix://, npipe://, tcp://, or https://", nameof(host))
       };
@@ -248,8 +268,12 @@ namespace FluentDocker.Drivers.Docker.Api.Connection
       return (handler, "http://localhost");
     }
 
+    // Every X509Certificate2 created here is added to ownedCertificates so the connection
+    // instance can dispose them (they own native handles); they outlive this method because
+    // the client cert is referenced by the handler and the CA cert is captured by the
+    // validation callback below.
     private static (SocketsHttpHandler, string) CreateTcpHandler(
-        Uri uri, DockerApiConnectionConfig config, bool useTls)
+        Uri uri, DockerApiConnectionConfig config, bool useTls, List<X509Certificate2> ownedCertificates)
     {
       var handler = new SocketsHttpHandler
       {
@@ -270,6 +294,7 @@ namespace FluentDocker.Drivers.Docker.Api.Connection
           if (File.Exists(certPath) && File.Exists(keyPath))
           {
             var clientCert = X509Certificate2.CreateFromPemFile(certPath, keyPath);
+            ownedCertificates.Add(clientCert);
             sslOptions.ClientCertificates = [clientCert];
           }
 
@@ -289,6 +314,7 @@ namespace FluentDocker.Drivers.Docker.Api.Connection
 #else
               var caCert = X509Certificate2.CreateFromPemFile(caPath);
 #endif
+              ownedCertificates.Add(caCert);
               sslOptions.RemoteCertificateValidationCallback = (_, cert, chain, errors) =>
               {
                 if (errors == SslPolicyErrors.None)
@@ -297,7 +323,10 @@ namespace FluentDocker.Drivers.Docker.Api.Connection
                   return false;
                 chain.ChainPolicy.TrustMode = X509ChainTrustMode.CustomRootTrust;
                 chain.ChainPolicy.CustomTrustStore.Add(caCert);
-                return chain.Build(new X509Certificate2(cert));
+                // Dispose the per-handshake X509Certificate2 copy so it does not leak a
+                // native handle on every TLS validation.
+                using var copy = new X509Certificate2(cert);
+                return chain.Build(copy);
               };
             }
           }

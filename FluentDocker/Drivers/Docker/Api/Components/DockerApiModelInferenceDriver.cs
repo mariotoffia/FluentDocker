@@ -38,18 +38,20 @@ namespace FluentDocker.Drivers.Docker.Api.Components
     public async Task<CommandResponse<ChatCompletionResponse>> ChatCompletionAsync(
         DriverContext context, ChatCompletionRequest request, CancellationToken cancellationToken = default)
     {
-      request.Stream = false;
+      // Copy so we never mutate the caller's instance (Stream is forced off here).
+      var req = new ChatCompletionRequest(request) { Stream = false };
       return await PostJsonAsync<ChatCompletionRequest, ChatCompletionResponse>(
-          context, "/chat/completions", request, "ChatCompletion", cancellationToken).ConfigureAwait(false);
+          context, "/chat/completions", req, "ChatCompletion", cancellationToken).ConfigureAwait(false);
     }
 
     /// <inheritdoc />
     public async Task<CommandResponse<CompletionResponse>> CompletionAsync(
         DriverContext context, CompletionRequest request, CancellationToken cancellationToken = default)
     {
-      request.Stream = false;
+      // Copy so we never mutate the caller's instance (Stream is forced off here).
+      var req = new CompletionRequest(request) { Stream = false };
       return await PostJsonAsync<CompletionRequest, CompletionResponse>(
-          context, "/completions", request, "Completion", cancellationToken).ConfigureAwait(false);
+          context, "/completions", req, "Completion", cancellationToken).ConfigureAwait(false);
     }
 
     /// <inheritdoc />

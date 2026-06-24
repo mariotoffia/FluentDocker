@@ -26,9 +26,10 @@ namespace FluentDocker.Drivers.Docker.Api.Components
         DriverContext context, ChatCompletionRequest request,
         [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
-      request.Stream = true;
+      // Copy so we never mutate the caller's instance (Stream is forced on here).
+      var req = new ChatCompletionRequest(request) { Stream = true };
       await foreach (var chunk in StreamAsync<ChatCompletionChunk>(
-          "/chat/completions", request, cancellationToken).ConfigureAwait(false))
+          "/chat/completions", req, cancellationToken).ConfigureAwait(false))
         yield return chunk;
     }
 
@@ -37,9 +38,10 @@ namespace FluentDocker.Drivers.Docker.Api.Components
         DriverContext context, CompletionRequest request,
         [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
-      request.Stream = true;
+      // Copy so we never mutate the caller's instance (Stream is forced on here).
+      var req = new CompletionRequest(request) { Stream = true };
       await foreach (var chunk in StreamAsync<CompletionChunk>(
-          "/completions", request, cancellationToken).ConfigureAwait(false))
+          "/completions", req, cancellationToken).ConfigureAwait(false))
         yield return chunk;
     }
 

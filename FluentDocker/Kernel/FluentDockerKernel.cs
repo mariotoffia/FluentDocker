@@ -298,7 +298,8 @@ namespace FluentDocker.Kernel
     {
       // DisposeAsync uses Interlocked.CompareExchange for atomic guard,
       // so this just delegates without a separate check.
-      DisposeAsync().AsTask().GetAwaiter().GetResult();
+      // Dispatched to the thread pool to avoid sync-over-async deadlocks.
+      Task.Run(() => DisposeAsync().AsTask()).GetAwaiter().GetResult();
       GC.SuppressFinalize(this);
     }
 

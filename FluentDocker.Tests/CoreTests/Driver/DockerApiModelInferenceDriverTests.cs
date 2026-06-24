@@ -44,6 +44,42 @@ namespace FluentDocker.Tests.CoreTests.Driver
     }
 
     [Fact]
+    public async Task ChatCompletionAsync_DoesNotMutateCallersRequest()
+    {
+      var conn = new MockModelApiConnection().SetupPost("/chat/completions", 200, DmrFixtures.Load("chat.json"));
+      var driver = Create(conn);
+
+      // Caller leaves Stream unset (null); the driver must force stream=false on the
+      // WIRE without touching the caller's instance.
+      var request = new ChatCompletionRequest
+      {
+        Model = "ai/smollm2",
+        Messages = new List<ChatMessage> { new() { Role = "user", Content = "hi" } }
+      };
+
+      await driver.ChatCompletionAsync(Ctx, request, TestContext.Current.CancellationToken);
+
+      Assert.Null(request.Stream); // caller's object untouched
+      var sent = conn.GetRequests().Single(r => r.Method == "POST");
+      Assert.Contains("\"stream\":false", sent.Body.Replace(" ", string.Empty));
+    }
+
+    [Fact]
+    public async Task CompletionAsync_DoesNotMutateCallersRequest()
+    {
+      var conn = new MockModelApiConnection().SetupPost("/completions", 200, DmrFixtures.Load("completion.json"));
+      var driver = Create(conn);
+
+      var request = new CompletionRequest { Model = "ai/smollm2", Prompt = "x" };
+
+      await driver.CompletionAsync(Ctx, request, TestContext.Current.CancellationToken);
+
+      Assert.Null(request.Stream); // caller's object untouched
+      var sent = conn.GetRequests().Single(r => r.Method == "POST");
+      Assert.Contains("\"stream\":false", sent.Body.Replace(" ", string.Empty));
+    }
+
+    [Fact]
     public async Task CompletionAsync_PostsAndParses()
     {
       var conn = new MockModelApiConnection().SetupPost("/completions", 200, DmrFixtures.Load("completion.json"));

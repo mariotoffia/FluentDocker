@@ -8,6 +8,30 @@ namespace FluentDocker.Model.Models.Inference
   /// </summary>
   public sealed class ChatCompletionRequest
   {
+    /// <summary>Creates an empty request.</summary>
+    public ChatCompletionRequest()
+    {
+    }
+
+    /// <summary>
+    /// Creates a shallow copy of <paramref name="other"/>. Used by the driver to set
+    /// <see cref="Stream"/> without mutating the caller's request instance.
+    /// </summary>
+    /// <param name="other">The request to copy.</param>
+    public ChatCompletionRequest(ChatCompletionRequest other)
+    {
+      Model = other.Model;
+      Messages = other.Messages;
+      MaxTokens = other.MaxTokens;
+      Temperature = other.Temperature;
+      TopP = other.TopP;
+      Stream = other.Stream;
+      Stop = other.Stop;
+      PresencePenalty = other.PresencePenalty;
+      FrequencyPenalty = other.FrequencyPenalty;
+      Seed = other.Seed;
+    }
+
     /// <summary>The model id (e.g. <c>ai/qwen3</c>).</summary>
     [JsonPropertyName("model")] public string Model { get; set; }
 

@@ -160,13 +160,22 @@ namespace FluentDocker.Services.Impl
       return this;
     }
 
-    /// <inheritdoc />
+    /// <summary>
+    /// Synchronously disposes the service. When the model is loaded and not kept
+    /// running, this attempts to unload it. The unload is dispatched onto the thread
+    /// pool (no captured <see cref="SynchronizationContext"/>) to avoid sync-over-async
+    /// deadlocks on UI/ASP.NET contexts; prefer <see cref="DisposeAsync"/> for fully
+    /// asynchronous unload semantics.
+    /// </summary>
     public void Dispose()
     {
       if (Interlocked.CompareExchange(ref _disposed, 1, 0) != 0)
         return;
 
-      DisposeCoreAsync().AsTask().GetAwaiter().GetResult();
+      // Run the async unload on the thread pool to escape any captured
+      // SynchronizationContext and avoid the classic sync-over-async deadlock.
+      // DisposeCoreAsync already swallows/logs unload failures.
+      Task.Run(() => DisposeCoreAsync().AsTask()).GetAwaiter().GetResult();
       GC.SuppressFinalize(this);
     }
 

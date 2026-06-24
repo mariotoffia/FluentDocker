@@ -44,7 +44,7 @@ dotnet add package FluentDocker.Testing.NUnit   # NUnit adapter
 ## Prerequisites
 
 - **Docker** must be installed and running
-- **.NET 10.0** or later
+- **.NET 8.0** or later (net8.0 and net10.0 are supported)
 
 ### Verify Docker
 
@@ -251,14 +251,27 @@ See [Docker Compose](compose.html) for detailed examples.
 
 ## Logging
 
-FluentDocker logs through `Microsoft.Extensions.Logging.Abstractions`. The
-kernel builder requires an `ILoggerFactory` — there is no library-side default.
-Pass `NullLoggerFactory.Instance` when you want silence:
+FluentDocker logs through `Microsoft.Extensions.Logging.Abstractions`. There are
+two ways to create a kernel:
+
+- `FluentDockerKernel.Create()` — zero-arg overload that defaults to
+  `NullLoggerFactory.Instance`, so nothing is logged. Prefer this for simple
+  scenarios where you do not need diagnostics.
+- `FluentDockerKernel.Create(loggerFactory)` — pass an explicit `ILoggerFactory`
+  when you want structured logs routed to a provider.
+
+**Convention**: use the zero-arg `Create()` for the simple / no-logging case, and
+pass a factory only when you want logs.
 
 ```csharp
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using FluentDocker.Kernel;
+
+// No logging — the zero-arg overload defaults to NullLoggerFactory.Instance
+var quiet = await FluentDockerKernel.Create()
+    .WithDockerCli("docker", d => d.AsDefault())
+    .BuildAsync();
 
 // Receive structured logs via any provider
 using var factory = LoggerFactory.Create(b => b.AddConsole());
@@ -266,7 +279,7 @@ var kernel = await FluentDockerKernel.Create(factory)
     .WithDockerCli("docker", d => d.AsDefault())
     .BuildAsync();
 
-// Or suppress all logs explicitly
+// Suppress all logs explicitly (equivalent to the zero-arg Create())
 var silent = await FluentDockerKernel.Create(NullLoggerFactory.Instance)
     .WithDockerCli("docker", d => d.AsDefault())
     .BuildAsync();
@@ -308,15 +321,28 @@ FluentDocker can also manage and consume **local LLMs** through Docker Model Run
 using the same `Builder → WithinDriver → UseXxx` pattern. First enable it in Docker
 Desktop (*Settings → AI → Enable Docker Model Runner*, with host-side TCP on).
 
+> **Preview / unreleased.** The Model Runner subsystem is slated for FluentDocker
+> **v3.2.0**, which has **not been released yet** — it is available only by building
+> from source on the feature branch. The inference DTOs are marked preview; their
+> shapes may change before the subsystem reaches 1.0.
+
+`UseModelRunner()` is reached through the **generic** scoped builder
+(`WithinDriver(...)`), not a typed `WithinDockerCli(...)` method — it is an extension
+on the driver-scoped builder. Use `WithinDriver("docker", kernel)` first, then call
+`UseModelRunner()`:
+
 ```csharp
+using FluentDocker.Builders;
+using FluentDocker.Kernel;
+
 // kernel created as shown above
 
-await using var runner = new Builder()
+await using var runner = await new Builder()
     .WithinDriver("docker", kernel)
     .UseModelRunner()
     .ForModel("ai/smollm2")   // tiny chat model (~256 MiB)
     .PullIfMissing()          // pull at build if not already present
-    .Build();
+    .BuildAsync();
 
 if ((await runner.StatusAsync()).Running)
 {
@@ -329,6 +355,37 @@ if ((await runner.StatusAsync()).Running)
         Console.Write(token);
 }
 ```
+
+For portable / driver-agnostic code that must degrade gracefully on drivers without
+model support, use `TryUseModelRunner(out var runnerBuilder)` instead — it returns
+`false` (and a null builder) rather than throwing:
+
+```csharp
+using FluentDocker.Builders;
+using FluentDocker.Kernel;
+
+// kernel created as shown above
+
+var scoped = new Builder().WithinDriver("docker", kernel);
+if (scoped.TryUseModelRunner(out var runnerBuilder))
+{
+    await using var runner = await runnerBuilder
+        .ForModel("ai/smollm2")
+        .PullIfMissing()
+        .BuildAsync();
+    // ... use runner ...
+}
+```
+
+**Driver support**: Model Runner currently supports the **Docker CLI** and **Docker
+API** drivers only. **Podman is not supported** — calling `UseModelRunner()` on a
+Podman scope throws `InterfaceNotSupportedException`. Use `TryUseModelRunner(out ...)`
+when you need to handle unsupported drivers gracefully.
+
+**Chat vs. embedding models**: chat / completion calls (`ChatAsync`,
+`ChatStreamAsync`) require a **chat** model such as `ai/smollm2`, while embeddings
+(`EmbedAsync`) require an **embedding** model such as `ai/embeddinggemma`. A chat
+model cannot produce embeddings and vice versa.
 
 Inference runs over the OpenAI-compatible HTTP API on `:12434`; management uses the
 `docker model` CLI — but you only ever code against `IModelRunner`. A model can also
