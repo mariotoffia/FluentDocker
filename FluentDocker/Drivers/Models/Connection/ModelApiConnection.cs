@@ -111,17 +111,24 @@ namespace FluentDocker.Drivers.Models.Connection
       var response = await _httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, ct).ConfigureAwait(false);
       if (!response.IsSuccessStatusCode)
       {
-        // Dispose the failed response (and its content) before throwing so it does
-        // not leak — ownership has not yet been transferred to ResponseOwningStream.
+        // Surface the status code AND a bounded error body so the inference driver can
+        // map it to a typed ModelRunnerException (404 -> ModelNotLoaded, 401 ->
+        // Unauthorized), mirroring the non-streaming path. EnsureSuccessStatusCode would
+        // discard the body. Dispose the failed response before throwing so it does not
+        // leak — ownership has not yet been transferred to ResponseOwningStream.
+        var status = response.StatusCode;
+        string body;
         try
         {
-          response.EnsureSuccessStatusCode();
+          body = await ReadBoundedErrorBodyAsync(response, ct).ConfigureAwait(false);
         }
-        catch
+        finally
         {
           response.Dispose();
-          throw;
         }
+
+        throw new HttpRequestException(
+            string.IsNullOrWhiteSpace(body) ? $"HTTP {(int)status}" : body, null, status);
       }
 
       Stream stream;
@@ -138,6 +145,32 @@ namespace FluentDocker.Drivers.Models.Connection
       }
 
       return new ResponseOwningStream(stream, response);
+    }
+
+    /// <summary>
+    /// Reads a non-success response body, truncated to a sane bound for use in an
+    /// exception message. Caller cancellation propagates; any other read failure is
+    /// swallowed (it must not mask the underlying HTTP failure).
+    /// </summary>
+    private static async Task<string> ReadBoundedErrorBodyAsync(HttpResponseMessage response, CancellationToken ct)
+    {
+      const int maxBodyChars = 512;
+      try
+      {
+        var body = await response.Content.ReadAsStringAsync(ct).ConfigureAwait(false);
+        if (string.IsNullOrWhiteSpace(body))
+          return null;
+
+        return body.Length <= maxBodyChars ? body : body[..maxBodyChars];
+      }
+      catch (OperationCanceledException) when (ct.IsCancellationRequested)
+      {
+        throw;
+      }
+      catch (Exception)
+      {
+        return null;
+      }
     }
 
     /// <inheritdoc />

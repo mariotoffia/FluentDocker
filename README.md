@@ -244,7 +244,7 @@ var vector = await runner.EmbedAsync("hello world",                        // em
   embeddings). Inference is the OpenAI-compatible HTTP API on `:12434`; management
   uses the `docker model` CLI. Transport is an adapter detail — you code only against
   `IModelRunner`.
-- **A model as a managed service** — `UseModel("ai/smollm2")` returns an
+- **A model as a managed service** — `UseModel("ai/smollm2").Build()` returns an
   `IModelService` that loads on `StartAsync`, unloads on dispose, in the same state
   machine and hook pipeline as containers.
 - **Wire a model into a container** — `UseContainer(c => c.WithModel(...))` injects

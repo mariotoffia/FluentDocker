@@ -112,7 +112,10 @@ namespace FluentDocker.Drivers.Docker.Api.Components
 
     private string Path(string suffix) => _endpoint.EngineV1Path(suffix);
 
-    private static string ErrorCodeFor(HttpStatusCode code) => code switch
+    // Accepts a nullable status so the streaming path can pass HttpRequestException.StatusCode
+    // directly — a connect failure (no response, null status) maps to RequestFailed, matching
+    // the non-streaming catch.
+    private static string ErrorCodeFor(HttpStatusCode? code) => code switch
     {
       HttpStatusCode.Unauthorized => ErrorCodes.ModelInference.Unauthorized,
       HttpStatusCode.NotFound => ErrorCodes.ModelInference.ModelNotLoaded,

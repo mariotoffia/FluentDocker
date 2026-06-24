@@ -236,8 +236,43 @@ namespace FluentDocker.Tests.CoreTests.Driver
       var conn = Create(handler);
 
       using var body = new StringContent("{}", Encoding.UTF8, "application/json");
-      await Assert.ThrowsAsync<HttpRequestException>(() => conn.PostStreamAsync("/x", body, TestContext.Current.CancellationToken));
+      var ex = await Assert.ThrowsAsync<HttpRequestException>(() => conn.PostStreamAsync("/x", body, TestContext.Current.CancellationToken));
+
+      // The failure must carry the status (so the inference driver can map 404 ->
+      // ModelNotLoaded, 401 -> Unauthorized) and the (bounded) error body, and the
+      // response/content must be disposed, not leaked.
+      Assert.Equal(HttpStatusCode.InternalServerError, ex.StatusCode);
+      Assert.Contains("boom", ex.Message, StringComparison.Ordinal);
       Assert.True(disposed, "the failed response/content must be disposed, not leaked");
+    }
+
+    [Fact]
+    public async Task PostStreamAsync_NonSuccess_ThrowsWithStatusAndErrorBody()
+    {
+      using var handler = new FuncHandler(_ => Json(HttpStatusCode.NotFound, "{\"error\":\"no such model\"}"));
+      var conn = Create(handler);
+
+      using var body = new StringContent("{}", Encoding.UTF8, "application/json");
+      var ex = await Assert.ThrowsAsync<HttpRequestException>(
+          () => conn.PostStreamAsync("/x", body, TestContext.Current.CancellationToken));
+
+      Assert.Equal(HttpStatusCode.NotFound, ex.StatusCode);
+      Assert.Contains("no such model", ex.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task PostStreamAsync_NonSuccess_BoundsErrorBody()
+    {
+      var huge = new string('x', 5000);
+      using var handler = new FuncHandler(_ => Json(HttpStatusCode.BadRequest, huge));
+      var conn = Create(handler);
+
+      using var body = new StringContent("{}", Encoding.UTF8, "application/json");
+      var ex = await Assert.ThrowsAsync<HttpRequestException>(
+          () => conn.PostStreamAsync("/x", body, TestContext.Current.CancellationToken));
+
+      // A pathological error body must not be dumped verbatim into the exception.
+      Assert.True(ex.Message.Length <= 512, $"error body must be bounded; was {ex.Message.Length}");
     }
 
     [Fact]

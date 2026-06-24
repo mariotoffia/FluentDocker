@@ -99,7 +99,7 @@ namespace FluentDocker.Model.Models.Options
 
       AddInt(args, "--n-gpu-layers", GpuLayers, 0, null, nameof(GpuLayers));
       AddInt(args, "--main-gpu", MainGpu, 0, null, nameof(MainGpu));
-      AddSplitMode(args, SplitMode);
+      AddSplitMode(args, SplitMode, nameof(SplitMode));
 
       AddDouble(args, "--rope-freq-base", RopeFreqBase, null, null, nameof(RopeFreqBase));
       AddDouble(args, "--rope-freq-scale", RopeFreqScale, null, null, nameof(RopeFreqScale));
@@ -154,13 +154,13 @@ namespace FluentDocker.Model.Models.Options
       args.Add(value);
     }
 
-    private static void AddSplitMode(List<string> args, string value)
+    private static void AddSplitMode(List<string> args, string value, string name)
     {
       if (string.IsNullOrEmpty(value))
         return;
 
       if (value != "none" && value != "layer" && value != "row")
-        throw new ArgumentOutOfRangeException(nameof(SplitMode), value, "--split-mode must be one of none|layer|row.");
+        throw new ArgumentOutOfRangeException(name, value, "--split-mode must be one of none|layer|row.");
 
       args.Add("--split-mode");
       args.Add(value);

@@ -49,7 +49,20 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       var json = JsonSerializer.Serialize(request, JsonHelper.DefaultOptions);
       using var content = new StringContent(json, Encoding.UTF8, "application/json");
 
-      await using var stream = await _connection.PostStreamAsync(Path(suffix), content, cancellationToken).ConfigureAwait(false);
+      // Open the stream outside the read loop so a failure to open (e.g. 404 for a
+      // not-loaded model, 401 for a bad key) maps to the SAME typed ModelRunnerException
+      // as the non-streaming PostJsonAsync path — not a raw HttpRequestException.
+      Stream stream;
+      try
+      {
+        stream = await _connection.PostStreamAsync(Path(suffix), content, cancellationToken).ConfigureAwait(false);
+      }
+      catch (HttpRequestException ex)
+      {
+        throw new ModelRunnerException(ex.Message, ErrorCodeFor(ex.StatusCode), ex);
+      }
+
+      await using var owned = stream.ConfigureAwait(false);
       using var reader = new StreamReader(stream, Encoding.UTF8);
 
       while (true)

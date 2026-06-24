@@ -113,7 +113,10 @@ namespace FluentDocker.Tests.CoreTests.Model
     [Fact]
     public void ToArgs_InvalidSplitMode_Throws()
     {
-      Assert.Throws<ArgumentOutOfRangeException>(() => new LlamaCppRuntimeFlags { SplitMode = "bogus" }.ToArgs());
+      var ex = Assert.Throws<ArgumentOutOfRangeException>(() => new LlamaCppRuntimeFlags { SplitMode = "bogus" }.ToArgs());
+      // ParamName must name the user-facing property (consistent with the other flags),
+      // not the private helper's "value" parameter.
+      Assert.Equal(nameof(LlamaCppRuntimeFlags.SplitMode), ex.ParamName);
     }
 
     [Fact]

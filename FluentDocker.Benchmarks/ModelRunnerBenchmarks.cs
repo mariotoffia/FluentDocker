@@ -21,7 +21,7 @@ namespace FluentDocker.Benchmarks
   /// replayed-SSE simulation through the inference driver (deterministic — no DMR).
   /// </summary>
   [MemoryDiagnoser]
-  public class ModelRunnerBenchmarks
+  public class ModelRunnerBenchmarks : IAsyncDisposable
   {
     private const string ChatJson =
         "{\"choices\":[{\"finish_reason\":\"length\",\"index\":0,\"message\":{\"role\":\"assistant\"," +
@@ -61,6 +61,17 @@ namespace FluentDocker.Benchmarks
 
       _connection = new FixedStreamConnection(_sseScript);
       _driver = new DockerApiModelInferenceDriver(_connection, ModelRunnerEndpoint.HostTcp());
+    }
+
+    [GlobalCleanup]
+    public async Task Cleanup() => await DisposeAsync().ConfigureAwait(false);
+
+    /// <summary>Disposes the replay connection owned by the benchmark.</summary>
+    public async ValueTask DisposeAsync()
+    {
+      if (_connection is not null)
+        await _connection.DisposeAsync().ConfigureAwait(false);
+      GC.SuppressFinalize(this);
     }
 
     [Benchmark(Description = "ModelReference.Parse (hf.co)")]

@@ -63,6 +63,18 @@ namespace FluentDocker.Tests.Mocks
       return this;
     }
 
+    /// <summary>
+    /// Registers a non-success status for POST-stream. Mirrors the real
+    /// <c>ModelApiConnection.PostStreamAsync</c>, which on a non-2xx response reads a
+    /// bounded error body and throws <see cref="HttpRequestException"/> carrying the
+    /// status code (the inference driver maps it to a typed <c>ModelRunnerException</c>).
+    /// </summary>
+    public MockModelApiConnection SetupStreamStatus(string pathContains, int statusCode, string errorBody = null)
+    {
+      _entries.Add(new ResponseEntry("STREAM", pathContains, (HttpStatusCode)statusCode, null, errorBody, null, -1));
+      return this;
+    }
+
     /// <summary>Registers a canned raw-byte stream for POST-stream.</summary>
     public MockModelApiConnection SetupStreamBytes(string pathContains, byte[] bytes)
     {
@@ -165,6 +177,15 @@ namespace FluentDocker.Tests.Mocks
       var entry = _entries.Where(e => e.Method == "STREAM" && MatchesPath(path, e.PathContains))
           .Select(e => (ResponseEntry?)e).LastOrDefault()
           ?? throw new InvalidOperationException($"no mock stream for {path}");
+
+      // Mirror the real connection: a non-2xx response never yields a stream — it
+      // throws HttpRequestException (with the status code) before any body is read.
+      var status = (int)entry.StatusCode;
+      if (status is < 200 or > 299)
+        throw new HttpRequestException(
+            string.IsNullOrEmpty(entry.StreamContent) ? $"HTTP {status}" : entry.StreamContent,
+            null, entry.StatusCode);
+
       var bytes = entry.StreamBytes ?? Encoding.UTF8.GetBytes(entry.StreamContent ?? string.Empty);
       if (entry.FaultAfterBytes >= 0)
         return new FaultingStream(bytes, entry.FaultAfterBytes);

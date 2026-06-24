@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
 using FluentDocker.Common;
@@ -105,6 +106,63 @@ namespace FluentDocker.Tests.CoreTests.Driver
         {
         }
       });
+    }
+
+    [Theory]
+    [InlineData(404, ErrorCodes.ModelInference.ModelNotLoaded)]
+    [InlineData(401, ErrorCodes.ModelInference.Unauthorized)]
+    [InlineData(500, ErrorCodes.ModelInference.RequestFailed)]
+    public async Task ChatCompletionStreamAsync_HttpError_ThrowsTypedModelRunnerException(int status, string expectedCode)
+    {
+      // A streaming request that fails to open (e.g. 404 for a not-pulled model) must
+      // surface the SAME typed error as the non-streaming path — not a raw
+      // HttpRequestException — so the documented error table holds for streaming too.
+      var conn = new MockModelApiConnection().SetupStreamStatus("/chat/completions", status);
+      var driver = Create(conn);
+
+      var ex = await Assert.ThrowsAsync<ModelRunnerException>(async () =>
+      {
+        await foreach (var _ in driver.ChatCompletionStreamAsync(Ctx, new ChatCompletionRequest { Model = "ai/x" }, TestContext.Current.CancellationToken))
+        {
+        }
+      });
+
+      Assert.Equal(expectedCode, ex.ErrorCode);
+    }
+
+    [Fact]
+    public async Task ChatCompletionStreamAsync_HttpError_PreservesErrorBodyAndInnerException()
+    {
+      const string body = "{\"error\":{\"message\":\"model 'ai/x' not found\"}}";
+      var conn = new MockModelApiConnection().SetupStreamStatus("/chat/completions", 404, body);
+      var driver = Create(conn);
+
+      var ex = await Assert.ThrowsAsync<ModelRunnerException>(async () =>
+      {
+        await foreach (var _ in driver.ChatCompletionStreamAsync(Ctx, new ChatCompletionRequest { Model = "ai/x" }, TestContext.Current.CancellationToken))
+        {
+        }
+      });
+
+      Assert.Equal(ErrorCodes.ModelInference.ModelNotLoaded, ex.ErrorCode);
+      Assert.Contains("not found", ex.Message, StringComparison.Ordinal);
+      Assert.IsType<HttpRequestException>(ex.InnerException);
+    }
+
+    [Fact]
+    public async Task CompletionStreamAsync_HttpError_ThrowsTypedModelRunnerException()
+    {
+      var conn = new MockModelApiConnection().SetupStreamStatus("/completions", 404);
+      var driver = Create(conn);
+
+      var ex = await Assert.ThrowsAsync<ModelRunnerException>(async () =>
+      {
+        await foreach (var _ in driver.CompletionStreamAsync(Ctx, new CompletionRequest { Model = "ai/x", Prompt = "p" }, TestContext.Current.CancellationToken))
+        {
+        }
+      });
+
+      Assert.Equal(ErrorCodes.ModelInference.ModelNotLoaded, ex.ErrorCode);
     }
 
     [Fact]
