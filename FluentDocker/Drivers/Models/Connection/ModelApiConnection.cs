@@ -36,6 +36,7 @@ namespace FluentDocker.Drivers.Models.Connection
     // streaming (PostStreamAsync) is intentionally exempt and relies on the caller's
     // token, since inference/SSE can legitimately run for a long time.
     private readonly TimeSpan _requestTimeout;
+    private readonly TimeSpan? _streamReadIdleTimeout; // null = no idle timeout on streaming reads
     // The path PingAsync probes for reachability — the OpenAI model-list route on the
     // endpoint's RESOLVED base path (e.g. /engines/llama.cpp/v1/models, or whatever a
     // Raw(...) base resolves to). Probing "/" can false-negative for endpoints whose only
@@ -68,6 +69,7 @@ namespace FluentDocker.Drivers.Models.Connection
         Timeout = Timeout.InfiniteTimeSpan
       };
       _requestTimeout = Normalize(config.RequestTimeout);
+      _streamReadIdleTimeout = config.StreamReadIdleTimeout;
       // Probe the OpenAI model-list route on the endpoint's resolved base path rather than
       // "/" so a runner that only serves /engines/.../v1/* is still reported reachable.
       _pingPath = endpoint.EngineV1Path("/models");
@@ -110,6 +112,22 @@ namespace FluentDocker.Drivers.Models.Connection
     /// <summary>Treats non-positive timeouts (incl. <c>default</c>) as infinite.</summary>
     private static TimeSpan Normalize(TimeSpan timeout) =>
         timeout > TimeSpan.Zero ? timeout : Timeout.InfiniteTimeSpan;
+
+    /// <summary>Reads with an optional per-read idle timeout (StreamParseError on expiry).</summary>
+    public async ValueTask<int> ReadWithIdleTimeoutAsync(Stream stream, Memory<byte> buffer, CancellationToken ct)
+    {
+      if (_streamReadIdleTimeout is null)
+        return await stream.ReadAsync(buffer, ct).ConfigureAwait(false);
+      using var idleCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+      idleCts.CancelAfter(_streamReadIdleTimeout.Value);
+      try { return await stream.ReadAsync(buffer, idleCts.Token).ConfigureAwait(false); }
+      catch (OperationCanceledException) when (!ct.IsCancellationRequested)
+      {
+        throw new ModelRunnerException(
+            "Streaming read timed out: no data received within the configured idle timeout.",
+            ErrorCodes.ModelInference.StreamParseError);
+      }
+    }
 
     /// <inheritdoc />
     public Uri BaseAddress => _httpClient.BaseAddress;
