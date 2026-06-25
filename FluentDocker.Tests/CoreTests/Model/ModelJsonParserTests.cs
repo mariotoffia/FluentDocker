@@ -166,5 +166,175 @@ namespace FluentDocker.Tests.CoreTests.Model
       Assert.Equal(50, p.Current);
       Assert.Equal(100, p.Total);
     }
+
+    // ---- M3: an oversized (pathological) payload is rejected without unbounded parsing ----
+
+    // Just over the parser's 8 MiB char cap. Built as syntactically valid JSON so the guard
+    // (not a JsonException) is what rejects it.
+    private static string OversizedJson(char open, char close)
+    {
+      const int overCap = (8 * 1024 * 1024) + 16;
+      var sb = new System.Text.StringBuilder(overCap + 2);
+      sb.Append(open);
+      sb.Append('"').Append(new string('a', overCap)).Append('"');
+      sb.Append(close);
+      return sb.ToString();
+    }
+
+    [Fact]
+    public void TryParseList_OversizedInput_ReturnsFailure_NotEmptyOk()
+    {
+      // An oversized array payload must be a parse FAILURE (false), not a silent "zero models",
+      // and must not be fully parsed/cloned.
+      Assert.False(ModelJsonParser.TryParseList(OversizedJson('[', ']'), out var models));
+      Assert.Empty(models);
+    }
+
+    [Fact]
+    public void ParseList_OversizedInput_ReturnsEmpty_NoThrow()
+    {
+      Assert.Empty(ModelJsonParser.ParseList(OversizedJson('[', ']')));
+    }
+
+    [Fact]
+    public void ParseInfo_OversizedInput_ReturnsNull_NoThrow()
+    {
+      Assert.Null(ModelJsonParser.ParseInfo(OversizedJson('{', '}')));
+    }
+
+    [Fact]
+    public void ParseNativePullProgress_OversizedInput_ReturnsNull_NoThrow()
+    {
+      Assert.Null(ModelJsonParser.ParseNativePullProgress(OversizedJson('{', '}')));
+    }
+
+    // ============================ M20: size-unit variants ============================
+    // ParseSize is private, so it is exercised through ParsePullLine, whose "X of Y"
+    // pattern feeds both operands through ParseSize. This covers the decimal (MB/GB/kB,
+    // 1000-based) vs binary (MiB/GiB/KiB, 1024-based) distinction and the optional space
+    // between the number and the unit.
+
+    [Theory]
+    // decimal units (base 1000)
+    [InlineData("Downloaded 1MB of 2MB", 1_000_000L, 2_000_000L)]
+    [InlineData("Downloaded 1.5GB of 3GB", 1_500_000_000L, 3_000_000_000L)]
+    [InlineData("Downloaded 103.56kB of 200kB", 103_560L, 200_000L)]
+    // binary units (base 1024) — same magnitude letter is LARGER than the decimal form
+    [InlineData("Downloaded 1MiB of 2MiB", 1_048_576L, 2_097_152L)]
+    [InlineData("Downloaded 1GiB of 2GiB", 1_073_741_824L, 2_147_483_648L)]
+    // optional space between number and unit must parse identically
+    [InlineData("Downloaded 256.35 MiB of 256.35 MiB", 268_802_457L, 268_802_457L)]
+    public void ParsePullLine_SizeUnits_DecimalVsBinary(string line, long expectedCurrent, long expectedTotal)
+    {
+      var p = ModelJsonParser.ParsePullLine(line);
+
+      Assert.NotNull(p);
+      Assert.Equal("Downloading", p.Status);
+      Assert.Equal(expectedCurrent, p.Current);
+      Assert.Equal(expectedTotal, p.Total);
+    }
+
+    [Fact]
+    public void ParsePullLine_BinaryIsLargerThanDecimal_ForSameLetter()
+    {
+      // 1 MiB (1,048,576) must exceed 1 MB (1,000,000) — proves the 'i' binary flag is honored.
+      var binary = ModelJsonParser.ParsePullLine("Downloaded 1MiB of 1MiB");
+      var dec = ModelJsonParser.ParsePullLine("Downloaded 1MB of 1MB");
+      Assert.True(binary.Current > dec.Current);
+    }
+
+    // ============================ M20: locale invariance ============================
+    // ParseSize uses double.TryParse with CultureInfo.InvariantCulture, so a '.' is ALWAYS
+    // the decimal separator regardless of the ambient thread culture. We run the assertions
+    // under a comma-decimal culture (de-DE) to prove the parser is not culture-sensitive.
+
+    [Fact]
+    public void ParseSize_UsesInvariantCulture_NotThreadCulture()
+    {
+      var original = System.Threading.Thread.CurrentThread.CurrentCulture;
+      try
+      {
+        System.Threading.Thread.CurrentThread.CurrentCulture =
+            System.Globalization.CultureInfo.GetCultureInfo("de-DE");
+
+        // The '.' decimal point is parsed via InvariantCulture even under a comma-decimal
+        // ambient culture: "1.5GB" stays 1.5 GB == 1,500,000,000 bytes (a culture-sensitive
+        // parser would treat the '.' as a thousands separator and get 15 GB).
+        var dotDecimal = ModelJsonParser.ParsePullLine("Downloaded 1.5GB of 3GB");
+        Assert.Equal(1_500_000_000L, dotDecimal.Current);
+
+        // A comma is NEVER treated as a decimal point: "1,5GB" is not parsed as 1.5 GB
+        // (1,500,000,000). The size grammar has no comma/locale handling, so the comma simply
+        // is not interpreted as a decimal separator regardless of the de-DE culture.
+        var commaDecimal = ModelJsonParser.ParsePullLine("Downloaded 1,5GB of 3GB");
+        Assert.NotNull(commaDecimal);
+        Assert.NotEqual(1_500_000_000L, commaDecimal.Current);
+      }
+      finally
+      {
+        System.Threading.Thread.CurrentThread.CurrentCulture = original;
+      }
+    }
+
+    // ====================== M20: --json shape vs table fallback ======================
+    // ps/df have no `--json` in DMR v1.2.1 (table only); ls has both. The same logical
+    // data must come out of the JSON path and the table path.
+
+    [Fact]
+    public void ParseLs_JsonAndTable_AgreeOnSmollm2()
+    {
+      var fromJson = ModelJsonParser.ParseList(DmrFixtures.Load("ls.json"))
+          .First(m => m.Reference.Name == "smollm2");
+      var fromTable = ModelJsonParser.ParseLsTable(DmrFixtures.Load("ls.txt"))
+          .First(m => m.Reference.Name == "smollm2");
+
+      // Both surfaces resolve the same architecture/quantization and a positive size.
+      Assert.Equal(fromJson.Architecture, fromTable.Architecture);
+      Assert.Equal(fromJson.Quantization, fromTable.Quantization);
+      Assert.True(fromTable.Size > 0);
+    }
+
+    [Theory]
+    [InlineData("ps.txt")]   // ps: table only (no --json in DMR v1.2.1)
+    public void ParsePsTable_TableFallback_ParsesRunningFields(string fixture)
+    {
+      var running = ModelJsonParser.ParsePsTable(DmrFixtures.Load(fixture));
+
+      var smollm2 = running.First(r => r.Reference.Name == "smollm2");
+      Assert.Equal("llama.cpp", smollm2.Backend);
+      Assert.Equal("completion", smollm2.Mode);
+    }
+
+    [Fact]
+    public void ParseDfTable_DecimalUnits_ConvertCorrectly()
+    {
+      // df.txt reports "Models  1.20GB" (decimal GB == 1,200,000,000 bytes).
+      var df = ModelJsonParser.ParseDfTable(DmrFixtures.Load("df.txt"));
+      Assert.Equal(1_200_000_000L, df.ModelsSizeBytes);
+    }
+
+    // ====================== M20: malformed input is exception-safe ======================
+
+    [Theory]
+    [InlineData("Downloaded of")]                  // "X of Y" with no sizes -> status-only event
+    [InlineData("preparing layers...")]            // free-form status line, no sizes
+    [InlineData("Downloaded ??? of ???")]          // size-like position but non-numeric tokens
+    public void ParsePullLine_Malformed_ReturnsStatusEvent_NoThrow(string line)
+    {
+      var p = ModelJsonParser.ParsePullLine(line);
+      Assert.NotNull(p);
+      Assert.Equal(0L, p.Current);
+      Assert.Equal(0L, p.Total);
+      Assert.Equal(line.Trim(), p.Status); // the raw line is preserved as the status
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("   ")]
+    [InlineData(null)]
+    public void ParsePullLine_EmptyOrWhitespace_ReturnsNull(string line)
+    {
+      Assert.Null(ModelJsonParser.ParsePullLine(line));
+    }
   }
 }

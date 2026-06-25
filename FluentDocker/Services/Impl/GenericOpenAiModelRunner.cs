@@ -29,6 +29,7 @@ namespace FluentDocker.Services.Impl
     private readonly IAsyncDisposable _ownedResource;
     private readonly ModelRunnerEndpoint _endpoint;
     private readonly ModelReference _defaultModel;
+    private readonly InferenceModelId? _defaultInferenceId;
     private int _disposed;
 
     /// <summary>
@@ -41,13 +42,21 @@ namespace FluentDocker.Services.Impl
     /// <param name="inference">The inference driver port.</param>
     /// <param name="statusProbe">Optional reachability probe for <c>StatusAsync</c> (e.g. the connection's ping).</param>
     /// <param name="ownedResource">A resource (e.g. the connection) owned and disposed by this runner.</param>
+    /// <param name="defaultInferenceId">
+    /// The verbatim inference model id used in the request body. When null it is derived
+    /// from <paramref name="defaultModel"/> via <see cref="InferenceModelId.FromModelReference"/>
+    /// (dropping the auto-injected <c>:latest</c>). Supply this directly to preserve a
+    /// raw/remote id (e.g. <c>gpt-4o-mini</c>) verbatim.
+    /// </param>
     public GenericOpenAiModelRunner(ModelRunnerEndpoint endpoint, ModelReference defaultModel,
-        IModelInferenceDriver inference, Func<CancellationToken, Task<bool>> statusProbe = null, IAsyncDisposable ownedResource = null)
+        IModelInferenceDriver inference, Func<CancellationToken, Task<bool>> statusProbe = null, IAsyncDisposable ownedResource = null,
+        InferenceModelId? defaultInferenceId = null)
     {
       ArgumentNullException.ThrowIfNull(endpoint);
       ArgumentNullException.ThrowIfNull(inference);
       _endpoint = endpoint;
       _defaultModel = defaultModel;
+      _defaultInferenceId = defaultInferenceId ?? InferenceModelId.FromModelReference(defaultModel);
       _inference = inference;
       _statusProbe = statusProbe;
       _ownedResource = ownedResource;
@@ -85,6 +94,7 @@ namespace FluentDocker.Services.Impl
     public async Task<ChatCompletionResponse> ChatCompletionAsync(ChatCompletionRequest request, CancellationToken cancellationToken = default)
     {
       ThrowIfDisposed();
+      ArgumentNullException.ThrowIfNull(request);
       return Unwrap(await _inference.ChatCompletionAsync(Ctx, request, cancellationToken).ConfigureAwait(false), "Chat completion");
     }
 
@@ -92,6 +102,7 @@ namespace FluentDocker.Services.Impl
     public IAsyncEnumerable<ChatCompletionChunk> ChatCompletionStreamAsync(ChatCompletionRequest request, CancellationToken cancellationToken = default)
     {
       ThrowIfDisposed();
+      ArgumentNullException.ThrowIfNull(request);
       return _inference.ChatCompletionStreamAsync(Ctx, request, cancellationToken);
     }
 
@@ -99,6 +110,7 @@ namespace FluentDocker.Services.Impl
     public async Task<CompletionResponse> CompletionAsync(CompletionRequest request, CancellationToken cancellationToken = default)
     {
       ThrowIfDisposed();
+      ArgumentNullException.ThrowIfNull(request);
       return Unwrap(await _inference.CompletionAsync(Ctx, request, cancellationToken).ConfigureAwait(false), "Completion");
     }
 
@@ -106,6 +118,7 @@ namespace FluentDocker.Services.Impl
     public IAsyncEnumerable<CompletionChunk> CompletionStreamAsync(CompletionRequest request, CancellationToken cancellationToken = default)
     {
       ThrowIfDisposed();
+      ArgumentNullException.ThrowIfNull(request);
       return _inference.CompletionStreamAsync(Ctx, request, cancellationToken);
     }
 
@@ -113,6 +126,7 @@ namespace FluentDocker.Services.Impl
     public async Task<EmbeddingsResponse> EmbeddingsAsync(EmbeddingsRequest request, CancellationToken cancellationToken = default)
     {
       ThrowIfDisposed();
+      ArgumentNullException.ThrowIfNull(request);
       return Unwrap(await _inference.EmbeddingsAsync(Ctx, request, cancellationToken).ConfigureAwait(false), "Embeddings");
     }
 
@@ -130,6 +144,7 @@ namespace FluentDocker.Services.Impl
     public async Task<string> ChatAsync(string prompt, CancellationToken cancellationToken = default)
     {
       ThrowIfDisposed();
+      ArgumentNullException.ThrowIfNull(prompt);
       var response = await ChatCompletionAsync(new ChatCompletionRequest
       {
         Model = RequireModelId(),
@@ -143,6 +158,7 @@ namespace FluentDocker.Services.Impl
     public async IAsyncEnumerable<string> ChatStreamAsync(string prompt, [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
       ThrowIfDisposed();
+      ArgumentNullException.ThrowIfNull(prompt);
       var request = new ChatCompletionRequest
       {
         Model = RequireModelId(),
@@ -161,6 +177,7 @@ namespace FluentDocker.Services.Impl
     public async Task<IReadOnlyList<float>> EmbedAsync(string text, ModelReference model = null, CancellationToken cancellationToken = default)
     {
       ThrowIfDisposed();
+      ArgumentNullException.ThrowIfNull(text);
       var response = await EmbeddingsAsync(new EmbeddingsRequest
       {
         Model = RequireModelId(model),
@@ -267,7 +284,14 @@ namespace FluentDocker.Services.Impl
     }
 
     /// <inheritdoc />
-    public Task UnloadAsync(ModelReference model, bool all = false, CancellationToken cancellationToken = default)
+    public Task UnloadAsync(ModelReference model, CancellationToken cancellationToken = default)
+    {
+      ThrowIfDisposed();
+      throw Fail();
+    }
+
+    /// <inheritdoc />
+    public Task UnloadAllAsync(CancellationToken cancellationToken = default)
     {
       ThrowIfDisposed();
       throw Fail();
@@ -295,6 +319,13 @@ namespace FluentDocker.Services.Impl
     }
 
     /// <inheritdoc />
+    public Task UninstallRunnerAsync(ModelRunnerUninstallOptions options = null, CancellationToken cancellationToken = default)
+    {
+      ThrowIfDisposed();
+      throw Fail();
+    }
+
+    /// <inheritdoc />
     public async ValueTask DisposeAsync()
     {
       if (Interlocked.CompareExchange(ref _disposed, 1, 0) != 0)
@@ -307,7 +338,13 @@ namespace FluentDocker.Services.Impl
 
     private string RequireModelId(ModelReference model = null)
     {
-      var id = (model ?? _defaultModel)?.ToString();
+      // The inference body carries the VERBATIM id (no auto ":latest"). A per-call
+      // Docker reference is reduced to its inference form; otherwise the bound default
+      // inference id is used (verbatim from the default model or a raw/remote id).
+      var id = model != null
+          ? InferenceModelId.FromModelReference(model)?.Value
+          : _defaultInferenceId?.Value;
+
       if (string.IsNullOrEmpty(id))
         throw new ArgumentException(
           "No model specified and no default model was configured. Pass a model or configure one via ForModel/WithModel.", nameof(model));

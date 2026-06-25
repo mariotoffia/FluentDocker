@@ -91,8 +91,10 @@ check: lint test
 .PHONY: coverage
 coverage:
 	@mkdir -p .out/coverage
+	@rm -rf .out/coverage/*
 	dotnet test FluentDocker.Tests/FluentDocker.Tests.csproj \
 		--filter "Category=Unit" \
+		--framework net10.0 \
 		--configuration Debug \
 		--collect:"XPlat Code Coverage" \
 		--results-directory .out/coverage \
@@ -103,6 +105,14 @@ coverage:
 	@echo "  dotnet tool install -g dotnet-reportgenerator-globaltool"
 	@echo "  reportgenerator -reports:.out/coverage/**/coverage.opencover.xml -targetdir:.out/coverage/html -reporttypes:Html"
 	@echo "  open .out/coverage/html/index.html"
+
+# Coverage regression gate (finding M22). Enforces a conservative line/branch FLOOR
+# on the report produced by `make coverage`. Override floors via COVERAGE_LINE_MIN /
+# COVERAGE_BRANCH_MIN. The XPlat collector cannot fail the build on a threshold itself
+# (that is a coverlet.msbuild feature), so the floor is enforced post-collection here.
+.PHONY: coverage-check
+coverage-check: coverage
+	@bash scripts/coverage-threshold
 
 .PHONY: coverage-html
 coverage-html: coverage
@@ -155,6 +165,7 @@ help:
 	@echo "  lint             - Check code formatting"
 	@echo "  format           - Format code"
 	@echo "  coverage         - Run unit tests with code coverage (XML output)"
+	@echo "  coverage-check   - Run coverage and enforce the line/branch regression floor"
 	@echo "  coverage-html    - Generate HTML coverage report (requires reportgenerator)"
 	@echo "  docs             - Serve Jekyll docs locally with live reload"
 	@echo "  docs-install     - Install Jekyll dependencies for docs"

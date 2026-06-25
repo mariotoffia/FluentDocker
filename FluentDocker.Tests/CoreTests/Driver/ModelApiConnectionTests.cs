@@ -3,12 +3,15 @@ using System.Collections.Generic;
 using System.IO;
 using System.Net;
 using System.Net.Http;
+using System.Net.Sockets;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using FluentDocker.Common;
 using FluentDocker.Drivers.Models.Connection;
+using FluentDocker.Model.Drivers;
 using FluentDocker.Model.Models;
 using Xunit;
 
@@ -178,13 +181,18 @@ namespace FluentDocker.Tests.CoreTests.Driver
     }
 
     [Fact]
-    public async Task PingAsync_TrueOnSuccess_FalseOnError()
+    public async Task PingAsync_TrueOnAnyHttpResponse()
     {
+      // ANY HTTP response — including 4xx/5xx — proves the endpoint is reachable; only a
+      // transport-level failure means unreachable. (Previously a 5xx false-negatived.)
       using var ok = new FuncHandler(_ => Json(HttpStatusCode.OK, "ok"));
       Assert.True(await Create(ok).PingAsync(TestContext.Current.CancellationToken));
 
-      using var bad = new FuncHandler(_ => Json(HttpStatusCode.InternalServerError, "no"));
-      Assert.False(await Create(bad).PingAsync(TestContext.Current.CancellationToken));
+      using var serverError = new FuncHandler(_ => Json(HttpStatusCode.InternalServerError, "no"));
+      Assert.True(await Create(serverError).PingAsync(TestContext.Current.CancellationToken));
+
+      using var notFound = new FuncHandler(_ => Json(HttpStatusCode.NotFound, "no"));
+      Assert.True(await Create(notFound).PingAsync(TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -192,6 +200,87 @@ namespace FluentDocker.Tests.CoreTests.Driver
     {
       using var handler = new FuncHandler(_ => throw new HttpRequestException("refused"));
       Assert.False(await Create(handler).PingAsync(TestContext.Current.CancellationToken));
+    }
+
+    [Fact]
+    public async Task PingAsync_404OnRoot_200OnModels_IsReachable()
+    {
+      // 404 for "/" but 200 for the model-list route: the endpoint is reachable and the probe
+      // must target the model-list route, not "/".
+      using var handler = new FuncHandler(req =>
+          req.RequestUri!.AbsolutePath.EndsWith("/models", StringComparison.Ordinal)
+              ? Json(HttpStatusCode.OK, "{}")
+              : Json(HttpStatusCode.NotFound, "no"));
+
+      // Base address carries the engine path so the derived probe path is /engines/v1/models.
+      await using var conn = new ModelApiConnection(
+          new Uri("http://localhost:12434/engines/v1"), handler);
+
+      Assert.True(await conn.PingAsync(TestContext.Current.CancellationToken));
+      Assert.NotEmpty(handler.Requests);
+      Assert.EndsWith("/engines/v1/models", handler.Requests[0].RequestUri!.AbsolutePath, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task PingAsync_ConnectionRefused_IsNotReachable()
+    {
+      // A transport-level failure (connection refused) means unreachable.
+      using var handler = new FuncHandler(_ => throw new HttpRequestException("Connection refused"));
+      await using var conn = new ModelApiConnection(new Uri("http://localhost:12434/engines/v1"), handler);
+
+      Assert.False(await conn.PingAsync(TestContext.Current.CancellationToken));
+    }
+
+    [Fact]
+    public async Task GetAsync_ConnectionRefused_ThrowsEndpointUnreachable()
+    {
+      // A transport-level failure (HttpRequestException with no HTTP status) on a non-streaming
+      // send must surface as a typed ModelRunnerException(EndpointUnreachable), not a generic fault.
+      using var handler = new FuncHandler(_ => throw new HttpRequestException("Connection refused"));
+      var conn = Create(handler);
+
+      var ex = await Assert.ThrowsAsync<ModelRunnerException>(
+          () => conn.GetAsync("/engines/v1/models", TestContext.Current.CancellationToken));
+      Assert.Equal(ErrorCodes.ModelInference.EndpointUnreachable, ex.ErrorCode);
+    }
+
+    [Fact]
+    public async Task PostAsync_ConnectionRefused_ThrowsEndpointUnreachable()
+    {
+      using var handler = new FuncHandler(_ => throw new SocketException((int)SocketError.ConnectionRefused));
+      var conn = Create(handler);
+
+      using var body = new StringContent("{}", Encoding.UTF8, "application/json");
+      var ex = await Assert.ThrowsAsync<ModelRunnerException>(
+          () => conn.PostAsync("/engines/v1/chat/completions", body, TestContext.Current.CancellationToken));
+      Assert.Equal(ErrorCodes.ModelInference.EndpointUnreachable, ex.ErrorCode);
+    }
+
+    [Fact]
+    public async Task GetAsync_HttpErrorResponse_DoesNotThrow()
+    {
+      // A genuine HTTP error RESPONSE (5xx with a body) is NOT a transport failure — the verb
+      // methods return it as a response, and the caller (inference driver) maps it to RequestFailed.
+      using var handler = new FuncHandler(_ => Json(HttpStatusCode.InternalServerError, "{\"error\":\"boom\"}"));
+      var conn = Create(handler);
+
+      using var resp = await conn.GetAsync("/engines/v1/models", TestContext.Current.CancellationToken);
+      Assert.Equal(HttpStatusCode.InternalServerError, resp.StatusCode);
+    }
+
+    [Fact]
+    public async Task PostStreamAsync_ConnectionRefused_ThrowsEndpointUnreachable()
+    {
+      // A transport failure opening the stream maps to EndpointUnreachable; an HTTP error STATUS
+      // is delivered as a response and continues to surface as HttpRequestException (asserted
+      // elsewhere) so the streaming driver can map 404/401.
+      using var handler = new FuncHandler(_ => throw new HttpRequestException("Connection refused"));
+      var conn = Create(handler);
+
+      using var body = new StringContent("{}", Encoding.UTF8, "application/json");
+      var ex = await Assert.ThrowsAsync<ModelRunnerException>(
+          () => conn.PostStreamAsync("/engines/v1/chat/completions", body, TestContext.Current.CancellationToken));
+      Assert.Equal(ErrorCodes.ModelInference.EndpointUnreachable, ex.ErrorCode);
     }
 
     [Fact]
@@ -367,6 +456,23 @@ namespace FluentDocker.Tests.CoreTests.Driver
 
       // A pathological error body must not be dumped verbatim into the exception.
       Assert.True(ex.Message.Length <= 512, $"error body must be bounded; was {ex.Message.Length}");
+      Assert.EndsWith("…", ex.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task PostStreamAsync_NonSuccess_BoundsErrorBodyRead_PastReadCap()
+    {
+      // The READ itself (not just the final string) must be bounded — a body far larger than
+      // the 64 KiB read cap must not force unbounded buffering, yet still yield a capped message.
+      var enormous = new string('y', 256 * 1024);
+      using var handler = new FuncHandler(_ => Json(HttpStatusCode.BadRequest, enormous));
+      var conn = Create(handler);
+
+      using var body = new StringContent("{}", Encoding.UTF8, "application/json");
+      var ex = await Assert.ThrowsAsync<HttpRequestException>(
+          () => conn.PostStreamAsync("/x", body, TestContext.Current.CancellationToken));
+
+      Assert.True(ex.Message.Length <= 512, $"error body must be bounded; was {ex.Message.Length}");
     }
 
     [Fact]
@@ -390,6 +496,63 @@ namespace FluentDocker.Tests.CoreTests.Driver
           requestTimeout: TimeSpan.FromMilliseconds(100));
 
       Assert.False(await conn.PingAsync(TestContext.Current.CancellationToken));
+    }
+
+    // A stream whose Dispose / DisposeAsync always throws — used to verify the owning stream
+    // still disposes its HttpResponseMessage even when the inner stream's dispose faults.
+    private sealed class ThrowingDisposeStream : Stream
+    {
+      public override bool CanRead => true;
+      public override bool CanSeek => false;
+      public override bool CanWrite => false;
+      public override long Length => 0;
+      public override long Position { get => 0; set { } }
+      public override void Flush() { }
+      public override int Read(byte[] buffer, int offset, int count) => 0;
+      public override long Seek(long offset, SeekOrigin origin) => 0;
+      public override void SetLength(long value) { }
+      public override void Write(byte[] buffer, int offset, int count) { }
+
+#pragma warning disable CA2215 // Intentional: simulates an inner stream whose dispose faults before reaching base.
+      protected override void Dispose(bool disposing) => throw new IOException("inner dispose boom");
+
+      public override ValueTask DisposeAsync() => throw new IOException("inner dispose boom async");
+#pragma warning restore CA2215
+    }
+
+    // Records whether Dispose was called so the L1 tests can assert the response was disposed.
+    private sealed class ProbeResponse : HttpResponseMessage
+    {
+      public bool Disposed { get; private set; }
+      protected override void Dispose(bool disposing)
+      {
+        Disposed = true;
+        base.Dispose(disposing);
+      }
+    }
+
+    [Fact]
+    public async Task ResponseOwningStream_DisposeAsync_InnerThrows_StillDisposesResponseAndPropagates()
+    {
+      var response = new ProbeResponse();
+      var stream = new ResponseOwningStream(new ThrowingDisposeStream(), response);
+
+      var ex = await Assert.ThrowsAsync<IOException>(async () => await stream.DisposeAsync());
+
+      Assert.Equal("inner dispose boom async", ex.Message);
+      Assert.True(response.Disposed, "the HttpResponseMessage must be disposed even when the inner stream's dispose throws");
+    }
+
+    [Fact]
+    public void ResponseOwningStream_Dispose_InnerThrows_StillDisposesResponseAndPropagates()
+    {
+      var response = new ProbeResponse();
+      var stream = new ResponseOwningStream(new ThrowingDisposeStream(), response);
+
+      var ex = Assert.Throws<IOException>(() => stream.Dispose());
+
+      Assert.Equal("inner dispose boom", ex.Message);
+      Assert.True(response.Disposed, "the HttpResponseMessage must be disposed even when the inner stream's dispose throws");
     }
   }
 }

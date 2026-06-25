@@ -16,6 +16,17 @@ namespace FluentDocker.Drivers.Docker.Cli.Components.Parsing
   /// </summary>
   public static class ModelJsonParser
   {
+    /// <summary>
+    /// Upper bound (8 MiB, in chars — an over-estimate of UTF-8 bytes since every char is at
+    /// least one byte) on a JSON payload this parser will parse. Real DMR <c>--json</c>
+    /// output (model lists, inspect objects, NDJSON progress lines) is tiny; this only guards
+    /// against pathological/hostile CLI output being fully parsed — which clones
+    /// <see cref="JsonElement"/>s and materializes collections — without limit. Oversized
+    /// input is rejected up front and yields the same safe empty/failure result as malformed
+    /// input (the parser's exception-safe contract is preserved — it never throws).
+    /// </summary>
+    private const int MaxJsonInputChars = 8 * 1024 * 1024;
+
     private static readonly char[] LineSeparators = ['\n', '\r'];
     private static readonly Regex MultiSpace = new(@"\s{2,}", RegexOptions.Compiled);
     private static readonly Regex SizeRegex = new(@"^([\d.]+)\s*([KMGTP]?)(i?)B$", RegexOptions.IgnoreCase | RegexOptions.Compiled);
@@ -45,6 +56,11 @@ namespace FluentDocker.Drivers.Docker.Cli.Components.Parsing
       if (string.IsNullOrWhiteSpace(json))
         return true;
 
+      // Reject pathological output before parsing/cloning it — treat as a parse failure so
+      // callers do not silently report "zero models" for an oversized payload.
+      if (json.Length > MaxJsonInputChars)
+        return false;
+
       try
       {
         var root = JsonHelper.ParseElement(json);
@@ -63,6 +79,10 @@ namespace FluentDocker.Drivers.Docker.Cli.Components.Parsing
     /// <summary>Parses a single <c>docker model inspect</c> object.</summary>
     public static ModelInfo ParseInfo(string json)
     {
+      // Bound the input before parsing/cloning — oversized payloads yield null, like malformed.
+      if (json is { Length: > MaxJsonInputChars })
+        return null;
+
       try
       {
         var el = JsonHelper.ParseElement(json);
@@ -222,6 +242,10 @@ namespace FluentDocker.Drivers.Docker.Cli.Components.Parsing
     public static ModelPullProgress ParseNativePullProgress(string jsonLine)
     {
       if (string.IsNullOrWhiteSpace(jsonLine))
+        return null;
+
+      // A single NDJSON progress line is tiny; an oversized one is pathological — reject it.
+      if (jsonLine.Length > MaxJsonInputChars)
         return null;
 
       try

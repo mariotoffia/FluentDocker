@@ -1,8 +1,10 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using FluentDocker.Builders.Compose;
 using FluentDocker.Common;
 using FluentDocker.Kernel;
 using FluentDocker.Model.Drivers;
@@ -174,9 +176,18 @@ namespace FluentDocker.Builders
     private int? _waitTimeout;
     private bool _attachToExisting;
     private readonly List<string> _services = [];
+    private ComposeModelBuilder _models;
 
     public IComposeBuilder WithComposeFile(string path) { _composeFiles.Add(path); return this; }
     public IComposeBuilder WithComposeFiles(params string[] paths) { _composeFiles.AddRange(paths); return this; }
+
+    public IComposeBuilder WithModels(Action<ComposeModelBuilder> configure)
+    {
+      ArgumentNullException.ThrowIfNull(configure);
+      _models ??= new ComposeModelBuilder();
+      configure(_models);
+      return this;
+    }
     public IComposeBuilder WithProjectName(string name) { _projectName = name; return this; }
     public IComposeBuilder WithEnvironment(string key, string value) { _environment[key] = value; return this; }
 
@@ -236,6 +247,11 @@ namespace FluentDocker.Builders
       var driver = _kernel.SysCtl<Drivers.IComposeDriver>(_driverId);
       var context = new DriverContext(_driverId);
 
+      // Render a first-class models: overlay (WithModels) to a managed temp file and
+      // append it so Compose merges it. The ComposeService owns the file and deletes it
+      // on teardown / dispose.
+      var ownedTempFiles = RenderModelOverlay();
+
       // Attach to an already-running project: do NOT run `compose up`, just hand back a
       // service bound to the existing project (issue #305).
       if (_attachToExisting)
@@ -245,7 +261,7 @@ namespace FluentDocker.Builders
               "ConnectToExisting requires WithProjectName and/or WithComposeFile to identify the project.");
 
         return new Services.Impl.ComposeService(
-            _kernel, _driverId, _composeFiles, _projectName, _removeVolumes, _removeImages);
+            _kernel, _driverId, _composeFiles, _projectName, _removeVolumes, _removeImages, ownedTempFiles);
       }
 
       var config = new Drivers.ComposeUpConfig
@@ -270,13 +286,54 @@ namespace FluentDocker.Builders
 
       var response = await driver.UpAsync(context, config, cancellationToken).ConfigureAwait(false);
       if (!response.Success)
+      {
+        // Up failed: no ComposeService is created to own the overlay, so clean it up here.
+        DeleteTempFiles(ownedTempFiles);
         throw new DriverException($"Failed to start compose: {response.Error}",
             response.ErrorCode, response.ErrorContext);
+      }
 
       return new Services.Impl.ComposeService(
           _kernel, _driverId, _composeFiles,
           response.Data.ProjectName ?? _projectName,
-          _removeVolumes, _removeImages);
+          _removeVolumes, _removeImages, ownedTempFiles);
+    }
+
+    /// <summary>
+    /// Renders the configured <see cref="ComposeModelBuilder"/> (if any) to a unique temp
+    /// overlay file, appends it to the compose-files list and returns the owned temp-file
+    /// list (or null when no models were configured).
+    /// </summary>
+    private IReadOnlyList<string> RenderModelOverlay()
+    {
+      if (_models is null)
+        return null;
+
+      var path = Path.Combine(
+          Path.GetTempPath(),
+          $"fluentdocker-models-{Guid.NewGuid():N}.yml");
+      _models.WriteOverlay(path);
+      _composeFiles.Add(path);
+      return [path];
+    }
+
+    private static void DeleteTempFiles(IReadOnlyList<string> files)
+    {
+      if (files is null)
+        return;
+
+      foreach (var f in files)
+      {
+        try
+        {
+          if (!string.IsNullOrEmpty(f) && File.Exists(f))
+            File.Delete(f);
+        }
+        catch
+        {
+          // Best-effort cleanup on the build-failure path.
+        }
+      }
     }
   }
 }

@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using FluentDocker.Common;
 using FluentDocker.Drivers;
 using FluentDocker.Drivers.Docker.Api.Components;
 using FluentDocker.Drivers.Models.Connection;
@@ -29,6 +30,8 @@ namespace FluentDocker.Builders
     private string _backend;
     private IReadOnlyList<string> _runtimeFlags;
     private ModelRunnerEndpoint _endpoint;
+    private ModelApiConnectionConfig _config;
+    private string _apiKey;
     private bool _pullIfMissing;
     private IModelInferenceDriver _inferenceDriver;
     private string _inferenceDriverId;
@@ -71,9 +74,12 @@ namespace FluentDocker.Builders
     }
 
     /// <inheritdoc />
-    public IModelRunnerBuilder WithEndpoint(ModelRunnerEndpoint endpoint)
+    public IModelRunnerBuilder WithEndpoint(ModelRunnerEndpoint endpoint,
+        ModelApiConnectionConfig config = null, string apiKey = null)
     {
       _endpoint = endpoint;
+      _config = config;
+      _apiKey = apiKey;
       return this;
     }
 
@@ -122,7 +128,7 @@ namespace FluentDocker.Builders
       }
       else if (_endpoint != null)
       {
-        var connection = new ModelApiConnection(_endpoint, loggerFactory: _kernel.LoggerFactory);
+        var connection = new ModelApiConnection(_endpoint, _config, _kernel.LoggerFactory, _apiKey);
         inferenceOverride = new DockerApiModelInferenceDriver(connection, _endpoint);
         owned = connection;
       }
@@ -132,7 +138,7 @@ namespace FluentDocker.Builders
 
       try
       {
-        if (_pullIfMissing && _model != null)
+        if (_pullIfMissing && _model != null && !await IsModelPresentAsync(runner, _model, cancellationToken).ConfigureAwait(false))
           await runner.PullAsync(_model, null, cancellationToken).ConfigureAwait(false);
 
         if (_model != null && NeedsConfigure())
@@ -147,6 +153,24 @@ namespace FluentDocker.Builders
       }
 
       return runner;
+    }
+
+    /// <summary>
+    /// PullIfMissing semantics: probe the local store first (via <c>inspect</c>) and only
+    /// pull when the model is genuinely absent. A successful inspect means "present" (skip
+    /// the pull); a <see cref="ModelRunnerException"/> (e.g. not-found) means "absent" (pull).
+    /// </summary>
+    private static async Task<bool> IsModelPresentAsync(IModelRunner runner, ModelReference model, CancellationToken cancellationToken)
+    {
+      try
+      {
+        await runner.InspectAsync(model, cancellationToken).ConfigureAwait(false);
+        return true;
+      }
+      catch (ModelRunnerException)
+      {
+        return false;
+      }
     }
 
     private bool NeedsConfigure() => _contextSize.HasValue || _runtimeFlags is { Count: > 0 } || IsExplicitBackend(_backend);

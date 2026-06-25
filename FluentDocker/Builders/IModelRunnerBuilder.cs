@@ -1,6 +1,7 @@
 using System.Threading;
 using System.Threading.Tasks;
 using FluentDocker.Drivers;
+using FluentDocker.Drivers.Models.Connection;
 using FluentDocker.Model.Models;
 using FluentDocker.Services;
 
@@ -32,8 +33,15 @@ namespace FluentDocker.Builders
     /// <summary>Sets raw engine runtime flags (applied via configure at build).</summary>
     IModelRunnerBuilder WithRuntimeFlags(params string[] flags);
 
-    /// <summary>Overrides the inference endpoint.</summary>
-    IModelRunnerBuilder WithEndpoint(ModelRunnerEndpoint endpoint);
+    /// <summary>
+    /// Overrides the inference endpoint, optionally supplying transport configuration
+    /// (TLS via <see cref="ModelApiConnectionConfig.CertificatePath"/>/
+    /// <see cref="ModelApiConnectionConfig.VerifyTls"/>, timeouts) and a bearer
+    /// <paramref name="apiKey"/> for a remote/secured OpenAI-compatible endpoint. The
+    /// auto-built connection is owned (disposed) by the runner.
+    /// </summary>
+    IModelRunnerBuilder WithEndpoint(ModelRunnerEndpoint endpoint,
+        ModelApiConnectionConfig config = null, string apiKey = null);
 
     /// <summary>
     /// Routes inference to an explicit <see cref="IModelInferenceDriver"/> instead of

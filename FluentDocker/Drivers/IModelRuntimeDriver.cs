@@ -46,14 +46,20 @@ namespace FluentDocker.Drivers
         ModelReference model, ModelRunOptions options = null,
         CancellationToken cancellationToken = default);
 
-    /// <summary>Unloads a model (or all models).</summary>
+    /// <summary>Unloads a single model.</summary>
     /// <param name="context">The driver context.</param>
-    /// <param name="model">The model reference (ignored when <paramref name="all"/> is true).</param>
-    /// <param name="all">Whether to unload all models.</param>
+    /// <param name="model">The model reference.</param>
     /// <param name="cancellationToken">A token to cancel the operation.</param>
     /// <returns>A unit response.</returns>
     Task<CommandResponse<Unit>> UnloadAsync(DriverContext context,
-        ModelReference model, bool all = false,
+        ModelReference model,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>Unloads all currently-loaded models.</summary>
+    /// <param name="context">The driver context.</param>
+    /// <param name="cancellationToken">A token to cancel the operation.</param>
+    /// <returns>A unit response.</returns>
+    Task<CommandResponse<Unit>> UnloadAllAsync(DriverContext context,
         CancellationToken cancellationToken = default);
 
     /// <summary>Configures persistent per-model runtime settings.</summary>
@@ -81,6 +87,15 @@ namespace FluentDocker.Drivers
     /// <returns>A unit response.</returns>
     Task<CommandResponse<Unit>> InstallRunnerAsync(DriverContext context,
         ModelRunnerInstallOptions options = null,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>Uninstalls the runner (Docker Engine CE only).</summary>
+    /// <param name="context">The driver context.</param>
+    /// <param name="options">Uninstall options.</param>
+    /// <param name="cancellationToken">A token to cancel the operation.</param>
+    /// <returns>A unit response.</returns>
+    Task<CommandResponse<Unit>> UninstallRunnerAsync(DriverContext context,
+        ModelRunnerUninstallOptions options = null,
         CancellationToken cancellationToken = default);
   }
 }

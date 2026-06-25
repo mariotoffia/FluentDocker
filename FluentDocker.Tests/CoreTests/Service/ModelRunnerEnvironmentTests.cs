@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using System.Threading.Tasks;
 using FluentDocker.Drivers.Docker.Api.Components;
 using FluentDocker.Model.Models;
@@ -13,8 +14,16 @@ namespace FluentDocker.Tests.CoreTests.Service
   /// <summary>
   /// Unit tests for <see cref="ModelRunnerEnvironment"/> (env parsing → runner)
   /// and <see cref="GenericOpenAiModelRunner"/> (inference-only runner).
+  /// <para>
+  /// Several tests mutate process-wide environment variables (<c>LLM_URL</c>,
+  /// <c>LLM_MODEL</c>, <c>AI_MODEL_*</c>). They are placed in the non-parallel
+  /// <see cref="ModelEnvVarsCollection"/> so they never run concurrently with other
+  /// env-mutating model tests (which would race on the same global state); each test still
+  /// restores the variable(s) it set via <see cref="WithEnv"/>'s try/finally.
+  /// </para>
   /// </summary>
   [Trait("Category", "Unit")]
+  [Collection(ModelEnvVarsCollection.Name)]
   public class ModelRunnerEnvironmentTests
   {
     private static void WithEnv(string key, string value, Action body)
@@ -39,6 +48,7 @@ namespace FluentDocker.Tests.CoreTests.Service
         {
           var runner = ModelRunnerEnvironment.FromEnvironment();
           Assert.Equal(new Uri("http://10.0.0.5:12434"), runner.Endpoint);
+          // DefaultModel is still the Docker artifact reference (keeps :latest)...
           Assert.Equal("ai/smollm2:latest", runner.DefaultModel.ToString());
           Assert.True(runner.Capabilities.SupportsInference);
           Assert.False(runner.Capabilities.SupportsManagement);
@@ -103,6 +113,51 @@ namespace FluentDocker.Tests.CoreTests.Service
 
       var vector = await runner.EmbedAsync("hi", null, TestContext.Current.CancellationToken);
       Assert.NotEmpty(vector);
+    }
+
+    // ======================== H1: verbatim inference id ===================
+
+    [Fact]
+    public async Task GenericRunner_RemoteModelId_SentVerbatim_NotLatestTagged()
+    {
+      // Mirrors how ModelRunnerEnvironment composes a remote runner: the model id is a
+      // raw/remote OpenAI id preserved verbatim (defaultInferenceId), so a real
+      // OpenAI-compatible endpoint accepts it. Regression for H1: "gpt-4o-mini" must
+      // NOT become "gpt-4o-mini:latest" in the request body.
+      var conn = new MockModelApiConnection().SetupPost("/chat/completions", 200, DmrFixtures.Load("chat.json"));
+      await using var runner = new GenericOpenAiModelRunner(
+          ModelRunnerEndpoint.HostTcp(), defaultModel: null,
+          new DockerApiModelInferenceDriver(conn, ModelRunnerEndpoint.HostTcp()),
+          conn.PingAsync, conn, defaultInferenceId: new InferenceModelId("gpt-4o-mini"));
+
+      await runner.ChatAsync("hi", TestContext.Current.CancellationToken);
+
+      var body = conn.GetRequests().Single(r => r.Path.EndsWith("/chat/completions")).Body;
+      Assert.Contains("\"model\":\"gpt-4o-mini\"", body);
+      Assert.DoesNotContain("gpt-4o-mini:latest", body);
+    }
+
+    [Fact]
+    public async Task GenericRunner_DockerRefBareName_InfersWithoutLatest()
+    {
+      // A bare Docker ref ("ai/smollm2") keeps :latest as a ModelReference, but the
+      // inference body must carry the bare id (no :latest).
+      var conn = new MockModelApiConnection().SetupPost("/chat/completions", 200, DmrFixtures.Load("chat.json"));
+      var reference = ModelReference.Parse("ai/smollm2");
+      await using var runner = new GenericOpenAiModelRunner(
+          ModelRunnerEndpoint.HostTcp(), reference,
+          new DockerApiModelInferenceDriver(conn, ModelRunnerEndpoint.HostTcp()), conn.PingAsync, conn);
+
+      await runner.ChatAsync("hi", TestContext.Current.CancellationToken);
+
+      // Management form still serializes with :latest...
+      Assert.Equal("ai/smollm2:latest", reference.ToString());
+      Assert.Equal("ai/smollm2:latest", runner.DefaultModel.ToString());
+
+      // ...but the inference body uses the bare id.
+      var body = conn.GetRequests().Single(r => r.Path.EndsWith("/chat/completions")).Body;
+      Assert.Contains("\"model\":\"ai/smollm2\"", body);
+      Assert.DoesNotContain("ai/smollm2:latest", body);
     }
   }
 }

@@ -7,6 +7,8 @@ using System.Net.Sockets;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
+using FluentDocker.Common;
+using FluentDocker.Model.Drivers;
 using FluentDocker.Model.Models;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -34,6 +36,11 @@ namespace FluentDocker.Drivers.Models.Connection
     // streaming (PostStreamAsync) is intentionally exempt and relies on the caller's
     // token, since inference/SSE can legitimately run for a long time.
     private readonly TimeSpan _requestTimeout;
+    // The path PingAsync probes for reachability — the OpenAI model-list route on the
+    // endpoint's RESOLVED base path (e.g. /engines/llama.cpp/v1/models, or whatever a
+    // Raw(...) base resolves to). Probing "/" can false-negative for endpoints whose only
+    // served surface is under /engines/.../v1 (or an OpenAI server exposing only /v1/*).
+    private readonly string _pingPath;
 
     /// <summary>
     /// Creates a connection from a resolved endpoint (TCP or unix socket).
@@ -61,6 +68,9 @@ namespace FluentDocker.Drivers.Models.Connection
         Timeout = Timeout.InfiniteTimeSpan
       };
       _requestTimeout = Normalize(config.RequestTimeout);
+      // Probe the OpenAI model-list route on the endpoint's resolved base path rather than
+      // "/" so a runner that only serves /engines/.../v1/* is still reported reachable.
+      _pingPath = endpoint.EngineV1Path("/models");
 
       if (!string.IsNullOrEmpty(apiKey))
         _httpClient.DefaultRequestHeaders.Authorization =
@@ -92,6 +102,9 @@ namespace FluentDocker.Drivers.Models.Connection
         Timeout = Timeout.InfiniteTimeSpan
       };
       _requestTimeout = Normalize(requestTimeout);
+      // No endpoint is supplied via this overload, so derive the model-list probe path from
+      // the base address's own path (e.g. http://host/engines/v1 -> /engines/v1/models).
+      _pingPath = baseAddress.AbsolutePath.TrimEnd('/') + "/models";
     }
 
     /// <summary>Treats non-positive timeouts (incl. <c>default</c>) as infinite.</summary>
@@ -119,7 +132,17 @@ namespace FluentDocker.Drivers.Models.Connection
       // Streaming is exempt from the request timeout (SSE can run for a long time) —
       // we use the caller's token directly.
       var request = new HttpRequestMessage(HttpMethod.Post, path) { Content = content };
-      var response = await _httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, ct).ConfigureAwait(false);
+      HttpResponseMessage response;
+      try
+      {
+        response = await _httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, ct).ConfigureAwait(false);
+      }
+      catch (Exception ex) when (IsTransportFailure(ex))
+      {
+        // A connection-refused / DNS / socket failure opening the stream is "unreachable".
+        // (An HTTP error STATUS is delivered as a response below, not thrown here.)
+        throw EndpointUnreachable(ex);
+      }
       if (!response.IsSuccessStatusCode)
       {
         // Surface the status code AND a bounded error body so the inference driver can
@@ -159,20 +182,42 @@ namespace FluentDocker.Drivers.Models.Connection
     }
 
     /// <summary>
-    /// Reads a non-success response body, truncated to a sane bound for use in an
-    /// exception message. Caller cancellation propagates; any other read failure is
-    /// swallowed (it must not mask the underlying HTTP failure).
+    /// Hard cap on how many bytes of a non-success response body are read into memory
+    /// before building an exception message. A hostile or misbehaving server could send an
+    /// arbitrarily large error body; bounding the READ (not just the final string) keeps
+    /// error handling allocation-safe.
+    /// </summary>
+    private const int MaxErrorBodyBytes = 64 * 1024;
+
+    /// <summary>
+    /// Maximum number of characters from the body that are kept in the exception message.
+    /// Anything past this is truncated and replaced with <see cref="ErrorBodyTruncationMarker"/>.
+    /// </summary>
+    private const int MaxErrorBodyChars = 512;
+
+    /// <summary>Appended to a truncated error body so it is visibly incomplete.</summary>
+    private const string ErrorBodyTruncationMarker = "…";
+
+    /// <summary>
+    /// Reads a non-success response body, bounded both in bytes read (<see cref="MaxErrorBodyBytes"/>)
+    /// and in characters retained (<see cref="MaxErrorBodyChars"/>), for use in an exception
+    /// message. Caller cancellation propagates; any other read failure is swallowed (it must not
+    /// mask the underlying HTTP failure).
     /// </summary>
     private static async Task<string> ReadBoundedErrorBodyAsync(HttpResponseMessage response, CancellationToken ct)
     {
-      const int maxBodyChars = 512;
       try
       {
-        var body = await response.Content.ReadAsStringAsync(ct).ConfigureAwait(false);
+        var body = await ReadBoundedBodyTextAsync(response, ct).ConfigureAwait(false);
         if (string.IsNullOrWhiteSpace(body))
           return null;
 
-        return body.Length <= maxBodyChars ? body : body[..maxBodyChars];
+        if (body.Length <= MaxErrorBodyChars)
+          return body;
+
+        // Keep the marker WITHIN the cap so the final message length never exceeds it.
+        var keep = MaxErrorBodyChars - ErrorBodyTruncationMarker.Length;
+        return body[..keep] + ErrorBodyTruncationMarker;
       }
       catch (OperationCanceledException) when (ct.IsCancellationRequested)
       {
@@ -182,6 +227,26 @@ namespace FluentDocker.Drivers.Models.Connection
       {
         return null;
       }
+    }
+
+    /// <summary>
+    /// Reads at most <see cref="MaxErrorBodyBytes"/> bytes of the response body and decodes
+    /// them as UTF-8, so a pathological error body cannot force unbounded buffering.
+    /// </summary>
+    private static async Task<string> ReadBoundedBodyTextAsync(HttpResponseMessage response, CancellationToken ct)
+    {
+      await using var stream = await response.Content.ReadAsStreamAsync(ct).ConfigureAwait(false);
+      var buffer = new byte[MaxErrorBodyBytes];
+      var total = 0;
+      while (total < buffer.Length)
+      {
+        var read = await stream.ReadAsync(buffer.AsMemory(total, buffer.Length - total), ct).ConfigureAwait(false);
+        if (read == 0)
+          break;
+        total += read;
+      }
+
+      return total == 0 ? null : System.Text.Encoding.UTF8.GetString(buffer, 0, total);
     }
 
     /// <inheritdoc />
@@ -198,8 +263,12 @@ namespace FluentDocker.Drivers.Models.Connection
 
       try
       {
-        using var response = await _httpClient.GetAsync("/", token).ConfigureAwait(false);
-        return response.IsSuccessStatusCode;
+        // Probe the OpenAI model-list route (not "/") so an endpoint that only serves
+        // /engines/.../v1/* is not false-negatived. ANY HTTP response — including 4xx/5xx —
+        // proves the endpoint is reachable; only a transport-level failure (connection
+        // refused / DNS / socket / timeout) means unreachable.
+        using var response = await _httpClient.GetAsync(_pingPath, token).ConfigureAwait(false);
+        return true;
       }
       catch (OperationCanceledException) when (ct.IsCancellationRequested)
       {
@@ -208,7 +277,8 @@ namespace FluentDocker.Drivers.Models.Connection
       }
       catch (Exception ex)
       {
-        // Includes a ping-timeout (the linked token fired but the caller's did not).
+        // Transport failure or a ping-timeout (the linked token fired but the caller's did
+        // not) — the endpoint is unreachable.
         _logger.LogDebug(ex, "Model API ping failed");
         return false;
       }
@@ -223,7 +293,16 @@ namespace FluentDocker.Drivers.Models.Connection
         Func<CancellationToken, Task<HttpResponseMessage>> send, CancellationToken ct)
     {
       if (_requestTimeout == Timeout.InfiniteTimeSpan)
-        return await send(ct).ConfigureAwait(false);
+      {
+        try
+        {
+          return await send(ct).ConfigureAwait(false);
+        }
+        catch (Exception ex) when (IsTransportFailure(ex))
+        {
+          throw EndpointUnreachable(ex);
+        }
+      }
 
       using var linked = CancellationTokenSource.CreateLinkedTokenSource(ct);
       linked.CancelAfter(_requestTimeout);
@@ -235,7 +314,33 @@ namespace FluentDocker.Drivers.Models.Connection
       {
         throw new TimeoutException($"The model API request exceeded the configured request timeout of {_requestTimeout}.");
       }
+      catch (Exception ex) when (IsTransportFailure(ex))
+      {
+        // A connection-refused / DNS / socket failure on a non-streaming send is "the
+        // endpoint is unreachable", not a generic request failure. The HttpClient verb
+        // methods (Get/Post/Delete) never throw on an HTTP error STATUS — they return the
+        // response — so any HttpRequestException/SocketException reaching here is transport.
+        throw EndpointUnreachable(ex);
+      }
     }
+
+    /// <summary>
+    /// True when <paramref name="ex"/> is a transport-level connection failure (connection
+    /// refused / DNS / socket) rather than an HTTP error response. An
+    /// <see cref="HttpRequestException"/> that carries an HTTP <see cref="HttpRequestException.StatusCode"/>
+    /// is a real response (handled by the caller), so it is NOT treated as a transport failure.
+    /// </summary>
+    private static bool IsTransportFailure(Exception ex) => ex switch
+    {
+      HttpRequestException { StatusCode: not null } => false,
+      HttpRequestException => true,
+      SocketException => true,
+      _ => false
+    };
+
+    private static ModelRunnerException EndpointUnreachable(Exception inner) =>
+        new($"The model runner endpoint is unreachable: {inner.Message}",
+            ErrorCodes.ModelInference.EndpointUnreachable, inner);
 
     /// <inheritdoc />
     public ValueTask DisposeAsync()

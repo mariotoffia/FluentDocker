@@ -49,12 +49,36 @@ namespace FluentDocker.Builders
     /// Begins building a managed single-model <see cref="Services.IModelService"/>.
     /// </summary>
     /// <param name="builder">The driver-scoped builder.</param>
+    /// <param name="reference">The model reference string.</param>
+    /// <returns>A model service builder.</returns>
+    /// <exception cref="InterfaceNotSupportedException">The driver does not support model running.</exception>
+    public static IModelServiceBuilder UseModel(this IDriverScopedBuilder builder, string reference) =>
+        UseModel(builder, ModelReference.Parse(reference));
+
+    /// <summary>
+    /// Begins building a managed single-model <see cref="Services.IModelService"/> from a
+    /// pre-built <see cref="ModelReference"/>.
+    /// </summary>
+    /// <param name="builder">The driver-scoped builder.</param>
     /// <param name="reference">The model reference.</param>
     /// <returns>A model service builder.</returns>
-    public static IModelServiceBuilder UseModel(this IDriverScopedBuilder builder, string reference) =>
-        new ModelServiceBuilder(builder.Kernel, builder.DriverId).ForModel(ModelReference.Parse(reference));
+    /// <exception cref="InterfaceNotSupportedException">The driver does not support model running.</exception>
+    public static IModelServiceBuilder UseModel(this IDriverScopedBuilder builder, ModelReference reference)
+    {
+      // Shared capability guard — fail FAST (consistent with UseModelRunner) rather than
+      // late at build time when the model ports would fail to resolve.
+      if (!HasModelSupport(builder))
+        throw new InterfaceNotSupportedException(builder.DriverId, nameof(IModelServiceBuilder));
 
-    private static bool HasModelSupport(IDriverScopedBuilder builder) =>
+      return new ModelServiceBuilder(builder.Kernel, builder.DriverId).ForModel(reference);
+    }
+
+    /// <summary>
+    /// The single shared model-capability guard used by every model entry point
+    /// (UseModelRunner / TryUseModelRunner / UseModel here, and the top-level
+    /// <see cref="Builder"/> shortcuts) so support is validated consistently / fail-fast.
+    /// </summary>
+    internal static bool HasModelSupport(IDriverScopedBuilder builder) =>
         builder.TryDriver<IModelManagementDriver>() != null
         || builder.TryDriver<IModelRuntimeDriver>() != null
         || builder.TryDriver<IModelInferenceDriver>() != null;

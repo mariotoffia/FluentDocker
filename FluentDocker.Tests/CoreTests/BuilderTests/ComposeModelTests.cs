@@ -2,6 +2,7 @@ using System;
 using System.Linq;
 using FluentDocker.Builders.Compose;
 using FluentDocker.Services;
+using FluentDocker.Tests.CoreTests.Service;
 using Xunit;
 
 namespace FluentDocker.Tests.CoreTests.BuilderTests
@@ -11,8 +12,14 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
   /// env-variable binding back to <see cref="ModelRunnerEnvironment"/> (K3).
   /// The emitter produces a Compose overlay file (top-level <c>models:</c> + per-service
   /// <c>models:</c> bindings) that merges with a user's compose file via <c>-f</c>.
+  /// <para>
+  /// The K3 binding test mutates the configured endpoint/model environment variables; this
+  /// class joins the non-parallel <see cref="ModelEnvVarsCollection"/> so it never races
+  /// other env-mutating model tests on shared process state.
+  /// </para>
   /// </summary>
   [Trait("Category", "Unit")]
+  [Collection(ModelEnvVarsCollection.Name)]
   public class ComposeModelTests
   {
     private static ComposeModelBuilder Sample()
@@ -83,6 +90,100 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
       Assert.Equal("llm", longBinding.ModelKey);
       Assert.Equal("AI_MODEL_URL", longBinding.EndpointVar);
       Assert.Equal("AI_MODEL_NAME", longBinding.ModelVar);
+    }
+
+    // ---- NEW7: parse flushes pending long-form entries ----
+
+    [Fact]
+    public void Parse_LongFormBinding_FollowedBySiblingServiceKey()
+    {
+      // A long-form binding immediately followed by a sibling service-level key
+      // (e.g. image:) must still flush the pending long-form entry.
+      const string compose =
+          "services:\n" +
+          "  api:\n" +
+          "    models:\n" +
+          "      llm:\n" +
+          "        endpoint_var: AI_URL\n" +
+          "        model_var: AI_MODEL\n" +
+          "    image: my-app:latest\n" +
+          "models:\n" +
+          "  llm:\n" +
+          "    model: ai/qwen3\n";
+
+      var parsed = ComposeModelBuilder.Parse(compose);
+
+      var binding = Assert.Single(parsed.Bindings);
+      Assert.Equal("api", binding.Service);
+      Assert.Equal("llm", binding.ModelKey);
+      Assert.Equal("AI_URL", binding.EndpointVar);
+      Assert.Equal("AI_MODEL", binding.ModelVar);
+    }
+
+    [Fact]
+    public void Parse_MixedShortAndLongFormBindings_OnSameService()
+    {
+      // A short-form item interleaved after a pending long-form entry must flush the
+      // long-form first so neither binding is lost, reordered or duplicated.
+      const string compose =
+          "services:\n" +
+          "  app:\n" +
+          "    models:\n" +
+          "      first:\n" +
+          "        endpoint_var: FIRST_URL\n" +
+          "      - second\n" +
+          "      third:\n" +
+          "        model_var: THIRD_MODEL\n" +
+          "models:\n" +
+          "  first:\n" +
+          "    model: ai/a\n";
+
+      var parsed = ComposeModelBuilder.Parse(compose);
+
+      Assert.Equal(3, parsed.Bindings.Count);
+
+      // Order must be preserved: the pending long-form 'first' has to flush BEFORE the
+      // short-form 'second' is emitted, otherwise 'second' jumps ahead of 'first'.
+      Assert.Equal(new[] { "first", "second", "third" },
+          parsed.Bindings.Select(b => b.ModelKey).ToArray());
+
+      var first = parsed.Bindings.Single(b => b.ModelKey == "first");
+      Assert.Equal("app", first.Service);
+      Assert.Equal("FIRST_URL", first.EndpointVar);
+      Assert.Null(first.ModelVar);
+
+      var second = parsed.Bindings.Single(b => b.ModelKey == "second");
+      Assert.Equal("app", second.Service);
+      Assert.Null(second.EndpointVar);
+      Assert.Null(second.ModelVar);
+
+      var third = parsed.Bindings.Single(b => b.ModelKey == "third");
+      Assert.Equal("app", third.Service);
+      Assert.Null(third.EndpointVar);
+      Assert.Equal("THIRD_MODEL", third.ModelVar);
+    }
+
+    [Fact]
+    public void Parse_TrailingLongFormBinding_AtEndOfInput()
+    {
+      // A long-form binding that is the very last thing in the document must be flushed
+      // by the end-of-input flush (this already worked) AND not be dropped by an
+      // intervening exit branch.
+      const string compose =
+          "services:\n" +
+          "  api:\n" +
+          "    models:\n" +
+          "      llm:\n" +
+          "        endpoint_var: AI_URL\n" +
+          "        model_var: AI_MODEL\n";
+
+      var parsed = ComposeModelBuilder.Parse(compose);
+
+      var binding = Assert.Single(parsed.Bindings);
+      Assert.Equal("api", binding.Service);
+      Assert.Equal("llm", binding.ModelKey);
+      Assert.Equal("AI_URL", binding.EndpointVar);
+      Assert.Equal("AI_MODEL", binding.ModelVar);
     }
 
     [Fact]

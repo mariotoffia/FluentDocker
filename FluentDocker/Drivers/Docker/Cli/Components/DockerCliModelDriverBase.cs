@@ -33,5 +33,17 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     /// <returns>An async stream of stdout lines.</returns>
     protected virtual IAsyncEnumerable<string> RunStreamingAsync(string arguments, CancellationToken cancellationToken) =>
         ExecuteStreamingCommandAsync(arguments, cancellationToken);
+
+    /// <summary>
+    /// Runs a line-streamed <c>docker model …</c> command that emits progress on
+    /// <b>stderr</b> (e.g. <c>docker model pull</c>), interleaving stdout and stderr
+    /// into one sequence (overridable seam). Kept distinct from
+    /// <see cref="RunStreamingAsync"/> so stdout-only consumers (logs) are unaffected.
+    /// </summary>
+    /// <param name="arguments">The full argument string.</param>
+    /// <param name="cancellationToken">A token to cancel the operation.</param>
+    /// <returns>An async stream of stdout and stderr lines, in arrival order.</returns>
+    protected virtual IAsyncEnumerable<string> RunStreamingWithProgressAsync(string arguments, CancellationToken cancellationToken) =>
+        ExecuteStreamingCommandWithProgressAsync(arguments, cancellationToken);
   }
 }

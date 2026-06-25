@@ -114,20 +114,36 @@ namespace FluentDocker.Builders
     public IModelRunnerBuilder UseModelRunner()
     {
       ValidateScope();
-      return new ModelRunnerBuilder(_currentKernel, _currentDriverId);
+      var builder = new ModelRunnerBuilder(_currentKernel, _currentDriverId);
+      // Shared fail-fast capability guard (same one the driver-scoped extensions use).
+      if (!ModelDriverScopedBuilderExtensions.HasModelSupport(builder))
+        throw new Common.InterfaceNotSupportedException(_currentDriverId, nameof(IModelRunnerBuilder));
+      return builder;
     }
 
     /// <summary>
     /// Begins building a managed single-model <see cref="Services.IModelService"/> in
     /// the current scope.
     /// </summary>
+    /// <param name="reference">The model reference string.</param>
+    /// <returns>A model service builder.</returns>
+    public IModelServiceBuilder UseModel(string reference) =>
+        UseModel(Model.Models.ModelReference.Parse(reference));
+
+    /// <summary>
+    /// Begins building a managed single-model <see cref="Services.IModelService"/> in
+    /// the current scope from a pre-built <see cref="Model.Models.ModelReference"/>.
+    /// </summary>
     /// <param name="reference">The model reference.</param>
     /// <returns>A model service builder.</returns>
-    public IModelServiceBuilder UseModel(string reference)
+    public IModelServiceBuilder UseModel(Model.Models.ModelReference reference)
     {
       ValidateScope();
-      return new ModelServiceBuilder(_currentKernel, _currentDriverId)
-          .ForModel(Model.Models.ModelReference.Parse(reference));
+      var serviceBuilder = new ModelServiceBuilder(_currentKernel, _currentDriverId);
+      // Shared fail-fast capability guard via a throwaway scoped builder.
+      if (!ModelDriverScopedBuilderExtensions.HasModelSupport(new ModelRunnerBuilder(_currentKernel, _currentDriverId)))
+        throw new Common.InterfaceNotSupportedException(_currentDriverId, nameof(IModelServiceBuilder));
+      return serviceBuilder.ForModel(reference);
     }
 
     /// <summary>

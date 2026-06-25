@@ -66,11 +66,25 @@ namespace FluentDocker.Tests.CoreTests.Service
     [Fact]
     public async Task Store_RemoveAsync_DelegatesToDriver()
     {
-      var (kernel, runner) = await BuildAsync(p => p.SetupModelRemove());
+      MockDriverPack capturedPack = null;
+      var (kernel, runner) = await BuildAsync(p =>
+      {
+        p.SetupModelRemove();
+        capturedPack = p;
+      });
       await using (kernel)
       {
         await runner.RemoveAsync(ModelReference.Parse("ai/smollm2"), force: true, TestContext.Current.CancellationToken);
-        runner.GetType(); // no throw == success
+
+        // The service must DELEGATE to the management driver with the parsed reference and
+        // the requested force flag — assert the actual interaction, not merely "no throw".
+        capturedPack.ModelManagementDriver.Verify(
+            d => d.RemoveAsync(
+                It.IsAny<DriverContext>(),
+                It.Is<ModelReference>(r => r.Name == "smollm2"),
+                true,
+                It.IsAny<CancellationToken>()),
+            Times.Once);
       }
     }
 

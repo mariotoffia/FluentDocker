@@ -208,5 +208,17 @@ namespace FluentDocker.Builders
     /// <param name="connect">True to attach to an existing project; false for normal up behavior.</param>
     /// <returns>The builder for fluent chaining.</returns>
     IComposeBuilder ConnectToExisting(bool connect = true);
+
+    /// <summary>
+    /// Adds a first-class Compose <c>models:</c> overlay (Docker Model Runner). The
+    /// configured <see cref="Compose.ComposeModelBuilder"/> is rendered to a managed
+    /// temporary overlay file that is appended to the compose-files list (so Compose
+    /// merges it) and is automatically deleted when the resulting
+    /// <see cref="Services.IComposeService"/> is torn down / disposed. This removes the
+    /// need to hand-write, pass and delete the overlay file manually.
+    /// </summary>
+    /// <param name="configure">Configures the <c>models:</c> map and per-service bindings.</param>
+    /// <returns>The builder for fluent chaining.</returns>
+    IComposeBuilder WithModels(System.Action<Compose.ComposeModelBuilder> configure);
   }
 }

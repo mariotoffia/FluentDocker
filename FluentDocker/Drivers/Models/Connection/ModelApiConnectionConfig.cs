@@ -7,9 +7,6 @@ namespace FluentDocker.Drivers.Models.Connection
   /// </summary>
   public sealed class ModelApiConnectionConfig
   {
-    /// <summary>The host URI (<c>tcp://</c>, <c>http://</c>, <c>https://</c>, <c>unix://</c>, <c>npipe://</c>).</summary>
-    public string Host { get; set; }
-
     /// <summary>Directory containing <c>ca.pem</c>/<c>cert.pem</c>/<c>key.pem</c> for TLS, if any.</summary>
     public string CertificatePath { get; set; }
 

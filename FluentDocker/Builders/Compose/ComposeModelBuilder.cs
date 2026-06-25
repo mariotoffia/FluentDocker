@@ -306,6 +306,9 @@ namespace FluentDocker.Builders.Compose
         }
         else if (inModels && indent == 6 && line.StartsWith("- ", StringComparison.Ordinal))
         {
+          // A short-form item starts a new binding; flush any pending long-form entry
+          // first so it is emitted before this one (preserve order, no drop/duplicate).
+          FlushMapEntry();
           builder._bindings.Add(new ComposeServiceModelBinding { Service = service, ModelKey = line[2..].Trim() });
         }
         else if (inModels && indent == 6 && line.EndsWith(':'))
@@ -323,9 +326,13 @@ namespace FluentDocker.Builders.Compose
         }
         else if (indent <= 4)
         {
-          // left the models: block (e.g. another service-level key)
+          // left the models: block (e.g. another service-level key) — flush any pending
+          // long-form entry before clearing state so the last binding is not dropped.
           if (line != "models:")
+          {
+            FlushMapEntry();
             inModels = false;
+          }
         }
       }
 

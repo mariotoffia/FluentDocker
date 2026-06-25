@@ -109,8 +109,8 @@ namespace FluentDocker.Tests.Integration
         await using ((IAsyncDisposable)cleanup)
         {
           await SafeAsync(() => cleanup.ConfigureAsync(ModelReference.Parse(TestModel), new ModelConfigureOptions { ContextSize = -1 }, CancellationToken.None));
-          await SafeAsync(() => cleanup.UnloadAsync(ModelReference.Parse(TestModel), false, CancellationToken.None));
-          await SafeAsync(() => cleanup.UnloadAsync(ModelReference.Parse(EmbedModel), false, CancellationToken.None));
+          await SafeAsync(() => cleanup.UnloadAsync(ModelReference.Parse(TestModel), CancellationToken.None));
+          await SafeAsync(() => cleanup.UnloadAsync(ModelReference.Parse(EmbedModel), CancellationToken.None));
         }
       }
 
@@ -131,24 +131,66 @@ namespace FluentDocker.Tests.Integration
     }
 
     /// <summary>
-    /// Re-throws as an xUnit dynamic-skip when the failure is the inference ENGINE
-    /// crashing (llama.cpp segfaulting / failing to become ready) rather than a
-    /// FluentDocker defect. A broken runtime is a host/environment condition — like DMR
-    /// being absent — so the inference tests skip cleanly instead of reporting a false
-    /// regression. Genuine library errors are re-thrown unchanged and still fail.
+    /// Best-effort re-pull of a model that a destructive test removed, retried a few times so
+    /// a single transient network failure does not leave the host store missing the shared,
+    /// pinned model. Each attempt targets the SAME pinned <paramref name="reference"/> the test
+    /// removed; it stops on the first success and never throws (restore is best-effort).
+    /// </summary>
+    private static async Task RepullWithRetryAsync(IModelRunner runner, ModelReference reference, CancellationToken ct)
+    {
+      const int maxAttempts = 3;
+      for (var attempt = 1; attempt <= maxAttempts; attempt++)
+      {
+        try
+        {
+          await runner.PullAsync(reference, null, ct);
+          return; // restored
+        }
+        catch when (attempt < maxAttempts && !ct.IsCancellationRequested)
+        {
+          // transient failure — retry
+        }
+        catch
+        {
+          // final attempt failed (or cancelled): give up, best-effort.
+          return;
+        }
+      }
+    }
+
+    /// <summary>
+    /// Re-throws as an xUnit dynamic-skip ONLY for the one KNOWN, host-side DMR v1.2.1
+    /// engine defect: the bundled llama.cpp crashes during the auto
+    /// "fit-params-to-device-memory" step with <c>GGML_ASSERT(n_outputs &gt;= 1)</c> in
+    /// <c>llama_context::graph_reserve</c> (<c>common_params_fit_impl</c> →
+    /// <c>server_context_impl::load_model</c>) when a chat model is loaded without an explicit
+    /// context size. The inference tests already pin <c>contextSize: 4096</c> to dodge that
+    /// probe, so this is a narrow safety net for hosts where the crash still surfaces — it is
+    /// NOT a general "the engine looked unhappy" escape hatch.
+    /// <para>
+    /// The match is deliberately restricted to that crash's distinctive signatures
+    /// (<c>GGML_ASSERT</c>, <c>n_outputs</c>, <c>graph_reserve</c>, the <c>-fit off</c> hint).
+    /// Broad substrings like "llama.cpp" or "unable to load runner" were intentionally REMOVED:
+    /// they would silently skip on genuine FluentDocker regressions (any error that merely
+    /// names the engine or a generic load failure), turning a real bug into a green CI run.
+    /// Anything that is not this specific defect is re-thrown unchanged and still FAILS.
+    /// </para>
     /// </summary>
     private static void SkipIfRuntimeUnstable(Exception ex)
     {
       var message = ex.Message ?? string.Empty;
-      var unstable =
-          message.Contains("llama.cpp", StringComparison.OrdinalIgnoreCase) ||
-          message.Contains("unable to load runner", StringComparison.OrdinalIgnoreCase) ||
-          message.Contains("waiting for runner to be ready", StringComparison.OrdinalIgnoreCase) ||
-          message.Contains("terminated unexpectedly", StringComparison.OrdinalIgnoreCase);
+      // The known GGML_ASSERT(n_outputs >= 1) auto-fit crash. Require a signature that is
+      // specific to THAT engine defect, not merely any mention of the engine.
+      var isKnownAutoFitCrash =
+          message.Contains("GGML_ASSERT", StringComparison.OrdinalIgnoreCase) ||
+          message.Contains("n_outputs", StringComparison.OrdinalIgnoreCase) ||
+          message.Contains("graph_reserve", StringComparison.OrdinalIgnoreCase) ||
+          message.Contains("common_params_fit", StringComparison.OrdinalIgnoreCase) ||
+          message.Contains("-fit off", StringComparison.OrdinalIgnoreCase);
 
-      if (unstable)
+      if (isKnownAutoFitCrash)
         throw SkipOrFail(
-            "Inference runtime is unstable on this host (engine failed to load the model): " + message);
+            "Known DMR v1.2.1 engine defect (GGML_ASSERT(n_outputs>=1) auto-fit crash) on this host: " + message);
     }
 
     private IModelRunner BuildRunner(string model, bool pullIfMissing = false, int? contextSize = null)
@@ -223,10 +265,21 @@ namespace FluentDocker.Tests.Integration
       finally
       {
         // Guarantee the model is unloaded even if an assertion above fails.
-        await runner.UnloadAsync(reference, false, ct);
+        await runner.UnloadAsync(reference, ct);
       }
     }
 
+    /// <summary>
+    /// DESTRUCTIVE — MUTATES THE LOCAL DMR MODEL STORE. To prove <c>PullIfMissing()</c> does
+    /// real work this test <b>removes <see cref="TestModel"/> (ai/smollm2:latest) from the
+    /// developer's / CI machine's local store</b>, then auto-pulls it back. The model tag is
+    /// PINNED to an explicit <c>:latest</c> (see <see cref="TestModel"/>) so the removed and
+    /// re-pulled artifact is exactly the same tag — the test never deletes one tag and
+    /// re-pulls another. The re-pull runs in a <c>finally</c> with bounded retries so the
+    /// store is restored to its "model present" precondition even if an assertion fails; a
+    /// transient network failure during restore is the only case that can leave the model
+    /// absent (re-running any test re-seeds it via the fixture).
+    /// </summary>
     [Fact]
     public async Task Build_WithPullIfMissing_AutoPullsModel()
     {
@@ -240,7 +293,7 @@ namespace FluentDocker.Tests.Integration
       // restore the fixture's "model present" precondition for whichever test runs next.
       await using (var admin = BuildRunner(TestModel))
       {
-        await SafeAsync(() => admin.UnloadAsync(reference, false, ct)); // a loaded model can't be removed
+        await SafeAsync(() => admin.UnloadAsync(reference, ct)); // a loaded model can't be removed
         await admin.RemoveAsync(reference, force: true, ct);
         Assert.DoesNotContain(await admin.ListAsync(ct), m => m.Reference.Name == "smollm2");
       }
@@ -256,9 +309,12 @@ namespace FluentDocker.Tests.Integration
       }
       finally
       {
-        // Restore the fixture invariant regardless of outcome.
+        // Restore the fixture invariant regardless of outcome. This test DELETED a shared,
+        // pinned model from the host store, so the re-pull is best-effort BUT retried a few
+        // times to ride out a transient network hiccup rather than leaving the developer's
+        // store missing ai/smollm2:latest after a single failed attempt.
         await using var restore = BuildRunner(TestModel);
-        await SafeAsync(() => restore.PullAsync(reference, null, ct));
+        await RepullWithRetryAsync(restore, reference, ct);
       }
     }
 

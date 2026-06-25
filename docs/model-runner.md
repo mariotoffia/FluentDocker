@@ -56,9 +56,11 @@ var reply = await runner.ChatAsync("Reply with a single word.");
 await foreach (var token in runner.ChatStreamAsync("Count: one two three"))
     Console.Write(token);
 
-// Embeddings
-var vector = await runner.EmbedAsync("hello world",
-    model: FluentDocker.Model.Models.ModelReference.Parse("ai/embeddinggemma"));
+// Embeddings — note the embedding model is a *different* artifact than the chat
+// default and must be present first. Pull it (once) before embedding:
+var embedModel = FluentDocker.Model.Models.ModelReference.Parse("ai/embeddinggemma");
+await runner.PullAsync(embedModel);            // idempotent; or: docker model pull ai/embeddinggemma
+var vector = await runner.EmbedAsync("hello world", model: embedModel);
 ```
 
 By default `UseModelRunner()` uses **CLI** for management/runtime and **HTTP**
@@ -101,6 +103,43 @@ var flags = new LlamaCppRuntimeFlags { Temperature = 0.7, TopP = 0.9, TopK = 40 
 await runner.ConfigureAsync(model, new ModelConfigureOptions { RuntimeFlags = flags.ToArgs() });
 ```
 
+## Completions
+
+Beyond the ergonomic `ChatAsync` / `ChatStreamAsync` helpers, the runner exposes the
+OpenAI-compatible **text completion** surface directly. It is DTO-based: build a
+`CompletionRequest` (set `Model` and `Prompt`) and read the generated text off
+`CompletionResponse.Choices[i].Text`:
+
+```csharp
+using FluentDocker.Model.Models.Inference;  // CompletionRequest, CompletionResponse, CompletionChunk
+
+// One-shot text completion
+var response = await runner.CompletionAsync(new CompletionRequest
+{
+    Model = "ai/smollm2",
+    Prompt = "Complete this sentence: Docker Model Runner is",
+    MaxTokens = 64,
+    Temperature = 0.7
+});
+
+Console.WriteLine(response.Choices[0].Text);
+
+// Streaming — each CompletionChunk carries an incremental Choices[i].Text delta
+await foreach (var chunk in runner.CompletionStreamAsync(new CompletionRequest
+{
+    Model = "ai/smollm2",
+    Prompt = "Count to five:"
+}))
+{
+    Console.Write(chunk.Choices[0].Text);
+}
+```
+
+`CompletionAsync` returns a `CompletionResponse` (`Id`, `Object`, `Created`, `Model`,
+`Choices`, `Usage`); `CompletionStreamAsync` yields `CompletionChunk`s (`Id`, `Model`,
+`Choices`) mid-enumeration. There is no string-based completion overload — completion
+is DTO-only so the full request (stop sequences, seed, sampling) is expressible.
+
 ## A model as a managed service
 
 `IModelService` is an `IServiceAsync` — it participates in the same state machine
@@ -139,6 +178,13 @@ new Builder()
 `localhost` is rejected for container consumers (it would resolve to the container
 itself); the default is the container-internal DNS `model-runner.docker.internal`.
 
+> **Host-exposure note (security).** `WithModel(...)` deliberately gives the container
+> stable reachability to the host's model runner (a host-gateway alias on Docker
+> Engine; internal DNS on Desktop). That means any process inside a model-bound
+> container can reach — and send arbitrary inference requests to — your local runner.
+> Only wire models into workloads you trust; for untrusted containers, prefer a
+> dedicated/remote endpoint or network isolation rather than the host gateway.
+
 ### Closing the loop from inside the container
 
 Code running *inside* a model-bound workload can reconstruct a runner from the
@@ -157,6 +203,13 @@ var runner = ModelRunnerEnvironment.FromVariables("AI_MODEL_URL", "AI_MODEL_NAME
 This builds a `GenericOpenAiModelRunner` against the injected URL — which also
 targets any OpenAI-compatible endpoint directly (with an optional API key).
 
+> **Trusted-config note (security).** The endpoint URLs read from the environment
+> (`DOCKER_MODEL_RUNNER_URL`, `LLM_URL` / `<PREFIX>_URL`) are treated as **trusted
+> configuration** — FluentDocker connects to whatever they point at. If any of these
+> can be populated from untrusted input, validate the scheme/host (an allowlist) before
+> use; otherwise an attacker-controlled URL could redirect inference traffic
+> (an SSRF-like trust-boundary issue).
+
 ## Endpoints
 
 `ModelRunnerEndpoint` describes where (and how) to reach the inference surface:
@@ -165,7 +218,9 @@ targets any OpenAI-compatible endpoint directly (with an optional API key).
 ModelRunnerEndpoint.HostTcp();            // http://localhost:12434 (host process)
 ModelRunnerEndpoint.ContainerInternal();  // http://model-runner.docker.internal:12434
 ModelRunnerEndpoint.UnixSocket();         // $HOME/.docker/run/docker.sock
-ModelRunnerEndpoint.Custom(new Uri("https://api.example.com"));
+ModelRunnerEndpoint.Custom(new Uri("https://api.example.com"));        // authority only
+ModelRunnerEndpoint.Custom(new Uri("https://api.example.com/v1"));     // path preserved (see below)
+ModelRunnerEndpoint.Raw(new Uri("http://host:12434/engines/v1"));      // exact base, OpenAI suffix appended
 ```
 
 Resolution when unspecified: `ModelRunnerEndpoint.Default()` returns the
@@ -173,6 +228,25 @@ Resolution when unspecified: `ModelRunnerEndpoint.Default()` returns the
 (`http://localhost:12434`). The container-internal DNS and unix-socket forms are
 *not* probed automatically — select them explicitly via `ContainerInternal()` /
 `UnixSocket()` (or `WithEndpoint(...)`).
+
+A few endpoint subtleties worth knowing:
+
+- **`Custom(uri)` preserves a non-root path.** `Custom(new Uri("https://host"))`
+  (authority only, or a `"/"` path) appends the DMR engine suffix
+  `/engines/{engine}/v1/…`. But `Custom(new Uri("https://host/v1"))` **preserves the
+  `/v1`** and only appends the OpenAI route (i.e. it behaves like `Raw`) — so a
+  hand-written OpenAI base URL is honored rather than silently rewritten.
+- **`UnixSocket()` is a preview form.** It assumes the runner serves `/engines/…`
+  directly on that socket; the Docker Desktop host socket may require a routing prefix
+  that is not yet applied/verified. Prefer the TCP endpoint until you've confirmed the
+  socket route for your platform.
+- **Inference is always reached at `ModelRunnerEndpoint.Default()` — it is NOT derived
+  from the active `docker` context.** Management/runtime honor the context host
+  (`docker -H …`), but the inference data plane uses `DOCKER_MODEL_RUNNER_URL` (else
+  `localhost:12434`). If your runner is **remote** (a remote/TLS docker context, or a
+  context-switched daemon), set `DOCKER_MODEL_RUNNER_URL` or pass an explicit
+  `WithEndpoint(ModelRunnerEndpoint.Custom(...))` — otherwise management goes to the
+  remote host while inference still targets localhost.
 
 ## Capabilities
 
@@ -257,13 +331,24 @@ catch (ModelRunnerException ex) when (ex.ErrorCode == ErrorCodes.ModelInference.
 }
 ```
 
-Common cases:
+Common cases (the inference error code is determined by the *transport* outcome, not
+guessed):
 
 | Situation | `ex.ErrorCode` |
 |---|---|
-| Runner not running / TCP endpoint disabled | `ErrorCodes.ModelInference.EndpointUnreachable` (inference fails; management/runtime still work over the CLI) |
-| Model not pulled | `ErrorCodes.ModelInference.ModelNotLoaded` (auto-pull with `PullIfMissing`) |
-| Malformed SSE chunk | `ErrorCodes.ModelInference.StreamParseError` (thrown mid-stream) |
+| Runner not running / TCP endpoint disabled / connection refused / DNS / socket error | `ErrorCodes.ModelInference.EndpointUnreachable` (inference fails; management/runtime still work over the CLI) |
+| HTTP 404 from the inference endpoint (model not loaded/known) | `ErrorCodes.ModelInference.ModelNotLoaded` (auto-pull with `PullIfMissing`) |
+| HTTP 401 (API key required/invalid) | `ErrorCodes.ModelInference.Unauthorized` |
+| Any other HTTP 4xx/5xx response | `ErrorCodes.ModelInference.RequestFailed` |
+| Empty / `null` response body where a payload was required | `ErrorCodes.ModelInference.StreamParseError` |
+| Malformed SSE chunk, or an oversized SSE frame | `ErrorCodes.ModelInference.StreamParseError` (thrown mid-stream) |
+| Mid-stream OpenAI `data: {"error":…}` frame | `ErrorCodes.ModelInference.RequestFailed` (the server's error message is preserved; thrown mid-stream) |
+
+> A transport-level failure (no HTTP response — connection refused, DNS, socket) maps
+> to `EndpointUnreachable`; a genuine HTTP error *response* maps by status (401 →
+> `Unauthorized`, 404 → `ModelNotLoaded`, otherwise `RequestFailed`). Caller
+> cancellation propagates as `OperationCanceledException`; a per-request timeout
+> surfaces as `TimeoutException`.
 
 Known limitations (acceptable for v3.2.0; revisit as needed):
 
@@ -282,14 +367,129 @@ Known limitations (acceptable for v3.2.0; revisit as needed):
   `InspectAsync`, so a genuine *first* pull failure is still caught.
 - **`StatusAsync` running-detection is substring-based** and does not distinguish
   "installed-but-down" from "not installed".
-- Native `/models/create` NDJSON **error** events aren't surfaced as failures (only
-  progress is parsed); `PullAsync` confirms via inspect.
+- **Inference always targets `ModelRunnerEndpoint.Default()` (local), not the active
+  `docker` context.** With a remote/TLS context, set `DOCKER_MODEL_RUNNER_URL` or
+  `WithEndpoint(...)` for the data plane (see *Endpoints* above).
+- **Model management is served by the `docker model` CLI** this release. A native
+  Docker-Engine-API management driver (`/models`, `/models/create`) exists but is
+  **experimental and not registered** — don't depend on it. (When it is exercised, its
+  `/models/create` NDJSON `error` events and 404s now surface as typed failures.)
+
+## Security
+
+Local DMR over `http://localhost:12434` needs no transport security, but a **remote**
+or shared OpenAI-compatible endpoint usually does. The inference connection
+(`ModelApiConnection`) supports TLS and a bearer API key, configured through
+`ModelApiConnectionConfig` and the connection's `apiKey` parameter.
+
+### TLS for remote endpoints
+
+`ModelApiConnectionConfig` carries the transport settings:
+
+- **`CertificatePath`** — a directory containing `ca.pem` / `cert.pem` / `key.pem`.
+  The `ca.pem` adds a custom CA to trust (a privately signed server), and
+  `cert.pem` + `key.pem` supply a client certificate for mutual TLS.
+- **`VerifyTls`** — defaults to `true`. Setting it to `false` disables server
+  certificate verification entirely; use it only against a trusted endpoint during
+  development, never in production.
+- **`ConnectionTimeout`** / **`RequestTimeout`** — connect and per-request timeouts
+  (the request timeout applies to non-streaming calls only; streaming relies on the
+  caller's `CancellationToken`).
+
+### API keys
+
+A bearer token is supplied via the connection's `apiKey` parameter. When set, it is
+sent as an `Authorization: Bearer …` header on every request and is **never logged**.
+
+The `ModelApiConnection` constructor is:
+
+```csharp
+public ModelApiConnection(
+    ModelRunnerEndpoint endpoint,
+    ModelApiConnectionConfig config = null,
+    ILoggerFactory loggerFactory = null,
+    string apiKey = null)
+```
+
+### Through the fluent builder
+
+You rarely construct the connection by hand — `WithEndpoint(endpoint, config, apiKey)`
+threads the same configuration through the builder. It is available on **both**
+`IModelRunnerBuilder` and `IModelServiceBuilder`:
+
+```csharp
+IModelRunnerBuilder WithEndpoint(ModelRunnerEndpoint endpoint,
+    ModelApiConnectionConfig config = null, string apiKey = null);
+```
+
+```csharp
+using FluentDocker.Drivers.Models.Connection;  // ModelApiConnectionConfig
+using FluentDocker.Model.Models;                // ModelRunnerEndpoint
+
+await using var runner = await new Builder().WithinDriver("docker", kernel)
+    .UseModelRunner()
+    .ForModel("ai/smollm2")
+    .WithEndpoint(
+        ModelRunnerEndpoint.Custom(new Uri("https://llm.example.com/v1")),
+        new ModelApiConnectionConfig
+        {
+            CertificatePath = "/etc/fluentdocker/llm-certs",  // ca.pem (+ cert.pem/key.pem for mTLS)
+            VerifyTls = true                                  // default; do NOT disable in production
+        },
+        apiKey: Environment.GetEnvironmentVariable("LLM_API_KEY"))
+    .BuildAsync();
+```
+
+The builder-built connection is owned (disposed) by the runner. `IModelServiceBuilder`
+exposes the identical overload for the lifecycle-first surface.
+
+### Related trust-boundary notes
+
+Two adjacent concerns are covered inline above and apply here too:
+
+- **Host exposure** — `WithModel(...)` gives a container reachability to your local
+  runner; only wire models into trusted workloads (see the *Host-exposure note* under
+  [Wiring a model into a container](#wiring-a-model-into-a-container)).
+- **Trusted endpoint configuration** — endpoint URLs read from the environment are
+  treated as trusted; validate them if they can come from untrusted input to avoid an
+  SSRF-like redirect (see the *Trusted-config note* under
+  [Closing the loop from inside the container](#closing-the-loop-from-inside-the-container)).
 
 ## Compose `models:` integration
 
 Docker Compose has a first-class `models:` element. FluentDocker emits it as a
 small **overlay** file that merges with your own compose file (Compose merges
-multiple `-f` files), so it slots into the existing file-path compose builder:
+multiple `-f` files). The recommended way is `WithModels(...)` on the compose
+builder: it renders the overlay to a managed temp file, appends it to the
+compose-files list for you, and **deletes the temp file automatically** when the
+compose service is torn down / disposed — no path juggling, no manual cleanup:
+
+```csharp
+using FluentDocker.Builders;
+
+await using var built = await new Builder().WithinDriver("docker", kernel)
+    .UseCompose(c => c
+        .WithComposeFile("docker-compose.yml")
+        .WithModels(m =>
+        {
+            m.AddModel("llm", s => s
+                .WithModel("ai/smollm2")
+                .WithContextSize(4096)
+                .WithRuntimeFlags("--temp", "0.7"));
+            m.BindToService("app", "llm");                                    // short: LLM_URL / LLM_MODEL
+            m.BindToService("worker", "llm", "AI_MODEL_URL", "AI_MODEL_NAME"); // long: custom env vars
+        }))
+    .BuildAsync();
+
+// The merged overlay temp file lives as long as the compose service; disposing
+// `built` tears the project down AND removes the temp overlay file.
+```
+
+### Manual overlay (still supported)
+
+The lower-level `ComposeModelBuilder` + `WriteOverlay(path)` API remains available
+when you want to own the overlay file yourself (e.g. to inspect or persist it). In
+that case **you** pass it via `WithComposeFiles(...)` and **you** delete it:
 
 ```csharp
 using System;
@@ -297,12 +497,8 @@ using System.IO;
 using FluentDocker.Builders.Compose;
 
 var overlay = new ComposeModelBuilder();
-overlay.AddModel("llm", m => m
-    .WithModel("ai/smollm2")
-    .WithContextSize(4096)
-    .WithRuntimeFlags("--temp", "0.7"));
-overlay.BindToService("app", "llm");                                   // short: LLM_URL / LLM_MODEL
-overlay.BindToService("worker", "llm", "AI_MODEL_URL", "AI_MODEL_NAME"); // long: custom env vars
+overlay.AddModel("llm", m => m.WithModel("ai/smollm2").WithContextSize(4096));
+overlay.BindToService("app", "llm");
 
 // Use a unique file name — a fixed temp path can collide between processes/runs.
 var overlayPath = overlay.WriteOverlay(
@@ -316,13 +512,13 @@ try
 }
 finally
 {
-    // FluentDocker never deletes the overlay it wrote — the caller owns its lifetime.
+    // With the manual API FluentDocker never deletes the overlay — the caller owns it.
     if (File.Exists(overlayPath))
         File.Delete(overlayPath);
 }
 ```
 
-The overlay renders the top-level `models:` map and per-service `models:` bindings:
+Both paths render the same top-level `models:` map and per-service `models:` bindings:
 
 ```yaml
 services:
@@ -348,16 +544,24 @@ reads the `models:` map and per-service bindings back out. A service that binds 
 model receives `LLM_URL` / `LLM_MODEL` (or the custom names), so code inside it can
 reconstruct a runner via `ModelRunnerEnvironment.FromVariables(endpointVar, modelVar)`.
 
-## Enablement
+## Prerequisites, enablement & compatibility
 
-The library detects but does not install DMR:
+| Component | Requirement / notes |
+|---|---|
+| **Docker Desktop** | A recent build with the Model Runner feature — enable under *Settings → AI → Enable Docker Model Runner*, and turn on **host-side TCP** for the inference data plane. |
+| **or Docker Engine (CE)** | Install the `docker-model-plugin`; TCP is on by default. `runner.InstallRunnerAsync(...)` drives `docker model install-runner`. |
+| **`docker model` plugin (DMR)** | The subsystem is verified against **DMR v1.2.1**; it tolerates that version's CLI quirks (e.g. `inspect`/`df` have no `--json`, `purge` not `prune`). |
+| **Inference endpoint** | OpenAI-compatible HTTP on `:12434` (or whatever `DOCKER_MODEL_RUNNER_URL` / `WithEndpoint(...)` points at). Required for chat/completion/embeddings; management/runtime work over the CLI without it. |
+| **.NET (consuming the library)** | FluentDocker targets **net8.0** and **net10.0** — reference it from either. |
+| **.NET SDK (building *this repo*)** | The **.NET 10 SDK** is required to build the solution (`global.json` pins `10.0.100`). This is distinct from the library's runtime targets above: you can *consume* FluentDocker on .NET 8, but *building the repo* needs the .NET 10 SDK. |
+| **OS / platform** | Windows, macOS and Linux (DMR availability follows Docker Desktop / Engine; the runner subsystem was verified on macOS arm64). |
 
-- **Docker Desktop** — enable under *Settings → AI → Enable Docker Model Runner*
-  (and turn on host-side TCP for inference).
-- **Docker Engine (CE)** — install the `docker-model-plugin`; TCP is on by default.
-  `runner.InstallRunnerAsync(...)` drives `docker model install-runner`.
+The library detects but does **not** install DMR. `runner.StatusAsync()` reports whether
+the runner is running.
 
-`runner.StatusAsync()` reports whether the runner is running.
+> **Running the sample.** [`Examples/ModelRunner`](https://github.com/mariotoffia/FluentDocker/tree/featrure/model-support/Examples/ModelRunner)
+> multi-targets `net8.0;net10.0`, so a bare `dotnet run` fails ("specify which framework").
+> Run it with an explicit framework: `dotnet run -f net10.0` (or `-f net8.0`).
 
 ## Testing
 
@@ -365,6 +569,13 @@ The model integration tests are tagged `[Trait("Category", "Integration")]` and
 **skip cleanly** when DMR is not running. Unit tests use `MockDriverPack`
 (model ports) and a hand-rolled `MockModelApiConnection` (programmable JSON + SSE),
 plus embedded fixtures captured from a real DMR.
+
+> **Release gate (before tagging).** PR/hosted CI runs lack a Model Runner, so the
+> DMR integration tests self-skip there. Before tagging a release you **must** run the
+> real DMR gate: trigger the CI workflow via **`workflow_dispatch` with
+> `run_integration=true` on a DMR-capable (self-hosted) runner**. That lane sets
+> `FLUENTDOCKER_REQUIRE_DMR=1`, so a missing/unstable runner hard-fails instead of
+> masking zero coverage with a green self-skip.
 
 ## See also
 

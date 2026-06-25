@@ -54,6 +54,18 @@ namespace FluentDocker.Tests.Mocks
       return this;
     }
 
+    /// <summary>
+    /// Sets up <c>InspectAsync</c> to report the model as absent (a not-found failure),
+    /// so the builder's inspect-first <c>PullIfMissing</c> probe treats it as missing.
+    /// </summary>
+    public MockDriverPack SetupModelInspectMissing()
+    {
+      ModelManagementDriver
+          .Setup(d => d.InspectAsync(It.IsAny<DriverContext>(), It.IsAny<ModelReference>(), It.IsAny<CancellationToken>()))
+          .ReturnsAsync(CommandResponse<ModelInfo>.Fail("no such model", FluentDocker.Model.Drivers.ErrorCodes.Model.NotFound));
+      return this;
+    }
+
     /// <summary>Sets up <c>PullAsync</c> to return the given model.</summary>
     public MockDriverPack SetupModelPull(ModelInfo model)
     {
@@ -105,11 +117,14 @@ namespace FluentDocker.Tests.Mocks
       return this;
     }
 
-    /// <summary>Sets up <c>UnloadAsync</c> to succeed.</summary>
+    /// <summary>Sets up <c>UnloadAsync</c> and <c>UnloadAllAsync</c> to succeed.</summary>
     public MockDriverPack SetupModelUnload()
     {
       ModelRuntimeDriver
-          .Setup(d => d.UnloadAsync(It.IsAny<DriverContext>(), It.IsAny<ModelReference>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()))
+          .Setup(d => d.UnloadAsync(It.IsAny<DriverContext>(), It.IsAny<ModelReference>(), It.IsAny<CancellationToken>()))
+          .ReturnsAsync(CommandResponse<Unit>.Ok(Unit.Default));
+      ModelRuntimeDriver
+          .Setup(d => d.UnloadAllAsync(It.IsAny<DriverContext>(), It.IsAny<CancellationToken>()))
           .ReturnsAsync(CommandResponse<Unit>.Ok(Unit.Default));
       return this;
     }

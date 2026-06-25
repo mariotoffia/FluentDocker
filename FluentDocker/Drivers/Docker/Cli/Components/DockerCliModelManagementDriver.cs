@@ -31,8 +31,11 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     {
       try
       {
+        // `docker model pull` writes its progress (the "X of Y" / percent lines) to
+        // STDERR, not stdout — so use the progress-capable streaming path that
+        // interleaves stderr, otherwise almost no progress would ever be reported.
         var args = $"model pull {QuoteArgumentIfNeeded(model.ToString())}";
-        await foreach (var line in RunStreamingAsync(args, cancellationToken).ConfigureAwait(false))
+        await foreach (var line in RunStreamingWithProgressAsync(args, cancellationToken).ConfigureAwait(false))
         {
           var update = ModelJsonParser.ParsePullLine(line);
           if (update != null)

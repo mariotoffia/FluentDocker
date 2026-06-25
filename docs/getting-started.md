@@ -44,7 +44,8 @@ dotnet add package FluentDocker.Testing.NUnit   # NUnit adapter
 ## Prerequisites
 
 - **Docker** must be installed and running
-- **.NET 8.0** or later (net8.0 and net10.0 are supported)
+- **.NET runtime** — FluentDocker targets **net8.0** and **net10.0**, so you can consume it from either
+- **Building this repository** requires the **.NET 10 SDK** (`global.json` pins `10.0.100`) — distinct from the runtime targets above
 
 ### Verify Docker
 

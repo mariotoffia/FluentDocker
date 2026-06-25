@@ -1,7 +1,11 @@
 using System;
 using System.Collections.Generic;
+using System.Threading;
 using System.Threading.Tasks;
+using FluentDocker.Common;
+using FluentDocker.Model.Drivers;
 using FluentDocker.Model.Models;
+using FluentDocker.Model.Models.Options;
 using FluentDocker.Services;
 using FluentDocker.Services.Impl;
 using FluentDocker.Tests.Mocks;
@@ -122,7 +126,7 @@ namespace FluentDocker.Tests.CoreTests.Service
       await service.DisposeAsync();
 
       pack.ModelRuntimeDriver.Verify(d => d.UnloadAsync(
-          It.IsAny<DriverContext>(), It.IsAny<ModelReference>(), It.IsAny<bool>(), It.IsAny<System.Threading.CancellationToken>()),
+          It.IsAny<DriverContext>(), It.IsAny<ModelReference>(), It.IsAny<System.Threading.CancellationToken>()),
           Times.Once);
 
       await kernel.DisposeAsync();
@@ -140,7 +144,7 @@ namespace FluentDocker.Tests.CoreTests.Service
       await service.DisposeAsync();
 
       pack.ModelRuntimeDriver.Verify(d => d.UnloadAsync(
-          It.IsAny<DriverContext>(), It.IsAny<ModelReference>(), It.IsAny<bool>(), It.IsAny<System.Threading.CancellationToken>()),
+          It.IsAny<DriverContext>(), It.IsAny<ModelReference>(), It.IsAny<System.Threading.CancellationToken>()),
           Times.Never);
 
       await kernel.DisposeAsync();
@@ -164,7 +168,31 @@ namespace FluentDocker.Tests.CoreTests.Service
       await disposeTask; // surface any exception thrown by Dispose()
 
       pack.ModelRuntimeDriver.Verify(d => d.UnloadAsync(
-          It.IsAny<DriverContext>(), It.IsAny<ModelReference>(), It.IsAny<bool>(), It.IsAny<System.Threading.CancellationToken>()),
+          It.IsAny<DriverContext>(), It.IsAny<ModelReference>(), It.IsAny<System.Threading.CancellationToken>()),
+          Times.Once);
+
+      await kernel.DisposeAsync();
+    }
+
+    [Fact]
+    public async Task Dispose_AfterFailedStart_StillAttemptsUnload()
+    {
+      // NEW9: a load that initiates then FAILS leaves _state == Unknown (never Running),
+      // but the model may already be resident — dispose must still best-effort unload it.
+      var pack = new MockDriverPack().SetupModelUnload().EnableModelDrivers();
+      pack.ModelRuntimeDriver
+          .Setup(d => d.LoadAsync(It.IsAny<DriverContext>(), It.IsAny<ModelReference>(), It.IsAny<ModelRunOptions>(), It.IsAny<CancellationToken>()))
+          .ReturnsAsync(CommandResponse<Unit>.Fail("load boom", ErrorCodes.Model.LoadFailed));
+      var kernel = await MockKernelBuilderExtensions.CreateWithMockDriverAsync("docker", pack);
+      var runner = new ModelRunnerService(kernel, "docker", ModelRunnerEndpoint.HostTcp(), Model);
+      var service = new ModelService(kernel, "docker", Model, runner, null, keepRunning: false);
+
+      await Assert.ThrowsAsync<ModelRunnerException>(() => service.StartAsync(TestContext.Current.CancellationToken));
+      await service.DisposeAsync();
+
+      // Best-effort unload was attempted even though Start never reached Running.
+      pack.ModelRuntimeDriver.Verify(d => d.UnloadAsync(
+          It.IsAny<DriverContext>(), It.IsAny<ModelReference>(), It.IsAny<CancellationToken>()),
           Times.Once);
 
       await kernel.DisposeAsync();
@@ -182,7 +210,7 @@ namespace FluentDocker.Tests.CoreTests.Service
       service.Dispose();
 
       pack.ModelRuntimeDriver.Verify(d => d.UnloadAsync(
-          It.IsAny<DriverContext>(), It.IsAny<ModelReference>(), It.IsAny<bool>(), It.IsAny<System.Threading.CancellationToken>()),
+          It.IsAny<DriverContext>(), It.IsAny<ModelReference>(), It.IsAny<System.Threading.CancellationToken>()),
           Times.Never);
 
       await kernel.DisposeAsync();
@@ -202,7 +230,7 @@ namespace FluentDocker.Tests.CoreTests.Service
       service.Dispose(); // second call must be a no-op (no second unload)
 
       pack.ModelRuntimeDriver.Verify(d => d.UnloadAsync(
-          It.IsAny<DriverContext>(), It.IsAny<ModelReference>(), It.IsAny<bool>(), It.IsAny<System.Threading.CancellationToken>()),
+          It.IsAny<DriverContext>(), It.IsAny<ModelReference>(), It.IsAny<System.Threading.CancellationToken>()),
           Times.Once);
 
       await kernel.DisposeAsync();

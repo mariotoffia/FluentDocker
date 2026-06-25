@@ -4,6 +4,7 @@ using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
+using System.Threading;
 using System.Threading.Tasks;
 using FluentDocker.Drivers.Docker.Api.Connection;
 using Xunit;
@@ -147,6 +148,109 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
       var result = await conn.PingAsync(TestContext.Current.CancellationToken);
 
       Assert.False(result);
+    }
+
+    [Fact]
+    public async Task PingAsync_WhenCallerTokenAlreadyCancelled_ThrowsOperationCanceledException()
+    {
+      // M14: a cancellation requested by the CALLER's token must propagate as an
+      // OperationCanceledException, not be swallowed and reported as "unreachable" (false).
+      var config = new DockerApiConnectionConfig
+      {
+        Host = "tcp://localhost:2375",
+        ApiVersion = "1.45",
+        ConnectionTimeout = TimeSpan.FromSeconds(30),
+        RequestTimeout = TimeSpan.FromSeconds(30)
+      };
+
+      await using var conn = new DockerApiConnection(config);
+      using var cts = new CancellationTokenSource();
+      cts.Cancel(); // Caller cancels before pinging.
+
+      await Assert.ThrowsAnyAsync<OperationCanceledException>(() => conn.PingAsync(cts.Token));
+    }
+
+    [Fact]
+    public async Task PingAsync_WhenUnreachableWithLiveToken_ReturnsFalse()
+    {
+      // M14: a genuine connection failure (unreachable endpoint) must still be reported as
+      // false even though the request timeout fires an internal cancellation — that internal
+      // timeout must NOT be mistaken for caller cancellation.
+      var config = new DockerApiConnectionConfig
+      {
+        Host = "tcp://localhost:1",
+        ApiVersion = "1.45",
+        ConnectionTimeout = TimeSpan.FromSeconds(1),
+        RequestTimeout = TimeSpan.FromSeconds(2)
+      };
+
+      await using var conn = new DockerApiConnection(config);
+      using var cts = new CancellationTokenSource(); // Live, never cancelled.
+
+      var result = await conn.PingAsync(cts.Token);
+
+      Assert.False(result);
+    }
+
+    #endregion
+
+    #region Unix Socket Connect Failure (M13)
+
+    [Fact]
+    public async Task UnixSocket_FailedConnect_ThrowsAndDoesNotLeaveLingeringState()
+    {
+      // M13: connecting a unix-domain socket to a nonexistent path must throw, and the
+      // partially-created Socket must be disposed (not leaked). We cannot probe the private
+      // Socket's disposed flag directly through the public surface, so we assert the next-best
+      // deterministic behavior: the failed connect throws, and a SUBSEQUENT connect attempt on
+      // the same connection still fails cleanly (no lingering/poisoned state) — every attempt
+      // creates and disposes its own socket.
+      if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+        return; // Unix domain sockets are exercised on non-Windows platforms.
+
+      var socketPath = Path.Combine(Path.GetTempPath(), $"fd-no-such-{Guid.NewGuid():N}.sock");
+      var config = new DockerApiConnectionConfig
+      {
+        Host = $"unix://{socketPath}",
+        ApiVersion = "1.45",
+        ConnectionTimeout = TimeSpan.FromSeconds(2),
+        RequestTimeout = TimeSpan.FromSeconds(2)
+      };
+
+      await using var conn = new DockerApiConnection(config);
+
+      var first = await Record.ExceptionAsync(
+          () => conn.GetAsync("/containers/json", TestContext.Current.CancellationToken));
+      Assert.NotNull(first);
+
+      // A second attempt must behave identically — the connection is not left in a broken
+      // state by the disposed socket from the first failed connect.
+      var second = await Record.ExceptionAsync(
+          () => conn.GetAsync("/containers/json", TestContext.Current.CancellationToken));
+      Assert.NotNull(second);
+    }
+
+    [Fact]
+    public async Task UnixSocket_NonexistentPath_PingReturnsFalse()
+    {
+      // M13: the unix-socket connect-failure path (nonexistent path) must dispose the
+      // partially-created Socket and surface as unreachable. Ping swallows the connect failure
+      // and reports false (mirrors ModelApiConnection's UnixSocket_NonexistentPath test).
+      if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+        return; // Unix domain sockets are exercised on non-Windows platforms.
+
+      var socketPath = Path.Combine(Path.GetTempPath(), $"fd-no-such-{Guid.NewGuid():N}.sock");
+      var config = new DockerApiConnectionConfig
+      {
+        Host = $"unix://{socketPath}",
+        ApiVersion = "1.45",
+        ConnectionTimeout = TimeSpan.FromSeconds(2),
+        RequestTimeout = TimeSpan.FromSeconds(2)
+      };
+
+      await using var conn = new DockerApiConnection(config);
+
+      Assert.False(await conn.PingAsync(TestContext.Current.CancellationToken));
     }
 
     #endregion

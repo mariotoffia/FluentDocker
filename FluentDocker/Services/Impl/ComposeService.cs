@@ -28,6 +28,7 @@ namespace FluentDocker.Services.Impl
     private readonly string _projectName;
     private readonly bool _removeVolumes;
     private readonly bool _removeImages;
+    private readonly IReadOnlyList<string> _ownedTempFiles;
     private readonly Dictionary<string, Func<IServiceAsync, Task>> _hooks = [];
     private ServiceRunningState _state = ServiceRunningState.Running;
 
@@ -37,7 +38,8 @@ namespace FluentDocker.Services.Impl
         List<string> composeFiles,
         string projectName,
         bool removeVolumes = false,
-        bool removeImages = false)
+        bool removeImages = false,
+        IReadOnlyList<string> ownedTempFiles = null)
     {
       ArgumentNullException.ThrowIfNull(kernel);
       ArgumentNullException.ThrowIfNull(driverId);
@@ -50,6 +52,7 @@ namespace FluentDocker.Services.Impl
       _projectName = projectName;
       _removeVolumes = removeVolumes;
       _removeImages = removeImages;
+      _ownedTempFiles = ownedTempFiles;
     }
 
     public string Name => _projectName;
@@ -357,6 +360,34 @@ namespace FluentDocker.Services.Impl
       catch (Exception ex)
       {
         _logger.LogWarning(ex, "ComposeService DisposeAsync failed");
+      }
+      finally
+      {
+        DeleteOwnedTempFiles();
+      }
+    }
+
+    /// <summary>
+    /// Deletes any builder-managed temporary overlay files (e.g. a <c>WithModels(...)</c>
+    /// <c>models:</c> overlay) once the project has been torn down. Best-effort: failures
+    /// are logged and swallowed so dispose never throws.
+    /// </summary>
+    private void DeleteOwnedTempFiles()
+    {
+      if (_ownedTempFiles is null)
+        return;
+
+      foreach (var path in _ownedTempFiles)
+      {
+        try
+        {
+          if (!string.IsNullOrEmpty(path) && System.IO.File.Exists(path))
+            System.IO.File.Delete(path);
+        }
+        catch (Exception ex)
+        {
+          _logger.LogWarning(ex, "ComposeService failed to delete temp overlay file {Path}", path);
+        }
       }
     }
 

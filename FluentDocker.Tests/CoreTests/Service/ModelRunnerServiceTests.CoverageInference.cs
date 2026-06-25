@@ -178,6 +178,56 @@ namespace FluentDocker.Tests.CoreTests.Service
       }
     }
 
+    // ======================== H1: verbatim inference id ===================
+
+    [Fact]
+    public async Task ChatAsync_DefaultBareModel_SendsInferenceIdWithoutLatest()
+    {
+      // The kernel-backed runner's default model "ai/smollm2" is a Docker ref that
+      // serializes as "ai/smollm2:latest", but the inference body must NOT carry the
+      // auto :latest (H1 regression).
+      ChatCompletionRequest captured = null;
+      var (kernel, runner, _) = await BuildWithPackAsync(p =>
+      {
+        p.SetupModelChat("hi");
+        p.ModelInferenceDriver
+            .Setup(d => d.ChatCompletionAsync(It.IsAny<DriverContext>(), It.IsAny<ChatCompletionRequest>(), It.IsAny<CancellationToken>()))
+            .Callback<DriverContext, ChatCompletionRequest, CancellationToken>((_, r, _) => captured = r)
+            .ReturnsAsync(CommandResponse<ChatCompletionResponse>.Ok(new ChatCompletionResponse
+            {
+              Choices = new List<ChatChoice> { new() { Message = new ChatMessage { Role = "assistant", Content = "hi" } } }
+            }));
+      });
+      await using (kernel)
+      {
+        await runner.ChatAsync("hello", TestContext.Current.CancellationToken);
+        Assert.NotNull(captured);
+        Assert.Equal("ai/smollm2", captured.Model);
+        Assert.Equal("ai/smollm2:latest", runner.DefaultModel.ToString());
+      }
+    }
+
+    [Fact]
+    public async Task EmbedAsync_PerCallBareModel_SendsInferenceIdWithoutLatest()
+    {
+      EmbeddingsRequest captured = null;
+      var (kernel, runner, _) = await BuildWithPackAsync(p =>
+          p.ModelInferenceDriver
+              .Setup(d => d.EmbeddingsAsync(It.IsAny<DriverContext>(), It.IsAny<EmbeddingsRequest>(), It.IsAny<CancellationToken>()))
+              .Callback<DriverContext, EmbeddingsRequest, CancellationToken>((_, r, _) => captured = r)
+              .ReturnsAsync(CommandResponse<EmbeddingsResponse>.Ok(new EmbeddingsResponse
+              {
+                Data = new List<EmbeddingData> { new() { Index = 0, Embedding = new List<float> { 0.1f } } }
+              })),
+          withDefaultModel: false);
+      await using (kernel)
+      {
+        await runner.EmbedAsync("hi", ModelReference.Parse("ai/embeddinggemma"), TestContext.Current.CancellationToken);
+        Assert.NotNull(captured);
+        Assert.Equal("ai/embeddinggemma", captured.Model);
+      }
+    }
+
     // ======================== Disposed guard ==============================
 
     [Fact]

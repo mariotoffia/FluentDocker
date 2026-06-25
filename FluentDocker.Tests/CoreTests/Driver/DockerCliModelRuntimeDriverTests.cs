@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using FluentDocker.Common;
 using FluentDocker.Drivers.Docker.Cli;
 using FluentDocker.Drivers.Docker.Cli.Components;
 using FluentDocker.Model.Drivers;
@@ -171,10 +172,10 @@ namespace FluentDocker.Tests.CoreTests.Driver
     }
 
     [Fact]
-    public async Task UnloadAsync_All()
+    public async Task UnloadAllAsync_All()
     {
       var driver = new FakeRuntimeDriver { Responder = _ => Ok() };
-      await driver.UnloadAsync(Ctx, ModelReference.Parse("ai/smollm2"), all: true, TestContext.Current.CancellationToken);
+      await driver.UnloadAllAsync(Ctx, TestContext.Current.CancellationToken);
       Assert.Contains("--all", driver.Commands.Single());
     }
 
@@ -182,7 +183,7 @@ namespace FluentDocker.Tests.CoreTests.Driver
     public async Task UnloadAsync_Single()
     {
       var driver = new FakeRuntimeDriver { Responder = _ => Ok() };
-      await driver.UnloadAsync(Ctx, ModelReference.Parse("ai/smollm2"), all: false, TestContext.Current.CancellationToken);
+      await driver.UnloadAsync(Ctx, ModelReference.Parse("ai/smollm2"), TestContext.Current.CancellationToken);
       var cmd = driver.Commands.Single();
       Assert.Contains("model unload", cmd);
       Assert.Contains("ai/smollm2", cmd);
@@ -421,6 +422,221 @@ namespace FluentDocker.Tests.CoreTests.Driver
       Assert.Contains("model uninstall-runner", cmd);
       Assert.Contains("--images", cmd);
       Assert.Contains("--models", cmd);
+    }
+
+    // ---- H8: the backend-capability probe honors the caller token + has a timeout ----
+
+    /// <summary>
+    /// A runtime driver whose <c>--help</c> probe BLOCKS on the token it is given (i.e. the
+    /// probe's own internal-timeout token) until that token cancels, with a tiny probe
+    /// timeout so the test does not wait the production 5s. Non-help commands respond OK.
+    /// </summary>
+    private sealed class BlockingProbeRuntimeDriver : DockerCliModelRuntimeDriver
+    {
+      private readonly TimeSpan _probeTimeout;
+      public int HelpCalls;
+
+      public BlockingProbeRuntimeDriver(TimeSpan probeTimeout) : base(null) => _probeTimeout = probeTimeout;
+
+      protected override TimeSpan BackendProbeTimeout => _probeTimeout;
+
+      protected override async Task<SimpleCommandResult> RunAsync(string arguments, CancellationToken cancellationToken)
+      {
+        if (!arguments.Contains("--help"))
+          return new SimpleCommandResult { Success = true, Output = string.Empty, ExitCode = 0 };
+
+        Interlocked.Increment(ref HelpCalls);
+        // Block until the probe's OWN token (internal timeout) cancels — never returns on its
+        // own. This proves the caller cannot affect this task and the internal timeout works.
+        var tcs = new TaskCompletionSource();
+        using (cancellationToken.Register(() => tcs.TrySetCanceled(cancellationToken)))
+          await tcs.Task.ConfigureAwait(false);
+
+        return new SimpleCommandResult { Success = true, Output = string.Empty, ExitCode = 0 };
+      }
+    }
+
+    [Fact]
+    public async Task ConfigureAsync_ProbeBlocks_CallerCancellationSurfacesOce_WithoutWaitingProbe()
+    {
+      // The probe BLOCKS (long internal timeout). An already-cancelled CALLER token must abort
+      // the caller's wait immediately with OperationCanceledException — proving the await
+      // honors the caller token (WaitAsync) instead of waiting for the shared probe.
+      var driver = new BlockingProbeRuntimeDriver(TimeSpan.FromSeconds(30));
+      using var cancelled = new CancellationTokenSource();
+      cancelled.Cancel();
+
+      await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
+          driver.ConfigureAsync(Ctx, ModelReference.Parse("ai/x"),
+              new ModelConfigureOptions { Backend = "vllm" }, cancelled.Token));
+    }
+
+    [Fact]
+    public async Task ConfigureAsync_ProbeTimesOut_FailsAndIsEvictedSoLaterCallReProbes()
+    {
+      // A wedged probe must not hang forever and must not be cached permanently: after the
+      // short internal timeout fires the explicit-backend ConfigureAsync surfaces a failure,
+      // and the dead (cancelled) probe is evicted so a subsequent call re-probes.
+      var driver = new BlockingProbeRuntimeDriver(TimeSpan.FromMilliseconds(150));
+
+      // First call: probe blocks, internal timeout fires → a clear failure (OCE), not a hang.
+      await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
+          driver.ConfigureAsync(Ctx, ModelReference.Parse("ai/x"),
+              new ModelConfigureOptions { Backend = "vllm" }, TestContext.Current.CancellationToken));
+
+      // Second call: the timed-out probe was evicted, so a fresh probe is spawned (re-probe).
+      await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
+          driver.ConfigureAsync(Ctx, ModelReference.Parse("ai/y"),
+              new ModelConfigureOptions { Backend = "vllm" }, TestContext.Current.CancellationToken));
+
+      Assert.Equal(2, driver.HelpCalls);
+    }
+
+    // ---- NEW8: LoadAsync honors the full ModelRunOptions contract ----
+
+    [Fact]
+    public async Task LoadAsync_RunSupportedFields_MapToRunFlags()
+    {
+      var driver = new FakeRuntimeDriver { Responder = _ => Ok() };
+      await driver.LoadAsync(Ctx, ModelReference.Parse("ai/smollm2"),
+          new ModelRunOptions { Debug = true, WebSearch = true, OpenAiUrl = "http://localhost:9000/v1" },
+          TestContext.Current.CancellationToken);
+
+      var cmd = driver.Commands.Single();
+      Assert.Contains("model run", cmd);
+      Assert.Contains("-d", cmd);
+      Assert.Contains("--debug", cmd);
+      Assert.Contains("--websearch", cmd);
+      Assert.Contains("--openaiurl", cmd);
+      Assert.Contains("http://localhost:9000/v1", cmd);
+      Assert.Contains("ai/smollm2", cmd);
+      // run v1.2.1 exposes neither — they must never be emitted onto `run`.
+      Assert.DoesNotContain("--context-size", cmd);
+      Assert.DoesNotContain("--backend", cmd);
+    }
+
+    [Fact]
+    public async Task LoadAsync_Detach_CanBeDisabled()
+    {
+      var driver = new FakeRuntimeDriver { Responder = _ => Ok() };
+      await driver.LoadAsync(Ctx, ModelReference.Parse("ai/x"),
+          new ModelRunOptions { Detach = false }, TestContext.Current.CancellationToken);
+
+      Assert.DoesNotContain(" -d", driver.Commands.Single());
+    }
+
+    [Fact]
+    public async Task LoadAsync_NullOptions_DefaultsToDetached_NoExtraFlags()
+    {
+      var driver = new FakeRuntimeDriver { Responder = _ => Ok() };
+      await driver.LoadAsync(Ctx, ModelReference.Parse("ai/x"), null, TestContext.Current.CancellationToken);
+
+      var cmd = driver.Commands.Single();
+      Assert.Contains("model run", cmd);
+      Assert.Contains("-d", cmd);
+      Assert.DoesNotContain("--debug", cmd);
+      Assert.DoesNotContain("--websearch", cmd);
+    }
+
+    [Fact]
+    public async Task LoadAsync_ConfigureOnlyFields_RoutedThroughConfigureBeforeRun_NothingDropped()
+    {
+      // ContextSize and RuntimeFlags have no `run` flag — they must be applied via
+      // `docker model configure` FIRST (so they are not silently dropped), then the run runs.
+      var driver = new FakeRuntimeDriver { Responder = _ => Ok() };
+      await driver.LoadAsync(Ctx, ModelReference.Parse("ai/x"),
+          new ModelRunOptions { ContextSize = 8192, RuntimeFlags = new[] { "--temp", "0.7" }, Debug = true },
+          TestContext.Current.CancellationToken);
+
+      Assert.Equal(2, driver.Commands.Count);
+      var configure = driver.Commands[0];
+      var run = driver.Commands[1];
+
+      // The configure invocation precedes the run and carries the configure-only settings.
+      Assert.Contains("model configure", configure);
+      Assert.Contains("--context-size 8192", configure);
+      Assert.Contains("-- --temp 0.7", configure);
+
+      // The run carries only run-supported flags; configure-only ones never leak onto it.
+      Assert.Contains("model run", run);
+      Assert.Contains("--debug", run);
+      Assert.DoesNotContain("--context-size", run);
+      Assert.DoesNotContain("--temp", run);
+    }
+
+    [Fact]
+    public async Task LoadAsync_PreConfigureFails_RunIsNotAttempted()
+    {
+      // If the pre-run configure fails, the failure is returned and the run is NOT attempted.
+      var driver = new FakeRuntimeDriver
+      {
+        Responder = args => args.Contains("model configure")
+            ? new SimpleCommandResult { Success = false, ExitCode = 1, Error = "bad context size" }
+            : Ok()
+      };
+
+      var result = await driver.LoadAsync(Ctx, ModelReference.Parse("ai/x"),
+          new ModelRunOptions { ContextSize = -5 }, TestContext.Current.CancellationToken);
+
+      Assert.False(result.Success);
+      Assert.Equal(ErrorCodes.Model.ConfigureFailed, result.ErrorCode);
+      Assert.DoesNotContain(driver.Commands, c => c.Contains("model run"));
+    }
+
+    // ---- A4: log streaming faults surface as a typed ModelRunnerException ----
+
+    [Fact]
+    public async Task LogsAsync_StreamFaults_ThrowsModelRunnerExceptionWithLogsCode()
+    {
+      // The streaming primitive raises a generic DriverException on a failed/aborted stream;
+      // LogsAsync must translate it into a model-specific ModelRunnerException (LogsFailed),
+      // preserving the message — not leak the generic driver error.
+      var driver = new FakeRuntimeDriver
+      {
+        StreamResponder = _ => FaultingStream()
+      };
+
+      var ex = await Assert.ThrowsAsync<ModelRunnerException>(async () =>
+      {
+        await foreach (var _ in driver.LogsAsync(Ctx, follow: true, TestContext.Current.CancellationToken))
+        {
+        }
+      });
+
+      Assert.Equal(ErrorCodes.Model.LogsFailed, ex.ErrorCode);
+      Assert.Contains("logs stream blew up", ex.Message);
+    }
+
+    [Fact]
+    public async Task LogsAsync_MidStreamFault_YieldsEarlyLinesThenTypedException()
+    {
+      // A mid-stream fault (after some lines) must still surface as the typed exception.
+      var driver = new FakeRuntimeDriver { StreamResponder = _ => MidStreamFault() };
+
+      var collected = new List<string>();
+      var ex = await Assert.ThrowsAsync<ModelRunnerException>(async () =>
+      {
+        await foreach (var line in driver.LogsAsync(Ctx, follow: false, TestContext.Current.CancellationToken))
+          collected.Add(line);
+      });
+
+      Assert.Equal(new[] { "first" }, collected);
+      Assert.Equal(ErrorCodes.Model.LogsFailed, ex.ErrorCode);
+    }
+
+    private static IEnumerable<string> FaultingStream()
+    {
+      // Mirrors the streaming primitive raising a generic DriverException on a failed stream.
+      throw new DriverException("Streaming command failed (logs stream blew up).", ErrorCodes.Driver.CommandExecutionFailed);
+#pragma warning disable CS0162 // Unreachable — present so this is a deferred-iterator body.
+      yield break;
+#pragma warning restore CS0162
+    }
+
+    private static IEnumerable<string> MidStreamFault()
+    {
+      yield return "first";
+      throw new DriverException("Streaming command failed (exit code 1).", ErrorCodes.Driver.CommandExecutionFailed);
     }
   }
 }

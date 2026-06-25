@@ -1,6 +1,7 @@
 using System.Threading;
 using System.Threading.Tasks;
 using FluentDocker.Builders;
+using FluentDocker.Common;
 using FluentDocker.Drivers;
 using FluentDocker.Drivers.Docker.Api.Components;
 using FluentDocker.Drivers.Docker.Cli;
@@ -43,6 +44,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
     public async Task RunnerBuilder_PullIfMissing_AndConfigure_AppliedAtBuild()
     {
       var pack = new MockDriverPack()
+          .SetupModelInspectMissing()   // inspect-first probe → absent → pull is attempted
           .SetupModelPull(new ModelInfo { Reference = ModelReference.Parse("ai/smollm2") })
           .SetupModelConfigure()
           .EnableModelDrivers();
@@ -192,7 +194,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
       // A custom endpoint makes the builder create + OWN an inference connection. If the
       // build-time pull then fails, the builder must dispose the runner (and its owned
       // connection) and rethrow — not leak it.
-      var pack = new MockDriverPack().SetupModelConfigure().EnableModelDrivers();
+      var pack = new MockDriverPack().SetupModelInspectMissing().SetupModelConfigure().EnableModelDrivers();
       pack.ModelManagementDriver
           .Setup(d => d.PullAsync(It.IsAny<DriverContext>(), It.IsAny<ModelReference>(),
               It.IsAny<System.IProgress<ModelPullProgress>>(), It.IsAny<CancellationToken>()))
@@ -267,6 +269,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
     {
       using var cts = new CancellationTokenSource();
       var pack = new MockDriverPack()
+          .SetupModelInspectMissing()   // inspect-first probe → absent → pull is attempted
           .SetupModelPull(new ModelInfo { Reference = ModelReference.Parse("ai/smollm2") })
           .SetupModelConfigure()
           .EnableModelDrivers();
@@ -291,6 +294,60 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
       }
     }
 
+    [Fact]
+    public async Task RunnerBuilder_PullIfMissing_SkipsPull_WhenModelAlreadyPresent()
+    {
+      // H4: PullIfMissing now inspects first and pulls ONLY when absent. A present model
+      // must NOT be re-pulled.
+      var pack = new MockDriverPack()
+          .SetupModelInspect(new ModelInfo { Reference = ModelReference.Parse("ai/smollm2") }) // present
+          .SetupModelPull(new ModelInfo { Reference = ModelReference.Parse("ai/smollm2") })
+          .EnableModelDrivers();
+      var kernel = await MockKernelBuilderExtensions.CreateWithMockDriverAsync("docker", pack);
+      await using (kernel)
+      {
+        var runner = await new Builder().WithinDriver("docker", kernel)
+            .UseModelRunner().ForModel("ai/smollm2").PullIfMissing()
+            .BuildAsync(TestContext.Current.CancellationToken);
+        await using ((System.IAsyncDisposable)runner) { }
+
+        pack.ModelManagementDriver.Verify(d => d.PullAsync(
+            It.IsAny<DriverContext>(), It.IsAny<ModelReference>(),
+            It.IsAny<System.IProgress<ModelPullProgress>>(), It.IsAny<CancellationToken>()), Times.Never);
+      }
+    }
+
+    [Fact]
+    public async Task UseModel_Throws_WhenDriverLacksModelSupport()
+    {
+      // A3: UseModel shares the same fail-fast capability guard as UseModelRunner.
+      var pack = new MockDriverPack(); // model ports NOT enabled
+      var kernel = await MockKernelBuilderExtensions.CreateWithMockDriverAsync("docker", pack);
+      await using (kernel)
+      {
+        Assert.Throws<InterfaceNotSupportedException>(() =>
+            new Builder().WithinDriver("docker", kernel).UseModel("ai/smollm2"));
+        Assert.Throws<InterfaceNotSupportedException>(() =>
+            new Builder().WithinDriver("docker", kernel).UseModel(ModelReference.Parse("ai/smollm2")));
+      }
+    }
+
+    [Fact]
+    public async Task UseModel_ModelReferenceOverload_BindsModel()
+    {
+      // M10: UseModel(ModelReference) overload.
+      var pack = new MockDriverPack().SetupModelChat("ok").EnableModelDrivers();
+      var kernel = await MockKernelBuilderExtensions.CreateWithMockDriverAsync("docker", pack);
+      await using (kernel)
+      {
+        var service = await new Builder().WithinDriver("docker", kernel)
+            .UseModel(ModelReference.Parse("ai/smollm2"))
+            .BuildAsync(TestContext.Current.CancellationToken);
+        await using ((System.IAsyncDisposable)service)
+          Assert.Equal("ai/smollm2:latest", service.Model.ToString());
+      }
+    }
+
     // ---- B3: extensions + top-level shortcuts --------------------------------
 
     [Fact]
@@ -311,9 +368,28 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
       var kernel = await MockKernelAsync(enableModels: false);
       await using (kernel)
       {
-        var scoped = (IDriverScopedBuilder)new Builder().WithinDriver("docker", kernel).UseModelRunner();
-        Assert.False(scoped.TryUseModelRunner(out var rb));
-        Assert.Null(rb);
+        // Obtain a genuine scoped builder WITHOUT calling UseModelRunner() — which now
+        // fail-fasts (A3) when the driver lacks model ports. TryUseModelRunner is the
+        // non-throwing probe and must return false here.
+        new Builder().WithinDriver("docker", kernel).UseContainer(cb =>
+        {
+          var scoped = (IDriverScopedBuilder)cb;
+          Assert.False(scoped.TryUseModelRunner(out var rb));
+          Assert.Null(rb);
+        });
+      }
+    }
+
+    [Fact]
+    public async Task UseModelRunner_Throws_WhenNoModelPorts()
+    {
+      // A3: the top-level Builder.UseModelRunner() now uses the same fail-fast guard as
+      // the driver-scoped extension (previously it returned a builder unconditionally).
+      var kernel = await MockKernelAsync(enableModels: false);
+      await using (kernel)
+      {
+        Assert.Throws<InterfaceNotSupportedException>(() =>
+            new Builder().WithinDriver("docker", kernel).UseModelRunner());
       }
     }
 

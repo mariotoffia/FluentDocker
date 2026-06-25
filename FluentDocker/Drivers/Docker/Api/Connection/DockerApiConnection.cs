@@ -128,8 +128,17 @@ namespace FluentDocker.Drivers.Docker.Api.Connection
         using var response = await _httpClient.GetAsync("/_ping", ct).ConfigureAwait(false);
         return response.IsSuccessStatusCode;
       }
+      catch (OperationCanceledException) when (ct.IsCancellationRequested)
+      {
+        // Cancellation requested by the CALLER's token is not a "ping failed" signal —
+        // propagate it. An internal HttpClient.Timeout firing surfaces as a
+        // TaskCanceledException whose token is NOT the caller's, so ct.IsCancellationRequested
+        // is false there and that case falls through to the catch-all below (returns false).
+        throw;
+      }
       catch (Exception ex)
       {
+        // Transport failure or an internal request-timeout — the endpoint is unreachable.
         _logger.LogError(ex, "Docker API ping failed");
         return false;
       }
@@ -240,9 +249,19 @@ namespace FluentDocker.Drivers.Docker.Api.Connection
         {
           var socket = new Socket(
                       AddressFamily.Unix, SocketType.Stream, ProtocolType.Unspecified);
-          var endpoint = new UnixDomainSocketEndPoint(socketPath);
-          await socket.ConnectAsync(endpoint, ct).ConfigureAwait(false);
-          return new NetworkStream(socket, ownsSocket: true);
+          try
+          {
+            var endpoint = new UnixDomainSocketEndPoint(socketPath);
+            await socket.ConnectAsync(endpoint, ct).ConfigureAwait(false);
+            return new NetworkStream(socket, ownsSocket: true);
+          }
+          catch
+          {
+            // NetworkStream never took ownership — dispose the socket so a failed
+            // connect (bad path, timeout, cancellation) does not leak the descriptor.
+            socket.Dispose();
+            throw;
+          }
         },
         ConnectTimeout = config.ConnectionTimeout
       };

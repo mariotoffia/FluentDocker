@@ -1,6 +1,9 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
+using FluentDocker.Drivers;
+using FluentDocker.Drivers.Models.Connection;
+using FluentDocker.Model.Models;
 using FluentDocker.Services;
 
 namespace FluentDocker.Builders
@@ -20,6 +23,22 @@ namespace FluentDocker.Builders
     /// when the installed <c>docker model configure</c> supports <c>--backend</c>.
     /// </summary>
     IModelServiceBuilder WithBackend(string backend);
+
+    /// <summary>Sets raw engine runtime flags (applied via configure at build).</summary>
+    IModelServiceBuilder WithRuntimeFlags(params string[] flags);
+
+    /// <summary>
+    /// Overrides the inference endpoint, optionally with transport configuration and a
+    /// bearer API key (parity with <see cref="IModelRunnerBuilder.WithEndpoint"/>).
+    /// </summary>
+    IModelServiceBuilder WithEndpoint(ModelRunnerEndpoint endpoint,
+        ModelApiConnectionConfig config = null, string apiKey = null);
+
+    /// <summary>Routes inference to an explicit <see cref="IModelInferenceDriver"/> (caller-owned).</summary>
+    IModelServiceBuilder WithInferenceDriver(IModelInferenceDriver inference);
+
+    /// <summary>Routes inference to the driver registered under another <paramref name="driverId"/>.</summary>
+    IModelServiceBuilder WithInferenceDriver(string driverId);
 
     /// <summary>Configures load (run) options.</summary>
     IModelServiceBuilder WithRunOptions(Action<ModelRunOptionsBuilder> configure);
@@ -45,7 +64,19 @@ namespace FluentDocker.Builders
   /// </summary>
   public sealed class ModelRunOptionsBuilder
   {
+    private bool _detach = true;
     private bool _debug;
+    private string _openAiUrl;
+    private bool _webSearch;
+    private int? _contextSize;
+    private System.Collections.Generic.IReadOnlyList<string> _runtimeFlags;
+
+    /// <summary>Load detached so the call returns once resident (default true).</summary>
+    public ModelRunOptionsBuilder WithDetach(bool detach = true)
+    {
+      _detach = detach;
+      return this;
+    }
 
     /// <summary>Enable engine debug output.</summary>
     public ModelRunOptionsBuilder WithDebug(bool debug = true)
@@ -54,9 +85,42 @@ namespace FluentDocker.Builders
       return this;
     }
 
+    /// <summary>Override the OpenAI-compatible base URL the run session targets.</summary>
+    public ModelRunOptionsBuilder WithOpenAiUrl(string url)
+    {
+      _openAiUrl = url;
+      return this;
+    }
+
+    /// <summary>Enable the web-search tool for the session.</summary>
+    public ModelRunOptionsBuilder WithWebSearch(bool enable = true)
+    {
+      _webSearch = enable;
+      return this;
+    }
+
+    /// <summary>Persistent context window (applied via <c>configure</c> before the run).</summary>
+    public ModelRunOptionsBuilder WithContextSize(int tokens)
+    {
+      _contextSize = tokens;
+      return this;
+    }
+
+    /// <summary>Raw inference-engine flags (applied via <c>configure</c> before the run).</summary>
+    public ModelRunOptionsBuilder WithRuntimeFlags(params string[] flags)
+    {
+      _runtimeFlags = flags;
+      return this;
+    }
+
     internal Model.Models.Options.ModelRunOptions Build() => new()
     {
-      Debug = _debug
+      Detach = _detach,
+      Debug = _debug,
+      OpenAiUrl = _openAiUrl,
+      WebSearch = _webSearch,
+      ContextSize = _contextSize,
+      RuntimeFlags = _runtimeFlags
     };
   }
 }

@@ -1,6 +1,8 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
+using FluentDocker.Drivers;
+using FluentDocker.Drivers.Models.Connection;
 using FluentDocker.Kernel;
 using FluentDocker.Model.Models;
 using FluentDocker.Model.Models.Options;
@@ -19,6 +21,12 @@ namespace FluentDocker.Builders
     private ModelReference _model;
     private int? _contextSize;
     private string _backend;
+    private string[] _runtimeFlags;
+    private ModelRunnerEndpoint _endpoint;
+    private ModelApiConnectionConfig _config;
+    private string _apiKey;
+    private IModelInferenceDriver _inferenceDriver;
+    private string _inferenceDriverId;
     private ModelRunOptions _runOptions;
     private bool _keepRunning;
     private bool _pullIfMissing;
@@ -46,6 +54,37 @@ namespace FluentDocker.Builders
     public IModelServiceBuilder WithBackend(string backend)
     {
       _backend = backend;
+      return this;
+    }
+
+    /// <inheritdoc />
+    public IModelServiceBuilder WithRuntimeFlags(params string[] flags)
+    {
+      _runtimeFlags = flags;
+      return this;
+    }
+
+    /// <inheritdoc />
+    public IModelServiceBuilder WithEndpoint(ModelRunnerEndpoint endpoint,
+        ModelApiConnectionConfig config = null, string apiKey = null)
+    {
+      _endpoint = endpoint;
+      _config = config;
+      _apiKey = apiKey;
+      return this;
+    }
+
+    /// <inheritdoc />
+    public IModelServiceBuilder WithInferenceDriver(IModelInferenceDriver inference)
+    {
+      _inferenceDriver = inference ?? throw new ArgumentNullException(nameof(inference));
+      return this;
+    }
+
+    /// <inheritdoc />
+    public IModelServiceBuilder WithInferenceDriver(string driverId)
+    {
+      _inferenceDriverId = driverId ?? throw new ArgumentNullException(nameof(driverId));
       return this;
     }
 
@@ -87,6 +126,16 @@ namespace FluentDocker.Builders
         runnerBuilder.WithContextSize(_contextSize.Value);
       if (!string.IsNullOrEmpty(_backend))
         runnerBuilder.WithBackend(_backend);
+      if (_runtimeFlags is { Length: > 0 })
+        runnerBuilder.WithRuntimeFlags(_runtimeFlags);
+      // Inference override precedence mirrors IModelRunnerBuilder: explicit driver, then
+      // a registered driver id, then a custom endpoint (+config/apiKey).
+      if (_inferenceDriver != null)
+        runnerBuilder.WithInferenceDriver(_inferenceDriver);
+      else if (_inferenceDriverId != null)
+        runnerBuilder.WithInferenceDriver(_inferenceDriverId);
+      else if (_endpoint != null)
+        runnerBuilder.WithEndpoint(_endpoint, _config, _apiKey);
       if (_pullIfMissing)
         runnerBuilder.PullIfMissing();
 

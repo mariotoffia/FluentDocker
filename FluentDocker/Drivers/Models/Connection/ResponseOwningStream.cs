@@ -74,8 +74,18 @@ namespace FluentDocker.Drivers.Models.Connection
 
       if (disposing)
       {
-        _inner.Dispose();
-        _response.Dispose();
+        // Dispose the response in a finally so it ALWAYS runs even when the inner
+        // stream's dispose throws — otherwise the HttpResponseMessage (and its pooled
+        // connection) would leak. Any exception from the inner dispose still propagates
+        // after the response has been disposed.
+        try
+        {
+          _inner.Dispose();
+        }
+        finally
+        {
+          _response.Dispose();
+        }
       }
 
       base.Dispose(disposing);
@@ -87,8 +97,19 @@ namespace FluentDocker.Drivers.Models.Connection
       if (Interlocked.CompareExchange(ref _disposed, 1, 0) != 0)
         return;
 
-      await _inner.DisposeAsync().ConfigureAwait(false);
-      _response.Dispose();
+      // Dispose the response in a finally so it ALWAYS runs even when the inner stream's
+      // DisposeAsync throws — otherwise the HttpResponseMessage (and its pooled connection)
+      // would leak. Any exception from the inner dispose still propagates after the response
+      // has been disposed.
+      try
+      {
+        await _inner.DisposeAsync().ConfigureAwait(false);
+      }
+      finally
+      {
+        _response.Dispose();
+      }
+
       await base.DisposeAsync().ConfigureAwait(false);
     }
   }

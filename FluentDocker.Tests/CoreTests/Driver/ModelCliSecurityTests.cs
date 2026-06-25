@@ -290,6 +290,65 @@ namespace FluentDocker.Tests.CoreTests.Driver
       AssertNeutralized(driver.LastCommand, license);
     }
 
+    // --- H6: global -H host + TLS cert paths must be quoted when they contain
+    // spaces/metacharacters, because they flow into the single-string
+    // ProcessStartInfo.Arguments and would otherwise split into multiple argv tokens.
+
+    [Fact]
+    public void BuildGlobalArgs_HostWithSpace_IsQuoted()
+    {
+      var ctx = new DriverContext { Host = "tcp://my host:2375" };
+
+      var result = DockerCliDriverBase.BuildGlobalArgs(ctx);
+
+      Assert.Contains("-H \"tcp://my host:2375\"", result);
+      // The bare (unquoted) host must not appear right after -H.
+      Assert.DoesNotContain("-H tcp://my host:2375", result);
+    }
+
+    [Fact]
+    public void BuildGlobalArgs_CertPathWithSpace_QuotesAllThreeCertFlags()
+    {
+      var ctx = new DriverContext
+      {
+        Host = "tcp://remote:2376",
+        CertificatePath = "/cert dir",
+        VerifyTls = true
+      };
+
+      var result = DockerCliDriverBase.BuildGlobalArgs(ctx);
+
+      var ca = System.IO.Path.Combine("/cert dir", "ca.pem");
+      var cert = System.IO.Path.Combine("/cert dir", "cert.pem");
+      var key = System.IO.Path.Combine("/cert dir", "key.pem");
+
+      Assert.Contains($"--tlscacert \"{ca}\"", result);
+      Assert.Contains($"--tlscert \"{cert}\"", result);
+      Assert.Contains($"--tlskey \"{key}\"", result);
+
+      // No cert path should appear unquoted (which would split the path across argv).
+      Assert.DoesNotContain($"--tlscacert {ca} ", result);
+      Assert.DoesNotContain($"--tlscert {cert} ", result);
+    }
+
+    [Fact]
+    public void BuildGlobalArgs_BenignHostAndCertPath_RemainUnquoted()
+    {
+      // Backwards-compat: values with no spaces/metacharacters are emitted verbatim.
+      var ctx = new DriverContext
+      {
+        Host = "tcp://remote:2376",
+        CertificatePath = "/certs",
+        VerifyTls = true
+      };
+
+      var result = DockerCliDriverBase.BuildGlobalArgs(ctx);
+
+      Assert.StartsWith("-H tcp://remote:2376", result);
+      Assert.Contains($"--tlscacert {System.IO.Path.Combine("/certs", "ca.pem")}", result);
+      Assert.DoesNotContain("\"", result);
+    }
+
     /// <summary>A management driver that captures the last emitted command.</summary>
     private sealed class CapturingMgmtDriver : DockerCliModelManagementDriver
     {
@@ -306,6 +365,15 @@ namespace FluentDocker.Tests.CoreTests.Driver
       }
 
       protected override async IAsyncEnumerable<string> RunStreamingAsync(string arguments,
+          [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken)
+      {
+        LastCommand = arguments;
+        await Task.CompletedTask;
+        yield break;
+      }
+
+      // PullAsync uses the progress-capable (stderr-interleaving) streaming seam.
+      protected override async IAsyncEnumerable<string> RunStreamingWithProgressAsync(string arguments,
           [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken)
       {
         LastCommand = arguments;

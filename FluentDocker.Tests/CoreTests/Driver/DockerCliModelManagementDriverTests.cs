@@ -47,6 +47,14 @@ namespace FluentDocker.Tests.CoreTests.Driver
         return ToAsync(StreamResponder?.Invoke(arguments) ?? Array.Empty<string>());
       }
 
+      // PullAsync streams progress via the stderr-interleaving seam; mirror the
+      // stdout streaming fake so canned progress lines are delivered to the parser.
+      protected override IAsyncEnumerable<string> RunStreamingWithProgressAsync(string arguments, CancellationToken cancellationToken)
+      {
+        Commands.Add(arguments);
+        return ToAsync(StreamResponder?.Invoke(arguments) ?? Array.Empty<string>());
+      }
+
       private static async IAsyncEnumerable<string> ToAsync(IEnumerable<string> items)
       {
         await Task.CompletedTask;
@@ -275,6 +283,34 @@ namespace FluentDocker.Tests.CoreTests.Driver
       var progressEvents = await progress.WaitForReportsAsync(TestContext.Current.CancellationToken);
       Assert.Equal(3, progressEvents.Count);
       Assert.NotEmpty(progressEvents);
+    }
+
+    [Fact]
+    public async Task PullAsync_ParsesRealStderrProgressLines_ReportsDownloadFractions()
+    {
+      // `docker model pull` writes its byte-progress to stderr in an "X of Y" shape.
+      // Those lines (now interleaved via the progress seam) must parse into download
+      // progress with non-zero Current/Total — proving NEW3 actually delivers progress.
+      var progress = new CapturingProgress<ModelPullProgress>(expected: 2);
+
+      var driver = new FakeMgmtDriver
+      {
+        StreamResponder = _ => new[] { "Downloaded: 50.0 MB of 200.0 MB", "Downloaded: 200.0 MB of 200.0 MB" },
+        Responder = args => args.Contains("inspect") ? Ok(DmrFixtures.Load("inspect.json")) : Ok()
+      };
+
+      var result = await driver.PullAsync(Ctx, ModelReference.Parse("ai/smollm2"), progress, TestContext.Current.CancellationToken);
+
+      Assert.True(result.Success);
+      // The pull command flowed through the progress-capable seam.
+      Assert.Contains(driver.Commands, c => c.Contains("model pull"));
+
+      var events = await progress.WaitForReportsAsync(TestContext.Current.CancellationToken);
+      Assert.Equal(2, events.Count);
+      Assert.All(events, e => Assert.Equal("Downloading", e.Status));
+      Assert.All(events, e => Assert.True(e.Total > 0, "Total bytes should be parsed from the 'of Y' part"));
+      Assert.All(events, e => Assert.True(e.Current > 0, "Current bytes should be parsed from the 'X of' part"));
+      Assert.Equal(1d, events[^1].Fraction, 3); // final line is 200 of 200 => complete
     }
 
     /// <summary>

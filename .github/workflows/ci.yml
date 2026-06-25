@@ -103,6 +103,45 @@ jobs:
           --results-directory ./coverage
           --settings coverletArgs.runsettings
 
+      # Coverage regression gate (finding M22). The XPlat collector cannot fail the
+      # build on a threshold itself (that is a coverlet.msbuild feature), so we enforce
+      # a conservative line/branch FLOOR on the collected OpenCover report here. Floors
+      # are well below the current line=80.65% / branch=73.51% (measured 2026-06-24) so
+      # they only fail on a real regression. Raise them as coverage improves.
+      - name: Enforce coverage threshold
+        if: steps.detect-env.outputs.running_in_act != 'true' && matrix.os == 'ubuntu-latest'
+        shell: bash
+        env:
+          COVERAGE_REPORT_DIR: ./coverage
+          COVERAGE_LINE_MIN: '70'
+          COVERAGE_BRANCH_MIN: '65'
+        run: bash scripts/coverage-threshold
+
+      # Per-assembly coverage report (finding M22). ReportGenerator emits a per-assembly
+      # summary (TextSummary) + HTML from the OpenCover report; uploaded as an artifact.
+      - name: Generate per-assembly coverage report
+        if: steps.detect-env.outputs.running_in_act != 'true' && matrix.os == 'ubuntu-latest'
+        shell: bash
+        run: |
+          dotnet tool install -g dotnet-reportgenerator-globaltool || true
+          export PATH="$PATH:$HOME/.dotnet/tools"
+          reportgenerator \
+            "-reports:./coverage/**/coverage.opencover.xml" \
+            "-targetdir:./coverage/report" \
+            "-reporttypes:HtmlInline;TextSummary;Cobertura"
+
+      - name: Upload coverage report artifact
+        if: steps.detect-env.outputs.running_in_act != 'true' && matrix.os == 'ubuntu-latest'
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          # Raw OpenCover XML + the per-assembly ReportGenerator output (Summary.txt, HTML).
+          path: |
+            coverage/**/coverage.opencover.xml
+            coverage/report/**
+          retention-days: 7
+          if-no-files-found: warn
+
       - name: Run unit tests (net8.0)
         # The product ships net8.0;net10.0, so verify the unit suite on net8.0 too.
         run: >
@@ -209,7 +248,14 @@ jobs:
         with:
           category: "/language:csharp"
 
-  # Integration tests — run on PRs (ubuntu only), schedule, or manual dispatch
+  # Integration tests — run on PRs (ubuntu only), schedule, or manual dispatch.
+  #
+  # RELEASE GATE (H9 residual): PR/hosted runs lack a Docker Model Runner, so the DMR
+  # integration tests self-skip there. Before tagging a release you MUST run the real DMR
+  # gate: trigger this workflow via workflow_dispatch with run_integration=true on a
+  # DMR-capable (self-hosted) runner. That sets FLUENTDOCKER_REQUIRE_DMR=1 below, which
+  # hard-fails on a missing/unstable runner instead of masking zero coverage with a green
+  # self-skip. See docs/model-runner.md (Testing) for the full procedure.
   integration-tests:
     name: Integration Tests (${{ matrix.os }})
     strategy:

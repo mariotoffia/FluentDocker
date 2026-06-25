@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
@@ -11,6 +12,7 @@ namespace FluentDocker.Services.Impl
     public async Task<ChatCompletionResponse> ChatCompletionAsync(ChatCompletionRequest request, CancellationToken cancellationToken = default)
     {
       ThrowIfDisposed();
+      ArgumentNullException.ThrowIfNull(request);
       var response = await Inference().ChatCompletionAsync(Context(), request, cancellationToken).ConfigureAwait(false);
       return Unwrap(response, "Chat completion");
     }
@@ -19,6 +21,7 @@ namespace FluentDocker.Services.Impl
     public IAsyncEnumerable<ChatCompletionChunk> ChatCompletionStreamAsync(ChatCompletionRequest request, CancellationToken cancellationToken = default)
     {
       ThrowIfDisposed();
+      ArgumentNullException.ThrowIfNull(request);
       return Inference().ChatCompletionStreamAsync(Context(), request, cancellationToken);
     }
 
@@ -26,6 +29,7 @@ namespace FluentDocker.Services.Impl
     public async Task<CompletionResponse> CompletionAsync(CompletionRequest request, CancellationToken cancellationToken = default)
     {
       ThrowIfDisposed();
+      ArgumentNullException.ThrowIfNull(request);
       var response = await Inference().CompletionAsync(Context(), request, cancellationToken).ConfigureAwait(false);
       return Unwrap(response, "Completion");
     }
@@ -34,6 +38,7 @@ namespace FluentDocker.Services.Impl
     public IAsyncEnumerable<CompletionChunk> CompletionStreamAsync(CompletionRequest request, CancellationToken cancellationToken = default)
     {
       ThrowIfDisposed();
+      ArgumentNullException.ThrowIfNull(request);
       return Inference().CompletionStreamAsync(Context(), request, cancellationToken);
     }
 
@@ -41,6 +46,7 @@ namespace FluentDocker.Services.Impl
     public async Task<EmbeddingsResponse> EmbeddingsAsync(EmbeddingsRequest request, CancellationToken cancellationToken = default)
     {
       ThrowIfDisposed();
+      ArgumentNullException.ThrowIfNull(request);
       var response = await Inference().EmbeddingsAsync(Context(), request, cancellationToken).ConfigureAwait(false);
       return Unwrap(response, "Embeddings");
     }

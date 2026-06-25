@@ -84,6 +84,14 @@ namespace FluentDocker.Builders
     public IModelServiceBuilder UseModel(string reference) => _inner.UseModel(reference);
 
     /// <summary>
+    /// Begins building a managed single-model <see cref="Services.IModelService"/>
+    /// from a pre-built <see cref="Model.Models.ModelReference"/>.
+    /// </summary>
+    /// <param name="reference">The model reference.</param>
+    /// <returns>A model service builder.</returns>
+    public IModelServiceBuilder UseModel(Model.Models.ModelReference reference) => _inner.UseModel(reference);
+
+    /// <summary>
     /// TERMINAL - Builds all operations synchronously.
     /// For async contexts, prefer <see cref="BuildAsync"/>.
     /// </summary>

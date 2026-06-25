@@ -24,8 +24,11 @@ namespace FluentDocker.Services
     /// <summary>Loads (and optionally keeps resident) a model.</summary>
     Task LoadAsync(ModelReference model, ModelRunOptions options = null, CancellationToken cancellationToken = default);
 
-    /// <summary>Unloads a model (or all models).</summary>
-    Task UnloadAsync(ModelReference model, bool all = false, CancellationToken cancellationToken = default);
+    /// <summary>Unloads a single model.</summary>
+    Task UnloadAsync(ModelReference model, CancellationToken cancellationToken = default);
+
+    /// <summary>Unloads all currently-loaded models.</summary>
+    Task UnloadAllAsync(CancellationToken cancellationToken = default);
 
     /// <summary>Configures persistent per-model runtime settings.</summary>
     Task ConfigureAsync(ModelReference model, ModelConfigureOptions options, CancellationToken cancellationToken = default);
@@ -35,5 +38,8 @@ namespace FluentDocker.Services
 
     /// <summary>Installs the runner (Docker Engine CE only).</summary>
     Task InstallRunnerAsync(ModelRunnerInstallOptions options = null, CancellationToken cancellationToken = default);
+
+    /// <summary>Uninstalls the runner (Docker Engine CE only).</summary>
+    Task UninstallRunnerAsync(ModelRunnerUninstallOptions options = null, CancellationToken cancellationToken = default);
   }
 }

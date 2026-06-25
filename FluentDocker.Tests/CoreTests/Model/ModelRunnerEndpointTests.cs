@@ -1,5 +1,6 @@
 using System;
 using FluentDocker.Model.Models;
+using FluentDocker.Tests.CoreTests.Service;
 using Xunit;
 
 namespace FluentDocker.Tests.CoreTests.Model
@@ -7,8 +8,14 @@ namespace FluentDocker.Tests.CoreTests.Model
   /// <summary>
   /// Unit tests for the <see cref="ModelRunnerEndpoint"/> value object: URL / path
   /// building, the engine-in-path toggle and environment-based resolution.
+  /// <para>
+  /// The environment-resolution tests mutate <c>DOCKER_MODEL_RUNNER_URL</c>; this class
+  /// joins the non-parallel <see cref="ModelEnvVarsCollection"/> so it never races other
+  /// env-mutating model tests on shared process state.
+  /// </para>
   /// </summary>
   [Trait("Category", "Unit")]
+  [Collection(ModelEnvVarsCollection.Name)]
   public class ModelRunnerEndpointTests
   {
     [Fact]
@@ -42,6 +49,55 @@ namespace FluentDocker.Tests.CoreTests.Model
       var ep = ModelRunnerEndpoint.Custom(new Uri("https://api.example.com:8443"), "vllm");
       Assert.Equal(new Uri("https://api.example.com:8443"), ep.BaseAddress);
       Assert.Equal("vllm", ep.Engine);
+    }
+
+    [Fact]
+    public void Custom_AuthorityOnly_AppendsEnginePath()
+    {
+      // Authority-only Custom keeps the documented authority-only behavior: the engine
+      // prefix is appended (no path on the supplied Uri to preserve). This locks the
+      // no-regression case.
+      var ep = ModelRunnerEndpoint.Custom(new Uri("https://host:9000"));
+      Assert.Equal("/engines/llama.cpp", ep.EnginePath);
+      Assert.Equal(new Uri("https://host:9000/engines/llama.cpp/v1/chat/completions"),
+          ep.ResolveUri("/chat/completions"));
+    }
+
+    [Fact]
+    public void Custom_RootPath_AppendsEnginePath()
+    {
+      // A bare "/" path is treated as authority-only (no meaningful path to preserve), so
+      // the engine prefix is still appended — UNCHANGED from today.
+      var ep = ModelRunnerEndpoint.Custom(new Uri("https://host:9000/"));
+      Assert.Equal("/engines/llama.cpp", ep.EnginePath);
+      Assert.Equal(new Uri("https://host:9000/engines/llama.cpp/v1/chat/completions"),
+          ep.ResolveUri("/chat/completions"));
+    }
+
+    [Fact]
+    public void Custom_PathBearingUri_PreservesPath_LikeRaw()
+    {
+      // A path-bearing Custom Uri (e.g. https://host:9000/v1) must preserve that path rather
+      // than discarding it and re-appending /engines/.../v1 — it behaves exactly like Raw.
+      var custom = ModelRunnerEndpoint.Custom(new Uri("https://host:9000/v1"));
+      var raw = ModelRunnerEndpoint.Raw(new Uri("https://host:9000/v1"));
+
+      Assert.Equal(raw.BaseAddress, custom.BaseAddress);
+      Assert.Equal(raw.EnginePath, custom.EnginePath);
+      Assert.Equal(raw.EngineV1Path("/chat/completions"), custom.EngineV1Path("/chat/completions"));
+      Assert.Equal(new Uri("https://host:9000/v1/chat/completions"), custom.ResolveUri("/chat/completions"));
+      Assert.Equal(raw.ResolveUri("/chat/completions"), custom.ResolveUri("/chat/completions"));
+    }
+
+    [Fact]
+    public void UnixSocket_ResolvesEnginePath()
+    {
+      // Capture the current UnixSocket resolved path so the preview caveat (the Docker
+      // Desktop host socket may need a routing prefix that is not yet applied) is backed by
+      // a test. UnixSocket builds /engines/{engine}/v1/... over the socket today.
+      var ep = ModelRunnerEndpoint.UnixSocket("/tmp/docker.sock");
+      Assert.Equal("/engines/llama.cpp", ep.EnginePath);
+      Assert.Equal("/engines/llama.cpp/v1/models", ep.EngineV1Path("/models"));
     }
 
     [Fact]

@@ -214,5 +214,91 @@ namespace FluentDocker.Tests.CoreTests.Driver
 
       Assert.Equal(" Paris", text);
     }
+
+    // ---- A6/NEW1: a mid-stream SSE error frame must throw, carrying the server's message ----
+
+    [Fact]
+    public async Task ChatCompletionStreamAsync_MidStreamErrorFrame_ThrowsWithMessage_AfterYieldingPriorFrames()
+    {
+      const string script =
+          "data: {\"choices\":[{\"index\":0,\"delta\":{\"content\":\"Hi\"}}]}\n\n" +
+          "data: {\"error\":{\"message\":\"context length exceeded\"}}\n\n" +
+          "data: [DONE]\n\n";
+      var conn = new MockModelApiConnection().SetupStream("/chat/completions", script);
+      var driver = Create(conn);
+
+      var contents = new List<string>();
+      var ex = await Assert.ThrowsAsync<ModelRunnerException>(async () =>
+      {
+        await foreach (var chunk in driver.ChatCompletionStreamAsync(Ctx, new ChatCompletionRequest { Model = "ai/x" }, TestContext.Current.CancellationToken))
+          contents.Add(chunk.Choices[0].Delta.Content);
+      });
+
+      Assert.Equal(ErrorCodes.ModelInference.RequestFailed, ex.ErrorCode);
+      Assert.Contains("context length exceeded", ex.Message, StringComparison.Ordinal);
+      Assert.Equal(new[] { "Hi" }, contents); // the valid frame before the error was yielded
+    }
+
+    [Fact]
+    public async Task CompletionStreamAsync_MidStreamErrorFrame_Throws()
+    {
+      const string script =
+          "data: {\"choices\":[{\"index\":0,\"text\":\"Pa\"}]}\n\n" +
+          "data: {\"error\":\"boom\"}\n\n";
+      var conn = new MockModelApiConnection().SetupStream("/completions", script);
+      var driver = Create(conn);
+
+      var ex = await Assert.ThrowsAsync<ModelRunnerException>(async () =>
+      {
+        await foreach (var _ in driver.CompletionStreamAsync(Ctx, new CompletionRequest { Model = "ai/x", Prompt = "p" }, TestContext.Current.CancellationToken))
+        {
+        }
+      });
+
+      Assert.Equal(ErrorCodes.ModelInference.RequestFailed, ex.ErrorCode);
+      Assert.Contains("boom", ex.Message, StringComparison.Ordinal);
+    }
+
+    // ---- NEW5: an empty `data:` line must be skipped, not abort the stream ----
+
+    [Fact]
+    public async Task ChatCompletionStreamAsync_EmptyDataLine_IsSkipped_StreamCompletes()
+    {
+      // An interleaved blank `data:` frame (an SSE heartbeat) must NOT abort the stream.
+      const string script =
+          "data: {\"choices\":[{\"index\":0,\"delta\":{\"content\":\"Hel\"}}]}\n\n" +
+          "data: \n\n" +
+          "data: {\"choices\":[{\"index\":0,\"delta\":{\"content\":\"lo\"}}]}\n\n" +
+          "data: [DONE]\n\n";
+      var conn = new MockModelApiConnection().SetupStream("/chat/completions", script);
+      var driver = Create(conn);
+
+      var text = string.Empty;
+      await foreach (var chunk in driver.ChatCompletionStreamAsync(Ctx, new ChatCompletionRequest { Model = "ai/x" }, TestContext.Current.CancellationToken))
+        text += chunk.Choices[0].Delta.Content;
+
+      Assert.Equal("Hello", text);
+    }
+
+    // ---- H7/M1: a single SSE line exceeding the byte cap must throw a typed exception ----
+
+    [Fact]
+    public async Task ChatCompletionStreamAsync_OversizedSseLine_ThrowsStreamParseError()
+    {
+      // One `data:` line padded well beyond the 1 MiB cap (no newline within it).
+      var huge = new string('x', (1024 * 1024) + 16);
+      var script = "data: " + huge + "\n\ndata: [DONE]\n\n";
+      var conn = new MockModelApiConnection().SetupStream("/chat/completions", script);
+      var driver = Create(conn);
+
+      var ex = await Assert.ThrowsAsync<ModelRunnerException>(async () =>
+      {
+        await foreach (var _ in driver.ChatCompletionStreamAsync(Ctx, new ChatCompletionRequest { Model = "ai/x" }, TestContext.Current.CancellationToken))
+        {
+        }
+      });
+
+      Assert.Equal(ErrorCodes.ModelInference.StreamParseError, ex.ErrorCode);
+    }
   }
 }

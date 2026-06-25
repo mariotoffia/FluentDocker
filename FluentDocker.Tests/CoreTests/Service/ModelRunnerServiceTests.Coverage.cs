@@ -280,19 +280,19 @@ namespace FluentDocker.Tests.CoreTests.Service
       var (kernel, runner) = await BuildAsync(p => p.SetupModelUnload());
       await using (kernel)
       {
-        await runner.UnloadAsync(ModelReference.Parse("ai/smollm2"), all: false, TestContext.Current.CancellationToken);
+        await runner.UnloadAsync(ModelReference.Parse("ai/smollm2"), TestContext.Current.CancellationToken);
       }
     }
 
     [Fact]
-    public async Task Engine_UnloadAsync_AllTrue_PassesAllFlagToDriver()
+    public async Task Engine_UnloadAllAsync_DelegatesToDriver()
     {
       var (kernel, runner, pack) = await BuildWithPackAsync(p => p.SetupModelUnload());
       await using (kernel)
       {
-        await runner.UnloadAsync(null, all: true, TestContext.Current.CancellationToken);
+        await runner.UnloadAllAsync(TestContext.Current.CancellationToken);
         pack.ModelRuntimeDriver.Verify(
-            d => d.UnloadAsync(It.IsAny<DriverContext>(), It.IsAny<ModelReference>(), true, It.IsAny<CancellationToken>()),
+            d => d.UnloadAllAsync(It.IsAny<DriverContext>(), It.IsAny<CancellationToken>()),
             Times.Once);
       }
     }
@@ -301,14 +301,71 @@ namespace FluentDocker.Tests.CoreTests.Service
     public async Task Engine_UnloadAsync_Failure_ThrowsModelRunnerException()
     {
       var (kernel, runner) = await BuildAsync(p =>
-          p.ModelRuntimeDriver.Setup(d => d.UnloadAsync(It.IsAny<DriverContext>(), It.IsAny<ModelReference>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()))
+          p.ModelRuntimeDriver.Setup(d => d.UnloadAsync(It.IsAny<DriverContext>(), It.IsAny<ModelReference>(), It.IsAny<CancellationToken>()))
               .ReturnsAsync(CommandResponse<Unit>.Fail("unload fail", ErrorCodes.Model.UnloadFailed)));
       await using (kernel)
       {
         var ex = await Assert.ThrowsAsync<ModelRunnerException>(
-            () => runner.UnloadAsync(ModelReference.Parse("ai/smollm2"), all: false, TestContext.Current.CancellationToken));
+            () => runner.UnloadAsync(ModelReference.Parse("ai/smollm2"), TestContext.Current.CancellationToken));
         Assert.Equal(ErrorCodes.Model.UnloadFailed, ex.ErrorCode);
       }
+    }
+
+    [Fact]
+    public async Task Engine_UninstallRunnerAsync_DelegatesToDriver()
+    {
+      var (kernel, runner, pack) = await BuildWithPackAsync(p =>
+          p.ModelRuntimeDriver.Setup(d => d.UninstallRunnerAsync(
+                  It.IsAny<DriverContext>(), It.IsAny<ModelRunnerUninstallOptions>(), It.IsAny<CancellationToken>()))
+              .ReturnsAsync(CommandResponse<Unit>.Ok(Unit.Default)));
+      await using (kernel)
+      {
+        await runner.UninstallRunnerAsync(new ModelRunnerUninstallOptions { RemoveModels = true }, TestContext.Current.CancellationToken);
+        pack.ModelRuntimeDriver.Verify(
+            d => d.UninstallRunnerAsync(It.IsAny<DriverContext>(), It.IsAny<ModelRunnerUninstallOptions>(), It.IsAny<CancellationToken>()),
+            Times.Once);
+      }
+    }
+
+    [Fact]
+    public async Task Engine_UninstallRunnerAsync_Failure_ThrowsModelRunnerException()
+    {
+      var (kernel, runner) = await BuildAsync(p =>
+          p.ModelRuntimeDriver.Setup(d => d.UninstallRunnerAsync(
+                  It.IsAny<DriverContext>(), It.IsAny<ModelRunnerUninstallOptions>(), It.IsAny<CancellationToken>()))
+              .ReturnsAsync(CommandResponse<Unit>.Fail("uninstall fail", ErrorCodes.Model.InstallFailed)));
+      await using (kernel)
+      {
+        var ex = await Assert.ThrowsAsync<ModelRunnerException>(
+            () => runner.UninstallRunnerAsync(null, TestContext.Current.CancellationToken));
+        Assert.Equal(ErrorCodes.Model.InstallFailed, ex.ErrorCode);
+      }
+    }
+
+    // ===== M21 fail-fast validation (consistent with GenericOpenAiModelRunner) =====
+
+    [Fact]
+    public async Task ChatAsync_NullPrompt_ThrowsArgumentNull()
+    {
+      var (kernel, runner) = await BuildAsync(p => p.SetupModelChat("ok"));
+      await using (kernel)
+        await Assert.ThrowsAsync<ArgumentNullException>(() => runner.ChatAsync(null, TestContext.Current.CancellationToken));
+    }
+
+    [Fact]
+    public async Task EmbedAsync_NullText_ThrowsArgumentNull()
+    {
+      var (kernel, runner) = await BuildAsync(p => p.SetupModelEmbeddings(1f, 2f));
+      await using (kernel)
+        await Assert.ThrowsAsync<ArgumentNullException>(() => runner.EmbedAsync(null, null, TestContext.Current.CancellationToken));
+    }
+
+    [Fact]
+    public async Task ChatCompletionAsync_NullRequest_ThrowsArgumentNull()
+    {
+      var (kernel, runner) = await BuildAsync(_ => { });
+      await using (kernel)
+        await Assert.ThrowsAsync<ArgumentNullException>(() => runner.ChatCompletionAsync(null, TestContext.Current.CancellationToken));
     }
 
     [Fact]

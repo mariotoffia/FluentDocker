@@ -1,12 +1,7 @@
 using System;
-using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
-using System.Runtime.CompilerServices;
 using System.Text;
-using System.Threading;
-using System.Threading.Tasks;
-using FluentDocker.Common;
 using FluentDocker.Drivers.Docker.Cli.Binary;
 using FluentDocker.Model.Common;
 using FluentDocker.Model.Drivers;
@@ -19,7 +14,7 @@ namespace FluentDocker.Drivers.Docker.Cli
   /// Base class for Docker CLI driver components.
   /// Provides shared command execution functionality.
   /// </summary>
-  public abstract class DockerCliDriverBase
+  public abstract partial class DockerCliDriverBase
   {
     /// <summary>
     /// The Docker command executable name.
@@ -93,8 +88,12 @@ namespace FluentDocker.Drivers.Docker.Cli
       if (context == null || string.IsNullOrEmpty(context.Host))
         return "";
 
+      // Host and cert paths flow into the single-string ProcessStartInfo.Arguments and
+      // are parsed into argv by the runtime, so any spaces/metacharacters in them (a
+      // host string or a cert directory path containing a space) must be quoted to
+      // stay within a single argv token.
       var sb = new StringBuilder();
-      sb.Append($"-H {context.Host}");
+      sb.Append("-H ").Append(QuoteArgumentIfNeeded(context.Host));
 
       if (!string.IsNullOrEmpty(context.CertificatePath))
       {
@@ -108,294 +107,12 @@ namespace FluentDocker.Drivers.Docker.Cli
         else
           sb.Append(" --tls");
 
-        sb.Append($" --tlscacert {caCert} --tlscert {cert} --tlskey {key}");
+        sb.Append(" --tlscacert ").Append(QuoteArgumentIfNeeded(caCert))
+          .Append(" --tlscert ").Append(QuoteArgumentIfNeeded(cert))
+          .Append(" --tlskey ").Append(QuoteArgumentIfNeeded(key));
       }
 
       return sb.ToString();
-    }
-
-    #endregion
-
-    #region Command Execution
-
-    /// <summary>
-    /// Resolves the binary info for the Docker command, extracting
-    /// the binary path and sudo configuration separately for safe execution.
-    /// </summary>
-    private (string BinaryPath, SudoMechanism Sudo, string SudoPassword) ResolveBinaryInfo()
-    {
-      if (BinaryResolver == null)
-        return (DockerCommand, SudoMechanism.None, null);
-
-      var binary = BinaryResolver.Resolve(DockerCommand);
-      return (binary.FqPath, binary.Sudo, binary.SudoPassword);
-    }
-
-    /// <summary>
-    /// Executes a Docker command asynchronously.
-    /// </summary>
-    /// <param name="arguments">Command arguments</param>
-    /// <param name="cancellationToken">Cancellation token</param>
-    /// <returns>Command result</returns>
-    protected async Task<SimpleCommandResult> ExecuteCommandAsync(string arguments, CancellationToken cancellationToken)
-    {
-      var (binaryPath, sudo, sudoPassword) = ResolveBinaryInfo();
-      var globalArgs = BuildGlobalArgs(Context);
-      var fullArgs = string.IsNullOrEmpty(globalArgs) ? arguments : $"{globalArgs} {arguments}";
-      return await ExecuteProcessAsync(binaryPath, fullArgs, null, null, sudo, sudoPassword, cancellationToken).ConfigureAwait(false);
-    }
-
-    /// <summary>
-    /// Executes a Docker command asynchronously with data piped to stdin.
-    /// </summary>
-    protected async Task<SimpleCommandResult> ExecuteCommandAsync(
-        string arguments, string stdinData, CancellationToken cancellationToken)
-    {
-      var (binaryPath, sudo, sudoPassword) = ResolveBinaryInfo();
-      var globalArgs = BuildGlobalArgs(Context);
-      var fullArgs = string.IsNullOrEmpty(globalArgs) ? arguments : $"{globalArgs} {arguments}";
-      return await ExecuteProcessAsync(binaryPath, fullArgs, null, stdinData, sudo, sudoPassword, cancellationToken).ConfigureAwait(false);
-    }
-
-    /// <summary>
-    /// Executes a Docker command asynchronously with additional environment variables.
-    /// </summary>
-    protected async Task<SimpleCommandResult> ExecuteCommandAsync(
-        string arguments,
-        IDictionary<string, string> environment,
-        CancellationToken cancellationToken)
-    {
-      var (binaryPath, sudo, sudoPassword) = ResolveBinaryInfo();
-      var globalArgs = BuildGlobalArgs(Context);
-      var fullArgs = string.IsNullOrEmpty(globalArgs) ? arguments : $"{globalArgs} {arguments}";
-      return await ExecuteProcessAsync(binaryPath, fullArgs, environment, null, sudo, sudoPassword, cancellationToken).ConfigureAwait(false);
-    }
-
-    /// <summary>
-    /// Executes a process asynchronously using direct stream reading
-    /// to avoid event-based output race conditions.
-    /// Handles sudo by setting the process FileName to "sudo" and passing the
-    /// password via stdin (never on the command line).
-    /// </summary>
-    private static async Task<SimpleCommandResult> ExecuteProcessAsync(
-        string fileName, string arguments,
-        IDictionary<string, string> environment,
-        string stdinData,
-        SudoMechanism sudo, string sudoPassword,
-        CancellationToken cancellationToken)
-    {
-      // Build the actual process command based on sudo mechanism.
-      // The password is NEVER placed on the command line.
-      var (processFileName, processArguments, passwordForStdin) =
-          BuildSudoCommand(fileName, arguments, sudo, sudoPassword);
-
-      var needsStdin = stdinData != null || passwordForStdin != null;
-
-      Process process = null;
-      try
-      {
-        process = new Process
-        {
-          StartInfo = new ProcessStartInfo
-          {
-            FileName = processFileName,
-            Arguments = processArguments,
-            RedirectStandardOutput = true,
-            RedirectStandardError = true,
-            RedirectStandardInput = needsStdin,
-            UseShellExecute = false,
-            CreateNoWindow = true,
-            StandardOutputEncoding = Encoding.UTF8,
-            StandardErrorEncoding = Encoding.UTF8
-          }
-        };
-
-        if (environment != null)
-        {
-          foreach (var kvp in environment)
-            process.StartInfo.Environment[kvp.Key] = kvp.Value;
-        }
-
-        process.Start();
-
-        if (needsStdin)
-        {
-          // Write sudo password first (if any), then caller data.
-          if (passwordForStdin != null)
-            await process.StandardInput.WriteLineAsync(passwordForStdin).ConfigureAwait(false);
-
-          if (stdinData != null)
-            await process.StandardInput.WriteAsync(stdinData).ConfigureAwait(false);
-
-          process.StandardInput.Close();
-        }
-
-        // Read stdout and stderr concurrently to avoid deadlock
-        // when either pipe buffer fills up.
-        var outputTask = process.StandardOutput.ReadToEndAsync(cancellationToken);
-        var errorTask = process.StandardError.ReadToEndAsync(cancellationToken);
-
-        var output = await outputTask.ConfigureAwait(false);
-        var error = await errorTask.ConfigureAwait(false);
-
-        // Ensure process has fully exited and get exit code.
-        await process.WaitForExitAsync(cancellationToken).ConfigureAwait(false);
-
-        return new SimpleCommandResult
-        {
-          Success = process.ExitCode == 0,
-          Output = output,
-          Error = error,
-          ExitCode = process.ExitCode
-        };
-      }
-      catch (OperationCanceledException)
-      {
-        // Kill the child process on cancellation to prevent orphans.
-        KillProcessSafely(process);
-        throw;
-      }
-      catch (Exception ex)
-      {
-        return new SimpleCommandResult
-        {
-          Success = false,
-          Error = ex.Message,
-          ExitCode = -1
-        };
-      }
-      finally
-      {
-        process?.Dispose();
-      }
-    }
-
-    /// <summary>
-    /// Executes a streaming Docker command asynchronously.
-    /// </summary>
-    /// <param name="arguments">Command arguments</param>
-    /// <param name="cancellationToken">Cancellation token</param>
-    /// <returns>Async enumerable of output lines</returns>
-    protected async IAsyncEnumerable<string> ExecuteStreamingCommandAsync(string arguments, [EnumeratorCancellation] CancellationToken cancellationToken)
-    {
-      var (binaryPath, sudo, sudoPassword) = ResolveBinaryInfo();
-      var globalArgs = BuildGlobalArgs(Context);
-      var fullArgs = string.IsNullOrEmpty(globalArgs) ? arguments : $"{globalArgs} {arguments}";
-
-      var (processFileName, processArguments, passwordForStdin) =
-          BuildSudoCommand(binaryPath, fullArgs, sudo, sudoPassword);
-
-      using var process = new Process
-      {
-        StartInfo = new ProcessStartInfo
-        {
-          FileName = processFileName,
-          Arguments = processArguments,
-          RedirectStandardOutput = true,
-          RedirectStandardError = true,
-          RedirectStandardInput = passwordForStdin != null,
-          UseShellExecute = false,
-          CreateNoWindow = true,
-          StandardOutputEncoding = Encoding.UTF8,
-          StandardErrorEncoding = Encoding.UTF8
-        }
-      };
-
-      process.Start();
-
-      if (passwordForStdin != null)
-      {
-        await process.StandardInput.WriteLineAsync(passwordForStdin).ConfigureAwait(false);
-        process.StandardInput.Close();
-      }
-
-      // Drain stderr concurrently so a chatty child cannot deadlock by filling the
-      // stderr pipe buffer while we only read stdout.
-      var errorTask = process.StandardError.ReadToEndAsync(cancellationToken);
-      var reader = process.StandardOutput;
-      string failure = null;
-
-      try
-      {
-        string line;
-        while ((line = await reader.ReadLineAsync(cancellationToken).ConfigureAwait(false)) != null)
-          yield return line;
-
-        // Stdout reached EOF — wait for the process and surface a non-zero exit as a
-        // failure rather than ending the stream silently (a failed pull/logs must throw).
-        await process.WaitForExitAsync(cancellationToken).ConfigureAwait(false);
-        var error = await errorTask.ConfigureAwait(false);
-        if (process.ExitCode != 0)
-        {
-          var trimmed = (error ?? string.Empty).Trim();
-          if (trimmed.Length > 2000)
-            trimmed = trimmed[..2000] + "…";
-          failure = $"exit code {process.ExitCode}{(trimmed.Length == 0 ? string.Empty : $": {trimmed}")}";
-        }
-      }
-      finally
-      {
-        KillProcessSafely(process, Logger);
-        await ObserveQuietlyAsync(errorTask).ConfigureAwait(false);
-      }
-
-      if (failure != null)
-        throw new DriverException($"Streaming command failed ({failure}).", ErrorCodes.Driver.CommandExecutionFailed);
-    }
-
-    /// <summary>Awaits a task, swallowing any fault — used to observe a best-effort
-    /// background read (e.g. stderr drain) when a stream is torn down early.</summary>
-    private static async Task ObserveQuietlyAsync(Task task)
-    {
-      try
-      {
-        await task.ConfigureAwait(false);
-      }
-      catch (Exception)
-      {
-        // The stream is ending (early break/cancel); the drain result is irrelevant.
-      }
-    }
-
-    /// <summary>
-    /// Starts a long-running attach process with stdin/stdout/stderr redirected.
-    /// </summary>
-    protected AttachResult ExecuteAttachProcess(string arguments)
-    {
-      var (binaryPath, sudo, _) = ResolveBinaryInfo();
-      var globalArgs = BuildGlobalArgs(Context);
-      var fullArgs = string.IsNullOrEmpty(globalArgs) ? arguments : $"{globalArgs} {arguments}";
-
-      // Attach does not support sudo with password (would conflict with stdin).
-      var (processFileName, processArguments, _) =
-          BuildSudoCommand(binaryPath, fullArgs, sudo, null);
-
-      var process = new Process
-      {
-        StartInfo = new ProcessStartInfo
-        {
-          FileName = processFileName,
-          Arguments = processArguments,
-          RedirectStandardInput = true,
-          RedirectStandardOutput = true,
-          RedirectStandardError = true,
-          UseShellExecute = false,
-          CreateNoWindow = true,
-          StandardOutputEncoding = Encoding.UTF8,
-          StandardErrorEncoding = Encoding.UTF8
-        }
-      };
-
-      process.Start();
-
-      return new AttachResult
-      {
-        InputStream = process.StandardInput.BaseStream,
-        OutputStream = process.StandardOutput.BaseStream,
-        ErrorStream = process.StandardError.BaseStream,
-        IsConnected = true,
-        AttachedProcess = process
-      };
     }
 
     #endregion

@@ -27,6 +27,10 @@ namespace FluentDocker.Services.Impl
     private readonly Dictionary<string, Func<IServiceAsync, Task>> _hooks = [];
     private readonly Dictionary<ServiceRunningState, List<Func<IServiceAsync, Task>>> _stateHooks = [];
     private ServiceRunningState _state = ServiceRunningState.Unknown;
+    // Set just before the load attempt. A load that partially loads the model and then
+    // faults/cancels leaves _state == Unknown (not Running), so dispose must key off this
+    // flag — not only _state == Running — to avoid leaking a resident model.
+    private bool _loadInitiated;
     private int _disposed;
 
     /// <summary>Initializes the model service.</summary>
@@ -100,6 +104,7 @@ namespace FluentDocker.Services.Impl
 
       try
       {
+        _loadInitiated = true;
         await _runner.LoadAsync(_model, _runOptions, cancellationToken).ConfigureAwait(false);
       }
       catch
@@ -133,7 +138,7 @@ namespace FluentDocker.Services.Impl
 
       try
       {
-        await _runner.UnloadAsync(_model, false, cancellationToken).ConfigureAwait(false);
+        await _runner.UnloadAsync(_model, cancellationToken).ConfigureAwait(false);
       }
       catch
       {
@@ -239,8 +244,22 @@ namespace FluentDocker.Services.Impl
         // _keepRunning controls only whether the model is unloaded — it must NOT
         // gate disposal of the owned runner (which may hold an inference connection,
         // X509 cert, HttpClient, etc.).
-        if (!_keepRunning && _state == ServiceRunningState.Running)
-          await StopCoreAsync().ConfigureAwait(false);
+        if (!_keepRunning)
+        {
+          if (_state == ServiceRunningState.Running)
+          {
+            await StopCoreAsync().ConfigureAwait(false);
+          }
+          else if (_loadInitiated &&
+                   _state != ServiceRunningState.Stopped &&
+                   _state != ServiceRunningState.Removed)
+          {
+            // A load was attempted but we never reached Running (it faulted/cancelled
+            // mid-load) — the model may still be resident. Best-effort unload so we
+            // don't leak it; failures are swallowed by the surrounding catch.
+            await _runner.UnloadAsync(_model).ConfigureAwait(false);
+          }
+        }
       }
       catch (Exception ex)
       {

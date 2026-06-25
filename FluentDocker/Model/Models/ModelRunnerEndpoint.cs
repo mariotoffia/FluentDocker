@@ -107,6 +107,13 @@ namespace FluentDocker.Model.Models
     /// <param name="socketPath">The socket path; defaults to <c>$HOME/.docker/run/docker.sock</c>.</param>
     /// <param name="engine">The engine name (default <c>llama.cpp</c>).</param>
     /// <returns>A unix-socket endpoint.</returns>
+    /// <remarks>
+    /// Preview caveat: the socket form assumes the runner serves <c>/engines/…</c> directly
+    /// on the supplied socket (request paths are built as <c>/engines/{engine}/v1/…</c> with
+    /// no extra prefix). The Docker Desktop host socket may instead expose the runner under a
+    /// routing prefix (e.g. <c>/exp/vDD4.40/…</c>); that prefix is NOT yet applied or verified
+    /// here, so the default-socket form may not resolve against Docker Desktop's socket.
+    /// </remarks>
     public static ModelRunnerEndpoint UnixSocket(string socketPath = null, string engine = DefaultEngine)
     {
       var path = socketPath ?? DefaultSocketPath();
@@ -117,10 +124,26 @@ namespace FluentDocker.Model.Models
     /// <param name="baseAddress">The base address.</param>
     /// <param name="engine">The engine name (default <c>llama.cpp</c>).</param>
     /// <returns>A custom endpoint.</returns>
+    /// <remarks>
+    /// When <paramref name="baseAddress"/> carries a non-root path (anything other than an
+    /// empty path or <c>"/"</c>, e.g. <c>https://host:9000/v1</c>), that path is PRESERVED and
+    /// request paths are appended to it directly — i.e. the call behaves exactly like
+    /// <see cref="Raw(Uri, string)"/>, with no <c>/engines/{engine}/v1</c> prefix added. An
+    /// authority-only base (no path, or just <c>"/"</c>) keeps the documented behavior of
+    /// appending <c>/engines/{engine}/v1/…</c>.
+    /// </remarks>
     public static ModelRunnerEndpoint Custom(Uri baseAddress, string engine = DefaultEngine)
     {
       if (baseAddress == null)
         throw new ArgumentNullException(nameof(baseAddress));
+
+      // A non-root path (e.g. https://host:9000/v1) is a fully-formed base the caller wants
+      // honored verbatim — delegate to Raw so the path is preserved instead of discarded and
+      // re-prefixed with /engines/{engine}/v1. An authority-only Uri (path "" or "/") keeps
+      // the engine-prefix behavior below.
+      var path = baseAddress.AbsolutePath;
+      if (!string.IsNullOrEmpty(path) && path != "/")
+        return Raw(baseAddress, engine);
 
       return new ModelRunnerEndpoint(baseAddress, engine, null, true);
     }

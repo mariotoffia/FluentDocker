@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
@@ -41,11 +42,20 @@ namespace FluentDocker.Services.Impl
     }
 
     /// <inheritdoc />
-    public async Task UnloadAsync(ModelReference model, bool all = false, CancellationToken cancellationToken = default)
+    public async Task UnloadAsync(ModelReference model, CancellationToken cancellationToken = default)
     {
       ThrowIfDisposed();
-      var response = await Runtime().UnloadAsync(Context(), model, all, cancellationToken).ConfigureAwait(false);
-      UnwrapUnit(response, all ? "Unload all models" : $"Unload model '{model}'");
+      ArgumentNullException.ThrowIfNull(model);
+      var response = await Runtime().UnloadAsync(Context(), model, cancellationToken).ConfigureAwait(false);
+      UnwrapUnit(response, $"Unload model '{model}'");
+    }
+
+    /// <inheritdoc />
+    public async Task UnloadAllAsync(CancellationToken cancellationToken = default)
+    {
+      ThrowIfDisposed();
+      var response = await Runtime().UnloadAllAsync(Context(), cancellationToken).ConfigureAwait(false);
+      UnwrapUnit(response, "Unload all models");
     }
 
     /// <inheritdoc />
@@ -69,6 +79,14 @@ namespace FluentDocker.Services.Impl
       ThrowIfDisposed();
       var response = await Runtime().InstallRunnerAsync(Context(), options, cancellationToken).ConfigureAwait(false);
       UnwrapUnit(response, "Install runner");
+    }
+
+    /// <inheritdoc />
+    public async Task UninstallRunnerAsync(ModelRunnerUninstallOptions options = null, CancellationToken cancellationToken = default)
+    {
+      ThrowIfDisposed();
+      var response = await Runtime().UninstallRunnerAsync(Context(), options, cancellationToken).ConfigureAwait(false);
+      UnwrapUnit(response, "Uninstall runner");
     }
   }
 }
