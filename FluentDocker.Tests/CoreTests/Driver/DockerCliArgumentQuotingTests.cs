@@ -89,9 +89,18 @@ namespace FluentDocker.Tests.CoreTests.Driver
       // An embedded double-quote forces quoting; the quote is escaped: a"b -> "a\"b".
       Assert.Equal("\"a\\\"b\"", Quote("a\"b"));
 
-      // Once quoting is triggered (here by a space), embedded backslashes are doubled:
-      // a\b c -> "a\\b c".
-      Assert.Equal("\"a\\\\b c\"", Quote("a\\b c"));
+      // Once quoting is triggered (here by a space), a backslash before a regular char
+      // is preserved as-is (CommandLineToArgvW: only backslashes before " or end are
+      // doubled): a\b c -> "a\b c".
+      Assert.Equal("\"a\\b c\"", Quote("a\\b c"));
     }
+
+    [Theory]
+    [Trait("Category", "Unit")]
+    [InlineData(@"C:\Program Files\m.gguf", "\"C:\\Program Files\\m.gguf\"")]
+    [InlineData(@"C:\tmp\no-space", @"C:\tmp\no-space")]            // no quoting needed
+    [InlineData(@"a\\b c", "\"a\\\\b c\"")]                          // interior backslashes preserved
+    public void QuotesWindowsPathsWithoutCorruption(string input, string expected)
+        => Assert.Equal(expected, Quote(input));
   }
 }

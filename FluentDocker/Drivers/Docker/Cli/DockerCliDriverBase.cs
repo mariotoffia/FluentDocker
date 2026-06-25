@@ -196,8 +196,10 @@ namespace FluentDocker.Drivers.Docker.Cli
         System.Buffers.SearchValues.Create([' ', '\t', ';', '&', '|', '>', '<', '"', '\'', '$', '`', '!', '*', '?']);
 
     /// <summary>
-    /// Quotes a command-line argument if it contains shell metacharacters or whitespace.
-    /// Escapes backslashes and double quotes within the argument.
+    /// Quotes a command-line argument if it contains shell metacharacters or whitespace,
+    /// using the CommandLineToArgvW algorithm so Windows paths with backslashes are not
+    /// corrupted. Interior backslashes are only doubled when they precede a literal
+    /// double-quote or appear at the end of the (quoted) argument.
     /// </summary>
     protected static string QuoteArgumentIfNeeded(string argument)
     {
@@ -225,8 +227,34 @@ namespace FluentDocker.Drivers.Docker.Cli
       if (!needsQuoting)
         return argument;
 
-      var escaped = argument.Replace("\\", "\\\\").Replace("\"", "\\\"");
-      return $"\"{escaped}\"";
+      // CommandLineToArgvW quoting: only backslashes immediately before a " or at the
+      // very end of the quoted string are doubled. Interior backslashes (before any other
+      // character) are left as-is. This preserves Windows paths like C:\Program Files\.
+      var sb = new System.Text.StringBuilder();
+      sb.Append('"');
+      for (var i = 0; i < argument.Length; i++)
+      {
+        var backslashes = 0;
+        while (i < argument.Length && argument[i] == '\\') { backslashes++; i++; }
+
+        if (i == argument.Length)
+        {
+          sb.Append('\\', backslashes * 2);   // before closing quote: double
+          break;
+        }
+        if (argument[i] == '"')
+        {
+          sb.Append('\\', backslashes * 2 + 1); // before a quote: double + escape the quote
+          sb.Append('"');
+        }
+        else
+        {
+          sb.Append('\\', backslashes);          // interior: leave as-is
+          sb.Append(argument[i]);
+        }
+      }
+      sb.Append('"');
+      return sb.ToString();
     }
 
     #endregion
