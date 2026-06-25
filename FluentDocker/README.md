@@ -138,7 +138,9 @@ var reply = await runner.ChatAsync("Reply with a single word.");
 await foreach (var token in runner.ChatStreamAsync("Count: one two three"))
     Console.Write(token);
 
-// Embeddings — use a dedicated embedding model — a chat model cannot embed
+// Embeddings — use a dedicated embedding model — a chat model cannot embed.
+// Pull the embedding model first, then embed against it.
+await runner.PullAsync(ModelReference.Parse("ai/embeddinggemma"));
 var vector = await runner.EmbedAsync("hello world", ModelReference.Parse("ai/embeddinggemma"));
 ```
 

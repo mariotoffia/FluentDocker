@@ -232,13 +232,16 @@ using FluentDocker.Model.Models; // ModelReference
 await using var runner = await new Builder()
     .WithinDriver("docker", kernel)
     .UseModelRunner()
-    .ForModel("ai/embeddinggemma")  // pull the same model the embed call uses
+    .ForModel("ai/smollm2")         // default chat model
     .PullIfMissing()                // optional, pulls at build if absent
     .BuildAsync();                  // async — avoids sync-over-async on the model pull
 
 var reply = await runner.ChatAsync("Reply with a single word.");          // one-shot
 await foreach (var token in runner.ChatStreamAsync("Count to five"))       // streaming
     Console.Write(token);
+
+// Embeddings need a dedicated embedding model — pull it, then embed against it.
+await runner.PullAsync(ModelReference.Parse("ai/embeddinggemma"));
 var vector = await runner.EmbedAsync("hello world",                        // embeddings
     ModelReference.Parse("ai/embeddinggemma"));
 ```
