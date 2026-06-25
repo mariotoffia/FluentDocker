@@ -16,17 +16,22 @@ namespace FluentDocker.Model.Models.Inference
 
     /// <summary>
     /// Creates an independent copy of <paramref name="other"/>. Used by the driver to set
-    /// <see cref="Stream"/> without mutating the caller's request instance. Implemented as a
-    /// JSON round-trip so that (a) every present field — including any future-added one — is
-    /// preserved automatically with no hand-maintained per-field list to fall out of date, and
-    /// (b) collection properties (<see cref="Stop"/>) are deep-copied rather than sharing the
-    /// caller's list references.
+    /// <see cref="Stream"/> without mutating the caller's request instance. Every property
+    /// is explicitly copied; mutable collections are deep-copied so callers cannot observe
+    /// mutations made inside the driver.
     /// </summary>
     /// <param name="other">The request to copy.</param>
     public CompletionRequest(CompletionRequest other)
     {
       ArgumentNullException.ThrowIfNull(other);
-      InferenceDtoCopy.CopyInto(other, this);
+      Model = other.Model;
+      Prompt = other.Prompt;
+      MaxTokens = other.MaxTokens;
+      Temperature = other.Temperature;
+      TopP = other.TopP;
+      Stream = other.Stream;
+      Stop = other.Stop is null ? null : new List<string>(other.Stop);
+      Seed = other.Seed;
     }
 
     /// <summary>The model id.</summary>

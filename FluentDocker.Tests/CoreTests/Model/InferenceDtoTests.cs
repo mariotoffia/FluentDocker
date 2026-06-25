@@ -135,5 +135,113 @@ namespace FluentDocker.Tests.CoreTests.Model
       Assert.Equal("model", list.Data[0].Object);
       Assert.Equal("docker", list.Data[0].OwnedBy);
     }
+
+    // ======================== D18: explicit copy constructors =================
+
+    [Fact]
+    public void ChatCompletionRequest_CopyCtor_DeepCopiesAllProperties()
+    {
+      // Arrange: populate every property so a missing field assignment is caught.
+      var original = new ChatCompletionRequest
+      {
+        Model = "ai/smollm2",
+        Messages = new List<ChatMessage>
+        {
+          new() { Role = "user", Content = "hello" },
+          new() { Role = "assistant", Content = "world" }
+        },
+        MaxTokens = 100,
+        Temperature = 0.7,
+        TopP = 0.9,
+        Stream = false,
+        Stop = new List<string> { "<|end|>", "<|eos|>" },
+        PresencePenalty = 0.1,
+        FrequencyPenalty = 0.2,
+        Seed = 42
+      };
+
+      // Act
+      var copy = new ChatCompletionRequest(original);
+
+      // Assert: every property transferred.
+      Assert.Equal(original.Model, copy.Model);
+      Assert.Equal(original.MaxTokens, copy.MaxTokens);
+      Assert.Equal(original.Temperature, copy.Temperature);
+      Assert.Equal(original.TopP, copy.TopP);
+      Assert.Equal(original.Stream, copy.Stream);
+      Assert.Equal(original.PresencePenalty, copy.PresencePenalty);
+      Assert.Equal(original.FrequencyPenalty, copy.FrequencyPenalty);
+      Assert.Equal(original.Seed, copy.Seed);
+      Assert.Equal(original.Messages.Count, copy.Messages.Count);
+      Assert.Equal(original.Stop.Count, copy.Stop.Count);
+
+      // Assert: deep copy — mutating copy does NOT affect original.
+      copy.Model = "other/model";
+      copy.Messages.Add(new ChatMessage { Role = "system", Content = "extra" });
+      copy.Stop.Add("<extra>");
+
+      Assert.Equal("ai/smollm2", original.Model);
+      Assert.Equal(2, original.Messages.Count);
+      Assert.Equal(2, original.Stop.Count);
+    }
+
+    [Fact]
+    public void CompletionRequest_CopyCtor_DeepCopiesAllProperties()
+    {
+      // Arrange: populate every property.
+      var original = new CompletionRequest
+      {
+        Model = "ai/qwen3",
+        Prompt = "Once upon a time",
+        MaxTokens = 200,
+        Temperature = 0.8,
+        TopP = 0.95,
+        Stream = true,
+        Stop = new List<string> { "\n", "</s>" },
+        Seed = 99
+      };
+
+      // Act
+      var copy = new CompletionRequest(original);
+
+      // Assert: every property transferred.
+      Assert.Equal(original.Model, copy.Model);
+      Assert.Equal(original.Prompt, copy.Prompt);
+      Assert.Equal(original.MaxTokens, copy.MaxTokens);
+      Assert.Equal(original.Temperature, copy.Temperature);
+      Assert.Equal(original.TopP, copy.TopP);
+      Assert.Equal(original.Stream, copy.Stream);
+      Assert.Equal(original.Seed, copy.Seed);
+      Assert.Equal(original.Stop.Count, copy.Stop.Count);
+
+      // Assert: deep copy — mutating copy does NOT affect original.
+      copy.Model = "other/model";
+      copy.Stop.Add("<extra>");
+
+      Assert.Equal("ai/qwen3", original.Model);
+      Assert.Equal(2, original.Stop.Count);
+    }
+
+    [Fact]
+    public void ChatCompletionRequest_CopyCtor_NullCollections_CopySafe()
+    {
+      // A request with null lists must copy without NullReferenceException and yield null lists.
+      var original = new ChatCompletionRequest { Model = "ai/x", Messages = null, Stop = null };
+      var copy = new ChatCompletionRequest(original);
+
+      Assert.Equal("ai/x", copy.Model);
+      Assert.Null(copy.Messages);
+      Assert.Null(copy.Stop);
+    }
+
+    [Fact]
+    public void CompletionRequest_CopyCtor_NullStop_CopySafe()
+    {
+      var original = new CompletionRequest { Model = "ai/x", Stop = null };
+      var copy = new CompletionRequest(original);
+
+      Assert.Equal("ai/x", copy.Model);
+      Assert.Null(copy.Stop);
+    }
   }
 }
