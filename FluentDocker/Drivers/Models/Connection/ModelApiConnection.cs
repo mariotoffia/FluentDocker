@@ -120,7 +120,8 @@ namespace FluentDocker.Drivers.Models.Connection
         return await stream.ReadAsync(buffer, ct).ConfigureAwait(false);
       using var idleCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
       idleCts.CancelAfter(_streamReadIdleTimeout.Value);
-      try { return await stream.ReadAsync(buffer, idleCts.Token).ConfigureAwait(false); }
+      try
+      { return await stream.ReadAsync(buffer, idleCts.Token).ConfigureAwait(false); }
       catch (OperationCanceledException) when (!ct.IsCancellationRequested)
       {
         throw new ModelRunnerException(

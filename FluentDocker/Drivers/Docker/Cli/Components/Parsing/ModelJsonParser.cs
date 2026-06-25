@@ -385,7 +385,8 @@ namespace FluentDocker.Drivers.Docker.Cli.Components.Parsing
         if (headerLine[i] == ' ' && i + 1 < headerLine.Length && headerLine[i + 1] == ' ')
         {
           // skip all spaces
-          while (i < headerLine.Length && headerLine[i] == ' ') i++;
+          while (i < headerLine.Length && headerLine[i] == ' ')
+            i++;
           if (i < headerLine.Length)
             cols.Add(i);
         }

@@ -235,7 +235,8 @@ namespace FluentDocker.Drivers.Docker.Cli
       for (var i = 0; i < argument.Length; i++)
       {
         var backslashes = 0;
-        while (i < argument.Length && argument[i] == '\\') { backslashes++; i++; }
+        while (i < argument.Length && argument[i] == '\\')
+        { backslashes++; i++; }
 
         if (i == argument.Length)
         {

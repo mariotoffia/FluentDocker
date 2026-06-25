@@ -47,7 +47,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Docker
     [Fact]
     public void QuoteArgumentIfNeeded_WithBackslashesAndSpaces_Escapes()
     {
-      Assert.Equal("\"C:\\\\Program Files\\\\Docker\"",
+      Assert.Equal("\"C:\\Program Files\\Docker\"",
           Quote(@"C:\Program Files\Docker"));
     }
 

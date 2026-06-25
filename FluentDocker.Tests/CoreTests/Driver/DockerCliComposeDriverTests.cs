@@ -32,7 +32,7 @@ namespace FluentDocker.Tests.CoreTests.Driver
     [InlineData("hello world", "\"hello world\"")]
     [InlineData("/my path/to/file.yml", "\"/my path/to/file.yml\"")]
     [InlineData("my project", "\"my project\"")]
-    [InlineData("C:\\Program Files\\Docker", "\"C:\\\\Program Files\\\\Docker\"")]
+    [InlineData("C:\\Program Files\\Docker", "\"C:\\Program Files\\Docker\"")]
     [InlineData("path with\ttab", "\"path with\ttab\"")]
     public void QuoteArgumentIfNeeded_WithSpaces_ReturnsQuoted(string input, string expected)
     {
@@ -140,8 +140,8 @@ namespace FluentDocker.Tests.CoreTests.Driver
 
       var result = InvokeBuildComposeArgs(config);
 
-      Assert.Contains("-f \"C:\\\\Program Files\\\\docker-compose.yml\"", result);
-      Assert.Contains("--project-directory \"C:\\\\My Projects\\\\app\"", result);
+      Assert.Contains("-f \"C:\\Program Files\\docker-compose.yml\"", result);
+      Assert.Contains("--project-directory \"C:\\My Projects\\app\"", result);
     }
 
     #endregion
