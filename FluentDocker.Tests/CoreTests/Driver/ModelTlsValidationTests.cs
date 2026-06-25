@@ -60,5 +60,21 @@ namespace FluentDocker.Tests.CoreTests.Driver
 
       Assert.False(accepted);
     }
+
+    [Fact]
+    [Trait("Category", "Unit")]
+    public void NameMismatch_IsRejected_ByDefault_ButAccepted_WhenAllowed()
+    {
+      // Build a self-signed CA cert that also acts as its own server cert (CN=wrong-host).
+      using var rsa = RSA.Create(2048);
+      var request = new CertificateRequest("CN=wrong-host.example", rsa, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
+      request.CertificateExtensions.Add(new X509BasicConstraintsExtension(certificateAuthority: true, hasPathLengthConstraint: false, pathLengthConstraint: 0, critical: true));
+      using var cert = request.CreateSelfSigned(DateTimeOffset.UtcNow.AddDays(-1), DateTimeOffset.UtcNow.AddDays(1));
+      using var chain = new X509Chain();
+      var errs = SslPolicyErrors.RemoteCertificateNameMismatch | SslPolicyErrors.RemoteCertificateChainErrors;
+
+      Assert.False(ModelTlsValidation.ValidateWithCustomRoot(cert, cert, chain, errs)); // strict default
+      Assert.True(ModelTlsValidation.ValidateWithCustomRoot(cert, cert, chain, errs, allowHostnameMismatch: true));
+    }
   }
 }

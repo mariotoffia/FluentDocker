@@ -336,7 +336,7 @@ namespace FluentDocker.Drivers.Docker.Api.Connection
 #endif
               ownedCertificates.Add(caCert);
               sslOptions.RemoteCertificateValidationCallback = (_, cert, chain, errors) =>
-                  ModelTlsValidation.ValidateWithCustomRoot(caCert, cert, chain, errors);
+                  ModelTlsValidation.ValidateWithCustomRoot(caCert, cert, chain, errors, config.AllowTlsHostnameMismatch);
             }
           }
         }

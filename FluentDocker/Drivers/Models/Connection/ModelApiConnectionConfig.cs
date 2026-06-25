@@ -18,5 +18,16 @@ namespace FluentDocker.Drivers.Models.Connection
 
     /// <summary>The request timeout (HttpClient.Timeout). Defaults high to accommodate slow inference.</summary>
     public TimeSpan RequestTimeout { get; set; } = TimeSpan.FromMinutes(10);
+
+    /// <summary>
+    /// When true, a TLS certificate whose hostname/SAN does not match the connection host
+    /// is still accepted provided the chain validates against the configured CA. Default
+    /// false (strict). Set true only for IP-based connections to a known host.
+    /// </summary>
+    public bool AllowTlsHostnameMismatch { get; set; }
+
+    /// <summary>Max time to wait for the next streamed chunk before aborting the read.
+    /// Null disables the idle timeout (wait indefinitely, honoring only cancellation).</summary>
+    public TimeSpan? StreamReadIdleTimeout { get; set; }
   }
 }

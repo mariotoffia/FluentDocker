@@ -37,5 +37,12 @@ namespace FluentDocker.Drivers.Docker.Api.Connection
     /// Docker Engine API version to use. Null means auto-negotiate via /_ping.
     /// </summary>
     public string ApiVersion { get; set; }
+
+    /// <summary>
+    /// When true, a TLS certificate whose hostname/SAN does not match the connection host
+    /// is still accepted provided the chain validates against the configured CA. Default
+    /// false (strict). Set true only for IP-based connections to a known host.
+    /// </summary>
+    public bool AllowTlsHostnameMismatch { get; set; }
   }
 }

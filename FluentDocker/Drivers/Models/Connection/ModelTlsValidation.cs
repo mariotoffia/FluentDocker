@@ -9,34 +9,45 @@ namespace FluentDocker.Drivers.Models.Connection
   public static class ModelTlsValidation
   {
     /// <summary>
-    /// Validates a server certificate against a custom root CA <b>without</b> relaxing
-    /// hostname verification. A hostname mismatch
-    /// (<see cref="SslPolicyErrors.RemoteCertificateNameMismatch"/>) or a missing
+    /// Validates a server certificate against a custom root CA. By default, a hostname
+    /// mismatch (<see cref="SslPolicyErrors.RemoteCertificateNameMismatch"/>) or a missing
     /// certificate (<see cref="SslPolicyErrors.RemoteCertificateNotAvailable"/>) is
     /// always rejected — even with a configured CA — so a certificate signed by the
     /// CA for a different host cannot MITM the connection. Only a chain-trust error
     /// (<see cref="SslPolicyErrors.RemoteCertificateChainErrors"/>) is re-validated
-    /// against <paramref name="caCert"/>.
+    /// against <paramref name="caCert"/>. When <paramref name="allowHostnameMismatch"/> is
+    /// <c>true</c>, a name-mismatch error is suppressed (the chain is still validated).
     /// </summary>
     /// <param name="caCert">The custom root CA to trust for chain validation.</param>
     /// <param name="cert">The presented server certificate.</param>
     /// <param name="chain">The certificate chain.</param>
     /// <param name="errors">The default policy errors reported by the platform.</param>
+    /// <param name="allowHostnameMismatch">
+    /// When <c>true</c>, a TLS certificate whose hostname/SAN does not match the connection
+    /// host is still accepted provided the chain validates against the configured CA. Default
+    /// <c>false</c> (strict). Set <c>true</c> only for IP-based connections to a known host.
+    /// </param>
     /// <returns><c>true</c> only when the certificate is acceptable.</returns>
-    public static bool ValidateWithCustomRoot(X509Certificate2 caCert, X509Certificate cert, X509Chain chain, SslPolicyErrors errors)
+    public static bool ValidateWithCustomRoot(X509Certificate2 caCert, X509Certificate cert, X509Chain chain,
+        SslPolicyErrors errors, bool allowHostnameMismatch = false)
     {
       if (errors == SslPolicyErrors.None)
         return true;
 
-      // Never accept a hostname mismatch or a missing certificate, even with a custom
-      // root — those are not chain-trust problems and a custom CA must not paper over them.
-      if ((errors & SslPolicyErrors.RemoteCertificateNameMismatch) != 0)
-        return false;
+      // A missing certificate is never acceptable.
       if ((errors & SslPolicyErrors.RemoteCertificateNotAvailable) != 0)
         return false;
 
+      var remaining = errors;
+      if ((errors & SslPolicyErrors.RemoteCertificateNameMismatch) != 0)
+      {
+        if (!allowHostnameMismatch)
+          return false;                 // default: reject hostname/SAN mismatch
+        remaining &= ~SslPolicyErrors.RemoteCertificateNameMismatch; // opted in: ignore it
+      }
+
       // Only the chain-trust error is eligible for custom-root re-validation.
-      if ((errors & ~SslPolicyErrors.RemoteCertificateChainErrors) != 0)
+      if ((remaining & ~SslPolicyErrors.RemoteCertificateChainErrors) != 0)
         return false;
       if (caCert == null || chain == null || cert == null)
         return false;

@@ -460,9 +460,9 @@ namespace FluentDocker.Drivers.Models.Connection
 #endif
             ownedCertificates.Add(caCert);
             // Trust the custom CA for chain validation only — hostname mismatch and a
-            // missing certificate are still rejected (see ModelTlsValidation).
+            // missing certificate are still rejected by default (see ModelTlsValidation).
             sslOptions.RemoteCertificateValidationCallback = (_, cert, chain, errors) =>
-                ModelTlsValidation.ValidateWithCustomRoot(caCert, cert, chain, errors);
+                ModelTlsValidation.ValidateWithCustomRoot(caCert, cert, chain, errors, config.AllowTlsHostnameMismatch);
           }
         }
       }
