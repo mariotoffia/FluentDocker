@@ -344,7 +344,11 @@ namespace FluentDocker.Drivers.Models.Connection
     };
 
     private static ModelRunnerException EndpointUnreachable(Exception inner) =>
-        new($"The model runner endpoint is unreachable: {inner.Message}",
+        new($"The model runner endpoint is unreachable ({inner.Message}). " +
+            $"The default is host TCP http://localhost:12434 — ensure `docker model` is running, " +
+            $"or set DOCKER_MODEL_RUNNER_URL, " +
+            $"or pass an explicit endpoint (unix socket / container-internal). " +
+            $"See docs/model-runner.md.",
             ErrorCodes.ModelInference.EndpointUnreachable, inner);
 
     /// <inheritdoc />

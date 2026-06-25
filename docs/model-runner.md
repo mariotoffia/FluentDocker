@@ -223,11 +223,17 @@ ModelRunnerEndpoint.Custom(new Uri("https://api.example.com/v1"));     // path p
 ModelRunnerEndpoint.Raw(new Uri("http://host:12434/engines/v1"));      // exact base, OpenAI suffix appended
 ```
 
-Resolution when unspecified: `ModelRunnerEndpoint.Default()` returns the
-`DOCKER_MODEL_RUNNER_URL` env var when set, otherwise host TCP
-(`http://localhost:12434`). The container-internal DNS and unix-socket forms are
-*not* probed automatically — select them explicitly via `ContainerInternal()` /
-`UnixSocket()` (or `WithEndpoint(...)`).
+### Where is the runner? (resolution order)
+
+When no explicit endpoint is set, `ModelRunnerEndpoint.Default()` resolves in this order:
+
+1. **`DOCKER_MODEL_RUNNER_URL` env var** (if set) — set this for remote runners or non-standard ports.
+2. **Host TCP `http://localhost:12434`** — the default when Docker Model Runner is enabled locally.
+
+The container-internal DNS (`ContainerInternal()`) and unix-socket (`UnixSocket()`) forms are
+*not* probed automatically — select them explicitly (or via `WithEndpoint(...)`).
+If the runner is unreachable the exception message names the default, the env var, and these
+alternatives; see also `ErrorCodes.ModelInference.EndpointUnreachable` in the *Error handling* section.
 
 A few endpoint subtleties worth knowing:
 
@@ -344,11 +350,7 @@ guessed):
 | Malformed SSE chunk, or an oversized SSE frame | `ErrorCodes.ModelInference.StreamParseError` (thrown mid-stream) |
 | Mid-stream OpenAI `data: {"error":…}` frame | `ErrorCodes.ModelInference.RequestFailed` (the server's error message is preserved; thrown mid-stream) |
 
-> A transport-level failure (no HTTP response — connection refused, DNS, socket) maps
-> to `EndpointUnreachable`; a genuine HTTP error *response* maps by status (401 →
-> `Unauthorized`, 404 → `ModelNotLoaded`, otherwise `RequestFailed`). Caller
-> cancellation propagates as `OperationCanceledException`; a per-request timeout
-> surfaces as `TimeoutException`.
+> Transport failure (no HTTP response) → `EndpointUnreachable`; HTTP errors map by status (401 → `Unauthorized`, 404 → `ModelNotLoaded`, otherwise `RequestFailed`). Cancellation → `OperationCanceledException`; timeout → `TimeoutException`.
 
 Known limitations (acceptable for v3.2.0; revisit as needed):
 
@@ -370,10 +372,7 @@ Known limitations (acceptable for v3.2.0; revisit as needed):
 - **Inference always targets `ModelRunnerEndpoint.Default()` (local), not the active
   `docker` context.** With a remote/TLS context, set `DOCKER_MODEL_RUNNER_URL` or
   `WithEndpoint(...)` for the data plane (see *Endpoints* above).
-- **Model management is served by the `docker model` CLI** this release. A native
-  Docker-Engine-API management driver (`/models`, `/models/create`) exists but is
-  **experimental and not registered** — don't depend on it. (When it is exercised, its
-  `/models/create` NDJSON `error` events and 404s now surface as typed failures.)
+- **Model management is served by the `docker model` CLI** this release. There is no native HTTP `/models*` management API in v3.2.0.
 
 ## Security
 
