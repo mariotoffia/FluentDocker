@@ -309,7 +309,8 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
         var runner = await new Builder().WithinDriver("docker", kernel)
             .UseModelRunner().ForModel("ai/smollm2").PullIfMissing()
             .BuildAsync(TestContext.Current.CancellationToken);
-        await using ((System.IAsyncDisposable)runner) { }
+        await using ((System.IAsyncDisposable)runner)
+        { }
 
         pack.ModelManagementDriver.Verify(d => d.PullAsync(
             It.IsAny<DriverContext>(), It.IsAny<ModelReference>(),
