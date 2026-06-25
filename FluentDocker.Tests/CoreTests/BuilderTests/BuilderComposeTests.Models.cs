@@ -2,6 +2,7 @@ using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using FluentDocker.Builders;
+using FluentDocker.Builders.Compose;
 using FluentDocker.Drivers;
 using FluentDocker.Model.Drivers;
 using FluentDocker.Tests.Mocks;

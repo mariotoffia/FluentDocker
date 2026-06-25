@@ -181,7 +181,7 @@ namespace FluentDocker.Builders
     public IComposeBuilder WithComposeFile(string path) { _composeFiles.Add(path); return this; }
     public IComposeBuilder WithComposeFiles(params string[] paths) { _composeFiles.AddRange(paths); return this; }
 
-    public IComposeBuilder WithModels(Action<ComposeModelBuilder> configure)
+    internal IComposeBuilder WithModelsInternal(Action<IComposeModelBuilder> configure)
     {
       ArgumentNullException.ThrowIfNull(configure);
       _models ??= new ComposeModelBuilder();
