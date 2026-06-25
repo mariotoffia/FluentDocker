@@ -78,6 +78,7 @@ namespace FluentDocker.Builders
     public IModelServiceBuilder WithInferenceDriver(IModelInferenceDriver inference)
     {
       _inferenceDriver = inference ?? throw new ArgumentNullException(nameof(inference));
+      _inferenceDriverId = null;           // last call wins
       return this;
     }
 
@@ -85,6 +86,7 @@ namespace FluentDocker.Builders
     public IModelServiceBuilder WithInferenceDriver(string driverId)
     {
       _inferenceDriverId = driverId ?? throw new ArgumentNullException(nameof(driverId));
+      _inferenceDriver = null;             // last call wins
       return this;
     }
 

@@ -428,6 +428,65 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
       Assert.IsType<DockerApiModelInferenceDriver>(inference);
     }
 
+    // ---- B10: WithInferenceDriver last-call-wins --------------------------------
+    [Fact]
+    [Trait("Category", "Unit")]
+    public async Task WithInferenceDriver_LastCallWins_InstanceThenId()
+    {
+      // Set instance first, then override with driver id — id must win.
+      var docker = new MockDriverPack().SetupModelChat("from-docker").EnableModelDrivers();
+      var kernel = await MockKernelBuilderExtensions.CreateWithMockDriverAsync("docker", docker);
+      await using (kernel)
+      {
+        var alt = new MockDriverPack().SetupModelChat("from-alt").EnableModelDrivers();
+        var altCtx = new DriverContext("alt");
+        await alt.InitializeAsync(altCtx);
+        await kernel.RegisterDriverPackAsync("alt", alt, altCtx);
+
+        var inst = new Mock<IModelInferenceDriver>();
+        inst.Setup(d => d.ChatCompletionAsync(It.IsAny<DriverContext>(), It.IsAny<ChatCompletionRequest>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(CommandResponse<ChatCompletionResponse>.Ok(new ChatCompletionResponse
+            {
+              Choices = [new ChatChoice { Index = 0, FinishReason = "stop", Message = new ChatMessage { Role = "assistant", Content = "from-instance" } }]
+            }));
+
+        await using var runner = await new Builder().WithinDriver("docker", kernel)
+            .UseModelRunner().ForModel("ai/smollm2")
+            .WithInferenceDriver(inst.Object).WithInferenceDriver("alt") // id wins
+            .BuildAsync(TestContext.Current.CancellationToken);
+        Assert.Equal("from-alt", await runner.ChatAsync("hi", TestContext.Current.CancellationToken));
+      }
+    }
+
+    [Fact]
+    [Trait("Category", "Unit")]
+    public async Task WithInferenceDriver_LastCallWins_IdThenInstance()
+    {
+      // Set id first, then override with explicit instance — instance must win.
+      var docker = new MockDriverPack().SetupModelChat("from-docker").EnableModelDrivers();
+      var kernel = await MockKernelBuilderExtensions.CreateWithMockDriverAsync("docker", docker);
+      await using (kernel)
+      {
+        var alt = new MockDriverPack().SetupModelChat("from-alt").EnableModelDrivers();
+        var altCtx = new DriverContext("alt");
+        await alt.InitializeAsync(altCtx);
+        await kernel.RegisterDriverPackAsync("alt", alt, altCtx);
+
+        var inst = new Mock<IModelInferenceDriver>();
+        inst.Setup(d => d.ChatCompletionAsync(It.IsAny<DriverContext>(), It.IsAny<ChatCompletionRequest>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(CommandResponse<ChatCompletionResponse>.Ok(new ChatCompletionResponse
+            {
+              Choices = [new ChatChoice { Index = 0, FinishReason = "stop", Message = new ChatMessage { Role = "assistant", Content = "from-instance" } }]
+            }));
+
+        await using var runner = await new Builder().WithinDriver("docker", kernel)
+            .UseModelRunner().ForModel("ai/smollm2")
+            .WithInferenceDriver("alt").WithInferenceDriver(inst.Object) // instance wins
+            .BuildAsync(TestContext.Current.CancellationToken);
+        Assert.Equal("from-instance", await runner.ChatAsync("hi", TestContext.Current.CancellationToken));
+      }
+    }
+
     // ---- B5: Podman has no model support -------------------------------------
 
     [Fact]
