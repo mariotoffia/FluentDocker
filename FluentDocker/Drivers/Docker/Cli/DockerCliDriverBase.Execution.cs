@@ -172,6 +172,8 @@ namespace FluentDocker.Drivers.Docker.Cli
       }
       catch (Exception ex)
       {
+        try { if (process is { HasExited: false }) process.Kill(entireProcessTree: true); }
+        catch { /* best effort — process may have exited between the check and the kill */ }
         return new SimpleCommandResult
         {
           Success = false,
