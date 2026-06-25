@@ -26,6 +26,7 @@ namespace FluentDocker.Tests.Integration
   /// <c>ai/embeddinggemma</c> (embeddings) models to keep runs fast.
   /// </summary>
   [Trait("Category", "Integration")]
+  [Trait("Requires", "Dmr")]
   [Collection("DockerModelRunner")]
   public sealed class ModelRunnerIntegrationTests : IAsyncLifetime
   {
