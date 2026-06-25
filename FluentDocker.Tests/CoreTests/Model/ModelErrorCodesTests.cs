@@ -59,6 +59,16 @@ namespace FluentDocker.Tests.CoreTests.Model
     }
 
     [Fact]
+    [Trait("Category", "Unit")]
+    public void UninstallFailed_HasDistinctCode_NotSameAsInstallFailed()
+    {
+      // D20: uninstall failures must be reported with their own distinct error code, not
+      // the install-failed code — so callers can distinguish install from uninstall failures.
+      Assert.NotEqual(ErrorCodes.Model.InstallFailed, ErrorCodes.Model.UninstallFailed);
+      Assert.Equal("MDL_023", ErrorCodes.Model.UninstallFailed);
+    }
+
+    [Fact]
     public void ModelRunnerException_IsDriverException()
     {
       var ex = new ModelRunnerException("boom");

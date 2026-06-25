@@ -294,6 +294,7 @@ namespace FluentDocker.Model.Drivers
       public const string LogsFailed = "MDL_020";
       public const string InstallFailed = "MDL_021";
       public const string NotSupported = "MDL_022";
+      public const string UninstallFailed = "MDL_023";
     }
 
     /// <summary>

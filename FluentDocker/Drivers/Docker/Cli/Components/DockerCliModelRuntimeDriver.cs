@@ -376,7 +376,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
           sb.Append(" --models");
       }
 
-      return await SimpleUnitAsync(context, sb.ToString(), "UninstallRunner", ErrorCodes.Model.InstallFailed, cancellationToken).ConfigureAwait(false);
+      return await SimpleUnitAsync(context, sb.ToString(), "UninstallRunner", ErrorCodes.Model.UninstallFailed, cancellationToken).ConfigureAwait(false);
     }
 
     private async Task<CommandResponse<Unit>> SimpleUnitAsync(DriverContext context,
