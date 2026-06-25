@@ -100,6 +100,7 @@ namespace FluentDocker.Tests.CoreTests.Driver
     [InlineData(@"C:\Program Files\m.gguf", "\"C:\\Program Files\\m.gguf\"")]
     [InlineData(@"C:\tmp\no-space", @"C:\tmp\no-space")]            // no quoting needed
     [InlineData(@"a\\b c", "\"a\\\\b c\"")]                          // interior backslashes preserved
+    [InlineData("a ends\\", "\"a ends\\\\\"")]                        // trailing backslash doubled before closing quote
     public void QuotesWindowsPathsWithoutCorruption(string input, string expected)
         => Assert.Equal(expected, Quote(input));
   }

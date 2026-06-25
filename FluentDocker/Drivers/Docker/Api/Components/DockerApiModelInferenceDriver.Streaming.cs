@@ -75,13 +75,14 @@ namespace FluentDocker.Drivers.Docker.Api.Components
 
       await using var owned = stream.ConfigureAwait(false);
       using var reader = new StreamReader(stream, Encoding.UTF8);
+      var idleTimeout = _connection.StreamReadIdleTimeout;
 
       while (true)
       {
         string line;
         try
         {
-          line = await ReadBoundedLineAsync(reader, cancellationToken).ConfigureAwait(false);
+          line = await ReadBoundedLineAsync(reader, cancellationToken, idleTimeout).ConfigureAwait(false);
         }
         catch (Exception ex) when (ex is IOException or HttpRequestException)
         {
@@ -136,7 +137,11 @@ namespace FluentDocker.Drivers.Docker.Api.Components
 
     // Reads a single line, enforcing MaxSseLineBytes so a runaway/hostile server cannot force
     // unbounded buffering (StreamReader.ReadLineAsync has no such cap). Returns null at EOF.
-    private static async Task<string> ReadBoundedLineAsync(StreamReader reader, CancellationToken cancellationToken)
+    // When idleTimeout is non-null, each per-character read is bounded by that timeout;
+    // expiry surfaces as ModelRunnerException(EndpointUnreachable) rather than hanging forever.
+    // Caller cancellation is never misreported as an idle timeout.
+    private static async Task<string> ReadBoundedLineAsync(
+        StreamReader reader, CancellationToken cancellationToken, TimeSpan? idleTimeout = null)
     {
       var builder = new StringBuilder();
       var buffer = new char[1];
@@ -144,7 +149,27 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       while (true)
       {
         cancellationToken.ThrowIfCancellationRequested();
-        var read = await reader.ReadAsync(buffer.AsMemory(0, 1), cancellationToken).ConfigureAwait(false);
+        int read;
+        if (idleTimeout is null)
+        {
+          read = await reader.ReadAsync(buffer.AsMemory(0, 1), cancellationToken).ConfigureAwait(false);
+        }
+        else
+        {
+          using var idleCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+          idleCts.CancelAfter(idleTimeout.Value);
+          try
+          {
+            read = await reader.ReadAsync(buffer.AsMemory(0, 1), idleCts.Token).ConfigureAwait(false);
+          }
+          catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+          {
+            throw new ModelRunnerException(
+                "Streaming read timed out: no data received within the configured idle timeout.",
+                ErrorCodes.ModelInference.EndpointUnreachable);
+          }
+        }
+
         if (read == 0)
           return builder.Length == 0 ? null : builder.ToString();
 

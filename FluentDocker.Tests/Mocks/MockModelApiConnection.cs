@@ -35,6 +35,9 @@ namespace FluentDocker.Tests.Mocks
     /// <inheritdoc />
     public Uri BaseAddress { get; set; } = new("http://localhost:12434");
 
+    /// <inheritdoc />
+    public TimeSpan? StreamReadIdleTimeout { get; set; }
+
     /// <summary>Registers a canned GET response.</summary>
     public MockModelApiConnection SetupGet(string pathContains, int statusCode, string jsonBody)
     {
@@ -89,6 +92,17 @@ namespace FluentDocker.Tests.Mocks
     public MockModelApiConnection SetupStreamFault(string pathContains, string streamContent, int faultAfterBytes)
     {
       _entries.Add(new ResponseEntry("STREAM", pathContains, HttpStatusCode.OK, null, streamContent, null, faultAfterBytes));
+      return this;
+    }
+
+    /// <summary>
+    /// Registers a stream that delivers <paramref name="prefixContent"/> (if any) and then
+    /// blocks on every subsequent read until the caller's <see cref="CancellationToken"/> is
+    /// cancelled — used to verify that idle-timeout and cancellation paths both fire correctly.
+    /// </summary>
+    public MockModelApiConnection SetupStreamStalling(string pathContains, string prefixContent = null)
+    {
+      _entries.Add(new ResponseEntry("STREAM_STALL", pathContains, HttpStatusCode.OK, null, prefixContent, null, -1));
       return this;
     }
 
@@ -174,9 +188,18 @@ namespace FluentDocker.Tests.Mocks
 
     private Stream ResolveStream(string path)
     {
-      var entry = _entries.Where(e => e.Method == "STREAM" && MatchesPath(path, e.PathContains))
+      // Match STREAM_STALL first (higher specificity), then fall back to STREAM.
+      var entry = _entries.Where(e => (e.Method == "STREAM_STALL" || e.Method == "STREAM") && MatchesPath(path, e.PathContains))
           .Select(e => (ResponseEntry?)e).LastOrDefault()
           ?? throw new InvalidOperationException($"no mock stream for {path}");
+
+      if (entry.Method == "STREAM_STALL")
+      {
+        var prefix = entry.StreamContent is null
+            ? Array.Empty<byte>()
+            : Encoding.UTF8.GetBytes(entry.StreamContent);
+        return new StallingStream(prefix);
+      }
 
       // Mirror the real connection: a non-2xx response never yields a stream — it
       // throws HttpRequestException (with the status code) before any body is read.
@@ -227,6 +250,58 @@ namespace FluentDocker.Tests.Mocks
       {
       }
 
+      public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
+      public override void SetLength(long value) => throw new NotSupportedException();
+      public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
+    }
+
+    /// <summary>
+    /// Yields <see cref="_prefix"/> bytes and then blocks every subsequent read until the
+    /// caller's <see cref="CancellationToken"/> fires — simulates a server that stops
+    /// sending after a partial response (used to exercise idle-timeout / cancellation paths).
+    /// </summary>
+    private sealed class StallingStream : Stream
+    {
+      private readonly byte[] _prefix;
+      private int _position;
+
+      public StallingStream(byte[] prefix) => _prefix = prefix;
+
+      public override bool CanRead => true;
+      public override bool CanSeek => false;
+      public override bool CanWrite => false;
+      public override long Length => _prefix.Length;
+      public override long Position { get => _position; set => throw new NotSupportedException(); }
+
+      public override int Read(byte[] buffer, int offset, int count)
+      {
+        if (_position < _prefix.Length)
+        {
+          var n = Math.Min(count, _prefix.Length - _position);
+          Array.Copy(_prefix, _position, buffer, offset, n);
+          _position += n;
+          return n;
+        }
+        // Stall forever (synchronous read blocks; tests should use async).
+        Thread.Sleep(Timeout.Infinite);
+        return 0;
+      }
+
+      public override async ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken ct = default)
+      {
+        if (_position < _prefix.Length)
+        {
+          var n = Math.Min(buffer.Length, _prefix.Length - _position);
+          _prefix.AsMemory(_position, n).CopyTo(buffer);
+          _position += n;
+          return n;
+        }
+        // Stall until the token is cancelled.
+        await Task.Delay(Timeout.Infinite, ct).ConfigureAwait(false);
+        return 0;
+      }
+
+      public override void Flush() { }
       public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
       public override void SetLength(long value) => throw new NotSupportedException();
       public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();

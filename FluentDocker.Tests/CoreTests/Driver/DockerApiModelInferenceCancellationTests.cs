@@ -39,6 +39,7 @@ namespace FluentDocker.Tests.CoreTests.Driver
     private sealed class ThrowingErrorConnection : IModelApiConnection
     {
       public Uri BaseAddress => new("http://localhost:12434");
+      public TimeSpan? StreamReadIdleTimeout => null;
 
       public Task<HttpResponseMessage> GetAsync(string path, CancellationToken ct = default) =>
           Task.FromResult(new HttpResponseMessage(HttpStatusCode.InternalServerError) { Content = new ThrowingContent() });

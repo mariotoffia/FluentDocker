@@ -16,6 +16,15 @@ namespace FluentDocker.Drivers.Models.Connection
     /// <summary>The base address the connection targets.</summary>
     Uri BaseAddress { get; }
 
+    /// <summary>
+    /// Maximum time to wait between successive chunks of a streaming (SSE) read
+    /// before aborting with <see cref="ModelRunnerException"/>
+    /// (<see cref="ErrorCodes.ModelInference.EndpointUnreachable"/>).
+    /// <c>null</c> disables the idle timeout — reads wait indefinitely, honoring
+    /// only the caller's <see cref="System.Threading.CancellationToken"/>.
+    /// </summary>
+    TimeSpan? StreamReadIdleTimeout { get; }
+
     /// <summary>Issues a GET request.</summary>
     /// <param name="path">The request path.</param>
     /// <param name="ct">A token to cancel the request.</param>

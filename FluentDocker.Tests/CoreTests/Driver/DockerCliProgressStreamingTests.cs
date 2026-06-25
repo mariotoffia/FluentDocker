@@ -154,5 +154,48 @@ namespace FluentDocker.Tests.CoreTests.Driver
       Assert.True(result.Success);
       Assert.Equal("small json output", result.Output);
     }
+
+    /// <summary>
+    /// FINDING 2 (B8): the <c>catch (Exception ex)</c> path in
+    /// <c>DockerCliDriverBase.ExecuteProcessAsync</c> must (a) return a failed result
+    /// and (b) kill the child process tree so no orphan survives. A sentinel file
+    /// written by the script before the overflow proves the child ran; the sentinel
+    /// is NOT cleaned up by the script because <c>Kill(entireProcessTree: true)</c>
+    /// terminates the child before it can reach the cleanup step.
+    /// </summary>
+    [Fact]
+    public async Task NonStreaming_OversizedOutput_KillsChildProcessTree_ReturnsFailed()
+    {
+      if (OperatingSystem.IsWindows())
+        Assert.Skip("POSIX shell semantics; not applicable on Windows");
+
+      var sentinel = System.IO.Path.Combine(System.IO.Path.GetTempPath(), $"fd-b8-{Guid.NewGuid():N}");
+      try
+      {
+        var driver = CreateShellDriver();
+
+        // Script: (1) touch sentinel to prove it started, (2) overflow stdout (> 4 MiB),
+        // (3) remove sentinel — step 3 must never run because Kill fires between 1 and 3.
+        var script = $"touch {sentinel}; yes x | head -n 5000000; rm -f {sentinel}";
+        var args = $"-c \"{script}\"";
+
+        var result = await driver.Run(args, TestContext.Current.CancellationToken);
+
+        // (a) Result reports failure.
+        Assert.False(result.Success);
+        Assert.Equal(-1, result.ExitCode);
+
+        // (b) Sentinel exists: the child started, but the cleanup `rm` was never reached
+        //     because Kill(entireProcessTree:true) terminated the whole process tree before
+        //     it could execute. This proves the kill fired and no orphan was left to
+        //     complete the script.
+        Assert.True(System.IO.File.Exists(sentinel),
+            "sentinel must exist: process started but should have been killed before cleanup");
+      }
+      finally
+      {
+        System.IO.File.Delete(sentinel);
+      }
+    }
   }
 }

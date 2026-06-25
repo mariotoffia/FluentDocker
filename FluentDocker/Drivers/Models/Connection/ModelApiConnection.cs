@@ -113,25 +113,11 @@ namespace FluentDocker.Drivers.Models.Connection
     private static TimeSpan Normalize(TimeSpan timeout) =>
         timeout > TimeSpan.Zero ? timeout : Timeout.InfiniteTimeSpan;
 
-    /// <summary>Reads with an optional per-read idle timeout (StreamParseError on expiry).</summary>
-    public async ValueTask<int> ReadWithIdleTimeoutAsync(Stream stream, Memory<byte> buffer, CancellationToken ct)
-    {
-      if (_streamReadIdleTimeout is null)
-        return await stream.ReadAsync(buffer, ct).ConfigureAwait(false);
-      using var idleCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
-      idleCts.CancelAfter(_streamReadIdleTimeout.Value);
-      try
-      { return await stream.ReadAsync(buffer, idleCts.Token).ConfigureAwait(false); }
-      catch (OperationCanceledException) when (!ct.IsCancellationRequested)
-      {
-        throw new ModelRunnerException(
-            "Streaming read timed out: no data received within the configured idle timeout.",
-            ErrorCodes.ModelInference.StreamParseError);
-      }
-    }
-
     /// <inheritdoc />
     public Uri BaseAddress => _httpClient.BaseAddress;
+
+    /// <inheritdoc />
+    public TimeSpan? StreamReadIdleTimeout => _streamReadIdleTimeout;
 
     /// <inheritdoc />
     public Task<HttpResponseMessage> GetAsync(string path, CancellationToken ct = default) =>
