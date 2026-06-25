@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Text.Json.Serialization;
 
@@ -27,6 +28,28 @@ namespace FluentDocker.Model.Models.Inference
   /// </summary>
   public sealed class ChatMessage
   {
+    /// <summary>Creates an empty message.</summary>
+    public ChatMessage()
+    {
+    }
+
+    /// <summary>
+    /// Creates an independent copy of <paramref name="other"/>. Although all current
+    /// properties are strings (immutable), the public setters mean a caller could
+    /// mutate the element after construction. This copy constructor ensures that
+    /// each <see cref="ChatMessage"/> in a cloned <see cref="ChatCompletionRequest"/>
+    /// is a fully independent instance so mutations in the driver copy cannot leak
+    /// back to the caller's original list.
+    /// </summary>
+    /// <param name="other">The message to copy.</param>
+    public ChatMessage(ChatMessage other)
+    {
+      ArgumentNullException.ThrowIfNull(other);
+      Role = other.Role;
+      Content = other.Content;
+      Name = other.Name;
+    }
+
     /// <summary>The role: <c>system</c> | <c>user</c> | <c>assistant</c> | <c>tool</c>.</summary>
     [JsonPropertyName("role")] public string Role { get; set; }
 

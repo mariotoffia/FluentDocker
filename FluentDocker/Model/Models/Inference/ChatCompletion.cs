@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text.Json.Serialization;
 
 namespace FluentDocker.Model.Models.Inference
@@ -25,7 +26,11 @@ namespace FluentDocker.Model.Models.Inference
     {
       ArgumentNullException.ThrowIfNull(other);
       Model = other.Model;
-      Messages = other.Messages is null ? null : new List<ChatMessage>(other.Messages);
+      // Deep-copy each ChatMessage element: although current properties are strings
+      // (immutable values), the public setters mean a caller can mutate an element
+      // post-construction. Cloning each element ensures the driver copy is fully
+      // independent of the caller's original list.
+      Messages = other.Messages?.Select(m => new ChatMessage(m)).ToList();
       MaxTokens = other.MaxTokens;
       Temperature = other.Temperature;
       TopP = other.TopP;

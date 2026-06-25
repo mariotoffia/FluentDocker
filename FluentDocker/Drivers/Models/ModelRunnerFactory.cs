@@ -28,7 +28,7 @@ namespace FluentDocker.Drivers.Models
     /// <see cref="FluentDocker.Services.IModelRunner"/> so existing callers are unaffected.
     /// </returns>
     public static Services.IInferenceModelRunner CreateInferenceRunner(
-        ModelRunnerEndpoint endpoint, string modelId, string apiKey)
+        ModelRunnerEndpoint endpoint, string modelId, string apiKey = null)
     {
       var connection = new ModelApiConnection(endpoint, apiKey: apiKey);
       var inference = new DockerApiModelInferenceDriver(connection, endpoint);

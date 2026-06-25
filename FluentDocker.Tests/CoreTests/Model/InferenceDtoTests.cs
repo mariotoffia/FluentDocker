@@ -243,5 +243,39 @@ namespace FluentDocker.Tests.CoreTests.Model
       Assert.Equal("ai/x", copy.Model);
       Assert.Null(copy.Stop);
     }
+
+    // ======= D18: ChatMessage element independence (deep-copy of list elements) =======
+
+    /// <summary>
+    /// Verifies that mutating a ChatMessage field on the COPY's Messages element does NOT
+    /// affect the ORIGINAL's Messages element. This would fail if Messages is a shallow-copied
+    /// list (same element references) instead of a deep-copied list (cloned elements).
+    /// </summary>
+    [Fact]
+    public void ChatCompletionRequest_CopyCtor_MutatingCopyMessageElement_DoesNotAffectOriginal()
+    {
+      // Arrange
+      var original = new ChatCompletionRequest
+      {
+        Model = "ai/smollm2",
+        Messages = new List<ChatMessage>
+        {
+          new() { Role = "user", Content = "original content", Name = "alice" }
+        }
+      };
+
+      // Act
+      var copy = new ChatCompletionRequest(original);
+
+      // Mutate the copy's first ChatMessage element fields.
+      copy.Messages[0].Content = "changed content";
+      copy.Messages[0].Role = "assistant";
+      copy.Messages[0].Name = "bob";
+
+      // Assert: original element is UNCHANGED — elements must be independent instances.
+      Assert.Equal("original content", original.Messages[0].Content);
+      Assert.Equal("user", original.Messages[0].Role);
+      Assert.Equal("alice", original.Messages[0].Name);
+    }
   }
 }
