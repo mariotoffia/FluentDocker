@@ -21,6 +21,11 @@ on:
         required: false
         type: boolean
         default: false
+      run_dmr:
+        description: 'Run the real Docker Model Runner (self-hosted) gate'
+        required: false
+        type: boolean
+        default: false
 
 jobs:
   build:
@@ -38,9 +43,9 @@ jobs:
         shell: bash
         run: |
           if [ "$GITHUB_ACTOR" == "nektos/act" ]; then
-            echo "running_in_act=true" >> $GITHUB_OUTPUT
+            echo "running_in_act=true" >> "$GITHUB_OUTPUT"
           else
-            echo "running_in_act=false" >> $GITHUB_OUTPUT
+            echo "running_in_act=false" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Echo environment
@@ -77,86 +82,6 @@ jobs:
         if: matrix.os == 'ubuntu-latest'
         run: dotnet build Examples/Examples.sln --configuration Release
 
-      - name: Run tests (in act)
-        if: steps.detect-env.outputs.running_in_act == 'true'
-        env:
-          TERM: dumb
-          DOTNET_CLI_UI_LANGUAGE: en-US
-        run: |
-          echo "Running in act environment"
-          dotnet test \
-            --no-build \
-            --configuration Release \
-            --framework net10.0 \
-            --filter "Category=Unit" \
-            --logger "console;verbosity=detailed"
-
-      - name: Run tests with coverage (in GitHub)
-        if: steps.detect-env.outputs.running_in_act != 'true'
-        run: >
-          dotnet test
-          --no-build
-          --configuration Release
-          --framework net10.0
-          --filter "Category=Unit"
-          --collect:"XPlat Code Coverage"
-          --results-directory ./coverage
-          --settings coverletArgs.runsettings
-
-      # Coverage regression gate (finding M22). The XPlat collector cannot fail the
-      # build on a threshold itself (that is a coverlet.msbuild feature), so we enforce
-      # a conservative line/branch FLOOR on the collected OpenCover report here. Floors
-      # are well below the current line=80.65% / branch=73.51% (measured 2026-06-24) so
-      # they only fail on a real regression. Raise them as coverage improves.
-      - name: Enforce coverage threshold
-        if: steps.detect-env.outputs.running_in_act != 'true' && matrix.os == 'ubuntu-latest'
-        shell: bash
-        env:
-          COVERAGE_REPORT_DIR: ./coverage
-          COVERAGE_LINE_MIN: '70'
-          COVERAGE_BRANCH_MIN: '65'
-        run: bash scripts/coverage-threshold
-
-      # Per-assembly coverage report (finding M22). ReportGenerator emits a per-assembly
-      # summary (TextSummary) + HTML from the OpenCover report; uploaded as an artifact.
-      - name: Generate per-assembly coverage report
-        if: steps.detect-env.outputs.running_in_act != 'true' && matrix.os == 'ubuntu-latest'
-        shell: bash
-        run: |
-          dotnet tool install -g dotnet-reportgenerator-globaltool || true
-          export PATH="$PATH:$HOME/.dotnet/tools"
-          reportgenerator \
-            "-reports:./coverage/**/coverage.opencover.xml" \
-            "-targetdir:./coverage/report" \
-            "-reporttypes:HtmlInline;TextSummary;Cobertura"
-
-      - name: Upload coverage report artifact
-        if: steps.detect-env.outputs.running_in_act != 'true' && matrix.os == 'ubuntu-latest'
-        uses: actions/upload-artifact@v4
-        with:
-          name: coverage-report
-          # Raw OpenCover XML + the per-assembly ReportGenerator output (Summary.txt, HTML).
-          path: |
-            coverage/**/coverage.opencover.xml
-            coverage/report/**
-          retention-days: 7
-          if-no-files-found: warn
-
-      - name: Run unit tests (net8.0)
-        # The product ships net8.0;net10.0, so verify the unit suite on net8.0 too.
-        run: >
-          dotnet test
-          --no-build
-          --configuration Release
-          --framework net8.0
-          --filter "Category=Unit"
-
-      - name: Upload coverage reports to Codecov
-        if: steps.detect-env.outputs.running_in_act != 'true' && matrix.os == 'ubuntu-latest'
-        uses: codecov/codecov-action@v5
-        with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-
       - name: Create NuGet packages
         if: matrix.os == 'ubuntu-latest'
         run: |
@@ -168,7 +93,7 @@ jobs:
         run: |
           EXPECTED=("FluentDocker" "FluentDocker.Testing.Xunit" "FluentDocker.Testing.MsTest" "FluentDocker.Testing.NUnit")
           for pkg in "${EXPECTED[@]}"; do
-            ls packages/${pkg}.*.nupkg 1>/dev/null 2>&1 || { echo "MISSING: ${pkg}"; exit 1; }
+            ls "packages/${pkg}".*.nupkg 1>/dev/null 2>&1 || { echo "MISSING: ${pkg}"; exit 1; }
             echo "OK: ${pkg}"
           done
 
@@ -187,25 +112,110 @@ jobs:
           retention-days: 7
         continue-on-error: ${{ steps.detect-env.outputs.running_in_act == 'true' }}
 
-      - name: Publish NuGet packages
-        if: matrix.os == 'ubuntu-latest' && (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/support/'))
+  unit-tests:
+    name: Unit Tests (${{ matrix.os }})
+    # Requirement 2: run on merge to main (push) always; on PRs only with the
+    # `test-unit` label. workflow_dispatch is always allowed for manual runs.
+    if: >
+      github.event_name == 'push' ||
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'pull_request' &&
+       contains(github.event.pull_request.labels.*.name, 'test-unit'))
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    env:
+      DOTNET_NOLOGO: 'true'
+      DOTNET_CLI_TELEMETRY_OPTOUT: 'true'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: |
+            8.0.x
+            10.0.x
+      - run: dotnet restore
+      - run: dotnet build --configuration Release --no-restore
+      - name: Run unit tests with coverage (net10.0)
+        run: >
+          dotnet test --no-build --configuration Release --framework net10.0
+          --filter "Category=Unit"
+          --collect:"XPlat Code Coverage" --results-directory ./coverage
+          --settings coverletArgs.runsettings
+      - name: Enforce coverage threshold
+        if: matrix.os == 'ubuntu-latest'
+        shell: bash
+        env:
+          COVERAGE_REPORT_DIR: ./coverage
+          COVERAGE_LINE_MIN: '70'
+          COVERAGE_BRANCH_MIN: '65'
+        run: bash scripts/coverage-threshold
+      - name: Generate per-assembly coverage report
+        if: matrix.os == 'ubuntu-latest'
+        shell: bash
         run: |
-          dotnet nuget push "packages/*.nupkg" --api-key ${{ secrets.NUGET_API_KEY }} --source https://api.nuget.org/v3/index.json --skip-duplicate
-        continue-on-error: ${{ steps.detect-env.outputs.running_in_act == 'true' }}
+          dotnet tool install -g dotnet-reportgenerator-globaltool || true
+          export PATH="$PATH:$HOME/.dotnet/tools"
+          reportgenerator "-reports:./coverage/**/coverage.opencover.xml" "-targetdir:./coverage/report" "-reporttypes:HtmlInline;TextSummary;Cobertura"
+      - name: Upload coverage report artifact
+        if: matrix.os == 'ubuntu-latest'
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: |
+            coverage/**/coverage.opencover.xml
+            coverage/report/**
+          retention-days: 7
+          if-no-files-found: warn
+      - name: Upload coverage reports to Codecov
+        if: matrix.os == 'ubuntu-latest'
+        uses: codecov/codecov-action@v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+      - name: Run unit tests (net8.0)
+        run: >
+          dotnet test --no-build --configuration Release --framework net8.0
+          --filter "Category=Unit"
 
+  release:
+    name: Publish & Tag
+    needs: [build, unit-tests]
+    if: >
+      github.event_name == 'push' &&
+      (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main' ||
+       startsWith(github.ref, 'refs/heads/support/'))
+    runs-on: ubuntu-latest
+    env:
+      DOTNET_NOLOGO: 'true'
+      DOTNET_CLI_TELEMETRY_OPTOUT: 'true'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: |
+            8.0.x
+            10.0.x
+      - name: Read release version
+        id: version
+        shell: bash
+        run: |
+          VERSION=$(dotnet msbuild FluentDocker/FluentDocker.csproj -getProperty:Version -nologo -verbosity:quiet | tr -d '[:space:]')
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+      - run: dotnet restore
+      - run: dotnet build --configuration Release --no-restore
+      - run: dotnet pack --configuration Release --no-build --output packages
+      - name: Publish NuGet packages
+        run: dotnet nuget push "packages/*.nupkg" --api-key ${{ secrets.NUGET_API_KEY }} --source https://api.nuget.org/v3/index.json --skip-duplicate
       - name: Create and push Git tag for release
-        if: matrix.os == 'ubuntu-latest' && (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/support/')) && steps.detect-env.outputs.running_in_act != 'true'
         env:
           RELEASE_VERSION: ${{ steps.version.outputs.version }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          # actions/checkout@v4 does not fetch tags, so check the remote
-          # directly. `--exit-code` makes ls-remote return non-zero when no
-          # matching ref exists, which we use to decide whether to push.
           if git ls-remote --exit-code --tags origin "refs/tags/$RELEASE_VERSION" >/dev/null 2>&1; then
             echo "Tag $RELEASE_VERSION already exists on remote, skipping"
           else
-            echo "Creating Git tag for version: $RELEASE_VERSION"
             git config --global user.name "GitHub Actions"
             git config --global user.email "actions@github.com"
             git tag "$RELEASE_VERSION"
@@ -248,14 +258,10 @@ jobs:
         with:
           category: "/language:csharp"
 
-  # Integration tests — run on PRs (ubuntu only), schedule, or manual dispatch.
-  #
-  # RELEASE GATE (H9 residual): PR/hosted runs lack a Docker Model Runner, so the DMR
-  # integration tests self-skip there. Before tagging a release you MUST run the real DMR
-  # gate: trigger this workflow via workflow_dispatch with run_integration=true on a
-  # DMR-capable (self-hosted) runner. That sets FLUENTDOCKER_REQUIRE_DMR=1 below, which
-  # hard-fails on a missing/unstable runner instead of masking zero coverage with a green
-  # self-skip. See docs/model-runner.md (Testing) for the full procedure.
+  # Integration tests — run only with the `test-integration` PR label, or on schedule/dispatch.
+  # Real DMR coverage now lives in the dedicated `dmr-tests` job on a self-hosted runner;
+  # this hosted lane self-skips DMR tests by design (no `docker model` on hosted runners).
+  # Integration tests do NOT run on merge to main (push) — only units do.
   integration-tests:
     name: Integration Tests (${{ matrix.os }})
     strategy:
@@ -265,7 +271,8 @@ jobs:
         os: ${{ (github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.run_integration == true)) && fromJson('["ubuntu-latest","macos-latest","windows-latest"]') || fromJson('["ubuntu-latest"]') }}
     runs-on: ${{ matrix.os }}
     if: >
-      github.event_name == 'pull_request' ||
+      (github.event_name == 'pull_request' &&
+       contains(github.event.pull_request.labels.*.name, 'test-integration')) ||
       github.event_name == 'schedule' ||
       (github.event_name == 'workflow_dispatch' && inputs.run_integration == true)
     env:
@@ -304,32 +311,12 @@ jobs:
             echo "available=false" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Require DMR for explicitly-requested integration runs
-        # On a scheduled or manually-requested (run_integration=true) run, a missing DMR
-        # must FAIL — otherwise the DMR tests self-skip and the run passes with zero real
-        # Model Runner coverage. PR runs still skip cleanly (hosted runners lack DMR).
-        if: >
-          steps.dmr-check.outputs.available != 'true' &&
-          (github.event_name == 'schedule' ||
-           (github.event_name == 'workflow_dispatch' && inputs.run_integration == true))
-        shell: bash
-        run: |
-          echo "::error::Docker Model Runner is unavailable, but a DMR integration run was explicitly requested."
-          echo "DMR integration tests would self-skip, masking zero real coverage. Use a DMR-capable runner."
-          exit 1
-
       - run: dotnet restore
 
       - run: dotnet build --configuration Debug --no-restore
 
       - name: Run integration tests
         if: steps.docker-check.outputs.available == 'true'
-        env:
-          # On must-run lanes (schedule / manual run_integration=true) a missing or unstable
-          # DMR must HARD-FAIL the test rather than self-skip — otherwise the DMR tests emit
-          # the xUnit dynamic-skip sentinel and the run passes green with zero real coverage.
-          # Empty on PRs so they continue to skip cleanly on DMR-less hosted runners.
-          FLUENTDOCKER_REQUIRE_DMR: ${{ (github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.run_integration == true)) && '1' || '' }}
         run: dotnet test FluentDocker.Tests/FluentDocker.Tests.csproj --configuration Debug --no-build --verbosity normal --filter "Category=Integration"
         timeout-minutes: 30
 
@@ -338,6 +325,58 @@ jobs:
         shell: bash
         run: |
           echo "Docker not available on this runner — skipping integration tests"
+
+  dmr-tests:
+    name: Docker Model Runner Gate (self-hosted)
+    # Real DMR coverage. Runs only with the `test-dmr` PR label or a manual
+    # workflow_dispatch run_dmr=true. Requires a self-hosted runner labeled `dmr`
+    # with a working `docker model` runtime.
+    if: >
+      (github.event_name == 'pull_request' &&
+       contains(github.event.pull_request.labels.*.name, 'test-dmr')) ||
+      (github.event_name == 'workflow_dispatch' && inputs.run_dmr == true)
+    runs-on: [self-hosted, dmr]
+    env:
+      DOTNET_NOLOGO: 'true'
+      DOTNET_CLI_TELEMETRY_OPTOUT: 'true'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: |
+            8.0.x
+            10.0.x
+      - name: Verify Docker Model Runner is present
+        shell: bash
+        run: |
+          if ! docker model status > /dev/null 2>&1; then
+            echo "::error::This self-hosted runner has no working 'docker model' runtime."
+            exit 1
+          fi
+      - run: dotnet restore
+      - run: dotnet build --configuration Debug --no-restore
+      - name: Run real DMR tests (hard-fail on skip)
+        env:
+          FLUENTDOCKER_REQUIRE_DMR: '1'
+        run: >
+          dotnet test FluentDocker.Tests/FluentDocker.Tests.csproj
+          --configuration Debug --no-build --verbosity normal
+          --filter "Category=Integration&Requires=Dmr"
+          --logger "trx;LogFileName=dmr.trx" --results-directory ./dmr-results
+        timeout-minutes: 30
+      - name: Assert at least one DMR test actually executed
+        shell: bash
+        run: |
+          TRX=$(find ./dmr-results -name "dmr.trx" 2>/dev/null | head -1)
+          if [ -z "$TRX" ]; then
+            echo "::error::No DMR trx produced — the DMR lane ran zero tests."; exit 1
+          fi
+          # Counters total/passed in the trx ResultSummary; 0 executed => empty gate.
+          EXECUTED=$(grep -oE 'executed="[0-9]+"' "$TRX" | grep -oE '[0-9]+' | head -1)
+          echo "DMR tests executed: ${EXECUTED:-0}"
+          if [ "${EXECUTED:-0}" -lt 1 ]; then
+            echo "::error::DMR gate executed 0 tests — coverage is empty, failing."; exit 1
+          fi
 
   # Model Runner benchmarks — deterministic (no DMR), so they run anywhere. Kept off
   # PRs to keep them fast; runs on schedule or manual dispatch only. A perf blip must
