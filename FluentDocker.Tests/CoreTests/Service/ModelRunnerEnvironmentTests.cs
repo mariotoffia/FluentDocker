@@ -1,7 +1,7 @@
 using System;
 using System.Linq;
 using System.Threading.Tasks;
-using FluentDocker.Drivers.Docker.Api.Components;
+using FluentDocker.Drivers.Models;
 using FluentDocker.Model.Models;
 using FluentDocker.Model.Models.Inference;
 using FluentDocker.Services;
@@ -89,7 +89,7 @@ namespace FluentDocker.Tests.CoreTests.Service
     public async Task GenericRunner_ChatAsync_UsesInjectedConnection()
     {
       var conn = new MockModelApiConnection().SetupPost("/chat/completions", 200, DmrFixtures.Load("chat.json"));
-      await using var runner = new GenericOpenAiModelRunner(ModelRunnerEndpoint.HostTcp(), ModelReference.Parse("ai/smollm2"), new DockerApiModelInferenceDriver(conn, ModelRunnerEndpoint.HostTcp()), conn.PingAsync, conn);
+      await using var runner = new GenericOpenAiModelRunner(ModelRunnerEndpoint.HostTcp(), ModelReference.Parse("ai/smollm2"), new OpenAiModelInferenceDriver(conn, ModelRunnerEndpoint.HostTcp()), conn.PingAsync, conn);
 
       var reply = await runner.ChatAsync("hi", TestContext.Current.CancellationToken);
       Assert.False(string.IsNullOrEmpty(reply));
@@ -99,7 +99,7 @@ namespace FluentDocker.Tests.CoreTests.Service
     public async Task GenericRunner_Management_NotSupported()
     {
       var conn = new MockModelApiConnection();
-      await using var runner = new GenericOpenAiModelRunner(ModelRunnerEndpoint.HostTcp(), ModelReference.Parse("ai/x"), new DockerApiModelInferenceDriver(conn, ModelRunnerEndpoint.HostTcp()), conn.PingAsync, conn);
+      await using var runner = new GenericOpenAiModelRunner(ModelRunnerEndpoint.HostTcp(), ModelReference.Parse("ai/x"), new OpenAiModelInferenceDriver(conn, ModelRunnerEndpoint.HostTcp()), conn.PingAsync, conn);
 
       await Assert.ThrowsAsync<NotSupportedException>(() => runner.ListAsync(TestContext.Current.CancellationToken));
       await Assert.ThrowsAsync<NotSupportedException>(() => runner.LoadAsync(ModelReference.Parse("ai/x")));
@@ -109,7 +109,7 @@ namespace FluentDocker.Tests.CoreTests.Service
     public async Task GenericRunner_EmbedAsync_Works()
     {
       var conn = new MockModelApiConnection().SetupPost("/embeddings", 200, DmrFixtures.Load("embeddings.json"));
-      await using var runner = new GenericOpenAiModelRunner(ModelRunnerEndpoint.HostTcp(), ModelReference.Parse("ai/embeddinggemma"), new DockerApiModelInferenceDriver(conn, ModelRunnerEndpoint.HostTcp()), conn.PingAsync, conn);
+      await using var runner = new GenericOpenAiModelRunner(ModelRunnerEndpoint.HostTcp(), ModelReference.Parse("ai/embeddinggemma"), new OpenAiModelInferenceDriver(conn, ModelRunnerEndpoint.HostTcp()), conn.PingAsync, conn);
 
       var vector = await runner.EmbedAsync("hi", null, TestContext.Current.CancellationToken);
       Assert.NotEmpty(vector);
@@ -127,7 +127,7 @@ namespace FluentDocker.Tests.CoreTests.Service
       var conn = new MockModelApiConnection().SetupPost("/chat/completions", 200, DmrFixtures.Load("chat.json"));
       await using var runner = new GenericOpenAiModelRunner(
           ModelRunnerEndpoint.HostTcp(), defaultModel: null,
-          new DockerApiModelInferenceDriver(conn, ModelRunnerEndpoint.HostTcp()),
+          new OpenAiModelInferenceDriver(conn, ModelRunnerEndpoint.HostTcp()),
           conn.PingAsync, conn, defaultInferenceId: new InferenceModelId("gpt-4o-mini"));
 
       await runner.ChatAsync("hi", TestContext.Current.CancellationToken);
@@ -146,7 +146,7 @@ namespace FluentDocker.Tests.CoreTests.Service
       var reference = ModelReference.Parse("ai/smollm2");
       await using var runner = new GenericOpenAiModelRunner(
           ModelRunnerEndpoint.HostTcp(), reference,
-          new DockerApiModelInferenceDriver(conn, ModelRunnerEndpoint.HostTcp()), conn.PingAsync, conn);
+          new OpenAiModelInferenceDriver(conn, ModelRunnerEndpoint.HostTcp()), conn.PingAsync, conn);
 
       await runner.ChatAsync("hi", TestContext.Current.CancellationToken);
 
@@ -170,7 +170,7 @@ namespace FluentDocker.Tests.CoreTests.Service
       var conn = new MockModelApiConnection();
       await using var runner = new GenericOpenAiModelRunner(
           ModelRunnerEndpoint.HostTcp(), ModelReference.Parse("ai/x"),
-          new DockerApiModelInferenceDriver(conn, ModelRunnerEndpoint.HostTcp()), conn.PingAsync, conn);
+          new OpenAiModelInferenceDriver(conn, ModelRunnerEndpoint.HostTcp()), conn.PingAsync, conn);
 
       Assert.IsAssignableFrom<FluentDocker.Services.IInferenceModelRunner>(runner);
       Assert.IsAssignableFrom<FluentDocker.Services.IModelRunner>(runner); // back-compat

@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Text.Json.Serialization;
 
@@ -8,6 +9,24 @@ namespace FluentDocker.Model.Models.Inference
   /// </summary>
   public sealed class EmbeddingsRequest
   {
+    /// <summary>Creates an empty request.</summary>
+    public EmbeddingsRequest()
+    {
+    }
+
+    /// <summary>
+    /// Creates an independent copy of <paramref name="other"/>. Every property is explicitly
+    /// copied; mutable collections are deep-copied so callers cannot observe mutations made
+    /// inside the driver.
+    /// </summary>
+    /// <param name="other">The request to copy.</param>
+    public EmbeddingsRequest(EmbeddingsRequest other)
+    {
+      ArgumentNullException.ThrowIfNull(other);
+      Model = other.Model;
+      Input = other.Input is null ? null : new List<string>(other.Input);
+    }
+
     /// <summary>The model id.</summary>
     [JsonPropertyName("model")] public string Model { get; set; }
 

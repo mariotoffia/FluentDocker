@@ -15,6 +15,50 @@
 
 ---
 
+## What's New in 3.2.0 — Local LLMs
+
+FluentDocker now manages and consumes **local LLMs** through Docker Model Runner — and
+**any OpenAI-compatible runner** (vLLM, LM Studio, a bare `llama-server`, hosted) — behind
+the same `Builder → WithinDriver → UseXxx` pattern. Hold a real multi-turn conversation in
+a few lines:
+
+```csharp
+using System;
+using System.Collections.Generic;
+using FluentDocker.Builders;
+using FluentDocker.Kernel;
+using FluentDocker.Model.Models.Inference;   // ChatCompletionRequest, ChatMessage
+
+using var kernel = await FluentDockerKernel.Create()
+    .WithDockerCli("docker", d => d.AsDefault()).BuildAsync();
+
+await using var runner = await new Builder()
+    .WithinDriver("docker", kernel)
+    .UseModelRunner().ForModel("ai/smollm2").PullIfMissing()
+    .BuildAsync();
+
+// Multi-turn chat: keep the transcript, append each reply, then ask a follow-up.
+var chat = new List<ChatMessage> { new() { Role = "user", Content = "Hi! My name is Mario." } };
+foreach (var followUp in new[] { "What's my name?", "Now spell it backwards.", "Thanks!" })
+{
+    var res = await runner.ChatCompletionAsync(
+        new ChatCompletionRequest { Model = "ai/smollm2", Messages = chat });
+    Console.WriteLine($"assistant> {res.Choices[0].Message.Content}");
+    chat.Add(res.Choices[0].Message);                          // remember the answer…
+    chat.Add(new() { Role = "user", Content = followUp });      // …then ask the next thing
+}
+```
+
+Highlights:
+
+- **Local LLMs behind one façade** — `UseModelRunner().ForModel("ai/smollm2")`, then `ChatAsync` / `ChatStreamAsync` / `EmbedAsync` (or the DTO `ChatCompletionAsync` / `CompletionAsync` / `EmbeddingsAsync`).
+- **Any OpenAI-compatible runner** — `ModelRunnerFactory.CreateInferenceRunner(ModelRunnerEndpoint.Raw(uri), modelId)` for vLLM / LM Studio / hosted, or plug a custom driver into the kernel — see [writing a runner plugin](docs/model-runner-plugins.md).
+- **A model is a managed service** — `UseModel("ai/smollm2").Build()` loads on start and unloads on dispose, in the same lifecycle as containers.
+- **Wire a model into a container** — `c.WithModel(runner)` injects `LLM_URL` / `LLM_MODEL`; no network or volume is created.
+- **Driver-sourced capabilities, one typed error** — `runner.Capabilities` reports the real backend (not a hardcoded guess), and every failure is a single `ModelRunnerException` carrying an `ErrorCode`.
+
+Full guide: **[docs/model-runner.md](docs/model-runner.md)** · all changes in the [CHANGELOG](CHANGELOG.md).
+
 ## Quick Start
 
 ```csharp
@@ -217,53 +261,14 @@ using var imgResults = new Builder()
 
 ### Local LLMs (Docker Model Runner)
 
-Manage and consume local LLMs through **Docker Model Runner** — and any
-OpenAI-compatible endpoint — behind the same `Builder → WithinDriver → UseXxx`
-pattern, so a model handle lives in the same kernel and lifecycle as your containers.
+See the **What's New** section at the top for a runnable multi-turn example. Full details:
+the [Model Runner guide](docs/model-runner.md), [runner plugins](docs/model-runner-plugins.md),
+and the runnable [Examples/ModelRunner](Examples/ModelRunner).
 
-> **Note:** Docker Model Runner support is a preview feature slated for **v3.2.0**;
-> the inference DTO shapes may change before stabilization. v3.2.0 is **not yet on
-> NuGet** (the latest published package is **3.1.0**) — it is currently available only
-> by building from source on the feature branch.
-
-```csharp
-using FluentDocker.Model.Models; // ModelReference
-
-await using var runner = await new Builder()
-    .WithinDriver("docker", kernel)
-    .UseModelRunner()
-    .ForModel("ai/smollm2")         // default chat model
-    .PullIfMissing()                // optional, pulls at build if absent
-    .BuildAsync();                  // async — avoids sync-over-async on the model pull
-
-var reply = await runner.ChatAsync("Reply with a single word.");          // one-shot
-await foreach (var token in runner.ChatStreamAsync("Count to five"))       // streaming
-    Console.Write(token);
-
-// Embeddings need a dedicated embedding model — pull it, then embed against it.
-await runner.PullAsync(ModelReference.Parse("ai/embeddinggemma"));
-var vector = await runner.EmbedAsync("hello world",                        // embeddings
-    ModelReference.Parse("ai/embeddinggemma"));
-```
-
-- **Three internal ports behind one façade** — management (pull/ls/inspect/rm/…),
-  runtime control (status/load/unload/configure/…), and inference (chat/completion/
-  embeddings). Inference is the OpenAI-compatible HTTP API on `:12434`; management
-  uses the `docker model` CLI. Transport is an adapter detail — you code only against
-  `IModelRunner`.
-- **A model as a managed service** — `UseModel("ai/smollm2").Build()` returns an
-  `IModelService` that loads on `StartAsync`, unloads on dispose, in the same state
-  machine and hook pipeline as containers.
-- **Wire a model into a container** — `UseContainer(c => c.WithModel(...))` injects
-  `LLM_URL`/`LLM_MODEL` and ensures reachability (no network/volume created).
-- **Split control and data planes** — `WithEndpoint(...)` repoints inference at a
-  different address; `WithInferenceDriver(...)` runs inference on an explicit driver
-  or another registered driver while management stays on the scoped driver.
-
-Requires Docker Model Runner enabled (Docker Desktop → *Settings → AI*, with
-host-side TCP on for inference). See the full
-guide in [docs/model-runner.md](docs/model-runner.md) and the runnable
-[Examples/ModelRunner](Examples/ModelRunner).
+> **Note:** Docker Model Runner support is a preview feature slated for **v3.2.0**; the
+> inference DTO shapes may change before stabilization. v3.2.0 is **not yet on NuGet**
+> (latest published is **3.1.0**) — currently available only by building from source on
+> the feature branch.
 
 ---
 

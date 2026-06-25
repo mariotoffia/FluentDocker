@@ -313,6 +313,55 @@ namespace FluentDocker.Tests.CoreTests.Driver
       Assert.Equal(1d, events[^1].Fraction, 3); // final line is 200 of 200 => complete
     }
 
+    [Theory]
+    // NIT-5: a model name carrying a shell metacharacter (legal inside a Docker
+    // reference) must be emitted as ONE quoted argv token, never split/interpreted.
+    [InlineData("ai/evil;rm", "model rm \"ai/evil;rm:latest\"")]
+    [InlineData("ai/evil`id", "model rm \"ai/evil`id:latest\"")]
+    [InlineData("ai/evil\"x", "model rm \"ai/evil\\\"x:latest\"")]
+    public async Task RemoveAsync_ModelNameWithShellMetacharacter_EmittedAsSingleQuotedToken(string input, string expectedCommand)
+    {
+      var driver = new FakeMgmtDriver { Responder = _ => Ok() };
+
+      await driver.RemoveAsync(Ctx, ModelReference.Parse(input), false, TestContext.Current.CancellationToken);
+
+      // Exact match proves the whole reference is one trailing quoted token: the
+      // metacharacter cannot break out of the quotes to spawn/append a command.
+      Assert.Equal(expectedCommand, driver.Commands.Single());
+    }
+
+    [Theory]
+    // NIT-5: the only management-driver argument surface that can carry whitespace is
+    // a raw path (`--gguf`). A value with a space or metacharacter must stay a SINGLE
+    // quoted token so it is never split into extra argv entries or interpreted.
+    [InlineData("/tmp/my model.gguf", "model package --gguf \"/tmp/my model.gguf\" ai/mine:1")]
+    [InlineData("/tmp/a;b.gguf", "model package --gguf \"/tmp/a;b.gguf\" ai/mine:1")]
+    [InlineData("/tmp/a`b.gguf", "model package --gguf \"/tmp/a`b.gguf\" ai/mine:1")]
+    [InlineData("/tmp/a\"b.gguf", "model package --gguf \"/tmp/a\\\"b.gguf\" ai/mine:1")]
+    public async Task PackageAsync_GgufPathWithWhitespaceOrMetacharacter_EmittedAsSingleQuotedToken(string ggufPath, string expectedCommand)
+    {
+      var driver = new FakeMgmtDriver { Responder = _ => Ok() };
+
+      await driver.PackageAsync(Ctx, new ModelPackageRequest
+      {
+        GgufPath = ggufPath,
+        Target = ModelReference.Parse("ai/mine:1")
+      }, TestContext.Current.CancellationToken);
+
+      Assert.Equal(expectedCommand, driver.Commands.Single());
+    }
+
+    [Theory]
+    // NIT-5: a whitespace-bearing model name is rejected at the value-object boundary,
+    // so it can never reach the CLI as a split (un-quoted) model reference at all.
+    [InlineData("ai/evil model")]
+    [InlineData("ai/evil\tmodel")]
+    public void ModelReference_RejectsWhitespaceInName_BlockingArgSplitInjection(string input)
+    {
+      Assert.False(ModelReference.TryParse(input, out var model));
+      Assert.Null(model);
+    }
+
     /// <summary>
     /// An <see cref="IProgress{T}"/> capture that records reports into a thread-safe
     /// list and signals completion deterministically once the expected number of

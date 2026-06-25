@@ -7,7 +7,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using BenchmarkDotNet.Attributes;
 using FluentDocker.Common;
-using FluentDocker.Drivers.Docker.Api.Components;
+using FluentDocker.Drivers.Models;
 using FluentDocker.Drivers.Models.Connection;
 using FluentDocker.Model.Drivers;
 using FluentDocker.Model.Models;
@@ -36,7 +36,7 @@ namespace FluentDocker.Benchmarks
     private ChatCompletionRequest _request = null!;
     private string _sseScript = null!;
     private FixedStreamConnection _connection = null!;
-    private DockerApiModelInferenceDriver _driver = null!;
+    private OpenAiModelInferenceDriver _driver = null!;
 
     [GlobalSetup]
     public void Setup()
@@ -60,7 +60,7 @@ namespace FluentDocker.Benchmarks
       _sseScript = sb.ToString();
 
       _connection = new FixedStreamConnection(_sseScript);
-      _driver = new DockerApiModelInferenceDriver(_connection, ModelRunnerEndpoint.HostTcp());
+      _driver = new OpenAiModelInferenceDriver(_connection, ModelRunnerEndpoint.HostTcp());
     }
 
     [GlobalCleanup]

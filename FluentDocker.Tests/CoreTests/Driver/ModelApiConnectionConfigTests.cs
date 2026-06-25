@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using FluentDocker.Common;
-using FluentDocker.Drivers.Docker.Api.Components;
+using FluentDocker.Drivers.Models;
 using FluentDocker.Drivers.Models.Connection;
 using FluentDocker.Model.Drivers;
 using FluentDocker.Model.Models;
@@ -16,14 +16,14 @@ namespace FluentDocker.Tests.CoreTests.Driver
   /// <summary>
   /// Unit tests for <see cref="ModelApiConnectionConfig"/> configuration properties
   /// and the idle-timeout behaviour wired through the SSE streaming path in
-  /// <see cref="DockerApiModelInferenceDriver"/>.
+  /// <see cref="OpenAiModelInferenceDriver"/>.
   /// </summary>
   [Trait("Category", "Unit")]
   public class ModelApiConnectionConfigTests
   {
     private static DriverContext Ctx => new("docker");
 
-    private static DockerApiModelInferenceDriver Create(MockModelApiConnection conn) =>
+    private static OpenAiModelInferenceDriver Create(MockModelApiConnection conn) =>
         new(conn, ModelRunnerEndpoint.HostTcp());
 
     [Fact]
@@ -56,7 +56,7 @@ namespace FluentDocker.Tests.CoreTests.Driver
 
     /// <summary>
     /// FINDING 1 (C12): idle timeout is now wired into the PRODUCTION SSE read loop in
-    /// <see cref="DockerApiModelInferenceDriver"/>. Verify that a stream that stalls
+    /// <see cref="OpenAiModelInferenceDriver"/>. Verify that a stream that stalls
     /// (stops sending) fires <see cref="ErrorCodes.ModelInference.EndpointUnreachable"/>
     /// (not StreamParseError) within the configured window.
     /// </summary>

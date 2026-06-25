@@ -1,9 +1,14 @@
+using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
+using System.Net.Http;
 using System.Reflection;
+using System.Threading;
 using System.Threading.Tasks;
 using FluentDocker.Common;
-using FluentDocker.Drivers.Docker.Api.Components;
+using FluentDocker.Drivers.Models;
+using FluentDocker.Drivers.Models.Connection;
 using FluentDocker.Model.Drivers;
 using FluentDocker.Model.Models;
 using FluentDocker.Model.Models.Inference;
@@ -13,15 +18,15 @@ using Xunit;
 namespace FluentDocker.Tests.CoreTests.Driver
 {
   /// <summary>
-  /// Unit tests for <see cref="DockerApiModelInferenceDriver"/> (non-streaming)
+  /// Unit tests for <see cref="OpenAiModelInferenceDriver"/> (non-streaming)
   /// driven by <see cref="MockModelApiConnection"/> and real DMR payloads.
   /// </summary>
   [Trait("Category", "Unit")]
-  public class DockerApiModelInferenceDriverTests
+  public class OpenAiModelInferenceDriverTests
   {
     private static DriverContext Ctx => new("docker");
 
-    private static DockerApiModelInferenceDriver Create(MockModelApiConnection conn) =>
+    private static OpenAiModelInferenceDriver Create(MockModelApiConnection conn) =>
         new(conn, ModelRunnerEndpoint.HostTcp());
 
     [Fact]
@@ -299,13 +304,104 @@ namespace FluentDocker.Tests.CoreTests.Driver
     public async Task EngineInPathToggle_OmitsEngineSegment()
     {
       var conn = new MockModelApiConnection().SetupPost("/chat/completions", 200, DmrFixtures.Load("chat.json"));
-      var driver = new DockerApiModelInferenceDriver(conn, ModelRunnerEndpoint.HostTcp().WithEngineInPath(false));
+      var driver = new OpenAiModelInferenceDriver(conn, ModelRunnerEndpoint.HostTcp().WithEngineInPath(false));
 
       await driver.ChatCompletionAsync(Ctx, new ChatCompletionRequest { Model = "ai/x" }, TestContext.Current.CancellationToken);
 
       var request = conn.GetRequests().Single(r => r.Method == "POST");
       Assert.Contains("/engines/v1/chat/completions", request.Path);
       Assert.DoesNotContain("llama.cpp", request.Path);
+    }
+
+    // ---- BUG-1: a transport-level failure (ModelRunnerException MIN_003) must NOT be
+    // downgraded to RequestFailed (MIN_001) by the driver's broad catch. ----
+
+    [Theory]
+    [Trait("Category", "Unit")]
+    [InlineData("chat")]
+    [InlineData("completion")]
+    [InlineData("embeddings")]
+    [InlineData("list")]
+    public async Task TransportFailure_PreservesEndpointUnreachable_NotRequestFailed(string op)
+    {
+      // The real ModelApiConnection throws ModelRunnerException(EndpointUnreachable) on a
+      // refused/socket transport failure. The driver must surface MIN_003, not MIN_001.
+      var driver = new OpenAiModelInferenceDriver(new TransportFailingConnection(), ModelRunnerEndpoint.HostTcp());
+      var ct = TestContext.Current.CancellationToken;
+
+      var errorCode = op switch
+      {
+        "chat" => (await driver.ChatCompletionAsync(Ctx, new ChatCompletionRequest { Model = "ai/x" }, ct)).ErrorCode,
+        "completion" => (await driver.CompletionAsync(Ctx, new CompletionRequest { Model = "ai/x", Prompt = "p" }, ct)).ErrorCode,
+        "embeddings" => (await driver.EmbeddingsAsync(Ctx, new EmbeddingsRequest { Model = "ai/x", Input = new List<string> { "hi" } }, ct)).ErrorCode,
+        "list" => (await driver.ListEngineModelsAsync(Ctx, ct)).ErrorCode,
+        _ => null
+      };
+
+      Assert.Equal(ErrorCodes.ModelInference.EndpointUnreachable, errorCode);
+    }
+
+    [Theory]
+    [Trait("Category", "Unit")]
+    [InlineData(404, ErrorCodes.ModelInference.ModelNotLoaded)]
+    [InlineData(401, ErrorCodes.ModelInference.Unauthorized)]
+    [InlineData(500, ErrorCodes.ModelInference.RequestFailed)]
+    public async Task ListEngineModelsAsync_HttpError_MapsToTypedCode(int status, string expectedCode)
+    {
+      // Per-op status-code mapping must hold for the list endpoint exactly as it does for chat.
+      var conn = new MockModelApiConnection().SetupGet("/models", status, "boom");
+      var driver = Create(conn);
+
+      var resp = await driver.ListEngineModelsAsync(Ctx, TestContext.Current.CancellationToken);
+
+      Assert.False(resp.Success);
+      Assert.Equal(expectedCode, resp.ErrorCode);
+    }
+
+    // ---- BUG-2/TEST-7: EmbeddingsAsync must copy the request so post-call mutation of the
+    // caller's Input cannot alter the already-sent wire body. ----
+
+    [Fact]
+    [Trait("Category", "Unit")]
+    public async Task EmbeddingsAsync_CopiesRequest_PostCallMutationDoesNotAffectSentBody()
+    {
+      var conn = new MockModelApiConnection().SetupPost("/embeddings", 200, DmrFixtures.Load("embeddings.json"));
+      var driver = Create(conn);
+
+      var input = new List<string> { "original-input" };
+      var request = new EmbeddingsRequest { Model = "ai/x", Input = input };
+
+      await driver.EmbeddingsAsync(Ctx, request, TestContext.Current.CancellationToken);
+
+      // Mutate the caller's list AFTER the await: the already-serialized wire body is fixed.
+      input.Add("MUTATED");
+      input[0] = "CHANGED";
+
+      var sent = conn.GetRequests().Single(r => r.Method == "POST");
+      Assert.Contains("original-input", sent.Body);
+      Assert.DoesNotContain("MUTATED", sent.Body);
+      Assert.DoesNotContain("CHANGED", sent.Body);
+    }
+
+    /// <summary>
+    /// An <see cref="IModelApiConnection"/> whose every request fails at the transport layer
+    /// exactly as the real connection does on a refused/socket error: by throwing
+    /// <see cref="ModelRunnerException"/> carrying <c>EndpointUnreachable</c> (MIN_003).
+    /// </summary>
+    private sealed class TransportFailingConnection : IModelApiConnection
+    {
+      public Uri BaseAddress => new("http://localhost:12434");
+      public TimeSpan? StreamReadIdleTimeout => null;
+
+      private static ModelRunnerException Boom() =>
+          new("Connection refused", ErrorCodes.ModelInference.EndpointUnreachable, new ErrorContext("transport"));
+
+      public Task<HttpResponseMessage> GetAsync(string path, CancellationToken ct = default) => throw Boom();
+      public Task<HttpResponseMessage> PostAsync(string path, HttpContent content, CancellationToken ct = default) => throw Boom();
+      public Task<HttpResponseMessage> DeleteAsync(string path, CancellationToken ct = default) => throw Boom();
+      public Task<Stream> PostStreamAsync(string path, HttpContent content, CancellationToken ct = default) => throw Boom();
+      public Task<bool> PingAsync(CancellationToken ct = default) => Task.FromResult(false);
+      public ValueTask DisposeAsync() => ValueTask.CompletedTask;
     }
   }
 }

@@ -4,7 +4,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using FluentDocker.Common;
 using FluentDocker.Drivers;
-using FluentDocker.Drivers.Docker.Api.Components;
+using FluentDocker.Drivers.Models;
 using FluentDocker.Drivers.Models.Connection;
 using FluentDocker.Kernel;
 using FluentDocker.Model.Models;
@@ -131,7 +131,7 @@ namespace FluentDocker.Builders
       else if (_endpoint != null)
       {
         var connection = new ModelApiConnection(_endpoint, _config, _kernel.LoggerFactory, _apiKey);
-        inferenceOverride = new DockerApiModelInferenceDriver(connection, _endpoint);
+        inferenceOverride = new OpenAiModelInferenceDriver(connection, _endpoint);
         owned = connection;
       }
 

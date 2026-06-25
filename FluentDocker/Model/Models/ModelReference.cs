@@ -32,7 +32,11 @@ namespace FluentDocker.Model.Models
 
     private ModelReference(string registry, string ns, string name, string tag, string digest)
     {
-      Registry = registry;
+      // Docker registry hosts are case-insensitive; normalize to lowercase so that
+      // Equals-equal references (which compare the registry OrdinalIgnoreCase) always
+      // render an identical canonical ToString(). Only the host is normalized -
+      // namespace/name/tag/digest stay verbatim.
+      Registry = registry?.ToLowerInvariant();
       Namespace = ns;
       Name = name;
       Tag = tag;

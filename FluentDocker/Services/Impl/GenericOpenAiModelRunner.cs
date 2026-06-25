@@ -84,8 +84,10 @@ namespace FluentDocker.Services.Impl
       SupportsStreaming = true,
       SupportsEmbeddings = true,
       SupportsPackaging = false,
-      DefaultBackend = "llama.cpp",
-      AvailableBackends = ["llama.cpp"]
+      // A generic OpenAI-compatible endpoint can be backed by any engine (llama.cpp,
+      // vLLM, a hosted service, …); the backend is genuinely unknown, so none is claimed.
+      DefaultBackend = null,
+      AvailableBackends = []
     };
 
     // ---- Inference (supported) ------------------------------------------------

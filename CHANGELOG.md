@@ -19,12 +19,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - **Split control and data planes** — inference is HTTP-only (no transport selector; the `docker model` CLI cannot stream or embed, so `DockerCliDriverPack` composes the HTTP inference adapter and owns its connection). `IModelRunnerBuilder.WithEndpoint(...)` repoints inference at a different address, and `WithInferenceDriver(IModelInferenceDriver)` / `WithInferenceDriver(string driverId)` run inference on an explicit driver or another registered driver's inference port while management/runtime stay on the scoped driver.
   - New driver ports `IModelManagementDriver` / `IModelRuntimeDriver` / `IModelInferenceDriver`, additive `DriverCapabilities.SupportsModels` / `SupportsModelInference`, and `ErrorCodes.Model` / `ErrorCodes.ModelInference` groups.
   - DMR-availability-gated integration tests (tiny `ai/smollm2` / `ai/embeddinggemma`) that skip cleanly when the runner is absent, and `ModelRunnerBenchmarks`.
+  - **Optional `IModelBackendInfo` capability** — a model driver MAY advertise its inference backend engine(s) (e.g. `llama.cpp`, `vllm`); the runner sources `Capabilities.DefaultBackend` / `AvailableBackends` from it (or reports none) instead of assuming one.
+  - **Reusable OpenAI inference adapter** — the OpenAI-compatible HTTP inference adapter is `OpenAiModelInferenceDriver` (namespace `FluentDocker.Drivers.Models`), a runtime-neutral type non-Docker runner plugins can reuse directly (vLLM, LM Studio, hosted endpoints) by registering it under `IModelInferenceDriver` in a custom `IDriverPack`.
 
 ### Changed
 
 - `IContainerBuilder` gains `WithExtraHost(host, ip)` (used by `WithModel` for the Engine host-gateway alias).
 - `DockerCliDriverPack` registers the model ports and reports `SupportsModels` / `SupportsModelInference`; `PodmanCliDriverPack` reports no model support (RamaLama pack is future work). For portable/driver-agnostic code, prefer `TryUseModelRunner(out IModelRunnerBuilder runner)` to degrade gracefully on drivers that lack model support (e.g. Podman) instead of `UseModelRunner()`, which throws `InterfaceNotSupportedException`.
 - CLI log/event/stat streaming now throws `DriverException` (`ErrorCodes.Driver.CommandExecutionFailed`) on non-zero process exit instead of ending silently.
+- **Inference adapter renamed/relocated (preview, source-breaking).** `DockerApiModelInferenceDriver` (`FluentDocker.Drivers.Docker.Api.Components`) → `OpenAiModelInferenceDriver` (`FluentDocker.Drivers.Models`): it speaks generic OpenAI-over-HTTP and is not Docker-specific. Done while the subsystem is preview, so no released API breaks.
+- **Backend is driver-sourced, not hardcoded.** `ModelRunnerCapabilities.DefaultBackend` / `AvailableBackends` now come from the resolved driver via `IModelBackendInfo` (the Docker CLI runtime driver reports `llama.cpp`); custom packs report their own backend or none, and `GenericOpenAiModelRunner` reports none — no plugin is misreported as `llama.cpp`.
+- **Clean `NotSupportedException` for partial packs.** The kernel-backed `IModelRunner` now throws `NotSupportedException` (naming the missing capability) — not the lower-level `InterfaceNotSupportedException` — when a store/engine op is invoked on a driver pack that registers only some model ports (e.g. an inference-only plugin), matching `GenericOpenAiModelRunner`. `Capabilities` remains the programmatic check.
+
+### Fixed
+
+- **Non-streaming inference preserves `EndpointUnreachable`.** A transport failure (connection refused / DNS / socket error) on `ChatAsync` / chat / completion / embeddings / engine-model list now surfaces `ErrorCodes.ModelInference.EndpointUnreachable` instead of being downgraded to `RequestFailed`, matching the streaming path and the documented error contract.
+- **`EmbeddingsRequest` is deep-copied before send.** A copy constructor was added and the driver copies the request, so mutating the caller's `Input` list after the call can no longer alter the wire body (parity with chat/completion).
+- **Bounded inference error-body read.** A non-success inference response body is read with a 64 KiB bound instead of fully materializing a hostile/oversized error body before truncation.
+- **`ModelReference` registry case normalized.** The registry host is lowercased at parse time so value-equal references (registry hosts are case-insensitive) always serialize identically — stable dictionary keys and emitted CLI args.
+- **Windows mTLS client certificates.** Client certs loaded from PEM are re-imported with a persisted key on Windows (SChannel rejects ephemeral-key client-auth certs); non-Windows behavior is unchanged.
 
 ## [3.1.0] - 2026-06-04
 

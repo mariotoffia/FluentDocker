@@ -36,6 +36,36 @@ namespace FluentDocker.Tests.Mocks
       return this;
     }
 
+    /// <summary>
+    /// Registers ONLY the inference port (a partial pack), so the kernel resolves
+    /// inference but NOT management/runtime — used to exercise the runner's clean
+    /// <see cref="System.NotSupportedException"/> path for store/engine ops.
+    /// </summary>
+    /// <returns>This pack for chaining.</returns>
+    public MockDriverPack EnableModelInferenceOnly()
+    {
+      _drivers[typeof(IModelInferenceDriver)] = ModelInferenceDriver.Object;
+      return this;
+    }
+
+    /// <summary>
+    /// Makes the runtime driver ALSO advertise an inference backend via
+    /// <see cref="IModelBackendInfo"/> (e.g. <c>"vllm"</c>). MUST be called before
+    /// <see cref="EnableModelDrivers"/> — Moq requires added interfaces to be declared
+    /// before the mock object is materialized.
+    /// </summary>
+    /// <param name="defaultBackend">The default backend engine to advertise.</param>
+    /// <param name="availableBackends">The available backends; defaults to just
+    /// <paramref name="defaultBackend"/> when none are supplied.</param>
+    public MockDriverPack SetupRuntimeBackend(string defaultBackend, params string[] availableBackends)
+    {
+      var backend = ModelRuntimeDriver.As<IModelBackendInfo>();
+      backend.SetupGet(b => b.DefaultBackend).Returns(defaultBackend);
+      backend.SetupGet(b => b.AvailableBackends)
+          .Returns(availableBackends is { Length: > 0 } ? availableBackends : new[] { defaultBackend });
+      return this;
+    }
+
     /// <summary>Sets up <c>ListAsync</c> to return the given models.</summary>
     public MockDriverPack SetupModelList(params ModelInfo[] models)
     {

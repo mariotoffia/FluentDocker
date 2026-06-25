@@ -3,8 +3,8 @@ using System.Threading.Tasks;
 using FluentDocker.Builders;
 using FluentDocker.Common;
 using FluentDocker.Drivers;
-using FluentDocker.Drivers.Docker.Api.Components;
 using FluentDocker.Drivers.Docker.Cli;
+using FluentDocker.Drivers.Models;
 using FluentDocker.Drivers.Podman.Cli;
 using FluentDocker.Model.Drivers;
 using FluentDocker.Model.Models;
@@ -425,7 +425,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
       // contract via the OpenAI-compatible :12434 HTTP data plane (the docker
       // model CLI cannot stream tokens or embed), with no user-facing knob.
       var inference = pack.SysCtl<IModelInferenceDriver>("docker");
-      Assert.IsType<DockerApiModelInferenceDriver>(inference);
+      Assert.IsType<OpenAiModelInferenceDriver>(inference);
     }
 
     // ---- B10: WithInferenceDriver last-call-wins --------------------------------

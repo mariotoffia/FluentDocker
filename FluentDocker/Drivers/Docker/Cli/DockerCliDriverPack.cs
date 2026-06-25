@@ -4,9 +4,9 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using FluentDocker.Common;
-using FluentDocker.Drivers.Docker.Api.Components;
 using FluentDocker.Drivers.Docker.Cli.Binary;
 using FluentDocker.Drivers.Docker.Cli.Components;
+using FluentDocker.Drivers.Models;
 using FluentDocker.Drivers.Models.Connection;
 using FluentDocker.Kernel;
 using FluentDocker.Model.Drivers;
@@ -52,7 +52,7 @@ namespace FluentDocker.Drivers.Docker.Cli
     // `docker model` CLI cannot stream tokens or embed, so transport here is an
     // adapter detail, not a user choice. The pack owns the connection's lifetime.
     private ModelApiConnection _modelInferenceConnection;
-    private DockerApiModelInferenceDriver _modelInferenceDriver;
+    private OpenAiModelInferenceDriver _modelInferenceDriver;
 
     /// <inheritdoc />
     public DriverType Type => DriverType.DockerCli;
@@ -95,7 +95,7 @@ namespace FluentDocker.Drivers.Docker.Cli
       // (DOCKER_MODEL_RUNNER_URL when set, else host TCP).
       var inferenceEndpoint = ModelRunnerEndpoint.Default();
       _modelInferenceConnection = new ModelApiConnection(inferenceEndpoint, loggerFactory: context.LoggerFactory);
-      _modelInferenceDriver = new DockerApiModelInferenceDriver(_modelInferenceConnection, inferenceEndpoint);
+      _modelInferenceDriver = new OpenAiModelInferenceDriver(_modelInferenceConnection, inferenceEndpoint);
 
       // Initialize all components with context
       _containerDriver.Initialize(context);

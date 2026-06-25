@@ -133,6 +133,33 @@ namespace FluentDocker.Tests.CoreTests.Model
       Assert.NotEqual(ModelReference.Parse("ai/qwen3:a"), ModelReference.Parse("ai/qwen3:b"));
     }
 
+    [Fact]
+    // ROB-2: references differing only in registry case are Equals-equal AND must
+    // serialize identically (the registry is normalized to lowercase on construction).
+    public void EqualReferences_DifferingOnlyInRegistryCase_SerializeIdentically()
+    {
+      var a = ModelReference.Parse("MyReg.com/ns/x:v1");
+      var b = ModelReference.Parse("myreg.com/ns/x:v1");
+
+      Assert.Equal(a, b);
+      Assert.Equal(a.GetHashCode(), b.GetHashCode());
+      Assert.Equal(a.ToString(), b.ToString());
+      Assert.Equal("myreg.com/ns/x:v1", a.ToString());
+    }
+
+    [Fact]
+    // ROB-2: only the registry host is lowercased; namespace/name/tag keep their case.
+    public void ToString_NormalizesRegistryToLowercase_PreservingRepositoryAndTagCase()
+    {
+      var model = ModelReference.Parse("MyReg.COM/Ns/Repo-X:Q4_K_M");
+
+      Assert.Equal("myreg.com", model.Registry);
+      Assert.Equal("Ns", model.Namespace);
+      Assert.Equal("Repo-X", model.Name);
+      Assert.Equal("Q4_K_M", model.Tag);
+      Assert.Equal("myreg.com/Ns/Repo-X:Q4_K_M", model.ToString());
+    }
+
     [Theory]
     [InlineData("")]
     [InlineData("   ")]

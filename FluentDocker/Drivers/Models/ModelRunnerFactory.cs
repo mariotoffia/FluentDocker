@@ -1,4 +1,3 @@
-using FluentDocker.Drivers.Docker.Api.Components;
 using FluentDocker.Drivers.Models.Connection;
 using FluentDocker.Model.Models;
 using FluentDocker.Model.Models.Inference;
@@ -7,7 +6,7 @@ namespace FluentDocker.Drivers.Models
 {
   /// <summary>
   /// Factory that composes the Docker-specific types (<see cref="ModelApiConnection"/> and
-  /// <see cref="DockerApiModelInferenceDriver"/>) needed to back an inference runner. Placing
+  /// <see cref="OpenAiModelInferenceDriver"/>) needed to back an inference runner. Placing
   /// this composition here — in the Drivers layer — removes the layering leak that previously
   /// lived in <c>Services.ModelRunnerEnvironment</c>.
   /// </summary>
@@ -31,7 +30,7 @@ namespace FluentDocker.Drivers.Models
         ModelRunnerEndpoint endpoint, string modelId, string apiKey = null)
     {
       var connection = new ModelApiConnection(endpoint, apiKey: apiKey);
-      var inference = new DockerApiModelInferenceDriver(connection, endpoint);
+      var inference = new OpenAiModelInferenceDriver(connection, endpoint);
       InferenceModelId? inferenceId = string.IsNullOrWhiteSpace(modelId) ? null : new InferenceModelId(modelId);
       var model = ModelReference.TryParse(modelId, out var r) ? r : null;
       return new Services.Impl.GenericOpenAiModelRunner(endpoint, model, inference, connection.PingAsync, connection, inferenceId);

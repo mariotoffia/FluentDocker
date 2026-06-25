@@ -12,7 +12,7 @@ using FluentDocker.Model.Drivers;
 using FluentDocker.Model.Models;
 using FluentDocker.Model.Models.Inference;
 
-namespace FluentDocker.Drivers.Docker.Api.Components
+namespace FluentDocker.Drivers.Models
 {
   /// <summary>
   /// HTTP/API adapter for the OpenAI-compatible inference data plane. Speaks raw
@@ -20,7 +20,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
   /// Docker API driver base (which is bound to the Docker socket + envelope).
   /// Streaming methods live in the <c>.Streaming.cs</c> partial.
   /// </summary>
-  public partial class DockerApiModelInferenceDriver : IModelInferenceDriver
+  public partial class OpenAiModelInferenceDriver : IModelInferenceDriver
   {
     private readonly IModelApiConnection _connection;
     private readonly ModelRunnerEndpoint _endpoint;
@@ -28,7 +28,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
     /// <summary>Initializes the driver.</summary>
     /// <param name="connection">The HTTP connection.</param>
     /// <param name="endpoint">The resolved endpoint (engine path source).</param>
-    public DockerApiModelInferenceDriver(IModelApiConnection connection, ModelRunnerEndpoint endpoint)
+    public OpenAiModelInferenceDriver(IModelApiConnection connection, ModelRunnerEndpoint endpoint)
     {
       _connection = connection ?? throw new ArgumentNullException(nameof(connection));
       _endpoint = endpoint ?? throw new ArgumentNullException(nameof(endpoint));
@@ -58,8 +58,10 @@ namespace FluentDocker.Drivers.Docker.Api.Components
     public async Task<CommandResponse<EmbeddingsResponse>> EmbeddingsAsync(
         DriverContext context, EmbeddingsRequest request, CancellationToken cancellationToken = default)
     {
+      // Copy so the wire body cannot be affected by post-call mutation of the caller's instance.
+      var req = new EmbeddingsRequest(request);
       return await PostJsonAsync<EmbeddingsRequest, EmbeddingsResponse>(
-          context, "/embeddings", request, "Embeddings", cancellationToken).ConfigureAwait(false);
+          context, "/embeddings", req, "Embeddings", cancellationToken).ConfigureAwait(false);
     }
 
     /// <inheritdoc />
@@ -79,6 +81,13 @@ namespace FluentDocker.Drivers.Docker.Api.Components
         await using var stream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
         var list = await JsonSerializer.DeserializeAsync<OpenAiModelList>(stream, JsonHelper.CaseInsensitiveOptions, cancellationToken).ConfigureAwait(false);
         return CommandResponse<IList<OpenAiModel>>.Ok(list?.Data ?? []);
+      }
+      catch (ModelRunnerException ex)
+      {
+        // A transport-level failure (refused connection, socket error) surfaces from the
+        // connection as ModelRunnerException(EndpointUnreachable). Preserve its code + context
+        // instead of letting the broad catch below downgrade it to RequestFailed.
+        return CommandResponse<IList<OpenAiModel>>.Fail(ex.Message, ex.ErrorCode, ex.Context);
       }
       catch (Exception ex) when (ex is not OperationCanceledException)
       {
@@ -118,6 +127,12 @@ namespace FluentDocker.Drivers.Docker.Api.Components
         return CommandResponse<TResponse>.Ok(dto);
       }
       catch (OperationCanceledException) { throw; }
+      catch (ModelRunnerException ex)
+      {
+        // Preserve the typed transport error (e.g. EndpointUnreachable) + its context rather
+        // than collapsing it to RequestFailed in the broad catch below.
+        return CommandResponse<TResponse>.Fail(ex.Message, ex.ErrorCode, ex.Context);
+      }
       catch (Exception ex)
       {
         return CommandResponse<TResponse>.Fail(ex.Message, ErrorCodes.ModelInference.RequestFailed);
@@ -140,7 +155,20 @@ namespace FluentDocker.Drivers.Docker.Api.Components
     {
       try
       {
-        var body = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
+        // Read AT MOST 64 KiB from the (potentially large / hostile) error body so a multi-MiB
+        // response can never force unbounded materialization. Decode (UTF-8) then truncate to 512.
+        await using var stream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
+        var buffer = new byte[65536];
+        var total = 0;
+        while (total < buffer.Length)
+        {
+          var read = await stream.ReadAsync(buffer.AsMemory(total, buffer.Length - total), cancellationToken).ConfigureAwait(false);
+          if (read == 0)
+            break;
+          total += read;
+        }
+
+        var body = Encoding.UTF8.GetString(buffer, 0, total);
         return string.IsNullOrWhiteSpace(body) ? $"HTTP {(int)response.StatusCode}" : Truncate(body, 512);
       }
       catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)

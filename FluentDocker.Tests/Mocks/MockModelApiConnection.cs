@@ -26,7 +26,7 @@ namespace FluentDocker.Tests.Mocks
   {
     private readonly record struct ResponseEntry(
         string Method, string PathContains, HttpStatusCode StatusCode,
-        string JsonBody, string StreamContent, byte[] StreamBytes, int FaultAfterBytes);
+        string JsonBody, string StreamContent, byte[] StreamBytes, int FaultAfterBytes, byte[][] StreamChunks = null);
 
     private readonly List<ResponseEntry> _entries = [];
     private readonly List<CapturedModelRequest> _requests = [];
@@ -82,6 +82,20 @@ namespace FluentDocker.Tests.Mocks
     public MockModelApiConnection SetupStreamBytes(string pathContains, byte[] bytes)
     {
       _entries.Add(new ResponseEntry("STREAM", pathContains, HttpStatusCode.OK, null, null, bytes, -1));
+      return this;
+    }
+
+    /// <summary>
+    /// Registers a stream whose bytes are delivered in the given pre-set slices — one slice per
+    /// underlying read — so a single SSE frame can be split across a read boundary. Used to verify
+    /// that a partial <c>data:</c> frame is reassembled before being yielded.
+    /// </summary>
+    public MockModelApiConnection SetupStreamChunks(string pathContains, params string[] chunks)
+    {
+      var slices = new byte[chunks.Length][];
+      for (var i = 0; i < chunks.Length; i++)
+        slices[i] = Encoding.UTF8.GetBytes(chunks[i] ?? string.Empty);
+      _entries.Add(new ResponseEntry("STREAM", pathContains, HttpStatusCode.OK, null, null, null, -1, slices));
       return this;
     }
 
@@ -209,6 +223,9 @@ namespace FluentDocker.Tests.Mocks
             string.IsNullOrEmpty(entry.StreamContent) ? $"HTTP {status}" : entry.StreamContent,
             null, entry.StatusCode);
 
+      if (entry.StreamChunks is not null)
+        return new ChunkedStream(entry.StreamChunks);
+
       var bytes = entry.StreamBytes ?? Encoding.UTF8.GetBytes(entry.StreamContent ?? string.Empty);
       if (entry.FaultAfterBytes >= 0)
         return new FaultingStream(bytes, entry.FaultAfterBytes);
@@ -300,6 +317,55 @@ namespace FluentDocker.Tests.Mocks
         await Task.Delay(Timeout.Infinite, ct).ConfigureAwait(false);
         return 0;
       }
+
+      public override void Flush() { }
+      public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
+      public override void SetLength(long value) => throw new NotSupportedException();
+      public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
+    }
+
+    /// <summary>
+    /// Delivers its content as a fixed sequence of byte slices, returning AT MOST ONE pending
+    /// slice per read. This lets a test split a single SSE frame across two reads to verify the
+    /// driver reassembles a partial <c>data:</c> frame before yielding it.
+    /// </summary>
+    private sealed class ChunkedStream : Stream
+    {
+      private readonly byte[][] _chunks;
+      private int _chunkIndex;
+      private int _offsetInChunk;
+
+      public ChunkedStream(byte[][] chunks) => _chunks = chunks;
+
+      public override bool CanRead => true;
+      public override bool CanSeek => false;
+      public override bool CanWrite => false;
+      public override long Length => throw new NotSupportedException();
+      public override long Position { get => throw new NotSupportedException(); set => throw new NotSupportedException(); }
+
+      private int ReadCore(Span<byte> buffer)
+      {
+        // Skip any fully-consumed (or empty) leading slices.
+        while (_chunkIndex < _chunks.Length && _offsetInChunk >= _chunks[_chunkIndex].Length)
+        {
+          _chunkIndex++;
+          _offsetInChunk = 0;
+        }
+
+        if (_chunkIndex >= _chunks.Length)
+          return 0;
+
+        var chunk = _chunks[_chunkIndex];
+        var n = Math.Min(buffer.Length, chunk.Length - _offsetInChunk);
+        chunk.AsSpan(_offsetInChunk, n).CopyTo(buffer);
+        _offsetInChunk += n;
+        return n;
+      }
+
+      public override int Read(byte[] buffer, int offset, int count) => ReadCore(buffer.AsSpan(offset, count));
+
+      public override ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken ct = default) =>
+          new(ReadCore(buffer.Span));
 
       public override void Flush() { }
       public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();

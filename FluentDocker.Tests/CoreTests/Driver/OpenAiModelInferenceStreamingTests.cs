@@ -4,7 +4,7 @@ using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
 using FluentDocker.Common;
-using FluentDocker.Drivers.Docker.Api.Components;
+using FluentDocker.Drivers.Models;
 using FluentDocker.Model.Drivers;
 using FluentDocker.Model.Models;
 using FluentDocker.Model.Models.Inference;
@@ -14,15 +14,15 @@ using Xunit;
 namespace FluentDocker.Tests.CoreTests.Driver
 {
   /// <summary>
-  /// Unit tests for SSE streaming on <see cref="DockerApiModelInferenceDriver"/>:
+  /// Unit tests for SSE streaming on <see cref="OpenAiModelInferenceDriver"/>:
   /// chunk decode, <c>[DONE]</c> termination, malformed-chunk faults and cancellation.
   /// </summary>
   [Trait("Category", "Unit")]
-  public class DockerApiModelInferenceStreamingTests
+  public class OpenAiModelInferenceStreamingTests
   {
     private static DriverContext Ctx => new("docker");
 
-    private static DockerApiModelInferenceDriver Create(MockModelApiConnection conn) =>
+    private static OpenAiModelInferenceDriver Create(MockModelApiConnection conn) =>
         new(conn, ModelRunnerEndpoint.HostTcp());
 
     [Fact]
@@ -299,6 +299,52 @@ namespace FluentDocker.Tests.CoreTests.Driver
       });
 
       Assert.Equal(ErrorCodes.ModelInference.StreamParseError, ex.ErrorCode);
+    }
+
+    // ---- TEST-2: a single SSE frame split across two underlying reads must be reassembled. ----
+
+    [Fact]
+    [Trait("Category", "Unit")]
+    public async Task ChatCompletionStreamAsync_FrameSplitAcrossReads_IsReassembledIntoOneChunk()
+    {
+      // The first read returns a partial `data:` frame (no newline yet); the second returns the
+      // rest plus the terminator. The driver must stitch them into one intact chunk.
+      const string chunk1 = "data: {\"choices\":[{\"index\":0,\"delta\":{\"con";
+      const string chunk2 = "tent\":\"Hello\"}}]}\n\ndata: [DONE]\n\n";
+      var conn = new MockModelApiConnection().SetupStreamChunks("/chat/completions", chunk1, chunk2);
+      var driver = Create(conn);
+
+      var contents = new List<string>();
+      await foreach (var chunk in driver.ChatCompletionStreamAsync(Ctx, new ChatCompletionRequest { Model = "ai/x" }, TestContext.Current.CancellationToken))
+      {
+        var delta = chunk.Choices is { Count: > 0 } ? chunk.Choices[0].Delta?.Content : null;
+        if (!string.IsNullOrEmpty(delta))
+          contents.Add(delta);
+      }
+
+      Assert.Equal(new[] { "Hello" }, contents);
+    }
+
+    // ---- TEST-6: a completion stream closed mid-stream (IOException after a valid prefix
+    // frame) must yield the prefix then throw a typed ModelRunnerException(EndpointUnreachable). ----
+
+    [Fact]
+    [Trait("Category", "Unit")]
+    public async Task CompletionStreamAsync_StreamClosedMidStream_ThrowsEndpointUnreachable_AfterPrefix()
+    {
+      const string prefix = "data: {\"choices\":[{\"index\":0,\"text\":\"Pa\"}]}\n\n";
+      var conn = new MockModelApiConnection().SetupStreamFault("/completions", prefix, prefix.Length);
+      var driver = Create(conn);
+
+      var texts = new List<string>();
+      var ex = await Assert.ThrowsAsync<ModelRunnerException>(async () =>
+      {
+        await foreach (var chunk in driver.CompletionStreamAsync(Ctx, new CompletionRequest { Model = "ai/x", Prompt = "p" }, TestContext.Current.CancellationToken))
+          texts.Add(chunk.Choices[0].Text);
+      });
+
+      Assert.Equal(ErrorCodes.ModelInference.EndpointUnreachable, ex.ErrorCode);
+      Assert.Equal(new[] { "Pa" }, texts); // the valid prefix frame was yielded before the fault
     }
   }
 }

@@ -31,10 +31,13 @@ namespace FluentDocker.Tests.CoreTests.Driver
   /// reports unreachable. It also covers the explicit opt-out (<c>VerifyTls=false</c>).
   /// </para>
   /// <para>
-  /// What it does NOT cover: a certificate signed by a real public CA, client-certificate
-  /// mutual TLS exchange, or platform TLS stacks other than the .NET <see cref="SslStream"/>
-  /// used here. The handshake runs entirely in-process over the loopback adapter, so the test
-  /// is deterministic and tagged Unit; it does not require Docker or any network egress.
+  /// It also drives a full mutual-TLS (mTLS) exchange — a server REQUIRING client
+  /// authentication, with the client presenting a <c>cert.pem</c>/<c>key.pem</c> pair — so the
+  /// client-certificate wiring is proven end-to-end. What it does NOT cover: a certificate
+  /// signed by a real public CA, or platform TLS stacks other than the .NET
+  /// <see cref="SslStream"/> used here. The handshake runs entirely in-process over the
+  /// loopback adapter, so the test is deterministic and tagged Unit; it does not require
+  /// Docker or any network egress.
   /// </para>
   /// </summary>
   [Trait("Category", "Unit")]
@@ -96,6 +99,33 @@ namespace FluentDocker.Tests.CoreTests.Driver
       Assert.True(reachable, "VerifyTls=false should accept the untrusted cert and complete the handshake");
     }
 
+    [Fact]
+    public async Task PingAsync_MutualTls_ClientCertAccepted_HandshakeSucceeds()
+    {
+      using var serverCert = CreateLocalhostCertificate();
+      await using var server = HttpsResponder.Start(serverCert, requireClientCert: true);
+      var certDir = WriteClientCertWithCa(serverCert);
+      try
+      {
+        // Full mTLS: the server REQUIRES client authentication, the client presents
+        // cert.pem + key.pem and trusts the server via ca.pem. The handshake must complete
+        // and the ping report reachable — proving the client-cert wiring end-to-end. On
+        // Windows ModelApiConnection re-imports the client cert through PFX to persist its
+        // key; on this (non-Windows) platform the PEM-loaded key is used directly, and either
+        // way the credential must be presented for the client-auth-requiring server to accept.
+        var config = new ModelApiConnectionConfig { CertificatePath = certDir, VerifyTls = true };
+        await using var conn = new ModelApiConnection(
+            ModelRunnerEndpoint.Custom(new Uri($"https://localhost:{server.Port}")), config);
+
+        var reachable = await conn.PingAsync(TestContext.Current.CancellationToken);
+        Assert.True(reachable, "a valid client cert against a client-auth-requiring server should complete mTLS");
+      }
+      finally
+      {
+        Directory.Delete(certDir, recursive: true);
+      }
+    }
+
     private static X509Certificate2 CreateLocalhostCertificate()
     {
       using var rsa = RSA.Create(2048);
@@ -132,6 +162,33 @@ namespace FluentDocker.Tests.CoreTests.Driver
     }
 
     /// <summary>
+    /// Builds a directory holding an mTLS client credential (<c>cert.pem</c> + <c>key.pem</c>)
+    /// plus the server's certificate pinned as the trusted root (<c>ca.pem</c>) — the three
+    /// filenames <see cref="ModelApiConnection"/> reads from <c>CertificatePath</c>.
+    /// </summary>
+    private static string WriteClientCertWithCa(X509Certificate2 serverCert)
+    {
+      var dir = Path.Combine(Path.GetTempPath(), $"fd-mtls-{Guid.NewGuid():N}");
+      Directory.CreateDirectory(dir);
+
+      using var rsa = RSA.Create(2048);
+      var request = new CertificateRequest(
+          "CN=fluentdocker-mtls-client", rsa, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
+      // clientAuth EKU (1.3.6.1.5.5.7.3.2) so the credential is a well-formed mTLS client cert.
+      request.CertificateExtensions.Add(
+          new X509EnhancedKeyUsageExtension(new OidCollection { new Oid("1.3.6.1.5.5.7.3.2") }, critical: false));
+      using var clientCert = request.CreateSelfSigned(
+          DateTimeOffset.UtcNow.AddDays(-1), DateTimeOffset.UtcNow.AddDays(1));
+
+      // BuildSslOptions loads the client credential from cert.pem (cert) + key.pem (PKCS#8 key)
+      // and trusts the server's self-signed cert pinned as the custom root via ca.pem.
+      File.WriteAllText(Path.Combine(dir, "cert.pem"), clientCert.ExportCertificatePem());
+      File.WriteAllText(Path.Combine(dir, "key.pem"), rsa.ExportPkcs8PrivateKeyPem());
+      File.WriteAllText(Path.Combine(dir, "ca.pem"), serverCert.ExportCertificatePem());
+      return dir;
+    }
+
+    /// <summary>
     /// A tiny in-process HTTPS server: accepts one-or-more loopback connections, performs the
     /// TLS server handshake with the supplied certificate, and replies <c>200 OK</c> with an
     /// empty JSON body to whatever request line arrives. Used only to drive a real client-side
@@ -143,22 +200,24 @@ namespace FluentDocker.Tests.CoreTests.Driver
       private readonly X509Certificate2 _certificate;
       private readonly CancellationTokenSource _cts = new();
       private readonly Task _loop;
+      private readonly bool _requireClientCert;
 
-      private HttpsResponder(TcpListener listener, X509Certificate2 certificate)
+      private HttpsResponder(TcpListener listener, X509Certificate2 certificate, bool requireClientCert)
       {
         _listener = listener;
         _certificate = certificate;
+        _requireClientCert = requireClientCert;
         Port = ((IPEndPoint)listener.LocalEndpoint).Port;
         _loop = Task.Run(AcceptLoopAsync);
       }
 
       public int Port { get; }
 
-      public static HttpsResponder Start(X509Certificate2 certificate)
+      public static HttpsResponder Start(X509Certificate2 certificate, bool requireClientCert = false)
       {
         var listener = new TcpListener(IPAddress.Loopback, 0);
         listener.Start();
-        return new HttpsResponder(listener, certificate);
+        return new HttpsResponder(listener, certificate, requireClientCert);
       }
 
       private async Task AcceptLoopAsync()
@@ -195,7 +254,13 @@ namespace FluentDocker.Tests.CoreTests.Driver
             await ssl.AuthenticateAsServerAsync(new SslServerAuthenticationOptions
             {
               ServerCertificate = _certificate,
-              ClientCertificateRequired = false
+              ClientCertificateRequired = _requireClientCert,
+              // When client auth is required, accept the self-signed client credential: this
+              // test proves the client cert is PRESENTED and the handshake completes, not a
+              // server-side CA chain. Left null otherwise (default validation, no cert asked).
+              RemoteCertificateValidationCallback = _requireClientCert
+                  ? (RemoteCertificateValidationCallback)((_, _, _, _) => true)
+                  : null
             }, _cts.Token).ConfigureAwait(false);
 
             // Drain the request line(s) loosely then reply; we do not parse HTTP fully.

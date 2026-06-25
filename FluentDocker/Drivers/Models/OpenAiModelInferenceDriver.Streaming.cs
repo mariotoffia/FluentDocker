@@ -11,7 +11,7 @@ using FluentDocker.Common;
 using FluentDocker.Model.Drivers;
 using FluentDocker.Model.Models.Inference;
 
-namespace FluentDocker.Drivers.Docker.Api.Components
+namespace FluentDocker.Drivers.Models
 {
   /// <summary>
   /// Server-Sent-Events (SSE) streaming for the inference driver. DMR streams
@@ -19,7 +19,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
   /// <c>data: [DONE]</c>. Read line-by-line (no buffering); honor cancellation per
   /// read; mid-stream parse faults throw <see cref="ModelRunnerException"/>.
   /// </summary>
-  public partial class DockerApiModelInferenceDriver
+  public partial class OpenAiModelInferenceDriver
   {
     /// <summary>
     /// Maximum size (in characters, an upper bound on UTF-8 bytes since every char is at least

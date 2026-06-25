@@ -20,7 +20,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
   /// (<c>docker model status/version/ps/run/unload/configure/logs/install-runner/
   /// uninstall-runner</c>).
   /// </summary>
-  public class DockerCliModelRuntimeDriver : DockerCliModelDriverBase, IModelRuntimeDriver
+  public class DockerCliModelRuntimeDriver : DockerCliModelDriverBase, IModelRuntimeDriver, IModelBackendInfo
   {
     /// <summary>
     /// Internal time budget for the shared <c>docker model configure --help</c>
@@ -45,6 +45,18 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     public DockerCliModelRuntimeDriver(IBinaryResolver binaryResolver) : base(binaryResolver)
     {
     }
+
+    /// <summary>
+    /// The Docker Model Runner's inference backend engine. DMR runs models on
+    /// <c>llama.cpp</c>, so this adapter advertises it as the default backend.
+    /// </summary>
+    public string DefaultBackend => "llama.cpp";
+
+    /// <summary>
+    /// The inference backend engine(s) the Docker Model Runner can use. Today this is
+    /// solely <c>llama.cpp</c>.
+    /// </summary>
+    public IReadOnlyList<string> AvailableBackends => new[] { "llama.cpp" };
 
     /// <summary>
     /// Returns whether the installed <c>docker model configure</c> exposes a

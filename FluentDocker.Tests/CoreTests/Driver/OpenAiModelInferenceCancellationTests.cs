@@ -4,7 +4,7 @@ using System.Net;
 using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
-using FluentDocker.Drivers.Docker.Api.Components;
+using FluentDocker.Drivers.Models;
 using FluentDocker.Drivers.Models.Connection;
 using FluentDocker.Model.Drivers;
 using FluentDocker.Model.Models;
@@ -18,7 +18,7 @@ namespace FluentDocker.Tests.CoreTests.Driver
   /// not swallowed by the error-body reader and reported as a generic HTTP failure.
   /// </summary>
   [Trait("Category", "Unit")]
-  public class DockerApiModelInferenceCancellationTests
+  public class OpenAiModelInferenceCancellationTests
   {
     private static DriverContext Ctx => new("docker");
 
@@ -29,7 +29,7 @@ namespace FluentDocker.Tests.CoreTests.Driver
       cts.Cancel();
 
       var connection = new ThrowingErrorConnection();
-      var driver = new DockerApiModelInferenceDriver(connection, ModelRunnerEndpoint.HostTcp());
+      var driver = new OpenAiModelInferenceDriver(connection, ModelRunnerEndpoint.HostTcp());
 
       await Assert.ThrowsAnyAsync<OperationCanceledException>(
           () => driver.ListEngineModelsAsync(Ctx, cts.Token));

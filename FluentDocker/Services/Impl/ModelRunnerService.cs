@@ -147,13 +147,21 @@ namespace FluentDocker.Services.Impl
     private ModelRunnerCapabilities ComputeCapabilities()
     {
       var management = _kernel.TrySysCtl<IModelManagementDriver>(_driverId, out _);
-      var runtime = _kernel.TrySysCtl<IModelRuntimeDriver>(_driverId, out _);
-      var inference = _inferenceOverride != null || _kernel.TrySysCtl<IModelInferenceDriver>(_driverId, out _);
+      var runtime = _kernel.TrySysCtl<IModelRuntimeDriver>(_driverId, out var rt);
+      var hasInferencePort = _kernel.TrySysCtl<IModelInferenceDriver>(_driverId, out var inf);
+      var inference = _inferenceOverride != null || hasInferencePort;
 
       // The inference port speaks the OpenAI-compatible contract, which includes
       // streaming and embeddings — so a resolvable inference port advertises both.
       // Capabilities are declared from the contract, not probed per endpoint; an
       // OpenAI-compatible server missing an embeddings route would fail at call time.
+      //
+      // The backend engine is NOT assumed here: it is advertised by whichever resolved
+      // driver implements IModelBackendInfo, in priority order runtime → inference port
+      // → inference override. When none does (e.g. a non-Docker custom pack), no backend
+      // is reported. The Docker path keeps "llama.cpp" via DockerCliModelRuntimeDriver.
+      var backend = (rt as IModelBackendInfo) ?? (inf as IModelBackendInfo) ?? (_inferenceOverride as IModelBackendInfo);
+
       return new ModelRunnerCapabilities
       {
         SupportsManagement = management,
@@ -162,8 +170,8 @@ namespace FluentDocker.Services.Impl
         SupportsStreaming = inference,
         SupportsEmbeddings = inference,
         SupportsPackaging = management,
-        DefaultBackend = "llama.cpp",
-        AvailableBackends = ["llama.cpp"]
+        DefaultBackend = backend?.DefaultBackend,
+        AvailableBackends = backend?.AvailableBackends ?? []
       };
     }
 
@@ -185,11 +193,23 @@ namespace FluentDocker.Services.Impl
     private void ThrowIfDisposed() =>
         ObjectDisposedException.ThrowIf(Volatile.Read(ref _disposed) != 0, this);
 
-    private IModelManagementDriver Management() => _kernel.SysCtl<IModelManagementDriver>(_driverId);
+    private static string Unsupported(string capability) =>
+        $"This runner's driver does not support {capability}; check Capabilities before calling.";
 
-    private IModelRuntimeDriver Runtime() => _kernel.SysCtl<IModelRuntimeDriver>(_driverId);
+    private IModelManagementDriver Management() =>
+        _kernel.TrySysCtl<IModelManagementDriver>(_driverId, out var d)
+            ? d
+            : throw new NotSupportedException(Unsupported("model management"));
 
-    private IModelInferenceDriver Inference() => _inferenceOverride ?? _kernel.SysCtl<IModelInferenceDriver>(_driverId);
+    private IModelRuntimeDriver Runtime() =>
+        _kernel.TrySysCtl<IModelRuntimeDriver>(_driverId, out var d)
+            ? d
+            : throw new NotSupportedException(Unsupported("runtime control"));
+
+    private IModelInferenceDriver Inference() =>
+        _inferenceOverride ?? (_kernel.TrySysCtl<IModelInferenceDriver>(_driverId, out var d)
+            ? d
+            : throw new NotSupportedException(Unsupported("inference")));
 
     private DriverContext Context() => new(_driverId);
 

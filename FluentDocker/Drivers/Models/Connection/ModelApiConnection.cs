@@ -22,7 +22,7 @@ namespace FluentDocker.Drivers.Models.Connection
   /// connection it is not version-negotiated and not response-wrapped — DMR speaks
   /// raw OpenAI JSON.
   /// </summary>
-  public sealed class ModelApiConnection : IModelApiConnection
+  public sealed partial class ModelApiConnection : IModelApiConnection
   {
     private readonly HttpClient _httpClient;
     private readonly ILogger _logger;
@@ -446,7 +446,7 @@ namespace FluentDocker.Drivers.Models.Connection
         var keyPath = Path.Combine(config.CertificatePath, "key.pem");
         if (File.Exists(certPath) && File.Exists(keyPath))
         {
-          var clientCert = X509Certificate2.CreateFromPemFile(certPath, keyPath);
+          var clientCert = LoadClientCertificate(certPath, keyPath);
           ownedCertificates.Add(clientCert);
           sslOptions.ClientCertificates = [clientCert];
         }
