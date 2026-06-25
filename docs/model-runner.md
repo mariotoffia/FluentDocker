@@ -565,17 +565,33 @@ the runner is running.
 
 ## Testing
 
-The model integration tests are tagged `[Trait("Category", "Integration")]` and
-**skip cleanly** when DMR is not running. Unit tests use `MockDriverPack`
-(model ports) and a hand-rolled `MockModelApiConnection` (programmable JSON + SSE),
-plus embedded fixtures captured from a real DMR.
+Model integration tests carry `[Trait("Category", "Integration")]` and the overlay
+`[Trait("Requires", "Dmr")]`; they **skip cleanly** when DMR is absent. Unit tests use
+`MockDriverPack` + a hand-rolled `MockModelApiConnection` (programmable JSON + SSE)
+with embedded fixtures captured from a real DMR.
 
-> **Release gate (before tagging).** PR/hosted CI runs lack a Model Runner, so the
-> DMR integration tests self-skip there. Before tagging a release you **must** run the
-> real DMR gate: trigger the CI workflow via **`workflow_dispatch` with
-> `run_integration=true` on a DMR-capable (self-hosted) runner**. That lane sets
-> `FLUENTDOCKER_REQUIRE_DMR=1`, so a missing/unstable runner hard-fails instead of
-> masking zero coverage with a green self-skip.
+### CI test lanes
+
+| Label / trigger | Job | Runner | What runs | Local equivalent |
+|---|---|---|---|---|
+| `test-unit` on PR; always on push to `master`/`main`/`support/**` | `unit-tests` | hosted (3-OS matrix) | `Category=Unit` with coverage | `make test` |
+| `test-integration` on PR | `integration-tests` | hosted ubuntu | `Category=Integration` (DMR tests self-skip — no `docker model` on hosted runners) | `make test-integration` |
+| `test-dmr` on PR; `workflow_dispatch run_dmr=true` | `dmr-tests` | **self-hosted `[self-hosted, dmr]`** | `Category=Integration&Requires=Dmr` with `FLUENTDOCKER_REQUIRE_DMR=1` | `make test-dmr` |
+
+Key behaviours:
+
+- **Unit tests** run on every merge to `master`/`main`/`support/**` and on PRs with
+  the `test-unit` label. Docker not required.
+- **Integration tests** run only with the `test-integration` PR label (or via
+  `workflow_dispatch run_integration=true`); not on push. DMR tests self-skip on hosted
+  runners (no `docker model` present).
+- **DMR gate** runs on a self-hosted runner with a live `docker model` runtime.
+  `FLUENTDOCKER_REQUIRE_DMR=1` hard-fails if zero DMR tests execute, so a green run
+  proves real coverage rather than an empty self-skip.
+
+The `Requires=Dmr` overlay trait makes DMR tests selectable by the dedicated gate
+(`--filter "Category=Integration&Requires=Dmr"`) without removing them from the
+broader `Category=Integration` lane.
 
 ## See also
 
