@@ -336,5 +336,50 @@ namespace FluentDocker.Tests.CoreTests.Model
     {
       Assert.Null(ModelJsonParser.ParsePullLine(line));
     }
+
+    // ====================== C14: header-offset column parsing ======================
+
+    [Fact]
+    [Trait("Category", "Unit")]
+    public void ParseLsTable_NonEmptyContextColumn_ArchitectureCorrect()
+    {
+      const string table =
+          "MODEL NAME  PARAMETERS  QUANTIZATION  ARCHITECTURE  MODEL ID  CREATED       CONTEXT  SIZE\n" +
+          "m1          5B          Q4            llama         abc123    1 day ago     ctx-val  512 MiB\n";
+
+      var models = ModelJsonParser.ParseLsTable(table);
+
+      Assert.Single(models);
+      Assert.Equal("m1", models[0].Reference.Name);
+      Assert.Equal("llama", models[0].Architecture);
+      Assert.Equal("Q4", models[0].Quantization);
+    }
+
+    [Fact]
+    [Trait("Category", "Unit")]
+    public void ParseLsTable_EmptyContextColumn_ArchitectureCorrect()
+    {
+      const string table =
+          "MODEL NAME  PARAMETERS  QUANTIZATION  ARCHITECTURE  MODEL ID  CREATED        CONTEXT  SIZE\n" +
+          "m2          7B          Q5                          deadbeef  2 days ago               1 GiB\n";
+
+      var models = ModelJsonParser.ParseLsTable(table);
+
+      Assert.Single(models);
+      Assert.Equal("m2", models[0].Reference.Name);
+      Assert.Equal("7B", models[0].ParameterCount);
+    }
+
+    [Fact]
+    [Trait("Category", "Unit")]
+    public void ParseLsTable_RealFixture_PreservesAllFields()
+    {
+      var models = ModelJsonParser.ParseLsTable(DmrFixtures.Load("ls.txt"));
+      var smollm2 = models.First(m => m.Reference.Name == "smollm2");
+
+      Assert.Equal("llama", smollm2.Architecture);
+      Assert.Equal("IQ2_XXS/Q4_K_M", smollm2.Quantization);
+      Assert.True(smollm2.Size > 0);
+    }
   }
 }

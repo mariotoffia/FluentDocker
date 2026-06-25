@@ -346,24 +346,69 @@ namespace FluentDocker.Drivers.Docker.Cli.Components.Parsing
     private static IEnumerable<string[]> DataRows(string text, string headerToken)
     {
       var lines = (text ?? string.Empty).Split(LineSeparators, StringSplitOptions.RemoveEmptyEntries);
-      var headerSeen = false;
+      string headerLine = null;
       foreach (var raw in lines)
       {
         var line = raw.TrimEnd();
         if (line.Length == 0)
           continue;
 
-        if (!headerSeen)
+        if (headerLine == null)
         {
           if (line.Contains(headerToken, StringComparison.OrdinalIgnoreCase))
-            headerSeen = true;
+            headerLine = line;
           continue;
         }
 
-        var fields = MultiSpace.Split(line.Trim());
+        // Use header-column offsets to extract fields so a blank value in one column
+        // does not shift subsequent column indices (avoids split-by-whitespace ambiguity).
+        var fields = ParseRowByHeaderOffsets(headerLine, line);
         if (fields.Length > 0 && fields[0].Length > 0)
           yield return fields;
       }
+    }
+
+    /// <summary>
+    /// Extracts the field values from <paramref name="dataLine"/> by aligning them with
+    /// the column start-positions detected in <paramref name="headerLine"/>. Columns are
+    /// delimited by runs of two-or-more spaces in the header, so a single blank value does
+    /// not push subsequent values into the wrong column slot.
+    /// </summary>
+    private static string[] ParseRowByHeaderOffsets(string headerLine, string dataLine)
+    {
+      // Detect column start positions from the header (each new column begins after 2+ spaces).
+      var cols = new List<int> { 0 }; // first column always starts at 0
+      var i = 0;
+      while (i < headerLine.Length)
+      {
+        // A column boundary is where two-or-more consecutive spaces end (next non-space).
+        if (headerLine[i] == ' ' && i + 1 < headerLine.Length && headerLine[i + 1] == ' ')
+        {
+          // skip all spaces
+          while (i < headerLine.Length && headerLine[i] == ' ') i++;
+          if (i < headerLine.Length)
+            cols.Add(i);
+        }
+        else
+        {
+          i++;
+        }
+      }
+
+      var values = new string[cols.Count];
+      for (var c = 0; c < cols.Count; c++)
+      {
+        var colStart = cols[c];
+        var colEnd = c + 1 < cols.Count ? cols[c + 1] : dataLine.Length;
+        if (colStart >= dataLine.Length)
+        {
+          values[c] = string.Empty;
+          continue;
+        }
+        var end = Math.Min(colEnd, dataLine.Length);
+        values[c] = dataLine[colStart..end].Trim();
+      }
+      return values;
     }
 
     /// <summary>Parses a human-readable size (<c>256.35 MiB</c>, <c>270.60MB</c>, <c>103.56kB</c>) into bytes.</summary>
