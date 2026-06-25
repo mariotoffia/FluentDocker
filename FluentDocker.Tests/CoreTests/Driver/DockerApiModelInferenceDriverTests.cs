@@ -158,42 +158,45 @@ namespace FluentDocker.Tests.CoreTests.Driver
       Assert.NotNull(resp.ErrorContext);
     }
 
-    // ---- A5/M15: a literal JSON `null` body must NOT be treated as a successful null payload ----
+    // ---- C11: a literal JSON `null` body must return a failed CommandResponse, never throw ----
 
     [Fact]
-    public async Task ChatCompletionAsync_NullBody_ThrowsParseError()
+    [Trait("Category", "Unit")]
+    public async Task ChatCompletionAsync_NullBody_ReturnsFail_NotThrow()
     {
       var conn = new MockModelApiConnection().SetupPost("/chat/completions", 200, "null");
       var driver = Create(conn);
 
-      var ex = await Assert.ThrowsAsync<ModelRunnerException>(() =>
-          driver.ChatCompletionAsync(Ctx, new ChatCompletionRequest { Model = "ai/x" }, TestContext.Current.CancellationToken));
+      var resp = await driver.ChatCompletionAsync(Ctx, new ChatCompletionRequest { Model = "ai/x" }, TestContext.Current.CancellationToken);
 
-      Assert.Equal(ErrorCodes.ModelInference.StreamParseError, ex.ErrorCode);
+      Assert.False(resp.Success);
+      Assert.Equal(ErrorCodes.ModelInference.StreamParseError, resp.ErrorCode);
     }
 
     [Fact]
-    public async Task CompletionAsync_NullBody_ThrowsParseError()
+    [Trait("Category", "Unit")]
+    public async Task CompletionAsync_NullBody_ReturnsFail_NotThrow()
     {
       var conn = new MockModelApiConnection().SetupPost("/completions", 200, "null");
       var driver = Create(conn);
 
-      var ex = await Assert.ThrowsAsync<ModelRunnerException>(() =>
-          driver.CompletionAsync(Ctx, new CompletionRequest { Model = "ai/x", Prompt = "p" }, TestContext.Current.CancellationToken));
+      var resp = await driver.CompletionAsync(Ctx, new CompletionRequest { Model = "ai/x", Prompt = "p" }, TestContext.Current.CancellationToken);
 
-      Assert.Equal(ErrorCodes.ModelInference.StreamParseError, ex.ErrorCode);
+      Assert.False(resp.Success);
+      Assert.Equal(ErrorCodes.ModelInference.StreamParseError, resp.ErrorCode);
     }
 
     [Fact]
-    public async Task EmbeddingsAsync_NullBody_ThrowsParseError()
+    [Trait("Category", "Unit")]
+    public async Task EmbeddingsAsync_NullBody_ReturnsFail_NotThrow()
     {
       var conn = new MockModelApiConnection().SetupPost("/embeddings", 200, "null");
       var driver = Create(conn);
 
-      var ex = await Assert.ThrowsAsync<ModelRunnerException>(() =>
-          driver.EmbeddingsAsync(Ctx, new EmbeddingsRequest { Model = "ai/x", Input = new List<string> { "hi" } }, TestContext.Current.CancellationToken));
+      var resp = await driver.EmbeddingsAsync(Ctx, new EmbeddingsRequest { Model = "ai/x", Input = new List<string> { "hi" } }, TestContext.Current.CancellationToken);
 
-      Assert.Equal(ErrorCodes.ModelInference.StreamParseError, ex.ErrorCode);
+      Assert.False(resp.Success);
+      Assert.Equal(ErrorCodes.ModelInference.StreamParseError, resp.ErrorCode);
     }
 
     // ---- NEW6: copy constructors must preserve every property and be independent of the source ----
