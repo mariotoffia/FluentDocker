@@ -53,7 +53,8 @@ Demonstrates Docker Model Runner (local LLMs):
 Requires Docker Model Runner enabled (Docker Desktop → Settings → AI), with host-side TCP turned on for inference. Uses tiny models.
 
 ```bash
-cd ModelRunner && dotnet run
+dotnet run --project Examples/ModelRunner -f net10.0
+# -f net8.0 also works
 ```
 
 ## Running All Examples
