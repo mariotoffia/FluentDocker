@@ -159,5 +159,35 @@ namespace FluentDocker.Tests.CoreTests.Model
       Assert.Contains("--main-gpu", args);
       Assert.Contains("--reasoning-budget", args);
     }
+
+    [Theory]
+    [Trait("Category", "Unit")]
+    [InlineData(double.NaN)]
+    [InlineData(double.PositiveInfinity)]
+    [InlineData(double.NegativeInfinity)]
+    public void ToArgs_NonFiniteTemperature_Throws(double temp)
+    {
+      Assert.Throws<ArgumentOutOfRangeException>(() => new LlamaCppRuntimeFlags { Temperature = temp }.ToArgs());
+    }
+
+    [Theory]
+    [Trait("Category", "Unit")]
+    [InlineData(double.NaN)]
+    [InlineData(double.PositiveInfinity)]
+    [InlineData(double.NegativeInfinity)]
+    public void ToArgs_NonFiniteTopP_Throws(double value)
+    {
+      Assert.Throws<ArgumentOutOfRangeException>(() => new LlamaCppRuntimeFlags { TopP = value }.ToArgs());
+    }
+
+    [Theory]
+    [Trait("Category", "Unit")]
+    [InlineData(double.NaN)]
+    [InlineData(double.PositiveInfinity)]
+    [InlineData(double.NegativeInfinity)]
+    public void ToArgs_NonFiniteRopeFreqBase_Throws(double value)
+    {
+      Assert.Throws<ArgumentOutOfRangeException>(() => new LlamaCppRuntimeFlags { RopeFreqBase = value }.ToArgs());
+    }
   }
 }

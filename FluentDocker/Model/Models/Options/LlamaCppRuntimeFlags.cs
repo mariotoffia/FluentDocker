@@ -119,6 +119,9 @@ namespace FluentDocker.Model.Models.Options
         return;
 
       var v = value.Value;
+      if (!double.IsFinite(v))
+        throw new ArgumentOutOfRangeException(name, v, $"{flag} must be a finite number.");
+
       if ((min.HasValue && v < min.Value) || (max.HasValue && v > max.Value))
         throw new ArgumentOutOfRangeException(name, v, $"{flag} must be in [{min}, {max}].");
 
