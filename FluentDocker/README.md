@@ -142,7 +142,7 @@ await foreach (var token in runner.ChatStreamAsync("Count: one two three"))
 var vector = await runner.EmbedAsync("hello world", ModelReference.Parse("ai/embeddinggemma"));
 ```
 
-See the [Docker Model Runner guide](https://github.com/mariotoffia/FluentDocker/blob/master/docs/model-runner.md) for endpoints, configuration, and advanced inference routing.
+See the [Docker Model Runner guide](https://github.com/mariotoffia/FluentDocker/blob/3.2.0/docs/model-runner.md) for endpoints, configuration, and advanced inference routing.
 
 ## Features
 
