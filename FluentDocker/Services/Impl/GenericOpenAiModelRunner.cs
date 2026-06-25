@@ -19,7 +19,7 @@ namespace FluentDocker.Services.Impl
   /// operations are not supported (<see cref="ModelRunnerCapabilities.SupportsManagement"/>
   /// is <c>false</c>).
   /// </summary>
-  public sealed class GenericOpenAiModelRunner : IModelRunner
+  public sealed class GenericOpenAiModelRunner : IModelRunner, IInferenceModelRunner
   {
     private static readonly DriverContext Ctx = new("openai");
     private const string Unsupported =

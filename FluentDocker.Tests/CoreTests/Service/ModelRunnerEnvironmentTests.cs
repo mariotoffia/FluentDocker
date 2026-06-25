@@ -159,5 +159,46 @@ namespace FluentDocker.Tests.CoreTests.Service
       Assert.Contains("\"model\":\"ai/smollm2\"", body);
       Assert.DoesNotContain("ai/smollm2:latest", body);
     }
+
+    // ======================== D15: IInferenceModelRunner narrow interface ======
+
+    [Fact]
+    public async Task GenericRunner_ImplementsIInferenceModelRunner()
+    {
+      // D15: GenericOpenAiModelRunner must satisfy IInferenceModelRunner so callers
+      // that only need the inference plane can use the narrow interface.
+      var conn = new MockModelApiConnection();
+      await using var runner = new GenericOpenAiModelRunner(
+          ModelRunnerEndpoint.HostTcp(), ModelReference.Parse("ai/x"),
+          new DockerApiModelInferenceDriver(conn, ModelRunnerEndpoint.HostTcp()), conn.PingAsync, conn);
+
+      Assert.IsAssignableFrom<FluentDocker.Services.IInferenceModelRunner>(runner);
+      Assert.IsAssignableFrom<FluentDocker.Services.IModelRunner>(runner); // back-compat
+    }
+
+    [Fact]
+    public void ModelRunnerEnvironment_CreateInferenceRunner_ReturnsNarrowType()
+    {
+      // D16: ModelRunnerEnvironment.CreateInferenceRunner delegates to ModelRunnerFactory
+      // and returns IInferenceModelRunner (the narrow type), not the concrete class.
+      var endpoint = ModelRunnerEndpoint.HostTcp();
+      var runner = FluentDocker.Services.ModelRunnerEnvironment.CreateInferenceRunner(endpoint, "ai/smollm2");
+
+      Assert.IsAssignableFrom<FluentDocker.Services.IInferenceModelRunner>(runner);
+      // IInferenceModelRunner also satisfies IModelRunner because GenericOpenAiModelRunner
+      // implements both; we verify the narrow type is what is returned at the API surface.
+    }
+
+    [Fact]
+    public void ModelRunnerEnvironment_TryFromEnvironment_ReturnedRunnerIsIInferenceModelRunner()
+    {
+      // TryFromEnvironment result is castable to IInferenceModelRunner (D15 integration).
+      WithEnv("LLM_URL", "http://10.0.0.1:12434", () =>
+        WithEnv("LLM_MODEL", "ai/smollm2", () =>
+        {
+          Assert.True(FluentDocker.Services.ModelRunnerEnvironment.TryFromEnvironment(out var runner));
+          Assert.IsAssignableFrom<FluentDocker.Services.IInferenceModelRunner>(runner);
+        }));
+    }
   }
 }

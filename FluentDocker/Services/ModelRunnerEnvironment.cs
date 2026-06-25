@@ -1,9 +1,6 @@
 using System;
-using FluentDocker.Drivers.Docker.Api.Components;
-using FluentDocker.Drivers.Models.Connection;
+using FluentDocker.Drivers.Models;
 using FluentDocker.Model.Models;
-using FluentDocker.Model.Models.Inference;
-using FluentDocker.Services.Impl;
 
 namespace FluentDocker.Services
 {
@@ -55,7 +52,7 @@ namespace FluentDocker.Services
         return false;
 
       var modelValue = Environment.GetEnvironmentVariable($"{p}_MODEL");
-      runner = CreateRunner(ModelRunnerEndpoint.Raw(uri), modelValue, apiKey);
+      runner = (IModelRunner)CreateInferenceRunner(ModelRunnerEndpoint.Raw(uri), modelValue, apiKey);
       return true;
     }
 
@@ -92,29 +89,24 @@ namespace FluentDocker.Services
       if (string.IsNullOrWhiteSpace(url) || !Uri.TryCreate(url, UriKind.Absolute, out var uri))
         return false;
 
-      runner = CreateRunner(ModelRunnerEndpoint.Raw(uri), Environment.GetEnvironmentVariable(modelVar), apiKey);
+      runner = (IModelRunner)CreateInferenceRunner(ModelRunnerEndpoint.Raw(uri), Environment.GetEnvironmentVariable(modelVar), apiKey);
       return true;
     }
 
-    private static string Normalize(string prefix) => string.IsNullOrWhiteSpace(prefix) ? DefaultPrefix : prefix;
-
     /// <summary>
-    /// Composes a generic OpenAI runner (HTTP connection + inference adapter) for the
-    /// endpoint. The injected model id is treated as a REMOTE/OpenAI inference id and
-    /// preserved verbatim — never round-tripped through <see cref="ModelReference"/>'s
+    /// Creates an <see cref="IInferenceModelRunner"/> for an environment-injected endpoint.
+    /// The model id is treated as a REMOTE/OpenAI inference id and preserved verbatim —
+    /// never round-tripped through <see cref="Model.Models.ModelReference"/>'s
     /// <c>:latest</c> defaulting — so ids like <c>gpt-4o-mini</c> are sent unchanged.
     /// </summary>
-    private static IModelRunner CreateRunner(ModelRunnerEndpoint endpoint, string modelId, string apiKey)
-    {
-      var connection = new ModelApiConnection(endpoint, apiKey: apiKey);
-      var inference = new DockerApiModelInferenceDriver(connection, endpoint);
+    /// <param name="endpoint">The resolved endpoint.</param>
+    /// <param name="modelId">The verbatim model id from the environment.</param>
+    /// <param name="apiKey">Optional bearer token.</param>
+    /// <returns>A narrow <see cref="IInferenceModelRunner"/> (also satisfies <see cref="IModelRunner"/>).</returns>
+    public static IInferenceModelRunner CreateInferenceRunner(
+        ModelRunnerEndpoint endpoint, string modelId, string apiKey = null)
+      => ModelRunnerFactory.CreateInferenceRunner(endpoint, modelId, apiKey);
 
-      InferenceModelId? inferenceId = string.IsNullOrWhiteSpace(modelId) ? null : new InferenceModelId(modelId);
-      // DefaultModel remains a Docker artifact reference for display/compat; the
-      // inference body is fed the verbatim id via defaultInferenceId.
-      var model = ModelReference.TryParse(modelId, out var reference) ? reference : null;
-
-      return new GenericOpenAiModelRunner(endpoint, model, inference, connection.PingAsync, connection, inferenceId);
-    }
+    private static string Normalize(string prefix) => string.IsNullOrWhiteSpace(prefix) ? DefaultPrefix : prefix;
   }
 }
