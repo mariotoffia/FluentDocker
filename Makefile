@@ -44,7 +44,16 @@ test-net8:
 test-integration:
 	@mkdir -p .out/test
 	@rm -rf .out/test/integration-test.txt
-	dotnet test FluentDocker.Tests/FluentDocker.Tests.csproj --configuration Debug --verbosity normal 2>&1 | tee .out/test/integration-test.txt
+	dotnet test FluentDocker.Tests/FluentDocker.Tests.csproj --filter "Category=Integration" --configuration Debug --verbosity normal 2>&1 | tee .out/test/integration-test.txt
+
+# Real Docker Model Runner gate. Requires a working `docker model` runtime.
+# FLUENTDOCKER_REQUIRE_DMR=1 makes the DMR tests HARD-FAIL instead of self-skipping
+# when the runner is missing, so a green run proves real coverage.
+.PHONY: test-dmr
+test-dmr:
+	@mkdir -p .out/test
+	@rm -rf .out/test/dmr-test.txt
+	FLUENTDOCKER_REQUIRE_DMR=1 dotnet test FluentDocker.Tests/FluentDocker.Tests.csproj --filter "Category=Integration&Requires=Dmr" --configuration Debug --verbosity normal 2>&1 | tee .out/test/dmr-test.txt
 
 .PHONY: devlocal-setup
 devlocal-setup:
@@ -154,7 +163,8 @@ help:
 	@echo "  dep              - Install dependencies and restore packages"
 	@echo "  clean            - Clean build artifacts"
 	@echo "  test             - Run unit tests only (safe for CI)"
-	@echo "  test-integration - Run all tests including integration (requires Docker/Podman)"
+	@echo "  test-integration - Run integration tests (Category=Integration; requires Docker/Podman)"
+	@echo "  test-dmr         - Run real Docker Model Runner tests (requires docker model runtime)"
 	@echo "  devlocal-setup   - Start Swarm + Podman machine for DevLocal tests"
 	@echo "  devlocal-teardown- Stop Swarm + Podman machine after DevLocal tests"
 	@echo "  cleanup-test-resources - Remove stale Docker/Podman test containers"
