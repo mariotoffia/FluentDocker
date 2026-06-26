@@ -62,6 +62,69 @@ namespace FluentDocker.Tests.CoreTests.Service
     }
 
     [Fact]
+    public async Task Capabilities_InferenceOverride_DoesNotReportScopedRuntimeBackend()
+    {
+      var pack = new MockDriverPack().SetupRuntimeBackend("llama.cpp").EnableModelDrivers();
+      var (kernel, _) = await BuildAsync(pack);
+      await using (kernel)
+      {
+        var inference = new Mock<IModelInferenceDriver>().Object;
+        var runner = new ModelRunnerService(
+            kernel, "docker", ModelRunnerEndpoint.HostTcp(), ModelReference.Parse("ai/smollm2"), inference);
+
+        Assert.Null(runner.Capabilities.DefaultBackend);
+        Assert.Empty(runner.Capabilities.AvailableBackends);
+      }
+    }
+
+    [Fact]
+    public async Task Capabilities_NoInferenceOverride_ReportsScopedRuntimeBackend()
+    {
+      var pack = new MockDriverPack().SetupRuntimeBackend("llama.cpp").EnableModelDrivers();
+      var (kernel, runner) = await BuildAsync(pack);
+      await using (kernel)
+      {
+        Assert.Equal("llama.cpp", runner.Capabilities.DefaultBackend);
+        Assert.Contains("llama.cpp", runner.Capabilities.AvailableBackends);
+      }
+    }
+
+    [Fact]
+    public async Task Capabilities_NoInferenceOverride_ReportsScopedInferenceBackendBeforeRuntimeBackend()
+    {
+      var pack = new MockDriverPack().SetupRuntimeBackend("llama.cpp");
+      var backend = pack.ModelInferenceDriver.As<IModelBackendInfo>();
+      backend.SetupGet(b => b.DefaultBackend).Returns("vllm");
+      backend.SetupGet(b => b.AvailableBackends).Returns(new[] { "vllm" });
+      pack.EnableModelDrivers();
+      var (kernel, runner) = await BuildAsync(pack);
+      await using (kernel)
+      {
+        Assert.Equal("vllm", runner.Capabilities.DefaultBackend);
+        Assert.Contains("vllm", runner.Capabilities.AvailableBackends);
+      }
+    }
+
+    [Fact]
+    public async Task Capabilities_InferenceOverrideWithBackendInfo_ReportsOverrideBackend()
+    {
+      var pack = new MockDriverPack().SetupRuntimeBackend("llama.cpp").EnableModelDrivers();
+      var (kernel, _) = await BuildAsync(pack);
+      await using (kernel)
+      {
+        var inference = new Mock<IModelInferenceDriver>();
+        var backend = inference.As<IModelBackendInfo>();
+        backend.SetupGet(b => b.DefaultBackend).Returns("vllm");
+        backend.SetupGet(b => b.AvailableBackends).Returns(new[] { "vllm" });
+        var runner = new ModelRunnerService(
+            kernel, "docker", ModelRunnerEndpoint.HostTcp(), ModelReference.Parse("ai/smollm2"), inference.Object);
+
+        Assert.Equal("vllm", runner.Capabilities.DefaultBackend);
+        Assert.Contains("vllm", runner.Capabilities.AvailableBackends);
+      }
+    }
+
+    [Fact]
     public async Task GenericRunner_Capabilities_ReportsNoBackend()
     {
       // The generic runner serves arbitrary OpenAI-compatible endpoints, so the backend

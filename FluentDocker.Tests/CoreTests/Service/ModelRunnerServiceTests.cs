@@ -51,6 +51,56 @@ namespace FluentDocker.Tests.CoreTests.Service
     }
 
     [Fact]
+    public async Task Store_ListAsync_UsesRegisteredDriverContext()
+    {
+      var pack = new MockDriverPack()
+          .SetupModelList(new ModelInfo { Reference = ModelReference.Parse("ai/smollm2") })
+          .EnableModelDrivers();
+      var context = new DriverContext("docker") { Host = "tcp://example:2376" };
+      var kernel = new FluentDocker.Kernel.FluentDockerKernel(
+          new FluentDocker.Kernel.DriverRegistry(Microsoft.Extensions.Logging.Abstractions.NullLoggerFactory.Instance),
+          Microsoft.Extensions.Logging.Abstractions.NullLoggerFactory.Instance);
+      await kernel.RegisterDriverPackAsync("docker", pack, context, TestContext.Current.CancellationToken);
+
+      await using (kernel)
+      {
+        var runner = new ModelRunnerService(kernel, "docker", ModelRunnerEndpoint.HostTcp(), ModelReference.Parse("ai/smollm2"));
+        await runner.ListAsync(TestContext.Current.CancellationToken);
+
+        pack.ModelManagementDriver.Verify(d => d.ListAsync(
+            It.Is<DriverContext>(ctx => ctx.Host == "tcp://example:2376"),
+            It.IsAny<CancellationToken>()), Times.Once);
+      }
+    }
+
+    [Fact]
+    public async Task Engine_StatusAsync_UsesRegisteredDriverContextTlsSettings()
+    {
+      var pack = new MockDriverPack()
+          .SetupModelStatus(running: true)
+          .EnableModelDrivers();
+      var context = new DriverContext("docker")
+      {
+        CertificatePath = "/certs/docker",
+        VerifyTls = false
+      };
+      var kernel = new FluentDocker.Kernel.FluentDockerKernel(
+          new FluentDocker.Kernel.DriverRegistry(Microsoft.Extensions.Logging.Abstractions.NullLoggerFactory.Instance),
+          Microsoft.Extensions.Logging.Abstractions.NullLoggerFactory.Instance);
+      await kernel.RegisterDriverPackAsync("docker", pack, context, TestContext.Current.CancellationToken);
+
+      await using (kernel)
+      {
+        var runner = new ModelRunnerService(kernel, "docker", ModelRunnerEndpoint.HostTcp(), ModelReference.Parse("ai/smollm2"));
+        await runner.StatusAsync(TestContext.Current.CancellationToken);
+
+        pack.ModelRuntimeDriver.Verify(d => d.StatusAsync(
+            It.Is<DriverContext>(ctx => ctx.CertificatePath == "/certs/docker" && !ctx.VerifyTls),
+            It.IsAny<CancellationToken>()), Times.Once);
+      }
+    }
+
+    [Fact]
     public async Task Store_ListAsync_Failure_ThrowsModelRunnerException()
     {
       var (kernel, runner) = await BuildAsync(p =>

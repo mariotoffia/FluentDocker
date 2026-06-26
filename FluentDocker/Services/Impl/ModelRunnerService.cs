@@ -30,6 +30,7 @@ namespace FluentDocker.Services.Impl
     private readonly IModelInferenceDriver _inferenceOverride;
     private readonly IAsyncDisposable _ownedResource;
     private ModelRunnerCapabilities _capabilities;
+    private DriverContext _context;
     private int _disposed;
 
     /// <summary>Initializes the runner service.</summary>
@@ -156,11 +157,12 @@ namespace FluentDocker.Services.Impl
       // Capabilities are declared from the contract, not probed per endpoint; an
       // OpenAI-compatible server missing an embeddings route would fail at call time.
       //
-      // The backend engine is NOT assumed here: it is advertised by whichever resolved
-      // driver implements IModelBackendInfo, in priority order runtime → inference port
-      // → inference override. When none does (e.g. a non-Docker custom pack), no backend
-      // is reported. The Docker path keeps "llama.cpp" via DockerCliModelRuntimeDriver.
-      var backend = (rt as IModelBackendInfo) ?? (inf as IModelBackendInfo) ?? (_inferenceOverride as IModelBackendInfo);
+      // The backend engine is NOT assumed here: custom inference overrides are isolated
+      // from the scoped runtime; otherwise the resolved inference/runtime ports advertise
+      // it when they implement IModelBackendInfo.
+      var backend = _inferenceOverride != null
+          ? _inferenceOverride as IModelBackendInfo
+          : (inf as IModelBackendInfo) ?? (rt as IModelBackendInfo);
 
       return new ModelRunnerCapabilities
       {
@@ -211,7 +213,15 @@ namespace FluentDocker.Services.Impl
             ? d
             : throw new NotSupportedException(Unsupported("inference")));
 
-    private DriverContext Context() => new(_driverId);
+    // Returns the registered DriverContext (carrying host/TLS/logger), falling back to a
+    // bare context when the scoped driver isn't registered so a directly-constructed or
+    // unregistered-mid-life runner degrades instead of throwing DriverNotFoundException.
+    // The context is cached for the (build-scoped) runner lifetime; a driver re-registered
+    // with a new context under a live runner is not tracked, which is acceptable here.
+    private DriverContext Context() => _context ??=
+        _kernel.Registry.IsRegistered(_driverId)
+            ? _kernel.Registry.GetContext(_driverId)
+            : new DriverContext(_driverId);
 
     private static T Unwrap<T>(CommandResponse<T> response, string operation)
     {

@@ -66,8 +66,9 @@ implement the port(s) you can serve and expose them from a custom `IDriverPack`:
 1. **Implement the ports.** Reuse `OpenAiModelInferenceDriver` for the OpenAI HTTP data
    plane, or implement `IModelInferenceDriver` yourself; optionally implement
    `IModelManagementDriver` / `IModelRuntimeDriver` for pull / ls / load / unload / etc.
-   You implement only what your runtime can honor — `IModelDriver` (the aggregate of all
-   three) is explicitly optional, so no port is forced to stub methods.
+   Implement only the model ports your runtime can honor:
+   `IModelManagementDriver`, `IModelRuntimeDriver`, and/or `IModelInferenceDriver` — so no
+   port is forced to stub methods.
 2. **Expose them from an `IDriverPack`.** A pack implements `ISysCtl` +
    `IDriverInterfaceResolver` and resolves a requested port type to your adapter. The
    built-in `DockerCliDriverPack` is the reference implementation — it registers each port

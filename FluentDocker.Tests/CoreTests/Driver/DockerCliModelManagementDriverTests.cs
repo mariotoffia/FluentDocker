@@ -310,7 +310,10 @@ namespace FluentDocker.Tests.CoreTests.Driver
       Assert.All(events, e => Assert.Equal("Downloading", e.Status));
       Assert.All(events, e => Assert.True(e.Total > 0, "Total bytes should be parsed from the 'of Y' part"));
       Assert.All(events, e => Assert.True(e.Current > 0, "Current bytes should be parsed from the 'X of' part"));
-      Assert.Equal(1d, events[^1].Fraction, 3); // final line is 200 of 200 => complete
+      // Progress is surfaced through a real Progress<T>, whose callbacks post to the thread
+      // pool with no ordering guarantee — so assert the complete (200 of 200 => 1.0) line was
+      // reported, not that it was collected last.
+      Assert.Contains(events, e => Math.Abs(e.Fraction - 1d) < 0.001); // 200 of 200 => complete
     }
 
     [Theory]

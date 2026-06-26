@@ -339,8 +339,13 @@ namespace FluentDocker.Drivers.Docker.Cli
 
       // Both pipes are read line-by-line and merged into a bounded channel so neither
       // can deadlock by filling its pipe buffer while only the other is consumed.
-      var channel = System.Threading.Channels.Channel.CreateUnbounded<string>(
-          new System.Threading.Channels.UnboundedChannelOptions { SingleReader = true, SingleWriter = false });
+      var channel = System.Threading.Channels.Channel.CreateBounded<string>(
+          new System.Threading.Channels.BoundedChannelOptions(256)
+          {
+            SingleReader = true,
+            SingleWriter = false,
+            FullMode = System.Threading.Channels.BoundedChannelFullMode.Wait
+          });
 
       var pump = PumpBothStreamsAsync(process, channel.Writer, cancellationToken);
       string failure = null;
@@ -356,6 +361,13 @@ namespace FluentDocker.Drivers.Docker.Cli
       }
       finally
       {
+        // Complete the writer FIRST. If the consumer abandoned enumeration early (break,
+        // Take(n), or a throwing body) without cancelling, both pump tasks may be parked in
+        // WriteAsync on the full bounded channel — and killing the process does NOT free
+        // them (they are blocked on the channel, not on ReadLine). Completing the writer
+        // makes those parked writes throw ChannelClosedException (absorbed by the pump), so
+        // ObserveQuietlyAsync below can never hang.
+        channel.Writer.TryComplete();
         KillProcessSafely(process, Logger);
         await ObserveQuietlyAsync(pump).ConfigureAwait(false);
       }

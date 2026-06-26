@@ -19,7 +19,7 @@ namespace FluentDocker.Builders
     /// <exception cref="InterfaceNotSupportedException">The driver does not support model running.</exception>
     public static IModelRunnerBuilder UseModelRunner(this IDriverScopedBuilder builder)
     {
-      if (!HasModelSupport(builder))
+      if (!HasAnyModelPort(builder))
         throw new InterfaceNotSupportedException(builder.DriverId, nameof(IModelRunnerBuilder));
 
       return new ModelRunnerBuilder(builder.Kernel, builder.DriverId);
@@ -35,7 +35,7 @@ namespace FluentDocker.Builders
     /// <returns><c>true</c> when model running is supported.</returns>
     public static bool TryUseModelRunner(this IDriverScopedBuilder builder, out IModelRunnerBuilder runnerBuilder)
     {
-      if (HasModelSupport(builder))
+      if (HasAnyModelPort(builder))
       {
         runnerBuilder = new ModelRunnerBuilder(builder.Kernel, builder.DriverId);
         return true;
@@ -65,22 +65,24 @@ namespace FluentDocker.Builders
     /// <exception cref="InterfaceNotSupportedException">The driver does not support model running.</exception>
     public static IModelServiceBuilder UseModel(this IDriverScopedBuilder builder, ModelReference reference)
     {
-      // Shared capability guard — fail FAST (consistent with UseModelRunner) rather than
-      // late at build time when the model ports would fail to resolve.
-      if (!HasModelSupport(builder))
-        throw new InterfaceNotSupportedException(builder.DriverId, nameof(IModelServiceBuilder));
+      if (!HasModelRuntime(builder))
+        throw new InterfaceNotSupportedException(builder.DriverId, nameof(IModelRuntimeDriver));
 
       return new ModelServiceBuilder(builder.Kernel, builder.DriverId).ForModel(reference);
     }
 
     /// <summary>
-    /// The single shared model-capability guard used by every model entry point
-    /// (UseModelRunner / TryUseModelRunner / UseModel here, and the top-level
-    /// <see cref="Builder"/> shortcuts) so support is validated consistently / fail-fast.
+    /// Checks whether the driver exposes any model port.
     /// </summary>
-    internal static bool HasModelSupport(IDriverScopedBuilder builder) =>
+    internal static bool HasAnyModelPort(IDriverScopedBuilder builder) =>
         builder.TryDriver<IModelManagementDriver>() != null
         || builder.TryDriver<IModelRuntimeDriver>() != null
         || builder.TryDriver<IModelInferenceDriver>() != null;
+
+    /// <summary>
+    /// Checks whether the driver exposes model runtime control.
+    /// </summary>
+    internal static bool HasModelRuntime(IDriverScopedBuilder builder) =>
+        builder.TryDriver<IModelRuntimeDriver>() != null;
   }
 }

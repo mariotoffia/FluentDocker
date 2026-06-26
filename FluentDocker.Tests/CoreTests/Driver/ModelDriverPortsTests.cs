@@ -93,14 +93,6 @@ namespace FluentDocker.Tests.CoreTests.Driver
     }
 
     [Fact]
-    public void AggregateDriver_ComposesAllThree()
-    {
-      Assert.True(typeof(IModelManagementDriver).IsAssignableFrom(typeof(IModelDriver)));
-      Assert.True(typeof(IModelRuntimeDriver).IsAssignableFrom(typeof(IModelDriver)));
-      Assert.True(typeof(IModelInferenceDriver).IsAssignableFrom(typeof(IModelDriver)));
-    }
-
-    [Fact]
     public void ApiConnection_IsAsyncDisposable_WithExpectedMembers()
     {
       var t = typeof(IModelApiConnection);

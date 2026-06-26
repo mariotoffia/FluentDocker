@@ -22,7 +22,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
   /// shortcuts and driver-pack registration / capabilities (B1–B5).
   /// </summary>
   [Trait("Category", "Unit")]
-  public class BuilderModelExtensionsTests
+  public partial class BuilderModelExtensionsTests
   {
     private static async Task<FluentDocker.Kernel.FluentDockerKernel> MockKernelAsync(bool enableModels = true)
     {
@@ -321,15 +321,15 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
     [Fact]
     public async Task UseModel_Throws_WhenDriverLacksModelSupport()
     {
-      // A3: UseModel shares the same fail-fast capability guard as UseModelRunner.
       var pack = new MockDriverPack(); // model ports NOT enabled
       var kernel = await MockKernelBuilderExtensions.CreateWithMockDriverAsync("docker", pack);
       await using (kernel)
       {
-        Assert.Throws<InterfaceNotSupportedException>(() =>
-            new Builder().WithinDriver("docker", kernel).UseModel("ai/smollm2"));
-        Assert.Throws<InterfaceNotSupportedException>(() =>
-            new Builder().WithinDriver("docker", kernel).UseModel(ModelReference.Parse("ai/smollm2")));
+        var stringEx = Assert.Throws<InterfaceNotSupportedException>(() => new Builder().WithinDriver("docker", kernel).UseModel("ai/smollm2"));
+        var referenceEx = Assert.Throws<InterfaceNotSupportedException>(() => new Builder().WithinDriver("docker", kernel).UseModel(ModelReference.Parse("ai/smollm2")));
+
+        Assert.Equal(nameof(IModelRuntimeDriver), stringEx.InterfaceName);
+        Assert.Equal(nameof(IModelRuntimeDriver), referenceEx.InterfaceName);
       }
     }
 
@@ -399,9 +399,12 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
     [Fact]
     public async Task DockerCliPack_Capabilities_SupportModels()
     {
-      var caps = await new DockerCliDriverPack().GetCapabilitiesAsync(TestContext.Current.CancellationToken);
-      Assert.True(caps.SupportsModels);
-      Assert.True(caps.SupportsModelInference);
+      await using var pack = new DockerCliDriverPack();
+      await pack.InitializeAsync(new DriverContext("docker"), TestContext.Current.CancellationToken);
+      var interfaces = pack.GetSupportedInterfaces();
+      Assert.Contains(typeof(IModelManagementDriver), interfaces);
+      Assert.Contains(typeof(IModelRuntimeDriver), interfaces);
+      Assert.Contains(typeof(IModelInferenceDriver), interfaces);
     }
 
     [Fact]
@@ -487,14 +490,5 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
       }
     }
 
-    // ---- B5: Podman has no model support -------------------------------------
-
-    [Fact]
-    public async Task PodmanCliPack_Capabilities_NoModels()
-    {
-      var caps = await new PodmanCliDriverPack().GetCapabilitiesAsync(TestContext.Current.CancellationToken);
-      Assert.False(caps.SupportsModels);
-      Assert.False(caps.SupportsModelInference);
-    }
   }
 }

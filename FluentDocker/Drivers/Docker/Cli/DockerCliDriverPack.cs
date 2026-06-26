@@ -143,9 +143,7 @@ namespace FluentDocker.Drivers.Docker.Cli
         SupportsVolumes = true,
         SupportsCompose = true,
         SupportsSystem = true,
-        SupportsPods = false,
-        SupportsModels = true,
-        SupportsModelInference = true
+        SupportsPods = false
       });
     }
 

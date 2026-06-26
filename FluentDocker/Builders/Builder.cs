@@ -116,7 +116,7 @@ namespace FluentDocker.Builders
       ValidateScope();
       var builder = new ModelRunnerBuilder(_currentKernel, _currentDriverId);
       // Shared fail-fast capability guard (same one the driver-scoped extensions use).
-      if (!ModelDriverScopedBuilderExtensions.HasModelSupport(builder))
+      if (!ModelDriverScopedBuilderExtensions.HasAnyModelPort(builder))
         throw new Common.InterfaceNotSupportedException(_currentDriverId, nameof(IModelRunnerBuilder));
       return builder;
     }
@@ -140,9 +140,8 @@ namespace FluentDocker.Builders
     {
       ValidateScope();
       var serviceBuilder = new ModelServiceBuilder(_currentKernel, _currentDriverId);
-      // Shared fail-fast capability guard via a throwaway scoped builder.
-      if (!ModelDriverScopedBuilderExtensions.HasModelSupport(new ModelRunnerBuilder(_currentKernel, _currentDriverId)))
-        throw new Common.InterfaceNotSupportedException(_currentDriverId, nameof(IModelServiceBuilder));
+      if (!ModelDriverScopedBuilderExtensions.HasModelRuntime(serviceBuilder))
+        throw new Common.InterfaceNotSupportedException(_currentDriverId, nameof(Drivers.IModelRuntimeDriver));
       return serviceBuilder.ForModel(reference);
     }
 

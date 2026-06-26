@@ -197,5 +197,34 @@ namespace FluentDocker.Tests.CoreTests.Driver
         System.IO.File.Delete(sentinel);
       }
     }
+    [Fact]
+    public async Task ProgressStream_ConsumerBreaksEarly_DoesNotHang()
+    {
+      if (OperatingSystem.IsWindows())
+        Assert.Skip("POSIX shell streaming semantics; not applicable on Windows");
+
+      var driver = CreateShellDriver();
+
+      // Emit far more than the channel bound (256) so both pump tasks fill the bounded
+      // channel and park in WriteAsync, then break after the first line WITHOUT cancelling.
+      // The iterator's finally must complete the writer so disposal returns promptly. This
+      // is the regression guard for the bounded-channel deadlock: a FullMode.Wait channel
+      // whose writer is not completed on teardown would park the pumps forever and hang
+      // here (KillProcess does not free a writer blocked on a full channel).
+      const string script = "i=0; while [ $i -lt 5000 ]; do echo line$i; i=$((i+1)); done";
+      var args = $"-c \"{script}\"";
+
+      var consume = Task.Run(async () =>
+      {
+        await foreach (var _ in driver.StreamWithProgress(args, TestContext.Current.CancellationToken))
+          break; // abandon immediately, no cancellation
+      });
+
+      var winner = await Task.WhenAny(
+          consume, Task.Delay(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken));
+
+      Assert.True(ReferenceEquals(winner, consume) && consume.IsCompletedSuccessfully,
+          "early break must dispose the stream promptly without hanging on a full bounded channel");
+    }
   }
 }
