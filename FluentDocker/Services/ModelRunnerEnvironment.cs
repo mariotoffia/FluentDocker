@@ -1,6 +1,8 @@
 using System;
 using FluentDocker.Drivers.Models;
+using FluentDocker.Drivers.Models.Connection;
 using FluentDocker.Model.Models;
+using FluentDocker.Model.Models.Inference;
 
 namespace FluentDocker.Services
 {
@@ -105,7 +107,13 @@ namespace FluentDocker.Services
     /// <returns>A narrow <see cref="IInferenceModelRunner"/> (also satisfies <see cref="IModelRunner"/>).</returns>
     public static IInferenceModelRunner CreateInferenceRunner(
         ModelRunnerEndpoint endpoint, string modelId, string apiKey = null)
-      => ModelRunnerFactory.CreateInferenceRunner(endpoint, modelId, apiKey);
+    {
+      var connection = new ModelApiConnection(endpoint, apiKey: apiKey);
+      var inference = new OpenAiModelInferenceDriver(connection, endpoint);
+      InferenceModelId? inferenceId = string.IsNullOrWhiteSpace(modelId) ? null : new InferenceModelId(modelId);
+      var model = ModelReference.TryParse(modelId, out var r) ? r : null;
+      return new Impl.GenericOpenAiModelRunner(endpoint, model, inference, connection.PingAsync, connection, inferenceId);
+    }
 
     private static string Normalize(string prefix) => string.IsNullOrWhiteSpace(prefix) ? DefaultPrefix : prefix;
   }

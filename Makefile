@@ -44,7 +44,7 @@ test-net8:
 test-integration:
 	@mkdir -p .out/test
 	@rm -rf .out/test/integration-test.txt
-	dotnet test FluentDocker.Tests/FluentDocker.Tests.csproj --filter "Category=Integration" --configuration Debug --verbosity normal 2>&1 | tee .out/test/integration-test.txt
+	dotnet test FluentDocker.Tests/FluentDocker.Tests.csproj --filter "Category=Integration" --framework net10.0 --configuration Debug --verbosity normal 2>&1 | tee .out/test/integration-test.txt
 
 # Real Docker Model Runner gate. Requires a working `docker model` runtime.
 # FLUENTDOCKER_REQUIRE_DMR=1 makes the DMR tests HARD-FAIL instead of self-skipping
@@ -53,7 +53,7 @@ test-integration:
 test-dmr:
 	@mkdir -p .out/test
 	@rm -rf .out/test/dmr-test.txt
-	FLUENTDOCKER_REQUIRE_DMR=1 dotnet test FluentDocker.Tests/FluentDocker.Tests.csproj --filter "Category=Integration&Requires=Dmr" --configuration Debug --verbosity normal 2>&1 | tee .out/test/dmr-test.txt
+	FLUENTDOCKER_REQUIRE_DMR=1 dotnet test FluentDocker.Tests/FluentDocker.Tests.csproj --filter "Category=Integration&Requires=Dmr" --framework net10.0 --configuration Debug --verbosity normal 2>&1 | tee .out/test/dmr-test.txt
 
 .PHONY: devlocal-setup
 devlocal-setup:

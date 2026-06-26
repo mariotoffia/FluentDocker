@@ -422,11 +422,24 @@ or shared OpenAI-compatible endpoint usually does. The inference connection
 - **`ConnectionTimeout`** / **`RequestTimeout`** — connect and per-request timeouts
   (the request timeout applies to non-streaming calls only; streaming relies on the
   caller's `CancellationToken`).
+- **`AllowTlsHostnameMismatch`** — defaults to `false` (strict). When `true`, a
+  certificate whose hostname/SAN does not match the connection host is still accepted
+  provided the chain validates against the configured CA. Set it only for IP-based
+  connections to a known host.
+- **`StreamReadIdleTimeout`** — the max time to wait for the next streamed chunk
+  before aborting the read. `null` (the default) disables the idle timeout, waiting
+  indefinitely and honoring only the caller's `CancellationToken`.
 
 ### API keys
 
 A bearer token is supplied via the connection's `apiKey` parameter. When set, it is
 sent as an `Authorization: Bearer …` header on every request and is **never logged**.
+
+To avoid leaking credentials over the wire, an API key is **not** sent over plaintext
+HTTP to a non-loopback host. `https` endpoints, loopback (`localhost`/`127.0.0.1`) and
+unix sockets always send it. To force the key over plaintext to a remote host, you must
+set `ModelApiConnectionConfig.VerifyTls=false` to explicitly acknowledge the insecure
+transport.
 
 The `ModelApiConnection` constructor is:
 
@@ -504,7 +517,7 @@ dedicated guide: **[Compose models integration](model-runner-compose.md)**.
 The library detects but does **not** install DMR. `runner.StatusAsync()` reports whether
 the runner is running.
 
-> **Running the sample.** [`Examples/ModelRunner`](https://github.com/mariotoffia/FluentDocker/tree/featrure/model-support/Examples/ModelRunner)
+> **Running the sample.** [`Examples/ModelRunner`](https://github.com/mariotoffia/FluentDocker/tree/master/Examples/ModelRunner)
 > multi-targets `net8.0;net10.0`, so a bare `dotnet run` fails ("specify which framework").
 > Run it with an explicit framework: `dotnet run -f net10.0` (or `-f net8.0`).
 
@@ -542,4 +555,4 @@ broader `Category=Integration` lane.
 
 - [Getting Started](getting-started.md) · [Containers](containers.md) · [Compose](compose.md) · [Architecture](architecture.md)
 - Model Runner sub-pages: [Compose models](model-runner-compose.md) · [Writing a runner plugin](model-runner-plugins.md)
-- Runnable sample: [`Examples/ModelRunner`](https://github.com/mariotoffia/FluentDocker/tree/featrure/model-support/Examples/ModelRunner)
+- Runnable sample: [`Examples/ModelRunner`](https://github.com/mariotoffia/FluentDocker/tree/master/Examples/ModelRunner)

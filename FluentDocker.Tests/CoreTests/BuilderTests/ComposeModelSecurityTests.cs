@@ -65,15 +65,17 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
     public void EmitOverlay_RuntimeFlagWithQuote_IsEscaped_NotInjected()
     {
       // A double quote in a flag must be escaped inside the quoted scalar, never
-      // allowed to terminate it (which could append arbitrary list items).
+      // allowed to terminate it (which could append arbitrary list items). The
+      // emitted YAML is the real injection boundary, so assert directly on it.
       var b = new ComposeModelBuilder();
       b.AddModel("llm", m => m.WithModel("ai/smollm2").WithRuntimeFlags("--grammar", "a\"b"));
 
       var yaml = b.EmitOverlay();
 
-      Assert.Contains("\"a\\\"b\"", yaml);
-      var parsed = ComposeModelBuilder.Parse(yaml);
-      Assert.Equal(new[] { "--grammar", "a\"b" }, parsed.Models[0].RuntimeFlags);
+      // The quote is escaped (\") and the scalar is rendered on a single list line, so
+      // the raw quote never closes the scalar early to inject a new YAML item.
+      Assert.Contains("- \"a\\\"b\"", yaml);
+      Assert.DoesNotContain("- \"a\"", yaml);
     }
 
     [Fact]

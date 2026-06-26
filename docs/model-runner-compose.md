@@ -16,6 +16,7 @@ no manual cleanup:
 
 ```csharp
 using FluentDocker.Builders;
+using FluentDocker.Builders.Compose;
 
 await using var built = await new Builder().WithinDriver("docker", kernel)
     .UseCompose(c => c

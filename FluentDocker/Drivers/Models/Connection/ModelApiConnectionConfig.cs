@@ -11,6 +11,8 @@ namespace FluentDocker.Drivers.Models.Connection
     public string CertificatePath { get; set; }
 
     /// <summary>Whether to verify the server's TLS certificate.</summary>
+    /// <remarks>Setting this <c>false</c> also acknowledges an insecure transport: it permits
+    /// sending the API key as a bearer token over plaintext HTTP to a non-loopback host.</remarks>
     public bool VerifyTls { get; set; } = true;
 
     /// <summary>The socket/connect timeout.</summary>

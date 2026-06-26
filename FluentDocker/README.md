@@ -115,7 +115,7 @@ await using var results = await new Builder()
 
 ### Docker Model Runner (preview)
 
-> **Preview (v3.2)** — manage local LLMs and run inference (chat, completions, embeddings) through the same fluent builder. Requires [Docker Model Runner](https://docs.docker.com/model-runner/). Not yet in the published NuGet package (latest is 3.1.0); build from source on the feature branch.
+> **Preview (v3.2)** — manage local LLMs and run inference (chat, completions, embeddings) through the same fluent builder. Requires [Docker Model Runner](https://docs.docker.com/model-runner/). Preview feature in the upcoming 3.2.0 release; see the docs below.
 
 ```csharp
 using FluentDocker.Model.Models; // ModelReference
@@ -128,6 +128,7 @@ await using var runner = await new Builder()
     .WithinDriver("docker", kernel)
     .UseModelRunner()
     .ForModel("ai/smollm2")
+    .WithContextSize(4096)        // required on DMR v1.2.1: chat models crash on load without it
     .PullIfMissing()              // pulls the model at build if absent
     .BuildAsync();
 
@@ -144,7 +145,7 @@ await runner.PullAsync(ModelReference.Parse("ai/embeddinggemma"));
 var vector = await runner.EmbedAsync("hello world", ModelReference.Parse("ai/embeddinggemma"));
 ```
 
-See the [Docker Model Runner guide](https://github.com/mariotoffia/FluentDocker/blob/3.2.0/docs/model-runner.md) for endpoints, configuration, and advanced inference routing.
+See the [Docker Model Runner guide](https://github.com/mariotoffia/FluentDocker/blob/master/docs/model-runner.md) for endpoints, configuration, and advanced inference routing.
 
 ## Features
 

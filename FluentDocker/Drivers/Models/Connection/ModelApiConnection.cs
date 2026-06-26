@@ -75,8 +75,20 @@ namespace FluentDocker.Drivers.Models.Connection
       _pingPath = endpoint.EngineV1Path("/models");
 
       if (!string.IsNullOrEmpty(apiKey))
+      {
+        // Never leak the bearer token in cleartext to a remote host: plaintext http to a
+        // non-loopback TCP host (no unix socket) is refused unless VerifyTls=false opts into it.
+        if (string.Equals(_httpClient.BaseAddress.Scheme, "http", StringComparison.OrdinalIgnoreCase)
+            && !_httpClient.BaseAddress.IsLoopback
+            && string.IsNullOrEmpty(endpoint.UnixSocketPath)
+            && config.VerifyTls)
+          throw new ModelRunnerException(
+              $"Refusing to send the API key over plaintext HTTP to non-loopback host '{_httpClient.BaseAddress.Host}'. " +
+              $"Use an https endpoint or a unix socket, or set ModelApiConnectionConfig.VerifyTls=false to acknowledge the insecure transport.",
+              ErrorCodes.ModelInference.Unauthorized);
         _httpClient.DefaultRequestHeaders.Authorization =
             new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", apiKey);
+      }
     }
 
     /// <summary>

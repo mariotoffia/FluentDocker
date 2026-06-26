@@ -317,7 +317,7 @@ jobs:
 
       - name: Run integration tests
         if: steps.docker-check.outputs.available == 'true'
-        run: dotnet test FluentDocker.Tests/FluentDocker.Tests.csproj --configuration Debug --no-build --verbosity normal --filter "Category=Integration"
+        run: dotnet test FluentDocker.Tests/FluentDocker.Tests.csproj --configuration Debug --no-build --framework net10.0 --verbosity normal --filter "Category=Integration"
         timeout-minutes: 30
 
       - name: Skip integration tests (no Docker)
@@ -360,7 +360,7 @@ jobs:
           FLUENTDOCKER_REQUIRE_DMR: '1'
         run: >
           dotnet test FluentDocker.Tests/FluentDocker.Tests.csproj
-          --configuration Debug --no-build --verbosity normal
+          --configuration Debug --no-build --framework net10.0 --verbosity normal
           --filter "Category=Integration&Requires=Dmr"
           --logger "trx;LogFileName=dmr.trx" --results-directory ./dmr-results
         timeout-minutes: 30

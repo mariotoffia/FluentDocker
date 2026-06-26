@@ -22,13 +22,12 @@ namespace FluentDocker.Drivers.Models
   public partial class OpenAiModelInferenceDriver
   {
     /// <summary>
-    /// Maximum size (in characters, an upper bound on UTF-8 bytes since every char is at least
-    /// one byte) that a single SSE line/event may reach before the stream is aborted. Generous
-    /// enough for legitimately large completion frames (1 MiB) yet bounded so a runaway or
-    /// hostile server cannot force unbounded buffering. Exceeding it throws a typed
+    /// Maximum number of characters a single SSE line/event may reach before the stream is
+    /// aborted. Bounds how much a single line buffers (1M chars) so a runaway or hostile server
+    /// cannot force unbounded buffering. Exceeding it throws a typed
     /// <see cref="ModelRunnerException"/> rather than silently growing memory.
     /// </summary>
-    private const int MaxSseLineBytes = 1024 * 1024;
+    private const int MaxSseLineChars = 1024 * 1024;
 
     /// <inheritdoc />
     public async IAsyncEnumerable<ChatCompletionChunk> ChatCompletionStreamAsync(
@@ -135,7 +134,7 @@ namespace FluentDocker.Drivers.Models
       }
     }
 
-    // Reads a single line, enforcing MaxSseLineBytes so a runaway/hostile server cannot force
+    // Reads a single line, enforcing MaxSseLineChars so a runaway/hostile server cannot force
     // unbounded buffering (StreamReader.ReadLineAsync has no such cap). Returns null at EOF.
     // When idleTimeout is non-null, each per-character read is bounded by that timeout;
     // expiry surfaces as ModelRunnerException(EndpointUnreachable) rather than hanging forever.
@@ -179,9 +178,9 @@ namespace FluentDocker.Drivers.Models
         if (c == '\r')
           continue; // CR is part of CRLF terminators; LF ends the line.
 
-        if (builder.Length >= MaxSseLineBytes)
+        if (builder.Length >= MaxSseLineChars)
           throw new ModelRunnerException(
-              $"SSE line exceeded the {MaxSseLineBytes}-byte limit", ErrorCodes.ModelInference.StreamParseError);
+              $"SSE line exceeded the {MaxSseLineChars}-character limit", ErrorCodes.ModelInference.StreamParseError);
 
         builder.Append(c);
       }

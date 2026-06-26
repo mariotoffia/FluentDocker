@@ -17,7 +17,7 @@ you only ever code against `IModelRunner`.
 
 ## Prerequisites
 
-- .NET 8.0 or .NET 10.0 SDK and Docker Desktop / Docker Engine
+- .NET 10 SDK (the repo's global.json pins 10.0.100) and Docker Desktop / Docker Engine
 - Requires Docker Desktop 4.40+ (or Docker Engine with the `docker-model-plugin` installed).
 - **Docker Model Runner enabled** — Docker Desktop → *Settings → AI → Enable Docker
   Model Runner*, with host-side TCP turned on (Engine: install `docker-model-plugin`).

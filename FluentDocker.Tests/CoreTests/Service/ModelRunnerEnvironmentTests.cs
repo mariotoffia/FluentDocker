@@ -179,7 +179,7 @@ namespace FluentDocker.Tests.CoreTests.Service
     [Fact]
     public void ModelRunnerEnvironment_CreateInferenceRunner_ReturnsNarrowType()
     {
-      // D16: ModelRunnerEnvironment.CreateInferenceRunner delegates to ModelRunnerFactory
+      // D16: ModelRunnerEnvironment.CreateInferenceRunner composes the runner inline
       // and returns IInferenceModelRunner (the narrow type), not the concrete class.
       var endpoint = ModelRunnerEndpoint.HostTcp();
       var runner = FluentDocker.Services.ModelRunnerEnvironment.CreateInferenceRunner(endpoint, "ai/smollm2");

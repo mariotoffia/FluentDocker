@@ -44,6 +44,7 @@ If this is your first time with FluentDocker, finish the four steps above before
 | Understand driver/kernel design decisions | [Architecture](architecture.html) |
 | Build driver-specific extensions | [Driver Extensibility](extensibility.html) |
 | Upgrade existing v2 codebases | [Migration Guide](migration.html) |
+| Run local LLMs (preview) | [Model Runner](model-runner.html) |
 
 ## Suggested Reading Plans
 

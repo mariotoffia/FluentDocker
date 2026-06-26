@@ -34,7 +34,9 @@ using var kernel = await FluentDockerKernel.Create()
 
 await using var runner = await new Builder()
     .WithinDriver("docker", kernel)
-    .UseModelRunner().ForModel("ai/smollm2").PullIfMissing()
+    .UseModelRunner().ForModel("ai/smollm2")
+    .WithContextSize(4096)    // required on DMR v1.2.1: chat models crash on load without it
+    .PullIfMissing()
     .BuildAsync();
 
 // Multi-turn chat: keep the transcript, append each reply, then ask a follow-up.
@@ -54,7 +56,7 @@ Highlights:
 - **Local LLMs behind one façade** — `UseModelRunner().ForModel("ai/smollm2")`, then `ChatAsync` / `ChatStreamAsync` / `EmbedAsync` (or the DTO `ChatCompletionAsync` / `CompletionAsync` / `EmbeddingsAsync`).
 - **Any OpenAI-compatible runner** — `ModelRunnerFactory.CreateInferenceRunner(ModelRunnerEndpoint.Raw(uri), modelId)` for vLLM / LM Studio / hosted, or plug a custom driver into the kernel — see [writing a runner plugin](docs/model-runner-plugins.md).
 - **A model is a managed service** — `UseModel("ai/smollm2").Build()` loads on start and unloads on dispose, in the same lifecycle as containers.
-- **Wire a model into a container** — `c.WithModel(runner)` injects `LLM_URL` / `LLM_MODEL`; no network or volume is created.
+- **Wire a model into a container** — `c.WithModel(ModelReference.Parse("ai/smollm2"))` injects `LLM_URL` / `LLM_MODEL`; no network or volume is created.
 - **Driver-sourced capabilities, one typed error** — `runner.Capabilities` reports the real backend (not a hardcoded guess), and every failure is a single `ModelRunnerException` carrying an `ErrorCode`.
 
 Full guide: **[docs/model-runner.md](docs/model-runner.md)** · all changes in the [CHANGELOG](CHANGELOG.md).
