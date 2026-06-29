@@ -2,6 +2,7 @@ using System;
 using FluentDocker.Drivers.Docker.Cli;
 using FluentDocker.Model.Common;
 using FluentDocker.Model.Drivers;
+using FluentDocker.Model.Models;
 
 namespace FluentDocker.Kernel
 {
@@ -18,6 +19,7 @@ namespace FluentDocker.Kernel
     private string _sudoPassword;
     private string _binaryName;
     private string[] _searchPaths;
+    private ModelRunnerEndpoint _modelEndpoint;
 
     public IDockerCliDriverBuilder AtHost(string host)
     {
@@ -51,6 +53,12 @@ namespace FluentDocker.Kernel
       return this;
     }
 
+    public IDockerCliDriverBuilder WithModelRunnerEndpoint(ModelRunnerEndpoint endpoint)
+    {
+      _modelEndpoint = endpoint;
+      return this;
+    }
+
     internal KernelBuilder.DriverConfiguration Build()
     {
       var context = new DriverContext(_driverId)
@@ -61,6 +69,7 @@ namespace FluentDocker.Kernel
         SudoPassword = _sudoPassword,
         BinaryName = _binaryName,
         SearchPaths = _searchPaths,
+        ModelRunnerEndpoint = _modelEndpoint,
       };
 
       return new KernelBuilder.DriverConfiguration

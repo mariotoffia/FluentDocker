@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using FluentDocker.Model.Common;
+using FluentDocker.Model.Models;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 
@@ -83,6 +84,14 @@ namespace FluentDocker.Model.Drivers
     /// is running during initialization.
     /// </summary>
     public AutoStartMachineConfig AutoStartMachine { get; set; }
+
+    /// <summary>
+    /// Default inference endpoint a model-capable pack binds its inference adapter to.
+    /// When null the pack falls back to <see cref="ModelRunnerEndpoint.Default"/>
+    /// (DOCKER_MODEL_RUNNER_URL, else host TCP). Set it to bind a non-default runner
+    /// (e.g. another port/engine) once at registration instead of per-call.
+    /// </summary>
+    public ModelRunnerEndpoint ModelRunnerEndpoint { get; set; }
 
     /// <summary>
     /// HTTP connection timeout for Docker API driver.

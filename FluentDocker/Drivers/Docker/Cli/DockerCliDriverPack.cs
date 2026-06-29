@@ -50,9 +50,12 @@ namespace FluentDocker.Drivers.Docker.Cli
     private Components.DockerCliModelRuntimeDriver _modelRuntimeDriver;
     // Inference is served over the OpenAI-compatible :12434 HTTP data plane — the
     // `docker model` CLI cannot stream tokens or embed, so transport here is an
-    // adapter detail, not a user choice. The pack owns the connection's lifetime.
+    // adapter detail, not a user choice. The pack owns the connection's lifetime
+    // and builds it lazily on first resolve so pure-container packs pay nothing.
+    private ModelRunnerEndpoint _modelEndpoint;
     private ModelApiConnection _modelInferenceConnection;
     private OpenAiModelInferenceDriver _modelInferenceDriver;
+    private readonly object _inferenceLock = new();
 
     /// <inheritdoc />
     public DriverType Type => DriverType.DockerCli;
@@ -91,11 +94,10 @@ namespace FluentDocker.Drivers.Docker.Cli
       _serviceDriver = new DockerCliServiceDriver(_binaryResolver);
       _modelManagementDriver = new Components.DockerCliModelManagementDriver(_binaryResolver);
       _modelRuntimeDriver = new Components.DockerCliModelRuntimeDriver(_binaryResolver);
-      // Inference adapter: HTTP over the resolved OpenAI-compatible DMR endpoint
-      // (DOCKER_MODEL_RUNNER_URL when set, else host TCP).
-      var inferenceEndpoint = ModelRunnerEndpoint.Default();
-      _modelInferenceConnection = new ModelApiConnection(inferenceEndpoint, loggerFactory: context.LoggerFactory);
-      _modelInferenceDriver = new OpenAiModelInferenceDriver(_modelInferenceConnection, inferenceEndpoint);
+      // Inference endpoint is pack-owned: bind a configured endpoint (a non-default
+      // port/engine) once at registration, else the resolved default
+      // (DOCKER_MODEL_RUNNER_URL, else host TCP). The connection is built lazily.
+      _modelEndpoint = context.ModelRunnerEndpoint ?? ModelRunnerEndpoint.Default();
 
       // Initialize all components with context
       _containerDriver.Initialize(context);
@@ -123,10 +125,10 @@ namespace FluentDocker.Drivers.Docker.Cli
       _drivers[typeof(IStackDriver)] = _stackDriver;
       _drivers[typeof(IServiceDriver)] = _serviceDriver;
       // Docker Model Runner ports: management + runtime via the docker CLI;
-      // inference via the OpenAI-compatible HTTP data plane (an adapter detail).
+      // inference via the OpenAI-compatible HTTP data plane (lazily built on first
+      // resolve — see EnsureInferenceDriver — so a pure-container pack pays nothing).
       _drivers[typeof(IModelManagementDriver)] = _modelManagementDriver;
       _drivers[typeof(IModelRuntimeDriver)] = _modelRuntimeDriver;
-      _drivers[typeof(IModelInferenceDriver)] = _modelInferenceDriver;
 
       _initialized = true;
       await Task.CompletedTask;
@@ -170,14 +172,10 @@ namespace FluentDocker.Drivers.Docker.Cli
     {
       ThrowIfNotInitialized();
 
-      var requestedType = typeof(T);
-
-      if (_drivers.TryGetValue(requestedType, out var driver))
-      {
+      if (TryGetDriver(typeof(T), out var driver))
         return (T)driver;
-      }
 
-      throw new InterfaceNotSupportedException(driverId, requestedType.Name);
+      throw new InterfaceNotSupportedException(driverId, typeof(T).Name);
     }
 
     #region IDriverInterfaceResolver
@@ -186,14 +184,15 @@ namespace FluentDocker.Drivers.Docker.Cli
     public bool TryResolve(Type interfaceType, out object implementation)
     {
       ThrowIfNotInitialized();
-      return _drivers.TryGetValue(interfaceType, out implementation);
+      return TryGetDriver(interfaceType, out implementation);
     }
 
     /// <inheritdoc />
     public IReadOnlyCollection<Type> GetSupportedInterfaces()
     {
       ThrowIfNotInitialized();
-      return _drivers.Keys.ToList().AsReadOnly();
+      // Inference is built lazily and not in the dict, but it is always supported.
+      return new List<Type>(_drivers.Keys) { typeof(IModelInferenceDriver) }.AsReadOnly();
     }
 
     #endregion
@@ -204,7 +203,7 @@ namespace FluentDocker.Drivers.Docker.Cli
     public object SysCtl(string driverId, Type interfaceType)
     {
       ThrowIfNotInitialized();
-      if (_drivers.TryGetValue(interfaceType, out var driver))
+      if (TryGetDriver(interfaceType, out var driver))
         return driver;
       throw new InterfaceNotSupportedException(driverId, interfaceType.Name);
     }
@@ -213,13 +212,39 @@ namespace FluentDocker.Drivers.Docker.Cli
     public bool TrySysCtl<T>(string driverId, out T instance) where T : class
     {
       ThrowIfNotInitialized();
-      if (_drivers.TryGetValue(typeof(T), out var driver))
+      if (TryGetDriver(typeof(T), out var driver))
       {
         instance = (T)driver;
         return true;
       }
       instance = null;
       return false;
+    }
+
+    // Resolves a registered driver, building the inference adapter on first request
+    // (lazy: pure-container packs never allocate the HttpClient).
+    private bool TryGetDriver(Type interfaceType, out object driver)
+    {
+      if (interfaceType == typeof(IModelInferenceDriver))
+      {
+        driver = EnsureInferenceDriver();
+        return true;
+      }
+      return _drivers.TryGetValue(interfaceType, out driver);
+    }
+
+    private OpenAiModelInferenceDriver EnsureInferenceDriver()
+    {
+      if (_modelInferenceDriver != null)
+        return _modelInferenceDriver;
+
+      lock (_inferenceLock)
+      {
+        _modelInferenceConnection ??= new ModelApiConnection(_modelEndpoint, loggerFactory: _context?.LoggerFactory);
+        _modelInferenceDriver ??= new OpenAiModelInferenceDriver(_modelInferenceConnection, _modelEndpoint);
+      }
+
+      return _modelInferenceDriver;
     }
 
     #endregion

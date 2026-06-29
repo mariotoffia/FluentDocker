@@ -254,7 +254,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Docker
 
       var supported = pack.GetSupportedInterfaces();
 
-      Assert.Equal(10, supported.Count);
+      Assert.Equal(11, supported.Count);
       Assert.Contains(typeof(IContainerDriver), supported);
       Assert.Contains(typeof(IImageDriver), supported);
       Assert.Contains(typeof(INetworkDriver), supported);
@@ -265,6 +265,23 @@ namespace FluentDocker.Tests.CoreTests.Driver.Docker
       Assert.Contains(typeof(IStreamDriver), supported);
       Assert.Contains(typeof(IStackDriver), supported);
       Assert.Contains(typeof(IServiceDriver), supported);
+      // Inference is built lazily, never in the dict, but always supported.
+      Assert.Contains(typeof(IModelInferenceDriver), supported);
+    }
+
+    [Fact]
+    public void Inference_ResolvesLazily_AndIsCached()
+    {
+      var pack = CreateInitializedPack(out _);
+      typeof(DockerCliDriverPack)
+          .GetField("_modelEndpoint", BindingFlags.NonPublic | BindingFlags.Instance)
+          .SetValue(pack, FluentDocker.Model.Models.ModelRunnerEndpoint.HostTcp());
+
+      var first = pack.SysCtl<IModelInferenceDriver>("docker");
+      var second = pack.SysCtl<IModelInferenceDriver>("docker");
+
+      Assert.NotNull(first);
+      Assert.Same(first, second);
     }
 
     [Fact]

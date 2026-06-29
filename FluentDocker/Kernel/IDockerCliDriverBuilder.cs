@@ -1,4 +1,5 @@
 using FluentDocker.Model.Common;
+using FluentDocker.Model.Models;
 
 namespace FluentDocker.Kernel
 {
@@ -42,5 +43,14 @@ namespace FluentDocker.Kernel
     /// Optional directories to search for the binary. When omitted, <c>PATH</c> is used.
     /// </param>
     IDockerCliDriverBuilder WithBinary(string binaryName, params string[] searchPaths);
+
+    /// <summary>
+    /// Binds the Docker Model Runner pack's inference adapter to a non-default
+    /// endpoint (e.g. another port/engine) once at registration, instead of passing
+    /// it per runner build. When unset, the default resolution is used
+    /// (<c>DOCKER_MODEL_RUNNER_URL</c>, else host TCP on 12434).
+    /// </summary>
+    /// <param name="endpoint">The inference endpoint.</param>
+    IDockerCliDriverBuilder WithModelRunnerEndpoint(ModelRunnerEndpoint endpoint);
   }
 }
