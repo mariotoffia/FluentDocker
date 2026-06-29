@@ -186,6 +186,20 @@ namespace FluentDocker.Tests.Mocks
       return this;
     }
 
+    /// <summary>Sets up <c>ChatCompletionAsync</c> to succeed with an empty choices list.</summary>
+    public MockDriverPack SetupModelChatNoChoices()
+    {
+      ModelInferenceDriver
+          .Setup(d => d.ChatCompletionAsync(It.IsAny<DriverContext>(), It.IsAny<ChatCompletionRequest>(), It.IsAny<CancellationToken>()))
+          .ReturnsAsync(CommandResponse<ChatCompletionResponse>.Ok(new ChatCompletionResponse
+          {
+            Id = "chatcmpl-mock",
+            Object = "chat.completion",
+            Choices = new List<ChatChoice>()
+          }));
+      return this;
+    }
+
     /// <summary>Sets up <c>ChatCompletionAsync</c> to fail with the given error.</summary>
     public MockDriverPack SetupModelChatFailure(string error, string errorCode)
     {

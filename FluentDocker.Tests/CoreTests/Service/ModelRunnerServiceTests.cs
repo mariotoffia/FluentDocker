@@ -208,6 +208,14 @@ namespace FluentDocker.Tests.CoreTests.Service
     }
 
     [Fact]
+    public async Task ChatAsync_EmptyChoices_ThrowsNotSilentlyNull()
+    {
+      var (kernel, runner) = await BuildAsync(p => p.SetupModelChatNoChoices());
+      await using (kernel)
+        await Assert.ThrowsAsync<ModelRunnerException>(() => runner.ChatAsync("hi", TestContext.Current.CancellationToken));
+    }
+
+    [Fact]
     public async Task Inference_ChatCompletion_Failure_ThrowsWithErrorCode()
     {
       var (kernel, runner) = await BuildAsync(p => p.SetupModelChatFailure("nope", ErrorCodes.ModelInference.ModelNotLoaded));

@@ -96,7 +96,9 @@ namespace FluentDocker.Services.Impl
       };
 
       var response = await ChatCompletionAsync(request, cancellationToken).ConfigureAwait(false);
-      return response.Choices is { Count: > 0 } ? response.Choices[0].Message?.Content : null;
+      return (response.Choices is { Count: > 0 } ? response.Choices[0].Message?.Content : null)
+          ?? throw new ModelRunnerException("Chat completion returned no content (model produced no choices).",
+              ErrorCodes.ModelInference.RequestFailed);
     }
 
     /// <inheritdoc />

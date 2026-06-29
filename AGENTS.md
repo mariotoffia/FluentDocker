@@ -42,7 +42,7 @@ Follow YAGNI principles, and one-liner solutions.
 2. **Adapter(s)** `Drivers/<Runtime>/<Transport>/Components/<Runtime><Transport>XxxDriver.cs` — inherit `DockerCliDriverBase` / `DockerApiDriverBase`; quote args, parse with `JsonHelper`.
 3. **Register** in the pack via `RegisterDriver<IXxxDriver>(impl)` (→ `Drivers[typeof(IXxxDriver)]`) — no kernel edits.
 4. **Service** `Services/Impl/XxxService.cs` — `IServiceAsync` (+ `IServiceCapabilities`); resolve via `SysCtl`, map `CommandResponse` errors to exceptions.
-5. **Builder** — method on `IXxxBuilder`, sealed internal builder implementing `IDriverScopedBuilder`, validate at execute time, wire into `Builder.UseXxx`. Model builders (`UseModelRunner`/`UseModel`) return directly and are **off** the deferred pipeline and **off** `IBuilder` — don't "fix" that.
+5. **Builder** — method on `IXxxBuilder`, sealed internal builder implementing `IDriverScopedBuilder`, validate at execute time, wire into `Builder.UseXxx`. Model builders (`UseModelRunner`/`UseModel`) return directly and are **off** the deferred pipeline and **off** `IBuilder` — don't "fix" that. **Why two ways:** `UseContainer/Network/Volume/Image/Compose` build a *graph of resources* you create and tear down together, so they queue ops and `BuildAsync()` returns one `BuildResults` bag. `UseModelRunner` returns an `IModelRunner` *client* to an already-running runner (not an `IServiceAsync`, can't live in the bag); `UseModel` returns a typed `IModelService` handle directly so the one-model case stays one object, not a downcast from a collection. Direct return = right semantics, not an inconsistency.
 
 ## Verify (all via Makefile)
 - `make check` (= `lint` + `test`) before done; `make coverage-check` enforces a floor (line 70 / branch 65).
