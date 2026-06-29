@@ -102,8 +102,8 @@ namespace FluentDocker.Tests.Mocks
       {
         var buffer = new byte[64];
         // First read returns the prefix, subsequent read throws.
-        await stream.ReadAsync(buffer, TestContext.Current.CancellationToken);
-        await stream.ReadAsync(buffer, TestContext.Current.CancellationToken);
+        await stream.ReadExactlyAsync(buffer, TestContext.Current.CancellationToken);
+        await stream.ReadExactlyAsync(buffer, TestContext.Current.CancellationToken);
       });
     }
 

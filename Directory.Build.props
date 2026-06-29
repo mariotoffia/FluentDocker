@@ -22,5 +22,11 @@
     <NoWarn>$(NoWarn);CA1305;CA1304;CA1310;CA1311</NoWarn>
     <!-- CA1507: all hits are [JsonProperty] serialization keys, not symbol refs — nameof is wrong here -->
     <NoWarn>$(NoWarn);CA1507</NoWarn>
+    <!-- CA1848: logging is never on a hot path (each op brackets a process spawn / network I/O); LoggerMessage delegates not worth the boilerplate -->
+    <NoWarn>$(NoWarn);CA1848</NoWarn>
+    <!-- CA1859: advisory micro-perf (concrete-type devirtualization); all sites are cold paths (startup resolution, one-shot parse, test helpers) -->
+    <NoWarn>$(NoWarn);CA1859</NoWarn>
+    <!-- CA1720: 'Object' is the OpenAI API discriminator field ([JsonPropertyName("object")]), an external contract — like CA1507 above -->
+    <NoWarn>$(NoWarn);CA1720</NoWarn>
   </PropertyGroup>
 </Project>

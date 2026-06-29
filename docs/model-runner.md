@@ -28,7 +28,8 @@ DMR exposes two surfaces, and FluentDocker keeps them behind one interface famil
 
 The public `IModelRunner` composes three small capability interfaces
 (`IModelStore`, `IModelEngine`, `IModelInference`) plus a few ergonomic helpers.
-Implementations may support only a subset; feature-detect via `runner.Capabilities`.
+Implementations may support only a subset; feature-detect static adapter support via
+`runner.Capabilities`.
 
 ## Quick start
 
@@ -45,7 +46,7 @@ await using var runner = await new Builder()
     .WithinDriver("docker", kernel)
     .UseModelRunner()
     .ForModel("ai/smollm2")
-    .WithContextSize(8192)        // optional — persisted via `docker model configure`
+    .WithContextSize(8192)        // recommended on DMR v1.2.1 chat models
     .PullIfMissing()             // optional — pulls at build if absent
     .BuildAsync();               // async — avoids sync-over-async on the model pull
 
@@ -61,6 +62,23 @@ await foreach (var token in runner.ChatStreamAsync("Count: one two three"))
 var embedModel = FluentDocker.Model.Models.ModelReference.Parse("ai/embeddinggemma");
 await runner.PullAsync(embedModel);            // idempotent; or: docker model pull ai/embeddinggemma
 var vector = await runner.EmbedAsync("hello world", model: embedModel);
+```
+
+> **CI cost of `PullIfMissing()`.** On a cache miss, `PullIfMissing()` downloads
+> the model during build, which in CI can be slow and consume bandwidth and disk.
+> Pre-pull models in CI (`docker model pull ...`) or gate model-dependent tests,
+> and keep `PullIfMissing()` for local/dev convenience.
+
+To set a time budget, pass a `CancellationToken` from your app. FluentDocker does
+not guess your production timeout:
+
+```csharp
+using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+
+var reply = await runner.ChatAsync("Reply briefly.", cts.Token);
+
+await foreach (var token in runner.ChatStreamAsync("Count slowly.", cts.Token))
+    Console.Write(token);
 ```
 
 By default `UseModelRunner()` uses **CLI** for management/runtime and **HTTP**
@@ -146,12 +164,12 @@ is DTO-only so the full request (stop sequences, seed, sampling) is expressible.
 and hook pipeline as containers, so you can `using` it for automatic unload:
 
 ```csharp
-await using var model = new Builder()
+await using var model = await new Builder()
     .WithinDriver("docker", kernel)
     .UseModel("ai/smollm2")
     .WithContextSize(8192)
     .KeepRunning(false)          // unload on dispose
-    .Build();
+    .BuildAsync();
 
 await model.StartAsync();        // load
 var answer = await model.Runner.ChatAsync("Hi");
@@ -260,7 +278,9 @@ A few endpoint subtleties worth knowing:
 if (runner.Capabilities.SupportsStreaming) { /* … */ }
 ```
 
-A runner advertises what its resolved driver can do. Inference is served over the
+A runner advertises what its resolved driver can do; it is **not** a health check.
+To prove the runner is reachable, call `StatusAsync()` for DMR runtime state and
+`ListEngineModelsAsync()` for the inference endpoint. Inference is served over the
 OpenAI-compatible HTTP data plane (the `:12434` endpoint), so whenever an
 inference port is present the runner supports both streaming **and** embeddings —
 there is no transport to pick. *How* a driver satisfies the inference contract
@@ -315,15 +335,15 @@ Three points fall out of this split:
 The three ports are runtime-neutral, so any OpenAI-compatible runner (vLLM, LM Studio,
 a bare `llama-server`, a hosted endpoint, or your own engine) plugs in. Two levels:
 
-**Inference-only, no kernel** — point `ModelRunnerFactory.CreateInferenceRunner` at any
+**Inference-only, no kernel** — point `ModelRunnerEnvironment.CreateInferenceRunner` at any
 endpoint. Use `ModelRunnerEndpoint.Raw(...)` for a non-DMR server so requests hit a plain
 `…/v1` path (DMR's `/engines/llama.cpp/v1` prefix is added only by `Default()` / `HostTcp()`):
 
 ```csharp
-using FluentDocker.Drivers.Models;   // ModelRunnerFactory
 using FluentDocker.Model.Models;     // ModelRunnerEndpoint
+using FluentDocker.Services;         // ModelRunnerEnvironment
 
-await using var runner = ModelRunnerFactory.CreateInferenceRunner(
+await using var runner = ModelRunnerEnvironment.CreateInferenceRunner(
     ModelRunnerEndpoint.Raw(new Uri("http://localhost:8000/v1")),  // vLLM / LM Studio / hosted
     modelId: "Qwen/Qwen2.5-7B-Instruct");
 ```

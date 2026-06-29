@@ -29,6 +29,9 @@ dotnet add package FluentDocker.Testing.MsTest     # MSTest adapter
 dotnet add package FluentDocker.Testing.NUnit      # NUnit adapter
 ```
 
+> **xUnit adapter is v3 only.** `FluentDocker.Testing.Xunit` targets xUnit v3 and
+> is not compatible with xUnit v2 (`xunit` 2.x) projects.
+
 ## Quick Examples
 
 ### xUnit — Per-Test (Test Base)
@@ -159,6 +162,7 @@ public class RedisTests
 | [xUnit Adapter](testing/xunit.html) | Test bases, fixture bases, concrete fixtures |
 | [MSTest Adapter](testing/mstest.html) | Helper methods for all resource types |
 | [NUnit Adapter](testing/nunit.html) | Helper methods for all resource types |
+| [Docker Model Runner](testing/model.html) | Testing Docker Model Runner |
 | [Plugins](testing/plugins.html) | Extending resources with custom plugins |
 | [Migration from Legacy](testing/migration-from-legacy.html) | Side-by-side migration examples |
 

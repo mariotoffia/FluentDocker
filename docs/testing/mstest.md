@@ -85,7 +85,7 @@ public static async Task ClassInit(TestContext context)
     (_kernel, _resource) = await MsTestResourceHelpers.CreateComposeAsync(
         builder => builder
             .WithComposeFile("docker-compose.yml")
-            .WithProjectName("integration-tests"));
+            .WithProjectName($"integration-tests-{Guid.NewGuid():N}")); // unique — parallel-safe
 }
 ```
 
@@ -98,7 +98,7 @@ public static async Task ClassInit(TestContext context)
     (_kernel, _resource) = await MsTestResourceHelpers.CreateSwarmStackAsync(
         new StackDeployConfig
         {
-            StackName = "my-stack",
+            StackName = $"my-stack-{Guid.NewGuid():N}", // unique — parallel-safe
             ComposeFiles = { "docker-compose.yml" }
         });
 }

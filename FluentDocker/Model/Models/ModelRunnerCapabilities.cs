@@ -3,8 +3,10 @@ using System.Collections.Generic;
 namespace FluentDocker.Model.Models
 {
   /// <summary>
-  /// Feature-detection surface so callers (and tests) can branch on what the
-  /// backing runner implementation actually supports.
+  /// Static feature-detection surface so callers can branch on what the resolved
+  /// adapter supports. This is not a health check; use <c>StatusAsync</c> or an
+  /// inference call such as <c>ListEngineModelsAsync</c> to prove the runner is
+  /// reachable.
   /// </summary>
   public sealed class ModelRunnerCapabilities
   {

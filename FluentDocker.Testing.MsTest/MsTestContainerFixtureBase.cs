@@ -11,13 +11,14 @@ namespace FluentDocker.Testing.MsTest
 {
   /// <summary>
   /// Abstract base class for MSTest test classes backed by a single container.
-  /// Uses <c>[ClassInitialize]</c> and <c>[ClassCleanup]</c> semantics via
-  /// <c>[TestInitialize]</c>/<c>[TestCleanup]</c> with lazy initialization
-  /// so the container is created once per test class.
+  /// Uses <c>[TestInitialize]</c>/<c>[TestCleanup]</c> so each test method gets
+  /// its own container.
   /// </summary>
   /// <remarks>
   /// <para>Subclass and override <see cref="ConfigureContainer"/> to specify the
   /// container image and settings. Annotate your test class with <c>[TestClass]</c>.</para>
+  /// <para>For true class-scoped sharing, use MSTest <c>[ClassInitialize]</c> and
+  /// <c>[ClassCleanup]</c> with <see cref="MsTestResourceHelpers"/>.</para>
   /// <para>Usage:</para>
   /// <code>
   /// [TestClass]
@@ -32,28 +33,31 @@ namespace FluentDocker.Testing.MsTest
   /// }
   /// </code>
   /// </remarks>
-#pragma warning disable CA1822 // Instance properties intentional — provides consistent API across test frameworks
   public abstract class MsTestContainerFixtureBase
   {
-    private static readonly object Lock = new object();
-    private static ContainerResource? _resource;
-    private static FluentDockerKernel? _kernel;
-    private static int _refCount;
+    private ContainerResource? _resource;
+    private FluentDockerKernel? _kernel;
 
     /// <summary>
     /// The underlying container resource, available after initialization.
     /// </summary>
-    public ContainerResource? Resource => _resource;
+    public ContainerResource Resource
+    {
+      get { EnsureInitialized(); return _resource!; }
+    }
 
     /// <summary>
     /// Shorthand access to the running container service.
     /// </summary>
-    public IContainerService? Container => _resource?.Container;
+    public IContainerService Container => Resource.Container;
 
     /// <summary>
     /// The kernel managing drivers for this fixture.
     /// </summary>
-    public FluentDockerKernel? Kernel => _kernel;
+    public FluentDockerKernel Kernel
+    {
+      get { EnsureInitialized(); return _kernel!; }
+    }
 
     /// <summary>
     /// Override to configure the container. Called during initialization.
@@ -74,47 +78,37 @@ namespace FluentDocker.Testing.MsTest
     [TestInitialize]
     public async Task TestInitializeAsync()
     {
-      bool shouldInit;
-      lock (Lock)
-      {
-        shouldInit = _refCount == 0;
-        _refCount++;
-      }
+      if (_resource != null)
+        throw new InvalidOperationException(
+            "Already initialized. Dispose before re-initializing.");
 
-      if (shouldInit)
-      {
-        var (kernel, resource) = await ResourceLifecycle.CreateAndInitializeAsync(
-            k => new ContainerResource(k, ConfigureContainer, GetOptions()!),
-            KernelFactory!).ConfigureAwait(false);
+      var (kernel, resource) = await ResourceLifecycle.CreateAndInitializeAsync(
+          k => new ContainerResource(k, ConfigureContainer, GetOptions()!),
+          KernelFactory!).ConfigureAwait(false);
 
-        _kernel = kernel;
-        _resource = resource;
-      }
+      _kernel = kernel;
+      _resource = resource;
     }
 
     [TestCleanup]
     public async Task TestCleanupAsync()
     {
-      bool shouldDispose;
-      lock (Lock)
+      try
       {
-        _refCount--;
-        shouldDispose = _refCount == 0;
+        await ResourceLifecycle.DisposeAsync(_resource!, _kernel!).ConfigureAwait(false);
       }
-
-      if (shouldDispose)
+      finally
       {
-        try
-        {
-          await ResourceLifecycle.DisposeAsync(_resource!, _kernel!).ConfigureAwait(false);
-        }
-        finally
-        {
-          _resource = null;
-          _kernel = null;
-        }
+        _resource = null;
+        _kernel = null;
       }
     }
+
+    private void EnsureInitialized()
+    {
+      if (_resource == null)
+        throw new InvalidOperationException(
+            "Fixture has not been initialized. Call TestInitializeAsync first.");
+    }
   }
-#pragma warning restore CA1822
 }

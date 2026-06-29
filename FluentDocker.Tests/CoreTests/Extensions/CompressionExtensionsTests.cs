@@ -25,6 +25,8 @@ namespace FluentDocker.Tests.CoreTests.Extensions
     {
       if (Directory.Exists(_tempDir))
         Directory.Delete(_tempDir, true);
+
+      GC.SuppressFinalize(this);
     }
 
     private string CreateTarWithFile(string fileName, string content)

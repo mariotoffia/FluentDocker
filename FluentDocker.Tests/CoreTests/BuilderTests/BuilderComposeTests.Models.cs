@@ -105,7 +105,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
             .BuildAsync(cancellationToken: TestContext.Current.CancellationToken);
 
         var compose = scope.ComposeServices.Single();
-        overlayPath = compose.ComposeFiles.Last();
+        overlayPath = compose.ComposeFiles[^1];
         Assert.True(File.Exists(overlayPath), "overlay temp file should exist before dispose");
 
         // Tear down the built service.

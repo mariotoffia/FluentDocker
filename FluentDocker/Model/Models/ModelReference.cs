@@ -173,7 +173,7 @@ namespace FluentDocker.Model.Models
           return false;
         }
 
-        if (tag.IndexOf(':') >= 0)
+        if (tag.Contains(':'))
         {
           error = "invalid tag";
           return false;
@@ -203,8 +203,8 @@ namespace FluentDocker.Model.Models
 
     private static bool LooksLikeRegistry(string segment)
     {
-      return segment.IndexOf('.') >= 0
-          || segment.IndexOf(':') >= 0
+      return segment.Contains('.')
+          || segment.Contains(':')
           || string.Equals(segment, "localhost", StringComparison.OrdinalIgnoreCase);
     }
 

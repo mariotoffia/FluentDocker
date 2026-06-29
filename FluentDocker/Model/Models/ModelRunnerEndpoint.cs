@@ -80,8 +80,7 @@ namespace FluentDocker.Model.Models
     /// <returns>A raw-base-path endpoint.</returns>
     public static ModelRunnerEndpoint Raw(Uri url, string engine = DefaultEngine)
     {
-      if (url == null)
-        throw new ArgumentNullException(nameof(url));
+      ArgumentNullException.ThrowIfNull(url);
 
       var authority = new Uri(url.GetLeftPart(UriPartial.Authority));
       var path = url.AbsolutePath.TrimEnd('/');
@@ -134,8 +133,7 @@ namespace FluentDocker.Model.Models
     /// </remarks>
     public static ModelRunnerEndpoint Custom(Uri baseAddress, string engine = DefaultEngine)
     {
-      if (baseAddress == null)
-        throw new ArgumentNullException(nameof(baseAddress));
+      ArgumentNullException.ThrowIfNull(baseAddress);
 
       // A non-root path (e.g. https://host:9000/v1) is a fully-formed base the caller wants
       // honored verbatim — delegate to Raw so the path is preserved instead of discarded and

@@ -18,8 +18,8 @@ namespace FluentDocker.Drivers.Models.Connection
 
     /// <summary>
     /// Maximum time to wait between successive chunks of a streaming (SSE) read
-    /// before aborting with <see cref="ModelRunnerException"/>
-    /// (<see cref="ErrorCodes.ModelInference.EndpointUnreachable"/>).
+    /// before aborting with <see cref="FluentDocker.Common.ModelRunnerException"/>
+    /// (<see cref="FluentDocker.Model.Drivers.ErrorCodes.ModelInference.EndpointUnreachable"/>).
     /// <c>null</c> disables the idle timeout — reads wait indefinitely, honoring
     /// only the caller's <see cref="System.Threading.CancellationToken"/>.
     /// </summary>

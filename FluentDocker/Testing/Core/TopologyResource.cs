@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using FluentDocker.Builders;
 using FluentDocker.Common;
 using FluentDocker.Kernel;
+using FluentDocker.Model.Drivers;
 using FluentDocker.Services;
 using Microsoft.Extensions.Logging;
 
@@ -19,6 +20,11 @@ namespace FluentDocker.Testing.Core
   {
     private readonly Action<Builder> _configure;
     private readonly List<IServiceAsync> _services = [];
+    private static readonly Action<ILogger, Exception> DiagnosticsLogCollectionFailed =
+        LoggerMessage.Define(
+            LogLevel.Warning,
+            new EventId(1, nameof(DiagnosticsLogCollectionFailed)),
+            "Topology diagnostics log collection failed.");
 
     /// <summary>
     /// Creates a topology resource.
@@ -127,12 +133,19 @@ namespace FluentDocker.Testing.Core
     /// <inheritdoc />
     protected override async Task ForceRemoveAsync(CancellationToken cancellationToken)
     {
+      var failures = new List<Exception>();
       for (var i = _services.Count - 1; i >= 0; i--)
       {
         try
         { await _services[i].RemoveAsync(force: true, cancellationToken).ConfigureAwait(false); }
-        catch { /* best effort */ }
+        catch (DriverException ex) when (IsNotFound(ex)) { /* already gone */ }
+        catch (Exception ex) { failures.Add(ex); }
       }
+
+      if (failures.Count > 0)
+        throw new AggregateException(
+            $"{failures.Count} service(s) failed to force-remove.",
+            failures);
 
       _services.Clear();
     }
@@ -156,7 +169,7 @@ namespace FluentDocker.Testing.Core
           }
           catch (Exception ex)
           {
-            Logger.LogWarning(ex, "Topology diagnostics log collection failed");
+            DiagnosticsLogCollectionFailed(Logger, ex);
             logs.Add($"--- {container.Name ?? container.Id} --- (failed to collect)");
           }
         }
@@ -174,6 +187,15 @@ namespace FluentDocker.Testing.Core
       if (!IsInitialized)
         throw new InvalidOperationException(
             "Topology resource is not initialized. Call InitializeAsync first.");
+    }
+
+    private static bool IsNotFound(DriverException ex)
+    {
+      return ex.ErrorCode == ErrorCodes.Container.NotFound ||
+             ex.ErrorCode == ErrorCodes.Network.NotFound ||
+             ex.ErrorCode == ErrorCodes.Volume.NotFound ||
+             ex.ErrorCode == ErrorCodes.Driver.NotFound ||
+             ex.Message.Contains("not found", StringComparison.OrdinalIgnoreCase);
     }
   }
 }

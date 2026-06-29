@@ -64,7 +64,7 @@ namespace FluentDocker.Tests.CoreTests.Driver
         _onDispose = onDispose;
       }
 
-      protected override Task SerializeToStreamAsync(Stream stream, TransportContext context) =>
+      protected override Task SerializeToStreamAsync(Stream stream, TransportContext? context) =>
           stream.WriteAsync(_bytes, 0, _bytes.Length);
 
       protected override bool TryComputeLength(out long length)

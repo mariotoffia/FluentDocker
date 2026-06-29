@@ -16,6 +16,7 @@ namespace FluentDocker.Tests.CoreTests.Testing
       Assert.True(options.ForceRemoveOnDispose);
       Assert.True(options.CaptureLogsOnFailure);
       Assert.Equal(TimeSpan.FromMinutes(2), options.InitializationTimeout);
+      Assert.Equal(TimeSpan.FromHours(1), options.OrphanCleanupMinimumAge);
       Assert.Equal(200, options.MaxDiagnosticLogLines);
     }
 
@@ -27,6 +28,7 @@ namespace FluentDocker.Tests.CoreTests.Testing
         Driver = DriverSelection.DockerApi(),
         ForceRemoveOnDispose = false,
         InitializationTimeout = TimeSpan.FromSeconds(30),
+        OrphanCleanupMinimumAge = TimeSpan.Zero,
         CaptureLogsOnFailure = false,
         MaxDiagnosticLogLines = 50
       };
@@ -34,6 +36,7 @@ namespace FluentDocker.Tests.CoreTests.Testing
       Assert.Equal("docker-api", options.Driver.DriverId);
       Assert.False(options.ForceRemoveOnDispose);
       Assert.Equal(TimeSpan.FromSeconds(30), options.InitializationTimeout);
+      Assert.Equal(TimeSpan.Zero, options.OrphanCleanupMinimumAge);
       Assert.False(options.CaptureLogsOnFailure);
       Assert.Equal(50, options.MaxDiagnosticLogLines);
     }
@@ -78,6 +81,20 @@ namespace FluentDocker.Tests.CoreTests.Testing
     {
       var opts = new DockerResourceOptions { MaxDiagnosticLogLines = 0 };
       Assert.Equal(0, opts.MaxDiagnosticLogLines);
+    }
+
+    [Fact]
+    public void OrphanCleanupMinimumAge_Negative_Throws()
+    {
+      var opts = new DockerResourceOptions();
+      Assert.Throws<ArgumentOutOfRangeException>(() => opts.OrphanCleanupMinimumAge = TimeSpan.FromSeconds(-1));
+    }
+
+    [Fact]
+    public void OrphanCleanupMinimumAge_Zero_Allowed()
+    {
+      var opts = new DockerResourceOptions { OrphanCleanupMinimumAge = TimeSpan.Zero };
+      Assert.Equal(TimeSpan.Zero, opts.OrphanCleanupMinimumAge);
     }
   }
 }

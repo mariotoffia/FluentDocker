@@ -61,6 +61,26 @@ namespace FluentDocker.Testing.Core
     public string SessionId { get; set; } = SessionLabel.NewSessionId();
 
     /// <summary>
+    /// Minimum age a FluentDocker-managed resource from another session must reach
+    /// before orphan cleanup may remove it. The default one-hour guard prevents
+    /// <see cref="CleanupOrphansOnInit"/> from deleting live resources created by
+    /// sibling test sessions in parallel CI. Set to <see cref="TimeSpan.Zero"/> to
+    /// disable the age guard; negative values are rejected.
+    /// </summary>
+    private TimeSpan _orphanCleanupMinimumAge = TimeSpan.FromHours(1);
+    public TimeSpan OrphanCleanupMinimumAge
+    {
+      get => _orphanCleanupMinimumAge;
+      set
+      {
+        if (value < TimeSpan.Zero)
+          throw new ArgumentOutOfRangeException(
+              nameof(value), value, "OrphanCleanupMinimumAge must be >= 0.");
+        _orphanCleanupMinimumAge = value;
+      }
+    }
+
+    /// <summary>
     /// Whether to apply session-tracking labels to created resources.
     /// When enabled, resources are tagged with <see cref="SessionLabel.Key"/>
     /// for orphan cleanup detection. Default: true.

@@ -18,7 +18,7 @@ namespace FluentDocker.Tests.CoreTests.Model
     private static IReadOnlyList<string> CodesOf(Type group) =>
         group.GetFields(BindingFlags.Public | BindingFlags.Static)
             .Where(f => f.IsLiteral && f.FieldType == typeof(string))
-            .Select(f => (string)f.GetValue(null))
+            .Select(f => (string)f.GetValue(null)!)
             .ToList();
 
     [Fact]

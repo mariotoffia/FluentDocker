@@ -116,6 +116,25 @@ namespace FluentDocker.Tests.CoreTests.Driver
     }
 
     [Fact]
+    public async Task InspectAsync_NoSuchModel_ReturnsNotFound()
+    {
+      var driver = new FakeMgmtDriver
+      {
+        Responder = _ => new SimpleCommandResult
+        {
+          Success = false,
+          Error = "Error: no such model: ai/missing",
+          ExitCode = 1
+        }
+      };
+
+      var result = await driver.InspectAsync(Ctx, ModelReference.Parse("ai/missing"), TestContext.Current.CancellationToken);
+
+      Assert.False(result.Success);
+      Assert.Equal(ErrorCodes.Model.NotFound, result.ErrorCode);
+    }
+
+    [Fact]
     public async Task ListAsync_Failure_ReturnsFailWithContext()
     {
       var driver = new FakeMgmtDriver

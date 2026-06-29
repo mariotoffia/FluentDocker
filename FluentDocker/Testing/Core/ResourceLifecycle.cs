@@ -67,16 +67,17 @@ namespace FluentDocker.Testing.Core
     /// Fallback kernel factory when <paramref name="kernelFactory"/> is null.
     /// Defaults to <see cref="CreateDefaultDockerKernelAsync"/>.
     /// </param>
+    /// <param name="loggerFactory">Optional logger factory; when null, uses
+    /// <see cref="NullLoggerFactory"/>.</param>
     /// <param name="cancellationToken">Optional cancellation token propagated to
     /// <see cref="ITestResource.InitializeAsync"/>.</param>
-    /// <param name="loggerFactory"></param>
     public static async Task<(FluentDockerKernel kernel, TResource resource)>
         CreateAndInitializeAsync<TResource>(
             Func<FluentDockerKernel, TResource> resourceFactory,
             Func<Task<FluentDockerKernel>> kernelFactory = null,
             Func<Task<FluentDockerKernel>> defaultKernelFactory = null,
-            CancellationToken cancellationToken = default,
-            ILoggerFactory loggerFactory = null)
+            ILoggerFactory loggerFactory = null,
+            CancellationToken cancellationToken = default)
         where TResource : class, ITestResource
     {
       ArgumentNullException.ThrowIfNull(resourceFactory);

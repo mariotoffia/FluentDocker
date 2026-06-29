@@ -35,8 +35,8 @@ namespace FluentDocker.Tests.CoreTests.Testing.Adapters
       Assert.NotNull(fixture.Kernel);
 
       await fixture.DisposeAsync();
-      Assert.Null(fixture.Resource);
-      Assert.Null(fixture.Kernel);
+      Assert.Throws<InvalidOperationException>(() => _ = fixture.Resource);
+      Assert.Throws<InvalidOperationException>(() => _ = fixture.Kernel);
     }
 
     [Fact]
@@ -143,8 +143,8 @@ namespace FluentDocker.Tests.CoreTests.Testing.Adapters
       Assert.NotNull(fixture.Kernel);
 
       await fixture.DisposeAsync();
-      Assert.Null(fixture.Resource);
-      Assert.Null(fixture.Kernel);
+      Assert.Throws<InvalidOperationException>(() => _ = fixture.Resource);
+      Assert.Throws<InvalidOperationException>(() => _ = fixture.Kernel);
     }
 
     [Fact]
@@ -216,8 +216,8 @@ namespace FluentDocker.Tests.CoreTests.Testing.Adapters
       Assert.NotNull(fixture.Kernel);
 
       await fixture.DisposeAsync();
-      Assert.Null(fixture.Resource);
-      Assert.Null(fixture.Kernel);
+      Assert.Throws<InvalidOperationException>(() => _ = fixture.Resource);
+      Assert.Throws<InvalidOperationException>(() => _ = fixture.Kernel);
     }
 
     [Fact]

@@ -15,18 +15,18 @@ in, from a two-line inference client up to a first-class kernel driver.
 ## The easy path — any OpenAI-compatible endpoint
 
 If you only need chat / completion / embeddings against an existing endpoint, you need
-no kernel and no driver pack. `ModelRunnerFactory.CreateInferenceRunner` composes the
+no kernel and no driver pack. `ModelRunnerEnvironment.CreateInferenceRunner` composes the
 OpenAI HTTP client + the `OpenAiModelInferenceDriver` for you and returns an
 `IInferenceModelRunner`:
 
 ```csharp
 using System;
 using System.Collections.Generic;
-using FluentDocker.Drivers.Models;            // ModelRunnerFactory
 using FluentDocker.Model.Models;              // ModelRunnerEndpoint
 using FluentDocker.Model.Models.Inference;    // ChatCompletionRequest, ChatMessage
+using FluentDocker.Services;                  // ModelRunnerEnvironment
 
-await using var runner = ModelRunnerFactory.CreateInferenceRunner(
+await using var runner = ModelRunnerEnvironment.CreateInferenceRunner(
     ModelRunnerEndpoint.Raw(new Uri("http://localhost:8000/v1")),  // vLLM / LM Studio / llama-server
     modelId: "Qwen/Qwen2.5-7B-Instruct",
     apiKey: null);                                                  // optional bearer token

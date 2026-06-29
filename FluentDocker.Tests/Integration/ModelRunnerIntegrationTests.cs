@@ -31,10 +31,17 @@ namespace FluentDocker.Tests.Integration
   public sealed class ModelRunnerIntegrationTests : IAsyncLifetime
   {
     private const string DriverId = "docker";
-    // Pinned references (explicit :latest) so a test never silently targets a
-    // different tag than the one the fixture pulled.
-    private const string TestModel = "ai/smollm2:latest";
-    private const string EmbedModel = "ai/embeddinggemma:latest";
+    // Defaults are pinned (explicit :latest) so a test never silently targets a
+    // different tag than the one the fixture pulled. Override for local mirrors
+    // or smaller/larger models with FLUENTDOCKER_DMR_CHAT_MODEL /
+    // FLUENTDOCKER_DMR_EMBED_MODEL.
+    private const string DefaultTestModel = "ai/smollm2:latest";
+    private const string DefaultEmbedModel = "ai/embeddinggemma:latest";
+    private const string ChatModelEnv = "FLUENTDOCKER_DMR_CHAT_MODEL";
+    private const string EmbedModelEnv = "FLUENTDOCKER_DMR_EMBED_MODEL";
+    private const string DestructiveEnv = "FLUENTDOCKER_DMR_ALLOW_DESTRUCTIVE";
+    private static string TestModel => ModelFromEnvironment(ChatModelEnv, DefaultTestModel);
+    private static string EmbedModel => ModelFromEnvironment(EmbedModelEnv, DefaultEmbedModel);
 
     private FluentDockerKernel _kernel = null!;
     private bool _seeded;
@@ -45,6 +52,21 @@ namespace FluentDocker.Tests.Integration
     // with zero real Model Runner coverage. On PRs the flag is empty, so we still skip cleanly.
     private static bool RequireDmr =>
         !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("FLUENTDOCKER_REQUIRE_DMR"));
+
+    private static bool AllowDestructive =>
+        !string.IsNullOrEmpty(Environment.GetEnvironmentVariable(DestructiveEnv));
+
+    private static string ModelFromEnvironment(string variableName, string fallback)
+    {
+      var value = Environment.GetEnvironmentVariable(variableName);
+      return string.IsNullOrWhiteSpace(value) ? fallback : value;
+    }
+
+    private static bool IsReference(ModelReference actual, ModelReference expected)
+    {
+      return string.Equals(actual.ToString(), expected.ToString(), StringComparison.OrdinalIgnoreCase)
+          || string.Equals(actual.Name, expected.Name, StringComparison.OrdinalIgnoreCase);
+    }
 
     private static Exception SkipOrFail(string reason) =>
         RequireDmr
@@ -222,7 +244,7 @@ namespace FluentDocker.Tests.Integration
 
       // list
       var list = await runner.ListAsync(ct);
-      Assert.Contains(list, m => m.Reference.Name == "smollm2");
+      Assert.Contains(list, m => IsReference(m.Reference, reference));
 
       // inspect
       var info = await runner.InspectAsync(reference, ct);
@@ -256,7 +278,7 @@ namespace FluentDocker.Tests.Integration
 
         // running models
         var running = await runner.ListRunningAsync(ct);
-        Assert.Contains(running, r => r.Reference.Name == "smollm2");
+        Assert.Contains(running, r => IsReference(r.Reference, reference));
       }
       catch (ModelRunnerException ex)
       {
@@ -272,22 +294,24 @@ namespace FluentDocker.Tests.Integration
 
     /// <summary>
     /// DESTRUCTIVE — MUTATES THE LOCAL DMR MODEL STORE. To prove <c>PullIfMissing()</c> does
-    /// real work this test <b>removes <see cref="TestModel"/> (ai/smollm2:latest) from the
+    /// real work this test <b>removes <see cref="DefaultTestModel"/> from the
     /// developer's / CI machine's local store</b>, then auto-pulls it back. The model tag is
-    /// PINNED to an explicit <c>:latest</c> (see <see cref="TestModel"/>) so the removed and
-    /// re-pulled artifact is exactly the same tag — the test never deletes one tag and
-    /// re-pulls another. The re-pull runs in a <c>finally</c> with bounded retries so the
-    /// store is restored to its "model present" precondition even if an assertion fails; a
-    /// transient network failure during restore is the only case that can leave the model
-    /// absent (re-running any test re-seeds it via the fixture).
+    /// PINNED to an explicit <c>:latest</c> by default so the removed and re-pulled artifact
+    /// is exactly the same tag. This test is skipped unless
+    /// <c>FLUENTDOCKER_DMR_ALLOW_DESTRUCTIVE</c> is set, because deleting a host model store
+    /// entry is never safe by default. The re-pull runs in a <c>finally</c> with bounded
+    /// retries so the store is restored when the opt-in test runs.
     /// </summary>
     [Fact]
     public async Task Build_WithPullIfMissing_AutoPullsModel()
     {
       var ct = TestContext.Current.CancellationToken;
       var reference = ModelReference.Parse(TestModel);
+      if (!AllowDestructive)
+        throw new InvalidOperationException(
+            "$XunitDynamicSkip$Set FLUENTDOCKER_DMR_ALLOW_DESTRUCTIVE=1 to allow removing and re-pulling a host DMR model.");
 
-      // Arrange: remove smollm2 from the local store so PullIfMissing() has real work to
+      // Arrange: remove the chat model from the local store so PullIfMissing() has real work to
       // do — without this the fixture has already seeded the model and the auto-pull
       // would be a silent no-op, proving nothing. Tests in this [Collection] run
       // sequentially in arbitrary order, so the finally re-pulls the model afterwards to
@@ -296,7 +320,7 @@ namespace FluentDocker.Tests.Integration
       {
         await SafeAsync(() => admin.UnloadAsync(reference, ct)); // a loaded model can't be removed
         await admin.RemoveAsync(reference, force: true, ct);
-        Assert.DoesNotContain(await admin.ListAsync(ct), m => m.Reference.Name == "smollm2");
+        Assert.DoesNotContain(await admin.ListAsync(ct), m => IsReference(m.Reference, reference));
       }
 
       try
@@ -306,16 +330,57 @@ namespace FluentDocker.Tests.Integration
         await using var runner = BuildRunner(TestModel, pullIfMissing: true);
 
         // Assert: the model is now present in the local store.
-        Assert.Contains(await runner.ListAsync(ct), m => m.Reference.Name == "smollm2");
+        Assert.Contains(await runner.ListAsync(ct), m => IsReference(m.Reference, reference));
       }
       finally
       {
         // Restore the fixture invariant regardless of outcome. This test DELETED a shared,
         // pinned model from the host store, so the re-pull is best-effort BUT retried a few
         // times to ride out a transient network hiccup rather than leaving the developer's
-        // store missing ai/smollm2:latest after a single failed attempt.
+        // store missing the chat model after a single failed attempt.
         await using var restore = BuildRunner(TestModel);
         await RepullWithRetryAsync(restore, reference, ct);
+      }
+    }
+
+    [Fact]
+    public async Task UseModel_StartDispose_LoadsAndUnloadsModel()
+    {
+      var ct = TestContext.Current.CancellationToken;
+      var reference = ModelReference.Parse(TestModel);
+      IModelService? service = null;
+
+      try
+      {
+        service = await new Builder().WithinDriver(DriverId, _kernel)
+            .UseModel(reference)
+            .WithContextSize(4096)
+            .KeepRunning(false)
+            .BuildAsync(ct);
+
+        await service.StartAsync(ct);
+        Assert.Contains(await service.Runner.ListRunningAsync(ct), r => IsReference(r.Reference, reference));
+      }
+      catch (ModelRunnerException ex)
+      {
+        SkipIfRuntimeUnstable(ex);
+        throw;
+      }
+      finally
+      {
+        if (service != null)
+          await service.DisposeAsync();
+      }
+
+      try
+      {
+        await using var runner = BuildRunner(TestModel);
+        Assert.DoesNotContain(await runner.ListRunningAsync(ct), r => IsReference(r.Reference, reference));
+      }
+      catch (ModelRunnerException ex)
+      {
+        SkipIfRuntimeUnstable(ex);
+        throw;
       }
     }
 

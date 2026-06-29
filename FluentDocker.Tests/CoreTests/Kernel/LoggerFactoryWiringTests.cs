@@ -116,11 +116,11 @@ namespace FluentDocker.Tests.CoreTests.Kernel
       public IDisposable BeginScope<TState>(TState state) where TState : notnull => null;
       public bool IsEnabled(LogLevel logLevel) => true;
       public void Log<TState>(LogLevel logLevel, EventId eventId, TState state,
-          Exception exception, Func<TState, Exception, string> formatter)
+          Exception? exception, Func<TState, Exception?, string> formatter)
         => _records.Enqueue(new LogRecord(logLevel, _category, formatter(state, exception), exception));
     }
 
-    private sealed record LogRecord(LogLevel Level, string Category, string Message, Exception Exception);
+    private sealed record LogRecord(LogLevel Level, string Category, string Message, Exception? Exception);
 
     private sealed class ProbeDriverPack : IDriverPack
     {

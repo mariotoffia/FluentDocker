@@ -108,7 +108,7 @@ namespace FluentDocker.Testing.Xunit
           k => new PodmanKubernetesResource(k, config, options!),
           kernelFactory!,
           () => ResourceLifecycle.CreateDefaultPodmanKernelAsync(),
-          cancellationToken);
+          cancellationToken: cancellationToken);
 
       _kernel = kernel;
       _resource = resource;

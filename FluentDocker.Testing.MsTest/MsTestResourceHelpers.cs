@@ -100,7 +100,7 @@ namespace FluentDocker.Testing.MsTest
             kernel => new PodmanKubernetesResource(kernel, config, options!),
             kernelFactory!,
             () => ResourceLifecycle.CreateDefaultPodmanKernelAsync(),
-            cancellationToken);
+            cancellationToken: cancellationToken);
 
     /// <summary>
     /// Creates and initializes any <see cref="ITestResource"/> using a factory.

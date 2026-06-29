@@ -54,10 +54,10 @@ foreach (var followUp in new[] { "What's my name?", "Now spell it backwards.", "
 Highlights:
 
 - **Local LLMs behind one façade** — `UseModelRunner().ForModel("ai/smollm2")`, then `ChatAsync` / `ChatStreamAsync` / `EmbedAsync` (or the DTO `ChatCompletionAsync` / `CompletionAsync` / `EmbeddingsAsync`).
-- **Any OpenAI-compatible runner** — `ModelRunnerFactory.CreateInferenceRunner(ModelRunnerEndpoint.Raw(uri), modelId)` for vLLM / LM Studio / hosted, or plug a custom driver into the kernel — see [writing a runner plugin](docs/model-runner-plugins.md).
-- **A model is a managed service** — `UseModel("ai/smollm2").Build()` loads on start and unloads on dispose, in the same lifecycle as containers.
+- **Any OpenAI-compatible runner** — `ModelRunnerEnvironment.CreateInferenceRunner(ModelRunnerEndpoint.Raw(uri), modelId)` for vLLM / LM Studio / hosted, or plug a custom driver into the kernel — see [writing a runner plugin](docs/model-runner-plugins.md).
+- **A model is a managed service** — `UseModel("ai/smollm2").BuildAsync()` loads on start and unloads on dispose, in the same lifecycle as containers.
 - **Wire a model into a container** — `c.WithModel(ModelReference.Parse("ai/smollm2"))` injects `LLM_URL` / `LLM_MODEL`; no network or volume is created.
-- **Driver-sourced capabilities, one typed error** — `runner.Capabilities` reports the real backend (not a hardcoded guess), and every failure is a single `ModelRunnerException` carrying an `ErrorCode`.
+- **Driver-sourced capabilities, one typed error** — `runner.Capabilities` reports static adapter support/backend (not health), and every failure is a single `ModelRunnerException` carrying an `ErrorCode`.
 
 Full guide: **[docs/model-runner.md](docs/model-runner.md)** · all changes in the [CHANGELOG](CHANGELOG.md).
 
@@ -512,6 +512,8 @@ Framework-specific adapters are available as separate packages.
 
 ### xUnit (Testing.Core)
 
+> **xUnit v3 only.** `FluentDocker.Testing.Xunit` targets xUnit v3, not v2 (`xunit` 2.x).
+
 ```csharp
 // Option A — Abstract base (recommended):
 public class MyRedisFixture : XunitContainerFixtureBase
@@ -564,8 +566,8 @@ public class MyTests
 }
 ```
 
-See the [full testing docs](docs/testing.md) for NUnit, Compose, Topology,
-Swarm Stack, and Podman Kubernetes resource types.
+See the [full testing docs](docs/testing.md) and
+[Testing Docker Model Runner](docs/testing/model.md) for NUnit, Compose, Topology, Swarm Stack, Podman Kubernetes, and model resource types.
 
 ---
 

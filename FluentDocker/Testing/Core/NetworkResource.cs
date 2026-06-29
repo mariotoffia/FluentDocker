@@ -97,25 +97,43 @@ namespace FluentDocker.Testing.Core
         return;
 
       var driver = Kernel.SysCtl<INetworkDriver>(DriverId);
-      await driver.RemoveAsync(
+      var result = await driver.RemoveAsync(
           new DriverContext(DriverId), NetworkId, cancellationToken).ConfigureAwait(false);
-      NetworkId = null;
+
+      if (result.Success || result.ErrorCode == ErrorCodes.Network.NotFound)
+      {
+        NetworkId = null;
+        return;
+      }
+
+      // Genuine failure: keep NetworkId so DisposeAsync can engage ForceRemoveAsync.
+      throw new DriverException(
+          $"Failed to remove network '{NetworkId}': {result.Error}",
+          result.ErrorCode,
+          result.ErrorContext);
     }
 
     /// <inheritdoc />
     protected override async Task ForceRemoveAsync(CancellationToken cancellationToken)
     {
       var id = NetworkId;
-      NetworkId = null;
       if (string.IsNullOrEmpty(id))
         return;
 
-      try
+      var driver = Kernel.SysCtl<INetworkDriver>(DriverId);
+      var result = await driver.RemoveAsync(
+          new DriverContext(DriverId), id, cancellationToken).ConfigureAwait(false);
+
+      if (result.Success || result.ErrorCode == ErrorCodes.Network.NotFound)
       {
-        var driver = Kernel.SysCtl<INetworkDriver>(DriverId);
-        await driver.RemoveAsync(new DriverContext(DriverId), id, cancellationToken).ConfigureAwait(false);
+        NetworkId = null;
+        return;
       }
-      catch { /* best effort */ }
+
+      throw new DriverException(
+          $"Failed to force-remove network '{id}': {result.Error}",
+          result.ErrorCode,
+          result.ErrorContext);
     }
 
     #endregion

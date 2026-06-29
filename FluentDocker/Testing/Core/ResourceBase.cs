@@ -21,6 +21,31 @@ namespace FluentDocker.Testing.Core
     private readonly List<Func<ITestResource, Task>> _afterDisposeHooks = [];
     private readonly SemaphoreSlim _lifecycleLock = new(1, 1);
     private bool _provisioned;
+    private static readonly Action<ILogger, Exception> GracefulAndForceRemoveFailed =
+        LoggerMessage.Define(
+            LogLevel.Error,
+            new EventId(1, nameof(GracefulAndForceRemoveFailed)),
+            "Graceful teardown failed and force-remove also failed; resource remains provisioned for retry.");
+    private static readonly Action<ILogger, Exception> ForceRemoveFailed =
+        LoggerMessage.Define(
+            LogLevel.Error,
+            new EventId(2, nameof(ForceRemoveFailed)),
+            "Force-remove failed after graceful teardown failure.");
+    private static readonly Action<ILogger, Exception> GracefulTeardownRecovered =
+        LoggerMessage.Define(
+            LogLevel.Warning,
+            new EventId(3, nameof(GracefulTeardownRecovered)),
+            "Graceful teardown failed; force-remove succeeded and cleaned up the resource.");
+    private static readonly Action<ILogger, Exception> BeforeDisposeHookFailed =
+        LoggerMessage.Define(
+            LogLevel.Warning,
+            new EventId(4, nameof(BeforeDisposeHookFailed)),
+            "Before-dispose hook failed.");
+    private static readonly Action<ILogger, Exception> AfterDisposeHookFailed =
+        LoggerMessage.Define(
+            LogLevel.Warning,
+            new EventId(5, nameof(AfterDisposeHookFailed)),
+            "After-dispose hook failed.");
 
     /// <summary>
     /// Creates a new resource with the given kernel and options.
@@ -149,7 +174,8 @@ namespace FluentDocker.Testing.Core
             try
             {
               await OrphanCleanup.CleanupOrphanedResourcesAsync(
-                  Kernel, DriverId, Options.SessionId, cts.Token).ConfigureAwait(false);
+                  Kernel, DriverId, Options.SessionId,
+                  Options.OrphanCleanupMinimumAge, cts.Token).ConfigureAwait(false);
             }
             catch { /* orphan cleanup is best-effort */ }
           }
@@ -189,7 +215,7 @@ namespace FluentDocker.Testing.Core
         }
         catch (Exception ex)
         {
-          Logger.LogWarning(ex, "Before-dispose hook failed");
+          BeforeDisposeHookFailed(Logger, ex);
         }
 
         Exception teardownFailure = null;
@@ -210,12 +236,22 @@ namespace FluentDocker.Testing.Core
               try
               { await ForceRemoveAsync(forceCts.Token).ConfigureAwait(false); }
               catch (Exception forceEx) { forceRemoveFailure = forceEx; }
-              _provisioned = false;
               LastTeardownDiagnostics = new TeardownDiagnostics
               {
                 TeardownException = ex,
                 ForceRemoveException = forceRemoveFailure
               };
+              if (forceRemoveFailure != null)
+              {
+                GracefulAndForceRemoveFailed(Logger, ex);
+                ForceRemoveFailed(Logger, forceRemoveFailure);
+                teardownFailure = ex;
+              }
+              else
+              {
+                _provisioned = false;
+                GracefulTeardownRecovered(Logger, ex);
+              }
             }
             else
             {
@@ -233,7 +269,7 @@ namespace FluentDocker.Testing.Core
         }
         catch (Exception ex)
         {
-          Logger.LogWarning(ex, "After-dispose hook failed");
+          AfterDisposeHookFailed(Logger, ex);
         }
 
         if (teardownFailure != null)

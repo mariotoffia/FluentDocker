@@ -9,6 +9,9 @@ nav_order: 2
 
 Package: `FluentDocker.Testing.Xunit`
 
+> **xUnit v3 only.** This package depends on `xunit.v3.extensibility.core` and
+> targets xUnit v3. It is not compatible with xUnit v2 (`xunit` 2.x) projects.
+
 The xUnit adapter offers three patterns, from simplest to most flexible:
 
 | Pattern | Lifecycle | Best for |
@@ -64,7 +67,7 @@ public class AppTests : XunitComposeTestBase
 {
     protected override void ConfigureCompose(IComposeBuilder b) =>
         b.WithComposeFile("docker-compose.yml")
-         .WithProjectName("app-tests");
+         .WithProjectName($"app-tests-{Guid.NewGuid():N}"); // unique — parallel-safe
 
     [Fact]
     public void Service_IsAvailable() => Assert.NotNull(Service);
@@ -78,13 +81,14 @@ public class MultiContainerTests : XunitTopologyTestBase
 {
     protected override void ConfigureTopology(Builder b)
     {
-        b.UseNetwork(n => n.WithName("test-net"));
+        var net = $"test-net-{Guid.NewGuid():N}"; // unique — parallel-safe
+        b.UseNetwork(n => n.WithName(net));
         b.UseContainer(c => c
             .UseImage("redis:alpine")
-            .WithNetwork("test-net"));
+            .WithNetwork(net));
         b.UseContainer(c => c
             .UseImage("nginx:alpine")
-            .WithNetwork("test-net"));
+            .WithNetwork(net));
     }
 
     [Fact]
@@ -163,7 +167,7 @@ public class AppFixture : XunitComposeFixtureBase
 {
     protected override void ConfigureCompose(IComposeBuilder b) =>
         b.WithComposeFile("docker-compose.yml")
-         .WithProjectName("integration");
+         .WithProjectName($"integration-{Guid.NewGuid():N}"); // unique — parallel-safe
 }
 
 public class AppTests : IClassFixture<AppFixture>

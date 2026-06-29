@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -52,12 +53,16 @@ namespace FluentDocker.Testing.Core
 
   /// <summary>
   /// Utility for cleaning up orphaned test resources from previous sessions.
-  /// Resources are identified by the <see cref="SessionLabel.Key"/> label.
+  /// Cleanup scans containers, networks, and volumes only. Compose-, topology-,
+  /// swarm-stack-, and kubernetes-created resources are not cleaned unless the
+  /// individual container, network, or volume carries the
+  /// <see cref="SessionLabel.ManagedKey"/> label.
   /// </summary>
   public static class OrphanCleanup
   {
     /// <summary>
-    /// Result of an orphan cleanup operation.
+    /// Result of an orphan cleanup operation that scans containers, networks,
+    /// and volumes only.
     /// </summary>
     public class CleanupResult
     {
@@ -78,35 +83,55 @@ namespace FluentDocker.Testing.Core
     }
 
     /// <summary>
-    /// Removes all FluentDocker-managed resources that do NOT belong to the
-    /// specified current session. This cleans up resources orphaned by crashed
-    /// or interrupted test runs.
+    /// Removes FluentDocker-managed containers, networks, and volumes that do
+    /// not belong to the specified current session. This cleans up resources
+    /// orphaned by crashed or interrupted test runs. When
+    /// <paramref name="minimumAge"/> is greater than zero, resources from other
+    /// sessions are preserved until their <see cref="SessionLabel.CreatedAtKey"/>
+    /// label is older than that age; missing or unparseable created-at labels
+    /// are preserved fail-safe.
     /// </summary>
     /// <param name="kernel">The kernel with registered drivers.</param>
     /// <param name="driverId">The driver to clean up with.</param>
     /// <param name="currentSessionId">The current session ID to preserve (null to remove all).</param>
+    /// <param name="minimumAge">Minimum age before another session's managed resource can be removed.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>Summary of removed resources.</returns>
     public static async Task<CleanupResult> CleanupOrphanedResourcesAsync(
         FluentDockerKernel kernel,
         string driverId,
         string currentSessionId = null,
+        TimeSpan minimumAge = default,
         CancellationToken cancellationToken = default)
     {
       var result = new CleanupResult();
       var context = new DriverContext(driverId);
 
       // Clean up in dependency order: containers first, then networks, then volumes
-      await CleanupContainersAsync(kernel, driverId, context, currentSessionId, result, cancellationToken).ConfigureAwait(false);
-      await CleanupNetworksAsync(kernel, driverId, context, currentSessionId, result, cancellationToken).ConfigureAwait(false);
-      await CleanupVolumesAsync(kernel, driverId, context, currentSessionId, result, cancellationToken).ConfigureAwait(false);
+      await CleanupContainersAsync(kernel, driverId, context, currentSessionId, minimumAge, result, cancellationToken).ConfigureAwait(false);
+      await CleanupNetworksAsync(kernel, driverId, context, currentSessionId, minimumAge, result, cancellationToken).ConfigureAwait(false);
+      await CleanupVolumesAsync(kernel, driverId, context, currentSessionId, minimumAge, result, cancellationToken).ConfigureAwait(false);
 
       return result;
     }
 
+    /// <summary>
+    /// Removes FluentDocker-managed containers, networks, and volumes that do
+    /// not belong to the specified current session.
+    /// </summary>
+    public static Task<CleanupResult> CleanupOrphanedResourcesAsync(
+        FluentDockerKernel kernel,
+        string driverId,
+        string currentSessionId,
+        CancellationToken cancellationToken)
+    {
+      return CleanupOrphanedResourcesAsync(
+          kernel, driverId, currentSessionId, TimeSpan.Zero, cancellationToken);
+    }
+
     private static async Task CleanupContainersAsync(
         FluentDockerKernel kernel, string driverId, DriverContext context,
-        string currentSessionId, CleanupResult result,
+        string currentSessionId, TimeSpan minimumAge, CleanupResult result,
         CancellationToken cancellationToken)
     {
       if (!kernel.TrySysCtl<IContainerDriver>(driverId, out var driver))
@@ -127,6 +152,8 @@ namespace FluentDocker.Testing.Core
         var containerLabels = container.Config?.Labels as IDictionary<string, string>;
         if (IsCurrentSession(containerLabels, currentSessionId))
           continue;
+        if (ShouldPreserveDueToAge(containerLabels, minimumAge))
+          continue;
 
         try
         {
@@ -143,7 +170,7 @@ namespace FluentDocker.Testing.Core
 
     private static async Task CleanupNetworksAsync(
         FluentDockerKernel kernel, string driverId, DriverContext context,
-        string currentSessionId, CleanupResult result,
+        string currentSessionId, TimeSpan minimumAge, CleanupResult result,
         CancellationToken cancellationToken)
     {
       if (!kernel.TrySysCtl<INetworkDriver>(driverId, out var driver))
@@ -160,7 +187,10 @@ namespace FluentDocker.Testing.Core
 
       foreach (var network in listResult.Data ?? Enumerable.Empty<Network>())
       {
-        if (IsCurrentSession(network.Labels as IDictionary<string, string>, currentSessionId))
+        var networkLabels = network.Labels as IDictionary<string, string>;
+        if (IsCurrentSession(networkLabels, currentSessionId))
+          continue;
+        if (ShouldPreserveDueToAge(networkLabels, minimumAge))
           continue;
 
         try
@@ -177,7 +207,7 @@ namespace FluentDocker.Testing.Core
 
     private static async Task CleanupVolumesAsync(
         FluentDockerKernel kernel, string driverId, DriverContext context,
-        string currentSessionId, CleanupResult result,
+        string currentSessionId, TimeSpan minimumAge, CleanupResult result,
         CancellationToken cancellationToken)
     {
       if (!kernel.TrySysCtl<IVolumeDriver>(driverId, out var driver))
@@ -194,7 +224,10 @@ namespace FluentDocker.Testing.Core
 
       foreach (var volume in listResult.Data ?? Enumerable.Empty<Model.Volumes.Volume>())
       {
-        if (IsCurrentSession(volume.Labels as IDictionary<string, string>, currentSessionId))
+        var volumeLabels = volume.Labels as IDictionary<string, string>;
+        if (IsCurrentSession(volumeLabels, currentSessionId))
+          continue;
+        if (ShouldPreserveDueToAge(volumeLabels, minimumAge))
           continue;
 
         try
@@ -220,6 +253,25 @@ namespace FluentDocker.Testing.Core
 
       return labels.TryGetValue(SessionLabel.Key, out var sessionId)
              && sessionId == currentSessionId;
+    }
+
+    private static bool ShouldPreserveDueToAge(
+        IDictionary<string, string> labels,
+        TimeSpan minimumAge)
+    {
+      if (minimumAge <= TimeSpan.Zero)
+        return false;
+
+      if (labels == null ||
+          !labels.TryGetValue(SessionLabel.CreatedAtKey, out var createdAt) ||
+          !DateTime.TryParse(
+              createdAt,
+              CultureInfo.InvariantCulture,
+              DateTimeStyles.RoundtripKind,
+              out var created))
+        return true;
+
+      return created.ToUniversalTime() > DateTime.UtcNow - minimumAge;
     }
   }
 }

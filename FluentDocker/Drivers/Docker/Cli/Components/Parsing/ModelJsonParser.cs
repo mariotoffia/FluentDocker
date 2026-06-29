@@ -37,8 +37,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components.Parsing
     /// <summary>Parses a <c>docker model ls --json</c> array (exception-safe; <c>[]</c> on malformed).</summary>
     public static IList<ModelInfo> ParseList(string json)
     {
-      TryParseList(json, out var models);
-      return models;
+      return TryParseList(json, out var models) ? models : [];
     }
 
     /// <summary>

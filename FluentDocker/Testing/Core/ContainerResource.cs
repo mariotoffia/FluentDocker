@@ -5,6 +5,7 @@ using FluentDocker.Builders;
 using FluentDocker.Common;
 using FluentDocker.Kernel;
 using FluentDocker.Model.Containers;
+using FluentDocker.Model.Drivers;
 using FluentDocker.Services;
 using Microsoft.Extensions.Logging;
 
@@ -16,6 +17,16 @@ namespace FluentDocker.Testing.Core
   public class ContainerResource : ResourceBase
   {
     private readonly Action<IContainerBuilder> _configure;
+    private static readonly Action<ILogger, Exception> DiagnosticsLogCollectionFailed =
+        LoggerMessage.Define(
+            LogLevel.Warning,
+            new EventId(1, nameof(DiagnosticsLogCollectionFailed)),
+            "Container diagnostics log collection failed.");
+    private static readonly Action<ILogger, Exception> DiagnosticsInspectCollectionFailed =
+        LoggerMessage.Define(
+            LogLevel.Warning,
+            new EventId(2, nameof(DiagnosticsInspectCollectionFailed)),
+            "Container diagnostics inspect collection failed.");
 
     /// <summary>
     /// Creates a container resource.
@@ -117,13 +128,18 @@ namespace FluentDocker.Testing.Core
     protected override async Task ForceRemoveAsync(CancellationToken cancellationToken)
     {
       var c = Container;
-      Container = null;
       if (c == null)
         return;
 
       try
-      { await c.RemoveAsync(force: true, cancellationToken).ConfigureAwait(false); }
-      catch { /* best effort */ }
+      {
+        await c.RemoveAsync(force: true, cancellationToken).ConfigureAwait(false);
+        Container = null;
+      }
+      catch (DriverException ex) when (ex.ErrorCode == ErrorCodes.Container.NotFound)
+      {
+        Container = null;
+      }
     }
 
     /// <inheritdoc />
@@ -142,7 +158,7 @@ namespace FluentDocker.Testing.Core
         }
         catch (Exception ex)
         {
-          Logger.LogWarning(ex, "Container diagnostics log collection failed");
+          DiagnosticsLogCollectionFailed(Logger, ex);
           diag.Logs = "(failed to collect logs)";
         }
 
@@ -155,7 +171,7 @@ namespace FluentDocker.Testing.Core
         }
         catch (Exception ex)
         {
-          Logger.LogWarning(ex, "Container diagnostics inspect collection failed");
+          DiagnosticsInspectCollectionFailed(Logger, ex);
           diag.InspectPayload = "(failed to collect inspect data)";
         }
       }

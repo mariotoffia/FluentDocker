@@ -61,7 +61,7 @@ namespace FluentDocker.Tests.CoreTests.Driver
     /// <summary>An <see cref="HttpContent"/> whose read always throws <see cref="OperationCanceledException"/>.</summary>
     private sealed class ThrowingContent : HttpContent
     {
-      protected override Task SerializeToStreamAsync(Stream stream, System.Net.TransportContext context) =>
+      protected override Task SerializeToStreamAsync(Stream stream, System.Net.TransportContext? context) =>
           throw new OperationCanceledException();
 
       protected override bool TryComputeLength(out long length)

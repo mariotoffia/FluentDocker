@@ -101,11 +101,14 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
         var args = $"model inspect {QuoteArgumentIfNeeded(model.ToString())}";
         var result = await RunAsync(args, cancellationToken).ConfigureAwait(false);
         if (!result.Success)
+        {
+          var error = FirstNonEmpty(result.Error, result.Output, "model inspect failed");
           return CommandResponse<ModelInfo>.Fail(
-              result.Error ?? "model inspect failed",
-              ErrorCodes.Model.InspectFailed,
+              error,
+              IndicatesNoSuchModel(error) ? ErrorCodes.Model.NotFound : ErrorCodes.Model.InspectFailed,
               CreateErrorContext(context, "InspectModel", result),
               result.ExitCode);
+        }
 
         var info = ModelJsonParser.ParseInfo(result.Output);
         if (info == null)
@@ -277,9 +280,13 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
       if (string.IsNullOrEmpty(output))
         return false;
 
-      return output.Contains("no such model", StringComparison.OrdinalIgnoreCase)
+      return IndicatesNoSuchModel(output)
           || output.Contains("Failed to remove", StringComparison.OrdinalIgnoreCase);
     }
+
+    private static bool IndicatesNoSuchModel(string output) =>
+        !string.IsNullOrEmpty(output) &&
+        output.Contains("no such model", StringComparison.OrdinalIgnoreCase);
 
     private static string FirstNonEmpty(params string[] values)
     {

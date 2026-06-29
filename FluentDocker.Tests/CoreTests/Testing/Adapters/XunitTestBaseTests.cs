@@ -35,8 +35,8 @@ namespace FluentDocker.Tests.CoreTests.Testing.Adapters
       Assert.NotNull(testBase.Kernel);
 
       await testBase.DisposeAsync();
-      Assert.Null(testBase.Resource);
-      Assert.Null(testBase.Kernel);
+      Assert.Throws<InvalidOperationException>(() => _ = testBase.Resource);
+      Assert.Throws<InvalidOperationException>(() => _ = testBase.Kernel);
     }
 
     [Fact]

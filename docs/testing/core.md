@@ -92,6 +92,39 @@ automatically truncated to `MaxDiagnosticLogLines` (default: 200). This prevents
 excessive memory usage from very large log outputs. The truncated output includes
 a count of omitted lines.
 
+### Orphan Cleanup
+
+Resources created by the testing core are tagged with the `fluentdocker.managed`
+label. Set `CleanupOrphansOnInit = true` to have `InitializeAsync` remove managed
+resources left behind by earlier sessions:
+
+```csharp
+var options = new DockerResourceOptions
+{
+    CleanupOrphansOnInit = true
+};
+```
+
+Orphan cleanup scans **containers, networks and volumes only**. Resources created
+through Docker Compose, topologies, Swarm stacks, or Kubernetes YAML are not
+removed by orphan cleanup unless they individually carry the `fluentdocker.managed`
+label.
+
+`OrphanCleanupMinimumAge` (a `TimeSpan`, default 1 hour) bounds what cleanup may
+remove: only managed resources **older** than this age are deleted. With the
+default, enabling `CleanupOrphansOnInit` in parallel CI cannot delete a sibling
+test run's live resources, because those are younger than the threshold:
+
+```csharp
+var options = new DockerResourceOptions
+{
+    CleanupOrphansOnInit = true,
+    OrphanCleanupMinimumAge = TimeSpan.FromHours(1) // default
+};
+```
+
+Keep the default unless you run cleanup outside of parallel test execution.
+
 ## Wait Conditions (Builder)
 
 The container builder provides built-in wait conditions that block until the
@@ -363,7 +396,7 @@ var kernel = await FluentDockerKernel.Create()
 
 await using var resource = new ContainerResource(kernel, builder =>
     builder.UseImage("redis:alpine")
-           .WithName("test-redis")
+           .WithName($"test-redis-{Guid.NewGuid():N}") // unique — parallel-safe
            .WaitForPort("6379/tcp"));
 
 await resource.InitializeAsync();

@@ -32,20 +32,29 @@ namespace FluentDocker.Testing.NUnit
   /// </remarks>
   public abstract class NUnitContainerFixtureBase
   {
+    private ContainerResource? _resource;
+    private FluentDockerKernel? _kernel;
+
     /// <summary>
     /// The underlying container resource, available after setup.
     /// </summary>
-    public ContainerResource? Resource { get; private set; }
+    public ContainerResource Resource
+    {
+      get { EnsureInitialized(); return _resource!; }
+    }
 
     /// <summary>
     /// Shorthand access to the running container service.
     /// </summary>
-    public IContainerService? Container => Resource?.Container;
+    public IContainerService Container => Resource.Container;
 
     /// <summary>
     /// The kernel managing drivers for this fixture.
     /// </summary>
-    public FluentDockerKernel? Kernel { get; private set; }
+    public FluentDockerKernel Kernel
+    {
+      get { EnsureInitialized(); return _kernel!; }
+    }
 
     /// <summary>
     /// Override to configure the container. Called during setup.
@@ -70,8 +79,8 @@ namespace FluentDocker.Testing.NUnit
           k => new ContainerResource(k, ConfigureContainer, GetOptions()!),
           KernelFactory!).ConfigureAwait(false);
 
-      Kernel = kernel;
-      Resource = resource;
+      _kernel = kernel;
+      _resource = resource;
     }
 
     [OneTimeTearDown]
@@ -79,13 +88,20 @@ namespace FluentDocker.Testing.NUnit
     {
       try
       {
-        await ResourceLifecycle.DisposeAsync(Resource!, Kernel!).ConfigureAwait(false);
+        await ResourceLifecycle.DisposeAsync(_resource!, _kernel!).ConfigureAwait(false);
       }
       finally
       {
-        Resource = null;
-        Kernel = null;
+        _resource = null;
+        _kernel = null;
       }
+    }
+
+    private void EnsureInitialized()
+    {
+      if (_resource == null)
+        throw new InvalidOperationException(
+            "Fixture has not been initialized. Call SetUpAsync first.");
     }
   }
 }

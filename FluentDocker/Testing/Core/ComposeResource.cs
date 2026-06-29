@@ -6,6 +6,7 @@ using FluentDocker.Builders;
 using FluentDocker.Common;
 using FluentDocker.Drivers;
 using FluentDocker.Kernel;
+using FluentDocker.Model.Drivers;
 using FluentDocker.Services;
 using Microsoft.Extensions.Logging;
 
@@ -17,6 +18,11 @@ namespace FluentDocker.Testing.Core
   public class ComposeResource : ResourceBase
   {
     private readonly Action<IComposeBuilder> _configure;
+    private static readonly Action<ILogger, Exception> DiagnosticsLogCollectionFailed =
+        LoggerMessage.Define(
+            LogLevel.Warning,
+            new EventId(1, nameof(DiagnosticsLogCollectionFailed)),
+            "Compose diagnostics log collection failed.");
 
     /// <summary>
     /// Creates a compose resource.
@@ -102,13 +108,18 @@ namespace FluentDocker.Testing.Core
     protected override async Task ForceRemoveAsync(CancellationToken cancellationToken)
     {
       var s = Service;
-      Service = null;
       if (s == null)
         return;
 
       try
-      { await s.RemoveAsync(force: true, cancellationToken).ConfigureAwait(false); }
-      catch { /* best effort */ }
+      {
+        await s.RemoveAsync(force: true, cancellationToken).ConfigureAwait(false);
+        Service = null;
+      }
+      catch (DriverException ex) when (IsNotFound(ex))
+      {
+        Service = null;
+      }
     }
 
     /// <inheritdoc />
@@ -127,7 +138,7 @@ namespace FluentDocker.Testing.Core
         }
         catch (Exception ex)
         {
-          Logger.LogWarning(ex, "Compose diagnostics log collection failed");
+          DiagnosticsLogCollectionFailed(Logger, ex);
           diag.Logs = "(failed to collect compose logs)";
         }
       }
@@ -142,6 +153,12 @@ namespace FluentDocker.Testing.Core
       if (!IsInitialized || Service == null)
         throw new InvalidOperationException(
             "Compose resource is not initialized. Call InitializeAsync first.");
+    }
+
+    private static bool IsNotFound(DriverException ex)
+    {
+      return ex.ErrorCode == ErrorCodes.Driver.NotFound ||
+             ex.Message.Contains("not found", StringComparison.OrdinalIgnoreCase);
     }
   }
 }

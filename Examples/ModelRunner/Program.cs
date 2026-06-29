@@ -64,11 +64,11 @@ namespace ModelRunner
     /// </summary>
     private static async Task<bool> RunnerIsReachableAsync(FluentDockerKernel kernel)
     {
-      await using var runner = new Builder()
+      await using var runner = await new Builder()
           .WithinDriver(DriverId, kernel)
           .UseModelRunner()
           .ForModel(ChatModel)
-          .Build();
+          .BuildAsync();
 
       var status = await runner.StatusAsync();
       if (!status.Running)
@@ -97,13 +97,13 @@ namespace ModelRunner
     private static async Task ChatAsync(FluentDockerKernel kernel)
     {
       Console.WriteLine("== Chat (one-shot) ==");
-      await using var llm = new Builder()
+      await using var llm = await new Builder()
           .WithinDriver(DriverId, kernel)
           .UseModelRunner()
           .ForModel(ChatModel)
           .WithContextSize(8192)
           .PullIfMissing()
-          .Build();
+          .BuildAsync();
 
       var reply = await llm.ChatAsync("Reply with exactly one word: the capital of France.");
       Console.WriteLine($"  {reply?.Trim()}\n");
@@ -113,13 +113,13 @@ namespace ModelRunner
     private static async Task StreamChatAsync(FluentDockerKernel kernel)
     {
       Console.WriteLine("== Chat (streaming) ==");
-      await using var llm = new Builder()
+      await using var llm = await new Builder()
           .WithinDriver(DriverId, kernel)
           .UseModelRunner()
           .ForModel(ChatModel)
           .WithContextSize(8192)
           .PullIfMissing()
-          .Build();
+          .BuildAsync();
 
       Console.Write("  ");
       await foreach (var token in llm.ChatStreamAsync("Count from one to five."))
@@ -134,12 +134,12 @@ namespace ModelRunner
     private static async Task EmbeddingsAsync(FluentDockerKernel kernel)
     {
       Console.WriteLine("== Embeddings ==");
-      await using var embedder = new Builder()
+      await using var embedder = await new Builder()
           .WithinDriver(DriverId, kernel)
           .UseModelRunner()
           .ForModel(EmbedModel)
           .PullIfMissing()
-          .Build();
+          .BuildAsync();
 
       var vector = await embedder.EmbedAsync("FluentDocker manages local LLMs.");
       var preview = string.Join(", ", vector.Take(4).Select(v => v.ToString("0.000")));
@@ -153,13 +153,13 @@ namespace ModelRunner
     private static async Task ManagedServiceAsync(FluentDockerKernel kernel)
     {
       Console.WriteLine("== Managed model service ==");
-      await using var model = new Builder()
+      await using var model = await new Builder()
           .WithinDriver(DriverId, kernel)
           .UseModel(ChatModel)
           .WithContextSize(4096)
           .PullIfMissing()
           .KeepRunning(false)   // unload on dispose
-          .Build();
+          .BuildAsync();
 
       await model.StartAsync();
       var answer = await model.Runner.ChatAsync("Say hello in French, one word.");
@@ -171,10 +171,10 @@ namespace ModelRunner
     private static async Task ListModelsAsync(FluentDockerKernel kernel)
     {
       Console.WriteLine("== Local models ==");
-      await using var runner = new Builder()
+      await using var runner = await new Builder()
           .WithinDriver(DriverId, kernel)
           .UseModelRunner()
-          .Build();
+          .BuildAsync();
 
       foreach (var m in await runner.ListAsync())
         Console.WriteLine($"  {m.Reference}  ({m.ParameterCount}, {m.Quantization}, {m.Size / (1024 * 1024)} MiB)");

@@ -7,6 +7,7 @@ using FluentDocker.Drivers;
 using FluentDocker.Drivers.Models;
 using FluentDocker.Drivers.Models.Connection;
 using FluentDocker.Kernel;
+using FluentDocker.Model.Drivers;
 using FluentDocker.Model.Models;
 using FluentDocker.Model.Models.Options;
 using FluentDocker.Services;
@@ -160,7 +161,8 @@ namespace FluentDocker.Builders
     /// <summary>
     /// PullIfMissing semantics: probe the local store first (via <c>inspect</c>) and only
     /// pull when the model is genuinely absent. A successful inspect means "present" (skip
-    /// the pull); a <see cref="ModelRunnerException"/> (e.g. not-found) means "absent" (pull).
+    /// the pull); only model-not-found means "absent" (pull). Other inspect failures
+    /// are real failures and must not be hidden by a pull attempt.
     /// </summary>
     private static async Task<bool> IsModelPresentAsync(IModelRunner runner, ModelReference model, CancellationToken cancellationToken)
     {
@@ -169,7 +171,7 @@ namespace FluentDocker.Builders
         await runner.InspectAsync(model, cancellationToken).ConfigureAwait(false);
         return true;
       }
-      catch (ModelRunnerException)
+      catch (ModelRunnerException ex) when (ex.ErrorCode == ErrorCodes.Model.NotFound)
       {
         return false;
       }

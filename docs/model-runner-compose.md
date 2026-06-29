@@ -96,10 +96,9 @@ models:
       - "0.7"
 ```
 
-When attaching to an existing compose project, `ComposeModelBuilder.Parse(yaml)`
-reads the `models:` map and per-service bindings back out. A service that binds a
-model receives `LLM_URL` / `LLM_MODEL` (or the custom names), so code inside it can
-reconstruct a runner via `ModelRunnerEnvironment.FromVariables(endpointVar, modelVar)`.
+A service that binds a model receives `LLM_URL` / `LLM_MODEL` (or the custom
+names), so code inside it can reconstruct a runner via
+`ModelRunnerEnvironment.FromVariables(endpointVar, modelVar)`.
 
 ## See also
 

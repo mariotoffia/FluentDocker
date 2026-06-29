@@ -99,7 +99,7 @@ public async Task Setup()
     (_kernel, _resource) = await NUnitResourceHelpers.CreateSwarmStackAsync(
         new StackDeployConfig
         {
-            StackName = "my-stack",
+            StackName = $"my-stack-{Guid.NewGuid():N}", // unique — parallel-safe
             ComposeFiles = { "docker-compose.yml" }
         });
 }

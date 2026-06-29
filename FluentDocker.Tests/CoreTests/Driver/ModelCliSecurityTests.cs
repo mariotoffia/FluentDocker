@@ -1,4 +1,5 @@
 using System;
+using System.Buffers;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
@@ -43,14 +44,14 @@ namespace FluentDocker.Tests.CoreTests.Driver
     // neutralized token appears in the emitted command. The production code quotes
     // when ANY of these metacharacters is present OR the value contains any other
     // whitespace/control char (e.g. '\n'); this helper mirrors both rules.
-    private static readonly char[] Meta = " \t;&|><\"'$`!*?".ToCharArray();
+    private static readonly SearchValues<char> Meta = SearchValues.Create(" \t;&|><\"'$`!*?");
 
     private static string Quote(string arg)
     {
       if (string.IsNullOrEmpty(arg))
         return "\"\"";
 
-      var needsQuoting = arg.IndexOfAny(Meta) >= 0;
+      var needsQuoting = arg.AsSpan().IndexOfAny(Meta) >= 0;
       if (!needsQuoting)
       {
         foreach (var c in arg)

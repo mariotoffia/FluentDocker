@@ -20,7 +20,10 @@ namespace FluentDocker.Services
     /// <summary>The resolved inference endpoint (e.g. http://localhost:12434).</summary>
     Uri Endpoint { get; }
 
-    /// <summary>Feature-detection for the backing implementation.</summary>
+    /// <summary>
+    /// Static feature-detection for the backing implementation. This reports which
+    /// ports/routes the adapter can serve, not whether the endpoint is currently reachable.
+    /// </summary>
     ModelRunnerCapabilities Capabilities { get; }
 
     /// <summary>One-shot chat against the default model.</summary>

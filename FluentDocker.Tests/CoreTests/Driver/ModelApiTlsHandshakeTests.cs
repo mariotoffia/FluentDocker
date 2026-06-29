@@ -258,9 +258,11 @@ namespace FluentDocker.Tests.CoreTests.Driver
               // When client auth is required, accept the self-signed client credential: this
               // test proves the client cert is PRESENTED and the handshake completes, not a
               // server-side CA chain. Left null otherwise (default validation, no cert asked).
+#pragma warning disable CA5359 // Test intentionally accepts the self-signed client credential: it proves the client cert is PRESENTED and the handshake completes, not a server CA chain.
               RemoteCertificateValidationCallback = _requireClientCert
                   ? (RemoteCertificateValidationCallback)((_, _, _, _) => true)
                   : null
+#pragma warning restore CA5359
             }, _cts.Token).ConfigureAwait(false);
 
             // Drain the request line(s) loosely then reply; we do not parse HTTP fully.

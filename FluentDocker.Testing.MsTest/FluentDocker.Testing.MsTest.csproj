@@ -18,7 +18,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <None Include="..\FluentDocker\README.md" Pack="true" PackagePath="\" />
+    <None Include="README.md" Pack="true" PackagePath="\" />
     <None Include="..\icon\fluent-docker.png" Pack="true" PackagePath="\" />
   </ItemGroup>
 

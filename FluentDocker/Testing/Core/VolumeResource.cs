@@ -91,8 +91,17 @@ namespace FluentDocker.Testing.Core
         return;
 
       var driver = Kernel.SysCtl<IVolumeDriver>(DriverId);
-      await driver.RemoveAsync(
+      var result = await driver.RemoveAsync(
           new DriverContext(DriverId), ResourceName, false, cancellationToken).ConfigureAwait(false);
+
+      if (result.Success || result.ErrorCode == ErrorCodes.Volume.NotFound)
+        return;
+
+      // Genuine failure: keep ResourceName so DisposeAsync can engage ForceRemoveAsync.
+      throw new DriverException(
+          $"Failed to remove volume '{ResourceName}': {result.Error}",
+          result.ErrorCode,
+          result.ErrorContext);
     }
 
     /// <inheritdoc />
@@ -102,13 +111,17 @@ namespace FluentDocker.Testing.Core
       if (string.IsNullOrEmpty(name))
         return;
 
-      try
-      {
-        var driver = Kernel.SysCtl<IVolumeDriver>(DriverId);
-        await driver.RemoveAsync(
-            new DriverContext(DriverId), name, true, cancellationToken).ConfigureAwait(false);
-      }
-      catch { /* best effort */ }
+      var driver = Kernel.SysCtl<IVolumeDriver>(DriverId);
+      var result = await driver.RemoveAsync(
+          new DriverContext(DriverId), name, true, cancellationToken).ConfigureAwait(false);
+
+      if (result.Success || result.ErrorCode == ErrorCodes.Volume.NotFound)
+        return;
+
+      throw new DriverException(
+          $"Failed to force-remove volume '{name}': {result.Error}",
+          result.ErrorCode,
+          result.ErrorContext);
     }
 
     #endregion

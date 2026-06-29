@@ -80,6 +80,7 @@ namespace FluentDocker.Tests.CoreTests.Model
       // After parsing we cannot distinguish an explicit ":latest" from the default,
       // so both render as the bare id for inference (DMR treats them as equivalent).
       var id = InferenceModelId.FromModelReference(ModelReference.Parse("ai/smollm2:latest"));
+      Assert.NotNull(id);
       Assert.Equal("ai/smollm2", id.Value.ToString());
     }
 
@@ -87,6 +88,7 @@ namespace FluentDocker.Tests.CoreTests.Model
     public void FromModelReference_ExplicitTag_PreservesTag()
     {
       var id = InferenceModelId.FromModelReference(ModelReference.Parse("ai/smollm2:Q4_K_M"));
+      Assert.NotNull(id);
       Assert.Equal("ai/smollm2:Q4_K_M", id.Value.ToString());
     }
 
@@ -94,6 +96,7 @@ namespace FluentDocker.Tests.CoreTests.Model
     public void FromModelReference_RegistryQualified_DropsAutoLatest()
     {
       var id = InferenceModelId.FromModelReference(ModelReference.Parse("hf.co/org/repo"));
+      Assert.NotNull(id);
       Assert.Equal("hf.co/org/repo", id.Value.ToString());
     }
 
@@ -102,6 +105,7 @@ namespace FluentDocker.Tests.CoreTests.Model
     {
       var reference = ModelReference.Parse("ai/smollm2@sha256:" + new string('a', 64));
       var id = InferenceModelId.FromModelReference(reference);
+      Assert.NotNull(id);
       Assert.Equal(reference.ToString(), id.Value.ToString());
     }
 

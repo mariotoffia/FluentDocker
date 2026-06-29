@@ -1,8 +1,12 @@
 using System;
+using System.Threading;
 using System.Threading.Tasks;
+using FluentDocker.Common;
 using FluentDocker.Drivers;
+using FluentDocker.Model.Drivers;
 using FluentDocker.Testing.Core;
 using FluentDocker.Tests.Mocks;
+using Moq;
 using Xunit;
 
 namespace FluentDocker.Tests.CoreTests.Testing
@@ -89,6 +93,33 @@ namespace FluentDocker.Tests.CoreTests.Testing
     {
       Assert.Throws<ArgumentNullException>(() =>
           new VolumeResource(Kernel, null!));
+    }
+
+    [Fact]
+    public async Task DisposeAsync_GracefulRemoveFails_PropagatesInsteadOfSwallowing()
+    {
+      // The volume driver returns CommandResponse.Fail (it does not throw) when a
+      // volume is still in use. TeardownAsync must surface that instead of reporting
+      // a clean teardown — otherwise the resource leaks silently.
+      MockPack.SetupVolumeCreate("vol-stuck");
+      MockPack.VolumeDriver
+          .Setup(d => d.RemoveAsync(
+              It.IsAny<DriverContext>(),
+              It.IsAny<string>(),
+              It.IsAny<bool>(),
+              It.IsAny<CancellationToken>()))
+          .ReturnsAsync(CommandResponse<Unit>.Fail(
+              "volume is in use", ErrorCodes.Volume.InUse));
+
+      var resource = new VolumeResource(
+          Kernel,
+          config => config.Name = "stuck-volume",
+          new DockerResourceOptions { ForceRemoveOnDispose = false });
+
+      await resource.InitializeAsync(TestContext.Current.CancellationToken);
+
+      await Assert.ThrowsAsync<DriverException>(
+          () => resource.DisposeAsync().AsTask());
     }
   }
 }

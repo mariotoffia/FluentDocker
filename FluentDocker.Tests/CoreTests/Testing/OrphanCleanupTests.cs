@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
@@ -76,6 +77,88 @@ namespace FluentDocker.Tests.CoreTests.Testing
               It.IsAny<DriverContext>(), "current-1", It.IsAny<bool>(),
               It.IsAny<bool>(), It.IsAny<CancellationToken>()),
           Times.Never);
+    }
+
+    [Fact]
+    public async Task CleanupOrphanedResources_PreservesRecentSiblings_AndRemovesOldOrphans_WhenMinimumAgeSet()
+    {
+      var currentSession = "current-session-id";
+      var siblingSession = "sibling-session-id";
+      var now = DateTime.UtcNow;
+
+      MockPack.ContainerDriver
+          .Setup(d => d.ListAsync(
+              It.IsAny<DriverContext>(),
+              It.IsAny<ContainerListFilter>(),
+              It.IsAny<CancellationToken>()))
+          .ReturnsAsync(FluentDocker.Model.Drivers.CommandResponse<IList<Container>>.Ok(
+              [
+                LabeledContainer("recent-sibling", siblingSession, now),
+                LabeledContainer("old-orphan", siblingSession, now.AddHours(-2))
+              ]));
+
+      MockPack.NetworkDriver
+          .Setup(d => d.ListAsync(
+              It.IsAny<DriverContext>(),
+              It.IsAny<NetworkListFilter>(),
+              It.IsAny<CancellationToken>()))
+          .ReturnsAsync(FluentDocker.Model.Drivers.CommandResponse<IList<Network>>.Ok(
+              [
+                LabeledNetwork("recent-network", siblingSession, now),
+                LabeledNetwork("old-network", siblingSession, now.AddHours(-2))
+              ]));
+      MockPack.VolumeDriver
+          .Setup(d => d.ListAsync(
+              It.IsAny<DriverContext>(),
+              It.IsAny<VolumeListFilter>(),
+              It.IsAny<CancellationToken>()))
+          .ReturnsAsync(FluentDocker.Model.Drivers.CommandResponse<IList<Volume>>.Ok(
+              [
+                LabeledVolume("recent-volume", siblingSession, now),
+                LabeledVolume("old-volume", siblingSession, now.AddHours(-2))
+              ]));
+      MockPack.SetupContainerRemove();
+      MockPack.SetupNetworkRemove();
+      MockPack.SetupVolumeRemove();
+
+      var result = await OrphanCleanup.CleanupOrphanedResourcesAsync(
+          Kernel, DriverId, currentSession, TimeSpan.FromHours(1),
+          TestContext.Current.CancellationToken);
+
+      Assert.Equal(3, result.TotalRemoved);
+      Assert.Equal(1, result.ContainersRemoved);
+      Assert.Equal(1, result.NetworksRemoved);
+      Assert.Equal(1, result.VolumesRemoved);
+      MockPack.ContainerDriver.Verify(
+          d => d.RemoveAsync(
+              It.IsAny<DriverContext>(), "recent-sibling", It.IsAny<bool>(),
+              It.IsAny<bool>(), It.IsAny<CancellationToken>()),
+          Times.Never);
+      MockPack.ContainerDriver.Verify(
+          d => d.RemoveAsync(
+              It.IsAny<DriverContext>(), "old-orphan", true, false,
+              It.IsAny<CancellationToken>()),
+          Times.Once);
+      MockPack.NetworkDriver.Verify(
+          d => d.RemoveAsync(
+              It.IsAny<DriverContext>(), "recent-network",
+              It.IsAny<CancellationToken>()),
+          Times.Never);
+      MockPack.NetworkDriver.Verify(
+          d => d.RemoveAsync(
+              It.IsAny<DriverContext>(), "old-network",
+              It.IsAny<CancellationToken>()),
+          Times.Once);
+      MockPack.VolumeDriver.Verify(
+          d => d.RemoveAsync(
+              It.IsAny<DriverContext>(), "recent-volume", It.IsAny<bool>(),
+              It.IsAny<CancellationToken>()),
+          Times.Never);
+      MockPack.VolumeDriver.Verify(
+          d => d.RemoveAsync(
+              It.IsAny<DriverContext>(), "old-volume", true,
+              It.IsAny<CancellationToken>()),
+          Times.Once);
     }
 
     [Fact]
@@ -279,6 +362,61 @@ namespace FluentDocker.Tests.CoreTests.Testing
               It.IsAny<CancellationToken>()))
           .ReturnsAsync(FluentDocker.Model.Drivers.CommandResponse<IList<Volume>>.Ok(
               []));
+    }
+
+    private static Container LabeledContainer(
+        string id,
+        string sessionId,
+        DateTime createdAt)
+    {
+      return new Container
+      {
+        Id = id,
+        Config = new ContainerConfig
+        {
+          Labels = new Dictionary<string, string>
+          {
+            [SessionLabel.Key] = sessionId,
+            [SessionLabel.ManagedKey] = "true",
+            [SessionLabel.CreatedAtKey] = createdAt.ToString("o")
+          }
+        }
+      };
+    }
+
+    private static Network LabeledNetwork(
+        string id,
+        string sessionId,
+        DateTime createdAt)
+    {
+      return new Network
+      {
+        Id = id,
+        Name = id,
+        Labels = new Dictionary<string, string>
+        {
+          [SessionLabel.Key] = sessionId,
+          [SessionLabel.ManagedKey] = "true",
+          [SessionLabel.CreatedAtKey] = createdAt.ToString("o")
+        }
+      };
+    }
+
+    private static Volume LabeledVolume(
+        string name,
+        string sessionId,
+        DateTime createdAt)
+    {
+      return new Volume
+      {
+        Name = name,
+        Labels = new Dictionary<string, string>
+        {
+          [SessionLabel.Key] = sessionId,
+          [SessionLabel.ManagedKey] = "true",
+          [SessionLabel.CreatedAtKey] = createdAt.ToString("o")
+        }
+      };
     }
 
     #endregion
