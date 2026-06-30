@@ -39,15 +39,23 @@ namespace FluentDocker.Drivers.Docker.Api.Components
             new SharpCompress.Writers.Tar.TarWriterOptions(
                 SharpCompress.Common.CompressionType.None, true)))
         {
-          var contextDir = new DirectoryInfo(contextPath);
-          foreach (var file in contextDir.GetFiles("*", SearchOption.AllDirectories))
+          var contextRoot = Path.GetFullPath(contextPath);
+          foreach (var file in EnumerateContextFilesSafe(contextRoot))
           {
-            var relativePath = Path.GetRelativePath(contextPath, file.FullName)
+            var relativePath = Path.GetRelativePath(contextRoot, file.FullName)
                 .Replace('\\', '/');
             if (filter.IsIgnored(relativePath))
               continue;
-            using var src = file.OpenRead();
-            writer.Write(relativePath, src, file.LastWriteTimeUtc);
+            try
+            {
+              using var src = file.OpenRead();
+              writer.Write(relativePath, src, file.LastWriteTimeUtc);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+              // Dangling in-context symlink or unreadable file: skip it instead of failing the
+              // whole build, mirroring Docker's best-effort context packaging.
+            }
           }
         }
 
@@ -114,6 +122,62 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       }
 
       return query;
+    }
+
+    /// <summary>
+    /// Depth-first enumeration of files under the build context that mirrors Docker's
+    /// security posture: directory symlinks are not traversed (avoids infinite loops and
+    /// paths that escape the context) and file symlinks whose target resolves outside the
+    /// context are skipped (avoids exfiltrating host files such as <c>/etc/passwd</c>).
+    /// File symlinks that stay inside the context are dereferenced as before. Because no
+    /// directory symlink is followed, content under an in-context directory symlink is
+    /// included only via its real path (SharpCompress cannot emit symlink tar entries).
+    /// </summary>
+    private static IEnumerable<FileInfo> EnumerateContextFilesSafe(string contextRoot)
+    {
+      var stack = new Stack<DirectoryInfo>();
+      stack.Push(new DirectoryInfo(contextRoot));
+      while (stack.Count > 0)
+      {
+        foreach (var entry in stack.Pop().EnumerateFileSystemInfos())
+        {
+          var isSymlink = (entry.Attributes & FileAttributes.ReparsePoint) != 0;
+          if (entry is DirectoryInfo dir)
+          {
+            if (!isSymlink)
+              stack.Push(dir);
+          }
+          else if (entry is FileInfo file && !(isSymlink && EscapesContext(file, contextRoot)))
+          {
+            yield return file;
+          }
+        }
+      }
+    }
+
+    /// <summary>
+    /// True when <paramref name="file"/> is a symlink whose fully resolved target lies
+    /// outside <paramref name="contextRoot"/>, or cannot be resolved. Such links are
+    /// excluded from the build context so they cannot leak host files.
+    /// </summary>
+    private static bool EscapesContext(FileInfo file, string contextRoot)
+    {
+      try
+      {
+        var target = file.ResolveLinkTarget(returnFinalTarget: true);
+        if (target is null)
+          return false;
+        var resolved = Path.GetFullPath(target.FullName);
+        var root = contextRoot.EndsWith(Path.DirectorySeparatorChar)
+            ? contextRoot
+            : contextRoot + Path.DirectorySeparatorChar;
+        return !resolved.StartsWith(root, StringComparison.Ordinal)
+            && resolved != contextRoot;
+      }
+      catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+      {
+        return true; // broken / unresolvable link => exclude (safe default)
+      }
     }
 
     #endregion
