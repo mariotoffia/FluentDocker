@@ -1,6 +1,7 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
+using FluentDocker.Common;
 using FluentDocker.Drivers.Podman;
 using FluentDocker.Kernel;
 using FluentDocker.Model.Drivers;
@@ -153,7 +154,7 @@ namespace FluentDocker.Tests.CoreTests.Service
     }
 
     [Fact]
-    public async Task StartAsync_Failure_StateRemainsStopped()
+    public async Task StartAsync_Failure_ThrowsDriverException()
     {
       // Arrange
       var (kernel, _, podDriver) = await CreateWithPodDriverAsync();
@@ -169,11 +170,11 @@ namespace FluentDocker.Tests.CoreTests.Service
 
       try
       {
-        // Act
-        await service.StartAsync(TestContext.Current.CancellationToken);
-
-        // Assert — state should remain Stopped since driver reported failure
-        Assert.Equal(ServiceRunningState.Stopped, service.State);
+        // Act & Assert — failures must surface, not be silently swallowed.
+        var ex = await Assert.ThrowsAsync<DriverException>(
+            () => service.StartAsync(TestContext.Current.CancellationToken));
+        Assert.Equal(ErrorCodes.Pod.StartFailed, ex.ErrorCode);
+        Assert.Contains("my-pod", ex.Message);
       }
       finally
       {
@@ -281,6 +282,60 @@ namespace FluentDocker.Tests.CoreTests.Service
       }
     }
 
+    [Fact]
+    public async Task StopAsync_Failure_ThrowsDriverException()
+    {
+      var (kernel, _, podDriver) = await CreateWithPodDriverAsync();
+
+      podDriver
+          .Setup(d => d.StopPodAsync(
+              It.IsAny<DriverContext>(),
+              It.IsAny<string>(),
+              It.IsAny<int?>(),
+              It.IsAny<CancellationToken>()))
+          .ReturnsAsync(CommandResponse<Unit>.Fail("stop boom"));
+
+      var service = new PodService(kernel, "docker", "pod-abc123", "my-pod");
+
+      try
+      {
+        var ex = await Assert.ThrowsAsync<DriverException>(
+            () => service.StopAsync(TestContext.Current.CancellationToken));
+        Assert.Equal(ErrorCodes.Pod.StopFailed, ex.ErrorCode);
+      }
+      finally
+      {
+        kernel.Dispose();
+      }
+    }
+
+    [Fact]
+    public async Task RemoveAsync_Failure_ThrowsDriverException()
+    {
+      var (kernel, _, podDriver) = await CreateWithPodDriverAsync();
+
+      podDriver
+          .Setup(d => d.RemovePodAsync(
+              It.IsAny<DriverContext>(),
+              It.IsAny<string>(),
+              It.IsAny<bool>(),
+              It.IsAny<CancellationToken>()))
+          .ReturnsAsync(CommandResponse<Unit>.Fail("remove boom"));
+
+      var service = new PodService(kernel, "docker", "pod-abc123", "my-pod");
+
+      try
+      {
+        var ex = await Assert.ThrowsAsync<DriverException>(
+            () => service.RemoveAsync(force: true, TestContext.Current.CancellationToken));
+        Assert.Equal(ErrorCodes.Pod.RemoveFailed, ex.ErrorCode);
+      }
+      finally
+      {
+        kernel.Dispose();
+      }
+    }
+
     #endregion
 
     #region Hook Tests
@@ -312,6 +367,75 @@ namespace FluentDocker.Tests.CoreTests.Service
       Assert.False(hookCalled);
 
       kernel.Dispose();
+    }
+
+    [Fact]
+    public async Task StartAsync_Success_FiresRegisteredRunningHook()
+    {
+      var (kernel, _, podDriver) = await CreateWithPodDriverAsync();
+
+      podDriver
+          .Setup(d => d.StartPodAsync(
+              It.IsAny<DriverContext>(),
+              It.IsAny<string>(),
+              It.IsAny<CancellationToken>()))
+          .ReturnsAsync(CommandResponse<Unit>.Ok(Unit.Default));
+
+      var service = new PodService(kernel, "docker", "pod-abc123", "my-pod");
+      var runningFired = false;
+      var stoppedFired = false;
+      service.AddHook(ServiceRunningState.Running, _ => { runningFired = true; return Task.CompletedTask; });
+      service.AddHook(ServiceRunningState.Stopped, _ => { stoppedFired = true; return Task.CompletedTask; });
+
+      try
+      {
+        await service.StartAsync(TestContext.Current.CancellationToken);
+
+        Assert.True(runningFired);
+        // State-accurate: the Stopped hook must NOT fire on a Start transition.
+        Assert.False(stoppedFired);
+      }
+      finally
+      {
+        kernel.Dispose();
+      }
+    }
+
+    [Fact]
+    [Trait("Category", "Unit")]
+    public async Task AddHook_SameUniqueName_FiresOnceAndCanBeRemoved()
+    {
+      var (kernel, _, podDriver) = await CreateWithPodDriverAsync();
+
+      podDriver
+          .Setup(d => d.StartPodAsync(
+              It.IsAny<DriverContext>(),
+              It.IsAny<string>(),
+              It.IsAny<CancellationToken>()))
+          .ReturnsAsync(CommandResponse<Unit>.Ok(Unit.Default));
+
+      var service = new PodService(kernel, "docker", "pod-abc123", "my-pod");
+      var count = 0;
+
+      // Re-registering the same uniqueName must REPLACE, not append (no double-fire).
+      service.AddHook(ServiceRunningState.Running, _ => { count++; return Task.CompletedTask; }, "h1");
+      service.AddHook(ServiceRunningState.Running, _ => { count++; return Task.CompletedTask; }, "h1");
+
+      try
+      {
+        await service.StartAsync(TestContext.Current.CancellationToken);
+        Assert.Equal(1, count);
+
+        // RemoveHook by name removes exactly that hook so it no longer fires.
+        service.RemoveHook("h1");
+        count = 0;
+        await service.StartAsync(TestContext.Current.CancellationToken);
+        Assert.Equal(0, count);
+      }
+      finally
+      {
+        kernel.Dispose();
+      }
     }
 
     #endregion

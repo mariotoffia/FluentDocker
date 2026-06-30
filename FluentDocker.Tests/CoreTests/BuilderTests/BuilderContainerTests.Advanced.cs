@@ -266,6 +266,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
     {
       // Arrange
       MockPack
+          .SetupImagePull()
           .SetupContainerCreate()
           .SetupContainerStart()
           .SetupContainerInspect(running: true)

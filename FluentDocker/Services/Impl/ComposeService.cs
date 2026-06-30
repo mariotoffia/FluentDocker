@@ -29,7 +29,7 @@ namespace FluentDocker.Services.Impl
     private readonly bool _removeVolumes;
     private readonly bool _removeImages;
     private readonly IReadOnlyList<string> _ownedTempFiles;
-    private readonly Dictionary<string, Func<IServiceAsync, Task>> _hooks = [];
+    private readonly Dictionary<string, (ServiceRunningState State, Func<IServiceAsync, Task> Hook)> _hooks = [];
     private ServiceRunningState _state = ServiceRunningState.Running;
 
     public ComposeService(
@@ -322,7 +322,7 @@ namespace FluentDocker.Services.Impl
     public IServiceAsync AddHook(ServiceRunningState state, Func<IServiceAsync, Task> hook, string uniqueName = null)
     {
       var name = uniqueName ?? Guid.NewGuid().ToString();
-      _hooks[name] = hook;
+      _hooks[name] = (state, hook);
       return this;
     }
 
@@ -399,11 +399,14 @@ namespace FluentDocker.Services.Impl
 
     private async Task ExecuteHooksAsync(ServiceRunningState state)
     {
-      foreach (var hook in _hooks.Values)
+      foreach (var entry in _hooks.Values)
       {
+        if (entry.State != state)
+          continue;
+
         try
         {
-          await hook(this).ConfigureAwait(false);
+          await entry.Hook(this).ConfigureAwait(false);
         }
         catch (Exception ex)
         {

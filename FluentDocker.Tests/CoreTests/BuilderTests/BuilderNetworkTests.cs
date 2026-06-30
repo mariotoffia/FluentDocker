@@ -207,6 +207,46 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
     }
 
     [Fact]
+    public async Task UseNetwork_ExistingNetworkWithRemoveOnDispose_ReusesBorrowedAndNeverRemoves()
+    {
+      // Arrange — a same-named network already exists, and RemoveOnDispose() is requested.
+      MockPack
+          .SetupNetworkList(new Network
+          {
+            Id = "existing-network-id",
+            Name = "test-network",
+            Driver = "bridge"
+          })
+          .SetupNetworkCreate()
+          .SetupNetworkRemove();
+
+      // Act
+      var results = await new Builder()
+          .WithinDriver(DriverId, Kernel)
+          .UseNetwork(n => n
+              .WithName("test-network")
+              .RemoveOnDispose())
+          .BuildAsync(cancellationToken: TestContext.Current.CancellationToken);
+
+      var network = results.All[0] as INetworkService;
+      Assert.NotNull(network);
+      Assert.Equal("existing-network-id", network.Id);
+
+      await results.DisposeAllAsync();
+
+      // Building (and disposing) must never delete a pre-existing network the builder did not
+      // create — even though RemoveOnDispose() was set. Create must also not be called.
+      MockPack.NetworkDriver.Verify(d => d.CreateAsync(
+          It.IsAny<FluentDocker.Model.Drivers.DriverContext>(),
+          It.IsAny<NetworkCreateConfig>(),
+          It.IsAny<System.Threading.CancellationToken>()), Times.Never);
+      MockPack.NetworkDriver.Verify(d => d.RemoveAsync(
+          It.IsAny<FluentDocker.Model.Drivers.DriverContext>(),
+          It.IsAny<string>(),
+          It.IsAny<System.Threading.CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
     public async Task UseNetwork_RemoveOnDispose_RemovesOnDispose()
     {
       // Arrange

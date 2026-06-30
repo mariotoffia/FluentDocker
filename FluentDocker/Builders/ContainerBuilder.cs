@@ -388,7 +388,7 @@ namespace FluentDocker.Builders
           {
             var reuseService = new Services.Impl.ContainerService(
                 _kernel, _driverId, existing, _image, _name,
-                !_keepRunning, !_keepContainer,
+                false, false,
                 _deleteVolumeOnDispose, _deleteNamedVolumeOnDispose,
                 _customResolver, _lifecycleHooks);
 
@@ -406,7 +406,7 @@ namespace FluentDocker.Builders
       }
 
       if (_forcePullImage && imageDriver != null)
-        await imageDriver.PullAsync(context, _image, "latest", null, cancellationToken).ConfigureAwait(false);
+        await ExecuteForcePullAsync(imageDriver, context, cancellationToken).ConfigureAwait(false);
 
       var config = new Drivers.ContainerCreateConfig
       {

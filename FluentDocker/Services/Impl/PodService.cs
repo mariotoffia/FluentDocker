@@ -27,7 +27,7 @@ namespace FluentDocker.Services.Impl
     private readonly string _podName;
     private readonly string _podId;
     private readonly bool _removeOnDispose;
-    private readonly Dictionary<string, Func<IServiceAsync, Task>> _hooks = [];
+    private readonly Dictionary<string, (ServiceRunningState State, Func<IServiceAsync, Task> Hook)> _hooks = [];
     private ServiceRunningState _state = ServiceRunningState.Stopped;
 
     public PodService(
@@ -59,18 +59,42 @@ namespace FluentDocker.Services.Impl
     {
       var driver = _kernel.SysCtl<IPodmanPodDriver>(_driverId);
       var context = new DriverContext(_driverId);
+
+      UpdateState(ServiceRunningState.Starting);
+      await ExecuteHooksAsync(ServiceRunningState.Starting).ConfigureAwait(false);
+
       var response = await driver.StartPodAsync(context, _podName, cancellationToken).ConfigureAwait(false);
-      if (response.Success)
-        UpdateState(ServiceRunningState.Running);
+      if (!response.Success)
+      {
+        throw new DriverException(
+            $"Failed to start pod '{_podName}': {response.Error}",
+            ErrorCodes.Pod.StartFailed,
+            response.ErrorContext);
+      }
+
+      UpdateState(ServiceRunningState.Running);
+      await ExecuteHooksAsync(ServiceRunningState.Running).ConfigureAwait(false);
     }
 
     public async Task StopAsync(CancellationToken cancellationToken = default)
     {
       var driver = _kernel.SysCtl<IPodmanPodDriver>(_driverId);
       var context = new DriverContext(_driverId);
+
+      UpdateState(ServiceRunningState.Stopping);
+      await ExecuteHooksAsync(ServiceRunningState.Stopping).ConfigureAwait(false);
+
       var response = await driver.StopPodAsync(context, _podName, 10, cancellationToken).ConfigureAwait(false);
-      if (response.Success)
-        UpdateState(ServiceRunningState.Stopped);
+      if (!response.Success)
+      {
+        throw new DriverException(
+            $"Failed to stop pod '{_podName}': {response.Error}",
+            ErrorCodes.Pod.StopFailed,
+            response.ErrorContext);
+      }
+
+      UpdateState(ServiceRunningState.Stopped);
+      await ExecuteHooksAsync(ServiceRunningState.Stopped).ConfigureAwait(false);
     }
 
     public Task PauseAsync(CancellationToken cancellationToken = default)
@@ -83,16 +107,29 @@ namespace FluentDocker.Services.Impl
     {
       var driver = _kernel.SysCtl<IPodmanPodDriver>(_driverId);
       var context = new DriverContext(_driverId);
+
+      UpdateState(ServiceRunningState.Removing);
+      await ExecuteHooksAsync(ServiceRunningState.Removing).ConfigureAwait(false);
+
       var response = await driver.RemovePodAsync(
           context, _podName, force, cancellationToken).ConfigureAwait(false);
-      if (response.Success)
-        UpdateState(ServiceRunningState.Removed);
+      if (!response.Success)
+      {
+        throw new DriverException(
+            $"Failed to remove pod '{_podName}': {response.Error}",
+            ErrorCodes.Pod.RemoveFailed,
+            response.ErrorContext);
+      }
+
+      UpdateState(ServiceRunningState.Removed);
+      await ExecuteHooksAsync(ServiceRunningState.Removed).ConfigureAwait(false);
     }
 
     public IServiceAsync AddHook(
         ServiceRunningState state, Func<IServiceAsync, Task> hook, string uniqueName = null)
     {
-      _hooks[uniqueName ?? Guid.NewGuid().ToString()] = hook;
+      var name = uniqueName ?? Guid.NewGuid().ToString();
+      _hooks[name] = (state, hook);
       return this;
     }
 
@@ -135,6 +172,24 @@ namespace FluentDocker.Services.Impl
     {
       _state = newState;
       StateChange?.Invoke(this, new StateChangeEventArgs(this, newState));
+    }
+
+    private async Task ExecuteHooksAsync(ServiceRunningState state)
+    {
+      foreach (var entry in _hooks.Values)
+      {
+        if (entry.State != state)
+          continue;
+
+        try
+        {
+          await entry.Hook(this).ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+          _logger.LogError(ex, "PodService hook execution failed");
+        }
+      }
     }
   }
 }

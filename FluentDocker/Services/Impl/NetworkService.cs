@@ -27,7 +27,7 @@ namespace FluentDocker.Services.Impl
     private readonly string _networkId;
     private readonly string _networkName;
     private readonly bool _removeOnDispose;
-    private readonly Dictionary<string, Func<IServiceAsync, Task>> _hooks = [];
+    private readonly Dictionary<string, (ServiceRunningState State, Func<IServiceAsync, Task> Hook)> _hooks = [];
     private ServiceRunningState _state = ServiceRunningState.Running;
 
     public NetworkService(
@@ -91,6 +91,20 @@ namespace FluentDocker.Services.Impl
       }
     }
 
+    /// <summary>
+    /// Returns the ids of containers connected to this network.
+    /// </summary>
+    /// <remarks>
+    /// The driver-level <see cref="Network"/> model returned by <see cref="InspectAsync"/>
+    /// does not carry container membership (it exposes only id, name, driver, scope, ipv6,
+    /// internal and labels), and the inspect adapters that build it do not populate that data.
+    /// This method therefore cannot return connected containers and always yields an empty
+    /// list. It still performs an inspect so a missing network surfaces as a
+    /// <see cref="DriverException"/>.
+    /// </remarks>
+    [Obsolete("The driver Network model does not expose connected containers, so this method " +
+        "always returns an empty list. Inspect the network or query the container driver for " +
+        "membership instead.")]
     public async Task<IList<string>> GetConnectedContainersAsync(CancellationToken cancellationToken = default)
     {
       await InspectAsync(cancellationToken).ConfigureAwait(false);
@@ -152,7 +166,7 @@ namespace FluentDocker.Services.Impl
     public IServiceAsync AddHook(ServiceRunningState state, Func<IServiceAsync, Task> hook, string uniqueName = null)
     {
       var name = uniqueName ?? Guid.NewGuid().ToString();
-      _hooks[name] = hook;
+      _hooks[name] = (state, hook);
       return this;
     }
 
@@ -204,11 +218,14 @@ namespace FluentDocker.Services.Impl
 
     private async Task ExecuteHooksAsync(ServiceRunningState state)
     {
-      foreach (var hook in _hooks.Values)
+      foreach (var entry in _hooks.Values)
       {
+        if (entry.State != state)
+          continue;
+
         try
         {
-          await hook(this).ConfigureAwait(false);
+          await entry.Hook(this).ConfigureAwait(false);
         }
         catch (Exception ex)
         {

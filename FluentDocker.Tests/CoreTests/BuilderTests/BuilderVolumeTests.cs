@@ -126,6 +126,39 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
     }
 
     [Fact]
+    public async Task UseVolume_ExistingVolumeWithRemoveOnDispose_ReusesBorrowedAndNeverRemoves()
+    {
+      // Arrange — a same-named volume already exists, and RemoveOnDispose() is requested.
+      MockPack
+          .SetupVolumeInspect("temp-volume")
+          .SetupVolumeCreate("temp-volume")
+          .SetupVolumeRemove();
+
+      // Act
+      var results = await new Builder()
+          .WithinDriver(DriverId, Kernel)
+          .UseVolume(v => v
+              .WithName("temp-volume")
+              .RemoveOnDispose())
+          .BuildAsync(cancellationToken: TestContext.Current.CancellationToken);
+
+      await results.DisposeAllAsync();
+
+      // `volume create` is idempotent and would adopt the pre-existing volume; building must
+      // neither re-create nor (on dispose) delete a volume the builder did not create — even
+      // though RemoveOnDispose() was set.
+      MockPack.VolumeDriver.Verify(d => d.CreateAsync(
+          It.IsAny<FluentDocker.Model.Drivers.DriverContext>(),
+          It.IsAny<VolumeCreateConfig>(),
+          It.IsAny<System.Threading.CancellationToken>()), Times.Never);
+      MockPack.VolumeDriver.Verify(d => d.RemoveAsync(
+          It.IsAny<FluentDocker.Model.Drivers.DriverContext>(),
+          It.IsAny<string>(),
+          It.IsAny<bool>(),
+          It.IsAny<System.Threading.CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
     public async Task UseVolume_RemoveOnDispose_RemovesOnDispose()
     {
       // Arrange

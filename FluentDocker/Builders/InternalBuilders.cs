@@ -9,6 +9,7 @@ using FluentDocker.Common;
 using FluentDocker.Kernel;
 using FluentDocker.Model.Drivers;
 using FluentDocker.Services;
+using Microsoft.Extensions.Logging;
 
 namespace FluentDocker.Builders
 {
@@ -60,15 +61,21 @@ namespace FluentDocker.Builders
 
         if (existingNetwork != null)
         {
-          if (_removeOnDispose)
+          // Building must never delete a pre-existing resource the builder did not create.
+          // Reuse the existing network as a borrowed (non-removing) wrapper; _removeOnDispose
+          // only governs networks this builder actually creates below.
+          if (_subnet != null || _gateway != null || _ipRange != null || _enableIPv6 || _internal
+              || _labels.Count > 0 || _options.Count > 0
+              || !string.Equals(_driver, "bridge", StringComparison.OrdinalIgnoreCase))
           {
-            await driver.RemoveAsync(context, existingNetwork.Id, cancellationToken).ConfigureAwait(false);
+            _kernel.LoggerFactory.CreateLogger<NetworkBuilder>().LogWarning(
+                "Network '{Name}' already exists; reusing it. Requested configuration " +
+                "(subnet/gateway/ip-range/driver/labels/options/internal/ipv6) is ignored.",
+                _name);
           }
-          else
-          {
-            return new Services.Impl.NetworkService(
-                _kernel, _driverId, existingNetwork.Id, _name, _removeOnDispose);
-          }
+
+          return new Services.Impl.NetworkService(
+              _kernel, _driverId, existingNetwork.Id, _name, removeOnDispose: false);
         }
       }
 
@@ -126,6 +133,18 @@ namespace FluentDocker.Builders
     {
       var driver = _kernel.SysCtl<Drivers.IVolumeDriver>(_driverId);
       var context = new DriverContext(_driverId);
+
+      if (!string.IsNullOrEmpty(_name))
+      {
+        // `docker/podman volume create` is idempotent and would silently ADOPT a pre-existing
+        // volume; a later RemoveOnDispose() would then delete a user's volume (with its data).
+        // Building must never delete a resource it did not create, so reuse any existing volume
+        // as a borrowed (non-removing) wrapper. _removeOnDispose only governs volumes created below.
+        var existing = await driver.InspectAsync(context, _name, cancellationToken).ConfigureAwait(false);
+        if (existing is { Success: true, Data: not null })
+          return new Services.Impl.VolumeService(
+              _kernel, _driverId, existing.Data.Name, existing.Data.Driver ?? _driver, removeOnDispose: false);
+      }
 
       var config = new Drivers.VolumeCreateConfig
       {

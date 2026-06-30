@@ -57,8 +57,11 @@ namespace FluentDocker.Model.Kernel
     /// </param>
     public async Task DisposeAllAsync(CancellationToken cancellationToken = default)
     {
-      foreach (var service in _results)
+      // Reverse creation order: dependents (e.g. containers) before their dependencies
+      // (e.g. the networks/volumes they are attached to).
+      for (var i = _results.Count - 1; i >= 0; i--)
       {
+        var service = _results[i];
         try
         {
           var task = service is IAsyncDisposable asyncDisposable
@@ -79,11 +82,12 @@ namespace FluentDocker.Model.Kernel
     /// </summary>
     public void DisposeAll()
     {
-      foreach (var service in _results)
+      // Reverse creation order: dependents before their dependencies.
+      for (var i = _results.Count - 1; i >= 0; i--)
       {
         try
         {
-          service.Dispose();
+          _results[i].Dispose();
         }
         catch (Exception ex)
         {

@@ -32,9 +32,7 @@ namespace FluentDocker.Services.Impl
     private readonly bool _deleteNamedVolumeOnDispose;
     private readonly Func<Dictionary<string, HostIpEndpoint[]>, string, Uri, IPEndPoint> _customResolver;
     private readonly List<LifecycleHook> _lifecycleHooks;
-    private readonly Dictionary<string, Func<IServiceAsync, Task>> _hooks = [];
-    private readonly Dictionary<ServiceRunningState, List<Func<IServiceAsync, Task>>> _stateHooks =
-        [];
+    private readonly Dictionary<string, (ServiceRunningState State, Func<IServiceAsync, Task> Hook)> _hooks = [];
     private volatile ServiceRunningState _state = ServiceRunningState.Unknown;
 
     // Short-lived inspect cache to avoid redundant API/CLI calls during wait polling.
@@ -57,6 +55,16 @@ namespace FluentDocker.Services.Impl
     public const long InspectCacheTtlMs = 500;
 
     /// <summary>
+    /// Default upper bound, in milliseconds, for the stop/remove cleanup performed during
+    /// disposal. Disposal is best-effort and must not hang indefinitely on an unresponsive
+    /// daemon, so the cleanup is abandoned once this elapses. Adjustable per instance via the
+    /// constructor's <c>disposeCleanupTimeout</c> parameter.
+    /// </summary>
+    public const int DefaultDisposeCleanupTimeoutMs = 30_000;
+
+    private readonly TimeSpan _disposeCleanupTimeout;
+
+    /// <summary>
     /// Creates a new container service.
     /// </summary>
     public ContainerService(
@@ -70,7 +78,8 @@ namespace FluentDocker.Services.Impl
         bool deleteVolumeOnDispose = false,
         bool deleteNamedVolumeOnDispose = false,
         Func<Dictionary<string, HostIpEndpoint[]>, string, Uri, IPEndPoint> customResolver = null,
-        List<LifecycleHook> lifecycleHooks = null)
+        List<LifecycleHook> lifecycleHooks = null,
+        TimeSpan? disposeCleanupTimeout = null)
     {
       ArgumentNullException.ThrowIfNull(kernel);
       ArgumentNullException.ThrowIfNull(driverId);
@@ -87,12 +96,8 @@ namespace FluentDocker.Services.Impl
       _deleteNamedVolumeOnDispose = deleteNamedVolumeOnDispose;
       _customResolver = customResolver;
       _lifecycleHooks = lifecycleHooks ?? [];
-
-      // Initialize state hook lists
-      foreach (var state in Enum.GetValues<ServiceRunningState>())
-      {
-        _stateHooks[state] = [];
-      }
+      _disposeCleanupTimeout =
+          disposeCleanupTimeout ?? TimeSpan.FromMilliseconds(DefaultDisposeCleanupTimeoutMs);
     }
 
     public string Name => _name;
@@ -286,21 +291,13 @@ namespace FluentDocker.Services.Impl
     public IServiceAsync AddHook(ServiceRunningState state, Func<IServiceAsync, Task> hook, string uniqueName = null)
     {
       var name = uniqueName ?? Guid.NewGuid().ToString();
-      _hooks[name] = hook;
-      _stateHooks[state].Add(hook);
+      _hooks[name] = (state, hook);
       return this;
     }
 
     public IServiceAsync RemoveHook(string uniqueName)
     {
-      if (_hooks.TryGetValue(uniqueName, out var hook))
-      {
-        _hooks.Remove(uniqueName);
-        foreach (var stateList in _stateHooks.Values)
-        {
-          stateList.Remove(hook);
-        }
-      }
+      _hooks.Remove(uniqueName);
       return this;
     }
 
@@ -329,31 +326,53 @@ namespace FluentDocker.Services.Impl
 
     private async ValueTask DisposeCoreAsync()
     {
+      if (!_stopOnDispose && !_deleteOnDispose)
+        return;
+
+      // Bound the stop/remove cleanup so a hung or unresponsive daemon cannot block disposal
+      // indefinitely. WaitAsync enforces the bound even if the underlying driver call ignores
+      // cancellation; the abandoned operation continues in the background but disposal returns.
+      using var cleanupCts = new CancellationTokenSource(_disposeCleanupTimeout);
+
       if (_stopOnDispose &&
           (_state == ServiceRunningState.Running || _state == ServiceRunningState.Paused))
       {
+        var stopTask = StopAsync(cleanupCts.Token);
         try
         {
-          await StopAsync().ConfigureAwait(false);
+          await stopTask.WaitAsync(cleanupCts.Token).ConfigureAwait(false);
         }
         catch (Exception ex)
         {
           _logger.LogWarning(ex, "ContainerService stop on dispose failed");
+          ObserveAbandonedCleanup(stopTask);
         }
       }
 
       if (_deleteOnDispose)
       {
+        var removeTask = RemoveAsync(force: true, cleanupCts.Token);
         try
         {
-          await RemoveAsync(force: true).ConfigureAwait(false);
+          await removeTask.WaitAsync(cleanupCts.Token).ConfigureAwait(false);
         }
         catch (Exception ex)
         {
           _logger.LogWarning(ex, "ContainerService remove on dispose failed");
+          ObserveAbandonedCleanup(removeTask);
         }
       }
     }
+
+    // Trade-off: a driver that ignores cancellation keeps running after the WaitAsync timeout;
+    // we attach a fault-swallowing continuation so its eventual fault is observed and cannot
+    // resurface as an UnobservedTaskException mutating this already-disposed object.
+    private static void ObserveAbandonedCleanup(Task task) =>
+        _ = task.ContinueWith(
+            static t => _ = t.Exception,
+            CancellationToken.None,
+            TaskContinuationOptions.OnlyOnFaulted,
+            TaskScheduler.Default);
 
     #endregion
 
@@ -369,14 +388,14 @@ namespace FluentDocker.Services.Impl
 
     private async Task ExecuteHooksAsync(ServiceRunningState state)
     {
-      if (!_stateHooks.TryGetValue(state, out var hooks))
-        return;
-
-      foreach (var hook in hooks)
+      foreach (var entry in _hooks.Values)
       {
+        if (entry.State != state)
+          continue;
+
         try
         {
-          await hook(this).ConfigureAwait(false);
+          await entry.Hook(this).ConfigureAwait(false);
         }
         catch (Exception ex)
         {

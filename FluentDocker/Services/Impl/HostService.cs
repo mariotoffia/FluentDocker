@@ -161,12 +161,16 @@ namespace FluentDocker.Services.Impl
       var services = new List<IContainerService>();
       foreach (var container in response.Data)
       {
+        // Discovered/borrowed containers: this library did not create them, so disposing
+        // the wrapper must never stop or delete a user's running container.
         services.Add(new ContainerService(
             _kernel,
             _driverId,
             container.Id,
             container.Image,
-            container.Name));
+            container.Name,
+            stopOnDispose: false,
+            deleteOnDispose: false));
       }
 
       return services;

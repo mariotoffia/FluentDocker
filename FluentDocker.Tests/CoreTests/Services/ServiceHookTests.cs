@@ -55,22 +55,13 @@ namespace FluentDocker.Tests.CoreTests.Services
       await (Task)method.Invoke(service, [state])!;
     }
 
-    private static Dictionary<string, Func<IServiceAsync, Task>> GetHooksDictionary(
+    private static Dictionary<string, (ServiceRunningState State, Func<IServiceAsync, Task> Hook)> GetHooksDictionary(
         ContainerService service)
     {
       var field = typeof(ContainerService).GetField(
           "_hooks", BindingFlags.NonPublic | BindingFlags.Instance);
       Assert.NotNull(field);
-      return (Dictionary<string, Func<IServiceAsync, Task>>)field.GetValue(service)!;
-    }
-
-    private static Dictionary<ServiceRunningState, List<Func<IServiceAsync, Task>>>
-        GetStateHooksDictionary(ContainerService service)
-    {
-      var field = typeof(ContainerService).GetField(
-          "_stateHooks", BindingFlags.NonPublic | BindingFlags.Instance);
-      Assert.NotNull(field);
-      return (Dictionary<ServiceRunningState, List<Func<IServiceAsync, Task>>>)field.GetValue(service)!;
+      return (Dictionary<string, (ServiceRunningState State, Func<IServiceAsync, Task> Hook)>)field.GetValue(service)!;
     }
 
     // 1. AddHook — registering a hook for a specific state stores it
@@ -84,9 +75,7 @@ namespace FluentDocker.Tests.CoreTests.Services
 
         var hooks = GetHooksDictionary(service);
         Assert.True(hooks.ContainsKey("my-hook"));
-
-        var stateHooks = GetStateHooksDictionary(service);
-        Assert.Single(stateHooks[ServiceRunningState.Running]);
+        Assert.Equal(ServiceRunningState.Running, hooks["my-hook"].State);
       }
       finally { kernel.Dispose(); }
     }
@@ -103,9 +92,6 @@ namespace FluentDocker.Tests.CoreTests.Services
 
         var hooks = GetHooksDictionary(service);
         Assert.False(hooks.ContainsKey("removable"));
-
-        var stateHooks = GetStateHooksDictionary(service);
-        Assert.Empty(stateHooks[ServiceRunningState.Running]);
       }
       finally { kernel.Dispose(); }
     }
@@ -357,9 +343,7 @@ namespace FluentDocker.Tests.CoreTests.Services
 
         var hooks = GetHooksDictionary(service);
         Assert.True(hooks.ContainsKey("stored"));
-
-        var stateHooks = GetStateHooksDictionary(service);
-        Assert.Single(stateHooks[ServiceRunningState.Stopped]);
+        Assert.Equal(ServiceRunningState.Stopped, hooks["stored"].State);
       }
       finally { kernel.Dispose(); }
     }

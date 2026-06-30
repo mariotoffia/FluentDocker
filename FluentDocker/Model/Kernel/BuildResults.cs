@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using FluentDocker.Services;
 
@@ -14,7 +15,15 @@ namespace FluentDocker.Model.Kernel
   /// </remarks>
   public class BuildResults(List<BuildScope> scopes) : IAsyncDisposable, IDisposable
   {
+    /// <summary>
+    /// Total wall-clock budget (milliseconds) bounding the disposal of ALL services across all
+    /// scopes (containers, pods, networks, volumes, compose). Ensures a single hung daemon cannot
+    /// block teardown indefinitely.
+    /// </summary>
+    public const int DefaultDisposeBudgetMs = 60_000;
+
     private readonly List<BuildScope> _scopes = scopes ?? [];
+    private int _disposed;
 
     /// <summary>
     /// Gets all services across all scopes.
@@ -100,18 +109,27 @@ namespace FluentDocker.Model.Kernel
     /// <summary>
     /// Async disposal of all services.
     /// </summary>
+    /// <remarks>
+    /// Scopes (and the services within them) are disposed in reverse creation order, so that
+    /// dependents (e.g. containers) are torn down before their dependencies (e.g. the networks
+    /// and volumes they are attached to). This is a best-effort heuristic — reverse creation
+    /// order (idiomatic declare-before-use), not a topological dependency sort. Disposal is
+    /// best-effort and never throws: each <see cref="BuildScope"/> logs its own failures, and a
+    /// single <see cref="DefaultDisposeBudgetMs"/> budget bounds the total time so a hung daemon
+    /// cannot block teardown forever.
+    /// </remarks>
     public async ValueTask DisposeAsync()
     {
-      foreach (var service in All)
+      if (Interlocked.CompareExchange(ref _disposed, 1, 0) != 0)
       {
-        if (service is IAsyncDisposable asyncDisposable)
-        {
-          await asyncDisposable.DisposeAsync().ConfigureAwait(false);
-        }
-        else
-        {
-          service?.Dispose();
-        }
+        return;
+      }
+
+      using var cts = new CancellationTokenSource(DefaultDisposeBudgetMs);
+
+      for (var i = _scopes.Count - 1; i >= 0; i--)
+      {
+        await _scopes[i].DisposeAllAsync(cts.Token).ConfigureAwait(false);
       }
 
       GC.SuppressFinalize(this);
@@ -126,12 +144,20 @@ namespace FluentDocker.Model.Kernel
     }
 
     /// <summary>
-    /// Sync disposal (calls async version).
+    /// Sync disposal. Disposes scopes in reverse creation order; best-effort and never throws.
     /// </summary>
     public void Dispose()
     {
-      // Dispatched to the thread pool to avoid sync-over-async deadlocks.
-      Task.Run(() => DisposeAsync().AsTask()).GetAwaiter().GetResult();
+      if (Interlocked.CompareExchange(ref _disposed, 1, 0) != 0)
+      {
+        return;
+      }
+
+      for (var i = _scopes.Count - 1; i >= 0; i--)
+      {
+        _scopes[i].DisposeAll();
+      }
+
       GC.SuppressFinalize(this);
     }
 
