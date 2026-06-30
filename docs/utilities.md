@@ -58,10 +58,6 @@ var customPath = new TemplateString("${E_MY_VAR}/data");
 // If the environment variable is not set, the token remains unexpanded
 var path = new TemplateString("${E_CUSTOM_PATH}");
 // Expands to: value of CUSTOM_PATH env var, or literal "${E_CUSTOM_PATH}" if unset
-
-// Combine with other variables
-var config = new TemplateString("${E_CONFIG_DIR}/data");
-// Expands to: <CONFIG_DIR value>/data
 ```
 
 ### Supported Variables

@@ -243,6 +243,7 @@ var results = new Builder()
 |-----------|-----------|
 | `container.Resume()` | `container.Start()` |
 | `container.Pause()` | `await container.PauseAsync()` |
+| `container.Remove()` | `await container.RemoveAsync()` |
 | `container.Logs()` | `await container.GetLogsAsync()` |
 | `container.ExecAsync(...)` | `await container.ExecuteAsync(...)` |
 | `container.CopyFromAsync(containerPath, hostPath)` | `await container.CopyFromToPathAsync(containerPath, hostPath)` |
@@ -543,10 +544,6 @@ granularity:
 }
 ```
 
-The factory built from `appsettings.json` is passed to
-`FluentDockerKernel.Create(factory)` -- the configuration does not flow into
-the library automatically.
-
 ### Package reference
 
 Ensure the consumer project has the MEL abstractions package (transitively
@@ -582,88 +579,6 @@ After all changes:
 
 ---
 
-## Complete API Mapping Reference
-
-### Namespace mapping
-
-| v2 | v3 |
-|----|-----|
-| `Ductus.FluentDocker.Builders` | `FluentDocker.Builders` |
-| `Ductus.FluentDocker.Services` | `FluentDocker.Services` |
-| `Ductus.FluentDocker.Model.*` | `FluentDocker.Model.*` |
-| `Ductus.FluentDocker.Commands` | Removed (use driver layer) |
-| `Ductus.FluentDocker.MsTest` | `FluentDocker.Testing.MsTest` |
-| `Ductus.FluentDocker.XUnit` | `FluentDocker.Testing.Xunit` |
-| (new) | `FluentDocker.Kernel` |
-| (new) | `FluentDocker.Services.Extensions` |
-
-### Builder method mapping
-
-| v2 | v3 |
-|----|-----|
-| `new Builder().UseContainer()` | `new Builder().WithinDriver("docker", kernel).UseContainer(c => ...)` |
-| `.UseImage("x")` | `c.UseImage("x")` (inside lambda) |
-| `.ExposePort(80)` | `c.ExposePort("80")` (string) |
-| `.WaitForPort("80/tcp", ms)` | `c.WaitForPort("80/tcp", ms)` |
-| `.Build().Start()` | `.Build()` or `.BuildAsync()` |
-| `.UseCompose().FromFile("x")` | `.UseCompose(c => c.WithComposeFile("x"))` |
-| `.UseNetwork("name")` | `.UseNetwork(n => n.WithName("name"))` |
-| `.UseVolume("name")` | `.UseVolume(v => v.WithName("name"))` |
-| `.DefineImage("tag")` | `.UseImage("tag", img => ...)` |
-
-### Service method mapping
-
-| v2 | v3 |
-|----|-----|
-| `container.Start()` | `await container.StartAsync()` |
-| `container.Stop()` | `await container.StopAsync()` |
-| `container.Resume()` | `container.Start()` (sync) or `await container.StartAsync()` |
-| `container.Pause()` | `await container.PauseAsync()` |
-| `container.Remove()` | `await container.RemoveAsync()` |
-| `container.Logs()` | `await container.GetLogsAsync()` |
-| `container.ExecAsync(...)` | `await container.ExecuteAsync(...)` |
-| `container.CopyFromAsync(a, b)` | `await container.CopyFromToPathAsync(a, b)` |
-| `container.GetRunningProcesses()` | `await container.ExecuteAsync("ps", "-ef")` -- no direct equivalent; workaround is `ExecuteAsync` |
-| `container.Export()` | `await container.ExportAsync()` |
-
-### Stats model mapping
-
-| v2 | v3 |
-|----|-----|
-| `stats.CpuPercent` | `stats.Cpu.UsagePercent` |
-| `stats.MemoryUsage` | `stats.Memory.Usage` |
-| `stats.MemoryLimit` | `stats.Memory.Limit` |
-| `stats.MemoryPercent` | `stats.Memory.UsagePercent` |
-| `stats.NetworkRx` | `stats.Network.RxBytes` |
-| `stats.NetworkTx` | `stats.Network.TxBytes` |
-| `stats.BlockRead` | `stats.Disk.ReadBytes` |
-| `stats.BlockWrite` | `stats.Disk.WriteBytes` |
-
-### Compose method mapping
-
-| v2 | v3 Builder |
-|----|-----------|
-| `.FromFile("x")` | `.WithComposeFile("x")` |
-| `.RemoveOrphans()` | `.WithRemoveOrphans()` |
-| `.WaitForHttp("svc", "url")` | `.WithWait()` + compose healthchecks |
-| `.ForceRecreate()` | `.WithForceRecreate()` |
-| `.Build().Start()` | `.Build()` (auto-starts) |
-| `host.ComposeUp(...)` | `composeDriver.UpAsync(ctx, config)` |
-| `host.ComposeDown(...)` | `composeDriver.DownAsync(ctx, config)` |
-| `host.ComposeBuild(...)` | `composeDriver.BuildAsync(ctx, config)` |
-
-### Removed APIs (no v3 equivalent)
-
-| v2 API | Reason |
-|--------|--------|
-| `new Hosts().Discover()`, `IMachineDriver` | Docker Machine removed |
-| `DockerToolbox`, `DOCKER_TOOLBOX_INSTALL_PATH` | Docker Toolbox removed |
-| `Ductus.FluentDocker.Commands.*` | Replaced by driver layer |
-| `SudoMechanism.SetSudo()` | Configure via kernel `.WithSudo()` |
-| `docker-compose` (V1 binary) | V3 uses `docker compose` (V2) |
-
----
-
 ## Step 15: Migrate test support packages
 
 Legacy test packages have been removed. Use the new packages:
@@ -681,4 +596,4 @@ Key changes:
 - New core namespace: `FluentDocker.Testing.Core` (inside main assembly)
 - Plugin system: `FluentDocker.Testing.Core.Plugins`
 
-See `docs/testing/migration-from-legacy.md` for complete side-by-side examples.
+See [api-mapping.md](api-mapping.md) for the complete v2-to-v3 API mapping, and `docs/testing/migration-from-legacy.md` for side-by-side examples.
