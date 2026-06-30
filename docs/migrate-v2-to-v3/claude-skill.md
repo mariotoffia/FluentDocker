@@ -20,7 +20,7 @@ step so the user can review incrementally.
 
 Search the entire codebase for files that reference FluentDocker:
 
-```
+```text
 Grep for: Ductus\.FluentDocker
 Grep for: FluentDocker\.Builders\.Builder
 Grep for: using Ductus\.FluentDocker
@@ -475,7 +475,7 @@ one. There is no library-side default; consumers who want silence must pass
 
 Search for and delete every occurrence of these statements:
 
-```
+```text
 Grep for: Logging\.Enabled\(\)
 Grep for: Logging\.Disabled\(\)
 Grep for: using FluentDocker\.Common;\s*$    (only if Logger was its sole use)

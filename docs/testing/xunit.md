@@ -406,7 +406,10 @@ public sealed class SmolLmModelTests : IAsyncLifetime
         Assert.SkipWhen(_skipped, "Docker Model Runner is not running.");
         var ct = TestContext.Current.CancellationToken;
 
-        var vector = await _fixture.Resource.Runner.EmbedAsync("hello world", null, ct);
+        // Embeddings need an embedding model, not the chat default. Pull it once, then embed against it.
+        var embedModel = ModelReference.Parse("ai/embeddinggemma");
+        await _fixture.Resource.Runner.PullAsync(embedModel, cancellationToken: ct);
+        var vector = await _fixture.Resource.Runner.EmbedAsync("hello world", embedModel, ct);
         Assert.NotEmpty(vector);
     }
 }

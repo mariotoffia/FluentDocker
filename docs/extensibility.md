@@ -11,7 +11,7 @@ FluentDocker's extensibility model lets drivers expose custom interfaces and bui
 
 ## Step by Step
 
-This is an advanced guide. Complete [Architecture](architecture.html) before implementing custom extensions.
+This is an advanced guide. Complete [Architecture](architecture.md) before implementing custom extensions.
 
 - Foundation: [Architecture Overview](#architecture-overview), [Interface Resolution](#interface-resolution), [Driver-Aware Builders](#driver-aware-builders)
 - Implementation: [Writing Custom Extensions](#writing-custom-extensions), [Real-World Example: Multi-Driver Deployment](#real-world-example-multi-driver-deployment)
@@ -19,7 +19,7 @@ This is an advanced guide. Complete [Architecture](architecture.html) before imp
 
 ## Architecture Overview
 
-```
+```text
                                  ┌──────────────────────────────┐
                                  │   Extension Methods          │
                                  │   .UsePod("my-pod")          │

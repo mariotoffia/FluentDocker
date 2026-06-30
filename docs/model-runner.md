@@ -46,7 +46,7 @@ await using var runner = await new Builder()
     .WithinDriver("docker", kernel)
     .UseModelRunner()
     .ForModel("ai/smollm2")
-    .WithContextSize(8192)        // recommended on DMR v1.2.1 chat models
+    .WithContextSize(8192)        // required; value is model-dependent (use a size your model supports)
     .PullIfMissing()             // optional — pulls at build if absent
     .BuildAsync();               // async — avoids sync-over-async on the model pull
 

@@ -12,7 +12,7 @@ How to migrate FluentDocker v2.x.x test code to v3.0.0.
 > **Note:** The legacy `Ductus.FluentDocker.MsTest` and `Ductus.FluentDocker.XUnit` packages
 > have been removed. The examples below show the builder-level API changes.
 > For test support, use the new `FluentDocker.Testing.*` packages. See
-> [Migration from Legacy](../testing/migration-from-legacy.html) for
+> [Migration from Legacy](../testing/migration-from-legacy.md) for
 > side-by-side adapter examples.
 
 This guide covers the most common test patterns and shows side-by-side v2 vs v3
@@ -432,7 +432,7 @@ public class NginxTests : IClassFixture<NginxFixture>
 - Container configuration via lambda in `InitializeAsync` instead of `Build()` override.
 - Extension methods like `ToHostExposedEndpoint` require `using FluentDocker.Services.Extensions`.
 
-> **Tip:** For new code, prefer the `Configure(...)` pattern shown in [docs/testing/xunit.md](../testing/xunit.html) — avoids deadlock risk vs. sync-over-async in constructors.
+> **Tip:** For new code, prefer the `Configure(...)` pattern shown in [docs/testing/xunit.md](../testing/xunit.md) — avoids deadlock risk vs. sync-over-async in constructors.
 
 ---
 
@@ -594,6 +594,6 @@ pattern from section 2 but use `.UseCompose()` instead of `.UseContainer()`.
 
 ## Next Steps
 
-- [Migration Guide](../migration.html) -- full API migration reference
-- [Testing](../testing.html) -- complete v3 test documentation
-- [Docker Compose](../compose.html) -- compose patterns and examples
+- [Migration Guide](../migration.md) -- full API migration reference
+- [Testing](../testing.md) -- complete v3 test documentation
+- [Docker Compose](../compose.md) -- compose patterns and examples

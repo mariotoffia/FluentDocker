@@ -476,7 +476,7 @@ services:
       POSTGRES_PASSWORD: ${DB_PASSWORD}
 ```
 
-```
+```bash
 # .env file in same directory
 DB_PASSWORD=mysecret
 ```
@@ -594,6 +594,6 @@ public class UserApiTests : IntegrationTestBase
 ```
 
 ## Next Steps
-- [Containers](containers.html) - Individual container management
-- [Networking](networking.html) - Custom networks
-- [Volumes](volumes.html) - Data persistence
+- [Containers](containers.md) - Individual container management
+- [Networking](networking.md) - Custom networks
+- [Volumes](volumes.md) - Data persistence

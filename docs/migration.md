@@ -26,7 +26,7 @@ This guide helps you migrate from v2.x.x to v3.0.0.
 | Docker Toolbox removed | HIGH | Use Docker Desktop |
 | Commands namespace removed | HIGH | Use Driver Layer |
 | Compose: struct-based arguments | MEDIUM | Update Compose calls |
-| Legacy test packages removed | HIGH | Use `FluentDocker.Testing.*` adapters ([details](testing/migration-from-legacy.html)) |
+| Legacy test packages removed | HIGH | Use `FluentDocker.Testing.*` adapters ([details](testing/migration-from-legacy.md)) |
 | `FluentDockerTestBase` base class removed | HIGH | Use `XunitContainerFixture` / `MsTestResourceHelpers` / `NUnitResourceHelpers` (or generic `XunitResourceFixture<T>` / `CreateResourceAsync<T>`) |
 | xUnit v3: `IAsyncLifetime` returns `ValueTask` | MEDIUM | Update `Task` → `ValueTask` |
 
@@ -223,7 +223,7 @@ public class RedisFixture : XunitContainerFixture
 ```
 
 > **Tip:** For new code, prefer the `Configure(...)` pattern shown in
-> [docs/testing/xunit.md](testing/xunit.html) instead of the sync-over-async
+> [docs/testing/xunit.md](testing/xunit.md) instead of the sync-over-async
 > constructor — it avoids deadlock risk in some sync contexts.
 
 ### MSTest — `MsTestResourceHelpers`
@@ -259,7 +259,7 @@ public class RedisTests
 }
 ```
 
-See [Test Migration Guide](migrate-v2-to-v3/test-migration.html) for NUnit, Compose,
+See [Test Migration Guide](migrate-v2-to-v3/test-migration.md) for NUnit, Compose,
 and collection fixture examples.
 
 ## Step 6: Remove Docker Machine Code
@@ -353,7 +353,7 @@ The factory is automatically propagated through `DriverContext.LoggerFactory`
 to all driver packs and component drivers, so third-party `IDriverPack`
 implementations receive it without any interface change. Each FluentDocker type
 uses its FQN as its log category for fine-grained filtering — see
-[Utilities → Logging](utilities.html#logging) for details.
+[Utilities → Logging](utilities.md#logging) for details.
 
 ## Removed Features
 
@@ -441,12 +441,12 @@ var stats = await container.GetStatsAsync();
 
 For in-depth migration guidance, see these companion documents:
 
-- [Complete API Mapping](migrate-v2-to-v3/api-mapping.html) — exhaustive v2 → v3 method and type mapping reference
-- [Code Examples (Before/After)](migrate-v2-to-v3/code-examples.html) — side-by-side migration examples for common patterns
-- [Test Migration Guide](migrate-v2-to-v3/test-migration.html) — xUnit, MSTest, and fixture migration patterns
-- [Claude Code Migration Skill](migrate-v2-to-v3/claude-skill.html) — automated migration assistant (copy to `.claude/skills/` and invoke `/migrate-v2-to-v3`)
+- [Complete API Mapping](migrate-v2-to-v3/api-mapping.md) — exhaustive v2 → v3 method and type mapping reference
+- [Code Examples (Before/After)](migrate-v2-to-v3/code-examples.md) — side-by-side migration examples for common patterns
+- [Test Migration Guide](migrate-v2-to-v3/test-migration.md) — xUnit, MSTest, and fixture migration patterns
+- [Claude Code Migration Skill](migrate-v2-to-v3/claude-skill.md) — automated migration assistant (copy to `.claude/skills/` and invoke `/migrate-v2-to-v3`)
 
 ## Getting Help
 
-- [Full Documentation](index.html)
+- [Full Documentation](index.md)
 - [GitHub Issues](https://github.com/mariotoffia/FluentDocker/issues)

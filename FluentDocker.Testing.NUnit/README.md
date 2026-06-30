@@ -127,7 +127,10 @@ public sealed class SmolLmModelTests
   [Test]
   public async Task Embed_ReturnsVector()
   {
-    var vector = await _model!.Runner.EmbedAsync("hello world");
+    // Embeddings need an embedding model, not the chat default. Pull it once, then embed against it.
+    var embedModel = ModelReference.Parse("ai/embeddinggemma");
+    await _model!.Runner.PullAsync(embedModel);
+    var vector = await _model!.Runner.EmbedAsync("hello world", embedModel);
     Assert.That(vector, Is.Not.Empty);
   }
 }
@@ -136,4 +139,5 @@ public sealed class SmolLmModelTests
 `_model.Service` is the underlying `IModelService`; `_model.Model` is the parsed
 `ModelReference`; `_model.Runner` is the `IModelRunner` for chat/embeddings.
 
-Full docs: `docs/testing/nunit.md`. Model testing guide: `docs/testing/model.md`.
+Full docs: [docs/testing/nunit.md](../docs/testing/nunit.md). Model testing guide:
+[docs/testing/model.md](../docs/testing/model.md).

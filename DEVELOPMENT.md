@@ -88,4 +88,4 @@ The project uses modern NuGet packaging with the following features:
 1. Package icon: The icon is stored in the `icon/fluent-docker.png` file and included in the packages.
 2. README files: Each project includes its README.md in the package.
 3. Source Link: Source code is linked to GitHub repositories for debugging.
-4. Versioning: Uses GitVersion for automatic versioning.
+4. Versioning: A single `<Version>` in `Directory.Build.props` is the source of truth. CI reads it via `dotnet msbuild -getProperty:Version` for both `dotnet pack` and the git tag. No GitVersion.

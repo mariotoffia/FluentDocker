@@ -596,6 +596,6 @@ using var cache = ContainerFactory.CreateRedis(kernel);
 
 ## Next Steps
 
-- [Getting Started](getting-started.html) - Quick start guide
-- [Containers](containers.html) - Container management
-- [Testing](testing.html) - Test support
+- [Getting Started](getting-started.md) - Quick start guide
+- [Containers](containers.md) - Container management
+- [Testing](testing.md) - Test support

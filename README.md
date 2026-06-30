@@ -15,9 +15,9 @@
 
 ---
 
-## What's New in 3.2.0 — Local LLMs
+## What's New in 3.2.0 (in development) — Local LLMs
 
-FluentDocker now manages and consumes **local LLMs** through Docker Model Runner — and
+FluentDocker manages and consumes **local LLMs** through Docker Model Runner — and
 **any OpenAI-compatible runner** (vLLM, LM Studio, a bare `llama-server`, hosted) — behind
 the same `Builder → WithinDriver → UseXxx` pattern. Hold a real multi-turn conversation in
 a few lines:
@@ -244,7 +244,7 @@ await container.CopyToAsync("/local/file", "/container/file");
 await container.CopyToAsync("/local/dir", "/container/dir");  // v3: directories
 
 // Copy from container
-await container.CopyFromAsync("/container/file", "/local/file");
+await container.CopyFromToPathAsync("/container/file", "/local/file");
 ```
 
 ### Image Building
@@ -521,7 +521,7 @@ public class MyRedisFixture : XunitContainerFixtureBase
   protected override void ConfigureContainer(IContainerBuilder builder)
     => builder
         .UseImage("redis:alpine")
-        .ExposePort(6379)
+        .ExposePort("6379")
         .WaitForPort("6379/tcp");
 }
 
@@ -532,7 +532,7 @@ public class MyRedisFixture : XunitContainerFixture
   {
     Configure(builder => builder
         .UseImage("redis:alpine")
-        .ExposePort(6379)
+        .ExposePort("6379")
         .WaitForPort("6379/tcp"));
   }
 }

@@ -595,6 +595,6 @@ public class NetworkIsolatedTest : IDisposable
 
 ## Next Steps
 
-- [Volumes](volumes.html) - Data persistence
-- [Containers](containers.html) - Container management
-- [Docker Compose](compose.html) - Multi-container orchestration
+- [Volumes](volumes.md) - Data persistence
+- [Containers](containers.md) - Container management
+- [Docker Compose](compose.md) - Multi-container orchestration

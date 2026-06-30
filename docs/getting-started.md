@@ -7,7 +7,7 @@ nav_order: 3
 # Getting Started
 
 This guide helps you install FluentDocker and run your first container.
-For the complete beginner-to-advanced map, see [Learning Path](learning-path.html).
+For the complete beginner-to-advanced map, see [Learning Path](learning-path.md).
 
 ## Read This Guide in Order
 
@@ -248,7 +248,7 @@ foreach (var compose in results.ComposeServices)
 }
 ```
 
-See [Docker Compose](compose.html) for detailed examples.
+See [Docker Compose](compose.md) for detailed examples.
 
 ## Logging
 
@@ -286,7 +286,7 @@ var silent = await FluentDockerKernel.Create(NullLoggerFactory.Instance)
     .BuildAsync();
 ```
 
-See [Utilities → Logging](utilities.html#logging) for filtering, categories,
+See [Utilities → Logging](utilities.md#logging) for filtering, categories,
 and the per-level severity policy.
 
 ## Exception Handling
@@ -396,10 +396,10 @@ container with `WithModel(...)`. See the full guide for details.
 
 ## Next Steps
 
-- [Containers](containers.html) - Container lifecycle, configuration, and operations
-- [Docker Compose](compose.html) - Multi-container orchestration
-- [Networking](networking.html) - Custom networks and static IPs
-- [Volumes](volumes.html) - Data persistence
-- [Images](images.html) - Building custom images
-- [Model Runner (local LLMs)](model-runner.html) - Managing & consuming local models
-- [Testing](testing.html) - Test fixtures and base classes
+- [Containers](containers.md) - Container lifecycle, configuration, and operations
+- [Docker Compose](compose.md) - Multi-container orchestration
+- [Networking](networking.md) - Custom networks and static IPs
+- [Volumes](volumes.md) - Data persistence
+- [Images](images.md) - Building custom images
+- [Model Runner (local LLMs)](model-runner.md) - Managing & consuming local models
+- [Testing](testing.md) - Test fixtures and base classes

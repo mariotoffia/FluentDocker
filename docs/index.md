@@ -18,9 +18,18 @@ FluentDocker is a .NET library providing a fluent API for Docker and Docker Comp
 
 Start with this sequence:
 
-1. [Learning Path](learning-path.html) for a beginner-to-advanced map
-2. [Getting Started](getting-started.html) for your first working container
-3. One focused topic: [Containers](containers.html) or [Compose](compose.html)
+1. [Learning Path](learning-path.md) for a beginner-to-advanced map
+2. [Getting Started](getting-started.md) for your first working container
+3. One focused topic: [Containers](containers.md) or [Compose](compose.md)
+
+## What's New in 3.2.0 (in development)
+
+3.2.0 is **in development** and **not yet on NuGet** (latest published: 3.1.0). Build
+from source on the feature branch to try it.
+
+- **Docker Model Runner (local LLMs)** — manage and consume local models behind the
+  same `Builder → WithinDriver → UseModelRunner()` pattern: chat, streaming chat, and
+  embeddings. See [Model Runner](model-runner.md) *(preview)*.
 
 ## What's New in v3.0.0
 
@@ -35,7 +44,7 @@ Start with this sequence:
 - **Directory copy** support (recursive)
 - **Docker Compose V2** — uses `docker compose`
 
-See the [Migration Guide](migration.html) for upgrading from v2.x.
+See the [Migration Guide](migration.md) for upgrading from v2.x.
 
 ## Quick Start (Beginner)
 
@@ -136,36 +145,36 @@ dotnet add package FluentDocker.Testing.NUnit   # NUnit adapter
 
 | Topic | Description |
 |-------|-------------|
-| [Learning Path](learning-path.html) | Recommended beginner to advanced journey |
-| [Getting Started](getting-started.html) | Installation, prerequisites, first container |
-| [Containers](containers.html) | Core lifecycle, ports, env vars, waits |
-| [Docker Compose](compose.html) | First multi-service workflow |
+| [Learning Path](learning-path.md) | Recommended beginner to advanced journey |
+| [Getting Started](getting-started.md) | Installation, prerequisites, first container |
+| [Containers](containers.md) | Core lifecycle, ports, env vars, waits |
+| [Docker Compose](compose.md) | First multi-service workflow |
 
 ### Level 2: Daily Usage
 
 | Topic | Description |
 |-------|-------------|
-| [Networking](networking.html) | Networks, aliases, static IPs |
-| [Volumes](volumes.html) | Persistence and bind mounts |
-| [Images](images.html) | Build image workflows |
-| [Model Runner (LLMs)](model-runner.html) | Manage and consume local LLMs via Docker Model Runner *(preview, v3.2 — not yet released)* |
-| [Testing](testing.html) | Testing.Core and adapters |
-| [Utilities](utilities.html) | Helpers and extension methods |
-| [Error Handling](architecture.html#error-handling) | Exceptions and error codes |
+| [Networking](networking.md) | Networks, aliases, static IPs |
+| [Volumes](volumes.md) | Persistence and bind mounts |
+| [Images](images.md) | Build image workflows |
+| [Model Runner (LLMs)](model-runner.md) | Manage and consume local LLMs via Docker Model Runner *(preview, v3.2 — not yet released)* |
+| [Testing](testing.md) | Testing.Core and adapters |
+| [Utilities](utilities.md) | Helpers and extension methods |
+| [Error Handling](architecture.md#error-handling) | Exceptions and error codes |
 
 ### Level 3: Advanced
 
 | Topic | Description |
 |-------|-------------|
-| [Architecture](architecture.html) | Kernel/driver internals and async model |
-| [Driver Extensibility](extensibility.html) | Driver-aware extension model |
-| [Migration](migration.html) | Upgrade from v2.x to v3.x |
+| [Architecture](architecture.md) | Kernel/driver internals and async model |
+| [Driver Extensibility](extensibility.md) | Driver-aware extension model |
+| [Migration](migration.md) | Upgrade from v2.x to v3.x |
 
 ## Architecture
 
 FluentDocker uses a three-layer architecture:
 
-```
+```text
 ┌─────────────────────────────────┐
 │         Fluent API              │  Builder pattern
 ├─────────────────────────────────┤
@@ -195,7 +204,7 @@ Or avoid sudo entirely: `sudo usermod -aG docker $USER`
 
 - [GitHub Repository](https://github.com/mariotoffia/FluentDocker)
 - [NuGet Package](https://www.nuget.org/packages/FluentDocker)
-- [Architecture Docs](architecture.html)
+- [Architecture Docs](architecture.md)
 
 ## License
 

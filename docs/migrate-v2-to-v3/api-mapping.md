@@ -337,7 +337,7 @@ v3 adds first-class async support with `CancellationToken` throughout.
 |---|---|
 | Mostly synchronous | All operations have async variants |
 | No `CancellationToken` support | All async methods accept `CancellationToken` |
-| `using var svc = builder.Build()` | `using var results = await builder.BuildAsync(ct)` |
+| `using var svc = builder.Build()` | `using var results = await builder.BuildAsync(cancellationToken: ct)` |
 | `IDisposable` cleanup | `IAsyncDisposable` preferred (sync `IDisposable` still supported) |
 
 ### Sync vs. Async Build
@@ -353,7 +353,7 @@ using var results = new Builder()
 using var results = await new Builder()
     .WithinDriver("docker", kernel)
     .UseContainer(c => c.UseImage("redis:alpine"))
-    .BuildAsync(cancellationToken);
+    .BuildAsync(cancellationToken: cancellationToken);
 ```
 
 ### CancellationToken

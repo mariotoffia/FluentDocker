@@ -44,7 +44,7 @@ references). Minimal consumer `.csproj`:
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.12.0" />
     <PackageReference Include="MSTest.TestAdapter" Version="3.7.3" />
     <PackageReference Include="MSTest.TestFramework" Version="3.7.3" />
-    <PackageReference Include="FluentDocker.Testing.MsTest" Version="3.2.0" />
+    <PackageReference Include="FluentDocker.Testing.MsTest" Version="3.*" />
   </ItemGroup>
 
 </Project>
@@ -280,7 +280,10 @@ public sealed class SmolLmTests
     public async Task Embeds_Vector()
     {
         Assert.IsNotNull(_model);
-        var vector = await _model!.Runner.EmbedAsync("hello world");
+        // Embeddings need an embedding model, not the chat default. Pull it once, then embed against it.
+        var embedModel = ModelReference.Parse("ai/embeddinggemma");
+        await _model!.Runner.PullAsync(embedModel);
+        var vector = await _model!.Runner.EmbedAsync("hello world", embedModel);
         Assert.IsTrue(vector.Count > 0);
     }
 }

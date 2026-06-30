@@ -475,6 +475,6 @@ public class CustomImageTest : IDisposable
 
 ## Next Steps
 
-- [Containers](containers.html) - Using built images with containers
-- [Docker Compose](compose.html) - Multi-container orchestration
-- [Testing](testing.html) - Test fixtures and base classes
+- [Containers](containers.md) - Using built images with containers
+- [Docker Compose](compose.md) - Multi-container orchestration
+- [Testing](testing.md) - Test fixtures and base classes

@@ -436,7 +436,10 @@ await foreach (var token in resource.Runner.ChatStreamAsync("Count from one to f
     tokens.Add(token);
 Assert.True(tokens.Count > 1);
 
-var vector = await resource.Runner.EmbedAsync("hello world", null, ct);
+// Embeddings need an embedding model, not the chat default. Pull it once, then embed against it.
+var embedModel = ModelReference.Parse("ai/embeddinggemma");
+await resource.Runner.PullAsync(embedModel, cancellationToken: ct);
+var vector = await resource.Runner.EmbedAsync("hello world", embedModel, ct);
 Assert.NotEmpty(vector);
 ```
 

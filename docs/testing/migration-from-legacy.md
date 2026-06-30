@@ -101,7 +101,7 @@ public class RedisTests : IClassFixture<RedisFixture>
 }
 ```
 
-> **Tip:** For new code, prefer the `Configure()` pattern shown in [xUnit Testing](../testing/xunit.html) which avoids the `GetAwaiter().GetResult()` blocking call.
+> **Tip:** For new code, prefer the `Configure()` pattern shown in [xUnit Testing](../testing/xunit.md) which avoids the `GetAwaiter().GetResult()` blocking call.
 
 **What changed:**
 

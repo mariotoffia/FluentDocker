@@ -93,11 +93,13 @@ public sealed class ChatModelTests : IClassFixture<ChatModelFixture>
 
 ## Docker Model Runner end-to-end
 
-A complete, nullable-enabled test that probes Docker Model Runner, skips
-cleanly when it is not running (unless `FLUENTDOCKER_REQUIRE_DMR=1` forces a
-hard fail), loads `ai/smollm2:latest` via `ModelResource`, and chats with it.
-The fixture's `IAsyncLifetime.DisposeAsync` unloads the model and disposes the
-kernel automatically.
+`IClassFixture<>` initializes the fixture *before* the test body runs, so it
+cannot reach `Assert.Skip` when the runner is down — the fixture fails first. For
+a suite that skips cleanly (or hard-fails under `FLUENTDOCKER_REQUIRE_DMR=1`),
+drive `XunitResourceFixture<ModelResource>` manually: probe Docker Model Runner in
+`InitializeAsync`, skip *before* constructing the resource, and only call
+`fixture.InitializeAsync(...)` once the runner answers. The fixture's `DisposeAsync`
+unloads the model and disposes the kernel.
 
 ```csharp
 #nullable enable
@@ -112,59 +114,68 @@ using FluentDocker.Testing.Core;
 using FluentDocker.Testing.Xunit;
 using Xunit;
 
-public sealed class SmolLmFixture : XunitResourceFixture<ModelResource>
+[Trait("Category", "Integration")]
+[Trait("Requires", "Dmr")]
+public sealed class SmolLmModelTests : IAsyncLifetime
 {
-  public SmolLmFixture()
-      => Configure(k => new ModelResource(k, "ai/smollm2:latest",
-          m => m.WithContextSize(4096)));
-}
+    private readonly XunitResourceFixture<ModelResource> _fixture = new();
+    private bool _skipped;
 
-public sealed class SmolLmTests : IClassFixture<SmolLmFixture>
-{
-  private readonly SmolLmFixture _f;
-  public SmolLmTests(SmolLmFixture f) => _f = f;
+    public async ValueTask InitializeAsync()
+    {
+        var ct = TestContext.Current.CancellationToken;
 
-  // Probe Docker Model Runner up front. Skip the suite when it is unavailable,
-  // unless FLUENTDOCKER_REQUIRE_DMR=1 — then a missing runner hard-fails so a
-  // broken DMR path cannot pass CI green with zero real coverage.
-  private static async Task RequireRunnerAsync(CancellationToken ct)
-  {
-    await using var kernel = await ResourceLifecycle.CreateDefaultDockerKernelAsync();
-    var driverId = kernel.DefaultDriverId;
-    var runtime = kernel.SysCtl<IModelRuntimeDriver>(driverId);
-    var status = await runtime.StatusAsync(new DriverContext(driverId), ct);
-    var running = status.Success && status.Data.Running;
+        // Probe DMR through its runtime port on a throwaway kernel, BEFORE the
+        // resource is created — so an absent runner skips instead of failing.
+        await using (var probe = await ResourceLifecycle.CreateDefaultDockerKernelAsync())
+        {
+            var driverId = probe.DefaultDriverId;
+            var runtime = probe.SysCtl<IModelRuntimeDriver>(driverId);
+            var status = await runtime.StatusAsync(new DriverContext(driverId), ct);
 
-    if (running)
-      return;
+            if (!(status.Success && status.Data.Running))
+            {
+                // PR/local lanes skip; must-run lanes set FLUENTDOCKER_REQUIRE_DMR=1 → hard-fail.
+                if (string.IsNullOrEmpty(Environment.GetEnvironmentVariable("FLUENTDOCKER_REQUIRE_DMR")))
+                {
+                    _skipped = true;
+                    return; // no resource created → DisposeAsync is a no-op
+                }
 
-    if (string.IsNullOrEmpty(Environment.GetEnvironmentVariable("FLUENTDOCKER_REQUIRE_DMR")))
-      Assert.Skip("Docker Model Runner is not running.");
+                throw new InvalidOperationException(
+                    "FLUENTDOCKER_REQUIRE_DMR=1 but Docker Model Runner is not running.");
+            }
+        }
 
-    throw new InvalidOperationException(
-        "FLUENTDOCKER_REQUIRE_DMR=1 but Docker Model Runner is not running.");
-  }
+        // Runner is up — load the model. Pin a context size to dodge the DMR
+        // v1.2.1 auto-fit crash on chat models loaded without one.
+        await _fixture.InitializeAsync(
+            k => new ModelResource(k, "ai/smollm2:latest", m => m.WithContextSize(4096)),
+            cancellationToken: ct);
+    }
 
-  [Fact]
-  public async Task Smollm_Chats()
-  {
-    var ct = TestContext.Current.CancellationToken;
-    await RequireRunnerAsync(ct);
+    public ValueTask DisposeAsync() => _fixture.DisposeAsync();
 
-    // resource.Model is the parsed ModelReference; resource.Runner / resource.Service
-    // are the live handles. The fixture disposes (unloads) the model after the class.
-    Assert.Equal("ai/smollm2:latest", _f.Resource.Model.ToString());
+    [Fact]
+    public async Task Smollm_Chats()
+    {
+        Assert.SkipWhen(_skipped, "Docker Model Runner is not running.");
+        var ct = TestContext.Current.CancellationToken;
 
-    var reply = await _f.Resource.Runner.ChatAsync("Reply with a single word.", ct);
-    Assert.False(string.IsNullOrWhiteSpace(reply));
-  }
+        // resource.Model is the parsed ModelReference; resource.Runner / resource.Service
+        // are the live handles. The fixture unloads the model after the class.
+        Assert.Equal("ai/smollm2:latest", _fixture.Resource.Model.ToString());
+
+        var reply = await _fixture.Resource.Runner.ChatAsync("Reply with a single word.", ct);
+        Assert.False(string.IsNullOrWhiteSpace(reply));
+    }
 }
 ```
 
-> The fixture (`IClassFixture<>`) loads the model before tests run, so when the
-> runner is down the *fixture* fails rather than reaching `Assert.Skip`. For a
-> truly skip-or-hard-fail-only suite, probe first and create the resource
-> manually (see the `docs/testing/xunit.md` model section). Tag DMR tests with
+> When the runner is always present (e.g. a dedicated CI lane), the
+> `IClassFixture<>` shorthand shown earlier is enough — it just cannot skip
+> cleanly. Tag DMR tests with
 > `[Trait("Category","Integration")] [Trait("Requires","Dmr")]`.
 
-Full docs: `docs/testing/xunit.md`. Model testing guide: `docs/testing/model.md`.
+Full docs: [docs/testing/xunit.md](../docs/testing/xunit.md). Model testing guide:
+[docs/testing/model.md](../docs/testing/model.md).

@@ -524,6 +524,6 @@ var app = results.GetContainer("app");
 
 ## Next Steps
 
-- [Networking](networking.html) - Custom networks and static IPs
-- [Volumes](volumes.html) - Data persistence
-- [Docker Compose](compose.html) - Multi-container orchestration
+- [Networking](networking.md) - Custom networks and static IPs
+- [Volumes](volumes.md) - Data persistence
+- [Docker Compose](compose.md) - Multi-container orchestration

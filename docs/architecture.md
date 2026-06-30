@@ -11,7 +11,7 @@ This document describes the v3.0 architecture with the pluggable driver layer, k
 
 ## Step by Step
 
-This is an advanced guide. If you are new to FluentDocker, complete [Getting Started](getting-started.html) first.
+This is an advanced guide. If you are new to FluentDocker, complete [Getting Started](getting-started.md) first.
 
 - Foundation: [Overview](#overview), [Async Pattern](#async-pattern), [Kernel Configuration](#kernel-configuration)
 - Advanced internals: [SysCtl() Driver Access](#sysctl-driver-access), [Scoped Builder Pattern](#scoped-builder-pattern), [Driver-Aware Builder Extensions](#driver-aware-builder-extensions), [Capabilities System](#capabilities-system)
@@ -21,7 +21,7 @@ This is an advanced guide. If you are new to FluentDocker, complete [Getting Sta
 
 FluentDocker v3.0 introduces a **pluggable driver architecture** that supports multiple container runtime implementations with concurrent instances.
 
-```
+```text
 ┌────────────────────────────────────────────────────────────────┐
 │         Layer 3: Fluent API (Builders)                         │
 │              Binds to Kernel Instance                          │
@@ -105,7 +105,7 @@ var kernel = await FluentDockerKernel.Create()
 var deployment = await new Builder()
     .WithinDriver("docker", kernel)
     .UseContainer(c => c.UseImage("nginx"))
-    .BuildAsync(cts.Token);
+    .BuildAsync(cancellationToken: cts.Token);
 ```
 
 ---
@@ -174,7 +174,7 @@ if (kernel.TrySysCtl<IPodmanPodDriver>("podman", out var podDriver))
 }
 ```
 
-The kernel resolves interfaces through `IDriverInterfaceResolver` when the driver pack or driver implements it, falling back to direct `ISysCtl` delegation and then direct cast. This means any driver can expose custom interfaces without kernel changes. See [Driver Extensibility](extensibility.html) for details.
+The kernel resolves interfaces through `IDriverInterfaceResolver` when the driver pack or driver implements it, falling back to direct `ISysCtl` delegation and then direct cast. This means any driver can expose custom interfaces without kernel changes. See [Driver Extensibility](extensibility.md) for details.
 
 ### Available Driver Interfaces
 
@@ -276,7 +276,7 @@ await new Builder()
     .BuildAsync();
 ```
 
-For full documentation on writing custom driver interfaces, builder extensions, and multi-driver deployment patterns, see [Driver Extensibility](extensibility.html).
+For full documentation on writing custom driver interfaces, builder extensions, and multi-driver deployment patterns, see [Driver Extensibility](extensibility.md).
 
 ---
 
@@ -410,7 +410,7 @@ public async Task DeployAsync(CancellationToken cancellationToken)
         .UseContainer(c => c.UseImage("postgres:14"))
         .WithinDriver("prod")  // Reuses kernel
         .UseContainer(c => c.UseImage("myapp:v1.0"))
-        .BuildAsync(cancellationToken);
+        .BuildAsync(cancellationToken: cancellationToken);
 
     // Start all services in parallel
     var startTasks = deployment.All
@@ -506,7 +506,7 @@ FluentDocker v3.0 provides:
 - **Multiple instances**: Same driver type, different configurations
 - **Multiple kernels**: Isolated instances, no global state
 - **Clean driver access**: SysCtl() interface pattern with `TrySysCtl<T>()` for feature checks
-- **Driver extensibility**: Custom interfaces via `IDriverInterfaceResolver` ([details](extensibility.html))
+- **Driver extensibility**: Custom interfaces via `IDriverInterfaceResolver` ([details](extensibility.md))
 - **Driver-aware builders**: `IDriverScopedBuilder` with `RequireDriver<T>()` / `TryDriver<T>()`
 - **Better testing**: Mock drivers, isolated kernels
 - **Multi-host support**: Multiple Docker hosts simultaneously

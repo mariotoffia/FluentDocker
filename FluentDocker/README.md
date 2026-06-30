@@ -109,13 +109,13 @@ await using var results = await new Builder()
     .UseContainer(c => c
         .UseImage("postgres:15-alpine")
         .WithNetwork("my-net")
-        .WithVolume("my-data:/var/lib/postgresql/data"))
+        .WithVolume("my-data", "/var/lib/postgresql/data"))
     .BuildAsync();
 ```
 
 ### Docker Model Runner (preview)
 
-> **Preview (v3.2)** — manage local LLMs and run inference (chat, completions, embeddings) through the same fluent builder. Requires [Docker Model Runner](https://docs.docker.com/model-runner/). Preview feature in the upcoming 3.2.0 release; see the docs below.
+> **Preview (v3.2)** — manage local LLMs and run inference (chat, completions, embeddings) through the same fluent builder. Requires [Docker Model Runner](https://docs.docker.com/model-runner/). Preview feature in the in-development 3.2.0 release (not yet on NuGet); see the docs below.
 
 ```csharp
 using FluentDocker.Model.Models; // ModelReference

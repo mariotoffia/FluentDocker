@@ -158,19 +158,19 @@ public class RedisTests
 
 | Topic | Description |
 |---|---|
-| [Core Types](testing/core.html) | Resource types, options, diagnostics, hooks, wait strategies |
-| [xUnit Adapter](testing/xunit.html) | Test bases, fixture bases, concrete fixtures |
-| [MSTest Adapter](testing/mstest.html) | Helper methods for all resource types |
-| [NUnit Adapter](testing/nunit.html) | Helper methods for all resource types |
-| [Docker Model Runner](testing/model.html) | Testing Docker Model Runner |
-| [Plugins](testing/plugins.html) | Extending resources with custom plugins |
-| [Migration from Legacy](testing/migration-from-legacy.html) | Side-by-side migration examples |
+| [Core Types](testing/core.md) | Resource types, options, diagnostics, hooks, wait strategies |
+| [xUnit Adapter](testing/xunit.md) | Test bases, fixture bases, concrete fixtures |
+| [MSTest Adapter](testing/mstest.md) | Helper methods for all resource types |
+| [NUnit Adapter](testing/nunit.md) | Helper methods for all resource types |
+| [Docker Model Runner](testing/model.md) | Testing Docker Model Runner |
+| [Plugins](testing/plugins.md) | Extending resources with custom plugins |
+| [Migration from Legacy](testing/migration-from-legacy.md) | Side-by-side migration examples |
 
 ## Running by Category
 
 Tests use `[Trait("Category", "...")]` attributes (`make test` runs Unit,
 `make test-integration` runs all, `dotnet test --filter "Category=X"` for a
-single category). See [Test Categories & Run Guide](test-categories.html) for
+single category). See [Test Categories & Run Guide](test-categories.md) for
 the full reference.
 
 ---
@@ -222,5 +222,5 @@ public class NginxTests : IAsyncLifetime
 
 ## Next Steps
 
-[Core Types](testing/core.html) -- [Utilities](utilities.html) --
-[Containers](containers.html) -- [Docker Compose](compose.html)
+[Core Types](testing/core.md) -- [Utilities](utilities.md) --
+[Containers](containers.md) -- [Docker Compose](compose.md)

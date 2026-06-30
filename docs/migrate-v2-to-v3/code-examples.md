@@ -544,6 +544,6 @@ using var results2 = new Builder()
 
 ## See Also
 
-- [API Mapping Reference](api-mapping.html) -- full method-by-method mapping
-- [Migration Guide](../migration.html) -- step-by-step migration walkthrough
-- [Architecture](../architecture.html) -- v3 kernel and driver architecture
+- [API Mapping Reference](api-mapping.md) -- full method-by-method mapping
+- [Migration Guide](../migration.md) -- step-by-step migration walkthrough
+- [Architecture](../architecture.md) -- v3 kernel and driver architecture

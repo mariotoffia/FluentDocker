@@ -507,6 +507,6 @@ tmpfs mounts, configure them directly through Docker run flags or use a
 
 ## Next Steps
 
-- [Images](images.html) - Building custom images
-- [Containers](containers.html) - Container management
-- [Networking](networking.html) - Custom networks
+- [Images](images.md) - Building custom images
+- [Containers](containers.md) - Container management
+- [Networking](networking.md) - Custom networks
