@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using FluentDocker.Kernel;
 using FluentDocker.Testing.Core;
 using FluentDocker.Tests.Mocks;
+using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 
 namespace FluentDocker.Tests.CoreTests.Testing
@@ -214,21 +215,38 @@ namespace FluentDocker.Tests.CoreTests.Testing
       await ResourceLifecycle.DisposeAsync(fakeResource, kernel);
 
       Assert.True(resourceDisposed);
+      Assert.Throws<ObjectDisposedException>(() => kernel.DefaultDriverId);
     }
 
     [Fact]
-    public async Task DisposeAsync_ResourceThrows_StillDisposesKernel()
+    public async Task DisposeAsync_ResourceThrows_LeavesKernelAlive()
     {
       var (kernel, _) = await MockKernelBuilderExtensions
           .CreateWithMockDriverAsync();
 
       var throwingResource = new FakeResource(throwOnDispose: true);
 
-      // The method should let the exception propagate, but kernel
-      // is in the finally block so it will be disposed regardless.
-      // Since DisposeAsync uses try/finally, exception is re-thrown.
+      var ex = await Assert.ThrowsAsync<InvalidOperationException>(
+          () => ResourceLifecycle.DisposeAsync(throwingResource, kernel));
+
+      Assert.Equal("Simulated dispose failure", ex.Message);
+      Assert.Equal("docker", kernel.DefaultDriverId);
+
+      await kernel.DisposeAsync();
+    }
+
+    [Fact]
+    public async Task DisposeAsync_ResourceThrows_DoesNotCallKernelDispose()
+    {
+      var kernel = new TrackingKernel();
+      var throwingResource = new FakeResource(throwOnDispose: true);
+
       await Assert.ThrowsAsync<InvalidOperationException>(
           () => ResourceLifecycle.DisposeAsync(throwingResource, kernel));
+
+      Assert.False(kernel.DisposeWasCalled);
+
+      await kernel.DisposeAsync();
     }
 
     [Fact]
@@ -330,6 +348,20 @@ namespace FluentDocker.Tests.CoreTests.Testing
           throw new InvalidOperationException("Simulated dispose failure");
         IsInitialized = false;
         return ValueTask.CompletedTask;
+      }
+    }
+
+    private sealed class TrackingKernel()
+        : FluentDockerKernel(
+            new DriverRegistry(NullLoggerFactory.Instance),
+            NullLoggerFactory.Instance)
+    {
+      public bool DisposeWasCalled { get; private set; }
+
+      public override async ValueTask DisposeAsync()
+      {
+        DisposeWasCalled = true;
+        await base.DisposeAsync().ConfigureAwait(false);
       }
     }
 

@@ -87,12 +87,8 @@ namespace FluentDocker.Tests.CoreTests.Testing
       Assert.NotNull(resource.LastTeardownDiagnostics);
       Assert.NotNull(resource.LastTeardownDiagnostics!.TeardownException);
 
-      // NOTE: a kernel-dependent retry is NOT attempted here. ResourceLifecycle.DisposeAsync
-      // deliberately disposes the kernel even when the resource teardown throws (see
-      // ResourceLifecycleTests.DisposeAsync_ResourceThrows_StillDisposesKernel), so the
-      // container's teardown can no longer reach a live kernel. The full
-      // "preserve-on-failure then clear-on-success" cycle for kernel-independent resources
-      // is proven by XunitResourceFixture_FailedTeardown_KeepsHandles_ThenClearsOnSuccess.
+      // NOTE: a kernel-dependent retry is NOT attempted here; this test only proves
+      // fixture handles and diagnostics remain visible after failed teardown.
     }
 
     /// <summary>

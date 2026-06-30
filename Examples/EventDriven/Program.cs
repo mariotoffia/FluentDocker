@@ -12,10 +12,10 @@ using FluentDocker.Services;
 
 namespace EventDriven
 {
-  class Program
+  sealed class Program
   {
     private const string DriverId = "docker";
-    private const string ContainerName = "fd-event-demo";
+    private static readonly string ContainerName = $"fd-event-demo-{Guid.NewGuid():N}";
 
     static async Task Main(string[] args)
     {

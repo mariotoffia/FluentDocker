@@ -8,7 +8,7 @@ using FluentDocker.Services;
 
 namespace DockerInDockerLinux
 {
-  class Program
+  sealed class Program
   {
     private const string DriverId = "docker";
 

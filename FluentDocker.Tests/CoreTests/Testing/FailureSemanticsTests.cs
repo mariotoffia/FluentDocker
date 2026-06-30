@@ -326,21 +326,19 @@ namespace FluentDocker.Tests.CoreTests.Testing
     }
 
     [Fact]
-    public async Task ResourceLifecycle_DisposeAsync_BothThrow_ProducesAggregateException()
+    public async Task ResourceLifecycle_DisposeAsync_BothThrow_RethrowsResourceAndPreservesKernel()
     {
-      // When both resource and kernel disposal throw,
-      // ResourceLifecycle.DisposeAsync should wrap both in AggregateException.
+      // Resource cleanup failed first; preserving the kernel enables retry cleanup.
       var throwingResource = new ThrowingResource(
           new InvalidOperationException("resource disposal failed"));
       var throwingKernel = new ThrowingKernel(
           new ObjectDisposedException("kernel disposal failed"));
 
-      var agg = await Assert.ThrowsAsync<AggregateException>(
+      var ex = await Assert.ThrowsAsync<InvalidOperationException>(
           () => ResourceLifecycle.DisposeAsync(throwingResource, throwingKernel));
 
-      Assert.Equal(2, agg.InnerExceptions.Count);
-      Assert.IsType<InvalidOperationException>(agg.InnerExceptions[0]);
-      Assert.IsType<ObjectDisposedException>(agg.InnerExceptions[1]);
+      Assert.Equal("resource disposal failed", ex.Message);
+      Assert.False(throwingKernel.DisposeWasCalled);
     }
 
     [Fact]
@@ -406,9 +404,11 @@ namespace FluentDocker.Tests.CoreTests.Testing
     private sealed class ThrowingKernel(Exception exception) : FluentDockerKernel(new DriverRegistry(NullLoggerFactory.Instance), NullLoggerFactory.Instance)
     {
       private readonly Exception _exception = exception;
+      public bool DisposeWasCalled { get; private set; }
 
       public override async ValueTask DisposeAsync()
       {
+        DisposeWasCalled = true;
         await base.DisposeAsync();
         throw _exception;
       }

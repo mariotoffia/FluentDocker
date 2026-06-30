@@ -13,7 +13,7 @@ namespace ComposeV2;
 /// - Directory copy to/from containers
 /// - TemplateString path interpolation
 /// </summary>
-class Program
+sealed class Program
 {
   private const string DriverId = "docker";
 
@@ -91,7 +91,7 @@ class Program
         .WithCommand("tail", "-f", "/dev/null"))  // Keep container running
       .BuildAsync();
 
-    var container = results.Containers.First();
+    var container = results.Containers[0];
     Console.WriteLine($"\nContainer: {container.Name}");
 
     // Copy directory TO container

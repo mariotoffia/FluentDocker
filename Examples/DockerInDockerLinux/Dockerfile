@@ -1,7 +1,7 @@
-FROM mcr.microsoft.com/dotnet/sdk:3.1
+FROM mcr.microsoft.com/dotnet/sdk:10.0
 
 WORKDIR /App
-COPY bin/Debug/netcoreapp3.1 .
+COPY bin/Debug/net10.0 .
 
 RUN apt-get -qq update && apt-get -qq install wget
 RUN wget --quiet https://download.docker.com/linux/static/stable/x86_64/docker-20.10.8.tgz && \

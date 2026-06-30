@@ -50,7 +50,7 @@ test-mstest:
 test-integration:
 	@mkdir -p .out/test
 	@rm -rf .out/test/integration-test.txt
-	dotnet test FluentDocker.Tests/FluentDocker.Tests.csproj --filter "Category=Integration" --framework net10.0 --configuration Debug --verbosity normal 2>&1 | tee .out/test/integration-test.txt
+	bash -o pipefail -c 'dotnet test FluentDocker.Tests/FluentDocker.Tests.csproj --filter "Category=Integration|Category=PodmanIntegration" --framework net10.0 --configuration Debug --verbosity normal 2>&1 | tee .out/test/integration-test.txt'
 
 # Real Docker Model Runner gate. Requires a working `docker model` runtime.
 # FLUENTDOCKER_REQUIRE_DMR=1 makes the DMR tests HARD-FAIL instead of self-skipping
@@ -59,7 +59,7 @@ test-integration:
 test-dmr:
 	@mkdir -p .out/test
 	@rm -rf .out/test/dmr-test.txt
-	FLUENTDOCKER_REQUIRE_DMR=1 dotnet test FluentDocker.Tests/FluentDocker.Tests.csproj --filter "Category=Integration&Requires=Dmr" --framework net10.0 --configuration Debug --verbosity normal 2>&1 | tee .out/test/dmr-test.txt
+	bash -o pipefail -c 'FLUENTDOCKER_REQUIRE_DMR=1 dotnet test FluentDocker.Tests/FluentDocker.Tests.csproj --filter "Category=Integration&Requires=Dmr" --framework net10.0 --configuration Debug --verbosity normal 2>&1 | tee .out/test/dmr-test.txt'
 
 .PHONY: devlocal-setup
 devlocal-setup:
@@ -77,7 +77,7 @@ cleanup-test-resources:
 test-devlocal:
 	@mkdir -p .out/test
 	@rm -rf .out/test/devlocal-test.txt
-	dotnet test FluentDocker.Tests/FluentDocker.Tests.csproj --filter "Category=DevLocal" --configuration Debug --verbosity normal 2>&1 | tee .out/test/devlocal-test.txt
+	bash -o pipefail -c 'dotnet test FluentDocker.Tests/FluentDocker.Tests.csproj --filter "Category=DevLocal" --configuration Debug --verbosity normal 2>&1 | tee .out/test/devlocal-test.txt'
 
 .PHONY: benchmark
 benchmark:
@@ -101,7 +101,7 @@ format:
 	dotnet format $(SOLUTION)
 
 .PHONY: check
-check: lint test
+check: lint test test-mstest
 
 .PHONY: coverage
 coverage:
@@ -169,7 +169,7 @@ help:
 	@echo "  dep              - Install dependencies and restore packages"
 	@echo "  clean            - Clean build artifacts"
 	@echo "  test             - Run unit tests only (safe for CI)"
-	@echo "  test-integration - Run integration tests (Category=Integration; requires Docker/Podman)"
+	@echo "  test-integration - Run integration tests (Docker + Podman; requires Docker/Podman)"
 	@echo "  test-dmr         - Run real Docker Model Runner tests (requires docker model runtime)"
 	@echo "  devlocal-setup   - Start Swarm + Podman machine for DevLocal tests"
 	@echo "  devlocal-teardown- Stop Swarm + Podman machine after DevLocal tests"

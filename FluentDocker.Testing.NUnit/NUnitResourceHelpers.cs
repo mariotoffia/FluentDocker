@@ -121,6 +121,8 @@ namespace FluentDocker.Testing.NUnit
     /// <remarks>
     /// Null-safe: passing a null <paramref name="resource"/> and/or a null
     /// <paramref name="kernel"/> is a no-op for that argument.
+    /// If resource disposal fails, the kernel remains live and owned by the
+    /// caller for cleanup retry or later disposal.
     /// </remarks>
     /// <param name="resource">The resource to dispose, or <c>null</c> to skip.</param>
     /// <param name="kernel">The kernel to dispose, or <c>null</c> to skip.</param>

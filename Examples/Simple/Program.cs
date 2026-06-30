@@ -11,7 +11,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Simple
 {
-  class Program
+  sealed class Program
   {
     private const string DriverId = "docker";
 
@@ -42,7 +42,7 @@ namespace Simple
           .WaitForPort("5432/tcp", 30000))
         .BuildAsync();
 
-      var container = results.Containers.First();
+      var container = results.Containers[0];
       var config = await container.InspectAsync();
       var running = ServiceRunningState.Running == config.State.ToServiceState();
 
@@ -103,7 +103,7 @@ namespace Simple
 
       Console.WriteLine("Build container: " + TimeSpan.FromMilliseconds(stopwatch.ElapsedMilliseconds).TotalSeconds);
 
-      var container = results.Containers.First();
+      var container = results.Containers[0];
 
       stopwatch.Restart();
       var config = await container.InspectAsync();

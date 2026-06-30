@@ -114,13 +114,6 @@ jobs:
 
   unit-tests:
     name: Unit Tests (${{ matrix.os }})
-    # Requirement 2: run on merge to main (push) always; on PRs only with the
-    # `test-unit` label. workflow_dispatch is always allowed for manual runs.
-    if: >
-      github.event_name == 'push' ||
-      github.event_name == 'workflow_dispatch' ||
-      (github.event_name == 'pull_request' &&
-       contains(github.event.pull_request.labels.*.name, 'test-unit'))
     strategy:
       fail-fast: false
       matrix:
@@ -141,7 +134,7 @@ jobs:
       - name: Run unit tests with coverage (net10.0)
         run: >
           dotnet test --no-build --configuration Release --framework net10.0
-          --filter "Category=Unit"
+          --filter "Category=Unit|TestCategory=Unit"
           --collect:"XPlat Code Coverage" --results-directory ./coverage
           --settings coverletArgs.runsettings
       - name: Enforce coverage threshold
@@ -149,8 +142,8 @@ jobs:
         shell: bash
         env:
           COVERAGE_REPORT_DIR: ./coverage
-          COVERAGE_LINE_MIN: '70'
-          COVERAGE_BRANCH_MIN: '65'
+          COVERAGE_LINE_MIN: '78'
+          COVERAGE_BRANCH_MIN: '71'
         run: bash scripts/coverage-threshold
       - name: Generate per-assembly coverage report
         if: matrix.os == 'ubuntu-latest'
@@ -177,7 +170,7 @@ jobs:
       - name: Run unit tests (net8.0)
         run: >
           dotnet test --no-build --configuration Release --framework net8.0
-          --filter "Category=Unit"
+          --filter "Category=Unit|TestCategory=Unit"
 
   release:
     name: Publish & Tag
@@ -317,7 +310,7 @@ jobs:
 
       - name: Run integration tests
         if: steps.docker-check.outputs.available == 'true'
-        run: dotnet test FluentDocker.Tests/FluentDocker.Tests.csproj --configuration Debug --no-build --framework net10.0 --verbosity normal --filter "Category=Integration"
+        run: dotnet test FluentDocker.Tests/FluentDocker.Tests.csproj --configuration Debug --no-build --framework net10.0 --verbosity normal --filter "Category=Integration|Category=PodmanIntegration"
         timeout-minutes: 30
 
       - name: Skip integration tests (no Docker)

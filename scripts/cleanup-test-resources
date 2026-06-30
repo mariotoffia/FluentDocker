@@ -1,41 +1,122 @@
 #!/usr/bin/env bash
-# cleanup-test-resources: Remove stale Docker/Podman containers created by
-# integration tests. Containers are identified by the label
-# com.fluentdocker.test=integration, which all test base classes inject.
+# cleanup-test-resources: remove stale FluentDocker test resources from
+# Docker/Podman. Managed resources (containers/networks/volumes labelled
+# fluentdocker.managed=true) are removed with session/age guards; legacy
+# integration-test containers (com.fluentdocker.test=integration) are swept
+# unconditionally, matching the historical behaviour of this script.
 set -euo pipefail
 
-LABEL="com.fluentdocker.test=integration"
+MANAGED_LABEL="fluentdocker.managed=true"
+LEGACY_LABEL="com.fluentdocker.test=integration"
+SESSION_LABEL="fluentdocker.session"
+CREATED_LABEL="fluentdocker.created-at"
+CURRENT_SESSION="${FLUENTDOCKER_SESSION_ID:-}"
+MIN_AGE_SECONDS="${FLUENTDOCKER_CLEANUP_MIN_AGE_SECONDS:-3600}"
+DRY_RUN=0
+
+if [ "${1:-}" = "--dry-run" ]; then
+  DRY_RUN=1
+fi
 
 echo "=== Cleaning Up Test Resources ==="
 
-# --- Docker ---
-if command -v docker &>/dev/null; then
-  ids=$(docker ps -aq --filter "label=$LABEL" 2>/dev/null || true)
-  if [ -n "$ids" ]; then
-    count=$(echo "$ids" | wc -l | tr -d ' ')
-    echo "[docker] Removing $count container(s) with label $LABEL ..."
-    docker rm -f $ids
-    echo "[docker] Done"
+label_value() {
+  local runtime="$1" type="$2" id="$3" key="$4"
+  if [ "$type" = "container" ]; then
+    "$runtime" container inspect -f "{{ index .Config.Labels \"$key\" }}" "$id" 2>/dev/null || true
   else
-    echo "[docker] No test containers found"
+    "$runtime" "$type" inspect -f "{{ index .Labels \"$key\" }}" "$id" 2>/dev/null || true
   fi
-else
-  echo "[docker] Docker not found — skipping"
-fi
+}
 
-# --- Podman ---
-if command -v podman &>/dev/null; then
-  ids=$(podman ps -aq --filter "label=$LABEL" 2>/dev/null || true)
-  if [ -n "$ids" ]; then
-    count=$(echo "$ids" | wc -l | tr -d ' ')
-    echo "[podman] Removing $count container(s) with label $LABEL ..."
-    podman rm -f $ids
-    echo "[podman] Done"
-  else
-    echo "[podman] No test containers found"
+created_epoch() {
+  local value="$1"
+  [ -n "$value" ] || return 1
+
+  # .NET ISO-8601 "o" labels carry fractional seconds (e.g. ...56.7890123Z),
+  # which BSD/macOS `date` cannot parse via strptime %N. Strip the fraction so
+  # both GNU (date -d) and BSD (date -j -f) read a uniform ...56Z form.
+  case "$value" in
+    *.*Z) value="${value%%.*}Z" ;;
+  esac
+
+  date -u -d "$value" +%s 2>/dev/null && return 0
+  date -u -j -f "%Y-%m-%dT%H:%M:%SZ" "$value" +%s 2>/dev/null && return 0
+}
+
+should_remove() {
+  local runtime="$1" type="$2" id="$3" session created epoch now
+  session="$(label_value "$runtime" "$type" "$id" "$SESSION_LABEL")"
+  if [ -n "$CURRENT_SESSION" ] && [ "$session" = "$CURRENT_SESSION" ]; then
+    return 1
   fi
-else
-  echo "[podman] Podman not found — skipping"
-fi
+
+  created="$(label_value "$runtime" "$type" "$id" "$CREATED_LABEL")"
+  epoch="$(created_epoch "$created")"
+  if [ -z "$epoch" ]; then
+    return 1
+  fi
+
+  now="$(date -u +%s)"
+  [ $((now - epoch)) -ge "$MIN_AGE_SECONDS" ]
+}
+
+remove_resource() {
+  local runtime="$1" type="$2" id="$3"
+  if [ "$DRY_RUN" -eq 1 ]; then
+    echo "[$runtime] Would remove $type $id"
+    return
+  fi
+
+  case "$type" in
+    container) "$runtime" rm -f "$id" ;;
+    network) "$runtime" network rm "$id" ;;
+    volume) "$runtime" volume rm -f "$id" ;;
+  esac
+}
+
+cleanup_type() {
+  local runtime="$1" type="$2" ids id count=0
+  case "$type" in
+    container) ids=$("$runtime" ps -aq --filter "label=$MANAGED_LABEL" 2>/dev/null || true) ;;
+    network) ids=$("$runtime" network ls -q --filter "label=$MANAGED_LABEL" 2>/dev/null || true) ;;
+    volume) ids=$("$runtime" volume ls -q --filter "label=$MANAGED_LABEL" 2>/dev/null || true) ;;
+  esac
+
+  for id in $ids; do
+    if should_remove "$runtime" "$type" "$id" && remove_resource "$runtime" "$type" "$id"; then
+      count=$((count + 1))
+    fi
+  done
+
+  echo "[$runtime] $type(s) removed: $count"
+}
+
+cleanup_legacy_containers() {
+  local runtime="$1" ids id count=0
+  ids=$("$runtime" ps -aq --filter "label=$LEGACY_LABEL" 2>/dev/null || true)
+  for id in $ids; do
+    if remove_resource "$runtime" container "$id"; then
+      count=$((count + 1))
+    fi
+  done
+  echo "[$runtime] legacy container(s) removed: $count"
+}
+
+cleanup_runtime() {
+  local runtime="$1"
+  if ! command -v "$runtime" >/dev/null 2>&1; then
+    echo "[$runtime] Not found — skipping"
+    return
+  fi
+
+  cleanup_type "$runtime" container
+  cleanup_type "$runtime" network
+  cleanup_type "$runtime" volume
+  cleanup_legacy_containers "$runtime"
+}
+
+cleanup_runtime docker
+cleanup_runtime podman
 
 echo "=== Test Resource Cleanup Complete ==="

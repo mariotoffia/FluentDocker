@@ -13,7 +13,7 @@ namespace ContainerStats;
 /// - Static IPv4/IPv6 assignment
 /// - Custom network creation
 /// </summary>
-class Program
+sealed class Program
 {
   private const string DriverId = "docker";
 
@@ -46,7 +46,7 @@ class Program
         .WaitForPort("80/tcp", 30000))
       .BuildAsync();
 
-    var container = results.Containers.First();
+    var container = results.Containers[0];
     Console.WriteLine($"Container: {container.Name} ({container.Id[..12]})");
 
     // Generate some load by making HTTP requests
@@ -88,12 +88,12 @@ class Program
     await using var networkResults = await new Builder()
       .WithinDriver(DriverId, kernel)
       .UseNetwork(n => n
-        .WithName("fd-example-net")
+        .WithName($"fd-example-net-{Guid.NewGuid():N}")
         .WithSubnet("10.100.0.0/24")
         .WithGateway("10.100.0.1"))
       .BuildAsync();
 
-    var network = networkResults.Networks.First();
+    var network = networkResults.Networks[0];
     Console.WriteLine($"Network: {network.Name}");
     Console.WriteLine($"Subnet:  10.100.0.0/24");
     Console.WriteLine($"Gateway: 10.100.0.1");
@@ -103,14 +103,14 @@ class Program
       .WithinDriver(DriverId, kernel)
       .UseContainer(c => c
         .UseImage("nginx:alpine")
-        .WithName("fd-static-ip-demo")
+        .WithName($"fd-static-ip-demo-{Guid.NewGuid():N}")
         .WithNetwork(network.Name)
         .WithIPv4("10.100.0.50")
         .ExposePort("80/tcp")
         .WaitForPort("80/tcp", 30000))
       .BuildAsync();
 
-    var container = containerResults.Containers.First();
+    var container = containerResults.Containers[0];
     Console.WriteLine($"\nContainer: {container.Name}");
     Console.WriteLine($"Static IP: 10.100.0.50");
 

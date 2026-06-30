@@ -9,15 +9,16 @@
 # the existing collection mechanism we enforce the threshold here, after collection.
 #
 # Thresholds are a regression FLOOR, not an aspirational target: measured coverage
-# on 2026-06-24 was line=80.65% / branch=73.51%, so the floors below leave headroom.
-# Raise them (never above current) as coverage improves.
+# on 2026-06-30 was line=82% / branch=74.83% (Debug/net10 locally). CI enforces on
+# Release/Ubuntu, which can differ by a point or two, so the floors below keep a few
+# points of headroom. Raise them (never above current) as coverage improves.
 #
 # Usage:
 #   scripts/coverage-threshold [REPORT_DIR] [LINE_MIN] [BRANCH_MIN]
 # Defaults:
 #   REPORT_DIR = .out/coverage   (searched recursively for coverage.opencover.xml)
-#   LINE_MIN   = 70
-#   BRANCH_MIN = 65
+#   LINE_MIN   = 78
+#   BRANCH_MIN = 71
 # Env overrides: COVERAGE_REPORT_DIR, COVERAGE_LINE_MIN, COVERAGE_BRANCH_MIN
 #
 # Portable to macOS bash 3.2 (no globstar/mapfile) — uses find + sort by mtime.
@@ -25,8 +26,8 @@
 set -eu
 
 REPORT_DIR="${1:-${COVERAGE_REPORT_DIR:-.out/coverage}}"
-LINE_MIN="${2:-${COVERAGE_LINE_MIN:-70}}"
-BRANCH_MIN="${3:-${COVERAGE_BRANCH_MIN:-65}}"
+LINE_MIN="${2:-${COVERAGE_LINE_MIN:-78}}"
+BRANCH_MIN="${3:-${COVERAGE_BRANCH_MIN:-71}}"
 
 # Resolve the newest coverage.opencover.xml under REPORT_DIR. `find -printf` is not on
 # BSD/macOS, so list with `ls -t` (newest first) over the found paths.
