@@ -13,7 +13,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
       var config = new ImageBuildConfig { BuildContext = "/src" };
       var result = PodmanCliImageDriver.BuildBuildArgs(config, "/tmp/iid.txt");
 
-      Assert.Contains("--iidfile \"/tmp/iid.txt\"", result);
+      Assert.Contains("--iidfile /tmp/iid.txt", result);
       Assert.StartsWith("build ", result);
       Assert.EndsWith(" /src", result);
     }
@@ -49,7 +49,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
 
       Assert.Contains("-t myimage:latest", result);
       Assert.Contains("-t myimage:v1.0", result);
-      Assert.Contains("--iidfile \"/tmp/iid\"", result);
+      Assert.Contains("--iidfile /tmp/iid", result);
     }
 
     [Fact]
@@ -86,7 +86,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
       Assert.Contains("--squash", result);
       Assert.Contains("--platform linux/arm64", result);
       Assert.Contains("--network host", result);
-      Assert.Contains("--iidfile \"/tmp/iid\"", result);
+      Assert.Contains("--iidfile /tmp/iid", result);
       Assert.EndsWith(" /ctx", result);
     }
 

@@ -22,7 +22,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
     {
       var args = "login";
       if (!string.IsNullOrEmpty(config.Username))
-        args += $" -u {config.Username}";
+        args += $" -u {QuoteArgumentIfNeeded(config.Username)}";
 
       // Always use --password-stdin when a password is provided.
       // Never pass password via -p flag (visible in process listings).
@@ -30,7 +30,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
         args += " --password-stdin";
 
       if (!string.IsNullOrEmpty(config.Server))
-        args += $" {config.Server}";
+        args += $" {QuoteArgumentIfNeeded(config.Server)}";
 
       var stdinData = !string.IsNullOrEmpty(config.Password) ? config.Password : null;
 
@@ -51,11 +51,18 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       {
         var (args, stdinData) = BuildLoginArgs(config);
         var result = stdinData != null
-            ? await ExecuteCommandAsync(args, stdinData, cancellationToken)
+            ? await ExecuteCommandAsync(args, stdinData, cancellationToken).ConfigureAwait(false)
             : await ExecuteCommandAsync(args, cancellationToken).ConfigureAwait(false);
-        return result.Success
-            ? CommandResponse<Unit>.Ok(Unit.Default)
-            : CommandResponse<Unit>.Fail(result.Error ?? "Login failed", ErrorCodes.Auth.LoginFailed);
+        if (!result.Success)
+          return CommandResponse<Unit>.Fail(
+              result.Error ?? "Login failed", ErrorCodes.Auth.LoginFailed,
+              CreateErrorContext(context, "Login", result), result.ExitCode);
+
+        return CommandResponse<Unit>.Ok(Unit.Default);
+      }
+      catch (OperationCanceledException)
+      {
+        throw;
       }
       catch (Exception ex)
       {
@@ -72,12 +79,19 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       {
         var args = "logout";
         if (!string.IsNullOrEmpty(server))
-          args += $" {server}";
+          args += $" {QuoteArgumentIfNeeded(server)}";
 
         var result = await ExecuteCommandAsync(args, cancellationToken).ConfigureAwait(false);
-        return result.Success
-            ? CommandResponse<Unit>.Ok(Unit.Default)
-            : CommandResponse<Unit>.Fail(result.Error ?? "Logout failed", ErrorCodes.Auth.LogoutFailed);
+        if (!result.Success)
+          return CommandResponse<Unit>.Fail(
+              result.Error ?? "Logout failed", ErrorCodes.Auth.LogoutFailed,
+              CreateErrorContext(context, "Logout", result), result.ExitCode);
+
+        return CommandResponse<Unit>.Ok(Unit.Default);
+      }
+      catch (OperationCanceledException)
+      {
+        throw;
       }
       catch (Exception ex)
       {

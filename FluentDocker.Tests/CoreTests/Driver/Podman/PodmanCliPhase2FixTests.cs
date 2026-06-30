@@ -50,6 +50,18 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
     }
 
     [Fact]
+    public void BuildListArgs_FilterValueWithWhitespace_IsQuotedAsSingleToken()
+    {
+      // A filter value containing whitespace must be quoted so it stays a single argv token and
+      // cannot inject an extra podman argument (UseShellExecute=false → no shell, but unquoted
+      // whitespace still splits into separate arguments).
+      var filter = new ContainerListFilter { Name = "web --privileged" };
+      var result = PodmanCliContainerDriver.BuildListArgs(filter);
+      Assert.Contains("--filter \"name=web --privileged\"", result);
+      Assert.DoesNotContain("--filter name=web --privileged", result);
+    }
+
+    [Fact]
     public void BuildListArgs_Status_IncludesStatusFilter()
     {
       var filter = new ContainerListFilter { Status = "running" };

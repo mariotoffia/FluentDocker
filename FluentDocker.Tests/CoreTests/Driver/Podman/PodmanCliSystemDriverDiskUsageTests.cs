@@ -1,3 +1,4 @@
+using FluentDocker.Common;
 using FluentDocker.Drivers.Podman.Cli.Components;
 using Xunit;
 
@@ -159,18 +160,20 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
     }
 
     [Fact]
-    public void ParseDiskUsageOutput_MalformedLine_SkipsIt()
+    public void ParseDiskUsageOutput_MalformedLine_Throws()
     {
+      // FIX-7: a malformed line embedded in otherwise-valid disk-usage output is unparseable
+      // non-empty data; silently skipping it would mask a real parsing problem, so it must
+      // fail loudly with diagnostics.
       var output = string.Join("\n",
           "{\"Type\":\"Images\",\"Total\":3,\"Active\":1,\"Size\":1000,\"Reclaimable\":500}",
           "this is not json at all",
           "{\"Type\":\"Containers\",\"Total\":1,\"Active\":0,\"Size\":200,\"Reclaimable\":100}"
       );
 
-      var info = PodmanCliSystemDriver.ParseDiskUsageOutput(output);
-
-      Assert.Equal(3, info.Images.TotalCount);
-      Assert.Equal(1, info.Containers.TotalCount);
+      var ex = Assert.Throws<FluentDockerException>(
+          () => PodmanCliSystemDriver.ParseDiskUsageOutput(output));
+      Assert.Contains("disk usage", ex.Message);
     }
 
     [Fact]

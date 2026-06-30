@@ -54,7 +54,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
     {
       var args = BuildStreamLogsArgs(containerId, config);
 
-      await foreach (var line in ExecuteStreamingCommandAsync(args, cancellationToken))
+      await foreach (var line in ExecuteStreamingCommandAsync(args, cancellationToken).ConfigureAwait(false))
       {
         yield return line;
       }
@@ -93,7 +93,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
     {
       var args = BuildStreamEventsArgs(config);
 
-      await foreach (var line in ExecuteStreamingCommandAsync(args, cancellationToken))
+      await foreach (var line in ExecuteStreamingCommandAsync(args, cancellationToken).ConfigureAwait(false))
       {
         var evt = ParseEvent(line);
         if (evt != null)
@@ -129,7 +129,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
     {
       var args = BuildStreamStatsArgs(containerId, config);
 
-      await foreach (var line in ExecuteStreamingCommandAsync(args, cancellationToken))
+      await foreach (var line in ExecuteStreamingCommandAsync(args, cancellationToken).ConfigureAwait(false))
       {
         var stats = ParseStats(line);
         if (stats != null)
@@ -155,8 +155,12 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
 
         args += $" {containerId}";
 
-        var result = ExecuteAttachProcess(args);
+        var result = ExecuteAttachProcess(args, cancellationToken);
         return Task.FromResult(CommandResponse<AttachResult>.Ok(result));
+      }
+      catch (OperationCanceledException)
+      {
+        throw;
       }
       catch (Exception ex)
       {

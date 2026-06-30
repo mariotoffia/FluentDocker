@@ -7,8 +7,6 @@ using System.Threading.Tasks;
 using FluentDocker.Common;
 using FluentDocker.Drivers.Podman.Cli.Binary;
 using FluentDocker.Model.Drivers;
-using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Logging.Abstractions;
 
 namespace FluentDocker.Drivers.Podman.Cli.Components
 {
@@ -38,17 +36,24 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       try
       {
         var args = BuildPlayArgs(config);
-        var result = await ExecuteCommandAsync(args, cancellationToken).ConfigureAwait(false);
+        var result = await ExecuteUnboundedCommandAsync(args, cancellationToken).ConfigureAwait(false);
 
         if (!result.Success)
+        {
           return CommandResponse<KubePlayResult>.Fail(
               result.Error ?? "Kube play failed",
-              ErrorCodes.Kubernetes.PlayFailed, result.ExitCode);
+              ErrorCodes.Kubernetes.PlayFailed,
+              CreateErrorContext(context, "KubePlay", result), result.ExitCode);
+        }
 
         var playResult = ParsePlayOutput(result.Output);
         return CommandResponse<KubePlayResult>.Ok(playResult);
       }
-      catch (Exception ex) when (ex is not ArgumentException and not ArgumentNullException)
+      catch (OperationCanceledException)
+      {
+        throw;
+      }
+      catch (Exception ex)
       {
         return CommandResponse<KubePlayResult>.Fail(
             ex.Message, ErrorCodes.Kubernetes.PlayFailed);
@@ -65,16 +70,24 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
 
       try
       {
-        var result = await ExecuteCommandAsync(
-            $"kube down {yamlPath}", cancellationToken);
+        var result = await ExecuteUnboundedCommandAsync(
+            $"kube down {QuoteArgumentIfNeeded(yamlPath)}", cancellationToken).ConfigureAwait(false);
 
-        return result.Success
-            ? CommandResponse<Unit>.Ok(Unit.Default)
-            : CommandResponse<Unit>.Fail(
-                result.Error ?? "Kube down failed",
-                ErrorCodes.Kubernetes.DownFailed, result.ExitCode);
+        if (!result.Success)
+        {
+          return CommandResponse<Unit>.Fail(
+              result.Error ?? "Kube down failed",
+              ErrorCodes.Kubernetes.DownFailed,
+              CreateErrorContext(context, "KubeDown", result), result.ExitCode);
+        }
+
+        return CommandResponse<Unit>.Ok(Unit.Default);
       }
-      catch (Exception ex) when (ex is not ArgumentException)
+      catch (OperationCanceledException)
+      {
+        throw;
+      }
+      catch (Exception ex)
       {
         return CommandResponse<Unit>.Fail(
             ex.Message, ErrorCodes.Kubernetes.DownFailed);
@@ -92,16 +105,23 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       try
       {
         var result = await ExecuteCommandAsync(
-            $"kube generate {resourceName}", cancellationToken);
+            $"kube generate {QuoteArgumentIfNeeded(resourceName)}", cancellationToken).ConfigureAwait(false);
 
         if (!result.Success)
+        {
           return CommandResponse<string>.Fail(
               result.Error ?? "Kube generate failed",
-              ErrorCodes.Kubernetes.GenerateFailed, result.ExitCode);
+              ErrorCodes.Kubernetes.GenerateFailed,
+              CreateErrorContext(context, "KubeGenerate", result), result.ExitCode);
+        }
 
         return CommandResponse<string>.Ok(result.Output?.TrimEnd());
       }
-      catch (Exception ex) when (ex is not ArgumentException)
+      catch (OperationCanceledException)
+      {
+        throw;
+      }
+      catch (Exception ex)
       {
         return CommandResponse<string>.Fail(
             ex.Message, ErrorCodes.Kubernetes.GenerateFailed);
@@ -117,13 +137,13 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       var args = "kube play";
 
       if (!string.IsNullOrEmpty(config.Network))
-        args += $" --network {config.Network}";
+        args += $" --network {QuoteArgumentIfNeeded(config.Network)}";
 
       foreach (var cm in config.ConfigMaps)
-        args += $" --configmap {cm}";
+        args += $" --configmap {QuoteArgumentIfNeeded(cm)}";
 
       if (!string.IsNullOrEmpty(config.LogDriver))
-        args += $" --log-driver {config.LogDriver}";
+        args += $" --log-driver {QuoteArgumentIfNeeded(config.LogDriver)}";
 
       if (config.Replace)
         args += " --replace";
@@ -132,9 +152,9 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
         args += " --start=false";
 
       foreach (var annotation in config.Annotations)
-        args += $" --annotation {annotation.Key}={annotation.Value}";
+        args += $" --annotation {QuoteArgumentIfNeeded($"{annotation.Key}={annotation.Value}")}";
 
-      args += $" {config.YamlPath}";
+      args += $" {QuoteArgumentIfNeeded(config.YamlPath)}";
 
       return args;
     }
@@ -155,20 +175,26 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       if (string.IsNullOrWhiteSpace(output))
         return result;
 
-      var trimmed = output.Trim();
-
-      // Try JSON format first (newer Podman versions)
-      if (trimmed.StartsWith('{') || trimmed.StartsWith('['))
+      try
       {
-        try
-        {
-          return ParsePlayOutputJson(trimmed);
-        }
-        catch (Exception ex) { NullLogger.Instance.LogDebug(ex, "JSON parsing failed, falling through to line-based"); }
-      }
+        var trimmed = output.Trim();
 
-      // Line-based parsing for older versions
-      return ParsePlayOutputLines(trimmed);
+        if (trimmed.StartsWith('{') || trimmed.StartsWith('['))
+          return ParsePlayOutputJson(trimmed);
+
+        result = ParsePlayOutputLines(trimmed);
+        if (result.Pods.Count == 0)
+        {
+          throw new FormatException("expected pod or container identifiers");
+        }
+
+        return result;
+      }
+      catch (Exception ex)
+      {
+        throw new FluentDockerException(
+            $"Failed to parse Podman kube play output: {ex.Message}");
+      }
     }
 
     private static KubePlayResult ParsePlayOutputJson(string json)

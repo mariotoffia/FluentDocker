@@ -23,11 +23,17 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       try
       {
         var result = await ExecuteCommandAsync(
-            $"tag {imageId} {repository}:{tag}", cancellationToken);
-        return result.Success
-            ? CommandResponse<Unit>.Ok(Unit.Default)
-            : CommandResponse<Unit>.Fail(
-                result.Error ?? "Image tag failed", ErrorCodes.Image.TagFailed);
+            $"tag {QuoteArgumentIfNeeded(imageId)} {QuoteArgumentIfNeeded($"{repository}:{tag}")}", cancellationToken).ConfigureAwait(false);
+        if (!result.Success)
+          return CommandResponse<Unit>.Fail(
+              result.Error ?? "Image tag failed", ErrorCodes.Image.TagFailed,
+              CreateErrorContext(context, "TagImage", result), result.ExitCode);
+
+        return CommandResponse<Unit>.Ok(Unit.Default);
+      }
+      catch (OperationCanceledException)
+      {
+        throw;
       }
       catch (Exception ex)
       {
@@ -47,14 +53,19 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
           args += " -f";
         if (noPrune)
           args += " --no-prune";
-        args += $" {imageId}";
+        args += $" {QuoteArgumentIfNeeded(imageId)}";
 
         var result = await ExecuteCommandAsync(args, cancellationToken).ConfigureAwait(false);
         if (!result.Success)
           return CommandResponse<ImageRemoveResult>.Fail(
-              result.Error ?? "Image remove failed", ErrorCodes.Image.RemoveFailed);
+              result.Error ?? "Image remove failed", ErrorCodes.Image.RemoveFailed,
+              CreateErrorContext(context, "RemoveImage", result), result.ExitCode);
 
         return CommandResponse<ImageRemoveResult>.Ok(new ImageRemoveResult());
+      }
+      catch (OperationCanceledException)
+      {
+        throw;
       }
       catch (Exception ex)
       {
@@ -75,10 +86,15 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
         var result = await ExecuteCommandAsync(args, cancellationToken).ConfigureAwait(false);
         if (!result.Success)
           return CommandResponse<ImagePruneResult>.Fail(
-              result.Error ?? "Image prune failed", ErrorCodes.Image.PruneFailed);
+              result.Error ?? "Image prune failed", ErrorCodes.Image.PruneFailed,
+              CreateErrorContext(context, "PruneImages", result), result.ExitCode);
 
         return CommandResponse<ImagePruneResult>.Ok(
             CliPruneOutputParser.ParseImagePruneOutput(result.Output));
+      }
+      catch (OperationCanceledException)
+      {
+        throw;
       }
       catch (Exception ex)
       {
@@ -98,11 +114,17 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       try
       {
         var args = $"save -o {QuoteArgumentIfNeeded(outputPath)} {string.Join(" ", images.Select(QuoteArgumentIfNeeded))}";
-        var result = await ExecuteCommandAsync(args, cancellationToken).ConfigureAwait(false);
-        return result.Success
-            ? CommandResponse<Unit>.Ok(Unit.Default)
-            : CommandResponse<Unit>.Fail(
-                result.Error ?? "Image save failed", ErrorCodes.Image.SaveFailed);
+        var result = await ExecuteUnboundedCommandAsync(args, cancellationToken).ConfigureAwait(false);
+        if (!result.Success)
+          return CommandResponse<Unit>.Fail(
+              result.Error ?? "Image save failed", ErrorCodes.Image.SaveFailed,
+              CreateErrorContext(context, "SaveImage", result), result.ExitCode);
+
+        return CommandResponse<Unit>.Ok(Unit.Default);
+      }
+      catch (OperationCanceledException)
+      {
+        throw;
       }
       catch (Exception ex)
       {
@@ -117,17 +139,22 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
     {
       try
       {
-        var result = await ExecuteCommandAsync(
-            $"load -i {QuoteArgumentIfNeeded(inputPath)}", cancellationToken);
+        var result = await ExecuteUnboundedCommandAsync(
+            $"load -i {QuoteArgumentIfNeeded(inputPath)}", cancellationToken).ConfigureAwait(false);
         if (!result.Success)
           return CommandResponse<IList<string>>.Fail(
-              result.Error ?? "Image load failed", ErrorCodes.Image.LoadFailed);
+              result.Error ?? "Image load failed", ErrorCodes.Image.LoadFailed,
+              CreateErrorContext(context, "LoadImage", result), result.ExitCode);
 
         var loaded = new List<string>();
         if (!string.IsNullOrEmpty(result.Output))
           loaded.Add(result.Output.Trim());
 
         return CommandResponse<IList<string>>.Ok(loaded);
+      }
+      catch (OperationCanceledException)
+      {
+        throw;
       }
       catch (Exception ex)
       {
@@ -145,19 +172,26 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       {
         var args = "import";
         if (!string.IsNullOrEmpty(message))
-          args += $" --message \"{message}\"";
+          args += $" --message {QuoteArgumentIfNeeded(message)}";
         args += $" {QuoteArgumentIfNeeded(source)}";
         if (!string.IsNullOrEmpty(repository))
         {
-          args += string.IsNullOrEmpty(tag) ? $" {repository}" : $" {repository}:{tag}";
+          args += string.IsNullOrEmpty(tag)
+              ? $" {QuoteArgumentIfNeeded(repository)}"
+              : $" {QuoteArgumentIfNeeded($"{repository}:{tag}")}";
         }
 
-        var result = await ExecuteCommandAsync(args, cancellationToken).ConfigureAwait(false);
+        var result = await ExecuteUnboundedCommandAsync(args, cancellationToken).ConfigureAwait(false);
         if (!result.Success)
           return CommandResponse<string>.Fail(
-              result.Error ?? "Image import failed", ErrorCodes.Image.ImportFailed);
+              result.Error ?? "Image import failed", ErrorCodes.Image.ImportFailed,
+              CreateErrorContext(context, "ImportImage", result), result.ExitCode);
 
         return CommandResponse<string>.Ok(result.Output?.Trim());
+      }
+      catch (OperationCanceledException)
+      {
+        throw;
       }
       catch (Exception ex)
       {
@@ -180,7 +214,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       if (filter != null)
       {
         foreach (var f in filter)
-          args += $" --filter {f.Key}={f.Value}";
+          args += $" --filter {QuoteArgumentIfNeeded($"{f.Key}={f.Value}")}";
       }
       return args;
     }

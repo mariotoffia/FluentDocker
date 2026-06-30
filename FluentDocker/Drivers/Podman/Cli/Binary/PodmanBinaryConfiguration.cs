@@ -30,6 +30,13 @@ namespace FluentDocker.Drivers.Podman.Cli.Binary
     public string[] SearchPaths { get; set; }
 
     /// <summary>
+    /// Gets or sets the Podman client binary name to look for. When null or empty the
+    /// resolver looks for the conventional <c>podman</c> client. Set this to point at a
+    /// renamed/relocated client binary (paired with <see cref="SearchPaths"/>).
+    /// </summary>
+    public string BinaryName { get; set; }
+
+    /// <summary>
     /// Creates a new instance with default settings.
     /// </summary>
     public PodmanBinaryConfiguration()

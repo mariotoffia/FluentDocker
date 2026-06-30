@@ -1,5 +1,6 @@
 using System.Reflection;
 using System.Threading.Tasks;
+using FluentDocker.Common;
 using FluentDocker.Drivers;
 using FluentDocker.Drivers.Podman.Cli.Components;
 using FluentDocker.Model.Drivers;
@@ -69,10 +70,11 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
     }
 
     [Fact]
-    public void ParseSystemInfo_InvalidJson_ReturnsEmptyInfo()
+    public void ParseSystemInfo_InvalidJson_Throws()
     {
-      var result = InvokeParseSystemInfo("not json");
-      Assert.NotNull(result);
+      // FIX-7: unparseable non-empty info output must fail with diagnostics.
+      var ex = Assert.Throws<TargetInvocationException>(() => InvokeParseSystemInfo("not json"));
+      Assert.IsType<FluentDockerException>(ex.InnerException);
     }
 
     #endregion
@@ -136,10 +138,11 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
     }
 
     [Fact]
-    public void ParseVersionInfo_InvalidJson_ReturnsEmptyVersion()
+    public void ParseVersionInfo_InvalidJson_Throws()
     {
-      var result = InvokeParseVersionInfo("not json");
-      Assert.NotNull(result);
+      // FIX-7: unparseable non-empty version output must fail with diagnostics.
+      var ex = Assert.Throws<TargetInvocationException>(() => InvokeParseVersionInfo("not json"));
+      Assert.IsType<FluentDockerException>(ex.InnerException);
     }
 
     #endregion

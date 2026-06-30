@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Reflection;
+using FluentDocker.Common;
 using FluentDocker.Drivers;
 using FluentDocker.Drivers.Podman.Cli.Components;
 using Xunit;
@@ -95,10 +96,11 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
     }
 
     [Fact]
-    public void ParseNetworkInspect_InvalidJson_ReturnsEmptyNetwork()
+    public void ParseNetworkInspect_InvalidJson_Throws()
     {
-      var result = InvokeParseNetworkInspect("not json");
-      Assert.NotNull(result);
+      // FIX-7: unparseable non-empty network output must fail with diagnostics.
+      var ex = Assert.Throws<TargetInvocationException>(() => InvokeParseNetworkInspect("not json"));
+      Assert.IsType<FluentDockerException>(ex.InnerException);
     }
 
     [Fact]

@@ -65,9 +65,11 @@ namespace FluentDocker.Drivers.Podman.Cli
       {
         Sudo = context.Sudo,
         SudoPassword = context.SudoPassword,
-        DefaultShell = context.DefaultShell
+        DefaultShell = context.DefaultShell,
+        BinaryName = context.BinaryName,
+        SearchPaths = context.SearchPaths
       };
-      _binaryResolver = new PodmanBinariesResolver(binaryConfig);
+      _binaryResolver = new PodmanBinariesResolver(binaryConfig, context.LoggerFactory);
 
       // Create all driver components with binary resolver
       _containerDriver = new PodmanCliContainerDriver(_binaryResolver);
@@ -279,7 +281,64 @@ namespace FluentDocker.Drivers.Podman.Cli
 
     #region Auto-Start Machine
 
+    /// <summary>
+    /// Per-machine-name async locks so concurrent kernel builds cannot race to start the
+    /// same Podman machine (start/init are not safe to run twice in parallel). Keyed by the
+    /// configured machine name (or a sentinel for the default machine).
+    /// </summary>
+    private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, SemaphoreSlim> MachineLocks = new();
+
+    /// <summary>
+    /// Whether Podman machine management applies on the current platform. Podman machine only
+    /// exists on macOS/Windows; on native Linux Podman runs without a VM, so there is nothing
+    /// to start. Public static so the platform gate can be unit-tested through the public
+    /// surface (the pack's auto-start path itself drives the real <c>podman machine</c> CLI).
+    /// </summary>
+    public static bool MachineManagementApplies() => FdOs.IsOsx() || FdOs.IsWindows();
+
+    /// <summary>
+    /// Computes the per-machine serialization key used to ensure concurrent kernel builds do
+    /// not race to start/init the same Podman machine. An unset name normalizes to the same
+    /// <c>"default"</c> the start/init path uses (<see cref="AutoStartMachineCoreAsync"/>), so a
+    /// null-name build and an explicit <c>MachineName = "default"</c> build serialize on the
+    /// same gate instead of two different ones. Public static so the keying is unit-testable
+    /// without internals access.
+    /// </summary>
+    public static string MachineLockKey(string machineName)
+        => string.IsNullOrEmpty(machineName) ? "default" : machineName;
+
     private async Task AutoStartMachineAsync(
+        DriverContext context, CancellationToken cancellationToken)
+    {
+      // Podman machine only applies on macOS/Windows; on native Linux Podman runs without a
+      // VM, so there is nothing to start and attempting it would fail spuriously. Auto-start is
+      // only reached when the caller explicitly configured it, so warn (not debug) to make the
+      // no-op discoverable rather than silently swallowing the request.
+      if (!MachineManagementApplies())
+      {
+        _logger.LogWarning(
+            "Podman machine auto-start was requested but is not applicable on this platform; " +
+            "native Linux runs Podman without a machine, so no machine will be started. " +
+            "Remove WithAutoStartMachine on Linux, or run on macOS/Windows where Podman uses a machine.");
+        return;
+      }
+
+      // Serialize per machine name so parallel kernel builds do not both try to start/init it.
+      var key = MachineLockKey(context.AutoStartMachine.MachineName);
+      var gate = MachineLocks.GetOrAdd(key, _ => new SemaphoreSlim(1, 1));
+
+      await gate.WaitAsync(cancellationToken).ConfigureAwait(false);
+      try
+      {
+        await AutoStartMachineCoreAsync(context, cancellationToken).ConfigureAwait(false);
+      }
+      finally
+      {
+        gate.Release();
+      }
+    }
+
+    private async Task AutoStartMachineCoreAsync(
         DriverContext context, CancellationToken cancellationToken)
     {
       var config = context.AutoStartMachine;

@@ -34,7 +34,6 @@ namespace FluentDocker.Drivers.Podman.Cli.Binary
           _configuration.Sudo,
           _configuration.SudoPassword,
           _configuration.SearchPaths)];
-
       MainPodmanClient = Binaries.FirstOrDefault(x => x.Type == PodmanBinaryType.PodmanClient);
       PodmanRemote = Binaries.FirstOrDefault(x => x.Type == PodmanBinaryType.PodmanRemote);
 
@@ -116,6 +115,22 @@ namespace FluentDocker.Drivers.Podman.Cli.Binary
       if (paths == null || paths.Length == 0)
         return [];
 
+      // The configured client name (default "podman"); the remote client name is fixed.
+      var clientName = string.IsNullOrWhiteSpace(_configuration.BinaryName)
+          ? "podman" : _configuration.BinaryName.ToLowerInvariant();
+      var clientFile = isWindows ? clientName + ".exe" : clientName;
+      const string remoteName = "podman-remote";
+      var remoteFile = isWindows ? remoteName + ".exe" : remoteName;
+
+      PodmanBinary Make(string dir, string fileName)
+      {
+        var lower = Path.GetFileName(fileName).ToLowerInvariant();
+        var type = lower.Equals(remoteFile, StringComparison.Ordinal)
+            ? PodmanBinaryType.PodmanRemote
+            : PodmanBinaryType.PodmanClient;
+        return new PodmanBinary(dir, Path.GetFileName(fileName), sudo, password, type);
+      }
+
       var list = new List<PodmanBinary>();
       foreach (var path in paths)
       {
@@ -124,20 +139,11 @@ namespace FluentDocker.Drivers.Podman.Cli.Binary
           if (!Directory.Exists(path))
             continue;
 
-          if (isWindows)
-          {
-            list.AddRange(from file in Directory.GetFiles(path, "podman*.*")
-                          let f = Path.GetFileName(file.ToLower())
-                          where f != null && (f.Equals("podman.exe", StringComparison.Ordinal) || f.Equals("podman-remote.exe", StringComparison.Ordinal))
-                          select new PodmanBinary(path, f, sudo, password));
-            continue;
-          }
-
-          list.AddRange(from file in Directory.GetFiles(path, "podman*")
-                        let f = Path.GetFileName(file)
-                        let f2 = f.ToLower()
-                        where f2.Equals("podman", StringComparison.Ordinal) || f2.Equals("podman-remote", StringComparison.Ordinal)
-                        select new PodmanBinary(path, f, sudo, password));
+          list.AddRange(from file in Directory.GetFiles(path)
+                        let f = Path.GetFileName(file).ToLowerInvariant()
+                        where f.Equals(clientFile, StringComparison.Ordinal)
+                            || f.Equals(remoteFile, StringComparison.Ordinal)
+                        select Make(path, file));
         }
         catch (Exception e)
         {

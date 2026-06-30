@@ -7,8 +7,6 @@ using System.Threading.Tasks;
 using FluentDocker.Common;
 using FluentDocker.Drivers.Podman.Cli.Binary;
 using FluentDocker.Model.Drivers;
-using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Logging.Abstractions;
 
 namespace FluentDocker.Drivers.Podman.Cli.Components
 {
@@ -36,12 +34,17 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
         if (!result.Success)
           return CommandResponse<PodCreateResult>.Fail(
               result.Error ?? "Pod create failed",
-              ErrorCodes.Pod.CreateFailed, result.ExitCode);
+              ErrorCodes.Pod.CreateFailed,
+              CreateErrorContext(context, "CreatePod", result), result.ExitCode);
 
         return CommandResponse<PodCreateResult>.Ok(new PodCreateResult
         {
           Id = result.Output?.Trim()
         });
+      }
+      catch (OperationCanceledException)
+      {
+        throw;
       }
       catch (Exception ex)
       {
@@ -55,8 +58,26 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
         DriverContext context, string name,
         CancellationToken cancellationToken = default)
     {
-      return await ExecuteSimplePodCommandAsync(
-          $"pod start {name}", ErrorCodes.Pod.StartFailed, cancellationToken);
+      try
+      {
+        var args = $"pod start {QuoteArgumentIfNeeded(name)}";
+        var result = await ExecuteUnboundedCommandAsync(args, cancellationToken).ConfigureAwait(false);
+        if (!result.Success)
+          return CommandResponse<Unit>.Fail(
+              result.Error ?? "Pod start failed",
+              ErrorCodes.Pod.StartFailed,
+              CreateErrorContext(context, "StartPod", result), result.ExitCode);
+
+        return CommandResponse<Unit>.Ok(Unit.Default);
+      }
+      catch (OperationCanceledException)
+      {
+        throw;
+      }
+      catch (Exception ex)
+      {
+        return CommandResponse<Unit>.Fail(ex.Message, ErrorCodes.Pod.StartFailed);
+      }
     }
 
     /// <inheritdoc />
@@ -64,12 +85,28 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
         DriverContext context, string name, int? timeout = null,
         CancellationToken cancellationToken = default)
     {
-      var args = timeout.HasValue
-          ? $"pod stop -t {timeout.Value} {name}"
-          : $"pod stop {name}";
+      try
+      {
+        var args = timeout.HasValue
+            ? $"pod stop -t {timeout.Value} {QuoteArgumentIfNeeded(name)}"
+            : $"pod stop {QuoteArgumentIfNeeded(name)}";
+        var result = await ExecuteUnboundedCommandAsync(args, cancellationToken).ConfigureAwait(false);
+        if (!result.Success)
+          return CommandResponse<Unit>.Fail(
+              result.Error ?? "Pod stop failed",
+              ErrorCodes.Pod.StopFailed,
+              CreateErrorContext(context, "StopPod", result), result.ExitCode);
 
-      return await ExecuteSimplePodCommandAsync(
-          args, ErrorCodes.Pod.StopFailed, cancellationToken);
+        return CommandResponse<Unit>.Ok(Unit.Default);
+      }
+      catch (OperationCanceledException)
+      {
+        throw;
+      }
+      catch (Exception ex)
+      {
+        return CommandResponse<Unit>.Fail(ex.Message, ErrorCodes.Pod.StopFailed);
+      }
     }
 
     /// <inheritdoc />
@@ -77,12 +114,28 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
         DriverContext context, string name, int? timeout = null,
         CancellationToken cancellationToken = default)
     {
-      var args = timeout.HasValue
-          ? $"pod restart -t {timeout.Value} {name}"
-          : $"pod restart {name}";
+      try
+      {
+        var args = timeout.HasValue
+            ? $"pod restart -t {timeout.Value} {QuoteArgumentIfNeeded(name)}"
+            : $"pod restart {QuoteArgumentIfNeeded(name)}";
+        var result = await ExecuteUnboundedCommandAsync(args, cancellationToken).ConfigureAwait(false);
+        if (!result.Success)
+          return CommandResponse<Unit>.Fail(
+              result.Error ?? "Pod restart failed",
+              ErrorCodes.Pod.RestartFailed,
+              CreateErrorContext(context, "RestartPod", result), result.ExitCode);
 
-      return await ExecuteSimplePodCommandAsync(
-          args, ErrorCodes.Pod.RestartFailed, cancellationToken);
+        return CommandResponse<Unit>.Ok(Unit.Default);
+      }
+      catch (OperationCanceledException)
+      {
+        throw;
+      }
+      catch (Exception ex)
+      {
+        return CommandResponse<Unit>.Fail(ex.Message, ErrorCodes.Pod.RestartFailed);
+      }
     }
 
     /// <inheritdoc />
@@ -90,12 +143,28 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
         DriverContext context, string name, string signal = null,
         CancellationToken cancellationToken = default)
     {
-      var args = !string.IsNullOrEmpty(signal)
-          ? $"pod kill --signal {signal} {name}"
-          : $"pod kill {name}";
+      try
+      {
+        var args = !string.IsNullOrEmpty(signal)
+            ? $"pod kill --signal {QuoteArgumentIfNeeded(signal)} {QuoteArgumentIfNeeded(name)}"
+            : $"pod kill {QuoteArgumentIfNeeded(name)}";
+        var result = await ExecuteCommandAsync(args, cancellationToken).ConfigureAwait(false);
+        if (!result.Success)
+          return CommandResponse<Unit>.Fail(
+              result.Error ?? "Pod kill failed",
+              ErrorCodes.Pod.KillFailed,
+              CreateErrorContext(context, "KillPod", result), result.ExitCode);
 
-      return await ExecuteSimplePodCommandAsync(
-          args, ErrorCodes.Pod.KillFailed, cancellationToken);
+        return CommandResponse<Unit>.Ok(Unit.Default);
+      }
+      catch (OperationCanceledException)
+      {
+        throw;
+      }
+      catch (Exception ex)
+      {
+        return CommandResponse<Unit>.Fail(ex.Message, ErrorCodes.Pod.KillFailed);
+      }
     }
 
     /// <inheritdoc />
@@ -103,8 +172,26 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
         DriverContext context, string name,
         CancellationToken cancellationToken = default)
     {
-      return await ExecuteSimplePodCommandAsync(
-          $"pod pause {name}", ErrorCodes.Pod.PauseFailed, cancellationToken);
+      try
+      {
+        var args = $"pod pause {QuoteArgumentIfNeeded(name)}";
+        var result = await ExecuteCommandAsync(args, cancellationToken).ConfigureAwait(false);
+        if (!result.Success)
+          return CommandResponse<Unit>.Fail(
+              result.Error ?? "Pod pause failed",
+              ErrorCodes.Pod.PauseFailed,
+              CreateErrorContext(context, "PausePod", result), result.ExitCode);
+
+        return CommandResponse<Unit>.Ok(Unit.Default);
+      }
+      catch (OperationCanceledException)
+      {
+        throw;
+      }
+      catch (Exception ex)
+      {
+        return CommandResponse<Unit>.Fail(ex.Message, ErrorCodes.Pod.PauseFailed);
+      }
     }
 
     /// <inheritdoc />
@@ -112,8 +199,26 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
         DriverContext context, string name,
         CancellationToken cancellationToken = default)
     {
-      return await ExecuteSimplePodCommandAsync(
-          $"pod unpause {name}", ErrorCodes.Pod.UnpauseFailed, cancellationToken);
+      try
+      {
+        var args = $"pod unpause {QuoteArgumentIfNeeded(name)}";
+        var result = await ExecuteCommandAsync(args, cancellationToken).ConfigureAwait(false);
+        if (!result.Success)
+          return CommandResponse<Unit>.Fail(
+              result.Error ?? "Pod unpause failed",
+              ErrorCodes.Pod.UnpauseFailed,
+              CreateErrorContext(context, "UnpausePod", result), result.ExitCode);
+
+        return CommandResponse<Unit>.Ok(Unit.Default);
+      }
+      catch (OperationCanceledException)
+      {
+        throw;
+      }
+      catch (Exception ex)
+      {
+        return CommandResponse<Unit>.Fail(ex.Message, ErrorCodes.Pod.UnpauseFailed);
+      }
     }
 
     /// <inheritdoc />
@@ -121,10 +226,28 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
         DriverContext context, string name, bool force = false,
         CancellationToken cancellationToken = default)
     {
-      var args = force ? $"pod rm -f {name}" : $"pod rm {name}";
+      try
+      {
+        var args = force
+            ? $"pod rm -f {QuoteArgumentIfNeeded(name)}"
+            : $"pod rm {QuoteArgumentIfNeeded(name)}";
+        var result = await ExecuteCommandAsync(args, cancellationToken).ConfigureAwait(false);
+        if (!result.Success)
+          return CommandResponse<Unit>.Fail(
+              result.Error ?? "Pod remove failed",
+              ErrorCodes.Pod.RemoveFailed,
+              CreateErrorContext(context, "RemovePod", result), result.ExitCode);
 
-      return await ExecuteSimplePodCommandAsync(
-          args, ErrorCodes.Pod.RemoveFailed, cancellationToken);
+        return CommandResponse<Unit>.Ok(Unit.Default);
+      }
+      catch (OperationCanceledException)
+      {
+        throw;
+      }
+      catch (Exception ex)
+      {
+        return CommandResponse<Unit>.Fail(ex.Message, ErrorCodes.Pod.RemoveFailed);
+      }
     }
 
     #endregion
@@ -139,15 +262,20 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       try
       {
         var result = await ExecuteCommandAsync(
-            "pod ps --format json", cancellationToken);
+            "pod ps --format json", cancellationToken).ConfigureAwait(false);
 
         if (!result.Success)
           return CommandResponse<IList<PodInfo>>.Fail(
               result.Error ?? "Pod list failed",
-              ErrorCodes.Pod.ListFailed, result.ExitCode);
+              ErrorCodes.Pod.ListFailed,
+              CreateErrorContext(context, "ListPods", result), result.ExitCode);
 
         var pods = ParsePodList(result.Output);
         return CommandResponse<IList<PodInfo>>.Ok(pods);
+      }
+      catch (OperationCanceledException)
+      {
+        throw;
       }
       catch (Exception ex)
       {
@@ -164,15 +292,20 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       try
       {
         var result = await ExecuteCommandAsync(
-            $"pod inspect {name}", cancellationToken);
+            $"pod inspect {QuoteArgumentIfNeeded(name)}", cancellationToken).ConfigureAwait(false);
 
         if (!result.Success)
           return CommandResponse<PodInspectResult>.Fail(
               result.Error ?? "Pod inspect failed",
-              ErrorCodes.Pod.InspectFailed, result.ExitCode);
+              ErrorCodes.Pod.InspectFailed,
+              CreateErrorContext(context, "InspectPod", result), result.ExitCode);
 
         var inspect = ParsePodInspect(result.Output);
         return CommandResponse<PodInspectResult>.Ok(inspect);
+      }
+      catch (OperationCanceledException)
+      {
+        throw;
       }
       catch (Exception ex)
       {
@@ -190,22 +323,22 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       var args = "pod create";
 
       if (!string.IsNullOrEmpty(config.Name))
-        args += $" --name {config.Name}";
+        args += $" --name {QuoteArgumentIfNeeded(config.Name)}";
       if (!string.IsNullOrEmpty(config.Hostname))
-        args += $" --hostname {config.Hostname}";
+        args += $" --hostname {QuoteArgumentIfNeeded(config.Hostname)}";
       if (!string.IsNullOrEmpty(config.Network))
-        args += $" --network {config.Network}";
+        args += $" --network {QuoteArgumentIfNeeded(config.Network)}";
       if (!string.IsNullOrEmpty(config.InfraImage))
-        args += $" --infra-image {config.InfraImage}";
+        args += $" --infra-image {QuoteArgumentIfNeeded(config.InfraImage)}";
       if (!string.IsNullOrEmpty(config.Share))
-        args += $" --share {config.Share}";
+        args += $" --share {QuoteArgumentIfNeeded(config.Share)}";
 
       foreach (var label in config.Labels)
-        args += $" --label {label.Key}={label.Value}";
+        args += $" --label {QuoteArgumentIfNeeded($"{label.Key}={label.Value}")}";
       foreach (var dns in config.Dns)
-        args += $" --dns {dns}";
+        args += $" --dns {QuoteArgumentIfNeeded(dns)}";
       foreach (var port in config.Ports)
-        args += $" -p {port}";
+        args += $" -p {QuoteArgumentIfNeeded(port)}";
 
       return args;
     }
@@ -236,7 +369,11 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
             pods.Add(ParsePodInfoFromToken(JsonHelper.ParseElement(line.Trim())));
         }
       }
-      catch (Exception ex) { NullLogger.Instance.LogError(ex, "Pod JSON parsing skipped"); }
+      catch (Exception ex)
+      {
+        throw new FluentDockerException(
+            $"Failed to parse Podman pod list output: {ex.Message}");
+      }
 
       return pods;
     }
@@ -311,7 +448,11 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
             result.Containers.Add(ParsePodContainerInfoFromToken(c));
         }
       }
-      catch (Exception ex) { NullLogger.Instance.LogError(ex, "Pod JSON parsing skipped"); }
+      catch (Exception ex)
+      {
+        throw new FluentDockerException(
+            $"Failed to parse Podman pod inspect output: {ex.Message}");
+      }
 
       return result;
     }
@@ -328,26 +469,5 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
 
     #endregion
 
-    #region Helpers
-
-    private async Task<CommandResponse<Unit>> ExecuteSimplePodCommandAsync(
-        string args, string errorCode, CancellationToken cancellationToken)
-    {
-      try
-      {
-        var result = await ExecuteCommandAsync(args, cancellationToken).ConfigureAwait(false);
-        return result.Success
-            ? CommandResponse<Unit>.Ok(Unit.Default)
-            : CommandResponse<Unit>.Fail(
-                result.Error ?? $"Pod command failed: {args}",
-                errorCode, result.ExitCode);
-      }
-      catch (Exception ex)
-      {
-        return CommandResponse<Unit>.Fail(ex.Message, errorCode);
-      }
-    }
-
-    #endregion
   }
 }
