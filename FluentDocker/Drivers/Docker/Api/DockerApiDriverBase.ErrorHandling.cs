@@ -1,5 +1,6 @@
 using System;
 using System.Net.Http;
+using System.Threading;
 using System.Threading.Tasks;
 using FluentDocker.Common;
 using FluentDocker.Model.Drivers;
@@ -46,7 +47,18 @@ namespace FluentDocker.Drivers.Docker.Api
 
     #endregion
 
-    private static bool IsConnectionError(Exception ex) =>
-        ex is HttpRequestException or System.Net.Sockets.SocketException or TaskCanceledException;
+    // Caller-initiated cancellation (an OperationCanceledException whose token is the
+    // caller's) is NOT a connection failure — returning false here lets the OCE escape the
+    // `when` filter and propagate, instead of being masked as a 503 "cannot connect".
+    // An internal HttpClient.Timeout surfaces as a TaskCanceledException whose token is NOT
+    // the caller's, so ct.IsCancellationRequested is false and it is still treated as a
+    // connection error below.
+    private static bool IsConnectionError(Exception ex, CancellationToken ct)
+    {
+      if (ex is OperationCanceledException && ct.IsCancellationRequested)
+        return false;
+
+      return ex is HttpRequestException or System.Net.Sockets.SocketException or TaskCanceledException;
+    }
   }
 }

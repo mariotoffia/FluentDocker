@@ -28,13 +28,18 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
         HttpStatusCode StatusCode,
         string? JsonBody,
         string? StreamContent,
-        byte[]? StreamBytes);
+        byte[]? StreamBytes,
+        Exception? StreamException);
 
     private readonly List<ResponseEntry> _entries = [];
     private readonly List<CapturedRequest> _requests = [];
+    private readonly List<RecordingStream> _streams = [];
     private bool _pingSuccess = true;
 
     public string ApiVersion { get; set; } = "1.45";
+
+    /// <summary>Every stream handed out by the mock, in order, so tests can assert disposal.</summary>
+    public IReadOnlyList<RecordingStream> Streams => _streams;
 
     // ── Setup (fluent) ──────────────────────────────────────────────
 
@@ -42,7 +47,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
         string pathContains, int statusCode, string jsonBody)
     {
       _entries.Add(new ResponseEntry(
-          "GET", pathContains, (HttpStatusCode)statusCode, jsonBody, null, null));
+          "GET", pathContains, (HttpStatusCode)statusCode, jsonBody, null, null, null));
       return this;
     }
 
@@ -50,7 +55,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
         string pathContains, int statusCode, string jsonBody)
     {
       _entries.Add(new ResponseEntry(
-          "POST", pathContains, (HttpStatusCode)statusCode, jsonBody, null, null));
+          "POST", pathContains, (HttpStatusCode)statusCode, jsonBody, null, null, null));
       return this;
     }
 
@@ -58,7 +63,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
         string pathContains, int statusCode, string jsonBody)
     {
       _entries.Add(new ResponseEntry(
-          "PUT", pathContains, (HttpStatusCode)statusCode, jsonBody, null, null));
+          "PUT", pathContains, (HttpStatusCode)statusCode, jsonBody, null, null, null));
       return this;
     }
 
@@ -66,7 +71,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
         string pathContains, int statusCode, string jsonBody)
     {
       _entries.Add(new ResponseEntry(
-          "DELETE", pathContains, (HttpStatusCode)statusCode, jsonBody, null, null));
+          "DELETE", pathContains, (HttpStatusCode)statusCode, jsonBody, null, null, null));
       return this;
     }
 
@@ -74,7 +79,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
         string pathContains, string streamContent)
     {
       _entries.Add(new ResponseEntry(
-          "STREAM", pathContains, HttpStatusCode.OK, null, streamContent, null));
+          "STREAM", pathContains, HttpStatusCode.OK, null, streamContent, null, null));
       return this;
     }
 
@@ -86,7 +91,31 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
         string pathContains, byte[] bytes)
     {
       _entries.Add(new ResponseEntry(
-          "STREAM", pathContains, HttpStatusCode.OK, null, null, bytes));
+          "STREAM", pathContains, HttpStatusCode.OK, null, null, bytes, null));
+      return this;
+    }
+
+    /// <summary>
+    /// Sets up a stream endpoint that throws when opened, simulating a stream-open
+    /// failure (e.g. a non-success status surfaced by the real connection).
+    /// </summary>
+    public MockDockerApiConnection SetupStreamThrows(
+        string pathContains, Exception ex)
+    {
+      _entries.Add(new ResponseEntry(
+          "STREAM_THROW", pathContains, HttpStatusCode.OK, null, null, null, ex));
+      return this;
+    }
+
+    /// <summary>
+    /// Sets up a stream endpoint whose stream yields <paramref name="prefix"/> bytes and then
+    /// throws <paramref name="ex"/> on the next read, simulating a mid-stream read failure.
+    /// </summary>
+    public MockDockerApiConnection SetupStreamReadThrows(
+        string pathContains, byte[] prefix, Exception ex)
+    {
+      _entries.Add(new ResponseEntry(
+          "STREAM_READ_THROW", pathContains, HttpStatusCode.OK, null, null, prefix, ex));
       return this;
     }
 
@@ -195,15 +224,111 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
     private Stream ResolveStream(string path)
 #pragma warning restore CA1859
     {
+      // A STREAM_THROW entry simulates a stream-open failure.
+      var throwEntry = _entries
+          .Where(e => e.Method == "STREAM_THROW" && path.Contains(e.PathContains))
+          .LastOrDefault();
+      if (throwEntry != default && throwEntry.StreamException != null)
+        throw throwEntry.StreamException;
+
+      // A STREAM_READ_THROW entry yields a byte prefix then throws on the next read.
+      var readThrowEntry = _entries
+          .Where(e => e.Method == "STREAM_READ_THROW" && path.Contains(e.PathContains))
+          .LastOrDefault();
+      if (readThrowEntry != default && readThrowEntry.StreamException != null)
+        return new ThrowingReadStream(
+            readThrowEntry.StreamBytes ?? Array.Empty<byte>(), readThrowEntry.StreamException);
+
       var entry = _entries
           .Where(e => e.Method == "STREAM" && path.Contains(e.PathContains))
           .LastOrDefault();
 
       if (entry != default && entry.StreamBytes != null)
-        return new MemoryStream(entry.StreamBytes);
+        return Record(new RecordingStream(entry.StreamBytes));
 
       var text = entry == default ? string.Empty : entry.StreamContent ?? string.Empty;
-      return new MemoryStream(Encoding.UTF8.GetBytes(text));
+      return Record(new RecordingStream(Encoding.UTF8.GetBytes(text)));
     }
+
+    private RecordingStream Record(RecordingStream stream)
+    {
+      _streams.Add(stream);
+      return stream;
+    }
+  }
+
+  /// <summary>A MemoryStream that records whether it was disposed, so tests can assert resource cleanup.</summary>
+  public sealed class RecordingStream : MemoryStream
+  {
+    public RecordingStream(byte[] buffer) : base(buffer)
+    {
+    }
+
+    public bool IsDisposed { get; private set; }
+
+    protected override void Dispose(bool disposing)
+    {
+      IsDisposed = true;
+      base.Dispose(disposing);
+    }
+  }
+
+  /// <summary>
+  /// A read-only stream that yields a fixed byte prefix and then throws on the next read,
+  /// simulating a connection dropped mid-stream.
+  /// </summary>
+  public sealed class ThrowingReadStream : Stream
+  {
+    private readonly byte[] _prefix;
+    private readonly Exception _exception;
+    private int _position;
+
+    public ThrowingReadStream(byte[] prefix, Exception exception)
+    {
+      _prefix = prefix;
+      _exception = exception;
+    }
+
+    public override bool CanRead => true;
+    public override bool CanSeek => false;
+    public override bool CanWrite => false;
+    public override long Length => throw new NotSupportedException();
+    public override long Position
+    {
+      get => _position;
+      set => throw new NotSupportedException();
+    }
+
+    public override int Read(byte[] buffer, int offset, int count)
+    {
+      if (_position >= _prefix.Length)
+        throw _exception;
+
+      var available = Math.Min(count, _prefix.Length - _position);
+      Array.Copy(_prefix, _position, buffer, offset, available);
+      _position += available;
+      return available;
+    }
+
+    public override ValueTask<int> ReadAsync(
+        Memory<byte> buffer, CancellationToken cancellationToken = default)
+    {
+      if (_position >= _prefix.Length)
+        throw _exception;
+
+      var available = Math.Min(buffer.Length, _prefix.Length - _position);
+      _prefix.AsSpan(_position, available).CopyTo(buffer.Span);
+      _position += available;
+      return ValueTask.FromResult(available);
+    }
+
+    public override Task<int> ReadAsync(
+        byte[] buffer, int offset, int count, CancellationToken cancellationToken)
+        => ReadAsync(buffer.AsMemory(offset, count), cancellationToken).AsTask();
+
+    public override void Flush() { }
+    public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
+    public override void SetLength(long value) => throw new NotSupportedException();
+    public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
   }
 }

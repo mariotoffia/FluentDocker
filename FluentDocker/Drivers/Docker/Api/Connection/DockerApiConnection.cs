@@ -8,6 +8,8 @@ using System.Net.Security;
 using System.Net.Sockets;
 using System.Runtime.InteropServices;
 using System.Security.Cryptography.X509Certificates;
+using System.Text;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using FluentDocker.Common;
@@ -104,7 +106,7 @@ namespace FluentDocker.Drivers.Docker.Api.Connection
       var versionedPath = await GetVersionedPathAsync(path, ct).ConfigureAwait(false);
       var response = await _httpClient.GetAsync(
           versionedPath, HttpCompletionOption.ResponseHeadersRead, ct).ConfigureAwait(false);
-      response.EnsureSuccessStatusCode();
+      await EnsureStreamSuccessAsync(response, ct).ConfigureAwait(false);
       var stream = await response.Content.ReadAsStreamAsync(ct).ConfigureAwait(false);
       return new ResponseOwningStream(stream, response);
     }
@@ -116,9 +118,73 @@ namespace FluentDocker.Drivers.Docker.Api.Connection
       var request = new HttpRequestMessage(HttpMethod.Post, versionedPath) { Content = content };
       var response = await _httpClient.SendAsync(
           request, HttpCompletionOption.ResponseHeadersRead, ct).ConfigureAwait(false);
-      response.EnsureSuccessStatusCode();
+      await EnsureStreamSuccessAsync(response, ct).ConfigureAwait(false);
       var stream = await response.Content.ReadAsStreamAsync(ct).ConfigureAwait(false);
       return new ResponseOwningStream(stream, response);
+    }
+
+    /// <summary>
+    /// Throws a descriptive <see cref="HttpRequestException"/> for a non-success stream
+    /// response, preserving Docker's <c>{"message":"..."}</c> error body (bounded to 32 KiB)
+    /// instead of discarding it like <c>EnsureSuccessStatusCode()</c> would. Disposes the
+    /// response on failure so the connection is not leaked.
+    /// </summary>
+    private static async Task EnsureStreamSuccessAsync(
+        HttpResponseMessage response, CancellationToken ct)
+    {
+      if (response.IsSuccessStatusCode)
+        return;
+
+      const int maxBytes = 32 * 1024;
+      var body = string.Empty;
+      try
+      {
+        var s = await response.Content.ReadAsStreamAsync(ct).ConfigureAwait(false);
+        var buffer = new byte[maxBytes];
+        var total = 0;
+        int read;
+        while (total < maxBytes &&
+               (read = await s.ReadAsync(buffer.AsMemory(total, maxBytes - total), ct).ConfigureAwait(false)) > 0)
+          total += read;
+        body = Encoding.UTF8.GetString(buffer, 0, total);
+      }
+      catch (OperationCanceledException) when (ct.IsCancellationRequested)
+      {
+        response.Dispose();
+        throw;
+      }
+      catch (Exception)
+      {
+        // Body unavailable — fall back to the status line below.
+      }
+
+      var status = (int)response.StatusCode;
+      var reason = response.ReasonPhrase;
+      response.Dispose();
+
+      var detail = ExtractDockerMessage(body)
+          ?? (string.IsNullOrWhiteSpace(body) ? reason : body);
+      throw new HttpRequestException($"Docker API {status}: {detail}");
+    }
+
+    private static string ExtractDockerMessage(string body)
+    {
+      if (string.IsNullOrWhiteSpace(body))
+        return null;
+
+      try
+      {
+        using var doc = JsonDocument.Parse(body);
+        if (doc.RootElement.ValueKind == JsonValueKind.Object &&
+            doc.RootElement.TryGetProperty("message", out var msg) &&
+            msg.ValueKind == JsonValueKind.String)
+          return msg.GetString();
+      }
+      catch (JsonException)
+      {
+        // Not the standard Docker error JSON — caller falls back to the raw body.
+      }
+      return null;
     }
 
     public async Task<bool> PingAsync(CancellationToken ct = default)
@@ -206,11 +272,17 @@ namespace FluentDocker.Drivers.Docker.Api.Connection
         // Atomically publish both the version and the negotiated flag.
         _negotiation = new NegotiationState(version, Negotiated: true);
       }
+      catch (OperationCanceledException) when (ct.IsCancellationRequested)
+      {
+        // Caller cancellation is not a negotiation failure — propagate without caching, so a
+        // later call retries negotiation instead of being stuck in a degraded "no version" mode.
+        throw;
+      }
       catch (Exception ex)
       {
-        // If negotiation fails, proceed without version prefix
-        _logger.LogWarning(ex, "Docker API version negotiation failed; proceeding without version prefix");
-        _negotiation = new NegotiationState(null, Negotiated: true);
+        // Transient failure (daemon starting/unreachable). Do NOT cache as negotiated, so a later
+        // request retries; this request proceeds without a version prefix.
+        _logger.LogWarning(ex, "Docker API version negotiation failed; proceeding without version prefix (will retry)");
       }
     }
 

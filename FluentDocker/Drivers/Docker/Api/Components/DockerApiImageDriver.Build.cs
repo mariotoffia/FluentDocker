@@ -1,16 +1,11 @@
 using System;
-using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
 using FluentDocker.Common;
 using FluentDocker.Drivers.Docker.Api.ApiModels;
 using FluentDocker.Model.Drivers;
-using SharpCompress.Common;
-using SharpCompress.Writers;
-using SharpCompress.Writers.Tar;
 
 namespace FluentDocker.Drivers.Docker.Api.Components
 {
@@ -31,10 +26,43 @@ namespace FluentDocker.Drivers.Docker.Api.Components
         IProgress<ImagePullProgress> progress,
         CancellationToken cancellationToken)
     {
-      tag ??= "latest";
-      var path = $"/images/create" +
-                 $"?fromImage={Uri.EscapeDataString(image)}" +
-                 $"&tag={Uri.EscapeDataString(tag)}";
+      // A digest reference (repo@sha256:...) must be passed through on fromImage with no
+      // tag param. Forcing tag=latest or appending a separate &tag= would fight the digest.
+      var fromImage = image;
+      var digestInTag = tag != null &&
+          tag.StartsWith("sha256:", StringComparison.OrdinalIgnoreCase);
+      if (digestInTag && image != null && !image.Contains('@'))
+        fromImage = $"{image}@{tag}";
+
+      var isDigestRef = (fromImage != null && fromImage.Contains('@')) || digestInTag;
+
+      // Reject a request carrying two different digests (one in the ref, one in the tag) instead
+      // of silently honoring the ref and discarding the tag.
+      if (image != null && image.Contains("@sha256:", StringComparison.OrdinalIgnoreCase) && digestInTag)
+      {
+        var refDigest = image[(image.IndexOf('@') + 1)..];
+        if (!string.Equals(refDigest, tag, StringComparison.OrdinalIgnoreCase))
+          return CommandResponse<Unit>.Fail(
+              $"Conflicting digests in image '{image}' and tag '{tag}'",
+              ErrorCodes.Image.PullFailed,
+              CreateErrorContext("POST /images/create (pull)", 0));
+      }
+
+      string path;
+      string displayRef;
+      if (isDigestRef)
+      {
+        path = $"/images/create?fromImage={Uri.EscapeDataString(fromImage)}";
+        displayRef = fromImage;
+      }
+      else
+      {
+        tag ??= "latest";
+        path = $"/images/create" +
+               $"?fromImage={Uri.EscapeDataString(image)}" +
+               $"&tag={Uri.EscapeDataString(tag)}";
+        displayRef = $"{image}:{tag}";
+      }
 
       // Use PostStreamAsync directly so we can detect connection failures
       Stream stream;
@@ -53,25 +81,40 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       string lastError = null;
       var receivedProgress = false;
 
-      await foreach (var parsed in ReadNdjsonLinesAsync(
-          stream, DockerApiJsonContext.Default.PullProgressLine, cancellationToken))
+      // ResponseOwningStream owns the underlying HttpResponseMessage; dispose it so the
+      // connection is returned to the pool instead of leaking once the stream is drained.
+      try
       {
-        receivedProgress = true;
-
-        if (!string.IsNullOrWhiteSpace(parsed.Error))
+        await using (stream.ConfigureAwait(false))
         {
-          lastError = parsed.Error;
-          break;
+          await foreach (var parsed in ReadNdjsonLinesAsync(
+              stream, DockerApiJsonContext.Default.PullProgressLine, cancellationToken))
+          {
+            receivedProgress = true;
+
+            if (!string.IsNullOrWhiteSpace(parsed.Error))
+            {
+              lastError = parsed.Error;
+              break;
+            }
+
+            progress?.Report(new ImagePullProgress
+            {
+              Status = parsed.Status,
+              Progress = parsed.Progress,
+              Id = parsed.Id,
+              Current = parsed.ProgressDetail?.Current ?? 0,
+              Total = parsed.ProgressDetail?.Total ?? 0
+            });
+          }
         }
-
-        progress?.Report(new ImagePullProgress
-        {
-          Status = parsed.Status,
-          Progress = parsed.Progress,
-          Id = parsed.Id,
-          Current = parsed.ProgressDetail?.Current ?? 0,
-          Total = parsed.ProgressDetail?.Total ?? 0
-        });
+      }
+      catch (DriverException ex)
+      {
+        // The NDJSON reader throws DriverException on stream read failure.
+        return CommandResponse<Unit>.Fail(ex.Message,
+            ErrorCodes.Image.PullFailed,
+            CreateErrorContext("POST /images/create (pull)", 0));
       }
 
       if (!string.IsNullOrWhiteSpace(lastError))
@@ -81,7 +124,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
 
       if (!receivedProgress)
         return CommandResponse<Unit>.Fail(
-            $"Pull received no response from Docker daemon for '{image}:{tag}'",
+            $"Pull received no response from Docker daemon for '{displayRef}'",
             ErrorCodes.Image.PullFailed,
             CreateErrorContext("POST /images/create (pull)", 0));
 
@@ -117,30 +160,55 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       }
 
       string lastError = null;
+      var receivedProgress = false;
 
-      await foreach (var parsed in ReadNdjsonLinesAsync(
-          stream, DockerApiJsonContext.Default.PushProgressLine, cancellationToken))
+      // ResponseOwningStream owns the HttpResponseMessage; dispose it after draining.
+      try
       {
-        if (!string.IsNullOrWhiteSpace(parsed.Error))
+        await using (stream.ConfigureAwait(false))
         {
-          lastError = parsed.Error;
-          break;
-        }
+          await foreach (var parsed in ReadNdjsonLinesAsync(
+              stream, DockerApiJsonContext.Default.PushProgressLine, cancellationToken))
+          {
+            receivedProgress = true;
 
-        progress?.Report(new ImagePushProgress
-        {
-          Status = parsed.Status,
-          Progress = parsed.Progress,
-          Id = parsed.Id,
-          Current = parsed.ProgressDetail?.Current ?? 0,
-          Total = parsed.ProgressDetail?.Total ?? 0
-        });
+            if (!string.IsNullOrWhiteSpace(parsed.Error))
+            {
+              lastError = parsed.Error;
+              break;
+            }
+
+            progress?.Report(new ImagePushProgress
+            {
+              Status = parsed.Status,
+              Progress = parsed.Progress,
+              Id = parsed.Id,
+              Current = parsed.ProgressDetail?.Current ?? 0,
+              Total = parsed.ProgressDetail?.Total ?? 0
+            });
+          }
+        }
+      }
+      catch (DriverException ex)
+      {
+        // The NDJSON reader throws DriverException on stream read failure.
+        return CommandResponse<Unit>.Fail(ex.Message,
+            ErrorCodes.Image.PushFailed,
+            CreateErrorContext("POST /images/{name}/push", 0));
       }
 
       if (!string.IsNullOrWhiteSpace(lastError))
         return CommandResponse<Unit>.Fail(lastError,
             ErrorCodes.Image.PushFailed,
             CreateErrorContext("POST /images/push", 0));
+
+      // A successful push always emits at least one progress/status line. None means the stream
+      // ended without evidence of success (incomplete/streamed failure).
+      if (!receivedProgress)
+        return CommandResponse<Unit>.Fail(
+            $"Push received no response from Docker daemon for '{image}'",
+            ErrorCodes.Image.PushFailed,
+            CreateErrorContext("POST /images/{name}/push", 0));
 
       return CommandResponse<Unit>.Ok(Unit.Default);
     }
@@ -169,8 +237,8 @@ namespace FluentDocker.Drivers.Docker.Api.Components
             $"Build context directory not found: {config.BuildContext}",
             ErrorCodes.Image.BuildFailed);
 
-      // Create tar archive of the build context
-      var tarStream = CreateBuildContextTar(config.BuildContext);
+      // Create tar archive of the build context (streamed to a temp file, not memory)
+      var tarStream = CreateBuildContextTar(config.BuildContext, config);
       try
       {
         var query = BuildBuildQueryParams(config);
@@ -212,93 +280,28 @@ namespace FluentDocker.Drivers.Docker.Api.Components
               ErrorCodes.Image.BuildFailed,
               CreateErrorContext("POST /build", 0));
 
+        // A successful build always emits an aux.ID. If we reached the end of the stream
+        // without an error AND without an image id, the build was incomplete or the stream
+        // failed mid-flight — surface it as a failure rather than a false success.
+        if (buildResult.ImageId == null)
+          return CommandResponse<ImageBuildResult>.Fail(
+              "Docker build produced no image id (incomplete/streamed failure)",
+              ErrorCodes.Image.BuildFailed,
+              CreateErrorContext("POST /build", 0));
+
         return CommandResponse<ImageBuildResult>.Ok(buildResult);
+      }
+      catch (DriverException ex)
+      {
+        // The NDJSON reader throws DriverException on stream open/read failure.
+        return CommandResponse<ImageBuildResult>.Fail(ex.Message,
+            ErrorCodes.Image.BuildFailed,
+            CreateErrorContext("POST /build", 0));
       }
       finally
       {
         await tarStream.DisposeAsync().ConfigureAwait(false);
       }
-    }
-
-    #endregion
-
-    #region Build Helpers
-
-    private static MemoryStream CreateBuildContextTar(string contextPath)
-    {
-      var memoryStream = new MemoryStream();
-      using (var writer = WriterFactory.OpenWriter(
-          memoryStream, ArchiveType.Tar, new TarWriterOptions(CompressionType.None, true)))
-      {
-        var contextDir = new DirectoryInfo(contextPath);
-        var files = contextDir.GetFiles("*", SearchOption.AllDirectories);
-
-        foreach (var file in files)
-        {
-          var relativePath = Path.GetRelativePath(contextPath, file.FullName)
-              .Replace('\\', '/');
-          using var fileStream = file.OpenRead();
-          writer.Write(relativePath, fileStream, file.LastWriteTimeUtc);
-        }
-      }
-
-      memoryStream.Position = 0;
-      return memoryStream;
-    }
-
-    private static List<string> BuildBuildQueryParams(ImageBuildConfig config)
-    {
-      var query = new List<string>();
-
-      if (!string.IsNullOrEmpty(config.DockerfileName))
-        query.Add($"dockerfile={Uri.EscapeDataString(config.DockerfileName)}");
-
-      foreach (var tag in config.Tags ?? Enumerable.Empty<string>())
-        query.Add($"t={Uri.EscapeDataString(tag)}");
-
-      if (config.NoCache)
-        query.Add("nocache=true");
-
-      if (config.Pull)
-        query.Add("pull=true");
-
-      if (!config.Rm)
-        query.Add("rm=false");
-
-      if (config.ForceRm)
-        query.Add("forcerm=true");
-
-      if (config.Squash)
-        query.Add("squash=true");
-
-      if (!string.IsNullOrEmpty(config.Target))
-        query.Add($"target={Uri.EscapeDataString(config.Target)}");
-
-      if (!string.IsNullOrEmpty(config.Platform))
-        query.Add($"platform={Uri.EscapeDataString(config.Platform)}");
-
-      if (!string.IsNullOrEmpty(config.NetworkMode))
-        query.Add($"networkmode={Uri.EscapeDataString(config.NetworkMode)}");
-
-      if (config.Memory.HasValue)
-        query.Add($"memory={config.Memory.Value}");
-
-      if (config.CpuQuota.HasValue)
-        query.Add($"cpuquota={config.CpuQuota.Value}");
-
-      if (config.BuildArgs?.Count > 0)
-      {
-        var json = JsonHelper.Serialize(config.BuildArgs);
-        query.Add($"buildargs={Uri.EscapeDataString(json)}");
-      }
-
-      if (config.Labels?.Count > 0)
-      {
-        var json = JsonHelper.Serialize(config.Labels);
-        query.Add($"labels={Uri.EscapeDataString(json)}");
-      }
-
-      return query;
     }
 
     #endregion

@@ -9,6 +9,8 @@ using System.Text.Json;
 using System.Text.Json.Serialization.Metadata;
 using System.Threading;
 using System.Threading.Tasks;
+using FluentDocker.Common;
+using FluentDocker.Model.Drivers;
 
 namespace FluentDocker.Drivers.Docker.Api
 {
@@ -38,9 +40,14 @@ namespace FluentDocker.Drivers.Docker.Api
           {
             result = await reader.ReadAsync(ct).ConfigureAwait(false);
           }
-          catch (OperationCanceledException)
+          catch (OperationCanceledException) when (ct.IsCancellationRequested)
           {
-            break; // ReadAsync threw — no result to AdvanceTo
+            throw;
+          }
+          catch (Exception ex)
+          {
+            throw new DriverException(
+                $"NDJSON stream read failed: {ex.Message}", ErrorCodes.Api.ServerError, ex);
           }
 
           var buffer = result.Buffer;

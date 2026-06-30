@@ -72,12 +72,17 @@ namespace FluentDocker.Services.Impl
             response.ErrorContext);
       }
 
-      var inspectResponse = await driver.InspectAsync(context, $"{image}:{tag}", cancellationToken).ConfigureAwait(false);
+      // A digest reference ("repo@sha256:...") must be inspected by the digest ref itself, not
+      // "repo@sha256:...:latest" (which is malformed and fails to inspect).
+      var isDigest = image.Contains('@');
+      var inspectRef = isDigest ? image : $"{image}:{tag}";
+
+      var inspectResponse = await driver.InspectAsync(context, inspectRef, cancellationToken).ConfigureAwait(false);
 
       if (!inspectResponse.Success)
       {
         throw new DriverException(
-            $"Failed to inspect pulled image '{image}:{tag}': {inspectResponse.Error}",
+            $"Failed to inspect pulled image '{inspectRef}': {inspectResponse.Error}",
             inspectResponse.ErrorCode,
             inspectResponse.ErrorContext);
       }
@@ -87,7 +92,7 @@ namespace FluentDocker.Services.Impl
           _driverId,
           inspectResponse.Data.Id,
           image,
-          tag);
+          isDigest ? image[(image.IndexOf('@') + 1)..] : tag);
     }
 
     public async Task<IImageService> BuildImageAsync(

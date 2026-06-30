@@ -16,7 +16,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
   /// These operations use NDJSON streaming via PostStreamAsync/GetStreamAsync.
   /// </summary>
   [Trait("Category", "Unit")]
-  public class DockerApiImageStreamingTests
+  public partial class DockerApiImageStreamingTests
   {
     private static DriverContext Ctx => new("docker-api-stream-test");
 
@@ -74,6 +74,36 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
       Assert.Contains("Connection refused", result.Error);
     }
 
+    [Fact]
+    public async Task PushAsync_StreamThrowsMidRead_ReturnsPushFailed()
+    {
+      var conn = new MockDockerApiConnection();
+      conn.SetupStreamReadThrows("/images/",
+          System.Text.Encoding.UTF8.GetBytes("{\"status\":\"Pushing\"}\n"),
+          new IOException("connection reset by peer"));
+
+      var driver = CreateDriver(conn);
+      var result = await driver.PushAsync(Ctx, "myrepo/myimage:latest", null!, TestContext.Current.CancellationToken);
+
+      Assert.False(result.Success);
+      Assert.Equal(ErrorCodes.Image.PushFailed, result.ErrorCode);
+      Assert.Contains("connection reset by peer", result.Error);
+    }
+
+    [Fact]
+    public async Task PushAsync_EmptyStream_ReturnsPushFailedNoEvidence()
+    {
+      var conn = new MockDockerApiConnection();
+      conn.SetupStream("/images/", "");
+
+      var driver = CreateDriver(conn);
+      var result = await driver.PushAsync(Ctx, "myrepo/myimage:latest", null!, TestContext.Current.CancellationToken);
+
+      Assert.False(result.Success);
+      Assert.Equal(ErrorCodes.Image.PushFailed, result.ErrorCode);
+      Assert.Contains("no response", result.Error);
+    }
+
     #endregion
 
     #region PullAsync
@@ -91,6 +121,37 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
       Assert.False(result.Success);
       Assert.Equal(ErrorCodes.Image.PullFailed, result.ErrorCode);
       Assert.Contains("no response", result.Error);
+    }
+
+    [Fact]
+    public async Task PullAsync_StreamThrowsMidRead_ReturnsPullFailed()
+    {
+      var conn = new MockDockerApiConnection();
+      conn.SetupStreamReadThrows("/images/create",
+          System.Text.Encoding.UTF8.GetBytes("{\"status\":\"Pulling from lib\"}\n"),
+          new IOException("connection reset by peer"));
+
+      var driver = CreateDriver(conn);
+      var result = await driver.PullAsync(Ctx, "lib/image", "latest", null!, TestContext.Current.CancellationToken);
+
+      Assert.False(result.Success);
+      Assert.Equal(ErrorCodes.Image.PullFailed, result.ErrorCode);
+      Assert.Contains("connection reset by peer", result.Error);
+    }
+
+    [Fact]
+    public async Task PullAsync_ConflictingDigests_ReturnsPullFailed()
+    {
+      var conn = new MockDockerApiConnection();
+      conn.SetupStream("/images/create", "{\"status\":\"ok\"}\n");
+
+      var driver = CreateDriver(conn);
+      var result = await driver.PullAsync(
+          Ctx, "repo@sha256:aaa", "sha256:bbb", null!, TestContext.Current.CancellationToken);
+
+      Assert.False(result.Success);
+      Assert.Equal(ErrorCodes.Image.PullFailed, result.ErrorCode);
+      Assert.Contains("Conflicting digests", result.Error);
     }
 
     #endregion
@@ -180,6 +241,93 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
       Assert.False(result.Success);
       Assert.Equal(ErrorCodes.Image.ImportFailed, result.ErrorCode);
       Assert.Contains("not found", result.Error);
+    }
+
+    #endregion
+
+    #region A3 - Pull disposes the response stream
+
+    [Fact]
+    public async Task PullAsync_DisposesResponseStream()
+    {
+      var conn = new MockDockerApiConnection();
+      conn.SetupStream("/images/create", "{\"status\":\"Pulling\"}\n");
+
+      var driver = CreateDriver(conn);
+      var result = await driver.PullAsync(Ctx, "repo", "latest", null!, TestContext.Current.CancellationToken);
+
+      Assert.True(result.Success);
+      Assert.Single(conn.Streams);
+      Assert.True(conn.Streams[0].IsDisposed);
+    }
+
+    [Fact]
+    public async Task PushAsync_DisposesResponseStream()
+    {
+      var conn = new MockDockerApiConnection();
+      conn.SetupStream("/images/", "{\"status\":\"latest: digest: sha256:abc\"}\n");
+
+      var driver = CreateDriver(conn);
+      var result = await driver.PushAsync(Ctx, "repo/img:latest", null!, TestContext.Current.CancellationToken);
+
+      Assert.True(result.Success);
+      Assert.Single(conn.Streams);
+      Assert.True(conn.Streams[0].IsDisposed);
+    }
+
+    #endregion
+
+    #region M6 - Digest pull reference handling
+
+    [Fact]
+    public async Task PullAsync_PlainRepoNullTag_AppendsLatestTag()
+    {
+      var conn = new MockDockerApiConnection();
+      conn.SetupStream("/images/create", "{\"status\":\"Pulling\"}\n");
+
+      var driver = CreateDriver(conn);
+      await driver.PullAsync(Ctx, "repo", null!, null!, TestContext.Current.CancellationToken);
+
+      var req = FindStreamRequest(conn, "/images/create");
+      Assert.Contains("tag=latest", req.Path);
+      Assert.Contains("fromImage=repo", req.Path);
+    }
+
+    [Fact]
+    public async Task PullAsync_ExplicitTag_UsesThatTag()
+    {
+      var conn = new MockDockerApiConnection();
+      conn.SetupStream("/images/create", "{\"status\":\"Pulling\"}\n");
+
+      var driver = CreateDriver(conn);
+      await driver.PullAsync(Ctx, "repo", "1.2", null!, TestContext.Current.CancellationToken);
+
+      var req = FindStreamRequest(conn, "/images/create");
+      Assert.Contains("tag=1.2", req.Path);
+      Assert.DoesNotContain("tag=latest", req.Path);
+    }
+
+    [Fact]
+    public async Task PullAsync_DigestReference_OmitsTagAndCarriesDigest()
+    {
+      var conn = new MockDockerApiConnection();
+      conn.SetupStream("/images/create", "{\"status\":\"Pulling\"}\n");
+
+      var driver = CreateDriver(conn);
+      await driver.PullAsync(Ctx, "repo@sha256:abc123", null!, null!, TestContext.Current.CancellationToken);
+
+      var req = FindStreamRequest(conn, "/images/create");
+      Assert.DoesNotContain("&tag=", req.Path);
+      Assert.Contains("sha256", req.Path);
+    }
+
+    private static CapturedRequest FindStreamRequest(
+        MockDockerApiConnection conn, string pathContains)
+    {
+      foreach (var r in conn.GetRequests())
+        if (r.Method == "POST_STREAM" && r.Path.Contains(pathContains))
+          return r;
+      throw new Xunit.Sdk.XunitException($"No POST_STREAM request matched '{pathContains}'");
     }
 
     #endregion

@@ -240,6 +240,30 @@ namespace FluentDocker.Tests.CoreTests.Service
       finally { kernel.Dispose(); }
     }
 
+    [Fact]
+    public async Task PullImageAsync_DigestReference_InspectsByDigestNotTag()
+    {
+      const string digestRef = "repo@sha256:abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789";
+      var mockPack = new MockDriverPack();
+      mockPack.SetupImagePull();
+      mockPack.SetupImageInspect("sha256:pulleddigest");
+
+      var kernel = await MockKernelBuilderExtensions.CreateWithMockDriverAsync("docker", mockPack);
+      try
+      {
+        var service = new HostService(kernel, "docker", "test-host");
+        await service.PullImageAsync(
+            digestRef,
+            cancellationToken: TestContext.Current.CancellationToken);
+
+        mockPack.ImageDriver.Verify(d => d.InspectAsync(
+            It.IsAny<DriverContext>(),
+            It.Is<string>(s => s == digestRef),
+            It.IsAny<CancellationToken>()), Times.Once);
+      }
+      finally { kernel.Dispose(); }
+    }
+
     #endregion
 
     #region Image Management -- BuildImageAsync

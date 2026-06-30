@@ -276,33 +276,48 @@ namespace FluentDocker.Drivers.Docker.Api.Components
           new System.Net.Http.Headers.MediaTypeHeaderValue("application/x-tar");
 
       var loadedImages = new List<string>();
-      await foreach (var line in ReadNdjsonFromPostStreamAsync(
-          "/images/load", content, cancellationToken))
+      try
       {
-        var json = JsonHelper.ParseElement(line);
-        var streamVal = json.GetStringOrDefault("stream");
-        if (!string.IsNullOrWhiteSpace(streamVal))
+        await foreach (var line in ReadNdjsonFromPostStreamAsync(
+            "/images/load", content, cancellationToken))
         {
-          var trimmed = streamVal.Trim();
-          if (trimmed.StartsWith("Loaded image:", StringComparison.OrdinalIgnoreCase))
+          var json = JsonHelper.ParseElement(line);
+          var streamVal = json.GetStringOrDefault("stream");
+          if (!string.IsNullOrWhiteSpace(streamVal))
           {
-            var name = trimmed["Loaded image:".Length..].Trim();
-            if (!string.IsNullOrEmpty(name))
-              loadedImages.Add(name);
+            var trimmed = streamVal.Trim();
+            if (trimmed.StartsWith("Loaded image:", StringComparison.OrdinalIgnoreCase))
+            {
+              var name = trimmed["Loaded image:".Length..].Trim();
+              if (!string.IsNullOrEmpty(name))
+                loadedImages.Add(name);
+            }
+            else if (trimmed.StartsWith("Loaded image ID:", StringComparison.OrdinalIgnoreCase))
+            {
+              var id = trimmed["Loaded image ID:".Length..].Trim();
+              if (!string.IsNullOrEmpty(id))
+                loadedImages.Add(id);
+            }
           }
-          else if (trimmed.StartsWith("Loaded image ID:", StringComparison.OrdinalIgnoreCase))
-          {
-            var id = trimmed["Loaded image ID:".Length..].Trim();
-            if (!string.IsNullOrEmpty(id))
-              loadedImages.Add(id);
-          }
-        }
 
-        var error = json.GetStringOrDefault("error");
-        if (!string.IsNullOrWhiteSpace(error))
-          return CommandResponse<IList<string>>.Fail(error,
-              ErrorCodes.Image.LoadFailed, CreateErrorContext("POST /images/load", 0));
+          var error = json.GetStringOrDefault("error");
+          if (!string.IsNullOrWhiteSpace(error))
+            return CommandResponse<IList<string>>.Fail(error,
+                ErrorCodes.Image.LoadFailed, CreateErrorContext("POST /images/load", 0));
+        }
       }
+      catch (DriverException ex)
+      {
+        return CommandResponse<IList<string>>.Fail(ex.Message,
+            ErrorCodes.Image.LoadFailed, CreateErrorContext("POST /images/load", 0));
+      }
+
+      // A successful load emits at least one "Loaded image[: | ID:]" line. None means the
+      // stream completed without evidence of success (incomplete/streamed failure).
+      if (loadedImages.Count == 0)
+        return CommandResponse<IList<string>>.Fail(
+            "Docker load returned no loaded images (incomplete/streamed failure)",
+            ErrorCodes.Image.LoadFailed, CreateErrorContext("POST /images/load", 0));
 
       return CommandResponse<IList<string>>.Ok(loadedImages);
     }
@@ -333,21 +348,35 @@ namespace FluentDocker.Drivers.Docker.Api.Components
           new System.Net.Http.Headers.MediaTypeHeaderValue("application/x-tar");
 
       string importedId = null;
-      await foreach (var line in ReadNdjsonFromPostStreamAsync(
-          path, content, cancellationToken))
+      try
       {
-        var json = JsonHelper.ParseElement(line);
-        var status = json.GetStringOrDefault("status");
-        if (!string.IsNullOrWhiteSpace(status))
-          importedId = status.Trim();
+        await foreach (var line in ReadNdjsonFromPostStreamAsync(
+            path, content, cancellationToken))
+        {
+          var json = JsonHelper.ParseElement(line);
+          var status = json.GetStringOrDefault("status");
+          if (!string.IsNullOrWhiteSpace(status))
+            importedId = status.Trim();
 
-        var error = json.GetStringOrDefault("error");
-        if (!string.IsNullOrWhiteSpace(error))
-          return CommandResponse<string>.Fail(error,
-              ErrorCodes.Image.ImportFailed, CreateErrorContext("POST /images/create", 0));
+          var error = json.GetStringOrDefault("error");
+          if (!string.IsNullOrWhiteSpace(error))
+            return CommandResponse<string>.Fail(error,
+                ErrorCodes.Image.ImportFailed, CreateErrorContext("POST /images/create", 0));
+        }
+      }
+      catch (DriverException ex)
+      {
+        return CommandResponse<string>.Fail(ex.Message,
+            ErrorCodes.Image.ImportFailed, CreateErrorContext("POST /images/create", 0));
       }
 
-      return CommandResponse<string>.Ok(importedId ?? string.Empty);
+      // A successful import emits a status line carrying the new image id.
+      if (string.IsNullOrEmpty(importedId))
+        return CommandResponse<string>.Fail(
+            "Docker import returned no image id",
+            ErrorCodes.Image.ImportFailed, CreateErrorContext("POST /images/create", 0));
+
+      return CommandResponse<string>.Ok(importedId);
     }
 
     #endregion

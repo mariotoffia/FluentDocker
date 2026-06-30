@@ -1,9 +1,12 @@
 using System;
 using System.IO;
+using System.Net;
+using System.Net.Http;
 using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using FluentDocker.Drivers.Docker.Api.Connection;
@@ -433,6 +436,81 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
         File.WriteAllText(Path.Combine(dir, "ca.pem"), cert.ExportCertificatePem());
 
       return dir;
+    }
+
+    #endregion
+
+    #region M2 - Stream calls surface Docker error body
+
+    [Fact]
+    public async Task EnsureStreamSuccess_500WithDockerMessage_ThrowsWithReason()
+    {
+      // M2: a non-success stream response must surface Docker's {"message":...} body, not be
+      // discarded by EnsureSuccessStatusCode(). Exercised via the private helper by reflection
+      // (the public GetStreamAsync/PostStreamAsync paths require a live socket).
+      var method = typeof(DockerApiConnection).GetMethod(
+          "EnsureStreamSuccessAsync", BindingFlags.Static | BindingFlags.NonPublic);
+      Assert.NotNull(method);
+
+      using var response = new HttpResponseMessage(HttpStatusCode.InternalServerError)
+      {
+        Content = new StringContent(
+            @"{""message"":""boom""}", Encoding.UTF8, "application/json")
+      };
+
+      var task = (Task)method!.Invoke(
+          null, new object[] { response, CancellationToken.None })!;
+      var ex = await Assert.ThrowsAsync<HttpRequestException>(async () => await task);
+
+      Assert.Contains("boom", ex.Message);
+      Assert.Contains("500", ex.Message);
+    }
+
+    [Fact]
+    public async Task EnsureStreamSuccess_SuccessResponse_DoesNotThrow()
+    {
+      var method = typeof(DockerApiConnection).GetMethod(
+          "EnsureStreamSuccessAsync", BindingFlags.Static | BindingFlags.NonPublic);
+      Assert.NotNull(method);
+
+      using var response = new HttpResponseMessage(HttpStatusCode.OK)
+      {
+        Content = new StringContent("stream", Encoding.UTF8)
+      };
+
+      var task = (Task)method!.Invoke(
+          null, new object[] { response, CancellationToken.None })!;
+      await task; // must complete without throwing
+    }
+
+    #endregion
+
+    #region M3 - Negotiation not cached on caller cancellation
+
+    [Fact]
+    public async Task NegotiateApiVersion_CallerCancelled_PropagatesAndDoesNotCache()
+    {
+      // M3: caller cancellation during version negotiation must propagate as OCE and must NOT
+      // mark negotiation complete, so a later call retries instead of caching a degraded state.
+      var config = new DockerApiConnectionConfig
+      {
+        Host = "tcp://localhost:2375"
+      };
+
+      await using var conn = new DockerApiConnection(config);
+      Assert.False(conn.IsVersionNegotiated);
+
+      var method = typeof(DockerApiConnection).GetMethod(
+          "NegotiateApiVersionAsync", BindingFlags.Instance | BindingFlags.NonPublic);
+      Assert.NotNull(method);
+
+      using var cts = new CancellationTokenSource();
+      cts.Cancel();
+
+      var task = (Task)method!.Invoke(conn, new object[] { cts.Token })!;
+      await Assert.ThrowsAnyAsync<OperationCanceledException>(async () => await task);
+
+      Assert.False(conn.IsVersionNegotiated);
     }
 
     #endregion

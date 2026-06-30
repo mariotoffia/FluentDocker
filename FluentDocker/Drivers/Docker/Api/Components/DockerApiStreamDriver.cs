@@ -11,7 +11,6 @@ using FluentDocker.Common;
 using FluentDocker.Drivers.Docker.Api.Connection;
 using FluentDocker.Model.Drivers;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Logging.Abstractions;
 
 namespace FluentDocker.Drivers.Docker.Api.Components
 {
@@ -79,23 +78,31 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       config ??= new StreamLogsConfig();
       var path = BuildLogsPath(containerId, config);
 
+      // A TTY container's log stream is raw text, not the 8-byte multiplexed frame format.
+      // Misreading raw output as multiplexed corrupts/drops lines, so detect TTY up-front.
+      var tty = await DetectTtyAsync(containerId, cancellationToken).ConfigureAwait(false);
+
       Stream stream;
       try
       {
         stream = await Connection.GetStreamAsync(path, cancellationToken).ConfigureAwait(false);
       }
+      catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+      {
+        throw;
+      }
       catch (Exception ex)
       {
         Logger.LogError(ex, "Docker log stream open failed");
-        yield break;
+        throw new DriverException(
+            $"Failed to open Docker log stream for container '{containerId}': {ex.Message}",
+            ErrorCodes.Api.ServerError, ex);
       }
 
-      // Docker log streams use multiplexed format with 8-byte headers
-      // unless the container was started with TTY mode.
       // Use try/finally to dispose the stream when the caller breaks out.
       try
       {
-        await foreach (var entry in ReadMultiplexedStreamAsync(stream, cancellationToken))
+        await foreach (var entry in ReadMultiplexedStreamAsync(stream, tty, cancellationToken))
         {
           yield return entry;
         }
@@ -106,6 +113,31 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       }
     }
 
+    /// <summary>
+    /// Inspects the container to determine whether it was started with a TTY. A TTY stream
+    /// is raw text (no multiplex headers). On any inspect failure we default to demux=false
+    /// so a transient inspect error never crashes log streaming.
+    /// </summary>
+    private async Task<bool> DetectTtyAsync(string containerId, CancellationToken ct)
+    {
+      try
+      {
+        var result = await GetJsonElementAsync(
+            $"/containers/{Uri.EscapeDataString(containerId)}/json", ct).ConfigureAwait(false);
+        if (result.Success && result.Data.ValueKind == JsonValueKind.Object)
+        {
+          var config = result.Data.Prop("Config");
+          if (config?.ValueKind == JsonValueKind.Object)
+            return config.Value.GetBoolOrDefault("Tty");
+        }
+      }
+      catch (Exception ex)
+      {
+        Logger.LogDebug(ex, "Could not determine container TTY mode; defaulting to demux");
+      }
+      return false;
+    }
+
     public async IAsyncEnumerable<ContainerEvent> StreamEventsAsync(
         DriverContext context, StreamEventsConfig config = null,
         [EnumeratorCancellation] CancellationToken cancellationToken = default)
@@ -114,9 +146,25 @@ namespace FluentDocker.Drivers.Docker.Api.Components
 
       var filters = new Dictionary<string, List<string>>();
       if (config.Types?.Count > 0)
-        filters["type"] = config.Types;
+        filters["type"] = new List<string>(config.Types);
       if (config.Actions?.Count > 0)
-        filters["event"] = config.Actions;
+        filters["event"] = new List<string>(config.Actions);
+
+      // Merge caller-supplied custom filters (e.g. label=foo, container=id) into the
+      // Docker filters map, unioned with the type/event entries above. Null-safe to match
+      // the Types/Actions guards above, in case a caller nulls out the dictionary.
+      if (config.Filters?.Count > 0)
+      {
+        foreach (var kv in config.Filters)
+        {
+          if (!filters.TryGetValue(kv.Key, out var values))
+          {
+            values = new List<string>();
+            filters[kv.Key] = values;
+          }
+          values.Add(kv.Value);
+        }
+      }
 
       var queryParams = new List<string>();
       if (filters.Count > 0)
@@ -234,10 +282,19 @@ namespace FluentDocker.Drivers.Docker.Api.Components
     /// Reads Docker multiplexed stream format, tagging each line with its source stream.
     /// Header: [stream_type:1][0:3][size:4 big-endian] followed by payload.
     /// stream_type: 0=stdin, 1=stdout, 2=stderr.
+    /// When <paramref name="tty"/> is true the stream is raw text (no headers), so
+    /// demultiplexing is bypassed and every line is tagged as stdout.
     /// </summary>
     private static async IAsyncEnumerable<LogEntry> ReadMultiplexedStreamAsync(
-        Stream stream, [EnumeratorCancellation] CancellationToken ct)
+        Stream stream, bool tty, [EnumeratorCancellation] CancellationToken ct)
     {
+      if (tty)
+      {
+        await foreach (var entry in ReadRawTextStreamAsync(stream, ct))
+          yield return entry;
+        yield break;
+      }
+
       var header = new byte[8];
 
       while (!ct.IsCancellationRequested)
@@ -247,8 +304,12 @@ namespace FluentDocker.Drivers.Docker.Api.Components
         {
           bytesRead = await ReadExactAsync(stream, header, 8, ct).ConfigureAwait(false);
         }
-        catch (OperationCanceledException) { yield break; }
-        catch (Exception ex) { NullLogger.Instance.LogError(ex, "Multiplexed stream read error"); yield break; }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested) { yield break; }
+        catch (Exception ex)
+        {
+          throw new DriverException(
+              $"Docker log stream read failed: {ex.Message}", ErrorCodes.Api.ServerError, ex);
+        }
 
         if (bytesRead < 8)
         {
@@ -265,6 +326,23 @@ namespace FluentDocker.Drivers.Docker.Api.Components
               if (!string.IsNullOrEmpty(line))
                 yield return new LogEntry { Source = LogStreamSource.Stdout, Line = line };
             }
+          }
+          yield break;
+        }
+
+        // A valid multiplex header is [stream(0..2)][0][0][0][size:4]. If byte0>2 or bytes1..3
+        // are non-zero, the stream is actually raw (TTY) — emit the 8 bytes + rest as raw text
+        // instead of misreading them as a frame (self-corrects a failed TTY detection).
+        if (header[0] > 2 || header[1] != 0 || header[2] != 0 || header[3] != 0)
+        {
+          var head = Encoding.UTF8.GetString(header, 0, 8);
+          using var reader = new StreamReader(stream, Encoding.UTF8, detectEncodingFromByteOrderMarks: false,
+              bufferSize: 1024, leaveOpen: true);
+          var rest = await reader.ReadToEndAsync(ct).ConfigureAwait(false);
+          foreach (var line in (head + rest).Split('\n'))
+          {
+            if (!string.IsNullOrEmpty(line))
+              yield return new LogEntry { Source = LogStreamSource.Stdout, Line = line };
           }
           yield break;
         }
@@ -297,6 +375,32 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       2 => LogStreamSource.Stderr,
       _ => LogStreamSource.Stdout,
     };
+
+    /// <summary>
+    /// Reads a raw (TTY) log stream as plain UTF-8 text, yielding each non-empty line as
+    /// stdout. Raw streams carry no source byte, so stderr cannot be distinguished.
+    /// </summary>
+    private static async IAsyncEnumerable<LogEntry> ReadRawTextStreamAsync(
+        Stream stream, [EnumeratorCancellation] CancellationToken ct)
+    {
+      using var reader = new StreamReader(stream, Encoding.UTF8,
+          detectEncodingFromByteOrderMarks: false, bufferSize: 1024, leaveOpen: true);
+      while (!ct.IsCancellationRequested)
+      {
+        string line;
+        try
+        {
+          line = await reader.ReadLineAsync(ct).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException) { yield break; }
+
+        if (line == null)
+          break;
+        if (line.Length == 0)
+          continue;
+        yield return new LogEntry { Source = LogStreamSource.Stdout, Line = line };
+      }
+    }
 
     // ReadExactAsync is inherited from DockerApiDriverBase
 

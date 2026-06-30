@@ -96,6 +96,18 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       var pruneResult = new SystemPruneResult();
       var filterQuery = BuildFilterQuery(config.Filter);
 
+      // Collect-then-fail: CommandResponse.Fail cannot carry Data, so we run every
+      // sub-prune, accumulate successes, and record each failure. If any failed we report
+      // them together instead of silently returning Ok with partial data.
+      var failures = new List<string>();
+      string firstFailCode = null;
+
+      void RecordFailure(string endpoint, ApiResult<JsonElement> result)
+      {
+        failures.Add($"{endpoint}: {result.ErrorMessage}");
+        firstFailCode ??= MapHttpErrorCode(result.StatusCode);
+      }
+
       // 1. Prune containers
       var ctrResult = await PostJsonElementAsync(
           $"/containers/prune{filterQuery}", null, cancellationToken);
@@ -110,6 +122,10 @@ namespace FluentDocker.Drivers.Docker.Api.Components
         }
         pruneResult.SpaceReclaimed += ctrResult.Data.GetInt64OrDefault("SpaceReclaimed");
       }
+      else if (!ctrResult.Success)
+      {
+        RecordFailure("POST /containers/prune", ctrResult);
+      }
 
       // 2. Prune networks
       var netResult = await PostJsonElementAsync(
@@ -123,6 +139,10 @@ namespace FluentDocker.Drivers.Docker.Api.Components
           if (deleted != null)
             pruneResult.NetworksDeleted.AddRange(deleted);
         }
+      }
+      else if (!netResult.Success)
+      {
+        RecordFailure("POST /networks/prune", netResult);
       }
 
       // 3. Prune images (All -> dangling=false to prune all unused images)
@@ -141,6 +161,10 @@ namespace FluentDocker.Drivers.Docker.Api.Components
         }
         pruneResult.SpaceReclaimed += imgResult.Data.GetInt64OrDefault("SpaceReclaimed");
       }
+      else if (!imgResult.Success)
+      {
+        RecordFailure("POST /images/prune", imgResult);
+      }
 
       // 4. Prune volumes (only when opted-in, matching docker system prune)
       if (config.Volumes)
@@ -158,6 +182,10 @@ namespace FluentDocker.Drivers.Docker.Api.Components
           }
           pruneResult.SpaceReclaimed += volResult.Data.GetInt64OrDefault("SpaceReclaimed");
         }
+        else if (!volResult.Success)
+        {
+          RecordFailure("POST /volumes/prune", volResult);
+        }
       }
 
       // 5. Prune build cache
@@ -174,6 +202,16 @@ namespace FluentDocker.Drivers.Docker.Api.Components
         }
         pruneResult.SpaceReclaimed += buildResult.Data.GetInt64OrDefault("SpaceReclaimed");
       }
+      else if (!buildResult.Success)
+      {
+        RecordFailure("POST /build/prune", buildResult);
+      }
+
+      if (failures.Count > 0)
+        return CommandResponse<SystemPruneResult>.Fail(
+            string.Join("; ", failures),
+            firstFailCode ?? ErrorCodes.General.Unknown,
+            CreateErrorContext("POST /*/prune", 0));
 
       return CommandResponse<SystemPruneResult>.Ok(pruneResult);
     }

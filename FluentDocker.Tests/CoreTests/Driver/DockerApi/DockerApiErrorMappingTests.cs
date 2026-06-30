@@ -1,3 +1,6 @@
+using System;
+using System.IO;
+using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
 using FluentDocker.Drivers.Docker.Api;
@@ -173,6 +176,93 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
     }
 
     #endregion
+
+    #region A6 - Caller cancellation not swallowed as connection error
+
+    [Fact]
+    public async Task GetJson_CallerCancelled_PropagatesOperationCanceled()
+    {
+      // A cancelled caller token must surface as OperationCanceledException, NOT be
+      // mapped to a fake 503 "cannot connect to daemon".
+      var conn = new OperationThrowingConnection(
+          new OperationCanceledException());
+      var driver = new TestableDriverBase(conn);
+      driver.Initialize(new DriverContext("docker-api-error-test"));
+
+      using var cts = new CancellationTokenSource();
+      cts.Cancel();
+
+      await Assert.ThrowsAnyAsync<OperationCanceledException>(
+          async () => await driver.TestGetJsonAsync<object>("/info", cts.Token));
+    }
+
+    [Fact]
+    public async Task GetJson_TaskCanceledWithoutCallerCancel_MapsToServiceUnavailable()
+    {
+      // A TaskCanceledException with an UN-cancelled caller token represents an internal
+      // HttpClient timeout, which should still map to a connection failure (503), not throw.
+      var conn = new OperationThrowingConnection(
+          new TaskCanceledException("timed out"));
+      var driver = new TestableDriverBase(conn);
+      driver.Initialize(new DriverContext("docker-api-error-test"));
+
+      var result = await driver.TestGetJsonAsync<object>(
+          "/info", CancellationToken.None);
+
+      Assert.False(result.Success);
+      Assert.Equal(503, result.StatusCode);
+    }
+
+    #endregion
+
+    #region M4 - Malformed success body returns Fail (does not throw)
+
+    [Fact]
+    public async Task GetJson_200WithInvalidJson_ReturnsFailNotThrows()
+    {
+      var mock = new MockDockerApiConnection();
+      mock.SetupGet("/info", 200, "{ not json");
+
+      var driver = CreateDriver(mock);
+
+      var result = await driver.TestGetJsonAsync<object>(
+          "/info", CancellationToken.None);
+
+      Assert.False(result.Success);
+      Assert.Contains("parse", result.ErrorMessage, System.StringComparison.OrdinalIgnoreCase);
+    }
+
+    #endregion
+
+    /// <summary>Connection that throws a fixed exception from every request method.</summary>
+    private sealed class OperationThrowingConnection(Exception exception) : IDockerApiConnection
+    {
+      private readonly Exception _exception = exception;
+
+      public string ApiVersion => "1.45";
+
+      public Task<HttpResponseMessage> GetAsync(string path, CancellationToken ct)
+          => throw _exception;
+
+      public Task<HttpResponseMessage> PostAsync(
+          string path, HttpContent content, CancellationToken ct) => throw _exception;
+
+      public Task<HttpResponseMessage> PutAsync(
+          string path, HttpContent content, CancellationToken ct) => throw _exception;
+
+      public Task<HttpResponseMessage> DeleteAsync(string path, CancellationToken ct)
+          => throw _exception;
+
+      public Task<Stream> GetStreamAsync(string path, CancellationToken ct)
+          => throw _exception;
+
+      public Task<Stream> PostStreamAsync(
+          string path, HttpContent content, CancellationToken ct) => throw _exception;
+
+      public Task<bool> PingAsync(CancellationToken ct) => Task.FromResult(false);
+
+      public ValueTask DisposeAsync() => ValueTask.CompletedTask;
+    }
 
     /// <summary>
     /// Test subclass that exposes protected members of DockerApiDriverBase.
