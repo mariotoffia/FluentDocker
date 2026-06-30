@@ -326,17 +326,31 @@ namespace FluentDocker.Drivers
     /// <summary>Disposes the attach connection.</summary>
     public ValueTask DisposeAsync()
     {
-      InputStream?.Dispose();
-      OutputStream?.Dispose();
-      ErrorStream?.Dispose();
-      IsConnected = false;
-
-      if (AttachedProcess != null && !AttachedProcess.HasExited)
+      try
       {
-        try
-        { AttachedProcess.Kill(); }
-        catch (Exception ex) { NullLogger.Instance.LogWarning(ex, "Process kill failed"); }
-        AttachedProcess.Dispose();
+        InputStream?.Dispose();
+        OutputStream?.Dispose();
+        ErrorStream?.Dispose();
+        IsConnected = false;
+      }
+      finally
+      {
+        // Always reclaim the process even if a stream Dispose() threw — reclaiming the
+        // handle is the whole point of this disposal path.
+        if (AttachedProcess != null)
+        {
+          // Tree-kill the attach process (it may have spawned the engine's attach helper),
+          // then always dispose the Process handle — even when it has already exited — so the
+          // underlying OS handle is never leaked.
+          try
+          {
+            if (!AttachedProcess.HasExited)
+              AttachedProcess.Kill(entireProcessTree: true);
+          }
+          catch (Exception ex) { NullLogger.Instance.LogWarning(ex, "Process kill failed"); }
+
+          AttachedProcess.Dispose();
+        }
       }
 
       GC.SuppressFinalize(this);

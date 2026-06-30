@@ -66,6 +66,10 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
         return CommandResponse<VolumeCreateResult>.Ok(
             new VolumeCreateResult { Name = result.Output.Trim() });
       }
+      catch (OperationCanceledException)
+      {
+        throw;
+      }
       catch (Exception ex)
       {
         return CommandResponse<VolumeCreateResult>.Fail(ex.Message, ErrorCodes.Volume.CreateFailed);
@@ -98,6 +102,10 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
         }
 
         return CommandResponse<Unit>.Ok(Unit.Default);
+      }
+      catch (OperationCanceledException)
+      {
+        throw;
       }
       catch (Exception ex)
       {
@@ -157,6 +165,10 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
 
         return CommandResponse<IList<Volume>>.Ok(volumes);
       }
+      catch (OperationCanceledException)
+      {
+        throw;
+      }
       catch (Exception ex)
       {
         return CommandResponse<IList<Volume>>.Fail(ex.Message, ErrorCodes.General.Unknown);
@@ -185,6 +197,10 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
         var volumes = JsonSerializer.Deserialize<List<Volume>>(result.Output, JsonHelper.CaseInsensitiveOptions);
         return CommandResponse<Volume>.Ok(volumes?.FirstOrDefault() ?? new Volume());
       }
+      catch (OperationCanceledException)
+      {
+        throw;
+      }
       catch (Exception ex)
       {
         return CommandResponse<Volume>.Fail(ex.Message, ErrorCodes.Volume.InspectFailed);
@@ -209,6 +225,10 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
 
         return CommandResponse<VolumePruneResult>.Ok(
             CliPruneOutputParser.ParseVolumePruneOutput(result.Output));
+      }
+      catch (OperationCanceledException)
+      {
+        throw;
       }
       catch (Exception ex)
       {

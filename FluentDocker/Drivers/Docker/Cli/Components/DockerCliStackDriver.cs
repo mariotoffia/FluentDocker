@@ -59,6 +59,10 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
 
         return CommandResponse<IList<StackInfo>>.Ok(stacks);
       }
+      catch (OperationCanceledException)
+      {
+        throw;
+      }
       catch (Exception ex)
       {
         return CommandResponse<IList<StackInfo>>.Fail(ex.Message, ErrorCodes.Stack.ListFailed);
@@ -104,6 +108,10 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
 
         return CommandResponse<IList<StackTask>>.Ok(tasks);
       }
+      catch (OperationCanceledException)
+      {
+        throw;
+      }
       catch (Exception ex)
       {
         return CommandResponse<IList<StackTask>>.Fail(ex.Message, ErrorCodes.Stack.TasksFailed);
@@ -120,12 +128,12 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
       {
         var args = "stack deploy";
         foreach (var file in config.ComposeFiles)
-          args += $" -c {file}";
+          args += $" -c {QuoteArgumentIfNeeded(file)}";
         if (config.Prune)
           args += " --prune";
         if (config.WithRegistryAuth)
           args += " --with-registry-auth";
-        args += $" {config.StackName}";
+        args += $" {QuoteArgumentIfNeeded(config.StackName)}";
 
         var result = await ExecuteCommandAsync(args, cancellationToken).ConfigureAwait(false);
 
@@ -136,6 +144,10 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
         }
 
         return CommandResponse<StackDeployResult>.Ok(new StackDeployResult { StackName = config.StackName });
+      }
+      catch (OperationCanceledException)
+      {
+        throw;
       }
       catch (Exception ex)
       {
@@ -158,6 +170,10 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
         return result.Success
             ? CommandResponse<Unit>.Ok(Unit.Default)
             : CommandResponse<Unit>.Fail(result.Error ?? "Stack rm failed", ErrorCodes.Stack.RemoveFailed);
+      }
+      catch (OperationCanceledException)
+      {
+        throw;
       }
       catch (Exception ex)
       {
@@ -201,6 +217,10 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
         }
 
         return CommandResponse<IList<StackServiceInfo>>.Ok(services);
+      }
+      catch (OperationCanceledException)
+      {
+        throw;
       }
       catch (Exception ex)
       {

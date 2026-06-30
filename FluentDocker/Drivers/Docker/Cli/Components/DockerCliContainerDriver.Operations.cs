@@ -50,7 +50,20 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
           }
         }
 
-        var result = await ExecuteCommandAsync(string.Join(" ", args), cancellationToken).ConfigureAwait(false);
+        var result = await ExecuteUnboundedCommandAsync(string.Join(" ", args), cancellationToken).ConfigureAwait(false);
+
+        // Separate an INFRASTRUCTURE failure (docker could not run exec at all — no such
+        // container, daemon error, process couldn't start) from the in-container command's
+        // own legitimate non-zero exit, which must be reported as a successful exec carrying
+        // that exit code (callers inspect ExecResult.ExitCode).
+        if (IsExecInfrastructureFailure(result.ExitCode, result.Output, result.Error))
+        {
+          return CommandResponse<ExecResult>.Fail(
+              string.IsNullOrEmpty(result.Error) ? "Exec failed" : result.Error,
+              ErrorCodes.Container.ExecFailed,
+              CreateErrorContext(context, "Exec", result),
+              result.ExitCode);
+        }
 
         return CommandResponse<ExecResult>.Ok(new ExecResult
         {
@@ -59,10 +72,50 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
           StdErr = result.Error
         });
       }
+      catch (OperationCanceledException)
+      {
+        throw;
+      }
       catch (Exception ex)
       {
         return CommandResponse<ExecResult>.Fail(ex.Message, ErrorCodes.Container.ExecFailed);
       }
+    }
+
+    /// <summary>
+    /// Classifies a <c>docker exec</c> result as an infrastructure failure (docker itself
+    /// could not run the exec) versus the in-container command merely exiting non-zero.
+    /// <para>
+    /// Returns <c>true</c> when the process-couldn't-start sentinel exit code (<c>-1</c>) is
+    /// seen, or when there is no stdout and stderr carries a docker-CLI/daemon error marker
+    /// (<c>Error response from daemon</c> / <c>Cannot connect to the Docker daemon</c>). Bare
+    /// substrings like "is not running" are deliberately NOT matched: they also appear in
+    /// legitimate in-container tool output (systemctl/supervisord/health probes). Otherwise
+    /// returns <c>false</c> so a real command's non-zero exit is preserved rather than
+    /// reported as a false failure. Public so the heuristic can be unit-tested through the
+    /// strong-named public surface (the driver itself spawns a real <c>docker</c> process).
+    /// </para>
+    /// <para>
+    /// On the infra-failure path the exit code is surfaced on <c>CommandResponse.ExitCode</c>
+    /// (with <c>Data</c> null); on success it is on <c>Data.ExitCode</c> of the returned
+    /// <see cref="ExecResult"/>.
+    /// </para>
+    /// </summary>
+    /// <param name="exitCode">Exit code reported by command execution.</param>
+    /// <param name="stdOut">Captured standard output.</param>
+    /// <param name="stdErr">Captured standard error.</param>
+    /// <returns><c>true</c> when the failure is infrastructure-level; otherwise <c>false</c>.</returns>
+    public static bool IsExecInfrastructureFailure(int exitCode, string stdOut, string stdErr)
+    {
+      if (exitCode == -1)
+        return true;
+
+      if (!string.IsNullOrEmpty(stdOut))
+        return false;
+
+      var err = stdErr ?? string.Empty;
+      return err.Contains("Error response from daemon", StringComparison.OrdinalIgnoreCase)
+          || err.Contains("Cannot connect to the Docker daemon", StringComparison.OrdinalIgnoreCase);
     }
 
     #endregion
@@ -79,7 +132,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     {
       try
       {
-        var result = await ExecuteCommandAsync($"cp \"{hostPath}\" \"{containerId}:{containerPath}\"", cancellationToken).ConfigureAwait(false);
+        var result = await ExecuteUnboundedCommandAsync($"cp \"{hostPath}\" \"{containerId}:{containerPath}\"", cancellationToken).ConfigureAwait(false);
 
         if (!result.Success)
         {
@@ -91,6 +144,10 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
         }
 
         return CommandResponse<Unit>.Ok(Unit.Default);
+      }
+      catch (OperationCanceledException)
+      {
+        throw;
       }
       catch (Exception ex)
       {
@@ -108,7 +165,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     {
       try
       {
-        var result = await ExecuteCommandAsync($"cp \"{containerId}:{containerPath}\" \"{hostPath}\"", cancellationToken).ConfigureAwait(false);
+        var result = await ExecuteUnboundedCommandAsync($"cp \"{containerId}:{containerPath}\" \"{hostPath}\"", cancellationToken).ConfigureAwait(false);
 
         if (!result.Success)
         {
@@ -120,6 +177,10 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
         }
 
         return CommandResponse<Unit>.Ok(Unit.Default);
+      }
+      catch (OperationCanceledException)
+      {
+        throw;
       }
       catch (Exception ex)
       {
@@ -140,7 +201,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     {
       try
       {
-        var result = await ExecuteCommandAsync($"export -o \"{outputPath}\" {QuoteArgumentIfNeeded(containerId)}", cancellationToken).ConfigureAwait(false);
+        var result = await ExecuteUnboundedCommandAsync($"export -o \"{outputPath}\" {QuoteArgumentIfNeeded(containerId)}", cancellationToken).ConfigureAwait(false);
 
         if (!result.Success)
         {
@@ -152,6 +213,10 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
         }
 
         return CommandResponse<Unit>.Ok(Unit.Default);
+      }
+      catch (OperationCanceledException)
+      {
+        throw;
       }
       catch (Exception ex)
       {
@@ -180,6 +245,10 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
         }
 
         return CommandResponse<Unit>.Ok(Unit.Default);
+      }
+      catch (OperationCanceledException)
+      {
+        throw;
       }
       catch (Exception ex)
       {
@@ -231,6 +300,10 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
         }
 
         return CommandResponse<Unit>.Ok(Unit.Default);
+      }
+      catch (OperationCanceledException)
+      {
+        throw;
       }
       catch (Exception ex)
       {

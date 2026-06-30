@@ -56,6 +56,10 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
           Services = [.. config.Services]
         });
       }
+      catch (OperationCanceledException)
+      {
+        throw;
+      }
       catch (Exception ex)
       {
         return CommandResponse<ComposeUpResult>.Fail(ex.Message, ErrorCodes.Compose.UpFailed);
@@ -85,6 +89,10 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
 
         return CommandResponse<Unit>.Ok(Unit.Default);
       }
+      catch (OperationCanceledException)
+      {
+        throw;
+      }
       catch (Exception ex)
       {
         return CommandResponse<Unit>.Fail(ex.Message, ErrorCodes.Compose.DownFailed);
@@ -107,6 +115,10 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
         return result.Success
             ? CommandResponse<Unit>.Ok(Unit.Default)
             : CommandResponse<Unit>.Fail(result.Error ?? "Compose start failed", ErrorCodes.Compose.StartFailed);
+      }
+      catch (OperationCanceledException)
+      {
+        throw;
       }
       catch (Exception ex)
       {
@@ -133,6 +145,10 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
             ? CommandResponse<Unit>.Ok(Unit.Default)
             : CommandResponse<Unit>.Fail(result.Error ?? "Compose stop failed", ErrorCodes.Compose.StopFailed);
       }
+      catch (OperationCanceledException)
+      {
+        throw;
+      }
       catch (Exception ex)
       {
         return CommandResponse<Unit>.Fail(ex.Message, ErrorCodes.Compose.StopFailed);
@@ -155,6 +171,10 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
         return result.Success
             ? CommandResponse<Unit>.Ok(Unit.Default)
             : CommandResponse<Unit>.Fail(result.Error ?? "Compose restart failed", ErrorCodes.Compose.RestartFailed);
+      }
+      catch (OperationCanceledException)
+      {
+        throw;
       }
       catch (Exception ex)
       {
@@ -179,6 +199,10 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
             ? CommandResponse<Unit>.Ok(Unit.Default)
             : CommandResponse<Unit>.Fail(result.Error ?? "Compose pause failed", ErrorCodes.Compose.PauseFailed);
       }
+      catch (OperationCanceledException)
+      {
+        throw;
+      }
       catch (Exception ex)
       {
         return CommandResponse<Unit>.Fail(ex.Message, ErrorCodes.Compose.PauseFailed);
@@ -201,6 +225,10 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
         return result.Success
             ? CommandResponse<Unit>.Ok(Unit.Default)
             : CommandResponse<Unit>.Fail(result.Error ?? "Compose unpause failed", ErrorCodes.Compose.UnpauseFailed);
+      }
+      catch (OperationCanceledException)
+      {
+        throw;
       }
       catch (Exception ex)
       {
@@ -225,6 +253,10 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
             ? CommandResponse<Unit>.Ok(Unit.Default)
             : CommandResponse<Unit>.Fail(result.Error ?? "Compose kill failed", ErrorCodes.Compose.KillFailed);
       }
+      catch (OperationCanceledException)
+      {
+        throw;
+      }
       catch (Exception ex)
       {
         return CommandResponse<Unit>.Fail(ex.Message, ErrorCodes.Compose.KillFailed);
@@ -247,6 +279,10 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
         return result.Success
             ? CommandResponse<Unit>.Ok(Unit.Default)
             : CommandResponse<Unit>.Fail(result.Error ?? "Compose rm failed", ErrorCodes.Compose.RemoveFailed);
+      }
+      catch (OperationCanceledException)
+      {
+        throw;
       }
       catch (Exception ex)
       {

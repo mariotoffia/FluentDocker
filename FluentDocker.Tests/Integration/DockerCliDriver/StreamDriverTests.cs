@@ -102,6 +102,47 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
       }
     }
 
+    [Fact]
+    public async Task StreamLogs_NonTtyContainer_IncludesStderrLines()
+    {
+      // FIX-3: a non-TTY container writes logs to BOTH stdout and stderr; the CLI log
+      // stream must surface stderr lines too (previously the stdout-only path dropped them).
+      string? containerId = null;
+      try
+      {
+        var runResult = await ContainerDriver.RunAsync(Context,
+            new ContainerCreateConfig
+            {
+              Image = TestImage,
+              Command = [ "sh", "-c",
+                  "echo out-line; echo err-line 1>&2" ],
+              Detach = true
+            }, TestContext.Current.CancellationToken);
+        Assert.True(runResult.Success, $"Run failed: {runResult.Error}");
+        containerId = runResult.Data.Id;
+
+        await Task.Delay(2000, TestContext.Current.CancellationToken);
+
+        var entries = new List<string>();
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+
+        await foreach (var line in StreamDriver.StreamLogsAsync(
+            Context, containerId,
+            new StreamLogsConfig { Follow = false },
+            cts.Token))
+        {
+          entries.Add(line);
+        }
+
+        Assert.Contains(entries, l => l.Contains("out-line"));
+        Assert.Contains(entries, l => l.Contains("err-line"));
+      }
+      finally
+      {
+        await RemoveContainerAsync(containerId!);
+      }
+    }
+
     #endregion
 
     #region StreamEventsAsync Tests

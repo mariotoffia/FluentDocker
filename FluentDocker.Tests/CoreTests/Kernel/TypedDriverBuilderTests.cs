@@ -42,6 +42,23 @@ namespace FluentDocker.Tests.CoreTests.Kernel
     }
 
     [Fact]
+    public void DockerCliBuilder_WithRequestTimeout_SetsInContext()
+    {
+      // REV-1(c): the CLI builder's WithRequestTimeout must flow to DriverContext.RequestTimeout,
+      // which ResolveBufferedTimeout() reads to bound buffered control-plane commands.
+      var result = BuildDockerCliConfig(b => b
+          .WithRequestTimeout(TimeSpan.FromMinutes(10)));
+      Assert.Equal(TimeSpan.FromMinutes(10), result.Context.RequestTimeout);
+    }
+
+    [Fact]
+    public void DockerCliBuilder_NoRequestTimeout_LeavesContextUnset()
+    {
+      var result = BuildDockerCliConfig(b => b.AsDefault());
+      Assert.Null(result.Context.RequestTimeout);
+    }
+
+    [Fact]
     public void DockerCliBuilder_WithSudo_NoPassword_SetsNoPassword()
     {
       var result = BuildDockerCliConfig(b => b

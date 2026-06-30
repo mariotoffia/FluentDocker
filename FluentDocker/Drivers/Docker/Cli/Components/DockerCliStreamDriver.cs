@@ -60,7 +60,11 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     {
       var args = BuildStreamLogsArgs(containerId, config);
 
-      await foreach (var line in ExecuteStreamingCommandAsync(args, cancellationToken))
+      // A non-TTY container writes log lines to BOTH stdout and stderr. Use the interleaving
+      // stdout+stderr streaming path so stderr log lines are not silently dropped (the
+      // stdout-only path would lose them). A non-zero exit is still surfaced as a
+      // DriverException by this variant, exactly as the stdout-only one.
+      await foreach (var line in ExecuteStreamingCommandWithProgressAsync(args, cancellationToken))
       {
         yield return line;
       }
@@ -230,8 +234,12 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
 
         args += $" {QuoteArgumentIfNeeded(containerId)}";
 
-        var result = ExecuteAttachProcess(args);
+        var result = ExecuteAttachProcess(args, cancellationToken);
         return Task.FromResult(CommandResponse<AttachResult>.Ok(result));
+      }
+      catch (OperationCanceledException)
+      {
+        throw;
       }
       catch (Exception ex)
       {

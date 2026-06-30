@@ -138,7 +138,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
               testCommands = [.. testCommands.Skip(1)];
 
             var cmd = string.Join(" ", testCommands);
-            args.Add($"--health-cmd \"{cmd}\"");
+            args.Add($"--health-cmd {QuoteArgumentIfNeeded(cmd)}");
           }
           if (!string.IsNullOrEmpty(config.HealthCheck.Interval))
             args.Add($"--health-interval {config.HealthCheck.Interval}");
@@ -208,7 +208,10 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
           }
         }
 
-        var result = await ExecuteCommandAsync(string.Join(" ", args), cancellationToken).ConfigureAwait(false);
+        // `docker run` blocks until the container exits when not detached, so it must honor
+        // only caller cancellation (the default buffered timeout would falsely abort a
+        // legitimately long-running foreground container).
+        var result = await ExecuteUnboundedCommandAsync(string.Join(" ", args), cancellationToken).ConfigureAwait(false);
 
         if (!result.Success)
         {
@@ -240,6 +243,10 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
 
         return CommandResponse<ContainerRunResult>.Ok(runResult);
       }
+      catch (OperationCanceledException)
+      {
+        throw;
+      }
       catch (Exception ex)
       {
         return CommandResponse<ContainerRunResult>.Fail(ex.Message, ErrorCodes.Container.CreateFailed);
@@ -263,7 +270,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     {
       try
       {
-        var result = await ExecuteCommandAsync($"wait {QuoteArgumentIfNeeded(containerId)}", cancellationToken).ConfigureAwait(false);
+        var result = await ExecuteUnboundedCommandAsync($"wait {QuoteArgumentIfNeeded(containerId)}", cancellationToken).ConfigureAwait(false);
 
         if (!result.Success)
         {
@@ -278,6 +285,10 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
 
         return CommandResponse<ContainerWaitResult>.Ok(
             new ContainerWaitResult { ExitCode = exitCode });
+      }
+      catch (OperationCanceledException)
+      {
+        throw;
       }
       catch (Exception ex)
       {

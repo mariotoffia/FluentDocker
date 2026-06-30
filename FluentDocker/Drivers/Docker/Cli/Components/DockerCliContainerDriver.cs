@@ -153,6 +153,10 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
         return CommandResponse<ContainerCreateResult>.Ok(
             new ContainerCreateResult { Id = containerId });
       }
+      catch (OperationCanceledException)
+      {
+        throw;
+      }
       catch (Exception ex)
       {
         return CommandResponse<ContainerCreateResult>.Fail(
@@ -182,6 +186,10 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
 
         return CommandResponse<Unit>.Ok(Unit.Default);
       }
+      catch (OperationCanceledException)
+      {
+        throw;
+      }
       catch (Exception ex)
       {
         return CommandResponse<Unit>.Fail(ex.Message, ErrorCodes.Container.StartFailed);
@@ -202,7 +210,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
           args += $" -t {timeout.Value}";
         args += $" {QuoteArgumentIfNeeded(containerId)}";
 
-        var result = await ExecuteCommandAsync(args, cancellationToken).ConfigureAwait(false);
+        var result = await ExecuteUnboundedCommandAsync(args, cancellationToken).ConfigureAwait(false);
 
         if (!result.Success)
         {
@@ -214,6 +222,10 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
         }
 
         return CommandResponse<Unit>.Ok(Unit.Default);
+      }
+      catch (OperationCanceledException)
+      {
+        throw;
       }
       catch (Exception ex)
       {
@@ -235,7 +247,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
           args += $" -t {timeout.Value}";
         args += $" {QuoteArgumentIfNeeded(containerId)}";
 
-        var result = await ExecuteCommandAsync(args, cancellationToken).ConfigureAwait(false);
+        var result = await ExecuteUnboundedCommandAsync(args, cancellationToken).ConfigureAwait(false);
 
         if (!result.Success)
         {
@@ -247,6 +259,10 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
         }
 
         return CommandResponse<Unit>.Ok(Unit.Default);
+      }
+      catch (OperationCanceledException)
+      {
+        throw;
       }
       catch (Exception ex)
       {
@@ -275,6 +291,10 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
 
         return CommandResponse<Unit>.Ok(Unit.Default);
       }
+      catch (OperationCanceledException)
+      {
+        throw;
+      }
       catch (Exception ex)
       {
         return CommandResponse<Unit>.Fail(ex.Message, ErrorCodes.Container.PauseFailed);
@@ -301,6 +321,10 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
         }
 
         return CommandResponse<Unit>.Ok(Unit.Default);
+      }
+      catch (OperationCanceledException)
+      {
+        throw;
       }
       catch (Exception ex)
       {
@@ -330,6 +354,10 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
         }
 
         return CommandResponse<Unit>.Ok(Unit.Default);
+      }
+      catch (OperationCanceledException)
+      {
+        throw;
       }
       catch (Exception ex)
       {
@@ -366,6 +394,10 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
         }
 
         return CommandResponse<Unit>.Ok(Unit.Default);
+      }
+      catch (OperationCanceledException)
+      {
+        throw;
       }
       catch (Exception ex)
       {

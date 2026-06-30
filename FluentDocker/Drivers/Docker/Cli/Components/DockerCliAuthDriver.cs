@@ -25,7 +25,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     {
       var args = "login";
       if (!string.IsNullOrEmpty(config.Username))
-        args += $" -u {config.Username}";
+        args += $" -u {QuoteArgumentIfNeeded(config.Username)}";
 
       // Always use --password-stdin when a password is provided.
       // Never pass password via -p flag (visible in process listings).
@@ -33,7 +33,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
         args += " --password-stdin";
 
       if (!string.IsNullOrEmpty(config.Server))
-        args += $" {config.Server}";
+        args += $" {QuoteArgumentIfNeeded(config.Server)}";
 
       var stdinData = !string.IsNullOrEmpty(config.Password) ? config.Password : null;
 
@@ -61,6 +61,10 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
             ? CommandResponse<Unit>.Ok(Unit.Default)
             : CommandResponse<Unit>.Fail(result.Error ?? "Login failed", ErrorCodes.Auth.LoginFailed);
       }
+      catch (OperationCanceledException)
+      {
+        throw;
+      }
       catch (Exception ex)
       {
         return CommandResponse<Unit>.Fail(ex.Message, ErrorCodes.Auth.LoginFailed);
@@ -77,12 +81,16 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
       {
         var args = "logout";
         if (!string.IsNullOrEmpty(server))
-          args += $" {server}";
+          args += $" {QuoteArgumentIfNeeded(server)}";
 
         var result = await ExecuteCommandAsync(args, cancellationToken).ConfigureAwait(false);
         return result.Success
             ? CommandResponse<Unit>.Ok(Unit.Default)
             : CommandResponse<Unit>.Fail(result.Error ?? "Logout failed", ErrorCodes.Auth.LogoutFailed);
+      }
+      catch (OperationCanceledException)
+      {
+        throw;
       }
       catch (Exception ex)
       {

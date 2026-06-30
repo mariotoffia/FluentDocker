@@ -53,6 +53,10 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
 
         return CommandResponse<Container>.Ok(container);
       }
+      catch (OperationCanceledException)
+      {
+        throw;
+      }
       catch (Exception ex)
       {
         return CommandResponse<Container>.Fail(ex.Message, ErrorCodes.Container.InspectFailed);
@@ -154,6 +158,10 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
 
         return CommandResponse<IList<Container>>.Ok(containers);
       }
+      catch (OperationCanceledException)
+      {
+        throw;
+      }
       catch (Exception ex)
       {
         return CommandResponse<IList<Container>>.Fail(ex.Message, ErrorCodes.General.Unknown);
@@ -201,6 +209,10 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
             : result.Output;
         return CommandResponse<string>.Ok(logs);
       }
+      catch (OperationCanceledException)
+      {
+        throw;
+      }
       catch (Exception ex)
       {
         return CommandResponse<string>.Fail(ex.Message, ErrorCodes.General.Unknown);
@@ -244,6 +256,10 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
 
         return CommandResponse<ContainerProcesses>.Ok(processes);
       }
+      catch (OperationCanceledException)
+      {
+        throw;
+      }
       catch (Exception ex)
       {
         return CommandResponse<ContainerProcesses>.Fail(ex.Message, ErrorCodes.Container.TopFailed);
@@ -284,6 +300,10 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
         }
 
         return CommandResponse<IList<FilesystemChange>>.Ok(changes);
+      }
+      catch (OperationCanceledException)
+      {
+        throw;
       }
       catch (Exception ex)
       {

@@ -20,10 +20,17 @@ namespace FluentDocker.Kernel
     private string _binaryName;
     private string[] _searchPaths;
     private ModelRunnerEndpoint _modelEndpoint;
+    private TimeSpan? _requestTimeout;
 
     public IDockerCliDriverBuilder AtHost(string host)
     {
       _host = host;
+      return this;
+    }
+
+    public IDockerCliDriverBuilder WithRequestTimeout(TimeSpan timeout)
+    {
+      _requestTimeout = timeout;
       return this;
     }
 
@@ -70,6 +77,7 @@ namespace FluentDocker.Kernel
         BinaryName = _binaryName,
         SearchPaths = _searchPaths,
         ModelRunnerEndpoint = _modelEndpoint,
+        RequestTimeout = _requestTimeout,
       };
 
       return new KernelBuilder.DriverConfiguration

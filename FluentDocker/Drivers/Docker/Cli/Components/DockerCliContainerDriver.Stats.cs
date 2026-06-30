@@ -40,6 +40,10 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
         var stats = ParseStatsOutput(result.Output, containerId);
         return CommandResponse<ContainerStatsResult>.Ok(stats);
       }
+      catch (OperationCanceledException)
+      {
+        throw;
+      }
       catch (Exception ex)
       {
         return CommandResponse<ContainerStatsResult>.Fail(ex.Message, ErrorCodes.Container.StatsFailed);

@@ -16,7 +16,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
   /// <summary>
   /// Docker CLI implementation of ISystemDriver.
   /// </summary>
-  public class DockerCliSystemDriver : DockerCliDriverBase, ISystemDriver
+  public partial class DockerCliSystemDriver : DockerCliDriverBase, ISystemDriver
   {
     private static readonly char[] LineSeparators = ['\n', '\r'];
     /// <summary>
@@ -48,6 +48,10 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
         info.PopulateMeta();
         return CommandResponse<SystemInfo>.Ok(info);
       }
+      catch (OperationCanceledException)
+      {
+        throw;
+      }
       catch (Exception ex)
       {
         return CommandResponse<SystemInfo>.Fail(ex.Message, ErrorCodes.General.Unknown);
@@ -74,6 +78,10 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
         version.PopulateMeta();
         return CommandResponse<VersionInfo>.Ok(version);
       }
+      catch (OperationCanceledException)
+      {
+        throw;
+      }
       catch (Exception ex)
       {
         return CommandResponse<VersionInfo>.Fail(ex.Message, ErrorCodes.General.Unknown);
@@ -91,6 +99,10 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
         return result.Success
             ? CommandResponse<Unit>.Ok(Unit.Default)
             : CommandResponse<Unit>.Fail("Docker daemon not reachable", ErrorCodes.General.Unknown);
+      }
+      catch (OperationCanceledException)
+      {
+        throw;
       }
       catch (Exception ex)
       {
@@ -112,6 +124,10 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
         var isWindows = versionResult.Data?.Os?.Equals("windows", StringComparison.OrdinalIgnoreCase) ?? false;
         return CommandResponse<bool>.Ok(isWindows);
       }
+      catch (OperationCanceledException)
+      {
+        throw;
+      }
       catch (Exception ex)
       {
         return CommandResponse<bool>.Fail(ex.Message, ErrorCodes.General.Unknown);
@@ -132,9 +148,13 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
         var isLinux = !versionResult.Data?.Os?.Equals("windows", StringComparison.OrdinalIgnoreCase) ?? true;
         return CommandResponse<bool>.Ok(isLinux);
       }
+      catch (OperationCanceledException)
+      {
+        throw;
+      }
       catch (Exception ex)
       {
-        Logger.LogError(ex, "Windows engine detection failed");
+        Logger.LogError(ex, "Linux engine detection failed");
         return CommandResponse<bool>.Ok(true); // Default to Linux
       }
     }
@@ -161,6 +181,10 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
 
         var info = ParseDiskUsageOutput(result.Output);
         return CommandResponse<DiskUsageInfo>.Ok(info);
+      }
+      catch (OperationCanceledException)
+      {
+        throw;
       }
       catch (Exception ex)
       {
@@ -194,138 +218,14 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
         return CommandResponse<SystemPruneResult>.Ok(
             CliPruneOutputParser.ParseSystemPruneOutput(result.Output));
       }
+      catch (OperationCanceledException)
+      {
+        throw;
+      }
       catch (Exception ex)
       {
         return CommandResponse<SystemPruneResult>.Fail(ex.Message, ErrorCodes.General.Unknown);
       }
-    }
-
-    #endregion
-
-    #region Daemon Operations (Docker Desktop specific)
-
-    /// <inheritdoc />
-    public async Task<CommandResponse<Unit>> SwitchDaemonAsync(
-        DriverContext context,
-        CancellationToken cancellationToken = default)
-    {
-      try
-      {
-        var result = await ExecuteDockerCliCommandAsync("-SwitchDaemon", cancellationToken).ConfigureAwait(false);
-        return result.Success
-            ? CommandResponse<Unit>.Ok(Unit.Default)
-            : CommandResponse<Unit>.Fail(result.Error ?? "Switch daemon failed", ErrorCodes.General.Unknown);
-      }
-      catch (Exception ex)
-      {
-        return CommandResponse<Unit>.Fail(ex.Message, ErrorCodes.General.Unknown);
-      }
-    }
-
-    /// <inheritdoc />
-    public async Task<CommandResponse<Unit>> SwitchToLinuxDaemonAsync(
-        DriverContext context,
-        CancellationToken cancellationToken = default)
-    {
-      try
-      {
-        var result = await ExecuteDockerCliCommandAsync("-SwitchLinuxEngine", cancellationToken).ConfigureAwait(false);
-        return result.Success
-            ? CommandResponse<Unit>.Ok(Unit.Default)
-            : CommandResponse<Unit>.Fail(result.Error ?? "Switch to Linux failed", ErrorCodes.General.Unknown);
-      }
-      catch (Exception ex)
-      {
-        return CommandResponse<Unit>.Fail(ex.Message, ErrorCodes.General.Unknown);
-      }
-    }
-
-    /// <inheritdoc />
-    public async Task<CommandResponse<Unit>> SwitchToWindowsDaemonAsync(
-        DriverContext context,
-        CancellationToken cancellationToken = default)
-    {
-      try
-      {
-        var result = await ExecuteDockerCliCommandAsync("-SwitchWindowsEngine", cancellationToken).ConfigureAwait(false);
-        return result.Success
-            ? CommandResponse<Unit>.Ok(Unit.Default)
-            : CommandResponse<Unit>.Fail(result.Error ?? "Switch to Windows failed", ErrorCodes.General.Unknown);
-      }
-      catch (Exception ex)
-      {
-        return CommandResponse<Unit>.Fail(ex.Message, ErrorCodes.General.Unknown);
-      }
-    }
-
-    #endregion
-
-    #region Private Helpers
-
-    /// <summary>
-    /// Executes a Docker CLI command (Docker Desktop specific).
-    /// </summary>
-    private async Task<SimpleCommandResult> ExecuteDockerCliCommandAsync(string arguments, CancellationToken cancellationToken)
-    {
-      return await Task.Run(() =>
-      {
-        try
-        {
-          var process = new Process
-          {
-            StartInfo = new ProcessStartInfo
-            {
-              FileName = BinaryResolver?.ResolveBinaryPath("dockercli") ?? "dockercli",
-              Arguments = arguments,
-              RedirectStandardOutput = true,
-              RedirectStandardError = true,
-              UseShellExecute = false,
-              CreateNoWindow = true
-            }
-          };
-
-          var output = new StringBuilder();
-          var error = new StringBuilder();
-
-          process.OutputDataReceived += (s, e) =>
-          {
-            if (!string.IsNullOrEmpty(e.Data))
-              output.AppendLine(e.Data);
-          };
-
-          process.ErrorDataReceived += (s, e) =>
-          {
-            if (!string.IsNullOrEmpty(e.Data))
-              error.AppendLine(e.Data);
-          };
-
-          process.Start();
-          process.BeginOutputReadLine();
-          process.BeginErrorReadLine();
-
-          while (!process.WaitForExit(1000))
-          {
-            cancellationToken.ThrowIfCancellationRequested();
-          }
-
-          return new SimpleCommandResult
-          {
-            Success = process.ExitCode == 0,
-            Output = output.ToString(),
-            Error = error.ToString(),
-            ExitCode = process.ExitCode
-          };
-        }
-        catch (Exception ex)
-        {
-          return new SimpleCommandResult
-          {
-            Success = false,
-            Error = ex.Message,
-            ExitCode = -1
-          };
-        }
-      }, cancellationToken);
     }
 
     #endregion

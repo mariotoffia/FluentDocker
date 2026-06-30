@@ -38,7 +38,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
       try
       {
         var fullImage = string.IsNullOrEmpty(tag) ? image : $"{image}:{tag}";
-        var result = await ExecuteCommandAsync($"pull {QuoteArgumentIfNeeded(fullImage)}", cancellationToken).ConfigureAwait(false);
+        var result = await ExecuteUnboundedCommandAsync($"pull {QuoteArgumentIfNeeded(fullImage)}", cancellationToken).ConfigureAwait(false);
 
         if (!result.Success)
         {
@@ -50,6 +50,10 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
         }
 
         return CommandResponse<Unit>.Ok(Unit.Default);
+      }
+      catch (OperationCanceledException)
+      {
+        throw;
       }
       catch (Exception ex)
       {
@@ -66,7 +70,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     {
       try
       {
-        var result = await ExecuteCommandAsync($"push {QuoteArgumentIfNeeded(image)}", cancellationToken).ConfigureAwait(false);
+        var result = await ExecuteUnboundedCommandAsync($"push {QuoteArgumentIfNeeded(image)}", cancellationToken).ConfigureAwait(false);
 
         if (!result.Success)
         {
@@ -78,6 +82,10 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
         }
 
         return CommandResponse<Unit>.Ok(Unit.Default);
+      }
+      catch (OperationCanceledException)
+      {
+        throw;
       }
       catch (Exception ex)
       {
@@ -151,7 +159,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
 
         try
         {
-          var result = await ExecuteCommandAsync(BuildBuildArgs(config, iidFile), cancellationToken).ConfigureAwait(false);
+          var result = await ExecuteUnboundedCommandAsync(BuildBuildArgs(config, iidFile), cancellationToken).ConfigureAwait(false);
 
           if (!result.Success)
           {
@@ -186,6 +194,10 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
           if (File.Exists(iidFile))
             File.Delete(iidFile);
         }
+      }
+      catch (OperationCanceledException)
+      {
+        throw;
       }
       catch (Exception ex)
       {
@@ -288,6 +300,10 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
 
         return CommandResponse<IList<Image>>.Ok(images);
       }
+      catch (OperationCanceledException)
+      {
+        throw;
+      }
       catch (Exception ex)
       {
         return CommandResponse<IList<Image>>.Fail(ex.Message, ErrorCodes.General.Unknown);
@@ -389,6 +405,10 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
 
         return CommandResponse<Image>.Ok(image);
       }
+      catch (OperationCanceledException)
+      {
+        throw;
+      }
       catch (Exception ex)
       {
         return CommandResponse<Image>.Fail(ex.Message, ErrorCodes.Image.InspectFailed);
@@ -449,6 +469,10 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
         }
 
         return CommandResponse<IList<ImageLayer>>.Ok(layers);
+      }
+      catch (OperationCanceledException)
+      {
+        throw;
       }
       catch (Exception ex)
       {

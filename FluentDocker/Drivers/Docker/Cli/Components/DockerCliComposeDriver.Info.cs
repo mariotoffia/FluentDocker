@@ -35,6 +35,10 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
         return CommandResponse<IList<ComposeServiceInfo>>.Ok(
             ParseServiceList(result.Output));
       }
+      catch (OperationCanceledException)
+      {
+        throw;
+      }
       catch (Exception ex)
       {
         return CommandResponse<IList<ComposeServiceInfo>>.Fail(
@@ -60,6 +64,10 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
             : CommandResponse<string>.Fail(
                 result.Error ?? "Compose logs failed", ErrorCodes.Compose.LogsFailed);
       }
+      catch (OperationCanceledException)
+      {
+        throw;
+      }
       catch (Exception ex)
       {
         return CommandResponse<string>.Fail(ex.Message, ErrorCodes.Compose.LogsFailed);
@@ -80,6 +88,10 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
             ? CommandResponse<IList<ComposeProcesses>>.Ok(ParseTopOutput(result.Output))
             : CommandResponse<IList<ComposeProcesses>>.Fail(
                 result.Error ?? "Compose top failed", ErrorCodes.Compose.TopFailed);
+      }
+      catch (OperationCanceledException)
+      {
+        throw;
       }
       catch (Exception ex)
       {
@@ -103,6 +115,10 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
             ? CommandResponse<string>.Ok(result.Output)
             : CommandResponse<string>.Fail(
                 result.Error ?? "Compose config failed", ErrorCodes.Compose.ConfigFailed);
+      }
+      catch (OperationCanceledException)
+      {
+        throw;
       }
       catch (Exception ex)
       {
@@ -157,6 +173,10 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
 
         return CommandResponse<IList<ComposeImage>>.Ok(images);
       }
+      catch (OperationCanceledException)
+      {
+        throw;
+      }
       catch (Exception ex)
       {
         return CommandResponse<IList<ComposeImage>>.Fail(
@@ -179,6 +199,10 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
             ? CommandResponse<string>.Ok(result.Output.Trim())
             : CommandResponse<string>.Fail(
                 result.Error ?? "Compose port failed", ErrorCodes.Compose.PortFailed);
+      }
+      catch (OperationCanceledException)
+      {
+        throw;
       }
       catch (Exception ex)
       {
@@ -208,6 +232,10 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
             : CommandResponse<Unit>.Fail(
                 result.Error ?? "Compose build failed", ErrorCodes.Compose.BuildFailed);
       }
+      catch (OperationCanceledException)
+      {
+        throw;
+      }
       catch (Exception ex)
       {
         return CommandResponse<Unit>.Fail(ex.Message, ErrorCodes.Compose.BuildFailed);
@@ -232,6 +260,10 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
             : CommandResponse<Unit>.Fail(
                 result.Error ?? "Compose pull failed", ErrorCodes.Compose.PullFailed);
       }
+      catch (OperationCanceledException)
+      {
+        throw;
+      }
       catch (Exception ex)
       {
         return CommandResponse<Unit>.Fail(ex.Message, ErrorCodes.Compose.PullFailed);
@@ -255,6 +287,10 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
             ? CommandResponse<Unit>.Ok(Unit.Default)
             : CommandResponse<Unit>.Fail(
                 result.Error ?? "Compose push failed", ErrorCodes.Compose.PushFailed);
+      }
+      catch (OperationCanceledException)
+      {
+        throw;
       }
       catch (Exception ex)
       {
@@ -296,6 +332,10 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
             : CommandResponse<string>.Fail(
                 result.Error ?? "Compose exec failed", ErrorCodes.Compose.ExecFailed);
       }
+      catch (OperationCanceledException)
+      {
+        throw;
+      }
       catch (Exception ex)
       {
         return CommandResponse<string>.Fail(ex.Message, ErrorCodes.Compose.ExecFailed);
@@ -317,6 +357,10 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
             ? CommandResponse<string>.Ok(result.Output)
             : CommandResponse<string>.Fail(
                 result.Error ?? "Compose run failed", ErrorCodes.Compose.RunFailed);
+      }
+      catch (OperationCanceledException)
+      {
+        throw;
       }
       catch (Exception ex)
       {
@@ -343,6 +387,10 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
             ? CommandResponse<Unit>.Ok(Unit.Default)
             : CommandResponse<Unit>.Fail(
                 result.Error ?? "Compose scale failed", ErrorCodes.Compose.ScaleFailed);
+      }
+      catch (OperationCanceledException)
+      {
+        throw;
       }
       catch (Exception ex)
       {
@@ -373,6 +421,10 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
             : CommandResponse<Unit>.Fail(
                 result.Error ?? "Compose cp failed", ErrorCodes.Compose.CopyFailed);
       }
+      catch (OperationCanceledException)
+      {
+        throw;
+      }
       catch (Exception ex)
       {
         return CommandResponse<Unit>.Fail(ex.Message, ErrorCodes.Compose.CopyFailed);
@@ -400,6 +452,10 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
             ? CommandResponse<Unit>.Ok(Unit.Default)
             : CommandResponse<Unit>.Fail(
                 result.Error ?? "Compose create failed", ErrorCodes.Compose.CreateFailed);
+      }
+      catch (OperationCanceledException)
+      {
+        throw;
       }
       catch (Exception ex)
       {

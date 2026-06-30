@@ -182,5 +182,54 @@ namespace FluentDocker.Tests.CoreTests.Driver.Docker
     }
 
     #endregion
+
+    #region BuildLoginArgs — Dynamic Token Quoting (FIX-7)
+
+    [Fact]
+    public void BuildLoginArgs_ServerWithSpace_IsQuoted()
+    {
+      var config = new RegistryLoginConfig
+      {
+        Username = "user1",
+        Server = "evil registry"
+      };
+
+      var (args, _) = DockerCliAuthDriver.BuildLoginArgs(config);
+
+      // A server token containing a space must stay a single argv token.
+      Assert.Contains("\"evil registry\"", args);
+    }
+
+    [Fact]
+    public void BuildLoginArgs_UsernameWithSpace_IsQuoted()
+    {
+      var config = new RegistryLoginConfig
+      {
+        Username = "weird user"
+      };
+
+      var (args, _) = DockerCliAuthDriver.BuildLoginArgs(config);
+
+      Assert.Contains("-u \"weird user\"", args);
+    }
+
+    [Fact]
+    public void BuildLoginArgs_PlainTokens_AreNotQuoted()
+    {
+      var config = new RegistryLoginConfig
+      {
+        Username = "user1",
+        Server = "ghcr.io"
+      };
+
+      var (args, _) = DockerCliAuthDriver.BuildLoginArgs(config);
+
+      // Metachar-free tokens must remain unquoted (no behavioral regression).
+      Assert.Contains("-u user1", args);
+      Assert.EndsWith("ghcr.io", args);
+      Assert.DoesNotContain("\"", args);
+    }
+
+    #endregion
   }
 }

@@ -35,27 +35,28 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
         var args = new List<string> { "service", "create" };
 
         if (!string.IsNullOrEmpty(config.Name))
-          args.Add($"--name {config.Name}");
+          args.Add($"--name {QuoteArgumentIfNeeded(config.Name)}");
         if (config.Replicas.HasValue)
           args.Add($"--replicas {config.Replicas.Value}");
         if (!string.IsNullOrEmpty(config.Mode))
-          args.Add($"--mode {config.Mode}");
+          args.Add($"--mode {QuoteArgumentIfNeeded(config.Mode)}");
         foreach (var env in config.Environment)
-          args.Add($"-e {env.Key}={env.Value}");
+          args.Add($"-e {QuoteArgumentIfNeeded($"{env.Key}={env.Value}")}");
         foreach (var label in config.Labels)
-          args.Add($"--label {label.Key}={label.Value}");
+          args.Add($"--label {QuoteArgumentIfNeeded($"{label.Key}={label.Value}")}");
         foreach (var port in config.Ports)
-          args.Add($"-p {port.PublishedPort}:{port.TargetPort}/{port.Protocol}");
+          args.Add($"-p {QuoteArgumentIfNeeded($"{port.PublishedPort}:{port.TargetPort}/{port.Protocol}")}");
         foreach (var network in config.Networks)
-          args.Add($"--network {network}");
+          args.Add($"--network {QuoteArgumentIfNeeded(network)}");
         if (config.Detach)
           args.Add("-d");
         if (config.Quiet)
           args.Add("-q");
 
-        args.Add(config.Image);
+        args.Add(QuoteArgumentIfNeeded(config.Image));
         if (config.Command != null)
-          args.AddRange(config.Command);
+          foreach (var cmd in config.Command)
+            args.Add(QuoteArgumentIfNeeded(cmd));
 
         var result = await ExecuteCommandAsync(string.Join(" ", args), cancellationToken).ConfigureAwait(false);
 
@@ -66,6 +67,10 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
         }
 
         return CommandResponse<ServiceCreateResult>.Ok(new ServiceCreateResult { Id = result.Output.Trim() });
+      }
+      catch (OperationCanceledException)
+      {
+        throw;
       }
       catch (Exception ex)
       {
@@ -85,6 +90,10 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
         return result.Success
             ? CommandResponse<Unit>.Ok(Unit.Default)
             : CommandResponse<Unit>.Fail(result.Error ?? "Service rm failed", ErrorCodes.Service.RemoveFailed);
+      }
+      catch (OperationCanceledException)
+      {
+        throw;
       }
       catch (Exception ex)
       {
@@ -123,6 +132,10 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
             ? CommandResponse<Unit>.Ok(Unit.Default)
             : CommandResponse<Unit>.Fail(result.Error ?? "Service update failed", ErrorCodes.Service.UpdateFailed);
       }
+      catch (OperationCanceledException)
+      {
+        throw;
+      }
       catch (Exception ex)
       {
         return CommandResponse<Unit>.Fail(ex.Message, ErrorCodes.Service.UpdateFailed);
@@ -147,6 +160,10 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
         return result.Success
             ? CommandResponse<Unit>.Ok(Unit.Default)
             : CommandResponse<Unit>.Fail(result.Error ?? "Service rollback failed", ErrorCodes.Service.RollbackFailed);
+      }
+      catch (OperationCanceledException)
+      {
+        throw;
       }
       catch (Exception ex)
       {
@@ -201,6 +218,10 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
 
         return CommandResponse<IList<ServiceInfo>>.Ok(services);
       }
+      catch (OperationCanceledException)
+      {
+        throw;
+      }
       catch (Exception ex)
       {
         return CommandResponse<IList<ServiceInfo>>.Fail(ex.Message, ErrorCodes.Service.ListFailed);
@@ -233,6 +254,10 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
         return details != null
             ? CommandResponse<ServiceDetails>.Ok(details)
             : CommandResponse<ServiceDetails>.Fail("Service not found", ErrorCodes.Service.NotFound);
+      }
+      catch (OperationCanceledException)
+      {
+        throw;
       }
       catch (Exception ex)
       {
@@ -277,6 +302,10 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
 
         return CommandResponse<IList<ServiceTask>>.Ok(tasks);
       }
+      catch (OperationCanceledException)
+      {
+        throw;
+      }
       catch (Exception ex)
       {
         return CommandResponse<IList<ServiceTask>>.Fail(ex.Message, ErrorCodes.Service.TasksFailed);
@@ -306,6 +335,10 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
             ? CommandResponse<string>.Ok(result.Output)
             : CommandResponse<string>.Fail(result.Error ?? "Service logs failed", ErrorCodes.Service.LogsFailed);
       }
+      catch (OperationCanceledException)
+      {
+        throw;
+      }
       catch (Exception ex)
       {
         return CommandResponse<string>.Fail(ex.Message, ErrorCodes.Service.LogsFailed);
@@ -330,6 +363,10 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
         return result.Success
             ? CommandResponse<Unit>.Ok(Unit.Default)
             : CommandResponse<Unit>.Fail(result.Error ?? "Service scale failed", ErrorCodes.Service.ScaleFailed);
+      }
+      catch (OperationCanceledException)
+      {
+        throw;
       }
       catch (Exception ex)
       {

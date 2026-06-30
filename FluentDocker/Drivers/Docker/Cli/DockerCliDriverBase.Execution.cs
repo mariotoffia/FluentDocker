@@ -32,6 +32,23 @@ namespace FluentDocker.Drivers.Docker.Cli
     private const int MaxNonStreamingOutputBytes = 4 * 1024 * 1024;
 
     /// <summary>
+    /// Default wall-clock timeout applied to a buffered (non-streaming) Docker CLI command
+    /// when the caller's <see cref="DriverContext.RequestTimeout"/> is not set. Without it a
+    /// hung docker CLI / plugin / daemon call would block forever when the caller passes
+    /// <see cref="CancellationToken.None"/>. Mirrors the Docker API driver's 5-minute request
+    /// default. Streaming/attach paths are intentionally exempt (logs -f / events run forever).
+    /// </summary>
+    private static readonly TimeSpan DefaultBufferedCommandTimeout = TimeSpan.FromMinutes(5);
+
+    /// <summary>
+    /// Resolves the buffered-command timeout from the driver context, falling back to
+    /// <see cref="DefaultBufferedCommandTimeout"/> when no <see cref="DriverContext.RequestTimeout"/>
+    /// is configured.
+    /// </summary>
+    private TimeSpan ResolveBufferedTimeout()
+        => Context?.RequestTimeout ?? DefaultBufferedCommandTimeout;
+
+    /// <summary>
     /// Resolves the binary info for the Docker command, extracting
     /// the binary path and sudo configuration separately for safe execution.
     /// </summary>
@@ -55,7 +72,7 @@ namespace FluentDocker.Drivers.Docker.Cli
       var (binaryPath, sudo, sudoPassword) = ResolveBinaryInfo();
       var globalArgs = BuildGlobalArgs(Context);
       var fullArgs = string.IsNullOrEmpty(globalArgs) ? arguments : $"{globalArgs} {arguments}";
-      return await ExecuteProcessAsync(binaryPath, fullArgs, null, null, sudo, sudoPassword, cancellationToken).ConfigureAwait(false);
+      return await ExecuteProcessAsync(binaryPath, fullArgs, null, null, sudo, sudoPassword, ResolveBufferedTimeout(), cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -67,7 +84,7 @@ namespace FluentDocker.Drivers.Docker.Cli
       var (binaryPath, sudo, sudoPassword) = ResolveBinaryInfo();
       var globalArgs = BuildGlobalArgs(Context);
       var fullArgs = string.IsNullOrEmpty(globalArgs) ? arguments : $"{globalArgs} {arguments}";
-      return await ExecuteProcessAsync(binaryPath, fullArgs, null, stdinData, sudo, sudoPassword, cancellationToken).ConfigureAwait(false);
+      return await ExecuteProcessAsync(binaryPath, fullArgs, null, stdinData, sudo, sudoPassword, ResolveBufferedTimeout(), cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -81,8 +98,31 @@ namespace FluentDocker.Drivers.Docker.Cli
       var (binaryPath, sudo, sudoPassword) = ResolveBinaryInfo();
       var globalArgs = BuildGlobalArgs(Context);
       var fullArgs = string.IsNullOrEmpty(globalArgs) ? arguments : $"{globalArgs} {arguments}";
-      return await ExecuteProcessAsync(binaryPath, fullArgs, environment, null, sudo, sudoPassword, cancellationToken).ConfigureAwait(false);
+      return await ExecuteProcessAsync(binaryPath, fullArgs, environment, null, sudo, sudoPassword, ResolveBufferedTimeout(), cancellationToken).ConfigureAwait(false);
     }
+
+    /// <summary>
+    /// Executes a Docker command asynchronously with an explicit buffered timeout.
+    /// Identical to <see cref="ExecuteCommandAsync(string, CancellationToken)"/> but uses the
+    /// supplied <paramref name="timeout"/> instead of the resolved default. Pass
+    /// <see cref="Timeout.InfiniteTimeSpan"/> to bound only by the caller token.
+    /// </summary>
+    protected async Task<SimpleCommandResult> ExecuteCommandAsync(
+        string arguments, TimeSpan timeout, CancellationToken cancellationToken)
+    {
+      var (binaryPath, sudo, sudoPassword) = ResolveBinaryInfo();
+      var globalArgs = BuildGlobalArgs(Context);
+      var fullArgs = string.IsNullOrEmpty(globalArgs) ? arguments : $"{globalArgs} {arguments}";
+      return await ExecuteProcessAsync(binaryPath, fullArgs, null, null, sudo, sudoPassword, timeout, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// For inherently long / unbounded-by-design Docker operations
+    /// (pull/build/push/wait/load/save/stop -t …) that must honor ONLY caller cancellation;
+    /// the default buffered timeout would falsely abort them.
+    /// </summary>
+    protected Task<SimpleCommandResult> ExecuteUnboundedCommandAsync(string arguments, CancellationToken cancellationToken)
+        => ExecuteCommandAsync(arguments, Timeout.InfiniteTimeSpan, cancellationToken);
 
     /// <summary>
     /// Executes a process asynchronously using direct stream reading
@@ -95,6 +135,7 @@ namespace FluentDocker.Drivers.Docker.Cli
         IDictionary<string, string> environment,
         string stdinData,
         SudoMechanism sudo, string sudoPassword,
+        TimeSpan timeout,
         CancellationToken cancellationToken)
     {
       // Build the actual process command based on sudo mechanism.
@@ -103,6 +144,15 @@ namespace FluentDocker.Drivers.Docker.Cli
           BuildSudoCommand(fileName, arguments, sudo, sudoPassword);
 
       var needsStdin = stdinData != null || passwordForStdin != null;
+
+      // Bound the wall-clock time of a buffered command: link the caller token with a timeout
+      // so a hung docker CLI/plugin/daemon call cannot block forever (the caller frequently
+      // passes CancellationToken.None). The linked token drives the stdout/stderr reads and
+      // WaitForExitAsync below.
+      using var linked = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+      if (timeout != Timeout.InfiniteTimeSpan)
+        linked.CancelAfter(timeout);
+      var linkedToken = linked.Token;
 
       Process process = null;
       try
@@ -135,26 +185,26 @@ namespace FluentDocker.Drivers.Docker.Cli
         {
           // Write sudo password first (if any), then caller data.
           if (passwordForStdin != null)
-            await process.StandardInput.WriteLineAsync(passwordForStdin).ConfigureAwait(false);
+            await process.StandardInput.WriteLineAsync(passwordForStdin.AsMemory(), linkedToken).ConfigureAwait(false);
 
           if (stdinData != null)
-            await process.StandardInput.WriteAsync(stdinData).ConfigureAwait(false);
+            await process.StandardInput.WriteAsync(stdinData.AsMemory(), linkedToken).ConfigureAwait(false);
 
           process.StandardInput.Close();
         }
 
         // Read stdout and stderr concurrently to avoid deadlock
-        // when either pipe buffer fills up. Stdout is bounded by a sanity cap so a
-        // pathological child cannot force unbounded buffering; stderr is read in full
-        // (it is only used for failure messages and is trimmed on use).
-        var outputTask = ReadBoundedAsync(process.StandardOutput, MaxNonStreamingOutputBytes, cancellationToken);
-        var errorTask = process.StandardError.ReadToEndAsync(cancellationToken);
+        // when either pipe buffer fills up. Both streams are bounded by a sanity cap so a
+        // pathological child cannot force unbounded buffering; stdout fails the command on
+        // exceeding the cap, while stderr (the error message itself) is truncated and kept.
+        var outputTask = ReadBoundedAsync(process.StandardOutput, MaxNonStreamingOutputBytes, linkedToken);
+        var errorTask = ReadBoundedTruncatingAsync(process.StandardError, MaxNonStreamingOutputBytes, linkedToken);
 
         var output = await outputTask.ConfigureAwait(false);
         var error = await errorTask.ConfigureAwait(false);
 
         // Ensure process has fully exited and get exit code.
-        await process.WaitForExitAsync(cancellationToken).ConfigureAwait(false);
+        await process.WaitForExitAsync(linkedToken).ConfigureAwait(false);
 
         return new SimpleCommandResult
         {
@@ -168,7 +218,15 @@ namespace FluentDocker.Drivers.Docker.Cli
       {
         // Kill the child process on cancellation to prevent orphans.
         KillProcessSafely(process);
-        throw;
+
+        // Distinguish caller-driven cancellation from the buffered-command timeout firing:
+        // the caller's intent is rethrown as an OCE bound to the caller's token; a timeout
+        // surfaces as a clear DriverException.
+        cancellationToken.ThrowIfCancellationRequested();
+
+        throw new DriverException(
+            $"Docker CLI command timed out after {timeout.TotalSeconds:0}s.",
+            ErrorCodes.General.Timeout);
       }
       catch (Exception ex)
       {
@@ -186,33 +244,6 @@ namespace FluentDocker.Drivers.Docker.Cli
       {
         process?.Dispose();
       }
-    }
-
-    /// <summary>
-    /// Reads a text stream to end, failing fast once <paramref name="maxBytes"/> worth
-    /// of characters has been buffered. This bounds the memory a single non-streaming
-    /// command can consume; the cap is generous enough that any legitimate CLI output
-    /// fits well within it.
-    /// </summary>
-    /// <exception cref="DriverException">Thrown when the output exceeds the cap.</exception>
-    private static async Task<string> ReadBoundedAsync(TextReader reader, int maxBytes, CancellationToken cancellationToken)
-    {
-      // One UTF-16 char is at least one byte; capping the char count at maxBytes is a
-      // safe (slightly conservative) upper bound on the byte size and avoids re-encoding.
-      var sb = new StringBuilder();
-      var buffer = new char[8192];
-      int read;
-      while ((read = await reader.ReadAsync(buffer.AsMemory(), cancellationToken).ConfigureAwait(false)) > 0)
-      {
-        if (sb.Length + read > maxBytes)
-          throw new DriverException(
-              $"Command output exceeded the {maxBytes}-byte limit.",
-              ErrorCodes.Driver.CommandExecutionFailed);
-
-        sb.Append(buffer, 0, read);
-      }
-
-      return sb.ToString();
     }
 
     /// <summary>
@@ -413,47 +444,6 @@ namespace FluentDocker.Drivers.Docker.Cli
       {
         // The stream is ending (early break/cancel); the drain result is irrelevant.
       }
-    }
-
-    /// <summary>
-    /// Starts a long-running attach process with stdin/stdout/stderr redirected.
-    /// </summary>
-    protected AttachResult ExecuteAttachProcess(string arguments)
-    {
-      var (binaryPath, sudo, _) = ResolveBinaryInfo();
-      var globalArgs = BuildGlobalArgs(Context);
-      var fullArgs = string.IsNullOrEmpty(globalArgs) ? arguments : $"{globalArgs} {arguments}";
-
-      // Attach does not support sudo with password (would conflict with stdin).
-      var (processFileName, processArguments, _) =
-          BuildSudoCommand(binaryPath, fullArgs, sudo, null);
-
-      var process = new Process
-      {
-        StartInfo = new ProcessStartInfo
-        {
-          FileName = processFileName,
-          Arguments = processArguments,
-          RedirectStandardInput = true,
-          RedirectStandardOutput = true,
-          RedirectStandardError = true,
-          UseShellExecute = false,
-          CreateNoWindow = true,
-          StandardOutputEncoding = Encoding.UTF8,
-          StandardErrorEncoding = Encoding.UTF8
-        }
-      };
-
-      process.Start();
-
-      return new AttachResult
-      {
-        InputStream = process.StandardInput.BaseStream,
-        OutputStream = process.StandardOutput.BaseStream,
-        ErrorStream = process.StandardError.BaseStream,
-        IsConnected = true,
-        AttachedProcess = process
-      };
     }
 
     #endregion

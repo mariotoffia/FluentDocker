@@ -77,6 +77,10 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
         return CommandResponse<NetworkCreateResult>.Ok(
             new NetworkCreateResult { Id = result.Output.Trim() });
       }
+      catch (OperationCanceledException)
+      {
+        throw;
+      }
       catch (Exception ex)
       {
         return CommandResponse<NetworkCreateResult>.Fail(ex.Message, ErrorCodes.Network.CreateFailed);
@@ -103,6 +107,10 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
         }
 
         return CommandResponse<Unit>.Ok(Unit.Default);
+      }
+      catch (OperationCanceledException)
+      {
+        throw;
       }
       catch (Exception ex)
       {
@@ -162,6 +170,10 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
 
         return CommandResponse<IList<Network>>.Ok(networks);
       }
+      catch (OperationCanceledException)
+      {
+        throw;
+      }
       catch (Exception ex)
       {
         return CommandResponse<IList<Network>>.Fail(ex.Message, ErrorCodes.General.Unknown);
@@ -190,6 +202,10 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
         var networks = JsonSerializer.Deserialize<List<Network>>(result.Output, JsonHelper.CaseInsensitiveOptions);
         return CommandResponse<Network>.Ok(networks?.FirstOrDefault() ?? new Network());
       }
+      catch (OperationCanceledException)
+      {
+        throw;
+      }
       catch (Exception ex)
       {
         return CommandResponse<Network>.Fail(ex.Message, ErrorCodes.Network.InspectFailed);
@@ -217,6 +233,10 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
         }
 
         return CommandResponse<Unit>.Ok(Unit.Default);
+      }
+      catch (OperationCanceledException)
+      {
+        throw;
       }
       catch (Exception ex)
       {
@@ -252,6 +272,10 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
 
         return CommandResponse<Unit>.Ok(Unit.Default);
       }
+      catch (OperationCanceledException)
+      {
+        throw;
+      }
       catch (Exception ex)
       {
         return CommandResponse<Unit>.Fail(ex.Message, ErrorCodes.Network.DisconnectFailed);
@@ -276,6 +300,10 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
 
         return CommandResponse<NetworkPruneResult>.Ok(
             CliPruneOutputParser.ParseNetworkPruneOutput(result.Output));
+      }
+      catch (OperationCanceledException)
+      {
+        throw;
       }
       catch (Exception ex)
       {

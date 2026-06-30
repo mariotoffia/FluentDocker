@@ -1,3 +1,4 @@
+using System;
 using FluentDocker.Model.Common;
 using FluentDocker.Model.Models;
 
@@ -14,6 +15,16 @@ namespace FluentDocker.Kernel
     /// </summary>
     /// <param name="host">Host URI (e.g., "unix:///var/run/docker.sock", "tcp://localhost:2376")</param>
     IDockerCliDriverBuilder AtHost(string host);
+
+    /// <summary>
+    /// Bounds buffered control-plane Docker CLI commands (inspect, list, create, start, …)
+    /// to the given wall-clock timeout (default: 5 minutes) so a hung docker CLI / plugin /
+    /// daemon call cannot block forever. Does NOT apply to inherently-long operations
+    /// (pull/build/push/wait/load/save/stop -t …) or to streaming commands (logs -f / events),
+    /// which honor only caller cancellation.
+    /// </summary>
+    /// <param name="timeout">Buffered control-plane command timeout.</param>
+    IDockerCliDriverBuilder WithRequestTimeout(TimeSpan timeout);
 
     /// <summary>
     /// Sets the certificate path for TLS connections.
