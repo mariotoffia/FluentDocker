@@ -49,7 +49,7 @@ namespace FluentDocker.Tests.CoreTests.Driver
     {
       var resolver = new Mock<IBinaryResolver>();
       resolver.Setup(r => r.Resolve(It.IsAny<string>()))
-          .Returns(new DockerBinary("/bin", "sh", SudoMechanism.None, null, DockerBinaryType.DockerClient));
+          .Returns(new DockerBinary("/bin", "sh", SudoMechanism.None, null!, DockerBinaryType.DockerClient));
       var driver = new ShellDriver(resolver.Object);
       driver.Initialize(new DriverContext("docker")); // no Host -> no global args prepended
       return driver;
@@ -218,7 +218,7 @@ namespace FluentDocker.Tests.CoreTests.Driver
       {
         await foreach (var _ in driver.StreamWithProgress(args, TestContext.Current.CancellationToken))
           break; // abandon immediately, no cancellation
-      });
+      }, TestContext.Current.CancellationToken);
 
       var winner = await Task.WhenAny(
           consume, Task.Delay(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken));

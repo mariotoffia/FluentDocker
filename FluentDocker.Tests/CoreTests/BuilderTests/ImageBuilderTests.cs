@@ -231,14 +231,14 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
     [Fact]
     public void Constructor_RequiresKernel()
     {
-      Assert.Throws<ArgumentNullException>(() => new ImageBuilder(null, "docker"));
+      Assert.Throws<ArgumentNullException>(() => new ImageBuilder(null!, "docker"));
     }
 
     [Fact]
     public void Constructor_RequiresDriverId()
     {
       var kernel = CreateMockKernel();
-      Assert.Throws<ArgumentNullException>(() => new ImageBuilder(kernel, null));
+      Assert.Throws<ArgumentNullException>(() => new ImageBuilder(kernel, null!));
     }
 
     private static FluentDockerKernel CreateMockKernel()

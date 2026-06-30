@@ -107,10 +107,11 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
       var kernel = await MockKernelBuilderExtensions.CreateWithMockDriverAsync("docker", pack);
       await using (kernel)
       {
-        IModelRunnerBuilder runnerBuilder = null;
+        IModelRunnerBuilder? runnerBuilder = null;
         new Builder().WithinDriver("docker", kernel).UseContainer(container =>
             runnerBuilder = ((IDriverScopedBuilder)container).UseModelRunner().ForModel("ai/smollm2"));
 
+        Assert.NotNull(runnerBuilder);
         await using var runner = await runnerBuilder.BuildAsync(TestContext.Current.CancellationToken);
         Assert.True(runner.Capabilities.SupportsInference);
         Assert.False(runner.Capabilities.SupportsRuntimeControl);
@@ -206,13 +207,14 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
       var kernel = await MockKernelBuilderExtensions.CreateWithMockDriverAsync("docker", pack);
       await using (kernel)
       {
-        InterfaceNotSupportedException caught = null;
+        InterfaceNotSupportedException? caught = null;
         new Builder().WithinDriver("docker", kernel).UseContainer(container =>
         {
           caught = Assert.Throws<InterfaceNotSupportedException>(() =>
               ((IDriverScopedBuilder)container).UseModel("ai/smollm2"));
         });
 
+        Assert.NotNull(caught);
         Assert.Equal(nameof(IModelRuntimeDriver), caught.InterfaceName);
       }
     }
@@ -225,10 +227,11 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
       var kernel = await MockKernelBuilderExtensions.CreateWithMockDriverAsync("docker", pack);
       await using (kernel)
       {
-        IModelServiceBuilder serviceBuilder = null;
+        IModelServiceBuilder? serviceBuilder = null;
         new Builder().WithinDriver("docker", kernel).UseContainer(container =>
             serviceBuilder = ((IDriverScopedBuilder)container).UseModel("ai/smollm2"));
 
+        Assert.NotNull(serviceBuilder);
         await using var service = await serviceBuilder.BuildAsync(TestContext.Current.CancellationToken);
         Assert.Equal("ai/smollm2:latest", service.Model.ToString());
       }

@@ -102,16 +102,15 @@ namespace FluentDocker.Tests.Integration
         throw SkipOrFail("Docker Model Runner not available: " + ex.Message);
       }
 
-      // Per-test setup (IAsyncLifetime runs once per test method): pull + pin BOTH test
-      // models (cached after the first test) so individual tests never assume a model is
-      // already present.
+      // Per-test setup: pull + pin BOTH test models (cached after the first test) so no test
+      // assumes a model is already present.
       try
       {
         var seed = new Builder().WithinDriver(DriverId, _kernel).UseModelRunner().Build();
         await using ((IAsyncDisposable)seed)
         {
-          await seed.PullAsync(ModelReference.Parse(TestModel), null, CancellationToken.None);
-          await seed.PullAsync(ModelReference.Parse(EmbedModel), null, CancellationToken.None);
+          await seed.PullAsync(ModelReference.Parse(TestModel), null!, CancellationToken.None);
+          await seed.PullAsync(ModelReference.Parse(EmbedModel), null!, CancellationToken.None);
         }
         _seeded = true;
       }
@@ -123,41 +122,54 @@ namespace FluentDocker.Tests.Integration
 
     public async ValueTask DisposeAsync()
     {
-      // Per-test cleanup (DisposeAsync runs once per test method): reset config mutated by
-      // tests and unload the models, so the host is left in a clean state regardless of
-      // which tests ran or failed.
+      // Per-test cleanup (runs once per test method): reset mutated config + unload the models so
+      // the host is left clean. Bounded so a wedged DMR can never hang CI — linked to the test's
+      // cancellation token (when present) AND a hard 30s timeout. On RequireDmr lanes failures are
+      // collected and re-thrown (red lane + diagnostics, not silent leaks); PR/local stays best-effort.
+      var failures = new List<Exception>();
+      using var cts = CancellationTokenSource.CreateLinkedTokenSource(
+          TestContext.Current?.CancellationToken ?? CancellationToken.None);
+      cts.CancelAfter(TimeSpan.FromSeconds(30));
+
       if (_kernel != null && _seeded)
       {
         var cleanup = new Builder().WithinDriver(DriverId, _kernel).UseModelRunner().Build();
         await using ((IAsyncDisposable)cleanup)
         {
-          await SafeAsync(() => cleanup.ConfigureAsync(ModelReference.Parse(TestModel), new ModelConfigureOptions { ContextSize = -1 }, CancellationToken.None));
-          await SafeAsync(() => cleanup.UnloadAsync(ModelReference.Parse(TestModel), CancellationToken.None));
-          await SafeAsync(() => cleanup.UnloadAsync(ModelReference.Parse(EmbedModel), CancellationToken.None));
+          await CleanupStepAsync(failures, () => cleanup.ConfigureAsync(ModelReference.Parse(TestModel), new ModelConfigureOptions { ContextSize = -1 }, cts.Token));
+          await CleanupStepAsync(failures, () => cleanup.UnloadAsync(ModelReference.Parse(TestModel), cts.Token));
+          await CleanupStepAsync(failures, () => cleanup.UnloadAsync(ModelReference.Parse(EmbedModel), cts.Token));
         }
       }
 
       if (_kernel != null)
-        await _kernel.DisposeAsync();
+        await CleanupStepAsync(failures, () => _kernel.DisposeAsync().AsTask());
+
+      if (RequireDmr && failures.Count > 0)
+        throw new AggregateException("DMR per-test cleanup failed (FLUENTDOCKER_REQUIRE_DMR=1):", failures);
     }
 
-    private static async Task SafeAsync(Func<Task> action)
+    // Runs one cleanup step, recording any failure so it never skips the remaining steps + kernel
+    // disposal. DisposeAsync inspects the list and (per RequireDmr) surfaces or swallows.
+    private static async Task CleanupStepAsync(List<Exception> failures, Func<Task> action)
     {
       try
       {
         await action();
       }
-      catch
+      catch (Exception ex)
       {
-        // best-effort cleanup
+        failures.Add(ex);
       }
     }
 
+    // Best-effort swallow for the destructive test's pre-clean (a load/unload that may no-op):
+    // collect into a throwaway list we never inspect. Teardown keeps its own list (RequireDmr surfaces).
+    private static Task SafeAsync(Func<Task> action) => CleanupStepAsync(new List<Exception>(), action);
+
     /// <summary>
-    /// Best-effort re-pull of a model that a destructive test removed, retried a few times so
-    /// a single transient network failure does not leave the host store missing the shared,
-    /// pinned model. Each attempt targets the SAME pinned <paramref name="reference"/> the test
-    /// removed; it stops on the first success and never throws (restore is best-effort).
+    /// Best-effort re-pull of the SAME pinned <paramref name="reference"/> a destructive test removed,
+    /// retried a few times to ride out a transient hiccup; stops on first success and never throws.
     /// </summary>
     private static async Task RepullWithRetryAsync(IModelRunner runner, ModelReference reference, CancellationToken ct)
     {
@@ -166,7 +178,7 @@ namespace FluentDocker.Tests.Integration
       {
         try
         {
-          await runner.PullAsync(reference, null, ct);
+          await runner.PullAsync(reference, null!, ct);
           return; // restored
         }
         catch when (attempt < maxAttempts && !ct.IsCancellationRequested)
@@ -239,7 +251,7 @@ namespace FluentDocker.Tests.Integration
       await using var runner = BuildRunner(TestModel, contextSize: 4096);
 
       // pull (cached if present)
-      var pulled = await runner.PullAsync(reference, null, ct);
+      var pulled = await runner.PullAsync(reference, null!, ct);
       Assert.NotNull(pulled);
 
       // list
@@ -420,7 +432,7 @@ namespace FluentDocker.Tests.Integration
       System.Collections.Generic.IReadOnlyList<float> vector;
       try
       {
-        vector = await runner.EmbedAsync("hello world", null, ct);
+        vector = await runner.EmbedAsync("hello world", null!, ct);
       }
       catch (ModelRunnerException ex)
       {

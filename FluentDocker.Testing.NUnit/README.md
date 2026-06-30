@@ -1,6 +1,9 @@
 # FluentDocker.Testing.NUnit
 
-NUnit test helpers for FluentDocker.
+NUnit test helpers for FluentDocker. Spin up and tear down Docker / Podman
+containers, networks, volumes, Compose stacks, and Docker Model Runner models
+(via `ModelResource`) directly in your NUnit tests, with the full resource
+lifecycle managed for you.
 
 ## Install
 
@@ -48,24 +51,89 @@ finally
 }
 ```
 
-Full docs: `docs/testing/nunit.md`. Model testing guide: `docs/testing/model.md`.
+## Model resource (Docker Model Runner)
 
-## Model resource
-
-`CreateResourceAsync` builds any `ITestResource`, including a `ModelResource`.
-Capture the kernel and dispose both in teardown:
+`CreateResourceAsync` builds any `ITestResource`, including a `ModelResource`
+that loads a Docker Model Runner (DMR) model for the duration of the fixture.
+Probe DMR first and skip cleanly when it is not running, then capture BOTH the
+kernel and the resource so `NUnitResourceHelpers.DisposeAsync` can tear both
+down. The example below is complete and compiles with nullable enabled.
 
 ```csharp
-var (kernel, model) = await NUnitResourceHelpers.CreateResourceAsync(
-    k => new ModelResource(k, "ai/smollm2:latest",
-        m => m.WithContextSize(4096)));
+#nullable enable
+using System;
+using System.Threading;
+using System.Threading.Tasks;
+using FluentDocker.Drivers;
+using FluentDocker.Kernel;
+using FluentDocker.Model.Drivers;
+using FluentDocker.Model.Models;
+using FluentDocker.Testing.Core;
+using FluentDocker.Testing.NUnit;
+using NUnit.Framework;
 
-try
+[TestFixture]
+public sealed class SmolLmModelTests
 {
-  // use model.Runner for inference
-}
-finally
-{
-  await ResourceLifecycle.DisposeAsync(model, kernel);
+  private FluentDockerKernel? _kernel;
+  private ModelResource? _model;
+
+  [OneTimeSetUp]
+  public async Task Setup()
+  {
+    var ct = CancellationToken.None;
+
+    // Probe DMR via its own kernel so we can skip before allocating the resource.
+    var probeKernel = await ResourceLifecycle.CreateDefaultDockerKernelAsync();
+    bool running;
+    try
+    {
+      var driverId = probeKernel.DefaultDriverId;
+      var runtime = probeKernel.SysCtl<IModelRuntimeDriver>(driverId);
+      var status = await runtime.StatusAsync(new DriverContext(driverId), ct);
+      running = status.Success && status.Data.Running;
+    }
+    finally
+    {
+      await probeKernel.DisposeAsync();
+    }
+
+    if (!running)
+    {
+      // PR/local: skip cleanly. CI must-run lanes set FLUENTDOCKER_REQUIRE_DMR=1 → hard-fail.
+      if (string.IsNullOrEmpty(Environment.GetEnvironmentVariable("FLUENTDOCKER_REQUIRE_DMR")))
+        Assert.Ignore("Docker Model Runner is not running.");
+      throw new InvalidOperationException("FLUENTDOCKER_REQUIRE_DMR=1 but Docker Model Runner is not running.");
+    }
+
+    // Load the model. ModelResource pulls (if missing) and starts it.
+    (_kernel, _model) = await NUnitResourceHelpers.CreateResourceAsync<ModelResource>(
+        k => new ModelResource(k, "ai/smollm2:latest", m => m.WithContextSize(4096)),
+        cancellationToken: ct);
+  }
+
+  [OneTimeTearDown]
+  public Task Teardown()
+      // Null-safe: if Setup ignored before assignment, both fields stay null and this is a no-op.
+      => NUnitResourceHelpers.DisposeAsync(_model, _kernel);
+
+  [Test]
+  public async Task Chat_Replies()
+  {
+    var reply = await _model!.Runner.ChatAsync("Reply with a single word.");
+    Assert.That(reply, Is.Not.Empty);
+  }
+
+  [Test]
+  public async Task Embed_ReturnsVector()
+  {
+    var vector = await _model!.Runner.EmbedAsync("hello world");
+    Assert.That(vector, Is.Not.Empty);
+  }
 }
 ```
+
+`_model.Service` is the underlying `IModelService`; `_model.Model` is the parsed
+`ModelReference`; `_model.Runner` is the `IModelRunner` for chat/embeddings.
+
+Full docs: `docs/testing/nunit.md`. Model testing guide: `docs/testing/model.md`.

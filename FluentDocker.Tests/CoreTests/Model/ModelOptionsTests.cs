@@ -37,9 +37,9 @@ namespace FluentDocker.Tests.CoreTests.Model
     [InlineData("")]
     [InlineData("auto")]
     [InlineData("AUTO")]
-    public void ModelConfigureOptions_AutoBackend_IsAuto(string backend)
+    public void ModelConfigureOptions_AutoBackend_IsAuto(string? backend)
     {
-      Assert.True(new ModelConfigureOptions { Backend = backend }.IsAutoBackend);
+      Assert.True(new ModelConfigureOptions { Backend = backend! }.IsAutoBackend); // intentional null to verify null-handling
     }
 
     [Fact]

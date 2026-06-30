@@ -118,7 +118,13 @@ namespace FluentDocker.Testing.NUnit
     /// Disposes a resource and its kernel.
     /// Call from <c>[OneTimeTearDown]</c> or <c>[TearDown]</c>.
     /// </summary>
-    public static Task DisposeAsync(ITestResource resource, FluentDockerKernel kernel)
+    /// <remarks>
+    /// Null-safe: passing a null <paramref name="resource"/> and/or a null
+    /// <paramref name="kernel"/> is a no-op for that argument.
+    /// </remarks>
+    /// <param name="resource">The resource to dispose, or <c>null</c> to skip.</param>
+    /// <param name="kernel">The kernel to dispose, or <c>null</c> to skip.</param>
+    public static Task DisposeAsync(ITestResource? resource, FluentDockerKernel? kernel)
         => ResourceLifecycle.DisposeAsync(resource, kernel);
   }
 }

@@ -48,7 +48,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
       await using var conn = new DockerApiConnection(config);
 
       var ex = await Record.ExceptionAsync(
-          () => conn.PostAsync("/containers/create", null, TestContext.Current.CancellationToken));
+          () => conn.PostAsync("/containers/create", null!, TestContext.Current.CancellationToken));
       Assert.NotNull(ex);
       Assert.True(ex is HttpRequestException || ex is TaskCanceledException,
           $"Expected HttpRequestException or TaskCanceledException, got {ex.GetType().FullName}");

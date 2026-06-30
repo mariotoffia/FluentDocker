@@ -2,8 +2,10 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 using FluentDocker.Builders;
+using FluentDocker.Common;
 using FluentDocker.Drivers;
 using FluentDocker.Kernel;
+using FluentDocker.Model.Drivers;
 using FluentDocker.Model.Models;
 using FluentDocker.Services;
 
@@ -102,9 +104,33 @@ namespace FluentDocker.Testing.Core
     }
 
     /// <inheritdoc />
-    protected override Task ForceRemoveAsync(CancellationToken cancellationToken)
+    protected override async Task ForceRemoveAsync(CancellationToken cancellationToken)
     {
-      return TeardownAsync(cancellationToken);
+      var service = _service;
+      if (service == null)
+        return;
+
+      // ponytail: cannot reuse service.DisposeAsync() here. It is idempotent
+      // (Interlocked.CompareExchange on _disposed) and the graceful TeardownAsync
+      // already set _disposed=1, so a second DisposeAsync() short-circuits to a
+      // no-op and returns INSTANT success even while the original unload is still
+      // hung — faking recovery. Force-remove must do real work, so go straight to
+      // the runtime driver's UnloadAsync, bounded by the token: a genuinely hung
+      // unload then fails the force (surfaced by ResourceBase as ForceRemoveException)
+      // instead of being silently swallowed.
+      var driver = Kernel.SysCtl<IModelRuntimeDriver>(DriverId);
+      var response = await driver
+          .UnloadAsync(new DriverContext(DriverId), _model, cancellationToken)
+          .WaitAsync(cancellationToken)
+          .ConfigureAwait(false);
+
+      if (!response.Success)
+        throw new ModelRunnerException(
+            $"Force unload failed: {response.Error}", response.ErrorCode, response.ErrorContext);
+
+      // Only clear after a CONFIRMED successful unload, so a failure keeps the
+      // resource provisioned for retry.
+      _service = null;
     }
 
     private void EnsureInitialized()

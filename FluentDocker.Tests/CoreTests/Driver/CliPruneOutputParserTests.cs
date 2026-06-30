@@ -160,9 +160,9 @@ Total reclaimed space: 500MB";
     [Fact]
     public void ParseMethods_NullOrEmptyInput_ReturnsEmptyResults()
     {
-      var imageNull = CliPruneOutputParser.ParseImagePruneOutput(null);
+      var imageNull = CliPruneOutputParser.ParseImagePruneOutput(null!);
       var networkEmpty = CliPruneOutputParser.ParseNetworkPruneOutput("");
-      var volumeNull = CliPruneOutputParser.ParseVolumePruneOutput(null);
+      var volumeNull = CliPruneOutputParser.ParseVolumePruneOutput(null!);
       var systemEmpty = CliPruneOutputParser.ParseSystemPruneOutput("");
 
       Assert.Empty(imageNull.ImagesDeleted);

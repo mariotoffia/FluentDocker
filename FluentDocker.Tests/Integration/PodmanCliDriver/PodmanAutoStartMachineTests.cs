@@ -21,7 +21,7 @@ namespace FluentDocker.Tests.Integration.PodmanCliDriver
     {
       SkipIfPodmanNotAvailable();
 
-      FluentDockerKernel kernel = null;
+      FluentDockerKernel? kernel = null;
       try
       {
         kernel = await FluentDockerKernel.Create(NullLoggerFactory.Instance)
@@ -49,7 +49,7 @@ namespace FluentDocker.Tests.Integration.PodmanCliDriver
     {
       SkipIfPodmanNotAvailable();
 
-      FluentDockerKernel kernel = null;
+      FluentDockerKernel? kernel = null;
       try
       {
         kernel = await FluentDockerKernel.Create(NullLoggerFactory.Instance)

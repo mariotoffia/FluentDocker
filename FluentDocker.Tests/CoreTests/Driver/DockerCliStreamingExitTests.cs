@@ -36,7 +36,7 @@ namespace FluentDocker.Tests.CoreTests.Driver
     {
       var resolver = new Mock<IBinaryResolver>();
       resolver.Setup(r => r.Resolve(It.IsAny<string>()))
-          .Returns(new DockerBinary("/bin", "sh", SudoMechanism.None, null, DockerBinaryType.DockerClient));
+          .Returns(new DockerBinary("/bin", "sh", SudoMechanism.None, null!, DockerBinaryType.DockerClient));
       var driver = new ShellStreamDriver(resolver.Object);
       driver.Initialize(new DriverContext("docker")); // no Host -> no global args prepended
       return driver;

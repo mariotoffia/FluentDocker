@@ -190,6 +190,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Docker
       var line = "{\"ID\":\"abc\",\"Image\":\"n\",\"Names\":\"x\"," +
                  "\"State\":\"exited\",\"Status\":\"Exited (0)\"}";
       var (_, _, _, state, _) = ParseDockerPsLine(line);
+      Assert.NotNull(state);
       Assert.False(state.Equals("running", StringComparison.OrdinalIgnoreCase));
     }
 
@@ -460,7 +461,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Docker
       // when static logging helpers were replaced by Microsoft.Extensions.Logging.
       // Reflection doesn't auto-apply default values, so we pass null explicitly.
       return (ContainerStatsResult)method.Invoke(
-          null, [output, containerId, null]);
+          null, [output, containerId, null])!;
     }
 
     #endregion

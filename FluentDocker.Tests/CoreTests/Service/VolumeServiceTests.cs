@@ -62,7 +62,7 @@ namespace FluentDocker.Tests.CoreTests.Service
     public void Constructor_NullDriver_DefaultsToLocal()
     {
       var kernel = new FluentDockerKernel(new DriverRegistry(NullLoggerFactory.Instance), NullLoggerFactory.Instance);
-      var service = new VolumeService(kernel, "docker", "my-volume", null);
+      var service = new VolumeService(kernel, "docker", "my-volume", null!);
 
       Assert.Equal("local", service.Driver);
       kernel.Dispose();

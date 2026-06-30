@@ -22,7 +22,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
     public void BuildBuildArgs_NullIidPath_OmitsIidFile()
     {
       var config = new ImageBuildConfig { BuildContext = "." };
-      var result = PodmanCliImageDriver.BuildBuildArgs(config, null);
+      var result = PodmanCliImageDriver.BuildBuildArgs(config, null!);
 
       Assert.DoesNotContain("--iidfile", result);
     }
@@ -93,7 +93,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
     [Fact]
     public void BuildBuildArgs_NullBuildContext_DefaultsToDot()
     {
-      var config = new ImageBuildConfig { BuildContext = null };
+      var config = new ImageBuildConfig { BuildContext = null! };
       var result = PodmanCliImageDriver.BuildBuildArgs(config, "/tmp/iid");
 
       Assert.EndsWith(" .", result);

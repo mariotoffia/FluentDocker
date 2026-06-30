@@ -55,7 +55,7 @@ namespace FluentDocker.Tests.CoreTests.Testing
           .CreateAndInitializeAsync(
               k => new ContainerResource(
                   k, b => b.UseImage("alpine:latest")),
-              kernelFactory: null,
+              kernelFactory: null!,
               defaultKernelFactory: () =>
               {
                 defaultFactoryCalled = true;
@@ -114,8 +114,8 @@ namespace FluentDocker.Tests.CoreTests.Testing
     {
       await Assert.ThrowsAsync<ArgumentNullException>(
           () => ResourceLifecycle.CreateAndInitializeAsync<FakeResource>(
-              null,
-              () => Task.FromResult<FluentDockerKernel>(null),
+              null!,
+              () => Task.FromResult<FluentDockerKernel>(null!),
               cancellationToken: TestContext.Current.CancellationToken));
     }
 
@@ -125,7 +125,7 @@ namespace FluentDocker.Tests.CoreTests.Testing
       var ex = await Assert.ThrowsAsync<InvalidOperationException>(
           () => ResourceLifecycle.CreateAndInitializeAsync<FakeResource>(
               _ => new FakeResource(),
-              () => Task.FromResult<FluentDockerKernel>(null),
+              () => Task.FromResult<FluentDockerKernel>(null!),
               cancellationToken: TestContext.Current.CancellationToken));
 
       Assert.Contains("Kernel factory returned null", ex.Message);
@@ -139,7 +139,7 @@ namespace FluentDocker.Tests.CoreTests.Testing
 
       var ex = await Assert.ThrowsAsync<InvalidOperationException>(
           () => ResourceLifecycle.CreateAndInitializeAsync<FakeResource>(
-              _ => null,
+              _ => null!,
               () => Task.FromResult(kernel),
               cancellationToken: TestContext.Current.CancellationToken));
 
@@ -311,7 +311,7 @@ namespace FluentDocker.Tests.CoreTests.Testing
     {
       private readonly bool _throwOnInit = throwOnInit;
       private readonly bool _throwOnDispose = throwOnDispose;
-      private readonly Action _onDispose = onDispose;
+      private readonly Action? _onDispose = onDispose;
 
       public bool IsInitialized { get; private set; }
 

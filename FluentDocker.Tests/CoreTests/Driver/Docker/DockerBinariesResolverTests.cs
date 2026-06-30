@@ -63,7 +63,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Docker
     /// </summary>
     private DockerBinariesResolver CreateResolverWithFakeBinary(
         SudoMechanism sudo = SudoMechanism.None,
-        string password = null)
+        string password = null!)
     {
       CreateFakeDockerBinary();
       return new DockerBinariesResolver(sudo, password, _tempDir);
@@ -97,7 +97,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Docker
         Assert.NotNull(method);
 
         var result = method.Invoke(instance, [sudo, password, "docker", paths]);
-        return (IEnumerable<DockerBinary>)result;
+        return (IEnumerable<DockerBinary>)result!;
       }
       finally
       {
@@ -163,7 +163,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Docker
     {
       // The temp directory exists but has no docker binary
       Assert.Throws<FluentDockerException>(() =>
-          new DockerBinariesResolver(SudoMechanism.None, null, _tempDir));
+          new DockerBinariesResolver(SudoMechanism.None, null!, _tempDir));
     }
 
     [Fact]
@@ -173,7 +173,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Docker
       Directory.CreateDirectory(emptyDir);
 
       Assert.Throws<FluentDockerException>(() =>
-          new DockerBinariesResolver(SudoMechanism.None, null, emptyDir));
+          new DockerBinariesResolver(SudoMechanism.None, null!, emptyDir));
     }
 
     [Fact]
@@ -182,7 +182,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Docker
       var nonExistent = Path.Combine(_tempDir, "does_not_exist");
 
       Assert.Throws<FluentDockerException>(() =>
-          new DockerBinariesResolver(SudoMechanism.None, null, nonExistent));
+          new DockerBinariesResolver(SudoMechanism.None, null!, nonExistent));
     }
 
     #endregion
@@ -214,7 +214,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Docker
       // does not throw NullReferenceException.
       try
       {
-        var _ = new DockerBinariesResolver(null);
+        var _ = new DockerBinariesResolver(null!);
         // If docker is installed, this succeeds
       }
       catch (FluentDockerException)
@@ -319,7 +319,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Docker
       Directory.CreateDirectory(emptyDir);
 
       var binaries = InvokeResolveFromPaths(
-          SudoMechanism.None, null, emptyDir);
+          SudoMechanism.None, null!, emptyDir);
 
       Assert.Empty(binaries);
     }
@@ -328,7 +328,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Docker
     public void ResolveFromPaths_NonExistentPath_ReturnsEmpty()
     {
       var binaries = InvokeResolveFromPaths(
-          SudoMechanism.None, null,
+          SudoMechanism.None, null!,
           Path.Combine(_tempDir, "nonexistent"));
 
       Assert.Empty(binaries);
@@ -340,7 +340,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Docker
       CreateFakeDockerBinary();
 
       var binaries = InvokeResolveFromPaths(
-          SudoMechanism.None, null, _tempDir).ToList();
+          SudoMechanism.None, null!, _tempDir).ToList();
 
       Assert.Single(binaries);
       Assert.Equal(DockerBinaryType.DockerClient, binaries[0].Type);
@@ -368,7 +368,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Docker
       Directory.CreateDirectory(secondDir);
 
       var binaries = InvokeResolveFromPaths(
-          SudoMechanism.None, null, _tempDir, secondDir).ToList();
+          SudoMechanism.None, null!, _tempDir, secondDir).ToList();
 
       // Only the first directory has docker; second is empty
       Assert.Single(binaries);
@@ -385,7 +385,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Docker
       File.WriteAllText(Path.Combine(_tempDir, "dockerfoo"), "not docker");
 
       var binaries = InvokeResolveFromPaths(
-          SudoMechanism.None, null, _tempDir).ToList();
+          SudoMechanism.None, null!, _tempDir).ToList();
 
       // Should only find the real "docker" binary
       Assert.Single(binaries);
@@ -397,7 +397,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Docker
     {
       // When paths is null, should use PATH env variable.
       // We cannot control what PATH contains, but we can verify it does not throw.
-      var binaries = InvokeResolveFromPaths(SudoMechanism.None, null, null);
+      var binaries = InvokeResolveFromPaths(SudoMechanism.None, null!, null!);
       Assert.NotNull(binaries);
     }
 
@@ -405,7 +405,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Docker
     public void ResolveFromPaths_EmptyArrayPaths_FallsBackToEnvPath()
     {
       var binaries = InvokeResolveFromPaths(
-          SudoMechanism.None, null, []);
+          SudoMechanism.None, null!, []);
       Assert.NotNull(binaries);
     }
 

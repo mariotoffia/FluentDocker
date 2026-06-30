@@ -120,8 +120,16 @@ namespace FluentDocker.Testing.Core
     /// to be owned by the caller (typically created via
     /// <see cref="CreateAndInitializeAsync{TResource}"/>).
     /// </summary>
+    /// <remarks>
+    /// This method is null-safe: passing a null <paramref name="resource"/>
+    /// and/or a null <paramref name="kernel"/> is a no-op for that argument.
+    /// Callers may pass <c>null</c> (e.g. when initialization failed before a
+    /// value was assigned) without using the null-forgiving operator.
+    /// </remarks>
+    /// <param name="resource">The resource to dispose, or <c>null</c> to skip.</param>
+    /// <param name="kernel">The kernel to dispose, or <c>null</c> to skip.</param>
     public static async Task DisposeAsync(
-        ITestResource resource, FluentDockerKernel kernel)
+        ITestResource? resource, FluentDockerKernel? kernel)
     {
       Exception resourceFailure = null;
       try

@@ -19,7 +19,7 @@ namespace FluentDocker.Tests.CoreTests.Driver
     [Fact]
     public void NoErrors_Accepts()
     {
-      Assert.True(ModelTlsValidation.ValidateWithCustomRoot(null, null, null, SslPolicyErrors.None));
+      Assert.True(ModelTlsValidation.ValidateWithCustomRoot(null!, null!, null!, SslPolicyErrors.None));
     }
 
     [Theory]
@@ -30,7 +30,7 @@ namespace FluentDocker.Tests.CoreTests.Driver
     public void NameMismatchOrMissing_AlwaysRejected_EvenWithChainError(SslPolicyErrors errors)
     {
       // A custom CA must never paper over a hostname mismatch / missing cert.
-      Assert.False(ModelTlsValidation.ValidateWithCustomRoot(null, null, null, errors));
+      Assert.False(ModelTlsValidation.ValidateWithCustomRoot(null!, null!, null!, errors));
     }
 
     [Fact]
@@ -38,7 +38,7 @@ namespace FluentDocker.Tests.CoreTests.Driver
     {
       // Only chain errors are eligible for custom-root re-validation; without a CA
       // (or chain/cert), it must not silently pass.
-      Assert.False(ModelTlsValidation.ValidateWithCustomRoot(null, null, null, SslPolicyErrors.RemoteCertificateChainErrors));
+      Assert.False(ModelTlsValidation.ValidateWithCustomRoot(null!, null!, null!, SslPolicyErrors.RemoteCertificateChainErrors));
     }
 
     [Fact]

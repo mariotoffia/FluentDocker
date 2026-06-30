@@ -20,8 +20,8 @@ namespace FluentDocker.Tests.CoreTests.Services
   [Trait("Category", "Unit")]
   public sealed class InspectCacheTests : IAsyncDisposable
   {
-    private FluentDockerKernel _kernel;
-    private MockDriverPack _mockPack;
+    private FluentDockerKernel _kernel = null!; // deferred-init in CreateServiceAsync
+    private MockDriverPack _mockPack = null!; // deferred-init in CreateServiceAsync
 
     private async Task<ContainerService> CreateServiceAsync(
         string containerId = "cache-test-123",

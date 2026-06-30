@@ -177,7 +177,7 @@ namespace FluentDocker.Tests.CoreTests.Testing
               It.IsAny<DriverContext>(),
               It.IsAny<StackDeployConfig>(),
               It.IsAny<CancellationToken>()))
-          .ReturnsAsync(CommandResponse<StackDeployResult>.Ok(null));
+          .ReturnsAsync(CommandResponse<StackDeployResult>.Ok(null!));
 
       var resource = new SwarmStackResource(
           Kernel,
@@ -211,7 +211,7 @@ namespace FluentDocker.Tests.CoreTests.Testing
               It.IsAny<DriverContext>(),
               It.IsAny<KubePlayConfig>(),
               It.IsAny<CancellationToken>()))
-          .ReturnsAsync(CommandResponse<KubePlayResult>.Ok(null));
+          .ReturnsAsync(CommandResponse<KubePlayResult>.Ok(null!));
 
       var resource = new PodmanKubernetesResource(
           Kernel,

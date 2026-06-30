@@ -28,7 +28,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
     [Fact]
     public void StripDockerStreamHeaders_NullInput_ReturnsEmpty()
     {
-      Assert.Equal(string.Empty, TestableDriverBase.TestStripHeaders(null));
+      Assert.Equal(string.Empty, TestableDriverBase.TestStripHeaders(null!));
     }
 
     [Fact]

@@ -16,21 +16,21 @@ namespace FluentDocker.Tests.CoreTests.Driver.Docker
     [Fact]
     public void Constructor_SetsPathProperty()
     {
-      var binary = new DockerBinary("/usr/bin", "docker", SudoMechanism.None, null);
+      var binary = new DockerBinary("/usr/bin", "docker", SudoMechanism.None, null!);
       Assert.Equal("/usr/bin", binary.Path);
     }
 
     [Fact]
     public void Constructor_SetsBinaryProperty_LowerCased()
     {
-      var binary = new DockerBinary("/usr/bin", "Docker", SudoMechanism.None, null);
+      var binary = new DockerBinary("/usr/bin", "Docker", SudoMechanism.None, null!);
       Assert.Equal("docker", binary.Binary);
     }
 
     [Fact]
     public void Constructor_SetsSudoProperty()
     {
-      var binary = new DockerBinary("/usr/bin", "docker", SudoMechanism.NoPassword, null);
+      var binary = new DockerBinary("/usr/bin", "docker", SudoMechanism.NoPassword, null!);
       Assert.Equal(SudoMechanism.NoPassword, binary.Sudo);
     }
 
@@ -45,7 +45,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Docker
     [Fact]
     public void Constructor_SetsTypeViaTranslate()
     {
-      var binary = new DockerBinary("/usr/bin", "docker", SudoMechanism.None, null);
+      var binary = new DockerBinary("/usr/bin", "docker", SudoMechanism.None, null!);
       Assert.Equal(DockerBinaryType.DockerClient, binary.Type);
     }
 
@@ -70,7 +70,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Docker
     public void Constructor_WithExplicitType_OverridesTranslation()
     {
       var binary = new DockerBinary(
-          "/usr/bin", "docker", SudoMechanism.None, null, DockerBinaryType.Compose);
+          "/usr/bin", "docker", SudoMechanism.None, null!, DockerBinaryType.Compose);
 
       Assert.Equal(DockerBinaryType.Compose, binary.Type);
     }
@@ -79,7 +79,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Docker
     public void Constructor_WithExplicitType_StillNormalizesBinary()
     {
       var binary = new DockerBinary(
-          "/usr/bin", "DOCKER", SudoMechanism.None, null, DockerBinaryType.Cli);
+          "/usr/bin", "DOCKER", SudoMechanism.None, null!, DockerBinaryType.Cli);
 
       Assert.Equal("docker", binary.Binary);
       Assert.Equal(DockerBinaryType.Cli, binary.Type);
@@ -92,7 +92,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Docker
     [Fact]
     public void FqPath_CombinesPathAndBinary()
     {
-      var binary = new DockerBinary("/usr/bin", "docker", SudoMechanism.None, null);
+      var binary = new DockerBinary("/usr/bin", "docker", SudoMechanism.None, null!);
       Assert.Equal(System.IO.Path.Combine("/usr/bin", "docker"), binary.FqPath);
     }
 
@@ -100,7 +100,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Docker
     public void FqPath_WithTrailingSlash_CombinesCorrectly()
     {
       // System.IO.Path.Combine handles trailing separators
-      var binary = new DockerBinary("/usr/bin/", "docker", SudoMechanism.None, null);
+      var binary = new DockerBinary("/usr/bin/", "docker", SudoMechanism.None, null!);
       var expected = System.IO.Path.Combine("/usr/bin/", "docker");
       Assert.Equal(expected, binary.FqPath);
     }
@@ -196,7 +196,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Docker
     [Fact]
     public void SudoMechanism_None_IsDefault()
     {
-      var binary = new DockerBinary("/usr/bin", "docker", SudoMechanism.None, null);
+      var binary = new DockerBinary("/usr/bin", "docker", SudoMechanism.None, null!);
       Assert.Equal(SudoMechanism.None, binary.Sudo);
       Assert.Null(binary.SudoPassword);
     }
@@ -205,7 +205,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Docker
     public void SudoMechanism_NoPassword_SetsCorrectly()
     {
       var binary = new DockerBinary(
-          "/usr/bin", "docker", SudoMechanism.NoPassword, null);
+          "/usr/bin", "docker", SudoMechanism.NoPassword, null!);
       Assert.Equal(SudoMechanism.NoPassword, binary.Sudo);
     }
 

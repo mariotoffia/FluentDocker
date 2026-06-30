@@ -28,7 +28,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
         modifiers: null);
 
       Assert.NotNull(ctor);
-      return (ComposeServiceBuilder)ctor.Invoke([name]);
+      return (ComposeServiceBuilder)ctor.Invoke([name])!;
     }
 
     /// <summary>
@@ -41,7 +41,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
         BindingFlags.NonPublic | BindingFlags.Instance);
 
       Assert.NotNull(field);
-      return (ComposeServiceDefinition)field.GetValue(builder);
+      return (ComposeServiceDefinition)field.GetValue(builder)!;
     }
 
     #region Construction
@@ -199,7 +199,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
       var builder = CreateBuilder();
 
       // Act
-      var result = builder.DependsOn(services: null);
+      var result = builder.DependsOn(services: null!);
 
       // Assert
       Assert.Empty(GetConfig(builder).DependsOn);

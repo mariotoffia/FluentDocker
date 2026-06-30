@@ -217,7 +217,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
 
     #region Helpers
 
-    private async Task RemoveServiceSafeAsync(string serviceName)
+    private async Task RemoveServiceSafeAsync(string? serviceName)
     {
       if (!string.IsNullOrEmpty(serviceName))
         try

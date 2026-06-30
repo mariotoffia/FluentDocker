@@ -86,15 +86,12 @@ namespace FluentDocker.Testing.NUnit
     [OneTimeTearDown]
     public async Task TearDownAsync()
     {
-      try
-      {
-        await ResourceLifecycle.DisposeAsync(_resource!, _kernel!).ConfigureAwait(false);
-      }
-      finally
-      {
-        _resource = null;
-        _kernel = null;
-      }
+      // Clear handles only AFTER successful disposal. If cleanup throws, the public
+      // Resource/Kernel handles stay available for LastTeardownDiagnostics, retry, or
+      // manual cleanup, and the exception propagates.
+      await ResourceLifecycle.DisposeAsync(_resource!, _kernel!).ConfigureAwait(false);
+      _resource = null;
+      _kernel = null;
     }
 
     private void EnsureInitialized()

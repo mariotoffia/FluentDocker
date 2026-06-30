@@ -76,7 +76,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Docker
     {
       var args = BuildAttachArgs("ctr1", new AttachConfig
       {
-        DetachKeys = null
+        DetachKeys = null!
       });
 
       Assert.DoesNotContain("--detach-keys", args);
@@ -140,7 +140,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Docker
     [Fact]
     public void EventArgs_NullConfig_BaseCommandWithJsonFormat()
     {
-      var args = BuildEventsArgs(null);
+      var args = BuildEventsArgs(null!);
 
       Assert.StartsWith("events --format", args);
     }
@@ -412,7 +412,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Docker
     {
       var config = new StreamStatsConfig();
 
-      var result = DockerCliStreamDriver.BuildStreamStatsArgs(null, config);
+      var result = DockerCliStreamDriver.BuildStreamStatsArgs(null!, config);
 
       // Should end with the format string, not a container
       Assert.StartsWith("stats --format", result);

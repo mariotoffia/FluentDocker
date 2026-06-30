@@ -29,9 +29,9 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
   /// </summary>
   internal sealed class NdjsonTestItem
   {
-    [JsonPropertyName("id")] public string Id { get; set; }
+    [JsonPropertyName("id")] public string? Id { get; set; }
     [JsonPropertyName("value")] public int Value { get; set; }
-    [JsonPropertyName("text")] public string Text { get; set; }
+    [JsonPropertyName("text")] public string? Text { get; set; }
   }
 
   [JsonSerializable(typeof(NdjsonTestItem))]

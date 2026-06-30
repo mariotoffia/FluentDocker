@@ -22,7 +22,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Docker
     public void BuildBuildArgs_NullIidPath_OmitsIidFile()
     {
       var config = new ImageBuildConfig { BuildContext = "." };
-      var result = DockerCliImageDriver.BuildBuildArgs(config, null);
+      var result = DockerCliImageDriver.BuildBuildArgs(config, null!);
 
       Assert.DoesNotContain("--iidfile", result);
     }
@@ -89,7 +89,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Docker
     [Fact]
     public void BuildBuildArgs_NullBuildContext_DefaultsToDot()
     {
-      var config = new ImageBuildConfig { BuildContext = null };
+      var config = new ImageBuildConfig { BuildContext = null! };
       var result = DockerCliImageDriver.BuildBuildArgs(config, "/tmp/iid");
 
       Assert.EndsWith(" .", result);

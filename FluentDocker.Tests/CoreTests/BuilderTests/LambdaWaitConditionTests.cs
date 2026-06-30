@@ -41,7 +41,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
     {
       var result = await InvokeWaitForLambda(
           (_, _) => -1,
-          5000, TestContext.Current.CancellationToken);
+          5000, TestContext.Current.CancellationToken)!;
 
       Assert.True(result);
     }

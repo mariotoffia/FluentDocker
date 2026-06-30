@@ -210,7 +210,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
       // uses redirected stdio (not a real TTY), and docker attach to a TTY
       // container fails with "the input device is not a TTY".
       string? containerId = null;
-      AttachResult attachResult = null;
+      AttachResult? attachResult = null;
       try
       {
         containerId = await RunContainerAsync(TestImage,
@@ -243,7 +243,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
     public async Task AttachAsync_ToRunningContainer_CanReadOutput()
     {
       string? containerId = null;
-      AttachResult attachResult = null;
+      AttachResult? attachResult = null;
       try
       {
         // Continuous output so we always catch new lines after attaching

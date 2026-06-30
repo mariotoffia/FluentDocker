@@ -28,7 +28,7 @@ namespace FluentDocker.Tests.CoreTests.Service
     /// <c>BuildAsync</c> helper.
     /// </summary>
     private static async Task<(FluentDocker.Kernel.FluentDockerKernel kernel, ModelRunnerService runner, MockDriverPack pack)>
-        BuildWithPackAsync(Action<MockDriverPack> configure = null, bool enable = true, bool withDefaultModel = true)
+        BuildWithPackAsync(Action<MockDriverPack> configure = null!, bool enable = true, bool withDefaultModel = true)
     {
       var pack = new MockDriverPack();
       configure?.Invoke(pack);
@@ -37,7 +37,7 @@ namespace FluentDocker.Tests.CoreTests.Service
 
       var kernel = await MockKernelBuilderExtensions.CreateWithMockDriverAsync("docker", pack);
       var runner = new ModelRunnerService(kernel, "docker", ModelRunnerEndpoint.HostTcp(),
-          withDefaultModel ? ModelReference.Parse("ai/smollm2") : null);
+          withDefaultModel ? ModelReference.Parse("ai/smollm2") : null!);
       return (kernel, runner, pack);
     }
 
@@ -174,7 +174,7 @@ namespace FluentDocker.Tests.CoreTests.Service
       var (kernel, runner, _) = await BuildWithPackAsync(p => p.SetupModelEmbeddings(0.1f), withDefaultModel: false);
       await using (kernel)
       {
-        await Assert.ThrowsAsync<ArgumentException>(() => runner.EmbedAsync("hello", null, TestContext.Current.CancellationToken));
+        await Assert.ThrowsAsync<ArgumentException>(() => runner.EmbedAsync("hello", null!, TestContext.Current.CancellationToken));
       }
     }
 
@@ -186,7 +186,7 @@ namespace FluentDocker.Tests.CoreTests.Service
       // The kernel-backed runner's default model "ai/smollm2" is a Docker ref that
       // serializes as "ai/smollm2:latest", but the inference body must NOT carry the
       // auto :latest (H1 regression).
-      ChatCompletionRequest captured = null;
+      ChatCompletionRequest? captured = null;
       var (kernel, runner, _) = await BuildWithPackAsync(p =>
       {
         p.SetupModelChat("hi");
@@ -210,7 +210,7 @@ namespace FluentDocker.Tests.CoreTests.Service
     [Fact]
     public async Task EmbedAsync_PerCallBareModel_SendsInferenceIdWithoutLatest()
     {
-      EmbeddingsRequest captured = null;
+      EmbeddingsRequest? captured = null;
       var (kernel, runner, _) = await BuildWithPackAsync(p =>
           p.ModelInferenceDriver
               .Setup(d => d.EmbeddingsAsync(It.IsAny<DriverContext>(), It.IsAny<EmbeddingsRequest>(), It.IsAny<CancellationToken>()))

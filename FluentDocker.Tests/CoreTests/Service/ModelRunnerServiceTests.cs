@@ -25,7 +25,7 @@ namespace FluentDocker.Tests.CoreTests.Service
   public partial class ModelRunnerServiceTests
   {
     private static async Task<(FluentDocker.Kernel.FluentDockerKernel kernel, ModelRunnerService runner)> BuildAsync(
-        Action<MockDriverPack> configure = null, bool enable = true)
+        Action<MockDriverPack> configure = null!, bool enable = true)
     {
       var pack = new MockDriverPack();
       configure?.Invoke(pack);
@@ -116,7 +116,7 @@ namespace FluentDocker.Tests.CoreTests.Service
     [Fact]
     public async Task Store_RemoveAsync_DelegatesToDriver()
     {
-      MockDriverPack capturedPack = null;
+      MockDriverPack? capturedPack = null;
       var (kernel, runner) = await BuildAsync(p =>
       {
         p.SetupModelRemove();
@@ -128,6 +128,7 @@ namespace FluentDocker.Tests.CoreTests.Service
 
         // The service must DELEGATE to the management driver with the parsed reference and
         // the requested force flag — assert the actual interaction, not merely "no throw".
+        Assert.NotNull(capturedPack);
         capturedPack.ModelManagementDriver.Verify(
             d => d.RemoveAsync(
                 It.IsAny<DriverContext>(),
@@ -155,7 +156,7 @@ namespace FluentDocker.Tests.CoreTests.Service
       var (kernel, runner) = await BuildAsync(p => p.SetupModelLoad());
       await using (kernel)
       {
-        await runner.LoadAsync(ModelReference.Parse("ai/smollm2"), null, TestContext.Current.CancellationToken);
+        await runner.LoadAsync(ModelReference.Parse("ai/smollm2"), null!, TestContext.Current.CancellationToken);
       }
     }
 
@@ -201,7 +202,7 @@ namespace FluentDocker.Tests.CoreTests.Service
       var (kernel, runner) = await BuildAsync(p => p.SetupModelEmbeddings(0.1f, 0.2f, 0.3f));
       await using (kernel)
       {
-        var vector = await runner.EmbedAsync("hello", null, TestContext.Current.CancellationToken);
+        var vector = await runner.EmbedAsync("hello", null!, TestContext.Current.CancellationToken);
         Assert.Equal(3, vector.Count);
         Assert.Equal(0.1f, vector[0], 3);
       }

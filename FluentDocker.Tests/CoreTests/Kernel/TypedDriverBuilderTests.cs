@@ -379,10 +379,10 @@ namespace FluentDocker.Tests.CoreTests.Kernel
 
       return new DriverConfigResult
       {
-        Context = (DriverContext)contextProp?.GetValue(configObj),
+        Context = (DriverContext)contextProp?.GetValue(configObj)!,
         IsDefault = (bool)(isDefaultProp?.GetValue(configObj) ?? false),
-        DriverId = (string)driverIdProp?.GetValue(configObj),
-        DriverPackTypeName = driverPackProp?.GetValue(configObj)?.GetType().FullName,
+        DriverId = (string)driverIdProp?.GetValue(configObj)!,
+        DriverPackTypeName = driverPackProp?.GetValue(configObj)?.GetType().FullName!,
       };
     }
 

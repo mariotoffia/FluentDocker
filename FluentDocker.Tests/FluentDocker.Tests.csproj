@@ -10,8 +10,6 @@
     <NoWarn>$(NoWarn);CA1707;CA1852;CA1861</NoWarn>
     <!-- CA1711: xUnit [CollectionDefinition] classes conventionally end in 'Collection' -->
     <NoWarn>$(NoWarn);CA1711</NoWarn>
-    <!-- Nullable warnings: test code intentionally passes null to verify null-handling behaviour -->
-    <NoWarn>$(NoWarn);CS8600;CS8601;CS8602;CS8603;CS8604;CS8605;CS8618;CS8625;CS0219</NoWarn>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="coverlet.collector" PrivateAssets="all" />
@@ -72,13 +70,6 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
     <None Update="Resources\Scripts\envtest.sh">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-    <!-- Model Test Resources -->
-    <None Update="Model\Containers\inspect.json">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-    <None Update="Model\Containers\inspect_no_create.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
   </ItemGroup>

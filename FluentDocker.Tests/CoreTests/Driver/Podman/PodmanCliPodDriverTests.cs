@@ -86,7 +86,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
     public void ParsePodList_EmptyString_ReturnsEmpty()
     {
       Assert.Empty(InvokeParsePodList(""));
-      Assert.Empty(InvokeParsePodList(null));
+      Assert.Empty(InvokeParsePodList(null!));
       Assert.Empty(InvokeParsePodList("   "));
     }
 
@@ -236,7 +236,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
           "ParsePodList",
           BindingFlags.NonPublic | BindingFlags.Static);
       Assert.NotNull(method);
-      return (IList<PodInfo>)method.Invoke(null, [json]);
+      return (IList<PodInfo>)method.Invoke(null, [json])!;
     }
 
     private static PodInspectResult InvokeParsePodInspect(string json)
@@ -245,7 +245,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
           "ParsePodInspect",
           BindingFlags.NonPublic | BindingFlags.Static);
       Assert.NotNull(method);
-      return (PodInspectResult)method.Invoke(null, [json]);
+      return (PodInspectResult)method.Invoke(null, [json])!;
     }
 
     private static string InvokeBuildCreateArgs(PodCreateConfig config)
@@ -254,7 +254,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
           "BuildCreateArgs",
           BindingFlags.NonPublic | BindingFlags.Static);
       Assert.NotNull(method);
-      return (string)method.Invoke(null, [config]);
+      return (string)method.Invoke(null, [config])!;
     }
 
     #endregion

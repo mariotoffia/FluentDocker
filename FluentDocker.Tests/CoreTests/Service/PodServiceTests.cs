@@ -92,7 +92,7 @@ namespace FluentDocker.Tests.CoreTests.Service
       var podId = "pod-abc123";
 
       // Act
-      var service = new PodService(kernel, "podman", podId, null);
+      var service = new PodService(kernel, "podman", podId, null!);
 
       // Assert — when podName is null, Name falls back to podId
       Assert.Equal(podId, service.Name);
@@ -334,7 +334,7 @@ namespace FluentDocker.Tests.CoreTests.Service
       var service = new PodService(kernel, "docker", "pod-abc123", "my-pod");
 
       ServiceRunningState? capturedState = null;
-      object capturedSender = null;
+      object? capturedSender = null;
       service.StateChange += (sender, args) =>
       {
         capturedSender = sender;

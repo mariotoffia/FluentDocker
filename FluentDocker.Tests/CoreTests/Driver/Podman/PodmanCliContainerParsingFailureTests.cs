@@ -31,7 +31,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
     [Fact]
     public void ParseContainerList_Null_ReturnsEmptyList()
     {
-      var result = PodmanCliContainerDriver.ParseContainerList(null);
+      var result = PodmanCliContainerDriver.ParseContainerList(null!);
       Assert.Empty(result);
     }
 

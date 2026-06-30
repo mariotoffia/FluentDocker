@@ -15,7 +15,7 @@ namespace FluentDocker.Tests.Mocks
   /// <param name="Method">The HTTP method.</param>
   /// <param name="Path">The request path.</param>
   /// <param name="Body">The request body (when applicable).</param>
-  public sealed record CapturedModelRequest(string Method, string Path, string Body);
+  public sealed record CapturedModelRequest(string Method, string Path, string? Body);
 
   /// <summary>
   /// A hand-rolled (no Moq) <see cref="IModelApiConnection"/> with programmable
@@ -26,7 +26,7 @@ namespace FluentDocker.Tests.Mocks
   {
     private readonly record struct ResponseEntry(
         string Method, string PathContains, HttpStatusCode StatusCode,
-        string JsonBody, string StreamContent, byte[] StreamBytes, int FaultAfterBytes, byte[][] StreamChunks = null);
+        string? JsonBody, string? StreamContent, byte[]? StreamBytes, int FaultAfterBytes, byte[][]? StreamChunks = null);
 
     private readonly List<ResponseEntry> _entries = [];
     private readonly List<CapturedModelRequest> _requests = [];
@@ -72,7 +72,7 @@ namespace FluentDocker.Tests.Mocks
     /// bounded error body and throws <see cref="HttpRequestException"/> carrying the
     /// status code (the inference driver maps it to a typed <c>ModelRunnerException</c>).
     /// </summary>
-    public MockModelApiConnection SetupStreamStatus(string pathContains, int statusCode, string errorBody = null)
+    public MockModelApiConnection SetupStreamStatus(string pathContains, int statusCode, string? errorBody = null)
     {
       _entries.Add(new ResponseEntry("STREAM", pathContains, (HttpStatusCode)statusCode, null, errorBody, null, -1));
       return this;
@@ -114,7 +114,7 @@ namespace FluentDocker.Tests.Mocks
     /// blocks on every subsequent read until the caller's <see cref="CancellationToken"/> is
     /// cancelled — used to verify that idle-timeout and cancellation paths both fire correctly.
     /// </summary>
-    public MockModelApiConnection SetupStreamStalling(string pathContains, string prefixContent = null)
+    public MockModelApiConnection SetupStreamStalling(string pathContains, string? prefixContent = null)
     {
       _entries.Add(new ResponseEntry("STREAM_STALL", pathContains, HttpStatusCode.OK, null, prefixContent, null, -1));
       return this;
@@ -133,6 +133,7 @@ namespace FluentDocker.Tests.Mocks
     /// <inheritdoc />
     public Task<HttpResponseMessage> GetAsync(string path, CancellationToken ct = default)
     {
+      ct.ThrowIfCancellationRequested();
       Record("GET", path, null);
       return Task.FromResult(Resolve("GET", path));
     }
@@ -140,6 +141,7 @@ namespace FluentDocker.Tests.Mocks
     /// <inheritdoc />
     public async Task<HttpResponseMessage> PostAsync(string path, HttpContent content, CancellationToken ct = default)
     {
+      ct.ThrowIfCancellationRequested();
       var body = content is not null ? await content.ReadAsStringAsync(ct) : null;
       Record("POST", path, body);
       return Resolve("POST", path);
@@ -148,6 +150,7 @@ namespace FluentDocker.Tests.Mocks
     /// <inheritdoc />
     public Task<HttpResponseMessage> DeleteAsync(string path, CancellationToken ct = default)
     {
+      ct.ThrowIfCancellationRequested();
       Record("DELETE", path, null);
       return Task.FromResult(Resolve("DELETE", path));
     }
@@ -155,6 +158,7 @@ namespace FluentDocker.Tests.Mocks
     /// <inheritdoc />
     public async Task<Stream> PostStreamAsync(string path, HttpContent content, CancellationToken ct = default)
     {
+      ct.ThrowIfCancellationRequested();
       var body = content is not null ? await content.ReadAsStringAsync(ct) : null;
       Record("POST_STREAM", path, body);
       return ResolveStream(path);
@@ -163,6 +167,7 @@ namespace FluentDocker.Tests.Mocks
     /// <inheritdoc />
     public Task<bool> PingAsync(CancellationToken ct = default)
     {
+      ct.ThrowIfCancellationRequested();
       Record("PING", "/_ping", null);
       return Task.FromResult(_pingSuccess);
     }
@@ -170,7 +175,7 @@ namespace FluentDocker.Tests.Mocks
     /// <inheritdoc />
     public ValueTask DisposeAsync() => ValueTask.CompletedTask;
 
-    private void Record(string method, string path, string body) =>
+    private void Record(string method, string path, string? body) =>
         _requests.Add(new CapturedModelRequest(method, path, body));
 
     // Route by path SUFFIX (after stripping any query), not a loose Contains — a
@@ -273,9 +278,13 @@ namespace FluentDocker.Tests.Mocks
     }
 
     /// <summary>
-    /// Yields <see cref="_prefix"/> bytes and then blocks every subsequent read until the
-    /// caller's <see cref="CancellationToken"/> fires — simulates a server that stops
-    /// sending after a partial response (used to exercise idle-timeout / cancellation paths).
+    /// Yields <see cref="_prefix"/> bytes and then, on the async <see cref="ReadAsync(Memory{byte}, CancellationToken)"/>
+    /// path, blocks every subsequent read until the caller's <see cref="CancellationToken"/> fires —
+    /// simulates a server that stops sending after a partial response (used to exercise
+    /// idle-timeout / cancellation paths). The synchronous <see cref="Read(byte[], int, int)"/>
+    /// instead FAILS FAST (throws) once the prefix is exhausted: it has no token to observe and a
+    /// real blocking sleep would hang the whole test process, so the code under test must use the
+    /// async read.
     /// </summary>
     private sealed class StallingStream : Stream
     {
@@ -299,9 +308,9 @@ namespace FluentDocker.Tests.Mocks
           _position += n;
           return n;
         }
-        // Stall forever (synchronous read blocks; tests should use async).
-        Thread.Sleep(Timeout.Infinite);
-        return 0;
+        // No token to observe on the sync path; fail fast rather than block forever.
+        throw new NotSupportedException(
+            "MockModelApiConnection.StallingStream blocks indefinitely on synchronous Read; the code under test must use ReadAsync. This fast-fail prevents hanging the test process.");
       }
 
       public override async ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken ct = default)

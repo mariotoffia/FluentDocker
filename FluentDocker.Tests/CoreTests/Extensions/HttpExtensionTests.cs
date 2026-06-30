@@ -20,7 +20,7 @@ namespace FluentDocker.Tests.CoreTests.Extensions
       string? url = null;
 
       // Act
-      var result = await url.Wget();
+      var result = await url!.Wget(); // intentional null to verify null-handling
 
       // Assert
       Assert.Equal(string.Empty, result);
@@ -82,7 +82,7 @@ namespace FluentDocker.Tests.CoreTests.Extensions
     public async Task DoRequest_OnNullUrl_ReturnsErrorResponse()
     {
       // Act
-      var result = await HttpExtensions.DoRequest(null);
+      var result = await HttpExtensions.DoRequest(null!);
 
       // Assert - should have an error
       Assert.True(result.Err != null || result.Code == 0);

@@ -32,10 +32,10 @@ namespace FluentDocker.Tests.CoreTests.Extensions
     public void EscapePath_NullString_ReturnsNull()
     {
       // Arrange
-      string path = null;
+      string? path = null;
 
       // Act
-      var result = path.EscapePath();
+      var result = path!.EscapePath(); // intentional null to verify null-handling
 
       // Assert
       Assert.Null(result);

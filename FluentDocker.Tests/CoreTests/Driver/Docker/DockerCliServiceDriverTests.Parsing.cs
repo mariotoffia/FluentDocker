@@ -17,7 +17,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Docker
     private static readonly MethodInfo ParseServiceInspectMethod =
         typeof(DockerCliServiceDriver).GetMethod(
             "ParseServiceInspect",
-            BindingFlags.Static | BindingFlags.NonPublic);
+            BindingFlags.Static | BindingFlags.NonPublic)!;
 
     /// <summary>
     /// Invokes the internal ParseServiceInspect via reflection.
@@ -26,7 +26,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Docker
     {
       Assert.NotNull(ParseServiceInspectMethod);
       return (ServiceDetails)ParseServiceInspectMethod.Invoke(
-          null, [json]);
+          null, [json])!;
     }
 
     #region ParseServiceInspect -- Replicated Mode

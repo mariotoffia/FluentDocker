@@ -60,7 +60,7 @@ namespace FluentDocker.Tests.CoreTests.Common
     public void ParseMemoryUsage_Null_ReturnsZeros()
     {
       // Arrange & Act
-      var (usage, limit) = CliOutputParser.ParseMemoryUsage(null);
+      var (usage, limit) = CliOutputParser.ParseMemoryUsage(null!);
 
       // Assert
       Assert.Equal(0, usage);
@@ -213,7 +213,7 @@ namespace FluentDocker.Tests.CoreTests.Common
     public void ParseIOPair_Null_ReturnsZeros()
     {
       // Arrange & Act
-      var (first, second) = CliOutputParser.ParseIOPair(null);
+      var (first, second) = CliOutputParser.ParseIOPair(null!);
 
       // Assert
       Assert.Equal(0, first);

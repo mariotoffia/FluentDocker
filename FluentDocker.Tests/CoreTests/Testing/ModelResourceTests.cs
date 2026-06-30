@@ -131,6 +131,52 @@ namespace FluentDocker.Tests.CoreTests.Testing
 
     [Fact]
     [Trait("Category", "Unit")]
+    public async Task DisposeAsync_HungUnload_DefaultForceRemove_DoesNotFakeRecovery()
+    {
+      // Default ForceRemoveOnDispose=true. The graceful teardown's service.DisposeAsync()
+      // sets _disposed=1 and hangs on unload; ForceRemoveAsync MUST go straight to the
+      // runtime driver (which also hangs) and FAIL — not reuse the now-no-op DisposeAsync()
+      // and fake recovery.
+      var unload = new TaskCompletionSource<CommandResponse<Unit>>();
+      var pack = new MockDriverPack()
+          .SetupModelLoad()
+          .EnableModelDrivers();
+      pack.ModelRuntimeDriver
+          .Setup(d => d.UnloadAsync(
+              It.IsAny<DriverContext>(),
+              It.IsAny<ModelReference>(),
+              It.IsAny<CancellationToken>()))
+          .Returns(unload.Task);
+      var kernel = await MockKernelBuilderExtensions.CreateWithMockDriverAsync("docker", pack);
+      await using (kernel)
+      {
+        var resource = new ModelResource(kernel, Model, options: new DockerResourceOptions
+        {
+          ForceRemoveOnDispose = true,
+          TeardownTimeout = TimeSpan.FromMilliseconds(100)
+        });
+
+        await resource.InitializeAsync(TestContext.Current.CancellationToken);
+        var disposeTask = resource.DisposeAsync().AsTask();
+        var completed = await Task.WhenAny(
+            disposeTask,
+            Task.Delay(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken));
+
+        Assert.Same(disposeTask, completed);
+        // Must NOT silently succeed — both teardown and force-remove hung/failed.
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => disposeTask);
+        Assert.NotNull(resource.LastTeardownDiagnostics);
+        Assert.NotNull(resource.LastTeardownDiagnostics.TeardownException);
+        Assert.NotNull(resource.LastTeardownDiagnostics.ForceRemoveException);
+        // Force-remove attempted the real driver unload (graceful unload + force unload).
+        pack.ModelRuntimeDriver.Verify(d => d.UnloadAsync(
+            It.IsAny<DriverContext>(), It.IsAny<ModelReference>(),
+            It.IsAny<CancellationToken>()), Times.Exactly(2));
+      }
+    }
+
+    [Fact]
+    [Trait("Category", "Unit")]
     public async Task Diagnostics_BeforeInitialize_IsNull()
     {
       var pack = new MockDriverPack().EnableModelDrivers();

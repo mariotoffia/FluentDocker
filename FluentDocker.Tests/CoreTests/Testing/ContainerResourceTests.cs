@@ -96,7 +96,7 @@ namespace FluentDocker.Tests.CoreTests.Testing
     public void Constructor_NullKernel_Throws()
     {
       Assert.Throws<ArgumentNullException>(
-          () => new ContainerResource(null, _ => { }));
+          () => new ContainerResource(null!, _ => { }));
     }
 
     [Fact]
@@ -220,7 +220,7 @@ namespace FluentDocker.Tests.CoreTests.Testing
           .SetupContainerStop()
           .SetupContainerRemove();
 
-      ITestResource receivedInHook = null;
+      ITestResource? receivedInHook = null;
 
       var resource = new ContainerResource(
           Kernel,
@@ -265,7 +265,7 @@ namespace FluentDocker.Tests.CoreTests.Testing
           builder => builder.UseImage("alpine:latest"));
 
       Assert.Throws<ArgumentNullException>(
-          () => resource.OnBeforeInitialize(null));
+          () => resource.OnBeforeInitialize(null!));
     }
 
     [Fact]
@@ -276,7 +276,7 @@ namespace FluentDocker.Tests.CoreTests.Testing
           builder => builder.UseImage("alpine:latest"));
 
       Assert.Throws<ArgumentNullException>(
-          () => resource.OnAfterReady(null));
+          () => resource.OnAfterReady(null!));
     }
 
     [Fact]
@@ -287,7 +287,7 @@ namespace FluentDocker.Tests.CoreTests.Testing
           builder => builder.UseImage("alpine:latest"));
 
       Assert.Throws<ArgumentNullException>(
-          () => resource.OnBeforeDispose(null));
+          () => resource.OnBeforeDispose(null!));
     }
 
     [Fact]
@@ -298,7 +298,7 @@ namespace FluentDocker.Tests.CoreTests.Testing
           builder => builder.UseImage("alpine:latest"));
 
       Assert.Throws<ArgumentNullException>(
-          () => resource.OnAfterDispose(null));
+          () => resource.OnAfterDispose(null!));
     }
 
     [Fact]
@@ -315,7 +315,7 @@ namespace FluentDocker.Tests.CoreTests.Testing
           Kernel,
           builder => builder.UseImage("alpine:latest"));
 
-      FluentDocker.Model.Containers.Container inspected = null;
+      FluentDocker.Model.Containers.Container? inspected = null;
 
       resource.OnAfterReady(async r =>
       {

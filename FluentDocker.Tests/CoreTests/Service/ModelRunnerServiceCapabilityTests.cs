@@ -187,7 +187,7 @@ namespace FluentDocker.Tests.CoreTests.Service
       await using (kernel)
       {
         var ex = await Assert.ThrowsAsync<NotSupportedException>(
-            () => runner.LoadAsync(ModelReference.Parse("ai/smollm2"), null, TestContext.Current.CancellationToken));
+            () => runner.LoadAsync(ModelReference.Parse("ai/smollm2"), null!, TestContext.Current.CancellationToken));
         Assert.Contains("runtime", ex.Message, StringComparison.OrdinalIgnoreCase);
       }
     }

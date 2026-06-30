@@ -149,7 +149,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
     [Fact]
     public async Task SwitchDaemonAsync_ReturnsCapabilityNotSupported()
     {
-      var driver = new PodmanCliSystemDriver(null);
+      var driver = new PodmanCliSystemDriver(null!);
 
       var result = await driver.SwitchDaemonAsync(new DriverContext("podman"), TestContext.Current.CancellationToken);
 
@@ -160,7 +160,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
     [Fact]
     public async Task SwitchToLinuxDaemonAsync_ReturnsCapabilityNotSupported()
     {
-      var driver = new PodmanCliSystemDriver(null);
+      var driver = new PodmanCliSystemDriver(null!);
 
       var result = await driver.SwitchToLinuxDaemonAsync(new DriverContext("podman"), TestContext.Current.CancellationToken);
 
@@ -178,7 +178,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
           "ParseSystemInfo",
           BindingFlags.NonPublic | BindingFlags.Static);
       Assert.NotNull(method);
-      return (SystemInfo)method.Invoke(null, [json]);
+      return (SystemInfo)method.Invoke(null, [json])!;
     }
 
     private static VersionInfo InvokeParseVersionInfo(string json)
@@ -187,7 +187,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
           "ParseVersionInfo",
           BindingFlags.NonPublic | BindingFlags.Static);
       Assert.NotNull(method);
-      return (VersionInfo)method.Invoke(null, [json]);
+      return (VersionInfo)method.Invoke(null, [json])!;
     }
 
     #endregion

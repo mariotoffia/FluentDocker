@@ -62,7 +62,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Docker
       var config = new VolumeCreateConfig
       {
         Name = "myvol",
-        Driver = null
+        Driver = null!
       };
 
       var args = BuildVolumeCreateArgs(config);
@@ -137,7 +137,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Docker
       var config = new VolumeCreateConfig
       {
         Name = "myvol",
-        Labels = null
+        Labels = null!
       };
 
       var args = BuildVolumeCreateArgs(config);
@@ -200,7 +200,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Docker
       var config = new VolumeCreateConfig
       {
         Name = "myvol",
-        DriverOpts = null
+        DriverOpts = null!
       };
 
       var args = BuildVolumeCreateArgs(config);
@@ -309,7 +309,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Docker
     [Fact]
     public void VolumeListFilterArgs_NullFilter_NoFilterFlags()
     {
-      var args = BuildVolumeListFilterArgs(null);
+      var args = BuildVolumeListFilterArgs(null!);
 
       Assert.DoesNotContain("--filter", args);
     }

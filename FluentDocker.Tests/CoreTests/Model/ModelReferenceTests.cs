@@ -21,7 +21,7 @@ namespace FluentDocker.Tests.CoreTests.Model
     [InlineData("registry.io/team/m:v1", "registry.io", "team", "m", "v1")]
     [InlineData("ai/smollm2:latest", null, "ai", "smollm2", "latest")]
     [InlineData("hf.co/org/repo:Q4_K_M", "hf.co", "org", "repo", "Q4_K_M")]
-    public void Parse_DecomposesReference(string input, string registry, string ns, string name, string tag)
+    public void Parse_DecomposesReference(string input, string? registry, string ns, string name, string tag)
     {
       var model = ModelReference.Parse(input);
 
@@ -164,9 +164,9 @@ namespace FluentDocker.Tests.CoreTests.Model
     [InlineData("")]
     [InlineData("   ")]
     [InlineData(null)]
-    public void TryParse_NullOrEmpty_ReturnsFalse(string input)
+    public void TryParse_NullOrEmpty_ReturnsFalse(string? input)
     {
-      Assert.False(ModelReference.TryParse(input, out var model));
+      Assert.False(ModelReference.TryParse(input!, out var model)); // intentional null to verify null-handling
       Assert.Null(model);
     }
 
@@ -194,7 +194,7 @@ namespace FluentDocker.Tests.CoreTests.Model
     // NTH-1: registry + bare name (no namespace)
     [InlineData("registry.io/m", "registry.io", null, "m", "latest")]
     [InlineData("localhost:5000/m:v2", "localhost:5000", null, "m", "v2")]
-    public void Parse_RegistryWithBareName_HasNullNamespace(string input, string registry, string ns, string name, string tag)
+    public void Parse_RegistryWithBareName_HasNullNamespace(string input, string registry, string? ns, string name, string tag)
     {
       var model = ModelReference.Parse(input);
 
@@ -214,9 +214,9 @@ namespace FluentDocker.Tests.CoreTests.Model
     [Theory]
     [InlineData("")]
     [InlineData(null)]
-    public void Parse_NullOrEmpty_Throws(string input)
+    public void Parse_NullOrEmpty_Throws(string? input)
     {
-      Assert.Throws<ArgumentException>(() => ModelReference.Parse(input));
+      Assert.Throws<ArgumentException>(() => ModelReference.Parse(input!)); // intentional null to verify null-handling
     }
 
     [Fact]

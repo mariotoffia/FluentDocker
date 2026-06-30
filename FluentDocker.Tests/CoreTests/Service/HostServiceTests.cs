@@ -43,7 +43,7 @@ namespace FluentDocker.Tests.CoreTests.Service
     public void Constructor_NullKernel_ThrowsArgumentNullException()
     {
       Assert.Throws<ArgumentNullException>(() =>
-          new HostService(null, "docker", "test-host"));
+          new HostService(null!, "docker", "test-host"));
     }
 
     [Fact]
@@ -53,7 +53,7 @@ namespace FluentDocker.Tests.CoreTests.Service
       try
       {
         Assert.Throws<ArgumentNullException>(() =>
-            new HostService(kernel, null, "test-host"));
+            new HostService(kernel, null!, "test-host"));
       }
       finally { kernel.Dispose(); }
     }
@@ -65,7 +65,7 @@ namespace FluentDocker.Tests.CoreTests.Service
       var kernel = await MockKernelBuilderExtensions.CreateWithMockDriverAsync("docker", mockPack);
       try
       {
-        var service = new HostService(kernel, "docker", null);
+        var service = new HostService(kernel, "docker", null!);
         Assert.Equal("native", service.Name);
       }
       finally { kernel.Dispose(); }

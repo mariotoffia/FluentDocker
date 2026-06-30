@@ -85,7 +85,7 @@ namespace FluentDocker.Tests.CoreTests.Service
       var kernel = new FluentDockerKernel(new DriverRegistry(NullLoggerFactory.Instance), NullLoggerFactory.Instance);
 
       // Act
-      var service = new ContainerService(kernel, "docker", "abc123", "nginx", null);
+      var service = new ContainerService(kernel, "docker", "abc123", "nginx", null!);
 
       // Assert
       Assert.StartsWith("container-", service.Name);
@@ -100,10 +100,9 @@ namespace FluentDocker.Tests.CoreTests.Service
       // Arrange
       var kernel = new FluentDockerKernel(new DriverRegistry(NullLoggerFactory.Instance), NullLoggerFactory.Instance);
       var service = new ContainerService(kernel, "docker", "abc123", "nginx", "test");
-      var hookCalled = false;
 
       // Act
-      service.AddHook(ServiceRunningState.Running, async _ => hookCalled = true, "test-hook");
+      service.AddHook(ServiceRunningState.Running, _ => Task.CompletedTask, "test-hook");
 
       // Assert - hook is added (we can't easily verify without triggering state change)
       Assert.NotNull(service);
@@ -134,10 +133,9 @@ namespace FluentDocker.Tests.CoreTests.Service
       // Arrange
       var kernel = new FluentDockerKernel(new DriverRegistry(NullLoggerFactory.Instance), NullLoggerFactory.Instance);
       var service = new ContainerService(kernel, "docker", "abc123", "nginx", "test");
-      var eventRaised = false;
 
       // Act
-      service.StateChange += (sender, args) => eventRaised = true;
+      service.StateChange += (sender, args) => { };
 
       // Assert - event subscription works
       Assert.NotNull(service);

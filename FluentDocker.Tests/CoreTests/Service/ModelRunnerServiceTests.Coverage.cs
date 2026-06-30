@@ -36,7 +36,7 @@ namespace FluentDocker.Tests.CoreTests.Service
           new ModelInfo { Reference = ModelReference.Parse("ai/smollm2"), Size = 4096 }));
       await using (kernel)
       {
-        var info = await runner.PullAsync(ModelReference.Parse("ai/smollm2"), null, TestContext.Current.CancellationToken);
+        var info = await runner.PullAsync(ModelReference.Parse("ai/smollm2"), null!, TestContext.Current.CancellationToken);
         Assert.Equal("smollm2", info.Reference.Name);
         Assert.Equal(4096, info.Size);
       }
@@ -52,7 +52,7 @@ namespace FluentDocker.Tests.CoreTests.Service
       await using (kernel)
       {
         var ex = await Assert.ThrowsAsync<ModelRunnerException>(
-            () => runner.PullAsync(ModelReference.Parse("ai/smollm2"), null, TestContext.Current.CancellationToken));
+            () => runner.PullAsync(ModelReference.Parse("ai/smollm2"), null!, TestContext.Current.CancellationToken));
         Assert.Equal(ErrorCodes.Model.PullFailed, ex.ErrorCode);
       }
     }
@@ -337,7 +337,7 @@ namespace FluentDocker.Tests.CoreTests.Service
       await using (kernel)
       {
         var ex = await Assert.ThrowsAsync<ModelRunnerException>(
-            () => runner.UninstallRunnerAsync(null, TestContext.Current.CancellationToken));
+            () => runner.UninstallRunnerAsync(null!, TestContext.Current.CancellationToken));
         Assert.Equal(ErrorCodes.Model.InstallFailed, ex.ErrorCode);
       }
     }
@@ -349,7 +349,7 @@ namespace FluentDocker.Tests.CoreTests.Service
     {
       var (kernel, runner) = await BuildAsync(p => p.SetupModelChat("ok"));
       await using (kernel)
-        await Assert.ThrowsAsync<ArgumentNullException>(() => runner.ChatAsync(null, TestContext.Current.CancellationToken));
+        await Assert.ThrowsAsync<ArgumentNullException>(() => runner.ChatAsync(null!, TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -357,7 +357,7 @@ namespace FluentDocker.Tests.CoreTests.Service
     {
       var (kernel, runner) = await BuildAsync(p => p.SetupModelEmbeddings(1f, 2f));
       await using (kernel)
-        await Assert.ThrowsAsync<ArgumentNullException>(() => runner.EmbedAsync(null, null, TestContext.Current.CancellationToken));
+        await Assert.ThrowsAsync<ArgumentNullException>(() => runner.EmbedAsync(null!, null!, TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -365,13 +365,13 @@ namespace FluentDocker.Tests.CoreTests.Service
     {
       var (kernel, runner) = await BuildAsync(_ => { });
       await using (kernel)
-        await Assert.ThrowsAsync<ArgumentNullException>(() => runner.ChatCompletionAsync(null, TestContext.Current.CancellationToken));
+        await Assert.ThrowsAsync<ArgumentNullException>(() => runner.ChatCompletionAsync(null!, TestContext.Current.CancellationToken));
     }
 
     [Fact]
     public async Task Engine_ConfigureAsync_DelegatesAndPropagatesOptions()
     {
-      ModelConfigureOptions captured = null;
+      ModelConfigureOptions? captured = null;
       var (kernel, runner) = await BuildAsync(p =>
           p.ModelRuntimeDriver.Setup(d => d.ConfigureAsync(It.IsAny<DriverContext>(), It.IsAny<ModelReference>(),
                   It.IsAny<ModelConfigureOptions>(), It.IsAny<CancellationToken>()))
@@ -418,7 +418,7 @@ namespace FluentDocker.Tests.CoreTests.Service
     [Fact]
     public async Task Engine_InstallRunnerAsync_DelegatesAndPropagatesOptions()
     {
-      ModelRunnerInstallOptions captured = null;
+      ModelRunnerInstallOptions? captured = null;
       var (kernel, runner) = await BuildAsync(p =>
           p.ModelRuntimeDriver.Setup(d => d.InstallRunnerAsync(It.IsAny<DriverContext>(),
                   It.IsAny<ModelRunnerInstallOptions>(), It.IsAny<CancellationToken>()))

@@ -133,7 +133,7 @@ namespace FluentDocker.Tests.CoreTests.Model
     public void ImplicitConversion_NullString_ReturnsNull()
     {
       // Arrange & Act
-      EmbeddedUri uri = (string)null;
+      EmbeddedUri uri = (string)null!; // intentional null to verify null-handling
 
       // Assert
       Assert.Null(uri);

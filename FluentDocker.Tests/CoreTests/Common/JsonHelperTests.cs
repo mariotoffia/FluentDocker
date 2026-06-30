@@ -41,7 +41,7 @@ namespace FluentDocker.Tests.CoreTests.Common
     [Fact]
     public void TryDeserialize_NullString_ReturnsDefault()
     {
-      var result = JsonHelper.TryDeserialize<SampleDto>((string)null);
+      var result = JsonHelper.TryDeserialize<SampleDto>((string)null!); // intentional null to verify null-handling
       Assert.Null(result);
     }
 
@@ -148,7 +148,7 @@ namespace FluentDocker.Tests.CoreTests.Common
     [Fact]
     public void TryGetProperty_NullInput_ReturnsNull()
     {
-      Assert.Null(JsonHelper.TryGetProperty(null, "id"));
+      Assert.Null(JsonHelper.TryGetProperty(null!, "id"));
     }
 
     #endregion
@@ -201,7 +201,7 @@ namespace FluentDocker.Tests.CoreTests.Common
     private class SampleDto
     {
       [JsonPropertyName("name")]
-      public string Name { get; set; }
+      public string? Name { get; set; }
 
       [JsonPropertyName("count")]
       public int Count { get; set; }

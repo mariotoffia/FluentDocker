@@ -68,7 +68,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
     [Fact]
     public void ParseNetworkList_NullString_ReturnsEmpty()
     {
-      var result = InvokeParseNetworkList(null);
+      var result = InvokeParseNetworkList(null!);
       Assert.Empty(result);
     }
 
@@ -118,7 +118,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
           "ParseNetworkList",
           BindingFlags.NonPublic | BindingFlags.Static);
       Assert.NotNull(method);
-      return (IList<Network>)method.Invoke(null, [json]);
+      return (IList<Network>)method.Invoke(null, [json])!;
     }
 
     private static Network InvokeParseNetworkInspect(string json)
@@ -127,7 +127,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
           "ParseNetworkInspect",
           BindingFlags.NonPublic | BindingFlags.Static);
       Assert.NotNull(method);
-      return (Network)method.Invoke(null, [json]);
+      return (Network)method.Invoke(null, [json])!;
     }
 
     #endregion

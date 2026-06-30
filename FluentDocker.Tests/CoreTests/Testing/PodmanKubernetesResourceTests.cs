@@ -235,7 +235,7 @@ namespace FluentDocker.Tests.CoreTests.Testing
     public void Constructor_NullKernel_Throws()
     {
       Assert.Throws<ArgumentNullException>(
-          () => new PodmanKubernetesResource(null, new KubePlayConfig { YamlPath = "x" }));
+          () => new PodmanKubernetesResource(null!, new KubePlayConfig { YamlPath = "x" }));
     }
 
     [Fact]

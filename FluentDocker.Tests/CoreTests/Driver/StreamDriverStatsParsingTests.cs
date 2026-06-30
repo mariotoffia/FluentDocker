@@ -82,7 +82,7 @@ namespace FluentDocker.Tests.CoreTests.Driver
     public void Docker_ParseStreamStatsLine_EmptyOrNull_ReturnsNull(string? input)
     {
       // Act
-      var result = DockerCliStreamDriver.ParseStreamStatsLine(input);
+      var result = DockerCliStreamDriver.ParseStreamStatsLine(input!); // intentional null to verify null-handling
 
       // Assert
       Assert.Null(result);
@@ -154,7 +154,7 @@ namespace FluentDocker.Tests.CoreTests.Driver
     public void Podman_ParseStats_EmptyOrNull_ReturnsNull(string? input)
     {
       // Act
-      var result = PodmanCliStreamDriver.ParseStats(input);
+      var result = PodmanCliStreamDriver.ParseStats(input!); // intentional null to verify null-handling
 
       // Assert
       Assert.Null(result);

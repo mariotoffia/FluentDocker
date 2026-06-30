@@ -34,9 +34,9 @@ namespace FluentDocker.Tests.CoreTests.Model
     [InlineData("")]
     [InlineData("   ")]
     [InlineData("\t")]
-    public void Constructor_RejectsNullEmptyOrWhitespace(string value)
+    public void Constructor_RejectsNullEmptyOrWhitespace(string? value)
     {
-      Assert.Throws<ArgumentException>(() => new InferenceModelId(value));
+      Assert.Throws<ArgumentException>(() => new InferenceModelId(value!)); // intentional null to verify null-handling
     }
 
     [Fact]
@@ -112,7 +112,7 @@ namespace FluentDocker.Tests.CoreTests.Model
     [Fact]
     public void FromModelReference_Null_ReturnsNull()
     {
-      Assert.Null(InferenceModelId.FromModelReference(null));
+      Assert.Null(InferenceModelId.FromModelReference(null!));
     }
   }
 }

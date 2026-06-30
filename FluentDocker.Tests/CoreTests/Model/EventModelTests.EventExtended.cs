@@ -68,7 +68,7 @@ namespace FluentDocker.Tests.CoreTests.Model
         ContainerId = "abc123def456",
         Name = "my-bridge-network",
         Type = NetworkType.Bridge,
-        CustomType = null
+        CustomType = null!
       };
 
       var evt = new NetworkConnectEvent { EventActor = actor };
@@ -136,7 +136,7 @@ namespace FluentDocker.Tests.CoreTests.Model
         ContainerId = "xyz789",
         Name = "backend-network",
         Type = NetworkType.Overlay,
-        CustomType = null
+        CustomType = null!
       };
 
       var evt = new NetworkDisconnectEvent { EventActor = actor };

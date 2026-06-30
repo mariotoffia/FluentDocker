@@ -56,7 +56,7 @@ namespace FluentDocker.Tests.CoreTests.Testing
     {
       MockPack
           .SetupImagePull()
-          .SetupImageInspect(null)
+          .SetupImageInspect(null!)
           .SetupImageRemove();
 
       var resource = new ImageResource(

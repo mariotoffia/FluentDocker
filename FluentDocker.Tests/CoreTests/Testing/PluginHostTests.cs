@@ -37,7 +37,7 @@ namespace FluentDocker.Tests.CoreTests.Testing
     public void Add_NullPlugin_Throws()
     {
       var host = new TestPluginHost();
-      Assert.Throws<ArgumentNullException>(() => host.Add(null));
+      Assert.Throws<ArgumentNullException>(() => host.Add(null!));
     }
 
     [Fact]
@@ -85,7 +85,7 @@ namespace FluentDocker.Tests.CoreTests.Testing
       ITestPluginRegistry registry = host;
 
       Assert.Throws<ArgumentException>(
-          () => registry.RegisterFactory<FakeResource>(null, _ => new FakeResource()));
+          () => registry.RegisterFactory<FakeResource>(null!, _ => new FakeResource()));
     }
 
     [Fact]
@@ -95,7 +95,7 @@ namespace FluentDocker.Tests.CoreTests.Testing
       ITestPluginRegistry registry = host;
 
       Assert.Throws<ArgumentNullException>(
-          () => registry.RegisterFactory<FakeResource>("key", null));
+          () => registry.RegisterFactory<FakeResource>("key", null!));
     }
 
     [Fact]
@@ -116,7 +116,7 @@ namespace FluentDocker.Tests.CoreTests.Testing
     {
       var host = new TestPluginHost();
       Assert.Throws<ArgumentException>(
-          () => host.Add(new FakePlugin(null)));
+          () => host.Add(new FakePlugin(null!)));
     }
 
     [Fact]
@@ -219,7 +219,7 @@ namespace FluentDocker.Tests.CoreTests.Testing
 
     private class FakeServiceProvider : IServiceProvider
     {
-      public object GetService(Type serviceType) => null;
+      public object GetService(Type serviceType) => null!;
     }
 
     #endregion

@@ -151,7 +151,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
     [InlineData(null, 0.0)]
     public void ParsePercent_VariousInputs_ReturnsExpected(string? input, double expected)
     {
-      var result = PodmanCliContainerDriver.ParsePercent(input);
+      var result = PodmanCliContainerDriver.ParsePercent(input!); // intentional null to verify null-handling
       Assert.Equal(expected, result, 2);
     }
 
@@ -170,7 +170,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
     [InlineData(null, 0L)]
     public void ParseByteValue_VariousInputs_ReturnsExpected(string? input, long expected)
     {
-      var result = PodmanCliContainerDriver.ParseByteValue(input);
+      var result = PodmanCliContainerDriver.ParseByteValue(input!); // intentional null to verify null-handling
       Assert.Equal(expected, result);
     }
 
@@ -200,7 +200,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
     [Fact]
     public void ParseMemoryUsage_NullOrEmpty_ReturnsZeros()
     {
-      var (usage1, limit1) = PodmanCliContainerDriver.ParseMemoryUsage(null);
+      var (usage1, limit1) = PodmanCliContainerDriver.ParseMemoryUsage(null!);
       Assert.Equal(0, usage1);
       Assert.Equal(0, limit1);
 
@@ -232,7 +232,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
     [Fact]
     public void ParseIOPair_NullOrEmpty_ReturnsZeros()
     {
-      var (first1, second1) = PodmanCliContainerDriver.ParseIOPair(null);
+      var (first1, second1) = PodmanCliContainerDriver.ParseIOPair(null!);
       Assert.Equal(0, first1);
       Assert.Equal(0, second1);
 

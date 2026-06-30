@@ -12,6 +12,7 @@
     <!-- Testing adapters -->
     <PackageVersion Include="xunit.v3.extensibility.core" Version="3.2.2" />
     <PackageVersion Include="MSTest.TestFramework" Version="3.7.3" />
+    <PackageVersion Include="MSTest.TestAdapter" Version="3.7.3" />
     <PackageVersion Include="NUnit" Version="4.3.2" />
 
     <!-- Test project -->

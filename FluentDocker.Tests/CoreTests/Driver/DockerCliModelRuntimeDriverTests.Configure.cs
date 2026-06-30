@@ -46,7 +46,7 @@ namespace FluentDocker.Tests.CoreTests.Driver
       // no `--backend` is emitted and the capability `--help` probe is never spawned.
       var driver = new FakeRuntimeDriver { Responder = _ => Ok() };
       await driver.ConfigureAsync(Ctx, ModelReference.Parse("ai/x"),
-          new ModelConfigureOptions { ContextSize = 4096, Backend = backend }, TestContext.Current.CancellationToken);
+          new ModelConfigureOptions { ContextSize = 4096, Backend = backend! }, TestContext.Current.CancellationToken); // intentional null to verify null-handling
 
       Assert.DoesNotContain("--backend", driver.Commands.Single());
       Assert.DoesNotContain(driver.Commands, c => c.Contains("--help"));
@@ -224,7 +224,7 @@ namespace FluentDocker.Tests.CoreTests.Driver
       private readonly TimeSpan _probeTimeout;
       public int HelpCalls;
 
-      public BlockingProbeRuntimeDriver(TimeSpan probeTimeout) : base(null) => _probeTimeout = probeTimeout;
+      public BlockingProbeRuntimeDriver(TimeSpan probeTimeout) : base(null!) => _probeTimeout = probeTimeout;
 
       protected override TimeSpan BackendProbeTimeout => _probeTimeout;
 

@@ -154,7 +154,7 @@ namespace FluentDocker.Tests.CoreTests.Service
       {
         Id = "test-container-id",
         Name = "test-container",
-        NetworkSettings = null
+        NetworkSettings = null!
       };
       var mock = CreateContainerServiceMock(container);
 
@@ -173,7 +173,7 @@ namespace FluentDocker.Tests.CoreTests.Service
       {
         Id = "test-container-id",
         Name = "test-container",
-        NetworkSettings = new ContainerNetworkSettings { Ports = null }
+        NetworkSettings = new ContainerNetworkSettings { Ports = null! }
       };
       var mock = CreateContainerServiceMock(container);
 
@@ -208,7 +208,7 @@ namespace FluentDocker.Tests.CoreTests.Service
       // Arrange
       var ports = new Dictionary<string, HostIpEndpoint[]>
       {
-        ["5432/tcp"] = null
+        ["5432/tcp"] = null!
       };
       var container = CreateContainerWithPorts(ports);
       var mock = CreateContainerServiceMock(container);
@@ -224,7 +224,7 @@ namespace FluentDocker.Tests.CoreTests.Service
     public async Task ToHostExposedEndpointAsync_NullContainer_ReturnsNull()
     {
       // Arrange
-      var mock = CreateContainerServiceMock(null);
+      var mock = CreateContainerServiceMock(null!);
 
       // Act
       var endpoint = await mock.Object.ToHostExposedEndpointAsync("5432/tcp", TestContext.Current.CancellationToken);
@@ -332,7 +332,7 @@ namespace FluentDocker.Tests.CoreTests.Service
       var container = new Container
       {
         Id = "test-container-id",
-        NetworkSettings = null
+        NetworkSettings = null!
       };
       var mock = CreateContainerServiceMock(container);
 

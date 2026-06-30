@@ -38,7 +38,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Docker
     [Fact]
     public void ParseSize_Null_ReturnsZero()
     {
-      var result = InvokeParseSize(null);
+      var result = InvokeParseSize(null!);
 
       Assert.Equal(0L, result);
     }

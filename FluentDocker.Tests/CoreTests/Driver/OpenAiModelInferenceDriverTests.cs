@@ -68,7 +68,7 @@ namespace FluentDocker.Tests.CoreTests.Driver
 
       Assert.Null(request.Stream); // caller's object untouched
       var sent = conn.GetRequests().Single(r => r.Method == "POST");
-      Assert.Contains("\"stream\":false", sent.Body.Replace(" ", string.Empty));
+      Assert.Contains("\"stream\":false", sent.Body!.Replace(" ", string.Empty));
     }
 
     [Fact]
@@ -83,7 +83,7 @@ namespace FluentDocker.Tests.CoreTests.Driver
 
       Assert.Null(request.Stream); // caller's object untouched
       var sent = conn.GetRequests().Single(r => r.Method == "POST");
-      Assert.Contains("\"stream\":false", sent.Body.Replace(" ", string.Empty));
+      Assert.Contains("\"stream\":false", sent.Body!.Replace(" ", string.Empty));
     }
 
     [Fact]

@@ -27,10 +27,10 @@ namespace FluentDocker.Tests.CoreTests.Driver
     private sealed class FakeMgmtDriver : DockerCliModelManagementDriver
     {
       public List<string> Commands { get; } = [];
-      public Func<string, SimpleCommandResult> Responder { get; set; }
-      public Func<string, IEnumerable<string>> StreamResponder { get; set; }
+      public Func<string, SimpleCommandResult>? Responder { get; set; }
+      public Func<string, IEnumerable<string>>? StreamResponder { get; set; }
 
-      public FakeMgmtDriver() : base(null)
+      public FakeMgmtDriver() : base(null!)
       {
       }
 

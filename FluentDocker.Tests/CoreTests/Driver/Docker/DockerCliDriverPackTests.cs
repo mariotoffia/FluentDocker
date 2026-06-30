@@ -224,7 +224,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Docker
       var driversField = typeof(DockerCliDriverPack)
           .GetField("_drivers", BindingFlags.NonPublic | BindingFlags.Instance);
       Assert.NotNull(driversField);
-      driversDict = (Dictionary<Type, object>)driversField.GetValue(pack);
+      driversDict = (Dictionary<Type, object>)driversField.GetValue(pack)!;
 
       return pack;
     }
@@ -274,7 +274,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Docker
     {
       var pack = CreateInitializedPack(out _);
       typeof(DockerCliDriverPack)
-          .GetField("_modelEndpoint", BindingFlags.NonPublic | BindingFlags.Instance)
+          .GetField("_modelEndpoint", BindingFlags.NonPublic | BindingFlags.Instance)!
           .SetValue(pack, FluentDocker.Model.Models.ModelRunnerEndpoint.HostTcp());
 
       var first = pack.SysCtl<IModelInferenceDriver>("docker");
@@ -406,7 +406,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Docker
     {
       var pack = new DockerCliDriverPack();
       await Assert.ThrowsAsync<ArgumentNullException>(() =>
-          pack.InitializeAsync(null, TestContext.Current.CancellationToken));
+          pack.InitializeAsync(null!, TestContext.Current.CancellationToken));
     }
 
     #endregion

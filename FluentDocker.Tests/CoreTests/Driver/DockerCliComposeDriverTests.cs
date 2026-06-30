@@ -148,13 +148,13 @@ namespace FluentDocker.Tests.CoreTests.Driver
 
     #region Reflection Helpers
 
-    private static string InvokeQuoteArgumentIfNeeded(string arg)
+    private static string InvokeQuoteArgumentIfNeeded(string? arg)
     {
       var method = typeof(DockerCliDriverBase).GetMethod(
           "QuoteArgumentIfNeeded",
           BindingFlags.NonPublic | BindingFlags.Static);
       Assert.NotNull(method);
-      return (string)method.Invoke(null, [arg]);
+      return (string)method.Invoke(null, [arg])!;
     }
 
     private static string InvokeBuildComposeArgs(ComposeFileConfig config)
@@ -163,7 +163,7 @@ namespace FluentDocker.Tests.CoreTests.Driver
           "BuildComposeArgs",
           BindingFlags.NonPublic | BindingFlags.Static);
       Assert.NotNull(method);
-      return (string)method.Invoke(null, [config]);
+      return (string)method.Invoke(null, [config])!;
     }
 
     #endregion

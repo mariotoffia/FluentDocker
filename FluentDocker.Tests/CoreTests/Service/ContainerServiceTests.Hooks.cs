@@ -313,7 +313,7 @@ namespace FluentDocker.Tests.CoreTests.Service
 
       var kernel = await MockKernelBuilderExtensions.CreateWithMockDriverAsync("docker", mockPack);
       var service = new ContainerService(kernel, "docker", "c1", "nginx", "test");
-      IServiceAsync capturedService = null;
+      IServiceAsync? capturedService = null;
 
       service.StateChange += (_, args) =>
       {

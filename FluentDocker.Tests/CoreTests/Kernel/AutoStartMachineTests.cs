@@ -116,7 +116,7 @@ namespace FluentDocker.Tests.CoreTests.Kernel
     public void WithAutoStartMachine_NullAction_SetsDefaultConfig()
     {
       var config = BuildPodmanDriverConfig(b => b
-          .WithAutoStartMachine(null));
+          .WithAutoStartMachine(null!));
 
       Assert.NotNull(config.AutoStartMachine);
       Assert.Null(config.AutoStartMachine.MachineName);
@@ -172,7 +172,7 @@ namespace FluentDocker.Tests.CoreTests.Kernel
       var contextProp = configObj.GetType().GetProperty("Context");
       var isDefaultProp = configObj.GetType().GetProperty("IsDefault");
 
-      var context = (DriverContext)contextProp?.GetValue(configObj);
+      var context = (DriverContext)contextProp?.GetValue(configObj)!;
       var isDefault = (bool)(isDefaultProp?.GetValue(configObj) ?? false);
 
       return new DriverConfigResult
@@ -184,7 +184,7 @@ namespace FluentDocker.Tests.CoreTests.Kernel
 
     private class DriverConfigResult
     {
-      public required AutoStartMachineConfig AutoStartMachine { get; set; }
+      public required AutoStartMachineConfig? AutoStartMachine { get; set; }
       public bool IsDefault { get; set; }
     }
 

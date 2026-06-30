@@ -264,9 +264,14 @@ public class RedisTests : IClassFixture<DynamicFixture>
 
 ### `XunitResourceFixture<TResource>`
 
-Generic fixture for any `ITestResource`, including plugin resources:
+Generic fixture for any `ITestResource`, including plugin resources and
+`ModelResource` (Docker Model Runner). `ContainerResource`/`ModelResource` live
+in `FluentDocker.Testing.Core`:
 
 ```csharp
+using FluentDocker.Testing.Core;
+using FluentDocker.Testing.Xunit;
+
 public class CustomFixture : XunitResourceFixture<ContainerResource>
 {
     public CustomFixture()
@@ -303,6 +308,141 @@ public class ManualFixture : XunitContainerFixture
 
 All support `Configure(...)` with optional `kernelFactory` and
 `DockerResourceOptions`.
+
+---
+
+## Docker Model Runner
+
+`ModelResource` (in `FluentDocker.Testing.Core`) loads a Docker Model Runner
+model for the duration of a test and unloads it on dispose. It exposes
+`resource.Model` (the parsed `ModelReference`, readable before init),
+`resource.Service` (`IModelService`), and `resource.Runner` (`IModelRunner` —
+`ChatAsync`, `ChatStreamAsync`, `EmbedAsync`, …).
+
+Because a `ModelResource` is just an `ITestResource`, drive it with
+`XunitResourceFixture<ModelResource>` exactly like any other resource.
+
+### Skip cleanly when the runner is down
+
+The complete, nullable-enabled test below **probes Docker Model Runner first**,
+creates the `ModelResource` only when it is running, and — to keep the skip
+clean — manages the resource manually via `XunitResourceFixture<ModelResource>`
++ `await fixture.InitializeAsync(...)`. When the runner is absent it
+`Assert.Skip`s, unless `FLUENTDOCKER_REQUIRE_DMR=1` forces a hard fail (so a
+broken DMR path can't pass CI green with zero real coverage). The fixture's
+`IAsyncLifetime.DisposeAsync` unloads the model and disposes the kernel.
+
+```csharp
+#nullable enable
+using System;
+using System.Threading;
+using System.Threading.Tasks;
+using FluentDocker.Drivers;
+using FluentDocker.Kernel;
+using FluentDocker.Model.Drivers;
+using FluentDocker.Model.Models;
+using FluentDocker.Testing.Core;
+using FluentDocker.Testing.Xunit;
+using Xunit;
+
+[Trait("Category", "Integration")]
+[Trait("Requires", "Dmr")]
+public sealed class SmolLmModelTests : IAsyncLifetime
+{
+    private readonly XunitResourceFixture<ModelResource> _fixture = new();
+    private bool _skipped;
+
+    public async ValueTask InitializeAsync()
+    {
+        var ct = TestContext.Current.CancellationToken;
+
+        // Probe DMR through its runtime port on a throwaway kernel.
+        await using (var probe = await ResourceLifecycle.CreateDefaultDockerKernelAsync())
+        {
+            var driverId = probe.DefaultDriverId;
+            var runtime = probe.SysCtl<IModelRuntimeDriver>(driverId);
+            var status = await runtime.StatusAsync(new DriverContext(driverId), ct);
+            var running = status.Success && status.Data.Running;
+
+            if (!running)
+            {
+                // Required lanes hard-fail; PR/local lanes skip cleanly.
+                if (string.IsNullOrEmpty(Environment.GetEnvironmentVariable("FLUENTDOCKER_REQUIRE_DMR")))
+                {
+                    _skipped = true;
+                    return; // no resource created → DisposeAsync is a no-op
+                }
+
+                throw new InvalidOperationException(
+                    "FLUENTDOCKER_REQUIRE_DMR=1 but Docker Model Runner is not running.");
+            }
+        }
+
+        // Runner is up — load the model. Pin a context size to dodge the DMR
+        // v1.2.1 auto-fit crash on chat models loaded without one.
+        await _fixture.InitializeAsync(
+            k => new ModelResource(k, "ai/smollm2:latest", m => m.WithContextSize(4096)),
+            cancellationToken: ct);
+    }
+
+    public ValueTask DisposeAsync() => _fixture.DisposeAsync();
+
+    [Fact]
+    public async Task Smollm_Chats()
+    {
+        Assert.SkipWhen(_skipped, "Docker Model Runner is not running.");
+        var ct = TestContext.Current.CancellationToken;
+
+        var resource = _fixture.Resource;
+        Assert.Equal("ai/smollm2:latest", resource.Model.ToString());
+
+        var reply = await resource.Runner.ChatAsync("Reply with a single word.", ct);
+        Assert.False(string.IsNullOrWhiteSpace(reply));
+    }
+
+    [Fact]
+    public async Task Smollm_Embeds()
+    {
+        Assert.SkipWhen(_skipped, "Docker Model Runner is not running.");
+        var ct = TestContext.Current.CancellationToken;
+
+        var vector = await _fixture.Resource.Runner.EmbedAsync("hello world", null, ct);
+        Assert.NotEmpty(vector);
+    }
+}
+```
+
+### `IClassFixture` shorthand
+
+When you don't need the conditional skip (e.g. a lane where the runner is
+always present), the shorthand `IClassFixture<>` form is enough:
+
+```csharp
+using FluentDocker.Testing.Core;
+using FluentDocker.Testing.Xunit;
+using Xunit;
+
+public sealed class SmolLmFixture : XunitResourceFixture<ModelResource>
+{
+    public SmolLmFixture()
+        => Configure(k => new ModelResource(k, "ai/smollm2:latest",
+            m => m.WithContextSize(4096)));
+}
+
+public sealed class SmolLmTests : IClassFixture<SmolLmFixture>
+{
+    private readonly SmolLmFixture _f;
+    public SmolLmTests(SmolLmFixture f) => _f = f;
+
+    [Fact]
+    public void Model_IsLoaded() => Assert.NotNull(_f.Resource.Runner);
+}
+```
+
+> The `IClassFixture<>` form loads the model in the fixture *before* any test
+> body runs, so a down runner fails the fixture rather than reaching
+> `Assert.Skip`. Use the probe-first `IAsyncLifetime` pattern above when you
+> need a clean skip.
 
 ---
 

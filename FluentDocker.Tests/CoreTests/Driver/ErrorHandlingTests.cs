@@ -108,7 +108,7 @@ namespace FluentDocker.Tests.CoreTests.Driver
 
       // Assert
       Assert.Same(inner, ex.InnerException);
-      Assert.Equal("Inner error", ex.InnerException.Message);
+      Assert.Equal("Inner error", ex.InnerException!.Message);
     }
 
     [Fact]

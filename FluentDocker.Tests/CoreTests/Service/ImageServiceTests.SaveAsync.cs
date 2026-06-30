@@ -90,7 +90,7 @@ namespace FluentDocker.Tests.CoreTests.Service
 
       var kernel = await MockKernelBuilderExtensions.CreateWithMockDriverAsync("docker", mockPack);
       // No repository => FullName falls back to imageId
-      var service = new ImageService(kernel, "docker", "sha256:norepository", null, "latest");
+      var service = new ImageService(kernel, "docker", "sha256:norepository", null!, "latest");
 
       try
       {

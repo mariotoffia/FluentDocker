@@ -259,7 +259,7 @@ namespace FluentDocker.Tests.CoreTests.Testing
       SetupRemoveDrivers();
 
       var result = await OrphanCleanup.CleanupOrphanedResourcesAsync(
-          Kernel, DriverId, currentSessionId: null,
+          Kernel, DriverId, currentSessionId: null!,
           TestContext.Current.CancellationToken);
 
       Assert.Equal(1, result.ContainersRemoved);

@@ -226,7 +226,7 @@ namespace FluentDocker.Tests.CoreTests.Model
     public void ChatCompletionRequest_CopyCtor_NullCollections_CopySafe()
     {
       // A request with null lists must copy without NullReferenceException and yield null lists.
-      var original = new ChatCompletionRequest { Model = "ai/x", Messages = null, Stop = null };
+      var original = new ChatCompletionRequest { Model = "ai/x", Messages = null!, Stop = null! };
       var copy = new ChatCompletionRequest(original);
 
       Assert.Equal("ai/x", copy.Model);
@@ -237,7 +237,7 @@ namespace FluentDocker.Tests.CoreTests.Model
     [Fact]
     public void CompletionRequest_CopyCtor_NullStop_CopySafe()
     {
-      var original = new CompletionRequest { Model = "ai/x", Stop = null };
+      var original = new CompletionRequest { Model = "ai/x", Stop = null! };
       var copy = new CompletionRequest(original);
 
       Assert.Equal("ai/x", copy.Model);

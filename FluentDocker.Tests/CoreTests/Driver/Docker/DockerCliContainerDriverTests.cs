@@ -41,7 +41,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Docker
     [Fact]
     public void QuoteArgumentIfNeeded_NullString_ReturnsQuotedEmpty()
     {
-      Assert.Equal("\"\"", Quote(null));
+      Assert.Equal("\"\"", Quote(null!));
     }
 
     [Fact]
@@ -309,7 +309,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Docker
           "QuoteArgumentIfNeeded",
           BindingFlags.NonPublic | BindingFlags.Static);
       Assert.NotNull(method);
-      return (string)method.Invoke(null, [arg]);
+      return (string)method.Invoke(null, [arg])!;
     }
 
     /// <summary>

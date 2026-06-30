@@ -154,7 +154,7 @@ namespace FluentDocker.Tests.CoreTests.Model
     public void NullString_ImplicitConversion_ReturnsNull()
     {
       string? nullString = null;
-      TemplateString ts = nullString;
+      TemplateString ts = nullString!; // intentional null to verify null-handling
       Assert.Null(ts);
     }
 

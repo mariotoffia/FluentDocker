@@ -14,7 +14,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
   /// <summary>
   /// A recorded request captured by <see cref="MockDockerApiConnection"/>.
   /// </summary>
-  public sealed record CapturedRequest(string Method, string Path, string Body);
+  public sealed record CapturedRequest(string Method, string Path, string? Body);
 
   /// <summary>
   /// In-memory mock of <see cref="IDockerApiConnection"/> that returns canned
@@ -26,9 +26,9 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
         string Method,
         string PathContains,
         HttpStatusCode StatusCode,
-        string JsonBody,
-        string StreamContent,
-        byte[] StreamBytes);
+        string? JsonBody,
+        string? StreamContent,
+        byte[]? StreamBytes);
 
     private readonly List<ResponseEntry> _entries = [];
     private readonly List<CapturedRequest> _requests = [];
@@ -163,7 +163,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
 
     // ── Internals ───────────────────────────────────────────────────
 
-    private void Record(string method, string path, string body)
+    private void Record(string method, string path, string? body)
     {
       _requests.Add(new CapturedRequest(method, path, body));
     }

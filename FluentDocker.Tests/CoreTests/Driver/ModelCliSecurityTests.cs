@@ -93,7 +93,7 @@ namespace FluentDocker.Tests.CoreTests.Driver
     /// a quoted token (i.e. no shell-active <c>$(</c>/<c>`</c>/<c>;</c>/<c>|</c>/
     /// <c>&amp;</c> escaped the argv boundary because of this value).
     /// </summary>
-    private static void AssertNeutralized(string command, string raw)
+    private static void AssertNeutralized(string? command, string raw)
     {
       Assert.NotNull(command);
 
@@ -173,7 +173,7 @@ namespace FluentDocker.Tests.CoreTests.Driver
       var driver = new CapturingMgmtDriver();
       var parsed = ModelReference.Parse(reference);
 
-      await driver.PullAsync(Ctx, parsed, null, TestContext.Current.CancellationToken);
+      await driver.PullAsync(Ctx, parsed, null!, TestContext.Current.CancellationToken);
 
       AssertNeutralized(driver.LastCommand, parsed.ToString());
     }
@@ -353,9 +353,9 @@ namespace FluentDocker.Tests.CoreTests.Driver
     /// <summary>A management driver that captures the last emitted command.</summary>
     private sealed class CapturingMgmtDriver : DockerCliModelManagementDriver
     {
-      public string LastCommand { get; private set; }
+      public string? LastCommand { get; private set; }
 
-      public CapturingMgmtDriver() : base(null)
+      public CapturingMgmtDriver() : base(null!)
       {
       }
 

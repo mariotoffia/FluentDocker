@@ -142,7 +142,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
     [Fact]
     public void ParseDiskUsageOutput_NullInput_ReturnsEmptyInfo()
     {
-      var info = PodmanCliSystemDriver.ParseDiskUsageOutput(null);
+      var info = PodmanCliSystemDriver.ParseDiskUsageOutput(null!);
 
       Assert.NotNull(info);
       Assert.Equal(0, info.TotalSize);

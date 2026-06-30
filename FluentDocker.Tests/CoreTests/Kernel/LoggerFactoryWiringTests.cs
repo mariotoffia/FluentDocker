@@ -59,7 +59,7 @@ namespace FluentDocker.Tests.CoreTests.Kernel
 
       using var kernel = await FluentDockerKernel.Create(factory)
           .WithDriver("probe", b => b.UseCustomDriverPack(new ProbeDriverPack()).AsDefault())
-          .BuildAsync();
+          .BuildAsync(TestContext.Current.CancellationToken);
 
       Assert.Same(factory, kernel.LoggerFactory);
     }
@@ -72,7 +72,7 @@ namespace FluentDocker.Tests.CoreTests.Kernel
 
       using var kernel = await FluentDockerKernel.Create(factory)
           .WithDriver("probe", b => b.UseCustomDriverPack(probe).AsDefault())
-          .BuildAsync();
+          .BuildAsync(TestContext.Current.CancellationToken);
 
       // The pack records the factory it received from DriverContext.LoggerFactory.
       Assert.Same(factory, probe.ObservedFactory);
@@ -86,7 +86,7 @@ namespace FluentDocker.Tests.CoreTests.Kernel
 
       var kernel = await FluentDockerKernel.Create(factory)
           .WithDriver("fail", b => b.UseCustomDriverPack(failing).AsDefault())
-          .BuildAsync();
+          .BuildAsync(TestContext.Current.CancellationToken);
 
       await kernel.DisposeAsync();
 
@@ -113,7 +113,7 @@ namespace FluentDocker.Tests.CoreTests.Kernel
       private readonly string _category = category;
       private readonly ConcurrentQueue<LogRecord> _records = records;
 
-      public IDisposable BeginScope<TState>(TState state) where TState : notnull => null;
+      public IDisposable BeginScope<TState>(TState state) where TState : notnull => null!;
       public bool IsEnabled(LogLevel logLevel) => true;
       public void Log<TState>(LogLevel logLevel, EventId eventId, TState state,
           Exception? exception, Func<TState, Exception?, string> formatter)
@@ -124,7 +124,7 @@ namespace FluentDocker.Tests.CoreTests.Kernel
 
     private sealed class ProbeDriverPack : IDriverPack
     {
-      public ILoggerFactory ObservedFactory { get; private set; }
+      public ILoggerFactory? ObservedFactory { get; private set; }
 
       public DriverType Type => DriverType.DockerCli;
       public RuntimeType Runtime => RuntimeType.Docker;
@@ -140,11 +140,11 @@ namespace FluentDocker.Tests.CoreTests.Kernel
 
       public Task<bool> IsHealthyAsync(CancellationToken ct = default) => Task.FromResult(true);
 
-      public T SysCtl<T>(string driverId) where T : class => null;
-      public object SysCtl(string driverId, Type interfaceType) => null;
+      public T SysCtl<T>(string driverId) where T : class => null!;
+      public object SysCtl(string driverId, Type interfaceType) => null!;
       public bool TrySysCtl<T>(string driverId, out T instance) where T : class
-      { instance = null; return false; }
-      public bool TryResolve(Type t, out object impl) { impl = null; return false; }
+      { instance = null!; return false; }
+      public bool TryResolve(Type t, out object impl) { impl = null!; return false; }
       public System.Collections.Generic.IReadOnlyCollection<Type> GetSupportedInterfaces()
           => [];
     }
@@ -162,11 +162,11 @@ namespace FluentDocker.Tests.CoreTests.Kernel
 
       public Task<bool> IsHealthyAsync(CancellationToken ct = default) => Task.FromResult(true);
 
-      public T SysCtl<T>(string driverId) where T : class => null;
-      public object SysCtl(string driverId, Type interfaceType) => null;
+      public T SysCtl<T>(string driverId) where T : class => null!;
+      public object SysCtl(string driverId, Type interfaceType) => null!;
       public bool TrySysCtl<T>(string driverId, out T instance) where T : class
-      { instance = null; return false; }
-      public bool TryResolve(Type t, out object impl) { impl = null; return false; }
+      { instance = null!; return false; }
+      public bool TryResolve(Type t, out object impl) { impl = null!; return false; }
       public System.Collections.Generic.IReadOnlyCollection<Type> GetSupportedInterfaces()
           => [];
 

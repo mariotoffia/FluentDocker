@@ -75,7 +75,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
         await File.WriteAllTextAsync(dockerfile, "FROM alpine:3.20\n",
             TestContext.Current.CancellationToken);
 
-        ImageBuildConfig captured = null;
+        ImageBuildConfig? captured = null;
         MockPack.ImageDriver
             .Setup(d => d.BuildAsync(
                 It.IsAny<DriverContext>(),

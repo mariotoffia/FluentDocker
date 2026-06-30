@@ -75,7 +75,7 @@ namespace FluentDocker.Tests.CoreTests.Driver
       // VerifyTls on, but NO custom CA is configured, so the platform validates the chain and
       // rejects the untrusted self-signed root: the handshake fails. PingAsync maps a transport
       // failure to "unreachable" (false) rather than reporting the endpoint as up.
-      var config = new ModelApiConnectionConfig { CertificatePath = null, VerifyTls = true };
+      var config = new ModelApiConnectionConfig { CertificatePath = null!, VerifyTls = true };
       await using var conn = new ModelApiConnection(
           ModelRunnerEndpoint.Custom(new Uri($"https://localhost:{server.Port}")), config);
 
@@ -91,7 +91,7 @@ namespace FluentDocker.Tests.CoreTests.Driver
 
       // Explicit opt-out: VerifyTls=false accepts ANY server cert, so the same untrusted
       // self-signed cert now completes the handshake and the ping reports reachable.
-      var config = new ModelApiConnectionConfig { CertificatePath = null, VerifyTls = false };
+      var config = new ModelApiConnectionConfig { CertificatePath = null!, VerifyTls = false };
       await using var conn = new ModelApiConnection(
           ModelRunnerEndpoint.Custom(new Uri($"https://localhost:{server.Port}")), config);
 

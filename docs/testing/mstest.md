@@ -11,9 +11,52 @@ Package: `FluentDocker.Testing.MsTest`
 
 ## Step by Step
 
+- Setup: [Project setup / requirements](#project-setup--requirements)
 - Basics: [Helper Methods](#helper-methods), [Container Example](#container-example), [Per-Test Lifecycle](#per-test-lifecycle)
 - Intermediate: [Compose Example](#compose-example), [Swarm Stack Example](#swarm-stack-example), [Podman Kubernetes Example](#podman-kubernetes-example)
-- Advanced: [Generic / Custom Resource](#generic--custom-resource)
+- Advanced: [Generic / Custom Resource](#generic--custom-resource), [Image / Network / Volume (generic path)](#image--network--volume-generic-path), [Docker Model Runner (ModelResource)](#docker-model-runner-modelresource)
+
+## Project setup / requirements
+
+`FluentDocker.Testing.MsTest` references `MSTest.TestFramework`, so referencing
+it gives you the `[TestClass]` / `[TestMethod]` attribute set transitively.
+That alone is **not** runnable — MSTest still needs the test host and adapter.
+A consumer test project needs:
+
+| Package | Why | Transitive from this package? |
+| --- | --- | --- |
+| `Microsoft.NET.Test.Sdk` | VSTest test host | No — add explicitly |
+| `MSTest.TestAdapter` | Discovers/runs `[TestClass]`es | No — add explicitly |
+| `MSTest.TestFramework` | Attributes + asserts | Yes (via `FluentDocker.Testing.MsTest`); add explicitly only to pin the version |
+
+Supported MSTest version: **3.7.3** (what `FluentDocker.Testing.MsTest`
+references). Minimal consumer `.csproj`:
+
+```xml
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.12.0" />
+    <PackageReference Include="MSTest.TestAdapter" Version="3.7.3" />
+    <PackageReference Include="MSTest.TestFramework" Version="3.7.3" />
+    <PackageReference Include="FluentDocker.Testing.MsTest" Version="3.2.0" />
+  </ItemGroup>
+
+</Project>
+```
+
+`<IsPackable>false</IsPackable>` is unnecessary for a consumer test project
+(omit it). The repo's own `FluentDocker.Testing.MsTest.RunnerTests` project is a
+working reference: it uses exactly `Microsoft.NET.Test.Sdk`,
+`MSTest.TestAdapter`, and `MSTest.TestFramework` plus a `ProjectReference` to
+`FluentDocker.Testing.MsTest`. As an alternative, the modern `MSTest.Sdk`
+meta-package (`<Project Sdk="MSTest.Sdk/3.7.3">`) bundles host + adapter +
+framework; then you only add `FluentDocker.Testing.MsTest`.
 
 ## Helper Methods
 
@@ -131,3 +174,120 @@ public static async Task ClassInit(TestContext context)
             c => c.UseImage("redis:alpine").WaitForPort("6379/tcp")));
 }
 ```
+
+### Image / Network / Volume (generic path)
+
+There are no typed `CreateImageAsync` / `CreateNetworkAsync` /
+`CreateVolumeAsync` helpers — create those resources through the same generic
+`CreateResourceAsync<T>` path. The constructors live in
+`FluentDocker.Testing.Core`:
+
+```csharp
+using FluentDocker.Drivers;          // NetworkCreateConfig, VolumeCreateConfig
+using FluentDocker.Testing.Core;     // ImageResource, NetworkResource, VolumeResource
+
+// Image: pull on init; pass removeOnDispose: true to also remove it on cleanup.
+(_kernel, var image) = await MsTestResourceHelpers.CreateResourceAsync<ImageResource>(
+    k => new ImageResource(k, "alpine", tag: "3.20", removeOnDispose: false));
+
+// Network: configure via the NetworkCreateConfig callback (name auto-generated if unset).
+(_kernel, var network) = await MsTestResourceHelpers.CreateResourceAsync<NetworkResource>(
+    k => new NetworkResource(k, cfg => cfg.Driver = "bridge"));
+
+// Volume: configure via the VolumeCreateConfig callback (name auto-generated if unset).
+(_kernel, var volume) = await MsTestResourceHelpers.CreateResourceAsync<VolumeResource>(
+    k => new VolumeResource(k, cfg => cfg.Driver = "local"));
+```
+
+Dispose each with `await MsTestResourceHelpers.DisposeAsync(resource, _kernel);`
+in `[ClassCleanup]` / `[TestCleanup]`, exactly like the typed helpers.
+
+### Docker Model Runner (ModelResource)
+
+`CreateResourceAsync<ModelResource>` loads a Docker Model Runner model for the
+test and unloads it on cleanup. Probe the runner first and skip cleanly when it
+is unavailable, unless `FLUENTDOCKER_REQUIRE_DMR=1` (then hard-fail). Dispose
+with the adapter helper — `MsTestResourceHelpers.DisposeAsync(resource, kernel)`
+— not `ResourceLifecycle.DisposeAsync`.
+
+```csharp
+#nullable enable
+using System;
+using System.Threading;
+using System.Threading.Tasks;
+using FluentDocker.Drivers;
+using FluentDocker.Kernel;
+using FluentDocker.Model.Drivers;
+using FluentDocker.Model.Models;
+using FluentDocker.Testing.Core;
+using FluentDocker.Testing.MsTest;
+using Microsoft.VisualStudio.TestTools.UnitTesting;
+
+[TestClass]
+public sealed class SmolLmTests
+{
+    private static FluentDockerKernel? _kernel;
+    private static ModelResource? _model;
+
+    [ClassInitialize]
+    public static async Task ClassInit(TestContext context)
+    {
+        var ct = context.CancellationTokenSource.Token;
+
+        // Probe Docker Model Runner with its own short-lived kernel.
+        var probeKernel = await ResourceLifecycle.CreateDefaultDockerKernelAsync();
+        bool running;
+        try
+        {
+            var driverId = probeKernel.DefaultDriverId;
+            var runtime = probeKernel.SysCtl<IModelRuntimeDriver>(driverId);
+            var status = await runtime.StatusAsync(new DriverContext(driverId), ct);
+            running = status.Success && status.Data.Running;
+        }
+        finally
+        {
+            await probeKernel.DisposeAsync();
+        }
+
+        if (!running)
+        {
+            var require = Environment.GetEnvironmentVariable("FLUENTDOCKER_REQUIRE_DMR");
+            if (string.IsNullOrEmpty(require))
+                Assert.Inconclusive("Docker Model Runner not available; skipping. " +
+                    "Set FLUENTDOCKER_REQUIRE_DMR=1 to require it.");
+            throw new InvalidOperationException(
+                "FLUENTDOCKER_REQUIRE_DMR=1 but Docker Model Runner is not running.");
+        }
+
+        (_kernel, _model) = await MsTestResourceHelpers.CreateResourceAsync<ModelResource>(
+            k => new ModelResource(k, "ai/smollm2:latest"),
+            cancellationToken: ct);
+    }
+
+    [ClassCleanup]
+    public static async Task ClassCleanup()
+        => await MsTestResourceHelpers.DisposeAsync(_model, _kernel);
+
+    [TestMethod]
+    public async Task Chat_Responds()
+    {
+        Assert.IsNotNull(_model);
+        var answer = await _model!.Runner.ChatAsync("Say hello in one word.");
+        Assert.IsFalse(string.IsNullOrWhiteSpace(answer));
+    }
+
+    [TestMethod]
+    public async Task Embeds_Vector()
+    {
+        Assert.IsNotNull(_model);
+        var vector = await _model!.Runner.EmbedAsync("hello world");
+        Assert.IsTrue(vector.Count > 0);
+    }
+}
+```
+
+`StatusAsync` takes only `(DriverContext, ct)` — no model argument — and the
+flag is `status.Data.Running`. `_model.Runner` is the `IModelRunner`,
+`_model.Service` the `IModelService`, and `_model.Model` the parsed
+`ModelReference`. For per-test isolation, move the probe + create into
+`[TestInitialize]` and the dispose into `[TestCleanup]` with instance fields.

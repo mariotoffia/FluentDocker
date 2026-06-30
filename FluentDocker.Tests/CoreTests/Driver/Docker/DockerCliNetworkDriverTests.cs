@@ -346,7 +346,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Docker
     [Fact]
     public void NetworkListFilterArgs_NullFilter_NoFilterFlags()
     {
-      var args = BuildNetworkListFilterArgs(null);
+      var args = BuildNetworkListFilterArgs(null!);
 
       Assert.DoesNotContain("--filter", args);
     }

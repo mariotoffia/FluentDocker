@@ -69,7 +69,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
     [Fact]
     public void ParseContainerList_NullString_ReturnsEmptyList()
     {
-      var result = InvokeParseContainerList(null);
+      var result = InvokeParseContainerList(null!);
       Assert.Empty(result);
     }
 
@@ -385,7 +385,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
     [Fact]
     public void QuoteArgumentIfNeeded_Null_ReturnsQuotedEmpty()
     {
-      var result = InvokeQuoteArgumentIfNeeded(null);
+      var result = InvokeQuoteArgumentIfNeeded(null!);
       Assert.Equal("\"\"", result);
     }
 
@@ -422,7 +422,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
           "BuildCreateArgs",
           BindingFlags.NonPublic | BindingFlags.Static);
       Assert.NotNull(method);
-      return (string)method.Invoke(null, [command, config, detach]);
+      return (string)method.Invoke(null, [command, config, detach])!;
     }
 
     private static ContainerProcesses InvokeParseTopOutput(string output)
@@ -431,7 +431,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
           "ParseTopOutput",
           BindingFlags.NonPublic | BindingFlags.Static);
       Assert.NotNull(method);
-      return (ContainerProcesses)method.Invoke(null, [output]);
+      return (ContainerProcesses)method.Invoke(null, [output])!;
     }
 
     private static IList<FilesystemChange> InvokeParseDiffOutput(string output)
@@ -440,7 +440,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
           "ParseDiffOutput",
           BindingFlags.NonPublic | BindingFlags.Static);
       Assert.NotNull(method);
-      return (IList<FilesystemChange>)method.Invoke(null, [output]);
+      return (IList<FilesystemChange>)method.Invoke(null, [output])!;
     }
 
     private static string InvokeQuoteArgumentIfNeeded(string arg)
@@ -449,7 +449,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
           "QuoteArgumentIfNeeded",
           BindingFlags.NonPublic | BindingFlags.Static);
       Assert.NotNull(method);
-      return (string)method.Invoke(null, [arg]);
+      return (string)method.Invoke(null, [arg])!;
     }
 
     #endregion

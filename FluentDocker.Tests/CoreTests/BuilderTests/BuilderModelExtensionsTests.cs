@@ -132,8 +132,8 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
         // A SECOND registered driver "remote" whose inference returns "from-remote".
         var remote = new MockDriverPack().SetupModelChat("from-remote").EnableModelDrivers();
         var remoteCtx = new DriverContext("remote");
-        await remote.InitializeAsync(remoteCtx);
-        await kernel.RegisterDriverPackAsync("remote", remote, remoteCtx);
+        await remote.InitializeAsync(remoteCtx, TestContext.Current.CancellationToken);
+        await kernel.RegisterDriverPackAsync("remote", remote, remoteCtx, TestContext.Current.CancellationToken);
 
         await using var runner = await new Builder().WithinDriver("docker", kernel)
             .UseModelRunner()
@@ -217,7 +217,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
     {
       // The owned-resource disposal contract the builder relies on for cleanup.
       var kernel = await FluentDocker.Kernel.FluentDockerKernel
-          .Create(Microsoft.Extensions.Logging.Abstractions.NullLoggerFactory.Instance).BuildAsync();
+          .Create(Microsoft.Extensions.Logging.Abstractions.NullLoggerFactory.Instance).BuildAsync(TestContext.Current.CancellationToken);
       await using (kernel)
       {
         var owned = new DisposeSpy();
@@ -443,8 +443,8 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
       {
         var alt = new MockDriverPack().SetupModelChat("from-alt").EnableModelDrivers();
         var altCtx = new DriverContext("alt");
-        await alt.InitializeAsync(altCtx);
-        await kernel.RegisterDriverPackAsync("alt", alt, altCtx);
+        await alt.InitializeAsync(altCtx, TestContext.Current.CancellationToken);
+        await kernel.RegisterDriverPackAsync("alt", alt, altCtx, TestContext.Current.CancellationToken);
 
         var inst = new Mock<IModelInferenceDriver>();
         inst.Setup(d => d.ChatCompletionAsync(It.IsAny<DriverContext>(), It.IsAny<ChatCompletionRequest>(), It.IsAny<CancellationToken>()))
@@ -472,8 +472,8 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
       {
         var alt = new MockDriverPack().SetupModelChat("from-alt").EnableModelDrivers();
         var altCtx = new DriverContext("alt");
-        await alt.InitializeAsync(altCtx);
-        await kernel.RegisterDriverPackAsync("alt", alt, altCtx);
+        await alt.InitializeAsync(altCtx, TestContext.Current.CancellationToken);
+        await kernel.RegisterDriverPackAsync("alt", alt, altCtx, TestContext.Current.CancellationToken);
 
         var inst = new Mock<IModelInferenceDriver>();
         inst.Setup(d => d.ChatCompletionAsync(It.IsAny<DriverContext>(), It.IsAny<ChatCompletionRequest>(), It.IsAny<CancellationToken>()))

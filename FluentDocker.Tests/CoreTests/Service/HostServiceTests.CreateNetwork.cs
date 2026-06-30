@@ -25,7 +25,7 @@ namespace FluentDocker.Tests.CoreTests.Service
     public async Task CreateNetworkAsync_WithConfig_PassesAllFieldsToDriver()
     {
       var mockPack = new MockDriverPack();
-      NetworkCreateConfig captured = null;
+      NetworkCreateConfig? captured = null;
       mockPack.NetworkDriver
           .Setup(d => d.CreateAsync(
               It.IsAny<DriverContext>(),
@@ -73,7 +73,7 @@ namespace FluentDocker.Tests.CoreTests.Service
     public async Task CreateNetworkAsync_NullConfig_UsesDefaultsAndAppliesName()
     {
       var mockPack = new MockDriverPack();
-      NetworkCreateConfig captured = null;
+      NetworkCreateConfig? captured = null;
       mockPack.NetworkDriver
           .Setup(d => d.CreateAsync(
               It.IsAny<DriverContext>(),
@@ -104,7 +104,7 @@ namespace FluentDocker.Tests.CoreTests.Service
     public async Task CreateNetworkAsync_NameParameter_OverridesConfigName()
     {
       var mockPack = new MockDriverPack();
-      NetworkCreateConfig captured = null;
+      NetworkCreateConfig? captured = null;
       mockPack.NetworkDriver
           .Setup(d => d.CreateAsync(
               It.IsAny<DriverContext>(),

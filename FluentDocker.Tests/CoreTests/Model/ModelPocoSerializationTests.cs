@@ -70,7 +70,7 @@ namespace FluentDocker.Tests.CoreTests.Model
         Running = true,
         Backend = "llama.cpp",
         Endpoint = new Uri("http://localhost:12434"),
-        Error = null
+        Error = null!
       };
 
       var back = JsonHelper.TryDeserialize<ModelRunnerStatus>(JsonHelper.Serialize(status));

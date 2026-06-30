@@ -79,7 +79,7 @@ namespace FluentDocker.Tests.CoreTests.Testing
     public void Constructor_NullKernel_Throws()
     {
       Assert.Throws<ArgumentNullException>(
-          () => new ComposeResource(null, _ => { }));
+          () => new ComposeResource(null!, _ => { }));
     }
 
     [Fact]

@@ -86,7 +86,7 @@ namespace FluentDocker.Tests.CoreTests.Driver
     public async Task LoadAsync_NullOptions_DefaultsToDetached_NoExtraFlags()
     {
       var driver = new FakeRuntimeDriver { Responder = _ => Ok() };
-      await driver.LoadAsync(Ctx, ModelReference.Parse("ai/x"), null, TestContext.Current.CancellationToken);
+      await driver.LoadAsync(Ctx, ModelReference.Parse("ai/x"), null!, TestContext.Current.CancellationToken);
 
       var cmd = driver.Commands.Single();
       Assert.Contains("model run", cmd);

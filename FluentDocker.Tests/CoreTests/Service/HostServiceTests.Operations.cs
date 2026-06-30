@@ -412,7 +412,7 @@ namespace FluentDocker.Tests.CoreTests.Service
     [Fact]
     public async Task CreateContainerAsync_FullConfig_MapsAllOptions()
     {
-      ContainerCreateConfig capturedConfig = null;
+      ContainerCreateConfig? capturedConfig = null;
       var mockPack = new MockDriverPack();
       mockPack.ContainerDriver
           .Setup(d => d.CreateAsync(

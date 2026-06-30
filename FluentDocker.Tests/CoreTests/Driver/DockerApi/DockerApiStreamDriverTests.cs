@@ -135,7 +135,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
       var (driver, _) = CreateDriver();
 
       var statsList = new List<ContainerStats>();
-      await foreach (var s in driver.StreamStatsAsync(Ctx, null, cancellationToken: TestContext.Current.CancellationToken))
+      await foreach (var s in driver.StreamStatsAsync(Ctx, null!, cancellationToken: TestContext.Current.CancellationToken))
         statsList.Add(s);
 
       Assert.Empty(statsList);

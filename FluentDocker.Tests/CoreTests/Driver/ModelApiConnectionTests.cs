@@ -153,7 +153,7 @@ namespace FluentDocker.Tests.CoreTests.Driver
     [Fact]
     public async Task PostAsync_SendsBody()
     {
-      string captured = null;
+      string? captured = null;
       using var handler = new FuncHandler(req =>
       {
         captured = req.Content!.ReadAsStringAsync().GetAwaiter().GetResult();

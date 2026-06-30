@@ -77,7 +77,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
     public void BuildStreamStatsArgs_NullContainerId_OmitsContainerId()
     {
       var config = new StreamStatsConfig();
-      var result = PodmanCliStreamDriver.BuildStreamStatsArgs(null, config);
+      var result = PodmanCliStreamDriver.BuildStreamStatsArgs(null!, config);
 
       Assert.Equal("stats --format json", result);
     }
@@ -95,7 +95,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
     public void BuildStreamStatsArgs_NullConfig_UsesDefaults()
     {
       // null config means none of the optional flags apply
-      var result = PodmanCliStreamDriver.BuildStreamStatsArgs("ctr1", null);
+      var result = PodmanCliStreamDriver.BuildStreamStatsArgs("ctr1", null!);
 
       Assert.Equal("stats --format json ctr1", result);
     }
@@ -103,7 +103,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
     [Fact]
     public void BuildStreamStatsArgs_NullConfigNullContainer_ReturnsBaseOnly()
     {
-      var result = PodmanCliStreamDriver.BuildStreamStatsArgs(null, null);
+      var result = PodmanCliStreamDriver.BuildStreamStatsArgs(null!, null!);
 
       Assert.Equal("stats --format json", result);
     }
@@ -190,7 +190,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
     [Fact]
     public void ParseStats_NullInput_ReturnsNull()
     {
-      var result = PodmanCliStreamDriver.ParseStats(null);
+      var result = PodmanCliStreamDriver.ParseStats(null!);
       Assert.Null(result);
     }
 
@@ -258,7 +258,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
         "ParseEvent",
         BindingFlags.NonPublic | BindingFlags.Static);
       Assert.NotNull(method);
-      return (ContainerEvent)method.Invoke(null, [json]);
+      return (ContainerEvent)method.Invoke(null, [json])!;
     }
 
     [Fact]
@@ -363,7 +363,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
     [Fact]
     public void ParseEvent_NullInput_ReturnsNull()
     {
-      var result = InvokeParseEvent(null);
+      var result = InvokeParseEvent(null!);
       Assert.Null(result);
     }
 

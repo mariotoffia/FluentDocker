@@ -185,7 +185,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Docker
     [Fact]
     public void ParseTopOutput_Null_ReturnsEmptyList()
     {
-      var result = DockerCliComposeDriver.ParseTopOutput(null);
+      var result = DockerCliComposeDriver.ParseTopOutput(null!);
 
       Assert.NotNull(result);
       Assert.Empty(result);

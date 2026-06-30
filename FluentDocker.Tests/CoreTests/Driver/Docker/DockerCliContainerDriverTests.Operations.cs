@@ -503,7 +503,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Docker
       if (config.ExtraHosts != null)
         foreach (var h in config.ExtraHosts)
           args.Add($"--add-host {Quote($"{h.Key}:{h.Value}")}");
-      string[] epArgs = null;
+      string[]? epArgs = null;
       if (config.Entrypoint is { Length: > 0 })
       {
         args.Add($"--entrypoint {Quote(config.Entrypoint[0])}");

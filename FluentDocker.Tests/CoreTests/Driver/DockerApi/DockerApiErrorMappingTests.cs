@@ -187,7 +187,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
 
       public ErrorContext TestCreateErrorContext(
           string op, int statusCode, string? body = null) =>
-          CreateErrorContext(op, statusCode, body);
+          CreateErrorContext(op, statusCode, body!); // production param has a null default
 
       public Task<ApiResult<T>> TestGetJsonAsync<T>(
           string path, CancellationToken ct) =>

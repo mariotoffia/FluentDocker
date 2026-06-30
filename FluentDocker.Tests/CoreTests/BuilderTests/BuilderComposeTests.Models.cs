@@ -26,8 +26,8 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
       mockPack.SetupComposeUpAsync(new ComposeUpResult { ProjectName = "modelapp" });
       mockPack.SetupComposeDown();
 
-      string overlayPath = null;
-      string overlayContent = null;
+      string? overlayPath = null;
+      string? overlayContent = null;
 
       try
       {

@@ -26,7 +26,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
           BindingFlags.Static | BindingFlags.NonPublic | BindingFlags.Public);
       Assert.NotNull(method);
 
-      var result = (string)method.Invoke(null, null);
+      var result = (string)method.Invoke(null, null)!;
       Assert.NotNull(result);
 
       if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))

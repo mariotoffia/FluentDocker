@@ -52,7 +52,7 @@ namespace FluentDocker.Tests.CoreTests.Services
       var method = typeof(ContainerService).GetMethod(
           "ExecuteHooksAsync", BindingFlags.NonPublic | BindingFlags.Instance);
       Assert.NotNull(method);
-      await (Task)method.Invoke(service, [state]);
+      await (Task)method.Invoke(service, [state])!;
     }
 
     private static Dictionary<string, Func<IServiceAsync, Task>> GetHooksDictionary(
@@ -61,7 +61,7 @@ namespace FluentDocker.Tests.CoreTests.Services
       var field = typeof(ContainerService).GetField(
           "_hooks", BindingFlags.NonPublic | BindingFlags.Instance);
       Assert.NotNull(field);
-      return (Dictionary<string, Func<IServiceAsync, Task>>)field.GetValue(service);
+      return (Dictionary<string, Func<IServiceAsync, Task>>)field.GetValue(service)!;
     }
 
     private static Dictionary<ServiceRunningState, List<Func<IServiceAsync, Task>>>
@@ -70,7 +70,7 @@ namespace FluentDocker.Tests.CoreTests.Services
       var field = typeof(ContainerService).GetField(
           "_stateHooks", BindingFlags.NonPublic | BindingFlags.Instance);
       Assert.NotNull(field);
-      return (Dictionary<ServiceRunningState, List<Func<IServiceAsync, Task>>>)field.GetValue(service);
+      return (Dictionary<ServiceRunningState, List<Func<IServiceAsync, Task>>>)field.GetValue(service)!;
     }
 
     // 1. AddHook — registering a hook for a specific state stores it
@@ -178,7 +178,7 @@ namespace FluentDocker.Tests.CoreTests.Services
       var (service, kernel) = CreateService();
       try
       {
-        IServiceAsync capturedService = null;
+        IServiceAsync? capturedService = null;
         ServiceRunningState? capturedState = null;
         service.StateChange += (_, args) =>
         {

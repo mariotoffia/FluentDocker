@@ -211,7 +211,7 @@ spec:
     /// Tears down K8s resources and deletes the temp YAML file.
     /// Each operation is wrapped to ensure cleanup proceeds on error.
     /// </summary>
-    private async Task CleanupYaml(string yamlPath)
+    private async Task CleanupYaml(string? yamlPath)
     {
       if (string.IsNullOrEmpty(yamlPath))
         return;
@@ -227,7 +227,7 @@ spec:
     /// <summary>
     /// Deletes the temp YAML file only (resources already cleaned up).
     /// </summary>
-    private static Task CleanupYamlFileOnly(string yamlPath)
+    private static Task CleanupYamlFileOnly(string? yamlPath)
     {
       if (!string.IsNullOrEmpty(yamlPath))
       {

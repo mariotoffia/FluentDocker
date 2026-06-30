@@ -137,7 +137,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
     /// <summary>
     /// Removes a network.
     /// </summary>
-    protected async Task RemoveNetworkAsync(string networkId)
+    protected async Task RemoveNetworkAsync(string? networkId)
     {
       if (!string.IsNullOrEmpty(networkId))
       {

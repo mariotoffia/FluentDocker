@@ -15,7 +15,8 @@ namespace FluentDocker.Tests.CoreTests.Model
       var method = typeof(ProcessRow).GetMethod(
           "ToRow",
           BindingFlags.NonPublic | BindingFlags.Static);
-      return (ProcessRow)method.Invoke(null, [columns, values]);
+      Assert.NotNull(method);
+      return (ProcessRow)method.Invoke(null, [columns, values])!;
     }
 
     [Fact]

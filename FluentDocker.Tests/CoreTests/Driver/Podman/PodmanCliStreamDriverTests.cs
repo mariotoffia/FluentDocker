@@ -106,7 +106,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
     public void BuildStreamLogsArgs_NullConfig_UsesDefaults()
     {
       // null config gets replaced by new StreamLogsConfig() which has Follow=true
-      var result = PodmanCliStreamDriver.BuildStreamLogsArgs("ctr1", null);
+      var result = PodmanCliStreamDriver.BuildStreamLogsArgs("ctr1", null!);
 
       Assert.Equal("logs --follow ctr1", result);
     }
@@ -127,7 +127,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
     [Fact]
     public void BuildStreamEventsArgs_NullConfig_ReturnsBaseCommand()
     {
-      var result = PodmanCliStreamDriver.BuildStreamEventsArgs(null);
+      var result = PodmanCliStreamDriver.BuildStreamEventsArgs(null!);
 
       Assert.Equal("events --format json", result);
     }

@@ -91,7 +91,7 @@ namespace FluentDocker.Tests.CoreTests.Service
       var mock = new Mock<IContainerService>();
       mock.Setup(s => s.Id).Returns("test-id");
       mock.Setup(s => s.GetLogsAsync(false, It.IsAny<CancellationToken>()))
-          .Returns(Task.FromResult<string>(null));
+          .Returns(Task.FromResult<string>(null!));
 
       // Act
       var result = await mock.Object.WaitForLogMessageAsync("any text", timeout: 200, cancellationToken: TestContext.Current.CancellationToken);

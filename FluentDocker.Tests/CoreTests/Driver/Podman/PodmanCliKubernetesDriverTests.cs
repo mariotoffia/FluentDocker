@@ -114,7 +114,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
     [Fact]
     public void ParsePlayOutput_Null_ReturnsEmpty()
     {
-      var result = InvokeParsePlayOutput(null);
+      var result = InvokeParsePlayOutput(null!);
       Assert.NotNull(result);
       Assert.Empty(result.Pods);
     }
@@ -242,7 +242,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
           "BuildPlayArgs",
           BindingFlags.NonPublic | BindingFlags.Static | BindingFlags.Public);
       Assert.NotNull(method);
-      return (string)method.Invoke(null, [config]);
+      return (string)method.Invoke(null, [config])!;
     }
 
     private static KubePlayResult InvokeParsePlayOutput(string output)
@@ -251,7 +251,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
           "ParsePlayOutput",
           BindingFlags.NonPublic | BindingFlags.Static | BindingFlags.Public);
       Assert.NotNull(method);
-      return (KubePlayResult)method.Invoke(null, [output]);
+      return (KubePlayResult)method.Invoke(null, [output])!;
     }
 
     #endregion

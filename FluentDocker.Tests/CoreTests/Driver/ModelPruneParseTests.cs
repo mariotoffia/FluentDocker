@@ -39,7 +39,7 @@ namespace FluentDocker.Tests.CoreTests.Driver
     [Fact]
     public void ParsePruneResult_Null_IsSafe()
     {
-      var result = ModelJsonParser.ParsePruneResult(null);
+      var result = ModelJsonParser.ParsePruneResult(null!);
 
       Assert.Empty(result.Removed);
       Assert.Equal(0, result.ReclaimedBytes);

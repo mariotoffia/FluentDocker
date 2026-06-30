@@ -110,10 +110,10 @@ namespace FluentDocker.Tests.CoreTests.Model
     [InlineData("")]
     [InlineData("   ")]
     [InlineData(null)]
-    public void TryParseList_EmptyOrWhitespace_IsGenuinelyEmpty(string input)
+    public void TryParseList_EmptyOrWhitespace_IsGenuinelyEmpty(string? input)
     {
       // No output (the runner has no models) is a successful empty result.
-      Assert.True(ModelJsonParser.TryParseList(input, out var models));
+      Assert.True(ModelJsonParser.TryParseList(input!, out var models)); // intentional null to verify null-handling
       Assert.Empty(models);
     }
 
@@ -332,9 +332,9 @@ namespace FluentDocker.Tests.CoreTests.Model
     [InlineData("")]
     [InlineData("   ")]
     [InlineData(null)]
-    public void ParsePullLine_EmptyOrWhitespace_ReturnsNull(string line)
+    public void ParsePullLine_EmptyOrWhitespace_ReturnsNull(string? line)
     {
-      Assert.Null(ModelJsonParser.ParsePullLine(line));
+      Assert.Null(ModelJsonParser.ParsePullLine(line!)); // intentional null to verify null-handling
     }
 
     // ====================== C14: header-offset column parsing ======================

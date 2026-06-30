@@ -120,7 +120,7 @@ namespace FluentDocker.Tests.CoreTests.Testing
     public void Constructor_NullKernel_Throws()
     {
       Assert.Throws<ArgumentNullException>(
-          () => new TopologyResource(null, _ => { }));
+          () => new TopologyResource(null!, _ => { }));
     }
 
     [Fact]

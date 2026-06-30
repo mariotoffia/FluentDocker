@@ -70,7 +70,7 @@ namespace FluentDocker.Tests.CoreTests.Service
     [Fact]
     public void FromEnvironment_MissingUrl_Throws()
     {
-      WithEnv("LLM_URL", null, () =>
+      WithEnv("LLM_URL", null!, () =>
         WithEnv("LLM_MODEL", "ai/x", () =>
             Assert.Throws<InvalidOperationException>(() => ModelRunnerEnvironment.FromEnvironment())));
     }
@@ -78,7 +78,7 @@ namespace FluentDocker.Tests.CoreTests.Service
     [Fact]
     public void TryFromEnvironment_Unset_ReturnsFalse()
     {
-      WithEnv("LLM_URL", null, () =>
+      WithEnv("LLM_URL", null!, () =>
       {
         Assert.False(ModelRunnerEnvironment.TryFromEnvironment(out var runner));
         Assert.Null(runner);
@@ -102,7 +102,7 @@ namespace FluentDocker.Tests.CoreTests.Service
       await using var runner = new GenericOpenAiModelRunner(ModelRunnerEndpoint.HostTcp(), ModelReference.Parse("ai/x"), new OpenAiModelInferenceDriver(conn, ModelRunnerEndpoint.HostTcp()), conn.PingAsync, conn);
 
       await Assert.ThrowsAsync<NotSupportedException>(() => runner.ListAsync(TestContext.Current.CancellationToken));
-      await Assert.ThrowsAsync<NotSupportedException>(() => runner.LoadAsync(ModelReference.Parse("ai/x")));
+      await Assert.ThrowsAsync<NotSupportedException>(() => runner.LoadAsync(ModelReference.Parse("ai/x"), cancellationToken: TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -111,7 +111,7 @@ namespace FluentDocker.Tests.CoreTests.Service
       var conn = new MockModelApiConnection().SetupPost("/embeddings", 200, DmrFixtures.Load("embeddings.json"));
       await using var runner = new GenericOpenAiModelRunner(ModelRunnerEndpoint.HostTcp(), ModelReference.Parse("ai/embeddinggemma"), new OpenAiModelInferenceDriver(conn, ModelRunnerEndpoint.HostTcp()), conn.PingAsync, conn);
 
-      var vector = await runner.EmbedAsync("hi", null, TestContext.Current.CancellationToken);
+      var vector = await runner.EmbedAsync("hi", null!, TestContext.Current.CancellationToken);
       Assert.NotEmpty(vector);
     }
 
@@ -126,7 +126,7 @@ namespace FluentDocker.Tests.CoreTests.Service
       // NOT become "gpt-4o-mini:latest" in the request body.
       var conn = new MockModelApiConnection().SetupPost("/chat/completions", 200, DmrFixtures.Load("chat.json"));
       await using var runner = new GenericOpenAiModelRunner(
-          ModelRunnerEndpoint.HostTcp(), defaultModel: null,
+          ModelRunnerEndpoint.HostTcp(), defaultModel: null!,
           new OpenAiModelInferenceDriver(conn, ModelRunnerEndpoint.HostTcp()),
           conn.PingAsync, conn, defaultInferenceId: new InferenceModelId("gpt-4o-mini"));
 

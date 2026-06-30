@@ -22,7 +22,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
     [Fact]
     public void BuildListArgs_NullFilter_ReturnsBaseCommand()
     {
-      var result = PodmanCliContainerDriver.BuildListArgs(null);
+      var result = PodmanCliContainerDriver.BuildListArgs(null!);
       Assert.Equal("ps --format json", result);
     }
 
@@ -157,14 +157,14 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
     [Fact]
     public void BuildImagePruneArgs_NoAll_NoFilter_ReturnsBaseCommand()
     {
-      var result = PodmanCliImageDriver.BuildImagePruneArgs(false, null);
+      var result = PodmanCliImageDriver.BuildImagePruneArgs(false, null!);
       Assert.Equal("image prune -f", result);
     }
 
     [Fact]
     public void BuildImagePruneArgs_All_IncludesAllFlag()
     {
-      var result = PodmanCliImageDriver.BuildImagePruneArgs(true, null);
+      var result = PodmanCliImageDriver.BuildImagePruneArgs(true, null!);
       Assert.Contains(" -a", result);
     }
 
@@ -197,7 +197,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
     [Fact]
     public void BuildSystemPruneArgs_NullConfig_ReturnsBaseCommand()
     {
-      var result = PodmanCliSystemDriver.BuildSystemPruneArgs(null);
+      var result = PodmanCliSystemDriver.BuildSystemPruneArgs(null!);
       Assert.Equal("system prune -f", result);
     }
 
@@ -266,7 +266,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
     [Fact]
     public void BuildStreamEventsArgs_NullConfig_ReturnsBaseCommand()
     {
-      var result = PodmanCliStreamDriver.BuildStreamEventsArgs(null);
+      var result = PodmanCliStreamDriver.BuildStreamEventsArgs(null!);
       Assert.Equal("events --format json", result);
     }
 
@@ -424,7 +424,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
           "BuildCreateArgs",
           BindingFlags.NonPublic | BindingFlags.Static);
       Assert.NotNull(method);
-      return (string)method.Invoke(null, [command, config, detach]);
+      return (string)method.Invoke(null, [command, config, detach])!;
     }
 
     #endregion

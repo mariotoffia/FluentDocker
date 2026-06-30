@@ -17,7 +17,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
   public class ResponseOwningStreamTests
   {
     private static (ResponseOwningStream wrapper, TrackingStream inner, HttpResponseMessage response)
-        CreateTestSubjects(byte[] content = null)
+        CreateTestSubjects(byte[] content = null!)
     {
       content ??= [1, 2, 3, 4, 5];
       var inner = new TrackingStream(content);

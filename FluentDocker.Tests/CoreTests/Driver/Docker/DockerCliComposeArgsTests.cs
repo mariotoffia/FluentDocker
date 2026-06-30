@@ -90,7 +90,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Docker
     public void ParseServiceList_Empty_ReturnsEmpty()
     {
       Assert.Empty(DockerCliComposeDriver.ParseServiceList(""));
-      Assert.Empty(DockerCliComposeDriver.ParseServiceList(null));
+      Assert.Empty(DockerCliComposeDriver.ParseServiceList(null!));
       Assert.Empty(DockerCliComposeDriver.ParseServiceList("  "));
     }
 

@@ -38,7 +38,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Docker
         Tags = { "myapp:latest", "myapp:v1.0", "registry.io/myapp:v1.0" }
       };
 
-      var result = DockerCliImageDriver.BuildBuildArgs(config, null);
+      var result = DockerCliImageDriver.BuildBuildArgs(config, null!);
 
       Assert.Contains("--tag myapp:latest", result);
       Assert.Contains("--tag myapp:v1.0", result);
@@ -50,7 +50,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Docker
     {
       var config = new ImageBuildConfig { BuildContext = "/src" };
 
-      var result = DockerCliImageDriver.BuildBuildArgs(config, null);
+      var result = DockerCliImageDriver.BuildBuildArgs(config, null!);
 
       Assert.DoesNotContain("--tag", result);
     }
@@ -68,7 +68,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Docker
         BuildArgs = { { "VERSION", "1.0" } }
       };
 
-      var result = DockerCliImageDriver.BuildBuildArgs(config, null);
+      var result = DockerCliImageDriver.BuildBuildArgs(config, null!);
 
       Assert.Contains("--build-arg VERSION=1.0", result);
     }
@@ -86,7 +86,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Docker
         }
       };
 
-      var result = DockerCliImageDriver.BuildBuildArgs(config, null);
+      var result = DockerCliImageDriver.BuildBuildArgs(config, null!);
 
       Assert.Contains("--build-arg VERSION=1.0", result);
       Assert.Contains("--build-arg ENV=production", result);
@@ -97,7 +97,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Docker
     {
       var config = new ImageBuildConfig { BuildContext = "." };
 
-      var result = DockerCliImageDriver.BuildBuildArgs(config, null);
+      var result = DockerCliImageDriver.BuildBuildArgs(config, null!);
 
       Assert.DoesNotContain("--build-arg", result);
     }
@@ -115,7 +115,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Docker
         Labels = { { "maintainer", "test@example.com" } }
       };
 
-      var result = DockerCliImageDriver.BuildBuildArgs(config, null);
+      var result = DockerCliImageDriver.BuildBuildArgs(config, null!);
 
       Assert.Contains("--label maintainer=test@example.com", result);
     }
@@ -133,7 +133,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Docker
         }
       };
 
-      var result = DockerCliImageDriver.BuildBuildArgs(config, null);
+      var result = DockerCliImageDriver.BuildBuildArgs(config, null!);
 
       Assert.Contains("--label maintainer=test@example.com", result);
       Assert.Contains("--label version=3.0", result);
@@ -152,7 +152,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Docker
         Target = "runtime"
       };
 
-      var result = DockerCliImageDriver.BuildBuildArgs(config, null);
+      var result = DockerCliImageDriver.BuildBuildArgs(config, null!);
 
       Assert.Contains("--target runtime", result);
     }
@@ -162,7 +162,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Docker
     {
       var config = new ImageBuildConfig { BuildContext = "." };
 
-      var result = DockerCliImageDriver.BuildBuildArgs(config, null);
+      var result = DockerCliImageDriver.BuildBuildArgs(config, null!);
 
       Assert.DoesNotContain("--target", result);
     }
@@ -176,7 +176,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Docker
         Target = ""
       };
 
-      var result = DockerCliImageDriver.BuildBuildArgs(config, null);
+      var result = DockerCliImageDriver.BuildBuildArgs(config, null!);
 
       Assert.DoesNotContain("--target", result);
     }
@@ -194,7 +194,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Docker
         NoCache = true
       };
 
-      var result = DockerCliImageDriver.BuildBuildArgs(config, null);
+      var result = DockerCliImageDriver.BuildBuildArgs(config, null!);
 
       Assert.Contains("--no-cache", result);
     }
@@ -204,7 +204,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Docker
     {
       var config = new ImageBuildConfig { BuildContext = "." };
 
-      var result = DockerCliImageDriver.BuildBuildArgs(config, null);
+      var result = DockerCliImageDriver.BuildBuildArgs(config, null!);
 
       Assert.DoesNotContain("--no-cache", result);
     }
@@ -218,7 +218,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Docker
         Pull = true
       };
 
-      var result = DockerCliImageDriver.BuildBuildArgs(config, null);
+      var result = DockerCliImageDriver.BuildBuildArgs(config, null!);
 
       Assert.Contains("--pull", result);
     }
@@ -228,7 +228,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Docker
     {
       var config = new ImageBuildConfig { BuildContext = "." };
 
-      var result = DockerCliImageDriver.BuildBuildArgs(config, null);
+      var result = DockerCliImageDriver.BuildBuildArgs(config, null!);
 
       Assert.DoesNotContain("--pull", result);
     }
@@ -242,7 +242,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Docker
         ForceRm = true
       };
 
-      var result = DockerCliImageDriver.BuildBuildArgs(config, null);
+      var result = DockerCliImageDriver.BuildBuildArgs(config, null!);
 
       Assert.Contains("--force-rm", result);
     }
@@ -260,7 +260,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Docker
         Platform = "linux/arm64"
       };
 
-      var result = DockerCliImageDriver.BuildBuildArgs(config, null);
+      var result = DockerCliImageDriver.BuildBuildArgs(config, null!);
 
       Assert.Contains("--platform linux/arm64", result);
     }
@@ -274,7 +274,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Docker
         NetworkMode = "host"
       };
 
-      var result = DockerCliImageDriver.BuildBuildArgs(config, null);
+      var result = DockerCliImageDriver.BuildBuildArgs(config, null!);
 
       Assert.Contains("--network host", result);
     }
@@ -288,7 +288,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Docker
         DockerfileName = "Dockerfile.dev"
       };
 
-      var result = DockerCliImageDriver.BuildBuildArgs(config, null);
+      var result = DockerCliImageDriver.BuildBuildArgs(config, null!);
 
       Assert.Contains("--file Dockerfile.dev", result);
     }
@@ -296,9 +296,9 @@ namespace FluentDocker.Tests.CoreTests.Driver.Docker
     [Fact]
     public void BuildBuildArgs_NullBuildContext_DefaultsToDot()
     {
-      var config = new ImageBuildConfig { BuildContext = null };
+      var config = new ImageBuildConfig { BuildContext = null! };
 
-      var result = DockerCliImageDriver.BuildBuildArgs(config, null);
+      var result = DockerCliImageDriver.BuildBuildArgs(config, null!);
 
       Assert.EndsWith(" .", result);
     }
@@ -308,7 +308,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Docker
     {
       var config = new ImageBuildConfig { BuildContext = "." };
 
-      var result = DockerCliImageDriver.BuildBuildArgs(config, null);
+      var result = DockerCliImageDriver.BuildBuildArgs(config, null!);
 
       Assert.StartsWith("build ", result);
     }
@@ -378,7 +378,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Docker
         "ParseSize",
         BindingFlags.NonPublic | BindingFlags.Static);
       Assert.NotNull(method);
-      return (long)method.Invoke(null, [sizeStr]);
+      return (long)method.Invoke(null, [sizeStr])!;
     }
 
     #endregion

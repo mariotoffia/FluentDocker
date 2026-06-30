@@ -82,7 +82,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
     public void BuildSetArgs_EmptyConfig_ReturnsBasicCommand()
     {
       var config = new MachineSetConfig();
-      var result = InvokeBuildSetArgs(config, null);
+      var result = InvokeBuildSetArgs(config, null!);
       Assert.Equal("machine set", result);
     }
 
@@ -90,7 +90,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
     public void BuildSetArgs_WithCpus_IncludesCpusFlag()
     {
       var config = new MachineSetConfig { Cpus = 8 };
-      var result = InvokeBuildSetArgs(config, null);
+      var result = InvokeBuildSetArgs(config, null!);
       Assert.Contains("--cpus 8", result);
     }
 
@@ -98,7 +98,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
     public void BuildSetArgs_WithRootful_IncludesRootfulFlag()
     {
       var config = new MachineSetConfig { Rootful = true };
-      var result = InvokeBuildSetArgs(config, null);
+      var result = InvokeBuildSetArgs(config, null!);
       Assert.Contains("--rootful", result);
     }
 
@@ -106,7 +106,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
     public void BuildSetArgs_WithRootfulFalse_IncludesRootfulEqualsFalse()
     {
       var config = new MachineSetConfig { Rootful = false };
-      var result = InvokeBuildSetArgs(config, null);
+      var result = InvokeBuildSetArgs(config, null!);
       Assert.Contains("--rootful=false", result);
     }
 
@@ -189,7 +189,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
     public void ParseMachineList_EmptyString_ReturnsEmpty()
     {
       Assert.Empty(InvokeParseMachineList(""));
-      Assert.Empty(InvokeParseMachineList(null));
+      Assert.Empty(InvokeParseMachineList(null!));
       Assert.Empty(InvokeParseMachineList("   "));
     }
 
@@ -394,7 +394,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
           "BuildInitArgs",
           BindingFlags.NonPublic | BindingFlags.Static | BindingFlags.Public);
       Assert.NotNull(method);
-      return (string)method.Invoke(null, [config]);
+      return (string)method.Invoke(null, [config])!;
     }
 
     private static string InvokeBuildSetArgs(MachineSetConfig config, string name)
@@ -403,7 +403,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
           "BuildSetArgs",
           BindingFlags.NonPublic | BindingFlags.Static | BindingFlags.Public);
       Assert.NotNull(method);
-      return (string)method.Invoke(null, [config, name]);
+      return (string)method.Invoke(null, [config, name])!;
     }
 
     private static IList<MachineInfo> InvokeParseMachineList(string json)
@@ -412,7 +412,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
           "ParseMachineList",
           BindingFlags.NonPublic | BindingFlags.Static | BindingFlags.Public);
       Assert.NotNull(method);
-      return (IList<MachineInfo>)method.Invoke(null, [json]);
+      return (IList<MachineInfo>)method.Invoke(null, [json])!;
     }
 
     private static MachineInspectResult InvokeParseMachineInspect(string json)
@@ -421,7 +421,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
           "ParseMachineInspect",
           BindingFlags.NonPublic | BindingFlags.Static | BindingFlags.Public);
       Assert.NotNull(method);
-      return (MachineInspectResult)method.Invoke(null, [json]);
+      return (MachineInspectResult)method.Invoke(null, [json])!;
     }
 
     private static MachineHostInfo InvokeParseMachineInfo(string json)
@@ -430,7 +430,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
           "ParseMachineInfo",
           BindingFlags.NonPublic | BindingFlags.Static | BindingFlags.Public);
       Assert.NotNull(method);
-      return (MachineHostInfo)method.Invoke(null, [json]);
+      return (MachineHostInfo)method.Invoke(null, [json])!;
     }
 
     #endregion

@@ -34,8 +34,6 @@ namespace FluentDocker.Tests.CoreTests.Driver
       var mockPodDriver = new Mock<IPodmanPodDriver>();
       pack.RegisterCustomDriver(mockPodDriver.Object);
 
-      string? _appliedLabel = null;
-
       // Act - call UsePod inside a container builder lambda
       new Builder()
           .WithinDriver("test", kernel)

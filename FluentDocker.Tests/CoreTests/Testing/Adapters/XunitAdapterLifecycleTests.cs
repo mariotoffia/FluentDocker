@@ -61,7 +61,7 @@ namespace FluentDocker.Tests.CoreTests.Testing.Adapters
     public void Configure_NullConfigure_ThrowsArgumentNull()
     {
       var fixture = new XunitContainerFixture();
-      Assert.Throws<ArgumentNullException>(() => fixture.Configure(null));
+      Assert.Throws<ArgumentNullException>(() => fixture.Configure(null!));
     }
 
     [Fact]
@@ -143,7 +143,7 @@ namespace FluentDocker.Tests.CoreTests.Testing.Adapters
     {
       var fixture = new XunitResourceFixture<ContainerResource>();
       Assert.Throws<ArgumentNullException>(
-          () => fixture.Configure(null));
+          () => fixture.Configure(null!));
     }
   }
 }

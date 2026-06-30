@@ -41,7 +41,7 @@ namespace FluentDocker.Tests.CoreTests.Driver
     public void Docker_BuildStreamLogsArgs_NullConfig_ContainsFollowFlag()
     {
       // Default config has Follow = true
-      var result = DockerCliStreamDriver.BuildStreamLogsArgs("abc123", null);
+      var result = DockerCliStreamDriver.BuildStreamLogsArgs("abc123", null!);
 
       Assert.Contains("-f", result);
     }
@@ -112,7 +112,7 @@ namespace FluentDocker.Tests.CoreTests.Driver
     [Fact]
     public void Docker_BuildStreamStatsArgs_NullConfig_DoesNotContainNoStream()
     {
-      var result = DockerCliStreamDriver.BuildStreamStatsArgs("abc123", null);
+      var result = DockerCliStreamDriver.BuildStreamStatsArgs("abc123", null!);
 
       Assert.DoesNotContain("--no-stream", result);
     }
@@ -157,7 +157,7 @@ namespace FluentDocker.Tests.CoreTests.Driver
     public void Podman_BuildStreamLogsArgs_NullConfig_ContainsFollowFlag()
     {
       // Default config has Follow = true
-      var result = PodmanCliStreamDriver.BuildStreamLogsArgs("abc123", null);
+      var result = PodmanCliStreamDriver.BuildStreamLogsArgs("abc123", null!);
 
       Assert.Contains("--follow", result);
     }
@@ -211,7 +211,7 @@ namespace FluentDocker.Tests.CoreTests.Driver
     [Fact]
     public void Podman_BuildStreamStatsArgs_NullConfig_DoesNotContainNoStream()
     {
-      var result = PodmanCliStreamDriver.BuildStreamStatsArgs("abc123", null);
+      var result = PodmanCliStreamDriver.BuildStreamStatsArgs("abc123", null!);
 
       Assert.DoesNotContain("--no-stream", result);
     }

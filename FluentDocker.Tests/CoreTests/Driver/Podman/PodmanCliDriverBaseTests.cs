@@ -10,7 +10,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
     [Fact]
     public void BuildGlobalArgs_NullContext_ReturnsEmpty()
     {
-      var result = PodmanCliDriverBase.BuildGlobalArgs(null);
+      var result = PodmanCliDriverBase.BuildGlobalArgs(null!);
       Assert.Equal("", result);
     }
 

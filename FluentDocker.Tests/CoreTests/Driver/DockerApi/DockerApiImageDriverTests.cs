@@ -314,7 +314,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
           "{\"error\":\"repository not found\",\"errorDetail\":{\"message\":\"repository not found\"}}\n");
       var driver = CreateDriver(conn);
 
-      var result = await driver.PullAsync(Ctx, "nonexistent/image", "latest", null, TestContext.Current.CancellationToken);
+      var result = await driver.PullAsync(Ctx, "nonexistent/image", "latest", null!, TestContext.Current.CancellationToken);
       Assert.False(result.Success);
       Assert.Equal(ErrorCodes.Image.PullFailed, result.ErrorCode);
       Assert.Contains("repository not found", result.Error);

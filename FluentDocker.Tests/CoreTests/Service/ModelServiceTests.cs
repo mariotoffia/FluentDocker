@@ -35,7 +35,7 @@ namespace FluentDocker.Tests.CoreTests.Service
 
       var kernel = await MockKernelBuilderExtensions.CreateWithMockDriverAsync("docker", pack);
       var runner = new ModelRunnerService(kernel, "docker", ModelRunnerEndpoint.HostTcp(), Model);
-      var service = new ModelService(kernel, "docker", Model, runner, null, keepRunning);
+      var service = new ModelService(kernel, "docker", Model, runner, null!, keepRunning);
       return (kernel, service);
     }
 
@@ -120,7 +120,7 @@ namespace FluentDocker.Tests.CoreTests.Service
       var pack = new MockDriverPack().SetupModelLoad().SetupModelUnload().EnableModelDrivers();
       var kernel = await MockKernelBuilderExtensions.CreateWithMockDriverAsync("docker", pack);
       var runner = new ModelRunnerService(kernel, "docker", ModelRunnerEndpoint.HostTcp(), Model);
-      var service = new ModelService(kernel, "docker", Model, runner, null, keepRunning: false);
+      var service = new ModelService(kernel, "docker", Model, runner, null!, keepRunning: false);
 
       await service.StartAsync(TestContext.Current.CancellationToken);
       await service.DisposeAsync();
@@ -138,7 +138,7 @@ namespace FluentDocker.Tests.CoreTests.Service
       var pack = new MockDriverPack().SetupModelLoad().SetupModelUnload().EnableModelDrivers();
       var kernel = await MockKernelBuilderExtensions.CreateWithMockDriverAsync("docker", pack);
       var runner = new ModelRunnerService(kernel, "docker", ModelRunnerEndpoint.HostTcp(), Model);
-      var service = new ModelService(kernel, "docker", Model, runner, null, keepRunning: true);
+      var service = new ModelService(kernel, "docker", Model, runner, null!, keepRunning: true);
 
       await service.StartAsync(TestContext.Current.CancellationToken);
       await service.DisposeAsync();
@@ -156,7 +156,7 @@ namespace FluentDocker.Tests.CoreTests.Service
       var pack = new MockDriverPack().SetupModelLoad().SetupModelUnload().EnableModelDrivers();
       var kernel = await MockKernelBuilderExtensions.CreateWithMockDriverAsync("docker", pack);
       var runner = new ModelRunnerService(kernel, "docker", ModelRunnerEndpoint.HostTcp(), Model);
-      var service = new ModelService(kernel, "docker", Model, runner, null, keepRunning: false);
+      var service = new ModelService(kernel, "docker", Model, runner, null!, keepRunning: false);
 
       await service.StartAsync(TestContext.Current.CancellationToken);
 
@@ -185,7 +185,7 @@ namespace FluentDocker.Tests.CoreTests.Service
           .ReturnsAsync(CommandResponse<Unit>.Fail("load boom", ErrorCodes.Model.LoadFailed));
       var kernel = await MockKernelBuilderExtensions.CreateWithMockDriverAsync("docker", pack);
       var runner = new ModelRunnerService(kernel, "docker", ModelRunnerEndpoint.HostTcp(), Model);
-      var service = new ModelService(kernel, "docker", Model, runner, null, keepRunning: false);
+      var service = new ModelService(kernel, "docker", Model, runner, null!, keepRunning: false);
 
       await Assert.ThrowsAsync<ModelRunnerException>(() => service.StartAsync(TestContext.Current.CancellationToken));
       await service.DisposeAsync();
@@ -204,7 +204,7 @@ namespace FluentDocker.Tests.CoreTests.Service
       var pack = new MockDriverPack().SetupModelLoad().SetupModelUnload().EnableModelDrivers();
       var kernel = await MockKernelBuilderExtensions.CreateWithMockDriverAsync("docker", pack);
       var runner = new ModelRunnerService(kernel, "docker", ModelRunnerEndpoint.HostTcp(), Model);
-      var service = new ModelService(kernel, "docker", Model, runner, null, keepRunning: true);
+      var service = new ModelService(kernel, "docker", Model, runner, null!, keepRunning: true);
 
       await service.StartAsync(TestContext.Current.CancellationToken);
       service.Dispose();
@@ -222,7 +222,7 @@ namespace FluentDocker.Tests.CoreTests.Service
       var pack = new MockDriverPack().SetupModelLoad().SetupModelUnload().EnableModelDrivers();
       var kernel = await MockKernelBuilderExtensions.CreateWithMockDriverAsync("docker", pack);
       var runner = new ModelRunnerService(kernel, "docker", ModelRunnerEndpoint.HostTcp(), Model);
-      var service = new ModelService(kernel, "docker", Model, runner, null, keepRunning: false);
+      var service = new ModelService(kernel, "docker", Model, runner, null!, keepRunning: false);
 
       await service.StartAsync(TestContext.Current.CancellationToken);
 

@@ -141,7 +141,13 @@ namespace FluentDocker.Tests.Mocks
     {
       if (!_initialized)
         throw new InvalidOperationException("MockDriverPack not initialized.");
-      return _drivers.TryGetValue(interfaceType, out implementation);
+      if (_drivers.TryGetValue(interfaceType, out var found))
+      {
+        implementation = found;
+        return true;
+      }
+      implementation = null!; // interface declares a non-nullable out
+      return false;
     }
 
     /// <inheritdoc />
@@ -150,34 +156,6 @@ namespace FluentDocker.Tests.Mocks
       if (!_initialized)
         throw new InvalidOperationException("MockDriverPack not initialized.");
       return _drivers.Keys.ToList().AsReadOnly();
-    }
-
-    #endregion
-
-    #region ISysCtl Type-Based Resolution
-
-    /// <inheritdoc />
-    public object SysCtl(string driverId, Type interfaceType)
-    {
-      if (!_initialized)
-        throw new InvalidOperationException("MockDriverPack not initialized. Call InitializeAsync first.");
-      if (_drivers.TryGetValue(interfaceType, out var driver))
-        return driver;
-      throw new InterfaceNotSupportedException(driverId, interfaceType.Name);
-    }
-
-    /// <inheritdoc />
-    public bool TrySysCtl<T>(string driverId, out T instance) where T : class
-    {
-      if (!_initialized)
-        throw new InvalidOperationException("MockDriverPack not initialized. Call InitializeAsync first.");
-      if (_drivers.TryGetValue(typeof(T), out var driver))
-      {
-        instance = (T)driver;
-        return true;
-      }
-      instance = null;
-      return false;
     }
 
     #endregion

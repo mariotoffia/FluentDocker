@@ -79,7 +79,7 @@ namespace FluentDocker.Tests.CoreTests.Testing
               It.IsAny<int?>(),
               It.IsAny<CancellationToken>()))
           .Returns<DriverContext, string, int?, CancellationToken>(
-              async (_, _, _, ct) => { await Task.Delay(5000, ct); return default; });
+              async (_, _, _, ct) => { await Task.Delay(5000, ct); return default!; });
 
       // Capture the token force-remove receives
       CancellationToken capturedToken = default;
@@ -318,7 +318,7 @@ namespace FluentDocker.Tests.CoreTests.Testing
       var resource = new ContainerResource(
           Kernel,
           builder => builder.UseImage("alpine:latest"),
-          new DockerResourceOptions { Driver = null });
+          new DockerResourceOptions { Driver = null! });
 
       var ex = await Assert.ThrowsAsync<InvalidOperationException>(
           () => resource.InitializeAsync(TestContext.Current.CancellationToken));

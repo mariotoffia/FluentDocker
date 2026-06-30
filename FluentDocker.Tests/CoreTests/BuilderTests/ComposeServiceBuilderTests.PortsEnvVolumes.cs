@@ -106,7 +106,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
       var builder = CreateBuilder();
 
       // Act
-      var result = builder.Ports(ports: null);
+      var result = builder.Ports(ports: null!);
 
       // Assert
       Assert.Empty(GetConfig(builder).Ports);
@@ -205,7 +205,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
       var builder = CreateBuilder();
 
       // Act
-      var result = builder.Environment(nameAndValue: null);
+      var result = builder.Environment(nameAndValue: null!);
 
       // Assert
       Assert.Empty(GetConfig(builder).Environment);

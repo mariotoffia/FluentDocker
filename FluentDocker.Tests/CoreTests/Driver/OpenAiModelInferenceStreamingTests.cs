@@ -57,7 +57,7 @@ namespace FluentDocker.Tests.CoreTests.Driver
       // server actually streams (and target the chat endpoint).
       var request = conn.GetRequests().Single(r => r.Method == "POST_STREAM");
       Assert.Contains("/chat/completions", request.Path);
-      Assert.Contains("\"stream\":true", request.Body.Replace(" ", string.Empty));
+      Assert.Contains("\"stream\":true", request.Body!.Replace(" ", string.Empty));
     }
 
     [Fact]
@@ -76,7 +76,7 @@ namespace FluentDocker.Tests.CoreTests.Driver
 
       Assert.Null(request.Stream); // caller's object untouched
       var sent = conn.GetRequests().Single(r => r.Method == "POST_STREAM");
-      Assert.Contains("\"stream\":true", sent.Body.Replace(" ", string.Empty));
+      Assert.Contains("\"stream\":true", sent.Body!.Replace(" ", string.Empty));
     }
 
     [Fact]
@@ -93,7 +93,7 @@ namespace FluentDocker.Tests.CoreTests.Driver
 
       Assert.Null(request.Stream); // caller's object untouched
       var sent = conn.GetRequests().Single(r => r.Method == "POST_STREAM");
-      Assert.Contains("\"stream\":true", sent.Body.Replace(" ", string.Empty));
+      Assert.Contains("\"stream\":true", sent.Body!.Replace(" ", string.Empty));
     }
 
     [Fact]
