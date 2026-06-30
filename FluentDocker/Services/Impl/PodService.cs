@@ -176,7 +176,8 @@ namespace FluentDocker.Services.Impl
 
     private async Task ExecuteHooksAsync(ServiceRunningState state)
     {
-      foreach (var entry in _hooks.Values)
+      // Snapshot: a firing hook may add or remove hooks, which would invalidate a live enumerator.
+      foreach (var entry in new List<(ServiceRunningState State, Func<IServiceAsync, Task> Hook)>(_hooks.Values))
       {
         if (entry.State != state)
           continue;

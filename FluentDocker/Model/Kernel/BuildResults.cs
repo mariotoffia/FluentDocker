@@ -16,9 +16,10 @@ namespace FluentDocker.Model.Kernel
   public class BuildResults(List<BuildScope> scopes) : IAsyncDisposable, IDisposable
   {
     /// <summary>
-    /// Total wall-clock budget (milliseconds) bounding the disposal of ALL services across all
-    /// scopes (containers, pods, networks, volumes, compose). Ensures a single hung daemon cannot
-    /// block teardown indefinitely.
+    /// Total wall-clock budget (milliseconds) bounding the <b>asynchronous</b> disposal of ALL
+    /// services across all scopes (containers, pods, networks, volumes, compose), so a single hung
+    /// daemon cannot block <see cref="DisposeAsync"/> indefinitely. The synchronous
+    /// <see cref="Dispose"/> path does not apply this budget.
     /// </summary>
     public const int DefaultDisposeBudgetMs = 60_000;
 
