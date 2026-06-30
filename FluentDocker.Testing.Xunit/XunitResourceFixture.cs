@@ -9,9 +9,11 @@ namespace FluentDocker.Testing.Xunit
 {
   /// <summary>
   /// Generic xUnit fixture for any <see cref="ITestResource"/>.
-  /// Use this for plugin resources or custom resource types.
-  /// Use with <c>IClassFixture&lt;XunitResourceFixture&lt;TResource&gt;&gt;</c> or
-  /// <c>ICollectionFixture&lt;XunitResourceFixture&lt;TResource&gt;&gt;</c>.
+  /// Subclass this fixture, call <see cref="Configure"/> in the subclass
+  /// constructor, then register that subclass with
+  /// <c>IClassFixture&lt;YourFixture&gt;</c> or
+  /// <c>ICollectionFixture&lt;YourFixture&gt;</c>. Registering the open generic
+  /// directly fails because xUnit cannot call <see cref="Configure"/> for you.
   /// </summary>
   /// <remarks>
   /// <para>For container, compose, or topology resources, prefer the typed

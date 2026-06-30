@@ -115,7 +115,7 @@ public class PodmanRedisTests : XunitContainerTestBase
 
     protected override Func<Task<FluentDockerKernel>> KernelFactory =>
         () => FluentDockerKernel.Create()
-            .WithPodmanCli("podman", d => d.AsDefault())
+            .WithPodmanCli("podman-cli", d => d.AsDefault())
             .BuildAsync();
 }
 ```

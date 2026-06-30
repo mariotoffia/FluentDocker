@@ -6,7 +6,6 @@ using FluentDocker.Common;
 using FluentDocker.Drivers;
 using FluentDocker.Kernel;
 using FluentDocker.Model.Drivers;
-using Microsoft.Extensions.Logging;
 
 namespace FluentDocker.Testing.Core
 {
@@ -127,21 +126,21 @@ namespace FluentDocker.Testing.Core
     /// <inheritdoc />
     protected override async Task ForceRemoveAsync(CancellationToken cancellationToken)
     {
-      try
-      {
-        var driver = Kernel.SysCtl<IStackDriver>(DriverId);
-        var context = new DriverContext(DriverId);
-        await driver.RemoveAsync(
-            context, [_config.StackName], cancellationToken).ConfigureAwait(false);
-      }
-      catch (Exception ex)
-      {
-        Logger.LogWarning(ex, "SwarmStack teardown failed");
-      }
-      finally
+      var driver = Kernel.SysCtl<IStackDriver>(DriverId);
+      var context = new DriverContext(DriverId);
+      var result = await driver.RemoveAsync(
+          context, [_config.StackName], cancellationToken).ConfigureAwait(false);
+
+      if (result.Success || result.ErrorCode == ErrorCodes.Stack.NotFound)
       {
         DeployResult = null;
+        return;
       }
+
+      throw new DriverException(
+          $"Failed to force-remove stack '{_config.StackName}': {result.Error}",
+          result.ErrorCode,
+          result.ErrorContext);
     }
 
     #endregion

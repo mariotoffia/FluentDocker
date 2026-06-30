@@ -80,17 +80,19 @@ namespace FluentDocker.Testing.Core
     /// <summary>
     /// The resolved driver ID for this resource.
     /// </summary>
+    // ponytail: nullable annotation scoped to consumer-visible null-before-init properties.
     public string DriverId { get; private set; }
 
     /// <summary>
     /// Unique name generated for this resource. Set during initialization.
     /// </summary>
+    // ponytail: keep signature; public contract documents availability after initialization.
     public string ResourceName { get; protected set; }
 
     /// <summary>
     /// Diagnostics collected on failure.
     /// </summary>
-    public ResourceDiagnostics Diagnostics { get; private set; }
+    public ResourceDiagnostics? Diagnostics { get; private set; }
 
     /// <summary>
     /// Diagnostics captured when teardown fails during disposal.
@@ -190,7 +192,12 @@ namespace FluentDocker.Testing.Core
         {
           IsInitialized = false;
           try
-          { Diagnostics = await CollectDiagnosticsAsync(ex, cts.Token).ConfigureAwait(false); }
+          {
+            // ponytail: fresh token — the init cts may already be canceled by
+            // InitializationTimeout, which would abort diagnostics collection.
+            using var diagCts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            Diagnostics = await CollectDiagnosticsAsync(ex, diagCts.Token).ConfigureAwait(false);
+          }
           catch { /* diagnostics must not mask the original failure */ }
           throw;
         }
@@ -255,6 +262,10 @@ namespace FluentDocker.Testing.Core
             }
             else
             {
+              LastTeardownDiagnostics = new TeardownDiagnostics
+              {
+                TeardownException = ex
+              };
               teardownFailure = ex;
               // _provisioned stays true so next DisposeAsync retries
             }

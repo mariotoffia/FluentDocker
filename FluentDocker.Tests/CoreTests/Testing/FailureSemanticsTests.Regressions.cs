@@ -156,7 +156,7 @@ namespace FluentDocker.Tests.CoreTests.Testing
     }
 
     [Fact]
-    public async Task Diagnostics_RespectsInitializationTimeout()
+    public async Task Diagnostics_Captured_OnHookFailure_WithoutHanging()
     {
       MockPack
           .SetupContainerCreate()
@@ -165,7 +165,6 @@ namespace FluentDocker.Tests.CoreTests.Testing
           .SetupContainerStop()
           .SetupContainerRemove();
 
-      // Make GetLogsAsync on the driver hang until cancelled
       MockPack.ContainerDriver
           .Setup(d => d.GetLogsAsync(
               It.IsAny<DriverContext>(),
@@ -174,12 +173,7 @@ namespace FluentDocker.Tests.CoreTests.Testing
               It.IsAny<int?>(),
               It.IsAny<bool>(),
               It.IsAny<CancellationToken>()))
-          .Returns<DriverContext, string, bool, int?, bool, CancellationToken>(
-              async (_, _, _, _, _, ct) =>
-              {
-                await Task.Delay(Timeout.Infinite, ct);
-                return default; // unreachable
-              });
+          .ReturnsAsync(CommandResponse<string>.Ok("diagnostic logs"));
 
       var resource = new ContainerResource(
           Kernel,

@@ -95,6 +95,55 @@ namespace FluentDocker.Tests.CoreTests.Testing
     }
 
     [Fact]
+    [Trait("Category", "Unit")]
+    public async Task DisposeAsync_HungUnload_ObservesTeardownTimeout()
+    {
+      var unload = new TaskCompletionSource<CommandResponse<Unit>>();
+      var pack = new MockDriverPack()
+          .SetupModelLoad()
+          .EnableModelDrivers();
+      pack.ModelRuntimeDriver
+          .Setup(d => d.UnloadAsync(
+              It.IsAny<DriverContext>(),
+              It.IsAny<ModelReference>(),
+              It.IsAny<CancellationToken>()))
+          .Returns(unload.Task);
+      var kernel = await MockKernelBuilderExtensions.CreateWithMockDriverAsync("docker", pack);
+      await using (kernel)
+      {
+        var resource = new ModelResource(kernel, Model, options: new DockerResourceOptions
+        {
+          ForceRemoveOnDispose = false,
+          TeardownTimeout = TimeSpan.FromMilliseconds(100)
+        });
+
+        await resource.InitializeAsync(TestContext.Current.CancellationToken);
+        var disposeTask = resource.DisposeAsync().AsTask();
+        var completed = await Task.WhenAny(
+            disposeTask,
+            Task.Delay(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken));
+
+        Assert.Same(disposeTask, completed);
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => disposeTask);
+        Assert.NotNull(resource.LastTeardownDiagnostics);
+      }
+    }
+
+    [Fact]
+    [Trait("Category", "Unit")]
+    public async Task Diagnostics_BeforeInitialize_IsNull()
+    {
+      var pack = new MockDriverPack().EnableModelDrivers();
+      var kernel = await MockKernelBuilderExtensions.CreateWithMockDriverAsync("docker", pack);
+      await using (kernel)
+      {
+        var resource = new ModelResource(kernel, Model);
+
+        Assert.Null(resource.Diagnostics);
+      }
+    }
+
+    [Fact]
     public async Task InitializeAsync_LoadFailure_Throws()
     {
       var pack = new MockDriverPack()

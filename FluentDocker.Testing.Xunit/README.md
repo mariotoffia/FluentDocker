@@ -31,19 +31,54 @@ public sealed class RedisTests : XunitContainerTestBase
 
 `Resource`, `Container`, and `Kernel` are non-null after xUnit initializes the fixture. Accessing them earlier throws `InvalidOperationException`.
 
-## Helper API
+## Concrete fixture
+
+There is no helper class for xUnit. For programmatic control, subclass a
+concrete fixture and call `Configure(...)` in the constructor, then share it
+with `IClassFixture<T>`:
 
 ```csharp
-var (kernel, resource) = await XunitResourceHelpers.CreateContainerAsync(
-    c => c.UseImage("postgres:16-alpine"));
+using FluentDocker.Builders;
+using FluentDocker.Testing.Xunit;
+using Xunit;
 
-try
+public sealed class PostgresFixture : XunitContainerFixture
 {
-  // use resource.Container
+  public PostgresFixture()
+      => Configure(c => c.UseImage("postgres:16-alpine"));
 }
-finally
+
+public sealed class PostgresTests : IClassFixture<PostgresFixture>
 {
-  await XunitResourceHelpers.DisposeAsync(resource, kernel);
+  private readonly PostgresFixture _f;
+  public PostgresTests(PostgresFixture f) => _f = f;
+
+  [Fact]
+  public void Container_IsRunning() => Assert.NotNull(_f.Container);
+}
+```
+
+xUnit drives `IAsyncLifetime`, so the fixture initializes and disposes
+automatically.
+
+For a custom resource type, subclass `XunitResourceFixture<TResource>` and
+call `Configure(...)` the same way:
+
+```csharp
+public sealed class ChatModelFixture : XunitResourceFixture<ModelResource>
+{
+  public ChatModelFixture()
+      => Configure(k => new ModelResource(k, "ai/smollm2:latest",
+          m => m.WithContextSize(4096)));
+}
+
+public sealed class ChatModelTests : IClassFixture<ChatModelFixture>
+{
+  private readonly ChatModelFixture _f;
+  public ChatModelTests(ChatModelFixture f) => _f = f;
+
+  [Fact]
+  public void Model_IsLoaded() => Assert.NotNull(_f.Resource.Runner);
 }
 ```
 

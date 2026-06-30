@@ -4,6 +4,7 @@ using Xunit;
 
 namespace FluentDocker.Tests.CoreTests.Testing
 {
+  [Trait("Category", "Unit")]
   public class DriverSelectionTests
   {
     [Fact]

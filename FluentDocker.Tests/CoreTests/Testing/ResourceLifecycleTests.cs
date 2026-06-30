@@ -168,6 +168,28 @@ namespace FluentDocker.Tests.CoreTests.Testing
     }
 
     [Fact]
+    [Trait("Category", "Unit")]
+    public async Task InitializeAsync_Timeout_CollectsDiagnosticsWithLiveToken()
+    {
+      var (kernel, _) = await MockKernelBuilderExtensions
+          .CreateWithMockDriverAsync();
+      await using (kernel)
+      {
+        var resource = new TimeoutDiagnosticsResource(
+            kernel,
+            new DockerResourceOptions
+            {
+              InitializationTimeout = TimeSpan.FromMilliseconds(50)
+            });
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(
+            () => resource.InitializeAsync(TestContext.Current.CancellationToken));
+
+        Assert.False(resource.DiagnosticsTokenWasCanceled);
+      }
+    }
+
+    [Fact]
     public async Task DisposeAsync_NullResource_DoesNotThrow()
     {
       var (kernel, _) = await MockKernelBuilderExtensions
@@ -308,6 +330,35 @@ namespace FluentDocker.Tests.CoreTests.Testing
           throw new InvalidOperationException("Simulated dispose failure");
         IsInitialized = false;
         return ValueTask.CompletedTask;
+      }
+    }
+
+    public sealed class TimeoutDiagnosticsResource(
+        FluentDockerKernel kernel,
+        DockerResourceOptions options) : ResourceBase(kernel, options)
+    {
+      public bool DiagnosticsTokenWasCanceled { get; private set; }
+
+      protected override Task PreflightAsync(CancellationToken cancellationToken)
+          => Task.CompletedTask;
+
+      protected override async Task ProvisionAsync(CancellationToken cancellationToken)
+      {
+        await Task.Delay(Timeout.Infinite, cancellationToken).ConfigureAwait(false);
+      }
+
+      protected override Task TeardownAsync(CancellationToken cancellationToken)
+          => Task.CompletedTask;
+
+      protected override Task ForceRemoveAsync(CancellationToken cancellationToken)
+          => Task.CompletedTask;
+
+      protected override Task<ResourceDiagnostics> CollectDiagnosticsAsync(
+          Exception failure,
+          CancellationToken cancellationToken = default)
+      {
+        DiagnosticsTokenWasCanceled = cancellationToken.IsCancellationRequested;
+        return Task.FromResult(new ResourceDiagnostics { Failure = failure });
       }
     }
 

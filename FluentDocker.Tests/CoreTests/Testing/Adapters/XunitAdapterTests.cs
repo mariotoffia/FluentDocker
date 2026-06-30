@@ -5,6 +5,8 @@ using FluentDocker.Drivers;
 using FluentDocker.Drivers.Podman;
 using FluentDocker.Kernel;
 using FluentDocker.Model.Drivers;
+using FluentDocker.Model.Models;
+using FluentDocker.Model.Models.Options;
 using FluentDocker.Testing.Core;
 using FluentDocker.Testing.Xunit;
 using FluentDocker.Tests.Mocks;
@@ -214,6 +216,39 @@ namespace FluentDocker.Tests.CoreTests.Testing.Adapters
       Assert.Same(Kernel, fixture.Kernel);
 
       await fixture.DisposeAsync();
+    }
+
+    [Fact]
+    [Trait("Category", "Unit")]
+    public async Task InitializeAsync_ModelResource_LoadsAndUnloadsModel()
+    {
+      var model = ModelReference.Parse("ai/smollm2:latest");
+      MockPack
+          .SetupModelLoad()
+          .SetupModelUnload()
+          .EnableModelDrivers();
+
+      var fixture = new XunitResourceFixture<ModelResource>();
+
+      await fixture.InitializeAsync(
+          kernel => new ModelResource(kernel, model),
+          kernelFactory: () => Task.FromResult(Kernel),
+          cancellationToken: TestContext.Current.CancellationToken);
+
+      Assert.True(fixture.Resource.IsInitialized);
+      Assert.Same(fixture.Resource.Service.Runner, fixture.Resource.Runner);
+      MockPack.ModelRuntimeDriver.Verify(d => d.LoadAsync(
+          It.IsAny<DriverContext>(),
+          It.Is<ModelReference>(m => m.Equals(model)),
+          It.IsAny<ModelRunOptions>(),
+          It.IsAny<CancellationToken>()), Times.Once);
+
+      await fixture.DisposeAsync();
+
+      MockPack.ModelRuntimeDriver.Verify(d => d.UnloadAsync(
+          It.IsAny<DriverContext>(),
+          It.Is<ModelReference>(m => m.Equals(model)),
+          It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact]

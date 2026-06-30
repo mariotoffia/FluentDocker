@@ -167,7 +167,8 @@ namespace FluentDocker.Tests.CoreTests.Testing
     }
 
     [Fact]
-    public async Task TeardownAsync_DownFailure_ForceRemoveHandlesIt()
+    [Trait("Category", "Unit")]
+    public async Task TeardownAsync_DownFailure_ForceRemoveHandlesSuccess()
     {
       MockPack.SetCapabilities(new DriverCapabilities
       {
@@ -177,25 +178,57 @@ namespace FluentDocker.Tests.CoreTests.Testing
       MockPack.EnablePodmanKubernetesDriver();
       MockPack.SetupKubePlay();
 
-      // DownAsync returns failure — triggers ForceRemoveAsync path
+      // DownAsync fails once, then force-remove succeeds.
       MockPack.PodmanKubernetesDriver
-          .Setup(d => d.DownAsync(
+          .SetupSequence(d => d.DownAsync(
               It.IsAny<DriverContext>(),
               It.IsAny<string>(),
               It.IsAny<CancellationToken>()))
-          .ReturnsAsync(CommandResponse<Unit>.Fail("down failed"));
+          .ReturnsAsync(CommandResponse<Unit>.Fail("down failed", ErrorCodes.Kubernetes.DownFailed))
+          .ReturnsAsync(CommandResponse<Unit>.Ok(Unit.Default));
 
       var config = new KubePlayConfig { YamlPath = "test.yaml" };
       var resource = new PodmanKubernetesResource(Kernel, config,
           new DockerResourceOptions { ForceRemoveOnDispose = true });
       await resource.InitializeAsync(TestContext.Current.CancellationToken);
 
-      // DisposeAsync should not throw — ForceRemoveAsync is best-effort
       await resource.DisposeAsync();
       Assert.False(resource.IsInitialized);
 
       // DownAsync called twice: once from Teardown, once from ForceRemove
       MockPack.VerifyKubeDown(Times.Exactly(2));
+    }
+
+    [Fact]
+    [Trait("Category", "Unit")]
+    public async Task DisposeAsync_DownFailure_ForceRemoveFailureThrows()
+    {
+      MockPack.SetCapabilities(new DriverCapabilities
+      {
+        SupportsContainers = true,
+        SupportsKubernetes = true
+      });
+      MockPack.EnablePodmanKubernetesDriver();
+      MockPack.SetupKubePlay();
+
+      MockPack.PodmanKubernetesDriver
+          .Setup(d => d.DownAsync(
+              It.IsAny<DriverContext>(),
+              It.IsAny<string>(),
+              It.IsAny<CancellationToken>()))
+          .ReturnsAsync(CommandResponse<Unit>.Fail("down failed", ErrorCodes.Kubernetes.DownFailed));
+
+      var config = new KubePlayConfig { YamlPath = "test.yaml" };
+      var resource = new PodmanKubernetesResource(Kernel, config,
+          new DockerResourceOptions { ForceRemoveOnDispose = true });
+      await resource.InitializeAsync(TestContext.Current.CancellationToken);
+
+      await Assert.ThrowsAsync<FluentDockerException>(
+          () => resource.DisposeAsync().AsTask());
+
+      Assert.NotNull(resource.LastTeardownDiagnostics);
+      Assert.NotNull(resource.LastTeardownDiagnostics.ForceRemoveException);
+      Assert.IsType<DriverException>(resource.LastTeardownDiagnostics.ForceRemoveException);
     }
 
     [Fact]

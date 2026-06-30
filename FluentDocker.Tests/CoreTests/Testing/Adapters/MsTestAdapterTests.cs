@@ -5,6 +5,8 @@ using FluentDocker.Drivers;
 using FluentDocker.Kernel;
 using FluentDocker.Model.Containers;
 using FluentDocker.Model.Drivers;
+using FluentDocker.Model.Models;
+using FluentDocker.Model.Models.Options;
 using FluentDocker.Testing.Core;
 using FluentDocker.Testing.MsTest;
 using FluentDocker.Tests.Mocks;
@@ -191,6 +193,38 @@ namespace FluentDocker.Tests.CoreTests.Testing.Adapters
       Assert.Same(Kernel, kernel);
 
       await MsTestResourceHelpers.DisposeAsync(resource, null!);
+    }
+
+    [Fact]
+    [Trait("Category", "Unit")]
+    public async Task CreateResourceAsync_ModelResource_LoadsAndUnloadsModel()
+    {
+      var model = ModelReference.Parse("ai/smollm2:latest");
+      MockPack
+          .SetupModelLoad()
+          .SetupModelUnload()
+          .EnableModelDrivers();
+
+      var (kernel, resource) = await MsTestResourceHelpers.CreateResourceAsync<ModelResource>(
+          k => new ModelResource(k, model),
+          kernelFactory: () => Task.FromResult(Kernel),
+          cancellationToken: TestContext.Current.CancellationToken);
+
+      Assert.True(resource.IsInitialized);
+      Assert.Same(resource.Service.Runner, resource.Runner);
+      Assert.Same(Kernel, kernel);
+      MockPack.ModelRuntimeDriver.Verify(d => d.LoadAsync(
+          It.IsAny<DriverContext>(),
+          It.Is<ModelReference>(m => m.Equals(model)),
+          It.IsAny<ModelRunOptions>(),
+          It.IsAny<CancellationToken>()), Times.Once);
+
+      await MsTestResourceHelpers.DisposeAsync(resource, null!);
+
+      MockPack.ModelRuntimeDriver.Verify(d => d.UnloadAsync(
+          It.IsAny<DriverContext>(),
+          It.Is<ModelReference>(m => m.Equals(model)),
+          It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact]

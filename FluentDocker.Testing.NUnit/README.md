@@ -49,3 +49,23 @@ finally
 ```
 
 Full docs: `docs/testing/nunit.md`. Model testing guide: `docs/testing/model.md`.
+
+## Model resource
+
+`CreateResourceAsync` builds any `ITestResource`, including a `ModelResource`.
+Capture the kernel and dispose both in teardown:
+
+```csharp
+var (kernel, model) = await NUnitResourceHelpers.CreateResourceAsync(
+    k => new ModelResource(k, "ai/smollm2:latest",
+        m => m.WithContextSize(4096)));
+
+try
+{
+  // use model.Runner for inference
+}
+finally
+{
+  await ResourceLifecycle.DisposeAsync(model, kernel);
+}
+```

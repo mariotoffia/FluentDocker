@@ -95,7 +95,9 @@ namespace FluentDocker.Testing.Core
       if (service == null)
         return;
 
-      await service.DisposeAsync().ConfigureAwait(false);
+      // DisposeAsync() honors KeepRunning(), but takes no token; race it with
+      // the teardown timeout so a hung unload cannot block CI.
+      await service.DisposeAsync().AsTask().WaitAsync(cancellationToken).ConfigureAwait(false);
       _service = null;
     }
 

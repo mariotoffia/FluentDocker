@@ -232,7 +232,8 @@ namespace FluentDocker.Tests.CoreTests.Testing
     }
 
     [Fact]
-    public async Task TeardownAsync_RemoveFailure_ForceRemoveHandlesIt()
+    [Trait("Category", "Unit")]
+    public async Task TeardownAsync_RemoveFailure_ForceRemoveHandlesStackNotFound()
     {
       MockPack.SetCapabilities(new DriverCapabilities
       {
@@ -242,25 +243,57 @@ namespace FluentDocker.Tests.CoreTests.Testing
       MockPack.EnableStackDriver();
       MockPack.SetupStackDeploy("rm-fail");
 
-      // RemoveAsync returns failure — triggers ForceRemoveAsync path
+      // RemoveAsync fails once, then force-remove sees an already-gone stack.
       MockPack.StackDriver
-          .Setup(d => d.RemoveAsync(
+          .SetupSequence(d => d.RemoveAsync(
               It.IsAny<DriverContext>(),
               It.IsAny<string[]>(),
               It.IsAny<CancellationToken>()))
-          .ReturnsAsync(CommandResponse<Unit>.Fail("remove failed"));
+          .ReturnsAsync(CommandResponse<Unit>.Fail("remove failed", ErrorCodes.Stack.RemoveFailed))
+          .ReturnsAsync(CommandResponse<Unit>.Fail("not found", ErrorCodes.Stack.NotFound));
 
       var config = new StackDeployConfig { StackName = "rm-fail" };
       var resource = new SwarmStackResource(Kernel, config,
           new DockerResourceOptions { ForceRemoveOnDispose = true });
       await resource.InitializeAsync(TestContext.Current.CancellationToken);
 
-      // DisposeAsync should not throw — ForceRemoveAsync is best-effort
       await resource.DisposeAsync();
       Assert.False(resource.IsInitialized);
 
       // RemoveAsync called twice: once from Teardown, once from ForceRemove
       MockPack.VerifyStackRemoved(Times.Exactly(2));
+    }
+
+    [Fact]
+    [Trait("Category", "Unit")]
+    public async Task DisposeAsync_RemoveFailure_ForceRemoveFailureThrows()
+    {
+      MockPack.SetCapabilities(new DriverCapabilities
+      {
+        SupportsContainers = true,
+        SupportsStacks = true
+      });
+      MockPack.EnableStackDriver();
+      MockPack.SetupStackDeploy("rm-fail-hard");
+
+      MockPack.StackDriver
+          .Setup(d => d.RemoveAsync(
+              It.IsAny<DriverContext>(),
+              It.IsAny<string[]>(),
+              It.IsAny<CancellationToken>()))
+          .ReturnsAsync(CommandResponse<Unit>.Fail("remove failed", ErrorCodes.Stack.RemoveFailed));
+
+      var config = new StackDeployConfig { StackName = "rm-fail-hard" };
+      var resource = new SwarmStackResource(Kernel, config,
+          new DockerResourceOptions { ForceRemoveOnDispose = true });
+      await resource.InitializeAsync(TestContext.Current.CancellationToken);
+
+      await Assert.ThrowsAsync<FluentDockerException>(
+          () => resource.DisposeAsync().AsTask());
+
+      Assert.NotNull(resource.LastTeardownDiagnostics);
+      Assert.NotNull(resource.LastTeardownDiagnostics.ForceRemoveException);
+      Assert.IsType<DriverException>(resource.LastTeardownDiagnostics.ForceRemoveException);
     }
 
     [Fact]

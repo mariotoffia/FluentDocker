@@ -16,9 +16,10 @@ you opt into `KeepRunning()`.
 Probe the runtime port before running model tests:
 
 ```csharp
-var runtime = kernel.SysCtl<IModelRuntimeDriver>("docker");
+// "docker-cli" is the default test-kernel driver id.
+var runtime = kernel.SysCtl<IModelRuntimeDriver>("docker-cli");
 var status = await runtime.StatusAsync(
-    new DriverContext("docker"),
+    new DriverContext("docker-cli"),
     cancellationToken);
 
 if (!status.Success || !status.Data.Running)
@@ -64,7 +65,6 @@ public sealed class ChatModelFixture : XunitResourceFixture<ModelResource>
             m => m.WithContextSize(4096),
             new DockerResourceOptions
             {
-                Driver = DriverSelection.Specific("docker"),
                 InitializationTimeout = TimeSpan.FromMinutes(10)
             }));
     }
@@ -77,33 +77,48 @@ the lifecycle handle.
 ## MSTest Helper
 
 ```csharp
-var (_, resource) = await MsTestResourceHelpers.CreateResourceAsync(
+var (kernel, resource) = await MsTestResourceHelpers.CreateResourceAsync(
     k => new ModelResource(
         k,
         "ai/smollm2:latest",
         m => m.WithContextSize(4096),
         new DockerResourceOptions
         {
-            Driver = DriverSelection.Specific("docker"),
             InitializationTimeout = TimeSpan.FromMinutes(10)
         }),
     cancellationToken: CancellationToken.None);
 ```
 
+Capture the kernel so you can tear both down. The helper owns nothing after it
+returns — dispose from `[TestCleanup]`:
+
+```csharp
+[TestCleanup]
+public async Task Cleanup() =>
+    await ResourceLifecycle.DisposeAsync(resource, kernel);
+```
+
 ## NUnit Helper
 
 ```csharp
-var (_, resource) = await NUnitResourceHelpers.CreateResourceAsync(
+var (kernel, resource) = await NUnitResourceHelpers.CreateResourceAsync(
     k => new ModelResource(
         k,
         "ai/smollm2:latest",
         m => m.WithContextSize(4096),
         new DockerResourceOptions
         {
-            Driver = DriverSelection.Specific("docker"),
             InitializationTimeout = TimeSpan.FromMinutes(10)
         }),
     cancellationToken);
+```
+
+Capture the kernel so you can tear both down — dispose from `[TearDown]`:
+
+```csharp
+[TearDown]
+public async Task Cleanup() =>
+    await ResourceLifecycle.DisposeAsync(resource, kernel);
 ```
 
 ## Model References and Pulls
@@ -139,7 +154,7 @@ unload. Assert on `Runner.ListRunningAsync` if a test must prove the model was u
 Model-backed containers can receive the runner URL through `WithModel(...)`:
 
 ```csharp
-await new Builder().WithinDriver("docker", kernel)
+await using var results = await new Builder().WithinDriver("docker-cli", kernel)
     .UseContainer(c => c
         .UseImage("curlimages/curl:latest")
         .WithModel(ModelReference.Parse("ai/smollm2:latest"))

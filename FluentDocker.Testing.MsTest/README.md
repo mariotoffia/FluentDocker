@@ -51,3 +51,25 @@ public static async Task ClassCleanup()
 ```
 
 Full docs: `docs/testing/mstest.md`. Model testing guide: `docs/testing/model.md`.
+
+## Model resource
+
+`CreateResourceAsync` builds any `ITestResource`, including a `ModelResource`.
+Capture the kernel and dispose both in cleanup:
+
+```csharp
+private static FluentDockerKernel? _kernel;
+private static ModelResource? _model;
+
+[ClassInitialize]
+public static async Task ClassInitialize(TestContext context)
+{
+  (_kernel, _model) = await MsTestResourceHelpers.CreateResourceAsync(
+      k => new ModelResource(k, "ai/smollm2:latest",
+          m => m.WithContextSize(4096)));
+}
+
+[ClassCleanup]
+public static async Task ClassCleanup()
+    => await ResourceLifecycle.DisposeAsync(_model, _kernel);
+```

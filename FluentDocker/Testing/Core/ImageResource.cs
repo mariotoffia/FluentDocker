@@ -92,7 +92,7 @@ namespace FluentDocker.Testing.Core
     /// <inheritdoc />
     protected override async Task TeardownAsync(CancellationToken cancellationToken)
     {
-      if (!_removeOnDispose || string.IsNullOrEmpty(ImageId))
+      if (!_removeOnDispose)
         return;
 
       var driver = Kernel.SysCtl<IImageDriver>(DriverId);
@@ -107,16 +107,14 @@ namespace FluentDocker.Testing.Core
       if (!_removeOnDispose)
         return;
 
-      var id = ImageId;
+      var target = string.IsNullOrEmpty(ImageId) ? ImageReference : ImageId;
       ImageId = null;
-      if (string.IsNullOrEmpty(id))
-        return;
 
       try
       {
         var driver = Kernel.SysCtl<IImageDriver>(DriverId);
         await driver.RemoveAsync(
-            new DriverContext(DriverId), id, true, false, cancellationToken).ConfigureAwait(false);
+            new DriverContext(DriverId), target, true, false, cancellationToken).ConfigureAwait(false);
       }
       catch { /* best effort */ }
     }

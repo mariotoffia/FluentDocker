@@ -20,7 +20,7 @@ namespace FluentDocker.Testing.Core
     /// <summary>
     /// Explicit driver ID to use (when <see cref="UseDefault"/> is false).
     /// </summary>
-    public string DriverId { get; init; }
+    public string? DriverId { get; init; }
 
     /// <summary>
     /// Expected driver type for preflight validation.

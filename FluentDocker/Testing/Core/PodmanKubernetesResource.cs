@@ -8,7 +8,6 @@ using FluentDocker.Drivers;
 using FluentDocker.Drivers.Podman;
 using FluentDocker.Kernel;
 using FluentDocker.Model.Drivers;
-using Microsoft.Extensions.Logging;
 
 namespace FluentDocker.Testing.Core
 {
@@ -124,21 +123,21 @@ namespace FluentDocker.Testing.Core
     /// <inheritdoc />
     protected override async Task ForceRemoveAsync(CancellationToken cancellationToken)
     {
-      try
-      {
-        var driver = Kernel.SysCtl<IPodmanKubernetesDriver>(DriverId);
-        var context = new DriverContext(DriverId);
-        await driver.DownAsync(
-            context, _config.YamlPath, cancellationToken).ConfigureAwait(false);
-      }
-      catch (Exception ex)
-      {
-        Logger.LogWarning(ex, "PodmanKubernetes teardown failed");
-      }
-      finally
+      var driver = Kernel.SysCtl<IPodmanKubernetesDriver>(DriverId);
+      var context = new DriverContext(DriverId);
+      var result = await driver.DownAsync(
+          context, _config.YamlPath, cancellationToken).ConfigureAwait(false);
+
+      if (result.Success)
       {
         PlayResult = null;
+        return;
       }
+
+      throw new DriverException(
+          $"Failed to force-remove Podman kube for '{_config.YamlPath}': {result.Error}",
+          result.ErrorCode,
+          result.ErrorContext);
     }
 
     #endregion

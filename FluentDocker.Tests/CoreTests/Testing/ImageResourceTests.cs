@@ -1,8 +1,10 @@
 using System;
 using System.Threading.Tasks;
 using FluentDocker.Drivers;
+using FluentDocker.Model.Drivers;
 using FluentDocker.Testing.Core;
 using FluentDocker.Tests.Mocks;
+using Moq;
 using Xunit;
 
 namespace FluentDocker.Tests.CoreTests.Testing
@@ -46,6 +48,29 @@ namespace FluentDocker.Tests.CoreTests.Testing
       await resource.DisposeAsync();
 
       Assert.False(resource.IsInitialized);
+    }
+
+    [Fact]
+    [Trait("Category", "Unit")]
+    public async Task DisposeAsync_WithRemoveOnDisposeAndNoImageId_RemovesImageReference()
+    {
+      MockPack
+          .SetupImagePull()
+          .SetupImageInspect(null)
+          .SetupImageRemove();
+
+      var resource = new ImageResource(
+          Kernel, "alpine", "3.18", removeOnDispose: true);
+
+      await resource.InitializeAsync(TestContext.Current.CancellationToken);
+      await resource.DisposeAsync();
+
+      MockPack.ImageDriver.Verify(d => d.RemoveAsync(
+          It.IsAny<DriverContext>(),
+          "alpine:3.18",
+          false,
+          false,
+          It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact]
