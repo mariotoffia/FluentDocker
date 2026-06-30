@@ -92,23 +92,22 @@ namespace FluentDocker.Services.Impl
     }
 
     /// <summary>
-    /// Returns the ids of containers connected to this network.
+    /// Returns the names of containers connected to this network.
     /// </summary>
     /// <remarks>
-    /// The driver-level <see cref="Network"/> model returned by <see cref="InspectAsync"/>
-    /// does not carry container membership (it exposes only id, name, driver, scope, ipv6,
-    /// internal and labels), and the inspect adapters that build it do not populate that data.
-    /// This method therefore cannot return connected containers and always yields an empty
-    /// list. It still performs an inspect so a missing network surfaces as a
-    /// <see cref="DriverException"/>.
+    /// Container names come from network inspect membership; when a runtime omits a name,
+    /// the container ID key is returned instead. A missing network still surfaces as a
+    /// <see cref="DriverException"/> from <see cref="InspectAsync"/>.
     /// </remarks>
-    [Obsolete("The driver Network model does not expose connected containers, so this method " +
-        "always returns an empty list. Inspect the network or query the container driver for " +
-        "membership instead.")]
     public async Task<IList<string>> GetConnectedContainersAsync(CancellationToken cancellationToken = default)
     {
-      await InspectAsync(cancellationToken).ConfigureAwait(false);
-      return [];
+      var network = await InspectAsync(cancellationToken).ConfigureAwait(false);
+      var containers = new List<string>();
+
+      foreach (var entry in network.Containers)
+        containers.Add(string.IsNullOrEmpty(entry.Value.Name) ? entry.Key : entry.Value.Name);
+
+      return containers;
     }
 
     public async Task<Network> InspectAsync(CancellationToken cancellationToken = default)
@@ -235,4 +234,3 @@ namespace FluentDocker.Services.Impl
     }
   }
 }
-

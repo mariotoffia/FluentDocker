@@ -96,6 +96,65 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
     }
 
     [Fact]
+    public void ParseNetworkInspect_WithContainersInterfaces_ReturnsNetworkedContainers()
+    {
+      var json = @"[{
+        ""id"":""net1"",
+        ""name"":""mynet"",
+        ""driver"":""bridge"",
+        ""containers"": {
+          ""aabbcc"": {
+            ""name"": ""web"",
+            ""interfaces"": {
+              ""eth0"": {
+                ""subnets"": [{ ""ipnet"": ""10.89.0.5/24"", ""gateway"": ""10.89.0.1"" }],
+                ""mac_address"": ""02:42:0a:59:00:05""
+              }
+            }
+          }
+        }
+      }]";
+
+      var result = InvokeParseNetworkInspect(json);
+
+      var container = Assert.Single(result.Containers);
+      Assert.Equal("aabbcc", container.Key);
+      Assert.Equal("web", container.Value.Name);
+      Assert.Equal("10.89.0.5/24", container.Value.IPv4Address);
+      Assert.Equal("02:42:0a:59:00:05", container.Value.MacAddress);
+    }
+
+    [Fact]
+    public void ParseNetworkInspect_DualStackSubnets_PopulatesBothAddresses()
+    {
+      var json = @"[{
+        ""id"":""net1"",
+        ""name"":""mynet"",
+        ""driver"":""bridge"",
+        ""containers"": {
+          ""aabbcc"": {
+            ""name"": ""web"",
+            ""interfaces"": {
+              ""eth0"": {
+                ""subnets"": [
+                  { ""ipnet"": ""10.90.0.2/24"" },
+                  { ""ipnet"": ""fd00:dead:beef::2/64"" }
+                ],
+                ""mac_address"": ""02:42:0a:5a:00:02""
+              }
+            }
+          }
+        }
+      }]";
+
+      var result = InvokeParseNetworkInspect(json);
+
+      var container = Assert.Single(result.Containers);
+      Assert.Equal("10.90.0.2/24", container.Value.IPv4Address);
+      Assert.Equal("fd00:dead:beef::2/64", container.Value.IPv6Address);
+    }
+
+    [Fact]
     public void ParseNetworkInspect_InvalidJson_Throws()
     {
       // FIX-7: unparseable non-empty network output must fail with diagnostics.

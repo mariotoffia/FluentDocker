@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using FluentDocker.Common;
 using FluentDocker.Drivers.Docker.Api.Connection;
 using FluentDocker.Model.Drivers;
+using FluentDocker.Model.Networks;
 
 namespace FluentDocker.Drivers.Docker.Api.Components
 {
@@ -184,8 +185,17 @@ namespace FluentDocker.Drivers.Docker.Api.Components
         Scope = token.GetStringOrDefault("Scope"),
         Internal = token.GetBoolOrDefault("Internal"),
         IPv6 = token.GetBoolOrDefault("EnableIPv6"),
-        Labels = token.GetStringDictionary("Labels")
+        Labels = token.GetStringDictionary("Labels"),
+        Containers = ParseContainers(token)
       };
+    }
+
+    private static Dictionary<string, NetworkedContainer> ParseContainers(JsonElement token)
+    {
+      var containers = token.Prop("Containers", "containers");
+      return containers?.ValueKind == JsonValueKind.Object
+          ? containers.Value.Deserialize<Dictionary<string, NetworkedContainer>>() ?? []
+          : [];
     }
   }
 }

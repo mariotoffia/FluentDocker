@@ -258,6 +258,12 @@ namespace FluentDocker.Drivers
     /// </summary>
     [JsonConverter(typeof(LabelsConverter))]
     public Dictionary<string, string> Labels { get; set; } = [];
+
+    /// <summary>
+    /// Containers connected to this network, keyed by container ID as returned by
+    /// Docker/Podman network inspect.
+    /// </summary>
+    public Dictionary<string, NetworkedContainer> Containers { get; set; } = [];
   }
 
   /// <summary>

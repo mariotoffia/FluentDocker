@@ -7,6 +7,7 @@ using FluentDocker.Common;
 using FluentDocker.Drivers.Docker.Cli;
 using FluentDocker.Drivers.Podman.Cli.Binary;
 using FluentDocker.Model.Drivers;
+using FluentDocker.Model.Networks;
 
 namespace FluentDocker.Drivers.Podman.Cli.Components
 {
@@ -280,8 +281,82 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
         Scope = token.GetStringOrDefault("Scope"),
         IPv6 = token.GetBoolOrDefault("IPv6Enabled") || token.GetBoolOrDefault("ipv6_enabled"),
         Internal = token.GetBoolOrDefault("Internal") || token.GetBoolOrDefault("internal"),
-        Labels = token.GetStringDictionary("Labels")
+        Labels = token.GetStringDictionary("Labels"),
+        Containers = ParseContainers(token)
       };
+    }
+
+    private static Dictionary<string, NetworkedContainer> ParseContainers(JsonElement token)
+    {
+      var result = new Dictionary<string, NetworkedContainer>();
+      var containers = token.Prop("Containers", "containers");
+      if (containers?.ValueKind != JsonValueKind.Object)
+        return result;
+
+      foreach (var item in containers.Value.EnumerateObject())
+      {
+        if (item.Value.ValueKind != JsonValueKind.Object)
+          continue;
+
+        result[item.Name] = ParseContainer(item.Value);
+      }
+
+      return result;
+    }
+
+    private static NetworkedContainer ParseContainer(JsonElement token)
+    {
+      var container = new NetworkedContainer
+      {
+        Name = token.GetStringOrDefault("Name") ?? token.GetStringOrDefault("name"),
+        EndpointID = token.GetStringOrDefault("EndpointID") ?? token.GetStringOrDefault("endpoint_id"),
+        MacAddress = token.GetStringOrDefault("MacAddress") ?? token.GetStringOrDefault("mac_address"),
+        IPv4Address = token.GetStringOrDefault("IPv4Address") ?? token.GetStringOrDefault("ipv4_address"),
+        IPv6Address = token.GetStringOrDefault("IPv6Address") ?? token.GetStringOrDefault("ipv6_address")
+      };
+
+      if (string.IsNullOrEmpty(container.EndpointID))
+        container.EndpointID = token.GetStringOrDefault("endpointID");
+
+      ApplyFirstInterface(container, token);
+      return container;
+    }
+
+    private static void ApplyFirstInterface(NetworkedContainer container, JsonElement token)
+    {
+      var interfaces = token.Prop("interfaces", "Interfaces");
+      if (interfaces?.ValueKind != JsonValueKind.Object)
+        return;
+
+      foreach (var iface in interfaces.Value.EnumerateObject())
+      {
+        if (iface.Value.ValueKind != JsonValueKind.Object)
+          return;
+
+        container.MacAddress ??= iface.Value.GetStringOrDefault("mac_address")
+                                 ?? iface.Value.GetStringOrDefault("MacAddress");
+        ApplyFirstSubnet(container, iface.Value);
+        return; // ponytail: one interface is enough for network membership; expand if Podman exposes multi-NIC needs.
+      }
+    }
+
+    private static void ApplyFirstSubnet(NetworkedContainer container, JsonElement iface)
+    {
+      var subnets = iface.Prop("subnets", "Subnets");
+      if (subnets?.ValueKind != JsonValueKind.Array)
+        return;
+
+      foreach (var subnet in subnets.Value.EnumerateArray())
+      {
+        var ip = subnet.GetStringOrDefault("ipnet") ?? subnet.GetStringOrDefault("IPNet");
+        if (string.IsNullOrEmpty(ip))
+          continue;
+
+        if (ip.Contains(':'))
+          container.IPv6Address ??= ip;
+        else
+          container.IPv4Address ??= ip;
+      }
     }
 
     private static Network ParseNetworkInspect(string json)

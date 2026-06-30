@@ -94,7 +94,7 @@ namespace FluentDocker.Tests.CoreTests.Service
 
     #endregion
 
-    #region Issue 6 — GetConnectedContainersAsync is a documented, obsolete no-op
+    #region Issue 6 — GetConnectedContainersAsync inspects the network for connected containers
 
     [Fact]
     public async Task GetConnectedContainersAsync_InspectsAndReturnsEmpty()
@@ -107,9 +107,7 @@ namespace FluentDocker.Tests.CoreTests.Service
       {
         var service = new NetworkService(kernel, "docker", "net-1", "test-network");
 
-#pragma warning disable CS0618 // intentionally exercising the obsolete member
         var ids = await service.GetConnectedContainersAsync(TestContext.Current.CancellationToken);
-#pragma warning restore CS0618
 
         Assert.Empty(ids);
         mockPack.NetworkDriver.Verify(d => d.InspectAsync(
