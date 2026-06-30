@@ -24,5 +24,11 @@ namespace FluentDocker.Services
 
     /// <summary>An <see cref="IModelRunner"/> bound to this model for inference.</summary>
     IModelRunner Runner { get; }
+
+    /// <summary>
+    /// When true, the model is left loaded (NOT unloaded) when the service is disposed.
+    /// Disposal still releases the owned runner; only the unload is skipped.
+    /// </summary>
+    bool KeepRunning { get; }
   }
 }

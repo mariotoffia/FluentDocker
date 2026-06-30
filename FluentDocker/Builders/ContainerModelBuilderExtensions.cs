@@ -2,6 +2,7 @@ using System;
 using System.Net;
 using FluentDocker.Common;
 using FluentDocker.Model.Models;
+using FluentDocker.Model.Models.Inference;
 
 namespace FluentDocker.Builders
 {
@@ -57,7 +58,13 @@ namespace FluentDocker.Builders
 
       var url = endpoint.ResolveUri("").ToString().TrimEnd('/');
       builder.WithEnvironment(endpointVar, url);
-      builder.WithEnvironment(modelVar, model.ToString());
+      // Inject the NORMALIZED inference id, not model.ToString(): the latter materializes a
+      // default ":latest" tag (so "ai/smollm2" becomes "ai/smollm2:latest"), which the
+      // inference path strips — leaving the container's LLM_MODEL out of sync with what the
+      // engine actually serves. FromModelReference drops a default ":latest" while preserving
+      // an explicitly-pinned tag/digest. It only returns null for a null reference (guarded
+      // above), so the ToString() fallback is purely defensive.
+      builder.WithEnvironment(modelVar, InferenceModelId.FromModelReference(model)?.Value ?? model.ToString());
 
       // On Docker Engine the internal DNS name does not resolve unless a host-gateway
       // alias is added; on Desktop it resolves automatically (the entry is harmless there).

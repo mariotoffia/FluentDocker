@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using FluentDocker.Common;
 using FluentDocker.Kernel;
 using FluentDocker.Model.Models;
 using FluentDocker.Model.Models.Options;
@@ -79,6 +80,9 @@ namespace FluentDocker.Services.Impl
     public IModelRunner Runner => _runner;
 
     /// <inheritdoc />
+    public bool KeepRunning => _keepRunning;
+
+    /// <inheritdoc />
     public bool CanStart => true;
 
     /// <inheritdoc />
@@ -104,7 +108,14 @@ namespace FluentDocker.Services.Impl
 
       try
       {
+        // Serialize load on the per-model gate so a concurrent load/unload/pull of the SAME
+        // model cannot race; different models proceed in parallel.
+        await using var gate = await ModelOperationGate.AcquireAsync(_model, cancellationToken).ConfigureAwait(false);
         _loadInitiated = true;
+        // Hold the gate for the FULL load — no .WaitAsync escape hatch. The driver honors the
+        // token, so a cancel ends the load and releases the gate together. Releasing the gate
+        // while a load was still in flight (the old .WaitAsync did exactly that on cancel) would
+        // let a concurrent load/unload/pull of the same model race it — defeating the gate.
         await _runner.LoadAsync(_model, _runOptions, cancellationToken).ConfigureAwait(false);
       }
       catch
@@ -138,6 +149,11 @@ namespace FluentDocker.Services.Impl
 
       try
       {
+        // Serialize unload on the same per-model gate the load path uses, holding it for the
+        // FULL unload (the driver honors the token). The old .WaitAsync released the gate on
+        // cancel while the unload was still running, which let a concurrent op race it —
+        // defeating the serialization the gate exists for.
+        await using var gate = await ModelOperationGate.AcquireAsync(_model, cancellationToken).ConfigureAwait(false);
         await _runner.UnloadAsync(_model, cancellationToken).ConfigureAwait(false);
       }
       catch
@@ -256,7 +272,9 @@ namespace FluentDocker.Services.Impl
           {
             // A load was attempted but we never reached Running (it faulted/cancelled
             // mid-load) — the model may still be resident. Best-effort unload so we
-            // don't leak it; failures are swallowed by the surrounding catch.
+            // don't leak it; failures are swallowed by the surrounding catch. Serialize
+            // on the per-model gate so this cleanup cannot race a concurrent op.
+            await using var gate = await ModelOperationGate.AcquireAsync(_model).ConfigureAwait(false);
             await _runner.UnloadAsync(_model).ConfigureAwait(false);
           }
         }

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Text.Json;
 using System.Text.Json.Serialization;
 
 namespace FluentDocker.Model.Models.Inference
@@ -25,6 +26,7 @@ namespace FluentDocker.Model.Models.Inference
       ArgumentNullException.ThrowIfNull(other);
       Model = other.Model;
       Input = other.Input is null ? null : new List<string>(other.Input);
+      AdditionalProperties = InferenceDto.CopyExtensionData<EmbeddingsRequest>(other.AdditionalProperties);
     }
 
     /// <summary>The model id.</summary>
@@ -32,6 +34,13 @@ namespace FluentDocker.Model.Models.Inference
 
     /// <summary>The inputs to embed.</summary>
     [JsonPropertyName("input")] public IList<string> Input { get; set; }
+
+    /// <summary>
+    /// Pass-through for any OpenAI-compatible request field not modeled above (e.g.
+    /// <c>encoding_format</c>, <c>dimensions</c>). Captured verbatim so advanced parameters
+    /// round-trip to the engine instead of being dropped. (Preview)
+    /// </summary>
+    [JsonExtensionData] public IDictionary<string, JsonElement> AdditionalProperties { get; set; }
   }
 
   /// <summary>
@@ -50,6 +59,12 @@ namespace FluentDocker.Model.Models.Inference
 
     /// <summary>Token usage.</summary>
     [JsonPropertyName("usage")] public Usage Usage { get; set; }
+
+    /// <summary>
+    /// Pass-through for any unmodeled response field. Captured verbatim so it is observable
+    /// instead of dropped. (Preview)
+    /// </summary>
+    [JsonExtensionData] public IDictionary<string, JsonElement> AdditionalProperties { get; set; }
   }
 
   /// <summary>
@@ -62,5 +77,11 @@ namespace FluentDocker.Model.Models.Inference
 
     /// <summary>The embedding vector.</summary>
     [JsonPropertyName("embedding")] public IList<float> Embedding { get; set; }
+
+    /// <summary>
+    /// Pass-through for any unmodeled field. Captured verbatim so it is observable
+    /// instead of dropped. (Preview)
+    /// </summary>
+    [JsonExtensionData] public IDictionary<string, JsonElement> AdditionalProperties { get; set; }
   }
 }

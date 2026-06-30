@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Text.Json;
 using System.Text.Json.Serialization;
 
 namespace FluentDocker.Model.Models.Inference
@@ -19,6 +20,12 @@ namespace FluentDocker.Model.Models.Inference
 
     /// <summary>The delta choices.</summary>
     [JsonPropertyName("choices")] public IList<ChatChunkChoice> Choices { get; set; }
+
+    /// <summary>
+    /// Pass-through for any unmodeled chunk field. Captured verbatim so it is observable
+    /// instead of dropped. (Preview)
+    /// </summary>
+    [JsonExtensionData] public IDictionary<string, JsonElement> AdditionalProperties { get; set; }
   }
 
   /// <summary>
@@ -34,5 +41,11 @@ namespace FluentDocker.Model.Models.Inference
 
     /// <summary>The finish reason (null until the final chunk).</summary>
     [JsonPropertyName("finish_reason")] public string FinishReason { get; set; }
+
+    /// <summary>
+    /// Pass-through for any unmodeled choice field. Captured verbatim so it is observable
+    /// instead of dropped. (Preview)
+    /// </summary>
+    [JsonExtensionData] public IDictionary<string, JsonElement> AdditionalProperties { get; set; }
   }
 }

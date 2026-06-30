@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Text.Json;
 using FluentDocker.Common;
 using FluentDocker.Model.Models.Inference;
 using Xunit;
@@ -75,6 +76,119 @@ namespace FluentDocker.Tests.CoreTests.Model
       // unset nullable props must be omitted (IgnoreNull)
       Assert.DoesNotContain("temperature", json);
       Assert.DoesNotContain("top_p", json);
+    }
+
+    // ---- Item 3: OpenAI-compat passthrough — unmodeled fields must round-trip via the
+    // [JsonExtensionData] AdditionalProperties dictionary instead of being silently dropped. ----
+
+    [Fact]
+    public void ChatCompletionRequest_AdditionalProperties_SerializeAtTopLevel()
+    {
+      var req = new ChatCompletionRequest
+      {
+        Model = "ai/smollm2",
+        Messages = new List<ChatMessage> { new() { Role = "user", Content = "hi" } },
+        AdditionalProperties = new Dictionary<string, JsonElement>
+        {
+          ["response_format"] = JsonSerializer.SerializeToElement(new { type = "json_object" }),
+          ["tool_choice"] = JsonSerializer.SerializeToElement("auto")
+        }
+      };
+
+      var json = JsonHelper.Serialize(req);
+
+      // The advanced OpenAI params a caller passed through must appear at the TOP level of the
+      // request body (not nested under "additionalProperties").
+      Assert.Contains("\"response_format\":{\"type\":\"json_object\"}", json);
+      Assert.Contains("\"tool_choice\":\"auto\"", json);
+      Assert.DoesNotContain("additionalProperties", json);
+      Assert.DoesNotContain("AdditionalProperties", json);
+    }
+
+    [Fact]
+    public void CopyConstructor_RejectsExtensionKeyCollidingWithModeledField()
+    {
+      // An AdditionalProperties key duplicating a modeled field ("stream") would serialize as a
+      // DUPLICATE top-level property and silently override the typed value when the inference
+      // driver clones the request (e.g. `new ChatCompletionRequest(req) { Stream = false }`).
+      var req = new ChatCompletionRequest
+      {
+        Model = "ai/smollm2",
+        Messages = new List<ChatMessage> { new() { Role = "user", Content = "hi" } },
+        AdditionalProperties = new Dictionary<string, JsonElement>
+        {
+          ["stream"] = JsonSerializer.SerializeToElement(true)
+        }
+      };
+
+      var ex = Assert.Throws<System.ArgumentException>(() => new ChatCompletionRequest(req));
+      Assert.Contains("stream", ex.Message);
+    }
+
+    [Fact]
+    public void CopyConstructor_ClonesExtensionData_SurvivingSourceDocumentDisposal()
+    {
+      // The copy-ctor must CLONE each extension JsonElement: an element backed by a disposed
+      // JsonDocument throws ObjectDisposedException on serialize. The inference driver clones the
+      // caller's request, so a shallow copy would crash inference for any caller who built
+      // AdditionalProperties from a (now-disposed) JsonDocument.
+      ChatCompletionRequest copy;
+      using (var doc = JsonDocument.Parse("{\"v\":123}"))
+      {
+        var req = new ChatCompletionRequest
+        {
+          Model = "ai/smollm2",
+          Messages = new List<ChatMessage> { new() { Role = "user", Content = "hi" } },
+          AdditionalProperties = new Dictionary<string, JsonElement>
+          {
+            ["x_custom"] = doc.RootElement.GetProperty("v")
+          }
+        };
+        copy = new ChatCompletionRequest(req);
+      }
+
+      // Must not throw ObjectDisposedException — the cloned element is independent of `doc`.
+      var json = JsonHelper.Serialize(copy);
+      Assert.Contains("\"x_custom\":123", json);
+    }
+
+    [Fact]
+    public void ChatCompletionResponse_UnmodeledField_RoundTripsViaAdditionalProperties()
+    {
+      // A server field the typed DTO does not model (e.g. a top-level "tool_calls"-style extension)
+      // must be observable through AdditionalProperties rather than dropped.
+      const string json =
+          "{\"id\":\"chatcmpl-1\",\"object\":\"chat.completion\"," +
+          "\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":\"hi\"}}]," +
+          "\"x_server_extension\":{\"foo\":42}}";
+
+      var resp = JsonHelper.TryDeserialize<ChatCompletionResponse>(json);
+
+      Assert.NotNull(resp);
+      Assert.NotNull(resp.AdditionalProperties);
+      Assert.True(resp.AdditionalProperties.ContainsKey("x_server_extension"));
+      Assert.Equal(42, resp.AdditionalProperties["x_server_extension"].GetProperty("foo").GetInt32());
+    }
+
+    [Fact]
+    public void ChatMessage_ToolCalls_RoundTripsViaAdditionalProperties()
+    {
+      // The OpenAI-compat claim must honor response tool_calls: an unmodeled message-level
+      // "tool_calls" survives into the message's AdditionalProperties.
+      const string json =
+          "{\"id\":\"chatcmpl-1\",\"object\":\"chat.completion\"," +
+          "\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":null," +
+          "\"tool_calls\":[{\"id\":\"call_1\",\"type\":\"function\"}]}}]}";
+
+      var resp = JsonHelper.TryDeserialize<ChatCompletionResponse>(json);
+
+      Assert.NotNull(resp);
+      var message = resp.Choices[0].Message;
+      Assert.NotNull(message.AdditionalProperties);
+      Assert.True(message.AdditionalProperties.ContainsKey("tool_calls"));
+      var toolCalls = message.AdditionalProperties["tool_calls"];
+      Assert.Equal(JsonValueKind.Array, toolCalls.ValueKind);
+      Assert.Equal(1, toolCalls.GetArrayLength());
     }
 
     [Fact]

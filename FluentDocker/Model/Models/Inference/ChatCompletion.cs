@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text.Json;
 using System.Text.Json.Serialization;
 
 namespace FluentDocker.Model.Models.Inference
@@ -39,6 +40,7 @@ namespace FluentDocker.Model.Models.Inference
       PresencePenalty = other.PresencePenalty;
       FrequencyPenalty = other.FrequencyPenalty;
       Seed = other.Seed;
+      AdditionalProperties = InferenceDto.CopyExtensionData<ChatCompletionRequest>(other.AdditionalProperties);
     }
 
     /// <summary>The model id (e.g. <c>ai/qwen3</c>).</summary>
@@ -70,6 +72,13 @@ namespace FluentDocker.Model.Models.Inference
 
     /// <summary>Sampling seed (reproducibility).</summary>
     [JsonPropertyName("seed")] public int? Seed { get; set; }
+
+    /// <summary>
+    /// Pass-through for any OpenAI-compatible request field not modeled above (e.g.
+    /// <c>tools</c>, <c>tool_choice</c>, <c>response_format</c>, multimodal content). Captured
+    /// verbatim so advanced parameters round-trip to the engine instead of being dropped. (Preview)
+    /// </summary>
+    [JsonExtensionData] public IDictionary<string, JsonElement> AdditionalProperties { get; set; }
   }
 
   /// <summary>
@@ -94,6 +103,12 @@ namespace FluentDocker.Model.Models.Inference
 
     /// <summary>Token usage.</summary>
     [JsonPropertyName("usage")] public Usage Usage { get; set; }
+
+    /// <summary>
+    /// Pass-through for any response field not modeled above. Captured verbatim so unmodeled
+    /// server fields (e.g. <c>system_fingerprint</c>) are observable instead of dropped. (Preview)
+    /// </summary>
+    [JsonExtensionData] public IDictionary<string, JsonElement> AdditionalProperties { get; set; }
   }
 
   /// <summary>
@@ -109,5 +124,11 @@ namespace FluentDocker.Model.Models.Inference
 
     /// <summary>The finish reason (<c>stop</c> / <c>length</c> / …).</summary>
     [JsonPropertyName("finish_reason")] public string FinishReason { get; set; }
+
+    /// <summary>
+    /// Pass-through for any unmodeled choice field (e.g. <c>logprobs</c>). Captured verbatim
+    /// so it is observable instead of dropped. (Preview)
+    /// </summary>
+    [JsonExtensionData] public IDictionary<string, JsonElement> AdditionalProperties { get; set; }
   }
 }

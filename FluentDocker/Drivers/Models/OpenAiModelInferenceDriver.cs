@@ -89,6 +89,14 @@ namespace FluentDocker.Drivers.Models
         // instead of letting the broad catch below downgrade it to RequestFailed.
         return CommandResponse<IList<OpenAiModel>>.Fail(ex.Message, ex.ErrorCode, ex.Context);
       }
+      catch (JsonException ex)
+      {
+        // A malformed /models listing is a parse failure, not a transport RequestFailed.
+        return CommandResponse<IList<OpenAiModel>>.Fail(
+            $"ListEngineModels: malformed inference response JSON: {ex.Message}",
+            ErrorCodes.ModelInference.StreamParseError,
+            new ErrorContext("ListEngineModels") { DriverId = context?.DriverId, Host = context?.Host });
+      }
       catch (Exception ex) when (ex is not OperationCanceledException)
       {
         return CommandResponse<IList<OpenAiModel>>.Fail(ex.Message, ErrorCodes.ModelInference.RequestFailed);
@@ -132,6 +140,16 @@ namespace FluentDocker.Drivers.Models
         // Preserve the typed transport error (e.g. EndpointUnreachable) + its context rather
         // than collapsing it to RequestFailed in the broad catch below.
         return CommandResponse<TResponse>.Fail(ex.Message, ex.ErrorCode, ex.Context);
+      }
+      catch (JsonException ex)
+      {
+        // A malformed / non-JSON response body is a protocol/parse failure, NOT a transport
+        // RequestFailed — surface it distinctly (StreamParseError) with the offending context
+        // so callers can tell "the server replied with garbage" from "the call never landed".
+        return CommandResponse<TResponse>.Fail(
+            $"{operation}: malformed inference response JSON: {ex.Message}",
+            ErrorCodes.ModelInference.StreamParseError,
+            new ErrorContext(operation) { DriverId = context?.DriverId, Host = context?.Host });
       }
       catch (Exception ex)
       {

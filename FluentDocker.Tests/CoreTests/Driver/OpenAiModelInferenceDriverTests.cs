@@ -204,6 +204,38 @@ namespace FluentDocker.Tests.CoreTests.Driver
       Assert.Equal(ErrorCodes.ModelInference.StreamParseError, resp.ErrorCode);
     }
 
+    // ---- Item 4: a malformed (non-JSON) body must classify as a distinct parse error
+    // (StreamParseError) instead of being swallowed into a generic transport RequestFailed ----
+
+    [Fact]
+    [Trait("Category", "Unit")]
+    public async Task ChatCompletionAsync_MalformedJson_ClassifiesAsParseError_NotRequestFailed()
+    {
+      var conn = new MockModelApiConnection().SetupPost("/chat/completions", 200, "{ not valid json");
+      var driver = Create(conn);
+
+      var resp = await driver.ChatCompletionAsync(Ctx, new ChatCompletionRequest { Model = "ai/x" }, TestContext.Current.CancellationToken);
+
+      Assert.False(resp.Success);
+      Assert.Equal(ErrorCodes.ModelInference.StreamParseError, resp.ErrorCode);
+      Assert.NotEqual(ErrorCodes.ModelInference.RequestFailed, resp.ErrorCode);
+      Assert.Contains("malformed", resp.Error, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    [Trait("Category", "Unit")]
+    public async Task EmbeddingsAsync_MalformedJson_ClassifiesAsParseError_NotRequestFailed()
+    {
+      var conn = new MockModelApiConnection().SetupPost("/embeddings", 200, "<html>not json</html>");
+      var driver = Create(conn);
+
+      var resp = await driver.EmbeddingsAsync(Ctx, new EmbeddingsRequest { Model = "ai/x", Input = new List<string> { "hi" } }, TestContext.Current.CancellationToken);
+
+      Assert.False(resp.Success);
+      Assert.Equal(ErrorCodes.ModelInference.StreamParseError, resp.ErrorCode);
+      Assert.NotEqual(ErrorCodes.ModelInference.RequestFailed, resp.ErrorCode);
+    }
+
     // ---- NEW6: copy constructors must preserve every property and be independent of the source ----
 
     [Fact]

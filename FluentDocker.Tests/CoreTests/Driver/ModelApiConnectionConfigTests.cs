@@ -27,10 +27,14 @@ namespace FluentDocker.Tests.CoreTests.Driver
         new(conn, ModelRunnerEndpoint.HostTcp());
 
     [Fact]
-    public void StreamReadIdleTimeout_DefaultIsNull()
+    public void StreamReadIdleTimeout_DefaultIsBounded()
     {
       var config = new ModelApiConnectionConfig();
-      Assert.Null(config.StreamReadIdleTimeout);
+      // Item 1: the default must be a bounded, non-null value so a dead stream cannot hang
+      // forever (callers may still set null explicitly to opt out).
+      Assert.NotNull(config.StreamReadIdleTimeout);
+      Assert.True(config.StreamReadIdleTimeout > TimeSpan.Zero);
+      Assert.Equal(TimeSpan.FromSeconds(120), config.StreamReadIdleTimeout);
     }
 
     [Fact]

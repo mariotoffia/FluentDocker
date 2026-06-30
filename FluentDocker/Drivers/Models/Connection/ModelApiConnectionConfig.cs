@@ -29,7 +29,9 @@ namespace FluentDocker.Drivers.Models.Connection
     public bool AllowTlsHostnameMismatch { get; set; }
 
     /// <summary>Max time to wait for the next streamed chunk before aborting the read.
-    /// Null disables the idle timeout (wait indefinitely, honoring only cancellation).</summary>
-    public TimeSpan? StreamReadIdleTimeout { get; set; }
+    /// Defaults to 120 seconds — long enough for a slow first token on a cold model, short
+    /// enough that a dead stream cannot hang forever. Set to <c>null</c> to explicitly opt out
+    /// (wait indefinitely, honoring only cancellation).</summary>
+    public TimeSpan? StreamReadIdleTimeout { get; set; } = TimeSpan.FromSeconds(120);
   }
 }

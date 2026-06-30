@@ -195,6 +195,64 @@ namespace FluentDocker.Tests.CoreTests.Model
     }
 
     [Fact]
+    public void TryFromEnvironment_SetButInvalid_ThrowsFormat()
+    {
+      const string var = "DOCKER_MODEL_RUNNER_URL";
+      var previous = Environment.GetEnvironmentVariable(var);
+      try
+      {
+        // Item 5: a SET-but-invalid value must fail fast (not silently fall back to localhost),
+        // and the message must name the bad value and the env var.
+        Environment.SetEnvironmentVariable(var, "not-a-valid-uri");
+        var ex = Assert.Throws<FormatException>(() => ModelRunnerEndpoint.TryFromEnvironment(out _));
+        Assert.Contains("not-a-valid-uri", ex.Message, StringComparison.Ordinal);
+        Assert.Contains(var, ex.Message, StringComparison.Ordinal);
+      }
+      finally
+      {
+        Environment.SetEnvironmentVariable(var, previous);
+      }
+    }
+
+    [Fact]
+    public void TryFromEnvironment_NonHttpScheme_ThrowsFormat()
+    {
+      const string var = "DOCKER_MODEL_RUNNER_URL";
+      var previous = Environment.GetEnvironmentVariable(var);
+      try
+      {
+        // A non-http(s) absolute URI (ftp/file/etc.) is well-formed but cannot reach the runner;
+        // it must fail fast like any other invalid value rather than silently falling back.
+        Environment.SetEnvironmentVariable(var, "ftp://10.0.0.5:12434");
+        var ex = Assert.Throws<FormatException>(() => ModelRunnerEndpoint.TryFromEnvironment(out _));
+        Assert.Contains("ftp://10.0.0.5:12434", ex.Message, StringComparison.Ordinal);
+        Assert.Contains(var, ex.Message, StringComparison.Ordinal);
+      }
+      finally
+      {
+        Environment.SetEnvironmentVariable(var, previous);
+      }
+    }
+
+    [Fact]
+    public void Default_SetButInvalid_ThrowsFormat()
+    {
+      const string var = "DOCKER_MODEL_RUNNER_URL";
+      var previous = Environment.GetEnvironmentVariable(var);
+      try
+      {
+        // The fail-fast must propagate through Default() too — it must NOT swallow the
+        // invalid value and return the localhost fallback.
+        Environment.SetEnvironmentVariable(var, "not-a-valid-uri");
+        Assert.Throws<FormatException>(() => ModelRunnerEndpoint.Default());
+      }
+      finally
+      {
+        Environment.SetEnvironmentVariable(var, previous);
+      }
+    }
+
+    [Fact]
     public void Default_IsHostTcp_WhenEnvUnset()
     {
       const string var = "DOCKER_MODEL_RUNNER_URL";

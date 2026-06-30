@@ -160,21 +160,35 @@ namespace FluentDocker.Model.Models
     /// Attempts to construct an endpoint from the <c>DOCKER_MODEL_RUNNER_URL</c>
     /// environment variable (the highest-priority resolution step).
     /// </summary>
-    /// <param name="endpoint">The resolved endpoint, or <c>null</c>.</param>
-    /// <returns><c>true</c> when the variable is set to a valid absolute URI.</returns>
+    /// <param name="endpoint">The resolved endpoint, or <c>null</c> when the variable is unset.</param>
+    /// <returns><c>true</c> when the variable is set to a valid absolute http(s) URL; <c>false</c>
+    /// when it is unset (the caller should fall back to the default).</returns>
+    /// <exception cref="FormatException">The variable is SET but is not a valid absolute http(s)
+    /// URL with a host. This fails fast rather than silently falling back to the default, so a
+    /// typo (a missing scheme, or a non-http scheme such as <c>ftp://</c>) surfaces instead of
+    /// quietly hitting the wrong runner.</exception>
     public static bool TryFromEnvironment(out ModelRunnerEndpoint endpoint)
     {
       var value = Environment.GetEnvironmentVariable(UrlEnvironmentVariable);
-      if (!string.IsNullOrWhiteSpace(value) && Uri.TryCreate(value, UriKind.Absolute, out var uri))
+      if (string.IsNullOrWhiteSpace(value))
       {
-        // Raw() preserves a path-bearing URL (e.g. an injected
-        // http://host:12434/engines/v1) instead of discarding it like Custom() would.
-        endpoint = Raw(uri);
-        return true;
+        // Unset (or whitespace) is the intended "use the default" signal — fall back quietly.
+        endpoint = null;
+        return false;
       }
 
-      endpoint = null;
-      return false;
+      if (!Uri.TryCreate(value, UriKind.Absolute, out var uri) ||
+          (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps) ||
+          string.IsNullOrEmpty(uri.Host))
+        throw new FormatException(
+            $"The {UrlEnvironmentVariable} environment variable is set to '{value}', which is not a " +
+            $"valid absolute http(s) URL with a host. Unset it to use the default (host TCP on port " +
+            $"{DefaultPort}), or set it to a URL such as 'http://localhost:12434'.");
+
+      // Raw() preserves a path-bearing URL (e.g. an injected
+      // http://host:12434/engines/v1) instead of discarding it like Custom() would.
+      endpoint = Raw(uri);
+      return true;
     }
 
     private static string DefaultSocketPath()

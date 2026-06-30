@@ -246,5 +246,55 @@ namespace FluentDocker.Tests.CoreTests.Service
         Assert.NotNull(service.Runner);
       }
     }
+
+    [Fact]
+    public async Task StartAsync_HoldsGateForFullLoad_NotReleasedEarlyOnCancel()
+    {
+      // A1: StartAsync must hold the per-model gate for the FULL load. The removed inner
+      // .WaitAsync(ct) used to release the gate the instant the token fired while the driver's
+      // load was still in flight, letting a concurrent op race. With the fix, the gate stays held
+      // until LoadAsync actually returns — so while a load is in progress (here a driver that
+      // ignores the token), the SAME model's gate must NOT be acquirable, even after a cancel.
+      var model = ModelReference.Parse("ai/gate-" + Guid.NewGuid().ToString("N"));
+      var load = new TaskCompletionSource<CommandResponse<Unit>>();
+      var pack = new MockDriverPack()
+          .SetupModelUnload()
+          .EnableModelDrivers();
+      pack.ModelRuntimeDriver
+          .Setup(d => d.LoadAsync(It.IsAny<DriverContext>(), It.IsAny<ModelReference>(),
+              It.IsAny<ModelRunOptions>(), It.IsAny<CancellationToken>()))
+          .Returns(load.Task); // ignores the token — simulates a driver mid-load
+
+      var kernel = await MockKernelBuilderExtensions.CreateWithMockDriverAsync("docker", pack);
+      await using (kernel)
+      {
+        var runner = new ModelRunnerService(kernel, "docker", ModelRunnerEndpoint.HostTcp(), model);
+        var service = new ModelService(kernel, "docker", model, runner, null!, false);
+        var ct = TestContext.Current.CancellationToken;
+
+        using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        var startTask = service.StartAsync(cts.Token);
+
+        // Let StartAsync acquire the gate and enter LoadAsync, then cancel: the OLD code would
+        // release the gate here while the load is still running.
+        await Task.Delay(TimeSpan.FromMilliseconds(100), ct);
+        cts.Cancel();
+
+        // The same model's gate must remain HELD (the load has not returned) — a concurrent
+        // acquire must not complete.
+        var contender = ModelOperationGate.AcquireAsync(model, ct);
+        var raced = await Task.WhenAny(contender, Task.Delay(TimeSpan.FromMilliseconds(200), ct));
+        Assert.NotSame(contender, raced);
+        Assert.False(contender.IsCompleted);
+
+        // Completing the load lets StartAsync finish and release the gate; the contender proceeds.
+        load.SetResult(CommandResponse<Unit>.Ok(Unit.Default));
+        await startTask;
+        var handle = await contender.WaitAsync(TimeSpan.FromSeconds(5), ct);
+        await handle.DisposeAsync();
+
+        await service.DisposeAsync();
+      }
+    }
   }
 }

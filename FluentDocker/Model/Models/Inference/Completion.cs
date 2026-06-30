@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Text.Json;
 using System.Text.Json.Serialization;
 
 namespace FluentDocker.Model.Models.Inference
@@ -32,6 +33,7 @@ namespace FluentDocker.Model.Models.Inference
       Stream = other.Stream;
       Stop = other.Stop is null ? null : new List<string>(other.Stop);
       Seed = other.Seed;
+      AdditionalProperties = InferenceDto.CopyExtensionData<CompletionRequest>(other.AdditionalProperties);
     }
 
     /// <summary>The model id.</summary>
@@ -57,6 +59,13 @@ namespace FluentDocker.Model.Models.Inference
 
     /// <summary>Sampling seed.</summary>
     [JsonPropertyName("seed")] public int? Seed { get; set; }
+
+    /// <summary>
+    /// Pass-through for any OpenAI-compatible request field not modeled above (e.g.
+    /// <c>response_format</c>, <c>logit_bias</c>). Captured verbatim so advanced parameters
+    /// round-trip to the engine instead of being dropped. (Preview)
+    /// </summary>
+    [JsonExtensionData] public IDictionary<string, JsonElement> AdditionalProperties { get; set; }
   }
 
   /// <summary>
@@ -81,6 +90,12 @@ namespace FluentDocker.Model.Models.Inference
 
     /// <summary>Token usage.</summary>
     [JsonPropertyName("usage")] public Usage Usage { get; set; }
+
+    /// <summary>
+    /// Pass-through for any unmodeled response field. Captured verbatim so it is observable
+    /// instead of dropped. (Preview)
+    /// </summary>
+    [JsonExtensionData] public IDictionary<string, JsonElement> AdditionalProperties { get; set; }
   }
 
   /// <summary>
@@ -96,6 +111,12 @@ namespace FluentDocker.Model.Models.Inference
 
     /// <summary>The finish reason.</summary>
     [JsonPropertyName("finish_reason")] public string FinishReason { get; set; }
+
+    /// <summary>
+    /// Pass-through for any unmodeled choice field (e.g. <c>logprobs</c>). Captured verbatim
+    /// so it is observable instead of dropped. (Preview)
+    /// </summary>
+    [JsonExtensionData] public IDictionary<string, JsonElement> AdditionalProperties { get; set; }
   }
 
   /// <summary>
@@ -111,5 +132,11 @@ namespace FluentDocker.Model.Models.Inference
 
     /// <summary>The choices.</summary>
     [JsonPropertyName("choices")] public IList<CompletionChoice> Choices { get; set; }
+
+    /// <summary>
+    /// Pass-through for any unmodeled chunk field. Captured verbatim so it is observable
+    /// instead of dropped. (Preview)
+    /// </summary>
+    [JsonExtensionData] public IDictionary<string, JsonElement> AdditionalProperties { get; set; }
   }
 }

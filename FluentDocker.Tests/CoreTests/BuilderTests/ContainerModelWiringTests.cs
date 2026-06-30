@@ -45,7 +45,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
                 && cfg.Environment["LLM_URL"].Contains("model-runner.docker.internal")
                 && cfg.Environment["LLM_URL"].Contains("/engines/v1")
                 && cfg.Environment.ContainsKey("LLM_MODEL")
-                && cfg.Environment["LLM_MODEL"] == "ai/smollm2:latest"
+                && cfg.Environment["LLM_MODEL"] == "ai/smollm2"
                 && cfg.ExtraHosts.ContainsKey("model-runner.docker.internal")
                 && cfg.ExtraHosts["model-runner.docker.internal"] == "host-gateway"),
             It.IsAny<CancellationToken>()), Times.Once);
