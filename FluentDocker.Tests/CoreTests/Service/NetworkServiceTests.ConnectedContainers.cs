@@ -31,7 +31,8 @@ namespace FluentDocker.Tests.CoreTests.Service
             Containers = new Dictionary<string, NetworkedContainer>
             {
               ["aabbcc"] = new NetworkedContainer { Name = "web" },
-              ["ddeeff"] = new NetworkedContainer()
+              ["ddeeff"] = new NetworkedContainer(),
+              ["gghhii"] = null!
             }
           }));
 
@@ -42,7 +43,7 @@ namespace FluentDocker.Tests.CoreTests.Service
       {
         var containers = await service.GetConnectedContainersAsync(TestContext.Current.CancellationToken);
 
-        Assert.Equal(["web", "ddeeff"], containers);
+        Assert.Equal(["web", "ddeeff", "gghhii"], containers);
       }
       finally
       {

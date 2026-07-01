@@ -105,7 +105,7 @@ namespace FluentDocker.Services.Impl
       var containers = new List<string>();
 
       foreach (var entry in network.Containers)
-        containers.Add(string.IsNullOrEmpty(entry.Value.Name) ? entry.Key : entry.Value.Name);
+        containers.Add(string.IsNullOrEmpty(entry.Value?.Name) ? entry.Key : entry.Value.Name);
 
       return containers;
     }
