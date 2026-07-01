@@ -156,8 +156,96 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
       }
     }
 
-    /// <summary>
-    /// Minimal ustar reader returning the file-entry names; the writer emits short plain
+    [Fact]
+    public void CreateBuildContextTar_FileSymlinkThroughInContextDirSymlink_DoesNotLeak()
+    {
+      var root = Path.Combine(Path.GetTempPath(), "fd-dirsym-" + Guid.NewGuid().ToString("N"));
+      var outside = Path.Combine(Path.GetTempPath(), "fd-dirout-" + Guid.NewGuid().ToString("N"));
+      Directory.CreateDirectory(root);
+      Directory.CreateDirectory(outside);
+      try
+      {
+        File.WriteAllText(Path.Combine(outside, "secret.txt"), "TOP SECRET");
+        File.WriteAllText(Path.Combine(root, "Dockerfile"), "FROM scratch\n");
+
+        try
+        {
+          // In-context directory symlink pointing outside the context. The enumerator does
+          // not traverse it, but a file symlink can still target a path *through* it. The
+          // link's final target resolves lexically inside the context (root/evil-dir/secret.txt),
+          // yet the kernel redirects the read through evil-dir to the host file — the link
+          // must be skipped, not dereferenced, or it exfiltrates a host file.
+          Directory.CreateSymbolicLink(Path.Combine(root, "evil-dir"), outside);
+          File.CreateSymbolicLink(
+              Path.Combine(root, "leak.txt"), Path.Combine(root, "evil-dir", "secret.txt"));
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or PlatformNotSupportedException)
+        {
+          Assert.Skip("Symlink creation is not permitted on this platform.");
+          return;
+        }
+
+        HashSet<string> keys;
+        using (var tar = InvokeCreateBuildContextTar(root))
+          keys = ReadTarFileNames(tar).Select(n => n.Replace('\\', '/')).ToHashSet();
+
+        Assert.Contains("Dockerfile", keys);
+        Assert.DoesNotContain("leak.txt", keys); // file symlink through in-context dir symlink excluded
+        Assert.DoesNotContain(keys, k => k.StartsWith("evil-dir", StringComparison.Ordinal)); // dir symlink not traversed
+        Assert.DoesNotContain(keys, k => k.Contains("secret", StringComparison.Ordinal)); // no host file leaked
+      }
+      finally
+      {
+        Directory.Delete(root, true);
+        Directory.Delete(outside, true);
+      }
+    }
+
+    [Fact]
+    public void CreateBuildContextTar_FileSymlinkPivotsThroughDirSymlinkWithDotDot_DoesNotLeak()
+    {
+      var root = Path.Combine(Path.GetTempPath(), "fd-pivot-" + Guid.NewGuid().ToString("N"));
+      var outside = Path.Combine(Path.GetTempPath(), "fd-pivotout-" + Guid.NewGuid().ToString("N"));
+      Directory.CreateDirectory(root);
+      Directory.CreateDirectory(Path.Combine(outside, "subdir"));
+      try
+      {
+        File.WriteAllText(Path.Combine(outside, "secret.txt"), "TOP SECRET");
+        File.WriteAllText(Path.Combine(root, "Dockerfile"), "FROM scratch\n");
+
+        try
+        {
+          // In-context directory symlink to an outside subdirectory, plus a file symlink that
+          // pivots back out through it with "..". Lexically "root/evil-dir/../secret.txt"
+          // collapses to "root/secret.txt" (looks in-context), but the kernel resolves
+          // evil-dir to outside/subdir, ".." to outside, and reads outside/secret.txt. A
+          // lexical containment check is fooled by the "symlink/.." cancellation; real-path
+          // canonicalisation is not.
+          Directory.CreateSymbolicLink(Path.Combine(root, "evil-dir"), Path.Combine(outside, "subdir"));
+          File.CreateSymbolicLink(
+              Path.Combine(root, "leak.txt"), Path.Combine("evil-dir", "..", "secret.txt"));
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or PlatformNotSupportedException)
+        {
+          Assert.Skip("Symlink creation is not permitted on this platform.");
+          return;
+        }
+
+        HashSet<string> keys;
+        using (var tar = InvokeCreateBuildContextTar(root))
+          keys = ReadTarFileNames(tar).Select(n => n.Replace('\\', '/')).ToHashSet();
+
+        Assert.Contains("Dockerfile", keys);
+        Assert.DoesNotContain("leak.txt", keys); // symlink/.. pivot excluded
+        Assert.DoesNotContain("secret.txt", keys); // collapsed lexical name must not leak either
+        Assert.DoesNotContain(keys, k => k.Contains("secret", StringComparison.Ordinal)); // no host file leaked
+      }
+      finally
+      {
+        Directory.Delete(root, true);
+        Directory.Delete(outside, true);
+      }
+    }
     /// headers so long-name/prefix extensions are not exercised.
     /// </summary>
     private static List<string> ReadTarFileNames(Stream stream)

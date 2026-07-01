@@ -2,6 +2,8 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Runtime.InteropServices;
+using System.Text;
 using FluentDocker.Common;
 
 namespace FluentDocker.Drivers.Docker.Api.Components
@@ -164,21 +166,83 @@ namespace FluentDocker.Drivers.Docker.Api.Components
     {
       try
       {
-        var target = file.ResolveLinkTarget(returnFinalTarget: true);
-        if (target is null)
-          return false;
-        var resolved = Path.GetFullPath(target.FullName);
-        var root = contextRoot.EndsWith(Path.DirectorySeparatorChar)
-            ? contextRoot
-            : contextRoot + Path.DirectorySeparatorChar;
-        return !resolved.StartsWith(root, StringComparison.Ordinal)
-            && resolved != contextRoot;
+        // Canonicalise both the link and the context root through the real filesystem so
+        // the containment decision matches what the kernel does when the file is opened.
+        // A purely lexical check (Path.GetFullPath / ResolveLinkTarget) cancels "symlink/.."
+        // textually and so lets a link escape through an in-context directory symlink
+        // (e.g. dir -> /etc, link -> dir/../passwd resolves lexically inside but reads /etc/passwd).
+        var realRoot = RealPath(contextRoot);
+        var realFile = RealPath(file.FullName);
+        if (realFile is null || realRoot is null)
+          return true; // broken / unresolvable link => exclude (safe default)
+
+        var root = realRoot.EndsWith(Path.DirectorySeparatorChar)
+            ? realRoot
+            : realRoot + Path.DirectorySeparatorChar;
+        return realFile != realRoot && !realFile.StartsWith(root, StringComparison.Ordinal);
       }
       catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
       {
-        return true; // broken / unresolvable link => exclude (safe default)
+        return true; // exclude (safe default)
       }
     }
+
+    /// <summary>
+    /// Canonicalises <paramref name="path"/> through the real filesystem the way the kernel
+    /// resolves it on open: symlinks (including intermediate directory symlinks) are followed
+    /// and <c>..</c> is applied AFTER symlink resolution. This is required for a containment
+    /// decision because <see cref="Path.GetFullPath(string)"/> and <c>ResolveLinkTarget</c>
+    /// collapse <c>symlink/..</c> lexically and so disagree with the kernel exactly where it
+    /// matters. Returns <c>null</c> when a component cannot be resolved (missing target,
+    /// broken link, symlink loop).
+    /// </summary>
+    private static string? RealPath(string path)
+    {
+      if (OperatingSystem.IsWindows())
+      {
+        // ponytail: Windows containment is best-effort (leaf-resolve + lexical) — the Docker
+        // API driver targets a Linux daemon and NTFS symlink/junction creation needs elevation.
+        // Upgrade to GetFinalPathNameByHandle if hostile contexts on a Windows daemon matter.
+        try
+        {
+          var resolved = new FileInfo(path).ResolveLinkTarget(returnFinalTarget: true);
+          return Path.GetFullPath(resolved?.FullName ?? path);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+          return null;
+        }
+      }
+
+      var ptr = Realpath(ToNullTerminatedUtf8(path), IntPtr.Zero);
+      if (ptr == IntPtr.Zero)
+        return null;
+      try
+      {
+        return Marshal.PtrToStringUTF8(ptr);
+      }
+      finally
+      {
+        Free(ptr);
+      }
+    }
+
+    private static byte[] ToNullTerminatedUtf8(string path)
+    {
+      var utf8 = Encoding.UTF8.GetBytes(path);
+      var buffer = new byte[utf8.Length + 1]; // libc realpath expects a null-terminated char*
+      Array.Copy(utf8, buffer, utf8.Length);
+      return buffer;
+    }
+
+    // realpath(3) with a NULL buffer allocates the result (POSIX.1-2008; glibc and macOS
+    // libc both support it). The returned buffer must be released with free(3). The path is
+    // marshalled as a UTF-8 byte[] rather than a string so no ANSI string marshaling is used.
+    [DllImport("libc", EntryPoint = "realpath")]
+    private static extern IntPtr Realpath(byte[] path, IntPtr resolved);
+
+    [DllImport("libc", EntryPoint = "free")]
+    private static extern void Free(IntPtr ptr);
 
     #endregion
   }
