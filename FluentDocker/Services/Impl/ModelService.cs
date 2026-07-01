@@ -303,7 +303,8 @@ namespace FluentDocker.Services.Impl
       if (!_stateHooks.TryGetValue(state, out var hooks))
         return;
 
-      foreach (var hook in hooks)
+      // Snapshot: a firing hook may add or remove hooks, which would invalidate a live enumerator.
+      foreach (var hook in new List<Func<IServiceAsync, Task>>(hooks))
       {
         try
         {

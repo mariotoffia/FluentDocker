@@ -89,6 +89,32 @@ namespace FluentDocker.Tests.CoreTests.Service
     }
 
     [Fact]
+    public async Task Hooks_MutatedWhileFiring_DoesNotThrow_AndOthersFire()
+    {
+      var (kernel, service) = await BuildAsync();
+      await using (kernel)
+      {
+        var fired = new List<string>();
+        service.AddHook(ServiceRunningState.Running, _ =>
+        {
+          fired.Add("self-removing");
+          service.RemoveHook("self-removing"); // mutates _stateHooks[Running] while it is being enumerated
+          return Task.CompletedTask;
+        }, "self-removing");
+        service.AddHook(ServiceRunningState.Running, _ =>
+        {
+          fired.Add("survivor");
+          return Task.CompletedTask;
+        }, "survivor");
+
+        await service.StartAsync(TestContext.Current.CancellationToken);
+
+        Assert.Contains("self-removing", fired);
+        Assert.Contains("survivor", fired);
+      }
+    }
+
+    [Fact]
     public async Task StateChange_EventRaised()
     {
       var (kernel, service) = await BuildAsync();
