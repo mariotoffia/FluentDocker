@@ -97,6 +97,12 @@ namespace FluentDocker.Drivers.Models
             ErrorCodes.ModelInference.StreamParseError,
             new ErrorContext("ListEngineModels") { DriverId = context?.DriverId, Host = context?.Host });
       }
+      catch (TimeoutException ex)
+      {
+        // A per-request timeout is distinct from both a caller cancel (rethrown via the broad
+        // catch's OperationCanceledException guard) and a generic server RequestFailed.
+        return CommandResponse<IList<OpenAiModel>>.Fail(ex.Message, ErrorCodes.ModelInference.Timeout);
+      }
       catch (Exception ex) when (ex is not OperationCanceledException)
       {
         return CommandResponse<IList<OpenAiModel>>.Fail(ex.Message, ErrorCodes.ModelInference.RequestFailed);
@@ -135,6 +141,15 @@ namespace FluentDocker.Drivers.Models
         return CommandResponse<TResponse>.Ok(dto);
       }
       catch (OperationCanceledException) { throw; }
+      catch (TimeoutException ex)
+      {
+        // A per-request idle/timeout from the connection (SendWithTimeoutAsync throws
+        // TimeoutException) is NOT a generic server failure — surface it as a distinct Timeout so
+        // callers can retry/backoff on latency rather than treating it like a 500. This is checked
+        // BEFORE the broad catch (which would otherwise collapse it to RequestFailed), and AFTER
+        // the OperationCanceledException rethrow so a caller cancel is never reported as a timeout.
+        return CommandResponse<TResponse>.Fail(ex.Message, ErrorCodes.ModelInference.Timeout);
+      }
       catch (ModelRunnerException ex)
       {
         // Preserve the typed transport error (e.g. EndpointUnreachable) + its context rather

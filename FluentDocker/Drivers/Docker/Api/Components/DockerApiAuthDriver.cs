@@ -31,6 +31,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
             CreateErrorContext("POST /auth", result.StatusCode, result.ResponseBody),
             result.StatusCode);
 
+      DockerApiRegistryAuth.Store(Connection, config);
       return CommandResponse<Unit>.Ok(Unit.Default);
     }
 
@@ -43,6 +44,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
         DriverContext context, string server = null,
         CancellationToken cancellationToken = default)
     {
+      DockerApiRegistryAuth.Remove(Connection, server);
       return Task.FromResult(CommandResponse<Unit>.Ok(Unit.Default));
     }
   }

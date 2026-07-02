@@ -270,7 +270,7 @@ namespace FluentDocker.Tests.CoreTests.Service
     #region DisposeAsync
 
     [Fact]
-    public async Task DisposeAsync_CallsRemoveWithForce()
+    public async Task DisposeAsync_CallsRemoveWithoutVolumesByDefault()
     {
       var mockPack = new MockDriverPack();
       mockPack.SetupComposeDown();
@@ -283,7 +283,7 @@ namespace FluentDocker.Tests.CoreTests.Service
 
         mockPack.ComposeDriver.Verify(d => d.DownAsync(
             It.IsAny<DriverContext>(),
-            It.Is<ComposeDownConfig>(c => c.RemoveVolumes),
+            It.Is<ComposeDownConfig>(c => !c.RemoveVolumes),
             It.IsAny<CancellationToken>()), Times.Once);
       }
       finally { kernel.Dispose(); }

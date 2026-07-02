@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Linq;
 using FluentDocker.Model.Drivers;
 
@@ -90,36 +91,36 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       if (!string.IsNullOrEmpty(config.Runtime))
         args += $" --runtime {QuoteArgumentIfNeeded(config.Runtime)}";
 
-      foreach (var cap in config.CapAdd)
+      foreach (var cap in OrEmpty(config.CapAdd))
         args += $" --cap-add {QuoteArgumentIfNeeded(cap)}";
-      foreach (var cap in config.CapDrop)
+      foreach (var cap in OrEmpty(config.CapDrop))
         args += $" --cap-drop {QuoteArgumentIfNeeded(cap)}";
-      foreach (var opt in config.SecurityOpt)
+      foreach (var opt in OrEmpty(config.SecurityOpt))
         args += $" --security-opt {QuoteArgumentIfNeeded(opt)}";
-      foreach (var tmpfs in config.Tmpfs)
+      foreach (var tmpfs in OrEmpty(config.Tmpfs))
         args += string.IsNullOrEmpty(tmpfs.Value)
             ? $" --tmpfs {QuoteArgumentIfNeeded(tmpfs.Key)}" : $" --tmpfs {QuoteArgumentIfNeeded($"{tmpfs.Key}:{tmpfs.Value}")}";
-      foreach (var dev in config.Devices)
+      foreach (var dev in OrEmpty(config.Devices))
         args += dev.Key == dev.Value
             ? $" --device {QuoteArgumentIfNeeded(dev.Key)}" : $" --device {QuoteArgumentIfNeeded($"{dev.Key}:{dev.Value}")}";
-      foreach (var env in config.Environment)
+      foreach (var env in OrEmpty(config.Environment))
         args += $" -e {QuoteArgumentIfNeeded($"{env.Key}={env.Value}")}";
-      foreach (var port in config.PortBindings)
+      foreach (var port in OrEmpty(config.PortBindings))
         args += $" -p {QuoteArgumentIfNeeded($"{port.Value}:{port.Key}")}";
-      foreach (var vol in config.Volumes)
+      foreach (var vol in OrEmpty(config.Volumes))
         args += $" -v {QuoteArgumentIfNeeded($"{vol.Key}:{vol.Value}")}";
-      foreach (var label in config.Labels)
+      foreach (var label in OrEmpty(config.Labels))
         args += $" --label {QuoteArgumentIfNeeded($"{label.Key}={label.Value}")}";
-      foreach (var network in config.Networks)
+      foreach (var network in OrEmpty(config.Networks))
         args += $" --network {QuoteArgumentIfNeeded(network)}";
-      foreach (var dns in config.Dns)
+      foreach (var dns in OrEmpty(config.Dns))
         args += $" --dns {QuoteArgumentIfNeeded(dns)}";
-      foreach (var host in config.ExtraHosts)
+      foreach (var host in OrEmpty(config.ExtraHosts))
         args += $" --add-host {QuoteArgumentIfNeeded($"{host.Key}:{host.Value}")}";
-      foreach (var link in config.Links)
+      foreach (var link in OrEmpty(config.Links))
         args += $" --link {QuoteArgumentIfNeeded(link)}";
-      foreach (var networkAlias in config.NetworkAliases)
-        foreach (var alias in networkAlias.Value)
+      foreach (var networkAlias in OrEmpty(config.NetworkAliases))
+        foreach (var alias in OrEmpty(networkAlias.Value))
           args += $" --network-alias {QuoteArgumentIfNeeded(alias)}";
 
       // Entrypoint — Podman CLI --entrypoint only accepts the executable.
@@ -157,6 +158,14 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
 
       return args;
     }
+
+    /// <summary>
+    /// Null-safe enumeration source. The fluent <c>ContainerBuilder</c> nulls out empty
+    /// collections before calling the driver (<c>ContainerBuilder.ExecuteAsync</c>), so every
+    /// collection walked by <see cref="BuildCreateArgs"/> must tolerate a null. Routing all
+    /// loops through this one helper fixes the NRE once for every argument the builder can emit.
+    /// </summary>
+    private static IEnumerable<T> OrEmpty<T>(IEnumerable<T> source) => source ?? Enumerable.Empty<T>();
 
     #endregion
   }

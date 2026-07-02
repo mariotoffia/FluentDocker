@@ -118,6 +118,7 @@ namespace FluentDocker.Tests.CoreTests.Driver
       });
 
       Assert.Equal(ErrorCodes.Driver.CommandExecutionFailed, ex.ErrorCode);
+      Assert.Contains("progressing", ex.Message, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]

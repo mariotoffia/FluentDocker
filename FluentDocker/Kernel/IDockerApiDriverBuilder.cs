@@ -48,5 +48,14 @@ namespace FluentDocker.Kernel
     /// </summary>
     /// <param name="verify">Whether to verify TLS certificates (default: true)</param>
     IDockerApiDriverBuilder WithTlsVerification(bool verify = true);
+
+    /// <summary>
+    /// Allows TLS certificate hostname/SAN mismatch while still validating the certificate chain.
+    /// </summary>
+    /// <remarks>
+    /// Applies to Docker API TLS connections with either system trust or a configured custom CA.
+    /// It does not disable chain validation; use <see cref="WithTlsVerification"/> for that.
+    /// </remarks>
+    IDockerApiDriverBuilder WithAllowTlsHostnameMismatch(bool allow = true);
   }
 }

@@ -266,6 +266,10 @@ namespace FluentDocker.Drivers.Docker.Api.Components
           IsConnected = true
         });
       }
+      catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+      {
+        throw;
+      }
       catch (Exception ex)
       {
         return CommandResponse<AttachResult>.Fail(
@@ -358,7 +362,9 @@ namespace FluentDocker.Drivers.Docker.Api.Components
         var payload = new byte[frameSize];
         var payloadRead = await ReadExactAsync(stream, payload, frameSize, ct).ConfigureAwait(false);
         if (payloadRead < frameSize)
-          yield break;
+          throw new DriverException(
+              $"Docker log stream truncated: expected {frameSize} payload bytes, read {payloadRead}",
+              ErrorCodes.Api.ServerError);
 
         var text = Encoding.UTF8.GetString(payload, 0, payloadRead).TrimEnd('\n', '\r');
         foreach (var line in text.Split('\n'))

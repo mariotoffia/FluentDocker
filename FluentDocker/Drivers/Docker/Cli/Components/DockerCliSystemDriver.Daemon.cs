@@ -96,50 +96,73 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
       {
         try
         {
-          using var process = new Process
+          Process process = null;
+          try
           {
-            StartInfo = new ProcessStartInfo
+            process = new Process
             {
-              FileName = BinaryResolver?.ResolveBinaryPath("dockercli") ?? "dockercli",
-              Arguments = arguments,
-              RedirectStandardOutput = true,
-              RedirectStandardError = true,
-              UseShellExecute = false,
-              CreateNoWindow = true
-            }
-          };
+              StartInfo = new ProcessStartInfo
+              {
+                FileName = BinaryResolver?.ResolveBinaryPath("dockercli") ?? "dockercli",
+                Arguments = arguments,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                UseShellExecute = false,
+                CreateNoWindow = true
+              }
+            };
 
-          var output = new StringBuilder();
-          var error = new StringBuilder();
+            var output = new StringBuilder();
+            var error = new StringBuilder();
 
-          process.OutputDataReceived += (s, e) =>
-          {
-            if (!string.IsNullOrEmpty(e.Data))
-              output.AppendLine(e.Data);
-          };
+            process.OutputDataReceived += (s, e) =>
+            {
+              if (!string.IsNullOrEmpty(e.Data))
+                output.AppendLine(e.Data);
+            };
 
-          process.ErrorDataReceived += (s, e) =>
-          {
-            if (!string.IsNullOrEmpty(e.Data))
-              error.AppendLine(e.Data);
-          };
+            process.ErrorDataReceived += (s, e) =>
+            {
+              if (!string.IsNullOrEmpty(e.Data))
+                error.AppendLine(e.Data);
+            };
 
-          process.Start();
-          process.BeginOutputReadLine();
-          process.BeginErrorReadLine();
+            process.Start();
+            process.BeginOutputReadLine();
+            process.BeginErrorReadLine();
 
-          while (!process.WaitForExit(1000))
-          {
-            cancellationToken.ThrowIfCancellationRequested();
+            while (!process.WaitForExit(1000))
+              cancellationToken.ThrowIfCancellationRequested();
+
+            // Parameterless overload flushes the async OutputDataReceived/
+            // ErrorDataReceived handlers to EOF; the timed overload does not.
+            process.WaitForExit();
+
+            return new SimpleCommandResult
+            {
+              Success = process.ExitCode == 0,
+              Output = output.ToString(),
+              Error = error.ToString(),
+              ExitCode = process.ExitCode
+            };
           }
-
-          return new SimpleCommandResult
+          catch (OperationCanceledException)
           {
-            Success = process.ExitCode == 0,
-            Output = output.ToString(),
-            Error = error.ToString(),
-            ExitCode = process.ExitCode
-          };
+            try
+            {
+              if (process is { HasExited: false })
+                process.Kill(entireProcessTree: true);
+            }
+            catch
+            {
+              // best effort: process may have exited between the check and kill
+            }
+            throw;
+          }
+          finally
+          {
+            process?.Dispose();
+          }
         }
         catch (OperationCanceledException)
         {
@@ -154,7 +177,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
             ExitCode = -1
           };
         }
-      }, cancellationToken);
+      }, cancellationToken).ConfigureAwait(false);
     }
 
     #endregion

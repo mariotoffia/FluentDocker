@@ -117,8 +117,6 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     public static string BuildLogsSubArgs(ComposeLogsConfig config)
     {
       var args = "logs";
-      if (config.Follow)
-        args += " -f";
       if (config.Timestamps)
         args += " -t";
       if (config.Tail.HasValue)

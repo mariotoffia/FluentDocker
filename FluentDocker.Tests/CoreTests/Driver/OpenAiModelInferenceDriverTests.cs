@@ -22,7 +22,7 @@ namespace FluentDocker.Tests.CoreTests.Driver
   /// driven by <see cref="MockModelApiConnection"/> and real DMR payloads.
   /// </summary>
   [Trait("Category", "Unit")]
-  public class OpenAiModelInferenceDriverTests
+  public partial class OpenAiModelInferenceDriverTests
   {
     private static DriverContext Ctx => new("docker");
 

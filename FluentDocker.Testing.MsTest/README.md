@@ -93,8 +93,8 @@ public static async Task ClassCleanup()
     => await MsTestResourceHelpers.DisposeAsync(_resource, _kernel);
 ```
 
-Full docs: [docs/testing/mstest.md](../docs/testing/mstest.md). Model testing guide:
-[docs/testing/model.md](../docs/testing/model.md).
+Full docs: [docs/testing/mstest.md](https://mariotoffia.github.io/FluentDocker/testing/mstest.html). Model testing guide:
+[docs/testing/model.md](https://mariotoffia.github.io/FluentDocker/testing/model.html).
 
 ## Docker Model Runner (ModelResource)
 

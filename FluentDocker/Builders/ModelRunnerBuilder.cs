@@ -136,7 +136,11 @@ namespace FluentDocker.Builders
         owned = connection;
       }
 
-      var endpoint = _endpoint ?? ModelRunnerEndpoint.Default();
+      // Report the endpoint inference is ACTUALLY bound to: an explicit per-runner endpoint wins,
+      // else the pack/context's configured endpoint (DriverContext.ModelRunnerEndpoint), and only
+      // then the genuine default. Assuming Default() here made status/diagnostics claim
+      // localhost:12434 while inference really targeted the context's endpoint.
+      var endpoint = _endpoint ?? ContextEndpoint() ?? ModelRunnerEndpoint.Default();
       var runner = new ModelRunnerService(_kernel, _driverId, endpoint, _model, inferenceOverride, owned);
 
       try
@@ -188,6 +192,12 @@ namespace FluentDocker.Builders
 
     private static bool IsExplicitBackend(string backend) =>
         !string.IsNullOrWhiteSpace(backend) && !string.Equals(backend, "auto", StringComparison.OrdinalIgnoreCase);
+
+    // The endpoint the pack/context is bound to (null when nothing configured or the driver is not
+    // registered). GetContext throws for an unregistered driver, so guard with IsRegistered — the
+    // same pattern ModelRunnerService.Context() uses.
+    private ModelRunnerEndpoint ContextEndpoint() =>
+        _kernel.Registry.IsRegistered(_driverId) ? _kernel.Registry.GetContext(_driverId)?.ModelRunnerEndpoint : null;
 
     private ModelConfigureOptions BuildConfigureOptions() => new()
     {

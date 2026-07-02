@@ -122,8 +122,7 @@ namespace FluentDocker.Builders
     /// <summary>
     /// Runs Running-triggered lifecycle hooks. When <paramref name="executeCommands"/> is false,
     /// only setup hooks (CopyToOnStart) run; when true, only ExecuteOnRunning commands run.
-    /// Each element of an Execute hook's command array is executed as a separate command,
-    /// and failures propagate (the v2 contract) rather than being silently swallowed.
+    /// Execute hook command arrays are executed as one argv command, and failures propagate.
     /// </summary>
     private async Task RunRunningLifecycleHooksAsync(
         Services.Impl.ContainerService service, bool executeCommands,
@@ -137,15 +136,11 @@ namespace FluentDocker.Builders
         switch (hook.Type)
         {
           case LifecycleHookType.CopyTo when !executeCommands:
-            await service.CopyToAsync(hook.ContainerPath,
-                File.ReadAllBytes(hook.HostPath), cancellationToken).ConfigureAwait(false);
+            await service.CopyToAsync(hook.HostPath, hook.ContainerPath, cancellationToken).ConfigureAwait(false);
             break;
           case LifecycleHookType.Execute when executeCommands:
             if (hook.Command != null)
-            {
-              foreach (var command in hook.Command)
-                await service.ExecuteAsync(command, cancellationToken).ConfigureAwait(false);
-            }
+              await service.ExecuteAsync(hook.Command, cancellationToken).ConfigureAwait(false);
             break;
         }
       }
@@ -309,7 +304,7 @@ namespace FluentDocker.Builders
                   new System.Net.Http.Headers.MediaTypeHeaderValue(contentType);
           }
 
-          var response = await Common.SharedHttpClient.Instance.SendAsync(request, requestCts.Token).ConfigureAwait(false);
+          using var response = await Common.SharedHttpClient.Instance.SendAsync(request, requestCts.Token).ConfigureAwait(false);
           var responseBody = await response.Content.ReadAsStringAsync(requestCts.Token).ConfigureAwait(false);
 
           if (continuation != null)
@@ -337,7 +332,7 @@ namespace FluentDocker.Builders
 
     #region Container Helpers
 
-    private static async Task WaitForContainerRunningAsync(
+    internal static async Task WaitForContainerStartedAsync(
         Drivers.IContainerDriver driver, Model.Drivers.DriverContext context,
         string containerId, CancellationToken cancellationToken)
     {
@@ -346,10 +341,21 @@ namespace FluentDocker.Builders
       for (var i = 0; i < maxAttempts; i++)
       {
         var inspectResult = await driver.InspectAsync(context, containerId, cancellationToken).ConfigureAwait(false);
-        if (inspectResult.Success && inspectResult.Data?.State?.Running == true)
+        if (inspectResult?.Success == true && HasStartedOrReachedTerminalState(inspectResult.Data?.State))
           return;
         await Task.Delay(delayMs, cancellationToken).ConfigureAwait(false);
       }
+      throw new FluentDockerException($"Timeout waiting for container {containerId} to start");
+    }
+
+    private static bool HasStartedOrReachedTerminalState(ContainerState state)
+    {
+      if (state == null)
+        return false;
+      if (state.Running || state.Dead)
+        return true;
+      return string.Equals(state.Status, "exited", StringComparison.OrdinalIgnoreCase) ||
+          string.Equals(state.Status, "dead", StringComparison.OrdinalIgnoreCase);
     }
 
     private static async Task<string> FindExistingContainerAsync(

@@ -319,7 +319,6 @@ Configure sudo behavior for Linux environments via the kernel builder.
 using var kernel = await FluentDockerKernel.Create()
     .WithDockerCli("docker", d => d.AsDefault())
     .BuildAsync();
-// Commands run without sudo
 ```
 
 ### Passwordless Sudo
@@ -343,8 +342,12 @@ using var kernel = await FluentDockerKernel.Create()
         .WithSudo(SudoMechanism.Password, "your-password")
         .AsDefault())
     .BuildAsync();
-// Commands prefixed with: echo 'password' | sudo -S
 ```
+
+The command runs as `sudo -S docker …`. The `-S` flag makes `sudo` read the password from
+**stdin** — the library writes it to the child process's standard input, never on the
+command line or via an `echo … |` pipe. (Attach can't use password sudo since it needs
+stdin for the container; use passwordless sudo there.)
 
 ## Model Extensions
 

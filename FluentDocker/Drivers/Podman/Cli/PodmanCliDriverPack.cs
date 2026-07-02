@@ -298,10 +298,10 @@ namespace FluentDocker.Drivers.Podman.Cli
 
     /// <summary>
     /// Computes the per-machine serialization key used to ensure concurrent kernel builds do
-    /// not race to start/init the same Podman machine. An unset name normalizes to the same
-    /// <c>"default"</c> the start/init path uses (<see cref="AutoStartMachineCoreAsync"/>), so a
-    /// null-name build and an explicit <c>MachineName = "default"</c> build serialize on the
-    /// same gate instead of two different ones. Public static so the keying is unit-testable
+    /// not race to start/init the same Podman machine. An unset name normalizes to a shared
+    /// <c>"default"</c> sentinel, so a null-name build and an explicit <c>MachineName = "default"</c>
+    /// build serialize on the same gate instead of two different ones (conservative
+    /// over-serialization is harmless here). Public static so the keying is unit-testable
     /// without internals access.
     /// </summary>
     public static string MachineLockKey(string machineName)
@@ -370,14 +370,16 @@ namespace FluentDocker.Drivers.Podman.Cli
 
       if (target != null)
       {
-        // Machine exists but is not running — start it
+        // Machine exists but is not running — start it, then wait until it actually answers so
+        // we do not hand the caller a machine that fails the very next command.
         var startResult = await _machineDriver.StartAsync(
-            context, target.Name, cancellationToken);
+            context, target.Name, cancellationToken).ConfigureAwait(false);
 
         if (!startResult.Success)
           throw new PodmanMachineNotRunningException(
               $"Failed to start Podman machine '{target.Name}': {startResult.Error}");
 
+        await WaitForMachineReadyAsync(context, cancellationToken).ConfigureAwait(false);
         return;
       }
 
@@ -390,24 +392,80 @@ namespace FluentDocker.Drivers.Podman.Cli
                 : $" named '{config.MachineName}'. ") +
             "Start one with: podman machine init && podman machine start");
 
-      // Init a new machine
-      var machineName = config.MachineName ?? "default";
-      var initConfig = new MachineInitConfig
+      // Init a new machine. Leave the name unset when unspecified so podman targets its real
+      // built-in default instead of a literal machine called "default".
+      var displayName = string.IsNullOrEmpty(config.MachineName)
+          ? "default machine" : $"machine '{config.MachineName}'";
+      var initConfig = BuildAutoStartInitConfig(config);
+
+      var initResult = await _machineDriver.InitAsync(
+          context, initConfig, cancellationToken).ConfigureAwait(false);
+
+      if (!initResult.Success)
+        throw new PodmanMachineNotRunningException(
+            $"Failed to initialize Podman {displayName}: {initResult.Error}");
+
+      await WaitForMachineReadyAsync(context, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Maps an <see cref="AutoStartMachineConfig"/> to the <see cref="MachineInitConfig"/> used to
+    /// auto-create a machine. When <see cref="AutoStartMachineConfig.MachineName"/> is unspecified
+    /// the name is left NULL so <c>podman machine init</c> targets its real built-in default rather
+    /// than a literal machine called "default". Public static so the name-omission is unit-testable
+    /// through the public surface without internals access.
+    /// </summary>
+    public static MachineInitConfig BuildAutoStartInitConfig(AutoStartMachineConfig config)
+    {
+      ArgumentNullException.ThrowIfNull(config);
+
+      return new MachineInitConfig
       {
-        Name = machineName,
+        Name = string.IsNullOrEmpty(config.MachineName) ? null : config.MachineName,
         Cpus = config.InitCpus,
         MemoryMiB = config.InitMemoryMiB,
         DiskSizeGiB = config.InitDiskSizeGiB,
         Rootful = config.InitRootful,
         Now = true // Start immediately after init
       };
+    }
 
-      var initResult = await _machineDriver.InitAsync(
-          context, initConfig, cancellationToken);
+    // ponytail: a fixed 1s poll / 60s ceiling is enough for a local podman machine to answer
+    // `info` after start/init. Upgrade path: surface these as knobs on AutoStartMachineConfig if a
+    // slower host or CI ever needs a longer readiness budget.
+    private static readonly TimeSpan MachineReadyPollInterval = TimeSpan.FromSeconds(1);
+    private static readonly TimeSpan MachineReadyTimeout = TimeSpan.FromSeconds(60);
 
-      if (!initResult.Success)
+    /// <summary>
+    /// Polls <c>podman info</c> (via the system driver ping already used by
+    /// <see cref="IsHealthyAsync"/>) after a start/init until the machine answers or
+    /// <see cref="MachineReadyTimeout"/> elapses. A freshly started machine is not immediately
+    /// usable — the VM/connection needs a moment — so returning before it is ready would hand the
+    /// caller a machine that fails the next command. Honors caller cancellation.
+    /// </summary>
+    private async Task WaitForMachineReadyAsync(
+        DriverContext context, CancellationToken cancellationToken)
+    {
+      using var budget = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+      budget.CancelAfter(MachineReadyTimeout);
+
+      try
+      {
+        while (true)
+        {
+          var ping = await _systemDriver.PingAsync(context, budget.Token).ConfigureAwait(false);
+          if (ping.Success)
+            return;
+
+          await Task.Delay(MachineReadyPollInterval, budget.Token).ConfigureAwait(false);
+        }
+      }
+      catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+      {
+        // The readiness budget elapsed (not the caller): surface a clear machine-not-ready error.
         throw new PodmanMachineNotRunningException(
-            $"Failed to initialize Podman machine '{machineName}': {initResult.Error}");
+            $"Podman machine did not become ready within {MachineReadyTimeout.TotalSeconds:0}s after start/init.");
+      }
     }
 
     #endregion

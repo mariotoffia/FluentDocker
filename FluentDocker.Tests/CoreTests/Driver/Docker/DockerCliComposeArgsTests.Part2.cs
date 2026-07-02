@@ -50,7 +50,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Docker
         NoColor = true
       };
       var result = DockerCliComposeDriver.BuildLogsSubArgs(config);
-      Assert.Contains(" -f", result);
+      Assert.DoesNotContain(" -f", result);
       Assert.Contains(" -t", result);
       Assert.Contains("--tail 100", result);
       Assert.Contains("--since 1h", result);

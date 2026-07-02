@@ -447,8 +447,10 @@ or shared OpenAI-compatible endpoint usually does. The inference connection
   provided the chain validates against the configured CA. Set it only for IP-based
   connections to a known host.
 - **`StreamReadIdleTimeout`** — the max time to wait for the next streamed chunk
-  before aborting the read. `null` (the default) disables the idle timeout, waiting
-  indefinitely and honoring only the caller's `CancellationToken`.
+  before aborting the read. Defaults to **120 seconds** — long enough for a slow first
+  token on a cold model, short enough that a dead stream cannot hang forever. Set it to
+  `null` to **opt out** (wait indefinitely, honoring only the caller's
+  `CancellationToken`).
 
 ### API keys
 

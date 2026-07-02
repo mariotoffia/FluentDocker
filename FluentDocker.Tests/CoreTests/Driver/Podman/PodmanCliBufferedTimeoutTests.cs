@@ -120,6 +120,30 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
     }
 
     [Fact]
+    public async Task UnboundedCommand_LargeStdout_NotCappedAt4MiB_KeepsTail()
+    {
+      if (OperatingSystem.IsWindows())
+        Assert.Skip("POSIX shell semantics; not applicable on Windows");
+
+      // The bounded path FAILS a command whose stdout exceeds the 4 MiB cap (see
+      // BufferedCommand_OversizedStdout_FailsCleanly). The unbounded path must instead stream to
+      // completion, keeping a bounded rolling TAIL — so the meaningful trailing line (here a
+      // marker; for real ops the loaded-image / id / exit-code line) survives even though total
+      // output far exceeds 4 MiB.
+      var driver = CreateShellDriver(requestTimeout: null);
+
+      // ~5.6 MiB of stdout ("padding\n" == 8 bytes x 700000), then a trailing marker (no newline).
+      const string script = "yes padding | head -n 700000; printf DONE_MARKER";
+      var result = await driver.RunUnbounded($"-c \"{script}\"", TestContext.Current.CancellationToken);
+
+      Assert.True(result.Success);
+      Assert.Equal(0, result.ExitCode);
+      Assert.Contains("DONE_MARKER", result.Output);
+      Assert.True(result.Output.Length < 4 * 1024 * 1024,
+          "unbounded output must be kept as a bounded rolling tail, not buffered in full");
+    }
+
+    [Fact]
     public async Task BufferedCommand_OversizedStderr_TruncatedNotThrown_AndExitPreserved()
     {
       if (OperatingSystem.IsWindows())

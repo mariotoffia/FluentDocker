@@ -177,9 +177,7 @@ namespace FluentDocker.Model.Models
         return false;
       }
 
-      if (!Uri.TryCreate(value, UriKind.Absolute, out var uri) ||
-          (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps) ||
-          string.IsNullOrEmpty(uri.Host))
+      if (!Uri.TryCreate(value, UriKind.Absolute, out var uri) || !IsSupportedUrl(uri))
         throw new FormatException(
             $"The {UrlEnvironmentVariable} environment variable is set to '{value}', which is not a " +
             $"valid absolute http(s) URL with a host. Unset it to use the default (host TCP on port " +
@@ -190,6 +188,20 @@ namespace FluentDocker.Model.Models
       endpoint = Raw(uri);
       return true;
     }
+
+    /// <summary>
+    /// Whether a URI is a usable model-runner endpoint: an absolute http(s) URL with a host.
+    /// This is the single validation shared by <c>DOCKER_MODEL_RUNNER_URL</c> parsing here and
+    /// the env/Compose <c>ModelRunnerEnvironment</c> Try* paths, so a scheme-less or non-http(s)
+    /// value (e.g. <c>ftp://</c>, <c>file://</c>) is rejected identically by every <c>Try*</c> API
+    /// rather than passing one and failing later.
+    /// </summary>
+    /// <param name="uri">The candidate URI (may be null).</param>
+    /// <returns><c>true</c> when the URI is absolute, http(s), and has a non-empty host.</returns>
+    public static bool IsSupportedUrl(Uri uri) =>
+        uri is { IsAbsoluteUri: true } &&
+        (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps) &&
+        !string.IsNullOrEmpty(uri.Host);
 
     private static string DefaultSocketPath()
     {

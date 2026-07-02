@@ -45,20 +45,25 @@ namespace FluentDocker.Drivers.Docker.Cli
     /// <see cref="DefaultBufferedCommandTimeout"/> when no <see cref="DriverContext.RequestTimeout"/>
     /// is configured.
     /// </summary>
-    private TimeSpan ResolveBufferedTimeout()
-        => Context?.RequestTimeout ?? DefaultBufferedCommandTimeout;
+    private static TimeSpan ResolveBufferedTimeout(DriverContext context)
+        => context?.RequestTimeout ?? DefaultBufferedCommandTimeout;
 
     /// <summary>
     /// Resolves the binary info for the Docker command, extracting
     /// the binary path and sudo configuration separately for safe execution.
     /// </summary>
-    private (string BinaryPath, SudoMechanism Sudo, string SudoPassword) ResolveBinaryInfo()
+    private (string BinaryPath, SudoMechanism Sudo, string SudoPassword) ResolveBinaryInfo(DriverContext context)
     {
+      var contextSudo = context?.Sudo ?? SudoMechanism.None;
+      var contextPassword = context?.SudoPassword;
+
       if (BinaryResolver == null)
-        return (DockerCommand, SudoMechanism.None, null);
+        return (DockerCommand, contextSudo, contextPassword);
 
       var binary = BinaryResolver.Resolve(DockerCommand);
-      return (binary.FqPath, binary.Sudo, binary.SudoPassword);
+      return (binary.FqPath,
+          contextSudo != SudoMechanism.None ? contextSudo : binary.Sudo,
+          contextPassword ?? binary.SudoPassword);
     }
 
     /// <summary>
@@ -68,11 +73,16 @@ namespace FluentDocker.Drivers.Docker.Cli
     /// <param name="cancellationToken">Cancellation token</param>
     /// <returns>Command result</returns>
     protected async Task<SimpleCommandResult> ExecuteCommandAsync(string arguments, CancellationToken cancellationToken)
+        => await ExecuteCommandAsync((DriverContext)null, arguments, cancellationToken).ConfigureAwait(false);
+
+    protected async Task<SimpleCommandResult> ExecuteCommandAsync(
+        DriverContext context, string arguments, CancellationToken cancellationToken)
     {
-      var (binaryPath, sudo, sudoPassword) = ResolveBinaryInfo();
-      var globalArgs = BuildGlobalArgs(Context);
+      var effectiveContext = CreateEffectiveContext(context);
+      var (binaryPath, sudo, sudoPassword) = ResolveBinaryInfo(effectiveContext);
+      var globalArgs = BuildGlobalArgs(effectiveContext);
       var fullArgs = string.IsNullOrEmpty(globalArgs) ? arguments : $"{globalArgs} {arguments}";
-      return await ExecuteProcessAsync(binaryPath, fullArgs, null, null, sudo, sudoPassword, ResolveBufferedTimeout(), cancellationToken).ConfigureAwait(false);
+      return await ExecuteProcessAsync(binaryPath, fullArgs, null, null, sudo, sudoPassword, ResolveBufferedTimeout(effectiveContext), cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -80,11 +90,16 @@ namespace FluentDocker.Drivers.Docker.Cli
     /// </summary>
     protected async Task<SimpleCommandResult> ExecuteCommandAsync(
         string arguments, string stdinData, CancellationToken cancellationToken)
+        => await ExecuteCommandAsync((DriverContext)null, arguments, stdinData, cancellationToken).ConfigureAwait(false);
+
+    protected async Task<SimpleCommandResult> ExecuteCommandAsync(
+        DriverContext context, string arguments, string stdinData, CancellationToken cancellationToken)
     {
-      var (binaryPath, sudo, sudoPassword) = ResolveBinaryInfo();
-      var globalArgs = BuildGlobalArgs(Context);
+      var effectiveContext = CreateEffectiveContext(context);
+      var (binaryPath, sudo, sudoPassword) = ResolveBinaryInfo(effectiveContext);
+      var globalArgs = BuildGlobalArgs(effectiveContext);
       var fullArgs = string.IsNullOrEmpty(globalArgs) ? arguments : $"{globalArgs} {arguments}";
-      return await ExecuteProcessAsync(binaryPath, fullArgs, null, stdinData, sudo, sudoPassword, ResolveBufferedTimeout(), cancellationToken).ConfigureAwait(false);
+      return await ExecuteProcessAsync(binaryPath, fullArgs, null, stdinData, sudo, sudoPassword, ResolveBufferedTimeout(effectiveContext), cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -94,11 +109,19 @@ namespace FluentDocker.Drivers.Docker.Cli
         string arguments,
         IDictionary<string, string> environment,
         CancellationToken cancellationToken)
+        => await ExecuteCommandAsync((DriverContext)null, arguments, environment, cancellationToken).ConfigureAwait(false);
+
+    protected async Task<SimpleCommandResult> ExecuteCommandAsync(
+        DriverContext context,
+        string arguments,
+        IDictionary<string, string> environment,
+        CancellationToken cancellationToken)
     {
-      var (binaryPath, sudo, sudoPassword) = ResolveBinaryInfo();
-      var globalArgs = BuildGlobalArgs(Context);
+      var effectiveContext = CreateEffectiveContext(context);
+      var (binaryPath, sudo, sudoPassword) = ResolveBinaryInfo(effectiveContext);
+      var globalArgs = BuildGlobalArgs(effectiveContext);
       var fullArgs = string.IsNullOrEmpty(globalArgs) ? arguments : $"{globalArgs} {arguments}";
-      return await ExecuteProcessAsync(binaryPath, fullArgs, environment, null, sudo, sudoPassword, ResolveBufferedTimeout(), cancellationToken).ConfigureAwait(false);
+      return await ExecuteProcessAsync(binaryPath, fullArgs, environment, null, sudo, sudoPassword, ResolveBufferedTimeout(effectiveContext), cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -109,9 +132,14 @@ namespace FluentDocker.Drivers.Docker.Cli
     /// </summary>
     protected async Task<SimpleCommandResult> ExecuteCommandAsync(
         string arguments, TimeSpan timeout, CancellationToken cancellationToken)
+        => await ExecuteCommandAsync((DriverContext)null, arguments, timeout, cancellationToken).ConfigureAwait(false);
+
+    protected async Task<SimpleCommandResult> ExecuteCommandAsync(
+        DriverContext context, string arguments, TimeSpan timeout, CancellationToken cancellationToken)
     {
-      var (binaryPath, sudo, sudoPassword) = ResolveBinaryInfo();
-      var globalArgs = BuildGlobalArgs(Context);
+      var effectiveContext = CreateEffectiveContext(context);
+      var (binaryPath, sudo, sudoPassword) = ResolveBinaryInfo(effectiveContext);
+      var globalArgs = BuildGlobalArgs(effectiveContext);
       var fullArgs = string.IsNullOrEmpty(globalArgs) ? arguments : $"{globalArgs} {arguments}";
       return await ExecuteProcessAsync(binaryPath, fullArgs, null, null, sudo, sudoPassword, timeout, cancellationToken).ConfigureAwait(false);
     }
@@ -123,6 +151,10 @@ namespace FluentDocker.Drivers.Docker.Cli
     /// </summary>
     protected Task<SimpleCommandResult> ExecuteUnboundedCommandAsync(string arguments, CancellationToken cancellationToken)
         => ExecuteCommandAsync(arguments, Timeout.InfiniteTimeSpan, cancellationToken);
+
+    protected Task<SimpleCommandResult> ExecuteUnboundedCommandAsync(
+        DriverContext context, string arguments, CancellationToken cancellationToken)
+        => ExecuteCommandAsync(context, arguments, Timeout.InfiniteTimeSpan, cancellationToken);
 
     /// <summary>
     /// Executes a process asynchronously using direct stream reading
@@ -254,8 +286,16 @@ namespace FluentDocker.Drivers.Docker.Cli
     /// <returns>Async enumerable of output lines</returns>
     protected async IAsyncEnumerable<string> ExecuteStreamingCommandAsync(string arguments, [EnumeratorCancellation] CancellationToken cancellationToken)
     {
-      var (binaryPath, sudo, sudoPassword) = ResolveBinaryInfo();
-      var globalArgs = BuildGlobalArgs(Context);
+      await foreach (var line in ExecuteStreamingCommandAsync((DriverContext)null, arguments, cancellationToken).ConfigureAwait(false))
+        yield return line;
+    }
+
+    protected async IAsyncEnumerable<string> ExecuteStreamingCommandAsync(
+        DriverContext context, string arguments, [EnumeratorCancellation] CancellationToken cancellationToken)
+    {
+      var effectiveContext = CreateEffectiveContext(context);
+      var (binaryPath, sudo, sudoPassword) = ResolveBinaryInfo(effectiveContext);
+      var globalArgs = BuildGlobalArgs(effectiveContext);
       var fullArgs = string.IsNullOrEmpty(globalArgs) ? arguments : $"{globalArgs} {arguments}";
 
       var (processFileName, processArguments, passwordForStdin) =
@@ -337,8 +377,16 @@ namespace FluentDocker.Drivers.Docker.Cli
     protected async IAsyncEnumerable<string> ExecuteStreamingCommandWithProgressAsync(
         string arguments, [EnumeratorCancellation] CancellationToken cancellationToken)
     {
-      var (binaryPath, sudo, sudoPassword) = ResolveBinaryInfo();
-      var globalArgs = BuildGlobalArgs(Context);
+      await foreach (var line in ExecuteStreamingCommandWithProgressAsync((DriverContext)null, arguments, cancellationToken).ConfigureAwait(false))
+        yield return line;
+    }
+
+    protected async IAsyncEnumerable<string> ExecuteStreamingCommandWithProgressAsync(
+        DriverContext context, string arguments, [EnumeratorCancellation] CancellationToken cancellationToken)
+    {
+      var effectiveContext = CreateEffectiveContext(context);
+      var (binaryPath, sudo, sudoPassword) = ResolveBinaryInfo(effectiveContext);
+      var globalArgs = BuildGlobalArgs(effectiveContext);
       var fullArgs = string.IsNullOrEmpty(globalArgs) ? arguments : $"{globalArgs} {arguments}";
 
       var (processFileName, processArguments, passwordForStdin) =
@@ -380,15 +428,23 @@ namespace FluentDocker.Drivers.Docker.Cli
 
       var pump = PumpBothStreamsAsync(process, channel.Writer, cancellationToken);
       string failure = null;
+      var failureExitCode = 0;
+      var tail = new Queue<string>();
 
       try
       {
         await foreach (var line in channel.Reader.ReadAllAsync(cancellationToken).ConfigureAwait(false))
+        {
+          AddTail(tail, line);
           yield return line;
+        }
 
         await process.WaitForExitAsync(cancellationToken).ConfigureAwait(false);
         if (process.ExitCode != 0)
-          failure = $"exit code {process.ExitCode}";
+        {
+          failureExitCode = process.ExitCode;
+          failure = $"exit code {process.ExitCode}{FormatTail(tail)}";
+        }
       }
       finally
       {
@@ -404,45 +460,11 @@ namespace FluentDocker.Drivers.Docker.Cli
       }
 
       if (failure != null)
-        throw new DriverException($"Streaming command failed ({failure}).", ErrorCodes.Driver.CommandExecutionFailed);
-    }
-
-    /// <summary>
-    /// Reads stdout and stderr concurrently, writing every line to <paramref name="writer"/>
-    /// in arrival order, then completes the writer when both streams reach EOF.
-    /// </summary>
-    private static async Task PumpBothStreamsAsync(
-        Process process, System.Threading.Channels.ChannelWriter<string> writer, CancellationToken cancellationToken)
-    {
-      async Task PumpAsync(TextReader reader)
       {
-        string line;
-        while ((line = await reader.ReadLineAsync(cancellationToken).ConfigureAwait(false)) != null)
-          await writer.WriteAsync(line, cancellationToken).ConfigureAwait(false);
-      }
-
-      try
-      {
-        await Task.WhenAll(PumpAsync(process.StandardOutput), PumpAsync(process.StandardError)).ConfigureAwait(false);
-        writer.TryComplete();
-      }
-      catch (Exception ex)
-      {
-        writer.TryComplete(ex);
-      }
-    }
-
-    /// <summary>Awaits a task, swallowing any fault — used to observe a best-effort
-    /// background read (e.g. stderr drain) when a stream is torn down early.</summary>
-    private static async Task ObserveQuietlyAsync(Task task)
-    {
-      try
-      {
-        await task.ConfigureAwait(false);
-      }
-      catch (Exception)
-      {
-        // The stream is ending (early break/cancel); the drain result is irrelevant.
+        throw new DriverException(
+            $"Streaming command failed ({failure}).",
+            ErrorCodes.Driver.CommandExecutionFailed,
+            new ErrorContext("StreamingCommand") { ExitCode = failureExitCode, StdErr = FormatTail(tail) });
       }
     }
 

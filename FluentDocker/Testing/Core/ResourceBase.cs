@@ -229,20 +229,34 @@ namespace FluentDocker.Testing.Core
 
         if (_provisioned)
         {
+          Task teardownTask = null;
           try
           {
-            await TeardownAsync(cts.Token).ConfigureAwait(false);
+            teardownTask = TeardownAsync(cts.Token);
+            await teardownTask.WaitAsync(cts.Token).ConfigureAwait(false);
             _provisioned = false;
           }
           catch (Exception ex)
           {
+            if (teardownTask != null)
+              ObserveAbandonedCleanup(teardownTask);
+
             if (Options.ForceRemoveOnDispose)
             {
               Exception? forceRemoveFailure = null;
               using var forceCts = new CancellationTokenSource(Options.TeardownTimeout);
+              Task forceTask = null;
               try
-              { await ForceRemoveAsync(forceCts.Token).ConfigureAwait(false); }
-              catch (Exception forceEx) { forceRemoveFailure = forceEx; }
+              {
+                forceTask = ForceRemoveAsync(forceCts.Token);
+                await forceTask.WaitAsync(forceCts.Token).ConfigureAwait(false);
+              }
+              catch (Exception forceEx)
+              {
+                if (forceTask != null)
+                  ObserveAbandonedCleanup(forceTask);
+                forceRemoveFailure = forceEx;
+              }
               LastTeardownDiagnostics = new TeardownDiagnostics
               {
                 TeardownException = ex,
@@ -415,6 +429,13 @@ namespace FluentDocker.Testing.Core
         await hookTask.ConfigureAwait(false);
       }
     }
+
+    private static void ObserveAbandonedCleanup(Task task) =>
+        _ = task.ContinueWith(
+            static t => _ = t.Exception,
+            CancellationToken.None,
+            TaskContinuationOptions.OnlyOnFaulted,
+            TaskScheduler.Default);
 
     #endregion
   }

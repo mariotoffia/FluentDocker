@@ -29,6 +29,7 @@ namespace FluentDocker.Services.Impl
     private readonly bool _removeVolumes;
     private readonly bool _removeImages;
     private readonly IReadOnlyList<string> _ownedTempFiles;
+    private readonly TimeSpan _disposeCleanupTimeout;
     private readonly Dictionary<string, (ServiceRunningState State, Func<IServiceAsync, Task> Hook)> _hooks = [];
     private ServiceRunningState _state = ServiceRunningState.Running;
 
@@ -39,7 +40,8 @@ namespace FluentDocker.Services.Impl
         string projectName,
         bool removeVolumes = false,
         bool removeImages = false,
-        IReadOnlyList<string> ownedTempFiles = null)
+        IReadOnlyList<string> ownedTempFiles = null,
+        TimeSpan? disposeCleanupTimeout = null)
     {
       ArgumentNullException.ThrowIfNull(kernel);
       ArgumentNullException.ThrowIfNull(driverId);
@@ -53,6 +55,8 @@ namespace FluentDocker.Services.Impl
       _removeVolumes = removeVolumes;
       _removeImages = removeImages;
       _ownedTempFiles = ownedTempFiles;
+      _disposeCleanupTimeout =
+          disposeCleanupTimeout ?? TimeSpan.FromMilliseconds(ContainerService.DefaultDisposeCleanupTimeoutMs);
     }
 
     public string Name => _projectName;
@@ -292,6 +296,11 @@ namespace FluentDocker.Services.Impl
       await ExecuteHooksAsync(ServiceRunningState.Running).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Tears down the compose project. Volumes are removed only when configured with
+    /// <c>WithRemoveVolumes()</c>; <paramref name="force"/> is retained for API compatibility
+    /// and has no effect for compose teardown.
+    /// </summary>
     public async Task RemoveAsync(bool force = false, CancellationToken cancellationToken = default)
     {
       var driver = _kernel.SysCtl<IComposeDriver>(_driverId);
@@ -301,7 +310,7 @@ namespace FluentDocker.Services.Impl
       {
         ComposeFiles = _composeFiles,
         ProjectName = _projectName,
-        RemoveVolumes = _removeVolumes || force,
+        RemoveVolumes = _removeVolumes,
         RemoveImages = _removeImages ? "all" : null
       };
 
@@ -355,11 +364,17 @@ namespace FluentDocker.Services.Impl
     {
       try
       {
-        await RemoveAsync(force: true).ConfigureAwait(false);
-      }
-      catch (Exception ex)
-      {
-        _logger.LogWarning(ex, "ComposeService DisposeAsync failed");
+        using var cleanupCts = new CancellationTokenSource(_disposeCleanupTimeout);
+        var removeTask = RemoveAsync(force: false, cleanupCts.Token);
+        try
+        {
+          await removeTask.WaitAsync(cleanupCts.Token).ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+          _logger.LogWarning(ex, "ComposeService DisposeAsync failed");
+          ObserveAbandonedCleanup(removeTask);
+        }
       }
       finally
       {
@@ -391,6 +406,13 @@ namespace FluentDocker.Services.Impl
       }
     }
 
+    private static void ObserveAbandonedCleanup(Task task) =>
+        _ = task.ContinueWith(
+            static t => _ = t.Exception,
+            CancellationToken.None,
+            TaskContinuationOptions.OnlyOnFaulted,
+            TaskScheduler.Default);
+
     private void UpdateState(ServiceRunningState newState)
     {
       _state = newState;
@@ -417,4 +439,3 @@ namespace FluentDocker.Services.Impl
     }
   }
 }
-

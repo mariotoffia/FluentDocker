@@ -18,7 +18,7 @@ namespace FluentDocker.Tests.CoreTests.Driver
   /// chunk decode, <c>[DONE]</c> termination, malformed-chunk faults and cancellation.
   /// </summary>
   [Trait("Category", "Unit")]
-  public class OpenAiModelInferenceStreamingTests
+  public partial class OpenAiModelInferenceStreamingTests
   {
     private static DriverContext Ctx => new("docker");
 
@@ -345,6 +345,110 @@ namespace FluentDocker.Tests.CoreTests.Driver
 
       Assert.Equal(ErrorCodes.ModelInference.EndpointUnreachable, ex.ErrorCode);
       Assert.Equal(new[] { "Pa" }, texts); // the valid prefix frame was yielded before the fault
+    }
+
+    // ---- MR4: a single JSON event split across TWO data: lines must reassemble into one object. ----
+
+    [Fact]
+    public async Task ChatCompletionStreamAsync_EventSplitAcrossTwoDataLines_ParsesAsOneObject()
+    {
+      // Standards-compliant SSE may split ONE JSON event across multiple data: lines; the joined
+      // payload (LF-joined) is the event. The old per-line-parse treated each data: line as a whole
+      // JSON payload and would fail the first partial line as malformed.
+      const string script =
+          "data: {\"choices\":[{\"index\":0,\n" +
+          "data: \"delta\":{\"content\":\"Hi\"}}]}\n\n" +
+          "data: [DONE]\n\n";
+      var conn = new MockModelApiConnection().SetupStream("/chat/completions", script);
+      var driver = Create(conn);
+
+      var contents = new List<string>();
+      await foreach (var chunk in driver.ChatCompletionStreamAsync(Ctx, new ChatCompletionRequest { Model = "ai/x" }, TestContext.Current.CancellationToken))
+        contents.Add(chunk.Choices[0].Delta.Content);
+
+      Assert.Equal(new[] { "Hi" }, contents); // the two data: lines joined into one valid event
+    }
+
+    [Fact]
+    public async Task ChatCompletionStreamAsync_MultipleEventsSeparatedByBlankLines_EachDispatchOnce()
+    {
+      // Blank lines are event delimiters: two events must dispatch exactly once each, then [DONE].
+      const string script =
+          "data: {\"choices\":[{\"index\":0,\"delta\":{\"content\":\"a\"}}]}\n\n" +
+          "data: {\"choices\":[{\"index\":0,\"delta\":{\"content\":\"b\"}}]}\n\n" +
+          "data: [DONE]\n\n";
+      var conn = new MockModelApiConnection().SetupStream("/chat/completions", script);
+      var driver = Create(conn);
+
+      var contents = new List<string>();
+      await foreach (var chunk in driver.ChatCompletionStreamAsync(Ctx, new ChatCompletionRequest { Model = "ai/x" }, TestContext.Current.CancellationToken))
+        contents.Add(chunk.Choices[0].Delta.Content);
+
+      Assert.Equal(new[] { "a", "b" }, contents);
+    }
+
+    // ---- MR5: idle timeout is applied per READ (bounded allocations) and fires only on a stall. ----
+
+    [Fact]
+    [Trait("Category", "Unit")]
+    public async Task ChatCompletionStreamAsync_StalledStream_FiresIdleTimeout_AsEndpointUnreachable()
+    {
+      // A server that stops sending must trip the configured idle timeout, surfaced as the
+      // deliberate EndpointUnreachable classification (C12) — not a hang, and not per-character
+      // timers. This exercises the ONE-idle-window-per-chunked-read path.
+      var conn = new MockModelApiConnection().SetupStreamStalling("/chat/completions");
+      conn.StreamReadIdleTimeout = TimeSpan.FromMilliseconds(150);
+      var driver = Create(conn);
+
+      var ex = await Assert.ThrowsAsync<ModelRunnerException>(async () =>
+      {
+        await foreach (var _ in driver.ChatCompletionStreamAsync(Ctx, new ChatCompletionRequest { Model = "ai/x" }, TestContext.Current.CancellationToken))
+        {
+        }
+      });
+
+      Assert.Equal(ErrorCodes.ModelInference.EndpointUnreachable, ex.ErrorCode);
+      Assert.Contains("idle timeout", ex.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    [Trait("Category", "Unit")]
+    public async Task ChatCompletionStreamAsync_StallAfterPrefix_YieldsPrefix_ThenIdleTimeout()
+    {
+      // The idle window RESETS on each successful read: the prefix frame is delivered and yielded,
+      // and only the subsequent silence trips the timeout — proving the timer is per-read.
+      var conn = new MockModelApiConnection().SetupStreamStalling(
+          "/chat/completions", "data: {\"choices\":[{\"index\":0,\"delta\":{\"content\":\"Hi\"}}]}\n\n");
+      conn.StreamReadIdleTimeout = TimeSpan.FromMilliseconds(150);
+      var driver = Create(conn);
+
+      var contents = new List<string>();
+      var ex = await Assert.ThrowsAsync<ModelRunnerException>(async () =>
+      {
+        await foreach (var chunk in driver.ChatCompletionStreamAsync(Ctx, new ChatCompletionRequest { Model = "ai/x" }, TestContext.Current.CancellationToken))
+          contents.Add(chunk.Choices[0].Delta.Content);
+      });
+
+      Assert.Equal(ErrorCodes.ModelInference.EndpointUnreachable, ex.ErrorCode);
+      Assert.Equal(new[] { "Hi" }, contents); // prefix frame arrived before the stall
+    }
+
+    [Fact]
+    [Trait("Category", "Unit")]
+    public async Task ChatCompletionStreamAsync_SteadyStream_WithIdleTimeout_DoesNotFalselyTimeout()
+    {
+      // A healthy stream that completes must NOT trip the idle timeout even when one is configured.
+      var conn = new MockModelApiConnection().SetupStream(
+          "/chat/completions",
+          "data: {\"choices\":[{\"index\":0,\"delta\":{\"content\":\"Hi\"}}]}\n\ndata: [DONE]\n\n");
+      conn.StreamReadIdleTimeout = TimeSpan.FromMilliseconds(500);
+      var driver = Create(conn);
+
+      var contents = new List<string>();
+      await foreach (var chunk in driver.ChatCompletionStreamAsync(Ctx, new ChatCompletionRequest { Model = "ai/x" }, TestContext.Current.CancellationToken))
+        contents.Add(chunk.Choices[0].Delta.Content);
+
+      Assert.Equal(new[] { "Hi" }, contents);
     }
   }
 }

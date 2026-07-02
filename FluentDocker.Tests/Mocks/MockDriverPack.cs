@@ -227,6 +227,7 @@ namespace FluentDocker.Tests.Mocks
               It.IsAny<string>(),
               It.IsAny<CancellationToken>()))
           .ReturnsAsync(FluentDocker.Model.Drivers.CommandResponse<Unit>.Ok(Unit.Default));
+      SetupContainerInspect(running: true);
       return this;
     }
 

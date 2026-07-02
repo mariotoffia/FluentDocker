@@ -130,8 +130,8 @@ namespace FluentDocker.Drivers.Docker.Cli
     {
       return new ErrorContext(operation)
       {
-        DriverId = context.DriverId,
-        Host = context.Host,
+        DriverId = context?.DriverId,
+        Host = context?.Host,
         ExitCode = result.ExitCode,
         StdOut = result.Output,
         StdErr = result.Error
@@ -287,4 +287,3 @@ namespace FluentDocker.Drivers.Docker.Cli
     public int ExitCode { get; set; }
   }
 }
-

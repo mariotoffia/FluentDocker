@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Linq;
 using System.Net;
 using System.Threading;
 using System.Threading.Tasks;
@@ -26,7 +27,8 @@ namespace FluentDocker.Services.Impl
       {
         throw new DriverException(
             $"Failed to get logs for container '{_name}': {response.Error}",
-            response.ErrorCode);
+            response.ErrorCode,
+            response.ErrorContext);
       }
 
       return response.Data;
@@ -48,7 +50,26 @@ namespace FluentDocker.Services.Impl
       {
         throw new DriverException(
             $"Failed to execute command in container '{_name}': {response.Error}",
-            response.ErrorCode);
+            response.ErrorCode,
+            response.ErrorContext);
+      }
+
+      return response.Data?.StdOut;
+    }
+
+    public async Task<string> ExecuteAsync(string[] command, CancellationToken cancellationToken = default)
+    {
+      var driver = _kernel.SysCtl<IContainerDriver>(_driverId);
+      var context = new DriverContext(_driverId);
+      var response = await driver.ExecAsync(context, _containerId,
+          new ExecConfig { Command = command }, cancellationToken).ConfigureAwait(false);
+
+      if (!response.Success)
+      {
+        throw new DriverException(
+            $"Failed to execute command in container '{_name}': {response.Error}",
+            response.ErrorCode,
+            response.ErrorContext);
       }
 
       return response.Data?.StdOut;
@@ -69,7 +90,8 @@ namespace FluentDocker.Services.Impl
         {
           throw new DriverException(
               $"Failed to export container '{_name}': {response.Error}",
-              response.ErrorCode);
+              response.ErrorCode,
+              response.ErrorContext);
         }
 
         return await File.ReadAllBytesAsync(tempPath, cancellationToken).ConfigureAwait(false);
@@ -86,8 +108,10 @@ namespace FluentDocker.Services.Impl
       var driver = _kernel.SysCtl<IContainerDriver>(_driverId);
       var context = new DriverContext(_driverId);
 
-      // Create a temp file for copy
-      var tempPath = Path.GetTempFileName();
+      var tempRoot = Path.Combine(Path.GetTempPath(), "fluentdocker-copyfrom");
+      var tempDir = Path.Combine(tempRoot, Guid.NewGuid().ToString("N"));
+      Directory.CreateDirectory(tempDir);
+      var tempPath = Path.Combine(tempDir, "content");
       try
       {
         var response = await driver.CopyFromAsync(context, _containerId, containerPath, tempPath, cancellationToken).ConfigureAwait(false);
@@ -96,15 +120,18 @@ namespace FluentDocker.Services.Impl
         {
           throw new DriverException(
               $"Failed to copy from container '{_name}': {response.Error}",
-              response.ErrorCode);
+              response.ErrorCode,
+              response.ErrorContext);
         }
 
         return await File.ReadAllBytesAsync(tempPath, cancellationToken).ConfigureAwait(false);
       }
       finally
       {
-        if (File.Exists(tempPath))
-          File.Delete(tempPath);
+        if (Directory.Exists(tempDir))
+          Directory.Delete(tempDir, recursive: true);
+        if (Directory.Exists(tempRoot) && !Directory.EnumerateFileSystemEntries(tempRoot).Any())
+          Directory.Delete(tempRoot);
       }
     }
 
@@ -125,7 +152,8 @@ namespace FluentDocker.Services.Impl
         {
           throw new DriverException(
               $"Failed to copy to container '{_name}': {response.Error}",
-              response.ErrorCode);
+              response.ErrorCode,
+              response.ErrorContext);
         }
       }
       finally
@@ -157,7 +185,8 @@ namespace FluentDocker.Services.Impl
       {
         throw new DriverException(
             $"Failed to copy to container '{_name}': {response.Error}",
-            response.ErrorCode);
+            response.ErrorCode,
+            response.ErrorContext);
       }
     }
 
@@ -185,7 +214,8 @@ namespace FluentDocker.Services.Impl
       {
         throw new DriverException(
             $"Failed to copy from container '{_name}': {response.Error}",
-            response.ErrorCode);
+            response.ErrorCode,
+            response.ErrorContext);
       }
     }
 
@@ -199,7 +229,8 @@ namespace FluentDocker.Services.Impl
       {
         throw new DriverException(
             $"Failed to get stats for container '{_name}': {response.Error}",
-            response.ErrorCode);
+            response.ErrorCode,
+            response.ErrorContext);
       }
 
       var driverStats = response.Data;

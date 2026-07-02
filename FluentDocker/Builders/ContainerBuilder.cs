@@ -378,7 +378,6 @@ namespace FluentDocker.Builders
       var imageDriver = _kernel.SysCtl<Drivers.IImageDriver>(_driverId);
       var context = new DriverContext(_driverId);
 
-      // Handle existing container
       if (!string.IsNullOrEmpty(_name) && _existsBehavior != ContainerExistsBehavior.Default)
       {
         var existing = await FindExistingContainerAsync(driver, context, _name, cancellationToken).ConfigureAwait(false);
@@ -400,11 +399,14 @@ namespace FluentDocker.Builders
           }
           else if (_existsBehavior == ContainerExistsBehavior.Destroy)
           {
-            await driver.RemoveAsync(context, existing, _destroyForce, _destroyRemoveVolumes, cancellationToken).ConfigureAwait(false);
+            var remove = await driver.RemoveAsync(context, existing,
+                _destroyForce, _destroyRemoveVolumes, cancellationToken).ConfigureAwait(false);
+            if (!remove.Success)
+              throw new DriverException($"Failed to remove existing container '{_name}': {remove.Error}",
+                  remove.ErrorCode, remove.ErrorContext);
           }
         }
       }
-
       if (_forcePullImage && imageDriver != null)
         await ExecuteForcePullAsync(imageDriver, context, cancellationToken).ConfigureAwait(false);
 
@@ -473,15 +475,13 @@ namespace FluentDocker.Builders
         try
         {
           await service.StartAsync(cancellationToken).ConfigureAwait(false);
-          await WaitForContainerRunningAsync(driver, context, response.Data.Id, cancellationToken).ConfigureAwait(false);
+          await WaitForContainerStartedAsync(driver, context, response.Data.Id, cancellationToken).ConfigureAwait(false);
           _waitConditionsExecuted = true;
           await RunPostStartAsync(service, cancellationToken).ConfigureAwait(false);
         }
         catch (Exception ex)
         {
           _logger.LogError(ex, "Container build failed");
-          // Container was created (and possibly started). Force-remove to prevent leaks.
-          // Use a bounded timeout so cleanup cannot hang indefinitely when the daemon is unhealthy.
           try
           {
             using var cleanupCts = new CancellationTokenSource(TimeSpan.FromSeconds(120));

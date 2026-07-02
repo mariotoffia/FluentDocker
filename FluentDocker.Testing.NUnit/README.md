@@ -139,5 +139,5 @@ public sealed class SmolLmModelTests
 `_model.Service` is the underlying `IModelService`; `_model.Model` is the parsed
 `ModelReference`; `_model.Runner` is the `IModelRunner` for chat/embeddings.
 
-Full docs: [docs/testing/nunit.md](../docs/testing/nunit.md). Model testing guide:
-[docs/testing/model.md](../docs/testing/model.md).
+Full docs: [docs/testing/nunit.md](https://mariotoffia.github.io/FluentDocker/testing/nunit.html). Model testing guide:
+[docs/testing/model.md](https://mariotoffia.github.io/FluentDocker/testing/model.html).

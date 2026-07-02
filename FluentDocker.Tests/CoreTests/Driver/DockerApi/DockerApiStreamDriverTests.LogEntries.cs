@@ -198,6 +198,23 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
     }
 
     [Fact]
+    public async Task StreamLogEntriesAsync_ShortPayload_ThrowsDriverException()
+    {
+      var (driver, mock) = CreateDriver();
+      var frame = CreateMultiplexedFrame(1, "hello");
+      mock.SetupStreamBytes("/containers/short/logs", frame[..^2]);
+
+      var error = await Assert.ThrowsAsync<DriverException>(async () =>
+      {
+        await foreach (var _ in driver.StreamLogEntriesAsync(Ctx, "short",
+            new StreamLogsConfig { Follow = false }, cancellationToken: TestContext.Current.CancellationToken))
+        {
+        }
+      });
+      Assert.Contains("truncated", error.Message);
+    }
+
+    [Fact]
     public async Task StreamLogEntriesAsync_RawHeaderWithFailedTtyDetect_SelfCorrectsToRawText()
     {
       var (driver, mock) = CreateDriver();
@@ -304,6 +321,11 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
 
       public Task<Stream> PostStreamAsync(
           string path, HttpContent content, CancellationToken ct) =>
+          throw new InvalidOperationException("simulated stream failure");
+
+      public Task<Stream> PostStreamAsync(
+          string path, HttpContent content,
+          IReadOnlyDictionary<string, string> headers, CancellationToken ct) =>
           throw new InvalidOperationException("simulated stream failure");
 
       public Task<bool> PingAsync(CancellationToken ct) =>

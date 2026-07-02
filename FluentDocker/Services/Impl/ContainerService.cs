@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Formats.Tar;
 using System.IO;
 using System.Net;
 using System.Threading;
@@ -135,11 +136,28 @@ namespace FluentDocker.Services.Impl
             response.ErrorContext);
       }
 
-      UpdateState(ServiceRunningState.Running);
-      await ExecuteHooksAsync(ServiceRunningState.Running).ConfigureAwait(false);
-      // Running lifecycle hooks (CopyToOnStart / ExecuteOnRunning) are orchestrated by the
-      // builder so they run exactly once and Execute hooks fire AFTER wait conditions. They
-      // are intentionally NOT run here to avoid double execution and premature ordering.
+      var inspect = await driver.InspectAsync(context, _containerId, cancellationToken).ConfigureAwait(false);
+      if (inspect == null)
+      {
+        UpdateState(ServiceRunningState.Unknown);
+        throw new DriverException(
+            $"Failed to inspect container '{_name}' after start: empty response",
+            ErrorCodes.General.Unknown);
+      }
+      if (!inspect.Success)
+        throw new DriverException(
+            $"Failed to inspect container '{_name}' after start: {inspect.Error}",
+            inspect.ErrorCode,
+            inspect.ErrorContext);
+
+      UpdateState(inspect.Data?.State?.Running == true
+          ? ServiceRunningState.Running
+          : ParseState(inspect.Data?.State?.Status));
+      if (inspect.Data != null)
+        _inspectCacheEntry = new InspectCacheEntry(inspect.Data, Stopwatch.GetTimestamp());
+      if (_state == ServiceRunningState.Running)
+        await ExecuteHooksAsync(ServiceRunningState.Running).ConfigureAwait(false);
+      // Builder orchestrates CopyToOnStart / ExecuteOnRunning once, after wait conditions.
     }
 
     public async Task PauseAsync(CancellationToken cancellationToken = default)
@@ -439,9 +457,9 @@ namespace FluentDocker.Services.Impl
 
                 if (hook.Explode)
                 {
-                  // Extract tar to directory
-                  // Simplified - would need proper tar extraction
-                  await File.WriteAllBytesAsync(hook.HostPath + ".tar", exportData, cancellationToken).ConfigureAwait(false);
+                  Directory.CreateDirectory(hook.HostPath);
+                  using var stream = new MemoryStream(exportData);
+                  TarFile.ExtractToDirectory(stream, hook.HostPath, overwriteFiles: true);
                 }
                 else
                 {
@@ -451,19 +469,16 @@ namespace FluentDocker.Services.Impl
               break;
 
             case LifecycleHookType.Execute:
-              // Each element is a separate command (matches the v2 contract).
               if (hook.Command != null)
-              {
-                foreach (var command in hook.Command)
-                  await ExecuteAsync(command, cancellationToken).ConfigureAwait(false);
-              }
+                await ExecuteAsync(hook.Command, cancellationToken).ConfigureAwait(false);
               break;
           }
         }
         catch (Exception ex)
         {
-          // Log but don't fail on lifecycle hook errors
           _logger.LogError(ex, "Lifecycle hook failed");
+          if (hook.Type == LifecycleHookType.Export && hook.Explode)
+            throw;
         }
       }
     }

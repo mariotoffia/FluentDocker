@@ -167,6 +167,15 @@ namespace FluentDocker.Tests.CoreTests.Kernel
     }
 
     [Fact]
+    public void DockerApiBuilder_WithAllowTlsHostnameMismatch_SetsMetadata()
+    {
+      var result = BuildDockerApiConfig(b => b
+          .WithAllowTlsHostnameMismatch());
+
+      Assert.Equal("true", result.Context.Metadata["DockerApi.AllowTlsHostnameMismatch"]);
+    }
+
+    [Fact]
     public void DockerApiBuilder_ChainsCorrectly()
     {
       var result = BuildDockerApiConfig(b => b

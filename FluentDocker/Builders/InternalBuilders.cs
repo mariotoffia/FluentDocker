@@ -306,6 +306,7 @@ namespace FluentDocker.Builders
       var response = await driver.UpAsync(context, config, cancellationToken).ConfigureAwait(false);
       if (!response.Success)
       {
+        await CleanupFailedComposeAsync(driver, context, config, _removeVolumes, cancellationToken).ConfigureAwait(false);
         // Up failed: no ComposeService is created to own the overlay, so clean it up here.
         DeleteTempFiles(ownedTempFiles);
         throw new DriverException($"Failed to start compose: {response.Error}",
@@ -316,6 +317,32 @@ namespace FluentDocker.Builders
           _kernel, _driverId, _composeFiles,
           response.Data.ProjectName ?? _projectName,
           _removeVolumes, _removeImages, ownedTempFiles);
+    }
+
+    private static async Task CleanupFailedComposeAsync(
+        Drivers.IComposeDriver driver,
+        DriverContext context,
+        Drivers.ComposeUpConfig upConfig,
+        bool removeVolumes,
+        CancellationToken cancellationToken)
+    {
+      try
+      {
+        using var cleanupCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        // Fixed at the normal dispose-cleanup default; builder failure cleanup has no public timeout knob.
+        cleanupCts.CancelAfter(TimeSpan.FromSeconds(30));
+        await driver.DownAsync(context, new Drivers.ComposeDownConfig
+        {
+          ComposeFiles = upConfig.ComposeFiles,
+          ProjectName = upConfig.ProjectName,
+          Environment = upConfig.Environment,
+          RemoveVolumes = removeVolumes
+        }, cleanupCts.Token).WaitAsync(cleanupCts.Token).ConfigureAwait(false);
+      }
+      catch
+      {
+        // Best effort only; preserve the original compose-up failure.
+      }
     }
 
     /// <summary>

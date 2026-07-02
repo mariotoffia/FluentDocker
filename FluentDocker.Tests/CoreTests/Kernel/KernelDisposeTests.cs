@@ -151,6 +151,21 @@ namespace FluentDocker.Tests.CoreTests.Kernel
       // Assert - kernel is disposed
       Assert.Throws<ObjectDisposedException>(() => kernel.IsDriverRegistered("docker"));
     }
+
+    [Fact]
+    public async Task BuildAsync_WhenLaterDriverRegistrationFails_DisposesAlreadyRegisteredPacks()
+    {
+      var initialized = new AsyncDisposableMockDriverPack();
+      var failing = new ThrowingInitializeMockDriverPack();
+
+      await Assert.ThrowsAsync<InvalidOperationException>(() =>
+          new KernelBuilder(NullLoggerFactory.Instance)
+              .WithDriver("ok", d => d.UseCustomDriverPack(initialized))
+              .WithDriver("bad", d => d.UseCustomDriverPack(failing))
+              .BuildAsync(TestContext.Current.CancellationToken));
+
+      Assert.True(initialized.DisposeAsyncCalled);
+    }
   }
 
   #region Test Helpers for Disposal
@@ -194,6 +209,14 @@ namespace FluentDocker.Tests.CoreTests.Kernel
     public ValueTask DisposeAsync()
     {
       throw new InvalidOperationException("Simulated disposal error");
+    }
+  }
+
+  internal class ThrowingInitializeMockDriverPack : MockDriverPack, IDriverPack
+  {
+    Task IDriverPack.InitializeAsync(DriverContext context, System.Threading.CancellationToken cancellationToken)
+    {
+      throw new InvalidOperationException("Simulated initialize error");
     }
   }
 

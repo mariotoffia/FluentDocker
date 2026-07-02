@@ -54,6 +54,13 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     {
       try
       {
+        if (config.Follow)
+        {
+          throw new NotSupportedException(
+              "GetLogsAsync does not support follow=true because 'docker compose logs -f' " +
+              "streams indefinitely. Use a streaming logs API instead.");
+        }
+
         var args = BuildComposeArgs(config) + " " + BuildLogsSubArgs(config);
         if (config.Services.Count > 0)
           args += " " + string.Join(" ", config.Services);

@@ -45,6 +45,10 @@ namespace FluentDocker.Drivers.Docker.Api.Components
         var logs = StripDockerStreamHeaders(ms.ToArray());
         return CommandResponse<string>.Ok(logs);
       }
+      catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+      {
+        throw;
+      }
       catch (Exception ex)
       {
         return CommandResponse<string>.Fail(
@@ -188,7 +192,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
         var startContent = JsonContent.Create(
             startRequest, DockerApiJsonContext.Default.ExecStartRequest);
         using var stream = await Connection.PostStreamAsync(
-            $"/exec/{execId}/start", startContent, cancellationToken);
+            $"/exec/{execId}/start", startContent, cancellationToken).ConfigureAwait(false);
 
         if (config.Tty)
         {
@@ -202,6 +206,10 @@ namespace FluentDocker.Drivers.Docker.Api.Components
           // Non-TTY: demultiplex stdout (type 1) and stderr (type 2)
           (stdout, stderr) = await DemultiplexStreamAsync(stream, cancellationToken).ConfigureAwait(false);
         }
+      }
+      catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+      {
+        throw;
       }
       catch (Exception ex)
       {
@@ -240,8 +248,12 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       while (true)
       {
         var headerRead = await ReadExactAsync(stream, header, 8, ct).ConfigureAwait(false);
-        if (headerRead < 8)
+        if (headerRead == 0)
           break;
+        if (headerRead < 8)
+          throw new DriverException(
+              $"Docker exec stream truncated: partial {headerRead}-byte frame header",
+              ErrorCodes.Api.ServerError);
 
         var streamType = header[0];
         var frameSize = (header[4] << 24) | (header[5] << 16) |
@@ -252,8 +264,10 @@ namespace FluentDocker.Drivers.Docker.Api.Components
 
         var payload = new byte[frameSize];
         var payloadRead = await ReadExactAsync(stream, payload, frameSize, ct).ConfigureAwait(false);
-        if (payloadRead <= 0)
-          break;
+        if (payloadRead < frameSize)
+          throw new DriverException(
+              $"Docker exec stream truncated: expected {frameSize} payload bytes, read {payloadRead}",
+              ErrorCodes.Api.ServerError);
 
         var text = Encoding.UTF8.GetString(payload, 0, payloadRead);
         if (streamType == 1)
@@ -314,7 +328,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
         var apiPath = $"/containers/{Uri.EscapeDataString(containerId)}" +
                       $"/archive?path={Uri.EscapeDataString(extractPath)}";
         var result = await PutStreamAsync(
-            apiPath, tarStream, "application/x-tar", cancellationToken);
+            apiPath, tarStream, "application/x-tar", cancellationToken).ConfigureAwait(false);
         if (!result.Success)
           return CommandResponse<Unit>.Fail(result.ErrorMessage,
               MapNotFoundErrorCode(result.StatusCode, ErrorCodes.Container.CopyFailed),
@@ -323,6 +337,10 @@ namespace FluentDocker.Drivers.Docker.Api.Components
               result.StatusCode);
 
         return CommandResponse<Unit>.Ok(Unit.Default);
+      }
+      catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+      {
+        throw;
       }
       catch (Exception ex)
       {
@@ -362,34 +380,8 @@ namespace FluentDocker.Drivers.Docker.Api.Components
         DriverContext context, string containerId,
         string containerPath, string hostPath,
         CancellationToken cancellationToken = default)
-    {
-      try
-      {
-        var apiPath = $"/containers/{Uri.EscapeDataString(containerId)}" +
-                      $"/archive?path={Uri.EscapeDataString(containerPath)}";
-        using var stream = await GetRawStreamAsync(apiPath, cancellationToken).ConfigureAwait(false);
-        Directory.CreateDirectory(hostPath);
-        using var reader = ReaderFactory.OpenReader(stream);
-        while (reader.MoveToNextEntry())
-        {
-          if (reader.Entry.IsDirectory)
-            continue;
-          reader.WriteEntryToDirectory(hostPath, new ExtractionOptions
-          {
-            ExtractFullPath = true,
-            Overwrite = true
-          });
-        }
-        return CommandResponse<Unit>.Ok(Unit.Default);
-      }
-      catch (Exception ex)
-      {
-        return CommandResponse<Unit>.Fail(
-            $"Failed to copy from container '{containerId}': {ex.Message}",
-            ErrorCodes.Container.CopyFailed,
-            CreateErrorContext($"GET /containers/{containerId}/archive", 0));
-      }
-    }
+        => await CopyFromArchiveAsync(context, containerId, containerPath, hostPath, cancellationToken)
+            .ConfigureAwait(false);
 
     #endregion
 
@@ -411,6 +403,10 @@ namespace FluentDocker.Drivers.Docker.Api.Components
             outputPath, FileMode.Create, FileAccess.Write, FileShare.None);
         await stream.CopyToAsync(fileStream, cancellationToken).ConfigureAwait(false);
         return CommandResponse<Unit>.Ok(Unit.Default);
+      }
+      catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+      {
+        throw;
       }
       catch (Exception ex)
       {

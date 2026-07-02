@@ -82,6 +82,33 @@ namespace FluentDocker.Tests.CoreTests.Driver
     }
 
     [Fact]
+    public async Task StatusAsync_ReportsConfiguredContextEndpoint_NotDefault()
+    {
+      // MR3: status must report the endpoint THIS context is bound to, not a hardcoded
+      // localhost:12434 default — otherwise diagnostics can lie about where inference goes.
+      var driver = new FakeRuntimeDriver { Responder = _ => Ok("Docker Model Runner is running\n") };
+      var endpoint = ModelRunnerEndpoint.HostTcp(9999); // non-default port
+      var ctx = new DriverContext("docker") { ModelRunnerEndpoint = endpoint };
+
+      var result = await driver.StatusAsync(ctx, TestContext.Current.CancellationToken);
+
+      Assert.True(result.Success);
+      Assert.Equal(endpoint.BaseAddress, result.Data.Endpoint);
+      Assert.NotEqual(ModelRunnerEndpoint.HostTcp().BaseAddress, result.Data.Endpoint); // not the localhost:12434 default
+    }
+
+    [Fact]
+    public async Task StatusAsync_NoContextEndpoint_FallsBackToDefault()
+    {
+      // The default remains the genuine fallback when nothing is configured on the context.
+      var driver = new FakeRuntimeDriver { Responder = _ => Ok("Docker Model Runner is running\n") };
+      var result = await driver.StatusAsync(new DriverContext("docker"), TestContext.Current.CancellationToken);
+
+      Assert.True(result.Success);
+      Assert.Equal(ModelRunnerEndpoint.Default().BaseAddress, result.Data.Endpoint);
+    }
+
+    [Fact]
     public async Task StatusAsync_NonZeroExit_NotRunningShape_IsTreatedAsNotRunning()
     {
       // A non-zero exit whose output is the recognizable "not running" shape is a

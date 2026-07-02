@@ -420,6 +420,7 @@ namespace FluentDocker.Builders
     /// <param name="hostPath">The destination file path on the host for the tar archive.</param>
     /// <param name="explode">
     /// <c>true</c> to extract the archive contents into a directory; <c>false</c> to keep the tar file.
+    /// Extraction is synchronous and is not cancellable once started.
     /// </param>
     /// <returns>The builder instance for method chaining.</returns>
     IContainerBuilder ExportOnDispose(string hostPath, bool explode = false);
@@ -434,6 +435,7 @@ namespace FluentDocker.Builders
     /// </param>
     /// <param name="explode">
     /// <c>true</c> to extract the archive contents into a directory; <c>false</c> to keep the tar file.
+    /// Extraction is synchronous and is not cancellable once started.
     /// </param>
     /// <returns>The builder instance for method chaining.</returns>
     IContainerBuilder ExportOnDispose(string hostPath, Func<IContainerService, bool> condition, bool explode = false);

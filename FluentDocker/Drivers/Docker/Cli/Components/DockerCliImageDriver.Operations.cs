@@ -25,7 +25,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     {
       try
       {
-        var result = await ExecuteCommandAsync($"tag {QuoteArgumentIfNeeded(imageId)} {QuoteArgumentIfNeeded($"{repository}:{tag}")}", cancellationToken).ConfigureAwait(false);
+        var result = await ExecuteCommandAsync(context, $"tag {QuoteArgumentIfNeeded(imageId)} {QuoteArgumentIfNeeded($"{repository}:{tag}")}", cancellationToken).ConfigureAwait(false);
 
         if (!result.Success)
         {
@@ -63,7 +63,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
           args += " --no-prune";
         args += $" {imageId}";
 
-        var result = await ExecuteCommandAsync(args, cancellationToken).ConfigureAwait(false);
+        var result = await ExecuteCommandAsync(context, args, cancellationToken).ConfigureAwait(false);
 
         if (!result.Success)
         {
@@ -111,7 +111,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
           foreach (var f in filter)
             args += $" --filter {f.Key}={f.Value}";
 
-        var result = await ExecuteCommandAsync(args, cancellationToken).ConfigureAwait(false);
+        var result = await ExecuteCommandAsync(context, args, cancellationToken).ConfigureAwait(false);
 
         if (!result.Success)
         {
@@ -148,7 +148,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     {
       try
       {
-        var result = await ExecuteUnboundedCommandAsync($"save -o {QuoteArgumentIfNeeded(outputPath)} {string.Join(" ", images)}", cancellationToken).ConfigureAwait(false);
+        var result = await ExecuteUnboundedCommandAsync(context, $"save -o {QuoteArgumentIfNeeded(outputPath)} {string.Join(" ", images)}", cancellationToken).ConfigureAwait(false);
 
         if (!result.Success)
         {
@@ -179,7 +179,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     {
       try
       {
-        var result = await ExecuteUnboundedCommandAsync($"load -i {QuoteArgumentIfNeeded(inputPath)}", cancellationToken).ConfigureAwait(false);
+        var result = await ExecuteUnboundedCommandAsync(context, $"load -i {QuoteArgumentIfNeeded(inputPath)}", cancellationToken).ConfigureAwait(false);
 
         if (!result.Success)
         {
@@ -243,7 +243,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
             args += $":{tag}";
         }
 
-        var result = await ExecuteUnboundedCommandAsync(args, cancellationToken).ConfigureAwait(false);
+        var result = await ExecuteUnboundedCommandAsync(context, args, cancellationToken).ConfigureAwait(false);
 
         if (!result.Success)
         {

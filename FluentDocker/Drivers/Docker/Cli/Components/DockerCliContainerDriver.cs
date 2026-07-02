@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using FluentDocker.Common;
@@ -34,108 +33,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
               ErrorCodes.Container.CreateFailed);
         }
 
-        var args = new List<string> { "create" };
-
-        // Name
-        if (!string.IsNullOrEmpty(config.Name))
-          args.Add($"--name {QuoteArgumentIfNeeded(config.Name)}");
-
-        // Environment variables
-        if (config.Environment != null)
-        {
-          foreach (var env in config.Environment)
-            args.Add($"-e {QuoteArgumentIfNeeded($"{env.Key}={env.Value}")}");
-        }
-
-        // Port bindings: PortBindings dict is Key=containerPort, Value=hostPort.
-        // Docker -p syntax is hostPort:containerPort, so we emit Value:Key.
-        if (config.PortBindings != null)
-        {
-          foreach (var port in config.PortBindings)
-            args.Add($"-p {QuoteArgumentIfNeeded($"{port.Value}:{port.Key}")}");
-        }
-
-        // Volume mounts (host:container)
-        if (config.Volumes != null)
-        {
-          foreach (var volume in config.Volumes)
-            args.Add($"-v {QuoteArgumentIfNeeded($"{volume.Key}:{volume.Value}")}");
-        }
-
-        // Network mode
-        if (!string.IsNullOrEmpty(config.NetworkMode))
-          args.Add($"--network {QuoteArgumentIfNeeded(config.NetworkMode)}");
-
-        // Networks
-        if (config.Networks != null)
-        {
-          foreach (var network in config.Networks)
-            args.Add($"--network {QuoteArgumentIfNeeded(network)}");
-        }
-
-        // Labels
-        if (config.Labels != null)
-        {
-          foreach (var label in config.Labels)
-            args.Add($"--label {QuoteArgumentIfNeeded($"{label.Key}={label.Value}")}");
-        }
-
-        // Working directory
-        if (!string.IsNullOrEmpty(config.WorkingDirectory))
-          args.Add($"-w {QuoteArgumentIfNeeded(config.WorkingDirectory)}");
-
-        // User
-        if (!string.IsNullOrEmpty(config.User))
-          args.Add($"-u {QuoteArgumentIfNeeded(config.User)}");
-
-        // Restart policy
-        if (!string.IsNullOrEmpty(config.RestartPolicy))
-          args.Add($"--restart {QuoteArgumentIfNeeded(config.RestartPolicy)}");
-
-        // Hostname
-        if (!string.IsNullOrEmpty(config.Hostname))
-          args.Add($"--hostname {QuoteArgumentIfNeeded(config.Hostname)}");
-
-        // Static IPv4 address
-        if (!string.IsNullOrEmpty(config.Ipv4Address))
-          args.Add($"--ip {QuoteArgumentIfNeeded(config.Ipv4Address)}");
-
-        // Static IPv6 address
-        if (!string.IsNullOrEmpty(config.Ipv6Address))
-          args.Add($"--ip6 {QuoteArgumentIfNeeded(config.Ipv6Address)}");
-
-        // Memory limit
-        if (config.MemoryLimit.HasValue)
-          args.Add($"--memory {config.MemoryLimit.Value}");
-
-        // CPU shares
-        if (config.CpuShares.HasValue)
-          args.Add($"--cpu-shares {config.CpuShares.Value}");
-
-        // Privileged mode
-        if (config.Privileged)
-          args.Add("--privileged");
-
-        // Auto remove
-        if (config.AutoRemove)
-          args.Add("--rm");
-
-        // Links (legacy Docker feature)
-        if (config.Links != null)
-          foreach (var link in config.Links)
-            args.Add($"--link {QuoteArgumentIfNeeded(link)}");
-
-        // Image (required)
-        args.Add(QuoteArgumentIfNeeded(config.Image));
-
-        // Command - properly quote arguments that contain spaces or special characters
-        if (config.Command != null && config.Command.Length > 0)
-        {
-          foreach (var cmdArg in config.Command)
-          {
-            args.Add(QuoteArgumentIfNeeded(cmdArg));
-          }
-        }
+        var args = BuildCreateArgs("create", config);
 
         var result = await ExecuteCommandAsync(string.Join(" ", args), cancellationToken).ConfigureAwait(false);
 

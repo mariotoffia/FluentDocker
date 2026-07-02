@@ -9,7 +9,7 @@ using Xunit;
 namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
 {
   [Trait("Category", "Unit")]
-  public class DockerApiContainerOperationsTests
+  public partial class DockerApiContainerOperationsTests
   {
     private static DriverContext Ctx => new("docker-api-ops-test");
 
@@ -91,6 +91,8 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
       Assert.Equal(["PID", "CMD"], result.Data.Titles);
       Assert.Single(result.Data.Processes);
       Assert.Equal(["1", "sleep"], result.Data.Processes[0]);
+      Assert.Single(mock.Contents);
+      Assert.True(mock.Contents[0].IsDisposed);
     }
 
     [Fact]
@@ -261,6 +263,71 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
       Assert.True(result.Success);
       Assert.Equal(string.Empty, result.Data.StdOut);
       Assert.Equal(string.Empty, result.Data.StdErr);
+    }
+
+    [Fact]
+    public async Task ExecAsync_NonTtyMode_EofAtFrameBoundary_ReturnsSuccess()
+    {
+      var mock = new MockDockerApiConnection();
+      mock.SetupPost("/exec", 201, @"{""Id"":""exec-boundary""}");
+      mock.SetupStreamBytes("/exec/exec-boundary/start", CreateMuxFrame(1, "complete"));
+      mock.SetupGet("/exec/exec-boundary/json", 200, @"{""ExitCode"":0}");
+      var driver = CreateDriver(mock);
+
+      var result = await driver.ExecAsync(Ctx, "ctr1",
+          new ExecConfig { Command = ["echo"], Tty = false },
+          cancellationToken: TestContext.Current.CancellationToken);
+
+      Assert.True(result.Success);
+      Assert.Equal("complete", result.Data.StdOut);
+    }
+
+    [Fact]
+    public async Task ExecAsync_NonTtyMode_ShortPayload_ReturnsExecFailed()
+    {
+      var mock = new MockDockerApiConnection();
+      mock.SetupPost("/exec", 201, @"{""Id"":""exec-short""}");
+      var frame = CreateMuxFrame(1, "hello");
+      mock.SetupStreamBytes("/exec/exec-short/start", frame[..^2]);
+      var driver = CreateDriver(mock);
+
+      var result = await driver.ExecAsync(Ctx, "ctr1",
+          new ExecConfig { Command = ["echo"], Tty = false },
+          cancellationToken: TestContext.Current.CancellationToken);
+
+      Assert.False(result.Success);
+      Assert.Equal(ErrorCodes.Container.ExecFailed, result.ErrorCode);
+      Assert.Contains("truncated", result.Error);
+    }
+
+    [Fact]
+    public async Task ExecAsync_NonTtyMode_PartialHeader_ReturnsExecFailed()
+    {
+      var mock = new MockDockerApiConnection();
+      mock.SetupPost("/exec", 201, @"{""Id"":""exec-header""}");
+      mock.SetupStreamBytes("/exec/exec-header/start", [1, 0, 0]);
+      var driver = CreateDriver(mock);
+
+      var result = await driver.ExecAsync(Ctx, "ctr1",
+          new ExecConfig { Command = ["echo"], Tty = false },
+          cancellationToken: TestContext.Current.CancellationToken);
+
+      Assert.False(result.Success);
+      Assert.Equal(ErrorCodes.Container.ExecFailed, result.ErrorCode);
+      Assert.Contains("partial 3-byte frame header", result.Error);
+    }
+
+    [Fact]
+    public async Task GetLogsAsync_WhenCallerCancels_ThrowsOperationCanceledException()
+    {
+      var mock = new MockDockerApiConnection();
+      mock.SetupStream("/logs", "hello");
+      var driver = CreateDriver(mock);
+      using var cts = new CancellationTokenSource();
+      cts.Cancel();
+
+      await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
+          driver.GetLogsAsync(Ctx, "ctr1", cancellationToken: cts.Token));
     }
 
     [Fact]

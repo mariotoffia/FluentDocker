@@ -136,7 +136,8 @@ namespace FluentDocker.Drivers.Docker.Api.Components
         response = await Connection.DeleteAsync(path, cancellationToken).ConfigureAwait(false);
       }
       catch (Exception ex) when (ex is HttpRequestException
-          or System.Net.Sockets.SocketException or TaskCanceledException)
+          or System.Net.Sockets.SocketException ||
+          ex is TaskCanceledException && !cancellationToken.IsCancellationRequested)
       {
         return CommandResponse<ImageRemoveResult>.Fail(
             $"Cannot connect to Docker daemon: {ex.Message}",
@@ -144,7 +145,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
             CreateErrorContext($"DELETE /images/{imageId}", (int)HttpStatusCode.ServiceUnavailable),
             (int)HttpStatusCode.ServiceUnavailable);
       }
-
+      using var responseToDispose = response;
       var body = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
       if (!response.IsSuccessStatusCode)
       {

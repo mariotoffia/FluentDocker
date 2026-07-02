@@ -14,7 +14,11 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
   /// <summary>
   /// A recorded request captured by <see cref="MockDockerApiConnection"/>.
   /// </summary>
-  public sealed record CapturedRequest(string Method, string Path, string? Body);
+  public sealed record CapturedRequest(
+      string Method,
+      string Path,
+      string? Body,
+      IReadOnlyDictionary<string, string>? Headers = null);
 
   /// <summary>
   /// In-memory mock of <see cref="IDockerApiConnection"/> that returns canned
@@ -33,6 +37,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
 
     private readonly List<ResponseEntry> _entries = [];
     private readonly List<CapturedRequest> _requests = [];
+    private readonly List<TrackingContent> _contents = [];
     private readonly List<RecordingStream> _streams = [];
     private bool _pingSuccess = true;
 
@@ -40,6 +45,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
 
     /// <summary>Every stream handed out by the mock, in order, so tests can assert disposal.</summary>
     public IReadOnlyList<RecordingStream> Streams => _streams;
+    public IReadOnlyList<TrackingContent> Contents => _contents;
 
     // ── Setup (fluent) ──────────────────────────────────────────────
 
@@ -182,6 +188,14 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
       return Task.FromResult(ResolveStream(path));
     }
 
+    public Task<Stream> PostStreamAsync(
+        string path, HttpContent? content,
+        IReadOnlyDictionary<string, string> headers, CancellationToken ct = default)
+    {
+      Record("POST_STREAM", path, null, headers);
+      return Task.FromResult(ResolveStream(path));
+    }
+
     public Task<bool> PingAsync(CancellationToken ct = default)
     {
       Record("PING", "/_ping", null);
@@ -192,9 +206,11 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
 
     // ── Internals ───────────────────────────────────────────────────
 
-    private void Record(string method, string path, string? body)
+    private void Record(
+        string method, string path, string? body,
+        IReadOnlyDictionary<string, string>? headers = null)
     {
-      _requests.Add(new CapturedRequest(method, path, body));
+      _requests.Add(new CapturedRequest(method, path, body, headers));
     }
 
     private HttpResponseMessage Resolve(string method, string path)
@@ -213,10 +229,12 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
         };
       }
 
+      var content = new TrackingContent(
+          entry.JsonBody ?? "{}", Encoding.UTF8, "application/json");
+      _contents.Add(content);
       return new HttpResponseMessage(entry.StatusCode)
       {
-        Content = new StringContent(
-              entry.JsonBody ?? "{}", Encoding.UTF8, "application/json")
+        Content = content
       };
     }
 
@@ -261,6 +279,22 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
   public sealed class RecordingStream : MemoryStream
   {
     public RecordingStream(byte[] buffer) : base(buffer)
+    {
+    }
+
+    public bool IsDisposed { get; private set; }
+
+    protected override void Dispose(bool disposing)
+    {
+      IsDisposed = true;
+      base.Dispose(disposing);
+    }
+  }
+
+  public sealed class TrackingContent : StringContent
+  {
+    public TrackingContent(string content, Encoding encoding, string mediaType)
+        : base(content, encoding, mediaType)
     {
     }
 

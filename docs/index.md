@@ -96,6 +96,9 @@ var compose = results.ComposeServices.First();
 
 ### Podman container runtime
 
+See [Podman production notes](podman.md) for machine behavior (macOS/Windows vs Linux),
+readiness waits, cancellation, and output caps.
+
 ```csharp
 using var kernel = await FluentDockerKernel.Create()
     .WithPodmanCli("podman", d => d.WithAutoStartMachine().AsDefault())
@@ -166,6 +169,8 @@ dotnet add package FluentDocker.Testing.NUnit   # NUnit adapter
 
 | Topic | Description |
 |-------|-------------|
+| [Docker API Driver](docker-api.md) | Binary-free TCP+TLS driver: registry auth, TLS, streams |
+| [Podman](podman.md) | Podman runtime: machines, readiness, cancellation, output caps |
 | [Architecture](architecture.md) | Kernel/driver internals and async model |
 | [Driver Extensibility](extensibility.md) | Driver-aware extension model |
 | [Migration](migration.md) | Upgrade from v2.x to v3.x |

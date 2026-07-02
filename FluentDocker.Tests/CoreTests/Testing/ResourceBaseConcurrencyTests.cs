@@ -110,13 +110,28 @@ namespace FluentDocker.Tests.CoreTests.Testing
       Assert.Equal(1, teardownCount);
     }
 
+    [Fact]
+    public async Task DisposeAsync_WhenTeardownIgnoresCancellation_ReturnsAfterTeardownTimeout()
+    {
+      var resource = new ConcurrencyTestResource(
+          _kernel,
+          options: new DockerResourceOptions { TeardownTimeout = TimeSpan.FromMilliseconds(50) },
+          onTeardown: _ => new TaskCompletionSource().Task);
+
+      await resource.InitializeAsync(TestContext.Current.CancellationToken);
+
+      await resource.DisposeAsync().AsTask()
+          .WaitAsync(TimeSpan.FromSeconds(1), TestContext.Current.CancellationToken);
+    }
+
     /// <summary>
     /// Minimal <see cref="ResourceBase"/> subclass for concurrency testing.
     /// </summary>
     private sealed class ConcurrencyTestResource(
         FluentDockerKernel kernel,
         Func<CancellationToken, Task>? onProvision = null,
-        Func<CancellationToken, Task>? onTeardown = null) : ResourceBase(kernel)
+        Func<CancellationToken, Task>? onTeardown = null,
+        DockerResourceOptions? options = null) : ResourceBase(kernel, options ?? new DockerResourceOptions())
     {
       private readonly Func<CancellationToken, Task> _onProvision = onProvision ?? (_ => Task.CompletedTask);
       private readonly Func<CancellationToken, Task> _onTeardown = onTeardown ?? (_ => Task.CompletedTask);

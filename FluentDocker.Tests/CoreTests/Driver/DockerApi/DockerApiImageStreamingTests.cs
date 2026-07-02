@@ -1,8 +1,11 @@
 using System;
 using System.IO;
 using System.Net.Http;
+using System.Text;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
+using FluentDocker.Common;
 using FluentDocker.Drivers;
 using FluentDocker.Drivers.Docker.Api.Components;
 using FluentDocker.Drivers.Docker.Api.Connection;
@@ -27,6 +30,41 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
       return driver;
     }
 
+    [Fact]
+    public async Task PullAsync_AfterLogin_SendsRegistryAuthHeader()
+    {
+      var conn = new MockDockerApiConnection();
+      conn.SetupPost("/auth", 200, "{}");
+      conn.SetupStream("/images/create", "{\"status\":\"Pulling\"}\n");
+      var auth = new DockerApiAuthDriver(conn);
+      var driver = CreateDriver(conn);
+
+      var login = await auth.LoginAsync(Ctx, new RegistryLoginConfig
+      {
+        Server = "registry.example.com",
+        Username = "me",
+        Password = "secret",
+        Email = "me@example.com"
+      }, TestContext.Current.CancellationToken);
+      var result = await driver.PullAsync(Ctx, "registry.example.com/team/app", "latest",
+          null!, TestContext.Current.CancellationToken);
+
+      Assert.True(login.Success);
+      Assert.True(result.Success);
+      var request = conn.GetRequests().Last(r => r.Method == "POST_STREAM");
+      Assert.NotNull(request.Headers);
+      Assert.True(request.Headers!.TryGetValue("X-Registry-Auth", out var value));
+      var expected = ExpectedRegistryAuthHeader(new
+      {
+        username = "me",
+        password = "secret",
+        email = "me@example.com",
+        serveraddress = "registry.example.com"
+      });
+      Assert.EndsWith("=", expected);
+      Assert.Equal(expected, value);
+    }
+
     #region PushAsync
 
     [Fact]
@@ -42,6 +80,41 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
       var result = await driver.PushAsync(Ctx, "myrepo/myimage:latest", null!, TestContext.Current.CancellationToken);
 
       Assert.True(result.Success);
+    }
+
+    [Fact]
+    public async Task PushAsync_AfterLogin_SendsRegistryAuthHeader()
+    {
+      var conn = new MockDockerApiConnection();
+      conn.SetupPost("/auth", 200, "{}");
+      conn.SetupStream("/images/", "{\"status\":\"Pushing\"}\n");
+      var auth = new DockerApiAuthDriver(conn);
+      var driver = CreateDriver(conn);
+
+      await auth.LoginAsync(Ctx, new RegistryLoginConfig
+      {
+        Server = "registry.example.com",
+        Username = "me",
+        Password = "secret"
+      }, TestContext.Current.CancellationToken);
+      var result = await driver.PushAsync(Ctx, "registry.example.com/team/app:latest",
+          null!, TestContext.Current.CancellationToken);
+
+      Assert.True(result.Success);
+      var request = conn.GetRequests().Last(r => r.Method == "POST_STREAM");
+      Assert.NotNull(request.Headers);
+      Assert.Equal(ExpectedRegistryAuthHeader(new
+      {
+        username = "me",
+        password = "secret",
+        serveraddress = "registry.example.com"
+      }), request.Headers!["X-Registry-Auth"]);
+    }
+
+    private static string ExpectedRegistryAuthHeader<T>(T value)
+    {
+      return Convert.ToBase64String(Encoding.UTF8.GetBytes(JsonHelper.Serialize(value)))
+          .Replace('+', '-').Replace('/', '_');
     }
 
     [Fact]
@@ -369,6 +442,11 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
 
       public Task<Stream> PostStreamAsync(
           string path, HttpContent content, CancellationToken ct)
+          => throw _exception;
+
+      public Task<Stream> PostStreamAsync(
+          string path, HttpContent content,
+          System.Collections.Generic.IReadOnlyDictionary<string, string> headers, CancellationToken ct)
           => throw _exception;
 
       public Task<bool> PingAsync(CancellationToken ct)

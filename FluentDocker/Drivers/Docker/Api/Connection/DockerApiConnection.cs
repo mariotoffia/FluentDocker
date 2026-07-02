@@ -114,8 +114,20 @@ namespace FluentDocker.Drivers.Docker.Api.Connection
     public async Task<Stream> PostStreamAsync(
         string path, HttpContent content = null, CancellationToken ct = default)
     {
+      return await PostStreamAsync(path, content, null, ct).ConfigureAwait(false);
+    }
+
+    public async Task<Stream> PostStreamAsync(
+        string path, HttpContent content,
+        IReadOnlyDictionary<string, string> headers, CancellationToken ct = default)
+    {
       var versionedPath = await GetVersionedPathAsync(path, ct).ConfigureAwait(false);
       var request = new HttpRequestMessage(HttpMethod.Post, versionedPath) { Content = content };
+      if (headers != null)
+      {
+        foreach (var header in headers)
+          request.Headers.TryAddWithoutValidation(header.Key, header.Value);
+      }
       var response = await _httpClient.SendAsync(
           request, HttpCompletionOption.ResponseHeadersRead, ct).ConfigureAwait(false);
       await EnsureStreamSuccessAsync(response, ct).ConfigureAwait(false);
@@ -410,6 +422,11 @@ namespace FluentDocker.Drivers.Docker.Api.Connection
               sslOptions.RemoteCertificateValidationCallback = (_, cert, chain, errors) =>
                   ModelTlsValidation.ValidateWithCustomRoot(caCert, cert, chain, errors, config.AllowTlsHostnameMismatch);
             }
+            else if (config.AllowTlsHostnameMismatch)
+            {
+              sslOptions.RemoteCertificateValidationCallback = (_, _, _, errors) =>
+                  errors is SslPolicyErrors.None or SslPolicyErrors.RemoteCertificateNameMismatch;
+            }
           }
         }
         else if (!config.VerifyTls)
@@ -417,6 +434,11 @@ namespace FluentDocker.Drivers.Docker.Api.Connection
 #pragma warning disable CA5359 // Intentional: user opted out of TLS verification via VerifyTls=false
           sslOptions.RemoteCertificateValidationCallback = (_, _, _, _) => true;
 #pragma warning restore CA5359
+        }
+        else if (config.AllowTlsHostnameMismatch)
+        {
+          sslOptions.RemoteCertificateValidationCallback = (_, _, _, errors) =>
+              errors is SslPolicyErrors.None or SslPolicyErrors.RemoteCertificateNameMismatch;
         }
 
         handler.SslOptions = sslOptions;

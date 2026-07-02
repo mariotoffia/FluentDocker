@@ -88,7 +88,7 @@ namespace FluentDocker.Drivers.Podman.Cli
       if (context == null || string.IsNullOrEmpty(context.Host))
         return "";
 
-      return $"--url {context.Host}";
+      return $"--url {QuoteArgumentIfNeeded(context.Host)}";
     }
 
     #endregion
@@ -157,25 +157,15 @@ namespace FluentDocker.Drivers.Podman.Cli
     }
 
     /// <summary>
-    /// Executes a Podman command asynchronously with an explicit buffered timeout. Pass
-    /// <see cref="Timeout.InfiniteTimeSpan"/> to bound only by the caller token.
-    /// </summary>
-    protected async Task<SimpleCommandResult> ExecuteCommandAsync(
-        string arguments, TimeSpan timeout, CancellationToken cancellationToken)
-    {
-      var (binaryPath, sudo, sudoPassword) = ResolveBinaryInfo();
-      var globalArgs = BuildGlobalArgs(Context);
-      var fullArgs = string.IsNullOrEmpty(globalArgs) ? arguments : $"{globalArgs} {arguments}";
-      return await ExecuteProcessAsync(binaryPath, fullArgs, null, sudo, sudoPassword, timeout, cancellationToken).ConfigureAwait(false);
-    }
-
-    /// <summary>
     /// For inherently long / unbounded-by-design Podman operations
     /// (pull/build/push/wait/load/save/stop -t/machine init/start …) that must honor ONLY
-    /// caller cancellation; the default buffered timeout would falsely abort them.
+    /// caller cancellation; the default buffered timeout would falsely abort them. Unlike the
+    /// bounded path this STREAMS stdout/stderr into bounded rolling tails (see
+    /// <see cref="ExecuteUnboundedProcessAsync"/>) so a verbose-but-successful op is not failed
+    /// at the 4 MiB buffered cap.
     /// </summary>
     protected Task<SimpleCommandResult> ExecuteUnboundedCommandAsync(string arguments, CancellationToken cancellationToken)
-        => ExecuteCommandAsync(arguments, Timeout.InfiniteTimeSpan, cancellationToken);
+        => ExecuteUnboundedProcessAsync(arguments, cancellationToken);
 
     /// <summary>
     /// Executes a process asynchronously using direct stream reading

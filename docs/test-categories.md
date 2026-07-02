@@ -45,12 +45,17 @@ make test
 # equivalent to: dotnet test --filter "Category=Unit"
 ```
 
-### All integration tests (Docker + Podman)
+### Docker + Podman integration subset
 
 ```bash
 make test-integration
-# runs ALL tests, not just Unit
+# runs ONLY Category=Integration and Category=PodmanIntegration (Docker + Podman),
+# NOT the full suite. DevLocal, LongRunning, ManualOnly, and DMR are separate/manual.
 ```
+
+`make test-integration` filters `Category=Integration|Category=PodmanIntegration`, so it
+does **not** cover `DevLocal` (Swarm + registry), `LongRunning`, `ManualOnly`, or the
+Docker Model Runner (`Requires=Dmr`) categories — run those explicitly (see below).
 
 ### A single category
 
@@ -91,6 +96,25 @@ make devlocal-teardown
 make cleanup-test-resources
 # removes leftover containers, networks, and volumes from previous test runs
 ```
+
+## Release verification
+
+No single command runs "everything". Before a release, run the categories that match
+what changed — each is a distinct gate with its own infrastructure:
+
+| Gate | Command | Infrastructure | When to run |
+|---|---|---|---|
+| Build + unit | `make test` (net10.0) + `make test-net8` | None | Every change (CI runs this) |
+| Lint / format | `make lint` | None | Every change |
+| Docker + Podman integration | `make test-integration` | Docker daemon; Podman machine for `PodmanIntegration` | Any driver/service/lifecycle change |
+| Coverage floor | `make coverage-check` | Docker daemon | Before merge/release |
+| Docker Model Runner | `make test-dmr` (`FLUENTDOCKER_REQUIRE_DMR=1`) | Docker Model Runner runtime | Model Runner / inference changes |
+| DevLocal (Swarm + registry) | `make devlocal-setup && make test-devlocal && make devlocal-teardown` | Docker Swarm + local registry | Swarm/stack or registry changes |
+| LongRunning / ManualOnly | `dotnet test --filter "Category=LongRunning"` (and `ManualOnly`) | Podman machine / manual config | On demand, before a tagged release |
+
+CI runs build + unit on every push and gates the Docker/Podman/DMR suites behind PR
+label, schedule, or manual dispatch — a green CI badge alone does **not** prove the
+integration or DMR gates ran.
 
 ## Trait Usage Patterns
 

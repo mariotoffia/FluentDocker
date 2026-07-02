@@ -27,6 +27,7 @@ namespace FluentDocker.Services.Impl
     private readonly string _networkId;
     private readonly string _networkName;
     private readonly bool _removeOnDispose;
+    private readonly TimeSpan _disposeCleanupTimeout;
     private readonly Dictionary<string, (ServiceRunningState State, Func<IServiceAsync, Task> Hook)> _hooks = [];
     private ServiceRunningState _state = ServiceRunningState.Running;
 
@@ -35,7 +36,8 @@ namespace FluentDocker.Services.Impl
         string driverId,
         string networkId,
         string networkName,
-        bool removeOnDispose = false)
+        bool removeOnDispose = false,
+        TimeSpan? disposeCleanupTimeout = null)
     {
       ArgumentNullException.ThrowIfNull(kernel);
       ArgumentNullException.ThrowIfNull(driverId);
@@ -46,6 +48,8 @@ namespace FluentDocker.Services.Impl
       _networkId = networkId;
       _networkName = networkName ?? $"network-{networkId}";
       _removeOnDispose = removeOnDispose;
+      _disposeCleanupTimeout =
+          disposeCleanupTimeout ?? TimeSpan.FromMilliseconds(ContainerService.DefaultDisposeCleanupTimeoutMs);
     }
 
     public string Name => _networkName;
@@ -199,15 +203,25 @@ namespace FluentDocker.Services.Impl
       if (!_removeOnDispose)
         return;
 
+      using var cleanupCts = new CancellationTokenSource(_disposeCleanupTimeout);
+      var removeTask = RemoveAsync(force: true, cleanupCts.Token);
       try
       {
-        await RemoveAsync(force: true).ConfigureAwait(false);
+        await removeTask.WaitAsync(cleanupCts.Token).ConfigureAwait(false);
       }
       catch (Exception ex)
       {
         _logger.LogWarning(ex, "NetworkService DisposeAsync failed");
+        ObserveAbandonedCleanup(removeTask);
       }
     }
+
+    private static void ObserveAbandonedCleanup(Task task) =>
+        _ = task.ContinueWith(
+            static t => _ = t.Exception,
+            CancellationToken.None,
+            TaskContinuationOptions.OnlyOnFaulted,
+            TaskScheduler.Default);
 
     private void UpdateState(ServiceRunningState newState)
     {

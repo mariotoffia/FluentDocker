@@ -50,7 +50,8 @@ namespace FluentDocker.Services
       var p = Normalize(prefix);
 
       var url = Environment.GetEnvironmentVariable($"{p}_URL");
-      if (string.IsNullOrWhiteSpace(url) || !Uri.TryCreate(url, UriKind.Absolute, out var uri))
+      if (string.IsNullOrWhiteSpace(url) || !Uri.TryCreate(url, UriKind.Absolute, out var uri)
+          || !ModelRunnerEndpoint.IsSupportedUrl(uri))
         return false;
 
       var modelValue = Environment.GetEnvironmentVariable($"{p}_MODEL");
@@ -88,7 +89,8 @@ namespace FluentDocker.Services
       runner = null;
 
       var url = Environment.GetEnvironmentVariable(endpointVar);
-      if (string.IsNullOrWhiteSpace(url) || !Uri.TryCreate(url, UriKind.Absolute, out var uri))
+      if (string.IsNullOrWhiteSpace(url) || !Uri.TryCreate(url, UriKind.Absolute, out var uri)
+          || !ModelRunnerEndpoint.IsSupportedUrl(uri))
         return false;
 
       runner = (IModelRunner)CreateInferenceRunner(ModelRunnerEndpoint.Raw(uri), Environment.GetEnvironmentVariable(modelVar), apiKey);
@@ -106,9 +108,26 @@ namespace FluentDocker.Services
     /// <param name="apiKey">Optional bearer token.</param>
     /// <returns>A narrow <see cref="IInferenceModelRunner"/> (also satisfies <see cref="IModelRunner"/>).</returns>
     public static IInferenceModelRunner CreateInferenceRunner(
-        ModelRunnerEndpoint endpoint, string modelId, string apiKey = null)
+        ModelRunnerEndpoint endpoint, string modelId, string apiKey = null) =>
+        CreateInferenceRunner(endpoint, modelId, new ModelApiConnectionConfig(), apiKey);
+
+    /// <summary>
+    /// Creates an <see cref="IInferenceModelRunner"/> for an environment-injected endpoint,
+    /// applying the supplied transport <paramref name="config"/> so an env/Compose-created runner
+    /// can reach a PRODUCTION endpoint (private CA, mTLS, hostname-mismatch tolerance, custom
+    /// timeouts) — not just plaintext localhost. The model id is preserved verbatim, exactly as
+    /// in the config-less overload.
+    /// </summary>
+    /// <param name="endpoint">The resolved endpoint.</param>
+    /// <param name="modelId">The verbatim model id from the environment.</param>
+    /// <param name="config">Transport configuration (TLS + timeouts) applied to the connection.</param>
+    /// <param name="apiKey">Optional bearer token.</param>
+    /// <returns>A narrow <see cref="IInferenceModelRunner"/> (also satisfies <see cref="IModelRunner"/>).</returns>
+    public static IInferenceModelRunner CreateInferenceRunner(
+        ModelRunnerEndpoint endpoint, string modelId, ModelApiConnectionConfig config, string apiKey = null)
     {
-      var connection = new ModelApiConnection(endpoint, apiKey: apiKey);
+      ArgumentNullException.ThrowIfNull(config);
+      var connection = new ModelApiConnection(endpoint, config, apiKey: apiKey);
       var inference = new OpenAiModelInferenceDriver(connection, endpoint);
       InferenceModelId? inferenceId = string.IsNullOrWhiteSpace(modelId) ? null : new InferenceModelId(modelId);
       var model = ModelReference.TryParse(modelId, out var r) ? r : null;

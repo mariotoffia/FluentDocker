@@ -7,6 +7,8 @@ on:
       - main
       - fdv3
       - 'support/**'
+    tags:
+      - 'v*'
   pull_request:
   # Disabled: the weekly scheduled integration-test run fails every time (no Docker
   # daemon available on the hosted runners for the full OS matrix). Run integration
@@ -175,10 +177,11 @@ jobs:
   release:
     name: Publish & Tag
     needs: [build, unit-tests]
-    if: >
-      github.event_name == 'push' &&
-      (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main' ||
-       startsWith(github.ref, 'refs/heads/support/'))
+    # Configure required reviewers on the 'nuget-release' environment (repo Settings → Environments) to require manual approval before publish.
+    environment: nuget-release
+    # Publish ONLY on a version-tag push (e.g. v3.2.0-preview.1). Merging to a branch
+    # no longer publishes; a maintainer releases by pushing a matching v<version> tag.
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
     env:
       DOTNET_NOLOGO: 'true'
@@ -201,19 +204,6 @@ jobs:
       - run: dotnet pack --configuration Release --no-build --output packages
       - name: Publish NuGet packages
         run: dotnet nuget push "packages/*.nupkg" --api-key ${{ secrets.NUGET_API_KEY }} --source https://api.nuget.org/v3/index.json --skip-duplicate
-      - name: Create and push Git tag for release
-        env:
-          RELEASE_VERSION: ${{ steps.version.outputs.version }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          if git ls-remote --exit-code --tags origin "refs/tags/$RELEASE_VERSION" >/dev/null 2>&1; then
-            echo "Tag $RELEASE_VERSION already exists on remote, skipping"
-          else
-            git config --global user.name "GitHub Actions"
-            git config --global user.email "actions@github.com"
-            git tag "$RELEASE_VERSION"
-            git push origin "$RELEASE_VERSION"
-          fi
 
   # CodeQL Security Analysis
   codeql:

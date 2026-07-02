@@ -1,5 +1,9 @@
 using System;
+using System.Reflection;
+using FluentDocker.Drivers.Podman;
 using FluentDocker.Drivers.Podman.Cli;
+using FluentDocker.Drivers.Podman.Cli.Components;
+using FluentDocker.Model.Drivers;
 using Xunit;
 
 namespace FluentDocker.Tests.CoreTests.Driver.Podman
@@ -25,9 +29,9 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
     [Fact]
     public void MachineLockKey_NullOrEmpty_NormalizesToDefaultName()
     {
-      // An unset name must normalize to the SAME "default" the start/init path uses, so the key
-      // is consistent with the machine actually acted upon (no "<sentinel>" that nothing else
-      // shares).
+      // An unset name normalizes to a shared "default" lock-key sentinel so the per-machine gate
+      // is stable and consistent. (The start/init path itself now OMITS the name so podman targets
+      // its real built-in default machine — the lock key just needs to be stable and shared.)
       Assert.Equal("default", PodmanCliDriverPack.MachineLockKey(null!));
       Assert.Equal("default", PodmanCliDriverPack.MachineLockKey(""));
     }
@@ -58,5 +62,73 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
           PodmanCliDriverPack.MachineLockKey("a"),
           PodmanCliDriverPack.MachineLockKey("b"));
     }
+
+    #region BuildAutoStartInitConfig (P3 — name omission)
+
+    [Fact]
+    public void BuildAutoStartInitConfig_NullMachineName_LeavesNameNull()
+    {
+      // Documented as "default machine" when unspecified: the init config must leave Name NULL so
+      // podman targets its real built-in default instead of a literal machine called "default".
+      var config = new AutoStartMachineConfig { MachineName = null! };
+
+      var init = PodmanCliDriverPack.BuildAutoStartInitConfig(config);
+
+      Assert.Null(init.Name);
+      Assert.True(init.Now);
+    }
+
+    [Fact]
+    public void BuildAutoStartInitConfig_EmptyMachineName_LeavesNameNull()
+    {
+      var config = new AutoStartMachineConfig { MachineName = "" };
+
+      var init = PodmanCliDriverPack.BuildAutoStartInitConfig(config);
+
+      Assert.Null(init.Name);
+    }
+
+    [Fact]
+    public void BuildAutoStartInitConfig_NamedMachine_PassesNameAndResourcesThrough()
+    {
+      var config = new AutoStartMachineConfig
+      {
+        MachineName = "dev",
+        InitCpus = 4,
+        InitMemoryMiB = 4096,
+        InitDiskSizeGiB = 50,
+        InitRootful = true
+      };
+
+      var init = PodmanCliDriverPack.BuildAutoStartInitConfig(config);
+
+      Assert.Equal("dev", init.Name);
+      Assert.Equal(4, init.Cpus);
+      Assert.Equal(4096, init.MemoryMiB);
+      Assert.Equal(50, init.DiskSizeGiB);
+      Assert.True(init.Rootful);
+      Assert.True(init.Now);
+    }
+
+    [Fact]
+    public void BuildAutoStartInitConfig_NullMachineName_ProducesInitArgvWithoutName()
+    {
+      // End-to-end at the pure-function level: an unspecified machine name must NOT append a name
+      // token to `podman machine init`, so podman uses its real default machine.
+      var init = PodmanCliDriverPack.BuildAutoStartInitConfig(new AutoStartMachineConfig());
+
+      Assert.Equal("machine init --now", InvokeBuildInitArgs(init));
+    }
+
+    private static string InvokeBuildInitArgs(MachineInitConfig config)
+    {
+      var method = typeof(PodmanCliMachineDriver).GetMethod(
+          "BuildInitArgs",
+          BindingFlags.NonPublic | BindingFlags.Static | BindingFlags.Public);
+      Assert.NotNull(method);
+      return (string)method.Invoke(null, [config])!;
+    }
+
+    #endregion
   }
 }

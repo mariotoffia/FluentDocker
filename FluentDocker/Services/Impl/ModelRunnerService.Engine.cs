@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using FluentDocker.Common;
 using FluentDocker.Model.Models;
 using FluentDocker.Model.Models.Options;
 
@@ -62,6 +63,13 @@ namespace FluentDocker.Services.Impl
     public async Task ConfigureAsync(ModelReference model, ModelConfigureOptions options, CancellationToken cancellationToken = default)
     {
       ThrowIfDisposed();
+      // Serialize configure on the SAME per-model gate that build-time pull/load/unload use, so a
+      // concurrent gated op (or another configure) for THIS model cannot stomp its persistent
+      // config mid-flight. The gate is keyed per model, so different models still run in parallel.
+      // Gating this shared method also covers the build-time configure in ModelRunnerBuilder, which
+      // routes through here — do NOT add a second gate at that call site (the semaphore is
+      // non-reentrant, so double-acquiring the same key would deadlock).
+      await using var gate = await ModelOperationGate.AcquireAsync(model, cancellationToken).ConfigureAwait(false);
       var response = await Runtime().ConfigureAsync(Context(), model, options, cancellationToken).ConfigureAwait(false);
       UnwrapUnit(response, $"Configure model '{model}'");
     }

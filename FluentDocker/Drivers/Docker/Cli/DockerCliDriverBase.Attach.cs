@@ -25,8 +25,9 @@ namespace FluentDocker.Drivers.Docker.Cli
     {
       cancellationToken.ThrowIfCancellationRequested();
 
-      var (binaryPath, sudo, _) = ResolveBinaryInfo();
-      var globalArgs = BuildGlobalArgs(Context);
+      var effectiveContext = CreateEffectiveContext(null);
+      var (binaryPath, sudo, _) = ResolveBinaryInfo(effectiveContext);
+      var globalArgs = BuildGlobalArgs(effectiveContext);
       var fullArgs = string.IsNullOrEmpty(globalArgs) ? arguments : $"{globalArgs} {arguments}";
 
       // Attach does not support sudo with password (would conflict with stdin).

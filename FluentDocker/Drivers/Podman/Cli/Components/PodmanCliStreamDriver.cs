@@ -39,10 +39,10 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       if (config.Tail.HasValue)
         args += $" --tail {config.Tail.Value}";
       if (!string.IsNullOrEmpty(config.Since))
-        args += $" --since {config.Since}";
+        args += $" --since {QuoteArgumentIfNeeded(config.Since)}";
       if (!string.IsNullOrEmpty(config.Until))
-        args += $" --until {config.Until}";
-      args += $" {containerId}";
+        args += $" --until {QuoteArgumentIfNeeded(config.Until)}";
+      args += $" {QuoteArgumentIfNeeded(containerId)}";
       return args;
     }
 
@@ -67,21 +67,21 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
     {
       var args = "events --format json";
       if (!string.IsNullOrEmpty(config?.Since))
-        args += $" --since {config.Since}";
+        args += $" --since {QuoteArgumentIfNeeded(config.Since)}";
       if (!string.IsNullOrEmpty(config?.Until))
-        args += $" --until {config.Until}";
+        args += $" --until {QuoteArgumentIfNeeded(config.Until)}";
 
       if (config?.Types != null)
         foreach (var type in config.Types)
-          args += $" --filter type={type}";
+          args += $" --filter {QuoteArgumentIfNeeded($"type={type}")}";
 
       if (config?.Actions != null)
         foreach (var action in config.Actions)
-          args += $" --filter event={action}";
+          args += $" --filter {QuoteArgumentIfNeeded($"event={action}")}";
 
       if (config?.Filters != null)
         foreach (var filter in config.Filters)
-          args += $" --filter {filter.Key}={filter.Value}";
+          args += $" --filter {QuoteArgumentIfNeeded($"{filter.Key}={filter.Value}")}";
 
       return args;
     }
@@ -117,7 +117,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       if (config?.All == true)
         args += " -a";
       if (!string.IsNullOrEmpty(containerId))
-        args += $" {containerId}";
+        args += $" {QuoteArgumentIfNeeded(containerId)}";
       return args;
     }
 
@@ -151,9 +151,9 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
         if (!config.SigProxy)
           args += " --sig-proxy=false";
         if (!string.IsNullOrEmpty(config.DetachKeys))
-          args += $" --detach-keys {config.DetachKeys}";
+          args += $" --detach-keys {QuoteArgumentIfNeeded(config.DetachKeys)}";
 
-        args += $" {containerId}";
+        args += $" {QuoteArgumentIfNeeded(containerId)}";
 
         var result = ExecuteAttachProcess(args, cancellationToken);
         return Task.FromResult(CommandResponse<AttachResult>.Ok(result));

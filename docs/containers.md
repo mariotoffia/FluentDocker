@@ -21,8 +21,11 @@ are supported. The kernel manages driver instances and provides access to
 container runtimes.
 
 ```csharp
+using System;
+using System.Linq;
 using FluentDocker.Kernel;
 using FluentDocker.Builders;
+using FluentDocker.Services.Extensions; // ToHostExposedEndpoint
 
 // Create kernel (multiple kernels per app are supported)
 using var kernel = FluentDockerKernel.Create()
@@ -255,6 +258,10 @@ using var results = new Builder()
 
 ## File Operations
 
+> The copy-from and export lifecycle snippets below are verified by the
+> `ContainersDocSnippetsTests` integration tests, so their documented behavior cannot
+> silently drift from the implementation.
+
 ### Copy to Container on Start
 
 Files are copied after the container starts (lifecycle hook).
@@ -271,24 +278,28 @@ using var results = new Builder()
 
 ### Copy from Container on Dispose
 
-Files are copied from the container before it is removed.
+Files are copied from the container before it is removed. A **directory** source (or a
+destination ending in a separator) copies recursively into the destination directory; a
+**single-file** source copies to the destination as a **file** when the destination is a
+file path — it is not wrapped in a directory named after the target.
 
 ```csharp
 using var results = new Builder()
     .WithinDriver("docker", kernel)
     .UseContainer(c => c
         .UseImage("myapp:latest")
-        .CopyFromOnDispose("/app/logs/", "/local/artifacts/logs/")
-        .CopyFromOnDispose("/app/coverage/", "/local/artifacts/coverage/"))
+        .CopyFromOnDispose("/app/logs/", "/local/artifacts/logs/")   // directory → directory
+        .CopyFromOnDispose("/app/report.xml", "/local/artifacts/report.xml")) // file → file
     .Build();
 
 // Run tests...
-// When disposed, logs and coverage are copied out
+// When disposed, the logs directory and the single report file are copied out.
 ```
 
 ### Export on Dispose
 
-Export the entire container filesystem as a tar archive on dispose.
+Export the entire container filesystem as a tar archive on dispose. By default the tar is
+written to the exact path you supply (the parent directory is created if needed):
 
 ```csharp
 using var results = new Builder()
@@ -299,7 +310,8 @@ using var results = new Builder()
     .Build();
 ```
 
-With a condition and explode (extract tar contents):
+With a condition and `explode: true`, the archive is **extracted into** the supplied
+directory path instead of being written as a single `.tar` file:
 
 ```csharp
 using var results = new Builder()
@@ -312,9 +324,17 @@ using var results = new Builder()
 
 ## Execute Commands
 
+> The `ExecuteOnRunning` argv snippet below is verified by the
+> `ContainersDocSnippetsTests` integration tests, so its documented quoting behavior
+> cannot silently drift from the implementation.
+
 ### On Running (Lifecycle Hook)
 
-Execute a command automatically after the container starts.
+Run a command once the container is **ready** — after all wait conditions pass, not merely
+after start. The command runs **exactly once**, and a non-zero exit **propagates as an
+exception**. Each string is a separate **argv token**: the shared command renderer quotes
+any token containing spaces, so the final `"CREATE DATABASE mydb;"` stays a single
+argument rather than being split on whitespace.
 
 ```csharp
 using var results = new Builder()
@@ -329,7 +349,9 @@ using var results = new Builder()
 
 ### On Disposing (Lifecycle Hook)
 
-Execute a command before the container is removed.
+Run a command on the **Removing** lifecycle — after the graph is disposed and before the
+container is deleted. The same argv rules apply: `"echo 'shutting down' >> /app/log.txt"`
+is one argv token passed to `sh -c`, not three separate arguments.
 
 ```csharp
 using var results = new Builder()
@@ -342,19 +364,26 @@ using var results = new Builder()
 
 ### Ad-hoc Commands on a Running Container
 
+`ExecuteAsync(string)` shell-parses the command (honoring quotes) and returns the
+container's **stdout** as a string.
+
 ```csharp
 var container = results.Containers.First();
 
 var result = await container.ExecuteAsync("echo Hello World");
-Console.WriteLine(result);  // "Hello World"
+Console.WriteLine(result);  // stdout: "Hello World"
 
-// Shell commands
-var output = await container.ExecuteAsync("sh -c 'ls -la /app && cat /app/config.json'");
+// Quotes are honored, so a whole shell program can be passed to sh -c:
+var listing = await container.ExecuteAsync("sh -c 'ls -la /app && cat /app/config.json'");
 
 // Redis example
 await container.ExecuteAsync("redis-cli SET mykey myvalue");
 var value = await container.ExecuteAsync("redis-cli GET mykey");
 ```
+
+The `ExecuteOnRunning` / `ExecuteOnDisposing` hooks above take a **`params string[]`**
+argv instead: each element is one argument and is never re-split, which is why
+`"CREATE DATABASE mydb;"` stays a single token.
 
 ## Names, Labels, and Configuration
 

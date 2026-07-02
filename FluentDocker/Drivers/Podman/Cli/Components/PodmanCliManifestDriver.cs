@@ -6,6 +6,7 @@ using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using FluentDocker.Common;
+using FluentDocker.Drivers.Docker.Cli;
 using FluentDocker.Drivers.Podman.Cli.Binary;
 using FluentDocker.Model.Drivers;
 
@@ -255,8 +256,18 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
         var result = await ExecuteCommandAsync(
             $"manifest exists {QuoteArgumentIfNeeded(listName)}", cancellationToken).ConfigureAwait(false);
 
-        // Exit code 0 = exists, non-zero = does not exist
-        return CommandResponse<bool>.Ok(result.Success);
+        if (result.Success)
+          return CommandResponse<bool>.Ok(true);
+
+        // Only a genuine not-found signal maps to Ok(false). A machine-down / auth / CLI failure
+        // must surface as a FAILED response so callers never mistake an outage for absence.
+        if (IsManifestNotFound(result))
+          return CommandResponse<bool>.Ok(false);
+
+        return CommandResponse<bool>.Fail(
+            result.Error ?? "Manifest exists check failed",
+            ErrorCodes.Manifest.InspectFailed,
+            CreateErrorContext(context, "ManifestExists", result), result.ExitCode);
       }
       catch (OperationCanceledException)
       {
@@ -267,6 +278,34 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
         return CommandResponse<bool>.Fail(
             ex.Message, ErrorCodes.Manifest.InspectFailed);
       }
+    }
+
+    /// <summary>
+    /// Classifies a FAILED <c>manifest exists</c> result as a genuine "manifest not found"
+    /// (⇒ caller gets <c>Ok(false)</c>) versus an outage / auth / CLI failure (⇒ caller gets a
+    /// FAILED response). Conservative on purpose: a plain non-zero exit with NO stderr is podman's
+    /// normal "does not exist" signal; otherwise the stderr text must explicitly say so — anything
+    /// else is treated as a failure rather than silently reported as absent.
+    /// </summary>
+    public static bool IsManifestNotFound(SimpleCommandResult result)
+    {
+      if (result == null)
+        return false;
+
+      // podman's `exists` family returns exit 1 with empty stderr for a plain miss; a real outage
+      // (exit 125, connection refused, auth, …) always carries a diagnostic stderr message.
+      if (result.ExitCode == 1 && string.IsNullOrWhiteSpace(result.Error))
+        return true;
+
+      var stderr = result.Error;
+      if (string.IsNullOrWhiteSpace(stderr))
+        return false;
+
+      // Manifest-specific wording only. Deliberately NARROW: generic "no such" / "does not exist"
+      // are excluded because podman's stopped-machine / missing-socket outage stderr reads
+      // "...connect: no such file or directory" — matching those would re-mask an outage as absence.
+      return stderr.Contains("not found", StringComparison.OrdinalIgnoreCase)
+          || stderr.Contains("manifest unknown", StringComparison.OrdinalIgnoreCase);
     }
 
     #endregion

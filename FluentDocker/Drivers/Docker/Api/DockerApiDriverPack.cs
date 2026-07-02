@@ -64,6 +64,10 @@ namespace FluentDocker.Drivers.Docker.Api
         ConnectionTimeout = context.ConnectionTimeout ?? TimeSpan.FromSeconds(30),
         RequestTimeout = context.RequestTimeout ?? TimeSpan.FromMinutes(5),
         ApiVersion = context.ApiVersion,
+        AllowTlsHostnameMismatch = context.Metadata.TryGetValue(
+            "DockerApi.AllowTlsHostnameMismatch", out var allowMismatch) &&
+            bool.TryParse(allowMismatch, out var parsedAllowMismatch) &&
+            parsedAllowMismatch,
       };
       _connection = new DockerApiConnection(connectionConfig, context.LoggerFactory);
 

@@ -1,7 +1,9 @@
 using System;
 using System.Linq;
 using System.Threading.Tasks;
+using FluentDocker.Common;
 using FluentDocker.Drivers.Models;
+using FluentDocker.Drivers.Models.Connection;
 using FluentDocker.Model.Models;
 using FluentDocker.Model.Models.Inference;
 using FluentDocker.Services;
@@ -199,6 +201,79 @@ namespace FluentDocker.Tests.CoreTests.Service
           Assert.True(FluentDocker.Services.ModelRunnerEnvironment.TryFromEnvironment(out var runner));
           Assert.IsAssignableFrom<FluentDocker.Services.IInferenceModelRunner>(runner);
         }));
+    }
+
+    // ======================== MR9: env URL validation parity ==================
+
+    [Theory]
+    [InlineData("ftp://10.0.0.5:12434")]  // valid absolute URI (pre-fix accepted it) but wrong scheme
+    [InlineData("file:///etc/passwd")]    // absolute, but no host
+    [InlineData("localhost:12434")]       // scheme-less: parses absolute with scheme 'localhost', no host
+    public void TryFromEnvironment_NonHttpOrSchemeless_ReturnsFalse(string url)
+    {
+      // MR9: TryFromEnvironment must apply the SAME http(s)+host validation as
+      // ModelRunnerEndpoint.TryFromEnvironment, so an invalid scheme fails the Try* API here
+      // instead of being accepted and blowing up later.
+      WithEnv("LLM_URL", url, () =>
+      {
+        Assert.False(ModelRunnerEnvironment.TryFromEnvironment(out var runner));
+        Assert.Null(runner);
+      });
+    }
+
+    [Theory]
+    [InlineData("ftp://10.0.0.5:12434")]
+    [InlineData("file:///etc/passwd")]
+    [InlineData("localhost:12434")]
+    public void TryFromVariables_NonHttpOrSchemeless_ReturnsFalse(string url)
+    {
+      // MR9: the explicitly-named-variable path must reject the same invalid values.
+      WithEnv("AI_MODEL_URL", url, () =>
+      {
+        Assert.False(ModelRunnerEnvironment.TryFromVariables("AI_MODEL_URL", "AI_MODEL_MODEL", out var runner));
+        Assert.Null(runner);
+      });
+    }
+
+    [Theory]
+    [InlineData("http://host:12434")]
+    [InlineData("https://host:12434")]
+    public void TryFromEnvironment_ValidHttp_ReturnsTrue(string url)
+    {
+      WithEnv("LLM_URL", url, () =>
+        WithEnv("LLM_MODEL", "ai/x", () =>
+            Assert.True(ModelRunnerEnvironment.TryFromEnvironment(out _))));
+    }
+
+    // ======================== MR6: env runner honors TLS/transport config =====
+
+    [Fact]
+    public void CreateInferenceRunner_DefaultConfig_RefusesApiKeyOverPlaintextToRemoteHost()
+    {
+      // Baseline for the seam below: with the default config (VerifyTls=true) the connection ctor
+      // refuses to send a bearer token over plaintext HTTP to a NON-loopback host.
+      var endpoint = ModelRunnerEndpoint.Custom(new Uri("http://10.0.0.5:12434"));
+      Assert.Throws<ModelRunnerException>(() =>
+          ModelRunnerEnvironment.CreateInferenceRunner(endpoint, "ai/x", apiKey: "secret"));
+    }
+
+    [Fact]
+    public async Task CreateInferenceRunner_WithConfig_PropagatesTlsSettingsIntoConnection()
+    {
+      // MR6: the config overload must actually thread the config into the ModelApiConnection.
+      // Behavioral seam: VerifyTls=false is exactly what the connection ctor consults to permit an
+      // API key over plaintext HTTP to a remote host — so if (and only if) the config reaches the
+      // connection, construction succeeds instead of throwing as the default-config case does above.
+      var endpoint = ModelRunnerEndpoint.Custom(new Uri("http://10.0.0.5:12434"));
+      var config = new ModelApiConnectionConfig { VerifyTls = false, RequestTimeout = TimeSpan.FromSeconds(5) };
+
+      var runner = ModelRunnerEnvironment.CreateInferenceRunner(endpoint, "ai/x", config, apiKey: "secret");
+
+      await using ((IAsyncDisposable)runner)
+      {
+        Assert.NotNull(runner);
+        Assert.IsAssignableFrom<IInferenceModelRunner>(runner);
+      }
     }
   }
 }

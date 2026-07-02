@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Net.Http;
 using System.Threading;
@@ -43,6 +44,10 @@ namespace FluentDocker.Drivers.Docker.Api.Connection
     /// Used for streaming build output, pull progress, etc.
     /// </summary>
     Task<Stream> PostStreamAsync(string path, HttpContent content = null, CancellationToken ct = default);
+
+    Task<Stream> PostStreamAsync(
+        string path, HttpContent content,
+        IReadOnlyDictionary<string, string> headers, CancellationToken ct = default);
 
     /// <summary>
     /// Pings the Docker daemon to check connectivity.

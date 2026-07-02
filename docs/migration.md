@@ -444,7 +444,15 @@ For in-depth migration guidance, see these companion documents:
 - [Complete API Mapping](migrate-v2-to-v3/api-mapping.md) — exhaustive v2 → v3 method and type mapping reference
 - [Code Examples (Before/After)](migrate-v2-to-v3/code-examples.md) — side-by-side migration examples for common patterns
 - [Test Migration Guide](migrate-v2-to-v3/test-migration.md) — xUnit, MSTest, and fixture migration patterns
-- [Claude Code Migration Skill](migrate-v2-to-v3/claude-skill.md) — automated migration assistant (copy to `.claude/skills/` and invoke `/migrate-v2-to-v3`)
+
+### Optional: AI-agent automation
+
+If you use an AI coding agent, the repository ships an **agent skill** (a prompt for the
+agent, not human guidance) that automates much of the mechanical v2 → v3 rewrite. It lives
+outside the documentation at
+[`tools/claude-migration-skill.md`](https://github.com/mariotoffia/FluentDocker/blob/master/tools/claude-migration-skill.md);
+copy it into your project's `.claude/skills/` and invoke `/migrate-v2-to-v3`. Always review
+the agent's changes against the human guides above.
 
 ## Getting Help
 

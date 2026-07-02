@@ -68,7 +68,13 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       Stream stream;
       try
       {
-        stream = await Connection.PostStreamAsync(path, null, cancellationToken).ConfigureAwait(false);
+        stream = await Connection.PostStreamAsync(
+            path, null, DockerApiRegistryAuth.HeaderFor(Connection, image), cancellationToken)
+            .ConfigureAwait(false);
+      }
+      catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+      {
+        throw;
       }
       catch (HttpRequestException ex)
       {
@@ -149,7 +155,13 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       Stream stream;
       try
       {
-        stream = await Connection.PostStreamAsync(path, null, cancellationToken).ConfigureAwait(false);
+        stream = await Connection.PostStreamAsync(
+            path, null, DockerApiRegistryAuth.HeaderFor(Connection, image), cancellationToken)
+            .ConfigureAwait(false);
+      }
+      catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+      {
+        throw;
       }
       catch (HttpRequestException ex)
       {

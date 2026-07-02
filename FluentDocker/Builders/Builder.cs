@@ -334,23 +334,8 @@ namespace FluentDocker.Builders
       foreach (var container in containersToStart)
       {
         await container.StartAsync(cancellationToken).ConfigureAwait(false);
-        await WaitForContainerRunningAsync(driver, context, container.Id, cancellationToken).ConfigureAwait(false);
-      }
-    }
-
-    private static async Task WaitForContainerRunningAsync(
-        Drivers.IContainerDriver driver, DriverContext context,
-        string containerId, CancellationToken cancellationToken)
-    {
-      const int maxAttempts = 30;
-      const int delayMs = 100;
-      for (var i = 0; i < maxAttempts; i++)
-      {
-        var inspectResult = await driver.InspectAsync(
-            context, containerId, cancellationToken).ConfigureAwait(false);
-        if (inspectResult.Success && inspectResult.Data?.State?.Running == true)
-          return;
-        await Task.Delay(delayMs, cancellationToken).ConfigureAwait(false);
+        await ContainerBuilder.WaitForContainerStartedAsync(
+            driver, context, container.Id, cancellationToken).ConfigureAwait(false);
       }
     }
 

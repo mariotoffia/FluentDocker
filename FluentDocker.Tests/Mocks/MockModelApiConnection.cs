@@ -26,7 +26,8 @@ namespace FluentDocker.Tests.Mocks
   {
     private readonly record struct ResponseEntry(
         string Method, string PathContains, HttpStatusCode StatusCode,
-        string? JsonBody, string? StreamContent, byte[]? StreamBytes, int FaultAfterBytes, byte[][]? StreamChunks = null);
+        string? JsonBody, string? StreamContent, byte[]? StreamBytes, int FaultAfterBytes,
+        byte[][]? StreamChunks = null, Exception? Throw = null);
 
     private readonly List<ResponseEntry> _entries = [];
     private readonly List<CapturedModelRequest> _requests = [];
@@ -56,6 +57,25 @@ namespace FluentDocker.Tests.Mocks
     public MockModelApiConnection SetupDelete(string pathContains, int statusCode, string jsonBody)
     {
       _entries.Add(new ResponseEntry("DELETE", pathContains, (HttpStatusCode)statusCode, jsonBody, null, null, -1));
+      return this;
+    }
+
+    /// <summary>
+    /// Registers a POST that THROWS <paramref name="error"/> from the connection instead of
+    /// returning a response — models the real connection surfacing a per-request
+    /// <see cref="TimeoutException"/> (idle/request timeout) or an
+    /// <see cref="OperationCanceledException"/> (caller cancel) to the driver's try/catch.
+    /// </summary>
+    public MockModelApiConnection SetupPostThrows(string pathContains, Exception error)
+    {
+      _entries.Add(new ResponseEntry("POST", pathContains, HttpStatusCode.OK, null, null, null, -1, null, error));
+      return this;
+    }
+
+    /// <summary>Registers a GET that THROWS <paramref name="error"/> (see <see cref="SetupPostThrows"/>).</summary>
+    public MockModelApiConnection SetupGetThrows(string pathContains, Exception error)
+    {
+      _entries.Add(new ResponseEntry("GET", pathContains, HttpStatusCode.OK, null, null, null, -1, null, error));
       return this;
     }
 
@@ -96,6 +116,18 @@ namespace FluentDocker.Tests.Mocks
       for (var i = 0; i < chunks.Length; i++)
         slices[i] = Encoding.UTF8.GetBytes(chunks[i] ?? string.Empty);
       _entries.Add(new ResponseEntry("STREAM", pathContains, HttpStatusCode.OK, null, null, null, -1, slices));
+      return this;
+    }
+
+    /// <summary>
+    /// Registers a stream whose RAW bytes are delivered in the given pre-set slices — one slice per
+    /// underlying read — so a multi-byte UTF-8 codepoint can be split across a read boundary at the
+    /// byte level (unlike <see cref="SetupStreamChunks"/>, which encodes whole strings). Used to
+    /// verify the chunked reader reassembles a split codepoint intact (no U+FFFD / mojibake).
+    /// </summary>
+    public MockModelApiConnection SetupStreamByteChunks(string pathContains, params byte[][] chunks)
+    {
+      _entries.Add(new ResponseEntry("STREAM", pathContains, HttpStatusCode.OK, null, null, null, -1, chunks));
       return this;
     }
 
@@ -198,6 +230,11 @@ namespace FluentDocker.Tests.Mocks
         {
           Content = new StringContent($"{{\"message\":\"no mock for {method} {path}\"}}", Encoding.UTF8, "application/json")
         };
+
+      // A configured throw models the connection raising a transport-level exception
+      // (e.g. TimeoutException / OperationCanceledException) rather than returning a response.
+      if (match.Value.Throw is not null)
+        throw match.Value.Throw;
 
       return new HttpResponseMessage(match.Value.StatusCode)
       {

@@ -56,6 +56,30 @@ namespace FluentDocker.Tests.Mocks
 
       return kernel;
     }
+
+    /// <summary>
+    /// Creates a kernel with a pre-configured mock pack registered under a CALLER-SUPPLIED
+    /// context — e.g. one carrying a non-default <c>ModelRunnerEndpoint</c> so tests can assert
+    /// the pack/context endpoint is threaded through instead of the localhost default.
+    /// </summary>
+    public static async Task<FluentDockerKernel> CreateWithMockDriverAsync(
+        string driverId,
+        MockDriverPack mockPack,
+        DriverContext context,
+        bool asDefault = true)
+    {
+      await mockPack.InitializeAsync(context);
+
+      var kernel = new FluentDockerKernel(new DriverRegistry(NullLoggerFactory.Instance), NullLoggerFactory.Instance);
+      await kernel.RegisterDriverPackAsync(driverId, mockPack, context);
+
+      if (asDefault)
+      {
+        kernel.SetDefaultDriver(driverId);
+      }
+
+      return kernel;
+    }
   }
 
   /// <summary>

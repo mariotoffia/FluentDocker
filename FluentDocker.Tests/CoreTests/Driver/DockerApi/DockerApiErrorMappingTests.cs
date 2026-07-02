@@ -259,6 +259,11 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
       public Task<Stream> PostStreamAsync(
           string path, HttpContent content, CancellationToken ct) => throw _exception;
 
+      public Task<Stream> PostStreamAsync(
+          string path, HttpContent content,
+          System.Collections.Generic.IReadOnlyDictionary<string, string> headers,
+          CancellationToken ct) => throw _exception;
+
       public Task<bool> PingAsync(CancellationToken ct) => Task.FromResult(false);
 
       public ValueTask DisposeAsync() => ValueTask.CompletedTask;

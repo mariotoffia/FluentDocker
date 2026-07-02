@@ -88,7 +88,7 @@ namespace FluentDocker.Tests.CoreTests.Service
     }
 
     [Fact]
-    public async Task GetLogsAsync_WithFollow_PassesFollowFlag()
+    public async Task GetLogsAsync_WithFollow_ThrowsDriverException()
     {
       var mockPack = new MockDriverPack();
       mockPack.ComposeDriver
@@ -96,17 +96,18 @@ namespace FluentDocker.Tests.CoreTests.Service
               It.IsAny<DriverContext>(),
               It.IsAny<ComposeLogsConfig>(),
               It.IsAny<CancellationToken>()))
-          .ReturnsAsync(CommandResponse<string>.Ok("streaming logs"));
+          .ReturnsAsync(CommandResponse<string>.Fail(
+              "GetLogsAsync does not support follow=true because logs stream indefinitely."));
 
       var kernel = await MockKernelBuilderExtensions.CreateWithMockDriverAsync("docker", mockPack);
       try
       {
         var service = CreateService(kernel);
-        var logs = await service.GetLogsAsync(
+        var ex = await Assert.ThrowsAsync<DriverException>(() => service.GetLogsAsync(
             follow: true,
-            cancellationToken: TestContext.Current.CancellationToken);
+            cancellationToken: TestContext.Current.CancellationToken));
 
-        Assert.Equal("streaming logs", logs);
+        Assert.Contains("follow=true", ex.Message);
         mockPack.ComposeDriver.Verify(d => d.GetLogsAsync(
             It.IsAny<DriverContext>(),
             It.Is<ComposeLogsConfig>(c => c.Follow),
@@ -318,7 +319,7 @@ namespace FluentDocker.Tests.CoreTests.Service
     }
 
     [Fact]
-    public async Task RemoveAsync_ForceTrue_SetsRemoveVolumes()
+    public async Task RemoveAsync_ForceTrue_DoesNotSetRemoveVolumes()
     {
       var mockPack = new MockDriverPack();
       mockPack.SetupComposeDown();
@@ -334,7 +335,7 @@ namespace FluentDocker.Tests.CoreTests.Service
         Assert.Equal(ServiceRunningState.Removed, service.State);
         mockPack.ComposeDriver.Verify(d => d.DownAsync(
             It.IsAny<DriverContext>(),
-            It.Is<ComposeDownConfig>(c => c.RemoveVolumes),
+            It.Is<ComposeDownConfig>(c => !c.RemoveVolumes),
             It.IsAny<CancellationToken>()), Times.Once);
       }
       finally { kernel.Dispose(); }

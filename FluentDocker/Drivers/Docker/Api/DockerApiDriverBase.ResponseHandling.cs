@@ -18,6 +18,7 @@ namespace FluentDocker.Drivers.Docker.Api
     private static async Task<ApiResult<T>> HandleResponseAsync<T>(
         HttpResponseMessage response, CancellationToken ct)
     {
+      using var responseToDispose = response;
       var body = await response.Content.ReadAsStringAsync(ct).ConfigureAwait(false);
 
       if (response.IsSuccessStatusCode)
@@ -50,6 +51,7 @@ namespace FluentDocker.Drivers.Docker.Api
     private static async Task<ApiResult<T>> HandleResponseFromStreamAsync<T>(
         HttpResponseMessage response, JsonTypeInfo<T> typeInfo, CancellationToken ct)
     {
+      using var responseToDispose = response;
       if (response.IsSuccessStatusCode)
       {
         if (response.Content.Headers.ContentLength == 0)
@@ -87,6 +89,7 @@ namespace FluentDocker.Drivers.Docker.Api
     private static async Task<ApiResult<JsonElement>> HandleJsonElementResponseAsync(
         HttpResponseMessage response, CancellationToken ct)
     {
+      using var responseToDispose = response;
       if (response.IsSuccessStatusCode)
       {
         if (response.Content.Headers.ContentLength == 0)
@@ -120,6 +123,7 @@ namespace FluentDocker.Drivers.Docker.Api
     private static async Task<ApiResult> HandleResponseAsync(
         HttpResponseMessage response, CancellationToken ct)
     {
+      using var responseToDispose = response;
       if (response.IsSuccessStatusCode || response.StatusCode == HttpStatusCode.NotModified)
         return ApiResult.Ok();
 

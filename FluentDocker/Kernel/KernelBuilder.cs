@@ -85,21 +85,29 @@ namespace FluentDocker.Kernel
     {
       var kernel = new FluentDockerKernel(new DriverRegistry(_loggerFactory), _loggerFactory);
 
-      foreach (var config in _driverConfigurations)
+      try
       {
-        if (config.DriverPack != null)
+        foreach (var config in _driverConfigurations)
         {
-          await kernel.RegisterDriverPackAsync(
-              config.DriverId, config.DriverPack, config.Context, cancellationToken).ConfigureAwait(false);
-        }
-        else if (config.Driver != null)
-        {
-          await kernel.RegisterDriverAsync(
-              config.DriverId, config.Driver, config.Context, cancellationToken).ConfigureAwait(false);
-        }
+          if (config.DriverPack != null)
+          {
+            await kernel.RegisterDriverPackAsync(
+                config.DriverId, config.DriverPack, config.Context, cancellationToken).ConfigureAwait(false);
+          }
+          else if (config.Driver != null)
+          {
+            await kernel.RegisterDriverAsync(
+                config.DriverId, config.Driver, config.Context, cancellationToken).ConfigureAwait(false);
+          }
 
-        if (config.IsDefault)
-          kernel.SetDefaultDriver(config.DriverId);
+          if (config.IsDefault)
+            kernel.SetDefaultDriver(config.DriverId);
+        }
+      }
+      catch
+      {
+        await kernel.DisposeAsync().ConfigureAwait(false);
+        throw;
       }
 
       return kernel;

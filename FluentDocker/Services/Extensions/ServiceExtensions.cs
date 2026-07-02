@@ -226,7 +226,7 @@ namespace FluentDocker.Services.Extensions
           var remainingMs = Math.Max(100, timeout - sw.ElapsedMilliseconds);
           requestCts.CancelAfter(TimeSpan.FromMilliseconds(remainingMs));
 
-          var response = await Common.SharedHttpClient.Instance.GetAsync(url, requestCts.Token).ConfigureAwait(false);
+          using var response = await Common.SharedHttpClient.Instance.GetAsync(url, requestCts.Token).ConfigureAwait(false);
           if (response.IsSuccessStatusCode)
             return true;
         }
@@ -363,4 +363,3 @@ namespace FluentDocker.Services.Extensions
     #endregion
   }
 }
-

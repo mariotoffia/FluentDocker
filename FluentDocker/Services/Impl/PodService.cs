@@ -27,12 +27,14 @@ namespace FluentDocker.Services.Impl
     private readonly string _podName;
     private readonly string _podId;
     private readonly bool _removeOnDispose;
+    private readonly TimeSpan _disposeCleanupTimeout;
     private readonly Dictionary<string, (ServiceRunningState State, Func<IServiceAsync, Task> Hook)> _hooks = [];
     private ServiceRunningState _state = ServiceRunningState.Stopped;
 
     public PodService(
         FluentDockerKernel kernel, string driverId,
-        string podId, string podName, bool removeOnDispose = false)
+        string podId, string podName, bool removeOnDispose = false,
+        TimeSpan? disposeCleanupTimeout = null)
     {
       ArgumentNullException.ThrowIfNull(kernel);
       ArgumentNullException.ThrowIfNull(driverId);
@@ -43,6 +45,8 @@ namespace FluentDocker.Services.Impl
       _podId = podId;
       _podName = podName ?? podId;
       _removeOnDispose = removeOnDispose;
+      _disposeCleanupTimeout =
+          disposeCleanupTimeout ?? TimeSpan.FromMilliseconds(ContainerService.DefaultDisposeCleanupTimeoutMs);
     }
 
     public string Name => _podName;
@@ -163,10 +167,25 @@ namespace FluentDocker.Services.Impl
       if (!_removeOnDispose)
         return;
 
+      using var cleanupCts = new CancellationTokenSource(_disposeCleanupTimeout);
+      var removeTask = RemoveAsync(force: true, cleanupCts.Token);
       try
-      { await RemoveAsync(force: true).ConfigureAwait(false); }
-      catch (Exception ex) { _logger.LogWarning(ex, "PodService DisposeAsync failed"); }
+      {
+        await removeTask.WaitAsync(cleanupCts.Token).ConfigureAwait(false);
+      }
+      catch (Exception ex)
+      {
+        _logger.LogWarning(ex, "PodService DisposeAsync failed");
+        ObserveAbandonedCleanup(removeTask);
+      }
     }
+
+    private static void ObserveAbandonedCleanup(Task task) =>
+        _ = task.ContinueWith(
+            static t => _ = t.Exception,
+            CancellationToken.None,
+            TaskContinuationOptions.OnlyOnFaulted,
+            TaskScheduler.Default);
 
     private void UpdateState(ServiceRunningState newState)
     {

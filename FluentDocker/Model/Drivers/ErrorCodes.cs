@@ -307,6 +307,15 @@ namespace FluentDocker.Model.Drivers
       public const string EndpointUnreachable = "MIN_003";
       public const string ModelNotLoaded = "MIN_004";
       public const string NotSupported = "MIN_005";
+
+      /// <summary>
+      /// A per-request or streaming idle timeout elapsed (the connection's
+      /// <c>SendWithTimeoutAsync</c> / stream-read idle window fired). Distinct from a caller
+      /// cancellation (surfaced as <see cref="System.OperationCanceledException"/>) and from a generic
+      /// server <see cref="RequestFailed"/>, so callers can retry/backoff on latency specifically.
+      /// </summary>
+      public const string Timeout = "MIN_006";
+
       public const string Unauthorized = "MIN_401";
     }
   }

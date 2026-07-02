@@ -17,6 +17,7 @@ namespace FluentDocker.Kernel
     private TimeSpan? _requestTimeout;
     private string _apiVersion;
     private bool _verifyTls = true;
+    private bool _allowTlsHostnameMismatch;
 
     public IDockerApiDriverBuilder AtHost(string host)
     {
@@ -60,6 +61,12 @@ namespace FluentDocker.Kernel
       return this;
     }
 
+    public IDockerApiDriverBuilder WithAllowTlsHostnameMismatch(bool allow = true)
+    {
+      _allowTlsHostnameMismatch = allow;
+      return this;
+    }
+
     internal KernelBuilder.DriverConfiguration Build()
     {
       var context = new DriverContext(_driverId)
@@ -71,6 +78,8 @@ namespace FluentDocker.Kernel
         RequestTimeout = _requestTimeout,
         ApiVersion = _apiVersion,
       };
+      if (_allowTlsHostnameMismatch)
+        context.Metadata["DockerApi.AllowTlsHostnameMismatch"] = "true";
 
       return new KernelBuilder.DriverConfiguration
       {

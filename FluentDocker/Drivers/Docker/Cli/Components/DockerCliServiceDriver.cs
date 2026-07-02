@@ -321,9 +321,14 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     {
       try
       {
-        var args = "service logs";
         if (config?.Follow == true)
-          args += " -f";
+        {
+          throw new NotSupportedException(
+              "GetLogsAsync does not support follow=true because 'docker service logs -f' " +
+              "streams indefinitely. Use a streaming logs API instead.");
+        }
+
+        var args = "service logs";
         if (config?.Timestamps == true)
           args += " -t";
         if (config?.Tail.HasValue == true)
@@ -456,4 +461,3 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     }
   }
 }
-

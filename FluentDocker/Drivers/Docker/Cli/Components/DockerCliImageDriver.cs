@@ -38,7 +38,12 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
       try
       {
         var fullImage = string.IsNullOrEmpty(tag) ? image : $"{image}:{tag}";
-        var result = await ExecuteUnboundedCommandAsync($"pull {QuoteArgumentIfNeeded(fullImage)}", cancellationToken).ConfigureAwait(false);
+        var result = await ExecuteProgressCommandAsync(
+            context,
+            $"pull {QuoteArgumentIfNeeded(fullImage)}",
+            progress,
+            CreatePullProgress,
+            cancellationToken).ConfigureAwait(false);
 
         if (!result.Success)
         {
@@ -70,7 +75,12 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     {
       try
       {
-        var result = await ExecuteUnboundedCommandAsync($"push {QuoteArgumentIfNeeded(image)}", cancellationToken).ConfigureAwait(false);
+        var result = await ExecuteProgressCommandAsync(
+            context,
+            $"push {QuoteArgumentIfNeeded(image)}",
+            progress,
+            CreatePushProgress,
+            cancellationToken).ConfigureAwait(false);
 
         if (!result.Success)
         {
@@ -155,11 +165,16 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
       {
         // Write image ID to a temp file for deterministic extraction.
         // Both legacy builder and BuildKit honour --iidfile.
-        var iidFile = Path.Combine(Path.GetTempPath(), $"docker-iid-{Guid.NewGuid():N}");
+        var iidFile = CreateIidFilePath();
 
         try
         {
-          var result = await ExecuteUnboundedCommandAsync(BuildBuildArgs(config, iidFile), cancellationToken).ConfigureAwait(false);
+          var result = await ExecuteProgressCommandAsync(
+              context,
+              BuildBuildArgs(config, iidFile),
+              progress,
+              CreateBuildProgress,
+              cancellationToken).ConfigureAwait(false);
 
           if (!result.Success)
           {
@@ -171,7 +186,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
           }
 
           var imageId = File.Exists(iidFile)
-              ? (await File.ReadAllTextAsync(iidFile, cancellationToken)).Trim()
+              ? (await File.ReadAllTextAsync(iidFile, cancellationToken).ConfigureAwait(false)).Trim()
               : null;
 
           if (string.IsNullOrEmpty(imageId))
@@ -248,7 +263,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
           }
         }
 
-        var result = await ExecuteCommandAsync(args.ToString(), cancellationToken).ConfigureAwait(false);
+        var result = await ExecuteCommandAsync(context, args.ToString(), cancellationToken).ConfigureAwait(false);
 
         if (!result.Success)
         {
@@ -384,7 +399,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     {
       try
       {
-        var result = await ExecuteCommandAsync($"image inspect {QuoteArgumentIfNeeded(imageId)}", cancellationToken).ConfigureAwait(false);
+        var result = await ExecuteCommandAsync(context, $"image inspect {QuoteArgumentIfNeeded(imageId)}", cancellationToken).ConfigureAwait(false);
 
         if (!result.Success)
         {
@@ -424,7 +439,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
       try
       {
         // Quote the format string to ensure it's treated as a single argument
-        var result = await ExecuteCommandAsync($"history --format \"{{{{json .}}}}\" --no-trunc {QuoteArgumentIfNeeded(imageId)}", cancellationToken).ConfigureAwait(false);
+        var result = await ExecuteCommandAsync(context, $"history --format \"{{{{json .}}}}\" --no-trunc {QuoteArgumentIfNeeded(imageId)}", cancellationToken).ConfigureAwait(false);
 
         if (!result.Success)
         {

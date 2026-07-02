@@ -234,6 +234,19 @@ namespace FluentDocker.Tests.CoreTests.Model
       }
     }
 
+    [Theory]
+    [InlineData("http://localhost:12434", true)]
+    [InlineData("https://runner.example.com", true)]
+    [InlineData("ftp://10.0.0.5:12434", false)]   // valid absolute URI, wrong scheme
+    [InlineData("file:///etc/passwd", false)]     // absolute, but no host
+    [InlineData("localhost:12434", false)]        // scheme-less: parses as scheme 'localhost', no host
+    public void IsSupportedUrl_AcceptsOnlyHttpWithHost(string value, bool expected)
+    {
+      // The single predicate both DOCKER_MODEL_RUNNER_URL and the env/Compose runner paths share:
+      // only absolute http(s) URLs with a host are usable endpoints.
+      Assert.Equal(expected, Uri.TryCreate(value, UriKind.Absolute, out var uri) && ModelRunnerEndpoint.IsSupportedUrl(uri));
+    }
+
     [Fact]
     public void Default_SetButInvalid_ThrowsFormat()
     {

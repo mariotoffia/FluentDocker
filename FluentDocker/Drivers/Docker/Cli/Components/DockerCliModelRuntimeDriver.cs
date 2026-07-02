@@ -162,7 +162,10 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
         return CommandResponse<ModelRunnerStatus>.Ok(new ModelRunnerStatus
         {
           Running = running,
-          Endpoint = ModelRunnerEndpoint.Default().BaseAddress,
+          // Report the endpoint this context is actually bound to, falling back to the default
+          // only when nothing is configured — otherwise status could claim localhost:12434 while
+          // inference really targets the context's configured endpoint.
+          Endpoint = (context?.ModelRunnerEndpoint ?? ModelRunnerEndpoint.Default()).BaseAddress,
           Error = running ? null : FirstNonEmpty(result.Error, output)
         });
       }

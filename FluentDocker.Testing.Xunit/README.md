@@ -177,5 +177,5 @@ public sealed class SmolLmModelTests : IAsyncLifetime
 > cleanly. Tag DMR tests with
 > `[Trait("Category","Integration")] [Trait("Requires","Dmr")]`.
 
-Full docs: [docs/testing/xunit.md](../docs/testing/xunit.md). Model testing guide:
-[docs/testing/model.md](../docs/testing/model.md).
+Full docs: [docs/testing/xunit.md](https://mariotoffia.github.io/FluentDocker/testing/xunit.html). Model testing guide:
+[docs/testing/model.md](https://mariotoffia.github.io/FluentDocker/testing/model.html).
