@@ -37,6 +37,8 @@ namespace FluentDocker.Builders
     private readonly Dictionary<string, string> _labels = [];
     private readonly Dictionary<string, string> _options = [];
 
+    internal bool CreatedResource { get; private set; }
+
     public INetworkBuilder WithName(string name) { _name = name; return this; }
     public INetworkBuilder UseDriver(string driver) { _driver = driver; return this; }
     public INetworkBuilder WithSubnet(string subnet) { _subnet = subnet; return this; }
@@ -50,6 +52,9 @@ namespace FluentDocker.Builders
 
     public async Task<IServiceAsync> ExecuteAsync(CancellationToken cancellationToken)
     {
+      if (string.IsNullOrWhiteSpace(_name))
+        throw new FluentDockerException("Network name is required. Call WithName() before building.");
+
       var driver = _kernel.SysCtl<Drivers.INetworkDriver>(_driverId);
       var context = new DriverContext(_driverId);
 
@@ -61,6 +66,7 @@ namespace FluentDocker.Builders
 
         if (existingNetwork != null)
         {
+          CreatedResource = false;
           // Building must never delete a pre-existing resource the builder did not create.
           // Reuse the existing network as a borrowed (non-removing) wrapper; _removeOnDispose
           // only governs networks this builder actually creates below.
@@ -97,6 +103,7 @@ namespace FluentDocker.Builders
         throw new DriverException($"Failed to create network: {response.Error}",
             response.ErrorCode, response.ErrorContext);
 
+      CreatedResource = true;
       return new Services.Impl.NetworkService(
           _kernel, _driverId, response.Data.Id, _name, _removeOnDispose);
     }
@@ -121,6 +128,8 @@ namespace FluentDocker.Builders
     private readonly Dictionary<string, string> _driverOpts = [];
     private readonly Dictionary<string, string> _labels = [];
 
+    internal bool CreatedResource { get; private set; }
+
     public IVolumeBuilder WithName(string name) { _name = name; return this; }
     public IVolumeBuilder UseDriver(string driver) { _driver = driver; return this; }
     public IVolumeBuilder RemoveOnDispose() { _removeOnDispose = true; return this; }
@@ -140,8 +149,11 @@ namespace FluentDocker.Builders
         // as a borrowed (non-removing) wrapper. _removeOnDispose only governs volumes created below.
         var existing = await driver.InspectAsync(context, _name, cancellationToken).ConfigureAwait(false);
         if (existing is { Success: true, Data: not null })
+        {
+          CreatedResource = false;
           return new Services.Impl.VolumeService(
               _kernel, _driverId, existing.Data.Name, existing.Data.Driver ?? _driver, removeOnDispose: false);
+        }
       }
 
       var config = new Drivers.VolumeCreateConfig
@@ -157,6 +169,7 @@ namespace FluentDocker.Builders
         throw new DriverException($"Failed to create volume: {response.Error}",
             response.ErrorCode, response.ErrorContext);
 
+      CreatedResource = true;
       return new Services.Impl.VolumeService(
           _kernel, _driverId, response.Data.Name, _driver, _removeOnDispose);
     }
@@ -195,6 +208,7 @@ namespace FluentDocker.Builders
     private bool _attachToExisting;
     private readonly List<string> _services = [];
     private ComposeModelBuilder _models;
+    private string _renderedOverlay;
 
     public IComposeBuilder WithComposeFile(string path) { _composeFiles.Add(path); return this; }
     public IComposeBuilder WithComposeFiles(params string[] paths) { _composeFiles.AddRange(paths); return this; }
@@ -365,11 +379,17 @@ namespace FluentDocker.Builders
       if (_models is null)
         return null;
 
+      // Drop the overlay from a previous (failed) attempt so retries do not
+      // accumulate stale, possibly deleted, temp-file paths.
+      if (_renderedOverlay is not null)
+        _composeFiles.Remove(_renderedOverlay);
+
       var path = Path.Combine(
           Path.GetTempPath(),
           $"fluentdocker-models-{Guid.NewGuid():N}.yml");
       _models.WriteOverlay(path);
       _composeFiles.Add(path);
+      _renderedOverlay = path;
       return [path];
     }
 

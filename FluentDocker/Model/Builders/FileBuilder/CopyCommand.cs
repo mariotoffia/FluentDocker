@@ -32,7 +32,7 @@ namespace FluentDocker.Model.Builders.FileBuilder
       }
     }
 
-    public string From { get; }
+    public string From { get; internal set; }
     public string To { get; }
     public string Alias { get; }
     public string Chown { get; }
@@ -51,7 +51,9 @@ namespace FluentDocker.Model.Builders.FileBuilder
         s = $"{s} --from={Alias}";
       }
 
-      return $"{s} {DockerfileJson.Array([From, To])}";
+      return $"{s} {DockerfileJson.Array([NormalizePath(From), NormalizePath(To)])}";
     }
+
+    private static string NormalizePath(string path) => path?.Replace('\\', '/');
   }
 }

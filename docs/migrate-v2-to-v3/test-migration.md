@@ -458,7 +458,7 @@ public class ComposeTests : IAsyncLifetime
             .UseCompose()
             .FromFile("docker-compose.yml")
             .RemoveOrphans()
-            .WaitForHttp("api", "http://localhost:8080/health")
+            .WaitForHttpUrl("http://localhost:8080/health")
             .Build()
             .Start();
     }

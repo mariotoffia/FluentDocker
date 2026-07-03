@@ -132,8 +132,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Docker
       var args = BuildCreateArgs(new ContainerCreateConfig
       {
         Image = "nginx",
-        Volumes = new Dictionary<string, string>
-          { { "/host/data", "/container/data" } }
+        Volumes = ["/host/data:/container/data"]
       });
       Assert.Contains("-v /host/data:/container/data", args);
     }
@@ -328,7 +327,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Docker
           args.Add($"-p {Quote($"{port.Value}:{port.Key}")}");
       if (config.Volumes != null)
         foreach (var vol in config.Volumes)
-          args.Add($"-v {Quote($"{vol.Key}:{vol.Value}")}");
+          args.Add($"-v {Quote(vol)}");
       if (!string.IsNullOrEmpty(config.NetworkMode))
         args.Add($"--network {Quote(config.NetworkMode)}");
       if (config.Networks != null)

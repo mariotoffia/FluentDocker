@@ -154,7 +154,7 @@ using var svc = new Builder()
     .UseCompose()
     .FromFile("docker-compose.yml")
     .RemoveOrphans()
-    .WaitForHttp("web", "http://localhost:8000/health")
+    .WaitForHttpUrl("http://localhost:8000/health")
     .Build()
     .Start();
 

@@ -76,28 +76,28 @@ namespace FluentDocker.Model.Kernel
     /// </summary>
     /// <param name="name">Container name</param>
     /// <returns>Container service or null if not found</returns>
-    public IContainerService GetContainer(string name) =>
+    public IContainerService? GetContainer(string name) =>
         Containers.FirstOrDefault(c =>
-            string.Equals(c.Name, name, StringComparison.OrdinalIgnoreCase) ||
-            string.Equals(c.Name?.TrimStart('/'), name, StringComparison.OrdinalIgnoreCase));
+            string.Equals(c.Name, name, StringComparison.Ordinal) ||
+            string.Equals(c.Name?.TrimStart('/'), name, StringComparison.Ordinal));
 
     /// <summary>
     /// Gets a network service by name.
     /// </summary>
     /// <param name="name">Network name</param>
     /// <returns>Network service or null if not found</returns>
-    public INetworkService GetNetwork(string name) =>
+    public INetworkService? GetNetwork(string name) =>
         Networks.FirstOrDefault(n =>
-            string.Equals(n.Name, name, StringComparison.OrdinalIgnoreCase));
+            string.Equals(n.Name, name, StringComparison.Ordinal));
 
     /// <summary>
     /// Gets a volume service by name.
     /// </summary>
     /// <param name="name">Volume name</param>
     /// <returns>Volume service or null if not found</returns>
-    public IVolumeService GetVolume(string name) =>
+    public IVolumeService? GetVolume(string name) =>
         Volumes.FirstOrDefault(v =>
-            string.Equals(v.Name, name, StringComparison.OrdinalIgnoreCase));
+            string.Equals(v.Name, name, StringComparison.Ordinal));
 
     /// <summary>
     /// Gets all services of a specific type.

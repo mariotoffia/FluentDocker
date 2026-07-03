@@ -85,7 +85,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
       builder.WithinDriver("test", new FluentDockerKernel(new DriverRegistry(NullLoggerFactory.Instance), NullLoggerFactory.Instance))
           .UseContainer(c =>
           {
-            c.WithPort("80/tcp", "8080");
+            c.WithPort("8080", "80/tcp");
             configured = true;
           });
       Assert.True(configured);

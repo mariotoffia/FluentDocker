@@ -359,7 +359,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
           .WithinDriver(DriverId, Kernel)
           .UseContainer(c => c
               .UseImage("nginx")
-              .WithPort("80/tcp", "127.0.0.1:8080"))
+              .WithPort("127.0.0.1:8080", "80/tcp"))
           .BuildAsync(cancellationToken: TestContext.Current.CancellationToken);
 
       MockPack.ContainerDriver.Verify(d => d.CreateAsync(
@@ -376,7 +376,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
           .WithinDriver(DriverId, Kernel)
           .UseContainer(c => c
               .UseImage("nginx")
-              .WithPort("80/tcp", "not-a-port"))
+              .WithPort("not-a-port", "80/tcp"))
           .BuildAsync(cancellationToken: TestContext.Current.CancellationToken));
 
       Assert.Contains("Invalid host port", ex.Message);

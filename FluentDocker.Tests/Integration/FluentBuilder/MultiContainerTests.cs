@@ -261,7 +261,7 @@ namespace FluentDocker.Tests.Integration.FluentBuilder
     }
 
     [Fact]
-    public async Task GetContainerByName_CaseInsensitive()
+    public async Task GetContainerByName_CaseSensitive()
     {
       // Arrange & Act
       await using var results = await new Builder()
@@ -272,16 +272,14 @@ namespace FluentDocker.Tests.Integration.FluentBuilder
               .WithCommand("sh", "-c", "sleep 60"))
           .BuildAsync(cancellationToken: TestContext.Current.CancellationToken);
 
-      // Assert - Both cases should find the container
+      // Assert - Docker container names are case-sensitive.
       var lower = results.GetContainer("caseinsensitive");
       var upper = results.GetContainer("CASEINSENSITIVE");
       var mixed = results.GetContainer("CaSeInSeNsItIvE");
 
-      Assert.NotNull(lower);
-      Assert.NotNull(upper);
+      Assert.Null(lower);
+      Assert.Null(upper);
       Assert.NotNull(mixed);
-      Assert.Same(lower, upper);
-      Assert.Same(lower, mixed);
     }
 
     [Fact]
@@ -306,4 +304,3 @@ namespace FluentDocker.Tests.Integration.FluentBuilder
     }
   }
 }
-

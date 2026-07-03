@@ -23,7 +23,7 @@ namespace FluentDocker.Builders
       _waitConditions.Add(new WaitCondition
       {
         Type = WaitConditionType.Port,
-        Target = portAndProto.Contains('/') ? portAndProto : $"{portAndProto}/tcp",
+        Target = NormalizeContainerPort(portAndProto),
         TimeoutMs = timeoutMs,
         PollIntervalMs = _waitPollIntervalMs
       });
@@ -35,7 +35,7 @@ namespace FluentDocker.Builders
       _waitConditions.Add(new WaitCondition
       {
         Type = WaitConditionType.Port,
-        Target = portAndProto.Contains('/') ? portAndProto : $"{portAndProto}/tcp",
+        Target = NormalizeContainerPort(portAndProto),
         Path = address,
         TimeoutMs = timeoutMs,
         PollIntervalMs = _waitPollIntervalMs
@@ -60,7 +60,7 @@ namespace FluentDocker.Builders
       _waitConditions.Add(new WaitCondition
       {
         Type = WaitConditionType.Http,
-        Target = portAndProto.Contains('/') ? portAndProto : $"{portAndProto}/tcp",
+        Target = NormalizeContainerPort(portAndProto),
         Path = path,
         TimeoutMs = timeoutMs,
         HttpMethod = HttpMethod.Get,
@@ -69,7 +69,10 @@ namespace FluentDocker.Builders
       return this;
     }
 
-    public IContainerBuilder WaitForHttp(string url, long timeoutMs = 30000,
+    public IContainerBuilder WaitForHttp(string portAndProto, long timeoutMs) =>
+        WaitForHttp(portAndProto, "/", timeoutMs);
+
+    public IContainerBuilder WaitForHttpUrl(string url, long timeoutMs = 30000,
         HttpMethod method = null, string contentType = null, string body = null,
         Func<RequestResponse, int, long> continuation = null)
     {
@@ -110,13 +113,15 @@ namespace FluentDocker.Builders
       return this;
     }
 
-    public IContainerBuilder Wait(Func<IContainerService, int, int> condition)
+    public IContainerBuilder Wait(
+        Func<IContainerService, int, int> condition,
+        long timeoutMs = 60000)
     {
       _waitConditions.Add(new WaitCondition
       {
         Type = WaitConditionType.Lambda,
         LambdaCondition = condition,
-        TimeoutMs = 60000,
+        TimeoutMs = timeoutMs,
         PollIntervalMs = _waitPollIntervalMs
       });
       return this;

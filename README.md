@@ -68,10 +68,9 @@ var endpoint = results.Containers.First().ToHostExposedEndpoint("80/tcp");
 Console.WriteLine($"nginx is at {endpoint.Address}:{endpoint.Port}");
 ```
 
-> A synchronous `Build()` wrapper exists, but it blocks on the async pipeline and runs
-> dispose with a reduced cleanup budget. Prefer `await using` + `BuildAsync()`, and avoid
-> the sync wrapper inside ASP.NET, UI, or async test contexts where sync-over-async can
-> deadlock.
+> A synchronous `Build()` wrapper exists, but it blocks on the async pipeline.
+> Prefer `await using` + `BuildAsync()`, and avoid the sync wrapper inside ASP.NET,
+> UI, or async test contexts where sync-over-async can deadlock.
 
 ## Start Here
 

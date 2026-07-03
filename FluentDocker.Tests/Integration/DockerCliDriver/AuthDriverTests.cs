@@ -185,10 +185,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
               ["REGISTRY_AUTH_HTPASSWD_REALM"] = "RegistryRealm",
               ["REGISTRY_AUTH_HTPASSWD_PATH"] = "/auth/htpasswd"
             },
-            Volumes = new Dictionary<string, string>
-            {
-              [authDir] = "/auth"
-            }
+            Volumes = [$"{authDir}:/auth"]
           });
 
       // Wait for registry to start

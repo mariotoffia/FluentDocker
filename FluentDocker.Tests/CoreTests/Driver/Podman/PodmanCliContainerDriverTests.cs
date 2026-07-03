@@ -222,10 +222,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
       var config = new ContainerCreateConfig
       {
         Image = "nginx",
-        Volumes = new Dictionary<string, string>
-                {
-                    { "/data", "/host/data" }
-                }
+        Volumes = ["/data:/host/data"]
       };
       var result = InvokeBuildCreateArgs("create", config);
       Assert.Contains("-v /data:/host/data", result);

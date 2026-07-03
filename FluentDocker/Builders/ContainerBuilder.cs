@@ -1,10 +1,8 @@
 using System;
 using System.Collections.Generic;
-using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Net;
-using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
 using FluentDocker.Common;
@@ -37,7 +35,7 @@ namespace FluentDocker.Builders
     private readonly Dictionary<string, string> _extraHosts = [];
     private readonly Dictionary<string, string> _ports = [];
     private readonly List<string> _command = [];
-    private readonly Dictionary<string, string> _volumes = [];
+    private readonly List<string> _volumes = [];
     private readonly Dictionary<string, string> _labels = [];
     private readonly List<string> _networks = [];
     private readonly List<NetworkAlias> _networkAliases = [];
@@ -114,30 +112,6 @@ namespace FluentDocker.Builders
       return this;
     }
 
-    public IContainerBuilder WithPort(string containerPort, string hostPort)
-    {
-      _ports[containerPort] = hostPort;
-      return this;
-    }
-
-    public IContainerBuilder ExposePort(string containerPort)
-    {
-      var normalized = containerPort.Contains('/') ? containerPort : $"{containerPort}/tcp";
-      _ports[normalized] = "";
-      return this;
-    }
-
-    public IContainerBuilder ExposePort(int hostPort, int containerPort)
-    {
-      _ports[$"{containerPort}/tcp"] = hostPort.ToString(CultureInfo.InvariantCulture);
-      return this;
-    }
-
-    public IContainerBuilder WithCommand(params string[] command) { _command.AddRange(command); return this; }
-    public IContainerBuilder WithInteractive(bool interactive = true) { _interactive = interactive; return this; }
-    public IContainerBuilder WithTty(bool tty = true) { _tty = tty; return this; }
-    public IContainerBuilder WithEntrypoint(params string[] entrypoint) { _entrypoint = entrypoint; return this; }
-    public IContainerBuilder WithVolume(string hostPath, string containerPath) { _volumes[hostPath] = containerPath; return this; }
     public IContainerBuilder WithLabel(string key, string value) { _labels[key] = value; return this; }
     public IContainerBuilder WithWorkingDirectory(string workingDir) { _workingDir = workingDir; return this; }
     public IContainerBuilder WithUser(string user) { _user = user; return this; }
@@ -289,7 +263,7 @@ namespace FluentDocker.Builders
             $"Invalid container port '{containerPort}'. Port must be 1-65535.");
     }
 
-    private static void ValidateHostPort(string hostPort)
+    internal static void ValidateHostPort(string hostPort)
     {
       if (string.IsNullOrEmpty(hostPort))
         return;
@@ -327,6 +301,9 @@ namespace FluentDocker.Builders
 
     private static bool IsValidPort(string value, bool allowZero, out int port) =>
         int.TryParse(value, out port) && port <= 65535 && (allowZero ? port >= 0 : port >= 1);
+
+    private static string NormalizeContainerPort(string containerPort) =>
+        containerPort.Contains('/') ? containerPort : $"{containerPort}/tcp";
 
     #endregion
 

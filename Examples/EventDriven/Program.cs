@@ -39,7 +39,7 @@ namespace EventDriven
           .WaitForPort("5432/tcp", 30000))
         .BuildAsync())
       {
-        var container = results.GetContainer(ContainerName);
+        var container = results.GetContainer(ContainerName)!;
         var config = await container.InspectAsync();
         var running = ServiceRunningState.Running == config.State.ToServiceState();
 

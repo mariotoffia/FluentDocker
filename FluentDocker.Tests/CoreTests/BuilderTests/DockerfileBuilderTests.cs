@@ -57,6 +57,36 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
     }
 
     [Fact]
+    public async Task Copy_RootedSource_CopiesIntoBuildContextAndRendersRelativePath()
+    {
+      Directory.CreateDirectory(".out");
+      var source = Path.GetFullPath(Path.Combine(".out", "rooted-copy-source.txt"));
+      await File.WriteAllTextAsync(source, "hello", TestContext.Current.CancellationToken);
+      var workingFolder = Path.Combine(".out", "rooted-copy-build");
+
+      var dockerfile = await new DockerfileBuilder()
+          .WorkingFolder(workingFolder)
+          .UseParent("alpine")
+          .Copy(source, "/app/source.txt")
+          .ToDockerfileStringAsync();
+
+      Assert.True(File.Exists(Path.Combine(workingFolder, "rooted-copy-source.txt")));
+      Assert.Contains(@"COPY [""rooted-copy-source.txt"", ""/app/source.txt""]", dockerfile);
+      Assert.DoesNotContain(source, dockerfile);
+    }
+
+    [Fact]
+    public async Task Copy_WindowsPaths_NormalizesSeparatorsInDockerfile()
+    {
+      var dockerfile = await new DockerfileBuilder()
+          .UseParent("alpine")
+          .Copy(@"src\app.dll", @"C:\app\app.dll")
+          .ToDockerfileStringAsync();
+
+      Assert.Contains(@"COPY [""src/app.dll"", ""C:/app/app.dll""]", dockerfile);
+    }
+
+    [Fact]
     public async Task UseWorkDir_AddsWorkdirInstruction()
     {
       var dockerfile = await new DockerfileBuilder()

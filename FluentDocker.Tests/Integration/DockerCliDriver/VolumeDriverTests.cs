@@ -129,10 +129,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
           {
             ["POSTGRES_PASSWORD"] = "mysecretpassword"
           },
-          Volumes = new Dictionary<string, string>
-          {
-            [volumeName] = "/var/lib/postgresql/data"
-          },
+          Volumes = [$"{volumeName}:/var/lib/postgresql/data"],
           Detach = true
         }, cancellationToken: TestContext.Current.CancellationToken);
 

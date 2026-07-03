@@ -78,7 +78,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
     }
 
     [Fact]
-    public void WaitForHttp_AdvancedOptions_SetsWaitCondition()
+    public void WaitForHttpUrl_AdvancedOptions_SetsWaitCondition()
     {
       var builder = new Builder();
       var configured = false;
@@ -86,7 +86,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
           .UseContainer(c =>
           {
             c.UseImage("test")
-                   .WaitForHttp(
+                   .WaitForHttpUrl(
                        "http://localhost:8080/health",
                        30000,
                        System.Net.Http.HttpMethod.Post,
@@ -238,4 +238,3 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
     }
   }
 }
-

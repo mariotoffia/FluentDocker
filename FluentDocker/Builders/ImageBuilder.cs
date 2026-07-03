@@ -6,7 +6,6 @@ using System.Threading.Tasks;
 using FluentDocker.Common;
 using FluentDocker.Drivers;
 using FluentDocker.Kernel;
-using FluentDocker.Model.Builders;
 using FluentDocker.Model.Drivers;
 using FluentDocker.Services;
 using FluentDocker.Services.Impl;
@@ -111,7 +110,6 @@ namespace FluentDocker.Builders
     /// <inheritdoc />
     string IDriverScopedBuilder.DriverId => _driverId;
     private static readonly char[] EqualsSeparator = ['='];
-    private readonly ImageBuilderConfig _config = new();
     private DockerfileBuilder _dockerfileBuilder;
 
     private string _imageName;
@@ -261,7 +259,7 @@ namespace FluentDocker.Builders
     internal async Task<IImageService> ExecuteAsync(CancellationToken cancellationToken)
     {
       if (string.IsNullOrEmpty(_imageName))
-        throw new FluentDockerException("Cannot build an image without a name. Use AsImageName() or provide name in DefineImage().");
+        throw new FluentDockerException("Cannot build an image without a name. Use AsImageName() or pass a name to UseImage().");
 
       if (_dockerfileBuilder == null)
         throw new FluentDockerException("No Dockerfile defined. Use From(), FromFile(), or FromString() to define one.");
@@ -321,16 +319,12 @@ namespace FluentDocker.Builders
       if (string.IsNullOrEmpty(name))
         return;
 
-      var parts = name.Split(':');
-      if (parts.Length == 2)
+      var (image, tag) = ContainerBuilder.ParseImageReference(name);
+      _imageName = image;
+      if (!string.IsNullOrEmpty(tag) && tag != "latest")
       {
-        _imageName = parts[0];
-        if (!_tags.Contains(parts[1]))
-          _tags.Add(parts[1]);
-      }
-      else
-      {
-        _imageName = name;
+        if (!_tags.Contains(tag))
+          _tags.Add(tag);
       }
     }
 

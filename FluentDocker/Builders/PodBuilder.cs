@@ -48,6 +48,7 @@ namespace FluentDocker.Builders
 
     public async Task<IServiceAsync> ExecuteAsync(CancellationToken cancellationToken)
     {
+      Validate();
       var driver = _kernel.SysCtl<IPodmanPodDriver>(_driverId);
       var context = new DriverContext(_driverId);
 
@@ -72,6 +73,28 @@ namespace FluentDocker.Builders
           _kernel, _driverId, response.Data.Id, _name, _removeOnDispose);
       await service.StartAsync(cancellationToken).ConfigureAwait(false);
       return service;
+    }
+
+    private void Validate()
+    {
+      if (string.IsNullOrWhiteSpace(_name))
+        throw new FluentDockerException("Pod name is required. Call WithName() before building.");
+      foreach (var port in _ports)
+      {
+        // Format: [[ip:][hostPort]:]containerPort[/proto] — container port is the last segment.
+        var colon = port.LastIndexOf(':');
+        if (colon >= 0)
+          ContainerBuilder.ValidateHostPort(port[..colon]);
+        ValidatePort(colon >= 0 ? port[(colon + 1)..] : port);
+      }
+    }
+
+    private static void ValidatePort(string port)
+    {
+      var slash = port.IndexOf('/');
+      var portPart = slash >= 0 ? port[..slash] : port;
+      if (!int.TryParse(portPart, out var value) || value < 1 || value > 65535)
+        throw new FluentDockerException($"Invalid pod port '{port}'. Port must be 1-65535.");
     }
   }
 }

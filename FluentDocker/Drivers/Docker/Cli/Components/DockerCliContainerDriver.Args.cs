@@ -63,7 +63,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
       AddRepeated(args, "--security-opt", config.SecurityOpt);
       AddRepeated(args, "-e", config.Environment?.Select(e => $"{e.Key}={e.Value}"));
       AddRepeated(args, "-p", config.PortBindings?.Select(p => $"{p.Value}:{p.Key}"));
-      AddRepeated(args, "-v", config.Volumes?.Select(v => v.Value == null ? v.Key : $"{v.Key}:{v.Value}"));
+      AddRepeated(args, "-v", config.Volumes);
       AddRepeated(args, "--label", config.Labels?.Select(l => $"{l.Key}={l.Value}"));
       AddRepeated(args, "--network", config.Networks);
       AddRepeated(args, "--dns", config.Dns);

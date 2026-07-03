@@ -57,13 +57,11 @@ namespace FluentDocker.Tests.CoreTests.Service
     }
 
     [Theory]
-    [InlineData(@"C:\data:/data", @"C:\data", "/data")]
-    [InlineData("/h:/c:ro", "/h", "/c:ro")]
-    [InlineData("/h:/c", "/h", "/c")]
-    public async Task CreateContainerAsync_ParsesVolumeSpecs(
-        string volumeSpec,
-        string expectedHost,
-        string expectedContainer)
+    [InlineData(@"C:\data:/data")]
+    [InlineData("/h:/c:ro")]
+    [InlineData("/h:/c")]
+    public async Task CreateContainerAsync_PreservesVolumeSpecs(
+        string volumeSpec)
     {
       ContainerCreateConfig? captured = null;
       MockPack.ContainerDriver
@@ -82,8 +80,7 @@ namespace FluentDocker.Tests.CoreTests.Service
           TestContext.Current.CancellationToken);
 
       Assert.NotNull(captured);
-      Assert.True(captured.Volumes.TryGetValue(expectedHost, out var container));
-      Assert.Equal(expectedContainer, container);
+      Assert.Contains(volumeSpec, captured.Volumes);
     }
 
     [Fact]

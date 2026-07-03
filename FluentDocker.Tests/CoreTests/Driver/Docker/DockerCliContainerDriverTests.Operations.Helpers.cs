@@ -75,7 +75,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Docker
           args.Add($"-p {Quote($"{p.Value}:{p.Key}")}");
       if (config.Volumes != null)
         foreach (var v in config.Volumes)
-          args.Add($"-v {Quote($"{v.Key}:{v.Value}")}");
+          args.Add($"-v {Quote(v)}");
       if (!string.IsNullOrEmpty(config.NetworkMode))
         args.Add($"--network {Quote(config.NetworkMode)}");
       if (!string.IsNullOrEmpty(config.Ipv4Address))

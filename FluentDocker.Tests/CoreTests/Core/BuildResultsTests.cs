@@ -6,6 +6,7 @@ using FluentDocker.Kernel;
 using FluentDocker.Model.Kernel;
 using FluentDocker.Services;
 using Microsoft.Extensions.Logging.Abstractions;
+using Moq;
 using Xunit;
 
 namespace FluentDocker.Tests.CoreTests.Core
@@ -162,6 +163,22 @@ namespace FluentDocker.Tests.CoreTests.Core
       Assert.Empty(results.All);
       Assert.Empty(results.Scopes);
       Assert.Empty(results.ForDriver("any"));
+    }
+
+    [Fact]
+    public void GetContainer_UsesCaseSensitiveNameMatching()
+    {
+      var kernel = new FluentDockerKernel(new DriverRegistry(NullLoggerFactory.Instance), NullLoggerFactory.Instance);
+      var scope = new BuildScope(kernel, "docker");
+      var container = new Mock<IContainerService>();
+      container.SetupGet(c => c.Name).Returns("CaseSensitive");
+      scope.AddResult(container.Object);
+      var results = new BuildResults([scope]);
+
+      Assert.Same(container.Object, results.GetContainer("CaseSensitive"));
+      Assert.Null(results.GetContainer("casesensitive"));
+
+      kernel.Dispose();
     }
 
     // Mock services for testing

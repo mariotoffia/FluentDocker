@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [3.2.0-preview.1] - 2026-07-03
 
+### Breaking
+
+Production-readiness remediation of the preview API surface. Recompile and review call sites:
+
+- **`IContainerBuilder.WithPort(hostPort, containerPort)`** — parameter order flipped from `(containerPort, hostPort)` to match docker `-p host:container` and every other port API in the library. **Bare-number call sites compiled against 3.0/3.1 recompile cleanly with swapped semantics — review every `WithPort` call when upgrading.** `ExposePort` and `IPodBuilder.WithPort` already used host-first order and are unchanged.
+- **`WaitForHttp(url, timeoutMs)` renamed `WaitForHttpUrl`** — the old name overload-shadowed the port-form `WaitForHttp("8080/tcp", 5000)`, which now binds the normalizing port overload as intended.
+- **`WithVolume` / `ContainerCreateConfig.Volumes`** — volumes are now list-backed `source:target[:ro]` entries with an explicit `isReadOnly` parameter; the same host directory can be mounted at multiple container paths.
+- **`BuildAsync()` with zero `Use*` calls now throws `InvalidOperationException`** instead of silently returning empty results (`FluentDockerException` remains the type for docker-level validation failures; empty build is a programming error).
+- **Removed dead public API**: `ComposeServiceBuilder`, `ImageBuilderConfig`, `NetworkWithAlias`.
+- **`BuildResults.GetContainer/GetNetwork/GetVolume`** — lookups are now case-sensitive (`Ordinal`; docker names are case-sensitive) and annotated as nullable.
+
 ### Added
 
 - **Docker Model Runner (local LLMs)** — first-class support for managing and consuming local LLMs through Docker Model Runner, behind the existing `Builder → WithinDriver → UseModelRunner()` pattern. Highlights:

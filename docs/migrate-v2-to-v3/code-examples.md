@@ -220,7 +220,7 @@ using var svc = new Builder()
     .UseCompose()
     .FromFile("docker-compose.yml")
     .RemoveOrphans()
-    .WaitForHttp("web", "http://localhost:8000/health")
+    .WaitForHttpUrl("http://localhost:8000/health")
     .Build()
     .Start();
 
@@ -527,7 +527,7 @@ await using var results2 = await new Builder()
 | `.ExposePort(80)` | `.ExposePort("80")` |
 | `.Mount(host, container, ...)` | `.WithVolume(host, container)` |
 | `.WaitForMessageInLogs(msg, ms)` | `.WaitForLogMessage(msg, ms)` |
-| `.WaitForHttp(url, ms)` | `.WaitForHttp("port/tcp", "/path", ms)` |
+| `.WaitForHttp(url, ms)` | `.WaitForHttpUrl(url, ms)` or `.WaitForHttp("port/tcp", "/path", ms)` |
 | `.Build().Start()` | `await ...BuildAsync()` |
 | `container.Execute(...)` | `await container.ExecuteAsync(...)` |
 | `container.CopyTo(...)` | `await container.CopyToAsync(...)` |

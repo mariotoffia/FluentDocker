@@ -41,10 +41,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
           {
             ["POSTGRES_PASSWORD"] = "mysecretpassword"
           },
-          Volumes = new Dictionary<string, string>
-          {
-            [volumeName] = "/var/lib/postgresql/data"
-          },
+          Volumes = [$"{volumeName}:/var/lib/postgresql/data"],
           Detach = true
         }, cancellationToken: TestContext.Current.CancellationToken);
         Assert.True(containerResult.Success);
@@ -81,10 +78,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
         var containerResult = await ContainerDriver.RunAsync(Context, new ContainerCreateConfig
         {
           Image = TestImage,
-          Volumes = new Dictionary<string, string>
-          {
-            [volumeName] = "/data"
-          },
+          Volumes = [$"{volumeName}:/data"],
           Command = ["sleep", "5"],
           Detach = true
         }, cancellationToken: TestContext.Current.CancellationToken);
@@ -137,10 +131,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
           {
             ["POSTGRES_PASSWORD"] = "mysecretpassword"
           },
-          Volumes = new Dictionary<string, string>
-          {
-            [volumeName] = "/var/lib/postgresql/data"
-          },
+          Volumes = [$"{volumeName}:/var/lib/postgresql/data"],
           Detach = true
         }, cancellationToken: TestContext.Current.CancellationToken);
 
@@ -178,10 +169,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
         var container1Result = await ContainerDriver.RunAsync(Context, new ContainerCreateConfig
         {
           Image = TestImage,
-          Volumes = new Dictionary<string, string>
-          {
-            [volumeName] = "/data"
-          },
+          Volumes = [$"{volumeName}:/data"],
           Command = ["sh", "-c", $"echo \"{testData}\" > /data/test.txt && sleep 5"],
           Detach = true
         }, cancellationToken: TestContext.Current.CancellationToken);
@@ -201,10 +189,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
         var container2Result = await ContainerDriver.RunAsync(Context, new ContainerCreateConfig
         {
           Image = TestImage,
-          Volumes = new Dictionary<string, string>
-          {
-            [volumeName] = "/data"
-          },
+          Volumes = [$"{volumeName}:/data"],
           Command = ["sleep", "60"],
           Detach = true
         }, cancellationToken: TestContext.Current.CancellationToken);

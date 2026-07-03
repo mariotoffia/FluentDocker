@@ -459,7 +459,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
               .UseImage("nginx:alpine")
               .WithName("full-config-test")
               .WithEnvironment("ENV", "production")
-              .WithPort("80/tcp", "8080")
+              .WithPort("8080", "80/tcp")
               .WithLabel("app", "test")
               .WithHostname("testhost")
               .WithUser("nginx")

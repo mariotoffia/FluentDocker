@@ -130,6 +130,19 @@ using var results = new Builder()
 // Changes to /local/html are immediately visible in container
 ```
 
+Mounts are recorded as explicit bind entries, so the same host directory or volume
+can be mounted at multiple container paths. Pass `isReadOnly: true` for a read-only bind:
+
+```csharp
+using var results = new Builder()
+    .WithinDriver("docker", kernel)
+    .UseContainer(c => c
+        .UseImage("nginx:alpine")
+        .WithVolume("/local/html", "/usr/share/nginx/html", isReadOnly: true)
+        .WithVolume("/local/html", "/backup/html", isReadOnly: true))
+    .Build();
+```
+
 ### Mount Configuration Files
 
 ```csharp

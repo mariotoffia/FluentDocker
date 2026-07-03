@@ -257,10 +257,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
         var result1 = await ContainerDriver.RunAsync(Context, new ContainerCreateConfig
         {
           Image = TestImage,
-          Volumes = new Dictionary<string, string>
-          {
-            [volumeName] = "/data"
-          },
+          Volumes = [$"{volumeName}:/data"],
           Command = ["sh", "-c", $"echo \"{testData}\" > /data/test.txt"],
           Detach = false
         }, cancellationToken: TestContext.Current.CancellationToken);
@@ -274,10 +271,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
         var result2 = await ContainerDriver.RunAsync(Context, new ContainerCreateConfig
         {
           Image = TestImage,
-          Volumes = new Dictionary<string, string>
-          {
-            [volumeName] = "/data"
-          },
+          Volumes = [$"{volumeName}:/data"],
           Command = ["cat", "/data/test.txt"],
           Detach = false
         }, cancellationToken: TestContext.Current.CancellationToken);

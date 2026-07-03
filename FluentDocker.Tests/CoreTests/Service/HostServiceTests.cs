@@ -297,9 +297,10 @@ namespace FluentDocker.Tests.CoreTests.Service
         mockPack.ContainerDriver.Verify(d => d.CreateAsync(
             It.IsAny<DriverContext>(),
             It.Is<ContainerCreateConfig>(c =>
-                c.Volumes["/data"] == null &&
-                c.Volumes["named"] == "/named" &&
-                c.Volumes["C:\\h"] == "/c"),
+                c.Volumes.Count == 3 &&
+                c.Volumes.Contains("/data") &&
+                c.Volumes.Contains("named:/named") &&
+                c.Volumes.Contains("C:\\h:/c")),
             It.IsAny<System.Threading.CancellationToken>()), Times.Once);
       }
       finally { kernel.Dispose(); }

@@ -221,8 +221,8 @@ namespace FluentDocker.Drivers
     /// <summary>Port bindings (container port -> host port).</summary>
     public Dictionary<string, string> PortBindings { get; set; } = [];
 
-    /// <summary>Volume bindings (host path -> container path or volume name).</summary>
-    public Dictionary<string, string> Volumes { get; set; } = [];
+    /// <summary>Volume bindings in Docker syntax: source:target[:ro].</summary>
+    public List<string> Volumes { get; set; } = [];
 
     /// <summary>Network mode.</summary>
     public string NetworkMode { get; set; }

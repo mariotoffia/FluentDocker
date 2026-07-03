@@ -177,7 +177,7 @@ builder.UseImage("my-api:latest")
 Advanced HTTP wait with custom method and response handling:
 
 ```csharp
-builder.WaitForHttp(
+builder.WaitForHttpUrl(
     url: "http://localhost:8080/ready",
     timeoutMs: 30_000,
     method: HttpMethod.Post,

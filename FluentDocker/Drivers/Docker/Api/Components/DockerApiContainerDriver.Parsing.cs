@@ -86,7 +86,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       }
 
       if (config.Volumes?.Count > 0)
-        hc.Binds = [.. config.Volumes.Select(kv => kv.Value == null ? kv.Key : $"{kv.Key}:{kv.Value}")];
+        hc.Binds = [.. config.Volumes];
 
       if (!string.IsNullOrEmpty(config.RestartPolicy))
       {

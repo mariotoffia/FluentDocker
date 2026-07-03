@@ -18,12 +18,13 @@ namespace FluentDocker.Builders
   /// For type-safe driver-specific APIs, use <see cref="WithinDockerCli"/>,
   /// <see cref="WithinDockerApi"/>, or <see cref="WithinPodmanCli"/>.
   /// </summary>
-  public class Builder : IBuilder, IDriverScopedBuilder
+  public partial class Builder : IBuilder, IDriverScopedBuilder
   {
     private FluentDockerKernel _currentKernel;
     private string _currentDriverId;
     private readonly List<BuildOperation> _operations = [];
     private bool _buildSucceeded;
+    private int _buildInProgress;
 
     /// <summary>
     /// Creates a new builder.
@@ -110,6 +111,7 @@ namespace FluentDocker.Builders
     /// </summary>
     public Builder UseContainer(Action<IContainerBuilder> configure)
     {
+      ArgumentNullException.ThrowIfNull(configure);
       ValidateScope();
       var builder = new ContainerBuilder(_currentKernel, _currentDriverId);
       configure(builder);
@@ -118,7 +120,10 @@ namespace FluentDocker.Builders
         Kernel = _currentKernel,
         DriverId = _currentDriverId,
         ExecuteAsync = ct => builder.ExecuteAsync(ct),
+        GetFailedService = () => builder.PendingService,
         PostStartAsync = ct => builder.ExecuteDeferredWaitConditionsAsync(ct),
+        ResetForRetry = builder.ResetForRetry,
+        FailureKeepReason = _ => builder.KeepContainerRequested ? "KeepContainer()" : null,
         AllowCleanExit = builder.AllowCleanExitOnStart,
         StartupTimeoutMs = builder.StartupTimeoutMs,
         StartupPollIntervalMs = builder.StartupPollIntervalMs
@@ -172,6 +177,7 @@ namespace FluentDocker.Builders
     /// </summary>
     public Builder UseNetwork(Action<INetworkBuilder> configure)
     {
+      ArgumentNullException.ThrowIfNull(configure);
       ValidateScope();
       var builder = new NetworkBuilder(_currentKernel, _currentDriverId);
       configure(builder);
@@ -179,7 +185,9 @@ namespace FluentDocker.Builders
       {
         Kernel = _currentKernel,
         DriverId = _currentDriverId,
-        ExecuteAsync = ct => builder.ExecuteAsync(ct)
+        ExecuteAsync = ct => builder.ExecuteAsync(ct),
+        ForceRemoveOnFailure = _ => builder.CreatedResource,
+        FailureKeepReason = _ => builder.CreatedResource ? null : "borrowed"
       });
       return this;
     }
@@ -189,6 +197,7 @@ namespace FluentDocker.Builders
     /// </summary>
     public Builder UseVolume(Action<IVolumeBuilder> configure)
     {
+      ArgumentNullException.ThrowIfNull(configure);
       ValidateScope();
       var builder = new VolumeBuilder(_currentKernel, _currentDriverId);
       configure(builder);
@@ -196,7 +205,9 @@ namespace FluentDocker.Builders
       {
         Kernel = _currentKernel,
         DriverId = _currentDriverId,
-        ExecuteAsync = ct => builder.ExecuteAsync(ct)
+        ExecuteAsync = ct => builder.ExecuteAsync(ct),
+        ForceRemoveOnFailure = _ => builder.CreatedResource,
+        FailureKeepReason = _ => builder.CreatedResource ? null : "borrowed"
       });
       return this;
     }
@@ -208,6 +219,7 @@ namespace FluentDocker.Builders
     /// </summary>
     public Builder UseCompose(Action<IComposeBuilder> configure)
     {
+      ArgumentNullException.ThrowIfNull(configure);
       ValidateScope();
       var builder = new ComposeBuilder(_currentKernel, _currentDriverId);
       configure(builder);
@@ -227,6 +239,7 @@ namespace FluentDocker.Builders
     /// </summary>
     public Builder UsePod(Action<IPodBuilder> configure)
     {
+      ArgumentNullException.ThrowIfNull(configure);
       ValidateScope();
       var builder = new PodBuilder(_currentKernel, _currentDriverId);
       configure(builder);
@@ -244,6 +257,7 @@ namespace FluentDocker.Builders
     /// </summary>
     public Builder UseImage(string imageName, Action<DockerfileBuilder> configure)
     {
+      ArgumentNullException.ThrowIfNull(configure);
       ValidateScope();
       var imageBuilder = new ImageBuilder(_currentKernel, _currentDriverId, imageName);
       var dockerfileBuilder = imageBuilder.From();
@@ -283,10 +297,22 @@ namespace FluentDocker.Builders
     {
       if (_buildSucceeded)
         throw new InvalidOperationException("builder already consumed by BuildAsync; create a new Builder");
+      if (Interlocked.CompareExchange(ref _buildInProgress, 1, 0) != 0)
+        throw new InvalidOperationException("BuildAsync is already running on this Builder instance");
+      if (_operations.Count == 0)
+      {
+        Volatile.Write(ref _buildInProgress, 0);
+        throw new InvalidOperationException("no resources configured");
+      }
 
       var effectiveCleanupTimeout = cleanupTimeout ?? TimeSpan.FromSeconds(120);
       var scopes = new Dictionary<(FluentDockerKernel, string), BuildScope>();
       var groupedOps = _operations.GroupBy(op => (op.Kernel, op.DriverId));
+      var completedOperations = new List<(BuildOperation Operation, IServiceAsync Service)>();
+
+      // Retry contract: every build attempt centrally resets per-operation attempt state.
+      foreach (var operation in _operations)
+        operation.ResetForRetry?.Invoke();
 
       try
       {
@@ -300,10 +326,24 @@ namespace FluentDocker.Builders
           var executedOperations = new List<(BuildOperation Operation, IServiceAsync Service)>();
           foreach (var operation in groupOperations)
           {
-            var service = await operation.ExecuteAsync(cancellationToken).ConfigureAwait(false);
+            IServiceAsync service;
+            try
+            {
+              service = await operation.ExecuteAsync(cancellationToken).ConfigureAwait(false);
+            }
+            catch
+            {
+              var failedService = operation.GetFailedService?.Invoke();
+              if (failedService != null)
+                completedOperations.Add((operation, failedService));
+              throw;
+            }
             scope.AddResult(service);
             if (service != null)
+            {
               executedOperations.Add((operation, service));
+              completedOperations.Add((operation, service));
+            }
           }
 
           await StartContainersWithLinksAsync(scope, executedOperations, cancellationToken).ConfigureAwait(false);
@@ -315,6 +355,9 @@ namespace FluentDocker.Builders
               await operation.PostStartAsync(cancellationToken).ConfigureAwait(false);
           }
         }
+
+        _buildSucceeded = true;
+        return new BuildResults([.. scopes.Values]);
       }
       catch (Exception ex)
       {
@@ -323,14 +366,14 @@ namespace FluentDocker.Builders
             .LogError(ex, "Builder build failed");
         // Clean up all services created so far to prevent resource leaks.
         // Use a bounded timeout so cleanup cannot hang indefinitely when the daemon is unhealthy.
-        using var cleanupCts = new CancellationTokenSource(effectiveCleanupTimeout);
-        foreach (var scope in scopes.Values)
-          await scope.DisposeAllAsync(cleanupCts.Token).ConfigureAwait(false);
+        var manifest = await CleanupFailedBuildAsync(completedOperations, effectiveCleanupTimeout).ConfigureAwait(false);
+        ex.Data["BuildFailureManifest"] = manifest;
         throw;
       }
-
-      _buildSucceeded = true;
-      return new BuildResults([.. scopes.Values]);
+      finally
+      {
+        Volatile.Write(ref _buildInProgress, 0);
+      }
     }
 
     #endregion
@@ -393,6 +436,10 @@ namespace FluentDocker.Builders
     public FluentDockerKernel Kernel { get; set; }
     public string DriverId { get; set; }
     public Func<CancellationToken, Task<IServiceAsync>> ExecuteAsync { get; set; }
+    public Func<IServiceAsync> GetFailedService { get; set; }
+    public Action ResetForRetry { get; set; }
+    public Func<IServiceAsync, bool> ForceRemoveOnFailure { get; set; }
+    public Func<IServiceAsync, string?> FailureKeepReason { get; set; }
 
     /// <summary>
     /// Optional post-start callback for executing deferred operations
@@ -405,46 +452,4 @@ namespace FluentDocker.Builders
     public int StartupPollIntervalMs { get; set; } = 100;
   }
 
-  /// <summary>
-  /// Interface for the v3.0.0 fluent builder.
-  /// Exposes only operations common to all drivers. For driver-specific
-  /// operations, use the typed builder returned by
-  /// <see cref="Builder.WithinDockerCli"/>, <see cref="Builder.WithinDockerApi"/>,
-  /// or <see cref="Builder.WithinPodmanCli"/>.
-  /// </summary>
-  public interface IBuilder
-  {
-    Builder WithinDriver(string driverId, FluentDockerKernel kernel = null);
-    Builder UseContainer(Action<IContainerBuilder> configure);
-    Builder UseNetwork(Action<INetworkBuilder> configure);
-    Builder UseVolume(Action<IVolumeBuilder> configure);
-
-    /// <summary>
-    /// Adds an image build operation.
-    /// </summary>
-    Builder UseImage(string imageName, Action<DockerfileBuilder> configure);
-
-    /// <summary>
-    /// Builds all operations synchronously (TERMINAL operation).
-    /// For async contexts, prefer BuildAsync() to avoid deadlocks.
-    /// </summary>
-    BuildResults Build();
-
-    /// <summary>
-    /// Builds all operations asynchronously (TERMINAL operation).
-    /// </summary>
-    /// <remarks>
-    /// A builder is single-use after a successful build; retry is allowed after a failed build.
-    /// Operation order is preserved within each driver scope; cross-scope operations are grouped
-    /// by driver before execution.
-    /// </remarks>
-    /// <param name="cleanupTimeout">
-    /// Maximum time allowed for cleanup on build failure.
-    /// Defaults to 120 seconds.
-    /// </param>
-    /// <param name="cancellationToken">Token to cancel the build.</param>
-    Task<BuildResults> BuildAsync(
-        TimeSpan? cleanupTimeout = null,
-        CancellationToken cancellationToken = default);
-  }
 }

@@ -116,8 +116,9 @@ using var results = new Builder()
 // Access at http://localhost:8080
 ```
 
-Port APIs use their documented order: `ExposePort(hostPort, containerPort)` but
-`WithPort(containerPort, hostPort)`.
+All port APIs use Docker's host→container order: `ExposePort(hostPort, containerPort)` and
+`WithPort(hostPort, containerPort)`. A container port can be bound once by the builder;
+use a second container port when you need another host binding.
 
 ### Random Port Assignment
 
@@ -247,6 +248,9 @@ using var results = new Builder()
         .WaitForHttp("8080/tcp", "/health", 30000))
     .Build();
 ```
+
+Use `WaitForHttpUrl(...)` only when you already have a full URL and need advanced
+HTTP options such as method, request body, or a custom continuation.
 
 ### Custom Wait Function
 
