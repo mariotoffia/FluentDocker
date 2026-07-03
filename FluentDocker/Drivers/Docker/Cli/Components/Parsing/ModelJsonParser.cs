@@ -231,7 +231,32 @@ namespace FluentDocker.Drivers.Docker.Cli.Components.Parsing
         };
       }
 
+      if (IsPullNoise(trimmed))
+        return null;
+
       return new ModelPullProgress { Status = trimmed };
+    }
+
+    private static bool IsPullNoise(string line)
+    {
+      // A torn progress redraw ("… of 800 MiB") carries a size token; an informative line
+      // containing " of " (e.g. "out of disk space") does not and must surface.
+      if (line.Contains(" of ", StringComparison.OrdinalIgnoreCase) && SizeTokenRegex.IsMatch(line))
+        return true;
+      if (line.StartsWith("Downloaded", StringComparison.OrdinalIgnoreCase))
+        return true;
+
+      var hasLetterOrDigit = false;
+      foreach (var c in line)
+      {
+        if (char.IsLetterOrDigit(c))
+        {
+          hasLetterOrDigit = true;
+          break;
+        }
+      }
+
+      return !hasLetterOrDigit;
     }
 
     /// <summary>

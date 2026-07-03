@@ -1,5 +1,4 @@
 using System;
-using System.IO;
 
 namespace FluentDocker.Model.Models
 {
@@ -105,20 +104,20 @@ namespace FluentDocker.Model.Models
         new(new Uri($"http://model-runner.docker.internal:{port}"), engine, null, true);
 
     /// <summary>Creates a unix-socket endpoint.</summary>
-    /// <param name="socketPath">The socket path; defaults to <c>$HOME/.docker/run/docker.sock</c>.</param>
+    /// <param name="socketPath">The explicit socket path.</param>
     /// <param name="engine">The engine name (default <c>llama.cpp</c>).</param>
     /// <returns>A unix-socket endpoint.</returns>
     /// <remarks>
     /// Preview caveat: the socket form assumes the runner serves <c>/engines/…</c> directly
     /// on the supplied socket (request paths are built as <c>/engines/{engine}/v1/…</c> with
-    /// no extra prefix). The Docker Desktop host socket may instead expose the runner under a
-    /// routing prefix (e.g. <c>/exp/vDD4.40/…</c>); that prefix is NOT yet applied or verified
-    /// here, so the default-socket form may not resolve against Docker Desktop's socket.
+    /// no extra prefix). Docker Desktop host-socket routing prefixes are not guessed here;
+    /// pass a socket path only after confirming that route for your platform.
     /// </remarks>
-    public static ModelRunnerEndpoint UnixSocket(string socketPath = null, string engine = DefaultEngine)
+    public static ModelRunnerEndpoint UnixSocket(string socketPath, string engine = DefaultEngine)
     {
-      var path = socketPath ?? DefaultSocketPath();
-      return new ModelRunnerEndpoint(new Uri("http://localhost"), engine, path, true);
+      if (string.IsNullOrWhiteSpace(socketPath))
+        throw new ArgumentException("Unix socket endpoint requires an explicit socket path.", nameof(socketPath));
+      return new ModelRunnerEndpoint(new Uri("http://localhost"), engine, socketPath, true);
     }
 
     /// <summary>Creates an endpoint targeting an arbitrary base address.</summary>
@@ -206,12 +205,6 @@ namespace FluentDocker.Model.Models
         uri is { IsAbsoluteUri: true } &&
         (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps) &&
         !string.IsNullOrEmpty(uri.Host);
-
-    private static string DefaultSocketPath()
-    {
-      var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
-      return Path.Combine(home, ".docker", "run", "docker.sock");
-    }
 
     /// <inheritdoc />
     public bool Equals(ModelRunnerEndpoint other)

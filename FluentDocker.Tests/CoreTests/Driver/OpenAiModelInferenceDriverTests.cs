@@ -136,6 +136,31 @@ namespace FluentDocker.Tests.CoreTests.Driver
 
       Assert.False(resp.Success);
       Assert.Equal(ErrorCodes.ModelInference.ModelNotLoaded, resp.ErrorCode);
+      Assert.Contains("ai/nope", resp.Error, StringComparison.Ordinal);
+      Assert.Contains("endpoint/base path", resp.Error, StringComparison.OrdinalIgnoreCase);
+    }
+
+    // Captured from live Docker Model Runner (llama.cpp backend) on 2026-07-03:
+    //   POST /engines/v1/chat/completions {"model":"ai/does-not-exist-xyz",...} -> 404
+    //     error while getting model: get model '"ai/does-not-exist-xyz"': model not found
+    //   GET /bogus/path -> 404
+    //     not found
+    // The body heuristic must map the first to ModelNotLoaded and the second (route miss,
+    // no "model" mention) to RequestFailed.
+    [Theory]
+    [InlineData("error while getting model: get model '\"ai/does-not-exist-xyz\"': model not found",
+        ErrorCodes.ModelInference.ModelNotLoaded)]
+    [InlineData("not found", ErrorCodes.ModelInference.RequestFailed)]
+    public async Task ChatCompletionAsync_404_RealDmrBodies_DisambiguateModelVsRoute(
+        string body, string expectedCode)
+    {
+      var conn = new MockModelApiConnection().SetupPost("/chat/completions", 404, body);
+      var driver = Create(conn);
+
+      var resp = await driver.ChatCompletionAsync(Ctx, new ChatCompletionRequest { Model = "ai/does-not-exist-xyz" }, TestContext.Current.CancellationToken);
+
+      Assert.False(resp.Success);
+      Assert.Equal(expectedCode, resp.ErrorCode);
     }
 
     [Fact]
@@ -375,7 +400,7 @@ namespace FluentDocker.Tests.CoreTests.Driver
 
     [Theory]
     [Trait("Category", "Unit")]
-    [InlineData(404, ErrorCodes.ModelInference.ModelNotLoaded)]
+    [InlineData(404, ErrorCodes.ModelInference.RequestFailed)]
     [InlineData(401, ErrorCodes.ModelInference.Unauthorized)]
     [InlineData(500, ErrorCodes.ModelInference.RequestFailed)]
     public async Task ListEngineModelsAsync_HttpError_MapsToTypedCode(int status, string expectedCode)
@@ -423,6 +448,7 @@ namespace FluentDocker.Tests.CoreTests.Driver
     private sealed class TransportFailingConnection : IModelApiConnection
     {
       public Uri BaseAddress => new("http://localhost:12434");
+      public TimeSpan? StreamFirstByteTimeout => null;
       public TimeSpan? StreamReadIdleTimeout => null;
 
       private static ModelRunnerException Boom() =>

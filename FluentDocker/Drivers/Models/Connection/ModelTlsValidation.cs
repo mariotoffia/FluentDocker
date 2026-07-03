@@ -31,9 +31,6 @@ namespace FluentDocker.Drivers.Models.Connection
     public static bool ValidateWithCustomRoot(X509Certificate2 caCert, X509Certificate cert, X509Chain chain,
         SslPolicyErrors errors, bool allowHostnameMismatch = false)
     {
-      if (errors == SslPolicyErrors.None)
-        return true;
-
       // A missing certificate is never acceptable.
       if ((errors & SslPolicyErrors.RemoteCertificateNotAvailable) != 0)
         return false;

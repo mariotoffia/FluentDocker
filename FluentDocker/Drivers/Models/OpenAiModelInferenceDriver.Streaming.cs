@@ -47,7 +47,7 @@ namespace FluentDocker.Drivers.Models
       // Copy so we never mutate the caller's instance (Stream is forced on here).
       var req = new ChatCompletionRequest(request) { Stream = true };
       await foreach (var chunk in StreamAsync<ChatCompletionChunk>(
-          "/chat/completions", req, cancellationToken).ConfigureAwait(false))
+          context, "/chat/completions", req, "ChatCompletionStream", cancellationToken).ConfigureAwait(false))
         yield return chunk;
     }
 
@@ -59,11 +59,12 @@ namespace FluentDocker.Drivers.Models
       // Copy so we never mutate the caller's instance (Stream is forced on here).
       var req = new CompletionRequest(request) { Stream = true };
       await foreach (var chunk in StreamAsync<CompletionChunk>(
-          "/completions", req, cancellationToken).ConfigureAwait(false))
+          context, "/completions", req, "CompletionStream", cancellationToken).ConfigureAwait(false))
         yield return chunk;
     }
 
-    private async IAsyncEnumerable<T> StreamAsync<T>(string suffix, object request,
+    private async IAsyncEnumerable<T> StreamAsync<T>(
+        DriverContext context, string suffix, object request, string operation,
         [EnumeratorCancellation] CancellationToken cancellationToken)
     {
       var json = JsonSerializer.Serialize(request, JsonHelper.DefaultOptions);
@@ -79,16 +80,29 @@ namespace FluentDocker.Drivers.Models
       }
       catch (HttpRequestException ex)
       {
-        throw new ModelRunnerException(ex.Message, ErrorCodeFor(ex.StatusCode), ex);
+        var message = ex.StatusCode.HasValue
+            ? FormatHttpError(operation, suffix, request, ex.StatusCode.Value, ex.Message)
+            : ex.Message;
+        throw new ModelRunnerException(
+            message, ErrorCodeFor(ex.StatusCode, ex.Message),
+            CreateStreamErrorContext(context, operation, ex.StatusCode), ex);
+      }
+      catch (ModelRunnerException ex) when (ex.Context is null)
+      {
+        throw new ModelRunnerException(
+            ex.Message, ex.ErrorCode, CreateStreamErrorContext(context, operation), ex);
       }
 
       await using var owned = stream.ConfigureAwait(false);
+      var firstByteTimeout = _connection.StreamFirstByteTimeout;
       var idleTimeout = _connection.StreamReadIdleTimeout;
 
       // Manually enumerate the SSE events so a transport fault raised mid-read maps to the same
       // typed EndpointUnreachable as the open path (a `yield return` cannot live inside a try/catch).
       // try/finally (not `await using`) so the enumerator disposal keeps ConfigureAwait(false).
-      var events = ReadSseEventsAsync(stream, idleTimeout, cancellationToken).GetAsyncEnumerator(cancellationToken);
+      var events = ReadSseEventsAsync(
+          stream, firstByteTimeout, idleTimeout, context, operation, cancellationToken)
+          .GetAsyncEnumerator(cancellationToken);
       try
       {
         while (true)
@@ -103,7 +117,8 @@ namespace FluentDocker.Drivers.Models
           catch (Exception ex) when (ex is IOException or HttpRequestException)
           {
             throw new ModelRunnerException(
-                "Inference stream transport failure", ErrorCodes.ModelInference.EndpointUnreachable, ex);
+                "Inference stream transport failure", ErrorCodes.ModelInference.EndpointUnreachable,
+                CreateStreamErrorContext(context, operation), ex);
           }
 
           var span = payload.AsSpan().Trim();
@@ -120,7 +135,9 @@ namespace FluentDocker.Drivers.Models
           // deserializes into a non-null chunk with no choices, silently losing the error — detect
           // it first and surface the server's message as a typed failure.
           if (TryGetSseError(span, out var errorMessage))
-            throw new ModelRunnerException(errorMessage, ErrorCodes.ModelInference.RequestFailed);
+            throw new ModelRunnerException(
+                errorMessage, ErrorCodes.ModelInference.RequestFailed,
+                CreateStreamErrorContext(context, operation));
 
           T chunk;
           try
@@ -129,13 +146,17 @@ namespace FluentDocker.Drivers.Models
           }
           catch (JsonException ex)
           {
-            throw new ModelRunnerException("Malformed SSE chunk", ErrorCodes.ModelInference.StreamParseError, ex);
+            throw new ModelRunnerException(
+                "Malformed SSE chunk", ErrorCodes.ModelInference.StreamParseError,
+                CreateStreamErrorContext(context, operation), ex);
           }
 
           // STJ deserializes a literal `data: null` frame to default(T) without throwing;
           // emitting it would surface as a downstream NullReferenceException.
           if (chunk == null)
-            throw new ModelRunnerException("Null SSE chunk", ErrorCodes.ModelInference.StreamParseError);
+            throw new ModelRunnerException(
+                "Null SSE chunk", ErrorCodes.ModelInference.StreamParseError,
+                CreateStreamErrorContext(context, operation));
 
           yield return chunk;
         }
@@ -151,12 +172,14 @@ namespace FluentDocker.Drivers.Models
     // blank-line delimiter. `:` comment lines and other SSE fields are ignored. A trailing event
     // with no closing blank line is flushed at EOF (lenient, like real SSE clients).
     private static async IAsyncEnumerable<string> ReadSseEventsAsync(
-        Stream stream, TimeSpan? idleTimeout,
+        Stream stream, TimeSpan? firstByteTimeout, TimeSpan? idleTimeout,
+        DriverContext context, string operation,
         [EnumeratorCancellation] CancellationToken cancellationToken)
     {
       var data = new List<string>();
 
-      await foreach (var line in ReadLinesAsync(stream, idleTimeout, cancellationToken).ConfigureAwait(false))
+      await foreach (var line in ReadLinesAsync(
+          stream, firstByteTimeout, idleTimeout, context, operation, cancellationToken).ConfigureAwait(false))
       {
         if (line.Length == 0)
         {
@@ -191,7 +214,8 @@ namespace FluentDocker.Drivers.Models
     // read, not per character). Handles LF, CRLF and lone-CR terminators across chunk boundaries,
     // enforces MaxSseLineChars per line, and flushes a final unterminated line at EOF.
     private static async IAsyncEnumerable<string> ReadLinesAsync(
-        Stream stream, TimeSpan? idleTimeout,
+        Stream stream, TimeSpan? firstByteTimeout, TimeSpan? idleTimeout,
+        DriverContext context, string operation,
         [EnumeratorCancellation] CancellationToken cancellationToken)
     {
       var byteBuffer = new byte[StreamBufferBytes];
@@ -199,17 +223,23 @@ namespace FluentDocker.Drivers.Models
       var decoder = Encoding.UTF8.GetDecoder();
       var line = new StringBuilder();
       var sawCr = false;
+      var sawBodyBytes = false;
 
       while (true)
       {
-        var count = await ReadCharsAsync(stream, byteBuffer, charBuffer, decoder, idleTimeout, cancellationToken)
-            .ConfigureAwait(false);
+        var count = await ReadCharsAsync(
+            stream, byteBuffer, charBuffer, decoder,
+            sawBodyBytes ? idleTimeout : firstByteTimeout,
+            sawBodyBytes ? "Streaming read timed out: no data received within the configured idle timeout."
+                : "Streaming read timed out: no first byte received within the configured first-byte timeout.",
+            context, operation, cancellationToken).ConfigureAwait(false);
         if (count == 0)
         {
           if (line.Length > 0)
             yield return line.ToString(); // final line without a trailing newline.
           yield break;
         }
+        sawBodyBytes = true;
 
         for (var i = 0; i < count; i++)
         {
@@ -236,7 +266,8 @@ namespace FluentDocker.Drivers.Models
           sawCr = false;
           if (line.Length >= MaxSseLineChars)
             throw new ModelRunnerException(
-                $"SSE line exceeded the {MaxSseLineChars}-character limit", ErrorCodes.ModelInference.StreamParseError);
+                $"SSE line exceeded the {MaxSseLineChars}-character limit",
+                ErrorCodes.ModelInference.StreamParseError, CreateStreamErrorContext(context, operation));
           line.Append(c);
         }
       }
@@ -251,21 +282,22 @@ namespace FluentDocker.Drivers.Models
     // so a partial UTF-8 char is never mistaken for EOF.
     private static async Task<int> ReadCharsAsync(
         Stream stream, byte[] byteBuffer, char[] charBuffer, Decoder decoder,
-        TimeSpan? idleTimeout, CancellationToken cancellationToken)
+        TimeSpan? timeout, string timeoutMessage, DriverContext context, string operation,
+        CancellationToken cancellationToken)
     {
       while (true)
       {
         cancellationToken.ThrowIfCancellationRequested();
 
         int bytesRead;
-        if (idleTimeout is null)
+        if (timeout is null)
         {
           bytesRead = await stream.ReadAsync(byteBuffer, cancellationToken).ConfigureAwait(false);
         }
         else
         {
           using var idleCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-          idleCts.CancelAfter(idleTimeout.Value);
+          idleCts.CancelAfter(timeout.Value);
           try
           {
             bytesRead = await stream.ReadAsync(byteBuffer, idleCts.Token).ConfigureAwait(false);
@@ -273,8 +305,8 @@ namespace FluentDocker.Drivers.Models
           catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
           {
             throw new ModelRunnerException(
-                "Streaming read timed out: no data received within the configured idle timeout.",
-                ErrorCodes.ModelInference.Timeout);
+                timeoutMessage, ErrorCodes.ModelInference.Timeout,
+                CreateStreamErrorContext(context, operation));
           }
         }
 
@@ -327,5 +359,15 @@ namespace FluentDocker.Drivers.Models
         return false;
       }
     }
+
+    private static ErrorContext CreateStreamErrorContext(
+        DriverContext context, string operation, System.Net.HttpStatusCode? statusCode = null) =>
+        new(operation)
+        {
+          DriverId = context?.DriverId,
+          Host = context?.Host,
+          OperationId = context?.OperationId,
+          ExitCode = statusCode.HasValue ? (int)statusCode.Value : null
+        };
   }
 }

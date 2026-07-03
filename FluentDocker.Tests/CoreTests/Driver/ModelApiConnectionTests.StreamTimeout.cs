@@ -14,12 +14,16 @@ namespace FluentDocker.Tests.CoreTests.Driver
   public partial class ModelApiConnectionTests
   {
     [Fact]
-    public async Task PostStreamAsync_HeaderWait_UsesStreamIdleTimeout_AsTypedTimeout()
+    public async Task PostStreamAsync_HeaderWait_UsesStreamFirstByteTimeout_AsTypedTimeout()
     {
       using var handler = new NeverHeadersHandler();
       await using var conn = new ModelApiConnection(
           new Uri("http://localhost:12434"), handler, loggerFactory: null,
-          new ModelApiConnectionConfig { StreamReadIdleTimeout = TimeSpan.FromMilliseconds(50) });
+          new ModelApiConnectionConfig
+          {
+            StreamFirstByteTimeout = TimeSpan.FromMilliseconds(50),
+            StreamReadIdleTimeout = TimeSpan.FromSeconds(30)
+          });
 
       using var body = new StringContent("{}", Encoding.UTF8, "application/json");
       var ex = await Assert.ThrowsAsync<ModelRunnerException>(
@@ -34,7 +38,7 @@ namespace FluentDocker.Tests.CoreTests.Driver
       using var handler = new NeverHeadersHandler();
       await using var conn = new ModelApiConnection(
           new Uri("http://localhost:12434"), handler, loggerFactory: null,
-          new ModelApiConnectionConfig { StreamReadIdleTimeout = TimeSpan.FromSeconds(30) });
+          new ModelApiConnectionConfig { StreamFirstByteTimeout = TimeSpan.FromSeconds(30) });
       using var cts = new CancellationTokenSource();
       await cts.CancelAsync();
 
@@ -79,6 +83,47 @@ namespace FluentDocker.Tests.CoreTests.Driver
               .WaitAsync(TimeSpan.FromMilliseconds(500), TestContext.Current.CancellationToken));
 
       Assert.Equal(ErrorCodes.ModelInference.Timeout, ex.ErrorCode);
+    }
+
+    [Theory]
+    [InlineData("GET")]
+    [InlineData("POST")]
+    public async Task NonStreamingRequests_DoNotBufferErrorBodyBeforeReturning(string method)
+    {
+      using var handler = new FuncHandler(_ => new HttpResponseMessage(HttpStatusCode.BadRequest)
+      {
+        Content = new StreamContent(new NeverReadStream())
+      });
+      await using var conn = new ModelApiConnection(new Uri("http://localhost:12434"), handler, null);
+      using var body = new StringContent("{}", Encoding.UTF8, "application/json");
+
+      using var response = await (method == "GET"
+          ? conn.GetAsync("/x", TestContext.Current.CancellationToken)
+          : conn.PostAsync("/x", body, TestContext.Current.CancellationToken))
+          .WaitAsync(TimeSpan.FromMilliseconds(500), TestContext.Current.CancellationToken);
+
+      Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task GetAsync_ResponseBodyRead_UsesRequestTimeout()
+    {
+      using var handler = new FuncHandler(_ => new HttpResponseMessage(HttpStatusCode.OK)
+      {
+        Content = new StreamContent(new NeverReadStream())
+      });
+      await using var conn = new ModelApiConnection(
+          new Uri("http://localhost:12434"), handler, loggerFactory: null,
+          new ModelApiConnectionConfig { RequestTimeout = TimeSpan.FromMilliseconds(50) });
+
+      using var response = await conn.GetAsync("/x", TestContext.Current.CancellationToken);
+
+      // The wrapper's own TimeoutException (not the WaitAsync hang-guard) must surface,
+      // proving ReadAsStringAsync routes through the timed serialize path.
+      var ex = await Assert.ThrowsAsync<TimeoutException>(() =>
+          response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken)
+              .WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken));
+      Assert.Contains("request timeout", ex.Message, StringComparison.OrdinalIgnoreCase);
     }
 
     private sealed class NeverHeadersHandler : HttpMessageHandler

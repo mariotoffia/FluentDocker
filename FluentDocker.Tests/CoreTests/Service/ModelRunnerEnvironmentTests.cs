@@ -252,7 +252,7 @@ namespace FluentDocker.Tests.CoreTests.Service
     [Fact]
     public void CreateInferenceRunner_DefaultConfig_RefusesApiKeyOverPlaintextToRemoteHost()
     {
-      // Baseline for the seam below: with the default config (VerifyTls=true) the connection ctor
+      // Baseline for the seam below: with the default config the connection ctor
       // refuses to send a bearer token over plaintext HTTP to a NON-loopback host.
       var endpoint = ModelRunnerEndpoint.Custom(new Uri("http://10.0.0.5:12434"));
       Assert.Throws<ModelRunnerException>(() =>
@@ -263,11 +263,15 @@ namespace FluentDocker.Tests.CoreTests.Service
     public async Task CreateInferenceRunner_WithConfig_PropagatesTlsSettingsIntoConnection()
     {
       // MR6: the config overload must actually thread the config into the ModelApiConnection.
-      // Behavioral seam: VerifyTls=false is exactly what the connection ctor consults to permit an
-      // API key over plaintext HTTP to a remote host — so if (and only if) the config reaches the
-      // connection, construction succeeds instead of throwing as the default-config case does above.
+      // Behavioral seam: AllowApiKeyOverInsecureTransport is exactly what the connection ctor
+      // consults to permit an API key over plaintext HTTP to a remote host — so if (and only if)
+      // the config reaches the connection, construction succeeds instead of throwing above.
       var endpoint = ModelRunnerEndpoint.Custom(new Uri("http://10.0.0.5:12434"));
-      var config = new ModelApiConnectionConfig { VerifyTls = false, RequestTimeout = TimeSpan.FromSeconds(5) };
+      var config = new ModelApiConnectionConfig
+      {
+        AllowApiKeyOverInsecureTransport = true,
+        RequestTimeout = TimeSpan.FromSeconds(5)
+      };
 
       var runner = ModelRunnerEnvironment.CreateInferenceRunner(endpoint, "ai/x", config, apiKey: "secret");
 

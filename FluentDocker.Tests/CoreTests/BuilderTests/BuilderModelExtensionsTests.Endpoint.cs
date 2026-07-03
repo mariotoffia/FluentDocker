@@ -1,7 +1,10 @@
+using System;
 using System.Threading.Tasks;
 using FluentDocker.Builders;
+using FluentDocker.Drivers;
 using FluentDocker.Model.Models;
 using FluentDocker.Tests.Mocks;
+using Moq;
 using Xunit;
 using DriverContext = FluentDocker.Model.Drivers.DriverContext;
 
@@ -53,6 +56,40 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
             .BuildAsync(TestContext.Current.CancellationToken);
 
         Assert.Equal(explicitEndpoint.BaseAddress, runner.Endpoint);
+      }
+    }
+
+    [Fact]
+    public async Task RunnerBuilder_WithEndpointThenInferenceDriver_ThrowsConflict()
+    {
+      var pack = new MockDriverPack().EnableModelDrivers();
+      var kernel = await MockKernelBuilderExtensions.CreateWithMockDriverAsync("docker", pack);
+
+      await using (kernel)
+      {
+        var builder = new Builder().WithinDriver("docker", kernel)
+            .UseModelRunner()
+            .WithEndpoint(ModelRunnerEndpoint.HostTcp(9922));
+
+        Assert.Throws<InvalidOperationException>(() =>
+            builder.WithInferenceDriver(new Mock<IModelInferenceDriver>().Object));
+      }
+    }
+
+    [Fact]
+    public async Task RunnerBuilder_WithInferenceDriverThenEndpoint_ThrowsConflict()
+    {
+      var pack = new MockDriverPack().EnableModelDrivers();
+      var kernel = await MockKernelBuilderExtensions.CreateWithMockDriverAsync("docker", pack);
+
+      await using (kernel)
+      {
+        var builder = new Builder().WithinDriver("docker", kernel)
+            .UseModelRunner()
+            .WithInferenceDriver(new Mock<IModelInferenceDriver>().Object);
+
+        Assert.Throws<InvalidOperationException>(() =>
+            builder.WithEndpoint(ModelRunnerEndpoint.HostTcp(9922)));
       }
     }
   }

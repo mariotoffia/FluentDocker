@@ -235,7 +235,7 @@ targets any OpenAI-compatible endpoint directly (with an optional API key).
 ```csharp
 ModelRunnerEndpoint.HostTcp();            // http://localhost:12434 (host process)
 ModelRunnerEndpoint.ContainerInternal();  // http://model-runner.docker.internal:12434
-ModelRunnerEndpoint.UnixSocket();         // $HOME/.docker/run/docker.sock
+ModelRunnerEndpoint.UnixSocket("/path/to/docker-model-runner.sock");
 ModelRunnerEndpoint.Custom(new Uri("https://api.example.com"));        // authority only
 ModelRunnerEndpoint.Custom(new Uri("https://api.example.com/v1"));     // path preserved (see below)
 ModelRunnerEndpoint.Raw(new Uri("http://host:12434/engines/v1"));      // exact base, OpenAI suffix appended
@@ -248,7 +248,7 @@ When no explicit endpoint is set, `ModelRunnerEndpoint.Default()` resolves in th
 1. **`DOCKER_MODEL_RUNNER_URL` env var** (if set) — set this for remote runners or non-standard ports.
 2. **Host TCP `http://localhost:12434`** — the default when Docker Model Runner is enabled locally.
 
-The container-internal DNS (`ContainerInternal()`) and unix-socket (`UnixSocket()`) forms are
+The container-internal DNS (`ContainerInternal()`) and unix-socket (`UnixSocket(path)`) forms are
 *not* probed automatically — select them explicitly (or via `WithEndpoint(...)`).
 If the runner is unreachable the exception message names the default, the env var, and these
 alternatives; see also `ErrorCodes.ModelInference.EndpointUnreachable` in the *Error handling* section.
@@ -260,10 +260,10 @@ A few endpoint subtleties worth knowing:
   `/engines/{engine}/v1/…`. But `Custom(new Uri("https://host/v1"))` **preserves the
   `/v1`** and only appends the OpenAI route (i.e. it behaves like `Raw`) — so a
   hand-written OpenAI base URL is honored rather than silently rewritten.
-- **`UnixSocket()` is a preview form.** It assumes the runner serves `/engines/…`
+- **`UnixSocket(path)` is explicit and preview.** It assumes the runner serves `/engines/…`
   directly on that socket; the Docker Desktop host socket may require a routing prefix
-  that is not yet applied/verified. Prefer the TCP endpoint until you've confirmed the
-  socket route for your platform.
+  that is not guessed here. Prefer the TCP endpoint until you've confirmed the socket
+  route for your platform.
 - **Inference is always reached at `ModelRunnerEndpoint.Default()` — it is NOT derived
   from the active `docker` context.** Management/runtime honor the context host
   (`docker -H …`), but the inference data plane uses `DOCKER_MODEL_RUNNER_URL` (else
@@ -294,7 +294,8 @@ plane on the scoped driver while routing inference elsewhere. Use `WithEndpoint`
 repoint inference at a different address, or `WithInferenceDriver` to hand it an
 explicit `IModelInferenceDriver` or the inference port of another registered driver
 (resolved at build time). The supplied/resolved inference plane is owned by the
-caller, and `WithInferenceDriver` takes precedence over `WithEndpoint`:
+caller. `WithEndpoint` and `WithInferenceDriver` are mutually exclusive; configure
+exactly one inference route:
 
 ```csharp
 await using var runner = await new Builder().WithinDriver("docker", kernel) // manage here
@@ -399,7 +400,7 @@ guessed):
 | Mid-stream OpenAI `data: {"error":…}` frame | `ErrorCodes.ModelInference.RequestFailed` (the server's error message is preserved; thrown mid-stream) |
 | Request timeout, streaming header wait timeout, or streaming idle timeout | `ErrorCodes.ModelInference.Timeout` (`ModelRunnerException`, not `TimeoutException`) |
 
-> Transport failure (no HTTP response) → `EndpointUnreachable`; HTTP errors map by status (401 → `Unauthorized`, 404 → `ModelNotLoaded`, otherwise `RequestFailed`). Cancellation → `OperationCanceledException`; configured timeouts → `ModelRunnerException` with `ErrorCodes.ModelInference.Timeout`.
+> Transport failure (no HTTP response) → `EndpointUnreachable`; HTTP errors map by status/body (401 → `Unauthorized`, 404 with model-missing body → `ModelNotLoaded`, route/base-path 404 → `RequestFailed`, otherwise `RequestFailed`). Cancellation → `OperationCanceledException`; configured timeouts → `ModelRunnerException` with `ErrorCodes.ModelInference.Timeout`.
 
 Known limitations (acceptable for v3.2.0; revisit as needed):
 
@@ -437,32 +438,42 @@ or shared OpenAI-compatible endpoint usually does. The inference connection
 `ModelApiConnectionConfig` carries the transport settings:
 
 - **`CertificatePath`** — a directory containing `ca.pem` / `cert.pem` / `key.pem`.
-  The `ca.pem` adds a custom CA to trust (a privately signed server), and
-  `cert.pem` + `key.pem` supply a client certificate for mutual TLS.
+  `cert.pem` + `key.pem` supply a client certificate for mutual TLS. `ca.pem` is
+  optional: when present it becomes the **exclusive trust root** (the server chain must
+  validate against it — a publicly trusted certificate is rejected); when absent the
+  system trust store validates the server. A configured directory containing none of
+  the three files throws (a typo'd path never silently downgrades security).
 - **`VerifyTls`** — defaults to `true`. Setting it to `false` disables server
   certificate verification entirely; use it only against a trusted endpoint during
   development, never in production.
 - **`ConnectionTimeout`** / **`RequestTimeout`** — connect and per-request timeouts
   (the request timeout applies to non-streaming calls only; streaming uses
-  `StreamReadIdleTimeout` plus the caller's `CancellationToken`).
+  `StreamFirstByteTimeout`, `StreamReadIdleTimeout`, and the caller's
+  `CancellationToken`).
 - **`AllowTlsHostnameMismatch`** — defaults to `false` (strict). When `true`, a
   certificate whose hostname/SAN does not match the connection host is still accepted
   provided the chain validates against the configured CA. Set it only for IP-based
   connections to a known host.
-- **`StreamReadIdleTimeout`** — the max time to wait for streaming response headers or
-  the next streamed chunk before aborting. Defaults to **120 seconds**; set it to
-  `null` to opt out (wait indefinitely, honoring only the caller's `CancellationToken`).
+- **`StreamFirstByteTimeout`** — the max time to wait for streaming response headers
+  or first body bytes. Defaults to **10 minutes** for cold model load. The budget
+  applies separately to the header wait and the first body byte, so worst case is
+  twice the value before any progress is required.
+- **`StreamReadIdleTimeout`** — the max time between streamed body chunks. Defaults to
+  **120 seconds**; set either timeout to `null` to wait indefinitely, honoring only
+  the caller's `CancellationToken`.
 
 ### API keys
 
 A bearer token is supplied via the connection's `apiKey` parameter. When set, it is
 sent as an `Authorization: Bearer …` header on every request and is **never logged**.
 
-To avoid leaking credentials over the wire, an API key is **not** sent over plaintext
-HTTP to a non-loopback host. `https` endpoints, loopback (`localhost`/`127.0.0.1`) and
-unix sockets always send it. To force the key over plaintext to a remote host, you must
-set `ModelApiConnectionConfig.VerifyTls=false` to explicitly acknowledge the insecure
-transport.
+To avoid leaking credentials over the wire, an API key is **not** sent over an insecure
+transport to a non-loopback host — plaintext HTTP, or `https` with `VerifyTls=false`
+(unverified TLS offers no protection against an active MITM). Verified `https`
+endpoints, loopback (`localhost`/`127.0.0.1`) and unix sockets always send it. To force
+the key over an insecure transport to a remote host, you must set
+`ModelApiConnectionConfig.AllowApiKeyOverInsecureTransport=true` to explicitly
+acknowledge the risk.
 
 The `ModelApiConnection` constructor is:
 

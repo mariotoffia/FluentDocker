@@ -16,23 +16,23 @@ namespace FluentDocker.Drivers.Models.Connection
     public async Task<Stream> PostStreamAsync(string path, HttpContent content, CancellationToken ct = default)
     {
       // Streaming is exempt from the whole-request timeout (SSE can run for a long time), but the
-      // first-byte/header wait still uses the stream idle timeout so a wedged runner cannot hang.
+      // first-byte/header wait still has its own budget so a wedged runner cannot hang.
       var request = new HttpRequestMessage(HttpMethod.Post, path) { Content = content };
       HttpResponseMessage response;
-      using var headerCts = _streamReadIdleTimeout is null
+      using var headerCts = _streamFirstByteTimeout is null
           ? null
           : CancellationTokenSource.CreateLinkedTokenSource(ct);
-      headerCts?.CancelAfter(_streamReadIdleTimeout.GetValueOrDefault());
+      headerCts?.CancelAfter(_streamFirstByteTimeout.GetValueOrDefault());
       var headerToken = headerCts?.Token ?? ct;
 
       try
       {
         response = await _httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, headerToken).ConfigureAwait(false);
       }
-      catch (OperationCanceledException ex) when (!ct.IsCancellationRequested && _streamReadIdleTimeout is not null)
+      catch (OperationCanceledException ex) when (!ct.IsCancellationRequested && _streamFirstByteTimeout is not null)
       {
         throw new ModelRunnerException(
-            "Streaming response headers timed out: no data received within the configured idle timeout.",
+            "Streaming response headers timed out: no first byte received within the configured first-byte timeout.",
             ErrorCodes.ModelInference.Timeout, ex);
       }
       catch (Exception ex) when (IsTransportFailure(ex))

@@ -72,11 +72,14 @@ namespace FluentDocker.Drivers.Models
       {
         using var response = await _connection.GetAsync(Path("/models"), cancellationToken).ConfigureAwait(false);
         if (!response.IsSuccessStatusCode)
+        {
+          var error = await SafeReadError(response, cancellationToken).ConfigureAwait(false);
           return CommandResponse<IList<OpenAiModel>>.Fail(
-              await SafeReadError(response, cancellationToken).ConfigureAwait(false),
-              ErrorCodeFor(response.StatusCode),
+              FormatHttpError("ListEngineModels", "/models", null, response.StatusCode, error, modelMissingEligible: false),
+              ErrorCodeFor(response.StatusCode, error, modelMissingEligible: false),
               CreateApiErrorContext(context, "ListEngineModels", response),
               (int)response.StatusCode);
+        }
 
         await using var stream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
         var list = await JsonSerializer.DeserializeAsync<OpenAiModelList>(stream, JsonHelper.CaseInsensitiveOptions, cancellationToken).ConfigureAwait(false);
@@ -119,11 +122,14 @@ namespace FluentDocker.Drivers.Models
         using var response = await _connection.PostAsync(Path(suffix), content, cancellationToken).ConfigureAwait(false);
 
         if (!response.IsSuccessStatusCode)
+        {
+          var error = await SafeReadError(response, cancellationToken).ConfigureAwait(false);
           return CommandResponse<TResponse>.Fail(
-              await SafeReadError(response, cancellationToken).ConfigureAwait(false),
-              ErrorCodeFor(response.StatusCode),
+              FormatHttpError(operation, suffix, request, response.StatusCode, error),
+              ErrorCodeFor(response.StatusCode, error),
               CreateApiErrorContext(context, operation, response),
               (int)response.StatusCode);
+        }
 
         await using var stream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
 
@@ -177,11 +183,43 @@ namespace FluentDocker.Drivers.Models
     // Accepts a nullable status so the streaming path can pass HttpRequestException.StatusCode
     // directly — a connect failure (no response, null status) maps to RequestFailed, matching
     // the non-streaming catch.
-    private static string ErrorCodeFor(HttpStatusCode? code) => code switch
+    private static string ErrorCodeFor(HttpStatusCode? code, string error = null, bool modelMissingEligible = true) => code switch
     {
       HttpStatusCode.Unauthorized => ErrorCodes.ModelInference.Unauthorized,
-      HttpStatusCode.NotFound => ErrorCodes.ModelInference.ModelNotLoaded,
+      HttpStatusCode.NotFound when modelMissingEligible && LooksLikeModelMissing(error) => ErrorCodes.ModelInference.ModelNotLoaded,
       _ => ErrorCodes.ModelInference.RequestFailed
+    };
+
+    private static string FormatHttpError(
+        string operation, string suffix, object request, HttpStatusCode status, string error,
+        bool modelMissingEligible = true)
+    {
+      if (status != HttpStatusCode.NotFound)
+        return error;
+
+      var route = suffix;
+      if (modelMissingEligible && LooksLikeModelMissing(error))
+      {
+        var model = ModelIdFor(request);
+        var modelText = string.IsNullOrEmpty(model) ? "the requested model" : $"model '{model}'";
+        return $"{operation}: {modelText} is not loaded or not found. Pull/load it; if it exists, verify the endpoint/base path. HTTP 404: {error}";
+      }
+
+      return $"{operation}: endpoint/base path route '{route}' was not found. Verify the endpoint URL, raw base path, and DMR engine path. HTTP 404: {error}";
+    }
+
+    private static bool LooksLikeModelMissing(string error) =>
+        !string.IsNullOrEmpty(error) &&
+        error.Contains("model", StringComparison.OrdinalIgnoreCase) &&
+        (error.Contains("not found", StringComparison.OrdinalIgnoreCase) ||
+         error.Contains("not loaded", StringComparison.OrdinalIgnoreCase));
+
+    private static string ModelIdFor(object request) => request switch
+    {
+      ChatCompletionRequest r => r.Model,
+      CompletionRequest r => r.Model,
+      EmbeddingsRequest r => r.Model,
+      _ => null
     };
 
     private static async Task<string> SafeReadError(HttpResponseMessage response, CancellationToken cancellationToken)

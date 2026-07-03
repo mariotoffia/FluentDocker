@@ -38,7 +38,8 @@ namespace FluentDocker.Builders
     /// (TLS via <see cref="ModelApiConnectionConfig.CertificatePath"/>/
     /// <see cref="ModelApiConnectionConfig.VerifyTls"/>, timeouts) and a bearer
     /// <paramref name="apiKey"/> for a remote/secured OpenAI-compatible endpoint. The
-    /// auto-built connection is owned (disposed) by the runner.
+    /// auto-built connection is owned (disposed) by the runner. Do not combine with
+    /// <see cref="WithInferenceDriver(IModelInferenceDriver)"/>.
     /// </summary>
     IModelRunnerBuilder WithEndpoint(ModelRunnerEndpoint endpoint,
         ModelApiConnectionConfig config = null, string apiKey = null);
@@ -48,7 +49,7 @@ namespace FluentDocker.Builders
     /// the scoped driver's inference port — e.g. to run inference on a different
     /// engine/endpoint while management/runtime stay on the scoped driver. The
     /// supplied driver's lifetime is owned by the caller (not disposed by the runner).
-    /// Takes precedence over <see cref="WithEndpoint"/>. The returned runner's
+    /// Conflicts with <see cref="WithEndpoint"/>. The returned runner's
     /// <see cref="IModelRunner.Endpoint"/> remains the scoped/context default for diagnostics,
     /// not the injected driver's target.
     /// </summary>
@@ -57,7 +58,8 @@ namespace FluentDocker.Builders
     /// <summary>
     /// Routes inference to the <see cref="IModelInferenceDriver"/> registered under a
     /// different <paramref name="driverId"/> in the same kernel (resolved at build
-    /// time), while management/runtime stay on the scoped driver. The returned runner's
+    /// time), while management/runtime stay on the scoped driver. Conflicts with
+    /// <see cref="WithEndpoint"/>. The returned runner's
     /// <see cref="IModelRunner.Endpoint"/> remains the scoped/context default for diagnostics,
     /// not the resolved driver's target.
     /// </summary>

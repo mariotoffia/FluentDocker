@@ -17,9 +17,9 @@ namespace FluentDocker.Tests.CoreTests.Driver
   public class ModelTlsValidationTests
   {
     [Fact]
-    public void NoErrors_Accepts()
+    public void NoErrors_WithNoCustomCaContext_Rejects()
     {
-      Assert.True(ModelTlsValidation.ValidateWithCustomRoot(null!, null!, null!, SslPolicyErrors.None));
+      Assert.False(ModelTlsValidation.ValidateWithCustomRoot(null!, null!, null!, SslPolicyErrors.None));
     }
 
     [Theory]

@@ -30,11 +30,25 @@ namespace FluentDocker.Tests.CoreTests.Driver
     public void StreamReadIdleTimeout_DefaultIsBounded()
     {
       var config = new ModelApiConnectionConfig();
-      // Item 1: the default must be a bounded, non-null value so a dead stream cannot hang
-      // forever (callers may still set null explicitly to opt out).
       Assert.NotNull(config.StreamReadIdleTimeout);
       Assert.True(config.StreamReadIdleTimeout > TimeSpan.Zero);
       Assert.Equal(TimeSpan.FromSeconds(120), config.StreamReadIdleTimeout);
+    }
+
+    [Fact]
+    public void StreamFirstByteTimeout_DefaultIsGenerous()
+    {
+      var config = new ModelApiConnectionConfig();
+      Assert.NotNull(config.StreamFirstByteTimeout);
+      Assert.True(config.StreamFirstByteTimeout > config.StreamReadIdleTimeout);
+      Assert.Equal(TimeSpan.FromMinutes(10), config.StreamFirstByteTimeout);
+    }
+
+    [Fact]
+    public void StreamFirstByteTimeout_CanBeSet()
+    {
+      var config = new ModelApiConnectionConfig { StreamFirstByteTimeout = TimeSpan.FromMinutes(3) };
+      Assert.Equal(TimeSpan.FromMinutes(3), config.StreamFirstByteTimeout);
     }
 
     [Fact]
@@ -58,22 +72,33 @@ namespace FluentDocker.Tests.CoreTests.Driver
       Assert.True(config.AllowTlsHostnameMismatch);
     }
 
+    [Fact]
+    public void AllowApiKeyOverInsecureTransport_DefaultIsFalse()
+    {
+      var config = new ModelApiConnectionConfig();
+      Assert.False(config.AllowApiKeyOverInsecureTransport);
+    }
+
+    [Fact]
+    public void AllowApiKeyOverInsecureTransport_CanBeSet()
+    {
+      var config = new ModelApiConnectionConfig { AllowApiKeyOverInsecureTransport = true };
+      Assert.True(config.AllowApiKeyOverInsecureTransport);
+    }
+
     /// <summary>
-    /// FINDING 1 (C12): idle timeout is wired into the production SSE read loop in
+    /// First-byte timeout is wired into the production SSE read loop in
     /// <see cref="OpenAiModelInferenceDriver"/>. Verify that a stream that stalls
     /// (stops sending) fires <see cref="ErrorCodes.ModelInference.Timeout"/>
     /// (not StreamParseError) within the configured window.
     /// </summary>
     [Fact]
-    public async Task ChatCompletionStream_StalledAfterHeader_IdleTimeoutFiresTimeout()
+    public async Task ChatCompletionStream_StalledBeforeFirstByte_FirstByteTimeoutFiresTimeout()
     {
-      // Arrange: stream begins with a valid SSE preamble ("data: " prefix) but then
-      // stalls forever, exercising the per-read idle timeout in ReadBoundedLineAsync.
-      // The stalling stream is returned by MockModelApiConnection when
-      // StreamReadIdleTimeout is set.
+      // Arrange: stream stalls before any body bytes, exercising the first-byte timeout.
       var conn = new MockModelApiConnection
       {
-        // Expose the idle timeout so the driver's ReadBoundedLineAsync picks it up.
+        StreamFirstByteTimeout = TimeSpan.FromMilliseconds(200),
         StreamReadIdleTimeout = TimeSpan.FromMilliseconds(200)
       };
       conn.SetupStreamStalling("/chat/completions");
@@ -91,11 +116,11 @@ namespace FluentDocker.Tests.CoreTests.Driver
       });
 
       Assert.Equal(ErrorCodes.ModelInference.Timeout, ex.ErrorCode);
-      Assert.Contains("idle timeout", ex.Message, StringComparison.OrdinalIgnoreCase);
+      Assert.Contains("first byte", ex.Message, StringComparison.OrdinalIgnoreCase);
     }
 
     /// <summary>
-    /// With <c>StreamReadIdleTimeout == null</c> (default), a slow-but-progressing stream
+    /// With <c>StreamReadIdleTimeout == null</c>, a slow-but-progressing stream
     /// must NOT be aborted. The driver relies solely on the caller's
     /// <see cref="CancellationToken"/>.
     /// </summary>
@@ -133,6 +158,7 @@ namespace FluentDocker.Tests.CoreTests.Driver
     {
       var conn = new MockModelApiConnection
       {
+        StreamFirstByteTimeout = TimeSpan.FromSeconds(30),
         StreamReadIdleTimeout = TimeSpan.FromSeconds(30) // long enough to never fire
       };
       conn.SetupStreamStalling("/chat/completions");

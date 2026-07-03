@@ -84,14 +84,26 @@ namespace FluentDocker.Tests.CoreTests.Driver
     }
 
     [Fact]
-    public async Task Constructor_PlaintextHttpNonLoopbackWithApiKey_VerifyTlsFalse_DoesNotThrow()
+    public void Constructor_PlaintextHttpNonLoopbackWithApiKey_VerifyTlsFalse_StillThrows()
     {
-      // M1: VerifyTls=false explicitly acknowledges the insecure transport, so the same
-      // plaintext-bearer combination is allowed.
+      var endpoint = ModelRunnerEndpoint.Custom(new Uri("http://remote.example:12434"));
+
+      var ex = Assert.Throws<ModelRunnerException>(() => new ModelApiConnection(
+          endpoint, new ModelApiConnectionConfig { VerifyTls = false }, apiKey: "secret"));
+
+      Assert.Equal(ErrorCodes.ModelInference.Unauthorized, ex.ErrorCode);
+      Assert.Contains(nameof(ModelApiConnectionConfig.AllowApiKeyOverInsecureTransport), ex.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Constructor_PlaintextHttpNonLoopbackWithApiKey_ExplicitInsecureOptIn_DoesNotThrow()
+    {
       var endpoint = ModelRunnerEndpoint.Custom(new Uri("http://remote.example:12434"));
 
       await using var conn = new ModelApiConnection(
-          endpoint, new ModelApiConnectionConfig { VerifyTls = false }, apiKey: "secret");
+          endpoint,
+          new ModelApiConnectionConfig { AllowApiKeyOverInsecureTransport = true },
+          apiKey: "secret");
     }
 
     [Fact]
@@ -103,6 +115,95 @@ namespace FluentDocker.Tests.CoreTests.Driver
 
       await using var conn = new ModelApiConnection(
           endpoint, new ModelApiConnectionConfig { VerifyTls = true }, apiKey: "secret");
+    }
+
+    [Fact]
+    public void Constructor_CertificatePathMissing_ThrowsClearException()
+    {
+      var missing = Path.Combine(OutCertRoot(), "missing-" + Guid.NewGuid().ToString("N"));
+      var config = new ModelApiConnectionConfig { CertificatePath = missing, VerifyTls = false };
+      var endpoint = ModelRunnerEndpoint.Custom(new Uri("https://localhost:12434"));
+
+      var ex = Assert.Throws<InvalidOperationException>(() => new ModelApiConnection(endpoint, config));
+
+      Assert.Contains("CertificatePath", ex.Message, StringComparison.Ordinal);
+      Assert.Contains(missing, ex.Message, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData(true, false, "key.pem")]
+    [InlineData(false, true, "cert.pem")]
+    public void Constructor_CertificatePathWithIncompleteClientPair_Throws(
+        bool includeCert, bool includeKey, string expectedMissing)
+    {
+      var dir = WritePemCertificates(includeCa: false, includeCert: includeCert, includeKey: includeKey);
+      try
+      {
+        var config = new ModelApiConnectionConfig { CertificatePath = dir, VerifyTls = false };
+        var endpoint = ModelRunnerEndpoint.Custom(new Uri("https://localhost:12434"));
+
+        var ex = Assert.Throws<InvalidOperationException>(() => new ModelApiConnection(endpoint, config));
+
+        Assert.Contains(expectedMissing, ex.Message, StringComparison.Ordinal);
+      }
+      finally
+      {
+        Directory.Delete(dir, recursive: true);
+      }
+    }
+
+    [Fact]
+    public async Task Constructor_ClientPairWithoutCa_UsesSystemTrust_DoesNotThrow()
+    {
+      // ca.pem is optional: a client-cert pair with system trust for the server is a
+      // supported deployment shape (no exclusive pin without a ca.pem).
+      var dir = WritePemCertificates(includeCa: false);
+      try
+      {
+        var config = new ModelApiConnectionConfig { CertificatePath = dir, VerifyTls = true };
+        var endpoint = ModelRunnerEndpoint.Custom(new Uri("https://localhost:12434"));
+
+        await using var conn = new ModelApiConnection(endpoint, config);
+      }
+      finally
+      {
+        Directory.Delete(dir, recursive: true);
+      }
+    }
+
+    [Fact]
+    public void Constructor_CertificateDirWithNoPemFiles_ThrowsClearException()
+    {
+      // A configured-but-empty directory is a typo'd path, not a request for system trust.
+      var dir = Path.Combine(OutCertRoot(), "empty-" + Guid.NewGuid().ToString("N"));
+      Directory.CreateDirectory(dir);
+      try
+      {
+        var config = new ModelApiConnectionConfig { CertificatePath = dir, VerifyTls = true };
+        var endpoint = ModelRunnerEndpoint.Custom(new Uri("https://localhost:12434"));
+
+        var ex = Assert.Throws<InvalidOperationException>(() => new ModelApiConnection(endpoint, config));
+
+        Assert.Contains("none of", ex.Message, StringComparison.Ordinal);
+        Assert.Contains("ca.pem", ex.Message, StringComparison.Ordinal);
+      }
+      finally
+      {
+        Directory.Delete(dir, recursive: true);
+      }
+    }
+
+    [Fact]
+    public void Constructor_UnverifiedTlsToNonLoopbackWithApiKey_Throws()
+    {
+      // https with VerifyTls=false is MITM-equivalent transport: sending a bearer key to a
+      // non-loopback host requires the same explicit opt-in as plaintext http.
+      var endpoint = ModelRunnerEndpoint.Custom(new Uri("https://models.example.com:12434"));
+
+      var ex = Assert.Throws<ModelRunnerException>(() => new ModelApiConnection(
+          endpoint, new ModelApiConnectionConfig { VerifyTls = false }, apiKey: "secret"));
+
+      Assert.Contains(nameof(ModelApiConnectionConfig.AllowApiKeyOverInsecureTransport), ex.Message, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -120,9 +221,9 @@ namespace FluentDocker.Tests.CoreTests.Driver
     /// Writes a self-signed certificate as <c>cert.pem</c>/<c>key.pem</c> (and optionally a
     /// <c>ca.pem</c>) into a fresh temp directory and returns that directory's path.
     /// </summary>
-    private static string WritePemCertificates(bool includeCa)
+    private static string WritePemCertificates(bool includeCa, bool includeCert = true, bool includeKey = true)
     {
-      var dir = Path.Combine(Path.GetTempPath(), $"fd-modelconn-certs-{Guid.NewGuid():N}");
+      var dir = Path.Combine(OutCertRoot(), $"fd-modelconn-certs-{Guid.NewGuid():N}");
       Directory.CreateDirectory(dir);
 
       using var rsa = RSA.Create(2048);
@@ -131,13 +232,22 @@ namespace FluentDocker.Tests.CoreTests.Driver
       using var cert = request.CreateSelfSigned(
           DateTimeOffset.UtcNow.AddDays(-1), DateTimeOffset.UtcNow.AddYears(1));
 
-      File.WriteAllText(Path.Combine(dir, "cert.pem"), cert.ExportCertificatePem());
-      File.WriteAllText(Path.Combine(dir, "key.pem"), rsa.ExportPkcs8PrivateKeyPem());
+      if (includeCert)
+        File.WriteAllText(Path.Combine(dir, "cert.pem"), cert.ExportCertificatePem());
+      if (includeKey)
+        File.WriteAllText(Path.Combine(dir, "key.pem"), rsa.ExportPkcs8PrivateKeyPem());
 
       if (includeCa)
         File.WriteAllText(Path.Combine(dir, "ca.pem"), cert.ExportCertificatePem());
 
       return dir;
+    }
+
+    private static string OutCertRoot()
+    {
+      var root = Path.Combine(Directory.GetCurrentDirectory(), ".out", "test-certs");
+      Directory.CreateDirectory(root);
+      return root;
     }
   }
 }

@@ -33,9 +33,10 @@ namespace FluentDocker.Drivers.Models.Connection
     // disposed only AFTER _httpClient.Dispose() in DisposeAsync. Empty when there is no TLS.
     private readonly IReadOnlyList<X509Certificate2> _ownedCertificates;
     // Applied to non-streaming requests via a linked CTS so they cannot hang forever.
-    // Streaming is exempt from this whole-request timeout; its header wait and body reads use
-    // _streamReadIdleTimeout instead, since inference/SSE can legitimately run for a long time.
+    // Streaming is exempt from this whole-request timeout; its open/first-body wait and
+    // subsequent reads use stream-specific budgets.
     private readonly TimeSpan _requestTimeout;
+    private readonly TimeSpan? _streamFirstByteTimeout; // null = no first-byte timeout on streaming opens/reads
     private readonly TimeSpan? _streamReadIdleTimeout; // null = no idle timeout on streaming reads
     // The path PingAsync probes for reachability — the OpenAI model-list route on the
     // endpoint's RESOLVED base path (e.g. /engines/llama.cpp/v1/models, or whatever a
@@ -69,6 +70,7 @@ namespace FluentDocker.Drivers.Models.Connection
         Timeout = Timeout.InfiniteTimeSpan
       };
       _requestTimeout = Normalize(config.RequestTimeout);
+      _streamFirstByteTimeout = config.StreamFirstByteTimeout;
       _streamReadIdleTimeout = config.StreamReadIdleTimeout;
       // Probe the OpenAI model-list route on the endpoint's resolved base path rather than
       // "/" so a runner that only serves /engines/.../v1/* is still reported reachable.
@@ -76,15 +78,19 @@ namespace FluentDocker.Drivers.Models.Connection
 
       if (!string.IsNullOrEmpty(apiKey))
       {
-        // Never leak the bearer token in cleartext to a remote host: plaintext http to a
-        // non-loopback TCP host (no unix socket) is refused unless VerifyTls=false opts into it.
-        if (string.Equals(_httpClient.BaseAddress.Scheme, "http", StringComparison.OrdinalIgnoreCase)
+        // Never leak the bearer token to a host that can be impersonated: plaintext http to
+        // a non-loopback TCP host, or https with server-cert validation disabled (MITM
+        // equivalent), is refused unless explicitly opted in.
+        var insecureTransport =
+            string.Equals(_httpClient.BaseAddress.Scheme, "http", StringComparison.OrdinalIgnoreCase)
+            || !config.VerifyTls;
+        if (insecureTransport
             && !_httpClient.BaseAddress.IsLoopback
             && string.IsNullOrEmpty(endpoint.UnixSocketPath)
-            && config.VerifyTls)
+            && !config.AllowApiKeyOverInsecureTransport)
           throw new ModelRunnerException(
-              $"Refusing to send the API key over plaintext HTTP to non-loopback host '{_httpClient.BaseAddress.Host}'. " +
-              $"Use an https endpoint or a unix socket, or set ModelApiConnectionConfig.VerifyTls=false to acknowledge the insecure transport.",
+              $"Refusing to send the API key over an insecure transport (plaintext HTTP or unverified TLS) to non-loopback host '{_httpClient.BaseAddress.Host}'. " +
+              $"Use a verified https endpoint or a unix socket, or set {nameof(ModelApiConnectionConfig.AllowApiKeyOverInsecureTransport)}=true to acknowledge the insecure transport.",
               ErrorCodes.ModelInference.Unauthorized);
         _httpClient.DefaultRequestHeaders.Authorization =
             new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", apiKey);
@@ -106,7 +112,7 @@ namespace FluentDocker.Drivers.Models.Connection
     /// </remarks>
     public ModelApiConnection(Uri baseAddress, HttpMessageHandler handler, ILoggerFactory? loggerFactory = null,
         TimeSpan requestTimeout = default)
-        : this(baseAddress, handler, loggerFactory, Normalize(requestTimeout), null)
+        : this(baseAddress, handler, loggerFactory, Normalize(requestTimeout), null, null)
     {
     }
 
@@ -121,12 +127,13 @@ namespace FluentDocker.Drivers.Models.Connection
     public ModelApiConnection(Uri baseAddress, HttpMessageHandler handler, ILoggerFactory? loggerFactory,
         ModelApiConnectionConfig config)
         : this(baseAddress, handler, loggerFactory, Normalize(RequireConfig(config).RequestTimeout),
+            RequireConfig(config).StreamFirstByteTimeout,
             RequireConfig(config).StreamReadIdleTimeout)
     {
     }
 
     private ModelApiConnection(Uri baseAddress, HttpMessageHandler handler, ILoggerFactory? loggerFactory,
-        TimeSpan requestTimeout, TimeSpan? streamReadIdleTimeout)
+        TimeSpan requestTimeout, TimeSpan? streamFirstByteTimeout, TimeSpan? streamReadIdleTimeout)
     {
       ArgumentNullException.ThrowIfNull(baseAddress);
       ArgumentNullException.ThrowIfNull(handler);
@@ -139,6 +146,7 @@ namespace FluentDocker.Drivers.Models.Connection
         Timeout = Timeout.InfiniteTimeSpan
       };
       _requestTimeout = requestTimeout;
+      _streamFirstByteTimeout = streamFirstByteTimeout;
       _streamReadIdleTimeout = streamReadIdleTimeout;
       // No endpoint is supplied via this overload, so derive the model-list probe path from
       // the base address's own path (e.g. http://host/engines/v1 -> /engines/v1/models).
@@ -156,19 +164,29 @@ namespace FluentDocker.Drivers.Models.Connection
     public Uri BaseAddress => _httpClient.BaseAddress;
 
     /// <inheritdoc />
+    public TimeSpan? StreamFirstByteTimeout => _streamFirstByteTimeout;
+
+    /// <inheritdoc />
     public TimeSpan? StreamReadIdleTimeout => _streamReadIdleTimeout;
 
     /// <inheritdoc />
     public Task<HttpResponseMessage> GetAsync(string path, CancellationToken ct = default) =>
-        SendWithTimeoutAsync(c => _httpClient.GetAsync(path, c), ct);
+        SendWithTimeoutAsync(c => SendAsync(HttpMethod.Get, path, null, c), ct);
 
     /// <inheritdoc />
     public Task<HttpResponseMessage> PostAsync(string path, HttpContent content, CancellationToken ct = default) =>
-        SendWithTimeoutAsync(c => _httpClient.PostAsync(path, content, c), ct);
+        SendWithTimeoutAsync(c => SendAsync(HttpMethod.Post, path, content, c), ct);
 
     /// <inheritdoc />
     public Task<HttpResponseMessage> DeleteAsync(string path, CancellationToken ct = default) =>
-        SendWithTimeoutAsync(c => _httpClient.DeleteAsync(path, c), ct);
+        SendWithTimeoutAsync(c => SendAsync(HttpMethod.Delete, path, null, c), ct);
+
+    private async Task<HttpResponseMessage> SendAsync(
+        HttpMethod method, string path, HttpContent content, CancellationToken ct)
+    {
+      using var request = new HttpRequestMessage(method, path) { Content = content };
+      return await _httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, ct).ConfigureAwait(false);
+    }
 
     /// <inheritdoc />
     public async Task<bool> PingAsync(CancellationToken ct = default)
@@ -217,7 +235,7 @@ namespace FluentDocker.Drivers.Models.Connection
       {
         try
         {
-          return await send(ct).ConfigureAwait(false);
+          return ApplyBodyTimeout(await send(ct).ConfigureAwait(false));
         }
         catch (Exception ex) when (IsTransportFailure(ex))
         {
@@ -229,7 +247,7 @@ namespace FluentDocker.Drivers.Models.Connection
       linked.CancelAfter(_requestTimeout);
       try
       {
-        return await send(linked.Token).ConfigureAwait(false);
+        return ApplyBodyTimeout(await send(linked.Token).ConfigureAwait(false));
       }
       catch (OperationCanceledException) when (!ct.IsCancellationRequested)
       {
@@ -358,9 +376,8 @@ namespace FluentDocker.Drivers.Models.Connection
 
       if (hasCerts)
       {
-        var certPath = Path.Combine(config.CertificatePath, "cert.pem");
-        var keyPath = Path.Combine(config.CertificatePath, "key.pem");
-        if (File.Exists(certPath) && File.Exists(keyPath))
+        var (certPath, keyPath, caPath, hasClientCertificate) = ValidateCertificatePath(config);
+        if (hasClientCertificate)
         {
           var clientCert = LoadClientCertificate(certPath, keyPath);
           ownedCertificates.Add(clientCert);
@@ -372,22 +389,19 @@ namespace FluentDocker.Drivers.Models.Connection
           sslOptions.RemoteCertificateValidationCallback = (_, _, _, _) => true;
 #pragma warning restore CA5359
         }
-        else
+        else if (caPath != null)
         {
-          var caPath = Path.Combine(config.CertificatePath, "ca.pem");
-          if (File.Exists(caPath))
-          {
 #if NET9_0_OR_GREATER
-            var caCert = X509CertificateLoader.LoadCertificateFromFile(caPath);
+          var caCert = X509CertificateLoader.LoadCertificateFromFile(caPath);
 #else
-            var caCert = X509Certificate2.CreateFromPem(File.ReadAllText(caPath));
+          var caCert = X509Certificate2.CreateFromPem(File.ReadAllText(caPath));
 #endif
-            ownedCertificates.Add(caCert);
-            // Trust the custom CA for chain validation only — hostname mismatch and a
-            // missing certificate are still rejected by default (see ModelTlsValidation).
-            sslOptions.RemoteCertificateValidationCallback = (_, cert, chain, errors) =>
-                ModelTlsValidation.ValidateWithCustomRoot(caCert, cert, chain, errors, config.AllowTlsHostnameMismatch);
-          }
+          ownedCertificates.Add(caCert);
+          // Pin: the custom CA is the exclusive trust root for chain validation; hostname
+          // mismatch and a missing certificate are still rejected by default (see
+          // ModelTlsValidation). Without ca.pem the system trust store applies (no callback).
+          sslOptions.RemoteCertificateValidationCallback = (_, cert, chain, errors) =>
+              ModelTlsValidation.ValidateWithCustomRoot(caCert, cert, chain, errors, config.AllowTlsHostnameMismatch);
         }
       }
       else if (!config.VerifyTls)

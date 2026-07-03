@@ -37,6 +37,9 @@ namespace FluentDocker.Tests.Mocks
     public Uri BaseAddress { get; set; } = new("http://localhost:12434");
 
     /// <inheritdoc />
+    public TimeSpan? StreamFirstByteTimeout { get; set; }
+
+    /// <inheritdoc />
     public TimeSpan? StreamReadIdleTimeout { get; set; }
 
     /// <summary>Registers a canned GET response.</summary>

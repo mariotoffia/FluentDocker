@@ -98,6 +98,27 @@ namespace FluentDocker.Tests.CoreTests.Model
     }
 
     [Theory]
+    [InlineData("out of disk space")]
+    [InlineData("verification of digest failed")]
+    public void ParsePullLine_InformativeLineContainingOf_Surfaces(string line)
+    {
+      // The " of " noise filter only targets torn size-progress redraws (which carry a size
+      // token); informative diagnostics containing " of " must not be swallowed.
+      var p = ModelJsonParser.ParsePullLine(line);
+
+      Assert.NotNull(p);
+      Assert.Equal(line, p.Status);
+    }
+
+    [Theory]
+    [InlineData("45%  of 800 MiB")]
+    [InlineData("MB of 270.60MB")]
+    public void ParsePullLine_TornSizeProgressRedraw_IsNoise(string line)
+    {
+      Assert.Null(ModelJsonParser.ParsePullLine(line));
+    }
+
+    [Theory]
     [InlineData("")]
     [InlineData("not json")]
     [InlineData("{ broken")]
@@ -315,17 +336,25 @@ namespace FluentDocker.Tests.CoreTests.Model
 
     // ====================== M20: malformed input is exception-safe ======================
 
-    [Theory]
-    [InlineData("Downloaded of")]                  // "X of Y" with no sizes -> status-only event
-    [InlineData("preparing layers...")]            // free-form status line, no sizes
-    [InlineData("Downloaded ??? of ???")]          // size-like position but non-numeric tokens
-    public void ParsePullLine_Malformed_ReturnsStatusEvent_NoThrow(string line)
+    [Fact]
+    public void ParsePullLine_InformativeStatus_ReturnsStatusEvent()
     {
+      const string line = "preparing layers...";
       var p = ModelJsonParser.ParsePullLine(line);
       Assert.NotNull(p);
       Assert.Equal(0L, p.Current);
       Assert.Equal(0L, p.Total);
       Assert.Equal(line.Trim(), p.Status); // the raw line is preserved as the status
+    }
+
+    [Theory]
+    [InlineData("Downloaded of")]
+    [InlineData("Downloaded ??? of ???")]
+    [InlineData("[=====>      ]")]
+    [InlineData("----")]
+    public void ParsePullLine_Noise_ReturnsNull_NoThrow(string line)
+    {
+      Assert.Null(ModelJsonParser.ParsePullLine(line));
     }
 
     [Theory]

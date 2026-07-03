@@ -57,22 +57,22 @@ namespace FluentDocker.Tests.CoreTests.Model
     [Fact]
     public void Parse_WithDigest_CapturesDigestAndNullTag()
     {
-      var model = ModelReference.Parse("ai/qwen3@sha256:abc123");
+      var model = ModelReference.Parse("ai/qwen3@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa");
 
       Assert.Equal("ai", model.Namespace);
       Assert.Equal("qwen3", model.Name);
-      Assert.Equal("sha256:abc123", model.Digest);
+      Assert.Equal("sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", model.Digest);
       Assert.Null(model.Tag);
     }
 
     [Fact]
     public void Parse_WithTagAndDigest_CapturesBoth()
     {
-      var model = ModelReference.Parse("ai/qwen3:8b-q4@sha256:abc123");
+      var model = ModelReference.Parse("ai/qwen3:8b-q4@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa");
 
       Assert.Equal("qwen3", model.Name);
       Assert.Equal("8b-q4", model.Tag);
-      Assert.Equal("sha256:abc123", model.Digest);
+      Assert.Equal("sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", model.Digest);
     }
 
     [Theory]
@@ -98,14 +98,16 @@ namespace FluentDocker.Tests.CoreTests.Model
     [Fact]
     public void ToString_WithDigest_OmitsDefaultTag()
     {
-      Assert.Equal("ai/qwen3@sha256:abc123", ModelReference.Parse("ai/qwen3@sha256:abc123").ToString());
+      Assert.Equal(
+          "ai/qwen3@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          ModelReference.Parse("ai/qwen3@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa").ToString());
     }
 
     [Theory]
     [InlineData("ai/qwen3")]
     [InlineData("hf.co/org/repo:Q4_K_M")]
     [InlineData("registry.io:5000/team/m:v1")]
-    [InlineData("ai/qwen3@sha256:abc123")]
+    [InlineData("ai/qwen3@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")]
     public void ToString_RoundTripsThroughParse(string input)
     {
       var first = ModelReference.Parse(input);
@@ -184,10 +186,28 @@ namespace FluentDocker.Tests.CoreTests.Model
     [InlineData("ai/qwen3@sha256:")]
     [InlineData("ai/qwen3@:abc123")]
     [InlineData("ai/qwen3@sha256:xyz")]
+    [InlineData("ai/qwen3@sha256:abc123")]
+    [InlineData("ai/qwen3@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")]
+    [InlineData("ai/qwen3@sha512:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")]
+    [InlineData("ai/qwen3@SHA256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")]
+    [InlineData("ai/-qwen3")]
+    [InlineData("ai/qwen3/-bad")]
+    [InlineData("ai/qwen3:bad tag")]
+    [InlineData("ai/qwen3:bad@tag")]
     public void TryParse_Malformed_ReturnsFalse(string input)
     {
       Assert.False(ModelReference.TryParse(input, out var model));
       Assert.Null(model);
+    }
+
+    [Fact]
+    public void Parse_WithSha512Digest_CapturesDigest()
+    {
+      var digest =
+          "sha512:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+      var model = ModelReference.Parse("ai/qwen3@" + digest);
+
+      Assert.Equal(digest, model.Digest);
     }
 
     [Theory]

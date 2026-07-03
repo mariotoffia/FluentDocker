@@ -78,7 +78,8 @@ namespace FluentDocker.Builders
     public IModelRunnerBuilder WithEndpoint(ModelRunnerEndpoint endpoint,
         ModelApiConnectionConfig config = null, string apiKey = null)
     {
-      _endpoint = endpoint;
+      ThrowIfInferenceRouteConflict(_inferenceDriver != null || _inferenceDriverId != null);
+      _endpoint = endpoint ?? throw new ArgumentNullException(nameof(endpoint));
       _config = config;
       _apiKey = apiKey;
       return this;
@@ -87,6 +88,7 @@ namespace FluentDocker.Builders
     /// <inheritdoc />
     public IModelRunnerBuilder WithInferenceDriver(IModelInferenceDriver inference)
     {
+      ThrowIfInferenceRouteConflict(_endpoint != null);
       _inferenceDriver = inference ?? throw new ArgumentNullException(nameof(inference));
       _inferenceDriverId = null;           // last call wins
       return this;
@@ -95,6 +97,7 @@ namespace FluentDocker.Builders
     /// <inheritdoc />
     public IModelRunnerBuilder WithInferenceDriver(string driverId)
     {
+      ThrowIfInferenceRouteConflict(_endpoint != null);
       _inferenceDriverId = driverId ?? throw new ArgumentNullException(nameof(driverId));
       _inferenceDriver = null;             // last call wins
       return this;
@@ -192,6 +195,13 @@ namespace FluentDocker.Builders
 
     private static bool IsExplicitBackend(string backend) =>
         !string.IsNullOrWhiteSpace(backend) && !string.Equals(backend, "auto", StringComparison.OrdinalIgnoreCase);
+
+    private static void ThrowIfInferenceRouteConflict(bool hasConflict)
+    {
+      if (hasConflict)
+        throw new InvalidOperationException(
+            "WithEndpoint cannot be combined with WithInferenceDriver; configure exactly one inference route.");
+    }
 
     // The endpoint the pack/context is bound to (null when nothing configured or the driver is not
     // registered). GetContext throws for an unregistered driver, so guard with IsRegistered — the

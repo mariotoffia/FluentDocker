@@ -39,6 +39,7 @@ namespace FluentDocker.Tests.CoreTests.Driver
     private sealed class ThrowingErrorConnection : IModelApiConnection
     {
       public Uri BaseAddress => new("http://localhost:12434");
+      public TimeSpan? StreamFirstByteTimeout => null;
       public TimeSpan? StreamReadIdleTimeout => null;
 
       public Task<HttpResponseMessage> GetAsync(string path, CancellationToken ct = default) =>

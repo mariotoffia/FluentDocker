@@ -145,7 +145,7 @@ namespace FluentDocker.Tests.CoreTests.Driver
     }
 
     [Theory]
-    [InlineData(404, ErrorCodes.ModelInference.ModelNotLoaded)]
+    [InlineData(404, ErrorCodes.ModelInference.RequestFailed)]
     [InlineData(401, ErrorCodes.ModelInference.Unauthorized)]
     [InlineData(500, ErrorCodes.ModelInference.RequestFailed)]
     public async Task ChatCompletionStreamAsync_HttpError_ThrowsTypedModelRunnerException(int status, string expectedCode)
@@ -198,7 +198,7 @@ namespace FluentDocker.Tests.CoreTests.Driver
         }
       });
 
-      Assert.Equal(ErrorCodes.ModelInference.ModelNotLoaded, ex.ErrorCode);
+      Assert.Equal(ErrorCodes.ModelInference.RequestFailed, ex.ErrorCode);
     }
 
     [Fact]
@@ -391,11 +391,12 @@ namespace FluentDocker.Tests.CoreTests.Driver
 
     [Fact]
     [Trait("Category", "Unit")]
-    public async Task ChatCompletionStreamAsync_StalledStream_FiresIdleTimeout_AsTimeout()
+    public async Task ChatCompletionStreamAsync_StalledBeforeFirstByte_FiresFirstByteTimeout()
     {
       // A server that stops sending must trip the configured idle timeout as MIN_006 Timeout —
       // not a hang, and not per-character timers. This exercises the ONE-idle-window-per-read path.
       var conn = new MockModelApiConnection().SetupStreamStalling("/chat/completions");
+      conn.StreamFirstByteTimeout = TimeSpan.FromMilliseconds(150);
       conn.StreamReadIdleTimeout = TimeSpan.FromMilliseconds(150);
       var driver = Create(conn);
 
@@ -407,7 +408,7 @@ namespace FluentDocker.Tests.CoreTests.Driver
       });
 
       Assert.Equal(ErrorCodes.ModelInference.Timeout, ex.ErrorCode);
-      Assert.Contains("idle timeout", ex.Message, StringComparison.OrdinalIgnoreCase);
+      Assert.Contains("first byte", ex.Message, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
@@ -418,6 +419,7 @@ namespace FluentDocker.Tests.CoreTests.Driver
       // and only the subsequent silence trips the timeout — proving the timer is per-read.
       var conn = new MockModelApiConnection().SetupStreamStalling(
           "/chat/completions", "data: {\"choices\":[{\"index\":0,\"delta\":{\"content\":\"Hi\"}}]}\n\n");
+      conn.StreamFirstByteTimeout = TimeSpan.FromSeconds(30);
       conn.StreamReadIdleTimeout = TimeSpan.FromMilliseconds(150);
       var driver = Create(conn);
 
@@ -440,6 +442,7 @@ namespace FluentDocker.Tests.CoreTests.Driver
       var conn = new MockModelApiConnection().SetupStream(
           "/chat/completions",
           "data: {\"choices\":[{\"index\":0,\"delta\":{\"content\":\"Hi\"}}]}\n\ndata: [DONE]\n\n");
+      conn.StreamFirstByteTimeout = TimeSpan.FromMilliseconds(500);
       conn.StreamReadIdleTimeout = TimeSpan.FromMilliseconds(500);
       var driver = Create(conn);
 

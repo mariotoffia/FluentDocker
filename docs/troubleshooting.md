@@ -94,8 +94,9 @@ catch (PodmanMachineNotRunningException ex) when (ex.IsTransient)
 
 - **Symptom:** streaming starts then fails with `ModelRunnerException` and
   `ErrorCodes.ModelInference.Timeout` (`MIN_006`).
-- **Cause:** no SSE chunk arrived within `StreamReadIdleTimeout`.
-- **Fix:** pass a longer `ModelApiConnectionConfig.StreamReadIdleTimeout`, or set it to
+- **Cause:** no response header/body arrived within `StreamFirstByteTimeout`, or no
+  later SSE chunk arrived within `StreamReadIdleTimeout`.
+- **Fix:** lengthen the relevant `ModelApiConnectionConfig` timeout, or set it to
   `null` when the caller's `CancellationToken` is the only budget.
 
 ## TLS / CA failures

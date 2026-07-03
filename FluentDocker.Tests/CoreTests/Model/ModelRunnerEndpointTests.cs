@@ -95,7 +95,7 @@ namespace FluentDocker.Tests.CoreTests.Model
       // Capture the current UnixSocket resolved path so the preview caveat (the Docker
       // Desktop host socket may need a routing prefix that is not yet applied) is backed by
       // a test. UnixSocket builds /engines/{engine}/v1/... over the socket today.
-      var ep = ModelRunnerEndpoint.UnixSocket("/tmp/docker.sock");
+      var ep = ModelRunnerEndpoint.UnixSocket("/var/run/docker.sock");
       Assert.Equal("/engines/llama.cpp", ep.EnginePath);
       Assert.Equal("/engines/llama.cpp/v1/models", ep.EngineV1Path("/models"));
     }
@@ -103,17 +103,15 @@ namespace FluentDocker.Tests.CoreTests.Model
     [Fact]
     public void UnixSocket_SetsSocketPath()
     {
-      var ep = ModelRunnerEndpoint.UnixSocket("/tmp/docker.sock");
-      Assert.Equal("/tmp/docker.sock", ep.UnixSocketPath);
+      var ep = ModelRunnerEndpoint.UnixSocket("/var/run/docker.sock");
+      Assert.Equal("/var/run/docker.sock", ep.UnixSocketPath);
       Assert.NotNull(ep.BaseAddress);
     }
 
     [Fact]
-    public void UnixSocket_DefaultPath_UsesDockerRunSocket()
+    public void UnixSocket_NullPath_Throws()
     {
-      var ep = ModelRunnerEndpoint.UnixSocket();
-      Assert.NotNull(ep.UnixSocketPath);
-      Assert.Contains("docker.sock", ep.UnixSocketPath);
+      Assert.Throws<ArgumentException>(() => ModelRunnerEndpoint.UnixSocket(null!));
     }
 
     [Fact]

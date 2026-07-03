@@ -17,7 +17,15 @@ namespace FluentDocker.Drivers.Models.Connection
     Uri BaseAddress { get; }
 
     /// <summary>
-    /// Maximum time to wait for streaming response headers or between successive chunks of a streaming (SSE) read
+    /// Maximum time to wait for streaming response headers or the first body bytes before aborting
+    /// with <see cref="FluentDocker.Common.ModelRunnerException"/>
+    /// (<see cref="FluentDocker.Model.Drivers.ErrorCodes.ModelInference.Timeout"/>).
+    /// <c>null</c> disables the first-byte timeout.
+    /// </summary>
+    TimeSpan? StreamFirstByteTimeout { get; }
+
+    /// <summary>
+    /// Maximum time to wait between successive chunks of a streaming (SSE) read
     /// before aborting with <see cref="FluentDocker.Common.ModelRunnerException"/>
     /// (<see cref="FluentDocker.Model.Drivers.ErrorCodes.ModelInference.Timeout"/>).
     /// <c>null</c> disables the idle timeout — reads wait indefinitely, honoring

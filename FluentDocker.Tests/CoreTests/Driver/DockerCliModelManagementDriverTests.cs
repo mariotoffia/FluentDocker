@@ -362,20 +362,15 @@ namespace FluentDocker.Tests.CoreTests.Driver
     }
 
     [Theory]
-    // NIT-5: a model name carrying a shell metacharacter (legal inside a Docker
-    // reference) must be emitted as ONE quoted argv token, never split/interpreted.
-    [InlineData("ai/evil;rm", "model rm \"ai/evil;rm:latest\"")]
-    [InlineData("ai/evil`id", "model rm \"ai/evil`id:latest\"")]
-    [InlineData("ai/evil\"x", "model rm \"ai/evil\\\"x:latest\"")]
-    public async Task RemoveAsync_ModelNameWithShellMetacharacter_EmittedAsSingleQuotedToken(string input, string expectedCommand)
+    // NIT-5: model names carrying shell metacharacters are rejected at the value-object
+    // boundary, so they never reach the CLI control plane.
+    [InlineData("ai/evil;rm")]
+    [InlineData("ai/evil`id")]
+    [InlineData("ai/evil\"x")]
+    public void ModelReference_ModelNameWithShellMetacharacter_IsRejected(string input)
     {
-      var driver = new FakeMgmtDriver { Responder = _ => Ok() };
-
-      await driver.RemoveAsync(Ctx, ModelReference.Parse(input), false, TestContext.Current.CancellationToken);
-
-      // Exact match proves the whole reference is one trailing quoted token: the
-      // metacharacter cannot break out of the quotes to spawn/append a command.
-      Assert.Equal(expectedCommand, driver.Commands.Single());
+      Assert.False(ModelReference.TryParse(input, out var model));
+      Assert.Null(model);
     }
 
     [Theory]

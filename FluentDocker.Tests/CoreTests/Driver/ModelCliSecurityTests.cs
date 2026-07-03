@@ -22,10 +22,8 @@ namespace FluentDocker.Tests.CoreTests.Driver
   /// Two distinct injection surfaces are exercised:
   /// <list type="bullet">
   /// <item><b>Model references</b> (pull/inspect/tag/push) — these flow through
-  /// <see cref="ModelReference.Parse"/>, which rejects whitespace and a second
-  /// <c>:</c> in a tag, so the metacharacter payloads here are limited to those
-  /// that survive parsing (e.g. <c>$(...)</c>, <c>`...`</c>, <c>;</c>, <c>|</c>,
-  /// <c>&amp;</c>, <c>"</c>).</item>
+  /// <see cref="ModelReference.Parse"/>, which rejects whitespace and shell
+  /// metacharacters before they can reach the CLI.</item>
   /// <item><b>Raw path/string options</b> (<c>--gguf</c>, <c>--license</c>) — these
   /// are NOT parsed, so the full payload set (spaces, quotes, newlines) applies.</item>
   /// </list>
@@ -70,8 +68,7 @@ namespace FluentDocker.Tests.CoreTests.Driver
       return "\"" + arg.Replace("\\", "\\\\").Replace("\"", "\\\"") + "\"";
     }
 
-    // Reference payloads that survive ModelReference.Parse (no whitespace, no
-    // second ':' in the tag) yet still carry shell metacharacters in the tag.
+    // Reference payloads carrying shell metacharacters in the tag.
     private const string RefInject1 = "ai/x:v$(whoami)";
     private const string RefInject2 = "ai/x:tag`id`";
     private const string RefInject3 = "ai/x:t;rm";
@@ -151,101 +148,10 @@ namespace FluentDocker.Tests.CoreTests.Driver
     [InlineData(RefInject4)]
     [InlineData(RefInject5)]
     [InlineData(RefInject6)]
-    public async Task ModelReference_WithMetacharacters_IsQuotedInRemoveCommand(string reference)
+    public void ModelReference_WithMetacharacters_IsRejectedAtValueObjectBoundary(string reference)
     {
-      var driver = new CapturingMgmtDriver();
-      var parsed = ModelReference.Parse(reference);
-
-      await driver.RemoveAsync(Ctx, parsed, false, TestContext.Current.CancellationToken);
-
-      AssertNeutralized(driver.LastCommand, parsed.ToString());
-    }
-
-    [Theory]
-    [InlineData(RefInject1)]
-    [InlineData(RefInject2)]
-    [InlineData(RefInject3)]
-    [InlineData(RefInject4)]
-    [InlineData(RefInject5)]
-    [InlineData(RefInject6)]
-    public async Task ModelReference_WithMetacharacters_IsQuotedInPullCommand(string reference)
-    {
-      var driver = new CapturingMgmtDriver();
-      var parsed = ModelReference.Parse(reference);
-
-      await driver.PullAsync(Ctx, parsed, null!, TestContext.Current.CancellationToken);
-
-      AssertNeutralized(driver.LastCommand, parsed.ToString());
-    }
-
-    [Theory]
-    [InlineData(RefInject1)]
-    [InlineData(RefInject2)]
-    [InlineData(RefInject3)]
-    [InlineData(RefInject4)]
-    [InlineData(RefInject5)]
-    [InlineData(RefInject6)]
-    public async Task ModelReference_WithMetacharacters_IsQuotedInInspectCommand(string reference)
-    {
-      var driver = new CapturingMgmtDriver();
-      var parsed = ModelReference.Parse(reference);
-
-      await driver.InspectAsync(Ctx, parsed, TestContext.Current.CancellationToken);
-
-      AssertNeutralized(driver.LastCommand, parsed.ToString());
-    }
-
-    [Theory]
-    [InlineData(RefInject1)]
-    [InlineData(RefInject2)]
-    [InlineData(RefInject3)]
-    [InlineData(RefInject4)]
-    [InlineData(RefInject5)]
-    [InlineData(RefInject6)]
-    public async Task ModelReference_WithMetacharacters_IsQuotedInPushCommand(string reference)
-    {
-      var driver = new CapturingMgmtDriver();
-      var parsed = ModelReference.Parse(reference);
-
-      await driver.PushAsync(Ctx, parsed, TestContext.Current.CancellationToken);
-
-      AssertNeutralized(driver.LastCommand, parsed.ToString());
-    }
-
-    [Theory]
-    [InlineData(RefInject1)]
-    [InlineData(RefInject2)]
-    [InlineData(RefInject3)]
-    [InlineData(RefInject4)]
-    [InlineData(RefInject5)]
-    [InlineData(RefInject6)]
-    public async Task TagSource_WithMetacharacters_IsQuotedInTagCommand(string reference)
-    {
-      var driver = new CapturingMgmtDriver();
-      var source = ModelReference.Parse(reference);
-      var target = ModelReference.Parse("ai/safe:latest");
-
-      await driver.TagAsync(Ctx, source, target, TestContext.Current.CancellationToken);
-
-      AssertNeutralized(driver.LastCommand, source.ToString());
-    }
-
-    [Theory]
-    [InlineData(RefInject1)]
-    [InlineData(RefInject2)]
-    [InlineData(RefInject3)]
-    [InlineData(RefInject4)]
-    [InlineData(RefInject5)]
-    [InlineData(RefInject6)]
-    public async Task TagTarget_WithMetacharacters_IsQuotedInTagCommand(string reference)
-    {
-      var driver = new CapturingMgmtDriver();
-      var source = ModelReference.Parse("ai/safe:latest");
-      var target = ModelReference.Parse(reference);
-
-      await driver.TagAsync(Ctx, source, target, TestContext.Current.CancellationToken);
-
-      AssertNeutralized(driver.LastCommand, target.ToString());
+      Assert.False(ModelReference.TryParse(reference, out var model));
+      Assert.Null(model);
     }
 
     [Theory]

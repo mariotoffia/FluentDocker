@@ -21,6 +21,8 @@ namespace FluentDocker.Common
   /// process-wide: parallel test or CI processes can still race each other.
   /// The key is the normalized model reference only and intentionally omits
   /// host / endpoint, so equal model names on different daemons share a gate.
+  /// Raw string keys passed to <see cref="AcquireAsync(string, CancellationToken)"/>
+  /// are caller-owned and are not registry-normalized.
   /// </remarks>
   public static class ModelOperationGate
   {

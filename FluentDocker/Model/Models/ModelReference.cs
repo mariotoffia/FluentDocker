@@ -142,7 +142,7 @@ namespace FluentDocker.Model.Models
         digest = reference.Substring(at + 1);
         if (!IsValidDigest(digest))
         {
-          error = "invalid digest (expected algorithm:hex)";
+          error = "invalid digest (expected lowercase algorithm:hex with at least 32 hex chars; sha256=64, sha512=128)";
           return false;
         }
 
@@ -194,10 +194,31 @@ namespace FluentDocker.Model.Models
           error = "invalid tag";
           return false;
         }
+
+        if (!IsValidTag(tag))
+        {
+          error = "invalid tag (use letters, digits, '.', '_' or '-', starting with a letter, digit or '_')";
+          return false;
+        }
       }
       else
       {
         name = nameTag;
+      }
+
+      for (var i = start; i < lastIndex; i++)
+      {
+        if (!IsValidNameComponent(segments[i], out var reason))
+        {
+          error = $"invalid name component '{segments[i]}' ({reason})";
+          return false;
+        }
+      }
+
+      if (!IsValidNameComponent(name, out var nameReason))
+      {
+        error = $"invalid name component '{name}' ({nameReason})";
+        return false;
       }
 
       string ns = null;
@@ -224,11 +245,70 @@ namespace FluentDocker.Model.Models
           || string.Equals(segment, "localhost", StringComparison.OrdinalIgnoreCase);
     }
 
-    /// <summary>Validates the <c>algorithm:hex</c> shape of a content digest.</summary>
+    private static bool IsValidNameComponent(string component, out string reason)
+    {
+      reason = null;
+      if (string.IsNullOrEmpty(component))
+      {
+        reason = "must not be empty";
+        return false;
+      }
+
+      if (!IsAsciiLetterOrDigit(component[0]))
+      {
+        reason = "must start with a letter or digit";
+        return false;
+      }
+
+      foreach (var c in component)
+      {
+        if (!IsAsciiLetterOrDigit(c) && c != '.' && c != '_' && c != '-')
+        {
+          reason = "use only letters, digits, '.', '_' or '-'";
+          return false;
+        }
+      }
+
+      return true;
+    }
+
+    private static bool IsValidTag(string tag)
+    {
+      if (string.IsNullOrEmpty(tag) || tag.Length > 128)
+        return false;
+
+      if (!IsAsciiLetterOrDigit(tag[0]) && tag[0] != '_')
+        return false;
+
+      foreach (var c in tag)
+      {
+        if (!IsAsciiLetterOrDigit(c) && c != '.' && c != '_' && c != '-')
+          return false;
+      }
+
+      return true;
+    }
+
+    private static bool IsAsciiLetterOrDigit(char c) =>
+        (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9');
+
+    /// <summary>Validates the Docker <c>algorithm:hex</c> shape of a content digest.</summary>
     private static bool IsValidDigest(string digest)
     {
       var colon = digest.IndexOf(':');
       if (colon <= 0 || colon == digest.Length - 1)
+        return false;
+
+      var algorithm = digest[..colon];
+      if (!IsValidDigestAlgorithm(algorithm))
+        return false;
+
+      var hexLength = digest.Length - colon - 1;
+      if (string.Equals(algorithm, "sha256", StringComparison.Ordinal) && hexLength != 64)
+        return false;
+      if (string.Equals(algorithm, "sha512", StringComparison.Ordinal) && hexLength != 128)
+        return false;
+      if (hexLength < 32)
         return false;
 
       for (var i = colon + 1; i < digest.Length; i++)
@@ -240,6 +320,31 @@ namespace FluentDocker.Model.Models
       }
 
       return true;
+    }
+
+    private static bool IsValidDigestAlgorithm(string algorithm)
+    {
+      var previousWasSeparator = false;
+      for (var i = 0; i < algorithm.Length; i++)
+      {
+        var c = algorithm[i];
+        var isLowerOrDigit = (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9');
+        if (isLowerOrDigit)
+        {
+          previousWasSeparator = false;
+          continue;
+        }
+
+        if ((c == '.' || c == '+' || c == '_' || c == '-') && i > 0 && !previousWasSeparator)
+        {
+          previousWasSeparator = true;
+          continue;
+        }
+
+        return false;
+      }
+
+      return !previousWasSeparator;
     }
 
     /// <summary>
