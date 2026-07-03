@@ -15,16 +15,15 @@ namespace FluentDocker.Services.Impl
   {
     // IServiceCapabilities
     bool IServiceCapabilities.CanStart => true;
-    bool IServiceCapabilities.CanStop => true;
+    bool IServiceCapabilities.CanStop => false;
     bool IServiceCapabilities.CanPause => false;
-    bool IServiceCapabilities.CanRemove => true;
+    bool IServiceCapabilities.CanRemove => false;
 
     private readonly FluentDockerKernel _kernel;
     private readonly string _driverId;
     private readonly string _hostName;
     private readonly bool _isNative;
     private readonly bool _requireTls;
-    private readonly Dictionary<string, Func<IServiceAsync, Task>> _hooks = [];
     private readonly ServiceRunningState _state = ServiceRunningState.Running;
 
     public HostService(
@@ -208,6 +207,7 @@ namespace FluentDocker.Services.Impl
         WorkingDirectory = config.WorkingDir,
         User = config.User,
         Privileged = config.Privileged,
+        RestartPolicy = config.RestartPolicy,
         Labels = config.Labels ?? []
       };
 
@@ -240,7 +240,7 @@ namespace FluentDocker.Services.Impl
 
       if (config.CpuQuota.HasValue)
       {
-        createConfig.CpuShares = config.CpuQuota.Value;
+        createConfig.CpuQuota = config.CpuQuota.Value;
       }
 
       var response = await driver.CreateAsync(context, createConfig, cancellationToken).ConfigureAwait(false);
@@ -258,7 +258,11 @@ namespace FluentDocker.Services.Impl
           _driverId,
           response.Data.Id,
           image,
-          config.Name ?? response.Data.Name ?? response.Data.Id);
+          config.Name ?? response.Data.Name ?? response.Data.Id,
+          config.StopOnDispose,
+          config.DeleteOnDispose,
+          config.DeleteVolumeOnDispose,
+          config.DeleteNamedVolumeOnDispose);
     }
 
     #endregion
@@ -287,13 +291,12 @@ namespace FluentDocker.Services.Impl
 
     public IServiceAsync AddHook(ServiceRunningState state, Func<IServiceAsync, Task> hook, string uniqueName = null)
     {
-      throw new FluentDockerNotSupportedException("HostService has a fixed Running state and does not support hooks.");
+      throw new NotSupportedException("HostService has a fixed Running state and does not support hooks.");
     }
 
     public IServiceAsync RemoveHook(string uniqueName)
     {
-      _hooks.Remove(uniqueName);
-      return this;
+      throw new NotSupportedException("HostService has a fixed Running state and does not support hooks.");
     }
 
     private int _disposed;

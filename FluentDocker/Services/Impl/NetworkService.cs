@@ -107,6 +107,9 @@ namespace FluentDocker.Services.Impl
       var network = await InspectAsync(cancellationToken).ConfigureAwait(false);
       var containers = new List<string>();
 
+      if (network.Containers == null)
+        return containers;
+
       foreach (var entry in network.Containers)
         containers.Add(string.IsNullOrEmpty(entry.Value?.Name) ? entry.Key : entry.Value.Name);
 

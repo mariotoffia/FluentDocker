@@ -1,8 +1,10 @@
 using System;
 using System.Collections.Generic;
 using System.Net;
+using System.Net.Sockets;
 using System.Threading;
 using System.Threading.Tasks;
+using FluentDocker.Common;
 using FluentDocker.Drivers;
 using FluentDocker.Model.Containers;
 using FluentDocker.Model.Drivers;
@@ -67,6 +69,71 @@ namespace FluentDocker.Tests.CoreTests.Service
     }
 
     [Fact]
+    public async Task ToHostExposedEndpointAsync_InterfaceTypedContainerService_UsesCustomResolver()
+    {
+      MockPack.ContainerDriver
+          .Setup(d => d.InspectAsync(
+              It.IsAny<DriverContext>(), "container-123", It.IsAny<CancellationToken>()))
+          .ReturnsAsync(CommandResponse<Container>.Ok(new Container
+          {
+            Id = "container-123",
+            NetworkSettings = new ContainerNetworkSettings
+            {
+              Ports = new Dictionary<string, HostIpEndpoint[]>
+              {
+                ["80/tcp"] = [new HostIpEndpoint { HostIp = "0.0.0.0", HostPort = "8080" }]
+              }
+            }
+          }));
+      IContainerService service = new ContainerService(
+          Kernel,
+          DriverId,
+          "container-123",
+          "nginx",
+          "web",
+          customResolver: (_, _, _) => new IPEndPoint(IPAddress.Parse("198.51.100.10"), 18080));
+
+      var endpoint = await service.ToHostExposedEndpointAsync(
+          "80/tcp",
+          TestContext.Current.CancellationToken);
+
+      Assert.Equal(IPAddress.Parse("198.51.100.10"), endpoint.Address);
+      Assert.Equal(18080, endpoint.Port);
+    }
+
+    [Fact]
+    public async Task ToHostExposedEndpointAsync_RemoteWildcardBinding_UsesDriverContextHost()
+    {
+      var mockPack = new MockDriverPack();
+      mockPack.ContainerDriver
+          .Setup(d => d.InspectAsync(
+              It.IsAny<DriverContext>(), "container-123", It.IsAny<CancellationToken>()))
+          .ReturnsAsync(CommandResponse<Container>.Ok(new Container
+          {
+            Id = "container-123",
+            NetworkSettings = new ContainerNetworkSettings
+            {
+              Ports = new Dictionary<string, HostIpEndpoint[]>
+              {
+                ["80/tcp"] = [new HostIpEndpoint { HostIp = "0.0.0.0", HostPort = "8080" }]
+              }
+            }
+          }));
+      await using var kernel = await MockKernelBuilderExtensions.CreateWithMockDriverAsync(
+          DriverId,
+          mockPack,
+          new DriverContext(DriverId) { Host = "tcp://192.0.2.10:2376" });
+      IContainerService service = new ContainerService(kernel, DriverId, "container-123", "nginx", "web");
+
+      var endpoint = await service.ToHostExposedEndpointAsync(
+          "80/tcp",
+          TestContext.Current.CancellationToken);
+
+      Assert.Equal(IPAddress.Parse("192.0.2.10"), endpoint.Address);
+      Assert.Equal(8080, endpoint.Port);
+    }
+
+    [Fact]
     public async Task ToHostExposedEndpointAsync_UnboundPort_ReturnsNull()
     {
       var container = new Container
@@ -101,6 +168,48 @@ namespace FluentDocker.Tests.CoreTests.Service
     }
 
     [Fact]
+    public async Task WaitForPortAsync_PortBindingAppearsLate_ReResolvesEndpoint()
+    {
+      var service = new Mock<IContainerService>();
+      service.Setup(s => s.Id).Returns("container-123");
+      using var listener = new TcpListener(IPAddress.Loopback, 0);
+      listener.Start();
+      var endpoint = (IPEndPoint)listener.LocalEndpoint!;
+      service
+          .SetupSequence(s => s.ToHostExposedEndpointAsync(
+              "80/tcp", It.IsAny<CancellationToken>()))
+          .ReturnsAsync((IPEndPoint)null!)
+          .ReturnsAsync(endpoint);
+
+      var ready = await service.Object.WaitForPortAsync(
+          "80/tcp",
+          timeout: 1000,
+          pollIntervalMs: 10,
+          cancellationToken: TestContext.Current.CancellationToken);
+
+      Assert.True(ready);
+      service.Verify(s => s.ToHostExposedEndpointAsync(
+          "80/tcp", It.IsAny<CancellationToken>()), Times.AtLeast(2));
+    }
+
+    [Fact]
+    public async Task WaitForPortAsync_TransientDriverException_ReturnsFalseOnTimeout()
+    {
+      var service = new Mock<IContainerService>();
+      service
+          .Setup(s => s.ToHostExposedEndpointAsync("80/tcp", It.IsAny<CancellationToken>()))
+          .ThrowsAsync(new DriverException("daemon reconnecting", ErrorCodes.Api.ConnectionFailed));
+
+      var ready = await service.Object.WaitForPortAsync(
+          "80/tcp",
+          timeout: 5,
+          pollIntervalMs: 1,
+          cancellationToken: TestContext.Current.CancellationToken);
+
+      Assert.False(ready);
+    }
+
+    [Fact]
     public async Task WaitForProcessAsync_WhenCallerCancels_ThrowsOperationCanceledException()
     {
       var service = new Mock<IContainerService>();
@@ -115,6 +224,22 @@ namespace FluentDocker.Tests.CoreTests.Service
     }
 
     [Fact]
+    public async Task WaitForProcessAsync_NonTransientDriverException_RethrowsImmediately()
+    {
+      var service = new Mock<IContainerService>();
+      service
+          .Setup(s => s.ExecuteAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+          .ThrowsAsync(new DriverException("bad command", ErrorCodes.Container.ExecFailed));
+
+      await Assert.ThrowsAsync<DriverException>(() =>
+          service.Object.WaitForProcessAsync(
+              "nginx",
+              timeout: 1000,
+              pollIntervalMs: 1,
+              cancellationToken: TestContext.Current.CancellationToken));
+    }
+
+    [Fact]
     public async Task WaitForLogMessageAsync_WhenCallerCancels_ThrowsOperationCanceledException()
     {
       var service = new Mock<IContainerService>();
@@ -126,6 +251,22 @@ namespace FluentDocker.Tests.CoreTests.Service
 
       await Assert.ThrowsAsync<OperationCanceledException>(() =>
           service.Object.WaitForLogMessageAsync("ready", 30000, cts.Token));
+    }
+
+    [Fact]
+    public async Task WaitForLogMessageAsync_NonTransientDriverException_RethrowsImmediately()
+    {
+      var service = new Mock<IContainerService>();
+      service
+          .Setup(s => s.GetLogsAsync(false, It.IsAny<CancellationToken>()))
+          .ThrowsAsync(new DriverException("logs unavailable", ErrorCodes.Container.LogsFailed));
+
+      await Assert.ThrowsAsync<DriverException>(() =>
+          service.Object.WaitForLogMessageAsync(
+              "ready",
+              timeout: 1000,
+              pollIntervalMs: 1,
+              cancellationToken: TestContext.Current.CancellationToken));
     }
   }
 }

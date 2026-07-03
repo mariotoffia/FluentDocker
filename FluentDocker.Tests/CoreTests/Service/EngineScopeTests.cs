@@ -66,6 +66,32 @@ namespace FluentDocker.Tests.CoreTests.Service
     }
 
     [Fact]
+    public async Task CreateAsync_WhenCanceledBeforeDetection_ThrowsOperationCanceledException()
+    {
+      var mockPack = new MockDriverPack();
+      mockPack.SystemDriver
+          .Setup(d => d.IsWindowsEngineAsync(
+              It.IsAny<DriverContext>(), It.IsAny<CancellationToken>()))
+          .Returns<DriverContext, CancellationToken>((_, ct) =>
+          {
+            ct.ThrowIfCancellationRequested();
+            return Task.FromResult(CommandResponse<bool>.Ok(false));
+          });
+      var kernel = await MockKernelBuilderExtensions.CreateWithMockDriverAsync(DriverId, mockPack);
+      using var cts = new CancellationTokenSource();
+      await cts.CancelAsync();
+      try
+      {
+        await Assert.ThrowsAsync<OperationCanceledException>(() =>
+            EngineScope.CreateAsync(kernel, DriverId, EngineScopeType.Linux, cts.Token));
+      }
+      finally
+      {
+        kernel.Dispose();
+      }
+    }
+
+    [Fact]
     public async Task CreateAsync_DetectsWindowsScope_SetsScope()
     {
       // Arrange: engine reports windows => Windows detected

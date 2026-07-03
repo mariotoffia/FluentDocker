@@ -76,6 +76,8 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
         args += $" --memory {config.MemoryLimit.Value}";
       if (config.CpuShares.HasValue)
         args += $" --cpu-shares {config.CpuShares.Value}";
+      if (config.CpuQuota.HasValue)
+        args += $" --cpu-quota {config.CpuQuota.Value}";
       if (!string.IsNullOrEmpty(config.Ipv4Address))
         args += $" --ip {QuoteArgumentIfNeeded(config.Ipv4Address)}";
       if (!string.IsNullOrEmpty(config.Ipv6Address))

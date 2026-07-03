@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using FluentDocker.Builders;
 using FluentDocker.Drivers;
 using FluentDocker.Model.Drivers;
+using FluentDocker.Services;
 using FluentDocker.Tests.Mocks;
 using Moq;
 using Xunit;
@@ -30,6 +31,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
                 .WithNoStart())
             .BuildAsync(cancellationToken: TestContext.Current.CancellationToken);
 
+        Assert.Equal(ServiceRunningState.Stopped, scope.ComposeServices[0].State);
         mockPack.ComposeDriver.Verify(d => d.UpAsync(
             It.IsAny<DriverContext>(),
             It.Is<ComposeUpConfig>(c => c.NoStart == true),

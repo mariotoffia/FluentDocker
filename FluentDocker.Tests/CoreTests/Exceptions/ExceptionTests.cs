@@ -96,7 +96,7 @@ namespace FluentDocker.Tests.CoreTests.Exceptions
     }
 
     [Fact]
-    public void ContainerStartException_IsTransient()
+    public void ContainerStartException_ForPermanentStartFailure_IsNotTransient()
     {
       // Arrange
       var context = new ErrorContext();
@@ -105,8 +105,21 @@ namespace FluentDocker.Tests.CoreTests.Exceptions
       var ex = new ContainerStartException("container-123", "port already in use", context);
 
       // Assert
-      Assert.True(ex.IsTransient);
+      Assert.False(ex.IsTransient);
       Assert.Equal(ErrorCodes.Container.StartFailed, ex.ErrorCode);
+    }
+
+    [Fact]
+    public void ContainerStartException_ForConnectionFailure_IsTransient()
+    {
+      var ex = new ContainerStartException(
+          "container-123",
+          "daemon unavailable",
+          new ErrorContext(),
+          ErrorCodes.Api.ConnectionFailed);
+
+      Assert.True(ex.IsTransient);
+      Assert.Equal(ErrorCodes.Api.ConnectionFailed, ex.ErrorCode);
     }
 
     [Fact]
@@ -179,4 +192,3 @@ namespace FluentDocker.Tests.CoreTests.Exceptions
     }
   }
 }
-

@@ -66,6 +66,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
         Privileged = config.Privileged,
         Memory = config.MemoryLimit,
         CpuShares = config.CpuShares,
+        CpuQuota = config.CpuQuota,
         NetworkMode = config.NetworkMode
       };
 

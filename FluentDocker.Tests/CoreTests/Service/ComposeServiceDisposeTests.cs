@@ -85,5 +85,37 @@ namespace FluentDocker.Tests.CoreTests.Service
       }
       finally { kernel.Dispose(); }
     }
+
+    [Fact]
+    public async Task DisposeAsync_AfterRemoveAsync_DoesNotDownAgainOrReplayHooks()
+    {
+      // compose down is daemon-idempotent, so without a client-side Removed guard a
+      // dispose after explicit RemoveAsync would re-run it and re-fire Removed hooks.
+      var mockPack = new MockDriverPack();
+      mockPack.SetupComposeDown();
+      var kernel = await MockKernelBuilderExtensions.CreateWithMockDriverAsync("docker", mockPack);
+      try
+      {
+        var service = new ComposeService(
+            kernel, "docker", ["docker-compose.yml"], "test-project",
+            disposeCleanupTimeout: TimeSpan.FromSeconds(1));
+        var removedHooks = 0;
+        service.AddHook(FluentDocker.Services.ServiceRunningState.Removed, _ =>
+        {
+          removedHooks++;
+          return Task.CompletedTask;
+        });
+
+        await service.RemoveAsync(cancellationToken: TestContext.Current.CancellationToken);
+        await service.DisposeAsync();
+
+        Assert.Equal(1, removedHooks);
+        mockPack.ComposeDriver.Verify(d => d.DownAsync(
+            It.IsAny<DriverContext>(),
+            It.IsAny<ComposeDownConfig>(),
+            It.IsAny<CancellationToken>()), Times.Once);
+      }
+      finally { kernel.Dispose(); }
+    }
   }
 }

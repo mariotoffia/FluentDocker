@@ -1,5 +1,5 @@
 using System;
-using System.Collections.Generic;
+using System.Collections.Concurrent;
 using System.Threading;
 using System.Threading.Tasks;
 using FluentDocker.Kernel;
@@ -24,8 +24,7 @@ namespace FluentDocker.Services.Impl
     private readonly IModelRunner _runner;
     private readonly ModelRunOptions _runOptions;
     private readonly bool _keepRunning;
-    private readonly Dictionary<string, Func<IServiceAsync, Task>> _hooks = [];
-    private readonly Dictionary<ServiceRunningState, List<Func<IServiceAsync, Task>>> _stateHooks = [];
+    private readonly ConcurrentDictionary<string, (ServiceRunningState State, Func<IServiceAsync, Task> Hook)> _hooks = [];
     private ServiceRunningState _state = ServiceRunningState.Unknown;
     // Set after a non-canceled load attempt reaches the runner. Canceled starts err on
     // not unloading during dispose because another queued consumer may own the model.
@@ -55,8 +54,6 @@ namespace FluentDocker.Services.Impl
       _runOptions = runOptions;
       _keepRunning = keepRunning;
 
-      foreach (var state in Enum.GetValues<ServiceRunningState>())
-        _stateHooks[state] = [];
     }
 
     /// <inheritdoc />
@@ -198,8 +195,7 @@ namespace FluentDocker.Services.Impl
     {
       ThrowIfDisposed();
       ArgumentNullException.ThrowIfNull(hook);
-      _stateHooks[state].Add(hook);
-      _hooks[uniqueName ?? Guid.NewGuid().ToString()] = hook;
+      _hooks[uniqueName ?? Guid.NewGuid().ToString()] = (state, hook);
       return this;
     }
 
@@ -207,12 +203,8 @@ namespace FluentDocker.Services.Impl
     public IServiceAsync RemoveHook(string uniqueName)
     {
       ThrowIfDisposed();
-      if (uniqueName != null && _hooks.Remove(uniqueName, out var hook))
-      {
-        foreach (var list in _stateHooks.Values)
-          list.Remove(hook);
-      }
-
+      if (uniqueName != null)
+        _hooks.TryRemove(uniqueName, out _);
       return this;
     }
 
@@ -290,15 +282,16 @@ namespace FluentDocker.Services.Impl
 
     private async Task ExecuteHooksAsync(ServiceRunningState state)
     {
-      if (!_stateHooks.TryGetValue(state, out var hooks))
-        return;
-
-      // Snapshot: a firing hook may add or remove hooks, which would invalidate a live enumerator.
-      foreach (var hook in new List<Func<IServiceAsync, Task>>(hooks))
+      // Hook execution order is unspecified (concurrent snapshot); do not rely on
+      // registration order.
+      foreach (var entry in _hooks.Values)
       {
+        if (entry.State != state)
+          continue;
+
         try
         {
-          await hook(this).ConfigureAwait(false);
+          await entry.Hook(this).ConfigureAwait(false);
         }
         catch (Exception ex)
         {

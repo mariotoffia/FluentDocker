@@ -12,11 +12,11 @@ using Microsoft.Extensions.Logging;
 namespace FluentDocker.Services.Impl
 {
   /// <inheritdoc />
-  public class ComposeService : IComposeService, IServiceCapabilities
+  public partial class ComposeService : IComposeService, IServiceCapabilities
   {
     bool IServiceCapabilities.CanStart => true;
     bool IServiceCapabilities.CanStop => true;
-    bool IServiceCapabilities.CanPause => false;
+    bool IServiceCapabilities.CanPause => true;
     bool IServiceCapabilities.CanRemove => true;
 
     private readonly FluentDockerKernel _kernel;
@@ -41,7 +41,8 @@ namespace FluentDocker.Services.Impl
         bool removeImages = false,
         IReadOnlyList<string> ownedTempFiles = null,
         TimeSpan? disposeCleanupTimeout = null,
-        bool downOnDispose = true)
+        bool downOnDispose = true,
+        ServiceRunningState initialState = ServiceRunningState.Running)
     {
       ArgumentNullException.ThrowIfNull(kernel);
       ArgumentNullException.ThrowIfNull(driverId);
@@ -56,6 +57,7 @@ namespace FluentDocker.Services.Impl
       _removeImages = removeImages;
       _ownedTempFiles = ownedTempFiles;
       _downOnDispose = downOnDispose;
+      _state = initialState;
       _disposeCleanupTimeout =
           disposeCleanupTimeout ?? TimeSpan.FromMilliseconds(ContainerService.DefaultDisposeCleanupTimeoutMs);
     }
@@ -317,38 +319,6 @@ namespace FluentDocker.Services.Impl
 
       UpdateState(ServiceRunningState.Running);
       await ExecuteHooksAsync(ServiceRunningState.Running).ConfigureAwait(false);
-    }
-
-    /// <summary>
-    /// Tears down the compose project. Volumes are removed only when configured with
-    /// <c>WithRemoveVolumes()</c>; <paramref name="force"/> is retained for API compatibility
-    /// and has no effect for compose teardown.
-    /// </summary>
-    public async Task RemoveAsync(bool force = false, CancellationToken cancellationToken = default)
-    {
-      var driver = _kernel.SysCtl<IComposeDriver>(_driverId);
-      var context = new DriverContext(_driverId);
-
-      var config = new ComposeDownConfig
-      {
-        ComposeFiles = _composeFiles,
-        ProjectName = _projectName,
-        RemoveVolumes = _removeVolumes,
-        RemoveImages = _removeImages ? "all" : null
-      };
-
-      var response = await driver.DownAsync(context, config, cancellationToken).ConfigureAwait(false);
-
-      if (!response.Success)
-      {
-        throw new DriverException(
-            $"Failed to remove compose project '{_projectName}': {response.Error}",
-            response.ErrorCode,
-            response.ErrorContext);
-      }
-
-      UpdateState(ServiceRunningState.Removed);
-      await ExecuteHooksAsync(ServiceRunningState.Removed).ConfigureAwait(false);
     }
 
     public IServiceAsync AddHook(ServiceRunningState state, Func<IServiceAsync, Task> hook, string uniqueName = null)

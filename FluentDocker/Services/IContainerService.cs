@@ -1,3 +1,4 @@
+using System.Net;
 using System.Threading;
 using System.Threading.Tasks;
 using FluentDocker.Model.Containers;
@@ -27,7 +28,31 @@ namespace FluentDocker.Services
     /// <summary>
     /// Gets detailed container information asynchronously.
     /// </summary>
+    /// <remarks>
+    /// Built-in container services cache inspect data for 500 ms to avoid duplicate daemon
+    /// calls during polling. Use
+    /// <see cref="Extensions.ServiceExtensions.GetConfigurationAsync(IContainerService, bool, CancellationToken)"/>
+    /// with <c>fresh: true</c> when a loop must bypass that short cache.
+    /// </remarks>
     Task<Container> InspectAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Gets the host endpoint for a container port.
+    /// </summary>
+    /// <param name="portAndProto">Port and protocol, e.g. <c>5432/tcp</c>.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>The endpoint reachable from the test host, or null when not bound.</returns>
+    Task<IPEndPoint> ToHostExposedEndpointAsync(
+        string portAndProto,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Gets the host port for a container port.
+    /// </summary>
+    /// <param name="portAndProto">Port and protocol, e.g. <c>5432/tcp</c>.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>The host port, or 0 when not bound.</returns>
+    Task<int> GetHostPortAsync(string portAndProto, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Gets buffered container logs asynchronously.
@@ -93,6 +118,12 @@ namespace FluentDocker.Services
     /// <param name="signal">The signal to send, e.g. <c>SIGKILL</c> or <c>SIGTERM</c>.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     Task KillAsync(string signal = "SIGKILL", CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Resumes a paused container.
+    /// </summary>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    Task UnpauseAsync(CancellationToken cancellationToken = default);
   }
 
   /// <summary>
@@ -100,38 +131,79 @@ namespace FluentDocker.Services
   /// </summary>
   public class ContainerStats
   {
+    /// <summary>Container identifier.</summary>
     public string ContainerId { get; set; }
+
+    /// <summary>CPU usage metrics.</summary>
     public CpuStats Cpu { get; set; }
+
+    /// <summary>Memory usage metrics.</summary>
     public MemoryStats Memory { get; set; }
+
+    /// <summary>Network I/O metrics.</summary>
     public NetworkStats Network { get; set; }
+
+    /// <summary>Block I/O metrics.</summary>
     public DiskStats Disk { get; set; }
   }
 
+  /// <summary>
+  /// CPU usage metrics.
+  /// </summary>
   public class CpuStats
   {
+    /// <summary>CPU usage percentage reported by the runtime.</summary>
     public double UsagePercent { get; set; }
+
+    /// <summary>Total system CPU usage when available.</summary>
     public long SystemCpuUsage { get; set; }
+
+    /// <summary>Container CPU usage when available.</summary>
     public long ContainerCpuUsage { get; set; }
   }
 
+  /// <summary>
+  /// Memory usage metrics.
+  /// </summary>
   public class MemoryStats
   {
+    /// <summary>Current memory usage in bytes.</summary>
     public long Usage { get; set; }
+
+    /// <summary>Memory limit in bytes.</summary>
     public long Limit { get; set; }
+
+    /// <summary>Memory usage percentage.</summary>
     public double UsagePercent { get; set; }
   }
 
+  /// <summary>
+  /// Network I/O metrics.
+  /// </summary>
   public class NetworkStats
   {
+    /// <summary>Received bytes.</summary>
     public long RxBytes { get; set; }
+
+    /// <summary>Transmitted bytes.</summary>
     public long TxBytes { get; set; }
+
+    /// <summary>Received packet count when available.</summary>
     public long RxPackets { get; set; }
+
+    /// <summary>Transmitted packet count when available.</summary>
     public long TxPackets { get; set; }
   }
 
+  /// <summary>
+  /// Block I/O metrics.
+  /// </summary>
   public class DiskStats
   {
+    /// <summary>Bytes read from block devices.</summary>
     public long ReadBytes { get; set; }
+
+    /// <summary>Bytes written to block devices.</summary>
     public long WriteBytes { get; set; }
   }
 }

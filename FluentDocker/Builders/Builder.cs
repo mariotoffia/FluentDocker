@@ -119,7 +119,9 @@ namespace FluentDocker.Builders
         DriverId = _currentDriverId,
         ExecuteAsync = ct => builder.ExecuteAsync(ct),
         PostStartAsync = ct => builder.ExecuteDeferredWaitConditionsAsync(ct),
-        AllowCleanExit = builder.AllowCleanExitOnStart
+        AllowCleanExit = builder.AllowCleanExitOnStart,
+        StartupTimeoutMs = builder.StartupTimeoutMs,
+        StartupPollIntervalMs = builder.StartupPollIntervalMs
       });
       return this;
     }
@@ -365,7 +367,9 @@ namespace FluentDocker.Builders
         var container = (IContainerService)item.Service;
         await container.StartAsync(cancellationToken).ConfigureAwait(false);
         await ContainerBuilder.WaitForContainerStartedAsync(
-            driver, context, container.Id, item.Operation.AllowCleanExit, cancellationToken).ConfigureAwait(false);
+            driver, context, container.Id, item.Operation.AllowCleanExit,
+            item.Operation.StartupTimeoutMs, item.Operation.StartupPollIntervalMs, cancellationToken)
+            .ConfigureAwait(false);
       }
     }
 
@@ -397,6 +401,8 @@ namespace FluentDocker.Builders
     public Func<CancellationToken, Task> PostStartAsync { get; set; }
 
     public bool AllowCleanExit { get; set; } = true;
+    public long StartupTimeoutMs { get; set; } = 3000;
+    public int StartupPollIntervalMs { get; set; } = 100;
   }
 
   /// <summary>

@@ -64,6 +64,12 @@ namespace FluentDocker.Services
     Task RestartAsync(IEnumerable<string> services, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Resumes paused services in the compose project.
+    /// </summary>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    Task UnpauseAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Refreshes <see cref="IServiceAsync.State"/> by querying the live per-service status
     /// (<c>docker compose ps</c>). Useful after attaching to an existing project (see
     /// <c>ConnectToExisting</c>) so the aggregate state reflects what the daemon reports

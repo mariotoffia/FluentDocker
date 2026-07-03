@@ -32,6 +32,24 @@ namespace FluentDocker.Services.Impl
         FluentDockerKernel kernel,
         string driverId,
         EngineScopeType targetScope)
+        : this(
+            kernel,
+            driverId,
+            targetScope,
+            DetectCurrentScopeSync(
+                kernel,
+                driverId,
+                kernel is null
+                ? throw new ArgumentNullException(nameof(kernel))
+                : kernel.LoggerFactory.CreateLogger<EngineScope>()))
+    {
+    }
+
+    private EngineScope(
+        FluentDockerKernel kernel,
+        string driverId,
+        EngineScopeType targetScope,
+        EngineScopeType originalScope)
     {
       ArgumentNullException.ThrowIfNull(kernel);
       ArgumentNullException.ThrowIfNull(driverId);
@@ -40,7 +58,7 @@ namespace FluentDocker.Services.Impl
       _driverId = driverId;
       _targetScope = targetScope;
 
-      _originalScope = DetectCurrentScopeSync();
+      _originalScope = originalScope;
       _currentScope = _originalScope;
     }
 
@@ -53,7 +71,12 @@ namespace FluentDocker.Services.Impl
         EngineScopeType targetScope,
         CancellationToken cancellationToken = default)
     {
-      var scope = new EngineScope(kernel, driverId, targetScope);
+      ArgumentNullException.ThrowIfNull(kernel);
+      ArgumentNullException.ThrowIfNull(driverId);
+      var logger = kernel.LoggerFactory.CreateLogger<EngineScope>();
+      var originalScope = await DetectCurrentScopeAsync(
+          kernel, driverId, logger, cancellationToken).ConfigureAwait(false);
+      var scope = new EngineScope(kernel, driverId, targetScope, originalScope);
 
       if (scope._currentScope != targetScope && targetScope != EngineScopeType.Unknown)
       {
@@ -170,12 +193,15 @@ namespace FluentDocker.Services.Impl
       GC.SuppressFinalize(this);
     }
 
-    private EngineScopeType DetectCurrentScopeSync()
+    private static EngineScopeType DetectCurrentScopeSync(
+        FluentDockerKernel kernel,
+        string driverId,
+        ILogger<EngineScope> logger)
     {
       try
       {
-        var driver = _kernel.SysCtl<ISystemDriver>(_driverId);
-        var context = new DriverContext(_driverId);
+        var driver = kernel.SysCtl<ISystemDriver>(driverId);
+        var context = new DriverContext(driverId);
 
         // Use Task.Run to avoid SynchronizationContext deadlock.
         var response = Task.Run(() => driver.IsWindowsEngineAsync(context)).GetAwaiter().GetResult();
@@ -187,7 +213,35 @@ namespace FluentDocker.Services.Impl
       }
       catch (Exception ex)
       {
-        _logger.LogError(ex, "Engine scope detection failed");
+        logger.LogError(ex, "Engine scope detection failed");
+      }
+
+      return EngineScopeType.Unknown;
+    }
+
+    private static async Task<EngineScopeType> DetectCurrentScopeAsync(
+        FluentDockerKernel kernel,
+        string driverId,
+        ILogger<EngineScope> logger,
+        CancellationToken cancellationToken)
+    {
+      try
+      {
+        var driver = kernel.SysCtl<ISystemDriver>(driverId);
+        var context = new DriverContext(driverId);
+        var response = await driver.IsWindowsEngineAsync(context, cancellationToken)
+            .ConfigureAwait(false);
+
+        if (response.Success)
+          return response.Data ? EngineScopeType.Windows : EngineScopeType.Linux;
+      }
+      catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+      {
+        throw;
+      }
+      catch (Exception ex)
+      {
+        logger.LogError(ex, "Engine scope async detection failed");
       }
 
       return EngineScopeType.Unknown;

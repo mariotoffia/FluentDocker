@@ -31,7 +31,36 @@ namespace FluentDocker.Tests.CoreTests.Service
       mock.Setup(s => s.Name).Returns("test-container");
       mock.Setup(s => s.InspectAsync(It.IsAny<CancellationToken>()))
           .ReturnsAsync(container);
+      mock.Setup(s => s.ToHostExposedEndpointAsync(
+              It.IsAny<string>(), It.IsAny<CancellationToken>()))
+          .Returns<string, CancellationToken>(async (port, token) =>
+              ResolveEndpoint(await mock.Object.InspectAsync(token), port));
+      mock.Setup(s => s.GetHostPortAsync(
+              It.IsAny<string>(), It.IsAny<CancellationToken>()))
+          .Returns<string, CancellationToken>(async (port, token) =>
+              (await mock.Object.ToHostExposedEndpointAsync(port, token))?.Port ?? 0);
       return mock;
+    }
+
+    private static IPEndPoint ResolveEndpoint(Container container, string portAndProto)
+    {
+      var ports = container?.NetworkSettings?.Ports;
+      if (ports == null ||
+          !ports.TryGetValue(portAndProto, out var bindings) ||
+          bindings == null ||
+          bindings.Length == 0)
+        return null!;
+
+      var binding = bindings[0];
+      if (binding == null || !int.TryParse(binding.HostPort, out var hostPort))
+        return null!;
+
+      var hostIp = string.IsNullOrEmpty(binding.HostIp) ||
+          binding.HostIp == "0.0.0.0" ||
+          binding.HostIp == "::"
+          ? "127.0.0.1"
+          : binding.HostIp;
+      return new IPEndPoint(IPAddress.Parse(hostIp), hostPort);
     }
 
     /// <summary>

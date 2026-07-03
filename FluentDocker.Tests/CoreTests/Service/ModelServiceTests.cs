@@ -117,6 +117,29 @@ namespace FluentDocker.Tests.CoreTests.Service
     }
 
     [Fact]
+    public async Task RemoveHook_RemovesOnlyNamedStateRegistration()
+    {
+      var (kernel, service) = await BuildAsync();
+      await using (kernel)
+      {
+        var stopped = 0;
+        Func<IServiceAsync, Task> hook = _ =>
+        {
+          stopped++;
+          return Task.CompletedTask;
+        };
+        service.AddHook(ServiceRunningState.Running, hook, "running-hook");
+        service.AddHook(ServiceRunningState.Stopped, hook, "stopped-hook");
+
+        service.RemoveHook("running-hook");
+        await service.StartAsync(TestContext.Current.CancellationToken);
+        await service.StopAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal(1, stopped);
+      }
+    }
+
+    [Fact]
     public async Task StateChange_EventRaised()
     {
       var (kernel, service) = await BuildAsync();

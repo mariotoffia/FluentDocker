@@ -363,15 +363,14 @@ namespace FluentDocker.Tests.CoreTests.Service
       var service = new HostService(kernel, "docker", "test-host");
       try
       {
-        await Assert.ThrowsAsync<FluentDockerNotSupportedException>(
+        await Assert.ThrowsAsync<NotSupportedException>(
             () =>
             {
               service.AddHook(ServiceRunningState.Running, _ => Task.CompletedTask, "test-hook");
               return Task.CompletedTask;
             });
 
-        var removeResult = service.RemoveHook("test-hook");
-        Assert.Same(service, removeResult);
+        Assert.Throws<NotSupportedException>(() => service.RemoveHook("test-hook"));
       }
       finally { kernel.Dispose(); }
     }

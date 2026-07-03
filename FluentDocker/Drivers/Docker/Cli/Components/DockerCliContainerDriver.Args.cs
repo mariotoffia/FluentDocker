@@ -43,6 +43,8 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
         args.Add($"--memory {config.MemoryLimit.Value}");
       if (config.CpuShares.HasValue && config.CpuShares.Value > 0)
         args.Add($"--cpu-shares {config.CpuShares.Value}");
+      if (config.CpuQuota.HasValue && config.CpuQuota.Value > 0)
+        args.Add($"--cpu-quota {config.CpuQuota.Value}");
       if (!string.IsNullOrEmpty(config.Ipv4Address))
         args.Add($"--ip {QuoteArgumentIfNeeded(config.Ipv4Address)}");
       if (!string.IsNullOrEmpty(config.Ipv6Address))

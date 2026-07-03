@@ -351,11 +351,11 @@ namespace FluentDocker.Builders
 
     internal static async Task WaitForContainerStartedAsync(
         Drivers.IContainerDriver driver, Model.Drivers.DriverContext context,
-        string containerId, bool allowCleanExit, CancellationToken cancellationToken)
+        string containerId, bool allowCleanExit, long timeoutMs, int pollIntervalMs,
+        CancellationToken cancellationToken)
     {
-      const int maxAttempts = 30;
-      const int delayMs = 100;
-      for (var i = 0; i < maxAttempts; i++)
+      var sw = Stopwatch.StartNew();
+      while (sw.ElapsedMilliseconds < timeoutMs && !cancellationToken.IsCancellationRequested)
       {
         var inspectResult = await driver.InspectAsync(context, containerId, cancellationToken).ConfigureAwait(false);
         if (inspectResult?.Success == true)
@@ -374,7 +374,8 @@ namespace FluentDocker.Builders
                 logs));
           }
         }
-        await Task.Delay(delayMs, cancellationToken).ConfigureAwait(false);
+        var delay = (int)Math.Min(pollIntervalMs, Math.Max(1, timeoutMs - sw.ElapsedMilliseconds));
+        await Task.Delay(delay, cancellationToken).ConfigureAwait(false);
       }
       throw new FluentDockerException($"Timeout waiting for container {containerId} to start");
     }

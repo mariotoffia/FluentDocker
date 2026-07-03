@@ -86,6 +86,12 @@ namespace FluentDocker.Builders
     private bool _waitConditionsExecuted;
 
     internal bool AllowCleanExitOnStart => _waitConditions.Count == 0;
+    internal long StartupTimeoutMs => _waitConditions.Count == 0
+        ? 3000
+        : Math.Max(3000, _waitConditions.Max(c => c.TimeoutMs));
+    internal int StartupPollIntervalMs => _waitConditions.Count == 0
+        ? 100
+        : Math.Clamp(_waitPollIntervalMs, 1, 100);
 
     #region Basic Configuration
 
@@ -447,7 +453,8 @@ namespace FluentDocker.Builders
         {
           await service.StartAsync(cancellationToken).ConfigureAwait(false);
           await WaitForContainerStartedAsync(
-              driver, context, response.Data.Id, AllowCleanExitOnStart, cancellationToken).ConfigureAwait(false);
+              driver, context, response.Data.Id, AllowCleanExitOnStart,
+              StartupTimeoutMs, StartupPollIntervalMs, cancellationToken).ConfigureAwait(false);
           _waitConditionsExecuted = true;
           await RunPostStartAsync(service, cancellationToken).ConfigureAwait(false);
         }

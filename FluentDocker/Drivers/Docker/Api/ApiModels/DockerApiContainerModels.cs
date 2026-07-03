@@ -62,6 +62,9 @@ namespace FluentDocker.Drivers.Docker.Api.ApiModels
     [JsonPropertyName("CpuShares")]
     public long? CpuShares { get; set; }
 
+    [JsonPropertyName("CpuQuota")]
+    public long? CpuQuota { get; set; }
+
     [JsonPropertyName("Dns")]
     public string[] Dns { get; set; }
 

@@ -1,6 +1,5 @@
 using System;
 using System.Diagnostics;
-using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Net.Sockets;
@@ -15,8 +14,11 @@ namespace FluentDocker.Services.Extensions
   /// <summary>
   /// Extension methods for V3 service interfaces.
   /// </summary>
-  public static class ServiceExtensions
+  public static partial class ServiceExtensions
   {
+    // Minimum per-attempt TCP connect deadline (ms); poll interval governs cadence only.
+    private const int MinConnectBudgetMs = 2000;
+
     #region Container Extensions
 
     /// <summary>
@@ -49,29 +51,8 @@ namespace FluentDocker.Services.Extensions
         string portAndProto,
         CancellationToken cancellationToken = default)
     {
-      var config = await service.InspectAsync(cancellationToken).ConfigureAwait(false);
-
-      if (config?.NetworkSettings?.Ports == null)
-        return null;
-
-      if (!config.NetworkSettings.Ports.TryGetValue(portAndProto, out var bindings) ||
-          bindings == null || bindings.Length == 0)
-        return null;
-
-      var binding = bindings.FirstOrDefault();
-      if (binding == null)
-        return null;
-
-      if (!int.TryParse(binding.HostPort, out var hostPort))
-        return null;
-
-      var hostIp = binding.HostIp;
-
-      // Resolve to localhost if HostIp is 0.0.0.0 or empty
-      if (string.IsNullOrEmpty(hostIp) || hostIp == "0.0.0.0")
-        hostIp = "127.0.0.1";
-
-      return new IPEndPoint(IPAddress.Parse(hostIp), hostPort);
+      return await service.ToHostExposedEndpointAsync(portAndProto, cancellationToken)
+          .ConfigureAwait(false);
     }
 
     /// <summary>
@@ -86,9 +67,8 @@ namespace FluentDocker.Services.Extensions
         string portAndProto,
         CancellationToken cancellationToken = default)
     {
-      var endpoint = await service.ToHostExposedEndpointAsync(portAndProto, cancellationToken)
+      return await service.GetHostPortAsync(portAndProto, cancellationToken)
           .ConfigureAwait(false);
-      return endpoint?.Port ?? 0;
     }
 
     /// <summary>
@@ -99,6 +79,10 @@ namespace FluentDocker.Services.Extensions
     /// <param name="timeout">Timeout in milliseconds.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>True if the port is available, false if timeout.</returns>
+    /// <remarks>
+    /// Extension waits return false on timeout. Builder waits wrap false results in
+    /// <see cref="FluentDockerException"/> and may include a container log tail.
+    /// </remarks>
     public static async Task<bool> WaitForPortAsync(
         this IContainerService service,
         string portAndProto,
@@ -116,11 +100,40 @@ namespace FluentDocker.Services.Extensions
         int pollIntervalMs,
         CancellationToken cancellationToken = default)
     {
-      var endpoint = await service.ToHostExposedEndpointAsync(portAndProto, cancellationToken)
-          .ConfigureAwait(false) ?? throw new FluentDockerException($"Port {portAndProto} is not exposed on container {service.Id}");
+      cancellationToken.ThrowIfCancellationRequested();
+      var sw = Stopwatch.StartNew();
+      var forceFreshEndpoint = true;
+      while (sw.ElapsedMilliseconds < timeout && !cancellationToken.IsCancellationRequested)
+      {
+        try
+        {
+          if (forceFreshEndpoint)
+            InvalidateInspectCache(service);
 
-      return await WaitForPortAsync(endpoint.Address.ToString(), endpoint.Port, timeout, pollIntervalMs, cancellationToken)
-          .ConfigureAwait(false);
+          var endpoint = await service.ToHostExposedEndpointAsync(portAndProto, cancellationToken)
+              .ConfigureAwait(false);
+          forceFreshEndpoint = endpoint == null;
+          // Give the inner connect loop a real handshake budget, not just one poll interval.
+          var connectBudget = Math.Min(
+              Math.Max(1, timeout - sw.ElapsedMilliseconds),
+              Math.Max(pollIntervalMs, MinConnectBudgetMs));
+          if (endpoint != null &&
+              await WaitForPortAsync(endpoint.Address.ToString(), endpoint.Port, connectBudget, pollIntervalMs, cancellationToken)
+                  .ConfigureAwait(false))
+          {
+            return true;
+          }
+        }
+        catch (DriverException ex) when (ex.IsTransient)
+        {
+          forceFreshEndpoint = true;
+        }
+
+        var delay = (int)Math.Min(pollIntervalMs, Math.Max(1, timeout - sw.ElapsedMilliseconds));
+        await Task.Delay(delay, cancellationToken).ConfigureAwait(false);
+      }
+
+      return false;
     }
 
     /// <summary>
@@ -156,20 +169,16 @@ namespace FluentDocker.Services.Extensions
         try
         {
           using var client = new TcpClient();
-          var connectTask = client.ConnectAsync(host, port);
-          var remaining = (int)Math.Max(100, timeout - sw.ElapsedMilliseconds);
-          var timeoutTask = Task.Delay(remaining, cancellationToken);
-
-          var completed = await Task.WhenAny(connectTask, timeoutTask).ConfigureAwait(false);
-          cancellationToken.ThrowIfCancellationRequested();
-
-          if (completed == connectTask && client.Connected)
+          using var attemptCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+          var remaining = Math.Max(1, timeout - sw.ElapsedMilliseconds);
+          // A connect attempt needs a real handshake budget: capping it at the poll interval
+          // (100 ms default) would abort every attempt against a remote daemon before the
+          // SYN-ACK arrives. Floor the per-attempt deadline; polling cadence is separate.
+          attemptCts.CancelAfter(TimeSpan.FromMilliseconds(
+              Math.Min(remaining, Math.Max(pollIntervalMs, MinConnectBudgetMs))));
+          await client.ConnectAsync(host, port, attemptCts.Token).ConfigureAwait(false);
+          if (client.Connected)
             return true;
-
-          // Observe faulted connectTask to prevent unobserved exceptions.
-          _ = connectTask.ContinueWith(
-              static t => { _ = t.Exception; },
-              TaskContinuationOptions.OnlyOnFaulted);
         }
         catch (SocketException)
         {
@@ -179,8 +188,13 @@ namespace FluentDocker.Services.Extensions
         {
           throw;
         }
+        catch (OperationCanceledException)
+        {
+          // Per-attempt timeout - port not ready yet
+        }
 
-        await Task.Delay(pollIntervalMs, cancellationToken).ConfigureAwait(false);
+        var delay = (int)Math.Min(pollIntervalMs, Math.Max(1, timeout - sw.ElapsedMilliseconds));
+        await Task.Delay(delay, cancellationToken).ConfigureAwait(false);
       }
 
       return false;
@@ -194,6 +208,10 @@ namespace FluentDocker.Services.Extensions
     /// <param name="timeout">Timeout in milliseconds.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>True if the process is running, false if timeout.</returns>
+    /// <remarks>
+    /// Uses <c>pgrep -f</c> inside the container; minimal images may not include it.
+    /// Non-transient driver errors are thrown immediately.
+    /// </remarks>
     public static async Task<bool> WaitForProcessAsync(
         this IContainerService service,
         string processName,
@@ -218,7 +236,7 @@ namespace FluentDocker.Services.Extensions
       {
         try
         {
-          // Use docker top to check for process
+          // Uses pgrep inside the container; distroless/scratch images often lack it.
           var result = await service.ExecuteAsync($"pgrep -f {processName}", cancellationToken)
               .ConfigureAwait(false);
 
@@ -229,7 +247,10 @@ namespace FluentDocker.Services.Extensions
         {
           throw;
         }
-        catch (Exception)
+        catch (DriverException ex) when (ex.IsTransient)
+        {
+        }
+        catch (Exception ex) when (ex is not DriverException)
         {
         }
 
@@ -248,6 +269,10 @@ namespace FluentDocker.Services.Extensions
     /// <param name="timeout">Timeout in milliseconds.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>True if the endpoint responds successfully, false if timeout.</returns>
+    /// <remarks>
+    /// Extension waits return false on timeout and throw cancellation or non-transient
+    /// driver errors. Builder waits throw <see cref="FluentDockerException"/>.
+    /// </remarks>
     public static async Task<bool> WaitForHttpAsync(
         this IContainerService service,
         string portAndProto,
@@ -268,16 +293,26 @@ namespace FluentDocker.Services.Extensions
         CancellationToken cancellationToken = default)
     {
       cancellationToken.ThrowIfCancellationRequested();
-      var endpoint = await service.ToHostExposedEndpointAsync(portAndProto, cancellationToken)
-          .ConfigureAwait(false) ?? throw new FluentDockerException($"Port {portAndProto} is not exposed on container {service.Id}");
-
       var sw = Stopwatch.StartNew();
-      var url = $"http://{endpoint.Address}:{endpoint.Port}{path}";
+      var forceFreshEndpoint = true;
 
       while (sw.ElapsedMilliseconds < timeout && !cancellationToken.IsCancellationRequested)
       {
         try
         {
+          if (forceFreshEndpoint)
+            InvalidateInspectCache(service);
+
+          var endpoint = await service.ToHostExposedEndpointAsync(portAndProto, cancellationToken)
+              .ConfigureAwait(false);
+          forceFreshEndpoint = endpoint == null;
+          if (endpoint == null)
+          {
+            await Task.Delay(pollIntervalMs, cancellationToken).ConfigureAwait(false);
+            continue;
+          }
+
+          var url = $"http://{endpoint.Address}:{endpoint.Port}{path}";
           using var requestCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
           var remainingMs = Math.Max(100, timeout - sw.ElapsedMilliseconds);
           requestCts.CancelAfter(TimeSpan.FromMilliseconds(remainingMs));
@@ -296,6 +331,10 @@ namespace FluentDocker.Services.Extensions
             throw;
           // Timeout on request
         }
+        catch (DriverException ex) when (ex.IsTransient)
+        {
+          forceFreshEndpoint = true;
+        }
 
         await Task.Delay(pollIntervalMs, cancellationToken).ConfigureAwait(false);
       }
@@ -311,6 +350,10 @@ namespace FluentDocker.Services.Extensions
     /// <param name="timeout">Timeout in milliseconds.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>True if the text was found, false if timeout.</returns>
+    /// <remarks>
+    /// Extension waits return false on timeout and throw cancellation or non-transient
+    /// driver errors. Builder waits throw <see cref="FluentDockerException"/>.
+    /// </remarks>
     public static async Task<bool> WaitForLogMessageAsync(
         this IContainerService service,
         string text,
@@ -343,7 +386,10 @@ namespace FluentDocker.Services.Extensions
         {
           throw;
         }
-        catch (Exception)
+        catch (DriverException ex) when (ex.IsTransient)
+        {
+        }
+        catch (Exception ex) when (ex is not DriverException)
         {
         }
 
@@ -351,6 +397,12 @@ namespace FluentDocker.Services.Extensions
       }
 
       return false;
+    }
+
+    private static void InvalidateInspectCache(IContainerService service)
+    {
+      if (service is ContainerService containerService)
+        containerService.InvalidateInspectCache();
     }
 
     #endregion
@@ -387,66 +439,6 @@ namespace FluentDocker.Services.Extensions
         return uri.Host;
 
       return value.Contains("://", StringComparison.Ordinal) ? null : value;
-    }
-
-    #endregion
-
-    #region Sync Wrappers (for backward compatibility patterns)
-
-    /// <summary>
-    /// Gets the container configuration synchronously.
-    /// </summary>
-    public static Container GetConfiguration(this IContainerService service, bool fresh = false)
-    {
-      return Task.Run(() => service.GetConfigurationAsync(fresh)).GetAwaiter().GetResult();
-    }
-
-    /// <summary>
-    /// Gets the host-exposed endpoint synchronously.
-    /// </summary>
-    public static IPEndPoint ToHostExposedEndpoint(this IContainerService service, string portAndProto)
-    {
-      return Task.Run(() => service.ToHostExposedEndpointAsync(portAndProto)).GetAwaiter().GetResult();
-    }
-
-    /// <summary>
-    /// Gets the host port synchronously.
-    /// </summary>
-    public static int GetHostPort(this IContainerService service, string portAndProto)
-    {
-      return Task.Run(() => service.GetHostPortAsync(portAndProto)).GetAwaiter().GetResult();
-    }
-
-    /// <summary>
-    /// Waits for a port synchronously.
-    /// </summary>
-    public static bool WaitForPort(this IContainerService service, string portAndProto, long timeout = 30000)
-    {
-      return Task.Run(() => service.WaitForPortAsync(portAndProto, timeout)).GetAwaiter().GetResult();
-    }
-
-    /// <summary>
-    /// Waits for a process synchronously.
-    /// </summary>
-    public static bool WaitForProcess(this IContainerService service, string processName, long timeout = 30000)
-    {
-      return Task.Run(() => service.WaitForProcessAsync(processName, timeout)).GetAwaiter().GetResult();
-    }
-
-    /// <summary>
-    /// Waits for HTTP endpoint synchronously.
-    /// </summary>
-    public static bool WaitForHttp(this IContainerService service, string portAndProto, string path = "/", long timeout = 30000)
-    {
-      return Task.Run(() => service.WaitForHttpAsync(portAndProto, path, timeout)).GetAwaiter().GetResult();
-    }
-
-    /// <summary>
-    /// Waits for log message synchronously.
-    /// </summary>
-    public static bool WaitForLogMessage(this IContainerService service, string text, long timeout = 30000)
-    {
-      return Task.Run(() => service.WaitForLogMessageAsync(text, timeout)).GetAwaiter().GetResult();
     }
 
     #endregion

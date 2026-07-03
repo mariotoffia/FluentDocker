@@ -257,6 +257,9 @@ namespace FluentDocker.Drivers
     /// <summary>CPU shares (relative weight).</summary>
     public long? CpuShares { get; set; }
 
+    /// <summary>CPU quota in microseconds per CPU period.</summary>
+    public long? CpuQuota { get; set; }
+
     /// <summary>Whether to run in privileged mode.</summary>
     public bool Privileged { get; set; }
 

@@ -174,6 +174,14 @@ using var results = new Builder()
 
 ## Wait Strategies
 
+Builder wait methods (`WaitForPort`, `WaitForProcess`, `WaitForLogMessage`,
+`WaitForHealthy`, `WaitForHttp`, `Wait`) fail `BuildAsync()` with
+`FluentDockerException`; when logs are available, the exception includes a
+container log tail. Service extension waits (`container.WaitForPortAsync()`
+and siblings) return `false` on timeout and throw only for cancellation or
+non-transient driver errors; an unexposed or mistyped port burns the full
+timeout and returns `false` (late port bindings are legal).
+
 ### Wait for Port
 
 ```csharp
@@ -188,6 +196,10 @@ using var results = new Builder()
 ```
 
 ### Wait for Process
+
+`WaitForProcess` runs `pgrep -f` inside the container. Distroless and scratch
+images usually do not ship `pgrep`; prefer a log, health, HTTP, or custom wait
+for those images.
 
 ```csharp
 using var results = new Builder()

@@ -134,7 +134,8 @@ namespace FluentDocker.Services.Impl
           throw new ContainerStartException(
               _containerId,
               response.Error,
-              response.ErrorContext);
+              response.ErrorContext,
+              response.ErrorCode);
         }
 
         var inspect = await driver.InspectAsync(context, _containerId, cancellationToken).ConfigureAwait(false);
@@ -186,6 +187,25 @@ namespace FluentDocker.Services.Impl
       await ExecuteHooksAsync(ServiceRunningState.Paused).ConfigureAwait(false);
     }
 
+    public async Task UnpauseAsync(CancellationToken cancellationToken = default)
+    {
+      var driver = _kernel.SysCtl<IContainerDriver>(_driverId);
+      var context = new DriverContext(_driverId);
+
+      var response = await driver.UnpauseAsync(context, _containerId, cancellationToken).ConfigureAwait(false);
+
+      if (!response.Success)
+      {
+        throw new DriverException(
+            $"Failed to unpause container '{_name}': {response.Error}",
+            response.ErrorCode,
+            response.ErrorContext);
+      }
+
+      UpdateState(ServiceRunningState.Running);
+      await ExecuteHooksAsync(ServiceRunningState.Running).ConfigureAwait(false);
+    }
+
     public async Task StopAsync(CancellationToken cancellationToken = default)
     {
       var driver = _kernel.SysCtl<IContainerDriver>(_driverId);
@@ -221,21 +241,29 @@ namespace FluentDocker.Services.Impl
       var driver = _kernel.SysCtl<IContainerDriver>(_driverId);
       var context = new DriverContext(_driverId);
 
-      UpdateState(ServiceRunningState.Stopping);
-      await ExecuteHooksAsync(ServiceRunningState.Stopping).ConfigureAwait(false);
-
-      var response = await driver.KillAsync(context, _containerId, signal, cancellationToken).ConfigureAwait(false);
-
-      if (!response.Success)
+      try
       {
-        throw new DriverException(
-            $"Failed to kill container '{_name}': {response.Error}",
-            response.ErrorCode,
-            response.ErrorContext);
-      }
+        UpdateState(ServiceRunningState.Stopping);
+        await ExecuteHooksAsync(ServiceRunningState.Stopping).ConfigureAwait(false);
 
-      UpdateState(ServiceRunningState.Stopped);
-      await ExecuteHooksAsync(ServiceRunningState.Stopped).ConfigureAwait(false);
+        var response = await driver.KillAsync(context, _containerId, signal, cancellationToken).ConfigureAwait(false);
+
+        if (!response.Success)
+        {
+          throw new DriverException(
+              $"Failed to kill container '{_name}': {response.Error}",
+              response.ErrorCode,
+              response.ErrorContext);
+        }
+
+        UpdateState(ServiceRunningState.Stopped);
+        await ExecuteHooksAsync(ServiceRunningState.Stopped).ConfigureAwait(false);
+      }
+      catch
+      {
+        UpdateState(ServiceRunningState.Unknown);
+        throw;
+      }
     }
 
     public async Task RemoveAsync(bool force = false, CancellationToken cancellationToken = default)

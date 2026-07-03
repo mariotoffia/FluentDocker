@@ -3,6 +3,7 @@ using FluentDocker.Builders;
 using FluentDocker.Common;
 using FluentDocker.Drivers;
 using FluentDocker.Model.Drivers;
+using FluentDocker.Services;
 using FluentDocker.Tests.Mocks;
 using Moq;
 using Xunit;
@@ -40,6 +41,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
 
         Assert.Single(results.ComposeServices);
         Assert.Equal("existing-proj", results.ComposeServices[0].ProjectName);
+        Assert.Equal(ServiceRunningState.Unknown, results.ComposeServices[0].State);
         await results.DisposeAsync();
         mockPack.ComposeDriver.Verify(d => d.DownAsync(
             It.IsAny<DriverContext>(),

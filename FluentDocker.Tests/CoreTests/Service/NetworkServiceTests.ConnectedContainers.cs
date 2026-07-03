@@ -79,5 +79,36 @@ namespace FluentDocker.Tests.CoreTests.Service
         kernel.Dispose();
       }
     }
+
+    [Fact]
+    public async Task GetConnectedContainersAsync_WhenInspectContainersIsNull_ReturnsEmptyList()
+    {
+      var mockPack = new MockDriverPack();
+      mockPack.NetworkDriver
+          .Setup(d => d.InspectAsync(
+              It.IsAny<DriverContext>(),
+              "net123",
+              It.IsAny<CancellationToken>()))
+          .ReturnsAsync(CommandResponse<Network>.Ok(new Network
+          {
+            Id = "net123",
+            Name = "my-network",
+            Containers = null!
+          }));
+
+      var kernel = await MockKernelBuilderExtensions.CreateWithMockDriverAsync("docker", mockPack);
+      var service = new NetworkService(kernel, "docker", "net123", "my-network");
+
+      try
+      {
+        var containers = await service.GetConnectedContainersAsync(TestContext.Current.CancellationToken);
+
+        Assert.Empty(containers);
+      }
+      finally
+      {
+        kernel.Dispose();
+      }
+    }
   }
 }

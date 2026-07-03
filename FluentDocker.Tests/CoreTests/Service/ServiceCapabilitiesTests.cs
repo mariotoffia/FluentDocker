@@ -41,9 +41,9 @@ namespace FluentDocker.Tests.CoreTests.Service
         var service = new HostService(kernel, "docker", "test-host");
         var caps = (IServiceCapabilities)service;
         Assert.True(caps.CanStart);
-        Assert.True(caps.CanStop);
+        Assert.False(caps.CanStop);
         Assert.False(caps.CanPause);
-        Assert.True(caps.CanRemove);
+        Assert.False(caps.CanRemove);
       }
       finally { kernel.Dispose(); }
     }

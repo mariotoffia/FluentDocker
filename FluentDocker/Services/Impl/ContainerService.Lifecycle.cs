@@ -70,6 +70,9 @@ namespace FluentDocker.Services.Impl
 
     private async ValueTask DisposeCoreAsync()
     {
+      if (_state == ServiceRunningState.Removed)
+        return;
+
       using var cleanupCts = new CancellationTokenSource(_disposeCleanupTimeout);
 
       var preStopHookTask = ExecuteLifecycleHooksAsync(
@@ -136,6 +139,9 @@ namespace FluentDocker.Services.Impl
         bool? removeVolumesOverride,
         CancellationToken cancellationToken)
     {
+      if (_state == ServiceRunningState.Removed)
+        return;
+
       var driver = _kernel.SysCtl<IContainerDriver>(_driverId);
       var context = new DriverContext(_driverId);
 

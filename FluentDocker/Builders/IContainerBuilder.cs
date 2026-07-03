@@ -319,6 +319,10 @@ namespace FluentDocker.Builders
     /// <param name="portAndProto">The port and protocol (e.g. "5432/tcp", "53/udp").</param>
     /// <param name="timeoutMs">Maximum time to wait in milliseconds. Defaults to 30000 (30 seconds).</param>
     /// <returns>The builder instance for method chaining.</returns>
+    /// <remarks>
+    /// Builder waits throw <see cref="FluentDockerException"/> on timeout; service
+    /// extension waits return false.
+    /// </remarks>
     IContainerBuilder WaitForPort(string portAndProto, long timeoutMs = 30000);
 
     /// <summary>
@@ -336,6 +340,7 @@ namespace FluentDocker.Builders
     /// <param name="processName">The process name to look for (e.g. "postgres", "nginx").</param>
     /// <param name="timeoutMs">Maximum time to wait in milliseconds. Defaults to 30000 (30 seconds).</param>
     /// <returns>The builder instance for method chaining.</returns>
+    /// <remarks>Uses <c>pgrep -f</c> inside the container; minimal images may not include it.</remarks>
     IContainerBuilder WaitForProcess(string processName, long timeoutMs = 30000);
 
     /// <summary>

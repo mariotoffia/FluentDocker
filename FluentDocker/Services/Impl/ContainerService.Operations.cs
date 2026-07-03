@@ -8,6 +8,7 @@ using FluentDocker.Common;
 using FluentDocker.Drivers;
 using FluentDocker.Model.Containers;
 using FluentDocker.Model.Drivers;
+using FluentDocker.Services.Extensions;
 
 namespace FluentDocker.Services.Impl
 {
@@ -272,27 +273,40 @@ namespace FluentDocker.Services.Impl
     }
 
     /// <summary>
+    /// Gets the host-exposed endpoint for a container port, using custom resolver if configured.
+    /// </summary>
+    public async Task<IPEndPoint> ToHostExposedEndpointAsync(
+        string portAndProto,
+        CancellationToken cancellationToken = default)
+    {
+      return await ServiceEndpointResolver.ResolveAsync(
+          this,
+          portAndProto,
+          _customResolver,
+          GetDockerHostUri(),
+          cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>
     /// Gets the host port for a container port, using custom resolver if configured.
     /// </summary>
     public async Task<int> GetHostPortAsync(string portAndProto, CancellationToken cancellationToken = default)
     {
-      var config = await InspectAsync(cancellationToken).ConfigureAwait(false);
+      var endpoint = await ToHostExposedEndpointAsync(portAndProto, cancellationToken)
+          .ConfigureAwait(false);
+      return endpoint?.Port ?? 0;
+    }
 
-      if (_customResolver != null && config?.NetworkSettings?.Ports != null)
+    private Uri GetDockerHostUri()
+    {
+      try
       {
-        var endpoint = _customResolver(config.NetworkSettings.Ports, portAndProto, null);
-        return endpoint?.Port ?? 0;
+        return ServiceEndpointResolver.GetDockerHostUri(_kernel.Registry.GetContext(_driverId).Host);
       }
-
-      if (config?.NetworkSettings?.Ports == null)
-        return 0;
-
-      if (!config.NetworkSettings.Ports.TryGetValue(portAndProto, out var bindings) ||
-          bindings == null || bindings.Length == 0)
-        return 0;
-
-      var binding = bindings[0];
-      return int.TryParse(binding.HostPort, out var port) ? port : 0;
+      catch (Exception)
+      {
+        return null;
+      }
     }
   }
 }

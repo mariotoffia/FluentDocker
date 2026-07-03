@@ -266,7 +266,8 @@ namespace FluentDocker.Builders
 
         return new Services.Impl.ComposeService(
             _kernel, _driverId, _composeFiles, _projectName, _removeVolumes, _removeImages, ownedTempFiles,
-            downOnDispose: false);
+            downOnDispose: false,
+            initialState: ServiceRunningState.Unknown);
       }
 
       var config = new Drivers.ComposeUpConfig
@@ -303,7 +304,8 @@ namespace FluentDocker.Builders
       return new Services.Impl.ComposeService(
           _kernel, _driverId, _composeFiles,
           response.Data.ProjectName ?? _projectName,
-          _removeVolumes, _removeImages, ownedTempFiles);
+          _removeVolumes, _removeImages, ownedTempFiles,
+          initialState: _noStart ? ServiceRunningState.Stopped : ServiceRunningState.Running);
     }
 
     private void LoadEnvFiles()

@@ -420,7 +420,7 @@ namespace FluentDocker.Tests.CoreTests.Service
 
         Assert.True(caps.CanStart);
         Assert.True(caps.CanStop);
-        Assert.False(caps.CanPause);
+        Assert.True(caps.CanPause);
         Assert.True(caps.CanRemove);
       }
       finally { kernel.Dispose(); }

@@ -33,7 +33,7 @@ namespace FluentDocker.Tests.CoreTests.Driver
       Assert.Contains("port already in use", ex.Message);
       Assert.Equal(ErrorCodes.Container.StartFailed, ex.ErrorCode);
       Assert.Equal(context, ex.Context);
-      Assert.True(ex.IsTransient);
+      Assert.False(ex.IsTransient);
     }
 
     [Fact]
@@ -251,4 +251,3 @@ namespace FluentDocker.Tests.CoreTests.Driver
     }
   }
 }
-

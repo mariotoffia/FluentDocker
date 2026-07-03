@@ -461,7 +461,8 @@ namespace FluentDocker.Tests.CoreTests.Service
           Privileged = true,
           Network = "my-net",
           MemoryLimit = 536870912,
-          CpuQuota = 50000
+          CpuQuota = 50000,
+          RestartPolicy = "unless-stopped"
         };
         await service.CreateContainerAsync(
             "alpine:latest", config,
@@ -475,7 +476,9 @@ namespace FluentDocker.Tests.CoreTests.Service
         Assert.True(capturedConfig.Privileged);
         Assert.Equal("my-net", capturedConfig.NetworkMode);
         Assert.Equal(536870912, capturedConfig.MemoryLimit);
-        Assert.Equal(50000, capturedConfig.CpuShares);
+        Assert.Equal(50000, capturedConfig.CpuQuota);
+        Assert.Null(capturedConfig.CpuShares);
+        Assert.Equal("unless-stopped", capturedConfig.RestartPolicy);
       }
       finally { kernel.Dispose(); }
     }

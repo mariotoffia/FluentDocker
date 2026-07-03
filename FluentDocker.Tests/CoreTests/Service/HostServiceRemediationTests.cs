@@ -130,12 +130,69 @@ namespace FluentDocker.Tests.CoreTests.Service
     }
 
     [Fact]
-    public void AddHook_ThrowsFluentDockerNotSupportedException()
+    public async Task CreateContainerAsync_DisposeOptions_AreAppliedToReturnedService()
+    {
+      MockPack.SetupContainerCreate("container-123");
+      var service = new HostService(Kernel, DriverId, "host");
+
+      var container = await service.CreateContainerAsync(
+          "alpine",
+          new ContainerCreateOptions
+          {
+            StopOnDispose = false,
+            DeleteOnDispose = false
+          },
+          TestContext.Current.CancellationToken);
+
+      await container.DisposeAsync();
+
+      MockPack.ContainerDriver.Verify(d => d.StopAsync(
+          It.IsAny<DriverContext>(), "container-123", It.IsAny<int?>(),
+          It.IsAny<CancellationToken>()), Times.Never);
+      MockPack.ContainerDriver.Verify(d => d.RemoveAsync(
+          It.IsAny<DriverContext>(), "container-123", It.IsAny<bool>(), It.IsAny<bool>(),
+          It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task CreateContainerAsync_DeleteVolumeOptions_AreAppliedToReturnedService()
+    {
+      MockPack.SetupContainerCreate("container-123").SetupContainerRemove();
+      var service = new HostService(Kernel, DriverId, "host");
+
+      var container = await service.CreateContainerAsync(
+          "alpine",
+          new ContainerCreateOptions
+          {
+            StopOnDispose = false,
+            DeleteOnDispose = true,
+            DeleteVolumeOnDispose = true,
+            DeleteNamedVolumeOnDispose = true
+          },
+          TestContext.Current.CancellationToken);
+
+      await container.DisposeAsync();
+
+      MockPack.ContainerDriver.Verify(d => d.RemoveAsync(
+          It.IsAny<DriverContext>(), "container-123", true, true,
+          It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public void AddHook_ThrowsNotSupportedException()
     {
       var service = new HostService(Kernel, DriverId, "host");
 
-      Assert.Throws<FluentDockerNotSupportedException>(() =>
+      Assert.Throws<NotSupportedException>(() =>
           service.AddHook(ServiceRunningState.Running, _ => Task.CompletedTask));
+    }
+
+    [Fact]
+    public void RemoveHook_ThrowsNotSupportedException()
+    {
+      var service = new HostService(Kernel, DriverId, "host");
+
+      Assert.Throws<NotSupportedException>(() => service.RemoveHook("hook"));
     }
   }
 }

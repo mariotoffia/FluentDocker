@@ -100,6 +100,44 @@ namespace FluentDocker.Tests.CoreTests.Service
     }
 
     [Fact]
+    public async Task KillAsync_WhenDriverFails_ResetsStateToUnknown()
+    {
+      MockPack.ContainerDriver
+          .Setup(d => d.KillAsync(
+              It.IsAny<DriverContext>(), "container-123", "SIGKILL",
+              It.IsAny<CancellationToken>()))
+          .ReturnsAsync(CommandResponse<Unit>.Fail("kill failed", ErrorCodes.Container.KillFailed));
+      var service = new ContainerService(Kernel, DriverId, "container-123", "alpine", "test");
+
+      await Assert.ThrowsAsync<DriverException>(() =>
+          service.KillAsync(cancellationToken: TestContext.Current.CancellationToken));
+
+      Assert.Equal(ServiceRunningState.Unknown, service.State);
+    }
+
+    [Fact]
+    public async Task DisposeAsync_AfterRemoveAsync_DoesNotRemoveAgainOrReplayHooks()
+    {
+      MockPack.SetupContainerRemove();
+      var removingHooks = 0;
+      var service = new ContainerService(Kernel, DriverId, "container-123", "alpine", "test");
+      service.AddHook(ServiceRunningState.Removing, _ =>
+      {
+        removingHooks++;
+        return Task.CompletedTask;
+      });
+
+      await service.RemoveAsync(cancellationToken: TestContext.Current.CancellationToken);
+      await service.DisposeAsync();
+
+      Assert.Equal(ServiceRunningState.Removed, service.State);
+      Assert.Equal(1, removingHooks);
+      MockPack.ContainerDriver.Verify(d => d.RemoveAsync(
+          It.IsAny<DriverContext>(), "container-123", It.IsAny<bool>(), It.IsAny<bool>(),
+          It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
     public async Task DisposeAsync_AfterFailedStop_AttemptsGracefulStopAgain()
     {
       MockPack.SetupContainerStart();
