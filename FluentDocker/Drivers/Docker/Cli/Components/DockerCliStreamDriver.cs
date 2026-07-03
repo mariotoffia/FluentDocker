@@ -58,16 +58,23 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
         StreamLogsConfig config = null,
         [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
-      var args = BuildStreamLogsArgs(containerId, config);
+      await foreach (var entry in StreamLogEntriesAsync(context, containerId, config, cancellationToken)
+          .WithCancellation(cancellationToken).ConfigureAwait(false))
+        yield return entry.Source == LogStreamSource.Stderr ? $"[stderr] {entry.Line}" : entry.Line;
+    }
 
-      // A non-TTY container writes log lines to BOTH stdout and stderr. Use the interleaving
-      // stdout+stderr streaming path so stderr log lines are not silently dropped (the
-      // stdout-only path would lose them). A non-zero exit is still surfaced as a
-      // DriverException by this variant, exactly as the stdout-only one.
-      await foreach (var line in ExecuteStreamingCommandWithProgressAsync(context, args, cancellationToken))
-      {
-        yield return line;
-      }
+    /// <inheritdoc />
+    public async IAsyncEnumerable<LogEntry> StreamLogEntriesAsync(
+        DriverContext context,
+        string containerId,
+        StreamLogsConfig config = null,
+        [EnumeratorCancellation] CancellationToken cancellationToken = default)
+    {
+      config ??= new StreamLogsConfig();
+      var args = BuildStreamLogsArgs(containerId, config);
+      await foreach (var entry in ExecuteStreamingCommandWithSourcesAsync(
+          context, args, config.Stdout, config.Stderr, cancellationToken).ConfigureAwait(false))
+        yield return entry;
     }
 
     /// <inheritdoc />
@@ -272,8 +279,14 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
 
         if (!config.SigProxy)
           args += " --sig-proxy=false";
+        if (config.Stdin == false)
+          args += " --no-stdin";
         if (!string.IsNullOrEmpty(config.DetachKeys))
           args += $" --detach-keys {QuoteArgumentIfNeeded(config.DetachKeys)}";
+        if (config.Tty || !config.Stdout || !config.Stderr || config.NoStdout || config.NoStderr)
+          return Task.FromResult(CommandResponse<AttachResult>.Fail(
+              "Docker CLI attach cannot change TTY/stdout/stderr streams; create the container with those settings instead.",
+              ErrorCodes.General.InvalidArgument));
 
         args += $" {QuotePositionalArgument(containerId, nameof(containerId))}";
 

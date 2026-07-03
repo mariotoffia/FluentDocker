@@ -62,6 +62,31 @@ namespace FluentDocker.Tests.CoreTests.Driver.Docker
     }
 
     [Fact]
+    public async Task ComposeRun_InContainerNonZeroExit_IsReturnedAsCommandResult()
+    {
+      if (OperatingSystem.IsWindows())
+        Assert.Skip("POSIX shell script fake docker; not applicable on Windows");
+
+      var driver = new DockerCliComposeDriver(new FakeResolver(CreateFakeDocker("""
+#!/bin/sh
+echo stdout
+echo stderr >&2
+exit 5
+""")));
+      driver.Initialize(new DriverContext("docker"));
+
+      var result = await driver.RunAsync(
+          new DriverContext("docker"),
+          new ComposeRunConfig { Service = "web", Tty = false, Command = ["false"] },
+          TestContext.Current.CancellationToken);
+
+      Assert.True(result.Success, result.Error);
+      Assert.Equal(5, result.ExitCode);
+      Assert.Equal("stdout\n", result.Data);
+      Assert.Equal("stdout\nstderr\n", result.Output);
+    }
+
+    [Fact]
     public async Task UnboundedCommand_OutputBeyondCap_KeepsTailMarkerAndExitCode()
     {
       if (OperatingSystem.IsWindows())

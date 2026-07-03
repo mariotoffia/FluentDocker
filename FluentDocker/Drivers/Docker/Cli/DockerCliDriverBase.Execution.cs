@@ -194,6 +194,8 @@ namespace FluentDocker.Drivers.Docker.Cli
       var linkedToken = linked.Token;
 
       Process process = null;
+      Task<string> outputTask = null;
+      Task<string> errorTask = null;
       try
       {
         process = new Process
@@ -212,6 +214,9 @@ namespace FluentDocker.Drivers.Docker.Cli
           }
         };
 
+        if (process.StartInfo.RedirectStandardInput)
+          process.StartInfo.StandardInputEncoding = Utf8NoBom;
+
         if (environment != null)
         {
           foreach (var kvp in environment)
@@ -222,20 +227,12 @@ namespace FluentDocker.Drivers.Docker.Cli
 
         // Start readers before writing stdin so a child that immediately writes enough
         // output cannot deadlock while this side is still feeding stdin.
-        var outputTask = ReadBoundedAsync(process.StandardOutput, MaxNonStreamingOutputBytes, linkedToken);
-        var errorTask = ReadBoundedTruncatingAsync(process.StandardError, MaxNonStreamingOutputBytes, linkedToken);
+        outputTask = ReadBoundedAsync(process.StandardOutput, MaxNonStreamingOutputBytes, linkedToken);
+        errorTask = ReadBoundedTruncatingAsync(process.StandardError, MaxNonStreamingOutputBytes, linkedToken);
 
-        if (needsStdin)
-        {
-          // Write sudo password first (if any), then caller data.
-          if (passwordForStdin != null)
-            await process.StandardInput.WriteLineAsync(passwordForStdin.AsMemory(), linkedToken).ConfigureAwait(false);
-
-          if (stdinData != null)
-            await process.StandardInput.WriteAsync(stdinData.AsMemory(), linkedToken).ConfigureAwait(false);
-
-          process.StandardInput.Close();
-        }
+        var stdinFailure = needsStdin
+            ? await TryWriteStandardInputAsync(process, passwordForStdin, stdinData, linkedToken).ConfigureAwait(false)
+            : null;
 
         var output = await outputTask.ConfigureAwait(false);
         var error = await errorTask.ConfigureAwait(false);
@@ -247,7 +244,7 @@ namespace FluentDocker.Drivers.Docker.Cli
         {
           Success = process.ExitCode == 0,
           Output = output,
-          Error = error,
+          Error = string.IsNullOrEmpty(error) && stdinFailure != null ? stdinFailure.Message : error,
           ExitCode = process.ExitCode
         };
       }
@@ -255,6 +252,10 @@ namespace FluentDocker.Drivers.Docker.Cli
       {
         // Kill the child process on cancellation to prevent orphans.
         KillProcessSafely(process);
+
+        // Drain the readers so `finally` doesn't dispose the process under an in-flight read.
+        await TryReadStringTaskAsync(outputTask).ConfigureAwait(false);
+        await TryReadStringTaskAsync(errorTask).ConfigureAwait(false);
 
         // Distinguish caller-driven cancellation from the buffered-command timeout firing:
         // the caller's intent is rethrown as an OCE bound to the caller's token; a timeout
@@ -268,13 +269,21 @@ namespace FluentDocker.Drivers.Docker.Cli
       catch (Exception ex)
       {
         try
-        { if (process is { HasExited: false }) process.Kill(entireProcessTree: true); }
+        {
+          if (process is { HasExited: false })
+            await Task.WhenAny(process.WaitForExitAsync(CancellationToken.None), Task.Delay(100, CancellationToken.None)).ConfigureAwait(false);
+          if (process is { HasExited: false })
+            process.Kill(entireProcessTree: true);
+        }
         catch { /* best effort — process may have exited between the check and the kill */ }
+        var output = await TryReadStringTaskAsync(outputTask).ConfigureAwait(false);
+        var error = await TryReadStringTaskAsync(errorTask).ConfigureAwait(false);
         return new SimpleCommandResult
         {
           Success = false,
-          Error = ex.Message,
-          ExitCode = -1
+          Output = output,
+          Error = string.IsNullOrEmpty(error) ? ex.Message : error,
+          ExitCode = GetExitCodeOrDefault(process)
         };
       }
       finally
@@ -321,6 +330,9 @@ namespace FluentDocker.Drivers.Docker.Cli
           StandardErrorEncoding = Encoding.UTF8
         }
       };
+
+      if (process.StartInfo.RedirectStandardInput)
+        process.StartInfo.StandardInputEncoding = Utf8NoBom;
 
       process.Start();
 
@@ -412,6 +424,9 @@ namespace FluentDocker.Drivers.Docker.Cli
           StandardErrorEncoding = Encoding.UTF8
         }
       };
+
+      if (process.StartInfo.RedirectStandardInput)
+        process.StartInfo.StandardInputEncoding = Utf8NoBom;
 
       process.Start();
 

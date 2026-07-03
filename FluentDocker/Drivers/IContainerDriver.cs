@@ -33,7 +33,12 @@ namespace FluentDocker.Drivers
     /// <param name="context">Driver context</param>
     /// <param name="config">Container configuration</param>
     /// <param name="cancellationToken">Cancellation token</param>
-    /// <returns>Container run result with ID</returns>
+    /// <returns>
+    /// Container run result with ID. For Docker CLI foreground runs (<c>Detach=false</c>),
+    /// stdout and stderr are delimited with a newline when both are present. Very large
+    /// foreground output is returned as a bounded tail prefixed by
+    /// <see cref="FluentDocker.Common.CliOutputTruncation.Marker(int)"/>.
+    /// </returns>
     Task<Model.Drivers.CommandResponse<ContainerRunResult>> RunAsync(
         DriverContext context,
         ContainerCreateConfig config,
@@ -182,7 +187,10 @@ namespace FluentDocker.Drivers
     /// <summary>Container ID (when Detach = true) or null (when Detach = false).</summary>
     public string Id { get; set; }
 
-    /// <summary>Container output (when Detach = false) or null (when Detach = true).</summary>
+    /// <summary>
+    /// Container output (when Detach = false) or null (when Detach = true). Docker CLI keeps
+    /// only a marked tail for very large foreground output.
+    /// </summary>
     public string Output { get; set; }
 
     /// <summary>Warnings from the run operation.</summary>
@@ -261,7 +269,7 @@ namespace FluentDocker.Drivers
     /// <summary>Whether to allocate a TTY.</summary>
     public bool Tty { get; set; }
 
-    /// <summary>Whether to keep STDIN open.</summary>
+    /// <summary>Whether to keep STDIN open; foreground Docker CLI runs close it unless input is supplied internally.</summary>
     public bool Interactive { get; set; }
 
     /// <summary>Entrypoint override.</summary>

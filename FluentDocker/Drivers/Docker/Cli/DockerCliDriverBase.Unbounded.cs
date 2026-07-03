@@ -37,11 +37,12 @@ namespace FluentDocker.Drivers.Docker.Cli
             Arguments = processArguments,
             RedirectStandardOutput = true,
             RedirectStandardError = true,
-            RedirectStandardInput = passwordForStdin != null,
+            RedirectStandardInput = true,
             UseShellExecute = false,
             CreateNoWindow = true,
             StandardOutputEncoding = Encoding.UTF8,
-            StandardErrorEncoding = Encoding.UTF8
+            StandardErrorEncoding = Encoding.UTF8,
+            StandardInputEncoding = Utf8NoBom
           }
         };
 
@@ -51,16 +52,12 @@ namespace FluentDocker.Drivers.Docker.Cli
 
         process.Start();
 
-        var outTail = new OutputTail(CliOutputTruncation.DefaultTailBytes);
-        var errTail = new OutputTail(CliOutputTruncation.DefaultTailBytes);
+        var outTail = new OutputTail(CliOutputTruncation.DefaultTailChars);
+        var errTail = new OutputTail(CliOutputTruncation.DefaultTailChars);
         var outTask = ReadTailAsync(process.StandardOutput, outTail, cancellationToken);
         var errTask = ReadTailAsync(process.StandardError, errTail, cancellationToken);
 
-        if (passwordForStdin != null)
-        {
-          await process.StandardInput.WriteLineAsync(passwordForStdin.AsMemory(), cancellationToken).ConfigureAwait(false);
-          process.StandardInput.Close();
-        }
+        var stdinFailure = await TryWriteStandardInputAsync(process, passwordForStdin, null, cancellationToken).ConfigureAwait(false);
 
         await Task.WhenAll(outTask, errTask).ConfigureAwait(false);
         await process.WaitForExitAsync(cancellationToken).ConfigureAwait(false);
@@ -69,7 +66,7 @@ namespace FluentDocker.Drivers.Docker.Cli
         {
           Success = process.ExitCode == 0,
           Output = outTail.ToString(),
-          Error = errTail.ToString(),
+          Error = string.IsNullOrEmpty(errTail.ToString()) && stdinFailure != null ? stdinFailure.Message : errTail.ToString(),
           ExitCode = process.ExitCode
         };
       }

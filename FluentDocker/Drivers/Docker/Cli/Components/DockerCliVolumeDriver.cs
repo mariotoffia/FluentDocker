@@ -188,7 +188,10 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
         }
 
         var volumes = JsonSerializer.Deserialize<List<Volume>>(result.Output, JsonHelper.CaseInsensitiveOptions);
-        return CommandResponse<Volume>.Ok(volumes?.FirstOrDefault() ?? new Volume());
+        var volume = volumes?.FirstOrDefault();
+        return volume == null
+            ? CommandResponse<Volume>.Fail($"Volume {volumeName} not found", ErrorCodes.Volume.NotFound)
+            : CommandResponse<Volume>.Ok(volume);
       }
       catch (OperationCanceledException)
       {

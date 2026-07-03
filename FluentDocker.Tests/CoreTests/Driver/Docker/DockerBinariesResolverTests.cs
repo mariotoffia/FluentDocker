@@ -22,7 +22,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Docker
 
     public DockerBinariesResolverTests()
     {
-      _tempDir = Path.Combine(Path.GetTempPath(), $"fd_test_{Guid.NewGuid():N}");
+      _tempDir = Path.Combine(Directory.GetCurrentDirectory(), ".out", "docker-binaries-resolver", Guid.NewGuid().ToString("N"));
       Directory.CreateDirectory(_tempDir);
     }
 
@@ -55,6 +55,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Docker
 
       var filePath = Path.Combine(_tempDir, binaryName);
       File.WriteAllText(filePath, "fake-docker-binary");
+      MakeExecutable(filePath);
       return filePath;
     }
 
@@ -79,13 +80,15 @@ namespace FluentDocker.Tests.CoreTests.Driver.Docker
     private static IEnumerable<DockerBinary> InvokeResolveFromPaths(
         SudoMechanism sudo, string password, params string[] paths)
     {
-      var fakeDir = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName());
+      var fakeDir = Path.Combine(Directory.GetCurrentDirectory(), ".out", "docker-binaries-resolver", Guid.NewGuid().ToString("N"));
       Directory.CreateDirectory(fakeDir);
       try
       {
         var binaryName = RuntimeInformation.IsOSPlatform(OSPlatform.Windows)
             ? "docker.exe" : "docker";
-        File.WriteAllText(Path.Combine(fakeDir, binaryName), "fake");
+        var fakeDocker = Path.Combine(fakeDir, binaryName);
+        File.WriteAllText(fakeDocker, "fake");
+        MakeExecutable(fakeDocker);
 
         var instance = new DockerBinariesResolver(new BinaryConfiguration
         {
@@ -288,22 +291,6 @@ namespace FluentDocker.Tests.CoreTests.Driver.Docker
 
     #endregion
 
-    #region IsDockerComposeAvailable
-
-    [Fact]
-    public void IsDockerComposeAvailable_WhenComposeIsNull_ReturnsFalse()
-    {
-      // Create a resolver with a fake docker that does not support compose.
-      // CheckCompose will fail since the fake binary is not executable.
-      var resolver = CreateResolverWithFakeBinary();
-
-      // The fake binary cannot run "docker compose version",
-      // so MainDockerCompose should be null.
-      Assert.False(resolver.IsDockerComposeAvailable);
-    }
-
-    #endregion
-
     #region ResolveFromPaths (private static via reflection)
 
     [Fact]
@@ -458,5 +445,11 @@ namespace FluentDocker.Tests.CoreTests.Driver.Docker
     }
 
     #endregion
+
+    private static void MakeExecutable(string path)
+    {
+      if (!OperatingSystem.IsWindows())
+        File.SetUnixFileMode(path, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+    }
   }
 }

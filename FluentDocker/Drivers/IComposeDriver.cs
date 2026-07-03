@@ -170,7 +170,9 @@ namespace FluentDocker.Drivers
     #region Execution Operations
 
     /// <summary>
-    /// Executes a command in a compose service container.
+    /// Executes a command in a compose service container. Docker CLI reports in-container
+    /// non-zero exits as successful responses with the process exit code; infrastructure
+    /// failures are failed responses.
     /// </summary>
     Task<CommandResponse<string>> ExecuteAsync(
         DriverContext context,
@@ -178,7 +180,10 @@ namespace FluentDocker.Drivers
         CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Runs a one-off command in a service container.
+    /// Runs a one-off command in a service container. Docker CLI reports in-container
+    /// non-zero exits as successful responses with the process exit code; infrastructure
+    /// failures are failed responses. <c>Data</c> carries the command's stdout only —
+    /// compose writes its own progress to stderr, which is merged into <c>Output</c>.
     /// </summary>
     Task<CommandResponse<string>> RunAsync(
         DriverContext context,

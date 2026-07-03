@@ -1,10 +1,10 @@
 namespace FluentDocker.Common
 {
-  internal static class CliOutputTruncation
+  public static class CliOutputTruncation
   {
-    public const int DefaultTailBytes = 256 * 1024;
+    public const int DefaultTailChars = 256 * 1024;
 
-    public static string Marker(int maxBytes) =>
-        $"[FluentDocker: output truncated, showing last {maxBytes} bytes]";
+    public static string Marker(int maxChars) =>
+        $"[FluentDocker: output truncated, showing last {maxChars} chars]";
   }
 }

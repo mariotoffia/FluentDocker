@@ -18,7 +18,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Docker
 
     public DockerBinariesResolverCustomBinaryTests()
     {
-      _tempDir = Path.Combine(Path.GetTempPath(), $"fd315_{Guid.NewGuid():N}");
+      _tempDir = Path.Combine(Directory.GetCurrentDirectory(), ".out", $"fd315_{Guid.NewGuid():N}");
       Directory.CreateDirectory(_tempDir);
     }
 
@@ -35,6 +35,8 @@ namespace FluentDocker.Tests.CoreTests.Driver.Docker
       var file = RuntimeInformation.IsOSPlatform(OSPlatform.Windows) ? $"{name}.exe" : name;
       var path = Path.Combine(_tempDir, file);
       File.WriteAllText(path, "fake");
+      if (!OperatingSystem.IsWindows())
+        File.SetUnixFileMode(path, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
       return path;
     }
 

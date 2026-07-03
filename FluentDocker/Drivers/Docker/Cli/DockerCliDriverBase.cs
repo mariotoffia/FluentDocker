@@ -163,6 +163,15 @@ namespace FluentDocker.Drivers.Docker.Cli
       return string.IsNullOrEmpty(result?.Error) ? fallback : result.Error;
     }
 
+    protected static string MergeOutputAndError(string output, string error)
+    {
+      if (string.IsNullOrEmpty(output))
+        return error ?? string.Empty;
+      if (string.IsNullOrEmpty(error))
+        return output;
+      return output.EndsWith('\n') || error.StartsWith('\n') ? output + error : output + "\n" + error;
+    }
+
     protected static string FailureCode(Exception ex, string fallbackCode)
     {
       if (ex is DriverException driverException && !string.IsNullOrEmpty(driverException.ErrorCode))
@@ -218,8 +227,8 @@ namespace FluentDocker.Drivers.Docker.Cli
     {
       return sudo switch
       {
-        SudoMechanism.NoPassword => ("sudo", $"{binaryPath} {arguments}", null),
-        SudoMechanism.Password => ("sudo", $"-S {binaryPath} {arguments}", sudoPassword),
+        SudoMechanism.NoPassword => ("sudo", $"-- {QuoteArgumentIfNeeded(binaryPath)} {arguments}", null),
+        SudoMechanism.Password => ("sudo", $"-S -- {QuoteArgumentIfNeeded(binaryPath)} {arguments}", sudoPassword),
         _ => (binaryPath, arguments, null)
       };
     }

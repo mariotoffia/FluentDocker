@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Globalization;
 using System.Linq;
 using System.Text.Json;
 using System.Threading;
@@ -133,10 +132,13 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
               };
 
               // Parse CreatedAt if present
-              if (!string.IsNullOrEmpty(dto.CreatedAt)
-                  && DateTime.TryParse(dto.CreatedAt, CultureInfo.InvariantCulture, DateTimeStyles.None, out var created))
+              if (DockerCliTimestampParser.TryParse(dto.CreatedAt, out var created))
               {
                 container.Created = created;
+              }
+              else if (!string.IsNullOrEmpty(dto.CreatedAt) && Logger.IsEnabled(LogLevel.Debug))
+              {
+                Logger.LogDebug("Unparseable container CreatedAt '{CreatedAt}'", dto.CreatedAt);
               }
 
               // Parse State if present
@@ -195,7 +197,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
           args += " -t";
         args += $" {QuotePositionalArgument(containerId, nameof(containerId))}";
 
-        var result = await ExecuteCommandAsync(context, args, cancellationToken).ConfigureAwait(false);
+        var result = await ExecuteUnboundedCommandAsync(context, args, cancellationToken).ConfigureAwait(false);
 
         if (!result.Success)
         {
@@ -204,12 +206,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
               FailureCode(result.Error, ErrorCodes.Container.LogsFailed));
         }
 
-        // docker logs writes to both stdout and stderr.
-        // Combine both to capture all container output.
-        var logs = !string.IsNullOrEmpty(result.Error)
-            ? result.Output + result.Error
-            : result.Output;
-        return CommandResponse<string>.Ok(logs);
+        return CommandResponse<string>.Ok(MergeOutputAndError(result.Output, result.Error));
       }
       catch (OperationCanceledException)
       {
@@ -217,7 +214,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
       }
       catch (Exception ex)
       {
-        return CommandResponse<string>.Fail(ex.Message, FailureCode(ex, ErrorCodes.General.Unknown));
+        return CommandResponse<string>.Fail(ex.Message, FailureCode(ex, ErrorCodes.Container.LogsFailed));
       }
     }
 
@@ -231,8 +228,8 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
       try
       {
         var args = $"top {QuotePositionalArgument(containerId, nameof(containerId))}";
-        if (!string.IsNullOrEmpty(psOptions))
-          args += $" {QuoteArgumentIfNeeded(psOptions)}";
+        if (!string.IsNullOrWhiteSpace(psOptions))
+          args += " " + string.Join(" ", psOptions.Split(SpaceSeparator, StringSplitOptions.RemoveEmptyEntries).Select(QuoteArgumentIfNeeded));
 
         var result = await ExecuteCommandAsync(context, args, cancellationToken).ConfigureAwait(false);
 

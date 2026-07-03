@@ -157,7 +157,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     {
       try
       {
-        var result = await ExecuteUnboundedCommandAsync(context, $"save -o {QuoteArgumentIfNeeded(outputPath)} {string.Join(" ", images.Select(QuoteArgumentIfNeeded))}", cancellationToken).ConfigureAwait(false);
+        var result = await ExecuteUnboundedCommandAsync(context, $"save -o {QuoteArgumentIfNeeded(outputPath)} {string.Join(" ", images.Select(i => QuotePositionalArgument(i, nameof(images))))}", cancellationToken).ConfigureAwait(false);
 
         if (!result.Success)
         {

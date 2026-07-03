@@ -44,7 +44,14 @@ namespace FluentDocker.Drivers.Docker.Cli.Binary
           _configuration.SearchPaths)];
 
       MainDockerClient = Binaries.FirstOrDefault(x => x.Type == DockerBinaryType.DockerClient);
-      MainDockerCompose = CheckCompose(_configuration.Sudo, _configuration.SudoPassword);
+      MainDockerCompose = MainDockerClient == null
+          ? null
+          : new DockerBinary(
+              MainDockerClient.Path,
+              MainDockerClient.Binary,
+              MainDockerClient.Sudo,
+              MainDockerClient.SudoPassword,
+              DockerBinaryType.Compose);
       MainDockerCli = Binaries.FirstOrDefault(x => x.Type == DockerBinaryType.Cli);
 
       if (MainDockerClient == null)
@@ -56,10 +63,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Binary
         throw new DriverNotAvailableException(driverId, reason);
       }
 
-      if (MainDockerCompose == null)
-      {
-        _logger.LogWarning("Docker Compose (docker compose) is not available - compose features will not work");
-      }
+      _logger.LogDebug("Docker Compose availability is verified lazily when compose commands run");
     }
 
     /// <summary>
@@ -89,9 +93,6 @@ namespace FluentDocker.Drivers.Docker.Cli.Binary
 
     /// <inheritdoc />
     public DockerBinary MainDockerCli { get; }
-
-    /// <inheritdoc />
-    public bool IsDockerComposeAvailable => MainDockerCompose != null;
 
     /// <inheritdoc />
     public DockerBinary Resolve(string binary)
@@ -174,7 +175,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Binary
 
           list.AddRange(from file in Directory.GetFiles(path, $"{clientName}*")
                         let f = Path.GetFileName(file)
-                        where f.Equals(clientFile, StringComparison.Ordinal)
+                        where f.Equals(clientFile, StringComparison.Ordinal) && IsExecutable(file)
                         select new DockerBinary(path, f, sudo, password, DockerBinaryType.DockerClient));
         }
         catch (Exception e)
@@ -186,58 +187,20 @@ namespace FluentDocker.Drivers.Docker.Cli.Binary
       return list;
     }
 
-    private DockerBinary CheckCompose(SudoMechanism sudo, string password)
+    private static bool IsExecutable(string file)
     {
-      if (MainDockerClient == null)
-        return null;
+      if (OperatingSystem.IsWindows())
+        return File.Exists(file);
 
       try
       {
-        using var process = new Process
-        {
-          StartInfo = new ProcessStartInfo
-          {
-            FileName = MainDockerClient.FqPath,
-            Arguments = "compose version",
-            RedirectStandardOutput = true,
-            RedirectStandardError = true,
-            UseShellExecute = false,
-            CreateNoWindow = true
-          }
-        };
-
-        process.Start();
-        // Read stdout and stderr concurrently to avoid deadlock
-        // when either pipe buffer fills up.
-        var outputTask = process.StandardOutput.ReadToEndAsync();
-        var errorTask = process.StandardError.ReadToEndAsync();
-        // Wait for exit first with timeout — ReadToEndAsync completes
-        // only after the process closes its pipes (i.e. exits).
-        // ponytail: sync probe, async resolution if startup latency matters.
-        if (!process.WaitForExit(3_000))
-        {
-          try
-          { process.Kill(entireProcessTree: true); }
-          catch { /* best effort */ }
-          return null;
-        }
-        var output = outputTask.GetAwaiter().GetResult();
-        errorTask.GetAwaiter().GetResult();
-
-        if (process.ExitCode == 0 && !string.IsNullOrWhiteSpace(output))
-        {
-          return new DockerBinary(
-              Path.GetDirectoryName(MainDockerClient.FqPath),
-              Path.GetFileName(MainDockerClient.FqPath),
-              sudo, password, DockerBinaryType.Compose);
-        }
+        var mode = File.GetUnixFileMode(file);
+        return (mode & (UnixFileMode.UserExecute | UnixFileMode.GroupExecute | UnixFileMode.OtherExecute)) != 0;
       }
-      catch (Exception ex)
+      catch
       {
-        _logger.LogDebug(ex, "Docker Compose plugin is not available");
+        return false;
       }
-
-      return null;
     }
   }
 }

@@ -29,7 +29,7 @@ namespace FluentDocker.Drivers.Podman.Cli
     // ponytail: a 256 KiB rolling tail keeps the trailing result line plus ample error context
     // for diagnostics without buffering a verbose pull/build/exec in full. Upgrade path: spool
     // the complete stream to a temp file if a caller ever needs the full output of a long op.
-    private const int UnboundedTailBytes = CliOutputTruncation.DefaultTailBytes;
+    private const int UnboundedTailChars = CliOutputTruncation.DefaultTailChars;
 
     /// <summary>
     /// Executes an inherently-long Podman op (pull/push/build/save/load/import/exec/wait/machine …)
@@ -78,8 +78,8 @@ namespace FluentDocker.Drivers.Podman.Cli
         // Read both pipes concurrently so neither deadlocks on a full buffer; each is kept as a
         // bounded rolling tail. The tail preserves the END of the stream — where podman prints the
         // meaningful result line and the freshest error context.
-        var outTail = new OutputTail(UnboundedTailBytes);
-        var errTail = new OutputTail(UnboundedTailBytes);
+        var outTail = new OutputTail(UnboundedTailChars);
+        var errTail = new OutputTail(UnboundedTailChars);
         var outTask = ReadTailAsync(process.StandardOutput, outTail, cancellationToken);
         var errTask = ReadTailAsync(process.StandardError, errTail, cancellationToken);
         await Task.WhenAll(outTask, errTask).ConfigureAwait(false);

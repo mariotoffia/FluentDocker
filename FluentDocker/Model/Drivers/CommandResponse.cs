@@ -73,6 +73,20 @@ namespace FluentDocker.Model.Drivers
     }
 
     /// <summary>
+    /// Creates a successful command response with output and the process exit code.
+    /// </summary>
+    public static CommandResponse<T> Ok(T data, string output, int exitCode)
+    {
+      return new CommandResponse<T>
+      {
+        Success = true,
+        Data = data,
+        Output = output,
+        ExitCode = exitCode
+      };
+    }
+
+    /// <summary>
     /// Creates a failed command response.
     /// </summary>
     public static CommandResponse<T> Fail(string error, string errorCode = null, int exitCode = -1)

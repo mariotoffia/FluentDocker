@@ -130,7 +130,7 @@ namespace FluentDocker.Tests.CoreTests.Driver
       var driver = CreateShellDriver();
 
       // Emit ~8 MiB to stdout (yes | head) — well past the 4 MiB cap. The bounded read
-      // must abort and the command must report a clear failure (ExitCode -1), never OOM.
+      // must abort and the command must report a clear failure, never OOM.
       // 'yes x' emits a 2-byte line ("x\n"); 5,000,000 lines ~= 10 MB.
       const string script = "yes x | head -n 5000000";
       var args = $"-c \"{script}\"";
@@ -138,7 +138,7 @@ namespace FluentDocker.Tests.CoreTests.Driver
       var result = await driver.Run(args, TestContext.Current.CancellationToken);
 
       Assert.False(result.Success);
-      Assert.Equal(-1, result.ExitCode);
+      Assert.NotEqual(0, result.ExitCode);
       Assert.Contains("limit", result.Error, StringComparison.OrdinalIgnoreCase);
     }
 
@@ -170,7 +170,9 @@ namespace FluentDocker.Tests.CoreTests.Driver
       if (OperatingSystem.IsWindows())
         Assert.Skip("POSIX shell semantics; not applicable on Windows");
 
-      var sentinel = System.IO.Path.Combine(System.IO.Path.GetTempPath(), $"fd-b8-{Guid.NewGuid():N}");
+      var dir = System.IO.Path.Combine(System.IO.Directory.GetCurrentDirectory(), ".out", "progress-streaming");
+      System.IO.Directory.CreateDirectory(dir);
+      var sentinel = System.IO.Path.Combine(dir, $"fd-b8-{Guid.NewGuid():N}");
       try
       {
         var driver = CreateShellDriver();
@@ -184,7 +186,7 @@ namespace FluentDocker.Tests.CoreTests.Driver
 
         // (a) Result reports failure.
         Assert.False(result.Success);
-        Assert.Equal(-1, result.ExitCode);
+        Assert.NotEqual(0, result.ExitCode);
 
         // (b) Sentinel exists: the child started, but the cleanup `rm` was never reached
         //     because Kill(entireProcessTree:true) terminated the whole process tree before

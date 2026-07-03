@@ -35,7 +35,8 @@ namespace FluentDocker.Drivers.Docker.Cli.Binary
     DockerBinary MainDockerClient { get; }
 
     /// <summary>
-    /// Gets the main Docker Compose binary (docker compose subcommand).
+    /// Gets the Docker client wrapper used for the <c>docker compose</c> subcommand.
+    /// Compose support is verified when compose commands execute.
     /// </summary>
     DockerBinary MainDockerCompose { get; }
 
@@ -43,11 +44,6 @@ namespace FluentDocker.Drivers.Docker.Cli.Binary
     /// Gets the main Docker CLI binary.
     /// </summary>
     DockerBinary MainDockerCli { get; }
-
-    /// <summary>
-    /// Gets whether Docker Compose is available.
-    /// </summary>
-    bool IsDockerComposeAvailable { get; }
 
     /// <summary>
     /// Resolves a Docker binary by command name.

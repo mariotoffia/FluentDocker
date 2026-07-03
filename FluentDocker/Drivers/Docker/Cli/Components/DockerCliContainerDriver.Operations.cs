@@ -246,7 +246,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     {
       try
       {
-        var result = await ExecuteCommandAsync(context, $"rename {QuotePositionalArgument(containerId, nameof(containerId))} {QuoteArgumentIfNeeded(newName)}", cancellationToken).ConfigureAwait(false);
+        var result = await ExecuteCommandAsync(context, $"rename {QuotePositionalArgument(containerId, nameof(containerId))} {QuotePositionalArgument(newName, nameof(newName))}", cancellationToken).ConfigureAwait(false);
 
         if (!result.Success)
         {

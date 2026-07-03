@@ -71,7 +71,7 @@ namespace FluentDocker.Common
 
       foreach (var (suffix, multiplier) in suffixes)
       {
-        if (!s.EndsWith(suffix, StringComparison.Ordinal))
+        if (!s.EndsWith(suffix, StringComparison.OrdinalIgnoreCase))
           continue;
         var numStr = s[..^suffix.Length].Trim();
         if (double.TryParse(numStr, NumberStyles.Float,

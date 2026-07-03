@@ -42,8 +42,11 @@ namespace FluentDocker.Drivers
     /// <param name="timestamps">Show timestamps</param>
     /// <param name="cancellationToken">Cancellation token</param>
     /// <returns>
-    /// Container logs. Podman CLI may include Podman's own stderr warnings in this buffered
-    /// string because container log output and CLI diagnostics share the same process pipes.
+    /// Container logs. Docker CLI does not fail when logs are chatty; it returns the last
+    /// <see cref="FluentDocker.Common.CliOutputTruncation.DefaultTailChars"/> characters with
+    /// <see cref="FluentDocker.Common.CliOutputTruncation.Marker(int)"/> when truncation occurs.
+    /// Use <paramref name="tail"/> or <see cref="IStreamDriver.StreamLogsAsync"/> for full
+    /// diagnostics. Other buffered Docker CLI calls still fail fast at their memory cap.
     /// </returns>
     Task<Model.Drivers.CommandResponse<string>> GetLogsAsync(
         DriverContext context,
@@ -102,7 +105,11 @@ namespace FluentDocker.Drivers
     /// <param name="containerId">Container ID or name</param>
     /// <param name="config">Exec configuration</param>
     /// <param name="cancellationToken">Cancellation token</param>
-    /// <returns>Exec result</returns>
+    /// <returns>
+    /// Exec result. Docker CLI captures stdout/stderr as bounded tails and prefixes
+    /// <see cref="FluentDocker.Common.CliOutputTruncation.Marker(int)"/> when truncation occurs;
+    /// this tail policy is deliberate for potentially unbounded in-container output.
+    /// </returns>
     Task<Model.Drivers.CommandResponse<ExecResult>> ExecAsync(
         DriverContext context,
         string containerId,
@@ -211,10 +218,10 @@ namespace FluentDocker.Drivers
     /// <summary>Exit code from the command.</summary>
     public int ExitCode { get; set; }
 
-    /// <summary>Standard output from the command.</summary>
+    /// <summary>Standard output from the command; Docker CLI marks it when only a tail was kept.</summary>
     public string StdOut { get; set; }
 
-    /// <summary>Standard error from the command.</summary>
+    /// <summary>Standard error from the command; Docker CLI marks it when only a tail was kept.</summary>
     public string StdErr { get; set; }
   }
 

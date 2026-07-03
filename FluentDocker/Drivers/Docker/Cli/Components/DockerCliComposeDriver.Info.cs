@@ -336,13 +336,16 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
           args += " " + string.Join(" ", config.Command.Select(QuoteArgumentIfNeeded));
 
         var result = await ExecuteUnboundedCommandAsync(context, args, cancellationToken).ConfigureAwait(false);
-        return result.Success
-            ? CommandResponse<string>.Ok(result.Output)
-            : CommandResponse<string>.Fail(
-                ErrorOrDefault(result, "Compose exec failed"),
-                FailureCode(result.Error, ErrorCodes.Compose.ExecFailed),
-                CreateErrorContext(context, "ComposeExec", result),
-                result.ExitCode);
+        if (IsComposeExecInfrastructureFailure(result.ExitCode, result.Output, result.Error))
+        {
+          return CommandResponse<string>.Fail(
+              ErrorOrDefault(result, "Compose exec failed"),
+              FailureCode(result.Error, ErrorCodes.Compose.ExecFailed),
+              CreateErrorContext(context, "ComposeExec", result),
+              result.ExitCode);
+        }
+
+        return CommandResponse<string>.Ok(MergeOutputAndError(result.Output, result.Error), result.Output, result.ExitCode);
       }
       catch (OperationCanceledException)
       {
@@ -365,10 +368,16 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
         var args = BuildComposeArgs(config) + " " + BuildRunSubArgs(config);
 
         var result = await ExecuteUnboundedCommandAsync(context, args, cancellationToken).ConfigureAwait(false);
-        return result.Success
-            ? CommandResponse<string>.Ok(result.Output)
-            : CommandResponse<string>.Fail(
-                ErrorOrDefault(result, "Compose run failed"), FailureCode(result.Error, ErrorCodes.Compose.RunFailed));
+        if (IsComposeExecInfrastructureFailure(result.ExitCode, result.Output, result.Error))
+          return CommandResponse<string>.Fail(
+              ErrorOrDefault(result, "Compose run failed"),
+              FailureCode(result.Error, ErrorCodes.Compose.RunFailed),
+              CreateErrorContext(context, "ComposeRun", result),
+              result.ExitCode);
+
+        // Data = stdout only: compose run writes its own progress (network/pull chatter)
+        // to stderr, which must not pollute the command's parsed output. Output = merged.
+        return CommandResponse<string>.Ok(result.Output, MergeOutputAndError(result.Output, result.Error), result.ExitCode);
       }
       catch (OperationCanceledException)
       {

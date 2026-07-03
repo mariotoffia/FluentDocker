@@ -52,7 +52,8 @@ namespace FluentDocker.Drivers.Docker.Cli
           UseShellExecute = false,
           CreateNoWindow = true,
           StandardOutputEncoding = Encoding.UTF8,
-          StandardErrorEncoding = Encoding.UTF8
+          StandardErrorEncoding = Encoding.UTF8,
+          StandardInputEncoding = Utf8NoBom
         }
       };
 

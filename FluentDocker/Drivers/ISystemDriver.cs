@@ -45,7 +45,8 @@ namespace FluentDocker.Drivers
         CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Checks if the engine is Linux-based.
+    /// Checks if the engine is Linux-based. Probe failures are returned as failed
+    /// <see cref="CommandResponse{T}"/> values; callers must not treat daemon-down as Linux.
     /// </summary>
     Task<CommandResponse<bool>> IsLinuxEngineAsync(
         DriverContext context,

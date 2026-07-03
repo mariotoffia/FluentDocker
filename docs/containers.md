@@ -523,6 +523,12 @@ foreach (var line in logs.Split('\n'))
 
 `GetLogsAsync(follow: true)` is rejected on buffered drivers; use streaming APIs for follow mode.
 
+Buffered Docker CLI logs are diagnostic-safe: huge output returns a bounded tail instead of
+throwing, prefixed by `[FluentDocker: output truncated, showing last N chars]`. Foreground `RunAsync` and
+`ExecAsync` use the same marker for large stdout/stderr tails; other buffered Docker CLI calls
+still fail fast at their memory cap. If you need every byte, use `tail`, redirect in the
+container, or stream logs (`StreamLogsAsync` tags stderr lines as `[stderr] ...`).
+
 ## Volumes (Bind Mounts and Named Volumes)
 
 ```csharp

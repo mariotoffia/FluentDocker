@@ -73,9 +73,10 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     {
       try
       {
-        var args = $"stack ps --format \"{{{{json .}}}}\" {QuotePositionalArgument(stackName, nameof(stackName))}";
+        var args = "stack ps";
         if (filter?.NoTrunc == true)
-          args = args.Replace("stack ps", "stack ps --no-trunc");
+          args += " --no-trunc";
+        args += $" --format \"{{{{json .}}}}\" {QuotePositionalArgument(stackName, nameof(stackName))}";
 
         var result = await ExecuteCommandAsync(context, args, cancellationToken).ConfigureAwait(false);
 
@@ -122,7 +123,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
           args += " --prune";
         if (config.WithRegistryAuth)
           args += " --with-registry-auth";
-        args += $" {QuoteArgumentIfNeeded(config.StackName)}";
+        args += $" {QuotePositionalArgument(config.StackName, nameof(config.StackName))}";
 
         var result = await ExecuteCommandAsync(context, args, cancellationToken).ConfigureAwait(false);
 
@@ -152,7 +153,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     {
       try
       {
-        var args = $"stack rm {string.Join(" ", stackNames.Select(QuoteArgumentIfNeeded))}";
+        var args = $"stack rm {string.Join(" ", stackNames.Select(n => QuotePositionalArgument(n, nameof(stackNames))))}";
 
         var result = await ExecuteCommandAsync(context, args, cancellationToken).ConfigureAwait(false);
 

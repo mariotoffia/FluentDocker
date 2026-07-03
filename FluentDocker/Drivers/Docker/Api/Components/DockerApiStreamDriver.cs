@@ -256,7 +256,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
         AttachConfig config = null, CancellationToken cancellationToken = default)
     {
       config ??= new AttachConfig();
-      if (config.Stdin)
+      if (config.Stdin == true)
         return CommandResponse<AttachResult>.Fail(
             "interactive stdin is not supported by the Docker API driver",
             ErrorCodes.Container.AttachFailed,
@@ -266,7 +266,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
           $"stream=1" +
           $"&stdout={config.Stdout.ToString().ToLowerInvariant()}" +
           $"&stderr={config.Stderr.ToString().ToLowerInvariant()}" +
-          $"&stdin={config.Stdin.ToString().ToLowerInvariant()}";
+          $"&stdin=false";
 
       try
       {

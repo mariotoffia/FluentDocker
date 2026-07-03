@@ -58,7 +58,10 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
           foreach (var cmd in config.Command)
             args.Add(QuoteArgumentIfNeeded(cmd));
 
-        var result = await ExecuteCommandAsync(context, string.Join(" ", args), cancellationToken).ConfigureAwait(false);
+        var command = string.Join(" ", args);
+        var result = config.Detach
+            ? await ExecuteCommandAsync(context, command, cancellationToken).ConfigureAwait(false)
+            : await ExecuteUnboundedCommandAsync(context, command, cancellationToken).ConfigureAwait(false);
 
         if (!result.Success)
         {

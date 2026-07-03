@@ -33,7 +33,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
         args += " --password-stdin";
 
       if (!string.IsNullOrEmpty(config.Server))
-        args += $" {QuoteArgumentIfNeeded(config.Server)}";
+        args += $" {QuotePositionalArgument(config.Server, nameof(config.Server))}";
 
       var stdinData = !string.IsNullOrEmpty(config.Password) ? config.Password : null;
 
@@ -59,7 +59,11 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
             : await ExecuteCommandAsync(context, args, cancellationToken).ConfigureAwait(false);
         return result.Success
             ? CommandResponse<Unit>.Ok(Unit.Default)
-            : CommandResponse<Unit>.Fail(ErrorOrDefault(result, "Login failed"), FailureCode(result.Error, ErrorCodes.Auth.LoginFailed));
+            : CommandResponse<Unit>.Fail(
+                ErrorOrDefault(result, "Login failed"),
+                FailureCode(result.Error, ErrorCodes.Auth.LoginFailed),
+                CreateErrorContext(context, "Login", result),
+                result.ExitCode);
       }
       catch (OperationCanceledException)
       {
@@ -81,12 +85,16 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
       {
         var args = "logout";
         if (!string.IsNullOrEmpty(server))
-          args += $" {QuoteArgumentIfNeeded(server)}";
+          args += $" {QuotePositionalArgument(server, nameof(server))}";
 
         var result = await ExecuteCommandAsync(context, args, cancellationToken).ConfigureAwait(false);
         return result.Success
             ? CommandResponse<Unit>.Ok(Unit.Default)
-            : CommandResponse<Unit>.Fail(ErrorOrDefault(result, "Logout failed"), FailureCode(result.Error, ErrorCodes.Auth.LogoutFailed));
+            : CommandResponse<Unit>.Fail(
+                ErrorOrDefault(result, "Logout failed"),
+                FailureCode(result.Error, ErrorCodes.Auth.LogoutFailed),
+                CreateErrorContext(context, "Logout", result),
+                result.ExitCode);
       }
       catch (OperationCanceledException)
       {

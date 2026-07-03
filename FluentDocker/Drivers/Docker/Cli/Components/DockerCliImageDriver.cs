@@ -40,7 +40,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
         var fullImage = string.IsNullOrEmpty(tag) ? image : $"{image}:{tag}";
         var result = await ExecuteProgressCommandAsync(
             context,
-            $"pull {QuoteArgumentIfNeeded(fullImage)}",
+            $"pull {QuotePositionalArgument(fullImage, nameof(image))}",
             progress,
             CreatePullProgress,
             cancellationToken).ConfigureAwait(false);
@@ -77,7 +77,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
       {
         var result = await ExecuteProgressCommandAsync(
             context,
-            $"push {QuoteArgumentIfNeeded(image)}",
+            $"push {QuotePositionalArgument(image, nameof(image))}",
             progress,
             CreatePushProgress,
             cancellationToken).ConfigureAwait(false);
@@ -299,9 +299,13 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
               }
 
               // Parse CreatedAt if present
-              if (!string.IsNullOrEmpty(dto.CreatedAt) && DateTime.TryParse(dto.CreatedAt, System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out var created))
+              if (DockerCliTimestampParser.TryParse(dto.CreatedAt, out var created))
               {
                 image.Created = created;
+              }
+              else if (!string.IsNullOrEmpty(dto.CreatedAt) && Logger.IsEnabled(LogLevel.Debug))
+              {
+                Logger.LogDebug("Unparseable image CreatedAt '{CreatedAt}'", dto.CreatedAt);
               }
 
               images.Add(image);
@@ -353,43 +357,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
       public string Comment { get; set; }
     }
 
-    /// <summary>
-    /// Parses size string like "1.05GB", "125MB", "9.18MB" to bytes.
-    /// Docker CLI uses SI units (base-1000): KB=1000, MB=1000000, etc.
-    /// Longer suffixes are checked first to avoid "TB" matching "B".
-    /// </summary>
-    private static long ParseSize(string sizeStr)
-    {
-      if (string.IsNullOrEmpty(sizeStr))
-        return 0;
-
-      sizeStr = sizeStr.Trim();
-      if (sizeStr == "N/A" || sizeStr == "0B")
-        return 0;
-
-      // Ordered longest-suffix-first to prevent "TB" matching "B" suffix.
-      ReadOnlySpan<(string Suffix, long Multiplier)> units =
-      [
-        ("TB", 1_000_000_000_000L),
-        ("GB", 1_000_000_000L),
-        ("MB", 1_000_000L),
-        ("KB", 1_000L),
-        ("B", 1L),
-      ];
-
-      foreach (var (suffix, multiplier) in units)
-      {
-        if (sizeStr.EndsWith(suffix, StringComparison.OrdinalIgnoreCase))
-        {
-          var numberPart = sizeStr.Substring(0, sizeStr.Length - suffix.Length).Trim();
-          if (double.TryParse(numberPart, System.Globalization.NumberStyles.Float,
-              System.Globalization.CultureInfo.InvariantCulture, out var number))
-            return (long)(number * multiplier);
-        }
-      }
-
-      return 0;
-    }
+    private static long ParseSize(string sizeStr) => CliOutputParser.ParseByteValue(sizeStr);
 
     /// <inheritdoc />
     public async Task<CommandResponse<Image>> InspectAsync(
@@ -469,9 +437,13 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
               };
 
               // Parse CreatedAt if present
-              if (!string.IsNullOrEmpty(dto.CreatedAt) && DateTime.TryParse(dto.CreatedAt, System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out var created))
+              if (DockerCliTimestampParser.TryParse(dto.CreatedAt, out var created))
               {
                 layer.Created = created;
+              }
+              else if (!string.IsNullOrEmpty(dto.CreatedAt) && Logger.IsEnabled(LogLevel.Debug))
+              {
+                Logger.LogDebug("Unparseable history CreatedAt '{CreatedAt}'", dto.CreatedAt);
               }
 
               layers.Add(layer);

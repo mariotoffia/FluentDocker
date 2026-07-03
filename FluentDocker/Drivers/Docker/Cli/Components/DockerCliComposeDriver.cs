@@ -244,7 +244,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     {
       try
       {
-        var args = BuildComposeArgs(config) + $" kill -s {QuoteArgumentIfNeeded(config.Signal ?? "SIGKILL")}";
+        var args = BuildComposeArgs(config) + $" kill -s {QuotePositionalArgument(config.Signal ?? "SIGKILL", nameof(config.Signal))}";
         if (config.Services.Count > 0)
           args += " " + QuoteServices(config.Services);
 
@@ -307,7 +307,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     }
 
     private static string QuoteServices(IEnumerable<string> services) =>
-        string.Join(" ", services.Select(QuoteArgumentIfNeeded));
+        string.Join(" ", services.Select(service => QuotePositionalArgument(service, nameof(services))));
 
     #endregion
   }

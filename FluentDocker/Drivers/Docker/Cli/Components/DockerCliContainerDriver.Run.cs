@@ -28,6 +28,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
           return FailInvalidLeadingDash<ContainerRunResult>("Container image");
         if (!config.Detach)
         {
+          // Temp path, not CWD: consumers may run with a read-only working directory.
           cidFile = Path.Combine(Path.GetTempPath(), $"docker-cid-{Guid.NewGuid():N}");
         }
         var args = BuildCreateArgs("run", config, config.Detach, cidFile);
@@ -56,9 +57,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
         else
         {
           // When not detached, output is the container's stdout/stderr
-          runResult.Output = string.IsNullOrEmpty(result.Error)
-              ? result.Output
-              : result.Output + result.Error;
+          runResult.Output = MergeOutputAndError(result.Output, result.Error);
 
           // Read container ID from --cidfile (race-free, set earlier in args).
           if (cidFile != null && File.Exists(cidFile))

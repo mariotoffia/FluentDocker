@@ -241,7 +241,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     {
       try
       {
-        var args = $"kill --signal {QuoteArgumentIfNeeded(signal)} {QuotePositionalArgument(containerId, nameof(containerId))}";
+        var args = $"kill --signal {QuotePositionalArgument(signal ?? "SIGKILL", nameof(signal))} {QuotePositionalArgument(containerId, nameof(containerId))}";
         var result = await ExecuteCommandAsync(context, args, cancellationToken).ConfigureAwait(false);
 
         if (!result.Success)

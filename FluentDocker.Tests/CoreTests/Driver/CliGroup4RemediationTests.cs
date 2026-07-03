@@ -17,7 +17,7 @@ namespace FluentDocker.Tests.CoreTests.Driver
   public class CliGroup4RemediationTests
   {
     [Fact]
-    public async Task DockerComposeExec_NonZeroInContainerExit_ReturnsFailureWithExitCode()
+    public async Task DockerComposeExec_NonZeroInContainerExit_ReturnsSuccessWithExitCode()
     {
       if (OperatingSystem.IsWindows())
         Assert.Skip("POSIX shell script fixture; not applicable on Windows");
@@ -33,9 +33,9 @@ namespace FluentDocker.Tests.CoreTests.Driver
           new ComposeExecConfig { Service = "web", Tty = false, Command = ["sh", "-c", "exit 5"] },
           TestContext.Current.CancellationToken);
 
-      Assert.False(response.Success);
+      Assert.True(response.Success, response.Error);
       Assert.Equal(5, response.ExitCode);
-      Assert.Contains("exec stderr", response.Error);
+      Assert.Contains("exec stderr", response.Data);
     }
 
     [Fact]
@@ -230,7 +230,6 @@ namespace FluentDocker.Tests.CoreTests.Driver
       public DockerBinary MainDockerClient => _binary;
       public DockerBinary MainDockerCompose => _binary;
       public DockerBinary MainDockerCli => _binary;
-      public bool IsDockerComposeAvailable => true;
       public DockerBinary Resolve(string binary) => _binary;
       public string ResolveBinaryPath(string dockerCommand) => _binary.FqPath;
     }

@@ -73,7 +73,9 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
         {
           return CommandResponse<VersionInfo>.Fail(
               ErrorOrDefault(result, "Version check failed"),
-              FailureCode(result.Error, ErrorCodes.General.Unknown));
+              FailureCode(result.Error, ErrorCodes.General.Unknown),
+              CreateErrorContext(context, "GetVersion", result),
+              result.ExitCode);
         }
 
         var version = JsonSerializer.Deserialize<DockerVersionInfo>(result.Output, JsonHelper.CaseInsensitiveOptions) ?? new DockerVersionInfo();
@@ -149,7 +151,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
       {
         var versionResult = await GetVersionAsync(context, cancellationToken).ConfigureAwait(false);
         if (!versionResult.Success)
-          return CommandResponse<bool>.Ok(true); // Default to Linux
+          return CommandResponse<bool>.Fail(versionResult.Error, versionResult.ErrorCode, versionResult.ExitCode);
 
         var isLinux = !versionResult.Data?.Os?.Equals("windows", StringComparison.OrdinalIgnoreCase) ?? true;
         return CommandResponse<bool>.Ok(isLinux);
@@ -161,7 +163,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
       catch (Exception ex)
       {
         Logger.LogError(ex, "Linux engine detection failed");
-        return CommandResponse<bool>.Ok(true); // Default to Linux
+        return CommandResponse<bool>.Fail(ex.Message, FailureCode(ex, ErrorCodes.General.Unknown));
       }
     }
 
@@ -185,7 +187,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
               FailureCode(result.Error, ErrorCodes.General.Unknown));
         }
 
-        var info = ParseDiskUsageOutput(result.Output);
+        var info = ParseDiskUsageOutput(result.Output, Logger);
         return CommandResponse<DiskUsageInfo>.Ok(info);
       }
       catch (OperationCanceledException)
@@ -242,8 +244,9 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     /// Parses Docker CLI <c>system df --format "{{json .}}"</c> output.
     /// Each line is a JSON object with Type, TotalCount, Active, Size, Reclaimable.
     /// </summary>
-    public static DiskUsageInfo ParseDiskUsageOutput(string output)
+    public static DiskUsageInfo ParseDiskUsageOutput(string output, ILogger logger = null)
     {
+      logger ??= NullLogger.Instance;
       var info = new DiskUsageInfo();
       if (string.IsNullOrWhiteSpace(output))
         return info;
@@ -285,7 +288,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
         }
         catch (Exception ex)
         {
-          NullLogger.Instance.LogError(ex, "Disk usage JSON parsing failed");
+          logger.LogError(ex, "Disk usage JSON parsing failed");
         }
       }
 

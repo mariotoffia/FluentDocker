@@ -25,7 +25,11 @@ namespace FluentDocker.Drivers
     /// <param name="containerId">Container ID or name</param>
     /// <param name="config">Stream configuration</param>
     /// <param name="cancellationToken">Cancellation token</param>
-    /// <returns>Async enumerable of log lines</returns>
+    /// <returns>
+    /// Async enumerable of log lines. Docker CLI marks stderr-originated lines with
+    /// <c>[stderr] </c>; use <see cref="StreamLogEntriesAsync"/> when the source must be
+    /// machine-readable.
+    /// </returns>
     IAsyncEnumerable<string> StreamLogsAsync(
         DriverContext context,
         string containerId,
@@ -37,6 +41,7 @@ namespace FluentDocker.Drivers
     /// stream (stdout/stderr). The Docker Engine API driver populates the real source from the
     /// multiplexed stream header; CLI-based drivers, which cannot distinguish the streams at
     /// the line level, tag every line as <see cref="LogStreamSource.Stdout"/> by default.
+    /// Docker CLI overrides this default by reading stdout/stderr separately.
     /// </summary>
     /// <param name="context">Driver context</param>
     /// <param name="containerId">Container ID or name</param>
@@ -148,10 +153,10 @@ namespace FluentDocker.Drivers
     /// <summary>Number of lines to show from end (null = all).</summary>
     public int? Tail { get; set; }
 
-    /// <summary>Show stdout.</summary>
+    /// <summary>Show stdout; Docker CLI filters this client-side.</summary>
     public bool Stdout { get; set; } = true;
 
-    /// <summary>Show stderr.</summary>
+    /// <summary>Show stderr; Docker CLI filters this client-side.</summary>
     public bool Stderr { get; set; } = true;
 
     /// <summary>Show extra details.</summary>
@@ -205,19 +210,23 @@ namespace FluentDocker.Drivers
     /// <summary>Attach to stderr.</summary>
     public bool Stderr { get; set; } = true;
 
-    /// <summary>Attach to stdin.</summary>
-    public bool Stdin { get; set; }
+    /// <summary>
+    /// Attach to stdin. Null uses the driver's default: the Docker CLI attaches stdin
+    /// (matching <c>docker attach</c>, which passes <c>--no-stdin</c> only when false);
+    /// the Docker API driver does not support interactive stdin and fails fast on true.
+    /// </summary>
+    public bool? Stdin { get; set; }
 
-    /// <summary>Allocate a pseudo-TTY.</summary>
+    /// <summary>Allocate a pseudo-TTY. Docker CLI attach cannot change this and fails fast when true.</summary>
     public bool Tty { get; set; }
 
     /// <summary>Key sequence for detaching.</summary>
     public string DetachKeys { get; set; }
 
-    /// <summary>Do not attach stdout.</summary>
+    /// <summary>Do not attach stdout. Docker CLI attach cannot suppress this and fails fast when true.</summary>
     public bool NoStdout { get; set; }
 
-    /// <summary>Do not attach stderr.</summary>
+    /// <summary>Do not attach stderr. Docker CLI attach cannot suppress this and fails fast when true.</summary>
     public bool NoStderr { get; set; }
 
     /// <summary>Proxy all received signals.</summary>
