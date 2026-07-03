@@ -19,6 +19,7 @@ namespace FluentDocker.Model.Kernel
   public class BuildScope(global::FluentDocker.Kernel.FluentDockerKernel kernel, string driverId)
   {
     private readonly List<IServiceAsync> _results = [];
+    private readonly object _resultsLock = new object();
     private readonly ILogger<BuildScope> _logger = kernel.LoggerFactory.CreateLogger<BuildScope>();
 
     /// <summary>
@@ -32,9 +33,22 @@ namespace FluentDocker.Model.Kernel
     public string DriverId { get; } = driverId;
 
     /// <summary>
-    /// Gets the results (services) for this scope.
+    /// Gets a snapshot of the results (services) for this scope.
     /// </summary>
-    public IReadOnlyList<IServiceAsync> Results => _results;
+    /// <remarks>
+    /// <see cref="AddResult"/> is synchronized so future parallel build operations
+    /// cannot corrupt the backing list.
+    /// </remarks>
+    public IReadOnlyList<IServiceAsync> Results
+    {
+      get
+      {
+        lock (_resultsLock)
+        {
+          return [.. _results];
+        }
+      }
+    }
 
     /// <summary>
     /// Adds a result to this scope.
@@ -44,7 +58,10 @@ namespace FluentDocker.Model.Kernel
     {
       if (service != null)
       {
-        _results.Add(service);
+        lock (_resultsLock)
+        {
+          _results.Add(service);
+        }
       }
     }
 
@@ -59,9 +76,16 @@ namespace FluentDocker.Model.Kernel
     {
       // Reverse creation order: dependents (e.g. containers) before their dependencies
       // (e.g. the networks/volumes they are attached to).
-      for (var i = _results.Count - 1; i >= 0; i--)
+      IServiceAsync[] results;
+      lock (_resultsLock)
       {
-        var service = _results[i];
+        results = [.. _results];
+        _results.Clear();
+      }
+
+      for (var i = results.Length - 1; i >= 0; i--)
+      {
+        var service = results[i];
         try
         {
           var task = service is IAsyncDisposable asyncDisposable
@@ -74,7 +98,6 @@ namespace FluentDocker.Model.Kernel
           _logger.LogWarning(ex, "BuildScope async disposal failed");
         }
       }
-      _results.Clear();
     }
 
     /// <summary>
@@ -83,18 +106,24 @@ namespace FluentDocker.Model.Kernel
     public void DisposeAll()
     {
       // Reverse creation order: dependents before their dependencies.
-      for (var i = _results.Count - 1; i >= 0; i--)
+      IServiceAsync[] results;
+      lock (_resultsLock)
+      {
+        results = [.. _results];
+        _results.Clear();
+      }
+
+      for (var i = results.Length - 1; i >= 0; i--)
       {
         try
         {
-          _results[i].Dispose();
+          results[i].Dispose();
         }
         catch (Exception ex)
         {
           _logger.LogWarning(ex, "BuildScope sync disposal failed");
         }
       }
-      _results.Clear();
     }
   }
 }

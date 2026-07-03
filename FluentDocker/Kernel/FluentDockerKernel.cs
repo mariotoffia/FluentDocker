@@ -195,6 +195,18 @@ namespace FluentDocker.Kernel
     }
 
     /// <summary>
+    /// Asynchronously unregisters and disposes a driver or driver pack. Clearing
+    /// the default driver unregisters the default without selecting a replacement.
+    /// </summary>
+    /// <param name="driverId">Driver identifier.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    public async Task UnregisterDriverAsync(string driverId, CancellationToken cancellationToken = default)
+    {
+      ThrowIfDisposed();
+      await _registry.UnregisterAsync(driverId, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>
     /// Checks if a driver or driver pack is registered.
     /// </summary>
     public bool IsDriverRegistered(string driverId)
@@ -283,7 +295,11 @@ namespace FluentDocker.Kernel
     public virtual async ValueTask DisposeAsync()
     {
       if (Interlocked.CompareExchange(ref _disposed, 1, 0) != 0)
+      {
+        if (_registry is DriverRegistry { IsDisposeComplete: false } registry)
+          await registry.DisposeAsync().ConfigureAwait(false);
         return;
+      }
 
       // Delegate disposal to the registry which owns the driver lifecycle.
       // This avoids double-disposal if both kernel and registry are disposed.
@@ -309,7 +325,7 @@ namespace FluentDocker.Kernel
     /// Prefer <see cref="DisposeAsync"/> when possible.
     /// </summary>
 #pragma warning disable CA1816
-    public void Dispose()
+    public virtual void Dispose()
     {
       // DisposeAsync uses Interlocked.CompareExchange for atomic guard,
       // so this just delegates without a separate check.

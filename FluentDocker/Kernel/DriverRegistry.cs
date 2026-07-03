@@ -44,6 +44,8 @@ namespace FluentDocker.Kernel
     /// </summary>
     public ILoggerFactory LoggerFactory => _loggerFactory;
 
+    internal bool IsDisposeComplete => Volatile.Read(ref _disposed) == 2;
+
     #region Driver Registration
 
     /// <summary>
@@ -127,10 +129,17 @@ namespace FluentDocker.Kernel
     public void Unregister(string driverId)
     {
       ThrowIfDisposed();
+      Task.Run(() => UnregisterAsync(driverId)).GetAwaiter().GetResult();
+    }
+
+    /// <inheritdoc />
+    public async Task UnregisterAsync(string driverId, CancellationToken cancellationToken = default)
+    {
+      ThrowIfDisposed();
       DriverRegistration driver = null;
       DriverPackRegistration pack = null;
 
-      _registrationLock.Wait();
+      await _registrationLock.WaitAsync(cancellationToken).ConfigureAwait(false);
       try
       {
         ThrowIfDisposed();
@@ -151,9 +160,9 @@ namespace FluentDocker.Kernel
       }
 
       if (driver != null)
-        DisposeDriverSynchronously(driver.Driver, _logger);
+        await DisposeDriverSafelyAsync(driver.Driver, _logger).ConfigureAwait(false);
       if (pack != null)
-        DisposeDriverPackSynchronously(pack.DriverPack, _logger);
+        await DisposeDriverPackSafelyAsync(pack.DriverPack, _logger).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -161,6 +170,7 @@ namespace FluentDocker.Kernel
     /// </summary>
     public IDriver GetDriver(string driverId)
     {
+      ThrowIfDisposed();
       if (!_drivers.TryGetValue(driverId, out var registration))
       {
         throw new DriverNotFoundException(driverId);
@@ -174,6 +184,7 @@ namespace FluentDocker.Kernel
     /// </summary>
     public bool TryGetDriver(string driverId, out IDriver driver)
     {
+      ThrowIfDisposed();
       if (_drivers.TryGetValue(driverId, out var registration))
       {
         driver = registration.Driver;
@@ -268,6 +279,7 @@ namespace FluentDocker.Kernel
     /// </summary>
     public IDriverPack GetDriverPack(string driverId)
     {
+      ThrowIfDisposed();
       if (!_driverPacks.TryGetValue(driverId, out var registration))
       {
         throw new DriverNotFoundException(driverId);
@@ -281,6 +293,7 @@ namespace FluentDocker.Kernel
     /// </summary>
     public bool TryGetDriverPack(string driverId, out IDriverPack driverPack)
     {
+      ThrowIfDisposed();
       if (_driverPacks.TryGetValue(driverId, out var registration))
       {
         driverPack = registration.DriverPack;
@@ -296,6 +309,7 @@ namespace FluentDocker.Kernel
     /// </summary>
     public bool IsDriverPack(string driverId)
     {
+      ThrowIfDisposed();
       return _driverPacks.ContainsKey(driverId);
     }
 
@@ -308,6 +322,7 @@ namespace FluentDocker.Kernel
     /// </summary>
     public DriverContext GetContext(string driverId)
     {
+      ThrowIfDisposed();
       if (_drivers.TryGetValue(driverId, out var driverReg))
       {
         return driverReg.Context;
@@ -326,6 +341,7 @@ namespace FluentDocker.Kernel
     /// </summary>
     public bool IsRegistered(string driverId)
     {
+      ThrowIfDisposed();
       return _drivers.ContainsKey(driverId) || _driverPacks.ContainsKey(driverId);
     }
 
@@ -334,6 +350,7 @@ namespace FluentDocker.Kernel
     /// </summary>
     public IReadOnlyList<string> GetAllDriverIds()
     {
+      ThrowIfDisposed();
       return [.. _drivers.Keys, .. _driverPacks.Keys];
     }
 
@@ -346,6 +363,7 @@ namespace FluentDocker.Kernel
     /// </summary>
     public IReadOnlyList<string> GetDriversByType(DriverType driverType)
     {
+      ThrowIfDisposed();
       var fromDrivers = _drivers
           .Where(kvp => kvp.Value.Type == driverType)
           .Select(kvp => kvp.Key);
@@ -362,6 +380,7 @@ namespace FluentDocker.Kernel
     /// </summary>
     public IReadOnlyList<string> GetDriversByRuntime(RuntimeType runtime)
     {
+      ThrowIfDisposed();
       var fromDrivers = _drivers
           .Where(kvp => kvp.Value.Runtime == runtime)
           .Select(kvp => kvp.Key);
@@ -382,6 +401,7 @@ namespace FluentDocker.Kernel
     /// </summary>
     public string GetDefaultDriverId()
     {
+      ThrowIfDisposed();
       lock (_defaultDriverLock)
       {
         return _defaultDriverId;
@@ -393,6 +413,7 @@ namespace FluentDocker.Kernel
     /// </summary>
     public void SetDefaultDriver(string driverId)
     {
+      ThrowIfDisposed();
       lock (_defaultDriverLock)
       {
         // Check inside lock to prevent TOCTOU race where another thread

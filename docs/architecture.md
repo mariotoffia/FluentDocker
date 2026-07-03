@@ -35,8 +35,7 @@ FluentDocker v3.0 introduces a **pluggable driver architecture** that supports m
 ┌────────────────────────────────────────────────────────────────┐
 │         FluentDocker Kernel (Instantiable)                     │
 │  ┌──────────────────────────────────────────────────────┐      │
-│  │  DriverRegistry   DriverSelector   DriverRouter      │      │
-│  │  SysCtl() Interface for Driver Access                │      │
+│  │  DriverRegistry   SysCtl() Interface for Driver Access│      │
 │  └──────────────────────────────────────────────────────┘      │
 └────────────────────────────────────────────────────────────────┘
                             ↓
@@ -76,7 +75,7 @@ Per-call `DriverContext` values override the component context for that call. Us
 ## Async Pattern
 
 **All operations in FluentDocker v3.0 are asynchronous.** The `BuildAsync()` method is terminal and returns `Task<TResult>`.
-`Builder` is single-use after a successful build; if a build fails, fix the cause and retry the same builder or create a fresh one.
+`Builder` (resource builder) is single-use after a successful build; if a resource build fails, fix the cause and retry the same builder or create a fresh one. `KernelBuilder` (`FluentDockerKernel.Create()`) is single-attempt: `BuildAsync()`/`Build()` may be called exactly once, even after a failed build, because configured custom driver/pack instances are captured at configure time and cannot be safely re-initialized once a failed attempt has disposed them — create a fresh kernel builder to retry.
 
 ### Terminal BuildAsync() Pattern
 

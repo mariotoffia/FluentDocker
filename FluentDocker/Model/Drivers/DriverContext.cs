@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Text.Json.Serialization;
 using FluentDocker.Model.Common;
 using FluentDocker.Model.Models;
 using Microsoft.Extensions.Logging;
@@ -58,6 +59,11 @@ namespace FluentDocker.Model.Drivers
     /// <summary>
     /// Password for sudo (when Sudo is set to SudoMechanism.Password).
     /// </summary>
+    /// <remarks>
+    /// This value is sensitive. It is ignored during JSON serialization and
+    /// redacted by <see cref="ToString"/>; do not log it directly.
+    /// </remarks>
+    [JsonIgnore]
     public string SudoPassword { get; set; }
 
     /// <summary>
@@ -130,6 +136,13 @@ namespace FluentDocker.Model.Drivers
     {
       DriverId = driverId;
       Host = host;
+    }
+
+    /// <inheritdoc />
+    public override string ToString()
+    {
+      var password = string.IsNullOrEmpty(SudoPassword) ? "<null>" : "***";
+      return $"DriverContext(DriverId={DriverId ?? "<null>"}, Host={Host ?? "<null>"}, Sudo={Sudo}, SudoPassword={password})";
     }
   }
 }

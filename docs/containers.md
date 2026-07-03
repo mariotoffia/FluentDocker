@@ -254,7 +254,9 @@ using var results = new Builder()
             try
             {
                 var ep = service.ToHostExposedEndpoint("8080/tcp");
-                var response = $"http://localhost:{ep.Port}/health".Wget()
+                using var requestCts = new CancellationTokenSource(TimeSpan.FromSeconds(1));
+                var response = FluentDocker.Common.SharedHttpClient.Instance.GetStringAsync(
+                    $"http://localhost:{ep.Port}/health", requestCts.Token)
                     .GetAwaiter().GetResult();
                 return response.Contains("ok") ? -1 : 500;
             }

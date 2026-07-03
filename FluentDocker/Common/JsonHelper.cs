@@ -1,4 +1,5 @@
 using System;
+using System.Globalization;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Text.Json.Serialization.Metadata;
@@ -34,16 +35,27 @@ namespace FluentDocker.Common
     /// </summary>
     public static T TryDeserialize<T>(string json)
     {
+      return TryDeserialize<T>(json, out var value) ? value : default;
+    }
+
+    /// <summary>
+    /// Deserializes a JSON string to the specified type using case-insensitive options.
+    /// Returns <c>true</c> when JSON was valid (including JSON <c>null</c>), otherwise <c>false</c>.
+    /// </summary>
+    public static bool TryDeserialize<T>(string json, out T value)
+    {
+      value = default;
       if (string.IsNullOrWhiteSpace(json))
-        return default;
+        return false;
 
       try
       {
-        return JsonSerializer.Deserialize<T>(json, CaseInsensitiveOptions);
+        value = JsonSerializer.Deserialize<T>(json, CaseInsensitiveOptions);
+        return true;
       }
       catch (Exception ex) when (ex is JsonException or NotSupportedException)
       {
-        return default;
+        return false;
       }
     }
 
@@ -146,9 +158,12 @@ namespace FluentDocker.Common
       try
       {
         using var doc = JsonDocument.Parse(json);
-        if (doc.RootElement.TryGetProperty(propertyName, out var prop) &&
-            prop.ValueKind == JsonValueKind.Number &&
-            prop.TryGetInt32(out var value))
+        if (!doc.RootElement.TryGetProperty(propertyName, out var prop))
+          return null;
+        if (prop.ValueKind == JsonValueKind.Number && prop.TryGetInt32(out var value))
+          return value;
+        if (prop.ValueKind == JsonValueKind.String &&
+            int.TryParse(prop.GetString(), NumberStyles.Integer, CultureInfo.InvariantCulture, out value))
           return value;
         return null;
       }
@@ -170,6 +185,7 @@ namespace FluentDocker.Common
       };
       options.Converters.Add(new JsonStringEnumConverter());
       options.Converters.Add(new TolerantStringConverter());
+      options.MakeReadOnly(true);
       return options;
     }
 
@@ -185,6 +201,7 @@ namespace FluentDocker.Common
       };
       options.Converters.Add(new JsonStringEnumConverter());
       options.Converters.Add(new TolerantStringConverter());
+      options.MakeReadOnly(true);
       return options;
     }
 
@@ -200,6 +217,7 @@ namespace FluentDocker.Common
       };
       options.Converters.Add(new JsonStringEnumConverter());
       options.Converters.Add(new TolerantStringConverter());
+      options.MakeReadOnly(true);
       return options;
     }
   }

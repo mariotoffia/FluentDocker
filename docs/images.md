@@ -461,7 +461,9 @@ public class CustomImageTest : IDisposable
     {
         var container = _results.Containers.First();
         var endpoint = container.ToHostExposedEndpoint("3000/tcp");
-        var response = await $"http://localhost:{endpoint.Port}/health".Wget();
+        using var requestCts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+        var response = await FluentDocker.Common.SharedHttpClient.Instance.GetStringAsync(
+            $"http://localhost:{endpoint.Port}/health", requestCts.Token);
         Assert.Contains("healthy", response);
     }
 

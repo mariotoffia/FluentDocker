@@ -20,6 +20,10 @@ namespace FluentDocker.Drivers
     /// <summary>
     /// Gets the driver dictionary for subclass use.
     /// </summary>
+    /// <remarks>
+    /// Driver packs populate this map during initialization and must not mutate it
+    /// after <c>InitializeAsync</c> completes; resolution reads are intentionally unlocked.
+    /// </remarks>
     protected Dictionary<Type, object> Drivers => _drivers;
 
     /// <summary>

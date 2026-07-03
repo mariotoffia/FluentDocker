@@ -28,6 +28,7 @@ namespace FluentDocker.Model.Models
   [JsonConverter(typeof(ModelReferenceJsonConverter))]
   public sealed class ModelReference : IEquatable<ModelReference>
   {
+    private const string DockerHubRegistryPrefix = "docker.io/";
     private string _string;
 
     private ModelReference(string registry, string ns, string name, string tag, string digest)
@@ -97,6 +98,20 @@ namespace FluentDocker.Model.Models
       return TryParseCore(reference, out model, out _);
     }
 
+    /// <summary>
+    /// Normalizes Docker Hub's explicit <c>docker.io/</c> prefix to the same
+    /// default-registry form used by Docker Model Runner list output.
+    /// </summary>
+    /// <param name="reference">The raw model reference.</param>
+    /// <returns>The reference without a leading <c>docker.io/</c> prefix.</returns>
+    public static string NormalizeDefaultRegistryAlias(string reference)
+    {
+      return reference != null &&
+          reference.StartsWith(DockerHubRegistryPrefix, StringComparison.OrdinalIgnoreCase)
+          ? reference[DockerHubRegistryPrefix.Length..]
+          : reference;
+    }
+
     private static bool TryParseCore(string reference, out ModelReference model, out string error)
     {
       model = null;
@@ -111,6 +126,7 @@ namespace FluentDocker.Model.Models
         }
       }
 
+      reference = NormalizeDefaultRegistryAlias(reference);
       var remainder = reference;
       string digest = null;
 

@@ -60,7 +60,7 @@ Add these new imports where needed:
 
 - `using FluentDocker.Kernel;` -- wherever kernel is created or referenced.
 - `using FluentDocker.Services.Extensions;` -- wherever extension methods are
-  used (`ToHostExposedEndpoint`, `GetConfiguration`, `Wget`).
+  used (`ToHostExposedEndpoint`, `GetConfiguration`).
 
 ---
 

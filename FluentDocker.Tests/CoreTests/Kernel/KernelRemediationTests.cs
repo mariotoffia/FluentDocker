@@ -15,25 +15,21 @@ namespace FluentDocker.Tests.CoreTests.Kernel
   public class KernelRemediationTests
   {
     [Fact]
-    public async Task BuildAsync_CalledTwice_WithBuiltInPackFactory_CreatesIndependentKernels()
+    public async Task BuildAsync_CalledTwice_WithBuiltInPackFactory_Throws()
     {
       var builder = FluentDockerKernel.Create(NullLoggerFactory.Instance)
           .WithDockerApi("api", d => d.AsDefault());
 
       await using var first = await builder.BuildAsync(TestContext.Current.CancellationToken);
-      await using var second = await builder.BuildAsync(TestContext.Current.CancellationToken);
 
-      Assert.NotSame(first.GetDriverPack("api"), second.GetDriverPack("api"));
-      Assert.NotSame(
-          first.SysCtl<IContainerDriver>("api"),
-          second.SysCtl<IContainerDriver>("api"));
+      await Assert.ThrowsAsync<InvalidOperationException>(() =>
+          builder.BuildAsync(TestContext.Current.CancellationToken));
 
-      await first.DisposeAsync();
-      Assert.NotNull(second.SysCtl<IContainerDriver>("api"));
+      Assert.NotNull(first.SysCtl<IContainerDriver>("api"));
     }
 
     [Fact]
-    public async Task BuildAsync_AfterFailedBuild_WithBuiltInPackFactory_RetriesWithFreshPack()
+    public async Task BuildAsync_AfterFailedBuild_RejectsBuilderReuse()
     {
       var failOnce = new FailOnceDriverPack();
       var builder = FluentDockerKernel.Create(NullLoggerFactory.Instance)
@@ -43,10 +39,8 @@ namespace FluentDocker.Tests.CoreTests.Kernel
       await Assert.ThrowsAsync<InvalidOperationException>(() =>
           builder.BuildAsync(TestContext.Current.CancellationToken));
 
-      await using var kernel = await builder.BuildAsync(TestContext.Current.CancellationToken);
-
-      Assert.True(kernel.IsDriverRegistered("api"));
-      Assert.True(kernel.IsDriverRegistered("custom"));
+      await Assert.ThrowsAsync<InvalidOperationException>(() =>
+          builder.BuildAsync(TestContext.Current.CancellationToken));
     }
 
     [Fact]

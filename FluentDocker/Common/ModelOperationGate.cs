@@ -17,7 +17,10 @@ namespace FluentDocker.Common
   /// Public <c>ModelRunnerService</c> operations acquire this gate themselves. Composite builder
   /// work (inspect → optional pull → optional configure) acquires it once and calls no-reentrant
   /// core methods so the whole build-time sequence is atomic. The semaphores live for the process
-  /// lifetime (never disposed), like the Podman machine locks.
+  /// lifetime (never disposed), like the Podman machine locks. This is only
+  /// process-wide: parallel test or CI processes can still race each other.
+  /// The key is the normalized model reference only and intentionally omits
+  /// host / endpoint, so equal model names on different daemons share a gate.
   /// </remarks>
   public static class ModelOperationGate
   {

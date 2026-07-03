@@ -10,7 +10,7 @@ FluentDocker provides several utility classes and extension methods to simplify 
 
 ## Step by Step
 
-- Basics: [TemplateString](#templatestring), [HTTP Extensions (Wget)](#http-extensions-wget)
+- Basics: [TemplateString](#templatestring), [HTTP Health Checks](#http-health-checks)
 - Intermediate: [Resource Extensions](#resource-extensions), [Logging](#logging), [Model Extensions](#model-extensions)
 - Advanced: [SudoMechanism](#sudomechanism), [Endpoint Resolution](#endpoint-resolution), [Command Response Handling](#command-response-handling), [Container Stats Parsing](#container-stats-parsing)
 
@@ -91,38 +91,34 @@ var path = new TemplateString("${TEMP}/${E_USER}/session-${RND}");
 // Might expand to: /tmp/john/session-tmpk4xz0f.tmp
 ```
 
-## HTTP Extensions (Wget)
+## HTTP Health Checks
 
-Simple HTTP operations for health checks and API testing.
+Use the shared HTTP client for health checks and API testing.
 
 ### Basic GET Request
 
 ```csharp
-using FluentDocker.Extensions;
+using FluentDocker.Common;
 
 // Simple GET
-var response = await "http://localhost:8080/health".Wget();
+using var requestCts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+var response = await SharedHttpClient.Instance.GetStringAsync(
+    "http://localhost:8080/health", requestCts.Token);
 Console.WriteLine(response);  // Response body
 ```
 
 ### Full Request with Status Code
 
 ```csharp
-using FluentDocker.Extensions;
+using FluentDocker.Common;
 
-// DoRequest returns a RequestResponse struct with Code, Body, Headers, Err
-var result = await "http://localhost:8080/api/users".DoRequest();
-
-if (result.Code == HttpStatusCode.OK)
+using var requestCts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+using var result = await SharedHttpClient.Instance.GetAsync(
+    "http://localhost:8080/api/users", requestCts.Token);
+if (result.StatusCode == HttpStatusCode.OK)
 {
-    Console.WriteLine($"Users: {result.Body}");
+    Console.WriteLine($"Users: {await result.Content.ReadAsStringAsync()}");
 }
-
-// POST with JSON body
-var postResult = await "http://localhost:8080/api/users".DoRequest(
-    method: HttpMethod.Post,
-    contentType: "application/json",
-    body: "{\"name\":\"test\"}");
 ```
 
 ### Health Check Pattern
@@ -144,7 +140,8 @@ for (int i = 0; i < 30; i++)
 {
     try
     {
-        var response = await healthUrl.Wget();
+        using var requestCts = new CancellationTokenSource(TimeSpan.FromSeconds(1));
+        var response = await SharedHttpClient.Instance.GetStringAsync(healthUrl, requestCts.Token);
         if (response.Contains("healthy"))
         {
             Console.WriteLine("Service is healthy!");
@@ -157,13 +154,6 @@ for (int i = 0; i < 30; i++)
     }
     await Task.Delay(1000);
 }
-```
-
-### Download File
-
-```csharp
-var url = new Uri("https://example.com/file.zip");
-await url.Download("/local/path/file.zip");
 ```
 
 ## Resource Extensions
@@ -526,7 +516,8 @@ public static class TestDataGenerator
         {
             try
             {
-                var response = await url.Wget();
+                using var requestCts = new CancellationTokenSource(TimeSpan.FromSeconds(1));
+                var response = await SharedHttpClient.Instance.GetStringAsync(url, requestCts.Token);
                 if (!string.IsNullOrEmpty(response))
                     return response;
             }

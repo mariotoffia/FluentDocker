@@ -42,22 +42,20 @@ namespace FluentDocker.Kernel
     IKernelBuilder WithDriver(string driverId, Action<IDriverBuilder> configure);
 
     /// <summary>
-    /// Builds the kernel synchronously (TERMINAL operation).
+    /// Builds the kernel synchronously (TERMINAL, single-use operation).
     /// </summary>
     /// <remarks>
     /// For async contexts (ASP.NET, UI applications), prefer <see cref="BuildAsync"/> to avoid deadlocks.
     /// This method is safe to use in console apps, test fixtures, and scripts.
-    /// Built-in typed driver packs are created fresh for each build; custom driver
-    /// instances supplied via <see cref="IDriverBuilder"/> are registered as supplied.
+    /// A builder can build one kernel. Create a new builder for another kernel.
     /// </remarks>
     FluentDockerKernel Build();
 
     /// <summary>
-    /// Builds the kernel asynchronously (TERMINAL operation).
+    /// Builds the kernel asynchronously (TERMINAL, single-use operation).
     /// </summary>
     /// <remarks>
-    /// Built-in typed driver packs are created fresh for each build; custom driver
-    /// instances supplied via <see cref="IDriverBuilder"/> are registered as supplied.
+    /// A builder can build one kernel. Create a new builder for another kernel.
     /// </remarks>
     /// <param name="cancellationToken">Cancellation token</param>
     Task<FluentDockerKernel> BuildAsync(CancellationToken cancellationToken = default);

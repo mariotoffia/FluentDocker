@@ -334,11 +334,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components.Parsing
       if (tags == null || tags.Count == 0)
         return null;
 
-      var tag = tags[0];
-      const string hubPrefix = "docker.io/";
-      if (tag.StartsWith(hubPrefix, StringComparison.OrdinalIgnoreCase))
-        tag = tag[hubPrefix.Length..];
-
+      var tag = ModelReference.NormalizeDefaultRegistryAlias(tags[0]);
       return ModelReference.TryParse(tag, out var reference) ? reference : null;
     }
 

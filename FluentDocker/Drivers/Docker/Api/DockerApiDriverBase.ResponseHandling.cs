@@ -141,9 +141,9 @@ namespace FluentDocker.Drivers.Docker.Api
       if (string.IsNullOrWhiteSpace(body))
         return null;
 
-      // TryDeserialize already catches JsonException and returns default.
-      var error = JsonHelper.TryDeserialize<DockerApiErrorResponse>(body);
-      return error?.Message;
+      return JsonHelper.TryDeserialize<DockerApiErrorResponse>(body, out var error)
+          ? error?.Message
+          : null;
     }
 
     #endregion

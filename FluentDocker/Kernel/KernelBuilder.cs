@@ -15,6 +15,7 @@ namespace FluentDocker.Kernel
   {
     private readonly List<DriverConfiguration> _driverConfigurations = [];
     private readonly ILoggerFactory _loggerFactory;
+    private int _built;
 
     /// <summary>
     /// Creates a new kernel builder with the consumer-supplied logger factory.
@@ -83,6 +84,9 @@ namespace FluentDocker.Kernel
     /// <inheritdoc />
     public async Task<FluentDockerKernel> BuildAsync(CancellationToken cancellationToken = default)
     {
+      if (Interlocked.Exchange(ref _built, 1) != 0)
+        throw new InvalidOperationException("KernelBuilder is single-use; create a new builder for another kernel.");
+
       var kernel = new FluentDockerKernel(new DriverRegistry(_loggerFactory), _loggerFactory);
 
       try
