@@ -16,8 +16,7 @@ FluentDocker provides full support for Docker networks, including custom network
 
 ## Kernel Setup
 
-All v3 operations require a kernel instance. Multiple kernels per application are
-supported.
+All v3 operations require a kernel instance; multiple kernels per application are supported.
 
 ```csharp
 using FluentDocker.Kernel;
@@ -42,8 +41,6 @@ using var results = new Builder()
 
 var network = results.Networks.First();
 Console.WriteLine($"Network: {network.Name}");
-// Note: INetworkService also exposes a NetworkName property that returns
-// the Docker network name. Both network.Name and network.NetworkName are available.
 ```
 
 ### Use Network with Container
@@ -404,8 +401,10 @@ using var results = new Builder()
 
 var network = results.Networks.First();
 var info = await network.InspectAsync();
+var connected = await network.GetConnectedContainersAsync();
 Console.WriteLine($"Name: {info.Name}");
 Console.WriteLine($"Driver: {info.Driver}");
+Console.WriteLine($"Connected containers: {string.Join(", ", connected)}");
 ```
 
 ## DNS and Aliases

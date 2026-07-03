@@ -38,7 +38,7 @@ The 3.2 release line adds preview Docker Model Runner support for local LLM work
 - **Kernel + WithinDriver() scoping** for multi-driver support
 - **Lambda-based builder API** — `UseContainer(Action<IContainerBuilder>)`
 - **Container Stats** — CPU, memory, network monitoring
-- **Label-based filtering** — 5.5x faster container cleanup
+- **Label-based filtering** — faster leaked-container cleanup
 - **Static IPv4/IPv6** assignment for containers
 - **Directory copy** support (recursive)
 - **Docker Compose V2** — uses `docker compose`
@@ -47,24 +47,22 @@ See the [Migration Guide](migration.md) for upgrading from v2.x.
 
 ## Quick Start (Beginner)
 
-```csharp
-using System.Linq;
-using FluentDocker.Builders;
-using FluentDocker.Kernel;
-
-// Multiple kernels per app are supported.
-await using var kernel = await FluentDockerKernel.Create()
-    .WithDockerCli("docker", d => d.AsDefault())
-    .BuildAsync();
-```
-
 ### 1) Run one container
 
 ```csharp
+using System;
+using System.Linq;
+using FluentDocker.Builders;
+using FluentDocker.Kernel;
 using FluentDocker.Services.Extensions;
 
+// A kernel is the composition root; multiple kernels per app are supported.
+await using var kernel = await FluentDockerKernel.Create()
+    .WithDockerCli("docker", d => d.AsDefault())
+    .BuildAsync();
+
 await using var results = await new Builder()
-    .WithinDriver("docker", kernel)
+    .WithinDockerCli("docker", kernel)
     .UseContainer(c => c
         .UseImage("nginx:alpine")
         .ExposePort("80")
@@ -75,6 +73,9 @@ var endpoint = results.Containers.First()
     .ToHostExposedEndpoint("80/tcp");
 Console.WriteLine($"Endpoint: {endpoint.Address}:{endpoint.Port}");
 ```
+
+> Prefer `await using` + `BuildAsync()`; the synchronous `Build()` wrapper exists only
+> for code that cannot be async.
 
 ### 2) Run multi-service compose
 

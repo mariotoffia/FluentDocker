@@ -1,7 +1,7 @@
 ---
 layout: default
 title: Driver Extensibility
-nav_order: 14
+nav_order: 13
 description: "Custom driver interfaces, driver-aware builder extensions, and multi-driver patterns"
 ---
 

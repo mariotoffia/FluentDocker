@@ -2,6 +2,7 @@
 layout: default
 title: Model Runner (LLMs)
 nav_order: 10
+has_children: true
 ---
 
 # Docker Model Runner (local LLMs)

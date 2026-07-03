@@ -74,8 +74,7 @@ Console.WriteLine($"nginx is at {endpoint.Address}:{endpoint.Port}");
 
 ## Start Here
 
-New to FluentDocker? Follow the docs site — it is the single source of truth for the
-full API and per-driver guides:
+New to FluentDocker? Follow the docs site for the maintained guides and driver notes:
 
 - **[Documentation site](https://mariotoffia.github.io/FluentDocker/)** — full docs
 - [Learning Path](docs/learning-path.md) — beginner → advanced map
@@ -125,9 +124,11 @@ await using var kernel = await FluentDockerKernel.Create()
     .BuildAsync();
 ```
 
-Per-driver walkthroughs (Compose, Swarm stack, Podman Kubernetes, pods, machines,
-manifests, and direct `SysCtl<T>` access) live on the
-[documentation site](https://mariotoffia.github.io/FluentDocker/).
+Maintained driver notes and guides cover [Compose](docs/compose.md),
+[Docker API](docs/docker-api.md), [Podman](docs/podman.md), [Networking](docs/networking.md),
+[Volumes](docs/volumes.md), [Model Runner](docs/model-runner.md), [Testing](docs/testing.md),
+[Migration](docs/migration.md), [Troubleshooting](docs/troubleshooting.md),
+[Architecture](docs/architecture.md), and [Utilities](docs/utilities.md).
 
 ## Test Support
 
@@ -153,8 +154,8 @@ public class MyRedisFixture : XunitContainerFixtureBase
 }
 ```
 
-See the [testing docs](docs/testing.md) for NUnit, MSTest, Compose, Topology, Swarm
-Stack, Podman Kubernetes, and model resource types.
+See the [testing docs](docs/testing.md) for NUnit, MSTest, Compose, Swarm stack,
+Podman Kubernetes, topology, and model resource types.
 
 ## Docker Model Runner — Local LLMs *(preview, 3.2.0-preview.1)*
 
@@ -202,6 +203,7 @@ changes.
 - [Migration Guide](docs/migration.md) — upgrading from v2.x
 - [Architecture](docs/architecture.md) — v3 kernel/driver internals
 - [Model Runner (local LLMs)](docs/model-runner.md) — managing & consuming local models
+- [Changelog](CHANGELOG.md) — release notes
 - [NuGet Package](https://www.nuget.org/packages/FluentDocker)
 
 ## Contributing

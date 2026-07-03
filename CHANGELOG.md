@@ -19,6 +19,11 @@ Production-readiness remediation of the preview API surface. Recompile and revie
 - **`BuildResults.GetContainer/GetNetwork/GetVolume`** — lookups are now case-sensitive (`Ordinal`; docker names are case-sensitive) and annotated as nullable.
 - **Removed `FluentDocker.Testing.Core.Plugins`** — the unused resource-plugin host (`ITestResourcePlugin`, `TestResourcePluginHost`) is deleted; no in-repo or known external consumers existed.
 - **`ITestResource.InitializeAsync` failure contract** — all non-cancellation initialization failures are now uniformly wrapped in `ResourceInitializationException` (carrying `Diagnostics`); catch blocks matching concrete inner exceptions (e.g. `TimeoutException`) must catch the wrapper and inspect `InnerException`.
+- **Removed dead Model DTO/config APIs** — deleted unused create/config types (`ContainerCreateParams*`, `ServiceCreate`, `NetworkCreateParams`, `Model.Images.Image`, `NetworkConfiguration/NetworkRow`, `*BuilderConfig`, `CertificatePaths`, `ImageConfig`, `Ulimit*`).
+- **Model public-surface cleanup** — `HostIpEndpoint` is now a JSON DTO, the `EmbeddedUri.Host` alias was removed (use `Assembly`), and `HealthState` / `Orchestrator` enum ordering gained sentinel values.
+- **`KernelBuilder` is single-use** — a second `Build()` / `BuildAsync()` call now throws; create a new builder for another kernel.
+- **Model Runner endpoint validation tightened** — `UnixSocket(path)` requires an explicit path, `WithEndpoint(...)` and `WithInferenceDriver(...)` are mutually exclusive, and model digest validation is stricter.
+- **Podman validation is no longer silent** — `UsePod(...)` now throws on non-Podman drivers, and leading-dash positional names are rejected.
 
 ### Added
 
@@ -34,9 +39,20 @@ Production-readiness remediation of the preview API surface. Recompile and revie
   - DMR-availability-gated integration tests (tiny `ai/smollm2` / `ai/embeddinggemma`) that skip cleanly when the runner is absent, and `ModelRunnerBenchmarks`.
   - **Optional `IModelBackendInfo` capability** — a model driver MAY advertise its inference backend engine(s) (e.g. `llama.cpp`, `vllm`); the runner sources `Capabilities.DefaultBackend` / `AvailableBackends` from it (or reports none) instead of assuming one.
   - **Reusable OpenAI inference adapter** — the OpenAI-compatible HTTP inference adapter is `OpenAiModelInferenceDriver` (namespace `FluentDocker.Drivers.Models`), a runtime-neutral type non-Docker runner plugins can reuse directly (vLLM, LM Studio, hosted endpoints) by registering it under `IModelInferenceDriver` in a custom `IDriverPack`.
+- **`IDriverRegistry.UnregisterAsync(...)`** — async unregister support for driver registry cleanup.
+- **`INetworkService.GetConnectedContainersAsync(...)`** — returns connected container names/IDs across Docker CLI, Docker API, and Podman.
+- **Container-owned port resolution** — `IContainerService` exposes async host-port endpoint helpers using the docker-host-aware resolver.
+- **Lifecycle additions** — `UnpauseAsync` is available on container/compose services, and `ComposeService.RemoveAsync` removes compose projects through the service surface.
+- **Model Runner transport knobs** — added `AllowApiKeyOverInsecureTransport` and `StreamFirstByteTimeout`.
 
 ### Changed
 
+- Deleted `HttpExtensions` / `OsExtensions`; shared HTTP lifetime now goes through `Common.SharedHttpClient`.
+- Promoted culture/comparison analyzers to errors to prevent locale-sensitive parsing regressions.
+- `ModelReference` canonicalizes explicit `docker.io/` references to the default registry identity.
+- Podman machine `Memory` / `DiskSize` report values are normalized to bytes.
+- DMR TLS semantics are explicit: absent `ca.pem` uses system trust, present `ca.pem` pins exclusively, and missing/partial PEM configuration throws.
+- Port waits floor each per-attempt connect budget at 2 seconds.
 - `IContainerBuilder` gains `WithExtraHost(host, ip)` (used by `WithModel` for the Engine host-gateway alias).
 - `DockerCliDriverPack` registers the model ports (`IModelManagementDriver` / `IModelRuntimeDriver` / `IModelInferenceDriver`); `PodmanCliDriverPack` registers no model ports (RamaLama pack is future work). For portable/driver-agnostic code, prefer `TryUseModelRunner(out IModelRunnerBuilder runner)` to degrade gracefully on drivers that lack model support (e.g. Podman) instead of `UseModelRunner()`, which throws `InterfaceNotSupportedException`.
 - CLI log/event/stat streaming now throws `DriverException` (`ErrorCodes.Driver.CommandExecutionFailed`) on non-zero process exit instead of ending silently.
@@ -47,12 +63,29 @@ Production-readiness remediation of the preview API surface. Recompile and revie
 
 ### Fixed
 
+- **Compose builds without `WithProjectName` now work end-to-end.** The CLI driver no longer fabricates a `default` project name after `up`; when unset, `ps`/`logs`/`exec`/`down` identify the project via the compose files, so `ListServicesAsync` finds compose's derived-name project and dispose actually tears it down (previously both silently targeted a nonexistent `default` project).
 - **Non-streaming inference preserves `EndpointUnreachable`.** A transport failure (connection refused / DNS / socket error) on `ChatAsync` / chat / completion / embeddings / engine-model list now surfaces `ErrorCodes.ModelInference.EndpointUnreachable` instead of being downgraded to `RequestFailed`, matching the streaming path and the documented error contract.
 - **`EmbeddingsRequest` is deep-copied before send.** A copy constructor was added and the driver copies the request, so mutating the caller's `Input` list after the call can no longer alter the wire body (parity with chat/completion).
 - **Bounded inference error-body read.** A non-success inference response body is read with a 64 KiB bound instead of fully materializing a hostile/oversized error body before truncation.
 - **`ModelReference` registry case normalized.** The registry host is lowercased at parse time so value-equal references (registry hosts are case-insensitive) always serialize identically — stable dictionary keys and emitted CLI args.
 - **Windows mTLS client certificates.** Client certs loaded from PEM are re-imported with a persisted key on Windows (SChannel rejects ephemeral-key client-auth certs); non-Windows behavior is unchanged.
 - **Compose `ConnectToExisting` uses borrowed semantics.** Disposing a connected compose service releases the local handle only; it does not run `docker compose down` against the existing project.
+- **Docker CLI production hardening.** Fixed Docker 29 timestamp/output-shape parsing plus stdout/stderr separation, UTF-8 stdin, broken-pipe diagnostics, sudo/binary quoting, compose exec/run exit semantics, output truncation, and top/kill/list parsing.
+- **Docker API production hardening.** Fixed streaming demux/cancellation, bounded copy spool, safe filter JSON, long stop/restart timeouts, build registry auth headers, keepalive/dispose races, exec-inspect, `.dockerignore`, IPv6 host-IP, and tar mtime handling.
+- **Podman production hardening.** Fixed Podman 6 `podman ps` JSON keys, pod parsing, and machine report normalization.
+- **Service-layer hardening.** Corrected `IServiceCapabilities`, mapped `RestartPolicy` / `CpuQuota`, wired dispose remove-volume options, made unexposed-port waits time out instead of throw, and prevented remove-then-dispose hook replay.
+- **Docker 29 compatibility and hardening wave.** Folded the production-readiness remediation across Common, Kernel, drivers, services, builders, testing, and docs into the preview.
+
+### Security
+
+- Hardened Docker API build-context tar packing against symlink escape, dangling-link host-file exfiltration, and `symlink/..` realpath traversal.
+- DMR refuses bearer API keys over insecure non-loopback transports unless `AllowApiKeyOverInsecureTransport` is explicitly enabled.
+- CLI/Podman leading-dash guards reduce option-injection risk for positional names.
+
+### Known issues
+
+- Nullable annotations remain partially deferred.
+- Podman sudo-password redaction in `PodmanBinary` logging remains future work.
 
 ## [3.1.0] - 2026-06-04
 

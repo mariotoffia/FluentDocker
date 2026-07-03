@@ -1,6 +1,7 @@
 # FluentDocker Examples
 
 This folder contains example projects demonstrating various features of FluentDocker v3.
+Run commands from the repository root.
 
 ## Examples
 
@@ -8,21 +9,21 @@ This folder contains example projects demonstrating various features of FluentDo
 Basic container creation and management using the v3 fluent API.
 
 ```bash
-cd Simple && dotnet run
+dotnet run --project Examples/Simple -f net10.0
 ```
 
 ### EventDriven
 Demonstrates Docker event streaming with the v3 IStreamDriver interface.
 
 ```bash
-cd EventDriven && dotnet run
+dotnet run --project Examples/EventDriven -f net10.0
 ```
 
 ### DockerInDockerLinux
 Shows how to interact with Docker when running inside a Docker container.
 
 ```bash
-cd DockerInDockerLinux && dotnet run
+dotnet run --project Examples/DockerInDockerLinux -f net10.0
 ```
 
 ### ContainerStats (v3 Feature)
@@ -32,7 +33,7 @@ Demonstrates new v3 features:
 - Network creation with custom subnets
 
 ```bash
-cd ContainerStats && dotnet run
+dotnet run --project Examples/ContainerStats -f net10.0
 ```
 
 ### ComposeV2 (v3 Feature)
@@ -42,7 +43,7 @@ Demonstrates new v3 features:
 - TemplateString path interpolation (`${TEMP}`, `${RND}`, `${E_*}`)
 
 ```bash
-cd ComposeV2 && dotnet run
+dotnet run --project Examples/ComposeV2 -f net10.0
 ```
 
 ### ModelRunner (v3.2 Feature)
@@ -60,8 +61,7 @@ dotnet run --project Examples/ModelRunner -f net10.0
 ## Running All Examples
 
 ```bash
-cd Examples
-dotnet build
+dotnet build Examples --nologo
 ```
 
 ## Prerequisites

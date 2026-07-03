@@ -68,12 +68,15 @@ namespace FluentDocker.Tests.CoreTests.Service
     }
 
     [Fact]
-    public void Constructor_NullProjectName_ThrowsArgumentNullException()
+    public void Constructor_NullProjectNameWithoutComposeFiles_Throws()
     {
       var kernel = new FluentDockerKernel(new DriverRegistry(NullLoggerFactory.Instance), NullLoggerFactory.Instance);
-      var composeFiles = new List<string> { "docker-compose.yml" };
-      Assert.Throws<ArgumentNullException>(() =>
-          new ComposeService(kernel, "docker", composeFiles, null!));
+      // Null project name is legal when compose files identify the project;
+      // with neither, the service could not address anything.
+      Assert.Throws<ArgumentException>(() =>
+          new ComposeService(kernel, "docker", [], null!));
+      var derived = new ComposeService(kernel, "docker", ["docker-compose.yml"], null!);
+      Assert.Null(derived.ProjectName);
       kernel.Dispose();
     }
 

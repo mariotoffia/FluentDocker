@@ -16,7 +16,8 @@ namespace FluentDocker.Services
   public interface IComposeService : IServiceAsync
   {
     /// <summary>
-    /// Project name.
+    /// Explicitly configured project name, or <c>null</c> when compose derived the name from
+    /// the project directory (commands then identify the project via <see cref="ComposeFiles"/>).
     /// </summary>
     string ProjectName { get; }
 

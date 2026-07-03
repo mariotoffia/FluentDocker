@@ -52,7 +52,10 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
 
         return CommandResponse<ComposeUpResult>.Ok(new ComposeUpResult
         {
-          ProjectName = config.ProjectName ?? "default",
+          // Null when not explicitly configured: `up` ran without -p, so compose derived
+          // the project name from the project directory. Fabricating one here (e.g.
+          // "default") would make later ps/down target a project that doesn't exist.
+          ProjectName = config.ProjectName,
           Services = [.. config.Services]
         });
       }

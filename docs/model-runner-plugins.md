@@ -1,7 +1,8 @@
 ---
 layout: default
 title: Model Runner — Plugins
-nav_order: 12
+parent: Model Runner (LLMs)
+nav_order: 2
 ---
 
 # Extending to non-Docker runners (plugins)

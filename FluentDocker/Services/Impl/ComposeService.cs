@@ -47,7 +47,11 @@ namespace FluentDocker.Services.Impl
       ArgumentNullException.ThrowIfNull(kernel);
       ArgumentNullException.ThrowIfNull(driverId);
       ArgumentNullException.ThrowIfNull(composeFiles);
-      ArgumentNullException.ThrowIfNull(projectName);
+      // Null projectName is legal (compose derives it from the project directory) as long as
+      // compose files can identify the project for ps/logs/exec/down.
+      if (projectName is null && composeFiles.Count == 0)
+        throw new ArgumentException(
+            "Either a project name or at least one compose file is required.", nameof(projectName));
       _kernel = kernel;
       _logger = kernel.LoggerFactory.CreateLogger<ComposeService>();
       _driverId = driverId;
@@ -62,7 +66,8 @@ namespace FluentDocker.Services.Impl
           disposeCleanupTimeout ?? TimeSpan.FromMilliseconds(ContainerService.DefaultDisposeCleanupTimeoutMs);
     }
 
-    public string Name => _projectName;
+    // ponytail: display-only fallback — compose derives the real name; Name is not used for lookups.
+    public string Name => _projectName ?? "compose";
     public ServiceRunningState State => _state;
     public FluentDockerKernel Kernel => _kernel;
     public string DriverId => _driverId;

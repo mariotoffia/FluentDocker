@@ -23,31 +23,33 @@ dotnet add package FluentDocker.Testing.MsTest
 
 ## Quick Start
 
-### Docker CLI
-
 ```csharp
+using System;
 using System.Linq;
 using FluentDocker.Builders;
 using FluentDocker.Kernel;
+using FluentDocker.Services.Extensions;
 
+// A kernel is the composition root; multiple kernels per app are supported.
 await using var kernel = await FluentDockerKernel.Create()
     .WithDockerCli("docker", d => d.AsDefault())
     .BuildAsync();
 
 await using var results = await new Builder()
-    .WithinDriver("docker", kernel)
+    .WithinDockerCli("docker", kernel)
     .UseContainer(c => c
-        .UseImage("postgres:15-alpine")
-        .ExposePort("5432")
-        .WithEnvironment("POSTGRES_PASSWORD", "mysecretpassword")
-        .WaitForPort("5432/tcp", 30000))
+        .UseImage("nginx:alpine")
+        .ExposePort("80")
+        .WaitForPort("80/tcp", 30000))
     .BuildAsync();
 
-var container = results.Containers.First();
-// Container is running and ready to accept connections on port 5432
+var endpoint = results.Containers.First()
+    .ToHostExposedEndpoint("80/tcp");
+Console.WriteLine($"nginx is at {endpoint.Address}:{endpoint.Port}");
 ```
 
-> **Sync vs async:** every builder exposes both `Build()` and `BuildAsync()`. The examples below use `await ...BuildAsync()` throughout. Prefer async; use the synchronous `Build()` wrapper only when you must bridge from synchronous code.
+> Prefer `await using` + `BuildAsync()`; the synchronous `Build()` wrapper exists only
+> for code that cannot be async.
 
 ### Docker Engine API (no CLI required)
 

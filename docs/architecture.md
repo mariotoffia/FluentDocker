@@ -1,13 +1,13 @@
 ---
 layout: default
 title: Architecture
-nav_order: 13
-description: "FluentDocker v3.0 architecture - Driver layer, kernel configuration, async patterns"
+nav_order: 12
+description: "FluentDocker architecture - Driver layer, kernel configuration, async patterns"
 ---
 
-# FluentDocker v3.0 Architecture
+# FluentDocker Architecture
 
-This document describes the v3.0 architecture with the pluggable driver layer, kernel configuration, and async patterns.
+This document describes the pluggable driver layer, kernel configuration, and async patterns.
 
 ## Step by Step
 
@@ -19,7 +19,7 @@ This is an advanced guide. If you are new to FluentDocker, complete [Getting Sta
 
 ## Overview
 
-FluentDocker v3.0 introduces a **pluggable driver architecture** that supports multiple container runtime implementations with concurrent instances.
+FluentDocker uses a **pluggable driver architecture** that supports multiple container runtime implementations with concurrent instances.
 
 ```text
 ┌────────────────────────────────────────────────────────────────┐
@@ -281,7 +281,7 @@ All builders implement `IDriverScopedBuilder`, providing access to the kernel an
 
 ```csharp
 // Podman-specific .UsePod() — throws on Docker
-await new Builder()
+await using var results = await new Builder()
     .WithinDriver("podman", kernel)
     .UseContainer(c => c
         .UseImage("redis:7-alpine")

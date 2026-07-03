@@ -11,7 +11,7 @@ FluentDocker provides full support for Docker Compose V2 (`docker compose` comma
 ## Step by Step
 
 - Basics: [Kernel Setup](#kernel-setup), [Basic Usage](#basic-usage), [Waiting for Services](#waiting-for-services)
-- Intermediate: [Project Configuration](#project-configuration), [Multiple Compose Files](#multiple-compose-files), [Access Containers](#access-containers), [Environment Variables](#environment-variables)
+- Intermediate: [Project Configuration](#project-configuration), [Multiple Compose Files](#multiple-compose-files), [Access Compose Services](#access-compose-services), [Environment Variables](#environment-variables)
 - Advanced: [Profiles](#profiles), [Target Specific Services](#target-specific-services), [Integration Tests Example](#integration-tests-example), [Cleanup Options](#cleanup-options)
 
 ## Kernel Setup
@@ -137,9 +137,9 @@ services:
         condition: service_healthy
 ```
 
-> **Note**: If you need fine-grained wait logic (HTTP polling with custom validation,
-> port probing, etc.) after compose services are up, you can access individual
-> containers from `results.Containers` and use the container-level wait utilities.
+> **Note**: Compose builds return `IComposeService` handles. Use
+> `results.ComposeServices.First().ListServicesAsync()` for service state and published
+> host ports; `BuildResults.Containers` is only for `UseContainer(...)` builds.
 
 ## Project Configuration
 
@@ -154,6 +154,8 @@ using var results = new Builder()
     .Build();
 
 // Containers named: my-test-project-web-1, my-test-project-api-1, etc.
+// Without WithProjectName, compose derives the name from the compose-file directory;
+// FluentDocker then identifies the project via the files, so teardown still works.
 ```
 
 ### Remove Orphans
@@ -216,28 +218,27 @@ services:
       - DEBUG=true
 ```
 
-## Access Containers
+## Access Compose Services
 
-### Get Specific Container
+### Get Services and Published Ports
 
 ```csharp
-using var results = new Builder()
+await using var results = await new Builder()
     .WithinDriver("docker", kernel)
     .UseCompose(c => c
         .WithComposeFile("docker-compose.yml")
         .WithWait())
-    .Build();
+    .BuildAsync();
 
-// Find by name
-var webContainer = results.Containers
-    .FirstOrDefault(c => c.Name.Contains("web"));
+var compose = results.ComposeServices.First();
+var services = await compose.ListServicesAsync();
 
-var apiContainer = results.Containers
-    .FirstOrDefault(c => c.Name.Contains("api"));
+var web = services.FirstOrDefault(s => s.Name == "web");
+var api = services.FirstOrDefault(s => s.Name == "api");
+Console.WriteLine($"web: {web?.State}, api: {api?.State}");
 
-// Get endpoints
-var webEndpoint = webContainer?.ToHostExposedEndpoint("80/tcp");
-var apiEndpoint = apiContainer?.ToHostExposedEndpoint("8080/tcp");
+var webPort = web?.Publishers.FirstOrDefault(p => p.TargetPort == 80)?.PublishedPort;
+var apiPort = api?.Publishers.FirstOrDefault(p => p.TargetPort == 8080)?.PublishedPort;
 ```
 
 ### Execute Commands
@@ -297,19 +298,18 @@ volumes:
 ### C# Code
 
 ```csharp
-using var results = new Builder()
+await using var results = await new Builder()
     .WithinDriver("docker", kernel)
     .UseCompose(c => c
         .WithComposeFile("docker-compose.yml")
         .WithWait()
         .WithWaitTimeout(120))
-    .Build();
+    .BuildAsync();
 
-var wpContainer = results.Containers
-    .First(c => c.Name.Contains("wordpress"));
-
-var endpoint = wpContainer.ToHostExposedEndpoint("80/tcp");
-Console.WriteLine($"WordPress: http://localhost:{endpoint.Port}");
+var wordpress = (await results.ComposeServices.First().ListServicesAsync())
+    .First(s => s.Name == "wordpress");
+var port = wordpress.Publishers.First(p => p.TargetPort == 80).PublishedPort;
+Console.WriteLine($"WordPress: http://localhost:{port}");
 ```
 
 ## Kafka with Zookeeper Example
@@ -353,19 +353,18 @@ services:
 ### C# Code
 
 ```csharp
-using var results = new Builder()
+await using var results = await new Builder()
     .WithinDriver("docker", kernel)
     .UseCompose(c => c
         .WithComposeFile("docker-compose.yml")
         .WithWait()
         .WithWaitTimeout(90))
-    .Build();
+    .BuildAsync();
 
-var kafkaContainer = results.Containers
-    .First(c => c.Name.Contains("kafka"));
-
-var endpoint = kafkaContainer.ToHostExposedEndpoint("9092/tcp");
-var bootstrapServers = $"localhost:{endpoint.Port}";
+var kafka = (await results.ComposeServices.First().ListServicesAsync())
+    .First(s => s.Name == "kafka");
+var port = kafka.Publishers.First(p => p.TargetPort == 9092).PublishedPort;
+var bootstrapServers = $"localhost:{port}";
 
 Console.WriteLine($"Kafka: {bootstrapServers}");
 ```
@@ -394,19 +393,20 @@ services:
 ### C# Code
 
 ```csharp
-using var results = new Builder()
+await using var results = await new Builder()
     .WithinDriver("docker", kernel)
     .UseCompose(c => c
         .WithComposeFile("docker-compose.yml")
         .WithWait()
         .WithWaitTimeout(60))
-    .Build();
+    .BuildAsync();
 
-var rmq = results.Containers.First(c => c.Name.Contains("rabbitmq"));
-var amqp = rmq.ToHostExposedEndpoint("5672/tcp");
-var mgmt = rmq.ToHostExposedEndpoint("15672/tcp");
-Console.WriteLine($"AMQP: amqp://guest:guest@localhost:{amqp.Port}");
-Console.WriteLine($"Management: http://localhost:{mgmt.Port}");
+var rabbit = (await results.ComposeServices.First().ListServicesAsync())
+    .First(s => s.Name == "rabbitmq");
+var amqpPort = rabbit.Publishers.First(p => p.TargetPort == 5672).PublishedPort;
+var mgmtPort = rabbit.Publishers.First(p => p.TargetPort == 15672).PublishedPort;
+Console.WriteLine($"AMQP: localhost:{amqpPort}");
+Console.WriteLine($"Management: http://localhost:{mgmtPort}");
 ```
 
 ## Build Services
@@ -484,15 +484,15 @@ DB_PASSWORD=mysecret
 ## Scaling Services
 
 ```csharp
-using var results = new Builder()
+await using var results = await new Builder()
     .WithinDriver("docker", kernel)
     .UseCompose(c => c
         .WithComposeFile("docker-compose.yml")
         .WithScale("worker", 3))  // Run 3 worker instances
-    .Build();
+    .BuildAsync();
 
-var workers = results.Containers
-    .Where(c => c.Name.Contains("worker"))
+var workers = (await results.ComposeServices.First().ListServicesAsync())
+    .Where(s => s.Name == "worker")
     .ToList();
 
 Console.WriteLine($"Workers: {workers.Count}");  // 3
@@ -557,7 +557,6 @@ using System.Threading.Tasks;
 using FluentDocker.Builders;
 using FluentDocker.Kernel;
 using FluentDocker.Model.Kernel;
-using FluentDocker.Services.Extensions;
 using Xunit;
 public class IntegrationTestBase : IAsyncLifetime
 {
@@ -577,9 +576,10 @@ public class IntegrationTestBase : IAsyncLifetime
         .WithWait()
         .WithWaitTimeout(60))
       .BuildAsync();
-    var apiContainer = Results.Containers.First(c => c.Name.Contains("api"));
-    var endpoint = apiContainer.ToHostExposedEndpoint("8080/tcp");
-    ApiBaseUrl = $"http://localhost:{endpoint.Port}";
+    var api = (await Results.ComposeServices.First().ListServicesAsync())
+      .First(s => s.Name == "api");
+    var port = api.Publishers.First(p => p.TargetPort == 8080).PublishedPort;
+    ApiBaseUrl = $"http://localhost:{port}";
   }
   public async ValueTask DisposeAsync()
   {

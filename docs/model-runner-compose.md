@@ -1,7 +1,8 @@
 ---
 layout: default
 title: Model Runner — Compose
-nav_order: 11
+parent: Model Runner (LLMs)
+nav_order: 1
 ---
 
 # Docker Compose `models:` integration

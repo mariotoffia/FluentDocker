@@ -325,7 +325,11 @@ namespace FluentDocker.Drivers
   {
     /// <summary>List of started services.</summary>
     public List<string> Services { get; set; } = [];
-    /// <summary>Project name.</summary>
+    /// <summary>
+    /// Project name, or <c>null</c> when not explicitly configured (compose then derives
+    /// the name from the project directory; subsequent commands identify the project via
+    /// the compose files instead of <c>-p</c>).
+    /// </summary>
     public string ProjectName { get; set; }
     /// <summary>Warnings from the operation.</summary>
     public List<string> Warnings { get; set; } = [];
