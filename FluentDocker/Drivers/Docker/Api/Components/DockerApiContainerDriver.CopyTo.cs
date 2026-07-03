@@ -38,7 +38,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
           extractPath = parentDir;
         }
 
-        using var tarStream = new MemoryStream();
+        using var tarStream = CreateTempTarStream();
         if (File.Exists(hostPath))
         {
           var file = new FileInfo(hostPath);
@@ -104,6 +104,14 @@ namespace FluentDocker.Drivers.Docker.Api.Components
             info.LastWriteTimeUtc, DockerApiTarWriter.DirectoryModeFor(info.FullName));
         WriteDirectoryToTar(tarStream, dir, newBase);
       }
+    }
+
+    private static FileStream CreateTempTarStream()
+    {
+      var tempPath = Path.GetTempFileName();
+      return new FileStream(
+          tempPath, FileMode.Create, FileAccess.ReadWrite, FileShare.None,
+          bufferSize: 81920, FileOptions.DeleteOnClose | FileOptions.Asynchronous);
     }
   }
 }

@@ -195,41 +195,49 @@ namespace FluentDocker.Drivers.Docker.Api
 
     #region Direct Driver Access
 
+    /// <summary>Gets the Docker API container driver.</summary>
     public IContainerDriver ContainerDriver
     {
       get { ThrowIfNotInitialized(); return _containerDriver; }
     }
 
+    /// <summary>Gets the Docker API image driver.</summary>
     public IImageDriver ImageDriver
     {
       get { ThrowIfNotInitialized(); return _imageDriver; }
     }
 
+    /// <summary>Gets the Docker API network driver.</summary>
     public INetworkDriver NetworkDriver
     {
       get { ThrowIfNotInitialized(); return _networkDriver; }
     }
 
+    /// <summary>Gets the Docker API volume driver.</summary>
     public IVolumeDriver VolumeDriver
     {
       get { ThrowIfNotInitialized(); return _volumeDriver; }
     }
 
+    /// <summary>Gets the Docker API system driver.</summary>
     public ISystemDriver SystemDriver
     {
       get { ThrowIfNotInitialized(); return _systemDriver; }
     }
 
+    /// <summary>Gets the Docker API authentication driver.</summary>
     public IAuthDriver AuthDriver
     {
       get { ThrowIfNotInitialized(); return _authDriver; }
     }
 
+    /// <summary>Gets the Docker API stream driver.</summary>
     public IStreamDriver StreamDriver
     {
       get { ThrowIfNotInitialized(); return _streamDriver; }
     }
 
+    /// <summary>Gets the Docker API Swarm service driver.</summary>
     public IServiceDriver ServiceDriver
     {
       get { ThrowIfNotInitialized(); return _serviceDriver; }

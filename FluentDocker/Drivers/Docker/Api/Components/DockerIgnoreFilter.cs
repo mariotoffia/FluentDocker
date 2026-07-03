@@ -66,7 +66,8 @@ namespace FluentDocker.Drivers.Docker.Api.Components
           line = line[1..].Trim();
         }
 
-        line = line.Replace('\\', '/');
+        if (OperatingSystem.IsWindows())
+          line = line.Replace('\\', '/');
         if (line.StartsWith("./", StringComparison.Ordinal))
           line = line[2..];
         // Leading '/' anchors to the context root; our relative paths are already
@@ -92,7 +93,9 @@ namespace FluentDocker.Drivers.Docker.Api.Components
     {
       ArgumentNullException.ThrowIfNull(relativePath);
 
-      var path = relativePath.Replace('\\', '/').TrimStart('/');
+      var path = OperatingSystem.IsWindows()
+          ? relativePath.Replace('\\', '/').TrimStart('/')
+          : relativePath.TrimStart('/');
 
       // Docker always includes the Dockerfile and .dockerignore regardless of rules.
       var dockerfileComparison = OperatingSystem.IsWindows()
@@ -189,6 +192,11 @@ namespace FluentDocker.Drivers.Docker.Api.Components
         {
           sb.Append('/');
           i++;
+        }
+        else if (c == '\\' && !OperatingSystem.IsWindows() && i + 1 < pattern.Length)
+        {
+          sb.Append(Regex.Escape(pattern[i + 1].ToString()));
+          i += 2;
         }
         else
         {

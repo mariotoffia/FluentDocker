@@ -65,7 +65,8 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       var path = "/volumes";
       if (filter?.Name != null)
       {
-        var filters = $"{{\"name\":[\"{filter.Name}\"]}}";
+        var filters = JsonHelper.Serialize(
+            new Dictionary<string, string[]> { ["name"] = [filter.Name] });
         path += $"?filters={System.Uri.EscapeDataString(filters)}";
       }
 

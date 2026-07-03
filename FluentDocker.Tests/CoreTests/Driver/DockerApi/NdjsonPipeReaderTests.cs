@@ -308,10 +308,10 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
     #region Cancellation
 
     /// <summary>
-    /// Validates that cancellation stops enumeration promptly.
+    /// Validates that cancellation propagates as OperationCanceledException.
     /// </summary>
     [Fact]
-    public async Task Cancellation_StopsReading()
+    public async Task Cancellation_ThrowsOperationCanceledException()
     {
       var cts = new CancellationTokenSource();
       // Large stream with many lines — cancel after first item
@@ -320,17 +320,15 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
         sb.Append(CultureInfo.InvariantCulture, $"{{\"id\":\"{i}\",\"value\":{i}}}\n");
       using var stream = MakeStream(sb.ToString());
 
-      var items = new List<NdjsonTestItem>();
-      await foreach (var item in TestableDriverBase.TestReadNdjsonLines(
-          stream, TypeInfo, cts.Token))
+      await Assert.ThrowsAnyAsync<OperationCanceledException>(async () =>
       {
-        items.Add(item);
-        if (items.Count == 1)
-          cts.Cancel();
-      }
-
-      // Cancel fires after item 1; inner loop checks ct per-line, so at most 1 extra
-      Assert.InRange(items.Count, 1, 2);
+        await foreach (var item in TestableDriverBase.TestReadNdjsonLines(
+            stream, TypeInfo, cts.Token))
+        {
+          if (item != null)
+            cts.Cancel();
+        }
+      });
     }
 
     #endregion

@@ -19,8 +19,6 @@ namespace FluentDocker.Drivers.Docker.Api.Components
   /// </summary>
   public partial class DockerApiContainerDriver
   {
-    private const int MaxFrameSizeBytes = 10 * 1024 * 1024;
-
     #region Logs
 
     /// <summary>Gets logs from a container.</summary>
@@ -48,7 +46,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
         using var stream = await GetRawStreamAsync(path, cancellationToken).ConfigureAwait(false);
         using var ms = new MemoryStream();
         await stream.CopyToAsync(ms, cancellationToken).ConfigureAwait(false);
-        var logs = StripDockerStreamHeaders(ms.ToArray());
+        var logs = StripDockerStreamHeaders(ms.GetBuffer().AsSpan(0, (int)ms.Length));
         return CommandResponse<string>.Ok(logs);
       }
       catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
@@ -236,7 +234,14 @@ namespace FluentDocker.Drivers.Docker.Api.Components
           $"/exec/{execId}/json",
           DockerApiJsonContext.Default.ExecInspectResponse, cancellationToken)
           .ConfigureAwait(false);
-      var exitCode = inspectResult.Success ? inspectResult.Data?.ExitCode ?? -1 : -1;
+      if (!inspectResult.Success)
+        return CommandResponse<ExecResult>.Fail(inspectResult.ErrorMessage,
+            ErrorCodes.Container.ExecFailed,
+            CreateErrorContext($"GET /exec/{execId}/json",
+                inspectResult.StatusCode, inspectResult.ResponseBody),
+            inspectResult.StatusCode);
+
+      var exitCode = inspectResult.Data?.ExitCode ?? -1;
 
       return CommandResponse<ExecResult>.Ok(new ExecResult
       {
@@ -256,10 +261,13 @@ namespace FluentDocker.Drivers.Docker.Api.Components
     {
       var stdoutBuf = new StringBuilder();
       var stderrBuf = new StringBuilder();
+      var stdoutDecoder = Encoding.UTF8.GetDecoder();
+      var stderrDecoder = Encoding.UTF8.GetDecoder();
       var header = new byte[8];
 
       while (true)
       {
+        ct.ThrowIfCancellationRequested();
         var headerRead = await ReadExactAsync(stream, header, 8, ct).ConfigureAwait(false);
         if (headerRead == 0)
           break;
@@ -291,14 +299,30 @@ namespace FluentDocker.Drivers.Docker.Api.Components
               $"Docker exec stream truncated: expected {frameSize} payload bytes, read {payloadRead}",
               ErrorCodes.Api.ServerError);
 
-        var text = Encoding.UTF8.GetString(payload, 0, payloadRead);
         if (streamType == 1)
-          stdoutBuf.Append(text);
+          AppendUtf8(stdoutDecoder, payload, payloadRead, stdoutBuf);
         else if (streamType == 2)
-          stderrBuf.Append(text);
+          AppendUtf8(stderrDecoder, payload, payloadRead, stderrBuf);
       }
 
+      FlushUtf8(stdoutDecoder, stdoutBuf);
+      FlushUtf8(stderrDecoder, stderrBuf);
       return (stdoutBuf.ToString(), stderrBuf.ToString());
+    }
+
+    private static void AppendUtf8(
+        Decoder decoder, byte[] payload, int count, StringBuilder output)
+    {
+      var chars = new char[Encoding.UTF8.GetMaxCharCount(count)];
+      var written = decoder.GetChars(payload, 0, count, chars, 0, flush: false);
+      output.Append(chars, 0, written);
+    }
+
+    private static void FlushUtf8(Decoder decoder, StringBuilder output)
+    {
+      var chars = new char[Encoding.UTF8.GetMaxCharCount(0)];
+      var written = decoder.GetChars([], 0, 0, chars, 0, flush: true);
+      output.Append(chars, 0, written);
     }
 
     #endregion

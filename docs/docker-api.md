@@ -42,7 +42,8 @@ await using var kernel = await FluentDockerKernel.Create()
 
 Log in once via the `IAuthDriver` port. The credentials are cached per-registry, and every
 subsequent pull/push sends them in the `X-Registry-Auth` header (a base64url-encoded JSON
-auth config), so **private-registry pull and push work over the API driver**.
+auth config), and image builds send cached credentials in `X-Registry-Config` for private
+base images. **Private-registry pull, push, and build work over the API driver**.
 
 ```csharp
 using FluentDocker.Drivers;
@@ -59,12 +60,12 @@ var login = await auth.LoginAsync(context, new RegistryLoginConfig
 });
 
 // login.Success == true; later image pull/push to registry.internal:5000
-// automatically carry the X-Registry-Auth header.
+// carry X-Registry-Auth, and builds carry X-Registry-Config.
 ```
 
 Call `LogoutAsync(context, server)` to drop the cached credentials. Unlike the CLI driver,
 the API driver does **not** read `~/.docker/config.json` or invoke Docker credential
-helpers; call `LoginAsync` explicitly before private-registry pull/push.
+helpers; call `LoginAsync` explicitly before private-registry pull/push/build.
 
 ## Cancellation vs request timeout
 
@@ -77,8 +78,9 @@ The two failure modes are kept **distinct**:
   (`WithRequestTimeout(...)`) is internal; when it fires it is reported as a timeout/driver
   failure, **not** as caller cancellation, so you can tell "the caller gave up" apart from
   "the engine was too slow".
-- **Long-running waits/streams** — attach/log/event/stat streams and `WaitAsync` are exempt
-  from the request timeout and are bounded only by the caller's cancellation token.
+- **Long-running waits/streams** — attach/log/event/stat streams, `WaitAsync`, and
+  stop/restart requests whose `t=` timeout exceeds the request timeout are exempt from the
+  request timeout and are bounded only by the caller's cancellation token.
 
 ```csharp
 using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
@@ -108,8 +110,8 @@ resolved target stays inside the context, escaping links are skipped, and direct
 not traversed.
 
 `CopyToAsync` also builds a tar archive client-side. It skips reparse-point entries to avoid
-symlink cycles; very large directory copies are still buffered before upload, so prefer copying
-files or bounded directories with the API driver.
+symlink cycles and spools the archive to a delete-on-close temp file before upload, so large
+directory copies are bounded by disk instead of managed heap size.
 
 ## TLS
 
@@ -148,8 +150,13 @@ always dispose the stream you receive (`await using`/`using`) so the underlying 
 is released.
 
 `IContainerDriver.GetLogsAsync(follow: true)` is rejected because it is a buffered API; use
-`IStreamDriver.StreamLogsAsync` for following logs. Streamed Docker API log entries are emitted
-at Docker frame granularity (frames may split very long logical lines). Attach over the API
+`IStreamDriver.StreamLogsAsync` for following logs. Buffered `GetLogsAsync` holds the full log
+in memory (hard ceiling ~2 GiB) — prefer the streaming API for very large logs. Streamed Docker
+API log entries are emitted at Docker frame granularity (frames may split very long logical
+lines; a frame ending mid-UTF-8-character is merged with the next frame of the same stream).
+Log fidelity is bounded by the daemon itself: the json-file log driver splits messages larger
+than 16 KiB before storage, which can corrupt multibyte characters upstream of any client.
+Attach over the API
 supports stdout/stderr only: requesting stdin fails with a clear error, and the returned
 `OutputStream` is the raw Docker attach stream (multiplexed when TTY is disabled).
 

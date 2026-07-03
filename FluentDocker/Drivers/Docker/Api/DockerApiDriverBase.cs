@@ -261,8 +261,9 @@ namespace FluentDocker.Drivers.Docker.Api
       await using var _ = stream.ConfigureAwait(false);
       using var reader = new StreamReader(stream, Encoding.UTF8, detectEncodingFromByteOrderMarks: false,
           bufferSize: 1024, leaveOpen: true);
-      while (!ct.IsCancellationRequested)
+      while (true)
       {
+        ct.ThrowIfCancellationRequested();
         string line;
         try
         {
@@ -285,6 +286,7 @@ namespace FluentDocker.Drivers.Docker.Api
         if (string.IsNullOrWhiteSpace(line))
           continue;
         yield return line;
+        ct.ThrowIfCancellationRequested();
       }
     }
 
@@ -311,8 +313,9 @@ namespace FluentDocker.Drivers.Docker.Api
       await using var _ = stream.ConfigureAwait(false);
       using var reader = new StreamReader(stream, Encoding.UTF8, detectEncodingFromByteOrderMarks: false,
           bufferSize: 1024, leaveOpen: true);
-      while (!ct.IsCancellationRequested)
+      while (true)
       {
+        ct.ThrowIfCancellationRequested();
         string line;
         try
         {
@@ -335,6 +338,7 @@ namespace FluentDocker.Drivers.Docker.Api
         if (string.IsNullOrWhiteSpace(line))
           continue;
         yield return line;
+        ct.ThrowIfCancellationRequested();
       }
     }
 
@@ -377,10 +381,19 @@ namespace FluentDocker.Drivers.Docker.Api
         string path, HttpContent content, JsonTypeInfo<T> typeInfo,
         [EnumeratorCancellation] CancellationToken ct) where T : class
     {
+      await foreach (var item in ReadNdjsonFromPostStreamAsync(
+          path, content, null, typeInfo, ct).ConfigureAwait(false))
+        yield return item;
+    }
+
+    protected async IAsyncEnumerable<T> ReadNdjsonFromPostStreamAsync<T>(
+        string path, HttpContent content, IReadOnlyDictionary<string, string> headers,
+        JsonTypeInfo<T> typeInfo, [EnumeratorCancellation] CancellationToken ct) where T : class
+    {
       Stream stream;
       try
       {
-        stream = await Connection.PostStreamAsync(path, content, ct).ConfigureAwait(false);
+        stream = await Connection.PostStreamAsync(path, content, headers, ct).ConfigureAwait(false);
       }
       catch (OperationCanceledException) when (ct.IsCancellationRequested)
       {

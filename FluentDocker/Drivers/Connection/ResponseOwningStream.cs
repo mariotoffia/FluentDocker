@@ -33,6 +33,14 @@ namespace FluentDocker.Drivers.Connection
       return await _inner.ReadAsync(buffer, cancellationToken).ConfigureAwait(false);
     }
 
+    public override async Task<int> ReadAsync(
+        byte[] buffer, int offset, int count, CancellationToken cancellationToken)
+    {
+      ObjectDisposedException.ThrowIf(IsDisposed, this);
+      return await _inner.ReadAsync(
+          buffer.AsMemory(offset, count), cancellationToken).ConfigureAwait(false);
+    }
+
     public override long Seek(long offset, SeekOrigin origin)
     {
       ObjectDisposedException.ThrowIf(IsDisposed, this);

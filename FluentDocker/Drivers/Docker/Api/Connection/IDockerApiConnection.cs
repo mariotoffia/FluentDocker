@@ -45,6 +45,14 @@ namespace FluentDocker.Drivers.Docker.Api.Connection
     /// </summary>
     Task<Stream> PostStreamAsync(string path, HttpContent content = null, CancellationToken ct = default);
 
+    /// <summary>
+    /// Sends a POST request with optional HTTP headers and returns the response body as a stream.
+    /// </summary>
+    /// <param name="path">Docker API path, without the negotiated version prefix.</param>
+    /// <param name="content">Optional request content.</param>
+    /// <param name="headers">Optional headers to add to the request without validation.</param>
+    /// <param name="ct">Cancellation token for the request and response stream open.</param>
+    /// <returns>The response body stream. Disposing the stream releases the HTTP response.</returns>
     Task<Stream> PostStreamAsync(
         string path, HttpContent content,
         IReadOnlyDictionary<string, string> headers, CancellationToken ct = default);

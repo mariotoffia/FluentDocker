@@ -161,7 +161,8 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
     {
       var f = DockerIgnoreFilter.FromLines(["node_modules/"]);
 
-      Assert.True(f.IsIgnored("node_modules\\lib\\index.js"));
+      Assert.True(f.IsIgnored("node_modules/lib/index.js"));
+      Assert.Equal(OperatingSystem.IsWindows(), f.IsIgnored("node_modules\\lib\\index.js"));
     }
 
     [Fact]

@@ -18,11 +18,8 @@ namespace FluentDocker.Drivers.Docker.Api.Components
   /// Docker API implementation of IStreamDriver.
   /// Uses streaming endpoints for logs, events, stats, and attach.
   /// </summary>
-  public class DockerApiStreamDriver : DockerApiDriverBase, IStreamDriver
+  public partial class DockerApiStreamDriver : DockerApiDriverBase, IStreamDriver
   {
-    /// <summary>Maximum allowed frame size in the Docker multiplexed stream protocol (10 MB).</summary>
-    private const int MaxFrameSizeBytes = 10 * 1024 * 1024;
-
     public DockerApiStreamDriver(IDockerApiConnection connection) : base(connection) { }
 
     public async IAsyncEnumerable<string> StreamLogsAsync(
@@ -103,7 +100,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       // Use try/finally to dispose the stream when the caller breaks out.
       try
       {
-        await foreach (var entry in ReadMultiplexedStreamAsync(stream, tty, cancellationToken))
+        await foreach (var entry in ReadMultiplexedStreamAsync(stream, tty, cancellationToken).ConfigureAwait(false))
         {
           yield return entry;
         }
@@ -292,122 +289,6 @@ namespace FluentDocker.Drivers.Docker.Api.Components
                 0, ex.Message));
       }
     }
-
-    #region Multiplexed Stream Reader
-
-    /// <summary>
-    /// Reads Docker multiplexed stream format, tagging each line with its source stream.
-    /// Header: [stream_type:1][0:3][size:4 big-endian] followed by payload.
-    /// stream_type: 0=stdin, 1=stdout, 2=stderr.
-    /// When <paramref name="tty"/> is true the stream is raw text (no headers), so
-    /// demultiplexing is bypassed and every line is tagged as stdout.
-    /// </summary>
-    private static async IAsyncEnumerable<LogEntry> ReadMultiplexedStreamAsync(
-        Stream stream, bool tty, [EnumeratorCancellation] CancellationToken ct)
-    {
-      if (tty)
-      {
-        await foreach (var entry in ReadRawTextStreamAsync(stream, ct))
-          yield return entry;
-        yield break;
-      }
-
-      var header = new byte[8];
-
-      while (!ct.IsCancellationRequested)
-      {
-        int bytesRead;
-        try
-        {
-          bytesRead = await ReadExactAsync(stream, header, 8, ct).ConfigureAwait(false);
-        }
-        catch (OperationCanceledException) when (ct.IsCancellationRequested) { yield break; }
-        catch (Exception ex)
-        {
-          throw new DriverException(
-              $"Docker log stream read failed: {ex.Message}", ErrorCodes.Api.ServerError, ex);
-        }
-
-        if (bytesRead == 0)
-          yield break;
-        if (bytesRead < 8)
-        {
-          throw new DriverException(
-              $"Docker log stream truncated: partial {bytesRead}-byte frame header",
-              ErrorCodes.Api.ServerError);
-        }
-
-        if (header[0] > 2 || header[1] != 0 || header[2] != 0 || header[3] != 0)
-        {
-          throw new DriverException(
-              "Docker log stream has an invalid multiplexed frame header",
-              ErrorCodes.Api.ServerError);
-        }
-
-        var source = MapSource(header[0]);
-
-        var frameSize = (header[4] << 24) | (header[5] << 16) |
-            (header[6] << 8) | header[7];
-
-        if (frameSize < 0 || frameSize > MaxFrameSizeBytes)
-          throw new DriverException(
-              $"Docker log stream frame size {frameSize} is invalid or exceeds the {MaxFrameSizeBytes} byte limit",
-              ErrorCodes.Api.ServerError);
-        if (frameSize == 0)
-          continue;
-
-        var payload = new byte[frameSize];
-        var payloadRead = await ReadExactAsync(stream, payload, frameSize, ct).ConfigureAwait(false);
-        if (payloadRead < frameSize)
-          throw new DriverException(
-              $"Docker log stream truncated: expected {frameSize} payload bytes, read {payloadRead}",
-              ErrorCodes.Api.ServerError);
-
-        var text = Encoding.UTF8.GetString(payload, 0, payloadRead).TrimEnd('\n', '\r');
-        foreach (var line in text.Split('\n'))
-        {
-          if (!string.IsNullOrEmpty(line))
-            yield return new LogEntry { Source = source, Line = line };
-        }
-      }
-    }
-
-    private static LogStreamSource MapSource(byte streamType) => streamType switch
-    {
-      0 => LogStreamSource.Stdin,
-      2 => LogStreamSource.Stderr,
-      _ => LogStreamSource.Stdout,
-    };
-
-    /// <summary>
-    /// Reads a raw (TTY) log stream as plain UTF-8 text, yielding each non-empty line as
-    /// stdout. Raw streams carry no source byte, so stderr cannot be distinguished.
-    /// </summary>
-    private static async IAsyncEnumerable<LogEntry> ReadRawTextStreamAsync(
-        Stream stream, [EnumeratorCancellation] CancellationToken ct)
-    {
-      using var reader = new StreamReader(stream, Encoding.UTF8,
-          detectEncodingFromByteOrderMarks: false, bufferSize: 1024, leaveOpen: true);
-      while (!ct.IsCancellationRequested)
-      {
-        string line;
-        try
-        {
-          line = await reader.ReadLineAsync(ct).ConfigureAwait(false);
-        }
-        catch (OperationCanceledException) { yield break; }
-
-        if (line == null)
-          break;
-        if (line.Length == 0)
-          continue;
-        yield return new LogEntry { Source = LogStreamSource.Stdout, Line = line };
-      }
-    }
-
-    // ReadExactAsync is inherited from DockerApiDriverBase
-
-    #endregion
 
     #region Stats Parsing
 

@@ -53,6 +53,22 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       };
     }
 
+    public static IReadOnlyDictionary<string, string> RegistryConfigHeaderFor(
+        IDockerApiConnection connection)
+    {
+      if (!Caches.TryGetValue(connection, out var cache))
+        return null;
+
+      var configs = cache.Snapshot();
+      if (configs.Count == 0)
+        return null;
+
+      return new Dictionary<string, string>
+      {
+        ["X-Registry-Config"] = ToBase64Url(JsonHelper.Serialize(configs))
+      };
+    }
+
     private static string RegistryFromImage(string image)
     {
       var first = image?.Split('/')[0];
@@ -97,6 +113,25 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       {
         lock (_configs)
           return _configs.TryGetValue(server, out var config) ? config : null;
+      }
+
+      public Dictionary<string, object> Snapshot()
+      {
+        lock (_configs)
+        {
+          var result = new Dictionary<string, object>();
+          foreach (var kv in _configs)
+          {
+            result[kv.Key] = new
+            {
+              username = kv.Value.Username,
+              password = kv.Value.Password,
+              email = kv.Value.Email,
+              serveraddress = kv.Value.Server ?? DockerHubServer
+            };
+          }
+          return result;
+        }
       }
 
       public void Remove(string server)

@@ -310,8 +310,9 @@ namespace FluentDocker.Drivers.Docker.Api.Components
         var buildResult = new ImageBuildResult();
         string lastError = null;
 
+        var headers = DockerApiRegistryAuth.RegistryConfigHeaderFor(Connection);
         await foreach (var parsed in ReadNdjsonFromPostStreamAsync(
-            path, content, DockerApiJsonContext.Default.BuildOutputLine, cancellationToken))
+            path, content, headers, DockerApiJsonContext.Default.BuildOutputLine, cancellationToken))
         {
           if (parsed.Aux?.Id != null)
             buildResult.ImageId = parsed.Aux.Id;

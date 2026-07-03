@@ -81,7 +81,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       WriteOctal(header, 108, 8, 0);
       WriteOctal(header, 116, 8, 0);
       WriteOctal(header, 124, 12, size);
-      WriteOctal(header, 136, 12, modified.ToUnixTimeSeconds());
+      WriteOctal(header, 136, 12, Math.Max(0, modified.ToUnixTimeSeconds()));
       for (var i = 148; i < 156; i++)
         header[i] = 32;
       header[156] = type;

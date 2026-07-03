@@ -24,7 +24,7 @@ namespace FluentDocker.Drivers.Docker.Api.Connection
   /// HTTP connection to the Docker Engine REST API.
   /// Supports Unix domain sockets, Windows named pipes, and TCP with optional TLS.
   /// </summary>
-  public sealed class DockerApiConnection : IDockerApiConnection
+  public sealed partial class DockerApiConnection : IDockerApiConnection
   {
     private readonly HttpClient _httpClient;
     private readonly HttpClient _longRunningHttpClient;
@@ -36,6 +36,7 @@ namespace FluentDocker.Drivers.Docker.Api.Connection
     // validation callback and the client cert is referenced by the handler; they are
     // disposed only AFTER _httpClient.Dispose() in DisposeAsync. Empty when there is no TLS.
     private readonly IReadOnlyList<X509Certificate2> _ownedCertificates;
+    private int _disposed;
 
     /// <summary>
     /// Immutable record holding the negotiation result. A single volatile reference
@@ -85,6 +86,7 @@ namespace FluentDocker.Drivers.Docker.Api.Connection
 
     public async Task<HttpResponseMessage> GetAsync(string path, CancellationToken ct = default)
     {
+      ThrowIfDisposed();
       var versionedPath = await GetVersionedPathAsync(path, ct).ConfigureAwait(false);
       return await _httpClient.GetAsync(versionedPath, ct).ConfigureAwait(false);
     }
@@ -92,26 +94,30 @@ namespace FluentDocker.Drivers.Docker.Api.Connection
     public async Task<HttpResponseMessage> PostAsync(
         string path, HttpContent content = null, CancellationToken ct = default)
     {
+      ThrowIfDisposed();
       var versionedPath = await GetVersionedPathAsync(path, ct).ConfigureAwait(false);
-      var client = IsWaitEndpoint(versionedPath) ? _longRunningHttpClient : _httpClient;
+      var client = UseLongRunningPostClient(versionedPath) ? _longRunningHttpClient : _httpClient;
       return await client.PostAsync(versionedPath, content, ct).ConfigureAwait(false);
     }
 
     public async Task<HttpResponseMessage> PutAsync(
         string path, HttpContent content, CancellationToken ct = default)
     {
+      ThrowIfDisposed();
       var versionedPath = await GetVersionedPathAsync(path, ct).ConfigureAwait(false);
       return await _httpClient.PutAsync(versionedPath, content, ct).ConfigureAwait(false);
     }
 
     public async Task<HttpResponseMessage> DeleteAsync(string path, CancellationToken ct = default)
     {
+      ThrowIfDisposed();
       var versionedPath = await GetVersionedPathAsync(path, ct).ConfigureAwait(false);
       return await _httpClient.DeleteAsync(versionedPath, ct).ConfigureAwait(false);
     }
 
     public async Task<Stream> GetStreamAsync(string path, CancellationToken ct = default)
     {
+      ThrowIfDisposed();
       var versionedPath = await GetVersionedPathAsync(path, ct).ConfigureAwait(false);
       var response = await _longRunningHttpClient.GetAsync(
           versionedPath, HttpCompletionOption.ResponseHeadersRead, ct).ConfigureAwait(false);
@@ -130,6 +136,7 @@ namespace FluentDocker.Drivers.Docker.Api.Connection
         string path, HttpContent content,
         IReadOnlyDictionary<string, string> headers, CancellationToken ct = default)
     {
+      ThrowIfDisposed();
       var versionedPath = await GetVersionedPathAsync(path, ct).ConfigureAwait(false);
       var request = new HttpRequestMessage(HttpMethod.Post, versionedPath) { Content = content };
       if (headers != null)
@@ -143,10 +150,6 @@ namespace FluentDocker.Drivers.Docker.Api.Connection
       var stream = await response.Content.ReadAsStreamAsync(ct).ConfigureAwait(false);
       return new ResponseOwningStream(stream, response);
     }
-
-    private static bool IsWaitEndpoint(string path) =>
-        path.Contains("/containers/", StringComparison.Ordinal) &&
-        path.EndsWith("/wait", StringComparison.Ordinal);
 
     /// <summary>
     /// Throws a descriptive <see cref="HttpRequestException"/> for a non-success stream
@@ -214,6 +217,7 @@ namespace FluentDocker.Drivers.Docker.Api.Connection
 
     public async Task<bool> PingAsync(CancellationToken ct = default)
     {
+      ThrowIfDisposed();
       try
       {
         using var response = await _httpClient.GetAsync("/_ping", ct).ConfigureAwait(false);
@@ -235,32 +239,45 @@ namespace FluentDocker.Drivers.Docker.Api.Connection
       }
     }
 
-    public ValueTask DisposeAsync()
+    public async ValueTask DisposeAsync()
     {
-      _negotiationLock.Dispose();
-      _longRunningHttpClient.Dispose();
-      _httpClient.Dispose();
+      if (Interlocked.CompareExchange(ref _disposed, 1, 0) != 0)
+        return;
 
-      // Dispose any X509Certificate2 we created (client cert + custom CA) to release
-      // their native handles. This runs AFTER _httpClient.Dispose() so the handler is no
-      // longer using the client certificate, and the CA cert captured by the TLS
-      // validation callback is no longer reachable. Disposing an X509Certificate2 twice
-      // is a no-op, so this is safe to call again (idempotent dispose).
-      foreach (var certificate in _ownedCertificates)
-        certificate.Dispose();
+      await _negotiationLock.WaitAsync(CancellationToken.None).ConfigureAwait(false);
+      try
+      {
+        _longRunningHttpClient.Dispose();
+        _httpClient.Dispose();
+
+        // Dispose any X509Certificate2 we created (client cert + custom CA) to release
+        // their native handles. This runs AFTER _httpClient.Dispose() so the handler is no
+        // longer using the client certificate, and the CA cert captured by the TLS
+        // validation callback is no longer reachable.
+        foreach (var certificate in _ownedCertificates)
+          certificate.Dispose();
+      }
+      finally
+      {
+        // The SemaphoreSlim is deliberately not disposed: it holds no unmanaged state
+        // (AvailableWaitHandle is never touched), and disposing it races in-flight
+        // waiters into ObjectDisposedException from their finally-Release.
+        _negotiationLock.Release();
+      }
 
       GC.SuppressFinalize(this);
-      return ValueTask.CompletedTask;
     }
 
     private async Task<string> GetVersionedPathAsync(string path, CancellationToken ct)
     {
+      ThrowIfDisposed();
       var state = _negotiation;
       if (!state.Negotiated)
       {
         await _negotiationLock.WaitAsync(ct).ConfigureAwait(false);
         try
         {
+          ThrowIfDisposed();
           // Double-check after acquiring the lock.
           state = _negotiation;
           if (!state.Negotiated)
@@ -278,6 +295,11 @@ namespace FluentDocker.Drivers.Docker.Api.Connection
       return string.IsNullOrEmpty(state.ApiVersion)
           ? path
           : $"/v{state.ApiVersion}{path}";
+    }
+
+    private void ThrowIfDisposed()
+    {
+      ObjectDisposedException.ThrowIf(Volatile.Read(ref _disposed) != 0, this);
     }
 
     private async Task NegotiateApiVersionAsync(CancellationToken ct)
@@ -394,83 +416,5 @@ namespace FluentDocker.Drivers.Docker.Api.Connection
       return (handler, "http://localhost");
     }
 
-    // Every X509Certificate2 created here is added to ownedCertificates so the connection
-    // instance can dispose them (they own native handles); they outlive this method because
-    // the client cert is referenced by the handler and the CA cert is captured by the
-    // validation callback below.
-    private static (SocketsHttpHandler, string) CreateTcpHandler(
-        Uri uri, DockerApiConnectionConfig config, bool useTls, List<X509Certificate2> ownedCertificates)
-    {
-      var handler = new SocketsHttpHandler
-      {
-        ConnectTimeout = config.ConnectionTimeout
-      };
-
-      var hasCerts = !string.IsNullOrEmpty(config.CertificatePath);
-
-      if (useTls || hasCerts)
-      {
-        var sslOptions = new SslClientAuthenticationOptions();
-
-        if (hasCerts)
-        {
-          var certPath = Path.Combine(config.CertificatePath, "cert.pem");
-          var keyPath = Path.Combine(config.CertificatePath, "key.pem");
-
-          if (File.Exists(certPath) && File.Exists(keyPath))
-          {
-            var clientCert = X509Certificate2.CreateFromPemFile(certPath, keyPath);
-            ownedCertificates.Add(clientCert);
-            sslOptions.ClientCertificates = [clientCert];
-          }
-
-          if (!config.VerifyTls)
-          {
-#pragma warning disable CA5359 // Intentional: user opted out of TLS verification via VerifyTls=false
-            sslOptions.RemoteCertificateValidationCallback = (_, _, _, _) => true;
-#pragma warning restore CA5359
-          }
-          else
-          {
-            var caPath = Path.Combine(config.CertificatePath, "ca.pem");
-            if (File.Exists(caPath))
-            {
-#if NET9_0_OR_GREATER
-              var caCert = X509CertificateLoader.LoadCertificateFromFile(caPath);
-#else
-              var caCert = X509Certificate2.CreateFromPem(File.ReadAllText(caPath));
-#endif
-              ownedCertificates.Add(caCert);
-              sslOptions.RemoteCertificateValidationCallback = (_, cert, chain, errors) =>
-                  ModelTlsValidation.ValidateWithCustomRoot(caCert, cert, chain, errors, config.AllowTlsHostnameMismatch);
-            }
-            else if (config.AllowTlsHostnameMismatch)
-            {
-              sslOptions.RemoteCertificateValidationCallback = (_, _, _, errors) =>
-                  errors is SslPolicyErrors.None or SslPolicyErrors.RemoteCertificateNameMismatch;
-            }
-          }
-        }
-        else if (!config.VerifyTls)
-        {
-#pragma warning disable CA5359 // Intentional: user opted out of TLS verification via VerifyTls=false
-          sslOptions.RemoteCertificateValidationCallback = (_, _, _, _) => true;
-#pragma warning restore CA5359
-        }
-        else if (config.AllowTlsHostnameMismatch)
-        {
-          sslOptions.RemoteCertificateValidationCallback = (_, _, _, errors) =>
-              errors is SslPolicyErrors.None or SslPolicyErrors.RemoteCertificateNameMismatch;
-        }
-
-        handler.SslOptions = sslOptions;
-      }
-
-      var scheme = (useTls || hasCerts) ? "https" : "http";
-      var port = uri.Port > 0 ? uri.Port : (useTls ? 2376 : 2375);
-      var baseAddress = $"{scheme}://{uri.Host}:{port}";
-
-      return (handler, baseAddress);
-    }
   }
 }

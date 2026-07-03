@@ -174,6 +174,8 @@ namespace FluentDocker.Drivers.Docker.Api.Components
         return ("", hostPort);
 
       var hostIp = hostPort[..lastColon];
+      if (hostIp.Length >= 2 && hostIp[0] == '[' && hostIp[^1] == ']')
+        hostIp = hostIp[1..^1];
       var port = hostPort[(lastColon + 1)..];
       return (hostIp, port);
     }

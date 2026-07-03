@@ -16,7 +16,8 @@ namespace FluentDocker.Drivers.Docker.Api
 {
   public abstract partial class DockerApiDriverBase
   {
-    private const int MaxFrameSizeBytes = 10 * 1024 * 1024;
+    /// <summary>Upper bound for a single multiplexed/stdcopy frame payload.</summary>
+    protected const int MaxFrameSizeBytes = 10 * 1024 * 1024;
 
     #region NDJSON PipeReader
 
@@ -53,33 +54,43 @@ namespace FluentDocker.Drivers.Docker.Api
           }
 
           var buffer = result.Buffer;
-          var keepGoing = true;
 
           // Process all complete lines in the current buffer
-          while (keepGoing && TryReadLine(ref buffer, out var lineSeq))
+          while (TryReadLine(ref buffer, out var lineSeq))
           {
             var item = TryDeserializeLine(lineSeq, typeInfo);
             if (item != null)
+            {
               yield return item;
-            if (ct.IsCancellationRequested)
-              keepGoing = false;
+              ct.ThrowIfCancellationRequested();
+            }
           }
 
-          // AdvanceTo MUST be called after every successful ReadAsync
-          reader.AdvanceTo(buffer.Start, buffer.End);
-
-          if (!keepGoing || result.IsCompleted)
+          if (result.IsCompleted)
           {
             // Process any remaining data after the last newline
-            if (result.IsCompleted && buffer.Length > 0)
+            if (buffer.Length > 0)
             {
-              var item = TryDeserializeLine(buffer, typeInfo);
+              var leftover = buffer.ToArray();
+              reader.AdvanceTo(result.Buffer.End);
+              var item = TryDeserializeLine(new ReadOnlySequence<byte>(leftover), typeInfo);
               if (item != null)
+              {
                 yield return item;
+                ct.ThrowIfCancellationRequested();
+              }
+            }
+            else
+            {
+              reader.AdvanceTo(buffer.Start, buffer.End);
             }
 
             break;
           }
+
+          // AdvanceTo MUST be called after every successful ReadAsync.
+          reader.AdvanceTo(buffer.Start, buffer.End);
+          ct.ThrowIfCancellationRequested();
         }
       }
       finally
@@ -199,10 +210,12 @@ namespace FluentDocker.Drivers.Docker.Api
         var frameSize = (bytes[offset + 4] << 24) | (bytes[offset + 5] << 16)
                       | (bytes[offset + 6] << 8) | bytes[offset + 7];
         offset += 8;
-        if (frameSize <= 0 || frameSize > MaxFrameSizeBytes)
+        if (frameSize < 0 || frameSize > MaxFrameSizeBytes)
           throw new DriverException(
               $"Docker stream frame size {frameSize} is invalid or exceeds the {MaxFrameSizeBytes} byte limit",
               ErrorCodes.Api.ServerError);
+        if (frameSize == 0)
+          continue;
         if (offset + frameSize > bytes.Length)
           throw new DriverException(
               $"Docker stream truncated: expected {frameSize} payload bytes, read {bytes.Length - offset}",
@@ -216,7 +229,7 @@ namespace FluentDocker.Drivers.Docker.Api
             ErrorCodes.Api.ServerError);
 
       if (totalPayload == 0)
-        return Encoding.UTF8.GetString(bytes);
+        return string.Empty;
 
       // Second pass: concatenate payload bytes into a single buffer
       var payloadBuffer = totalPayload <= 1024
