@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -10,7 +11,6 @@ using FluentDocker.Common;
 using FluentDocker.Drivers.Docker.Cli.Binary;
 using FluentDocker.Model.Drivers;
 using Microsoft.Extensions.Logging;
-
 namespace FluentDocker.Drivers.Docker.Cli.Components
 {
   /// <summary>
@@ -240,16 +240,16 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
         if (filter != null)
         {
           if (!string.IsNullOrEmpty(filter.Reference))
-            args.Append($" --filter {QuoteArgumentIfNeeded($"reference={filter.Reference}")}");
+            args.Append(CultureInfo.InvariantCulture, $" --filter {QuoteArgumentIfNeeded($"reference={filter.Reference}")}");
 
           if (filter.Dangling.HasValue)
-            args.Append($" --filter {QuoteArgumentIfNeeded($"dangling={(filter.Dangling.Value ? "true" : "false")}")}");
+            args.Append(CultureInfo.InvariantCulture, $" --filter {QuoteArgumentIfNeeded($"dangling={(filter.Dangling.Value ? "true" : "false")}")}");
 
           if (!string.IsNullOrEmpty(filter.Before))
-            args.Append($" --filter {QuoteArgumentIfNeeded($"before={filter.Before}")}");
+            args.Append(CultureInfo.InvariantCulture, $" --filter {QuoteArgumentIfNeeded($"before={filter.Before}")}");
 
           if (!string.IsNullOrEmpty(filter.Since))
-            args.Append($" --filter {QuoteArgumentIfNeeded($"since={filter.Since}")}");
+            args.Append(CultureInfo.InvariantCulture, $" --filter {QuoteArgumentIfNeeded($"since={filter.Since}")}");
 
           if (filter.Labels != null)
           {
@@ -258,7 +258,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
               var labelValue = string.IsNullOrEmpty(label.Value)
                   ? label.Key
                   : $"{label.Key}={label.Value}";
-              args.Append($" --filter {QuoteArgumentIfNeeded($"label={labelValue}")}");
+              args.Append(CultureInfo.InvariantCulture, $" --filter {QuoteArgumentIfNeeded($"label={labelValue}")}");
             }
           }
         }

@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text;
 using FluentDocker.Extensions;
 
@@ -178,10 +179,10 @@ namespace FluentDocker.Model.Containers
       var sb = new StringBuilder();
 
       sb.OptionIfExists("--build-arg ", BuildArguments);
-      sb.OptionIfExists("--cpu-shares ", CpuShares?.ToString());
-      sb.OptionIfExists("--cgroup-parent ", ParentCGroup?.ToString());
-      sb.OptionIfExists("--cpu-period ", CpuPeriod?.ToString());
-      sb.OptionIfExists("--cpu-quota ", CpuQuota?.ToString());
+      sb.OptionIfExists("--cpu-shares ", CpuShares?.ToString(CultureInfo.InvariantCulture));
+      sb.OptionIfExists("--cgroup-parent ", ParentCGroup?.ToString(CultureInfo.InvariantCulture));
+      sb.OptionIfExists("--cpu-period ", CpuPeriod?.ToString(CultureInfo.InvariantCulture));
+      sb.OptionIfExists("--cpu-quota ", CpuQuota?.ToString(CultureInfo.InvariantCulture));
       sb.OptionIfExists("--cpuset-cpus", AllowCpuExecution);
       sb.OptionIfExists("--cpuset-mems ", AllowMemExecution);
 
@@ -199,12 +200,12 @@ namespace FluentDocker.Model.Containers
 
       if (null != Isolation.ToDocker())
       {
-        sb.Append($"--isolation {Isolation.ToDocker()}");
+        sb.Append(CultureInfo.InvariantCulture, $"--isolation {Isolation.ToDocker()}");
       }
 
       sb.OptionIfExists("--label=", Labels);
-      sb.OptionIfExists("-m ", Memory?.ToString());
-      sb.OptionIfExists("--memory-swap ", Swap?.ToString());
+      sb.OptionIfExists("-m ", Memory?.ToString(CultureInfo.InvariantCulture));
+      sb.OptionIfExists("--memory-swap ", Swap?.ToString(CultureInfo.InvariantCulture));
 
       if (NoCache)
       {
@@ -226,7 +227,7 @@ namespace FluentDocker.Model.Containers
         sb.Append(" --rm=true");
       }
 
-      sb.OptionIfExists("--shm-size ", ShmSize?.ToString());
+      sb.OptionIfExists("--shm-size ", ShmSize?.ToString(CultureInfo.InvariantCulture));
       sb.OptionIfExists("-t ", Tags);
       sb.OptionIfExists("--ulimit=", UlimitOptions);
 

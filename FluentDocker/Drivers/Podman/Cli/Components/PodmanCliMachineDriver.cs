@@ -1,4 +1,5 @@
 using System;
+using System.Globalization;
 using System.Threading;
 using System.Threading.Tasks;
 using FluentDocker.Drivers.Podman.Cli.Binary;
@@ -205,11 +206,11 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       var args = "machine init";
 
       if (config.Cpus.HasValue)
-        args += $" --cpus {QuoteArgumentIfNeeded(config.Cpus.Value.ToString())}";
+        args += $" --cpus {QuoteArgumentIfNeeded(config.Cpus.Value.ToString(CultureInfo.InvariantCulture))}";
       if (config.DiskSizeGiB.HasValue)
-        args += $" --disk-size {QuoteArgumentIfNeeded(config.DiskSizeGiB.Value.ToString())}";
+        args += $" --disk-size {QuoteArgumentIfNeeded(config.DiskSizeGiB.Value.ToString(CultureInfo.InvariantCulture))}";
       if (config.MemoryMiB.HasValue)
-        args += $" --memory {QuoteArgumentIfNeeded(config.MemoryMiB.Value.ToString())}";
+        args += $" --memory {QuoteArgumentIfNeeded(config.MemoryMiB.Value.ToString(CultureInfo.InvariantCulture))}";
       if (config.Rootful)
         args += " --rootful";
       if (!string.IsNullOrEmpty(config.Image))
@@ -233,11 +234,11 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       var args = "machine set";
 
       if (config.Cpus.HasValue)
-        args += $" --cpus {QuoteArgumentIfNeeded(config.Cpus.Value.ToString())}";
+        args += $" --cpus {QuoteArgumentIfNeeded(config.Cpus.Value.ToString(CultureInfo.InvariantCulture))}";
       if (config.DiskSizeGiB.HasValue)
-        args += $" --disk-size {QuoteArgumentIfNeeded(config.DiskSizeGiB.Value.ToString())}";
+        args += $" --disk-size {QuoteArgumentIfNeeded(config.DiskSizeGiB.Value.ToString(CultureInfo.InvariantCulture))}";
       if (config.MemoryMiB.HasValue)
-        args += $" --memory {QuoteArgumentIfNeeded(config.MemoryMiB.Value.ToString())}";
+        args += $" --memory {QuoteArgumentIfNeeded(config.MemoryMiB.Value.ToString(CultureInfo.InvariantCulture))}";
       if (config.Rootful.HasValue)
         args += config.Rootful.Value ? " --rootful" : " --rootful=false";
 

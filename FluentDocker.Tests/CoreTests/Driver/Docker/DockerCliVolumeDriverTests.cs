@@ -12,7 +12,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Docker
   /// filter argument construction, and JSON list parsing.
   /// </summary>
   [Trait("Category", "Unit")]
-  public class DockerCliVolumeDriverTests
+  public partial class DockerCliVolumeDriverTests
   {
     #region Volume Create Args - Name Only
 

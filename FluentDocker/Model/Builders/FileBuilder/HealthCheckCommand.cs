@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text;
 using FluentDocker.Extensions;
 
@@ -33,10 +34,10 @@ namespace FluentDocker.Model.Builders.FileBuilder
 
       if (Retries != 3)
       {
-        sb.Append($" --retries={Retries}");
+        sb.Append(CultureInfo.InvariantCulture, $" --retries={Retries}");
       }
 
-      sb.Append($" CMD {Cmd}");
+      sb.Append(CultureInfo.InvariantCulture, $" CMD {Cmd}");
 
       return sb.ToString();
     }

@@ -9,7 +9,7 @@ namespace FluentDocker.Model.Builders.FileBuilder
 
     public override string ToString()
     {
-      return $"ADD {Source} {Destination}";
+      return $"ADD {DockerfileJson.Array([Source.Rendered, Destination.Rendered])}";
     }
   }
 }

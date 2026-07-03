@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Text;
 using FluentDocker.Model.Builders;
@@ -21,7 +22,7 @@ namespace FluentDocker.Extensions
           return sb;
 
         if (num <= maxSize)
-          sb.Append($" {option}{value}");
+          sb.Append(CultureInfo.InvariantCulture, $" {option}{value}");
       }
 
       return sb;
@@ -30,7 +31,7 @@ namespace FluentDocker.Extensions
     public static StringBuilder OptionIfExists(this StringBuilder sb, string option, short? value)
     {
       if (value.HasValue)
-        sb.Append($" {option}{value.Value}");
+        sb.Append(CultureInfo.InvariantCulture, $" {option}{value.Value}");
 
       return sb;
     }
@@ -38,7 +39,7 @@ namespace FluentDocker.Extensions
     public static StringBuilder OptionIfExists(this StringBuilder sb, string option, string value)
     {
       if (!string.IsNullOrEmpty(value))
-        sb.Append($" {option}{value}");
+        sb.Append(CultureInfo.InvariantCulture, $" {option}{value}");
 
       return sb;
     }
@@ -46,7 +47,7 @@ namespace FluentDocker.Extensions
     public static StringBuilder OptionIfExists(this StringBuilder sb, string option, bool enabled)
     {
       if (enabled)
-        sb.Append($" {option}");
+        sb.Append(CultureInfo.InvariantCulture, $" {option}");
 
       return sb;
     }
@@ -57,7 +58,7 @@ namespace FluentDocker.Extensions
         return sb;
 
       foreach (var value in values)
-        sb.Append($" {option}{value}");
+        sb.Append(CultureInfo.InvariantCulture, $" {option}{value}");
 
       return sb;
     }
@@ -68,7 +69,7 @@ namespace FluentDocker.Extensions
         return sb;
 
       foreach (var value in values)
-        sb.Append($" {option}{value.Key}={value.Value}");
+        sb.Append(CultureInfo.InvariantCulture, $" {option}{value.Key}={value.Value}");
 
       return sb;
     }
@@ -117,7 +118,7 @@ namespace FluentDocker.Extensions
       if (state.Running)
         return ServiceRunningState.Running;
 
-      var status = state.Status?.ToLower() ?? string.Empty;
+      var status = state.Status?.ToLowerInvariant() ?? string.Empty;
       return status switch
       {
         "created" or "exited" => ServiceRunningState.Stopped,

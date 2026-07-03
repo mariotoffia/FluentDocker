@@ -143,7 +143,8 @@ namespace FluentDocker.Tests.CoreTests.Driver.Docker
       Assert.StartsWith("-H tcp://remote:2376", result);
 
       // TLS flags should follow
-      var hostEnd = result.IndexOf("tcp://remote:2376") + "tcp://remote:2376".Length;
+      var hostEnd = result.IndexOf("tcp://remote:2376", StringComparison.Ordinal) +
+          "tcp://remote:2376".Length;
       var afterHost = result[hostEnd..];
       Assert.Contains("--tlsverify", afterHost);
     }

@@ -37,7 +37,8 @@ namespace FluentDocker.Resources
         AppDomain.CurrentDomain.GetAssemblies()
         .First(x => x.GetName().Name.Equals(_assembly, StringComparison.OrdinalIgnoreCase));
 
-      foreach (var res in assembly.GetManifestResourceNames().Where(x => x.StartsWith(_namespace)))
+      foreach (var res in assembly.GetManifestResourceNames()
+                   .Where(x => x.StartsWith(_namespace, StringComparison.Ordinal)))
       {
         var file = ExtractFile(res);
         var ns = res[..(res.Length - file.Length - 1)];

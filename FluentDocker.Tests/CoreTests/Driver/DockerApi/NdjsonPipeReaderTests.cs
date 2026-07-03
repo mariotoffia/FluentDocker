@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Runtime.CompilerServices;
 using System.Text;
@@ -316,7 +317,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
       // Large stream with many lines — cancel after first item
       var sb = new StringBuilder();
       for (var i = 0; i < 1000; i++)
-        sb.Append($"{{\"id\":\"{i}\",\"value\":{i}}}\n");
+        sb.Append(CultureInfo.InvariantCulture, $"{{\"id\":\"{i}\",\"value\":{i}}}\n");
       using var stream = MakeStream(sb.ToString());
 
       var items = new List<NdjsonTestItem>();

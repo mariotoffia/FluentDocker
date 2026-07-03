@@ -79,6 +79,18 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
     }
 
     [Fact]
+    public async Task ExposePorts_NullPorts_DoesNotThrow()
+    {
+      int[] ports = null!;
+      var dockerfile = await new DockerfileBuilder()
+          .UseParent("nginx")
+          .ExposePorts(ports)
+          .ToDockerfileStringAsync();
+
+      Assert.Contains("EXPOSE", dockerfile);
+    }
+
+    [Fact]
     public async Task Environment_AddsEnvInstruction()
     {
       var dockerfile = await new DockerfileBuilder()
@@ -145,7 +157,44 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
           .Volume("/var/lib/postgresql/data")
           .ToDockerfileStringAsync();
 
-      Assert.Contains("VOLUME", dockerfile);
+      Assert.Contains("VOLUME [\"/var/lib/postgresql/data\"]", dockerfile);
+    }
+
+    [Fact]
+    public async Task Command_ExecForm_EscapesQuotesAndBackslashes()
+    {
+      var dockerfile = await new DockerfileBuilder()
+          .UseParent("alpine")
+          .Command("echo", "a \"quoted\" value", @"C:\tools")
+          .ToDockerfileStringAsync();
+
+      Assert.Contains(@"CMD [""echo"", ""a \""quoted\"" value"", ""C:\\tools""]", dockerfile);
+    }
+
+    [Fact]
+    public async Task EntrypointAndShell_ExecForm_EscapeQuotesAndBackslashes()
+    {
+      var dockerfile = await new DockerfileBuilder()
+          .UseParent("alpine")
+          .Entrypoint("dotnet", @"C:\app\main.dll")
+          .Shell("powershell", "-Command", "Write-Host \"hi\"")
+          .ToDockerfileStringAsync();
+
+      Assert.Contains(@"ENTRYPOINT [""dotnet"", ""C:\\app\\main.dll""]", dockerfile);
+      Assert.Contains(@"SHELL [""powershell"", ""-Command"", ""Write-Host \""hi\""""]", dockerfile);
+    }
+
+    [Fact]
+    public async Task Add_WithSpaceAndQuote_UsesEscapedExecForm()
+    {
+      var dockerfile = await new DockerfileBuilder()
+          .UseParent("alpine")
+          .Add("folder with \"quote.txt", "/app/folder with \"quote.txt")
+          .ToDockerfileStringAsync();
+
+      Assert.Contains(
+          @"ADD [""folder with \""quote.txt"", ""/app/folder with \""quote.txt""]",
+          dockerfile);
     }
 
     [Fact]

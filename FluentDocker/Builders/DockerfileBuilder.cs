@@ -273,9 +273,10 @@ namespace FluentDocker.Builders
     public DockerfileBuilder Copy(string source, string dest,
         string chownUserAndGroup = null, string fromAlias = null)
     {
-      var lc = source.ToLower();
-      if (lc.StartsWith("http://") || lc.StartsWith("https://") ||
-          lc.StartsWith("ftp://") || lc.StartsWith("ftps://"))
+      if (source.StartsWith("http://", StringComparison.OrdinalIgnoreCase) ||
+          source.StartsWith("https://", StringComparison.OrdinalIgnoreCase) ||
+          source.StartsWith("ftp://", StringComparison.OrdinalIgnoreCase) ||
+          source.StartsWith("ftps://", StringComparison.OrdinalIgnoreCase))
       {
         var uri = new Uri(source);
         var tmp = Path.Combine("___fluentdockerdl", Path.GetFileName(uri.LocalPath));

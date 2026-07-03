@@ -80,7 +80,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
         Assert.True(listResult.Success);
         Assert.True(listResult.Data.Count >= 1, "Should have created containers");
         Assert.DoesNotContain(listResult.Data,
-            s => s.State?.ToLower() == "running");
+            s => string.Equals(s.State, "running", StringComparison.OrdinalIgnoreCase));
       }
       finally
       {
@@ -123,7 +123,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
         }, TestContext.Current.CancellationToken);
         Assert.True(listResult.Success);
         Assert.Contains(listResult.Data,
-            s => s.State?.ToLower() == "running");
+            s => string.Equals(s.State, "running", StringComparison.OrdinalIgnoreCase));
       }
       finally
       {
@@ -176,7 +176,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
         }, TestContext.Current.CancellationToken);
         Assert.True(listResult.Success);
         Assert.Contains(listResult.Data,
-            s => s.State?.ToLower() == "running");
+            s => string.Equals(s.State, "running", StringComparison.OrdinalIgnoreCase));
       }
       finally
       {

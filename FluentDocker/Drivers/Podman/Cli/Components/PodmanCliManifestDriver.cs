@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Text;
 using System.Text.Json;
@@ -322,12 +323,12 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
         sb.Append(" --amend");
 
       foreach (var kvp in config.Annotations)
-        sb.Append($" --annotation {QuoteArgumentIfNeeded($"{kvp.Key}={kvp.Value}")}");
+        sb.Append(CultureInfo.InvariantCulture, $" --annotation {QuoteArgumentIfNeeded($"{kvp.Key}={kvp.Value}")}");
 
-      sb.Append($" {QuoteArgumentIfNeeded(config.Name)}");
+      sb.Append(CultureInfo.InvariantCulture, $" {QuoteArgumentIfNeeded(config.Name)}");
 
       foreach (var image in config.Images)
-        sb.Append($" {QuoteArgumentIfNeeded(image)}");
+        sb.Append(CultureInfo.InvariantCulture, $" {QuoteArgumentIfNeeded(image)}");
 
       return sb.ToString();
     }
@@ -339,21 +340,21 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       if (config.All)
         sb.Append(" --all");
       if (!string.IsNullOrEmpty(config.Arch))
-        sb.Append($" --arch {QuoteArgumentIfNeeded(config.Arch)}");
+        sb.Append(CultureInfo.InvariantCulture, $" --arch {QuoteArgumentIfNeeded(config.Arch)}");
       if (!string.IsNullOrEmpty(config.Os))
-        sb.Append($" --os {QuoteArgumentIfNeeded(config.Os)}");
+        sb.Append(CultureInfo.InvariantCulture, $" --os {QuoteArgumentIfNeeded(config.Os)}");
       if (!string.IsNullOrEmpty(config.Variant))
-        sb.Append($" --variant {QuoteArgumentIfNeeded(config.Variant)}");
+        sb.Append(CultureInfo.InvariantCulture, $" --variant {QuoteArgumentIfNeeded(config.Variant)}");
       if (!string.IsNullOrEmpty(config.OsVersion))
-        sb.Append($" --os-version {QuoteArgumentIfNeeded(config.OsVersion)}");
+        sb.Append(CultureInfo.InvariantCulture, $" --os-version {QuoteArgumentIfNeeded(config.OsVersion)}");
 
       foreach (var feature in config.Features)
-        sb.Append($" --features {QuoteArgumentIfNeeded(feature)}");
+        sb.Append(CultureInfo.InvariantCulture, $" --features {QuoteArgumentIfNeeded(feature)}");
 
       foreach (var kvp in config.Annotations)
-        sb.Append($" --annotation {QuoteArgumentIfNeeded($"{kvp.Key}={kvp.Value}")}");
+        sb.Append(CultureInfo.InvariantCulture, $" --annotation {QuoteArgumentIfNeeded($"{kvp.Key}={kvp.Value}")}");
 
-      sb.Append($" {QuoteArgumentIfNeeded(config.ListName)} {QuoteArgumentIfNeeded(config.Image)}");
+      sb.Append(CultureInfo.InvariantCulture, $" {QuoteArgumentIfNeeded(config.ListName)} {QuoteArgumentIfNeeded(config.Image)}");
 
       return sb.ToString();
     }
@@ -367,11 +368,11 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       if (config.Rm)
         sb.Append(" --rm");
       if (!string.IsNullOrEmpty(config.Format))
-        sb.Append($" --format {QuoteArgumentIfNeeded(config.Format)}");
+        sb.Append(CultureInfo.InvariantCulture, $" --format {QuoteArgumentIfNeeded(config.Format)}");
       if (config.TlsVerify.HasValue)
-        sb.Append($" --tls-verify={QuoteArgumentIfNeeded(config.TlsVerify.Value.ToString().ToLowerInvariant())}");
+        sb.Append(CultureInfo.InvariantCulture, $" --tls-verify={QuoteArgumentIfNeeded(config.TlsVerify.Value.ToString().ToLowerInvariant())}");
 
-      sb.Append($" {QuoteArgumentIfNeeded(config.ListName)} {QuoteArgumentIfNeeded(config.Destination)}");
+      sb.Append(CultureInfo.InvariantCulture, $" {QuoteArgumentIfNeeded(config.ListName)} {QuoteArgumentIfNeeded(config.Destination)}");
 
       return sb.ToString();
     }
@@ -381,27 +382,27 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       var sb = new StringBuilder("manifest annotate");
 
       if (!string.IsNullOrEmpty(config.Arch))
-        sb.Append($" --arch {QuoteArgumentIfNeeded(config.Arch)}");
+        sb.Append(CultureInfo.InvariantCulture, $" --arch {QuoteArgumentIfNeeded(config.Arch)}");
       if (!string.IsNullOrEmpty(config.Os))
-        sb.Append($" --os {QuoteArgumentIfNeeded(config.Os)}");
+        sb.Append(CultureInfo.InvariantCulture, $" --os {QuoteArgumentIfNeeded(config.Os)}");
       if (!string.IsNullOrEmpty(config.Variant))
-        sb.Append($" --variant {QuoteArgumentIfNeeded(config.Variant)}");
+        sb.Append(CultureInfo.InvariantCulture, $" --variant {QuoteArgumentIfNeeded(config.Variant)}");
       if (!string.IsNullOrEmpty(config.OsVersion))
-        sb.Append($" --os-version {QuoteArgumentIfNeeded(config.OsVersion)}");
+        sb.Append(CultureInfo.InvariantCulture, $" --os-version {QuoteArgumentIfNeeded(config.OsVersion)}");
 
       foreach (var feature in config.OsFeatures)
-        sb.Append($" --os-features {QuoteArgumentIfNeeded(feature)}");
+        sb.Append(CultureInfo.InvariantCulture, $" --os-features {QuoteArgumentIfNeeded(feature)}");
 
       foreach (var feature in config.Features)
-        sb.Append($" --features {QuoteArgumentIfNeeded(feature)}");
+        sb.Append(CultureInfo.InvariantCulture, $" --features {QuoteArgumentIfNeeded(feature)}");
 
       if (config.IndexAnnotation)
         sb.Append(" --index");
 
       foreach (var kvp in config.Annotations)
-        sb.Append($" --annotation {QuoteArgumentIfNeeded($"{kvp.Key}={kvp.Value}")}");
+        sb.Append(CultureInfo.InvariantCulture, $" --annotation {QuoteArgumentIfNeeded($"{kvp.Key}={kvp.Value}")}");
 
-      sb.Append($" {QuoteArgumentIfNeeded(config.ListName)} {QuoteArgumentIfNeeded(config.Image)}");
+      sb.Append(CultureInfo.InvariantCulture, $" {QuoteArgumentIfNeeded(config.ListName)} {QuoteArgumentIfNeeded(config.Image)}");
 
       return sb.ToString();
     }

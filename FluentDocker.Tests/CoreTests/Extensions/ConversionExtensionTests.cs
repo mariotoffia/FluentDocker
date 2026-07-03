@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Numerics;
 using FluentDocker.Extensions;
 using Xunit;
@@ -31,7 +32,7 @@ namespace FluentDocker.Tests.CoreTests.Extensions
     public void LessThanLongMinimumValue_ReturnsMinimumValue()
     {
       var lessThanMinimum = (new BigInteger(long.MinValue)) - 1;
-      var input = lessThanMinimum.ToString() + "g";
+      var input = lessThanMinimum.ToString(CultureInfo.InvariantCulture) + "g";
 
       var num = input.Convert();
       Assert.Equal(long.MinValue, num);
@@ -41,7 +42,7 @@ namespace FluentDocker.Tests.CoreTests.Extensions
     public void GreaterThanLongMaximumValue_ReturnsMinimumValue()
     {
       var greaterThanMaximum = (new BigInteger(long.MaxValue)) + 1;
-      var input = greaterThanMaximum.ToString() + "g";
+      var input = greaterThanMaximum.ToString(CultureInfo.InvariantCulture) + "g";
 
       var num = input.Convert();
       Assert.Equal(long.MinValue, num);

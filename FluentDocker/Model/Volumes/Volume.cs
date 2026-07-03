@@ -11,6 +11,7 @@ namespace FluentDocker.Model.Volumes
   public sealed class Volume
   {
     /// <summary>Timestamp when the volume was created.</summary>
+    [JsonPropertyName("CreatedAt")]
     public DateTime Created { get; set; }
 
     /// <summary>Volume driver name (e.g., "local").</summary>
@@ -36,6 +37,7 @@ namespace FluentDocker.Model.Volumes
     /// <summary>
     /// Driver-specific options used when creating the volume.
     /// </summary>
+    [JsonConverter(typeof(LenientStringDictionaryConverter))]
     public Dictionary<string, string> Options { get; set; }
   }
 }

@@ -1,4 +1,5 @@
 using System;
+using System.Globalization;
 using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
@@ -23,7 +24,7 @@ namespace FluentDocker.Drivers.Docker.Api
         Host = Context?.Host,
         ExitCode = statusCode,
         StdOut = responseBody,
-        Metadata = { ["HttpStatusCode"] = statusCode.ToString() }
+        Metadata = { ["HttpStatusCode"] = statusCode.ToString(CultureInfo.InvariantCulture) }
       };
     }
 

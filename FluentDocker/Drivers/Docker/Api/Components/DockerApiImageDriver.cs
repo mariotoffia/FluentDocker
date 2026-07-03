@@ -125,8 +125,8 @@ namespace FluentDocker.Drivers.Docker.Api.Components
         CancellationToken cancellationToken = default)
     {
       var path = $"/images/{Uri.EscapeDataString(imageId)}" +
-                 $"?force={force.ToString().ToLower()}" +
-                 $"&noprune={noPrune.ToString().ToLower()}";
+                 $"?force={force.ToString().ToLowerInvariant()}" +
+                 $"&noprune={noPrune.ToString().ToLowerInvariant()}";
 
       // DELETE /images returns a JSON array; use Connection directly
       // since base DeleteAsync returns ApiResult without body parsing.
@@ -467,7 +467,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
     {
       var filters = new Dictionary<string, List<string>>();
       if (filter.Dangling.HasValue)
-        filters["dangling"] = new List<string> { filter.Dangling.Value.ToString().ToLower() };
+        filters["dangling"] = new List<string> { filter.Dangling.Value.ToString().ToLowerInvariant() };
       if (!string.IsNullOrEmpty(filter.Reference))
         filters["reference"] = new List<string> { filter.Reference };
       if (!string.IsNullOrEmpty(filter.Before))

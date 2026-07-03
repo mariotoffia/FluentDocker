@@ -101,8 +101,8 @@ namespace FluentDocker.Tests.CoreTests.Driver.Docker
       var config = new ImageBuildConfig { BuildContext = "/src" };
       var result = DockerCliImageDriver.BuildBuildArgs(config, "/tmp/iid");
 
-      var iidPos = result.IndexOf("--iidfile");
-      var ctxPos = result.LastIndexOf("/src");
+      var iidPos = result.IndexOf("--iidfile", StringComparison.Ordinal);
+      var ctxPos = result.LastIndexOf("/src", StringComparison.Ordinal);
       Assert.True(iidPos < ctxPos, "--iidfile should appear before the build context");
     }
   }

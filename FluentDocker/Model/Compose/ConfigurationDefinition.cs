@@ -3,7 +3,7 @@ using System.Collections.Generic;
 namespace FluentDocker.Model.Compose
 {
   /// <summary>
-  /// 
+  /// Top-level compose config definitions.
   /// </summary>
   /// <remarks>
   /// Note: config definitions are only supported in version 3.3 and higher of the compose file format.

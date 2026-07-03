@@ -58,10 +58,10 @@ namespace FluentDocker.Drivers.Docker.Api.Components
     private static string BuildLogsPath(string containerId, StreamLogsConfig config)
     {
       var path = $"/containers/{Uri.EscapeDataString(containerId)}/logs?" +
-          $"follow={config.Follow.ToString().ToLower()}" +
-          $"&stdout={config.Stdout.ToString().ToLower()}" +
-          $"&stderr={config.Stderr.ToString().ToLower()}" +
-          $"&timestamps={config.Timestamps.ToString().ToLower()}";
+          $"follow={config.Follow.ToString().ToLowerInvariant()}" +
+          $"&stdout={config.Stdout.ToString().ToLowerInvariant()}" +
+          $"&stderr={config.Stderr.ToString().ToLowerInvariant()}" +
+          $"&timestamps={config.Timestamps.ToString().ToLowerInvariant()}";
 
       if (config.Tail.HasValue)
         path += $"&tail={config.Tail.Value}";
@@ -264,9 +264,9 @@ namespace FluentDocker.Drivers.Docker.Api.Components
 
       var path = $"/containers/{Uri.EscapeDataString(containerId)}/attach?" +
           $"stream=1" +
-          $"&stdout={config.Stdout.ToString().ToLower()}" +
-          $"&stderr={config.Stderr.ToString().ToLower()}" +
-          $"&stdin={config.Stdin.ToString().ToLower()}";
+          $"&stdout={config.Stdout.ToString().ToLowerInvariant()}" +
+          $"&stderr={config.Stderr.ToString().ToLowerInvariant()}" +
+          $"&stdin={config.Stdin.ToString().ToLowerInvariant()}";
 
       try
       {
@@ -469,7 +469,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       {
         foreach (var entry in blkio.Value.EnumerateArray())
         {
-          var op = entry.GetStringOrDefault("op")?.ToLower();
+          var op = entry.GetStringOrDefault("op")?.ToLowerInvariant();
           var value = entry.GetInt64OrDefault("value");
           if (op == "read")
             stats.BlockRead += value;

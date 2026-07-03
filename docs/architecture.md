@@ -57,7 +57,7 @@ FluentDocker v3.0 introduces a **pluggable driver architecture** that supports m
 4. Fluent API binds to specific kernel instances
 5. Driver access via `SysCtl()` interface pattern
 
-**Model layer note:** `FluentDocker/Model` is the innermost layer and owns DTOs, enums, value objects, and `CommandResponse<T>`. In v3 it is not strictly dependency-free: legacy builder configs hold service callbacks, compose configs hold service delegates, build/driver scopes carry logging abstractions, and some model builders import Common/Extensions. These remain in place for public API compatibility; new model code should avoid adding more outward dependencies.
+**Model layer note:** `FluentDocker/Model` is the innermost layer and owns DTOs, enums, a few value objects, and `CommandResponse<T>`. Most model types are mutable transfer objects shaped by Docker/Podman JSON; only `ModelReference`, `ModelRunnerEndpoint`, and `ComposeModelSpec` follow the immutable, validated value-object convention. In v3 it is not strictly dependency-free: compose configs hold service delegates, build/driver scopes carry logging abstractions, and some model builders import Common/Extensions. These remain in place for public API compatibility; new model code should avoid adding more outward dependencies.
 
 ---
 

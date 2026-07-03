@@ -59,10 +59,10 @@ namespace FluentDocker.Model.Containers
             row.User = fullRow[i];
             break;
           case PidConst:
-            row.Pid = long.Parse(fullRow[i]);
+            row.Pid = long.Parse(fullRow[i], CultureInfo.InvariantCulture);
             break;
           case PpidConst:
-            row.ProcessPid = long.Parse(fullRow[i]);
+            row.ProcessPid = long.Parse(fullRow[i], CultureInfo.InvariantCulture);
             break;
           case StartConst:
           case StartTimeConst:

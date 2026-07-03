@@ -54,7 +54,7 @@ namespace FluentDocker.Model.Containers
       {
         sb.Append(':');
       }
-      sb.Append(Rw ? "rw " : "ro");
+      sb.Append(Rw ? "rw" : "ro");
 
       return sb.ToString();
     }

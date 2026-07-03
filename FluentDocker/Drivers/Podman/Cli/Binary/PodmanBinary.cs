@@ -18,7 +18,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Binary
     public PodmanBinary(string path, string binary, SudoMechanism sudo, string password)
     {
       Path = path;
-      Binary = binary.ToLower();
+      Binary = binary.ToLowerInvariant();
       Type = Translate(binary);
       Sudo = sudo;
       SudoPassword = password;
@@ -30,7 +30,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Binary
     public PodmanBinary(string path, string binary, SudoMechanism sudo, string password, PodmanBinaryType type)
     {
       Path = path;
-      Binary = binary.ToLower();
+      Binary = binary.ToLowerInvariant();
       Type = type;
       Sudo = sudo;
       SudoPassword = password;
@@ -42,7 +42,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Binary
     /// <exception cref="ArgumentException">Thrown when the binary name is not recognized.</exception>
     public static PodmanBinaryType Translate(string binary)
     {
-      return binary.ToLower() switch
+      return binary.ToLowerInvariant() switch
       {
         "podman" or "podman.exe" => PodmanBinaryType.PodmanClient,
         "podman-remote" or "podman-remote.exe" => PodmanBinaryType.PodmanRemote,

@@ -127,10 +127,10 @@ namespace FluentDocker.Tests.CoreTests.Driver.Docker
       });
 
       // Compose flags come before prune, then registry-auth, then stack name
-      var composeIdx = args.IndexOf("-c a.yml");
-      var pruneIdx = args.IndexOf("--prune");
-      var authIdx = args.IndexOf("--with-registry-auth");
-      var nameIdx = args.IndexOf("full");
+      var composeIdx = args.IndexOf("-c a.yml", StringComparison.Ordinal);
+      var pruneIdx = args.IndexOf("--prune", StringComparison.Ordinal);
+      var authIdx = args.IndexOf("--with-registry-auth", StringComparison.Ordinal);
+      var nameIdx = args.IndexOf("full", StringComparison.Ordinal);
 
       Assert.True(composeIdx < pruneIdx, "Compose flags before prune");
       Assert.True(pruneIdx < authIdx, "Prune before registry-auth");

@@ -134,7 +134,8 @@ namespace FluentDocker.Tests.CoreTests.Service
 
       await runner.ChatAsync("hi", TestContext.Current.CancellationToken);
 
-      var body = conn.GetRequests().Single(r => r.Path.EndsWith("/chat/completions")).Body;
+      var body = conn.GetRequests().Single(r => r.Path.EndsWith(
+          "/chat/completions", StringComparison.Ordinal)).Body;
       Assert.Contains("\"model\":\"gpt-4o-mini\"", body);
       Assert.DoesNotContain("gpt-4o-mini:latest", body);
     }
@@ -157,7 +158,8 @@ namespace FluentDocker.Tests.CoreTests.Service
       Assert.Equal("ai/smollm2:latest", runner.DefaultModel.ToString());
 
       // ...but the inference body uses the bare id.
-      var body = conn.GetRequests().Single(r => r.Path.EndsWith("/chat/completions")).Body;
+      var body = conn.GetRequests().Single(r => r.Path.EndsWith(
+          "/chat/completions", StringComparison.Ordinal)).Body;
       Assert.Contains("\"model\":\"ai/smollm2\"", body);
       Assert.DoesNotContain("ai/smollm2:latest", body);
     }

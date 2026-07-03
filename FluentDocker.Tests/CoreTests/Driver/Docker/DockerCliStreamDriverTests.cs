@@ -91,9 +91,9 @@ namespace FluentDocker.Tests.CoreTests.Driver.Docker
         DetachKeys = "ctrl-c"
       });
 
-      var sigProxyIdx = args.IndexOf("--sig-proxy=false");
-      var detachKeysIdx = args.IndexOf("--detach-keys");
-      var containerIdx = args.LastIndexOf("ctr1");
+      var sigProxyIdx = args.IndexOf("--sig-proxy=false", StringComparison.Ordinal);
+      var detachKeysIdx = args.IndexOf("--detach-keys", StringComparison.Ordinal);
+      var containerIdx = args.LastIndexOf("ctr1", StringComparison.Ordinal);
 
       Assert.True(sigProxyIdx < detachKeysIdx,
           "sig-proxy comes before detach-keys");
@@ -212,8 +212,8 @@ namespace FluentDocker.Tests.CoreTests.Driver.Docker
       var args = BuildEventsArgs(config);
 
       // Each filter generates a separate --filter flag
-      var firstFilter = args.IndexOf("--filter");
-      var secondFilter = args.IndexOf("--filter", firstFilter + 1);
+      var firstFilter = args.IndexOf("--filter", StringComparison.Ordinal);
+      var secondFilter = args.IndexOf("--filter", firstFilter + 1, StringComparison.Ordinal);
       Assert.True(secondFilter > firstFilter,
           "Expected two separate --filter flags");
     }

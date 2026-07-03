@@ -1,5 +1,3 @@
-using System;
-
 namespace FluentDocker.Model.Builders.FileBuilder
 {
   public sealed class ShellCommand(string shell, params string[] args) : ICommand
@@ -9,12 +7,7 @@ namespace FluentDocker.Model.Builders.FileBuilder
 
     public override string ToString()
     {
-      if (Arguments.Length == 0)
-      {
-        return $"SHELL [\"{Shell}\"]";
-      }
-
-      return $"SHELL [\"{Shell}\",\"{string.Join("\",\"", Arguments)}\"]";
+      return $"SHELL {DockerfileJson.Array([Shell, .. Arguments])}";
     }
   }
 }

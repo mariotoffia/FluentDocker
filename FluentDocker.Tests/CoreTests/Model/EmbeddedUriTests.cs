@@ -19,7 +19,6 @@ namespace FluentDocker.Tests.CoreTests.Model
       var uri = new EmbeddedUri("emb:MyAssembly/My.Namespace/myfile.txt");
 
       // Assert
-      Assert.Equal("MyAssembly", uri.Host);
       Assert.Equal("MyAssembly", uri.Assembly);
       Assert.Equal("My.Namespace", uri.Namespace);
       Assert.Equal("myfile.txt", uri.Resource);
@@ -32,20 +31,19 @@ namespace FluentDocker.Tests.CoreTests.Model
       var uri = new EmbeddedUri("emb:MyAssembly/My.Namespace");
 
       // Assert
-      Assert.Equal("MyAssembly", uri.Host);
       Assert.Equal("MyAssembly", uri.Assembly);
       Assert.Equal("My.Namespace", uri.Namespace);
       Assert.Null(uri.Resource);
     }
 
     [Fact]
-    public void Constructor_AssemblyProperty_EqualsHost()
+    public void Constructor_AssemblyProperty_IsParsedFromAuthoritySegment()
     {
       // Arrange & Act
       var uri = new EmbeddedUri("emb:SomeLib/Some.NS/data.json");
 
       // Assert
-      Assert.Equal(uri.Host, uri.Assembly);
+      Assert.Equal("SomeLib", uri.Assembly);
     }
 
     [Fact]
@@ -99,6 +97,17 @@ namespace FluentDocker.Tests.CoreTests.Model
       // Same as above: base Uri ctor may reject the format before our scheme check runs.
       Assert.ThrowsAny<Exception>(
         () => new EmbeddedUri("file:MyAssembly/My.Namespace/file.txt"));
+    }
+
+    [Theory]
+    [InlineData("emb:")]
+    [InlineData("emb:AssemblyOnly")]
+    [InlineData("emb:/NamespaceOnly")]
+    public void Constructor_MalformedEmbeddedUri_ThrowsArgumentException(string value)
+    {
+      var ex = Assert.Throws<ArgumentException>(() => new EmbeddedUri(value));
+
+      Assert.Contains("Expected format", ex.Message);
     }
 
     [Fact]

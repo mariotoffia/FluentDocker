@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using FluentDocker.Common;
 using FluentDocker.Model.Drivers;
 using Xunit;
@@ -252,7 +253,7 @@ namespace FluentDocker.Tests.CoreTests.Common
       var response = CommandResponse<int>.Ok(42);
 
       // Act
-      var result = response.Map(x => x.ToString());
+      var result = response.Map(x => x.ToString(CultureInfo.InvariantCulture));
 
       // Assert
       Assert.True(result.Success);
@@ -266,7 +267,7 @@ namespace FluentDocker.Tests.CoreTests.Common
       var response = CommandResponse<int>.Fail("error", "ERR_001");
 
       // Act
-      var result = response.Map(x => x.ToString());
+      var result = response.Map(x => x.ToString(CultureInfo.InvariantCulture));
 
       // Assert
       Assert.False(result.Success);

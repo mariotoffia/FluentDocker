@@ -47,7 +47,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
         DriverContext context, string volumeName, bool force = false,
         CancellationToken cancellationToken = default)
     {
-      var path = $"/volumes/{Uri.EscapeDataString(volumeName)}?force={force.ToString().ToLower()}";
+      var path = $"/volumes/{Uri.EscapeDataString(volumeName)}?force={force.ToString().ToLowerInvariant()}";
       var result = await DeleteAsync(path, cancellationToken).ConfigureAwait(false);
       if (!result.Success)
         return CommandResponse<Unit>.Fail(result.ErrorMessage,

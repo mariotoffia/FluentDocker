@@ -142,7 +142,7 @@ namespace ModelRunner
           .BuildAsync();
 
       var vector = await embedder.EmbedAsync("FluentDocker manages local LLMs.");
-      var preview = string.Join(", ", vector.Take(4).Select(v => v.ToString("0.000")));
+      var preview = string.Join(", ", vector.Take(4).Select(v => v.ToString("0.000", System.Globalization.CultureInfo.InvariantCulture)));
       Console.WriteLine($"  {vector.Count}-dim vector, first few: [{preview} …]\n");
     }
 

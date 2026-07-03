@@ -10,8 +10,8 @@ namespace FluentDocker.Model.Containers
   public class Health
   {
     /// <summary>Current health status (healthy, unhealthy, starting, none).</summary>
-    [JsonConverter(typeof(JsonStringEnumConverter))]
-    public HealthState Status { get; set; }
+    [JsonConverter(typeof(HealthStateJsonConverter))]
+    public HealthState Status { get; set; } = HealthState.Unknown;
 
     /// <summary>Number of consecutive health check failures.</summary>
     public int FailingStreak { get; set; }

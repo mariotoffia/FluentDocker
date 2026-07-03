@@ -15,11 +15,11 @@ namespace FluentDocker.Model.Stacks
       if (string.IsNullOrEmpty(value))
         return Orchestrator.All;
 
-      value = value.ToLower();
-
-      if (value.Equals("kubernetes", StringComparison.Ordinal))
+      if (string.Equals(value, "kubernetes", StringComparison.OrdinalIgnoreCase))
         return Orchestrator.Kubernetes;
-      return value.Equals("swarm", StringComparison.Ordinal) ? Orchestrator.Swarm : Orchestrator.All;
+      return string.Equals(value, "swarm", StringComparison.OrdinalIgnoreCase)
+          ? Orchestrator.Swarm
+          : Orchestrator.Unknown;
     }
   }
 }

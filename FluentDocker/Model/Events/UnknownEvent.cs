@@ -13,10 +13,12 @@ namespace FluentDocker.Model.Events
   {
     public UnknownEvent(string action, string type)
     {
-      if (!Enum.TryParse<EventAction>(action, true, out var enumAction))
+      if (!Enum.TryParse<EventAction>(action, true, out var enumAction) ||
+          !Enum.IsDefined(enumAction))
         enumAction = EventAction.Unspecified;
 
-      if (!Enum.TryParse<EventType>(type, true, out var enumType))
+      if (!Enum.TryParse<EventType>(type, true, out var enumType) ||
+          !Enum.IsDefined(enumType))
         enumType = EventType.Generic;
 
       Action = enumAction;

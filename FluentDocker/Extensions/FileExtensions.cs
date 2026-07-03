@@ -1,3 +1,4 @@
+using System;
 using System.IO;
 using System.Text;
 using FluentDocker.Model.Common;
@@ -64,7 +65,7 @@ namespace FluentDocker.Extensions
     {
       var fd = fileOrDirectory.Rendered;
 
-      if (fd.StartsWith($"{EmbeddedUri.Prefix}:"))
+      if (fd.StartsWith($"{EmbeddedUri.Prefix}:", StringComparison.OrdinalIgnoreCase))
       {
         return new EmbeddedUri(fd).ToFile(workdir);
       }

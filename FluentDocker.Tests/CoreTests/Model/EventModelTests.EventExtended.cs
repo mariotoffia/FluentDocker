@@ -218,6 +218,24 @@ namespace FluentDocker.Tests.CoreTests.Model
       Assert.Equal("custom-type", evt.TypeRaw);
     }
 
+    [Fact]
+    public void UnknownEvent_NumericUndefinedAction_FallsBackToUnspecified()
+    {
+      var evt = new UnknownEvent("999", "Container");
+
+      Assert.Equal(EventAction.Unspecified, evt.Action);
+      Assert.Equal(EventType.Container, evt.Type);
+    }
+
+    [Fact]
+    public void UnknownEvent_NumericUndefinedType_FallsBackToGeneric()
+    {
+      var evt = new UnknownEvent("Pull", "999");
+
+      Assert.Equal(EventAction.Pull, evt.Action);
+      Assert.Equal(EventType.Generic, evt.Type);
+    }
+
     [Theory]
     [InlineData("Pull", EventAction.Pull)]
     [InlineData("Create", EventAction.Create)]

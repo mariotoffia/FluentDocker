@@ -1,4 +1,6 @@
 
+using System;
+
 namespace FluentDocker.Extensions
 {
   public static class StringExtensions
@@ -15,12 +17,12 @@ namespace FluentDocker.Extensions
     public static string WrapWithChar(this string s, string c)
     {
 
-      if (!s.StartsWith(c))
+      if (!s.StartsWith(c, StringComparison.Ordinal))
       {
         s = c + s;
       }
 
-      if (!s.EndsWith(c))
+      if (!s.EndsWith(c, StringComparison.Ordinal))
       {
         s += c;
       }

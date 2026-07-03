@@ -198,6 +198,17 @@ namespace FluentDocker.Tests.CoreTests.Model
     }
 
     [Fact]
+    public void MissingEnvironmentVariable_IsLeftUnresolved()
+    {
+      var key = string.Concat("FD_MISSING_", Guid.NewGuid().ToString("N"));
+      Environment.SetEnvironmentVariable(key, null);
+
+      var ts = new TemplateString($"prefix_${{E_{key}}}_suffix");
+
+      Assert.Equal($"prefix_${{E_{key}}}_suffix", ts.Rendered);
+    }
+
+    [Fact]
     public void EmbeddedResourcePath_NotAltered()
     {
       var ts = new TemplateString("emb:MyAssembly/Resources/file.txt");

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Net;
@@ -122,7 +123,7 @@ namespace FluentDocker.Builders
 
     public IContainerBuilder ExposePort(int hostPort, int containerPort)
     {
-      _ports[$"{containerPort}/tcp"] = hostPort.ToString();
+      _ports[$"{containerPort}/tcp"] = hostPort.ToString(CultureInfo.InvariantCulture);
       return this;
     }
 

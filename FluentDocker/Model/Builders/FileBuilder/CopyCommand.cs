@@ -1,4 +1,3 @@
-using FluentDocker.Extensions;
 using FluentDocker.Model.Common;
 
 namespace FluentDocker.Model.Builders.FileBuilder
@@ -19,8 +18,8 @@ namespace FluentDocker.Model.Builders.FileBuilder
     public CopyCommand(TemplateString from, TemplateString to,
       TemplateString chownUserAndGroup = null, TemplateString fromAlias = null)
     {
-      From = from.Rendered.WrapWithChar("\"");
-      To = to.Rendered.WrapWithChar("\"");
+      From = from.Rendered;
+      To = to.Rendered;
 
       if (null != chownUserAndGroup && !string.IsNullOrEmpty(chownUserAndGroup.Rendered))
       {
@@ -52,7 +51,7 @@ namespace FluentDocker.Model.Builders.FileBuilder
         s = $"{s} --from={Alias}";
       }
 
-      return $"{s} [{From},{To}]";
+      return $"{s} {DockerfileJson.Array([From, To])}";
     }
   }
 }

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -71,7 +72,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       var escapedId = Uri.EscapeDataString(serviceId);
 
       var result = await PostAsync(
-          $"/services/{escapedId}/update?version={Uri.EscapeDataString(version.ToString())}",
+          $"/services/{escapedId}/update?version={Uri.EscapeDataString(version.ToString(CultureInfo.InvariantCulture))}",
           body, cancellationToken).ConfigureAwait(false);
       if (!result.Success)
         return CommandResponse<Unit>.Fail(result.ErrorMessage,
@@ -93,7 +94,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       var version = inspectResult.Data.Version;
       var escapedId = Uri.EscapeDataString(serviceId);
       var result = await PostAsync(
-          $"/services/{escapedId}/update?version={Uri.EscapeDataString(version.ToString())}&rollback=previous",
+          $"/services/{escapedId}/update?version={Uri.EscapeDataString(version.ToString(CultureInfo.InvariantCulture))}&rollback=previous",
           new { }, cancellationToken).ConfigureAwait(false);
       if (!result.Success)
         return CommandResponse<Unit>.Fail(result.ErrorMessage,
@@ -234,7 +235,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
 
       if (config.Replicas.HasValue || !string.IsNullOrEmpty(config.Mode))
       {
-        var mode = config.Mode?.ToLower() == "global"
+        var mode = string.Equals(config.Mode, "global", StringComparison.OrdinalIgnoreCase)
             ? new Dictionary<string, object> { ["Global"] = new { } }
             : new Dictionary<string, object>
             {

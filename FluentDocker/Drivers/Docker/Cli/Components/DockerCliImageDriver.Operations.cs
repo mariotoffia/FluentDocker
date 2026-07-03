@@ -78,9 +78,9 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
         var lines = result.Output.Split(LineSeparators, StringSplitOptions.RemoveEmptyEntries);
         foreach (var line in lines)
         {
-          if (line.StartsWith("Deleted:"))
+          if (line.StartsWith("Deleted:", StringComparison.Ordinal))
             removeResult.Deleted.Add(line[8..].Trim());
-          else if (line.StartsWith("Untagged:"))
+          else if (line.StartsWith("Untagged:", StringComparison.Ordinal))
             removeResult.Untagged.Add(line[9..].Trim());
         }
 

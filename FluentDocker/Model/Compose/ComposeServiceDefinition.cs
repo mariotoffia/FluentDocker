@@ -6,7 +6,7 @@ namespace FluentDocker.Model.Compose
 {
   // https://docs.docker.com/compose/compose-file/#service-configuration-reference
   /// <summary>
-  /// 
+  /// Service definition in a Docker Compose file.
   /// </summary>
   /// <remarks>
   /// The following sub-options (supported for docker compose up and docker compose run) are not supported for docker stack deploy or the deploy key.

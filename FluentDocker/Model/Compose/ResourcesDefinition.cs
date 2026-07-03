@@ -1,7 +1,7 @@
 namespace FluentDocker.Model.Compose
 {
   /// <summary>
-  /// 
+  /// CPU and memory limits or reservations for a compose service.
   /// </summary>
   /// <remarks>
   /// Note: This replaces the older resource constraint options for non swarm mode in Compose files prior to version 3

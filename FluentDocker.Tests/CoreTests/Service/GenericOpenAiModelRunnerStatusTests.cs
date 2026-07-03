@@ -1,4 +1,5 @@
 using System;
+using System.Globalization;
 using System.Net;
 using System.Net.Http;
 using System.Text;
@@ -29,7 +30,7 @@ namespace FluentDocker.Tests.CoreTests.Service
       var status = await runner.StatusAsync(TestContext.Current.CancellationToken);
 
       Assert.False(status.Running);
-      Assert.Contains(((int)statusCode).ToString(), status.Error, StringComparison.Ordinal);
+      Assert.Contains(((int)statusCode).ToString(CultureInfo.InvariantCulture), status.Error, StringComparison.Ordinal);
       Assert.Contains("/wrong/models", status.Error, StringComparison.Ordinal);
       Assert.Contains("base path", status.Error, StringComparison.OrdinalIgnoreCase);
     }

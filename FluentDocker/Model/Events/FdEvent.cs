@@ -29,7 +29,7 @@ namespace FluentDocker.Model.Events
     public EventActor EventActor { get; set; }
 
     /// <summary>
-    /// Timestamp in nanoseconds.
+    /// Event timestamp as a <see cref="DateTime"/>.
     /// </summary>
     public DateTime Time { get; set; }
 

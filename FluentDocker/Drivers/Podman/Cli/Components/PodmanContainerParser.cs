@@ -134,7 +134,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       HealthState status;
       if (string.IsNullOrEmpty(statusStr))
         status = HealthState.Unknown;
-      else if (!Enum.TryParse(statusStr, ignoreCase: true, out status))
+      else if (!Enum.TryParse(statusStr, ignoreCase: true, out status) || !Enum.IsDefined(status))
         status = HealthState.Unknown;
 
       var health = new Health

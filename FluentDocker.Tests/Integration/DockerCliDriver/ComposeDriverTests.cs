@@ -235,7 +235,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
       // Assert
       Assert.True(configResult.Success, $"Config failed: {configResult.Error}");
       Assert.NotNull(configResult.Data);
-      Assert.Contains("wordpress", configResult.Data.ToLower());
+      Assert.Contains("wordpress", configResult.Data, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
@@ -430,4 +430,3 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
     #endregion
   }
 }
-

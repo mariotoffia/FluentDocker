@@ -8,6 +8,10 @@ using FluentDocker.Common;
 
 namespace FluentDocker.Model.Common
 {
+  /// <summary>
+  /// Renders FluentDocker path templates such as ${TMP}, ${TEMP}, ${PWD}, ${RND}, and ${E_NAME}.
+  /// Template tokens are always expanded when recognized; there is no escape syntax for a literal ${TMP}.
+  /// </summary>
   public sealed partial class TemplateString(string str, bool handleWindowsPathIfNeeded = false)
   {
     private static readonly Dictionary<string, Func<string>> Templates;
@@ -20,7 +24,7 @@ namespace FluentDocker.Model.Common
             "${TMP}", () =>
             {
               var path = DirectoryHelper.GetTempPath();
-              if (path.StartsWith("/var/") && FdOs.IsOsx()) path = "/private/" + path;
+              if (path.StartsWith("/var/", StringComparison.Ordinal) && FdOs.IsOsx()) path = "/private/" + path;
 
               return path.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
             }
@@ -29,7 +33,7 @@ namespace FluentDocker.Model.Common
             "${TEMP}", () =>
             {
               var path = DirectoryHelper.GetTempPath();
-              if (path.StartsWith("/var/") && FdOs.IsOsx()) path = "/private/" + path;
+              if (path.StartsWith("/var/", StringComparison.Ordinal) && FdOs.IsOsx()) path = "/private/" + path;
 
               return path.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
             }
@@ -38,12 +42,15 @@ namespace FluentDocker.Model.Common
           {"${PWD}", Directory.GetCurrentDirectory}
         };
 
+    /// <summary>Original template string supplied by the caller.</summary>
     public string Original { get; } = str;
+
+    /// <summary>Rendered string after built-in and environment templates are expanded.</summary>
     public string Rendered { get; } = Render(ToTargetOs(str, handleWindowsPathIfNeeded));
 
     private static string ToTargetOs(string str, bool handleWindowsPathIfNeeded)
     {
-      if (string.IsNullOrEmpty(str) || str.StartsWith("emb:"))
+      if (string.IsNullOrEmpty(str) || str.StartsWith("emb:", StringComparison.Ordinal))
         return str;
 
       if (!FdOs.IsWindows() || !handleWindowsPathIfNeeded)

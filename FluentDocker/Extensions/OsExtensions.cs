@@ -9,7 +9,7 @@ namespace FluentDocker.Extensions
       if (!FdOs.IsWindows() || string.IsNullOrEmpty(path) || path.Length < 3)
         return path;
 
-      return "//" + char.ToLower(path[0]) + path[2..].Replace('\\', '/');
+      return "//" + char.ToLowerInvariant(path[0]) + path[2..].Replace('\\', '/');
     }
   }
 }

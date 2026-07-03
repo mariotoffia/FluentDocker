@@ -89,13 +89,13 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
       try
       {
         var stacks = await StackDriver.ListAsync(Context);
-        var names = stacks.Data?.Where(s => s.Name.StartsWith("stack-"))
+        var names = stacks.Data?.Where(s => s.Name.StartsWith("stack-", StringComparison.Ordinal))
             .Select(s => s.Name).ToArray() ?? [];
         if (names.Length > 0)
           await StackDriver.RemoveAsync(Context, names);
 
         var svcs = await ServiceDriver.ListAsync(Context, new ServiceListFilter { Name = "svc-" });
-        var ids = svcs.Data?.Where(s => s.Name.StartsWith("svc-"))
+        var ids = svcs.Data?.Where(s => s.Name.StartsWith("svc-", StringComparison.Ordinal))
             .Select(s => s.Name).ToArray() ?? [];
         if (ids.Length > 0)
           await ServiceDriver.RemoveAsync(Context, ids);

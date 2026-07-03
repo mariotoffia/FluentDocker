@@ -300,8 +300,8 @@ namespace FluentDocker.Tests.Integration.PodmanCliDriver
             Context, containerId, cancellationToken: TestContext.Current.CancellationToken);
         if (inspectResult.Success)
         {
-          Assert.NotEqual("running",
-              inspectResult.Data.State?.Status?.ToLower());
+          Assert.False(string.Equals(
+              inspectResult.Data.State?.Status, "running", StringComparison.OrdinalIgnoreCase));
         }
       }
       finally
@@ -361,8 +361,7 @@ namespace FluentDocker.Tests.Integration.PodmanCliDriver
         var inspectResult = await ContainerDriver.InspectAsync(
             Context, containerId, cancellationToken: TestContext.Current.CancellationToken);
         Assert.True(inspectResult.Success);
-        Assert.Equal("paused",
-            inspectResult.Data.State?.Status?.ToLower());
+        Assert.Equal("paused", inspectResult.Data.State?.Status, ignoreCase: true);
 
         // Unpause
         var unpauseResult = await ContainerDriver.UnpauseAsync(
@@ -373,8 +372,7 @@ namespace FluentDocker.Tests.Integration.PodmanCliDriver
         inspectResult = await ContainerDriver.InspectAsync(
             Context, containerId, cancellationToken: TestContext.Current.CancellationToken);
         Assert.True(inspectResult.Success);
-        Assert.Equal("running",
-            inspectResult.Data.State?.Status?.ToLower());
+        Assert.Equal("running", inspectResult.Data.State?.Status, ignoreCase: true);
       }
       finally
       {

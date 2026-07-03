@@ -186,7 +186,8 @@ namespace FluentDocker.Builders
             break;
 
           case WaitConditionType.Http:
-            if (condition.Target.StartsWith("http://") || condition.Target.StartsWith("https://"))
+            if (condition.Target.StartsWith("http://", StringComparison.OrdinalIgnoreCase) ||
+                condition.Target.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
             {
               success = await WaitForHttpUrlAsync(condition.Target, condition.TimeoutMs,
                   condition.HttpMethod, condition.ContentType, condition.Body,

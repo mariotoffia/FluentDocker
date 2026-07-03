@@ -105,8 +105,8 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
       var config = new ImageBuildConfig { BuildContext = "/src" };
       var result = PodmanCliImageDriver.BuildBuildArgs(config, "/tmp/iid");
 
-      var iidPos = result.IndexOf("--iidfile");
-      var ctxPos = result.LastIndexOf("/src");
+      var iidPos = result.IndexOf("--iidfile", StringComparison.Ordinal);
+      var ctxPos = result.LastIndexOf("/src", StringComparison.Ordinal);
       Assert.True(iidPos < ctxPos, "--iidfile should appear before the build context");
     }
   }
