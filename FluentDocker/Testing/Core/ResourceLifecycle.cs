@@ -125,14 +125,15 @@ namespace FluentDocker.Testing.Core
     /// and/or a null <paramref name="kernel"/> is a no-op for that argument.
     /// Callers may pass <c>null</c> (e.g. when initialization failed before a
     /// value was assigned) without using the null-forgiving operator.
-    /// If resource disposal fails, the kernel is not disposed; the caller still
-    /// owns the live kernel and must retry cleanup or dispose it after recovery.
+    /// If resource disposal fails, the kernel is still disposed and the original
+    /// resource disposal exception is rethrown.
     /// </remarks>
     /// <param name="resource">The resource to dispose, or <c>null</c> to skip.</param>
     /// <param name="kernel">The kernel to dispose, or <c>null</c> to skip.</param>
     public static async Task DisposeAsync(
         ITestResource? resource, FluentDockerKernel? kernel)
     {
+      ExceptionDispatchInfo? resourceFailure = null;
       try
       {
         if (resource != null)
@@ -140,11 +141,21 @@ namespace FluentDocker.Testing.Core
       }
       catch (Exception ex)
       {
-        ExceptionDispatchInfo.Capture(ex).Throw();
+        resourceFailure = ExceptionDispatchInfo.Capture(ex);
       }
 
-      if (kernel != null)
-        await kernel.DisposeAsync().ConfigureAwait(false);
+      try
+      {
+        if (kernel != null)
+          await kernel.DisposeAsync().ConfigureAwait(false);
+      }
+      catch (Exception ex) when (resourceFailure != null)
+      {
+        // Both failed: preserve the kernel failure on the rethrown resource failure.
+        resourceFailure.SourceException.Data["KernelDisposeFailure"] = ex.ToString();
+      }
+
+      resourceFailure?.Throw();
     }
   }
 }

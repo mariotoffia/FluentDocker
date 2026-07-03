@@ -282,7 +282,9 @@ namespace FluentDocker.Drivers.Docker.Cli
         {
           Success = false,
           Output = output,
-          Error = string.IsNullOrEmpty(error) ? ex.Message : error,
+          // The exception (e.g. the output-cap DriverException) is the primary failure;
+          // stderr may race in SIGPIPE noise from the killed child, so always keep both.
+          Error = string.IsNullOrEmpty(error) ? ex.Message : $"{ex.Message}\n{error}",
           ExitCode = GetExitCodeOrDefault(process)
         };
       }

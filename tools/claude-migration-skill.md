@@ -592,8 +592,7 @@ Legacy test packages have been removed. Use the new packages:
 Key changes:
 - xUnit: `FluentDockerTestBase` → `XunitContainerFixture` with `InitializeAsync` lambda
 - MSTest: `FluentDockerTestBase` → `MsTestResourceHelpers.CreateContainerAsync` static helper
-- `PostgresTestBase` → configure container directly or use plugin package
+- `PostgresTestBase` → configure the container directly
 - New core namespace: `FluentDocker.Testing.Core` (inside main assembly)
-- Plugin system: `FluentDocker.Testing.Core.Plugins`
 
 See [api-mapping.md](api-mapping.md) for the complete v2-to-v3 API mapping, and `docs/testing/migration-from-legacy.md` for side-by-side examples.

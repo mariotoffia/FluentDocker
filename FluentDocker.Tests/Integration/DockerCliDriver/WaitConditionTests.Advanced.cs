@@ -15,7 +15,8 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
   /// Advanced wait condition tests: custom lambda, timeouts, and helper methods.
   /// </summary>
   [Trait("Category", "Integration")]
-  [Trait("Category", "WaitCondition")]
+  [Trait("Category", "Integration")]
+  [Trait("Area", "WaitCondition")]
   public partial class WaitConditionTests
   {
     #region Custom Lambda Wait Tests

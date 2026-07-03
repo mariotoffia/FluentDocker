@@ -35,15 +35,14 @@ namespace FluentDocker.Tests.CoreTests.Common
 
       var first = await ModelOperationGate.AcquireAsync(key, ct);
 
-      // A second acquisition of the SAME key must not complete while the first is held.
-      var second = ModelOperationGate.AcquireAsync(key, ct);
-      var raced = await Task.WhenAny(second, Task.Delay(TimeSpan.FromMilliseconds(200), ct));
-      Assert.NotSame(second, raced);
-      Assert.False(second.IsCompleted);
+      // A second acquisition of the SAME key must wait and therefore honor cancellation.
+      using var waitingCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+      var second = ModelOperationGate.AcquireAsync(key, waitingCts.Token);
+      await waitingCts.CancelAsync();
+      await Assert.ThrowsAnyAsync<OperationCanceledException>(() => second);
 
-      // Releasing the first lets the second proceed.
       await first.DisposeAsync();
-      var handle = await second.WaitAsync(TimeSpan.FromSeconds(5), ct);
+      var handle = await ModelOperationGate.AcquireAsync(key, ct);
       await handle.DisposeAsync();
     }
 
@@ -70,15 +69,14 @@ namespace FluentDocker.Tests.CoreTests.Common
       await handle.DisposeAsync();
       await handle.DisposeAsync(); // second dispose must be a no-op (no extra Release)
 
-      // If the double-dispose had over-released, the gate would permit two concurrent holders.
       var a = await ModelOperationGate.AcquireAsync(key, ct);
-      var b = ModelOperationGate.AcquireAsync(key, ct);
-      var raced = await Task.WhenAny(b, Task.Delay(TimeSpan.FromMilliseconds(200), ct));
-      Assert.NotSame(b, raced);
-      Assert.False(b.IsCompleted);
+      using var waitingCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+      var b = ModelOperationGate.AcquireAsync(key, waitingCts.Token);
+      await waitingCts.CancelAsync();
+      await Assert.ThrowsAnyAsync<OperationCanceledException>(() => b);
 
       await a.DisposeAsync();
-      var second = await b.WaitAsync(TimeSpan.FromSeconds(5), ct);
+      var second = await ModelOperationGate.AcquireAsync(key, ct);
       await second.DisposeAsync();
     }
 

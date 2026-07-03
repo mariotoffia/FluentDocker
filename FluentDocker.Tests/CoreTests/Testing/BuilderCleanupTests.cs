@@ -51,8 +51,9 @@ namespace FluentDocker.Tests.CoreTests.Testing
           builder => builder.UseImage("alpine:latest"),
           new DockerResourceOptions { ForceRemoveOnDispose = true });
 
-      await Assert.ThrowsAsync<InvalidOperationException>(
+      var ex = await Assert.ThrowsAsync<ResourceInitializationException>(
           () => resource.InitializeAsync(TestContext.Current.CancellationToken));
+      Assert.IsType<InvalidOperationException>(ex.InnerException);
 
       // ContainerBuilder.ExecuteAsync should have force-removed the container
       MockPack.ContainerDriver.Verify(
@@ -86,8 +87,9 @@ namespace FluentDocker.Tests.CoreTests.Testing
           builder => builder.UseImage("alpine:latest"),
           new DockerResourceOptions { ForceRemoveOnDispose = true });
 
-      await Assert.ThrowsAsync<InvalidOperationException>(
+      var ex = await Assert.ThrowsAsync<ResourceInitializationException>(
           () => resource.InitializeAsync(TestContext.Current.CancellationToken));
+      Assert.IsType<InvalidOperationException>(ex.InnerException);
 
       // ContainerBuilder.ExecuteAsync should have force-removed the container
       MockPack.ContainerDriver.Verify(
@@ -141,8 +143,9 @@ namespace FluentDocker.Tests.CoreTests.Testing
           },
           new DockerResourceOptions { ForceRemoveOnDispose = true });
 
-      await Assert.ThrowsAsync<InvalidOperationException>(
+      var ex = await Assert.ThrowsAsync<ResourceInitializationException>(
           () => resource.InitializeAsync(TestContext.Current.CancellationToken));
+      Assert.IsType<InvalidOperationException>(ex.InnerException);
 
       // Builder.BuildAsync catch block should have cleaned up the first
       // container by calling scope.DisposeAllAsync() which calls
@@ -184,8 +187,9 @@ namespace FluentDocker.Tests.CoreTests.Testing
           new StackDeployConfig { StackName = "partial-stack" },
           new DockerResourceOptions { ForceRemoveOnDispose = true });
 
-      await Assert.ThrowsAsync<FluentDockerException>(
+      var ex = await Assert.ThrowsAsync<ResourceInitializationException>(
           () => resource.InitializeAsync(TestContext.Current.CancellationToken));
+      Assert.IsType<FluentDockerException>(ex.InnerException);
 
       // Dispose should attempt cleanup via TeardownAsync
       await resource.DisposeAsync();
@@ -218,8 +222,9 @@ namespace FluentDocker.Tests.CoreTests.Testing
           new KubePlayConfig { YamlPath = "partial.yaml" },
           new DockerResourceOptions { ForceRemoveOnDispose = true });
 
-      await Assert.ThrowsAsync<FluentDockerException>(
+      var ex = await Assert.ThrowsAsync<ResourceInitializationException>(
           () => resource.InitializeAsync(TestContext.Current.CancellationToken));
+      Assert.IsType<FluentDockerException>(ex.InnerException);
 
       // Dispose should attempt cleanup via TeardownAsync
       await resource.DisposeAsync();
@@ -242,8 +247,9 @@ namespace FluentDocker.Tests.CoreTests.Testing
           builder => builder.UseImage("alpine:latest"),
           new DockerResourceOptions { ForceRemoveOnDispose = true });
 
-      await Assert.ThrowsAsync<CapabilityNotSupportedException>(
+      var ex = await Assert.ThrowsAsync<ResourceInitializationException>(
           () => resource.InitializeAsync(TestContext.Current.CancellationToken));
+      Assert.IsType<CapabilityNotSupportedException>(ex.InnerException);
 
       // Dispose should not call any container driver methods
       // because preflight failed (before _provisioned was set)

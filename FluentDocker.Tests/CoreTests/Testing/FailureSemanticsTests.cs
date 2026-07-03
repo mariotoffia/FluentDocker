@@ -4,7 +4,6 @@ using System.Threading.Tasks;
 using FluentDocker.Kernel;
 using FluentDocker.Model.Drivers;
 using FluentDocker.Testing.Core;
-using FluentDocker.Testing.Core.Plugins;
 using FluentDocker.Tests.Mocks;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
@@ -236,8 +235,9 @@ namespace FluentDocker.Tests.CoreTests.Testing
       resource.OnAfterReady(_ =>
           throw new InvalidOperationException("Hook failure"));
 
-      await Assert.ThrowsAsync<InvalidOperationException>(
+      var ex = await Assert.ThrowsAsync<ResourceInitializationException>(
           () => resource.InitializeAsync(TestContext.Current.CancellationToken));
+      Assert.IsType<InvalidOperationException>(ex.InnerException);
 
       // IsInitialized must be false because the hook threw
       Assert.False(resource.IsInitialized);
@@ -276,38 +276,6 @@ namespace FluentDocker.Tests.CoreTests.Testing
     }
 
     [Fact]
-    public void PluginRegistration_PartialFailure_RollsBackAllFactories()
-    {
-      var host = new TestPluginHost();
-
-      // First plugin registers key "alpha"
-      host.Add(new SingleKeyPlugin("plugin-a", "alpha"));
-
-      // Second plugin tries to register "beta" (new) and "alpha" (collision)
-      // The staging mechanism should prevent "beta" from being committed
-      var ex = Assert.Throws<InvalidOperationException>(
-          () => host.Add(new DualKeyPlugin("plugin-b", "beta", "alpha")));
-
-      Assert.Contains("already registered", ex.Message);
-
-      // "beta" should NOT be available because the registration was rolled back
-      Assert.False(host.HasFactory("beta"));
-
-      // "alpha" should still be available from plugin-a
-      Assert.True(host.HasFactory("alpha"));
-    }
-
-    [Fact]
-    public void PluginRegistration_Success_CommitsAllFactories()
-    {
-      var host = new TestPluginHost();
-      host.Add(new DualKeyPlugin("plugin-a", "key1", "key2"));
-
-      Assert.True(host.HasFactory("key1"));
-      Assert.True(host.HasFactory("key2"));
-    }
-
-    [Fact]
     public async Task NullDriver_ThrowsDescriptiveError()
     {
       MockPack
@@ -320,13 +288,14 @@ namespace FluentDocker.Tests.CoreTests.Testing
           builder => builder.UseImage("alpine:latest"),
           new DockerResourceOptions { Driver = null! });
 
-      var ex = await Assert.ThrowsAsync<InvalidOperationException>(
+      var ex = await Assert.ThrowsAsync<ResourceInitializationException>(
           () => resource.InitializeAsync(TestContext.Current.CancellationToken));
-      Assert.Contains("Driver is null", ex.Message);
+      Assert.IsType<InvalidOperationException>(ex.InnerException);
+      Assert.Contains("Driver is null", ex.InnerException.Message);
     }
 
     [Fact]
-    public async Task ResourceLifecycle_DisposeAsync_BothThrow_RethrowsResourceAndPreservesKernel()
+    public async Task ResourceLifecycle_DisposeAsync_BothThrow_RethrowsResourceAndDisposesKernel()
     {
       // Resource cleanup failed first; preserving the kernel enables retry cleanup.
       var throwingResource = new ThrowingResource(
@@ -338,7 +307,7 @@ namespace FluentDocker.Tests.CoreTests.Testing
           () => ResourceLifecycle.DisposeAsync(throwingResource, throwingKernel));
 
       Assert.Equal("resource disposal failed", ex.Message);
-      Assert.False(throwingKernel.DisposeWasCalled);
+      Assert.True(throwingKernel.DisposeWasCalled);
     }
 
     [Fact]
@@ -420,30 +389,6 @@ namespace FluentDocker.Tests.CoreTests.Testing
       public Task InitializeAsync(CancellationToken cancellationToken = default)
           => Task.CompletedTask;
       public ValueTask DisposeAsync() => ValueTask.CompletedTask;
-    }
-
-    private class SingleKeyPlugin(string id, string key) : ITestPlugin
-    {
-      private readonly string _key = key;
-      public string Id { get; } = id;
-
-      public void Register(ITestPluginRegistry registry)
-      {
-        registry.RegisterFactory<FakeResource>(_key, _ => new FakeResource());
-      }
-    }
-
-    private class DualKeyPlugin(string id, string key1, string key2) : ITestPlugin
-    {
-      private readonly string _key1 = key1;
-      private readonly string _key2 = key2;
-      public string Id { get; } = id;
-
-      public void Register(ITestPluginRegistry registry)
-      {
-        registry.RegisterFactory<FakeResource>(_key1, _ => new FakeResource());
-        registry.RegisterFactory<FakeResource>(_key2, _ => new FakeResource());
-      }
     }
 
     #endregion

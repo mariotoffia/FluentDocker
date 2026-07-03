@@ -15,6 +15,7 @@ using Xunit;
 namespace FluentDocker.Tests.CoreTests.Driver.Podman
 {
   [Trait("Category", "Unit")]
+  [Trait("Requires", "PosixShell")]
   public class PodmanCliAuditRemediationTests
   {
     private sealed class AttachProbeDriver : PodmanCliDriverBase

@@ -31,20 +31,20 @@ namespace FluentDocker.Tests.CoreTests.Testing
     public async Task ConcurrentInitializeAsync_OnlyProvisionsOnce()
     {
       var provisionCount = 0;
+      var enteredProvision = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
       var provisionTcs = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
 
       var resource = new ConcurrencyTestResource(_kernel, onProvision: async ct =>
       {
         Interlocked.Increment(ref provisionCount);
-        await provisionTcs.Task;
+        enteredProvision.SetResult();
+        await provisionTcs.Task.ConfigureAwait(false);
       });
 
-      // Start two concurrent init calls
       var init1 = resource.InitializeAsync(TestContext.Current.CancellationToken);
+      await enteredProvision.Task.WaitAsync(TimeSpan.FromSeconds(1), TestContext.Current.CancellationToken);
       var init2 = resource.InitializeAsync(TestContext.Current.CancellationToken);
 
-      // Let provisioning complete
-      await Task.Delay(50, TestContext.Current.CancellationToken);
       provisionTcs.SetResult();
 
       await init1;
@@ -57,11 +57,16 @@ namespace FluentDocker.Tests.CoreTests.Testing
     [Fact]
     public async Task DisposeAsync_DuringInitializeAsync_WaitsForInit()
     {
+      var enteredProvision = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
       var provisionTcs = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
       var teardownCalled = false;
 
       var resource = new ConcurrencyTestResource(_kernel,
-          onProvision: async ct => await provisionTcs.Task,
+          onProvision: async ct =>
+          {
+            enteredProvision.SetResult();
+            await provisionTcs.Task.ConfigureAwait(false);
+          },
           onTeardown: ct =>
           {
             teardownCalled = true;
@@ -69,14 +74,11 @@ namespace FluentDocker.Tests.CoreTests.Testing
           });
 
       var initTask = resource.InitializeAsync(TestContext.Current.CancellationToken);
+      await enteredProvision.Task.WaitAsync(TimeSpan.FromSeconds(1), TestContext.Current.CancellationToken);
 
-      // Start dispose while init is in progress
-      await Task.Delay(50, TestContext.Current.CancellationToken);
       var disposeTask = resource.DisposeAsync().AsTask();
 
-      // Dispose should be blocked (init holds the lock)
-      await Task.Delay(50, TestContext.Current.CancellationToken);
-      Assert.False(disposeTask.IsCompleted);
+      Assert.False(teardownCalled);
 
       // Complete provisioning
       provisionTcs.SetResult();
@@ -149,7 +151,8 @@ namespace FluentDocker.Tests.CoreTests.Testing
       if (completed != initTask)
         Assert.Fail("InitializeAsync did not honor InitializationTimeout.");
 
-      await Assert.ThrowsAsync<TimeoutException>(() => initTask);
+      var ex = await Assert.ThrowsAsync<ResourceInitializationException>(() => initTask);
+      Assert.IsType<TimeoutException>(ex.InnerException);
     }
 
     [Fact]

@@ -11,7 +11,8 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
   /// Ported from V2 FluentNetworkTests.cs
   /// </summary>
   [Trait("Category", "Integration")]
-  [Trait("Category", "FluentNetwork")]
+  [Trait("Category", "Integration")]
+  [Trait("Area", "FluentNetwork")]
   [Collection("DockerDriver")]
   public class FluentNetworkTests : DockerDriverTestBase
   {

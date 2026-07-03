@@ -12,22 +12,33 @@ xUnit 2.x.
 dotnet add package FluentDocker.Testing.Xunit
 ```
 
-## Base-class fixture
+## Fixture base
+
+Recommended entry point: use `XunitContainerFixtureBase` with `IClassFixture<T>`
+for container integration suites. Use `XunitContainerTestBase` only when each
+test method needs a fresh container.
 
 ```csharp
 using FluentDocker.Builders;
 using FluentDocker.Testing.Xunit;
 using Xunit;
 
-public sealed class RedisTests : XunitContainerTestBase
+public sealed class RedisFixture : XunitContainerFixtureBase
 {
   protected override void ConfigureContainer(IContainerBuilder builder)
       => builder.UseImage("redis:7-alpine");
+}
+
+public sealed class RedisTests : IClassFixture<RedisFixture>
+{
+  private readonly RedisFixture _fixture;
+
+  public RedisTests(RedisFixture fixture) => _fixture = fixture;
 
   [Fact]
   public async Task Redis_IsRunning()
   {
-    var info = await Container.InspectAsync();
+    var info = await _fixture.Container.InspectAsync();
     Assert.Equal("running", info.State.Status);
   }
 }

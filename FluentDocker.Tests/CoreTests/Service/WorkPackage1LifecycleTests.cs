@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
 using FluentDocker.Drivers;
@@ -63,6 +62,8 @@ namespace FluentDocker.Tests.CoreTests.Service
       var mockPack = new MockDriverPack();
 
       // Driver remove never completes and ignores cancellation (simulates a hung daemon).
+      var removeCancellationObserved = new TaskCompletionSource(
+          TaskCreationOptions.RunContinuationsAsynchronously);
       var neverCompletes = new TaskCompletionSource<CommandResponse<Unit>>();
       mockPack.ContainerDriver
           .Setup(d => d.RemoveAsync(
@@ -71,7 +72,12 @@ namespace FluentDocker.Tests.CoreTests.Service
               It.IsAny<bool>(),
               It.IsAny<bool>(),
               It.IsAny<CancellationToken>()))
-          .Returns(() => neverCompletes.Task);
+          .Returns<DriverContext, string, bool, bool, CancellationToken>(
+              (_, _, _, _, ct) =>
+              {
+                ct.Register(() => removeCancellationObserved.SetResult());
+                return neverCompletes.Task;
+              });
 
       var kernel = await MockKernelBuilderExtensions.CreateWithMockDriverAsync("docker", mockPack);
       try
@@ -81,13 +87,10 @@ namespace FluentDocker.Tests.CoreTests.Service
             stopOnDispose: false, deleteOnDispose: true,
             disposeCleanupTimeout: TimeSpan.FromMilliseconds(200));
 
-        var sw = Stopwatch.StartNew();
         await service.DisposeAsync();
-        sw.Stop();
 
-        // Must return promptly even though the driver call never completes.
-        Assert.True(sw.Elapsed < TimeSpan.FromSeconds(5),
-            $"DisposeAsync took {sw.ElapsedMilliseconds}ms; expected to be bounded by the timeout.");
+        await removeCancellationObserved.Task.WaitAsync(
+            TimeSpan.FromSeconds(1), TestContext.Current.CancellationToken);
       }
       finally { kernel.Dispose(); }
     }

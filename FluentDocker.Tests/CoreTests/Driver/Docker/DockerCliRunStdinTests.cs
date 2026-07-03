@@ -11,6 +11,7 @@ using Xunit;
 namespace FluentDocker.Tests.CoreTests.Driver.Docker
 {
   [Trait("Category", "Unit")]
+  [Trait("Requires", "PosixShell")]
   public sealed class DockerCliRunStdinTests
   {
     [Fact]

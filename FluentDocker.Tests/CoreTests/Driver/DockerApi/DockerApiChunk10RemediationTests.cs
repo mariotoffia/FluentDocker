@@ -163,21 +163,25 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
       var file = CreateScratchFile("load-cancel", "fake-tar");
       try
       {
+        var firstLineServed = new TaskCompletionSource(
+            TaskCreationOptions.RunContinuationsAsynchronously);
         var mock = new MockDockerApiConnection();
-        mock.SetupStream("/images/load",
-            @"{""stream"":""Loaded image: alpine:latest""}" + "\n" +
-            @"{""stream"":""Loaded image: busybox:latest""}" + "\n");
+        mock.SetupStreamFactory("/images/load", () => new GatedTailStream(
+            Encoding.UTF8.GetBytes(@"{""stream"":""Loaded image: alpine:latest""}" + "\n"),
+            firstLineServed));
         var driver = new DockerApiImageDriver(mock);
         driver.Initialize(Ctx);
         using var cts = CancellationTokenSource.CreateLinkedTokenSource(
             TestContext.Current.CancellationToken);
 
-        await Assert.ThrowsAnyAsync<OperationCanceledException>(async () =>
-        {
-          var task = driver.LoadAsync(Ctx, file, cts.Token);
-          cts.Cancel();
-          await task;
-        });
+        var task = driver.LoadAsync(Ctx, file, cts.Token);
+        // Deterministic: the first line has been read, the SUT is blocked on the next
+        // read (which honors the token), and only then do we cancel.
+        await firstLineServed.Task.WaitAsync(TimeSpan.FromSeconds(10),
+            TestContext.Current.CancellationToken);
+        cts.Cancel();
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => task);
       }
       finally
       {

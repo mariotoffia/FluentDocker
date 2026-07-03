@@ -9,7 +9,8 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
   /// <summary>
   /// Tests for DockerApiConnection timeout and error handling.
   /// </summary>
-  [Trait("Category", "Unit")]
+  [Trait("Category", "Integration")]
+  [Trait("Requires", "UnopenedLoopbackPort")]
   public class DockerApiConnectionTimeoutTests
   {
     [Fact]

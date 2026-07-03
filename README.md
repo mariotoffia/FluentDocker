@@ -133,6 +133,10 @@ manifests, and direct `SysCtl<T>` access) live on the
 
 `FluentDocker.Testing.Core` ships inside the main assembly; framework adapters are
 separate packages (`FluentDocker.Testing.Xunit` targets **xUnit v3**).
+Recommended entry points are `XunitContainerFixtureBase`,
+`NUnitContainerFixtureBase`, and `MsTestContainerFixtureBase` (or
+`MsTestClassContainerFixtureBase<T>` when a class-shared MSTest container is
+needed).
 
 ```csharp
 using FluentDocker.Builders;

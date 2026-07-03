@@ -13,6 +13,10 @@ dotnet add package FluentDocker.Testing.NUnit
 
 ## Base-class fixture
 
+Recommended entry point: use `NUnitContainerFixtureBase` for container
+integration suites. Use `NUnitResourceHelpers` only when you need custom
+lifetime control.
+
 ```csharp
 using FluentDocker.Builders;
 using FluentDocker.Testing.NUnit;

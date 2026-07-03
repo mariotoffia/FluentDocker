@@ -10,6 +10,12 @@ nav_order: 1
 The testing core lives inside the main `FluentDocker` assembly under the namespace
 `FluentDocker.Testing.Core`. No separate NuGet package is needed.
 
+**Packaging decision:** testing support ships in the production assembly so the
+framework adapter packages stay thin and no fourth core package is needed. The
+unused testing plugin host was removed before the preview API freeze, deleting
+213 lines of public `FluentDocker.Testing.Core.Plugins` surface instead of
+carrying dead API.
+
 ## Step by Step
 
 - Basics: [Core Types](#core-types), [Wait Conditions (Builder)](#wait-conditions-builder)
@@ -347,7 +353,12 @@ public async Task Setup()
 
 ## Diagnostics
 
-When initialization fails, the `Diagnostics` property is populated with:
+When initialization fails, FluentDocker throws `ResourceInitializationException`.
+Its `Diagnostics` property remains reachable even when an adapter disposes the
+failed resource and kernel. The resource's `Diagnostics` property is also
+populated while the resource object is still in scope.
+
+Diagnostics include:
 - `Failure` - the exception
 - `Logs` - container/service logs (if `CaptureLogsOnFailure` is true), truncated
   to `MaxDiagnosticLogLines`
@@ -355,6 +366,10 @@ When initialization fails, the `Diagnostics` property is populated with:
 - `OperationContext` - additional context
 - `ResourceName` (string) - the name of the resource that failed
 - `DriverId` (string) - the driver ID used by the resource
+
+For compatibility, container readiness failures that expose
+`ex.Data["ContainerLogTail"]` copy that value onto the thrown
+`ResourceInitializationException`.
 
 ### When teardown fails
 

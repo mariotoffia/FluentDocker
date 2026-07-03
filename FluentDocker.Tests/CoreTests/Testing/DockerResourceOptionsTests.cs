@@ -42,6 +42,15 @@ namespace FluentDocker.Tests.CoreTests.Testing
     }
 
     [Fact]
+    public void SessionId_DefaultsToProcessWideValue()
+    {
+      var first = new DockerResourceOptions();
+      var second = new DockerResourceOptions();
+
+      Assert.Equal(first.SessionId, second.SessionId);
+    }
+
+    [Fact]
     public void InitializationTimeout_Zero_Throws()
     {
       var opts = new DockerResourceOptions();

@@ -131,7 +131,7 @@ namespace FluentDocker.Tests.CoreTests.Testing.Adapters
 
       var fixture = new XunitContainerFixture();
 
-      await Assert.ThrowsAsync<InvalidOperationException>(() =>
+      await Assert.ThrowsAsync<ResourceInitializationException>(() =>
           fixture.InitializeAsync(
               configure: c => c.UseImage("fail:image"),
               kernelFactory: () => Task.FromResult(testKernel),
@@ -330,7 +330,7 @@ namespace FluentDocker.Tests.CoreTests.Testing.Adapters
 
       var fixture = new XunitResourceFixture<ContainerResource>();
 
-      await Assert.ThrowsAsync<InvalidOperationException>(() =>
+      await Assert.ThrowsAsync<ResourceInitializationException>(() =>
           fixture.InitializeAsync(
               kernel => new ContainerResource(kernel, c => c.UseImage("fail:img")),
               kernelFactory: () => Task.FromResult(testKernel),

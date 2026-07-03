@@ -144,7 +144,8 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
     }
 
     [Fact]
-    [Trait("Category", "ManualOnly")]
+    [Trait("Category", "DevLocal")]
+    [Trait("Requires", "ManualOnly")]
     public async Task Push_ToNonExistentRegistry_Fails()
     {
       var testRepo = "localhost:9999/fd-push-test";

@@ -95,8 +95,9 @@ namespace FluentDocker.Tests.CoreTests.Testing
           Kernel,
           builder => builder.UseImage("alpine:latest"));
 
-      await Assert.ThrowsAsync<FluentDocker.Common.CapabilityNotSupportedException>(
+      var ex = await Assert.ThrowsAsync<ResourceInitializationException>(
           () => resource.InitializeAsync(TestContext.Current.CancellationToken));
+      Assert.IsType<FluentDocker.Common.CapabilityNotSupportedException>(ex.InnerException);
     }
 
     [Fact]
@@ -148,7 +149,7 @@ namespace FluentDocker.Tests.CoreTests.Testing
           builder => builder.UseImage("alpine:latest"),
           new DockerResourceOptions { ForceRemoveOnDispose = false });
 
-      await Assert.ThrowsAsync<FluentDocker.Common.CapabilityNotSupportedException>(
+      await Assert.ThrowsAsync<ResourceInitializationException>(
           () => resource.InitializeAsync(TestContext.Current.CancellationToken));
 
       // DisposeAsync must not attempt teardown when provisioning never ran.
@@ -248,7 +249,7 @@ namespace FluentDocker.Tests.CoreTests.Testing
     }
 
     [Fact]
-    public async Task ExpectedType_Mismatch_ThrowsInvalidOperationException()
+    public async Task ExpectedType_Mismatch_ThrowsResourceInitializationException()
     {
       // MockDriverPack.Type is DockerCli. Request PodmanCli -> should fail.
       var resource = new ContainerResource(
@@ -259,9 +260,10 @@ namespace FluentDocker.Tests.CoreTests.Testing
             Driver = DriverSelection.PodmanCli("docker") // wrong type for this pack
           });
 
-      var ex = await Assert.ThrowsAsync<InvalidOperationException>(
+      var ex = await Assert.ThrowsAsync<ResourceInitializationException>(
           () => resource.InitializeAsync(TestContext.Current.CancellationToken));
-      Assert.Contains("Expected driver type", ex.Message);
+      Assert.IsType<InvalidOperationException>(ex.InnerException);
+      Assert.Contains("Expected driver type", ex.InnerException.Message);
     }
 
     [Fact]
@@ -355,8 +357,9 @@ namespace FluentDocker.Tests.CoreTests.Testing
       resource.OnAfterReady(_ =>
           throw new InvalidOperationException("Trigger diagnostics"));
 
-      await Assert.ThrowsAsync<InvalidOperationException>(
+      var ex = await Assert.ThrowsAsync<ResourceInitializationException>(
           () => resource.InitializeAsync(TestContext.Current.CancellationToken));
+      Assert.IsType<InvalidOperationException>(ex.InnerException);
 
       Assert.NotNull(resource.Diagnostics);
       Assert.NotNull(resource.Diagnostics.InspectPayload);
@@ -388,8 +391,9 @@ namespace FluentDocker.Tests.CoreTests.Testing
               .WaitForLogMessage("never appears", 2),
           new DockerResourceOptions { CaptureLogsOnFailure = true });
 
-      await Assert.ThrowsAsync<FluentDockerException>(
+      var ex = await Assert.ThrowsAsync<ResourceInitializationException>(
           () => resource.InitializeAsync(TestContext.Current.CancellationToken));
+      Assert.IsType<FluentDockerException>(ex.InnerException);
 
       Assert.NotNull(resource.Diagnostics);
       Assert.Contains("startup failed before readiness", resource.Diagnostics.Logs);

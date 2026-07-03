@@ -175,7 +175,8 @@ namespace FluentDocker.Tests.Integration.DockerApiDriver
     #region Image Push Tests
 
     [Fact]
-    [Trait("Category", "ManualOnly")]
+    [Trait("Category", "DevLocal")]
+    [Trait("Requires", "ManualOnly")]
     public async Task Image_Push_ToNonExistentRegistry_Fails()
     {
       var testRepo = "localhost:9999/fd-api-push-test";

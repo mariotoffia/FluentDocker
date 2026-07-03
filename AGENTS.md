@@ -45,7 +45,7 @@ Follow YAGNI principles, and one-liner solutions.
 5. **Builder** — method on `IXxxBuilder`, sealed internal builder implementing `IDriverScopedBuilder`, validate at execute time, wire into `Builder.UseXxx`. Model builders (`UseModelRunner`/`UseModel`) return directly and are **off** the deferred pipeline and **off** `IBuilder` — don't "fix" that. **Why two ways:** `UseContainer/Network/Volume/Image/Compose` build a *graph of resources* you create and tear down together, so they queue ops and `BuildAsync()` returns one `BuildResults` bag. `UseModelRunner` returns an `IModelRunner` *client* to an already-running runner (not an `IServiceAsync`, can't live in the bag); `UseModel` returns a typed `IModelService` handle directly so the one-model case stays one object, not a downcast from a collection. Direct return = right semantics, not an inconsistency.
 
 ## Verify (all via Makefile)
-- `make check` (= `lint` + `test`) before done; `make coverage-check` enforces a floor (line 70 / branch 65).
+- `make check` (= `lint` + `test` + `test-runners` + `coverage-check`) before done; coverage floor is line 78 / branch 71 (measured on `Category=Unit`).
 - `make test` — unit, net10.0 (`Category=Unit`); `make test-net8` for net8.0 (CI runs both).
 - `make lint` — `dotnet format whitespace|style --verify-no-changes`; `make format` to fix.
 - `make test-integration` (`Category=Integration`, needs Docker/Podman); `make test-dmr` (`Category=Integration&Requires=Dmr`, `FLUENTDOCKER_REQUIRE_DMR=1`).

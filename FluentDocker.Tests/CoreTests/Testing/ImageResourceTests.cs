@@ -24,7 +24,7 @@ namespace FluentDocker.Tests.CoreTests.Testing
     {
       MockPack
           .SetupImagePull()
-          .SetupImageInspect("sha256:img001");
+          .SetupImageInspect("sha256:img001", "alpine:3.18");
 
       var resource = new ImageResource(Kernel, "alpine", "3.18");
 
@@ -40,7 +40,7 @@ namespace FluentDocker.Tests.CoreTests.Testing
     {
       MockPack
           .SetupImagePull()
-          .SetupImageInspect()
+          .SetupImageInspect(inspectedReference: "nginx:latest")
           .SetupImageRemove();
 
       var resource = new ImageResource(
@@ -58,7 +58,7 @@ namespace FluentDocker.Tests.CoreTests.Testing
     {
       MockPack
           .SetupImagePull()
-          .SetupImageInspect(null!)
+          .SetupImageInspect(null!, "alpine:3.18")
           .SetupImageRemove();
 
       var resource = new ImageResource(
@@ -80,7 +80,7 @@ namespace FluentDocker.Tests.CoreTests.Testing
     {
       MockPack
           .SetupImagePull()
-          .SetupImageInspect("sha256:busy");
+          .SetupImageInspect("sha256:busy", "nginx:latest");
 
       MockPack.ImageDriver
           .SetupSequence(d => d.RemoveAsync(
@@ -116,7 +116,7 @@ namespace FluentDocker.Tests.CoreTests.Testing
     {
       MockPack
           .SetupImagePull()
-          .SetupImageInspect("sha256:gone");
+          .SetupImageInspect("sha256:gone", "nginx:latest");
       MockPack.ImageDriver
           .Setup(d => d.RemoveAsync(
               It.IsAny<DriverContext>(),
@@ -141,7 +141,7 @@ namespace FluentDocker.Tests.CoreTests.Testing
     {
       MockPack
           .SetupImagePull()
-          .SetupImageInspect("sha256:keep-me");
+          .SetupImageInspect("sha256:keep-me", "alpine:latest");
 
       var resource = new ImageResource(
           Kernel, "alpine", removeOnDispose: false);
@@ -159,7 +159,7 @@ namespace FluentDocker.Tests.CoreTests.Testing
     {
       MockPack
           .SetupImagePull()
-          .SetupImageInspect();
+          .SetupImageInspect(inspectedReference: "redis:latest");
 
       var resource = new ImageResource(Kernel, "redis");
 

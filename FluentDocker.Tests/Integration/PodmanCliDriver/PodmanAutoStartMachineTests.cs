@@ -13,7 +13,8 @@ namespace FluentDocker.Tests.Integration.PodmanCliDriver
   /// Requires Podman to be installed with a running machine.
   /// </summary>
   [Collection("PodmanDriver")]
-  [Trait("Category", "LongRunning")]
+  [Trait("Category", "PodmanIntegration")]
+  [Trait("Requires", "LongRunning")]
   public class PodmanAutoStartMachineTests
   {
     [Fact]

@@ -12,12 +12,16 @@ Package: `FluentDocker.Testing.Xunit`
 > **xUnit v3 only.** This package depends on `xunit.v3.extensibility.core` and
 > targets xUnit v3. It is not compatible with xUnit v2 (`xunit` 2.x) projects.
 
-The xUnit adapter offers three patterns, from simplest to most flexible:
+Recommended entry point: use `XunitContainerFixtureBase` (or another
+`Xunit*FixtureBase`) with `IClassFixture<T>` for integration suites. Use
+`XunitContainerTestBase` only when each test method needs a fresh container.
+
+The xUnit adapter offers three patterns:
 
 | Pattern | Lifecycle | Best for |
 |---|---|---|
-| **Test base** | Per-test (fresh container each test) | Isolated tests |
 | **Fixture base** | Per-class or per-collection (shared) | Integration suites |
+| **Test base** | Per-test (fresh container each test) | Isolated tests |
 | **Concrete fixture** | Manual init (programmatic control) | Dynamic config |
 
 ## Step by Step

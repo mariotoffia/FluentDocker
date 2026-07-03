@@ -34,36 +34,11 @@ dotnet add package FluentDocker.Testing.NUnit      # NUnit adapter
 
 ## Quick Examples
 
-### xUnit — Per-Test (Test Base)
+### xUnit — Recommended Fixture Base
 
-Inherit from `XunitContainerTestBase`. xUnit calls `InitializeAsync` and
-`DisposeAsync` automatically for each test:
-
-```csharp
-using FluentDocker.Testing.Xunit;
-
-public class RedisTests : XunitContainerTestBase
-{
-    protected override void ConfigureContainer(IContainerBuilder b) =>
-        b.UseImage("redis:alpine").WaitForPort("6379/tcp");
-
-    [Fact]
-    public async Task Redis_IsRunning()
-    {
-        var info = await Resource.InspectAsync();
-        Assert.True(info.State.Running);
-    }
-}
-```
-
-### xUnit — Shared Fixture (Fixture Base)
-
-Inherit from `XunitContainerFixtureBase`. xUnit calls `InitializeAsync`
-once and shares the fixture across tests in the class:
+Use `XunitContainerFixtureBase` with `IClassFixture<T>` for integration suites:
 
 ```csharp
-using FluentDocker.Testing.Xunit;
-
 public class RedisFixture : XunitContainerFixtureBase
 {
     protected override void ConfigureContainer(IContainerBuilder b) =>
@@ -84,36 +59,40 @@ public class RedisTests : IClassFixture<RedisFixture>
 }
 ```
 
+### xUnit — Per-Test Base
+
+Use `XunitContainerTestBase` only when each test method needs a fresh container:
+
+```csharp
+using FluentDocker.Testing.Xunit;
+
+public class IsolatedRedisTests : XunitContainerTestBase
+{
+    protected override void ConfigureContainer(IContainerBuilder b) =>
+        b.UseImage("redis:alpine").WaitForPort("6379/tcp");
+
+    [Fact]
+    public async Task Redis_IsRunning()
+    {
+        var info = await Resource.InspectAsync();
+        Assert.True(info.State.Running);
+    }
+}
+```
+
 ### MSTest
 
 ```csharp
-using FluentDocker.Testing.MsTest;
-
 [TestClass]
-public class RedisTests
+public class RedisTests : MsTestContainerFixtureBase
 {
-    private static FluentDockerKernel _kernel;
-    private static ContainerResource _resource;
-
-    [ClassInitialize]
-    public static async Task ClassInit(TestContext context)
-    {
-        (_kernel, _resource) = await MsTestResourceHelpers.CreateContainerAsync(
-            builder => builder
-                .UseImage("redis:alpine")
-                .WaitForPort("6379/tcp"));
-    }
-
-    [ClassCleanup]
-    public static async Task ClassCleanup()
-    {
-        await MsTestResourceHelpers.DisposeAsync(_resource, _kernel);
-    }
+    protected override void ConfigureContainer(IContainerBuilder b) =>
+        b.UseImage("redis:alpine").WaitForPort("6379/tcp");
 
     [TestMethod]
     public async Task Redis_IsRunning()
     {
-        var info = await _resource.InspectAsync();
+        var info = await Container.InspectAsync();
         Assert.IsTrue(info.State.Running);
     }
 }
@@ -122,33 +101,16 @@ public class RedisTests
 ### NUnit
 
 ```csharp
-using FluentDocker.Testing.NUnit;
-
 [TestFixture]
-public class RedisTests
+public class RedisTests : NUnitContainerFixtureBase
 {
-    private FluentDockerKernel _kernel;
-    private ContainerResource _resource;
-
-    [OneTimeSetUp]
-    public async Task Setup()
-    {
-        (_kernel, _resource) = await NUnitResourceHelpers.CreateContainerAsync(
-            builder => builder
-                .UseImage("redis:alpine")
-                .WaitForPort("6379/tcp"));
-    }
-
-    [OneTimeTearDown]
-    public async Task Teardown()
-    {
-        await NUnitResourceHelpers.DisposeAsync(_resource, _kernel);
-    }
+    protected override void ConfigureContainer(IContainerBuilder b) =>
+        b.UseImage("redis:alpine").WaitForPort("6379/tcp");
 
     [Test]
     public async Task Redis_IsRunning()
     {
-        var info = await _resource.InspectAsync();
+        var info = await Container.InspectAsync();
         Assert.That(info.State.Running, Is.True);
     }
 }
@@ -173,7 +135,6 @@ public class RedisTests
 | [MSTest Adapter](testing/mstest.md) | Helper methods for all resource types |
 | [NUnit Adapter](testing/nunit.md) | Helper methods for all resource types |
 | [Docker Model Runner](testing/model.md) | Testing Docker Model Runner |
-| [Plugins](testing/plugins.md) | Extending resources with custom plugins |
 | [Migration from Legacy](testing/migration-from-legacy.md) | Side-by-side migration examples |
 
 ## Running by Category
@@ -182,6 +143,10 @@ Tests use `[Trait("Category", "...")]` attributes (`make test` runs Unit,
 `make test-integration` runs all, `dotnet test --filter "Category=X"` for a
 single category). See [Test Categories & Run Guide](test-categories.md) for
 the full reference.
+
+Use `make check` as the pre-push gate. It runs formatting, unit tests, adapter
+runner tests through `make test-runners`, and coverage. Runner tests stay out of
+coverage because they execute real MSTest/NUnit runners.
 
 ---
 

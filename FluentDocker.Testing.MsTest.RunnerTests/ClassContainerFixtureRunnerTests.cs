@@ -23,6 +23,7 @@ namespace FluentDocker.Testing.MsTest.RunnerTests
       : MsTestClassContainerFixtureBase<ClassContainerFixtureRunnerTests>
   {
     private static readonly MockContainerDriverPack Pack = new();
+    internal static readonly string ContainerName = $"mstest-class-fixture-{Guid.NewGuid():N}";
     private static string? _firstContainerId;
 
     protected override Func<Task<FluentDockerKernel>>? KernelFactory =>
@@ -33,7 +34,7 @@ namespace FluentDocker.Testing.MsTest.RunnerTests
 
     protected override void ConfigureContainer(IContainerBuilder builder)
     {
-      builder.UseImage("alpine").WithName("mstest-class-fixture");
+      builder.UseImage("alpine").WithName(ContainerName);
     }
 
     [TestMethod]
@@ -107,7 +108,7 @@ namespace FluentDocker.Testing.MsTest.RunnerTests
           .ReturnsAsync(CommandResponse<Container>.Ok(new Container
           {
             Id = "class-container",
-            Name = "mstest-class-fixture",
+            Name = ClassContainerFixtureRunnerTests.ContainerName,
             State = new ContainerState { Running = true, Status = "running" }
           }));
       ContainerDriver

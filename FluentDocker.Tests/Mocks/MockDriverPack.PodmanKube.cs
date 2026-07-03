@@ -67,6 +67,38 @@ namespace FluentDocker.Tests.Mocks
     }
 
     /// <summary>
+    /// Sets up PodmanKubernetesDriver.PlayAsync to fail.
+    /// </summary>
+    public MockDriverPack SetupKubePlayFailure(
+        string error = "kube play failed",
+        string errorCode = ErrorCodes.General.Unknown)
+    {
+      PodmanKubernetesDriver
+          .Setup(d => d.PlayAsync(
+              It.IsAny<DriverContext>(),
+              It.IsAny<KubePlayConfig>(),
+              It.IsAny<CancellationToken>()))
+          .ReturnsAsync(CommandResponse<KubePlayResult>.Fail(error, errorCode));
+      return this;
+    }
+
+    /// <summary>
+    /// Sets up PodmanKubernetesDriver.DownAsync to fail.
+    /// </summary>
+    public MockDriverPack SetupKubeDownFailure(
+        string error = "kube down failed",
+        string errorCode = ErrorCodes.General.Unknown)
+    {
+      PodmanKubernetesDriver
+          .Setup(d => d.DownAsync(
+              It.IsAny<DriverContext>(),
+              It.IsAny<string>(),
+              It.IsAny<CancellationToken>()))
+          .ReturnsAsync(CommandResponse<Unit>.Fail(error, errorCode));
+      return this;
+    }
+
+    /// <summary>
     /// Sets up PodmanKubernetesDriver.GenerateAsync to return YAML.
     /// </summary>
     public MockDriverPack SetupKubeGenerate(string yaml = "apiVersion: v1\nkind: Pod")

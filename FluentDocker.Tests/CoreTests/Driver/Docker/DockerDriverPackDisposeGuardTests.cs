@@ -11,6 +11,7 @@ using Xunit;
 namespace FluentDocker.Tests.CoreTests.Driver.Docker
 {
   [Trait("Category", "Unit")]
+  [Trait("Requires", "PosixShell")]
   public class DockerDriverPackDisposeGuardTests : IDisposable
   {
     private readonly string _scratch =

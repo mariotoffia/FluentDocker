@@ -16,7 +16,8 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
   /// Ported from V2 FluentDockerComposeTests.cs
   /// </summary>
   [Trait("Category", "Integration")]
-  [Trait("Category", "Compose")]
+  [Trait("Category", "Integration")]
+  [Trait("Area", "Compose")]
   [Collection("DockerDriver")]
   public partial class ComposeDriverTests : DockerDriverTestBase
   {

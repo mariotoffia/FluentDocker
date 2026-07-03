@@ -168,7 +168,7 @@ namespace FluentDocker.Tests.CoreTests.Testing.Adapters
               It.IsAny<CancellationToken>()))
           .ThrowsAsync(new InvalidOperationException("create failed"));
 
-      await Assert.ThrowsAsync<InvalidOperationException>(() =>
+      await Assert.ThrowsAsync<ResourceInitializationException>(() =>
           MsTestResourceHelpers.CreateContainerAsync(
               configure: c => c.UseImage("fail:image"),
               kernelFactory: () => Task.FromResult(testKernel),
@@ -261,7 +261,7 @@ namespace FluentDocker.Tests.CoreTests.Testing.Adapters
               It.IsAny<CancellationToken>()))
           .ThrowsAsync(new InvalidOperationException("create failed"));
 
-      await Assert.ThrowsAsync<InvalidOperationException>(() =>
+      await Assert.ThrowsAsync<ResourceInitializationException>(() =>
           MsTestResourceHelpers.CreateResourceAsync<ContainerResource>(
               k => new ContainerResource(k, c => c.UseImage("fail:img")),
               kernelFactory: () => Task.FromResult(testKernel),

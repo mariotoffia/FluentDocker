@@ -54,6 +54,11 @@ test-nunit:
 test-nunit-integration:
 	dotnet test FluentDocker.Testing.NUnit.RunnerTests/FluentDocker.Testing.NUnit.RunnerTests.csproj --framework net10.0 --configuration Debug --filter "Category=Integration" --verbosity normal
 
+# Adapter runner tests use real test frameworks and are intentionally outside
+# coverage; `make check` is the pre-push gate that runs them.
+.PHONY: test-runners
+test-runners: test-mstest test-nunit
+
 .PHONY: test-integration
 test-integration:
 	@mkdir -p .out/test
@@ -109,7 +114,7 @@ format:
 	dotnet format $(SOLUTION)
 
 .PHONY: check
-check: lint test test-mstest test-nunit coverage-check
+check: lint test test-runners coverage-check
 
 .PHONY: coverage
 coverage:
@@ -179,6 +184,7 @@ help:
 	@echo "  test             - Run unit tests only (safe for CI)"
 	@echo "  test-mstest      - Run MSTest adapter runner tests"
 	@echo "  test-nunit       - Run NUnit adapter runner unit tests"
+	@echo "  test-runners     - Run adapter runner tests (outside coverage)"
 	@echo "  test-nunit-integration - Run NUnit adapter runner integration tests"
 	@echo "  test-integration - Run integration tests (Docker + Podman; requires Docker/Podman)"
 	@echo "  test-dmr         - Run real Docker Model Runner tests (requires docker model runtime)"

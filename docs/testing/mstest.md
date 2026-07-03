@@ -125,12 +125,19 @@ public class PerTestRedisTests
 
 ### Per-Class Fixture Base
 
+`[ClassCleanup]` is mandatory for this pattern, and fixed container names can
+collide when test classes run in parallel. Pass the most-derived class as the
+generic argument; reusing a base class generic shares static container state.
+
 ```csharp
 [TestClass]
 public class SharedRedisTests : MsTestClassContainerFixtureBase<SharedRedisTests>
 {
     protected override void ConfigureContainer(IContainerBuilder builder)
-        => builder.UseImage("redis:alpine").WaitForPort("6379/tcp");
+        => builder
+            .UseImage("redis:alpine")
+            .WithName($"redis-tests-{Guid.NewGuid():N}")
+            .WaitForPort("6379/tcp");
 
     [ClassCleanup]
     public static Task ClassCleanup()

@@ -14,6 +14,7 @@ using Xunit;
 namespace FluentDocker.Tests.CoreTests.Driver
 {
   [Trait("Category", "Unit")]
+  [Trait("Requires", "PosixShell")]
   public class CliGroup4RemediationTests
   {
     [Fact]

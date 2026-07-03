@@ -13,7 +13,7 @@ namespace FluentDocker.Testing.Core
   /// Base class for all Docker test resources. Provides shared lifecycle,
   /// diagnostics, cleanup, and hook infrastructure.
   /// </summary>
-  public abstract class ResourceBase : ITestResource
+  public abstract partial class ResourceBase : ITestResource
   {
     private readonly List<Func<ITestResource, Task>> _beforeInitHooks = [];
     private readonly List<Func<ITestResource, Task>> _afterReadyHooks = [];
@@ -21,6 +21,8 @@ namespace FluentDocker.Testing.Core
     private readonly List<Func<ITestResource, Task>> _afterDisposeHooks = [];
     private readonly SemaphoreSlim _lifecycleLock = new(1, 1);
     private bool _provisioned;
+    private int _provisionGeneration;
+    private Task _abandonedProvision;
     private static readonly Action<ILogger, Exception> GracefulAndForceRemoveFailed =
         LoggerMessage.Define(
             LogLevel.Error,
@@ -46,7 +48,6 @@ namespace FluentDocker.Testing.Core
             LogLevel.Warning,
             new EventId(5, nameof(AfterDisposeHookFailed)),
             "After-dispose hook failed.");
-
     /// <summary>
     /// Creates a new resource with the given kernel and options.
     /// </summary>
@@ -160,14 +161,13 @@ namespace FluentDocker.Testing.Core
               "(teardown may have failed). Call DisposeAsync to clean up " +
               "before re-initializing.");
 
-        DriverId = ResolveDriverId();
-        ValidateExpectedDriverType();
-
         using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         cts.CancelAfter(Options.InitializationTimeout);
 
         try
         {
+          DriverId = ResolveDriverId();
+          ValidateExpectedDriverType();
           await RunHooksAsync(_beforeInitHooks, cts.Token).ConfigureAwait(false);
           await PreflightAsync(cts.Token).ConfigureAwait(false);
 
@@ -191,9 +191,15 @@ namespace FluentDocker.Testing.Core
           catch (OperationCanceledException ex)
               when (!cancellationToken.IsCancellationRequested && cts.IsCancellationRequested)
           {
-            ObserveAbandonedCleanup(provisionTask);
+            AbandonProvision(provisionTask);
             throw new TimeoutException(
                 $"Resource initialization timed out after {Options.InitializationTimeout}.", ex);
+          }
+          catch (OperationCanceledException)
+              when (cancellationToken.IsCancellationRequested)
+          {
+            AbandonProvision(provisionTask);
+            throw;
           }
           Diagnostics = null;
           IsInitialized = true;
@@ -202,6 +208,9 @@ namespace FluentDocker.Testing.Core
         catch (Exception ex)
         {
           IsInitialized = false;
+          if (IsExternalCancellation(ex, cancellationToken))
+            throw;
+
           try
           {
             // ponytail: fresh token — the init cts may already be canceled by
@@ -210,7 +219,7 @@ namespace FluentDocker.Testing.Core
             Diagnostics = await CollectDiagnosticsAsync(ex, diagCts.Token).ConfigureAwait(false);
           }
           catch { /* diagnostics must not mask the original failure */ }
-          throw;
+          throw CreateInitializationException(ex);
         }
       }
       finally
@@ -236,6 +245,8 @@ namespace FluentDocker.Testing.Core
           throw new TimeoutException(
               $"Timed out waiting for resource lifecycle lock during disposal after {Options.TeardownTimeout}.", ex);
         }
+
+        await WaitForAbandonedProvisionAsync(cts.Token).ConfigureAwait(false);
 
         try
         {

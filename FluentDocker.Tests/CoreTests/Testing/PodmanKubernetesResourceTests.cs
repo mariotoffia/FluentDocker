@@ -56,8 +56,9 @@ namespace FluentDocker.Tests.CoreTests.Testing
       var config = new KubePlayConfig { YamlPath = "test.yaml" };
       var resource = new PodmanKubernetesResource(Kernel, config);
 
-      await Assert.ThrowsAsync<CapabilityNotSupportedException>(
+      var ex = await Assert.ThrowsAsync<ResourceInitializationException>(
           () => resource.InitializeAsync(TestContext.Current.CancellationToken));
+      Assert.IsType<CapabilityNotSupportedException>(ex.InnerException);
     }
 
     [Fact]
@@ -73,8 +74,9 @@ namespace FluentDocker.Tests.CoreTests.Testing
       var config = new KubePlayConfig { YamlPath = "test.yaml" };
       var resource = new PodmanKubernetesResource(Kernel, config);
 
-      await Assert.ThrowsAsync<InterfaceNotSupportedException>(
+      var ex = await Assert.ThrowsAsync<ResourceInitializationException>(
           () => resource.InitializeAsync(TestContext.Current.CancellationToken));
+      Assert.IsType<InterfaceNotSupportedException>(ex.InnerException);
     }
 
     [Fact]
@@ -97,9 +99,10 @@ namespace FluentDocker.Tests.CoreTests.Testing
       var config = new KubePlayConfig { YamlPath = "bad.yaml" };
       var resource = new PodmanKubernetesResource(Kernel, config);
 
-      var ex = await Assert.ThrowsAsync<FluentDockerException>(
+      var ex = await Assert.ThrowsAsync<ResourceInitializationException>(
           () => resource.InitializeAsync(TestContext.Current.CancellationToken));
-      Assert.Contains("bad.yaml", ex.Message);
+      Assert.IsType<FluentDockerException>(ex.InnerException);
+      Assert.Contains("bad.yaml", ex.InnerException.Message);
     }
 
     [Fact]

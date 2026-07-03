@@ -339,8 +339,9 @@ namespace FluentDocker.Tests.CoreTests.Testing
       {
         var resource = new ModelResource(kernel, Model);
 
-        await Assert.ThrowsAsync<ModelRunnerException>(
+        var ex = await Assert.ThrowsAsync<ResourceInitializationException>(
             () => resource.InitializeAsync(TestContext.Current.CancellationToken));
+        Assert.IsType<ModelRunnerException>(ex.InnerException);
         Assert.False(resource.IsInitialized);
       }
     }

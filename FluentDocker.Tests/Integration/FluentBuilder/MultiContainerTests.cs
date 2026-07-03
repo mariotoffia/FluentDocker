@@ -18,7 +18,8 @@ namespace FluentDocker.Tests.Integration.FluentBuilder
   /// </summary>
   [Collection("DockerDriver")]
   [Trait("Category", "Integration")]
-  [Trait("Category", "MultiContainer")]
+  [Trait("Category", "Integration")]
+  [Trait("Area", "MultiContainer")]
   public class MultiContainerTests : IAsyncLifetime
   {
     private FluentDockerKernel _kernel = null!;

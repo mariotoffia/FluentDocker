@@ -183,8 +183,9 @@ namespace FluentDocker.Tests.CoreTests.Testing
               InitializationTimeout = TimeSpan.FromMilliseconds(50)
             });
 
-        await Assert.ThrowsAsync<TimeoutException>(
+        var ex = await Assert.ThrowsAsync<ResourceInitializationException>(
             () => resource.InitializeAsync(TestContext.Current.CancellationToken));
+        Assert.IsType<TimeoutException>(ex.InnerException);
 
         Assert.False(resource.DiagnosticsTokenWasCanceled);
       }
@@ -219,7 +220,7 @@ namespace FluentDocker.Tests.CoreTests.Testing
     }
 
     [Fact]
-    public async Task DisposeAsync_ResourceThrows_LeavesKernelAlive()
+    public async Task DisposeAsync_ResourceThrows_DisposesKernel()
     {
       var (kernel, _) = await MockKernelBuilderExtensions
           .CreateWithMockDriverAsync();
@@ -230,13 +231,11 @@ namespace FluentDocker.Tests.CoreTests.Testing
           () => ResourceLifecycle.DisposeAsync(throwingResource, kernel));
 
       Assert.Equal("Simulated dispose failure", ex.Message);
-      Assert.Equal("docker", kernel.DefaultDriverId);
-
-      await kernel.DisposeAsync();
+      Assert.Throws<ObjectDisposedException>(() => kernel.DefaultDriverId);
     }
 
     [Fact]
-    public async Task DisposeAsync_ResourceThrows_DoesNotCallKernelDispose()
+    public async Task DisposeAsync_ResourceThrows_StillCallsKernelDispose()
     {
       var kernel = new TrackingKernel();
       var throwingResource = new FakeResource(throwOnDispose: true);
@@ -244,9 +243,7 @@ namespace FluentDocker.Tests.CoreTests.Testing
       await Assert.ThrowsAsync<InvalidOperationException>(
           () => ResourceLifecycle.DisposeAsync(throwingResource, kernel));
 
-      Assert.False(kernel.DisposeWasCalled);
-
-      await kernel.DisposeAsync();
+      Assert.True(kernel.DisposeWasCalled);
     }
 
     [Fact]

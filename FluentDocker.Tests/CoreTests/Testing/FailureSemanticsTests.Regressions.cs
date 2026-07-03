@@ -195,8 +195,9 @@ namespace FluentDocker.Tests.CoreTests.Testing
           Task.Delay(TimeSpan.FromSeconds(15), TestContext.Current.CancellationToken));
 
       Assert.Same(initTask, completed);
-      var ex = await Assert.ThrowsAsync<InvalidOperationException>(() => initTask);
-      Assert.Contains("trigger diagnostics", ex.Message);
+      var ex = await Assert.ThrowsAsync<ResourceInitializationException>(() => initTask);
+      Assert.IsType<InvalidOperationException>(ex.InnerException);
+      Assert.Contains("trigger diagnostics", ex.InnerException.Message);
       Assert.NotNull(resource.Diagnostics);
     }
   }

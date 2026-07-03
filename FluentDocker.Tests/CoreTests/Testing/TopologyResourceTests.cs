@@ -86,8 +86,9 @@ namespace FluentDocker.Tests.CoreTests.Testing
             builder.UseContainer(c => c.UseImage("alpine:latest"));
           });
 
-      await Assert.ThrowsAsync<FluentDocker.Common.CapabilityNotSupportedException>(
+      var ex = await Assert.ThrowsAsync<ResourceInitializationException>(
           () => resource.InitializeAsync(TestContext.Current.CancellationToken));
+      Assert.IsType<FluentDocker.Common.CapabilityNotSupportedException>(ex.InnerException);
     }
 
     [Fact]

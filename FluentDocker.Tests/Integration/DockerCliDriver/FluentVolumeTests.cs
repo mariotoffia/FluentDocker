@@ -12,7 +12,8 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
   /// Ported from V2 FluentVolumeTests.cs
   /// </summary>
   [Trait("Category", "Integration")]
-  [Trait("Category", "FluentVolume")]
+  [Trait("Category", "Integration")]
+  [Trait("Area", "FluentVolume")]
   [Collection("DockerDriver")]
   public class FluentVolumeTests : DockerDriverTestBase
   {

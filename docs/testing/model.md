@@ -514,4 +514,3 @@ Keep live DMR tests gated by the probe above.
 
 - [core.md](core.md) — `ITestResource`, `ResourceLifecycle`, `DockerResourceOptions`.
 - [xunit.md](xunit.md) · [nunit.md](nunit.md) · [mstest.md](mstest.md) — per-framework adapter details.
-- [plugins.md](plugins.md) — building custom resources on the same generic path.

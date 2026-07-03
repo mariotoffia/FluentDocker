@@ -56,6 +56,22 @@ namespace FluentDocker.Tests.Mocks
     }
 
     /// <summary>
+    /// Sets up ComposeDriver.DownAsync to fail.
+    /// </summary>
+    public MockDriverPack SetupComposeDownFailure(
+        string error = "compose down failed",
+        string errorCode = ErrorCodes.General.Unknown)
+    {
+      ComposeDriver
+          .Setup(d => d.DownAsync(
+              It.IsAny<DriverContext>(),
+              It.IsAny<ComposeDownConfig>(),
+              It.IsAny<CancellationToken>()))
+          .ReturnsAsync(CommandResponse<Unit>.Fail(error, errorCode));
+      return this;
+    }
+
+    /// <summary>
     /// Sets up ComposeDriver.ListAsync to return services.
     /// </summary>
     public MockDriverPack SetupComposeList(params ComposeServiceInfo[] services)
@@ -137,6 +153,22 @@ namespace FluentDocker.Tests.Mocks
               It.IsAny<ComposeStopConfig>(),
               It.IsAny<CancellationToken>()))
           .ReturnsAsync(FluentDocker.Model.Drivers.CommandResponse<Unit>.Ok(Unit.Default));
+      return this;
+    }
+
+    /// <summary>
+    /// Sets up ComposeDriver.StopAsync to fail.
+    /// </summary>
+    public MockDriverPack SetupComposeStopFailure(
+        string error = "compose stop failed",
+        string errorCode = ErrorCodes.General.Unknown)
+    {
+      ComposeDriver
+          .Setup(d => d.StopAsync(
+              It.IsAny<DriverContext>(),
+              It.IsAny<ComposeStopConfig>(),
+              It.IsAny<CancellationToken>()))
+          .ReturnsAsync(CommandResponse<Unit>.Fail(error, errorCode));
       return this;
     }
 

@@ -14,7 +14,8 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
   /// Ported from V2 IssuesTests.cs
   /// </summary>
   [Trait("Category", "Integration")]
-  [Trait("Category", "Regression")]
+  [Trait("Category", "Integration")]
+  [Trait("Area", "Regression")]
   [Collection("DockerDriver")]
   public class RegressionTests : DockerDriverTestBase
   {

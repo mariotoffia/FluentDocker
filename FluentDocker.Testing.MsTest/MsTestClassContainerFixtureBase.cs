@@ -16,6 +16,9 @@ namespace FluentDocker.Testing.MsTest
   /// <remarks>
   /// MSTest lifecycle hooks are static for class cleanup, so the concrete type is
   /// part of the generic base to keep one shared container per derived test class.
+  /// Pass the most-derived class as <typeparamref name="TFixture"/>. If class
+  /// <c>B</c> derives from class <c>A</c> and both close this base as <c>A</c>,
+  /// they share the same static container and cleanup state.
   /// Use <see cref="MsTestContainerFixtureBase"/> when each test method should get
   /// a fresh container.
   /// </remarks>

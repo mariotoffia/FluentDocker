@@ -60,8 +60,9 @@ namespace FluentDocker.Tests.CoreTests.Testing
       var config = new StackDeployConfig { StackName = "test" };
       var resource = new SwarmStackResource(Kernel, config);
 
-      await Assert.ThrowsAsync<CapabilityNotSupportedException>(
+      var ex = await Assert.ThrowsAsync<ResourceInitializationException>(
           () => resource.InitializeAsync(TestContext.Current.CancellationToken));
+      Assert.IsType<CapabilityNotSupportedException>(ex.InnerException);
     }
 
     [Fact]
@@ -77,8 +78,9 @@ namespace FluentDocker.Tests.CoreTests.Testing
       var config = new StackDeployConfig { StackName = "test" };
       var resource = new SwarmStackResource(Kernel, config);
 
-      await Assert.ThrowsAsync<InterfaceNotSupportedException>(
+      var ex = await Assert.ThrowsAsync<ResourceInitializationException>(
           () => resource.InitializeAsync(TestContext.Current.CancellationToken));
+      Assert.IsType<InterfaceNotSupportedException>(ex.InnerException);
     }
 
     [Fact]
@@ -102,9 +104,10 @@ namespace FluentDocker.Tests.CoreTests.Testing
       var config = new StackDeployConfig { StackName = "fail-stack" };
       var resource = new SwarmStackResource(Kernel, config);
 
-      var ex = await Assert.ThrowsAsync<FluentDockerException>(
+      var ex = await Assert.ThrowsAsync<ResourceInitializationException>(
           () => resource.InitializeAsync(TestContext.Current.CancellationToken));
-      Assert.Contains("fail-stack", ex.Message);
+      Assert.IsType<FluentDockerException>(ex.InnerException);
+      Assert.Contains("fail-stack", ex.InnerException.Message);
     }
 
     [Fact]

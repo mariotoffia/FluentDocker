@@ -53,6 +53,10 @@ one reference; then you only add `FluentDocker.Testing.MsTest`.
 
 ## Base-class fixture
 
+Recommended entry point: use `MsTestContainerFixtureBase` for a fresh container
+per test method. Use `MsTestClassContainerFixtureBase<TFixture>` only when a
+single container must be shared by the whole test class.
+
 ```csharp
 using FluentDocker.Builders;
 using FluentDocker.Testing.MsTest;
@@ -74,6 +78,42 @@ public sealed class RedisTests : MsTestContainerFixtureBase
 ```
 
 The base class creates one container per test method. `Resource`, `Container`, and `Kernel` are non-null after `TestInitialize`; earlier access throws `InvalidOperationException`.
+
+## Class-scoped fixture base
+
+`[ClassCleanup]` is mandatory. Without it, MSTest leaves the static container and
+kernel alive until the process exits. Use a unique container name when you set
+one explicitly; fixed names collide under parallel runs.
+
+```csharp
+using FluentDocker.Builders;
+using FluentDocker.Testing.MsTest;
+using Microsoft.VisualStudio.TestTools.UnitTesting;
+
+[TestClass]
+public sealed class SharedRedisTests
+    : MsTestClassContainerFixtureBase<SharedRedisTests>
+{
+  protected override void ConfigureContainer(IContainerBuilder builder)
+      => builder
+          .UseImage("redis:7-alpine")
+          .WithName($"redis-tests-{Guid.NewGuid():N}");
+
+  [ClassCleanup]
+  public static Task ClassCleanup() => CleanupClassAsync();
+
+  [TestMethod]
+  public async Task Redis_IsRunning()
+  {
+    var info = await Container.InspectAsync();
+    Assert.AreEqual("running", info.State.Status);
+  }
+}
+```
+
+Pass the most-derived class as `TFixture`. If `B : A` reuses
+`MsTestClassContainerFixtureBase<A>`, both classes share the same static
+container and cleanup state.
 
 ## Class-scoped helper API
 

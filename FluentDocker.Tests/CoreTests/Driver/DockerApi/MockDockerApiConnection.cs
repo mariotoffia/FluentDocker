@@ -37,6 +37,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
         Exception? StreamException);
 
     private readonly List<ResponseEntry> _entries = [];
+    private readonly List<(string PathContains, Func<Stream> Factory)> _streamFactories = [];
     private readonly List<CapturedRequest> _requests = [];
     private readonly List<TrackingContent> _contents = [];
     private readonly List<RecordingStream> _streams = [];
@@ -123,6 +124,18 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
     {
       _entries.Add(new ResponseEntry(
           "STREAM_READ_THROW", pathContains, HttpStatusCode.OK, null, null, prefix, ex));
+      return this;
+    }
+
+    /// <summary>
+    /// Sets up a stream endpoint whose stream is produced by <paramref name="factory"/>,
+    /// for tests needing full control over read timing (e.g. gated blocking streams).
+    /// Takes precedence over other stream setups for matching paths.
+    /// </summary>
+    public MockDockerApiConnection SetupStreamFactory(
+        string pathContains, Func<Stream> factory)
+    {
+      _streamFactories.Add((pathContains, factory));
       return this;
     }
 
@@ -252,6 +265,13 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
     private Stream ResolveStream(string path)
 #pragma warning restore CA1859
     {
+      var factory = _streamFactories
+          .Where(f => path.Contains(f.PathContains))
+          .Select(f => f.Factory)
+          .LastOrDefault();
+      if (factory != null)
+        return factory();
+
       // A STREAM_THROW entry simulates a stream-open failure.
       var throwEntry = _entries
           .Where(e => e.Method == "STREAM_THROW" && path.Contains(e.PathContains))
@@ -283,6 +303,48 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
       _streams.Add(stream);
       return stream;
     }
+  }
+
+  /// <summary>
+  /// Serves a fixed prefix on the first read, signals, then blocks forever on
+  /// subsequent reads until the read's own cancellation token fires.
+  /// </summary>
+  public sealed class GatedTailStream(byte[] prefix, TaskCompletionSource served) : Stream
+  {
+    private bool _prefixServed;
+
+    public override bool CanRead => true;
+    public override bool CanSeek => false;
+    public override bool CanWrite => false;
+    public override long Length => throw new NotSupportedException();
+    public override long Position
+    {
+      get => throw new NotSupportedException();
+      set => throw new NotSupportedException();
+    }
+
+    public override async ValueTask<int> ReadAsync(
+        Memory<byte> buffer, CancellationToken cancellationToken = default)
+    {
+      if (!_prefixServed)
+      {
+        _prefixServed = true;
+        prefix.CopyTo(buffer);
+        served.TrySetResult();
+        return prefix.Length;
+      }
+
+      await Task.Delay(Timeout.Infinite, cancellationToken).ConfigureAwait(false);
+      return 0;
+    }
+
+    public override int Read(byte[] buffer, int offset, int count) =>
+        ReadAsync(buffer.AsMemory(offset, count)).AsTask().GetAwaiter().GetResult();
+
+    public override void Flush() { }
+    public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
+    public override void SetLength(long value) => throw new NotSupportedException();
+    public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
   }
 
   /// <summary>A MemoryStream that records whether it was disposed, so tests can assert resource cleanup.</summary>

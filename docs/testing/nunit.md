@@ -11,10 +11,24 @@ Package: `FluentDocker.Testing.NUnit`
 
 ## Step by Step
 
-- Basics: [Helper Methods](#helper-methods), [OneTimeSetUp Example](#onetimesetup-example), [Assembly-Level SetUpFixture](#assembly-level-setupfixture)
+- Basics: [Fixture Base](#fixture-base), [Helper Methods](#helper-methods), [OneTimeSetUp Example](#onetimesetup-example), [Assembly-Level SetUpFixture](#assembly-level-setupfixture)
 - Intermediate: [Compose Example](#compose-example), [Swarm Stack Example](#swarm-stack-example), [Podman Kubernetes Example](#podman-kubernetes-example)
 - Models: [Docker Model Runner Example](#docker-model-runner-example)
 - Advanced: [Generic / Custom Resource](#generic--custom-resource), [Image / Network / Volume via the Generic Path](#image--network--volume-via-the-generic-path)
+
+## Fixture Base
+
+Recommended entry point: use `NUnitContainerFixtureBase` for container
+integration suites. Use helper methods when you need custom lifetime control.
+
+```csharp
+[TestFixture]
+public sealed class RedisTests : NUnitContainerFixtureBase
+{
+    protected override void ConfigureContainer(IContainerBuilder builder)
+        => builder.UseImage("redis:alpine").WaitForPort("6379/tcp");
+}
+```
 
 ## Helper Methods
 

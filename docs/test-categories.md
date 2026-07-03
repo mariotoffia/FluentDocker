@@ -14,27 +14,25 @@ This document lists every category, how to run it, and what infrastructure it ne
 
 | Category | Count | CI-Safe? | Infrastructure Required | Makefile Target |
 |---|---|---|---|---|
-| `Unit` | ~2,700 | Yes | None | `make test` |
-| `Integration` | ~140 | Yes | Docker daemon | `make test-integration` |
+| `Unit` | ~2,700 | Yes | None (hermetic; may spawn owned child processes, see below) | `make test` |
+| `Integration` | ~140 | Yes | Real Docker daemon (or timing-sensitive environment behavior) | `make test-integration` |
 | `PodmanIntegration` | ~45 | Yes* | Podman + running machine | `make test-integration` |
-| `DevLocal` | ~25 | No | Docker Swarm + local registry | `make test-devlocal` |
-| `LongRunning` | ~12 | No | Podman machine (may start/stop) | manual |
-| `ManualOnly` | ~20 | No | Local registry, manual config | manual |
-| `WaitCondition` | ~10 | Yes | Docker daemon | `make test-integration` |
-| `Regression` | ~6 | Yes | Docker daemon | `make test-integration` |
-| `MultiContainer` | ~10 | Yes | Docker daemon | `make test-integration` |
-| `FluentVolume` | ~6 | Yes | Docker daemon | `make test-integration` |
-| `FluentNetwork` | ~6 | Yes | Docker daemon | `make test-integration` |
-| `FluentContainer` | ~14 | Yes | Docker daemon | `make test-integration` |
-| `Compose` | ~13 | Yes | Docker daemon + Compose | `make test-integration` |
+| `DevLocal` | ~25 | No | Docker Swarm + local registry / manual config | `make test-devlocal` |
 
 \* PodmanIntegration is CI-safe only when a Podman machine is pre-provisioned in the CI environment.
 
-> Counts as of 2026-05-11; numbers reflect `[Fact]` + `[Theory]` occurrences in files
-> carrying the matching `[Trait("Category", ...)]` attribute. Refresh by running
-> `dotnet test --list-tests --filter "Category=Unit"` (or the appropriate category)
-> against the test project. Some categories overlap (a test may carry both
-> `Integration` and `WaitCondition`, for example).
+**Taxonomy decision (recorded):** `Category` encodes the runtime boundary that matters for
+the coverage gate. `Unit` means hermetic — no container runtime, no external network — but
+*may* spawn an owned child process (a fake `docker`/`podman` shell script) because those
+tests exercise real CLI-driver code paths and belong in the enforced coverage floor. Such
+tests carry `Requires=PosixShell` and self-skip on Windows via `Assert.Skip`. `Integration`
+means a real daemon (or, rarely, OS behavior that cannot be made deterministic in-process,
+tagged via `Requires`). Feature labels belong in `Area`; environment needs belong in
+`Requires`. The coverage floors in `make check` are measured on `Category=Unit` only.
+
+> Counts drift as tests move. Refresh by running
+> `dotnet test --list-tests --filter "Category=Unit"` (or the appropriate category).
+> Feature labels belong in `Area`; environment needs belong in `Requires`.
 
 ## Running Tests
 
@@ -49,19 +47,19 @@ make test
 
 ```bash
 make test-integration
-# runs ONLY Category=Integration and Category=PodmanIntegration (Docker + Podman),
-# NOT the full suite. DevLocal, LongRunning, ManualOnly, and DMR are separate/manual.
+# runs ONLY Category=Integration and Category=PodmanIntegration.
+# DevLocal and DMR are separate/manual.
 ```
 
 `make test-integration` filters `Category=Integration|Category=PodmanIntegration`, so it
-does **not** cover `DevLocal` (Swarm + registry), `LongRunning`, `ManualOnly`, or the
-Docker Model Runner (`Requires=Dmr`) categories — run those explicitly (see below).
+does **not** cover `DevLocal` (Swarm + registry/manual config) or Docker Model
+Runner tests that also carry `Requires=Dmr`.
 
 ### A single category
 
 ```bash
 dotnet test --filter "Category=PodmanIntegration"
-dotnet test --filter "Category=Regression"
+dotnet test --filter "Area=Regression"
 ```
 
 ### Combining categories
@@ -70,8 +68,8 @@ dotnet test --filter "Category=Regression"
 # Unit + Integration only
 dotnet test --filter "Category=Unit|Category=Integration"
 
-# Everything except DevLocal and ManualOnly
-dotnet test --filter "Category!=DevLocal&Category!=ManualOnly&Category!=LongRunning"
+# Everything except DevLocal
+dotnet test --filter "Category!=DevLocal"
 ```
 
 ### DevLocal tests (Swarm + registry)
@@ -106,11 +104,12 @@ what changed — each is a distinct gate with its own infrastructure:
 |---|---|---|---|
 | Build + unit | `make test` (net10.0) + `make test-net8` | None | Every change (CI runs this) |
 | Lint / format | `make lint` | None | Every change |
+| Pre-push gate | `make check` | None | Runs lint, unit, adapter runners, coverage |
 | Docker + Podman integration | `make test-integration` | Docker daemon; Podman machine for `PodmanIntegration` | Any driver/service/lifecycle change |
 | Coverage floor | `make coverage-check` | None | Before merge/release |
 | Docker Model Runner | `make test-dmr` (`FLUENTDOCKER_REQUIRE_DMR=1`) | Docker Model Runner runtime | Model Runner / inference changes |
 | DevLocal (Swarm + registry) | `make devlocal-setup && make test-devlocal && make devlocal-teardown` | Docker Swarm + local registry | Swarm/stack or registry changes |
-| LongRunning / ManualOnly | `dotnet test --filter "Category=LongRunning"` (and `ManualOnly`) | Podman machine / manual config | On demand, before a tagged release |
+| Manual requirements | `dotnet test --filter "Requires=ManualOnly|Requires=LongRunning"` | Podman machine / manual config | On demand, before a tagged release |
 
 CI runs build + unit on every push and gates the Docker/Podman/DMR suites behind PR
 label, schedule, or manual dispatch — a green CI badge alone does **not** prove the
@@ -122,19 +121,19 @@ Tests use class-level traits for the primary category and may add secondary trai
 
 ```csharp
 [Trait("Category", "Integration")]
-[Trait("Category", "WaitCondition")]
+[Trait("Area", "WaitCondition")]
 public class WaitConditionTests { }
 ```
 
 When filtering, secondary traits allow finer-grained selection:
 
 ```bash
-dotnet test --filter "Category=WaitCondition"
+dotnet test --filter "Area=WaitCondition"
 ```
 
 ## Adding a New Category
 
-1. Apply `[Trait("Category", "YourCategory")]` to the test class.
-2. Add a row to the table above.
-3. If special infrastructure is needed, add setup/teardown instructions.
-4. If CI should skip it, ensure the `make test` filter excludes it.
+1. Pick one existing category: `Unit`, `Integration`, `PodmanIntegration`, or `DevLocal`.
+2. Put feature labels in `[Trait("Area", "...")]`.
+3. Put environment gates in `[Trait("Requires", "...")]`.
+4. Add setup/teardown instructions if new infrastructure is needed.

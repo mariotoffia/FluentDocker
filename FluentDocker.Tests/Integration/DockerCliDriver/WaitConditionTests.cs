@@ -16,7 +16,8 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
   /// Ported from V2 WaitTests.cs
   /// </summary>
   [Trait("Category", "Integration")]
-  [Trait("Category", "WaitCondition")]
+  [Trait("Category", "Integration")]
+  [Trait("Area", "WaitCondition")]
   [Collection("DockerDriver")]
   public partial class WaitConditionTests : DockerDriverTestBase
   {

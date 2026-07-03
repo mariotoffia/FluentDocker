@@ -7,6 +7,8 @@ namespace FluentDocker.Testing.Core
   /// </summary>
   public class DockerResourceOptions
   {
+    private static readonly string ProcessSessionId = SessionLabel.NewSessionId();
+
     /// <summary>
     /// Driver to use for this resource. Defaults to <see cref="DriverSelection.Default"/>.
     /// </summary>
@@ -17,10 +19,11 @@ namespace FluentDocker.Testing.Core
     /// </summary>
     public bool ForceRemoveOnDispose { get; set; } = true;
 
+    private TimeSpan _initializationTimeout = TimeSpan.FromMinutes(2);
+
     /// <summary>
     /// Timeout for initialization (including readiness waits).
     /// </summary>
-    private TimeSpan _initializationTimeout = TimeSpan.FromMinutes(2);
     public TimeSpan InitializationTimeout
     {
       get => _initializationTimeout;
@@ -38,10 +41,11 @@ namespace FluentDocker.Testing.Core
     /// </summary>
     public bool CaptureLogsOnFailure { get; set; } = true;
 
+    private int _maxDiagnosticLogLines = 200;
+
     /// <summary>
     /// Maximum log lines to capture on failure.
     /// </summary>
-    private int _maxDiagnosticLogLines = 200;
     public int MaxDiagnosticLogLines
     {
       get => _maxDiagnosticLogLines;
@@ -55,19 +59,21 @@ namespace FluentDocker.Testing.Core
     }
 
     /// <summary>
-    /// Session ID used for orphan tracking labels. Defaults to a unique ID per options instance.
-    /// Share the same options (or set the same SessionId) across resources to group them.
+    /// Session ID used for orphan tracking labels. Defaults to one ID per process
+    /// so sibling fixtures are treated as the same live test session. Set this
+    /// property to override the grouping.
     /// </summary>
-    public string SessionId { get; set; } = SessionLabel.NewSessionId();
+    public string SessionId { get; set; } = ProcessSessionId;
+
+    private TimeSpan _orphanCleanupMinimumAge = TimeSpan.FromHours(1);
 
     /// <summary>
     /// Minimum age a FluentDocker-managed resource from another session must reach
     /// before orphan cleanup may remove it. The default one-hour guard prevents
     /// <see cref="CleanupOrphansOnInit"/> from deleting live resources created by
-    /// sibling test sessions in parallel CI. Set to <see cref="TimeSpan.Zero"/> to
+    /// another test process in parallel CI. Set to <see cref="TimeSpan.Zero"/> to
     /// disable the age guard; negative values are rejected.
     /// </summary>
-    private TimeSpan _orphanCleanupMinimumAge = TimeSpan.FromHours(1);
     public TimeSpan OrphanCleanupMinimumAge
     {
       get => _orphanCleanupMinimumAge;
@@ -97,11 +103,12 @@ namespace FluentDocker.Testing.Core
     /// </summary>
     public bool CleanupOrphansOnInit { get; set; }
 
+    private TimeSpan _teardownTimeout = TimeSpan.FromSeconds(120);
+
     /// <summary>
     /// Timeout for teardown (stop + remove) during disposal.
     /// Prevents hung cleanup from blocking CI pipelines indefinitely.
     /// </summary>
-    private TimeSpan _teardownTimeout = TimeSpan.FromSeconds(120);
     public TimeSpan TeardownTimeout
     {
       get => _teardownTimeout;

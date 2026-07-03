@@ -15,7 +15,7 @@ with framework adapters.
 
 - Basics: [Package Changes](#package-changes), [Why Migrate?](#why-migrate)
 - Intermediate: [xUnit: FluentDockerTestBase to XunitContainerFixture](#xunit-fluentdockertestbase-to-xunitcontainerfixture), [MSTest: FluentDockerTestBase to MsTestResourceHelpers](#mstest-fluentdockertestbase-to-mstestresourcehelpers)
-- Advanced: [Legacy PostgresTestBase to Plugin Pattern](#legacy-postgrestestbase-to-plugin-pattern), [Driver Selection](#driver-selection)
+- Advanced: [Legacy PostgresTestBase to Custom Fixture](#legacy-postgrestestbase-to-custom-fixture), [Driver Selection](#driver-selection)
 
 ## Package Changes
 
@@ -33,7 +33,7 @@ The legacy packages have been removed. Use the new packages listed above.
   constructors.
 - **Driver selection**: Choose Docker CLI, Docker API, or Podman CLI per test.
 - **Diagnostics**: Automatic log capture and inspect data on failure.
-- **Plugin ecosystem**: Use external plugins for Postgres, Redis, etc.
+- **Custom fixtures**: Configure Postgres, Redis, and similar dependencies directly.
 - **Lifecycle hooks**: Before/after initialize and dispose callbacks.
 - **Capability checks**: Preflight validation before provisioning.
 
@@ -232,7 +232,7 @@ public class ComposeTests
 
 ---
 
-## Legacy PostgresTestBase to Plugin Pattern
+## Legacy PostgresTestBase to Custom Fixture
 
 ### Before (legacy)
 
@@ -252,10 +252,10 @@ public class MyDbTests : PostgresTestBase
 }
 ```
 
-### After (plugin pattern)
+### After (custom fixture)
 
 Technology-specific fixtures like `PostgresTestBase` are no longer in core.
-Use an external plugin or configure the container directly:
+Configure the container directly:
 
 ```csharp
 using FluentDocker.Testing.MsTest;
@@ -302,16 +302,6 @@ public class MyDbTests
         conn.Open();
     }
 }
-```
-
-Or use a plugin package like `FluentDocker.Testing.Plugin.Postgres` when
-available:
-
-```csharp
-var host = new TestPluginHost();
-host.Add(new PostgresPlugin(kernel));
-var resource = host.Create<ContainerResource>("postgres");
-await resource.InitializeAsync();
 ```
 
 ---

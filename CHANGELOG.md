@@ -17,6 +17,8 @@ Production-readiness remediation of the preview API surface. Recompile and revie
 - **`BuildAsync()` with zero `Use*` calls now throws `InvalidOperationException`** instead of silently returning empty results (`FluentDockerException` remains the type for docker-level validation failures; empty build is a programming error).
 - **Removed dead public API**: `ComposeServiceBuilder`, `ImageBuilderConfig`, `NetworkWithAlias`.
 - **`BuildResults.GetContainer/GetNetwork/GetVolume`** — lookups are now case-sensitive (`Ordinal`; docker names are case-sensitive) and annotated as nullable.
+- **Removed `FluentDocker.Testing.Core.Plugins`** — the unused resource-plugin host (`ITestResourcePlugin`, `TestResourcePluginHost`) is deleted; no in-repo or known external consumers existed.
+- **`ITestResource.InitializeAsync` failure contract** — all non-cancellation initialization failures are now uniformly wrapped in `ResourceInitializationException` (carrying `Diagnostics`); catch blocks matching concrete inner exceptions (e.g. `TimeoutException`) must catch the wrapper and inspect `InnerException`.
 
 ### Added
 
