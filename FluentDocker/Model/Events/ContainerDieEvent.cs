@@ -3,6 +3,7 @@ namespace FluentDocker.Model.Events
   /// <summary>
   /// Emitted when a container has been buried (exited).
   /// </summary>
+  [System.Obsolete("Unused by FluentDocker and scheduled for removal in v4. Use stream driver ContainerEvent instead.")]
   public sealed class ContainerDieEvent : FdEvent<ContainerDieEvent.ContainerDieActor>
   {
     public ContainerDieEvent()
@@ -17,6 +18,7 @@ namespace FluentDocker.Model.Events
     /// <remarks>
     /// The actor is the hash of the container.
     /// </remarks>
+    [System.Obsolete("Unused by FluentDocker and scheduled for removal in v4. Use stream driver ContainerEvent instead.")]
     public sealed class ContainerDieActor : EventActor
     {
       /// <summary>

@@ -14,6 +14,8 @@ namespace FluentDocker.Drivers.Docker.Api.Components
   /// </summary>
   public partial class DockerApiImageDriver
   {
+    private const int RealPathBufferSize = 4096;
+
     #region Build Context
 
     /// <summary>
@@ -36,30 +38,29 @@ namespace FluentDocker.Drivers.Docker.Api.Components
           bufferSize: 81920, FileOptions.DeleteOnClose | FileOptions.Asynchronous);
       try
       {
-        using (var writer = SharpCompress.Writers.WriterFactory.OpenWriter(
-            fileStream, SharpCompress.Common.ArchiveType.Tar,
-            new SharpCompress.Writers.Tar.TarWriterOptions(
-                SharpCompress.Common.CompressionType.None, true)))
+        var contextRoot = Path.GetFullPath(contextPath);
+        foreach (var file in EnumerateContextFilesSafe(contextRoot))
         {
-          var contextRoot = Path.GetFullPath(contextPath);
-          foreach (var file in EnumerateContextFilesSafe(contextRoot))
+          var relativePath = Path.GetRelativePath(contextRoot, file.FullName)
+              .Replace('\\', '/');
+          if (filter.IsIgnored(relativePath))
+            continue;
+          try
           {
-            var relativePath = Path.GetRelativePath(contextRoot, file.FullName)
-                .Replace('\\', '/');
-            if (filter.IsIgnored(relativePath))
+            using var src = file.Open(FileMode.Open, FileAccess.Read, FileShare.Read);
+            var openedPath = GetContainedOpenedPath(src, file.FullName, contextRoot);
+            if (openedPath == null)
               continue;
-            try
-            {
-              using var src = file.OpenRead();
-              writer.Write(relativePath, src, file.LastWriteTimeUtc);
-            }
-            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-            {
-              // Dangling in-context symlink or unreadable file: skip it instead of failing the
-              // whole build, mirroring Docker's best-effort context packaging.
-            }
+            DockerApiTarWriter.WriteFile(fileStream, relativePath, src,
+                file.LastWriteTimeUtc, DockerApiTarWriter.FileModeFor(openedPath));
+          }
+          catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+          {
+            // Dangling in-context symlink or unreadable file: skip it instead of failing the
+            // whole build, mirroring Docker's best-effort context packaging.
           }
         }
+        DockerApiTarWriter.Finish(fileStream);
 
         fileStream.Position = 0;
         return fileStream;
@@ -149,7 +150,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
             if (!isSymlink)
               stack.Push(dir);
           }
-          else if (entry is FileInfo file && !(isSymlink && EscapesContext(file, contextRoot)))
+          else if (entry is FileInfo file)
           {
             yield return file;
           }
@@ -157,33 +158,25 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       }
     }
 
-    /// <summary>
-    /// True when <paramref name="file"/> is a symlink whose fully resolved target lies
-    /// outside <paramref name="contextRoot"/>, or cannot be resolved. Such links are
-    /// excluded from the build context so they cannot leak host files.
-    /// </summary>
-    private static bool EscapesContext(FileInfo file, string contextRoot)
+    private static string? GetContainedOpenedPath(FileStream stream, string path, string contextRoot)
     {
       try
       {
-        // Canonicalise both the link and the context root through the real filesystem so
-        // the containment decision matches what the kernel does when the file is opened.
-        // A purely lexical check (Path.GetFullPath / ResolveLinkTarget) cancels "symlink/.."
-        // textually and so lets a link escape through an in-context directory symlink
-        // (e.g. dir -> /etc, link -> dir/../passwd resolves lexically inside but reads /etc/passwd).
         var realRoot = RealPath(contextRoot);
-        var realFile = RealPath(file.FullName);
+        var realFile = RealPath(stream, path);
         if (realFile is null || realRoot is null)
-          return true; // broken / unresolvable link => exclude (safe default)
+          return null;
 
         var root = realRoot.EndsWith(Path.DirectorySeparatorChar)
             ? realRoot
             : realRoot + Path.DirectorySeparatorChar;
-        return realFile != realRoot && !realFile.StartsWith(root, StringComparison.Ordinal);
+        return realFile == realRoot || realFile.StartsWith(root, StringComparison.Ordinal)
+            ? realFile
+            : null;
       }
       catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
       {
-        return true; // exclude (safe default)
+        return null;
       }
     }
 
@@ -214,17 +207,39 @@ namespace FluentDocker.Drivers.Docker.Api.Components
         }
       }
 
-      var ptr = Realpath(ToNullTerminatedUtf8(path), IntPtr.Zero);
-      if (ptr == IntPtr.Zero)
-        return null;
+      var buffer = Marshal.AllocHGlobal(RealPathBufferSize);
       try
       {
-        return Marshal.PtrToStringUTF8(ptr);
+        var ptr = Realpath(ToNullTerminatedUtf8(path), buffer);
+        return ptr == IntPtr.Zero ? null : PtrToUtf8String(buffer, RealPathBufferSize);
       }
       finally
       {
-        Free(ptr);
+        Marshal.FreeHGlobal(buffer);
       }
+    }
+
+    private static string? RealPath(FileStream stream, string fallbackPath)
+    {
+      if (OperatingSystem.IsWindows())
+      {
+        // ponytail: Windows containment is best-effort — lexical after open. Use
+        // GetFinalPathNameByHandle if hostile Windows contexts become a target.
+        return Path.GetFullPath(fallbackPath);
+      }
+
+      if (OperatingSystem.IsLinux())
+        return RealPath($"/proc/self/fd/{stream.SafeFileHandle.DangerousGetHandle().ToInt64()}");
+
+      return RealPath(fallbackPath);
+    }
+
+    private static string PtrToUtf8String(IntPtr ptr, int maxBytes)
+    {
+      var bytes = new byte[maxBytes];
+      Marshal.Copy(ptr, bytes, 0, bytes.Length);
+      var length = Array.IndexOf(bytes, (byte)0);
+      return Encoding.UTF8.GetString(bytes, 0, length < 0 ? bytes.Length : length);
     }
 
     private static byte[] ToNullTerminatedUtf8(string path)
@@ -240,9 +255,6 @@ namespace FluentDocker.Drivers.Docker.Api.Components
     // marshalled as a UTF-8 byte[] rather than a string so no ANSI string marshaling is used.
     [DllImport("libc", EntryPoint = "realpath")]
     private static extern IntPtr Realpath(byte[] path, IntPtr resolved);
-
-    [DllImport("libc", EntryPoint = "free")]
-    private static extern void Free(IntPtr ptr);
 
     #endregion
   }

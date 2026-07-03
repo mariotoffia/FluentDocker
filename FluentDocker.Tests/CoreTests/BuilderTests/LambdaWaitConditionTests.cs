@@ -102,5 +102,21 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
 
       Assert.False(result);
     }
+
+    [Fact]
+    public async Task Lambda_WhenCallerTokenCanceledAndLambdaThrowsOperationCanceled_Rethrows()
+    {
+      using var cts = CancellationTokenSource.CreateLinkedTokenSource(
+          TestContext.Current.CancellationToken);
+      await Assert.ThrowsAsync<OperationCanceledException>(() =>
+          InvokeWaitForLambda(
+              (_, _) =>
+              {
+                cts.Cancel();
+                throw new OperationCanceledException(cts.Token);
+              },
+              10000,
+              cts.Token));
+    }
   }
 }

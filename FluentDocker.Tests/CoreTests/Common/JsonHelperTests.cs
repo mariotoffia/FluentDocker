@@ -63,6 +63,14 @@ namespace FluentDocker.Tests.CoreTests.Common
       Assert.Equal(99, result.Count);
     }
 
+    [Fact]
+    public void TryDeserialize_UnsupportedType_ReturnsDefault()
+    {
+      var result = JsonHelper.TryDeserialize<UnsupportedDto>("""{"type":"System.String"}""");
+
+      Assert.Null(result);
+    }
+
     #endregion
 
     #region TryDeserialize<T>(ReadOnlySpan<byte>)
@@ -205,6 +213,11 @@ namespace FluentDocker.Tests.CoreTests.Common
 
       [JsonPropertyName("count")]
       public int Count { get; set; }
+    }
+
+    private class UnsupportedDto
+    {
+      public System.Type? Type { get; set; }
     }
   }
 }

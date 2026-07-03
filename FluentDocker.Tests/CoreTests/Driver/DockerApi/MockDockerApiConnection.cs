@@ -18,7 +18,8 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
       string Method,
       string Path,
       string? Body,
-      IReadOnlyDictionary<string, string>? Headers = null);
+      IReadOnlyDictionary<string, string>? Headers = null,
+      byte[]? BodyBytes = null);
 
   /// <summary>
   /// In-memory mock of <see cref="IDockerApiConnection"/> that returns canned
@@ -148,22 +149,18 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
     public async Task<HttpResponseMessage> PostAsync(
         string path, HttpContent? content = null, CancellationToken ct = default)
     {
-      var body = content is not null
-          ? await content.ReadAsStringAsync(ct)
-          : null;
+      var (body, bodyBytes) = await ReadContentAsync(content, ct).ConfigureAwait(false);
 
-      Record("POST", path, body);
+      Record("POST", path, body, bodyBytes: bodyBytes);
       return Resolve("POST", path);
     }
 
     public async Task<HttpResponseMessage> PutAsync(
         string path, HttpContent content, CancellationToken ct = default)
     {
-      var body = content is not null
-          ? await content.ReadAsStringAsync(ct)
-          : null;
+      var (body, bodyBytes) = await ReadContentAsync(content, ct).ConfigureAwait(false);
 
-      Record("PUT", path, body);
+      Record("PUT", path, body, bodyBytes: bodyBytes);
       return Resolve("PUT", path);
     }
 
@@ -181,19 +178,21 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
       return Task.FromResult(ResolveStream(path));
     }
 
-    public Task<Stream> PostStreamAsync(
+    public async Task<Stream> PostStreamAsync(
         string path, HttpContent? content = null, CancellationToken ct = default)
     {
-      Record("POST_STREAM", path, null);
-      return Task.FromResult(ResolveStream(path));
+      var (body, bodyBytes) = await ReadContentAsync(content, ct).ConfigureAwait(false);
+      Record("POST_STREAM", path, body, bodyBytes: bodyBytes);
+      return ResolveStream(path);
     }
 
-    public Task<Stream> PostStreamAsync(
+    public async Task<Stream> PostStreamAsync(
         string path, HttpContent? content,
         IReadOnlyDictionary<string, string> headers, CancellationToken ct = default)
     {
-      Record("POST_STREAM", path, null, headers);
-      return Task.FromResult(ResolveStream(path));
+      var (body, bodyBytes) = await ReadContentAsync(content, ct).ConfigureAwait(false);
+      Record("POST_STREAM", path, body, headers, bodyBytes);
+      return ResolveStream(path);
     }
 
     public Task<bool> PingAsync(CancellationToken ct = default)
@@ -208,9 +207,20 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
 
     private void Record(
         string method, string path, string? body,
-        IReadOnlyDictionary<string, string>? headers = null)
+        IReadOnlyDictionary<string, string>? headers = null,
+        byte[]? bodyBytes = null)
     {
-      _requests.Add(new CapturedRequest(method, path, body, headers));
+      _requests.Add(new CapturedRequest(method, path, body, headers, bodyBytes));
+    }
+
+    private static async Task<(string? Body, byte[]? BodyBytes)> ReadContentAsync(
+        HttpContent? content, CancellationToken ct)
+    {
+      if (content is null)
+        return (null, null);
+
+      var bytes = await content.ReadAsByteArrayAsync(ct).ConfigureAwait(false);
+      return (Encoding.UTF8.GetString(bytes), bytes);
     }
 
     private HttpResponseMessage Resolve(string method, string path)

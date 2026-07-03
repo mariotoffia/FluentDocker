@@ -159,29 +159,29 @@ namespace FluentDocker.Tests.CoreTests.Driver.Docker
     #region Constructor -- No Docker Found
 
     [Fact]
-    public void Constructor_NoDockerInSearchPath_ThrowsFluentDockerException()
+    public void Constructor_NoDockerInSearchPath_ThrowsDriverNotAvailableException()
     {
       // The temp directory exists but has no docker binary
-      Assert.Throws<FluentDockerException>(() =>
+      Assert.Throws<DriverNotAvailableException>(() =>
           new DockerBinariesResolver(SudoMechanism.None, null!, _tempDir));
     }
 
     [Fact]
-    public void Constructor_EmptyDirectory_ThrowsFluentDockerException()
+    public void Constructor_EmptyDirectory_ThrowsDriverNotAvailableException()
     {
       var emptyDir = Path.Combine(_tempDir, "empty");
       Directory.CreateDirectory(emptyDir);
 
-      Assert.Throws<FluentDockerException>(() =>
+      Assert.Throws<DriverNotAvailableException>(() =>
           new DockerBinariesResolver(SudoMechanism.None, null!, emptyDir));
     }
 
     [Fact]
-    public void Constructor_NonExistentDirectory_ThrowsFluentDockerException()
+    public void Constructor_NonExistentDirectory_ThrowsDriverNotAvailableException()
     {
       var nonExistent = Path.Combine(_tempDir, "does_not_exist");
 
-      Assert.Throws<FluentDockerException>(() =>
+      Assert.Throws<DriverNotAvailableException>(() =>
           new DockerBinariesResolver(SudoMechanism.None, null!, nonExistent));
     }
 
@@ -262,32 +262,26 @@ namespace FluentDocker.Tests.CoreTests.Driver.Docker
     }
 
     [Fact]
-    public void ResolveBinaryPath_SudoNoPassword_ReturnsSudoPrefix()
+    public void ResolveBinaryPath_SudoNoPassword_ReturnsFqPathOnly()
     {
-      if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-        return; // Sudo prefix is not applied on Windows
-
       var resolver = CreateResolverWithFakeBinary(SudoMechanism.NoPassword);
 
       var path = resolver.ResolveBinaryPath("docker");
 
-      Assert.StartsWith("sudo ", path);
-      Assert.Contains(resolver.MainDockerClient.FqPath, path);
+      Assert.Equal(resolver.MainDockerClient.FqPath, path);
+      Assert.DoesNotContain("sudo", path);
       Assert.DoesNotContain("-S", path);
     }
 
     [Fact]
-    public void ResolveBinaryPath_SudoPassword_ReturnsSudoDashSPrefix()
+    public void ResolveBinaryPath_SudoPassword_ReturnsFqPathOnly()
     {
-      if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-        return; // Sudo prefix is not applied on Windows
-
       var resolver = CreateResolverWithFakeBinary(SudoMechanism.Password, "secret");
 
       var path = resolver.ResolveBinaryPath("docker");
 
-      Assert.StartsWith("sudo -S ", path);
-      Assert.Contains(resolver.MainDockerClient.FqPath, path);
+      Assert.Equal(resolver.MainDockerClient.FqPath, path);
+      Assert.DoesNotContain("sudo", path);
       // Password should never appear in the path string
       Assert.DoesNotContain("secret", path);
     }

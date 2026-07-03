@@ -75,6 +75,9 @@ namespace FluentDocker.Testing.NUnit
     [OneTimeSetUp]
     public async Task SetUpAsync()
     {
+      if (_resource != null)
+        return;
+
       var (kernel, resource) = await ResourceLifecycle.CreateAndInitializeAsync(
           k => new ContainerResource(k, ConfigureContainer, GetOptions()!),
           KernelFactory!).ConfigureAwait(false);

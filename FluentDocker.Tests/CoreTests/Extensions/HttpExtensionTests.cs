@@ -1,6 +1,7 @@
 using System;
 using System.Net;
 using System.Net.Http;
+using System.Net.Sockets;
 using System.Threading.Tasks;
 using FluentDocker.Extensions;
 using Xunit;
@@ -86,6 +87,46 @@ namespace FluentDocker.Tests.CoreTests.Extensions
 
       // Assert - should have an error
       Assert.True(result.Err != null || result.Code == 0);
+    }
+
+    [Fact]
+    public async Task DoRequest_TransportError_UsesStatusZeroAndNullBody()
+    {
+      var result = await HttpExtensions.DoRequest(
+          "not-a-valid-url",
+          HttpMethod.Post,
+          body: "{\"request\":true}");
+
+      Assert.NotNull(result.Err);
+      Assert.Equal(0, (int)result.Code);
+      Assert.Null(result.Body);
+    }
+
+    [Fact]
+    public async Task DoRequest_Timeout_ReturnsTransportError()
+    {
+      using var listener = new TcpListener(IPAddress.Loopback, 0);
+      listener.Start();
+      var port = ((IPEndPoint)listener.LocalEndpoint).Port;
+      var acceptTask = listener.AcceptTcpClientAsync(TestContext.Current.CancellationToken);
+
+      var result = await HttpExtensions.DoRequest(
+          $"http://127.0.0.1:{port}/",
+          HttpMethod.Get,
+          "application/json",
+          null!,
+          true,
+          null!,
+          TimeSpan.FromMilliseconds(50));
+
+      Assert.NotNull(result.Err);
+      Assert.Equal(0, (int)result.Code);
+      Assert.Null(result.Body);
+
+      if (acceptTask.IsCompletedSuccessfully)
+      {
+        using var accepted = await acceptTask;
+      }
     }
 
     [Fact]

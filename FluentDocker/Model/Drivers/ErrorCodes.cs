@@ -6,6 +6,19 @@ namespace FluentDocker.Model.Drivers
   public static class ErrorCodes
   {
     /// <summary>
+    /// Returns true when the code represents a connection or timeout failure that may
+    /// succeed on retry.
+    /// </summary>
+    public static bool IsTransientCode(string errorCode)
+    {
+      return errorCode is General.Timeout
+          or Network.Timeout
+          or Api.ConnectionFailed
+          or ModelInference.EndpointUnreachable
+          or ModelInference.Timeout;
+    }
+
+    /// <summary>
     /// General error codes
     /// </summary>
     public static class General
@@ -186,6 +199,7 @@ namespace FluentDocker.Model.Drivers
       public const string SshFailed = "MACH_007";
       public const string SetFailed = "MACH_008";
       public const string InfoFailed = "MACH_009";
+      public const string NotRunning = "MACH_010";
     }
 
     /// <summary>

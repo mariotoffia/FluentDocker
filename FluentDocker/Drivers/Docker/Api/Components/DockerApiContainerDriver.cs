@@ -29,14 +29,19 @@ namespace FluentDocker.Drivers.Docker.Api.Components
     {
       var request = BuildCreateRequest(config);
       var path = "/containers/create";
+      var queryParams = new List<string>();
       if (!string.IsNullOrEmpty(config.Name))
-        path += $"?name={Uri.EscapeDataString(config.Name)}";
+        queryParams.Add($"name={Uri.EscapeDataString(config.Name)}");
+      if (!string.IsNullOrEmpty(config.Platform))
+        queryParams.Add($"platform={Uri.EscapeDataString(config.Platform)}");
+      if (queryParams.Count > 0)
+        path += "?" + string.Join("&", queryParams);
 
       var result = await PostJsonAsync(
           path, request,
           DockerApiJsonContext.Default.CreateContainerRequest,
           DockerApiJsonContext.Default.CreateContainerResponse,
-          cancellationToken);
+          cancellationToken).ConfigureAwait(false);
       if (!result.Success)
         return CommandResponse<ContainerCreateResult>.Fail(
             result.ErrorMessage,
@@ -181,7 +186,8 @@ namespace FluentDocker.Drivers.Docker.Api.Components
     {
       var path = $"/containers/{Uri.EscapeDataString(containerId)}/wait";
       var result = await PostJsonAsync(
-          path, DockerApiJsonContext.Default.WaitContainerResponse, cancellationToken);
+          path, DockerApiJsonContext.Default.WaitContainerResponse, cancellationToken)
+          .ConfigureAwait(false);
       if (!result.Success)
         return CommandResponse<ContainerWaitResult>.Fail(
             result.ErrorMessage,

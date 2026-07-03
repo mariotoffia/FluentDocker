@@ -27,7 +27,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
         var result = await ExecuteDockerCliCommandAsync("-SwitchDaemon", cancellationToken).ConfigureAwait(false);
         return result.Success
             ? CommandResponse<Unit>.Ok(Unit.Default)
-            : CommandResponse<Unit>.Fail(result.Error ?? "Switch daemon failed", ErrorCodes.General.Unknown);
+            : CommandResponse<Unit>.Fail(ErrorOrDefault(result, "Switch daemon failed"), FailureCode(result.Error, ErrorCodes.General.Unknown));
       }
       catch (OperationCanceledException)
       {
@@ -35,7 +35,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
       }
       catch (Exception ex)
       {
-        return CommandResponse<Unit>.Fail(ex.Message, ErrorCodes.General.Unknown);
+        return CommandResponse<Unit>.Fail(ex.Message, FailureCode(ex, ErrorCodes.General.Unknown));
       }
     }
 
@@ -49,7 +49,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
         var result = await ExecuteDockerCliCommandAsync("-SwitchLinuxEngine", cancellationToken).ConfigureAwait(false);
         return result.Success
             ? CommandResponse<Unit>.Ok(Unit.Default)
-            : CommandResponse<Unit>.Fail(result.Error ?? "Switch to Linux failed", ErrorCodes.General.Unknown);
+            : CommandResponse<Unit>.Fail(ErrorOrDefault(result, "Switch to Linux failed"), FailureCode(result.Error, ErrorCodes.General.Unknown));
       }
       catch (OperationCanceledException)
       {
@@ -57,7 +57,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
       }
       catch (Exception ex)
       {
-        return CommandResponse<Unit>.Fail(ex.Message, ErrorCodes.General.Unknown);
+        return CommandResponse<Unit>.Fail(ex.Message, FailureCode(ex, ErrorCodes.General.Unknown));
       }
     }
 
@@ -71,7 +71,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
         var result = await ExecuteDockerCliCommandAsync("-SwitchWindowsEngine", cancellationToken).ConfigureAwait(false);
         return result.Success
             ? CommandResponse<Unit>.Ok(Unit.Default)
-            : CommandResponse<Unit>.Fail(result.Error ?? "Switch to Windows failed", ErrorCodes.General.Unknown);
+            : CommandResponse<Unit>.Fail(ErrorOrDefault(result, "Switch to Windows failed"), FailureCode(result.Error, ErrorCodes.General.Unknown));
       }
       catch (OperationCanceledException)
       {
@@ -79,7 +79,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
       }
       catch (Exception ex)
       {
-        return CommandResponse<Unit>.Fail(ex.Message, ErrorCodes.General.Unknown);
+        return CommandResponse<Unit>.Fail(ex.Message, FailureCode(ex, ErrorCodes.General.Unknown));
       }
     }
 

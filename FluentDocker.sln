@@ -35,6 +35,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FluentDocker.Testing.NUnit"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FluentDocker.Testing.MsTest.RunnerTests", "FluentDocker.Testing.MsTest.RunnerTests\FluentDocker.Testing.MsTest.RunnerTests.csproj", "{9F18D63E-F4A7-4476-A6B3-A327578355A1}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FluentDocker.Testing.NUnit.RunnerTests", "FluentDocker.Testing.NUnit.RunnerTests\FluentDocker.Testing.NUnit.RunnerTests.csproj", "{E1582EF4-C16B-41DF-AD66-0E643253CAC8}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -129,6 +131,18 @@ Global
 		{9F18D63E-F4A7-4476-A6B3-A327578355A1}.Release|x64.Build.0 = Release|Any CPU
 		{9F18D63E-F4A7-4476-A6B3-A327578355A1}.Release|x86.ActiveCfg = Release|Any CPU
 		{9F18D63E-F4A7-4476-A6B3-A327578355A1}.Release|x86.Build.0 = Release|Any CPU
+		{E1582EF4-C16B-41DF-AD66-0E643253CAC8}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{E1582EF4-C16B-41DF-AD66-0E643253CAC8}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{E1582EF4-C16B-41DF-AD66-0E643253CAC8}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{E1582EF4-C16B-41DF-AD66-0E643253CAC8}.Debug|x64.Build.0 = Debug|Any CPU
+		{E1582EF4-C16B-41DF-AD66-0E643253CAC8}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{E1582EF4-C16B-41DF-AD66-0E643253CAC8}.Debug|x86.Build.0 = Debug|Any CPU
+		{E1582EF4-C16B-41DF-AD66-0E643253CAC8}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{E1582EF4-C16B-41DF-AD66-0E643253CAC8}.Release|Any CPU.Build.0 = Release|Any CPU
+		{E1582EF4-C16B-41DF-AD66-0E643253CAC8}.Release|x64.ActiveCfg = Release|Any CPU
+		{E1582EF4-C16B-41DF-AD66-0E643253CAC8}.Release|x64.Build.0 = Release|Any CPU
+		{E1582EF4-C16B-41DF-AD66-0E643253CAC8}.Release|x86.ActiveCfg = Release|Any CPU
+		{E1582EF4-C16B-41DF-AD66-0E643253CAC8}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

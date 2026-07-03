@@ -23,9 +23,13 @@ namespace FluentDocker.Kernel
     Task RegisterAsync(string driverId, IDriver driver, DriverContext context, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Unregisters a driver.
+    /// Unregisters a driver or driver pack and disposes the removed instance.
     /// </summary>
     /// <param name="driverId">Driver identifier</param>
+    /// <remarks>
+    /// The registry owns registered driver lifetimes. If the removed driver was
+    /// the default, the default driver ID is cleared and no replacement is selected.
+    /// </remarks>
     void Unregister(string driverId);
 
     /// <summary>

@@ -10,9 +10,7 @@ using FluentDocker.Model.Drivers;
 
 namespace FluentDocker.Services.Impl
 {
-  /// <summary>
-  /// Host service implementation using kernel and driver.
-  /// </summary>
+  /// <inheritdoc />
   public partial class HostService : IHostService, IServiceCapabilities
   {
     // IServiceCapabilities
@@ -144,7 +142,7 @@ namespace FluentDocker.Services.Impl
       {
         foreach (var kvp in filters)
         {
-          filter.Labels[kvp.Key] = kvp.Value;
+          ApplyContainerFilter(filter, kvp.Key, kvp.Value);
         }
       }
 
@@ -187,7 +185,8 @@ namespace FluentDocker.Services.Impl
       {
         var imageDriver = _kernel.SysCtl<IImageDriver>(_driverId);
         var pullContext = new DriverContext(_driverId);
-        var pullResponse = await imageDriver.PullAsync(pullContext, image, "latest", null, cancellationToken).ConfigureAwait(false);
+        var (pullImage, pullTag) = ParseImagePullReference(image);
+        var pullResponse = await imageDriver.PullAsync(pullContext, pullImage, pullTag, null, cancellationToken).ConfigureAwait(false);
 
         if (!pullResponse.Success)
         {
@@ -225,7 +224,8 @@ namespace FluentDocker.Services.Impl
       if (config.Volumes?.Count > 0)
       {
         createConfig.Volumes = config.Volumes
-            .ToDictionary(v => v.Split(':').First(), v => v.Contains(':') ? v.Split(':').Last() : v);
+            .Select(ParseVolumeSpec)
+            .ToDictionary(v => v.Host, v => v.Container);
       }
 
       if (!string.IsNullOrEmpty(config.Network))
@@ -287,9 +287,7 @@ namespace FluentDocker.Services.Impl
 
     public IServiceAsync AddHook(ServiceRunningState state, Func<IServiceAsync, Task> hook, string uniqueName = null)
     {
-      var name = uniqueName ?? Guid.NewGuid().ToString();
-      _hooks[name] = hook;
-      return this;
+      throw new FluentDockerNotSupportedException("HostService has a fixed Running state and does not support hooks.");
     }
 
     public IServiceAsync RemoveHook(string uniqueName)
@@ -322,7 +320,114 @@ namespace FluentDocker.Services.Impl
       await Task.CompletedTask.ConfigureAwait(false);
     }
 
+    private static void ApplyContainerFilter(ContainerListFilter filter, string key, string value)
+    {
+      if (string.IsNullOrEmpty(key))
+        return;
+
+      switch (key?.ToLowerInvariant())
+      {
+        case "name":
+          filter.Name = value;
+          break;
+        case "id":
+          filter.Id = value;
+          break;
+        case "status":
+          filter.Status = value;
+          break;
+        case "ancestor":
+          filter.Ancestor = value;
+          break;
+        case "limit" when int.TryParse(value, out var limit):
+          filter.Limit = limit;
+          break;
+        case "label":
+          AddLabelFilter(filter, value);
+          break;
+        default:
+          filter.Labels[key] = value;
+          break;
+      }
+    }
+
+    private static void AddLabelFilter(ContainerListFilter filter, string value)
+    {
+      if (string.IsNullOrEmpty(value))
+        return;
+
+      var separator = value.IndexOf('=');
+      if (separator < 0)
+      {
+        filter.Labels[value] = string.Empty;
+        return;
+      }
+
+      filter.Labels[value[..separator]] = value[(separator + 1)..];
+    }
+
+    private static (string Image, string Tag) ParseImagePullReference(string image)
+    {
+      if (string.IsNullOrEmpty(image) || image.Contains('@'))
+        return (image, default!);
+
+      var slash = image.LastIndexOf('/');
+      var colon = image.LastIndexOf(':');
+      if (colon > slash && colon < image.Length - 1)
+        return (image[..colon], image[(colon + 1)..]);
+
+      return (image, "latest");
+    }
+
+    private static (string Host, string Container) ParseVolumeSpec(string spec)
+    {
+      var parts = SplitVolumeSpec(spec);
+      return parts.Count switch
+      {
+        1 => (parts[0], null),
+        2 => (parts[0], parts[1]),
+        _ when IsVolumeMode(parts[^1]) => (JoinVolumeParts(parts, parts.Count - 2), $"{parts[^2]}:{parts[^1]}"),
+        _ => (JoinVolumeParts(parts, parts.Count - 1), parts[^1])
+      };
+    }
+
+    private static string JoinVolumeParts(List<string> parts, int count) =>
+        string.Join(':', parts.Take(count));
+
+    private static List<string> SplitVolumeSpec(string spec)
+    {
+      var parts = new List<string>();
+      var start = 0;
+      for (var i = 0; i < spec.Length; i++)
+      {
+        if (spec[i] != ':' || IsWindowsDriveColon(spec, i))
+          continue;
+
+        parts.Add(spec[start..i]);
+        start = i + 1;
+      }
+
+      parts.Add(spec[start..]);
+      return parts;
+    }
+
+    private static bool IsWindowsDriveColon(string value, int index) =>
+        index == 1 &&
+        char.IsLetter(value[0]) &&
+        value.Length > 2 &&
+        (value[2] == '\\' || value[2] == '/');
+
+    private static bool IsVolumeMode(string value)
+    {
+      foreach (var mode in value.Split(','))
+      {
+        if (mode is not ("ro" or "rw" or "z" or "Z" or "cached" or "delegated" or "consistent"))
+          return false;
+      }
+
+      return true;
+    }
+
     #endregion
   }
 }
-

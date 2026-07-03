@@ -27,7 +27,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
             BuildInitArgs(config), cancellationToken).ConfigureAwait(false);
         if (!result.Success)
           return CommandResponse<Unit>.Fail(
-              result.Error ?? "Machine init failed", ErrorCodes.Machine.InitFailed,
+              ErrorOrDefault(result, "Machine init failed"), ErrorCodes.Machine.InitFailed,
               CreateErrorContext(context, "InitMachine", result), result.ExitCode);
 
         return CommandResponse<Unit>.Ok(Unit.Default);
@@ -52,10 +52,10 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
         var args = string.IsNullOrEmpty(name)
             ? "machine start"
             : $"machine start {QuoteArgumentIfNeeded(name)}";
-        var result = await ExecuteUnboundedCommandAsync(args, cancellationToken).ConfigureAwait(false);
+        var result = await ExecuteUnboundedCommandAsync(context, args, cancellationToken).ConfigureAwait(false);
         if (!result.Success)
           return CommandResponse<Unit>.Fail(
-              result.Error ?? "Machine start failed", ErrorCodes.Machine.StartFailed,
+              ErrorOrDefault(result, "Machine start failed"), ErrorCodes.Machine.StartFailed,
               CreateErrorContext(context, "StartMachine", result), result.ExitCode);
 
         return CommandResponse<Unit>.Ok(Unit.Default);
@@ -80,10 +80,10 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
         var args = string.IsNullOrEmpty(name)
             ? "machine stop"
             : $"machine stop {QuoteArgumentIfNeeded(name)}";
-        var result = await ExecuteUnboundedCommandAsync(args, cancellationToken).ConfigureAwait(false);
+        var result = await ExecuteUnboundedCommandAsync(context, args, cancellationToken).ConfigureAwait(false);
         if (!result.Success)
           return CommandResponse<Unit>.Fail(
-              result.Error ?? "Machine stop failed", ErrorCodes.Machine.StopFailed,
+              ErrorOrDefault(result, "Machine stop failed"), ErrorCodes.Machine.StopFailed,
               CreateErrorContext(context, "StopMachine", result), result.ExitCode);
 
         return CommandResponse<Unit>.Ok(Unit.Default);
@@ -111,10 +111,10 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
         if (!string.IsNullOrEmpty(name))
           args += $" {QuoteArgumentIfNeeded(name)}";
 
-        var result = await ExecuteCommandAsync(args, cancellationToken).ConfigureAwait(false);
+        var result = await ExecuteCommandAsync(context, args, cancellationToken).ConfigureAwait(false);
         if (!result.Success)
           return CommandResponse<Unit>.Fail(
-              result.Error ?? "Machine remove failed", ErrorCodes.Machine.RemoveFailed,
+              ErrorOrDefault(result, "Machine remove failed"), ErrorCodes.Machine.RemoveFailed,
               CreateErrorContext(context, "RemoveMachine", result), result.ExitCode);
 
         return CommandResponse<Unit>.Ok(Unit.Default);
@@ -146,10 +146,10 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
         if (!string.IsNullOrEmpty(command))
           args += $" {QuoteArgumentIfNeeded(command)}";
 
-        var result = await ExecuteUnboundedCommandAsync(args, cancellationToken).ConfigureAwait(false);
+        var result = await ExecuteUnboundedCommandAsync(context, args, cancellationToken).ConfigureAwait(false);
         if (!result.Success)
           return CommandResponse<string>.Fail(
-              result.Error ?? "Machine SSH failed", ErrorCodes.Machine.SshFailed,
+              ErrorOrDefault(result, "Machine SSH failed"), ErrorCodes.Machine.SshFailed,
               CreateErrorContext(context, "MachineSsh", result), result.ExitCode);
 
         return CommandResponse<string>.Ok(result.Output?.TrimEnd());
@@ -181,7 +181,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
             BuildSetArgs(config, name), cancellationToken).ConfigureAwait(false);
         if (!result.Success)
           return CommandResponse<Unit>.Fail(
-              result.Error ?? "Machine set failed", ErrorCodes.Machine.SetFailed,
+              ErrorOrDefault(result, "Machine set failed"), ErrorCodes.Machine.SetFailed,
               CreateErrorContext(context, "SetMachine", result), result.ExitCode);
 
         return CommandResponse<Unit>.Ok(Unit.Default);

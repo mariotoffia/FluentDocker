@@ -76,6 +76,13 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       {
         throw;
       }
+      catch (OperationCanceledException ex)
+      {
+        return CommandResponse<Unit>.Fail(
+            $"Cannot connect to Docker daemon: {ex.Message}",
+            ErrorCodes.Image.PullFailed,
+            CreateErrorContext("POST /images/create (pull)", 0));
+      }
       catch (HttpRequestException ex)
       {
         return CommandResponse<Unit>.Fail(
@@ -122,6 +129,17 @@ namespace FluentDocker.Drivers.Docker.Api.Components
             ErrorCodes.Image.PullFailed,
             CreateErrorContext("POST /images/create (pull)", 0));
       }
+      catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+      {
+        throw;
+      }
+      catch (OperationCanceledException ex)
+      {
+        return CommandResponse<Unit>.Fail(
+            $"Cannot connect to Docker daemon: {ex.Message}",
+            ErrorCodes.Image.PullFailed,
+            CreateErrorContext("POST /images/create (pull)", 0));
+      }
 
       if (!string.IsNullOrWhiteSpace(lastError))
         return CommandResponse<Unit>.Fail(lastError,
@@ -162,6 +180,13 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
       {
         throw;
+      }
+      catch (OperationCanceledException ex)
+      {
+        return CommandResponse<Unit>.Fail(
+            $"Cannot connect to Docker daemon: {ex.Message}",
+            ErrorCodes.Image.PushFailed,
+            CreateErrorContext("POST /images/{name}/push", 0));
       }
       catch (HttpRequestException ex)
       {
@@ -208,6 +233,17 @@ namespace FluentDocker.Drivers.Docker.Api.Components
             ErrorCodes.Image.PushFailed,
             CreateErrorContext("POST /images/{name}/push", 0));
       }
+      catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+      {
+        throw;
+      }
+      catch (OperationCanceledException ex)
+      {
+        return CommandResponse<Unit>.Fail(
+            $"Cannot connect to Docker daemon: {ex.Message}",
+            ErrorCodes.Image.PushFailed,
+            CreateErrorContext("POST /images/{name}/push", 0));
+      }
 
       if (!string.IsNullOrWhiteSpace(lastError))
         return CommandResponse<Unit>.Fail(lastError,
@@ -249,8 +285,19 @@ namespace FluentDocker.Drivers.Docker.Api.Components
             $"Build context directory not found: {config.BuildContext}",
             ErrorCodes.Image.BuildFailed);
 
-      // Create tar archive of the build context (streamed to a temp file, not memory)
-      var tarStream = CreateBuildContextTar(config.BuildContext, config);
+      Stream tarStream;
+      try
+      {
+        tarStream = CreateBuildContextTar(config.BuildContext, config);
+      }
+      catch (Exception ex) when (ex is not OperationCanceledException)
+      {
+        return CommandResponse<ImageBuildResult>.Fail(
+            $"Failed to create build context tar: {ex.Message}",
+            ErrorCodes.Image.BuildFailed,
+            CreateErrorContext("POST /build", 0));
+      }
+
       try
       {
         var query = BuildBuildQueryParams(config);
@@ -306,6 +353,12 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       catch (DriverException ex)
       {
         // The NDJSON reader throws DriverException on stream open/read failure.
+        return CommandResponse<ImageBuildResult>.Fail(ex.Message,
+            ErrorCodes.Image.BuildFailed,
+            CreateErrorContext("POST /build", 0));
+      }
+      catch (Exception ex) when (ex is not OperationCanceledException)
+      {
         return CommandResponse<ImageBuildResult>.Fail(ex.Message,
             ErrorCodes.Image.BuildFailed,
             CreateErrorContext("POST /build", 0));

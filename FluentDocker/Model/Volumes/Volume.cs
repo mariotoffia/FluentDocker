@@ -1,5 +1,7 @@
 using System;
 using System.Collections.Generic;
+using System.Text.Json.Serialization;
+using FluentDocker.Common;
 
 namespace FluentDocker.Model.Volumes
 {
@@ -28,6 +30,7 @@ namespace FluentDocker.Model.Volumes
     /// <summary>
     /// User-defined labels attached to the volume.
     /// </summary>
+    [JsonConverter(typeof(LenientStringDictionaryConverter))]
     public Dictionary<string, string> Labels { get; set; }
 
     /// <summary>

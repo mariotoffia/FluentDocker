@@ -12,18 +12,21 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
     #region ParseStatsOutput Tests
 
     [Fact]
-    public void ParseStatsOutput_FullPodmanJson_ParsesAllFields()
+    public void ParseStatsOutput_RealPodmanPrettyJsonArray_ParsesAllFields()
     {
-      var json = @"{
-                ""ContainerID"": ""abc123"",
-                ""Name"": ""test"",
-                ""CPUPerc"": ""5.23%"",
-                ""MemUsage"": ""100MiB / 2GiB"",
-                ""MemPerc"": ""4.88%"",
-                ""NetIO"": ""1.5kB / 2.3kB"",
-                ""BlockIO"": ""4MiB / 8MiB"",
-                ""PIDs"": ""5""
-            }";
+      var json = @"[
+                {
+                  ""id"": ""abc123"",
+                  ""name"": ""test"",
+                  ""cpu_percent"": ""5.23%"",
+                  ""avg_cpu"": ""0.00%"",
+                  ""mem_usage"": ""100MiB / 2GiB"",
+                  ""mem_percent"": ""4.88%"",
+                  ""net_io"": ""1.5kB / 2.3kB"",
+                  ""block_io"": ""4MiB / 8MiB"",
+                  ""pids"": ""5""
+                }
+            ]";
 
       var result = PodmanCliContainerDriver.ParseStatsOutput(json);
 
@@ -43,16 +46,18 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
     [Fact]
     public void ParseStatsOutput_JsonArray_ParsesFirst()
     {
-      var json = @"[{
-                ""ContainerID"": ""abc123"",
-                ""Name"": ""test"",
-                ""CPUPerc"": ""10.50%"",
-                ""MemUsage"": ""50MiB / 1GiB"",
-                ""MemPerc"": ""5.00%"",
-                ""NetIO"": ""100B / 200B"",
-                ""BlockIO"": ""0B / 0B"",
-                ""PIDs"": ""3""
-            }]";
+      var json = @"[
+                {
+                  ""id"": ""abc123"",
+                  ""name"": ""test"",
+                  ""cpu_percent"": ""10.50%"",
+                  ""mem_usage"": ""50MiB / 1GiB"",
+                  ""mem_percent"": ""5.00%"",
+                  ""net_io"": ""100B / 200B"",
+                  ""block_io"": ""0B / 0B"",
+                  ""pids"": ""3""
+                }
+            ]";
 
       var result = PodmanCliContainerDriver.ParseStatsOutput(json);
 
@@ -114,14 +119,14 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
     public void ParseStatsOutput_ZeroValues_ParsesCorrectly()
     {
       var json = @"{
-                ""ContainerID"": ""zero123"",
-                ""Name"": ""idle"",
-                ""CPUPerc"": ""0.00%"",
-                ""MemUsage"": ""0B / 0B"",
-                ""MemPerc"": ""0.00%"",
-                ""NetIO"": ""0B / 0B"",
-                ""BlockIO"": ""0B / 0B"",
-                ""PIDs"": ""0""
+                ""id"": ""zero123"",
+                ""name"": ""idle"",
+                ""cpu_percent"": ""0.00%"",
+                ""mem_usage"": ""0B / 0B"",
+                ""mem_percent"": ""0.00%"",
+                ""net_io"": ""0B / 0B"",
+                ""block_io"": ""0B / 0B"",
+                ""pids"": ""0""
             }";
 
       var result = PodmanCliContainerDriver.ParseStatsOutput(json);

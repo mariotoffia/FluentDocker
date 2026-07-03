@@ -2,6 +2,7 @@ using System;
 
 namespace FluentDocker.Model.Events
 {
+  [System.Obsolete("Unused by FluentDocker and scheduled for removal in v4. Use stream driver ContainerEvent instead.")]
   public abstract class FdEvent
   {
     /// <summary>
@@ -38,6 +39,7 @@ namespace FluentDocker.Model.Events
   /// Base event in the system.
   /// </summary>
   /// <typeparam name="T"></typeparam>
+  [System.Obsolete("Unused by FluentDocker and scheduled for removal in v4. Use stream driver ContainerEvent instead.")]
   public abstract class FdEvent<T> : FdEvent where T : EventActor
   {
     /// <summary>

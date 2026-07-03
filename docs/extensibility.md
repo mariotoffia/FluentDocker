@@ -68,8 +68,8 @@ The kernel uses a cascading resolution strategy when you call `SysCtl(driverId, 
 
 | Step | Check | Fallback |
 |------|-------|----------|
-| 1 | `IDriverInterfaceResolver` on driver pack | Continue |
-| 2 | Driver pack's `SysCtl(driverId, Type)` | Continue |
+| 1 | `IDriverInterfaceResolver` on driver pack | Return resolved instance |
+| 2 | Driver pack's `SysCtl(driverId, Type)` | Return or throw |
 | 3 | `IDriverInterfaceResolver` on driver | Continue |
 | 4 | Direct cast (`driver is T`) | Throw |
 
@@ -99,7 +99,9 @@ if (kernel.TrySysCtl<IPodmanPodDriver>("podman", out var podDriver))
 
 ### IDriverScopedBuilder
 
-All internal builders (`ContainerBuilder`, `NetworkBuilder`, `VolumeBuilder`, `ComposeBuilder`, `ImageBuilder`) implement `IDriverScopedBuilder`:
+`Builder` implements `IDriverScopedBuilder` after `WithinDriver(...)`, and all
+resource builders (`ContainerBuilder`, `NetworkBuilder`, `VolumeBuilder`,
+`ComposeBuilder`, `ImageBuilder`) carry the same scope inside their lambdas:
 
 ```csharp
 public interface IDriverScopedBuilder
@@ -109,7 +111,26 @@ public interface IDriverScopedBuilder
 }
 ```
 
-Inside any `UseContainer(...)`, `UseNetwork(...)`, etc. lambda, the builder you receive carries the kernel and driver context from the enclosing `WithinDriver()` scope.
+At the top level, this means portable code can probe optional fluent surfaces directly:
+
+```csharp
+var scoped = new Builder().WithinDriver("docker", kernel);
+if (scoped.TryUseModelRunner(out var runnerBuilder))
+{
+  await using var runner = await runnerBuilder.ForModel("ai/smollm2").BuildAsync();
+}
+```
+
+Inside `UseContainer(...)`, `UseNetwork(...)`, etc. lambdas, cast the public builder
+interface to `IDriverScopedBuilder` when you need the same capability probes:
+
+```csharp
+new Builder().WithinDriver("podman", kernel).UseContainer(container =>
+{
+  var scoped = (IDriverScopedBuilder)container;
+  var podDriver = scoped.TryDriver<IPodmanPodDriver>();
+});
+```
 
 ### RequireDriver and TryDriver
 

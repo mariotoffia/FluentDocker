@@ -161,6 +161,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
                     ""Name"": ""test-vm"",
                     ""Default"": false,
                     ""Running"": false,
+                    ""Starting"": true,
                     ""VMType"": ""qemu"",
                     ""CPUs"": 2,
                     ""Memory"": 2147483648,
@@ -182,6 +183,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
       Assert.Equal("test-vm", result[1].Name);
       Assert.False(result[1].Default);
       Assert.False(result[1].Running);
+      Assert.True(result[1].Starting);
       Assert.Equal(2, result[1].Cpus);
     }
 

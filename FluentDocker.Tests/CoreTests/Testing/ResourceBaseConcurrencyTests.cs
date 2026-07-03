@@ -124,6 +124,80 @@ namespace FluentDocker.Tests.CoreTests.Testing
           .WaitAsync(TimeSpan.FromSeconds(1), TestContext.Current.CancellationToken);
     }
 
+    [Fact]
+    public async Task InitializeAsync_WhenProvisionIgnoresCancellation_TimesOut()
+    {
+      var enteredProvision = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+      var releaseProvision = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+      var resource = new ConcurrencyTestResource(
+          _kernel,
+          options: new DockerResourceOptions { InitializationTimeout = TimeSpan.FromMilliseconds(50) },
+          onProvision: _ =>
+          {
+            enteredProvision.SetResult();
+            return releaseProvision.Task;
+          });
+
+      var initTask = resource.InitializeAsync(TestContext.Current.CancellationToken);
+      await enteredProvision.Task.WaitAsync(TimeSpan.FromSeconds(1), TestContext.Current.CancellationToken);
+
+      var completed = await Task.WhenAny(
+          initTask,
+          Task.Delay(TimeSpan.FromSeconds(1), TestContext.Current.CancellationToken));
+      releaseProvision.SetResult();
+
+      if (completed != initTask)
+        Assert.Fail("InitializeAsync did not honor InitializationTimeout.");
+
+      await Assert.ThrowsAsync<TimeoutException>(() => initTask);
+    }
+
+    [Fact]
+    public async Task DisposeAsync_DuringHungProvision_ReturnsWithinTeardownBudget()
+    {
+      var enteredProvision = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+      var releaseProvision = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+      var resource = new ConcurrencyTestResource(
+          _kernel,
+          options: new DockerResourceOptions
+          {
+            InitializationTimeout = TimeSpan.FromMinutes(1),
+            TeardownTimeout = TimeSpan.FromMilliseconds(50)
+          },
+          onProvision: _ =>
+          {
+            enteredProvision.SetResult();
+            return releaseProvision.Task;
+          });
+
+      var initTask = resource.InitializeAsync(TestContext.Current.CancellationToken);
+      await enteredProvision.Task.WaitAsync(TimeSpan.FromSeconds(1), TestContext.Current.CancellationToken);
+
+      var disposeTask = resource.DisposeAsync().AsTask();
+      var completed = await Task.WhenAny(
+          disposeTask,
+          Task.Delay(TimeSpan.FromSeconds(1), TestContext.Current.CancellationToken));
+      releaseProvision.SetResult();
+      await initTask;
+
+      if (completed != disposeTask)
+        Assert.Fail("DisposeAsync waited indefinitely for the lifecycle lock.");
+
+      await Assert.ThrowsAsync<TimeoutException>(() => disposeTask);
+    }
+
+    [Fact]
+    public void GenerateUniqueName_WithLongPrefix_PreservesGuidEntropy()
+    {
+      var prefix = new string('x', 62);
+      var first = ConcurrencyTestResource.MakeUniqueName(prefix);
+      var second = ConcurrencyTestResource.MakeUniqueName(prefix);
+
+      Assert.NotEqual(first, second);
+      Assert.True(first.Length <= 63);
+      Assert.True(second.Length <= 63);
+    }
+
     /// <summary>
     /// Minimal <see cref="ResourceBase"/> subclass for concurrency testing.
     /// </summary>
@@ -147,6 +221,8 @@ namespace FluentDocker.Tests.CoreTests.Testing
 
       protected override Task ForceRemoveAsync(CancellationToken cancellationToken)
           => Task.CompletedTask;
+
+      public static string MakeUniqueName(string prefix) => GenerateUniqueName(prefix);
     }
   }
 }

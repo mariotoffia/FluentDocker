@@ -1,4 +1,4 @@
-using System;
+using System.Threading;
 using FluentDocker.Common;
 using Xunit;
 
@@ -22,9 +22,9 @@ namespace FluentDocker.Tests.CoreTests.Common
     }
 
     [Fact]
-    public void Instance_HasReasonableTimeout()
+    public void Instance_HasInfiniteTimeout()
     {
-      Assert.Equal(TimeSpan.FromSeconds(30), SharedHttpClient.Instance.Timeout);
+      Assert.Equal(Timeout.InfiniteTimeSpan, SharedHttpClient.Instance.Timeout);
     }
   }
 }

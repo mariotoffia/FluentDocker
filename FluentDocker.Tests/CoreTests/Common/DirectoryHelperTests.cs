@@ -12,7 +12,7 @@ namespace FluentDocker.Tests.CoreTests.Common
 
     public DirectoryHelperTests()
     {
-      _tempDir = Path.Combine(Path.GetTempPath(), "FluentDockerDirTests_" + Guid.NewGuid().ToString("N"));
+      _tempDir = Path.Combine(".out", "FluentDockerDirTests_" + Guid.NewGuid().ToString("N"));
       Directory.CreateDirectory(_tempDir);
     }
 
@@ -158,6 +158,16 @@ namespace FluentDocker.Tests.CoreTests.Common
     }
 
     [Fact]
+    public void DeleteDirectory_SingleArgumentOverload_IsPreserved()
+    {
+      var method = typeof(DirectoryHelper).GetMethod(
+          nameof(DirectoryHelper.DeleteDirectory),
+          [typeof(string)]);
+
+      Assert.NotNull(method);
+    }
+
+    [Fact]
     public void DeleteDirectory_ExistingEmptyDir_DeletesIt()
     {
       // Arrange
@@ -213,6 +223,32 @@ namespace FluentDocker.Tests.CoreTests.Common
 
       // Assert
       Assert.False(Directory.Exists(dirToDelete));
+    }
+
+    [Fact]
+    public void DeleteDirectory_DeleteFailure_ThrowsLastException()
+    {
+      if (OperatingSystem.IsWindows())
+        Assert.Skip("Unix directory permissions required for deterministic delete failure.");
+
+      var parent = Path.Combine(_tempDir, "locked_parent");
+      var child = Path.Combine(parent, "child");
+      Directory.CreateDirectory(child);
+#pragma warning disable CA1416
+      File.SetUnixFileMode(parent, UnixFileMode.UserRead | UnixFileMode.UserExecute);
+#pragma warning restore CA1416
+
+      try
+      {
+        Assert.ThrowsAny<IOException>(() => DirectoryHelper.DeleteDirectory(child));
+      }
+      finally
+      {
+#pragma warning disable CA1416
+        File.SetUnixFileMode(parent, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+#pragma warning restore CA1416
+        Directory.Delete(parent, true);
+      }
     }
 
     #endregion

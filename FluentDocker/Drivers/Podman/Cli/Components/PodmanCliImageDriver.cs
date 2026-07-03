@@ -38,7 +38,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
             $"pull {QuoteArgumentIfNeeded(imageRef)}", cancellationToken).ConfigureAwait(false);
         if (!result.Success)
           return CommandResponse<Unit>.Fail(
-              result.Error ?? "Image pull failed", ErrorCodes.Image.PullFailed,
+              ErrorOrDefault(result, "Image pull failed"), ErrorCodes.Image.PullFailed,
               CreateErrorContext(context, "Pull", result), result.ExitCode);
 
         return CommandResponse<Unit>.Ok(Unit.Default);
@@ -65,7 +65,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
             $"push {QuoteArgumentIfNeeded(image)}", cancellationToken).ConfigureAwait(false);
         if (!result.Success)
           return CommandResponse<Unit>.Fail(
-              result.Error ?? "Image push failed", ErrorCodes.Image.PushFailed,
+              ErrorOrDefault(result, "Image push failed"), ErrorCodes.Image.PushFailed,
               CreateErrorContext(context, "Push", result), result.ExitCode);
 
         return CommandResponse<Unit>.Ok(Unit.Default);
@@ -146,7 +146,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
           var result = await ExecuteUnboundedCommandAsync(BuildBuildArgs(config, iidFile), cancellationToken).ConfigureAwait(false);
           if (!result.Success)
             return CommandResponse<ImageBuildResult>.Fail(
-                result.Error ?? "Image build failed", ErrorCodes.Image.BuildFailed,
+                ErrorOrDefault(result, "Image build failed"), ErrorCodes.Image.BuildFailed,
                 CreateErrorContext(context, "Build", result), result.ExitCode);
 
           var imageId = File.Exists(iidFile)
@@ -201,10 +201,10 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
         if (!string.IsNullOrEmpty(filter?.Reference))
           args += $" --filter {QuoteArgumentIfNeeded($"reference={filter.Reference}")}";
 
-        var result = await ExecuteCommandAsync(args, cancellationToken).ConfigureAwait(false);
+        var result = await ExecuteCommandAsync(context, args, cancellationToken).ConfigureAwait(false);
         if (!result.Success)
           return CommandResponse<IList<Image>>.Fail(
-              result.Error ?? "Image list failed", ErrorCodes.General.Unknown,
+              ErrorOrDefault(result, "Image list failed"), ErrorCodes.General.Unknown,
               CreateErrorContext(context, "ListImages", result), result.ExitCode);
 
         var images = ParseImageList(result.Output);
@@ -231,7 +231,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
             $"image inspect {QuoteArgumentIfNeeded(imageId)}", cancellationToken).ConfigureAwait(false);
         if (!result.Success)
           return CommandResponse<Image>.Fail(
-              result.Error ?? "Image inspect failed", ErrorCodes.Image.InspectFailed,
+              ErrorOrDefault(result, "Image inspect failed"), ErrorCodes.Image.InspectFailed,
               CreateErrorContext(context, "InspectImage", result), result.ExitCode);
 
         var image = ParseImageInspect(result.Output);
@@ -258,7 +258,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
             $"history --format json {QuoteArgumentIfNeeded(imageId)}", cancellationToken).ConfigureAwait(false);
         if (!result.Success)
           return CommandResponse<IList<ImageLayer>>.Fail(
-              result.Error ?? "Image history failed", ErrorCodes.Image.HistoryFailed,
+              ErrorOrDefault(result, "Image history failed"), ErrorCodes.Image.HistoryFailed,
               CreateErrorContext(context, "ImageHistory", result), result.ExitCode);
 
         var layers = ParseHistory(result.Output);

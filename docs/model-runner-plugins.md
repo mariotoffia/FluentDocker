@@ -77,14 +77,18 @@ implement the port(s) you can serve and expose them from a custom `IDriverPack`:
 3. **Register the pack on the kernel and consume it fluently:**
 
 ```csharp
-var kernel = await FluentDockerKernel.Create(NullLoggerFactory.Instance)
-    .WithDriver("vllm", d => d.UseCustomDriverPack(new VllmDriverPack()).AsDefault())
-    .BuildAsync();
+using FluentDocker.Builders;
+using FluentDocker.Kernel;
+using Microsoft.Extensions.Logging.Abstractions;
+
+await using var kernel = await FluentDockerKernel.Create(NullLoggerFactory.Instance)
+  .WithDriver("vllm", d => d.UseCustomDriverPack(new VllmDriverPack()).AsDefault())
+  .BuildAsync();
 
 await using var runner = await new Builder()
-    .WithinDriver("vllm", kernel)
-    .UseModelRunner().ForModel("Qwen/Qwen2.5-7B-Instruct")
-    .BuildAsync();
+  .WithinDriver("vllm", kernel)
+  .UseModelRunner().ForModel("Qwen/Qwen2.5-7B-Instruct")
+  .BuildAsync();
 
 var reply = await runner.ChatAsync("Hi");
 ```

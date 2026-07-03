@@ -5,7 +5,9 @@ using System.IO;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using FluentDocker.Common;
 using FluentDocker.Drivers.Docker.Cli;
+using FluentDocker.Model.Drivers;
 
 namespace FluentDocker.Drivers.Podman.Cli
 {
@@ -27,7 +29,7 @@ namespace FluentDocker.Drivers.Podman.Cli
     // ponytail: a 256 KiB rolling tail keeps the trailing result line plus ample error context
     // for diagnostics without buffering a verbose pull/build/exec in full. Upgrade path: spool
     // the complete stream to a temp file if a caller ever needs the full output of a long op.
-    private const int UnboundedTailBytes = 256 * 1024;
+    private const int UnboundedTailBytes = CliOutputTruncation.DefaultTailBytes;
 
     /// <summary>
     /// Executes an inherently-long Podman op (pull/push/build/save/load/import/exec/wait/machine …)
@@ -36,10 +38,11 @@ namespace FluentDocker.Drivers.Podman.Cli
     /// sudo/global-arg handling of the bounded <c>ExecuteProcessAsync</c>.
     /// </summary>
     private async Task<SimpleCommandResult> ExecuteUnboundedProcessAsync(
-        string arguments, CancellationToken cancellationToken)
+        DriverContext context, string arguments, CancellationToken cancellationToken)
     {
-      var (binaryPath, sudo, sudoPassword) = ResolveBinaryInfo();
-      var globalArgs = BuildGlobalArgs(Context);
+      var effectiveContext = CreateEffectiveContext(context);
+      var (binaryPath, sudo, sudoPassword) = ResolveBinaryInfo(effectiveContext);
+      var globalArgs = BuildGlobalArgs(effectiveContext, Logger);
       var fullArgs = string.IsNullOrEmpty(globalArgs) ? arguments : $"{globalArgs} {arguments}";
 
       var (processFileName, processArguments, passwordForStdin) =
@@ -137,6 +140,7 @@ namespace FluentDocker.Drivers.Podman.Cli
       private readonly Queue<string> _lines = new();
       private readonly int _maxChars;
       private int _chars;
+      private bool _truncated;
 
       public OutputTail(int maxChars) => _maxChars = maxChars;
 
@@ -145,10 +149,17 @@ namespace FluentDocker.Drivers.Podman.Cli
         _lines.Enqueue(line);
         _chars += line.Length + 1; // +1 for the '\n' re-inserted on join
         while (_chars > _maxChars && _lines.Count > 1)
+        {
+          _truncated = true;
           _chars -= _lines.Dequeue().Length + 1;
+        }
       }
 
-      public override string ToString() => string.Join("\n", _lines);
+      public override string ToString()
+      {
+        var tail = string.Join("\n", _lines);
+        return _truncated ? $"{CliOutputTruncation.Marker(_maxChars)}\n{tail}" : tail;
+      }
     }
   }
 }

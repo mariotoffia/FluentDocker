@@ -6,6 +6,7 @@ namespace FluentDocker.Common
   /// <summary>
   /// Extension methods for creating <see cref="Result{T}"/> instances from data values.
   /// </summary>
+  [System.Obsolete("Unused by FluentDocker and scheduled for removal in v4. Use CommandResponse<T> for driver results.")]
   public static class ResultExtensions
   {
     private static readonly string[] LineSeparators = ["\n", "\r\n"];
@@ -68,7 +69,7 @@ namespace FluentDocker.Common
     /// <summary>Splits a log string into individual entries by newline separators.</summary>
     /// <param name="log">The log string to split.</param>
     /// <returns>An array of non-empty log entries.</returns>
-    public static string[] ToEntires(this string log)
+    public static string[] ToEntries(this string log)
     {
       if (string.IsNullOrEmpty(log))
       {
@@ -76,6 +77,15 @@ namespace FluentDocker.Common
       }
 
       return log.Split(LineSeparators, StringSplitOptions.RemoveEmptyEntries);
+    }
+
+    /// <summary>Splits a log string into individual entries by newline separators.</summary>
+    /// <param name="log">The log string to split.</param>
+    /// <returns>An array of non-empty log entries.</returns>
+    [System.Obsolete("Typo retained for compatibility. Use ToEntries instead.")]
+    public static string[] ToEntires(this string log)
+    {
+      return log.ToEntries();
     }
   }
 }

@@ -40,7 +40,8 @@ namespace FluentDocker.Drivers.Docker.Api.Components
     /// <summary>
     /// Streams source-tagged log entries. The originating stream (stdout/stderr) is taken
     /// from the Docker multiplexed stream header, which the line-based <see cref="StreamLogsAsync"/>
-    /// discards.
+    /// discards. Each yielded item is frame-granular unless the Docker frame itself contains
+    /// newline-separated lines.
     /// </summary>
     public async IAsyncEnumerable<LogEntry> StreamLogEntriesAsync(
         DriverContext context, string containerId,
@@ -219,8 +220,8 @@ namespace FluentDocker.Drivers.Docker.Api.Components
     {
       // Docker Engine API requires a specific container ID for stats;
       // there is no all-container stats endpoint.
-      if (string.IsNullOrEmpty(containerId))
-        yield break;
+      if (string.IsNullOrWhiteSpace(containerId))
+        throw new ArgumentException("Container ID is required for Docker API stats streaming.", nameof(containerId));
 
       config ??= new StreamStatsConfig();
       var stream = config.Stream ? "true" : "false";
@@ -244,11 +245,23 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       }
     }
 
+    /// <summary>
+    /// Attaches to stdout/stderr through the Docker API attach endpoint.
+    /// Interactive stdin is rejected because this driver does not implement HTTP hijacking.
+    /// The returned <see cref="AttachResult.OutputStream"/> is the raw Docker attach stream;
+    /// when TTY is disabled it may contain Docker multiplexed frames.
+    /// </summary>
     public async Task<CommandResponse<AttachResult>> AttachAsync(
         DriverContext context, string containerId,
         AttachConfig config = null, CancellationToken cancellationToken = default)
     {
       config ??= new AttachConfig();
+      if (config.Stdin)
+        return CommandResponse<AttachResult>.Fail(
+            "interactive stdin is not supported by the Docker API driver",
+            ErrorCodes.Container.AttachFailed,
+            CreateErrorContext($"POST /containers/{containerId}/attach", 0));
+
       var path = $"/containers/{Uri.EscapeDataString(containerId)}/attach?" +
           $"stream=1" +
           $"&stdout={config.Stdout.ToString().ToLower()}" +
@@ -315,40 +328,20 @@ namespace FluentDocker.Drivers.Docker.Api.Components
               $"Docker log stream read failed: {ex.Message}", ErrorCodes.Api.ServerError, ex);
         }
 
+        if (bytesRead == 0)
+          yield break;
         if (bytesRead < 8)
         {
-          // Possibly a raw (TTY) stream -- try reading as plain text.
-          // Raw streams carry no source byte, so everything is treated as stdout.
-          if (bytesRead > 0)
-          {
-            var partial = Encoding.UTF8.GetString(header, 0, bytesRead);
-            using var reader = new StreamReader(stream, Encoding.UTF8, detectEncodingFromByteOrderMarks: false,
-                bufferSize: 1024, leaveOpen: true);
-            var rest = await reader.ReadToEndAsync(ct).ConfigureAwait(false);
-            foreach (var line in (partial + rest).Split('\n'))
-            {
-              if (!string.IsNullOrEmpty(line))
-                yield return new LogEntry { Source = LogStreamSource.Stdout, Line = line };
-            }
-          }
-          yield break;
+          throw new DriverException(
+              $"Docker log stream truncated: partial {bytesRead}-byte frame header",
+              ErrorCodes.Api.ServerError);
         }
 
-        // A valid multiplex header is [stream(0..2)][0][0][0][size:4]. If byte0>2 or bytes1..3
-        // are non-zero, the stream is actually raw (TTY) — emit the 8 bytes + rest as raw text
-        // instead of misreading them as a frame (self-corrects a failed TTY detection).
         if (header[0] > 2 || header[1] != 0 || header[2] != 0 || header[3] != 0)
         {
-          var head = Encoding.UTF8.GetString(header, 0, 8);
-          using var reader = new StreamReader(stream, Encoding.UTF8, detectEncodingFromByteOrderMarks: false,
-              bufferSize: 1024, leaveOpen: true);
-          var rest = await reader.ReadToEndAsync(ct).ConfigureAwait(false);
-          foreach (var line in (head + rest).Split('\n'))
-          {
-            if (!string.IsNullOrEmpty(line))
-              yield return new LogEntry { Source = LogStreamSource.Stdout, Line = line };
-          }
-          yield break;
+          throw new DriverException(
+              "Docker log stream has an invalid multiplexed frame header",
+              ErrorCodes.Api.ServerError);
         }
 
         var source = MapSource(header[0]);
@@ -356,8 +349,12 @@ namespace FluentDocker.Drivers.Docker.Api.Components
         var frameSize = (header[4] << 24) | (header[5] << 16) |
             (header[6] << 8) | header[7];
 
-        if (frameSize <= 0 || frameSize > MaxFrameSizeBytes)
-          yield break;
+        if (frameSize < 0 || frameSize > MaxFrameSizeBytes)
+          throw new DriverException(
+              $"Docker log stream frame size {frameSize} is invalid or exceeds the {MaxFrameSizeBytes} byte limit",
+              ErrorCodes.Api.ServerError);
+        if (frameSize == 0)
+          continue;
 
         var payload = new byte[frameSize];
         var payloadRead = await ReadExactAsync(stream, payload, frameSize, ct).ConfigureAwait(false);

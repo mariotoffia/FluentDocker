@@ -64,6 +64,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     /// <c>false</c> (unsupported) when the probe itself fails, so an explicit backend
     /// never silently emits a flag we are unsure about.
     /// </summary>
+    /// <param name="context">Per-call driver context used for the probe invocation.</param>
     /// <param name="cancellationToken">The CALLER'S token. Cancelling it abandons this
     /// caller's wait (surfacing <see cref="OperationCanceledException"/>) without cancelling
     /// the shared probe task — so one caller can never poison the cache for others.</param>
@@ -75,14 +76,14 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     /// second safety net, a cached task that ended Canceled/Faulted (e.g. a probe timeout)
     /// is evicted so the next caller re-probes rather than inheriting a dead task.
     /// </remarks>
-    private async Task<bool> SupportsConfigureBackendAsync(CancellationToken cancellationToken)
+    private async Task<bool> SupportsConfigureBackendAsync(DriverContext context, CancellationToken cancellationToken)
     {
       Task<bool> probe;
       lock (_backendProbeGate)
       {
         var cached = _configureBackendSupported;
         if (cached is null || (cached.IsCompleted && (cached.IsCanceled || cached.IsFaulted)))
-          cached = _configureBackendSupported = ProbeConfigureBackendAsync();
+          cached = _configureBackendSupported = ProbeConfigureBackendAsync(context);
 
         probe = cached;
       }
@@ -104,7 +105,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
       }
     }
 
-    private async Task<bool> ProbeConfigureBackendAsync()
+    private async Task<bool> ProbeConfigureBackendAsync(DriverContext context)
     {
       // Own internal-timeout token — independent of any caller. A wedged `--help` is
       // abandoned after BackendProbeTimeout; the resulting OperationCanceledException leaves
@@ -114,7 +115,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
       using var timeout = new CancellationTokenSource(BackendProbeTimeout);
       try
       {
-        var result = await RunAsync("model configure --help", timeout.Token).ConfigureAwait(false);
+        var result = await RunAsync(context, "model configure --help", timeout.Token).ConfigureAwait(false);
         var help = $"{result.Output} {result.Error}";
         return help.Contains("--backend", StringComparison.Ordinal);
       }
@@ -139,7 +140,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     {
       try
       {
-        var result = await RunAsync("model status", cancellationToken).ConfigureAwait(false);
+        var result = await RunAsync(context, "model status", cancellationToken).ConfigureAwait(false);
         var output = result.Output ?? string.Empty;
         var combined = $"{output} {result.Error}";
 
@@ -156,7 +157,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
         if (!result.Success && !running && !knownNotRunning)
           return CommandResponse<ModelRunnerStatus>.Fail(
               FirstNonEmpty(result.Error, output, "docker model status failed"),
-              ErrorCodes.Model.StatusFailed,
+              FailureCode(FirstNonEmpty(result.Error, output), ErrorCodes.Model.StatusFailed),
               result.ExitCode);
 
         return CommandResponse<ModelRunnerStatus>.Ok(new ModelRunnerStatus
@@ -171,7 +172,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
       }
       catch (Exception ex) when (ex is not OperationCanceledException)
       {
-        return CommandResponse<ModelRunnerStatus>.Fail(ex.Message, ErrorCodes.Model.StatusFailed);
+        return CommandResponse<ModelRunnerStatus>.Fail(ex.Message, FailureCode(ex, ErrorCodes.Model.StatusFailed));
       }
     }
 
@@ -181,11 +182,11 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     {
       try
       {
-        var result = await RunAsync("model version", cancellationToken).ConfigureAwait(false);
+        var result = await RunAsync(context, "model version", cancellationToken).ConfigureAwait(false);
         if (!result.Success)
           return CommandResponse<ModelRunnerVersion>.Fail(
-              result.Error ?? "model version failed",
-              ErrorCodes.Model.VersionFailed,
+              ErrorOrDefault(result, "model version failed"),
+              FailureCode(result.Error, ErrorCodes.Model.VersionFailed),
               CreateErrorContext(context, "ModelVersion", result),
               result.ExitCode);
 
@@ -193,7 +194,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
       }
       catch (Exception ex) when (ex is not OperationCanceledException)
       {
-        return CommandResponse<ModelRunnerVersion>.Fail(ex.Message, ErrorCodes.Model.VersionFailed);
+        return CommandResponse<ModelRunnerVersion>.Fail(ex.Message, FailureCode(ex, ErrorCodes.Model.VersionFailed));
       }
     }
 
@@ -204,11 +205,11 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
       try
       {
         // DMR `ps` is table-only (no `--json`).
-        var result = await RunAsync("model ps", cancellationToken).ConfigureAwait(false);
+        var result = await RunAsync(context, "model ps", cancellationToken).ConfigureAwait(false);
         if (!result.Success)
           return CommandResponse<IList<RunningModel>>.Fail(
-              result.Error ?? "model ps failed",
-              ErrorCodes.Model.ListFailed,
+              ErrorOrDefault(result, "model ps failed"),
+              FailureCode(result.Error, ErrorCodes.Model.ListFailed),
               CreateErrorContext(context, "ListRunningModels", result),
               result.ExitCode);
 
@@ -216,7 +217,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
       }
       catch (Exception ex) when (ex is not OperationCanceledException)
       {
-        return CommandResponse<IList<RunningModel>>.Fail(ex.Message, ErrorCodes.Model.ListFailed);
+        return CommandResponse<IList<RunningModel>>.Fail(ex.Message, FailureCode(ex, ErrorCodes.Model.ListFailed));
       }
     }
 
@@ -302,7 +303,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
         // `--backend` is auto/implicit on current DMR (engine chosen from model format).
         // Only emit an explicit backend when the installed CLI actually advertises the
         // flag — otherwise fail clearly rather than send a flag the CLI would reject.
-        if (!await SupportsConfigureBackendAsync(cancellationToken).ConfigureAwait(false))
+        if (!await SupportsConfigureBackendAsync(context, cancellationToken).ConfigureAwait(false))
           return CommandResponse<Unit>.Fail(
               $"The installed 'docker model configure' does not support explicit backend selection ('--backend'); " +
               $"the backend is auto-selected from the model format. Use the default backend (\"auto\") or upgrade Docker Model Runner. (requested: '{options.Backend}')",
@@ -338,7 +339,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
         [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
       var args = follow ? "model logs -f" : "model logs";
-      var stream = RunStreamingAsync(args, cancellationToken).ConfigureAwait(false);
+      var stream = RunStreamingAsync(context, args, cancellationToken).ConfigureAwait(false);
       await using var enumerator = stream.GetAsyncEnumerator();
 
       while (true)
@@ -399,11 +400,11 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     {
       try
       {
-        var result = await RunAsync(args, cancellationToken).ConfigureAwait(false);
+        var result = await RunAsync(context, args, cancellationToken).ConfigureAwait(false);
         if (!result.Success)
           return CommandResponse<Unit>.Fail(
-              result.Error ?? $"{operation} failed",
-              errorCode,
+              ErrorOrDefault(result, $"{operation} failed"),
+              FailureCode(result.Error, errorCode),
               CreateErrorContext(context, operation, result),
               result.ExitCode);
 
@@ -411,7 +412,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
       }
       catch (Exception ex) when (ex is not OperationCanceledException)
       {
-        return CommandResponse<Unit>.Fail(ex.Message, errorCode);
+        return CommandResponse<Unit>.Fail(ex.Message, FailureCode(ex, errorCode));
       }
     }
 

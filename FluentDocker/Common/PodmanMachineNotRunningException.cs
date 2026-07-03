@@ -1,4 +1,5 @@
 using System;
+using FluentDocker.Model.Drivers;
 
 namespace FluentDocker.Common
 {
@@ -9,18 +10,18 @@ namespace FluentDocker.Common
   /// the default machine, or configure <c>WithAutoStartMachine()</c> on
   /// the driver builder to handle this automatically.
   /// </summary>
-  public class PodmanMachineNotRunningException : Exception
+  public class PodmanMachineNotRunningException : DriverException
   {
     /// <summary>
     /// Creates a new instance with the specified message.
     /// </summary>
     public PodmanMachineNotRunningException(string message)
-        : base(message) { }
+        : base(message, ErrorCodes.Machine.NotRunning, true) { }
 
     /// <summary>
     /// Creates a new instance with the specified message and inner exception.
     /// </summary>
     public PodmanMachineNotRunningException(string message, Exception innerException)
-        : base(message, innerException) { }
+        : base(message, ErrorCodes.Machine.NotRunning, null, innerException, true) { }
   }
 }

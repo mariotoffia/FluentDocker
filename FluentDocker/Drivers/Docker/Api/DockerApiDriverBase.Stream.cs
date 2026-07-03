@@ -16,6 +16,8 @@ namespace FluentDocker.Drivers.Docker.Api
 {
   public abstract partial class DockerApiDriverBase
   {
+    private const int MaxFrameSizeBytes = 10 * 1024 * 1024;
+
     #region NDJSON PipeReader
 
     /// <summary>
@@ -189,14 +191,29 @@ namespace FluentDocker.Drivers.Docker.Api
       var offset = 0;
       while (offset + 8 <= bytes.Length)
       {
+        if (bytes[offset] > 2 || bytes[offset + 1] != 0 ||
+            bytes[offset + 2] != 0 || bytes[offset + 3] != 0)
+          throw new DriverException(
+              "Docker stream has an invalid multiplexed frame header",
+              ErrorCodes.Api.ServerError);
         var frameSize = (bytes[offset + 4] << 24) | (bytes[offset + 5] << 16)
                       | (bytes[offset + 6] << 8) | bytes[offset + 7];
         offset += 8;
-        if (frameSize <= 0 || offset + frameSize > bytes.Length)
-          break;
+        if (frameSize <= 0 || frameSize > MaxFrameSizeBytes)
+          throw new DriverException(
+              $"Docker stream frame size {frameSize} is invalid or exceeds the {MaxFrameSizeBytes} byte limit",
+              ErrorCodes.Api.ServerError);
+        if (offset + frameSize > bytes.Length)
+          throw new DriverException(
+              $"Docker stream truncated: expected {frameSize} payload bytes, read {bytes.Length - offset}",
+              ErrorCodes.Api.ServerError);
         totalPayload += frameSize;
         offset += frameSize;
       }
+      if (offset != bytes.Length)
+        throw new DriverException(
+            $"Docker stream truncated: partial {bytes.Length - offset}-byte frame header",
+            ErrorCodes.Api.ServerError);
 
       if (totalPayload == 0)
         return Encoding.UTF8.GetString(bytes);
@@ -213,8 +230,6 @@ namespace FluentDocker.Drivers.Docker.Api
         var frameSize = (bytes[offset + 4] << 24) | (bytes[offset + 5] << 16)
                       | (bytes[offset + 6] << 8) | bytes[offset + 7];
         offset += 8;
-        if (frameSize <= 0 || offset + frameSize > bytes.Length)
-          break;
         bytes.Slice(offset, frameSize).CopyTo(payloadBuffer[writePos..]);
         writePos += frameSize;
         offset += frameSize;
@@ -234,7 +249,7 @@ namespace FluentDocker.Drivers.Docker.Api
       while (totalRead < count)
       {
         var read = await stream.ReadAsync(
-            buffer.AsMemory(totalRead, count - totalRead), ct);
+            buffer.AsMemory(totalRead, count - totalRead), ct).ConfigureAwait(false);
         if (read == 0)
           break;
         totalRead += read;

@@ -84,7 +84,7 @@ namespace FluentDocker.Kernel
       return new KernelBuilder.DriverConfiguration
       {
         DriverId = _driverId,
-        DriverPack = new PodmanCliDriverPack(),
+        DriverPackFactory = static () => new PodmanCliDriverPack(),
         Context = context,
         IsDefault = _isDefault,
       };

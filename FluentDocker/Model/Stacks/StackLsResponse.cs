@@ -2,6 +2,7 @@ using System;
 
 namespace FluentDocker.Model.Stacks
 {
+  [System.Obsolete("Unused by FluentDocker and scheduled for removal in v4. Use IStackDriver list response models instead.")]
   public sealed class StackLsResponse
   {
     public string Name { get; set; }

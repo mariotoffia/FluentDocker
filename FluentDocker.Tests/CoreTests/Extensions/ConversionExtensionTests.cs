@@ -48,6 +48,14 @@ namespace FluentDocker.Tests.CoreTests.Extensions
     }
 
     [Fact]
+    public void DecimalMultiplyOverflow_ReturnsMinimumValue()
+    {
+      var num = "8000000000000000000000000000k".Convert();
+
+      Assert.Equal(long.MinValue, num);
+    }
+
+    [Fact]
     public void ValidByteInput_ReturnsExactNumber()
     {
       var input = "42b";
@@ -104,13 +112,12 @@ namespace FluentDocker.Tests.CoreTests.Extensions
     }
 
     [Fact]
-    public void NoUnit_ReturnsMinValue()
+    public void NoUnit_ReturnsBytes()
     {
-      // Plain number without unit should return MinValue as invalid format
       var input = "100";
 
       var num = input.Convert();
-      Assert.Equal(long.MinValue, num);
+      Assert.Equal(100, num);
     }
 
     [Fact]
@@ -122,6 +129,25 @@ namespace FluentDocker.Tests.CoreTests.Extensions
       var num = input.Convert();
       Assert.Equal(long.MinValue, num);
     }
+
+    [Theory]
+    [InlineData("1.5g", 1610612736L)]
+    [InlineData("1024", 1024L)]
+    [InlineData("1G", 1073741824L)]
+    [InlineData("512m", 536870912L)]
+    public void Convert_ValidModernInputs_ReturnsBytes(string input, long expected)
+    {
+      var num = input.Convert();
+
+      Assert.Equal(expected, num);
+    }
+
+    [Fact]
+    public void Convert_Garbage_ReturnsMinimumValue()
+    {
+      var num = "garbage".Convert();
+
+      Assert.Equal(long.MinValue, num);
+    }
   }
 }
-

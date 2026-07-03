@@ -28,7 +28,7 @@ namespace FluentDocker.Drivers.Models.Connection
     /// </summary>
     public bool AllowTlsHostnameMismatch { get; set; }
 
-    /// <summary>Max time to wait for the next streamed chunk before aborting the read.
+    /// <summary>Max time to wait for streaming response headers or the next body chunk.
     /// Defaults to 120 seconds — long enough for a slow first token on a cold model, short
     /// enough that a dead stream cannot hang forever. Set to <c>null</c> to explicitly opt out
     /// (wait indefinitely, honoring only cancellation).</summary>

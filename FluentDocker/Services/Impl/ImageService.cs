@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
@@ -10,9 +11,7 @@ using Microsoft.Extensions.Logging;
 
 namespace FluentDocker.Services.Impl
 {
-  /// <summary>
-  /// Image service implementation using kernel and driver.
-  /// </summary>
+  /// <inheritdoc />
   public class ImageService : IImageService, IServiceCapabilities
   {
     // IServiceCapabilities
@@ -27,8 +26,8 @@ namespace FluentDocker.Services.Impl
     private readonly string _imageId;
     private readonly string _repository;
     private readonly string _tag;
-    private readonly Dictionary<string, (ServiceRunningState State, Func<IServiceAsync, Task> Hook)> _hooks = [];
-    private ServiceRunningState _state = ServiceRunningState.Running;
+    private readonly ConcurrentDictionary<string, (ServiceRunningState State, Func<IServiceAsync, Task> Hook)> _hooks = [];
+    private volatile ServiceRunningState _state = ServiceRunningState.Running;
 
     public ImageService(
         FluentDockerKernel kernel,
@@ -187,27 +186,42 @@ namespace FluentDocker.Services.Impl
 
     public IServiceAsync RemoveHook(string uniqueName)
     {
-      _hooks.Remove(uniqueName);
+      _hooks.TryRemove(uniqueName, out _);
       return this;
     }
 
     private int _disposed;
+    private int _disposeCompleted;
 
     public void Dispose()
     {
       if (Interlocked.CompareExchange(ref _disposed, 1, 0) != 0)
         return;
-      // Dispatched to the thread pool to avoid sync-over-async deadlocks.
-      Task.Run(() => ImageService.DisposeCoreAsync().AsTask()).GetAwaiter().GetResult();
-      GC.SuppressFinalize(this);
+      try
+      {
+        // Dispatched to the thread pool to avoid sync-over-async deadlocks.
+        Task.Run(() => ImageService.DisposeCoreAsync().AsTask()).GetAwaiter().GetResult();
+      }
+      finally
+      {
+        Volatile.Write(ref _disposeCompleted, 1);
+        GC.SuppressFinalize(this);
+      }
     }
 
     public async ValueTask DisposeAsync()
     {
       if (Interlocked.CompareExchange(ref _disposed, 1, 0) != 0)
         return;
-      await ImageService.DisposeCoreAsync().ConfigureAwait(false);
-      GC.SuppressFinalize(this);
+      try
+      {
+        await ImageService.DisposeCoreAsync().ConfigureAwait(false);
+      }
+      finally
+      {
+        Volatile.Write(ref _disposeCompleted, 1);
+        GC.SuppressFinalize(this);
+      }
     }
 
     private static async ValueTask DisposeCoreAsync()
@@ -217,14 +231,34 @@ namespace FluentDocker.Services.Impl
 
     private void UpdateState(ServiceRunningState newState)
     {
+      if (Volatile.Read(ref _disposeCompleted) != 0 || _state == newState)
+        return;
+
       _state = newState;
-      StateChange?.Invoke(this, new StateChangeEventArgs(this, newState));
+      var stateChange = StateChange;
+      if (stateChange == null)
+        return;
+
+      var args = new StateChangeEventArgs(this, newState);
+      foreach (ServiceDelegates.StateChange handler in stateChange.GetInvocationList())
+      {
+        try
+        {
+          handler(this, args);
+        }
+        catch (Exception ex)
+        {
+          _logger.LogError(ex, "ImageService state change handler failed");
+        }
+      }
     }
 
     private async Task ExecuteHooksAsync(ServiceRunningState state)
     {
-      // Snapshot: a firing hook may add or remove hooks, which would invalidate a live enumerator.
-      foreach (var entry in new List<(ServiceRunningState State, Func<IServiceAsync, Task> Hook)>(_hooks.Values))
+      if (Volatile.Read(ref _disposeCompleted) != 0)
+        return;
+
+      foreach (var entry in _hooks.Values)
       {
         if (entry.State != state)
           continue;
@@ -241,4 +275,3 @@ namespace FluentDocker.Services.Impl
     }
   }
 }
-

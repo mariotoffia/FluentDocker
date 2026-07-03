@@ -40,8 +40,8 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
         if (!result.Success)
         {
           return CommandResponse<SystemInfo>.Fail(
-              result.Error ?? "System info failed",
-              ErrorCodes.General.Unknown,
+              ErrorOrDefault(result, "System info failed"),
+              FailureCode(result.Error, ErrorCodes.General.Unknown),
               CreateErrorContext(context, "GetInfo", result),
               result.ExitCode);
         }
@@ -56,7 +56,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
       }
       catch (Exception ex)
       {
-        return CommandResponse<SystemInfo>.Fail(ex.Message, ErrorCodes.General.Unknown);
+        return CommandResponse<SystemInfo>.Fail(ex.Message, FailureCode(ex, ErrorCodes.General.Unknown));
       }
     }
 
@@ -72,8 +72,8 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
         if (!result.Success)
         {
           return CommandResponse<VersionInfo>.Fail(
-              result.Error ?? "Version check failed",
-              ErrorCodes.General.Unknown);
+              ErrorOrDefault(result, "Version check failed"),
+              FailureCode(result.Error, ErrorCodes.General.Unknown));
         }
 
         var version = JsonSerializer.Deserialize<DockerVersionInfo>(result.Output, JsonHelper.CaseInsensitiveOptions) ?? new DockerVersionInfo();
@@ -86,7 +86,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
       }
       catch (Exception ex)
       {
-        return CommandResponse<VersionInfo>.Fail(ex.Message, ErrorCodes.General.Unknown);
+        return CommandResponse<VersionInfo>.Fail(ex.Message, FailureCode(ex, ErrorCodes.General.Unknown));
       }
     }
 
@@ -101,8 +101,8 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
         return result.Success
             ? CommandResponse<Unit>.Ok(Unit.Default)
             : CommandResponse<Unit>.Fail(
-                result.Error ?? "Docker daemon not reachable",
-                ErrorCodes.General.Unknown,
+                ErrorOrDefault(result, "Docker daemon not reachable"),
+                FailureCode(result.Error, ErrorCodes.General.Unknown),
                 CreateErrorContext(context, "Ping", result),
                 result.ExitCode);
       }
@@ -112,7 +112,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
       }
       catch (Exception ex)
       {
-        return CommandResponse<Unit>.Fail(ex.Message, ErrorCodes.General.Unknown);
+        return CommandResponse<Unit>.Fail(ex.Message, FailureCode(ex, ErrorCodes.General.Unknown));
       }
     }
 
@@ -136,7 +136,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
       }
       catch (Exception ex)
       {
-        return CommandResponse<bool>.Fail(ex.Message, ErrorCodes.General.Unknown);
+        return CommandResponse<bool>.Fail(ex.Message, FailureCode(ex, ErrorCodes.General.Unknown));
       }
     }
 
@@ -181,8 +181,8 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
         if (!result.Success)
         {
           return CommandResponse<DiskUsageInfo>.Fail(
-              result.Error ?? "Disk usage failed",
-              ErrorCodes.General.Unknown);
+              ErrorOrDefault(result, "Disk usage failed"),
+              FailureCode(result.Error, ErrorCodes.General.Unknown));
         }
 
         var info = ParseDiskUsageOutput(result.Output);
@@ -194,7 +194,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
       }
       catch (Exception ex)
       {
-        return CommandResponse<DiskUsageInfo>.Fail(ex.Message, ErrorCodes.General.Unknown);
+        return CommandResponse<DiskUsageInfo>.Fail(ex.Message, FailureCode(ex, ErrorCodes.General.Unknown));
       }
     }
 
@@ -217,8 +217,8 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
         if (!result.Success)
         {
           return CommandResponse<SystemPruneResult>.Fail(
-              result.Error ?? "System prune failed",
-              ErrorCodes.General.Unknown);
+              ErrorOrDefault(result, "System prune failed"),
+              FailureCode(result.Error, ErrorCodes.General.Unknown));
         }
 
         return CommandResponse<SystemPruneResult>.Ok(
@@ -230,7 +230,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
       }
       catch (Exception ex)
       {
-        return CommandResponse<SystemPruneResult>.Fail(ex.Message, ErrorCodes.General.Unknown);
+        return CommandResponse<SystemPruneResult>.Fail(ex.Message, FailureCode(ex, ErrorCodes.General.Unknown));
       }
     }
 

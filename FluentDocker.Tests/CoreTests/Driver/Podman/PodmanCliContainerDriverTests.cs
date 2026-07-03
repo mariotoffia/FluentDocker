@@ -393,7 +393,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
     public void QuoteArgumentIfNeeded_PathWithBackslashesAndSpaces_EscapesCorrectly()
     {
       var result = InvokeQuoteArgumentIfNeeded(@"C:\Program Files\Podman");
-      Assert.Equal("\"C:\\\\Program Files\\\\Podman\"", result);
+      Assert.Equal("\"C:\\Program Files\\Podman\"", result);
     }
 
     #endregion

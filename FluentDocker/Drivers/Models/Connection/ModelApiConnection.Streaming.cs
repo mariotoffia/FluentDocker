@@ -1,0 +1,174 @@
+using System;
+using System.IO;
+using System.Net.Http;
+using System.Text;
+using System.Threading;
+using System.Threading.Tasks;
+using FluentDocker.Common;
+using FluentDocker.Model.Drivers;
+using ResponseOwningStream = FluentDocker.Drivers.Connection.ResponseOwningStream;
+
+namespace FluentDocker.Drivers.Models.Connection
+{
+  public sealed partial class ModelApiConnection
+  {
+    /// <inheritdoc />
+    public async Task<Stream> PostStreamAsync(string path, HttpContent content, CancellationToken ct = default)
+    {
+      // Streaming is exempt from the whole-request timeout (SSE can run for a long time), but the
+      // first-byte/header wait still uses the stream idle timeout so a wedged runner cannot hang.
+      var request = new HttpRequestMessage(HttpMethod.Post, path) { Content = content };
+      HttpResponseMessage response;
+      using var headerCts = _streamReadIdleTimeout is null
+          ? null
+          : CancellationTokenSource.CreateLinkedTokenSource(ct);
+      headerCts?.CancelAfter(_streamReadIdleTimeout.GetValueOrDefault());
+      var headerToken = headerCts?.Token ?? ct;
+
+      try
+      {
+        response = await _httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, headerToken).ConfigureAwait(false);
+      }
+      catch (OperationCanceledException ex) when (!ct.IsCancellationRequested && _streamReadIdleTimeout is not null)
+      {
+        throw new ModelRunnerException(
+            "Streaming response headers timed out: no data received within the configured idle timeout.",
+            ErrorCodes.ModelInference.Timeout, ex);
+      }
+      catch (Exception ex) when (IsTransportFailure(ex))
+      {
+        // A connection-refused / DNS / socket failure opening the stream is "unreachable".
+        // (An HTTP error STATUS is delivered as a response below, not thrown here.)
+        throw EndpointUnreachable(ex);
+      }
+      if (!response.IsSuccessStatusCode)
+      {
+        // Surface the status code AND a bounded error body so the inference driver can
+        // map it to a typed ModelRunnerException (404 -> ModelNotLoaded, 401 ->
+        // Unauthorized), mirroring the non-streaming path. EnsureSuccessStatusCode would
+        // discard the body. Dispose the failed response before throwing so it does not
+        // leak — ownership has not yet been transferred to ResponseOwningStream.
+        var status = response.StatusCode;
+        string body;
+        try
+        {
+          body = await ReadBoundedErrorBodyAsync(response, ct).ConfigureAwait(false);
+        }
+        finally
+        {
+          response.Dispose();
+        }
+
+        throw new HttpRequestException(
+            string.IsNullOrWhiteSpace(body) ? $"HTTP {(int)status}" : body, null, status);
+      }
+
+      Stream stream;
+      try
+      {
+        stream = await response.Content.ReadAsStreamAsync(ct).ConfigureAwait(false);
+      }
+      catch
+      {
+        // Ownership has not yet transferred to ResponseOwningStream — dispose the
+        // response so it (and its connection) do not leak on a read failure.
+        response.Dispose();
+        throw;
+      }
+
+      return new ResponseOwningStream(stream, response);
+    }
+
+    /// <summary>
+    /// Hard cap on how many bytes of a non-success response body are read into memory
+    /// before building an exception message. A hostile or misbehaving server could send an
+    /// arbitrarily large error body; bounding the READ (not just the final string) keeps
+    /// error handling allocation-safe.
+    /// </summary>
+    private const int MaxErrorBodyBytes = 64 * 1024;
+
+    /// <summary>
+    /// Maximum number of characters from the body that are kept in the exception message.
+    /// Anything past this is truncated and replaced with <see cref="ErrorBodyTruncationMarker"/>.
+    /// </summary>
+    private const int MaxErrorBodyChars = 512;
+
+    /// <summary>Appended to a truncated error body so it is visibly incomplete.</summary>
+    private const string ErrorBodyTruncationMarker = "…";
+
+    /// <summary>
+    /// Reads a non-success response body, bounded both in bytes read (<see cref="MaxErrorBodyBytes"/>)
+    /// and in characters retained (<see cref="MaxErrorBodyChars"/>), for use in an exception
+    /// message. Caller cancellation propagates; any other read failure is swallowed (it must not
+    /// mask the underlying HTTP failure).
+    /// </summary>
+    private async Task<string> ReadBoundedErrorBodyAsync(HttpResponseMessage response, CancellationToken ct)
+    {
+      CancellationTokenSource idleCts = null;
+      try
+      {
+        idleCts = _streamReadIdleTimeout is null
+            ? null
+            : CancellationTokenSource.CreateLinkedTokenSource(ct);
+        var body = await ReadBoundedBodyTextAsync(
+            response, idleCts, _streamReadIdleTimeout, idleCts?.Token ?? ct).ConfigureAwait(false);
+        if (string.IsNullOrWhiteSpace(body))
+          return null;
+
+        if (body.Length <= MaxErrorBodyChars)
+          return body;
+
+        // Keep the marker WITHIN the cap so the final message length never exceeds it.
+        var keep = MaxErrorBodyChars - ErrorBodyTruncationMarker.Length;
+        return body[..keep] + ErrorBodyTruncationMarker;
+      }
+      catch (OperationCanceledException) when (ct.IsCancellationRequested)
+      {
+        throw;
+      }
+      catch (OperationCanceledException ex) when (!ct.IsCancellationRequested && idleCts?.IsCancellationRequested == true)
+      {
+        throw new ModelRunnerException(
+            "Streaming error response body timed out: no data received within the configured idle timeout.",
+            ErrorCodes.ModelInference.Timeout, ex);
+      }
+      catch (Exception)
+      {
+        return null;
+      }
+      finally
+      {
+        idleCts?.Dispose();
+      }
+    }
+
+    /// <summary>
+    /// Reads at most <see cref="MaxErrorBodyBytes"/> bytes of the response body and decodes
+    /// them as UTF-8, so a pathological error body cannot force unbounded buffering.
+    /// </summary>
+    private static async Task<string> ReadBoundedBodyTextAsync(
+        HttpResponseMessage response, CancellationTokenSource idleCts, TimeSpan? idleTimeout, CancellationToken ct)
+    {
+      ArmIdleTimer(idleCts, idleTimeout);
+      await using var stream = await response.Content.ReadAsStreamAsync(ct).ConfigureAwait(false);
+      var buffer = new byte[MaxErrorBodyBytes];
+      var total = 0;
+      while (total < buffer.Length)
+      {
+        ArmIdleTimer(idleCts, idleTimeout);
+        var read = await stream.ReadAsync(buffer.AsMemory(total, buffer.Length - total), ct).ConfigureAwait(false);
+        if (read == 0)
+          break;
+        total += read;
+      }
+
+      return total == 0 ? null : Encoding.UTF8.GetString(buffer, 0, total);
+    }
+
+    private static void ArmIdleTimer(CancellationTokenSource cts, TimeSpan? timeout)
+    {
+      if (cts is not null && timeout is not null)
+        cts.CancelAfter(timeout.GetValueOrDefault());
+    }
+  }
+}

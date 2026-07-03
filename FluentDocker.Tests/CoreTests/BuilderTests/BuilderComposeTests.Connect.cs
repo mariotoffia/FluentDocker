@@ -21,7 +21,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
       var (kernel, mockPack) = await MockKernelBuilderExtensions.CreateWithMockDriverAsync("docker");
       try
       {
-        await using var results = await new Builder()
+        var results = await new Builder()
             .WithinDriver("docker", kernel)
             .UseCompose(c => c
                 .WithProjectName("existing-proj")
@@ -33,9 +33,18 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
             It.IsAny<DriverContext>(),
             It.IsAny<ComposeUpConfig>(),
             It.IsAny<System.Threading.CancellationToken>()), Times.Never);
+        mockPack.ComposeDriver.Verify(d => d.DownAsync(
+            It.IsAny<DriverContext>(),
+            It.IsAny<ComposeDownConfig>(),
+            It.IsAny<System.Threading.CancellationToken>()), Times.Never);
 
         Assert.Single(results.ComposeServices);
         Assert.Equal("existing-proj", results.ComposeServices[0].ProjectName);
+        await results.DisposeAsync();
+        mockPack.ComposeDriver.Verify(d => d.DownAsync(
+            It.IsAny<DriverContext>(),
+            It.IsAny<ComposeDownConfig>(),
+            It.IsAny<System.Threading.CancellationToken>()), Times.Never);
       }
       finally { kernel.Dispose(); }
     }
@@ -56,6 +65,29 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
             It.IsAny<DriverContext>(),
             It.IsAny<ComposeUpConfig>(),
             It.IsAny<System.Threading.CancellationToken>()), Times.Never);
+      }
+      finally { kernel.Dispose(); }
+    }
+
+    [Fact]
+    public async Task BuiltCompose_Dispose_RunsDown()
+    {
+      var (kernel, mockPack) = await MockKernelBuilderExtensions.CreateWithMockDriverAsync("docker");
+      mockPack.SetupComposeUp("owned-proj");
+      mockPack.SetupComposeDown();
+      try
+      {
+        await using (await new Builder()
+            .WithinDriver("docker", kernel)
+            .UseCompose(c => c.WithProjectName("owned-proj"))
+            .BuildAsync(cancellationToken: TestContext.Current.CancellationToken))
+        {
+        }
+
+        mockPack.ComposeDriver.Verify(d => d.DownAsync(
+            It.IsAny<DriverContext>(),
+            It.Is<ComposeDownConfig>(c => c.ProjectName == "owned-proj"),
+            It.IsAny<System.Threading.CancellationToken>()), Times.Once);
       }
       finally { kernel.Dispose(); }
     }

@@ -55,9 +55,6 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       if (config.HealthCheck != null)
         request.Healthcheck = BuildHealthcheck(config.HealthCheck);
 
-      if (!string.IsNullOrEmpty(config.Platform))
-        request.Platform = config.Platform;
-
       return request;
     }
 
@@ -79,15 +76,16 @@ namespace FluentDocker.Drivers.Docker.Api.Components
         {
           var key = containerPort.Contains('/')
               ? containerPort : $"{containerPort}/tcp";
+          var (hostIp, hostPortOnly) = SplitHostIpAndPort(hostPort);
           hc.PortBindings[key] =
                     [
-                        new() { HostPort = hostPort }
+                        new() { HostIp = hostIp, HostPort = hostPortOnly }
                     ];
         }
       }
 
       if (config.Volumes?.Count > 0)
-        hc.Binds = [.. config.Volumes.Select(kv => $"{kv.Key}:{kv.Value}")];
+        hc.Binds = [.. config.Volumes.Select(kv => kv.Value == null ? kv.Key : $"{kv.Key}:{kv.Value}")];
 
       if (!string.IsNullOrEmpty(config.RestartPolicy))
       {
@@ -138,11 +136,13 @@ namespace FluentDocker.Drivers.Docker.Api.Components
         return null;
 
       var endpoints = new Dictionary<string, EndpointConfigRequest>();
+      var primaryNetwork = config.Networks.FirstOrDefault();
       foreach (var network in config.Networks)
       {
         var endpoint = new EndpointConfigRequest();
-        if (!string.IsNullOrEmpty(config.Ipv4Address) ||
-            !string.IsNullOrEmpty(config.Ipv6Address))
+        if (string.Equals(network, primaryNetwork, StringComparison.Ordinal) &&
+            (!string.IsNullOrEmpty(config.Ipv4Address) ||
+             !string.IsNullOrEmpty(config.Ipv6Address)))
         {
           endpoint.IpamConfig = new IpamConfigRequest
           {
@@ -164,6 +164,20 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       return new NetworkingConfigRequest { EndpointsConfig = endpoints };
     }
 
+    private static (string HostIp, string HostPort) SplitHostIpAndPort(string hostPort)
+    {
+      if (string.IsNullOrWhiteSpace(hostPort))
+        return ("", hostPort);
+
+      var lastColon = hostPort.LastIndexOf(':');
+      if (lastColon <= 0)
+        return ("", hostPort);
+
+      var hostIp = hostPort[..lastColon];
+      var port = hostPort[(lastColon + 1)..];
+      return (hostIp, port);
+    }
+
     private static HealthcheckRequest BuildHealthcheck(HealthCheckConfig hc)
     {
       return new HealthcheckRequest
@@ -174,26 +188,6 @@ namespace FluentDocker.Drivers.Docker.Api.Components
         Timeout = ParseDurationNanoseconds(hc.Timeout),
         StartPeriod = ParseDurationNanoseconds(hc.StartPeriod)
       };
-    }
-
-    private static long? ParseDurationNanoseconds(string duration)
-    {
-      if (string.IsNullOrEmpty(duration))
-        return null;
-
-      if (duration.EndsWith("ms") &&
-          long.TryParse(duration[..^2], out var ms))
-        return ms * 1_000_000;
-
-      if (duration.EndsWith('s') &&
-          long.TryParse(duration[..^1], out var sec))
-        return sec * 1_000_000_000;
-
-      if (duration.EndsWith('m') &&
-          long.TryParse(duration[..^1], out var min))
-        return min * 60 * 1_000_000_000;
-
-      return long.TryParse(duration, out var raw) ? raw : null;
     }
 
     private static string BuildListPath(ContainerListFilter filter)

@@ -50,15 +50,15 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
             args.Add($"--opt {QuoteArgumentIfNeeded($"{opt.Key}={opt.Value}")}");
         }
 
-        args.Add(QuoteArgumentIfNeeded(config.Name));
+        args.Add(QuotePositionalArgument(config.Name, nameof(config.Name)));
 
-        var result = await ExecuteCommandAsync(string.Join(" ", args), cancellationToken).ConfigureAwait(false);
+        var result = await ExecuteCommandAsync(context, string.Join(" ", args), cancellationToken).ConfigureAwait(false);
 
         if (!result.Success)
         {
           return CommandResponse<VolumeCreateResult>.Fail(
-              result.Error ?? "Volume creation failed",
-              ErrorCodes.Volume.CreateFailed,
+              ErrorOrDefault(result, "Volume creation failed"),
+              FailureCode(result.Error, ErrorCodes.Volume.CreateFailed),
               CreateErrorContext(context, "CreateVolume", result),
               result.ExitCode);
         }
@@ -72,7 +72,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
       }
       catch (Exception ex)
       {
-        return CommandResponse<VolumeCreateResult>.Fail(ex.Message, ErrorCodes.Volume.CreateFailed);
+        return CommandResponse<VolumeCreateResult>.Fail(ex.Message, FailureCode(ex, ErrorCodes.Volume.CreateFailed));
       }
     }
 
@@ -88,15 +88,15 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
         var args = "volume rm";
         if (force)
           args += " --force";
-        args += $" {QuoteArgumentIfNeeded(volumeName)}";
+        args += $" {QuotePositionalArgument(volumeName, nameof(volumeName))}";
 
-        var result = await ExecuteCommandAsync(args, cancellationToken).ConfigureAwait(false);
+        var result = await ExecuteCommandAsync(context, args, cancellationToken).ConfigureAwait(false);
 
         if (!result.Success)
         {
           return CommandResponse<Unit>.Fail(
-              result.Error ?? "Volume removal failed",
-              ErrorCodes.Volume.RemoveFailed,
+              ErrorOrDefault(result, "Volume removal failed"),
+              FailureCode(result.Error, ErrorCodes.Volume.RemoveFailed),
               CreateErrorContext(context, "RemoveVolume", result),
               result.ExitCode);
         }
@@ -109,7 +109,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
       }
       catch (Exception ex)
       {
-        return CommandResponse<Unit>.Fail(ex.Message, ErrorCodes.Volume.RemoveFailed);
+        return CommandResponse<Unit>.Fail(ex.Message, FailureCode(ex, ErrorCodes.Volume.RemoveFailed));
       }
     }
 
@@ -126,41 +126,34 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
         if (filter != null)
         {
           if (!string.IsNullOrEmpty(filter.Name))
-            args += $" --filter name={QuoteArgumentIfNeeded(filter.Name)}";
+            args += $" --filter {QuoteArgumentIfNeeded($"name={filter.Name}")}";
 
           if (filter.Labels != null)
           {
             foreach (var label in filter.Labels)
-              args += $" --filter label={QuoteArgumentIfNeeded($"{label.Key}={label.Value}")}";
+              args += $" --filter {QuoteArgumentIfNeeded($"label={label.Key}={label.Value}")}";
           }
         }
 
-        var result = await ExecuteCommandAsync(args, cancellationToken).ConfigureAwait(false);
+        var result = await ExecuteCommandAsync(context, args, cancellationToken).ConfigureAwait(false);
 
         if (!result.Success)
         {
           return CommandResponse<IList<Volume>>.Fail(
-              result.Error ?? "Volume list failed",
-              ErrorCodes.General.Unknown,
+              ErrorOrDefault(result, "Volume list failed"),
+              FailureCode(result.Error, ErrorCodes.General.Unknown),
               CreateErrorContext(context, "ListVolumes", result),
               result.ExitCode);
         }
 
-        var volumes = new List<Volume>();
-        var lines = result.Output.Split(LineSeparators, StringSplitOptions.RemoveEmptyEntries);
-
-        foreach (var line in lines)
+        if (!DockerCliJsonLineParser.TryParse(
+                result.Output,
+                Logger,
+                "Volume list JSON parsing failed",
+                out List<Volume> volumes,
+                out var parseError))
         {
-          try
-          {
-            var volume = JsonSerializer.Deserialize<Volume>(line, JsonHelper.CaseInsensitiveOptions);
-            if (volume != null)
-              volumes.Add(volume);
-          }
-          catch (Exception ex)
-          {
-            Logger.LogError(ex, "Volume list JSON parsing failed");
-          }
+          return CommandResponse<IList<Volume>>.Fail(parseError, ErrorCodes.General.Unknown);
         }
 
         return CommandResponse<IList<Volume>>.Ok(volumes);
@@ -171,7 +164,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
       }
       catch (Exception ex)
       {
-        return CommandResponse<IList<Volume>>.Fail(ex.Message, ErrorCodes.General.Unknown);
+        return CommandResponse<IList<Volume>>.Fail(ex.Message, FailureCode(ex, ErrorCodes.General.Unknown));
       }
     }
 
@@ -183,13 +176,13 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     {
       try
       {
-        var result = await ExecuteCommandAsync($"volume inspect {QuoteArgumentIfNeeded(volumeName)}", cancellationToken).ConfigureAwait(false);
+        var result = await ExecuteCommandAsync(context, $"volume inspect {QuotePositionalArgument(volumeName, nameof(volumeName))}", cancellationToken).ConfigureAwait(false);
 
         if (!result.Success)
         {
           return CommandResponse<Volume>.Fail(
-              result.Error ?? "Volume inspect failed",
-              ErrorCodes.Volume.InspectFailed,
+              ErrorOrDefault(result, "Volume inspect failed"),
+              FailureCode(result.Error, ErrorCodes.Volume.InspectFailed),
               CreateErrorContext(context, "InspectVolume", result),
               result.ExitCode);
         }
@@ -203,7 +196,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
       }
       catch (Exception ex)
       {
-        return CommandResponse<Volume>.Fail(ex.Message, ErrorCodes.Volume.InspectFailed);
+        return CommandResponse<Volume>.Fail(ex.Message, FailureCode(ex, ErrorCodes.Volume.InspectFailed));
       }
     }
 
@@ -214,13 +207,13 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     {
       try
       {
-        var result = await ExecuteCommandAsync("volume prune --force", cancellationToken).ConfigureAwait(false);
+        var result = await ExecuteCommandAsync(context, "volume prune --force", cancellationToken).ConfigureAwait(false);
 
         if (!result.Success)
         {
           return CommandResponse<VolumePruneResult>.Fail(
-              result.Error ?? "Volume prune failed",
-              ErrorCodes.Volume.PruneFailed);
+              ErrorOrDefault(result, "Volume prune failed"),
+              FailureCode(result.Error, ErrorCodes.Volume.PruneFailed));
         }
 
         return CommandResponse<VolumePruneResult>.Ok(
@@ -232,7 +225,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
       }
       catch (Exception ex)
       {
-        return CommandResponse<VolumePruneResult>.Fail(ex.Message, ErrorCodes.Volume.PruneFailed);
+        return CommandResponse<VolumePruneResult>.Fail(ex.Message, FailureCode(ex, ErrorCodes.Volume.PruneFailed));
       }
     }
   }

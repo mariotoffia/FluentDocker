@@ -27,6 +27,7 @@ namespace FluentDocker.Tests.CoreTests.Testing
     {
       var currentSession = "current-session-id";
       var orphanSession = "old-session-id";
+      var oldEnough = DateTime.UtcNow.AddHours(-2);
 
       MockPack.ContainerDriver
           .Setup(d => d.ListAsync(
@@ -43,7 +44,8 @@ namespace FluentDocker.Tests.CoreTests.Testing
                     Labels = new Dictionary<string, string>
                     {
                       [SessionLabel.Key] = orphanSession,
-                      [SessionLabel.ManagedKey] = "true"
+                      [SessionLabel.ManagedKey] = "true",
+                      [SessionLabel.CreatedAtKey] = oldEnough.ToString("o")
                     }
                   }
                 },
@@ -75,6 +77,69 @@ namespace FluentDocker.Tests.CoreTests.Testing
       MockPack.ContainerDriver.Verify(
           d => d.RemoveAsync(
               It.IsAny<DriverContext>(), "current-1", It.IsAny<bool>(),
+              It.IsAny<bool>(), It.IsAny<CancellationToken>()),
+          Times.Never);
+    }
+
+    [Fact]
+    public async Task CleanupOrphanedResources_FourArgumentOverload_PreservesRecentSibling()
+    {
+      var currentSession = "current-session-id";
+      var siblingSession = "sibling-session-id";
+      var now = DateTime.UtcNow;
+
+      MockPack.ContainerDriver
+          .Setup(d => d.ListAsync(
+              It.IsAny<DriverContext>(),
+              It.IsAny<ContainerListFilter>(),
+              It.IsAny<CancellationToken>()))
+          .ReturnsAsync(FluentDocker.Model.Drivers.CommandResponse<IList<Container>>.Ok(
+              [
+                LabeledContainer("recent-sibling", siblingSession, now)
+              ]));
+      SetupEmptyNetworkList();
+      SetupEmptyVolumeList();
+      MockPack.SetupContainerRemove();
+
+      var result = await OrphanCleanup.CleanupOrphanedResourcesAsync(
+          Kernel, DriverId, currentSession, TestContext.Current.CancellationToken);
+
+      Assert.Equal(0, result.TotalRemoved);
+      MockPack.ContainerDriver.Verify(
+          d => d.RemoveAsync(
+              It.IsAny<DriverContext>(), "recent-sibling", It.IsAny<bool>(),
+              It.IsAny<bool>(), It.IsAny<CancellationToken>()),
+          Times.Never);
+    }
+
+    [Fact]
+    public async Task CleanupOrphanedResources_ThreeArgumentOverload_PreservesRecentSibling()
+    {
+      var currentSession = "current-session-id";
+      var siblingSession = "sibling-session-id";
+      var now = DateTime.UtcNow;
+
+      MockPack.ContainerDriver
+          .Setup(d => d.ListAsync(
+              It.IsAny<DriverContext>(),
+              It.IsAny<ContainerListFilter>(),
+              It.IsAny<CancellationToken>()))
+          .ReturnsAsync(FluentDocker.Model.Drivers.CommandResponse<IList<Container>>.Ok(
+              [
+                LabeledContainer("recent-sibling", siblingSession, now)
+              ]));
+      SetupEmptyNetworkList();
+      SetupEmptyVolumeList();
+      MockPack.SetupContainerRemove();
+
+#pragma warning disable xUnit1051
+      var result = await OrphanCleanup.CleanupOrphanedResourcesAsync(Kernel, DriverId, currentSession);
+#pragma warning restore xUnit1051
+
+      Assert.Equal(0, result.TotalRemoved);
+      MockPack.ContainerDriver.Verify(
+          d => d.RemoveAsync(
+              It.IsAny<DriverContext>(), "recent-sibling", It.IsAny<bool>(),
               It.IsAny<bool>(), It.IsAny<CancellationToken>()),
           Times.Never);
     }
@@ -166,6 +231,7 @@ namespace FluentDocker.Tests.CoreTests.Testing
     {
       var currentSession = "current";
       var orphanSession = "orphan";
+      var oldEnough = DateTime.UtcNow.AddHours(-2);
 
       SetupEmptyContainerList();
       SetupEmptyVolumeList();
@@ -184,7 +250,8 @@ namespace FluentDocker.Tests.CoreTests.Testing
                   Labels = new Dictionary<string, string>
                   {
                     [SessionLabel.Key] = orphanSession,
-                    [SessionLabel.ManagedKey] = "true"
+                    [SessionLabel.ManagedKey] = "true",
+                    [SessionLabel.CreatedAtKey] = oldEnough.ToString("o")
                   }
                 }
               ]));
@@ -202,6 +269,7 @@ namespace FluentDocker.Tests.CoreTests.Testing
     {
       var currentSession = "current";
       var orphanSession = "orphan";
+      var oldEnough = DateTime.UtcNow.AddHours(-2);
 
       SetupEmptyContainerList();
       SetupEmptyNetworkList();
@@ -219,7 +287,8 @@ namespace FluentDocker.Tests.CoreTests.Testing
                   Labels = new Dictionary<string, string>
                   {
                     [SessionLabel.Key] = orphanSession,
-                    [SessionLabel.ManagedKey] = "true"
+                    [SessionLabel.ManagedKey] = "true",
+                    [SessionLabel.CreatedAtKey] = oldEnough.ToString("o")
                   }
                 }
               ]));
@@ -260,7 +329,8 @@ namespace FluentDocker.Tests.CoreTests.Testing
 
       var result = await OrphanCleanup.CleanupOrphanedResourcesAsync(
           Kernel, DriverId, currentSessionId: null!,
-          TestContext.Current.CancellationToken);
+          minimumAge: TimeSpan.Zero,
+          cancellationToken: TestContext.Current.CancellationToken);
 
       Assert.Equal(1, result.ContainersRemoved);
     }

@@ -316,11 +316,9 @@ namespace FluentDocker.Drivers.Podman.Cli
       // no-op discoverable rather than silently swallowing the request.
       if (!MachineManagementApplies())
       {
-        _logger.LogWarning(
-            "Podman machine auto-start was requested but is not applicable on this platform; " +
-            "native Linux runs Podman without a machine, so no machine will be started. " +
-            "Remove WithAutoStartMachine on Linux, or run on macOS/Windows where Podman uses a machine.");
-        return;
+        throw new DriverException(
+            "Podman machine auto-start is only supported on macOS/Windows; native Linux runs Podman without a machine. Remove WithAutoStartMachine on Linux.",
+            ErrorCodes.Driver.CapabilityNotSupported);
       }
 
       // Serialize per machine name so parallel kernel builds do not both try to start/init it.
@@ -367,6 +365,12 @@ namespace FluentDocker.Drivers.Podman.Cli
 
       if (target != null && target.Running)
         return; // Machine is already running
+
+      if (target != null && target.Starting)
+      {
+        await WaitForMachineReadyAsync(context, cancellationToken).ConfigureAwait(false);
+        return;
+      }
 
       if (target != null)
       {

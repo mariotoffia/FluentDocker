@@ -48,6 +48,29 @@ namespace FluentDocker.Tests.CoreTests.Driver
       Assert.Equal(new[] { "\u00e9" }, contents); // intact — no U+FFFD, no mojibake
     }
 
+    [Fact]
+    [Trait("Category", "Unit")]
+    public async Task ChatCompletionStreamAsync_SplitAstralCodepointBeforeFullRead_DecodesIntact()
+    {
+      const int streamBufferBytes = 4096;
+      var tail = new string('a', streamBufferBytes - 1);
+      var expected = "\ud83d\ude80" + tail;
+      var prefix = Encoding.UTF8.GetBytes("data: {\"choices\":[{\"index\":0,\"delta\":{\"content\":\"");
+      var rocket = Encoding.UTF8.GetBytes("\ud83d\ude80");
+      var first = new byte[prefix.Length + 3];
+      prefix.CopyTo(first, 0);
+      rocket.AsSpan(0, 3).CopyTo(first.AsSpan(prefix.Length));
+
+      var second = new byte[streamBufferBytes];
+      second[0] = rocket[3];
+      Encoding.UTF8.GetBytes(tail).CopyTo(second, 1);
+
+      var suffix = Encoding.UTF8.GetBytes("\"}}]}\n\ndata: [DONE]\n\n");
+      var conn = new MockModelApiConnection().SetupStreamByteChunks("/chat/completions", first, second, suffix);
+
+      Assert.Equal(new[] { expected }, await CollectDeltas(Create(conn)));
+    }
+
     // ---- M3.1: CRLF (\r\n) line terminators frame events with no stray carriage return. ----
 
     [Fact]

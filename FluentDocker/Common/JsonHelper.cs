@@ -29,8 +29,8 @@ namespace FluentDocker.Common
     public static JsonSerializerOptions IndentedOptions { get; } = CreateIndentedOptions();
 
     /// <summary>
-    /// Deserializes a JSON string to the specified type using default options.
-    /// Returns <c>default</c> on failure instead of throwing.
+    /// Deserializes a JSON string to the specified type using case-insensitive options.
+    /// Returns <c>default</c> on JSON or unsupported-type failures instead of throwing.
     /// </summary>
     public static T TryDeserialize<T>(string json)
     {
@@ -41,7 +41,7 @@ namespace FluentDocker.Common
       {
         return JsonSerializer.Deserialize<T>(json, CaseInsensitiveOptions);
       }
-      catch (JsonException)
+      catch (Exception ex) when (ex is JsonException or NotSupportedException)
       {
         return default;
       }
@@ -49,7 +49,7 @@ namespace FluentDocker.Common
 
     /// <summary>
     /// Deserializes a JSON string using a source-generated <see cref="JsonTypeInfo{T}"/>.
-    /// Returns <c>default</c> on failure instead of throwing.
+    /// Returns <c>default</c> on JSON or unsupported-type failures instead of throwing.
     /// </summary>
     public static T TryDeserialize<T>(string json, JsonTypeInfo<T> typeInfo)
     {
@@ -60,15 +60,15 @@ namespace FluentDocker.Common
       {
         return JsonSerializer.Deserialize(json, typeInfo);
       }
-      catch (JsonException)
+      catch (Exception ex) when (ex is JsonException or NotSupportedException)
       {
         return default;
       }
     }
 
     /// <summary>
-    /// Deserializes a UTF-8 byte span to the specified type using default options.
-    /// Returns <c>default</c> on failure instead of throwing.
+    /// Deserializes a UTF-8 byte span to the specified type using case-insensitive options.
+    /// Returns <c>default</c> on JSON or unsupported-type failures instead of throwing.
     /// </summary>
     public static T TryDeserialize<T>(ReadOnlySpan<byte> utf8Json)
     {
@@ -79,7 +79,7 @@ namespace FluentDocker.Common
       {
         return JsonSerializer.Deserialize<T>(utf8Json, CaseInsensitiveOptions);
       }
-      catch (JsonException)
+      catch (Exception ex) when (ex is JsonException or NotSupportedException)
       {
         return default;
       }

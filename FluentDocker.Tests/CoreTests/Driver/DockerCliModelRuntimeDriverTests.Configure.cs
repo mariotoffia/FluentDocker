@@ -228,7 +228,7 @@ namespace FluentDocker.Tests.CoreTests.Driver
 
       protected override TimeSpan BackendProbeTimeout => _probeTimeout;
 
-      protected override async Task<SimpleCommandResult> RunAsync(string arguments, CancellationToken cancellationToken)
+      protected override async Task<SimpleCommandResult> RunAsync(DriverContext context, string arguments, CancellationToken cancellationToken)
       {
         if (!arguments.Contains("--help"))
           return new SimpleCommandResult { Success = true, Output = string.Empty, ExitCode = 0 };

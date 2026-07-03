@@ -89,10 +89,11 @@ namespace FluentDocker.Kernel
       {
         foreach (var config in _driverConfigurations)
         {
-          if (config.DriverPack != null)
+          var driverPack = config.DriverPackFactory?.Invoke() ?? config.DriverPack;
+          if (driverPack != null)
           {
             await kernel.RegisterDriverPackAsync(
-                config.DriverId, config.DriverPack, config.Context, cancellationToken).ConfigureAwait(false);
+                config.DriverId, driverPack, config.Context, cancellationToken).ConfigureAwait(false);
           }
           else if (config.Driver != null)
           {
@@ -125,6 +126,7 @@ namespace FluentDocker.Kernel
       public string DriverId { get; set; }
       public IDriver Driver { get; set; }
       public IDriverPack DriverPack { get; set; }
+      public Func<IDriverPack> DriverPackFactory { get; set; }
       public DriverContext Context { get; set; }
       public bool IsDefault { get; set; }
     }

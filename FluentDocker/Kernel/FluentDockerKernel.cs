@@ -57,16 +57,25 @@ namespace FluentDocker.Kernel
     public object SysCtl(string driverId, Type interfaceType)
     {
       ThrowIfDisposed();
+      ArgumentNullException.ThrowIfNull(driverId);
+      ArgumentNullException.ThrowIfNull(interfaceType);
 
       // First check if driverId refers to a driver pack
       if (_registry.TryGetDriverPack(driverId, out var driverPack))
       {
         // IDriverPack extends IDriverInterfaceResolver — use it directly
         if (driverPack.TryResolve(interfaceType, out var resolved))
+        {
+          if (!interfaceType.IsInstanceOfType(resolved))
+            throw new InterfaceNotSupportedException(driverId, interfaceType.Name);
           return resolved;
+        }
 
         // Fallback: delegate to pack's type-based SysCtl
-        return driverPack.SysCtl(driverId, interfaceType);
+        var packResolved = driverPack.SysCtl(driverId, interfaceType);
+        if (!interfaceType.IsInstanceOfType(packResolved))
+          throw new InterfaceNotSupportedException(driverId, interfaceType.Name);
+        return packResolved;
       }
 
       // Fall back to regular driver resolution
@@ -75,7 +84,11 @@ namespace FluentDocker.Kernel
         // If the driver is an IDriverInterfaceResolver, use it
         if (driver is IDriverInterfaceResolver driverResolver &&
             driverResolver.TryResolve(interfaceType, out var driverResolved))
+        {
+          if (!interfaceType.IsInstanceOfType(driverResolved))
+            throw new InterfaceNotSupportedException(driverId, interfaceType.Name);
           return driverResolved;
+        }
 
         // Direct cast check
         if (interfaceType.IsInstanceOfType(driver))
@@ -172,7 +185,8 @@ namespace FluentDocker.Kernel
     }
 
     /// <summary>
-    /// Unregisters a driver or driver pack.
+    /// Unregisters and disposes a driver or driver pack. Clearing the default
+    /// driver unregisters the default without selecting a replacement.
     /// </summary>
     public void UnregisterDriver(string driverId)
     {
@@ -294,14 +308,15 @@ namespace FluentDocker.Kernel
     /// on single-threaded synchronization contexts (ASP.NET, WPF).
     /// Prefer <see cref="DisposeAsync"/> when possible.
     /// </summary>
+#pragma warning disable CA1816
     public void Dispose()
     {
       // DisposeAsync uses Interlocked.CompareExchange for atomic guard,
       // so this just delegates without a separate check.
       // Dispatched to the thread pool to avoid sync-over-async deadlocks.
       Task.Run(() => DisposeAsync().AsTask()).GetAwaiter().GetResult();
-      GC.SuppressFinalize(this);
     }
+#pragma warning restore CA1816
 
     #endregion
   }

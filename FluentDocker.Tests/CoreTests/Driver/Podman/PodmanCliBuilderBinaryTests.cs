@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using System.Reflection;
+using FluentDocker.Common;
 using FluentDocker.Drivers.Podman.Cli.Binary;
 using FluentDocker.Kernel;
 using FluentDocker.Model.Drivers;
@@ -84,6 +85,25 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
         Assert.NotNull(resolver.MainPodmanClient);
         Assert.Equal("mypodman", resolver.MainPodmanClient.Binary);
         Assert.Equal(dir, resolver.MainPodmanClient.Path);
+      }
+      finally
+      {
+        Directory.Delete(dir, recursive: true);
+      }
+    }
+
+    [Fact]
+    public void Resolver_WhenBinaryMissing_ThrowsDriverNotAvailableException()
+    {
+      var dir = Path.Combine(AppContext.BaseDirectory, ".out", $"podman-resolver-{Guid.NewGuid():N}");
+      Directory.CreateDirectory(dir);
+      try
+      {
+        Assert.Throws<DriverNotAvailableException>(() =>
+            new PodmanBinariesResolver(new PodmanBinaryConfiguration
+            {
+              SearchPaths = [dir]
+            }));
       }
       finally
       {

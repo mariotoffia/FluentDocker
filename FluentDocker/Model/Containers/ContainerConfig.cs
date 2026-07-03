@@ -63,5 +63,4 @@ namespace FluentDocker.Model.Containers
     /// <summary>Signal used to stop the container (e.g., "SIGTERM").</summary>
     public string StopSignal { get; set; }
   }
-#pragma warning restore CA1708
 }

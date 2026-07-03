@@ -3,6 +3,7 @@ namespace FluentDocker.Model.Events
   /// <summary>
   /// Emitted when a container has been created (not started).
   /// </summary>
+  [System.Obsolete("Unused by FluentDocker and scheduled for removal in v4. Use stream driver ContainerEvent instead.")]
   public sealed class ContainerCreateEvent : FdEvent<ContainerCreateEvent.ContainerCreateActor>
   {
     public ContainerCreateEvent()
@@ -17,6 +18,7 @@ namespace FluentDocker.Model.Events
     /// <remarks>
     /// The actor is the hash of the container.
     /// </remarks>
+    [System.Obsolete("Unused by FluentDocker and scheduled for removal in v4. Use stream driver ContainerEvent instead.")]
     public sealed class ContainerCreateActor : EventActor
     {
       /// <summary>

@@ -9,6 +9,11 @@ namespace FluentDocker.Services
   /// Async service interface with kernel/driver architecture.
   /// This is the root service interface for all FluentDocker services.
   /// </summary>
+  /// <remarks>
+  /// Built-in services make disposal idempotent, use concurrent hook registration, and raise
+  /// <see cref="StateChange"/> only when the state actually changes. State-change handlers and
+  /// hooks are isolated from lifecycle operations: thrown exceptions are logged and swallowed.
+  /// </remarks>
   public interface IServiceAsync : IDisposable, IAsyncDisposable
   {
     /// <summary>Name or identifier of the service.</summary>
@@ -48,8 +53,12 @@ namespace FluentDocker.Services
     Task RemoveAsync(bool force = false, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Adds a state change hook.
+    /// Adds a state change hook and returns the service for fluent chaining.
     /// </summary>
+    /// <remarks>
+    /// Pass <paramref name="uniqueName"/> when the hook must be removable. If you want a generated
+    /// removable name, use <see cref="ServiceHookExtensions.AddHookWithGeneratedName"/>.
+    /// </remarks>
     IServiceAsync AddHook(ServiceRunningState state, Func<IServiceAsync, Task> hook, string uniqueName = null);
 
     /// <summary>

@@ -1,6 +1,7 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
+using FluentDocker.Builders;
 using FluentDocker.Drivers;
 using FluentDocker.Kernel;
 using FluentDocker.Model.Containers;
@@ -263,6 +264,41 @@ namespace FluentDocker.Tests.CoreTests.Testing.Adapters
               k => new ContainerResource(k, c => c.UseImage("fail:img")),
               kernelFactory: () => Task.FromResult(testKernel),
               cancellationToken: TestContext.Current.CancellationToken));
+    }
+
+    [Fact]
+    public async Task ContainerFixture_SetUpAsyncCalledTwice_IsNoOp()
+    {
+      MockPack
+              .SetupContainerCreate()
+              .SetupContainerStart()
+              .SetupContainerInspect(running: true)
+              .SetupContainerStop()
+              .SetupContainerRemove();
+
+      var fixture = new TestNUnitContainerFixture(Kernel);
+
+      await fixture.SetUpAsync();
+      await fixture.SetUpAsync();
+
+      Assert.True(fixture.Resource.IsInitialized);
+      MockPack.VerifyContainerCreated("alpine:latest", Times.Once());
+
+      await fixture.TearDownAsync();
+    }
+
+    private sealed class TestNUnitContainerFixture(FluentDockerKernel kernel)
+        : NUnitContainerFixtureBase
+    {
+      private readonly FluentDockerKernel _kernel = kernel;
+
+      protected override Func<Task<FluentDockerKernel>>? KernelFactory =>
+              () => Task.FromResult(_kernel);
+
+      protected override void ConfigureContainer(IContainerBuilder builder)
+      {
+        builder.UseImage("alpine:latest");
+      }
     }
   }
 }

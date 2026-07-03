@@ -154,6 +154,16 @@ public class RedisTests
 }
 ```
 
+### Fixture lifetime comparison
+
+| Adapter/base | Container lifetime |
+|---|---|
+| `XunitContainerTestBase` | One container per test method |
+| `XunitContainerFixtureBase` | One container per xUnit class/collection fixture |
+| `MsTestContainerFixtureBase` | One container per MSTest test method |
+| `MsTestClassContainerFixtureBase<TFixture>` | One container shared by one MSTest test class |
+| `NUnitContainerFixtureBase` | One container per NUnit fixture |
+
 ## Detailed Documentation
 
 | Topic | Description |

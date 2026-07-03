@@ -22,10 +22,9 @@ Start with this sequence:
 2. [Getting Started](getting-started.md) for your first working container
 3. One focused topic: [Containers](containers.md) or [Compose](compose.md)
 
-## What's New in 3.2.0 (in development)
+## What's New in the 3.2 preview
 
-3.2.0 is **in development** and **not yet on NuGet** (latest published: 3.1.0). Build
-from source on the feature branch to try it.
+The 3.2 release line adds preview Docker Model Runner support for local LLM workflows.
 
 - **Docker Model Runner (local LLMs)** — manage and consume local models behind the
   same `Builder → WithinDriver → UseModelRunner()` pattern: chat, streaming chat, and
@@ -54,7 +53,7 @@ using FluentDocker.Builders;
 using FluentDocker.Kernel;
 
 // Multiple kernels per app are supported.
-using var kernel = await FluentDockerKernel.Create()
+await using var kernel = await FluentDockerKernel.Create()
     .WithDockerCli("docker", d => d.AsDefault())
     .BuildAsync();
 ```
@@ -100,8 +99,8 @@ See [Podman production notes](podman.md) for machine behavior (macOS/Windows vs 
 readiness waits, cancellation, and output caps.
 
 ```csharp
-using var kernel = await FluentDockerKernel.Create()
-    .WithPodmanCli("podman", d => d.WithAutoStartMachine().AsDefault())
+await using var kernel = await FluentDockerKernel.Create()
+    .WithPodmanCli("podman", d => d.WithAutoStartMachine().AsDefault()) // macOS/Windows only
     .BuildAsync();
 
 await using var results = await new Builder()
@@ -120,8 +119,8 @@ using FluentDocker.Drivers.Podman;
 using FluentDocker.Kernel;
 using FluentDocker.Model.Drivers;
 
-using var kernel = await FluentDockerKernel.Create()
-    .WithPodmanCli("podman", d => d.WithAutoStartMachine().AsDefault())
+await using var kernel = await FluentDockerKernel.Create()
+    .WithPodmanCli("podman", d => d.WithAutoStartMachine().AsDefault()) // macOS/Windows only
     .BuildAsync();
 
 var context = new DriverContext("podman");
@@ -160,10 +159,11 @@ dotnet add package FluentDocker.Testing.NUnit   # NUnit adapter
 | [Networking](networking.md) | Networks, aliases, static IPs |
 | [Volumes](volumes.md) | Persistence and bind mounts |
 | [Images](images.md) | Build image workflows |
-| [Model Runner (LLMs)](model-runner.md) | Manage and consume local LLMs via Docker Model Runner *(preview, v3.2 — not yet released)* |
+| [Model Runner (LLMs)](model-runner.md) | Manage and consume local LLMs via Docker Model Runner *(preview, since v3.2)* |
 | [Testing](testing.md) | Testing.Core and adapters |
 | [Utilities](utilities.md) | Helpers and extension methods |
 | [Error Handling](architecture.md#error-handling) | Exceptions and error codes |
+| [Troubleshooting](troubleshooting.md) | Common failures, symptoms, and fixes |
 
 ### Level 3: Advanced
 
@@ -194,11 +194,12 @@ FluentDocker uses a three-layer architecture:
 Docker requires sudo by default. Configure via the kernel builder:
 
 ```csharp
+using FluentDocker.Kernel;
 using FluentDocker.Model.Common;
 
-using var kernel = await FluentDockerKernel.Create()
+await using var kernel = await FluentDockerKernel.Create()
     .WithDockerCli("docker", d => d
-        .WithSudo(SudoMechanism.NoPassword)
+        .WithSudo(SudoMechanism.NoPassword) // SudoMechanism is experimental
         .AsDefault())
     .BuildAsync();
 ```

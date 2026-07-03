@@ -36,12 +36,12 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       try
       {
         var args = BuildPlayArgs(config);
-        var result = await ExecuteUnboundedCommandAsync(args, cancellationToken).ConfigureAwait(false);
+        var result = await ExecuteUnboundedCommandAsync(context, args, cancellationToken).ConfigureAwait(false);
 
         if (!result.Success)
         {
           return CommandResponse<KubePlayResult>.Fail(
-              result.Error ?? "Kube play failed",
+              ErrorOrDefault(result, "Kube play failed"),
               ErrorCodes.Kubernetes.PlayFailed,
               CreateErrorContext(context, "KubePlay", result), result.ExitCode);
         }
@@ -76,7 +76,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
         if (!result.Success)
         {
           return CommandResponse<Unit>.Fail(
-              result.Error ?? "Kube down failed",
+              ErrorOrDefault(result, "Kube down failed"),
               ErrorCodes.Kubernetes.DownFailed,
               CreateErrorContext(context, "KubeDown", result), result.ExitCode);
         }
@@ -110,7 +110,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
         if (!result.Success)
         {
           return CommandResponse<string>.Fail(
-              result.Error ?? "Kube generate failed",
+              ErrorOrDefault(result, "Kube generate failed"),
               ErrorCodes.Kubernetes.GenerateFailed,
               CreateErrorContext(context, "KubeGenerate", result), result.ExitCode);
         }

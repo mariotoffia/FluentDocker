@@ -1,4 +1,5 @@
 using System;
+using System.IO;
 using System.Threading.Tasks;
 using FluentDocker.Builders;
 using Xunit;
@@ -201,7 +202,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
           .UseWorkDir("/app")
           .Copy("package*.json", "./")
           .Run("npm ci")
-          .Copy(".", ".")
+          .Copy("src", ".")
           .ExposePorts(3000)
           .Command("node", "server.js")
           .ToDockerfileStringAsync();
@@ -235,6 +236,42 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
     }
 
     [Fact]
+    public async Task Copy_WithDirectorySource_ThrowsNotSupported()
+    {
+      var sourceDir = Path.Combine(".out", "dockerfile-dir-source");
+      Directory.CreateDirectory(sourceDir);
+
+      var ex = await Assert.ThrowsAsync<NotSupportedException>(() => new DockerfileBuilder()
+          .UseParent("alpine")
+          .Copy(sourceDir, "/app")
+          .ToDockerfileStringAsync());
+
+      Assert.Contains("Directory sources are not supported", ex.Message);
+    }
+
+    [Fact]
+    public async Task Add_WithAbsoluteFileSource_CopiesOnEveryBuildWithoutMutatingSource()
+    {
+      var root = Path.GetFullPath(Path.Combine(".out", "dockerfile-add-rebuild"));
+      var source = Path.Combine(root, "source.txt");
+      var first = Path.Combine(root, "first");
+      var second = Path.Combine(root, "second");
+      Directory.CreateDirectory(root);
+      await File.WriteAllTextAsync(source, "data", TestContext.Current.CancellationToken);
+      var builder = new DockerfileBuilder()
+          .WorkingFolder(first)
+          .UseParent("alpine")
+          .Add(source, "/data/source.txt");
+
+      await builder.ToDockerfileStringAsync();
+      builder.WorkingFolder(second);
+      await builder.ToDockerfileStringAsync();
+
+      Assert.True(File.Exists(Path.Combine(first, "source.txt")));
+      Assert.True(File.Exists(Path.Combine(second, "source.txt")));
+    }
+
+    [Fact]
     public void ToImage_WithoutParent_ThrowsException()
     {
       var builder = new DockerfileBuilder();
@@ -244,4 +281,3 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
     }
   }
 }
-

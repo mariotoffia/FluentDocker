@@ -77,7 +77,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Docker
       // BinaryName is finch but only a docker binary is present -> not found.
       CreateFakeBinary("docker");
 
-      Assert.Throws<FluentDocker.Common.FluentDockerException>(() =>
+      Assert.Throws<FluentDocker.Common.DriverNotAvailableException>(() =>
           new DockerBinariesResolver(new BinaryConfiguration
           {
             BinaryName = "finch",

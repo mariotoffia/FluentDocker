@@ -14,8 +14,8 @@ Side-by-side before/after examples for common v2.x.x to v3.0.0 patterns.
 - v2 only had Docker CLI. v3 supports multiple drivers (Docker CLI, Docker API, Podman CLI).
 - v3 requires a **kernel** with at least one registered driver.
 - v3 builder uses **lambdas** for configuration instead of method chaining on a single object.
-- v3 `Build()` auto-starts containers (no separate `.Start()` call).
-- v3 `Build()` returns `BuildResults`, not individual services.
+- v3 `BuildAsync()` auto-starts containers (no separate `.Start()` call).
+- v3 `BuildAsync()` returns `BuildResults`, not individual services.
 - Extension methods like `ToHostExposedEndpoint` require `using FluentDocker.Services.Extensions;`.
 
 ---
@@ -46,21 +46,23 @@ Console.WriteLine($"Nginx available at: {endpoint}");
 using FluentDocker.Builders;
 using FluentDocker.Kernel;
 using FluentDocker.Services.Extensions;
+using System;
+using System.Linq;
 
 // Step 1: Create a kernel with a Docker CLI driver
 // (multiple kernels per app/test session are supported)
-using var kernel = FluentDockerKernel.Create()
+await using var kernel = await FluentDockerKernel.Create()
     .WithDockerCli("docker", d => d.AsDefault())
-    .Build();
+    .BuildAsync();
 
-// Step 2: Build container — Build() auto-starts, returns BuildResults
-using var results = new Builder()
+// Step 2: Build container — BuildAsync() auto-starts, returns BuildResults
+await using var results = await new Builder()
     .WithinDriver("docker", kernel)
     .UseContainer(c => c
         .UseImage("nginx:alpine")
         .ExposePort("80")
         .WaitForPort("80/tcp", 30000))
-    .Build();
+    .BuildAsync();
 
 var container = results.Containers.First();
 var endpoint = container.ToHostExposedEndpoint("80/tcp");
@@ -70,7 +72,7 @@ Console.WriteLine($"Nginx available at: {endpoint}");
 **What changed:**
 - `new Builder().UseContainer().UseImage(...)` becomes `new Builder().WithinDriver(...).UseContainer(c => c.UseImage(...))`.
 - `ExposePort(80)` (int) becomes `ExposePort("80")` (string).
-- `.Build().Start()` becomes just `.Build()` (auto-starts).
+- `.Build().Start()` becomes `await ...BuildAsync()` (auto-starts).
 - The result is `BuildResults`, not a single container. Access via `results.Containers.First()`.
 
 ---
@@ -99,12 +101,13 @@ using var container = new Builder()
 ```csharp
 using FluentDocker.Builders;
 using FluentDocker.Kernel;
+using System.Linq;
 
-using var kernel = FluentDockerKernel.Create()
+await using var kernel = await FluentDockerKernel.Create()
     .WithDockerCli("docker", d => d.AsDefault())
-    .Build();
+    .BuildAsync();
 
-using var results = new Builder()
+await using var results = await new Builder()
     .WithinDriver("docker", kernel)
     .UseContainer(c => c
         .UseImage("postgres:16-alpine")
@@ -113,7 +116,7 @@ using var results = new Builder()
         .WithEnvironment("POSTGRES_DB", "myapp")
         .ExposePort("5432")
         .WaitForPort("5432/tcp", 30000))
-    .Build();
+    .BuildAsync();
 
 var db = results.Containers.First();
 ```
@@ -163,13 +166,14 @@ using var app = new Builder()
 ```csharp
 using FluentDocker.Builders;
 using FluentDocker.Kernel;
+using System.Linq;
 
-using var kernel = FluentDockerKernel.Create()
+await using var kernel = await FluentDockerKernel.Create()
     .WithDockerCli("docker", d => d.AsDefault())
-    .Build();
+    .BuildAsync();
 
-// v3: single builder, multiple operations, one Build() call
-using var results = new Builder()
+// v3: single builder, multiple operations, one BuildAsync() call
+await using var results = await new Builder()
     .WithinDriver("docker", kernel)
     .UseNetwork(n => n
         .WithName("backend-net")
@@ -187,7 +191,7 @@ using var results = new Builder()
         .WithEnvironment("REDIS_HOST", "cache")
         .ExposePort("8080")
         .WaitForPort("8080/tcp", 30000))
-    .Build();
+    .BuildAsync();
 
 // Access individual services from results
 var network = results.Networks.First();
@@ -196,7 +200,7 @@ var webapp = results.GetContainer("webapp");
 ```
 
 **What changed:**
-- Network and containers are declared in a **single builder chain** with one terminal `Build()`.
+- Network and containers are declared in a **single builder chain** with one terminal `BuildAsync()`.
 - Use `results.GetContainer("name")` to retrieve containers by name.
 - `RemoveOnDispose()` on the network builder ensures cleanup.
 - `BuildResults` implements `IAsyncDisposable` and disposes all services.
@@ -228,19 +232,20 @@ var containers = svc.Containers;
 ```csharp
 using FluentDocker.Builders;
 using FluentDocker.Kernel;
+using System.Linq;
 
-using var kernel = FluentDockerKernel.Create()
+await using var kernel = await FluentDockerKernel.Create()
     .WithDockerCli("docker", d => d.AsDefault())
-    .Build();
+    .BuildAsync();
 
-using var results = new Builder()
+await using var results = await new Builder()
     .WithinDriver("docker", kernel)
     .UseCompose(c => c
         .WithComposeFile("docker-compose.yml")
         .WithRemoveOrphans()
         .WithWait()
         .WithWaitTimeout(30))
-    .Build();
+    .BuildAsync();
 
 var compose = results.ComposeServices.First();
 ```
@@ -256,7 +261,7 @@ var compose = results.ComposeServices.First();
 
 ```csharp
 // v3: compose with overrides and environment variables
-using var results = new Builder()
+await using var results = await new Builder()
     .WithinDriver("docker", kernel)
     .UseCompose(c => c
         .WithComposeFiles("docker-compose.yml", "docker-compose.override.yml")
@@ -268,7 +273,7 @@ using var results = new Builder()
         .WithRemoveOrphans()
         .WithWait()
         .WithWaitTimeout(60))
-    .Build();
+    .BuildAsync();
 ```
 
 ---
@@ -319,18 +324,20 @@ This feature is new in v3 -- there is no v2 equivalent.
 ```csharp
 using FluentDocker.Builders;
 using FluentDocker.Kernel;
+using System;
+using System.Linq;
 
-using var kernel = FluentDockerKernel.Create()
+await using var kernel = await FluentDockerKernel.Create()
     .WithDockerCli("docker", d => d.AsDefault())
-    .Build();
+    .BuildAsync();
 
-using var results = new Builder()
+await using var results = await new Builder()
     .WithinDriver("docker", kernel)
     .UseContainer(c => c
         .UseImage("nginx:alpine")
         .ExposePort("80")
         .WaitForPort("80/tcp", 30000))
-    .Build();
+    .BuildAsync();
 
 var container = results.Containers.First();
 
@@ -394,7 +401,7 @@ string processes = await container.ExecuteAsync("ps aux");
 
 ```csharp
 // v3: Execute commands automatically on container start/stop
-using var results = new Builder()
+await using var results = await new Builder()
     .WithinDriver("docker", kernel)
     .UseContainer(c => c
         .UseImage("ubuntu:22.04")
@@ -402,7 +409,7 @@ using var results = new Builder()
         .ExecuteOnRunning("mkdir", "-p", "/app/data")
         .ExecuteOnRunning("chmod", "777", "/app/data")
         .ExecuteOnDisposing("rm", "-rf", "/app/data/temp"))
-    .Build();
+    .BuildAsync();
 ```
 
 ---
@@ -426,32 +433,32 @@ using var container = new Builder()
 // container is stopped and removed when disposed
 ```
 
-### v3 (NEW) -- Synchronous Dispose
+### v3 (NEW) -- Async Dispose
 
 ```csharp
 using FluentDocker.Builders;
 using FluentDocker.Kernel;
+using System.Linq;
 
-using var kernel = FluentDockerKernel.Create()
+await using var kernel = await FluentDockerKernel.Create()
     .WithDockerCli("docker", d => d.AsDefault())
-    .Build();
+    .BuildAsync();
 
-// using disposes ALL services in the BuildResults
-using var results = new Builder()
+// await using disposes ALL services in the BuildResults
+await using var results = await new Builder()
     .WithinDriver("docker", kernel)
     .UseContainer(c => c
         .UseImage("redis:7-alpine")
         .ExposePort("6379")
         .WaitForPort("6379/tcp", 30000))
-    .Build();
+    .BuildAsync();
 
 // All containers, networks, and volumes are cleaned up when results is disposed
 ```
 
-### v3 (NEW) -- Async Dispose
+### v3 (NEW) -- Explicit Async Dispose
 
 ```csharp
-// Preferred: use await using for async disposal
 await using var results = await new Builder()
     .WithinDriver("docker", kernel)
     .UseContainer(c => c
@@ -461,13 +468,13 @@ await using var results = await new Builder()
     .BuildAsync();
 
 // Or explicit async disposal
-var results2 = new Builder()
+var results2 = await new Builder()
     .WithinDriver("docker", kernel)
     .UseContainer(c => c
         .UseImage("postgres:16-alpine")
         .WithEnvironment("POSTGRES_PASSWORD", "test")
         .ExposePort("5432"))
-    .Build();
+    .BuildAsync();
 
 try
 {
@@ -490,16 +497,15 @@ finally
 
 ```csharp
 // Keep container alive after dispose (for debugging)
-using var results = new Builder()
+await using var results = await new Builder()
     .WithinDriver("docker", kernel)
     .UseContainer(c => c
         .UseImage("myapp:latest")
-        .KeepContainer()    // Don't remove on dispose
-        .KeepRunning())     // Don't stop on dispose
-    .Build();
+        .KeepRunning())     // Don't stop or remove on dispose
+    .BuildAsync();
 
 // Delete volumes on dispose
-using var results2 = new Builder()
+await using var results2 = await new Builder()
     .WithinDriver("docker", kernel)
     .UseContainer(c => c
         .UseImage("postgres:16-alpine")
@@ -507,7 +513,7 @@ using var results2 = new Builder()
         .WithVolume("/data", "/var/lib/postgresql/data")
         .DeleteVolumeOnDispose()
         .DeleteNamedVolumeOnDispose())
-    .Build();
+    .BuildAsync();
 ```
 
 ---
@@ -522,7 +528,7 @@ using var results2 = new Builder()
 | `.Mount(host, container, ...)` | `.WithVolume(host, container)` |
 | `.WaitForMessageInLogs(msg, ms)` | `.WaitForLogMessage(msg, ms)` |
 | `.WaitForHttp(url, ms)` | `.WaitForHttp("port/tcp", "/path", ms)` |
-| `.Build().Start()` | `.Build()` |
+| `.Build().Start()` | `await ...BuildAsync()` |
 | `container.Execute(...)` | `await container.ExecuteAsync(...)` |
 | `container.CopyTo(...)` | `await container.CopyToAsync(...)` |
 | `container.CopyFrom(...)` | `await container.CopyFromToPathAsync(...)` |

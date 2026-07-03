@@ -1,11 +1,13 @@
 using System;
 using FluentDocker.Common;
 using FluentDocker.Model.Common;
+using FluentDocker.Tests.CoreTests.Service;
 using Xunit;
 
 namespace FluentDocker.Tests.CoreTests.Model
 {
   [Trait("Category", "Unit")]
+  [Collection(ModelEnvVarsCollection.Name)]
   public class DockerUriTests
   {
     [Fact]

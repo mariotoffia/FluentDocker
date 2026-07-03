@@ -60,6 +60,8 @@ namespace FluentDocker.Testing.Core
   /// </summary>
   public static class OrphanCleanup
   {
+    private static readonly TimeSpan DefaultMinimumAge = TimeSpan.FromHours(1);
+
     /// <summary>
     /// Result of an orphan cleanup operation that scans containers, networks,
     /// and volumes only.
@@ -94,7 +96,7 @@ namespace FluentDocker.Testing.Core
     /// <param name="kernel">The kernel with registered drivers.</param>
     /// <param name="driverId">The driver to clean up with.</param>
     /// <param name="currentSessionId">The current session ID to preserve (null to remove all).</param>
-    /// <param name="minimumAge">Minimum age before another session's managed resource can be removed.</param>
+    /// <param name="minimumAge">Minimum age before another session's managed resource can be removed. Use overloads without this parameter for the default one-hour guard; pass <see cref="TimeSpan.Zero"/> only as an explicit opt-in.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>Summary of removed resources.</returns>
     public static async Task<CleanupResult> CleanupOrphanedResourcesAsync(
@@ -116,9 +118,37 @@ namespace FluentDocker.Testing.Core
     }
 
     /// <summary>
-    /// Removes FluentDocker-managed containers, networks, and volumes that do
-    /// not belong to the specified current session.
+    /// Removes orphaned resources while preserving other sessions for the default one-hour safety window.
     /// </summary>
+    public static Task<CleanupResult> CleanupOrphanedResourcesAsync(
+        FluentDockerKernel kernel,
+        string driverId)
+    {
+      return CleanupOrphanedResourcesAsync(
+          kernel, driverId, null, DefaultMinimumAge, CancellationToken.None);
+    }
+
+    /// <summary>
+    /// Removes orphaned resources while preserving other sessions for the default one-hour safety window.
+    /// </summary>
+    public static Task<CleanupResult> CleanupOrphanedResourcesAsync(
+        FluentDockerKernel kernel,
+        string driverId,
+        string currentSessionId)
+    {
+      return CleanupOrphanedResourcesAsync(
+          kernel, driverId, currentSessionId, DefaultMinimumAge, CancellationToken.None);
+    }
+
+    /// <summary>
+    /// Removes FluentDocker-managed containers, networks, and volumes that do
+    /// not belong to the specified current session, preserving resources from
+    /// other sessions for the default one-hour safety window.
+    /// </summary>
+    /// <remarks>
+    /// To disable the age guard intentionally, call the overload that accepts
+    /// <c>minimumAge</c> and pass <see cref="TimeSpan.Zero"/>.
+    /// </remarks>
     public static Task<CleanupResult> CleanupOrphanedResourcesAsync(
         FluentDockerKernel kernel,
         string driverId,
@@ -126,7 +156,7 @@ namespace FluentDocker.Testing.Core
         CancellationToken cancellationToken)
     {
       return CleanupOrphanedResourcesAsync(
-          kernel, driverId, currentSessionId, TimeSpan.Zero, cancellationToken);
+          kernel, driverId, currentSessionId, DefaultMinimumAge, cancellationToken);
     }
 
     private static async Task CleanupContainersAsync(
@@ -152,6 +182,13 @@ namespace FluentDocker.Testing.Core
         var containerLabels = container.Config?.Labels as IDictionary<string, string>;
         if (IsCurrentSession(containerLabels, currentSessionId))
           continue;
+        if (minimumAge > TimeSpan.Zero &&
+            (containerLabels == null || !containerLabels.ContainsKey(SessionLabel.CreatedAtKey)))
+        {
+          var inspect = await driver.InspectAsync(context, container.Id, cancellationToken).ConfigureAwait(false);
+          if (inspect?.Success == true)
+            containerLabels = inspect.Data?.Config?.Labels as IDictionary<string, string>;
+        }
         if (ShouldPreserveDueToAge(containerLabels, minimumAge))
           continue;
 

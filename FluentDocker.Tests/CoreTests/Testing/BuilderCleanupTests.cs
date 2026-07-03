@@ -60,7 +60,7 @@ namespace FluentDocker.Tests.CoreTests.Testing
               It.IsAny<DriverContext>(),
               "leak-container",
               true,
-              false,
+              true,
               It.IsAny<CancellationToken>()),
           Times.AtLeastOnce());
     }
@@ -95,7 +95,7 @@ namespace FluentDocker.Tests.CoreTests.Testing
               It.IsAny<DriverContext>(),
               "start-fail-container",
               true,
-              false,
+              true,
               It.IsAny<CancellationToken>()),
           Times.AtLeastOnce());
     }

@@ -38,6 +38,12 @@ namespace FluentDocker.Services.Impl
     public async Task LoadAsync(ModelReference model, ModelRunOptions options = null, CancellationToken cancellationToken = default)
     {
       ThrowIfDisposed();
+      await using var gate = await ModelOperationGate.AcquireAsync(model, cancellationToken).ConfigureAwait(false);
+      await LoadCoreAsync(model, options, cancellationToken).ConfigureAwait(false);
+    }
+
+    internal async Task LoadCoreAsync(ModelReference model, ModelRunOptions options = null, CancellationToken cancellationToken = default)
+    {
       var response = await Runtime().LoadAsync(Context(), model, options, cancellationToken).ConfigureAwait(false);
       UnwrapUnit(response, $"Load model '{model}'");
     }
@@ -47,6 +53,12 @@ namespace FluentDocker.Services.Impl
     {
       ThrowIfDisposed();
       ArgumentNullException.ThrowIfNull(model);
+      await using var gate = await ModelOperationGate.AcquireAsync(model, cancellationToken).ConfigureAwait(false);
+      await UnloadCoreAsync(model, cancellationToken).ConfigureAwait(false);
+    }
+
+    internal async Task UnloadCoreAsync(ModelReference model, CancellationToken cancellationToken = default)
+    {
       var response = await Runtime().UnloadAsync(Context(), model, cancellationToken).ConfigureAwait(false);
       UnwrapUnit(response, $"Unload model '{model}'");
     }
@@ -63,13 +75,12 @@ namespace FluentDocker.Services.Impl
     public async Task ConfigureAsync(ModelReference model, ModelConfigureOptions options, CancellationToken cancellationToken = default)
     {
       ThrowIfDisposed();
-      // Serialize configure on the SAME per-model gate that build-time pull/load/unload use, so a
-      // concurrent gated op (or another configure) for THIS model cannot stomp its persistent
-      // config mid-flight. The gate is keyed per model, so different models still run in parallel.
-      // Gating this shared method also covers the build-time configure in ModelRunnerBuilder, which
-      // routes through here — do NOT add a second gate at that call site (the semaphore is
-      // non-reentrant, so double-acquiring the same key would deadlock).
       await using var gate = await ModelOperationGate.AcquireAsync(model, cancellationToken).ConfigureAwait(false);
+      await ConfigureCoreAsync(model, options, cancellationToken).ConfigureAwait(false);
+    }
+
+    internal async Task ConfigureCoreAsync(ModelReference model, ModelConfigureOptions options, CancellationToken cancellationToken = default)
+    {
       var response = await Runtime().ConfigureAsync(Context(), model, options, cancellationToken).ConfigureAwait(false);
       UnwrapUnit(response, $"Configure model '{model}'");
     }

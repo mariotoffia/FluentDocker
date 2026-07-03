@@ -2,6 +2,7 @@ using System;
 using System.Diagnostics;
 using System.IO;
 using System.Text;
+using FluentDocker.Common;
 using FluentDocker.Drivers.Docker.Cli.Binary;
 using FluentDocker.Model.Common;
 using FluentDocker.Model.Drivers;
@@ -85,7 +86,7 @@ namespace FluentDocker.Drivers.Docker.Cli
     /// <returns>A string of global flags to prepend to Docker commands, or empty string.</returns>
     public static string BuildGlobalArgs(DriverContext context)
     {
-      if (context == null || string.IsNullOrEmpty(context.Host))
+      if (context == null)
         return "";
 
       // Host and cert paths flow into the single-string ProcessStartInfo.Arguments and
@@ -93,7 +94,8 @@ namespace FluentDocker.Drivers.Docker.Cli
       // host string or a cert directory path containing a space) must be quoted to
       // stay within a single argv token.
       var sb = new StringBuilder();
-      sb.Append("-H ").Append(QuoteArgumentIfNeeded(context.Host));
+      if (!string.IsNullOrEmpty(context.Host))
+        sb.Append("-H ").Append(QuoteArgumentIfNeeded(context.Host));
 
       if (!string.IsNullOrEmpty(context.CertificatePath))
       {
@@ -103,16 +105,23 @@ namespace FluentDocker.Drivers.Docker.Cli
         var key = Path.Combine(certPath, "key.pem");
 
         if (context.VerifyTls)
-          sb.Append(" --tlsverify");
+          AppendWithSpace(sb, "--tlsverify");
         else
-          sb.Append(" --tls");
+          AppendWithSpace(sb, "--tls");
 
-        sb.Append(" --tlscacert ").Append(QuoteArgumentIfNeeded(caCert))
+        AppendWithSpace(sb, "--tlscacert ").Append(QuoteArgumentIfNeeded(caCert))
           .Append(" --tlscert ").Append(QuoteArgumentIfNeeded(cert))
           .Append(" --tlskey ").Append(QuoteArgumentIfNeeded(key));
       }
 
       return sb.ToString();
+    }
+
+    private static StringBuilder AppendWithSpace(StringBuilder sb, string value)
+    {
+      if (sb.Length > 0)
+        sb.Append(' ');
+      return sb.Append(value);
     }
 
     #endregion
@@ -147,6 +156,52 @@ namespace FluentDocker.Drivers.Docker.Cli
     protected ErrorContext CreateErrorContext(string operation, SimpleCommandResult result)
     {
       return CreateErrorContext(Context, operation, result);
+    }
+
+    protected static string ErrorOrDefault(SimpleCommandResult result, string fallback)
+    {
+      return string.IsNullOrEmpty(result?.Error) ? fallback : result.Error;
+    }
+
+    protected static string FailureCode(Exception ex, string fallbackCode)
+    {
+      if (ex is DriverException driverException && !string.IsNullOrEmpty(driverException.ErrorCode))
+        return driverException.ErrorCode;
+      return FailureCode(ex?.Message, fallbackCode);
+    }
+
+    protected static string FailureCode(string error, string fallbackCode)
+    {
+      if (IsDaemonConnectionError(error))
+        return ErrorCodes.Api.ConnectionFailed;
+      return fallbackCode;
+    }
+
+    protected static bool IsDaemonConnectionError(string error)
+    {
+      if (string.IsNullOrEmpty(error))
+        return false;
+      return error.Contains("Cannot connect to the Docker daemon", StringComparison.OrdinalIgnoreCase)
+          || error.Contains("error during connect", StringComparison.OrdinalIgnoreCase);
+    }
+
+    protected static CommandResponse<T> FailInvalidLeadingDash<T>(string argumentName)
+    {
+      return CommandResponse<T>.Fail(
+          $"{argumentName} must not start with '-' because Docker would parse it as an option.",
+          ErrorCodes.General.InvalidArgument);
+    }
+
+    protected static bool StartsWithDash(string value) =>
+        !string.IsNullOrEmpty(value) && value[0] == '-';
+
+    protected static string QuotePositionalArgument(string argument, string argumentName)
+    {
+      if (StartsWithDash(argument))
+        throw new DriverException(
+            $"{argumentName} must not start with '-' because Docker would parse it as an option.",
+            ErrorCodes.General.InvalidArgument);
+      return QuoteArgumentIfNeeded(argument);
     }
 
     #endregion
@@ -192,9 +247,6 @@ namespace FluentDocker.Drivers.Docker.Cli
 
     #region Argument Quoting
 
-    private static readonly System.Buffers.SearchValues<char> ShellMetaCharacters =
-        System.Buffers.SearchValues.Create([' ', '\t', ';', '&', '|', '>', '<', '"', '\'', '$', '`', '!', '*', '?']);
-
     /// <summary>
     /// Quotes a command-line argument if it contains shell metacharacters or whitespace,
     /// using the CommandLineToArgvW algorithm so Windows paths with backslashes are not
@@ -203,59 +255,7 @@ namespace FluentDocker.Drivers.Docker.Cli
     /// </summary>
     protected static string QuoteArgumentIfNeeded(string argument)
     {
-      if (string.IsNullOrEmpty(argument))
-        return "\"\"";
-
-      var span = argument.AsSpan();
-      var needsQuoting = span.IndexOfAny(ShellMetaCharacters) >= 0;
-      if (!needsQuoting)
-      {
-        // ShellMetaCharacters only covers space and tab among whitespace. Because the
-        // execution path uses the string ProcessStartInfo.Arguments (not ArgumentList),
-        // any other whitespace/control char (e.g. \n, \r, vertical tab, form feed) could
-        // split a single argument into multiple tokens. Quote on those too.
-        foreach (var c in span)
-        {
-          if (char.IsWhiteSpace(c) || char.IsControl(c))
-          {
-            needsQuoting = true;
-            break;
-          }
-        }
-      }
-
-      if (!needsQuoting)
-        return argument;
-
-      // CommandLineToArgvW quoting: only backslashes immediately before a " or at the
-      // very end of the quoted string are doubled. Interior backslashes (before any other
-      // character) are left as-is. This preserves Windows paths like C:\Program Files\.
-      var sb = new System.Text.StringBuilder();
-      sb.Append('"');
-      for (var i = 0; i < argument.Length; i++)
-      {
-        var backslashes = 0;
-        while (i < argument.Length && argument[i] == '\\')
-        { backslashes++; i++; }
-
-        if (i == argument.Length)
-        {
-          sb.Append('\\', backslashes * 2);   // before closing quote: double
-          break;
-        }
-        if (argument[i] == '"')
-        {
-          sb.Append('\\', backslashes * 2 + 1); // before a quote: double + escape the quote
-          sb.Append('"');
-        }
-        else
-        {
-          sb.Append('\\', backslashes);          // interior: leave as-is
-          sb.Append(argument[i]);
-        }
-      }
-      sb.Append('"');
-      return sb.ToString();
+      return CommandLineQuoting.QuoteArgumentIfNeeded(argument);
     }
 
     #endregion

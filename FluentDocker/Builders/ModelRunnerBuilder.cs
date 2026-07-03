@@ -145,18 +145,18 @@ namespace FluentDocker.Builders
 
       try
       {
-        // Serialize pull-if-missing on the SAME per-model gate that ModelService load/unload
-        // use, so a concurrent pull/load/unload of this model cannot race (e.g. two builders
-        // both pulling, or a pull overlapping an unload). Different models proceed in parallel.
-        if (_pullIfMissing && _model != null)
+        // One gate covers inspect→optional pull→optional configure so no load/unload/configure
+        // can interleave between the build-time operations. Call the service core methods while
+        // holding it; the public methods acquire the same non-reentrant gate.
+        if (_model != null && (_pullIfMissing || NeedsConfigure()))
         {
           await using var gate = await ModelOperationGate.AcquireAsync(_model, cancellationToken).ConfigureAwait(false);
-          if (!await IsModelPresentAsync(runner, _model, cancellationToken).ConfigureAwait(false))
-            await runner.PullAsync(_model, null, cancellationToken).ConfigureAwait(false);
-        }
+          if (_pullIfMissing && !await IsModelPresentAsync(runner, _model, cancellationToken).ConfigureAwait(false))
+            await runner.PullCoreAsync(_model, null, cancellationToken).ConfigureAwait(false);
 
-        if (_model != null && NeedsConfigure())
-          await runner.ConfigureAsync(_model, BuildConfigureOptions(), cancellationToken).ConfigureAwait(false);
+          if (NeedsConfigure())
+            await runner.ConfigureCoreAsync(_model, BuildConfigureOptions(), cancellationToken).ConfigureAwait(false);
+        }
       }
       catch
       {

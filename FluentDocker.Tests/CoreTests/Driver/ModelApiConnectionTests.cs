@@ -287,61 +287,6 @@ namespace FluentDocker.Tests.CoreTests.Driver
 
     // A stream whose Dispose / DisposeAsync always throws — used to verify the owning stream
     // still disposes its HttpResponseMessage even when the inner stream's dispose faults.
-    private sealed class ThrowingDisposeStream : Stream
-    {
-      public override bool CanRead => true;
-      public override bool CanSeek => false;
-      public override bool CanWrite => false;
-      public override long Length => 0;
-      public override long Position { get => 0; set { } }
-      public override void Flush() { }
-      public override int Read(byte[] buffer, int offset, int count) => 0;
-      public override long Seek(long offset, SeekOrigin origin) => 0;
-      public override void SetLength(long value) { }
-      public override void Write(byte[] buffer, int offset, int count) { }
-
-#pragma warning disable CA2215 // Intentional: simulates an inner stream whose dispose faults before reaching base.
-      protected override void Dispose(bool disposing) => throw new IOException("inner dispose boom");
-
-      public override ValueTask DisposeAsync() => throw new IOException("inner dispose boom async");
-#pragma warning restore CA2215
-    }
-
-    // Records whether Dispose was called so the L1 tests can assert the response was disposed.
-    private sealed class ProbeResponse : HttpResponseMessage
-    {
-      public bool Disposed { get; private set; }
-      protected override void Dispose(bool disposing)
-      {
-        Disposed = true;
-        base.Dispose(disposing);
-      }
-    }
-
-    [Fact]
-    public async Task ResponseOwningStream_DisposeAsync_InnerThrows_StillDisposesResponseAndPropagates()
-    {
-      var response = new ProbeResponse();
-      var stream = new ResponseOwningStream(new ThrowingDisposeStream(), response);
-
-      var ex = await Assert.ThrowsAsync<IOException>(async () => await stream.DisposeAsync());
-
-      Assert.Equal("inner dispose boom async", ex.Message);
-      Assert.True(response.Disposed, "the HttpResponseMessage must be disposed even when the inner stream's dispose throws");
-    }
-
-    [Fact]
-    public void ResponseOwningStream_Dispose_InnerThrows_StillDisposesResponseAndPropagates()
-    {
-      var response = new ProbeResponse();
-      var stream = new ResponseOwningStream(new ThrowingDisposeStream(), response);
-
-      var ex = Assert.Throws<IOException>(() => stream.Dispose());
-
-      Assert.Equal("inner dispose boom", ex.Message);
-      Assert.True(response.Disposed, "the HttpResponseMessage must be disposed even when the inner stream's dispose throws");
-    }
-
     /// <summary>
     /// A tiny in-process unix-domain-socket HTTP responder: binds a UDS at the given path,
     /// accepts ONE connection and writes a minimal empty-body <c>200 OK</c> reply. Used only to

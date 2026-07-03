@@ -23,7 +23,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
             "machine list --format json", cancellationToken).ConfigureAwait(false);
         if (!result.Success)
           return CommandResponse<IList<MachineInfo>>.Fail(
-              result.Error ?? "Machine list failed", ErrorCodes.Machine.ListFailed,
+              ErrorOrDefault(result, "Machine list failed"), ErrorCodes.Machine.ListFailed,
               CreateErrorContext(context, "ListMachines", result), result.ExitCode);
 
         var machines = ParseMachineList(result.Output);
@@ -50,10 +50,10 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
         var args = string.IsNullOrEmpty(name)
             ? "machine inspect"
             : $"machine inspect {QuoteArgumentIfNeeded(name)}";
-        var result = await ExecuteCommandAsync(args, cancellationToken).ConfigureAwait(false);
+        var result = await ExecuteCommandAsync(context, args, cancellationToken).ConfigureAwait(false);
         if (!result.Success)
           return CommandResponse<MachineInspectResult>.Fail(
-              result.Error ?? "Machine inspect failed", ErrorCodes.Machine.InspectFailed,
+              ErrorOrDefault(result, "Machine inspect failed"), ErrorCodes.Machine.InspectFailed,
               CreateErrorContext(context, "InspectMachine", result), result.ExitCode);
 
         var inspect = ParseMachineInspect(result.Output);
@@ -81,7 +81,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
             "machine info --format json", cancellationToken).ConfigureAwait(false);
         if (!result.Success)
           return CommandResponse<MachineHostInfo>.Fail(
-              result.Error ?? "Machine info failed", ErrorCodes.Machine.InfoFailed,
+              ErrorOrDefault(result, "Machine info failed"), ErrorCodes.Machine.InfoFailed,
               CreateErrorContext(context, "MachineInfo", result), result.ExitCode);
 
         var info = ParseMachineInfo(result.Output);
@@ -149,7 +149,8 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
                  ?? token.GetStringOrDefault("lastUp")
                  ?? token.GetStringOrDefault("lastup"),
         Default = token.GetBoolOrDefault("Default") || token.GetBoolOrDefault("default"),
-        Running = token.GetBoolOrDefault("Running") || token.GetBoolOrDefault("running")
+        Running = token.GetBoolOrDefault("Running") || token.GetBoolOrDefault("running"),
+        Starting = token.GetBoolOrDefault("Starting") || token.GetBoolOrDefault("starting")
       };
 
       var cpusProp = token.Prop("CPUs", "cpus") ?? token.Prop("Cpus");

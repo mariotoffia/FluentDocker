@@ -35,13 +35,17 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       if (config.Options?.Count > 0)
         body["Options"] = config.Options;
 
-      if (!string.IsNullOrEmpty(config.Subnet) || !string.IsNullOrEmpty(config.Gateway))
+      if (!string.IsNullOrEmpty(config.Subnet) ||
+          !string.IsNullOrEmpty(config.Gateway) ||
+          !string.IsNullOrEmpty(config.IpRange))
       {
         var ipamConfig = new Dictionary<string, string>();
         if (!string.IsNullOrEmpty(config.Subnet))
           ipamConfig["Subnet"] = config.Subnet;
         if (!string.IsNullOrEmpty(config.Gateway))
           ipamConfig["Gateway"] = config.Gateway;
+        if (!string.IsNullOrEmpty(config.IpRange))
+          ipamConfig["IPRange"] = config.IpRange;
 
         body["IPAM"] = new Dictionary<string, object>
         {
@@ -113,7 +117,8 @@ namespace FluentDocker.Drivers.Docker.Api.Components
     {
       var body = new { Container = containerId };
       var result = await PostAsync(
-          $"/networks/{Uri.EscapeDataString(networkId)}/connect", body, cancellationToken);
+          $"/networks/{Uri.EscapeDataString(networkId)}/connect", body, cancellationToken)
+          .ConfigureAwait(false);
       if (!result.Success)
         return CommandResponse<Unit>.Fail(result.ErrorMessage,
             ErrorCodes.Network.ConnectFailed,
@@ -129,7 +134,8 @@ namespace FluentDocker.Drivers.Docker.Api.Components
     {
       var body = new { Container = containerId, Force = force };
       var result = await PostAsync(
-          $"/networks/{Uri.EscapeDataString(networkId)}/disconnect", body, cancellationToken);
+          $"/networks/{Uri.EscapeDataString(networkId)}/disconnect", body, cancellationToken)
+          .ConfigureAwait(false);
       if (!result.Success)
         return CommandResponse<Unit>.Fail(result.ErrorMessage,
             ErrorCodes.Network.DisconnectFailed,

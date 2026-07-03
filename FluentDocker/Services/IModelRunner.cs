@@ -17,7 +17,10 @@ namespace FluentDocker.Services
     /// <summary>The default model bound at build time (nullable).</summary>
     ModelReference DefaultModel { get; }
 
-    /// <summary>The resolved inference endpoint (e.g. http://localhost:12434).</summary>
+    /// <summary>
+    /// The context/default endpoint used for diagnostics. When inference is routed through
+    /// <c>WithInferenceDriver(...)</c>, this does not describe the injected driver's target.
+    /// </summary>
     Uri Endpoint { get; }
 
     /// <summary>

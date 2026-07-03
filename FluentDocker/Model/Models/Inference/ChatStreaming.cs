@@ -15,11 +15,17 @@ namespace FluentDocker.Model.Models.Inference
     /// <summary>The object type (<c>chat.completion.chunk</c>).</summary>
     [JsonPropertyName("object")] public string Object { get; set; }
 
+    /// <summary>Creation timestamp (unix seconds).</summary>
+    [JsonPropertyName("created")] public long Created { get; set; }
+
     /// <summary>The model that produced the chunk.</summary>
     [JsonPropertyName("model")] public string Model { get; set; }
 
     /// <summary>The delta choices.</summary>
     [JsonPropertyName("choices")] public IList<ChatChunkChoice> Choices { get; set; }
+
+    /// <summary>Token usage, usually populated only on the final usage chunk.</summary>
+    [JsonPropertyName("usage")] public Usage Usage { get; set; }
 
     /// <summary>
     /// Pass-through for any unmodeled chunk field. Captured verbatim so it is observable

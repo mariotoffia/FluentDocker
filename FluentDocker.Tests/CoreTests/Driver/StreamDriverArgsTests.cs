@@ -217,13 +217,14 @@ namespace FluentDocker.Tests.CoreTests.Driver
     }
 
     [Fact]
-    public void Podman_BuildStreamStatsArgs_WithNoHeader_ContainsNoHeaderFlag()
+    public void Podman_BuildStreamStatsArgs_WithNoHeader_DoesNotContainUnsupportedNoHeaderFlag()
     {
       var config = new StreamStatsConfig { NoHeader = true };
 
       var result = PodmanCliStreamDriver.BuildStreamStatsArgs("abc123", config);
 
-      Assert.Contains("--no-header", result);
+      Assert.DoesNotContain("--no-header", result);
+      Assert.Contains("--no-reset", result);
     }
 
     [Fact]

@@ -39,9 +39,11 @@ namespace FluentDocker.Drivers.Podman.Cli.Binary
 
       if (MainPodmanClient == null)
       {
-        _logger.LogError("Failed to find podman client binary - please add it to your path");
-        throw new FluentDockerException(
-            "Failed to find podman client binary - please add it to your path");
+        const string reason = "Failed to find podman client binary - please add it to your path";
+        var driverId = string.IsNullOrWhiteSpace(_configuration.BinaryName)
+            ? "podman" : _configuration.BinaryName;
+        _logger.LogError("{Reason}", reason);
+        throw new DriverNotAvailableException(driverId, reason);
       }
     }
 

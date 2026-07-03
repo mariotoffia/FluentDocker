@@ -55,11 +55,11 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
       {
         var (args, stdinData) = BuildLoginArgs(config);
         var result = stdinData != null
-            ? await ExecuteCommandAsync(args, stdinData, cancellationToken)
-            : await ExecuteCommandAsync(args, cancellationToken).ConfigureAwait(false);
+            ? await ExecuteCommandAsync(context, args, stdinData, cancellationToken).ConfigureAwait(false)
+            : await ExecuteCommandAsync(context, args, cancellationToken).ConfigureAwait(false);
         return result.Success
             ? CommandResponse<Unit>.Ok(Unit.Default)
-            : CommandResponse<Unit>.Fail(result.Error ?? "Login failed", ErrorCodes.Auth.LoginFailed);
+            : CommandResponse<Unit>.Fail(ErrorOrDefault(result, "Login failed"), FailureCode(result.Error, ErrorCodes.Auth.LoginFailed));
       }
       catch (OperationCanceledException)
       {
@@ -67,7 +67,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
       }
       catch (Exception ex)
       {
-        return CommandResponse<Unit>.Fail(ex.Message, ErrorCodes.Auth.LoginFailed);
+        return CommandResponse<Unit>.Fail(ex.Message, FailureCode(ex, ErrorCodes.Auth.LoginFailed));
       }
     }
 
@@ -83,10 +83,10 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
         if (!string.IsNullOrEmpty(server))
           args += $" {QuoteArgumentIfNeeded(server)}";
 
-        var result = await ExecuteCommandAsync(args, cancellationToken).ConfigureAwait(false);
+        var result = await ExecuteCommandAsync(context, args, cancellationToken).ConfigureAwait(false);
         return result.Success
             ? CommandResponse<Unit>.Ok(Unit.Default)
-            : CommandResponse<Unit>.Fail(result.Error ?? "Logout failed", ErrorCodes.Auth.LogoutFailed);
+            : CommandResponse<Unit>.Fail(ErrorOrDefault(result, "Logout failed"), FailureCode(result.Error, ErrorCodes.Auth.LogoutFailed));
       }
       catch (OperationCanceledException)
       {
@@ -94,9 +94,8 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
       }
       catch (Exception ex)
       {
-        return CommandResponse<Unit>.Fail(ex.Message, ErrorCodes.Auth.LogoutFailed);
+        return CommandResponse<Unit>.Fail(ex.Message, FailureCode(ex, ErrorCodes.Auth.LogoutFailed));
       }
     }
   }
 }
-

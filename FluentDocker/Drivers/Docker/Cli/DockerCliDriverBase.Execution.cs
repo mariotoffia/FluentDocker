@@ -150,11 +150,18 @@ namespace FluentDocker.Drivers.Docker.Cli
     /// the default buffered timeout would falsely abort them.
     /// </summary>
     protected Task<SimpleCommandResult> ExecuteUnboundedCommandAsync(string arguments, CancellationToken cancellationToken)
-        => ExecuteCommandAsync(arguments, Timeout.InfiniteTimeSpan, cancellationToken);
+        => ExecuteUnboundedProcessAsync(null, arguments, null, cancellationToken);
 
     protected Task<SimpleCommandResult> ExecuteUnboundedCommandAsync(
         DriverContext context, string arguments, CancellationToken cancellationToken)
-        => ExecuteCommandAsync(context, arguments, Timeout.InfiniteTimeSpan, cancellationToken);
+        => ExecuteUnboundedProcessAsync(context, arguments, null, cancellationToken);
+
+    protected Task<SimpleCommandResult> ExecuteUnboundedCommandAsync(
+        DriverContext context,
+        string arguments,
+        IDictionary<string, string> environment,
+        CancellationToken cancellationToken)
+        => ExecuteUnboundedProcessAsync(context, arguments, environment, cancellationToken);
 
     /// <summary>
     /// Executes a process asynchronously using direct stream reading
@@ -213,6 +220,11 @@ namespace FluentDocker.Drivers.Docker.Cli
 
         process.Start();
 
+        // Start readers before writing stdin so a child that immediately writes enough
+        // output cannot deadlock while this side is still feeding stdin.
+        var outputTask = ReadBoundedAsync(process.StandardOutput, MaxNonStreamingOutputBytes, linkedToken);
+        var errorTask = ReadBoundedTruncatingAsync(process.StandardError, MaxNonStreamingOutputBytes, linkedToken);
+
         if (needsStdin)
         {
           // Write sudo password first (if any), then caller data.
@@ -224,13 +236,6 @@ namespace FluentDocker.Drivers.Docker.Cli
 
           process.StandardInput.Close();
         }
-
-        // Read stdout and stderr concurrently to avoid deadlock
-        // when either pipe buffer fills up. Both streams are bounded by a sanity cap so a
-        // pathological child cannot force unbounded buffering; stdout fails the command on
-        // exceeding the cap, while stderr (the error message itself) is truncated and kept.
-        var outputTask = ReadBoundedAsync(process.StandardOutput, MaxNonStreamingOutputBytes, linkedToken);
-        var errorTask = ReadBoundedTruncatingAsync(process.StandardError, MaxNonStreamingOutputBytes, linkedToken);
 
         var output = await outputTask.ConfigureAwait(false);
         var error = await errorTask.ConfigureAwait(false);
@@ -327,7 +332,7 @@ namespace FluentDocker.Drivers.Docker.Cli
 
       // Drain stderr concurrently so a chatty child cannot deadlock by filling the
       // stderr pipe buffer while we only read stdout.
-      var errorTask = process.StandardError.ReadToEndAsync(cancellationToken);
+      var errorTask = ReadBoundedTruncatingAsync(process.StandardError, MaxNonStreamingOutputBytes, cancellationToken);
       var reader = process.StandardOutput;
       string failure = null;
 

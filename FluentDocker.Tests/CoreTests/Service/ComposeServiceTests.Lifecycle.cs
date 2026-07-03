@@ -408,11 +408,13 @@ namespace FluentDocker.Tests.CoreTests.Service
             cancellationToken: TestContext.Current.CancellationToken);
         Assert.Equal(ServiceRunningState.Removed, service.State);
 
-        Assert.Equal(4, states.Count);
+        Assert.Equal(6, states.Count);
         Assert.Equal(ServiceRunningState.Paused, states[0]);
-        Assert.Equal(ServiceRunningState.Running, states[1]);
-        Assert.Equal(ServiceRunningState.Stopped, states[2]);
-        Assert.Equal(ServiceRunningState.Removed, states[3]);
+        Assert.Equal(ServiceRunningState.Starting, states[1]);
+        Assert.Equal(ServiceRunningState.Running, states[2]);
+        Assert.Equal(ServiceRunningState.Stopping, states[3]);
+        Assert.Equal(ServiceRunningState.Stopped, states[4]);
+        Assert.Equal(ServiceRunningState.Removed, states[5]);
       }
       finally { kernel.Dispose(); }
     }

@@ -402,13 +402,17 @@ namespace FluentDocker.Tests.CoreTests.Kernel
       var isDefaultProp = configObj.GetType().GetProperty("IsDefault");
       var driverIdProp = configObj.GetType().GetProperty("DriverId");
       var driverPackProp = configObj.GetType().GetProperty("DriverPack");
+      var driverPackFactoryProp = configObj.GetType().GetProperty("DriverPackFactory");
+      var driverPack = driverPackProp?.GetValue(configObj);
+      if (driverPackFactoryProp?.GetValue(configObj) is Func<FluentDocker.Drivers.IDriverPack> factory)
+        driverPack = factory();
 
       return new DriverConfigResult
       {
         Context = (DriverContext)contextProp?.GetValue(configObj)!,
         IsDefault = (bool)(isDefaultProp?.GetValue(configObj) ?? false),
         DriverId = (string)driverIdProp?.GetValue(configObj)!,
-        DriverPackTypeName = driverPackProp?.GetValue(configObj)?.GetType().FullName!,
+        DriverPackTypeName = driverPack?.GetType().FullName!,
       };
     }
 

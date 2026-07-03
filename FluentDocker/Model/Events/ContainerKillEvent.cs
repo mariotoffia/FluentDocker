@@ -3,6 +3,7 @@ namespace FluentDocker.Model.Events
   /// <summary>
   /// Emitted when a container has been sent a kill signal (but is not yet dead).
   /// </summary>
+  [System.Obsolete("Unused by FluentDocker and scheduled for removal in v4. Use stream driver ContainerEvent instead.")]
   public sealed class ContainerKillEvent : FdEvent<ContainerKillEvent.ContainerKillActor>
   {
     public ContainerKillEvent()
@@ -17,6 +18,7 @@ namespace FluentDocker.Model.Events
     /// <remarks>
     /// The actor is the hash of the container.
     /// </remarks>
+    [System.Obsolete("Unused by FluentDocker and scheduled for removal in v4. Use stream driver ContainerEvent instead.")]
     public sealed class ContainerKillActor : EventActor
     {
       /// <summary>

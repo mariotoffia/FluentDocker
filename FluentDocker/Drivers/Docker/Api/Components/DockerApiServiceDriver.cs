@@ -45,7 +45,8 @@ namespace FluentDocker.Drivers.Docker.Api.Components
     {
       foreach (var id in serviceIds)
       {
-        var result = await DeleteAsync($"/services/{id}", cancellationToken).ConfigureAwait(false);
+        var result = await DeleteAsync(
+            $"/services/{Uri.EscapeDataString(id)}", cancellationToken).ConfigureAwait(false);
         if (!result.Success)
           return CommandResponse<Unit>.Fail(result.ErrorMessage,
               MapNotFoundErrorCode(result.StatusCode, ErrorCodes.Service.NotFound),
@@ -67,9 +68,11 @@ namespace FluentDocker.Drivers.Docker.Api.Components
 
       var version = inspectResult.Data.Version;
       var body = BuildUpdateSpec(inspectResult.Data, config);
+      var escapedId = Uri.EscapeDataString(serviceId);
 
       var result = await PostAsync(
-          $"/services/{serviceId}/update?version={version}", body, cancellationToken);
+          $"/services/{escapedId}/update?version={Uri.EscapeDataString(version.ToString())}",
+          body, cancellationToken).ConfigureAwait(false);
       if (!result.Success)
         return CommandResponse<Unit>.Fail(result.ErrorMessage,
             ErrorCodes.Service.UpdateFailed,
@@ -88,9 +91,10 @@ namespace FluentDocker.Drivers.Docker.Api.Components
         return CommandResponse<Unit>.Fail(inspectResult.Error, inspectResult.ErrorCode);
 
       var version = inspectResult.Data.Version;
+      var escapedId = Uri.EscapeDataString(serviceId);
       var result = await PostAsync(
-          $"/services/{serviceId}/update?version={version}&rollback=previous",
-          new { }, cancellationToken);
+          $"/services/{escapedId}/update?version={Uri.EscapeDataString(version.ToString())}&rollback=previous",
+          new { }, cancellationToken).ConfigureAwait(false);
       if (!result.Success)
         return CommandResponse<Unit>.Fail(result.ErrorMessage,
             ErrorCodes.Service.RollbackFailed,
@@ -135,7 +139,8 @@ namespace FluentDocker.Drivers.Docker.Api.Components
         DriverContext context, string serviceId, bool pretty = false,
         CancellationToken cancellationToken = default)
     {
-      var result = await GetJsonElementAsync($"/services/{serviceId}", cancellationToken).ConfigureAwait(false);
+      var result = await GetJsonElementAsync(
+          $"/services/{Uri.EscapeDataString(serviceId)}", cancellationToken).ConfigureAwait(false);
       if (!result.Success)
         return CommandResponse<ServiceDetails>.Fail(result.ErrorMessage,
             MapNotFoundErrorCode(result.StatusCode, ErrorCodes.Service.NotFound),
@@ -174,13 +179,13 @@ namespace FluentDocker.Drivers.Docker.Api.Components
         CancellationToken cancellationToken = default)
     {
       config ??= new ServiceLogsConfig();
-      var path = $"/services/{serviceId}/logs?stdout=true&stderr=true";
+      var path = $"/services/{Uri.EscapeDataString(serviceId)}/logs?stdout=true&stderr=true";
       if (config.Tail.HasValue)
         path += $"&tail={config.Tail.Value}";
       if (config.Timestamps)
         path += "&timestamps=true";
       if (!string.IsNullOrEmpty(config.Since))
-        path += $"&since={config.Since}";
+        path += $"&since={Uri.EscapeDataString(config.Since)}";
 
       try
       {

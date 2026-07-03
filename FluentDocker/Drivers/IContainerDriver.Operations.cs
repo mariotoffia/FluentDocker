@@ -34,11 +34,17 @@ namespace FluentDocker.Drivers
     /// </summary>
     /// <param name="context">Driver context</param>
     /// <param name="containerId">Container ID or name</param>
-    /// <param name="follow">Follow log output</param>
+    /// <param name="follow">
+    /// Follow log output. Docker CLI buffered logs reject this; use
+    /// <see cref="IStreamDriver.StreamLogsAsync"/> for indefinite streams.
+    /// </param>
     /// <param name="tail">Number of lines to show from end (null = all)</param>
     /// <param name="timestamps">Show timestamps</param>
     /// <param name="cancellationToken">Cancellation token</param>
-    /// <returns>Container logs</returns>
+    /// <returns>
+    /// Container logs. Podman CLI may include Podman's own stderr warnings in this buffered
+    /// string because container log output and CLI diagnostics share the same process pipes.
+    /// </returns>
     Task<Model.Drivers.CommandResponse<string>> GetLogsAsync(
         DriverContext context,
         string containerId,
@@ -302,7 +308,7 @@ namespace FluentDocker.Drivers
     /// <summary>Allocate a TTY.</summary>
     public bool Tty { get; set; }
 
-    /// <summary>Keep STDIN attached.</summary>
+    /// <summary>Keep STDIN attached. The Docker API driver rejects this mode.</summary>
     public bool Interactive { get; set; }
 
     /// <summary>Detach from command after starting.</summary>

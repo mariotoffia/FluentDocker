@@ -47,12 +47,18 @@ namespace FluentDocker.Kernel
     /// <remarks>
     /// For async contexts (ASP.NET, UI applications), prefer <see cref="BuildAsync"/> to avoid deadlocks.
     /// This method is safe to use in console apps, test fixtures, and scripts.
+    /// Built-in typed driver packs are created fresh for each build; custom driver
+    /// instances supplied via <see cref="IDriverBuilder"/> are registered as supplied.
     /// </remarks>
     FluentDockerKernel Build();
 
     /// <summary>
     /// Builds the kernel asynchronously (TERMINAL operation).
     /// </summary>
+    /// <remarks>
+    /// Built-in typed driver packs are created fresh for each build; custom driver
+    /// instances supplied via <see cref="IDriverBuilder"/> are registered as supplied.
+    /// </remarks>
     /// <param name="cancellationToken">Cancellation token</param>
     Task<FluentDockerKernel> BuildAsync(CancellationToken cancellationToken = default);
   }
@@ -90,6 +96,7 @@ namespace FluentDocker.Kernel
     /// <summary>
     /// Sets this driver as the default.
     /// </summary>
+    /// <remarks>When multiple drivers call <c>AsDefault()</c>, the last one wins.</remarks>
     IDriverBuilder AsDefault();
   }
 }

@@ -12,8 +12,8 @@ This guide helps you migrate from v2.x.x to v3.0.0.
 ## Step by Step
 
 - Basics: [Breaking Changes Summary](#breaking-changes-summary), [Step 1: Update NuGet Packages](#step-1-update-nuget-packages), [Step 2: Update Namespaces](#step-2-update-namespaces), [Step 3: Create a Kernel](#step-3-create-a-kernel)
-- Intermediate: [Step 4: Update Builder API](#step-4-update-builder-api), [Step 5: Update Test Base Classes](#step-5-update-test-base-classes), [Step 7: Update Compose Commands](#step-7-update-compose-commands)
-- Advanced: [Step 8: Update Logging Configuration](#step-8-update-logging-configuration), [Removed Features](#removed-features), [Detailed Migration Resources](#detailed-migration-resources)
+- Intermediate: [Step 4: Update Builder API](#step-4-update-builder-api), [Step 5: Update Test Base Classes](#step-5-update-test-base-classes), [Step 6: Remove Docker Machine Code](#step-6-remove-docker-machine-code), [Step 7: Update Compose Commands](#step-7-update-compose-commands)
+- Advanced: [Step 8: Switch to Microsoft.Extensions.Logging](#step-8-switch-to-microsoftextensionslogging), [Removed Features](#removed-features), [Detailed Migration Resources](#detailed-migration-resources)
 
 ## Breaking Changes Summary
 
@@ -71,12 +71,12 @@ v3 requires a kernel with a registered driver before building containers.
 
 ```csharp
 // NEW - Required kernel setup (multiple kernels per app/test session are supported)
-using var kernel = FluentDockerKernel.Create()
+await using var kernel = await FluentDockerKernel.Create()
     .WithDockerCli("docker", d => d.AsDefault())
-    .Build();
+    .BuildAsync();
 
-// Async variant
-using var kernel = await FluentDockerKernel.Create()
+// Explicit logger factory variant
+await using var loggedKernel = await FluentDockerKernel.Create(loggerFactory)
     .WithDockerCli("docker", d => d.AsDefault())
     .BuildAsync();
 ```
@@ -272,9 +272,9 @@ var machines = new Hosts().Discover();
 var machine = machines.First(x => x.Name == "default");
 
 // NEW - Create kernel and use WithinDriver
-using var kernel = FluentDockerKernel.Create()
+await using var kernel = await FluentDockerKernel.Create()
     .WithDockerCli("docker", d => d.AsDefault())
-    .Build();
+    .BuildAsync();
 
 using var results = new Builder()
     .WithinDriver("docker", kernel)
@@ -316,11 +316,10 @@ await composeDriver.DownAsync(context, new ComposeDownConfig {
 `Logging.Disabled()` toggle and the `FluentDocker.Common.Logger` static class
 are removed entirely. FluentDocker now logs through
 `Microsoft.Extensions.Logging.Abstractions`, and an `ILoggerFactory` is a
-required constructor argument on `KernelBuilder` and `FluentDockerKernel.Create`.
+optional constructor argument on `KernelBuilder` and `FluentDockerKernel.Create`.
 
-The compiler enforces this: any code that calls `FluentDockerKernel.Create()`
-or constructs `KernelBuilder` / `FluentDockerKernel` / `DriverRegistry` without
-supplying a factory fails to compile.
+Use `FluentDockerKernel.Create()` for the default `NullLoggerFactory`, or
+`FluentDockerKernel.Create(factory)` when you want logs from a provider.
 
 ```csharp
 // OLD (v2)
@@ -333,7 +332,7 @@ using Microsoft.Extensions.Logging;
 using FluentDocker.Kernel;
 
 using var factory = LoggerFactory.Create(b => b.AddConsole());
-var kernel = await FluentDockerKernel.Create(factory)
+await using var kernel = await FluentDockerKernel.Create(factory)
     .WithDockerCli("docker", d => d.AsDefault())
     .BuildAsync();
 ```

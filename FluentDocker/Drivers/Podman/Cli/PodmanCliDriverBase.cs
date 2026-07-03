@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Text;
 using System.Threading;
@@ -23,6 +24,8 @@ namespace FluentDocker.Drivers.Podman.Cli
     /// The Podman command executable name.
     /// </summary>
     protected const string PodmanCommand = "podman";
+
+    private static readonly ConcurrentDictionary<string, byte> CertificateWarnings = new();
 
     /// <summary>
     /// The driver context.
@@ -82,13 +85,31 @@ namespace FluentDocker.Drivers.Podman.Cli
     /// is ignored.
     /// </summary>
     /// <param name="context">The driver context (may be null).</param>
+    /// <param name="logger">Optional logger used for one-time warnings about ignored settings.</param>
     /// <returns>A string of global flags to prepend to Podman commands, or empty string.</returns>
-    public static string BuildGlobalArgs(DriverContext context)
+    public static string BuildGlobalArgs(DriverContext context, ILogger logger = null)
     {
-      if (context == null || string.IsNullOrEmpty(context.Host))
+      if (context == null)
+        return "";
+
+      if (!string.IsNullOrEmpty(context.CertificatePath))
+        WarnCertificatePathIgnoredOnce(context, logger);
+
+      if (string.IsNullOrEmpty(context.Host))
         return "";
 
       return $"--url {QuoteArgumentIfNeeded(context.Host)}";
+    }
+
+    private static void WarnCertificatePathIgnoredOnce(DriverContext context, ILogger logger)
+    {
+      if (logger == null)
+        return;
+
+      var key = context.DriverId ?? context.Host ?? context.CertificatePath;
+      if (CertificateWarnings.TryAdd(key, 0))
+        logger.LogWarning(
+            "Podman CLI ignores DriverContext.CertificatePath because podman CLI does not expose Docker-style TLS certificate flags.");
     }
 
     #endregion
@@ -116,20 +137,28 @@ namespace FluentDocker.Drivers.Podman.Cli
     /// <see cref="DefaultBufferedCommandTimeout"/> when no <see cref="DriverContext.RequestTimeout"/>
     /// is configured.
     /// </summary>
-    private TimeSpan ResolveBufferedTimeout()
-        => Context?.RequestTimeout ?? DefaultBufferedCommandTimeout;
+    private static TimeSpan ResolveBufferedTimeout(DriverContext context)
+        => context?.RequestTimeout ?? DefaultBufferedCommandTimeout;
 
     /// <summary>
     /// Resolves the binary info for the Podman command, extracting
     /// the binary path and sudo configuration separately for safe execution.
     /// </summary>
     private (string BinaryPath, SudoMechanism Sudo, string SudoPassword) ResolveBinaryInfo()
+        => ResolveBinaryInfo(Context);
+
+    private (string BinaryPath, SudoMechanism Sudo, string SudoPassword) ResolveBinaryInfo(DriverContext context)
     {
+      var contextSudo = context?.Sudo ?? SudoMechanism.None;
+      var contextPassword = context?.SudoPassword;
+
       if (BinaryResolver == null)
-        return (PodmanCommand, SudoMechanism.None, null);
+        return (PodmanCommand, contextSudo, contextPassword);
 
       var binary = BinaryResolver.Resolve(PodmanCommand);
-      return (binary.FqPath, binary.Sudo, binary.SudoPassword);
+      return (binary.FqPath,
+          contextSudo != SudoMechanism.None ? contextSudo : binary.Sudo,
+          contextPassword ?? binary.SudoPassword);
     }
 
     /// <summary>
@@ -137,11 +166,16 @@ namespace FluentDocker.Drivers.Podman.Cli
     /// </summary>
     protected async Task<SimpleCommandResult> ExecuteCommandAsync(
         string arguments, CancellationToken cancellationToken)
+        => await ExecuteCommandAsync((DriverContext)null, arguments, cancellationToken).ConfigureAwait(false);
+
+    protected async Task<SimpleCommandResult> ExecuteCommandAsync(
+        DriverContext context, string arguments, CancellationToken cancellationToken)
     {
-      var (binaryPath, sudo, sudoPassword) = ResolveBinaryInfo();
-      var globalArgs = BuildGlobalArgs(Context);
+      var effectiveContext = CreateEffectiveContext(context);
+      var (binaryPath, sudo, sudoPassword) = ResolveBinaryInfo(effectiveContext);
+      var globalArgs = BuildGlobalArgs(effectiveContext, Logger);
       var fullArgs = string.IsNullOrEmpty(globalArgs) ? arguments : $"{globalArgs} {arguments}";
-      return await ExecuteProcessAsync(binaryPath, fullArgs, null, sudo, sudoPassword, ResolveBufferedTimeout(), cancellationToken).ConfigureAwait(false);
+      return await ExecuteProcessAsync(binaryPath, fullArgs, null, sudo, sudoPassword, ResolveBufferedTimeout(effectiveContext), cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -149,11 +183,16 @@ namespace FluentDocker.Drivers.Podman.Cli
     /// </summary>
     protected async Task<SimpleCommandResult> ExecuteCommandAsync(
         string arguments, string stdinData, CancellationToken cancellationToken)
+        => await ExecuteCommandAsync((DriverContext)null, arguments, stdinData, cancellationToken).ConfigureAwait(false);
+
+    protected async Task<SimpleCommandResult> ExecuteCommandAsync(
+        DriverContext context, string arguments, string stdinData, CancellationToken cancellationToken)
     {
-      var (binaryPath, sudo, sudoPassword) = ResolveBinaryInfo();
-      var globalArgs = BuildGlobalArgs(Context);
+      var effectiveContext = CreateEffectiveContext(context);
+      var (binaryPath, sudo, sudoPassword) = ResolveBinaryInfo(effectiveContext);
+      var globalArgs = BuildGlobalArgs(effectiveContext, Logger);
       var fullArgs = string.IsNullOrEmpty(globalArgs) ? arguments : $"{globalArgs} {arguments}";
-      return await ExecuteProcessAsync(binaryPath, fullArgs, stdinData, sudo, sudoPassword, ResolveBufferedTimeout(), cancellationToken).ConfigureAwait(false);
+      return await ExecuteProcessAsync(binaryPath, fullArgs, stdinData, sudo, sudoPassword, ResolveBufferedTimeout(effectiveContext), cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -165,7 +204,11 @@ namespace FluentDocker.Drivers.Podman.Cli
     /// at the 4 MiB buffered cap.
     /// </summary>
     protected Task<SimpleCommandResult> ExecuteUnboundedCommandAsync(string arguments, CancellationToken cancellationToken)
-        => ExecuteUnboundedProcessAsync(arguments, cancellationToken);
+        => ExecuteUnboundedCommandAsync((DriverContext)null, arguments, cancellationToken);
+
+    protected Task<SimpleCommandResult> ExecuteUnboundedCommandAsync(
+        DriverContext context, string arguments, CancellationToken cancellationToken)
+        => ExecuteUnboundedProcessAsync(context, arguments, cancellationToken);
 
     /// <summary>
     /// Executes a process asynchronously using direct stream reading
@@ -309,6 +352,11 @@ namespace FluentDocker.Drivers.Podman.Cli
       return CreateErrorContext(Context, operation, result);
     }
 
+    protected static string ErrorOrDefault(SimpleCommandResult result, string fallback)
+    {
+      return string.IsNullOrEmpty(result?.Error) ? fallback : result.Error;
+    }
+
     #endregion
 
     #region Process Lifecycle
@@ -352,24 +400,13 @@ namespace FluentDocker.Drivers.Podman.Cli
 
     #region Argument Quoting
 
-    private static readonly System.Buffers.SearchValues<char> ShellMetaCharacters =
-        System.Buffers.SearchValues.Create([' ', '\t', ';', '&', '|', '>', '<', '"', '\'', '$', '`', '!', '*', '?']);
-
     /// <summary>
-    /// Quotes a command-line argument if it contains shell metacharacters or whitespace.
-    /// Escapes backslashes and double quotes within the argument.
+    /// Quotes a command-line argument if it contains shell metacharacters or whitespace,
+    /// using the shared CommandLineToArgvW-compatible quoting algorithm.
     /// </summary>
     protected static string QuoteArgumentIfNeeded(string argument)
     {
-      if (string.IsNullOrEmpty(argument))
-        return "\"\"";
-
-      var needsQuoting = argument.AsSpan().IndexOfAny(ShellMetaCharacters) >= 0;
-      if (!needsQuoting)
-        return argument;
-
-      var escaped = argument.Replace("\\", "\\\\").Replace("\"", "\\\"");
-      return $"\"{escaped}\"";
+      return CommandLineQuoting.QuoteArgumentIfNeeded(argument);
     }
 
     #endregion

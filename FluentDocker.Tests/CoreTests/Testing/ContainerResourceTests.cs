@@ -1,9 +1,11 @@
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using FluentDocker.Common;
 using FluentDocker.Model.Drivers;
 using FluentDocker.Testing.Core;
 using FluentDocker.Tests.Mocks;
+using Moq;
 using Xunit;
 
 namespace FluentDocker.Tests.CoreTests.Testing
@@ -54,6 +56,8 @@ namespace FluentDocker.Tests.CoreTests.Testing
       await resource.DisposeAsync();
 
       Assert.False(resource.IsInitialized);
+      MockPack.VerifyContainerStopped(Times.Once());
+      MockPack.VerifyContainerRemoved(Times.Once());
     }
 
     [Fact]
@@ -74,6 +78,9 @@ namespace FluentDocker.Tests.CoreTests.Testing
       await resource.InitializeAsync(TestContext.Current.CancellationToken); // second call is no-op
 
       Assert.True(resource.IsInitialized);
+      await resource.DisposeAsync();
+      MockPack.VerifyContainerStopped(Times.Once());
+      MockPack.VerifyContainerRemoved(Times.Once());
     }
 
     [Fact]
@@ -361,6 +368,31 @@ namespace FluentDocker.Tests.CoreTests.Testing
 
       // Must contain JSON from the mock inspect (container id)
       Assert.Contains("test-container-123", resource.Diagnostics.InspectPayload);
+    }
+
+    [Fact]
+    public async Task InitializeAsync_WhenWaitConditionFails_CapturesBuilderLogTailInDiagnostics()
+    {
+      MockPack
+          .SetupContainerCreate("wait-fail-container")
+          .SetupContainerStart()
+          .SetupContainerInspect("wait-fail-container", running: true)
+          .SetupContainerGetLogs("startup failed before readiness")
+          .SetupContainerRemove();
+
+      var resource = new ContainerResource(
+          Kernel,
+          builder => builder
+              .UseImage("alpine:latest")
+              .WithWaitPollInterval(1)
+              .WaitForLogMessage("never appears", 2),
+          new DockerResourceOptions { CaptureLogsOnFailure = true });
+
+      await Assert.ThrowsAsync<FluentDockerException>(
+          () => resource.InitializeAsync(TestContext.Current.CancellationToken));
+
+      Assert.NotNull(resource.Diagnostics);
+      Assert.Contains("startup failed before readiness", resource.Diagnostics.Logs);
     }
 
     [Fact]

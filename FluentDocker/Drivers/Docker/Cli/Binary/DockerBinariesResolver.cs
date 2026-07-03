@@ -49,8 +49,11 @@ namespace FluentDocker.Drivers.Docker.Cli.Binary
 
       if (MainDockerClient == null)
       {
-        _logger.LogError("Failed to find docker client binary - please add it to your path");
-        throw new FluentDockerException("Failed to find docker client binary - please add it to your path");
+        var reason = "Failed to find docker client binary - please add it to your path";
+        var driverId = string.IsNullOrWhiteSpace(_configuration.BinaryName)
+            ? "docker" : _configuration.BinaryName;
+        _logger.LogError("{Reason}", reason);
+        throw new DriverNotAvailableException(driverId, reason);
       }
 
       if (MainDockerCompose == null)
@@ -108,20 +111,14 @@ namespace FluentDocker.Drivers.Docker.Cli.Binary
 
     /// <inheritdoc />
     /// <remarks>
-    /// Returns the binary path with sudo prefix when configured.
-    /// The sudo password is never included in the returned string for security reasons.
-    /// Use <see cref="Resolve"/> to access the full <see cref="DockerBinary"/> with sudo details.
+    /// Returns only the executable path. Use <see cref="Resolve"/> to access sudo details;
+    /// a sudo prefix is not a valid <see cref="ProcessStartInfo.FileName"/>.
     /// </remarks>
     public string ResolveBinaryPath(string dockerCommand)
     {
       var binary = Resolve(dockerCommand);
 
-      if (IsWindows() || binary.Sudo == SudoMechanism.None)
-        return binary.FqPath;
-
-      return binary.Sudo == SudoMechanism.NoPassword
-          ? $"sudo {binary.FqPath}"
-          : $"sudo -S {binary.FqPath}";
+      return binary.FqPath;
     }
 
     private IEnumerable<DockerBinary> ResolveFromPaths(
@@ -216,10 +213,11 @@ namespace FluentDocker.Drivers.Docker.Cli.Binary
         var errorTask = process.StandardError.ReadToEndAsync();
         // Wait for exit first with timeout — ReadToEndAsync completes
         // only after the process closes its pipes (i.e. exits).
-        if (!process.WaitForExit(10_000))
+        // ponytail: sync probe, async resolution if startup latency matters.
+        if (!process.WaitForExit(3_000))
         {
           try
-          { process.Kill(); }
+          { process.Kill(entireProcessTree: true); }
           catch { /* best effort */ }
           return null;
         }

@@ -3,12 +3,14 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using FluentDocker.Common;
+using FluentDocker.Kernel;
 using FluentDocker.Model.Drivers;
 using FluentDocker.Model.Models;
 using FluentDocker.Model.Models.Options;
 using FluentDocker.Services;
 using FluentDocker.Services.Impl;
 using FluentDocker.Tests.Mocks;
+using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using Xunit;
 using DriverContext = FluentDocker.Model.Drivers.DriverContext;
@@ -225,6 +227,30 @@ namespace FluentDocker.Tests.CoreTests.Service
     }
 
     [Fact]
+    public async Task Dispose_AfterCanceledStart_DoesNotUnload()
+    {
+      await using var kernel = new FluentDocker.Kernel.FluentDockerKernel(
+          new DriverRegistry(NullLoggerFactory.Instance), NullLoggerFactory.Instance);
+      var runner = new Mock<IModelRunner>();
+      runner.Setup(r => r.LoadAsync(
+              It.IsAny<ModelReference>(), It.IsAny<ModelRunOptions>(), It.IsAny<CancellationToken>()))
+          .ThrowsAsync(new OperationCanceledException());
+      runner.Setup(r => r.DisposeAsync()).Returns(ValueTask.CompletedTask);
+      var service = new ModelService(
+          kernel, "docker", Model, runner.Object, null!, keepRunning: false);
+
+      using var cts = CancellationTokenSource.CreateLinkedTokenSource(
+          TestContext.Current.CancellationToken);
+      cts.Cancel();
+
+      await Assert.ThrowsAsync<OperationCanceledException>(() => service.StartAsync(cts.Token));
+      await service.DisposeAsync();
+
+      runner.Verify(r => r.UnloadAsync(
+          It.IsAny<ModelReference>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
     public async Task SyncDispose_KeepRunning_DoesNotUnload()
     {
       var pack = new MockDriverPack().SetupModelLoad().SetupModelUnload().EnableModelDrivers();
@@ -283,13 +309,18 @@ namespace FluentDocker.Tests.CoreTests.Service
       // ignores the token), the SAME model's gate must NOT be acquirable, even after a cancel.
       var model = ModelReference.Parse("ai/gate-" + Guid.NewGuid().ToString("N"));
       var load = new TaskCompletionSource<CommandResponse<Unit>>();
+      var enteredLoad = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
       var pack = new MockDriverPack()
           .SetupModelUnload()
           .EnableModelDrivers();
       pack.ModelRuntimeDriver
           .Setup(d => d.LoadAsync(It.IsAny<DriverContext>(), It.IsAny<ModelReference>(),
               It.IsAny<ModelRunOptions>(), It.IsAny<CancellationToken>()))
-          .Returns(load.Task); // ignores the token — simulates a driver mid-load
+          .Returns(() =>
+          {
+            enteredLoad.SetResult();
+            return load.Task;
+          }); // ignores the token — simulates a driver mid-load
 
       var kernel = await MockKernelBuilderExtensions.CreateWithMockDriverAsync("docker", pack);
       await using (kernel)
@@ -303,7 +334,7 @@ namespace FluentDocker.Tests.CoreTests.Service
 
         // Let StartAsync acquire the gate and enter LoadAsync, then cancel: the OLD code would
         // release the gate here while the load is still running.
-        await Task.Delay(TimeSpan.FromMilliseconds(100), ct);
+        await enteredLoad.Task.WaitAsync(TimeSpan.FromSeconds(5), ct);
         cts.Cancel();
 
         // The same model's gate must remain HELD (the load has not returned) — a concurrent

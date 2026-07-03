@@ -62,6 +62,20 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
     }
 
     [Fact]
+    public void ParseSystemInfo_RootlessSecurity_SurfacesRootless()
+    {
+      var json = @"{
+                ""security"": { ""rootless"": true }
+            }";
+
+      var result = InvokeParseSystemInfo(json);
+      result.PopulateMeta();
+
+      Assert.True(result.Rootless);
+      Assert.Equal("True", result.MetaInfo[SystemInfoMetaKeys.Rootless]);
+    }
+
+    [Fact]
     public void ParseSystemInfo_EmptyJson_ReturnsEmptyInfo()
     {
       var result = InvokeParseSystemInfo("{}");

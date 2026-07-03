@@ -1,3 +1,4 @@
+#pragma warning disable CS0618
 using System;
 using FluentDocker.Model.Events;
 using FluentDocker.Model.Networks;
@@ -264,14 +265,12 @@ namespace FluentDocker.Tests.CoreTests.Model
     }
 
     [Fact]
-    public void UnknownEvent_CaseSensitiveParsing()
+    public void UnknownEvent_ParsesCaseInsensitive()
     {
-      // Enum.TryParse is case-sensitive by default
       var evt = new UnknownEvent("create", "container");
 
-      // Lowercase should fail to parse (case-sensitive)
-      Assert.Equal(EventAction.Unspecified, evt.Action);
-      Assert.Equal(EventType.Generic, evt.Type);
+      Assert.Equal(EventAction.Create, evt.Action);
+      Assert.Equal(EventType.Container, evt.Type);
       Assert.Equal("create", evt.ActionRaw);
       Assert.Equal("container", evt.TypeRaw);
     }
@@ -403,3 +402,4 @@ namespace FluentDocker.Tests.CoreTests.Model
     #endregion
   }
 }
+#pragma warning restore CS0618

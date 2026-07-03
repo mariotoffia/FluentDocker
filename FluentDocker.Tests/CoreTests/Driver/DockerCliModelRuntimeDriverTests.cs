@@ -27,6 +27,7 @@ namespace FluentDocker.Tests.CoreTests.Driver
     private sealed class FakeRuntimeDriver : DockerCliModelRuntimeDriver
     {
       public List<string> Commands { get; } = [];
+      public List<DriverContext> Contexts { get; } = [];
       public Func<string, SimpleCommandResult>? Responder { get; set; }
       public Func<string, IEnumerable<string>>? StreamResponder { get; set; }
 
@@ -34,8 +35,9 @@ namespace FluentDocker.Tests.CoreTests.Driver
       {
       }
 
-      protected override Task<SimpleCommandResult> RunAsync(string arguments, CancellationToken cancellationToken)
+      protected override Task<SimpleCommandResult> RunAsync(DriverContext context, string arguments, CancellationToken cancellationToken)
       {
+        Contexts.Add(context);
         Commands.Add(arguments);
         // Honor the token the way a real CLI invocation would: a caller's cancellation
         // surfaces as OperationCanceledException. This lets tests prove the shared
@@ -44,8 +46,9 @@ namespace FluentDocker.Tests.CoreTests.Driver
         return Task.FromResult(Responder?.Invoke(arguments) ?? new SimpleCommandResult { Success = true, Output = string.Empty, ExitCode = 0 });
       }
 
-      protected override IAsyncEnumerable<string> RunStreamingAsync(string arguments, CancellationToken cancellationToken)
+      protected override IAsyncEnumerable<string> RunStreamingAsync(DriverContext context, string arguments, CancellationToken cancellationToken)
       {
+        Contexts.Add(context);
         Commands.Add(arguments);
         return ToAsync(StreamResponder?.Invoke(arguments) ?? Array.Empty<string>());
       }
@@ -69,6 +72,17 @@ namespace FluentDocker.Tests.CoreTests.Driver
       Assert.True(result.Success);
       Assert.True(result.Data.Running);
       Assert.Contains("model status", driver.Commands.Single());
+    }
+
+    [Fact]
+    public async Task StatusAsync_PassesPerCallContextToRunner()
+    {
+      var context = new DriverContext("docker") { Host = "tcp://context-host:2375" };
+      var driver = new FakeRuntimeDriver { Responder = _ => Ok("Docker Model Runner is running\n") };
+
+      await driver.StatusAsync(context, TestContext.Current.CancellationToken);
+
+      Assert.Same(context, driver.Contexts.Single());
     }
 
     [Fact]
@@ -193,6 +207,19 @@ namespace FluentDocker.Tests.CoreTests.Driver
       Assert.Equal(new[] { "line1", "line2" }, collected);
       Assert.Contains("model logs", driver.Commands.Single());
       Assert.Contains("-f", driver.Commands.Single());
+    }
+
+    [Fact]
+    public async Task LogsAsync_PassesPerCallContextToStreamingRunner()
+    {
+      var context = new DriverContext("docker") { Host = "tcp://context-host:2375" };
+      var driver = new FakeRuntimeDriver { StreamResponder = _ => new[] { "line1" } };
+
+      await foreach (var _ in driver.LogsAsync(context, follow: true, TestContext.Current.CancellationToken))
+      {
+      }
+
+      Assert.Same(context, driver.Contexts.Single());
     }
 
     [Fact]

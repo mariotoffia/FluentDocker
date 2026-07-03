@@ -100,6 +100,29 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
     }
 
     [Fact]
+    public async Task UseNetwork_WithIPRange_PassesIpRangeAsIpamConfig()
+    {
+      MockPack
+          .SetupNetworkList()
+          .SetupNetworkCreate()
+          .SetupNetworkRemove();
+
+      await new Builder()
+          .WithinDriver(DriverId, Kernel)
+          .UseNetwork(n => n
+              .WithName("test-network")
+              .WithIPRange("172.20.10.0/24"))
+          .BuildAsync(cancellationToken: TestContext.Current.CancellationToken);
+
+      MockPack.NetworkDriver.Verify(d => d.CreateAsync(
+          It.IsAny<FluentDocker.Model.Drivers.DriverContext>(),
+          It.Is<NetworkCreateConfig>(cfg =>
+              cfg.IpRange == "172.20.10.0/24" &&
+              !cfg.Options.ContainsKey("com.docker.network.bridge.ip-range")),
+          It.IsAny<System.Threading.CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
     public async Task UseNetwork_WithLabels_PassesLabels()
     {
       // Arrange

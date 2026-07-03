@@ -210,5 +210,29 @@ namespace FluentDocker.Tests.CoreTests.Common
       Assert.Equal("cmd", result[0]);
       Assert.Equal("unclosed", result[1]);
     }
+
+    [Fact]
+    public void Parse_ShDashCEmptySingleQuoted_KeepsEmptyArgument()
+    {
+      var result = ShellArgParser.Parse("sh -c ''");
+
+      Assert.Equal(["sh", "-c", ""], result);
+    }
+
+    [Fact]
+    public void Parse_GrepEmptyDoubleQuoted_KeepsEmptyArgument()
+    {
+      var result = ShellArgParser.Parse("grep \"\" file");
+
+      Assert.Equal(["grep", "", "file"], result);
+    }
+
+    [Fact]
+    public void Parse_LoneEmptyDoubleQuoted_ReturnsEmptyArgument()
+    {
+      var result = ShellArgParser.Parse("\"\"");
+
+      Assert.Equal([""], result);
+    }
   }
 }

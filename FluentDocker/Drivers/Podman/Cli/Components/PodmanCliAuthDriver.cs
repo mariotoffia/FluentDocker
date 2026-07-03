@@ -51,11 +51,11 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       {
         var (args, stdinData) = BuildLoginArgs(config);
         var result = stdinData != null
-            ? await ExecuteCommandAsync(args, stdinData, cancellationToken).ConfigureAwait(false)
-            : await ExecuteCommandAsync(args, cancellationToken).ConfigureAwait(false);
+            ? await ExecuteCommandAsync(context, args, stdinData, cancellationToken).ConfigureAwait(false)
+            : await ExecuteCommandAsync(context, args, cancellationToken).ConfigureAwait(false);
         if (!result.Success)
           return CommandResponse<Unit>.Fail(
-              result.Error ?? "Login failed", ErrorCodes.Auth.LoginFailed,
+              ErrorOrDefault(result, "Login failed"), ErrorCodes.Auth.LoginFailed,
               CreateErrorContext(context, "Login", result), result.ExitCode);
 
         return CommandResponse<Unit>.Ok(Unit.Default);
@@ -81,10 +81,10 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
         if (!string.IsNullOrEmpty(server))
           args += $" {QuoteArgumentIfNeeded(server)}";
 
-        var result = await ExecuteCommandAsync(args, cancellationToken).ConfigureAwait(false);
+        var result = await ExecuteCommandAsync(context, args, cancellationToken).ConfigureAwait(false);
         if (!result.Success)
           return CommandResponse<Unit>.Fail(
-              result.Error ?? "Logout failed", ErrorCodes.Auth.LogoutFailed,
+              ErrorOrDefault(result, "Logout failed"), ErrorCodes.Auth.LogoutFailed,
               CreateErrorContext(context, "Logout", result), result.ExitCode);
 
         return CommandResponse<Unit>.Ok(Unit.Default);

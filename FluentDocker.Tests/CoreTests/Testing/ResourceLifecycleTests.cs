@@ -183,7 +183,7 @@ namespace FluentDocker.Tests.CoreTests.Testing
               InitializationTimeout = TimeSpan.FromMilliseconds(50)
             });
 
-        await Assert.ThrowsAnyAsync<OperationCanceledException>(
+        await Assert.ThrowsAsync<TimeoutException>(
             () => resource.InitializeAsync(TestContext.Current.CancellationToken));
 
         Assert.False(resource.DiagnosticsTokenWasCanceled);

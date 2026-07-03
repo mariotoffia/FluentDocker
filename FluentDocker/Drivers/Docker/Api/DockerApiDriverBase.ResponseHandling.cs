@@ -24,7 +24,8 @@ namespace FluentDocker.Drivers.Docker.Api
       if (response.IsSuccessStatusCode)
       {
         if (string.IsNullOrWhiteSpace(body))
-          return ApiResult<T>.Ok(default);
+          return ApiResult<T>.Failure((int)response.StatusCode,
+              "Docker API returned an empty response body where JSON was expected", body);
 
         try
         {
@@ -55,7 +56,8 @@ namespace FluentDocker.Drivers.Docker.Api
       if (response.IsSuccessStatusCode)
       {
         if (response.Content.Headers.ContentLength == 0)
-          return ApiResult<T>.Ok(default);
+          return ApiResult<T>.Failure((int)response.StatusCode,
+              "Docker API returned an empty response body where JSON was expected");
 
         var stream = await response.Content.ReadAsStreamAsync(ct).ConfigureAwait(false);
         try
@@ -93,7 +95,8 @@ namespace FluentDocker.Drivers.Docker.Api
       if (response.IsSuccessStatusCode)
       {
         if (response.Content.Headers.ContentLength == 0)
-          return ApiResult<JsonElement>.Ok(default);
+          return ApiResult<JsonElement>.Failure((int)response.StatusCode,
+              "Docker API returned an empty response body where JSON was expected");
 
         var stream = await response.Content.ReadAsStreamAsync(ct).ConfigureAwait(false);
         try

@@ -60,7 +60,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
       set => DataRoot = value;
     }
 
-    [JsonPropertyName("ServerVersion")]
+    [JsonIgnore]
     public string DockerEngineVersion
     {
       get => EngineVersion;

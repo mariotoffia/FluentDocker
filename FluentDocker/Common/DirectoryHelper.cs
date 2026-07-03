@@ -57,11 +57,19 @@ namespace FluentDocker.Common
     /// <param name="directoryPath">The path of the directory to delete.</param>
     public static void DeleteDirectory(string directoryPath)
     {
+      DeleteDirectory(directoryPath, true);
+    }
+
+    /// <summary>Deletes a directory and all its contents, optionally suppressing final retry failures.</summary>
+    /// <param name="directoryPath">The path of the directory to delete.</param>
+    /// <param name="throwOnFailure">Whether to throw the final retry exception when deletion fails.</param>
+    public static void DeleteDirectory(string directoryPath, bool throwOnFailure)
+    {
       if (!Directory.Exists(directoryPath))
         return;
 
       NormalizeAttributes(directoryPath);
-      DeleteDirectory(directoryPath, 5, 16, 2);
+      DeleteDirectory(directoryPath, 5, 16, 2, throwOnFailure);
     }
 
     private static void NormalizeAttributes(string directoryPath)
@@ -76,7 +84,8 @@ namespace FluentDocker.Common
       File.SetAttributes(directoryPath, FileAttributes.Normal);
     }
 
-    private static void DeleteDirectory(string directoryPath, int maxAttempts, int initialTimeout, int timeoutFactor)
+    private static void DeleteDirectory(
+        string directoryPath, int maxAttempts, int initialTimeout, int timeoutFactor, bool throwOnFailure)
     {
       for (var attempt = 1; attempt <= maxAttempts; attempt++)
         try
@@ -92,7 +101,12 @@ namespace FluentDocker.Common
             throw;
 
           if (attempt >= maxAttempts)
-            continue;
+          {
+            if (throwOnFailure)
+              throw;
+            return;
+          }
+
           Thread.Sleep(initialTimeout * (int)Math.Pow(timeoutFactor, attempt - 1));
         }
     }

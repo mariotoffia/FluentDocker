@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using FluentDocker.Common;
 using FluentDocker.Model.Models;
 using FluentDocker.Model.Models.Options;
 
@@ -14,6 +15,13 @@ namespace FluentDocker.Services.Impl
         CancellationToken cancellationToken = default)
     {
       ThrowIfDisposed();
+      await using var gate = await ModelOperationGate.AcquireAsync(model, cancellationToken).ConfigureAwait(false);
+      return await PullCoreAsync(model, progress, cancellationToken).ConfigureAwait(false);
+    }
+
+    internal async Task<ModelInfo> PullCoreAsync(ModelReference model, IProgress<ModelPullProgress> progress = null,
+        CancellationToken cancellationToken = default)
+    {
       var response = await Management().PullAsync(Context(), model, progress, cancellationToken).ConfigureAwait(false);
       return Unwrap(response, $"Pull model '{model}'");
     }

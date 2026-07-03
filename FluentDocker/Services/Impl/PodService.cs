@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
@@ -10,9 +11,7 @@ using Microsoft.Extensions.Logging;
 
 namespace FluentDocker.Services.Impl
 {
-  /// <summary>
-  /// Pod service implementation using kernel and Podman pod driver.
-  /// </summary>
+  /// <inheritdoc />
   public class PodService : IPodService, IServiceCapabilities
   {
     // IServiceCapabilities
@@ -28,8 +27,8 @@ namespace FluentDocker.Services.Impl
     private readonly string _podId;
     private readonly bool _removeOnDispose;
     private readonly TimeSpan _disposeCleanupTimeout;
-    private readonly Dictionary<string, (ServiceRunningState State, Func<IServiceAsync, Task> Hook)> _hooks = [];
-    private ServiceRunningState _state = ServiceRunningState.Stopped;
+    private readonly ConcurrentDictionary<string, (ServiceRunningState State, Func<IServiceAsync, Task> Hook)> _hooks = [];
+    private volatile ServiceRunningState _state = ServiceRunningState.Stopped;
 
     public PodService(
         FluentDockerKernel kernel, string driverId,
@@ -64,20 +63,28 @@ namespace FluentDocker.Services.Impl
       var driver = _kernel.SysCtl<IPodmanPodDriver>(_driverId);
       var context = new DriverContext(_driverId);
 
-      UpdateState(ServiceRunningState.Starting);
-      await ExecuteHooksAsync(ServiceRunningState.Starting).ConfigureAwait(false);
-
-      var response = await driver.StartPodAsync(context, _podName, cancellationToken).ConfigureAwait(false);
-      if (!response.Success)
+      try
       {
-        throw new DriverException(
-            $"Failed to start pod '{_podName}': {response.Error}",
-            ErrorCodes.Pod.StartFailed,
-            response.ErrorContext);
-      }
+        UpdateState(ServiceRunningState.Starting);
+        await ExecuteHooksAsync(ServiceRunningState.Starting).ConfigureAwait(false);
 
-      UpdateState(ServiceRunningState.Running);
-      await ExecuteHooksAsync(ServiceRunningState.Running).ConfigureAwait(false);
+        var response = await driver.StartPodAsync(context, _podName, cancellationToken).ConfigureAwait(false);
+        if (!response.Success)
+        {
+          throw new DriverException(
+              $"Failed to start pod '{_podName}': {response.Error}",
+              ResolveErrorCode(response.ErrorCode, ErrorCodes.Pod.StartFailed),
+              response.ErrorContext);
+        }
+
+        UpdateState(ServiceRunningState.Running);
+        await ExecuteHooksAsync(ServiceRunningState.Running).ConfigureAwait(false);
+      }
+      catch
+      {
+        UpdateState(ServiceRunningState.Unknown);
+        throw;
+      }
     }
 
     public async Task StopAsync(CancellationToken cancellationToken = default)
@@ -85,20 +92,28 @@ namespace FluentDocker.Services.Impl
       var driver = _kernel.SysCtl<IPodmanPodDriver>(_driverId);
       var context = new DriverContext(_driverId);
 
-      UpdateState(ServiceRunningState.Stopping);
-      await ExecuteHooksAsync(ServiceRunningState.Stopping).ConfigureAwait(false);
-
-      var response = await driver.StopPodAsync(context, _podName, 10, cancellationToken).ConfigureAwait(false);
-      if (!response.Success)
+      try
       {
-        throw new DriverException(
-            $"Failed to stop pod '{_podName}': {response.Error}",
-            ErrorCodes.Pod.StopFailed,
-            response.ErrorContext);
-      }
+        UpdateState(ServiceRunningState.Stopping);
+        await ExecuteHooksAsync(ServiceRunningState.Stopping).ConfigureAwait(false);
 
-      UpdateState(ServiceRunningState.Stopped);
-      await ExecuteHooksAsync(ServiceRunningState.Stopped).ConfigureAwait(false);
+        var response = await driver.StopPodAsync(context, _podName, 10, cancellationToken).ConfigureAwait(false);
+        if (!response.Success)
+        {
+          throw new DriverException(
+              $"Failed to stop pod '{_podName}': {response.Error}",
+              ResolveErrorCode(response.ErrorCode, ErrorCodes.Pod.StopFailed),
+              response.ErrorContext);
+        }
+
+        UpdateState(ServiceRunningState.Stopped);
+        await ExecuteHooksAsync(ServiceRunningState.Stopped).ConfigureAwait(false);
+      }
+      catch
+      {
+        UpdateState(ServiceRunningState.Unknown);
+        throw;
+      }
     }
 
     public Task PauseAsync(CancellationToken cancellationToken = default)
@@ -121,7 +136,7 @@ namespace FluentDocker.Services.Impl
       {
         throw new DriverException(
             $"Failed to remove pod '{_podName}': {response.Error}",
-            ErrorCodes.Pod.RemoveFailed,
+            ResolveErrorCode(response.ErrorCode, ErrorCodes.Pod.RemoveFailed),
             response.ErrorContext);
       }
 
@@ -139,27 +154,42 @@ namespace FluentDocker.Services.Impl
 
     public IServiceAsync RemoveHook(string uniqueName)
     {
-      _hooks.Remove(uniqueName);
+      _hooks.TryRemove(uniqueName, out _);
       return this;
     }
 
     private int _disposed;
+    private int _disposeCompleted;
 
     public void Dispose()
     {
       if (Interlocked.CompareExchange(ref _disposed, 1, 0) != 0)
         return;
-      // Dispatched to the thread pool to avoid sync-over-async deadlocks.
-      Task.Run(() => DisposeCoreAsync().AsTask()).GetAwaiter().GetResult();
-      GC.SuppressFinalize(this);
+      try
+      {
+        // Dispatched to the thread pool to avoid sync-over-async deadlocks.
+        Task.Run(() => DisposeCoreAsync().AsTask()).GetAwaiter().GetResult();
+      }
+      finally
+      {
+        Volatile.Write(ref _disposeCompleted, 1);
+        GC.SuppressFinalize(this);
+      }
     }
 
     public async ValueTask DisposeAsync()
     {
       if (Interlocked.CompareExchange(ref _disposed, 1, 0) != 0)
         return;
-      await DisposeCoreAsync().ConfigureAwait(false);
-      GC.SuppressFinalize(this);
+      try
+      {
+        await DisposeCoreAsync().ConfigureAwait(false);
+      }
+      finally
+      {
+        Volatile.Write(ref _disposeCompleted, 1);
+        GC.SuppressFinalize(this);
+      }
     }
 
     private async ValueTask DisposeCoreAsync()
@@ -189,14 +219,34 @@ namespace FluentDocker.Services.Impl
 
     private void UpdateState(ServiceRunningState newState)
     {
+      if (Volatile.Read(ref _disposeCompleted) != 0 || _state == newState)
+        return;
+
       _state = newState;
-      StateChange?.Invoke(this, new StateChangeEventArgs(this, newState));
+      var stateChange = StateChange;
+      if (stateChange == null)
+        return;
+
+      var args = new StateChangeEventArgs(this, newState);
+      foreach (ServiceDelegates.StateChange handler in stateChange.GetInvocationList())
+      {
+        try
+        {
+          handler(this, args);
+        }
+        catch (Exception ex)
+        {
+          _logger.LogError(ex, "PodService state change handler failed");
+        }
+      }
     }
 
     private async Task ExecuteHooksAsync(ServiceRunningState state)
     {
-      // Snapshot: a firing hook may add or remove hooks, which would invalidate a live enumerator.
-      foreach (var entry in new List<(ServiceRunningState State, Func<IServiceAsync, Task> Hook)>(_hooks.Values))
+      if (Volatile.Read(ref _disposeCompleted) != 0)
+        return;
+
+      foreach (var entry in _hooks.Values)
       {
         if (entry.State != state)
           continue;
@@ -211,5 +261,8 @@ namespace FluentDocker.Services.Impl
         }
       }
     }
+
+    private static string ResolveErrorCode(string errorCode, string fallback) =>
+        string.IsNullOrWhiteSpace(errorCode) || errorCode == ErrorCodes.General.Unknown ? fallback : errorCode;
   }
 }

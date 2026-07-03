@@ -27,14 +27,22 @@ namespace FluentDocker.Common
     /// Initializes a new instance with the specified error message and an unknown error code.
     /// </summary>
     /// <param name="message">The error message.</param>
-    public DriverException(string message) : base(message) => ErrorCode = ErrorCodes.General.Unknown;
+    public DriverException(string message) : base(message)
+    {
+      ErrorCode = ErrorCodes.General.Unknown;
+      IsTransient = ErrorCodes.IsTransientCode(ErrorCode);
+    }
 
     /// <summary>
     /// Initializes a new instance with the specified error message and error code.
     /// </summary>
     /// <param name="message">The error message.</param>
     /// <param name="errorCode">The error code for programmatic handling.</param>
-    public DriverException(string message, string errorCode) : base(message) => ErrorCode = errorCode;
+    public DriverException(string message, string errorCode) : base(message)
+    {
+      ErrorCode = errorCode;
+      IsTransient = ErrorCodes.IsTransientCode(errorCode);
+    }
 
     /// <summary>
     /// Initializes a new instance with the specified error message, error code, and transient flag.
@@ -61,7 +69,7 @@ namespace FluentDocker.Common
     {
       ErrorCode = errorCode;
       Context = context;
-      IsTransient = isTransient;
+      IsTransient = isTransient || ErrorCodes.IsTransientCode(errorCode);
     }
 
     /// <summary>
@@ -69,7 +77,11 @@ namespace FluentDocker.Common
     /// </summary>
     /// <param name="message">The error message.</param>
     /// <param name="innerException">The exception that caused this error.</param>
-    public DriverException(string message, Exception innerException) : base(message, innerException) => ErrorCode = ErrorCodes.General.Unknown;
+    public DriverException(string message, Exception innerException) : base(message, innerException)
+    {
+      ErrorCode = ErrorCodes.General.Unknown;
+      IsTransient = ErrorCodes.IsTransientCode(ErrorCode);
+    }
 
     /// <summary>
     /// Initializes a new instance with the specified error message, error code, and inner exception.
@@ -78,7 +90,11 @@ namespace FluentDocker.Common
     /// <param name="errorCode">The error code for programmatic handling.</param>
     /// <param name="innerException">The exception that caused this error.</param>
     public DriverException(string message, string errorCode, Exception innerException)
-        : base(message, innerException) => ErrorCode = errorCode;
+        : base(message, innerException)
+    {
+      ErrorCode = errorCode;
+      IsTransient = ErrorCodes.IsTransientCode(errorCode);
+    }
 
     /// <summary>
     /// Initializes a new instance with the specified error message, error code, context, inner exception, and optional transient flag.
@@ -93,7 +109,7 @@ namespace FluentDocker.Common
     {
       ErrorCode = errorCode;
       Context = context;
-      IsTransient = isTransient;
+      IsTransient = isTransient || ErrorCodes.IsTransientCode(errorCode);
     }
 
     /// <summary>Returns a string representation including error code, context, and transient status.</summary>

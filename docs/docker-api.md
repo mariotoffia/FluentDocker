@@ -29,7 +29,7 @@ Register it on the kernel with `WithDockerApi`:
 using System;
 using FluentDocker.Kernel;
 
-using var kernel = await FluentDockerKernel.Create()
+await using var kernel = await FluentDockerKernel.Create()
     .WithDockerApi("api", d => d
         .AtHost("tcp://engine.internal:2376")
         .WithCertificates("/etc/docker/certs")
@@ -62,7 +62,9 @@ var login = await auth.LoginAsync(context, new RegistryLoginConfig
 // automatically carry the X-Registry-Auth header.
 ```
 
-Call `LogoutAsync(context, server)` to drop the cached credentials.
+Call `LogoutAsync(context, server)` to drop the cached credentials. Unlike the CLI driver,
+the API driver does **not** read `~/.docker/config.json` or invoke Docker credential
+helpers; call `LoginAsync` explicitly before private-registry pull/push.
 
 ## Cancellation vs request timeout
 
@@ -75,6 +77,8 @@ The two failure modes are kept **distinct**:
   (`WithRequestTimeout(...)`) is internal; when it fires it is reported as a timeout/driver
   failure, **not** as caller cancellation, so you can tell "the caller gave up" apart from
   "the engine was too slow".
+- **Long-running waits/streams** — attach/log/event/stat streams and `WaitAsync` are exempt
+  from the request timeout and are bounded only by the caller's cancellation token.
 
 ```csharp
 using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
@@ -91,6 +95,22 @@ catch (OperationCanceledException)
 }
 ```
 
+## Build support and build-context packaging
+
+Image builds use the Docker Engine legacy `/build` endpoint. BuildKit-only Dockerfile
+features such as `RUN --mount=...` and heredocs are not enabled by this driver; use the CLI
+driver when you need `DOCKER_BUILDKIT=1` semantics.
+
+The build context is packed by the API driver, not by the Docker CLI. File modes are preserved
+where the host exposes them (falling back to `0644` files and `0755` directories/executables),
+but symlink behavior differs from `docker build`: file symlinks are dereferenced only when the
+resolved target stays inside the context, escaping links are skipped, and directory symlinks are
+not traversed.
+
+`CopyToAsync` also builds a tar archive client-side. It skips reparse-point entries to avoid
+symlink cycles; very large directory copies are still buffered before upload, so prefer copying
+files or bounded directories with the API driver.
+
 ## TLS
 
 TLS is validated by default. Two knobs adjust it:
@@ -106,7 +126,7 @@ TLS is validated by default. Two knobs adjust it:
   all certificate validation; reserve it for local throwaway engines, never production.
 
 ```csharp
-using var kernel = await FluentDockerKernel.Create()
+await using var kernel = await FluentDockerKernel.Create()
     .WithDockerApi("api", d => d
         .AtHost("tcp://10.0.0.5:2376")
         .WithCertificates("/etc/docker/certs")
@@ -126,6 +146,18 @@ memory.
 The HTTP response backing a stream is owned by the returned stream and disposed with it —
 always dispose the stream you receive (`await using`/`using`) so the underlying connection
 is released.
+
+`IContainerDriver.GetLogsAsync(follow: true)` is rejected because it is a buffered API; use
+`IStreamDriver.StreamLogsAsync` for following logs. Streamed Docker API log entries are emitted
+at Docker frame granularity (frames may split very long logical lines). Attach over the API
+supports stdout/stderr only: requesting stdin fails with a clear error, and the returned
+`OutputStream` is the raw Docker attach stream (multiplexed when TTY is disabled).
+
+## Empty response handling
+
+Operations that expect JSON now treat an empty successful body as a driver failure with a
+domain message. Operations where Docker legitimately returns no body (for example start/stop
+style endpoints) still return `Ok`.
 
 ## Unsupported / limited semantics vs the CLI driver
 

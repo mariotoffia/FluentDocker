@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
+using System.Text;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
@@ -18,6 +19,9 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
   /// </summary>
   public class PodmanCliStreamDriver : PodmanCliDriverBase, IStreamDriver
   {
+    // ponytail: 4 MiB is enough for one pretty stats JSON batch; expose a knob if real streams exceed it.
+    private const int MaxStatsJsonBufferChars = 4 * 1024 * 1024;
+
     public PodmanCliStreamDriver(IPodmanBinaryResolver binaryResolver) : base(binaryResolver)
     {
     }
@@ -54,7 +58,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
     {
       var args = BuildStreamLogsArgs(containerId, config);
 
-      await foreach (var line in ExecuteStreamingCommandAsync(args, cancellationToken).ConfigureAwait(false))
+      await foreach (var line in ExecuteStreamingCommandWithProgressAsync(context, args, cancellationToken).ConfigureAwait(false))
       {
         yield return line;
       }
@@ -93,9 +97,9 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
     {
       var args = BuildStreamEventsArgs(config);
 
-      await foreach (var line in ExecuteStreamingCommandAsync(args, cancellationToken).ConfigureAwait(false))
+      await foreach (var line in ExecuteStreamingCommandAsync(context, args, cancellationToken).ConfigureAwait(false))
       {
-        var evt = ParseEvent(line);
+        var evt = ParseEventCore(line, Logger);
         if (evt != null)
           yield return evt;
       }
@@ -109,11 +113,9 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
     /// <returns>The CLI arguments string.</returns>
     public static string BuildStreamStatsArgs(string containerId, StreamStatsConfig config)
     {
-      var args = "stats --format json";
+      var args = "stats --no-reset --format json";
       if (config?.Stream == false)
         args += " --no-stream";
-      if (config?.NoHeader == true)
-        args += " --no-header";
       if (config?.All == true)
         args += " -a";
       if (!string.IsNullOrEmpty(containerId))
@@ -128,12 +130,42 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
         [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
       var args = BuildStreamStatsArgs(containerId, config);
+      var buffer = new StringBuilder();
+      var depth = 0;
+      var started = false;
+      var inString = false;
+      var escaped = false;
 
-      await foreach (var line in ExecuteStreamingCommandAsync(args, cancellationToken).ConfigureAwait(false))
+      await foreach (var line in ExecuteStreamingCommandAsync(context, args, cancellationToken).ConfigureAwait(false))
       {
-        var stats = ParseStats(line);
-        if (stats != null)
+        UpdateJsonState(line, ref started, ref depth, ref inString, ref escaped);
+        if (!started)
+          continue;
+
+        if (buffer.Length > 0)
+          buffer.Append('\n');
+        buffer.Append(line);
+        if (buffer.Length > MaxStatsJsonBufferChars)
+        {
+          Logger.LogWarning("Podman stats JSON buffer exceeded {Limit} chars; resetting parser state.", MaxStatsJsonBufferChars);
+          buffer.Clear();
+          started = false;
+          depth = 0;
+          inString = false;
+          escaped = false;
+          continue;
+        }
+
+        if (depth != 0)
+          continue;
+
+        foreach (var stats in ParseStatsBatch(buffer.ToString(), Logger))
           yield return stats;
+
+        buffer.Clear();
+        started = false;
+        inString = false;
+        escaped = false;
       }
     }
 
@@ -173,27 +205,65 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
 
     private static ContainerEvent ParseEvent(string json)
     {
+      return ParseEventCore(json, NullLogger.Instance);
+    }
+
+    private static ContainerEvent ParseEventCore(string json, ILogger logger)
+    {
       try
       {
+        if (string.IsNullOrWhiteSpace(json))
+          return null;
+
         var obj = JsonHelper.ParseElement(json);
         var actorProp = obj.Prop("Actor");
         string actorId = null;
+        Dictionary<string, string> attributes = [];
         if (actorProp.HasValue)
+        {
           actorId = actorProp.Value.GetStringOrDefault("ID");
+          attributes = actorProp.Value.GetStringDictionary("Attributes");
+        }
 
-        return new ContainerEvent
+        var topAttributes = obj.GetStringDictionary("Attributes");
+        if (topAttributes.Count > 0)
+          attributes = topAttributes;
+
+        var evt = new ContainerEvent
         {
           Type = obj.GetStringOrDefault("Type") ?? obj.GetStringOrDefault("type"),
-          Action = obj.GetStringOrDefault("Action") ?? obj.GetStringOrDefault("Status"),
-          ActorId = actorId ?? obj.GetStringOrDefault("id"),
+          Action = obj.GetStringOrDefault("Action")
+                   ?? obj.GetStringOrDefault("Status")
+                   ?? obj.GetStringOrDefault("status"),
+          ActorId = actorId
+                    ?? obj.GetStringOrDefault("ID")
+                    ?? obj.GetStringOrDefault("id"),
+          ActorAttributes = attributes,
           RawJson = json
         };
+
+        ApplyEventTime(obj, evt);
+        return evt;
       }
       catch (Exception ex)
       {
-        NullLogger.Instance.LogDebug(ex, "Podman event parsing failed");
+        logger.LogDebug(ex, "Podman event parsing failed");
         return null;
       }
+    }
+
+    private static void ApplyEventTime(JsonElement obj, ContainerEvent evt)
+    {
+      var time = obj.Prop("time") ?? obj.Prop("Time");
+      if (time?.ValueKind == JsonValueKind.Number && time.Value.TryGetInt64(out var seconds))
+        evt.Timestamp = DateTimeOffset.FromUnixTimeSeconds(seconds).UtcDateTime;
+      else if (time?.ValueKind == JsonValueKind.String
+               && DateTimeOffset.TryParse(time.Value.GetString(), out var timestamp))
+        evt.Timestamp = timestamp.UtcDateTime;
+
+      var timeNano = obj.Prop("timeNano") ?? obj.Prop("TimeNano");
+      if (timeNano?.ValueKind == JsonValueKind.Number && timeNano.Value.TryGetInt64(out var nanos))
+        evt.TimeNano = nanos;
     }
 
     /// <summary>
@@ -206,41 +276,140 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
     /// <returns>A populated <see cref="ContainerStats"/>, or null if parsing fails.</returns>
     public static ContainerStats ParseStats(string json)
     {
+      foreach (var stats in ParseStatsBatch(json, NullLogger.Instance))
+        return stats;
+
+      return null;
+    }
+
+    private static List<ContainerStats> ParseStatsBatch(string json, ILogger logger)
+    {
+      var stats = new List<ContainerStats>();
       if (string.IsNullOrWhiteSpace(json))
-        return null;
+        return stats;
 
-      // Podman stats in streaming mode may prefix lines with ANSI escape codes.
-      // Extract the JSON object portion.
-      var start = json.IndexOf('{');
-      var end = json.LastIndexOf('}');
-      if (start < 0 || end < start)
-        return null;
-      json = json[start..(end + 1)];
-
-      try
+      Exception lastError = null;
+      foreach (var candidate in JsonCandidates(json))
       {
-        var result = PodmanCliContainerDriver.ParseStatsOutput(json);
-
-        return new ContainerStats
+        try
         {
-          ContainerId = result.ContainerId,
-          Name = result.Name,
-          CpuPercentage = result.CpuPercent,
-          MemoryUsage = result.MemoryUsage,
-          MemoryLimit = result.MemoryLimit,
-          MemoryPercentage = result.MemoryPercent,
-          NetworkRx = result.NetworkRxBytes,
-          NetworkTx = result.NetworkTxBytes,
-          BlockRead = result.BlockReadBytes,
-          BlockWrite = result.BlockWriteBytes,
-          Pids = result.Pids,
-          RawJson = json
-        };
+          var root = JsonHelper.ParseElement(candidate);
+          if (root.ValueKind == JsonValueKind.Array)
+          {
+            foreach (var item in root.EnumerateArraySafe())
+              if (item.ValueKind == JsonValueKind.Object)
+                stats.Add(MapStats(item));
+          }
+          else if (root.ValueKind == JsonValueKind.Object)
+          {
+            stats.Add(MapStats(root));
+          }
+
+          return stats;
+        }
+        catch (Exception ex)
+        {
+          lastError = ex;
+        }
       }
-      catch (Exception ex)
+
+      if (lastError != null)
+        logger.LogDebug(lastError, "Podman stats parsing failed");
+      return stats;
+    }
+
+    private static ContainerStats MapStats(JsonElement token)
+    {
+      var raw = token.GetRawText();
+      var result = PodmanCliContainerDriver.ParseStatsOutput(raw);
+      return new ContainerStats
       {
-        NullLogger.Instance.LogDebug(ex, "Podman stats parsing failed");
-        return null;
+        ContainerId = result.ContainerId,
+        Name = result.Name,
+        CpuPercentage = result.CpuPercent,
+        MemoryUsage = result.MemoryUsage,
+        MemoryLimit = result.MemoryLimit,
+        MemoryPercentage = result.MemoryPercent,
+        NetworkRx = result.NetworkRxBytes,
+        NetworkTx = result.NetworkTxBytes,
+        BlockRead = result.BlockReadBytes,
+        BlockWrite = result.BlockWriteBytes,
+        Pids = result.Pids,
+        Timestamp = DateTime.UtcNow,
+        RawJson = raw
+      };
+    }
+
+    private static IEnumerable<string> JsonCandidates(string text)
+    {
+      var trimmed = text.Trim();
+      for (var i = 0; i < trimmed.Length; i++)
+      {
+        var ch = trimmed[i];
+        if (ch != '{' && ch != '[')
+          continue;
+
+        var end = ch == '[' ? trimmed.LastIndexOf(']') : trimmed.LastIndexOf('}');
+        if (end > i)
+          yield return trimmed[i..(end + 1)];
+      }
+    }
+
+    private static void UpdateJsonState(
+        string line, ref bool started, ref int depth, ref bool inString, ref bool escaped)
+    {
+      var previous = '\0';
+      foreach (var ch in line)
+      {
+        if (!started)
+        {
+          if (ch != '{' && (ch != '[' || previous == '\u001b'))
+          {
+            previous = ch;
+            continue;
+          }
+          started = true;
+          depth = 1;
+          previous = ch;
+          continue;
+        }
+
+        if (escaped)
+        {
+          escaped = false;
+          previous = ch;
+          continue;
+        }
+
+        if (ch == '\\' && inString)
+        {
+          escaped = true;
+          previous = ch;
+          continue;
+        }
+
+        if (ch == '"')
+        {
+          inString = !inString;
+          previous = ch;
+          continue;
+        }
+
+        if (inString)
+        {
+          previous = ch;
+          continue;
+        }
+
+        if (ch == '{' || ch == '[')
+          depth++;
+        else if (ch == '}' || ch == ']')
+          depth--;
+
+        if (depth == 0)
+          break;
+
+        previous = ch;
       }
     }
 

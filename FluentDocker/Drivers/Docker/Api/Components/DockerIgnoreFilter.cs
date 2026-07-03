@@ -72,11 +72,14 @@ namespace FluentDocker.Drivers.Docker.Api.Components
         // Leading '/' anchors to the context root; our relative paths are already
         // root-relative, so we just strip it. A trailing '/' marks a directory pattern;
         // subtree exclusion is handled uniformly by the regex suffix below.
+        if (line.Length == 0)
+          continue;
+        var directoryOnly = line[^1] == '/';
         line = line.Trim('/');
         if (line.Length == 0)
           continue;
 
-        rules.Add(new Rule(BuildRegex(line), negated));
+        rules.Add(new Rule(BuildRegex(line, directoryOnly), negated));
       }
 
       return new DockerIgnoreFilter(rules, dockerfileName);
@@ -92,7 +95,10 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       var path = relativePath.Replace('\\', '/').TrimStart('/');
 
       // Docker always includes the Dockerfile and .dockerignore regardless of rules.
-      if (string.Equals(path, _dockerfileName, StringComparison.Ordinal) ||
+      var dockerfileComparison = OperatingSystem.IsWindows()
+          ? StringComparison.OrdinalIgnoreCase
+          : StringComparison.Ordinal;
+      if (string.Equals(path, _dockerfileName, dockerfileComparison) ||
           string.Equals(path, ".dockerignore", StringComparison.Ordinal))
         return false;
 
@@ -110,7 +116,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
     /// <c>(?:/.*)?</c> makes any match also cover the subtree beneath it (directory
     /// semantics), which is harmless for plain file patterns.
     /// </summary>
-    private static Regex BuildRegex(string pattern)
+    private static Regex BuildRegex(string pattern, bool directoryOnly)
     {
       var sb = new StringBuilder("^");
       var i = 0;
@@ -191,7 +197,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
         }
       }
 
-      sb.Append("(?:/.*)?$");
+      sb.Append(directoryOnly ? "/.*$" : "(?:/.*)?$");
       return new Regex(sb.ToString(), RegexOptions.CultureInvariant);
     }
 

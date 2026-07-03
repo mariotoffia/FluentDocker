@@ -26,7 +26,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
             $"tag {QuoteArgumentIfNeeded(imageId)} {QuoteArgumentIfNeeded($"{repository}:{tag}")}", cancellationToken).ConfigureAwait(false);
         if (!result.Success)
           return CommandResponse<Unit>.Fail(
-              result.Error ?? "Image tag failed", ErrorCodes.Image.TagFailed,
+              ErrorOrDefault(result, "Image tag failed"), ErrorCodes.Image.TagFailed,
               CreateErrorContext(context, "TagImage", result), result.ExitCode);
 
         return CommandResponse<Unit>.Ok(Unit.Default);
@@ -55,10 +55,10 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
           args += " --no-prune";
         args += $" {QuoteArgumentIfNeeded(imageId)}";
 
-        var result = await ExecuteCommandAsync(args, cancellationToken).ConfigureAwait(false);
+        var result = await ExecuteCommandAsync(context, args, cancellationToken).ConfigureAwait(false);
         if (!result.Success)
           return CommandResponse<ImageRemoveResult>.Fail(
-              result.Error ?? "Image remove failed", ErrorCodes.Image.RemoveFailed,
+              ErrorOrDefault(result, "Image remove failed"), ErrorCodes.Image.RemoveFailed,
               CreateErrorContext(context, "RemoveImage", result), result.ExitCode);
 
         return CommandResponse<ImageRemoveResult>.Ok(new ImageRemoveResult());
@@ -83,10 +83,10 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       {
         var args = BuildImagePruneArgs(all, filter);
 
-        var result = await ExecuteCommandAsync(args, cancellationToken).ConfigureAwait(false);
+        var result = await ExecuteCommandAsync(context, args, cancellationToken).ConfigureAwait(false);
         if (!result.Success)
           return CommandResponse<ImagePruneResult>.Fail(
-              result.Error ?? "Image prune failed", ErrorCodes.Image.PruneFailed,
+              ErrorOrDefault(result, "Image prune failed"), ErrorCodes.Image.PruneFailed,
               CreateErrorContext(context, "PruneImages", result), result.ExitCode);
 
         return CommandResponse<ImagePruneResult>.Ok(
@@ -114,10 +114,10 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       try
       {
         var args = $"save -o {QuoteArgumentIfNeeded(outputPath)} {string.Join(" ", images.Select(QuoteArgumentIfNeeded))}";
-        var result = await ExecuteUnboundedCommandAsync(args, cancellationToken).ConfigureAwait(false);
+        var result = await ExecuteUnboundedCommandAsync(context, args, cancellationToken).ConfigureAwait(false);
         if (!result.Success)
           return CommandResponse<Unit>.Fail(
-              result.Error ?? "Image save failed", ErrorCodes.Image.SaveFailed,
+              ErrorOrDefault(result, "Image save failed"), ErrorCodes.Image.SaveFailed,
               CreateErrorContext(context, "SaveImage", result), result.ExitCode);
 
         return CommandResponse<Unit>.Ok(Unit.Default);
@@ -143,7 +143,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
             $"load -i {QuoteArgumentIfNeeded(inputPath)}", cancellationToken).ConfigureAwait(false);
         if (!result.Success)
           return CommandResponse<IList<string>>.Fail(
-              result.Error ?? "Image load failed", ErrorCodes.Image.LoadFailed,
+              ErrorOrDefault(result, "Image load failed"), ErrorCodes.Image.LoadFailed,
               CreateErrorContext(context, "LoadImage", result), result.ExitCode);
 
         var loaded = new List<string>();
@@ -181,10 +181,10 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
               : $" {QuoteArgumentIfNeeded($"{repository}:{tag}")}";
         }
 
-        var result = await ExecuteUnboundedCommandAsync(args, cancellationToken).ConfigureAwait(false);
+        var result = await ExecuteUnboundedCommandAsync(context, args, cancellationToken).ConfigureAwait(false);
         if (!result.Success)
           return CommandResponse<string>.Fail(
-              result.Error ?? "Image import failed", ErrorCodes.Image.ImportFailed,
+              ErrorOrDefault(result, "Image import failed"), ErrorCodes.Image.ImportFailed,
               CreateErrorContext(context, "ImportImage", result), result.ExitCode);
 
         return CommandResponse<string>.Ok(result.Output?.Trim());

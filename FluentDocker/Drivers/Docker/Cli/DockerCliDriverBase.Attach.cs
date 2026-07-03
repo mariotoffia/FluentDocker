@@ -1,7 +1,10 @@
+using System;
 using System.Diagnostics;
 using System.Text;
 using System.Threading;
 using FluentDocker.Drivers;
+using FluentDocker.Model.Common;
+using FluentDocker.Model.Drivers;
 
 namespace FluentDocker.Drivers.Docker.Cli
 {
@@ -15,18 +18,21 @@ namespace FluentDocker.Drivers.Docker.Cli
     /// <summary>
     /// Starts a long-running attach process with stdin/stdout/stderr redirected.
     /// </summary>
+    /// <param name="context">Per-call driver context.</param>
     /// <param name="arguments">The CLI arguments for the attach command.</param>
     /// <param name="cancellationToken">
     /// Token observed before the process is started; if cancellation is already requested the
     /// process is never spawned. The attach itself is long-lived and is torn down by disposing
     /// the returned <see cref="AttachResult"/>.
     /// </param>
-    protected AttachResult ExecuteAttachProcess(string arguments, CancellationToken cancellationToken = default)
+    protected AttachResult ExecuteAttachProcess(DriverContext context, string arguments, CancellationToken cancellationToken = default)
     {
       cancellationToken.ThrowIfCancellationRequested();
 
-      var effectiveContext = CreateEffectiveContext(null);
-      var (binaryPath, sudo, _) = ResolveBinaryInfo(effectiveContext);
+      var effectiveContext = CreateEffectiveContext(context);
+      var (binaryPath, sudo, sudoPassword) = ResolveBinaryInfo(effectiveContext);
+      if (sudo == SudoMechanism.Password || !string.IsNullOrEmpty(sudoPassword))
+        throw new NotSupportedException("docker attach cannot use password sudo because attach stdin belongs to the caller.");
       var globalArgs = BuildGlobalArgs(effectiveContext);
       var fullArgs = string.IsNullOrEmpty(globalArgs) ? arguments : $"{globalArgs} {arguments}";
 

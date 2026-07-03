@@ -124,6 +124,13 @@ namespace FluentDocker.Services.Impl
               response.ErrorContext);
         }
 
+        if (Directory.Exists(tempPath))
+        {
+          throw new FluentDockerException(
+              $"CopyFromAsync returns a single file as bytes, but '{containerPath}' was copied as a directory. " +
+              $"Use {nameof(CopyFromToPathAsync)} for directories.");
+        }
+
         return await File.ReadAllBytesAsync(tempPath, cancellationToken).ConfigureAwait(false);
       }
       finally

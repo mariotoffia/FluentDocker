@@ -1,3 +1,4 @@
+using System;
 using FluentDocker.Drivers.Docker.Api.Components;
 using Xunit;
 
@@ -18,6 +19,16 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
 
       Assert.False(f.IsIgnored("anything.txt"));
       Assert.False(f.IsIgnored("dir/file.bin"));
+    }
+
+    [Theory]
+    [InlineData("./")]
+    [InlineData("!")]
+    public void EmptyAfterPrefixOrNegation_IsIgnored(string line)
+    {
+      var f = DockerIgnoreFilter.FromLines([line]);
+
+      Assert.False(f.IsIgnored("anything.txt"));
     }
 
     [Fact]
@@ -67,9 +78,18 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
     {
       var f = DockerIgnoreFilter.FromLines(["node_modules/"]);
 
-      Assert.True(f.IsIgnored("node_modules"));
+      Assert.False(f.IsIgnored("node_modules"));
       Assert.True(f.IsIgnored("node_modules/lib/index.js"));
       Assert.False(f.IsIgnored("src/index.js"));
+    }
+
+    [Fact]
+    public void DirectorySlashPattern_DoesNotMatchSameNamedFile()
+    {
+      var f = DockerIgnoreFilter.FromLines(["cache/"]);
+
+      Assert.False(f.IsIgnored("cache"));
+      Assert.True(f.IsIgnored("cache/file.txt"));
     }
 
     [Fact]
@@ -107,6 +127,14 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
       Assert.False(f.IsIgnored("Dockerfile"));
       Assert.False(f.IsIgnored(".dockerignore"));
       Assert.True(f.IsIgnored("other.txt"));
+    }
+
+    [Fact]
+    public void Dockerfile_IsCaseInsensitiveOnWindows()
+    {
+      var f = DockerIgnoreFilter.FromLines(["*"], dockerfileName: "Dockerfile");
+
+      Assert.Equal(OperatingSystem.IsWindows(), !f.IsIgnored("dockerfile"));
     }
 
     [Fact]

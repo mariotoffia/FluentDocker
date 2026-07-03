@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFrameworks>net8.0;net10.0</TargetFrameworks>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
+    <!-- This project's job is to let the REAL NUnit runner discover and run
+         fixtures that prove async lifecycle attributes actually fire. -->
+    <NoWarn>$(NoWarn);CA1707;CA1852</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="NUnit" />
+    <PackageReference Include="NUnit3TestAdapter" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\FluentDocker\FluentDocker.csproj" />
+    <ProjectReference Include="..\FluentDocker.Testing.NUnit\FluentDocker.Testing.NUnit.csproj" />
+  </ItemGroup>
+
+</Project>

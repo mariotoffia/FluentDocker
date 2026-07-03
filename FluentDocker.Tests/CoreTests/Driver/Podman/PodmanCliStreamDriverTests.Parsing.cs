@@ -19,7 +19,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
       var config = new StreamStatsConfig();
       var result = PodmanCliStreamDriver.BuildStreamStatsArgs("ctr1", config);
 
-      Assert.Equal("stats --format json ctr1", result);
+      Assert.Equal("stats --no-reset --format json ctr1", result);
     }
 
     [Fact]
@@ -41,12 +41,12 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
     }
 
     [Fact]
-    public void BuildStreamStatsArgs_NoHeaderTrue_IncludesNoHeader()
+    public void BuildStreamStatsArgs_NoHeaderTrue_DoesNotEmitUnsupportedNoHeader()
     {
       var config = new StreamStatsConfig { NoHeader = true };
       var result = PodmanCliStreamDriver.BuildStreamStatsArgs("ctr1", config);
 
-      Assert.Contains("--no-header", result);
+      Assert.DoesNotContain("--no-header", result);
     }
 
     [Fact]
@@ -70,7 +70,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
 
       var result = PodmanCliStreamDriver.BuildStreamStatsArgs("ctr1", config);
 
-      Assert.Equal("stats --format json --no-stream --no-header -a ctr1", result);
+      Assert.Equal("stats --no-reset --format json --no-stream -a ctr1", result);
     }
 
     [Fact]
@@ -79,7 +79,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
       var config = new StreamStatsConfig();
       var result = PodmanCliStreamDriver.BuildStreamStatsArgs(null!, config);
 
-      Assert.Equal("stats --format json", result);
+      Assert.Equal("stats --no-reset --format json", result);
     }
 
     [Fact]
@@ -88,7 +88,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
       var config = new StreamStatsConfig();
       var result = PodmanCliStreamDriver.BuildStreamStatsArgs("", config);
 
-      Assert.Equal("stats --format json", result);
+      Assert.Equal("stats --no-reset --format json", result);
     }
 
     [Fact]
@@ -97,7 +97,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
       // null config means none of the optional flags apply
       var result = PodmanCliStreamDriver.BuildStreamStatsArgs("ctr1", null!);
 
-      Assert.Equal("stats --format json ctr1", result);
+      Assert.Equal("stats --no-reset --format json ctr1", result);
     }
 
     [Fact]
@@ -105,7 +105,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
     {
       var result = PodmanCliStreamDriver.BuildStreamStatsArgs(null!, null!);
 
-      Assert.Equal("stats --format json", result);
+      Assert.Equal("stats --no-reset --format json", result);
     }
 
     #endregion
@@ -113,18 +113,20 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
     #region ParseStats Tests
 
     [Fact]
-    public void ParseStats_ValidJson_ParsesAllFields()
+    public void ParseStats_RealPodmanPrettyJsonArray_ParsesAllFields()
     {
-      var json = @"{
-        ""ContainerID"": ""abc123"",
-        ""Name"": ""web-app"",
-        ""CPUPerc"": ""12.50%"",
-        ""MemUsage"": ""256MiB / 4GiB"",
-        ""MemPerc"": ""6.25%"",
-        ""NetIO"": ""1.5kB / 2.3kB"",
-        ""BlockIO"": ""4MiB / 8MiB"",
-        ""PIDs"": ""10""
-      }";
+      var json = @"[
+        {
+          ""id"": ""abc123"",
+          ""name"": ""web-app"",
+          ""cpu_percent"": ""12.50%"",
+          ""mem_usage"": ""256MiB / 4GiB"",
+          ""mem_percent"": ""6.25%"",
+          ""net_io"": ""1.5kB / 2.3kB"",
+          ""block_io"": ""4MiB / 8MiB"",
+          ""pids"": ""10""
+        }
+      ]";
 
       var result = PodmanCliStreamDriver.ParseStats(json);
 
@@ -211,13 +213,8 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
     [Fact]
     public void ParseStats_MalformedJson_ReturnsDefaultValues()
     {
-      // Malformed JSON with braces passes the brace-check but yields a default stats object
       var result = PodmanCliStreamDriver.ParseStats("{not valid json at all}}}");
-      if (result != null)
-      {
-        Assert.Equal(0, result.CpuPercentage);
-        Assert.Equal(0, result.MemoryUsage);
-      }
+      Assert.Null(result);
     }
 
     [Fact]
@@ -262,12 +259,15 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
     }
 
     [Fact]
-    public void ParseEvent_ValidJson_ParsesTypeActionActorId()
+    public void ParseEvent_RealPodmanEvent_ParsesCapitalFieldsAndAttributes()
     {
       var json = @"{
         ""Type"": ""container"",
-        ""Action"": ""start"",
-        ""Actor"": { ""ID"": ""abc123def456"" }
+        ""Status"": ""start"",
+        ""ID"": ""abc123def456"",
+        ""Attributes"": { ""image"": ""alpine"", ""name"": ""web"" },
+        ""time"": 1783039469,
+        ""timeNano"": 1783039469000000000
       }";
 
       var result = InvokeParseEvent(json);
@@ -276,6 +276,9 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
       Assert.Equal("container", result.Type);
       Assert.Equal("start", result.Action);
       Assert.Equal("abc123def456", result.ActorId);
+      Assert.Equal("alpine", result.ActorAttributes["image"]);
+      Assert.Equal("web", result.ActorAttributes["name"]);
+      Assert.Equal(1783039469000000000, result.TimeNano);
       Assert.Equal(json, result.RawJson);
     }
 

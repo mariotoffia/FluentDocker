@@ -20,7 +20,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
       var (kernel, mockPack) = await MockKernelBuilderExtensions.CreateWithMockDriverAsync("docker");
       mockPack.SetupComposeUpAsync(new ComposeUpResult { ProjectName = "test" });
 
-      var tempEnvFile = Path.GetTempFileName();
+      var tempEnvFile = TestEnvFilePath("basic");
       try
       {
         await File.WriteAllTextAsync(tempEnvFile, @"
@@ -70,7 +70,7 @@ EMPTY_VALUE=
       var (kernel, mockPack) = await MockKernelBuilderExtensions.CreateWithMockDriverAsync("docker");
       mockPack.SetupComposeUpAsync(new ComposeUpResult { ProjectName = "test" });
 
-      var tempEnvFile = Path.GetTempFileName();
+      var tempEnvFile = TestEnvFilePath("merge");
       try
       {
         await File.WriteAllTextAsync(tempEnvFile, @"
@@ -107,28 +107,27 @@ OVERRIDE_VAR=file_value
     }
 
     [Fact]
-    public async Task WithEnvFile_NonExistentFile_DoesNotThrow()
+    public async Task WithEnvFile_NonExistentFile_ThrowsFileNotFoundAtBuild()
     {
       var (kernel, mockPack) = await MockKernelBuilderExtensions.CreateWithMockDriverAsync("docker");
       mockPack.SetupComposeUpAsync(new ComposeUpResult { ProjectName = "test" });
 
       try
       {
-        await using var scope = await new Builder()
+        var missing = Path.GetFullPath(Path.Combine(".out", "compose-env", "missing.env"));
+        var ex = await Assert.ThrowsAsync<FileNotFoundException>(() => new Builder()
             .WithinDriver("docker", kernel)
             .UseCompose(c => c
                 .WithComposeFile("/compose.yml")
-                .WithEnvFile("/non/existent/path/.env")
+                .WithEnvFile(missing)
                 .WithEnvironment("FALLBACK", "value"))
-            .BuildAsync(cancellationToken: TestContext.Current.CancellationToken);
+            .BuildAsync(cancellationToken: TestContext.Current.CancellationToken));
 
+        Assert.Contains(missing, ex.Message);
         mockPack.ComposeDriver.Verify(d => d.UpAsync(
             It.IsAny<DriverContext>(),
-            It.Is<ComposeUpConfig>(c =>
-                c.Environment.Count == 1 &&
-                c.Environment.ContainsKey("FALLBACK") &&
-                c.Environment["FALLBACK"] == "value"),
-            It.IsAny<System.Threading.CancellationToken>()), Times.Once);
+            It.IsAny<ComposeUpConfig>(),
+            It.IsAny<System.Threading.CancellationToken>()), Times.Never);
       }
       finally { kernel.Dispose(); }
     }
@@ -139,7 +138,7 @@ OVERRIDE_VAR=file_value
       var (kernel, mockPack) = await MockKernelBuilderExtensions.CreateWithMockDriverAsync("docker");
       mockPack.SetupComposeUpAsync(new ComposeUpResult { ProjectName = "test" });
 
-      var tempEnvFile = Path.GetTempFileName();
+      var tempEnvFile = TestEnvFilePath("quoted");
       try
       {
         await File.WriteAllTextAsync(tempEnvFile, @"
@@ -169,6 +168,13 @@ EQUALS_IN_VALUE=key=value=more
         if (File.Exists(tempEnvFile))
           File.Delete(tempEnvFile);
       }
+    }
+
+    private static string TestEnvFilePath(string name)
+    {
+      var directory = Path.GetFullPath(Path.Combine(".out", "compose-env"));
+      Directory.CreateDirectory(directory);
+      return Path.Combine(directory, $"{name}.env");
     }
   }
 }

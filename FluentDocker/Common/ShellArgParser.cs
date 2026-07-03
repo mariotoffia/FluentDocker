@@ -32,6 +32,7 @@ namespace FluentDocker.Common
       var current = new List<char>();
       var inSingleQuote = false;
       var inDoubleQuote = false;
+      var sawQuote = false;
 
       for (var i = 0; i < command.Length; i++)
       {
@@ -75,10 +76,12 @@ namespace FluentDocker.Common
         else if (c == '\'')
         {
           inSingleQuote = true;
+          sawQuote = true;
         }
         else if (c == '"')
         {
           inDoubleQuote = true;
+          sawQuote = true;
         }
         else if (c == '\\' && i + 1 < command.Length)
         {
@@ -87,10 +90,11 @@ namespace FluentDocker.Common
         }
         else if (char.IsWhiteSpace(c))
         {
-          if (current.Count > 0)
+          if (current.Count > 0 || sawQuote)
           {
             args.Add(new string([.. current]));
             current.Clear();
+            sawQuote = false;
           }
         }
         else
@@ -99,7 +103,7 @@ namespace FluentDocker.Common
         }
       }
 
-      if (current.Count > 0)
+      if (current.Count > 0 || sawQuote)
       {
         args.Add(new string([.. current]));
       }

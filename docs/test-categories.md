@@ -107,7 +107,7 @@ what changed — each is a distinct gate with its own infrastructure:
 | Build + unit | `make test` (net10.0) + `make test-net8` | None | Every change (CI runs this) |
 | Lint / format | `make lint` | None | Every change |
 | Docker + Podman integration | `make test-integration` | Docker daemon; Podman machine for `PodmanIntegration` | Any driver/service/lifecycle change |
-| Coverage floor | `make coverage-check` | Docker daemon | Before merge/release |
+| Coverage floor | `make coverage-check` | None | Before merge/release |
 | Docker Model Runner | `make test-dmr` (`FLUENTDOCKER_REQUIRE_DMR=1`) | Docker Model Runner runtime | Model Runner / inference changes |
 | DevLocal (Swarm + registry) | `make devlocal-setup && make test-devlocal && make devlocal-teardown` | Docker Swarm + local registry | Swarm/stack or registry changes |
 | LongRunning / ManualOnly | `dotnet test --filter "Category=LongRunning"` (and `ManualOnly`) | Podman machine / manual config | On demand, before a tagged release |

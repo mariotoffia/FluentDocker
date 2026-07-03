@@ -6,6 +6,7 @@ namespace FluentDocker.Common
   /// For driver-level command results, use <see cref="FluentDocker.Model.Drivers.CommandResponse{T}"/> instead.
   /// </summary>
   /// <typeparam name="T">The result value type.</typeparam>
+  [System.Obsolete("Unused by FluentDocker and scheduled for removal in v4. Use CommandResponse<T> for driver results.")]
   public sealed class Result<T>
   {
     internal Result(bool success, T value, string log, string error)

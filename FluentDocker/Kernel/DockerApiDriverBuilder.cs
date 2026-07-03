@@ -84,7 +84,7 @@ namespace FluentDocker.Kernel
       return new KernelBuilder.DriverConfiguration
       {
         DriverId = _driverId,
-        DriverPack = new DockerApiDriverPack(),
+        DriverPackFactory = static () => new DockerApiDriverPack(),
         Context = context,
         IsDefault = _isDefault,
       };

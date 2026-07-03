@@ -1,6 +1,7 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
+using FluentDocker.Builders;
 using FluentDocker.Drivers;
 using FluentDocker.Kernel;
 using FluentDocker.Model.Containers;
@@ -265,6 +266,47 @@ namespace FluentDocker.Tests.CoreTests.Testing.Adapters
               k => new ContainerResource(k, c => c.UseImage("fail:img")),
               kernelFactory: () => Task.FromResult(testKernel),
               cancellationToken: TestContext.Current.CancellationToken));
+    }
+
+    [Fact]
+    public async Task ClassContainerFixture_TestInitializeAsyncCalledTwice_SharesOneContainer()
+    {
+      MockPack
+              .SetupContainerCreate()
+              .SetupContainerStart()
+              .SetupContainerInspect(running: true)
+              .SetupContainerStop()
+              .SetupContainerRemove();
+      TestMsTestClassContainerFixture.KernelOverride = Kernel;
+
+      var first = new TestMsTestClassContainerFixture();
+      var second = new TestMsTestClassContainerFixture();
+
+      await first.TestInitializeAsync();
+      await second.TestInitializeAsync();
+
+      Assert.Same(first.Resource, second.Resource);
+      MockPack.VerifyContainerCreated("alpine:latest", Times.Once());
+
+      await TestMsTestClassContainerFixture.CleanupAsync();
+      MockPack.VerifyContainerStopped(Times.Once());
+      MockPack.VerifyContainerRemoved(Times.Once());
+    }
+
+    private sealed class TestMsTestClassContainerFixture
+        : MsTestClassContainerFixtureBase<TestMsTestClassContainerFixture>
+    {
+      public static FluentDockerKernel? KernelOverride { get; set; }
+
+      protected override Func<Task<FluentDockerKernel>>? KernelFactory =>
+              () => Task.FromResult(KernelOverride!);
+
+      protected override void ConfigureContainer(IContainerBuilder builder)
+      {
+        builder.UseImage("alpine:latest");
+      }
+
+      public static Task CleanupAsync() => CleanupClassAsync();
     }
   }
 }

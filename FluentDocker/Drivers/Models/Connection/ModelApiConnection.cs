@@ -32,9 +32,9 @@ namespace FluentDocker.Drivers.Models.Connection
     // validation callback and the client certs are referenced by the handler; they are
     // disposed only AFTER _httpClient.Dispose() in DisposeAsync. Empty when there is no TLS.
     private readonly IReadOnlyList<X509Certificate2> _ownedCertificates;
-    // Applied to non-streaming requests via a linked CTS so they cannot hang forever;
-    // streaming (PostStreamAsync) is intentionally exempt and relies on the caller's
-    // token, since inference/SSE can legitimately run for a long time.
+    // Applied to non-streaming requests via a linked CTS so they cannot hang forever.
+    // Streaming is exempt from this whole-request timeout; its header wait and body reads use
+    // _streamReadIdleTimeout instead, since inference/SSE can legitimately run for a long time.
     private readonly TimeSpan _requestTimeout;
     private readonly TimeSpan? _streamReadIdleTimeout; // null = no idle timeout on streaming reads
     // The path PingAsync probes for reachability — the OpenAI model-list route on the
@@ -51,7 +51,7 @@ namespace FluentDocker.Drivers.Models.Connection
     /// <param name="loggerFactory">Optional logger factory.</param>
     /// <param name="apiKey">Optional bearer token (sent as <c>Authorization: Bearer …</c>, never logged).</param>
     public ModelApiConnection(ModelRunnerEndpoint endpoint, ModelApiConnectionConfig config = null,
-        ILoggerFactory loggerFactory = null, string apiKey = null)
+        ILoggerFactory? loggerFactory = null, string apiKey = null)
     {
       ArgumentNullException.ThrowIfNull(endpoint);
       config ??= new ModelApiConnectionConfig();
@@ -98,12 +98,35 @@ namespace FluentDocker.Drivers.Models.Connection
     /// <param name="baseAddress">The base address.</param>
     /// <param name="handler">The message handler.</param>
     /// <param name="loggerFactory">Optional logger factory.</param>
-    /// <param name="requestTimeout">
-    /// Per-request timeout for non-streaming calls (default = infinite). Streaming
-    /// calls are always exempt.
-    /// </param>
-    public ModelApiConnection(Uri baseAddress, HttpMessageHandler handler, ILoggerFactory loggerFactory = null,
+    /// <param name="requestTimeout">Per-request timeout for non-streaming calls (default = infinite).</param>
+    /// <remarks>
+    /// Legacy overload: streaming idle/header timeout is left unset for binary compatibility.
+    /// Prefer the <see cref="ModelApiConnection(Uri, HttpMessageHandler, ILoggerFactory, ModelApiConnectionConfig)"/>
+    /// overload for custom transports that should inherit the documented streaming protections.
+    /// </remarks>
+    public ModelApiConnection(Uri baseAddress, HttpMessageHandler handler, ILoggerFactory? loggerFactory = null,
         TimeSpan requestTimeout = default)
+        : this(baseAddress, handler, loggerFactory, Normalize(requestTimeout), null)
+    {
+    }
+
+    /// <summary>
+    /// Creates a connection wrapping a caller-supplied message handler and applying the
+    /// same transport configuration as endpoint-created connections.
+    /// </summary>
+    /// <param name="baseAddress">The base address.</param>
+    /// <param name="handler">The message handler.</param>
+    /// <param name="loggerFactory">Optional logger factory.</param>
+    /// <param name="config">Transport configuration.</param>
+    public ModelApiConnection(Uri baseAddress, HttpMessageHandler handler, ILoggerFactory? loggerFactory,
+        ModelApiConnectionConfig config)
+        : this(baseAddress, handler, loggerFactory, Normalize(RequireConfig(config).RequestTimeout),
+            RequireConfig(config).StreamReadIdleTimeout)
+    {
+    }
+
+    private ModelApiConnection(Uri baseAddress, HttpMessageHandler handler, ILoggerFactory? loggerFactory,
+        TimeSpan requestTimeout, TimeSpan? streamReadIdleTimeout)
     {
       ArgumentNullException.ThrowIfNull(baseAddress);
       ArgumentNullException.ThrowIfNull(handler);
@@ -115,11 +138,15 @@ namespace FluentDocker.Drivers.Models.Connection
         BaseAddress = baseAddress,
         Timeout = Timeout.InfiniteTimeSpan
       };
-      _requestTimeout = Normalize(requestTimeout);
+      _requestTimeout = requestTimeout;
+      _streamReadIdleTimeout = streamReadIdleTimeout;
       // No endpoint is supplied via this overload, so derive the model-list probe path from
       // the base address's own path (e.g. http://host/engines/v1 -> /engines/v1/models).
       _pingPath = baseAddress.AbsolutePath.TrimEnd('/') + "/models";
     }
+
+    private static ModelApiConnectionConfig RequireConfig(ModelApiConnectionConfig config) =>
+        config ?? throw new ArgumentNullException(nameof(config));
 
     /// <summary>Treats non-positive timeouts (incl. <c>default</c>) as infinite.</summary>
     private static TimeSpan Normalize(TimeSpan timeout) =>
@@ -142,129 +169,6 @@ namespace FluentDocker.Drivers.Models.Connection
     /// <inheritdoc />
     public Task<HttpResponseMessage> DeleteAsync(string path, CancellationToken ct = default) =>
         SendWithTimeoutAsync(c => _httpClient.DeleteAsync(path, c), ct);
-
-    /// <inheritdoc />
-    public async Task<Stream> PostStreamAsync(string path, HttpContent content, CancellationToken ct = default)
-    {
-      // Streaming is exempt from the request timeout (SSE can run for a long time) —
-      // we use the caller's token directly.
-      var request = new HttpRequestMessage(HttpMethod.Post, path) { Content = content };
-      HttpResponseMessage response;
-      try
-      {
-        response = await _httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, ct).ConfigureAwait(false);
-      }
-      catch (Exception ex) when (IsTransportFailure(ex))
-      {
-        // A connection-refused / DNS / socket failure opening the stream is "unreachable".
-        // (An HTTP error STATUS is delivered as a response below, not thrown here.)
-        throw EndpointUnreachable(ex);
-      }
-      if (!response.IsSuccessStatusCode)
-      {
-        // Surface the status code AND a bounded error body so the inference driver can
-        // map it to a typed ModelRunnerException (404 -> ModelNotLoaded, 401 ->
-        // Unauthorized), mirroring the non-streaming path. EnsureSuccessStatusCode would
-        // discard the body. Dispose the failed response before throwing so it does not
-        // leak — ownership has not yet been transferred to ResponseOwningStream.
-        var status = response.StatusCode;
-        string body;
-        try
-        {
-          body = await ReadBoundedErrorBodyAsync(response, ct).ConfigureAwait(false);
-        }
-        finally
-        {
-          response.Dispose();
-        }
-
-        throw new HttpRequestException(
-            string.IsNullOrWhiteSpace(body) ? $"HTTP {(int)status}" : body, null, status);
-      }
-
-      Stream stream;
-      try
-      {
-        stream = await response.Content.ReadAsStreamAsync(ct).ConfigureAwait(false);
-      }
-      catch
-      {
-        // Ownership has not yet transferred to ResponseOwningStream — dispose the
-        // response so it (and its connection) do not leak on a read failure.
-        response.Dispose();
-        throw;
-      }
-
-      return new ResponseOwningStream(stream, response);
-    }
-
-    /// <summary>
-    /// Hard cap on how many bytes of a non-success response body are read into memory
-    /// before building an exception message. A hostile or misbehaving server could send an
-    /// arbitrarily large error body; bounding the READ (not just the final string) keeps
-    /// error handling allocation-safe.
-    /// </summary>
-    private const int MaxErrorBodyBytes = 64 * 1024;
-
-    /// <summary>
-    /// Maximum number of characters from the body that are kept in the exception message.
-    /// Anything past this is truncated and replaced with <see cref="ErrorBodyTruncationMarker"/>.
-    /// </summary>
-    private const int MaxErrorBodyChars = 512;
-
-    /// <summary>Appended to a truncated error body so it is visibly incomplete.</summary>
-    private const string ErrorBodyTruncationMarker = "…";
-
-    /// <summary>
-    /// Reads a non-success response body, bounded both in bytes read (<see cref="MaxErrorBodyBytes"/>)
-    /// and in characters retained (<see cref="MaxErrorBodyChars"/>), for use in an exception
-    /// message. Caller cancellation propagates; any other read failure is swallowed (it must not
-    /// mask the underlying HTTP failure).
-    /// </summary>
-    private static async Task<string> ReadBoundedErrorBodyAsync(HttpResponseMessage response, CancellationToken ct)
-    {
-      try
-      {
-        var body = await ReadBoundedBodyTextAsync(response, ct).ConfigureAwait(false);
-        if (string.IsNullOrWhiteSpace(body))
-          return null;
-
-        if (body.Length <= MaxErrorBodyChars)
-          return body;
-
-        // Keep the marker WITHIN the cap so the final message length never exceeds it.
-        var keep = MaxErrorBodyChars - ErrorBodyTruncationMarker.Length;
-        return body[..keep] + ErrorBodyTruncationMarker;
-      }
-      catch (OperationCanceledException) when (ct.IsCancellationRequested)
-      {
-        throw;
-      }
-      catch (Exception)
-      {
-        return null;
-      }
-    }
-
-    /// <summary>
-    /// Reads at most <see cref="MaxErrorBodyBytes"/> bytes of the response body and decodes
-    /// them as UTF-8, so a pathological error body cannot force unbounded buffering.
-    /// </summary>
-    private static async Task<string> ReadBoundedBodyTextAsync(HttpResponseMessage response, CancellationToken ct)
-    {
-      await using var stream = await response.Content.ReadAsStreamAsync(ct).ConfigureAwait(false);
-      var buffer = new byte[MaxErrorBodyBytes];
-      var total = 0;
-      while (total < buffer.Length)
-      {
-        var read = await stream.ReadAsync(buffer.AsMemory(total, buffer.Length - total), ct).ConfigureAwait(false);
-        if (read == 0)
-          break;
-        total += read;
-      }
-
-      return total == 0 ? null : System.Text.Encoding.UTF8.GetString(buffer, 0, total);
-    }
 
     /// <inheritdoc />
     public async Task<bool> PingAsync(CancellationToken ct = default)
@@ -462,7 +366,6 @@ namespace FluentDocker.Drivers.Models.Connection
           ownedCertificates.Add(clientCert);
           sslOptions.ClientCertificates = [clientCert];
         }
-
         if (!config.VerifyTls)
         {
 #pragma warning disable CA5359 // Intentional: caller opted out via VerifyTls=false
@@ -477,7 +380,7 @@ namespace FluentDocker.Drivers.Models.Connection
 #if NET9_0_OR_GREATER
             var caCert = X509CertificateLoader.LoadCertificateFromFile(caPath);
 #else
-            var caCert = X509Certificate2.CreateFromPemFile(caPath);
+            var caCert = X509Certificate2.CreateFromPem(File.ReadAllText(caPath));
 #endif
             ownedCertificates.Add(caCert);
             // Trust the custom CA for chain validation only — hostname mismatch and a

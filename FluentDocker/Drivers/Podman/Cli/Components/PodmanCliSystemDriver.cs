@@ -25,10 +25,10 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
     {
       try
       {
-        var result = await ExecuteCommandAsync("info --format json", cancellationToken).ConfigureAwait(false);
+        var result = await ExecuteCommandAsync(context, "info --format json", cancellationToken).ConfigureAwait(false);
         if (!result.Success)
           return CommandResponse<SystemInfo>.Fail(
-              result.Error ?? "System info failed", ErrorCodes.General.Unknown,
+              ErrorOrDefault(result, "System info failed"), ErrorCodes.General.Unknown,
               CreateErrorContext(context, "SystemInfo", result), result.ExitCode);
 
         var info = ParseSystemInfo(result.Output);
@@ -51,10 +51,10 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
     {
       try
       {
-        var result = await ExecuteCommandAsync("version --format json", cancellationToken).ConfigureAwait(false);
+        var result = await ExecuteCommandAsync(context, "version --format json", cancellationToken).ConfigureAwait(false);
         if (!result.Success)
           return CommandResponse<VersionInfo>.Fail(
-              result.Error ?? "Version check failed", ErrorCodes.General.Unknown,
+              ErrorOrDefault(result, "Version check failed"), ErrorCodes.General.Unknown,
               CreateErrorContext(context, "SystemVersion", result), result.ExitCode);
 
         var version = ParseVersionInfo(result.Output);
@@ -78,10 +78,10 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       try
       {
         // Podman is daemonless; verify it works by running 'podman info'
-        var result = await ExecuteCommandAsync("info", cancellationToken).ConfigureAwait(false);
+        var result = await ExecuteCommandAsync(context, "info", cancellationToken).ConfigureAwait(false);
         if (!result.Success)
           return CommandResponse<Unit>.Fail(
-              result.Error ?? "Podman is not reachable", ErrorCodes.General.Unknown,
+              ErrorOrDefault(result, "Podman is not reachable"), ErrorCodes.General.Unknown,
               CreateErrorContext(context, "SystemPing", result), result.ExitCode);
 
         return CommandResponse<Unit>.Ok(Unit.Default);
@@ -122,10 +122,10 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
     {
       try
       {
-        var result = await ExecuteCommandAsync("system df --format json", cancellationToken).ConfigureAwait(false);
+        var result = await ExecuteCommandAsync(context, "system df --format json", cancellationToken).ConfigureAwait(false);
         if (!result.Success)
           return CommandResponse<DiskUsageInfo>.Fail(
-              result.Error ?? "Disk usage failed", ErrorCodes.General.Unknown,
+              ErrorOrDefault(result, "Disk usage failed"), ErrorCodes.General.Unknown,
               CreateErrorContext(context, "SystemDiskUsage", result), result.ExitCode);
 
         var info = ParseDiskUsageOutput(result.Output);
@@ -150,10 +150,10 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       {
         var args = BuildSystemPruneArgs(config);
 
-        var result = await ExecuteCommandAsync(args, cancellationToken).ConfigureAwait(false);
+        var result = await ExecuteCommandAsync(context, args, cancellationToken).ConfigureAwait(false);
         if (!result.Success)
           return CommandResponse<SystemPruneResult>.Fail(
-              result.Error ?? "System prune failed", ErrorCodes.General.Unknown,
+              ErrorOrDefault(result, "System prune failed"), ErrorCodes.General.Unknown,
               CreateErrorContext(context, "SystemPrune", result), result.ExitCode);
 
         return CommandResponse<SystemPruneResult>.Ok(

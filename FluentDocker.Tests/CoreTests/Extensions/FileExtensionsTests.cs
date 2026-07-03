@@ -14,7 +14,7 @@ namespace FluentDocker.Tests.CoreTests.Extensions
 
     public FileExtensionsTests()
     {
-      _tempDir = Path.Combine(Path.GetTempPath(), "FluentDockerTests_" + Guid.NewGuid().ToString("N"));
+      _tempDir = Path.Combine(".out", "FluentDockerTests_" + Guid.NewGuid().ToString("N"));
       Directory.CreateDirectory(_tempDir);
     }
 
@@ -179,6 +179,27 @@ namespace FluentDocker.Tests.CoreTests.Extensions
       Assert.True(Directory.Exists(nestedDir));
       Assert.True(File.Exists(filePath));
       Assert.Equal(contents, File.ReadAllText(filePath));
+    }
+
+    [Fact]
+    public void ToFileFromFileAndCopy_PathContainingSpace_RoundTrips()
+    {
+      var spacedDir = Path.Combine(_tempDir, "folder with space");
+      var sourceFile = Path.Combine(spacedDir, "source file.txt");
+      var workdir = Path.Combine(_tempDir, "work dir");
+      var contents = "space-safe content";
+
+      Directory.CreateDirectory(workdir);
+      contents.ToFile(sourceFile);
+      TemplateString templateSource = sourceFile;
+      TemplateString templateWorkdir = workdir;
+
+      var readBack = templateSource.FromFile();
+      var copiedName = templateSource.Copy(templateWorkdir);
+
+      Assert.Equal(contents, readBack);
+      Assert.Equal("source file.txt", copiedName);
+      Assert.Equal(contents, File.ReadAllText(Path.Combine(workdir, "source file.txt")));
     }
 
     // ── FromFile ────────────────────────────────────────────────────────

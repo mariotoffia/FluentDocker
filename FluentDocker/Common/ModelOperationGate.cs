@@ -8,16 +8,16 @@ namespace FluentDocker.Common
 {
   /// <summary>
   /// A process-wide, per-model async gate that serializes mutually-unsafe model
-  /// lifecycle operations (pull / load / unload) on the SAME model while letting
+  /// lifecycle operations (pull / configure / load / unload) on the SAME model while letting
   /// DIFFERENT models proceed in parallel. Mirrors the per-machine lock pattern used by
   /// <c>PodmanCliDriverPack</c> (a static <see cref="ConcurrentDictionary{TKey,TValue}"/>
   /// of <see cref="SemaphoreSlim"/> with <c>GetOrAdd</c> + <c>WaitAsync</c>/<c>Release</c>).
   /// </summary>
   /// <remarks>
-  /// Pull (builder) and load/unload (service) compute the key the SAME way via
-  /// <see cref="KeyFor(ModelReference)"/>, so they share ONE gate per model. The semaphores
-  /// live for the process lifetime (never disposed) exactly like the Podman machine locks —
-  /// the set of distinct model ids is bounded and the cost is negligible.
+  /// Public <c>ModelRunnerService</c> operations acquire this gate themselves. Composite builder
+  /// work (inspect → optional pull → optional configure) acquires it once and calls no-reentrant
+  /// core methods so the whole build-time sequence is atomic. The semaphores live for the process
+  /// lifetime (never disposed), like the Podman machine locks.
   /// </remarks>
   public static class ModelOperationGate
   {

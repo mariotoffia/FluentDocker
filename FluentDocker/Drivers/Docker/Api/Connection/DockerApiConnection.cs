@@ -16,6 +16,7 @@ using FluentDocker.Common;
 using FluentDocker.Drivers.Models.Connection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
+using ResponseOwningStream = FluentDocker.Drivers.Connection.ResponseOwningStream;
 
 namespace FluentDocker.Drivers.Docker.Api.Connection
 {
@@ -26,6 +27,7 @@ namespace FluentDocker.Drivers.Docker.Api.Connection
   public sealed class DockerApiConnection : IDockerApiConnection
   {
     private readonly HttpClient _httpClient;
+    private readonly HttpClient _longRunningHttpClient;
     private readonly DockerApiConnectionConfig _config;
     private readonly SemaphoreSlim _negotiationLock = new(1, 1);
     // X509Certificate2 instances we created (client cert + custom CA) — they own
@@ -56,10 +58,16 @@ namespace FluentDocker.Drivers.Docker.Api.Connection
       var (handler, baseAddress) = CreateHandler(host, config, ownedCertificates);
       _ownedCertificates = ownedCertificates;
 
+      var baseUri = new Uri(baseAddress);
       _httpClient = new HttpClient(handler, disposeHandler: true)
       {
-        BaseAddress = new Uri(baseAddress),
+        BaseAddress = baseUri,
         Timeout = config.RequestTimeout
+      };
+      _longRunningHttpClient = new HttpClient(handler, disposeHandler: false)
+      {
+        BaseAddress = baseUri,
+        Timeout = Timeout.InfiniteTimeSpan
       };
 
       // If the user pre-set ApiVersion, mark negotiation as already done.
@@ -85,7 +93,8 @@ namespace FluentDocker.Drivers.Docker.Api.Connection
         string path, HttpContent content = null, CancellationToken ct = default)
     {
       var versionedPath = await GetVersionedPathAsync(path, ct).ConfigureAwait(false);
-      return await _httpClient.PostAsync(versionedPath, content, ct).ConfigureAwait(false);
+      var client = IsWaitEndpoint(versionedPath) ? _longRunningHttpClient : _httpClient;
+      return await client.PostAsync(versionedPath, content, ct).ConfigureAwait(false);
     }
 
     public async Task<HttpResponseMessage> PutAsync(
@@ -104,7 +113,7 @@ namespace FluentDocker.Drivers.Docker.Api.Connection
     public async Task<Stream> GetStreamAsync(string path, CancellationToken ct = default)
     {
       var versionedPath = await GetVersionedPathAsync(path, ct).ConfigureAwait(false);
-      var response = await _httpClient.GetAsync(
+      var response = await _longRunningHttpClient.GetAsync(
           versionedPath, HttpCompletionOption.ResponseHeadersRead, ct).ConfigureAwait(false);
       await EnsureStreamSuccessAsync(response, ct).ConfigureAwait(false);
       var stream = await response.Content.ReadAsStreamAsync(ct).ConfigureAwait(false);
@@ -128,12 +137,16 @@ namespace FluentDocker.Drivers.Docker.Api.Connection
         foreach (var header in headers)
           request.Headers.TryAddWithoutValidation(header.Key, header.Value);
       }
-      var response = await _httpClient.SendAsync(
+      var response = await _longRunningHttpClient.SendAsync(
           request, HttpCompletionOption.ResponseHeadersRead, ct).ConfigureAwait(false);
       await EnsureStreamSuccessAsync(response, ct).ConfigureAwait(false);
       var stream = await response.Content.ReadAsStreamAsync(ct).ConfigureAwait(false);
       return new ResponseOwningStream(stream, response);
     }
+
+    private static bool IsWaitEndpoint(string path) =>
+        path.Contains("/containers/", StringComparison.Ordinal) &&
+        path.EndsWith("/wait", StringComparison.Ordinal);
 
     /// <summary>
     /// Throws a descriptive <see cref="HttpRequestException"/> for a non-success stream
@@ -225,6 +238,7 @@ namespace FluentDocker.Drivers.Docker.Api.Connection
     public ValueTask DisposeAsync()
     {
       _negotiationLock.Dispose();
+      _longRunningHttpClient.Dispose();
       _httpClient.Dispose();
 
       // Dispose any X509Certificate2 we created (client cert + custom CA) to release
@@ -363,8 +377,16 @@ namespace FluentDocker.Drivers.Docker.Api.Connection
         {
           var pipe = new NamedPipeClientStream(
                       ".", pipeName, PipeDirection.InOut, PipeOptions.Asynchronous);
-          await pipe.ConnectAsync((int)config.ConnectionTimeout.TotalMilliseconds, ct).ConfigureAwait(false);
-          return pipe;
+          try
+          {
+            await pipe.ConnectAsync((int)config.ConnectionTimeout.TotalMilliseconds, ct).ConfigureAwait(false);
+            return pipe;
+          }
+          catch
+          {
+            pipe.Dispose();
+            throw;
+          }
         },
         ConnectTimeout = config.ConnectionTimeout
       };
@@ -416,7 +438,7 @@ namespace FluentDocker.Drivers.Docker.Api.Connection
 #if NET9_0_OR_GREATER
               var caCert = X509CertificateLoader.LoadCertificateFromFile(caPath);
 #else
-              var caCert = X509Certificate2.CreateFromPemFile(caPath);
+              var caCert = X509Certificate2.CreateFromPem(File.ReadAllText(caPath));
 #endif
               ownedCertificates.Add(caCert);
               sslOptions.RemoteCertificateValidationCallback = (_, cert, chain, errors) =>

@@ -110,7 +110,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
 
       // 1. Prune containers
       var ctrResult = await PostJsonElementAsync(
-          $"/containers/prune{filterQuery}", null, cancellationToken);
+          $"/containers/prune{filterQuery}", null, cancellationToken).ConfigureAwait(false);
       if (ctrResult.Success && ctrResult.Data.ValueKind == JsonValueKind.Object)
       {
         var deletedEl = ctrResult.Data.Prop("ContainersDeleted");
@@ -129,7 +129,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
 
       // 2. Prune networks
       var netResult = await PostJsonElementAsync(
-          $"/networks/prune{filterQuery}", null, cancellationToken);
+          $"/networks/prune{filterQuery}", null, cancellationToken).ConfigureAwait(false);
       if (netResult.Success && netResult.Data.ValueKind == JsonValueKind.Object)
       {
         var deletedEl = netResult.Data.Prop("NetworksDeleted");
@@ -148,7 +148,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       // 3. Prune images (All -> dangling=false to prune all unused images)
       var imageFilterQuery = BuildImagePruneFilterQuery(config);
       var imgResult = await PostJsonElementAsync(
-          $"/images/prune{imageFilterQuery}", null, cancellationToken);
+          $"/images/prune{imageFilterQuery}", null, cancellationToken).ConfigureAwait(false);
       if (imgResult.Success && imgResult.Data.ValueKind == JsonValueKind.Object)
       {
         var deletedEl = imgResult.Data.Prop("ImagesDeleted");
@@ -170,7 +170,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       if (config.Volumes)
       {
         var volResult = await PostJsonElementAsync(
-            $"/volumes/prune{filterQuery}", null, cancellationToken);
+            $"/volumes/prune{filterQuery}", null, cancellationToken).ConfigureAwait(false);
         if (volResult.Success && volResult.Data.ValueKind == JsonValueKind.Object)
         {
           var deletedEl = volResult.Data.Prop("VolumesDeleted");
@@ -190,7 +190,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
 
       // 5. Prune build cache
       var buildResult = await PostJsonElementAsync(
-          "/build/prune", null, cancellationToken);
+          "/build/prune", null, cancellationToken).ConfigureAwait(false);
       if (buildResult.Success && buildResult.Data.ValueKind == JsonValueKind.Object)
       {
         var cachesEl = buildResult.Data.Prop("CachesDeleted");

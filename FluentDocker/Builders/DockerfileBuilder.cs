@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Net.Http;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using FluentDocker.Common;
 using FluentDocker.Model.Builders;
@@ -16,7 +17,7 @@ namespace FluentDocker.Builders
   /// Fluent builder for creating Dockerfile content programmatically.
   /// Can be used standalone to generate Dockerfile strings, or with ImageBuilder to build images.
   /// </summary>
-  public sealed class DockerfileBuilder
+  public sealed partial class DockerfileBuilder
   {
     private readonly FileBuilderConfig _config = new();
     private readonly ImageBuilder _parent;
@@ -24,6 +25,7 @@ namespace FluentDocker.Builders
     private TemplateString _buildContext;
     private string _lastContents;
     private string _preparedDockerfileName;
+    private readonly Dictionary<AddCommand, TemplateString> _addSourceOverrides = [];
 
     /// <summary>
     /// When an in-place build context is used (see <see cref="WithBuildContext"/>), this is
@@ -55,12 +57,12 @@ namespace FluentDocker.Builders
     /// Prepares the build by copying files and rendering the Dockerfile.
     /// </summary>
     /// <returns>Working directory path</returns>
-    internal async Task<string> PrepareBuildAsync()
+    internal async Task<string> PrepareBuildAsync(CancellationToken cancellationToken = default)
     {
       if (IsInPlaceBuild)
         return PrepareInPlaceBuild();
 
-      await CopyToWorkDirAsync(_workingFolder).ConfigureAwait(false);
+      await CopyToWorkDirAsync(_workingFolder, cancellationToken).ConfigureAwait(false);
       RenderDockerfile(_workingFolder);
       return _workingFolder;
     }
@@ -394,7 +396,7 @@ namespace FluentDocker.Builders
 
     #region Private Methods
 
-    private async Task CopyToWorkDirAsync(string workingFolder)
+    private async Task CopyToWorkDirAsync(string workingFolder, CancellationToken cancellationToken)
     {
       if (!Directory.Exists(workingFolder))
         Directory.CreateDirectory(workingFolder);
@@ -410,59 +412,38 @@ namespace FluentDocker.Builders
           if (!string.IsNullOrEmpty(dd) && !Directory.Exists(dd))
             Directory.CreateDirectory(dd);
 
-          await DownloadFileAsync(urlCmd.FromURL, wdlp).ConfigureAwait(false);
+          await DownloadFileAsync(urlCmd.FromURL, wdlp, cancellationToken).ConfigureAwait(false);
           continue;
         }
 
         // Standard CopyCommand
-        if (!File.Exists(cp.From))
+        var from = cp.From.Trim('"');
+        if (Directory.Exists(from))
+          throw new NotSupportedException(
+              "Directory sources are not supported by DockerfileBuilder; add files individually.");
+        if (!File.Exists(from))
           continue;
 
-        var wp = Path.Combine(workingFolder, cp.From);
+        var wp = Path.Combine(workingFolder, from);
         var wdp = Path.GetDirectoryName(wp);
         if (!string.IsNullOrEmpty(wdp) && !Directory.Exists(wdp))
           Directory.CreateDirectory(wdp);
 
-        File.Copy(cp.From, wp, true);
+        File.Copy(from, wp, true);
       }
 
       foreach (var command in _config.Commands.Where(x => x is AddCommand).Cast<AddCommand>())
       {
-        var wff = Path.Combine(workingFolder, command.Source);
+        var source = command.Source.Rendered;
+        var wff = Path.IsPathRooted(source)
+            ? Path.Combine(workingFolder, Path.GetFileName(source))
+            : Path.Combine(workingFolder, source);
         if (File.Exists(wff) || Directory.Exists(wff))
           continue;
 
         // Copy to working folder
-        command.Source = CopyToWorkDir(command.Source, workingFolder);
+        _addSourceOverrides[command] = CopyToWorkDir(source, workingFolder);
       }
-    }
-
-    private static string CopyToWorkDir(string source, string workingFolder)
-    {
-      if (!File.Exists(source) && !Directory.Exists(source))
-        return source;
-
-      var dest = Path.Combine(workingFolder, Path.GetFileName(source));
-
-      if (File.Exists(source))
-      {
-        File.Copy(source, dest, true);
-      }
-      else if (Directory.Exists(source))
-      {
-        DirectoryHelper.CopyFilesRecursively(new DirectoryInfo(source), new DirectoryInfo(dest));
-      }
-
-      return Path.GetFileName(source);
-    }
-
-    private static async Task DownloadFileAsync(Uri url, string destinationPath)
-    {
-      var response = await Common.SharedHttpClient.Instance.GetAsync(url).ConfigureAwait(false);
-      response.EnsureSuccessStatusCode();
-
-      var content = await response.Content.ReadAsByteArrayAsync().ConfigureAwait(false);
-      await File.WriteAllBytesAsync(destinationPath, content).ConfigureAwait(false);
     }
 
     private void RenderDockerfile(string workingFolder)
@@ -482,12 +463,26 @@ namespace FluentDocker.Builders
 
     private string ResolveOrBuildString()
     {
-      return !string.IsNullOrWhiteSpace(_config.DockerFileString)
-          ? _config.DockerFileString
-          : _config.ToString();
+      var originals = new Dictionary<AddCommand, TemplateString>();
+      foreach (var (command, source) in _addSourceOverrides)
+      {
+        originals[command] = command.Source;
+        command.Source = source;
+      }
+
+      try
+      {
+        return !string.IsNullOrWhiteSpace(_config.DockerFileString)
+            ? _config.DockerFileString
+            : _config.ToString();
+      }
+      finally
+      {
+        foreach (var (command, source) in originals)
+          command.Source = source;
+      }
     }
 
     #endregion
   }
 }
-

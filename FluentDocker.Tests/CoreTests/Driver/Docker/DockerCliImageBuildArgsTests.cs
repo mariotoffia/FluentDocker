@@ -13,7 +13,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Docker
       var config = new ImageBuildConfig { BuildContext = "/src" };
       var result = DockerCliImageDriver.BuildBuildArgs(config, "/tmp/iid.txt");
 
-      Assert.Contains("--iidfile \"/tmp/iid.txt\"", result);
+      Assert.Contains("--iidfile /tmp/iid.txt", result);
       Assert.StartsWith("build ", result);
       Assert.EndsWith(" /src", result);
     }
@@ -49,7 +49,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Docker
 
       Assert.Contains("--tag myimage:latest", result);
       Assert.Contains("--tag myimage:v1.0", result);
-      Assert.Contains("--iidfile \"/tmp/iid\"", result);
+      Assert.Contains("--iidfile /tmp/iid", result);
     }
 
     [Fact]
@@ -82,7 +82,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Docker
       Assert.Contains("--force-rm", result);
       Assert.Contains("--platform linux/amd64", result);
       Assert.Contains("--network host", result);
-      Assert.Contains("--iidfile \"/tmp/iid\"", result);
+      Assert.Contains("--iidfile /tmp/iid", result);
       Assert.EndsWith(" /ctx", result);
     }
 

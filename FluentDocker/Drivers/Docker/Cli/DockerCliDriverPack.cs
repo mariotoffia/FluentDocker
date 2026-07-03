@@ -56,6 +56,7 @@ namespace FluentDocker.Drivers.Docker.Cli
     private ModelApiConnection _modelInferenceConnection;
     private OpenAiModelInferenceDriver _modelInferenceDriver;
     private readonly object _inferenceLock = new();
+    private int _disposed;
 
     /// <inheritdoc />
     public DriverType Type => DriverType.DockerCli;
@@ -66,6 +67,7 @@ namespace FluentDocker.Drivers.Docker.Cli
     /// <inheritdoc />
     public async Task InitializeAsync(DriverContext context, CancellationToken cancellationToken = default)
     {
+      ThrowIfDisposed();
       ArgumentNullException.ThrowIfNull(context);
       _context = context;
       _logger = context.LoggerFactory.CreateLogger<DockerCliDriverPack>();
@@ -225,6 +227,7 @@ namespace FluentDocker.Drivers.Docker.Cli
     // (lazy: pure-container packs never allocate the HttpClient).
     private bool TryGetDriver(Type interfaceType, out object driver)
     {
+      ThrowIfDisposed();
       if (interfaceType == typeof(IModelInferenceDriver))
       {
         driver = EnsureInferenceDriver();
@@ -235,16 +238,17 @@ namespace FluentDocker.Drivers.Docker.Cli
 
     private OpenAiModelInferenceDriver EnsureInferenceDriver()
     {
-      if (_modelInferenceDriver != null)
-        return _modelInferenceDriver;
+      var existing = Volatile.Read(ref _modelInferenceDriver);
+      if (existing != null)
+        return existing;
 
       lock (_inferenceLock)
       {
+        ThrowIfDisposed();
         _modelInferenceConnection ??= new ModelApiConnection(_modelEndpoint, loggerFactory: _context?.LoggerFactory);
         _modelInferenceDriver ??= new OpenAiModelInferenceDriver(_modelInferenceConnection, _modelEndpoint);
+        return _modelInferenceDriver;
       }
-
-      return _modelInferenceDriver;
     }
 
     #endregion
@@ -382,12 +386,22 @@ namespace FluentDocker.Drivers.Docker.Cli
     /// </summary>
     public async ValueTask DisposeAsync()
     {
-      if (_modelInferenceConnection != null)
+      if (Interlocked.CompareExchange(ref _disposed, 1, 0) != 0)
+        return;
+
+      ModelApiConnection connection;
+      lock (_inferenceLock)
       {
-        await _modelInferenceConnection.DisposeAsync().ConfigureAwait(false);
+        connection = _modelInferenceConnection;
         _modelInferenceConnection = null;
+        _modelInferenceDriver = null;
       }
 
+      if (connection != null)
+        await connection.DisposeAsync().ConfigureAwait(false);
+
+      _initialized = false;
+      _drivers.Clear();
       GC.SuppressFinalize(this);
     }
 
@@ -397,13 +411,18 @@ namespace FluentDocker.Drivers.Docker.Cli
 
     private void ThrowIfNotInitialized()
     {
+      ThrowIfDisposed();
       if (!_initialized)
       {
         throw new InvalidOperationException("DockerCliDriverPack has not been initialized. Call InitializeAsync first.");
       }
     }
 
+    private void ThrowIfDisposed()
+    {
+      ObjectDisposedException.ThrowIf(Volatile.Read(ref _disposed) != 0, this);
+    }
+
     #endregion
   }
 }
-

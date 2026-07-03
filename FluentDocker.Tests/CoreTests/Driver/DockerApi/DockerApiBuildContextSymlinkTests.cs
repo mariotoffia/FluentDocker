@@ -2,10 +2,11 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Reflection;
 using System.Text;
+using System.Threading.Tasks;
 using FluentDocker.Drivers;
 using FluentDocker.Drivers.Docker.Api.Components;
+using FluentDocker.Model.Drivers;
 using Xunit;
 
 namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
@@ -18,20 +19,27 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
   [Trait("Category", "Unit")]
   public class DockerApiBuildContextSymlinkTests
   {
-    private static Stream InvokeCreateBuildContextTar(string contextPath)
+    private static async Task<byte[]> BuildAndCaptureTarAsync(string contextPath)
     {
-      var method = typeof(DockerApiImageDriver).GetMethod(
-          "CreateBuildContextTar", BindingFlags.NonPublic | BindingFlags.Static);
-      Assert.NotNull(method);
-      var config = new ImageBuildConfig { BuildContext = contextPath };
-      return (Stream)method.Invoke(null, new object[] { contextPath, config })!;
+      var conn = new MockDockerApiConnection();
+      conn.SetupStream("/build", "{\"aux\":{\"ID\":\"sha256:test\"}}\n");
+      var driver = new DockerApiImageDriver(conn);
+      driver.Initialize(new DriverContext("docker-api-build-context-test"));
+
+      var result = await driver.BuildAsync(
+          new DriverContext("docker-api-build-context-test"),
+          new ImageBuildConfig { BuildContext = contextPath }, null!,
+          TestContext.Current.CancellationToken);
+
+      Assert.True(result.Success, result.Error);
+      return conn.GetRequests().Single(r => r.Method == "POST_STREAM").BodyBytes!;
     }
 
     [Fact]
-    public void CreateBuildContextTar_SkipsEscapingSymlinks_KeepsInContextFiles()
+    public async Task BuildAsync_SkipsEscapingSymlinks_KeepsInContextFiles()
     {
-      var root = Path.Combine(Path.GetTempPath(), "fd-ctx-" + Guid.NewGuid().ToString("N"));
-      var outside = Path.Combine(Path.GetTempPath(), "fd-out-" + Guid.NewGuid().ToString("N"));
+      var root = CreateOutDirectory("ctx");
+      var outside = CreateOutDirectory("out");
       Directory.CreateDirectory(root);
       Directory.CreateDirectory(outside);
       try
@@ -57,9 +65,8 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
           return;
         }
 
-        HashSet<string> keys;
-        using (var tar = InvokeCreateBuildContextTar(root))
-          keys = ReadTarFileNames(tar).Select(n => n.Replace('\\', '/')).ToHashSet();
+        var keys = ReadTarFileNames(await BuildAndCaptureTarAsync(root))
+            .Select(n => n.Replace('\\', '/')).ToHashSet();
 
         Assert.Contains("Dockerfile", keys);
         Assert.Contains("safe.txt", keys);
@@ -77,9 +84,9 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
     }
 
     [Fact]
-    public void CreateBuildContextTar_SiblingPrefixAndChainEscapes_AreExcluded()
+    public async Task BuildAsync_SiblingPrefixAndChainEscapes_AreExcluded()
     {
-      var baseDir = Path.Combine(Path.GetTempPath(), "fd-sib-" + Guid.NewGuid().ToString("N"));
+      var baseDir = CreateOutDirectory("sib");
       var root = Path.Combine(baseDir, "ctx");
       var sibling = Path.Combine(baseDir, "ctx-evil");
       Directory.CreateDirectory(root);
@@ -104,9 +111,8 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
           return;
         }
 
-        HashSet<string> keys;
-        using (var tar = InvokeCreateBuildContextTar(root))
-          keys = ReadTarFileNames(tar).Select(n => n.Replace('\\', '/')).ToHashSet();
+        var keys = ReadTarFileNames(await BuildAndCaptureTarAsync(root))
+            .Select(n => n.Replace('\\', '/')).ToHashSet();
 
         Assert.Contains("Dockerfile", keys);
         Assert.DoesNotContain("sib-link.txt", keys); // sibling-prefix escape excluded
@@ -121,9 +127,9 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
     }
 
     [Fact]
-    public void CreateBuildContextTar_BrokenInContextSymlink_IsSkipped_AndOtherFilesPacked()
+    public async Task BuildAsync_BrokenInContextSymlink_IsSkipped_AndOtherFilesPacked()
     {
-      var root = Path.Combine(Path.GetTempPath(), "fd-broken-" + Guid.NewGuid().ToString("N"));
+      var root = CreateOutDirectory("broken");
       Directory.CreateDirectory(root);
       try
       {
@@ -142,9 +148,8 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
           return;
         }
 
-        HashSet<string> keys;
-        using (var tar = InvokeCreateBuildContextTar(root))
-          keys = ReadTarFileNames(tar).Select(n => n.Replace('\\', '/')).ToHashSet();
+        var keys = ReadTarFileNames(await BuildAndCaptureTarAsync(root))
+            .Select(n => n.Replace('\\', '/')).ToHashSet();
 
         Assert.Contains("Dockerfile", keys);
         Assert.Contains("real.txt", keys);
@@ -157,10 +162,10 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
     }
 
     [Fact]
-    public void CreateBuildContextTar_FileSymlinkThroughInContextDirSymlink_DoesNotLeak()
+    public async Task BuildAsync_FileSymlinkThroughInContextDirSymlink_DoesNotLeak()
     {
-      var root = Path.Combine(Path.GetTempPath(), "fd-dirsym-" + Guid.NewGuid().ToString("N"));
-      var outside = Path.Combine(Path.GetTempPath(), "fd-dirout-" + Guid.NewGuid().ToString("N"));
+      var root = CreateOutDirectory("dirsym");
+      var outside = CreateOutDirectory("dirout");
       Directory.CreateDirectory(root);
       Directory.CreateDirectory(outside);
       try
@@ -185,9 +190,8 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
           return;
         }
 
-        HashSet<string> keys;
-        using (var tar = InvokeCreateBuildContextTar(root))
-          keys = ReadTarFileNames(tar).Select(n => n.Replace('\\', '/')).ToHashSet();
+        var keys = ReadTarFileNames(await BuildAndCaptureTarAsync(root))
+            .Select(n => n.Replace('\\', '/')).ToHashSet();
 
         Assert.Contains("Dockerfile", keys);
         Assert.DoesNotContain("leak.txt", keys); // file symlink through in-context dir symlink excluded
@@ -202,10 +206,10 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
     }
 
     [Fact]
-    public void CreateBuildContextTar_FileSymlinkPivotsThroughDirSymlinkWithDotDot_DoesNotLeak()
+    public async Task BuildAsync_FileSymlinkPivotsThroughDirSymlinkWithDotDot_DoesNotLeak()
     {
-      var root = Path.Combine(Path.GetTempPath(), "fd-pivot-" + Guid.NewGuid().ToString("N"));
-      var outside = Path.Combine(Path.GetTempPath(), "fd-pivotout-" + Guid.NewGuid().ToString("N"));
+      var root = CreateOutDirectory("pivot");
+      var outside = CreateOutDirectory("pivotout");
       Directory.CreateDirectory(root);
       Directory.CreateDirectory(Path.Combine(outside, "subdir"));
       try
@@ -231,9 +235,8 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
           return;
         }
 
-        HashSet<string> keys;
-        using (var tar = InvokeCreateBuildContextTar(root))
-          keys = ReadTarFileNames(tar).Select(n => n.Replace('\\', '/')).ToHashSet();
+        var keys = ReadTarFileNames(await BuildAndCaptureTarAsync(root))
+            .Select(n => n.Replace('\\', '/')).ToHashSet();
 
         Assert.Contains("Dockerfile", keys);
         Assert.DoesNotContain("leak.txt", keys); // symlink/.. pivot excluded
@@ -246,8 +249,37 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
         Directory.Delete(outside, true);
       }
     }
-    /// headers so long-name/prefix extensions are not exercised.
-    /// </summary>
+
+    [Fact]
+    public async Task BuildAsync_FileTarMode_IsNotWorldWritable()
+    {
+      var root = CreateOutDirectory("mode");
+      File.WriteAllText(Path.Combine(root, "Dockerfile"), "FROM scratch\n");
+      var secret = Path.Combine(root, "secret.txt");
+      File.WriteAllText(secret, "secret");
+      if (!OperatingSystem.IsWindows())
+        File.SetUnixFileMode(secret, UnixFileMode.UserRead | UnixFileMode.UserWrite);
+
+      var tar = await BuildAndCaptureTarAsync(root);
+      var modes = ReadTarModes(tar);
+
+      Assert.NotEqual(511, modes["secret.txt"]);
+    }
+
+    private static string CreateOutDirectory(string name)
+    {
+      var path = Path.GetFullPath(Path.Combine(
+          ".out", "docker-api-build-context", name, Guid.NewGuid().ToString("N")));
+      Directory.CreateDirectory(path);
+      return path;
+    }
+
+    private static List<string> ReadTarFileNames(byte[] bytes)
+    {
+      using var stream = new MemoryStream(bytes);
+      return ReadTarFileNames(stream);
+    }
+
     private static List<string> ReadTarFileNames(Stream stream)
     {
       var names = new List<string>();
@@ -267,6 +299,27 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
             return names;
       }
       return names;
+    }
+
+    private static Dictionary<string, int> ReadTarModes(byte[] bytes)
+    {
+      var modes = new Dictionary<string, int>();
+      using var stream = new MemoryStream(bytes);
+      var header = new byte[512];
+      while (ReadExactly(stream, header))
+      {
+        if (Array.TrueForAll(header, b => b == 0))
+          break;
+        var name = Encoding.ASCII.GetString(header, 0, 100).TrimEnd('\0');
+        var mode = Encoding.ASCII.GetString(header, 100, 8).Trim(' ', '\0');
+        var sizeField = Encoding.ASCII.GetString(header, 124, 12).Trim(' ', '\0');
+        var size = sizeField.Length == 0 ? 0 : Convert.ToInt64(sizeField, 8);
+        modes[name] = Convert.ToInt32(mode, 8);
+        for (var i = (size + 511) / 512; i > 0; i--)
+          if (!ReadExactly(stream, header))
+            return modes;
+      }
+      return modes;
     }
 
     private static bool ReadExactly(Stream stream, byte[] buffer)

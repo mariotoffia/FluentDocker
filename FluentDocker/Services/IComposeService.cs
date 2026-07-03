@@ -8,6 +8,11 @@ namespace FluentDocker.Services
   /// <summary>
   /// Async compose service interface.
   /// </summary>
+  /// <remarks>
+  /// Services created by <c>ConnectToExisting</c> are borrowed handles: disposing them releases
+  /// local resources only and does not run <c>docker compose down</c>. Services created by normal
+  /// compose builds own the project and run <c>down</c> on dispose.
+  /// </remarks>
   public interface IComposeService : IServiceAsync
   {
     /// <summary>
@@ -26,8 +31,12 @@ namespace FluentDocker.Services
     Task<IList<ComposeServiceInfo>> ListServicesAsync(CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Gets logs from compose services.
+    /// Gets buffered logs from compose services.
     /// </summary>
+    /// <remarks>
+    /// <paramref name="follow"/> is rejected by the CLI driver because buffered follow blocks
+    /// until services exit.
+    /// </remarks>
     Task<string> GetLogsAsync(bool follow = false, CancellationToken cancellationToken = default);
 
     /// <summary>
@@ -65,4 +74,3 @@ namespace FluentDocker.Services
     Task RefreshStateAsync(CancellationToken cancellationToken = default);
   }
 }
-

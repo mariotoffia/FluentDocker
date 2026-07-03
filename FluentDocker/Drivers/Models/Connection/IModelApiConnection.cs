@@ -17,9 +17,9 @@ namespace FluentDocker.Drivers.Models.Connection
     Uri BaseAddress { get; }
 
     /// <summary>
-    /// Maximum time to wait between successive chunks of a streaming (SSE) read
+    /// Maximum time to wait for streaming response headers or between successive chunks of a streaming (SSE) read
     /// before aborting with <see cref="FluentDocker.Common.ModelRunnerException"/>
-    /// (<see cref="FluentDocker.Model.Drivers.ErrorCodes.ModelInference.EndpointUnreachable"/>).
+    /// (<see cref="FluentDocker.Model.Drivers.ErrorCodes.ModelInference.Timeout"/>).
     /// <c>null</c> disables the idle timeout — reads wait indefinitely, honoring
     /// only the caller's <see cref="System.Threading.CancellationToken"/>.
     /// </summary>
@@ -51,7 +51,10 @@ namespace FluentDocker.Drivers.Models.Connection
     /// <returns>The response body stream (the caller disposes it).</returns>
     Task<Stream> PostStreamAsync(string path, HttpContent content, CancellationToken ct = default);
 
-    /// <summary>Probes endpoint reachability.</summary>
+    /// <summary>
+    /// Probes pure endpoint reachability. Any HTTP response counts as reachable; status-specific
+    /// health checks (for example 404/405 from the model-list path) belong in status probes.
+    /// </summary>
     /// <param name="ct">A token to cancel the request.</param>
     /// <returns><c>true</c> when the endpoint responds.</returns>
     Task<bool> PingAsync(CancellationToken ct = default);

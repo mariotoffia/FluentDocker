@@ -27,6 +27,7 @@ namespace FluentDocker.Tests.CoreTests.Driver
     private sealed class FakeMgmtDriver : DockerCliModelManagementDriver
     {
       public List<string> Commands { get; } = [];
+      public List<DriverContext> Contexts { get; } = [];
       public Func<string, SimpleCommandResult>? Responder { get; set; }
       public Func<string, IEnumerable<string>>? StreamResponder { get; set; }
 
@@ -34,23 +35,26 @@ namespace FluentDocker.Tests.CoreTests.Driver
       {
       }
 
-      protected override Task<SimpleCommandResult> RunAsync(string arguments, CancellationToken cancellationToken)
+      protected override Task<SimpleCommandResult> RunAsync(DriverContext context, string arguments, CancellationToken cancellationToken)
       {
+        Contexts.Add(context);
         Commands.Add(arguments);
         var result = Responder?.Invoke(arguments) ?? new SimpleCommandResult { Success = true, Output = string.Empty, ExitCode = 0 };
         return Task.FromResult(result);
       }
 
-      protected override IAsyncEnumerable<string> RunStreamingAsync(string arguments, CancellationToken cancellationToken)
+      protected override IAsyncEnumerable<string> RunStreamingAsync(DriverContext context, string arguments, CancellationToken cancellationToken)
       {
+        Contexts.Add(context);
         Commands.Add(arguments);
         return ToAsync(StreamResponder?.Invoke(arguments) ?? Array.Empty<string>());
       }
 
       // PullAsync streams progress via the stderr-interleaving seam; mirror the
       // stdout streaming fake so canned progress lines are delivered to the parser.
-      protected override IAsyncEnumerable<string> RunStreamingWithProgressAsync(string arguments, CancellationToken cancellationToken)
+      protected override IAsyncEnumerable<string> RunStreamingWithProgressAsync(DriverContext context, string arguments, CancellationToken cancellationToken)
       {
+        Contexts.Add(context);
         Commands.Add(arguments);
         return ToAsync(StreamResponder?.Invoke(arguments) ?? Array.Empty<string>());
       }
@@ -75,6 +79,28 @@ namespace FluentDocker.Tests.CoreTests.Driver
       Assert.True(result.Success);
       Assert.Contains("model ls --json", driver.Commands.Single());
       Assert.Contains(result.Data, m => m.Reference.Name == "smollm2");
+    }
+
+    [Fact]
+    public async Task ListAsync_PassesPerCallContextToRunner()
+    {
+      var context = new DriverContext("docker") { Host = "tcp://context-host:2375" };
+      var driver = new FakeMgmtDriver { Responder = _ => Ok(DmrFixtures.Load("ls.json")) };
+
+      await driver.ListAsync(context, TestContext.Current.CancellationToken);
+
+      Assert.Same(context, driver.Contexts.Single());
+    }
+
+    [Fact]
+    public async Task PullAsync_PassesPerCallContextToProgressStreamAndInspect()
+    {
+      var context = new DriverContext("docker") { Host = "tcp://context-host:2375" };
+      var driver = new FakeMgmtDriver { Responder = _ => Ok(DmrFixtures.Load("inspect.json")) };
+
+      await driver.PullAsync(context, ModelReference.Parse("ai/smollm2"), cancellationToken: TestContext.Current.CancellationToken);
+
+      Assert.All(driver.Contexts, seen => Assert.Same(context, seen));
     }
 
     [Fact]

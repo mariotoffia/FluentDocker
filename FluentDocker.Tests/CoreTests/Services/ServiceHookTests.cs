@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Reflection;
 using System.Threading.Tasks;
 using FluentDocker.Kernel;
 using FluentDocker.Services;
@@ -9,12 +8,10 @@ using FluentDocker.Tests.Mocks;
 using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 
-
 namespace FluentDocker.Tests.CoreTests.Services
 {
   /// <summary>
-  /// Tests for IServiceAsync hook registration, removal, firing,
-  /// StateChange event system, and reflection-based private method invocation.
+  /// Tests for IServiceAsync hook registration, removal, firing, and StateChange events.
   /// </summary>
   [Trait("Category", "Unit")]
   public class ServiceHookTests
@@ -38,82 +35,69 @@ namespace FluentDocker.Tests.CoreTests.Services
       return (service, kernel);
     }
 
-    private static void InvokeUpdateState(ContainerService service, ServiceRunningState newState)
-    {
-      var method = typeof(ContainerService).GetMethod(
-          "UpdateState", BindingFlags.NonPublic | BindingFlags.Instance);
-      Assert.NotNull(method);
-      method.Invoke(service, [newState]);
-    }
-
-    private static async Task InvokeExecuteHooksAsync(
-        ContainerService service, ServiceRunningState state)
-    {
-      var method = typeof(ContainerService).GetMethod(
-          "ExecuteHooksAsync", BindingFlags.NonPublic | BindingFlags.Instance);
-      Assert.NotNull(method);
-      await (Task)method.Invoke(service, [state])!;
-    }
-
-    private static Dictionary<string, (ServiceRunningState State, Func<IServiceAsync, Task> Hook)> GetHooksDictionary(
-        ContainerService service)
-    {
-      var field = typeof(ContainerService).GetField(
-          "_hooks", BindingFlags.NonPublic | BindingFlags.Instance);
-      Assert.NotNull(field);
-      return (Dictionary<string, (ServiceRunningState State, Func<IServiceAsync, Task> Hook)>)field.GetValue(service)!;
-    }
-
-    // 1. AddHook — registering a hook for a specific state stores it
     [Fact]
-    public void AddHook_RegistersHookForSpecifiedState()
+    public async Task AddHook_RegistersHookForSpecifiedState()
     {
-      var (service, kernel) = CreateService();
+      var (service, kernel) = await CreateServiceWithDriverAsync();
       try
       {
-        service.AddHook(ServiceRunningState.Running, _ => Task.CompletedTask, "my-hook");
+        var hookFired = false;
+        service.AddHook(ServiceRunningState.Running, _ =>
+        {
+          hookFired = true;
+          return Task.CompletedTask;
+        }, "my-hook");
 
-        var hooks = GetHooksDictionary(service);
-        Assert.True(hooks.ContainsKey("my-hook"));
-        Assert.Equal(ServiceRunningState.Running, hooks["my-hook"].State);
+        await service.StartAsync(TestContext.Current.CancellationToken);
+
+        Assert.True(hookFired);
       }
       finally { kernel.Dispose(); }
     }
 
-    // 2. RemoveHook — removes from hook dict and all state lists
     [Fact]
-    public void RemoveHook_RemovesFromHookDictionaryAndAllStateLists()
+    public async Task RemoveHook_RemovesRegisteredHook()
     {
-      var (service, kernel) = CreateService();
+      var (service, kernel) = await CreateServiceWithDriverAsync();
       try
       {
-        service.AddHook(ServiceRunningState.Running, _ => Task.CompletedTask, "removable");
+        var hookFired = false;
+        service.AddHook(ServiceRunningState.Running, _ =>
+        {
+          hookFired = true;
+          return Task.CompletedTask;
+        }, "removable");
         service.RemoveHook("removable");
 
-        var hooks = GetHooksDictionary(service);
-        Assert.False(hooks.ContainsKey("removable"));
+        await service.StartAsync(TestContext.Current.CancellationToken);
+
+        Assert.False(hookFired);
       }
       finally { kernel.Dispose(); }
     }
 
-    // 3. AddHook with null uniqueName — auto-generates GUID
     [Fact]
-    public void AddHook_NullUniqueName_GeneratesGuidKey()
+    public async Task AddHookWithGeneratedName_ReturnsGuidKeyThatCanBeRemoved()
     {
-      var (service, kernel) = CreateService();
+      var (service, kernel) = await CreateServiceWithDriverAsync();
       try
       {
-        service.AddHook(ServiceRunningState.Stopped, _ => Task.CompletedTask);
+        var hookFired = false;
+        var name = service.AddHookWithGeneratedName(ServiceRunningState.Running, _ =>
+        {
+          hookFired = true;
+          return Task.CompletedTask;
+        });
+        Assert.True(Guid.TryParse(name, out _), $"Expected GUID key, got: {name}");
 
-        var hooks = GetHooksDictionary(service);
-        Assert.Single(hooks);
-        foreach (var key in hooks.Keys)
-          Assert.True(Guid.TryParse(key, out _), $"Expected GUID key, got: {key}");
+        service.RemoveHook(name);
+        await service.StartAsync(TestContext.Current.CancellationToken);
+
+        Assert.False(hookFired);
       }
       finally { kernel.Dispose(); }
     }
 
-    // 4. AddHook fluent — returns same service instance for chaining
     [Fact]
     public void AddHook_ReturnsSameServiceInstance_ForChaining()
     {
@@ -127,7 +111,6 @@ namespace FluentDocker.Tests.CoreTests.Services
       finally { kernel.Dispose(); }
     }
 
-    // 5. RemoveHook for non-existent name — does not throw
     [Fact]
     public void RemoveHook_NonExistentName_DoesNotThrow()
     {
@@ -140,28 +123,26 @@ namespace FluentDocker.Tests.CoreTests.Services
       finally { kernel.Dispose(); }
     }
 
-    // 6. StateChange event — fires when UpdateState is called via reflection
     [Fact]
-    public void UpdateState_ViaReflection_FiresStateChangeEvent()
+    public async Task StartAsync_FiresStateChangeEvent()
     {
-      var (service, kernel) = CreateService();
+      var (service, kernel) = await CreateServiceWithDriverAsync();
       try
       {
         var eventFired = false;
         service.StateChange += (_, _) => eventFired = true;
 
-        InvokeUpdateState(service, ServiceRunningState.Running);
+        await service.StartAsync(TestContext.Current.CancellationToken);
 
-        Assert.True(eventFired, "StateChange event should fire when UpdateState is called");
+        Assert.True(eventFired, "StateChange event should fire during StartAsync");
       }
       finally { kernel.Dispose(); }
     }
 
-    // 7. StateChange event args — correct service and new state
     [Fact]
-    public void UpdateState_ViaReflection_EventArgsContainCorrectServiceAndState()
+    public async Task StartAsync_EventArgsContainCorrectServiceAndState()
     {
-      var (service, kernel) = CreateService();
+      var (service, kernel) = await CreateServiceWithDriverAsync();
       try
       {
         IServiceAsync? capturedService = null;
@@ -172,39 +153,41 @@ namespace FluentDocker.Tests.CoreTests.Services
           capturedState = args.State;
         };
 
-        InvokeUpdateState(service, ServiceRunningState.Paused);
+        await service.StartAsync(TestContext.Current.CancellationToken);
 
         Assert.Same(service, capturedService);
-        Assert.Equal(ServiceRunningState.Paused, capturedState);
+        Assert.Equal(ServiceRunningState.Running, capturedState);
       }
       finally { kernel.Dispose(); }
     }
 
-    [Theory]
-    [InlineData(ServiceRunningState.Starting)]
-    [InlineData(ServiceRunningState.Running)]
-    [InlineData(ServiceRunningState.Stopping)]
-    [InlineData(ServiceRunningState.Stopped)]
-    [InlineData(ServiceRunningState.Removing)]
-    [InlineData(ServiceRunningState.Removed)]
-    public void UpdateState_ViaReflection_CorrectStateInArgs(ServiceRunningState expected)
+    [Fact]
+    public async Task LifecycleOperations_ReportExpectedStatesInArgs()
     {
-      var (service, kernel) = CreateService();
+      var (service, kernel) = await CreateServiceWithDriverAsync();
       try
       {
-        ServiceRunningState? captured = null;
-        service.StateChange += (_, args) => captured = args.State;
-        InvokeUpdateState(service, expected);
-        Assert.Equal(expected, captured);
+        var states = new List<ServiceRunningState>();
+        service.StateChange += (_, args) => states.Add(args.State);
+
+        await service.StartAsync(TestContext.Current.CancellationToken);
+        await service.StopAsync(TestContext.Current.CancellationToken);
+        await service.RemoveAsync(cancellationToken: TestContext.Current.CancellationToken);
+
+        Assert.Contains(ServiceRunningState.Starting, states);
+        Assert.Contains(ServiceRunningState.Running, states);
+        Assert.Contains(ServiceRunningState.Stopping, states);
+        Assert.Contains(ServiceRunningState.Stopped, states);
+        Assert.Contains(ServiceRunningState.Removing, states);
+        Assert.Contains(ServiceRunningState.Removed, states);
       }
       finally { kernel.Dispose(); }
     }
 
-    // 8. Hook execution — ExecuteHooksAsync fires registered hooks
     [Fact]
-    public async Task ExecuteHooksAsync_ViaReflection_FiresRegisteredHook()
+    public async Task RegisteredHook_FiresForMatchingState()
     {
-      var (service, kernel) = CreateService();
+      var (service, kernel) = await CreateServiceWithDriverAsync();
       try
       {
         var hookFired = false;
@@ -214,16 +197,17 @@ namespace FluentDocker.Tests.CoreTests.Services
           return Task.CompletedTask;
         }, "exec-test");
 
-        await InvokeExecuteHooksAsync(service, ServiceRunningState.Running);
+        await service.StartAsync(TestContext.Current.CancellationToken);
+
         Assert.True(hookFired);
       }
       finally { kernel.Dispose(); }
     }
 
     [Fact]
-    public async Task ExecuteHooksAsync_ViaReflection_DoesNotFireHooksForDifferentState()
+    public async Task RegisteredHook_DoesNotFireForDifferentState()
     {
-      var (service, kernel) = CreateService();
+      var (service, kernel) = await CreateServiceWithDriverAsync();
       try
       {
         var hookFired = false;
@@ -233,17 +217,17 @@ namespace FluentDocker.Tests.CoreTests.Services
           return Task.CompletedTask;
         }, "wrong-state");
 
-        await InvokeExecuteHooksAsync(service, ServiceRunningState.Running);
-        Assert.False(hookFired, "Hook for Stopped should not fire when Running hooks execute");
+        await service.StartAsync(TestContext.Current.CancellationToken);
+
+        Assert.False(hookFired, "Hook for Stopped should not fire during StartAsync");
       }
       finally { kernel.Dispose(); }
     }
 
-    // 9. Multiple hooks — all execute for the same state
     [Fact]
-    public async Task ExecuteHooksAsync_ViaReflection_MultipleHooks_AllFire()
+    public async Task MultipleHooks_SameState_AllFire()
     {
-      var (service, kernel) = CreateService();
+      var (service, kernel) = await CreateServiceWithDriverAsync();
       try
       {
         var firedNames = new List<string>();
@@ -263,7 +247,7 @@ namespace FluentDocker.Tests.CoreTests.Services
           return Task.CompletedTask;
         }, "third");
 
-        await InvokeExecuteHooksAsync(service, ServiceRunningState.Starting);
+        await service.StartAsync(TestContext.Current.CancellationToken);
 
         Assert.Equal(3, firedNames.Count);
         Assert.Contains("first", firedNames);
@@ -274,16 +258,16 @@ namespace FluentDocker.Tests.CoreTests.Services
     }
 
     [Fact]
-    public async Task ExecuteHooksAsync_HookMutatesHooksWhileFiring_DoesNotThrow_AndOthersFire()
+    public async Task HookMutatesHooksWhileFiring_DoesNotThrow_AndOthersFire()
     {
-      var (service, kernel) = CreateService();
+      var (service, kernel) = await CreateServiceWithDriverAsync();
       try
       {
         var fired = new List<string>();
         service.AddHook(ServiceRunningState.Starting, _ =>
         {
           fired.Add("self-removing");
-          service.RemoveHook("self-removing"); // mutates _hooks while it is being enumerated
+          service.RemoveHook("self-removing");
           return Task.CompletedTask;
         }, "self-removing");
         service.AddHook(ServiceRunningState.Starting, _ =>
@@ -292,7 +276,7 @@ namespace FluentDocker.Tests.CoreTests.Services
           return Task.CompletedTask;
         }, "survivor");
 
-        await InvokeExecuteHooksAsync(service, ServiceRunningState.Starting);
+        await service.StartAsync(TestContext.Current.CancellationToken);
 
         Assert.Contains("self-removing", fired);
         Assert.Contains("survivor", fired);
@@ -328,7 +312,6 @@ namespace FluentDocker.Tests.CoreTests.Services
     }
 
 #pragma warning disable CA1859 // Intent: verify IServiceAsync interface contract via interface reference
-    // 10. IServiceAsync AddHook — returns same instance for chaining
     [Fact]
     public void IServiceAsync_AddHook_ReturnsSameInstance()
     {
@@ -359,48 +342,51 @@ namespace FluentDocker.Tests.CoreTests.Services
     }
 
     [Fact]
-    public void IServiceAsync_AddHook_IsStoredInHooksDictionary()
+    public async Task IServiceAsync_AddHook_FiresThroughPublicLifecycle()
     {
-      var (service, kernel) = CreateService();
+      var (service, kernel) = await CreateServiceWithDriverAsync();
       try
       {
+        var fired = false;
         IServiceAsync asyncService = service;
-        asyncService.AddHook(
-            ServiceRunningState.Stopped, _ => Task.CompletedTask, "stored");
+        asyncService.AddHook(ServiceRunningState.Running, _ =>
+        {
+          fired = true;
+          return Task.CompletedTask;
+        }, "stored");
 
-        var hooks = GetHooksDictionary(service);
-        Assert.True(hooks.ContainsKey("stored"));
-        Assert.Equal(ServiceRunningState.Stopped, hooks["stored"].State);
+        await service.StartAsync(TestContext.Current.CancellationToken);
+
+        Assert.True(fired);
       }
       finally { kernel.Dispose(); }
     }
 #pragma warning restore CA1859
 
-    // Edge cases
     [Fact]
-    public void UpdateState_ViaReflection_ChangesStateProperty()
+    public async Task StartAsync_ChangesStateProperty()
     {
-      var (service, kernel) = CreateService();
+      var (service, kernel) = await CreateServiceWithDriverAsync();
       try
       {
         Assert.Equal(ServiceRunningState.Unknown, service.State);
-        InvokeUpdateState(service, ServiceRunningState.Running);
+        await service.StartAsync(TestContext.Current.CancellationToken);
         Assert.Equal(ServiceRunningState.Running, service.State);
       }
       finally { kernel.Dispose(); }
     }
 
     [Fact]
-    public async Task ExecuteHooksAsync_ViaReflection_HookExceptionIsSuppressed()
+    public async Task HookExceptionIsSuppressed()
     {
-      var (service, kernel) = CreateService();
+      var (service, kernel) = await CreateServiceWithDriverAsync();
       try
       {
         service.AddHook(ServiceRunningState.Running, _ =>
             throw new InvalidOperationException("boom"), "throws");
 
         var exception = await Record.ExceptionAsync(
-            () => InvokeExecuteHooksAsync(service, ServiceRunningState.Running));
+            () => service.StartAsync(TestContext.Current.CancellationToken));
         Assert.Null(exception);
       }
       finally { kernel.Dispose(); }

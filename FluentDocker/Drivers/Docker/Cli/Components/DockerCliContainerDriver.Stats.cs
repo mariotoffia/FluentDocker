@@ -24,20 +24,28 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
       {
         // Use --no-stream to get a single snapshot instead of continuous stream
         // Use --format with JSON output for easier parsing
-        var result = await ExecuteCommandAsync(
-            $"stats --no-stream --format \"{{{{json .}}}}\" {QuoteArgumentIfNeeded(containerId)}",
+        var result = await ExecuteCommandAsync(context,
+            $"stats --no-stream --format \"{{{{json .}}}}\" {QuotePositionalArgument(containerId, nameof(containerId))}",
             cancellationToken).ConfigureAwait(false);
 
         if (!result.Success)
         {
           return CommandResponse<ContainerStatsResult>.Fail(
-              result.Error ?? "Container stats failed",
-              ErrorCodes.Container.StatsFailed,
+              ErrorOrDefault(result, "Container stats failed"),
+              FailureCode(result.Error, ErrorCodes.Container.StatsFailed),
               CreateErrorContext(context, "StatsContainer", result),
               result.ExitCode);
         }
 
-        var stats = ParseStatsOutput(result.Output, containerId);
+        var stats = ParseStatsOutput(result.Output, containerId, Logger);
+        if (stats == null)
+        {
+          return CommandResponse<ContainerStatsResult>.Fail(
+              "Container stats output could not be parsed",
+              ErrorCodes.Container.StatsFailed,
+              CreateErrorContext(context, "StatsContainer", result),
+              result.ExitCode);
+        }
         return CommandResponse<ContainerStatsResult>.Ok(stats);
       }
       catch (OperationCanceledException)
@@ -46,7 +54,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
       }
       catch (Exception ex)
       {
-        return CommandResponse<ContainerStatsResult>.Fail(ex.Message, ErrorCodes.Container.StatsFailed);
+        return CommandResponse<ContainerStatsResult>.Fail(ex.Message, FailureCode(ex, ErrorCodes.Container.StatsFailed));
       }
     }
 
@@ -59,6 +67,8 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
 
       try
       {
+        if (string.IsNullOrWhiteSpace(output))
+          return null;
         using var json = JsonDocument.Parse(output.Trim());
         var root = json.RootElement;
 
@@ -101,6 +111,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
       catch (Exception ex)
       {
         logger.LogError(ex, "Container stats JSON parsing failed");
+        return null;
       }
 
       return stats;

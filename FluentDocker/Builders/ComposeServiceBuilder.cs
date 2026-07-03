@@ -49,7 +49,10 @@ namespace FluentDocker.Builders
       if (null == options || 0 == options.Length)
         return this;
 
-      for (var i = 0; i < options.Length; i++)
+      if (options.Length % 2 != 0)
+        throw new System.ArgumentException("Volume options must be name/value pairs.", nameof(options));
+
+      for (var i = 0; i < options.Length; i += 2)
         volume.Options.Add(options[i], options[i + 1]);
 
       return this;

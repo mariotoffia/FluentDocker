@@ -391,11 +391,10 @@ namespace FluentDocker.Tests.CoreTests.Driver
 
     [Fact]
     [Trait("Category", "Unit")]
-    public async Task ChatCompletionStreamAsync_StalledStream_FiresIdleTimeout_AsEndpointUnreachable()
+    public async Task ChatCompletionStreamAsync_StalledStream_FiresIdleTimeout_AsTimeout()
     {
-      // A server that stops sending must trip the configured idle timeout, surfaced as the
-      // deliberate EndpointUnreachable classification (C12) — not a hang, and not per-character
-      // timers. This exercises the ONE-idle-window-per-chunked-read path.
+      // A server that stops sending must trip the configured idle timeout as MIN_006 Timeout —
+      // not a hang, and not per-character timers. This exercises the ONE-idle-window-per-read path.
       var conn = new MockModelApiConnection().SetupStreamStalling("/chat/completions");
       conn.StreamReadIdleTimeout = TimeSpan.FromMilliseconds(150);
       var driver = Create(conn);
@@ -407,7 +406,7 @@ namespace FluentDocker.Tests.CoreTests.Driver
         }
       });
 
-      Assert.Equal(ErrorCodes.ModelInference.EndpointUnreachable, ex.ErrorCode);
+      Assert.Equal(ErrorCodes.ModelInference.Timeout, ex.ErrorCode);
       Assert.Contains("idle timeout", ex.Message, StringComparison.OrdinalIgnoreCase);
     }
 
@@ -429,7 +428,7 @@ namespace FluentDocker.Tests.CoreTests.Driver
           contents.Add(chunk.Choices[0].Delta.Content);
       });
 
-      Assert.Equal(ErrorCodes.ModelInference.EndpointUnreachable, ex.ErrorCode);
+      Assert.Equal(ErrorCodes.ModelInference.Timeout, ex.ErrorCode);
       Assert.Equal(new[] { "Hi" }, contents); // prefix frame arrived before the stall
     }
 

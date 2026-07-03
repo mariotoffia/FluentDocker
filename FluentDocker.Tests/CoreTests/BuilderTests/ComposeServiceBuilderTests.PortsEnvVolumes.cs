@@ -346,6 +346,43 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
     }
 
     [Fact]
+    public void Volume_LongForm_WithTwoOptions_MapsOptionPair()
+    {
+      var builder = CreateBuilder();
+
+      builder.Volume("/container", "/host", false, "type", "bind");
+
+      var vol = Assert.IsType<LongServiceVolumeDefinition>(
+        GetConfig(builder).Volumes[0]);
+      Assert.Equal("bind", vol.Options["type"]);
+    }
+
+    [Fact]
+    public void Volume_LongForm_WithFourOptions_MapsBothPairs()
+    {
+      var builder = CreateBuilder();
+
+      builder.Volume("/container", "/host", false,
+        "type", "bind", "consistency", "cached");
+
+      var vol = Assert.IsType<LongServiceVolumeDefinition>(
+        GetConfig(builder).Volumes[0]);
+      Assert.Equal("bind", vol.Options["type"]);
+      Assert.Equal("cached", vol.Options["consistency"]);
+    }
+
+    [Fact]
+    public void Volume_LongForm_WithOddOptionCount_ThrowsClearArgumentException()
+    {
+      var builder = CreateBuilder();
+
+      var ex = Assert.Throws<ArgumentException>(() =>
+        builder.Volume("/container", "/host", false, "type"));
+
+      Assert.Contains("Volume options must be name/value pairs", ex.Message);
+    }
+
+    [Fact]
     public void Volume_MultipleCallsAccumulate()
     {
       // Arrange

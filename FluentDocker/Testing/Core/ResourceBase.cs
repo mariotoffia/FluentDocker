@@ -183,7 +183,18 @@ namespace FluentDocker.Testing.Core
           }
 
           _provisioned = true;
-          await ProvisionAsync(cts.Token).ConfigureAwait(false);
+          var provisionTask = ProvisionAsync(cts.Token);
+          try
+          {
+            await provisionTask.WaitAsync(cts.Token).ConfigureAwait(false);
+          }
+          catch (OperationCanceledException ex)
+              when (!cancellationToken.IsCancellationRequested && cts.IsCancellationRequested)
+          {
+            ObserveAbandonedCleanup(provisionTask);
+            throw new TimeoutException(
+                $"Resource initialization timed out after {Options.InitializationTimeout}.", ex);
+          }
           Diagnostics = null;
           IsInitialized = true;
           await RunHooksAsync(_afterReadyHooks, cts.Token).ConfigureAwait(false);
@@ -211,10 +222,20 @@ namespace FluentDocker.Testing.Core
     /// <inheritdoc />
     public async ValueTask DisposeAsync()
     {
-      await _lifecycleLock.WaitAsync().ConfigureAwait(false);
+      using var cts = new CancellationTokenSource(Options.TeardownTimeout);
+      var lockTaken = false;
       try
       {
-        using var cts = new CancellationTokenSource(Options.TeardownTimeout);
+        try
+        {
+          await _lifecycleLock.WaitAsync(cts.Token).ConfigureAwait(false);
+          lockTaken = true;
+        }
+        catch (OperationCanceledException ex) when (cts.IsCancellationRequested)
+        {
+          throw new TimeoutException(
+              $"Timed out waiting for resource lifecycle lock during disposal after {Options.TeardownTimeout}.", ex);
+        }
 
         try
         {
@@ -302,7 +323,8 @@ namespace FluentDocker.Testing.Core
       }
       finally
       {
-        _lifecycleLock.Release();
+        if (lockTaken)
+          _lifecycleLock.Release();
       }
 
       GC.SuppressFinalize(this);
@@ -377,7 +399,13 @@ namespace FluentDocker.Testing.Core
     /// </summary>
     protected static string GenerateUniqueName(string prefix)
     {
-      return $"{prefix}-{Guid.NewGuid():N}"[..Math.Min(63, prefix.Length + 33)];
+      const int maxDockerNameLength = 63;
+      const int guidLength = 32;
+      var maxPrefixLength = maxDockerNameLength - guidLength - 1;
+      var safePrefix = prefix.Length <= maxPrefixLength
+          ? prefix
+          : prefix[..maxPrefixLength];
+      return $"{safePrefix}-{Guid.NewGuid():N}";
     }
 
     /// <summary>
@@ -440,55 +468,4 @@ namespace FluentDocker.Testing.Core
     #endregion
   }
 
-  /// <summary>
-  /// Diagnostic information collected when a resource fails to initialize.
-  /// </summary>
-  public class ResourceDiagnostics
-  {
-    /// <summary>
-    /// The exception that caused the failure.
-    /// </summary>
-    public Exception Failure { get; set; }
-
-    /// <summary>
-    /// Resource name at the time of failure.
-    /// </summary>
-    public string ResourceName { get; set; }
-
-    /// <summary>
-    /// Driver ID used.
-    /// </summary>
-    public string DriverId { get; set; }
-
-    /// <summary>
-    /// Container/service inspect payload (JSON), if available.
-    /// </summary>
-    public string InspectPayload { get; set; }
-
-    /// <summary>
-    /// Logs collected from the resource, if available.
-    /// </summary>
-    public string Logs { get; set; }
-
-    /// <summary>
-    /// Additional context about the operation.
-    /// </summary>
-    public string OperationContext { get; set; }
-  }
-
-  /// <summary>
-  /// Diagnostics captured when teardown fails during disposal.
-  /// </summary>
-  public class TeardownDiagnostics
-  {
-    /// <summary>
-    /// The exception from the graceful teardown attempt.
-    /// </summary>
-    public Exception? TeardownException { get; init; }
-
-    /// <summary>
-    /// The exception from the force-remove attempt, or null if it succeeded.
-    /// </summary>
-    public Exception? ForceRemoveException { get; init; }
-  }
 }

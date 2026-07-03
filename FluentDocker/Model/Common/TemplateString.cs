@@ -22,7 +22,7 @@ namespace FluentDocker.Model.Common
               var path = DirectoryHelper.GetTempPath();
               if (path.StartsWith("/var/") && FdOs.IsOsx()) path = "/private/" + path;
 
-              return path[..^1];
+              return path.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
             }
           },
           {
@@ -31,7 +31,7 @@ namespace FluentDocker.Model.Common
               var path = DirectoryHelper.GetTempPath();
               if (path.StartsWith("/var/") && FdOs.IsOsx()) path = "/private/" + path;
 
-              return path[..^1];
+              return path.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
             }
           },
           {"${RND}", Path.GetRandomFileName},

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text.Json;
 using FluentDocker.Common;
 using Microsoft.Extensions.Logging;
@@ -41,7 +42,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
       if (config.Quiet)
         args += " -q";
       if (!string.IsNullOrEmpty(config.Status))
-        args += $" --filter status={config.Status}";
+        args += $" --filter {QuoteIfNeeded($"status={config.Status}")}";
       return args;
     }
 
@@ -72,10 +73,10 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
       if (config.WaitTimeout.HasValue)
         args += $" --wait-timeout {config.WaitTimeout.Value}";
       if (!string.IsNullOrEmpty(config.Pull))
-        args += $" --pull {config.Pull}";
+        args += $" --pull {QuoteIfNeeded(config.Pull)}";
       if (config.Scale != null && config.Scale.Count > 0)
         foreach (var scale in config.Scale)
-          args += $" --scale {scale.Key}={scale.Value}";
+          args += $" --scale {QuoteIfNeeded($"{scale.Key}={scale.Value}")}";
       if (config.Timeout.HasValue)
         args += $" --timeout {config.Timeout.Value}";
       return args;
@@ -90,7 +91,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
       if (config.RemoveVolumes)
         args += " --volumes";
       if (!string.IsNullOrEmpty(config.RemoveImages))
-        args += $" --rmi {config.RemoveImages}";
+        args += $" --rmi {QuoteIfNeeded(config.RemoveImages)}";
       if (config.RemoveOrphans)
         args += " --remove-orphans";
       if (config.Timeout.HasValue)
@@ -143,7 +144,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
       if (config.ResolveImageDigests)
         args += " --resolve-image-digests";
       if (!string.IsNullOrEmpty(config.Format))
-        args += $" --format {config.Format}";
+        args += $" --format {QuoteIfNeeded(config.Format)}";
       return args;
     }
 
@@ -206,15 +207,15 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
         args += " --service-ports";
       if (config.Publish != null)
         foreach (var p in config.Publish)
-          args += $" -p {p}";
+          args += $" -p {QuoteIfNeeded(p)}";
       if (config.Volumes != null)
         foreach (var v in config.Volumes)
-          args += $" -v {v}";
+          args += $" -v {QuoteIfNeeded(v)}";
       if (!config.Tty)
         args += " -T";
-      args += $" {config.Service}";
+      args += $" {QuotePositionalArgument(config.Service, nameof(config.Service))}";
       if (config.Command != null && config.Command.Length > 0)
-        args += " " + string.Join(" ", config.Command);
+        args += " " + string.Join(" ", config.Command.Select(QuoteIfNeeded));
       return args;
     }
 
@@ -227,7 +228,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
       if (config.NoDeps)
         args += " --no-deps";
       foreach (var scale in config.Scale)
-        args += $" --scale {scale.Key}={scale.Value}";
+        args += $" --scale {QuoteIfNeeded($"{scale.Key}={scale.Value}")}";
       return args;
     }
 
@@ -246,7 +247,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
       if (config.NoBuild)
         args += " --no-build";
       if (!string.IsNullOrEmpty(config.Pull))
-        args += $" --pull {config.Pull}";
+        args += $" --pull {QuoteIfNeeded(config.Pull)}";
       if (config.RemoveOrphans)
         args += " --remove-orphans";
       return args;

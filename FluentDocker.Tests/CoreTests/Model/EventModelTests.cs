@@ -1,3 +1,4 @@
+#pragma warning disable CS0618
 using System;
 using System.Collections.Generic;
 using FluentDocker.Model.Events;
@@ -39,6 +40,7 @@ namespace FluentDocker.Tests.CoreTests.Model
     [Theory]
     [InlineData(nameof(EventScope.Unknown), 0)]
     [InlineData(nameof(EventScope.Local), 1)]
+    [InlineData(nameof(EventScope.Swarm), 2)]
     public void EventScope_HasExpectedValues(string name, int value)
     {
       var parsed = Enum.Parse<EventScope>(name);
@@ -46,10 +48,10 @@ namespace FluentDocker.Tests.CoreTests.Model
     }
 
     [Fact]
-    public void EventScope_HasExactlyTwoMembers()
+    public void EventScope_HasExactlyThreeMembers()
     {
       var values = Enum.GetValues<EventScope>();
-      Assert.Equal(2, values.Length);
+      Assert.Equal(3, values.Length);
     }
 
     [Theory]
@@ -408,3 +410,4 @@ namespace FluentDocker.Tests.CoreTests.Model
     #endregion
   }
 }
+#pragma warning restore CS0618

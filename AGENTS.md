@@ -1,17 +1,17 @@
 # AGENTS.md — FluentDocker (.NET)
 
-Strong-named, async-first C# library (`net8.0;net10.0`, v3.2.0) that drives Docker / Podman / Docker-Model-Runner through a fluent API. Clean + Hexagonal: a Ports-and-Adapters driver subsystem resolved at runtime through a kernel. Value objects exist (`ModelReference`, `ModelRunnerEndpoint` — immutable, `IEquatable`, validated); aggregates are minimal — Services orchestrate commands over driver ports. The Makefile is the command surface — analyse, build, and verify through it. **Follow YAGNI; prefer one-liners.**
+Strong-named, async-first C# library (`net8.0;net10.0`, v3.2.0-preview.1) that drives Docker / Podman / Docker-Model-Runner through a fluent API. Clean + Hexagonal: a Ports-and-Adapters driver subsystem resolved at runtime through a kernel. Value objects exist (`ModelReference`, `ModelRunnerEndpoint` — immutable, `IEquatable`, validated); aggregates are minimal — Services orchestrate commands over driver ports. The Makefile is the command surface — analyse, build, and verify through it. **Follow YAGNI; prefer one-liners.**
 
-## Priciples
+## Principles
 Follow YAGNI principles, and one-liner solutions.
 
-## Layer map (`Model` is the dependency-free core; adapters implement port abstractions)
+## Layer map (`Model` is the innermost core; adapters implement port abstractions)
 `Builders → Services → Drivers (ports = interfaces) ← adapters (impls);  all → Model`
 - **Builders** `FluentDocker/Builders/` — fluent config; deferred `BuildAsync()` runs queued ops.
 - **Kernel** `FluentDocker/Kernel/` — `FluentDockerKernel` (composition root, `ISysCtl`) + `DriverRegistry` (lifecycle). Non-singleton; create via `FluentDockerKernel.Create()...BuildAsync()`.
 - **Drivers** `FluentDocker/Drivers/` — ports `IXxxDriver`; adapters under `Drivers/{Docker/Api,Docker/Cli,Podman/Cli}/Components/`.
 - **Services** `FluentDocker/Services/` + `Services/Impl/` — `IServiceAsync` impls; resolve ports via `kernel.SysCtl<IXxxDriver>(driverId)`.
-- **Model** `FluentDocker/Model/` — DTOs, `CommandResponse<T>`, enums, value objects. Never depends outward.
+- **Model** `FluentDocker/Model/` — DTOs, `CommandResponse<T>`, enums, value objects. Legacy exceptions exist: builder configs hold service callbacks, compose configs hold service delegates, build/driver scopes carry logging abstractions, and some model builders import Common/Extensions. Do not move them in v3 (public API); keep new model code dependency-light.
 
 ## Analyse → Design → Architect → Implement → Test
 - **Analyse**: read this file + `README.md`; trace one op end-to-end (`Builder.UseContainer` → `BuildAsync` → `SysCtl<IContainerDriver>` → adapter). Run `make build` first.

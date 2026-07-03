@@ -47,7 +47,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
         args += $" --until {QuoteArgumentIfNeeded(config.Until)}";
       if (config.Details)
         args += " --details";
-      args += $" {QuoteArgumentIfNeeded(containerId)}";
+      args += $" {QuotePositionalArgument(containerId, nameof(containerId))}";
       return args;
     }
 
@@ -64,7 +64,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
       // stdout+stderr streaming path so stderr log lines are not silently dropped (the
       // stdout-only path would lose them). A non-zero exit is still surfaced as a
       // DriverException by this variant, exactly as the stdout-only one.
-      await foreach (var line in ExecuteStreamingCommandWithProgressAsync(args, cancellationToken))
+      await foreach (var line in ExecuteStreamingCommandWithProgressAsync(context, args, cancellationToken))
       {
         yield return line;
       }
@@ -87,21 +87,59 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
           args += $" --filter {QuoteArgumentIfNeeded($"{filter.Key}={filter.Value}")}";
       }
 
-      await foreach (var line in ExecuteStreamingCommandAsync(args, cancellationToken))
+      await foreach (var line in ExecuteStreamingCommandAsync(context, args, cancellationToken))
       {
-        ContainerEvent evt = null;
-        try
-        {
-          evt = JsonSerializer.Deserialize<ContainerEvent>(line, JsonHelper.CaseInsensitiveOptions);
-          evt?.RawJson = line;
-        }
-        catch (Exception ex)
-        {
-          Logger.LogDebug(ex, "Event stream JSON parsing failed");
-        }
+        var evt = ParseEventLine(line, Logger);
 
         if (evt != null)
           yield return evt;
+      }
+    }
+
+    /// <summary>
+    /// Parses one JSON line from <c>docker events --format "{{json .}}"</c>.
+    /// </summary>
+    /// <param name="line">The JSON line to parse.</param>
+    /// <returns>The parsed event, or null if parsing fails.</returns>
+    public static ContainerEvent ParseEventLine(string line)
+    {
+      return ParseEventLine(line, NullLogger.Instance);
+    }
+
+    private static ContainerEvent ParseEventLine(string line, ILogger logger)
+    {
+      try
+      {
+        var evt = JsonSerializer.Deserialize<ContainerEvent>(line, JsonHelper.CaseInsensitiveOptions);
+        if (evt == null)
+          return null;
+
+        evt.RawJson = line;
+        var json = JsonHelper.ParseElement(line);
+        evt.Action ??= json.GetStringOrDefault("status");
+        evt.ActorId ??= json.GetStringOrDefault("id");
+
+        var actor = json.Prop("Actor");
+        if (actor?.ValueKind == JsonValueKind.Object)
+        {
+          evt.ActorId = actor.Value.GetStringOrDefault("ID") ?? evt.ActorId;
+          evt.ActorAttributes = actor.Value.GetStringDictionary("Attributes");
+        }
+
+        var time = json.Prop("time");
+        if (time?.ValueKind == JsonValueKind.Number && time.Value.TryGetInt64(out var seconds))
+          evt.Timestamp = DateTimeOffset.FromUnixTimeSeconds(seconds).UtcDateTime;
+
+        var timeNano = json.Prop("timeNano");
+        if (timeNano?.ValueKind == JsonValueKind.Number && timeNano.Value.TryGetInt64(out var nanos))
+          evt.TimeNano = nanos;
+
+        return evt;
+      }
+      catch (Exception ex)
+      {
+        logger.LogDebug(ex, "Event stream JSON parsing failed");
+        return null;
       }
     }
 
@@ -119,7 +157,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
       if (config?.All == true)
         args += " -a";
       if (!string.IsNullOrEmpty(containerId))
-        args += $" {QuoteArgumentIfNeeded(containerId)}";
+        args += $" {QuotePositionalArgument(containerId, nameof(containerId))}";
       return args;
     }
 
@@ -132,12 +170,12 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     {
       var args = BuildStreamStatsArgs(containerId, config);
 
-      await foreach (var line in ExecuteStreamingCommandAsync(args, cancellationToken))
+      await foreach (var line in ExecuteStreamingCommandAsync(context, args, cancellationToken))
       {
         ContainerStats stats = null;
         try
         {
-          stats = ParseStreamStatsLine(line);
+          stats = ParseStreamStatsLine(line, Logger);
         }
         catch (Exception ex)
         {
@@ -158,6 +196,11 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     /// <param name="json">A single JSON line from docker stats CLI output.</param>
     /// <returns>A populated <see cref="ContainerStats"/>, or null if parsing fails.</returns>
     public static ContainerStats ParseStreamStatsLine(string json)
+    {
+      return ParseStreamStatsLine(json, NullLogger.Instance);
+    }
+
+    private static ContainerStats ParseStreamStatsLine(string json, ILogger logger)
     {
       if (string.IsNullOrWhiteSpace(json))
         return null;
@@ -210,7 +253,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
       }
       catch (Exception ex)
       {
-        NullLogger.Instance.LogDebug(ex, "Stats line parsing failed");
+        logger.LogDebug(ex, "Stats line parsing failed");
         return null;
       }
     }
@@ -232,9 +275,9 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
         if (!string.IsNullOrEmpty(config.DetachKeys))
           args += $" --detach-keys {QuoteArgumentIfNeeded(config.DetachKeys)}";
 
-        args += $" {QuoteArgumentIfNeeded(containerId)}";
+        args += $" {QuotePositionalArgument(containerId, nameof(containerId))}";
 
-        var result = ExecuteAttachProcess(args, cancellationToken);
+        var result = ExecuteAttachProcess(context, args, cancellationToken);
         return Task.FromResult(CommandResponse<AttachResult>.Ok(result));
       }
       catch (OperationCanceledException)
@@ -244,9 +287,8 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
       catch (Exception ex)
       {
         return Task.FromResult(CommandResponse<AttachResult>.Fail(
-            ex.Message, ErrorCodes.Container.AttachFailed));
+            ex.Message, FailureCode(ex, ErrorCodes.Container.AttachFailed)));
       }
     }
   }
 }
-

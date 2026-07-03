@@ -364,12 +364,10 @@ namespace FluentDocker.Tests.CoreTests.Driver.Docker
     }
 
     [Fact]
-    public void ParseStatsOutput_InvalidJson_ReturnsDefaultStats()
+    public void ParseStatsOutput_InvalidJson_ReturnsNull()
     {
-      // ParseStatsOutput catches exceptions and returns default
       var stats = InvokeParseStatsOutput("not json", "ctr1");
-      Assert.Equal("ctr1", stats.ContainerId);
-      Assert.Null(stats.Name);
+      Assert.Null(stats);
     }
 
     [Fact]

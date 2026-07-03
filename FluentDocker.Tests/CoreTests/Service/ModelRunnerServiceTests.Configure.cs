@@ -1,8 +1,12 @@
+using System;
 using System.Threading.Tasks;
 using FluentDocker.Common;
+using FluentDocker.Drivers;
+using FluentDocker.Model.Drivers;
 using FluentDocker.Model.Models;
 using FluentDocker.Model.Models.Options;
 using FluentDocker.Tests.Mocks;
+using Moq;
 using Xunit;
 
 namespace FluentDocker.Tests.CoreTests.Service
@@ -70,6 +74,47 @@ namespace FluentDocker.Tests.CoreTests.Service
         {
           await held.DisposeAsync();
         }
+      }
+    }
+
+    [Fact]
+    public async Task PullAsync_SameModel_SerializesOnPerModelGate()
+    {
+      var model = ModelReference.Parse("ai/dmr3-" + Guid.NewGuid().ToString("N"));
+      var firstEntered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+      var releaseFirst = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+      var calls = 0;
+      var (kernel, runner) = await BuildAsync(p =>
+      {
+        p.ModelManagementDriver
+            .Setup(d => d.PullAsync(It.IsAny<DriverContext>(), It.IsAny<ModelReference>(),
+                It.IsAny<IProgress<ModelPullProgress>>(), It.IsAny<System.Threading.CancellationToken>()))
+            .Returns<DriverContext, ModelReference, IProgress<ModelPullProgress>, System.Threading.CancellationToken>(
+                async (_, m, _, _) =>
+                {
+                  var call = System.Threading.Interlocked.Increment(ref calls);
+                  if (call == 1)
+                  {
+                    firstEntered.SetResult(true);
+                    await releaseFirst.Task.ConfigureAwait(false);
+                  }
+                  return CommandResponse<ModelInfo>.Ok(new ModelInfo { Reference = m });
+                });
+      });
+
+      await using (kernel)
+      {
+        var first = runner.PullAsync(model, null!, TestContext.Current.CancellationToken);
+        await firstEntered.Task.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
+
+        var second = runner.PullAsync(model, null!, TestContext.Current.CancellationToken);
+        Assert.Equal(1, System.Threading.Volatile.Read(ref calls));
+        Assert.False(second.IsCompleted);
+
+        releaseFirst.SetResult(true);
+        await first;
+        await second;
+        Assert.Equal(2, System.Threading.Volatile.Read(ref calls));
       }
     }
   }

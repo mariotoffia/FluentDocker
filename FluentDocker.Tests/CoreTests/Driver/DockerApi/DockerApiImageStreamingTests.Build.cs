@@ -1,6 +1,8 @@
 using System;
 using System.IO;
+using System.Linq;
 using System.Net.Http;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using FluentDocker.Drivers;
@@ -89,6 +91,64 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
 
         Assert.True(result.Success);
         Assert.Equal("sha256:deadbeef", result.Data.ImageId);
+      }
+      finally
+      {
+        dir.Delete(true);
+      }
+    }
+
+    [Fact]
+    public async Task BuildAsync_LongFileName_WritesGnuLongLinkEntry()
+    {
+      var dir = CreateBuildContextDirectory();
+      try
+      {
+        File.WriteAllText(Path.Combine(dir.FullName, "Dockerfile"), "FROM scratch\n");
+        var longName = new string('a', 150);
+        File.WriteAllText(Path.Combine(dir.FullName, longName), "content");
+        var conn = new MockDockerApiConnection();
+        conn.SetupStream("/build", "{\"aux\":{\"ID\":\"sha256:deadbeef\"}}\n");
+
+        var driver = CreateDriver(conn);
+        var result = await driver.BuildAsync(
+            Ctx, new ImageBuildConfig { BuildContext = dir.FullName }, null!,
+            TestContext.Current.CancellationToken);
+
+        Assert.True(result.Success, result.Error);
+        var tar = conn.GetRequests().Last(r => r.Method == "POST_STREAM").BodyBytes!;
+        var longLinkOffset = FindTarHeader(tar, "././@LongLink");
+        Assert.True(longLinkOffset >= 0);
+        Assert.Equal('L', (char)tar[longLinkOffset + 156]);
+        Assert.Equal(longName, ReadTarPayloadString(tar, longLinkOffset + 512, longName.Length));
+      }
+      finally
+      {
+        dir.Delete(true);
+      }
+    }
+
+    [Fact]
+    public async Task BuildAsync_TarCreationFailure_ReturnsBuildFailed()
+    {
+      var dir = CreateBuildContextDirectory();
+      try
+      {
+        File.WriteAllText(Path.Combine(dir.FullName, "Dockerfile"), "FROM scratch\n");
+        var sparse = Path.Combine(dir.FullName, "huge.bin");
+        using (var stream = new FileStream(sparse, FileMode.CreateNew, FileAccess.Write))
+          stream.SetLength(9L * 1024 * 1024 * 1024);
+        var conn = new MockDockerApiConnection();
+        conn.SetupStream("/build", "{\"aux\":{\"ID\":\"sha256:deadbeef\"}}\n");
+
+        var driver = CreateDriver(conn);
+        var result = await driver.BuildAsync(
+            Ctx, new ImageBuildConfig { BuildContext = dir.FullName }, null!,
+            TestContext.Current.CancellationToken);
+
+        Assert.False(result.Success);
+        Assert.Equal(ErrorCodes.Image.BuildFailed, result.ErrorCode);
+        Assert.Contains("tar", result.Error, StringComparison.OrdinalIgnoreCase);
       }
       finally
       {
@@ -214,5 +274,30 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
     }
 
     #endregion
+
+    private static DirectoryInfo CreateBuildContextDirectory()
+    {
+      var path = Path.Combine(
+          Directory.GetCurrentDirectory(), ".out", "docker-api-build",
+          Guid.NewGuid().ToString("N"));
+      return Directory.CreateDirectory(path);
+    }
+
+    private static string ReadTarName(byte[] tar, int headerOffset)
+    {
+      var length = Array.IndexOf(tar, (byte)0, headerOffset, 100);
+      return Encoding.UTF8.GetString(tar, headerOffset, length - headerOffset);
+    }
+
+    private static string ReadTarPayloadString(byte[] tar, int payloadOffset, int length) =>
+        Encoding.UTF8.GetString(tar, payloadOffset, length);
+
+    private static int FindTarHeader(byte[] tar, string name)
+    {
+      for (var offset = 0; offset + 512 <= tar.Length; offset += 512)
+        if (ReadTarName(tar, offset) == name)
+          return offset;
+      return -1;
+    }
   }
 }

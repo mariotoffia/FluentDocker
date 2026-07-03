@@ -16,7 +16,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
       if (!string.IsNullOrEmpty(cidFile))
         args.Add($"--cidfile {QuoteArgumentIfNeeded(cidFile)}");
       if (!string.IsNullOrEmpty(config.Name))
-        args.Add($"--name {QuoteArgumentIfNeeded(config.Name)}");
+        args.Add($"--name {QuotePositionalArgument(config.Name, nameof(config.Name))}");
       if (!string.IsNullOrEmpty(config.Hostname))
         args.Add($"--hostname {QuoteArgumentIfNeeded(config.Hostname)}");
       if (!string.IsNullOrEmpty(config.User))
@@ -61,7 +61,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
       AddRepeated(args, "--security-opt", config.SecurityOpt);
       AddRepeated(args, "-e", config.Environment?.Select(e => $"{e.Key}={e.Value}"));
       AddRepeated(args, "-p", config.PortBindings?.Select(p => $"{p.Value}:{p.Key}"));
-      AddRepeated(args, "-v", config.Volumes?.Select(v => $"{v.Key}:{v.Value}"));
+      AddRepeated(args, "-v", config.Volumes?.Select(v => v.Value == null ? v.Key : $"{v.Key}:{v.Value}"));
       AddRepeated(args, "--label", config.Labels?.Select(l => $"{l.Key}={l.Value}"));
       AddRepeated(args, "--network", config.Networks);
       AddRepeated(args, "--dns", config.Dns);
@@ -93,7 +93,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
           entrypointArgs = config.Entrypoint[1..];
       }
 
-      args.Add(QuoteArgumentIfNeeded(config.Image));
+      args.Add(QuotePositionalArgument(config.Image, nameof(config.Image)));
       if (entrypointArgs != null)
         args.AddRange(entrypointArgs.Select(QuoteArgumentIfNeeded));
       if (config.Command is { Length: > 0 })
@@ -121,13 +121,13 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
         args.Add($"--health-cmd {QuoteArgumentIfNeeded(string.Join(" ", test))}");
       }
       if (!string.IsNullOrEmpty(healthCheck.Interval))
-        args.Add($"--health-interval {healthCheck.Interval}");
+        args.Add($"--health-interval {QuoteArgumentIfNeeded(healthCheck.Interval)}");
       if (!string.IsNullOrEmpty(healthCheck.Timeout))
-        args.Add($"--health-timeout {healthCheck.Timeout}");
+        args.Add($"--health-timeout {QuoteArgumentIfNeeded(healthCheck.Timeout)}");
       if (healthCheck.Retries > 0)
         args.Add($"--health-retries {healthCheck.Retries}");
       if (!string.IsNullOrEmpty(healthCheck.StartPeriod))
-        args.Add($"--health-start-period {healthCheck.StartPeriod}");
+        args.Add($"--health-start-period {QuoteArgumentIfNeeded(healthCheck.StartPeriod)}");
     }
   }
 }

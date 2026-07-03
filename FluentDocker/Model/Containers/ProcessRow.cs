@@ -4,6 +4,7 @@ using System.Globalization;
 
 namespace FluentDocker.Model.Containers
 {
+  [System.Obsolete("Unused by FluentDocker and scheduled for removal in v4. Use driver ContainerProcesses rows instead.")]
   public sealed class ProcessRow
   {
     private const string UserConst = "USER";

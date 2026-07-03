@@ -19,9 +19,8 @@ namespace FluentDocker.Drivers.Models
   /// accumulate into ONE event dispatched at the blank-line delimiter (per the SSE spec), and
   /// <c>data: [DONE]</c> terminates. A single idle timeout bounds each read (never per character);
   /// caller cancellation surfaces as <see cref="OperationCanceledException"/> while an idle/read
-  /// timeout and mid-stream transport faults both map to
-  /// <see cref="ErrorCodes.ModelInference.EndpointUnreachable"/> (a stalled stream is an unreachable
-  /// endpoint, deliberately distinct from the request-level timeout of the non-streaming paths).
+  /// timeout maps to <see cref="ErrorCodes.ModelInference.Timeout"/> and mid-stream transport
+  /// faults map to <see cref="ErrorCodes.ModelInference.EndpointUnreachable"/>.
   /// </summary>
   public partial class OpenAiModelInferenceDriver
   {
@@ -196,7 +195,7 @@ namespace FluentDocker.Drivers.Models
         [EnumeratorCancellation] CancellationToken cancellationToken)
     {
       var byteBuffer = new byte[StreamBufferBytes];
-      var charBuffer = new char[StreamBufferBytes];
+      var charBuffer = new char[Encoding.UTF8.GetMaxCharCount(StreamBufferBytes)];
       var decoder = Encoding.UTF8.GetDecoder();
       var line = new StringBuilder();
       var sawCr = false;
@@ -246,9 +245,8 @@ namespace FluentDocker.Drivers.Models
     // Reads the next non-empty chunk of characters, applying a SINGLE idle-timeout window per
     // underlying read (MR5). At true EOF the stateful decoder is flushed once (a stream ending
     // mid-codepoint emits U+FFFD rather than dropping bytes); returns 0 only once that flush is
-    // drained. A fired idle timeout that is NOT a caller cancellation surfaces as EndpointUnreachable
-    // (a stalled stream is an unreachable endpoint — the deliberate C12 classification, distinct from
-    // the non-streaming request Timeout); caller cancellation propagates as OperationCanceledException.
+    // drained. A fired idle timeout that is NOT a caller cancellation surfaces as Timeout; caller
+    // cancellation propagates as OperationCanceledException.
     // Loops past reads that decode to zero chars (a multi-byte sequence split across a chunk boundary)
     // so a partial UTF-8 char is never mistaken for EOF.
     private static async Task<int> ReadCharsAsync(
@@ -274,13 +272,9 @@ namespace FluentDocker.Drivers.Models
           }
           catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
           {
-            // Deliberate (FINDING C12): a stalled stream is an unreachable/again-silent endpoint,
-            // NOT the request-level Timeout of the non-streaming SendWithTimeoutAsync paths.
-            // PostStreamAsync is intentionally exempt from the request timeout and relies on this
-            // per-read idle window, so keep the historical EndpointUnreachable classification.
             throw new ModelRunnerException(
                 "Streaming read timed out: no data received within the configured idle timeout.",
-                ErrorCodes.ModelInference.EndpointUnreachable);
+                ErrorCodes.ModelInference.Timeout);
           }
         }
 

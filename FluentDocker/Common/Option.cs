@@ -7,6 +7,7 @@ namespace FluentDocker.Common
   /// <typeparam name="T">The value type.</typeparam>
 #pragma warning disable CA1716 // Type name 'Option' conflicts with reserved keyword — intentional API design
 #pragma warning disable CA1000 // Static members on generic type — factory pattern is intentional API design
+  [System.Obsolete("Unused by FluentDocker and scheduled for removal in v4. Use nullable values or explicit result types instead.")]
   public sealed class Option<T>
   {
     /// <summary>Creates an option wrapping the given value. Null produces a None option for reference types.</summary>

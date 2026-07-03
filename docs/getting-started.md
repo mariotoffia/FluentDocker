@@ -14,7 +14,7 @@ For the complete beginner-to-advanced map, see [Learning Path](learning-path.md)
 - Step 1: Installation and prerequisites
 - Step 2: Basic container example
 - Step 3: Add one wait strategy
-- Step 4: Optional next steps (named container, compose, async, multiple containers)
+- Step 4: Optional next steps (named container, compose, multiple containers)
 
 If you are new to FluentDocker, complete Step 1-3 before jumping to later sections.
 
@@ -62,23 +62,24 @@ The v3 API uses a two-step approach: first create a **kernel** (multiple kernels
 per application are supported), then use the **Builder** to define and run containers.
 
 ```csharp
+using System;
 using System.Linq;
 using FluentDocker.Builders;
 using FluentDocker.Kernel;
 using FluentDocker.Services.Extensions;
 
 // Step 1: Create a kernel (multiple kernels per app are supported)
-using var kernel = FluentDockerKernel.Create()
-    .WithDockerCli("docker", d => d.AsDefault())
-    .Build();
+await using var kernel = await FluentDockerKernel.Create()
+  .WithDockerCli("docker", d => d.AsDefault())
+  .BuildAsync();
 
 // Step 2: Build and start an nginx container
-using var results = new Builder()
-    .WithinDriver("docker", kernel)
-    .UseContainer(c => c
-        .UseImage("nginx:alpine")
-        .ExposePort("80"))
-    .Build();
+await using var results = await new Builder()
+  .WithinDriver("docker", kernel)
+  .UseContainer(c => c
+    .UseImage("nginx:alpine")
+    .ExposePort("80"))
+  .BuildAsync();
 
 // Get the assigned host port
 var container = results.Containers.First();
@@ -87,6 +88,9 @@ Console.WriteLine($"Nginx running at: http://localhost:{endpoint.Port}");
 
 // All containers stop and are removed when results is disposed
 ```
+
+> A synchronous `Build()` wrapper exists for legacy sync callers, but it blocks on the
+> async pipeline. Prefer `await using` + `BuildAsync()` in new code.
 
 ### With Wait Strategy
 
@@ -97,14 +101,14 @@ using FluentDocker.Services.Extensions;
 
 // kernel created as shown above
 
-using var results = new Builder()
+await using var results = await new Builder()
     .WithinDriver("docker", kernel)
     .UseContainer(c => c
         .UseImage("postgres:15-alpine")
         .WithEnvironment("POSTGRES_PASSWORD=mysecret")
         .ExposePort("5432")
         .WaitForPort("5432/tcp", 30000))
-    .Build();
+    .BuildAsync();
 
 var container = results.Containers.First();
 var endpoint = container.ToHostExposedEndpoint("5432/tcp");
@@ -117,7 +121,7 @@ var connectionString =
 ```csharp
 // kernel created as shown above
 
-using var results = new Builder()
+await using var results = await new Builder()
     .WithinDriver("docker", kernel)
     .UseContainer(c => c
         .WithName("my-postgres")
@@ -125,7 +129,7 @@ using var results = new Builder()
         .WithEnvironment("POSTGRES_PASSWORD=secret")
         .ExposePort("5432")
         .WaitForPort("5432/tcp", 30000))
-    .Build();
+    .BuildAsync();
 
 var container = results.Containers.First();
 Console.WriteLine($"Container: {container.Name}");
@@ -135,22 +139,33 @@ Console.WriteLine($"Container: {container.Name}");
 
 Docker requires sudo by default. Configure FluentDocker:
 
+Option 1: no sudo (recommended — add your user to the docker group). No code needed;
+this is the default.
+
+Option 2: sudo without password:
+
 ```csharp
 using FluentDocker.Kernel;
 using FluentDocker.Model.Common;
 
-// Option 1: No sudo (recommended - add user to docker group)
-// No configuration needed — this is the default
+await using var kernel = await FluentDockerKernel.Create()
+  .WithDockerCli("docker", d => d
+    .WithSudo(SudoMechanism.NoPassword) // SudoMechanism is experimental
+    .AsDefault())
+  .BuildAsync();
+```
 
-// Option 2: Sudo without password
-using var kernel = FluentDockerKernel.Create()
-    .WithDockerCli("docker", d => d.WithSudo(SudoMechanism.NoPassword).AsDefault())
-    .Build();
+Option 3: sudo with password:
 
-// Option 3: Sudo with password
-using var kernel = FluentDockerKernel.Create()
-    .WithDockerCli("docker", d => d.WithSudo(SudoMechanism.Password, "your-password").AsDefault())
-    .Build();
+```csharp
+using FluentDocker.Kernel;
+using FluentDocker.Model.Common;
+
+await using var kernel = await FluentDockerKernel.Create()
+  .WithDockerCli("docker", d => d
+    .WithSudo(SudoMechanism.Password, "your-password") // SudoMechanism is experimental
+    .AsDefault())
+  .BuildAsync();
 ```
 
 **Best practice**: Add your user to the docker group:
@@ -161,7 +176,7 @@ sudo usermod -aG docker $USER
 
 ## Async Operations
 
-FluentDocker v3 supports full async/await via `BuildAsync()`:
+FluentDocker v3 is async-first. `BuildAsync()` and `await using` are the default:
 
 ```csharp
 using FluentDocker.Builders;
@@ -171,7 +186,7 @@ using FluentDocker.Services.Extensions;
 // kernel created as shown above
 
 // Build containers asynchronously
-using var results = await new Builder()
+await using var results = await new Builder()
     .WithinDriver("docker", kernel)
     .UseContainer(c => c
         .UseImage("redis:alpine")
@@ -186,7 +201,7 @@ Console.WriteLine($"Redis running at: localhost:{endpoint.Port}");
 
 ## Multiple Containers
 
-The Builder lets you define a network and multiple containers in a single `Build()` call.
+The Builder lets you define a network and multiple containers in a single `BuildAsync()` call.
 Containers reference the network by its string name.
 
 ```csharp
@@ -196,7 +211,7 @@ using FluentDocker.Services.Extensions;
 
 // kernel created as shown above
 
-using var results = new Builder()
+await using var results = await new Builder()
     .WithinDriver("docker", kernel)
     // Create a network first
     .UseNetwork(n => n
@@ -217,7 +232,7 @@ using var results = new Builder()
         .WithEnvironment("REDIS_HOST=my-redis")
         .ExposePort("8080")
         .WaitForPort("8080/tcp", 30000))
-    .Build();
+    .BuildAsync();
 
 // Both containers can communicate via the network
 var redis = results.GetContainer("my-redis");
@@ -234,12 +249,12 @@ using FluentDocker.Kernel;
 
 // kernel created as shown above
 
-using var results = new Builder()
+await using var results = await new Builder()
     .WithinDriver("docker", kernel)
     .UseCompose(c => c
         .WithComposeFile("docker-compose.yml")
         .WithRemoveOrphans())
-    .Build();
+    .BuildAsync();
 
 // Access compose services
 foreach (var compose in results.ComposeServices)
@@ -270,18 +285,18 @@ using Microsoft.Extensions.Logging.Abstractions;
 using FluentDocker.Kernel;
 
 // No logging — the zero-arg overload defaults to NullLoggerFactory.Instance
-var quiet = await FluentDockerKernel.Create()
+await using var quiet = await FluentDockerKernel.Create()
     .WithDockerCli("docker", d => d.AsDefault())
     .BuildAsync();
 
 // Receive structured logs via any provider
 using var factory = LoggerFactory.Create(b => b.AddConsole());
-var kernel = await FluentDockerKernel.Create(factory)
+await using var kernel = await FluentDockerKernel.Create(factory)
     .WithDockerCli("docker", d => d.AsDefault())
     .BuildAsync();
 
 // Suppress all logs explicitly (equivalent to the zero-arg Create())
-var silent = await FluentDockerKernel.Create(NullLoggerFactory.Instance)
+await using var silent = await FluentDockerKernel.Create(NullLoggerFactory.Instance)
     .WithDockerCli("docker", d => d.AsDefault())
     .BuildAsync();
 ```
@@ -298,13 +313,13 @@ Always use try-catch or `using` to ensure cleanup:
 
 try
 {
-    using var results = new Builder()
+    await using var results = await new Builder()
         .WithinDriver("docker", kernel)
         .UseContainer(c => c
             .UseImage("postgres:15-alpine")
             .ExposePort("5432")
             .WaitForPort("5432/tcp", 10000))
-        .Build();
+        .BuildAsync();
 
     var container = results.Containers.First();
     // Use container...
@@ -318,45 +333,10 @@ catch (Exception ex)
 
 ## Local LLMs (Model Runner)
 
-FluentDocker can also manage and consume **local LLMs** through Docker Model Runner,
-using the same `Builder → WithinDriver → UseXxx` pattern. First enable it in Docker
-Desktop (*Settings → AI → Enable Docker Model Runner*, with host-side TCP on).
-
-> **Preview / unreleased.** The Model Runner subsystem is slated for FluentDocker
-> **v3.2.0**, which has **not been released yet** — it is available only by building
-> from source on the feature branch. The inference DTOs are marked preview; their
-> shapes may change before the subsystem reaches 1.0.
-
-`UseModelRunner()` is reached through the **generic** scoped builder
-(`WithinDriver(...)`), not a typed `WithinDockerCli(...)` method — it is an extension
-on the driver-scoped builder. Use `WithinDriver("docker", kernel)` first, then call
-`UseModelRunner()`:
-
-```csharp
-using FluentDocker.Builders;
-using FluentDocker.Kernel;
-
-// kernel created as shown above
-
-await using var runner = await new Builder()
-    .WithinDriver("docker", kernel)
-    .UseModelRunner()
-    .ForModel("ai/smollm2")   // tiny chat model (~256 MiB)
-    .WithContextSize(4096)    // required on DMR v1.2.1: chat models crash on load without it
-    .PullIfMissing()          // pull at build if not already present
-    .BuildAsync();
-
-if ((await runner.StatusAsync()).Running)
-{
-    // One-shot chat
-    var reply = await runner.ChatAsync("Reply with a single word.");
-    Console.WriteLine(reply);
-
-    // Streaming, token by token
-    await foreach (var token in runner.ChatStreamAsync("Count from one to five"))
-        Console.Write(token);
-}
-```
+FluentDocker can also manage and consume **local LLMs** through Docker Model Runner.
+Enable it in Docker Desktop (*Settings → AI → Enable Docker Model Runner*, with
+host-side TCP on), then follow the canonical [Model Runner guide](model-runner.md).
+The inference DTOs are preview and subject to change.
 
 For portable / driver-agnostic code that must degrade gracefully on drivers without
 model support, use `TryUseModelRunner(out var runnerBuilder)` instead — it returns
@@ -371,11 +351,11 @@ using FluentDocker.Kernel;
 var scoped = new Builder().WithinDriver("docker", kernel);
 if (scoped.TryUseModelRunner(out var runnerBuilder))
 {
-    await using var runner = await runnerBuilder
-        .ForModel("ai/smollm2")
-        .PullIfMissing()
-        .BuildAsync();
-    // ... use runner ...
+  await using var runner = await runnerBuilder
+    .ForModel("ai/smollm2")
+    .PullIfMissing()
+    .BuildAsync();
+  // Use runner.
 }
 ```
 
@@ -403,3 +383,4 @@ container with `WithModel(...)`. See the full guide for details.
 - [Images](images.md) - Building custom images
 - [Model Runner (local LLMs)](model-runner.md) - Managing & consuming local models
 - [Testing](testing.md) - Test fixtures and base classes
+- [Troubleshooting](troubleshooting.md) - Common failures and fixes

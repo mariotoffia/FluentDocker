@@ -46,6 +46,14 @@ test-net8:
 test-mstest:
 	dotnet test FluentDocker.Testing.MsTest.RunnerTests/FluentDocker.Testing.MsTest.RunnerTests.csproj --framework net10.0 --configuration Debug --verbosity normal
 
+.PHONY: test-nunit
+test-nunit:
+	dotnet test FluentDocker.Testing.NUnit.RunnerTests/FluentDocker.Testing.NUnit.RunnerTests.csproj --framework net10.0 --configuration Debug --filter "Category=Unit" --verbosity normal
+
+.PHONY: test-nunit-integration
+test-nunit-integration:
+	dotnet test FluentDocker.Testing.NUnit.RunnerTests/FluentDocker.Testing.NUnit.RunnerTests.csproj --framework net10.0 --configuration Debug --filter "Category=Integration" --verbosity normal
+
 .PHONY: test-integration
 test-integration:
 	@mkdir -p .out/test
@@ -101,7 +109,7 @@ format:
 	dotnet format $(SOLUTION)
 
 .PHONY: check
-check: lint test test-mstest
+check: lint test test-mstest test-nunit coverage-check
 
 .PHONY: coverage
 coverage:
@@ -169,6 +177,9 @@ help:
 	@echo "  dep              - Install dependencies and restore packages"
 	@echo "  clean            - Clean build artifacts"
 	@echo "  test             - Run unit tests only (safe for CI)"
+	@echo "  test-mstest      - Run MSTest adapter runner tests"
+	@echo "  test-nunit       - Run NUnit adapter runner unit tests"
+	@echo "  test-nunit-integration - Run NUnit adapter runner integration tests"
 	@echo "  test-integration - Run integration tests (Docker + Podman; requires Docker/Podman)"
 	@echo "  test-dmr         - Run real Docker Model Runner tests (requires docker model runtime)"
 	@echo "  devlocal-setup   - Start Swarm + Podman machine for DevLocal tests"
@@ -186,5 +197,5 @@ help:
 	@echo "  docs             - Serve Jekyll docs locally with live reload"
 	@echo "  docs-install     - Install Jekyll dependencies for docs"
 	@echo "  pack             - Create NuGet packages (use VERSION=x.y.z for versioned packs)"
-	@echo "  check            - Run lint + unit tests"
+	@echo "  check            - Run lint, unit tests, adapter runner tests, and coverage-check"
 	@echo "  help             - Show this help"

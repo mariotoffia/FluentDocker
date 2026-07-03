@@ -54,6 +54,10 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
         if (version.HasValue)
           info.EngineVersion = version.Value.GetStringOrDefault("Version") ?? info.EngineVersion;
 
+        var security = obj.Prop("security");
+        if (security.HasValue)
+          info.Rootless = security.Value.GetBoolOrDefault("rootless");
+
         info.OSType = "linux"; // Podman always runs Linux containers
       }
       catch (Exception ex)

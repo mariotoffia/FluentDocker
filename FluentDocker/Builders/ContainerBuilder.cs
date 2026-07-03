@@ -77,9 +77,14 @@ namespace FluentDocker.Builders
     private bool _interactive;
     private bool _tty;
     private string[] _entrypoint;
+    private string _stopSignal;
+    private Drivers.HealthCheckConfig _healthCheck;
+    private readonly List<string> _dns = [];
     private int _waitPollIntervalMs = 500;
     private Services.Impl.ContainerService _pendingService;
     private bool _waitConditionsExecuted;
+
+    internal bool AllowCleanExitOnStart => _waitConditions.Count == 0;
 
     #region Basic Configuration
 
@@ -175,6 +180,28 @@ namespace FluentDocker.Builders
     public IContainerBuilder WithReadonlyRootfs() { _readonlyRootfs = true; return this; }
     public IContainerBuilder WithPlatform(string platform) { _platform = platform; return this; }
     public IContainerBuilder WithRuntime(string runtime) { _runtime = runtime; return this; }
+    public IContainerBuilder WithStopSignal(string signal) { _stopSignal = signal; return this; }
+
+    public IContainerBuilder WithDns(params string[] servers)
+    {
+      _dns.AddRange(servers);
+      return this;
+    }
+
+    public IContainerBuilder WithHealthCheck(
+        string cmd, string interval = null, string timeout = null,
+        int retries = 0, string startPeriod = null)
+    {
+      _healthCheck = new Drivers.HealthCheckConfig
+      {
+        Test = ["CMD-SHELL", cmd],
+        Interval = interval,
+        Timeout = timeout,
+        Retries = retries,
+        StartPeriod = startPeriod
+      };
+      return this;
+    }
 
     #endregion
 
@@ -194,124 +221,10 @@ namespace FluentDocker.Builders
 
     #endregion
 
-    #region Wait Conditions
-
-    public IContainerBuilder WithWaitPollInterval(int intervalMs)
-    {
-      _waitPollIntervalMs = intervalMs;
-      return this;
-    }
-
-    public IContainerBuilder WaitForPort(string portAndProto, long timeoutMs = 30000)
-    {
-      _waitConditions.Add(new WaitCondition
-      {
-        Type = WaitConditionType.Port,
-        Target = portAndProto.Contains('/') ? portAndProto : $"{portAndProto}/tcp",
-        TimeoutMs = timeoutMs,
-        PollIntervalMs = _waitPollIntervalMs
-      });
-      return this;
-    }
-
-    public IContainerBuilder WaitForPort(string portAndProto, string address, long timeoutMs = 30000)
-    {
-      _waitConditions.Add(new WaitCondition
-      {
-        Type = WaitConditionType.Port,
-        Target = portAndProto.Contains('/') ? portAndProto : $"{portAndProto}/tcp",
-        Path = address,
-        TimeoutMs = timeoutMs,
-        PollIntervalMs = _waitPollIntervalMs
-      });
-      return this;
-    }
-
-    public IContainerBuilder WaitForProcess(string processName, long timeoutMs = 30000)
-    {
-      _waitConditions.Add(new WaitCondition
-      {
-        Type = WaitConditionType.Process,
-        Target = processName,
-        TimeoutMs = timeoutMs,
-        PollIntervalMs = _waitPollIntervalMs
-      });
-      return this;
-    }
-
-    public IContainerBuilder WaitForHttp(string portAndProto, string path = "/", long timeoutMs = 30000)
-    {
-      _waitConditions.Add(new WaitCondition
-      {
-        Type = WaitConditionType.Http,
-        Target = portAndProto.Contains('/') ? portAndProto : $"{portAndProto}/tcp",
-        Path = path,
-        TimeoutMs = timeoutMs,
-        HttpMethod = HttpMethod.Get,
-        PollIntervalMs = _waitPollIntervalMs
-      });
-      return this;
-    }
-
-    public IContainerBuilder WaitForHttp(string url, long timeoutMs = 30000,
-        HttpMethod method = null, string contentType = null, string body = null,
-        Func<RequestResponse, int, long> continuation = null)
-    {
-      _waitConditions.Add(new WaitCondition
-      {
-        Type = WaitConditionType.Http,
-        Target = url,
-        TimeoutMs = timeoutMs,
-        HttpMethod = method ?? HttpMethod.Get,
-        ContentType = contentType,
-        Body = body,
-        HttpContinuation = continuation,
-        PollIntervalMs = _waitPollIntervalMs
-      });
-      return this;
-    }
-
-    public IContainerBuilder WaitForLogMessage(string message, long timeoutMs = 30000)
-    {
-      _waitConditions.Add(new WaitCondition
-      {
-        Type = WaitConditionType.LogMessage,
-        Target = message,
-        TimeoutMs = timeoutMs,
-        PollIntervalMs = _waitPollIntervalMs
-      });
-      return this;
-    }
-
-    public IContainerBuilder WaitForHealthy(long timeoutMs = 30000)
-    {
-      _waitConditions.Add(new WaitCondition
-      {
-        Type = WaitConditionType.Healthy,
-        TimeoutMs = timeoutMs,
-        PollIntervalMs = _waitPollIntervalMs
-      });
-      return this;
-    }
-
-    public IContainerBuilder Wait(Func<IContainerService, int, int> condition)
-    {
-      _waitConditions.Add(new WaitCondition
-      {
-        Type = WaitConditionType.Lambda,
-        LambdaCondition = condition,
-        TimeoutMs = 60000,
-        PollIntervalMs = _waitPollIntervalMs
-      });
-      return this;
-    }
-
-    #endregion
-
     #region Dispose Behavior
 
     public IContainerBuilder KeepContainer() { _keepContainer = true; return this; }
-    public IContainerBuilder KeepRunning() { _keepRunning = true; return this; }
+    public IContainerBuilder KeepRunning() { _keepRunning = true; _keepContainer = true; return this; }
     public IContainerBuilder DeleteVolumeOnDispose() { _deleteVolumeOnDispose = true; return this; }
     public IContainerBuilder DeleteNamedVolumeOnDispose() { _deleteNamedVolumeOnDispose = true; return this; }
 
@@ -351,21 +264,62 @@ namespace FluentDocker.Builders
         var containerPort = port.Key;
         var hostPort = port.Value;
 
-        // Validate container port is numeric (with optional protocol suffix)
-        var portPart = containerPort.Contains('/')
-            ? containerPort[..containerPort.IndexOf('/')]
-            : containerPort;
-        if (!int.TryParse(portPart, out var cp) || cp < 1 || cp > 65535)
-          throw new FluentDockerException(
-              $"Invalid container port '{containerPort}'. Port must be 1-65535.");
+        ValidateContainerPort(containerPort);
 
-        // Validate host port if specified
-        if (!string.IsNullOrEmpty(hostPort) &&
-            int.TryParse(hostPort, out var hp) && (hp < 0 || hp > 65535))
-          throw new FluentDockerException(
-              $"Invalid host port '{hostPort}'. Port must be 0-65535 (0 for random).");
+        ValidateHostPort(hostPort);
       }
     }
+
+    private static void ValidateContainerPort(string containerPort)
+    {
+      var slash = containerPort.IndexOf('/');
+      var portPart = slash >= 0 ? containerPort[..slash] : containerPort;
+      if (slash >= 0 && !IsKnownProtocol(containerPort[(slash + 1)..]))
+        throw new FluentDockerException(
+            $"Invalid container port '{containerPort}'. Protocol must be tcp, udp, or sctp.");
+      if (!IsValidPortRange(portPart, allowZero: false))
+        throw new FluentDockerException(
+            $"Invalid container port '{containerPort}'. Port must be 1-65535.");
+    }
+
+    private static void ValidateHostPort(string hostPort)
+    {
+      if (string.IsNullOrEmpty(hostPort))
+        return;
+
+      var portPart = hostPort;
+      var colon = hostPort.LastIndexOf(':');
+      if (colon >= 0)
+      {
+        var hostIp = hostPort[..colon];
+        portPart = hostPort[(colon + 1)..];
+        if (string.IsNullOrEmpty(hostIp) || !IPAddress.TryParse(hostIp, out _))
+          throw new FluentDockerException(
+              $"Invalid host port '{hostPort}'. Host binding must be [ip:]port[-range].");
+      }
+
+      if (!IsValidPortRange(portPart, allowZero: true))
+        throw new FluentDockerException(
+            $"Invalid host port '{hostPort}'. Port must be 0-65535 (0 for random).");
+    }
+
+    private static bool IsKnownProtocol(string protocol) =>
+        string.Equals(protocol, "tcp", StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(protocol, "udp", StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(protocol, "sctp", StringComparison.OrdinalIgnoreCase);
+
+    private static bool IsValidPortRange(string value, bool allowZero)
+    {
+      var parts = value.Split('-', 2);
+      if (!IsValidPort(parts[0], allowZero, out var start))
+        return false;
+      if (parts.Length == 1)
+        return true;
+      return IsValidPort(parts[1], allowZero, out var end) && start <= end;
+    }
+
+    private static bool IsValidPort(string value, bool allowZero, out int port) =>
+        int.TryParse(value, out port) && port <= 65535 && (allowZero ? port >= 0 : port >= 1);
 
     #endregion
 
@@ -393,7 +347,20 @@ namespace FluentDocker.Builders
 
             var inspectResult = await driver.InspectAsync(context, existing, cancellationToken).ConfigureAwait(false);
             if (inspectResult.Success && inspectResult.Data?.State?.Running != true)
+            {
               await reuseService.StartAsync(cancellationToken).ConfigureAwait(false);
+              _pendingService = reuseService;
+              _waitConditionsExecuted = true;
+              await RunPostStartAsync(reuseService, cancellationToken).ConfigureAwait(false);
+            }
+            else
+            {
+              await reuseService.InspectAsync(cancellationToken).ConfigureAwait(false);
+              if (_logger.IsEnabled(LogLevel.Debug))
+                _logger.LogDebug(
+                    "Reusing running container '{Name}'; requested configuration differences and waits are ignored.",
+                    _name);
+            }
 
             return reuseService;
           }
@@ -453,7 +420,10 @@ namespace FluentDocker.Builders
         Runtime = _runtime,
         Interactive = _interactive,
         Tty = _tty,
-        Entrypoint = _entrypoint?.Length > 0 ? _entrypoint : null
+        Entrypoint = _entrypoint?.Length > 0 ? _entrypoint : null,
+        StopSignal = _stopSignal,
+        HealthCheck = _healthCheck,
+        Dns = _dns.Count > 0 ? _dns : null
       };
 
       var response = await driver.CreateAsync(context, config, cancellationToken).ConfigureAwait(false);
@@ -475,19 +445,34 @@ namespace FluentDocker.Builders
         try
         {
           await service.StartAsync(cancellationToken).ConfigureAwait(false);
-          await WaitForContainerStartedAsync(driver, context, response.Data.Id, cancellationToken).ConfigureAwait(false);
+          await WaitForContainerStartedAsync(
+              driver, context, response.Data.Id, AllowCleanExitOnStart, cancellationToken).ConfigureAwait(false);
           _waitConditionsExecuted = true;
           await RunPostStartAsync(service, cancellationToken).ConfigureAwait(false);
         }
         catch (Exception ex)
         {
           _logger.LogError(ex, "Container build failed");
+          _waitConditionsExecuted = false;
+
+          var logTail = ex is OperationCanceledException
+              ? null
+              : await ReadLogTailAsync(driver, context, response.Data.Id, cancellationToken).ConfigureAwait(false);
           try
           {
-            using var cleanupCts = new CancellationTokenSource(TimeSpan.FromSeconds(120));
-            await driver.RemoveAsync(context, response.Data.Id, true, false, cleanupCts.Token).ConfigureAwait(false);
+            if (!_keepContainer)
+            {
+              using var cleanupCts = new CancellationTokenSource(TimeSpan.FromSeconds(120));
+              await service.RemoveAsync(force: true, removeVolumes: true, cleanupCts.Token).ConfigureAwait(false);
+            }
           }
           catch { /* best effort cleanup */ }
+          if (ex is OperationCanceledException && cancellationToken.IsCancellationRequested)
+            throw;
+          if (!string.IsNullOrWhiteSpace(logTail))
+            ex.Data["ContainerLogTail"] = logTail;
+          if (ex.GetType() == typeof(FluentDockerException))
+            throw new FluentDockerException(AppendLogTail(ex.Message, logTail), ex);
           throw;
         }
       }

@@ -14,7 +14,7 @@ This document describes the v3.0 architecture with the pluggable driver layer, k
 This is an advanced guide. If you are new to FluentDocker, complete [Getting Started](getting-started.md) first.
 
 - Foundation: [Overview](#overview), [Async Pattern](#async-pattern), [Kernel Configuration](#kernel-configuration)
-- Advanced internals: [SysCtl() Driver Access](#sysctl-driver-access), [Scoped Builder Pattern](#scoped-builder-pattern), [Driver-Aware Builder Extensions](#driver-aware-builder-extensions), [Capabilities System](#capabilities-system)
+- Advanced internals: [SysCtl() Driver Access](#sysctl-driver-access), [Scoped Builder Pattern](#scoped-builder-pattern), [Driver-Aware Builder Extensions](#driver-aware-builder-extensions), [Capabilities System](#capabilities-system), [CLI driver execution semantics](#cli-driver-execution-semantics)
 - Design rationale: [Key Architecture Decisions](#key-architecture-decisions)
 
 ## Overview
@@ -57,11 +57,26 @@ FluentDocker v3.0 introduces a **pluggable driver architecture** that supports m
 4. Fluent API binds to specific kernel instances
 5. Driver access via `SysCtl()` interface pattern
 
+**Model layer note:** `FluentDocker/Model` is the innermost layer and owns DTOs, enums, value objects, and `CommandResponse<T>`. In v3 it is not strictly dependency-free: legacy builder configs hold service callbacks, compose configs hold service delegates, build/driver scopes carry logging abstractions, and some model builders import Common/Extensions. These remain in place for public API compatibility; new model code should avoid adding more outward dependencies.
+
+---
+
+## CLI driver execution semantics
+
+Docker CLI adapters build one command line and execute the configured binary directly; no shell is inserted. Every user-supplied argument is quoted with the shared CLI quoting helper before it reaches `ProcessStartInfo.Arguments`.
+
+Buffered commands have a default five-minute timeout and cap captured stdout/stderr to protect callers from hung or noisy CLI processes. Inherently long operations (`pull`, `build`, foreground `run`/`exec`, `create` with auto-pull, compose `up`/`run`/`exec`) skip that timeout and keep a rolling output tail instead of failing at the 4 MiB cap; truncated output starts with `[FluentDocker: output truncated, showing last N bytes]`.
+
+Per-call `DriverContext` values override the component context for that call. Use this for one-off hosts, TLS settings, sudo settings, or request timeouts; omitted per-call values fall back to the component context.
+
+`GetLogsAsync(follow: true)` is rejected by buffered Docker CLI adapters because it never completes. Use `IStreamDriver.StreamLogsAsync` for follow/streaming logs. CLI attach does not support password sudo because attach stdin belongs to the caller.
+
 ---
 
 ## Async Pattern
 
 **All operations in FluentDocker v3.0 are asynchronous.** The `BuildAsync()` method is terminal and returns `Task<TResult>`.
+`Builder` is single-use after a successful build; if a build fails, fix the cause and retry the same builder or create a fresh one.
 
 ### Terminal BuildAsync() Pattern
 
@@ -353,23 +368,33 @@ public interface IContainerDriver
 
 ### Capability Discovery
 
-FluentDocker provides granular capability detection with 100+ feature flags:
+`DriverCapabilities` is a flat runtime summary. It exposes the supported resource
+families and optional version strings; feature-level checks still use `TrySysCtl<T>()`
+or `IDriverScopedBuilder.TryDriver<T>()`.
 
 ```csharp
-var driverPack = kernel.GetDriverPack("docker");
-var caps = await driverPack.GetCapabilitiesAsync();
+using FluentDocker.Kernel;
 
-// Container capabilities
-if (caps.Container.SupportsHealthChecks) { /* ... */ }
-if (caps.Container.SupportsResourceLimits) { /* ... */ }
+await using var kernel = await FluentDockerKernel.Create()
+  .WithDockerCli("docker", d => d.AsDefault())
+  .BuildAsync();
 
-// Image capabilities
-if (caps.Image.SupportsBuildx) { /* ... */ }
-if (caps.Image.SupportsMultiPlatform) { /* ... */ }
+var caps = await kernel.GetDriverPack("docker").GetCapabilitiesAsync();
 
-// Docker-specific
-if (caps.DockerSpecific.SupportsSwarm) { /* ... */ }
-if (caps.DockerSpecific.SupportsContentTrust) { /* ... */ }
+var canRunContainers = caps.SupportsContainers;
+var canBuildImages = caps.SupportsImages;
+var canCreateNetworks = caps.SupportsNetworks;
+var canCreateVolumes = caps.SupportsVolumes;
+var canUseCompose = caps.SupportsCompose;
+var canReadSystemInfo = caps.SupportsSystem;
+var canUsePods = caps.SupportsPods;
+var canUseKubeYaml = caps.SupportsKubernetes;
+var canManageMachines = caps.SupportsMachines;
+var canUseManifests = caps.SupportsManifests;
+var canUseStacks = caps.SupportsStacks;
+var canUseServices = caps.SupportsServices;
+var runtimeVersion = caps.Version;
+var apiVersion = caps.ApiVersion;
 ```
 
 ### Interface Discovery
@@ -475,10 +500,10 @@ FluentDocker uses a simple exception hierarchy:
 - `DriverException` -- driver-level failure with `ErrorCode`, `Context` (ErrorContext), and `IsTransient` properties
   - `DriverNotFoundException` -- driver ID not registered
   - `DriverNotAvailableException` -- driver not healthy/reachable
+  - `PodmanMachineNotRunningException` -- machine unavailable (`ErrorCodes.Machine.NotRunning`, `IsTransient = true`)
 - `ContainerNotFoundException`, `ContainerStartException`
 - `ImageNotFoundException`, `ImagePullException`
 - `CapabilityNotSupportedException`, `InterfaceNotSupportedException`
-- `PodmanMachineNotRunningException`
 
 Error codes use a category-prefixed format defined in `ErrorCodes`:
 
@@ -511,4 +536,4 @@ FluentDocker v3.0 provides:
 - **Better testing**: Mock drivers, isolated kernels
 - **Multi-host support**: Multiple Docker hosts simultaneously
 - **Full async**: All operations with CancellationToken support
-- **Capability discovery**: 100+ feature flags for runtime adaptation
+- **Capability discovery**: flat `DriverCapabilities` flags plus `TrySysCtl<T>()` / `TryDriver<T>()`

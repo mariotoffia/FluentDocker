@@ -12,10 +12,8 @@ LM Studio, or a hosted endpoint). It mirrors the existing
 `Builder → WithinDriver → UseXxx` pattern, so a model handle lives in the *same*
 kernel and lifecycle as your containers, networks and volumes.
 
-> **Preview / unreleased.** This subsystem is slated for FluentDocker **v3.2.0**,
-> which has **not been released yet** — it is available only by building from source on
-> the feature branch. The inference DTOs are marked preview; their shapes may change
-> before the subsystem reaches 1.0.
+> **Preview (available in the 3.2 release line).** Model Runner APIs and inference DTO shapes are
+> subject to change before the subsystem reaches 1.0.
 
 ## Two surfaces, one façade
 
@@ -34,28 +32,29 @@ Implementations may support only a subset; feature-detect static adapter support
 ## Quick start
 
 ```csharp
+using System;
 using FluentDocker.Builders;
 using FluentDocker.Kernel;
 using Microsoft.Extensions.Logging.Abstractions;
 
-var kernel = await FluentDockerKernel.Create(NullLoggerFactory.Instance)
-    .WithDockerCli("docker", d => d.AsDefault())
-    .BuildAsync();
+await using var kernel = await FluentDockerKernel.Create(NullLoggerFactory.Instance)
+  .WithDockerCli("docker", d => d.AsDefault())
+  .BuildAsync();
 
 await using var runner = await new Builder()
-    .WithinDriver("docker", kernel)
-    .UseModelRunner()
-    .ForModel("ai/smollm2")
-    .WithContextSize(8192)        // required; value is model-dependent (use a size your model supports)
-    .PullIfMissing()             // optional — pulls at build if absent
-    .BuildAsync();               // async — avoids sync-over-async on the model pull
+  .WithinDriver("docker", kernel)
+  .UseModelRunner()
+  .ForModel("ai/smollm2")
+  .WithContextSize(4096) // works around DMR v1.2.1 chat-model auto-fit crash
+  .PullIfMissing()
+  .BuildAsync();
 
 // One-shot chat against the default model
 var reply = await runner.ChatAsync("Reply with a single word.");
 
 // Streaming, token by token
 await foreach (var token in runner.ChatStreamAsync("Count: one two three"))
-    Console.Write(token);
+  Console.Write(token);
 
 // Embeddings — note the embedding model is a *different* artifact than the chat
 // default and must be present first. Pull it (once) before embedding:
@@ -154,9 +153,10 @@ await foreach (var chunk in runner.CompletionStreamAsync(new CompletionRequest
 ```
 
 `CompletionAsync` returns a `CompletionResponse` (`Id`, `Object`, `Created`, `Model`,
-`Choices`, `Usage`); `CompletionStreamAsync` yields `CompletionChunk`s (`Id`, `Model`,
-`Choices`) mid-enumeration. There is no string-based completion overload — completion
-is DTO-only so the full request (stop sequences, seed, sampling) is expressible.
+`Choices`, `Usage`); `CompletionStreamAsync` yields `CompletionChunk`s (`Id`, `Created`,
+`Model`, `Choices`, `Usage` on final usage chunks) mid-enumeration. There is no
+string-based completion overload — completion is DTO-only so the full request (stop
+sequences, seed, sampling) is expressible.
 
 ## A model as a managed service
 
@@ -167,7 +167,7 @@ and hook pipeline as containers, so you can `using` it for automatic unload:
 await using var model = await new Builder()
     .WithinDriver("docker", kernel)
     .UseModel("ai/smollm2")
-    .WithContextSize(8192)
+    .WithContextSize(4096)
     .KeepRunning(false)          // unload on dispose
     .BuildAsync();
 
@@ -397,8 +397,9 @@ guessed):
 | Empty / `null` response body where a payload was required | `ErrorCodes.ModelInference.StreamParseError` |
 | Malformed SSE chunk, or an oversized SSE frame | `ErrorCodes.ModelInference.StreamParseError` (thrown mid-stream) |
 | Mid-stream OpenAI `data: {"error":…}` frame | `ErrorCodes.ModelInference.RequestFailed` (the server's error message is preserved; thrown mid-stream) |
+| Request timeout, streaming header wait timeout, or streaming idle timeout | `ErrorCodes.ModelInference.Timeout` (`ModelRunnerException`, not `TimeoutException`) |
 
-> Transport failure (no HTTP response) → `EndpointUnreachable`; HTTP errors map by status (401 → `Unauthorized`, 404 → `ModelNotLoaded`, otherwise `RequestFailed`). Cancellation → `OperationCanceledException`; timeout → `TimeoutException`.
+> Transport failure (no HTTP response) → `EndpointUnreachable`; HTTP errors map by status (401 → `Unauthorized`, 404 → `ModelNotLoaded`, otherwise `RequestFailed`). Cancellation → `OperationCanceledException`; configured timeouts → `ModelRunnerException` with `ErrorCodes.ModelInference.Timeout`.
 
 Known limitations (acceptable for v3.2.0; revisit as needed):
 
@@ -420,6 +421,8 @@ Known limitations (acceptable for v3.2.0; revisit as needed):
 - **Inference always targets `ModelRunnerEndpoint.Default()` (local), not the active
   `docker` context.** With a remote/TLS context, set `DOCKER_MODEL_RUNNER_URL` or
   `WithEndpoint(...)` for the data plane (see *Endpoints* above).
+- **Streaming tool calls are pass-through.** `created` and final `usage` are modeled on
+  chunks; tool-call deltas still live in `AdditionalProperties` in this preview.
 - **Model management is served by the `docker model` CLI** this release. There is no native HTTP `/models*` management API in v3.2.0.
 
 ## Security
@@ -440,17 +443,15 @@ or shared OpenAI-compatible endpoint usually does. The inference connection
   certificate verification entirely; use it only against a trusted endpoint during
   development, never in production.
 - **`ConnectionTimeout`** / **`RequestTimeout`** — connect and per-request timeouts
-  (the request timeout applies to non-streaming calls only; streaming relies on the
-  caller's `CancellationToken`).
+  (the request timeout applies to non-streaming calls only; streaming uses
+  `StreamReadIdleTimeout` plus the caller's `CancellationToken`).
 - **`AllowTlsHostnameMismatch`** — defaults to `false` (strict). When `true`, a
   certificate whose hostname/SAN does not match the connection host is still accepted
   provided the chain validates against the configured CA. Set it only for IP-based
   connections to a known host.
-- **`StreamReadIdleTimeout`** — the max time to wait for the next streamed chunk
-  before aborting the read. Defaults to **120 seconds** — long enough for a slow first
-  token on a cold model, short enough that a dead stream cannot hang forever. Set it to
-  `null` to **opt out** (wait indefinitely, honoring only the caller's
-  `CancellationToken`).
+- **`StreamReadIdleTimeout`** — the max time to wait for streaming response headers or
+  the next streamed chunk before aborting. Defaults to **120 seconds**; set it to
+  `null` to opt out (wait indefinitely, honoring only the caller's `CancellationToken`).
 
 ### API keys
 

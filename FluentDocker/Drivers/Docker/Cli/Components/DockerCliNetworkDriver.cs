@@ -43,6 +43,9 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
         if (!string.IsNullOrEmpty(config.Gateway))
           args.Add($"--gateway {QuoteArgumentIfNeeded(config.Gateway)}");
 
+        if (!string.IsNullOrEmpty(config.IpRange))
+          args.Add($"--ip-range {QuoteArgumentIfNeeded(config.IpRange)}");
+
         if (config.EnableIPv6)
           args.Add("--ipv6");
 
@@ -61,15 +64,15 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
             args.Add($"--label {QuoteArgumentIfNeeded($"{label.Key}={label.Value}")}");
         }
 
-        args.Add(QuoteArgumentIfNeeded(config.Name));
+        args.Add(QuotePositionalArgument(config.Name, nameof(config.Name)));
 
-        var result = await ExecuteCommandAsync(string.Join(" ", args), cancellationToken).ConfigureAwait(false);
+        var result = await ExecuteCommandAsync(context, string.Join(" ", args), cancellationToken).ConfigureAwait(false);
 
         if (!result.Success)
         {
           return CommandResponse<NetworkCreateResult>.Fail(
-              result.Error ?? "Network creation failed",
-              ErrorCodes.Network.CreateFailed,
+              ErrorOrDefault(result, "Network creation failed"),
+              FailureCode(result.Error, ErrorCodes.Network.CreateFailed),
               CreateErrorContext(context, "CreateNetwork", result),
               result.ExitCode);
         }
@@ -83,7 +86,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
       }
       catch (Exception ex)
       {
-        return CommandResponse<NetworkCreateResult>.Fail(ex.Message, ErrorCodes.Network.CreateFailed);
+        return CommandResponse<NetworkCreateResult>.Fail(ex.Message, FailureCode(ex, ErrorCodes.Network.CreateFailed));
       }
     }
 
@@ -95,13 +98,13 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     {
       try
       {
-        var result = await ExecuteCommandAsync($"network rm {QuoteArgumentIfNeeded(networkId)}", cancellationToken).ConfigureAwait(false);
+        var result = await ExecuteCommandAsync(context, $"network rm {QuotePositionalArgument(networkId, nameof(networkId))}", cancellationToken).ConfigureAwait(false);
 
         if (!result.Success)
         {
           return CommandResponse<Unit>.Fail(
-              result.Error ?? "Network removal failed",
-              ErrorCodes.Network.RemoveFailed,
+              ErrorOrDefault(result, "Network removal failed"),
+              FailureCode(result.Error, ErrorCodes.Network.RemoveFailed),
               CreateErrorContext(context, "RemoveNetwork", result),
               result.ExitCode);
         }
@@ -114,7 +117,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
       }
       catch (Exception ex)
       {
-        return CommandResponse<Unit>.Fail(ex.Message, ErrorCodes.Network.RemoveFailed);
+        return CommandResponse<Unit>.Fail(ex.Message, FailureCode(ex, ErrorCodes.Network.RemoveFailed));
       }
     }
 
@@ -131,41 +134,34 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
         if (filter != null)
         {
           if (!string.IsNullOrEmpty(filter.Name))
-            args += $" --filter name={QuoteArgumentIfNeeded(filter.Name)}";
+            args += $" --filter {QuoteArgumentIfNeeded($"name={filter.Name}")}";
 
           if (filter.Labels != null)
           {
             foreach (var label in filter.Labels)
-              args += $" --filter label={QuoteArgumentIfNeeded($"{label.Key}={label.Value}")}";
+              args += $" --filter {QuoteArgumentIfNeeded($"label={label.Key}={label.Value}")}";
           }
         }
 
-        var result = await ExecuteCommandAsync(args, cancellationToken).ConfigureAwait(false);
+        var result = await ExecuteCommandAsync(context, args, cancellationToken).ConfigureAwait(false);
 
         if (!result.Success)
         {
           return CommandResponse<IList<Network>>.Fail(
-              result.Error ?? "Network list failed",
-              ErrorCodes.General.Unknown,
+              ErrorOrDefault(result, "Network list failed"),
+              FailureCode(result.Error, ErrorCodes.General.Unknown),
               CreateErrorContext(context, "ListNetworks", result),
               result.ExitCode);
         }
 
-        var networks = new List<Network>();
-        var lines = result.Output.Split(LineSeparators, StringSplitOptions.RemoveEmptyEntries);
-
-        foreach (var line in lines)
+        if (!DockerCliJsonLineParser.TryParse(
+                result.Output,
+                Logger,
+                "Network list JSON parsing failed",
+                out List<Network> networks,
+                out var parseError))
         {
-          try
-          {
-            var network = JsonSerializer.Deserialize<Network>(line, JsonHelper.CaseInsensitiveOptions);
-            if (network != null)
-              networks.Add(network);
-          }
-          catch (Exception ex)
-          {
-            Logger.LogError(ex, "Network list JSON parsing failed");
-          }
+          return CommandResponse<IList<Network>>.Fail(parseError, ErrorCodes.General.Unknown);
         }
 
         return CommandResponse<IList<Network>>.Ok(networks);
@@ -176,7 +172,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
       }
       catch (Exception ex)
       {
-        return CommandResponse<IList<Network>>.Fail(ex.Message, ErrorCodes.General.Unknown);
+        return CommandResponse<IList<Network>>.Fail(ex.Message, FailureCode(ex, ErrorCodes.General.Unknown));
       }
     }
 
@@ -188,13 +184,13 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     {
       try
       {
-        var result = await ExecuteCommandAsync($"network inspect {QuoteArgumentIfNeeded(networkId)}", cancellationToken).ConfigureAwait(false);
+        var result = await ExecuteCommandAsync(context, $"network inspect {QuotePositionalArgument(networkId, nameof(networkId))}", cancellationToken).ConfigureAwait(false);
 
         if (!result.Success)
         {
           return CommandResponse<Network>.Fail(
-              result.Error ?? "Network inspect failed",
-              ErrorCodes.Network.InspectFailed,
+              ErrorOrDefault(result, "Network inspect failed"),
+              FailureCode(result.Error, ErrorCodes.Network.InspectFailed),
               CreateErrorContext(context, "InspectNetwork", result),
               result.ExitCode);
         }
@@ -208,7 +204,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
       }
       catch (Exception ex)
       {
-        return CommandResponse<Network>.Fail(ex.Message, ErrorCodes.Network.InspectFailed);
+        return CommandResponse<Network>.Fail(ex.Message, FailureCode(ex, ErrorCodes.Network.InspectFailed));
       }
     }
 
@@ -221,13 +217,13 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     {
       try
       {
-        var result = await ExecuteCommandAsync($"network connect {QuoteArgumentIfNeeded(networkId)} {QuoteArgumentIfNeeded(containerId)}", cancellationToken).ConfigureAwait(false);
+        var result = await ExecuteCommandAsync(context, $"network connect {QuotePositionalArgument(networkId, nameof(networkId))} {QuotePositionalArgument(containerId, nameof(containerId))}", cancellationToken).ConfigureAwait(false);
 
         if (!result.Success)
         {
           return CommandResponse<Unit>.Fail(
-              result.Error ?? "Network connect failed",
-              ErrorCodes.Network.ConnectFailed,
+              ErrorOrDefault(result, "Network connect failed"),
+              FailureCode(result.Error, ErrorCodes.Network.ConnectFailed),
               CreateErrorContext(context, "ConnectNetwork", result),
               result.ExitCode);
         }
@@ -240,7 +236,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
       }
       catch (Exception ex)
       {
-        return CommandResponse<Unit>.Fail(ex.Message, ErrorCodes.Network.ConnectFailed);
+        return CommandResponse<Unit>.Fail(ex.Message, FailureCode(ex, ErrorCodes.Network.ConnectFailed));
       }
     }
 
@@ -257,15 +253,15 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
         var args = "network disconnect";
         if (force)
           args += " --force";
-        args += $" {QuoteArgumentIfNeeded(networkId)} {QuoteArgumentIfNeeded(containerId)}";
+        args += $" {QuotePositionalArgument(networkId, nameof(networkId))} {QuotePositionalArgument(containerId, nameof(containerId))}";
 
-        var result = await ExecuteCommandAsync(args, cancellationToken).ConfigureAwait(false);
+        var result = await ExecuteCommandAsync(context, args, cancellationToken).ConfigureAwait(false);
 
         if (!result.Success)
         {
           return CommandResponse<Unit>.Fail(
-              result.Error ?? "Network disconnect failed",
-              ErrorCodes.Network.DisconnectFailed,
+              ErrorOrDefault(result, "Network disconnect failed"),
+              FailureCode(result.Error, ErrorCodes.Network.DisconnectFailed),
               CreateErrorContext(context, "DisconnectNetwork", result),
               result.ExitCode);
         }
@@ -278,7 +274,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
       }
       catch (Exception ex)
       {
-        return CommandResponse<Unit>.Fail(ex.Message, ErrorCodes.Network.DisconnectFailed);
+        return CommandResponse<Unit>.Fail(ex.Message, FailureCode(ex, ErrorCodes.Network.DisconnectFailed));
       }
     }
 
@@ -289,13 +285,13 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     {
       try
       {
-        var result = await ExecuteCommandAsync("network prune --force", cancellationToken).ConfigureAwait(false);
+        var result = await ExecuteCommandAsync(context, "network prune --force", cancellationToken).ConfigureAwait(false);
 
         if (!result.Success)
         {
           return CommandResponse<NetworkPruneResult>.Fail(
-              result.Error ?? "Network prune failed",
-              ErrorCodes.Network.PruneFailed);
+              ErrorOrDefault(result, "Network prune failed"),
+              FailureCode(result.Error, ErrorCodes.Network.PruneFailed));
         }
 
         return CommandResponse<NetworkPruneResult>.Ok(
@@ -307,7 +303,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
       }
       catch (Exception ex)
       {
-        return CommandResponse<NetworkPruneResult>.Fail(ex.Message, ErrorCodes.Network.PruneFailed);
+        return CommandResponse<NetworkPruneResult>.Fail(ex.Message, FailureCode(ex, ErrorCodes.Network.PruneFailed));
       }
     }
   }

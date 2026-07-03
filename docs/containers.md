@@ -28,10 +28,13 @@ using FluentDocker.Builders;
 using FluentDocker.Services.Extensions; // ToHostExposedEndpoint
 
 // Create kernel (multiple kernels per app are supported)
-using var kernel = FluentDockerKernel.Create()
+await using var kernel = await FluentDockerKernel.Create()
     .WithDockerCli("docker", d => d.AsDefault())
-    .Build();
+    .BuildAsync();
 ```
+
+`ReuseIfExists()` matches names case-sensitively. If the existing container is already
+running, waits are skipped and requested config differences are ignored.
 
 All subsequent examples assume this `kernel` variable is available.
 
@@ -52,6 +55,10 @@ using var results = new Builder()
 var container = results.Containers.First();
 // Container is already running at this point
 ```
+
+Dispose hooks run for the service lifecycle even when a container is kept or reused.
+If build fails after create/start, FluentDocker captures a bounded log tail, runs
+service removal hooks, removes anonymous volumes, and honors `KeepContainer()`.
 
 ### Stop and Start Cycle
 
@@ -108,6 +115,9 @@ using var results = new Builder()
 
 // Access at http://localhost:8080
 ```
+
+Port APIs use their documented order: `ExposePort(hostPort, containerPort)` but
+`WithPort(containerPort, hostPort)`.
 
 ### Random Port Assignment
 
@@ -349,8 +359,8 @@ using var results = new Builder()
 
 ### On Disposing (Lifecycle Hook)
 
-Run a command on the **Removing** lifecycle — after the graph is disposed and before the
-container is deleted. The same argv rules apply: `"echo 'shutting down' >> /app/log.txt"`
+Run a command on the **Removing** lifecycle before FluentDocker stops the container, so
+`docker exec` still has a running target. The same argv rules apply: `"echo 'shutting down' >> /app/log.txt"`
 is one argv token passed to `sh -c`, not three separate arguments.
 
 ```csharp
@@ -460,6 +470,9 @@ using var results = new Builder()
         .WithCommand("sh", "-c", "sleep 3600") // Override CMD
         .WithHostname("app-host")
         .WithUser("appuser")
+        .WithDns("1.1.1.1")
+        .WithStopSignal("SIGTERM")
+        .WithHealthCheck("curl -f http://localhost/health || exit 1", "10s", "2s", retries: 3)
         .WithNetwork("my-network")            // Attach to named network
         .WithNetworkAlias("my-network", "app") // DNS alias on network
         .WithIPv4("10.18.0.22"))               // Static IP (requires custom subnet)
@@ -488,7 +501,7 @@ Use these methods inside the `UseContainer(c => ...)` lambda to customize:
 
 ```csharp
 .KeepContainer()            // Don't remove container on dispose (for debugging)
-.KeepRunning()              // Don't stop container on dispose
+.KeepRunning()              // Don't stop or delete container on dispose
 .WithAutoRemove()           // Docker-level auto-remove on stop
 .DeleteVolumeOnDispose()    // Remove anonymous volumes on dispose
 .DeleteNamedVolumeOnDispose() // Remove named volumes on dispose
@@ -505,6 +518,8 @@ foreach (var line in logs.Split('\n'))
     Console.WriteLine(line);
 }
 ```
+
+`GetLogsAsync(follow: true)` is rejected on buffered drivers; use streaming APIs for follow mode.
 
 ## Volumes (Bind Mounts and Named Volumes)
 

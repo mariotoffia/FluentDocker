@@ -91,11 +91,16 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
           token = JsonHelper.ParseElement(trimmed);
         }
 
-        var cpuStr = token.GetStringOrDefault("CPUPerc")
+        if (!HasStatsFields(token))
+          throw new FormatException("no recognized Podman stats fields were present");
+
+        var cpuStr = token.GetStringOrDefault("cpu_percent")
+                     ?? token.GetStringOrDefault("CPUPerc")
                      ?? token.GetStringOrDefault("cpu_perc");
         var memUsageStr = token.GetStringOrDefault("MemUsage")
                           ?? token.GetStringOrDefault("mem_usage");
-        var memPercStr = token.GetStringOrDefault("MemPerc")
+        var memPercStr = token.GetStringOrDefault("mem_percent")
+                        ?? token.GetStringOrDefault("MemPerc")
                          ?? token.GetStringOrDefault("mem_perc");
         var netIoStr = token.GetStringOrDefault("NetIO")
                        ?? token.GetStringOrDefault("net_io");
@@ -105,14 +110,21 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
                       ?? token.GetStringOrDefault("pids");
 
         var (memUsage, memLimit) = ParseMemoryUsage(memUsageStr);
-        var (netRx, netTx) = ParseIOPair(netIoStr);
-        var (blockRead, blockWrite) = ParseIOPair(blockIoStr);
+        var (netRx, netTx) = string.IsNullOrEmpty(netIoStr)
+            ? (ParseByteValue(token.GetStringOrDefault("net_input")),
+               ParseByteValue(token.GetStringOrDefault("net_output")))
+            : ParseIOPair(netIoStr);
+        var (blockRead, blockWrite) = string.IsNullOrEmpty(blockIoStr)
+            ? (ParseByteValue(token.GetStringOrDefault("block_input")),
+               ParseByteValue(token.GetStringOrDefault("block_output")))
+            : ParseIOPair(blockIoStr);
 
         int.TryParse(pidsStr, NumberStyles.Integer, CultureInfo.InvariantCulture, out var pids);
 
         return new ContainerStatsResult
         {
-          ContainerId = token.GetStringOrDefault("ContainerID")
+          ContainerId = token.GetStringOrDefault("id")
+                          ?? token.GetStringOrDefault("ContainerID")
                           ?? token.GetStringOrDefault("container_id"),
           Name = token.GetStringOrDefault("Name")
                    ?? token.GetStringOrDefault("name"),
@@ -134,6 +146,18 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
         throw new FluentDockerException(
             $"Failed to parse Podman container stats output: {ex.Message}");
       }
+    }
+
+    private static bool HasStatsFields(JsonElement token)
+    {
+      return token.Prop("id") != null
+          || token.Prop("ContainerID") != null
+          || token.Prop("container_id") != null
+          || token.Prop("cpu_percent") != null
+          || token.Prop("CPUPerc") != null
+          || token.Prop("cpu_perc") != null
+          || token.Prop("mem_usage") != null
+          || token.Prop("MemUsage") != null;
     }
 
     /// <summary>Parses a percentage string. Delegates to <see cref="CliOutputParser"/>.</summary>

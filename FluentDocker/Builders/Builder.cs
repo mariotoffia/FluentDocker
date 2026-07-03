@@ -18,17 +18,36 @@ namespace FluentDocker.Builders
   /// For type-safe driver-specific APIs, use <see cref="WithinDockerCli"/>,
   /// <see cref="WithinDockerApi"/>, or <see cref="WithinPodmanCli"/>.
   /// </summary>
-  public class Builder : IBuilder
+  public class Builder : IBuilder, IDriverScopedBuilder
   {
     private FluentDockerKernel _currentKernel;
     private string _currentDriverId;
     private readonly List<BuildOperation> _operations = [];
+    private bool _buildSucceeded;
 
     /// <summary>
     /// Creates a new builder.
     /// </summary>
     public Builder()
     {
+    }
+
+    FluentDockerKernel IDriverScopedBuilder.Kernel
+    {
+      get
+      {
+        ValidateScope();
+        return _currentKernel;
+      }
+    }
+
+    string IDriverScopedBuilder.DriverId
+    {
+      get
+      {
+        ValidateScope();
+        return _currentDriverId;
+      }
     }
 
     #region Driver Scoping
@@ -99,7 +118,8 @@ namespace FluentDocker.Builders
         Kernel = _currentKernel,
         DriverId = _currentDriverId,
         ExecuteAsync = ct => builder.ExecuteAsync(ct),
-        PostStartAsync = ct => builder.ExecuteDeferredWaitConditionsAsync(ct)
+        PostStartAsync = ct => builder.ExecuteDeferredWaitConditionsAsync(ct),
+        AllowCleanExit = builder.AllowCleanExitOnStart
       });
       return this;
     }
@@ -259,6 +279,9 @@ namespace FluentDocker.Builders
         TimeSpan? cleanupTimeout = null,
         CancellationToken cancellationToken = default)
     {
+      if (_buildSucceeded)
+        throw new InvalidOperationException("builder already consumed by BuildAsync; create a new Builder");
+
       var effectiveCleanupTimeout = cleanupTimeout ?? TimeSpan.FromSeconds(120);
       var scopes = new Dictionary<(FluentDockerKernel, string), BuildScope>();
       var groupedOps = _operations.GroupBy(op => (op.Kernel, op.DriverId));
@@ -272,13 +295,16 @@ namespace FluentDocker.Builders
           scopes[key] = scope;
 
           var groupOperations = group.ToList();
+          var executedOperations = new List<(BuildOperation Operation, IServiceAsync Service)>();
           foreach (var operation in groupOperations)
           {
             var service = await operation.ExecuteAsync(cancellationToken).ConfigureAwait(false);
             scope.AddResult(service);
+            if (service != null)
+              executedOperations.Add((operation, service));
           }
 
-          await StartContainersWithLinksAsync(scope, cancellationToken).ConfigureAwait(false);
+          await StartContainersWithLinksAsync(scope, executedOperations, cancellationToken).ConfigureAwait(false);
 
           // Execute deferred wait conditions for linked containers
           foreach (var operation in groupOperations)
@@ -301,6 +327,7 @@ namespace FluentDocker.Builders
         throw;
       }
 
+      _buildSucceeded = true;
       return new BuildResults([.. scopes.Values]);
     }
 
@@ -318,11 +345,13 @@ namespace FluentDocker.Builders
     }
 
     private static async Task StartContainersWithLinksAsync(
-        BuildScope scope, CancellationToken cancellationToken)
+        BuildScope scope,
+        IReadOnlyList<(BuildOperation Operation, IServiceAsync Service)> operations,
+        CancellationToken cancellationToken)
     {
-      var containersToStart = scope.Results
-          .OfType<IContainerService>()
-          .Where(c => c.State != ServiceRunningState.Running)
+      // Pair with the operation captured when it produced a non-null result; BuildScope.Results intentionally skips nulls.
+      var containersToStart = operations
+          .Where(x => x.Service is IContainerService { State: not ServiceRunningState.Running })
           .ToList();
 
       if (containersToStart.Count == 0)
@@ -331,11 +360,12 @@ namespace FluentDocker.Builders
       var driver = scope.Kernel.SysCtl<Drivers.IContainerDriver>(scope.DriverId);
       var context = new DriverContext(scope.DriverId);
 
-      foreach (var container in containersToStart)
+      foreach (var item in containersToStart)
       {
+        var container = (IContainerService)item.Service;
         await container.StartAsync(cancellationToken).ConfigureAwait(false);
         await ContainerBuilder.WaitForContainerStartedAsync(
-            driver, context, container.Id, cancellationToken).ConfigureAwait(false);
+            driver, context, container.Id, item.Operation.AllowCleanExit, cancellationToken).ConfigureAwait(false);
       }
     }
 
@@ -365,6 +395,8 @@ namespace FluentDocker.Builders
     /// (e.g., wait conditions on linked containers).
     /// </summary>
     public Func<CancellationToken, Task> PostStartAsync { get; set; }
+
+    public bool AllowCleanExit { get; set; } = true;
   }
 
   /// <summary>
@@ -395,6 +427,11 @@ namespace FluentDocker.Builders
     /// <summary>
     /// Builds all operations asynchronously (TERMINAL operation).
     /// </summary>
+    /// <remarks>
+    /// A builder is single-use after a successful build; retry is allowed after a failed build.
+    /// Operation order is preserved within each driver scope; cross-scope operations are grouped
+    /// by driver before execution.
+    /// </remarks>
     /// <param name="cleanupTimeout">
     /// Maximum time allowed for cleanup on build failure.
     /// Defaults to 120 seconds.

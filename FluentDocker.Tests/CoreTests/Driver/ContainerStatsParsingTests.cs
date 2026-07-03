@@ -90,7 +90,7 @@ namespace FluentDocker.Tests.CoreTests.Driver
     }
 
     [Fact]
-    public void ParseStatsOutput_HandlesInvalidJson()
+    public void ParseStatsOutput_InvalidJson_ReturnsNull()
     {
       var invalidJson = "not valid json";
 
@@ -100,11 +100,9 @@ namespace FluentDocker.Tests.CoreTests.Driver
 
       Assert.NotNull(method);
 
-      var result = (ContainerStatsResult)method.Invoke(null, [invalidJson, "abc123", null])!;
+      var result = method.Invoke(null, [invalidJson, "abc123", null]);
 
-      // Should not throw, just return empty stats with container ID
-      Assert.NotNull(result);
-      Assert.Equal("abc123", result.ContainerId);
+      Assert.Null(result);
     }
 
     [Fact]

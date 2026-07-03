@@ -202,8 +202,9 @@ namespace FluentDocker.Builders
     /// Attaches to an already-running compose project instead of running <c>docker compose up</c>.
     /// On build, the resulting <see cref="Services.IComposeService"/> is returned without starting
     /// or modifying the project, so it can be inspected (e.g. <c>ListServicesAsync</c>,
-    /// <c>RefreshStateAsync</c>, logs) and later managed. Requires <see cref="WithProjectName"/>
-    /// and/or <see cref="WithComposeFile"/> to identify the project.
+    /// <c>RefreshStateAsync</c>, logs) and later managed. Disposing the borrowed service does not
+    /// run <c>docker compose down</c>. Requires <see cref="WithProjectName"/> and/or
+    /// <see cref="WithComposeFile"/> to identify the project.
     /// </summary>
     /// <param name="connect">True to attach to an existing project; false for normal up behavior.</param>
     /// <returns>The builder for fluent chaining.</returns>

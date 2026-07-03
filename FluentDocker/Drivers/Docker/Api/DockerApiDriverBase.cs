@@ -257,8 +257,7 @@ namespace FluentDocker.Drivers.Docker.Api
             ErrorCodes.Api.ServerError, ex);
       }
 
-      // StreamReader with leaveOpen:false (default) will dispose the stream.
-      // Wrapping in await using ensures cleanup even if StreamReader ctor throws.
+      // The await using owns stream cleanup; StreamReader is leaveOpen:true.
       await using var _ = stream.ConfigureAwait(false);
       using var reader = new StreamReader(stream, Encoding.UTF8, detectEncodingFromByteOrderMarks: false,
           bufferSize: 1024, leaveOpen: true);

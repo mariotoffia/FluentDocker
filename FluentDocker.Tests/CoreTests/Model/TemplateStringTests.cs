@@ -29,6 +29,24 @@ namespace FluentDocker.Tests.CoreTests.Model
     }
 
     [Fact]
+    public void TmpVariable_CustomTempPathWithoutTrailingSeparator_DoesNotTrimLastCharacter()
+    {
+      var original = DirectoryHelper.GetTempPath;
+      try
+      {
+        DirectoryHelper.GetTempPath = () => "/custom/temp";
+
+        var path = new TemplateString(@"${TMP}/folder");
+
+        Assert.Equal("/custom/temp/folder", path.Rendered);
+      }
+      finally
+      {
+        DirectoryHelper.GetTempPath = original;
+      }
+    }
+
+    [Fact]
     public void PwdVariable_IsRendered()
     {
       var path = new TemplateString(@"${PWD}/myfile.txt");
@@ -189,4 +207,3 @@ namespace FluentDocker.Tests.CoreTests.Model
     }
   }
 }
-

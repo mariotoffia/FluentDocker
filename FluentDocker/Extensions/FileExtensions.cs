@@ -28,13 +28,13 @@ namespace FluentDocker.Extensions
 
     public static void ToFile(this string contents, TemplateString fqPath)
     {
-      var folder = Path.GetDirectoryName(fqPath.Rendered.EscapePath());
+      var folder = Path.GetDirectoryName(fqPath.Rendered);
       if (null != folder && !Directory.Exists(folder))
       {
         Directory.CreateDirectory(folder);
       }
 
-      File.WriteAllText(fqPath.Rendered.EscapePath(), contents);
+      File.WriteAllText(fqPath.Rendered, contents);
     }
 
     public static string FromFile(this TemplateString fqPath, Encoding encoding = null)
@@ -44,7 +44,7 @@ namespace FluentDocker.Extensions
         encoding = Encoding.UTF8;
       }
 
-      return File.ReadAllText(fqPath.Rendered.EscapePath(), encoding);
+      return File.ReadAllText(fqPath.Rendered, encoding);
     }
 
     /// <summary>
@@ -62,7 +62,7 @@ namespace FluentDocker.Extensions
     /// </remarks>
     public static string Copy(this TemplateString fileOrDirectory, TemplateString workdir)
     {
-      var fd = fileOrDirectory.Rendered.EscapePath();
+      var fd = fileOrDirectory.Rendered;
 
       if (fd.StartsWith($"{EmbeddedUri.Prefix}:"))
       {
@@ -89,8 +89,8 @@ namespace FluentDocker.Extensions
 
     public static void CopyTo(this TemplateString sourceDirectory, TemplateString targetDirectory)
     {
-      var sd = sourceDirectory.Rendered.EscapePath();
-      var td = targetDirectory.Rendered.EscapePath();
+      var sd = sourceDirectory.Rendered;
+      var td = targetDirectory.Rendered;
 
       CopyAll(new DirectoryInfo(sd), new DirectoryInfo(td));
     }

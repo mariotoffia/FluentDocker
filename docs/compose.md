@@ -512,6 +512,8 @@ using var results = new Builder()
 
 By default, compose services are torn down on dispose. Use `.WithRemoveVolumes()`
 and `.WithRemoveImages()` to also remove volumes and images during teardown.
+When `.ConnectToExisting()` is used, the returned compose service is borrowed:
+dispose releases local resources only and never runs `docker compose down`.
 
 ## Additional Builder Methods
 
@@ -547,53 +549,52 @@ using var results = new Builder()
 ## Integration Tests Example
 
 ```csharp
+using System;
+using System.Linq;
+using System.Net;
+using System.Net.Http.Json;
+using System.Threading.Tasks;
+using FluentDocker.Builders;
+using FluentDocker.Kernel;
+using FluentDocker.Model.Kernel;
+using FluentDocker.Services.Extensions;
+using Xunit;
 public class IntegrationTestBase : IAsyncLifetime
 {
-    private FluentDockerKernel _kernel;
-    protected BuildResults Results { get; private set; }
-    protected string ApiBaseUrl { get; private set; }
-
-    public async ValueTask InitializeAsync()
-    {
-        _kernel = await FluentDockerKernel.Create()
-            .WithDockerCli("docker", d => d.AsDefault())
-            .BuildAsync();
-
-        Results = await new Builder()
-            .WithinDriver("docker", _kernel)
-            .UseCompose(c => c
-                .WithComposeFile("docker-compose.test.yml")
-                .WithRemoveOrphans()
-                .WithWait()
-                .WithWaitTimeout(60))
-            .BuildAsync();
-
-        var apiContainer = Results.Containers
-            .First(c => c.Name.Contains("api"));
-        var endpoint = apiContainer.ToHostExposedEndpoint("8080/tcp");
-        ApiBaseUrl = $"http://localhost:{endpoint.Port}";
-    }
-
-    public async ValueTask DisposeAsync()
-    {
-        if (Results is IAsyncDisposable ad) await ad.DisposeAsync();
-        if (_kernel is IAsyncDisposable kd) await kd.DisposeAsync();
-    }
+  private FluentDockerKernel _kernel = null!;
+  protected BuildResults Results { get; private set; } = null!;
+  protected string ApiBaseUrl { get; private set; } = "";
+  public async ValueTask InitializeAsync()
+  {
+    _kernel = await FluentDockerKernel.Create()
+      .WithDockerCli("docker", d => d.AsDefault())
+      .BuildAsync();
+    Results = await new Builder()
+      .WithinDriver("docker", _kernel)
+      .UseCompose(c => c
+        .WithComposeFile("docker-compose.test.yml")
+        .WithRemoveOrphans()
+        .WithWait()
+        .WithWaitTimeout(60))
+      .BuildAsync();
+    var apiContainer = Results.Containers.First(c => c.Name.Contains("api"));
+    var endpoint = apiContainer.ToHostExposedEndpoint("8080/tcp");
+    ApiBaseUrl = $"http://localhost:{endpoint.Port}";
+  }
+  public async ValueTask DisposeAsync()
+  {
+    await Results.DisposeAsync();
+    await _kernel.DisposeAsync();
+  }
 }
-
 public class UserApiTests : IntegrationTestBase
 {
-    [Fact]
-    public async Task CreateUser_ReturnsCreated()
-    {
-        var client = new HttpClient { BaseAddress = new Uri(ApiBaseUrl) };
-        var response = await client.PostAsJsonAsync("/users", new { name = "Test" });
-        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
-    }
+  [Fact]
+  public async Task CreateUser_ReturnsCreated()
+  {
+    var client = new System.Net.Http.HttpClient { BaseAddress = new Uri(ApiBaseUrl) };
+    var response = await client.PostAsJsonAsync("/users", new { name = "Test" });
+    Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+  }
 }
 ```
-
-## Next Steps
-- [Containers](containers.md) - Individual container management
-- [Networking](networking.md) - Custom networks
-- [Volumes](volumes.md) - Data persistence

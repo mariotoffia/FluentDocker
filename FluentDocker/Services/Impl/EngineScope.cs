@@ -9,10 +9,7 @@ using Microsoft.Extensions.Logging;
 
 namespace FluentDocker.Services.Impl
 {
-  /// <summary>
-  /// Engine scope implementation using kernel and driver.
-  /// Allows switching between Windows and Linux daemon modes (Docker Desktop on Windows).
-  /// </summary>
+  /// <inheritdoc />
   public class EngineScope : IEngineScope
   {
     private readonly FluentDockerKernel _kernel;
@@ -20,8 +17,10 @@ namespace FluentDocker.Services.Impl
     private readonly string _driverId;
     private readonly EngineScopeType _originalScope;
     private readonly EngineScopeType _targetScope;
+    private readonly TimeSpan _disposeCleanupTimeout =
+        TimeSpan.FromMilliseconds(ContainerService.DefaultDisposeCleanupTimeoutMs);
     private EngineScopeType _currentScope;
-    private bool _disposed;
+    private int _disposed;
 
     /// <summary>
     /// Creates an engine scope. Use <see cref="CreateAsync"/> for async initialization.
@@ -131,10 +130,8 @@ namespace FluentDocker.Services.Impl
 
     public void Dispose()
     {
-      if (_disposed)
+      if (Interlocked.CompareExchange(ref _disposed, 1, 0) != 0)
         return;
-
-      _disposed = true;
 
       if (_currentScope != _originalScope && _originalScope != EngineScopeType.Unknown)
       {
@@ -142,14 +139,7 @@ namespace FluentDocker.Services.Impl
         {
           // Use Task.Run to avoid SynchronizationContext deadlock when called
           // from UI threads or ASP.NET contexts. Prefer DisposeAsync instead.
-          if (_originalScope == EngineScopeType.Linux)
-          {
-            Task.Run(() => UseLinuxAsync()).GetAwaiter().GetResult();
-          }
-          else if (_originalScope == EngineScopeType.Windows)
-          {
-            Task.Run(() => UseWindowsAsync()).GetAwaiter().GetResult();
-          }
+          Task.Run(RestoreOriginalScopeAsync).GetAwaiter().GetResult();
         }
         catch (Exception ex)
         {
@@ -162,23 +152,14 @@ namespace FluentDocker.Services.Impl
 
     public async ValueTask DisposeAsync()
     {
-      if (_disposed)
+      if (Interlocked.CompareExchange(ref _disposed, 1, 0) != 0)
         return;
-
-      _disposed = true;
 
       if (_currentScope != _originalScope && _originalScope != EngineScopeType.Unknown)
       {
         try
         {
-          if (_originalScope == EngineScopeType.Linux)
-          {
-            await UseLinuxAsync().ConfigureAwait(false);
-          }
-          else if (_originalScope == EngineScopeType.Windows)
-          {
-            await UseWindowsAsync().ConfigureAwait(false);
-          }
+          await RestoreOriginalScopeAsync().ConfigureAwait(false);
         }
         catch (Exception ex)
         {
@@ -211,6 +192,14 @@ namespace FluentDocker.Services.Impl
 
       return EngineScopeType.Unknown;
     }
+
+    private async Task RestoreOriginalScopeAsync()
+    {
+      using var cleanupCts = new CancellationTokenSource(_disposeCleanupTimeout);
+      var restoreTask = _originalScope == EngineScopeType.Linux
+          ? UseLinuxAsync(cleanupCts.Token)
+          : UseWindowsAsync(cleanupCts.Token);
+      await restoreTask.WaitAsync(cleanupCts.Token).ConfigureAwait(false);
+    }
   }
 }
-

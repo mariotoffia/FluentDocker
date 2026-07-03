@@ -1,3 +1,4 @@
+#pragma warning disable CS0618
 using System;
 using System.Collections.Generic;
 using FluentDocker.Common;
@@ -451,3 +452,4 @@ namespace FluentDocker.Tests.CoreTests.Common
     }
   }
 }
+#pragma warning restore CS0618

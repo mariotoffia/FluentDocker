@@ -17,8 +17,8 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
     public void ParseNetworkList_JsonArray_ReturnsNetworks()
     {
       var json = @"[
-                {""Id"":""net1"",""Name"":""bridge"",""Driver"":""bridge"",""Scope"":""local""},
-                {""Id"":""net2"",""Name"":""mynet"",""Driver"":""macvlan"",""Scope"":""local""}
+                {""id"":""net1"",""name"":""bridge"",""driver"":""bridge"",""labels"":{""env"":""dev""},""created"":""2026-07-03T02:00:00Z"",""ipv6_enabled"":false,""internal"":false,""dns_enabled"":true},
+                {""id"":""net2"",""name"":""mynet"",""driver"":""macvlan"",""labels"":{},""created"":""2026-07-03T02:01:00Z"",""ipv6_enabled"":true,""internal"":true,""dns_enabled"":false}
             ]";
 
       var result = InvokeParseNetworkList(json);
@@ -26,7 +26,10 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
       Assert.Equal("net1", result[0].Id);
       Assert.Equal("bridge", result[0].Name);
       Assert.Equal("bridge", result[0].Driver);
+      Assert.Equal("dev", result[0].Labels["env"]);
       Assert.Equal("net2", result[1].Id);
+      Assert.True(result[1].IPv6);
+      Assert.True(result[1].Internal);
     }
 
     [Fact]

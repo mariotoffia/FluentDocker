@@ -317,7 +317,10 @@ namespace FluentDocker.Drivers
     /// <summary>Error stream (to read error data from container).</summary>
     public Stream ErrorStream { get; set; }
 
-    /// <summary>Whether the attach is still connected.</summary>
+    /// <summary>
+    /// Whether the attach handle is considered connected. CLI drivers set this to true after
+    /// process start and false on dispose; it is not a live daemon-side health probe.
+    /// </summary>
     public bool IsConnected { get; set; }
 
     /// <summary>The underlying process for CLI-based attach (used for cleanup).</summary>
@@ -360,4 +363,3 @@ namespace FluentDocker.Drivers
 
   #endregion
 }
-

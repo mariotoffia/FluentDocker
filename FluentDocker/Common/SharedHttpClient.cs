@@ -1,5 +1,6 @@
 using System;
 using System.Net.Http;
+using System.Threading;
 
 namespace FluentDocker.Common
 {
@@ -16,13 +17,14 @@ namespace FluentDocker.Common
       {
         PooledConnectionLifetime = TimeSpan.FromMinutes(2)
       };
-      return new HttpClient(handler) { Timeout = TimeSpan.FromSeconds(30) };
+      return new HttpClient(handler) { Timeout = Timeout.InfiniteTimeSpan };
     });
 
     /// <summary>
     /// Gets the shared <see cref="HttpClient"/> instance.
-    /// Do not dispose this client. For longer timeouts, use per-request
-    /// <see cref="System.Threading.CancellationTokenSource"/> instead.
+    /// Do not dispose this client. It has no global timeout; callers must
+    /// enforce operation-specific limits with a per-request
+    /// <see cref="System.Threading.CancellationToken"/>.
     /// </summary>
     public static HttpClient Instance => s_instance.Value;
   }

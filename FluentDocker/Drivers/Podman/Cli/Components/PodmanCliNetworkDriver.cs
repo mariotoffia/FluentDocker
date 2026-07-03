@@ -35,6 +35,8 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
           args += $" --subnet {QuoteArgumentIfNeeded(config.Subnet)}";
         if (!string.IsNullOrEmpty(config.Gateway))
           args += $" --gateway {QuoteArgumentIfNeeded(config.Gateway)}";
+        if (!string.IsNullOrEmpty(config.IpRange))
+          args += $" --ip-range {QuoteArgumentIfNeeded(config.IpRange)}";
         if (config.EnableIPv6)
           args += " --ipv6";
         if (config.Internal)
@@ -48,10 +50,10 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
         if (!string.IsNullOrEmpty(config.Name))
           args += $" {QuoteArgumentIfNeeded(config.Name)}";
 
-        var result = await ExecuteCommandAsync(args, cancellationToken).ConfigureAwait(false);
+        var result = await ExecuteCommandAsync(context, args, cancellationToken).ConfigureAwait(false);
         if (!result.Success)
           return CommandResponse<NetworkCreateResult>.Fail(
-              result.Error ?? "Network create failed", ErrorCodes.Network.CreateFailed,
+              ErrorOrDefault(result, "Network create failed"), ErrorCodes.Network.CreateFailed,
               CreateErrorContext(context, "CreateNetwork", result), result.ExitCode);
 
         return CommandResponse<NetworkCreateResult>.Ok(new NetworkCreateResult
@@ -80,7 +82,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
             $"network rm {QuoteArgumentIfNeeded(networkId)}", cancellationToken).ConfigureAwait(false);
         if (!result.Success)
           return CommandResponse<Unit>.Fail(
-              result.Error ?? "Network remove failed", ErrorCodes.Network.RemoveFailed,
+              ErrorOrDefault(result, "Network remove failed"), ErrorCodes.Network.RemoveFailed,
               CreateErrorContext(context, "RemoveNetwork", result), result.ExitCode);
 
         return CommandResponse<Unit>.Ok(Unit.Default);
@@ -112,10 +114,10 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
               args += $" --filter {QuoteArgumentIfNeeded($"label={label.Key}={label.Value}")}";
         }
 
-        var result = await ExecuteCommandAsync(args, cancellationToken).ConfigureAwait(false);
+        var result = await ExecuteCommandAsync(context, args, cancellationToken).ConfigureAwait(false);
         if (!result.Success)
           return CommandResponse<IList<Network>>.Fail(
-              result.Error ?? "Network list failed", ErrorCodes.General.Unknown,
+              ErrorOrDefault(result, "Network list failed"), ErrorCodes.General.Unknown,
               CreateErrorContext(context, "ListNetworks", result), result.ExitCode);
 
         var networks = ParseNetworkList(result.Output);
@@ -143,7 +145,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
             cancellationToken).ConfigureAwait(false);
         if (!result.Success)
           return CommandResponse<Unit>.Fail(
-              result.Error ?? "Network connect failed", ErrorCodes.Network.ConnectFailed,
+              ErrorOrDefault(result, "Network connect failed"), ErrorCodes.Network.ConnectFailed,
               CreateErrorContext(context, "ConnectNetwork", result), result.ExitCode);
 
         return CommandResponse<Unit>.Ok(Unit.Default);
@@ -169,10 +171,10 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
             ? $"network disconnect -f {QuoteArgumentIfNeeded(networkId)} {QuoteArgumentIfNeeded(containerId)}"
             : $"network disconnect {QuoteArgumentIfNeeded(networkId)} {QuoteArgumentIfNeeded(containerId)}";
 
-        var result = await ExecuteCommandAsync(args, cancellationToken).ConfigureAwait(false);
+        var result = await ExecuteCommandAsync(context, args, cancellationToken).ConfigureAwait(false);
         if (!result.Success)
           return CommandResponse<Unit>.Fail(
-              result.Error ?? "Network disconnect failed", ErrorCodes.Network.DisconnectFailed,
+              ErrorOrDefault(result, "Network disconnect failed"), ErrorCodes.Network.DisconnectFailed,
               CreateErrorContext(context, "DisconnectNetwork", result), result.ExitCode);
 
         return CommandResponse<Unit>.Ok(Unit.Default);
@@ -198,7 +200,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
             $"network inspect {QuoteArgumentIfNeeded(networkId)}", cancellationToken).ConfigureAwait(false);
         if (!result.Success)
           return CommandResponse<Network>.Fail(
-              result.Error ?? "Network inspect failed", ErrorCodes.Network.InspectFailed,
+              ErrorOrDefault(result, "Network inspect failed"), ErrorCodes.Network.InspectFailed,
               CreateErrorContext(context, "InspectNetwork", result), result.ExitCode);
 
         var network = ParseNetworkInspect(result.Output);
@@ -220,10 +222,10 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
     {
       try
       {
-        var result = await ExecuteCommandAsync("network prune -f", cancellationToken).ConfigureAwait(false);
+        var result = await ExecuteCommandAsync(context, "network prune -f", cancellationToken).ConfigureAwait(false);
         if (!result.Success)
           return CommandResponse<NetworkPruneResult>.Fail(
-              result.Error ?? "Network prune failed", ErrorCodes.Network.PruneFailed,
+              ErrorOrDefault(result, "Network prune failed"), ErrorCodes.Network.PruneFailed,
               CreateErrorContext(context, "PruneNetworks", result), result.ExitCode);
 
         return CommandResponse<NetworkPruneResult>.Ok(
@@ -275,15 +277,23 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
     {
       return new Network
       {
-        Id = token.GetStringOrDefault("ID") ?? token.GetStringOrDefault("Id"),
+        Id = token.GetStringOrDefault("id")
+             ?? token.GetStringOrDefault("ID")
+             ?? token.GetStringOrDefault("Id"),
         Name = token.GetStringOrDefault("Name") ?? token.GetStringOrDefault("name"),
         Driver = token.GetStringOrDefault("Driver") ?? token.GetStringOrDefault("driver"),
-        Scope = token.GetStringOrDefault("Scope"),
+        Scope = token.GetStringOrDefault("Scope") ?? token.GetStringOrDefault("scope"),
         IPv6 = token.GetBoolOrDefault("IPv6Enabled") || token.GetBoolOrDefault("ipv6_enabled"),
         Internal = token.GetBoolOrDefault("Internal") || token.GetBoolOrDefault("internal"),
-        Labels = token.GetStringDictionary("Labels"),
+        Labels = ReadStringDictionary(token, "labels", "Labels"),
         Containers = ParseContainers(token)
       };
+    }
+
+    private static Dictionary<string, string> ReadStringDictionary(JsonElement token, string first, string second)
+    {
+      var value = token.GetStringDictionary(first);
+      return value.Count == 0 ? token.GetStringDictionary(second) : value;
     }
 
     private static Dictionary<string, NetworkedContainer> ParseContainers(JsonElement token)

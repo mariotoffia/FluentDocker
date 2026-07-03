@@ -55,6 +55,11 @@ namespace FluentDocker.Services
     /// <summary>
     /// Gets containers with optional filters.
     /// </summary>
+    /// <remarks>
+    /// Well-known filter keys map to first-class driver filters: <c>name</c>, <c>id</c>,
+    /// <c>status</c>, <c>ancestor</c>, <c>limit</c>, and <c>label</c>. Unknown keys are treated
+    /// as label filters for backward compatibility.
+    /// </remarks>
     Task<IList<IContainerService>> GetContainersAsync(
         bool all = true,
         IDictionary<string, string> filters = null,
@@ -207,4 +212,3 @@ namespace FluentDocker.Services
     public bool Privileged { get; set; }
   }
 }
-

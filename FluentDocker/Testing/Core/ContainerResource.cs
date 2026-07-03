@@ -149,12 +149,22 @@ namespace FluentDocker.Testing.Core
     {
       var diag = await base.CollectDiagnosticsAsync(failure, cancellationToken).ConfigureAwait(false);
 
+      if (Options.CaptureLogsOnFailure)
+      {
+        var builderTail = ExtractBuilderLogTail(failure);
+        if (!string.IsNullOrWhiteSpace(builderTail))
+          diag.Logs = TruncateLogLines(builderTail);
+      }
+
       if (Container != null && Options.CaptureLogsOnFailure)
       {
         try
         {
-          diag.Logs = TruncateLogLines(
-              await Container.GetLogsAsync(false, cancellationToken).ConfigureAwait(false));
+          if (string.IsNullOrEmpty(diag.Logs))
+          {
+            diag.Logs = TruncateLogLines(
+                await Container.GetLogsAsync(false, cancellationToken).ConfigureAwait(false));
+          }
         }
         catch (Exception ex)
         {
@@ -186,6 +196,25 @@ namespace FluentDocker.Testing.Core
       if (!IsInitialized || Container == null)
         throw new InvalidOperationException(
             "Container resource is not initialized. Call InitializeAsync first.");
+    }
+
+    private static string ExtractBuilderLogTail(Exception failure)
+    {
+      const string dataKey = "ContainerLogTail";
+      const string marker = "Container log tail:";
+      for (var ex = failure; ex != null; ex = ex.InnerException)
+      {
+        if (ex.Data.Contains(dataKey) &&
+            ex.Data[dataKey] is string dataTail &&
+            !string.IsNullOrWhiteSpace(dataTail))
+          return dataTail;
+
+        var markerIndex = ex.Message.IndexOf(marker, StringComparison.Ordinal);
+        if (markerIndex >= 0)
+          return ex.Message[(markerIndex + marker.Length)..].Trim();
+      }
+
+      return null;
     }
   }
 }

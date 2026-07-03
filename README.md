@@ -82,7 +82,7 @@ full API and per-driver guides:
 - [Learning Path](docs/learning-path.md) — beginner → advanced map
 - [Getting Started](docs/getting-started.md) — first working container
 - [Containers](docs/containers.md) · [Compose](docs/compose.md) · [Networking](docs/networking.md) · [Volumes](docs/volumes.md) · [Images](docs/images.md)
-- [Docker API driver (production notes)](docs/docker-api.md) · [Podman production notes](docs/podman.md)
+- [Docker API driver (production notes)](docs/docker-api.md) · [Podman production notes](docs/podman.md) · [Troubleshooting](docs/troubleshooting.md)
 - [Testing](docs/testing.md) · [Architecture](docs/architecture.md) · [Migration v2 → v3](docs/migration.md)
 
 ## Drivers
@@ -122,7 +122,7 @@ await using var kernel = await FluentDockerKernel.Create()
     .WithDockerCli("docker", d => d.AsDefault())
     .WithDockerApi("docker-api", d => d
         .WithConnectionTimeout(TimeSpan.FromSeconds(30)))
-    .WithPodmanCli("podman", d => d.WithAutoStartMachine())
+    .WithPodmanCli("podman", d => d.WithAutoStartMachine()) // macOS/Windows only
     .BuildAsync();
 ```
 
@@ -136,6 +136,9 @@ manifests, and direct `SysCtl<T>` access) live on the
 separate packages (`FluentDocker.Testing.Xunit` targets **xUnit v3**).
 
 ```csharp
+using FluentDocker.Builders;
+using FluentDocker.Testing.Xunit;
+
 // xUnit v3 — abstract base fixture (recommended):
 public class MyRedisFixture : XunitContainerFixtureBase
 {
@@ -152,38 +155,14 @@ Stack, Podman Kubernetes, and model resource types.
 
 ## Docker Model Runner — Local LLMs *(preview, 3.2.0-preview.1)*
 
-> **Preview.** Model Runner support ships in **`3.2.0-preview.1`** on the feature branch;
-> the inference DTO shapes may still change. Everything above is the stable, published
+> **Preview.** Model Runner support is available since **3.2.0-preview.1**;
+> the inference DTO shapes may still change. Everything above is the stable
 > surface — reach for this section only once you need local models.
 
 FluentDocker manages and consumes **local LLMs** through Docker Model Runner — and any
 OpenAI-compatible runner (vLLM, LM Studio, `llama-server`, hosted) — behind the same
-`Builder → WithinDriver → UseXxx` pattern:
-
-```csharp
-using System;
-using System.Collections.Generic;
-using FluentDocker.Builders;
-using FluentDocker.Kernel;
-using FluentDocker.Model.Models.Inference;   // ChatCompletionRequest, ChatMessage
-
-await using var kernel = await FluentDockerKernel.Create()
-    .WithDockerCli("docker", d => d.AsDefault()).BuildAsync();
-
-await using var runner = await new Builder()
-    .WithinDriver("docker", kernel)
-    .UseModelRunner().ForModel("ai/smollm2")
-    .WithContextSize(4096)    // required on DMR v1.2.1: chat models crash on load without it
-    .PullIfMissing()
-    .BuildAsync();
-
-var res = await runner.ChatCompletionAsync(new ChatCompletionRequest
-{
-    Model = "ai/smollm2",
-    Messages = new List<ChatMessage> { new() { Role = "user", Content = "Hi!" } }
-});
-Console.WriteLine(res.Choices[0].Message.Content);
-```
+`Builder → WithinDriver → UseXxx` pattern. The canonical quick start, context-size
+guidance, and troubleshooting live in the model guide.
 
 Full guide: **[Model Runner (local LLMs)](docs/model-runner.md)** ·
 [runner plugins](docs/model-runner-plugins.md) · runnable [Examples/ModelRunner](Examples/ModelRunner).
@@ -194,11 +173,12 @@ Docker often needs `sudo`. Configure it per driver — the password (when used) 
 to `sudo`'s **stdin**, never placed on the command line:
 
 ```csharp
+using FluentDocker.Kernel;
 using FluentDocker.Model.Common;
 
 await using var kernel = await FluentDockerKernel.Create()
     .WithDockerCli("docker", d => d
-        .WithSudo(SudoMechanism.NoPassword)   // relies on NOPASSWD in /etc/sudoers
+        .WithSudo(SudoMechanism.NoPassword)   // experimental enum; relies on NOPASSWD
         .AsDefault())
     .BuildAsync();
 ```

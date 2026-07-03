@@ -22,11 +22,16 @@ FluentDocker only manages the machine (start + readiness) on macOS/Windows. Requ
 machine management on Linux throws a helpful error rather than silently doing nothing
 (`PodmanCliDriverPack.MachineManagementApplies()` is `FdOs.IsOsx() || FdOs.IsWindows()`).
 
+If your system installs the `podman-docker` shim, a `docker` command may actually run
+Podman. FluentDocker treats `WithDockerCli(...)` as Docker and registers Docker-only
+interfaces such as Swarm stack/service drivers, so prefer `WithPodmanCli(...)` when the
+runtime is Podman even if the command name is `docker`.
+
 ```csharp
 using FluentDocker.Kernel;
 
 // macOS/Windows: opt into auto-start of the podman machine.
-using var kernel = await FluentDockerKernel.Create()
+await using var kernel = await FluentDockerKernel.Create()
     .WithPodmanCli("podman", d => d
         .WithAutoStartMachine()
         .AsDefault())
@@ -46,7 +51,7 @@ if none is flagged. It does **not** invent, look up, or start a machine literall
 using FluentDocker.Kernel;
 
 // Auto-start a specific machine by name:
-using var kernel = await FluentDockerKernel.Create()
+await using var kernel = await FluentDockerKernel.Create()
     .WithPodmanCli("podman", d => d
         .WithAutoStartMachine(cfg =>
         {
@@ -94,15 +99,21 @@ gate control flow on receiving progress events.
 Podman output is bounded so a chatty command can never exhaust memory:
 
 - **Non-detached `run`** (foreground) returns a **256 KiB rolling tail** of combined
-  output with `\n`-normalized line endings — enough to keep the trailing result line plus
-  ample error context. (Earlier builds buffered up to 4 MiB.) Detached runs return the
-  container id as usual.
+  output with a visible `[FluentDocker: output truncated, ...]` marker when the head was
+  discarded. Detached runs return the container id as usual.
+- **`exec` and `machine ssh`** use the same rolling-tail behavior for stdout/stderr, with
+  the same visible truncation marker when output exceeds the retained tail.
 - **"Unbounded" long operations** stream line-by-line and keep only a bounded tail for
   error reporting, instead of failing once output crosses 4 MiB.
 - **Bounded (non-streaming) commands** still cap at 4 MiB (`MaxNonStreamingOutputBytes`).
 
 If you need the full log of a long-running container, attach or stream logs rather than
 relying on the captured `run` output.
+
+Buffered `GetLogsAsync` combines both process pipes because Podman can write container
+logs to stdout and stderr. That can also include Podman's own stderr diagnostics or a
+FluentDocker truncation marker; use `IStreamDriver.StreamLogsAsync` when you need a clean
+line stream.
 
 ## Related
 

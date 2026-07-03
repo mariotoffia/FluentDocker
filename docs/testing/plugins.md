@@ -129,7 +129,7 @@ Optional framework companion: `FluentDocker.Testing.Plugin.Postgres.Xunit`
 ### Basic usage
 
 ```csharp
-using var kernel = await FluentDockerKernel.Create()
+await using var kernel = await FluentDockerKernel.Create()
     .WithDockerCli("docker", d => d.AsDefault())
     .BuildAsync();
 

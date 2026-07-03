@@ -34,11 +34,11 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       try
       {
         var args = BuildCreateArgs(config);
-        var result = await ExecuteCommandAsync(args, cancellationToken).ConfigureAwait(false);
+        var result = await ExecuteCommandAsync(context, args, cancellationToken).ConfigureAwait(false);
 
         if (!result.Success)
           return CommandResponse<string>.Fail(
-              result.Error ?? "Manifest create failed",
+              ErrorOrDefault(result, "Manifest create failed"),
               ErrorCodes.Manifest.CreateFailed,
               CreateErrorContext(context, "CreateManifest", result), result.ExitCode);
 
@@ -71,7 +71,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
 
         if (!result.Success)
           return CommandResponse<Unit>.Fail(
-              result.Error ?? "Manifest remove failed",
+              ErrorOrDefault(result, "Manifest remove failed"),
               ErrorCodes.Manifest.RemoveFailed,
               CreateErrorContext(context, "RemoveManifest", result), result.ExitCode);
 
@@ -107,11 +107,11 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       try
       {
         var args = BuildAddArgs(config);
-        var result = await ExecuteCommandAsync(args, cancellationToken).ConfigureAwait(false);
+        var result = await ExecuteCommandAsync(context, args, cancellationToken).ConfigureAwait(false);
 
         if (!result.Success)
           return CommandResponse<string>.Fail(
-              result.Error ?? "Manifest add failed",
+              ErrorOrDefault(result, "Manifest add failed"),
               ErrorCodes.Manifest.AddFailed,
               CreateErrorContext(context, "AddManifest", result), result.ExitCode);
 
@@ -143,11 +143,11 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       try
       {
         var args = BuildAnnotateArgs(config);
-        var result = await ExecuteCommandAsync(args, cancellationToken).ConfigureAwait(false);
+        var result = await ExecuteCommandAsync(context, args, cancellationToken).ConfigureAwait(false);
 
         if (!result.Success)
           return CommandResponse<Unit>.Fail(
-              result.Error ?? "Manifest annotate failed",
+              ErrorOrDefault(result, "Manifest annotate failed"),
               ErrorCodes.Manifest.AnnotateFailed,
               CreateErrorContext(context, "AnnotateManifest", result), result.ExitCode);
 
@@ -183,11 +183,11 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       try
       {
         var args = BuildPushArgs(config);
-        var result = await ExecuteUnboundedCommandAsync(args, cancellationToken).ConfigureAwait(false);
+        var result = await ExecuteUnboundedCommandAsync(context, args, cancellationToken).ConfigureAwait(false);
 
         if (!result.Success)
           return CommandResponse<Unit>.Fail(
-              result.Error ?? "Manifest push failed",
+              ErrorOrDefault(result, "Manifest push failed"),
               ErrorCodes.Manifest.PushFailed,
               CreateErrorContext(context, "PushManifest", result), result.ExitCode);
 
@@ -224,7 +224,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
 
         if (!result.Success)
           return CommandResponse<ManifestInspectResult>.Fail(
-              result.Error ?? "Manifest inspect failed",
+              ErrorOrDefault(result, "Manifest inspect failed"),
               ErrorCodes.Manifest.InspectFailed,
               CreateErrorContext(context, "InspectManifest", result), result.ExitCode);
 
@@ -265,7 +265,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
           return CommandResponse<bool>.Ok(false);
 
         return CommandResponse<bool>.Fail(
-            result.Error ?? "Manifest exists check failed",
+            ErrorOrDefault(result, "Manifest exists check failed"),
             ErrorCodes.Manifest.InspectFailed,
             CreateErrorContext(context, "ManifestExists", result), result.ExitCode);
       }

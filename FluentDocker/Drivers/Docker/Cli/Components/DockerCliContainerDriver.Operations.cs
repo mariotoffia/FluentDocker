@@ -41,7 +41,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
           foreach (var env in config.Environment)
             args.Add($"-e {QuoteArgumentIfNeeded($"{env.Key}={env.Value}")}");
 
-        args.Add(QuoteArgumentIfNeeded(containerId));
+        args.Add(QuotePositionalArgument(containerId, nameof(containerId)));
         if (config.Command != null)
         {
           foreach (var cmdArg in config.Command)
@@ -50,7 +50,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
           }
         }
 
-        var result = await ExecuteUnboundedCommandAsync(string.Join(" ", args), cancellationToken).ConfigureAwait(false);
+        var result = await ExecuteUnboundedCommandAsync(context, string.Join(" ", args), cancellationToken).ConfigureAwait(false);
 
         // Separate an INFRASTRUCTURE failure (docker could not run exec at all — no such
         // container, daemon error, process couldn't start) from the in-container command's
@@ -60,7 +60,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
         {
           return CommandResponse<ExecResult>.Fail(
               string.IsNullOrEmpty(result.Error) ? "Exec failed" : result.Error,
-              ErrorCodes.Container.ExecFailed,
+              FailureCode(result.Error, ErrorCodes.Container.ExecFailed),
               CreateErrorContext(context, "Exec", result),
               result.ExitCode);
         }
@@ -78,7 +78,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
       }
       catch (Exception ex)
       {
-        return CommandResponse<ExecResult>.Fail(ex.Message, ErrorCodes.Container.ExecFailed);
+        return CommandResponse<ExecResult>.Fail(ex.Message, FailureCode(ex, ErrorCodes.Container.ExecFailed));
       }
     }
 
@@ -132,13 +132,18 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     {
       try
       {
-        var result = await ExecuteUnboundedCommandAsync($"cp \"{hostPath}\" \"{containerId}:{containerPath}\"", cancellationToken).ConfigureAwait(false);
+        QuotePositionalArgument(containerId, nameof(containerId));
+        QuotePositionalArgument(hostPath, nameof(hostPath));
+        var result = await ExecuteUnboundedCommandAsync(
+            context,
+            $"cp {QuoteArgumentIfNeeded(hostPath)} {QuoteArgumentIfNeeded($"{containerId}:{containerPath}")}",
+            cancellationToken).ConfigureAwait(false);
 
         if (!result.Success)
         {
           return CommandResponse<Unit>.Fail(
-              result.Error ?? "Copy to container failed",
-              ErrorCodes.Container.CopyFailed,
+              ErrorOrDefault(result, "Copy to container failed"),
+              FailureCode(result.Error, ErrorCodes.Container.CopyFailed),
               CreateErrorContext(context, "CopyToContainer", result),
               result.ExitCode);
         }
@@ -151,7 +156,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
       }
       catch (Exception ex)
       {
-        return CommandResponse<Unit>.Fail(ex.Message, ErrorCodes.Container.CopyFailed);
+        return CommandResponse<Unit>.Fail(ex.Message, FailureCode(ex, ErrorCodes.Container.CopyFailed));
       }
     }
 
@@ -165,13 +170,18 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     {
       try
       {
-        var result = await ExecuteUnboundedCommandAsync($"cp \"{containerId}:{containerPath}\" \"{hostPath}\"", cancellationToken).ConfigureAwait(false);
+        QuotePositionalArgument(containerId, nameof(containerId));
+        QuotePositionalArgument(hostPath, nameof(hostPath));
+        var result = await ExecuteUnboundedCommandAsync(
+            context,
+            $"cp {QuoteArgumentIfNeeded($"{containerId}:{containerPath}")} {QuoteArgumentIfNeeded(hostPath)}",
+            cancellationToken).ConfigureAwait(false);
 
         if (!result.Success)
         {
           return CommandResponse<Unit>.Fail(
-              result.Error ?? "Copy from container failed",
-              ErrorCodes.Container.CopyFailed,
+              ErrorOrDefault(result, "Copy from container failed"),
+              FailureCode(result.Error, ErrorCodes.Container.CopyFailed),
               CreateErrorContext(context, "CopyFromContainer", result),
               result.ExitCode);
         }
@@ -184,7 +194,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
       }
       catch (Exception ex)
       {
-        return CommandResponse<Unit>.Fail(ex.Message, ErrorCodes.Container.CopyFailed);
+        return CommandResponse<Unit>.Fail(ex.Message, FailureCode(ex, ErrorCodes.Container.CopyFailed));
       }
     }
 
@@ -201,13 +211,16 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     {
       try
       {
-        var result = await ExecuteUnboundedCommandAsync($"export -o \"{outputPath}\" {QuoteArgumentIfNeeded(containerId)}", cancellationToken).ConfigureAwait(false);
+        var result = await ExecuteUnboundedCommandAsync(
+            context,
+            $"export -o {QuoteArgumentIfNeeded(outputPath)} {QuotePositionalArgument(containerId, nameof(containerId))}",
+            cancellationToken).ConfigureAwait(false);
 
         if (!result.Success)
         {
           return CommandResponse<Unit>.Fail(
-              result.Error ?? "Container export failed",
-              ErrorCodes.Container.ExportFailed,
+              ErrorOrDefault(result, "Container export failed"),
+              FailureCode(result.Error, ErrorCodes.Container.ExportFailed),
               CreateErrorContext(context, "ExportContainer", result),
               result.ExitCode);
         }
@@ -220,7 +233,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
       }
       catch (Exception ex)
       {
-        return CommandResponse<Unit>.Fail(ex.Message, ErrorCodes.Container.ExportFailed);
+        return CommandResponse<Unit>.Fail(ex.Message, FailureCode(ex, ErrorCodes.Container.ExportFailed));
       }
     }
 
@@ -233,13 +246,13 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     {
       try
       {
-        var result = await ExecuteCommandAsync($"rename {QuoteArgumentIfNeeded(containerId)} {QuoteArgumentIfNeeded(newName)}", cancellationToken).ConfigureAwait(false);
+        var result = await ExecuteCommandAsync(context, $"rename {QuotePositionalArgument(containerId, nameof(containerId))} {QuoteArgumentIfNeeded(newName)}", cancellationToken).ConfigureAwait(false);
 
         if (!result.Success)
         {
           return CommandResponse<Unit>.Fail(
-              result.Error ?? "Container rename failed",
-              ErrorCodes.Container.RenameFailed,
+              ErrorOrDefault(result, "Container rename failed"),
+              FailureCode(result.Error, ErrorCodes.Container.RenameFailed),
               CreateErrorContext(context, "RenameContainer", result),
               result.ExitCode);
         }
@@ -252,7 +265,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
       }
       catch (Exception ex)
       {
-        return CommandResponse<Unit>.Fail(ex.Message, ErrorCodes.Container.RenameFailed);
+        return CommandResponse<Unit>.Fail(ex.Message, FailureCode(ex, ErrorCodes.Container.RenameFailed));
       }
     }
 
@@ -286,15 +299,15 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
         if (config.PidsLimit.HasValue)
           args.Add($"--pids-limit {config.PidsLimit.Value}");
 
-        args.Add(QuoteArgumentIfNeeded(containerId));
+        args.Add(QuotePositionalArgument(containerId, nameof(containerId)));
 
-        var result = await ExecuteCommandAsync(string.Join(" ", args), cancellationToken).ConfigureAwait(false);
+        var result = await ExecuteCommandAsync(context, string.Join(" ", args), cancellationToken).ConfigureAwait(false);
 
         if (!result.Success)
         {
           return CommandResponse<Unit>.Fail(
-              result.Error ?? "Container update failed",
-              ErrorCodes.Container.UpdateFailed,
+              ErrorOrDefault(result, "Container update failed"),
+              FailureCode(result.Error, ErrorCodes.Container.UpdateFailed),
               CreateErrorContext(context, "UpdateContainer", result),
               result.ExitCode);
         }
@@ -307,7 +320,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
       }
       catch (Exception ex)
       {
-        return CommandResponse<Unit>.Fail(ex.Message, ErrorCodes.Container.UpdateFailed);
+        return CommandResponse<Unit>.Fail(ex.Message, FailureCode(ex, ErrorCodes.Container.UpdateFailed));
       }
     }
 

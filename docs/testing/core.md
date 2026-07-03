@@ -110,6 +110,11 @@ through Docker Compose, topologies, Swarm stacks, or Kubernetes YAML are not
 removed by orphan cleanup unless they individually carry the `fluentdocker.managed`
 label.
 
+`EnableSessionLabels` is applied directly by `ContainerResource`,
+`NetworkResource`, and `VolumeResource`. For Compose, topology, Swarm, Kubernetes,
+image pull, and model resources, add labels in the underlying compose/YAML/build
+definition when you need orphan cleanup to see their child resources.
+
 `OrphanCleanupMinimumAge` (a `TimeSpan`, default 1 hour) bounds what cleanup may
 remove: only managed resources **older** than this age are deleted. With the
 default, enabling `CleanupOrphansOnInit` in parallel CI cannot delete a sibling
@@ -350,6 +355,15 @@ When initialization fails, the `Diagnostics` property is populated with:
 - `OperationContext` - additional context
 - `ResourceName` (string) - the name of the resource that failed
 - `DriverId` (string) - the driver ID used by the resource
+
+### When teardown fails
+
+If graceful disposal fails, `DisposeAsync` records the failure in
+`LastTeardownDiagnostics`. When `ForceRemoveOnDispose` is true, FluentDocker then
+tries a fresh-token force remove. If force remove succeeds, disposal completes and
+`LastTeardownDiagnostics.ForceRemoveException` is null. If force remove also
+fails, `DisposeAsync` rethrows the graceful teardown exception and leaves the
+resource handles available so you can inspect diagnostics or retry cleanup.
 
 ## ResourceLifecycle (Advanced)
 

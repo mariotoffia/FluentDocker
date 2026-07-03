@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Text.Json;
 using System.Threading;
@@ -30,13 +31,13 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     {
       try
       {
-        var result = await ExecuteCommandAsync($"inspect {QuoteArgumentIfNeeded(containerId)}", cancellationToken).ConfigureAwait(false);
+        var result = await ExecuteCommandAsync(context, $"inspect {QuotePositionalArgument(containerId, nameof(containerId))}", cancellationToken).ConfigureAwait(false);
 
         if (!result.Success)
         {
           return CommandResponse<Container>.Fail(
-              result.Error ?? "Container inspect failed",
-              ErrorCodes.Container.InspectFailed,
+              ErrorOrDefault(result, "Container inspect failed"),
+              FailureCode(result.Error, ErrorCodes.Container.InspectFailed),
               CreateErrorContext(context, "InspectContainer", result),
               result.ExitCode);
         }
@@ -59,7 +60,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
       }
       catch (Exception ex)
       {
-        return CommandResponse<Container>.Fail(ex.Message, ErrorCodes.Container.InspectFailed);
+        return CommandResponse<Container>.Fail(ex.Message, FailureCode(ex, ErrorCodes.Container.InspectFailed));
       }
     }
 
@@ -82,35 +83,35 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
           foreach (var label in filter.Labels)
           {
             if (string.IsNullOrEmpty(label.Value))
-              args += $" --filter \"label={label.Key}\"";
+              args += $" --filter {QuoteArgumentIfNeeded($"label={label.Key}")}";
             else
-              args += $" --filter \"label={label.Key}={label.Value}\"";
+              args += $" --filter {QuoteArgumentIfNeeded($"label={label.Key}={label.Value}")}";
           }
         }
 
         // Add name filter
         if (!string.IsNullOrEmpty(filter?.Name))
-          args += $" --filter \"name={filter.Name}\"";
+          args += $" --filter {QuoteArgumentIfNeeded($"name={filter.Name}")}";
 
         // Add status filter
         if (!string.IsNullOrEmpty(filter?.Status))
-          args += $" --filter \"status={filter.Status}\"";
+          args += $" --filter {QuoteArgumentIfNeeded($"status={filter.Status}")}";
 
         // Add ID filter
         if (!string.IsNullOrEmpty(filter?.Id))
-          args += $" --filter \"id={filter.Id}\"";
+          args += $" --filter {QuoteArgumentIfNeeded($"id={filter.Id}")}";
 
         // Add ancestor filter
         if (!string.IsNullOrEmpty(filter?.Ancestor))
-          args += $" --filter \"ancestor={filter.Ancestor}\"";
+          args += $" --filter {QuoteArgumentIfNeeded($"ancestor={filter.Ancestor}")}";
 
-        var result = await ExecuteCommandAsync(args, cancellationToken).ConfigureAwait(false);
+        var result = await ExecuteCommandAsync(context, args, cancellationToken).ConfigureAwait(false);
 
         if (!result.Success)
         {
           return CommandResponse<IList<Container>>.Fail(
-              result.Error ?? "Container list failed",
-              ErrorCodes.General.Unknown);
+              ErrorOrDefault(result, "Container list failed"),
+              FailureCode(result.Error, ErrorCodes.General.Unknown));
         }
 
         var containers = new List<Container>();
@@ -132,7 +133,8 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
               };
 
               // Parse CreatedAt if present
-              if (!string.IsNullOrEmpty(dto.CreatedAt) && DateTime.TryParse(dto.CreatedAt, out var created))
+              if (!string.IsNullOrEmpty(dto.CreatedAt)
+                  && DateTime.TryParse(dto.CreatedAt, CultureInfo.InvariantCulture, DateTimeStyles.None, out var created))
               {
                 container.Created = created;
               }
@@ -164,7 +166,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
       }
       catch (Exception ex)
       {
-        return CommandResponse<IList<Container>>.Fail(ex.Message, ErrorCodes.General.Unknown);
+        return CommandResponse<IList<Container>>.Fail(ex.Message, FailureCode(ex, ErrorCodes.General.Unknown));
       }
     }
 
@@ -191,15 +193,15 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
           args += $" --tail {tail.Value}";
         if (timestamps)
           args += " -t";
-        args += $" {QuoteArgumentIfNeeded(containerId)}";
+        args += $" {QuotePositionalArgument(containerId, nameof(containerId))}";
 
-        var result = await ExecuteCommandAsync(args, cancellationToken).ConfigureAwait(false);
+        var result = await ExecuteCommandAsync(context, args, cancellationToken).ConfigureAwait(false);
 
         if (!result.Success)
         {
           return CommandResponse<string>.Fail(
-              result.Error ?? "Get logs failed",
-              ErrorCodes.Container.LogsFailed);
+              ErrorOrDefault(result, "Get logs failed"),
+              FailureCode(result.Error, ErrorCodes.Container.LogsFailed));
         }
 
         // docker logs writes to both stdout and stderr.
@@ -215,7 +217,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
       }
       catch (Exception ex)
       {
-        return CommandResponse<string>.Fail(ex.Message, ErrorCodes.General.Unknown);
+        return CommandResponse<string>.Fail(ex.Message, FailureCode(ex, ErrorCodes.General.Unknown));
       }
     }
 
@@ -228,17 +230,17 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     {
       try
       {
-        var args = $"top {QuoteArgumentIfNeeded(containerId)}";
+        var args = $"top {QuotePositionalArgument(containerId, nameof(containerId))}";
         if (!string.IsNullOrEmpty(psOptions))
-          args += $" {psOptions}";
+          args += $" {QuoteArgumentIfNeeded(psOptions)}";
 
-        var result = await ExecuteCommandAsync(args, cancellationToken).ConfigureAwait(false);
+        var result = await ExecuteCommandAsync(context, args, cancellationToken).ConfigureAwait(false);
 
         if (!result.Success)
         {
           return CommandResponse<ContainerProcesses>.Fail(
-              result.Error ?? "Container top failed",
-              ErrorCodes.Container.TopFailed,
+              ErrorOrDefault(result, "Container top failed"),
+              FailureCode(result.Error, ErrorCodes.Container.TopFailed),
               CreateErrorContext(context, "TopContainer", result),
               result.ExitCode);
         }
@@ -262,7 +264,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
       }
       catch (Exception ex)
       {
-        return CommandResponse<ContainerProcesses>.Fail(ex.Message, ErrorCodes.Container.TopFailed);
+        return CommandResponse<ContainerProcesses>.Fail(ex.Message, FailureCode(ex, ErrorCodes.Container.TopFailed));
       }
     }
 
@@ -274,13 +276,13 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     {
       try
       {
-        var result = await ExecuteCommandAsync($"diff {QuoteArgumentIfNeeded(containerId)}", cancellationToken).ConfigureAwait(false);
+        var result = await ExecuteCommandAsync(context, $"diff {QuotePositionalArgument(containerId, nameof(containerId))}", cancellationToken).ConfigureAwait(false);
 
         if (!result.Success)
         {
           return CommandResponse<IList<FilesystemChange>>.Fail(
-              result.Error ?? "Container diff failed",
-              ErrorCodes.Container.DiffFailed,
+              ErrorOrDefault(result, "Container diff failed"),
+              FailureCode(result.Error, ErrorCodes.Container.DiffFailed),
               CreateErrorContext(context, "DiffContainer", result),
               result.ExitCode);
         }
@@ -307,7 +309,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
       }
       catch (Exception ex)
       {
-        return CommandResponse<IList<FilesystemChange>>.Fail(ex.Message, ErrorCodes.Container.DiffFailed);
+        return CommandResponse<IList<FilesystemChange>>.Fail(ex.Message, FailureCode(ex, ErrorCodes.Container.DiffFailed));
       }
     }
 

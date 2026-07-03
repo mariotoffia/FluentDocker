@@ -45,19 +45,19 @@ Because v2 only supported Docker CLI, all migrations use `WithDockerCli`:
 
 ```csharp
 // v3 -- required before any builder usage
-using var kernel = FluentDockerKernel.Create()
-    .WithDockerCli("docker", d => d.AsDefault())
-    .Build();
+await using var kernel = await FluentDockerKernel.Create()
+  .WithDockerCli("docker", d => d.AsDefault())
+  .BuildAsync();
 ```
 
 If you need sudo:
 
 ```csharp
-using var kernel = FluentDockerKernel.Create()
-    .WithDockerCli("docker", d => d
-        .AsDefault()
-        .WithSudo(SudoMechanism.NoPassword))
-    .Build();
+await using var kernel = await FluentDockerKernel.Create()
+  .WithDockerCli("docker", d => d
+    .AsDefault()
+    .WithSudo(SudoMechanism.NoPassword))
+  .BuildAsync();
 ```
 
 The kernel is passed into the `Builder` via `WithinDriver()` (see next section).
@@ -189,16 +189,13 @@ using var results = new Builder()
 
 | v2 Method | v3 Method | Notes |
 |---|---|---|
-| `container.Start()` | `container.Start()` | Sync still available |
-| | `await container.StartAsync()` | Async variant (new) |
-| `container.Stop()` | `container.Stop()` | Sync still available |
-| | `await container.StopAsync()` | Async variant (new) |
-| `container.Pause()` | `container.Pause()` | Sync still available |
-| | `await container.PauseAsync()` | Async variant (new) |
-| `container.Resume()` | `container.Start()` | No `Resume()`; `Start()` unpauses |
+| `container.Start()` | `await container.StartAsync()` | Async-only service API |
+| `container.Stop()` | `await container.StopAsync()` | Async-only service API |
+| `container.Pause()` | `await container.PauseAsync()` | Async-only service API |
+| `container.Resume()` | *(no service wrapper)* | Use `IContainerDriver.UnpauseAsync(...)` directly if needed |
 | `container.GetConfiguration()` | `container.GetConfiguration()` | Extension in `Services.Extensions` |
 | | `await container.InspectAsync()` | Async variant (new) |
-| `container.ToHostExposedEndpoint(port)` | `container.ToHostExposedEndpoint(port)` | Extension in `Services.Extensions` |
+| `container.ToHostExposedEndpoint(port)` | `container.ToHostExposedEndpoint("5432/tcp")` | Extension in `Services.Extensions` |
 | `container.Logs()` | `await container.GetLogsAsync()` | No synchronous variant |
 | `container.Execute(cmd)` | `await container.ExecuteAsync(cmd)` | Note: `ExecuteAsync`, **not** `ExecAsync` |
 | `host.ComposeUp(...)` | `await composeDriver.UpAsync(ctx, config)` | Struct-based args (see section 9) |
@@ -207,7 +204,8 @@ using var results = new Builder()
 
 - `GetConfiguration()` and `ToHostExposedEndpoint()` moved to extension methods.
   Add `using FluentDocker.Services.Extensions;` to resolve them.
-- `Resume()` was removed. Call `Start()` to unpause a paused container.
+- `Resume()` was removed from the service API. Call `IContainerDriver.UnpauseAsync(...)`
+  directly if you need unpause semantics.
 - `Logs()` has no sync wrapper in v3; use `GetLogsAsync()`.
 
 ---
@@ -262,7 +260,7 @@ per-driver kernel configuration.
 | `SudoMechanism.Password.SetSudo("pw")` | `.WithDockerCli("docker", d => d.WithSudo(SudoMechanism.Password, "pw"))` |
 | Global static state | Per-driver configuration in kernel builder |
 
-The `SudoMechanism` enum values are unchanged: `None`, `NoPassword`, `Password`.
+The `SudoMechanism` enum values are unchanged (`None`, `NoPassword`, `Password`) and experimental.
 
 ```csharp
 // v2
@@ -270,16 +268,16 @@ SudoMechanism.NoPassword.SetSudo();
 var svc = new Builder().UseContainer().UseImage("x").Build();
 
 // v3
-using var kernel = FluentDockerKernel.Create()
+await using var kernel = await FluentDockerKernel.Create()
     .WithDockerCli("docker", d => d
         .AsDefault()
         .WithSudo(SudoMechanism.NoPassword))
-    .Build();
+    .BuildAsync();
 
-var results = new Builder()
+await using var results = await new Builder()
     .WithinDriver("docker", kernel)
     .UseContainer(c => c.UseImage("x"))
-    .Build();
+    .BuildAsync();
 ```
 
 ---
@@ -310,7 +308,7 @@ var results = new Builder()
     .WithinDriver("docker", kernel)
     .UseCompose(c => c
         .WithComposeFile("docker-compose.yml")
-        .RemoveOrphans())
+        .WithRemoveOrphans())
     .Build();
 ```
 
@@ -350,7 +348,7 @@ using var results = new Builder()
     .Build();
 
 // Async (preferred)
-using var results = await new Builder()
+await using var results = await new Builder()
     .WithinDriver("docker", kernel)
     .UseContainer(c => c.UseImage("redis:alpine"))
     .BuildAsync(cancellationToken: cancellationToken);
@@ -365,9 +363,12 @@ using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
 
 await container.StartAsync(cts.Token);
 await container.StopAsync(cts.Token);
-var logs = await container.GetLogsAsync(cts.Token);
+var logs = await container.GetLogsAsync(cancellationToken: cts.Token);
 var stats = await container.GetStatsAsync(cts.Token);
 ```
+
+`GetLogsAsync(follow: true)` is rejected by buffered CLI/API paths; use
+`IStreamDriver.StreamLogsAsync(...)` for follow-style logs.
 
 ---
 
@@ -380,7 +381,7 @@ var stats = await container.GetStatsAsync(cts.Token);
 5. Pass the kernel via `.WithinDriver("docker", kernel)`.
 6. Change `Build()` call sites to expect `BuildResults` instead of a single service.
 7. Remove `.Start()` calls after `Build()` (auto-started).
-8. Replace `Resume()` with `Start()`.
+8. Replace `Resume()` with `IContainerDriver.UnpauseAsync(...)` if you need unpause semantics.
 9. Replace `Logs()` with `await GetLogsAsync()`.
 10. Replace `Execute(cmd)` with `await ExecuteAsync(cmd)`.
 11. Move sudo config from global static into kernel builder.

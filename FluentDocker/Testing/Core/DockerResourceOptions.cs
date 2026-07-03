@@ -82,8 +82,12 @@ namespace FluentDocker.Testing.Core
 
     /// <summary>
     /// Whether to apply session-tracking labels to created resources.
-    /// When enabled, resources are tagged with <see cref="SessionLabel.Key"/>
-    /// for orphan cleanup detection. Default: true.
+    /// Honored directly by <see cref="ContainerResource"/>,
+    /// <see cref="NetworkResource"/>, and <see cref="VolumeResource"/> because
+    /// their underlying Docker/Podman create operations support labels.
+    /// Other resource types may create labeled child containers, networks, or
+    /// volumes only when their compose/stack/kubernetes definitions include
+    /// labels themselves. Default: true.
     /// </summary>
     public bool EnableSessionLabels { get; set; } = true;
 

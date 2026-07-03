@@ -29,7 +29,7 @@ namespace FluentDocker.Builders
   /// </code>
   /// </para>
   /// </remarks>
-  public interface IContainerBuilder
+  public partial interface IContainerBuilder
   {
     #region Basic Configuration
 
@@ -71,11 +71,11 @@ namespace FluentDocker.Builders
     IContainerBuilder WithExtraHost(string host, string ip) =>
         throw new NotSupportedException("This IContainerBuilder implementation does not support WithExtraHost.");
 
-    /// <summary>Maps a container port to a specific host port.</summary>
+    /// <summary>Maps container→host: <c>WithPort("80/tcp", "127.0.0.1:8080")</c>.</summary>
     /// <param name="containerPort">
     /// The container port with optional protocol (e.g. "8080/tcp", "53/udp").
     /// </param>
-    /// <param name="hostPort">The host port to bind to (e.g. "8080").</param>
+    /// <param name="hostPort">The host port to bind to (e.g. "8080" or "127.0.0.1:8080").</param>
     /// <returns>The builder instance for method chaining.</returns>
     IContainerBuilder WithPort(string containerPort, string hostPort);
 
@@ -88,7 +88,7 @@ namespace FluentDocker.Builders
     /// <returns>The builder instance for method chaining.</returns>
     IContainerBuilder ExposePort(string containerPort);
 
-    /// <summary>Exposes a container port with explicit host port mapping.</summary>
+    /// <summary>Exposes host→container: <c>ExposePort(8080, 80)</c>.</summary>
     /// <param name="hostPort">The port on the host to bind to.</param>
     /// <param name="containerPort">The port inside the container to expose.</param>
     /// <returns>The builder instance for method chaining.</returns>
@@ -179,7 +179,7 @@ namespace FluentDocker.Builders
 #pragma warning restore CA1716
 
     /// <summary>
-    /// Sets a static IPv4 address for the container.
+    /// Sets a static IPv4 address on the first configured network for the container.
     /// Requires the container to be connected to a custom network with a defined subnet.
     /// </summary>
     /// <param name="ipv4Address">The IPv4 address to assign (e.g., "10.18.0.22").</param>
@@ -238,7 +238,7 @@ namespace FluentDocker.Builders
     /// <returns>The builder instance for method chaining.</returns>
     IContainerBuilder WithLinks(params string[] containerNames);
 
-    /// <summary>Associates this container with a Podman pod. Ignored by Docker.</summary>
+    /// <summary>Associates this container with a Podman pod. Podman-only; ignored by Docker drivers.</summary>
     /// <param name="podName">Name of the pod to join.</param>
     /// <returns>The builder instance for method chaining.</returns>
     IContainerBuilder WithPod(string podName);
@@ -295,7 +295,7 @@ namespace FluentDocker.Builders
 
     #region Container Existence Behavior
 
-    /// <summary>If a container with the same name exists, reuse it instead of creating a new one.</summary>
+    /// <summary>Reuses a same-case name match; already-running containers skip waits and ignore config differences.</summary>
     /// <returns>The builder instance for method chaining.</returns>
     IContainerBuilder ReuseIfExists();
 
@@ -458,7 +458,7 @@ namespace FluentDocker.Builders
     /// <returns>The builder instance for method chaining.</returns>
     IContainerBuilder KeepContainer();
 
-    /// <summary>Keeps the container running after the service is disposed (does not stop it).</summary>
+    /// <summary>Keeps the container running after the service is disposed (does not stop or delete it).</summary>
     /// <returns>The builder instance for method chaining.</returns>
     IContainerBuilder KeepRunning();
 

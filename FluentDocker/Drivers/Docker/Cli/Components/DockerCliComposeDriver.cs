@@ -37,15 +37,15 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
             args += $" --profile {QuoteArgumentIfNeeded(profile)}";
         args += " " + BuildUpSubArgs(config);
         if (config.Services.Count > 0)
-          args += " " + string.Join(" ", config.Services);
+          args += " " + QuoteServices(config.Services);
 
-        var result = await ExecuteCommandAsync(args, config.Environment, cancellationToken).ConfigureAwait(false);
+        var result = await ExecuteUnboundedCommandAsync(context, args, config.Environment, cancellationToken).ConfigureAwait(false);
 
         if (!result.Success)
         {
           return CommandResponse<ComposeUpResult>.Fail(
-              result.Error ?? "Compose up failed",
-              ErrorCodes.Compose.UpFailed,
+              ErrorOrDefault(result, "Compose up failed"),
+              FailureCode(result.Error, ErrorCodes.Compose.UpFailed),
               CreateErrorContext(context, "ComposeUp", result),
               result.ExitCode);
         }
@@ -62,7 +62,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
       }
       catch (Exception ex)
       {
-        return CommandResponse<ComposeUpResult>.Fail(ex.Message, ErrorCodes.Compose.UpFailed);
+        return CommandResponse<ComposeUpResult>.Fail(ex.Message, FailureCode(ex, ErrorCodes.Compose.UpFailed));
       }
     }
 
@@ -76,13 +76,13 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
       {
         var args = BuildComposeArgs(config) + " " + BuildDownSubArgs(config);
 
-        var result = await ExecuteCommandAsync(args, cancellationToken).ConfigureAwait(false);
+        var result = await ExecuteCommandAsync(context, args, cancellationToken).ConfigureAwait(false);
 
         if (!result.Success)
         {
           return CommandResponse<Unit>.Fail(
-              result.Error ?? "Compose down failed",
-              ErrorCodes.Compose.DownFailed,
+              ErrorOrDefault(result, "Compose down failed"),
+              FailureCode(result.Error, ErrorCodes.Compose.DownFailed),
               CreateErrorContext(context, "ComposeDown", result),
               result.ExitCode);
         }
@@ -95,7 +95,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
       }
       catch (Exception ex)
       {
-        return CommandResponse<Unit>.Fail(ex.Message, ErrorCodes.Compose.DownFailed);
+        return CommandResponse<Unit>.Fail(ex.Message, FailureCode(ex, ErrorCodes.Compose.DownFailed));
       }
     }
 
@@ -109,12 +109,12 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
       {
         var args = BuildComposeArgs(config) + " start";
         if (config.Services.Count > 0)
-          args += " " + string.Join(" ", config.Services);
+          args += " " + QuoteServices(config.Services);
 
-        var result = await ExecuteCommandAsync(args, cancellationToken).ConfigureAwait(false);
+        var result = await ExecuteCommandAsync(context, args, cancellationToken).ConfigureAwait(false);
         return result.Success
             ? CommandResponse<Unit>.Ok(Unit.Default)
-            : CommandResponse<Unit>.Fail(result.Error ?? "Compose start failed", ErrorCodes.Compose.StartFailed);
+            : CommandResponse<Unit>.Fail(ErrorOrDefault(result, "Compose start failed"), FailureCode(result.Error, ErrorCodes.Compose.StartFailed));
       }
       catch (OperationCanceledException)
       {
@@ -122,7 +122,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
       }
       catch (Exception ex)
       {
-        return CommandResponse<Unit>.Fail(ex.Message, ErrorCodes.Compose.StartFailed);
+        return CommandResponse<Unit>.Fail(ex.Message, FailureCode(ex, ErrorCodes.Compose.StartFailed));
       }
     }
 
@@ -138,12 +138,12 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
         if (config.Timeout.HasValue)
           args += $" --timeout {config.Timeout.Value}";
         if (config.Services.Count > 0)
-          args += " " + string.Join(" ", config.Services);
+          args += " " + QuoteServices(config.Services);
 
-        var result = await ExecuteCommandAsync(args, cancellationToken).ConfigureAwait(false);
+        var result = await ExecuteCommandAsync(context, args, cancellationToken).ConfigureAwait(false);
         return result.Success
             ? CommandResponse<Unit>.Ok(Unit.Default)
-            : CommandResponse<Unit>.Fail(result.Error ?? "Compose stop failed", ErrorCodes.Compose.StopFailed);
+            : CommandResponse<Unit>.Fail(ErrorOrDefault(result, "Compose stop failed"), FailureCode(result.Error, ErrorCodes.Compose.StopFailed));
       }
       catch (OperationCanceledException)
       {
@@ -151,7 +151,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
       }
       catch (Exception ex)
       {
-        return CommandResponse<Unit>.Fail(ex.Message, ErrorCodes.Compose.StopFailed);
+        return CommandResponse<Unit>.Fail(ex.Message, FailureCode(ex, ErrorCodes.Compose.StopFailed));
       }
     }
 
@@ -165,12 +165,12 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
       {
         var args = BuildComposeArgs(config) + " " + BuildRestartSubArgs(config);
         if (config.Services.Count > 0)
-          args += " " + string.Join(" ", config.Services);
+          args += " " + QuoteServices(config.Services);
 
-        var result = await ExecuteCommandAsync(args, cancellationToken).ConfigureAwait(false);
+        var result = await ExecuteCommandAsync(context, args, cancellationToken).ConfigureAwait(false);
         return result.Success
             ? CommandResponse<Unit>.Ok(Unit.Default)
-            : CommandResponse<Unit>.Fail(result.Error ?? "Compose restart failed", ErrorCodes.Compose.RestartFailed);
+            : CommandResponse<Unit>.Fail(ErrorOrDefault(result, "Compose restart failed"), FailureCode(result.Error, ErrorCodes.Compose.RestartFailed));
       }
       catch (OperationCanceledException)
       {
@@ -178,7 +178,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
       }
       catch (Exception ex)
       {
-        return CommandResponse<Unit>.Fail(ex.Message, ErrorCodes.Compose.RestartFailed);
+        return CommandResponse<Unit>.Fail(ex.Message, FailureCode(ex, ErrorCodes.Compose.RestartFailed));
       }
     }
 
@@ -192,12 +192,12 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
       {
         var args = BuildComposeArgs(config) + " pause";
         if (config.Services.Count > 0)
-          args += " " + string.Join(" ", config.Services);
+          args += " " + QuoteServices(config.Services);
 
-        var result = await ExecuteCommandAsync(args, cancellationToken).ConfigureAwait(false);
+        var result = await ExecuteCommandAsync(context, args, cancellationToken).ConfigureAwait(false);
         return result.Success
             ? CommandResponse<Unit>.Ok(Unit.Default)
-            : CommandResponse<Unit>.Fail(result.Error ?? "Compose pause failed", ErrorCodes.Compose.PauseFailed);
+            : CommandResponse<Unit>.Fail(ErrorOrDefault(result, "Compose pause failed"), FailureCode(result.Error, ErrorCodes.Compose.PauseFailed));
       }
       catch (OperationCanceledException)
       {
@@ -205,7 +205,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
       }
       catch (Exception ex)
       {
-        return CommandResponse<Unit>.Fail(ex.Message, ErrorCodes.Compose.PauseFailed);
+        return CommandResponse<Unit>.Fail(ex.Message, FailureCode(ex, ErrorCodes.Compose.PauseFailed));
       }
     }
 
@@ -219,12 +219,12 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
       {
         var args = BuildComposeArgs(config) + " unpause";
         if (config.Services.Count > 0)
-          args += " " + string.Join(" ", config.Services);
+          args += " " + QuoteServices(config.Services);
 
-        var result = await ExecuteCommandAsync(args, cancellationToken).ConfigureAwait(false);
+        var result = await ExecuteCommandAsync(context, args, cancellationToken).ConfigureAwait(false);
         return result.Success
             ? CommandResponse<Unit>.Ok(Unit.Default)
-            : CommandResponse<Unit>.Fail(result.Error ?? "Compose unpause failed", ErrorCodes.Compose.UnpauseFailed);
+            : CommandResponse<Unit>.Fail(ErrorOrDefault(result, "Compose unpause failed"), FailureCode(result.Error, ErrorCodes.Compose.UnpauseFailed));
       }
       catch (OperationCanceledException)
       {
@@ -232,7 +232,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
       }
       catch (Exception ex)
       {
-        return CommandResponse<Unit>.Fail(ex.Message, ErrorCodes.Compose.UnpauseFailed);
+        return CommandResponse<Unit>.Fail(ex.Message, FailureCode(ex, ErrorCodes.Compose.UnpauseFailed));
       }
     }
 
@@ -244,14 +244,14 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     {
       try
       {
-        var args = BuildComposeArgs(config) + $" kill -s {config.Signal ?? "SIGKILL"}";
+        var args = BuildComposeArgs(config) + $" kill -s {QuoteArgumentIfNeeded(config.Signal ?? "SIGKILL")}";
         if (config.Services.Count > 0)
-          args += " " + string.Join(" ", config.Services);
+          args += " " + QuoteServices(config.Services);
 
-        var result = await ExecuteCommandAsync(args, cancellationToken).ConfigureAwait(false);
+        var result = await ExecuteCommandAsync(context, args, cancellationToken).ConfigureAwait(false);
         return result.Success
             ? CommandResponse<Unit>.Ok(Unit.Default)
-            : CommandResponse<Unit>.Fail(result.Error ?? "Compose kill failed", ErrorCodes.Compose.KillFailed);
+            : CommandResponse<Unit>.Fail(ErrorOrDefault(result, "Compose kill failed"), FailureCode(result.Error, ErrorCodes.Compose.KillFailed));
       }
       catch (OperationCanceledException)
       {
@@ -259,7 +259,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
       }
       catch (Exception ex)
       {
-        return CommandResponse<Unit>.Fail(ex.Message, ErrorCodes.Compose.KillFailed);
+        return CommandResponse<Unit>.Fail(ex.Message, FailureCode(ex, ErrorCodes.Compose.KillFailed));
       }
     }
 
@@ -273,12 +273,12 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
       {
         var args = BuildComposeArgs(config) + " " + BuildRemoveSubArgs(config);
         if (config.Services.Count > 0)
-          args += " " + string.Join(" ", config.Services);
+          args += " " + QuoteServices(config.Services);
 
-        var result = await ExecuteCommandAsync(args, cancellationToken).ConfigureAwait(false);
+        var result = await ExecuteCommandAsync(context, args, cancellationToken).ConfigureAwait(false);
         return result.Success
             ? CommandResponse<Unit>.Ok(Unit.Default)
-            : CommandResponse<Unit>.Fail(result.Error ?? "Compose rm failed", ErrorCodes.Compose.RemoveFailed);
+            : CommandResponse<Unit>.Fail(ErrorOrDefault(result, "Compose rm failed"), FailureCode(result.Error, ErrorCodes.Compose.RemoveFailed));
       }
       catch (OperationCanceledException)
       {
@@ -286,7 +286,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
       }
       catch (Exception ex)
       {
-        return CommandResponse<Unit>.Fail(ex.Message, ErrorCodes.Compose.RemoveFailed);
+        return CommandResponse<Unit>.Fail(ex.Message, FailureCode(ex, ErrorCodes.Compose.RemoveFailed));
       }
     }
 
@@ -305,6 +305,9 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
         args += $" --project-directory {QuoteArgumentIfNeeded(config.ProjectDirectory)}";
       return args;
     }
+
+    private static string QuoteServices(IEnumerable<string> services) =>
+        string.Join(" ", services.Select(QuoteArgumentIfNeeded));
 
     #endregion
   }

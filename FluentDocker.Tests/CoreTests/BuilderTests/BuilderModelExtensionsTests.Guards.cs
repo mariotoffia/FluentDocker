@@ -132,6 +132,23 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
 
     [Fact]
     [Trait("Category", "Unit")]
+    public async Task TopLevelTryUseModelRunner_True_WhenInferenceOnlyPortPresent()
+    {
+      var pack = new MockDriverPack().EnableModelInferenceOnly();
+      var kernel = await MockKernelBuilderExtensions.CreateWithMockDriverAsync("docker", pack);
+      await using (kernel)
+      {
+        var scoped = new Builder().WithinDriver("docker", kernel);
+
+        var actual = scoped.TryUseModelRunner(out var runnerBuilder);
+
+        Assert.True(actual);
+        Assert.NotNull(runnerBuilder);
+      }
+    }
+
+    [Fact]
+    [Trait("Category", "Unit")]
     public async Task TryUseModelRunner_True_WhenRuntimeOnlyPortPresent()
     {
       var pack = new MockDriverPack();

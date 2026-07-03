@@ -48,14 +48,18 @@ namespace FluentDocker.Builders
     /// the scoped driver's inference port — e.g. to run inference on a different
     /// engine/endpoint while management/runtime stay on the scoped driver. The
     /// supplied driver's lifetime is owned by the caller (not disposed by the runner).
-    /// Takes precedence over <see cref="WithEndpoint"/>.
+    /// Takes precedence over <see cref="WithEndpoint"/>. The returned runner's
+    /// <see cref="IModelRunner.Endpoint"/> remains the scoped/context default for diagnostics,
+    /// not the injected driver's target.
     /// </summary>
     IModelRunnerBuilder WithInferenceDriver(IModelInferenceDriver inference);
 
     /// <summary>
     /// Routes inference to the <see cref="IModelInferenceDriver"/> registered under a
     /// different <paramref name="driverId"/> in the same kernel (resolved at build
-    /// time), while management/runtime stay on the scoped driver.
+    /// time), while management/runtime stay on the scoped driver. The returned runner's
+    /// <see cref="IModelRunner.Endpoint"/> remains the scoped/context default for diagnostics,
+    /// not the resolved driver's target.
     /// </summary>
     IModelRunnerBuilder WithInferenceDriver(string driverId);
 

@@ -3,6 +3,7 @@ using System.Text;
 
 namespace FluentDocker.Model.Containers
 {
+  [System.Obsolete("Unused by FluentDocker and scheduled for removal in v4. Use driver ContainerProcesses instead.")]
   public sealed class Processes
   {
     public IList<string> Columns { get; set; }

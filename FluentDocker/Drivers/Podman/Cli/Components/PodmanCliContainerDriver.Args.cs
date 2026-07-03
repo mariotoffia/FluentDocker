@@ -108,7 +108,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       foreach (var port in OrEmpty(config.PortBindings))
         args += $" -p {QuoteArgumentIfNeeded($"{port.Value}:{port.Key}")}";
       foreach (var vol in OrEmpty(config.Volumes))
-        args += $" -v {QuoteArgumentIfNeeded($"{vol.Key}:{vol.Value}")}";
+        args += $" -v {QuoteArgumentIfNeeded(vol.Value == null ? vol.Key : $"{vol.Key}:{vol.Value}")}";
       foreach (var label in OrEmpty(config.Labels))
         args += $" --label {QuoteArgumentIfNeeded($"{label.Key}={label.Value}")}";
       foreach (var network in OrEmpty(config.Networks))

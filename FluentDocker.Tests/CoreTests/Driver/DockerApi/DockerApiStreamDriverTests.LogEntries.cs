@@ -52,8 +52,8 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
     [Fact]
     public async Task StreamLogEntriesAsync_RawTtyStream_DefaultsToStdout()
     {
-      // Fewer than 8 bytes triggers the raw/TTY fallback path.
       var (driver, mock) = CreateDriver();
+      mock.SetupGet("/containers/src2/json", 200, "{\"Config\":{\"Tty\":true}}");
       mock.SetupStream("/containers/src2/logs", "ab\ncd");
 
       var entries = new List<LogEntry>();
@@ -215,26 +215,21 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
     }
 
     [Fact]
-    public async Task StreamLogEntriesAsync_RawHeaderWithFailedTtyDetect_SelfCorrectsToRawText()
+    public async Task StreamLogEntriesAsync_RawHeaderWithFailedTtyDetect_ThrowsDriverException()
     {
       var (driver, mock) = CreateDriver();
-      // No /json setup => TTY detection fails and defaults to demux. The payload is raw
-      // text whose first 8 bytes ("hello wo") are not a valid multiplex header, so the
-      // reader must self-correct and emit raw stdout lines (F5).
       var raw = Encoding.UTF8.GetBytes("hello world\nsecond line\n");
       mock.SetupStreamBytes("/containers/rawhdr/logs", raw);
 
-      var entries = new List<LogEntry>();
-      await foreach (var e in driver.StreamLogEntriesAsync(Ctx, "rawhdr",
-          new StreamLogsConfig { Follow = false }, cancellationToken: TestContext.Current.CancellationToken))
+      var error = await Assert.ThrowsAsync<DriverException>(async () =>
       {
-        entries.Add(e);
-      }
+        await foreach (var _ in driver.StreamLogEntriesAsync(Ctx, "rawhdr",
+            new StreamLogsConfig { Follow = false }, cancellationToken: TestContext.Current.CancellationToken))
+        {
+        }
+      });
 
-      Assert.Equal(2, entries.Count);
-      Assert.Equal("hello world", entries[0].Line);
-      Assert.Equal("second line", entries[1].Line);
-      Assert.All(entries, e => Assert.Equal(LogStreamSource.Stdout, e.Source));
+      Assert.Contains("invalid multiplexed frame header", error.Message);
     }
 
     #endregion
@@ -273,6 +268,20 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
       Assert.True(result.Success);
       Assert.True(result.Data.IsConnected);
       Assert.NotNull(result.Data.OutputStream);
+    }
+
+    [Fact]
+    public async Task AttachAsync_WithStdin_FailsWithoutOpeningStream()
+    {
+      var (driver, mock) = CreateDriver();
+
+      var result = await driver.AttachAsync(Ctx, "ctr",
+          new AttachConfig { Stdin = true }, TestContext.Current.CancellationToken);
+
+      Assert.False(result.Success);
+      Assert.Equal(ErrorCodes.Container.AttachFailed, result.ErrorCode);
+      Assert.Contains("interactive stdin is not supported by the Docker API driver", result.Error);
+      Assert.Empty(mock.GetRequests());
     }
 
     [Fact]

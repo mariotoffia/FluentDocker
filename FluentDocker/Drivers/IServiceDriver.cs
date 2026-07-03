@@ -1,7 +1,9 @@
 using System;
 using System.Collections.Generic;
+using System.Text.Json.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
+using FluentDocker.Common;
 using FluentDocker.Model.Drivers;
 
 namespace FluentDocker.Drivers
@@ -107,6 +109,7 @@ namespace FluentDocker.Drivers
     public string Image { get; set; }
 
     /// <summary>Ports exposed.</summary>
+    [JsonConverter(typeof(LenientStringListConverter))]
     public List<string> Ports { get; set; } = [];
   }
 

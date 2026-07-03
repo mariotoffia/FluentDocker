@@ -34,9 +34,13 @@ namespace FluentDocker.Drivers.Docker.Api.Components
         try
         {
           ExtractArchiveToDirectory(stream, extractDir);
-          var file = Directory.EnumerateFiles(extractDir, "*", SearchOption.AllDirectories)
-              .SingleOrDefault()
-              ?? throw new InvalidOperationException("Docker archive contained no file");
+          var files = Directory.EnumerateFiles(extractDir, "*", SearchOption.AllDirectories)
+              .Take(2).ToList();
+          if (files.Count == 0)
+            throw new InvalidOperationException("Docker archive contained no file");
+          if (files.Count > 1)
+            throw new InvalidOperationException("Docker archive contained 2 files; copy to a directory path instead");
+          var file = files[0];
           File.Copy(file, hostPath, overwrite: true);
         }
         finally

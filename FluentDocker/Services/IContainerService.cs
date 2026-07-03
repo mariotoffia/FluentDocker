@@ -30,8 +30,12 @@ namespace FluentDocker.Services
     Task<Container> InspectAsync(CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Gets container logs asynchronously.
+    /// Gets buffered container logs asynchronously.
     /// </summary>
+    /// <remarks>
+    /// <paramref name="follow"/> is rejected by buffered CLI/API drivers because it blocks until
+    /// the container exits. Use a streaming driver API for follow-style log consumption.
+    /// </remarks>
     Task<string> GetLogsAsync(bool follow = false, CancellationToken cancellationToken = default);
 
     /// <summary>
@@ -40,13 +44,15 @@ namespace FluentDocker.Services
     Task<string> ExecuteAsync(string command, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Exports the container filesystem as a tar archive.
+    /// Exports the container filesystem as a tar archive buffered in memory.
     /// </summary>
+    /// <remarks>The current driver port writes to a file path, so this byte-array API buffers the result.</remarks>
     Task<byte[]> ExportAsync(CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Copies a file from the container.
+    /// Copies a single file from the container as bytes.
     /// </summary>
+    /// <remarks>Use <see cref="CopyFromToPathAsync"/> for directories.</remarks>
     Task<byte[]> CopyFromAsync(string containerPath, CancellationToken cancellationToken = default);
 
     /// <summary>
@@ -129,4 +135,3 @@ namespace FluentDocker.Services
     public long WriteBytes { get; set; }
   }
 }
-

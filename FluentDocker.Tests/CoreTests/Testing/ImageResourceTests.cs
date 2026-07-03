@@ -1,5 +1,7 @@
 using System;
+using System.Threading;
 using System.Threading.Tasks;
+using FluentDocker.Common;
 using FluentDocker.Drivers;
 using FluentDocker.Model.Drivers;
 using FluentDocker.Testing.Core;
@@ -71,6 +73,67 @@ namespace FluentDocker.Tests.CoreTests.Testing
           false,
           false,
           It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task DisposeAsync_WhenImageRemoveFails_PreservesImageIdAndCapturesDiagnostics()
+    {
+      MockPack
+          .SetupImagePull()
+          .SetupImageInspect("sha256:busy");
+
+      MockPack.ImageDriver
+          .SetupSequence(d => d.RemoveAsync(
+              It.IsAny<DriverContext>(),
+              It.IsAny<string>(),
+              It.IsAny<bool>(),
+              It.IsAny<bool>(),
+              It.IsAny<CancellationToken>()))
+          .ReturnsAsync(CommandResponse<ImageRemoveResult>.Fail(
+              "image is in use", ErrorCodes.Image.RemoveFailed))
+          .ReturnsAsync(CommandResponse<ImageRemoveResult>.Fail(
+              "image is still in use", ErrorCodes.Image.RemoveFailed));
+
+      var resource = new ImageResource(
+          Kernel,
+          "nginx",
+          removeOnDispose: true,
+          options: new DockerResourceOptions { ForceRemoveOnDispose = true });
+
+      await resource.InitializeAsync(TestContext.Current.CancellationToken);
+
+      var ex = await Assert.ThrowsAsync<DriverException>(
+          () => resource.DisposeAsync().AsTask());
+
+      Assert.Contains("Failed to remove image", ex.Message);
+      Assert.Equal("sha256:busy", resource.ImageId);
+      Assert.NotNull(resource.LastTeardownDiagnostics);
+      Assert.NotNull(resource.LastTeardownDiagnostics.ForceRemoveException);
+    }
+
+    [Fact]
+    public async Task DisposeAsync_WhenImageAlreadyRemoved_DoesNotThrow()
+    {
+      MockPack
+          .SetupImagePull()
+          .SetupImageInspect("sha256:gone");
+      MockPack.ImageDriver
+          .Setup(d => d.RemoveAsync(
+              It.IsAny<DriverContext>(),
+              It.IsAny<string>(),
+              It.IsAny<bool>(),
+              It.IsAny<bool>(),
+              It.IsAny<CancellationToken>()))
+          .ReturnsAsync(CommandResponse<ImageRemoveResult>.Fail(
+              "not found", ErrorCodes.Image.NotFound));
+
+      var resource = new ImageResource(
+          Kernel, "nginx", removeOnDispose: true);
+
+      await resource.InitializeAsync(TestContext.Current.CancellationToken);
+      await resource.DisposeAsync();
+
+      Assert.Null(resource.ImageId);
     }
 
     [Fact]

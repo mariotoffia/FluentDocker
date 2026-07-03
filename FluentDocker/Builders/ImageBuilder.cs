@@ -286,7 +286,7 @@ namespace FluentDocker.Builders
       }
 
       // Prepare build context (copy files, render Dockerfile)
-      var buildContext = await _dockerfileBuilder.PrepareBuildAsync().ConfigureAwait(false);
+      var buildContext = await _dockerfileBuilder.PrepareBuildAsync(cancellationToken).ConfigureAwait(false);
 
       // Ensure at least one tag
       if (_tags.Count == 0)
@@ -337,4 +337,3 @@ namespace FluentDocker.Builders
     #endregion
   }
 }
-

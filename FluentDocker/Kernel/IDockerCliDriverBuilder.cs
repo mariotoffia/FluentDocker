@@ -35,6 +35,7 @@ namespace FluentDocker.Kernel
     /// <summary>
     /// Sets this driver as the default.
     /// </summary>
+    /// <remarks>When multiple drivers call <c>AsDefault()</c>, the last one wins.</remarks>
     IDockerCliDriverBuilder AsDefault();
 
     /// <summary>

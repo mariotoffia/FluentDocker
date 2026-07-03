@@ -76,12 +76,12 @@ var path = new TemplateString("${E_CUSTOM_PATH}");
 // Create unique temp directory for test
 var testDir = new TemplateString("${TEMP}/integration-test-${RND}");
 
-using var results = new Builder()
+await using var results = await new Builder()
     .WithinDriver("docker", kernel)
     .UseContainer(c => c
         .UseImage("myapp:latest")
         .WithVolume(testDir, "/app/data"))
-    .Build();
+    .BuildAsync();
 ```
 
 ### Combined Variables
@@ -128,12 +128,12 @@ var postResult = await "http://localhost:8080/api/users".DoRequest(
 ### Health Check Pattern
 
 ```csharp
-using var results = new Builder()
+await using var results = await new Builder()
     .WithinDriver("docker", kernel)
     .UseContainer(c => c
         .UseImage("myapi:latest")
         .ExposePort("8080"))
-    .Build();
+    .BuildAsync();
 
 var container = results.Containers.First();
 var endpoint = container.ToHostExposedEndpoint("8080/tcp");
@@ -203,7 +203,7 @@ typeof(MyTests).ResourceExtract(
 var resources = typeof(MyTests).ResourceQuery();
 foreach (var resource in resources)
 {
-    Console.WriteLine($"Resource: {resource.Name}");
+    Console.WriteLine($"Resource: {resource.Resource}");
 }
 ```
 
@@ -213,7 +213,7 @@ foreach (var resource in resources)
 // Extract matching resources to a directory (returns void)
 typeof(MyTests)
     .ResourceQuery()
-    .Where(r => r.Name.EndsWith("config.json"))
+    .Where(r => r.Resource.EndsWith("config.json"))
     .ToFile(new TemplateString("${TEMP}/extracted"));
 ```
 
@@ -228,7 +228,7 @@ typeof(MyTests).ResourceExtract(
     "seed-data.json"
 );
 
-using var results = new Builder()
+await using var results = await new Builder()
     .WithinDriver("docker", kernel)
     .UseContainer(c => c
         .UseImage("postgres:15-alpine")
@@ -236,7 +236,7 @@ using var results = new Builder()
         .WithVolume(fixturesPath, "/docker-entrypoint-initdb.d")
         .ExposePort("5432")
         .WaitForPort("5432/tcp", 30000))
-    .Build();
+    .BuildAsync();
 
 // Database initialized with test-data.sql
 ```
@@ -311,12 +311,12 @@ using var factory = LoggerFactory.Create(b => b
 
 ## SudoMechanism
 
-Configure sudo behavior for Linux environments via the kernel builder.
+Configure sudo behavior for Linux environments via the kernel builder. `SudoMechanism` is experimental.
 
 ### No Sudo (Default)
 
 ```csharp
-using var kernel = await FluentDockerKernel.Create()
+await using var kernel = await FluentDockerKernel.Create()
     .WithDockerCli("docker", d => d.AsDefault())
     .BuildAsync();
 ```
@@ -326,7 +326,7 @@ using var kernel = await FluentDockerKernel.Create()
 ```csharp
 using FluentDocker.Model.Common;
 
-using var kernel = await FluentDockerKernel.Create()
+await using var kernel = await FluentDockerKernel.Create()
     .WithDockerCli("docker", d => d
         .WithSudo(SudoMechanism.NoPassword)
         .AsDefault())
@@ -337,7 +337,7 @@ using var kernel = await FluentDockerKernel.Create()
 ### Sudo with Password
 
 ```csharp
-using var kernel = await FluentDockerKernel.Create()
+await using var kernel = await FluentDockerKernel.Create()
     .WithDockerCli("docker", d => d
         .WithSudo(SudoMechanism.Password, "your-password")
         .AsDefault())
@@ -409,10 +409,10 @@ to `ToHostExposedEndpoint()`. The resolver signature is:
 `Func<Dictionary<string, HostIpEndpoint[]>, string, Uri, IPEndPoint>`
 
 ```csharp
-using FluentDocker.Model.Containers;
+using System.Net;
 
 // Configure custom resolver on the builder
-using var results = new Builder()
+await using var results = await new Builder()
     .WithinDriver("docker", kernel)
     .UseContainer(c => c
         .UseImage("myapp:latest")
@@ -428,7 +428,7 @@ using var results = new Builder()
 
             return null;
         }))
-    .Build();
+    .BuildAsync();
 
 // ToHostExposedEndpoint uses the custom resolver automatically
 var endpoint = results.Containers.First().ToHostExposedEndpoint("8080/tcp");
@@ -474,7 +474,7 @@ else
 
 ## Container Stats Parsing
 
-Parse Docker stats output.
+Stats parsing is best-effort across Docker/Podman output variants; unparsable fields are skipped with Debug logs.
 
 ```csharp
 var stats = await container.GetStatsAsync();
@@ -545,9 +545,14 @@ var response = await TestDataGenerator.WaitForHealthy($"http://localhost:{port}/
 ### Container Factory
 
 ```csharp
+using System.Threading.Tasks;
+using FluentDocker.Builders;
+using FluentDocker.Kernel;
+using FluentDocker.Model.Kernel;
+
 public static class ContainerFactory
 {
-    public static BuildResults CreatePostgres(
+    public static Task<BuildResults> CreatePostgresAsync(
         FluentDockerKernel kernel, string password = "test")
     {
         return new Builder()
@@ -557,10 +562,10 @@ public static class ContainerFactory
                 .WithEnvironment($"POSTGRES_PASSWORD={password}")
                 .ExposePort("5432")
                 .WaitForPort("5432/tcp", 30000))
-            .Build();
+            .BuildAsync();
     }
 
-    public static BuildResults CreateRedis(FluentDockerKernel kernel)
+    public static Task<BuildResults> CreateRedisAsync(FluentDockerKernel kernel)
     {
         return new Builder()
             .WithinDriver("docker", kernel)
@@ -568,10 +573,10 @@ public static class ContainerFactory
                 .UseImage("redis:alpine")
                 .ExposePort("6379")
                 .WaitForPort("6379/tcp", 30000))
-            .Build();
+            .BuildAsync();
     }
 
-    public static BuildResults CreateRabbitMQ(FluentDockerKernel kernel)
+    public static Task<BuildResults> CreateRabbitMQAsync(FluentDockerKernel kernel)
     {
         return new Builder()
             .WithinDriver("docker", kernel)
@@ -580,21 +585,15 @@ public static class ContainerFactory
                 .ExposePort("5672")
                 .ExposePort("15672")
                 .WaitForPort("5672/tcp", 60000))
-            .Build();
+            .BuildAsync();
     }
 }
 
 // Usage
-using var kernel = FluentDockerKernel.Create()
+await using var kernel = await FluentDockerKernel.Create()
     .WithDockerCli("docker", d => d.AsDefault())
-    .Build();
+    .BuildAsync();
 
-using var db = ContainerFactory.CreatePostgres(kernel);
-using var cache = ContainerFactory.CreateRedis(kernel);
+await using var db = await ContainerFactory.CreatePostgresAsync(kernel);
+await using var cache = await ContainerFactory.CreateRedisAsync(kernel);
 ```
-
-## Next Steps
-
-- [Getting Started](getting-started.md) - Quick start guide
-- [Containers](containers.md) - Container management
-- [Testing](testing.md) - Test support

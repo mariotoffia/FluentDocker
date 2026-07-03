@@ -198,9 +198,40 @@ namespace FluentDocker.Tests.CoreTests.Model
 
       Assert.NotNull(chunk);
       Assert.Equal("chatcmpl-x", chunk.Id);
+      Assert.Equal(1782191248, chunk.Created);
       Assert.Single(chunk.Choices);
       Assert.Equal("I", chunk.Choices[0].Delta.Content);
       Assert.Null(chunk.Choices[0].FinishReason);
+      Assert.Null(chunk.AdditionalProperties);
+    }
+
+    [Fact]
+    public void ChatCompletionChunk_FinalUsageChunk_DeserializesUsage()
+    {
+      const string json =
+          "{\"choices\":[],\"created\":1782191249,\"id\":\"chatcmpl-x\",\"model\":\"model.gguf\"," +
+          "\"object\":\"chat.completion.chunk\",\"usage\":{\"prompt_tokens\":3,\"completion_tokens\":5,\"total_tokens\":8}}";
+
+      var chunk = JsonHelper.TryDeserialize<ChatCompletionChunk>(json);
+
+      Assert.NotNull(chunk);
+      Assert.Equal(1782191249, chunk.Created);
+      Assert.Equal(8, chunk.Usage.TotalTokens);
+      Assert.Null(chunk.AdditionalProperties);
+    }
+
+    [Fact]
+    public void CompletionChunk_DeserializesCreatedAndUsage()
+    {
+      const string json =
+          "{\"choices\":[{\"text\":\"hi\",\"index\":0}],\"created\":1782191250,\"id\":\"cmpl-x\"," +
+          "\"model\":\"model.gguf\",\"usage\":{\"prompt_tokens\":1,\"completion_tokens\":1,\"total_tokens\":2}}";
+
+      var chunk = JsonHelper.TryDeserialize<CompletionChunk>(json);
+
+      Assert.NotNull(chunk);
+      Assert.Equal(1782191250, chunk.Created);
+      Assert.Equal(2, chunk.Usage.TotalTokens);
     }
 
     [Fact]

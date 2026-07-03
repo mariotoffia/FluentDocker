@@ -59,13 +59,13 @@ namespace FluentDocker.Tests.CoreTests.Driver
     }
 
     /// <summary>
-    /// FINDING 1 (C12): idle timeout is now wired into the PRODUCTION SSE read loop in
+    /// FINDING 1 (C12): idle timeout is wired into the production SSE read loop in
     /// <see cref="OpenAiModelInferenceDriver"/>. Verify that a stream that stalls
-    /// (stops sending) fires <see cref="ErrorCodes.ModelInference.EndpointUnreachable"/>
+    /// (stops sending) fires <see cref="ErrorCodes.ModelInference.Timeout"/>
     /// (not StreamParseError) within the configured window.
     /// </summary>
     [Fact]
-    public async Task ChatCompletionStream_StalledAfterHeader_IdleTimeoutFiresEndpointUnreachable()
+    public async Task ChatCompletionStream_StalledAfterHeader_IdleTimeoutFiresTimeout()
     {
       // Arrange: stream begins with a valid SSE preamble ("data: " prefix) but then
       // stalls forever, exercising the per-read idle timeout in ReadBoundedLineAsync.
@@ -90,8 +90,7 @@ namespace FluentDocker.Tests.CoreTests.Driver
         }
       });
 
-      // FINDING 4 (C12): stalled stream -> EndpointUnreachable (not StreamParseError).
-      Assert.Equal(ErrorCodes.ModelInference.EndpointUnreachable, ex.ErrorCode);
+      Assert.Equal(ErrorCodes.ModelInference.Timeout, ex.ErrorCode);
       Assert.Contains("idle timeout", ex.Message, StringComparison.OrdinalIgnoreCase);
     }
 

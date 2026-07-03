@@ -5,6 +5,7 @@ using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using FluentDocker.Drivers;
+using FluentDocker.Drivers.Docker.Cli;
 using FluentDocker.Drivers.Docker.Cli.Binary;
 using FluentDocker.Drivers.Docker.Cli.Components;
 using FluentDocker.Model.Common;
@@ -14,7 +15,7 @@ using Xunit;
 namespace FluentDocker.Tests.CoreTests.Driver.Docker
 {
   [Trait("Category", "Unit")]
-  public sealed class DockerCliProductionReadinessTests
+  public sealed partial class DockerCliProductionReadinessTests
   {
     [Fact]
     public async Task ImagePull_StreamsProgress_AndAllowsLargeOutput()
@@ -137,6 +138,7 @@ exit 42
       Assert.Contains("permission denied", result.ErrorContext.StdErr, StringComparison.OrdinalIgnoreCase);
     }
 
+
     private static string CreateFakeDocker(string script)
     {
       var directory = TestOutputDirectory();
@@ -153,6 +155,22 @@ exit 42
       return path;
     }
 
+    private static string CreateRecordingDocker(string record, string output)
+    {
+      return CreateFakeDocker($$"""
+#!/bin/sh
+printf '%s\n' "$@" > "{{record}}"
+echo "{{output}}"
+exit 0
+""");
+    }
+
+    private static async Task<string[]> ReadArgsAsync(string record)
+    {
+      var text = await File.ReadAllTextAsync(record, TestContext.Current.CancellationToken);
+      return text.Split(['\n', '\r'], StringSplitOptions.RemoveEmptyEntries);
+    }
+
     private static string TestOutputDirectory()
     {
       var directory = Path.Combine(Directory.GetCurrentDirectory(), ".out", "docker-cli-production-tests");
@@ -165,6 +183,16 @@ exit 42
       public List<T> Items { get; } = [];
 
       public void Report(T value) => Items.Add(value);
+    }
+
+    private sealed class ShellDriver : DockerCliDriverBase
+    {
+      public ShellDriver() : base(new FakeResolver("/bin/sh"))
+      {
+      }
+
+      public Task<SimpleCommandResult> RunUnbounded(string args, CancellationToken cancellationToken) =>
+          ExecuteUnboundedCommandAsync(args, cancellationToken);
     }
 
     private sealed class FakeResolver : IBinaryResolver

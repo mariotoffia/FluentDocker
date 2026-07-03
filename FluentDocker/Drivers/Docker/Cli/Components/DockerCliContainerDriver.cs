@@ -32,16 +32,18 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
               "Container image is required but was not specified",
               ErrorCodes.Container.CreateFailed);
         }
+        if (StartsWithDash(config.Image))
+          return FailInvalidLeadingDash<ContainerCreateResult>("Container image");
 
         var args = BuildCreateArgs("create", config);
 
-        var result = await ExecuteCommandAsync(string.Join(" ", args), cancellationToken).ConfigureAwait(false);
+        var result = await ExecuteUnboundedCommandAsync(context, string.Join(" ", args), cancellationToken).ConfigureAwait(false);
 
         if (!result.Success)
         {
           return CommandResponse<ContainerCreateResult>.Fail(
-              result.Error ?? "Container creation failed",
-              ErrorCodes.Container.CreateFailed,
+              ErrorOrDefault(result, "Container creation failed"),
+              FailureCode(result.Error, ErrorCodes.Container.CreateFailed),
               CreateErrorContext(context, "CreateContainer", result),
               result.ExitCode);
         }
@@ -59,7 +61,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
       {
         return CommandResponse<ContainerCreateResult>.Fail(
             ex.Message,
-            ErrorCodes.Container.CreateFailed);
+            FailureCode(ex, ErrorCodes.Container.CreateFailed));
       }
     }
 
@@ -71,13 +73,13 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     {
       try
       {
-        var result = await ExecuteCommandAsync($"start {QuoteArgumentIfNeeded(containerId)}", cancellationToken).ConfigureAwait(false);
+        var result = await ExecuteCommandAsync(context, $"start {QuotePositionalArgument(containerId, nameof(containerId))}", cancellationToken).ConfigureAwait(false);
 
         if (!result.Success)
         {
           return CommandResponse<Unit>.Fail(
-              result.Error ?? "Container start failed",
-              ErrorCodes.Container.StartFailed,
+              ErrorOrDefault(result, "Container start failed"),
+              FailureCode(result.Error, ErrorCodes.Container.StartFailed),
               CreateErrorContext(context, "StartContainer", result),
               result.ExitCode);
         }
@@ -90,7 +92,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
       }
       catch (Exception ex)
       {
-        return CommandResponse<Unit>.Fail(ex.Message, ErrorCodes.Container.StartFailed);
+        return CommandResponse<Unit>.Fail(ex.Message, FailureCode(ex, ErrorCodes.Container.StartFailed));
       }
     }
 
@@ -106,15 +108,15 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
         var args = "stop";
         if (timeout.HasValue)
           args += $" -t {timeout.Value}";
-        args += $" {QuoteArgumentIfNeeded(containerId)}";
+        args += $" {QuotePositionalArgument(containerId, nameof(containerId))}";
 
-        var result = await ExecuteUnboundedCommandAsync(args, cancellationToken).ConfigureAwait(false);
+        var result = await ExecuteUnboundedCommandAsync(context, args, cancellationToken).ConfigureAwait(false);
 
         if (!result.Success)
         {
           return CommandResponse<Unit>.Fail(
-              result.Error ?? "Container stop failed",
-              ErrorCodes.Container.StopFailed,
+              ErrorOrDefault(result, "Container stop failed"),
+              FailureCode(result.Error, ErrorCodes.Container.StopFailed),
               CreateErrorContext(context, "StopContainer", result),
               result.ExitCode);
         }
@@ -127,7 +129,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
       }
       catch (Exception ex)
       {
-        return CommandResponse<Unit>.Fail(ex.Message, ErrorCodes.Container.StopFailed);
+        return CommandResponse<Unit>.Fail(ex.Message, FailureCode(ex, ErrorCodes.Container.StopFailed));
       }
     }
 
@@ -143,15 +145,15 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
         var args = "restart";
         if (timeout.HasValue)
           args += $" -t {timeout.Value}";
-        args += $" {QuoteArgumentIfNeeded(containerId)}";
+        args += $" {QuotePositionalArgument(containerId, nameof(containerId))}";
 
-        var result = await ExecuteUnboundedCommandAsync(args, cancellationToken).ConfigureAwait(false);
+        var result = await ExecuteUnboundedCommandAsync(context, args, cancellationToken).ConfigureAwait(false);
 
         if (!result.Success)
         {
           return CommandResponse<Unit>.Fail(
-              result.Error ?? "Container restart failed",
-              ErrorCodes.Container.RestartFailed,
+              ErrorOrDefault(result, "Container restart failed"),
+              FailureCode(result.Error, ErrorCodes.Container.RestartFailed),
               CreateErrorContext(context, "RestartContainer", result),
               result.ExitCode);
         }
@@ -164,7 +166,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
       }
       catch (Exception ex)
       {
-        return CommandResponse<Unit>.Fail(ex.Message, ErrorCodes.Container.RestartFailed);
+        return CommandResponse<Unit>.Fail(ex.Message, FailureCode(ex, ErrorCodes.Container.RestartFailed));
       }
     }
 
@@ -176,13 +178,13 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     {
       try
       {
-        var result = await ExecuteCommandAsync($"pause {QuoteArgumentIfNeeded(containerId)}", cancellationToken).ConfigureAwait(false);
+        var result = await ExecuteCommandAsync(context, $"pause {QuotePositionalArgument(containerId, nameof(containerId))}", cancellationToken).ConfigureAwait(false);
 
         if (!result.Success)
         {
           return CommandResponse<Unit>.Fail(
-              result.Error ?? "Container pause failed",
-              ErrorCodes.Container.PauseFailed,
+              ErrorOrDefault(result, "Container pause failed"),
+              FailureCode(result.Error, ErrorCodes.Container.PauseFailed),
               CreateErrorContext(context, "PauseContainer", result),
               result.ExitCode);
         }
@@ -195,7 +197,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
       }
       catch (Exception ex)
       {
-        return CommandResponse<Unit>.Fail(ex.Message, ErrorCodes.Container.PauseFailed);
+        return CommandResponse<Unit>.Fail(ex.Message, FailureCode(ex, ErrorCodes.Container.PauseFailed));
       }
     }
 
@@ -207,13 +209,13 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     {
       try
       {
-        var result = await ExecuteCommandAsync($"unpause {QuoteArgumentIfNeeded(containerId)}", cancellationToken).ConfigureAwait(false);
+        var result = await ExecuteCommandAsync(context, $"unpause {QuotePositionalArgument(containerId, nameof(containerId))}", cancellationToken).ConfigureAwait(false);
 
         if (!result.Success)
         {
           return CommandResponse<Unit>.Fail(
-              result.Error ?? "Container unpause failed",
-              ErrorCodes.Container.UnpauseFailed,
+              ErrorOrDefault(result, "Container unpause failed"),
+              FailureCode(result.Error, ErrorCodes.Container.UnpauseFailed),
               CreateErrorContext(context, "UnpauseContainer", result),
               result.ExitCode);
         }
@@ -226,7 +228,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
       }
       catch (Exception ex)
       {
-        return CommandResponse<Unit>.Fail(ex.Message, ErrorCodes.Container.UnpauseFailed);
+        return CommandResponse<Unit>.Fail(ex.Message, FailureCode(ex, ErrorCodes.Container.UnpauseFailed));
       }
     }
 
@@ -239,14 +241,14 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     {
       try
       {
-        var args = $"kill --signal {QuoteArgumentIfNeeded(signal)} {QuoteArgumentIfNeeded(containerId)}";
-        var result = await ExecuteCommandAsync(args, cancellationToken).ConfigureAwait(false);
+        var args = $"kill --signal {QuoteArgumentIfNeeded(signal)} {QuotePositionalArgument(containerId, nameof(containerId))}";
+        var result = await ExecuteCommandAsync(context, args, cancellationToken).ConfigureAwait(false);
 
         if (!result.Success)
         {
           return CommandResponse<Unit>.Fail(
-              result.Error ?? "Container kill failed",
-              ErrorCodes.Container.KillFailed,
+              ErrorOrDefault(result, "Container kill failed"),
+              FailureCode(result.Error, ErrorCodes.Container.KillFailed),
               CreateErrorContext(context, "KillContainer", result),
               result.ExitCode);
         }
@@ -259,7 +261,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
       }
       catch (Exception ex)
       {
-        return CommandResponse<Unit>.Fail(ex.Message, ErrorCodes.Container.KillFailed);
+        return CommandResponse<Unit>.Fail(ex.Message, FailureCode(ex, ErrorCodes.Container.KillFailed));
       }
     }
 
@@ -278,15 +280,15 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
           args += " -f";
         if (removeVolumes)
           args += " -v";
-        args += $" {QuoteArgumentIfNeeded(containerId)}";
+        args += $" {QuotePositionalArgument(containerId, nameof(containerId))}";
 
-        var result = await ExecuteCommandAsync(args, cancellationToken).ConfigureAwait(false);
+        var result = await ExecuteCommandAsync(context, args, cancellationToken).ConfigureAwait(false);
 
         if (!result.Success)
         {
           return CommandResponse<Unit>.Fail(
-              result.Error ?? "Container remove failed",
-              ErrorCodes.Container.RemoveFailed,
+              ErrorOrDefault(result, "Container remove failed"),
+              FailureCode(result.Error, ErrorCodes.Container.RemoveFailed),
               CreateErrorContext(context, "RemoveContainer", result),
               result.ExitCode);
         }
@@ -299,7 +301,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
       }
       catch (Exception ex)
       {
-        return CommandResponse<Unit>.Fail(ex.Message, ErrorCodes.Container.RemoveFailed);
+        return CommandResponse<Unit>.Fail(ex.Message, FailureCode(ex, ErrorCodes.Container.RemoveFailed));
       }
     }
 

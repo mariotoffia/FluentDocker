@@ -263,8 +263,30 @@ namespace FluentDocker.Services.Impl
     public async Task<ModelRunnerStatus> StatusAsync(CancellationToken cancellationToken = default)
     {
       ThrowIfDisposed();
-      var running = _statusProbe == null || await _statusProbe(cancellationToken).ConfigureAwait(false);
-      return new ModelRunnerStatus { Running = running, Endpoint = _endpoint.BaseAddress, Error = running ? null : "Endpoint unreachable" };
+      var models = await _inference.ListEngineModelsAsync(Ctx, cancellationToken).ConfigureAwait(false);
+      if (models.Success)
+        return new ModelRunnerStatus { Running = true, Endpoint = _endpoint.BaseAddress };
+
+      if (models.ExitCode is 404 or 405)
+        return new ModelRunnerStatus
+        {
+          Running = false,
+          Endpoint = _endpoint.BaseAddress,
+          Error = $"Model-list probe returned HTTP {models.ExitCode} at '{_endpoint.EngineV1Path("/models")}'. Check the endpoint base path."
+        };
+
+      if (_statusProbe != null)
+      {
+        var reachable = await _statusProbe(cancellationToken).ConfigureAwait(false);
+        return new ModelRunnerStatus
+        {
+          Running = reachable,
+          Endpoint = _endpoint.BaseAddress,
+          Error = reachable ? null : "Endpoint unreachable"
+        };
+      }
+
+      return new ModelRunnerStatus { Running = false, Endpoint = _endpoint.BaseAddress, Error = models.Error };
     }
 
     /// <inheritdoc />

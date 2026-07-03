@@ -81,6 +81,8 @@ namespace FluentDocker.Model.Models
     public static ModelRunnerEndpoint Raw(Uri url, string engine = DefaultEngine)
     {
       ArgumentNullException.ThrowIfNull(url);
+      if (!IsSupportedUrl(url))
+        throw new ArgumentException("Model runner endpoint URL must be an absolute http(s) URL with a host.", nameof(url));
 
       var authority = new Uri(url.GetLeftPart(UriPartial.Authority));
       var path = url.AbsolutePath.TrimEnd('/');
@@ -134,6 +136,8 @@ namespace FluentDocker.Model.Models
     public static ModelRunnerEndpoint Custom(Uri baseAddress, string engine = DefaultEngine)
     {
       ArgumentNullException.ThrowIfNull(baseAddress);
+      if (!IsSupportedUrl(baseAddress))
+        throw new ArgumentException("Model runner endpoint URL must be an absolute http(s) URL with a host.", nameof(baseAddress));
 
       // A non-root path (e.g. https://host:9000/v1) is a fully-formed base the caller wants
       // honored verbatim — delegate to Raw so the path is preserved instead of discarded and

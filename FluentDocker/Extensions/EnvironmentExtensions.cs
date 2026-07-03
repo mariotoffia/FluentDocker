@@ -29,7 +29,11 @@ namespace FluentDocker.Extensions
         }
 
         var name = s[..index];
-        var value = s[(index + 1)..].WrapWithChar("\"");
+        var rawValue = s[(index + 1)..];
+        var unwrapped = rawValue.Length >= 2 && rawValue.StartsWith('"') && rawValue.EndsWith('"')
+            ? rawValue[1..^1]
+            : rawValue;
+        var value = $"\"{unwrapped.Replace("\"", "\\\"")}\"";
 
         list.Add($"{name}={value}");
       }

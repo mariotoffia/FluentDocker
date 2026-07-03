@@ -123,6 +123,9 @@ namespace FluentDocker.Drivers.Podman
     /// <summary>Whether the machine is currently running.</summary>
     public bool Running { get; set; }
 
+    /// <summary>Whether the machine is currently starting.</summary>
+    public bool Starting { get; set; }
+
     /// <summary>Creation timestamp.</summary>
     public string Created { get; set; }
 

@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [3.2.0] - Unreleased
+## [3.2.0-preview.1] - 2026-07-03
 
 ### Added
 
@@ -30,6 +30,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Inference adapter renamed/relocated (preview, source-breaking).** `DockerApiModelInferenceDriver` (`FluentDocker.Drivers.Docker.Api.Components`) → `OpenAiModelInferenceDriver` (`FluentDocker.Drivers.Models`): it speaks generic OpenAI-over-HTTP and is not Docker-specific. Done while the subsystem is preview, so no released API breaks.
 - **Backend is driver-sourced, not hardcoded.** `ModelRunnerCapabilities.DefaultBackend` / `AvailableBackends` now come from the resolved driver via `IModelBackendInfo` (the Docker CLI runtime driver reports `llama.cpp`); custom packs report their own backend or none, and `GenericOpenAiModelRunner` reports none — no plugin is misreported as `llama.cpp`. Note: an explicit inference override (`WithEndpoint(...)` / `WithInferenceDriver(...)`) sources the backend from the override alone — repointing inference at an arbitrary endpoint reports no backend rather than assuming the scoped runtime's engine (the server behind a repointed URL is unknown and may not be `llama.cpp`).
 - **Clean `NotSupportedException` for partial packs.** The kernel-backed `IModelRunner` now throws `NotSupportedException` (naming the missing capability) — not the lower-level `InterfaceNotSupportedException` — when a store/engine op is invoked on a driver pack that registers only some model ports (e.g. an inference-only plugin), matching `GenericOpenAiModelRunner`. `Capabilities` remains the programmatic check.
+- **Top-level `Builder` is driver-scoped.** After `WithinDriver(...)`, `Builder` implements `IDriverScopedBuilder`, so portable model code can use `TryUseModelRunner(out var runnerBuilder)` directly and degrade gracefully on drivers without model ports.
 
 ### Fixed
 
@@ -38,6 +39,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Bounded inference error-body read.** A non-success inference response body is read with a 64 KiB bound instead of fully materializing a hostile/oversized error body before truncation.
 - **`ModelReference` registry case normalized.** The registry host is lowercased at parse time so value-equal references (registry hosts are case-insensitive) always serialize identically — stable dictionary keys and emitted CLI args.
 - **Windows mTLS client certificates.** Client certs loaded from PEM are re-imported with a persisted key on Windows (SChannel rejects ephemeral-key client-auth certs); non-Windows behavior is unchanged.
+- **Compose `ConnectToExisting` uses borrowed semantics.** Disposing a connected compose service releases the local handle only; it does not run `docker compose down` against the existing project.
 
 ## [3.1.0] - 2026-06-04
 
@@ -62,6 +64,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Documentation
 
 - Added an "Inspecting Container Info" section showing how to read the created date, image config, environment, exposed ports, labels, and the mapped host port (#197)
+
+## [3.0.1] - Patch release
+
+### Fixed
+
+- Centralized the 3.0.1 version in `Directory.Build.props`, fixed pages workflow issues, and reclassified Docker-dependent tests as integration.
 
 ## [3.0.0] - 2026-05-11
 

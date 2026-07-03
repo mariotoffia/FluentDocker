@@ -203,7 +203,7 @@ namespace FluentDocker.Drivers.Docker.Api.ApiModels
   /// </summary>
   internal sealed class ExecInspectResponse
   {
-    [JsonPropertyName("ExitCode")] public int ExitCode { get; set; }
+    [JsonPropertyName("ExitCode")] public int? ExitCode { get; set; }
     [JsonPropertyName("Running")] public bool Running { get; set; }
   }
 

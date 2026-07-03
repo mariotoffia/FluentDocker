@@ -35,7 +35,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
         // STDERR, not stdout — so use the progress-capable streaming path that
         // interleaves stderr, otherwise almost no progress would ever be reported.
         var args = $"model pull {QuoteArgumentIfNeeded(model.ToString())}";
-        await foreach (var line in RunStreamingWithProgressAsync(args, cancellationToken).ConfigureAwait(false))
+        await foreach (var line in RunStreamingWithProgressAsync(context, args, cancellationToken).ConfigureAwait(false))
         {
           var update = ModelJsonParser.ParsePullLine(line);
           if (update != null)
@@ -47,7 +47,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
           return info;
 
         return CommandResponse<ModelInfo>.Fail(
-            info.Error ?? "model pull failed",
+            string.IsNullOrEmpty(info.Error) ? "model pull failed" : info.Error,
             ErrorCodes.Model.PullFailed,
             info.ErrorContext,
             info.ExitCode);
@@ -58,7 +58,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
       }
       catch (Exception ex) when (ex is not OperationCanceledException)
       {
-        return CommandResponse<ModelInfo>.Fail(ex.Message, ErrorCodes.Model.PullFailed);
+        return CommandResponse<ModelInfo>.Fail(ex.Message, FailureCode(ex, ErrorCodes.Model.PullFailed));
       }
     }
 
@@ -68,11 +68,11 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     {
       try
       {
-        var result = await RunAsync("model ls --json", cancellationToken).ConfigureAwait(false);
+        var result = await RunAsync(context, "model ls --json", cancellationToken).ConfigureAwait(false);
         if (!result.Success)
           return CommandResponse<IList<ModelInfo>>.Fail(
-              result.Error ?? "model ls failed",
-              ErrorCodes.Model.ListFailed,
+              ErrorOrDefault(result, "model ls failed"),
+              FailureCode(result.Error, ErrorCodes.Model.ListFailed),
               CreateErrorContext(context, "ListModels", result),
               result.ExitCode);
 
@@ -87,7 +87,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
       }
       catch (Exception ex) when (ex is not OperationCanceledException)
       {
-        return CommandResponse<IList<ModelInfo>>.Fail(ex.Message, ErrorCodes.Model.ListFailed);
+        return CommandResponse<IList<ModelInfo>>.Fail(ex.Message, FailureCode(ex, ErrorCodes.Model.ListFailed));
       }
     }
 
@@ -99,13 +99,13 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
       {
         // DMR v1.2.1 `model inspect` outputs JSON by default and rejects `--json`.
         var args = $"model inspect {QuoteArgumentIfNeeded(model.ToString())}";
-        var result = await RunAsync(args, cancellationToken).ConfigureAwait(false);
+        var result = await RunAsync(context, args, cancellationToken).ConfigureAwait(false);
         if (!result.Success)
         {
           var error = FirstNonEmpty(result.Error, result.Output, "model inspect failed");
           return CommandResponse<ModelInfo>.Fail(
               error,
-              IndicatesNoSuchModel(error) ? ErrorCodes.Model.NotFound : ErrorCodes.Model.InspectFailed,
+              IndicatesNoSuchModel(error) ? ErrorCodes.Model.NotFound : FailureCode(error, ErrorCodes.Model.InspectFailed),
               CreateErrorContext(context, "InspectModel", result),
               result.ExitCode);
         }
@@ -122,7 +122,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
       }
       catch (Exception ex) when (ex is not OperationCanceledException)
       {
-        return CommandResponse<ModelInfo>.Fail(ex.Message, ErrorCodes.Model.InspectFailed);
+        return CommandResponse<ModelInfo>.Fail(ex.Message, FailureCode(ex, ErrorCodes.Model.InspectFailed));
       }
     }
 
@@ -137,13 +137,13 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
           args += " -f";
         args += $" {QuoteArgumentIfNeeded(model.ToString())}";
 
-        var result = await RunAsync(args, cancellationToken).ConfigureAwait(false);
+        var result = await RunAsync(context, args, cancellationToken).ConfigureAwait(false);
 
         // DMR `rm` of a missing model prints an error but exits 0 — inspect output.
         if (!result.Success || IndicatesRemoveFailure(result.Output))
           return CommandResponse<Unit>.Fail(
               FirstNonEmpty(result.Error, result.Output, "model rm failed"),
-              ErrorCodes.Model.RemoveFailed,
+              FailureCode(FirstNonEmpty(result.Error, result.Output), ErrorCodes.Model.RemoveFailed),
               CreateErrorContext(context, "RemoveModel", result),
               result.ExitCode);
 
@@ -151,7 +151,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
       }
       catch (Exception ex) when (ex is not OperationCanceledException)
       {
-        return CommandResponse<Unit>.Fail(ex.Message, ErrorCodes.Model.RemoveFailed);
+        return CommandResponse<Unit>.Fail(ex.Message, FailureCode(ex, ErrorCodes.Model.RemoveFailed));
       }
     }
 
@@ -188,11 +188,11 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
         if (request.Target != null)
           sb.Append(' ').Append(QuoteArgumentIfNeeded(request.Target.ToString()));
 
-        var result = await RunAsync(sb.ToString(), cancellationToken).ConfigureAwait(false);
+        var result = await RunAsync(context, sb.ToString(), cancellationToken).ConfigureAwait(false);
         if (!result.Success)
           return CommandResponse<ModelInfo>.Fail(
-              result.Error ?? "model package failed",
-              ErrorCodes.Model.PackageFailed,
+              ErrorOrDefault(result, "model package failed"),
+              FailureCode(result.Error, ErrorCodes.Model.PackageFailed),
               CreateErrorContext(context, "PackageModel", result),
               result.ExitCode);
 
@@ -200,7 +200,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
       }
       catch (Exception ex) when (ex is not OperationCanceledException)
       {
-        return CommandResponse<ModelInfo>.Fail(ex.Message, ErrorCodes.Model.PackageFailed);
+        return CommandResponse<ModelInfo>.Fail(ex.Message, FailureCode(ex, ErrorCodes.Model.PackageFailed));
       }
     }
 
@@ -215,11 +215,11 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
         // `--force` keeps it non-interactive.
         var args = "model purge --force";
 
-        var result = await RunAsync(args, cancellationToken).ConfigureAwait(false);
+        var result = await RunAsync(context, args, cancellationToken).ConfigureAwait(false);
         if (!result.Success)
           return CommandResponse<ModelPruneResult>.Fail(
-              result.Error ?? "model purge failed",
-              ErrorCodes.Model.PruneFailed,
+              ErrorOrDefault(result, "model purge failed"),
+              FailureCode(result.Error, ErrorCodes.Model.PruneFailed),
               CreateErrorContext(context, "PruneModels", result),
               result.ExitCode);
 
@@ -227,7 +227,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
       }
       catch (Exception ex) when (ex is not OperationCanceledException)
       {
-        return CommandResponse<ModelPruneResult>.Fail(ex.Message, ErrorCodes.Model.PruneFailed);
+        return CommandResponse<ModelPruneResult>.Fail(ex.Message, FailureCode(ex, ErrorCodes.Model.PruneFailed));
       }
     }
 
@@ -238,11 +238,11 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
       try
       {
         // DMR `df` is table-only (rejects `--json`).
-        var result = await RunAsync("model df", cancellationToken).ConfigureAwait(false);
+        var result = await RunAsync(context, "model df", cancellationToken).ConfigureAwait(false);
         if (!result.Success)
           return CommandResponse<ModelDiskUsage>.Fail(
-              result.Error ?? "model df failed",
-              ErrorCodes.Model.DiskUsageFailed,
+              ErrorOrDefault(result, "model df failed"),
+              FailureCode(result.Error, ErrorCodes.Model.DiskUsageFailed),
               CreateErrorContext(context, "ModelDiskUsage", result),
               result.ExitCode);
 
@@ -250,7 +250,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
       }
       catch (Exception ex) when (ex is not OperationCanceledException)
       {
-        return CommandResponse<ModelDiskUsage>.Fail(ex.Message, ErrorCodes.Model.DiskUsageFailed);
+        return CommandResponse<ModelDiskUsage>.Fail(ex.Message, FailureCode(ex, ErrorCodes.Model.DiskUsageFailed));
       }
     }
 
@@ -259,11 +259,11 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     {
       try
       {
-        var result = await RunAsync(args, cancellationToken).ConfigureAwait(false);
+        var result = await RunAsync(context, args, cancellationToken).ConfigureAwait(false);
         if (!result.Success)
           return CommandResponse<Unit>.Fail(
-              result.Error ?? $"{operation} failed",
-              errorCode,
+              ErrorOrDefault(result, $"{operation} failed"),
+              FailureCode(result.Error, errorCode),
               CreateErrorContext(context, operation, result),
               result.ExitCode);
 
@@ -271,7 +271,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
       }
       catch (Exception ex) when (ex is not OperationCanceledException)
       {
-        return CommandResponse<Unit>.Fail(ex.Message, errorCode);
+        return CommandResponse<Unit>.Fail(ex.Message, FailureCode(ex, errorCode));
       }
     }
 

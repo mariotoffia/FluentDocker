@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
@@ -10,12 +11,9 @@ using Microsoft.Extensions.Logging;
 
 namespace FluentDocker.Services.Impl
 {
-  /// <summary>
-  /// Compose service implementation using kernel and driver.
-  /// </summary>
+  /// <inheritdoc />
   public class ComposeService : IComposeService, IServiceCapabilities
   {
-    // IServiceCapabilities
     bool IServiceCapabilities.CanStart => true;
     bool IServiceCapabilities.CanStop => true;
     bool IServiceCapabilities.CanPause => false;
@@ -30,8 +28,9 @@ namespace FluentDocker.Services.Impl
     private readonly bool _removeImages;
     private readonly IReadOnlyList<string> _ownedTempFiles;
     private readonly TimeSpan _disposeCleanupTimeout;
-    private readonly Dictionary<string, (ServiceRunningState State, Func<IServiceAsync, Task> Hook)> _hooks = [];
-    private ServiceRunningState _state = ServiceRunningState.Running;
+    private readonly ConcurrentDictionary<string, (ServiceRunningState State, Func<IServiceAsync, Task> Hook)> _hooks = [];
+    private readonly bool _downOnDispose;
+    private volatile ServiceRunningState _state = ServiceRunningState.Running;
 
     public ComposeService(
         FluentDockerKernel kernel,
@@ -41,7 +40,8 @@ namespace FluentDocker.Services.Impl
         bool removeVolumes = false,
         bool removeImages = false,
         IReadOnlyList<string> ownedTempFiles = null,
-        TimeSpan? disposeCleanupTimeout = null)
+        TimeSpan? disposeCleanupTimeout = null,
+        bool downOnDispose = true)
     {
       ArgumentNullException.ThrowIfNull(kernel);
       ArgumentNullException.ThrowIfNull(driverId);
@@ -55,6 +55,7 @@ namespace FluentDocker.Services.Impl
       _removeVolumes = removeVolumes;
       _removeImages = removeImages;
       _ownedTempFiles = ownedTempFiles;
+      _downOnDispose = downOnDispose;
       _disposeCleanupTimeout =
           disposeCleanupTimeout ?? TimeSpan.FromMilliseconds(ContainerService.DefaultDisposeCleanupTimeoutMs);
     }
@@ -203,18 +204,29 @@ namespace FluentDocker.Services.Impl
         ProjectName = _projectName
       };
 
-      var response = await driver.StartAsync(context, config, cancellationToken).ConfigureAwait(false);
-
-      if (!response.Success)
+      try
       {
-        throw new DriverException(
-            $"Failed to start compose project '{_projectName}': {response.Error}",
-            response.ErrorCode,
-            response.ErrorContext);
-      }
+        UpdateState(ServiceRunningState.Starting);
+        await ExecuteHooksAsync(ServiceRunningState.Starting).ConfigureAwait(false);
 
-      UpdateState(ServiceRunningState.Running);
-      await ExecuteHooksAsync(ServiceRunningState.Running).ConfigureAwait(false);
+        var response = await driver.StartAsync(context, config, cancellationToken).ConfigureAwait(false);
+
+        if (!response.Success)
+        {
+          throw new DriverException(
+              $"Failed to start compose project '{_projectName}': {response.Error}",
+              response.ErrorCode,
+              response.ErrorContext);
+        }
+
+        UpdateState(ServiceRunningState.Running);
+        await ExecuteHooksAsync(ServiceRunningState.Running).ConfigureAwait(false);
+      }
+      catch
+      {
+        UpdateState(ServiceRunningState.Unknown);
+        throw;
+      }
     }
 
     public async Task PauseAsync(CancellationToken cancellationToken = default)
@@ -253,18 +265,29 @@ namespace FluentDocker.Services.Impl
         ProjectName = _projectName
       };
 
-      var response = await driver.StopAsync(context, config, cancellationToken).ConfigureAwait(false);
-
-      if (!response.Success)
+      try
       {
-        throw new DriverException(
-            $"Failed to stop compose project '{_projectName}': {response.Error}",
-            response.ErrorCode,
-            response.ErrorContext);
-      }
+        UpdateState(ServiceRunningState.Stopping);
+        await ExecuteHooksAsync(ServiceRunningState.Stopping).ConfigureAwait(false);
 
-      UpdateState(ServiceRunningState.Stopped);
-      await ExecuteHooksAsync(ServiceRunningState.Stopped).ConfigureAwait(false);
+        var response = await driver.StopAsync(context, config, cancellationToken).ConfigureAwait(false);
+
+        if (!response.Success)
+        {
+          throw new DriverException(
+              $"Failed to stop compose project '{_projectName}': {response.Error}",
+              response.ErrorCode,
+              response.ErrorContext);
+        }
+
+        UpdateState(ServiceRunningState.Stopped);
+        await ExecuteHooksAsync(ServiceRunningState.Stopped).ConfigureAwait(false);
+      }
+      catch
+      {
+        UpdateState(ServiceRunningState.Unknown);
+        throw;
+      }
     }
 
     public Task RestartAsync(CancellationToken cancellationToken = default) =>
@@ -337,43 +360,61 @@ namespace FluentDocker.Services.Impl
 
     public IServiceAsync RemoveHook(string uniqueName)
     {
-      _hooks.Remove(uniqueName);
+      _hooks.TryRemove(uniqueName, out _);
       return this;
     }
 
     private int _disposed;
+    private int _disposeCompleted;
 
     public void Dispose()
     {
       if (Interlocked.CompareExchange(ref _disposed, 1, 0) != 0)
         return;
-      // Dispatched to the thread pool to avoid sync-over-async deadlocks.
-      Task.Run(() => DisposeCoreAsync().AsTask()).GetAwaiter().GetResult();
-      GC.SuppressFinalize(this);
+      try
+      {
+        // Dispatched to the thread pool to avoid sync-over-async deadlocks.
+        Task.Run(() => DisposeCoreAsync().AsTask()).GetAwaiter().GetResult();
+      }
+      finally
+      {
+        Volatile.Write(ref _disposeCompleted, 1);
+        GC.SuppressFinalize(this);
+      }
     }
 
     public async ValueTask DisposeAsync()
     {
       if (Interlocked.CompareExchange(ref _disposed, 1, 0) != 0)
         return;
-      await DisposeCoreAsync().ConfigureAwait(false);
-      GC.SuppressFinalize(this);
+      try
+      {
+        await DisposeCoreAsync().ConfigureAwait(false);
+      }
+      finally
+      {
+        Volatile.Write(ref _disposeCompleted, 1);
+        GC.SuppressFinalize(this);
+      }
     }
 
     private async ValueTask DisposeCoreAsync()
     {
       try
       {
-        using var cleanupCts = new CancellationTokenSource(_disposeCleanupTimeout);
-        var removeTask = RemoveAsync(force: false, cleanupCts.Token);
-        try
+        if (_downOnDispose)
         {
-          await removeTask.WaitAsync(cleanupCts.Token).ConfigureAwait(false);
-        }
-        catch (Exception ex)
-        {
-          _logger.LogWarning(ex, "ComposeService DisposeAsync failed");
-          ObserveAbandonedCleanup(removeTask);
+          using var cleanupCts = new CancellationTokenSource(_disposeCleanupTimeout);
+          var removeTask = RemoveAsync(force: false, cleanupCts.Token);
+          try
+          {
+            await removeTask.WaitAsync(cleanupCts.Token).ConfigureAwait(false);
+          }
+          catch (Exception ex)
+          {
+            _logger.LogWarning(ex, "ComposeService DisposeAsync failed");
+            ObserveAbandonedCleanup(removeTask);
+          }
         }
       }
       finally
@@ -382,11 +423,6 @@ namespace FluentDocker.Services.Impl
       }
     }
 
-    /// <summary>
-    /// Deletes any builder-managed temporary overlay files (e.g. a <c>WithModels(...)</c>
-    /// <c>models:</c> overlay) once the project has been torn down. Best-effort: failures
-    /// are logged and swallowed so dispose never throws.
-    /// </summary>
     private void DeleteOwnedTempFiles()
     {
       if (_ownedTempFiles is null)
@@ -415,14 +451,34 @@ namespace FluentDocker.Services.Impl
 
     private void UpdateState(ServiceRunningState newState)
     {
+      if (Volatile.Read(ref _disposeCompleted) != 0 || _state == newState)
+        return;
+
       _state = newState;
-      StateChange?.Invoke(this, new StateChangeEventArgs(this, newState));
+      var stateChange = StateChange;
+      if (stateChange == null)
+        return;
+
+      var args = new StateChangeEventArgs(this, newState);
+      foreach (ServiceDelegates.StateChange handler in stateChange.GetInvocationList())
+      {
+        try
+        {
+          handler(this, args);
+        }
+        catch (Exception ex)
+        {
+          _logger.LogError(ex, "ComposeService state change handler failed");
+        }
+      }
     }
 
     private async Task ExecuteHooksAsync(ServiceRunningState state)
     {
-      // Snapshot: a firing hook may add or remove hooks, which would invalidate a live enumerator.
-      foreach (var entry in new List<(ServiceRunningState State, Func<IServiceAsync, Task> Hook)>(_hooks.Values))
+      if (Volatile.Read(ref _disposeCompleted) != 0)
+        return;
+
+      foreach (var entry in _hooks.Values)
       {
         if (entry.State != state)
           continue;

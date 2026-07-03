@@ -248,6 +248,24 @@ namespace FluentDocker.Tests.CoreTests.Model
     }
 
     [Fact]
+    public void Raw_And_Custom_RejectNonHttpSchemes()
+    {
+      Assert.Throws<ArgumentException>(() => ModelRunnerEndpoint.Raw(new Uri("ftp://10.0.0.5:12434/v1")));
+      Assert.Throws<ArgumentException>(() => ModelRunnerEndpoint.Custom(new Uri("ftp://10.0.0.5:12434")));
+    }
+
+    [Theory]
+    [InlineData("http://localhost:12434/v1")]
+    [InlineData("https://runner.example.com/v1")]
+    public void Raw_And_Custom_AcceptHttpAndHttps(string value)
+    {
+      var uri = new Uri(value);
+
+      Assert.Equal(uri.Scheme, ModelRunnerEndpoint.Raw(uri).BaseAddress.Scheme);
+      Assert.Equal(uri.Scheme, ModelRunnerEndpoint.Custom(uri).BaseAddress.Scheme);
+    }
+
+    [Fact]
     public void Default_SetButInvalid_ThrowsFormat()
     {
       const string var = "DOCKER_MODEL_RUNNER_URL";

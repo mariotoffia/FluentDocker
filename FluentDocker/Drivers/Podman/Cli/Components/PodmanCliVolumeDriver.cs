@@ -40,10 +40,10 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
         if (!string.IsNullOrEmpty(config.Name))
           args += $" {QuoteArgumentIfNeeded(config.Name)}";
 
-        var result = await ExecuteCommandAsync(args, cancellationToken).ConfigureAwait(false);
+        var result = await ExecuteCommandAsync(context, args, cancellationToken).ConfigureAwait(false);
         if (!result.Success)
           return CommandResponse<VolumeCreateResult>.Fail(
-              result.Error ?? "Volume create failed", ErrorCodes.Volume.CreateFailed,
+              ErrorOrDefault(result, "Volume create failed"), ErrorCodes.Volume.CreateFailed,
               CreateErrorContext(context, "CreateVolume", result), result.ExitCode);
 
         return CommandResponse<VolumeCreateResult>.Ok(new VolumeCreateResult
@@ -71,10 +71,10 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       {
         var quotedName = QuoteArgumentIfNeeded(volumeName);
         var args = force ? $"volume rm -f {quotedName}" : $"volume rm {quotedName}";
-        var result = await ExecuteCommandAsync(args, cancellationToken).ConfigureAwait(false);
+        var result = await ExecuteCommandAsync(context, args, cancellationToken).ConfigureAwait(false);
         if (!result.Success)
           return CommandResponse<Unit>.Fail(
-              result.Error ?? "Volume remove failed", ErrorCodes.Volume.RemoveFailed,
+              ErrorOrDefault(result, "Volume remove failed"), ErrorCodes.Volume.RemoveFailed,
               CreateErrorContext(context, "RemoveVolume", result), result.ExitCode);
 
         return CommandResponse<Unit>.Ok(Unit.Default);
@@ -107,10 +107,10 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
               args += $" --filter {QuoteArgumentIfNeeded($"label={label.Key}={label.Value}")}";
         }
 
-        var result = await ExecuteCommandAsync(args, cancellationToken).ConfigureAwait(false);
+        var result = await ExecuteCommandAsync(context, args, cancellationToken).ConfigureAwait(false);
         if (!result.Success)
           return CommandResponse<IList<Volume>>.Fail(
-              result.Error ?? "Volume list failed", ErrorCodes.General.Unknown,
+              ErrorOrDefault(result, "Volume list failed"), ErrorCodes.General.Unknown,
               CreateErrorContext(context, "ListVolumes", result), result.ExitCode);
 
         var volumes = ParseVolumeList(result.Output);
@@ -136,7 +136,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
         var result = await ExecuteCommandAsync($"volume inspect {QuoteArgumentIfNeeded(volumeName)}", cancellationToken).ConfigureAwait(false);
         if (!result.Success)
           return CommandResponse<Volume>.Fail(
-              result.Error ?? "Volume inspect failed", ErrorCodes.Volume.InspectFailed,
+              ErrorOrDefault(result, "Volume inspect failed"), ErrorCodes.Volume.InspectFailed,
               CreateErrorContext(context, "InspectVolume", result), result.ExitCode);
 
         var volume = ParseVolumeInspect(result.Output);
@@ -158,10 +158,10 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
     {
       try
       {
-        var result = await ExecuteCommandAsync("volume prune -f", cancellationToken).ConfigureAwait(false);
+        var result = await ExecuteCommandAsync(context, "volume prune -f", cancellationToken).ConfigureAwait(false);
         if (!result.Success)
           return CommandResponse<VolumePruneResult>.Fail(
-              result.Error ?? "Volume prune failed", ErrorCodes.Volume.PruneFailed,
+              ErrorOrDefault(result, "Volume prune failed"), ErrorCodes.Volume.PruneFailed,
               CreateErrorContext(context, "PruneVolumes", result), result.ExitCode);
 
         return CommandResponse<VolumePruneResult>.Ok(

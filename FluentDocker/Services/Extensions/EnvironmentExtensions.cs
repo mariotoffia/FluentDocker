@@ -68,17 +68,16 @@ namespace FluentDocker.Services.Extensions
           {
             var v4Address = Array.Find(hostEntry.AddressList,
                 x => x.AddressFamily == AddressFamily.InterNetwork);
-            _cachedDockerIpAddress = v4Address ?? hostEntry.AddressList[^1];
-            return _cachedDockerIpAddress;
+            return CacheDockerHostAddress(v4Address ?? hostEntry.AddressList[^1], useCache);
           }
         }
 
         // Fallback to localhost
-        _cachedDockerIpAddress = IPAddress.Loopback;
-        return _cachedDockerIpAddress;
+        return CacheDockerHostAddress(IPAddress.Loopback, useCache);
       }
 
       // On Windows/Mac (Docker Desktop), use host.docker.internal
+      var resolved = IPAddress.Loopback;
       try
       {
         var hostEntry = Dns.GetHostEntry("host.docker.internal");
@@ -87,16 +86,22 @@ namespace FluentDocker.Services.Extensions
           // Prefer IPv4 addresses
           var v4Address = Array.Find(hostEntry.AddressList,
               x => x.AddressFamily == AddressFamily.InterNetwork);
-          _cachedDockerIpAddress = v4Address ?? hostEntry.AddressList[^1];
+          resolved = v4Address ?? hostEntry.AddressList[^1];
         }
       }
       catch (SocketException)
       {
-        // Fallback to localhost
-        _cachedDockerIpAddress = IPAddress.Loopback;
       }
 
-      return _cachedDockerIpAddress;
+      return CacheDockerHostAddress(resolved, useCache);
+    }
+
+    private static IPAddress CacheDockerHostAddress(IPAddress address, bool useCache)
+    {
+      if (useCache)
+        _cachedDockerIpAddress = address;
+
+      return address;
     }
 
     /// <summary>
@@ -163,4 +168,3 @@ namespace FluentDocker.Services.Extensions
     }
   }
 }
-

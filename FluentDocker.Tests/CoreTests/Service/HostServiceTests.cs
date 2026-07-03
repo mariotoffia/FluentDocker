@@ -280,6 +280,31 @@ namespace FluentDocker.Tests.CoreTests.Service
       finally { kernel.Dispose(); }
     }
 
+    [Fact]
+    public async Task CreateContainerAsync_VolumeSpecs_PreserveAnonymousNamedAndWindowsForms()
+    {
+      var mockPack = new MockDriverPack();
+      mockPack.SetupContainerCreate("new-container-456");
+      var kernel = await MockKernelBuilderExtensions.CreateWithMockDriverAsync("docker", mockPack);
+      var service = new HostService(kernel, "docker", "test-host");
+      try
+      {
+        await service.CreateContainerAsync("nginx:latest", new ContainerCreateOptions
+        {
+          Volumes = ["/data", "named:/named", "C:\\h:/c"]
+        }, TestContext.Current.CancellationToken);
+
+        mockPack.ContainerDriver.Verify(d => d.CreateAsync(
+            It.IsAny<DriverContext>(),
+            It.Is<ContainerCreateConfig>(c =>
+                c.Volumes["/data"] == null &&
+                c.Volumes["named"] == "/named" &&
+                c.Volumes["C:\\h"] == "/c"),
+            It.IsAny<System.Threading.CancellationToken>()), Times.Once);
+      }
+      finally { kernel.Dispose(); }
+    }
+
     #endregion
 
     #region Unsupported Operation Tests
@@ -338,12 +363,13 @@ namespace FluentDocker.Tests.CoreTests.Service
       var service = new HostService(kernel, "docker", "test-host");
       try
       {
-        // Add hook — verify fluent return
-        var addResult = service.AddHook(
-            ServiceRunningState.Running, _ => Task.CompletedTask, "test-hook");
-        Assert.Same(service, addResult);
+        await Assert.ThrowsAsync<FluentDockerNotSupportedException>(
+            () =>
+            {
+              service.AddHook(ServiceRunningState.Running, _ => Task.CompletedTask, "test-hook");
+              return Task.CompletedTask;
+            });
 
-        // Remove hook — verify fluent return
         var removeResult = service.RemoveHook("test-hook");
         Assert.Same(service, removeResult);
       }

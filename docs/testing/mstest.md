@@ -97,6 +97,10 @@ public class RedisTests
 
 ### Per-Test Lifecycle
 
+`MsTestContainerFixtureBase` is intentionally per-test-method. Use it when each
+test needs a fresh container. For a class-shared container, use the generic
+`MsTestClassContainerFixtureBase<TFixture>` pattern below.
+
 ```csharp
 [TestClass]
 public class PerTestRedisTests
@@ -115,6 +119,28 @@ public class PerTestRedisTests
     public async Task Cleanup()
     {
         await MsTestResourceHelpers.DisposeAsync(_resource, _kernel);
+    }
+}
+```
+
+### Per-Class Fixture Base
+
+```csharp
+[TestClass]
+public class SharedRedisTests : MsTestClassContainerFixtureBase<SharedRedisTests>
+{
+    protected override void ConfigureContainer(IContainerBuilder builder)
+        => builder.UseImage("redis:alpine").WaitForPort("6379/tcp");
+
+    [ClassCleanup]
+    public static Task ClassCleanup()
+        => CleanupClassAsync();
+
+    [TestMethod]
+    public async Task Redis_IsRunning()
+    {
+        var info = await Resource.InspectAsync();
+        Assert.IsTrue(info.State.Running);
     }
 }
 ```

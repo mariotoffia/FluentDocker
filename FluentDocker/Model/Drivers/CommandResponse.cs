@@ -16,7 +16,7 @@ namespace FluentDocker.Model.Drivers
     public bool Success { get; init; }
 
     /// <summary>
-    /// The data returned by the command (if successful).
+    /// The data returned by the command. Successful responses are expected to carry non-null data.
     /// </summary>
     public T Data { get; init; }
 
@@ -46,7 +46,7 @@ namespace FluentDocker.Model.Drivers
     public string Output { get; init; }
 
     /// <summary>
-    /// Creates a successful command response.
+    /// Creates a successful command response. Pass non-null data for successful responses.
     /// </summary>
     public static CommandResponse<T> Ok(T data)
     {
@@ -59,7 +59,7 @@ namespace FluentDocker.Model.Drivers
     }
 
     /// <summary>
-    /// Creates a successful command response with output.
+    /// Creates a successful command response with output. Pass non-null data for successful responses.
     /// </summary>
     public static CommandResponse<T> Ok(T data, string output)
     {

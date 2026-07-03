@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.Text.Json.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
 using FluentDocker.Model.Drivers;
@@ -144,6 +145,7 @@ namespace FluentDocker.Drivers
     public const string DefaultRuntime = "defaultRuntime";
     public const string Runtimes = "runtimes";
     public const string DataRoot = "dataRoot";
+    public const string Rootless = "rootless";
   }
 
   public static class VersionInfoMetaKeys
@@ -228,10 +230,14 @@ namespace FluentDocker.Drivers
     public List<string> SecurityOptions { get; set; } = [];
 
     /// <summary>Available runtimes reported by the engine.</summary>
+    [JsonIgnore]
     public Dictionary<string, object> Runtimes { get; set; } = [];
 
     /// <summary>Default runtime.</summary>
     public string DefaultRuntime { get; set; }
+
+    /// <summary>Whether the runtime reports rootless mode.</summary>
+    public bool? Rootless { get; set; }
 
     /// <summary>
     /// Populate MetaInfo with a normalized set of cross-driver keys.
@@ -251,6 +257,7 @@ namespace FluentDocker.Drivers
       SetMeta(SystemInfoMetaKeys.Cpus, CPUs);
       SetMeta(SystemInfoMetaKeys.DefaultRuntime, DefaultRuntime);
       SetMeta(SystemInfoMetaKeys.DataRoot, DataRoot);
+      SetMeta(SystemInfoMetaKeys.Rootless, Rootless);
 
       if (Runtimes?.Count > 0)
         SetMeta(SystemInfoMetaKeys.Runtimes, string.Join(",", Runtimes.Keys));

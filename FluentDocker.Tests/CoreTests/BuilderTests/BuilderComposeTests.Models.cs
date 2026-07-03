@@ -3,6 +3,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using FluentDocker.Builders;
 using FluentDocker.Builders.Compose;
+using FluentDocker.Common;
 using FluentDocker.Drivers;
 using FluentDocker.Model.Drivers;
 using FluentDocker.Tests.Mocks;
@@ -113,6 +114,57 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
 
         // Assert: the managed overlay temp file is gone after dispose.
         Assert.False(File.Exists(overlayPath), "overlay temp file must be deleted on teardown/dispose");
+      }
+      finally
+      {
+        kernel.Dispose();
+      }
+    }
+
+    [Fact]
+    public async Task WithModels_RetryAfterUpFailure_UsesSingleOverlayFile()
+    {
+      var (kernel, mockPack) = await MockKernelBuilderExtensions.CreateWithMockDriverAsync("docker");
+      mockPack.SetupComposeDown();
+      string[]? firstFiles = null;
+      string[]? secondFiles = null;
+      var call = 0;
+      mockPack.ComposeDriver
+          .Setup(d => d.UpAsync(
+              It.IsAny<DriverContext>(), It.IsAny<ComposeUpConfig>(),
+              It.IsAny<System.Threading.CancellationToken>()))
+          .Returns<DriverContext, ComposeUpConfig, System.Threading.CancellationToken>((_, cfg, _) =>
+          {
+            if (++call == 1)
+            {
+              firstFiles = [.. cfg.ComposeFiles];
+              return Task.FromResult(CommandResponse<ComposeUpResult>.Fail(
+                  "failed", ErrorCodes.Compose.UpFailed));
+            }
+
+            secondFiles = [.. cfg.ComposeFiles];
+            return Task.FromResult(CommandResponse<ComposeUpResult>.Ok(
+                new ComposeUpResult { ProjectName = "modelapp" }));
+          });
+
+      try
+      {
+        var builder = new Builder()
+            .WithinDriver("docker", kernel)
+            .UseCompose(c => c
+                .WithComposeFile("/path/to/docker-compose.yml")
+                .WithProjectName("modelapp")
+                .WithModels(m => m.AddModel("llm", s => s.WithModel("ai/smollm2"))));
+
+        await Assert.ThrowsAsync<DriverException>(() =>
+            builder.BuildAsync(cancellationToken: TestContext.Current.CancellationToken));
+        await using var scope = await builder.BuildAsync(
+            cancellationToken: TestContext.Current.CancellationToken);
+
+        Assert.Equal(2, firstFiles!.Length);
+        Assert.Equal(2, secondFiles!.Length);
+        Assert.Equal("/path/to/docker-compose.yml", secondFiles[0]);
+        Assert.NotEqual(firstFiles[1], secondFiles[1]);
       }
       finally
       {

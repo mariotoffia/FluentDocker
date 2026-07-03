@@ -48,8 +48,8 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
         if (!result.Success)
         {
           return CommandResponse<Unit>.Fail(
-              result.Error ?? "Image pull failed",
-              ErrorCodes.Image.PullFailed,
+              ErrorOrDefault(result, "Image pull failed"),
+              FailureCode(result.Error, ErrorCodes.Image.PullFailed),
               CreateErrorContext(context, "PullImage", result),
               result.ExitCode);
         }
@@ -62,7 +62,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
       }
       catch (Exception ex)
       {
-        return CommandResponse<Unit>.Fail(ex.Message, ErrorCodes.Image.PullFailed);
+        return CommandResponse<Unit>.Fail(ex.Message, FailureCode(ex, ErrorCodes.Image.PullFailed));
       }
     }
 
@@ -85,8 +85,8 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
         if (!result.Success)
         {
           return CommandResponse<Unit>.Fail(
-              result.Error ?? "Image push failed",
-              ErrorCodes.Image.PushFailed,
+              ErrorOrDefault(result, "Image push failed"),
+              FailureCode(result.Error, ErrorCodes.Image.PushFailed),
               CreateErrorContext(context, "PushImage", result),
               result.ExitCode);
         }
@@ -99,7 +99,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
       }
       catch (Exception ex)
       {
-        return CommandResponse<Unit>.Fail(ex.Message, ErrorCodes.Image.PushFailed);
+        return CommandResponse<Unit>.Fail(ex.Message, FailureCode(ex, ErrorCodes.Image.PushFailed));
       }
     }
 
@@ -147,7 +147,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
         args.Add($"--network {QuoteArgumentIfNeeded(config.NetworkMode)}");
 
       if (!string.IsNullOrEmpty(iidFilePath))
-        args.Add($"--iidfile \"{iidFilePath}\"");
+        args.Add($"--iidfile {QuoteArgumentIfNeeded(iidFilePath)}");
 
       args.Add(QuoteArgumentIfNeeded(config.BuildContext ?? "."));
 
@@ -179,8 +179,8 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
           if (!result.Success)
           {
             return CommandResponse<ImageBuildResult>.Fail(
-                result.Error ?? "Image build failed",
-                ErrorCodes.Image.BuildFailed,
+                ErrorOrDefault(result, "Image build failed"),
+                FailureCode(result.Error, ErrorCodes.Image.BuildFailed),
                 CreateErrorContext(context, "BuildImage", result),
                 result.ExitCode);
           }
@@ -216,7 +216,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
       }
       catch (Exception ex)
       {
-        return CommandResponse<ImageBuildResult>.Fail(ex.Message, ErrorCodes.Image.BuildFailed);
+        return CommandResponse<ImageBuildResult>.Fail(ex.Message, FailureCode(ex, ErrorCodes.Image.BuildFailed));
       }
     }
 
@@ -240,16 +240,16 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
         if (filter != null)
         {
           if (!string.IsNullOrEmpty(filter.Reference))
-            args.Append($" --filter reference={filter.Reference}");
+            args.Append($" --filter {QuoteArgumentIfNeeded($"reference={filter.Reference}")}");
 
           if (filter.Dangling.HasValue)
-            args.Append($" --filter dangling={(filter.Dangling.Value ? "true" : "false")}");
+            args.Append($" --filter {QuoteArgumentIfNeeded($"dangling={(filter.Dangling.Value ? "true" : "false")}")}");
 
           if (!string.IsNullOrEmpty(filter.Before))
-            args.Append($" --filter before={filter.Before}");
+            args.Append($" --filter {QuoteArgumentIfNeeded($"before={filter.Before}")}");
 
           if (!string.IsNullOrEmpty(filter.Since))
-            args.Append($" --filter since={filter.Since}");
+            args.Append($" --filter {QuoteArgumentIfNeeded($"since={filter.Since}")}");
 
           if (filter.Labels != null)
           {
@@ -258,7 +258,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
               var labelValue = string.IsNullOrEmpty(label.Value)
                   ? label.Key
                   : $"{label.Key}={label.Value}";
-              args.Append($" --filter label={labelValue}");
+              args.Append($" --filter {QuoteArgumentIfNeeded($"label={labelValue}")}");
             }
           }
         }
@@ -268,8 +268,8 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
         if (!result.Success)
         {
           return CommandResponse<IList<Image>>.Fail(
-              result.Error ?? "Image list failed",
-              ErrorCodes.General.Unknown);
+              ErrorOrDefault(result, "Image list failed"),
+              FailureCode(result.Error, ErrorCodes.General.Unknown));
         }
 
         var images = new List<Image>();
@@ -299,7 +299,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
               }
 
               // Parse CreatedAt if present
-              if (!string.IsNullOrEmpty(dto.CreatedAt) && DateTime.TryParse(dto.CreatedAt, out var created))
+              if (!string.IsNullOrEmpty(dto.CreatedAt) && DateTime.TryParse(dto.CreatedAt, System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out var created))
               {
                 image.Created = created;
               }
@@ -321,7 +321,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
       }
       catch (Exception ex)
       {
-        return CommandResponse<IList<Image>>.Fail(ex.Message, ErrorCodes.General.Unknown);
+        return CommandResponse<IList<Image>>.Fail(ex.Message, FailureCode(ex, ErrorCodes.General.Unknown));
       }
     }
 
@@ -399,13 +399,13 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     {
       try
       {
-        var result = await ExecuteCommandAsync(context, $"image inspect {QuoteArgumentIfNeeded(imageId)}", cancellationToken).ConfigureAwait(false);
+        var result = await ExecuteCommandAsync(context, $"image inspect {QuotePositionalArgument(imageId, nameof(imageId))}", cancellationToken).ConfigureAwait(false);
 
         if (!result.Success)
         {
           return CommandResponse<Image>.Fail(
-              result.Error ?? "Image inspect failed",
-              ErrorCodes.Image.InspectFailed);
+              ErrorOrDefault(result, "Image inspect failed"),
+              FailureCode(result.Error, ErrorCodes.Image.InspectFailed));
         }
 
         var images = JsonSerializer.Deserialize<List<Image>>(result.Output, JsonHelper.CaseInsensitiveOptions);
@@ -426,7 +426,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
       }
       catch (Exception ex)
       {
-        return CommandResponse<Image>.Fail(ex.Message, ErrorCodes.Image.InspectFailed);
+        return CommandResponse<Image>.Fail(ex.Message, FailureCode(ex, ErrorCodes.Image.InspectFailed));
       }
     }
 
@@ -439,13 +439,13 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
       try
       {
         // Quote the format string to ensure it's treated as a single argument
-        var result = await ExecuteCommandAsync(context, $"history --format \"{{{{json .}}}}\" --no-trunc {QuoteArgumentIfNeeded(imageId)}", cancellationToken).ConfigureAwait(false);
+        var result = await ExecuteCommandAsync(context, $"history --format \"{{{{json .}}}}\" --no-trunc {QuotePositionalArgument(imageId, nameof(imageId))}", cancellationToken).ConfigureAwait(false);
 
         if (!result.Success)
         {
           return CommandResponse<IList<ImageLayer>>.Fail(
-              result.Error ?? "Image history failed",
-              ErrorCodes.Image.HistoryFailed,
+              ErrorOrDefault(result, "Image history failed"),
+              FailureCode(result.Error, ErrorCodes.Image.HistoryFailed),
               CreateErrorContext(context, "HistoryImage", result),
               result.ExitCode);
         }
@@ -469,7 +469,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
               };
 
               // Parse CreatedAt if present
-              if (!string.IsNullOrEmpty(dto.CreatedAt) && DateTime.TryParse(dto.CreatedAt, out var created))
+              if (!string.IsNullOrEmpty(dto.CreatedAt) && DateTime.TryParse(dto.CreatedAt, System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out var created))
               {
                 layer.Created = created;
               }
@@ -491,7 +491,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
       }
       catch (Exception ex)
       {
-        return CommandResponse<IList<ImageLayer>>.Fail(ex.Message, ErrorCodes.Image.HistoryFailed);
+        return CommandResponse<IList<ImageLayer>>.Fail(ex.Message, FailureCode(ex, ErrorCodes.Image.HistoryFailed));
       }
     }
 

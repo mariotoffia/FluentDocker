@@ -426,6 +426,18 @@ namespace FluentDocker.Tests.CoreTests.Service
     }
 
     [Fact]
+    public void GetDockerHost_NativeHostWithMachineName_ReturnsLocalhost()
+    {
+      var mock = new Mock<IHostService>();
+      mock.Setup(s => s.IsNative).Returns(true);
+      mock.Setup(s => s.Name).Returns("default");
+
+      var host = mock.Object.GetDockerHost();
+
+      Assert.Equal("127.0.0.1", host);
+    }
+
+    [Fact]
     public void GetDockerHost_NonNativeHost_ReturnsLocalhost()
     {
       // Arrange

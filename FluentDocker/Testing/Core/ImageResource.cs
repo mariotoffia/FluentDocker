@@ -96,9 +96,19 @@ namespace FluentDocker.Testing.Core
         return;
 
       var driver = Kernel.SysCtl<IImageDriver>(DriverId);
-      await driver.RemoveAsync(
+      var result = await driver.RemoveAsync(
           new DriverContext(DriverId), ImageReference, false, false, cancellationToken).ConfigureAwait(false);
-      ImageId = null;
+
+      if (result.Success || result.ErrorCode == ErrorCodes.Image.NotFound)
+      {
+        ImageId = null;
+        return;
+      }
+
+      throw new DriverException(
+          $"Failed to remove image '{ImageReference}': {result.Error}",
+          result.ErrorCode,
+          result.ErrorContext);
     }
 
     /// <inheritdoc />
@@ -108,15 +118,20 @@ namespace FluentDocker.Testing.Core
         return;
 
       var target = string.IsNullOrEmpty(ImageId) ? ImageReference : ImageId;
-      ImageId = null;
+      var driver = Kernel.SysCtl<IImageDriver>(DriverId);
+      var result = await driver.RemoveAsync(
+          new DriverContext(DriverId), target, true, false, cancellationToken).ConfigureAwait(false);
 
-      try
+      if (result.Success || result.ErrorCode == ErrorCodes.Image.NotFound)
       {
-        var driver = Kernel.SysCtl<IImageDriver>(DriverId);
-        await driver.RemoveAsync(
-            new DriverContext(DriverId), target, true, false, cancellationToken).ConfigureAwait(false);
+        ImageId = null;
+        return;
       }
-      catch { /* best effort */ }
+
+      throw new DriverException(
+          $"Failed to force-remove image '{target}': {result.Error}",
+          result.ErrorCode,
+          result.ErrorContext);
     }
 
     #endregion

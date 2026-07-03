@@ -1,7 +1,9 @@
+using System;
 using System.Diagnostics;
 using System.Text;
 using System.Threading;
 using FluentDocker.Drivers;
+using FluentDocker.Model.Common;
 
 namespace FluentDocker.Drivers.Podman.Cli
 {
@@ -25,8 +27,11 @@ namespace FluentDocker.Drivers.Podman.Cli
     {
       cancellationToken.ThrowIfCancellationRequested();
 
-      var (binaryPath, sudo, _) = ResolveBinaryInfo();
-      var globalArgs = BuildGlobalArgs(Context);
+      var (binaryPath, sudo, sudoPassword) = ResolveBinaryInfo();
+      if (sudo == SudoMechanism.Password || !string.IsNullOrEmpty(sudoPassword))
+        throw new NotSupportedException("podman attach cannot use password sudo because attach stdin belongs to the caller.");
+
+      var globalArgs = BuildGlobalArgs(Context, Logger);
       var fullArgs = string.IsNullOrEmpty(globalArgs) ? arguments : $"{globalArgs} {arguments}";
 
       var (processFileName, processArguments, _) =

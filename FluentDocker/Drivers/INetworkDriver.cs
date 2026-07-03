@@ -4,6 +4,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
+using FluentDocker.Common;
 using FluentDocker.Model.Drivers;
 using FluentDocker.Model.Networks;
 
@@ -165,6 +166,11 @@ namespace FluentDocker.Drivers
     public string Gateway { get; set; }
 
     /// <summary>
+    /// The IP range for automatic container allocation in CIDR notation.
+    /// </summary>
+    public string IpRange { get; set; }
+
+    /// <summary>
     /// When <c>true</c>, enables IPv6 networking on this network.
     /// </summary>
     public bool EnableIPv6 { get; set; }
@@ -243,12 +249,14 @@ namespace FluentDocker.Drivers
     /// <summary>
     /// Indicates whether IPv6 is enabled on this network.
     /// </summary>
+    [JsonConverter(typeof(LenientBoolConverter))]
     public bool IPv6 { get; set; }
 
     /// <summary>
     /// Indicates whether the network is restricted to internal-only traffic,
     /// preventing external access.
     /// </summary>
+    [JsonConverter(typeof(LenientBoolConverter))]
     public bool Internal { get; set; }
 
     /// <summary>

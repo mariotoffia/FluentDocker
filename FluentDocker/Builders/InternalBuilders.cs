@@ -57,7 +57,7 @@ namespace FluentDocker.Builders
       if (listResult.Success)
       {
         var existingNetwork = listResult.Data?.FirstOrDefault(n =>
-            string.Equals(n.Name, _name, StringComparison.OrdinalIgnoreCase));
+            string.Equals(n.Name, _name, StringComparison.Ordinal));
 
         if (existingNetwork != null)
         {
@@ -85,14 +85,12 @@ namespace FluentDocker.Builders
         Driver = _driver,
         Subnet = _subnet,
         Gateway = _gateway,
+        IpRange = _ipRange,
         EnableIPv6 = _enableIPv6,
         Internal = _internal,
         Labels = _labels,
         Options = _options
       };
-
-      if (!string.IsNullOrEmpty(_ipRange))
-        config.Options["com.docker.network.bridge.ip-range"] = _ipRange;
 
       var response = await driver.CreateAsync(context, config, cancellationToken).ConfigureAwait(false);
       if (!response.Success)
@@ -181,6 +179,7 @@ namespace FluentDocker.Builders
     private readonly List<string> _profiles = [];
     private string _projectName;
     private readonly Dictionary<string, string> _environment = [];
+    private readonly List<string> _envFiles = [];
     private readonly Dictionary<string, int> _scale = [];
     private bool _build;
     private bool _forceRecreate;
@@ -219,22 +218,7 @@ namespace FluentDocker.Builders
 
     public IComposeBuilder WithEnvFile(string path)
     {
-      if (System.IO.File.Exists(path))
-      {
-        foreach (var line in System.IO.File.ReadAllLines(path))
-        {
-          var trimmed = line.Trim();
-          if (string.IsNullOrEmpty(trimmed) || trimmed.StartsWith('#'))
-            continue;
-          var eqIndex = trimmed.IndexOf('=');
-          if (eqIndex > 0)
-          {
-            var key = trimmed[..eqIndex];
-            var value = trimmed[(eqIndex + 1)..];
-            _environment[key] = value;
-          }
-        }
-      }
+      _envFiles.Add(path);
       return this;
     }
 
@@ -265,6 +249,7 @@ namespace FluentDocker.Builders
     {
       var driver = _kernel.SysCtl<Drivers.IComposeDriver>(_driverId);
       var context = new DriverContext(_driverId);
+      LoadEnvFiles();
 
       // Render a first-class models: overlay (WithModels) to a managed temp file and
       // append it so Compose merges it. The ComposeService owns the file and deletes it
@@ -280,7 +265,8 @@ namespace FluentDocker.Builders
               "ConnectToExisting requires WithProjectName and/or WithComposeFile to identify the project.");
 
         return new Services.Impl.ComposeService(
-            _kernel, _driverId, _composeFiles, _projectName, _removeVolumes, _removeImages, ownedTempFiles);
+            _kernel, _driverId, _composeFiles, _projectName, _removeVolumes, _removeImages, ownedTempFiles,
+            downOnDispose: false);
       }
 
       var config = new Drivers.ComposeUpConfig
@@ -308,6 +294,7 @@ namespace FluentDocker.Builders
       {
         await CleanupFailedComposeAsync(driver, context, config, _removeVolumes, cancellationToken).ConfigureAwait(false);
         // Up failed: no ComposeService is created to own the overlay, so clean it up here.
+        RemoveComposeFiles(ownedTempFiles);
         DeleteTempFiles(ownedTempFiles);
         throw new DriverException($"Failed to start compose: {response.Error}",
             response.ErrorCode, response.ErrorContext);
@@ -317,6 +304,27 @@ namespace FluentDocker.Builders
           _kernel, _driverId, _composeFiles,
           response.Data.ProjectName ?? _projectName,
           _removeVolumes, _removeImages, ownedTempFiles);
+    }
+
+    private void LoadEnvFiles()
+    {
+      foreach (var path in _envFiles)
+      {
+        if (!System.IO.File.Exists(path))
+          throw new System.IO.FileNotFoundException(
+              $"Compose env file was not found: {path}", path);
+
+        foreach (var line in System.IO.File.ReadAllLines(path))
+        {
+          var trimmed = line.Trim();
+          if (string.IsNullOrEmpty(trimmed) || trimmed.StartsWith('#'))
+            continue;
+          var eqIndex = trimmed.IndexOf('=');
+          if (eqIndex <= 0)
+            continue;
+          _environment.TryAdd(trimmed[..eqIndex], trimmed[(eqIndex + 1)..]);
+        }
+      }
     }
 
     private static async Task CleanupFailedComposeAsync(
@@ -380,6 +388,15 @@ namespace FluentDocker.Builders
           // Best-effort cleanup on the build-failure path.
         }
       }
+    }
+
+    private void RemoveComposeFiles(IReadOnlyList<string> files)
+    {
+      if (files is null)
+        return;
+
+      foreach (var f in files)
+        _composeFiles.Remove(f);
     }
   }
 }

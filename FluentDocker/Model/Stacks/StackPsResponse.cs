@@ -1,5 +1,6 @@
 namespace FluentDocker.Model.Stacks
 {
+  [System.Obsolete("Unused by FluentDocker and scheduled for removal in v4. Use IStackDriver task response models instead.")]
   public class StackPsResponse
   {
     public string Id { get; set; }

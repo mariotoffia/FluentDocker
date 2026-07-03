@@ -132,15 +132,17 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
     }
 
     [Fact]
-    public async Task StreamStatsAsync_NullContainerId_YieldsNothing()
+    public async Task StreamStatsAsync_NullContainerId_ThrowsArgumentException()
     {
       var (driver, _) = CreateDriver();
 
-      var statsList = new List<ContainerStats>();
-      await foreach (var s in driver.StreamStatsAsync(Ctx, null!, cancellationToken: TestContext.Current.CancellationToken))
-        statsList.Add(s);
-
-      Assert.Empty(statsList);
+      await Assert.ThrowsAsync<ArgumentException>(async () =>
+      {
+        await foreach (var _ in driver.StreamStatsAsync(
+            Ctx, null!, cancellationToken: TestContext.Current.CancellationToken))
+        {
+        }
+      });
     }
 
     #endregion
@@ -150,17 +152,14 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
     [Fact]
     public async Task StreamLogsAsync_YieldsLinesFromRawStream()
     {
-      // The multiplexed reader tries to read an 8-byte header first.
-      // When fewer than 8 bytes are available it falls back to raw
-      // text mode, yielding lines split on '\n'.
-      // Content must be shorter than 8 bytes to trigger the fallback.
       var logContent = "ab\ncd";
 
       var (driver, mock) = CreateDriver();
-      mock.SetupStream("/containers/ctr/logs", logContent);
+      mock.SetupGet("/containers/raw/json", 200, "{\"Config\":{\"Tty\":true}}");
+      mock.SetupStream("/containers/raw/logs", logContent);
 
       var lines = new List<string>();
-      await foreach (var line in driver.StreamLogsAsync(Ctx, "ctr",
+      await foreach (var line in driver.StreamLogsAsync(Ctx, "raw",
           new StreamLogsConfig { Follow = false }, cancellationToken: TestContext.Current.CancellationToken))
       {
         lines.Add(line);
@@ -264,23 +263,21 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
     }
 
     [Fact]
-    public async Task StreamLogsAsync_IncompleteHeader_FallsBackToRawText()
+    public async Task StreamLogsAsync_IncompleteHeader_ThrowsDriverException()
     {
-      // Only 5 bytes: less than the 8-byte header required.
-      // The reader should fall back to raw text mode.
       var bytes = Encoding.UTF8.GetBytes("hello");
       var (driver, mock) = CreateDriver();
       mock.SetupStreamBytes("/containers/mux5/logs", bytes);
 
-      var lines = new List<string>();
-      await foreach (var line in driver.StreamLogsAsync(Ctx, "mux5",
-          new StreamLogsConfig { Follow = false }, cancellationToken: TestContext.Current.CancellationToken))
+      var error = await Assert.ThrowsAsync<DriverException>(async () =>
       {
-        lines.Add(line);
-      }
+        await foreach (var _ in driver.StreamLogsAsync(Ctx, "mux5",
+            new StreamLogsConfig { Follow = false }, cancellationToken: TestContext.Current.CancellationToken))
+        {
+        }
+      });
 
-      Assert.Single(lines);
-      Assert.Equal("hello", lines[0]);
+      Assert.Contains("truncated", error.Message);
     }
 
     [Fact]

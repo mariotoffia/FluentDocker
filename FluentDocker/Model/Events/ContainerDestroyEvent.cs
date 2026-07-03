@@ -3,6 +3,7 @@ namespace FluentDocker.Model.Events
   /// <summary>
   /// Emitted when a container has been removed from local disk (-rm operation).
   /// </summary>
+  [System.Obsolete("Unused by FluentDocker and scheduled for removal in v4. Use stream driver ContainerEvent instead.")]
   public sealed class ContainerDestroyEvent : FdEvent<ContainerDestroyEvent.ContainerDestroyActor>
   {
     public ContainerDestroyEvent()
@@ -17,6 +18,7 @@ namespace FluentDocker.Model.Events
     /// <remarks>
     /// The actor is the hash of the container.
     /// </remarks>
+    [System.Obsolete("Unused by FluentDocker and scheduled for removal in v4. Use stream driver ContainerEvent instead.")]
     public sealed class ContainerDestroyActor : EventActor
     {
       /// <summary>

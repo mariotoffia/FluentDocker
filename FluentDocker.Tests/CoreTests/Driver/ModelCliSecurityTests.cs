@@ -359,13 +359,13 @@ namespace FluentDocker.Tests.CoreTests.Driver
       {
       }
 
-      protected override Task<SimpleCommandResult> RunAsync(string arguments, CancellationToken cancellationToken)
+      protected override Task<SimpleCommandResult> RunAsync(DriverContext context, string arguments, CancellationToken cancellationToken)
       {
         LastCommand = arguments;
         return Task.FromResult(new SimpleCommandResult { Success = true, Output = string.Empty, ExitCode = 0 });
       }
 
-      protected override async IAsyncEnumerable<string> RunStreamingAsync(string arguments,
+      protected override async IAsyncEnumerable<string> RunStreamingAsync(DriverContext context, string arguments,
           [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken)
       {
         LastCommand = arguments;
@@ -374,7 +374,7 @@ namespace FluentDocker.Tests.CoreTests.Driver
       }
 
       // PullAsync uses the progress-capable (stderr-interleaving) streaming seam.
-      protected override async IAsyncEnumerable<string> RunStreamingWithProgressAsync(string arguments,
+      protected override async IAsyncEnumerable<string> RunStreamingWithProgressAsync(DriverContext context, string arguments,
           [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken)
       {
         LastCommand = arguments;

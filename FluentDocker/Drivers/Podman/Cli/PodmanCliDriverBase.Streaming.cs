@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.IO;
 using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading;
@@ -26,8 +27,19 @@ namespace FluentDocker.Drivers.Podman.Cli
         string arguments,
         [EnumeratorCancellation] CancellationToken cancellationToken)
     {
-      var (binaryPath, sudo, sudoPassword) = ResolveBinaryInfo();
-      var globalArgs = BuildGlobalArgs(Context);
+      await foreach (var line in ExecuteStreamingCommandAsync(
+          null, arguments, cancellationToken).ConfigureAwait(false))
+        yield return line;
+    }
+
+    protected async IAsyncEnumerable<string> ExecuteStreamingCommandAsync(
+        DriverContext context,
+        string arguments,
+        [EnumeratorCancellation] CancellationToken cancellationToken)
+    {
+      var effectiveContext = CreateEffectiveContext(context);
+      var (binaryPath, sudo, sudoPassword) = ResolveBinaryInfo(effectiveContext);
+      var globalArgs = BuildGlobalArgs(effectiveContext, Logger);
       var fullArgs = string.IsNullOrEmpty(globalArgs) ? arguments : $"{globalArgs} {arguments}";
 
       var (processFileName, processArguments, passwordForStdin) =
@@ -53,7 +65,7 @@ namespace FluentDocker.Drivers.Podman.Cli
 
       if (passwordForStdin != null)
       {
-        await process.StandardInput.WriteLineAsync(passwordForStdin).ConfigureAwait(false);
+        await process.StandardInput.WriteLineAsync(passwordForStdin.AsMemory(), cancellationToken).ConfigureAwait(false);
         process.StandardInput.Close();
       }
 
@@ -90,6 +102,132 @@ namespace FluentDocker.Drivers.Podman.Cli
 
       if (failure != null)
         throw new DriverException($"Streaming command failed ({failure}).", ErrorCodes.Driver.CommandExecutionFailed);
+    }
+
+    protected async IAsyncEnumerable<string> ExecuteStreamingCommandWithProgressAsync(
+        string arguments, [EnumeratorCancellation] CancellationToken cancellationToken)
+    {
+      await foreach (var line in ExecuteStreamingCommandWithProgressAsync(
+          null, arguments, cancellationToken).ConfigureAwait(false))
+        yield return line;
+    }
+
+    protected async IAsyncEnumerable<string> ExecuteStreamingCommandWithProgressAsync(
+        DriverContext context,
+        string arguments,
+        [EnumeratorCancellation] CancellationToken cancellationToken)
+    {
+      var effectiveContext = CreateEffectiveContext(context);
+      var (binaryPath, sudo, sudoPassword) = ResolveBinaryInfo(effectiveContext);
+      var globalArgs = BuildGlobalArgs(effectiveContext, Logger);
+      var fullArgs = string.IsNullOrEmpty(globalArgs) ? arguments : $"{globalArgs} {arguments}";
+
+      var (processFileName, processArguments, passwordForStdin) =
+          BuildSudoCommand(binaryPath, fullArgs, sudo, sudoPassword);
+
+      using var process = new Process
+      {
+        StartInfo = new ProcessStartInfo
+        {
+          FileName = processFileName,
+          Arguments = processArguments,
+          RedirectStandardOutput = true,
+          RedirectStandardError = true,
+          RedirectStandardInput = passwordForStdin != null,
+          UseShellExecute = false,
+          CreateNoWindow = true,
+          StandardOutputEncoding = Encoding.UTF8,
+          StandardErrorEncoding = Encoding.UTF8
+        }
+      };
+
+      process.Start();
+
+      if (passwordForStdin != null)
+      {
+        await process.StandardInput.WriteLineAsync(passwordForStdin.AsMemory(), cancellationToken).ConfigureAwait(false);
+        process.StandardInput.Close();
+      }
+
+      var channel = System.Threading.Channels.Channel.CreateBounded<string>(
+          new System.Threading.Channels.BoundedChannelOptions(256)
+          {
+            SingleReader = true,
+            SingleWriter = false,
+            FullMode = System.Threading.Channels.BoundedChannelFullMode.Wait
+          });
+
+      var pump = PumpBothStreamsAsync(process, channel.Writer, cancellationToken);
+      string failure = null;
+      var failureExitCode = 0;
+      var tail = new Queue<string>();
+
+      try
+      {
+        await foreach (var line in channel.Reader.ReadAllAsync(cancellationToken).ConfigureAwait(false))
+        {
+          AddTail(tail, line);
+          yield return line;
+        }
+
+        await process.WaitForExitAsync(cancellationToken).ConfigureAwait(false);
+        if (process.ExitCode != 0)
+        {
+          failureExitCode = process.ExitCode;
+          failure = $"exit code {process.ExitCode}{FormatTail(tail)}";
+        }
+      }
+      finally
+      {
+        channel.Writer.TryComplete();
+        KillProcessSafely(process, Logger);
+        await ObserveQuietlyAsync(pump).ConfigureAwait(false);
+      }
+
+      if (failure != null)
+        throw new DriverException(
+            $"Streaming command failed ({failure}).",
+            ErrorCodes.Driver.CommandExecutionFailed,
+            new ErrorContext("StreamingCommand") { ExitCode = failureExitCode, StdErr = FormatTail(tail) });
+    }
+
+    private static void AddTail(Queue<string> tail, string line)
+    {
+      if (tail.Count == 10)
+        tail.Dequeue();
+      tail.Enqueue(line);
+    }
+
+    private static string FormatTail(Queue<string> tail)
+    {
+      if (tail.Count == 0)
+        return string.Empty;
+
+      var text = string.Join(Environment.NewLine, tail).Trim();
+      if (text.Length > 2000)
+        text = text[^2000..];
+      return $": {text}";
+    }
+
+    private static async Task PumpBothStreamsAsync(
+        Process process, System.Threading.Channels.ChannelWriter<string> writer, CancellationToken cancellationToken)
+    {
+      async Task PumpAsync(TextReader reader)
+      {
+        string line;
+        while ((line = await reader.ReadLineAsync(cancellationToken).ConfigureAwait(false)) != null)
+          await writer.WriteAsync(line, cancellationToken).ConfigureAwait(false);
+      }
+
+      try
+      {
+        await Task.WhenAll(PumpAsync(process.StandardOutput), PumpAsync(process.StandardError)).ConfigureAwait(false);
+        writer.TryComplete();
+      }
+      catch (Exception ex)
+      {
+        writer.TryComplete(ex);
+      }
     }
 
     /// <summary>

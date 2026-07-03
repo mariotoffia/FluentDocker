@@ -139,8 +139,8 @@ using var containerResults = new Builder()
 
 ### Restricting IP Allocation Range
 
-Use `WithIPRange(string ipRange)` on `INetworkBuilder` to restrict the IP range
-for allocation within the subnet. This limits which IPs Docker will auto-assign
+Use `WithIPRange(string ipRange)` on `INetworkBuilder` to set Docker IPAM
+`IPRange` / CLI `--ip-range`. This limits which IPs Docker will auto-assign
 to containers, keeping the rest of the subnet available for static assignment:
 
 ```csharp
@@ -360,7 +360,7 @@ using var backendResults = new Builder()
         .RemoveOnDispose())
     .Build();
 
-// API server on frontend network
+// API server on frontend network (static IP applies to the first configured network)
 using var apiResults = new Builder()
     .WithinDriver("docker", kernel)
     .UseContainer(c => c
@@ -430,7 +430,7 @@ using var containerResults = new Builder()
         .WithNetworkAlias("aliased-net", "nginx"))
     .Build();
 
-// Container reachable as: myservice, web, frontend, nginx
+// Container reachable as: myservice, web, frontend, nginx. CLI aliases are global; API aliases are per-network.
 ```
 
 ## Microservices Example

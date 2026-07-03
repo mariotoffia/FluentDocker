@@ -133,6 +133,10 @@ jobs:
             10.0.x
       - run: dotnet restore
       - run: dotnet build --configuration Release --no-restore
+      - name: Verify formatting
+        run: |
+          dotnet format whitespace FluentDocker.sln --verify-no-changes
+          dotnet format style FluentDocker.sln --verify-no-changes
       - name: Run unit tests with coverage (net10.0)
         run: >
           dotnet test --no-build --configuration Release --framework net10.0
@@ -300,7 +304,9 @@ jobs:
 
       - name: Run integration tests
         if: steps.docker-check.outputs.available == 'true'
-        run: dotnet test FluentDocker.Tests/FluentDocker.Tests.csproj --configuration Debug --no-build --framework net10.0 --verbosity normal --filter "Category=Integration|Category=PodmanIntegration"
+        run: |
+          dotnet test FluentDocker.Tests/FluentDocker.Tests.csproj --configuration Debug --no-build --framework net10.0 --verbosity normal --filter "Category=Integration|Category=PodmanIntegration"
+          make test-nunit-integration
         timeout-minutes: 30
 
       - name: Skip integration tests (no Docker)

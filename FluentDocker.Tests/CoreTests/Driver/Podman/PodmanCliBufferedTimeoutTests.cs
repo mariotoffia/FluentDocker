@@ -138,6 +138,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
 
       Assert.True(result.Success);
       Assert.Equal(0, result.ExitCode);
+      Assert.StartsWith("[FluentDocker: output truncated, showing last ", result.Output);
       Assert.Contains("DONE_MARKER", result.Output);
       Assert.True(result.Output.Length < 4 * 1024 * 1024,
           "unbounded output must be kept as a bounded rolling tail, not buffered in full");

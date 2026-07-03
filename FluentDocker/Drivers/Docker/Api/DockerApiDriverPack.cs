@@ -36,6 +36,7 @@ namespace FluentDocker.Drivers.Docker.Api
     private DockerApiAuthDriver _authDriver;
     private DockerApiStreamDriver _streamDriver;
     private DockerApiServiceDriver _serviceDriver;
+    private int _disposed;
 
     /// <inheritdoc />
     public DriverType Type => DriverType.DockerApi;
@@ -52,6 +53,7 @@ namespace FluentDocker.Drivers.Docker.Api
     public async Task InitializeAsync(
         DriverContext context, CancellationToken cancellationToken = default)
     {
+      ThrowIfDisposed();
       ArgumentNullException.ThrowIfNull(context);
       _context = context;
       _logger = context.LoggerFactory.CreateLogger<DockerApiDriverPack>();
@@ -237,17 +239,31 @@ namespace FluentDocker.Drivers.Docker.Api
 
     public async ValueTask DisposeAsync()
     {
-      if (_connection != null)
-        await _connection.DisposeAsync().ConfigureAwait(false);
+      if (Interlocked.CompareExchange(ref _disposed, 1, 0) != 0)
+        return;
+
+      var connection = _connection;
+      _connection = null;
+      _initialized = false;
+      _drivers.Clear();
+
+      if (connection != null)
+        await connection.DisposeAsync().ConfigureAwait(false);
 
       GC.SuppressFinalize(this);
     }
 
     private void ThrowIfNotInitialized()
     {
+      ThrowIfDisposed();
       if (!_initialized)
         throw new InvalidOperationException(
             "DockerApiDriverPack has not been initialized. Call InitializeAsync first.");
+    }
+
+    private void ThrowIfDisposed()
+    {
+      ObjectDisposedException.ThrowIf(Volatile.Read(ref _disposed) != 0, this);
     }
   }
 }
