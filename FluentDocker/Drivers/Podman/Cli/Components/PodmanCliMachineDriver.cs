@@ -25,7 +25,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       try
       {
         var result = await ExecuteUnboundedCommandAsync(
-            BuildInitArgs(config), cancellationToken).ConfigureAwait(false);
+            context, BuildInitArgs(config), cancellationToken).ConfigureAwait(false);
         if (!result.Success)
           return CommandResponse<Unit>.Fail(
               ErrorOrDefault(result, "Machine init failed"), ErrorCodes.Machine.InitFailed,
@@ -52,7 +52,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       {
         var args = string.IsNullOrEmpty(name)
             ? "machine start"
-            : $"machine start {QuoteArgumentIfNeeded(name)}";
+            : $"machine start {QuotePositionalArgument(name, nameof(name))}";
         var result = await ExecuteUnboundedCommandAsync(context, args, cancellationToken).ConfigureAwait(false);
         if (!result.Success)
           return CommandResponse<Unit>.Fail(
@@ -80,7 +80,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       {
         var args = string.IsNullOrEmpty(name)
             ? "machine stop"
-            : $"machine stop {QuoteArgumentIfNeeded(name)}";
+            : $"machine stop {QuotePositionalArgument(name, nameof(name))}";
         var result = await ExecuteUnboundedCommandAsync(context, args, cancellationToken).ConfigureAwait(false);
         if (!result.Success)
           return CommandResponse<Unit>.Fail(
@@ -110,7 +110,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
         if (force)
           args += " -f";
         if (!string.IsNullOrEmpty(name))
-          args += $" {QuoteArgumentIfNeeded(name)}";
+          args += $" {QuotePositionalArgument(name, nameof(name))}";
 
         var result = await ExecuteCommandAsync(context, args, cancellationToken).ConfigureAwait(false);
         if (!result.Success)
@@ -143,9 +143,9 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       {
         var args = "machine ssh";
         if (!string.IsNullOrEmpty(name))
-          args += $" {QuoteArgumentIfNeeded(name)}";
+          args += $" {QuotePositionalArgument(name, nameof(name))}";
         if (!string.IsNullOrEmpty(command))
-          args += $" {QuoteArgumentIfNeeded(command)}";
+          args += $" {QuotePositionalArgument(command, nameof(command))}";
 
         var result = await ExecuteUnboundedCommandAsync(context, args, cancellationToken).ConfigureAwait(false);
         if (!result.Success)
@@ -179,7 +179,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       try
       {
         var result = await ExecuteCommandAsync(
-            BuildSetArgs(config, name), cancellationToken).ConfigureAwait(false);
+            context, BuildSetArgs(config, name), cancellationToken).ConfigureAwait(false);
         if (!result.Success)
           return CommandResponse<Unit>.Fail(
               ErrorOrDefault(result, "Machine set failed"), ErrorCodes.Machine.SetFailed,
@@ -224,7 +224,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
         args += $" -v {QuoteArgumentIfNeeded(vol)}";
 
       if (!string.IsNullOrEmpty(config.Name))
-        args += $" {QuoteArgumentIfNeeded(config.Name)}";
+        args += $" {QuotePositionalArgument(config.Name, nameof(config.Name))}";
 
       return args;
     }
@@ -243,7 +243,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
         args += config.Rootful.Value ? " --rootful" : " --rootful=false";
 
       if (!string.IsNullOrEmpty(name))
-        args += $" {QuoteArgumentIfNeeded(name)}";
+        args += $" {QuotePositionalArgument(name, nameof(name))}";
 
       return args;
     }

@@ -30,7 +30,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
         args += " --password-stdin";
 
       if (!string.IsNullOrEmpty(config.Server))
-        args += $" {QuoteArgumentIfNeeded(config.Server)}";
+        args += $" {QuotePositionalArgument(config.Server, nameof(config.Server))}";
 
       var stdinData = !string.IsNullOrEmpty(config.Password) ? config.Password : null;
 
@@ -79,7 +79,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       {
         var args = "logout";
         if (!string.IsNullOrEmpty(server))
-          args += $" {QuoteArgumentIfNeeded(server)}";
+          args += $" {QuotePositionalArgument(server, nameof(server))}";
 
         var result = await ExecuteCommandAsync(context, args, cancellationToken).ConfigureAwait(false);
         if (!result.Success)

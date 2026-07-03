@@ -147,7 +147,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
           args += $" --health-start-period {QuoteArgumentIfNeeded(config.HealthCheck.StartPeriod)}";
       }
 
-      args += $" {QuoteArgumentIfNeeded(config.Image)}";
+      args += $" {QuotePositionalArgument(config.Image, nameof(config.Image))}";
 
       // Entrypoint overflow args come before Command
       if (entrypointArgs != null)

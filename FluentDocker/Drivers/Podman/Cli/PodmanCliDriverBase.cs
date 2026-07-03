@@ -409,6 +409,18 @@ namespace FluentDocker.Drivers.Podman.Cli
       return CommandLineQuoting.QuoteArgumentIfNeeded(argument);
     }
 
+    protected static bool StartsWithDash(string value) =>
+        !string.IsNullOrEmpty(value) && value[0] == '-';
+
+    protected static string QuotePositionalArgument(string argument, string argumentName)
+    {
+      if (StartsWithDash(argument))
+        throw new DriverException(
+            $"{argumentName} must not start with '-' because Podman would parse it as an option.",
+            ErrorCodes.General.InvalidArgument);
+      return QuoteArgumentIfNeeded(argument);
+    }
+
     #endregion
   }
 }

@@ -15,43 +15,47 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
     [Fact]
     public void ParsePodList_JsonArray_ReturnsPods()
     {
+      // Captured with podman version 6.0.0 on 2026-07-03:
+      // podman pod create --name fd-wp5-20260703173403-pod
+      // podman run -d --name fd-wp5-20260703173403-ctr --pod fd-wp5-20260703173403-pod docker.io/library/alpine:3.20 sleep 300
+      // podman pod ps --format json
       var json = @"[
                 {
-                    ""Id"": ""abc123"",
-                    ""Name"": ""my-pod"",
+                    ""Id"": ""8a271f4b082c7800811db676a84dd0c106d452804b4c9cffce4a877eff8348e1"",
+                    ""Name"": ""fd-wp5-20260703173403-pod"",
                     ""Status"": ""Running"",
-                    ""Created"": ""2026-01-15T10:30:00Z"",
-                    ""InfraId"": ""infra123"",
-                    ""NumContainers"": 3,
+                    ""Created"": ""2026-07-03T17:34:03.364769201+02:00"",
+                    ""InfraId"": ""d9017a5a328eb7fac74e73b53bbdf5fcbdefb6ccf06fdf32f61e2760dc309c01"",
                     ""Containers"": [
-                        { ""Id"": ""c1"", ""Name"": ""web"", ""State"": ""running"" },
-                        { ""Id"": ""c2"", ""Name"": ""db"", ""State"": ""running"" }
+                        {
+                          ""Id"": ""d9017a5a328eb7fac74e73b53bbdf5fcbdefb6ccf06fdf32f61e2760dc309c01"",
+                          ""Names"": ""8a271f4b082c-infra"",
+                          ""Status"": ""running"",
+                          ""RestartCount"": 0
+                        },
+                        {
+                          ""Id"": ""7e29c5d7ade36007d4e7bf802ead186cc59510c4ad17e03a31f84c104feb0154"",
+                          ""Names"": ""fd-wp5-20260703173403-ctr"",
+                          ""Status"": ""running"",
+                          ""RestartCount"": 0
+                        }
                     ]
-                },
-                {
-                    ""Id"": ""def456"",
-                    ""Name"": ""test-pod"",
-                    ""Status"": ""Stopped"",
-                    ""NumContainers"": 1
                 }
             ]";
 
       var result = InvokeParsePodList(json);
 
-      Assert.Equal(2, result.Count);
-      Assert.Equal("abc123", result[0].Id);
-      Assert.Equal("my-pod", result[0].Name);
+      Assert.Single(result);
+      Assert.Equal("8a271f4b082c7800811db676a84dd0c106d452804b4c9cffce4a877eff8348e1", result[0].Id);
+      Assert.Equal("fd-wp5-20260703173403-pod", result[0].Name);
       Assert.Equal("Running", result[0].Status);
-      Assert.Equal("infra123", result[0].InfraId);
-      Assert.Equal(3, result[0].NumContainers);
+      Assert.Equal("d9017a5a328eb7fac74e73b53bbdf5fcbdefb6ccf06fdf32f61e2760dc309c01", result[0].InfraId);
+      Assert.Equal(2, result[0].NumContainers);
       Assert.Equal(2, result[0].Containers.Count);
-      Assert.Equal("web", result[0].Containers[0].Name);
+      Assert.Equal("8a271f4b082c-infra", result[0].Containers[0].Name);
       Assert.Equal("running", result[0].Containers[0].State);
-
-      Assert.Equal("def456", result[1].Id);
-      Assert.Equal("test-pod", result[1].Name);
-      Assert.Equal("Stopped", result[1].Status);
-      Assert.Equal(1, result[1].NumContainers);
+      Assert.Equal("fd-wp5-20260703173403-ctr", result[0].Containers[1].Name);
+      Assert.Equal("running", result[0].Containers[1].State);
     }
 
     [Fact]
@@ -109,7 +113,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
                 ""State"": ""Running"",
                 ""Created"": ""2026-01-15T10:30:00Z"",
                 ""Hostname"": ""my-pod-host"",
-                ""InfraContainerId"": ""infra789"",
+                ""InfraContainerID"": ""infra789"",
                 ""NumContainers"": 3
             }";
 

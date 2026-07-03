@@ -90,7 +90,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
     {
       try
       {
-        var result = await ExecuteCommandAsync(context, $"start {QuoteArgumentIfNeeded(containerId)}", cancellationToken).ConfigureAwait(false);
+        var result = await ExecuteCommandAsync(context, $"start {QuotePositionalArgument(containerId, nameof(containerId))}", cancellationToken).ConfigureAwait(false);
         if (!result.Success)
           return CommandResponse<Unit>.Fail(
               ErrorOrDefault(result, "Container start failed"), ErrorCodes.Container.StartFailed,
@@ -118,7 +118,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
         var args = "stop";
         if (timeout.HasValue)
           args += $" -t {timeout.Value}";
-        args += $" {QuoteArgumentIfNeeded(containerId)}";
+        args += $" {QuotePositionalArgument(containerId, nameof(containerId))}";
 
         // stop waits up to the grace period for the container to exit — inherently long.
         var result = await ExecuteUnboundedCommandAsync(context, args, cancellationToken).ConfigureAwait(false);
@@ -149,7 +149,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
         var args = "restart";
         if (timeout.HasValue)
           args += $" -t {timeout.Value}";
-        args += $" {QuoteArgumentIfNeeded(containerId)}";
+        args += $" {QuotePositionalArgument(containerId, nameof(containerId))}";
 
         // restart waits up to the grace period for the container to stop — inherently long.
         var result = await ExecuteUnboundedCommandAsync(context, args, cancellationToken).ConfigureAwait(false);
@@ -177,7 +177,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
     {
       try
       {
-        var result = await ExecuteCommandAsync(context, $"pause {QuoteArgumentIfNeeded(containerId)}", cancellationToken).ConfigureAwait(false);
+        var result = await ExecuteCommandAsync(context, $"pause {QuotePositionalArgument(containerId, nameof(containerId))}", cancellationToken).ConfigureAwait(false);
         if (!result.Success)
           return CommandResponse<Unit>.Fail(
               ErrorOrDefault(result, "Container pause failed"), ErrorCodes.Container.PauseFailed,
@@ -202,7 +202,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
     {
       try
       {
-        var result = await ExecuteCommandAsync(context, $"unpause {QuoteArgumentIfNeeded(containerId)}", cancellationToken).ConfigureAwait(false);
+        var result = await ExecuteCommandAsync(context, $"unpause {QuotePositionalArgument(containerId, nameof(containerId))}", cancellationToken).ConfigureAwait(false);
         if (!result.Success)
           return CommandResponse<Unit>.Fail(
               ErrorOrDefault(result, "Container unpause failed"), ErrorCodes.Container.UnpauseFailed,
@@ -228,7 +228,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       try
       {
         var result = await ExecuteCommandAsync(
-            context, $"kill --signal {QuoteArgumentIfNeeded(signal)} {QuoteArgumentIfNeeded(containerId)}", cancellationToken).ConfigureAwait(false);
+            context, $"kill --signal {QuotePositionalArgument(signal, nameof(signal))} {QuotePositionalArgument(containerId, nameof(containerId))}", cancellationToken).ConfigureAwait(false);
         if (!result.Success)
           return CommandResponse<Unit>.Fail(
               ErrorOrDefault(result, "Container kill failed"), ErrorCodes.Container.KillFailed,
@@ -259,7 +259,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
           args += " -f";
         if (removeVolumes)
           args += " -v";
-        args += $" {QuoteArgumentIfNeeded(containerId)}";
+        args += $" {QuotePositionalArgument(containerId, nameof(containerId))}";
 
         var result = await ExecuteCommandAsync(context, args, cancellationToken).ConfigureAwait(false);
         if (!result.Success)
@@ -287,7 +287,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       try
       {
         // wait blocks until the container exits — inherently long; honor only caller cancellation.
-        var result = await ExecuteUnboundedCommandAsync(context, $"wait {QuoteArgumentIfNeeded(containerId)}", cancellationToken).ConfigureAwait(false);
+        var result = await ExecuteUnboundedCommandAsync(context, $"wait {QuotePositionalArgument(containerId, nameof(containerId))}", cancellationToken).ConfigureAwait(false);
         if (!result.Success)
           return CommandResponse<ContainerWaitResult>.Fail(
               ErrorOrDefault(result, "Container wait failed"), ErrorCodes.Container.WaitFailed,
@@ -327,13 +327,17 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       try
       {
         var result = await ExecuteCommandAsync(
-            context, $"inspect {QuoteArgumentIfNeeded(containerId)}", cancellationToken).ConfigureAwait(false);
+            context, $"inspect {QuotePositionalArgument(containerId, nameof(containerId))}", cancellationToken).ConfigureAwait(false);
         if (!result.Success)
           return CommandResponse<Container>.Fail(
               ErrorOrDefault(result, "Container inspect failed"), ErrorCodes.Container.InspectFailed,
               CreateErrorContext(context, "InspectContainer", result), result.ExitCode);
 
         var container = ParseContainerInspect(result.Output);
+        if (string.IsNullOrEmpty(container.Id))
+          return CommandResponse<Container>.Fail(
+              $"Container '{containerId}' was not found", ErrorCodes.Container.NotFound,
+              CreateErrorContext(context, "InspectContainer", result), result.ExitCode);
         return CommandResponse<Container>.Ok(container);
       }
       catch (OperationCanceledException)

@@ -23,7 +23,8 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       try
       {
         var result = await ExecuteCommandAsync(
-            $"tag {QuoteArgumentIfNeeded(imageId)} {QuoteArgumentIfNeeded($"{repository}:{tag}")}", cancellationToken).ConfigureAwait(false);
+            context,
+            $"tag {QuotePositionalArgument(imageId, nameof(imageId))} {QuotePositionalArgument($"{repository}:{tag}", nameof(repository))}", cancellationToken).ConfigureAwait(false);
         if (!result.Success)
           return CommandResponse<Unit>.Fail(
               ErrorOrDefault(result, "Image tag failed"), ErrorCodes.Image.TagFailed,
@@ -53,7 +54,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
           args += " -f";
         if (noPrune)
           args += " --no-prune";
-        args += $" {QuoteArgumentIfNeeded(imageId)}";
+        args += $" {QuotePositionalArgument(imageId, nameof(imageId))}";
 
         var result = await ExecuteCommandAsync(context, args, cancellationToken).ConfigureAwait(false);
         if (!result.Success)
@@ -113,7 +114,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
     {
       try
       {
-        var args = $"save -o {QuoteArgumentIfNeeded(outputPath)} {string.Join(" ", images.Select(QuoteArgumentIfNeeded))}";
+        var args = $"save -o {QuoteArgumentIfNeeded(outputPath)} {string.Join(" ", images.Select(i => QuotePositionalArgument(i, nameof(images))))}";
         var result = await ExecuteUnboundedCommandAsync(context, args, cancellationToken).ConfigureAwait(false);
         if (!result.Success)
           return CommandResponse<Unit>.Fail(
@@ -140,6 +141,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       try
       {
         var result = await ExecuteUnboundedCommandAsync(
+            context,
             $"load -i {QuoteArgumentIfNeeded(inputPath)}", cancellationToken).ConfigureAwait(false);
         if (!result.Success)
           return CommandResponse<IList<string>>.Fail(
@@ -173,12 +175,12 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
         var args = "import";
         if (!string.IsNullOrEmpty(message))
           args += $" --message {QuoteArgumentIfNeeded(message)}";
-        args += $" {QuoteArgumentIfNeeded(source)}";
+        args += $" {QuotePositionalArgument(source, nameof(source))}";
         if (!string.IsNullOrEmpty(repository))
         {
           args += string.IsNullOrEmpty(tag)
-              ? $" {QuoteArgumentIfNeeded(repository)}"
-              : $" {QuoteArgumentIfNeeded($"{repository}:{tag}")}";
+              ? $" {QuotePositionalArgument(repository, nameof(repository))}"
+              : $" {QuotePositionalArgument($"{repository}:{tag}", nameof(repository))}";
         }
 
         var result = await ExecuteUnboundedCommandAsync(context, args, cancellationToken).ConfigureAwait(false);

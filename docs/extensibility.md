@@ -204,25 +204,23 @@ public static class PodmanContainerExtensions
 {
     /// <summary>
     /// Associates this container with a Podman pod.
-    /// No-op if the current driver does not support pods.
+    /// Throws if the current driver does not support pods.
     /// </summary>
     public static IContainerBuilder UsePod(
         this IContainerBuilder builder, string podName)
     {
-        if (builder is IDriverScopedBuilder scoped)
-        {
-            var podDriver = scoped.TryDriver<IPodmanPodDriver>();
-            if (podDriver != null)
-            {
-                builder.WithLabel("io.podman.pod", podName);
-            }
-        }
-        return builder;
+        if (builder is not IDriverScopedBuilder scoped)
+            throw new InvalidOperationException("UsePod requires a driver-scoped builder.");
+
+        if (scoped.TryDriver<IPodmanPodDriver>() == null)
+            throw new InvalidOperationException("UsePod requires a Podman driver with pod support.");
+
+        return builder.WithPod(podName);
     }
 }
 ```
 
-**Pattern:** Check `builder is IDriverScopedBuilder`, then `TryDriver<T>()`. Always return the builder for chaining. Gracefully no-op when the driver doesn't support the feature.
+**Pattern:** Check `builder is IDriverScopedBuilder`, then `TryDriver<T>()`. Always return the builder for chaining after applying the driver-specific behavior. Throw a clear `InvalidOperationException` when the driver doesn't support the feature.
 
 ### Step 4: Use It
 
@@ -239,7 +237,7 @@ await new Builder()
     .BuildAsync();
 ```
 
-When run against a Docker driver, `UsePod()` simply does nothing and the container is created normally.
+When run against a Docker driver, `UsePod()` throws because Docker does not support Podman pods.
 
 ---
 
@@ -323,11 +321,11 @@ kernel.Dispose();
 | `ExposePort(...)` | Common | Works on any driver |
 | `WaitForPort(...)` | Common | Works on any driver |
 | `WaitForHttp(...)` | Common | Works on any driver |
-| `.UsePod("cache-pod")` | **Podman-specific** | No-ops on Docker |
+| `.UsePod("cache-pod")` | **Podman-specific** | Throws on Docker |
 | `.WithinDriver("podman")` | Scope switch | Builder chains across drivers |
 | `deployment.ForDriver(...)` | Common | Filter results by driver scope |
 
-The common builder calls (`UseImage`, `WithName`, `ExposePort`, `WaitForPort`) work identically across Docker and Podman. The Podman-specific `.UsePod()` extension applies only when the active driver supports `IPodmanPodDriver`; when the same container builder runs under Docker, the call is a no-op.
+The common builder calls (`UseImage`, `WithName`, `ExposePort`, `WaitForPort`) work identically across Docker and Podman. The Podman-specific `.UsePod()` extension applies only when the active driver supports `IPodmanPodDriver`; when the same container builder runs under Docker, the call throws a clear `InvalidOperationException`.
 
 ---
 
@@ -337,9 +335,9 @@ When writing driver-specific extensions, follow these conventions:
 
 1. **Namespace:** `FluentDocker.Drivers.<Driver>.BuilderExtensions`
 2. **Return type:** Always return the builder interface for chaining
-3. **Fallback:** Use `TryDriver<T>()` and no-op when unsupported, unless the extension only makes sense for that driver
+3. **Fallback:** Use `TryDriver<T>()`; no-op for optional enhancements, throw when the extension only makes sense for that driver
 4. **Naming:** Use verbs that describe the intent (`UsePod`, `EnableSwarmMode`, `WithSecurityProfile`)
-5. **Documentation:** Document no-op behavior in the XML summary
+5. **Documentation:** Document unsupported-driver behavior in the XML summary
 
 ---
 
@@ -377,4 +375,4 @@ Register your driver interfaces via `RegisterDriver<T>()` during initialization.
 | `RequireDriver<T>()` | Resolves a driver interface (throws if missing) |
 | `TryDriver<T>()` | Resolves a driver interface (returns null if missing) |
 | `DriverPackBase` | Optional helper for new driver packs |
-| Extension methods | Driver-specific fluent API that gracefully no-ops |
+| Extension methods | Driver-specific fluent API that either no-ops or fails clearly |

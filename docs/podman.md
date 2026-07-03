@@ -74,6 +74,10 @@ answers before running your first command, so operations do not race a half-star
 The wait is bounded by a timeout — if the machine never becomes ready the initialization
 fails instead of hanging.
 
+Auto-start runs only when the Podman driver pack is initialized. If the VM dies later in
+the same kernel session, commands surface their normal Podman failures; create a new
+kernel/driver pack to run the auto-start readiness path again.
+
 ## Cancellation of long operations
 
 Long-running operations (image pulls, machine start, `kube play`) honor the
@@ -93,6 +97,10 @@ await using var results = await new Builder()
 Some operations accept progress callbacks. On certain code paths progress may not be
 reported even though the operation completes normally. Treat progress as advisory — do not
 gate control flow on receiving progress events.
+
+| Operation | Docker CLI | Podman CLI |
+|---|---|---|
+| Image pull / push / build progress callbacks | Reports parsed progress events where the CLI emits them. | Accepted for API compatibility but not reported; inspect the command result/output instead. |
 
 ## Standard output caps
 

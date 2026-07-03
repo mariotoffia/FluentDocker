@@ -46,7 +46,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
         args += $" --since {QuoteArgumentIfNeeded(config.Since)}";
       if (!string.IsNullOrEmpty(config.Until))
         args += $" --until {QuoteArgumentIfNeeded(config.Until)}";
-      args += $" {QuoteArgumentIfNeeded(containerId)}";
+      args += $" {QuotePositionalArgument(containerId, nameof(containerId))}";
       return args;
     }
 
@@ -119,7 +119,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       if (config?.All == true)
         args += " -a";
       if (!string.IsNullOrEmpty(containerId))
-        args += $" {QuoteArgumentIfNeeded(containerId)}";
+        args += $" {QuotePositionalArgument(containerId, nameof(containerId))}";
       return args;
     }
 
@@ -185,9 +185,9 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
         if (!string.IsNullOrEmpty(config.DetachKeys))
           args += $" --detach-keys {QuoteArgumentIfNeeded(config.DetachKeys)}";
 
-        args += $" {QuoteArgumentIfNeeded(containerId)}";
+        args += $" {QuotePositionalArgument(containerId, nameof(containerId))}";
 
-        var result = ExecuteAttachProcess(args, cancellationToken);
+        var result = ExecuteAttachProcess(context, args, cancellationToken);
         return Task.FromResult(CommandResponse<AttachResult>.Ok(result));
       }
       catch (OperationCanceledException)

@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.Linq;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
@@ -42,7 +43,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
           args += $" --tail {tail.Value}";
         if (timestamps)
           args += " --timestamps";
-        args += $" {QuoteArgumentIfNeeded(containerId)}";
+        args += $" {QuotePositionalArgument(containerId, nameof(containerId))}";
 
         var result = await ExecuteCommandAsync(context, args, cancellationToken).ConfigureAwait(false);
         if (!result.Success)
@@ -74,9 +75,10 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
     {
       try
       {
-        var args = $"top {QuoteArgumentIfNeeded(containerId)}";
+        var args = $"top {QuotePositionalArgument(containerId, nameof(containerId))}";
         if (!string.IsNullOrEmpty(psOptions))
-          args += $" {psOptions}";
+          args += " " + string.Join(" ", psOptions.Split(
+              WhitespaceSeparators, StringSplitOptions.RemoveEmptyEntries).Select(QuoteArgumentIfNeeded));
 
         var result = await ExecuteCommandAsync(context, args, cancellationToken).ConfigureAwait(false);
         if (!result.Success)
@@ -105,7 +107,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
     {
       try
       {
-        var result = await ExecuteCommandAsync(context, $"diff {QuoteArgumentIfNeeded(containerId)}", cancellationToken).ConfigureAwait(false);
+        var result = await ExecuteCommandAsync(context, $"diff {QuotePositionalArgument(containerId, nameof(containerId))}", cancellationToken).ConfigureAwait(false);
         if (!result.Success)
           return CommandResponse<IList<FilesystemChange>>.Fail(
               ErrorOrDefault(result, "Container diff failed"), ErrorCodes.Container.DiffFailed,
@@ -133,7 +135,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       try
       {
         var result = await ExecuteCommandAsync(
-            context, $"stats --no-stream --format json {QuoteArgumentIfNeeded(containerId)}", cancellationToken).ConfigureAwait(false);
+            context, $"stats --no-stream --format json {QuotePositionalArgument(containerId, nameof(containerId))}", cancellationToken).ConfigureAwait(false);
         if (!result.Success)
           return CommandResponse<ContainerStatsResult>.Fail(
               ErrorOrDefault(result, "Container stats failed"), ErrorCodes.Container.StatsFailed,
@@ -182,7 +184,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
           foreach (var env in config.Environment)
             args += $" -e {QuoteArgumentIfNeeded($"{env.Key}={env.Value}")}";
 
-        args += $" {QuoteArgumentIfNeeded(containerId)}";
+        args += $" {QuotePositionalArgument(containerId, nameof(containerId))}";
 
         if (config.Command != null)
           foreach (var cmd in config.Command)
@@ -282,6 +284,8 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
     {
       try
       {
+        QuotePositionalArgument(containerId, nameof(containerId));
+        QuotePositionalArgument(hostPath, nameof(hostPath));
         var result = await ExecuteUnboundedCommandAsync(
             context, $"cp {QuoteArgumentIfNeeded(hostPath)} {QuoteArgumentIfNeeded($"{containerId}:{containerPath}")}", cancellationToken).ConfigureAwait(false);
         if (!result.Success)
@@ -309,6 +313,8 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
     {
       try
       {
+        QuotePositionalArgument(containerId, nameof(containerId));
+        QuotePositionalArgument(hostPath, nameof(hostPath));
         var result = await ExecuteUnboundedCommandAsync(
             context, $"cp {QuoteArgumentIfNeeded($"{containerId}:{containerPath}")} {QuoteArgumentIfNeeded(hostPath)}", cancellationToken).ConfigureAwait(false);
         if (!result.Success)
@@ -341,7 +347,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       {
         // export streams the whole container filesystem to disk — inherently long.
         var result = await ExecuteUnboundedCommandAsync(
-            context, $"export -o {QuoteArgumentIfNeeded(outputPath)} {QuoteArgumentIfNeeded(containerId)}", cancellationToken).ConfigureAwait(false);
+            context, $"export -o {QuoteArgumentIfNeeded(outputPath)} {QuotePositionalArgument(containerId, nameof(containerId))}", cancellationToken).ConfigureAwait(false);
         if (!result.Success)
           return CommandResponse<Unit>.Fail(
               ErrorOrDefault(result, "Container export failed"), ErrorCodes.Container.ExportFailed,
@@ -367,7 +373,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       try
       {
         var result = await ExecuteCommandAsync(
-            context, $"rename {QuoteArgumentIfNeeded(containerId)} {QuoteArgumentIfNeeded(newName)}", cancellationToken).ConfigureAwait(false);
+            context, $"rename {QuotePositionalArgument(containerId, nameof(containerId))} {QuotePositionalArgument(newName, nameof(newName))}", cancellationToken).ConfigureAwait(false);
         if (!result.Success)
           return CommandResponse<Unit>.Fail(
               ErrorOrDefault(result, "Container rename failed"), ErrorCodes.Container.RenameFailed,
@@ -412,7 +418,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
         if (config.PidsLimit.HasValue)
           args += $" --pids-limit {config.PidsLimit.Value}";
 
-        args += $" {QuoteArgumentIfNeeded(containerId)}";
+        args += $" {QuotePositionalArgument(containerId, nameof(containerId))}";
 
         var result = await ExecuteCommandAsync(context, args, cancellationToken).ConfigureAwait(false);
         if (!result.Success)

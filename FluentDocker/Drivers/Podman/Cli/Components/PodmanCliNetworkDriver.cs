@@ -48,7 +48,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
           args += $" --label {QuoteArgumentIfNeeded($"{label.Key}={label.Value}")}";
 
         if (!string.IsNullOrEmpty(config.Name))
-          args += $" {QuoteArgumentIfNeeded(config.Name)}";
+          args += $" {QuotePositionalArgument(config.Name, nameof(config.Name))}";
 
         var result = await ExecuteCommandAsync(context, args, cancellationToken).ConfigureAwait(false);
         if (!result.Success)
@@ -79,7 +79,8 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       try
       {
         var result = await ExecuteCommandAsync(
-            $"network rm {QuoteArgumentIfNeeded(networkId)}", cancellationToken).ConfigureAwait(false);
+            context,
+            $"network rm {QuotePositionalArgument(networkId, nameof(networkId))}", cancellationToken).ConfigureAwait(false);
         if (!result.Success)
           return CommandResponse<Unit>.Fail(
               ErrorOrDefault(result, "Network remove failed"), ErrorCodes.Network.RemoveFailed,
@@ -141,7 +142,8 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       try
       {
         var result = await ExecuteCommandAsync(
-            $"network connect {QuoteArgumentIfNeeded(networkId)} {QuoteArgumentIfNeeded(containerId)}",
+            context,
+            $"network connect {QuotePositionalArgument(networkId, nameof(networkId))} {QuotePositionalArgument(containerId, nameof(containerId))}",
             cancellationToken).ConfigureAwait(false);
         if (!result.Success)
           return CommandResponse<Unit>.Fail(
@@ -168,8 +170,8 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       try
       {
         var args = force
-            ? $"network disconnect -f {QuoteArgumentIfNeeded(networkId)} {QuoteArgumentIfNeeded(containerId)}"
-            : $"network disconnect {QuoteArgumentIfNeeded(networkId)} {QuoteArgumentIfNeeded(containerId)}";
+            ? $"network disconnect -f {QuotePositionalArgument(networkId, nameof(networkId))} {QuotePositionalArgument(containerId, nameof(containerId))}"
+            : $"network disconnect {QuotePositionalArgument(networkId, nameof(networkId))} {QuotePositionalArgument(containerId, nameof(containerId))}";
 
         var result = await ExecuteCommandAsync(context, args, cancellationToken).ConfigureAwait(false);
         if (!result.Success)
@@ -197,13 +199,18 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       try
       {
         var result = await ExecuteCommandAsync(
-            $"network inspect {QuoteArgumentIfNeeded(networkId)}", cancellationToken).ConfigureAwait(false);
+            context,
+            $"network inspect {QuotePositionalArgument(networkId, nameof(networkId))}", cancellationToken).ConfigureAwait(false);
         if (!result.Success)
           return CommandResponse<Network>.Fail(
               ErrorOrDefault(result, "Network inspect failed"), ErrorCodes.Network.InspectFailed,
               CreateErrorContext(context, "InspectNetwork", result), result.ExitCode);
 
         var network = ParseNetworkInspect(result.Output);
+        if (string.IsNullOrEmpty(network.Id) && string.IsNullOrEmpty(network.Name))
+          return CommandResponse<Network>.Fail(
+              $"Network '{networkId}' was not found", ErrorCodes.Network.NotFound,
+              CreateErrorContext(context, "InspectNetwork", result), result.ExitCode);
         return CommandResponse<Network>.Ok(network);
       }
       catch (OperationCanceledException)

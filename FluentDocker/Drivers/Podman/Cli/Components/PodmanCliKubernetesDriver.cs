@@ -71,7 +71,8 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       try
       {
         var result = await ExecuteUnboundedCommandAsync(
-            $"kube down {QuoteArgumentIfNeeded(yamlPath)}", cancellationToken).ConfigureAwait(false);
+            context,
+            $"kube down {QuotePositionalArgument(yamlPath, nameof(yamlPath))}", cancellationToken).ConfigureAwait(false);
 
         if (!result.Success)
         {
@@ -105,7 +106,8 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       try
       {
         var result = await ExecuteCommandAsync(
-            $"kube generate {QuoteArgumentIfNeeded(resourceName)}", cancellationToken).ConfigureAwait(false);
+            context,
+            $"kube generate {QuotePositionalArgument(resourceName, nameof(resourceName))}", cancellationToken).ConfigureAwait(false);
 
         if (!result.Success)
         {
@@ -154,7 +156,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       foreach (var annotation in config.Annotations)
         args += $" --annotation {QuoteArgumentIfNeeded($"{annotation.Key}={annotation.Value}")}";
 
-      args += $" {QuoteArgumentIfNeeded(config.YamlPath)}";
+      args += $" {QuotePositionalArgument(config.YamlPath, nameof(config.YamlPath))}";
 
       return args;
     }

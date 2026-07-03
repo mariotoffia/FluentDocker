@@ -272,8 +272,8 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
       Assert.Equal("test-vm", result.Name);
       Assert.NotNull(result.Resources);
       Assert.Equal(4, result.Resources.Cpus);
-      Assert.Equal(4096, result.Resources.MemoryMiB);
-      Assert.Equal(100, result.Resources.DiskSizeGiB);
+      Assert.Equal(4294967296L, result.Resources.Memory);
+      Assert.Equal(107374182400L, result.Resources.DiskSize);
       Assert.NotNull(result.ConnectionInfo);
       Assert.Equal("/var/folders/xx/podman.sock", result.ConnectionInfo.PodmanSocketPath);
     }

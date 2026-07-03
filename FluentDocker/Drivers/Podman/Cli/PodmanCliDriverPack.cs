@@ -380,8 +380,21 @@ namespace FluentDocker.Drivers.Podman.Cli
             context, target.Name, cancellationToken).ConfigureAwait(false);
 
         if (!startResult.Success)
-          throw new PodmanMachineNotRunningException(
-              $"Failed to start Podman machine '{target.Name}': {startResult.Error}");
+        {
+          // Another OS process may have started the machine concurrently ("already
+          // running" while the VM is still booting) — poll readiness before declaring
+          // failure instead of trusting a single ping.
+          try
+          {
+            await WaitForMachineReadyAsync(context, cancellationToken).ConfigureAwait(false);
+            return;
+          }
+          catch (PodmanMachineNotRunningException)
+          {
+            throw new PodmanMachineNotRunningException(
+                $"Failed to start Podman machine '{target.Name}': {startResult.Error}");
+          }
+        }
 
         await WaitForMachineReadyAsync(context, cancellationToken).ConfigureAwait(false);
         return;

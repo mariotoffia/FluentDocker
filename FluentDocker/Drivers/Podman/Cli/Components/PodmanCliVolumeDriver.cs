@@ -38,7 +38,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
           args += $" --label {QuoteArgumentIfNeeded($"{label.Key}={label.Value}")}";
 
         if (!string.IsNullOrEmpty(config.Name))
-          args += $" {QuoteArgumentIfNeeded(config.Name)}";
+          args += $" {QuotePositionalArgument(config.Name, nameof(config.Name))}";
 
         var result = await ExecuteCommandAsync(context, args, cancellationToken).ConfigureAwait(false);
         if (!result.Success)
@@ -69,7 +69,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
     {
       try
       {
-        var quotedName = QuoteArgumentIfNeeded(volumeName);
+        var quotedName = QuotePositionalArgument(volumeName, nameof(volumeName));
         var args = force ? $"volume rm -f {quotedName}" : $"volume rm {quotedName}";
         var result = await ExecuteCommandAsync(context, args, cancellationToken).ConfigureAwait(false);
         if (!result.Success)
@@ -133,13 +133,18 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
     {
       try
       {
-        var result = await ExecuteCommandAsync($"volume inspect {QuoteArgumentIfNeeded(volumeName)}", cancellationToken).ConfigureAwait(false);
+        var result = await ExecuteCommandAsync(
+            context, $"volume inspect {QuotePositionalArgument(volumeName, nameof(volumeName))}", cancellationToken).ConfigureAwait(false);
         if (!result.Success)
           return CommandResponse<Volume>.Fail(
               ErrorOrDefault(result, "Volume inspect failed"), ErrorCodes.Volume.InspectFailed,
               CreateErrorContext(context, "InspectVolume", result), result.ExitCode);
 
         var volume = ParseVolumeInspect(result.Output);
+        if (string.IsNullOrEmpty(volume.Name))
+          return CommandResponse<Volume>.Fail(
+              $"Volume '{volumeName}' was not found", ErrorCodes.Volume.NotFound,
+              CreateErrorContext(context, "InspectVolume", result), result.ExitCode);
         return CommandResponse<Volume>.Ok(volume);
       }
       catch (OperationCanceledException)

@@ -76,10 +76,10 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
     }
 
     [Fact]
-    public void ParseContainerInspect_EmptyArray_Throws()
+    public void ParseContainerInspect_EmptyArray_ReturnsEmptyContainer()
     {
-      Assert.ThrowsAny<Exception>(
-          () => PodmanCliContainerDriver.ParseContainerInspect("[]"));
+      var container = PodmanCliContainerDriver.ParseContainerInspect("[]");
+      Assert.Null(container.Id);
     }
 
     [Fact]

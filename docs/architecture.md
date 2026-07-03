@@ -277,10 +277,10 @@ public class BuildResults : IAsyncDisposable, IDisposable
 
 ## Driver-Aware Builder Extensions
 
-All builders implement `IDriverScopedBuilder`, providing access to the kernel and driver ID inside builder lambdas. This enables driver-specific fluent extensions that gracefully no-op when the current driver doesn't support the feature:
+All builders implement `IDriverScopedBuilder`, providing access to the kernel and driver ID inside builder lambdas. This enables driver-specific fluent extensions to resolve optional capabilities and fail clearly when the current driver doesn't support the feature:
 
 ```csharp
-// Podman-specific .UsePod() — no-op on Docker
+// Podman-specific .UsePod() — throws on Docker
 await new Builder()
     .WithinDriver("podman", kernel)
     .UseContainer(c => c

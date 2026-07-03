@@ -181,11 +181,11 @@ namespace FluentDocker.Drivers.Podman
     /// <summary>Number of CPUs.</summary>
     public int Cpus { get; set; }
 
-    /// <summary>Memory in MiB.</summary>
-    public int MemoryMiB { get; set; }
+    /// <summary>Memory in bytes.</summary>
+    public long Memory { get; set; }
 
-    /// <summary>Disk size in GiB.</summary>
-    public int DiskSizeGiB { get; set; }
+    /// <summary>Disk size in bytes.</summary>
+    public long DiskSize { get; set; }
   }
 
   /// <summary>Machine connection information.</summary>

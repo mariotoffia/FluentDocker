@@ -68,7 +68,8 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       try
       {
         var result = await ExecuteCommandAsync(
-            $"manifest rm {QuoteArgumentIfNeeded(listName)}", cancellationToken).ConfigureAwait(false);
+            context,
+            $"manifest rm {QuotePositionalArgument(listName, nameof(listName))}", cancellationToken).ConfigureAwait(false);
 
         if (!result.Success)
           return CommandResponse<Unit>.Fail(
@@ -221,7 +222,8 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       try
       {
         var result = await ExecuteCommandAsync(
-            $"manifest inspect {QuoteArgumentIfNeeded(listName)}", cancellationToken).ConfigureAwait(false);
+            context,
+            $"manifest inspect {QuotePositionalArgument(listName, nameof(listName))}", cancellationToken).ConfigureAwait(false);
 
         if (!result.Success)
           return CommandResponse<ManifestInspectResult>.Fail(
@@ -255,7 +257,8 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       try
       {
         var result = await ExecuteCommandAsync(
-            $"manifest exists {QuoteArgumentIfNeeded(listName)}", cancellationToken).ConfigureAwait(false);
+            context,
+            $"manifest exists {QuotePositionalArgument(listName, nameof(listName))}", cancellationToken).ConfigureAwait(false);
 
         if (result.Success)
           return CommandResponse<bool>.Ok(true);
@@ -325,10 +328,10 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       foreach (var kvp in config.Annotations)
         sb.Append(CultureInfo.InvariantCulture, $" --annotation {QuoteArgumentIfNeeded($"{kvp.Key}={kvp.Value}")}");
 
-      sb.Append(CultureInfo.InvariantCulture, $" {QuoteArgumentIfNeeded(config.Name)}");
+      sb.Append(CultureInfo.InvariantCulture, $" {QuotePositionalArgument(config.Name, nameof(config.Name))}");
 
       foreach (var image in config.Images)
-        sb.Append(CultureInfo.InvariantCulture, $" {QuoteArgumentIfNeeded(image)}");
+        sb.Append(CultureInfo.InvariantCulture, $" {QuotePositionalArgument(image, nameof(image))}");
 
       return sb.ToString();
     }
@@ -354,7 +357,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       foreach (var kvp in config.Annotations)
         sb.Append(CultureInfo.InvariantCulture, $" --annotation {QuoteArgumentIfNeeded($"{kvp.Key}={kvp.Value}")}");
 
-      sb.Append(CultureInfo.InvariantCulture, $" {QuoteArgumentIfNeeded(config.ListName)} {QuoteArgumentIfNeeded(config.Image)}");
+      sb.Append(CultureInfo.InvariantCulture, $" {QuotePositionalArgument(config.ListName, nameof(config.ListName))} {QuotePositionalArgument(config.Image, nameof(config.Image))}");
 
       return sb.ToString();
     }
@@ -372,7 +375,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       if (config.TlsVerify.HasValue)
         sb.Append(CultureInfo.InvariantCulture, $" --tls-verify={QuoteArgumentIfNeeded(config.TlsVerify.Value.ToString().ToLowerInvariant())}");
 
-      sb.Append(CultureInfo.InvariantCulture, $" {QuoteArgumentIfNeeded(config.ListName)} {QuoteArgumentIfNeeded(config.Destination)}");
+      sb.Append(CultureInfo.InvariantCulture, $" {QuotePositionalArgument(config.ListName, nameof(config.ListName))} {QuotePositionalArgument(config.Destination, nameof(config.Destination))}");
 
       return sb.ToString();
     }
@@ -402,7 +405,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       foreach (var kvp in config.Annotations)
         sb.Append(CultureInfo.InvariantCulture, $" --annotation {QuoteArgumentIfNeeded($"{kvp.Key}={kvp.Value}")}");
 
-      sb.Append(CultureInfo.InvariantCulture, $" {QuoteArgumentIfNeeded(config.ListName)} {QuoteArgumentIfNeeded(config.Image)}");
+      sb.Append(CultureInfo.InvariantCulture, $" {QuotePositionalArgument(config.ListName, nameof(config.ListName))} {QuotePositionalArgument(config.Image, nameof(config.Image))}");
 
       return sb.ToString();
     }

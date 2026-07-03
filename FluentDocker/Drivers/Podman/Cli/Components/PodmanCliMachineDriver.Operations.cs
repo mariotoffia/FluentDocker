@@ -20,6 +20,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       try
       {
         var result = await ExecuteCommandAsync(
+            context,
             "machine list --format json", cancellationToken).ConfigureAwait(false);
         if (!result.Success)
           return CommandResponse<IList<MachineInfo>>.Fail(
@@ -49,7 +50,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       {
         var args = string.IsNullOrEmpty(name)
             ? "machine inspect"
-            : $"machine inspect {QuoteArgumentIfNeeded(name)}";
+            : $"machine inspect {QuotePositionalArgument(name, nameof(name))}";
         var result = await ExecuteCommandAsync(context, args, cancellationToken).ConfigureAwait(false);
         if (!result.Success)
           return CommandResponse<MachineInspectResult>.Fail(
@@ -78,6 +79,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       try
       {
         var result = await ExecuteCommandAsync(
+            context,
             "machine info --format json", cancellationToken).ConfigureAwait(false);
         if (!result.Success)
           return CommandResponse<MachineHostInfo>.Fail(
@@ -217,12 +219,14 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
         if (resources.HasValue && resources.Value.ValueKind == JsonValueKind.Object)
         {
           var res = resources.Value;
+          var memory = res.Prop("Memory", "memory");
+          var diskSize = res.Prop("DiskSize", "diskSize");
           result.Resources = new MachineResources
           {
             Cpus = res.GetInt32OrDefault("CPUs",
                      res.GetInt32OrDefault("cpus", res.GetInt32OrDefault("Cpus"))),
-            MemoryMiB = res.GetInt32OrDefault("Memory", res.GetInt32OrDefault("memory")),
-            DiskSizeGiB = res.GetInt32OrDefault("DiskSize", res.GetInt32OrDefault("diskSize"))
+            Memory = memory.HasValue ? ToBytes(ParseLongValue(memory.Value), 1024L * 1024L) : 0,
+            DiskSize = diskSize.HasValue ? ToBytes(ParseLongValue(diskSize.Value), 1024L * 1024L * 1024L) : 0
           };
         }
 
@@ -313,6 +317,8 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
         return token.TryGetInt64(out var lv) ? lv : 0;
       return 0;
     }
+
+    private static long ToBytes(long value, long multiplier) => value * multiplier;
 
     #endregion
   }

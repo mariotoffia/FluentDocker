@@ -35,7 +35,8 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       {
         var imageRef = string.IsNullOrEmpty(tag) ? image : $"{image}:{tag}";
         var result = await ExecuteUnboundedCommandAsync(
-            $"pull {QuoteArgumentIfNeeded(imageRef)}", cancellationToken).ConfigureAwait(false);
+            context,
+            $"pull {QuotePositionalArgument(imageRef, nameof(image))}", cancellationToken).ConfigureAwait(false);
         if (!result.Success)
           return CommandResponse<Unit>.Fail(
               ErrorOrDefault(result, "Image pull failed"), ErrorCodes.Image.PullFailed,
@@ -62,7 +63,8 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       try
       {
         var result = await ExecuteUnboundedCommandAsync(
-            $"push {QuoteArgumentIfNeeded(image)}", cancellationToken).ConfigureAwait(false);
+            context,
+            $"push {QuotePositionalArgument(image, nameof(image))}", cancellationToken).ConfigureAwait(false);
         if (!result.Success)
           return CommandResponse<Unit>.Fail(
               ErrorOrDefault(result, "Image push failed"), ErrorCodes.Image.PushFailed,
@@ -124,7 +126,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       if (!string.IsNullOrEmpty(iidFilePath))
         args += $" --iidfile {QuoteArgumentIfNeeded(iidFilePath)}";
 
-      args += $" {QuoteArgumentIfNeeded(config.BuildContext ?? ".")}";
+      args += $" {QuotePositionalArgument(config.BuildContext ?? ".", nameof(config.BuildContext))}";
 
       return args;
     }
@@ -143,7 +145,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
 
         try
         {
-          var result = await ExecuteUnboundedCommandAsync(BuildBuildArgs(config, iidFile), cancellationToken).ConfigureAwait(false);
+          var result = await ExecuteUnboundedCommandAsync(context, BuildBuildArgs(config, iidFile), cancellationToken).ConfigureAwait(false);
           if (!result.Success)
             return CommandResponse<ImageBuildResult>.Fail(
                 ErrorOrDefault(result, "Image build failed"), ErrorCodes.Image.BuildFailed,
@@ -228,13 +230,18 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       try
       {
         var result = await ExecuteCommandAsync(
-            $"image inspect {QuoteArgumentIfNeeded(imageId)}", cancellationToken).ConfigureAwait(false);
+            context,
+            $"image inspect {QuotePositionalArgument(imageId, nameof(imageId))}", cancellationToken).ConfigureAwait(false);
         if (!result.Success)
           return CommandResponse<Image>.Fail(
               ErrorOrDefault(result, "Image inspect failed"), ErrorCodes.Image.InspectFailed,
               CreateErrorContext(context, "InspectImage", result), result.ExitCode);
 
         var image = ParseImageInspect(result.Output);
+        if (string.IsNullOrEmpty(image.Id))
+          return CommandResponse<Image>.Fail(
+              $"Image '{imageId}' was not found", ErrorCodes.Image.NotFound,
+              CreateErrorContext(context, "InspectImage", result), result.ExitCode);
         return CommandResponse<Image>.Ok(image);
       }
       catch (OperationCanceledException)
@@ -255,7 +262,8 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       try
       {
         var result = await ExecuteCommandAsync(
-            $"history --format json {QuoteArgumentIfNeeded(imageId)}", cancellationToken).ConfigureAwait(false);
+            context,
+            $"history --format json {QuotePositionalArgument(imageId, nameof(imageId))}", cancellationToken).ConfigureAwait(false);
         if (!result.Success)
           return CommandResponse<IList<ImageLayer>>.Fail(
               ErrorOrDefault(result, "Image history failed"), ErrorCodes.Image.HistoryFailed,
@@ -344,7 +352,10 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
         if (trimmed.StartsWith('['))
         {
           var root = JsonHelper.ParseElement(trimmed);
-          token = root.EnumerateArray().First();
+          using var enumerator = root.EnumerateArray();
+          if (!enumerator.MoveNext())
+            return new Image();
+          token = enumerator.Current;
         }
         else
         {

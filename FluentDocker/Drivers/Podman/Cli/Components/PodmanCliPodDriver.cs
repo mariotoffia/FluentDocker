@@ -60,7 +60,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
     {
       try
       {
-        var args = $"pod start {QuoteArgumentIfNeeded(name)}";
+        var args = $"pod start {QuotePositionalArgument(name, nameof(name))}";
         var result = await ExecuteUnboundedCommandAsync(context, args, cancellationToken).ConfigureAwait(false);
         if (!result.Success)
           return CommandResponse<Unit>.Fail(
@@ -88,8 +88,8 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       try
       {
         var args = timeout.HasValue
-            ? $"pod stop -t {timeout.Value} {QuoteArgumentIfNeeded(name)}"
-            : $"pod stop {QuoteArgumentIfNeeded(name)}";
+            ? $"pod stop -t {timeout.Value} {QuotePositionalArgument(name, nameof(name))}"
+            : $"pod stop {QuotePositionalArgument(name, nameof(name))}";
         var result = await ExecuteUnboundedCommandAsync(context, args, cancellationToken).ConfigureAwait(false);
         if (!result.Success)
           return CommandResponse<Unit>.Fail(
@@ -117,8 +117,8 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       try
       {
         var args = timeout.HasValue
-            ? $"pod restart -t {timeout.Value} {QuoteArgumentIfNeeded(name)}"
-            : $"pod restart {QuoteArgumentIfNeeded(name)}";
+            ? $"pod restart -t {timeout.Value} {QuotePositionalArgument(name, nameof(name))}"
+            : $"pod restart {QuotePositionalArgument(name, nameof(name))}";
         var result = await ExecuteUnboundedCommandAsync(context, args, cancellationToken).ConfigureAwait(false);
         if (!result.Success)
           return CommandResponse<Unit>.Fail(
@@ -146,8 +146,8 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       try
       {
         var args = !string.IsNullOrEmpty(signal)
-            ? $"pod kill --signal {QuoteArgumentIfNeeded(signal)} {QuoteArgumentIfNeeded(name)}"
-            : $"pod kill {QuoteArgumentIfNeeded(name)}";
+            ? $"pod kill --signal {QuotePositionalArgument(signal, nameof(signal))} {QuotePositionalArgument(name, nameof(name))}"
+            : $"pod kill {QuotePositionalArgument(name, nameof(name))}";
         var result = await ExecuteCommandAsync(context, args, cancellationToken).ConfigureAwait(false);
         if (!result.Success)
           return CommandResponse<Unit>.Fail(
@@ -174,7 +174,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
     {
       try
       {
-        var args = $"pod pause {QuoteArgumentIfNeeded(name)}";
+        var args = $"pod pause {QuotePositionalArgument(name, nameof(name))}";
         var result = await ExecuteCommandAsync(context, args, cancellationToken).ConfigureAwait(false);
         if (!result.Success)
           return CommandResponse<Unit>.Fail(
@@ -201,7 +201,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
     {
       try
       {
-        var args = $"pod unpause {QuoteArgumentIfNeeded(name)}";
+        var args = $"pod unpause {QuotePositionalArgument(name, nameof(name))}";
         var result = await ExecuteCommandAsync(context, args, cancellationToken).ConfigureAwait(false);
         if (!result.Success)
           return CommandResponse<Unit>.Fail(
@@ -229,8 +229,8 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       try
       {
         var args = force
-            ? $"pod rm -f {QuoteArgumentIfNeeded(name)}"
-            : $"pod rm {QuoteArgumentIfNeeded(name)}";
+            ? $"pod rm -f {QuotePositionalArgument(name, nameof(name))}"
+            : $"pod rm {QuotePositionalArgument(name, nameof(name))}";
         var result = await ExecuteCommandAsync(context, args, cancellationToken).ConfigureAwait(false);
         if (!result.Success)
           return CommandResponse<Unit>.Fail(
@@ -262,6 +262,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       try
       {
         var result = await ExecuteCommandAsync(
+            context,
             "pod ps --format json", cancellationToken).ConfigureAwait(false);
 
         if (!result.Success)
@@ -292,7 +293,8 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       try
       {
         var result = await ExecuteCommandAsync(
-            $"pod inspect {QuoteArgumentIfNeeded(name)}", cancellationToken).ConfigureAwait(false);
+            context,
+            $"pod inspect {QuotePositionalArgument(name, nameof(name))}", cancellationToken).ConfigureAwait(false);
 
         if (!result.Success)
           return CommandResponse<PodInspectResult>.Fail(
@@ -301,6 +303,10 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
               CreateErrorContext(context, "InspectPod", result), result.ExitCode);
 
         var inspect = ParsePodInspect(result.Output);
+        if (string.IsNullOrEmpty(inspect.Id))
+          return CommandResponse<PodInspectResult>.Fail(
+              $"Pod '{name}' was not found", ErrorCodes.Pod.NotFound,
+              CreateErrorContext(context, "InspectPod", result), result.ExitCode);
         return CommandResponse<PodInspectResult>.Ok(inspect);
       }
       catch (OperationCanceledException)
@@ -399,6 +405,8 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
         foreach (var c in containers.Value.EnumerateArray())
           info.Containers.Add(ParsePodContainerInfoFromToken(c));
       }
+      if (info.NumContainers == 0)
+        info.NumContainers = info.Containers.Count;
 
       return info;
     }
@@ -416,7 +424,10 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
         if (trimmed.StartsWith('['))
         {
           var root = JsonHelper.ParseElement(trimmed);
-          obj = root.EnumerateArray().First();
+          using var enumerator = root.EnumerateArray();
+          if (!enumerator.MoveNext())
+            return result;
+          obj = enumerator.Current;
         }
         else
         {
@@ -435,7 +446,8 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
               : state.Value.GetRawText();
 
         result.InfraContainerId =
-            obj.GetStringOrDefault("InfraContainerId", "infraContainerId");
+            obj.GetStringOrDefault("InfraContainerID")
+            ?? obj.GetStringOrDefault("InfraContainerId", "infraContainerId");
 
         var numProp = obj.Prop("NumContainers", "num_containers");
         if (numProp.HasValue && numProp.Value.ValueKind == JsonValueKind.Number)
@@ -447,6 +459,8 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
           foreach (var c in containers.Value.EnumerateArray())
             result.Containers.Add(ParsePodContainerInfoFromToken(c));
         }
+        if (result.NumContainers == 0)
+          result.NumContainers = result.Containers.Count;
       }
       catch (Exception ex)
       {
@@ -462,8 +476,10 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       return new PodContainerInfo
       {
         Id = token.GetStringOrDefault("Id", "id"),
-        Name = token.GetStringOrDefault("Name", "name"),
-        State = token.GetStringOrDefault("State", "state")
+        Name = token.GetStringOrDefault("Names")
+               ?? token.GetStringOrDefault("Name", "name"),
+        State = token.GetStringOrDefault("Status")
+                ?? token.GetStringOrDefault("State", "state")
       };
     }
 

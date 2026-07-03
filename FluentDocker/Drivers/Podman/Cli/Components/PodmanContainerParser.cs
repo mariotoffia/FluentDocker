@@ -74,7 +74,10 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       if (trimmed.StartsWith('['))
       {
         var root = JsonHelper.ParseElement(trimmed);
-        token = root.EnumerateArray().First();
+        using var enumerator = root.EnumerateArray();
+        if (!enumerator.MoveNext())
+          return new Container();
+        token = enumerator.Current;
       }
       else
       {

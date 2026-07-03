@@ -4,6 +4,7 @@ using System.Text;
 using System.Threading;
 using FluentDocker.Drivers;
 using FluentDocker.Model.Common;
+using FluentDocker.Model.Drivers;
 
 namespace FluentDocker.Drivers.Podman.Cli
 {
@@ -24,14 +25,29 @@ namespace FluentDocker.Drivers.Podman.Cli
     /// the returned <see cref="AttachResult"/>.
     /// </param>
     protected AttachResult ExecuteAttachProcess(string arguments, CancellationToken cancellationToken = default)
+        => ExecuteAttachProcess(null, arguments, cancellationToken);
+
+    /// <summary>
+    /// Starts a long-running attach process with stdin/stdout/stderr redirected.
+    /// </summary>
+    /// <param name="context">Per-call driver context.</param>
+    /// <param name="arguments">The CLI arguments for the attach command.</param>
+    /// <param name="cancellationToken">
+    /// Token observed before the process is started; if cancellation is already requested the
+    /// process is never spawned. The attach itself is long-lived and is torn down by disposing
+    /// the returned <see cref="AttachResult"/>.
+    /// </param>
+    protected AttachResult ExecuteAttachProcess(
+        DriverContext context, string arguments, CancellationToken cancellationToken = default)
     {
       cancellationToken.ThrowIfCancellationRequested();
 
-      var (binaryPath, sudo, sudoPassword) = ResolveBinaryInfo();
+      var effectiveContext = CreateEffectiveContext(context);
+      var (binaryPath, sudo, sudoPassword) = ResolveBinaryInfo(effectiveContext);
       if (sudo == SudoMechanism.Password || !string.IsNullOrEmpty(sudoPassword))
         throw new NotSupportedException("podman attach cannot use password sudo because attach stdin belongs to the caller.");
 
-      var globalArgs = BuildGlobalArgs(Context, Logger);
+      var globalArgs = BuildGlobalArgs(effectiveContext, Logger);
       var fullArgs = string.IsNullOrEmpty(globalArgs) ? arguments : $"{globalArgs} {arguments}";
 
       var (processFileName, processArguments, _) =
