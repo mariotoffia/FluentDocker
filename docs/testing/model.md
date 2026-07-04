@@ -158,7 +158,7 @@ static void SkipOrFailIfDmrDown(bool running)
 
 ## Complete xUnit example
 
-A fixture that builds a `"docker"` kernel, the test class probes DMR once and
+A fixture that builds a `"docker-cli"` kernel, the test class probes DMR once and
 either skips or runs inference. The fixture's `IAsyncLifetime` disposes the
 model and kernel automatically. Compiles with nullable enabled.
 
@@ -177,7 +177,7 @@ using Xunit;
 
 public sealed class ChatModelFixture : XunitResourceFixture<ModelResource>
 {
-    public const string DriverId = "docker";
+    public const string DriverId = "docker-cli";
 
     public ChatModelFixture()
     {
@@ -271,7 +271,7 @@ using NUnit.Framework;
 [Category("Integration")]
 public sealed class NUnitModelTests
 {
-    private const string DriverId = "docker";
+    private const string DriverId = "docker-cli";
 
     private FluentDockerKernel? _kernel;
     private ModelResource? _resource;
@@ -330,8 +330,13 @@ public sealed class NUnitModelTests
 
 ## Complete MSTest example
 
-Same shape, MSTest idioms. `[TestCleanup]` disposes both with the null-safe
-helper, so an `_resource`/`_kernel` left `null` by a skip is harmless.
+Same shape, MSTest idioms — but **class-scoped**. `[ClassInitialize]` loads the
+model once for the whole class; `[ClassCleanup(ClassCleanupBehavior.EndOfClass)]`
+disposes it when the class ends. Model loads are expensive, so amortize one load
+across every test method rather than reloading per test with `[TestInitialize]`;
+use per-test setup only when a test must not observe another test's model state.
+`ClassCleanupBehavior.EndOfClass` is required — a bare `[ClassCleanup]` runs at
+end-of-assembly on MSTest 3.x and keeps the model loaded until the run ends.
 
 ```csharp
 using System;
@@ -348,21 +353,23 @@ using Microsoft.VisualStudio.TestTools.UnitTesting;
 [TestClass]
 public sealed class MsTestModelTests
 {
-    private const string DriverId = "docker";
+    private const string DriverId = "docker-cli";
 
-    private FluentDockerKernel? _kernel;
-    private ModelResource? _resource;
+    private static FluentDockerKernel? _kernel;
+    private static ModelResource? _resource;
 
     private static bool RequireDmr =>
         !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("FLUENTDOCKER_REQUIRE_DMR"));
 
-    [TestInitialize]
-    public async Task Init()
+    [ClassInitialize]
+    public static async Task Init(TestContext context)
     {
+        var ct = context.CancellationTokenSource.Token;
+
         await using (var probe = await FluentDockerKernel.Create(NullLoggerFactory.Instance)
             .WithDockerCli(DriverId, d => d.AsDefault()).BuildAsync())
         {
-            if (!await IsDmrRunningAsync(probe, CancellationToken.None))
+            if (!await IsDmrRunningAsync(probe, ct))
             {
                 if (RequireDmr)
                     Assert.Fail("DMR required but not running");
@@ -378,8 +385,8 @@ public sealed class MsTestModelTests
                 .BuildAsync());
     }
 
-    [TestCleanup]
-    public Task Cleanup() => MsTestResourceHelpers.DisposeAsync(_resource, _kernel);
+    [ClassCleanup(ClassCleanupBehavior.EndOfClass)]
+    public static Task Cleanup() => MsTestResourceHelpers.DisposeAsync(_resource, _kernel);
 
     [TestMethod]
     public async Task Chat_ReturnsNonEmptyReply()
@@ -500,7 +507,7 @@ A container can receive the runner URL through `WithModel(...)` so the app
 under test talks to DMR exactly as it would in production:
 
 ```csharp
-await using var results = await new Builder().WithinDriver("docker", kernel)
+await using var results = await new Builder().WithinDriver("docker-cli", kernel)
     .UseContainer(c => c
         .UseImage("curlimages/curl:latest")
         .WithModel(ModelReference.Parse("ai/smollm2:latest"))

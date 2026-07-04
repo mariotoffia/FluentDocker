@@ -26,7 +26,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     {
       try
       {
-        var result = await ExecuteCommandAsync(context, $"tag {QuotePositionalArgument(imageId, nameof(imageId))} {QuoteArgumentIfNeeded($"{repository}:{tag}")}", cancellationToken).ConfigureAwait(false);
+        var result = await ExecuteCommandAsync(context, $"tag {QuotePositionalArgument(imageId, nameof(imageId))} {QuotePositionalArgument($"{repository}:{tag}", nameof(repository))}", cancellationToken).ConfigureAwait(false);
 
         if (!result.Success)
         {
@@ -244,9 +244,9 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
         var args = "import";
         if (!string.IsNullOrEmpty(message))
           args += $" -m {QuoteArgumentIfNeeded(message)}";
-        args += $" {QuoteArgumentIfNeeded(source)}";
+        args += $" {QuotePositionalArgument(source, nameof(source))}";
         if (!string.IsNullOrEmpty(repository))
-          args += $" {QuoteArgumentIfNeeded(string.IsNullOrEmpty(tag) ? repository : $"{repository}:{tag}")}";
+          args += $" {QuotePositionalArgument(string.IsNullOrEmpty(tag) ? repository : $"{repository}:{tag}", nameof(repository))}";
 
         var result = await ExecuteUnboundedCommandAsync(context, args, cancellationToken).ConfigureAwait(false);
 

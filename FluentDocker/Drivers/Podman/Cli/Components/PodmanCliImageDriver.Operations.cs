@@ -27,7 +27,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
             $"tag {QuotePositionalArgument(imageId, nameof(imageId))} {QuotePositionalArgument($"{repository}:{tag}", nameof(repository))}", cancellationToken).ConfigureAwait(false);
         if (!result.Success)
           return CommandResponse<Unit>.Fail(
-              ErrorOrDefault(result, "Image tag failed"), ErrorCodes.Image.TagFailed,
+              ErrorOrDefault(result, "Image tag failed"), FailureCode(result.Error, ErrorCodes.Image.TagFailed),
               CreateErrorContext(context, "TagImage", result), result.ExitCode);
 
         return CommandResponse<Unit>.Ok(Unit.Default);
@@ -38,7 +38,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       }
       catch (Exception ex)
       {
-        return CommandResponse<Unit>.Fail(ex.Message, ErrorCodes.Image.TagFailed);
+        return CommandResponse<Unit>.Fail(ex.Message, FailureCode(ex, ErrorCodes.Image.TagFailed));
       }
     }
 
@@ -59,7 +59,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
         var result = await ExecuteCommandAsync(context, args, cancellationToken).ConfigureAwait(false);
         if (!result.Success)
           return CommandResponse<ImageRemoveResult>.Fail(
-              ErrorOrDefault(result, "Image remove failed"), ErrorCodes.Image.RemoveFailed,
+              ErrorOrDefault(result, "Image remove failed"), FailureCode(result.Error, ErrorCodes.Image.RemoveFailed),
               CreateErrorContext(context, "RemoveImage", result), result.ExitCode);
 
         return CommandResponse<ImageRemoveResult>.Ok(new ImageRemoveResult());
@@ -70,7 +70,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       }
       catch (Exception ex)
       {
-        return CommandResponse<ImageRemoveResult>.Fail(ex.Message, ErrorCodes.Image.RemoveFailed);
+        return CommandResponse<ImageRemoveResult>.Fail(ex.Message, FailureCode(ex, ErrorCodes.Image.RemoveFailed));
       }
     }
 
@@ -87,7 +87,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
         var result = await ExecuteCommandAsync(context, args, cancellationToken).ConfigureAwait(false);
         if (!result.Success)
           return CommandResponse<ImagePruneResult>.Fail(
-              ErrorOrDefault(result, "Image prune failed"), ErrorCodes.Image.PruneFailed,
+              ErrorOrDefault(result, "Image prune failed"), FailureCode(result.Error, ErrorCodes.Image.PruneFailed),
               CreateErrorContext(context, "PruneImages", result), result.ExitCode);
 
         return CommandResponse<ImagePruneResult>.Ok(
@@ -99,7 +99,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       }
       catch (Exception ex)
       {
-        return CommandResponse<ImagePruneResult>.Fail(ex.Message, ErrorCodes.Image.PruneFailed);
+        return CommandResponse<ImagePruneResult>.Fail(ex.Message, FailureCode(ex, ErrorCodes.Image.PruneFailed));
       }
     }
 
@@ -118,7 +118,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
         var result = await ExecuteUnboundedCommandAsync(context, args, cancellationToken).ConfigureAwait(false);
         if (!result.Success)
           return CommandResponse<Unit>.Fail(
-              ErrorOrDefault(result, "Image save failed"), ErrorCodes.Image.SaveFailed,
+              ErrorOrDefault(result, "Image save failed"), FailureCode(result.Error, ErrorCodes.Image.SaveFailed),
               CreateErrorContext(context, "SaveImage", result), result.ExitCode);
 
         return CommandResponse<Unit>.Ok(Unit.Default);
@@ -129,7 +129,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       }
       catch (Exception ex)
       {
-        return CommandResponse<Unit>.Fail(ex.Message, ErrorCodes.Image.SaveFailed);
+        return CommandResponse<Unit>.Fail(ex.Message, FailureCode(ex, ErrorCodes.Image.SaveFailed));
       }
     }
 
@@ -145,12 +145,10 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
             $"load -i {QuoteArgumentIfNeeded(inputPath)}", cancellationToken).ConfigureAwait(false);
         if (!result.Success)
           return CommandResponse<IList<string>>.Fail(
-              ErrorOrDefault(result, "Image load failed"), ErrorCodes.Image.LoadFailed,
+              ErrorOrDefault(result, "Image load failed"), FailureCode(result.Error, ErrorCodes.Image.LoadFailed),
               CreateErrorContext(context, "LoadImage", result), result.ExitCode);
 
-        var loaded = new List<string>();
-        if (!string.IsNullOrEmpty(result.Output))
-          loaded.Add(result.Output.Trim());
+        var loaded = ParseLoadedImages(result.Output);
 
         return CommandResponse<IList<string>>.Ok(loaded);
       }
@@ -160,7 +158,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       }
       catch (Exception ex)
       {
-        return CommandResponse<IList<string>>.Fail(ex.Message, ErrorCodes.Image.LoadFailed);
+        return CommandResponse<IList<string>>.Fail(ex.Message, FailureCode(ex, ErrorCodes.Image.LoadFailed));
       }
     }
 
@@ -186,7 +184,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
         var result = await ExecuteUnboundedCommandAsync(context, args, cancellationToken).ConfigureAwait(false);
         if (!result.Success)
           return CommandResponse<string>.Fail(
-              ErrorOrDefault(result, "Image import failed"), ErrorCodes.Image.ImportFailed,
+              ErrorOrDefault(result, "Image import failed"), FailureCode(result.Error, ErrorCodes.Image.ImportFailed),
               CreateErrorContext(context, "ImportImage", result), result.ExitCode);
 
         return CommandResponse<string>.Ok(result.Output?.Trim());
@@ -197,7 +195,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       }
       catch (Exception ex)
       {
-        return CommandResponse<string>.Fail(ex.Message, ErrorCodes.Image.ImportFailed);
+        return CommandResponse<string>.Fail(ex.Message, FailureCode(ex, ErrorCodes.Image.ImportFailed));
       }
     }
 
@@ -219,6 +217,25 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
           args += $" --filter {QuoteArgumentIfNeeded($"{f.Key}={f.Value}")}";
       }
       return args;
+    }
+
+    private static IList<string> ParseLoadedImages(string output)
+    {
+      var images = new List<string>();
+      if (string.IsNullOrEmpty(output))
+        return images;
+
+      const string loadedPrefix = "Loaded image:";
+      const string loadedIdPrefix = "Loaded image ID:";
+      foreach (var line in output.Split(['\n', '\r'], StringSplitOptions.RemoveEmptyEntries))
+      {
+        if (line.StartsWith(loadedIdPrefix, StringComparison.OrdinalIgnoreCase))
+          images.Add(line[loadedIdPrefix.Length..].Trim());
+        else if (line.StartsWith(loadedPrefix, StringComparison.OrdinalIgnoreCase))
+          images.Add(line[loadedPrefix.Length..].Trim());
+      }
+
+      return images;
     }
 
     #endregion

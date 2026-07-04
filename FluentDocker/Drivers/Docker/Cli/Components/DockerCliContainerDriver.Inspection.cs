@@ -113,51 +113,41 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
               FailureCode(result.Error, ErrorCodes.General.Unknown));
         }
 
+        if (!DockerCliJsonLineParser.TryParse<DockerPsDto>(
+            result.Output,
+            Logger,
+            "Container list JSON parsing failed",
+            out var dtos,
+            out var parseError))
+          return CommandResponse<IList<Container>>.Fail(parseError, ErrorCodes.General.Unknown);
+
         var containers = new List<Container>();
-        var lines = result.Output.Split(LineSeparators, StringSplitOptions.RemoveEmptyEntries);
-
-        foreach (var line in lines)
+        foreach (var dto in dtos)
         {
-          try
+          var container = new Container
           {
-            // Docker ps JSON has different field names than our Container model
-            var dto = JsonSerializer.Deserialize<DockerPsDto>(line, JsonHelper.CaseInsensitiveOptions);
-            if (dto != null)
+            Id = dto.ID,
+            Image = dto.Image,
+            Name = dto.Names
+          };
+
+          if (DockerCliTimestampParser.TryParse(dto.CreatedAt, out var created))
+          {
+            container.Created = created;
+          }
+          else if (!string.IsNullOrEmpty(dto.CreatedAt) && Logger.IsEnabled(LogLevel.Debug))
+          {
+            Logger.LogDebug("Unparseable container CreatedAt '{CreatedAt}'", dto.CreatedAt);
+          }
+
+          if (!string.IsNullOrEmpty(dto.State))
+            container.State = new ContainerState
             {
-              var container = new Container
-              {
-                Id = dto.ID,
-                Image = dto.Image,
-                Name = dto.Names
-              };
+              Running = dto.State.Equals("running", StringComparison.OrdinalIgnoreCase),
+              Status = dto.Status
+            };
 
-              // Parse CreatedAt if present
-              if (DockerCliTimestampParser.TryParse(dto.CreatedAt, out var created))
-              {
-                container.Created = created;
-              }
-              else if (!string.IsNullOrEmpty(dto.CreatedAt) && Logger.IsEnabled(LogLevel.Debug))
-              {
-                Logger.LogDebug("Unparseable container CreatedAt '{CreatedAt}'", dto.CreatedAt);
-              }
-
-              // Parse State if present
-              if (!string.IsNullOrEmpty(dto.State))
-              {
-                container.State = new ContainerState
-                {
-                  Running = dto.State.Equals("running", StringComparison.OrdinalIgnoreCase),
-                  Status = dto.Status
-                };
-              }
-
-              containers.Add(container);
-            }
-          }
-          catch (Exception ex)
-          {
-            Logger.LogError(ex, "Container inspect JSON parsing failed");
-          }
+          containers.Add(container);
         }
 
         return CommandResponse<IList<Container>>.Ok(containers);

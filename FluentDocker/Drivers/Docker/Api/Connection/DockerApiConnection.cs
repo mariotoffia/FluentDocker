@@ -54,10 +54,21 @@ namespace FluentDocker.Drivers.Docker.Api.Connection
       _config = config;
       _logger = (loggerFactory ?? NullLoggerFactory.Instance).CreateLogger<DockerApiConnection>();
 
-      var host = config.Host ?? GetDefaultHost();
       var ownedCertificates = new List<X509Certificate2>();
-      var (handler, baseAddress) = CreateHandler(host, config, ownedCertificates);
-      _ownedCertificates = ownedCertificates;
+      SocketsHttpHandler handler;
+      string baseAddress;
+      try
+      {
+        var host = config.Host ?? GetDefaultHost();
+        (handler, baseAddress) = CreateHandler(host, config, ownedCertificates);
+        _ownedCertificates = ownedCertificates;
+      }
+      catch
+      {
+        foreach (var certificate in ownedCertificates)
+          certificate.Dispose();
+        throw;
+      }
 
       var baseUri = new Uri(baseAddress);
       _httpClient = new HttpClient(handler, disposeHandler: true)
@@ -89,6 +100,15 @@ namespace FluentDocker.Drivers.Docker.Api.Connection
       ThrowIfDisposed();
       var versionedPath = await GetVersionedPathAsync(path, ct).ConfigureAwait(false);
       return await _httpClient.GetAsync(versionedPath, ct).ConfigureAwait(false);
+    }
+
+    public async Task<HttpResponseMessage> HeadAsync(string path, CancellationToken ct = default)
+    {
+      ThrowIfDisposed();
+      var versionedPath = await GetVersionedPathAsync(path, ct).ConfigureAwait(false);
+      using var request = new HttpRequestMessage(HttpMethod.Head, versionedPath);
+      return await _httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, ct)
+          .ConfigureAwait(false);
     }
 
     public async Task<HttpResponseMessage> PostAsync(
@@ -244,7 +264,9 @@ namespace FluentDocker.Drivers.Docker.Api.Connection
       if (Interlocked.CompareExchange(ref _disposed, 1, 0) != 0)
         return;
 
-      await _negotiationLock.WaitAsync(CancellationToken.None).ConfigureAwait(false);
+      var lockTaken = await _negotiationLock
+          .WaitAsync(TimeSpan.FromSeconds(5), CancellationToken.None)
+          .ConfigureAwait(false);
       try
       {
         _longRunningHttpClient.Dispose();
@@ -262,7 +284,8 @@ namespace FluentDocker.Drivers.Docker.Api.Connection
         // The SemaphoreSlim is deliberately not disposed: it holds no unmanaged state
         // (AvailableWaitHandle is never touched), and disposing it races in-flight
         // waiters into ObjectDisposedException from their finally-Release.
-        _negotiationLock.Release();
+        if (lockTaken)
+          _negotiationLock.Release();
       }
 
       GC.SuppressFinalize(this);
@@ -392,7 +415,14 @@ namespace FluentDocker.Drivers.Docker.Api.Connection
     private static (SocketsHttpHandler, string) CreateNamedPipeHandler(
         Uri uri, DockerApiConnectionConfig config)
     {
-      var pipeName = uri.AbsolutePath.TrimStart('/');
+      if (!string.IsNullOrEmpty(uri.Host) &&
+          !string.Equals(uri.Host, ".", StringComparison.Ordinal) &&
+          !string.Equals(uri.Host, "localhost", StringComparison.OrdinalIgnoreCase))
+        throw new ArgumentException(
+            "Remote Docker named pipes are not supported; use tcp:// or https:// for remote daemons.",
+            nameof(config));
+
+      var pipeName = ExtractNamedPipeName(uri);
       var handler = new SocketsHttpHandler
       {
         ConnectCallback = async (_, ct) =>
@@ -414,6 +444,19 @@ namespace FluentDocker.Drivers.Docker.Api.Connection
       };
 
       return (handler, "http://localhost");
+    }
+
+    private static string ExtractNamedPipeName(Uri uri)
+    {
+      var path = uri.AbsolutePath.Trim('/');
+      if (path.StartsWith("./", StringComparison.Ordinal))
+        path = path[2..];
+      if (path.StartsWith("pipe/", StringComparison.OrdinalIgnoreCase))
+        path = path["pipe/".Length..];
+      path = path.Trim('/');
+      if (string.IsNullOrEmpty(path))
+        throw new ArgumentException("Named pipe URI must include a pipe name.", nameof(uri));
+      return Uri.UnescapeDataString(path).Replace('/', '\\');
     }
 
   }

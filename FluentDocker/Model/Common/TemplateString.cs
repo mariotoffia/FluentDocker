@@ -80,9 +80,22 @@ namespace FluentDocker.Model.Common
     private static string Render(string str)
     {
       str = Templates.Keys.Where(key => str.Contains(key, StringComparison.Ordinal))
-        .Aggregate(str, (current, key) => current.Replace(key, Templates[key]()));
+        .Aggregate(str, (current, key) => ReplaceEach(current, key, Templates[key]));
 
       return RenderEnvironment(str);
+    }
+
+    private static string ReplaceEach(string str, string key, Func<string> valueFactory)
+    {
+      var index = str.IndexOf(key, StringComparison.Ordinal);
+      while (index >= 0)
+      {
+        var value = valueFactory();
+        str = str[..index] + value + str[(index + key.Length)..];
+        index = str.IndexOf(key, index + value.Length, StringComparison.Ordinal);
+      }
+
+      return str;
     }
 
     private static string RenderEnvironment(string str)

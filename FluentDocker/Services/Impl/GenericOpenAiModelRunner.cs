@@ -381,7 +381,7 @@ namespace FluentDocker.Services.Impl
     private void ThrowIfDisposed() =>
         ObjectDisposedException.ThrowIf(Volatile.Read(ref _disposed) != 0, this);
 
-    private static NotSupportedException Fail() => new(Unsupported);
+    private static FluentDockerNotSupportedException Fail() => new(Unsupported);
 
     private static T Unwrap<T>(CommandResponse<T> response, string operation)
     {

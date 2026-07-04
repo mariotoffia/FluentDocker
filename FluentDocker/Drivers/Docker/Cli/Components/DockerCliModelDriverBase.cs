@@ -1,6 +1,8 @@
+using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using FluentDocker.Common;
 using FluentDocker.Drivers.Docker.Cli.Binary;
 using FluentDocker.Model.Drivers;
 
@@ -49,5 +51,36 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     /// <returns>An async stream of stdout and stderr lines, in arrival order.</returns>
     protected virtual IAsyncEnumerable<string> RunStreamingWithProgressAsync(DriverContext context, string arguments, CancellationToken cancellationToken) =>
         ExecuteStreamingCommandWithProgressAsync(context, arguments, cancellationToken);
+
+    protected static string ModelErrorOrDefault(SimpleCommandResult result, string fallback)
+    {
+      var error = FirstNonEmpty(result?.Error, result?.Output, fallback);
+      return IsModelPluginMissing(error)
+          ? $"The Docker Model plugin is not installed; install `docker-model-plugin` or enable Docker Desktop's Model Runner. ({error})"
+          : error;
+    }
+
+    protected static string ModelFailureCode(Exception ex, string fallbackCode) =>
+        ex is DriverException driverException && !string.IsNullOrEmpty(driverException.ErrorCode)
+            ? driverException.ErrorCode
+            : ModelFailureCode(ex?.Message, fallbackCode);
+
+    protected static string ModelFailureCode(string error, string fallbackCode) =>
+        IsModelPluginMissing(error) ? ErrorCodes.Model.PluginMissing : FailureCode(error, fallbackCode);
+
+    protected static bool IsModelPluginMissing(string error) =>
+        !string.IsNullOrEmpty(error) &&
+        error.Contains("is not a docker command", StringComparison.OrdinalIgnoreCase);
+
+    protected static string FirstNonEmpty(params string[] values)
+    {
+      foreach (var value in values)
+      {
+        if (!string.IsNullOrWhiteSpace(value))
+          return value;
+      }
+
+      return string.Empty;
+    }
   }
 }

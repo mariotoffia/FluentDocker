@@ -223,7 +223,7 @@ namespace FluentDocker.Builders
 
           case WaitConditionType.Lambda:
             success = await WaitForLambdaAsync(service, condition.LambdaCondition,
-                condition.TimeoutMs, cancellationToken).ConfigureAwait(false);
+                condition.TimeoutMs, condition.PollIntervalMs, cancellationToken).ConfigureAwait(false);
             if (!success)
               throw new FluentDockerException(
                   $"Timeout waiting for custom condition on container {service.Id}");
@@ -259,7 +259,7 @@ namespace FluentDocker.Builders
 
     private static async Task<bool> WaitForLambdaAsync(
         IContainerService service, Func<IContainerService, int, int> condition,
-        long timeoutMs, CancellationToken cancellationToken)
+        long timeoutMs, int pollIntervalMs, CancellationToken cancellationToken)
     {
       var sw = Stopwatch.StartNew();
       var iteration = 0;
@@ -282,15 +282,11 @@ namespace FluentDocker.Builders
         if (result < 0)
           return true;
         if (result == 0)
-        { await Task.Yield(); continue; }
-        try
         {
-          await Task.Delay(result, cancellationToken).ConfigureAwait(false);
+          await Task.Delay(Math.Max(1, pollIntervalMs), cancellationToken).ConfigureAwait(false);
+          continue;
         }
-        catch (OperationCanceledException)
-        {
-          return false;
-        }
+        await Task.Delay(result, cancellationToken).ConfigureAwait(false);
       }
       return false;
     }

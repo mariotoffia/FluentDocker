@@ -1,4 +1,5 @@
 using System;
+using System.Globalization;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
@@ -104,7 +105,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
 
         if (root.TryGetProperty("PIDs", out var pids))
         {
-          if (int.TryParse(pids.GetString(), out var pidCount))
+          if (int.TryParse(pids.GetString(), NumberStyles.Integer, CultureInfo.InvariantCulture, out var pidCount))
             stats.Pids = pidCount;
         }
       }

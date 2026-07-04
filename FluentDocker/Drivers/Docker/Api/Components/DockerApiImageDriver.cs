@@ -278,7 +278,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       try
       {
         await foreach (var line in ReadNdjsonFromPostStreamAsync(
-            "/images/load", content, cancellationToken))
+            "/images/load", content, cancellationToken).ConfigureAwait(false))
         {
           var json = JsonHelper.ParseElement(line);
           var streamVal = json.GetStringOrDefault("stream");
@@ -350,7 +350,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       try
       {
         await foreach (var line in ReadNdjsonFromPostStreamAsync(
-            path, content, cancellationToken))
+            path, content, cancellationToken).ConfigureAwait(false))
         {
           var json = JsonHelper.ParseElement(line);
           var status = json.GetStringOrDefault("status");

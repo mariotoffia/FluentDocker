@@ -75,6 +75,35 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
     }
 
     [Fact]
+    public async Task CopyFromAsync_RejectsArchivePathTraversalIntoSiblingDirectory()
+    {
+      var outputRoot = Path.Combine(".out", "docker-api-copyfrom-sibling");
+      var tarPath = Path.Combine(outputRoot, "archive.tar");
+      var destination = Path.Combine(outputRoot, "dest") + Path.DirectorySeparatorChar;
+      var escaped = Path.Combine(outputRoot, "destX", "evil.txt");
+      if (Directory.Exists(outputRoot))
+        Directory.Delete(outputRoot, recursive: true);
+      Directory.CreateDirectory(outputRoot);
+      await using (var tar = File.Create(tarPath))
+      await using (var writer = new TarWriter(tar, TarEntryFormat.Pax, leaveOpen: false))
+      {
+        await writer.WriteEntryAsync(CreateEntry("../destX/evil.txt"),
+            TestContext.Current.CancellationToken);
+      }
+
+      var mock = new MockDockerApiConnection();
+      mock.SetupStreamBytes("/archive", await File.ReadAllBytesAsync(
+          tarPath, TestContext.Current.CancellationToken));
+      var driver = CreateDriver(mock);
+
+      var result = await driver.CopyFromAsync(Ctx, "ctr1", "/tmp/evil.txt", destination,
+          TestContext.Current.CancellationToken);
+
+      Assert.False(result.Success);
+      Assert.False(File.Exists(escaped));
+    }
+
+    [Fact]
     public async Task CopyFromAsync_ToFilePath_ReportsArchiveWithMultipleFiles()
     {
       var outputRoot = Path.Combine(".out", "docker-api-copyfrom-multiple");

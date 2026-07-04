@@ -1,4 +1,5 @@
 using System;
+using System.Globalization;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
@@ -38,7 +39,22 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
         // legitimately long-running foreground container).
         var result = await ExecuteUnboundedCommandAsync(context, string.Join(" ", args), cancellationToken).ConfigureAwait(false);
 
-        if (!result.Success)
+        if (config.Detach)
+        {
+          if (!result.Success)
+          {
+            return CommandResponse<ContainerRunResult>.Fail(
+                ErrorOrDefault(result, "Container run failed"),
+                FailureCode(result.Error, ErrorCodes.Container.CreateFailed),
+                CreateErrorContext(context, "RunContainer", result),
+                result.ExitCode);
+          }
+
+          return CommandResponse<ContainerRunResult>.Ok(new ContainerRunResult { Id = result.Output.Trim() });
+        }
+
+        var containerId = TryReadCidFile(cidFile);
+        if (!result.Success && string.IsNullOrEmpty(containerId))
         {
           return CommandResponse<ContainerRunResult>.Fail(
               ErrorOrDefault(result, "Container run failed"),
@@ -47,29 +63,16 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
               result.ExitCode);
         }
 
-        var runResult = new ContainerRunResult();
-
-        if (config.Detach)
+        return CommandResponse<ContainerRunResult>.Ok(new ContainerRunResult
         {
-          // When detached, output is the container ID
-          runResult.Id = result.Output.Trim();
-        }
-        else
-        {
-          // When not detached, output is the container's stdout/stderr
-          runResult.Output = MergeOutputAndError(result.Output, result.Error);
-
-          // Read container ID from --cidfile (race-free, set earlier in args).
-          if (cidFile != null && File.Exists(cidFile))
-          {
-            runResult.Id = (await File.ReadAllTextAsync(cidFile, cancellationToken)).Trim();
-          }
-        }
-
-        return CommandResponse<ContainerRunResult>.Ok(runResult);
+          Id = containerId,
+          Output = MergeOutputAndError(result.Output, result.Error),
+          ExitCode = result.ExitCode
+        });
       }
       catch (OperationCanceledException)
       {
+        await RemoveCidFileContainerAsync(context, cidFile).ConfigureAwait(false);
         throw;
       }
       catch (Exception ex)
@@ -106,7 +109,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
               result.ExitCode);
         }
 
-        if (!int.TryParse(result.Output.Trim(), out var exitCode))
+        if (!int.TryParse(result.Output.Trim(), NumberStyles.Integer, CultureInfo.InvariantCulture, out var exitCode))
         {
           return CommandResponse<ContainerWaitResult>.Fail(
               $"Container wait returned a non-integer exit code: {result.Output.Trim()}",
@@ -125,6 +128,41 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
       catch (Exception ex)
       {
         return CommandResponse<ContainerWaitResult>.Fail(ex.Message, FailureCode(ex, ErrorCodes.Container.WaitFailed));
+      }
+    }
+
+    private async Task RemoveCidFileContainerAsync(DriverContext context, string cidFile)
+    {
+      var containerId = TryReadCidFile(cidFile);
+      if (string.IsNullOrWhiteSpace(containerId))
+        return;
+
+      try
+      {
+        // ponytail: 5s cleanup budget on cancel; raise if slow daemons legitimately need longer.
+        using var cleanupCts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+        await ExecuteCommandAsync(
+            context,
+            $"rm -f {QuotePositionalArgument(containerId, nameof(containerId))}",
+            cleanupCts.Token).ConfigureAwait(false);
+      }
+      catch
+      {
+        // best effort cancellation cleanup
+      }
+    }
+
+    private static string TryReadCidFile(string cidFile)
+    {
+      if (string.IsNullOrEmpty(cidFile) || !File.Exists(cidFile))
+        return null;
+      try
+      {
+        return File.ReadAllText(cidFile).Trim();
+      }
+      catch
+      {
+        return null;
       }
     }
 

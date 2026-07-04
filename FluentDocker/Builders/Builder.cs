@@ -119,7 +119,7 @@ namespace FluentDocker.Builders
       {
         Kernel = _currentKernel,
         DriverId = _currentDriverId,
-        ExecuteAsync = ct => builder.ExecuteAsync(ct),
+        ExecuteAsync = (cleanupTimeout, ct) => builder.ExecuteAsync(cleanupTimeout, ct),
         GetFailedService = () => builder.PendingService,
         PostStartAsync = ct => builder.ExecuteDeferredWaitConditionsAsync(ct),
         ResetForRetry = builder.ResetForRetry,
@@ -185,7 +185,7 @@ namespace FluentDocker.Builders
       {
         Kernel = _currentKernel,
         DriverId = _currentDriverId,
-        ExecuteAsync = ct => builder.ExecuteAsync(ct),
+        ExecuteAsync = (_, ct) => builder.ExecuteAsync(ct),
         ForceRemoveOnFailure = _ => builder.CreatedResource,
         FailureKeepReason = _ => builder.CreatedResource ? null : "borrowed"
       });
@@ -205,7 +205,7 @@ namespace FluentDocker.Builders
       {
         Kernel = _currentKernel,
         DriverId = _currentDriverId,
-        ExecuteAsync = ct => builder.ExecuteAsync(ct),
+        ExecuteAsync = (_, ct) => builder.ExecuteAsync(ct),
         ForceRemoveOnFailure = _ => builder.CreatedResource,
         FailureKeepReason = _ => builder.CreatedResource ? null : "borrowed"
       });
@@ -227,7 +227,7 @@ namespace FluentDocker.Builders
       {
         Kernel = _currentKernel,
         DriverId = _currentDriverId,
-        ExecuteAsync = ct => builder.ExecuteAsync(ct)
+        ExecuteAsync = (cleanupTimeout, ct) => builder.ExecuteAsync(cleanupTimeout, ct)
       });
       return this;
     }
@@ -247,7 +247,9 @@ namespace FluentDocker.Builders
       {
         Kernel = _currentKernel,
         DriverId = _currentDriverId,
-        ExecuteAsync = ct => builder.ExecuteAsync(ct)
+        ExecuteAsync = (_, ct) => builder.ExecuteAsync(ct),
+        GetFailedService = () => builder.PendingService,
+        ForceRemoveOnFailure = _ => builder.CreatedResource
       });
       return this;
     }
@@ -266,7 +268,7 @@ namespace FluentDocker.Builders
       {
         Kernel = _currentKernel,
         DriverId = _currentDriverId,
-        ExecuteAsync = async ct => (IServiceAsync)await imageBuilder.ExecuteAsync(ct).ConfigureAwait(false)
+        ExecuteAsync = async (_, ct) => (IServiceAsync)await imageBuilder.ExecuteAsync(ct).ConfigureAwait(false)
       });
       return this;
     }
@@ -329,7 +331,7 @@ namespace FluentDocker.Builders
             IServiceAsync service;
             try
             {
-              service = await operation.ExecuteAsync(cancellationToken).ConfigureAwait(false);
+              service = await operation.ExecuteAsync(effectiveCleanupTimeout, cancellationToken).ConfigureAwait(false);
             }
             catch
             {
@@ -435,7 +437,7 @@ namespace FluentDocker.Builders
   {
     public FluentDockerKernel Kernel { get; set; }
     public string DriverId { get; set; }
-    public Func<CancellationToken, Task<IServiceAsync>> ExecuteAsync { get; set; }
+    public Func<TimeSpan, CancellationToken, Task<IServiceAsync>> ExecuteAsync { get; set; }
     public Func<IServiceAsync> GetFailedService { get; set; }
     public Action ResetForRetry { get; set; }
     public Func<IServiceAsync, bool> ForceRemoveOnFailure { get; set; }

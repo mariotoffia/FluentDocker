@@ -8,6 +8,7 @@ using FluentDocker.Kernel;
 using FluentDocker.Model.Drivers;
 using FluentDocker.Model.Models;
 using FluentDocker.Model.Models.Inference;
+using FluentDocker.Services;
 using FluentDocker.Services.Impl;
 using FluentDocker.Tests.Mocks;
 using Moq;
@@ -17,7 +18,7 @@ namespace FluentDocker.Tests.CoreTests.Service
 {
   /// <summary>
   /// Unit tests for backend advertisement (E1) and the clean partial-pack
-  /// <see cref="System.NotSupportedException"/> contract (E3) of
+  /// <see cref="FluentDockerNotSupportedException"/> contract (E3) of
   /// <see cref="ModelRunnerService"/> and <see cref="GenericOpenAiModelRunner"/>.
   /// The backend is sourced from a driver implementing <see cref="IModelBackendInfo"/>
   /// — never a hardcoded <c>llama.cpp</c>.
@@ -171,9 +172,9 @@ namespace FluentDocker.Tests.CoreTests.Service
       var (kernel, runner) = await BuildAsync(pack);
       await using (kernel)
       {
-        // A missing management port surfaces a clean NotSupportedException naming the
+        // A missing management port surfaces a clean FluentDockerNotSupportedException naming the
         // capability, never the driver-layer InterfaceNotSupportedException.
-        var ex = await Assert.ThrowsAsync<NotSupportedException>(
+        var ex = await Assert.ThrowsAsync<FluentDockerNotSupportedException>(
             () => runner.ListAsync(TestContext.Current.CancellationToken));
         Assert.Contains("management", ex.Message, StringComparison.OrdinalIgnoreCase);
       }
@@ -186,7 +187,7 @@ namespace FluentDocker.Tests.CoreTests.Service
       var (kernel, runner) = await BuildAsync(pack);
       await using (kernel)
       {
-        var ex = await Assert.ThrowsAsync<NotSupportedException>(
+        var ex = await Assert.ThrowsAsync<FluentDockerNotSupportedException>(
             () => runner.LoadAsync(ModelReference.Parse("ai/smollm2"), null!, TestContext.Current.CancellationToken));
         Assert.Contains("runtime", ex.Message, StringComparison.OrdinalIgnoreCase);
       }

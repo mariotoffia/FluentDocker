@@ -88,7 +88,7 @@ namespace FluentDocker.Testing.Xunit
         throw new InvalidOperationException(
             $"{GetType().Name} has not been configured. " +
             "Call Configure() in the fixture constructor.");
-      await InitializeAsync(_deferredConfig!, _deferredKernelFactory, _deferredOptions);
+      await InitializeAsync(_deferredConfig!, _deferredKernelFactory, _deferredOptions).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -108,7 +108,7 @@ namespace FluentDocker.Testing.Xunit
           k => new PodmanKubernetesResource(k, config, options!),
           kernelFactory!,
           () => ResourceLifecycle.CreateDefaultPodmanKernelAsync(),
-          cancellationToken: cancellationToken);
+          cancellationToken: cancellationToken).ConfigureAwait(false);
 
       _kernel = kernel;
       _resource = resource;
@@ -120,7 +120,7 @@ namespace FluentDocker.Testing.Xunit
       // Clear handles only AFTER successful disposal. If cleanup throws, the public
       // Resource/Kernel handles stay available for LastTeardownDiagnostics, retry, or
       // manual cleanup, and the exception propagates.
-      await ResourceLifecycle.DisposeAsync(_resource!, _kernel!);
+      await ResourceLifecycle.DisposeAsync(_resource!, _kernel!).ConfigureAwait(false);
       _resource = null;
       _kernel = null;
       GC.SuppressFinalize(this);

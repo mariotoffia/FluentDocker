@@ -156,8 +156,8 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
         // rather than silently reporting Running=false.
         if (!result.Success && !running && !knownNotRunning)
           return CommandResponse<ModelRunnerStatus>.Fail(
-              FirstNonEmpty(result.Error, output, "docker model status failed"),
-              FailureCode(FirstNonEmpty(result.Error, output), ErrorCodes.Model.StatusFailed),
+              ModelErrorOrDefault(result, "docker model status failed"),
+              ModelFailureCode(FirstNonEmpty(result.Error, output), ErrorCodes.Model.StatusFailed),
               result.ExitCode);
 
         return CommandResponse<ModelRunnerStatus>.Ok(new ModelRunnerStatus
@@ -172,7 +172,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
       }
       catch (Exception ex) when (ex is not OperationCanceledException)
       {
-        return CommandResponse<ModelRunnerStatus>.Fail(ex.Message, FailureCode(ex, ErrorCodes.Model.StatusFailed));
+        return CommandResponse<ModelRunnerStatus>.Fail(ex.Message, ModelFailureCode(ex, ErrorCodes.Model.StatusFailed));
       }
     }
 
@@ -185,8 +185,8 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
         var result = await RunAsync(context, "model version", cancellationToken).ConfigureAwait(false);
         if (!result.Success)
           return CommandResponse<ModelRunnerVersion>.Fail(
-              ErrorOrDefault(result, "model version failed"),
-              FailureCode(result.Error, ErrorCodes.Model.VersionFailed),
+              ModelErrorOrDefault(result, "model version failed"),
+              ModelFailureCode(FirstNonEmpty(result.Error, result.Output), ErrorCodes.Model.VersionFailed),
               CreateErrorContext(context, "ModelVersion", result),
               result.ExitCode);
 
@@ -194,7 +194,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
       }
       catch (Exception ex) when (ex is not OperationCanceledException)
       {
-        return CommandResponse<ModelRunnerVersion>.Fail(ex.Message, FailureCode(ex, ErrorCodes.Model.VersionFailed));
+        return CommandResponse<ModelRunnerVersion>.Fail(ex.Message, ModelFailureCode(ex, ErrorCodes.Model.VersionFailed));
       }
     }
 
@@ -208,16 +208,23 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
         var result = await RunAsync(context, "model ps", cancellationToken).ConfigureAwait(false);
         if (!result.Success)
           return CommandResponse<IList<RunningModel>>.Fail(
-              ErrorOrDefault(result, "model ps failed"),
-              FailureCode(result.Error, ErrorCodes.Model.ListFailed),
+              ModelErrorOrDefault(result, "model ps failed"),
+              ModelFailureCode(FirstNonEmpty(result.Error, result.Output), ErrorCodes.Model.ListFailed),
               CreateErrorContext(context, "ListRunningModels", result),
               result.ExitCode);
 
-        return CommandResponse<IList<RunningModel>>.Ok(ModelJsonParser.ParsePsTable(result.Output));
+        if (!ModelJsonParser.TryParsePsTable(result.Output, out var runningModels))
+          return CommandResponse<IList<RunningModel>>.Fail(
+              "Unable to parse 'model ps' table output",
+              ErrorCodes.Model.ListFailed,
+              CreateErrorContext(context, "ListRunningModels", result),
+              result.ExitCode);
+
+        return CommandResponse<IList<RunningModel>>.Ok(runningModels);
       }
       catch (Exception ex) when (ex is not OperationCanceledException)
       {
-        return CommandResponse<IList<RunningModel>>.Fail(ex.Message, FailureCode(ex, ErrorCodes.Model.ListFailed));
+        return CommandResponse<IList<RunningModel>>.Fail(ex.Message, ModelFailureCode(ex, ErrorCodes.Model.ListFailed));
       }
     }
 
@@ -403,8 +410,8 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
         var result = await RunAsync(context, args, cancellationToken).ConfigureAwait(false);
         if (!result.Success)
           return CommandResponse<Unit>.Fail(
-              ErrorOrDefault(result, $"{operation} failed"),
-              FailureCode(result.Error, errorCode),
+              ModelErrorOrDefault(result, $"{operation} failed"),
+              ModelFailureCode(FirstNonEmpty(result.Error, result.Output), errorCode),
               CreateErrorContext(context, operation, result),
               result.ExitCode);
 
@@ -412,19 +419,8 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
       }
       catch (Exception ex) when (ex is not OperationCanceledException)
       {
-        return CommandResponse<Unit>.Fail(ex.Message, FailureCode(ex, errorCode));
+        return CommandResponse<Unit>.Fail(ex.Message, ModelFailureCode(ex, errorCode));
       }
-    }
-
-    private static string FirstNonEmpty(params string[] values)
-    {
-      foreach (var value in values)
-      {
-        if (!string.IsNullOrWhiteSpace(value))
-          return value;
-      }
-
-      return null;
     }
   }
 }

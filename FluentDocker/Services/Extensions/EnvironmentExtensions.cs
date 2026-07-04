@@ -1,9 +1,8 @@
 using System;
 using System.Net;
 using System.Net.Sockets;
+using System.Threading.Tasks;
 using FluentDocker.Common;
-using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Logging.Abstractions;
 
 namespace FluentDocker.Services.Extensions
 {
@@ -12,7 +11,8 @@ namespace FluentDocker.Services.Extensions
   /// </summary>
   public static class EnvironmentExtensions
   {
-    private static IPAddress _cachedDockerIpAddress;
+    private static volatile IPAddress _cachedDockerIpAddress;
+    private static readonly object CacheLock = new();
 
     /// <summary>
     /// Checks if running on native Linux Docker.
@@ -35,9 +35,17 @@ namespace FluentDocker.Services.Extensions
     /// </summary>
     public static bool IsDockerDnsAvailable()
     {
+      return IsDockerDnsAvailableAsync().GetAwaiter().GetResult();
+    }
+
+    /// <summary>
+    /// Checks if Docker DNS is available (host.docker.internal).
+    /// </summary>
+    public static async Task<bool> IsDockerDnsAvailableAsync()
+    {
       try
       {
-        Dns.GetHostEntry("host.docker.internal");
+        await Dns.GetHostAddressesAsync("host.docker.internal").ConfigureAwait(false);
         return true;
       }
       catch (SocketException)
@@ -53,6 +61,16 @@ namespace FluentDocker.Services.Extensions
     /// <returns>The Docker host IP address.</returns>
     public static IPAddress GetDockerHostAddress(bool useCache = true)
     {
+      return GetDockerHostAddressAsync(useCache).GetAwaiter().GetResult();
+    }
+
+    /// <summary>
+    /// Gets the Docker host address for containers to reach the host.
+    /// </summary>
+    /// <param name="useCache">Whether to cache the result.</param>
+    /// <returns>The Docker host IP address.</returns>
+    public static async Task<IPAddress> GetDockerHostAddressAsync(bool useCache = true)
+    {
       if (useCache && _cachedDockerIpAddress != null)
         return _cachedDockerIpAddress;
 
@@ -61,32 +79,31 @@ namespace FluentDocker.Services.Extensions
       {
         // Docker gateway is typically 172.17.0.1 for bridge network
         // But for host access, use host.docker.internal if available
-        if (IsDockerDnsAvailable())
+        if (await IsDockerDnsAvailableAsync().ConfigureAwait(false))
         {
-          var hostEntry = Dns.GetHostEntry("host.docker.internal");
-          if (hostEntry.AddressList.Length > 0)
+          var addresses = await Dns.GetHostAddressesAsync("host.docker.internal").ConfigureAwait(false);
+          if (addresses.Length > 0)
           {
-            var v4Address = Array.Find(hostEntry.AddressList,
+            var v4Address = Array.Find(addresses,
                 x => x.AddressFamily == AddressFamily.InterNetwork);
-            return CacheDockerHostAddress(v4Address ?? hostEntry.AddressList[^1], useCache);
+            return CacheDockerHostAddress(v4Address ?? addresses[^1], useCache);
           }
         }
 
-        // Fallback to localhost
-        return CacheDockerHostAddress(IPAddress.Loopback, useCache);
+        return CacheDockerHostAddress(IPAddress.Parse("172.17.0.1"), useCache);
       }
 
       // On Windows/Mac (Docker Desktop), use host.docker.internal
       var resolved = IPAddress.Loopback;
       try
       {
-        var hostEntry = Dns.GetHostEntry("host.docker.internal");
-        if (hostEntry.AddressList.Length > 0)
+        var addresses = await Dns.GetHostAddressesAsync("host.docker.internal").ConfigureAwait(false);
+        if (addresses.Length > 0)
         {
           // Prefer IPv4 addresses
-          var v4Address = Array.Find(hostEntry.AddressList,
+          var v4Address = Array.Find(addresses,
               x => x.AddressFamily == AddressFamily.InterNetwork);
-          resolved = v4Address ?? hostEntry.AddressList[^1];
+          resolved = v4Address ?? addresses[^1];
         }
       }
       catch (SocketException)
@@ -99,7 +116,12 @@ namespace FluentDocker.Services.Extensions
     private static IPAddress CacheDockerHostAddress(IPAddress address, bool useCache)
     {
       if (useCache)
-        _cachedDockerIpAddress = address;
+      {
+        lock (CacheLock)
+        {
+          _cachedDockerIpAddress = address;
+        }
+      }
 
       return address;
     }
@@ -127,9 +149,8 @@ namespace FluentDocker.Services.Extensions
         var cgroup = System.IO.File.ReadAllText("/proc/1/cgroup");
         return cgroup.Contains("docker") || cgroup.Contains("kubepods");
       }
-      catch (Exception ex)
+      catch (Exception)
       {
-        NullLogger.Instance.LogDebug(ex, "Container environment check failed");
         return false;
       }
     }

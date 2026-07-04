@@ -135,6 +135,25 @@ var container = results.Containers.First();
 Console.WriteLine($"Container: {container.Name}");
 ```
 
+## Driver scopes
+
+Every build runs inside a driver scope. `WithinDriver(id, kernel)` is the generic
+form: it takes the driver id as a string, exposes every `Use*` operation, and
+validates the driver when the build runs (for example, `UsePod` throws unless the
+scope is Podman).
+
+The typed scopes target the same driver but expose only the operations that driver
+supports, checked at compile time:
+
+- `WithinDockerCli(id, kernel)` — Docker CLI; adds `UseCompose`, `UseModelRunner`, `UseModel`.
+- `WithinDockerApi(id, kernel)` — Docker Engine API; the container/network/volume/image subset.
+- `WithinPodmanCli(id, kernel)` — Podman CLI; adds `UsePod`.
+
+Use `WithinDriver` when the id is dynamic or you only need the core operations. Use
+a typed scope when you want the driver's extras at the call site — `UseCompose` on
+Docker CLI, `UsePod` on Podman CLI. Both forms build the same resources; the README
+quick start uses `WithinDockerCli`.
+
 ## Linux Users
 
 Docker requires sudo by default. Configure FluentDocker:
@@ -259,7 +278,7 @@ await using var results = await new Builder()
 // Access compose services
 foreach (var compose in results.ComposeServices)
 {
-    Console.WriteLine($"Compose project: {compose.Name}");
+    Console.WriteLine($"Compose project: {compose.ProjectName}");
 }
 ```
 
@@ -303,6 +322,11 @@ await using var silent = await FluentDockerKernel.Create(NullLoggerFactory.Insta
 
 See [Utilities → Logging](utilities.md#logging) for filtering, categories,
 and the per-level severity policy.
+
+`AddConsole()` comes from the `Microsoft.Extensions.Logging.Console` package, and
+`LoggerFactory.Create` from `Microsoft.Extensions.Logging`. FluentDocker only
+references `Microsoft.Extensions.Logging.Abstractions`, so add a provider package
+to route logs somewhere: `dotnet add package Microsoft.Extensions.Logging.Console`.
 
 ## Exception Handling
 

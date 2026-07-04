@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Threading;
 using System.Threading.Tasks;
 using FluentDocker.Drivers;
@@ -57,7 +58,7 @@ namespace FluentDocker.Kernel
     /// <param name="driverId">Driver identifier</param>
     /// <param name="driver">Output driver instance</param>
     /// <returns>True if driver found</returns>
-    bool TryGetDriver(string driverId, out IDriver driver);
+    bool TryGetDriver(string driverId, [NotNullWhen(true)] out IDriver? driver);
 
     #endregion
 
@@ -86,7 +87,7 @@ namespace FluentDocker.Kernel
     /// <param name="driverId">Driver identifier</param>
     /// <param name="driverPack">Output driver pack instance</param>
     /// <returns>True if driver pack found</returns>
-    bool TryGetDriverPack(string driverId, out IDriverPack driverPack);
+    bool TryGetDriverPack(string driverId, [NotNullWhen(true)] out IDriverPack? driverPack);
 
     /// <summary>
     /// Checks if a driver ID refers to a driver pack.

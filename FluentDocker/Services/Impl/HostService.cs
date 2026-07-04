@@ -274,27 +274,27 @@ namespace FluentDocker.Services.Impl
 
     public Task PauseAsync(CancellationToken cancellationToken = default)
     {
-      throw new NotSupportedException("Docker hosts cannot be paused");
+      throw new FluentDockerNotSupportedException("Docker hosts cannot be paused");
     }
 
     public Task StopAsync(CancellationToken cancellationToken = default)
     {
-      throw new NotSupportedException("Native Docker hosts cannot be stopped");
+      throw new FluentDockerNotSupportedException("Native Docker hosts cannot be stopped");
     }
 
     public Task RemoveAsync(bool force = false, CancellationToken cancellationToken = default)
     {
-      throw new NotSupportedException("Native Docker hosts cannot be removed");
+      throw new FluentDockerNotSupportedException("Native Docker hosts cannot be removed");
     }
 
     public IServiceAsync AddHook(ServiceRunningState state, Func<IServiceAsync, Task> hook, string uniqueName = null)
     {
-      throw new NotSupportedException("HostService has a fixed Running state and does not support hooks.");
+      throw new FluentDockerNotSupportedException("HostService has a fixed Running state and does not support hooks.");
     }
 
     public IServiceAsync RemoveHook(string uniqueName)
     {
-      throw new NotSupportedException("HostService has a fixed Running state and does not support hooks.");
+      throw new FluentDockerNotSupportedException("HostService has a fixed Running state and does not support hooks.");
     }
 
     private int _disposed;

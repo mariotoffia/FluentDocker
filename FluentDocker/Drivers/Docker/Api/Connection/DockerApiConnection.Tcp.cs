@@ -16,9 +16,13 @@ namespace FluentDocker.Drivers.Docker.Api.Connection
     private bool UseLongRunningPostClient(string path) =>
         IsWaitEndpoint(path) || StopOrRestartTimeoutExceedsRequestTimeout(path);
 
-    private static bool IsWaitEndpoint(string path) =>
-        path.Contains("/containers/", StringComparison.Ordinal) &&
-        path.EndsWith("/wait", StringComparison.Ordinal);
+    private static bool IsWaitEndpoint(string path)
+    {
+      var queryStart = path.IndexOf('?');
+      var pathOnly = queryStart < 0 ? path : path[..queryStart];
+      return pathOnly.Contains("/containers/", StringComparison.Ordinal) &&
+          pathOnly.EndsWith("/wait", StringComparison.Ordinal);
+    }
 
     private bool StopOrRestartTimeoutExceedsRequestTimeout(string path)
     {

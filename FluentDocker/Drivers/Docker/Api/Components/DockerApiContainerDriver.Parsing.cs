@@ -355,9 +355,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
         Gateway = el.GetStringOrDefault("Gateway"),
         IPAddress = el.GetStringOrDefault("IPAddress"),
         MacAddress = el.GetStringOrDefault("MacAddress"),
-        Networks = networks?.ValueKind == JsonValueKind.Object
-            ? networks.Value.Deserialize<Dictionary<string, BridgeNetwork>>()
-            : null
+        Networks = ParseBridgeNetworks(networks)
       };
     }
 

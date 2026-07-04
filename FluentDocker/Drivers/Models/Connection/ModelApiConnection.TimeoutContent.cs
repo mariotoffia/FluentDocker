@@ -110,7 +110,8 @@ namespace FluentDocker.Drivers.Models.Connection
         }
       }
 
-      public override int Read(byte[] buffer, int offset, int count) => inner.Read(buffer, offset, count);
+      public override int Read(byte[] buffer, int offset, int count) =>
+          ReadAsync(buffer, offset, count, CancellationToken.None).GetAwaiter().GetResult();
       public override void Flush() => inner.Flush();
       public override long Seek(long offset, SeekOrigin origin) => inner.Seek(offset, origin);
       public override void SetLength(long value) => inner.SetLength(value);

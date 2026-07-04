@@ -73,7 +73,7 @@ namespace FluentDocker.Extensions
       if (File.Exists(fd))
       {
         var file = Path.GetFileName(fd);
-        File.Copy(fd, Path.Combine(workdir, file));
+        File.Copy(fd, Path.Combine(workdir, file), true);
         return file;
       }
 

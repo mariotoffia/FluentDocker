@@ -219,17 +219,17 @@ namespace FluentDocker.Tests.CoreTests.Kernel
     }
 
     [Fact]
-    public void SysCtl_WithNullArguments_ThrowsNamedArgumentNullException()
+    public void SysCtl_WithNullArguments_ThrowsClearDefaultDriverError()
     {
       var kernel = new FluentDockerKernel(
           new DriverRegistry(NullLoggerFactory.Instance), NullLoggerFactory.Instance);
 
-      var driverId = Assert.Throws<ArgumentNullException>(() =>
+      var driverId = Assert.Throws<InvalidOperationException>(() =>
           kernel.SysCtl(null!, typeof(IContainerDriver)));
       var interfaceType = Assert.Throws<ArgumentNullException>(() =>
           kernel.SysCtl("driver", null!));
 
-      Assert.Equal("driverId", driverId.ParamName);
+      Assert.Contains("No default driver configured", driverId.Message, StringComparison.Ordinal);
       Assert.Equal("interfaceType", interfaceType.ParamName);
     }
 

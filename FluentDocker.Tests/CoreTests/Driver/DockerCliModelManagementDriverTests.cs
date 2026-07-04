@@ -298,6 +298,17 @@ namespace FluentDocker.Tests.CoreTests.Driver
     }
 
     [Fact]
+    public async Task DiskUsageAsync_NonEmptyRenamedHeader_Fails()
+    {
+      var driver = new FakeMgmtDriver { Responder = _ => Ok("KIND  SIZE\nModels  1.20GB\n") };
+
+      var result = await driver.DiskUsageAsync(Ctx, TestContext.Current.CancellationToken);
+
+      Assert.False(result.Success);
+      Assert.Equal(ErrorCodes.Model.DiskUsageFailed, result.ErrorCode);
+    }
+
+    [Fact]
     public async Task ListAsync_Cancellation_Propagates()
     {
       var driver = new FakeMgmtDriver { Responder = _ => throw new OperationCanceledException() };

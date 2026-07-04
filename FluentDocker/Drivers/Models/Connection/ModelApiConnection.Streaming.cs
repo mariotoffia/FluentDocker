@@ -18,7 +18,8 @@ namespace FluentDocker.Drivers.Models.Connection
       // Streaming is exempt from the whole-request timeout (SSE can run for a long time), but the
       // first-byte/header wait still has its own budget so a wedged runner cannot hang.
       var request = new HttpRequestMessage(HttpMethod.Post, path) { Content = content };
-      HttpResponseMessage response;
+      HttpResponseMessage response = null;
+      var transferred = false;
       using var headerCts = _streamFirstByteTimeout is null
           ? null
           : CancellationTokenSource.CreateLinkedTokenSource(ct);
@@ -31,6 +32,7 @@ namespace FluentDocker.Drivers.Models.Connection
       }
       catch (OperationCanceledException ex) when (!ct.IsCancellationRequested && _streamFirstByteTimeout is not null)
       {
+        request.Dispose();
         throw new ModelRunnerException(
             "Streaming response headers timed out: no first byte received within the configured first-byte timeout.",
             ErrorCodes.ModelInference.Timeout, ex);
@@ -39,44 +41,96 @@ namespace FluentDocker.Drivers.Models.Connection
       {
         // A connection-refused / DNS / socket failure opening the stream is "unreachable".
         // (An HTTP error STATUS is delivered as a response below, not thrown here.)
+        request.Dispose();
         throw EndpointUnreachable(ex);
-      }
-      if (!response.IsSuccessStatusCode)
-      {
-        // Surface the status code AND a bounded error body so the inference driver can
-        // map it to a typed ModelRunnerException (404 -> ModelNotLoaded, 401 ->
-        // Unauthorized), mirroring the non-streaming path. EnsureSuccessStatusCode would
-        // discard the body. Dispose the failed response before throwing so it does not
-        // leak — ownership has not yet been transferred to ResponseOwningStream.
-        var status = response.StatusCode;
-        string body;
-        try
-        {
-          body = await ReadBoundedErrorBodyAsync(response, ct).ConfigureAwait(false);
-        }
-        finally
-        {
-          response.Dispose();
-        }
-
-        throw new HttpRequestException(
-            string.IsNullOrWhiteSpace(body) ? $"HTTP {(int)status}" : body, null, status);
-      }
-
-      Stream stream;
-      try
-      {
-        stream = await response.Content.ReadAsStreamAsync(ct).ConfigureAwait(false);
       }
       catch
       {
-        // Ownership has not yet transferred to ResponseOwningStream — dispose the
-        // response so it (and its connection) do not leak on a read failure.
-        response.Dispose();
+        request.Dispose();
         throw;
       }
+      try
+      {
+        if (!response.IsSuccessStatusCode)
+        {
+          // Surface the status code AND a bounded error body so the inference driver can
+          // map it to a typed ModelRunnerException (404 -> ModelNotLoaded, 401 ->
+          // Unauthorized), mirroring the non-streaming path. EnsureSuccessStatusCode would
+          // discard the body. Dispose the failed response before throwing so it does not
+          // leak — ownership has not yet been transferred to ResponseOwningStream.
+          var status = response.StatusCode;
+          string body;
+          try
+          {
+            body = await ReadBoundedErrorBodyAsync(response, ct).ConfigureAwait(false);
+          }
+          finally
+          {
+            response.Dispose();
+          }
 
-      return new ResponseOwningStream(stream, response);
+          throw new HttpRequestException(
+              string.IsNullOrWhiteSpace(body) ? $"HTTP {(int)status}" : body, null, status);
+        }
+
+        var stream = await response.Content.ReadAsStreamAsync(ct).ConfigureAwait(false);
+        transferred = true;
+        return new RequestOwningStream(new ResponseOwningStream(stream, response), request);
+      }
+      catch
+      {
+        if (!transferred)
+        {
+          response?.Dispose();
+          request.Dispose();
+        }
+        throw;
+      }
+    }
+
+    private sealed class RequestOwningStream(Stream inner, HttpRequestMessage request) : Stream
+    {
+      public override bool CanRead => inner.CanRead;
+      public override bool CanSeek => inner.CanSeek;
+      public override bool CanWrite => false;
+      public override long Length => inner.Length;
+      public override long Position { get => inner.Position; set => inner.Position = value; }
+      public override int Read(byte[] buffer, int offset, int count) => inner.Read(buffer, offset, count);
+      public override async ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken = default) =>
+          await inner.ReadAsync(buffer, cancellationToken).ConfigureAwait(false);
+      public override void Flush() => inner.Flush();
+      public override long Seek(long offset, SeekOrigin origin) => inner.Seek(offset, origin);
+      public override void SetLength(long value) => throw new NotSupportedException();
+      public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
+
+      protected override void Dispose(bool disposing)
+      {
+        if (disposing)
+        {
+          try
+          {
+            inner.Dispose();
+          }
+          finally
+          {
+            request.Dispose();
+          }
+        }
+        base.Dispose(disposing);
+      }
+
+      public override async ValueTask DisposeAsync()
+      {
+        try
+        {
+          await inner.DisposeAsync().ConfigureAwait(false);
+        }
+        finally
+        {
+          request.Dispose();
+        }
+        await base.DisposeAsync().ConfigureAwait(false);
+      }
     }
 
     /// <summary>

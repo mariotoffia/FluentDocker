@@ -1,4 +1,5 @@
 using System;
+using System.Globalization;
 
 namespace FluentDocker.Drivers.Docker.Api.Components
 {
@@ -17,13 +18,25 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       while (i < duration.Length)
       {
         var start = i;
-        while (i < duration.Length && char.IsDigit(duration[i]))
+        while (i < duration.Length && (char.IsDigit(duration[i]) || duration[i] == '.'))
           i++;
-        if (start == i || !long.TryParse(duration[start..i], out var value))
+        if (start == i || !decimal.TryParse(duration[start..i], NumberStyles.AllowDecimalPoint,
+            CultureInfo.InvariantCulture, out var value))
           return null;
 
         long multiplier;
-        if (duration[i..].StartsWith("ms", StringComparison.Ordinal))
+        if (duration[i..].StartsWith("ns", StringComparison.Ordinal))
+        {
+          multiplier = 1;
+          i += 2;
+        }
+        else if (duration[i..].StartsWith("us", StringComparison.Ordinal) ||
+                 duration[i..].StartsWith("µs", StringComparison.Ordinal))
+        {
+          multiplier = 1_000;
+          i += 2;
+        }
+        else if (duration[i..].StartsWith("ms", StringComparison.Ordinal))
         {
           multiplier = 1_000_000;
           i += 2;
@@ -48,7 +61,10 @@ namespace FluentDocker.Drivers.Docker.Api.Components
           return null;
         }
 
-        total += value * multiplier;
+        var nanos = value * multiplier;
+        if (nanos > long.MaxValue || nanos > long.MaxValue - total)
+          return null;
+        total += (long)nanos;
       }
 
       return total;

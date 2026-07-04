@@ -1,5 +1,6 @@
 using System.Threading;
 using System.Threading.Tasks;
+using FluentDocker.Common;
 using FluentDocker.Drivers;
 using FluentDocker.Model.Drivers;
 using FluentDocker.Services;
@@ -31,6 +32,29 @@ namespace FluentDocker.Tests.CoreTests.Service
 
         mockPack.SystemDriver.Verify(d => d.SwitchToLinuxDaemonAsync(
             It.IsAny<DriverContext>(), It.IsAny<CancellationToken>()), Times.Once);
+      }
+      finally
+      {
+        kernel.Dispose();
+      }
+    }
+
+    [Fact]
+    public async Task CreateAsync_WhenSwitchFails_ThrowsDriverException()
+    {
+      var mockPack = new MockDriverPack();
+      mockPack.SetupSystemIsWindowsEngine(true);
+      mockPack.SystemDriver
+          .Setup(d => d.SwitchToLinuxDaemonAsync(
+              It.IsAny<DriverContext>(),
+              It.IsAny<CancellationToken>()))
+          .ReturnsAsync(CommandResponse<Unit>.Fail("switch failed"));
+      var kernel = await MockKernelBuilderExtensions.CreateWithMockDriverAsync("docker", mockPack);
+      try
+      {
+        await Assert.ThrowsAsync<DriverException>(() =>
+            EngineScope.CreateAsync(
+                kernel, "docker", EngineScopeType.Linux, TestContext.Current.CancellationToken));
       }
       finally
       {

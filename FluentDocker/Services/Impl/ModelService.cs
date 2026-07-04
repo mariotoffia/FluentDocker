@@ -25,10 +25,12 @@ namespace FluentDocker.Services.Impl
     private readonly ModelRunOptions _runOptions;
     private readonly bool _keepRunning;
     private readonly ConcurrentDictionary<string, (ServiceRunningState State, Func<IServiceAsync, Task> Hook)> _hooks = [];
-    private ServiceRunningState _state = ServiceRunningState.Unknown;
-    // Set after a non-canceled load attempt reaches the runner. Canceled starts err on
-    // not unloading during dispose because another queued consumer may own the model.
-    private bool _loadInitiated;
+    private int _state = (int)ServiceRunningState.Unknown;
+    // Start-once gate. Reset after hard failures and successful unload/remove so retry and
+    // reload semantics match the public lifecycle.
+    private int _loadInitiated;
+    // Persistent marker for dispose best-effort unload after a load reached the runner.
+    private int _loadAttempted;
     private int _disposed;
 
     /// <summary>Initializes the model service.</summary>
@@ -60,7 +62,7 @@ namespace FluentDocker.Services.Impl
     public string Name => _model.ToString();
 
     /// <inheritdoc />
-    public ServiceRunningState State => _state;
+    public ServiceRunningState State => (ServiceRunningState)Volatile.Read(ref _state);
 
     /// <inheritdoc />
     public FluentDockerKernel Kernel => _kernel;
@@ -98,22 +100,32 @@ namespace FluentDocker.Services.Impl
     public async Task StartAsync(CancellationToken cancellationToken = default)
     {
       ThrowIfDisposed();
+      cancellationToken.ThrowIfCancellationRequested();
+      if (Interlocked.CompareExchange(ref _loadInitiated, 1, 0) != 0)
+      {
+        // ponytail: concurrent CAS loser returns without awaiting the winner (optimistic);
+        // upgrade to a shared load-Task/TCS if strict concurrent load-completion/failure
+        // observation is ever required.
+        return;
+      }
+
       UpdateState(ServiceRunningState.Starting);
       await ExecuteHooksAsync(ServiceRunningState.Starting).ConfigureAwait(false);
 
       try
       {
+        Volatile.Write(ref _loadAttempted, 1);
         await _runner.LoadAsync(_model, _runOptions, cancellationToken).ConfigureAwait(false);
-        _loadInitiated = true;
       }
       catch (OperationCanceledException)
       {
+        Volatile.Write(ref _loadInitiated, 0);
         UpdateState(ServiceRunningState.Unknown);
         throw;
       }
       catch
       {
-        _loadInitiated = true;
+        Volatile.Write(ref _loadInitiated, 0);
         UpdateState(ServiceRunningState.Unknown);
         throw;
       }
@@ -126,7 +138,7 @@ namespace FluentDocker.Services.Impl
     public Task PauseAsync(CancellationToken cancellationToken = default)
     {
       ThrowIfDisposed();
-      throw new NotSupportedException("Models cannot be paused; use Stop (unload) instead.");
+      throw new FluentDockerNotSupportedException("Models cannot be paused; use Stop (unload) instead.");
     }
 
     /// <inheritdoc />
@@ -151,6 +163,7 @@ namespace FluentDocker.Services.Impl
         throw;
       }
 
+      Volatile.Write(ref _loadInitiated, 0);
       UpdateState(ServiceRunningState.Stopped);
       await ExecuteHooksAsync(ServiceRunningState.Stopped).ConfigureAwait(false);
     }
@@ -172,6 +185,7 @@ namespace FluentDocker.Services.Impl
         throw;
       }
 
+      Volatile.Write(ref _loadInitiated, 0);
       UpdateState(ServiceRunningState.Removed);
       await ExecuteHooksAsync(ServiceRunningState.Removed).ConfigureAwait(false);
     }
@@ -246,13 +260,13 @@ namespace FluentDocker.Services.Impl
         // X509 cert, HttpClient, etc.).
         if (!_keepRunning)
         {
-          if (_state == ServiceRunningState.Running)
+          if (State == ServiceRunningState.Running)
           {
             await StopCoreAsync().ConfigureAwait(false);
           }
-          else if (_loadInitiated &&
-                   _state != ServiceRunningState.Stopped &&
-                   _state != ServiceRunningState.Removed)
+          else if (Volatile.Read(ref _loadAttempted) != 0 &&
+                   State != ServiceRunningState.Stopped &&
+                   State != ServiceRunningState.Removed)
           {
             // A load was attempted but we never reached Running (it faulted/cancelled
             // mid-load) — the model may still be resident. Best-effort unload so we
@@ -276,7 +290,7 @@ namespace FluentDocker.Services.Impl
 
     private void UpdateState(ServiceRunningState newState)
     {
-      _state = newState;
+      Volatile.Write(ref _state, (int)newState);
       StateChange?.Invoke(this, new StateChangeEventArgs(this, newState));
     }
 

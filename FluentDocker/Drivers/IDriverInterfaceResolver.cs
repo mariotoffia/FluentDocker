@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 
 namespace FluentDocker.Drivers
 {
@@ -17,7 +18,7 @@ namespace FluentDocker.Drivers
     /// <param name="interfaceType">The interface type to resolve.</param>
     /// <param name="implementation">The resolved instance, or null.</param>
     /// <returns>True if the interface was resolved.</returns>
-    bool TryResolve(Type interfaceType, out object implementation);
+    bool TryResolve(Type interfaceType, [NotNullWhen(true)] out object? implementation);
 
     /// <summary>
     /// Gets all interface types supported by this resolver.

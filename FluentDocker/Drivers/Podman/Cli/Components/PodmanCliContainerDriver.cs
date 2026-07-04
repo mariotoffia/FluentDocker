@@ -1,7 +1,9 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
+using FluentDocker.Common;
 using FluentDocker.Drivers.Docker.Cli;
 using FluentDocker.Drivers.Podman.Cli.Binary;
 using FluentDocker.Model.Drivers;
@@ -29,7 +31,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
         var result = await ExecuteCommandAsync(context, args, cancellationToken).ConfigureAwait(false);
         if (!result.Success)
           return CommandResponse<ContainerCreateResult>.Fail(
-              ErrorOrDefault(result, "Container create failed"), ErrorCodes.Container.CreateFailed,
+              ErrorOrDefault(result, "Container create failed"), FailureCode(result.Error, ErrorCodes.Container.CreateFailed),
               CreateErrorContext(context, "CreateContainer", result), result.ExitCode);
 
         return CommandResponse<ContainerCreateResult>.Ok(new ContainerCreateResult
@@ -45,7 +47,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       catch (Exception ex)
       {
         return CommandResponse<ContainerCreateResult>.Fail(
-            ex.Message, ErrorCodes.Container.CreateFailed);
+            ex.Message, FailureCode(ex, ErrorCodes.Container.CreateFailed));
       }
     }
 
@@ -54,23 +56,31 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
         DriverContext context, ContainerCreateConfig config,
         CancellationToken cancellationToken = default)
     {
+      string cidFile = null;
       try
       {
-        var args = BuildCreateArgs("run", config, config.Detach);
+        if (!config.Detach)
+          cidFile = Path.Combine(DirectoryHelper.GetTempPath(), $"podman-cid-{Guid.NewGuid():N}");
+        var args = BuildCreateArgsWithCidFile("run", config, config.Detach, cidFile);
 
         // run can be inherently long (it waits for a non-detached container to finish);
         // honor only caller cancellation, not the buffered control-plane timeout.
         var result = await ExecuteUnboundedCommandAsync(context, args, cancellationToken).ConfigureAwait(false);
         if (!result.Success)
           return CommandResponse<ContainerRunResult>.Fail(
-              ErrorOrDefault(result, "Container run failed"), ErrorCodes.Container.CreateFailed,
+              ErrorOrDefault(result, "Container run failed"), FailureCode(result.Error, ErrorCodes.Container.CreateFailed),
               CreateErrorContext(context, "RunContainer", result), result.ExitCode);
 
-        return CommandResponse<ContainerRunResult>.Ok(new ContainerRunResult
+        var runResult = new ContainerRunResult
         {
           Id = config.Detach ? result.Output?.Trim() : null,
-          Output = config.Detach ? null : result.Output
-        });
+          Output = config.Detach ? null : MergeOutputAndError(result.Output, result.Error)
+        };
+
+        if (!config.Detach && cidFile != null && File.Exists(cidFile))
+          runResult.Id = (await File.ReadAllTextAsync(cidFile, cancellationToken).ConfigureAwait(false)).Trim();
+
+        return CommandResponse<ContainerRunResult>.Ok(runResult);
       }
       catch (OperationCanceledException)
       {
@@ -79,7 +89,20 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       catch (Exception ex)
       {
         return CommandResponse<ContainerRunResult>.Fail(
-            ex.Message, ErrorCodes.Container.CreateFailed);
+            ex.Message, FailureCode(ex, ErrorCodes.Container.CreateFailed));
+      }
+      finally
+      {
+        if (cidFile != null && File.Exists(cidFile))
+        {
+          try
+          {
+            File.Delete(cidFile);
+          }
+          catch
+          {
+          }
+        }
       }
     }
 
@@ -93,7 +116,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
         var result = await ExecuteCommandAsync(context, $"start {QuotePositionalArgument(containerId, nameof(containerId))}", cancellationToken).ConfigureAwait(false);
         if (!result.Success)
           return CommandResponse<Unit>.Fail(
-              ErrorOrDefault(result, "Container start failed"), ErrorCodes.Container.StartFailed,
+              ErrorOrDefault(result, "Container start failed"), FailureCode(result.Error, ErrorCodes.Container.StartFailed),
               CreateErrorContext(context, "StartContainer", result), result.ExitCode);
 
         return CommandResponse<Unit>.Ok(Unit.Default);
@@ -104,7 +127,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       }
       catch (Exception ex)
       {
-        return CommandResponse<Unit>.Fail(ex.Message, ErrorCodes.Container.StartFailed);
+        return CommandResponse<Unit>.Fail(ex.Message, FailureCode(ex, ErrorCodes.Container.StartFailed));
       }
     }
 
@@ -124,7 +147,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
         var result = await ExecuteUnboundedCommandAsync(context, args, cancellationToken).ConfigureAwait(false);
         if (!result.Success)
           return CommandResponse<Unit>.Fail(
-              ErrorOrDefault(result, "Container stop failed"), ErrorCodes.Container.StopFailed,
+              ErrorOrDefault(result, "Container stop failed"), FailureCode(result.Error, ErrorCodes.Container.StopFailed),
               CreateErrorContext(context, "StopContainer", result), result.ExitCode);
 
         return CommandResponse<Unit>.Ok(Unit.Default);
@@ -135,7 +158,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       }
       catch (Exception ex)
       {
-        return CommandResponse<Unit>.Fail(ex.Message, ErrorCodes.Container.StopFailed);
+        return CommandResponse<Unit>.Fail(ex.Message, FailureCode(ex, ErrorCodes.Container.StopFailed));
       }
     }
 
@@ -155,7 +178,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
         var result = await ExecuteUnboundedCommandAsync(context, args, cancellationToken).ConfigureAwait(false);
         if (!result.Success)
           return CommandResponse<Unit>.Fail(
-              ErrorOrDefault(result, "Container restart failed"), ErrorCodes.Container.RestartFailed,
+              ErrorOrDefault(result, "Container restart failed"), FailureCode(result.Error, ErrorCodes.Container.RestartFailed),
               CreateErrorContext(context, "RestartContainer", result), result.ExitCode);
 
         return CommandResponse<Unit>.Ok(Unit.Default);
@@ -166,7 +189,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       }
       catch (Exception ex)
       {
-        return CommandResponse<Unit>.Fail(ex.Message, ErrorCodes.Container.RestartFailed);
+        return CommandResponse<Unit>.Fail(ex.Message, FailureCode(ex, ErrorCodes.Container.RestartFailed));
       }
     }
 
@@ -180,7 +203,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
         var result = await ExecuteCommandAsync(context, $"pause {QuotePositionalArgument(containerId, nameof(containerId))}", cancellationToken).ConfigureAwait(false);
         if (!result.Success)
           return CommandResponse<Unit>.Fail(
-              ErrorOrDefault(result, "Container pause failed"), ErrorCodes.Container.PauseFailed,
+              ErrorOrDefault(result, "Container pause failed"), FailureCode(result.Error, ErrorCodes.Container.PauseFailed),
               CreateErrorContext(context, "PauseContainer", result), result.ExitCode);
 
         return CommandResponse<Unit>.Ok(Unit.Default);
@@ -191,7 +214,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       }
       catch (Exception ex)
       {
-        return CommandResponse<Unit>.Fail(ex.Message, ErrorCodes.Container.PauseFailed);
+        return CommandResponse<Unit>.Fail(ex.Message, FailureCode(ex, ErrorCodes.Container.PauseFailed));
       }
     }
 
@@ -205,7 +228,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
         var result = await ExecuteCommandAsync(context, $"unpause {QuotePositionalArgument(containerId, nameof(containerId))}", cancellationToken).ConfigureAwait(false);
         if (!result.Success)
           return CommandResponse<Unit>.Fail(
-              ErrorOrDefault(result, "Container unpause failed"), ErrorCodes.Container.UnpauseFailed,
+              ErrorOrDefault(result, "Container unpause failed"), FailureCode(result.Error, ErrorCodes.Container.UnpauseFailed),
               CreateErrorContext(context, "UnpauseContainer", result), result.ExitCode);
 
         return CommandResponse<Unit>.Ok(Unit.Default);
@@ -216,7 +239,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       }
       catch (Exception ex)
       {
-        return CommandResponse<Unit>.Fail(ex.Message, ErrorCodes.Container.UnpauseFailed);
+        return CommandResponse<Unit>.Fail(ex.Message, FailureCode(ex, ErrorCodes.Container.UnpauseFailed));
       }
     }
 
@@ -231,7 +254,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
             context, $"kill --signal {QuotePositionalArgument(signal, nameof(signal))} {QuotePositionalArgument(containerId, nameof(containerId))}", cancellationToken).ConfigureAwait(false);
         if (!result.Success)
           return CommandResponse<Unit>.Fail(
-              ErrorOrDefault(result, "Container kill failed"), ErrorCodes.Container.KillFailed,
+              ErrorOrDefault(result, "Container kill failed"), FailureCode(result.Error, ErrorCodes.Container.KillFailed),
               CreateErrorContext(context, "KillContainer", result), result.ExitCode);
 
         return CommandResponse<Unit>.Ok(Unit.Default);
@@ -242,7 +265,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       }
       catch (Exception ex)
       {
-        return CommandResponse<Unit>.Fail(ex.Message, ErrorCodes.Container.KillFailed);
+        return CommandResponse<Unit>.Fail(ex.Message, FailureCode(ex, ErrorCodes.Container.KillFailed));
       }
     }
 
@@ -264,7 +287,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
         var result = await ExecuteCommandAsync(context, args, cancellationToken).ConfigureAwait(false);
         if (!result.Success)
           return CommandResponse<Unit>.Fail(
-              ErrorOrDefault(result, "Container remove failed"), ErrorCodes.Container.RemoveFailed,
+              ErrorOrDefault(result, "Container remove failed"), FailureCode(result.Error, ErrorCodes.Container.RemoveFailed),
               CreateErrorContext(context, "RemoveContainer", result), result.ExitCode);
 
         return CommandResponse<Unit>.Ok(Unit.Default);
@@ -275,7 +298,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       }
       catch (Exception ex)
       {
-        return CommandResponse<Unit>.Fail(ex.Message, ErrorCodes.Container.RemoveFailed);
+        return CommandResponse<Unit>.Fail(ex.Message, FailureCode(ex, ErrorCodes.Container.RemoveFailed));
       }
     }
 
@@ -290,7 +313,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
         var result = await ExecuteUnboundedCommandAsync(context, $"wait {QuotePositionalArgument(containerId, nameof(containerId))}", cancellationToken).ConfigureAwait(false);
         if (!result.Success)
           return CommandResponse<ContainerWaitResult>.Fail(
-              ErrorOrDefault(result, "Container wait failed"), ErrorCodes.Container.WaitFailed,
+              ErrorOrDefault(result, "Container wait failed"), FailureCode(result.Error, ErrorCodes.Container.WaitFailed),
               CreateErrorContext(context, "WaitContainer", result), result.ExitCode);
 
         if (!int.TryParse(result.Output?.Trim(), out var exitCode))
@@ -311,7 +334,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       catch (Exception ex)
       {
         return CommandResponse<ContainerWaitResult>.Fail(
-            ex.Message, ErrorCodes.Container.WaitFailed);
+            ex.Message, FailureCode(ex, ErrorCodes.Container.WaitFailed));
       }
     }
 
@@ -329,9 +352,14 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
         var result = await ExecuteCommandAsync(
             context, $"inspect {QuotePositionalArgument(containerId, nameof(containerId))}", cancellationToken).ConfigureAwait(false);
         if (!result.Success)
+        {
+          var errorCode = IsContainerNotFound(result.Error)
+              ? ErrorCodes.Container.NotFound
+              : FailureCode(result.Error, ErrorCodes.Container.InspectFailed);
           return CommandResponse<Container>.Fail(
-              ErrorOrDefault(result, "Container inspect failed"), ErrorCodes.Container.InspectFailed,
+              ErrorOrDefault(result, "Container inspect failed"), errorCode,
               CreateErrorContext(context, "InspectContainer", result), result.ExitCode);
+        }
 
         var container = ParseContainerInspect(result.Output);
         if (string.IsNullOrEmpty(container.Id))
@@ -347,9 +375,13 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       catch (Exception ex)
       {
         return CommandResponse<Container>.Fail(
-            ex.Message, ErrorCodes.Container.InspectFailed);
+            ex.Message, FailureCode(ex, ErrorCodes.Container.InspectFailed));
       }
     }
+
+    private static bool IsContainerNotFound(string error) =>
+        error?.Contains("no such object", StringComparison.OrdinalIgnoreCase) == true
+        || error?.Contains("no such container", StringComparison.OrdinalIgnoreCase) == true;
 
     /// <inheritdoc />
     public async Task<CommandResponse<IList<Container>>> ListAsync(
@@ -362,7 +394,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
         var result = await ExecuteCommandAsync(context, args, cancellationToken).ConfigureAwait(false);
         if (!result.Success)
           return CommandResponse<IList<Container>>.Fail(
-              ErrorOrDefault(result, "Container list failed"), ErrorCodes.General.Unknown,
+              ErrorOrDefault(result, "Container list failed"), FailureCode(result.Error, ErrorCodes.General.Unknown),
               CreateErrorContext(context, "ListContainers", result), result.ExitCode);
 
         var containers = ParseContainerList(result.Output);
@@ -374,7 +406,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       }
       catch (Exception ex)
       {
-        return CommandResponse<IList<Container>>.Fail(ex.Message, ErrorCodes.General.Unknown);
+        return CommandResponse<IList<Container>>.Fail(ex.Message, FailureCode(ex, ErrorCodes.General.Unknown));
       }
     }
 

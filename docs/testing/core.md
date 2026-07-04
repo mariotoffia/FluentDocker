@@ -136,6 +136,21 @@ var options = new DockerResourceOptions
 
 Keep the default unless you run cleanup outside of parallel test execution.
 
+### Cleaning up managed containers by hand
+
+Every resource the testing core creates carries the `fluentdocker.managed=true`
+label, so a CI job can reap leftovers without going through the framework:
+
+```bash
+docker rm $(docker ps -aq --filter label=fluentdocker.managed=true)
+```
+
+On a **shared** daemon this cuts both ways: `CleanupOrphansOnInit` with the
+default one-hour `OrphanCleanupMinimumAge` can reap a long-running,
+framework-labeled container from a parallel run once it crosses the age
+threshold. Give each CI job its own daemon, or raise `OrphanCleanupMinimumAge`
+above your longest job when several runs share one daemon.
+
 ## Wait Conditions (Builder)
 
 The container builder provides built-in wait conditions that block until the
@@ -415,6 +430,22 @@ automatically cleaned up before the exception propagates.
 |---|---|
 | `CreateDefaultDockerKernelAsync()` | Docker CLI kernel (used when no factory is specified) |
 | `CreateDefaultPodmanKernelAsync()` | Podman CLI kernel |
+
+### Capturing framework logs
+
+Framework and resource warnings are written through the **kernel's**
+`ILoggerFactory`. The default kernels (`CreateDefaultDockerKernelAsync` /
+`CreateDefaultPodmanKernelAsync`, used when no factory is specified) fall back to
+`NullLoggerFactory.Instance`, so nothing is emitted. To capture the output, build
+the kernel with a real `ILoggerFactory` — either override the fixture's
+`KernelFactory` property or pass a `kernelFactory` to the helper:
+
+```csharp
+protected override Func<Task<FluentDockerKernel>>? KernelFactory =>
+    () => FluentDockerKernel.Create(myLoggerFactory) // your ILoggerFactory
+        .WithDockerCli("docker-cli", d => d.AsDefault())
+        .BuildAsync();
+```
 
 ## Usage Example
 

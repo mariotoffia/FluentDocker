@@ -196,6 +196,17 @@ namespace FluentDocker.Tests.CoreTests.Driver
     }
 
     [Fact]
+    public async Task ListRunningAsync_NonEmptyRenamedHeader_Fails()
+    {
+      var driver = new FakeRuntimeDriver { Responder = _ => Ok("NAME  BACKEND\nsmollm2  llama.cpp\n") };
+
+      var result = await driver.ListRunningAsync(Ctx, TestContext.Current.CancellationToken);
+
+      Assert.False(result.Success);
+      Assert.Equal(ErrorCodes.Model.ListFailed, result.ErrorCode);
+    }
+
+    [Fact]
     public async Task LogsAsync_StreamsLines_FollowFlag()
     {
       var driver = new FakeRuntimeDriver { StreamResponder = _ => new[] { "line1", "line2" } };

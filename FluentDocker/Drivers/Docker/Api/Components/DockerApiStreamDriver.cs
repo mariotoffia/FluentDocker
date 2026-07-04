@@ -79,6 +79,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       // A TTY container's log stream is raw text, not the 8-byte multiplexed frame format.
       // Misreading raw output as multiplexed corrupts/drops lines, so detect TTY up-front.
       var tty = await DetectTtyAsync(containerId, cancellationToken).ConfigureAwait(false);
+      var sniffOnInvalidHeader = !tty.HasValue;
 
       Stream stream;
       try
@@ -100,7 +101,8 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       // Use try/finally to dispose the stream when the caller breaks out.
       try
       {
-        await foreach (var entry in ReadMultiplexedStreamAsync(stream, tty, cancellationToken).ConfigureAwait(false))
+        await foreach (var entry in ReadMultiplexedStreamAsync(
+            stream, tty == true, sniffOnInvalidHeader, cancellationToken).ConfigureAwait(false))
         {
           yield return entry;
         }
@@ -116,7 +118,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
     /// is raw text (no multiplex headers). On any inspect failure we default to demux=false
     /// so a transient inspect error never crashes log streaming.
     /// </summary>
-    private async Task<bool> DetectTtyAsync(string containerId, CancellationToken ct)
+    private async Task<bool?> DetectTtyAsync(string containerId, CancellationToken ct)
     {
       try
       {
@@ -133,7 +135,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       {
         Logger.LogDebug(ex, "Could not determine container TTY mode; defaulting to demux");
       }
-      return false;
+      return null;
     }
 
     public async IAsyncEnumerable<ContainerEvent> StreamEventsAsync(
@@ -176,7 +178,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
           ? $"/events?{string.Join("&", queryParams)}"
           : "/events";
 
-      await foreach (var line in ReadNdjsonStreamAsync(path, cancellationToken))
+      await foreach (var line in ReadNdjsonStreamAsync(path, cancellationToken).ConfigureAwait(false))
       {
         ContainerEvent evt;
         try
@@ -224,7 +226,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       var stream = config.Stream ? "true" : "false";
       var path = $"/containers/{Uri.EscapeDataString(containerId)}/stats?stream={stream}";
 
-      await foreach (var line in ReadNdjsonStreamAsync(path, cancellationToken))
+      await foreach (var line in ReadNdjsonStreamAsync(path, cancellationToken).ConfigureAwait(false))
       {
         ContainerStats stats;
         try

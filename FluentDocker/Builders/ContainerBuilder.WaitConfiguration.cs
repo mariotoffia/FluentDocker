@@ -14,6 +14,8 @@ namespace FluentDocker.Builders
 
     public IContainerBuilder WithWaitPollInterval(int intervalMs)
     {
+      if (intervalMs < 1)
+        throw new FluentDockerException("Wait poll interval must be at least 1 ms.");
       _waitPollIntervalMs = intervalMs;
       return this;
     }

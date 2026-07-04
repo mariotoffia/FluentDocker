@@ -215,21 +215,67 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
     }
 
     [Fact]
-    public async Task StreamLogEntriesAsync_RawHeaderWithFailedTtyDetect_ThrowsDriverException()
+    public async Task StreamLogEntriesAsync_RawBytesWithFailedTtyDetect_SniffsRawAndPassesThrough()
     {
       var (driver, mock) = CreateDriver();
       var raw = Encoding.UTF8.GetBytes("hello world\nsecond line\n");
       mock.SetupStreamBytes("/containers/rawhdr/logs", raw);
 
+      var entries = new List<LogEntry>();
+      await foreach (var entry in driver.StreamLogEntriesAsync(Ctx, "rawhdr",
+          new StreamLogsConfig { Follow = false }, cancellationToken: TestContext.Current.CancellationToken))
+      {
+        entries.Add(entry);
+      }
+
+      Assert.Equal(2, entries.Count);
+      Assert.All(entries, static entry => Assert.Equal(LogStreamSource.Stdout, entry.Source));
+      Assert.Equal("hello world", entries[0].Line);
+      Assert.Equal("second line", entries[1].Line);
+    }
+
+    [Fact]
+    public async Task StreamLogEntriesAsync_RawBytesWithSuccessfulNonTtyDetect_ThrowsDriverException()
+    {
+      var (driver, mock) = CreateDriver();
+      var raw = Encoding.UTF8.GetBytes("hello world\nsecond line\n");
+      mock.SetupGet("/containers/nonraw/json", 200, @"{""Config"":{""Tty"":false}}");
+      mock.SetupStreamBytes("/containers/nonraw/logs", raw);
+
       var error = await Assert.ThrowsAsync<DriverException>(async () =>
       {
-        await foreach (var _ in driver.StreamLogEntriesAsync(Ctx, "rawhdr",
+        await foreach (var _ in driver.StreamLogEntriesAsync(Ctx, "nonraw",
             new StreamLogsConfig { Follow = false }, cancellationToken: TestContext.Current.CancellationToken))
         {
         }
       });
+      Assert.Contains("invalid multiplexed frame header", error.Message);
+    }
+
+    [Fact]
+    public async Task StreamLogEntriesAsync_DetectFailureAfterValidFrameThenBadHeader_ThrowsDriverException()
+    {
+      var (driver, mock) = CreateDriver();
+      var frame = CreateMultiplexedFrame(1, "hello");
+      var corrupt = Encoding.UTF8.GetBytes("bad header\n");
+      var combined = new byte[frame.Length + corrupt.Length];
+      Array.Copy(frame, combined, frame.Length);
+      Array.Copy(corrupt, 0, combined, frame.Length, corrupt.Length);
+      mock.SetupStreamBytes("/containers/corrupt-after-frame/logs", combined);
+
+      var entries = new List<LogEntry>();
+      var error = await Assert.ThrowsAsync<DriverException>(async () =>
+      {
+        await foreach (var entry in driver.StreamLogEntriesAsync(Ctx, "corrupt-after-frame",
+            new StreamLogsConfig { Follow = false }, cancellationToken: TestContext.Current.CancellationToken))
+        {
+          entries.Add(entry);
+        }
+      });
 
       Assert.Contains("invalid multiplexed frame header", error.Message);
+      Assert.Single(entries);
+      Assert.Equal("hello", entries[0].Line);
     }
 
     #endregion

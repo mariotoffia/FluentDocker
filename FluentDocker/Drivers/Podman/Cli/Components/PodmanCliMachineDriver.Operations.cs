@@ -24,7 +24,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
             "machine list --format json", cancellationToken).ConfigureAwait(false);
         if (!result.Success)
           return CommandResponse<IList<MachineInfo>>.Fail(
-              ErrorOrDefault(result, "Machine list failed"), ErrorCodes.Machine.ListFailed,
+              ErrorOrDefault(result, "Machine list failed"), FailureCode(result.Error, ErrorCodes.Machine.ListFailed),
               CreateErrorContext(context, "ListMachines", result), result.ExitCode);
 
         var machines = ParseMachineList(result.Output);
@@ -37,7 +37,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       catch (Exception ex)
       {
         return CommandResponse<IList<MachineInfo>>.Fail(
-            ex.Message, ErrorCodes.Machine.ListFailed);
+            ex.Message, FailureCode(ex, ErrorCodes.Machine.ListFailed));
       }
     }
 
@@ -54,7 +54,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
         var result = await ExecuteCommandAsync(context, args, cancellationToken).ConfigureAwait(false);
         if (!result.Success)
           return CommandResponse<MachineInspectResult>.Fail(
-              ErrorOrDefault(result, "Machine inspect failed"), ErrorCodes.Machine.InspectFailed,
+              ErrorOrDefault(result, "Machine inspect failed"), FailureCode(result.Error, ErrorCodes.Machine.InspectFailed),
               CreateErrorContext(context, "InspectMachine", result), result.ExitCode);
 
         var inspect = ParseMachineInspect(result.Output);
@@ -67,7 +67,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       catch (Exception ex)
       {
         return CommandResponse<MachineInspectResult>.Fail(
-            ex.Message, ErrorCodes.Machine.InspectFailed);
+            ex.Message, FailureCode(ex, ErrorCodes.Machine.InspectFailed));
       }
     }
 
@@ -83,7 +83,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
             "machine info --format json", cancellationToken).ConfigureAwait(false);
         if (!result.Success)
           return CommandResponse<MachineHostInfo>.Fail(
-              ErrorOrDefault(result, "Machine info failed"), ErrorCodes.Machine.InfoFailed,
+              ErrorOrDefault(result, "Machine info failed"), FailureCode(result.Error, ErrorCodes.Machine.InfoFailed),
               CreateErrorContext(context, "MachineInfo", result), result.ExitCode);
 
         var info = ParseMachineInfo(result.Output);
@@ -96,7 +96,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       catch (Exception ex)
       {
         return CommandResponse<MachineHostInfo>.Fail(
-            ex.Message, ErrorCodes.Machine.InfoFailed);
+            ex.Message, FailureCode(ex, ErrorCodes.Machine.InfoFailed));
       }
     }
 

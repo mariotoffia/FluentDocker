@@ -311,42 +311,42 @@ namespace FluentDocker.Tests.CoreTests.Service
     #region Unsupported Operation Tests
 
     [Fact]
-    public async Task PauseAsync_ThrowsNotSupportedException()
+    public async Task PauseAsync_ThrowsFluentDockerNotSupportedException()
     {
       var mockPack = new MockDriverPack();
       var kernel = await MockKernelBuilderExtensions.CreateWithMockDriverAsync("docker", mockPack);
       var service = new HostService(kernel, "docker", "test-host");
       try
       {
-        await Assert.ThrowsAsync<NotSupportedException>(
+        await Assert.ThrowsAsync<FluentDockerNotSupportedException>(
             () => service.PauseAsync(TestContext.Current.CancellationToken));
       }
       finally { kernel.Dispose(); }
     }
 
     [Fact]
-    public async Task StopAsync_ThrowsNotSupportedException()
+    public async Task StopAsync_ThrowsFluentDockerNotSupportedException()
     {
       var mockPack = new MockDriverPack();
       var kernel = await MockKernelBuilderExtensions.CreateWithMockDriverAsync("docker", mockPack);
       var service = new HostService(kernel, "docker", "test-host");
       try
       {
-        await Assert.ThrowsAsync<NotSupportedException>(
+        await Assert.ThrowsAsync<FluentDockerNotSupportedException>(
             () => service.StopAsync(TestContext.Current.CancellationToken));
       }
       finally { kernel.Dispose(); }
     }
 
     [Fact]
-    public async Task RemoveAsync_ThrowsNotSupportedException()
+    public async Task RemoveAsync_ThrowsFluentDockerNotSupportedException()
     {
       var mockPack = new MockDriverPack();
       var kernel = await MockKernelBuilderExtensions.CreateWithMockDriverAsync("docker", mockPack);
       var service = new HostService(kernel, "docker", "test-host");
       try
       {
-        await Assert.ThrowsAsync<NotSupportedException>(
+        await Assert.ThrowsAsync<FluentDockerNotSupportedException>(
             () => service.RemoveAsync(cancellationToken: TestContext.Current.CancellationToken));
       }
       finally { kernel.Dispose(); }
@@ -364,14 +364,14 @@ namespace FluentDocker.Tests.CoreTests.Service
       var service = new HostService(kernel, "docker", "test-host");
       try
       {
-        await Assert.ThrowsAsync<NotSupportedException>(
+        await Assert.ThrowsAsync<FluentDockerNotSupportedException>(
             () =>
             {
               service.AddHook(ServiceRunningState.Running, _ => Task.CompletedTask, "test-hook");
               return Task.CompletedTask;
             });
 
-        Assert.Throws<NotSupportedException>(() => service.RemoveHook("test-hook"));
+        Assert.Throws<FluentDockerNotSupportedException>(() => service.RemoveHook("test-hook"));
       }
       finally { kernel.Dispose(); }
     }

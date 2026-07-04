@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -74,13 +75,7 @@ namespace FluentDocker.Kernel
         if (_drivers.ContainsKey(driverId))
           throw new DriverException($"Driver '{driverId}' is already registered", ErrorCodes.Driver.AlreadyRegistered);
 
-        // Ensure context has the driver ID
-        if (string.IsNullOrEmpty(context.DriverId))
-          context.DriverId = driverId;
-
-        // Inject the consumer-supplied logger factory so the driver's
-        // InitializeAsync sees the real factory, not the context's default null sink.
-        context.LoggerFactory = _loggerFactory;
+        context = PrepareContext(driverId, context);
 
         try
         {
@@ -182,7 +177,7 @@ namespace FluentDocker.Kernel
     /// <summary>
     /// Tries to get a driver by ID.
     /// </summary>
-    public bool TryGetDriver(string driverId, out IDriver driver)
+    public bool TryGetDriver(string driverId, [NotNullWhen(true)] out IDriver? driver)
     {
       ThrowIfDisposed();
       if (_drivers.TryGetValue(driverId, out var registration))
@@ -225,13 +220,7 @@ namespace FluentDocker.Kernel
         if (_driverPacks.ContainsKey(driverId))
           throw new DriverException($"Driver pack '{driverId}' is already registered", ErrorCodes.Driver.AlreadyRegistered);
 
-        // Ensure context has the driver ID
-        if (string.IsNullOrEmpty(context.DriverId))
-          context.DriverId = driverId;
-
-        // Inject the consumer-supplied logger factory so the pack's
-        // InitializeAsync sees the real factory, not the context's default null sink.
-        context.LoggerFactory = _loggerFactory;
+        context = PrepareContext(driverId, context);
 
         try
         {
@@ -291,7 +280,7 @@ namespace FluentDocker.Kernel
     /// <summary>
     /// Tries to get a driver pack by ID.
     /// </summary>
-    public bool TryGetDriverPack(string driverId, out IDriverPack driverPack)
+    public bool TryGetDriverPack(string driverId, [NotNullWhen(true)] out IDriverPack? driverPack)
     {
       ThrowIfDisposed();
       if (_driverPacks.TryGetValue(driverId, out var registration))
@@ -435,6 +424,40 @@ namespace FluentDocker.Kernel
       {
         _defaultDriverId ??= driverId;
       }
+    }
+
+    private DriverContext PrepareContext(string driverId, DriverContext context)
+    {
+      if (!string.IsNullOrEmpty(context.DriverId)
+          && !string.Equals(context.DriverId, driverId, StringComparison.Ordinal))
+        throw new ArgumentException(
+            $"Driver context ID '{context.DriverId}' does not match registration ID '{driverId}'.",
+            nameof(context));
+
+      return new DriverContext(driverId, context.Host)
+      {
+        LoggerFactory = IsNullLoggerFactory(context.LoggerFactory) ? _loggerFactory : context.LoggerFactory,
+        CertificatePath = context.CertificatePath,
+        VerifyTls = context.VerifyTls,
+        OperationId = context.OperationId,
+        Metadata = context.Metadata,
+        Sudo = context.Sudo,
+        SudoPassword = context.SudoPassword,
+        DefaultShell = context.DefaultShell,
+        BinaryName = context.BinaryName,
+        SearchPaths = context.SearchPaths,
+        AutoStartMachine = context.AutoStartMachine,
+        ModelRunnerEndpoint = context.ModelRunnerEndpoint,
+        ConnectionTimeout = context.ConnectionTimeout,
+        RequestTimeout = context.RequestTimeout,
+        ApiVersion = context.ApiVersion
+      };
+    }
+
+    private static bool IsNullLoggerFactory(ILoggerFactory loggerFactory)
+    {
+      return loggerFactory == null
+             || ReferenceEquals(loggerFactory, Microsoft.Extensions.Logging.Abstractions.NullLoggerFactory.Instance);
     }
 
     private void ThrowIfDisposed()

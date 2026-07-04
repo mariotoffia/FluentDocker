@@ -17,14 +17,16 @@ namespace FluentDocker.Model.Models
     private const string DefaultEngine = "llama.cpp";
 
     private readonly string _basePath;
+    private readonly string _query;
 
-    private ModelRunnerEndpoint(Uri baseAddress, string engine, string unixSocketPath, bool includeEngineInPath, string basePath = null)
+    private ModelRunnerEndpoint(Uri baseAddress, string engine, string unixSocketPath, bool includeEngineInPath, string basePath = null, string query = null)
     {
       BaseAddress = baseAddress;
       Engine = engine;
       UnixSocketPath = unixSocketPath;
       IncludeEngineInPath = includeEngineInPath;
       _basePath = basePath;
+      _query = query;
     }
 
     /// <summary>The base address (host root, e.g. <c>http://localhost:12434</c>).</summary>
@@ -53,7 +55,11 @@ namespace FluentDocker.Model.Models
     /// </summary>
     /// <param name="suffix">The path suffix, beginning with <c>/</c>.</param>
     /// <returns>The composed request path.</returns>
-    public string EngineV1Path(string suffix) => _basePath != null ? _basePath + suffix : EnginePath + "/v1" + suffix;
+    public string EngineV1Path(string suffix)
+    {
+      var path = _basePath != null ? _basePath + suffix : EnginePath + "/v1" + suffix;
+      return _query == null ? path : path + _query;
+    }
 
     /// <summary>
     /// Resolves a full absolute URI from <see cref="BaseAddress"/> and the engine path.
@@ -66,7 +72,7 @@ namespace FluentDocker.Model.Models
     /// <param name="include">Whether to include the engine name in the path.</param>
     /// <returns>A new endpoint.</returns>
     public ModelRunnerEndpoint WithEngineInPath(bool include) =>
-        new(BaseAddress, Engine, UnixSocketPath, include, _basePath);
+        new(BaseAddress, Engine, UnixSocketPath, include, _basePath, _query);
 
     /// <summary>
     /// Creates an endpoint from a fully-formed base URL (authority + an optional
@@ -86,7 +92,8 @@ namespace FluentDocker.Model.Models
       var authority = new Uri(url.GetLeftPart(UriPartial.Authority));
       var path = url.AbsolutePath.TrimEnd('/');
       var basePath = string.IsNullOrEmpty(path) ? null : path;
-      return new ModelRunnerEndpoint(authority, engine, null, true, basePath);
+      var query = string.IsNullOrEmpty(url.Query) ? null : url.Query;
+      return new ModelRunnerEndpoint(authority, engine, null, true, basePath, query);
     }
 
     /// <summary>Creates a host-TCP endpoint (<c>http://localhost:port</c>).</summary>
@@ -146,7 +153,8 @@ namespace FluentDocker.Model.Models
       if (!string.IsNullOrEmpty(path) && path != "/")
         return Raw(baseAddress, engine);
 
-      return new ModelRunnerEndpoint(baseAddress, engine, null, true);
+      var query = string.IsNullOrEmpty(baseAddress.Query) ? null : baseAddress.Query;
+      return new ModelRunnerEndpoint(baseAddress, engine, null, true, query: query);
     }
 
     /// <summary>
@@ -165,11 +173,7 @@ namespace FluentDocker.Model.Models
     /// </summary>
     /// <param name="endpoint">The resolved endpoint, or <c>null</c> when the variable is unset.</param>
     /// <returns><c>true</c> when the variable is set to a valid absolute http(s) URL; <c>false</c>
-    /// when it is unset (the caller should fall back to the default).</returns>
-    /// <exception cref="FormatException">The variable is SET but is not a valid absolute http(s)
-    /// URL with a host. This fails fast rather than silently falling back to the default, so a
-    /// typo (a missing scheme, or a non-http scheme such as <c>ftp://</c>) surfaces instead of
-    /// quietly hitting the wrong runner.</exception>
+    /// when it is unset or invalid.</returns>
     public static bool TryFromEnvironment(out ModelRunnerEndpoint endpoint)
     {
       var value = Environment.GetEnvironmentVariable(UrlEnvironmentVariable);
@@ -181,10 +185,10 @@ namespace FluentDocker.Model.Models
       }
 
       if (!Uri.TryCreate(value, UriKind.Absolute, out var uri) || !IsSupportedUrl(uri))
-        throw new FormatException(
-            $"The {UrlEnvironmentVariable} environment variable is set to '{value}', which is not a " +
-            $"valid absolute http(s) URL with a host. Unset it to use the default (host TCP on port " +
-            $"{DefaultPort}), or set it to a URL such as 'http://localhost:12434'.");
+      {
+        endpoint = null;
+        return false;
+      }
 
       // Raw() preserves a path-bearing URL (e.g. an injected
       // http://host:12434/engines/v1) instead of discarding it like Custom() would.
@@ -218,6 +222,7 @@ namespace FluentDocker.Model.Models
           && string.Equals(Engine, other.Engine, StringComparison.Ordinal)
           && string.Equals(UnixSocketPath, other.UnixSocketPath, StringComparison.Ordinal)
           && string.Equals(_basePath, other._basePath, StringComparison.Ordinal)
+          && string.Equals(_query, other._query, StringComparison.Ordinal)
           && IncludeEngineInPath == other.IncludeEngineInPath;
     }
 
@@ -232,6 +237,7 @@ namespace FluentDocker.Model.Models
       hash.Add(Engine, StringComparer.Ordinal);
       hash.Add(UnixSocketPath, StringComparer.Ordinal);
       hash.Add(_basePath, StringComparer.Ordinal);
+      hash.Add(_query, StringComparer.Ordinal);
       hash.Add(IncludeEngineInPath);
       return hash.ToHashCode();
     }

@@ -26,6 +26,8 @@ namespace FluentDocker.Builders
     private string _lastContents;
     private string _preparedDockerfileName;
     private readonly Dictionary<AddCommand, TemplateString> _addSourceOverrides = [];
+    private readonly Dictionary<CopyCommand, string> _copySourceOverrides = [];
+    private bool _ownsWorkingFolder = true;
 
     /// <summary>
     /// When an in-place build context is used (see <see cref="WithBuildContext"/>), this is
@@ -57,13 +59,14 @@ namespace FluentDocker.Builders
     /// Prepares the build by copying files and rendering the Dockerfile.
     /// </summary>
     /// <returns>Working directory path</returns>
-    internal async Task<string> PrepareBuildAsync(CancellationToken cancellationToken = default)
+    internal async Task<string> PrepareBuildAsync(
+        bool strictCopySources = false, CancellationToken cancellationToken = default)
     {
       if (IsInPlaceBuild)
-        return PrepareInPlaceBuild();
+        return await PrepareInPlaceBuildAsync(cancellationToken).ConfigureAwait(false);
 
-      await CopyToWorkDirAsync(_workingFolder, cancellationToken).ConfigureAwait(false);
-      RenderDockerfile(_workingFolder);
+      await CopyToWorkDirAsync(_workingFolder, strictCopySources, cancellationToken).ConfigureAwait(false);
+      await RenderDockerfileAsync(_workingFolder, cancellationToken).ConfigureAwait(false);
       return _workingFolder;
     }
 
@@ -72,7 +75,7 @@ namespace FluentDocker.Builders
     /// build context without copying or rendering anything, so no generated Dockerfile is
     /// left behind (issue #280).
     /// </summary>
-    private string PrepareInPlaceBuild()
+    private async Task<string> PrepareInPlaceBuildAsync(CancellationToken cancellationToken)
     {
       var context = _buildContext.Rendered;
       if (string.IsNullOrEmpty(context) || !Directory.Exists(context))
@@ -94,7 +97,7 @@ namespace FluentDocker.Builders
             $"The Dockerfile '{fullDockerfile}' must reside inside the build context '{fullContext}'.");
 
       _preparedDockerfileName = relative.Replace('\\', '/');
-      _lastContents = File.ReadAllText(fullDockerfile);
+      _lastContents = await File.ReadAllTextAsync(fullDockerfile, cancellationToken).ConfigureAwait(false);
       return fullContext;
     }
 
@@ -102,12 +105,12 @@ namespace FluentDocker.Builders
     /// Builds the image using the parent ImageBuilder.
     /// </summary>
     /// <exception cref="FluentDockerException">If no ImageBuilder parent exists</exception>
-    public Task<Services.IImageService> BuildAsync()
+    public Task<Services.IImageService> BuildAsync(CancellationToken cancellationToken = default)
     {
       if (_parent == null)
         throw new FluentDockerException("No ImageBuilder was set as parent. Use new ImageBuilder() to create one.");
 
-      return _parent.ExecuteAsync(default);
+      return _parent.ExecuteAsync(cancellationToken);
     }
 
     /// <summary>
@@ -125,10 +128,18 @@ namespace FluentDocker.Builders
     /// Generates the Dockerfile as a string.
     /// </summary>
     /// <returns>Dockerfile content</returns>
-    public async Task<string> ToDockerfileStringAsync()
+    public async Task<string> ToDockerfileStringAsync(CancellationToken cancellationToken = default)
     {
-      await PrepareBuildAsync().ConfigureAwait(false);
-      return _lastContents;
+      try
+      {
+        await PrepareBuildAsync(cancellationToken: cancellationToken).ConfigureAwait(false);
+        return _lastContents;
+      }
+      finally
+      {
+        // ponytail: string-gen still stages files/downloads URLs then cleans up; fully filesystem-free rendering deferred — the COPY-basename rewrite depends on staging.
+        DeleteOwnedWorkingFolder();
+      }
     }
 
     /// <summary>
@@ -149,6 +160,7 @@ namespace FluentDocker.Builders
     public DockerfileBuilder WorkingFolder(string workingFolder)
     {
       _workingFolder = workingFolder;
+      _ownsWorkingFolder = false;
       return this;
     }
 

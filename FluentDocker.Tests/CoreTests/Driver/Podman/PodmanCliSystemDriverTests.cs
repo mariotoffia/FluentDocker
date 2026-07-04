@@ -65,7 +65,9 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
     public void ParseSystemInfo_RootlessSecurity_SurfacesRootless()
     {
       var json = @"{
-                ""security"": { ""rootless"": true }
+                ""host"": {
+                    ""security"": { ""rootless"": true }
+                }
             }";
 
       var result = InvokeParseSystemInfo(json);
@@ -106,7 +108,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
                     ""GoVersion"": ""go1.21"",
                     ""Os"": ""linux"",
                     ""Arch"": ""amd64"",
-                    ""Built"": ""2024-01-15""
+                    ""BuiltTime"": ""2024-01-15""
                 },
                 ""Server"": {
                     ""Version"": ""4.5.0"",
@@ -121,6 +123,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
       Assert.Equal("go1.21", result.RuntimeVersion);
       Assert.Equal("linux", result.Os);
       Assert.Equal("amd64", result.Arch);
+      Assert.Equal("2024-01-15", result.BuildTime);
       Assert.Equal("4.5.0", result.ServerVersion);
       Assert.Equal("4.5.0", result.ServerApiVersion);
       Assert.Equal("Podman", result.PlatformName);

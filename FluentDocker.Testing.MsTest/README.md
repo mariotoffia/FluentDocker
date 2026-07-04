@@ -81,9 +81,12 @@ The base class creates one container per test method. `Resource`, `Container`, a
 
 ## Class-scoped fixture base
 
-`[ClassCleanup]` is mandatory. Without it, MSTest leaves the static container and
-kernel alive until the process exits. Use a unique container name when you set
-one explicitly; fixed names collide under parallel runs.
+`[ClassCleanup(ClassCleanupBehavior.EndOfClass)]` is mandatory. MSTest 3.x
+defaults a bare `[ClassCleanup]` to end-of-assembly cleanup, which keeps the
+static container and kernel alive until the whole test assembly finishes — pass
+`ClassCleanupBehavior.EndOfClass` so teardown runs when the class ends. Use a
+unique container name when you set one explicitly; fixed names collide under
+parallel runs.
 
 ```csharp
 using FluentDocker.Builders;
@@ -99,7 +102,7 @@ public sealed class SharedRedisTests
           .UseImage("redis:7-alpine")
           .WithName($"redis-tests-{Guid.NewGuid():N}");
 
-  [ClassCleanup]
+  [ClassCleanup(ClassCleanupBehavior.EndOfClass)]
   public static Task ClassCleanup() => CleanupClassAsync();
 
   [TestMethod]
@@ -128,7 +131,7 @@ public static async Task ClassInitialize(TestContext context)
       c => c.UseImage("postgres:16-alpine"));
 }
 
-[ClassCleanup]
+[ClassCleanup(ClassCleanupBehavior.EndOfClass)]
 public static async Task ClassCleanup()
     => await MsTestResourceHelpers.DisposeAsync(_resource, _kernel);
 ```
@@ -198,7 +201,7 @@ public sealed class SmolLmTests
         cancellationToken: ct);
   }
 
-  [ClassCleanup]
+  [ClassCleanup(ClassCleanupBehavior.EndOfClass)]
   public static async Task ClassCleanup()
       => await MsTestResourceHelpers.DisposeAsync(_model, _kernel);
 

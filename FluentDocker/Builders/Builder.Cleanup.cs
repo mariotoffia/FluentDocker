@@ -25,6 +25,12 @@ namespace FluentDocker.Builders
         {
           if (operation.ForceRemoveOnFailure?.Invoke(service) == true)
           {
+            if (service.State == ServiceRunningState.Removed)
+            {
+              removed.Add(ToResource(service, "builder-created"));
+              continue;
+            }
+
             // Cleanup ownership: builder-created resources are removed on failure; borrowed ones are untouched.
             await service.RemoveAsync(force: true, cleanupCts.Token).ConfigureAwait(false);
             removed.Add(ToResource(service, "builder-created"));
@@ -35,6 +41,8 @@ namespace FluentDocker.Builders
           var reason = operation.FailureKeepReason?.Invoke(service);
           if (!string.IsNullOrEmpty(reason))
             kept.Add(ToResource(service, reason));
+          else if (service.State == ServiceRunningState.Removed)
+            removed.Add(ToResource(service, "disposed"));
         }
         catch (Exception ex)
         {
@@ -62,6 +70,7 @@ namespace FluentDocker.Builders
         INetworkService => "network",
         IVolumeService => "volume",
         IComposeService => "compose",
+        IPodService => "pod",
         IImageService => "image",
         _ => service.GetType().Name
       };
@@ -70,6 +79,7 @@ namespace FluentDocker.Builders
         IContainerService container => container.Id,
         INetworkService network => network.Id,
         IVolumeService volume => volume.VolumeName,
+        IPodService pod => pod.Id,
         _ => service.Name
       };
 

@@ -94,7 +94,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
           args += $" --filter {QuoteArgumentIfNeeded($"{filter.Key}={filter.Value}")}";
       }
 
-      await foreach (var line in ExecuteStreamingCommandAsync(context, args, cancellationToken))
+      await foreach (var line in ExecuteStreamingCommandAsync(context, args, cancellationToken).ConfigureAwait(false))
       {
         var evt = ParseEventLine(line, Logger);
 
@@ -177,7 +177,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     {
       var args = BuildStreamStatsArgs(containerId, config);
 
-      await foreach (var line in ExecuteStreamingCommandAsync(context, args, cancellationToken))
+      await foreach (var line in ExecuteStreamingCommandAsync(context, args, cancellationToken).ConfigureAwait(false))
       {
         ContainerStats stats = null;
         try

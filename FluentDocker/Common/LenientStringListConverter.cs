@@ -25,8 +25,7 @@ namespace FluentDocker.Common
       if (string.IsNullOrWhiteSpace(value))
         return [];
 
-      var separator = value.Contains(',', StringComparison.Ordinal) ? ',' : ' ';
-      return [.. value.Split(separator, StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries)];
+      return [.. value.Split(", ", StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries)];
     }
 
     public override void Write(Utf8JsonWriter writer, List<string> value, JsonSerializerOptions options)

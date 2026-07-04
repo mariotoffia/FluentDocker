@@ -1,8 +1,10 @@
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using FluentDocker.Common;
 using FluentDocker.Drivers;
 using FluentDocker.Kernel;
+using FluentDocker.Model.Drivers;
 using FluentDocker.Services;
 using FluentDocker.Services.Impl;
 using FluentDocker.Tests.Mocks;
@@ -423,7 +425,61 @@ namespace FluentDocker.Tests.CoreTests.Service
       }
     }
 
+    [Fact]
+    [Trait("Category", "Unit")]
+    public async Task RestartAsync_WhenDriverFails_ResetsStateToUnknown()
+    {
+      var mockPack = new MockDriverPack();
+      mockPack.ComposeDriver
+          .Setup(d => d.RestartAsync(
+              It.IsAny<FluentDocker.Model.Drivers.DriverContext>(),
+              It.IsAny<ComposeRestartConfig>(),
+              It.IsAny<System.Threading.CancellationToken>()))
+          .ReturnsAsync(CommandResponse<Unit>.Fail("restart failed"));
+      var kernel = await MockKernelBuilderExtensions.CreateWithMockDriverAsync("docker", mockPack);
+      var service = new ComposeService(kernel, "docker", ["docker-compose.yml"], "my-project");
+      try
+      {
+        await Assert.ThrowsAsync<DriverException>(() =>
+            service.RestartAsync(TestContext.Current.CancellationToken));
+
+        Assert.Equal(ServiceRunningState.Unknown, service.State);
+      }
+      finally
+      {
+        kernel.Dispose();
+      }
+    }
+
+    [Fact]
+    [Trait("Category", "Unit")]
+    public async Task RestartAsync_WhenTokenPreCanceled_PreservesState()
+    {
+      var mockPack = new MockDriverPack();
+      mockPack.ComposeDriver
+          .Setup(d => d.RestartAsync(
+              It.IsAny<FluentDocker.Model.Drivers.DriverContext>(),
+              It.IsAny<ComposeRestartConfig>(),
+              It.IsAny<System.Threading.CancellationToken>()))
+          .Callback<FluentDocker.Model.Drivers.DriverContext, ComposeRestartConfig, System.Threading.CancellationToken>(
+              (_, _, token) => token.ThrowIfCancellationRequested())
+          .ReturnsAsync(CommandResponse<Unit>.Ok(Unit.Default));
+      var kernel = await MockKernelBuilderExtensions.CreateWithMockDriverAsync("docker", mockPack);
+      var service = new ComposeService(kernel, "docker", ["docker-compose.yml"], "my-project");
+      using var cts = new System.Threading.CancellationTokenSource();
+      await cts.CancelAsync();
+      try
+      {
+        await Assert.ThrowsAsync<OperationCanceledException>(() => service.RestartAsync(cts.Token));
+
+        Assert.Equal(ServiceRunningState.Running, service.State);
+      }
+      finally
+      {
+        kernel.Dispose();
+      }
+    }
+
     #endregion
   }
 }
-

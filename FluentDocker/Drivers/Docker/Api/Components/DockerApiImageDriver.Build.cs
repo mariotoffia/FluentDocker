@@ -101,7 +101,8 @@ namespace FluentDocker.Drivers.Docker.Api.Components
         await using (stream.ConfigureAwait(false))
         {
           await foreach (var parsed in ReadNdjsonLinesAsync(
-              stream, DockerApiJsonContext.Default.PullProgressLine, cancellationToken))
+              stream, DockerApiJsonContext.Default.PullProgressLine, cancellationToken)
+              .ConfigureAwait(false))
           {
             receivedProgress = true;
 
@@ -205,7 +206,8 @@ namespace FluentDocker.Drivers.Docker.Api.Components
         await using (stream.ConfigureAwait(false))
         {
           await foreach (var parsed in ReadNdjsonLinesAsync(
-              stream, DockerApiJsonContext.Default.PushProgressLine, cancellationToken))
+              stream, DockerApiJsonContext.Default.PushProgressLine, cancellationToken)
+              .ConfigureAwait(false))
           {
             receivedProgress = true;
 
@@ -288,7 +290,8 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       Stream tarStream;
       try
       {
-        tarStream = CreateBuildContextTar(config.BuildContext, config);
+        tarStream = await CreateBuildContextTarAsync(config.BuildContext, config, cancellationToken)
+            .ConfigureAwait(false);
       }
       catch (Exception ex) when (ex is not OperationCanceledException)
       {
@@ -312,7 +315,8 @@ namespace FluentDocker.Drivers.Docker.Api.Components
 
         var headers = DockerApiRegistryAuth.RegistryConfigHeaderFor(Connection);
         await foreach (var parsed in ReadNdjsonFromPostStreamAsync(
-            path, content, headers, DockerApiJsonContext.Default.BuildOutputLine, cancellationToken))
+            path, content, headers, DockerApiJsonContext.Default.BuildOutputLine, cancellationToken)
+            .ConfigureAwait(false))
         {
           if (parsed.Aux?.Id != null)
             buildResult.ImageId = parsed.Aux.Id;

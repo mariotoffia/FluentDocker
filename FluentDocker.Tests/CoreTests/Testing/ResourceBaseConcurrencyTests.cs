@@ -113,6 +113,32 @@ namespace FluentDocker.Tests.CoreTests.Testing
     }
 
     [Fact]
+    public async Task DisposeAsync_CalledTwiceAfterInit_RunsDisposeHooksOnce()
+    {
+      var beforeDisposeCount = 0;
+      var afterDisposeCount = 0;
+      var resource = new ConcurrencyTestResource(_kernel)
+          .OnBeforeDispose(_ =>
+          {
+            Interlocked.Increment(ref beforeDisposeCount);
+            return Task.CompletedTask;
+          })
+          .OnAfterDispose(_ =>
+          {
+            Interlocked.Increment(ref afterDisposeCount);
+            return Task.CompletedTask;
+          });
+
+      await resource.InitializeAsync(TestContext.Current.CancellationToken);
+
+      await resource.DisposeAsync();
+      await resource.DisposeAsync();
+
+      Assert.Equal(1, beforeDisposeCount);
+      Assert.Equal(1, afterDisposeCount);
+    }
+
+    [Fact]
     public async Task DisposeAsync_WhenTeardownIgnoresCancellation_ReturnsAfterTeardownTimeout()
     {
       var resource = new ConcurrencyTestResource(
@@ -153,6 +179,21 @@ namespace FluentDocker.Tests.CoreTests.Testing
 
       var ex = await Assert.ThrowsAsync<ResourceInitializationException>(() => initTask);
       Assert.IsType<TimeoutException>(ex.InnerException);
+    }
+
+    [Fact]
+    public async Task InitializeAsync_WhenBeforeInitHookIgnoresCancellation_TimesOut()
+    {
+      var resource = new ConcurrencyTestResource(
+          _kernel,
+          options: new DockerResourceOptions { InitializationTimeout = TimeSpan.FromMilliseconds(50) });
+      resource.OnBeforeInitialize(_ => new TaskCompletionSource().Task);
+
+      var ex = await Assert.ThrowsAsync<ResourceInitializationException>(
+          () => resource.InitializeAsync(TestContext.Current.CancellationToken));
+
+      Assert.IsType<TimeoutException>(ex.InnerException);
+      Assert.Contains("timed out", ex.InnerException.Message);
     }
 
     [Fact]

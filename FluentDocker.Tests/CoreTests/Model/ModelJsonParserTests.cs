@@ -410,5 +410,59 @@ namespace FluentDocker.Tests.CoreTests.Model
       Assert.Equal("IQ2_XXS/Q4_K_M", smollm2.Quantization);
       Assert.True(smollm2.Size > 0);
     }
+
+    [Fact]
+    public void TryParsePsTable_HeaderPresentWithZeroRows_SucceedsEmpty()
+    {
+      const string table = "MODEL NAME  BACKEND    MODE        UNTIL\n";
+
+      Assert.True(ModelJsonParser.TryParsePsTable(table, out var running));
+      Assert.Empty(running);
+    }
+
+    [Fact]
+    public void TryParsePsTable_NonEmptyRenamedHeader_Fails()
+    {
+      const string table = "NAME        BACKEND    MODE\nsmollm2     llama.cpp  completion\n";
+
+      Assert.False(ModelJsonParser.TryParsePsTable(table, out var running));
+      Assert.Empty(running);
+    }
+
+    [Fact]
+    public void TryParseLsTable_NormalMultiRow_ParsesRows()
+    {
+      Assert.True(ModelJsonParser.TryParseLsTable(DmrFixtures.Load("ls.txt"), out var models));
+      Assert.Equal(2, models.Count);
+      Assert.Contains(models, m => m.Reference.Name == "embeddinggemma");
+      Assert.Contains(models, m => m.Reference.Name == "smollm2");
+    }
+
+    [Fact]
+    public void TryParseLsTable_NonEmptyMissingHeader_Fails()
+    {
+      const string table = "NAME  PARAMETERS  SIZE\nsmollm2  361M  256 MiB\n";
+
+      Assert.False(ModelJsonParser.TryParseLsTable(table, out var models));
+      Assert.Empty(models);
+    }
+
+    [Fact]
+    public void TryParseDfTable_HeaderPresentWithZeroRows_SucceedsEmpty()
+    {
+      const string table = "TYPE              SIZE\n";
+
+      Assert.True(ModelJsonParser.TryParseDfTable(table, out var df));
+      Assert.Equal(0, df.ModelsSizeBytes);
+    }
+
+    [Fact]
+    public void TryParseDfTable_NonEmptyRenamedHeader_Fails()
+    {
+      const string table = "KIND              SIZE\nModels            1.20GB\n";
+
+      Assert.False(ModelJsonParser.TryParseDfTable(table, out var df));
+      Assert.Equal(0, df.ModelsSizeBytes);
+    }
   }
 }

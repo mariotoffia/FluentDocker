@@ -22,7 +22,8 @@ namespace FluentDocker.Drivers.Docker.Api.Components
     /// demultiplexing is bypassed and every line is tagged as stdout.
     /// </summary>
     private static async IAsyncEnumerable<LogEntry> ReadMultiplexedStreamAsync(
-        Stream stream, bool tty, [EnumeratorCancellation] CancellationToken ct)
+        Stream stream, bool tty, bool sniffOnInvalidHeader,
+        [EnumeratorCancellation] CancellationToken ct)
     {
       if (tty)
       {
@@ -35,6 +36,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       var stdin = new Utf8LineState(LogStreamSource.Stdin);
       var stdout = new Utf8LineState(LogStreamSource.Stdout);
       var stderr = new Utf8LineState(LogStreamSource.Stderr);
+      var parsedFrame = false;
 
       while (true)
       {
@@ -65,6 +67,13 @@ namespace FluentDocker.Drivers.Docker.Api.Components
 
         if (header[0] > 2 || header[1] != 0 || header[2] != 0 || header[3] != 0)
         {
+          if (sniffOnInvalidHeader && !parsedFrame)
+          {
+            await foreach (var entry in ReadRawTextStreamAsync(
+                new PrefixReadStream(header, bytesRead, stream), ct).ConfigureAwait(false))
+              yield return entry;
+            yield break;
+          }
           throw new DriverException(
               "Docker log stream has an invalid multiplexed frame header",
               ErrorCodes.Api.ServerError);
@@ -73,6 +82,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
         var state = StateFor(header[0], stdin, stdout, stderr);
         var frameSize = (header[4] << 24) | (header[5] << 16) |
             (header[6] << 8) | header[7];
+        parsedFrame = true;
 
         if (frameSize < 0 || frameSize > MaxFrameSizeBytes)
           throw new DriverException(
@@ -202,6 +212,43 @@ namespace FluentDocker.Drivers.Docker.Api.Components
         }
         return entries;
       }
+
+    }
+
+    private sealed class PrefixReadStream(byte[] prefix, int prefixLength, Stream inner) : Stream
+    {
+      private int _offset;
+
+      public override bool CanRead => true;
+      public override bool CanSeek => false;
+      public override bool CanWrite => false;
+      public override long Length => throw new NotSupportedException();
+      public override long Position
+      {
+        get => throw new NotSupportedException();
+        set => throw new NotSupportedException();
+      }
+
+      public override async ValueTask<int> ReadAsync(
+          Memory<byte> buffer, CancellationToken cancellationToken = default)
+      {
+        if (_offset < prefixLength)
+        {
+          var count = Math.Min(prefixLength - _offset, buffer.Length);
+          prefix.AsMemory(_offset, count).CopyTo(buffer);
+          _offset += count;
+          return count;
+        }
+        return await inner.ReadAsync(buffer, cancellationToken).ConfigureAwait(false);
+      }
+
+      public override int Read(byte[] buffer, int offset, int count) =>
+          ReadAsync(buffer.AsMemory(offset, count)).AsTask().GetAwaiter().GetResult();
+
+      public override void Flush() { }
+      public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
+      public override void SetLength(long value) => throw new NotSupportedException();
+      public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
     }
 
     #endregion

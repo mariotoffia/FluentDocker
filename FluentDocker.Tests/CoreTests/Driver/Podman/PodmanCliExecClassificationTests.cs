@@ -41,7 +41,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
     [InlineData("Error: no such container abc123")]
     [InlineData("Error: can only create exec sessions on running containers: container is not running")]
     [InlineData("Error: unable to exec into container abc123")]
-    [InlineData("Error: cannot connect to the Podman socket")]
+    [InlineData("Error: Cannot connect to Podman. Please verify your connection to the Linux system.")]
     public void PodmanSignatureWithEmptyStdout_IsInfraFailure(string stderr)
     {
       Assert.True(PodmanCliContainerDriver.IsExecInfrastructureFailure(1, "", stderr));

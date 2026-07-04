@@ -55,7 +55,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
             : await ExecuteCommandAsync(context, args, cancellationToken).ConfigureAwait(false);
         if (!result.Success)
           return CommandResponse<Unit>.Fail(
-              ErrorOrDefault(result, "Login failed"), ErrorCodes.Auth.LoginFailed,
+              ErrorOrDefault(result, "Login failed"), FailureCode(result.Error, ErrorCodes.Auth.LoginFailed),
               CreateErrorContext(context, "Login", result), result.ExitCode);
 
         return CommandResponse<Unit>.Ok(Unit.Default);
@@ -66,7 +66,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       }
       catch (Exception ex)
       {
-        return CommandResponse<Unit>.Fail(ex.Message, ErrorCodes.Auth.LoginFailed);
+        return CommandResponse<Unit>.Fail(ex.Message, FailureCode(ex, ErrorCodes.Auth.LoginFailed));
       }
     }
 
@@ -84,7 +84,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
         var result = await ExecuteCommandAsync(context, args, cancellationToken).ConfigureAwait(false);
         if (!result.Success)
           return CommandResponse<Unit>.Fail(
-              ErrorOrDefault(result, "Logout failed"), ErrorCodes.Auth.LogoutFailed,
+              ErrorOrDefault(result, "Logout failed"), FailureCode(result.Error, ErrorCodes.Auth.LogoutFailed),
               CreateErrorContext(context, "Logout", result), result.ExitCode);
 
         return CommandResponse<Unit>.Ok(Unit.Default);
@@ -95,7 +95,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       }
       catch (Exception ex)
       {
-        return CommandResponse<Unit>.Fail(ex.Message, ErrorCodes.Auth.LogoutFailed);
+        return CommandResponse<Unit>.Fail(ex.Message, FailureCode(ex, ErrorCodes.Auth.LogoutFailed));
       }
     }
   }

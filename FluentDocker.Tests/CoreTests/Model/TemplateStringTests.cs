@@ -71,6 +71,17 @@ namespace FluentDocker.Tests.CoreTests.Model
     }
 
     [Fact]
+    public void RndVariable_MultipleOccurrences_RenderIndependently()
+    {
+      var path = new TemplateString(@"${RND}/${RND}");
+
+      var parts = path.Rendered.Split('/');
+
+      Assert.Equal(2, parts.Length);
+      Assert.NotEqual(parts[0], parts[1]);
+    }
+
+    [Fact]
     public void UrlAtBeginningOfString_NotAlteredOnWindows()
     {
       if (!FdOs.IsWindows())

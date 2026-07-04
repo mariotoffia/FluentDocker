@@ -299,14 +299,7 @@ namespace FluentDocker.Services.Impl
 
     private Uri GetDockerHostUri()
     {
-      try
-      {
-        return ServiceEndpointResolver.GetDockerHostUri(_kernel.Registry.GetContext(_driverId).Host);
-      }
-      catch (Exception)
-      {
-        return null;
-      }
+      return ServiceEndpointResolver.GetDockerHostUri(_kernel.Registry.GetContext(_driverId).Host);
     }
   }
 }

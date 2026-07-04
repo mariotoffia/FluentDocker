@@ -69,6 +69,11 @@ namespace FluentDocker.Services
     Task<string> ExecuteAsync(string command, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Executes a command argument vector in the container asynchronously.
+    /// </summary>
+    Task<string> ExecuteAsync(string[] command, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Exports the container filesystem as a tar archive buffered in memory.
     /// </summary>
     /// <remarks>The current driver port writes to a file path, so this byte-array API buffers the result.</remarks>

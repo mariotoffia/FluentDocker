@@ -4,6 +4,8 @@ using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Text;
+using System.Threading;
+using System.Threading.Tasks;
 using FluentDocker.Common;
 
 namespace FluentDocker.Drivers.Docker.Api.Components
@@ -23,7 +25,8 @@ namespace FluentDocker.Drivers.Docker.Api.Components
     /// (deleted on close) rather than buffered in memory, and filtered through the
     /// context's <c>.dockerignore</c> rules. The caller owns the returned stream.
     /// </summary>
-    private static Stream CreateBuildContextTar(string contextPath, ImageBuildConfig config)
+    private static async Task<Stream> CreateBuildContextTarAsync(
+        string contextPath, ImageBuildConfig config, CancellationToken cancellationToken)
     {
       var dockerfileName = string.IsNullOrEmpty(config?.DockerfileName)
           ? "Dockerfile"
@@ -47,12 +50,15 @@ namespace FluentDocker.Drivers.Docker.Api.Components
             continue;
           try
           {
-            using var src = file.Open(FileMode.Open, FileAccess.Read, FileShare.Read);
+            await using var src = new FileStream(
+                file.FullName, FileMode.Open, FileAccess.Read, FileShare.Read,
+                bufferSize: 81920, FileOptions.Asynchronous);
             var openedPath = GetContainedOpenedPath(src, file.FullName, contextRoot);
             if (openedPath == null)
               continue;
-            DockerApiTarWriter.WriteFile(fileStream, relativePath, src,
-                file.LastWriteTimeUtc, DockerApiTarWriter.FileModeFor(openedPath));
+            await DockerApiTarWriter.WriteFileAsync(fileStream, relativePath, src,
+                file.LastWriteTimeUtc, DockerApiTarWriter.FileModeFor(openedPath),
+                cancellationToken).ConfigureAwait(false);
           }
           catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
           {
@@ -60,7 +66,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
             // whole build, mirroring Docker's best-effort context packaging.
           }
         }
-        DockerApiTarWriter.Finish(fileStream);
+        await DockerApiTarWriter.FinishAsync(fileStream, cancellationToken).ConfigureAwait(false);
 
         fileStream.Position = 0;
         return fileStream;

@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net;
@@ -10,6 +11,9 @@ namespace FluentDocker.Services.Extensions
 {
   internal static class ServiceEndpointResolver
   {
+    // ponytail: per-process address cache, add TTL if daemon IPs churn mid-run.
+    private static readonly ConcurrentDictionary<string, IPAddress> DockerHostAddressCache = new();
+
     internal static async Task<IPEndPoint> ResolveAsync(
         IContainerService service,
         string portAndProto,
@@ -18,14 +22,20 @@ namespace FluentDocker.Services.Extensions
         CancellationToken cancellationToken)
     {
       var config = await service.InspectAsync(cancellationToken).ConfigureAwait(false);
-      return Resolve(config?.NetworkSettings?.Ports, portAndProto, customResolver, dockerHost);
+      return await ResolveAsync(
+          config?.NetworkSettings?.Ports,
+          portAndProto,
+          customResolver,
+          dockerHost,
+          cancellationToken).ConfigureAwait(false);
     }
 
-    internal static IPEndPoint Resolve(
+    internal static async Task<IPEndPoint> ResolveAsync(
         Dictionary<string, HostIpEndpoint[]> ports,
         string portAndProto,
         Func<Dictionary<string, HostIpEndpoint[]>, string, Uri, IPEndPoint> customResolver,
-        Uri dockerHost)
+        Uri dockerHost,
+        CancellationToken cancellationToken)
     {
       if (ports == null)
         return null;
@@ -43,7 +53,11 @@ namespace FluentDocker.Services.Extensions
 
       var hostIp = binding.HostIp;
       if (string.IsNullOrEmpty(hostIp) || hostIp == "0.0.0.0" || hostIp == "::")
-        return new IPEndPoint(ResolveDockerHostAddress(dockerHost), hostPort);
+      {
+        return new IPEndPoint(
+            await ResolveDockerHostAddressAsync(dockerHost, cancellationToken).ConfigureAwait(false),
+            hostPort);
+      }
 
       return new IPEndPoint(IPAddress.Parse(hostIp), hostPort);
     }
@@ -53,8 +67,11 @@ namespace FluentDocker.Services.Extensions
       return Uri.TryCreate(value, UriKind.Absolute, out var uri) ? uri : null;
     }
 
-    private static IPAddress ResolveDockerHostAddress(Uri dockerHost)
+    private static async Task<IPAddress> ResolveDockerHostAddressAsync(
+        Uri dockerHost,
+        CancellationToken cancellationToken)
     {
+      cancellationToken.ThrowIfCancellationRequested();
       if (dockerHost == null ||
           dockerHost.Scheme is "unix" or "npipe" ||
           string.IsNullOrEmpty(dockerHost.Host))
@@ -63,7 +80,19 @@ namespace FluentDocker.Services.Extensions
       if (IPAddress.TryParse(dockerHost.Host, out var address))
         return address;
 
-      return Dns.GetHostAddresses(dockerHost.Host).FirstOrDefault() ?? IPAddress.Loopback;
+      if (DockerHostAddressCache.TryGetValue(dockerHost.Host, out var cached))
+        return cached;
+
+      var resolved = await ResolveHostAsync(dockerHost.Host, cancellationToken).ConfigureAwait(false);
+      DockerHostAddressCache.TryAdd(dockerHost.Host, resolved);
+      return resolved;
+    }
+
+    private static async Task<IPAddress> ResolveHostAsync(string host, CancellationToken cancellationToken)
+    {
+      var addresses = await Dns.GetHostAddressesAsync(host, cancellationToken).ConfigureAwait(false);
+      return addresses.FirstOrDefault() ??
+          throw new InvalidOperationException($"Docker host '{host}' resolved without addresses.");
     }
   }
 }

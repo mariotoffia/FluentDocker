@@ -206,7 +206,7 @@ namespace FluentDocker.Drivers.Docker.Cli
             Arguments = processArguments,
             RedirectStandardOutput = true,
             RedirectStandardError = true,
-            RedirectStandardInput = needsStdin,
+            RedirectStandardInput = true,
             UseShellExecute = false,
             CreateNoWindow = true,
             StandardOutputEncoding = Encoding.UTF8,
@@ -214,8 +214,7 @@ namespace FluentDocker.Drivers.Docker.Cli
           }
         };
 
-        if (process.StartInfo.RedirectStandardInput)
-          process.StartInfo.StandardInputEncoding = Utf8NoBom;
+        process.StartInfo.StandardInputEncoding = Utf8NoBom;
 
         if (environment != null)
         {
@@ -224,6 +223,8 @@ namespace FluentDocker.Drivers.Docker.Cli
         }
 
         process.Start();
+        if (!needsStdin)
+          process.StandardInput.Close();
 
         // Start readers before writing stdin so a child that immediately writes enough
         // output cannot deadlock while this side is still feeding stdin.

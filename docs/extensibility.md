@@ -177,10 +177,13 @@ public interface IPodmanPodDriver
 In the driver pack's `InitializeAsync`, register the implementation:
 
 ```csharp
-public class PodmanCliDriverPack : DriverPackBase
+// DriverPackBase is optional: it implements IDriverInterfaceResolver and provides
+// RegisterDriver<T>() plus protected ResolveSysCtl/TryResolveSysCtl helpers.
+// IDriverPack (ISysCtl + IDriverInterfaceResolver) adds the pack lifecycle.
+public class CustomDriverPack : DriverPackBase, IDriverPack
 {
-    protected override async Task OnInitializeAsync(
-        DriverContext context, CancellationToken ct)
+    public async Task InitializeAsync(
+        DriverContext context, CancellationToken cancellationToken = default)
     {
         // Standard interfaces
         RegisterDriver<IContainerDriver>(new PodmanContainerDriver(...));
@@ -188,11 +191,28 @@ public class PodmanCliDriverPack : DriverPackBase
 
         // Podman-specific interface
         RegisterDriver<IPodmanPodDriver>(new PodmanPodDriver(...));
+
+        await Task.CompletedTask;
     }
+
+    // ISysCtl forwards to the base helpers; capabilities/health report this pack.
+    public T SysCtl<T>(string driverId) where T : class
+        => (T)ResolveSysCtl(driverId, typeof(T));
+    public object SysCtl(string driverId, Type interfaceType)
+        => ResolveSysCtl(driverId, interfaceType);
+    public bool TrySysCtl<T>(string driverId, out T? instance) where T : class
+        => TryResolveSysCtl(out instance);
+
+    public Task<DriverCapabilities> GetCapabilitiesAsync(
+        CancellationToken cancellationToken = default)
+        => Task.FromResult(new DriverCapabilities { SupportsContainers = true });
+
+    public Task<bool> IsHealthyAsync(CancellationToken cancellationToken = default)
+        => Task.FromResult(true);
 }
 ```
 
-`DriverPackBase` provides `RegisterDriver<T>()` backed by a dictionary, which automatically implements `IDriverInterfaceResolver`.
+`DriverPackBase` is optional: it implements `IDriverInterfaceResolver` and gives you `RegisterDriver<T>()` plus the protected `ResolveSysCtl` / `TryResolveSysCtl` helpers. Implement `IDriverPack` (which extends `ISysCtl` + `IDriverInterfaceResolver`) for the pack lifecycle — `InitializeAsync`, `GetCapabilitiesAsync`, `IsHealthyAsync` — and forward `SysCtl` to those helpers. Built-in packs such as `PodmanCliDriverPack` implement `IDriverPack` directly against their own driver map instead of deriving `DriverPackBase`.
 
 ### Step 3: Write Builder Extensions
 

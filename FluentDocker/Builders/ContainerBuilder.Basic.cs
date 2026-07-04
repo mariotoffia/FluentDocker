@@ -18,20 +18,32 @@ namespace FluentDocker.Builders
 
     public IContainerBuilder WithPort(string hostPort, string containerPort)
     {
-      _ports[NormalizeContainerPort(containerPort)] = hostPort;
+      var normalized = NormalizeContainerPort(containerPort);
+      if (_ports.TryGetValue(normalized, out var existing) &&
+          !string.Equals(existing, hostPort, StringComparison.Ordinal))
+        _duplicateContainerPorts.Add(normalized);
+      _ports[normalized] = hostPort;
       return this;
     }
 
     public IContainerBuilder ExposePort(string containerPort)
     {
-      _ports[NormalizeContainerPort(containerPort)] = "";
+      var normalized = NormalizeContainerPort(containerPort);
+      if (_ports.TryGetValue(normalized, out var existing) &&
+          !string.Equals(existing, string.Empty, StringComparison.Ordinal))
+        _duplicateContainerPorts.Add(normalized);
+      _ports[normalized] = "";
       return this;
     }
 
     public IContainerBuilder ExposePort(int hostPort, int containerPort)
     {
-      _ports[NormalizeContainerPort(containerPort.ToString(CultureInfo.InvariantCulture))] =
-          hostPort.ToString(CultureInfo.InvariantCulture);
+      var normalized = NormalizeContainerPort(containerPort.ToString(CultureInfo.InvariantCulture));
+      var host = hostPort.ToString(CultureInfo.InvariantCulture);
+      if (_ports.TryGetValue(normalized, out var existing) &&
+          !string.Equals(existing, host, StringComparison.Ordinal))
+        _duplicateContainerPorts.Add(normalized);
+      _ports[normalized] = host;
       return this;
     }
 

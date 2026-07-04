@@ -1,6 +1,8 @@
 using System;
 using System.IO;
 using System.Text;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace FluentDocker.Drivers.Docker.Api.Components
 {
@@ -18,6 +20,16 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       Pad(tar, content.Length);
     }
 
+    public static async Task WriteFileAsync(
+        Stream tar, string entryName, Stream content, DateTimeOffset modified, int mode,
+        CancellationToken cancellationToken)
+    {
+      await WriteHeaderWithLongNameAsync(tar, entryName, content.Length, modified, (byte)'0',
+          mode, cancellationToken).ConfigureAwait(false);
+      await content.CopyToAsync(tar, cancellationToken).ConfigureAwait(false);
+      await PadAsync(tar, content.Length, cancellationToken).ConfigureAwait(false);
+    }
+
     public static void WriteDirectory(
         Stream tar, string entryName, DateTimeOffset modified, int mode)
     {
@@ -25,10 +37,25 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       WriteHeaderWithLongName(tar, name, 0, modified, (byte)'5', mode);
     }
 
+    public static async Task WriteDirectoryAsync(
+        Stream tar, string entryName, DateTimeOffset modified, int mode,
+        CancellationToken cancellationToken)
+    {
+      var name = entryName[^1] == '/' ? entryName : entryName + "/";
+      await WriteHeaderWithLongNameAsync(tar, name, 0, modified, (byte)'5', mode,
+          cancellationToken).ConfigureAwait(false);
+    }
+
     public static void Finish(Stream tar)
     {
       tar.Write(new byte[BlockSize]);
       tar.Write(new byte[BlockSize]);
+    }
+
+    public static async Task FinishAsync(Stream tar, CancellationToken cancellationToken)
+    {
+      await tar.WriteAsync(new byte[BlockSize], cancellationToken).ConfigureAwait(false);
+      await tar.WriteAsync(new byte[BlockSize], cancellationToken).ConfigureAwait(false);
     }
 
     public static int FileModeFor(string path)
@@ -99,6 +126,34 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       tar.Write(header, 0, header.Length);
     }
 
+    private static async Task WriteHeaderAsync(
+        Stream tar, string entryName, long size, DateTimeOffset modified, byte type, int mode,
+        CancellationToken cancellationToken)
+    {
+      var header = new byte[BlockSize];
+      WriteName(header, entryName.Replace('\\', '/'));
+      WriteOctal(header, 100, 8, mode);
+      WriteOctal(header, 108, 8, 0);
+      WriteOctal(header, 116, 8, 0);
+      WriteOctal(header, 124, 12, size);
+      WriteOctal(header, 136, 12, Math.Max(0, modified.ToUnixTimeSeconds()));
+      for (var i = 148; i < 156; i++)
+        header[i] = 32;
+      header[156] = type;
+      WriteAscii(header, 257, 6, "ustar");
+      WriteAscii(header, 263, 2, "00");
+
+      var checksum = 0;
+      foreach (var b in header)
+        checksum += b;
+      var text = Convert.ToString(checksum, 8).PadLeft(6, '0');
+      WriteAscii(header, 148, 6, text);
+      header[154] = 0;
+      header[155] = 32;
+
+      await tar.WriteAsync(header, cancellationToken).ConfigureAwait(false);
+    }
+
     private static void WriteHeaderWithLongName(
         Stream tar, string entryName, long size, DateTimeOffset modified, byte type, int mode)
     {
@@ -113,6 +168,25 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       }
 
       WriteHeader(tar, name, size, modified, type, mode);
+    }
+
+    private static async Task WriteHeaderWithLongNameAsync(
+        Stream tar, string entryName, long size, DateTimeOffset modified, byte type, int mode,
+        CancellationToken cancellationToken)
+    {
+      var name = entryName.Replace('\\', '/');
+      if (!CanWriteName(name))
+      {
+        var bytes = Encoding.UTF8.GetBytes(name);
+        await WriteHeaderAsync(tar, "././@LongLink", bytes.Length, modified, (byte)'L',
+            FileFallbackMode, cancellationToken).ConfigureAwait(false);
+        await tar.WriteAsync(bytes, cancellationToken).ConfigureAwait(false);
+        await PadAsync(tar, bytes.Length, cancellationToken).ConfigureAwait(false);
+        name = TruncateUtf8(name, 100);
+      }
+
+      await WriteHeaderAsync(tar, name, size, modified, type, mode, cancellationToken)
+          .ConfigureAwait(false);
     }
 
     private static bool CanWriteName(string name)
@@ -190,6 +264,15 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       if (remainder == 0)
         return;
       tar.Write(new byte[BlockSize - remainder]);
+    }
+
+    private static async Task PadAsync(Stream tar, long size, CancellationToken cancellationToken)
+    {
+      var remainder = size % BlockSize;
+      if (remainder == 0)
+        return;
+      await tar.WriteAsync(new byte[BlockSize - remainder], cancellationToken)
+          .ConfigureAwait(false);
     }
   }
 }

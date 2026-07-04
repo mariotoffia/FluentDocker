@@ -37,6 +37,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
         Exception? StreamException);
 
     private readonly List<ResponseEntry> _entries = [];
+    private readonly List<(string PathContains, HttpStatusCode StatusCode, IReadOnlyDictionary<string, string> Headers)> _headEntries = [];
     private readonly List<(string PathContains, Func<Stream> Factory)> _streamFactories = [];
     private readonly List<CapturedRequest> _requests = [];
     private readonly List<TrackingContent> _contents = [];
@@ -80,6 +81,13 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
     {
       _entries.Add(new ResponseEntry(
           "DELETE", pathContains, (HttpStatusCode)statusCode, jsonBody, null, null, null));
+      return this;
+    }
+
+    public MockDockerApiConnection SetupHead(
+        string pathContains, int statusCode, IReadOnlyDictionary<string, string> headers)
+    {
+      _headEntries.Add((pathContains, (HttpStatusCode)statusCode, headers));
       return this;
     }
 
@@ -157,6 +165,13 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
     {
       Record("GET", path, null);
       return Task.FromResult(Resolve("GET", path));
+    }
+
+    public Task<HttpResponseMessage> HeadAsync(
+        string path, CancellationToken ct = default)
+    {
+      Record("HEAD", path, null);
+      return Task.FromResult(ResolveHead(path));
     }
 
     public async Task<HttpResponseMessage> PostAsync(
@@ -259,6 +274,21 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
       {
         Content = content
       };
+    }
+
+    private HttpResponseMessage ResolveHead(string path)
+    {
+      var entry = _headEntries
+          .Where(e => path.Contains(e.PathContains))
+          .LastOrDefault();
+
+      if (entry == default)
+        return new HttpResponseMessage(HttpStatusCode.NotFound);
+
+      var response = new HttpResponseMessage(entry.StatusCode);
+      foreach (var (name, value) in entry.Headers)
+        response.Headers.TryAddWithoutValidation(name, value);
+      return response;
     }
 
 #pragma warning disable CA1859 // return type must be Stream for Task<Stream> callers

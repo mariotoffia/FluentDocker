@@ -123,7 +123,11 @@ namespace FluentDocker.Tests.CoreTests.Services
             {
               Id = $"container-{callCount}",
               Name = "cache-test",
-              State = new ContainerState { Running = true, Status = "running" }
+              State = new ContainerState
+              {
+                Running = callCount > 1,
+                Status = callCount > 1 ? "running" : "exited"
+              }
             });
           });
 
@@ -172,7 +176,11 @@ namespace FluentDocker.Tests.CoreTests.Services
             {
               Id = $"container-{callCount}",
               Name = "cache-test",
-              State = new ContainerState { Running = true, Status = "running" }
+              State = new ContainerState
+              {
+                Running = callCount > 1,
+                Status = callCount > 1 ? "running" : "exited"
+              }
             });
           });
 
@@ -357,8 +365,8 @@ namespace FluentDocker.Tests.CoreTests.Services
               Name = "test",
               State = new ContainerState
               {
-                Running = true,
-                Status = "running"
+                Running = callCount > 1,
+                Status = callCount > 1 ? "running" : "exited"
               }
             });
           });

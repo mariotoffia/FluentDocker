@@ -126,6 +126,25 @@ namespace FluentDocker.Tests.CoreTests.Driver
       Assert.Contains("request timeout", ex.Message, StringComparison.OrdinalIgnoreCase);
     }
 
+    [Fact]
+    public async Task GetAsync_ResponseBodySyncRead_UsesRequestTimeout()
+    {
+      using var handler = new FuncHandler(_ => new HttpResponseMessage(HttpStatusCode.OK)
+      {
+        Content = new StreamContent(new NeverReadStream())
+      });
+      await using var conn = new ModelApiConnection(
+          new Uri("http://localhost:12434"), handler, loggerFactory: null,
+          new ModelApiConnectionConfig { RequestTimeout = TimeSpan.FromMilliseconds(50) });
+
+      using var response = await conn.GetAsync("/x", TestContext.Current.CancellationToken);
+      await using var stream = await response.Content.ReadAsStreamAsync(TestContext.Current.CancellationToken);
+      var buffer = new byte[1];
+
+      var ex = Assert.Throws<TimeoutException>(() => stream.Read(buffer, 0, buffer.Length));
+      Assert.Contains("request timeout", ex.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
     private sealed class NeverHeadersHandler : HttpMessageHandler
     {
       protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)

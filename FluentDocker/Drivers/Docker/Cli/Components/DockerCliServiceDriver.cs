@@ -281,21 +281,13 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
               ErrorOrDefault(result, "Service ps failed"), FailureCode(result.Error, ErrorCodes.Service.TasksFailed));
         }
 
-        var tasks = new List<ServiceTask>();
-        var lines = result.Output.Split(LineSeparators, StringSplitOptions.RemoveEmptyEntries);
-        foreach (var line in lines)
-        {
-          try
-          {
-            var task = JsonSerializer.Deserialize<ServiceTask>(line, JsonHelper.CaseInsensitiveOptions);
-            if (task != null)
-              tasks.Add(task);
-          }
-          catch (Exception ex)
-          {
-            Logger.LogError(ex, "Service task JSON parsing failed");
-          }
-        }
+        if (!DockerCliJsonLineParser.TryParse<ServiceTask>(
+            result.Output,
+            Logger,
+            "Service task JSON parsing failed",
+            out var tasks,
+            out var parseError))
+          return CommandResponse<IList<ServiceTask>>.Fail(parseError, ErrorCodes.Service.TasksFailed);
 
         return CommandResponse<IList<ServiceTask>>.Ok(tasks);
       }
@@ -356,10 +348,8 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     {
       try
       {
-        var scaleArgs = string.Join(" ", serviceReplicas.Select(sr => QuoteArgumentIfNeeded($"{sr.Key}={sr.Value}")));
-        var args = $"service scale {scaleArgs}";
-        if (detach)
-          args = args.Replace("service scale", "service scale -d");
+        var scaleArgs = string.Join(" ", serviceReplicas.Select(sr => QuotePositionalArgument($"{sr.Key}={sr.Value}", nameof(serviceReplicas))));
+        var args = detach ? $"service scale -d {scaleArgs}" : $"service scale {scaleArgs}";
 
         var result = await ExecuteCommandAsync(context, args, cancellationToken).ConfigureAwait(false);
         return result.Success
@@ -397,16 +387,11 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
       var details = new ServiceDetails
       {
         Id = obj.GetStringOrDefault("ID"),
-        Version = spec != null ? obj.Prop("Version")?.GetInt64OrDefault("Index") ?? 0 : 0,
+        Version = obj.Prop("Version")?.GetInt64OrDefault("Index") ?? 0,
         Name = spec?.GetStringOrDefault("Name"),
         Image = containerSpec?.GetStringOrDefault("Image"),
         RawJson = json
       };
-
-      // Fix: Version is from obj, not spec
-      var versionEl = obj.Prop("Version");
-      if (versionEl.HasValue)
-        details.Version = versionEl.Value.GetInt64OrDefault("Index");
 
       // Mode and replicas
       var mode = spec?.Prop("Mode");
@@ -447,12 +432,6 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
         foreach (var kv in labelsDict)
           details.Labels[kv.Key] = kv.Value;
       }
-
-      // Timestamps — ServiceDetails does not yet have date fields; parse is a no-op placeholder
-      if (obj.Prop("CreatedAt").HasValue)
-        _ = DateTime.TryParse(obj.GetStringOrDefault("CreatedAt"), System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out _);
-      if (obj.Prop("UpdatedAt").HasValue)
-        _ = DateTime.TryParse(obj.GetStringOrDefault("UpdatedAt"), System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out _);
 
       return details;
     }

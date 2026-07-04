@@ -49,7 +49,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       catch (Exception ex)
       {
         return CommandResponse<PodCreateResult>.Fail(
-            ex.Message, ErrorCodes.Pod.CreateFailed);
+            ex.Message, FailureCode(ex, ErrorCodes.Pod.CreateFailed));
       }
     }
 
@@ -76,7 +76,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       }
       catch (Exception ex)
       {
-        return CommandResponse<Unit>.Fail(ex.Message, ErrorCodes.Pod.StartFailed);
+        return CommandResponse<Unit>.Fail(ex.Message, FailureCode(ex, ErrorCodes.Pod.StartFailed));
       }
     }
 
@@ -105,7 +105,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       }
       catch (Exception ex)
       {
-        return CommandResponse<Unit>.Fail(ex.Message, ErrorCodes.Pod.StopFailed);
+        return CommandResponse<Unit>.Fail(ex.Message, FailureCode(ex, ErrorCodes.Pod.StopFailed));
       }
     }
 
@@ -134,7 +134,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       }
       catch (Exception ex)
       {
-        return CommandResponse<Unit>.Fail(ex.Message, ErrorCodes.Pod.RestartFailed);
+        return CommandResponse<Unit>.Fail(ex.Message, FailureCode(ex, ErrorCodes.Pod.RestartFailed));
       }
     }
 
@@ -163,7 +163,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       }
       catch (Exception ex)
       {
-        return CommandResponse<Unit>.Fail(ex.Message, ErrorCodes.Pod.KillFailed);
+        return CommandResponse<Unit>.Fail(ex.Message, FailureCode(ex, ErrorCodes.Pod.KillFailed));
       }
     }
 
@@ -190,7 +190,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       }
       catch (Exception ex)
       {
-        return CommandResponse<Unit>.Fail(ex.Message, ErrorCodes.Pod.PauseFailed);
+        return CommandResponse<Unit>.Fail(ex.Message, FailureCode(ex, ErrorCodes.Pod.PauseFailed));
       }
     }
 
@@ -217,7 +217,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       }
       catch (Exception ex)
       {
-        return CommandResponse<Unit>.Fail(ex.Message, ErrorCodes.Pod.UnpauseFailed);
+        return CommandResponse<Unit>.Fail(ex.Message, FailureCode(ex, ErrorCodes.Pod.UnpauseFailed));
       }
     }
 
@@ -246,7 +246,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       }
       catch (Exception ex)
       {
-        return CommandResponse<Unit>.Fail(ex.Message, ErrorCodes.Pod.RemoveFailed);
+        return CommandResponse<Unit>.Fail(ex.Message, FailureCode(ex, ErrorCodes.Pod.RemoveFailed));
       }
     }
 
@@ -281,7 +281,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       catch (Exception ex)
       {
         return CommandResponse<IList<PodInfo>>.Fail(
-            ex.Message, ErrorCodes.Pod.ListFailed);
+            ex.Message, FailureCode(ex, ErrorCodes.Pod.ListFailed));
       }
     }
 
@@ -316,7 +316,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       catch (Exception ex)
       {
         return CommandResponse<PodInspectResult>.Fail(
-            ex.Message, ErrorCodes.Pod.InspectFailed);
+            ex.Message, FailureCode(ex, ErrorCodes.Pod.InspectFailed));
       }
     }
 

@@ -346,11 +346,15 @@ namespace FluentDocker.Drivers.Models.Connection
       var handler = new SocketsHttpHandler { ConnectTimeout = config.ConnectionTimeout };
       var hasCerts = !string.IsNullOrEmpty(config.CertificatePath);
       var useTls = string.Equals(uri.Scheme, "https", StringComparison.OrdinalIgnoreCase);
+      if (hasCerts && !useTls)
+        throw new ArgumentException(
+            "ModelApiConnectionConfig.CertificatePath requires an https model runner endpoint; plaintext http cannot use client certificates.",
+            nameof(config));
 
       if (useTls || hasCerts)
         handler.SslOptions = BuildSslOptions(config, ownedCertificates);
 
-      var scheme = (useTls || hasCerts) ? "https" : "http";
+      var scheme = useTls ? "https" : "http";
       var port = uri.Port > 0 ? uri.Port : 12434;
       // Rebuild the authority via UriBuilder (not string interpolation) so an IPv6
       // literal host is bracketed correctly (e.g. http://[::1]:12434) and any path /

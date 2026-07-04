@@ -28,7 +28,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
         var result = await ExecuteCommandAsync(context, "info --format json", cancellationToken).ConfigureAwait(false);
         if (!result.Success)
           return CommandResponse<SystemInfo>.Fail(
-              ErrorOrDefault(result, "System info failed"), ErrorCodes.General.Unknown,
+              ErrorOrDefault(result, "System info failed"), FailureCode(result.Error, ErrorCodes.General.Unknown),
               CreateErrorContext(context, "SystemInfo", result), result.ExitCode);
 
         var info = ParseSystemInfo(result.Output);
@@ -41,7 +41,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       }
       catch (Exception ex)
       {
-        return CommandResponse<SystemInfo>.Fail(ex.Message, ErrorCodes.General.Unknown);
+        return CommandResponse<SystemInfo>.Fail(ex.Message, FailureCode(ex, ErrorCodes.General.Unknown));
       }
     }
 
@@ -54,7 +54,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
         var result = await ExecuteCommandAsync(context, "version --format json", cancellationToken).ConfigureAwait(false);
         if (!result.Success)
           return CommandResponse<VersionInfo>.Fail(
-              ErrorOrDefault(result, "Version check failed"), ErrorCodes.General.Unknown,
+              ErrorOrDefault(result, "Version check failed"), FailureCode(result.Error, ErrorCodes.General.Unknown),
               CreateErrorContext(context, "SystemVersion", result), result.ExitCode);
 
         var version = ParseVersionInfo(result.Output);
@@ -67,7 +67,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       }
       catch (Exception ex)
       {
-        return CommandResponse<VersionInfo>.Fail(ex.Message, ErrorCodes.General.Unknown);
+        return CommandResponse<VersionInfo>.Fail(ex.Message, FailureCode(ex, ErrorCodes.General.Unknown));
       }
     }
 
@@ -81,7 +81,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
         var result = await ExecuteCommandAsync(context, "info", cancellationToken).ConfigureAwait(false);
         if (!result.Success)
           return CommandResponse<Unit>.Fail(
-              ErrorOrDefault(result, "Podman is not reachable"), ErrorCodes.General.Unknown,
+              ErrorOrDefault(result, "Podman is not reachable"), FailureCode(result.Error, ErrorCodes.General.Unknown),
               CreateErrorContext(context, "SystemPing", result), result.ExitCode);
 
         return CommandResponse<Unit>.Ok(Unit.Default);
@@ -92,7 +92,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       }
       catch (Exception ex)
       {
-        return CommandResponse<Unit>.Fail(ex.Message, ErrorCodes.General.Unknown);
+        return CommandResponse<Unit>.Fail(ex.Message, FailureCode(ex, ErrorCodes.General.Unknown));
       }
     }
 
@@ -125,7 +125,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
         var result = await ExecuteCommandAsync(context, "system df --format json", cancellationToken).ConfigureAwait(false);
         if (!result.Success)
           return CommandResponse<DiskUsageInfo>.Fail(
-              ErrorOrDefault(result, "Disk usage failed"), ErrorCodes.General.Unknown,
+              ErrorOrDefault(result, "Disk usage failed"), FailureCode(result.Error, ErrorCodes.General.Unknown),
               CreateErrorContext(context, "SystemDiskUsage", result), result.ExitCode);
 
         var info = ParseDiskUsageOutput(result.Output);
@@ -137,7 +137,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       }
       catch (Exception ex)
       {
-        return CommandResponse<DiskUsageInfo>.Fail(ex.Message, ErrorCodes.General.Unknown);
+        return CommandResponse<DiskUsageInfo>.Fail(ex.Message, FailureCode(ex, ErrorCodes.General.Unknown));
       }
     }
 
@@ -153,7 +153,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
         var result = await ExecuteCommandAsync(context, args, cancellationToken).ConfigureAwait(false);
         if (!result.Success)
           return CommandResponse<SystemPruneResult>.Fail(
-              ErrorOrDefault(result, "System prune failed"), ErrorCodes.General.Unknown,
+              ErrorOrDefault(result, "System prune failed"), FailureCode(result.Error, ErrorCodes.General.Unknown),
               CreateErrorContext(context, "SystemPrune", result), result.ExitCode);
 
         return CommandResponse<SystemPruneResult>.Ok(
@@ -165,7 +165,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       }
       catch (Exception ex)
       {
-        return CommandResponse<SystemPruneResult>.Fail(ex.Message, ErrorCodes.General.Unknown);
+        return CommandResponse<SystemPruneResult>.Fail(ex.Message, FailureCode(ex, ErrorCodes.General.Unknown));
       }
     }
 

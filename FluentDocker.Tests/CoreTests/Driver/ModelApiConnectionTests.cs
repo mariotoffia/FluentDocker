@@ -199,6 +199,53 @@ namespace FluentDocker.Tests.CoreTests.Driver
     }
 
     [Fact]
+    public async Task PostStreamAsync_DisposesRequestWhenReturnedStreamIsDisposed()
+    {
+      var bodyDisposed = false;
+      using var handler = new FuncHandler(_ => new HttpResponseMessage(HttpStatusCode.OK)
+      {
+        Content = new StringContent("data: [DONE]\n\n", Encoding.UTF8, "text/event-stream")
+      });
+      var conn = Create(handler);
+
+      await using var stream = await conn.PostStreamAsync(
+          "/engines/v1/chat/completions",
+          new TrackingContent("{}", () => bodyDisposed = true),
+          TestContext.Current.CancellationToken);
+
+      Assert.False(bodyDisposed);
+      await stream.DisposeAsync();
+      Assert.True(bodyDisposed);
+    }
+
+    [Fact]
+    public async Task Constructor_HttpEndpointWithCertificatePath_ThrowsSchemeError()
+    {
+      var config = new ModelApiConnectionConfig { CertificatePath = ".out/no-such-cert-dir" };
+
+      var ex = Assert.Throws<ArgumentException>(() =>
+          new ModelApiConnection(ModelRunnerEndpoint.Custom(new Uri("http://localhost:12434")), config));
+
+      Assert.Contains("https", ex.Message, StringComparison.OrdinalIgnoreCase);
+      await Task.CompletedTask;
+    }
+
+    [Fact]
+    public async Task Constructor_HttpsEndpointWithCertificatePath_DoesNotRewriteScheme()
+    {
+      var certDir = Path.Combine(".out", "dmr-cert-test");
+      Directory.CreateDirectory(certDir);
+      await File.WriteAllTextAsync(Path.Combine(certDir, "ca.pem"), "not loaded when VerifyTls=false",
+          TestContext.Current.CancellationToken);
+
+      await using var conn = new ModelApiConnection(
+          ModelRunnerEndpoint.Custom(new Uri("https://localhost:12434")),
+          new ModelApiConnectionConfig { CertificatePath = certDir, VerifyTls = false });
+
+      Assert.Equal("https", conn.BaseAddress.Scheme);
+    }
+
+    [Fact]
     public async Task DisposeAsync_IsClean()
     {
       using var handler = new FuncHandler(_ => Json(HttpStatusCode.OK, "{}"));

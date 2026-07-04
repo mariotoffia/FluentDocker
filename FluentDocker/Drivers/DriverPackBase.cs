@@ -1,14 +1,17 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using FluentDocker.Common;
 
 namespace FluentDocker.Drivers
 {
   /// <summary>
-  /// Optional abstract base class for driver packs providing dictionary-based
-  /// interface resolution. Implements IDriverInterfaceResolver and the
-  /// type-based ISysCtl methods. Subclasses register drivers via RegisterDriver.
+  /// Optional abstract base class for driver packs providing exact-type,
+  /// dictionary-based <see cref="IDriverInterfaceResolver"/> resolution.
+  /// This class does not implement <see cref="IDriverPack"/> or
+  /// <see cref="FluentDocker.Kernel.ISysCtl"/>; subclasses provide those
+  /// members and can call the protected helpers below.
   /// </summary>
   public abstract class DriverPackBase : IDriverInterfaceResolver
   {
@@ -36,7 +39,7 @@ namespace FluentDocker.Drivers
     }
 
     /// <inheritdoc />
-    public bool TryResolve(Type interfaceType, out object implementation)
+    public bool TryResolve(Type interfaceType, [NotNullWhen(true)] out object? implementation)
     {
       return Drivers.TryGetValue(interfaceType, out implementation);
     }
@@ -48,7 +51,7 @@ namespace FluentDocker.Drivers
     }
 
     /// <summary>
-    /// Resolves a driver interface by type. Throws if not found.
+    /// Resolves a driver interface by exact registered type. Throws if not found.
     /// </summary>
     protected object ResolveSysCtl(string driverId, Type interfaceType)
     {
@@ -58,9 +61,9 @@ namespace FluentDocker.Drivers
     }
 
     /// <summary>
-    /// Tries to resolve a driver interface by generic type.
+    /// Tries to resolve a driver interface by exact generic type.
     /// </summary>
-    protected bool TryResolveSysCtl<T>(out T instance) where T : class
+    protected bool TryResolveSysCtl<T>([NotNullWhen(true)] out T? instance) where T : class
     {
       if (Drivers.TryGetValue(typeof(T), out var driver))
       {

@@ -176,20 +176,20 @@ namespace FluentDocker.Tests.CoreTests.Service
     }
 
     [Fact]
-    public void AddHook_ThrowsNotSupportedException()
+    public void AddHook_ThrowsFluentDockerNotSupportedException()
     {
       var service = new HostService(Kernel, DriverId, "host");
 
-      Assert.Throws<NotSupportedException>(() =>
+      Assert.Throws<FluentDockerNotSupportedException>(() =>
           service.AddHook(ServiceRunningState.Running, _ => Task.CompletedTask));
     }
 
     [Fact]
-    public void RemoveHook_ThrowsNotSupportedException()
+    public void RemoveHook_ThrowsFluentDockerNotSupportedException()
     {
       var service = new HostService(Kernel, DriverId, "host");
 
-      Assert.Throws<NotSupportedException>(() => service.RemoveHook("hook"));
+      Assert.Throws<FluentDockerNotSupportedException>(() => service.RemoveHook("hook"));
     }
   }
 }

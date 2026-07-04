@@ -22,6 +22,7 @@ namespace FluentDocker.Testing.Core
     private readonly SemaphoreSlim _lifecycleLock = new(1, 1);
     private bool _provisioned;
     private int _provisionGeneration;
+    private int _disposeStarted;
     private Task _abandonedProvision;
     private static readonly Action<ILogger, Exception> GracefulAndForceRemoveFailed =
         LoggerMessage.Define(
@@ -81,13 +82,13 @@ namespace FluentDocker.Testing.Core
     /// <summary>
     /// The resolved driver ID for this resource.
     /// </summary>
-    // ponytail: nullable annotation scoped to consumer-visible null-before-init properties.
+    // Nullable annotation scoped to consumer-visible null-before-init properties.
     public string DriverId { get; private set; }
 
     /// <summary>
     /// Unique name generated for this resource. Set during initialization.
     /// </summary>
-    // ponytail: keep signature; public contract documents availability after initialization.
+    // Keep signature; public contract documents availability after initialization.
     public string ResourceName { get; protected set; }
 
     /// <summary>
@@ -161,6 +162,7 @@ namespace FluentDocker.Testing.Core
               "(teardown may have failed). Call DisposeAsync to clean up " +
               "before re-initializing.");
 
+        Interlocked.Exchange(ref _disposeStarted, 0);
         using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         cts.CancelAfter(Options.InitializationTimeout);
 
@@ -205,6 +207,20 @@ namespace FluentDocker.Testing.Core
           IsInitialized = true;
           await RunHooksAsync(_afterReadyHooks, cts.Token).ConfigureAwait(false);
         }
+        catch (OperationCanceledException ex)
+            when (!cancellationToken.IsCancellationRequested && cts.IsCancellationRequested)
+        {
+          IsInitialized = false;
+          var timeout = new TimeoutException(
+              $"Resource initialization timed out after {Options.InitializationTimeout}.", ex);
+          try
+          {
+            using var diagCts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            Diagnostics = await CollectDiagnosticsAsync(timeout, diagCts.Token).ConfigureAwait(false);
+          }
+          catch { /* diagnostics must not mask the original failure */ }
+          throw CreateInitializationException(timeout);
+        }
         catch (Exception ex)
         {
           IsInitialized = false;
@@ -213,7 +229,7 @@ namespace FluentDocker.Testing.Core
 
           try
           {
-            // ponytail: fresh token — the init cts may already be canceled by
+            // Fresh token — the init cts may already be canceled by
             // InitializationTimeout, which would abort diagnostics collection.
             using var diagCts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
             Diagnostics = await CollectDiagnosticsAsync(ex, diagCts.Token).ConfigureAwait(false);
@@ -231,8 +247,12 @@ namespace FluentDocker.Testing.Core
     /// <inheritdoc />
     public async ValueTask DisposeAsync()
     {
+      if (Interlocked.CompareExchange(ref _disposeStarted, 1, 0) != 0)
+        return;
+
       using var cts = new CancellationTokenSource(Options.TeardownTimeout);
       var lockTaken = false;
+      var disposalCompleted = false;
       try
       {
         try
@@ -331,11 +351,15 @@ namespace FluentDocker.Testing.Core
 
         if (teardownFailure != null)
           ExceptionDispatchInfo.Capture(teardownFailure).Throw();
+
+        disposalCompleted = true;
       }
       finally
       {
         if (lockTaken)
           _lifecycleLock.Release();
+        if (!disposalCompleted)
+          Interlocked.Exchange(ref _disposeStarted, 0);
       }
 
       GC.SuppressFinalize(this);
@@ -449,32 +473,6 @@ namespace FluentDocker.Testing.Core
       return string.Join('\n', lines.Take(Options.MaxDiagnosticLogLines))
            + $"\n... ({lines.Length - Options.MaxDiagnosticLogLines} lines truncated)";
     }
-
-    private async Task RunHooksAsync(
-        List<Func<ITestResource, Task>> hooks,
-        CancellationToken cancellationToken)
-    {
-      foreach (var hook in hooks)
-      {
-        cancellationToken.ThrowIfCancellationRequested();
-        var hookTask = hook(this);
-        var completed = await Task.WhenAny(
-            hookTask,
-            Task.Delay(Timeout.Infinite, cancellationToken)).ConfigureAwait(false);
-
-        if (completed != hookTask)
-          cancellationToken.ThrowIfCancellationRequested();
-
-        await hookTask.ConfigureAwait(false);
-      }
-    }
-
-    private static void ObserveAbandonedCleanup(Task task) =>
-        _ = task.ContinueWith(
-            static t => _ = t.Exception,
-            CancellationToken.None,
-            TaskContinuationOptions.OnlyOnFaulted,
-            TaskScheduler.Default);
 
     #endregion
   }

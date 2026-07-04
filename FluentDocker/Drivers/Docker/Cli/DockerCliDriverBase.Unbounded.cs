@@ -27,6 +27,10 @@ namespace FluentDocker.Drivers.Docker.Cli
           BuildSudoCommand(binaryPath, fullArgs, sudo, sudoPassword);
 
       Process process = null;
+      Task outTask = null;
+      Task errTask = null;
+      var outTail = new OutputTail(CliOutputTruncation.DefaultTailChars);
+      var errTail = new OutputTail(CliOutputTruncation.DefaultTailChars);
       try
       {
         process = new Process
@@ -52,10 +56,8 @@ namespace FluentDocker.Drivers.Docker.Cli
 
         process.Start();
 
-        var outTail = new OutputTail(CliOutputTruncation.DefaultTailChars);
-        var errTail = new OutputTail(CliOutputTruncation.DefaultTailChars);
-        var outTask = ReadTailAsync(process.StandardOutput, outTail, cancellationToken);
-        var errTask = ReadTailAsync(process.StandardError, errTail, cancellationToken);
+        outTask = ReadTailAsync(process.StandardOutput, outTail, cancellationToken);
+        errTask = ReadTailAsync(process.StandardError, errTail, cancellationToken);
 
         var stdinFailure = await TryWriteStandardInputAsync(process, passwordForStdin, null, cancellationToken).ConfigureAwait(false);
 
@@ -73,21 +75,39 @@ namespace FluentDocker.Drivers.Docker.Cli
       catch (OperationCanceledException)
       {
         KillProcessSafely(process, Logger);
+        await TryObserveTaskAsync(outTask).ConfigureAwait(false);
+        await TryObserveTaskAsync(errTask).ConfigureAwait(false);
         throw;
       }
       catch (Exception ex)
       {
         KillProcessSafely(process, Logger);
+        await TryObserveTaskAsync(outTask).ConfigureAwait(false);
+        await TryObserveTaskAsync(errTask).ConfigureAwait(false);
         return new SimpleCommandResult
         {
           Success = false,
-          Error = ex.Message,
+          Error = string.IsNullOrEmpty(errTail.ToString()) ? ex.Message : errTail.ToString(),
           ExitCode = -1
         };
       }
       finally
       {
         process?.Dispose();
+      }
+    }
+
+    private static async Task TryObserveTaskAsync(Task task)
+    {
+      if (task == null)
+        return;
+      try
+      {
+        await task.ConfigureAwait(false);
+      }
+      catch
+      {
+        // best effort drain/observe
       }
     }
 

@@ -123,12 +123,15 @@ namespace FluentDocker.Testing.Core
     /// <inheritdoc />
     protected override async Task ForceRemoveAsync(CancellationToken cancellationToken)
     {
+      if (PlayResult == null)
+        return;
+
       var driver = Kernel.SysCtl<IPodmanKubernetesDriver>(DriverId);
       var context = new DriverContext(DriverId);
       var result = await driver.DownAsync(
           context, _config.YamlPath, cancellationToken).ConfigureAwait(false);
 
-      if (result.Success)
+      if (result.Success || IsNotFound(result))
       {
         PlayResult = null;
         return;
@@ -141,6 +144,13 @@ namespace FluentDocker.Testing.Core
     }
 
     #endregion
+
+    private static bool IsNotFound(CommandResponse<Unit> result)
+    {
+      return result.ErrorCode == ErrorCodes.Driver.NotFound ||
+             result.Error?.Contains("not found", StringComparison.OrdinalIgnoreCase) == true ||
+             result.Error?.Contains("no such", StringComparison.OrdinalIgnoreCase) == true;
+    }
 
     private void EnsureInitialized()
     {

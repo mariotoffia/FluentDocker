@@ -235,6 +235,38 @@ namespace FluentDocker.Tests.CoreTests.Testing
     }
 
     [Fact]
+    [Trait("Category", "Unit")]
+    public async Task DisposeAsync_ForceRemoveNotFound_TreatsResourceAsGone()
+    {
+      MockPack.SetCapabilities(new DriverCapabilities
+      {
+        SupportsContainers = true,
+        SupportsKubernetes = true
+      });
+      MockPack.EnablePodmanKubernetesDriver();
+      MockPack.SetupKubePlay();
+
+      MockPack.PodmanKubernetesDriver
+          .SetupSequence(d => d.DownAsync(
+              It.IsAny<DriverContext>(),
+              It.IsAny<string>(),
+              It.IsAny<CancellationToken>()))
+          .ReturnsAsync(CommandResponse<Unit>.Fail("down failed", ErrorCodes.Kubernetes.DownFailed))
+          .ReturnsAsync(CommandResponse<Unit>.Fail("pod not found", ErrorCodes.Driver.NotFound));
+
+      var config = new KubePlayConfig { YamlPath = "test.yaml" };
+      var resource = new PodmanKubernetesResource(Kernel, config,
+          new DockerResourceOptions { ForceRemoveOnDispose = true });
+      await resource.InitializeAsync(TestContext.Current.CancellationToken);
+
+      await resource.DisposeAsync();
+
+      Assert.False(resource.IsInitialized);
+      Assert.Null(resource.PlayResult);
+      MockPack.VerifyKubeDown(Times.Exactly(2));
+    }
+
+    [Fact]
     public void Constructor_NullKernel_Throws()
     {
       Assert.Throws<ArgumentNullException>(

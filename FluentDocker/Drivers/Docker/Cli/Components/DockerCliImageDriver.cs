@@ -272,49 +272,40 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
               FailureCode(result.Error, ErrorCodes.General.Unknown));
         }
 
+        if (!DockerCliJsonLineParser.TryParse<DockerImageDto>(
+            result.Output,
+            Logger,
+            "Image list JSON parsing failed",
+            out var dtos,
+            out var parseError))
+          return CommandResponse<IList<Image>>.Fail(parseError, ErrorCodes.General.Unknown);
+
         var images = new List<Image>();
-        var lines = result.Output.Split(LineSeparators, StringSplitOptions.RemoveEmptyEntries);
-
-        foreach (var line in lines)
+        foreach (var dto in dtos)
         {
-          try
+          var image = new Image
           {
-            // docker images JSON has Repository, Tag, ID fields
-            // We need to map to Image class with RepoTags
-            var dto = JsonSerializer.Deserialize<DockerImageDto>(line, JsonHelper.CaseInsensitiveOptions);
-            if (dto != null)
-            {
-              var image = new Image
-              {
-                Id = dto.ID,
-                Size = ParseSize(dto.Size),
-                VirtualSize = ParseSize(dto.VirtualSize),
-                Containers = int.TryParse(dto.Containers, out var count) ? count : 0
-              };
+            Id = dto.ID,
+            Size = ParseSize(dto.Size),
+            VirtualSize = ParseSize(dto.VirtualSize),
+            Containers = int.TryParse(dto.Containers, NumberStyles.Integer, CultureInfo.InvariantCulture, out var count) ? count : 0
+          };
 
-              // Construct RepoTags from Repository and Tag
-              if (!string.IsNullOrEmpty(dto.Repository) && !string.IsNullOrEmpty(dto.Tag))
-              {
-                image.RepoTags.Add($"{dto.Repository}:{dto.Tag}");
-              }
-
-              // Parse CreatedAt if present
-              if (DockerCliTimestampParser.TryParse(dto.CreatedAt, out var created))
-              {
-                image.Created = created;
-              }
-              else if (!string.IsNullOrEmpty(dto.CreatedAt) && Logger.IsEnabled(LogLevel.Debug))
-              {
-                Logger.LogDebug("Unparseable image CreatedAt '{CreatedAt}'", dto.CreatedAt);
-              }
-
-              images.Add(image);
-            }
-          }
-          catch (Exception ex)
+          if (!string.IsNullOrEmpty(dto.Repository) && !string.IsNullOrEmpty(dto.Tag))
           {
-            Logger.LogError(ex, "Image list JSON parsing failed");
+            image.RepoTags.Add($"{dto.Repository}:{dto.Tag}");
           }
+
+          if (DockerCliTimestampParser.TryParse(dto.CreatedAt, out var created))
+          {
+            image.Created = created;
+          }
+          else if (!string.IsNullOrEmpty(dto.CreatedAt) && Logger.IsEnabled(LogLevel.Debug))
+          {
+            Logger.LogDebug("Unparseable image CreatedAt '{CreatedAt}'", dto.CreatedAt);
+          }
+
+          images.Add(image);
         }
 
         return CommandResponse<IList<Image>>.Ok(images);
@@ -418,41 +409,35 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
               result.ExitCode);
         }
 
+        if (!DockerCliJsonLineParser.TryParse<DockerHistoryDto>(
+            result.Output,
+            Logger,
+            "Image history JSON parsing failed",
+            out var dtos,
+            out var parseError))
+          return CommandResponse<IList<ImageLayer>>.Fail(parseError, ErrorCodes.Image.HistoryFailed);
+
         var layers = new List<ImageLayer>();
-        var lines = result.Output.Split(LineSeparators, StringSplitOptions.RemoveEmptyEntries);
-        foreach (var line in lines)
+        foreach (var dto in dtos)
         {
-          try
+          var layer = new ImageLayer
           {
-            // Docker history JSON has ID, CreatedAt, CreatedBy, Size, Comment fields
-            var dto = JsonSerializer.Deserialize<DockerHistoryDto>(line, JsonHelper.CaseInsensitiveOptions);
-            if (dto != null)
-            {
-              var layer = new ImageLayer
-              {
-                Id = dto.ID,
-                CreatedBy = dto.CreatedBy,
-                Comment = dto.Comment,
-                Size = ParseSize(dto.Size)
-              };
+            Id = dto.ID,
+            CreatedBy = dto.CreatedBy,
+            Comment = dto.Comment,
+            Size = ParseSize(dto.Size)
+          };
 
-              // Parse CreatedAt if present
-              if (DockerCliTimestampParser.TryParse(dto.CreatedAt, out var created))
-              {
-                layer.Created = created;
-              }
-              else if (!string.IsNullOrEmpty(dto.CreatedAt) && Logger.IsEnabled(LogLevel.Debug))
-              {
-                Logger.LogDebug("Unparseable history CreatedAt '{CreatedAt}'", dto.CreatedAt);
-              }
-
-              layers.Add(layer);
-            }
-          }
-          catch (Exception ex)
+          if (DockerCliTimestampParser.TryParse(dto.CreatedAt, out var created))
           {
-            Logger.LogError(ex, "Image history JSON parsing failed");
+            layer.Created = created;
           }
+          else if (!string.IsNullOrEmpty(dto.CreatedAt) && Logger.IsEnabled(LogLevel.Debug))
+          {
+            Logger.LogDebug("Unparseable history CreatedAt '{CreatedAt}'", dto.CreatedAt);
+          }
+
+          layers.Add(layer);
         }
 
         return CommandResponse<IList<ImageLayer>>.Ok(layers);

@@ -1,9 +1,10 @@
+using System;
+
 namespace FluentDocker.Model.Drivers
 {
   /// <summary>
   /// Represents the result of a driver command execution.
   /// All driver interfaces return <see cref="CommandResponse{T}"/> from their operations.
-  /// For kernel/builder build results, use <see cref="FluentDocker.Common.Result{T}"/> instead.
   /// Properties are init-only; use the <see cref="Ok(T)"/> and <see cref="Fail(string, string, int)"/> factory methods.
   /// </summary>
   /// <typeparam name="T">The type of data returned by the command</typeparam>
@@ -77,6 +78,9 @@ namespace FluentDocker.Model.Drivers
     /// </summary>
     public static CommandResponse<T> Ok(T data, string output, int exitCode)
     {
+      if (exitCode < 0)
+        throw new ArgumentOutOfRangeException(nameof(exitCode), exitCode, "Successful command responses must not use a negative exit code.");
+
       return new CommandResponse<T>
       {
         Success = true,

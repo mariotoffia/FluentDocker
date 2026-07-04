@@ -56,8 +56,9 @@ using FluentDocker.Kernel;
 
 **Automated fix:**
 ```bash
-# Linux/macOS
-find . -name "*.cs" -exec sed -i '' 's/Ductus\.FluentDocker/FluentDocker/g' {} \;
+# Linux/macOS (sed -i.bak is portable across GNU and BSD sed; drop the backups after)
+find . -name "*.cs" -exec sed -i.bak 's/Ductus\.FluentDocker/FluentDocker/g' {} \;
+find . -name "*.cs.bak" -delete
 
 # Windows PowerShell
 Get-ChildItem -Recurse -Filter *.cs | ForEach-Object {

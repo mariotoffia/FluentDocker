@@ -15,6 +15,7 @@ namespace FluentDocker.Tests.CoreTests.Testing
       Assert.True(options.Driver.UseDefault);
       Assert.True(options.ForceRemoveOnDispose);
       Assert.True(options.CaptureLogsOnFailure);
+      Assert.True(options.CleanupOrphansOnInit);
       Assert.Equal(TimeSpan.FromMinutes(2), options.InitializationTimeout);
       Assert.Equal(TimeSpan.FromHours(1), options.OrphanCleanupMinimumAge);
       Assert.Equal(200, options.MaxDiagnosticLogLines);

@@ -161,7 +161,7 @@ namespace FluentDocker.Tests.CoreTests.Service
       var (kernel, service) = await BuildAsync();
       await using (kernel)
       {
-        await Assert.ThrowsAsync<NotSupportedException>(() => service.PauseAsync(TestContext.Current.CancellationToken));
+        await Assert.ThrowsAsync<FluentDockerNotSupportedException>(() => service.PauseAsync(TestContext.Current.CancellationToken));
       }
     }
 
@@ -375,6 +375,38 @@ namespace FluentDocker.Tests.CoreTests.Service
 
         await service.DisposeAsync();
       }
+    }
+
+    [Fact]
+    public async Task ConcurrentStartAsync_InitiatesLoadOnlyOnce()
+    {
+      await using var kernel = new FluentDocker.Kernel.FluentDockerKernel(
+          new DriverRegistry(NullLoggerFactory.Instance), NullLoggerFactory.Instance);
+      var runner = new Mock<IModelRunner>();
+      var releaseLoad = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+      var enteredLoad = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+      var loadCalls = 0;
+      runner.Setup(r => r.LoadAsync(
+              It.IsAny<ModelReference>(), It.IsAny<ModelRunOptions>(), It.IsAny<CancellationToken>()))
+          .Returns(async () =>
+          {
+            Interlocked.Increment(ref loadCalls);
+            enteredLoad.TrySetResult();
+            await releaseLoad.Task.ConfigureAwait(false);
+          });
+      runner.Setup(r => r.DisposeAsync()).Returns(ValueTask.CompletedTask);
+      var service = new ModelService(
+          kernel, "docker", Model, runner.Object, null!, keepRunning: true);
+
+      var first = service.StartAsync(TestContext.Current.CancellationToken);
+      await enteredLoad.Task.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
+      var second = service.StartAsync(TestContext.Current.CancellationToken);
+      await Task.Delay(100, TestContext.Current.CancellationToken);
+
+      Assert.Equal(1, Volatile.Read(ref loadCalls));
+
+      releaseLoad.SetResult();
+      await Task.WhenAll(first, second);
     }
   }
 }

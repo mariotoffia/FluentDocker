@@ -72,9 +72,14 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       var containerId = createResult.Data.Id;
       var startResult = await StartAsync(context, containerId, cancellationToken).ConfigureAwait(false);
       if (!startResult.Success)
+      {
+        var errorContext = startResult.ErrorContext ?? CreateErrorContext(
+            $"POST /containers/{containerId}/start", startResult.ExitCode);
+        errorContext.Metadata["ContainerId"] = containerId;
         return CommandResponse<ContainerRunResult>.Fail(
-            startResult.Error, startResult.ErrorCode,
-            startResult.ErrorContext, startResult.ExitCode);
+            $"{startResult.Error} (created container: {containerId})", startResult.ErrorCode,
+            errorContext, startResult.ExitCode);
+      }
 
       return CommandResponse<ContainerRunResult>.Ok(new ContainerRunResult
       {

@@ -73,7 +73,13 @@ namespace FluentDocker.Services.Impl
       if (_state == ServiceRunningState.Removed)
         return;
 
-      using var cleanupCts = new CancellationTokenSource(_disposeCleanupTimeout);
+      var removeBudget = TimeSpan.FromMilliseconds(Math.Min(
+          5_000,
+          Math.Max(1, _disposeCleanupTimeout.TotalMilliseconds / 3)));
+      var preRemoveBudget = _disposeCleanupTimeout > removeBudget
+          ? _disposeCleanupTimeout - removeBudget
+          : TimeSpan.FromMilliseconds(1);
+      using var cleanupCts = new CancellationTokenSource(preRemoveBudget);
 
       var preStopHookTask = ExecuteLifecycleHooksAsync(
           ServiceRunningState.Removing,
@@ -106,11 +112,12 @@ namespace FluentDocker.Services.Impl
 
       if (_deleteOnDispose)
       {
+        using var removeCts = new CancellationTokenSource(removeBudget);
         var removeTask = RemoveCoreAsync(
-            force: true, skipExecuteLifecycleHooks: true, removeVolumesOverride: null, cleanupCts.Token);
+            force: true, skipExecuteLifecycleHooks: true, removeVolumesOverride: null, removeCts.Token);
         try
         {
-          await removeTask.WaitAsync(cleanupCts.Token).ConfigureAwait(false);
+          await removeTask.WaitAsync(removeCts.Token).ConfigureAwait(false);
         }
         catch (Exception ex)
         {
@@ -160,6 +167,13 @@ namespace FluentDocker.Services.Impl
 
       if (!response.Success)
       {
+        if (IsContainerAlreadyGone(response))
+        {
+          UpdateState(ServiceRunningState.Removed);
+          await ExecuteHooksAsync(ServiceRunningState.Removed).ConfigureAwait(false);
+          return;
+        }
+
         UpdateState(ServiceRunningState.Unknown);
         throw new DriverException(
             $"Failed to remove container '{_name}': {response.Error}",
@@ -169,6 +183,15 @@ namespace FluentDocker.Services.Impl
 
       UpdateState(ServiceRunningState.Removed);
       await ExecuteHooksAsync(ServiceRunningState.Removed).ConfigureAwait(false);
+    }
+
+    private static bool IsContainerAlreadyGone(CommandResponse<Unit> response)
+    {
+      if (response.ErrorCode == ErrorCodes.Container.NotFound)
+        return true;
+
+      return response.Error?.Contains("no such container", StringComparison.OrdinalIgnoreCase) == true ||
+          response.Error?.Contains("no container with", StringComparison.OrdinalIgnoreCase) == true;
     }
 
     private async Task RunDisposeHooksWithoutRemovalAsync(CancellationToken cancellationToken)
@@ -326,6 +349,9 @@ namespace FluentDocker.Services.Impl
         "paused" => ServiceRunningState.Paused,
         "exited" => ServiceRunningState.Stopped,
         "created" => ServiceRunningState.Starting,
+        "restarting" => ServiceRunningState.Starting,
+        "removing" => ServiceRunningState.Removing,
+        "dead" => ServiceRunningState.Stopped,
         _ => ServiceRunningState.Unknown
       };
     }

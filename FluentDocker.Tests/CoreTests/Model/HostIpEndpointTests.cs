@@ -22,21 +22,27 @@ namespace FluentDocker.Tests.CoreTests.Model
     }
 
     [Fact]
-    public void HostIp_InvalidAddress_ThrowsArgumentException()
+    public void Address_InvalidHostIp_ThrowsInvalidOperationException()
     {
-      var endpoint = new HostIpEndpoint();
+      var endpoint = new HostIpEndpoint
+      {
+        HostIp = "not-an-ip-address"
+      };
 
-      Assert.Throws<ArgumentException>(() => endpoint.HostIp = "not-an-ip-address");
+      Assert.Throws<InvalidOperationException>(() => endpoint.Address);
     }
 
     [Theory]
     [InlineData("not-a-port")]
     [InlineData("70000")]
-    public void HostPort_InvalidPort_ThrowsArgumentException(string hostPort)
+    public void Port_InvalidHostPort_ThrowsInvalidOperationException(string hostPort)
     {
-      var endpoint = new HostIpEndpoint();
+      var endpoint = new HostIpEndpoint
+      {
+        HostPort = hostPort
+      };
 
-      Assert.Throws<ArgumentException>(() => endpoint.HostPort = hostPort);
+      Assert.Throws<InvalidOperationException>(() => endpoint.Port);
     }
 
     [Fact]

@@ -26,6 +26,21 @@ namespace FluentDocker.Builders
       return Path.GetFileName(source);
     }
 
+    internal void DeleteOwnedWorkingFolder()
+    {
+      if (!_ownsWorkingFolder || IsInPlaceBuild || string.IsNullOrWhiteSpace(_workingFolder))
+        return;
+      try
+      {
+        if (Directory.Exists(_workingFolder))
+          Directory.Delete(_workingFolder, recursive: true);
+      }
+      catch
+      {
+        // Best-effort cleanup only.
+      }
+    }
+
     private static async Task DownloadFileAsync(
         Uri url, string destinationPath, CancellationToken cancellationToken)
     {
@@ -42,7 +57,8 @@ namespace FluentDocker.Builders
 
     #region Private Methods
 
-    private async Task CopyToWorkDirAsync(string workingFolder, CancellationToken cancellationToken)
+    private async Task CopyToWorkDirAsync(
+        string workingFolder, bool strictCopySources, CancellationToken cancellationToken)
     {
       if (!Directory.Exists(workingFolder))
         Directory.CreateDirectory(workingFolder);
@@ -64,6 +80,8 @@ namespace FluentDocker.Builders
         }
 
         // Standard CopyCommand
+        if (!string.IsNullOrEmpty(cp.Alias))
+          continue;
         var from = cp.From.Trim('"');
         if (Path.IsPathRooted(from))
         {
@@ -74,9 +92,14 @@ namespace FluentDocker.Builders
           if (!rootedNames.Add(name))
             throw new NotSupportedException(
                 $"Multiple rooted COPY sources share the file name '{name}'; rename the sources.");
-          if (File.Exists(from))
-            File.Copy(from, Path.Combine(workingFolder, name), true);
-          cp.From = name;
+          if (!File.Exists(from))
+          {
+            if (!strictCopySources)
+              continue;
+            throw new FluentDockerException($"COPY source '{from}' not found");
+          }
+          File.Copy(from, Path.Combine(workingFolder, name), true);
+          _copySourceOverrides[cp] = name;
           continue;
         }
 
@@ -84,7 +107,11 @@ namespace FluentDocker.Builders
           throw new NotSupportedException(
               "Directory sources are not supported by DockerfileBuilder; add files individually.");
         if (!File.Exists(from))
-          continue;
+        {
+          if (!strictCopySources)
+            continue;
+          throw new FluentDockerException($"COPY source '{from}' not found");
+        }
 
         var wp = Path.Combine(workingFolder, from);
         var wdp = Path.GetDirectoryName(wp);
@@ -108,7 +135,7 @@ namespace FluentDocker.Builders
       }
     }
 
-    private void RenderDockerfile(string workingFolder)
+    private async Task RenderDockerfileAsync(string workingFolder, CancellationToken cancellationToken)
     {
       if (!Directory.Exists(workingFolder))
         Directory.CreateDirectory(workingFolder);
@@ -116,20 +143,26 @@ namespace FluentDocker.Builders
       var dockerFile = Path.Combine(workingFolder, "Dockerfile");
 
       var contents = !string.IsNullOrEmpty(_config.UseFile?.Rendered)
-          ? File.ReadAllText(_config.UseFile)
+          ? await File.ReadAllTextAsync(_config.UseFile, cancellationToken).ConfigureAwait(false)
           : ResolveOrBuildString();
 
-      File.WriteAllText(dockerFile, contents);
+      await File.WriteAllTextAsync(dockerFile, contents, cancellationToken).ConfigureAwait(false);
       _lastContents = contents;
     }
 
     private string ResolveOrBuildString()
     {
       var originals = new Dictionary<AddCommand, TemplateString>();
+      var copyOriginals = new Dictionary<CopyCommand, string>();
       foreach (var (command, source) in _addSourceOverrides)
       {
         originals[command] = command.Source;
         command.Source = source;
+      }
+      foreach (var (command, source) in _copySourceOverrides)
+      {
+        copyOriginals[command] = command.From;
+        command.From = source;
       }
 
       try
@@ -142,6 +175,8 @@ namespace FluentDocker.Builders
       {
         foreach (var (command, source) in originals)
           command.Source = source;
+        foreach (var (command, source) in copyOriginals)
+          command.From = source;
       }
     }
 

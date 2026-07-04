@@ -1,7 +1,10 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Net;
 using System.Net.Sockets;
+using System.Reflection;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using FluentDocker.Common;
@@ -134,6 +137,28 @@ namespace FluentDocker.Tests.CoreTests.Service
     }
 
     [Fact]
+    public async Task ToHostExposedEndpointAsync_WhenDnsFails_DoesNotPoisonResolverCache()
+    {
+      var resolver = typeof(ServiceExtensions).Assembly.GetType(
+          "FluentDocker.Services.Extensions.ServiceEndpointResolver")!;
+      var cache = resolver.GetField(
+          "DockerHostAddressCache",
+          BindingFlags.NonPublic | BindingFlags.Static)!.GetValue(null)!;
+      cache.GetType().GetMethod("Clear")!.Invoke(cache, []);
+      var host = $"missing-{Guid.NewGuid():N}.invalid";
+      var uri = new Uri($"tcp://{host}:2376");
+      var method = resolver.GetMethod(
+          "ResolveDockerHostAddressAsync",
+          BindingFlags.NonPublic | BindingFlags.Static)!;
+
+      var error = await Assert.ThrowsAnyAsync<Exception>(async () =>
+          await (Task<IPAddress>)method.Invoke(null, [uri, TestContext.Current.CancellationToken])!);
+
+      Assert.NotNull(error);
+      Assert.False((bool)cache.GetType().GetMethod("ContainsKey")!.Invoke(cache, [host])!);
+    }
+
+    [Fact]
     public async Task ToHostExposedEndpointAsync_UnboundPort_ReturnsNull()
     {
       var container = new Container
@@ -210,11 +235,69 @@ namespace FluentDocker.Tests.CoreTests.Service
     }
 
     [Fact]
+    public async Task ToHostExposedEndpointAsync_WhenDockerHostContextCannotBeRead_Throws()
+    {
+      MockPack.SetupContainerStart();
+      MockPack.ContainerDriver
+          .Setup(d => d.InspectAsync(
+              It.IsAny<DriverContext>(), "container-123", It.IsAny<CancellationToken>()))
+          .ReturnsAsync(CommandResponse<Container>.Ok(new Container
+          {
+            Id = "container-123",
+            State = new ContainerState { Running = true, Status = "running" },
+            NetworkSettings = new ContainerNetworkSettings
+            {
+              Ports = new Dictionary<string, HostIpEndpoint[]>
+              {
+                ["80/tcp"] = [new HostIpEndpoint { HostIp = "0.0.0.0", HostPort = "8080" }]
+              }
+            }
+          }));
+      var service = new ContainerService(Kernel, DriverId, "container-123", "nginx", "web");
+      await service.StartAsync(TestContext.Current.CancellationToken);
+      await Kernel.DisposeAsync();
+
+      await Assert.ThrowsAsync<ObjectDisposedException>(() =>
+          service.ToHostExposedEndpointAsync("80/tcp", TestContext.Current.CancellationToken));
+    }
+
+    [Fact]
+    public async Task WaitForHttpAsync_WithIpv6Endpoint_UsesBracketedUrl()
+    {
+      using var listener = new TcpListener(IPAddress.IPv6Loopback, 0);
+      listener.Start();
+      var port = ((IPEndPoint)listener.LocalEndpoint).Port;
+      var server = Task.Run(async () =>
+      {
+        using var client = await listener.AcceptTcpClientAsync(TestContext.Current.CancellationToken);
+        await using var stream = client.GetStream();
+        using var reader = new StreamReader(stream, Encoding.ASCII, leaveOpen: true);
+        await reader.ReadLineAsync(TestContext.Current.CancellationToken);
+        var bytes = Encoding.ASCII.GetBytes("HTTP/1.1 200 OK\r\nContent-Length: 0\r\n\r\n");
+        await stream.WriteAsync(bytes, TestContext.Current.CancellationToken);
+      }, TestContext.Current.CancellationToken);
+      var service = new Mock<IContainerService>();
+      service
+          .Setup(s => s.ToHostExposedEndpointAsync("80/tcp", It.IsAny<CancellationToken>()))
+          .ReturnsAsync(new IPEndPoint(IPAddress.IPv6Loopback, port));
+
+      var ready = await service.Object.WaitForHttpAsync(
+          "80/tcp",
+          "/health",
+          timeout: 1000,
+          pollIntervalMs: 10,
+          cancellationToken: TestContext.Current.CancellationToken);
+
+      Assert.True(ready);
+      await server;
+    }
+
+    [Fact]
     public async Task WaitForProcessAsync_WhenCallerCancels_ThrowsOperationCanceledException()
     {
       var service = new Mock<IContainerService>();
       service
-          .Setup(s => s.ExecuteAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+          .Setup(s => s.ExecuteAsync(It.IsAny<string[]>(), It.IsAny<CancellationToken>()))
           .ThrowsAsync(new OperationCanceledException());
       using var cts = new CancellationTokenSource();
       await cts.CancelAsync();
@@ -224,11 +307,34 @@ namespace FluentDocker.Tests.CoreTests.Service
     }
 
     [Fact]
+    public async Task WaitForProcessAsync_UsesArgumentVectorForPgrep()
+    {
+      var service = new Mock<IContainerService>();
+      string[]? captured = null;
+      service
+          .Setup(s => s.ExecuteAsync(
+              It.IsAny<string[]>(),
+              It.IsAny<CancellationToken>()))
+          .Callback<string[], CancellationToken>((cmd, _) => captured = cmd)
+          .ReturnsAsync("123");
+
+      var ready = await service.Object.WaitForProcessAsync(
+          "my app",
+          timeout: 1000,
+          pollIntervalMs: 1,
+          cancellationToken: TestContext.Current.CancellationToken);
+
+      Assert.True(ready);
+      Assert.NotNull(captured);
+      Assert.Equal(["pgrep", "-f", "my app"], captured);
+    }
+
+    [Fact]
     public async Task WaitForProcessAsync_NonTransientDriverException_RethrowsImmediately()
     {
       var service = new Mock<IContainerService>();
       service
-          .Setup(s => s.ExecuteAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+          .Setup(s => s.ExecuteAsync(It.IsAny<string[]>(), It.IsAny<CancellationToken>()))
           .ThrowsAsync(new DriverException("bad command", ErrorCodes.Container.ExecFailed));
 
       await Assert.ThrowsAsync<DriverException>(() =>

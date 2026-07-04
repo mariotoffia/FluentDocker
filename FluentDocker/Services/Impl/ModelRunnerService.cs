@@ -203,17 +203,17 @@ namespace FluentDocker.Services.Impl
     private IModelManagementDriver Management() =>
         _kernel.TrySysCtl<IModelManagementDriver>(_driverId, out var d)
             ? d
-            : throw new NotSupportedException(Unsupported("model management"));
+            : throw new FluentDockerNotSupportedException(Unsupported("model management"));
 
     private IModelRuntimeDriver Runtime() =>
         _kernel.TrySysCtl<IModelRuntimeDriver>(_driverId, out var d)
             ? d
-            : throw new NotSupportedException(Unsupported("runtime control"));
+            : throw new FluentDockerNotSupportedException(Unsupported("runtime control"));
 
     private IModelInferenceDriver Inference() =>
         _inferenceOverride ?? (_kernel.TrySysCtl<IModelInferenceDriver>(_driverId, out var d)
             ? d
-            : throw new NotSupportedException(Unsupported("inference")));
+            : throw new FluentDockerNotSupportedException(Unsupported("inference")));
 
     // Returns the registered DriverContext (carrying host/TLS/logger), falling back to a
     // bare context when the scoped driver isn't registered so a directly-constructed or

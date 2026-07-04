@@ -99,7 +99,7 @@ namespace FluentDocker.Drivers.Docker.Cli
       // Inference endpoint is pack-owned: bind a configured endpoint (a non-default
       // port/engine) once at registration, else the resolved default
       // (DOCKER_MODEL_RUNNER_URL, else host TCP). The connection is built lazily.
-      _modelEndpoint = context.ModelRunnerEndpoint ?? ModelRunnerEndpoint.Default();
+      _modelEndpoint = context.ModelRunnerEndpoint ?? ResolveDefaultModelEndpoint(_logger);
 
       // Initialize all components with context
       _containerDriver.Initialize(context);
@@ -134,6 +134,23 @@ namespace FluentDocker.Drivers.Docker.Cli
 
       _initialized = true;
       await Task.CompletedTask;
+    }
+
+    private static ModelRunnerEndpoint ResolveDefaultModelEndpoint(ILogger logger)
+    {
+      var raw = Environment.GetEnvironmentVariable(ModelRunnerEndpoint.UrlEnvironmentVariable);
+      if (ModelRunnerEndpoint.TryFromEnvironment(out var endpoint))
+        return endpoint;
+
+      if (!string.IsNullOrWhiteSpace(raw))
+      {
+        // ponytail: warn-and-fallback so a typo isn't fully swallowed; Try contract stays no-throw.
+        logger?.LogWarning(
+            "{Variable}='{Value}' is not a valid absolute http(s) URL; falling back to host TCP :12434.",
+            ModelRunnerEndpoint.UrlEnvironmentVariable, raw);
+      }
+
+      return ModelRunnerEndpoint.HostTcp();
     }
 
     /// <inheritdoc />

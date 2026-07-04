@@ -136,7 +136,7 @@ namespace FluentDocker.Tests.CoreTests.Service
       var mock = new Mock<IContainerService>();
       mock.Setup(s => s.Id).Returns("test-id");
       mock.Setup(s => s.ExecuteAsync(
-              It.Is<string>(cmd => cmd.Contains("pgrep")),
+              It.Is<string[]>(cmd => cmd[0] == "pgrep"),
               It.IsAny<CancellationToken>()))
           .ReturnsAsync("1234\n");
 
@@ -146,7 +146,9 @@ namespace FluentDocker.Tests.CoreTests.Service
       // Assert
       Assert.True(result);
       mock.Verify(
-          s => s.ExecuteAsync("pgrep -f postgres", It.IsAny<CancellationToken>()),
+          s => s.ExecuteAsync(
+              It.Is<string[]>(cmd => cmd[0] == "pgrep" && cmd[1] == "-f" && cmd[2] == "postgres"),
+              It.IsAny<CancellationToken>()),
           Times.AtLeastOnce);
     }
 
@@ -157,7 +159,7 @@ namespace FluentDocker.Tests.CoreTests.Service
       var mock = new Mock<IContainerService>();
       mock.Setup(s => s.Id).Returns("test-id");
       mock.Setup(s => s.ExecuteAsync(
-              It.Is<string>(cmd => cmd.Contains("pgrep")),
+              It.Is<string[]>(cmd => cmd[0] == "pgrep"),
               It.IsAny<CancellationToken>()))
           .ReturnsAsync(string.Empty);
 
@@ -175,7 +177,7 @@ namespace FluentDocker.Tests.CoreTests.Service
       var mock = new Mock<IContainerService>();
       mock.Setup(s => s.Id).Returns("test-id");
       mock.Setup(s => s.ExecuteAsync(
-              It.Is<string>(cmd => cmd.Contains("pgrep")),
+              It.Is<string[]>(cmd => cmd[0] == "pgrep"),
               It.IsAny<CancellationToken>()))
           .ReturnsAsync("   \n  ");
 
@@ -194,7 +196,7 @@ namespace FluentDocker.Tests.CoreTests.Service
       var mock = new Mock<IContainerService>();
       mock.Setup(s => s.Id).Returns("test-id");
       mock.Setup(s => s.ExecuteAsync(
-              It.Is<string>(cmd => cmd.Contains("pgrep")),
+              It.Is<string[]>(cmd => cmd[0] == "pgrep"),
               It.IsAny<CancellationToken>()))
           .ReturnsAsync(() =>
           {
@@ -220,7 +222,7 @@ namespace FluentDocker.Tests.CoreTests.Service
       var mock = new Mock<IContainerService>();
       mock.Setup(s => s.Id).Returns("test-id");
       mock.Setup(s => s.ExecuteAsync(
-              It.Is<string>(cmd => cmd.Contains("pgrep")),
+              It.Is<string[]>(cmd => cmd[0] == "pgrep"),
               It.IsAny<CancellationToken>()))
           .ReturnsAsync(() =>
           {

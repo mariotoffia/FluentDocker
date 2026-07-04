@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using FluentDocker.Builders;
@@ -93,6 +94,7 @@ namespace FluentDocker.Testing.Core
       var builder = new Builder();
       builder.WithinDriver(DriverId, Kernel);
       _configure(builder);
+      ApplySessionLabels(builder);
 
       var results = await builder.BuildAsync(
           cleanupTimeout: Options.TeardownTimeout,
@@ -196,6 +198,67 @@ namespace FluentDocker.Testing.Core
              ex.ErrorCode == ErrorCodes.Volume.NotFound ||
              ex.ErrorCode == ErrorCodes.Driver.NotFound ||
              ex.Message.Contains("not found", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private void ApplySessionLabels(Builder builder)
+    {
+      if (!Options.EnableSessionLabels)
+        return;
+
+      var operationsField = typeof(Builder).GetField(
+          "_operations", BindingFlags.Instance | BindingFlags.NonPublic);
+      if (operationsField?.GetValue(builder) is not System.Collections.IEnumerable operations)
+        return;
+
+      var labels = SessionLabel.CreateLabels(Options.SessionId);
+      foreach (var operation in operations)
+      {
+        foreach (var childBuilder in FindChildBuilders(operation))
+        {
+          foreach (var label in labels)
+            ApplyLabel(childBuilder, label.Key, label.Value);
+        }
+      }
+    }
+
+    private static IEnumerable<object> FindChildBuilders(object operation)
+    {
+      var delegates = operation.GetType()
+          .GetProperties(BindingFlags.Instance | BindingFlags.Public)
+          .Where(p => typeof(Delegate).IsAssignableFrom(p.PropertyType))
+          .Select(p => p.GetValue(operation))
+          .OfType<Delegate>();
+      foreach (var item in delegates.SelectMany(d => FindLabelCapableFields(d.Target)))
+        yield return item;
+    }
+
+    private static IEnumerable<object> FindLabelCapableFields(object? target)
+    {
+      if (target == null)
+        yield break;
+
+      foreach (var field in target.GetType().GetFields(BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public))
+      {
+        var value = field.GetValue(target);
+        if (value is IContainerBuilder or INetworkBuilder or IVolumeBuilder)
+          yield return value;
+      }
+    }
+
+    private static void ApplyLabel(object builder, string key, string value)
+    {
+      switch (builder)
+      {
+        case IContainerBuilder container:
+          container.WithLabel(key, value);
+          break;
+        case INetworkBuilder network:
+          network.WithLabel(key, value);
+          break;
+        case IVolumeBuilder volume:
+          volume.WithLabel(key, value);
+          break;
+      }
     }
   }
 }

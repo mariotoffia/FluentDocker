@@ -311,9 +311,8 @@ namespace FluentDocker.Drivers.Podman.Cli
         DriverContext context, CancellationToken cancellationToken)
     {
       // Podman machine only applies on macOS/Windows; on native Linux Podman runs without a
-      // VM, so there is nothing to start and attempting it would fail spuriously. Auto-start is
-      // only reached when the caller explicitly configured it, so warn (not debug) to make the
-      // no-op discoverable rather than silently swallowing the request.
+      // VM, so there is nothing to start. Auto-start is only reached when the caller explicitly
+      // configured it, so fail loudly instead of silently swallowing the unsupported request.
       if (!MachineManagementApplies())
       {
         throw new DriverException(

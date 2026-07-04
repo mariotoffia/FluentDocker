@@ -89,8 +89,8 @@ namespace FluentDocker.Testing.Core
     /// <summary>
     /// Whether to apply session-tracking labels to created resources.
     /// Honored directly by <see cref="ContainerResource"/>,
-    /// <see cref="NetworkResource"/>, and <see cref="VolumeResource"/> because
-    /// their underlying Docker/Podman create operations support labels.
+    /// <see cref="NetworkResource"/>, <see cref="VolumeResource"/>, and
+    /// <see cref="TopologyResource"/> child container/network/volume operations.
     /// Other resource types may create labeled child containers, networks, or
     /// volumes only when their compose/stack/kubernetes definitions include
     /// labels themselves. Default: true.
@@ -99,9 +99,9 @@ namespace FluentDocker.Testing.Core
 
     /// <summary>
     /// Whether to clean up orphaned resources from previous sessions
-    /// during <see cref="ResourceBase.InitializeAsync"/>. Default: false.
+    /// during <see cref="ResourceBase.InitializeAsync"/>. Default: true.
     /// </summary>
-    public bool CleanupOrphansOnInit { get; set; }
+    public bool CleanupOrphansOnInit { get; set; } = true;
 
     private TimeSpan _teardownTimeout = TimeSpan.FromSeconds(120);
 

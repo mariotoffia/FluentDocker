@@ -283,41 +283,52 @@ namespace FluentDocker.Builders
         }
       }
 
-      // Prepare build context (copy files, render Dockerfile)
-      var buildContext = await _dockerfileBuilder.PrepareBuildAsync(cancellationToken).ConfigureAwait(false);
-
-      // Ensure at least one tag
-      if (_tags.Count == 0)
-        _tags.Add("latest");
-
-      // Build the image
-      var buildConfig = new ImageBuildConfig
+      try
       {
-        BuildContext = buildContext,
-        DockerfileName = _dockerfileBuilder.PreparedDockerfileName,
-        Tags = [.. _tags.Select(t => $"{_imageName}:{t}")],
-        BuildArgs = _buildArgs,
-        Labels = _labels,
-        NoCache = _noCache,
-        Pull = _alwaysPull,
-        Rm = _removeIntermediate,
-        ForceRm = _forceRemoveIntermediate,
-        Platform = _platform,
-        Target = _target
-      };
+        // Prepare build context (copy files, render Dockerfile)
+        var buildContext = await _dockerfileBuilder.PrepareBuildAsync(
+            strictCopySources: true, cancellationToken).ConfigureAwait(false);
 
-      var result = await driver.BuildAsync(context, buildConfig, null, cancellationToken).ConfigureAwait(false);
+        // Ensure at least one tag
+        if (_tags.Count == 0)
+          _tags.Add("latest");
 
-      if (!result.Success)
-        throw new FluentDockerException($"Failed to build image {_imageName}: {result.Error}");
+        // Build the image
+        var buildConfig = new ImageBuildConfig
+        {
+          BuildContext = buildContext,
+          DockerfileName = _dockerfileBuilder.PreparedDockerfileName,
+          Tags = [.. _tags.Select(t => $"{_imageName}:{t}")],
+          BuildArgs = _buildArgs,
+          Labels = _labels,
+          NoCache = _noCache,
+          Pull = _alwaysPull,
+          Rm = _removeIntermediate,
+          ForceRm = _forceRemoveIntermediate,
+          Platform = _platform,
+          Target = _target
+        };
 
-      return new ImageService(_kernel, _driverId, result.Data.ImageId, _imageName, _tags[0]);
+        var result = await driver.BuildAsync(context, buildConfig, null, cancellationToken).ConfigureAwait(false);
+
+        if (!result.Success)
+          throw new FluentDockerException($"Failed to build image {_imageName}: {result.Error}");
+
+        return new ImageService(_kernel, _driverId, result.Data.ImageId, _imageName, _tags[0]);
+      }
+      finally
+      {
+        _dockerfileBuilder.DeleteOwnedWorkingFolder();
+      }
     }
 
     private void SetImageName(string name)
     {
       if (string.IsNullOrEmpty(name))
         return;
+      if (name.Contains('@', StringComparison.Ordinal))
+        throw new FluentDockerException(
+            $"Digest image references are not valid build output names: '{name}'. Use a repository[:tag] name.");
 
       var (image, tag) = ContainerBuilder.ParseImageReference(name);
       _imageName = image;

@@ -3,7 +3,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using FluentDocker.Model.Containers;
 using FluentDocker.Model.Drivers;
-using DriverCommandResponse = FluentDocker.Model.Drivers.CommandResponse<FluentDocker.Model.Drivers.Unit>;
 
 namespace FluentDocker.Drivers
 {
@@ -192,6 +191,12 @@ namespace FluentDocker.Drivers
     /// only a marked tail for very large foreground output.
     /// </summary>
     public string Output { get; set; }
+
+    /// <summary>
+    /// Container exit code for foreground runs where the container was created and ran to
+    /// completion; null when detached or not applicable (driver-specific).
+    /// </summary>
+    public int? ExitCode { get; set; }
 
     /// <summary>Warnings from the run operation.</summary>
     public List<string> Warnings { get; set; } = [];

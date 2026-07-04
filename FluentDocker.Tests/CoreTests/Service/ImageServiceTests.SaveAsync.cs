@@ -120,7 +120,7 @@ namespace FluentDocker.Tests.CoreTests.Service
       var kernel = new FluentDockerKernel(new DriverRegistry(NullLoggerFactory.Instance), NullLoggerFactory.Instance);
       var service = new ImageService(kernel, "docker", "sha256:abc123", "nginx", "latest");
 
-      var ex = await Assert.ThrowsAsync<NotSupportedException>(
+      var ex = await Assert.ThrowsAsync<FluentDockerNotSupportedException>(
           async () => await service.PauseAsync(TestContext.Current.CancellationToken));
 
       Assert.Contains("paused", ex.Message, StringComparison.OrdinalIgnoreCase);
@@ -133,7 +133,7 @@ namespace FluentDocker.Tests.CoreTests.Service
       var kernel = new FluentDockerKernel(new DriverRegistry(NullLoggerFactory.Instance), NullLoggerFactory.Instance);
       var service = new ImageService(kernel, "docker", "sha256:abc123", "nginx", "latest");
 
-      var ex = await Assert.ThrowsAsync<NotSupportedException>(
+      var ex = await Assert.ThrowsAsync<FluentDockerNotSupportedException>(
           async () => await service.StopAsync(TestContext.Current.CancellationToken));
 
       Assert.Contains("stopped", ex.Message, StringComparison.OrdinalIgnoreCase);

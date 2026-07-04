@@ -8,7 +8,6 @@ using System.Threading.Tasks;
 using FluentDocker.Common;
 using FluentDocker.Model.Drivers;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Logging.Abstractions;
 
 namespace FluentDocker.Drivers
 {
@@ -335,9 +334,23 @@ namespace FluentDocker.Drivers
     /// <summary>The underlying process for CLI-based attach (used for cleanup).</summary>
     internal Process AttachedProcess { get; set; }
 
+    /// <summary>Optional logger for attach cleanup failures.</summary>
+    public ILogger? Logger { get; set; }
+
+    /// <summary>
+    /// The exception from the best-effort process kill during dispose, if any.
+    /// Populated instead of throwing from DisposeAsync; callers may inspect it to detect a kill failure.
+    /// </summary>
+    public Exception? KillError { get; private set; }
+
+    private int _disposed;
+
     /// <summary>Disposes the attach connection.</summary>
     public ValueTask DisposeAsync()
     {
+      if (Interlocked.CompareExchange(ref _disposed, 1, 0) != 0)
+        return ValueTask.CompletedTask;
+
       try
       {
         InputStream?.Dispose();
@@ -359,9 +372,16 @@ namespace FluentDocker.Drivers
             if (!AttachedProcess.HasExited)
               AttachedProcess.Kill(entireProcessTree: true);
           }
-          catch (Exception ex) { NullLogger.Instance.LogWarning(ex, "Process kill failed"); }
-
-          AttachedProcess.Dispose();
+          catch (Exception ex)
+          {
+            // ponytail: kill failure surfaced via KillError + optional log; wire a logger into the factories later if richer diagnostics are needed.
+            Logger?.LogWarning(ex, "Process kill failed");
+            KillError = ex;
+          }
+          finally
+          {
+            AttachedProcess.Dispose();
+          }
         }
       }
 

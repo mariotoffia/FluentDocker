@@ -54,7 +54,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
         if (version.HasValue)
           info.EngineVersion = version.Value.GetStringOrDefault("Version") ?? info.EngineVersion;
 
-        var security = obj.Prop("security");
+        var security = host?.Prop("security");
         if (security.HasValue)
           info.Rootless = security.Value.GetBoolOrDefault("rootless");
 
@@ -88,7 +88,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
         version.RuntimeVersion = client.GetStringOrDefault("GoVersion");
         version.Os = client.GetStringOrDefault("Os") ?? client.GetStringOrDefault("OsArch");
         version.Arch = client.GetStringOrDefault("Arch");
-        version.BuildTime = client.GetStringOrDefault("Built");
+        version.BuildTime = client.GetStringOrDefault("BuiltTime");
 
         var server = obj.Prop("Server");
         if (server.HasValue)

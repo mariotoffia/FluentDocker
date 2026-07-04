@@ -77,7 +77,8 @@ namespace FluentDocker.Common
       var p = prop.Value;
       if (p.ValueKind == JsonValueKind.Number && p.TryGetInt32(out var v))
         return v;
-      if (p.ValueKind == JsonValueKind.String && int.TryParse(p.GetString(), out v))
+      if (p.ValueKind == JsonValueKind.String &&
+          int.TryParse(p.GetString(), NumberStyles.Integer, CultureInfo.InvariantCulture, out v))
         return v;
       return defaultValue;
     }
@@ -93,7 +94,8 @@ namespace FluentDocker.Common
       var p = prop.Value;
       if (p.ValueKind == JsonValueKind.Number && p.TryGetInt64(out var v))
         return v;
-      if (p.ValueKind == JsonValueKind.String && long.TryParse(p.GetString(), out v))
+      if (p.ValueKind == JsonValueKind.String &&
+          long.TryParse(p.GetString(), NumberStyles.Integer, CultureInfo.InvariantCulture, out v))
         return v;
       return defaultValue;
     }
@@ -109,7 +111,8 @@ namespace FluentDocker.Common
       var p = prop.Value;
       if (p.ValueKind == JsonValueKind.Number && p.TryGetUInt64(out var v))
         return v;
-      if (p.ValueKind == JsonValueKind.String && ulong.TryParse(p.GetString(), out v))
+      if (p.ValueKind == JsonValueKind.String &&
+          ulong.TryParse(p.GetString(), NumberStyles.Integer, CultureInfo.InvariantCulture, out v))
         return v;
       return defaultValue;
     }
@@ -158,7 +161,7 @@ namespace FluentDocker.Common
       if (s == null)
         return DateTime.MinValue;
       return DateTimeOffset.TryParse(s, CultureInfo.InvariantCulture, DateTimeStyles.None, out var dto)
-          ? dto.DateTime
+          ? dto.UtcDateTime
           : DateTime.MinValue;
     }
 
@@ -175,7 +178,7 @@ namespace FluentDocker.Common
       var result = new string[arr.GetArrayLength()];
       var i = 0;
       foreach (var item in arr.EnumerateArray())
-        result[i++] = item.GetString();
+        result[i++] = ToLenientString(item);
       return result;
     }
 
@@ -189,7 +192,7 @@ namespace FluentDocker.Common
         return [];
 
       if (prop.Value.ValueKind == JsonValueKind.String)
-        return [prop.Value.GetString()];
+        return [ToLenientString(prop.Value)];
 
       if (prop.Value.ValueKind == JsonValueKind.Array)
       {
@@ -197,7 +200,7 @@ namespace FluentDocker.Common
         var result = new string[arr.GetArrayLength()];
         var i = 0;
         foreach (var item in arr.EnumerateArray())
-          result[i++] = item.GetString();
+          result[i++] = ToLenientString(item);
         return result;
       }
 
@@ -215,7 +218,7 @@ namespace FluentDocker.Common
 
       var dict = new Dictionary<string, string>();
       foreach (var kv in prop.Value.EnumerateObject())
-        dict[kv.Name] = kv.Value.GetString() ?? string.Empty;
+        dict[kv.Name] = ToLenientString(kv.Value);
       return dict;
     }
 
@@ -265,6 +268,16 @@ namespace FluentDocker.Common
     public static bool IsNullOrMissing(this JsonElement? el)
     {
       return el == null || el.Value.ValueKind is JsonValueKind.Null or JsonValueKind.Undefined;
+    }
+
+    private static string ToLenientString(JsonElement el)
+    {
+      return el.ValueKind switch
+      {
+        JsonValueKind.String => el.GetString() ?? string.Empty,
+        JsonValueKind.Null or JsonValueKind.Undefined => string.Empty,
+        _ => el.ToString()
+      };
     }
   }
 }

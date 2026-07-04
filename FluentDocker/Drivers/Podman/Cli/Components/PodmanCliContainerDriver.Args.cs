@@ -45,6 +45,12 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
     }
 
     private static string BuildCreateArgs(string command, ContainerCreateConfig config, bool detach = false)
+        => BuildCreateArgsCore(command, config, detach, null);
+
+    private static string BuildCreateArgsWithCidFile(string command, ContainerCreateConfig config, bool detach, string cidFile)
+        => BuildCreateArgsCore(command, config, detach, cidFile);
+
+    private static string BuildCreateArgsCore(string command, ContainerCreateConfig config, bool detach, string cidFile)
     {
       var args = detach ? $"{command} -d" : command;
 
@@ -72,11 +78,11 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
         args += " -t";
       if (config.Interactive)
         args += " -i";
-      if (config.MemoryLimit.HasValue)
+      if (config.MemoryLimit.HasValue && config.MemoryLimit.Value > 0)
         args += $" --memory {config.MemoryLimit.Value}";
-      if (config.CpuShares.HasValue)
+      if (config.CpuShares.HasValue && config.CpuShares.Value > 0)
         args += $" --cpu-shares {config.CpuShares.Value}";
-      if (config.CpuQuota.HasValue)
+      if (config.CpuQuota.HasValue && config.CpuQuota.Value > 0)
         args += $" --cpu-quota {config.CpuQuota.Value}";
       if (!string.IsNullOrEmpty(config.Ipv4Address))
         args += $" --ip {QuoteArgumentIfNeeded(config.Ipv4Address)}";
@@ -86,8 +92,10 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
         args += $" --pod {QuoteArgumentIfNeeded(config.Pod)}";
       if (config.ReadonlyRootfs)
         args += " --read-only";
-      if (config.ShmSize.HasValue)
+      if (config.ShmSize.HasValue && config.ShmSize.Value > 0)
         args += $" --shm-size {config.ShmSize.Value}";
+      if (!string.IsNullOrEmpty(cidFile))
+        args += $" --cidfile {QuoteArgumentIfNeeded(cidFile)}";
       if (!string.IsNullOrEmpty(config.Platform))
         args += $" --platform {QuoteArgumentIfNeeded(config.Platform)}";
       if (!string.IsNullOrEmpty(config.Runtime))
@@ -164,7 +172,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
     /// <summary>
     /// Null-safe enumeration source. The fluent <c>ContainerBuilder</c> nulls out empty
     /// collections before calling the driver (<c>ContainerBuilder.ExecuteAsync</c>), so every
-    /// collection walked by <see cref="BuildCreateArgs"/> must tolerate a null. Routing all
+    /// collection walked while building create args must tolerate a null. Routing all
     /// loops through this one helper fixes the NRE once for every argument the builder can emit.
     /// </summary>
     private static IEnumerable<T> OrEmpty<T>(IEnumerable<T> source) => source ?? Enumerable.Empty<T>();

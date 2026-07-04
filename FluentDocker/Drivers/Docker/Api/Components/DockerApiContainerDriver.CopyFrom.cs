@@ -22,7 +22,8 @@ namespace FluentDocker.Drivers.Docker.Api.Components
         var targetIsDirectory = Directory.Exists(hostPath) || EndsWithDirectorySeparator(hostPath);
         if (targetIsDirectory)
         {
-          ExtractArchiveToDirectory(stream, hostPath);
+          await ExtractArchiveToDirectoryAsync(stream, hostPath, cancellationToken)
+              .ConfigureAwait(false);
           return CommandResponse<Unit>.Ok(Unit.Default);
         }
 
@@ -33,7 +34,8 @@ namespace FluentDocker.Drivers.Docker.Api.Components
         var extractDir = Path.Combine(parent ?? ".", $".fluentdocker-copy-{Guid.NewGuid():N}");
         try
         {
-          ExtractArchiveToDirectory(stream, extractDir);
+          await ExtractArchiveToDirectoryAsync(stream, extractDir, cancellationToken)
+              .ConfigureAwait(false);
           var files = Directory.EnumerateFiles(extractDir, "*", SearchOption.AllDirectories)
               .Take(2).ToList();
           if (files.Count == 0)
@@ -41,7 +43,13 @@ namespace FluentDocker.Drivers.Docker.Api.Components
           if (files.Count > 1)
             throw new InvalidOperationException("Docker archive contained 2 files; copy to a directory path instead");
           var file = files[0];
-          File.Copy(file, hostPath, overwrite: true);
+          await using var source = new FileStream(
+              file, FileMode.Open, FileAccess.Read, FileShare.Read,
+              bufferSize: 81920, FileOptions.Asynchronous);
+          await using var destination = new FileStream(
+              hostPath, FileMode.Create, FileAccess.Write, FileShare.None,
+              bufferSize: 81920, FileOptions.Asynchronous);
+          await source.CopyToAsync(destination, cancellationToken).ConfigureAwait(false);
         }
         finally
         {
@@ -64,24 +72,28 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       }
     }
 
-    private static void ExtractArchiveToDirectory(Stream stream, string directory)
+    private static async Task ExtractArchiveToDirectoryAsync(
+        Stream stream, string directory, CancellationToken cancellationToken)
     {
       Directory.CreateDirectory(directory);
-      var root = Path.GetFullPath(directory);
-      if (!EndsWithDirectorySeparator(root))
-        root += Path.DirectorySeparatorChar;
+      var root = Path.GetFullPath(directory).TrimEnd(
+          Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+      var rootWithSeparator = root + Path.DirectorySeparatorChar;
       using var reader = ReaderFactory.OpenReader(stream);
       while (reader.MoveToNextEntry())
       {
         if (reader.Entry.IsDirectory)
           continue;
-        var target = Path.GetFullPath(Path.Combine(root, reader.Entry.Key));
-        if (!target.StartsWith(root, StringComparison.Ordinal))
+        var target = Path.GetFullPath(Path.Combine(rootWithSeparator, reader.Entry.Key));
+        if (!string.Equals(target, root, StringComparison.Ordinal) &&
+            !target.StartsWith(rootWithSeparator, StringComparison.Ordinal))
           throw new InvalidOperationException($"Docker archive entry escapes destination: {reader.Entry.Key}");
         Directory.CreateDirectory(Path.GetDirectoryName(target)!);
-        using var entry = reader.OpenEntryStream();
-        using var output = File.Create(target);
-        entry.CopyTo(output);
+        await using var entry = reader.OpenEntryStream();
+        await using var output = new FileStream(
+            target, FileMode.Create, FileAccess.Write, FileShare.None,
+            bufferSize: 81920, FileOptions.Asynchronous);
+        await entry.CopyToAsync(output, cancellationToken).ConfigureAwait(false);
       }
     }
 

@@ -33,7 +33,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
       var mockService = new Mock<IContainerService>();
       return (Task<bool>)WaitForLambdaMethod.Invoke(
           null,
-          [mockService.Object, condition, timeoutMs, cancellationToken])!;
+          [mockService.Object, condition, timeoutMs, 1, cancellationToken])!;
     }
 
     [Fact]
@@ -95,12 +95,10 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
     {
       using var cts = new CancellationTokenSource(100);
 
-      var result = await InvokeWaitForLambda(
+      await Assert.ThrowsAnyAsync<OperationCanceledException>(() => InvokeWaitForLambda(
           (_, _) => 50,
           10000,
-          cts.Token);
-
-      Assert.False(result);
+          cts.Token));
     }
 
     [Fact]

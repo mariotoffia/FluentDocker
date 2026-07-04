@@ -1,4 +1,5 @@
 using System;
+using System.Diagnostics.CodeAnalysis;
 using System.Threading;
 using System.Threading.Tasks;
 using FluentDocker.Common;
@@ -57,47 +58,14 @@ namespace FluentDocker.Kernel
     public object SysCtl(string driverId, Type interfaceType)
     {
       ThrowIfDisposed();
-      ArgumentNullException.ThrowIfNull(driverId);
       ArgumentNullException.ThrowIfNull(interfaceType);
 
-      // First check if driverId refers to a driver pack
-      if (_registry.TryGetDriverPack(driverId, out var driverPack))
-      {
-        // IDriverPack extends IDriverInterfaceResolver — use it directly
-        if (driverPack.TryResolve(interfaceType, out var resolved))
-        {
-          if (!interfaceType.IsInstanceOfType(resolved))
-            throw new InterfaceNotSupportedException(driverId, interfaceType.Name);
-          return resolved;
-        }
+      if (string.IsNullOrWhiteSpace(driverId))
+        throw new InvalidOperationException("No default driver configured. Register a default driver or pass an explicit driver ID.");
 
-        // Fallback: delegate to pack's type-based SysCtl
-        var packResolved = driverPack.SysCtl(driverId, interfaceType);
-        if (!interfaceType.IsInstanceOfType(packResolved))
-          throw new InterfaceNotSupportedException(driverId, interfaceType.Name);
-        return packResolved;
-      }
-
-      // Fall back to regular driver resolution
-      if (_registry.TryGetDriver(driverId, out var driver))
-      {
-        // If the driver is an IDriverInterfaceResolver, use it
-        if (driver is IDriverInterfaceResolver driverResolver &&
-            driverResolver.TryResolve(interfaceType, out var driverResolved))
-        {
-          if (!interfaceType.IsInstanceOfType(driverResolved))
-            throw new InterfaceNotSupportedException(driverId, interfaceType.Name);
-          return driverResolved;
-        }
-
-        // Direct cast check
-        if (interfaceType.IsInstanceOfType(driver))
-          return driver;
-
-        throw new InterfaceNotSupportedException(driverId, interfaceType.Name);
-      }
-
-      throw new DriverNotFoundException(driverId);
+      if (TryResolveCore(driverId, interfaceType, out var resolved))
+        return resolved;
+      throw new InterfaceNotSupportedException(driverId, interfaceType.Name);
     }
 
     /// <summary>
@@ -113,20 +81,21 @@ namespace FluentDocker.Kernel
     /// Tries to get a driver component interface. Returns false instead of throwing
     /// when the interface is not supported. A missing driver still throws.
     /// </summary>
-    public bool TrySysCtl<T>(string driverId, out T instance) where T : class
+    public bool TrySysCtl<T>(string driverId, [NotNullWhen(true)] out T? instance) where T : class
     {
       ThrowIfDisposed();
       instance = null;
 
-      try
+      if (string.IsNullOrWhiteSpace(driverId))
+        throw new InvalidOperationException("No default driver configured. Register a default driver or pass an explicit driver ID.");
+
+      if (TryResolveCore(driverId, typeof(T), out var resolved))
       {
-        instance = SysCtl<T>(driverId);
+        instance = (T)resolved;
         return true;
       }
-      catch (InterfaceNotSupportedException)
-      {
-        return false;
-      }
+
+      return false;
       // DriverNotFoundException intentionally propagates -
       // a missing driver is a hard error, not a "not supported" case
     }
@@ -282,6 +251,41 @@ namespace FluentDocker.Kernel
       ObjectDisposedException.ThrowIf(Volatile.Read(ref _disposed) != 0, this);
     }
 
+    private bool TryResolveCore(
+        string driverId,
+        Type interfaceType,
+        [NotNullWhen(true)] out object? resolved)
+    {
+      if (_registry.TryGetDriverPack(driverId, out var driverPack))
+      {
+        if (driverPack.TryResolve(interfaceType, out resolved)
+            && interfaceType.IsInstanceOfType(resolved))
+          return true;
+
+        resolved = null;
+        return false;
+      }
+
+      if (_registry.TryGetDriver(driverId, out var driver))
+      {
+        if (driver is IDriverInterfaceResolver driverResolver
+            && driverResolver.TryResolve(interfaceType, out resolved)
+            && interfaceType.IsInstanceOfType(resolved))
+          return true;
+
+        if (interfaceType.IsInstanceOfType(driver))
+        {
+          resolved = driver;
+          return true;
+        }
+
+        resolved = null;
+        return false;
+      }
+
+      throw new DriverNotFoundException(driverId);
+    }
+
     #endregion
 
     #region IAsyncDisposable / IDisposable
@@ -296,13 +300,19 @@ namespace FluentDocker.Kernel
     {
       if (Interlocked.CompareExchange(ref _disposed, 1, 0) != 0)
       {
-        if (_registry is DriverRegistry { IsDisposeComplete: false } registry)
-          await registry.DisposeAsync().ConfigureAwait(false);
+        await DisposeRegistrySafelyAsync().ConfigureAwait(false);
         return;
       }
 
       // Delegate disposal to the registry which owns the driver lifecycle.
       // This avoids double-disposal if both kernel and registry are disposed.
+      await DisposeRegistrySafelyAsync().ConfigureAwait(false);
+
+      GC.SuppressFinalize(this);
+    }
+
+    private async ValueTask DisposeRegistrySafelyAsync()
+    {
       try
       {
         if (_registry is IAsyncDisposable asyncDisposable)
@@ -314,8 +324,6 @@ namespace FluentDocker.Kernel
       {
         _logger.LogWarning(ex, "Kernel DisposeAsync cleanup failed");
       }
-
-      GC.SuppressFinalize(this);
     }
 
     /// <summary>

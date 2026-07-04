@@ -82,6 +82,7 @@ New to FluentDocker? Follow the docs site for the maintained guides and driver n
 - [Containers](docs/containers.md) · [Compose](docs/compose.md) · [Networking](docs/networking.md) · [Volumes](docs/volumes.md) · [Images](docs/images.md)
 - [Docker API driver (production notes)](docs/docker-api.md) · [Podman production notes](docs/podman.md) · [Troubleshooting](docs/troubleshooting.md)
 - [Testing](docs/testing.md) · [Architecture](docs/architecture.md) · [Migration v2 → v3](docs/migration.md)
+- [Advanced Drivers](docs/advanced-drivers.md) — stacks, services, pods, manifests, machines, streaming · [API Reference](docs/api-reference.md)
 
 ## Drivers
 
@@ -99,18 +100,19 @@ capabilities on top.
 
 | Capability | Docker CLI | Docker API | Podman CLI |
 |---|:---:|:---:|:---:|
-| Container / Image / Network / Volume | yes | yes | yes |
-| System / Auth / Streaming | yes | yes | yes |
-| Compose | yes | - | - |
-| Stack (Swarm) | yes | - | - |
-| Service (Swarm) | yes | yes | - |
-| Pods | - | - | yes |
-| Kubernetes play/generate | - | - | yes |
-| Machine management | - | - | yes |
-| Multi-arch manifests | - | - | yes |
+| [Container / Image / Network / Volume](docs/containers.md) | yes | yes | yes |
+| [System / Auth / Streaming](docs/advanced-drivers.md#streaming) | yes | yes | yes |
+| [Compose](docs/compose.md) | yes | - | - |
+| [Stack (Swarm)](docs/advanced-drivers.md#stack-swarm) | yes | - | - |
+| [Service (Swarm)](docs/advanced-drivers.md#service-swarm) | yes | yes | - |
+| [Pods](docs/advanced-drivers.md#pods) | - | - | yes |
+| [Kubernetes play/generate](docs/podman.md) | - | - | yes |
+| [Machine management](docs/advanced-drivers.md#machine-management) | - | - | yes |
+| [Multi-arch manifests](docs/advanced-drivers.md#multi-arch-manifests) | - | - | yes |
 
 Register multiple drivers in one kernel and switch scope with `WithinDriver` (or the
-typed `WithinDockerCli` / `WithinDockerApi` / `WithinPodmanCli`):
+typed `WithinDockerCli` / `WithinDockerApi` / `WithinPodmanCli`). See
+[Driver scopes](docs/getting-started.md#driver-scopes) for when to use each:
 
 ```csharp
 using System;

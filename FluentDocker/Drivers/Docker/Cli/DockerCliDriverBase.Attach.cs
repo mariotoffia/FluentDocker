@@ -64,7 +64,7 @@ namespace FluentDocker.Drivers.Docker.Cli
         InputStream = process.StandardInput.BaseStream,
         OutputStream = process.StandardOutput.BaseStream,
         ErrorStream = process.StandardError.BaseStream,
-        IsConnected = true,
+        IsConnected = !process.HasExited,
         AttachedProcess = process
       };
     }

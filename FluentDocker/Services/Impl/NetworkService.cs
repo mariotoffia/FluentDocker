@@ -141,12 +141,12 @@ namespace FluentDocker.Services.Impl
 
     public Task PauseAsync(CancellationToken cancellationToken = default)
     {
-      throw new NotSupportedException("Networks cannot be paused");
+      throw new FluentDockerNotSupportedException("Networks cannot be paused");
     }
 
     public Task StopAsync(CancellationToken cancellationToken = default)
     {
-      throw new NotSupportedException("Networks cannot be stopped, use RemoveAsync instead");
+      throw new FluentDockerNotSupportedException("Networks cannot be stopped, use RemoveAsync instead");
     }
 
     public async Task RemoveAsync(bool force = false, CancellationToken cancellationToken = default)

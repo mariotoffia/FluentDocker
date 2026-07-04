@@ -25,6 +25,8 @@ namespace FluentDocker.Testing.MsTest.RunnerTests
     private static readonly MockContainerDriverPack Pack = new();
     internal static readonly string ContainerName = $"mstest-class-fixture-{Guid.NewGuid():N}";
     private static string? _firstContainerId;
+    internal static bool CleanupCompleted { get; private set; }
+    internal static int RemoveCallsAfterCleanup { get; private set; }
 
     protected override Func<Task<FluentDockerKernel>>? KernelFactory =>
         async () => (await MockContainerKernel.CreateAsync(Pack).ConfigureAwait(false)).kernel;
@@ -54,12 +56,50 @@ namespace FluentDocker.Testing.MsTest.RunnerTests
         Assert.AreEqual(_firstContainerId, Container.Id);
     }
 
-    [ClassCleanup]
+    [ClassCleanup(ClassCleanupBehavior.EndOfClass)]
     public static async Task Cleanup()
     {
       await CleanupClassAsync().ConfigureAwait(false);
       if (Pack.CreateCalls > 0)
         Assert.IsTrue(Pack.RemoveCalls >= 1, "ClassCleanup did not dispose the shared container");
+      RemoveCallsAfterCleanup = Pack.RemoveCalls;
+      CleanupCompleted = true;
+    }
+  }
+
+  [TestClass]
+  [TestCategory("Unit")]
+  public class ClassContainerFixtureSecondClassRunnerTests
+      : MsTestClassContainerFixtureBase<ClassContainerFixtureSecondClassRunnerTests>
+  {
+    private static readonly MockContainerDriverPack Pack = new();
+
+    protected override Func<Task<FluentDockerKernel>>? KernelFactory =>
+        async () => (await MockContainerKernel.CreateAsync(Pack).ConfigureAwait(false)).kernel;
+
+    protected override DockerResourceOptions? GetOptions() =>
+        new() { Driver = DriverSelection.Specific("docker"), ForceRemoveOnDispose = true };
+
+    protected override void ConfigureContainer(IContainerBuilder builder)
+    {
+      builder.UseImage("alpine").WithName($"mstest-class-fixture-second-{Guid.NewGuid():N}");
+    }
+
+    [TestMethod]
+    public void FirstClassContainer_IsDisposedBeforeSecondClassRuns()
+    {
+      Assert.IsTrue(
+          ClassContainerFixtureRunnerTests.CleanupCompleted,
+          "First fixture class cleanup must run before this class starts. Use [ClassCleanup(ClassCleanupBehavior.EndOfClass)].");
+      Assert.IsTrue(ClassContainerFixtureRunnerTests.RemoveCallsAfterCleanup >= 1);
+      Assert.AreEqual("class-container", Container.Id);
+      Assert.AreEqual(1, Pack.CreateCalls);
+    }
+
+    [ClassCleanup(ClassCleanupBehavior.EndOfClass)]
+    public static async Task Cleanup()
+    {
+      await CleanupClassAsync().ConfigureAwait(false);
     }
   }
 

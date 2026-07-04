@@ -56,7 +56,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       catch (Exception ex)
       {
         return CommandResponse<KubePlayResult>.Fail(
-            ex.Message, ErrorCodes.Kubernetes.PlayFailed);
+            ex.Message, FailureCode(ex, ErrorCodes.Kubernetes.PlayFailed));
       }
     }
 
@@ -91,7 +91,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       catch (Exception ex)
       {
         return CommandResponse<Unit>.Fail(
-            ex.Message, ErrorCodes.Kubernetes.DownFailed);
+            ex.Message, FailureCode(ex, ErrorCodes.Kubernetes.DownFailed));
       }
     }
 
@@ -126,7 +126,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       catch (Exception ex)
       {
         return CommandResponse<string>.Fail(
-            ex.Message, ErrorCodes.Kubernetes.GenerateFailed);
+            ex.Message, FailureCode(ex, ErrorCodes.Kubernetes.GenerateFailed));
       }
     }
 

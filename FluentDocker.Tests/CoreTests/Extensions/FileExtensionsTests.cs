@@ -259,6 +259,23 @@ namespace FluentDocker.Tests.CoreTests.Extensions
     }
 
     [Fact]
+    public void Copy_ExistingFile_OverwritesTargetFile()
+    {
+      var sourceFile = Path.Combine(_tempDir, "source.txt");
+      File.WriteAllText(sourceFile, "new content");
+      var workdir = Path.Combine(_tempDir, "workdir");
+      Directory.CreateDirectory(workdir);
+      File.WriteAllText(Path.Combine(workdir, "source.txt"), "old content");
+      TemplateString templateSource = sourceFile;
+      TemplateString templateWorkdir = workdir;
+
+      var result = templateSource.Copy(templateWorkdir);
+
+      Assert.Equal("source.txt", result);
+      Assert.Equal("new content", File.ReadAllText(Path.Combine(workdir, "source.txt")));
+    }
+
+    [Fact]
     public void Copy_NonExistentPath_ReturnsNull()
     {
       // Arrange

@@ -1,4 +1,5 @@
 using System;
+using System.Diagnostics.CodeAnalysis;
 
 namespace FluentDocker.Kernel
 {
@@ -36,6 +37,6 @@ namespace FluentDocker.Kernel
     /// <param name="instance">The resolved instance, or null</param>
     /// <returns>True if the interface was resolved</returns>
     /// <exception cref="FluentDocker.Common.DriverNotFoundException">If driver not found</exception>
-    bool TrySysCtl<T>(string driverId, out T instance) where T : class;
+    bool TrySysCtl<T>(string driverId, [NotNullWhen(true)] out T? instance) where T : class;
   }
 }

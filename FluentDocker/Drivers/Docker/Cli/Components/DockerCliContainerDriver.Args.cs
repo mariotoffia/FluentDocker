@@ -118,9 +118,10 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
       if (healthCheck.Test is { Length: > 0 })
       {
         var test = healthCheck.Test;
-        if (test[0] == "CMD-SHELL" || test[0] == "CMD")
-          test = test[1..];
-        args.Add($"--health-cmd {QuoteArgumentIfNeeded(string.Join(" ", test))}");
+        var command = test[0] == "CMD-SHELL"
+            ? string.Join(" ", test[1..])
+            : string.Join(" ", (test[0] == "CMD" ? test[1..] : test).Select(ShellQuoteHealthToken));
+        args.Add($"--health-cmd {QuoteArgumentIfNeeded(command)}");
       }
       if (!string.IsNullOrEmpty(healthCheck.Interval))
         args.Add($"--health-interval {QuoteArgumentIfNeeded(healthCheck.Interval)}");
@@ -130,6 +131,15 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
         args.Add($"--health-retries {healthCheck.Retries}");
       if (!string.IsNullOrEmpty(healthCheck.StartPeriod))
         args.Add($"--health-start-period {QuoteArgumentIfNeeded(healthCheck.StartPeriod)}");
+    }
+
+    private static string ShellQuoteHealthToken(string value)
+    {
+      if (string.IsNullOrEmpty(value))
+        return "''";
+      return value.Any(c => char.IsWhiteSpace(c) || "|&;()<>$`'\"\\*?[]{}!#~=".Contains(c))
+          ? $"'{value.Replace("'", "'\"'\"'")}'"
+          : value;
     }
   }
 }

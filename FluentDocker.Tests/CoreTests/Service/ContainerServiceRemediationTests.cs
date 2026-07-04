@@ -116,6 +116,88 @@ namespace FluentDocker.Tests.CoreTests.Service
     }
 
     [Fact]
+    public async Task StopAsync_WhenAlreadyStopped_DoesNotCallDriverOrFireEvents()
+    {
+      MockPack.SetupContainerStop();
+      var service = new ContainerService(Kernel, DriverId, "container-123", "alpine", "test");
+      await service.StopAsync(TestContext.Current.CancellationToken);
+      var states = new List<ServiceRunningState>();
+      service.StateChange += (_, args) => states.Add(args.State);
+
+      await service.StopAsync(TestContext.Current.CancellationToken);
+
+      Assert.Empty(states);
+      MockPack.ContainerDriver.Verify(d => d.StopAsync(
+          It.IsAny<DriverContext>(), "container-123", It.IsAny<int?>(),
+          It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task StopAsync_WhenCanceledBeforeDriverCall_PreservesState()
+    {
+      MockPack.SetupContainerStart();
+      MockPack.ContainerDriver
+          .Setup(d => d.StopAsync(
+              It.IsAny<DriverContext>(), "container-123", It.IsAny<int?>(),
+              It.IsAny<CancellationToken>()))
+          .Callback<DriverContext, string, int?, CancellationToken>((_, _, _, token) =>
+              token.ThrowIfCancellationRequested())
+          .ReturnsAsync(CommandResponse<Unit>.Ok(Unit.Default));
+      var service = new ContainerService(Kernel, DriverId, "container-123", "alpine", "test");
+      await service.StartAsync(TestContext.Current.CancellationToken);
+      var states = new List<ServiceRunningState>();
+      service.StateChange += (_, args) => states.Add(args.State);
+      using var cts = new CancellationTokenSource();
+      await cts.CancelAsync();
+
+      await Assert.ThrowsAsync<OperationCanceledException>(() => service.StopAsync(cts.Token));
+
+      Assert.Equal(ServiceRunningState.Running, service.State);
+      Assert.DoesNotContain(ServiceRunningState.Unknown, states);
+    }
+
+    [Theory]
+    [InlineData(ErrorCodes.Container.NotFound, "No such container")]
+    [InlineData(ErrorCodes.Container.RemoveFailed, "Error: No such container: abc123")]
+    [InlineData(ErrorCodes.Container.RemoveFailed, "No such container: abc123")]
+    [InlineData(ErrorCodes.Container.RemoveFailed, "Error: no container with name or ID abc123 found")]
+    public async Task RemoveAsync_WhenContainerAlreadyGone_TreatsNotFoundAsRemoved(
+        string errorCode,
+        string error)
+    {
+      MockPack.ContainerDriver
+          .Setup(d => d.RemoveAsync(
+              It.IsAny<DriverContext>(), "container-123", It.IsAny<bool>(), It.IsAny<bool>(),
+              It.IsAny<CancellationToken>()))
+          .ReturnsAsync(CommandResponse<Unit>.Fail(
+              error,
+              errorCode));
+      var service = new ContainerService(Kernel, DriverId, "container-123", "alpine", "test");
+
+      await service.RemoveAsync(cancellationToken: TestContext.Current.CancellationToken);
+
+      Assert.Equal(ServiceRunningState.Removed, service.State);
+    }
+
+    [Fact]
+    public async Task RemoveAsync_WhenRemoveFailedForOtherReason_ThrowsAndMarksUnknown()
+    {
+      MockPack.ContainerDriver
+          .Setup(d => d.RemoveAsync(
+              It.IsAny<DriverContext>(), "container-123", It.IsAny<bool>(), It.IsAny<bool>(),
+              It.IsAny<CancellationToken>()))
+          .ReturnsAsync(CommandResponse<Unit>.Fail(
+              "device or resource busy",
+              ErrorCodes.Container.RemoveFailed));
+      var service = new ContainerService(Kernel, DriverId, "container-123", "alpine", "test");
+
+      await Assert.ThrowsAsync<DriverException>(() =>
+          service.RemoveAsync(cancellationToken: TestContext.Current.CancellationToken));
+
+      Assert.Equal(ServiceRunningState.Unknown, service.State);
+    }
+
+    [Fact]
     public async Task DisposeAsync_AfterRemoveAsync_DoesNotRemoveAgainOrReplayHooks()
     {
       MockPack.SetupContainerRemove();
@@ -214,6 +296,27 @@ namespace FluentDocker.Tests.CoreTests.Service
       await service.InspectAsync(TestContext.Current.CancellationToken);
 
       Assert.Contains(ServiceRunningState.Running, states);
+    }
+
+    [Theory]
+    [InlineData("restarting", ServiceRunningState.Starting)]
+    [InlineData("removing", ServiceRunningState.Removing)]
+    [InlineData("dead", ServiceRunningState.Stopped)]
+    public async Task InspectAsync_MapsDockerLifecycleStates(string dockerState, ServiceRunningState expected)
+    {
+      MockPack.ContainerDriver
+          .Setup(d => d.InspectAsync(
+              It.IsAny<DriverContext>(), "container-123", It.IsAny<CancellationToken>()))
+          .ReturnsAsync(CommandResponse<Container>.Ok(new Container
+          {
+            Id = "container-123",
+            State = new ContainerState { Running = false, Status = dockerState }
+          }));
+      var service = new ContainerService(Kernel, DriverId, "container-123", "alpine", "test");
+
+      await service.InspectAsync(TestContext.Current.CancellationToken);
+
+      Assert.Equal(expected, service.State);
     }
 
     [Fact]

@@ -434,7 +434,7 @@ namespace FluentDocker.Tests.CoreTests.Service
     public async Task RestartAsync_WholeProject_CallsDriverWithNoServices()
     {
       var mockPack = new MockDriverPack();
-      mockPack.SetupComposeRestart();
+      mockPack.SetupComposeRestart().SetupComposeList(new ComposeServiceInfo { Name = "web", State = "running" });
 
       var kernel = await MockKernelBuilderExtensions.CreateWithMockDriverAsync("docker", mockPack);
       try
@@ -455,7 +455,7 @@ namespace FluentDocker.Tests.CoreTests.Service
     public async Task RestartAsync_SpecificServices_PassesServiceList()
     {
       var mockPack = new MockDriverPack();
-      mockPack.SetupComposeRestart();
+      mockPack.SetupComposeRestart().SetupComposeList(new ComposeServiceInfo { Name = "web", State = "running" });
 
       var kernel = await MockKernelBuilderExtensions.CreateWithMockDriverAsync("docker", mockPack);
       try

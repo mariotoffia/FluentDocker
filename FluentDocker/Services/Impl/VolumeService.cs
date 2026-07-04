@@ -88,12 +88,12 @@ namespace FluentDocker.Services.Impl
 
     public Task PauseAsync(CancellationToken cancellationToken = default)
     {
-      throw new NotSupportedException("Volumes cannot be paused");
+      throw new FluentDockerNotSupportedException("Volumes cannot be paused");
     }
 
     public Task StopAsync(CancellationToken cancellationToken = default)
     {
-      throw new NotSupportedException("Volumes cannot be stopped, use RemoveAsync instead");
+      throw new FluentDockerNotSupportedException("Volumes cannot be stopped, use RemoveAsync instead");
     }
 
     public async Task RemoveAsync(bool force = false, CancellationToken cancellationToken = default)

@@ -51,6 +51,10 @@ Console.WriteLine($"nginx is at {endpoint.Address}:{endpoint.Port}");
 > Prefer `await using` + `BuildAsync()`; the synchronous `Build()` wrapper exists only
 > for code that cannot be async.
 
+The quick start uses `WithinDockerCli`, a typed driver scope. See
+[Driver scopes](https://github.com/mariotoffia/FluentDocker/blob/master/docs/getting-started.md#driver-scopes)
+for typed scopes versus the generic `WithinDriver(id, kernel)`.
+
 ### Docker Engine API (no CLI required)
 
 ```csharp

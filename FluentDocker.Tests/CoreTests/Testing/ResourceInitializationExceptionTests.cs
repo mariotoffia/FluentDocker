@@ -50,6 +50,24 @@ namespace FluentDocker.Tests.CoreTests.Testing
       }
     }
 
+    [Fact]
+    public async Task ToString_InitFailure_IncludesCollectedDiagnostics()
+    {
+      var (kernel, _) = await MockKernelBuilderExtensions.CreateWithMockDriverAsync();
+      await using (kernel.ConfigureAwait(false))
+      {
+        var resource = new DiagnosticsFailureResource(kernel);
+
+        var ex = await Assert.ThrowsAsync<ResourceInitializationException>(
+            () => resource.InitializeAsync(TestContext.Current.CancellationToken));
+
+        var text = ex.ToString();
+        Assert.Contains("Resource diagnostics:", text);
+        Assert.Contains("diagnostic logs", text);
+        Assert.Contains("provision failed", text);
+      }
+    }
+
     private sealed class DiagnosticsFailureResource(
         FluentDockerKernel kernel,
         bool withLogTail = false) : ResourceBase(kernel)

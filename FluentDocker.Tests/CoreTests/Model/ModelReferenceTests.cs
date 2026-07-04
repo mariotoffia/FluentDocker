@@ -190,6 +190,8 @@ namespace FluentDocker.Tests.CoreTests.Model
     [InlineData("ai/qwen3@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")]
     [InlineData("ai/qwen3@sha512:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")]
     [InlineData("ai/qwen3@SHA256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")]
+    [InlineData("ai/qwen3@sha256:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA")]
+    [InlineData("ubuntu:latest/foo")]
     [InlineData("ai/-qwen3")]
     [InlineData("ai/qwen3/-bad")]
     [InlineData("ai/qwen3:bad tag")]

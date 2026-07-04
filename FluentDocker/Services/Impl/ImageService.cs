@@ -150,12 +150,12 @@ namespace FluentDocker.Services.Impl
 
     public Task PauseAsync(CancellationToken cancellationToken = default)
     {
-      throw new NotSupportedException("Images cannot be paused");
+      throw new FluentDockerNotSupportedException("Images cannot be paused");
     }
 
     public Task StopAsync(CancellationToken cancellationToken = default)
     {
-      throw new NotSupportedException("Images cannot be stopped, use RemoveAsync instead");
+      throw new FluentDockerNotSupportedException("Images cannot be stopped, use RemoveAsync instead");
     }
 
     public async Task RemoveAsync(bool force = false, CancellationToken cancellationToken = default)

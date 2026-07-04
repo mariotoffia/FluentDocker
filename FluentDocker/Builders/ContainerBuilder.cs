@@ -34,6 +34,7 @@ namespace FluentDocker.Builders
     private readonly Dictionary<string, string> _environment = [];
     private readonly Dictionary<string, string> _extraHosts = [];
     private readonly Dictionary<string, string> _ports = [];
+    private readonly HashSet<string> _duplicateContainerPorts = [];
     private readonly List<string> _command = [];
     private readonly List<string> _volumes = [];
     private readonly Dictionary<string, string> _labels = [];
@@ -249,6 +250,9 @@ namespace FluentDocker.Builders
 
         ValidateHostPort(hostPort);
       }
+      if (_duplicateContainerPorts.Count > 0)
+        throw new FluentDockerException(
+            $"Duplicate container port mapping for '{_duplicateContainerPorts.First()}'. Configure each container port only once.");
     }
 
     private static void ValidateContainerPort(string containerPort)
@@ -309,7 +313,11 @@ namespace FluentDocker.Builders
 
     #region Execute
 
-    public async Task<IServiceAsync> ExecuteAsync(CancellationToken cancellationToken)
+    public Task<IServiceAsync> ExecuteAsync(CancellationToken cancellationToken) =>
+        ExecuteAsync(TimeSpan.FromSeconds(120), cancellationToken);
+
+    internal async Task<IServiceAsync> ExecuteAsync(
+        TimeSpan cleanupTimeout, CancellationToken cancellationToken)
     {
       Validate();
       var driver = _kernel.SysCtl<Drivers.IContainerDriver>(_driverId);
@@ -447,7 +455,7 @@ namespace FluentDocker.Builders
           {
             if (!_keepContainer)
             {
-              using var cleanupCts = new CancellationTokenSource(TimeSpan.FromSeconds(120));
+              using var cleanupCts = new CancellationTokenSource(cleanupTimeout);
               await service.RemoveAsync(force: true, removeVolumes: true, cleanupCts.Token).ConfigureAwait(false);
             }
           }

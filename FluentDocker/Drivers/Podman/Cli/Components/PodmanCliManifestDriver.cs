@@ -53,7 +53,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       catch (Exception ex)
       {
         return CommandResponse<string>.Fail(
-            ex.Message, ErrorCodes.Manifest.CreateFailed);
+            ex.Message, FailureCode(ex, ErrorCodes.Manifest.CreateFailed));
       }
     }
 
@@ -87,7 +87,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       catch (Exception ex)
       {
         return CommandResponse<Unit>.Fail(
-            ex.Message, ErrorCodes.Manifest.RemoveFailed);
+            ex.Message, FailureCode(ex, ErrorCodes.Manifest.RemoveFailed));
       }
     }
 
@@ -127,7 +127,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       catch (Exception ex)
       {
         return CommandResponse<string>.Fail(
-            ex.Message, ErrorCodes.Manifest.AddFailed);
+            ex.Message, FailureCode(ex, ErrorCodes.Manifest.AddFailed));
       }
     }
 
@@ -163,7 +163,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       catch (Exception ex)
       {
         return CommandResponse<Unit>.Fail(
-            ex.Message, ErrorCodes.Manifest.AnnotateFailed);
+            ex.Message, FailureCode(ex, ErrorCodes.Manifest.AnnotateFailed));
       }
     }
 
@@ -203,7 +203,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       catch (Exception ex)
       {
         return CommandResponse<Unit>.Fail(
-            ex.Message, ErrorCodes.Manifest.PushFailed);
+            ex.Message, FailureCode(ex, ErrorCodes.Manifest.PushFailed));
       }
     }
 
@@ -242,7 +242,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       catch (Exception ex)
       {
         return CommandResponse<ManifestInspectResult>.Fail(
-            ex.Message, ErrorCodes.Manifest.InspectFailed);
+            ex.Message, FailureCode(ex, ErrorCodes.Manifest.InspectFailed));
       }
     }
 
@@ -280,7 +280,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       catch (Exception ex)
       {
         return CommandResponse<bool>.Fail(
-            ex.Message, ErrorCodes.Manifest.InspectFailed);
+            ex.Message, FailureCode(ex, ErrorCodes.Manifest.InspectFailed));
       }
     }
 

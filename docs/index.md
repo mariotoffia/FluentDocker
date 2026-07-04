@@ -172,8 +172,10 @@ dotnet add package FluentDocker.Testing.NUnit   # NUnit adapter
 |-------|-------------|
 | [Docker API Driver](docker-api.md) | Binary-free TCP+TLS driver: registry auth, TLS, streams |
 | [Podman](podman.md) | Podman runtime: machines, readiness, cancellation, output caps |
+| [Advanced Drivers](advanced-drivers.md) | Swarm stacks/services, pods, manifests, machines, streaming, prune |
 | [Architecture](architecture.md) | Kernel/driver internals and async model |
 | [Driver Extensibility](extensibility.md) | Driver-aware extension model |
+| [API Reference](api-reference.md) | Generated type-level reference |
 | [Migration](migration.md) | Upgrade from v2.x to v3.x |
 
 ## Architecture

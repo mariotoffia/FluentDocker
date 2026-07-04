@@ -46,7 +46,7 @@ namespace FluentDocker.Testing.Core
       if (abandoned is null || abandoned.IsCompleted)
         return;
 
-      // ponytail: bounded grace — a task outliving TeardownTimeout leaks its container
+      // Bounded grace — a task outliving TeardownTimeout leaks its container
       // until orphan cleanup; the generation fence means it can no longer corrupt state.
       await Task.WhenAny(abandoned, Task.Delay(Timeout.Infinite, cancellationToken))
           .ConfigureAwait(false);

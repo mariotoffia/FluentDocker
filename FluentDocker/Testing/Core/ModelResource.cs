@@ -122,7 +122,7 @@ namespace FluentDocker.Testing.Core
       if (service == null)
         return;
 
-      // ponytail: cannot reuse service.DisposeAsync() here. It is idempotent
+      // Cannot reuse service.DisposeAsync() here. It is idempotent
       // (Interlocked.CompareExchange on _disposed) and the graceful TeardownAsync
       // already set _disposed=1, so a second DisposeAsync() short-circuits to a
       // no-op and returns INSTANT success even while the original unload is still

@@ -202,6 +202,7 @@ namespace FluentDocker.Services.Impl
 
     public async Task StartAsync(CancellationToken cancellationToken = default)
     {
+      cancellationToken.ThrowIfCancellationRequested();
       var driver = _kernel.SysCtl<IComposeDriver>(_driverId);
       var context = new DriverContext(_driverId);
 
@@ -228,6 +229,10 @@ namespace FluentDocker.Services.Impl
 
         UpdateState(ServiceRunningState.Running);
         await ExecuteHooksAsync(ServiceRunningState.Running).ConfigureAwait(false);
+      }
+      catch (OperationCanceledException)
+      {
+        throw;
       }
       catch
       {
@@ -263,6 +268,7 @@ namespace FluentDocker.Services.Impl
 
     public async Task StopAsync(CancellationToken cancellationToken = default)
     {
+      cancellationToken.ThrowIfCancellationRequested();
       var driver = _kernel.SysCtl<IComposeDriver>(_driverId);
       var context = new DriverContext(_driverId);
 
@@ -290,6 +296,10 @@ namespace FluentDocker.Services.Impl
         UpdateState(ServiceRunningState.Stopped);
         await ExecuteHooksAsync(ServiceRunningState.Stopped).ConfigureAwait(false);
       }
+      catch (OperationCanceledException)
+      {
+        throw;
+      }
       catch
       {
         UpdateState(ServiceRunningState.Unknown);
@@ -302,6 +312,7 @@ namespace FluentDocker.Services.Impl
 
     public async Task RestartAsync(IEnumerable<string> services, CancellationToken cancellationToken = default)
     {
+      cancellationToken.ThrowIfCancellationRequested();
       var driver = _kernel.SysCtl<IComposeDriver>(_driverId);
       var context = new DriverContext(_driverId);
 
@@ -312,18 +323,34 @@ namespace FluentDocker.Services.Impl
         Services = services is null ? [] : [.. services]
       };
 
-      var response = await driver.RestartAsync(context, config, cancellationToken).ConfigureAwait(false);
-
-      if (!response.Success)
+      try
       {
-        throw new DriverException(
-            $"Failed to restart compose project '{_projectName}': {response.Error}",
-            response.ErrorCode,
-            response.ErrorContext);
-      }
+        var response = await driver.RestartAsync(context, config, cancellationToken).ConfigureAwait(false);
 
-      UpdateState(ServiceRunningState.Running);
-      await ExecuteHooksAsync(ServiceRunningState.Running).ConfigureAwait(false);
+        if (!response.Success)
+        {
+          throw new DriverException(
+              $"Failed to restart compose project '{_projectName}': {response.Error}",
+              response.ErrorCode,
+              response.ErrorContext);
+        }
+
+        if (config.Services.Count == 0)
+          UpdateState(ServiceRunningState.Running);
+        else
+          await RefreshStateAsync(cancellationToken).ConfigureAwait(false);
+        if (_state == ServiceRunningState.Running)
+          await ExecuteHooksAsync(ServiceRunningState.Running).ConfigureAwait(false);
+      }
+      catch (OperationCanceledException)
+      {
+        throw;
+      }
+      catch
+      {
+        UpdateState(ServiceRunningState.Unknown);
+        throw;
+      }
     }
 
     public IServiceAsync AddHook(ServiceRunningState state, Func<IServiceAsync, Task> hook, string uniqueName = null)

@@ -101,6 +101,21 @@ namespace FluentDocker.Tests.CoreTests.Testing
     }
 
     [Fact]
+    public async Task InitializeAsync_FailsPreflightWhenDriverIsUnhealthy()
+    {
+      MockPack.SetHealthy(false);
+      var resource = new ContainerResource(
+          Kernel,
+          builder => builder.UseImage("alpine:latest"));
+
+      var ex = await Assert.ThrowsAsync<ResourceInitializationException>(
+          () => resource.InitializeAsync(TestContext.Current.CancellationToken));
+
+      Assert.IsType<FluentDockerException>(ex.InnerException);
+      Assert.Contains("Is Docker running?", ex.InnerException.Message);
+    }
+
+    [Fact]
     public void Constructor_NullKernel_Throws()
     {
       Assert.Throws<ArgumentNullException>(

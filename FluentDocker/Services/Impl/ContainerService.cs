@@ -119,6 +119,10 @@ namespace FluentDocker.Services.Impl
 
     public async Task StartAsync(CancellationToken cancellationToken = default)
     {
+      cancellationToken.ThrowIfCancellationRequested();
+      if (_state == ServiceRunningState.Running)
+        return;
+
       var driver = _kernel.SysCtl<IContainerDriver>(_driverId);
       var context = new DriverContext(_driverId);
 
@@ -138,6 +142,7 @@ namespace FluentDocker.Services.Impl
               response.ErrorCode);
         }
 
+        var versionBeforeInspect = _cacheVersion;
         var inspect = await driver.InspectAsync(context, _containerId, cancellationToken).ConfigureAwait(false);
         if (inspect == null)
         {
@@ -152,11 +157,22 @@ namespace FluentDocker.Services.Impl
               inspect.ErrorCode,
               inspect.ErrorContext);
 
-        UpdateState(inspect.Data?.State?.Running == true
+        var inspectedState = inspect.Data?.State?.Running == true
             ? ServiceRunningState.Running
-            : ParseState(inspect.Data?.State?.Status));
-        if (inspect.Data != null)
+            : ParseState(inspect.Data?.State?.Status);
+        var stateChangedByThisStart = inspectedState != _state;
+        var canCacheInspect = versionBeforeInspect == _cacheVersion;
+        if (canCacheInspect)
+          UpdateState(inspectedState);
+        else
+          UpdateStateFromInspect(inspectedState);
+        if (canCacheInspect &&
+            inspect.Data != null &&
+            (versionBeforeInspect == _cacheVersion ||
+             (stateChangedByThisStart && versionBeforeInspect + 1 == _cacheVersion)))
+        {
           _inspectCacheEntry = new InspectCacheEntry(inspect.Data, Stopwatch.GetTimestamp());
+        }
         if (_state == ServiceRunningState.Running)
           await ExecuteHooksAsync(ServiceRunningState.Running).ConfigureAwait(false);
         // Builder orchestrates CopyToOnStart / ExecuteOnRunning once, after wait conditions.
@@ -170,6 +186,10 @@ namespace FluentDocker.Services.Impl
 
     public async Task PauseAsync(CancellationToken cancellationToken = default)
     {
+      cancellationToken.ThrowIfCancellationRequested();
+      if (_state == ServiceRunningState.Paused)
+        return;
+
       var driver = _kernel.SysCtl<IContainerDriver>(_driverId);
       var context = new DriverContext(_driverId);
 
@@ -189,6 +209,10 @@ namespace FluentDocker.Services.Impl
 
     public async Task UnpauseAsync(CancellationToken cancellationToken = default)
     {
+      cancellationToken.ThrowIfCancellationRequested();
+      if (_state == ServiceRunningState.Running)
+        return;
+
       var driver = _kernel.SysCtl<IContainerDriver>(_driverId);
       var context = new DriverContext(_driverId);
 
@@ -208,6 +232,10 @@ namespace FluentDocker.Services.Impl
 
     public async Task StopAsync(CancellationToken cancellationToken = default)
     {
+      cancellationToken.ThrowIfCancellationRequested();
+      if (_state == ServiceRunningState.Stopped || _state == ServiceRunningState.Removed)
+        return;
+
       var driver = _kernel.SysCtl<IContainerDriver>(_driverId);
       var context = new DriverContext(_driverId);
 
@@ -238,6 +266,10 @@ namespace FluentDocker.Services.Impl
 
     public async Task KillAsync(string signal = "SIGKILL", CancellationToken cancellationToken = default)
     {
+      cancellationToken.ThrowIfCancellationRequested();
+      if (_state == ServiceRunningState.Stopped || _state == ServiceRunningState.Removed)
+        return;
+
       var driver = _kernel.SysCtl<IContainerDriver>(_driverId);
       var context = new DriverContext(_driverId);
 

@@ -197,7 +197,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       catch (Exception ex)
       {
         return Task.FromResult(CommandResponse<AttachResult>.Fail(
-            ex.Message, ErrorCodes.Container.AttachFailed));
+            ex.Message, FailureCode(ex, ErrorCodes.Container.AttachFailed)));
       }
     }
 

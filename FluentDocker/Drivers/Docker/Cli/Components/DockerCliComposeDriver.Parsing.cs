@@ -57,7 +57,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
 
         var containerName = block[0].Trim();
         var headerLine = block[1];
-        var headers = SplitTopHeaderLine(headerLine);
+        var columns = SplitTopHeaderLine(headerLine);
 
         var processes = new ComposeProcesses
         {
@@ -67,7 +67,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
 
         for (var i = 2; i < block.Count; i++)
         {
-          var row = ParseTopRow(block[i], headers);
+          var row = ParseTopRow(block[i], columns);
           if (row.Count > 0)
             processes.Processes.Add(row);
         }
@@ -81,9 +81,19 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     /// <summary>
     /// Splits a header line into column names by whitespace.
     /// </summary>
-    private static string[] SplitTopHeaderLine(string headerLine)
+    private static TopColumn[] SplitTopHeaderLine(string headerLine)
     {
-      return headerLine.Split((char[])null, StringSplitOptions.RemoveEmptyEntries);
+      var headers = headerLine.Split((char[])null, StringSplitOptions.RemoveEmptyEntries);
+      var columns = new TopColumn[headers.Length];
+      var searchStart = 0;
+      for (var i = 0; i < headers.Length; i++)
+      {
+        var start = headerLine.IndexOf(headers[i], searchStart, StringComparison.Ordinal);
+        columns[i] = new TopColumn(headers[i], start < 0 ? searchStart : start);
+        searchStart = columns[i].Start + headers[i].Length;
+      }
+
+      return columns;
     }
 
     /// <summary>
@@ -91,42 +101,26 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     /// last column receiving all remaining text (to handle commands with spaces).
     /// </summary>
     private static Dictionary<string, string> ParseTopRow(
-        string line, string[] headers)
+        string line, TopColumn[] columns)
     {
       var dict = new Dictionary<string, string>();
-      if (headers.Length == 0)
+      if (columns.Length == 0)
         return dict;
 
-      var parts = line.Split((char[])null, StringSplitOptions.RemoveEmptyEntries);
-      if (parts.Length == 0)
-        return dict;
-
-      // All columns except the last get one token each.
-      // The last column gets everything remaining.
-      var lastHeaderIndex = headers.Length - 1;
-
-      for (var col = 0; col < headers.Length; col++)
+      for (var col = 0; col < columns.Length; col++)
       {
-        if (col < lastHeaderIndex)
-        {
-          dict[headers[col]] = col < parts.Length ? parts[col] : string.Empty;
-        }
-        else
-        {
-          // Last column: join all remaining parts
-          if (col < parts.Length)
-          {
-            dict[headers[col]] = string.Join(" ",
-                parts.Skip(col));
-          }
-          else
-          {
-            dict[headers[col]] = string.Empty;
-          }
-        }
+        var start = Math.Min(columns[col].Start, line.Length);
+        var end = col + 1 < columns.Length ? Math.Min(columns[col + 1].Start, line.Length) : line.Length;
+        dict[columns[col].Name] = line[start..end].Trim();
       }
 
       return dict;
+    }
+
+    private readonly struct TopColumn(string name, int start)
+    {
+      public string Name { get; } = name;
+      public int Start { get; } = start;
     }
   }
 }

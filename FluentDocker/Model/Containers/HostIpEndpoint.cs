@@ -17,38 +17,39 @@ namespace FluentDocker.Model.Containers
     public string HostIp
     {
       get => _hostIp;
-      set
-      {
-        if (!string.IsNullOrWhiteSpace(value) && !IPAddress.TryParse(value, out _))
-          throw new ArgumentException($"Invalid host IP address '{value}'.", nameof(value));
-
-        _hostIp = value;
-      }
+      set => _hostIp = value;
     }
 
     /// <summary>Host TCP/UDP port string as emitted by Docker inspect.</summary>
     public string HostPort
     {
       get => _hostPort;
-      set
-      {
-        if (!string.IsNullOrWhiteSpace(value) &&
-            (!int.TryParse(value, NumberStyles.None, CultureInfo.InvariantCulture, out var port) ||
-             port is < IPEndPoint.MinPort or > IPEndPoint.MaxPort))
-          throw new ArgumentException($"Invalid host port '{value}'.", nameof(value));
-
-        _hostPort = value;
-      }
+      set => _hostPort = value;
     }
 
     /// <summary>Parsed host IP address. Empty bindings resolve to <see cref="IPAddress.Any"/>.</summary>
     [JsonIgnore]
-    public IPAddress Address => string.IsNullOrWhiteSpace(HostIp) ? IPAddress.Any : IPAddress.Parse(HostIp);
+    public IPAddress Address => string.IsNullOrWhiteSpace(HostIp) ? IPAddress.Any : ParseAddress(HostIp);
 
     /// <summary>Parsed host port.</summary>
     [JsonIgnore]
     public int Port => string.IsNullOrWhiteSpace(HostPort)
         ? throw new InvalidOperationException("HostPort is not set.")
-        : int.Parse(HostPort, CultureInfo.InvariantCulture);
+        : ParsePort(HostPort);
+
+    private static IPAddress ParseAddress(string value)
+    {
+      if (IPAddress.TryParse(value, out var address))
+        return address;
+      throw new InvalidOperationException($"HostIp '{value}' is not a valid IP address.");
+    }
+
+    private static int ParsePort(string value)
+    {
+      if (int.TryParse(value, NumberStyles.None, CultureInfo.InvariantCulture, out var port) &&
+          port is >= IPEndPoint.MinPort and <= IPEndPoint.MaxPort)
+        return port;
+      throw new InvalidOperationException($"HostPort '{value}' is not a valid TCP/UDP port.");
+    }
   }
 }

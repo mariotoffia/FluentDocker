@@ -1,3 +1,4 @@
+using System;
 using FluentDocker.Model.Drivers;
 using Xunit;
 
@@ -32,6 +33,12 @@ namespace FluentDocker.Tests.CoreTests.Driver
       Assert.True(response.Success);
       Assert.Equal("test data", response.Data);
       Assert.Equal("output text", response.Output);
+    }
+
+    [Fact]
+    public void Ok_WithNegativeExitCode_Throws()
+    {
+      Assert.Throws<ArgumentOutOfRangeException>(() => CommandResponse<string>.Ok("test data", "output", -1));
     }
 
     [Fact]
@@ -101,4 +108,3 @@ namespace FluentDocker.Tests.CoreTests.Driver
     }
   }
 }
-

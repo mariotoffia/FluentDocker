@@ -241,7 +241,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
                 inspectResult.StatusCode, inspectResult.ResponseBody),
             inspectResult.StatusCode);
 
-      var exitCode = inspectResult.Data?.ExitCode ?? -1;
+      var exitCode = inspectResult.Data?.ExitCode ?? (config.Detach ? 0 : -1);
 
       return CommandResponse<ExecResult>.Ok(new ExecResult
       {

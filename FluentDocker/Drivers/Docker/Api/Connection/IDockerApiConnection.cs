@@ -19,6 +19,12 @@ namespace FluentDocker.Drivers.Docker.Api.Connection
     Task<HttpResponseMessage> GetAsync(string path, CancellationToken ct = default);
 
     /// <summary>
+    /// Sends a HEAD request to the Docker API.
+    /// </summary>
+    Task<HttpResponseMessage> HeadAsync(string path, CancellationToken ct = default) =>
+        throw new NotSupportedException("HEAD requests are not supported by this connection.");
+
+    /// <summary>
     /// Sends a POST request to the Docker API.
     /// </summary>
     Task<HttpResponseMessage> PostAsync(string path, HttpContent content = null, CancellationToken ct = default);

@@ -28,7 +28,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
             context, BuildInitArgs(config), cancellationToken).ConfigureAwait(false);
         if (!result.Success)
           return CommandResponse<Unit>.Fail(
-              ErrorOrDefault(result, "Machine init failed"), ErrorCodes.Machine.InitFailed,
+              ErrorOrDefault(result, "Machine init failed"), FailureCode(result.Error, ErrorCodes.Machine.InitFailed),
               CreateErrorContext(context, "InitMachine", result), result.ExitCode);
 
         return CommandResponse<Unit>.Ok(Unit.Default);
@@ -39,7 +39,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       }
       catch (Exception ex)
       {
-        return CommandResponse<Unit>.Fail(ex.Message, ErrorCodes.Machine.InitFailed);
+        return CommandResponse<Unit>.Fail(ex.Message, FailureCode(ex, ErrorCodes.Machine.InitFailed));
       }
     }
 
@@ -56,7 +56,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
         var result = await ExecuteUnboundedCommandAsync(context, args, cancellationToken).ConfigureAwait(false);
         if (!result.Success)
           return CommandResponse<Unit>.Fail(
-              ErrorOrDefault(result, "Machine start failed"), ErrorCodes.Machine.StartFailed,
+              ErrorOrDefault(result, "Machine start failed"), FailureCode(result.Error, ErrorCodes.Machine.StartFailed),
               CreateErrorContext(context, "StartMachine", result), result.ExitCode);
 
         return CommandResponse<Unit>.Ok(Unit.Default);
@@ -67,7 +67,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       }
       catch (Exception ex)
       {
-        return CommandResponse<Unit>.Fail(ex.Message, ErrorCodes.Machine.StartFailed);
+        return CommandResponse<Unit>.Fail(ex.Message, FailureCode(ex, ErrorCodes.Machine.StartFailed));
       }
     }
 
@@ -84,7 +84,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
         var result = await ExecuteUnboundedCommandAsync(context, args, cancellationToken).ConfigureAwait(false);
         if (!result.Success)
           return CommandResponse<Unit>.Fail(
-              ErrorOrDefault(result, "Machine stop failed"), ErrorCodes.Machine.StopFailed,
+              ErrorOrDefault(result, "Machine stop failed"), FailureCode(result.Error, ErrorCodes.Machine.StopFailed),
               CreateErrorContext(context, "StopMachine", result), result.ExitCode);
 
         return CommandResponse<Unit>.Ok(Unit.Default);
@@ -95,7 +95,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       }
       catch (Exception ex)
       {
-        return CommandResponse<Unit>.Fail(ex.Message, ErrorCodes.Machine.StopFailed);
+        return CommandResponse<Unit>.Fail(ex.Message, FailureCode(ex, ErrorCodes.Machine.StopFailed));
       }
     }
 
@@ -112,10 +112,12 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
         if (!string.IsNullOrEmpty(name))
           args += $" {QuotePositionalArgument(name, nameof(name))}";
 
-        var result = await ExecuteCommandAsync(context, args, cancellationToken).ConfigureAwait(false);
+        var result = force
+            ? await ExecuteCommandAsync(context, args, cancellationToken).ConfigureAwait(false)
+            : await ExecuteCommandAsync(context, args, "y\n", cancellationToken).ConfigureAwait(false);
         if (!result.Success)
           return CommandResponse<Unit>.Fail(
-              ErrorOrDefault(result, "Machine remove failed"), ErrorCodes.Machine.RemoveFailed,
+              ErrorOrDefault(result, "Machine remove failed"), FailureCode(result.Error, ErrorCodes.Machine.RemoveFailed),
               CreateErrorContext(context, "RemoveMachine", result), result.ExitCode);
 
         return CommandResponse<Unit>.Ok(Unit.Default);
@@ -126,7 +128,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       }
       catch (Exception ex)
       {
-        return CommandResponse<Unit>.Fail(ex.Message, ErrorCodes.Machine.RemoveFailed);
+        return CommandResponse<Unit>.Fail(ex.Message, FailureCode(ex, ErrorCodes.Machine.RemoveFailed));
       }
     }
 
@@ -150,7 +152,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
         var result = await ExecuteUnboundedCommandAsync(context, args, cancellationToken).ConfigureAwait(false);
         if (!result.Success)
           return CommandResponse<string>.Fail(
-              ErrorOrDefault(result, "Machine SSH failed"), ErrorCodes.Machine.SshFailed,
+              ErrorOrDefault(result, "Machine SSH failed"), FailureCode(result.Error, ErrorCodes.Machine.SshFailed),
               CreateErrorContext(context, "MachineSsh", result), result.ExitCode);
 
         return CommandResponse<string>.Ok(result.Output?.TrimEnd());
@@ -161,7 +163,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       }
       catch (Exception ex)
       {
-        return CommandResponse<string>.Fail(ex.Message, ErrorCodes.Machine.SshFailed);
+        return CommandResponse<string>.Fail(ex.Message, FailureCode(ex, ErrorCodes.Machine.SshFailed));
       }
     }
 
@@ -182,7 +184,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
             context, BuildSetArgs(config, name), cancellationToken).ConfigureAwait(false);
         if (!result.Success)
           return CommandResponse<Unit>.Fail(
-              ErrorOrDefault(result, "Machine set failed"), ErrorCodes.Machine.SetFailed,
+              ErrorOrDefault(result, "Machine set failed"), FailureCode(result.Error, ErrorCodes.Machine.SetFailed),
               CreateErrorContext(context, "SetMachine", result), result.ExitCode);
 
         return CommandResponse<Unit>.Ok(Unit.Default);
@@ -193,7 +195,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       }
       catch (Exception ex)
       {
-        return CommandResponse<Unit>.Fail(ex.Message, ErrorCodes.Machine.SetFailed);
+        return CommandResponse<Unit>.Fail(ex.Message, FailureCode(ex, ErrorCodes.Machine.SetFailed));
       }
     }
 

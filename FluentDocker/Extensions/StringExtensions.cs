@@ -16,6 +16,11 @@ namespace FluentDocker.Extensions
     /// <returns>The wrapped string.</returns>
     public static string WrapWithChar(this string s, string c)
     {
+      if (s == null || string.IsNullOrEmpty(c))
+        return s;
+
+      if (s.Length == 0)
+        return c + c;
 
       if (!s.StartsWith(c, StringComparison.Ordinal))
       {

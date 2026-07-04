@@ -1,8 +1,11 @@
 using System;
 using System.IO;
 using System.Linq;
+using System.Text;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
+using FluentDocker.Common;
 using FluentDocker.Model.Drivers;
 
 namespace FluentDocker.Drivers.Docker.Api.Components
@@ -27,7 +30,9 @@ namespace FluentDocker.Drivers.Docker.Api.Components
         var extractPath = containerPath;
         string tarEntryName = null;
 
-        if (File.Exists(hostPath) && !containerPath.EndsWith('/'))
+        if (File.Exists(hostPath) && !containerPath.EndsWith('/') &&
+            !await ContainerPathIsDirectoryAsync(containerId, containerPath, cancellationToken)
+                .ConfigureAwait(false))
         {
           var parentDir = containerPath.Contains('/')
               ? containerPath[..containerPath.LastIndexOf('/')]
@@ -42,15 +47,19 @@ namespace FluentDocker.Drivers.Docker.Api.Components
         if (File.Exists(hostPath))
         {
           var file = new FileInfo(hostPath);
-          using var src = file.OpenRead();
-          DockerApiTarWriter.WriteFile(tarStream, tarEntryName ?? file.Name, src,
-              file.LastWriteTimeUtc, DockerApiTarWriter.FileModeFor(file.FullName));
+          await using var src = new FileStream(
+              file.FullName, FileMode.Open, FileAccess.Read, FileShare.Read,
+              bufferSize: 81920, FileOptions.Asynchronous);
+          await DockerApiTarWriter.WriteFileAsync(tarStream, tarEntryName ?? file.Name, src,
+              file.LastWriteTimeUtc, DockerApiTarWriter.FileModeFor(file.FullName),
+              cancellationToken).ConfigureAwait(false);
         }
         else
         {
-          WriteDirectoryToTar(tarStream, hostPath, string.Empty);
+          await WriteDirectoryToTarAsync(tarStream, hostPath, string.Empty, cancellationToken)
+              .ConfigureAwait(false);
         }
-        DockerApiTarWriter.Finish(tarStream);
+        await DockerApiTarWriter.FinishAsync(tarStream, cancellationToken).ConfigureAwait(false);
 
         tarStream.Position = 0;
         var apiPath = $"/containers/{Uri.EscapeDataString(containerId)}" +
@@ -79,7 +88,34 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       }
     }
 
-    private static void WriteDirectoryToTar(Stream tarStream, string rootDir, string entryBase)
+    private async Task<bool> ContainerPathIsDirectoryAsync(
+        string containerId, string containerPath, CancellationToken cancellationToken)
+    {
+      var statPath = $"/containers/{Uri.EscapeDataString(containerId)}" +
+                     $"/archive?path={Uri.EscapeDataString(containerPath)}";
+      using var response = await Connection.HeadAsync(statPath, cancellationToken)
+          .ConfigureAwait(false);
+      if (!response.IsSuccessStatusCode ||
+          !response.Headers.TryGetValues("X-Docker-Container-Path-Stat", out var values))
+        return false;
+
+      var encoded = values.FirstOrDefault();
+      if (string.IsNullOrEmpty(encoded))
+        return false;
+      try
+      {
+        var json = Encoding.UTF8.GetString(Convert.FromBase64String(encoded));
+        var stat = JsonHelper.ParseElement(json);
+        return (stat.GetInt64OrDefault("mode") & 0x80000000L) != 0;
+      }
+      catch (Exception ex) when (ex is FormatException or JsonException)
+      {
+        return false;
+      }
+    }
+
+    private static async Task WriteDirectoryToTarAsync(
+        Stream tarStream, string rootDir, string entryBase, CancellationToken cancellationToken)
     {
       foreach (var file in Directory.GetFiles(rootDir).OrderBy(static p => p, StringComparer.Ordinal))
       {
@@ -88,9 +124,12 @@ namespace FluentDocker.Drivers.Docker.Api.Components
           continue;
         var entryName = string.IsNullOrEmpty(entryBase)
             ? Path.GetFileName(file) : $"{entryBase}/{Path.GetFileName(file)}";
-        using var src = info.OpenRead();
-        DockerApiTarWriter.WriteFile(tarStream, entryName, src,
-            info.LastWriteTimeUtc, DockerApiTarWriter.FileModeFor(info.FullName));
+        await using var src = new FileStream(
+            info.FullName, FileMode.Open, FileAccess.Read, FileShare.Read,
+            bufferSize: 81920, FileOptions.Asynchronous);
+        await DockerApiTarWriter.WriteFileAsync(tarStream, entryName, src,
+            info.LastWriteTimeUtc, DockerApiTarWriter.FileModeFor(info.FullName),
+            cancellationToken).ConfigureAwait(false);
       }
       foreach (var dir in Directory.GetDirectories(rootDir).OrderBy(static p => p, StringComparer.Ordinal))
       {
@@ -100,9 +139,11 @@ namespace FluentDocker.Drivers.Docker.Api.Components
         var dirName = Path.GetFileName(dir);
         var newBase = string.IsNullOrEmpty(entryBase)
             ? dirName : $"{entryBase}/{dirName}";
-        DockerApiTarWriter.WriteDirectory(tarStream, newBase,
-            info.LastWriteTimeUtc, DockerApiTarWriter.DirectoryModeFor(info.FullName));
-        WriteDirectoryToTar(tarStream, dir, newBase);
+        await DockerApiTarWriter.WriteDirectoryAsync(tarStream, newBase,
+            info.LastWriteTimeUtc, DockerApiTarWriter.DirectoryModeFor(info.FullName),
+            cancellationToken).ConfigureAwait(false);
+        await WriteDirectoryToTarAsync(tarStream, dir, newBase, cancellationToken)
+            .ConfigureAwait(false);
       }
     }
 

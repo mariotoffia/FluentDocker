@@ -53,7 +53,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
         var result = await ExecuteCommandAsync(context, args, cancellationToken).ConfigureAwait(false);
         if (!result.Success)
           return CommandResponse<NetworkCreateResult>.Fail(
-              ErrorOrDefault(result, "Network create failed"), ErrorCodes.Network.CreateFailed,
+              ErrorOrDefault(result, "Network create failed"), FailureCode(result.Error, ErrorCodes.Network.CreateFailed),
               CreateErrorContext(context, "CreateNetwork", result), result.ExitCode);
 
         return CommandResponse<NetworkCreateResult>.Ok(new NetworkCreateResult
@@ -67,7 +67,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       }
       catch (Exception ex)
       {
-        return CommandResponse<NetworkCreateResult>.Fail(ex.Message, ErrorCodes.Network.CreateFailed);
+        return CommandResponse<NetworkCreateResult>.Fail(ex.Message, FailureCode(ex, ErrorCodes.Network.CreateFailed));
       }
     }
 
@@ -83,7 +83,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
             $"network rm {QuotePositionalArgument(networkId, nameof(networkId))}", cancellationToken).ConfigureAwait(false);
         if (!result.Success)
           return CommandResponse<Unit>.Fail(
-              ErrorOrDefault(result, "Network remove failed"), ErrorCodes.Network.RemoveFailed,
+              ErrorOrDefault(result, "Network remove failed"), FailureCode(result.Error, ErrorCodes.Network.RemoveFailed),
               CreateErrorContext(context, "RemoveNetwork", result), result.ExitCode);
 
         return CommandResponse<Unit>.Ok(Unit.Default);
@@ -94,7 +94,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       }
       catch (Exception ex)
       {
-        return CommandResponse<Unit>.Fail(ex.Message, ErrorCodes.Network.RemoveFailed);
+        return CommandResponse<Unit>.Fail(ex.Message, FailureCode(ex, ErrorCodes.Network.RemoveFailed));
       }
     }
 
@@ -118,7 +118,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
         var result = await ExecuteCommandAsync(context, args, cancellationToken).ConfigureAwait(false);
         if (!result.Success)
           return CommandResponse<IList<Network>>.Fail(
-              ErrorOrDefault(result, "Network list failed"), ErrorCodes.General.Unknown,
+              ErrorOrDefault(result, "Network list failed"), FailureCode(result.Error, ErrorCodes.General.Unknown),
               CreateErrorContext(context, "ListNetworks", result), result.ExitCode);
 
         var networks = ParseNetworkList(result.Output);
@@ -130,7 +130,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       }
       catch (Exception ex)
       {
-        return CommandResponse<IList<Network>>.Fail(ex.Message, ErrorCodes.General.Unknown);
+        return CommandResponse<IList<Network>>.Fail(ex.Message, FailureCode(ex, ErrorCodes.General.Unknown));
       }
     }
 
@@ -147,7 +147,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
             cancellationToken).ConfigureAwait(false);
         if (!result.Success)
           return CommandResponse<Unit>.Fail(
-              ErrorOrDefault(result, "Network connect failed"), ErrorCodes.Network.ConnectFailed,
+              ErrorOrDefault(result, "Network connect failed"), FailureCode(result.Error, ErrorCodes.Network.ConnectFailed),
               CreateErrorContext(context, "ConnectNetwork", result), result.ExitCode);
 
         return CommandResponse<Unit>.Ok(Unit.Default);
@@ -158,7 +158,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       }
       catch (Exception ex)
       {
-        return CommandResponse<Unit>.Fail(ex.Message, ErrorCodes.Network.ConnectFailed);
+        return CommandResponse<Unit>.Fail(ex.Message, FailureCode(ex, ErrorCodes.Network.ConnectFailed));
       }
     }
 
@@ -176,7 +176,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
         var result = await ExecuteCommandAsync(context, args, cancellationToken).ConfigureAwait(false);
         if (!result.Success)
           return CommandResponse<Unit>.Fail(
-              ErrorOrDefault(result, "Network disconnect failed"), ErrorCodes.Network.DisconnectFailed,
+              ErrorOrDefault(result, "Network disconnect failed"), FailureCode(result.Error, ErrorCodes.Network.DisconnectFailed),
               CreateErrorContext(context, "DisconnectNetwork", result), result.ExitCode);
 
         return CommandResponse<Unit>.Ok(Unit.Default);
@@ -187,7 +187,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       }
       catch (Exception ex)
       {
-        return CommandResponse<Unit>.Fail(ex.Message, ErrorCodes.Network.DisconnectFailed);
+        return CommandResponse<Unit>.Fail(ex.Message, FailureCode(ex, ErrorCodes.Network.DisconnectFailed));
       }
     }
 
@@ -203,7 +203,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
             $"network inspect {QuotePositionalArgument(networkId, nameof(networkId))}", cancellationToken).ConfigureAwait(false);
         if (!result.Success)
           return CommandResponse<Network>.Fail(
-              ErrorOrDefault(result, "Network inspect failed"), ErrorCodes.Network.InspectFailed,
+              ErrorOrDefault(result, "Network inspect failed"), FailureCode(result.Error, ErrorCodes.Network.InspectFailed),
               CreateErrorContext(context, "InspectNetwork", result), result.ExitCode);
 
         var network = ParseNetworkInspect(result.Output);
@@ -219,7 +219,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       }
       catch (Exception ex)
       {
-        return CommandResponse<Network>.Fail(ex.Message, ErrorCodes.Network.InspectFailed);
+        return CommandResponse<Network>.Fail(ex.Message, FailureCode(ex, ErrorCodes.Network.InspectFailed));
       }
     }
 
@@ -232,7 +232,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
         var result = await ExecuteCommandAsync(context, "network prune -f", cancellationToken).ConfigureAwait(false);
         if (!result.Success)
           return CommandResponse<NetworkPruneResult>.Fail(
-              ErrorOrDefault(result, "Network prune failed"), ErrorCodes.Network.PruneFailed,
+              ErrorOrDefault(result, "Network prune failed"), FailureCode(result.Error, ErrorCodes.Network.PruneFailed),
               CreateErrorContext(context, "PruneNetworks", result), result.ExitCode);
 
         return CommandResponse<NetworkPruneResult>.Ok(
@@ -244,7 +244,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       }
       catch (Exception ex)
       {
-        return CommandResponse<NetworkPruneResult>.Fail(ex.Message, ErrorCodes.Network.PruneFailed);
+        return CommandResponse<NetworkPruneResult>.Fail(ex.Message, FailureCode(ex, ErrorCodes.Network.PruneFailed));
       }
     }
 

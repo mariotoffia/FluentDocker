@@ -192,6 +192,7 @@ namespace FluentDocker.Builders
     private readonly List<string> _profiles = [];
     private string _projectName;
     private readonly Dictionary<string, string> _environment = [];
+    private readonly HashSet<string> _explicitEnvironmentKeys = [];
     private readonly List<string> _envFiles = [];
     private readonly Dictionary<string, int> _scale = [];
     private bool _build;
@@ -221,12 +222,20 @@ namespace FluentDocker.Builders
       return this;
     }
     public IComposeBuilder WithProjectName(string name) { _projectName = name; return this; }
-    public IComposeBuilder WithEnvironment(string key, string value) { _environment[key] = value; return this; }
+    public IComposeBuilder WithEnvironment(string key, string value)
+    {
+      _environment[key] = value;
+      _explicitEnvironmentKeys.Add(key);
+      return this;
+    }
 
     public IComposeBuilder WithEnvironment(IDictionary<string, string> environment)
     {
       foreach (var kvp in environment)
+      {
         _environment[kvp.Key] = kvp.Value;
+        _explicitEnvironmentKeys.Add(kvp.Key);
+      }
       return this;
     }
 
@@ -259,11 +268,15 @@ namespace FluentDocker.Builders
     public IComposeBuilder WithProfiles(params string[] profiles) { _profiles.AddRange(profiles); return this; }
     public IComposeBuilder ConnectToExisting(bool connect = true) { _attachToExisting = connect; return this; }
 
-    public async Task<IServiceAsync> ExecuteAsync(CancellationToken cancellationToken)
+    public Task<IServiceAsync> ExecuteAsync(CancellationToken cancellationToken) =>
+        ExecuteAsync(TimeSpan.FromSeconds(30), cancellationToken);
+
+    public async Task<IServiceAsync> ExecuteAsync(
+        TimeSpan cleanupTimeout, CancellationToken cancellationToken)
     {
       var driver = _kernel.SysCtl<Drivers.IComposeDriver>(_driverId);
       var context = new DriverContext(_driverId);
-      LoadEnvFiles();
+      await LoadEnvFilesAsync(cancellationToken).ConfigureAwait(false);
 
       // Render a first-class models: overlay (WithModels) to a managed temp file and
       // append it so Compose merges it. The ComposeService owns the file and deletes it
@@ -307,7 +320,7 @@ namespace FluentDocker.Builders
       var response = await driver.UpAsync(context, config, cancellationToken).ConfigureAwait(false);
       if (!response.Success)
       {
-        await CleanupFailedComposeAsync(driver, context, config, _removeVolumes, cancellationToken).ConfigureAwait(false);
+        await CleanupFailedComposeAsync(driver, context, config, _removeVolumes, cleanupTimeout, cancellationToken).ConfigureAwait(false);
         // Up failed: no ComposeService is created to own the overlay, so clean it up here.
         RemoveComposeFiles(ownedTempFiles);
         DeleteTempFiles(ownedTempFiles);
@@ -322,7 +335,7 @@ namespace FluentDocker.Builders
           initialState: _noStart ? ServiceRunningState.Stopped : ServiceRunningState.Running);
     }
 
-    private void LoadEnvFiles()
+    private async Task LoadEnvFilesAsync(CancellationToken cancellationToken)
     {
       foreach (var path in _envFiles)
       {
@@ -330,17 +343,30 @@ namespace FluentDocker.Builders
           throw new System.IO.FileNotFoundException(
               $"Compose env file was not found: {path}", path);
 
-        foreach (var line in System.IO.File.ReadAllLines(path))
+        foreach (var line in await System.IO.File.ReadAllLinesAsync(path, cancellationToken).ConfigureAwait(false))
         {
           var trimmed = line.Trim();
           if (string.IsNullOrEmpty(trimmed) || trimmed.StartsWith('#'))
             continue;
+          if (trimmed.StartsWith("export ", StringComparison.Ordinal))
+            trimmed = trimmed["export ".Length..].TrimStart();
           var eqIndex = trimmed.IndexOf('=');
           if (eqIndex <= 0)
             continue;
-          _environment.TryAdd(trimmed[..eqIndex], trimmed[(eqIndex + 1)..]);
+          var key = trimmed[..eqIndex];
+          if (_explicitEnvironmentKeys.Contains(key))
+            continue;
+          _environment[key] = StripEnvValueQuotes(trimmed[(eqIndex + 1)..]);
         }
       }
+    }
+
+    private static string StripEnvValueQuotes(string value)
+    {
+      if (value.Length >= 2 &&
+          ((value[0] == '"' && value[^1] == '"') || (value[0] == '\'' && value[^1] == '\'')))
+        return value[1..^1];
+      return value;
     }
 
     private static async Task CleanupFailedComposeAsync(
@@ -348,13 +374,13 @@ namespace FluentDocker.Builders
         DriverContext context,
         Drivers.ComposeUpConfig upConfig,
         bool removeVolumes,
+        TimeSpan cleanupTimeout,
         CancellationToken cancellationToken)
     {
       try
       {
         using var cleanupCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        // Fixed at the normal dispose-cleanup default; builder failure cleanup has no public timeout knob.
-        cleanupCts.CancelAfter(TimeSpan.FromSeconds(30));
+        cleanupCts.CancelAfter(cleanupTimeout);
         await driver.DownAsync(context, new Drivers.ComposeDownConfig
         {
           ComposeFiles = upConfig.ComposeFiles,

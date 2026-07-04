@@ -26,6 +26,8 @@ namespace FluentDocker.Builders
     private bool _removeOnDispose;
     private readonly List<string> _ports = [];
     private readonly Dictionary<string, string> _labels = [];
+    internal IServiceAsync PendingService { get; private set; }
+    internal bool CreatedResource { get; private set; }
 
     public IPodBuilder WithName(string name) { _name = name; return this; }
 
@@ -69,8 +71,10 @@ namespace FluentDocker.Builders
             response.ErrorCode, response.ErrorContext);
       }
 
+      CreatedResource = true;
       var service = new Services.Impl.PodService(
           _kernel, _driverId, response.Data.Id, _name, _removeOnDispose);
+      PendingService = service;
       await service.StartAsync(cancellationToken).ConfigureAwait(false);
       return service;
     }

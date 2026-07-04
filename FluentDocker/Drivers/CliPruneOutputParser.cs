@@ -3,7 +3,6 @@ using System.Text.RegularExpressions;
 using FluentDocker.Common;
 using FluentDocker.Drivers.Docker.Cli.Components;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Logging.Abstractions;
 
 namespace FluentDocker.Drivers
 {
@@ -13,14 +12,14 @@ namespace FluentDocker.Drivers
   public static partial class CliPruneOutputParser
   {
     private static readonly Regex BareImageIdRegex =
-        MyRegex();
+        BareImageIdPattern();
     private static readonly Regex SimpleNameRegex =
         new(@"^[A-Za-z0-9][A-Za-z0-9_.-]*$", RegexOptions.Compiled);
 
     /// <summary>
     /// Parses output from image prune.
     /// </summary>
-    public static ImagePruneResult ParseImagePruneOutput(string output)
+    public static ImagePruneResult ParseImagePruneOutput(string output, ILogger? logger = null)
     {
       var result = new ImagePruneResult();
 
@@ -69,8 +68,8 @@ namespace FluentDocker.Drivers
       }
       catch (Exception ex)
       {
-        NullLogger.Instance.LogDebug(ex, "Image prune output parsing failed");
-        return new ImagePruneResult();
+        logger?.LogDebug(ex, "Image prune output parsing failed");
+        return result;
       }
 
       return result;
@@ -79,7 +78,7 @@ namespace FluentDocker.Drivers
     /// <summary>
     /// Parses output from network prune.
     /// </summary>
-    public static NetworkPruneResult ParseNetworkPruneOutput(string output)
+    public static NetworkPruneResult ParseNetworkPruneOutput(string output, ILogger? logger = null)
     {
       var result = new NetworkPruneResult();
 
@@ -127,8 +126,8 @@ namespace FluentDocker.Drivers
       }
       catch (Exception ex)
       {
-        NullLogger.Instance.LogDebug(ex, "Network prune output parsing failed");
-        return new NetworkPruneResult();
+        logger?.LogDebug(ex, "Network prune output parsing failed");
+        return result;
       }
 
       return result;
@@ -137,7 +136,7 @@ namespace FluentDocker.Drivers
     /// <summary>
     /// Parses output from volume prune.
     /// </summary>
-    public static VolumePruneResult ParseVolumePruneOutput(string output)
+    public static VolumePruneResult ParseVolumePruneOutput(string output, ILogger? logger = null)
     {
       var result = new VolumePruneResult();
 
@@ -188,8 +187,8 @@ namespace FluentDocker.Drivers
       }
       catch (Exception ex)
       {
-        NullLogger.Instance.LogDebug(ex, "Volume prune output parsing failed");
-        return new VolumePruneResult();
+        logger?.LogDebug(ex, "Volume prune output parsing failed");
+        return result;
       }
 
       return result;
@@ -198,7 +197,7 @@ namespace FluentDocker.Drivers
     /// <summary>
     /// Parses output from system prune.
     /// </summary>
-    public static SystemPruneResult ParseSystemPruneOutput(string output)
+    public static SystemPruneResult ParseSystemPruneOutput(string output, ILogger? logger = null)
     {
       var result = new SystemPruneResult();
 
@@ -253,8 +252,8 @@ namespace FluentDocker.Drivers
       }
       catch (Exception ex)
       {
-        NullLogger.Instance.LogDebug(ex, "System prune output parsing failed");
-        return new SystemPruneResult();
+        logger?.LogDebug(ex, "System prune output parsing failed");
+        return result;
       }
 
       return result;
@@ -388,6 +387,6 @@ namespace FluentDocker.Drivers
     }
 
     [GeneratedRegex(@"^(?:sha256:)?[a-f0-9]{12,}$", RegexOptions.IgnoreCase | RegexOptions.Compiled, "en-US")]
-    private static partial Regex MyRegex();
+    private static partial Regex BareImageIdPattern();
   }
 }

@@ -68,9 +68,15 @@ namespace FluentDocker.Tests.CoreTests.Extensions
       var result = input.WrapWithChar("'");
 
       // Assert
-      // After prepending "'" to "", we get "'", which already ends with "'"
-      // so the method does not append again, resulting in just "'"
-      Assert.Equal("'", result);
+      Assert.Equal("''", result);
+    }
+
+    [Fact]
+    public void WrapWithChar_NullString_ReturnsNull()
+    {
+      string? input = null;
+
+      Assert.Null(input!.WrapWithChar("'"));
     }
 
     [Fact]

@@ -36,7 +36,8 @@ namespace FluentDocker.Tests.CoreTests.Driver
 
       Assert.True(response.Success, response.Error);
       Assert.Equal(5, response.ExitCode);
-      Assert.Contains("exec stderr", response.Data);
+      Assert.Equal(string.Empty, response.Data);
+      Assert.Contains("exec stderr", response.Output);
     }
 
     [Fact]

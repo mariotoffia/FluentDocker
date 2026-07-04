@@ -5,6 +5,7 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using System.Threading;
 using System.Threading.Tasks;
 using FluentDocker.Common;
@@ -196,6 +197,10 @@ namespace FluentDocker.Drivers.Docker.Api.Components
         var logs = StripDockerStreamHeaders(ms.ToArray());
         return CommandResponse<string>.Ok(logs);
       }
+      catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+      {
+        throw;
+      }
       catch (Exception ex)
       {
         return CommandResponse<string>.Fail(
@@ -295,18 +300,74 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       return containerSpec;
     }
 
-    private static Dictionary<string, object> BuildUpdateSpec(ServiceDetails current, ServiceUpdateConfig config)
+    private static JsonObject BuildUpdateSpec(ServiceDetails current, ServiceUpdateConfig config)
     {
-      var spec = new Dictionary<string, object>();
+      var root = string.IsNullOrWhiteSpace(current.RawJson)
+          ? null
+          : JsonNode.Parse(current.RawJson)?.AsObject();
+      var spec = root?["Spec"]?.DeepClone().AsObject() ?? [];
       if (config.Replicas.HasValue)
       {
-        spec["Mode"] = new Dictionary<string, object>
-        {
-          ["Replicated"] = new { Replicas = config.Replicas.Value }
-        };
+        var mode = ObjectAt(spec, "Mode");
+        var replicated = ObjectAt(mode, "Replicated");
+        replicated["Replicas"] = config.Replicas.Value;
       }
+      if (!string.IsNullOrEmpty(config.Image))
+        ObjectAt(ObjectAt(spec, "TaskTemplate"), "ContainerSpec")["Image"] = config.Image;
+      if (config.LabelAdd?.Count > 0 || config.LabelRm?.Count > 0)
+        MutateStringMap(ObjectAt(spec, "Labels"), config.LabelAdd, config.LabelRm);
+      if (config.EnvAdd?.Count > 0 || config.EnvRm?.Count > 0)
+        MutateEnv(ObjectAt(ObjectAt(spec, "TaskTemplate"), "ContainerSpec"), config.EnvAdd, config.EnvRm);
 
       return spec;
+    }
+
+    private static JsonObject ObjectAt(JsonObject parent, string name)
+    {
+      if (parent[name] is JsonObject obj)
+        return obj;
+      obj = [];
+      parent[name] = obj;
+      return obj;
+    }
+
+    private static void MutateStringMap(
+        JsonObject target, Dictionary<string, string> add, List<string> remove)
+    {
+      foreach (var key in remove ?? [])
+        target.Remove(key);
+      foreach (var (key, value) in add ?? [])
+        target[key] = value;
+    }
+
+    private static void MutateEnv(
+        JsonObject containerSpec, Dictionary<string, string> add, List<string> remove)
+    {
+      var values = new List<string>();
+      if (containerSpec["Env"] is JsonArray env)
+      {
+        foreach (var item in env)
+        {
+          var text = item?.GetValue<string>();
+          if (!string.IsNullOrEmpty(text))
+            values.Add(text);
+        }
+      }
+      foreach (var key in remove ?? [])
+        values.RemoveAll(value => string.Equals(EnvKey(value), key, StringComparison.Ordinal));
+      foreach (var (key, value) in add ?? [])
+      {
+        values.RemoveAll(existing => string.Equals(EnvKey(existing), key, StringComparison.Ordinal));
+        values.Add($"{key}={value}");
+      }
+      containerSpec["Env"] = new JsonArray(
+          [.. values.Select(static value => JsonValue.Create(value))]);
+    }
+
+    private static string EnvKey(string value)
+    {
+      var equals = value.IndexOf('=');
+      return equals < 0 ? value : value[..equals];
     }
 
     #endregion

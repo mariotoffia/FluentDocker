@@ -25,6 +25,7 @@ using System;
 using System.Linq;
 using FluentDocker.Kernel;
 using FluentDocker.Builders;
+using FluentDocker.Services;            // ServiceRunningState
 using FluentDocker.Services.Extensions; // ToHostExposedEndpoint
 
 // Create kernel (multiple kernels per app are supported)
@@ -496,6 +497,8 @@ using var results = new Builder()
         .WithIPv4("10.18.0.22"))               // Static IP (requires custom subnet)
     .Build();
 ```
+
+> `WithHealthCheck` runs the command through `CMD-SHELL`, so the image must contain `/bin/sh`. Distroless and `scratch` images have no shell — the check never reports healthy. Use an image with a shell, or drop the health check and wait on a port or log line instead.
 
 ## Container Existence Behavior
 

@@ -33,8 +33,9 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
           return CommandResponse<IList<ComposeServiceInfo>>.Fail(
               ErrorOrDefault(result, "Compose ps failed"), FailureCode(result.Error, ErrorCodes.Compose.ListFailed));
 
-        return CommandResponse<IList<ComposeServiceInfo>>.Ok(
-            ParseServiceList(result.Output));
+        return TryParseServiceList(result.Output, Logger, out var services, out var parseError)
+            ? CommandResponse<IList<ComposeServiceInfo>>.Ok(services)
+            : CommandResponse<IList<ComposeServiceInfo>>.Fail(parseError, ErrorCodes.Compose.ListFailed);
       }
       catch (OperationCanceledException)
       {
@@ -165,18 +166,13 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
         }
         else
         {
-          var lines = output.Split(
-              LineSeparators, StringSplitOptions.RemoveEmptyEntries);
-          foreach (var line in lines)
-          {
-            try
-            {
-              var image = JsonSerializer.Deserialize<ComposeImage>(line, JsonHelper.CaseInsensitiveOptions);
-              if (image != null)
-                images.Add(image);
-            }
-            catch (Exception ex) { Logger.LogDebug(ex, "Compose image line JSON parsing failed"); }
-          }
+          if (!DockerCliJsonLineParser.TryParse<ComposeImage>(
+              output,
+              Logger,
+              "Compose image line JSON parsing failed",
+              out images,
+              out var parseError))
+            return CommandResponse<IList<ComposeImage>>.Fail(parseError, ErrorCodes.Compose.ImagesFailed);
         }
 
         return CommandResponse<IList<ComposeImage>>.Ok(images);
@@ -345,7 +341,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
               result.ExitCode);
         }
 
-        return CommandResponse<string>.Ok(MergeOutputAndError(result.Output, result.Error), result.Output, result.ExitCode);
+        return CommandResponse<string>.Ok(result.Output, MergeOutputAndError(result.Output, result.Error), result.ExitCode);
       }
       catch (OperationCanceledException)
       {

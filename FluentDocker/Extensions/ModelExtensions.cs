@@ -81,6 +81,9 @@ namespace FluentDocker.Extensions
     /// <returns>A "raw" container id hash.</returns>
     public static string ToPlainId(this string hashAlgAndContainerHash)
     {
+      if (hashAlgAndContainerHash == null)
+        return null;
+
       var split = hashAlgAndContainerHash.Split(':');
       return split.Length == 2 ? split[1] : hashAlgAndContainerHash;
     }

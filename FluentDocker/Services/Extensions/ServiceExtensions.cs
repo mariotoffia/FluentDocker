@@ -8,6 +8,7 @@ using System.Threading.Tasks;
 using FluentDocker.Common;
 using FluentDocker.Model.Containers;
 using FluentDocker.Services.Impl;
+using Microsoft.Extensions.Logging;
 
 namespace FluentDocker.Services.Extensions
 {
@@ -237,7 +238,7 @@ namespace FluentDocker.Services.Extensions
         try
         {
           // Uses pgrep inside the container; distroless/scratch images often lack it.
-          var result = await service.ExecuteAsync($"pgrep -f {processName}", cancellationToken)
+          var result = await service.ExecuteAsync(["pgrep", "-f", processName], cancellationToken)
               .ConfigureAwait(false);
 
           if (!string.IsNullOrWhiteSpace(result))
@@ -252,6 +253,7 @@ namespace FluentDocker.Services.Extensions
         }
         catch (Exception ex) when (ex is not DriverException)
         {
+          LogDebug(service, ex, "WaitForProcessAsync", processName);
         }
 
         await Task.Delay(pollIntervalMs, cancellationToken).ConfigureAwait(false);
@@ -312,7 +314,7 @@ namespace FluentDocker.Services.Extensions
             continue;
           }
 
-          var url = $"http://{endpoint.Address}:{endpoint.Port}{path}";
+          var url = new UriBuilder("http", endpoint.Address.ToString(), endpoint.Port, path).Uri;
           using var requestCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
           var remainingMs = Math.Max(100, timeout - sw.ElapsedMilliseconds);
           requestCts.CancelAfter(TimeSpan.FromMilliseconds(remainingMs));
@@ -391,6 +393,7 @@ namespace FluentDocker.Services.Extensions
         }
         catch (Exception ex) when (ex is not DriverException)
         {
+          LogDebug(service, ex, "WaitForLogMessageAsync", text);
         }
 
         await Task.Delay(pollIntervalMs, cancellationToken).ConfigureAwait(false);
@@ -403,6 +406,22 @@ namespace FluentDocker.Services.Extensions
     {
       if (service is ContainerService containerService)
         containerService.InvalidateInspectCache();
+    }
+
+    private static void LogDebug(IContainerService service, Exception exception, string operation, string value)
+    {
+      if (service is not ContainerService containerService)
+        return;
+
+      var logger = containerService.Kernel.LoggerFactory.CreateLogger(typeof(ServiceExtensions).FullName!);
+      if (logger.IsEnabled(LogLevel.Debug))
+      {
+        logger.LogDebug(
+            exception,
+            "Container wait helper poll failed during {Operation} for {Value}",
+            operation,
+            value);
+      }
     }
 
     #endregion

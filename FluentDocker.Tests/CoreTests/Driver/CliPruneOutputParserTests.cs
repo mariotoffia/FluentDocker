@@ -195,5 +195,24 @@ Total reclaimed space: 500MB";
       Assert.Empty(system.BuildCacheDeleted);
       Assert.Equal(0L, system.SpaceReclaimed);
     }
+
+    [Fact]
+    public void ParseMethods_WhenReclaimedBytesMalformed_ReturnPartialResults()
+    {
+      var image = CliPruneOutputParser.ParseImagePruneOutput(
+          "Deleted Images:\nuntagged: alpine:latest\nTotal reclaimed space: nope");
+      var network = CliPruneOutputParser.ParseNetworkPruneOutput(
+          "Deleted Networks:\nfd-network\nTotal reclaimed space: nope");
+      var volume = CliPruneOutputParser.ParseVolumePruneOutput(
+          "Deleted Volumes:\nfd-volume\nTotal reclaimed space: nope");
+      var system = CliPruneOutputParser.ParseSystemPruneOutput(
+          "Deleted Containers:\nfd-container\nDeleted Images:\nuntagged: busybox:latest\nTotal reclaimed space: nope");
+
+      Assert.Contains("alpine:latest", image.ImagesDeleted);
+      Assert.Contains("fd-network", network.NetworksDeleted);
+      Assert.Contains("fd-volume", volume.VolumesDeleted);
+      Assert.Contains("fd-container", system.ContainersDeleted);
+      Assert.Contains("busybox:latest", system.ImagesDeleted);
+    }
   }
 }

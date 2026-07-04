@@ -103,8 +103,8 @@ namespace FluentDocker.Tests.CoreTests.Service
       var conn = new MockModelApiConnection();
       await using var runner = new GenericOpenAiModelRunner(ModelRunnerEndpoint.HostTcp(), ModelReference.Parse("ai/x"), new OpenAiModelInferenceDriver(conn, ModelRunnerEndpoint.HostTcp()), conn.PingAsync, conn);
 
-      await Assert.ThrowsAsync<NotSupportedException>(() => runner.ListAsync(TestContext.Current.CancellationToken));
-      await Assert.ThrowsAsync<NotSupportedException>(() => runner.LoadAsync(ModelReference.Parse("ai/x"), cancellationToken: TestContext.Current.CancellationToken));
+      await Assert.ThrowsAsync<FluentDockerNotSupportedException>(() => runner.ListAsync(TestContext.Current.CancellationToken));
+      await Assert.ThrowsAsync<FluentDockerNotSupportedException>(() => runner.LoadAsync(ModelReference.Parse("ai/x"), cancellationToken: TestContext.Current.CancellationToken));
     }
 
     [Fact]

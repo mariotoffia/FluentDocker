@@ -17,6 +17,8 @@ namespace FluentDocker.Model.Models
   /// treated as a registry only when it contains a <c>.</c>, a <c>:</c> (port) or
   /// equals <c>localhost</c>. The tag defaults to <c>latest</c> unless a digest is
   /// supplied (a digest pins the artifact, so no default tag is added).
+  /// Uppercase repository/name components are intentionally allowed for registries
+  /// such as Hugging Face; digest hexadecimal remains lowercase-only.
   /// Serializes transparently as its canonical string form.
   /// <para>
   /// Identity rule: all five components (registry, namespace, name, tag, digest)
@@ -241,8 +243,23 @@ namespace FluentDocker.Model.Models
     private static bool LooksLikeRegistry(string segment)
     {
       return segment.Contains('.')
-          || segment.Contains(':')
+          || HasNumericPort(segment)
           || string.Equals(segment, "localhost", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool HasNumericPort(string segment)
+    {
+      var colon = segment.LastIndexOf(':');
+      if (colon <= 0 || colon == segment.Length - 1)
+        return false;
+
+      for (var i = colon + 1; i < segment.Length; i++)
+      {
+        if (segment[i] < '0' || segment[i] > '9')
+          return false;
+      }
+
+      return true;
     }
 
     private static bool IsValidNameComponent(string component, out string reason)
@@ -314,7 +331,7 @@ namespace FluentDocker.Model.Models
       for (var i = colon + 1; i < digest.Length; i++)
       {
         var c = digest[i];
-        var isHex = (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F');
+        var isHex = (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f');
         if (!isHex)
           return false;
       }

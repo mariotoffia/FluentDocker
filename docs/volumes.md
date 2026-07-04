@@ -23,6 +23,7 @@ Multiple kernels per application are supported:
 ```csharp
 using FluentDocker.Kernel;
 using FluentDocker.Builders;
+using FluentDocker.Services; // ServiceRunningState
 
 // Create once, reuse everywhere
 var kernel = FluentDockerKernel.Create()

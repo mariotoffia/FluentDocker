@@ -53,7 +53,8 @@ namespace FluentDocker.Common
         value = JsonSerializer.Deserialize<T>(json, CaseInsensitiveOptions);
         return true;
       }
-      catch (Exception ex) when (ex is JsonException or NotSupportedException)
+      // ponytail: covers converter/setter format+overflow escapes; keeps TryDeserialize's never-throw contract.
+      catch (Exception ex) when (ex is JsonException or NotSupportedException or ArgumentException or InvalidOperationException or FormatException or OverflowException)
       {
         return false;
       }
@@ -72,7 +73,8 @@ namespace FluentDocker.Common
       {
         return JsonSerializer.Deserialize(json, typeInfo);
       }
-      catch (Exception ex) when (ex is JsonException or NotSupportedException)
+      // ponytail: covers converter/setter format+overflow escapes; keeps TryDeserialize's never-throw contract.
+      catch (Exception ex) when (ex is JsonException or NotSupportedException or ArgumentException or InvalidOperationException or FormatException or OverflowException)
       {
         return default;
       }
@@ -91,7 +93,8 @@ namespace FluentDocker.Common
       {
         return JsonSerializer.Deserialize<T>(utf8Json, CaseInsensitiveOptions);
       }
-      catch (Exception ex) when (ex is JsonException or NotSupportedException)
+      // ponytail: covers converter/setter format+overflow escapes; keeps TryDeserialize's never-throw contract.
+      catch (Exception ex) when (ex is JsonException or NotSupportedException or ArgumentException or InvalidOperationException or FormatException or OverflowException)
       {
         return default;
       }

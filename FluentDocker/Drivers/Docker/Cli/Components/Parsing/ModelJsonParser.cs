@@ -96,8 +96,17 @@ namespace FluentDocker.Drivers.Docker.Cli.Components.Parsing
     /// <summary>Parses the <c>docker model ls</c> table (fallback when <c>--json</c> is unavailable).</summary>
     public static IList<ModelInfo> ParseLsTable(string text)
     {
+      return TryParseLsTable(text, out var models) ? models : [];
+    }
+
+    public static bool TryParseLsTable(string text, out IList<ModelInfo> models)
+    {
       var result = new List<ModelInfo>();
-      foreach (var fields in DataRows(text, "MODEL NAME"))
+      models = result;
+      if (!TryDataRows(text, "MODEL NAME", 5, out var rows))
+        return false;
+
+      foreach (var fields in rows)
       {
         if (!ModelReference.TryParse(fields[0], out var reference))
           continue;
@@ -116,14 +125,23 @@ namespace FluentDocker.Drivers.Docker.Cli.Components.Parsing
         });
       }
 
-      return result;
+      return true;
     }
 
     /// <summary>Parses the <c>docker model ps</c> table (no <c>--json</c> in current DMR).</summary>
     public static IList<RunningModel> ParsePsTable(string text)
     {
+      return TryParsePsTable(text, out var running) ? running : [];
+    }
+
+    public static bool TryParsePsTable(string text, out IList<RunningModel> running)
+    {
       var result = new List<RunningModel>();
-      foreach (var fields in DataRows(text, "MODEL NAME"))
+      running = result;
+      if (!TryDataRows(text, "MODEL NAME", 3, out var rows, "MODEL NAME", "BACKEND", "MODE"))
+        return false;
+
+      foreach (var fields in rows)
       {
         if (!ModelReference.TryParse(fields[0], out var reference))
           continue;
@@ -136,20 +154,30 @@ namespace FluentDocker.Drivers.Docker.Cli.Components.Parsing
         });
       }
 
-      return result;
+      return true;
     }
 
     /// <summary>Parses the <c>docker model df</c> table.</summary>
     public static ModelDiskUsage ParseDfTable(string text)
     {
+      return TryParseDfTable(text, out var usage) ? usage : new ModelDiskUsage();
+    }
+
+    public static bool TryParseDfTable(string text, out ModelDiskUsage usage)
+    {
       long modelsBytes = 0;
-      foreach (var fields in DataRows(text, "TYPE"))
+      usage = new ModelDiskUsage();
+      if (!TryDataRows(text, "TYPE", 2, out var rows))
+        return false;
+
+      foreach (var fields in rows)
       {
         if (fields.Length >= 2 && fields[0].StartsWith("Models", StringComparison.OrdinalIgnoreCase))
           modelsBytes = ParseSize(fields[^1]);
       }
 
-      return new ModelDiskUsage { ModelsSizeBytes = modelsBytes };
+      usage = new ModelDiskUsage { ModelsSizeBytes = modelsBytes };
+      return true;
     }
 
     /// <summary>
@@ -363,8 +391,10 @@ namespace FluentDocker.Drivers.Docker.Cli.Components.Parsing
       return ModelReference.TryParse(tag, out var reference) ? reference : null;
     }
 
-    private static IEnumerable<string[]> DataRows(string text, string headerToken)
+    private static bool TryDataRows(string text, string headerToken, int minColumns,
+        out IList<string[]> rows, params string[] expectedPrefix)
     {
+      rows = [];
       var lines = (text ?? string.Empty).Split(LineSeparators, StringSplitOptions.RemoveEmptyEntries);
       string headerLine = null;
       foreach (var raw in lines)
@@ -380,20 +410,22 @@ namespace FluentDocker.Drivers.Docker.Cli.Components.Parsing
           continue;
         }
 
+        var headerFields = ParseRowByHeaderOffsets(headerLine, headerLine);
+        if (headerFields.Length < minColumns ||
+            (expectedPrefix.Length > 0 && (headerFields.Length < expectedPrefix.Length ||
+             expectedPrefix.Where((expected, i) => !string.Equals(headerFields[i], expected, StringComparison.OrdinalIgnoreCase)).Any())))
+          return false;
+
         // Use header-column offsets to extract fields so a blank value in one column
         // does not shift subsequent column indices (avoids split-by-whitespace ambiguity).
         var fields = ParseRowByHeaderOffsets(headerLine, line);
         if (fields.Length > 0 && fields[0].Length > 0)
-          yield return fields;
+          rows.Add(fields);
       }
+
+      return headerLine != null || string.IsNullOrWhiteSpace(text);
     }
 
-    /// <summary>
-    /// Extracts the field values from <paramref name="dataLine"/> by aligning them with
-    /// the column start-positions detected in <paramref name="headerLine"/>. Columns are
-    /// delimited by runs of two-or-more spaces in the header, so a single blank value does
-    /// not push subsequent values into the wrong column slot.
-    /// </summary>
     private static string[] ParseRowByHeaderOffsets(string headerLine, string dataLine)
     {
       // Detect column start positions from the header (each new column begins after 2+ spaces).

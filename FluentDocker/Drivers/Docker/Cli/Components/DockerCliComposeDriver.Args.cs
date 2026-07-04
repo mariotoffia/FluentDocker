@@ -264,35 +264,38 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     /// </summary>
     public static IList<ComposeServiceInfo> ParseServiceList(string json, ILogger logger = null)
     {
+      return TryParseServiceList(json, logger, out var services, out _) ? services : services;
+    }
+
+    internal static bool TryParseServiceList(
+        string json,
+        ILogger logger,
+        out IList<ComposeServiceInfo> services,
+        out string error)
+    {
       logger ??= NullLogger.Instance;
-      var services = new List<ComposeServiceInfo>();
+      services = new List<ComposeServiceInfo>();
+      error = null;
       if (string.IsNullOrWhiteSpace(json))
-        return services;
+        return true;
 
       var trimmed = json.Trim();
       if (trimmed.StartsWith('['))
       {
         var list = JsonSerializer.Deserialize<List<ComposeServiceInfo>>(trimmed, JsonHelper.CaseInsensitiveOptions);
         if (list != null)
-          services.AddRange(list);
-      }
-      else
-      {
-        var lines = trimmed.Split(
-            LineSeparators, StringSplitOptions.RemoveEmptyEntries);
-        foreach (var line in lines)
-        {
-          try
-          {
-            var service = JsonSerializer.Deserialize<ComposeServiceInfo>(line, JsonHelper.CaseInsensitiveOptions);
-            if (service != null)
-              services.Add(service);
-          }
-          catch (Exception ex) { logger.LogDebug(ex, "Compose service info JSON parsing failed"); }
-        }
+          ((List<ComposeServiceInfo>)services).AddRange(list);
+        return true;
       }
 
-      return services;
+      var ok = DockerCliJsonLineParser.TryParse<ComposeServiceInfo>(
+          trimmed,
+          logger,
+          "Compose service info JSON parsing failed",
+          out var parsed,
+          out error);
+      services = parsed;
+      return ok;
     }
 
     #endregion

@@ -357,6 +357,35 @@ namespace FluentDocker.Drivers.Podman.Cli
       return string.IsNullOrEmpty(result?.Error) ? fallback : result.Error;
     }
 
+    protected static string MergeOutputAndError(string output, string error)
+    {
+      if (string.IsNullOrEmpty(output))
+        return error ?? string.Empty;
+      if (string.IsNullOrEmpty(error))
+        return output;
+      return output.EndsWith('\n') || error.StartsWith('\n') ? output + error : output + "\n" + error;
+    }
+
+    protected static string FailureCode(Exception ex, string fallbackCode)
+    {
+      if (ex is DriverException driverException && !string.IsNullOrEmpty(driverException.ErrorCode))
+        return driverException.ErrorCode;
+      return FailureCode(ex?.Message, fallbackCode);
+    }
+
+    protected static string FailureCode(string error, string fallbackCode)
+    {
+      return IsDaemonConnectionError(error) ? ErrorCodes.Api.ConnectionFailed : fallbackCode;
+    }
+
+    protected static bool IsDaemonConnectionError(string error)
+    {
+      if (string.IsNullOrEmpty(error))
+        return false;
+      return error.Contains("Cannot connect to Podman", StringComparison.Ordinal)
+          || error.Contains("error during connect", StringComparison.OrdinalIgnoreCase);
+    }
+
     #endregion
 
     #region Process Lifecycle
@@ -371,8 +400,8 @@ namespace FluentDocker.Drivers.Podman.Cli
     {
       return sudo switch
       {
-        SudoMechanism.NoPassword => ("sudo", $"{binaryPath} {arguments}", null),
-        SudoMechanism.Password => ("sudo", $"-S {binaryPath} {arguments}", sudoPassword),
+        SudoMechanism.NoPassword => ("sudo", $"-- {QuoteArgumentIfNeeded(binaryPath)} {arguments}", null),
+        SudoMechanism.Password => ("sudo", $"-S -- {QuoteArgumentIfNeeded(binaryPath)} {arguments}", sudoPassword),
         _ => (binaryPath, arguments, null)
       };
     }
