@@ -166,6 +166,7 @@ namespace FluentDocker.Tests.CoreTests.Testing
               cancellationToken: TestContext.Current.CancellationToken));
 
       Assert.True(disposeWasCalled, "Resource should be disposed on init failure");
+      Assert.Throws<ObjectDisposedException>(() => kernel.DefaultDriverId);
     }
 
     [Fact]

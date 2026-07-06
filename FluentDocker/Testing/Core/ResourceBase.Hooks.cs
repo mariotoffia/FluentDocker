@@ -20,7 +20,12 @@ namespace FluentDocker.Testing.Core
             Task.Delay(Timeout.Infinite, cancellationToken)).ConfigureAwait(false);
 
         if (completed != hookTask)
+        {
+          // The hook is still running past the cancel/timeout; abandon it, but observe
+          // its eventual exception so a later fault is not an UnobservedTaskException.
+          ObserveAbandonedCleanup(hookTask);
           cancellationToken.ThrowIfCancellationRequested();
+        }
 
         await hookTask.ConfigureAwait(false);
       }

@@ -92,8 +92,9 @@ namespace FluentDocker.Testing.Xunit
     public async ValueTask DisposeAsync()
     {
       // Clear handles only AFTER successful disposal. If cleanup throws, the public
-      // Resource/Kernel handles stay available for LastTeardownDiagnostics, retry, or
-      // manual cleanup, and the exception propagates.
+      // Resource/Kernel handles remain non-null for Resource.LastTeardownDiagnostics
+      // inspection only. Resource and kernel are always disposed, so no kernel-based
+      // retry is possible, and the exception propagates.
       await ResourceLifecycle.DisposeAsync(_resource!, _kernel!).ConfigureAwait(false);
       _resource = null;
       _kernel = null;

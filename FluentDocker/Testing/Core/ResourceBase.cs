@@ -245,6 +245,15 @@ namespace FluentDocker.Testing.Core
     }
 
     /// <inheritdoc />
+    /// <remarks>
+    /// Only the first caller runs teardown. A concurrent call made while that teardown
+    /// is still in flight returns immediately without waiting for it or observing its
+    /// result or exception. After a successful dispose the resource is terminal and
+    /// further calls are no-ops; after a failed teardown the guard is released so a
+    /// later call retries disposal. Await the first (or the retrying)
+    /// <see cref="DisposeAsync"/> for the authoritative outcome, including
+    /// <see cref="LastTeardownDiagnostics"/>.
+    /// </remarks>
     public async ValueTask DisposeAsync()
     {
       if (Interlocked.CompareExchange(ref _disposeStarted, 1, 0) != 0)

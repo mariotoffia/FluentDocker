@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using FluentDocker.Builders;
@@ -205,43 +204,11 @@ namespace FluentDocker.Testing.Core
       if (!Options.EnableSessionLabels)
         return;
 
-      var operationsField = typeof(Builder).GetField(
-          "_operations", BindingFlags.Instance | BindingFlags.NonPublic);
-      if (operationsField?.GetValue(builder) is not System.Collections.IEnumerable operations)
-        return;
-
       var labels = SessionLabel.CreateLabels(Options.SessionId);
-      foreach (var operation in operations)
+      foreach (var child in builder.ResourceBuilders)
       {
-        foreach (var childBuilder in FindChildBuilders(operation))
-        {
-          foreach (var label in labels)
-            ApplyLabel(childBuilder, label.Key, label.Value);
-        }
-      }
-    }
-
-    private static IEnumerable<object> FindChildBuilders(object operation)
-    {
-      var delegates = operation.GetType()
-          .GetProperties(BindingFlags.Instance | BindingFlags.Public)
-          .Where(p => typeof(Delegate).IsAssignableFrom(p.PropertyType))
-          .Select(p => p.GetValue(operation))
-          .OfType<Delegate>();
-      foreach (var item in delegates.SelectMany(d => FindLabelCapableFields(d.Target)))
-        yield return item;
-    }
-
-    private static IEnumerable<object> FindLabelCapableFields(object? target)
-    {
-      if (target == null)
-        yield break;
-
-      foreach (var field in target.GetType().GetFields(BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public))
-      {
-        var value = field.GetValue(target);
-        if (value is IContainerBuilder or INetworkBuilder or IVolumeBuilder)
-          yield return value;
+        foreach (var label in labels)
+          ApplyLabel(child, label.Key, label.Value);
       }
     }
 

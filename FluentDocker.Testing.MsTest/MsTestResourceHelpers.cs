@@ -127,8 +127,10 @@ namespace FluentDocker.Testing.MsTest
     /// <remarks>
     /// Null-safe: passing a null <paramref name="resource"/> and/or a null
     /// <paramref name="kernel"/> is a no-op for that argument.
-    /// If resource disposal fails, the kernel remains live and owned by the
-    /// caller for cleanup retry or later disposal.
+    /// If resource disposal fails, the kernel is still disposed and the original
+    /// resource-disposal exception is rethrown. Both the resource and the kernel
+    /// are always disposed, so there is no kernel-based cleanup retry after a
+    /// failed teardown.
     /// </remarks>
     /// <param name="resource">The resource to dispose, or <c>null</c> to skip.</param>
     /// <param name="kernel">The kernel to dispose, or <c>null</c> to skip.</param>

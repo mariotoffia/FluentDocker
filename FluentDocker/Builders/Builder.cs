@@ -23,6 +23,8 @@ namespace FluentDocker.Builders
     private FluentDockerKernel _currentKernel;
     private string _currentDriverId;
     private readonly List<BuildOperation> _operations = [];
+    internal IEnumerable<object> ResourceBuilders =>
+        _operations.Where(o => o.ResourceBuilder != null).Select(o => o.ResourceBuilder);
     private bool _buildSucceeded;
     private int _buildInProgress;
 
@@ -119,6 +121,7 @@ namespace FluentDocker.Builders
       {
         Kernel = _currentKernel,
         DriverId = _currentDriverId,
+        ResourceBuilder = builder,
         ResourceKind = "container",
         ResourceName = builder.ContainerName,
         NetworkReferences = builder.NetworkReferences,
@@ -191,6 +194,7 @@ namespace FluentDocker.Builders
       {
         Kernel = _currentKernel,
         DriverId = _currentDriverId,
+        ResourceBuilder = builder,
         ResourceKind = "network",
         ResourceName = builder.Name,
         ExecuteAsync = (_, ct) => builder.ExecuteAsync(ct),
@@ -213,6 +217,7 @@ namespace FluentDocker.Builders
       {
         Kernel = _currentKernel,
         DriverId = _currentDriverId,
+        ResourceBuilder = builder,
         ResourceKind = "volume",
         ResourceName = builder.Name,
         ExecuteAsync = (_, ct) => builder.ExecuteAsync(ct),
@@ -451,6 +456,7 @@ namespace FluentDocker.Builders
   {
     public FluentDockerKernel Kernel { get; set; }
     public string DriverId { get; set; }
+    public object ResourceBuilder { get; set; }
     public Func<TimeSpan, CancellationToken, Task<IServiceAsync>> ExecuteAsync { get; set; }
     public Func<IServiceAsync> GetFailedService { get; set; }
     public Action ResetForRetry { get; set; }
