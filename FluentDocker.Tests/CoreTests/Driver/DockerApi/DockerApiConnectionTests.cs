@@ -10,12 +10,14 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using FluentDocker.Drivers.Docker.Api.Connection;
+using FluentDocker.Tests.CoreTests.Service;
 using Xunit;
 
 namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
 {
   /// <summary>Tests for DockerApiConnection and DockerApiConnectionConfig.</summary>
   [Trait("Category", "Unit")]
+  [Collection(ModelEnvVarsCollection.Name)]
   public partial class DockerApiConnectionTests
   {
     #region GetDefaultHost

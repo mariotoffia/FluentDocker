@@ -4,6 +4,7 @@ using System.Reflection;
 using FluentDocker.Common;
 using FluentDocker.Drivers.Podman.Cli.Binary;
 using FluentDocker.Kernel;
+using FluentDocker.Model.Common;
 using FluentDocker.Model.Drivers;
 using Xunit;
 
@@ -104,6 +105,60 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
             {
               SearchPaths = [dir]
             }));
+      }
+      finally
+      {
+        Directory.Delete(dir, recursive: true);
+      }
+    }
+
+    [Fact]
+    public void Resolver_WithSudo_ReturnsBareBinaryPath()
+    {
+      if (OperatingSystem.IsWindows())
+        Assert.Skip("Sudo path resolution is POSIX-only");
+
+      var dir = Path.Combine(AppContext.BaseDirectory, ".out", $"podman-resolver-{Guid.NewGuid():N}");
+      Directory.CreateDirectory(dir);
+      try
+      {
+        File.WriteAllText(Path.Combine(dir, "podman"), string.Empty);
+
+        var resolver = new PodmanBinariesResolver(new PodmanBinaryConfiguration
+        {
+          Sudo = SudoMechanism.Password,
+          SudoPassword = "secret",
+          SearchPaths = [dir]
+        });
+
+        Assert.Equal(Path.Combine(dir, "podman"), resolver.ResolveBinaryPath("podman"));
+      }
+      finally
+      {
+        Directory.Delete(dir, recursive: true);
+      }
+    }
+
+    [Fact]
+    public void Resolver_PreservesFilesystemCaseForConfiguredBinary()
+    {
+      if (OperatingSystem.IsWindows())
+        Assert.Skip("Case-sensitive path preservation is POSIX-only");
+
+      var dir = Path.Combine(AppContext.BaseDirectory, ".out", $"podman-resolver-{Guid.NewGuid():N}");
+      Directory.CreateDirectory(dir);
+      try
+      {
+        File.WriteAllText(Path.Combine(dir, "Podman"), string.Empty);
+
+        var resolver = new PodmanBinariesResolver(new PodmanBinaryConfiguration
+        {
+          BinaryName = "Podman",
+          SearchPaths = [dir]
+        });
+
+        Assert.Equal("Podman", resolver.MainPodmanClient.Binary);
+        Assert.Equal(Path.Combine(dir, "Podman"), resolver.MainPodmanClient.FqPath);
       }
       finally
       {

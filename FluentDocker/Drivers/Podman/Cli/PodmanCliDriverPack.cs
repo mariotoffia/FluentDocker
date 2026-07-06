@@ -57,6 +57,7 @@ namespace FluentDocker.Drivers.Podman.Cli
     public async Task InitializeAsync(
         DriverContext context, CancellationToken cancellationToken = default)
     {
+      cancellationToken.ThrowIfCancellationRequested();
       ArgumentNullException.ThrowIfNull(context);
       _context = context;
       _logger = context.LoggerFactory.CreateLogger<PodmanCliDriverPack>();
@@ -70,6 +71,7 @@ namespace FluentDocker.Drivers.Podman.Cli
         SearchPaths = context.SearchPaths
       };
       _binaryResolver = new PodmanBinariesResolver(binaryConfig, context.LoggerFactory);
+      cancellationToken.ThrowIfCancellationRequested();
 
       // Create all driver components with binary resolver
       _containerDriver = new PodmanCliContainerDriver(_binaryResolver);
@@ -97,7 +99,6 @@ namespace FluentDocker.Drivers.Podman.Cli
       _machineDriver.Initialize(context);
       _manifestDriver.Initialize(context);
 
-      // Register all drivers by interface type
       _drivers[typeof(IContainerDriver)] = _containerDriver;
       _drivers[typeof(IImageDriver)] = _imageDriver;
       _drivers[typeof(INetworkDriver)] = _networkDriver;
@@ -110,7 +111,6 @@ namespace FluentDocker.Drivers.Podman.Cli
       _drivers[typeof(IPodmanMachineDriver)] = _machineDriver;
       _drivers[typeof(IPodmanManifestDriver)] = _manifestDriver;
 
-      // Auto-start machine if configured
       if (context.AutoStartMachine != null)
         await AutoStartMachineAsync(context, cancellationToken).ConfigureAwait(false);
 
@@ -146,6 +146,10 @@ namespace FluentDocker.Drivers.Podman.Cli
       {
         var result = await _systemDriver.PingAsync(_context, cancellationToken).ConfigureAwait(false);
         return result.Success;
+      }
+      catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+      {
+        throw;
       }
       catch (Exception ex)
       {

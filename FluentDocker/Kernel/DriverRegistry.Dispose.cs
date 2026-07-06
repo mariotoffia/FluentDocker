@@ -25,6 +25,8 @@ namespace FluentDocker.Kernel
     /// <summary>
     /// Asynchronously disposes the registry and its registered drivers/packs.
     /// Disposal order follows the registry dictionaries' enumeration order and is not ordered.
+    /// Throws <see cref="TimeoutException"/> if the registration lock cannot be acquired within
+    /// <see cref="DisposeBudget"/>; the instance stays disposable and a later call retries.
     /// </summary>
     public async ValueTask DisposeAsync()
     {
@@ -34,12 +36,12 @@ namespace FluentDocker.Kernel
       if (Interlocked.CompareExchange(ref _disposed, 1, 0) == 2)
         return;
 
-      using var disposeCts = new CancellationTokenSource(DisposeBudget);
       var timeoutMs = DisposeBudget.TotalMilliseconds;
       var lockTaken = false;
       try
       {
-        await _registrationLock.WaitAsync(disposeCts.Token).ConfigureAwait(false);
+        if (!await _registrationLock.WaitAsync(DisposeBudget).ConfigureAwait(false))
+          throw new TimeoutException("Timed out waiting for driver registration lock during disposal.");
         lockTaken = true;
 
         if (Volatile.Read(ref _disposed) == 2)
@@ -47,21 +49,27 @@ namespace FluentDocker.Kernel
 
         foreach (var kvp in _driverPacks)
           await DisposeDriverPackWithinBudgetAsync(
-              kvp.Value.DriverPack, _logger, kvp.Key, timeoutMs, disposeCts.Token).ConfigureAwait(false);
+              kvp.Value.DriverPack, _logger, kvp.Key, DisposeBudget).ConfigureAwait(false);
 
         foreach (var kvp in _drivers)
           await DisposeDriverWithinBudgetAsync(
-              kvp.Value.Driver, _logger, kvp.Key, timeoutMs, disposeCts.Token).ConfigureAwait(false);
+              kvp.Value.Driver, _logger, kvp.Key, DisposeBudget).ConfigureAwait(false);
 
         _driverPacks.Clear();
         _drivers.Clear();
         Interlocked.Exchange(ref _disposed, 2);
       }
-      catch (OperationCanceledException) when (disposeCts.IsCancellationRequested && !lockTaken)
+      catch (TimeoutException) when (!lockTaken)
       {
+        // Do NOT reset _disposed back to 0 here. A concurrent disposer may already hold the lock
+        // and be tearing drivers down; resurrecting the registry to "alive" would let off-lock
+        // readers observe half-disposed drivers. Leaving _disposed == 1 keeps readers correctly
+        // throwing ObjectDisposedException, and a later retry still proceeds because the fast-path
+        // gate only short-circuits once disposal has fully completed (_disposed == 2).
         _logger.LogWarning(
             "Driver registry disposal timed out waiting for registration lock after {TimeoutMs} ms",
             timeoutMs);
+        throw;
       }
       finally
       {
@@ -76,40 +84,45 @@ namespace FluentDocker.Kernel
     #endregion
 
     /// <summary>
-    /// Total wall-clock budget for waiting on registration and disposal work.
+    /// Per-item budget applied independently to (a) acquiring the registration lock during
+    /// disposal and (b) disposing EACH registered driver/pack, so one hung item cannot starve
+    /// the rest. Worst-case aggregate shutdown is therefore roughly
+    /// (1 + driverCount + packCount) × this budget; well-behaved items dispose promptly.
     /// </summary>
     protected virtual TimeSpan DisposeBudget =>
         TimeSpan.FromMilliseconds(BuildResults.DefaultDisposeBudgetMs);
 
     private static async Task DisposeDriverWithinBudgetAsync(
-        IDriver driver, ILogger logger, string driverId, double timeoutMs, CancellationToken cancellationToken)
+        IDriver driver, ILogger logger, string driverId, TimeSpan disposeBudget)
     {
+      using var cts = new CancellationTokenSource(disposeBudget);
       try
       {
         await DisposeDriverSafelyAsync(driver, logger, driverId)
-            .WaitAsync(cancellationToken).ConfigureAwait(false);
+            .WaitAsync(cts.Token).ConfigureAwait(false);
       }
-      catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+      catch (OperationCanceledException) when (cts.IsCancellationRequested)
       {
         logger.LogWarning(
             "Timed out disposing driver {DriverId} after {TimeoutMs} ms",
-            driverId, timeoutMs);
+            driverId, disposeBudget.TotalMilliseconds);
       }
     }
 
     private static async Task DisposeDriverPackWithinBudgetAsync(
-        IDriverPack driverPack, ILogger logger, string driverId, double timeoutMs, CancellationToken cancellationToken)
+        IDriverPack driverPack, ILogger logger, string driverId, TimeSpan disposeBudget)
     {
+      using var cts = new CancellationTokenSource(disposeBudget);
       try
       {
         await DisposeDriverPackSafelyAsync(driverPack, logger, driverId)
-            .WaitAsync(cancellationToken).ConfigureAwait(false);
+            .WaitAsync(cts.Token).ConfigureAwait(false);
       }
-      catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+      catch (OperationCanceledException) when (cts.IsCancellationRequested)
       {
         logger.LogWarning(
             "Timed out disposing driver pack {DriverId} after {TimeoutMs} ms",
-            driverId, timeoutMs);
+            driverId, disposeBudget.TotalMilliseconds);
       }
     }
 

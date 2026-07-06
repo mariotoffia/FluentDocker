@@ -138,6 +138,32 @@ namespace FluentDocker.Model.Drivers
       Host = host;
     }
 
+    /// <summary>
+    /// Creates a registration-scoped copy with the supplied driver ID and logger factory.
+    /// Mutable metadata is copied so later caller mutations cannot affect registered drivers.
+    /// </summary>
+    public DriverContext CloneWith(string driverId, ILoggerFactory loggerFactory = null)
+    {
+      return new DriverContext(driverId, Host)
+      {
+        LoggerFactory = loggerFactory ?? LoggerFactory,
+        CertificatePath = CertificatePath,
+        VerifyTls = VerifyTls,
+        OperationId = OperationId,
+        Metadata = Metadata == null ? [] : new Dictionary<string, string>(Metadata),
+        Sudo = Sudo,
+        SudoPassword = SudoPassword,
+        DefaultShell = DefaultShell,
+        BinaryName = BinaryName,
+        SearchPaths = SearchPaths,
+        AutoStartMachine = AutoStartMachine,
+        ModelRunnerEndpoint = ModelRunnerEndpoint,
+        ConnectionTimeout = ConnectionTimeout,
+        RequestTimeout = RequestTimeout,
+        ApiVersion = ApiVersion
+      };
+    }
+
     /// <inheritdoc />
     public override string ToString()
     {

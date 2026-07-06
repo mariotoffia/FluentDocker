@@ -23,12 +23,13 @@ namespace FluentDocker.Model.Common
 
     /// <summary>
     /// Gets the Docker host URI from the DOCKER_HOST environment variable or returns the platform default.
+    /// An empty DOCKER_HOST is treated as unset (Docker convention).
     /// </summary>
     /// <returns>The Docker host URI string.</returns>
     public static string GetDockerHostEnvironmentPathOrDefault()
     {
       var env = Environment.GetEnvironmentVariable(DockerHost);
-      if (null != env)
+      if (!string.IsNullOrEmpty(env))
       {
         return env;
       }

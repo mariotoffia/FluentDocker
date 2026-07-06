@@ -67,6 +67,7 @@ namespace FluentDocker.Drivers.Docker.Cli
     /// <inheritdoc />
     public async Task InitializeAsync(DriverContext context, CancellationToken cancellationToken = default)
     {
+      cancellationToken.ThrowIfCancellationRequested();
       ThrowIfDisposed();
       ArgumentNullException.ThrowIfNull(context);
       _context = context;
@@ -82,6 +83,7 @@ namespace FluentDocker.Drivers.Docker.Cli
         SearchPaths = context.SearchPaths
       };
       _binaryResolver = new DockerBinariesResolver(binaryConfig, context.LoggerFactory);
+      cancellationToken.ThrowIfCancellationRequested();
 
       // Create and initialize all driver components with binary resolver
       _containerDriver = new DockerCliContainerDriver(_binaryResolver);
@@ -178,6 +180,10 @@ namespace FluentDocker.Drivers.Docker.Cli
       {
         var result = await _systemDriver.PingAsync(_context, cancellationToken).ConfigureAwait(false);
         return result.Success;
+      }
+      catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+      {
+        throw;
       }
       catch (Exception ex)
       {
@@ -416,9 +422,7 @@ namespace FluentDocker.Drivers.Docker.Cli
 
       if (connection != null)
         await connection.DisposeAsync().ConfigureAwait(false);
-
       _initialized = false;
-      _drivers.Clear();
       GC.SuppressFinalize(this);
     }
 

@@ -87,20 +87,14 @@ namespace FluentDocker.Drivers.Podman.Cli.Binary
 
     /// <inheritdoc />
     /// <remarks>
-    /// Returns the binary path with sudo prefix when configured.
-    /// The sudo password is never included in the returned string for security reasons.
-    /// Use <see cref="Resolve"/> to access the full <see cref="PodmanBinary"/> with sudo details.
+    /// Returns only the executable path. Use <see cref="Resolve"/> to access sudo details;
+    /// a sudo prefix is not a valid <see cref="System.Diagnostics.ProcessStartInfo.FileName"/>.
     /// </remarks>
     public string ResolveBinaryPath(string podmanCommand)
     {
       var binary = Resolve(podmanCommand);
 
-      if (IsWindows() || binary.Sudo == SudoMechanism.None)
-        return binary.FqPath;
-
-      return binary.Sudo == SudoMechanism.NoPassword
-          ? $"sudo {binary.FqPath}"
-          : $"sudo -S {binary.FqPath}";
+      return binary.FqPath;
     }
 
     private IEnumerable<PodmanBinary> ResolveFromPaths(
@@ -119,18 +113,18 @@ namespace FluentDocker.Drivers.Podman.Cli.Binary
 
       // The configured client name (default "podman"); the remote client name is fixed.
       var clientName = string.IsNullOrWhiteSpace(_configuration.BinaryName)
-          ? "podman" : _configuration.BinaryName.ToLowerInvariant();
+          ? "podman" : _configuration.BinaryName;
       var clientFile = isWindows ? clientName + ".exe" : clientName;
       const string remoteName = "podman-remote";
       var remoteFile = isWindows ? remoteName + ".exe" : remoteName;
 
       PodmanBinary Make(string dir, string fileName)
       {
-        var lower = Path.GetFileName(fileName).ToLowerInvariant();
-        var type = lower.Equals(remoteFile, StringComparison.Ordinal)
+        var name = Path.GetFileName(fileName);
+        var type = name.Equals(remoteFile, StringComparison.OrdinalIgnoreCase)
             ? PodmanBinaryType.PodmanRemote
             : PodmanBinaryType.PodmanClient;
-        return new PodmanBinary(dir, Path.GetFileName(fileName), sudo, password, type);
+        return new PodmanBinary(dir, name, sudo, password, type);
       }
 
       var list = new List<PodmanBinary>();
@@ -141,10 +135,11 @@ namespace FluentDocker.Drivers.Podman.Cli.Binary
           if (!Directory.Exists(path))
             continue;
 
+          var comparison = isWindows ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
           list.AddRange(from file in Directory.GetFiles(path)
-                        let f = Path.GetFileName(file).ToLowerInvariant()
-                        where f.Equals(clientFile, StringComparison.Ordinal)
-                            || f.Equals(remoteFile, StringComparison.Ordinal)
+                        let f = Path.GetFileName(file)
+                        where f.Equals(clientFile, comparison)
+                            || f.Equals(remoteFile, comparison)
                         select Make(path, file));
         }
         catch (Exception e)

@@ -29,7 +29,7 @@ namespace FluentDocker.Tests.CoreTests.Kernel
     }
 
     [Fact]
-    public async Task TrySysCtl_WhenInterfaceUnsupported_ReturnsFalseAndNullWithoutCallingThrowingFallback()
+    public async Task TrySysCtl_WhenInterfaceUnsupported_ReturnsFalseAndNullAfterFallback()
     {
       await using var kernel = new FluentDockerKernel(
           new DriverRegistry(NullLoggerFactory.Instance), NullLoggerFactory.Instance);
@@ -41,7 +41,7 @@ namespace FluentDocker.Tests.CoreTests.Kernel
 
       Assert.False(found);
       Assert.Null(imageDriver);
-      Assert.Equal(0, pack.FallbackCalls);
+      Assert.Equal(1, pack.FallbackCalls);
     }
 
     [Fact]

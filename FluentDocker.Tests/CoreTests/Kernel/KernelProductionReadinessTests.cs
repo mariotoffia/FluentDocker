@@ -83,7 +83,7 @@ namespace FluentDocker.Tests.CoreTests.Kernel
     }
 
     [Fact]
-    public async Task DisposeAsync_WhenRegistrationLockTimeouts_AllowsKernelRetry()
+    public async Task DisposeAsync_DuringSlowRegistration_DisposesExistingPackImmediately()
     {
       var registry = new ShortTimeoutRegistry();
       await using var kernel = new FluentDockerKernel(registry, NullLoggerFactory.Instance);
@@ -99,12 +99,10 @@ namespace FluentDocker.Tests.CoreTests.Kernel
 
       await kernel.DisposeAsync().AsTask().WaitAsync(TimeSpan.FromSeconds(2), TestContext.Current.CancellationToken);
 
-      Assert.Equal(0, existing.DisposeAsyncCount);
+      Assert.Equal(1, existing.DisposeAsyncCount);
 
       slow.CompleteInitialize.SetResult();
       await Assert.ThrowsAsync<ObjectDisposedException>(() => register);
-      await kernel.DisposeAsync().AsTask().WaitAsync(TimeSpan.FromSeconds(2), TestContext.Current.CancellationToken);
-
       Assert.Equal(1, existing.DisposeAsyncCount);
     }
 

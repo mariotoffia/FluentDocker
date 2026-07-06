@@ -60,7 +60,8 @@ namespace FluentDocker.Kernel
       ThrowIfDisposed();
       ArgumentNullException.ThrowIfNull(interfaceType);
 
-      if (string.IsNullOrWhiteSpace(driverId))
+      ThrowIfInvalidDriverId(driverId);
+      if (string.IsNullOrEmpty(driverId))
         throw new InvalidOperationException("No default driver configured. Register a default driver or pass an explicit driver ID.");
 
       if (TryResolveCore(driverId, interfaceType, out var resolved))
@@ -86,7 +87,8 @@ namespace FluentDocker.Kernel
       ThrowIfDisposed();
       instance = null;
 
-      if (string.IsNullOrWhiteSpace(driverId))
+      ThrowIfInvalidDriverId(driverId);
+      if (string.IsNullOrEmpty(driverId))
         throw new InvalidOperationException("No default driver configured. Register a default driver or pass an explicit driver ID.");
 
       if (TryResolveCore(driverId, typeof(T), out var resolved))
@@ -262,6 +264,16 @@ namespace FluentDocker.Kernel
             && interfaceType.IsInstanceOfType(resolved))
           return true;
 
+        try
+        {
+          resolved = driverPack.SysCtl(driverId, interfaceType);
+          if (interfaceType.IsInstanceOfType(resolved))
+            return true;
+        }
+        catch (InterfaceNotSupportedException)
+        {
+        }
+
         resolved = null;
         return false;
       }
@@ -284,6 +296,12 @@ namespace FluentDocker.Kernel
       }
 
       throw new DriverNotFoundException(driverId);
+    }
+
+    private static void ThrowIfInvalidDriverId(string driverId)
+    {
+      if (driverId != null && driverId.Length > 0 && string.IsNullOrWhiteSpace(driverId))
+        throw new ArgumentException("Driver ID cannot be empty or whitespace.", nameof(driverId));
     }
 
     #endregion

@@ -44,7 +44,7 @@ namespace FluentDocker.Tests.CoreTests.Kernel
     }
 
     [Fact]
-    public async Task DisposeAsync_DuringDriverRegistration_DisposesInitializedDriver()
+    public async Task DisposeAsync_DuringDriverRegistration_DoesNotWaitForSlowInitialize()
     {
       var initializeStarted = new TaskCompletionSource(
           TaskCreationOptions.RunContinuationsAsynchronously);
@@ -75,12 +75,11 @@ namespace FluentDocker.Tests.CoreTests.Kernel
       await initializeStarted.Task.WaitAsync(TestContext.Current.CancellationToken);
 
       var dispose = registry.DisposeAsync().AsTask();
-      Assert.False(dispose.IsCompleted);
+      await dispose.WaitAsync(TestContext.Current.CancellationToken);
 
       completeInitialize.SetResult();
 
       await Assert.ThrowsAsync<ObjectDisposedException>(() => register);
-      await dispose.WaitAsync(TestContext.Current.CancellationToken);
       await disposed.Task.WaitAsync(TestContext.Current.CancellationToken);
       driver.As<IAsyncDisposable>().Verify(d => d.DisposeAsync(), Times.Once);
     }

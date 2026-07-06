@@ -72,10 +72,10 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
     }
 
     [Fact]
-    public void Constructor_NormalizesBinaryToLowerCase()
+    public void Constructor_PreservesBinaryFilesystemCase()
     {
       var binary = new PodmanBinary("/usr/bin", "Podman", SudoMechanism.None, null!);
-      Assert.Equal("podman", binary.Binary);
+      Assert.Equal("Podman", binary.Binary);
     }
   }
 }

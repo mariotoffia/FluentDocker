@@ -53,6 +53,7 @@ namespace FluentDocker.Drivers.Docker.Api
     public async Task InitializeAsync(
         DriverContext context, CancellationToken cancellationToken = default)
     {
+      cancellationToken.ThrowIfCancellationRequested();
       ThrowIfDisposed();
       ArgumentNullException.ThrowIfNull(context);
       _context = context;
@@ -72,6 +73,7 @@ namespace FluentDocker.Drivers.Docker.Api
             parsedAllowMismatch,
       };
       _connection = new DockerApiConnection(connectionConfig, context.LoggerFactory);
+      cancellationToken.ThrowIfCancellationRequested();
 
       _containerDriver = new DockerApiContainerDriver(_connection);
       _imageDriver = new DockerApiImageDriver(_connection);
@@ -132,6 +134,10 @@ namespace FluentDocker.Drivers.Docker.Api
       try
       {
         return await _connection.PingAsync(cancellationToken).ConfigureAwait(false);
+      }
+      catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+      {
+        throw;
       }
       catch (Exception ex)
       {
@@ -253,7 +259,6 @@ namespace FluentDocker.Drivers.Docker.Api
       var connection = _connection;
       _connection = null;
       _initialized = false;
-      _drivers.Clear();
 
       if (connection != null)
         await connection.DisposeAsync().ConfigureAwait(false);

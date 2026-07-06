@@ -6,7 +6,6 @@ using System.Net;
 using System.Net.Http;
 using System.Net.Security;
 using System.Net.Sockets;
-using System.Runtime.InteropServices;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Text.Json;
@@ -14,6 +13,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using FluentDocker.Common;
 using FluentDocker.Drivers.Models.Connection;
+using FluentDocker.Model.Common;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using ResponseOwningStream = FluentDocker.Drivers.Connection.ResponseOwningStream;
@@ -51,7 +51,7 @@ namespace FluentDocker.Drivers.Docker.Api.Connection
     public DockerApiConnection(DockerApiConnectionConfig config, ILoggerFactory loggerFactory = null)
     {
       ArgumentNullException.ThrowIfNull(config);
-      _config = config;
+      _config = CreateEffectiveConfig(config);
       _logger = (loggerFactory ?? NullLoggerFactory.Instance).CreateLogger<DockerApiConnection>();
 
       var ownedCertificates = new List<X509Certificate2>();
@@ -59,8 +59,8 @@ namespace FluentDocker.Drivers.Docker.Api.Connection
       string baseAddress;
       try
       {
-        var host = config.Host ?? GetDefaultHost();
-        (handler, baseAddress) = CreateHandler(host, config, ownedCertificates);
+        var host = _config.Host;
+        (handler, baseAddress) = CreateHandler(host, _config, ownedCertificates);
         _ownedCertificates = ownedCertificates;
       }
       catch
@@ -74,7 +74,7 @@ namespace FluentDocker.Drivers.Docker.Api.Connection
       _httpClient = new HttpClient(handler, disposeHandler: true)
       {
         BaseAddress = baseUri,
-        Timeout = config.RequestTimeout
+        Timeout = _config.RequestTimeout
       };
       _longRunningHttpClient = new HttpClient(handler, disposeHandler: false)
       {
@@ -83,8 +83,8 @@ namespace FluentDocker.Drivers.Docker.Api.Connection
       };
 
       // If the user pre-set ApiVersion, mark negotiation as already done.
-      _negotiation = !string.IsNullOrEmpty(config.ApiVersion)
-          ? new NegotiationState(config.ApiVersion, Negotiated: true)
+      _negotiation = !string.IsNullOrEmpty(_config.ApiVersion)
+          ? new NegotiationState(_config.ApiVersion, Negotiated: true)
           : new NegotiationState(null, Negotiated: false);
     }
 
@@ -240,7 +240,9 @@ namespace FluentDocker.Drivers.Docker.Api.Connection
       ThrowIfDisposed();
       try
       {
-        using var response = await _httpClient.GetAsync("/_ping", ct).ConfigureAwait(false);
+        using var pingCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        pingCts.CancelAfter(TimeSpan.FromSeconds(5));
+        using var response = await _httpClient.GetAsync("/_ping", pingCts.Token).ConfigureAwait(false);
         return response.IsSuccessStatusCode;
       }
       catch (OperationCanceledException) when (ct.IsCancellationRequested)
@@ -359,9 +361,26 @@ namespace FluentDocker.Drivers.Docker.Api.Connection
 
     internal static string GetDefaultHost()
     {
-      return RuntimeInformation.IsOSPlatform(OSPlatform.Windows)
-          ? "npipe:////./pipe/docker_engine"
-          : "unix:///var/run/docker.sock";
+      return DockerUri.GetDockerHostEnvironmentPathOrDefault();
+    }
+
+    private static DockerApiConnectionConfig CreateEffectiveConfig(DockerApiConnectionConfig config)
+    {
+      // Docker convention: DOCKER_TLS_VERIFY set to any non-empty value (even "0") ENABLES
+      // verification. Applying it via OR means the environment can only strengthen verification,
+      // never weaken an explicit VerifyTls=true, so a stray env var can't silently open the
+      // connection to a man-in-the-middle.
+      var tlsVerify = Environment.GetEnvironmentVariable("DOCKER_TLS_VERIFY");
+      return new DockerApiConnectionConfig
+      {
+        Host = config.Host ?? DockerUri.GetDockerHostEnvironmentPathOrDefault(),
+        CertificatePath = config.CertificatePath ?? Environment.GetEnvironmentVariable("DOCKER_CERT_PATH"),
+        VerifyTls = config.VerifyTls || !string.IsNullOrEmpty(tlsVerify),
+        ConnectionTimeout = config.ConnectionTimeout,
+        RequestTimeout = config.RequestTimeout,
+        ApiVersion = config.ApiVersion,
+        AllowTlsHostnameMismatch = config.AllowTlsHostnameMismatch
+      };
     }
 
     // ownedCertificates collects every X509Certificate2 created here so the connection
