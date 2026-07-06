@@ -2,6 +2,7 @@ using System;
 using System.IO;
 using System.Threading.Tasks;
 using FluentDocker.Builders;
+using FluentDocker.Common;
 using Xunit;
 
 namespace FluentDocker.Tests.CoreTests.BuilderTests
@@ -73,6 +74,37 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
       Assert.True(File.Exists(Path.Combine(workingFolder, "rooted-copy-source.txt")));
       Assert.Contains(@"COPY [""rooted-copy-source.txt"", ""/app/source.txt""]", dockerfile);
       Assert.DoesNotContain(source, dockerfile);
+    }
+
+    [Fact]
+    public async Task Copy_RelativeSourceWithDotDotCannotEscapeOwnedBuildContext()
+    {
+      Directory.CreateDirectory(".out");
+      var originalCwd = Directory.GetCurrentDirectory();
+      var testRoot = Path.GetFullPath(Path.Combine(".out", "copy-dotdot"));
+      var cwd = Path.Combine(testRoot, "cwd");
+      var workingFolder = Path.Combine(cwd, "context");
+      Directory.CreateDirectory(cwd);
+      await File.WriteAllTextAsync(Path.Combine(testRoot, "source.txt"), "safe", TestContext.Current.CancellationToken);
+
+      try
+      {
+        // ponytail: cwd must equal the working folder's parent so File.Exists resolves the
+        // relative "../source.txt" precondition; only relative sources reach the containment
+        // guard (rooted sources take the GetFileName branch). Restored in finally.
+        Directory.SetCurrentDirectory(cwd);
+        var ex = await Assert.ThrowsAsync<FluentDockerException>(() => new DockerfileBuilder()
+            .WorkingFolder(workingFolder)
+            .UseParent("alpine")
+            .Copy("../source.txt", "/app/source.txt")
+            .ToDockerfileStringAsync());
+
+        Assert.Contains("escapes the build context", ex.Message);
+      }
+      finally
+      {
+        Directory.SetCurrentDirectory(originalCwd);
+      }
     }
 
     [Fact]

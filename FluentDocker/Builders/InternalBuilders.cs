@@ -38,6 +38,7 @@ namespace FluentDocker.Builders
     private readonly Dictionary<string, string> _options = [];
 
     internal bool CreatedResource { get; private set; }
+    internal string Name => _name;
 
     public INetworkBuilder WithName(string name) { _name = name; return this; }
     public INetworkBuilder UseDriver(string driver) { _driver = driver; return this; }
@@ -129,6 +130,7 @@ namespace FluentDocker.Builders
     private readonly Dictionary<string, string> _labels = [];
 
     internal bool CreatedResource { get; private set; }
+    internal string Name => _name;
 
     public IVolumeBuilder WithName(string name) { _name = name; return this; }
     public IVolumeBuilder UseDriver(string driver) { _driver = driver; return this; }
@@ -278,6 +280,10 @@ namespace FluentDocker.Builders
       var context = new DriverContext(_driverId);
       await LoadEnvFilesAsync(cancellationToken).ConfigureAwait(false);
 
+      if (_attachToExisting && string.IsNullOrEmpty(_projectName) && _composeFiles.Count == 0)
+        throw new FluentDockerException(
+            "ConnectToExisting requires WithProjectName and/or WithComposeFile to identify the project.");
+
       // Render a first-class models: overlay (WithModels) to a managed temp file and
       // append it so Compose merges it. The ComposeService owns the file and deletes it
       // on teardown / dispose.
@@ -287,12 +293,8 @@ namespace FluentDocker.Builders
       // service bound to the existing project (issue #305).
       if (_attachToExisting)
       {
-        if (string.IsNullOrEmpty(_projectName) && _composeFiles.Count == 0)
-          throw new FluentDockerException(
-              "ConnectToExisting requires WithProjectName and/or WithComposeFile to identify the project.");
-
         return new Services.Impl.ComposeService(
-            _kernel, _driverId, _composeFiles, _projectName, _removeVolumes, _removeImages, ownedTempFiles,
+            _kernel, _driverId, [.. _composeFiles], _projectName, _removeVolumes, _removeImages, ownedTempFiles,
             downOnDispose: false,
             initialState: ServiceRunningState.Unknown);
       }
@@ -317,10 +319,23 @@ namespace FluentDocker.Builders
         Profiles = _profiles
       };
 
-      var response = await driver.UpAsync(context, config, cancellationToken).ConfigureAwait(false);
+      CommandResponse<Drivers.ComposeUpResult> response;
+      try
+      {
+        response = await driver.UpAsync(context, config, cancellationToken).ConfigureAwait(false);
+      }
+      catch
+      {
+        await CleanupFailedComposeAsync(driver, context, config, _removeVolumes, cleanupTimeout)
+            .ConfigureAwait(false);
+        RemoveComposeFiles(ownedTempFiles);
+        DeleteTempFiles(ownedTempFiles);
+        throw;
+      }
+
       if (!response.Success)
       {
-        await CleanupFailedComposeAsync(driver, context, config, _removeVolumes, cleanupTimeout, cancellationToken).ConfigureAwait(false);
+        await CleanupFailedComposeAsync(driver, context, config, _removeVolumes, cleanupTimeout).ConfigureAwait(false);
         // Up failed: no ComposeService is created to own the overlay, so clean it up here.
         RemoveComposeFiles(ownedTempFiles);
         DeleteTempFiles(ownedTempFiles);
@@ -329,7 +344,7 @@ namespace FluentDocker.Builders
       }
 
       return new Services.Impl.ComposeService(
-          _kernel, _driverId, _composeFiles,
+          _kernel, _driverId, [.. _composeFiles],
           response.Data.ProjectName ?? _projectName,
           _removeVolumes, _removeImages, ownedTempFiles,
           initialState: _noStart ? ServiceRunningState.Stopped : ServiceRunningState.Running);
@@ -374,13 +389,11 @@ namespace FluentDocker.Builders
         DriverContext context,
         Drivers.ComposeUpConfig upConfig,
         bool removeVolumes,
-        TimeSpan cleanupTimeout,
-        CancellationToken cancellationToken)
+        TimeSpan cleanupTimeout)
     {
       try
       {
-        using var cleanupCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        cleanupCts.CancelAfter(cleanupTimeout);
+        using var cleanupCts = new CancellationTokenSource(cleanupTimeout);
         await driver.DownAsync(context, new Drivers.ComposeDownConfig
         {
           ComposeFiles = upConfig.ComposeFiles,
@@ -413,7 +426,22 @@ namespace FluentDocker.Builders
       var path = Path.Combine(
           Path.GetTempPath(),
           $"fluentdocker-models-{Guid.NewGuid():N}.yml");
-      _models.WriteOverlay(path);
+      try
+      {
+        _models.WriteOverlay(path);
+      }
+      catch
+      {
+        // The caller never receives this path on throw, so it could never be cleaned up.
+        // Delete the partially written overlay before propagating.
+        try
+        {
+          if (File.Exists(path))
+            File.Delete(path);
+        }
+        catch { /* best effort */ }
+        throw;
+      }
       _composeFiles.Add(path);
       _renderedOverlay = path;
       return [path];

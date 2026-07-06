@@ -94,13 +94,13 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
     }
 
     [Fact]
-    public async Task ReuseIfExists_WhenContainerAlreadyRunning_SkipsWaitConditions()
+    public async Task ReuseIfExists_WhenContainerAlreadyRunning_RunsWaitConditions()
     {
       MockPack
           .SetupContainerList(new Container { Id = "existing-id", Name = "/reused" })
           .SetupContainerInspect("existing-id", running: true)
           .SetupContainerStart()
-          .SetupContainerGetLogs("");
+          .SetupContainerGetLogs("ready");
 
       await new Builder()
           .WithinDriver(DriverId, Kernel)
@@ -108,17 +108,17 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
               .UseImage("nginx:alpine")
               .WithName("reused")
               .ReuseIfExists()
-              .WaitForLogMessage("ready", 1))
+              .WaitForLogMessage("ready", 50))
           .BuildAsync(cancellationToken: TestContext.Current.CancellationToken);
 
       MockPack.VerifyContainerStarted(Times.Never());
       MockPack.ContainerDriver.Verify(d => d.GetLogsAsync(
           It.IsAny<DriverContext>(),
-          It.IsAny<string>(),
+          "existing-id",
           It.IsAny<bool>(),
           It.IsAny<int?>(),
           It.IsAny<bool>(),
-          It.IsAny<CancellationToken>()), Times.Never);
+          It.IsAny<CancellationToken>()), Times.Once);
     }
   }
 }

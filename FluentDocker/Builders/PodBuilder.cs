@@ -48,6 +48,12 @@ namespace FluentDocker.Builders
     public IPodBuilder WithHostname(string hostname) { _hostname = hostname; return this; }
     public IPodBuilder RemoveOnDispose() { _removeOnDispose = true; return this; }
 
+    internal void ResetForRetry()
+    {
+      PendingService = null;
+      CreatedResource = false;
+    }
+
     public async Task<IServiceAsync> ExecuteAsync(CancellationToken cancellationToken)
     {
       Validate();

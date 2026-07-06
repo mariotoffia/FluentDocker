@@ -113,7 +113,7 @@ namespace FluentDocker.Builders
           throw new FluentDockerException($"COPY source '{from}' not found");
         }
 
-        var wp = Path.Combine(workingFolder, from);
+        var wp = ResolveOwnedContextPath(workingFolder, from);
         var wdp = Path.GetDirectoryName(wp);
         if (!string.IsNullOrEmpty(wdp) && !Directory.Exists(wdp))
           Directory.CreateDirectory(wdp);
@@ -133,6 +133,23 @@ namespace FluentDocker.Builders
         // Copy to working folder
         _addSourceOverrides[command] = CopyToWorkDir(source, workingFolder);
       }
+    }
+
+    private static string ResolveOwnedContextPath(string workingFolder, string relativePath)
+    {
+      // Lexical containment only: GetFullPath normalises "." / ".." segments but does NOT resolve
+      // symlinks, and the comparison is Ordinal (case-sensitive). This suffices for the dev-owned
+      // build-context threat model (guarding accidental "../" escapes), not a sandbox for
+      // untrusted paths.
+      var root = Path.GetFullPath(workingFolder);
+      var rootWithSeparator = root.EndsWith(Path.DirectorySeparatorChar)
+          ? root
+          : root + Path.DirectorySeparatorChar;
+      var destination = Path.GetFullPath(Path.Combine(root, relativePath));
+      if (!destination.StartsWith(rootWithSeparator, StringComparison.Ordinal))
+        throw new FluentDockerException(
+            $"COPY source '{relativePath}' escapes the build context");
+      return destination;
     }
 
     private async Task RenderDockerfileAsync(string workingFolder, CancellationToken cancellationToken)

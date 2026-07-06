@@ -250,7 +250,8 @@ namespace FluentDocker.Builders
         if (health == HealthState.Healthy)
           return true;
         if (health == HealthState.Unhealthy)
-          return false;
+          throw new FluentDockerException(
+              $"Container {service.Id} reported Unhealthy");
 
         await Task.Delay(pollIntervalMs, cancellationToken).ConfigureAwait(false);
       }
@@ -327,6 +328,8 @@ namespace FluentDocker.Builders
                 iteration++);
             if (delay < 0)
               return true;
+            if (delay == 0)
+              continue;
             if (delay > 0)
               await Task.Delay((int)delay, cancellationToken).ConfigureAwait(false);
           }

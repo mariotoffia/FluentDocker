@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Net;
@@ -83,6 +84,8 @@ namespace FluentDocker.Builders
     private int _waitPollIntervalMs = 500;
     private Services.Impl.ContainerService _pendingService;
     private bool _waitConditionsExecuted;
+    private bool _reusedExisting;
+    private bool _startDeferred;
 
     internal bool AllowCleanExitOnStart => _waitConditions.Count == 0;
     internal long StartupTimeoutMs => _waitConditions.Count == 0
@@ -253,6 +256,7 @@ namespace FluentDocker.Builders
       if (_duplicateContainerPorts.Count > 0)
         throw new FluentDockerException(
             $"Duplicate container port mapping for '{_duplicateContainerPorts.First()}'. Configure each container port only once.");
+      ValidateHardenedConfiguration();
     }
 
     private static void ValidateContainerPort(string containerPort)
@@ -304,7 +308,9 @@ namespace FluentDocker.Builders
     }
 
     private static bool IsValidPort(string value, bool allowZero, out int port) =>
-        int.TryParse(value, out port) && port <= 65535 && (allowZero ? port >= 0 : port >= 1);
+        int.TryParse(value, NumberStyles.None, CultureInfo.InvariantCulture, out port) &&
+        port <= 65535 &&
+        (allowZero ? port >= 0 : port >= 1);
 
     private static string NormalizeContainerPort(string containerPort) =>
         containerPort.Contains('/') ? containerPort : $"{containerPort}/tcp";
@@ -331,6 +337,7 @@ namespace FluentDocker.Builders
         {
           if (_existsBehavior == ContainerExistsBehavior.Reuse)
           {
+            _reusedExisting = true;
             var reuseService = new Services.Impl.ContainerService(
                 _kernel, _driverId, existing, _image, _name,
                 false, false,
@@ -348,9 +355,17 @@ namespace FluentDocker.Builders
             else
             {
               await reuseService.InspectAsync(cancellationToken).ConfigureAwait(false);
+              _pendingService = reuseService;
+              _waitConditionsExecuted = true;
+              // Borrowed running container: verify readiness (wait conditions) but do NOT re-run
+              // start hooks (CopyToOnStart/ExecuteOnRunning). Those fire only when THIS build starts
+              // the container; re-running them on an already-running container would repeat side
+              // effects (e.g. seed/migration commands).
+              await ExecuteWaitConditionsAsync(reuseService, cancellationToken).ConfigureAwait(false);
               if (_logger.IsEnabled(LogLevel.Debug))
                 _logger.LogDebug(
-                    "Reusing running container '{Name}'; requested configuration differences and waits are ignored.",
+                    "Reusing running container '{Name}'; wait conditions verified. Start hooks " +
+                    "(CopyToOnStart/ExecuteOnRunning) and configuration differences are not applied.",
                     _name);
             }
 
@@ -431,6 +446,9 @@ namespace FluentDocker.Builders
 
       _pendingService = service;
       var hasLinks = _links.Count > 0;
+      // Capture deferred-start intent at EXECUTE time. Reuse branches return before this point,
+      // so a reused (already-existing) container is never re-started by the deferred link pass.
+      _startDeferred = hasLinks;
 
       if (!hasLinks)
       {

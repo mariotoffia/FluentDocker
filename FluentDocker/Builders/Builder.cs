@@ -119,12 +119,18 @@ namespace FluentDocker.Builders
       {
         Kernel = _currentKernel,
         DriverId = _currentDriverId,
+        ResourceKind = "container",
+        ResourceName = builder.ContainerName,
+        NetworkReferences = builder.NetworkReferences,
+        VolumeReferences = builder.VolumeReferences,
+        LinkReferences = builder.LinkReferences,
         ExecuteAsync = (cleanupTimeout, ct) => builder.ExecuteAsync(cleanupTimeout, ct),
         GetFailedService = () => builder.PendingService,
         PostStartAsync = ct => builder.ExecuteDeferredWaitConditionsAsync(ct),
         ResetForRetry = builder.ResetForRetry,
-        FailureKeepReason = _ => builder.KeepContainerRequested ? "KeepContainer()" : null,
+        FailureKeepReason = builder.FailureKeepReason,
         AllowCleanExit = builder.AllowCleanExitOnStart,
+        StartDeferred = () => builder.StartDeferred,
         StartupTimeoutMs = builder.StartupTimeoutMs,
         StartupPollIntervalMs = builder.StartupPollIntervalMs
       });
@@ -185,6 +191,8 @@ namespace FluentDocker.Builders
       {
         Kernel = _currentKernel,
         DriverId = _currentDriverId,
+        ResourceKind = "network",
+        ResourceName = builder.Name,
         ExecuteAsync = (_, ct) => builder.ExecuteAsync(ct),
         ForceRemoveOnFailure = _ => builder.CreatedResource,
         FailureKeepReason = _ => builder.CreatedResource ? null : "borrowed"
@@ -205,6 +213,8 @@ namespace FluentDocker.Builders
       {
         Kernel = _currentKernel,
         DriverId = _currentDriverId,
+        ResourceKind = "volume",
+        ResourceName = builder.Name,
         ExecuteAsync = (_, ct) => builder.ExecuteAsync(ct),
         ForceRemoveOnFailure = _ => builder.CreatedResource,
         FailureKeepReason = _ => builder.CreatedResource ? null : "borrowed"
@@ -249,6 +259,7 @@ namespace FluentDocker.Builders
         DriverId = _currentDriverId,
         ExecuteAsync = (_, ct) => builder.ExecuteAsync(ct),
         GetFailedService = () => builder.PendingService,
+        ResetForRetry = builder.ResetForRetry,
         ForceRemoveOnFailure = _ => builder.CreatedResource
       });
       return this;
@@ -268,7 +279,8 @@ namespace FluentDocker.Builders
       {
         Kernel = _currentKernel,
         DriverId = _currentDriverId,
-        ExecuteAsync = async (_, ct) => (IServiceAsync)await imageBuilder.ExecuteAsync(ct).ConfigureAwait(false)
+        ExecuteAsync = async (_, ct) => (IServiceAsync)await imageBuilder.ExecuteAsync(ct).ConfigureAwait(false),
+        FailureKeepReason = _ => "built"
       });
       return this;
     }
@@ -299,13 +311,15 @@ namespace FluentDocker.Builders
     {
       if (_buildSucceeded)
         throw new InvalidOperationException("builder already consumed by BuildAsync; create a new Builder");
+      // Pre-flight checks run BEFORE acquiring the in-progress latch so a validation failure
+      // cannot leave the latch stuck set (which would brick every subsequent BuildAsync and
+      // skip the per-operation ResetForRetry). Both checks are read-only.
+      if (_operations.Count == 0)
+        throw new InvalidOperationException("no resources configured");
+      ValidateOperationReferences();
+
       if (Interlocked.CompareExchange(ref _buildInProgress, 1, 0) != 0)
         throw new InvalidOperationException("BuildAsync is already running on this Builder instance");
-      if (_operations.Count == 0)
-      {
-        Volatile.Write(ref _buildInProgress, 0);
-        throw new InvalidOperationException("no resources configured");
-      }
 
       var effectiveCleanupTimeout = cleanupTimeout ?? TimeSpan.FromSeconds(120);
       var scopes = new Dictionary<(FluentDockerKernel, string), BuildScope>();
@@ -398,7 +412,7 @@ namespace FluentDocker.Builders
     {
       // Pair with the operation captured when it produced a non-null result; BuildScope.Results intentionally skips nulls.
       var containersToStart = operations
-          .Where(x => x.Service is IContainerService { State: not ServiceRunningState.Running })
+          .Where(x => x.Operation.StartDeferred() && x.Service is IContainerService)
           .ToList();
 
       if (containersToStart.Count == 0)
@@ -442,6 +456,11 @@ namespace FluentDocker.Builders
     public Action ResetForRetry { get; set; }
     public Func<IServiceAsync, bool> ForceRemoveOnFailure { get; set; }
     public Func<IServiceAsync, string?> FailureKeepReason { get; set; }
+    public string ResourceKind { get; set; }
+    public string ResourceName { get; set; }
+    public IReadOnlyCollection<string> NetworkReferences { get; set; } = [];
+    public IReadOnlyCollection<string> VolumeReferences { get; set; } = [];
+    public IReadOnlyCollection<string> LinkReferences { get; set; } = [];
 
     /// <summary>
     /// Optional post-start callback for executing deferred operations
@@ -450,6 +469,7 @@ namespace FluentDocker.Builders
     public Func<CancellationToken, Task> PostStartAsync { get; set; }
 
     public bool AllowCleanExit { get; set; } = true;
+    public Func<bool> StartDeferred { get; set; } = () => false;
     public long StartupTimeoutMs { get; set; } = 3000;
     public int StartupPollIntervalMs { get; set; } = 100;
   }

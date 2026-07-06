@@ -1,5 +1,7 @@
 using System;
+using System.Collections.Generic;
 using System.Globalization;
+using System.Linq;
 using FluentDocker.Services;
 
 namespace FluentDocker.Builders
@@ -8,12 +10,28 @@ namespace FluentDocker.Builders
   {
     internal bool KeepContainerRequested => _keepContainer;
     internal IServiceAsync PendingService => _pendingService;
+    internal bool StartDeferred => _startDeferred;
+    internal string ContainerName => _name;
+    internal IReadOnlyCollection<string> NetworkReferences => _networks;
+    internal IReadOnlyCollection<string> LinkReferences => [.. _links.Select(l => l.ContainerName)];
+    internal IReadOnlyCollection<string> VolumeReferences => [.. _volumes
+        .Select(GetVolumeSource)
+        .Where(IsNamedVolumeSource)];
 
     internal void ResetForRetry()
     {
       // Retry contract: every BuildAsync attempt starts with clean per-attempt state.
       _pendingService = null;
       _waitConditionsExecuted = false;
+      _reusedExisting = false;
+      _startDeferred = false;
+    }
+
+    internal string FailureKeepReason(IServiceAsync _)
+    {
+      if (_keepContainer)
+        return "KeepContainer()";
+      return _reusedExisting ? "borrowed" : null;
     }
 
     public IContainerBuilder WithPort(string hostPort, string containerPort)
@@ -66,5 +84,20 @@ namespace FluentDocker.Builders
       _volumes.Add($"{hostPath}:{containerPath}{(isReadOnly ? ":ro" : string.Empty)}");
       return this;
     }
+
+    private static string GetVolumeSource(string volume)
+    {
+      var separator = volume.Length > 1 && volume[1] == ':'
+          ? volume.IndexOf(':', 2)
+          : volume.IndexOf(':');
+      return separator < 0 ? volume : volume[..separator];
+    }
+
+    private static bool IsNamedVolumeSource(string source) =>
+        !string.IsNullOrWhiteSpace(source) &&
+        !source.StartsWith('.') &&
+        !source.Contains('/') &&
+        !source.Contains('\\') &&
+        !System.IO.Path.IsPathRooted(source);
   }
 }
