@@ -68,7 +68,8 @@ namespace FluentDocker.Builders
     public IModelServiceBuilder WithEndpoint(ModelRunnerEndpoint endpoint,
         ModelApiConnectionConfig config = null, string apiKey = null)
     {
-      _endpoint = endpoint;
+      ThrowIfInferenceRouteConflict(_inferenceDriver != null || _inferenceDriverId != null);
+      _endpoint = endpoint ?? throw new ArgumentNullException(nameof(endpoint));
       _config = config;
       _apiKey = apiKey;
       return this;
@@ -77,6 +78,7 @@ namespace FluentDocker.Builders
     /// <inheritdoc />
     public IModelServiceBuilder WithInferenceDriver(IModelInferenceDriver inference)
     {
+      ThrowIfInferenceRouteConflict(_endpoint != null);
       _inferenceDriver = inference ?? throw new ArgumentNullException(nameof(inference));
       _inferenceDriverId = null;           // last call wins
       return this;
@@ -85,6 +87,7 @@ namespace FluentDocker.Builders
     /// <inheritdoc />
     public IModelServiceBuilder WithInferenceDriver(string driverId)
     {
+      ThrowIfInferenceRouteConflict(_endpoint != null);
       _inferenceDriverId = driverId ?? throw new ArgumentNullException(nameof(driverId));
       _inferenceDriver = null;             // last call wins
       return this;
@@ -144,6 +147,13 @@ namespace FluentDocker.Builders
       // Pass the caller's token through to the build-time pull/configure work.
       var runner = await runnerBuilder.BuildAsync(cancellationToken).ConfigureAwait(false);
       return new ModelService(_kernel, _driverId, _model, runner, _runOptions, _keepRunning);
+    }
+
+    private static void ThrowIfInferenceRouteConflict(bool hasConflict)
+    {
+      if (hasConflict)
+        throw new InvalidOperationException(
+            "WithEndpoint cannot be combined with WithInferenceDriver; configure exactly one inference route.");
     }
   }
 }

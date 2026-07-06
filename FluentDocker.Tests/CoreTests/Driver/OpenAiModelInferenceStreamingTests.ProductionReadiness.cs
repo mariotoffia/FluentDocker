@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using FluentDocker.Common;
@@ -129,6 +130,41 @@ namespace FluentDocker.Tests.CoreTests.Driver
       Assert.Equal(new[] { "Hi" }, chunks);
       Assert.Equal(ErrorCodes.ModelInference.Timeout, ex.ErrorCode);
       Assert.Contains("idle timeout", ex.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task ChatCompletionStreamAsync_EventPayloadOverLimit_ThrowsStreamParseError()
+    {
+      var value = new string('x', 1024);
+      var script = string.Concat(Enumerable.Repeat("data: " + value + "\n", 1025));
+      var conn = new MockModelApiConnection().SetupStream("/chat/completions", script);
+      var driver = Create(conn);
+
+      var ex = await Assert.ThrowsAsync<ModelRunnerException>(async () =>
+      {
+        await foreach (var _ in driver.ChatCompletionStreamAsync(
+            DiagnosticCtx, new ChatCompletionRequest { Model = "ai/x" }, TestContext.Current.CancellationToken))
+        {
+        }
+      });
+
+      Assert.Equal(ErrorCodes.ModelInference.StreamParseError, ex.ErrorCode);
+      Assert.Contains("SSE event", ex.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task ChatCompletionStreamAsync_LeadingUtf8Bom_IsIgnored()
+    {
+      const string script = "\uFEFFdata: {\"choices\":[{\"index\":0,\"delta\":{\"content\":\"Hi\"}}]}\n\ndata: [DONE]\n\n";
+      var conn = new MockModelApiConnection().SetupStream("/chat/completions", script);
+      var driver = Create(conn);
+      var chunks = new List<string>();
+
+      await foreach (var chunk in driver.ChatCompletionStreamAsync(
+          DiagnosticCtx, new ChatCompletionRequest { Model = "ai/x" }, TestContext.Current.CancellationToken))
+        chunks.Add(chunk.Choices[0].Delta.Content);
+
+      Assert.Equal(new[] { "Hi" }, chunks);
     }
 
     private sealed class ThrowingStreamConnection(ModelRunnerException exception) : IModelApiConnection

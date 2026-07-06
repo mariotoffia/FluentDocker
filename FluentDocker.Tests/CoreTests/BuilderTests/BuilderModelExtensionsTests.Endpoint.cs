@@ -92,5 +92,24 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
             builder.WithEndpoint(ModelRunnerEndpoint.HostTcp(9922)));
       }
     }
+
+    [Fact]
+    public async Task ModelServiceBuilder_WithEndpointThenInferenceDriver_ThrowsConflict()
+    {
+      var pack = new MockDriverPack().EnableModelDrivers();
+      var kernel = await MockKernelBuilderExtensions.CreateWithMockDriverAsync("docker", pack);
+
+      await using (kernel)
+      {
+        var builder = new Builder().WithinDriver("docker", kernel)
+            .UseModel("ai/smollm2")
+            .WithEndpoint(ModelRunnerEndpoint.HostTcp(9922));
+
+        var ex = Assert.Throws<InvalidOperationException>(() =>
+            builder.WithInferenceDriver(new Mock<IModelInferenceDriver>().Object));
+        Assert.Equal("WithEndpoint cannot be combined with WithInferenceDriver; configure exactly one inference route.",
+            ex.Message);
+      }
+    }
   }
 }

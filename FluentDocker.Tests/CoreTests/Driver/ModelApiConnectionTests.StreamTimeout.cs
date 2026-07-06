@@ -127,22 +127,65 @@ namespace FluentDocker.Tests.CoreTests.Driver
     }
 
     [Fact]
-    public async Task GetAsync_ResponseBodySyncRead_UsesRequestTimeout()
+    public async Task GetAsync_ResponseBodyRead_UsesTotalRequestTimeout()
     {
       using var handler = new FuncHandler(_ => new HttpResponseMessage(HttpStatusCode.OK)
       {
-        Content = new StreamContent(new NeverReadStream())
+        Content = new StreamContent(new TrickleReadStream(TimeSpan.FromMilliseconds(10)))
+      });
+      await using var conn = new ModelApiConnection(
+          new Uri("http://localhost:12434"), handler, loggerFactory: null,
+          new ModelApiConnectionConfig { RequestTimeout = TimeSpan.FromMilliseconds(80) });
+
+      using var response = await conn.GetAsync("/x", TestContext.Current.CancellationToken);
+
+      var ex = await Assert.ThrowsAsync<TimeoutException>(() =>
+          response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken)
+              .WaitAsync(TimeSpan.FromSeconds(2), TestContext.Current.CancellationToken));
+      Assert.Contains("request timeout", ex.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task GetAsync_ResponseBodyStreamRead_UsesTotalRequestTimeout()
+    {
+      using var handler = new FuncHandler(_ => new HttpResponseMessage(HttpStatusCode.OK)
+      {
+        Content = new StreamContent(new TrickleReadStream(TimeSpan.FromMilliseconds(10)))
+      });
+      await using var conn = new ModelApiConnection(
+          new Uri("http://localhost:12434"), handler, loggerFactory: null,
+          new ModelApiConnectionConfig { RequestTimeout = TimeSpan.FromMilliseconds(80) });
+
+      using var response = await conn.GetAsync("/x", TestContext.Current.CancellationToken);
+      await using var stream = await response.Content.ReadAsStreamAsync(TestContext.Current.CancellationToken);
+      var buffer = new byte[1];
+
+      var ex = await Assert.ThrowsAsync<TimeoutException>(() =>
+          ReadForeverAsync().WaitAsync(TimeSpan.FromSeconds(2), TestContext.Current.CancellationToken));
+      Assert.Contains("request timeout", ex.Message, StringComparison.OrdinalIgnoreCase);
+
+      async Task ReadForeverAsync()
+      {
+        while (true)
+          await stream.ReadAsync(buffer, TestContext.Current.CancellationToken).ConfigureAwait(false);
+      }
+    }
+
+    [Fact]
+    public async Task GetAsync_ResponseBodySyncRead_ThrowsAsyncOnlyNotSupported()
+    {
+      using var handler = new FuncHandler(_ => new HttpResponseMessage(HttpStatusCode.OK)
+      {
+        Content = new StringContent("ok", Encoding.UTF8, "text/plain")
       });
       await using var conn = new ModelApiConnection(
           new Uri("http://localhost:12434"), handler, loggerFactory: null,
           new ModelApiConnectionConfig { RequestTimeout = TimeSpan.FromMilliseconds(50) });
 
       using var response = await conn.GetAsync("/x", TestContext.Current.CancellationToken);
-      await using var stream = await response.Content.ReadAsStreamAsync(TestContext.Current.CancellationToken);
-      var buffer = new byte[1];
 
-      var ex = Assert.Throws<TimeoutException>(() => stream.Read(buffer, 0, buffer.Length));
-      Assert.Contains("request timeout", ex.Message, StringComparison.OrdinalIgnoreCase);
+      var ex = Assert.Throws<NotSupportedException>(() => response.Content.ReadAsStream(TestContext.Current.CancellationToken));
+      Assert.Contains("async", ex.Message, StringComparison.OrdinalIgnoreCase);
     }
 
     private sealed class NeverHeadersHandler : HttpMessageHandler
@@ -166,6 +209,31 @@ namespace FluentDocker.Tests.CoreTests.Driver
       {
         await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken).ConfigureAwait(false);
         return 0;
+      }
+
+      public override void Flush()
+      {
+      }
+
+      public override int Read(byte[] buffer, int offset, int count) => throw new NotSupportedException();
+      public override long Seek(long offset, System.IO.SeekOrigin origin) => throw new NotSupportedException();
+      public override void SetLength(long value) => throw new NotSupportedException();
+      public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
+    }
+
+    private sealed class TrickleReadStream(TimeSpan delay) : System.IO.Stream
+    {
+      public override bool CanRead => true;
+      public override bool CanSeek => false;
+      public override bool CanWrite => false;
+      public override long Length => throw new NotSupportedException();
+      public override long Position { get => throw new NotSupportedException(); set => throw new NotSupportedException(); }
+
+      public override async ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken = default)
+      {
+        await Task.Delay(delay, cancellationToken).ConfigureAwait(false);
+        buffer.Span[0] = (byte)'x';
+        return 1;
       }
 
       public override void Flush()

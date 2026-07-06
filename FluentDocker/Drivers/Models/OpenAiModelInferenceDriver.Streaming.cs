@@ -32,6 +32,12 @@ namespace FluentDocker.Drivers.Models
     private const int MaxSseLineChars = 1024 * 1024;
 
     /// <summary>
+    /// Maximum characters accumulated for one SSE event before the stream is aborted.
+    /// Bounds many small <c>data:</c> lines without a blank delimiter.
+    /// </summary>
+    private const int MaxSseEventChars = 1024 * 1024;
+
+    /// <summary>
     /// Chunk size (bytes/chars) for the streaming reader's reused buffers.
     /// ponytail: 4096 matches <see cref="StreamReader"/>'s default and comfortably holds a DMR SSE
     /// frame in one read; bump it only if profiling shows read-syscall overhead on very
@@ -177,10 +183,20 @@ namespace FluentDocker.Drivers.Models
         [EnumeratorCancellation] CancellationToken cancellationToken)
     {
       var data = new List<string>();
+      var eventChars = 0;
+      var firstLine = true;
 
-      await foreach (var line in ReadLinesAsync(
+      await foreach (var rawLine in ReadLinesAsync(
           stream, firstByteTimeout, idleTimeout, context, operation, cancellationToken).ConfigureAwait(false))
       {
+        var line = rawLine;
+        if (firstLine)
+        {
+          firstLine = false;
+          if (line.Length > 0 && line[0] == '\uFEFF')
+            line = line.Substring(1);
+        }
+
         if (line.Length == 0)
         {
           // Event delimiter: dispatch the accumulated data lines as one event (only if any were
@@ -189,6 +205,7 @@ namespace FluentDocker.Drivers.Models
           {
             yield return string.Join("\n", data);
             data.Clear();
+            eventChars = 0;
           }
           continue;
         }
@@ -201,6 +218,11 @@ namespace FluentDocker.Drivers.Models
           var value = line.Substring(5);
           if (value.Length > 0 && value[0] == ' ')
             value = value.Substring(1); // strip exactly ONE optional leading space.
+          eventChars += value.Length + (data.Count > 0 ? 1 : 0);
+          if (eventChars > MaxSseEventChars)
+            throw new ModelRunnerException(
+                $"SSE event exceeded the {MaxSseEventChars}-character limit",
+                ErrorCodes.ModelInference.StreamParseError, CreateStreamErrorContext(context, operation));
           data.Add(value);
         }
         // event:/id:/retry: fields are irrelevant to chunk streaming — ignore them.

@@ -27,7 +27,14 @@ namespace FluentDocker.Drivers.Models.Connection
     /// <summary>The socket/connect timeout.</summary>
     public TimeSpan ConnectionTimeout { get; set; } = TimeSpan.FromSeconds(30);
 
-    /// <summary>The request timeout (HttpClient.Timeout). Defaults high to accommodate slow inference.</summary>
+    /// <summary>
+    /// Total wall-clock budget for a NON-streaming request: the header phase and the body-read
+    /// phase share this single deadline (a request is bounded by one <c>RequestTimeout</c>, not
+    /// one per phase). Streaming responses are governed by the first-byte / idle timeouts
+    /// instead. The underlying <see cref="System.Net.Http.HttpClient.Timeout"/> is left
+    /// infinite; this budget is enforced via a linked token plus a body-read deadline. Defaults
+    /// high to accommodate slow inference.
+    /// </summary>
     public TimeSpan RequestTimeout { get; set; } = TimeSpan.FromMinutes(10);
 
     /// <summary>

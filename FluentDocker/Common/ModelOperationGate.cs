@@ -8,7 +8,7 @@ namespace FluentDocker.Common
 {
   /// <summary>
   /// A process-wide, per-model async gate that serializes mutually-unsafe model
-  /// lifecycle operations (pull / configure / load / unload) on the SAME model while letting
+  /// lifecycle operations (pull / configure / load / unload / remove / tag / push) on the SAME model while letting
   /// DIFFERENT models proceed in parallel. Mirrors the per-machine lock pattern used by
   /// <c>PodmanCliDriverPack</c> (a static <see cref="ConcurrentDictionary{TKey,TValue}"/>
   /// of <see cref="SemaphoreSlim"/> with <c>GetOrAdd</c> + <c>WaitAsync</c>/<c>Release</c>).

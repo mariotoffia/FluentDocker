@@ -25,6 +25,7 @@ namespace FluentDocker.Services.Impl
     private readonly ModelRunOptions _runOptions;
     private readonly bool _keepRunning;
     private readonly ConcurrentDictionary<string, (ServiceRunningState State, Func<IServiceAsync, Task> Hook)> _hooks = [];
+    private readonly object _startSync = new();
     private int _state = (int)ServiceRunningState.Unknown;
     // Start-once gate. Reset after hard failures and successful unload/remove so retry and
     // reload semantics match the public lifecycle.
@@ -32,6 +33,7 @@ namespace FluentDocker.Services.Impl
     // Persistent marker for dispose best-effort unload after a load reached the runner.
     private int _loadAttempted;
     private int _disposed;
+    private Task _loadTask;
 
     /// <summary>Initializes the model service.</summary>
     /// <param name="kernel">The kernel.</param>
@@ -101,14 +103,60 @@ namespace FluentDocker.Services.Impl
     {
       ThrowIfDisposed();
       cancellationToken.ThrowIfCancellationRequested();
-      if (Interlocked.CompareExchange(ref _loadInitiated, 1, 0) != 0)
+      Task loadTask;
+      TaskCompletionSource<bool> completion = null;
+      lock (_startSync)
       {
-        // ponytail: concurrent CAS loser returns without awaiting the winner (optimistic);
-        // upgrade to a shared load-Task/TCS if strict concurrent load-completion/failure
-        // observation is ever required.
-        return;
+        if (_loadInitiated != 0)
+        {
+          loadTask = _loadTask;
+        }
+        else
+        {
+          _loadInitiated = 1;
+          completion = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+          _loadTask = completion.Task;
+          loadTask = _loadTask;
+        }
       }
 
+      if (completion != null)
+        _ = DriveSharedLoadAsync(completion);
+
+      // Winner and losers alike observe the SINGLE shared load to completion/failure. The load
+      // runs under CancellationToken.None (see DriveSharedLoadAsync), so it is deliberately NOT
+      // abandoned when an individual caller's token fires: one load serves every concurrent
+      // caller, and the per-model gate must stay held until the driver's load actually returns
+      // (StartAsync_HoldsGateForFullLoad_NotReleasedEarlyOnCancel). A pre-cancelled token still
+      // fails fast via the guard above; a bounded wait otherwise relies on the driver timeout.
+      await loadTask.ConfigureAwait(false);
+    }
+
+    // Drives the one elected load to completion and publishes its outcome to every waiter.
+    // ponytail: the load runs under CancellationToken.None so a single caller cancelling cannot
+    // fail it for the others; every caller awaits the shared outcome to completion (the per-model
+    // gate is held for the full load — see StartAsync). Give the load a caller-driven cancel only
+    // if a concrete need for a bounded, abandonable wait ever appears.
+    private async Task DriveSharedLoadAsync(TaskCompletionSource<bool> completion)
+    {
+      try
+      {
+        await StartCoreAsync(CancellationToken.None).ConfigureAwait(false);
+        completion.SetResult(true);
+      }
+      catch (Exception ex)
+      {
+        // Self-heal the start-once gate on ANY failure (load, hook, or a throwing StateChange
+        // handler) so a later StartAsync can retry instead of the service wedging permanently.
+        // Matches the stop/remove reset idiom (Volatile.Write); the winning StartAsync reads the
+        // gate under _startSync, whose Monitor barrier observes this release.
+        Volatile.Write(ref _loadInitiated, 0);
+        completion.SetException(ex);
+      }
+    }
+
+    private async Task StartCoreAsync(CancellationToken cancellationToken)
+    {
       UpdateState(ServiceRunningState.Starting);
       await ExecuteHooksAsync(ServiceRunningState.Starting).ConfigureAwait(false);
 
@@ -117,15 +165,9 @@ namespace FluentDocker.Services.Impl
         Volatile.Write(ref _loadAttempted, 1);
         await _runner.LoadAsync(_model, _runOptions, cancellationToken).ConfigureAwait(false);
       }
-      catch (OperationCanceledException)
-      {
-        Volatile.Write(ref _loadInitiated, 0);
-        UpdateState(ServiceRunningState.Unknown);
-        throw;
-      }
       catch
       {
-        Volatile.Write(ref _loadInitiated, 0);
+        // The start-once gate is reset by DriveSharedLoadAsync on any failure.
         UpdateState(ServiceRunningState.Unknown);
         throw;
       }

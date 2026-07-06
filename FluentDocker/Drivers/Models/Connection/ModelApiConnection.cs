@@ -235,7 +235,7 @@ namespace FluentDocker.Drivers.Models.Connection
       {
         try
         {
-          return ApplyBodyTimeout(await send(ct).ConfigureAwait(false));
+          return ApplyBodyTimeout(await send(ct).ConfigureAwait(false), DateTimeOffset.MaxValue);
         }
         catch (Exception ex) when (IsTransportFailure(ex))
         {
@@ -243,11 +243,15 @@ namespace FluentDocker.Drivers.Models.Connection
         }
       }
 
+      // One wall-clock budget shared by the header phase (linked CTS) and the body-read phase
+      // (deadline threaded into ApplyBodyTimeout) so a non-streaming request is bounded by a
+      // single _requestTimeout, not one per phase.
+      var deadline = DateTimeOffset.UtcNow.Add(_requestTimeout);
       using var linked = CancellationTokenSource.CreateLinkedTokenSource(ct);
       linked.CancelAfter(_requestTimeout);
       try
       {
-        return ApplyBodyTimeout(await send(linked.Token).ConfigureAwait(false));
+        return ApplyBodyTimeout(await send(linked.Token).ConfigureAwait(false), deadline);
       }
       catch (OperationCanceledException) when (!ct.IsCancellationRequested)
       {
@@ -315,6 +319,11 @@ namespace FluentDocker.Drivers.Models.Connection
 
     private static (SocketsHttpHandler, Uri) CreateUnixSocketHandler(string socketPath, ModelApiConnectionConfig config)
     {
+      if (!string.IsNullOrEmpty(config.CertificatePath))
+        throw new ArgumentException(
+            "ModelApiConnectionConfig.CertificatePath requires an https model runner endpoint; plaintext http cannot use client certificates.",
+            nameof(config));
+
       var handler = new SocketsHttpHandler
       {
         ConnectCallback = async (_, ct) =>
@@ -355,7 +364,11 @@ namespace FluentDocker.Drivers.Models.Connection
         handler.SslOptions = BuildSslOptions(config, ownedCertificates);
 
       var scheme = useTls ? "https" : "http";
-      var port = uri.Port > 0 ? uri.Port : 12434;
+      // Honor the port exactly as written. The DMR default (:12434) is injected by the
+      // ModelRunnerEndpoint factories (HostTcp/ContainerInternal/Default), not silently here —
+      // so an explicit remote endpoint on a standard port (https://host => :443) is never
+      // rewritten to :12434. Uri.Port is always the effective port for http/https.
+      var port = uri.Port;
       // Rebuild the authority via UriBuilder (not string interpolation) so an IPv6
       // literal host is bracketed correctly (e.g. http://[::1]:12434) and any path /
       // query / user-info on the source URI is dropped.

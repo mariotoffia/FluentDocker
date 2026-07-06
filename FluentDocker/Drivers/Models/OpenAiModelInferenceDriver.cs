@@ -208,6 +208,10 @@ namespace FluentDocker.Drivers.Models
       return $"{operation}: endpoint/base path route '{route}' was not found. Verify the endpoint URL, raw base path, and DMR engine path. HTTP 404: {error}";
     }
 
+    /// <summary>
+    /// DMR-version-sensitive 404-body heuristic: current DMR builds report missing/unloaded
+    /// models as text containing "model" plus "not found" or "not loaded".
+    /// </summary>
     private static bool LooksLikeModelMissing(string error) =>
         !string.IsNullOrEmpty(error) &&
         error.Contains("model", StringComparison.OrdinalIgnoreCase) &&

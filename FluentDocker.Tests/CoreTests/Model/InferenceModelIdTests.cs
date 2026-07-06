@@ -92,7 +92,7 @@ namespace FluentDocker.Tests.CoreTests.Model
     }
 
     [Fact]
-    public void FromModelReference_ExplicitLatest_DropsLatest()
+    public void FromModelReference_ExplicitLatestCannotBeDistinguished_DropsLatest()
     {
       // After parsing we cannot distinguish an explicit ":latest" from the default,
       // so both render as the bare id for inference (DMR treats them as equivalent).

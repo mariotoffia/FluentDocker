@@ -117,5 +117,33 @@ namespace FluentDocker.Tests.CoreTests.Service
         Assert.Equal(2, System.Threading.Volatile.Read(ref calls));
       }
     }
+
+    [Fact]
+    public async Task RemoveAsync_SerializesOnPerModelGate_BlocksWhileHeld()
+    {
+      var (kernel, runner) = await BuildAsync(p => p.SetupModelRemove());
+      var model = ModelReference.Parse("ai/mr2-remove-gate-" + Guid.NewGuid().ToString("N"));
+
+      await using (kernel)
+      {
+        var held = await ModelOperationGate.AcquireAsync(model, TestContext.Current.CancellationToken);
+        Task remove;
+        try
+        {
+          remove = runner.RemoveAsync(model, force: true, TestContext.Current.CancellationToken);
+
+          var winner = await Task.WhenAny(remove, Task.Delay(250, TestContext.Current.CancellationToken));
+          Assert.NotSame(remove, winner);
+          Assert.False(remove.IsCompleted);
+        }
+        finally
+        {
+          await held.DisposeAsync();
+        }
+
+        await remove;
+        Assert.True(remove.IsCompletedSuccessfully);
+      }
+    }
   }
 }

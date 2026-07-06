@@ -46,6 +46,7 @@ namespace FluentDocker.Services.Impl
     public async Task RemoveAsync(ModelReference model, bool force = false, CancellationToken cancellationToken = default)
     {
       ThrowIfDisposed();
+      await using var gate = await ModelOperationGate.AcquireAsync(model, cancellationToken).ConfigureAwait(false);
       var response = await Management().RemoveAsync(Context(), model, force, cancellationToken).ConfigureAwait(false);
       UnwrapUnit(response, $"Remove model '{model}'");
     }
@@ -54,6 +55,13 @@ namespace FluentDocker.Services.Impl
     public async Task TagAsync(ModelReference source, ModelReference target, CancellationToken cancellationToken = default)
     {
       ThrowIfDisposed();
+      // ponytail: gate on `source` only. `target` is also written, so a concurrent op on
+      // `target` (rm/pull/tag-into-target) is not serialized against this tag. Acquiring both
+      // gates would need canonical key ordering + same-key dedupe to avoid A->B / B->A
+      // self-deadlock; the daemon already applies each tag atomically, so the residual race is
+      // only "which of two concurrent writes to target wins", not corruption. Add dual-gating
+      // only if that ordering is ever shown to matter.
+      await using var gate = await ModelOperationGate.AcquireAsync(source, cancellationToken).ConfigureAwait(false);
       var response = await Management().TagAsync(Context(), source, target, cancellationToken).ConfigureAwait(false);
       UnwrapUnit(response, $"Tag model '{source}' as '{target}'");
     }
@@ -62,6 +70,7 @@ namespace FluentDocker.Services.Impl
     public async Task PushAsync(ModelReference model, CancellationToken cancellationToken = default)
     {
       ThrowIfDisposed();
+      await using var gate = await ModelOperationGate.AcquireAsync(model, cancellationToken).ConfigureAwait(false);
       var response = await Management().PushAsync(Context(), model, cancellationToken).ConfigureAwait(false);
       UnwrapUnit(response, $"Push model '{model}'");
     }

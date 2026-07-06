@@ -107,6 +107,29 @@ namespace FluentDocker.Tests.CoreTests.Driver
     }
 
     [Fact]
+    public async Task Constructor_HttpEndpointWithoutPort_HonorsWrittenSchemeDefaultPort()
+    {
+      // A port-less URL is honored as written (http => :80, rendered without the default port);
+      // the DMR :12434 default belongs to the ModelRunnerEndpoint factories, not this rewrite.
+      await using var conn = new ModelApiConnection(
+          ModelRunnerEndpoint.Custom(new Uri("http://dmr.example")));
+
+      Assert.Equal(new Uri("http://dmr.example/"), conn.BaseAddress);
+    }
+
+    [Fact]
+    public async Task Constructor_HttpsEndpointOnStandardPort_IsNotRewrittenTo12434()
+    {
+      // Regression: an explicit remote https endpoint on the standard :443 must NOT be
+      // silently retargeted to the DMR default :12434 (IsDefaultPort collapses omitted and
+      // explicit-443, so honoring uri.Port is the only non-misrouting choice).
+      await using var conn = new ModelApiConnection(
+          ModelRunnerEndpoint.Custom(new Uri("https://models.example.com")));
+
+      Assert.Equal(new Uri("https://models.example.com/"), conn.BaseAddress);
+    }
+
+    [Fact]
     public async Task UnixSocket_NonexistentPath_PingReturnsFalse()
     {
       // Exercises the unix-socket connect-failure path (the socket is disposed on a
@@ -225,6 +248,18 @@ namespace FluentDocker.Tests.CoreTests.Driver
 
       var ex = Assert.Throws<ArgumentException>(() =>
           new ModelApiConnection(ModelRunnerEndpoint.Custom(new Uri("http://localhost:12434")), config));
+
+      Assert.Contains("https", ex.Message, StringComparison.OrdinalIgnoreCase);
+      await Task.CompletedTask;
+    }
+
+    [Fact]
+    public async Task Constructor_UnixSocketWithCertificatePath_ThrowsSchemeError()
+    {
+      var config = new ModelApiConnectionConfig { CertificatePath = ".out/no-such-cert-dir" };
+
+      var ex = Assert.Throws<ArgumentException>(() =>
+          new ModelApiConnection(ModelRunnerEndpoint.UnixSocket(".out/model-runner.sock"), config));
 
       Assert.Contains("https", ex.Message, StringComparison.OrdinalIgnoreCase);
       await Task.CompletedTask;

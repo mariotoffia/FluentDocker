@@ -15,9 +15,11 @@ namespace FluentDocker.Model.Models.Inference
   /// which a real OpenAI-compatible endpoint would reject).
   /// <para>
   /// When the source is a local Docker model the id is derived from its
-  /// <see cref="ModelReference"/> via <see cref="FromModelReference"/>, which drops the
-  /// auto-injected <c>:latest</c> tag (so <c>ai/smollm2</c> infers as <c>ai/smollm2</c>)
-  /// while preserving an explicitly-pinned tag or digest.
+  /// <see cref="ModelReference"/> via <see cref="FromModelReference"/>, which drops a
+  /// <c>:latest</c> tag (so <c>ai/smollm2</c> infers as <c>ai/smollm2</c>). A
+  /// <see cref="ModelReference"/> cannot distinguish an explicit <c>:latest</c> from the
+  /// defaulted tag after parsing, so both render as the bare inference id; non-latest tags and
+  /// digests are preserved.
   /// </para>
   /// </remarks>
   public readonly struct InferenceModelId : IEquatable<InferenceModelId>
@@ -42,7 +44,8 @@ namespace FluentDocker.Model.Models.Inference
 
     /// <summary>
     /// Derives the inference id from a Docker artifact <see cref="ModelReference"/>,
-    /// dropping the auto-injected <c>:latest</c> tag (an explicit tag or digest is kept).
+    /// dropping a <c>:latest</c> tag (explicit <c>:latest</c> cannot be distinguished after
+    /// parsing); non-latest tags and digests are kept.
     /// </summary>
     /// <param name="reference">The Docker model reference.</param>
     /// <returns>The derived inference id, or <c>null</c> when <paramref name="reference"/> is null.</returns>
