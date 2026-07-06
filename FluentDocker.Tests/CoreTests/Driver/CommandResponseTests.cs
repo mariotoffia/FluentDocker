@@ -88,6 +88,25 @@ namespace FluentDocker.Tests.CoreTests.Driver
     }
 
     [Fact]
+    public void Fail_WithContextAndNullErrorCode_UsesGeneralUnknown()
+    {
+      var response = CommandResponse<string>.Fail("error", null!, new ErrorContext("TestOperation"));
+
+      Assert.Equal(ErrorCodes.General.Unknown, response.ErrorCode);
+    }
+
+    [Fact]
+    public void Type_DoesNotExposePublicSettersOrInheritanceBypass()
+    {
+      Assert.True(typeof(CommandResponse<string>).IsSealed);
+
+      foreach (var property in typeof(CommandResponse<string>).GetProperties())
+      {
+        Assert.False(property.SetMethod?.IsPublic == true, property.Name);
+      }
+    }
+
+    [Fact]
     public void Success_DefaultExitCodeIsZero()
     {
       // Act

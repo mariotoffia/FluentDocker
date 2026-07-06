@@ -101,14 +101,14 @@ namespace FluentDocker.Model.Models
     /// <param name="engine">The engine name (default <c>llama.cpp</c>).</param>
     /// <returns>A host-TCP endpoint.</returns>
     public static ModelRunnerEndpoint HostTcp(int port = DefaultPort, string engine = DefaultEngine) =>
-        new(new Uri($"http://localhost:{port}"), engine, null, true);
+        new(new Uri($"http://localhost:{ValidatePort(port)}"), engine, null, true);
 
     /// <summary>Creates a container-internal endpoint (<c>http://model-runner.docker.internal:port</c>).</summary>
     /// <param name="port">The TCP port (default 12434).</param>
     /// <param name="engine">The engine name (default <c>llama.cpp</c>).</param>
     /// <returns>A container-internal endpoint.</returns>
     public static ModelRunnerEndpoint ContainerInternal(int port = DefaultPort, string engine = DefaultEngine) =>
-        new(new Uri($"http://model-runner.docker.internal:{port}"), engine, null, true);
+        new(new Uri($"http://model-runner.docker.internal:{ValidatePort(port)}"), engine, null, true);
 
     /// <summary>Creates a unix-socket endpoint.</summary>
     /// <param name="socketPath">The explicit socket path.</param>
@@ -166,6 +166,13 @@ namespace FluentDocker.Model.Models
     /// <returns>The default endpoint.</returns>
     public static ModelRunnerEndpoint Default() =>
         TryFromEnvironment(out var endpoint) ? endpoint : HostTcp();
+
+    private static int ValidatePort(int port)
+    {
+      if (port is < 1 or > 65535)
+        throw new ArgumentOutOfRangeException(nameof(port), port, "TCP port must be in the range 1-65535.");
+      return port;
+    }
 
     /// <summary>
     /// Attempts to construct an endpoint from the <c>DOCKER_MODEL_RUNNER_URL</c>

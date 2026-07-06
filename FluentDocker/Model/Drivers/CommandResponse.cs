@@ -5,46 +5,46 @@ namespace FluentDocker.Model.Drivers
   /// <summary>
   /// Represents the result of a driver command execution.
   /// All driver interfaces return <see cref="CommandResponse{T}"/> from their operations.
-  /// Properties are init-only; use the <see cref="Ok(T)"/> and <see cref="Fail(string, string, int)"/> factory methods.
+  /// Properties are publicly read-only; use the <see cref="Ok(T)"/> and <see cref="Fail(string, string, int)"/> factory methods.
   /// </summary>
   /// <typeparam name="T">The type of data returned by the command</typeparam>
 #pragma warning disable CA1000 // Static members on generic type — factory pattern is intentional API design
-  public class CommandResponse<T>
+  public sealed class CommandResponse<T>
   {
     /// <summary>
     /// Indicates whether the command executed successfully.
     /// </summary>
-    public bool Success { get; init; }
+    public bool Success { get; private init; }
 
     /// <summary>
     /// The data returned by the command. Successful responses are expected to carry non-null data.
     /// </summary>
-    public T Data { get; init; }
+    public T Data { get; private init; }
 
     /// <summary>
     /// Error message (if not successful).
     /// </summary>
-    public string Error { get; init; }
+    public string Error { get; private init; }
 
     /// <summary>
     /// Error code for programmatic handling.
     /// </summary>
-    public string ErrorCode { get; init; }
+    public string ErrorCode { get; private init; }
 
     /// <summary>
     /// Diagnostic context information.
     /// </summary>
-    public ErrorContext ErrorContext { get; init; }
+    public ErrorContext ErrorContext { get; private init; }
 
     /// <summary>
     /// Exit code from the command execution.
     /// </summary>
-    public int ExitCode { get; init; }
+    public int ExitCode { get; private init; }
 
     /// <summary>
     /// Standard output from the command.
     /// </summary>
-    public string Output { get; init; }
+    public string Output { get; private init; }
 
     /// <summary>
     /// Creates a successful command response. Pass non-null data for successful responses.
@@ -113,7 +113,7 @@ namespace FluentDocker.Model.Drivers
       {
         Success = false,
         Error = error,
-        ErrorCode = errorCode,
+        ErrorCode = errorCode ?? ErrorCodes.General.Unknown,
         ErrorContext = context,
         ExitCode = exitCode
       };

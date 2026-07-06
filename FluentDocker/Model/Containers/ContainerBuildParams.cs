@@ -183,7 +183,7 @@ namespace FluentDocker.Model.Containers
       sb.OptionIfExists("--cgroup-parent ", ParentCGroup?.ToString(CultureInfo.InvariantCulture));
       sb.OptionIfExists("--cpu-period ", CpuPeriod?.ToString(CultureInfo.InvariantCulture));
       sb.OptionIfExists("--cpu-quota ", CpuQuota?.ToString(CultureInfo.InvariantCulture));
-      sb.OptionIfExists("--cpuset-cpus", AllowCpuExecution);
+      sb.OptionIfExists("--cpuset-cpus ", AllowCpuExecution);
       sb.OptionIfExists("--cpuset-mems ", AllowMemExecution);
 
       if (SkipImageVerification)
@@ -200,7 +200,7 @@ namespace FluentDocker.Model.Containers
 
       if (null != Isolation.ToDocker())
       {
-        sb.Append(CultureInfo.InvariantCulture, $"--isolation {Isolation.ToDocker()}");
+        sb.Append(CultureInfo.InvariantCulture, $" --isolation {Isolation.ToDocker()}");
       }
 
       sb.OptionIfExists("--label=", Labels);

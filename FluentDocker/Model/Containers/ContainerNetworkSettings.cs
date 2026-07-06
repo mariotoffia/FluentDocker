@@ -28,10 +28,10 @@ namespace FluentDocker.Model.Containers
     public string SandboxKey { get; set; }
 
     /// <summary>Secondary IPv4 addresses as emitted by inspect.</summary>
-    public string SecondaryIPAddresses { get; set; }
+    public IList<SecondaryAddress> SecondaryIPAddresses { get; set; }
 
     /// <summary>Secondary IPv6 addresses as emitted by inspect.</summary>
-    public string SecondaryIPv6Addresses { get; set; }
+    public IList<SecondaryAddress> SecondaryIPv6Addresses { get; set; }
 
     /// <summary>Endpoint ID on the default network.</summary>
     public string EndpointID { get; set; }
@@ -62,5 +62,15 @@ namespace FluentDocker.Model.Containers
 
     /// <summary>Per-network endpoint settings keyed by network name.</summary>
     public Dictionary<string, BridgeNetwork> Networks { get; set; }
+  }
+
+  /// <summary>Secondary IP address entry emitted by Docker inspect.</summary>
+  public sealed class SecondaryAddress
+  {
+    /// <summary>Address value.</summary>
+    public string Addr { get; set; }
+
+    /// <summary>Network prefix length.</summary>
+    public int PrefixLen { get; set; }
   }
 }

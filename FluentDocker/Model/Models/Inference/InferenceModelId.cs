@@ -84,10 +84,14 @@ namespace FluentDocker.Model.Models.Inference
     public override int GetHashCode() => _value is null ? 0 : StringComparer.Ordinal.GetHashCode(_value);
 
     /// <summary>Returns the raw model id verbatim.</summary>
-    public override string ToString() => _value;
+    public override string ToString() => _value ?? string.Empty;
 
     /// <summary>Implicitly converts a raw string to an <see cref="InferenceModelId"/>.</summary>
-    public static implicit operator InferenceModelId(string value) => new(value);
+    public static implicit operator InferenceModelId(string value)
+    {
+      ArgumentNullException.ThrowIfNull(value);
+      return new InferenceModelId(value);
+    }
 
     /// <summary>Explicitly extracts the raw model id string.</summary>
     public static explicit operator string(InferenceModelId id) => id._value;

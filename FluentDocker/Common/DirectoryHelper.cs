@@ -16,6 +16,7 @@ namespace FluentDocker.Common
   public static class DirectoryHelper
   {
     static DirectoryHelper() => GetTempPath = Path.GetTempPath;
+    private static Func<string> _getTempPath;
 
     private static readonly Dictionary<string, string> ToRename = new()
     {
@@ -33,7 +34,11 @@ namespace FluentDocker.Common
     ///  startup to provide for a custom path. The default uses the <see cref="Path.GetTempPath"/>
     ///  implementation.
     /// </remarks>
-    public static Func<string> GetTempPath { get; set; }
+    public static Func<string> GetTempPath
+    {
+      get => _getTempPath;
+      set => _getTempPath = value ?? Path.GetTempPath;
+    }
 
     /// <summary>Recursively copies all files and subdirectories from source to target.</summary>
     /// <param name="source">The source directory to copy from.</param>

@@ -7,6 +7,7 @@ namespace FluentDocker.Common
 {
   /// <summary>
   /// Reads string dictionaries from JSON objects or Docker CLI key=value lists.
+  /// The legacy comma-delimited string form cannot represent values that contain commas.
   /// </summary>
   public sealed class LenientStringDictionaryConverter : JsonConverter<Dictionary<string, string>>
   {

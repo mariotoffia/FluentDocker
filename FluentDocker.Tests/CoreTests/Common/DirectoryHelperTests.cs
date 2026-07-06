@@ -316,6 +316,26 @@ namespace FluentDocker.Tests.CoreTests.Common
       }
     }
 
+    [Fact]
+    public void GetTempPath_NullAssignment_RestoresSafeDefault()
+    {
+      var original = DirectoryHelper.GetTempPath;
+
+      try
+      {
+        DirectoryHelper.GetTempPath = null!;
+
+        var result = DirectoryHelper.GetTempPath();
+
+        Assert.NotNull(result);
+        Assert.NotEmpty(result);
+      }
+      finally
+      {
+        DirectoryHelper.GetTempPath = original;
+      }
+    }
+
     #endregion
   }
 }

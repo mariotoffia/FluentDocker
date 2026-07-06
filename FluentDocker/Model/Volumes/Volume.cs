@@ -29,13 +29,13 @@ namespace FluentDocker.Model.Volumes
     public string Mountpoint { get; set; }
 
     /// <summary>
-    /// User-defined labels attached to the volume.
+    /// User-defined labels attached to the volume. Legacy compact string input cannot represent comma-containing values.
     /// </summary>
     [JsonConverter(typeof(LenientStringDictionaryConverter))]
     public Dictionary<string, string> Labels { get; set; }
 
     /// <summary>
-    /// Driver-specific options used when creating the volume.
+    /// Driver-specific options used when creating the volume. Legacy compact string input cannot represent comma-containing values.
     /// </summary>
     [JsonConverter(typeof(LenientStringDictionaryConverter))]
     public Dictionary<string, string> Options { get; set; }

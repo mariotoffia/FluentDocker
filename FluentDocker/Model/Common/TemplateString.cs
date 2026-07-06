@@ -12,7 +12,7 @@ namespace FluentDocker.Model.Common
   /// Renders FluentDocker path templates such as ${TMP}, ${TEMP}, ${PWD}, ${RND}, and ${E_NAME}.
   /// Template tokens are always expanded when recognized; there is no escape syntax for a literal ${TMP}.
   /// </summary>
-  public sealed partial class TemplateString(string str, bool handleWindowsPathIfNeeded = false)
+  public sealed partial class TemplateString
   {
     private static readonly Dictionary<string, Func<string>> Templates;
     private static readonly Regex UrlDetector = MyRegex();
@@ -42,11 +42,18 @@ namespace FluentDocker.Model.Common
           {"${PWD}", Directory.GetCurrentDirectory}
         };
 
+    public TemplateString(string str, bool handleWindowsPathIfNeeded = false)
+    {
+      ArgumentNullException.ThrowIfNull(str);
+      Original = str;
+      Rendered = Render(ToTargetOs(str, handleWindowsPathIfNeeded));
+    }
+
     /// <summary>Original template string supplied by the caller.</summary>
-    public string Original { get; } = str;
+    public string Original { get; }
 
     /// <summary>Rendered string after built-in and environment templates are expanded.</summary>
-    public string Rendered { get; } = Render(ToTargetOs(str, handleWindowsPathIfNeeded));
+    public string Rendered { get; }
 
     private static string ToTargetOs(string str, bool handleWindowsPathIfNeeded)
     {

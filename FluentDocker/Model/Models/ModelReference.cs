@@ -439,8 +439,10 @@ namespace FluentDocker.Model.Models
         return null;
 
       var value = reader.GetString();
-      if (string.IsNullOrWhiteSpace(value))
+      if (value is null || value.Length == 0)
         return null;
+      if (string.IsNullOrWhiteSpace(value))
+        throw new JsonException("Invalid model reference whitespace.");
 
       if (!ModelReference.TryParse(value, out var model))
         throw new JsonException($"Invalid model reference '{value}'.");

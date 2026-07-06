@@ -188,6 +188,12 @@ namespace FluentDocker.Tests.CoreTests.Model
     }
 
     [Fact]
+    public void Constructor_NullString_ThrowsArgumentNullException()
+    {
+      Assert.Throws<ArgumentNullException>(() => new TemplateString(null!));
+    }
+
+    [Fact]
     public void EnvironmentVariable_IsRendered()
     {
       // Set a test environment variable

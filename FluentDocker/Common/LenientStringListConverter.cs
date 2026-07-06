@@ -7,6 +7,7 @@ namespace FluentDocker.Common
 {
   /// <summary>
   /// Reads a string list from either a JSON array or Docker CLI's compact string form.
+  /// The legacy comma-delimited string form cannot represent items that contain commas.
   /// </summary>
   public sealed class LenientStringListConverter : JsonConverter<List<string>>
   {

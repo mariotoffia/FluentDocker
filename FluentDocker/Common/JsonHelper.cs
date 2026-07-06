@@ -32,6 +32,8 @@ namespace FluentDocker.Common
     /// <summary>
     /// Deserializes a JSON string to the specified type using case-insensitive options.
     /// Returns <c>default</c> on JSON or unsupported-type failures instead of throwing.
+    /// Prefer <see cref="TryDeserialize{T}(string, out T)"/> for value types so a parsed
+    /// <c>default</c> value can be distinguished from a failed parse.
     /// </summary>
     public static T TryDeserialize<T>(string json)
     {

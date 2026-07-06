@@ -36,6 +36,14 @@ namespace FluentDocker.Tests.CoreTests.Model
       Assert.Equal(new Uri("http://localhost:9000"), ModelRunnerEndpoint.HostTcp(9000).BaseAddress);
     }
 
+    [Theory]
+    [InlineData(0)]
+    [InlineData(70000)]
+    public void HostTcp_PortOutsideTcpRange_ThrowsArgumentOutOfRangeException(int port)
+    {
+      Assert.Throws<ArgumentOutOfRangeException>(() => ModelRunnerEndpoint.HostTcp(port));
+    }
+
     [Fact]
     public void ContainerInternal_UsesInternalDns()
     {

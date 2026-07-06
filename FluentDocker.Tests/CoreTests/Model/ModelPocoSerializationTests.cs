@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Text.Json;
 using FluentDocker.Common;
 using FluentDocker.Model.Models;
 using Xunit;
@@ -125,6 +126,13 @@ namespace FluentDocker.Tests.CoreTests.Model
       var p = new ModelPullProgress { Status = "Verifying", Current = 0, Total = 0 };
 
       Assert.Equal(0d, p.Fraction);
+    }
+
+    [Fact]
+    public void ModelReference_WhitespaceJsonString_ThrowsJsonException()
+    {
+      Assert.Throws<JsonException>(() =>
+          JsonSerializer.Deserialize<ModelInfo>("{\"Reference\":\"   \"}", JsonHelper.CaseInsensitiveOptions));
     }
   }
 }

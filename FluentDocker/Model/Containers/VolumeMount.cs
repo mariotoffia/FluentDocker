@@ -52,7 +52,7 @@ namespace FluentDocker.Model.Containers
 
       if (sb.Length > 0)
       {
-        sb.Append(':');
+        sb.Append(string.IsNullOrEmpty(Mode) ? ':' : ',');
       }
       sb.Append(Rw ? "rw" : "ro");
 

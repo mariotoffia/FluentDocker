@@ -40,6 +40,23 @@ namespace FluentDocker.Tests.CoreTests.Model
     }
 
     [Fact]
+    public void Default_ToString_ReturnsEmptyString()
+    {
+      Assert.Equal(string.Empty, default(InferenceModelId).ToString());
+    }
+
+    [Fact]
+    public void ImplicitConversion_NullString_ThrowsArgumentNullException()
+    {
+      string? value = null;
+
+      Assert.Throws<ArgumentNullException>(() =>
+      {
+        InferenceModelId _ = value!;
+      });
+    }
+
+    [Fact]
     public void ImplicitConversion_FromString_PreservesValue()
     {
       InferenceModelId id = "gpt-4o-mini";

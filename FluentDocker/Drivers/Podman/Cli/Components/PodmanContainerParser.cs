@@ -235,8 +235,8 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
         LinkLocalIPv6Address = el.GetStringOrDefault("LinkLocalIPv6Address"),
         LinkLocalIPv6PrefixLen = el.GetStringOrDefault("LinkLocalIPv6PrefixLen"),
         SandboxKey = el.GetStringOrDefault("SandboxKey"),
-        SecondaryIPAddresses = el.GetStringOrDefault("SecondaryIPAddresses"),
-        SecondaryIPv6Addresses = el.GetStringOrDefault("SecondaryIPv6Addresses"),
+        SecondaryIPAddresses = ParseSecondaryAddresses(el.Prop("SecondaryIPAddresses")),
+        SecondaryIPv6Addresses = ParseSecondaryAddresses(el.Prop("SecondaryIPv6Addresses")),
         EndpointID = el.GetStringOrDefault("EndpointID"),
         Gateway = el.GetStringOrDefault("Gateway"),
         GlobalIPv6Address = el.GetStringOrDefault("GlobalIPv6Address"),
@@ -275,6 +275,27 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
         {
           result[prop.Name] = [];
         }
+      }
+
+      return result;
+    }
+
+    public static IList<SecondaryAddress> ParseSecondaryAddresses(JsonElement? addressesToken)
+    {
+      if (addressesToken == null || addressesToken.Value.ValueKind != JsonValueKind.Array)
+        return null;
+
+      var result = new List<SecondaryAddress>();
+      foreach (var address in addressesToken.Value.EnumerateArray())
+      {
+        if (address.ValueKind != JsonValueKind.Object)
+          continue;
+
+        result.Add(new SecondaryAddress
+        {
+          Addr = address.GetStringOrDefault("Addr"),
+          PrefixLen = address.GetInt32OrDefault("PrefixLen")
+        });
       }
 
       return result;
