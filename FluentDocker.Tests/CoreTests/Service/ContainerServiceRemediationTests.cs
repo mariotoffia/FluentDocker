@@ -116,7 +116,7 @@ namespace FluentDocker.Tests.CoreTests.Service
     }
 
     [Fact]
-    public async Task StopAsync_WhenAlreadyStopped_DoesNotCallDriverOrFireEvents()
+    public async Task StopAsync_WhenAlreadyStopped_StillCallsDriverAndFiresEvents()
     {
       MockPack.SetupContainerStop();
       var service = new ContainerService(Kernel, DriverId, "container-123", "alpine", "test");
@@ -126,10 +126,10 @@ namespace FluentDocker.Tests.CoreTests.Service
 
       await service.StopAsync(TestContext.Current.CancellationToken);
 
-      Assert.Empty(states);
+      Assert.Equal([ServiceRunningState.Stopping, ServiceRunningState.Stopped], states);
       MockPack.ContainerDriver.Verify(d => d.StopAsync(
           It.IsAny<DriverContext>(), "container-123", It.IsAny<int?>(),
-          It.IsAny<CancellationToken>()), Times.Once);
+          It.IsAny<CancellationToken>()), Times.Exactly(2));
     }
 
     [Fact]

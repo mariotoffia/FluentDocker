@@ -18,6 +18,9 @@ using Microsoft.Extensions.Logging;
 namespace FluentDocker.Services.Impl
 {
   /// <inheritdoc />
+  /// <remarks>
+  /// After disposal, lifecycle state/events are deliberately suppressed instead of throwing.
+  /// </remarks>
   public partial class ContainerService : IContainerService, IServiceCapabilities
   {
     private readonly FluentDockerKernel _kernel;
@@ -79,7 +82,8 @@ namespace FluentDocker.Services.Impl
         bool deleteNamedVolumeOnDispose = false,
         Func<Dictionary<string, HostIpEndpoint[]>, string, Uri, IPEndPoint> customResolver = null,
         List<LifecycleHook> lifecycleHooks = null,
-        TimeSpan? disposeCleanupTimeout = null)
+        TimeSpan? disposeCleanupTimeout = null,
+        ServiceRunningState initialState = ServiceRunningState.Unknown)
     {
       ArgumentNullException.ThrowIfNull(kernel);
       ArgumentNullException.ThrowIfNull(driverId);
@@ -96,6 +100,7 @@ namespace FluentDocker.Services.Impl
       _deleteNamedVolumeOnDispose = deleteNamedVolumeOnDispose;
       _customResolver = customResolver;
       _lifecycleHooks = lifecycleHooks ?? [];
+      _state = initialState;
       _disposeCleanupTimeout =
           disposeCleanupTimeout ?? TimeSpan.FromMilliseconds(DefaultDisposeCleanupTimeoutMs);
     }
@@ -120,9 +125,6 @@ namespace FluentDocker.Services.Impl
     public async Task StartAsync(CancellationToken cancellationToken = default)
     {
       cancellationToken.ThrowIfCancellationRequested();
-      if (_state == ServiceRunningState.Running)
-        return;
-
       var driver = _kernel.SysCtl<IContainerDriver>(_driverId);
       var context = new DriverContext(_driverId);
 
@@ -210,7 +212,7 @@ namespace FluentDocker.Services.Impl
     public async Task UnpauseAsync(CancellationToken cancellationToken = default)
     {
       cancellationToken.ThrowIfCancellationRequested();
-      if (_state == ServiceRunningState.Running)
+      if (_state == ServiceRunningState.Removed)
         return;
 
       var driver = _kernel.SysCtl<IContainerDriver>(_driverId);
@@ -218,7 +220,9 @@ namespace FluentDocker.Services.Impl
 
       var response = await driver.UnpauseAsync(context, _containerId, cancellationToken).ConfigureAwait(false);
 
-      if (!response.Success)
+      // A driver "not paused" failure means the container is already un-paused; unpause is
+      // idempotent — the caller's intent (a running container) is already satisfied.
+      if (!response.Success && !IsAlreadyNotPaused(response))
       {
         throw new DriverException(
             $"Failed to unpause container '{_name}': {response.Error}",
@@ -233,7 +237,7 @@ namespace FluentDocker.Services.Impl
     public async Task StopAsync(CancellationToken cancellationToken = default)
     {
       cancellationToken.ThrowIfCancellationRequested();
-      if (_state == ServiceRunningState.Stopped || _state == ServiceRunningState.Removed)
+      if (_state == ServiceRunningState.Removed)
         return;
 
       var driver = _kernel.SysCtl<IContainerDriver>(_driverId);
@@ -246,7 +250,8 @@ namespace FluentDocker.Services.Impl
 
         var response = await driver.StopAsync(context, _containerId, null, cancellationToken).ConfigureAwait(false);
 
-        if (!response.Success)
+        // A container already stopped or externally gone satisfies the stop intent (idempotent).
+        if (!response.Success && !IsAlreadyNotRunning(response))
         {
           throw new DriverException(
               $"Failed to stop container '{_name}': {response.Error}",
@@ -267,7 +272,7 @@ namespace FluentDocker.Services.Impl
     public async Task KillAsync(string signal = "SIGKILL", CancellationToken cancellationToken = default)
     {
       cancellationToken.ThrowIfCancellationRequested();
-      if (_state == ServiceRunningState.Stopped || _state == ServiceRunningState.Removed)
+      if (_state == ServiceRunningState.Removed)
         return;
 
       var driver = _kernel.SysCtl<IContainerDriver>(_driverId);
@@ -280,7 +285,8 @@ namespace FluentDocker.Services.Impl
 
         var response = await driver.KillAsync(context, _containerId, signal, cancellationToken).ConfigureAwait(false);
 
-        if (!response.Success)
+        // A container already stopped or externally gone satisfies the kill intent (idempotent).
+        if (!response.Success && !IsAlreadyNotRunning(response))
         {
           throw new DriverException(
               $"Failed to kill container '{_name}': {response.Error}",

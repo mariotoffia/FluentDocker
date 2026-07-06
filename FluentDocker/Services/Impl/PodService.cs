@@ -118,12 +118,15 @@ namespace FluentDocker.Services.Impl
 
     public Task PauseAsync(CancellationToken cancellationToken = default)
     {
-      throw new NotSupportedException("Pods cannot be paused via builder");
+      throw new FluentDockerNotSupportedException("Pods cannot be paused via builder");
     }
 
     public async Task RemoveAsync(
         bool force = false, CancellationToken cancellationToken = default)
     {
+      if (State == ServiceRunningState.Removed)
+        return;
+
       var driver = _kernel.SysCtl<IPodmanPodDriver>(_driverId);
       var context = new DriverContext(_driverId);
 
@@ -134,6 +137,14 @@ namespace FluentDocker.Services.Impl
           context, _podName, force, cancellationToken).ConfigureAwait(false);
       if (!response.Success)
       {
+        if (IsPodAlreadyGone(response))
+        {
+          UpdateState(ServiceRunningState.Removed);
+          await ExecuteHooksAsync(ServiceRunningState.Removed).ConfigureAwait(false);
+          return;
+        }
+
+        UpdateState(ServiceRunningState.Unknown);
         throw new DriverException(
             $"Failed to remove pod '{_podName}': {response.Error}",
             ResolveErrorCode(response.ErrorCode, ErrorCodes.Pod.RemoveFailed),
@@ -264,5 +275,11 @@ namespace FluentDocker.Services.Impl
 
     private static string ResolveErrorCode(string errorCode, string fallback) =>
         string.IsNullOrWhiteSpace(errorCode) || errorCode == ErrorCodes.General.Unknown ? fallback : errorCode;
+
+    // Pods are Podman-only and Podman sets the typed Pod.NotFound (plus the "no such pod" phrase),
+    // so no bare "not found" fallback is needed — dropping it avoids masking unrelated failures.
+    private static bool IsPodAlreadyGone(CommandResponse<Unit> response) =>
+        response.ErrorCode == ErrorCodes.Pod.NotFound ||
+        response.Error?.Contains("no such pod", StringComparison.OrdinalIgnoreCase) == true;
   }
 }

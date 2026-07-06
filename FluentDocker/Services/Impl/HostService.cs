@@ -167,7 +167,12 @@ namespace FluentDocker.Services.Impl
             container.Image,
             container.Name,
             stopOnDispose: false,
-            deleteOnDispose: false));
+            deleteOnDispose: false,
+            // Seed the real per-container state the list already carries (docker/podman ps reports
+            // it) so a paused/restarting/exited container isn't mislabeled Running; unknown → Unknown.
+            initialState: container.State?.Running == true
+                ? ServiceRunningState.Running
+                : ServiceRunningState.Unknown));
       }
 
       return services;
@@ -267,6 +272,7 @@ namespace FluentDocker.Services.Impl
 
     #region IServiceAsync Implementation
 
+    /// <summary>Hosts represented by this service are already running; start is a no-op.</summary>
     public Task StartAsync(CancellationToken cancellationToken = default)
     {
       return Task.CompletedTask;

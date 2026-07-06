@@ -173,31 +173,57 @@ namespace FluentDocker.Tests.CoreTests.Service
     }
 
     [Fact]
-    public async Task StartAsync_WhenStateChangeHandlerThrows_GateSelfHealsForRetry()
+    public async Task StartAsync_WhenStateChangeHandlerThrows_IsIsolatedAndStartSucceeds()
     {
       await using var kernel = new FluentDocker.Kernel.FluentDockerKernel(
           new DriverRegistry(NullLoggerFactory.Instance), NullLoggerFactory.Instance);
       var runner = new Mock<IModelRunner>();
+      var loads = 0;
       runner.Setup(r => r.LoadAsync(
               It.IsAny<ModelReference>(), It.IsAny<ModelRunOptions>(), It.IsAny<CancellationToken>()))
-          .Returns(Task.CompletedTask);
+          .Returns(() =>
+          {
+            loads++;
+            return Task.CompletedTask;
+          });
       runner.Setup(r => r.DisposeAsync()).Returns(ValueTask.CompletedTask);
       var service = new ModelService(kernel, "docker", Model, runner.Object, null!, keepRunning: true);
 
-      var poison = true;
       void Handler(object sender, StateChangeEventArgs args)
       {
-        if (poison && args.State == ServiceRunningState.Starting)
+        if (args.State == ServiceRunningState.Starting)
           throw new InvalidOperationException("state-change handler blew up");
       }
       service.StateChange += Handler;
 
-      // A throwing StateChange handler must NOT permanently wedge the start-once gate.
-      await Assert.ThrowsAsync<InvalidOperationException>(() => service.StartAsync(TestContext.Current.CancellationToken));
-
-      poison = false;
       await service.StartAsync(TestContext.Current.CancellationToken);
+
       Assert.Equal(ServiceRunningState.Running, service.State);
+      Assert.Equal(1, loads);
+    }
+
+    [Fact]
+    public async Task DisposeAsync_WhenRunnerDisposeThrows_DoesNotThrow()
+    {
+      await using var kernel = new FluentDocker.Kernel.FluentDockerKernel(
+          new DriverRegistry(NullLoggerFactory.Instance), NullLoggerFactory.Instance);
+      var runner = new Mock<IModelRunner>();
+      runner.Setup(r => r.DisposeAsync()).Throws(new InvalidOperationException("dispose failed"));
+      var service = new ModelService(kernel, "docker", Model, runner.Object, null!, keepRunning: true);
+
+      await service.DisposeAsync();
+    }
+
+    [Fact]
+    public void Dispose_WhenRunnerDisposeThrows_DoesNotThrow()
+    {
+      using var kernel = new FluentDocker.Kernel.FluentDockerKernel(
+          new DriverRegistry(NullLoggerFactory.Instance), NullLoggerFactory.Instance);
+      var runner = new Mock<IModelRunner>();
+      runner.Setup(r => r.DisposeAsync()).Throws(new InvalidOperationException("dispose failed"));
+      var service = new ModelService(kernel, "docker", Model, runner.Object, null!, keepRunning: true);
+
+      service.Dispose();
     }
   }
 }

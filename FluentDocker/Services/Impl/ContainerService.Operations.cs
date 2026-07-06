@@ -241,7 +241,9 @@ namespace FluentDocker.Services.Impl
             response.ErrorContext);
       }
 
-      var driverStats = response.Data;
+      var driverStats = response.Data ?? throw new DriverException(
+          $"Failed to get stats for container '{_name}': empty response",
+          ErrorCodes.General.Unknown);
       return new ContainerStats
       {
         ContainerId = driverStats.ContainerId,

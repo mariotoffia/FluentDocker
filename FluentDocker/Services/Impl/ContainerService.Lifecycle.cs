@@ -194,6 +194,17 @@ namespace FluentDocker.Services.Impl
           response.Error?.Contains("no container with", StringComparison.OrdinalIgnoreCase) == true;
     }
 
+    // Stop/Kill are not daemon-idempotent: the driver fails ("is not running" / "no such container")
+    // when the container is already stopped or gone. Those outcomes satisfy the caller's intent, so
+    // treat them as success instead of throwing and corrupting state on a redundant/retried call.
+    private static bool IsAlreadyNotRunning(CommandResponse<Unit> response) =>
+        IsContainerAlreadyGone(response) ||
+        response.Error?.Contains("is not running", StringComparison.OrdinalIgnoreCase) == true;
+
+    // Unpause fails "is not paused" when the container is already running — idempotent success.
+    private static bool IsAlreadyNotPaused(CommandResponse<Unit> response) =>
+        response.Error?.Contains("is not paused", StringComparison.OrdinalIgnoreCase) == true;
+
     private async Task RunDisposeHooksWithoutRemovalAsync(CancellationToken cancellationToken)
     {
       UpdateState(ServiceRunningState.Removing);

@@ -226,8 +226,9 @@ namespace FluentDocker.Tests.CoreTests.Service
             async () => await service.RemoveAsync(cancellationToken: TestContext.Current.CancellationToken));
 
         Assert.Contains("image in use", ex.Message);
-        // State should remain Running on failure
-        Assert.Equal(ServiceRunningState.Running, service.State);
+        // Genuine failure → Unknown (canonical ContainerService contract): a partial remove
+        // leaves the real state uncertain, so the prior state must not be assumed.
+        Assert.Equal(ServiceRunningState.Unknown, service.State);
       }
       finally
       {

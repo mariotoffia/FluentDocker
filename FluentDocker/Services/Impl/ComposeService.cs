@@ -230,10 +230,6 @@ namespace FluentDocker.Services.Impl
         UpdateState(ServiceRunningState.Running);
         await ExecuteHooksAsync(ServiceRunningState.Running).ConfigureAwait(false);
       }
-      catch (OperationCanceledException)
-      {
-        throw;
-      }
       catch
       {
         UpdateState(ServiceRunningState.Unknown);
@@ -295,10 +291,6 @@ namespace FluentDocker.Services.Impl
 
         UpdateState(ServiceRunningState.Stopped);
         await ExecuteHooksAsync(ServiceRunningState.Stopped).ConfigureAwait(false);
-      }
-      catch (OperationCanceledException)
-      {
-        throw;
       }
       catch
       {

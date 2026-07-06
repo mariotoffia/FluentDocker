@@ -146,8 +146,8 @@ namespace FluentDocker.Services.Impl
       }
       catch (Exception ex)
       {
-        // Self-heal the start-once gate on ANY failure (load, hook, or a throwing StateChange
-        // handler) so a later StartAsync can retry instead of the service wedging permanently.
+        // Self-heal the start-once gate on ANY failure (load or hook) so a later StartAsync can
+        // retry instead of the service wedging permanently.
         // Matches the stop/remove reset idiom (Volatile.Write); the winning StartAsync reads the
         // gate under _startSync, whose Monitor barrier observes this release.
         Volatile.Write(ref _loadInitiated, 0);
@@ -323,7 +323,14 @@ namespace FluentDocker.Services.Impl
       }
       finally
       {
-        await _runner.DisposeAsync().ConfigureAwait(false);
+        try
+        {
+          await _runner.DisposeAsync().ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+          _logger.LogWarning(ex, "ModelService runner disposal failed for '{Model}'", _model);
+        }
       }
     }
 
@@ -332,8 +339,26 @@ namespace FluentDocker.Services.Impl
 
     private void UpdateState(ServiceRunningState newState)
     {
+      if ((ServiceRunningState)Volatile.Read(ref _state) == newState)
+        return;
+
       Volatile.Write(ref _state, (int)newState);
-      StateChange?.Invoke(this, new StateChangeEventArgs(this, newState));
+      var stateChange = StateChange;
+      if (stateChange == null)
+        return;
+
+      var args = new StateChangeEventArgs(this, newState);
+      foreach (ServiceDelegates.StateChange handler in stateChange.GetInvocationList())
+      {
+        try
+        {
+          handler(this, args);
+        }
+        catch (Exception ex)
+        {
+          _logger.LogError(ex, "ModelService state change handler failed");
+        }
+      }
     }
 
     private async Task ExecuteHooksAsync(ServiceRunningState state)

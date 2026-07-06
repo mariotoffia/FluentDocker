@@ -229,7 +229,7 @@ namespace FluentDocker.Tests.CoreTests.Service
     }
 
     [Fact]
-    public async Task PauseAsync_ThrowsNotSupportedException()
+    public async Task PauseAsync_ThrowsFluentDockerNotSupportedException()
     {
       // Arrange
       var (kernel, _, _) = await CreateWithPodDriverAsync();
@@ -238,7 +238,7 @@ namespace FluentDocker.Tests.CoreTests.Service
       try
       {
         // Act & Assert
-        await Assert.ThrowsAsync<NotSupportedException>(
+        await Assert.ThrowsAsync<FluentDockerNotSupportedException>(
             () => service.PauseAsync(TestContext.Current.CancellationToken));
       }
       finally

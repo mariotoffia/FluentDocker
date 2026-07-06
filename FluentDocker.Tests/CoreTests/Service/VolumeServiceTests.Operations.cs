@@ -105,8 +105,9 @@ namespace FluentDocker.Tests.CoreTests.Service
             async () => await service.RemoveAsync(cancellationToken: TestContext.Current.CancellationToken));
 
         Assert.Contains("volume is in use", ex.Message);
-        // State should remain Running on failure
-        Assert.Equal(ServiceRunningState.Running, service.State);
+        // Genuine failure → Unknown (canonical ContainerService contract): a partial remove
+        // leaves the real state uncertain, so the prior state must not be assumed.
+        Assert.Equal(ServiceRunningState.Unknown, service.State);
       }
       finally
       {
@@ -370,8 +371,8 @@ namespace FluentDocker.Tests.CoreTests.Service
         // Act — should not throw; DisposeCoreAsync catches exceptions
         await service.DisposeAsync();
 
-        // Assert — state stays Running because remove failed
-        Assert.Equal(ServiceRunningState.Running, service.State);
+        // Assert — state is Unknown: the genuine remove failure leaves the real state uncertain
+        Assert.Equal(ServiceRunningState.Unknown, service.State);
       }
       finally
       {

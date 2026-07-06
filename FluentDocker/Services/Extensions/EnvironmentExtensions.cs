@@ -35,7 +35,7 @@ namespace FluentDocker.Services.Extensions
     /// </summary>
     public static bool IsDockerDnsAvailable()
     {
-      return IsDockerDnsAvailableAsync().GetAwaiter().GetResult();
+      return Task.Run(IsDockerDnsAvailableAsync).GetAwaiter().GetResult();
     }
 
     /// <summary>
@@ -61,7 +61,7 @@ namespace FluentDocker.Services.Extensions
     /// <returns>The Docker host IP address.</returns>
     public static IPAddress GetDockerHostAddress(bool useCache = true)
     {
-      return GetDockerHostAddressAsync(useCache).GetAwaiter().GetResult();
+      return Task.Run(() => GetDockerHostAddressAsync(useCache)).GetAwaiter().GetResult();
     }
 
     /// <summary>

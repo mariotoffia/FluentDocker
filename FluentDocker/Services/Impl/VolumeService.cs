@@ -81,6 +81,7 @@ namespace FluentDocker.Services.Impl
       return response.Data;
     }
 
+    /// <summary>Volumes are already available when represented; start is a no-op.</summary>
     public Task StartAsync(CancellationToken cancellationToken = default)
     {
       return Task.CompletedTask;
@@ -98,13 +99,27 @@ namespace FluentDocker.Services.Impl
 
     public async Task RemoveAsync(bool force = false, CancellationToken cancellationToken = default)
     {
+      if (State == ServiceRunningState.Removed)
+        return;
+
       var driver = _kernel.SysCtl<IVolumeDriver>(_driverId);
       var context = new DriverContext(_driverId);
+
+      UpdateState(ServiceRunningState.Removing);
+      await ExecuteHooksAsync(ServiceRunningState.Removing).ConfigureAwait(false);
 
       var response = await driver.RemoveAsync(context, _volumeName, force, cancellationToken).ConfigureAwait(false);
 
       if (!response.Success)
       {
+        if (IsVolumeAlreadyGone(response))
+        {
+          UpdateState(ServiceRunningState.Removed);
+          await ExecuteHooksAsync(ServiceRunningState.Removed).ConfigureAwait(false);
+          return;
+        }
+
+        UpdateState(ServiceRunningState.Unknown);
         throw new DriverException(
             $"Failed to remove volume '{_volumeName}': {response.Error}",
             response.ErrorCode,
@@ -114,6 +129,14 @@ namespace FluentDocker.Services.Impl
       UpdateState(ServiceRunningState.Removed);
       await ExecuteHooksAsync(ServiceRunningState.Removed).ConfigureAwait(false);
     }
+
+    // "not found" is load-bearing, not redundant: Docker reports a missing volume as
+    // "<name> not found" (never "no such volume"), so the substring — not just the typed code —
+    // is required for Docker remove idempotency. Podman supplies ErrorCodes.Volume.NotFound.
+    private static bool IsVolumeAlreadyGone(CommandResponse<Unit> response) =>
+        response.ErrorCode == ErrorCodes.Volume.NotFound ||
+        response.Error?.Contains("no such volume", StringComparison.OrdinalIgnoreCase) == true ||
+        response.Error?.Contains("not found", StringComparison.OrdinalIgnoreCase) == true;
 
     public IServiceAsync AddHook(ServiceRunningState state, Func<IServiceAsync, Task> hook, string uniqueName = null)
     {

@@ -143,6 +143,7 @@ namespace FluentDocker.Services.Impl
       }
     }
 
+    /// <summary>Images are static artifacts; start is a no-op.</summary>
     public Task StartAsync(CancellationToken cancellationToken = default)
     {
       return Task.CompletedTask;
@@ -160,13 +161,27 @@ namespace FluentDocker.Services.Impl
 
     public async Task RemoveAsync(bool force = false, CancellationToken cancellationToken = default)
     {
+      if (State == ServiceRunningState.Removed)
+        return;
+
       var driver = _kernel.SysCtl<IImageDriver>(_driverId);
       var context = new DriverContext(_driverId);
+
+      UpdateState(ServiceRunningState.Removing);
+      await ExecuteHooksAsync(ServiceRunningState.Removing).ConfigureAwait(false);
 
       var response = await driver.RemoveAsync(context, _imageId, force, false, cancellationToken).ConfigureAwait(false);
 
       if (!response.Success)
       {
+        if (IsImageAlreadyGone(response))
+        {
+          UpdateState(ServiceRunningState.Removed);
+          await ExecuteHooksAsync(ServiceRunningState.Removed).ConfigureAwait(false);
+          return;
+        }
+
+        UpdateState(ServiceRunningState.Unknown);
         throw new DriverException(
             $"Failed to remove image '{FullName}': {response.Error}",
             response.ErrorCode,
@@ -176,6 +191,13 @@ namespace FluentDocker.Services.Impl
       UpdateState(ServiceRunningState.Removed);
       await ExecuteHooksAsync(ServiceRunningState.Removed).ConfigureAwait(false);
     }
+
+    // Docker's image-remove driver maps "No such image" to the typed NotFound code and Podman sets
+    // it directly, so the typed code plus the specific phrase cover both engines. No bare "not found"
+    // fallback — it would mask unrelated failures (e.g. a missing registry/manifest during rmi).
+    private static bool IsImageAlreadyGone(CommandResponse<ImageRemoveResult> response) =>
+        response.ErrorCode == ErrorCodes.Image.NotFound ||
+        response.Error?.Contains("no such image", StringComparison.OrdinalIgnoreCase) == true;
 
     public IServiceAsync AddHook(ServiceRunningState state, Func<IServiceAsync, Task> hook, string uniqueName = null)
     {

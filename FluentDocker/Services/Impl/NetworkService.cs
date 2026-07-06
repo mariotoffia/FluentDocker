@@ -134,6 +134,7 @@ namespace FluentDocker.Services.Impl
       return response.Data;
     }
 
+    /// <summary>Networks are already active when represented; start is a no-op.</summary>
     public Task StartAsync(CancellationToken cancellationToken = default)
     {
       return Task.CompletedTask;
@@ -149,15 +150,31 @@ namespace FluentDocker.Services.Impl
       throw new FluentDockerNotSupportedException("Networks cannot be stopped, use RemoveAsync instead");
     }
 
+    /// <summary>Removes the network.</summary>
+    /// <remarks>The <paramref name="force"/> parameter is ignored because network drivers do not support it.</remarks>
     public async Task RemoveAsync(bool force = false, CancellationToken cancellationToken = default)
     {
+      if (State == ServiceRunningState.Removed)
+        return;
+
       var driver = _kernel.SysCtl<INetworkDriver>(_driverId);
       var context = new DriverContext(_driverId);
+
+      UpdateState(ServiceRunningState.Removing);
+      await ExecuteHooksAsync(ServiceRunningState.Removing).ConfigureAwait(false);
 
       var response = await driver.RemoveAsync(context, _networkId, cancellationToken).ConfigureAwait(false);
 
       if (!response.Success)
       {
+        if (IsNetworkAlreadyGone(response))
+        {
+          UpdateState(ServiceRunningState.Removed);
+          await ExecuteHooksAsync(ServiceRunningState.Removed).ConfigureAwait(false);
+          return;
+        }
+
+        UpdateState(ServiceRunningState.Unknown);
         throw new DriverException(
             $"Failed to remove network '{_networkName}': {response.Error}",
             response.ErrorCode,
@@ -167,6 +184,14 @@ namespace FluentDocker.Services.Impl
       UpdateState(ServiceRunningState.Removed);
       await ExecuteHooksAsync(ServiceRunningState.Removed).ConfigureAwait(false);
     }
+
+    // "not found" is load-bearing, not redundant: Docker reports a missing network as
+    // "<name> not found" (never "no such network"), so the substring — not just the typed code —
+    // is required for Docker remove idempotency. Podman supplies ErrorCodes.Network.NotFound.
+    private static bool IsNetworkAlreadyGone(CommandResponse<Unit> response) =>
+        response.ErrorCode == ErrorCodes.Network.NotFound ||
+        response.Error?.Contains("no such network", StringComparison.OrdinalIgnoreCase) == true ||
+        response.Error?.Contains("not found", StringComparison.OrdinalIgnoreCase) == true;
 
     public IServiceAsync AddHook(ServiceRunningState state, Func<IServiceAsync, Task> hook, string uniqueName = null)
     {
