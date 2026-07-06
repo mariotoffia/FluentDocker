@@ -120,8 +120,10 @@ relying on the captured `run` output.
 
 Buffered `GetLogsAsync` combines both process pipes because Podman can write container
 logs to stdout and stderr. That can also include Podman's own stderr diagnostics or a
-FluentDocker truncation marker; use `IStreamDriver.StreamLogsAsync` when you need a clean
-line stream.
+FluentDocker truncation marker; use `IStreamDriver.StreamLogsAsync` for a line stream
+(stderr lines are prefixed with `[stderr] `), or `StreamLogEntriesAsync` for structured
+`LogEntry` items with an explicit `Stdout`/`Stderr` source. `podman logs` has no
+`--details` flag, so `StreamLogsConfig.Details` is silently ignored on Podman (Docker-only).
 
 ## Related
 

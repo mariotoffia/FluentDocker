@@ -8,6 +8,8 @@ nav_order: 4
 
 Complete guide to creating, configuring, and managing containers with FluentDocker v3.
 
+> **Docs track the 3.2.0-preview API** (install with `--prerelease`). `WithPort` is host-first here; stable 3.0/3.1 is container-first, so ports bind in reverse. (`ExposePort` was always host-first.)
+
 ## Step by Step
 
 - Basics: [Kernel Setup](#kernel-setup), [Container Lifecycle](#container-lifecycle), [Port Exposure](#port-exposure), [Environment Variables](#environment-variables)
@@ -34,8 +36,8 @@ await using var kernel = await FluentDockerKernel.Create()
     .BuildAsync();
 ```
 
-`ReuseIfExists()` matches names case-sensitively. If the existing container is already
-running, waits are skipped and requested config differences are ignored.
+`ReuseIfExists()` matches names case-sensitively and reuses the container as-is
+(config differences ignored). A running match still runs wait conditions; a stopped match runs the full start sequence.
 
 All subsequent examples assume this `kernel` variable is available.
 
@@ -98,7 +100,7 @@ if (container.State == ServiceRunningState.Running)
 
 ```csharp
 await container.PauseAsync();
-await container.StartAsync();  // StartAsync() also resumes from Pause
+await container.UnpauseAsync();  // resume a paused container (StartAsync does not)
 ```
 
 ## Port Exposure
@@ -117,9 +119,7 @@ using var results = new Builder()
 // Access at http://localhost:8080
 ```
 
-All port APIs use Docker's host→container order: `ExposePort(hostPort, containerPort)` and
-`WithPort(hostPort, containerPort)`. A container port can be bound once by the builder;
-use a second container port when you need another host binding.
+A container port binds once by the builder; use a second container port when you need another host binding.
 
 ### Random Port Assignment
 

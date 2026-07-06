@@ -137,7 +137,7 @@ See the [Docker Model Runner guide](https://github.com/mariotoffia/FluentDocker/
 - **Auto-cleanup** — resources are disposed when the builder result is disposed
 - **Testing integration** — xUnit, NUnit, and MSTest fixtures with full lifecycle management
 - **Docker Model Runner** *(preview, v3.2)* — manage local LLMs and run chat, completions, and embeddings via the same builder
-- **Security options** — capabilities, read-only root, security-opt, user namespace
+- **Security options** — capabilities, read-only root, security-opt, tmpfs
 - **Cross-platform** — Linux, macOS, Windows; .NET 8 and .NET 10
 
 ## Documentation

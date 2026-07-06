@@ -49,7 +49,6 @@ act -j build --env-file .env
 
 The `.env` file supports the following variables:
 
-- `SONAR_TOKEN`: For SonarCloud analysis
 - `NUGET_API_KEY`: For publishing NuGet packages
 - `GITHUB_TOKEN`: For GitHub API access
 - `ACT_BRANCH`: To simulate specific branch (optional)
@@ -70,8 +69,7 @@ act -j build --container-architecture linux/amd64
 When running with `act`:
 
 1. Container-based tests are skipped (they don't work reliably in a Docker-in-Docker setup)
-2. SonarCloud scanning is skipped
-3. NuGet package publishing won't actually publish (but will run the commands)
+2. NuGet package publishing won't actually publish (but will run the commands)
 
 For the full test suite including container tests, it's recommended to run:
 

@@ -101,25 +101,27 @@ a count of omitted lines.
 ### Orphan Cleanup
 
 Resources created by the testing core are tagged with the `fluentdocker.managed`
-label. Set `CleanupOrphansOnInit = true` to have `InitializeAsync` remove managed
-resources left behind by earlier sessions:
+label. `CleanupOrphansOnInit` defaults to **true**, so `InitializeAsync` removes
+managed resources left behind by earlier sessions. Set it to `false` to opt out:
 
 ```csharp
 var options = new DockerResourceOptions
 {
-    CleanupOrphansOnInit = true
+    CleanupOrphansOnInit = false // opt out; defaults to true
 };
 ```
 
 Orphan cleanup scans **containers, networks and volumes only**. Resources created
-through Docker Compose, topologies, Swarm stacks, or Kubernetes YAML are not
+through Docker Compose, Swarm stacks, or Kubernetes YAML are not
 removed by orphan cleanup unless they individually carry the `fluentdocker.managed`
 label.
 
-`EnableSessionLabels` is applied directly by `ContainerResource`,
-`NetworkResource`, and `VolumeResource`. For Compose, topology, Swarm, Kubernetes,
-image pull, and model resources, add labels in the underlying compose/YAML/build
-definition when you need orphan cleanup to see their child resources.
+`EnableSessionLabels` is applied directly by `ContainerResource`, `NetworkResource`,
+`VolumeResource`, and the top-level `UseContainer`/`UseNetwork`/`UseVolume` resources
+of a `TopologyResource`. Containers that a Compose or pod operation spawns are **not**
+session-labeled — those builders are not label-capable — so for Compose, Swarm,
+Kubernetes, image pull, and model resources add labels in the underlying
+compose/YAML/build definition when you need orphan cleanup to see them.
 
 `OrphanCleanupMinimumAge` (a `TimeSpan`, default 1 hour) bounds what cleanup may
 remove: only managed resources **older** than this age are deleted. With the
@@ -142,7 +144,7 @@ Every resource the testing core creates carries the `fluentdocker.managed=true`
 label, so a CI job can reap leftovers without going through the framework:
 
 ```bash
-docker rm $(docker ps -aq --filter label=fluentdocker.managed=true)
+docker rm -f $(docker ps -aq --filter label=fluentdocker.managed=true)
 ```
 
 On a **shared** daemon this cuts both ways: `CleanupOrphansOnInit` with the
@@ -150,6 +152,27 @@ default one-hour `OrphanCleanupMinimumAge` can reap a long-running,
 framework-labeled container from a parallel run once it crosses the age
 threshold. Give each CI job its own daemon, or raise `OrphanCleanupMinimumAge`
 above your longest job when several runs share one daemon.
+
+## Skipping when Docker is unavailable
+
+`DockerAvailability.IsAvailableAsync` (in `FluentDocker.Testing.Core`) probes the
+target runtime and returns `false` on any failure (daemon down, binary missing,
+internal timeout). It honors the caller's `CancellationToken` — a cancelled token
+propagates `OperationCanceledException` rather than reporting "unavailable". Optional
+`kernelFactory`/`driverId` arguments select a non-default runtime.
+
+```csharp
+using FluentDocker.Testing.Core;
+
+// xUnit v3
+Assert.SkipWhen(!await DockerAvailability.IsAvailableAsync(), "Docker not available");
+
+// NUnit
+if (!await DockerAvailability.IsAvailableAsync()) Assert.Ignore("Docker not available");
+
+// MSTest
+if (!await DockerAvailability.IsAvailableAsync()) Assert.Inconclusive("Docker not available");
+```
 
 ## Wait Conditions (Builder)
 
@@ -195,7 +218,8 @@ builder.UseImage("my-api:latest")
        .WaitForHttp("8080/tcp", path: "/health", timeoutMs: 30_000);
 ```
 
-Advanced HTTP wait with custom method and response handling:
+Advanced HTTP wait with custom method and response handling (`WaitForHttpUrl` is
+a 3.2-preview API — renamed from `WaitForHttp` in 3.0/3.1):
 
 ```csharp
 builder.WaitForHttpUrl(
@@ -365,6 +389,21 @@ public async Task Setup()
         });
 }
 ```
+
+### Fixture lifetime by framework
+
+The fixture base classes provision a container at different scopes. A suite ported
+across frameworks without adjusting for this runs slower (or shares state) silently:
+
+| Adapter | Base class | Provisioning scope | Hook |
+|---|---|---|---|
+| xUnit | `XunitContainerFixtureBase` | per class/collection fixture | `IAsyncLifetime` |
+| MSTest | `MsTestContainerFixtureBase` | per **test method** | `[TestInitialize]`/`[TestCleanup]` |
+| MSTest | `MsTestClassContainerFixtureBase<T>` | per class | guarded `[TestInitialize]`/`[ClassCleanup]` |
+| NUnit | `NUnitContainerFixtureBase` | per class | `[OneTimeSetUp]`/`[OneTimeTearDown]` |
+
+`MsTestContainerFixtureBase` starts a fresh container for every test method; use
+`MsTestClassContainerFixtureBase<T>` for one container per class.
 
 ## Diagnostics
 

@@ -10,6 +10,8 @@ nav_order: 1
 This document provides a comprehensive mapping between the FluentDocker v2.x.x API
 and the v3.0.0 API. Use it as a quick-reference when migrating existing code.
 
+> **Mappings track the 3.2.0-preview API** — install with `--prerelease`. `WithPort` is host-first here; stable 3.0/3.1 is container-first, so ports bind in reverse.
+
 ---
 
 ## 1. Namespace Changes
@@ -29,7 +31,7 @@ Every namespace drops the `Ductus.` prefix. Two namespaces are new in v3.
 | `Ductus.FluentDocker.Extensions` | `FluentDocker.Extensions` |
 | `Ductus.FluentDocker.Commands` | **Removed** -- replaced by Driver Layer |
 | *(none)* | `FluentDocker.Kernel` -- kernel setup (new) |
-| *(none)* | `FluentDocker.Services.Extensions` -- service extension methods (new) |
+| `Ductus.FluentDocker.Services.Extensions` | `FluentDocker.Services.Extensions` -- service extension methods |
 
 **Rule of thumb**: find-and-replace `Ductus.FluentDocker` with `FluentDocker`
 across all `using` directives, then add the two new namespaces where needed.
@@ -192,7 +194,7 @@ using var results = new Builder()
 | `container.Start()` | `await container.StartAsync()` | Async-only service API |
 | `container.Stop()` | `await container.StopAsync()` | Async-only service API |
 | `container.Pause()` | `await container.PauseAsync()` | Async-only service API |
-| `container.Resume()` | *(no service wrapper)* | Use `IContainerDriver.UnpauseAsync(...)` directly if needed |
+| `container.Resume()` | `await container.UnpauseAsync()` | Async-only service API (resume ≠ `StartAsync`) |
 | `container.GetConfiguration()` | `container.GetConfiguration()` | Extension in `Services.Extensions` |
 | | `await container.InspectAsync()` | Async variant (new) |
 | `container.ToHostExposedEndpoint(port)` | `container.ToHostExposedEndpoint("5432/tcp")` | Extension in `Services.Extensions` |
@@ -204,8 +206,8 @@ using var results = new Builder()
 
 - `GetConfiguration()` and `ToHostExposedEndpoint()` moved to extension methods.
   Add `using FluentDocker.Services.Extensions;` to resolve them.
-- `Resume()` was removed from the service API. Call `IContainerDriver.UnpauseAsync(...)`
-  directly if you need unpause semantics.
+- `Resume()` is now `UnpauseAsync()` on the service API. It resumes a paused
+  container — do not substitute `StartAsync()`, which has different semantics.
 - `Logs()` has no sync wrapper in v3; use `GetLogsAsync()`.
 
 ---
@@ -381,7 +383,7 @@ var stats = await container.GetStatsAsync(cts.Token);
 5. Pass the kernel via `.WithinDriver("docker", kernel)`.
 6. Change `Build()` call sites to expect `BuildResults` instead of a single service.
 7. Remove `.Start()` calls after `Build()` (auto-started).
-8. Replace `Resume()` with `IContainerDriver.UnpauseAsync(...)` if you need unpause semantics.
+8. Replace `Resume()` with `await container.UnpauseAsync()`.
 9. Replace `Logs()` with `await GetLogsAsync()`.
 10. Replace `Execute(cmd)` with `await ExecuteAsync(cmd)`.
 11. Move sudo config from global static into kernel builder.

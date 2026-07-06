@@ -9,6 +9,8 @@ nav_order: 2
 
 Side-by-side before/after examples for common v2.x.x to v3.0.0 patterns.
 
+> **Examples track the 3.2.0-preview API** — install with `--prerelease`. `WithPort` is host-first here; stable 3.0/3.1 is container-first, so ports bind in reverse.
+
 **Key differences to keep in mind:**
 
 - v2 only had Docker CLI. v3 supports multiple drivers (Docker CLI, Docker API, Podman CLI).
@@ -541,7 +543,7 @@ await using var results2 = await new Builder()
 |--------------|--------------|
 | `Ductus.FluentDocker.Builders` | `FluentDocker.Builders` |
 | `Ductus.FluentDocker.Services` | `FluentDocker.Services` |
-| `Ductus.FluentDocker.Extensions` | `FluentDocker.Services.Extensions` |
+| `Ductus.FluentDocker.Services.Extensions` | `FluentDocker.Services.Extensions` |
 | `Ductus.FluentDocker.Model.Common` | `FluentDocker.Model.Common` |
 | *(n/a)* | `FluentDocker.Kernel` |
 | *(n/a)* | `FluentDocker.Model.Kernel` |

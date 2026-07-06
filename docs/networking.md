@@ -510,23 +510,22 @@ using var results = new Builder()
 ```csharp
 var results = new Builder()
     .WithinDriver("docker", kernel)
-    .UseNetwork(n => n
-        .WithName("manual-network")
-        .RemoveOnDispose())
+    .UseNetwork(n => n.WithName("manual-network").RemoveOnDispose())
     .Build();
 
-// Use network...
-
-// Dispose all services (networks, containers, etc.)
-results.Dispose();
-
-// Or use async disposal
-await results.DisposeAllAsync();
+results.Dispose();                // dispose all services synchronously
+await results.DisposeAllAsync();  // or dispose asynchronously
 ```
 
 ## Testing with Isolated Networks
 
 ```csharp
+using System.Linq;
+using FluentDocker.Builders;
+using FluentDocker.Kernel;
+using FluentDocker.Model.Kernel;
+using Xunit;
+
 public class NetworkIsolatedTest : IDisposable
 {
     private readonly FluentDockerKernel _kernel;

@@ -119,6 +119,10 @@ Console.WriteLine(content);  // "Hello"
 Bind mounts use the same `.WithVolume()` method. When the first argument is a
 host filesystem path (rather than a volume name), Docker creates a bind mount.
 
+The bind source must be an absolute path or a named volume. A relative source
+(`./data`, `../x`, `sub/dir`) is rejected at build time with a `FluentDockerException`;
+Windows drive-absolute (`C:\...`) and UNC (`\\server\share`) sources are accepted.
+
 ```csharp
 using var results = new Builder()
     .WithinDriver("docker", kernel)
@@ -454,6 +458,12 @@ await volume.RemoveAsync();
 ## Testing with Volumes
 
 ```csharp
+using System.Linq;
+using FluentDocker.Builders;
+using FluentDocker.Kernel;
+using FluentDocker.Model.Kernel;
+using Xunit;
+
 public class DatabaseTest : IAsyncDisposable
 {
     private readonly BuildResults _volResults;
@@ -513,11 +523,31 @@ public class DatabaseTest : IAsyncDisposable
 }
 ```
 
-## Note on tmpfs Mounts
+## Security Options and tmpfs
 
-The v3 `IContainerBuilder` does not include a tmpfs mount method. If you need
-tmpfs mounts, configure them directly through Docker run flags or use a
-`docker-compose.yml` file via the Compose builder.
+`IContainerBuilder` exposes container hardening and tmpfs builders (honored on the
+Docker CLI, Docker API, and Podman CLI drivers):
+
+- `WithTmpfs(containerPath, options)` — mount a tmpfs (e.g. `"rw,noexec,size=64m"`).
+- `WithReadonlyRootfs()` — make the container root filesystem read-only.
+- `WithCapAdd(capability)` / `WithCapDrop(capability)` — add or drop a Linux
+  capability (name without the `CAP_` prefix, e.g. `NET_ADMIN`, `NET_RAW`).
+- `WithSecurityOpt(option)` — pass a `--security-opt` value (e.g. `no-new-privileges`).
+- `WithExtraHost(host, ip)` — add a hosts entry (e.g. `host-gateway`).
+
+```csharp
+using FluentDocker.Builders;
+
+await using var results = await new Builder()
+    .WithinDriver("docker", kernel)
+    .UseContainer(c => c
+        .UseImage("nginx:alpine")
+        .WithTmpfs("/cache", "rw,noexec,size=64m")
+        .WithReadonlyRootfs()
+        .WithCapDrop("NET_RAW")
+        .WithSecurityOpt("no-new-privileges"))
+    .BuildAsync();
+```
 
 ## Next Steps
 

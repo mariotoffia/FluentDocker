@@ -150,8 +150,9 @@ always dispose the stream you receive (`await using`/`using`) so the underlying 
 is released.
 
 `IContainerDriver.GetLogsAsync(follow: true)` is rejected because it is a buffered API; use
-`IStreamDriver.StreamLogsAsync` for following logs. Buffered `GetLogsAsync` holds the full log
-in memory (hard ceiling ~2 GiB) — prefer the streaming API for very large logs. Streamed Docker
+`IStreamDriver.StreamLogsAsync` for following logs. Buffered `GetLogsAsync` returns only a tail
+(bounded to `CliOutputTruncation.DefaultTailChars` = 256 KiB; oldest bytes dropped, a truncation
+marker prepended), so stream when you need the complete log. Streamed Docker
 API log entries are emitted at Docker frame granularity (frames may split very long logical
 lines; a frame ending mid-UTF-8-character is merged with the next frame of the same stream).
 Log fidelity is bounded by the daemon itself: the json-file log driver splits messages larger

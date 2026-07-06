@@ -87,7 +87,7 @@ object driver = kernel.SysCtl("docker", typeof(IContainerDriver));
 // Non-throwing — returns false if interface not supported
 if (kernel.TrySysCtl<IPodmanPodDriver>("podman", out var podDriver))
 {
-    await podDriver.CreatePodAsync(context, "my-pod");
+    await podDriver.CreatePodAsync(context, new PodCreateConfig { Name = "my-pod" });
 }
 ```
 
@@ -159,7 +159,7 @@ Create a driver-specific interface in the driver's namespace:
 public interface IPodmanPodDriver
 {
     Task<CommandResponse<PodCreateResult>> CreatePodAsync(
-        DriverContext context, string name,
+        DriverContext context, PodCreateConfig config,
         CancellationToken cancellationToken = default);
 
     Task<CommandResponse<Unit>> RemovePodAsync(
@@ -272,10 +272,8 @@ using FluentDocker.Drivers.Podman.BuilderExtensions;
 
 // ── Kernel with both drivers ──────────────────────────────────
 var kernel = await FluentDockerKernel.Create()
-    .WithDockerCli("docker", d => d
-        .AsDefault())
-    .WithPodmanCli("podman", d => d
-        .AsDefault())
+    .WithDockerCli("docker", d => d.AsDefault())  // one default per kernel
+    .WithPodmanCli("podman", d => { })            // secondary; resolve by id via SysCtl
     .BuildAsync();
 
 // ── Single builder, two driver scopes ─────────────────────────

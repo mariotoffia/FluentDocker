@@ -124,6 +124,10 @@ if (result.StatusCode == HttpStatusCode.OK)
 ### Health Check Pattern
 
 ```csharp
+using FluentDocker.Builders;
+using FluentDocker.Common;
+using FluentDocker.Services.Extensions;
+
 await using var results = await new Builder()
     .WithinDriver("docker", kernel)
     .UseContainer(c => c
@@ -233,10 +237,10 @@ await using var results = await new Builder()
 
 ## Logging
 
-FluentDocker logs through `Microsoft.Extensions.Logging.Abstractions`. An
-`ILoggerFactory` is **required** when constructing the kernel — there is no
-library-side default. To suppress logs entirely, pass
-`NullLoggerFactory.Instance` explicitly at the call site.
+FluentDocker logs through `Microsoft.Extensions.Logging.Abstractions`. Logging is
+optional: `FluentDockerKernel.Create()` defaults to `NullLoggerFactory.Instance`
+(no output), and `FluentDockerKernel.Create(ILoggerFactory)` takes a custom provider.
+The `KernelBuilder` constructor itself requires a factory.
 
 ### Plug in any logging provider
 
@@ -435,7 +439,7 @@ var result = await containerDriver.CreateAsync(context, config);
 
 if (result.Success)
 {
-    Console.WriteLine($"Container ID: {result.Data}");
+    Console.WriteLine($"Container ID: {result.Data.Id}");
 }
 else
 {
@@ -447,7 +451,9 @@ else
 ### Access Output
 
 ```csharp
-var result = await containerDriver.ExecAsync(context, containerId, "ls", "-la");
+using FluentDocker.Drivers;   // ExecConfig
+
+var result = await containerDriver.ExecAsync(context, containerId, new ExecConfig { Command = ["ls", "-la"] });
 
 if (result.Success)
 {
@@ -503,6 +509,9 @@ string FormatBytes(long bytes)
 ### Test Data Generation
 
 ```csharp
+using FluentDocker.Common;
+using FluentDocker.Model.Common;
+
 public static class TestDataGenerator
 {
     public static string UniqueId() => Guid.NewGuid().ToString("N")[..8];

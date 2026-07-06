@@ -9,6 +9,8 @@ nav_order: 3
 
 How to migrate FluentDocker v2.x.x test code to v3.0.0.
 
+> **Samples track the 3.2.0-preview API** — install with `--prerelease`. `WithPort` is host-first here; stable 3.0/3.1 is container-first, so ports bind in reverse.
+
 > **Note:** The legacy `Ductus.FluentDocker.MsTest` and `Ductus.FluentDocker.XUnit` packages
 > have been removed. The examples below show the builder-level API changes.
 > For test support, use the new `FluentDocker.Testing.*` packages. See
@@ -556,8 +558,6 @@ pattern from section 2 but use `.UseCompose()` instead of `.UseContainer()`.
 |--------|----|----|
 | Kernel | Not needed | Required: `FluentDockerKernel.Create().WithDockerCli(...)` |
 | Build result type | `IContainerService` directly | `BuildResults` (access `.Containers.First()`) |
-| Type for field | `IContainerService` / `ICompositeService` | `BuildResults` (concrete class) |
-| Interface `IBuildResults` | Does not exist | Does not exist -- use `BuildResults` |
 | Dispose | `IDisposable` | `IAsyncDisposable` preferred |
 | xUnit `IAsyncLifetime` | Returns `Task` | Returns `ValueTask` (xUnit v3) |
 | Test base class | `FluentDockerTestBase` | `XunitContainerFixture` / `MsTestResourceHelpers` |
@@ -586,7 +586,7 @@ pattern from section 2 but use `.UseCompose()` instead of `.UseContainer()`.
 4. **Missing `using FluentDocker.Services.Extensions;`.** Extension methods like
    `ToHostExposedEndpoint` and `GetConfiguration` moved to this namespace.
 
-5. **Using `container.Resume()`.** Renamed to `container.Start()` in v3.
+5. **Using `container.Resume()`.** Renamed to `container.UnpauseAsync()` in v3 (not `Start()`).
 
 6. **Using `container.Logs()`.** Renamed to `await container.GetLogsAsync()`.
 

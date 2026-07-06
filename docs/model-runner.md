@@ -443,7 +443,8 @@ or shared OpenAI-compatible endpoint usually does. The inference connection
   optional: when present it becomes the **exclusive trust root** (the server chain must
   validate against it — a publicly trusted certificate is rejected); when absent the
   system trust store validates the server. A configured directory containing none of
-  the three files throws (a typo'd path never silently downgrades security).
+  the three files throws (a typo'd path never silently downgrades security). It
+  requires an `https://` endpoint — on plaintext `http://` or a unix socket it throws.
 - **`VerifyTls`** — defaults to `true`. Setting it to `false` disables server
   certificate verification entirely; use it only against a trusted endpoint during
   development, never in production.
@@ -567,14 +568,14 @@ with embedded fixtures captured from a real DMR.
 
 | Label / trigger | Job | Runner | What runs | Local equivalent |
 |---|---|---|---|---|
-| `test-unit` on PR; always on push to `master`/`main`/`support/**` | `unit-tests` | hosted (3-OS matrix) | `Category=Unit` with coverage | `make test` |
+| every PR; push to `master`/`main`/`fdv3`/`support/**` | `unit-tests` | hosted (3-OS matrix) | `Category=Unit` with coverage | `make test` |
 | `test-integration` on PR | `integration-tests` | hosted ubuntu | `Category=Integration` (DMR tests self-skip — no `docker model` on hosted runners) | `make test-integration` |
 | `test-dmr` on PR; `workflow_dispatch run_dmr=true` | `dmr-tests` | **self-hosted `[self-hosted, dmr]`** | `Category=Integration&Requires=Dmr` with `FLUENTDOCKER_REQUIRE_DMR=1` | `make test-dmr` |
 
 Key behaviours:
 
-- **Unit tests** run on every merge to `master`/`main`/`support/**` and on PRs with
-  the `test-unit` label. Docker not required.
+- **Unit tests** run on every PR and on pushes to `master`/`main`/`fdv3`/`support/**`.
+  There is no label gate. Docker not required.
 - **Integration tests** run only with the `test-integration` PR label (or via
   `workflow_dispatch run_integration=true`); not on push. DMR tests self-skip on hosted
   runners (no `docker model` present).

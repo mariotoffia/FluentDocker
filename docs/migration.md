@@ -5,9 +5,13 @@ nav_order: 11
 has_children: true
 ---
 
-# Migrating to FluentDocker v3.0.0
+# Migrating to FluentDocker v3
 
-This guide helps you migrate from v2.x.x to v3.0.0.
+This guide helps you migrate from v2.x.x to the FluentDocker v3 line.
+
+> **Samples track the 3.2.0-preview API.** Install with `dotnet add package FluentDocker
+> --prerelease`. `WithPort` is host-first in the preview; stable 3.0/3.1 takes
+> container-first arguments, so ports bind in reverse.
 
 ## Step by Step
 
@@ -37,7 +41,7 @@ This guide helps you migrate from v2.x.x to v3.0.0.
 <PackageReference Include="Ductus.FluentDocker" Version="2.*" />
 
 <!-- NEW -->
-<PackageReference Include="FluentDocker" Version="3.*" />
+<PackageReference Include="FluentDocker" Version="3.2.0-preview.1" />
 ```
 
 ## Step 2: Update Namespaces
@@ -316,8 +320,8 @@ await composeDriver.DownAsync(context, new ComposeDownConfig {
 **BREAKING CHANGE in v3.0.0** — the static `Logging.Enabled()` /
 `Logging.Disabled()` toggle and the `FluentDocker.Common.Logger` static class
 are removed entirely. FluentDocker now logs through
-`Microsoft.Extensions.Logging.Abstractions`, and an `ILoggerFactory` is a
-optional constructor argument on `KernelBuilder` and `FluentDockerKernel.Create`.
+`Microsoft.Extensions.Logging.Abstractions`. An `ILoggerFactory` is **required** by the
+`KernelBuilder` constructor, but optional on the static `FluentDockerKernel.Create` factory.
 
 Use `FluentDockerKernel.Create()` for the default `NullLoggerFactory`, or
 `FluentDockerKernel.Create(factory)` when you want logs from a provider.

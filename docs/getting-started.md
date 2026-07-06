@@ -9,6 +9,10 @@ nav_order: 3
 This guide helps you install FluentDocker and run your first container.
 For the complete beginner-to-advanced map, see [Learning Path](learning-path.md).
 
+> **Preview API (3.2.0-preview).** These docs track the 3.2.0-preview surface. Install
+> with `--prerelease` (below). `WithPort` is host-first here — the stable 3.0/3.1 line
+> takes container-first arguments, so pinning to a stable release binds ports in reverse.
+
 ## Read This Guide in Order
 
 - Step 1: Installation and prerequisites
@@ -23,22 +27,22 @@ If you are new to FluentDocker, complete Step 1-3 before jumping to later sectio
 ### NuGet Packages
 
 ```bash
-# Core package (includes Testing.Core)
-dotnet add package FluentDocker
+# Core package (includes Testing.Core) — 3.2 is preview, so use --prerelease
+dotnet add package FluentDocker --prerelease
 
 # Optional: Test framework adapters
-dotnet add package FluentDocker.Testing.Xunit   # xUnit adapter
-dotnet add package FluentDocker.Testing.MsTest  # MSTest adapter
-dotnet add package FluentDocker.Testing.NUnit   # NUnit adapter
+dotnet add package FluentDocker.Testing.Xunit --prerelease   # xUnit adapter
+dotnet add package FluentDocker.Testing.MsTest --prerelease  # MSTest adapter
+dotnet add package FluentDocker.Testing.NUnit --prerelease   # NUnit adapter
 ```
 
 ### Package References
 
 ```xml
-<PackageReference Include="FluentDocker" Version="3.*" />
-<PackageReference Include="FluentDocker.Testing.Xunit" Version="3.*" />
-<PackageReference Include="FluentDocker.Testing.MsTest" Version="3.*" />
-<PackageReference Include="FluentDocker.Testing.NUnit" Version="3.*" />
+<PackageReference Include="FluentDocker" Version="3.2.0-preview.1" />
+<PackageReference Include="FluentDocker.Testing.Xunit" Version="3.2.0-preview.1" />
+<PackageReference Include="FluentDocker.Testing.MsTest" Version="3.2.0-preview.1" />
+<PackageReference Include="FluentDocker.Testing.NUnit" Version="3.2.0-preview.1" />
 ```
 
 ## Prerequisites

@@ -80,7 +80,7 @@ public class RedisTests
                 .WaitForPort("6379/tcp"));
     }
 
-    [ClassCleanup]
+    [ClassCleanup(ClassCleanupBehavior.EndOfClass)] // pin to class scope — MSTest 3.x defaults to end-of-assembly
     public static async Task ClassCleanup()
     {
         await MsTestResourceHelpers.DisposeAsync(_resource, _kernel);
@@ -125,9 +125,11 @@ public class PerTestRedisTests
 
 ### Per-Class Fixture Base
 
-`[ClassCleanup]` is mandatory for this pattern, and fixed container names can
-collide when test classes run in parallel. Pass the most-derived class as the
-generic argument; reusing a base class generic shares static container state.
+`[ClassCleanup(ClassCleanupBehavior.EndOfClass)]` is mandatory for this pattern.
+MSTest 3.x runs a bare `[ClassCleanup]` at end-of-assembly, leaking the container
+until the whole run ends. Fixed container names can collide when test classes run
+in parallel. Pass the most-derived class as the generic argument; reusing a base
+class generic shares static container state.
 
 ```csharp
 [TestClass]
@@ -139,7 +141,7 @@ public class SharedRedisTests : MsTestClassContainerFixtureBase<SharedRedisTests
             .WithName($"redis-tests-{Guid.NewGuid():N}")
             .WaitForPort("6379/tcp");
 
-    [ClassCleanup]
+    [ClassCleanup(ClassCleanupBehavior.EndOfClass)]
     public static Task ClassCleanup()
         => CleanupClassAsync();
 
@@ -297,7 +299,7 @@ public sealed class SmolLmTests
             cancellationToken: ct);
     }
 
-    [ClassCleanup]
+    [ClassCleanup(ClassCleanupBehavior.EndOfClass)]
     public static async Task ClassCleanup()
         => await MsTestResourceHelpers.DisposeAsync(_model, _kernel);
 

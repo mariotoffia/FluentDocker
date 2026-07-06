@@ -429,6 +429,13 @@ await results.DisposeAllAsync();
 ## Testing with Custom Images
 
 ```csharp
+using System.Linq;
+using FluentDocker.Builders;
+using FluentDocker.Kernel;
+using FluentDocker.Model.Kernel;
+using FluentDocker.Services.Extensions;
+using Xunit;
+
 public class CustomImageTest : IDisposable
 {
     private readonly FluentDockerKernel _kernel;

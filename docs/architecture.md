@@ -165,7 +165,7 @@ var remoteKernel = await FluentDockerKernel.Create()
 - Different driver configurations per kernel
 - Better testing (isolated kernels)
 - Explicit lifecycle management
-- No global state
+- No shared kernel state, apart from process-static Podman machine locks
 
 ---
 
@@ -184,7 +184,7 @@ object driver = kernel.SysCtl("docker", typeof(IContainerDriver));
 // Non-throwing — returns false if interface not supported
 if (kernel.TrySysCtl<IPodmanPodDriver>("podman", out var podDriver))
 {
-    await podDriver.CreatePodAsync(context, "my-pod");
+    await podDriver.CreatePodAsync(context, new PodCreateConfig { Name = "my-pod" });
 }
 ```
 
@@ -303,7 +303,7 @@ entity. Component drivers are resolved at runtime via `ISysCtl`, not through
 direct properties.
 
 ```csharp
-public interface IDriverPack : ISysCtl
+public interface IDriverPack : ISysCtl, IDriverInterfaceResolver
 {
     DriverType Type { get; }        // values: DockerCli, DockerApi, PodmanCli, PodmanApi, Custom
                                     // (PodmanApi and Custom are reserved for future use)
@@ -398,7 +398,7 @@ var apiVersion = caps.ApiVersion;
 
 ### Interface Discovery
 
-Driver packs that implement `IDriverInterfaceResolver` allow runtime discovery of supported interfaces:
+Because `IDriverPack` extends `IDriverInterfaceResolver`, any driver pack allows runtime discovery of supported interfaces:
 
 ```csharp
 // Check supported interfaces via IDriverInterfaceResolver
@@ -474,7 +474,7 @@ await driver.PullAsync(
 ## Key Architecture Decisions
 
 ### 1. No Singleton Kernel
-**Rationale:** Multiple Docker hosts, better testing, explicit lifecycle, no global state.
+**Rationale:** Multiple Docker hosts, better testing, explicit lifecycle, isolated kernels.
 
 ### 2. SysCtl() Interface
 **Rationale:** Clean, discoverable API; type-safe with generics; Unix-inspired; consistent access pattern.
@@ -528,7 +528,7 @@ FluentDocker v3.0 provides:
 
 - **Multiple runtimes**: Docker, Podman, future runtimes
 - **Multiple instances**: Same driver type, different configurations
-- **Multiple kernels**: Isolated instances, no global state
+- **Multiple kernels**: Isolated instances (Podman machine locks are process-static)
 - **Clean driver access**: SysCtl() interface pattern with `TrySysCtl<T>()` for feature checks
 - **Driver extensibility**: Custom interfaces via `IDriverInterfaceResolver` ([details](extensibility.md))
 - **Driver-aware builders**: `IDriverScopedBuilder` with `RequireDriver<T>()` / `TryDriver<T>()`
