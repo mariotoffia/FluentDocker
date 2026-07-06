@@ -152,7 +152,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
                 CreateErrorContext(context, "Build", result), result.ExitCode);
 
           var imageId = File.Exists(iidFile)
-              ? (await File.ReadAllTextAsync(iidFile, cancellationToken)).Trim()
+              ? (await File.ReadAllTextAsync(iidFile, cancellationToken).ConfigureAwait(false)).Trim()
               : null;
 
           if (string.IsNullOrEmpty(imageId))

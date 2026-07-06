@@ -209,14 +209,16 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
     [Fact]
     public void ParsePlayOutput_BareHexIds_ReturnsPods()
     {
-      var output = "abc123def456abc1\nc1aaa111bbb222cc\n";
+      var podId = new string('a', 64);
+      var containerId = new string('b', 64);
+      var output = $"{podId}\n{containerId}\n";
 
       var result = InvokeParsePlayOutput(output);
 
       Assert.Single(result.Pods);
-      Assert.Equal("abc123def456abc1", result.Pods[0].Id);
+      Assert.Equal(podId, result.Pods[0].Id);
       Assert.Single(result.Pods[0].Containers);
-      Assert.Equal("c1aaa111bbb222cc", result.Pods[0].Containers[0]);
+      Assert.Equal(containerId, result.Pods[0].Containers[0]);
     }
 
     #endregion

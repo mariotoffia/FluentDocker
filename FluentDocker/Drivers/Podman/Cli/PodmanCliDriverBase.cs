@@ -238,6 +238,8 @@ namespace FluentDocker.Drivers.Podman.Cli
       var linkedToken = linked.Token;
 
       Process process = null;
+      Task<string> outputTask = null;
+      Task<string> errorTask = null;
       try
       {
         process = new Process
@@ -248,33 +250,32 @@ namespace FluentDocker.Drivers.Podman.Cli
             Arguments = processArguments,
             RedirectStandardOutput = true,
             RedirectStandardError = true,
-            RedirectStandardInput = needsStdin,
+            RedirectStandardInput = true,
             UseShellExecute = false,
             CreateNoWindow = true,
             StandardOutputEncoding = Encoding.UTF8,
-            StandardErrorEncoding = Encoding.UTF8
+            StandardErrorEncoding = Encoding.UTF8,
+            StandardInputEncoding = Utf8NoBom
           }
         };
 
         process.Start();
 
-        if (needsStdin)
-        {
-          if (passwordForStdin != null)
-            await process.StandardInput.WriteLineAsync(passwordForStdin.AsMemory(), linkedToken).ConfigureAwait(false);
-
-          if (stdinData != null)
-            await process.StandardInput.WriteAsync(stdinData.AsMemory(), linkedToken).ConfigureAwait(false);
-
+        // Always redirect stdin and close it when the command needs none, so a child that reads
+        // stdin gets EOF instead of inheriting (and blocking on) this process's stdin.
+        if (!needsStdin)
           process.StandardInput.Close();
-        }
 
         // Read stdout and stderr concurrently to avoid deadlock when either pipe buffer fills
         // up. Both streams are bounded by a sanity cap so a pathological child cannot force
         // unbounded buffering; stdout fails the command on exceeding the cap, while stderr
         // (the error message itself) is truncated and kept.
-        var outputTask = ReadBoundedAsync(process.StandardOutput, MaxNonStreamingOutputBytes, linkedToken);
-        var errorTask = ReadBoundedTruncatingAsync(process.StandardError, MaxNonStreamingOutputBytes, linkedToken);
+        outputTask = ReadBoundedAsync(process.StandardOutput, MaxNonStreamingOutputBytes, linkedToken);
+        errorTask = ReadBoundedTruncatingAsync(process.StandardError, MaxNonStreamingOutputBytes, linkedToken);
+
+        var stdinFailure = needsStdin
+            ? await TryWriteStandardInputAsync(process, passwordForStdin, stdinData, linkedToken).ConfigureAwait(false)
+            : null;
 
         var output = await outputTask.ConfigureAwait(false);
         var error = await errorTask.ConfigureAwait(false);
@@ -286,7 +287,7 @@ namespace FluentDocker.Drivers.Podman.Cli
         {
           Success = process.ExitCode == 0,
           Output = output,
-          Error = error,
+          Error = string.IsNullOrEmpty(error) && stdinFailure != null ? stdinFailure.Message : error,
           ExitCode = process.ExitCode
         };
       }
@@ -294,6 +295,9 @@ namespace FluentDocker.Drivers.Podman.Cli
       {
         // Kill the child process on cancellation to prevent orphans.
         KillProcessSafely(process, null);
+
+        await TryReadStringTaskAsync(outputTask).ConfigureAwait(false);
+        await TryReadStringTaskAsync(errorTask).ConfigureAwait(false);
 
         // Distinguish caller-driven cancellation from the buffered-command timeout firing:
         // the caller's intent is rethrown as an OCE bound to the caller's token; a timeout
@@ -306,16 +310,22 @@ namespace FluentDocker.Drivers.Podman.Cli
       }
       catch (Exception ex)
       {
-        // Kill the child on any non-cancellation failure (e.g. stdout exceeded the cap, so
-        // ReadBoundedAsync threw) so a still-writing podman process is not orphaned; the
-        // finally below only releases handles via Dispose, which does not stop the process.
-        KillProcessSafely(process, null);
-
+        try
+        {
+          if (process is { HasExited: false })
+            await Task.WhenAny(process.WaitForExitAsync(CancellationToken.None), Task.Delay(100, CancellationToken.None)).ConfigureAwait(false);
+          if (process is { HasExited: false })
+            process.Kill(entireProcessTree: true);
+        }
+        catch { /* best effort — process may have exited between the check and the kill */ }
+        var output = await TryReadStringTaskAsync(outputTask).ConfigureAwait(false);
+        var error = await TryReadStringTaskAsync(errorTask).ConfigureAwait(false);
         return new SimpleCommandResult
         {
           Success = false,
-          Error = ex.Message,
-          ExitCode = -1
+          Output = output,
+          Error = string.IsNullOrEmpty(error) ? ex.Message : $"{ex.Message}\n{error}",
+          ExitCode = GetExitCodeOrDefault(process)
         };
       }
       finally
@@ -382,8 +392,11 @@ namespace FluentDocker.Drivers.Podman.Cli
     {
       if (string.IsNullOrEmpty(error))
         return false;
-      return error.Contains("Cannot connect to Podman", StringComparison.Ordinal)
-          || error.Contains("error during connect", StringComparison.OrdinalIgnoreCase);
+      return error.Contains("Cannot connect to Podman", StringComparison.OrdinalIgnoreCase)
+          || error.Contains("error during connect", StringComparison.OrdinalIgnoreCase)
+          || error.Contains("unable to connect to Podman socket", StringComparison.OrdinalIgnoreCase)
+          || (error.Contains("dial unix", StringComparison.OrdinalIgnoreCase)
+              && error.Contains("connect:", StringComparison.OrdinalIgnoreCase));
     }
 
     #endregion

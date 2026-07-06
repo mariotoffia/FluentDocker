@@ -61,13 +61,13 @@ namespace FluentDocker.Drivers.Podman.Cli
         }
       };
 
+      if (process.StartInfo.RedirectStandardInput)
+        process.StartInfo.StandardInputEncoding = Utf8NoBom;
+
       process.Start();
 
       if (passwordForStdin != null)
-      {
-        await process.StandardInput.WriteLineAsync(passwordForStdin.AsMemory(), cancellationToken).ConfigureAwait(false);
-        process.StandardInput.Close();
-      }
+        _ = await TryWriteStandardInputAsync(process, passwordForStdin, null, cancellationToken).ConfigureAwait(false);
 
       // Drain stderr concurrently so a chatty child cannot deadlock by filling the stderr
       // pipe buffer while we only read stdout. The drain is bounded (truncating) so a
@@ -141,13 +141,13 @@ namespace FluentDocker.Drivers.Podman.Cli
         }
       };
 
+      if (process.StartInfo.RedirectStandardInput)
+        process.StartInfo.StandardInputEncoding = Utf8NoBom;
+
       process.Start();
 
       if (passwordForStdin != null)
-      {
-        await process.StandardInput.WriteLineAsync(passwordForStdin.AsMemory(), cancellationToken).ConfigureAwait(false);
-        process.StandardInput.Close();
-      }
+        _ = await TryWriteStandardInputAsync(process, passwordForStdin, null, cancellationToken).ConfigureAwait(false);
 
       var channel = System.Threading.Channels.Channel.CreateBounded<string>(
           new System.Threading.Channels.BoundedChannelOptions(256)
@@ -191,6 +191,75 @@ namespace FluentDocker.Drivers.Podman.Cli
             new ErrorContext("StreamingCommand") { ExitCode = failureExitCode, StdErr = FormatTail(tail) });
     }
 
+    protected async IAsyncEnumerable<LogEntry> ExecuteStreamingCommandWithSourcesAsync(
+        DriverContext context,
+        string arguments,
+        bool stdout,
+        bool stderr,
+        [EnumeratorCancellation] CancellationToken cancellationToken)
+    {
+      var effectiveContext = CreateEffectiveContext(context);
+      var (binaryPath, sudo, sudoPassword) = ResolveBinaryInfo(effectiveContext);
+      var globalArgs = BuildGlobalArgs(effectiveContext, Logger);
+      var fullArgs = string.IsNullOrEmpty(globalArgs) ? arguments : $"{globalArgs} {arguments}";
+
+      var (processFileName, processArguments, passwordForStdin) =
+          BuildSudoCommand(binaryPath, fullArgs, sudo, sudoPassword);
+
+      using var process = new Process
+      {
+        StartInfo = new ProcessStartInfo
+        {
+          FileName = processFileName,
+          Arguments = processArguments,
+          RedirectStandardOutput = true,
+          RedirectStandardError = true,
+          RedirectStandardInput = passwordForStdin != null,
+          UseShellExecute = false,
+          CreateNoWindow = true,
+          StandardOutputEncoding = Encoding.UTF8,
+          StandardErrorEncoding = Encoding.UTF8
+        }
+      };
+
+      if (process.StartInfo.RedirectStandardInput)
+        process.StartInfo.StandardInputEncoding = Utf8NoBom;
+
+      process.Start();
+      if (passwordForStdin != null)
+        _ = await TryWriteStandardInputAsync(process, passwordForStdin, null, cancellationToken).ConfigureAwait(false);
+
+      var channel = System.Threading.Channels.Channel.CreateBounded<LogEntry>(
+          new System.Threading.Channels.BoundedChannelOptions(256)
+          {
+            SingleReader = true,
+            SingleWriter = false,
+            FullMode = System.Threading.Channels.BoundedChannelFullMode.Wait
+          });
+      var tail = new Queue<string>();
+      var pump = PumpSourceStreamsAsync(process, channel.Writer, stdout, stderr, tail, cancellationToken);
+      string failure = null;
+
+      try
+      {
+        await foreach (var entry in channel.Reader.ReadAllAsync(cancellationToken).ConfigureAwait(false))
+          yield return entry;
+
+        await process.WaitForExitAsync(cancellationToken).ConfigureAwait(false);
+        if (process.ExitCode != 0)
+          failure = $"exit code {process.ExitCode}{FormatTail(tail)}";
+      }
+      finally
+      {
+        channel.Writer.TryComplete();
+        KillProcessSafely(process, Logger);
+        await ObserveQuietlyAsync(pump).ConfigureAwait(false);
+      }
+
+      if (failure != null)
+        throw new DriverException($"Streaming command failed ({failure}).", ErrorCodes.Driver.CommandExecutionFailed);
+    }
+
     private static void AddTail(Queue<string> tail, string line)
     {
       if (tail.Count == 10)
@@ -222,6 +291,39 @@ namespace FluentDocker.Drivers.Podman.Cli
       try
       {
         await Task.WhenAll(PumpAsync(process.StandardOutput), PumpAsync(process.StandardError)).ConfigureAwait(false);
+        writer.TryComplete();
+      }
+      catch (Exception ex)
+      {
+        writer.TryComplete(ex);
+      }
+    }
+
+    private static async Task PumpSourceStreamsAsync(
+        Process process,
+        System.Threading.Channels.ChannelWriter<LogEntry> writer,
+        bool stdout,
+        bool stderr,
+        Queue<string> tail,
+        CancellationToken cancellationToken)
+    {
+      async Task PumpAsync(TextReader reader, LogStreamSource source, bool emit)
+      {
+        string line;
+        while ((line = await reader.ReadLineAsync(cancellationToken).ConfigureAwait(false)) != null)
+        {
+          lock (tail)
+            AddTail(tail, line);
+          if (emit)
+            await writer.WriteAsync(new LogEntry { Source = source, Line = line }, cancellationToken).ConfigureAwait(false);
+        }
+      }
+
+      try
+      {
+        await Task.WhenAll(
+            PumpAsync(process.StandardOutput, LogStreamSource.Stdout, stdout),
+            PumpAsync(process.StandardError, LogStreamSource.Stderr, stderr)).ConfigureAwait(false);
         writer.TryComplete();
       }
       catch (Exception ex)

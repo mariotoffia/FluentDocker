@@ -46,6 +46,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
         args += $" --since {QuoteArgumentIfNeeded(config.Since)}";
       if (!string.IsNullOrEmpty(config.Until))
         args += $" --until {QuoteArgumentIfNeeded(config.Until)}";
+      // ponytail: podman logs has no `--details` flag (unlike docker logs); Details is a no-op here.
       args += $" {QuotePositionalArgument(containerId, nameof(containerId))}";
       return args;
     }
@@ -56,12 +57,23 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
         StreamLogsConfig config = null,
         [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
+      await foreach (var entry in StreamLogEntriesAsync(context, containerId, config, cancellationToken)
+          .WithCancellation(cancellationToken).ConfigureAwait(false))
+        yield return entry.Source == LogStreamSource.Stderr ? $"[stderr] {entry.Line}" : entry.Line;
+    }
+
+    /// <inheritdoc />
+    public async IAsyncEnumerable<LogEntry> StreamLogEntriesAsync(
+        DriverContext context, string containerId,
+        StreamLogsConfig config = null,
+        [EnumeratorCancellation] CancellationToken cancellationToken = default)
+    {
+      config ??= new StreamLogsConfig();
       var args = BuildStreamLogsArgs(containerId, config);
 
-      await foreach (var line in ExecuteStreamingCommandWithProgressAsync(context, args, cancellationToken).ConfigureAwait(false))
-      {
-        yield return line;
-      }
+      await foreach (var entry in ExecuteStreamingCommandWithSourcesAsync(
+          context, args, config.Stdout, config.Stderr, cancellationToken).ConfigureAwait(false))
+        yield return entry;
     }
 
     /// <summary>

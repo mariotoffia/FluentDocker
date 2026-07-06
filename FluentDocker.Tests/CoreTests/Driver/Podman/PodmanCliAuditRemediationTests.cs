@@ -64,7 +64,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
         lines.Add(line);
 
       Assert.Contains("stdout-line", lines);
-      Assert.Contains("stderr-line", lines);
+      Assert.Contains("[stderr] stderr-line", lines);
     }
 
     [Fact]

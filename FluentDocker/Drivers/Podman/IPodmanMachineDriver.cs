@@ -13,6 +13,10 @@ namespace FluentDocker.Drivers.Podman
   public interface IPodmanMachineDriver
   {
     /// <summary>Initializes a new machine VM.</summary>
+    /// <remarks>
+    /// Podman CLI uses <c>--image</c> for <see cref="MachineInitConfig.Image"/>; Podman 5+
+    /// supports this spelling (Podman 4 used <c>--image-path</c>).
+    /// </remarks>
     Task<CommandResponse<Unit>> InitAsync(
         DriverContext context, MachineInitConfig config,
         CancellationToken cancellationToken = default);

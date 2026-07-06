@@ -69,6 +69,9 @@ namespace FluentDocker.Drivers.Podman.Cli
         }
       };
 
+      if (process.StartInfo.RedirectStandardInput)
+        process.StartInfo.StandardInputEncoding = Utf8NoBom;
+
       process.Start();
 
       return new AttachResult

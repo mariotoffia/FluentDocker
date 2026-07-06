@@ -177,14 +177,13 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
 
       // Flood stdout far past the 4 MiB hard cap. Unlike stderr, stdout fails fast
       // (ReadBoundedAsync throws), landing in the generic catch which kills the still-flooding
-      // child so the call returns promptly with the -1 sentinel instead of orphaning a process
-      // blocked on a full pipe. (The kill itself is internal; the observable contract is a
-      // clean, prompt failure carrying the cap diagnostic.)
+      // child so the call returns promptly without orphaning a process blocked on a full pipe.
+      // The hardened catch preserves the observed process exit code instead of forcing -1.
       const string script = "yes outpadding | head -n 50000000";
       var result = await driver.Run($"-c \"{script}\"", TestContext.Current.CancellationToken);
 
       Assert.False(result.Success);
-      Assert.Equal(-1, result.ExitCode);
+      Assert.True(result.ExitCode > 0);
       Assert.Contains("exceeded", result.Error, StringComparison.OrdinalIgnoreCase);
     }
   }

@@ -49,6 +49,13 @@ namespace FluentDocker.Drivers.Podman.Cli
           BuildSudoCommand(binaryPath, fullArgs, sudo, sudoPassword);
 
       Process process = null;
+      Task outTask = null;
+      Task errTask = null;
+      // Bounded rolling tails preserve the END of each stream — where podman prints the meaningful
+      // result line and the freshest error context. Hoisted so the catch blocks can drain the
+      // readers (avoiding unobserved tasks) and surface stderr in a failure result.
+      var outTail = new OutputTail(UnboundedTailChars);
+      var errTail = new OutputTail(UnboundedTailChars);
       try
       {
         process = new Process
@@ -59,29 +66,24 @@ namespace FluentDocker.Drivers.Podman.Cli
             Arguments = processArguments,
             RedirectStandardOutput = true,
             RedirectStandardError = true,
-            RedirectStandardInput = passwordForStdin != null,
+            RedirectStandardInput = true,
             UseShellExecute = false,
             CreateNoWindow = true,
             StandardOutputEncoding = Encoding.UTF8,
-            StandardErrorEncoding = Encoding.UTF8
+            StandardErrorEncoding = Encoding.UTF8,
+            StandardInputEncoding = Utf8NoBom
           }
         };
 
         process.Start();
 
-        if (passwordForStdin != null)
-        {
-          await process.StandardInput.WriteLineAsync(passwordForStdin.AsMemory(), cancellationToken).ConfigureAwait(false);
-          process.StandardInput.Close();
-        }
+        // Always redirect stdin; write the sudo password when present, otherwise this closes stdin
+        // so a child that reads stdin gets EOF instead of inheriting (and blocking on) ours.
+        _ = await TryWriteStandardInputAsync(process, passwordForStdin, null, cancellationToken).ConfigureAwait(false);
 
-        // Read both pipes concurrently so neither deadlocks on a full buffer; each is kept as a
-        // bounded rolling tail. The tail preserves the END of the stream — where podman prints the
-        // meaningful result line and the freshest error context.
-        var outTail = new OutputTail(UnboundedTailChars);
-        var errTail = new OutputTail(UnboundedTailChars);
-        var outTask = ReadTailAsync(process.StandardOutput, outTail, cancellationToken);
-        var errTask = ReadTailAsync(process.StandardError, errTail, cancellationToken);
+        // Read both pipes concurrently so neither deadlocks on a full buffer.
+        outTask = ReadTailAsync(process.StandardOutput, outTail, cancellationToken);
+        errTask = ReadTailAsync(process.StandardError, errTail, cancellationToken);
         await Task.WhenAll(outTask, errTask).ConfigureAwait(false);
 
         await process.WaitForExitAsync(cancellationToken).ConfigureAwait(false);
@@ -97,19 +99,24 @@ namespace FluentDocker.Drivers.Podman.Cli
       catch (OperationCanceledException)
       {
         // Unbounded ops disable the timeout, so an OCE is always caller-driven: kill the child to
-        // avoid an orphan and rethrow the caller's intent bound to their token.
+        // avoid an orphan, drain the readers, and rethrow the caller's intent bound to their token.
         KillProcessSafely(process, Logger);
+        await TryObserveTaskAsync(outTask).ConfigureAwait(false);
+        await TryObserveTaskAsync(errTask).ConfigureAwait(false);
         throw;
       }
       catch (Exception ex)
       {
         // Non-cancellation failure (e.g. a pipe I/O error): kill the still-writing child so it is
-        // not orphaned, and surface a clean -1 result carrying the message.
+        // not orphaned, drain the readers, and surface drained stderr (falling back to the
+        // exception message) so the failure is diagnosable.
         KillProcessSafely(process, Logger);
+        await TryObserveTaskAsync(outTask).ConfigureAwait(false);
+        await TryObserveTaskAsync(errTask).ConfigureAwait(false);
         return new SimpleCommandResult
         {
           Success = false,
-          Error = ex.Message,
+          Error = string.IsNullOrEmpty(errTail.ToString()) ? ex.Message : errTail.ToString(),
           ExitCode = -1
         };
       }

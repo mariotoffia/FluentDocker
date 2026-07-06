@@ -202,6 +202,9 @@ namespace FluentDocker.Drivers
     /// <param name="containerId">Container ID or name</param>
     /// <param name="config">Update configuration</param>
     /// <param name="cancellationToken">Cancellation token</param>
+    /// <remarks>
+    /// Podman CLI <c>update --restart</c> requires Podman 5.1+; older 4.x/5.0 clients reject it.
+    /// </remarks>
     Task<Model.Drivers.CommandResponse<Unit>> UpdateAsync(
         DriverContext context,
         string containerId,

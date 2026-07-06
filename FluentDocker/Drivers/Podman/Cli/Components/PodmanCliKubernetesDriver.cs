@@ -42,7 +42,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
         {
           return CommandResponse<KubePlayResult>.Fail(
               ErrorOrDefault(result, "Kube play failed"),
-              ErrorCodes.Kubernetes.PlayFailed,
+              FailureCode(result.Error, ErrorCodes.Kubernetes.PlayFailed),
               CreateErrorContext(context, "KubePlay", result), result.ExitCode);
         }
 
@@ -78,7 +78,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
         {
           return CommandResponse<Unit>.Fail(
               ErrorOrDefault(result, "Kube down failed"),
-              ErrorCodes.Kubernetes.DownFailed,
+              FailureCode(result.Error, ErrorCodes.Kubernetes.DownFailed),
               CreateErrorContext(context, "KubeDown", result), result.ExitCode);
         }
 
@@ -113,7 +113,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
         {
           return CommandResponse<string>.Fail(
               ErrorOrDefault(result, "Kube generate failed"),
-              ErrorCodes.Kubernetes.GenerateFailed,
+              FailureCode(result.Error, ErrorCodes.Kubernetes.GenerateFailed),
               CreateErrorContext(context, "KubeGenerate", result), result.ExitCode);
         }
 
@@ -184,13 +184,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
         if (trimmed.StartsWith('{') || trimmed.StartsWith('['))
           return ParsePlayOutputJson(trimmed);
 
-        result = ParsePlayOutputLines(trimmed);
-        if (result.Pods.Count == 0)
-        {
-          throw new FormatException("expected pod or container identifiers");
-        }
-
-        return result;
+        return ParsePlayOutputLines(trimmed);
       }
       catch (Exception ex)
       {
@@ -335,8 +329,11 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
 
     private static bool IsHexId(string value)
     {
-      return value.Length >= 12
-          && value.All(c => char.IsLetterOrDigit(c) && !char.IsUpper(c));
+      // ponytail: podman kube play prints full 64-char hex IDs; the 64-char guard also blocks
+      // hex-looking volume names from being misparsed as bare pod/container IDs. If a podman
+      // version ever emits bare 12-char short IDs here, add `|| value.Length == 12`.
+      return value.Length == 64
+          && value.All(c => (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f'));
     }
 
     #endregion

@@ -13,6 +13,8 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
   /// </summary>
   public partial class PodmanCliImageDriver
   {
+    private static readonly char[] LineSeparators = ['\n', '\r'];
+
     #region Tag/Remove/Prune
 
     /// <inheritdoc />
@@ -62,7 +64,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
               ErrorOrDefault(result, "Image remove failed"), FailureCode(result.Error, ErrorCodes.Image.RemoveFailed),
               CreateErrorContext(context, "RemoveImage", result), result.ExitCode);
 
-        return CommandResponse<ImageRemoveResult>.Ok(new ImageRemoveResult());
+        return CommandResponse<ImageRemoveResult>.Ok(ParseRemoveOutput(result.Output));
       }
       catch (OperationCanceledException)
       {
@@ -236,6 +238,23 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       }
 
       return images;
+    }
+
+    private static ImageRemoveResult ParseRemoveOutput(string output)
+    {
+      var result = new ImageRemoveResult();
+      if (string.IsNullOrEmpty(output))
+        return result;
+
+      foreach (var line in output.Split(LineSeparators, StringSplitOptions.RemoveEmptyEntries))
+      {
+        if (line.StartsWith("Deleted:", StringComparison.Ordinal))
+          result.Deleted.Add(line[8..].Trim());
+        else if (line.StartsWith("Untagged:", StringComparison.Ordinal))
+          result.Untagged.Add(line[9..].Trim());
+      }
+
+      return result;
     }
 
     #endregion
