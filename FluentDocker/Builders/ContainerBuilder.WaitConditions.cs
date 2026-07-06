@@ -263,8 +263,9 @@ namespace FluentDocker.Builders
     {
       var sw = Stopwatch.StartNew();
       var iteration = 0;
-      while (sw.ElapsedMilliseconds < timeoutMs && !cancellationToken.IsCancellationRequested)
+      while (sw.ElapsedMilliseconds < timeoutMs)
       {
+        cancellationToken.ThrowIfCancellationRequested();
         int result;
         try
         {

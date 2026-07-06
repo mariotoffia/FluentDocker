@@ -451,7 +451,10 @@ exit 2
 
     private static async Task WaitForFileAsync(string path)
     {
-      for (var i = 0; i < 50; i++)
+      // Budget generous enough to survive process-spawn latency under a fully
+      // parallel unit run (fake docker writes args, then sleeps 2s, so the file
+      // persists well past the poll window once the child has started).
+      for (var i = 0; i < 250; i++)
       {
         if (File.Exists(path))
           return;
