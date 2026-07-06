@@ -87,6 +87,7 @@ namespace FluentDocker.Drivers.Docker.Cli
         return new SimpleCommandResult
         {
           Success = false,
+          Output = outTail.ToString(),
           Error = string.IsNullOrEmpty(errTail.ToString()) ? ex.Message : errTail.ToString(),
           ExitCode = -1
         };

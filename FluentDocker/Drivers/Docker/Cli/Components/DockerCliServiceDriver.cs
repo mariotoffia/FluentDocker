@@ -183,9 +183,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
       try
       {
         var args = "service ls --format \"{{json .}}\"";
-        if (filter?.Quiet == true)
-          args = "service ls -q";
-        else if (filter != null)
+        if (filter != null)
         {
           if (!string.IsNullOrEmpty(filter.Name))
             args += $" --filter {QuoteArgumentIfNeeded($"name={filter.Name}")}";
@@ -193,6 +191,8 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
             args += $" --filter {QuoteArgumentIfNeeded($"id={filter.Id}")}";
           foreach (var label in filter.Labels)
             args += $" --filter {QuoteArgumentIfNeeded($"label={label.Key}={label.Value}")}";
+          if (!string.IsNullOrEmpty(filter.Mode))
+            args += $" --filter {QuoteArgumentIfNeeded($"mode={filter.Mode}")}";
         }
 
         var result = await ExecuteCommandAsync(context, args, cancellationToken).ConfigureAwait(false);
@@ -213,7 +213,9 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
           return CommandResponse<IList<ServiceInfo>>.Fail(parseError, ErrorCodes.Service.ListFailed);
         }
 
-        return CommandResponse<IList<ServiceInfo>>.Ok(services);
+        return CommandResponse<IList<ServiceInfo>>.Ok(filter?.Quiet == true
+            ? services.Select(s => new ServiceInfo { Id = s.Id }).ToList()
+            : services);
       }
       catch (OperationCanceledException)
       {

@@ -74,8 +74,14 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
       try
       {
         var args = "stack ps";
+        AddFilter(ref args, "id", filter?.Id);
+        AddFilter(ref args, "name", filter?.Name);
+        AddFilter(ref args, "node", filter?.Node);
+        AddFilter(ref args, "desired-state", filter?.DesiredState);
         if (filter?.NoTrunc == true)
           args += " --no-trunc";
+        if (filter?.NoResolve == true)
+          args += " --no-resolve";
         args += $" --format \"{{{{json .}}}}\" {QuotePositionalArgument(stackName, nameof(stackName))}";
 
         var result = await ExecuteCommandAsync(context, args, cancellationToken).ConfigureAwait(false);
@@ -96,7 +102,9 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
           return CommandResponse<IList<StackTask>>.Fail(parseError, ErrorCodes.Stack.TasksFailed);
         }
 
-        return CommandResponse<IList<StackTask>>.Ok(tasks);
+        return CommandResponse<IList<StackTask>>.Ok(filter?.Quiet == true
+            ? tasks.Select(t => new StackTask { Id = t.Id }).ToList()
+            : tasks);
       }
       catch (OperationCanceledException)
       {
@@ -180,7 +188,12 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     {
       try
       {
-        var args = $"stack services --format \"{{{{json .}}}}\" {QuotePositionalArgument(stackName, nameof(stackName))}";
+        var args = "stack services";
+        AddFilter(ref args, "id", filter?.Id);
+        AddFilter(ref args, "name", filter?.Name);
+        foreach (var label in filter?.Labels ?? [])
+          AddFilter(ref args, "label", $"{label.Key}={label.Value}");
+        args += $" --format \"{{{{json .}}}}\" {QuotePositionalArgument(stackName, nameof(stackName))}";
 
         var result = await ExecuteCommandAsync(context, args, cancellationToken).ConfigureAwait(false);
 
@@ -200,7 +213,9 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
           return CommandResponse<IList<StackServiceInfo>>.Fail(parseError, ErrorCodes.Stack.ServicesFailed);
         }
 
-        return CommandResponse<IList<StackServiceInfo>>.Ok(services);
+        return CommandResponse<IList<StackServiceInfo>>.Ok(filter?.Quiet == true
+            ? services.Select(s => new StackServiceInfo { Id = s.Id }).ToList()
+            : services);
       }
       catch (OperationCanceledException)
       {
@@ -210,6 +225,12 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
       {
         return CommandResponse<IList<StackServiceInfo>>.Fail(ex.Message, FailureCode(ex, ErrorCodes.Stack.ServicesFailed));
       }
+    }
+
+    private static void AddFilter(ref string args, string name, string value)
+    {
+      if (!string.IsNullOrEmpty(value))
+        args += $" --filter {QuoteArgumentIfNeeded($"{name}={value}")}";
     }
   }
 }

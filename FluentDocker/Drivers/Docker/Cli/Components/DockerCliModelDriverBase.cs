@@ -31,6 +31,14 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     protected virtual Task<SimpleCommandResult> RunAsync(DriverContext context, string arguments, CancellationToken cancellationToken) =>
         ExecuteCommandAsync(context, arguments, cancellationToken);
 
+    /// <summary>Runs an unbounded <c>docker model …</c> command (overridable seam).</summary>
+    /// <param name="context">Per-call driver context.</param>
+    /// <param name="arguments">The full argument string.</param>
+    /// <param name="cancellationToken">A token to cancel the operation.</param>
+    /// <returns>The command result.</returns>
+    protected virtual Task<SimpleCommandResult> RunUnboundedAsync(DriverContext context, string arguments, CancellationToken cancellationToken) =>
+        ExecuteUnboundedCommandAsync(context, arguments, cancellationToken);
+
     /// <summary>Runs a line-streamed <c>docker model …</c> command (overridable seam).</summary>
     /// <param name="context">Per-call driver context.</param>
     /// <param name="arguments">The full argument string.</param>

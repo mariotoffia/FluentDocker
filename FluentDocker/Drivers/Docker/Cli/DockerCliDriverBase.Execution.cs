@@ -275,6 +275,8 @@ namespace FluentDocker.Drivers.Docker.Cli
             await Task.WhenAny(process.WaitForExitAsync(CancellationToken.None), Task.Delay(100, CancellationToken.None)).ConfigureAwait(false);
           if (process is { HasExited: false })
             process.Kill(entireProcessTree: true);
+          if (process is { HasExited: false })
+            await Task.WhenAny(process.WaitForExitAsync(CancellationToken.None), Task.Delay(2000, CancellationToken.None)).ConfigureAwait(false);
         }
         catch { /* best effort — process may have exited between the check and the kill */ }
         var output = await TryReadStringTaskAsync(outputTask).ConfigureAwait(false);

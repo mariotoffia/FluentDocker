@@ -196,7 +196,10 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
         }
 
         var networks = JsonSerializer.Deserialize<List<Network>>(result.Output, JsonHelper.CaseInsensitiveOptions);
-        return CommandResponse<Network>.Ok(networks?.FirstOrDefault() ?? new Network());
+        var network = networks?.FirstOrDefault();
+        return network == null
+            ? CommandResponse<Network>.Fail($"Network '{networkId}' was not found", ErrorCodes.Network.NotFound)
+            : CommandResponse<Network>.Ok(network);
       }
       catch (OperationCanceledException)
       {

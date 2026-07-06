@@ -86,6 +86,10 @@ namespace FluentDocker.Tests.CoreTests.Driver
       protected override Task<SimpleCommandResult> RunAsync(
           DriverContext context, string arguments, CancellationToken cancellationToken) =>
           Task.FromResult(Responder(arguments));
+
+      protected override Task<SimpleCommandResult> RunUnboundedAsync(
+          DriverContext context, string arguments, CancellationToken cancellationToken) =>
+          RunAsync(context, arguments, cancellationToken);
     }
 
     private sealed class FakeRuntimeDriver : DockerCliModelRuntimeDriver
@@ -100,6 +104,10 @@ namespace FluentDocker.Tests.CoreTests.Driver
       protected override Task<SimpleCommandResult> RunAsync(
           DriverContext context, string arguments, CancellationToken cancellationToken) =>
           Task.FromResult(Responder(arguments));
+
+      protected override Task<SimpleCommandResult> RunUnboundedAsync(
+          DriverContext context, string arguments, CancellationToken cancellationToken) =>
+          RunAsync(context, arguments, cancellationToken);
     }
   }
 }

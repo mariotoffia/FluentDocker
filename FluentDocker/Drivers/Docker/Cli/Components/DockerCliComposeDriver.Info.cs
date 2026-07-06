@@ -430,9 +430,9 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
           args += " -L";
         if (config.Index.HasValue)
           args += $" --index {config.Index.Value}";
-        args += $" {QuoteArgumentIfNeeded(config.Source)} {QuoteArgumentIfNeeded(config.Destination)}";
+        args += $" {QuotePositionalArgument(config.Source, nameof(config.Source))} {QuotePositionalArgument(config.Destination, nameof(config.Destination))}";
 
-        var result = await ExecuteCommandAsync(context, args, cancellationToken).ConfigureAwait(false);
+        var result = await ExecuteUnboundedCommandAsync(context, args, cancellationToken).ConfigureAwait(false);
         return result.Success
             ? CommandResponse<Unit>.Ok(Unit.Default)
             : CommandResponse<Unit>.Fail(

@@ -1,5 +1,7 @@
+using FluentDocker.Common;
 using FluentDocker.Drivers;
 using FluentDocker.Drivers.Docker.Cli.Components;
+using FluentDocker.Model.Drivers;
 using Xunit;
 
 namespace FluentDocker.Tests.CoreTests.Driver.Docker
@@ -104,6 +106,15 @@ namespace FluentDocker.Tests.CoreTests.Driver.Docker
       var iidPos = result.IndexOf("--iidfile", StringComparison.Ordinal);
       var ctxPos = result.LastIndexOf("/src", StringComparison.Ordinal);
       Assert.True(iidPos < ctxPos, "--iidfile should appear before the build context");
+    }
+
+    [Fact]
+    public void BuildBuildArgs_RejectsLeadingDashContext()
+    {
+      var ex = Assert.Throws<DriverException>(() =>
+          DockerCliImageDriver.BuildBuildArgs(new ImageBuildConfig { BuildContext = "--help" }, ".out/iid"));
+
+      Assert.Equal(ErrorCodes.General.InvalidArgument, ex.ErrorCode);
     }
   }
 }

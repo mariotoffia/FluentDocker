@@ -145,7 +145,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
       }
       catch (Exception ex)
       {
-        logger.LogDebug(ex, "Event stream JSON parsing failed");
+        logger.LogWarning(ex, "Event stream JSON parsing failed");
         return null;
       }
     }
@@ -186,7 +186,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
         }
         catch (Exception ex)
         {
-          Logger.LogDebug(ex, "Stats stream JSON parsing failed");
+          Logger.LogWarning(ex, "Stats stream JSON parsing failed");
         }
 
         if (stats != null)
@@ -217,7 +217,10 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
       var start = json.IndexOf('{');
       var end = json.LastIndexOf('}');
       if (start < 0 || end < start)
+      {
+        logger.LogDebug("Stats line skipped: no JSON object (ANSI control frame)");
         return null;
+      }
       json = json[start..(end + 1)];
 
       try
@@ -260,7 +263,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
       }
       catch (Exception ex)
       {
-        logger.LogDebug(ex, "Stats line parsing failed");
+        logger.LogWarning(ex, "Stats line parsing failed");
         return null;
       }
     }

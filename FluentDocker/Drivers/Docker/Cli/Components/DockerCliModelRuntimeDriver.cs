@@ -383,7 +383,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
       if (!string.IsNullOrEmpty(options?.Gpu))
         args += $" --gpu {QuoteArgumentIfNeeded(options.Gpu)}";
 
-      return await SimpleUnitAsync(context, args, "InstallRunner", ErrorCodes.Model.InstallFailed, cancellationToken).ConfigureAwait(false);
+      return await SimpleUnitAsync(context, args, "InstallRunner", ErrorCodes.Model.InstallFailed, cancellationToken, unbounded: true).ConfigureAwait(false);
     }
 
     /// <inheritdoc />
@@ -403,11 +403,13 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     }
 
     private async Task<CommandResponse<Unit>> SimpleUnitAsync(DriverContext context,
-        string args, string operation, string errorCode, CancellationToken cancellationToken)
+        string args, string operation, string errorCode, CancellationToken cancellationToken, bool unbounded = false)
     {
       try
       {
-        var result = await RunAsync(context, args, cancellationToken).ConfigureAwait(false);
+        var result = unbounded
+            ? await RunUnboundedAsync(context, args, cancellationToken).ConfigureAwait(false)
+            : await RunAsync(context, args, cancellationToken).ConfigureAwait(false);
         if (!result.Success)
           return CommandResponse<Unit>.Fail(
               ModelErrorOrDefault(result, $"{operation} failed"),

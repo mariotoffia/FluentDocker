@@ -21,7 +21,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Binary
     public DockerBinary(string path, string binary, SudoMechanism sudo, string password)
     {
       Path = path;
-      Binary = binary.ToLowerInvariant();
+      Binary = binary;
       Type = Translate(binary);
       Sudo = sudo;
       SudoPassword = password;
@@ -38,7 +38,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Binary
     public DockerBinary(string path, string binary, SudoMechanism sudo, string password, DockerBinaryType type)
     {
       Path = path;
-      Binary = binary.ToLowerInvariant();
+      Binary = binary;
       Type = type;
       Sudo = sudo;
       SudoPassword = password;

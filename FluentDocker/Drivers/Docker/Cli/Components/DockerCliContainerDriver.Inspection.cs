@@ -236,10 +236,12 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
         var lines = result.Output.Split(LineSeparators, StringSplitOptions.RemoveEmptyEntries);
         if (lines.Length > 0)
         {
-          processes.Titles = [.. lines[0].Split(SpaceSeparator, StringSplitOptions.RemoveEmptyEntries)];
+          var titles = lines[0].Split(SpaceSeparator, StringSplitOptions.RemoveEmptyEntries);
+          processes.Titles = [.. titles];
           for (var i = 1; i < lines.Length; i++)
           {
-            processes.Processes.Add([.. lines[i].Split(SpaceSeparator, StringSplitOptions.RemoveEmptyEntries)]);
+            // ponytail: count-limited split keeps the last column (CMD) intact with its spaces
+            processes.Processes.Add([.. lines[i].Split(SpaceSeparator, titles.Length, StringSplitOptions.RemoveEmptyEntries)]);
           }
         }
 

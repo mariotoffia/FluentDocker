@@ -37,7 +37,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     {
       try
       {
-        var fullImage = string.IsNullOrEmpty(tag) ? image : $"{image}:{tag}";
+        var fullImage = ShouldAppendTag(image, tag) ? $"{image}:{tag}" : image;
         var result = await ExecuteProgressCommandAsync(
             context,
             $"pull {QuotePositionalArgument(fullImage, nameof(image))}",
@@ -149,9 +149,19 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
       if (!string.IsNullOrEmpty(iidFilePath))
         args.Add($"--iidfile {QuoteArgumentIfNeeded(iidFilePath)}");
 
-      args.Add(QuoteArgumentIfNeeded(config.BuildContext ?? "."));
+      args.Add(QuotePositionalArgument(config.BuildContext ?? ".", nameof(config)));
 
       return string.Join(" ", args);
+    }
+
+    private static bool ShouldAppendTag(string image, string tag)
+    {
+      if (string.IsNullOrEmpty(tag) || string.IsNullOrEmpty(image) || image.Contains('@', StringComparison.Ordinal))
+        return false;
+
+      var lastSlash = image.LastIndexOf('/');
+      var lastSegment = lastSlash < 0 ? image : image[(lastSlash + 1)..];
+      return !lastSegment.Contains(':', StringComparison.Ordinal);
     }
 
     /// <inheritdoc />

@@ -21,10 +21,10 @@ namespace FluentDocker.Tests.CoreTests.Driver.Docker
     }
 
     [Fact]
-    public void Constructor_SetsBinaryProperty_LowerCased()
+    public void Constructor_SetsBinaryProperty_PreservesFilesystemCase()
     {
       var binary = new DockerBinary("/usr/bin", "Docker", SudoMechanism.None, null!);
-      Assert.Equal("docker", binary.Binary);
+      Assert.Equal("Docker", binary.Binary);
     }
 
     [Fact]
@@ -76,12 +76,12 @@ namespace FluentDocker.Tests.CoreTests.Driver.Docker
     }
 
     [Fact]
-    public void Constructor_WithExplicitType_StillNormalizesBinary()
+    public void Constructor_WithExplicitType_PreservesFilesystemCase()
     {
       var binary = new DockerBinary(
           "/usr/bin", "DOCKER", SudoMechanism.None, null!, DockerBinaryType.Cli);
 
-      Assert.Equal("docker", binary.Binary);
+      Assert.Equal("DOCKER", binary.Binary);
       Assert.Equal(DockerBinaryType.Cli, binary.Type);
     }
 

@@ -157,6 +157,12 @@ namespace FluentDocker.Drivers
   /// <summary>
   /// Filter for listing stacks.
   /// </summary>
+  /// <remarks>
+  /// The Kubernetes-orchestrator fields (<see cref="Orchestrator"/>, <see cref="Namespace"/>,
+  /// <see cref="AllNamespaces"/>, <see cref="KubeConfig"/>) are not applied on modern Docker —
+  /// the CLI removed those flags when built-in Kubernetes stack support was dropped (20.10+).
+  /// They are retained for backward compatibility and ignored.
+  /// </remarks>
   public class StackListFilter
   {
     /// <summary>Orchestrator to filter by (swarm, kubernetes, all).</summary>
@@ -175,6 +181,12 @@ namespace FluentDocker.Drivers
   /// <summary>
   /// Filter for listing stack tasks.
   /// </summary>
+  /// <remarks>
+  /// The Kubernetes-orchestrator fields (<see cref="Orchestrator"/>, <see cref="Namespace"/>,
+  /// <see cref="KubeConfig"/>) are not applied on modern Docker — the CLI removed those flags
+  /// when built-in Kubernetes stack support was dropped (20.10+). They are retained for
+  /// backward compatibility and ignored.
+  /// </remarks>
   public class StackTaskFilter
   {
     /// <summary>Filter by task ID.</summary>
@@ -214,6 +226,12 @@ namespace FluentDocker.Drivers
   /// <summary>
   /// Filter for listing stack services.
   /// </summary>
+  /// <remarks>
+  /// The Kubernetes-orchestrator fields (<see cref="Orchestrator"/>, <see cref="Namespace"/>,
+  /// <see cref="KubeConfig"/>) are not applied on modern Docker — the CLI removed those flags
+  /// when built-in Kubernetes stack support was dropped (20.10+). They are retained for
+  /// backward compatibility and ignored.
+  /// </remarks>
   public class StackServiceFilter
   {
     /// <summary>Filter by service ID.</summary>

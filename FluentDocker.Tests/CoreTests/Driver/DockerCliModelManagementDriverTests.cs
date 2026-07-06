@@ -43,6 +43,9 @@ namespace FluentDocker.Tests.CoreTests.Driver
         return Task.FromResult(result);
       }
 
+      protected override Task<SimpleCommandResult> RunUnboundedAsync(DriverContext context, string arguments, CancellationToken cancellationToken) =>
+          RunAsync(context, arguments, cancellationToken);
+
       protected override IAsyncEnumerable<string> RunStreamingAsync(DriverContext context, string arguments, CancellationToken cancellationToken)
       {
         Contexts.Add(context);
