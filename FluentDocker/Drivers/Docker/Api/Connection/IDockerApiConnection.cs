@@ -30,6 +30,17 @@ namespace FluentDocker.Drivers.Docker.Api.Connection
     Task<HttpResponseMessage> PostAsync(string path, HttpContent content = null, CancellationToken ct = default);
 
     /// <summary>
+    /// Sends a POST request with HTTP headers to the Docker API. Implementations that carry
+    /// request headers (e.g. <c>X-Registry-Auth</c>) must override this; the default throws
+    /// rather than silently dropping the headers.
+    /// </summary>
+    Task<HttpResponseMessage> PostAsync(
+        string path, HttpContent content,
+        IReadOnlyDictionary<string, string> headers, CancellationToken ct = default) =>
+        throw new NotSupportedException(
+            "POST with headers requires a connection that overrides this method.");
+
+    /// <summary>
     /// Sends a PUT request to the Docker API.
     /// </summary>
     Task<HttpResponseMessage> PutAsync(string path, HttpContent content, CancellationToken ct = default);
@@ -43,12 +54,20 @@ namespace FluentDocker.Drivers.Docker.Api.Connection
     /// Sends a GET request and returns the response body as a stream.
     /// Uses ResponseHeadersRead for efficient streaming of large responses.
     /// </summary>
+    /// <remarks>
+    /// Header arrival (time-to-first-byte) is bounded by the connection timeout; the returned
+    /// body stream is not request-timeout bounded because Docker logs/build streams can be long-lived.
+    /// </remarks>
     Task<Stream> GetStreamAsync(string path, CancellationToken ct = default);
 
     /// <summary>
     /// Sends a POST request and returns the response body as a stream.
     /// Used for streaming build output, pull progress, etc.
     /// </summary>
+    /// <remarks>
+    /// Header arrival (time-to-first-byte) is bounded by the connection timeout; the returned
+    /// body stream is not request-timeout bounded because Docker logs/build streams can be long-lived.
+    /// </remarks>
     Task<Stream> PostStreamAsync(string path, HttpContent content = null, CancellationToken ct = default);
 
     /// <summary>

@@ -55,7 +55,15 @@ namespace FluentDocker.Drivers
     /// <param name="serviceId">Service ID or name</param>
     /// <param name="config">Logs configuration</param>
     /// <param name="cancellationToken">Cancellation token</param>
-    /// <returns>Service logs</returns>
+    /// <returns>
+    /// Service logs, bounded to <see cref="FluentDocker.Common.CliOutputTruncation.DefaultTailChars"/>
+    /// characters with a truncation marker when output is larger. Docker API rejects
+    /// <see cref="ServiceLogsConfig.Follow"/> for this buffered call; use streaming APIs for
+    /// indefinite logs.
+    /// </returns>
+    /// <exception cref="OperationCanceledException">
+    /// Thrown when <paramref name="cancellationToken"/> is canceled by the caller.
+    /// </exception>
     Task<CommandResponse<string>> GetLogsAsync(
         DriverContext context,
         string serviceId,

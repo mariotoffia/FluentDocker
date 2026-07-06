@@ -72,6 +72,8 @@ namespace FluentDocker.Drivers.Docker.Api
             bool.TryParse(allowMismatch, out var parsedAllowMismatch) &&
             parsedAllowMismatch,
       };
+      if (_connection != null)
+        await _connection.DisposeAsync().ConfigureAwait(false);
       _connection = new DockerApiConnection(connectionConfig, context.LoggerFactory);
       cancellationToken.ThrowIfCancellationRequested();
 

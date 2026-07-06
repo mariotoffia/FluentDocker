@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Net;
 using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
@@ -197,10 +198,10 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
     }
 
     [Fact]
-    public async Task GetJson_TaskCanceledWithoutCallerCancel_MapsToServiceUnavailable()
+    public async Task GetJson_TaskCanceledWithoutCallerCancel_MapsToTimeout()
     {
       // A TaskCanceledException with an UN-cancelled caller token represents an internal
-      // HttpClient timeout, which should still map to a connection failure (503), not throw.
+      // HttpClient timeout, not a daemon connection failure.
       var conn = new OperationThrowingConnection(
           new TaskCanceledException("timed out"));
       var driver = new TestableDriverBase(conn);
@@ -210,7 +211,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
           "/info", CancellationToken.None);
 
       Assert.False(result.Success);
-      Assert.Equal(503, result.StatusCode);
+      Assert.Equal(408, result.StatusCode);
     }
 
     #endregion
@@ -234,6 +235,35 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
 
     #endregion
 
+    #region ClassifyStreamException - streaming transport classification
+
+    [Fact]
+    public void ClassifyStreamException_ConnectionRefused_MapsToConnectionFailed()
+    {
+      var driver = CreateDriver();
+      Assert.Equal(ErrorCodes.Api.ConnectionFailed,
+          driver.TestClassifyStreamException(new HttpRequestException("connection refused")));
+    }
+
+    [Fact]
+    public void ClassifyStreamException_RealHttpStatus_MapsThatStatus()
+    {
+      var driver = CreateDriver();
+      Assert.Equal(ErrorCodes.Api.NotFound,
+          driver.TestClassifyStreamException(
+              new HttpRequestException("not found", null, HttpStatusCode.NotFound)));
+    }
+
+    [Fact]
+    public void ClassifyStreamException_InternalTimeout_MapsToTimeout()
+    {
+      var driver = CreateDriver();
+      Assert.Equal(ErrorCodes.General.Timeout,
+          driver.TestClassifyStreamException(new TaskCanceledException("timed out")));
+    }
+
+    #endregion
+
     /// <summary>Connection that throws a fixed exception from every request method.</summary>
     private sealed class OperationThrowingConnection(Exception exception) : IDockerApiConnection
     {
@@ -246,6 +276,11 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
 
       public Task<HttpResponseMessage> PostAsync(
           string path, HttpContent content, CancellationToken ct) => throw _exception;
+
+      public Task<HttpResponseMessage> PostAsync(
+          string path, HttpContent content,
+          System.Collections.Generic.IReadOnlyDictionary<string, string> headers,
+          CancellationToken ct) => throw _exception;
 
       public Task<HttpResponseMessage> PutAsync(
           string path, HttpContent content, CancellationToken ct) => throw _exception;
@@ -287,6 +322,9 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
       public Task<ApiResult<T>> TestGetJsonAsync<T>(
           string path, CancellationToken ct) =>
           GetJsonAsync<T>(path, ct);
+
+      public string TestClassifyStreamException(Exception ex) =>
+          ClassifyStreamException(ex);
     }
   }
 }

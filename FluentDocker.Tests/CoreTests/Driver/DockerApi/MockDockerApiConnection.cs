@@ -183,6 +183,16 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
       return Resolve("POST", path);
     }
 
+    public async Task<HttpResponseMessage> PostAsync(
+        string path, HttpContent? content,
+        IReadOnlyDictionary<string, string> headers, CancellationToken ct = default)
+    {
+      var (body, bodyBytes) = await ReadContentAsync(content, ct).ConfigureAwait(false);
+
+      Record("POST", path, body, headers, bodyBytes);
+      return Resolve("POST", path);
+    }
+
     public async Task<HttpResponseMessage> PutAsync(
         string path, HttpContent content, CancellationToken ct = default)
     {

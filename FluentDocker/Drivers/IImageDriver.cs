@@ -56,6 +56,16 @@ namespace FluentDocker.Drivers
     /// <param name="progress">Progress reporter</param>
     /// <param name="cancellationToken">Cancellation token</param>
     /// <returns>Build result with image ID</returns>
+    /// <remarks>
+    /// The Docker API driver uses the legacy Engine builder endpoint; BuildKit-only
+    /// Dockerfile syntax requires the Docker CLI driver.
+    /// Transport failures return <see cref="ErrorCodes.Api.ConnectionFailed"/>; request
+    /// timeouts return <see cref="ErrorCodes.General.Timeout"/>. Caller cancellation is
+    /// propagated as <see cref="OperationCanceledException"/>.
+    /// </remarks>
+    /// <exception cref="OperationCanceledException">
+    /// Thrown when <paramref name="cancellationToken"/> is canceled by the caller.
+    /// </exception>
     Task<CommandResponse<ImageBuildResult>> BuildAsync(
         DriverContext context,
         ImageBuildConfig config,
@@ -129,6 +139,13 @@ namespace FluentDocker.Drivers
     /// <param name="force">Force removal</param>
     /// <param name="noPrune">Don't remove untagged parents</param>
     /// <param name="cancellationToken">Cancellation token</param>
+    /// <remarks>
+    /// Transport failures return <see cref="ErrorCodes.Api.ConnectionFailed"/>; request
+    /// timeouts return <see cref="ErrorCodes.General.Timeout"/>.
+    /// </remarks>
+    /// <exception cref="OperationCanceledException">
+    /// Thrown when <paramref name="cancellationToken"/> is canceled by the caller.
+    /// </exception>
     Task<CommandResponse<ImageRemoveResult>> RemoveAsync(
         DriverContext context,
         string imageId,

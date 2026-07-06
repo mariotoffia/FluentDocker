@@ -131,7 +131,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
     }
 
     /// <summary>
-    /// Reads a raw (TTY) log stream as plain UTF-8 text, yielding each non-empty line as
+    /// Reads a raw (TTY) log stream as plain UTF-8 text, yielding each line as
     /// stdout. Raw streams carry no source byte, so stderr cannot be distinguished.
     /// </summary>
     private static async IAsyncEnumerable<LogEntry> ReadRawTextStreamAsync(
@@ -154,8 +154,6 @@ namespace FluentDocker.Drivers.Docker.Api.Components
 
         if (line == null)
           break;
-        if (line.Length == 0)
-          continue;
         yield return new LogEntry { Source = LogStreamSource.Stdout, Line = line };
         ct.ThrowIfCancellationRequested();
       }
@@ -207,8 +205,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
         foreach (var raw in text.Split('\n'))
         {
           var line = raw.EndsWith('\r') ? raw[..^1] : raw;
-          if (line.Length > 0)
-            entries.Add(new LogEntry { Source = source, Line = line });
+          entries.Add(new LogEntry { Source = source, Line = line });
         }
         return entries;
       }

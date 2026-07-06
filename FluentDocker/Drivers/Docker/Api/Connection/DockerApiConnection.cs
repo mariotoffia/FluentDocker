@@ -139,8 +139,8 @@ namespace FluentDocker.Drivers.Docker.Api.Connection
     {
       ThrowIfDisposed();
       var versionedPath = await GetVersionedPathAsync(path, ct).ConfigureAwait(false);
-      var response = await _longRunningHttpClient.GetAsync(
-          versionedPath, HttpCompletionOption.ResponseHeadersRead, ct).ConfigureAwait(false);
+      using var request = new HttpRequestMessage(HttpMethod.Get, versionedPath);
+      var response = await SendForHeadersAsync(request, ct).ConfigureAwait(false);
       await EnsureStreamSuccessAsync(response, ct).ConfigureAwait(false);
       var stream = await response.Content.ReadAsStreamAsync(ct).ConfigureAwait(false);
       return new ResponseOwningStream(stream, response);
@@ -158,14 +158,13 @@ namespace FluentDocker.Drivers.Docker.Api.Connection
     {
       ThrowIfDisposed();
       var versionedPath = await GetVersionedPathAsync(path, ct).ConfigureAwait(false);
-      var request = new HttpRequestMessage(HttpMethod.Post, versionedPath) { Content = content };
+      using var request = new HttpRequestMessage(HttpMethod.Post, versionedPath) { Content = content };
       if (headers != null)
       {
         foreach (var header in headers)
           request.Headers.TryAddWithoutValidation(header.Key, header.Value);
       }
-      var response = await _longRunningHttpClient.SendAsync(
-          request, HttpCompletionOption.ResponseHeadersRead, ct).ConfigureAwait(false);
+      var response = await SendForHeadersAsync(request, ct).ConfigureAwait(false);
       await EnsureStreamSuccessAsync(response, ct).ConfigureAwait(false);
       var stream = await response.Content.ReadAsStreamAsync(ct).ConfigureAwait(false);
       return new ResponseOwningStream(stream, response);
@@ -206,13 +205,15 @@ namespace FluentDocker.Drivers.Docker.Api.Connection
         // Body unavailable — fall back to the status line below.
       }
 
-      var status = (int)response.StatusCode;
+      var statusEnum = response.StatusCode;
+      var status = (int)statusEnum;
       var reason = response.ReasonPhrase;
       response.Dispose();
 
       var detail = ExtractDockerMessage(body)
           ?? (string.IsNullOrWhiteSpace(body) ? reason : body);
-      throw new HttpRequestException($"Docker API {status}: {detail}");
+      throw new HttpRequestException(
+          $"Docker API {status}: {detail}", null, statusEnum);
     }
 
     private static string ExtractDockerMessage(string body)
@@ -404,7 +405,7 @@ namespace FluentDocker.Drivers.Docker.Api.Connection
     private static (SocketsHttpHandler, string) CreateUnixSocketHandler(
         Uri uri, DockerApiConnectionConfig config)
     {
-      var socketPath = uri.AbsolutePath;
+      var socketPath = Uri.UnescapeDataString(uri.AbsolutePath);
       var handler = new SocketsHttpHandler
       {
         ConnectCallback = async (context, ct) =>

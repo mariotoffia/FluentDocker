@@ -22,7 +22,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
     #region A2 - Stream-open failure and missing success evidence surface as Fail
 
     [Fact]
-    public async Task BuildAsync_StreamOpenThrows_ReturnsBuildFailed()
+    public async Task BuildAsync_StreamOpenTransportFailure_ReturnsConnectionFailed()
     {
       var dir = Directory.CreateDirectory(
           Path.Combine(Path.GetTempPath(), "fd-build-" + Guid.NewGuid().ToString("N")));
@@ -36,8 +36,10 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
         var config = new ImageBuildConfig { BuildContext = dir.FullName };
         var result = await driver.BuildAsync(Ctx, config, null!, TestContext.Current.CancellationToken);
 
+        // A daemon-down transport failure is transient: it must surface as ConnectionFailed
+        // (per the BuildAsync contract) so callers can retry, not opaque BuildFailed.
         Assert.False(result.Success);
-        Assert.Equal(ErrorCodes.Image.BuildFailed, result.ErrorCode);
+        Assert.Equal(ErrorCodes.Api.ConnectionFailed, result.ErrorCode);
         Assert.Contains("daemon gone", result.Error);
       }
       finally

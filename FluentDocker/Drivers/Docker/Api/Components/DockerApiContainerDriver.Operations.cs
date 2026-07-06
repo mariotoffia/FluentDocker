@@ -44,9 +44,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       try
       {
         using var stream = await GetRawStreamAsync(path, cancellationToken).ConfigureAwait(false);
-        using var ms = new MemoryStream();
-        await stream.CopyToAsync(ms, cancellationToken).ConfigureAwait(false);
-        var logs = StripDockerStreamHeaders(ms.GetBuffer().AsSpan(0, (int)ms.Length));
+        var logs = await ReadDockerLogTailAsync(stream, cancellationToken).ConfigureAwait(false);
         return CommandResponse<string>.Ok(logs);
       }
       catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
@@ -153,6 +151,18 @@ namespace FluentDocker.Drivers.Docker.Api.Components
         DriverContext context, string containerId, ExecConfig config,
         CancellationToken cancellationToken = default)
     {
+      if (config == null)
+        return CommandResponse<ExecResult>.Fail(
+            "ExecConfig is required",
+            ErrorCodes.Container.ExecFailed,
+            CreateErrorContext($"POST /containers/{containerId}/exec", 0));
+
+      if (config.Command == null || config.Command.Length == 0)
+        return CommandResponse<ExecResult>.Fail(
+            "ExecConfig.Command is required",
+            ErrorCodes.Container.ExecFailed,
+            CreateErrorContext($"POST /containers/{containerId}/exec", 0));
+
       if (config?.Interactive == true)
         return CommandResponse<ExecResult>.Fail(
             "interactive stdin is not supported by the Docker API driver",
@@ -241,7 +251,17 @@ namespace FluentDocker.Drivers.Docker.Api.Components
                 inspectResult.StatusCode, inspectResult.ResponseBody),
             inspectResult.StatusCode);
 
-      var exitCode = inspectResult.Data?.ExitCode ?? (config.Detach ? 0 : -1);
+      // A detached exec (docker exec -d) is fire-and-forget: the process is expected to be
+      // still Running at inspect, so we do not wait for an exit code — matching the CLI.
+      // ponytail: single inspect (no poll); if an attached exec is ever observed reporting
+      // Running=true the instant its streams close, add a short bounded re-inspect here.
+      if (!config.Detach && (inspectResult.Data?.Running == true || inspectResult.Data?.ExitCode == null))
+        return CommandResponse<ExecResult>.Fail(
+            "Exec exit code is not available yet",
+            ErrorCodes.Container.ExecFailed,
+            CreateErrorContext($"GET /exec/{execId}/json", 0));
+
+      var exitCode = inspectResult.Data?.ExitCode ?? 0;
 
       return CommandResponse<ExecResult>.Ok(new ExecResult
       {
@@ -349,6 +369,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
         DriverContext context, string containerId, string outputPath,
         CancellationToken cancellationToken = default)
     {
+      var partialCreated = false;
       try
       {
         var apiPath = $"/containers/{Uri.EscapeDataString(containerId)}/export";
@@ -358,6 +379,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
           Directory.CreateDirectory(outputDir);
         await using var fileStream = new FileStream(
             outputPath, FileMode.Create, FileAccess.Write, FileShare.None);
+        partialCreated = true;
         await stream.CopyToAsync(fileStream, cancellationToken).ConfigureAwait(false);
         return CommandResponse<Unit>.Ok(Unit.Default);
       }
@@ -367,10 +389,28 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       }
       catch (Exception ex)
       {
+        if (partialCreated)
+          TryDelete(outputPath);
+        var statusCode = ex is HttpRequestException { StatusCode: not null } httpEx
+            ? (int)httpEx.StatusCode.Value
+            : 0;
         return CommandResponse<Unit>.Fail(
             $"Failed to export container '{containerId}': {ex.Message}",
             ErrorCodes.Container.ExportFailed,
-            CreateErrorContext($"GET /containers/{containerId}/export", 0));
+            CreateErrorContext($"GET /containers/{containerId}/export", statusCode),
+            statusCode);
+      }
+    }
+
+    private static void TryDelete(string path)
+    {
+      try
+      {
+        if (File.Exists(path))
+          File.Delete(path);
+      }
+      catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+      {
       }
     }
 

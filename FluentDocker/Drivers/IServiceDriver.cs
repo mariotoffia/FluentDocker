@@ -24,6 +24,14 @@ namespace FluentDocker.Drivers
     /// <param name="config">Service configuration</param>
     /// <param name="cancellationToken">Cancellation token</param>
     /// <returns>Service create result</returns>
+    /// <remarks>
+    /// Docker API sends registry credentials from the current auth cache as
+    /// <c>X-Registry-Auth</c> when available. Transport failures return
+    /// <see cref="ErrorCodes.Api.ConnectionFailed"/>.
+    /// </remarks>
+    /// <exception cref="OperationCanceledException">
+    /// Thrown when <paramref name="cancellationToken"/> is canceled by the caller.
+    /// </exception>
     Task<CommandResponse<ServiceCreateResult>> CreateAsync(
         DriverContext context,
         ServiceCreateConfig config,
@@ -47,6 +55,14 @@ namespace FluentDocker.Drivers
     /// <param name="serviceId">Service ID or name</param>
     /// <param name="config">Update configuration</param>
     /// <param name="cancellationToken">Cancellation token</param>
+    /// <remarks>
+    /// Docker API sends registry credentials from the current auth cache as
+    /// <c>X-Registry-Auth</c> when a cached credential matches the image's registry.
+    /// Transport failures return <see cref="ErrorCodes.Api.ConnectionFailed"/>.
+    /// </remarks>
+    /// <exception cref="OperationCanceledException">
+    /// Thrown when <paramref name="cancellationToken"/> is canceled by the caller.
+    /// </exception>
     Task<CommandResponse<Unit>> UpdateAsync(
         DriverContext context,
         string serviceId,

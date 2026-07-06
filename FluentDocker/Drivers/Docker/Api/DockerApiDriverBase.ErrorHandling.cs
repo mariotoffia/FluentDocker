@@ -37,6 +37,8 @@ namespace FluentDocker.Drivers.Docker.Api
     {
       return statusCode switch
       {
+        408 => ErrorCodes.General.Timeout,
+        599 => ErrorCodes.Api.ConnectionFailed,
         400 => ErrorCodes.Api.BadRequest,
         401 => ErrorCodes.Api.Unauthorized,
         404 => ErrorCodes.Api.NotFound,
@@ -44,6 +46,46 @@ namespace FluentDocker.Drivers.Docker.Api
         >= 500 => ErrorCodes.Api.ServerError,
         _ => ErrorCodes.Api.BadRequest
       };
+    }
+
+    protected ApiResult<T> TransportFailure<T>(Exception ex)
+    {
+      var (statusCode, message) = DescribeTransportFailure(ex);
+      return ApiResult<T>.Failure(statusCode, message);
+    }
+
+    protected ApiResult TransportFailure(Exception ex)
+    {
+      var (statusCode, message) = DescribeTransportFailure(ex);
+      return ApiResult.Failure(statusCode, message);
+    }
+
+    // Classifies a pre-response transport exception into a synthetic HTTP status + message.
+    // 408 (an internal HttpClient.Timeout — the caller's token did not fire) maps to
+    // General.Timeout; 599 (daemon never reached) maps to Api.ConnectionFailed — both via
+    // MapHttpErrorCode — so a daemon-down outage is distinguishable from a genuine daemon 5xx.
+    protected (int StatusCode, string Message) DescribeTransportFailure(Exception ex)
+    {
+      if (ex is TaskCanceledException)
+      {
+        var timeout = Context?.RequestTimeout ?? TimeSpan.FromMinutes(5);
+        return (408, $"Docker API request timed out after {timeout}: {ex.Message}");
+      }
+
+      return (599, $"Cannot connect to Docker daemon: {ex.Message}");
+    }
+
+    // Classifies a streaming open/read exception into an error code. A real HTTP status
+    // (e.g. 404 from EnsureStreamSuccessAsync) maps directly; a pre-response transport
+    // failure is described (599 connect / 408 timeout) so daemon-down streams surface as
+    // Api.ConnectionFailed uniformly with the buffered paths.
+    protected string ClassifyStreamException(Exception ex)
+    {
+      if (ex is HttpRequestException { StatusCode: not null } http)
+        return MapHttpErrorCode((int)http.StatusCode.Value);
+
+      var (statusCode, _) = DescribeTransportFailure(ex);
+      return MapHttpErrorCode(statusCode);
     }
 
     #endregion

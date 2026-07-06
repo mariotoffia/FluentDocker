@@ -474,7 +474,12 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       if (systemDelta <= 0 || cpuDelta <= 0)
         return 0.0;
 
-      var onlineCpus = cpuStats.GetInt32OrDefault("online_cpus", 1);
+      var onlineCpus = cpuStats.GetInt32OrDefault("online_cpus");
+      if (onlineCpus <= 0)
+      {
+        var perCpu = cpuUsage?.Prop("percpu_usage");
+        onlineCpus = perCpu?.ValueKind == JsonValueKind.Array ? perCpu.Value.GetArrayLength() : 1;
+      }
       return (double)cpuDelta / systemDelta * onlineCpus * 100.0;
     }
 

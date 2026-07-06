@@ -76,7 +76,10 @@ namespace FluentDocker.Drivers
     /// Streams container resource statistics.
     /// </summary>
     /// <param name="context">Driver context</param>
-    /// <param name="containerId">Container ID or name (null for all containers)</param>
+    /// <param name="containerId">
+    /// Container ID or name. Docker API requires a value and throws
+    /// <see cref="ArgumentException"/> at the call site when it is null or blank.
+    /// </param>
     /// <param name="config">Stream configuration</param>
     /// <param name="cancellationToken">Cancellation token</param>
     /// <returns>Async enumerable of stats</returns>
@@ -93,7 +96,14 @@ namespace FluentDocker.Drivers
     /// <param name="containerId">Container ID or name</param>
     /// <param name="config">Attach configuration</param>
     /// <param name="cancellationToken">Cancellation token</param>
-    /// <returns>Attach result with streams</returns>
+    /// <returns>
+    /// Attach result with streams. Docker API returns the raw attach stream; when TTY is
+    /// disabled, <see cref="AttachResult.OutputStream"/> may contain Docker multiplexed frames
+    /// and <see cref="AttachResult.ErrorStream"/> is null.
+    /// </returns>
+    /// <exception cref="OperationCanceledException">
+    /// Thrown when <paramref name="cancellationToken"/> is canceled by the caller.
+    /// </exception>
     Task<CommandResponse<AttachResult>> AttachAsync(
         DriverContext context,
         string containerId,

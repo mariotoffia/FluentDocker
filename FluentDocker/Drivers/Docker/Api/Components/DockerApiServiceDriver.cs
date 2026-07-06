@@ -25,10 +25,14 @@ namespace FluentDocker.Drivers.Docker.Api.Components
         CancellationToken cancellationToken = default)
     {
       var body = BuildServiceSpec(config);
-      var result = await PostJsonElementAsync("/services/create", body, cancellationToken).ConfigureAwait(false);
+      var result = await PostJsonElementAsync(
+          "/services/create", body, DockerApiRegistryAuth.HeaderFor(Connection, config.Image),
+          cancellationToken).ConfigureAwait(false);
       if (!result.Success)
         return CommandResponse<ServiceCreateResult>.Fail(result.ErrorMessage,
-            ErrorCodes.Service.CreateFailed,
+            result.StatusCode is 599 or 408
+                ? MapHttpErrorCode(result.StatusCode)
+                : ErrorCodes.Service.CreateFailed,
             CreateErrorContext("POST /services/create", result.StatusCode, result.ResponseBody),
             result.StatusCode);
 
@@ -72,12 +76,15 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       var body = BuildUpdateSpec(inspectResult.Data, config);
       var escapedId = Uri.EscapeDataString(serviceId);
 
+      var image = config.Image ?? inspectResult.Data.Image;
       var result = await PostAsync(
           $"/services/{escapedId}/update?version={Uri.EscapeDataString(version.ToString(CultureInfo.InvariantCulture))}",
-          body, cancellationToken).ConfigureAwait(false);
+          body, DockerApiRegistryAuth.HeaderFor(Connection, image), cancellationToken).ConfigureAwait(false);
       if (!result.Success)
         return CommandResponse<Unit>.Fail(result.ErrorMessage,
-            ErrorCodes.Service.UpdateFailed,
+            result.StatusCode is 599 or 408
+                ? MapHttpErrorCode(result.StatusCode)
+                : ErrorCodes.Service.UpdateFailed,
             CreateErrorContext($"POST /services/{serviceId}/update", result.StatusCode, result.ResponseBody),
             result.StatusCode);
 
@@ -181,6 +188,12 @@ namespace FluentDocker.Drivers.Docker.Api.Components
         CancellationToken cancellationToken = default)
     {
       config ??= new ServiceLogsConfig();
+      if (config.Follow)
+        return CommandResponse<string>.Fail(
+            "GetLogsAsync does not support follow=true because Docker API service logs can stream indefinitely.",
+            ErrorCodes.Service.LogsFailed,
+            CreateErrorContext($"GET /services/{serviceId}/logs", 0));
+
       var path = $"/services/{Uri.EscapeDataString(serviceId)}/logs?stdout=true&stderr=true";
       if (config.Tail.HasValue)
         path += $"&tail={config.Tail.Value}";
@@ -192,9 +205,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       try
       {
         using var stream = await GetRawStreamAsync(path, cancellationToken).ConfigureAwait(false);
-        using var ms = new MemoryStream();
-        await stream.CopyToAsync(ms, cancellationToken).ConfigureAwait(false);
-        var logs = StripDockerStreamHeaders(ms.ToArray());
+        var logs = await ReadDockerLogTailAsync(stream, cancellationToken).ConfigureAwait(false);
         return CommandResponse<string>.Ok(logs);
       }
       catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)

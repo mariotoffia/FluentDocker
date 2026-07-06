@@ -66,6 +66,10 @@ namespace FluentDocker.Drivers
     /// <summary>
     /// Prunes unused resources (containers, networks, images, volumes).
     /// </summary>
+    /// <remarks>
+    /// On partial failure the call fails atomically — resources pruned before the failure
+    /// are not returned in <see cref="SystemPruneResult"/>.
+    /// </remarks>
     Task<CommandResponse<SystemPruneResult>> PruneAsync(
         DriverContext context,
         SystemPruneConfig config = null,

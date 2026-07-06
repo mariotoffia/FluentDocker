@@ -23,12 +23,18 @@ namespace FluentDocker.Drivers.Docker.Api
     public string ResponseBody { get; private init; }
 
     /// <summary>Creates a successful API result.</summary>
-    public static ApiResult<T> Ok(T data) =>
-        new() { Success = true, Data = data, StatusCode = 200 };
+    public static ApiResult<T> Ok(T data, int statusCode = 200) =>
+        new() { Success = true, Data = data, StatusCode = statusCode };
 
     /// <summary>Creates a failed API result.</summary>
     public static ApiResult<T> Failure(int statusCode, string error, string body = null) =>
-        new() { Success = false, StatusCode = statusCode, ErrorMessage = error, ResponseBody = body };
+        new()
+        {
+          Success = false,
+          StatusCode = statusCode,
+          ErrorMessage = error,
+          ResponseBody = body
+        };
   }
 #pragma warning restore CA1000
 
@@ -50,11 +56,17 @@ namespace FluentDocker.Drivers.Docker.Api
     public string ResponseBody { get; private init; }
 
     /// <summary>Creates a successful API result.</summary>
-    public static ApiResult Ok() =>
-        new() { Success = true, StatusCode = 200 };
+    public static ApiResult Ok(int statusCode = 200) =>
+        new() { Success = true, StatusCode = statusCode };
 
     /// <summary>Creates a failed API result.</summary>
     public static ApiResult Failure(int statusCode, string error, string body = null) =>
-        new() { Success = false, StatusCode = statusCode, ErrorMessage = error, ResponseBody = body };
+        new()
+        {
+          Success = false,
+          StatusCode = statusCode,
+          ErrorMessage = error,
+          ResponseBody = body
+        };
   }
 }

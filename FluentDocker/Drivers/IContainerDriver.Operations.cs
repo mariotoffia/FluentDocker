@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
@@ -35,19 +36,22 @@ namespace FluentDocker.Drivers
     /// <param name="context">Driver context</param>
     /// <param name="containerId">Container ID or name</param>
     /// <param name="follow">
-    /// Follow log output. Docker CLI buffered logs reject this; use
+    /// Follow log output. Docker CLI and Docker API buffered logs reject this; use
     /// <see cref="IStreamDriver.StreamLogsAsync"/> for indefinite streams.
     /// </param>
     /// <param name="tail">Number of lines to show from end (null = all)</param>
     /// <param name="timestamps">Show timestamps</param>
     /// <param name="cancellationToken">Cancellation token</param>
     /// <returns>
-    /// Container logs. Docker CLI does not fail when logs are chatty; it returns the last
+    /// Container logs. Docker CLI and Docker API return the last
     /// <see cref="FluentDocker.Common.CliOutputTruncation.DefaultTailChars"/> characters with
     /// <see cref="FluentDocker.Common.CliOutputTruncation.Marker(int)"/> when truncation occurs.
     /// Use <paramref name="tail"/> or <see cref="IStreamDriver.StreamLogsAsync"/> for full
     /// diagnostics. Other buffered Docker CLI calls still fail fast at their memory cap.
     /// </returns>
+    /// <exception cref="OperationCanceledException">
+    /// Thrown when <paramref name="cancellationToken"/> is canceled by the caller.
+    /// </exception>
     Task<Model.Drivers.CommandResponse<string>> GetLogsAsync(
         DriverContext context,
         string containerId,
@@ -110,6 +114,10 @@ namespace FluentDocker.Drivers
     /// <see cref="FluentDocker.Common.CliOutputTruncation.Marker(int)"/> when truncation occurs;
     /// this tail policy is deliberate for potentially unbounded in-container output.
     /// </returns>
+    /// <remarks>Unknown exit code after exec start is returned as <see cref="ErrorCodes.Container.ExecFailed"/>.</remarks>
+    /// <exception cref="OperationCanceledException">
+    /// Thrown when <paramref name="cancellationToken"/> is canceled by the caller.
+    /// </exception>
     Task<Model.Drivers.CommandResponse<ExecResult>> ExecAsync(
         DriverContext context,
         string containerId,
@@ -161,6 +169,13 @@ namespace FluentDocker.Drivers
     /// <param name="containerId">Container ID or name</param>
     /// <param name="outputPath">Output file path</param>
     /// <param name="cancellationToken">Cancellation token</param>
+    /// <remarks>
+    /// Docker API removes a partial output file when the export stream fails; a partial file
+    /// may remain if the call is canceled.
+    /// </remarks>
+    /// <exception cref="OperationCanceledException">
+    /// Thrown when <paramref name="cancellationToken"/> is canceled by the caller.
+    /// </exception>
     Task<Model.Drivers.CommandResponse<Unit>> ExportAsync(
         DriverContext context,
         string containerId,

@@ -42,6 +42,17 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       try
       {
         var contextRoot = Path.GetFullPath(contextPath);
+        foreach (var dir in EnumerateContextDirectoriesSafe(contextRoot))
+        {
+          var relativePath = Path.GetRelativePath(contextRoot, dir.FullName)
+              .Replace('\\', '/');
+          if (filter.IsIgnored(relativePath))
+            continue;
+          await DockerApiTarWriter.WriteDirectoryAsync(fileStream, relativePath,
+              dir.LastWriteTimeUtc, DockerApiTarWriter.DirectoryModeFor(dir.FullName),
+              cancellationToken).ConfigureAwait(false);
+        }
+
         foreach (var file in EnumerateContextFilesSafe(contextRoot))
         {
           var relativePath = Path.GetRelativePath(contextRoot, file.FullName)
@@ -164,6 +175,24 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       }
     }
 
+    private static IEnumerable<DirectoryInfo> EnumerateContextDirectoriesSafe(string contextRoot)
+    {
+      var stack = new Stack<DirectoryInfo>();
+      stack.Push(new DirectoryInfo(contextRoot));
+      while (stack.Count > 0)
+      {
+        foreach (var entry in stack.Pop().EnumerateFileSystemInfos())
+        {
+          var isSymlink = (entry.Attributes & FileAttributes.ReparsePoint) != 0;
+          if (entry is DirectoryInfo dir && !isSymlink)
+          {
+            yield return dir;
+            stack.Push(dir);
+          }
+        }
+      }
+    }
+
     private static string? GetContainedOpenedPath(FileStream stream, string path, string contextRoot)
     {
       try
@@ -237,6 +266,8 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       if (OperatingSystem.IsLinux())
         return RealPath($"/proc/self/fd/{stream.SafeFileHandle.DangerousGetHandle().ToInt64()}");
 
+      // ponytail: macOS lacks Linux's /proc/self/fd path; this is best-effort after open.
+      // F_GETPATH would close the symlink-swap race if hostile local build contexts matter.
       return RealPath(fallbackPath);
     }
 
@@ -256,9 +287,8 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       return buffer;
     }
 
-    // realpath(3) with a NULL buffer allocates the result (POSIX.1-2008; glibc and macOS
-    // libc both support it). The returned buffer must be released with free(3). The path is
-    // marshalled as a UTF-8 byte[] rather than a string so no ANSI string marshaling is used.
+    // realpath(3) writes into the caller-owned buffer. The path is marshalled as a UTF-8
+    // byte[] rather than a string so no ANSI string marshaling is used.
     [DllImport("libc", EntryPoint = "realpath")]
     private static extern IntPtr Realpath(byte[] path, IntPtr resolved);
 

@@ -269,9 +269,13 @@ namespace FluentDocker.Drivers.Docker.Api.Components
 
     /// <summary>
     /// Builds an image from a Dockerfile via POST /build.
-    /// Creates a tar archive from the build context directory using SharpCompress,
+    /// Creates a tar archive from the build context directory,
     /// streams NDJSON build output, and extracts the image ID from the aux message.
     /// </summary>
+    /// <remarks>
+    /// The Docker API driver uses the Engine's legacy builder endpoint. BuildKit-only
+    /// Dockerfile features such as <c>RUN --mount</c> and heredocs require the CLI driver.
+    /// </remarks>
     public partial async Task<CommandResponse<ImageBuildResult>> BuildAsync(
         DriverContext context, ImageBuildConfig config,
         IProgress<ImageBuildProgress> progress,
@@ -357,9 +361,10 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       }
       catch (DriverException ex)
       {
-        // The NDJSON reader throws DriverException on stream open/read failure.
-        return CommandResponse<ImageBuildResult>.Fail(ex.Message,
-            ErrorCodes.Image.BuildFailed,
+        // The NDJSON reader classifies stream open/read transport failures; preserve a
+        // transient code (connection/timeout) so callers can retry, else it is a build error.
+        var code = ErrorCodes.IsTransientCode(ex.ErrorCode) ? ex.ErrorCode : ErrorCodes.Image.BuildFailed;
+        return CommandResponse<ImageBuildResult>.Fail(ex.Message, code,
             CreateErrorContext("POST /build", 0));
       }
       catch (Exception ex) when (ex is not OperationCanceledException)

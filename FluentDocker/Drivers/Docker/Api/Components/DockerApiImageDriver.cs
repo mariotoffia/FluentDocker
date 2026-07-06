@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Net;
 using System.Net.Http;
 using System.Text.Json;
 using System.Threading;
@@ -11,7 +10,6 @@ using FluentDocker.Common;
 using FluentDocker.Drivers.Docker.Api.Connection;
 using FluentDocker.Model.Drivers;
 using Image = FluentDocker.Drivers.Image;
-
 namespace FluentDocker.Drivers.Docker.Api.Components
 {
   /// <summary>
@@ -21,9 +19,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
   public partial class DockerApiImageDriver : DockerApiDriverBase, IImageDriver
   {
     public DockerApiImageDriver(IDockerApiConnection connection) : base(connection) { }
-
     #region List/Inspect Operations
-
     /// <summary>Lists images via GET /images/json.</summary>
     public async Task<CommandResponse<IList<Image>>> ListAsync(
         DriverContext context, ImageListFilter filter = null,
@@ -41,7 +37,6 @@ namespace FluentDocker.Drivers.Docker.Api.Components
           query.Add($"filters={Uri.EscapeDataString(json)}");
         }
       }
-
       var path = "/images/json";
       if (query.Count > 0)
         path += "?" + string.Join("&", query);
@@ -137,11 +132,12 @@ namespace FluentDocker.Drivers.Docker.Api.Components
           or System.Net.Sockets.SocketException ||
           ex is TaskCanceledException && !cancellationToken.IsCancellationRequested)
       {
+        var (statusCode, message) = DescribeTransportFailure(ex);
         return CommandResponse<ImageRemoveResult>.Fail(
-            $"Cannot connect to Docker daemon: {ex.Message}",
-            ErrorCodes.Api.ConnectionFailed,
-            CreateErrorContext($"DELETE /images/{imageId}", (int)HttpStatusCode.ServiceUnavailable),
-            (int)HttpStatusCode.ServiceUnavailable);
+            message,
+            MapHttpErrorCode(statusCode),
+            CreateErrorContext($"DELETE /images/{imageId}", statusCode),
+            statusCode);
       }
       using var responseToDispose = response;
       var body = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
@@ -240,10 +236,18 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       Stream stream;
       try
       { stream = await GetRawStreamAsync(path, cancellationToken).ConfigureAwait(false); }
+      catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+      {
+        throw;
+      }
       catch (Exception ex)
       {
+        var statusCode = ex is HttpRequestException { StatusCode: not null } httpEx
+            ? (int)httpEx.StatusCode.Value
+            : 0;
         return CommandResponse<Unit>.Fail($"Failed to save images: {ex.Message}",
-            ErrorCodes.Image.SaveFailed, CreateErrorContext("GET /images/get", 0));
+            ErrorCodes.Image.SaveFailed, CreateErrorContext("GET /images/get", statusCode),
+            statusCode);
       }
 
       try
@@ -253,8 +257,18 @@ namespace FluentDocker.Drivers.Docker.Api.Components
           await stream.CopyToAsync(fileStream, cancellationToken).ConfigureAwait(false);
         return CommandResponse<Unit>.Ok(Unit.Default);
       }
+      catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+      {
+        throw;
+      }
       catch (Exception ex)
       {
+        try
+        {
+          File.Delete(outputPath);
+        }
+        catch { /* best-effort cleanup of the partially written archive */ }
+
         return CommandResponse<Unit>.Fail($"Failed to write tar archive: {ex.Message}",
             ErrorCodes.Image.SaveFailed, CreateErrorContext("GET /images/get", 0));
       }

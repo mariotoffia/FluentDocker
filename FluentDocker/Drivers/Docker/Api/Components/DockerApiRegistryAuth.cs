@@ -71,7 +71,10 @@ namespace FluentDocker.Drivers.Docker.Api.Components
 
     private static string RegistryFromImage(string image)
     {
-      var first = image?.Split('/')[0];
+      var slash = image?.IndexOf('/') ?? -1;
+      if (slash < 0)
+        return DockerHubServer;
+      var first = image[..slash];
       return first != null &&
           (first.Contains('.') || first.Contains(':') || first == "localhost")
           ? first
@@ -88,7 +91,9 @@ namespace FluentDocker.Drivers.Docker.Api.Components
         value = value["https://".Length..];
       else if (value.StartsWith("http://", StringComparison.OrdinalIgnoreCase))
         value = value["http://".Length..];
-      return value.Equals("index.docker.io/v1", StringComparison.OrdinalIgnoreCase)
+      return value.Equals("index.docker.io/v1", StringComparison.OrdinalIgnoreCase) ||
+          value.Equals("index.docker.io", StringComparison.OrdinalIgnoreCase) ||
+          value.Equals("registry-1.docker.io", StringComparison.OrdinalIgnoreCase)
           ? "docker.io"
           : value.ToLowerInvariant();
     }

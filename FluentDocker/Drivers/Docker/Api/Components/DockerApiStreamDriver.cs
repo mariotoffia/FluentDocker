@@ -95,7 +95,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
         Logger.LogError(ex, "Docker log stream open failed");
         throw new DriverException(
             $"Failed to open Docker log stream for container '{containerId}': {ex.Message}",
-            ErrorCodes.Api.ServerError, ex);
+            ClassifyStreamException(ex), ex);
       }
 
       // Use try/finally to dispose the stream when the caller breaks out.
@@ -212,16 +212,23 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       }
     }
 
-    public async IAsyncEnumerable<ContainerStats> StreamStatsAsync(
+    public IAsyncEnumerable<ContainerStats> StreamStatsAsync(
         DriverContext context, string containerId = null,
         StreamStatsConfig config = null,
-        [EnumeratorCancellation] CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default)
     {
       // Docker Engine API requires a specific container ID for stats;
       // there is no all-container stats endpoint.
       if (string.IsNullOrWhiteSpace(containerId))
         throw new ArgumentException("Container ID is required for Docker API stats streaming.", nameof(containerId));
 
+      return StreamStatsCoreAsync(containerId, config, cancellationToken);
+    }
+
+    private async IAsyncEnumerable<ContainerStats> StreamStatsCoreAsync(
+        string containerId, StreamStatsConfig config,
+        [EnumeratorCancellation] CancellationToken cancellationToken)
+    {
       config ??= new StreamStatsConfig();
       var stream = config.Stream ? "true" : "false";
       var path = $"/containers/{Uri.EscapeDataString(containerId)}/stats?stream={stream}";
@@ -318,7 +325,12 @@ namespace FluentDocker.Drivers.Docker.Api.Components
         var systemDelta =
             cpuStats.Value.GetInt64OrDefault("system_cpu_usage") -
             preCpuStats.Value.GetInt64OrDefault("system_cpu_usage");
-        var numCpus = cpuStats.Value.GetInt32OrDefault("online_cpus", 1);
+        var numCpus = cpuStats.Value.GetInt32OrDefault("online_cpus");
+        if (numCpus <= 0)
+        {
+          var perCpu = cpuStats.Value.Prop("cpu_usage")?.Prop("percpu_usage");
+          numCpus = perCpu?.ValueKind == JsonValueKind.Array ? perCpu.Value.GetArrayLength() : 1;
+        }
 
         if (systemDelta > 0 && cpuDelta > 0)
           stats.CpuPercentage = (double)cpuDelta / systemDelta * numCpus * 100.0;

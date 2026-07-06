@@ -15,19 +15,21 @@ namespace FluentDocker.Drivers.Docker.Api.Components
     public static void WriteFile(
         Stream tar, string entryName, Stream content, DateTimeOffset modified, int mode)
     {
-      WriteHeaderWithLongName(tar, entryName, content.Length, modified, (byte)'0', mode);
-      content.CopyTo(tar);
-      Pad(tar, content.Length);
+      var length = content.Length;
+      WriteHeaderWithLongName(tar, entryName, length, modified, (byte)'0', mode);
+      CopyExactly(content, tar, length);
+      Pad(tar, length);
     }
 
     public static async Task WriteFileAsync(
         Stream tar, string entryName, Stream content, DateTimeOffset modified, int mode,
         CancellationToken cancellationToken)
     {
-      await WriteHeaderWithLongNameAsync(tar, entryName, content.Length, modified, (byte)'0',
+      var length = content.Length;
+      await WriteHeaderWithLongNameAsync(tar, entryName, length, modified, (byte)'0',
           mode, cancellationToken).ConfigureAwait(false);
-      await content.CopyToAsync(tar, cancellationToken).ConfigureAwait(false);
-      await PadAsync(tar, content.Length, cancellationToken).ConfigureAwait(false);
+      await CopyExactlyAsync(content, tar, length, cancellationToken).ConfigureAwait(false);
+      await PadAsync(tar, length, cancellationToken).ConfigureAwait(false);
     }
 
     public static void WriteDirectory(
@@ -97,6 +99,36 @@ namespace FluentDocker.Drivers.Docker.Api.Components
           ext.Equals(".exe", StringComparison.OrdinalIgnoreCase) ||
           ext.Equals(".cmd", StringComparison.OrdinalIgnoreCase) ||
           ext.Equals(".bat", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static void CopyExactly(Stream source, Stream destination, long count)
+    {
+      var buffer = new byte[81920];
+      while (count > 0)
+      {
+        var read = source.Read(buffer, 0, (int)Math.Min(buffer.Length, count));
+        if (read == 0)
+          throw new EndOfStreamException("File changed while writing Docker build context tar.");
+        destination.Write(buffer, 0, read);
+        count -= read;
+      }
+    }
+
+    private static async Task CopyExactlyAsync(
+        Stream source, Stream destination, long count, CancellationToken cancellationToken)
+    {
+      var buffer = new byte[81920];
+      while (count > 0)
+      {
+        var read = await source.ReadAsync(
+            buffer.AsMemory(0, (int)Math.Min(buffer.Length, count)), cancellationToken)
+            .ConfigureAwait(false);
+        if (read == 0)
+          throw new EndOfStreamException("File changed while writing Docker build context tar.");
+        await destination.WriteAsync(buffer.AsMemory(0, read), cancellationToken)
+            .ConfigureAwait(false);
+        count -= read;
+      }
     }
 
     private static void WriteHeader(

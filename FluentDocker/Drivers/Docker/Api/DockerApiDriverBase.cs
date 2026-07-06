@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Net;
 using System.Net.Http;
 using System.Net.Http.Json;
 using System.Runtime.CompilerServices;
@@ -57,8 +56,7 @@ namespace FluentDocker.Drivers.Docker.Api
       }
       catch (Exception ex) when (IsConnectionError(ex, ct))
       {
-        return ApiResult<T>.Failure((int)HttpStatusCode.ServiceUnavailable,
-            $"Cannot connect to Docker daemon: {ex.Message}");
+        return TransportFailure<T>(ex);
       }
     }
 
@@ -76,8 +74,7 @@ namespace FluentDocker.Drivers.Docker.Api
       }
       catch (Exception ex) when (IsConnectionError(ex, ct))
       {
-        return ApiResult<T>.Failure((int)HttpStatusCode.ServiceUnavailable,
-            $"Cannot connect to Docker daemon: {ex.Message}");
+        return TransportFailure<T>(ex);
       }
     }
 
@@ -96,8 +93,7 @@ namespace FluentDocker.Drivers.Docker.Api
       }
       catch (Exception ex) when (IsConnectionError(ex, ct))
       {
-        return ApiResult<T>.Failure((int)HttpStatusCode.ServiceUnavailable,
-            $"Cannot connect to Docker daemon: {ex.Message}");
+        return TransportFailure<T>(ex);
       }
     }
 
@@ -122,8 +118,7 @@ namespace FluentDocker.Drivers.Docker.Api
       }
       catch (Exception ex) when (IsConnectionError(ex, ct))
       {
-        return ApiResult<TResponse>.Failure((int)HttpStatusCode.ServiceUnavailable,
-            $"Cannot connect to Docker daemon: {ex.Message}");
+        return TransportFailure<TResponse>(ex);
       }
     }
 
@@ -141,8 +136,7 @@ namespace FluentDocker.Drivers.Docker.Api
       }
       catch (Exception ex) when (IsConnectionError(ex, ct))
       {
-        return ApiResult<T>.Failure((int)HttpStatusCode.ServiceUnavailable,
-            $"Cannot connect to Docker daemon: {ex.Message}");
+        return TransportFailure<T>(ex);
       }
     }
 
@@ -160,8 +154,7 @@ namespace FluentDocker.Drivers.Docker.Api
       }
       catch (Exception ex) when (IsConnectionError(ex, ct))
       {
-        return ApiResult.Failure((int)HttpStatusCode.ServiceUnavailable,
-            $"Cannot connect to Docker daemon: {ex.Message}");
+        return TransportFailure(ex);
       }
     }
 
@@ -174,8 +167,7 @@ namespace FluentDocker.Drivers.Docker.Api
       }
       catch (Exception ex) when (IsConnectionError(ex, ct))
       {
-        return ApiResult.Failure((int)HttpStatusCode.ServiceUnavailable,
-            $"Cannot connect to Docker daemon: {ex.Message}");
+        return TransportFailure(ex);
       }
     }
 
@@ -192,8 +184,7 @@ namespace FluentDocker.Drivers.Docker.Api
       }
       catch (Exception ex) when (IsConnectionError(ex, ct))
       {
-        return ApiResult.Failure((int)HttpStatusCode.ServiceUnavailable,
-            $"Cannot connect to Docker daemon: {ex.Message}");
+        return TransportFailure(ex);
       }
     }
 
@@ -207,8 +198,7 @@ namespace FluentDocker.Drivers.Docker.Api
       }
       catch (Exception ex) when (IsConnectionError(ex, ct))
       {
-        return ApiResult<JsonElement>.Failure((int)HttpStatusCode.ServiceUnavailable,
-            $"Cannot connect to Docker daemon: {ex.Message}");
+        return TransportFailure<JsonElement>(ex);
       }
     }
 
@@ -227,8 +217,7 @@ namespace FluentDocker.Drivers.Docker.Api
       }
       catch (Exception ex) when (IsConnectionError(ex, ct))
       {
-        return ApiResult<JsonElement>.Failure((int)HttpStatusCode.ServiceUnavailable,
-            $"Cannot connect to Docker daemon: {ex.Message}");
+        return TransportFailure<JsonElement>(ex);
       }
     }
 
@@ -254,7 +243,7 @@ namespace FluentDocker.Drivers.Docker.Api
         Logger.LogError(ex, "NDJSON stream open failed");
         throw new DriverException(
             $"Failed to open NDJSON stream for '{path}': {ex.Message}",
-            ErrorCodes.Api.ServerError, ex);
+            ClassifyStreamException(ex), ex);
       }
 
       // The await using owns stream cleanup; StreamReader is leaveOpen:true.
@@ -278,7 +267,7 @@ namespace FluentDocker.Drivers.Docker.Api
           Logger.LogDebug(ex, "NDJSON stream read failed");
           throw new DriverException(
               $"Failed to read NDJSON stream for '{path}': {ex.Message}",
-              ErrorCodes.Api.ServerError, ex);
+              ClassifyStreamException(ex), ex);
         }
 
         if (line == null)
@@ -307,7 +296,7 @@ namespace FluentDocker.Drivers.Docker.Api
         Logger.LogError(ex, "NDJSON POST stream open failed");
         throw new DriverException(
             $"Failed to open NDJSON POST stream for '{path}': {ex.Message}",
-            ErrorCodes.Api.ServerError, ex);
+            ClassifyStreamException(ex), ex);
       }
 
       await using var _ = stream.ConfigureAwait(false);
@@ -330,7 +319,7 @@ namespace FluentDocker.Drivers.Docker.Api
           Logger.LogDebug(ex, "NDJSON POST stream read failed");
           throw new DriverException(
               $"Failed to read NDJSON POST stream for '{path}': {ex.Message}",
-              ErrorCodes.Api.ServerError, ex);
+              ClassifyStreamException(ex), ex);
         }
 
         if (line == null)
@@ -364,7 +353,7 @@ namespace FluentDocker.Drivers.Docker.Api
         Logger.LogError(ex, "NDJSON stream open failed");
         throw new DriverException(
             $"Failed to open NDJSON stream for '{path}': {ex.Message}",
-            ErrorCodes.Api.ServerError, ex);
+            ClassifyStreamException(ex), ex);
       }
 
       await using var _ = stream.ConfigureAwait(false);
@@ -404,7 +393,7 @@ namespace FluentDocker.Drivers.Docker.Api
         Logger.LogError(ex, "NDJSON POST stream open failed");
         throw new DriverException(
             $"Failed to open NDJSON POST stream for '{path}': {ex.Message}",
-            ErrorCodes.Api.ServerError, ex);
+            ClassifyStreamException(ex), ex);
       }
 
       await using var __ = stream.ConfigureAwait(false);

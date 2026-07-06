@@ -30,7 +30,7 @@ namespace FluentDocker.Drivers.Docker.Api
         try
         {
           var data = JsonSerializer.Deserialize<T>(body, JsonHelper.CaseInsensitiveOptions);
-          return ApiResult<T>.Ok(data);
+          return ApiResult<T>.Ok(data, (int)response.StatusCode);
         }
         catch (JsonException ex)
         {
@@ -64,7 +64,7 @@ namespace FluentDocker.Drivers.Docker.Api
         {
           var data = await JsonSerializer.DeserializeAsync(stream, typeInfo, ct)
               .ConfigureAwait(false);
-          return ApiResult<T>.Ok(data);
+          return ApiResult<T>.Ok(data, (int)response.StatusCode);
         }
         catch (JsonException ex)
         {
@@ -103,7 +103,7 @@ namespace FluentDocker.Drivers.Docker.Api
         {
           using var doc = await JsonDocument.ParseAsync(stream, cancellationToken: ct)
               .ConfigureAwait(false);
-          return ApiResult<JsonElement>.Ok(doc.RootElement.Clone());
+          return ApiResult<JsonElement>.Ok(doc.RootElement.Clone(), (int)response.StatusCode);
         }
         catch (JsonException ex)
         {
@@ -128,7 +128,7 @@ namespace FluentDocker.Drivers.Docker.Api
     {
       using var responseToDispose = response;
       if (response.IsSuccessStatusCode || response.StatusCode == HttpStatusCode.NotModified)
-        return ApiResult.Ok();
+        return ApiResult.Ok((int)response.StatusCode);
 
       var body = await response.Content.ReadAsStringAsync(ct).ConfigureAwait(false);
       var errorMessage = ExtractErrorMessage(body) ??
