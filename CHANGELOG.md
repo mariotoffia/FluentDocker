@@ -22,6 +22,8 @@ Production-readiness remediation of the preview API surface. Recompile and revie
 - **Removed dead Model DTO/config APIs** — deleted unused create/config types (`ContainerCreateParams*`, `ServiceCreate`, `NetworkCreateParams`, `Model.Images.Image`, `NetworkConfiguration/NetworkRow`, `*BuilderConfig`, `CertificatePaths`, `ImageConfig`, `Ulimit*`).
 - **Model public-surface cleanup** — `HostIpEndpoint` is now a JSON DTO, the `EmbeddedUri.Host` alias was removed (use `Assembly`), and `HealthState` / `Orchestrator` enum ordering gained sentinel values.
 - **`KernelBuilder` is single-use** — a second `Build()` / `BuildAsync()` call now throws; create a new builder for another kernel.
+- **`IDriverRegistry.Unregister` / `UnregisterAsync` throw `DriverNotFoundException` on an unknown driver id** — previously a silent no-op. This matches `GetDriver`'s hard-error contract; guard idempotent teardown with `IsRegistered(id)` before unregistering.
+- **`CliPruneOutputParser` moved from namespace `FluentDocker.Drivers` to `FluentDocker.Drivers.Docker.Cli`** (source-breaking) — it is a Docker/Podman CLI adapter helper, not port-contract surface. Update `using`s; the shared byte parsing now lives in `CliByteParser`.
 - **Model Runner endpoint validation tightened** — `UnixSocket(path)` requires an explicit path, `WithEndpoint(...)` and `WithInferenceDriver(...)` are mutually exclusive, and model digest validation is stricter.
 - **Podman validation is no longer silent** — `UsePod(...)` now throws on non-Podman drivers, and leading-dash positional names are rejected.
 

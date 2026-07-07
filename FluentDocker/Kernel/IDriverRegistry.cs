@@ -21,6 +21,7 @@ namespace FluentDocker.Kernel
     /// <param name="driver">Driver instance</param>
     /// <param name="context">Driver context</param>
     /// <param name="cancellationToken">Cancellation token</param>
+    /// <remarks>On failure after acceptance begins, the registry disposes the supplied instance; do not reuse or re-dispose it.</remarks>
     Task RegisterAsync(string driverId, IDriver driver, DriverContext context, CancellationToken cancellationToken = default);
 
     /// <summary>
@@ -29,8 +30,9 @@ namespace FluentDocker.Kernel
     /// <param name="driverId">Driver identifier</param>
     /// <remarks>
     /// The registry owns registered driver lifetimes. If the removed driver was
-    /// the default, the default driver ID is cleared and no replacement is selected.
+    /// the default, the earliest-registered driver still present becomes the default (null if none remain).
     /// </remarks>
+    /// <exception cref="Common.DriverNotFoundException">If driver or driver pack not found.</exception>
     void Unregister(string driverId);
 
     /// <summary>
@@ -40,8 +42,9 @@ namespace FluentDocker.Kernel
     /// <param name="cancellationToken">Cancellation token</param>
     /// <remarks>
     /// The registry owns registered driver lifetimes. If the removed driver was
-    /// the default, the default driver ID is cleared and no replacement is selected.
+    /// the default, the earliest-registered driver still present becomes the default (null if none remain).
     /// </remarks>
+    /// <exception cref="Common.DriverNotFoundException">If driver or driver pack not found.</exception>
     Task UnregisterAsync(string driverId, CancellationToken cancellationToken = default);
 
     /// <summary>
@@ -71,6 +74,7 @@ namespace FluentDocker.Kernel
     /// <param name="driverPack">Driver pack instance</param>
     /// <param name="context">Driver context</param>
     /// <param name="cancellationToken">Cancellation token</param>
+    /// <remarks>On failure after acceptance begins, the registry disposes the supplied instance; do not reuse or re-dispose it.</remarks>
     Task RegisterDriverPackAsync(string driverId, IDriverPack driverPack, DriverContext context, CancellationToken cancellationToken = default);
 
     /// <summary>

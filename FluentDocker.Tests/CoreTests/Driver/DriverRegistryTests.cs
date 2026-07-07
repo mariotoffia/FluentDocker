@@ -84,6 +84,15 @@ namespace FluentDocker.Tests.CoreTests.Driver
     }
 
     [Fact]
+    public async Task UnregisterAsync_UnknownDriver_ThrowsDriverNotFoundException()
+    {
+      var registry = new DriverRegistry(NullLoggerFactory.Instance);
+
+      await Assert.ThrowsAsync<DriverNotFoundException>(() =>
+          registry.UnregisterAsync("missing", TestContext.Current.CancellationToken));
+    }
+
+    [Fact]
     public void GetDriver_NonExistentDriver_ThrowsException()
     {
       // Arrange
@@ -248,4 +257,3 @@ namespace FluentDocker.Tests.CoreTests.Driver
     }
   }
 }
-

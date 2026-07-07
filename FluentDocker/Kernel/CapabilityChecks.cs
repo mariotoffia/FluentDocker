@@ -372,6 +372,8 @@ namespace FluentDocker.Kernel
         case DriverCapability.Manifest:
           await CapabilityChecks.EnsureManifestSupportAsync(kernel, driverId, cancellationToken).ConfigureAwait(false);
           break;
+        default:
+          throw new ArgumentOutOfRangeException(nameof(capability), capability, null);
       }
     }
   }

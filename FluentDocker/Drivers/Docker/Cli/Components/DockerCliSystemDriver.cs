@@ -5,6 +5,7 @@ using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using FluentDocker.Common;
+using FluentDocker.Drivers.Docker.Cli;
 using FluentDocker.Drivers.Docker.Cli.Binary;
 using FluentDocker.Model.Drivers;
 using Microsoft.Extensions.Logging;
@@ -301,7 +302,8 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     /// <summary>
     /// Parses a human-readable byte string (e.g. "1.234GB", "500MB", "0B").
     /// </summary>
-    public static long ParseHumanReadableBytes(string value) => CliOutputParser.ParseByteValue(value);
+    public static long ParseHumanReadableBytes(string value) =>
+        CliByteParser.ParseHumanReadableBytes(value);
 
     /// <summary>
     /// Parses a reclaimable size string that may include a percentage suffix,

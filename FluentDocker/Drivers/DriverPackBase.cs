@@ -7,12 +7,9 @@ using FluentDocker.Common;
 namespace FluentDocker.Drivers
 {
   /// <summary>
-  /// Optional abstract base class for driver packs providing exact-type,
-  /// dictionary-based <see cref="IDriverInterfaceResolver"/> resolution.
-  /// This class does not implement <see cref="IDriverPack"/> or
-  /// <see cref="FluentDocker.Kernel.ISysCtl"/>; subclasses provide those
-  /// members and can call the protected helpers below.
+  /// Optional minimal exact-type resolver reference helper for driver packs.
   /// </summary>
+  /// <remarks>First-party packs intentionally implement their own resolution when they need behavior beyond this dictionary helper.</remarks>
   public abstract class DriverPackBase : IDriverInterfaceResolver
   {
     /// <summary>
@@ -57,7 +54,7 @@ namespace FluentDocker.Drivers
     {
       if (Drivers.TryGetValue(interfaceType, out var driver))
         return driver;
-      throw new InterfaceNotSupportedException(driverId, interfaceType.Name);
+      throw new InterfaceNotSupportedException(driverId, TypeNameFormatter.Format(interfaceType));
     }
 
     /// <summary>

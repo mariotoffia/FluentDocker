@@ -118,11 +118,18 @@ namespace FluentDocker.Kernel
       return kernel;
     }
 
-    private static void ValidateDriverArgs<T>(string driverId, Action<T> configure)
+    private void ValidateDriverArgs<T>(string driverId, Action<T> configure)
     {
+      ThrowIfBuilt();
       if (string.IsNullOrWhiteSpace(driverId))
         throw new ArgumentException("Driver ID cannot be null or empty", nameof(driverId));
       ArgumentNullException.ThrowIfNull(configure);
+    }
+
+    private void ThrowIfBuilt()
+    {
+      if (Volatile.Read(ref _built) != 0)
+        throw new InvalidOperationException("KernelBuilder is single-use; create a new builder for another kernel.");
     }
 
     internal sealed class DriverConfiguration

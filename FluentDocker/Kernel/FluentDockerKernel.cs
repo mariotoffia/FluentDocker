@@ -64,7 +64,7 @@ namespace FluentDocker.Kernel
 
       if (TryResolveCore(driverId, interfaceType, out var resolved))
         return resolved;
-      throw new InterfaceNotSupportedException(driverId, interfaceType.Name);
+      throw new InterfaceNotSupportedException(driverId, TypeNameFormatter.Format(interfaceType));
     }
 
     /// <summary>
@@ -139,6 +139,7 @@ namespace FluentDocker.Kernel
     /// <summary>
     /// Registers a driver.
     /// </summary>
+    /// <remarks>On failure after acceptance begins, the registry disposes the supplied instance; do not reuse or re-dispose it.</remarks>
     public async Task RegisterDriverAsync(string driverId, IDriver driver, DriverContext context, CancellationToken cancellationToken = default)
     {
       ThrowIfDisposed();
@@ -148,6 +149,7 @@ namespace FluentDocker.Kernel
     /// <summary>
     /// Registers a driver pack.
     /// </summary>
+    /// <remarks>On failure after acceptance begins, the registry disposes the supplied instance; do not reuse or re-dispose it.</remarks>
     public async Task RegisterDriverPackAsync(string driverId, IDriverPack driverPack, DriverContext context, CancellationToken cancellationToken = default)
     {
       ThrowIfDisposed();
@@ -155,8 +157,8 @@ namespace FluentDocker.Kernel
     }
 
     /// <summary>
-    /// Unregisters and disposes a driver or driver pack. Clearing the default
-    /// driver unregisters the default without selecting a replacement.
+    /// Unregisters and disposes a driver or driver pack. If the removed driver was
+    /// the default, the earliest-registered driver still present becomes the default (null if none remain).
     /// </summary>
     public void UnregisterDriver(string driverId)
     {
@@ -166,8 +168,8 @@ namespace FluentDocker.Kernel
     }
 
     /// <summary>
-    /// Asynchronously unregisters and disposes a driver or driver pack. Clearing
-    /// the default driver unregisters the default without selecting a replacement.
+    /// Asynchronously unregisters and disposes a driver or driver pack. If the removed driver was
+    /// the default, the earliest-registered driver still present becomes the default (null if none remain).
     /// </summary>
     /// <param name="driverId">Driver identifier.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
@@ -263,15 +265,19 @@ namespace FluentDocker.Kernel
     {
       if (_registry.TryGetDriverPack(driverId, out var driverPack))
       {
-        if (driverPack.TryResolve(interfaceType, out resolved)
-            && interfaceType.IsInstanceOfType(resolved))
-          return true;
+        if (driverPack.TryResolve(interfaceType, out resolved))
+        {
+          if (interfaceType.IsInstanceOfType(resolved))
+            return true;
+          LogTypeMismatch(driverPack, interfaceType, resolved);
+        }
 
         try
         {
           resolved = driverPack.SysCtl(driverId, interfaceType);
           if (interfaceType.IsInstanceOfType(resolved))
             return true;
+          LogTypeMismatch(driverPack, interfaceType, resolved);
         }
         catch (InterfaceNotSupportedException)
         {
@@ -319,6 +325,18 @@ namespace FluentDocker.Kernel
       return driverId;
     }
 
+    private void LogTypeMismatch(IDriverPack driverPack, Type interfaceType, object resolved)
+    {
+      if (!_logger.IsEnabled(LogLevel.Debug))
+        return;
+
+      _logger.LogDebug(
+          "Driver pack {DriverPackType} returned {ActualType} for requested interface {InterfaceType}",
+          driverPack.GetType().FullName,
+          resolved?.GetType().FullName ?? "<null>",
+          TypeNameFormatter.Format(interfaceType));
+    }
+
     #endregion
 
     #region IAsyncDisposable / IDisposable
@@ -355,8 +373,32 @@ namespace FluentDocker.Kernel
       }
       catch (Exception ex)
       {
+        if (ex is TimeoutException)
+        {
+          await RetryRegistryDisposeAfterTimeoutAsync(ex).ConfigureAwait(false);
+          return;
+        }
+
         _logger.LogWarning(ex, "Kernel DisposeAsync cleanup failed");
       }
+    }
+
+    private async ValueTask RetryRegistryDisposeAfterTimeoutAsync(Exception original)
+    {
+      try
+      {
+        if (_registry is IAsyncDisposable asyncDisposable)
+          await asyncDisposable.DisposeAsync().ConfigureAwait(false);
+        else if (_registry is IDisposable disposable)
+          disposable.Dispose();
+      }
+      catch (Exception ex)
+      {
+        _logger.LogWarning(ex, "Kernel DisposeAsync cleanup retry failed");
+      }
+
+      if (_registry is DriverRegistry registry && !registry.IsDisposeComplete)
+        _logger.LogError(original, "Kernel DisposeAsync cleanup did not complete after retry");
     }
 
     /// <summary>

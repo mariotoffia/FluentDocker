@@ -1,14 +1,14 @@
 using System;
 using System.Text.RegularExpressions;
 using FluentDocker.Common;
-using FluentDocker.Drivers.Docker.Cli.Components;
 using Microsoft.Extensions.Logging;
 
-namespace FluentDocker.Drivers
+namespace FluentDocker.Drivers.Docker.Cli
 {
   /// <summary>
   /// Parses human-readable CLI prune output from Docker and Podman.
   /// </summary>
+  /// <remarks>Best-effort parser: all parse methods catch malformed output, log Debug, and return partial results.</remarks>
   public static partial class CliPruneOutputParser
   {
     private static readonly Regex BareImageIdRegex =
@@ -348,7 +348,7 @@ namespace FluentDocker.Drivers
       }
 
       var value = line[(colonIndex + 1)..].Trim();
-      bytes = DockerCliSystemDriver.ParseHumanReadableBytes(value);
+      bytes = CliByteParser.ParseHumanReadableBytes(value);
       return true;
     }
 

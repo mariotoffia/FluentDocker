@@ -7,6 +7,7 @@ namespace FluentDocker.Drivers
   /// <summary>
   /// Base interface for all container runtime drivers (Docker, Podman, etc.).
   /// </summary>
+  /// <remarks>Implementations must throw <see cref="System.ObjectDisposedException"/> for operations invoked after disposal.</remarks>
   public interface IDriver
   {
     /// <summary>

@@ -13,6 +13,7 @@ namespace FluentDocker.Drivers
   /// Driver packs populate their interface map during <see cref="InitializeAsync"/> and must not
   /// mutate it after initialization completes; registry resolution reads are intentionally unlocked.
   /// </summary>
+  /// <remarks>Implementations must throw <see cref="System.ObjectDisposedException"/> for operations invoked after disposal.</remarks>
   public interface IDriverPack : ISysCtl, IDriverInterfaceResolver
   {
     /// <summary>

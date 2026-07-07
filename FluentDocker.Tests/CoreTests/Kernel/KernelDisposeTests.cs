@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Threading.Tasks;
 using FluentDocker.Drivers;
 using FluentDocker.Kernel;
@@ -166,6 +168,17 @@ namespace FluentDocker.Tests.CoreTests.Kernel
 
       Assert.True(initialized.DisposeAsyncCalled);
     }
+
+    [Fact]
+    public async Task DisposeAsync_WhenRegistryTimeouts_RetriesOnce()
+    {
+      var registry = new TimeoutOnceRegistry();
+      var kernel = new FluentDockerKernel(registry, NullLoggerFactory.Instance);
+
+      await kernel.DisposeAsync();
+
+      Assert.Equal(2, registry.DisposeCalls);
+    }
   }
 
   #region Test Helpers for Disposal
@@ -218,6 +231,49 @@ namespace FluentDocker.Tests.CoreTests.Kernel
     {
       throw new InvalidOperationException("Simulated initialize error");
     }
+  }
+
+  internal sealed class TimeoutOnceRegistry : IDriverRegistry, IAsyncDisposable
+  {
+    public int DisposeCalls { get; private set; }
+
+    public ValueTask DisposeAsync()
+    {
+      DisposeCalls++;
+      if (DisposeCalls == 1)
+        throw new TimeoutException("first dispose timed out");
+      return ValueTask.CompletedTask;
+    }
+
+    public Task RegisterAsync(string driverId, IDriver driver, DriverContext context, System.Threading.CancellationToken cancellationToken = default) =>
+        throw new NotSupportedException();
+    public void Unregister(string driverId) => throw new NotSupportedException();
+    public Task UnregisterAsync(string driverId, System.Threading.CancellationToken cancellationToken = default) =>
+        throw new NotSupportedException();
+    public IDriver GetDriver(string driverId) => throw new NotSupportedException();
+    public bool TryGetDriver(string driverId, [NotNullWhen(true)] out IDriver? driver)
+    {
+      driver = null;
+      return false;
+    }
+
+    public Task RegisterDriverPackAsync(string driverId, IDriverPack driverPack, DriverContext context, System.Threading.CancellationToken cancellationToken = default) =>
+        throw new NotSupportedException();
+    public IDriverPack GetDriverPack(string driverId) => throw new NotSupportedException();
+    public bool TryGetDriverPack(string driverId, [NotNullWhen(true)] out IDriverPack? driverPack)
+    {
+      driverPack = null;
+      return false;
+    }
+
+    public bool IsDriverPack(string driverId) => false;
+    public DriverContext GetContext(string driverId) => throw new NotSupportedException();
+    public bool IsRegistered(string driverId) => false;
+    public IReadOnlyList<string> GetAllDriverIds() => [];
+    public IReadOnlyList<string> GetDriversByType(DriverType driverType) => [];
+    public IReadOnlyList<string> GetDriversByRuntime(RuntimeType runtime) => [];
+    public string GetDefaultDriverId() => null!;
+    public void SetDefaultDriver(string driverId) => throw new NotSupportedException();
   }
 
   #endregion

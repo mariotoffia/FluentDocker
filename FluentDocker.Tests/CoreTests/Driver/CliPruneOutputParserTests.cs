@@ -1,4 +1,4 @@
-using FluentDocker.Drivers;
+using FluentDocker.Drivers.Docker.Cli;
 using Xunit;
 
 namespace FluentDocker.Tests.CoreTests.Driver

@@ -96,7 +96,12 @@ namespace FluentDocker.Kernel
     /// drivers/packs. Each item receives only the remaining budget.
     /// </summary>
     protected virtual TimeSpan DisposeBudget =>
-        TimeSpan.FromMilliseconds(BuildResults.DefaultDisposeBudgetMs);
+        TimeSpan.FromMilliseconds(DefaultDisposeBudgetMs);
+
+    /// <summary>
+    /// Default kernel/registry dispose budget in milliseconds.
+    /// </summary>
+    public const int DefaultDisposeBudgetMs = 60_000;
 
     private static async Task DisposeDriverWithinBudgetAsync(
         IDriver driver, ILogger logger, string driverId, TimeSpan disposeBudget)

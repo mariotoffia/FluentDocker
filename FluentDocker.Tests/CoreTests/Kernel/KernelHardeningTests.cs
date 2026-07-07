@@ -51,6 +51,21 @@ namespace FluentDocker.Tests.CoreTests.Kernel
     }
 
     [Fact]
+    public async Task SysCtl_WhenGenericInterfaceUnsupported_UsesFriendlyInterfaceName()
+    {
+      await using var kernel = new FluentDockerKernel(
+          new DriverRegistry(NullLoggerFactory.Instance), NullLoggerFactory.Instance);
+      await kernel.RegisterDriverPackAsync(
+          "driver", new EmptyPack(), new DriverContext("driver"), TestContext.Current.CancellationToken);
+
+      var ex = Assert.Throws<InterfaceNotSupportedException>(() =>
+          kernel.SysCtl<IGenericMissing<string>>("driver"));
+
+      Assert.Contains("<", ex.Message, StringComparison.Ordinal);
+      Assert.DoesNotContain("`", ex.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void BuildScope_ExposesKernelAsSysCtlAbstraction()
     {
       var property = typeof(BuildScope).GetProperty(nameof(BuildScope.Kernel));
@@ -276,6 +291,11 @@ namespace FluentDocker.Tests.CoreTests.Kernel
         var semaphore = (SemaphoreSlim)_lockField.GetValue(this)!;
         semaphore.Wait();
       }
+
+    }
+
+    private interface IGenericMissing<T>
+    {
     }
   }
 }
