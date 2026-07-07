@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text.Json;
 using FluentDocker.Common;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -282,7 +281,11 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
       var trimmed = json.Trim();
       if (trimmed.StartsWith('['))
       {
-        var list = JsonSerializer.Deserialize<List<ComposeServiceInfo>>(trimmed, JsonHelper.CaseInsensitiveOptions);
+        if (!JsonHelper.TryDeserialize<List<ComposeServiceInfo>>(trimmed, out var list, out var parseError))
+        {
+          error = $"Compose service info JSON parsing failed: {parseError?.Message}";
+          return false;
+        }
         if (list != null)
           ((List<ComposeServiceInfo>)services).AddRange(list);
         return true;

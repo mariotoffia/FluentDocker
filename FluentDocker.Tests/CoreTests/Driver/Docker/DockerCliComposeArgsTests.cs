@@ -104,6 +104,14 @@ namespace FluentDocker.Tests.CoreTests.Driver.Docker
     }
 
     [Fact]
+    public void ParseServiceList_MalformedJsonArray_ReturnsEmpty()
+    {
+      var result = DockerCliComposeDriver.ParseServiceList("[{");
+
+      Assert.Empty(result);
+    }
+
+    [Fact]
     public void ParseServiceList_ScaledService_ReturnsMultipleEntriesSameName()
     {
       // After `docker compose up -d --scale web=3`, ps returns 3 entries

@@ -350,7 +350,10 @@ namespace FluentDocker.Drivers
   /// </summary>
   public class HealthCheckConfig
   {
-    /// <summary>Command to run for health check.</summary>
+    /// <summary>
+    /// Command to run for health check. Docker CLI exec-form commands assume a Linux shell;
+    /// they are not translated for Windows containers.
+    /// </summary>
     public string[] Test { get; set; }
 
     /// <summary>Interval between health checks.</summary>

@@ -117,6 +117,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
         return;
       if (healthCheck.Test is { Length: > 0 })
       {
+        // ponytail: doc-only Windows health-cmd caveat; add OS-aware translation when config exposes container OS.
         var test = healthCheck.Test;
         var command = test[0] == "CMD-SHELL"
             ? string.Join(" ", test[1..])

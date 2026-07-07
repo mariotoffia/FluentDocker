@@ -273,7 +273,16 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     {
       try
       {
-        var args = $"service ps --format \"{{{{json .}}}}\" {QuotePositionalArgument(serviceId, nameof(serviceId))}";
+        var args = "service ps";
+        AddFilter(ref args, "id", filter?.Id);
+        AddFilter(ref args, "name", filter?.Name);
+        AddFilter(ref args, "node", filter?.Node);
+        AddFilter(ref args, "desired-state", filter?.DesiredState);
+        if (filter?.NoTrunc == true)
+          args += " --no-trunc";
+        if (filter?.NoResolve == true)
+          args += " --no-resolve";
+        args += $" --format \"{{{{json .}}}}\" {QuotePositionalArgument(serviceId, nameof(serviceId))}";
 
         var result = await ExecuteCommandAsync(context, args, cancellationToken).ConfigureAwait(false);
 
@@ -291,7 +300,9 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
             out var parseError))
           return CommandResponse<IList<ServiceTask>>.Fail(parseError, ErrorCodes.Service.TasksFailed);
 
-        return CommandResponse<IList<ServiceTask>>.Ok(tasks);
+        return CommandResponse<IList<ServiceTask>>.Ok(filter?.Quiet == true
+              ? tasks.Select(t => new ServiceTask { Id = t.Id }).ToList()
+              : tasks);
       }
       catch (OperationCanceledException)
       {
@@ -436,6 +447,12 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
       }
 
       return details;
+    }
+
+    private static void AddFilter(ref string args, string name, string value)
+    {
+      if (!string.IsNullOrEmpty(value))
+        args += $" --filter {QuoteArgumentIfNeeded($"{name}={value}")}";
     }
   }
 }

@@ -135,7 +135,6 @@ namespace FluentDocker.Tests.CoreTests.Driver.Docker
 
       public DockerBinary[] Binaries => [_binary];
       public DockerBinary MainDockerClient => _binary;
-      public DockerBinary MainDockerCompose => _binary;
       public DockerBinary MainDockerCli => _binary;
       public DockerBinary Resolve(string binary) => _binary;
       public string ResolveBinaryPath(string dockerCommand) => _binary.FqPath;

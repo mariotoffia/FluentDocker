@@ -44,14 +44,6 @@ namespace FluentDocker.Drivers.Docker.Cli.Binary
           _configuration.SearchPaths)];
 
       MainDockerClient = Binaries.FirstOrDefault(x => x.Type == DockerBinaryType.DockerClient);
-      MainDockerCompose = MainDockerClient == null
-          ? null
-          : new DockerBinary(
-              MainDockerClient.Path,
-              MainDockerClient.Binary,
-              MainDockerClient.Sudo,
-              MainDockerClient.SudoPassword,
-              DockerBinaryType.Compose);
       MainDockerCli = Binaries.FirstOrDefault(x => x.Type == DockerBinaryType.Cli);
 
       if (MainDockerClient == null)
@@ -89,9 +81,6 @@ namespace FluentDocker.Drivers.Docker.Cli.Binary
     public DockerBinary MainDockerClient { get; }
 
     /// <inheritdoc />
-    public DockerBinary MainDockerCompose { get; }
-
-    /// <inheritdoc />
     public DockerBinary MainDockerCli { get; }
 
     /// <inheritdoc />
@@ -101,7 +90,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Binary
 
       var resolved = type switch
       {
-        DockerBinaryType.Compose => MainDockerCompose,
+        DockerBinaryType.Compose => MainDockerClient,
         DockerBinaryType.DockerClient => MainDockerClient,
         DockerBinaryType.Cli => MainDockerCli,
         _ => throw new FluentDockerException($"Cannot resolve unknown binary {binary}"),

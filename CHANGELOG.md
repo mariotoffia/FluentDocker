@@ -24,6 +24,7 @@ Production-readiness remediation of the preview API surface. Recompile and revie
 - **`KernelBuilder` is single-use** — a second `Build()` / `BuildAsync()` call now throws; create a new builder for another kernel.
 - **`IDriverRegistry.Unregister` / `UnregisterAsync` throw `DriverNotFoundException` on an unknown driver id** — previously a silent no-op. This matches `GetDriver`'s hard-error contract; guard idempotent teardown with `IsRegistered(id)` before unregistering.
 - **`CliPruneOutputParser` moved from namespace `FluentDocker.Drivers` to `FluentDocker.Drivers.Docker.Cli`** (source-breaking) — it is a Docker/Podman CLI adapter helper, not port-contract surface. Update `using`s; the shared byte parsing now lives in `CliByteParser`.
+- **Removed `IBinaryResolver.MainDockerCompose`** — the legacy `docker-compose` (v1) binary was discovered but never executed (compose always runs as the `docker compose` subcommand). The dead property is gone; `ResolveBinaryPath` resolves the `compose` binary type to the main Docker client (identical path).
 - **Model Runner endpoint validation tightened** — `UnixSocket(path)` requires an explicit path, `WithEndpoint(...)` and `WithInferenceDriver(...)` are mutually exclusive, and model digest validation is stricter.
 - **Podman validation is no longer silent** — `UsePod(...)` now throws on non-Podman drivers, and leading-dash positional names are rejected.
 

@@ -20,12 +20,17 @@ namespace FluentDocker.Drivers.Docker.Cli
   /// Docker CLI driver pack that composes all individual Docker CLI driver implementations.
   /// Implements IDriverPack for unified access.
   /// </summary>
+  /// <remarks>
+  /// Initialize once before resolving drivers; registrations are immutable after
+  /// <see cref="InitializeAsync"/> completes.
+  /// </remarks>
   public class DockerCliDriverPack : IDriverPack, IAsyncDisposable
   {
     private readonly Dictionary<Type, object> _drivers = [];
     private DriverContext _context;
     private IBinaryResolver _binaryResolver;
     private ILogger<DockerCliDriverPack> _logger = NullLogger<DockerCliDriverPack>.Instance;
+    // ponytail: init-then-read discipline; use immutable dictionary if runtime registration appears.
     private bool _initialized;
 
     /// <summary>

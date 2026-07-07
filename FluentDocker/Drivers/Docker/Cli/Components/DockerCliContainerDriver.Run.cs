@@ -21,17 +21,14 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
         ContainerCreateConfig config,
         CancellationToken cancellationToken = default)
     {
-      // Use --cidfile for race-free container ID discovery in non-detached mode.
+      // Use --cidfile for race-free container ID discovery and cancellation cleanup.
       string cidFile = null;
       try
       {
         if (StartsWithDash(config.Image))
           return FailInvalidLeadingDash<ContainerRunResult>("Container image");
-        if (!config.Detach)
-        {
-          // Temp path, not CWD: consumers may run with a read-only working directory.
-          cidFile = Path.Combine(Path.GetTempPath(), $"docker-cid-{Guid.NewGuid():N}");
-        }
+        // Temp path, not CWD: consumers may run with a read-only working directory.
+        cidFile = Path.Combine(Path.GetTempPath(), $"docker-cid-{Guid.NewGuid():N}");
         var args = BuildCreateArgs("run", config, config.Detach, cidFile);
 
         // `docker run` blocks until the container exits when not detached, so it must honor
@@ -133,6 +130,8 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
 
     private async Task RemoveCidFileContainerAsync(DriverContext context, string cidFile)
     {
+      // ponytail: cidfile reconciliation only; a CLI killed between daemon-create and cidfile-write
+      // still orphans (Docker's own race). Add label-based sweep if that gap must be closed.
       var containerId = TryReadCidFile(cidFile);
       if (string.IsNullOrWhiteSpace(containerId))
         return;

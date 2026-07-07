@@ -123,6 +123,7 @@ namespace FluentDocker.Model.Drivers
       public const string InspectFailed = "VOL_005";
       public const string InUse = "VOL_006";
       public const string PruneFailed = "VOL_007";
+      public const string ListFailed = "VOL_008";
     }
 
     /// <summary>

@@ -115,6 +115,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Docker
           DockerCliImageDriver.BuildBuildArgs(new ImageBuildConfig { BuildContext = "--help" }, ".out/iid"));
 
       Assert.Equal(ErrorCodes.General.InvalidArgument, ex.ErrorCode);
+      Assert.Contains(nameof(ImageBuildConfig.BuildContext), ex.Message);
     }
   }
 }

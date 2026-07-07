@@ -16,6 +16,11 @@ namespace FluentDocker.Drivers
     /// <summary>
     /// Creates and starts all services defined in a compose file.
     /// </summary>
+    /// <remarks>
+    /// Cancellation does not automatically run <c>down</c>; that could remove volumes or
+    /// services the caller intended to keep. Call <see cref="DownAsync"/> explicitly for rollback.
+    /// </remarks>
+    // ponytail: doc-only cancellation rollback; add opt-in compensation if callers need it.
     Task<CommandResponse<ComposeUpResult>> UpAsync(
         DriverContext context,
         ComposeUpConfig config,

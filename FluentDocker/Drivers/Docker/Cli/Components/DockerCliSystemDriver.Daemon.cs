@@ -1,9 +1,7 @@
 using System;
-using System.Diagnostics;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using FluentDocker.Common;
+using FluentDocker.Model.Common;
 using FluentDocker.Model.Drivers;
 
 namespace FluentDocker.Drivers.Docker.Cli.Components
@@ -24,7 +22,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     {
       try
       {
-        var result = await ExecuteDockerCliCommandAsync("-SwitchDaemon", cancellationToken).ConfigureAwait(false);
+        var result = await ExecuteDockerCliCommandAsync(context, "-SwitchDaemon", cancellationToken).ConfigureAwait(false);
         return result.Success
             ? CommandResponse<Unit>.Ok(Unit.Default)
             : CommandResponse<Unit>.Fail(ErrorOrDefault(result, "Switch daemon failed"), FailureCode(result.Error, ErrorCodes.General.Unknown));
@@ -46,7 +44,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     {
       try
       {
-        var result = await ExecuteDockerCliCommandAsync("-SwitchLinuxEngine", cancellationToken).ConfigureAwait(false);
+        var result = await ExecuteDockerCliCommandAsync(context, "-SwitchLinuxEngine", cancellationToken).ConfigureAwait(false);
         return result.Success
             ? CommandResponse<Unit>.Ok(Unit.Default)
             : CommandResponse<Unit>.Fail(ErrorOrDefault(result, "Switch to Linux failed"), FailureCode(result.Error, ErrorCodes.General.Unknown));
@@ -68,7 +66,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     {
       try
       {
-        var result = await ExecuteDockerCliCommandAsync("-SwitchWindowsEngine", cancellationToken).ConfigureAwait(false);
+        var result = await ExecuteDockerCliCommandAsync(context, "-SwitchWindowsEngine", cancellationToken).ConfigureAwait(false);
         return result.Success
             ? CommandResponse<Unit>.Ok(Unit.Default)
             : CommandResponse<Unit>.Fail(ErrorOrDefault(result, "Switch to Windows failed"), FailureCode(result.Error, ErrorCodes.General.Unknown));
@@ -90,90 +88,23 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     /// <summary>
     /// Executes a Docker CLI command (Docker Desktop specific).
     /// </summary>
-    private async Task<SimpleCommandResult> ExecuteDockerCliCommandAsync(string arguments, CancellationToken cancellationToken)
+    private async Task<SimpleCommandResult> ExecuteDockerCliCommandAsync(
+        DriverContext context,
+        string arguments,
+        CancellationToken cancellationToken)
     {
-      try
-      {
-        Process process = null;
-        try
-        {
-          process = new Process
-          {
-            StartInfo = new ProcessStartInfo
-            {
-              FileName = BinaryResolver?.ResolveBinaryPath("dockercli") ?? "dockercli",
-              Arguments = arguments,
-              RedirectStandardOutput = true,
-              RedirectStandardError = true,
-              UseShellExecute = false,
-              CreateNoWindow = true
-            }
-          };
-
-          var output = new StringBuilder();
-          var error = new StringBuilder();
-
-          process.OutputDataReceived += (s, e) =>
-          {
-            if (!string.IsNullOrEmpty(e.Data))
-              output.AppendLine(e.Data);
-          };
-
-          process.ErrorDataReceived += (s, e) =>
-          {
-            if (!string.IsNullOrEmpty(e.Data))
-              error.AppendLine(e.Data);
-          };
-
-          process.Start();
-          process.BeginOutputReadLine();
-          process.BeginErrorReadLine();
-
-          await process.WaitForExitAsync(cancellationToken).ConfigureAwait(false);
-
-          // Parameterless overload flushes the async OutputDataReceived/
-          // ErrorDataReceived handlers to EOF; the timed overload does not.
-          process.WaitForExit();
-
-          return new SimpleCommandResult
-          {
-            Success = process.ExitCode == 0,
-            Output = output.ToString(),
-            Error = error.ToString(),
-            ExitCode = process.ExitCode
-          };
-        }
-        catch (OperationCanceledException)
-        {
-          try
-          {
-            if (process is { HasExited: false })
-              process.Kill(entireProcessTree: true);
-          }
-          catch
-          {
-            // best effort: process may have exited between the check and kill
-          }
-          throw;
-        }
-        finally
-        {
-          process?.Dispose();
-        }
-      }
-      catch (OperationCanceledException)
-      {
-        throw;
-      }
-      catch (Exception ex)
-      {
-        return new SimpleCommandResult
-        {
-          Success = false,
-          Error = ex.Message,
-          ExitCode = -1
-        };
-      }
+      var effectiveContext = CreateEffectiveContext(context);
+      // ponytail: engine switch is bounded by the shared RequestTimeout (5-min default when unset);
+      // give Switch* its own longer ceiling if a tuned-down RequestTimeout starts aborting slow switches.
+      return await ExecuteProcessAsync(
+          BinaryResolver?.ResolveBinaryPath("dockercli") ?? "dockercli",
+          arguments,
+          null,
+          null,
+          SudoMechanism.None,
+          null,
+          ResolveBufferedTimeout(effectiveContext),
+          cancellationToken).ConfigureAwait(false);
     }
 
     #endregion

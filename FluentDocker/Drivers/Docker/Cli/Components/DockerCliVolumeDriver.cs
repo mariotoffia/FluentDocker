@@ -141,7 +141,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
         {
           return CommandResponse<IList<Volume>>.Fail(
               ErrorOrDefault(result, "Volume list failed"),
-              FailureCode(result.Error, ErrorCodes.General.Unknown),
+              FailureCode(result.Error, ErrorCodes.Volume.ListFailed),
               CreateErrorContext(context, "ListVolumes", result),
               result.ExitCode);
         }
@@ -153,7 +153,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
                 out List<Volume> volumes,
                 out var parseError))
         {
-          return CommandResponse<IList<Volume>>.Fail(parseError, ErrorCodes.General.Unknown);
+          return CommandResponse<IList<Volume>>.Fail(parseError, ErrorCodes.Volume.ListFailed);
         }
 
         return CommandResponse<IList<Volume>>.Ok(volumes);
@@ -164,7 +164,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
       }
       catch (Exception ex)
       {
-        return CommandResponse<IList<Volume>>.Fail(ex.Message, FailureCode(ex, ErrorCodes.General.Unknown));
+        return CommandResponse<IList<Volume>>.Fail(ex.Message, FailureCode(ex, ErrorCodes.Volume.ListFailed));
       }
     }
 

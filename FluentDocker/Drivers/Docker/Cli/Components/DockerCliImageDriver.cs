@@ -148,7 +148,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
       if (!string.IsNullOrEmpty(iidFilePath))
         args.Add($"--iidfile {QuoteArgumentIfNeeded(iidFilePath)}");
 
-      args.Add(QuotePositionalArgument(config.BuildContext ?? ".", nameof(config)));
+      args.Add(QuotePositionalArgument(config.BuildContext ?? ".", nameof(config.BuildContext)));
 
       return string.Join(" ", args);
     }

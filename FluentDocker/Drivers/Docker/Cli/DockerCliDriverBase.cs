@@ -191,7 +191,8 @@ namespace FluentDocker.Drivers.Docker.Cli
       if (string.IsNullOrEmpty(error))
         return false;
       return error.Contains("Cannot connect to the Docker daemon", StringComparison.OrdinalIgnoreCase)
-          || error.Contains("error during connect", StringComparison.OrdinalIgnoreCase);
+          || error.Contains("error during connect", StringComparison.OrdinalIgnoreCase)
+          || error.Contains("failed to connect to the docker API", StringComparison.OrdinalIgnoreCase);
     }
 
     protected static CommandResponse<T> FailInvalidLeadingDash<T>(string argumentName)
@@ -227,7 +228,7 @@ namespace FluentDocker.Drivers.Docker.Cli
     {
       return sudo switch
       {
-        SudoMechanism.NoPassword => ("sudo", $"-- {QuoteArgumentIfNeeded(binaryPath)} {arguments}", null),
+        SudoMechanism.NoPassword => ("sudo", $"-n -- {QuoteArgumentIfNeeded(binaryPath)} {arguments}", null),
         SudoMechanism.Password => ("sudo", $"-S -- {QuoteArgumentIfNeeded(binaryPath)} {arguments}", sudoPassword),
         _ => (binaryPath, arguments, null)
       };

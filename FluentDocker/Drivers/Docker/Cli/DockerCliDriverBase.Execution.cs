@@ -45,7 +45,7 @@ namespace FluentDocker.Drivers.Docker.Cli
     /// <see cref="DefaultBufferedCommandTimeout"/> when no <see cref="DriverContext.RequestTimeout"/>
     /// is configured.
     /// </summary>
-    private static TimeSpan ResolveBufferedTimeout(DriverContext context)
+    protected static TimeSpan ResolveBufferedTimeout(DriverContext context)
         => context?.RequestTimeout ?? DefaultBufferedCommandTimeout;
 
     /// <summary>
@@ -169,7 +169,7 @@ namespace FluentDocker.Drivers.Docker.Cli
     /// Handles sudo by setting the process FileName to "sudo" and passing the
     /// password via stdin (never on the command line).
     /// </summary>
-    private static async Task<SimpleCommandResult> ExecuteProcessAsync(
+    protected static async Task<SimpleCommandResult> ExecuteProcessAsync(
         string fileName, string arguments,
         IDictionary<string, string> environment,
         string stdinData,
@@ -489,7 +489,7 @@ namespace FluentDocker.Drivers.Docker.Cli
         throw new DriverException(
             $"Streaming command failed ({failure}).",
             ErrorCodes.Driver.CommandExecutionFailed,
-            new ErrorContext("StreamingCommand") { ExitCode = failureExitCode, StdErr = FormatTail(tail) });
+            new ErrorContext("StreamingCommand") { ExitCode = failureExitCode, StdErr = $"merged output{FormatTail(tail)}" });
       }
     }
 

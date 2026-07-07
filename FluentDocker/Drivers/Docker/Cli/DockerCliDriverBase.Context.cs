@@ -7,7 +7,7 @@ namespace FluentDocker.Drivers.Docker.Cli
 {
   public abstract partial class DockerCliDriverBase
   {
-    private DriverContext CreateEffectiveContext(DriverContext operationContext)
+    protected DriverContext CreateEffectiveContext(DriverContext operationContext)
     {
       var component = Context;
       if (operationContext == null)

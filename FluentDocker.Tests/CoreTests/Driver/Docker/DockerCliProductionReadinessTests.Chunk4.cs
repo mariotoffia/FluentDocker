@@ -193,7 +193,7 @@ exit 0
             TestContext.Current.CancellationToken);
 
         Assert.True(result.Success, result.Error);
-        Assert.Equal(["--", dockerPath, "start", "ctr"], await ReadArgsAsync(record));
+        Assert.Equal(["-n", "--", dockerPath, "start", "ctr"], await ReadArgsAsync(record));
       }
       finally
       {
@@ -473,12 +473,10 @@ exit 2
 
       public DockerBinary[] Binaries => [_binary];
       public DockerBinary MainDockerClient => _binary;
-      public DockerBinary MainDockerCompose => _binary;
       public DockerBinary MainDockerCli => _binary;
       public DockerBinary Resolve(string binary) => _binary;
       public string ResolveBinaryPath(string dockerCommand) => _binary.FqPath;
     }
-
     private sealed class ListLoggerProvider(List<string> messages) : ILoggerProvider
     {
       public ILogger CreateLogger(string categoryName) => new ListLogger(messages);
