@@ -193,6 +193,8 @@ namespace FluentDocker.Tests.CoreTests.Model
         Environment.SetEnvironmentVariable(var, "http://10.0.0.5:12434");
         Assert.True(ModelRunnerEndpoint.TryFromEnvironment(out var ep));
         Assert.Equal(new Uri("http://10.0.0.5:12434"), ep.BaseAddress);
+        Assert.Equal(new Uri("http://10.0.0.5:12434/engines/llama.cpp/v1/chat/completions"),
+            ep.ResolveUri("/chat/completions"));
       }
       finally
       {
@@ -364,6 +366,14 @@ namespace FluentDocker.Tests.CoreTests.Model
 
       Assert.Equal(new Uri("https://runner.example.com/engines/v1/chat/completions?key=x"),
           ep.ResolveUri("/chat/completions"));
+    }
+
+    [Fact]
+    public void Raw_QueryBearingSuffix_JoinsEndpointQueryWithAmpersand()
+    {
+      var ep = ModelRunnerEndpoint.Raw(new Uri("https://runner.example.com/engines/v1?key=x"));
+
+      Assert.Equal("/engines/v1/models?verbose=1&key=x", ep.EngineV1Path("/models?verbose=1"));
     }
 
     [Fact]

@@ -276,6 +276,55 @@ namespace FluentDocker.Tests.CoreTests.Common
     }
 
     [Fact]
+    public void Map_MapperReturnsNull_FailsInsteadOfThrowing()
+    {
+      // Arrange — a mapper that returns null must not produce a success response carrying null
+      // data (a landmine that would explode at a later consumer); it surfaces a typed failure.
+      var response = CommandResponse<string>.Ok("data");
+
+      // Act
+      var result = response.Map<string, string?>(_ => null);
+
+      // Assert
+      Assert.False(result.Success);
+      Assert.Equal(ErrorCodes.General.Unknown, result.ErrorCode);
+      Assert.Contains("null result", result.Error, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Map_SourceSuccessWithNullData_FailsWithTypedError()
+    {
+      // A successful response that carries null data violates the success/data contract; Map
+      // must not invoke the mapper with null — it surfaces a typed failure instead.
+      var response = CommandResponse<string>.Ok(null!);
+
+      var invoked = false;
+      var result = response.Map<string, int>(_ =>
+      {
+        invoked = true;
+        return 1;
+      });
+
+      Assert.False(invoked);
+      Assert.False(result.Success);
+      Assert.Equal(ErrorCodes.General.InvalidOperation, result.ErrorCode);
+    }
+
+    [Fact]
+    public void OnSuccess_SuccessWithNullData_DoesNotInvokeAction()
+    {
+      // OnSuccess must never pass null into the callback (its parameter is non-null); a broken
+      // success/data response simply skips the side effect rather than throwing an NRE.
+      var response = CommandResponse<string>.Ok(null!);
+
+      var invoked = false;
+      var returned = response.OnSuccess(_ => invoked = true);
+
+      Assert.False(invoked);
+      Assert.Same(response, returned);
+    }
+
+    [Fact]
     public void GetOrDefault_OnSuccess_ReturnsData()
     {
       // Arrange

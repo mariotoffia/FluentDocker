@@ -12,7 +12,10 @@ namespace FluentDocker.Model.Models
   /// </summary>
   public sealed class ModelRunnerEndpoint : IEquatable<ModelRunnerEndpoint>
   {
-    /// <summary>The environment variable that overrides endpoint resolution.</summary>
+    /// <summary>
+    /// The environment variable that overrides endpoint resolution. Authority-only URLs keep
+    /// the engine prefix; path-bearing URLs are honored verbatim.
+    /// </summary>
     public const string UrlEnvironmentVariable = "DOCKER_MODEL_RUNNER_URL";
 
     private const int DefaultPort = 12434;
@@ -60,7 +63,7 @@ namespace FluentDocker.Model.Models
     public string EngineV1Path(string suffix)
     {
       var path = _basePath != null ? _basePath + suffix : EnginePath + "/v1" + suffix;
-      return _query == null ? path : path + _query;
+      return _query == null ? path : path + (path.Contains('?', StringComparison.Ordinal) ? "&" + _query[1..] : _query);
     }
 
     /// <summary>
@@ -178,7 +181,9 @@ namespace FluentDocker.Model.Models
 
     /// <summary>
     /// Attempts to construct an endpoint from the <c>DOCKER_MODEL_RUNNER_URL</c>
-    /// environment variable (the highest-priority resolution step).
+    /// environment variable (the highest-priority resolution step). Authority-only URLs
+    /// (empty path or <c>"/"</c>) keep the default <c>/engines/{engine}/v1</c> prefix; URLs
+    /// with a path are treated as raw bases and honored verbatim.
     /// </summary>
     /// <param name="endpoint">The resolved endpoint, or <c>null</c> when the variable is unset.</param>
     /// <returns><c>true</c> when the variable is set to a valid absolute http(s) URL; <c>false</c>
@@ -199,9 +204,7 @@ namespace FluentDocker.Model.Models
         return false;
       }
 
-      // Raw() preserves a path-bearing URL (e.g. an injected
-      // http://host:12434/engines/v1) instead of discarding it like Custom() would.
-      endpoint = Raw(uri);
+      endpoint = Custom(uri);
       return true;
     }
 

@@ -1,7 +1,6 @@
 #nullable enable
 using System.Collections.Generic;
 using FluentDocker.Model.Containers;
-using FluentDocker.Services;
 
 namespace FluentDocker.Model.Compose
 {

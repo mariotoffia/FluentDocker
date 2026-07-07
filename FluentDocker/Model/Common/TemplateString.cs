@@ -12,8 +12,9 @@ namespace FluentDocker.Model.Common
   /// <summary>
   /// Renders FluentDocker path templates such as ${TMP}, ${TEMP}, ${PWD}, ${RND}, and ${E_NAME}.
   /// Template tokens are always expanded when recognized; there is no escape syntax for a literal ${TMP}.
+  /// Unset ${E_NAME} environment tokens pass through unchanged.
   /// </summary>
-  public sealed partial class TemplateString
+  public sealed partial class TemplateString : IEquatable<TemplateString>
   {
     private static readonly Dictionary<string, Func<string>> Templates;
     private static readonly Regex UrlDetector = MyRegex();
@@ -108,6 +109,9 @@ namespace FluentDocker.Model.Common
 
     private static string RenderEnvironment(string str)
     {
+      if (!str.Contains("${E_", StringComparison.Ordinal))
+        return str;
+
       foreach (DictionaryEntry env in Environment.GetEnvironmentVariables())
       {
         var tmpEnv = "${E_" + env.Key + "}";
@@ -126,6 +130,18 @@ namespace FluentDocker.Model.Common
     {
       return Rendered;
     }
+
+    public bool Equals(TemplateString? other) =>
+        other is not null && string.Equals(Rendered, other.Rendered, StringComparison.Ordinal);
+
+    public override bool Equals(object? obj) => Equals(obj as TemplateString);
+
+    public override int GetHashCode() => StringComparer.Ordinal.GetHashCode(Rendered);
+
+    public static bool operator ==(TemplateString? left, TemplateString? right) =>
+        left is null ? right is null : left.Equals(right);
+
+    public static bool operator !=(TemplateString? left, TemplateString? right) => !(left == right);
 
     [GeneratedRegex("((\"|')http(|s)://.*?(\"|'))", RegexOptions.Compiled)]
     private static partial Regex MyRegex();

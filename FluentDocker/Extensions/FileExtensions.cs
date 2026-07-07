@@ -8,6 +8,7 @@ namespace FluentDocker.Extensions
 {
   public static class FileExtensions
   {
+    [Obsolete("Use FluentDocker.Common.CommandLineQuoting for command arguments; this legacy helper only wraps paths containing spaces.")]
     public static string EscapePath(this string path)
     {
       if (string.IsNullOrEmpty(path) || !path.Contains(' '))
@@ -16,6 +17,7 @@ namespace FluentDocker.Extensions
       return path.StartsWith('"') ? path : $"\"{path}\"";
     }
 
+    [Obsolete("Use FluentDocker.Common.CommandLineQuoting for command arguments; this legacy helper only wraps paths containing spaces.")]
     public static TemplateString EscapePath(this TemplateString path)
     {
       if (string.IsNullOrEmpty(path))

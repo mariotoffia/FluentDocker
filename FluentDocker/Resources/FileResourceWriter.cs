@@ -1,4 +1,5 @@
 #nullable enable
+using System;
 using System.IO;
 using FluentDocker.Model.Common;
 
@@ -19,13 +20,38 @@ namespace FluentDocker.Resources
         Directory.CreateDirectory(dir);
       }
 
-      using (var fileStream = new FileStream(Path.Combine(dir, stream.Info.Resource), FileMode.Create))
+      var destination = Path.Combine(dir, SafeResourceName(stream.Info.Resource));
+      var temp = Path.Combine(dir, Path.GetRandomFileName());
+      try
       {
-        stream.Stream.CopyTo(fileStream);
-        fileStream.Flush();
+        using (var fileStream = new FileStream(temp, FileMode.CreateNew, FileAccess.Write, FileShare.None))
+        {
+          stream.Stream.CopyTo(fileStream);
+          fileStream.Flush(true);
+        }
+
+        File.Move(temp, destination, true);
+      }
+      finally
+      {
+        if (File.Exists(temp))
+          File.Delete(temp);
       }
 
       return this;
+    }
+
+    private static string SafeResourceName(string? resource)
+    {
+      if (string.IsNullOrWhiteSpace(resource)
+          || Path.IsPathRooted(resource)
+          || resource.Contains(Path.DirectorySeparatorChar, StringComparison.Ordinal)
+          || resource.Contains(Path.AltDirectorySeparatorChar, StringComparison.Ordinal)
+          || resource == "."
+          || resource == "..")
+        throw new ArgumentException("Resource name must be a single relative file name.", nameof(resource));
+
+      return resource;
     }
 
     public IResourceWriter Write(ResourceReader resources)

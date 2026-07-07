@@ -133,6 +133,7 @@ namespace FluentDocker.Tests.CoreTests.Model
     }
 
     [Fact]
+    [Obsolete]
     public void SpacesInPath_AreEscapedCorrectly()
     {
       var path = new TemplateString(@"${TEMP}/folder with space/${RND}");
@@ -144,6 +145,7 @@ namespace FluentDocker.Tests.CoreTests.Model
     }
 
     [Fact]
+    [Obsolete]
     public void NoSpacesInPath_NotEscaped()
     {
       var path = new TemplateString(@"${TEMP}/folder/${RND}");
@@ -223,6 +225,14 @@ namespace FluentDocker.Tests.CoreTests.Model
       var ts = new TemplateString($"prefix_${{E_{key}}}_suffix");
 
       Assert.Equal($"prefix_${{E_{key}}}_suffix", ts.Rendered);
+    }
+
+    [Fact]
+    public void Equality_UsesRenderedValue()
+    {
+      Assert.Equal(new TemplateString("/same"), new TemplateString("/same"));
+      Assert.True(new TemplateString("/same") == new TemplateString("/same"));
+      Assert.NotEqual(new TemplateString("/same"), new TemplateString("/other"));
     }
 
     [Fact]

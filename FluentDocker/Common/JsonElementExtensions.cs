@@ -161,7 +161,7 @@ namespace FluentDocker.Common
       var s = el.GetStringOrDefault(propName);
       if (s == null)
         return DateTime.MinValue;
-      return DateTimeOffset.TryParse(s, CultureInfo.InvariantCulture, DateTimeStyles.None, out var dto)
+      return DateTimeOffset.TryParse(s, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal, out var dto)
           ? dto.UtcDateTime
           : DateTime.MinValue;
     }

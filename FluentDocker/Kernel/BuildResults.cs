@@ -6,7 +6,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using FluentDocker.Services;
 
-namespace FluentDocker.Model.Kernel
+namespace FluentDocker.Kernel
 {
   /// <summary>
   /// Results from a BuildAsync() operation containing all built services.

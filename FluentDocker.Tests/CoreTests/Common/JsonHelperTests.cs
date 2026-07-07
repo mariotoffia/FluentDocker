@@ -39,6 +39,15 @@ namespace FluentDocker.Tests.CoreTests.Common
     }
 
     [Fact]
+    public void TryDeserialize_WithError_ReturnsParseFailureReason()
+    {
+      Assert.False(JsonHelper.TryDeserialize<SampleDto>("not json {{{", out var value, out var error));
+      Assert.Null(value);
+      Assert.NotNull(error);
+      Assert.IsType<System.Text.Json.JsonException>(error);
+    }
+
+    [Fact]
     public void TryDeserialize_NullString_ReturnsDefault()
     {
       var result = JsonHelper.TryDeserialize<SampleDto>((string)null!); // intentional null to verify null-handling

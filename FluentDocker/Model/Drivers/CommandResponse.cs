@@ -48,8 +48,14 @@ namespace FluentDocker.Model.Drivers
     public string? Output { get; private init; }
 
     /// <summary>
-    /// Creates a successful command response. Pass non-null data for successful responses.
+    /// Creates a successful command response.
     /// </summary>
+    /// <remarks>
+    /// Successful responses are expected to carry non-null <see cref="Data"/>. A success response with
+    /// null data is a broken-driver contract; the consumer combinators (<c>EnsureSuccess</c>/<c>Map</c>/
+    /// <c>OnSuccess</c>) surface it as a typed <see cref="FluentDocker.Common.DriverException"/> with an
+    /// error code and context rather than a context-free <see cref="NullReferenceException"/>.
+    /// </remarks>
     public static CommandResponse<T> Ok(T data)
     {
       return new CommandResponse<T>
@@ -61,7 +67,7 @@ namespace FluentDocker.Model.Drivers
     }
 
     /// <summary>
-    /// Creates a successful command response with output. Pass non-null data for successful responses.
+    /// Creates a successful command response with output.
     /// </summary>
     public static CommandResponse<T> Ok(T data, string output)
     {

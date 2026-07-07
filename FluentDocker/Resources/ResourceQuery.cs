@@ -94,11 +94,10 @@ namespace FluentDocker.Resources
     /// <remarks>
     ///   .NET's GetManifestResourceInfo returns metadata about the resource's location
     ///   (embedded, linked, satellite assembly) but not the original filename.
-    ///   Manifest resource names use dots as namespace separators, making it impossible
-    ///   to distinguish between "Namespace.File.txt" (file: File.txt) and
-    ///   "Namespace.File.Name.txt" (file: Name.txt). This method uses heuristics:
-    ///   - If extension > 5 chars, assume the file has no extension (dotless file)
-    ///   - Otherwise, walk backward to find the filename (everything after the last namespace dot)
+    ///   Manifest resource names use dots as namespace separators, making original filenames
+    ///   lossy: "Ns.Dockerfile.template" may be reduced to "template", and
+    ///   "Ns.archive.tar.gz" may be reduced to "tar.gz". Use <see cref="Include(string[])"/>
+    ///   with explicit trailing suffixes when exact resource names matter.
     /// </remarks>
     /// <param name="fqResource">The fully qualified resource name including namespace (e.g., "MyApp.Resources.config.json").</param>
     /// <returns>The extracted filename (e.g., "config.json").</returns>

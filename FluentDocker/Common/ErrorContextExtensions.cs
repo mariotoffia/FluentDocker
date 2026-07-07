@@ -213,7 +213,12 @@ namespace FluentDocker.Common
     public static T EnsureSuccess<T>(this CommandResponse<T> response, string? operationDescription = null)
     {
       if (response.Success)
-        return response.Data!;
+        return response.Data ?? throw new DriverException(
+            operationDescription != null
+                ? $"{operationDescription} succeeded but the driver returned no data payload."
+                : "Operation succeeded but the driver returned no data payload.",
+            ErrorCodes.General.InvalidOperation,
+            response.ErrorContext);
 
       throw new DriverException(
           operationDescription != null
@@ -263,7 +268,19 @@ namespace FluentDocker.Common
             : CommandResponse<TResult>.Fail(error, errorCode, response.ErrorContext, response.ExitCode);
       }
 
-      var mapped = mapper(response.Data!);
+      if (response.Data is null)
+        return CommandResponse<TResult>.Fail(
+            "Cannot map a successful response with no data payload; the driver violated the success/data contract.",
+            ErrorCodes.General.InvalidOperation,
+            response.ExitCode);
+
+      var mapped = mapper(response.Data);
+      if (mapped is null)
+        return CommandResponse<TResult>.Fail(
+            "Map produced a null result for a successful response; mapper must return a non-null value.",
+            ErrorCodes.General.Unknown,
+            response.ExitCode);
+
       return response.Output == null
           ? CommandResponse<TResult>.Ok(mapped)
           : CommandResponse<TResult>.Ok(mapped, response.Output);
@@ -308,9 +325,9 @@ namespace FluentDocker.Common
     /// <returns>The same response for chaining.</returns>
     public static CommandResponse<T> OnSuccess<T>(this CommandResponse<T> response, Action<T> action)
     {
-      if (response.Success)
+      if (response.Success && response.Data is not null)
       {
-        action(response.Data!);
+        action(response.Data);
       }
       return response;
     }

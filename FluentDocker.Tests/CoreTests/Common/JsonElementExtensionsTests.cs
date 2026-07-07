@@ -235,6 +235,15 @@ namespace FluentDocker.Tests.CoreTests.Common
       Assert.Equal(DateTime.MinValue, el.GetDateTimeOrDefault("started"));
     }
 
+    [Fact]
+    public void GetDateTimeOrDefault_ZonelessInput_AssumesUtc_NotHostLocal()
+    {
+      var el = JsonHelper.ParseElement("""{"started":"2024-06-15T10:30:00"}""");
+
+      Assert.Equal(new DateTime(2024, 6, 15, 10, 30, 0, DateTimeKind.Utc),
+          el.GetDateTimeOrDefault("started"));
+    }
+
     #endregion
 
     #region GetDateTimeOffsetOrDefault

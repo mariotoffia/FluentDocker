@@ -16,6 +16,7 @@ namespace FluentDocker.Extensions
     /// <param name="value">The value to be parsed.</param>
     /// <param name="unit">An optional custom array of suffix. But has to be among b, k, m, g.</param>
     /// <returns>If successful the number, otherwise <see cref="long.MinValue" /> is returned.</returns>
+    [Obsolete("Use FluentDocker.Common.CliOutputParser for Docker/Podman size output; this legacy helper has a narrower unit grammar.")]
     public static long Convert(this string value, params string[] unit)
     {
       if (null == unit || 0 == unit.Length)

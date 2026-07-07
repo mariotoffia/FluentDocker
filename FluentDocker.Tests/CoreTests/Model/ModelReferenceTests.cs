@@ -1,4 +1,5 @@
 using System;
+using System.Text.Json;
 using FluentDocker.Model.Models;
 using Xunit;
 
@@ -245,6 +246,12 @@ namespace FluentDocker.Tests.CoreTests.Model
     public void Parse_Malformed_ThrowsFormatException()
     {
       Assert.Throws<FormatException>(() => ModelReference.Parse("ai//qwen3"));
+    }
+
+    [Fact]
+    public void JsonConverter_WhitespaceString_DeserializesLikeEmptyString()
+    {
+      Assert.Null(JsonSerializer.Deserialize<ModelReference>("\"   \""));
     }
   }
 }

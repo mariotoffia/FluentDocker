@@ -2,7 +2,6 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 using FluentDocker.Kernel;
-using FluentDocker.Model.Kernel;
 
 namespace FluentDocker.Builders
 {

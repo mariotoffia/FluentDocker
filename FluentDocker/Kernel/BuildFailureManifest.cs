@@ -1,7 +1,7 @@
 #nullable enable
 using System.Collections.Generic;
 
-namespace FluentDocker.Model.Kernel
+namespace FluentDocker.Kernel
 {
   /// <summary>
   /// Programmatic summary of resources observed during a failed build cleanup.

@@ -2,7 +2,7 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 using FluentDocker.Kernel;
-using FluentDocker.Model.Kernel;
+using FluentDocker.Kernel;
 using FluentDocker.Services;
 using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;

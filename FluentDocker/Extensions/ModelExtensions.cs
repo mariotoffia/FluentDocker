@@ -18,7 +18,9 @@ namespace FluentDocker.Extensions
     {
       if (!string.IsNullOrEmpty(value))
       {
+#pragma warning disable CS0618 // legacy extension remains the public grammar for this legacy helper
         var num = value.Convert();
+#pragma warning restore CS0618
         if (num == long.MinValue)
           return sb;
 

@@ -3,11 +3,10 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
-using FluentDocker.Kernel;
 using FluentDocker.Services;
 using Microsoft.Extensions.Logging;
 
-namespace FluentDocker.Model.Kernel
+namespace FluentDocker.Kernel
 {
   /// <summary>
   /// Represents a build scope (kernel + driver).

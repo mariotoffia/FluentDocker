@@ -6,7 +6,6 @@ using System.Threading.Tasks;
 using FluentDocker.Common;
 using FluentDocker.Kernel;
 using FluentDocker.Model.Drivers;
-using FluentDocker.Model.Kernel;
 using FluentDocker.Services;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;

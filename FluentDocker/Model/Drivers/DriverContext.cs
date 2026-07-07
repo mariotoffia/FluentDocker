@@ -25,6 +25,7 @@ namespace FluentDocker.Model.Drivers
     /// <see cref="FluentDocker.Drivers.IDriverPack.InitializeAsync"/> is invoked,
     /// so packs can rely on it being the consumer-supplied factory at initialization time.
     /// </summary>
+    // ponytail: deliberate abstraction-only dependency (ILoggerFactory), not logging behavior in Model.
     public ILoggerFactory LoggerFactory { get; set; } = NullLoggerFactory.Instance;
 
     /// <summary>

@@ -31,14 +31,14 @@ namespace FluentDocker.Common
     /// Gets a path to a temporary folder that is writeable.
     /// </summary>
     /// <remarks>
-    ///  This folder may be the same from time to time. It is possible to override this property at
-    ///  startup to provide for a custom path. The default uses the <see cref="Path.GetTempPath"/>
-    ///  implementation.
+    ///  This folder may be the same from time to time. It is possible to override this
+    ///  process-global property at startup to provide for a custom path. The default uses the
+    ///  <see cref="Path.GetTempPath"/> implementation.
     /// </remarks>
     public static Func<string> GetTempPath
     {
-      get => _getTempPath;
-      set => _getTempPath = value ?? Path.GetTempPath;
+      get => Volatile.Read(ref _getTempPath);
+      set => Interlocked.Exchange(ref _getTempPath, value ?? Path.GetTempPath);
     }
 
     /// <summary>Recursively copies all files and subdirectories from source to target.</summary>

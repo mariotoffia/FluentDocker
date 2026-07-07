@@ -2,7 +2,7 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 using FluentDocker.Drivers;
-using FluentDocker.Model.Kernel;
+using FluentDocker.Kernel;
 using Microsoft.Extensions.Logging;
 
 namespace FluentDocker.Kernel

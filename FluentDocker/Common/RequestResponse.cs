@@ -10,7 +10,7 @@ namespace FluentDocker.Common
   /// </summary>
   public readonly struct RequestResponse
   {
-    internal RequestResponse(HttpResponseHeaders headers, HttpStatusCode code, string body, Exception err)
+    internal RequestResponse(HttpResponseHeaders? headers, HttpStatusCode code, string? body, Exception? err)
     {
       Headers = headers;
       Code = code;
@@ -19,15 +19,15 @@ namespace FluentDocker.Common
     }
 
     /// <summary>The HTTP response headers.</summary>
-    public HttpResponseHeaders Headers { get; }
+    public HttpResponseHeaders? Headers { get; }
 
     /// <summary>The HTTP status code returned by the API.</summary>
     public HttpStatusCode Code { get; }
 
     /// <summary>The response body as a string.</summary>
-    public string Body { get; }
+    public string? Body { get; }
 
     /// <summary>The exception that occurred during the request, or null on success.</summary>
-    public Exception Err { get; }
+    public Exception? Err { get; }
   }
 }

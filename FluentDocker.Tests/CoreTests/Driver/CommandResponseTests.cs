@@ -1,4 +1,5 @@
 using System;
+using FluentDocker.Common;
 using FluentDocker.Model.Drivers;
 using Xunit;
 
@@ -39,6 +40,22 @@ namespace FluentDocker.Tests.CoreTests.Driver
     public void Ok_WithNegativeExitCode_Throws()
     {
       Assert.Throws<ArgumentOutOfRangeException>(() => CommandResponse<string>.Ok("test data", "output", -1));
+    }
+
+    [Fact]
+    public void Ok_NullData_IsRepresentable_ConsumedAsTypedError()
+    {
+      // A misbehaving custom driver can still produce Success=true with null Data through the
+      // public factory. That broken success/data contract is surfaced as a typed DriverException
+      // (with an error code and context) at the consumer boundary — never as a context-free
+      // NullReferenceException at an arbitrary call site.
+      var response = CommandResponse<string>.Ok(null!);
+
+      Assert.True(response.Success);
+      Assert.Null(response.Data);
+
+      var ex = Assert.Throws<DriverException>(() => response.EnsureSuccess("fetch data"));
+      Assert.Equal(ErrorCodes.General.InvalidOperation, ex.ErrorCode);
     }
 
     [Fact]

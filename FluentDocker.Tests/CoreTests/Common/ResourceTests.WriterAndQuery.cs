@@ -213,6 +213,32 @@ namespace FluentDocker.Tests.CoreTests.Common
       }
     }
 
+    [Theory]
+    [InlineData("../escape.txt")]
+    [InlineData("nested/escape.txt")]
+    public void Write_ResourceStream_RejectsPathTraversalResourceNames(string resource)
+    {
+      var outputDir = Path.Combine(Environment.CurrentDirectory, ".out", "resource-tests", Guid.NewGuid().ToString("N"));
+
+      try
+      {
+        var stream = new MemoryStream(Encoding.UTF8.GetBytes("escape"));
+        var info = new ResourceInfo
+        {
+          Resource = resource,
+          RelativeRootNamespace = string.Empty
+        };
+        using var resourceStream = new ResourceStream(stream, info);
+
+        Assert.Throws<ArgumentException>(() => new FileResourceWriter(outputDir).Write(resourceStream));
+      }
+      finally
+      {
+        if (Directory.Exists(outputDir))
+          Directory.Delete(outputDir, true);
+      }
+    }
+
     #endregion
 
     #region FileResourceWriter - Write(ResourceReader)

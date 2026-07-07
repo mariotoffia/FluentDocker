@@ -47,7 +47,17 @@ namespace FluentDocker.Common
     /// </summary>
     public static bool TryDeserialize<T>(string json, out T? value)
     {
+      return TryDeserialize<T>(json, out value, out _);
+    }
+
+    /// <summary>
+    /// Deserializes a JSON string to the specified type using case-insensitive options,
+    /// returning the parse error when deserialization fails.
+    /// </summary>
+    public static bool TryDeserialize<T>(string json, out T? value, out Exception? error)
+    {
       value = default;
+      error = null;
       if (string.IsNullOrWhiteSpace(json))
         return false;
 
@@ -59,6 +69,7 @@ namespace FluentDocker.Common
       // ponytail: covers converter/setter format+overflow escapes; keeps TryDeserialize's never-throw contract.
       catch (Exception ex) when (ex is JsonException or NotSupportedException or ArgumentException or InvalidOperationException or FormatException or OverflowException)
       {
+        error = ex;
         return false;
       }
     }

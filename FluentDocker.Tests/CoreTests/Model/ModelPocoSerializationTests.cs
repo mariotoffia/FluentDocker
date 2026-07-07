@@ -129,10 +129,11 @@ namespace FluentDocker.Tests.CoreTests.Model
     }
 
     [Fact]
-    public void ModelReference_WhitespaceJsonString_ThrowsJsonException()
+    public void ModelReference_WhitespaceJsonString_DeserializesLikeEmptyString()
     {
-      Assert.Throws<JsonException>(() =>
-          JsonSerializer.Deserialize<ModelInfo>("{\"Reference\":\"   \"}", JsonHelper.CaseInsensitiveOptions));
+      var info = JsonSerializer.Deserialize<ModelInfo>("{\"Reference\":\"   \"}", JsonHelper.CaseInsensitiveOptions);
+
+      Assert.Null(info!.Reference);
     }
   }
 }
