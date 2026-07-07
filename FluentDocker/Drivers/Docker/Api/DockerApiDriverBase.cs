@@ -24,7 +24,10 @@ namespace FluentDocker.Drivers.Docker.Api
   /// </summary>
   public abstract partial class DockerApiDriverBase
   {
+    /// <summary>Docker API connection used by this component.</summary>
     protected IDockerApiConnection Connection { get; private set; }
+
+    /// <summary>Driver context supplied during initialization.</summary>
     protected DriverContext Context { get; private set; }
 
     /// <summary>
@@ -32,12 +35,14 @@ namespace FluentDocker.Drivers.Docker.Api
     /// </summary>
     protected ILogger Logger { get; private set; } = NullLogger.Instance;
 
+    /// <summary>Initializes the base driver with a Docker API connection.</summary>
     protected DockerApiDriverBase(IDockerApiConnection connection)
     {
       ArgumentNullException.ThrowIfNull(connection);
       Connection = connection;
     }
 
+    /// <summary>Stores context and configures the component logger.</summary>
     public virtual void Initialize(DriverContext context)
     {
       ArgumentNullException.ThrowIfNull(context);
@@ -47,6 +52,7 @@ namespace FluentDocker.Drivers.Docker.Api
 
     #region JSON Request/Response Helpers
 
+    /// <summary>Sends GET and deserializes a JSON response.</summary>
     protected async Task<ApiResult<T>> GetJsonAsync<T>(string path, CancellationToken ct)
     {
       try
@@ -78,6 +84,7 @@ namespace FluentDocker.Drivers.Docker.Api
       }
     }
 
+    /// <summary>Sends POST and deserializes a JSON response.</summary>
     protected async Task<ApiResult<T>> PostJsonAsync<T>(
         string path, object body, CancellationToken ct)
     {
@@ -140,6 +147,7 @@ namespace FluentDocker.Drivers.Docker.Api
       }
     }
 
+    /// <summary>Sends POST and returns the API result without a response body.</summary>
     protected async Task<ApiResult> PostAsync(string path, object body, CancellationToken ct)
     {
       try
@@ -158,6 +166,7 @@ namespace FluentDocker.Drivers.Docker.Api
       }
     }
 
+    /// <summary>Sends DELETE and returns the API result.</summary>
     protected async Task<ApiResult> DeleteAsync(string path, CancellationToken ct)
     {
       try
@@ -171,6 +180,7 @@ namespace FluentDocker.Drivers.Docker.Api
       }
     }
 
+    /// <summary>Sends PUT with stream content and returns the API result.</summary>
     protected async Task<ApiResult> PutStreamAsync(
         string path, Stream stream, string contentType, CancellationToken ct)
     {
@@ -188,6 +198,7 @@ namespace FluentDocker.Drivers.Docker.Api
       }
     }
 
+    /// <summary>Sends GET and returns the response as a JSON element.</summary>
     protected async Task<ApiResult<JsonElement>> GetJsonElementAsync(
         string path, CancellationToken ct)
     {
@@ -202,6 +213,7 @@ namespace FluentDocker.Drivers.Docker.Api
       }
     }
 
+    /// <summary>Sends POST and returns the response as a JSON element.</summary>
     protected async Task<ApiResult<JsonElement>> PostJsonElementAsync(
         string path, object body, CancellationToken ct)
     {
@@ -221,11 +233,13 @@ namespace FluentDocker.Drivers.Docker.Api
       }
     }
 
+    /// <summary>Opens a raw response stream from a GET endpoint.</summary>
     protected async Task<Stream> GetRawStreamAsync(string path, CancellationToken ct)
     {
       return await Connection.GetStreamAsync(path, ct).ConfigureAwait(false);
     }
 
+    /// <summary>Reads an NDJSON response stream from a GET endpoint.</summary>
     protected async IAsyncEnumerable<string> ReadNdjsonStreamAsync(
         string path, [EnumeratorCancellation] CancellationToken ct)
     {
@@ -279,6 +293,7 @@ namespace FluentDocker.Drivers.Docker.Api
       }
     }
 
+    /// <summary>Reads an NDJSON response stream from a POST endpoint.</summary>
     protected async IAsyncEnumerable<string> ReadNdjsonFromPostStreamAsync(
         string path, HttpContent content, [EnumeratorCancellation] CancellationToken ct)
     {
@@ -375,6 +390,7 @@ namespace FluentDocker.Drivers.Docker.Api
         yield return item;
     }
 
+    /// <inheritdoc />
     protected async IAsyncEnumerable<T> ReadNdjsonFromPostStreamAsync<T>(
         string path, HttpContent content, IReadOnlyDictionary<string, string> headers,
         JsonTypeInfo<T> typeInfo, [EnumeratorCancellation] CancellationToken ct) where T : class

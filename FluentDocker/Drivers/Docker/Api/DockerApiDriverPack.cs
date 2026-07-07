@@ -256,6 +256,7 @@ namespace FluentDocker.Drivers.Docker.Api
 
     #endregion
 
+    /// <inheritdoc />
     public async ValueTask DisposeAsync()
     {
       if (Interlocked.CompareExchange(ref _disposed, 1, 0) != 0)
@@ -266,7 +267,10 @@ namespace FluentDocker.Drivers.Docker.Api
       _initialized = false;
 
       if (connection != null)
+      {
+        DockerApiRegistryAuth.Clear(connection);
         await connection.DisposeAsync().ConfigureAwait(false);
+      }
 
       GC.SuppressFinalize(this);
     }

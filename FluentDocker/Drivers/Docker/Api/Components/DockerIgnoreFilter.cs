@@ -166,7 +166,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
           {
             sb.Append('[');
             var j = i + 1;
-            if (pattern[j] == '!') // Docker uses [!...] for negation; regex uses [^...].
+            if (pattern[j] == '!' || pattern[j] == '^') // Docker/Go negation; regex uses [^...].
             {
               sb.Append('^');
               j++;
@@ -217,7 +217,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
     private static int FindClassEnd(string pattern, int start)
     {
       var j = start + 1;
-      if (j < pattern.Length && pattern[j] == '!')
+      if (j < pattern.Length && (pattern[j] == '!' || pattern[j] == '^'))
         j++;
       if (j < pattern.Length && pattern[j] == ']')
         j++;

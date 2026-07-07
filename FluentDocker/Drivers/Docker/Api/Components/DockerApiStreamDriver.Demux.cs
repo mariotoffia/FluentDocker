@@ -163,26 +163,35 @@ namespace FluentDocker.Drivers.Docker.Api.Components
     {
       private readonly StringBuilder _pendingText = new();
       private readonly Decoder _decoder = Encoding.UTF8.GetDecoder();
-      private bool _midCharacter;
 
       public IEnumerable<LogEntry> Append(byte[] payload, int count)
       {
-        var wasMidCharacter = _midCharacter;
         var chars = new char[Encoding.UTF8.GetMaxCharCount(count)];
         var written = _decoder.GetChars(payload, 0, count, chars, 0, flush: false);
-        _pendingText.Append(chars, 0, written);
+        var entries = new List<LogEntry>();
 
-        // GetCharCount with flush:true simulates a flush without mutating decoder state;
-        // a nonzero count means the frame ended mid-character, so hold the entry open
-        // until the next frame completes it.
-        _midCharacter = _decoder.GetCharCount([], 0, 0, flush: true) > 0;
+        // Single pass over the freshly decoded span: emit on each '\n', keep only the
+        // trailing partial line in _pendingText. Each char is appended and scanned once,
+        // so a newline-dense frame is O(n) (the old per-line StringBuilder.Remove was O(n^2)).
+        var start = 0;
+        for (var i = 0; i < written; i++)
+        {
+          if (chars[i] != '\n')
+            continue;
+          _pendingText.Append(chars, start, i - start);
+          entries.Add(EmitLine());
+          start = i + 1;
+        }
 
-        // A held partial that decodes to U+FFFD was abandoned by the stream — stop
-        // holding the entry open (keeps broken input at frame-granular emission).
-        var abandoned = wasMidCharacter && written > 0 && chars[0] == '\uFFFD';
-        if (!_midCharacter || abandoned || _pendingText.Length >= MaxFrameSizeBytes)
-          return EmitPending();
-        return Array.Empty<LogEntry>();
+        _pendingText.Append(chars, start, written - start);
+
+        // ponytail: cap an unterminated line at one stdcopy-frame max so a newline-free
+        // stream can't grow _pendingText without bound; switch to chunk callbacks if exact
+        // giant-line fidelity matters.
+        if (_pendingText.Length >= MaxFrameSizeBytes)
+          entries.Add(EmitLine());
+
+        return entries;
       }
 
       public IEnumerable<LogEntry> Flush()
@@ -190,42 +199,39 @@ namespace FluentDocker.Drivers.Docker.Api.Components
         var chars = new char[Encoding.UTF8.GetMaxCharCount(0)];
         var written = _decoder.GetChars([], 0, 0, chars, 0, flush: true);
         _pendingText.Append(chars, 0, written);
-        _midCharacter = false;
-        return EmitPending();
+        return _pendingText.Length == 0 ? Array.Empty<LogEntry>() : new[] { EmitLine() };
       }
 
-      private IEnumerable<LogEntry> EmitPending()
+      private LogEntry EmitLine()
       {
-        var entries = new List<LogEntry>();
-        if (_pendingText.Length == 0)
-          return entries;
-
-        var text = _pendingText.ToString().TrimEnd('\n', '\r');
+        var line = _pendingText.ToString();
         _pendingText.Clear();
-        foreach (var raw in text.Split('\n'))
-        {
-          var line = raw.EndsWith('\r') ? raw[..^1] : raw;
-          entries.Add(new LogEntry { Source = source, Line = line });
-        }
-        return entries;
+        if (line.EndsWith('\r'))
+          line = line[..^1];
+        return new LogEntry { Source = source, Line = line };
       }
-
     }
 
     private sealed class PrefixReadStream(byte[] prefix, int prefixLength, Stream inner) : Stream
     {
       private int _offset;
 
+      /// <inheritdoc />
       public override bool CanRead => true;
+      /// <inheritdoc />
       public override bool CanSeek => false;
+      /// <inheritdoc />
       public override bool CanWrite => false;
+      /// <inheritdoc />
       public override long Length => throw new NotSupportedException();
+      /// <inheritdoc />
       public override long Position
       {
         get => throw new NotSupportedException();
         set => throw new NotSupportedException();
       }
 
+      /// <inheritdoc />
       public override async ValueTask<int> ReadAsync(
           Memory<byte> buffer, CancellationToken cancellationToken = default)
       {
@@ -239,12 +245,17 @@ namespace FluentDocker.Drivers.Docker.Api.Components
         return await inner.ReadAsync(buffer, cancellationToken).ConfigureAwait(false);
       }
 
+      /// <inheritdoc />
       public override int Read(byte[] buffer, int offset, int count) =>
           throw new NotSupportedException("synchronous Read is not supported; use ReadAsync");
 
+      /// <inheritdoc />
       public override void Flush() { }
+      /// <inheritdoc />
       public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
+      /// <inheritdoc />
       public override void SetLength(long value) => throw new NotSupportedException();
+      /// <inheritdoc />
       public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
     }
 

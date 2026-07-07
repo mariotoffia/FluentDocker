@@ -20,6 +20,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
   /// </summary>
   public class DockerApiServiceDriver(IDockerApiConnection connection) : DockerApiDriverBase(connection), IServiceDriver
   {
+    /// <inheritdoc />
     public async Task<CommandResponse<ServiceCreateResult>> CreateAsync(
         DriverContext context, ServiceCreateConfig config,
         CancellationToken cancellationToken = default)
@@ -45,6 +46,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       });
     }
 
+    /// <inheritdoc />
     public async Task<CommandResponse<Unit>> RemoveAsync(
         DriverContext context, string[] serviceIds,
         CancellationToken cancellationToken = default)
@@ -63,6 +65,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       return CommandResponse<Unit>.Ok(Unit.Default);
     }
 
+    /// <inheritdoc />
     public async Task<CommandResponse<Unit>> UpdateAsync(
         DriverContext context, string serviceId, ServiceUpdateConfig config,
         CancellationToken cancellationToken = default)
@@ -91,6 +94,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       return CommandResponse<Unit>.Ok(Unit.Default);
     }
 
+    /// <inheritdoc />
     public async Task<CommandResponse<Unit>> RollbackAsync(
         DriverContext context, string serviceId, bool detach = false,
         CancellationToken cancellationToken = default)
@@ -113,6 +117,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       return CommandResponse<Unit>.Ok(Unit.Default);
     }
 
+    /// <inheritdoc />
     public async Task<CommandResponse<IList<ServiceInfo>>> ListAsync(
         DriverContext context, ServiceListFilter filter = null,
         CancellationToken cancellationToken = default)
@@ -144,6 +149,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       return CommandResponse<IList<ServiceInfo>>.Ok(services);
     }
 
+    /// <inheritdoc />
     public async Task<CommandResponse<ServiceDetails>> InspectAsync(
         DriverContext context, string serviceId, bool pretty = false,
         CancellationToken cancellationToken = default)
@@ -159,6 +165,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       return CommandResponse<ServiceDetails>.Ok(ParseServiceDetails(result.Data));
     }
 
+    /// <inheritdoc />
     public async Task<CommandResponse<IList<ServiceTask>>> GetTasksAsync(
         DriverContext context, string serviceId,
         ServiceTaskFilter filter = null,
@@ -182,6 +189,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       return CommandResponse<IList<ServiceTask>>.Ok(tasks);
     }
 
+    /// <inheritdoc />
     public async Task<CommandResponse<string>> GetLogsAsync(
         DriverContext context, string serviceId,
         ServiceLogsConfig config = null,
@@ -221,6 +229,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       }
     }
 
+    /// <inheritdoc />
     public async Task<CommandResponse<Unit>> ScaleAsync(
         DriverContext context, Dictionary<string, int> serviceReplicas,
         bool detach = false, CancellationToken cancellationToken = default)

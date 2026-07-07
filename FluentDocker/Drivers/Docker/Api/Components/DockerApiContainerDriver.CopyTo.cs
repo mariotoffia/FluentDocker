@@ -56,7 +56,12 @@ namespace FluentDocker.Drivers.Docker.Api.Components
         }
         else
         {
-          await WriteDirectoryToTarAsync(tarStream, hostPath, string.Empty, cancellationToken)
+          var root = new DirectoryInfo(hostPath);
+          var entryBase = root.Name;
+          await DockerApiTarWriter.WriteDirectoryAsync(tarStream, entryBase,
+              root.LastWriteTimeUtc, DockerApiTarWriter.DirectoryModeFor(root.FullName),
+              cancellationToken).ConfigureAwait(false);
+          await WriteDirectoryToTarAsync(tarStream, hostPath, entryBase, cancellationToken)
               .ConfigureAwait(false);
         }
         await DockerApiTarWriter.FinishAsync(tarStream, cancellationToken).ConfigureAwait(false);

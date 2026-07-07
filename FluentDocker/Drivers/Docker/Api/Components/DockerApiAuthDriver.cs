@@ -11,6 +11,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
   /// </summary>
   public class DockerApiAuthDriver(IDockerApiConnection connection) : DockerApiDriverBase(connection), IAuthDriver
   {
+    /// <inheritdoc />
     public async Task<CommandResponse<Unit>> LoginAsync(
         DriverContext context, RegistryLoginConfig config,
         CancellationToken cancellationToken = default)

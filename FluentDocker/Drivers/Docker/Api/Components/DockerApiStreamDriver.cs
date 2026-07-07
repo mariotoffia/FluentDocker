@@ -8,6 +8,7 @@ using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using FluentDocker.Common;
+using FluentDocker.Drivers.Connection;
 using FluentDocker.Drivers.Docker.Api.Connection;
 using FluentDocker.Model.Drivers;
 using Microsoft.Extensions.Logging;
@@ -20,8 +21,10 @@ namespace FluentDocker.Drivers.Docker.Api.Components
   /// </summary>
   public partial class DockerApiStreamDriver : DockerApiDriverBase, IStreamDriver
   {
+    /// <summary>Initializes a Docker API stream driver.</summary>
     public DockerApiStreamDriver(IDockerApiConnection connection) : base(connection) { }
 
+    /// <inheritdoc />
     public async IAsyncEnumerable<string> StreamLogsAsync(
         DriverContext context, string containerId,
         StreamLogsConfig config = null,
@@ -76,11 +79,6 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       config ??= new StreamLogsConfig();
       var path = BuildLogsPath(containerId, config);
 
-      // A TTY container's log stream is raw text, not the 8-byte multiplexed frame format.
-      // Misreading raw output as multiplexed corrupts/drops lines, so detect TTY up-front.
-      var tty = await DetectTtyAsync(containerId, cancellationToken).ConfigureAwait(false);
-      var sniffOnInvalidHeader = !tty.HasValue;
-
       Stream stream;
       try
       {
@@ -101,6 +99,23 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       // Use try/finally to dispose the stream when the caller breaks out.
       try
       {
+        var contentType = (stream as ResponseOwningStream)?.ContentType;
+        if (UseLogContentType(contentType))
+        {
+          var multiplexed = string.Equals(contentType,
+              MultiplexedStreamContentType, StringComparison.OrdinalIgnoreCase);
+          await foreach (var entry in ReadMultiplexedStreamAsync(
+              stream, !multiplexed, sniffOnInvalidHeader: false, cancellationToken).ConfigureAwait(false))
+          {
+            yield return entry;
+          }
+          yield break;
+        }
+
+        // Older daemons do not emit the authoritative stream Content-Type; inspect TTY
+        // and retain the byte-sniff fallback for that compatibility window.
+        var tty = await DetectTtyAsync(containerId, cancellationToken).ConfigureAwait(false);
+        var sniffOnInvalidHeader = !tty.HasValue;
         await foreach (var entry in ReadMultiplexedStreamAsync(
             stream, tty == true, sniffOnInvalidHeader, cancellationToken).ConfigureAwait(false))
         {
@@ -111,6 +126,20 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       {
         await stream.DisposeAsync().ConfigureAwait(false);
       }
+    }
+
+    private const string MultiplexedStreamContentType = "application/vnd.docker.multiplexed-stream";
+    private const string RawStreamContentType = "application/vnd.docker.raw-stream";
+
+    // Only trust the stream Content-Type when it is one of Docker's authoritative values
+    // (API 1.42+). An unrecognized type (e.g. rewritten by a proxy) falls through to the
+    // TTY-inspect + byte-sniff path instead of being blindly read as raw.
+    private bool UseLogContentType(string contentType)
+    {
+      return (string.Equals(contentType, MultiplexedStreamContentType, StringComparison.OrdinalIgnoreCase) ||
+              string.Equals(contentType, RawStreamContentType, StringComparison.OrdinalIgnoreCase)) &&
+          Version.TryParse(Connection.ApiVersion, out var version) &&
+          version.CompareTo(new Version(1, 42)) >= 0;
     }
 
     /// <summary>
@@ -140,6 +169,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       return null;
     }
 
+    /// <inheritdoc />
     public async IAsyncEnumerable<ContainerEvent> StreamEventsAsync(
         DriverContext context, StreamEventsConfig config = null,
         [EnumeratorCancellation] CancellationToken cancellationToken = default)
@@ -224,6 +254,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
             ErrorCodes.Api.StreamEnded);
     }
 
+    /// <inheritdoc />
     public IAsyncEnumerable<ContainerStats> StreamStatsAsync(
         DriverContext context, string containerId = null,
         StreamStatsConfig config = null,

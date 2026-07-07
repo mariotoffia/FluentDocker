@@ -7,6 +7,7 @@ namespace FluentDocker.Drivers.Docker.Api.Connection
 {
   public sealed partial class DockerApiConnection
   {
+    /// <inheritdoc />
     public async Task<HttpResponseMessage> PostAsync(
         string path, HttpContent content,
         IReadOnlyDictionary<string, string> headers, CancellationToken ct = default)
@@ -30,6 +31,17 @@ namespace FluentDocker.Drivers.Docker.Api.Connection
     private async Task<HttpResponseMessage> SendForHeadersAsync(
         HttpRequestMessage request, CancellationToken ct)
     {
+      if (request.Content != null)
+      {
+        // ponytail: body-bearing requests (build ctx, image load/import) legitimately exceed the
+        // TTFB cap, so only the connect phase (SocketsHttpHandler.ConnectTimeout) and the caller's
+        // token bound them — no mid-upload stall timeout by design. Add an absolute cap if a stalled
+        // daemon mid-upload with CancellationToken.None proves a real problem.
+        return await _longRunningHttpClient.SendAsync(
+            request, HttpCompletionOption.ResponseHeadersRead, ct)
+            .ConfigureAwait(false);
+      }
+
       using var ttfbCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
       ttfbCts.CancelAfter(_config.ConnectionTimeout);
       return await _longRunningHttpClient.SendAsync(

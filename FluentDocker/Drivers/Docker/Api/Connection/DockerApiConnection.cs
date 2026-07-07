@@ -48,6 +48,7 @@ namespace FluentDocker.Drivers.Docker.Api.Connection
     private volatile NegotiationState _negotiation;
     private readonly ILogger<DockerApiConnection> _logger;
 
+    /// <summary>Creates a Docker API connection using the supplied transport configuration.</summary>
     public DockerApiConnection(DockerApiConnectionConfig config, ILoggerFactory loggerFactory = null)
     {
       ArgumentNullException.ThrowIfNull(config);
@@ -88,6 +89,7 @@ namespace FluentDocker.Drivers.Docker.Api.Connection
           : new NegotiationState(null, Negotiated: false);
     }
 
+    /// <inheritdoc />
     public string ApiVersion => _negotiation.ApiVersion;
 
     /// <summary>
@@ -95,6 +97,7 @@ namespace FluentDocker.Drivers.Docker.Api.Connection
     /// </summary>
     public bool IsVersionNegotiated => _negotiation.Negotiated;
 
+    /// <inheritdoc />
     public async Task<HttpResponseMessage> GetAsync(string path, CancellationToken ct = default)
     {
       ThrowIfDisposed();
@@ -102,6 +105,7 @@ namespace FluentDocker.Drivers.Docker.Api.Connection
       return await _httpClient.GetAsync(versionedPath, ct).ConfigureAwait(false);
     }
 
+    /// <inheritdoc />
     public async Task<HttpResponseMessage> HeadAsync(string path, CancellationToken ct = default)
     {
       ThrowIfDisposed();
@@ -111,6 +115,7 @@ namespace FluentDocker.Drivers.Docker.Api.Connection
           .ConfigureAwait(false);
     }
 
+    /// <inheritdoc />
     public async Task<HttpResponseMessage> PostAsync(
         string path, HttpContent content = null, CancellationToken ct = default)
     {
@@ -120,6 +125,7 @@ namespace FluentDocker.Drivers.Docker.Api.Connection
       return await client.PostAsync(versionedPath, content, ct).ConfigureAwait(false);
     }
 
+    /// <inheritdoc />
     public async Task<HttpResponseMessage> PutAsync(
         string path, HttpContent content, CancellationToken ct = default)
     {
@@ -128,6 +134,7 @@ namespace FluentDocker.Drivers.Docker.Api.Connection
       return await _httpClient.PutAsync(versionedPath, content, ct).ConfigureAwait(false);
     }
 
+    /// <inheritdoc />
     public async Task<HttpResponseMessage> DeleteAsync(string path, CancellationToken ct = default)
     {
       ThrowIfDisposed();
@@ -135,6 +142,7 @@ namespace FluentDocker.Drivers.Docker.Api.Connection
       return await _httpClient.DeleteAsync(versionedPath, ct).ConfigureAwait(false);
     }
 
+    /// <inheritdoc />
     public async Task<Stream> GetStreamAsync(string path, CancellationToken ct = default)
     {
       ThrowIfDisposed();
@@ -146,12 +154,14 @@ namespace FluentDocker.Drivers.Docker.Api.Connection
       return new ResponseOwningStream(stream, response);
     }
 
+    /// <inheritdoc />
     public async Task<Stream> PostStreamAsync(
         string path, HttpContent content = null, CancellationToken ct = default)
     {
       return await PostStreamAsync(path, content, null, ct).ConfigureAwait(false);
     }
 
+    /// <inheritdoc />
     public async Task<Stream> PostStreamAsync(
         string path, HttpContent content,
         IReadOnlyDictionary<string, string> headers, CancellationToken ct = default)
@@ -236,6 +246,7 @@ namespace FluentDocker.Drivers.Docker.Api.Connection
       return null;
     }
 
+    /// <inheritdoc />
     public async Task<bool> PingAsync(CancellationToken ct = default)
     {
       ThrowIfDisposed();
@@ -262,6 +273,7 @@ namespace FluentDocker.Drivers.Docker.Api.Connection
       }
     }
 
+    /// <inheritdoc />
     public async ValueTask DisposeAsync()
     {
       if (Interlocked.CompareExchange(ref _disposed, 1, 0) != 0)
@@ -334,38 +346,6 @@ namespace FluentDocker.Drivers.Docker.Api.Connection
     private void ThrowIfDisposed()
     {
       ObjectDisposedException.ThrowIf(Volatile.Read(ref _disposed) != 0, this);
-    }
-
-    private async Task NegotiateApiVersionAsync(CancellationToken ct)
-    {
-      try
-      {
-        using var response = await _httpClient.GetAsync("/_ping", ct).ConfigureAwait(false);
-        string version = null;
-        if (response.Headers.TryGetValues("API-Version", out var values))
-        {
-          foreach (var v in values)
-          {
-            version = v;
-            break;
-          }
-        }
-
-        // Atomically publish both the version and the negotiated flag.
-        _negotiation = new NegotiationState(version, Negotiated: true);
-      }
-      catch (OperationCanceledException) when (ct.IsCancellationRequested)
-      {
-        // Caller cancellation is not a negotiation failure — propagate without caching, so a
-        // later call retries negotiation instead of being stuck in a degraded "no version" mode.
-        throw;
-      }
-      catch (Exception ex)
-      {
-        // Transient failure (daemon starting/unreachable). Do NOT cache as negotiated, so a later
-        // request retries; this request proceeds without a version prefix.
-        _logger.LogWarning(ex, "Docker API version negotiation failed; proceeding without version prefix (will retry)");
-      }
     }
 
     internal static string GetDefaultHost()

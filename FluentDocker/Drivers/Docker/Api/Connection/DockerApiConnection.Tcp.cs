@@ -90,7 +90,7 @@ namespace FluentDocker.Drivers.Docker.Api.Connection
       ConfigureTls(handler, config, useTls, hasCerts, ownedCertificates);
 
       var scheme = (useTls || hasCerts) ? "https" : "http";
-      var port = ResolveDockerPort(uri, useTls);
+      var port = ResolveDockerPort(uri, useTls || hasCerts);
       var baseAddress = $"{scheme}://{uri.Host}:{port}";
 
       return (handler, baseAddress);
@@ -98,7 +98,6 @@ namespace FluentDocker.Drivers.Docker.Api.Connection
 
     private static int ResolveDockerPort(Uri uri, bool useTls)
     {
-      // ponytail: scheme-default port vs docker default; verified by inspection, not unit-tested — no public seam for the resolved base address.
       return !uri.IsDefaultPort && uri.Port > 0 ? uri.Port : (useTls ? 2376 : 2375);
     }
 

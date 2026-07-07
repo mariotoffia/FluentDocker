@@ -18,7 +18,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
     private static DriverContext Ctx => new("docker-api-stream-demux-test");
 
     [Fact]
-    public async Task StreamLogEntriesAsync_RepeatedIncompleteUtf8Frames_EmitsBeforeStreamEnds()
+    public async Task StreamLogEntriesAsync_RepeatedIncompleteUtf8Frames_DoesNotFabricateLines()
     {
       var mock = new MockDockerApiConnection();
       mock.SetupGet("/containers/ctr/json", 200, @"{""Config"":{""Tty"":false}}");
@@ -42,8 +42,31 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
       });
 
       Assert.Contains("stream still open", ex.Message);
-      Assert.NotEmpty(entries);
-      Assert.All(entries, static entry => Assert.Equal(LogStreamSource.Stdout, entry.Source));
+      Assert.Empty(entries);
+    }
+
+    [Fact]
+    public async Task StreamLogEntriesAsync_UnterminatedLineOverFrameCap_FlushesToBoundMemory()
+    {
+      var payload = Encoding.UTF8.GetBytes(new string('x', 10 * 1024 * 1024 + 1));
+      var mock = new MockDockerApiConnection();
+      mock.SetupGet("/containers/ctr/json", 200, @"{""Config"":{""Tty"":false}}");
+      mock.SetupStreamBytes("/containers/ctr/logs", Combine(
+          Frame(1, payload[..(10 * 1024 * 1024)]),
+          Frame(1, payload[(10 * 1024 * 1024)..])));
+      var driver = new DockerApiStreamDriver(mock);
+      driver.Initialize(Ctx);
+      var entries = new List<LogEntry>();
+
+      await foreach (var entry in driver.StreamLogEntriesAsync(
+          Ctx, "ctr", cancellationToken: TestContext.Current.CancellationToken))
+      {
+        entries.Add(entry);
+      }
+
+      Assert.Equal(2, entries.Count);
+      Assert.Equal(10 * 1024 * 1024, entries[0].Line.Length);
+      Assert.Equal(1, entries[1].Line.Length);
     }
 
     private static byte[] Frame(byte streamType, byte[] payload)

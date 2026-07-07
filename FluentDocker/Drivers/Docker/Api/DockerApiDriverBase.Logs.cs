@@ -9,6 +9,7 @@ namespace FluentDocker.Drivers.Docker.Api
 {
   public abstract partial class DockerApiDriverBase
   {
+    /// <summary>Reads the tail of a Docker log stream, stripping stdcopy headers when present.</summary>
     protected static async Task<string> ReadDockerLogTailAsync(
         Stream stream, CancellationToken cancellationToken)
     {
@@ -73,6 +74,7 @@ namespace FluentDocker.Drivers.Docker.Api
       private int _count;
       private bool _truncated;
 
+      /// <inheritdoc />
       public void Append(ReadOnlySpan<byte> bytes)
       {
         if (bytes.Length >= _buffer.Length)
@@ -100,6 +102,7 @@ namespace FluentDocker.Drivers.Docker.Api
         }
       }
 
+      /// <inheritdoc />
       public string ToText()
       {
         var bytes = new byte[_count];

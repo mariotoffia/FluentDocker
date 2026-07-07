@@ -15,6 +15,7 @@ namespace FluentDocker.Drivers.Docker.Api
   {
     #region Error Context
 
+    /// <inheritdoc />
     protected ErrorContext CreateErrorContext(
         string operation, int statusCode, string responseBody = null)
     {
@@ -28,11 +29,13 @@ namespace FluentDocker.Drivers.Docker.Api
       };
     }
 
+    /// <inheritdoc />
     protected static string MapNotFoundErrorCode(int statusCode, string defaultErrorCode)
     {
       return statusCode == 404 ? defaultErrorCode : MapHttpErrorCode(statusCode);
     }
 
+    /// <inheritdoc />
     protected static string MapHttpErrorCode(int statusCode)
     {
       return statusCode switch
@@ -48,12 +51,14 @@ namespace FluentDocker.Drivers.Docker.Api
       };
     }
 
+    /// <inheritdoc />
     protected ApiResult<T> TransportFailure<T>(Exception ex)
     {
       var (statusCode, message) = DescribeTransportFailure(ex);
       return ApiResult<T>.Failure(statusCode, message);
     }
 
+    /// <inheritdoc />
     protected ApiResult TransportFailure(Exception ex)
     {
       var (statusCode, message) = DescribeTransportFailure(ex);
@@ -64,6 +69,7 @@ namespace FluentDocker.Drivers.Docker.Api
     // 408 (an internal HttpClient.Timeout — the caller's token did not fire) maps to
     // General.Timeout; 599 (daemon never reached) maps to Api.ConnectionFailed — both via
     // MapHttpErrorCode — so a daemon-down outage is distinguishable from a genuine daemon 5xx.
+    /// <inheritdoc />
     protected (int StatusCode, string Message) DescribeTransportFailure(Exception ex)
     {
       if (ex is TaskCanceledException)
@@ -79,6 +85,7 @@ namespace FluentDocker.Drivers.Docker.Api
     // (e.g. 404 from EnsureStreamSuccessAsync) maps directly; a pre-response transport
     // failure is described (599 connect / 408 timeout) so daemon-down streams surface as
     // Api.ConnectionFailed uniformly with the buffered paths.
+    /// <inheritdoc />
     protected string ClassifyStreamException(Exception ex)
     {
       if (ex is HttpRequestException { StatusCode: not null } http)

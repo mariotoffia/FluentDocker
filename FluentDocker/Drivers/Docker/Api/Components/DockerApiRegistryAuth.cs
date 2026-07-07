@@ -13,12 +13,14 @@ namespace FluentDocker.Drivers.Docker.Api.Components
     private const string DockerHubServer = "https://index.docker.io/v1/";
     private static readonly ConditionalWeakTable<IDockerApiConnection, AuthCache> Caches = new();
 
+    /// <inheritdoc />
     public static void Store(IDockerApiConnection connection, RegistryLoginConfig config)
     {
       var cache = Caches.GetValue(connection, _ => new AuthCache());
       cache.Store(Normalize(config.Server ?? DockerHubServer), config);
     }
 
+    /// <inheritdoc />
     public static void Remove(IDockerApiConnection connection, string server)
     {
       if (!Caches.TryGetValue(connection, out var cache))
@@ -29,6 +31,13 @@ namespace FluentDocker.Drivers.Docker.Api.Components
         cache.Remove(Normalize(server));
     }
 
+    /// <inheritdoc />
+    public static void Clear(IDockerApiConnection connection)
+    {
+      Caches.Remove(connection);
+    }
+
+    /// <inheritdoc />
     public static IReadOnlyDictionary<string, string> HeaderFor(
         IDockerApiConnection connection, string image)
     {
@@ -53,6 +62,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       };
     }
 
+    /// <inheritdoc />
     public static IReadOnlyDictionary<string, string> RegistryConfigHeaderFor(
         IDockerApiConnection connection)
     {
@@ -108,18 +118,21 @@ namespace FluentDocker.Drivers.Docker.Api.Components
     {
       private readonly Dictionary<string, RegistryLoginConfig> _configs = [];
 
+      /// <inheritdoc />
       public void Store(string server, RegistryLoginConfig config)
       {
         lock (_configs)
           _configs[server] = config;
       }
 
+      /// <inheritdoc />
       public RegistryLoginConfig Get(string server)
       {
         lock (_configs)
           return _configs.TryGetValue(server, out var config) ? config : null;
       }
 
+      /// <inheritdoc />
       public Dictionary<string, object> Snapshot()
       {
         lock (_configs)
@@ -139,12 +152,14 @@ namespace FluentDocker.Drivers.Docker.Api.Components
         }
       }
 
+      /// <inheritdoc />
       public void Remove(string server)
       {
         lock (_configs)
           _configs.Remove(server);
       }
 
+      /// <inheritdoc />
       public void Clear()
       {
         lock (_configs)

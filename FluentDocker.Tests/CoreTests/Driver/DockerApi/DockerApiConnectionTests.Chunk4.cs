@@ -93,6 +93,33 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
     }
 
     [Fact]
+    public async Task Constructor_CertPathWithoutPort_DefaultsToTlsDockerPort()
+    {
+      var certPath = Path.GetFullPath(Path.Combine(
+          ".out", "docker-api-certs", "cert-port-" + Guid.NewGuid().ToString("N")));
+      try
+      {
+        Directory.CreateDirectory(certPath);
+        WriteCaCertificate(Path.Combine(certPath, "ca.pem"));
+        await using var conn = new DockerApiConnection(new DockerApiConnectionConfig
+        {
+          Host = "tcp://cert-docker.example",
+          CertificatePath = certPath,
+          ApiVersion = "1.45"
+        });
+
+        var client = GetHttpClient(conn);
+
+        Assert.Equal("https://cert-docker.example:2376/", client.BaseAddress!.ToString());
+      }
+      finally
+      {
+        if (Directory.Exists(certPath))
+          Directory.Delete(certPath, true);
+      }
+    }
+
+    [Fact]
     public async Task Constructor_DockerTlsVerifyEnvironment_NeverWeakensExplicitVerification()
     {
       var oldTlsVerify = Environment.GetEnvironmentVariable("DOCKER_TLS_VERIFY");

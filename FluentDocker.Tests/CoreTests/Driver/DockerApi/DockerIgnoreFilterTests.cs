@@ -182,5 +182,14 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
       Assert.True(f.IsIgnored("img-a.png"));
       Assert.False(f.IsIgnored("img-5.png"));
     }
+
+    [Fact]
+    public void BracketClass_CaretNegation_ExcludesListedChars()
+    {
+      var f = DockerIgnoreFilter.FromLines(["[^a]bc"]);
+
+      Assert.True(f.IsIgnored("bbc"));
+      Assert.False(f.IsIgnored("abc"));
+    }
   }
 }

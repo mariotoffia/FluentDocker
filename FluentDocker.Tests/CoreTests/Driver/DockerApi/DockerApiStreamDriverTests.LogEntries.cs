@@ -275,8 +275,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
       });
 
       Assert.Contains("invalid multiplexed frame header", error.Message);
-      Assert.Single(entries);
-      Assert.Equal("hello", entries[0].Line);
+      Assert.Empty(entries);
     }
 
     #endregion

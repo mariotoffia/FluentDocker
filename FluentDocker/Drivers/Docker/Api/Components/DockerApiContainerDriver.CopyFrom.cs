@@ -75,11 +75,16 @@ namespace FluentDocker.Drivers.Docker.Api.Components
     private static async Task ExtractArchiveToDirectoryAsync(
         Stream stream, string directory, CancellationToken cancellationToken)
     {
-      Directory.CreateDirectory(directory);
-      var root = Path.GetFullPath(directory).TrimEnd(
+      var destination = Path.GetFullPath(directory).TrimEnd(
+          Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+      var parent = Path.GetDirectoryName(destination) ?? ".";
+      Directory.CreateDirectory(parent);
+      var staging = Path.Combine(parent, $".fluentdocker-extract-{Guid.NewGuid():N}");
+      Directory.CreateDirectory(staging);
+      var root = Path.GetFullPath(staging).TrimEnd(
           Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
       var rootWithSeparator = root + Path.DirectorySeparatorChar;
-      var tmp = Path.Combine(directory, $".fluentdocker-archive-{Guid.NewGuid():N}.tmp");
+      var tmp = Path.Combine(parent, $".fluentdocker-archive-{Guid.NewGuid():N}.tmp");
       try
       {
         await using (var fs = new FileStream(
@@ -108,10 +113,35 @@ namespace FluentDocker.Drivers.Docker.Api.Components
               bufferSize: 81920, FileOptions.Asynchronous);
           await entry.CopyToAsync(output, cancellationToken).ConfigureAwait(false);
         }
+
+        Directory.CreateDirectory(destination);
+        MoveDirectoryContents(staging, destination);
       }
       finally
       {
         File.Delete(tmp);
+        if (Directory.Exists(staging))
+          Directory.Delete(staging, recursive: true);
+      }
+    }
+
+    private static void MoveDirectoryContents(string source, string destination)
+    {
+      // ponytail: extraction is atomic (destination is only touched after a full, successful
+      // extract into the sibling staging dir), but this same-filesystem rename merge is best-effort
+      // per file — a failure mid-move can leave the destination partially updated. Stage-and-swap the
+      // whole directory if all-or-nothing on the merge phase ever matters.
+      foreach (var dir in Directory.EnumerateDirectories(source))
+      {
+        var target = Path.Combine(destination, Path.GetFileName(dir));
+        Directory.CreateDirectory(target);
+        MoveDirectoryContents(dir, target);
+      }
+
+      foreach (var file in Directory.EnumerateFiles(source))
+      {
+        var target = Path.Combine(destination, Path.GetFileName(file));
+        File.Move(file, target, overwrite: true);
       }
     }
 

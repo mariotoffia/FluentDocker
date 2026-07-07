@@ -286,9 +286,8 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
         lines.Add(line);
       }
 
-      Assert.Equal(2, lines.Count);
-      Assert.Equal("first", lines[0]);
-      Assert.Equal("second", lines[1]);
+      var only = Assert.Single(lines);
+      Assert.Equal("firstsecond", only);
     }
 
     [Fact]

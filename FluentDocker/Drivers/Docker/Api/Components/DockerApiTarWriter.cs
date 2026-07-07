@@ -12,15 +12,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
     private const int FileFallbackMode = 420;      // 0644
     private const int ExecutableFallbackMode = 493; // 0755
 
-    public static void WriteFile(
-        Stream tar, string entryName, Stream content, DateTimeOffset modified, int mode)
-    {
-      var length = content.Length;
-      WriteHeaderWithLongName(tar, entryName, length, modified, (byte)'0', mode);
-      CopyExactly(content, tar, length);
-      Pad(tar, length);
-    }
-
+    /// <inheritdoc />
     public static async Task WriteFileAsync(
         Stream tar, string entryName, Stream content, DateTimeOffset modified, int mode,
         CancellationToken cancellationToken)
@@ -32,13 +24,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       await PadAsync(tar, length, cancellationToken).ConfigureAwait(false);
     }
 
-    public static void WriteDirectory(
-        Stream tar, string entryName, DateTimeOffset modified, int mode)
-    {
-      var name = entryName[^1] == '/' ? entryName : entryName + "/";
-      WriteHeaderWithLongName(tar, name, 0, modified, (byte)'5', mode);
-    }
-
+    /// <inheritdoc />
     public static async Task WriteDirectoryAsync(
         Stream tar, string entryName, DateTimeOffset modified, int mode,
         CancellationToken cancellationToken)
@@ -48,18 +34,14 @@ namespace FluentDocker.Drivers.Docker.Api.Components
           cancellationToken).ConfigureAwait(false);
     }
 
-    public static void Finish(Stream tar)
-    {
-      tar.Write(new byte[BlockSize]);
-      tar.Write(new byte[BlockSize]);
-    }
-
+    /// <inheritdoc />
     public static async Task FinishAsync(Stream tar, CancellationToken cancellationToken)
     {
       await tar.WriteAsync(new byte[BlockSize], cancellationToken).ConfigureAwait(false);
       await tar.WriteAsync(new byte[BlockSize], cancellationToken).ConfigureAwait(false);
     }
 
+    /// <inheritdoc />
     public static int FileModeFor(string path)
     {
       if (!OperatingSystem.IsWindows())
@@ -76,6 +58,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       return IsExecutableName(path) ? ExecutableFallbackMode : FileFallbackMode;
     }
 
+    /// <inheritdoc />
     public static int DirectoryModeFor(string path)
     {
       if (!OperatingSystem.IsWindows())
@@ -101,19 +84,6 @@ namespace FluentDocker.Drivers.Docker.Api.Components
           ext.Equals(".bat", StringComparison.OrdinalIgnoreCase);
     }
 
-    private static void CopyExactly(Stream source, Stream destination, long count)
-    {
-      var buffer = new byte[81920];
-      while (count > 0)
-      {
-        var read = source.Read(buffer, 0, (int)Math.Min(buffer.Length, count));
-        if (read == 0)
-          throw new EndOfStreamException("File changed while writing Docker build context tar.");
-        destination.Write(buffer, 0, read);
-        count -= read;
-      }
-    }
-
     private static async Task CopyExactlyAsync(
         Stream source, Stream destination, long count, CancellationToken cancellationToken)
     {
@@ -129,33 +99,6 @@ namespace FluentDocker.Drivers.Docker.Api.Components
             .ConfigureAwait(false);
         count -= read;
       }
-    }
-
-    private static void WriteHeader(
-        Stream tar, string entryName, long size, DateTimeOffset modified, byte type, int mode)
-    {
-      var header = new byte[BlockSize];
-      WriteName(header, entryName.Replace('\\', '/'));
-      WriteOctal(header, 100, 8, mode);
-      WriteOctal(header, 108, 8, 0);
-      WriteOctal(header, 116, 8, 0);
-      WriteOctal(header, 124, 12, size);
-      WriteOctal(header, 136, 12, Math.Max(0, modified.ToUnixTimeSeconds()));
-      for (var i = 148; i < 156; i++)
-        header[i] = 32;
-      header[156] = type;
-      WriteAscii(header, 257, 6, "ustar");
-      WriteAscii(header, 263, 2, "00");
-
-      var checksum = 0;
-      foreach (var b in header)
-        checksum += b;
-      var text = Convert.ToString(checksum, 8).PadLeft(6, '0');
-      WriteAscii(header, 148, 6, text);
-      header[154] = 0;
-      header[155] = 32;
-
-      tar.Write(header, 0, header.Length);
     }
 
     private static async Task WriteHeaderAsync(
@@ -184,22 +127,6 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       header[155] = 32;
 
       await tar.WriteAsync(header, cancellationToken).ConfigureAwait(false);
-    }
-
-    private static void WriteHeaderWithLongName(
-        Stream tar, string entryName, long size, DateTimeOffset modified, byte type, int mode)
-    {
-      var name = entryName.Replace('\\', '/');
-      if (!CanWriteName(name))
-      {
-        var bytes = Encoding.UTF8.GetBytes(name);
-        WriteHeader(tar, "././@LongLink", bytes.Length, modified, (byte)'L', FileFallbackMode);
-        tar.Write(bytes, 0, bytes.Length);
-        Pad(tar, bytes.Length);
-        name = TruncateUtf8(name, 100);
-      }
-
-      WriteHeader(tar, name, size, modified, type, mode);
     }
 
     private static async Task WriteHeaderWithLongNameAsync(
@@ -288,14 +215,6 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       if (bytes.Length > length)
         throw new InvalidOperationException($"Tar header field is too long: {value}");
       Array.Copy(bytes, 0, header, offset, bytes.Length);
-    }
-
-    private static void Pad(Stream tar, long size)
-    {
-      var remainder = size % BlockSize;
-      if (remainder == 0)
-        return;
-      tar.Write(new byte[BlockSize - remainder]);
     }
 
     private static async Task PadAsync(Stream tar, long size, CancellationToken cancellationToken)
