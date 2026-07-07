@@ -339,11 +339,11 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       if (!string.IsNullOrEmpty(config.Share))
         args += $" --share {QuoteArgumentIfNeeded(config.Share)}";
 
-      foreach (var label in config.Labels)
+      foreach (var label in OrEmpty(config.Labels))
         args += $" --label {QuoteArgumentIfNeeded($"{label.Key}={label.Value}")}";
-      foreach (var dns in config.Dns)
+      foreach (var dns in OrEmpty(config.Dns))
         args += $" --dns {QuoteArgumentIfNeeded(dns)}";
-      foreach (var port in config.Ports)
+      foreach (var port in OrEmpty(config.Ports))
         args += $" -p {QuoteArgumentIfNeeded(port)}";
 
       return args;

@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.Diagnostics;
+using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -43,6 +45,13 @@ namespace FluentDocker.Drivers.Podman.Cli
     /// The binary resolver for resolving Podman command paths.
     /// </summary>
     protected IPodmanBinaryResolver BinaryResolver { get; private set; }
+
+    /// <summary>
+    /// Null-safe enumeration source. The fluent builders null out empty collections before
+    /// calling the driver, so every collection walked while building args must tolerate a null.
+    /// Routing loops through this one helper fixes the NRE once for every argument builders emit.
+    /// </summary>
+    protected static IEnumerable<T> OrEmpty<T>(IEnumerable<T> source) => source ?? Enumerable.Empty<T>();
 
     /// <summary>
     /// Creates a new instance without a binary resolver.

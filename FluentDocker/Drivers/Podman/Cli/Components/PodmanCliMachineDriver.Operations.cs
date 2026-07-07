@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
@@ -125,10 +126,6 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
             machines.Add(ParseMachineInfoFromToken(JsonHelper.ParseElement(line.Trim())));
         }
       }
-      catch (OperationCanceledException)
-      {
-        throw;
-      }
       catch (Exception ex)
       {
         throw new FluentDockerException(
@@ -245,10 +242,6 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
           }
         }
       }
-      catch (OperationCanceledException)
-      {
-        throw;
-      }
       catch (Exception ex)
       {
         throw new FluentDockerException(
@@ -296,10 +289,6 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
               ?? v.GetStringOrDefault("version");
         }
       }
-      catch (OperationCanceledException)
-      {
-        throw;
-      }
       catch (Exception ex)
       {
         throw new FluentDockerException(
@@ -312,7 +301,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
     private static long ParseLongValue(JsonElement token)
     {
       if (token.ValueKind == JsonValueKind.String)
-        return long.TryParse(token.GetString(), out var v) ? v : 0;
+        return long.TryParse(token.GetString(), NumberStyles.Integer, CultureInfo.InvariantCulture, out var v) ? v : 0;
       if (token.ValueKind == JsonValueKind.Number)
         return token.TryGetInt64(out var lv) ? lv : 0;
       return 0;

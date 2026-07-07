@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Runtime.CompilerServices;
 using System.Text;
 using System.Text.Json;
@@ -270,7 +271,11 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       if (time?.ValueKind == JsonValueKind.Number && time.Value.TryGetInt64(out var seconds))
         evt.Timestamp = DateTimeOffset.FromUnixTimeSeconds(seconds).UtcDateTime;
       else if (time?.ValueKind == JsonValueKind.String
-               && DateTimeOffset.TryParse(time.Value.GetString(), out var timestamp))
+               && DateTimeOffset.TryParse(
+                   time.Value.GetString(),
+                   CultureInfo.InvariantCulture,
+                   DateTimeStyles.RoundtripKind,
+                   out var timestamp))
         evt.Timestamp = timestamp.UtcDateTime;
 
       var timeNano = obj.Prop("timeNano") ?? obj.Prop("TimeNano");

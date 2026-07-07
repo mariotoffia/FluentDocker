@@ -107,7 +107,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
     {
       var args = "build";
 
-      foreach (var tag in config.Tags)
+      foreach (var tag in OrEmpty(config.Tags))
         args += $" -t {QuoteArgumentIfNeeded(tag)}";
 
       if (!string.IsNullOrEmpty(config.DockerfileName))
@@ -130,9 +130,9 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       if (!string.IsNullOrEmpty(config.NetworkMode))
         args += $" --network {QuoteArgumentIfNeeded(config.NetworkMode)}";
 
-      foreach (var buildArg in config.BuildArgs)
+      foreach (var buildArg in OrEmpty(config.BuildArgs))
         args += $" --build-arg {QuoteArgumentIfNeeded($"{buildArg.Key}={buildArg.Value}")}";
-      foreach (var label in config.Labels)
+      foreach (var label in OrEmpty(config.Labels))
         args += $" --label {QuoteArgumentIfNeeded($"{label.Key}={label.Value}")}";
 
       if (!string.IsNullOrEmpty(iidFilePath))

@@ -32,10 +32,6 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
           info.KernelVersion = h.GetStringOrDefault("kernel");
           info.CPUs = h.GetInt32OrDefault("cpus");
           info.MemoryTotal = h.GetInt64OrDefault("memTotal");
-
-          var conmon = h.Prop("conmon");
-          if (conmon.HasValue)
-            info.EngineVersion = conmon.Value.GetStringOrDefault("version");
         }
 
         var store = obj.Prop("store");
@@ -99,7 +95,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
         }
         else
         {
-          // In rootless mode, Server may not be present
+          // Server is present only for remote connections, not as a rootless/rootful signal.
           version.ServerVersion = version.ClientVersion;
           version.ServerApiVersion = version.ClientApiVersion;
         }

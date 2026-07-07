@@ -42,9 +42,9 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
         if (config.Internal)
           args += " --internal";
 
-        foreach (var opt in config.Options)
+        foreach (var opt in OrEmpty(config.Options))
           args += $" --opt {QuoteArgumentIfNeeded($"{opt.Key}={opt.Value}")}";
-        foreach (var label in config.Labels)
+        foreach (var label in OrEmpty(config.Labels))
           args += $" --label {QuoteArgumentIfNeeded($"{label.Key}={label.Value}")}";
 
         if (!string.IsNullOrEmpty(config.Name))

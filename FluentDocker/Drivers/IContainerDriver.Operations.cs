@@ -43,11 +43,11 @@ namespace FluentDocker.Drivers
     /// <param name="timestamps">Show timestamps</param>
     /// <param name="cancellationToken">Cancellation token</param>
     /// <returns>
-    /// Container logs. Docker CLI and Docker API return the last
+    /// Container logs. Docker CLI, Docker API, and Podman CLI return the last
     /// <see cref="FluentDocker.Common.CliOutputTruncation.DefaultTailChars"/> characters with
     /// <see cref="FluentDocker.Common.CliOutputTruncation.Marker(int)"/> when truncation occurs.
     /// Use <paramref name="tail"/> or <see cref="IStreamDriver.StreamLogsAsync"/> for full
-    /// diagnostics. Other buffered Docker CLI calls still fail fast at their memory cap.
+    /// diagnostics. Other buffered CLI calls still fail fast at their memory cap.
     /// </returns>
     /// <exception cref="OperationCanceledException">
     /// Thrown when <paramref name="cancellationToken"/> is canceled by the caller.

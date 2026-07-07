@@ -1,4 +1,3 @@
-using System.Collections.Generic;
 using System.Linq;
 using FluentDocker.Model.Drivers;
 
@@ -174,14 +173,6 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
 
       return args;
     }
-
-    /// <summary>
-    /// Null-safe enumeration source. The fluent <c>ContainerBuilder</c> nulls out empty
-    /// collections before calling the driver (<c>ContainerBuilder.ExecuteAsync</c>), so every
-    /// collection walked while building create args must tolerate a null. Routing all
-    /// loops through this one helper fixes the NRE once for every argument the builder can emit.
-    /// </summary>
-    private static IEnumerable<T> OrEmpty<T>(IEnumerable<T> source) => source ?? Enumerable.Empty<T>();
 
     private static string ShellQuoteHealthToken(string value)
     {

@@ -31,10 +31,10 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
         if (!string.IsNullOrEmpty(config.Driver))
           args += $" --driver {QuoteArgumentIfNeeded(config.Driver)}";
 
-        foreach (var opt in config.DriverOpts)
+        foreach (var opt in OrEmpty(config.DriverOpts))
           args += $" --opt {QuoteArgumentIfNeeded($"{opt.Key}={opt.Value}")}";
 
-        foreach (var label in config.Labels)
+        foreach (var label in OrEmpty(config.Labels))
           args += $" --label {QuoteArgumentIfNeeded($"{label.Key}={label.Value}")}";
 
         if (!string.IsNullOrEmpty(config.Name))

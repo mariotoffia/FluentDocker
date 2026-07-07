@@ -141,7 +141,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       if (!string.IsNullOrEmpty(config.Network))
         args += $" --network {QuoteArgumentIfNeeded(config.Network)}";
 
-      foreach (var cm in config.ConfigMaps)
+      foreach (var cm in OrEmpty(config.ConfigMaps))
         args += $" --configmap {QuoteArgumentIfNeeded(cm)}";
 
       if (!string.IsNullOrEmpty(config.LogDriver))
@@ -153,7 +153,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       if (!config.Start)
         args += " --start=false";
 
-      foreach (var annotation in config.Annotations)
+      foreach (var annotation in OrEmpty(config.Annotations))
         args += $" --annotation {QuoteArgumentIfNeeded($"{annotation.Key}={annotation.Value}")}";
 
       args += $" {QuotePositionalArgument(config.YamlPath, nameof(config.YamlPath))}";

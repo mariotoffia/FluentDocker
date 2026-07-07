@@ -222,7 +222,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       if (config.Now)
         args += " --now";
 
-      foreach (var vol in config.Volumes)
+      foreach (var vol in OrEmpty(config.Volumes))
         args += $" -v {QuoteArgumentIfNeeded(vol)}";
 
       if (!string.IsNullOrEmpty(config.Name))

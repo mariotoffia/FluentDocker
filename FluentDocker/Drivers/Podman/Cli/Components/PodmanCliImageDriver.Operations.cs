@@ -116,7 +116,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
     {
       try
       {
-        var args = $"save -o {QuoteArgumentIfNeeded(outputPath)} {string.Join(" ", images.Select(i => QuotePositionalArgument(i, nameof(images))))}";
+        var args = $"save -o {QuoteArgumentIfNeeded(outputPath)} {string.Join(" ", OrEmpty(images).Select(i => QuotePositionalArgument(i, nameof(images))))}";
         var result = await ExecuteUnboundedCommandAsync(context, args, cancellationToken).ConfigureAwait(false);
         if (!result.Success)
           return CommandResponse<Unit>.Fail(
@@ -229,10 +229,21 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
 
       const string loadedPrefix = "Loaded image:";
       const string loadedIdPrefix = "Loaded image ID:";
+      const string loadedImagesPrefix = "Loaded image(s):";
       foreach (var line in output.Split(['\n', '\r'], StringSplitOptions.RemoveEmptyEntries))
       {
         if (line.StartsWith(loadedIdPrefix, StringComparison.OrdinalIgnoreCase))
           images.Add(line[loadedIdPrefix.Length..].Trim());
+        else if (line.StartsWith(loadedImagesPrefix, StringComparison.OrdinalIgnoreCase))
+        {
+          // Legacy podman (<=4.0) comma-joins multiple refs on this one line.
+          foreach (var name in line[loadedImagesPrefix.Length..].Split(','))
+          {
+            var trimmed = name.Trim();
+            if (trimmed.Length > 0)
+              images.Add(trimmed);
+          }
+        }
         else if (line.StartsWith(loadedPrefix, StringComparison.OrdinalIgnoreCase))
           images.Add(line[loadedPrefix.Length..].Trim());
       }
