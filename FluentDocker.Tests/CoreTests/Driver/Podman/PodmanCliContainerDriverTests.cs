@@ -268,7 +268,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
         }
       };
       var result = InvokeBuildCreateArgs("create", config);
-      Assert.Contains("--health-cmd \"CMD curl -f http://localhost/\"", result);
+      Assert.Contains("--health-cmd \"curl -f http://localhost/\"", result);
       Assert.Contains("--health-interval 30s", result);
       Assert.Contains("--health-timeout 10s", result);
       Assert.Contains("--health-retries 3", result);

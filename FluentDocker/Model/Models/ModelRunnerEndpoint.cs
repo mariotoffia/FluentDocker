@@ -1,4 +1,6 @@
+#nullable enable
 using System;
+using System.Diagnostics.CodeAnalysis;
 
 namespace FluentDocker.Model.Models
 {
@@ -16,10 +18,10 @@ namespace FluentDocker.Model.Models
     private const int DefaultPort = 12434;
     private const string DefaultEngine = "llama.cpp";
 
-    private readonly string _basePath;
-    private readonly string _query;
+    private readonly string? _basePath;
+    private readonly string? _query;
 
-    private ModelRunnerEndpoint(Uri baseAddress, string engine, string unixSocketPath, bool includeEngineInPath, string basePath = null, string query = null)
+    private ModelRunnerEndpoint(Uri baseAddress, string engine, string? unixSocketPath, bool includeEngineInPath, string? basePath = null, string? query = null)
     {
       BaseAddress = baseAddress;
       Engine = engine;
@@ -36,7 +38,7 @@ namespace FluentDocker.Model.Models
     public string Engine { get; }
 
     /// <summary>When non-null, the connection is made over this unix socket.</summary>
-    public string UnixSocketPath { get; }
+    public string? UnixSocketPath { get; }
 
     /// <summary>When true, the engine name is included in the request path.</summary>
     public bool IncludeEngineInPath { get; }
@@ -91,7 +93,7 @@ namespace FluentDocker.Model.Models
 
       var authority = new Uri(url.GetLeftPart(UriPartial.Authority));
       var path = url.AbsolutePath.TrimEnd('/');
-      var basePath = string.IsNullOrEmpty(path) ? null : path;
+      var basePath = path;
       var query = string.IsNullOrEmpty(url.Query) ? null : url.Query;
       return new ModelRunnerEndpoint(authority, engine, null, true, basePath, query);
     }
@@ -181,7 +183,7 @@ namespace FluentDocker.Model.Models
     /// <param name="endpoint">The resolved endpoint, or <c>null</c> when the variable is unset.</param>
     /// <returns><c>true</c> when the variable is set to a valid absolute http(s) URL; <c>false</c>
     /// when it is unset or invalid.</returns>
-    public static bool TryFromEnvironment(out ModelRunnerEndpoint endpoint)
+    public static bool TryFromEnvironment([NotNullWhen(true)] out ModelRunnerEndpoint? endpoint)
     {
       var value = Environment.GetEnvironmentVariable(UrlEnvironmentVariable);
       if (string.IsNullOrWhiteSpace(value))
@@ -212,13 +214,13 @@ namespace FluentDocker.Model.Models
     /// </summary>
     /// <param name="uri">The candidate URI (may be null).</param>
     /// <returns><c>true</c> when the URI is absolute, http(s), and has a non-empty host.</returns>
-    public static bool IsSupportedUrl(Uri uri) =>
+    public static bool IsSupportedUrl(Uri? uri) =>
         uri is { IsAbsoluteUri: true } &&
         (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps) &&
         !string.IsNullOrEmpty(uri.Host);
 
     /// <inheritdoc />
-    public bool Equals(ModelRunnerEndpoint other)
+    public bool Equals(ModelRunnerEndpoint? other)
     {
       if (other is null)
         return false;
@@ -234,7 +236,7 @@ namespace FluentDocker.Model.Models
     }
 
     /// <inheritdoc />
-    public override bool Equals(object obj) => Equals(obj as ModelRunnerEndpoint);
+    public override bool Equals(object? obj) => Equals(obj as ModelRunnerEndpoint);
 
     /// <inheritdoc />
     public override int GetHashCode()
@@ -250,10 +252,10 @@ namespace FluentDocker.Model.Models
     }
 
     /// <summary>Value equality operator.</summary>
-    public static bool operator ==(ModelRunnerEndpoint left, ModelRunnerEndpoint right) =>
+    public static bool operator ==(ModelRunnerEndpoint? left, ModelRunnerEndpoint? right) =>
         left is null ? right is null : left.Equals(right);
 
     /// <summary>Value inequality operator.</summary>
-    public static bool operator !=(ModelRunnerEndpoint left, ModelRunnerEndpoint right) => !(left == right);
+    public static bool operator !=(ModelRunnerEndpoint? left, ModelRunnerEndpoint? right) => !(left == right);
   }
 }

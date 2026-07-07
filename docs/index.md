@@ -16,11 +16,16 @@ FluentDocker is a .NET library providing a fluent API for Docker and Docker Comp
 
 ## New Here?
 
-Start with this sequence:
+First 30 minutes, in order:
 
-1. [Learning Path](learning-path.md) for a beginner-to-advanced map
-2. [Getting Started](getting-started.md) for your first working container
-3. One focused topic: [Containers](containers.md) or [Compose](compose.md)
+1. [Install and verify prerequisites](getting-started.md#installation)
+2. [Run your first container](getting-started.md#your-first-container)
+3. [Add one wait strategy](getting-started.md#with-wait-strategy)
+4. [Review cleanup and exception basics](getting-started.md#exception-handling)
+
+Finish those four steps before opening the architecture or extensibility guides. Then pick
+a focused topic — [Containers](containers.md) or [Compose](compose.md) — or follow a
+[reading plan by role](#reading-plans-by-role).
 
 ## What's New in the 3.2 preview
 
@@ -69,8 +74,8 @@ await using var results = await new Builder()
         .WaitForPort("80/tcp", 30000))
     .BuildAsync();
 
-var endpoint = results.Containers.First()
-    .ToHostExposedEndpoint("80/tcp");
+var endpoint = await results.Containers.First()
+    .ToHostExposedEndpointAsync("80/tcp");
 Console.WriteLine($"Endpoint: {endpoint.Address}:{endpoint.Port}");
 ```
 
@@ -148,7 +153,6 @@ dotnet add package FluentDocker.Testing.NUnit   # NUnit adapter
 
 | Topic | Description |
 |-------|-------------|
-| [Learning Path](learning-path.md) | Recommended beginner to advanced journey |
 | [Getting Started](getting-started.md) | Installation, prerequisites, first container |
 | [Containers](containers.md) | Core lifecycle, ports, env vars, waits |
 | [Docker Compose](compose.md) | First multi-service workflow |
@@ -174,13 +178,43 @@ dotnet add package FluentDocker.Testing.NUnit   # NUnit adapter
 | [Podman](podman.md) | Podman runtime: machines, readiness, cancellation, output caps |
 | [Advanced Drivers](advanced-drivers.md) | Swarm stacks/services, pods, manifests, machines, streaming, prune |
 | [Architecture](architecture.md) | Kernel/driver internals and async model |
+| [Service Lifecycle](service-lifecycle.md) | Running state, `StateChange` events, and lifecycle hooks |
 | [Driver Extensibility](extensibility.md) | Driver-aware extension model |
 | [API Reference](api-reference.md) | Generated type-level reference |
 | [Migration](migration.md) | Upgrade from v2.x to v3.x |
 
+## Reading Plans by Role
+
+Pick the plan that matches your goal and read the pages in order.
+
+### Application Developer
+
+1. [Getting Started](getting-started.md)
+2. [Containers](containers.md)
+3. [Compose](compose.md)
+4. [Volumes](volumes.md)
+5. [Error Handling](architecture.md#error-handling)
+
+### Test Engineer
+
+1. [Getting Started](getting-started.md)
+2. [Testing](testing.md)
+3. [Test Categories](testing/test-categories.md)
+4. [Compose](compose.md)
+5. [Networking](networking.md)
+
+### Platform / Library Engineer
+
+1. [Getting Started](getting-started.md)
+2. [Architecture](architecture.md)
+3. [Service Lifecycle](service-lifecycle.md)
+4. [Driver Extensibility](extensibility.md)
+5. [Error Handling](architecture.md#error-handling)
+6. [Migration Guide](migration.md)
+
 ## Architecture
 
-FluentDocker uses a three-layer architecture:
+FluentDocker uses a four-layer architecture:
 
 ```text
 ┌─────────────────────────────────┐
@@ -188,9 +222,14 @@ FluentDocker uses a three-layer architecture:
 ├─────────────────────────────────┤
 │       Services Layer            │  Container, Network, Volume
 ├─────────────────────────────────┤
+│      Kernel (instantiable)      │  DriverRegistry, SysCtl() driver access
+├─────────────────────────────────┤
 │        Driver Layer             │  Docker CLI, API, Podman
 └─────────────────────────────────┘
 ```
+
+See [Architecture](architecture.md#overview) for the full model with concurrent driver
+instances.
 
 ## Linux Users
 

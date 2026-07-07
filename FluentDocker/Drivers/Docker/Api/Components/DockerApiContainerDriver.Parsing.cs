@@ -130,6 +130,15 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       return hc;
     }
 
+    /// <summary>
+    /// Builds container-create networking configuration.
+    /// </summary>
+    /// <remarks>
+    /// Attaching more than one network in EndpointsConfig at container-create requires
+    /// Docker Engine API >= 1.44 (Docker >= 25.0). Older daemons reject more than one
+    /// endpoint at create with HTTP 400; attach additional networks post-create via the
+    /// network-connect endpoint.
+    /// </remarks>
     private static NetworkingConfigRequest BuildNetworkingConfig(
         ContainerCreateConfig config)
     {
@@ -251,7 +260,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
         Id = json.GetStringOrDefault("Id"),
         Name = json.GetStringOrDefault("Name")?.TrimStart('/'),
         Image = json.GetStringOrDefault("Image"),
-        Created = json.GetDateTimeOrDefault("Created"),
+        Created = json.GetDateTimeOffsetOrDefault("Created"),
         Driver = json.GetStringOrDefault("Driver"),
         State = ParseContainerState(json.Prop("State")),
         Config = ParseContainerConfig(json.Prop("Config")),
@@ -275,8 +284,8 @@ namespace FluentDocker.Drivers.Docker.Api.Components
         Pid = el.GetInt32OrDefault("Pid"),
         ExitCode = el.GetInt64OrDefault("ExitCode"),
         Error = el.GetStringOrDefault("Error"),
-        StartedAt = el.GetDateTimeOrDefault("StartedAt"),
-        FinishedAt = el.GetDateTimeOrDefault("FinishedAt"),
+        StartedAt = el.GetDateTimeOffsetOrDefault("StartedAt"),
+        FinishedAt = el.GetDateTimeOffsetOrDefault("FinishedAt"),
         Health = ParseHealth(el.Prop("Health") ?? el.Prop("Healthcheck"))
       };
     }
@@ -382,9 +391,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
         {
           Id = token.GetStringOrDefault("Id"),
           Image = token.GetStringOrDefault("Image"),
-          Created = DateTimeOffset
-                .FromUnixTimeSeconds(token.GetInt64OrDefault("Created"))
-                .UtcDateTime,
+          Created = DateTimeOffset.FromUnixTimeSeconds(token.GetInt64OrDefault("Created")),
           Name = firstName,
           State = new ContainerState
           {

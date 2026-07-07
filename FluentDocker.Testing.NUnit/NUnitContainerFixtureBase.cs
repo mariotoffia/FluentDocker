@@ -1,6 +1,7 @@
 using System;
 using System.Threading.Tasks;
 using FluentDocker.Builders;
+using FluentDocker.Common;
 using FluentDocker.Kernel;
 using FluentDocker.Services;
 using FluentDocker.Testing.Core;
@@ -72,18 +73,33 @@ namespace FluentDocker.Testing.NUnit
     /// </summary>
     protected virtual Func<Task<FluentDockerKernel>>? KernelFactory => null;
 
+    /// <summary>
+    /// When true, an unavailable Docker-compatible runtime marks the fixture ignored.
+    /// </summary>
+    protected virtual bool SkipWhenUnavailable => false;
+
     [OneTimeSetUp]
     public async Task SetUpAsync()
     {
       if (_resource != null)
         return;
 
-      var (kernel, resource) = await ResourceLifecycle.CreateAndInitializeAsync(
-          k => new ContainerResource(k, ConfigureContainer, GetOptions()!),
-          KernelFactory!).ConfigureAwait(false);
+      (FluentDockerKernel kernel, ContainerResource resource) result;
+      try
+      {
+        result = await ResourceLifecycle.CreateAndInitializeAsync(
+            k => new ContainerResource(k, ConfigureContainer, GetOptions()!),
+            KernelFactory!).ConfigureAwait(false);
+      }
+      catch (ResourceInitializationException ex)
+          when (SkipWhenUnavailable && ex.InnerException is FluentDockerUnavailableException)
+      {
+        Assert.Ignore(ex.InnerException.Message);
+        return;
+      }
 
-      _kernel = kernel;
-      _resource = resource;
+      _kernel = result.kernel;
+      _resource = result.resource;
     }
 
     [OneTimeTearDown]

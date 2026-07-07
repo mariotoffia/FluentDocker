@@ -1,3 +1,4 @@
+#nullable enable
 using System;
 using FluentDocker.Model.Drivers;
 
@@ -18,7 +19,7 @@ namespace FluentDocker.Common
     /// <param name="message">The error message.</param>
     /// <param name="errorCode">The model error code (defaults to <see cref="ErrorCodes.General.Unknown"/>).</param>
     /// <param name="inner">The exception that caused this error, if any.</param>
-    public ModelRunnerException(string message, string errorCode = null, Exception inner = null)
+    public ModelRunnerException(string message, string? errorCode = null, Exception? inner = null)
         : base(message, errorCode ?? ErrorCodes.General.Unknown, inner)
     {
     }
@@ -30,7 +31,7 @@ namespace FluentDocker.Common
     /// <param name="errorCode">The model error code.</param>
     /// <param name="context">Diagnostic context (driver, operation, exit code, stderr).</param>
     /// <param name="inner">The exception that caused this error, if any.</param>
-    public ModelRunnerException(string message, string errorCode, ErrorContext context, Exception inner = null)
+    public ModelRunnerException(string message, string? errorCode, ErrorContext? context, Exception? inner = null)
         : base(message, errorCode ?? ErrorCodes.General.Unknown, context, inner)
     {
     }

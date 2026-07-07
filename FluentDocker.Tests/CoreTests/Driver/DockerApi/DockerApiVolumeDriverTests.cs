@@ -1,3 +1,4 @@
+using System;
 using System.Linq;
 using System.Threading.Tasks;
 using FluentDocker.Drivers;
@@ -122,6 +123,34 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
       Assert.Equal("local", result.Data.Driver);
       Assert.Equal("local", result.Data.Scope);
       Assert.Equal(2024, result.Data.Created.Year);
+    }
+
+    [Fact]
+    public async Task InspectAsync_PreservesCreatedAtOffset()
+    {
+      var (driver, mock) = CreateDriver();
+      mock.SetupGet("/volumes/offset-vol", 200,
+          @"{""Name"":""offset-vol"",""Driver"":""local"","
+          + @"""CreatedAt"":""2024-01-02T03:04:05+02:00""}");
+
+      var result = await driver.InspectAsync(Ctx, "offset-vol", cancellationToken: TestContext.Current.CancellationToken);
+
+      Assert.True(result.Success, result.Error);
+      Assert.Equal(TimeSpan.FromHours(2), result.Data.Created.Offset);
+    }
+
+    [Fact]
+    public async Task InspectAsync_PreservesCreatedAtZeroOffset()
+    {
+      var (driver, mock) = CreateDriver();
+      mock.SetupGet("/volumes/z-vol", 200,
+          @"{""Name"":""z-vol"",""Driver"":""local"","
+          + @"""CreatedAt"":""2024-01-02T01:04:05Z""}");
+
+      var result = await driver.InspectAsync(Ctx, "z-vol", cancellationToken: TestContext.Current.CancellationToken);
+
+      Assert.True(result.Success, result.Error);
+      Assert.Equal(TimeSpan.Zero, result.Data.Created.Offset);
     }
 
     [Fact]

@@ -1,3 +1,4 @@
+#nullable enable
 using System;
 using System.Collections.Generic;
 using System.Text;
@@ -7,8 +8,8 @@ namespace FluentDocker.Model.Builders
 {
   public sealed class FileBuilderConfig
   {
-    public string DockerFileString { get; set; }
-    public TemplateString UseFile { get; set; }
+    public string? DockerFileString { get; set; }
+    public TemplateString? UseFile { get; set; }
     public IList<ICommand> Commands { get; } = [];
 
     public override string ToString()

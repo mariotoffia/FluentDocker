@@ -121,6 +121,25 @@ using var results = new Builder()
 
 A container port binds once by the builder; use a second container port when you need another host binding.
 
+### Host-First Mapping with WithPort
+
+`WithPort(hostPort, containerPort)` maps a host port to a container port, host-first — the
+same order as `docker -p host:container` and `ExposePort`. The host port may carry an
+interface (`"127.0.0.1:8080"`); the container port takes an optional protocol (`"80/tcp"`).
+
+```csharp
+using var results = new Builder()
+    .WithinDriver("docker", kernel)
+    .UseContainer(c => c
+        .UseImage("nginx:alpine")
+        .WithPort("8080", "80/tcp")               // host 8080 -> container 80
+        .WithPort("127.0.0.1:9090", "9090/tcp"))  // bind loopback only
+    .Build();
+```
+
+> **Breaking change (3.2.0-preview):** `WithPort` is now host-first. Stable 3.0/3.1 took
+> `(containerPort, hostPort)`, so review every call after upgrading. `ExposePort` is unchanged.
+
 ### Random Port Assignment
 
 ```csharp
@@ -141,21 +160,8 @@ Console.WriteLine($"Port: {endpoint.Port}");
 
 ### Multiple Ports
 
-```csharp
-using var results = new Builder()
-    .WithinDriver("docker", kernel)
-    .UseContainer(c => c
-        .UseImage("myapp:latest")
-        .ExposePort(8080, 80)
-        .ExposePort(8443, 443)
-        .ExposePort(9090, 9090))
-    .Build();
-
-var container = results.Containers.First();
-var httpEndpoint = container.ToHostExposedEndpoint("80/tcp");
-var httpsEndpoint = container.ToHostExposedEndpoint("443/tcp");
-var metricsEndpoint = container.ToHostExposedEndpoint("9090/tcp");
-```
+Call `ExposePort` (or `WithPort`) once per mapping — `.ExposePort(8080, 80).ExposePort(8443, 443)`
+— then resolve each with `ToHostExposedEndpointAsync("80/tcp")` after the container starts.
 
 ## Environment Variables
 
@@ -257,7 +263,7 @@ HTTP options such as method, request body, or a custom continuation.
 
 The `.Wait()` lambda receives the container service and an iteration counter. Return values:
 - **Negative** (e.g. `-1`): success, stop waiting
-- **Zero** (`0`): not ready, retry immediately
+- **Zero** (`0`): not ready, wait the configured poll interval (default 500 ms) before retrying
 - **Positive** (e.g. `500`): not ready, wait that many milliseconds before retry
 
 ```csharp
@@ -277,10 +283,7 @@ using var results = new Builder()
                     .GetAwaiter().GetResult();
                 return response.Contains("ok") ? -1 : 500;
             }
-            catch
-            {
-                return 500;
-            }
+            catch { return 500; }
         }))
     .Build();
 ```
@@ -491,6 +494,14 @@ using var results = new Builder()
         .WithUser("appuser")
         .WithDns("1.1.1.1")
         .WithStopSignal("SIGTERM")
+        .WithEntrypoint("/bin/myapp", "--serve")  // Override image ENTRYPOINT
+        .WithRestartPolicy("unless-stopped")      // no | always | on-failure:5 | unless-stopped
+        .WithPlatform("linux/arm64")              // Pull/run a specific arch (multi-arch images)
+        .WithDevice("/dev/fuse")                  // Map a host device into the container
+        .WithShmSize(256 * 1024 * 1024)           // /dev/shm size in bytes
+        .WithLink("db", "database")               // Legacy container link (prefer networks)
+        .WithTty()                                // Allocate a pseudo-TTY (docker run -t)
+        .WithInteractive()                        // Keep STDIN open (docker run -i)
         .WithHealthCheck("curl -f http://localhost/health || exit 1", "10s", "2s", retries: 3)
         .WithNetwork("my-network")            // Attach to named network
         .WithNetworkAlias("my-network", "app") // DNS alias on network
@@ -499,6 +510,9 @@ using var results = new Builder()
 ```
 
 > `WithHealthCheck` runs the command through `CMD-SHELL`, so the image must contain `/bin/sh`. Distroless and `scratch` images have no shell — the check never reports healthy. Use an image with a shell, or drop the health check and wait on a port or log line instead.
+
+> `WithInteractive()` with `WithTty()` keeps a short-lived base image alive so you can `ExecuteAsync` into it.
+> `WithLinks("db", "cache")` links several containers; `WithWaitPollInterval(250)` sets the wait poll gap (default 500 ms).
 
 ## Container Existence Behavior
 
@@ -550,24 +564,10 @@ container, or stream logs (`StreamLogsAsync` tags stderr lines as `[stderr] ...`
 
 ## Volumes (Bind Mounts and Named Volumes)
 
-```csharp
-// Bind mount
-using var results = new Builder()
-    .WithinDriver("docker", kernel)
-    .UseContainer(c => c
-        .UseImage("nginx:alpine")
-        .WithVolume("/local/html", "/usr/share/nginx/html"))
-    .Build();
-
-// Named volume
-using var results2 = new Builder()
-    .WithinDriver("docker", kernel)
-    .UseContainer(c => c
-        .UseImage("postgres:15-alpine")
-        .WithEnvironment("POSTGRES_PASSWORD=secret")
-        .WithVolume("pgdata", "/var/lib/postgresql/data"))
-    .Build();
-```
+`WithVolume(source, target)` takes either a host path (bind mount) or a named volume as the
+source — `.WithVolume("/local/html", "/usr/share/nginx/html")` for a bind mount, or
+`.WithVolume("pgdata", "/var/lib/postgresql/data")` for a named volume. See
+[Volumes](volumes.md) for the full guide.
 
 ## Multiple Containers
 

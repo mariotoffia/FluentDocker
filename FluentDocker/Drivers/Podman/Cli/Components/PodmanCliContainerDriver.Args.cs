@@ -146,7 +146,13 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       if (config.HealthCheck != null)
       {
         if (config.HealthCheck.Test != null && config.HealthCheck.Test.Length > 0)
-          args += $" --health-cmd {QuoteArgumentIfNeeded(string.Join(" ", config.HealthCheck.Test))}";
+        {
+          var test = config.HealthCheck.Test;
+          var healthCommand = test[0] == "CMD-SHELL"
+              ? string.Join(" ", test[1..])
+              : string.Join(" ", (test[0] == "CMD" ? test[1..] : test).Select(ShellQuoteHealthToken));
+          args += $" --health-cmd {QuoteArgumentIfNeeded(healthCommand)}";
+        }
         if (!string.IsNullOrEmpty(config.HealthCheck.Interval))
           args += $" --health-interval {QuoteArgumentIfNeeded(config.HealthCheck.Interval)}";
         if (!string.IsNullOrEmpty(config.HealthCheck.Timeout))
@@ -176,6 +182,15 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
     /// loops through this one helper fixes the NRE once for every argument the builder can emit.
     /// </summary>
     private static IEnumerable<T> OrEmpty<T>(IEnumerable<T> source) => source ?? Enumerable.Empty<T>();
+
+    private static string ShellQuoteHealthToken(string value)
+    {
+      if (string.IsNullOrEmpty(value))
+        return "''";
+      return value.Any(c => char.IsWhiteSpace(c) || "|&;()<>$`'\"\\*?[]{}!#~=".Contains(c))
+          ? $"'{value.Replace("'", "'\"'\"'")}'"
+          : value;
+    }
 
     #endregion
   }

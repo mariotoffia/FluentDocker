@@ -27,7 +27,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Docker
       var volume = JsonSerializer.Deserialize<Volume>(json, JsonHelper.CaseInsensitiveOptions);
 
       Assert.NotNull(volume);
-      Assert.Equal(new DateTime(2026, 7, 3, 10, 11, 12, DateTimeKind.Utc), volume.Created);
+      Assert.Equal(new DateTimeOffset(2026, 7, 3, 10, 11, 12, TimeSpan.Zero), volume.Created);
       Assert.Equal("myvol", volume.Name);
       Assert.Equal("addr=10.0.0.1", volume.Options["o"]);
       Assert.Equal("3", volume.Options["retries"]);

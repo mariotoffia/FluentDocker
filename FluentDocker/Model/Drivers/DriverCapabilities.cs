@@ -1,3 +1,4 @@
+#nullable enable
 namespace FluentDocker.Model.Drivers
 {
   /// <summary>
@@ -66,14 +67,19 @@ namespace FluentDocker.Model.Drivers
     public bool SupportsServices { get; set; }
 
     /// <summary>
+    /// Driver supports Docker Model Runner operations.
+    /// </summary>
+    public bool SupportsModels { get; set; }
+
+    /// <summary>
     /// Driver version string.
     /// </summary>
-    public string Version { get; set; }
+    public string? Version { get; set; }
 
     /// <summary>
     /// API version (if applicable).
     /// </summary>
-    public string ApiVersion { get; set; }
+    public string? ApiVersion { get; set; }
 
     /// <summary>
     /// Creates default capabilities (all supported).
@@ -91,7 +97,10 @@ namespace FluentDocker.Model.Drivers
         SupportsPods = false,
         SupportsKubernetes = false,
         SupportsMachines = false,
-        SupportsManifests = false
+        SupportsManifests = false,
+        SupportsStacks = false,
+        SupportsServices = false,
+        SupportsModels = false
       };
     }
   }

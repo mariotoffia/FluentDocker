@@ -3,6 +3,7 @@ using System.Collections;
 using System.Reflection;
 using FluentDocker.Common;
 using FluentDocker.Model.Containers;
+using FluentDocker.Model.Drivers;
 using Xunit;
 
 namespace FluentDocker.Tests.CoreTests.Model
@@ -13,12 +14,14 @@ namespace FluentDocker.Tests.CoreTests.Model
     [Fact]
     public void ContainerBuildParams_ToString_SeparatesCpusetAndIsolationOptions()
     {
+#pragma warning disable CS0618
       var value = new ContainerBuildParams
       {
         AllowCpuExecution = "0-3",
         ForceRemoveIntermediateContainers = true,
         Isolation = ContainerIsolationTechnology.Process
       }.ToString();
+#pragma warning restore CS0618
 
       Assert.Contains("--cpuset-cpus 0-3", value);
       Assert.Contains(" --force-rm --isolation process", value);
@@ -45,6 +48,13 @@ namespace FluentDocker.Tests.CoreTests.Model
       Assert.NotNull(container.NetworkSettings);
       AssertSecondaryAddress(container.NetworkSettings.SecondaryIPAddresses, "172.18.0.3", 16);
       AssertSecondaryAddress(container.NetworkSettings.SecondaryIPv6Addresses, "fd00::2", 64);
+    }
+
+    [Fact]
+    public void DriverEnums_DefaultToUnknown()
+    {
+      Assert.Equal(RuntimeType.Unknown, default);
+      Assert.Equal(DriverType.Unknown, default);
     }
 
     private static void AssertSecondaryAddress(object value, string addr, int prefixLen)

@@ -1,3 +1,4 @@
+#nullable enable
 using System.Text.Json.Serialization;
 
 namespace FluentDocker.Model.Models
@@ -9,10 +10,10 @@ namespace FluentDocker.Model.Models
   public sealed class ModelPullProgress
   {
     /// <summary>The status phase, e.g. <c>Downloading</c>, <c>Verifying</c>.</summary>
-    public string Status { get; init; }
+    public string? Status { get; init; }
 
     /// <summary>The layer / artifact being transferred, if known.</summary>
-    public string Layer { get; init; }
+    public string? Layer { get; init; }
 
     /// <summary>The bytes transferred so far.</summary>
     public long Current { get; init; }

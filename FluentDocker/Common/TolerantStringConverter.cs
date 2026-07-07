@@ -1,3 +1,4 @@
+#nullable enable
 using System;
 using System.Buffers;
 using System.Text;
@@ -22,9 +23,9 @@ namespace FluentDocker.Common
   /// preserving the exact representation (e.g. <c>0</c> stays <c>"0"</c>). Genuine string
   /// and null tokens are passed through unchanged.
   /// </remarks>
-  public sealed class TolerantStringConverter : JsonConverter<string>
+  public sealed class TolerantStringConverter : JsonConverter<string?>
   {
-    public override string Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+    public override string? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
     {
       switch (reader.TokenType)
       {
@@ -47,7 +48,7 @@ namespace FluentDocker.Common
       }
     }
 
-    public override void Write(Utf8JsonWriter writer, string value, JsonSerializerOptions options)
+    public override void Write(Utf8JsonWriter writer, string? value, JsonSerializerOptions options)
     {
       if (value is null)
         writer.WriteNullValue();

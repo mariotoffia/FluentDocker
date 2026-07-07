@@ -1,7 +1,9 @@
+#nullable enable
 using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using FluentDocker.Kernel;
 using FluentDocker.Services;
 using Microsoft.Extensions.Logging;
 
@@ -25,7 +27,8 @@ namespace FluentDocker.Model.Kernel
     /// <summary>
     /// Gets the kernel for this scope.
     /// </summary>
-    public global::FluentDocker.Kernel.FluentDockerKernel Kernel { get; } = kernel;
+    // ponytail: ISysCtl still lives in FluentDocker.Kernel; moving it in v3 would ripple through the public API.
+    public ISysCtl Kernel { get; } = kernel;
 
     /// <summary>
     /// Gets the driver ID for this scope.

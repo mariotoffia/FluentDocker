@@ -45,7 +45,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
           args += " --timestamps";
         args += $" {QuotePositionalArgument(containerId, nameof(containerId))}";
 
-        var result = await ExecuteCommandAsync(context, args, cancellationToken).ConfigureAwait(false);
+        var result = await ExecuteUnboundedCommandAsync(context, args, cancellationToken).ConfigureAwait(false);
         if (!result.Success)
           return CommandResponse<string>.Fail(
               ErrorOrDefault(result, "Get logs failed"), FailureCode(result.Error, ErrorCodes.Container.LogsFailed),

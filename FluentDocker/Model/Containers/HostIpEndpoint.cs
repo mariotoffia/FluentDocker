@@ -1,3 +1,4 @@
+#nullable enable
 using System;
 using System.Globalization;
 using System.Net;
@@ -10,18 +11,18 @@ namespace FluentDocker.Model.Containers
   /// </summary>
   public class HostIpEndpoint
   {
-    private string _hostIp;
-    private string _hostPort;
+    private string? _hostIp;
+    private string? _hostPort;
 
     /// <summary>Host IP address string. Empty means Docker bound on all interfaces.</summary>
-    public string HostIp
+    public string? HostIp
     {
       get => _hostIp;
       set => _hostIp = value;
     }
 
     /// <summary>Host TCP/UDP port string as emitted by Docker inspect.</summary>
-    public string HostPort
+    public string? HostPort
     {
       get => _hostPort;
       set => _hostPort = value;
@@ -29,13 +30,13 @@ namespace FluentDocker.Model.Containers
 
     /// <summary>Parsed host IP address. Empty bindings resolve to <see cref="IPAddress.Any"/>.</summary>
     [JsonIgnore]
-    public IPAddress Address => string.IsNullOrWhiteSpace(HostIp) ? IPAddress.Any : ParseAddress(HostIp);
+    public IPAddress Address => string.IsNullOrWhiteSpace(_hostIp) ? IPAddress.Any : ParseAddress(_hostIp);
 
     /// <summary>Parsed host port.</summary>
     [JsonIgnore]
-    public int Port => string.IsNullOrWhiteSpace(HostPort)
+    public int Port => string.IsNullOrWhiteSpace(_hostPort)
         ? throw new InvalidOperationException("HostPort is not set.")
-        : ParsePort(HostPort);
+        : ParsePort(_hostPort);
 
     private static IPAddress ParseAddress(string value)
     {

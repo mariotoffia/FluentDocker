@@ -16,7 +16,7 @@
 > **CI badge scope:** the green CI badge proves **build + unit tests** across `net8.0`/`net10.0`.
 > Docker, Podman, and Docker Model Runner integration suites run **on demand** (PR label,
 > schedule, or manual dispatch) and when Docker is available — they are **not** part of every
-> CI run. See the [release-verification table](docs/test-categories.md#release-verification)
+> CI run. See the [release-verification table](docs/testing/test-categories.md#release-verification)
 > for what to run before shipping.
 
 ---
@@ -38,7 +38,7 @@ dotnet add package FluentDocker.Testing.NUnit   # NUnit adapter (optional)
 ## Quick Start
 
 Start an nginx container and read its published endpoint. Every `using` below is
-required to compile in a clean project — `ToHostExposedEndpoint` lives in
+required to compile in a clean project — `ToHostExposedEndpointAsync` lives in
 `FluentDocker.Services.Extensions`.
 
 ```csharp
@@ -46,7 +46,7 @@ using System;
 using System.Linq;
 using FluentDocker.Builders;
 using FluentDocker.Kernel;
-using FluentDocker.Services.Extensions;   // ToHostExposedEndpoint
+using FluentDocker.Services.Extensions;   // ToHostExposedEndpointAsync
 
 // A kernel is the composition root; register one or more drivers. Multiple kernels
 // per app are supported.
@@ -64,7 +64,7 @@ await using var results = await new Builder()
         .WaitForPort("80/tcp", 30000))
     .BuildAsync();
 
-var endpoint = results.Containers.First().ToHostExposedEndpoint("80/tcp");
+var endpoint = await results.Containers.First().ToHostExposedEndpointAsync("80/tcp");
 Console.WriteLine($"nginx is at {endpoint.Address}:{endpoint.Port}");
 ```
 
@@ -74,15 +74,14 @@ Console.WriteLine($"nginx is at {endpoint.Address}:{endpoint.Port}");
 
 ## Start Here
 
-New to FluentDocker? Follow the docs site for the maintained guides and driver notes:
+New to FluentDocker? Start with the getting-started guide, then use the documentation
+index to go deeper:
 
-- **[Documentation site](https://mariotoffia.github.io/FluentDocker/)** — full docs
-- [Learning Path](docs/learning-path.md) — beginner → advanced map
 - [Getting Started](docs/getting-started.md) — first working container
-- [Containers](docs/containers.md) · [Compose](docs/compose.md) · [Networking](docs/networking.md) · [Volumes](docs/volumes.md) · [Images](docs/images.md)
-- [Docker API driver (production notes)](docs/docker-api.md) · [Podman production notes](docs/podman.md) · [Troubleshooting](docs/troubleshooting.md)
-- [Testing](docs/testing.md) · [Architecture](docs/architecture.md) · [Migration v2 → v3](docs/migration.md)
-- [Advanced Drivers](docs/advanced-drivers.md) — stacks, services, pods, manifests, machines, streaming · [API Reference](docs/api-reference.md)
+- [Documentation index](docs/index.md) — guides by level and reading plans by role
+- **[Documentation site](https://mariotoffia.github.io/FluentDocker/)** — the same guides,
+  published from the latest release. The 3.2 preview pages live in [`docs/`](docs) in this
+  repository until the preview is released.
 
 ## Drivers
 
@@ -161,9 +160,10 @@ Podman Kubernetes, topology, and model resource types.
 
 ## Docker Model Runner — Local LLMs *(preview, 3.2.0-preview.1)*
 
-> **Preview.** Model Runner support is available since **3.2.0-preview.1**;
-> the inference DTO shapes may still change. Everything above is the stable
-> surface — reach for this section only once you need local models.
+> **Preview.** Model Runner support ships in the **3.2.0-preview.1** package
+> (install with `--prerelease`); the inference DTO shapes may still change.
+> Everything above is the stable surface — reach for this section only once you
+> need local models.
 
 FluentDocker manages and consumes **local LLMs** through Docker Model Runner — and any
 OpenAI-compatible runner (vLLM, LM Studio, `llama-server`, hosted) — behind the same
@@ -198,6 +198,31 @@ Or add your user to the docker group and skip sudo entirely:
 new test packages. See the [3.0.0 release notes](https://github.com/mariotoffia/FluentDocker/releases/tag/3.0.0)
 and the [migration guide](docs/migration.md) for the full feature list and breaking
 changes.
+
+## Breaking changes (3.1.0 → 3.2.0)
+
+3.2.0 tightens the core surface. If you consume the model/DTO types directly, check
+these:
+
+- **Nullable reference types.** The core `Model`, `Common`, `Extensions`, and
+  `Resources` namespaces are now null-annotated (`#nullable enable`). Genuinely
+  optional members are `T?`; the rest are non-null. Code compiled with nullable
+  enabled may surface new warnings where it previously passed or ignored `null`.
+- **Timestamps are `DateTimeOffset`.** `Container.Created`, `ContainerState.StartedAt`,
+  `ContainerState.FinishedAt`, and `Volume.Created` changed from `DateTime` to
+  `DateTimeOffset` — the engine's UTC offset is now preserved instead of discarded.
+- **Enum values renumbered.** `RuntimeType` now starts at `Unknown = 0` and `DriverType`
+  gained `Unknown = 0`. Numeric enum values are **not** a stable contract — serialize by
+  name, never persist or transmit the number.
+- **`ComposeServiceDefinition.Isolation`** is now `ContainerIsolationTechnology`
+  (the old `ContainerIsolationType` enum was removed).
+- **Removed types:** `ContainerIsolationType`, `ContainerSpecificConfig`, `ProcessRow`,
+  `Processes`, and `PreferredDriverType` (all unused or superseded).
+- **Moved:** `CapabilityChecks`, the `KernelCapabilityExtensions` extension methods
+  (including `kernel.EnsureCapabilityAsync(...)`), and the `DriverCapability` enum moved
+  from `FluentDocker.Common` to `FluentDocker.Kernel`. Update `using FluentDocker.Common;`
+  to `using FluentDocker.Kernel;` — the extension-method move is otherwise a silent build break.
+- **Obsolete:** `ContainerBuildParams` is now `[Obsolete]` (test-only; slated for removal).
 
 ## Resources
 

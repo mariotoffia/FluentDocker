@@ -272,7 +272,8 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
           continue;
         }
 
-        if (trimmed.Equals("Container:", StringComparison.OrdinalIgnoreCase))
+        if (trimmed.Equals("Container:", StringComparison.OrdinalIgnoreCase)
+            || trimmed.Equals("Containers:", StringComparison.OrdinalIgnoreCase))
         {
           pendingLabel = "container";
           continue;
@@ -287,9 +288,10 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
           continue;
         }
 
-        if (trimmed.StartsWith("Container:", StringComparison.OrdinalIgnoreCase))
+        if (trimmed.StartsWith("Container:", StringComparison.OrdinalIgnoreCase)
+            || trimmed.StartsWith("Containers:", StringComparison.OrdinalIgnoreCase))
         {
-          var id = trimmed.Substring(10).Trim();
+          var id = trimmed[(trimmed.IndexOf(':') + 1)..].Trim();
           if (currentPod != null && !string.IsNullOrEmpty(id))
             currentPod.Containers.Add(id);
           pendingLabel = null;

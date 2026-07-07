@@ -115,8 +115,10 @@ namespace FluentDocker.Drivers.Docker.Api.Components
 
     /// <summary>
     /// Inspects the container to determine whether it was started with a TTY. A TTY stream
-    /// is raw text (no multiplex headers). On any inspect failure we default to demux=false
-    /// so a transient inspect error never crashes log streaming.
+    /// is raw text (no multiplex headers). On inspect failure this returns null, so the
+    /// caller falls back to byte-sniffing the stream to decide multiplexing. The
+    /// Content-Type: application/vnd.docker.multiplexed-stream response header (API >= 1.42)
+    /// is the authoritative future seam.
     /// </summary>
     private async Task<bool?> DetectTtyAsync(string containerId, CancellationToken ct)
     {
@@ -178,7 +180,12 @@ namespace FluentDocker.Drivers.Docker.Api.Components
           ? $"/events?{string.Join("&", queryParams)}"
           : "/events";
 
-      await foreach (var line in ReadNdjsonStreamAsync(path, cancellationToken).ConfigureAwait(false))
+      // Mirror StreamStatsCoreAsync: await foreach configures ConfigureAwait(false) on both
+      // MoveNextAsync and the enumerator's DisposeAsync. ReadNdjsonStreamAsync already wraps
+      // any transport read failure as DriverException (ConnectionFailed) and lets caller
+      // cancellation surface as OperationCanceledException, so no per-item catch is needed here.
+      await foreach (var line in ReadNdjsonStreamAsync(path, cancellationToken)
+          .ConfigureAwait(false))
       {
         ContainerEvent evt;
         try
@@ -210,6 +217,11 @@ namespace FluentDocker.Drivers.Docker.Api.Components
 
         yield return evt;
       }
+
+      if (string.IsNullOrEmpty(config.Until))
+        throw new DriverException(
+            "Docker /events stream ended without an 'until' bound (daemon closed the connection)",
+            ErrorCodes.Api.StreamEnded);
     }
 
     public IAsyncEnumerable<ContainerStats> StreamStatsAsync(
@@ -265,6 +277,21 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       if (config.Stdin == true)
         return CommandResponse<AttachResult>.Fail(
             "interactive stdin is not supported by the Docker API driver",
+            ErrorCodes.Container.AttachFailed,
+            CreateErrorContext($"POST /containers/{containerId}/attach", 0));
+      if (config.NoStdout)
+        return CommandResponse<AttachResult>.Fail(
+            "NoStdout is not supported by the Docker API driver",
+            ErrorCodes.Container.AttachFailed,
+            CreateErrorContext($"POST /containers/{containerId}/attach", 0));
+      if (config.NoStderr)
+        return CommandResponse<AttachResult>.Fail(
+            "NoStderr is not supported by the Docker API driver",
+            ErrorCodes.Container.AttachFailed,
+            CreateErrorContext($"POST /containers/{containerId}/attach", 0));
+      if (!string.IsNullOrEmpty(config.DetachKeys))
+        return CommandResponse<AttachResult>.Fail(
+            "DetachKeys is not supported by the Docker API driver",
             ErrorCodes.Container.AttachFailed,
             CreateErrorContext($"POST /containers/{containerId}/attach", 0));
 

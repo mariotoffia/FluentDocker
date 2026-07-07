@@ -200,6 +200,14 @@ namespace FluentDocker.Tests.CoreTests.Driver.Docker
     }
 
     [Theory]
+    [InlineData("1.5PB", 1_500_000_000_000_000)]
+    [InlineData("2mb", 2_000_000)]
+    public void ParseHumanReadableBytes_PetaAndLowercaseSuffixes_Parse(string input, long expected)
+    {
+      Assert.Equal(expected, DockerCliSystemDriver.ParseHumanReadableBytes(input));
+    }
+
+    [Theory]
     [InlineData("1KiB", 1024)]
     [InlineData("1MiB", 1_048_576)]
     [InlineData("1GiB", 1_073_741_824)]

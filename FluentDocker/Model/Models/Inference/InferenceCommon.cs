@@ -1,3 +1,4 @@
+#nullable enable
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -9,7 +10,9 @@ namespace FluentDocker.Model.Models.Inference
 {
   // NOTE: The inference DTOs are a PREVIEW surface — shapes may change before the
   // model subsystem reaches 1.0. They are STJ-annotated and (de)serialized via
-  // FluentDocker.Common.JsonHelper.
+  // FluentDocker.Common.JsonHelper. They are reflection-serialized today (no STJ
+  // source-gen wired), so NativeAOT/trimming is blocked until a future pass uses
+  // JsonHelper's JsonTypeInfo overloads.
 
   /// <summary>
   /// Shared helpers for the inference DTO copy-constructors.
@@ -31,7 +34,7 @@ namespace FluentDocker.Model.Models.Inference
     /// <param name="source">The source extension bag (may be null).</param>
     /// <returns>An independent, cloned copy, or <c>null</c> when <paramref name="source"/> is null.</returns>
     /// <exception cref="ArgumentException">A key collides with a modeled field of <typeparamref name="T"/>.</exception>
-    public static IDictionary<string, JsonElement> CopyExtensionData<T>(IDictionary<string, JsonElement> source)
+    public static IDictionary<string, JsonElement>? CopyExtensionData<T>(IDictionary<string, JsonElement>? source)
     {
       if (source is null)
         return null;
@@ -85,7 +88,7 @@ namespace FluentDocker.Model.Models.Inference
     /// Pass-through for any unmodeled usage field (e.g. <c>prompt_tokens_details</c>). Captured
     /// verbatim so it is observable instead of dropped. (Preview)
     /// </summary>
-    [JsonExtensionData] public IDictionary<string, JsonElement> AdditionalProperties { get; set; }
+    [JsonExtensionData] public IDictionary<string, JsonElement>? AdditionalProperties { get; set; }
   }
 
   /// <summary>
@@ -117,20 +120,20 @@ namespace FluentDocker.Model.Models.Inference
     }
 
     /// <summary>The role: <c>system</c> | <c>user</c> | <c>assistant</c> | <c>tool</c>.</summary>
-    [JsonPropertyName("role")] public string Role { get; set; }
+    [JsonPropertyName("role")] public string? Role { get; set; }
 
     /// <summary>The message content.</summary>
-    [JsonPropertyName("content")] public string Content { get; set; }
+    [JsonPropertyName("content")] public string? Content { get; set; }
 
     /// <summary>An optional participant name.</summary>
-    [JsonPropertyName("name")] public string Name { get; set; }
+    [JsonPropertyName("name")] public string? Name { get; set; }
 
     /// <summary>
     /// Pass-through for any unmodeled message field — notably <c>tool_calls</c> on an assistant
     /// message and <c>tool_call_id</c> on a tool message, plus multimodal content. Captured
     /// verbatim so it round-trips instead of being dropped. (Preview)
     /// </summary>
-    [JsonExtensionData] public IDictionary<string, JsonElement> AdditionalProperties { get; set; }
+    [JsonExtensionData] public IDictionary<string, JsonElement>? AdditionalProperties { get; set; }
   }
 
   /// <summary>
@@ -140,13 +143,13 @@ namespace FluentDocker.Model.Models.Inference
   public sealed class OpenAiModel
   {
     /// <summary>The model id.</summary>
-    [JsonPropertyName("id")] public string Id { get; set; }
+    [JsonPropertyName("id")] public string? Id { get; set; }
 
     /// <summary>The object type (<c>model</c>).</summary>
-    [JsonPropertyName("object")] public string Object { get; set; }
+    [JsonPropertyName("object")] public string? Object { get; set; }
 
     /// <summary>The owner.</summary>
-    [JsonPropertyName("owned_by")] public string OwnedBy { get; set; }
+    [JsonPropertyName("owned_by")] public string? OwnedBy { get; set; }
 
     /// <summary>The creation timestamp (unix seconds).</summary>
     [JsonPropertyName("created")] public long Created { get; set; }
@@ -155,7 +158,7 @@ namespace FluentDocker.Model.Models.Inference
     /// Pass-through for any unmodeled field. Captured verbatim so it is observable
     /// instead of dropped. (Preview)
     /// </summary>
-    [JsonExtensionData] public IDictionary<string, JsonElement> AdditionalProperties { get; set; }
+    [JsonExtensionData] public IDictionary<string, JsonElement>? AdditionalProperties { get; set; }
   }
 
   /// <summary>
@@ -164,15 +167,15 @@ namespace FluentDocker.Model.Models.Inference
   public sealed class OpenAiModelList
   {
     /// <summary>The object type (<c>list</c>).</summary>
-    [JsonPropertyName("object")] public string Object { get; set; }
+    [JsonPropertyName("object")] public string? Object { get; set; }
 
     /// <summary>The listed models.</summary>
-    [JsonPropertyName("data")] public IList<OpenAiModel> Data { get; set; }
+    [JsonPropertyName("data")] public IList<OpenAiModel>? Data { get; set; }
 
     /// <summary>
     /// Pass-through for any unmodeled field. Captured verbatim so it is observable
     /// instead of dropped. (Preview)
     /// </summary>
-    [JsonExtensionData] public IDictionary<string, JsonElement> AdditionalProperties { get; set; }
+    [JsonExtensionData] public IDictionary<string, JsonElement>? AdditionalProperties { get; set; }
   }
 }

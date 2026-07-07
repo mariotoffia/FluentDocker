@@ -240,7 +240,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       }
 
       public override int Read(byte[] buffer, int offset, int count) =>
-          ReadAsync(buffer.AsMemory(offset, count)).AsTask().GetAwaiter().GetResult();
+          throw new NotSupportedException("synchronous Read is not supported; use ReadAsync");
 
       public override void Flush() { }
       public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();

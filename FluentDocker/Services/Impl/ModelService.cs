@@ -15,6 +15,10 @@ namespace FluentDocker.Services.Impl
   /// participating in the same <see cref="ServiceRunningState"/> machine and hook
   /// pipeline as containers/volumes. Optionally unloads the model on dispose.
   /// </summary>
+  /// <remarks>
+  /// Lifecycle transitions are individually atomic; a single service instance is not designed
+  /// for concurrent lifecycle calls (Start/Stop/Remove/Dispose) from multiple threads.
+  /// </remarks>
   public sealed class ModelService : IModelService, IServiceCapabilities
   {
     private readonly FluentDockerKernel _kernel;
@@ -24,7 +28,9 @@ namespace FluentDocker.Services.Impl
     private readonly IModelRunner _runner;
     private readonly ModelRunOptions _runOptions;
     private readonly bool _keepRunning;
+    private readonly TimeSpan _disposeCleanupTimeout;
     private readonly ConcurrentDictionary<string, (ServiceRunningState State, Func<IServiceAsync, Task> Hook)> _hooks = [];
+    private readonly object _stateLock = new();
     private readonly object _startSync = new();
     private int _state = (int)ServiceRunningState.Unknown;
     // Start-once gate. Reset after hard failures and successful unload/remove so retry and
@@ -42,8 +48,10 @@ namespace FluentDocker.Services.Impl
     /// <param name="runner">The runner bound to this model.</param>
     /// <param name="runOptions">Options for loading (StartAsync).</param>
     /// <param name="keepRunning">When true, the model is NOT unloaded on dispose.</param>
+    /// <param name="disposeCleanupTimeout">Maximum best-effort unload time during dispose.</param>
     public ModelService(FluentDockerKernel kernel, string driverId, ModelReference model,
-        IModelRunner runner, ModelRunOptions runOptions = null, bool keepRunning = false)
+        IModelRunner runner, ModelRunOptions runOptions = null, bool keepRunning = false,
+        TimeSpan? disposeCleanupTimeout = null)
     {
       ArgumentNullException.ThrowIfNull(kernel);
       ArgumentNullException.ThrowIfNull(driverId);
@@ -57,6 +65,8 @@ namespace FluentDocker.Services.Impl
       _runner = runner;
       _runOptions = runOptions;
       _keepRunning = keepRunning;
+      _disposeCleanupTimeout =
+          disposeCleanupTimeout ?? TimeSpan.FromMilliseconds(ContainerService.DefaultDisposeCleanupTimeoutMs);
 
     }
 
@@ -92,6 +102,9 @@ namespace FluentDocker.Services.Impl
 
     /// <inheritdoc />
     public bool CanRemove => true;
+
+    /// <inheritdoc />
+    bool IServiceCapabilities.CanHook => true;
 
 #pragma warning disable CA1710 // Delegate name 'StateChange' — intentional API design (mirrors IServiceAsync)
     /// <inheritdoc />
@@ -157,6 +170,9 @@ namespace FluentDocker.Services.Impl
 
     private async Task StartCoreAsync(CancellationToken cancellationToken)
     {
+      if (Volatile.Read(ref _disposed) != 0)
+        return;
+
       UpdateState(ServiceRunningState.Starting);
       await ExecuteHooksAsync(ServiceRunningState.Starting).ConfigureAwait(false);
 
@@ -171,6 +187,9 @@ namespace FluentDocker.Services.Impl
         UpdateState(ServiceRunningState.Unknown);
         throw;
       }
+
+      if (Volatile.Read(ref _disposed) != 0)
+        return;
 
       UpdateState(ServiceRunningState.Running);
       await ExecuteHooksAsync(ServiceRunningState.Running).ConfigureAwait(false);
@@ -302,9 +321,10 @@ namespace FluentDocker.Services.Impl
         // X509 cert, HttpClient, etc.).
         if (!_keepRunning)
         {
+          using var cts = new CancellationTokenSource(_disposeCleanupTimeout);
           if (State == ServiceRunningState.Running)
           {
-            await StopCoreAsync().ConfigureAwait(false);
+            await StopCoreAsync(cts.Token).ConfigureAwait(false);
           }
           else if (Volatile.Read(ref _loadAttempted) != 0 &&
                    State != ServiceRunningState.Stopped &&
@@ -313,7 +333,7 @@ namespace FluentDocker.Services.Impl
             // A load was attempted but we never reached Running (it faulted/cancelled
             // mid-load) — the model may still be resident. Best-effort unload so we
             // don't leak it; failures are swallowed by the surrounding catch.
-            await _runner.UnloadAsync(_model).ConfigureAwait(false);
+            await _runner.UnloadAsync(_model, cts.Token).ConfigureAwait(false);
           }
         }
       }
@@ -339,24 +359,27 @@ namespace FluentDocker.Services.Impl
 
     private void UpdateState(ServiceRunningState newState)
     {
-      if ((ServiceRunningState)Volatile.Read(ref _state) == newState)
-        return;
-
-      Volatile.Write(ref _state, (int)newState);
-      var stateChange = StateChange;
-      if (stateChange == null)
-        return;
-
-      var args = new StateChangeEventArgs(this, newState);
-      foreach (ServiceDelegates.StateChange handler in stateChange.GetInvocationList())
+      lock (_stateLock)
       {
-        try
+        if ((ServiceRunningState)Volatile.Read(ref _state) == newState)
+          return;
+
+        Volatile.Write(ref _state, (int)newState);
+        var stateChange = StateChange;
+        if (stateChange == null)
+          return;
+
+        var args = new StateChangeEventArgs(this, newState);
+        foreach (ServiceDelegates.StateChange handler in stateChange.GetInvocationList())
         {
-          handler(this, args);
-        }
-        catch (Exception ex)
-        {
-          _logger.LogError(ex, "ModelService state change handler failed");
+          try
+          {
+            handler(this, args);
+          }
+          catch (Exception ex)
+          {
+            _logger.LogError(ex, "ModelService state change handler failed");
+          }
         }
       }
     }

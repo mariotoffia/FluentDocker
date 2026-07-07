@@ -19,12 +19,14 @@ namespace FluentDocker.Tests.CoreTests.Model
         Thread.CurrentThread.CurrentCulture = swedish;
         Thread.CurrentThread.CurrentUICulture = swedish;
 
+#pragma warning disable CS0618
         var args = new ContainerBuildParams
         {
           CpuShares = 1.5f,
           CpuPeriod = 2.5f,
           CpuQuota = 3.5f
         }.ToString();
+#pragma warning restore CS0618
 
         Assert.Contains("--cpu-shares 1.5", args);
         Assert.Contains("--cpu-period 2.5", args);

@@ -1,3 +1,4 @@
+#nullable enable
 using System;
 using FluentDocker.Model.Drivers;
 
@@ -27,7 +28,7 @@ namespace FluentDocker.Common
     /// <param name="driverId">The identifier of the unavailable driver.</param>
     /// <param name="reason">The reason the driver is not available.</param>
     /// <param name="context">Diagnostic context information.</param>
-    public DriverNotAvailableException(string driverId, string reason, ErrorContext context)
+    public DriverNotAvailableException(string driverId, string reason, ErrorContext? context)
         : base($"Driver '{driverId}' is not available: {reason}", ErrorCodes.Driver.NotAvailable, context, isTransient: true) => DriverId = driverId;
 
     /// <summary>
@@ -36,7 +37,7 @@ namespace FluentDocker.Common
     /// <param name="driverId">The identifier of the unavailable driver.</param>
     /// <param name="reason">The reason the driver is not available.</param>
     /// <param name="innerException">The exception that caused the driver to be unavailable.</param>
-    public DriverNotAvailableException(string driverId, string reason, Exception innerException)
+    public DriverNotAvailableException(string driverId, string reason, Exception? innerException)
         : base($"Driver '{driverId}' is not available: {reason}", ErrorCodes.Driver.NotAvailable, null, innerException, isTransient: true) => DriverId = driverId;
   }
 }

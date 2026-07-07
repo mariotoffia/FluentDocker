@@ -1,12 +1,14 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
+using FluentDocker.Common;
 using FluentDocker.Kernel;
 using FluentDocker.Model.Drivers;
 using FluentDocker.Model.Models;
 using FluentDocker.Model.Models.Options;
 using FluentDocker.Services;
 using FluentDocker.Services.Impl;
+using FluentDocker.Tests.Mocks;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using Xunit;
@@ -224,6 +226,99 @@ namespace FluentDocker.Tests.CoreTests.Service
       var service = new ModelService(kernel, "docker", Model, runner.Object, null!, keepRunning: true);
 
       service.Dispose();
+    }
+
+    [Fact]
+    public async Task ModelService_Dispose_IsBoundedWhenGateHeld()
+    {
+      var model = ModelReference.Parse("ai/dispose-gate-" + Guid.NewGuid().ToString("N"));
+      var pack = new MockDriverPack()
+          .SetupModelLoad()
+          .SetupModelUnload()
+          .EnableModelDrivers();
+      var kernel = await MockKernelBuilderExtensions.CreateWithMockDriverAsync("docker", pack);
+      await using (kernel)
+      {
+        var runner = new ModelRunnerService(kernel, "docker", ModelRunnerEndpoint.HostTcp(), model);
+        var service = new ModelService(
+            kernel,
+            "docker",
+            model,
+            runner,
+            null!,
+            keepRunning: false,
+            disposeCleanupTimeout: TimeSpan.FromMilliseconds(200));
+        await service.StartAsync(TestContext.Current.CancellationToken);
+        var heldGate = await ModelOperationGate.AcquireAsync(
+            model, TestContext.Current.CancellationToken).ConfigureAwait(false);
+        var disposeTask = service.DisposeAsync().AsTask();
+        var completed = false;
+        try
+        {
+          completed = await Task.WhenAny(
+              disposeTask,
+              Task.Delay(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken)).ConfigureAwait(false) == disposeTask;
+        }
+        finally
+        {
+          await heldGate.DisposeAsync().ConfigureAwait(false);
+        }
+
+        Assert.True(completed, "DisposeAsync did not honor the cleanup timeout while waiting for the model gate.");
+        await disposeTask.ConfigureAwait(false);
+      }
+    }
+
+    [Fact]
+    public async Task DisposeAsync_WhenLoadCompletesAfterDispose_DoesNotFireRunning()
+    {
+      await using var kernel = new FluentDocker.Kernel.FluentDockerKernel(
+          new DriverRegistry(NullLoggerFactory.Instance), NullLoggerFactory.Instance);
+      var loadStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+      var releaseLoad = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+      var runner = new Mock<IModelRunner>();
+      runner.Setup(r => r.LoadAsync(
+              It.IsAny<ModelReference>(), It.IsAny<ModelRunOptions>(), It.IsAny<CancellationToken>()))
+          .Returns(async () =>
+          {
+            loadStarted.SetResult();
+            await releaseLoad.Task.ConfigureAwait(false);
+          });
+      runner.Setup(r => r.UnloadAsync(It.IsAny<ModelReference>(), It.IsAny<CancellationToken>()))
+          .Returns(Task.CompletedTask);
+      runner.Setup(r => r.DisposeAsync()).Returns(ValueTask.CompletedTask);
+      var service = new ModelService(
+          kernel,
+          "docker",
+          Model,
+          runner.Object,
+          null!,
+          keepRunning: false,
+          disposeCleanupTimeout: TimeSpan.FromSeconds(1));
+      var disposeCompleted = 0;
+      var runningStateChangesAfterDispose = 0;
+      var runningHooksAfterDispose = 0;
+      service.StateChange += (_, args) =>
+      {
+        if (args.State == ServiceRunningState.Running && Volatile.Read(ref disposeCompleted) != 0)
+          Interlocked.Increment(ref runningStateChangesAfterDispose);
+      };
+      service.AddHook(ServiceRunningState.Running, _ =>
+      {
+        if (Volatile.Read(ref disposeCompleted) != 0)
+          Interlocked.Increment(ref runningHooksAfterDispose);
+        return Task.CompletedTask;
+      }, "running");
+
+      var start = service.StartAsync(TestContext.Current.CancellationToken);
+      await loadStarted.Task.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
+      await service.DisposeAsync();
+      Volatile.Write(ref disposeCompleted, 1);
+      releaseLoad.SetResult();
+      await start.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
+
+      Assert.Equal(0, Volatile.Read(ref runningStateChangesAfterDispose));
+      Assert.Equal(0, Volatile.Read(ref runningHooksAfterDispose));
     }
   }
 }

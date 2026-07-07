@@ -294,6 +294,14 @@ namespace FluentDocker.Drivers.Docker.Api.Connection
       GC.SuppressFinalize(this);
     }
 
+    /// <summary>
+    /// Ensures the request path carries the negotiated Docker API version.
+    /// </summary>
+    /// <remarks>
+    /// Negotiation is retried on every request until it succeeds. That favors fast recovery
+    /// when the daemon returns, at the cost of one extra <c>/_ping</c> per request during a
+    /// total outage; a negative-cache cooldown is deliberately omitted.
+    /// </remarks>
     private async Task<string> GetVersionedPathAsync(string path, CancellationToken ct)
     {
       ThrowIfDisposed();

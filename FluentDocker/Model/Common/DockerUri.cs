@@ -1,3 +1,4 @@
+#nullable enable
 using System;
 using FluentDocker.Common;
 
@@ -25,6 +26,11 @@ namespace FluentDocker.Model.Common
     /// Gets the Docker host URI from the DOCKER_HOST environment variable or returns the platform default.
     /// An empty DOCKER_HOST is treated as unset (Docker convention).
     /// </summary>
+    /// <remarks>
+    /// Docker CLI contexts are not resolved here: DOCKER_CONTEXT and
+    /// ~/.docker/config.json currentContext are ignored. Users of colima, podman-machine,
+    /// rootless Docker, or non-default contexts must set DOCKER_HOST explicitly.
+    /// </remarks>
     /// <returns>The Docker host URI string.</returns>
     public static string GetDockerHostEnvironmentPathOrDefault()
     {

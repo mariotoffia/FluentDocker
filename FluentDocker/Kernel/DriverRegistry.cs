@@ -21,6 +21,7 @@ namespace FluentDocker.Kernel
     private readonly ConcurrentDictionary<string, DriverRegistration> _drivers = new();
     private readonly ConcurrentDictionary<string, DriverPackRegistration> _driverPacks = new();
     private readonly HashSet<string> _reservedDriverIds = [];
+    private readonly List<string> _registrationOrder = [];
     private readonly SemaphoreSlim _registrationLock = new(1, 1);
     private readonly ILoggerFactory _loggerFactory;
     private readonly ILogger<DriverRegistry> _logger;
@@ -100,6 +101,7 @@ namespace FluentDocker.Kernel
           if (!_drivers.TryAdd(driverId, registration))
             throw new DriverException($"Driver '{driverId}' is already registered", ErrorCodes.Driver.AlreadyRegistered);
 
+          _registrationOrder.Add(driverId);
           SetDefaultIfFirst(driverId);
         }
         finally
@@ -137,13 +139,12 @@ namespace FluentDocker.Kernel
         ThrowIfDisposed();
         _drivers.TryRemove(driverId, out driver);
         _driverPacks.TryRemove(driverId, out pack);
+        _registrationOrder.Remove(driverId);
 
         lock (_defaultDriverLock)
         {
-          if (_defaultDriverId == driverId)
-          {
-            _defaultDriverId = null;
-          }
+          if (string.Equals(_defaultDriverId, driverId, StringComparison.Ordinal))
+            _defaultDriverId = FirstRegisteredStillPresent();
         }
       }
       finally
@@ -241,6 +242,7 @@ namespace FluentDocker.Kernel
           if (!_driverPacks.TryAdd(driverId, registration))
             throw new DriverException($"Driver pack '{driverId}' is already registered", ErrorCodes.Driver.AlreadyRegistered);
 
+          _registrationOrder.Add(driverId);
           SetDefaultIfFirst(driverId);
         }
         finally
@@ -380,6 +382,7 @@ namespace FluentDocker.Kernel
 
     /// <summary>
     /// Gets the default driver ID.
+    /// If the current default is unregistered, the first registered driver still present becomes default.
     /// </summary>
     public string GetDefaultDriverId()
     {
@@ -417,6 +420,12 @@ namespace FluentDocker.Kernel
       {
         _defaultDriverId ??= driverId;
       }
+    }
+
+    private string FirstRegisteredStillPresent()
+    {
+      return _registrationOrder.FirstOrDefault(id =>
+          _drivers.ContainsKey(id) || _driverPacks.ContainsKey(id));
     }
 
     private DriverContext PrepareContext(string driverId, DriverContext context)

@@ -199,10 +199,10 @@ namespace FluentDocker.Tests.CoreTests.Services
       // Act -- inspect after state change should re-fetch
       var second = await service.InspectAsync(TestContext.Current.CancellationToken);
 
-      // Assert -- driver called twice for inspect (before and after start)
+      // Assert -- StartAsync inspects once and does not cache it; the next inspect re-fetches.
       Assert.NotSame(first, second);
       Assert.Equal("container-1", first.Id);
-      Assert.Equal("container-2", second.Id);
+      Assert.Equal("container-3", second.Id);
     }
 
     [Fact]
@@ -384,7 +384,7 @@ namespace FluentDocker.Tests.CoreTests.Services
 
       // Assert -- different data returned after state-change invalidation
       Assert.Equal("container-1", first.Id);
-      Assert.Equal("container-2", second.Id);
+      Assert.Equal("container-3", second.Id);
     }
 
     // ------------------------------------------------------------------

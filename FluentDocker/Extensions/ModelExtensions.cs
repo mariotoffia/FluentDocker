@@ -1,3 +1,4 @@
+#nullable enable
 using System;
 using System.Collections.Generic;
 using System.Globalization;
@@ -12,7 +13,7 @@ namespace FluentDocker.Extensions
 {
   public static class ModelExtensions
   {
-    public static StringBuilder SizeOptionIfValid(this StringBuilder sb, string option, string value,
+    public static StringBuilder SizeOptionIfValid(this StringBuilder sb, string option, string? value,
       long maxSize = long.MaxValue)
     {
       if (!string.IsNullOrEmpty(value))
@@ -36,7 +37,7 @@ namespace FluentDocker.Extensions
       return sb;
     }
 
-    public static StringBuilder OptionIfExists(this StringBuilder sb, string option, string value)
+    public static StringBuilder OptionIfExists(this StringBuilder sb, string option, string? value)
     {
       if (!string.IsNullOrEmpty(value))
         sb.Append(CultureInfo.InvariantCulture, $" {option}{value}");
@@ -52,7 +53,7 @@ namespace FluentDocker.Extensions
       return sb;
     }
 
-    public static StringBuilder OptionIfExists(this StringBuilder sb, string option, string[] values)
+    public static StringBuilder OptionIfExists(this StringBuilder sb, string option, string[]? values)
     {
       if (null == values || 0 == values.Length)
         return sb;
@@ -63,7 +64,7 @@ namespace FluentDocker.Extensions
       return sb;
     }
 
-    public static StringBuilder OptionIfExists(this StringBuilder sb, string option, IDictionary<string, string> values)
+    public static StringBuilder OptionIfExists(this StringBuilder sb, string option, IDictionary<string, string>? values)
     {
       if (null == values || 0 == values.Count)
         return sb;
@@ -79,7 +80,7 @@ namespace FluentDocker.Extensions
     /// </summary>
     /// <param name="hashAlgAndContainerHash">The hashalg:containerhash string.</param>
     /// <returns>A "raw" container id hash.</returns>
-    public static string ToPlainId(this string hashAlgAndContainerHash)
+    public static string? ToPlainId(this string? hashAlgAndContainerHash)
     {
       if (hashAlgAndContainerHash == null)
         return null;
@@ -88,7 +89,7 @@ namespace FluentDocker.Extensions
       return split.Length == 2 ? split[1] : hashAlgAndContainerHash;
     }
 
-    public static string ToDocker(this ContainerIsolationTechnology isolation)
+    public static string? ToDocker(this ContainerIsolationTechnology isolation)
     {
       return isolation switch
       {
@@ -101,10 +102,10 @@ namespace FluentDocker.Extensions
 
     public static TemplateString AsTemplate(this string str)
     {
-      return str;
+      return new TemplateString(str);
     }
 
-    public static ServiceRunningState ToServiceState(this ContainerState state)
+    public static ServiceRunningState ToServiceState(this ContainerState? state)
     {
       if (null == state)
         return ServiceRunningState.Unknown;
@@ -141,10 +142,10 @@ namespace FluentDocker.Extensions
 
     public static string[] ArrayAddDistinct(this string[] arr, params string[] values)
     {
-      return [.. ArrayAdd(arr, values).Distinct()];
+      return [.. ArrayAdd(arr, values)!.Distinct()];
     }
 
-    public static string[] ArrayAdd(this string[] arr, params string[] values)
+    public static string[]? ArrayAdd(this string[]? arr, params string[] values)
     {
       if (null == values || 0 == values.Length)
         return arr;

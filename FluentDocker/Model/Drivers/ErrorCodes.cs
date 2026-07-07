@@ -1,3 +1,4 @@
+#nullable enable
 namespace FluentDocker.Model.Drivers
 {
   /// <summary>
@@ -226,6 +227,7 @@ namespace FluentDocker.Model.Drivers
       public const string Conflict = "API_409";
       public const string ServerError = "API_500";
       public const string ConnectionFailed = "API_CONN";
+      public const string StreamEnded = "API_STREAM_ENDED";
     }
 
     /// <summary>

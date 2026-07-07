@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using FluentDocker.Common;
@@ -195,7 +194,12 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
               result.ExitCode);
         }
 
-        var networks = JsonSerializer.Deserialize<List<Network>>(result.Output, JsonHelper.CaseInsensitiveOptions);
+        var networks = JsonHelper.TryDeserialize<List<Network>>(result.Output);
+        if (networks == null)
+        {
+          Logger.LogError("Network inspect JSON parsing failed");
+          return CommandResponse<Network>.Fail("Network inspect JSON parsing failed", ErrorCodes.Network.InspectFailed);
+        }
         var network = networks?.FirstOrDefault();
         return network == null
             ? CommandResponse<Network>.Fail($"Network '{networkId}' was not found", ErrorCodes.Network.NotFound)

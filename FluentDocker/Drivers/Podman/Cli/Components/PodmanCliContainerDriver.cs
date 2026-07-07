@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
@@ -66,24 +67,35 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
         // run can be inherently long (it waits for a non-detached container to finish);
         // honor only caller cancellation, not the buffered control-plane timeout.
         var result = await ExecuteUnboundedCommandAsync(context, args, cancellationToken).ConfigureAwait(false);
-        if (!result.Success)
+        if (config.Detach)
+        {
+          if (!result.Success)
+            return CommandResponse<ContainerRunResult>.Fail(
+                ErrorOrDefault(result, "Container run failed"), FailureCode(result.Error, ErrorCodes.Container.CreateFailed),
+                CreateErrorContext(context, "RunContainer", result), result.ExitCode);
+
+          return CommandResponse<ContainerRunResult>.Ok(new ContainerRunResult
+          {
+            Id = result.Output?.Trim()
+          });
+        }
+
+        var containerId = TryReadCidFile(cidFile);
+        if (!result.Success && string.IsNullOrEmpty(containerId))
           return CommandResponse<ContainerRunResult>.Fail(
               ErrorOrDefault(result, "Container run failed"), FailureCode(result.Error, ErrorCodes.Container.CreateFailed),
               CreateErrorContext(context, "RunContainer", result), result.ExitCode);
 
-        var runResult = new ContainerRunResult
+        return CommandResponse<ContainerRunResult>.Ok(new ContainerRunResult
         {
-          Id = config.Detach ? result.Output?.Trim() : null,
-          Output = config.Detach ? null : MergeOutputAndError(result.Output, result.Error)
-        };
-
-        if (!config.Detach && cidFile != null && File.Exists(cidFile))
-          runResult.Id = (await File.ReadAllTextAsync(cidFile, cancellationToken).ConfigureAwait(false)).Trim();
-
-        return CommandResponse<ContainerRunResult>.Ok(runResult);
+          Id = containerId,
+          Output = MergeOutputAndError(result.Output, result.Error),
+          ExitCode = result.ExitCode
+        });
       }
       catch (OperationCanceledException)
       {
+        await RemoveCidFileContainerAsync(context, cidFile).ConfigureAwait(false);
         throw;
       }
       catch (Exception ex)
@@ -316,7 +328,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
               ErrorOrDefault(result, "Container wait failed"), FailureCode(result.Error, ErrorCodes.Container.WaitFailed),
               CreateErrorContext(context, "WaitContainer", result), result.ExitCode);
 
-        if (!int.TryParse(result.Output?.Trim(), out var exitCode))
+        if (!int.TryParse(result.Output?.Trim(), NumberStyles.Integer, CultureInfo.InvariantCulture, out var exitCode))
           return CommandResponse<ContainerWaitResult>.Fail(
               $"Unable to parse container wait exit code: {result.Output}",
               ErrorCodes.Container.WaitFailed,
@@ -382,6 +394,41 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
     private static bool IsContainerNotFound(string error) =>
         error?.Contains("no such object", StringComparison.OrdinalIgnoreCase) == true
         || error?.Contains("no such container", StringComparison.OrdinalIgnoreCase) == true;
+
+    private async Task RemoveCidFileContainerAsync(DriverContext context, string cidFile)
+    {
+      var containerId = TryReadCidFile(cidFile);
+      if (string.IsNullOrWhiteSpace(containerId))
+        return;
+
+      try
+      {
+        // ponytail: 5s cleanup budget on cancel; raise if slow daemons legitimately need longer.
+        using var cleanupCts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+        await ExecuteCommandAsync(
+            context,
+            $"rm -f {QuotePositionalArgument(containerId, nameof(containerId))}",
+            cleanupCts.Token).ConfigureAwait(false);
+      }
+      catch
+      {
+        // best effort cancellation cleanup
+      }
+    }
+
+    private static string TryReadCidFile(string cidFile)
+    {
+      if (string.IsNullOrEmpty(cidFile) || !File.Exists(cidFile))
+        return null;
+      try
+      {
+        return File.ReadAllText(cidFile).Trim();
+      }
+      catch
+      {
+        return null;
+      }
+    }
 
     /// <inheritdoc />
     public async Task<CommandResponse<IList<Container>>> ListAsync(

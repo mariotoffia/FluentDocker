@@ -1,3 +1,4 @@
+#nullable enable
 using System;
 using System.IO;
 using System.Text;
@@ -38,7 +39,7 @@ namespace FluentDocker.Extensions
       File.WriteAllText(fqPath.Rendered, contents);
     }
 
-    public static string FromFile(this TemplateString fqPath, Encoding encoding = null)
+    public static string FromFile(this TemplateString fqPath, Encoding? encoding = null)
     {
       if (null == encoding)
       {
@@ -61,7 +62,7 @@ namespace FluentDocker.Extensions
     ///     cref="ResourceExtensions.ToFile(System.Collections.Generic.IEnumerable{FluentDocker.Resources.ResourceInfo},TemplateString)" />
     ///   to perform the copy. Only one file is permitted and thus the file or directory parameter is always a single file.
     /// </remarks>
-    public static string Copy(this TemplateString fileOrDirectory, TemplateString workdir)
+    public static string? Copy(this TemplateString fileOrDirectory, TemplateString workdir)
     {
       var fd = fileOrDirectory.Rendered;
 
@@ -73,7 +74,7 @@ namespace FluentDocker.Extensions
       if (File.Exists(fd))
       {
         var file = Path.GetFileName(fd);
-        File.Copy(fd, Path.Combine(workdir, file), true);
+        File.Copy(fd, Path.Combine(workdir.Rendered, file), true);
         return file;
       }
 
@@ -82,7 +83,7 @@ namespace FluentDocker.Extensions
         return null;
       }
 
-      CopyTo(fd, workdir);
+      CopyTo(new TemplateString(fd), workdir);
 
       // Return the relative path of workdir
       return Path.GetFileName(Path.GetFullPath(fd).TrimEnd(Path.DirectorySeparatorChar));

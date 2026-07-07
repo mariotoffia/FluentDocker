@@ -1,6 +1,7 @@
+#nullable enable
 namespace FluentDocker.Model.Events
 {
-  [System.Obsolete("Unused by FluentDocker and scheduled for removal in v4. Use stream driver ContainerEvent instead.")]
+  [System.Obsolete("Unused by FluentDocker and scheduled for removal in a future release. Use stream driver ContainerEvent instead.")]
   public enum EventType
   {
     Generic,

@@ -1,3 +1,4 @@
+#nullable enable
 using System;
 using FluentDocker.Model.Drivers;
 
@@ -27,7 +28,7 @@ namespace FluentDocker.Common
     /// <param name="imageName">The name of the image that failed to pull.</param>
     /// <param name="reason">The reason the pull operation failed.</param>
     /// <param name="context">Diagnostic context information.</param>
-    public ImagePullException(string imageName, string reason, ErrorContext context)
+    public ImagePullException(string imageName, string reason, ErrorContext? context)
         : base($"Failed to pull image '{imageName}': {reason}", ErrorCodes.Image.PullFailed, context, isTransient: true) => ImageName = imageName;
 
     /// <summary>
@@ -36,7 +37,7 @@ namespace FluentDocker.Common
     /// <param name="imageName">The name of the image that failed to pull.</param>
     /// <param name="reason">The reason the pull operation failed.</param>
     /// <param name="innerException">The exception that caused the pull failure.</param>
-    public ImagePullException(string imageName, string reason, Exception innerException)
+    public ImagePullException(string imageName, string reason, Exception? innerException)
         : base($"Failed to pull image '{imageName}': {reason}", ErrorCodes.Image.PullFailed, null, innerException, isTransient: true) => ImageName = imageName;
   }
 }

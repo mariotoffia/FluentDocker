@@ -1,3 +1,4 @@
+#nullable enable
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -44,10 +45,10 @@ namespace FluentDocker.Model.Models.Inference
     }
 
     /// <summary>The model id (e.g. <c>ai/qwen3</c>).</summary>
-    [JsonPropertyName("model")] public string Model { get; set; }
+    [JsonPropertyName("model")] public string? Model { get; set; }
 
     /// <summary>The conversation so far.</summary>
-    [JsonPropertyName("messages")] public IList<ChatMessage> Messages { get; set; }
+    [JsonPropertyName("messages")] public IList<ChatMessage>? Messages { get; set; }
 
     /// <summary>The maximum number of tokens to generate.</summary>
     [JsonPropertyName("max_tokens")] public int? MaxTokens { get; set; }
@@ -62,7 +63,7 @@ namespace FluentDocker.Model.Models.Inference
     [JsonPropertyName("stream")] public bool? Stream { get; set; }
 
     /// <summary>Stop sequences.</summary>
-    [JsonPropertyName("stop")] public IList<string> Stop { get; set; }
+    [JsonPropertyName("stop")] public IList<string>? Stop { get; set; }
 
     /// <summary>Presence penalty.</summary>
     [JsonPropertyName("presence_penalty")] public double? PresencePenalty { get; set; }
@@ -78,7 +79,7 @@ namespace FluentDocker.Model.Models.Inference
     /// <c>tools</c>, <c>tool_choice</c>, <c>response_format</c>, multimodal content). Captured
     /// verbatim so advanced parameters round-trip to the engine instead of being dropped. (Preview)
     /// </summary>
-    [JsonExtensionData] public IDictionary<string, JsonElement> AdditionalProperties { get; set; }
+    [JsonExtensionData] public IDictionary<string, JsonElement>? AdditionalProperties { get; set; }
   }
 
   /// <summary>
@@ -87,28 +88,28 @@ namespace FluentDocker.Model.Models.Inference
   public sealed class ChatCompletionResponse
   {
     /// <summary>The response id.</summary>
-    [JsonPropertyName("id")] public string Id { get; set; }
+    [JsonPropertyName("id")] public string? Id { get; set; }
 
     /// <summary>The object type (<c>chat.completion</c>).</summary>
-    [JsonPropertyName("object")] public string Object { get; set; }
+    [JsonPropertyName("object")] public string? Object { get; set; }
 
     /// <summary>Creation timestamp (unix seconds).</summary>
     [JsonPropertyName("created")] public long Created { get; set; }
 
     /// <summary>The model that produced the response.</summary>
-    [JsonPropertyName("model")] public string Model { get; set; }
+    [JsonPropertyName("model")] public string? Model { get; set; }
 
     /// <summary>The choices.</summary>
-    [JsonPropertyName("choices")] public IList<ChatChoice> Choices { get; set; }
+    [JsonPropertyName("choices")] public IList<ChatChoice>? Choices { get; set; }
 
     /// <summary>Token usage.</summary>
-    [JsonPropertyName("usage")] public Usage Usage { get; set; }
+    [JsonPropertyName("usage")] public Usage? Usage { get; set; }
 
     /// <summary>
     /// Pass-through for any response field not modeled above. Captured verbatim so unmodeled
     /// server fields (e.g. <c>system_fingerprint</c>) are observable instead of dropped. (Preview)
     /// </summary>
-    [JsonExtensionData] public IDictionary<string, JsonElement> AdditionalProperties { get; set; }
+    [JsonExtensionData] public IDictionary<string, JsonElement>? AdditionalProperties { get; set; }
   }
 
   /// <summary>
@@ -120,15 +121,15 @@ namespace FluentDocker.Model.Models.Inference
     [JsonPropertyName("index")] public int Index { get; set; }
 
     /// <summary>The assistant message.</summary>
-    [JsonPropertyName("message")] public ChatMessage Message { get; set; }
+    [JsonPropertyName("message")] public ChatMessage? Message { get; set; }
 
     /// <summary>The finish reason (<c>stop</c> / <c>length</c> / …).</summary>
-    [JsonPropertyName("finish_reason")] public string FinishReason { get; set; }
+    [JsonPropertyName("finish_reason")] public string? FinishReason { get; set; }
 
     /// <summary>
     /// Pass-through for any unmodeled choice field (e.g. <c>logprobs</c>). Captured verbatim
     /// so it is observable instead of dropped. (Preview)
     /// </summary>
-    [JsonExtensionData] public IDictionary<string, JsonElement> AdditionalProperties { get; set; }
+    [JsonExtensionData] public IDictionary<string, JsonElement>? AdditionalProperties { get; set; }
   }
 }

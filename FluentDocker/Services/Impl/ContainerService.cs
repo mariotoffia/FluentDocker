@@ -20,6 +20,8 @@ namespace FluentDocker.Services.Impl
   /// <inheritdoc />
   /// <remarks>
   /// After disposal, lifecycle state/events are deliberately suppressed instead of throwing.
+  /// Lifecycle transitions are individually atomic; a single service instance is not designed
+  /// for concurrent lifecycle calls (Start/Stop/Remove/Dispose) from multiple threads.
   /// </remarks>
   public partial class ContainerService : IContainerService, IServiceCapabilities
   {
@@ -36,6 +38,7 @@ namespace FluentDocker.Services.Impl
     private readonly Func<Dictionary<string, HostIpEndpoint[]>, string, Uri, IPEndPoint> _customResolver;
     private readonly List<LifecycleHook> _lifecycleHooks;
     private readonly ConcurrentDictionary<string, (ServiceRunningState State, Func<IServiceAsync, Task> Hook)> _hooks = [];
+    private readonly object _stateLock = new();
     private volatile ServiceRunningState _state = ServiceRunningState.Unknown;
 
     // Short-lived inspect cache to avoid redundant API/CLI calls during wait polling.
@@ -117,6 +120,7 @@ namespace FluentDocker.Services.Impl
     bool IServiceCapabilities.CanStop => true;
     bool IServiceCapabilities.CanPause => true;
     bool IServiceCapabilities.CanRemove => true;
+    bool IServiceCapabilities.CanHook => true;
 
 #pragma warning disable CA1710 // Delegate name 'StateChange' — intentional API design
     public event ServiceDelegates.StateChange StateChange;
@@ -125,6 +129,10 @@ namespace FluentDocker.Services.Impl
     public async Task StartAsync(CancellationToken cancellationToken = default)
     {
       cancellationToken.ThrowIfCancellationRequested();
+      ObjectDisposedException.ThrowIf(Volatile.Read(ref _disposed) != 0, this);
+      if (_state == ServiceRunningState.Removed)
+        throw new ObjectDisposedException(Name, "Cannot start a removed container.");
+
       var driver = _kernel.SysCtl<IContainerDriver>(_driverId);
       var context = new DriverContext(_driverId);
 
@@ -144,7 +152,7 @@ namespace FluentDocker.Services.Impl
               response.ErrorCode);
         }
 
-        var versionBeforeInspect = _cacheVersion;
+        InvalidateInspectCache();
         var inspect = await driver.InspectAsync(context, _containerId, cancellationToken).ConfigureAwait(false);
         if (inspect == null)
         {
@@ -162,19 +170,7 @@ namespace FluentDocker.Services.Impl
         var inspectedState = inspect.Data?.State?.Running == true
             ? ServiceRunningState.Running
             : ParseState(inspect.Data?.State?.Status);
-        var stateChangedByThisStart = inspectedState != _state;
-        var canCacheInspect = versionBeforeInspect == _cacheVersion;
-        if (canCacheInspect)
-          UpdateState(inspectedState);
-        else
-          UpdateStateFromInspect(inspectedState);
-        if (canCacheInspect &&
-            inspect.Data != null &&
-            (versionBeforeInspect == _cacheVersion ||
-             (stateChangedByThisStart && versionBeforeInspect + 1 == _cacheVersion)))
-        {
-          _inspectCacheEntry = new InspectCacheEntry(inspect.Data, Stopwatch.GetTimestamp());
-        }
+        UpdateState(inspectedState);
         if (_state == ServiceRunningState.Running)
           await ExecuteHooksAsync(ServiceRunningState.Running).ConfigureAwait(false);
         // Builder orchestrates CopyToOnStart / ExecuteOnRunning once, after wait conditions.
@@ -220,14 +216,26 @@ namespace FluentDocker.Services.Impl
 
       var response = await driver.UnpauseAsync(context, _containerId, cancellationToken).ConfigureAwait(false);
 
-      // A driver "not paused" failure means the container is already un-paused; unpause is
-      // idempotent — the caller's intent (a running container) is already satisfied.
-      if (!response.Success && !IsAlreadyNotPaused(response))
+      if (!response.Success)
       {
-        throw new DriverException(
-            $"Failed to unpause container '{_name}': {response.Error}",
-            response.ErrorCode,
-            response.ErrorContext);
+        if (!IsAlreadyNotPaused(response))
+        {
+          throw new DriverException(
+              $"Failed to unpause container '{_name}': {response.Error}",
+              response.ErrorCode,
+              response.ErrorContext);
+        }
+
+        // "not paused" also covers stopped/exited containers — inspect for the real state.
+        var inspect = await driver.InspectAsync(context, _containerId, cancellationToken).ConfigureAwait(false);
+        var actual = inspect?.Success == true
+            ? (inspect.Data?.State?.Running == true
+                ? ServiceRunningState.Running
+                : ParseState(inspect.Data?.State?.Status))
+            : ServiceRunningState.Unknown;
+        UpdateState(actual);
+        await ExecuteHooksAsync(actual).ConfigureAwait(false);
+        return;
       }
 
       UpdateState(ServiceRunningState.Running);

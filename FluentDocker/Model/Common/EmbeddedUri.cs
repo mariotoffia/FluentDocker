@@ -1,3 +1,4 @@
+#nullable enable
 using System;
 
 namespace FluentDocker.Model.Common
@@ -28,9 +29,9 @@ namespace FluentDocker.Model.Common
 
     public string Assembly => _assembly;
     public string Namespace { get; }
-    public string Resource { get; }
+    public string? Resource { get; }
 
-    public static implicit operator EmbeddedUri(string uri)
+    public static implicit operator EmbeddedUri?(string? uri)
     {
       if (null == uri)
       {

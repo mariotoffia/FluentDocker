@@ -4,7 +4,6 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Text;
-using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using FluentDocker.Common;
@@ -306,7 +305,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
             image.RepoTags.Add($"{dto.Repository}:{dto.Tag}");
           }
 
-          if (DockerCliTimestampParser.TryParse(dto.CreatedAt, out var created))
+          if (DockerCliTimestampParser.TryParse(dto.CreatedAt, out DateTime created))
           {
             image.Created = created;
           }
@@ -377,7 +376,15 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
               FailureCode(result.Error, ErrorCodes.Image.InspectFailed));
         }
 
-        var images = JsonSerializer.Deserialize<List<Image>>(result.Output, JsonHelper.CaseInsensitiveOptions);
+        var images = JsonHelper.TryDeserialize<List<Image>>(result.Output);
+        if (images == null)
+        {
+          Logger.LogError("Image inspect JSON parsing failed");
+          return CommandResponse<Image>.Fail(
+              "Image inspect JSON parsing failed",
+              ErrorCodes.Image.InspectFailed);
+        }
+
         var image = images?.FirstOrDefault();
 
         if (image == null)
@@ -438,7 +445,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
             Size = ParseSize(dto.Size)
           };
 
-          if (DockerCliTimestampParser.TryParse(dto.CreatedAt, out var created))
+          if (DockerCliTimestampParser.TryParse(dto.CreatedAt, out DateTime created))
           {
             layer.Created = created;
           }

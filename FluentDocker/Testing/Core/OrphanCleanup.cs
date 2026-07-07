@@ -180,15 +180,15 @@ namespace FluentDocker.Testing.Core
       foreach (var container in listResult.Data ?? Enumerable.Empty<Model.Containers.Container>())
       {
         var containerLabels = container.Config?.Labels as IDictionary<string, string>;
-        if (IsCurrentSession(containerLabels, currentSessionId))
-          continue;
-        if (minimumAge > TimeSpan.Zero &&
-            (containerLabels == null || !containerLabels.ContainsKey(SessionLabel.CreatedAtKey)))
+        if (containerLabels == null || containerLabels.Count == 0)
         {
+          // ponytail: one inspect per managed CLI-listed container; upgrade path = map labels in list parsers.
           var inspect = await driver.InspectAsync(context, container.Id, cancellationToken).ConfigureAwait(false);
           if (inspect?.Success == true)
             containerLabels = inspect.Data?.Config?.Labels as IDictionary<string, string>;
         }
+        if (IsCurrentSession(containerLabels, currentSessionId))
+          continue;
         if (ShouldPreserveDueToAge(containerLabels, minimumAge))
           continue;
 

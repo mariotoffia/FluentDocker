@@ -9,8 +9,8 @@ using FluentDocker.Model.Drivers;
 namespace FluentDocker.Drivers
 {
   /// <summary>
-  /// Service management for orchestrated services (Docker Swarm, Kubernetes).
-  /// Supported by: Docker Swarm, Kubernetes (partial)
+  /// Service management for orchestrated services (Docker Swarm).
+  /// Supported by: Docker Swarm.
   /// Not supported by: Podman (use pods instead)
   /// </summary>
   public partial interface IServiceDriver

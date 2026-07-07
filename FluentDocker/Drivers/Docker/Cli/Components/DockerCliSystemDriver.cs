@@ -1,6 +1,5 @@
 using System;
 using System.Diagnostics;
-using System.Globalization;
 using System.Text;
 using System.Text.Json;
 using System.Threading;
@@ -301,46 +300,8 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
 
     /// <summary>
     /// Parses a human-readable byte string (e.g. "1.234GB", "500MB", "0B").
-    /// Uses base-1000 for B/kB/KB/MB/GB/TB and base-1024 for KiB/MiB/GiB/TiB.
     /// </summary>
-    public static long ParseHumanReadableBytes(string value)
-    {
-      if (string.IsNullOrWhiteSpace(value))
-        return 0;
-
-      var s = value.Trim();
-      var suffixes = new (string suffix, double multiplier)[]
-      {
-                ("TiB", 1024.0 * 1024 * 1024 * 1024),
-                ("GiB", 1024.0 * 1024 * 1024),
-                ("MiB", 1024.0 * 1024),
-                ("KiB", 1024.0),
-                ("TB", 1000.0 * 1000 * 1000 * 1000),
-                ("GB", 1000.0 * 1000 * 1000),
-                ("MB", 1000.0 * 1000),
-                ("kB", 1000.0),
-                ("KB", 1000.0),
-                ("B", 1.0)
-      };
-
-      foreach (var (suffix, multiplier) in suffixes)
-      {
-        if (!s.EndsWith(suffix, StringComparison.Ordinal))
-          continue;
-
-        var numStr = s.Substring(0, s.Length - suffix.Length).Trim();
-        if (double.TryParse(numStr, NumberStyles.Float,
-                CultureInfo.InvariantCulture, out var num))
-          return (long)(num * multiplier);
-        return 0;
-      }
-
-      // No recognized suffix: try raw number
-      return double.TryParse(s, NumberStyles.Float,
-                 CultureInfo.InvariantCulture, out var raw)
-          ? (long)raw
-          : 0;
-    }
+    public static long ParseHumanReadableBytes(string value) => CliOutputParser.ParseByteValue(value);
 
     /// <summary>
     /// Parses a reclaimable size string that may include a percentage suffix,

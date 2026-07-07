@@ -1,3 +1,4 @@
+#nullable enable
 using System;
 
 namespace FluentDocker.Model.Models.Inference
@@ -73,7 +74,7 @@ namespace FluentDocker.Model.Models.Inference
 
       // The tag is always the trailing "<name>:latest" segment (no digest present).
       return canonical.EndsWith(nameTag, StringComparison.Ordinal)
-          ? canonical.Substring(0, canonical.Length - reference.Tag.Length - 1)
+          ? canonical.Substring(0, canonical.Length - reference.Tag!.Length - 1)
           : canonical;
     }
 
@@ -81,7 +82,7 @@ namespace FluentDocker.Model.Models.Inference
     public bool Equals(InferenceModelId other) => string.Equals(_value, other._value, StringComparison.Ordinal);
 
     /// <inheritdoc />
-    public override bool Equals(object obj) => obj is InferenceModelId other && Equals(other);
+    public override bool Equals(object? obj) => obj is InferenceModelId other && Equals(other);
 
     /// <inheritdoc />
     public override int GetHashCode() => _value is null ? 0 : StringComparer.Ordinal.GetHashCode(_value);

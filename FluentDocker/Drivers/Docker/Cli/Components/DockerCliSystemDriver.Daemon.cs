@@ -92,92 +92,88 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     /// </summary>
     private async Task<SimpleCommandResult> ExecuteDockerCliCommandAsync(string arguments, CancellationToken cancellationToken)
     {
-      return await Task.Run(() =>
+      try
       {
+        Process process = null;
         try
         {
-          Process process = null;
-          try
+          process = new Process
           {
-            process = new Process
+            StartInfo = new ProcessStartInfo
             {
-              StartInfo = new ProcessStartInfo
-              {
-                FileName = BinaryResolver?.ResolveBinaryPath("dockercli") ?? "dockercli",
-                Arguments = arguments,
-                RedirectStandardOutput = true,
-                RedirectStandardError = true,
-                UseShellExecute = false,
-                CreateNoWindow = true
-              }
-            };
-
-            var output = new StringBuilder();
-            var error = new StringBuilder();
-
-            process.OutputDataReceived += (s, e) =>
-            {
-              if (!string.IsNullOrEmpty(e.Data))
-                output.AppendLine(e.Data);
-            };
-
-            process.ErrorDataReceived += (s, e) =>
-            {
-              if (!string.IsNullOrEmpty(e.Data))
-                error.AppendLine(e.Data);
-            };
-
-            process.Start();
-            process.BeginOutputReadLine();
-            process.BeginErrorReadLine();
-
-            while (!process.WaitForExit(1000))
-              cancellationToken.ThrowIfCancellationRequested();
-
-            // Parameterless overload flushes the async OutputDataReceived/
-            // ErrorDataReceived handlers to EOF; the timed overload does not.
-            process.WaitForExit();
-
-            return new SimpleCommandResult
-            {
-              Success = process.ExitCode == 0,
-              Output = output.ToString(),
-              Error = error.ToString(),
-              ExitCode = process.ExitCode
-            };
-          }
-          catch (OperationCanceledException)
-          {
-            try
-            {
-              if (process is { HasExited: false })
-                process.Kill(entireProcessTree: true);
+              FileName = BinaryResolver?.ResolveBinaryPath("dockercli") ?? "dockercli",
+              Arguments = arguments,
+              RedirectStandardOutput = true,
+              RedirectStandardError = true,
+              UseShellExecute = false,
+              CreateNoWindow = true
             }
-            catch
-            {
-              // best effort: process may have exited between the check and kill
-            }
-            throw;
-          }
-          finally
+          };
+
+          var output = new StringBuilder();
+          var error = new StringBuilder();
+
+          process.OutputDataReceived += (s, e) =>
           {
-            process?.Dispose();
-          }
+            if (!string.IsNullOrEmpty(e.Data))
+              output.AppendLine(e.Data);
+          };
+
+          process.ErrorDataReceived += (s, e) =>
+          {
+            if (!string.IsNullOrEmpty(e.Data))
+              error.AppendLine(e.Data);
+          };
+
+          process.Start();
+          process.BeginOutputReadLine();
+          process.BeginErrorReadLine();
+
+          await process.WaitForExitAsync(cancellationToken).ConfigureAwait(false);
+
+          // Parameterless overload flushes the async OutputDataReceived/
+          // ErrorDataReceived handlers to EOF; the timed overload does not.
+          process.WaitForExit();
+
+          return new SimpleCommandResult
+          {
+            Success = process.ExitCode == 0,
+            Output = output.ToString(),
+            Error = error.ToString(),
+            ExitCode = process.ExitCode
+          };
         }
         catch (OperationCanceledException)
         {
+          try
+          {
+            if (process is { HasExited: false })
+              process.Kill(entireProcessTree: true);
+          }
+          catch
+          {
+            // best effort: process may have exited between the check and kill
+          }
           throw;
         }
-        catch (Exception ex)
+        finally
         {
-          return new SimpleCommandResult
-          {
-            Success = false,
-            Error = ex.Message,
-            ExitCode = -1
-          };
+          process?.Dispose();
         }
-      }, cancellationToken).ConfigureAwait(false);
+      }
+      catch (OperationCanceledException)
+      {
+        throw;
+      }
+      catch (Exception ex)
+      {
+        return new SimpleCommandResult
+        {
+          Success = false,
+          Error = ex.Message,
+          ExitCode = -1
+        };
+      }
     }
 
     #endregion

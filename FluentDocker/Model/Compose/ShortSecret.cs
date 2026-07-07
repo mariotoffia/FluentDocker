@@ -1,3 +1,4 @@
+#nullable enable
 namespace FluentDocker.Model.Compose
 {
   /// <summary>
@@ -14,14 +15,14 @@ namespace FluentDocker.Model.Compose
     /// <summary>
     ///   Name of the secret.
     /// </summary>
-    public string Name { get; set; }
+    public string? Name { get; set; }
 
     /// <summary>
     ///   The path, relative or absolute, to the secret file.
     /// </summary>
     /// <remarks>
     /// </remarks>
-    public string FilePath { get; set; }
+    public string? FilePath { get; set; }
 
     /// <summary>
     ///   Defines the secret as external resource.

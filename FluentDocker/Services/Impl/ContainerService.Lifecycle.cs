@@ -1,6 +1,8 @@
 using System;
+using System.Collections.Generic;
 using System.Formats.Tar;
 using System.IO;
+using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using FluentDocker.Builders;
@@ -16,6 +18,9 @@ namespace FluentDocker.Services.Impl
   {
     private int _disposed;
     private int _disposeCompleted;
+    private static readonly Regex AnonymousVolumeNameRegex = new(
+        "^[0-9a-f]{64}$",
+        RegexOptions.Compiled | RegexOptions.CultureInvariant);
 
     public IServiceAsync AddHook(ServiceRunningState state, Func<IServiceAsync, Task> hook, string uniqueName = null)
     {
@@ -161,7 +166,24 @@ namespace FluentDocker.Services.Impl
           includeOnly: false,
           skipType: skipExecuteLifecycleHooks).ConfigureAwait(false);
 
-      var removeVolumes = removeVolumesOverride ?? (_deleteVolumeOnDispose || _deleteNamedVolumeOnDispose);
+      IVolumeDriver namedVolumeDriver = null;
+      var namedVolumes = Array.Empty<string>();
+      if (_deleteNamedVolumeOnDispose)
+      {
+        if (_kernel.TrySysCtl<IVolumeDriver>(_driverId, out namedVolumeDriver))
+        {
+          namedVolumes = await InspectNamedVolumesAsync(driver, context, cancellationToken)
+              .ConfigureAwait(false);
+        }
+        else
+        {
+          _logger.LogWarning(
+              "ContainerService named volume cleanup skipped for '{Container}' because IVolumeDriver is unavailable",
+              _name);
+        }
+      }
+
+      var removeVolumes = removeVolumesOverride ?? _deleteVolumeOnDispose;
       var response = await driver.RemoveAsync(
           context, _containerId, force, removeVolumes, cancellationToken).ConfigureAwait(false);
 
@@ -171,6 +193,8 @@ namespace FluentDocker.Services.Impl
         {
           UpdateState(ServiceRunningState.Removed);
           await ExecuteHooksAsync(ServiceRunningState.Removed).ConfigureAwait(false);
+          await RemoveNamedVolumesAsync(namedVolumeDriver, context, namedVolumes, cancellationToken)
+              .ConfigureAwait(false);
           return;
         }
 
@@ -183,6 +207,76 @@ namespace FluentDocker.Services.Impl
 
       UpdateState(ServiceRunningState.Removed);
       await ExecuteHooksAsync(ServiceRunningState.Removed).ConfigureAwait(false);
+      await RemoveNamedVolumesAsync(namedVolumeDriver, context, namedVolumes, cancellationToken)
+          .ConfigureAwait(false);
+    }
+
+    private async Task<string[]> InspectNamedVolumesAsync(
+        IContainerDriver driver,
+        DriverContext context,
+        CancellationToken cancellationToken)
+    {
+      var response = await driver.InspectAsync(context, _containerId, cancellationToken)
+          .ConfigureAwait(false);
+      if (!response.Success)
+      {
+        _logger.LogWarning(
+            "ContainerService named volume cleanup inspect failed for '{Container}': {Error}",
+            _name,
+            response.Error);
+        return [];
+      }
+
+      var mounts = response.Data?.Mounts;
+      if (mounts == null || mounts.Length == 0)
+        return [];
+
+      var names = new List<string>();
+      foreach (var mount in mounts)
+      {
+        // ponytail: Mount lacks Type; map inspect Type:"volume" before trusting Source for bind-vs-volume.
+        var name = mount?.Name;
+        if (string.IsNullOrWhiteSpace(name) || AnonymousVolumeNameRegex.IsMatch(name))
+          continue;
+
+        if (!names.Contains(name))
+          names.Add(name);
+      }
+
+      return [.. names];
+    }
+
+    private async Task RemoveNamedVolumesAsync(
+        IVolumeDriver driver,
+        DriverContext context,
+        string[] volumeNames,
+        CancellationToken cancellationToken)
+    {
+      if (driver == null || volumeNames.Length == 0)
+        return;
+
+      foreach (var volumeName in volumeNames)
+      {
+        try
+        {
+          var response = await driver.RemoveAsync(context, volumeName, false, cancellationToken)
+              .ConfigureAwait(false);
+          if (!response.Success)
+          {
+            _logger.LogWarning(
+                "ContainerService named volume '{Volume}' cleanup failed: {Error}",
+                volumeName,
+                response.Error);
+          }
+        }
+        catch (Exception ex)
+        {
+          _logger.LogWarning(
+              ex,
+              "ContainerService named volume '{Volume}' cleanup failed",
+              volumeName);
+        }
+      }
     }
 
     private static bool IsContainerAlreadyGone(CommandResponse<Unit> response)
@@ -231,31 +325,34 @@ namespace FluentDocker.Services.Impl
 
     private void UpdateStateCore(ServiceRunningState newState, bool invalidateInspectCache)
     {
-      if (Volatile.Read(ref _disposeCompleted) != 0)
-        return;
-
-      var oldState = _state;
-      if (oldState == newState)
-        return;
-
-      _state = newState;
-      if (invalidateInspectCache)
-        InvalidateInspectCache();
-
-      var stateChange = StateChange;
-      if (stateChange == null)
-        return;
-
-      var args = new StateChangeEventArgs(this, newState);
-      foreach (ServiceDelegates.StateChange handler in stateChange.GetInvocationList())
+      lock (_stateLock)
       {
-        try
+        if (Volatile.Read(ref _disposeCompleted) != 0)
+          return;
+
+        var oldState = _state;
+        if (oldState == newState)
+          return;
+
+        _state = newState;
+        if (invalidateInspectCache)
+          InvalidateInspectCache();
+
+        var stateChange = StateChange;
+        if (stateChange == null)
+          return;
+
+        var args = new StateChangeEventArgs(this, newState);
+        foreach (ServiceDelegates.StateChange handler in stateChange.GetInvocationList())
         {
-          handler(this, args);
-        }
-        catch (Exception ex)
-        {
-          _logger.LogError(ex, "ContainerService state change handler failed");
+          try
+          {
+            handler(this, args);
+          }
+          catch (Exception ex)
+          {
+            _logger.LogError(ex, "ContainerService state change handler failed");
+          }
         }
       }
     }

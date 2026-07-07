@@ -1,3 +1,4 @@
+using System;
 using System.Linq;
 using System.Threading.Tasks;
 using FluentDocker.Drivers;
@@ -308,6 +309,26 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
       Assert.Equal("172.17.0.1", c.NetworkSettings.Gateway);
       Assert.Equal("172.17.0.2", c.NetworkSettings.IPAddress);
       Assert.Equal("02:42:ac:11:00:02", c.NetworkSettings.MacAddress);
+    }
+
+    [Fact]
+    public async Task InspectAsync_PreservesCreatedAndStateOffsets()
+    {
+      const string json =
+          @"{""Id"":""offset-container"",""Name"":""/offset-container"","
+          + @"""Created"":""2024-01-02T03:04:05+02:00"","
+          + @"""State"":{""StartedAt"":""2024-01-02T03:04:05+02:00"","
+          + @"""FinishedAt"":""2024-01-02T01:04:05Z""}}";
+
+      var (driver, mock) = CreateDriver();
+      mock.SetupGet("/json", 200, json);
+
+      var result = await driver.InspectAsync(Ctx, "offset-container", cancellationToken: TestContext.Current.CancellationToken);
+
+      Assert.True(result.Success, result.Error);
+      Assert.Equal(TimeSpan.FromHours(2), result.Data.Created.Offset);
+      Assert.Equal(TimeSpan.FromHours(2), result.Data.State.StartedAt.Offset);
+      Assert.Equal(TimeSpan.Zero, result.Data.State.FinishedAt.Offset);
     }
 
     [Fact]

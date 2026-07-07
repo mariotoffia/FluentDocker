@@ -13,7 +13,7 @@ namespace FluentDocker.Drivers
 {
   /// <summary>
   /// Streaming operations for real-time data (logs, events, stats).
-  /// Supported by: Docker, Podman, Kubernetes (partial)
+  /// Supported by: Docker, Podman.
   /// </summary>
   public interface IStreamDriver
   {
@@ -229,13 +229,22 @@ namespace FluentDocker.Drivers
     /// <summary>Allocate a pseudo-TTY. Docker CLI attach cannot change this and fails fast when true.</summary>
     public bool Tty { get; set; }
 
-    /// <summary>Key sequence for detaching.</summary>
+    /// <summary>
+    /// Key sequence for detaching. The Docker API driver does not support custom detach
+    /// keys and fails fast when set.
+    /// </summary>
     public string DetachKeys { get; set; }
 
-    /// <summary>Do not attach stdout. Docker CLI attach cannot suppress this and fails fast when true.</summary>
+    /// <summary>
+    /// Do not attach stdout. Docker CLI attach cannot suppress this and fails fast when true;
+    /// the Docker API driver also fails fast when true.
+    /// </summary>
     public bool NoStdout { get; set; }
 
-    /// <summary>Do not attach stderr. Docker CLI attach cannot suppress this and fails fast when true.</summary>
+    /// <summary>
+    /// Do not attach stderr. Docker CLI attach cannot suppress this and fails fast when true;
+    /// the Docker API driver also fails fast when true.
+    /// </summary>
     public bool NoStderr { get; set; }
 
     /// <summary>Proxy all received signals.</summary>
@@ -326,6 +335,7 @@ namespace FluentDocker.Drivers
   /// </summary>
   public class AttachResult : IAsyncDisposable
   {
+    // ponytail: CLI attach owns a Process while API attach only owns streams; move this split in a future release.
     /// <summary>Input stream (to send data to container).</summary>
     public Stream InputStream { get; set; }
 

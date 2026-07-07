@@ -26,13 +26,14 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
         return processes;
 
       // First line is header
-      processes.Titles = [.. lines[0].Split(
-          WhitespaceSeparators, StringSplitOptions.RemoveEmptyEntries)];
+      var titles = lines[0].Split(WhitespaceSeparators, StringSplitOptions.RemoveEmptyEntries);
+      processes.Titles = [.. titles];
 
       for (var i = 1; i < lines.Length; i++)
       {
+        // ponytail: count-limited split keeps the last column (COMMAND) intact with its spaces.
         var fields = lines[i].Split(
-            WhitespaceSeparators, StringSplitOptions.RemoveEmptyEntries);
+            WhitespaceSeparators, titles.Length, StringSplitOptions.RemoveEmptyEntries);
         processes.Processes.Add([.. fields]);
       }
 

@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using FluentDocker.Common;
@@ -187,7 +186,12 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
               result.ExitCode);
         }
 
-        var volumes = JsonSerializer.Deserialize<List<Volume>>(result.Output, JsonHelper.CaseInsensitiveOptions);
+        var volumes = JsonHelper.TryDeserialize<List<Volume>>(result.Output);
+        if (volumes == null)
+        {
+          Logger.LogError("Volume inspect JSON parsing failed");
+          return CommandResponse<Volume>.Fail("Volume inspect JSON parsing failed", ErrorCodes.Volume.InspectFailed);
+        }
         var volume = volumes?.FirstOrDefault();
         return volume == null
             ? CommandResponse<Volume>.Fail($"Volume {volumeName} not found", ErrorCodes.Volume.NotFound)

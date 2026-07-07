@@ -1,3 +1,4 @@
+#nullable enable
 using System;
 
 namespace FluentDocker.Model.Drivers
@@ -19,22 +20,22 @@ namespace FluentDocker.Model.Drivers
     /// <summary>
     /// The data returned by the command. Successful responses are expected to carry non-null data.
     /// </summary>
-    public T Data { get; private init; }
+    public T? Data { get; private init; }
 
     /// <summary>
     /// Error message (if not successful).
     /// </summary>
-    public string Error { get; private init; }
+    public string? Error { get; private init; }
 
     /// <summary>
     /// Error code for programmatic handling.
     /// </summary>
-    public string ErrorCode { get; private init; }
+    public string? ErrorCode { get; private init; }
 
     /// <summary>
     /// Diagnostic context information.
     /// </summary>
-    public ErrorContext ErrorContext { get; private init; }
+    public ErrorContext? ErrorContext { get; private init; }
 
     /// <summary>
     /// Exit code from the command execution.
@@ -44,7 +45,7 @@ namespace FluentDocker.Model.Drivers
     /// <summary>
     /// Standard output from the command.
     /// </summary>
-    public string Output { get; private init; }
+    public string? Output { get; private init; }
 
     /// <summary>
     /// Creates a successful command response. Pass non-null data for successful responses.
@@ -93,7 +94,7 @@ namespace FluentDocker.Model.Drivers
     /// <summary>
     /// Creates a failed command response.
     /// </summary>
-    public static CommandResponse<T> Fail(string error, string errorCode = null, int exitCode = -1)
+    public static CommandResponse<T> Fail(string error, string? errorCode = null, int exitCode = -1)
     {
       return new CommandResponse<T>
       {

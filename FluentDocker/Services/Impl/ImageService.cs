@@ -12,6 +12,10 @@ using Microsoft.Extensions.Logging;
 namespace FluentDocker.Services.Impl
 {
   /// <inheritdoc />
+  /// <remarks>
+  /// Lifecycle transitions are individually atomic; a single service instance is not designed
+  /// for concurrent lifecycle calls (Start/Stop/Remove/Dispose) from multiple threads.
+  /// </remarks>
   public class ImageService : IImageService, IServiceCapabilities
   {
     // IServiceCapabilities
@@ -19,6 +23,7 @@ namespace FluentDocker.Services.Impl
     bool IServiceCapabilities.CanStop => false;
     bool IServiceCapabilities.CanPause => false;
     bool IServiceCapabilities.CanRemove => true;
+    bool IServiceCapabilities.CanHook => true;
 
     private readonly FluentDockerKernel _kernel;
     private readonly ILogger<ImageService> _logger;
@@ -27,6 +32,7 @@ namespace FluentDocker.Services.Impl
     private readonly string _repository;
     private readonly string _tag;
     private readonly ConcurrentDictionary<string, (ServiceRunningState State, Func<IServiceAsync, Task> Hook)> _hooks = [];
+    private readonly object _stateLock = new();
     private volatile ServiceRunningState _state = ServiceRunningState.Running;
 
     public ImageService(
@@ -253,24 +259,27 @@ namespace FluentDocker.Services.Impl
 
     private void UpdateState(ServiceRunningState newState)
     {
-      if (Volatile.Read(ref _disposeCompleted) != 0 || _state == newState)
-        return;
-
-      _state = newState;
-      var stateChange = StateChange;
-      if (stateChange == null)
-        return;
-
-      var args = new StateChangeEventArgs(this, newState);
-      foreach (ServiceDelegates.StateChange handler in stateChange.GetInvocationList())
+      lock (_stateLock)
       {
-        try
+        if (Volatile.Read(ref _disposeCompleted) != 0 || _state == newState)
+          return;
+
+        _state = newState;
+        var stateChange = StateChange;
+        if (stateChange == null)
+          return;
+
+        var args = new StateChangeEventArgs(this, newState);
+        foreach (ServiceDelegates.StateChange handler in stateChange.GetInvocationList())
         {
-          handler(this, args);
-        }
-        catch (Exception ex)
-        {
-          _logger.LogError(ex, "ImageService state change handler failed");
+          try
+          {
+            handler(this, args);
+          }
+          catch (Exception ex)
+          {
+            _logger.LogError(ex, "ImageService state change handler failed");
+          }
         }
       }
     }

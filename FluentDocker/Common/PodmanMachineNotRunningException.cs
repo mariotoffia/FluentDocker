@@ -1,3 +1,4 @@
+#nullable enable
 using System;
 using FluentDocker.Model.Drivers;
 
@@ -21,7 +22,7 @@ namespace FluentDocker.Common
     /// <summary>
     /// Creates a new instance with the specified message and inner exception.
     /// </summary>
-    public PodmanMachineNotRunningException(string message, Exception innerException)
+    public PodmanMachineNotRunningException(string message, Exception? innerException)
         : base(message, ErrorCodes.Machine.NotRunning, null, innerException, true) { }
   }
 }

@@ -12,13 +12,12 @@ using Microsoft.Extensions.Logging;
 namespace FluentDocker.Services.Impl
 {
   /// <inheritdoc />
+  /// <remarks>
+  /// Lifecycle transitions are individually atomic; a single service instance is not designed
+  /// for concurrent lifecycle calls (Start/Stop/Remove/Dispose) from multiple threads.
+  /// </remarks>
   public partial class ComposeService : IComposeService, IServiceCapabilities
   {
-    bool IServiceCapabilities.CanStart => true;
-    bool IServiceCapabilities.CanStop => true;
-    bool IServiceCapabilities.CanPause => true;
-    bool IServiceCapabilities.CanRemove => true;
-
     private readonly FluentDockerKernel _kernel;
     private readonly ILogger<ComposeService> _logger;
     private readonly string _driverId;
@@ -30,6 +29,7 @@ namespace FluentDocker.Services.Impl
     private readonly TimeSpan _disposeCleanupTimeout;
     private readonly ConcurrentDictionary<string, (ServiceRunningState State, Func<IServiceAsync, Task> Hook)> _hooks = [];
     private readonly bool _downOnDispose;
+    private readonly object _stateLock = new();
     private volatile ServiceRunningState _state = ServiceRunningState.Running;
 
     public ComposeService(
@@ -252,6 +252,7 @@ namespace FluentDocker.Services.Impl
 
       if (!response.Success)
       {
+        UpdateState(ServiceRunningState.Unknown);
         throw new DriverException(
             $"Failed to pause compose project '{_projectName}': {response.Error}",
             response.ErrorCode,
@@ -445,24 +446,27 @@ namespace FluentDocker.Services.Impl
 
     private void UpdateState(ServiceRunningState newState)
     {
-      if (Volatile.Read(ref _disposeCompleted) != 0 || _state == newState)
-        return;
-
-      _state = newState;
-      var stateChange = StateChange;
-      if (stateChange == null)
-        return;
-
-      var args = new StateChangeEventArgs(this, newState);
-      foreach (ServiceDelegates.StateChange handler in stateChange.GetInvocationList())
+      lock (_stateLock)
       {
-        try
+        if (Volatile.Read(ref _disposeCompleted) != 0 || _state == newState)
+          return;
+
+        _state = newState;
+        var stateChange = StateChange;
+        if (stateChange == null)
+          return;
+
+        var args = new StateChangeEventArgs(this, newState);
+        foreach (ServiceDelegates.StateChange handler in stateChange.GetInvocationList())
         {
-          handler(this, args);
-        }
-        catch (Exception ex)
-        {
-          _logger.LogError(ex, "ComposeService state change handler failed");
+          try
+          {
+            handler(this, args);
+          }
+          catch (Exception ex)
+          {
+            _logger.LogError(ex, "ComposeService state change handler failed");
+          }
         }
       }
     }

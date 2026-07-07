@@ -1,3 +1,4 @@
+#nullable enable
 using System;
 using System.Globalization;
 using System.Text.Json;
@@ -35,7 +36,7 @@ namespace FluentDocker.Common
     /// Prefer <see cref="TryDeserialize{T}(string, out T)"/> for value types so a parsed
     /// <c>default</c> value can be distinguished from a failed parse.
     /// </summary>
-    public static T TryDeserialize<T>(string json)
+    public static T? TryDeserialize<T>(string json)
     {
       return TryDeserialize<T>(json, out var value) ? value : default;
     }
@@ -44,7 +45,7 @@ namespace FluentDocker.Common
     /// Deserializes a JSON string to the specified type using case-insensitive options.
     /// Returns <c>true</c> when JSON was valid (including JSON <c>null</c>), otherwise <c>false</c>.
     /// </summary>
-    public static bool TryDeserialize<T>(string json, out T value)
+    public static bool TryDeserialize<T>(string json, out T? value)
     {
       value = default;
       if (string.IsNullOrWhiteSpace(json))
@@ -66,7 +67,7 @@ namespace FluentDocker.Common
     /// Deserializes a JSON string using a source-generated <see cref="JsonTypeInfo{T}"/>.
     /// Returns <c>default</c> on JSON or unsupported-type failures instead of throwing.
     /// </summary>
-    public static T TryDeserialize<T>(string json, JsonTypeInfo<T> typeInfo)
+    public static T? TryDeserialize<T>(string json, JsonTypeInfo<T> typeInfo)
     {
       if (string.IsNullOrWhiteSpace(json))
         return default;
@@ -86,7 +87,7 @@ namespace FluentDocker.Common
     /// Deserializes a UTF-8 byte span to the specified type using case-insensitive options.
     /// Returns <c>default</c> on JSON or unsupported-type failures instead of throwing.
     /// </summary>
-    public static T TryDeserialize<T>(ReadOnlySpan<byte> utf8Json)
+    public static T? TryDeserialize<T>(ReadOnlySpan<byte> utf8Json)
     {
       if (utf8Json.IsEmpty)
         return default;
@@ -134,7 +135,7 @@ namespace FluentDocker.Common
     /// Tries to extract a string property from a JSON string without full deserialization.
     /// Useful for NDJSON streams where only one field is needed.
     /// </summary>
-    public static string TryGetProperty(string json, string propertyName)
+    public static string? TryGetProperty(string json, string propertyName)
     {
       if (string.IsNullOrWhiteSpace(json))
         return null;

@@ -17,26 +17,22 @@ FluentDocker provides full support for Docker Compose V2 (`docker compose` comma
 ## Kernel Setup
 
 Before using the builder, create a `FluentDockerKernel`. Multiple kernels per
-application (or test fixture) are supported. Many apps still reuse one kernel
-across builder calls for simplicity.
+application (or test fixture) are supported.
 
 ```csharp
 using FluentDocker.Kernel;
 using FluentDocker.Builders;
 
-// Create once and reuse
-var kernel = FluentDockerKernel.Create()
-    .WithDockerCli("docker", d => d.AsDefault())
-    .Build();
-```
-
-For async contexts (ASP.NET, xUnit `IAsyncLifetime`), prefer the async variant:
-
-```csharp
+// Create once and reuse across builder calls
 var kernel = await FluentDockerKernel.Create()
     .WithDockerCli("docker", d => d.AsDefault())
     .BuildAsync();
 ```
+
+The kernel owns its driver instances, so dispose it when the app or fixture shuts down:
+`await using var kernel = ...` for a scoped lifetime, or hold the reference and call
+`await kernel.DisposeAsync()` (sync `Dispose()` is the fallback) on shutdown. A synchronous
+`Build()` wrapper exists for code that cannot be async.
 
 ## Basic Usage
 

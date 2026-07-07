@@ -1,3 +1,4 @@
+#nullable enable
 using System;
 using System.Collections.Generic;
 using System.Text.Json.Serialization;
@@ -11,6 +12,11 @@ namespace FluentDocker.Model.Drivers
   /// <summary>
   /// Provides context information for driver operations, replacing DockerUri + ICertificatePaths.
   /// </summary>
+  /// <remarks>
+  /// Per-call contexts override registration contexts only for values explicitly set by the caller.
+  /// Merge-relevant optional values therefore default to <c>null</c>; adapters apply their own
+  /// runtime defaults after the merge.
+  /// </remarks>
   public class DriverContext
   {
     /// <summary>
@@ -24,32 +30,32 @@ namespace FluentDocker.Model.Drivers
     /// <summary>
     /// The driver ID for this operation.
     /// </summary>
-    public string DriverId { get; set; }
+    public string? DriverId { get; set; }
 
     /// <summary>
     /// Host URI (e.g., "unix:///var/run/docker.sock", "tcp://localhost:2376").
     /// </summary>
-    public string Host { get; set; }
+    public string? Host { get; set; }
 
     /// <summary>
     /// Path to TLS certificate directory (for secure TCP connections).
     /// </summary>
-    public string CertificatePath { get; set; }
+    public string? CertificatePath { get; set; }
 
     /// <summary>
     /// Whether to verify TLS certificates.
     /// </summary>
-    public bool VerifyTls { get; set; } = true;
+    public bool? VerifyTls { get; set; }
 
     /// <summary>
     /// Unique operation ID for tracing and correlation.
     /// </summary>
-    public string OperationId { get; set; }
+    public string? OperationId { get; set; }
 
     /// <summary>
     /// Additional metadata for this operation.
     /// </summary>
-    public Dictionary<string, string> Metadata { get; set; } = [];
+    public Dictionary<string, string>? Metadata { get; set; }
 
     /// <summary>
     /// Sudo mechanism for Docker commands.
@@ -64,32 +70,32 @@ namespace FluentDocker.Model.Drivers
     /// redacted by <see cref="ToString"/>; do not log it directly.
     /// </remarks>
     [JsonIgnore]
-    public string SudoPassword { get; set; }
+    public string? SudoPassword { get; set; }
 
     /// <summary>
-    /// Default shell for sudo commands (default: "bash").
+    /// Default shell for sudo commands. When null, the registered context or adapter default is used.
     /// </summary>
-    public string DefaultShell { get; set; } = "bash";
+    public string? DefaultShell { get; set; }
 
     /// <summary>
     /// Name of the CLI binary the Docker CLI driver should invoke. Defaults to
     /// <c>docker</c>. Set to a docker-compatible CLI (e.g. <c>finch</c> or <c>nerdctl</c>)
     /// to drive that engine without aliasing it to <c>docker</c>.
     /// </summary>
-    public string BinaryName { get; set; }
+    public string? BinaryName { get; set; }
 
     /// <summary>
     /// Custom directories to search for the CLI binary. When null or empty, the
     /// <c>PATH</c> environment variable is used.
     /// </summary>
-    public string[] SearchPaths { get; set; }
+    public string[]? SearchPaths { get; set; }
 
     /// <summary>
     /// Configuration for automatic Podman machine start.
     /// When non-null, the Podman driver pack will ensure a machine
     /// is running during initialization.
     /// </summary>
-    public AutoStartMachineConfig AutoStartMachine { get; set; }
+    public AutoStartMachineConfig? AutoStartMachine { get; set; }
 
     /// <summary>
     /// Default inference endpoint a model-capable pack binds its inference adapter to.
@@ -97,7 +103,7 @@ namespace FluentDocker.Model.Drivers
     /// (DOCKER_MODEL_RUNNER_URL, else host TCP). Set it to bind a non-default runner
     /// (e.g. another port/engine) once at registration instead of per-call.
     /// </summary>
-    public ModelRunnerEndpoint ModelRunnerEndpoint { get; set; }
+    public ModelRunnerEndpoint? ModelRunnerEndpoint { get; set; }
 
     /// <summary>
     /// HTTP connection timeout for Docker API driver.
@@ -115,7 +121,7 @@ namespace FluentDocker.Model.Drivers
     /// Docker Engine API version for Docker API driver.
     /// When null, auto-negotiates via /_ping.
     /// </summary>
-    public string ApiVersion { get; set; }
+    public string? ApiVersion { get; set; }
 
     /// <summary>
     /// Creates a new driver context.
@@ -132,7 +138,7 @@ namespace FluentDocker.Model.Drivers
     /// <summary>
     /// Creates a new driver context with the specified driver ID and host.
     /// </summary>
-    public DriverContext(string driverId, string host)
+    public DriverContext(string driverId, string? host)
     {
       DriverId = driverId;
       Host = host;
@@ -140,9 +146,9 @@ namespace FluentDocker.Model.Drivers
 
     /// <summary>
     /// Creates a registration-scoped copy with the supplied driver ID and logger factory.
-    /// Mutable metadata is copied so later caller mutations cannot affect registered drivers.
+    /// Mutable state is copied so later caller mutations cannot affect registered drivers.
     /// </summary>
-    public DriverContext CloneWith(string driverId, ILoggerFactory loggerFactory = null)
+    public DriverContext CloneWith(string driverId, ILoggerFactory? loggerFactory = null)
     {
       return new DriverContext(driverId, Host)
       {
@@ -155,12 +161,28 @@ namespace FluentDocker.Model.Drivers
         SudoPassword = SudoPassword,
         DefaultShell = DefaultShell,
         BinaryName = BinaryName,
-        SearchPaths = SearchPaths,
-        AutoStartMachine = AutoStartMachine,
+        SearchPaths = SearchPaths == null ? null : (string[])SearchPaths.Clone(),
+        AutoStartMachine = CloneAutoStartMachine(AutoStartMachine),
         ModelRunnerEndpoint = ModelRunnerEndpoint,
         ConnectionTimeout = ConnectionTimeout,
         RequestTimeout = RequestTimeout,
         ApiVersion = ApiVersion
+      };
+    }
+
+    private static AutoStartMachineConfig? CloneAutoStartMachine(AutoStartMachineConfig? config)
+    {
+      if (config == null)
+        return null;
+
+      return new AutoStartMachineConfig
+      {
+        MachineName = config.MachineName,
+        CreateIfNotExists = config.CreateIfNotExists,
+        InitCpus = config.InitCpus,
+        InitMemoryMiB = config.InitMemoryMiB,
+        InitDiskSizeGiB = config.InitDiskSizeGiB,
+        InitRootful = config.InitRootful
       };
     }
 

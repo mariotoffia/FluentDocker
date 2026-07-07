@@ -119,5 +119,30 @@ namespace FluentDocker.Tests.CoreTests.Driver
 
       Assert.Equal(new[] { "x" }, await CollectDeltas(Create(conn)));
     }
+
+    [Fact]
+    [Trait("Category", "Unit")]
+    public async Task ChatCompletionStreamAsync_TopLevelErrorNull_DoesNotAbortStream()
+    {
+      const string script =
+          "data: {\"error\":null,\"choices\":[{\"index\":0,\"delta\":{\"content\":\"ok\"}}]}\n\n" +
+          "data: [DONE]\n\n";
+      var conn = new MockModelApiConnection().SetupStream("/chat/completions", script);
+
+      Assert.Equal(new[] { "ok" }, await CollectDeltas(Create(conn)));
+    }
+
+    [Fact]
+    [Trait("Category", "Unit")]
+    public async Task ChatCompletionStreamAsync_MultipleDataLinesInOneEvent_ParsesJoinedPayload()
+    {
+      const string script =
+          "data: {\"choices\":[{\"index\":0,\n" +
+          "data: \"delta\":{\"content\":\"joined\"}}]}\n\n" +
+          "data: [DONE]\n\n";
+      var conn = new MockModelApiConnection().SetupStream("/chat/completions", script);
+
+      Assert.Equal(new[] { "joined" }, await CollectDeltas(Create(conn)));
+    }
   }
 }

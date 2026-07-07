@@ -133,7 +133,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       {
         Name = token.GetStringOrDefault("Name"),
         Driver = token.GetStringOrDefault("Driver"),
-        Created = token.GetDateTimeOrDefault("CreatedAt"),
+        Created = token.GetDateTimeOffsetOrDefault("CreatedAt"),
         Scope = token.GetStringOrDefault("Scope"),
         Mountpoint = token.GetStringOrDefault("Mountpoint")
       };

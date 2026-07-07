@@ -1,3 +1,4 @@
+#nullable enable
 using System;
 using System.Buffers;
 using System.Text;
@@ -5,19 +6,32 @@ using System.Text;
 namespace FluentDocker.Common
 {
   /// <summary>
-  /// Shared command-line argument quoting for Docker and Podman CLI drivers.
+  /// Quotes individual arguments for direct process execution.
   /// </summary>
+  /// <remarks>
+  /// These helpers implement Windows <c>CommandLineToArgvW</c>/<c>CreateProcess</c>
+  /// argv quoting semantics for callers that pass arguments directly to a child
+  /// process. They are not shell escaping helpers. POSIX shell metacharacters
+  /// such as <c>$</c>, backtick, and <c>!</c> are not escaped because no
+  /// <c>/bin/sh -c</c> shell interprets them. Never concatenate these quoted
+  /// arguments into a command string routed through a shell.
+  /// </remarks>
   public static class CommandLineQuoting
   {
     private static readonly SearchValues<char> ShellMetaCharacters =
         SearchValues.Create([' ', '\t', ';', '&', '|', '>', '<', '"', '\'', '$', '`', '!', '*', '?']);
 
     /// <summary>
-    /// Quotes a command-line argument if it contains shell metacharacters, whitespace,
-    /// or control characters. Uses the CommandLineToArgvW-compatible backslash rules:
-    /// interior backslashes are preserved, backslashes before a literal quote are doubled
-    /// plus one escape, and trailing backslashes before the closing quote are doubled.
+    /// Quotes one argv argument when it contains characters that require quoting for
+    /// direct child-process execution.
     /// </summary>
+    /// <remarks>
+    /// Uses <c>CommandLineToArgvW</c>-compatible backslash rules: interior
+    /// backslashes are preserved, backslashes before a literal quote are doubled
+    /// plus one escape, and trailing backslashes before the closing quote are doubled.
+    /// This is not POSIX shell escaping; callers must not pass the returned value
+    /// through <c>/bin/sh -c</c> or another shell.
+    /// </remarks>
     /// <param name="argument">The argument to quote.</param>
     /// <returns>The original argument, or a safely quoted argument when quoting is required.</returns>
     public static string QuoteArgumentIfNeeded(string argument)

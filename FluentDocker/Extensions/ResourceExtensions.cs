@@ -1,3 +1,4 @@
+#nullable enable
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -19,8 +20,8 @@ namespace FluentDocker.Extensions
     public static IEnumerable<ResourceInfo> ResourceQuery(this Type assemblyAndNamespace, bool recursive = true)
     {
       return
-        new ResourceQuery().From(assemblyAndNamespace.GetTypeInfo().Assembly.GetName().Name)
-        .Namespace(assemblyAndNamespace.Namespace, recursive)
+        new ResourceQuery().From(assemblyAndNamespace.GetTypeInfo().Assembly.GetName().Name!)
+        .Namespace(assemblyAndNamespace.Namespace!, recursive)
         .Query();
     }
 
@@ -47,8 +48,8 @@ namespace FluentDocker.Extensions
         return;
       }
 
-      new ResourceQuery().From(assemblyAndNamespace.GetTypeInfo().Assembly.GetName().Name)
-        .Namespace(assemblyAndNamespace.Namespace, false)
+      new ResourceQuery().From(assemblyAndNamespace.GetTypeInfo().Assembly.GetName().Name!)
+        .Namespace(assemblyAndNamespace.Namespace!, false)
         .Include(files)
         .ToFile(targetPath);
     }
@@ -83,11 +84,11 @@ namespace FluentDocker.Extensions
             Assembly = GetAssembly(resource.Assembly),
             Namespace = resource.Namespace,
             RelativeRootNamespace = string.Empty,
-            Resource = resource.Resource
+            Resource = resource.Resource!
           }
         ]));
 
-      return resource.Resource;
+      return resource.Resource!;
     }
 
     private static Assembly GetAssembly(string assemblyName)

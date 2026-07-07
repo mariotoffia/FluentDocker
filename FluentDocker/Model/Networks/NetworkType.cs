@@ -1,3 +1,4 @@
+#nullable enable
 namespace FluentDocker.Model.Networks
 {
   public enum NetworkType

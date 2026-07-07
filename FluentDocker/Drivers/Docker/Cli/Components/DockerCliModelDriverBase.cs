@@ -69,7 +69,9 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     }
 
     protected static string ModelFailureCode(Exception ex, string fallbackCode) =>
-        ex is DriverException driverException && !string.IsNullOrEmpty(driverException.ErrorCode)
+        ex is DriverException driverException
+            && !string.IsNullOrEmpty(driverException.ErrorCode)
+            && driverException.ErrorCode != ErrorCodes.Driver.CommandExecutionFailed
             ? driverException.ErrorCode
             : ModelFailureCode(ex?.Message, fallbackCode);
 

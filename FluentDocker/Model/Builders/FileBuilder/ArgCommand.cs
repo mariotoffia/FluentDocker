@@ -1,3 +1,4 @@
+#nullable enable
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -9,7 +10,7 @@ namespace FluentDocker.Model.Builders.FileBuilder
 {
   public sealed class ArgCommand : ICommand
   {
-    public ArgCommand(TemplateString name, TemplateString defaultValue = null)
+    public ArgCommand(TemplateString name, TemplateString? defaultValue = null)
     {
       if (null == name || string.IsNullOrEmpty(name.Rendered))
       {
@@ -26,7 +27,7 @@ namespace FluentDocker.Model.Builders.FileBuilder
     }
 
     public string Name { get; }
-    public string DefaultValue { get; }
+    public string? DefaultValue { get; }
 
     public override string ToString()
     {

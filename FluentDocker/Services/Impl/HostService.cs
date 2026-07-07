@@ -18,6 +18,7 @@ namespace FluentDocker.Services.Impl
     bool IServiceCapabilities.CanStop => false;
     bool IServiceCapabilities.CanPause => false;
     bool IServiceCapabilities.CanRemove => false;
+    bool IServiceCapabilities.CanHook => false;
 
     private readonly FluentDockerKernel _kernel;
     private readonly string _driverId;

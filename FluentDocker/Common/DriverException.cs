@@ -1,3 +1,4 @@
+#nullable enable
 using System;
 using FluentDocker.Model.Drivers;
 
@@ -16,7 +17,7 @@ namespace FluentDocker.Common
     /// <summary>
     /// Diagnostic context information.
     /// </summary>
-    public ErrorContext Context { get; }
+    public ErrorContext? Context { get; }
 
     /// <summary>
     /// Indicates if this error is transient and may succeed on retry.
@@ -64,7 +65,7 @@ namespace FluentDocker.Common
     /// <param name="errorCode">The error code for programmatic handling.</param>
     /// <param name="context">Diagnostic context information.</param>
     /// <param name="isTransient">Whether the error is transient and may succeed on retry.</param>
-    public DriverException(string message, string errorCode, ErrorContext context, bool isTransient = false)
+    public DriverException(string message, string errorCode, ErrorContext? context, bool isTransient = false)
         : base(message)
     {
       ErrorCode = errorCode;
@@ -77,7 +78,7 @@ namespace FluentDocker.Common
     /// </summary>
     /// <param name="message">The error message.</param>
     /// <param name="innerException">The exception that caused this error.</param>
-    public DriverException(string message, Exception innerException) : base(message, innerException)
+    public DriverException(string message, Exception? innerException) : base(message, innerException)
     {
       ErrorCode = ErrorCodes.General.Unknown;
       IsTransient = ErrorCodes.IsTransientCode(ErrorCode);
@@ -89,7 +90,7 @@ namespace FluentDocker.Common
     /// <param name="message">The error message.</param>
     /// <param name="errorCode">The error code for programmatic handling.</param>
     /// <param name="innerException">The exception that caused this error.</param>
-    public DriverException(string message, string errorCode, Exception innerException)
+    public DriverException(string message, string errorCode, Exception? innerException)
         : base(message, innerException)
     {
       ErrorCode = errorCode;
@@ -104,7 +105,7 @@ namespace FluentDocker.Common
     /// <param name="context">Diagnostic context information.</param>
     /// <param name="innerException">The exception that caused this error.</param>
     /// <param name="isTransient">Whether the error is transient and may succeed on retry.</param>
-    public DriverException(string message, string errorCode, ErrorContext context, Exception innerException, bool isTransient = false)
+    public DriverException(string message, string errorCode, ErrorContext? context, Exception? innerException, bool isTransient = false)
         : base(message, innerException)
     {
       ErrorCode = errorCode;

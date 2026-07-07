@@ -1,3 +1,4 @@
+#nullable enable
 using FluentDocker.Model.Networks;
 
 namespace FluentDocker.Model.Events
@@ -5,7 +6,7 @@ namespace FluentDocker.Model.Events
   /// <summary>
   /// Emitted when a container has been connected to a network.
   /// </summary>
-  [System.Obsolete("Unused by FluentDocker and scheduled for removal in v4. Use stream driver ContainerEvent instead.")]
+  [System.Obsolete("Unused by FluentDocker and scheduled for removal in a future release. Use stream driver ContainerEvent instead.")]
   public sealed class NetworkConnectEvent : FdEvent<NetworkConnectEvent.NetworkConnectActor>
   {
     public NetworkConnectEvent()
@@ -20,17 +21,17 @@ namespace FluentDocker.Model.Events
     /// <remarks>
     /// The actor is the hash of the network.
     /// </remarks>
-    [System.Obsolete("Unused by FluentDocker and scheduled for removal in v4. Use stream driver ContainerEvent instead.")]
+    [System.Obsolete("Unused by FluentDocker and scheduled for removal in a future release. Use stream driver ContainerEvent instead.")]
     public sealed class NetworkConnectActor : EventActor
     {
       /// <summary>
       /// The id (hash) of the container that connected to <see cref="Name"/> network.
       /// </summary>
-      public string ContainerId { get; set; }
+      public string? ContainerId { get; set; }
       /// <summary>
       /// Name of the network.
       /// </summary>
-      public string Name { get; set; }
+      public string? Name { get; set; }
       /// <summary>
       /// The type of the network. If <see cref="NetworkType.Custom"/> it is specified in <see cref="CustomType"/>.
       /// </summary>
@@ -38,7 +39,7 @@ namespace FluentDocker.Model.Events
       /// <summary>
       /// If <see cref="NetworkType.Custom"/> the name of the network type is present here. Otherwise null.
       /// </summary>
-      public string CustomType { get; set; }
+      public string? CustomType { get; set; }
     }
   }
 }

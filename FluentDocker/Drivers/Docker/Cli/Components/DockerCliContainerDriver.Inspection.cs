@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using FluentDocker.Common;
@@ -41,7 +40,15 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
               result.ExitCode);
         }
 
-        var containers = JsonSerializer.Deserialize<List<Container>>(result.Output, JsonHelper.CaseInsensitiveOptions);
+        var containers = JsonHelper.TryDeserialize<List<Container>>(result.Output);
+        if (containers == null)
+        {
+          Logger.LogError("Container inspect JSON parsing failed");
+          return CommandResponse<Container>.Fail(
+              "Container inspect JSON parsing failed",
+              ErrorCodes.Container.InspectFailed);
+        }
+
         var container = containers?.FirstOrDefault();
 
         if (container == null)
@@ -131,7 +138,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
             Name = dto.Names
           };
 
-          if (DockerCliTimestampParser.TryParse(dto.CreatedAt, out var created))
+          if (DockerCliTimestampParser.TryParse(dto.CreatedAt, out DateTimeOffset created))
           {
             container.Created = created;
           }

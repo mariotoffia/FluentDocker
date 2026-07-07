@@ -1,3 +1,4 @@
+#nullable enable
 namespace FluentDocker.Model.Compose
 {
   /// <summary>
@@ -19,7 +20,7 @@ namespace FluentDocker.Model.Compose
   /// </remarks>
   public sealed class ResourcesDefinition
   {
-    public ResourcesItemDefinition Limits { get; set; }
-    public ResourcesItemDefinition Reservations { get; set; }
+    public ResourcesItemDefinition? Limits { get; set; }
+    public ResourcesItemDefinition? Reservations { get; set; }
   }
 }

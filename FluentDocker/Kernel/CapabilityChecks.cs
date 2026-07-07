@@ -1,11 +1,11 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
+using FluentDocker.Common;
 using FluentDocker.Drivers;
-using FluentDocker.Kernel;
 using FluentDocker.Model.Drivers;
 
-namespace FluentDocker.Common
+namespace FluentDocker.Kernel
 {
   /// <summary>
   /// Helper methods for checking driver capabilities before performing operations.

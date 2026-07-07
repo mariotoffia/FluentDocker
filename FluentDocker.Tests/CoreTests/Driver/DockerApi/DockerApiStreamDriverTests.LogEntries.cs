@@ -112,6 +112,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
 
       var config = new StreamEventsConfig
       {
+        Until = "1",
         Types = { "container" },
         Filters = { ["label"] = "foo" }
       };
@@ -327,6 +328,48 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
       Assert.False(result.Success);
       Assert.Equal(ErrorCodes.Container.AttachFailed, result.ErrorCode);
       Assert.Contains("interactive stdin is not supported by the Docker API driver", result.Error);
+      Assert.Empty(mock.GetRequests());
+    }
+
+    [Fact]
+    public async Task AttachAsync_WithNoStdout_FailsWithoutOpeningStream()
+    {
+      var (driver, mock) = CreateDriver();
+
+      var result = await driver.AttachAsync(Ctx, "ctr",
+          new AttachConfig { NoStdout = true }, TestContext.Current.CancellationToken);
+
+      Assert.False(result.Success);
+      Assert.Equal(ErrorCodes.Container.AttachFailed, result.ErrorCode);
+      Assert.Contains("NoStdout is not supported by the Docker API driver", result.Error);
+      Assert.Empty(mock.GetRequests());
+    }
+
+    [Fact]
+    public async Task AttachAsync_WithNoStderr_FailsWithoutOpeningStream()
+    {
+      var (driver, mock) = CreateDriver();
+
+      var result = await driver.AttachAsync(Ctx, "ctr",
+          new AttachConfig { NoStderr = true }, TestContext.Current.CancellationToken);
+
+      Assert.False(result.Success);
+      Assert.Equal(ErrorCodes.Container.AttachFailed, result.ErrorCode);
+      Assert.Contains("NoStderr is not supported by the Docker API driver", result.Error);
+      Assert.Empty(mock.GetRequests());
+    }
+
+    [Fact]
+    public async Task AttachAsync_WithDetachKeys_FailsWithoutOpeningStream()
+    {
+      var (driver, mock) = CreateDriver();
+
+      var result = await driver.AttachAsync(Ctx, "ctr",
+          new AttachConfig { DetachKeys = "ctrl-x" }, TestContext.Current.CancellationToken);
+
+      Assert.False(result.Success);
+      Assert.Equal(ErrorCodes.Container.AttachFailed, result.ErrorCode);
+      Assert.Contains("DetachKeys is not supported by the Docker API driver", result.Error);
       Assert.Empty(mock.GetRequests());
     }
 

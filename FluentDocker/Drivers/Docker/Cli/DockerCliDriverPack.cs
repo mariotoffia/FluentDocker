@@ -166,7 +166,13 @@ namespace FluentDocker.Drivers.Docker.Cli
         SupportsVolumes = true,
         SupportsCompose = true,
         SupportsSystem = true,
-        SupportsPods = false
+        SupportsPods = false,
+        SupportsKubernetes = false,
+        SupportsMachines = false,
+        SupportsManifests = false,
+        SupportsStacks = true,
+        SupportsServices = true,
+        SupportsModels = true
       });
     }
 
@@ -253,8 +259,12 @@ namespace FluentDocker.Drivers.Docker.Cli
       ThrowIfDisposed();
       if (interfaceType == typeof(IModelInferenceDriver))
       {
-        driver = EnsureInferenceDriver();
-        return true;
+        lock (_inferenceLock)
+        {
+          ThrowIfDisposed();
+          driver = EnsureInferenceDriver();
+          return true;
+        }
       }
       return _drivers.TryGetValue(interfaceType, out driver);
     }

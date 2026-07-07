@@ -1,3 +1,4 @@
+#nullable enable
 using System;
 using FluentDocker.Model.Drivers;
 
@@ -11,7 +12,7 @@ namespace FluentDocker.Common
     /// <summary>
     /// The identifier of the container that failed to start.
     /// </summary>
-    public string ContainerId { get; }
+    public string? ContainerId { get; }
 
     /// <summary>
     /// Initializes a new instance with the specified error message.

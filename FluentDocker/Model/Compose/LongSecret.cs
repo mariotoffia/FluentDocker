@@ -1,3 +1,4 @@
+#nullable enable
 namespace FluentDocker.Model.Compose
 {
   /// <summary>
@@ -34,13 +35,13 @@ namespace FluentDocker.Model.Compose
     /// <summary>
     ///   The name of the secret as it exists in Docker.
     /// </summary>
-    public string Source { get; set; }
+    public string? Source { get; set; }
 
     /// <summary>
     ///   The name of the file to be mounted in /run/secrets/ in the service’s task containers. Defaults to source if not
     ///   specified.
     /// </summary>
-    public string Target { get; set; }
+    public string? Target { get; set; }
 
     /// <summary>
     ///   The numeric UID that owns the file within /run/secrets/ in the service’s task containers. It default to 0 if not

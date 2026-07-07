@@ -1,3 +1,4 @@
+#nullable enable
 namespace FluentDocker.Model.Models.Options
 {
   /// <summary>

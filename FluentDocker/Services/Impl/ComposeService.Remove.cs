@@ -31,10 +31,14 @@ namespace FluentDocker.Services.Impl
         RemoveImages = _removeImages ? "all" : null
       };
 
+      UpdateState(ServiceRunningState.Removing);
+      await ExecuteHooksAsync(ServiceRunningState.Removing).ConfigureAwait(false);
+
       var response = await driver.DownAsync(context, config, cancellationToken).ConfigureAwait(false);
 
       if (!response.Success)
       {
+        UpdateState(ServiceRunningState.Unknown);
         throw new DriverException(
             $"Failed to remove compose project '{_projectName}': {response.Error}",
             response.ErrorCode,

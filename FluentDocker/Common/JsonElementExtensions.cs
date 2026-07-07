@@ -1,3 +1,4 @@
+#nullable enable
 using System;
 using System.Collections.Generic;
 using System.Globalization;
@@ -51,7 +52,7 @@ namespace FluentDocker.Common
     /// <summary>
     /// Gets a string property value, or <c>null</c> if the property is missing or not a string.
     /// </summary>
-    public static string GetStringOrDefault(this JsonElement el, string propName)
+    public static string? GetStringOrDefault(this JsonElement el, string propName)
     {
       var prop = el.Prop(propName);
       return prop?.ValueKind == JsonValueKind.String ? prop.Value.GetString() : null;
@@ -60,7 +61,7 @@ namespace FluentDocker.Common
     /// <summary>
     /// Gets a string property value, trying multiple property names in order.
     /// </summary>
-    public static string GetStringOrDefault(this JsonElement el, string name1, string name2)
+    public static string? GetStringOrDefault(this JsonElement el, string name1, string name2)
     {
       var prop = el.Prop(name1, name2);
       return prop?.ValueKind == JsonValueKind.String ? prop.Value.GetString() : null;
@@ -166,6 +167,19 @@ namespace FluentDocker.Common
     }
 
     /// <summary>
+    /// Gets a DateTimeOffset property value, or <see cref="DateTimeOffset.MinValue"/> if missing or unparseable.
+    /// </summary>
+    public static DateTimeOffset GetDateTimeOffsetOrDefault(this JsonElement el, string propName)
+    {
+      var s = el.GetStringOrDefault(propName);
+      if (s == null)
+        return DateTimeOffset.MinValue;
+      return DateTimeOffset.TryParse(s, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal, out var dto)
+          ? dto
+          : DateTimeOffset.MinValue;
+    }
+
+    /// <summary>
     /// Gets a string array from a property. Returns empty array if missing or not an array.
     /// </summary>
     public static string[] GetStringArray(this JsonElement el, string propName)
@@ -241,7 +255,7 @@ namespace FluentDocker.Common
     /// <summary>
     /// Deserializes this element to <typeparamref name="T"/> using <see cref="JsonHelper.CaseInsensitiveOptions"/>.
     /// </summary>
-    public static T Deserialize<T>(this JsonElement el)
+    public static T? Deserialize<T>(this JsonElement el)
     {
       return el.Deserialize<T>(JsonHelper.CaseInsensitiveOptions);
     }
@@ -249,7 +263,7 @@ namespace FluentDocker.Common
     /// <summary>
     /// Returns the string value if the element is a string, otherwise <c>null</c>.
     /// </summary>
-    public static string GetStringValue(this JsonElement el)
+    public static string? GetStringValue(this JsonElement el)
     {
       return el.ValueKind == JsonValueKind.String ? el.GetString() : null;
     }

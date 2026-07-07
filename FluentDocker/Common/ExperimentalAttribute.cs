@@ -1,3 +1,4 @@
+#nullable enable
 using System;
 
 namespace FluentDocker.Common
@@ -9,7 +10,7 @@ namespace FluentDocker.Common
   /// <param name="documentation">URL or description of the experimental feature documentation.</param>
   /// <param name="targetVersion">The version when this feature is expected to be stable.</param>
   [AttributeUsage(AttributeTargets.All)]
-  public sealed class ExperimentalAttribute(string documentation = null, string targetVersion = null) : Attribute
+  public sealed class ExperimentalAttribute(string? documentation = null, string? targetVersion = null) : Attribute
   {
 
     /// <summary>

@@ -26,9 +26,44 @@ The xUnit adapter offers three patterns:
 
 ## Step by Step
 
+- Setup: [Project setup / requirements](#project-setup--requirements)
 - Basics: [Test Bases (Per-Test Lifecycle)](#test-bases-per-test-lifecycle), [Fixture Bases (Shared Lifecycle)](#fixture-bases-shared-lifecycle)
 - Intermediate: [Collection Fixtures](#collection-fixtures), [Lifecycle Hooks with Wait Strategies](#lifecycle-hooks-with-wait-strategies)
 - Advanced: [Concrete Fixtures (Advanced)](#concrete-fixtures-advanced), [Choosing the Right Pattern](#choosing-the-right-pattern)
+
+## Project setup / requirements
+
+`FluentDocker.Testing.Xunit` brings `xunit.v3.extensibility.core` transitively (fixture
+plumbing), but that is **not** runnable alone — a consumer project also needs the v3
+framework, the VSTest runner, and the test host. Requires **xUnit v3** (`xunit.v3`), not xUnit 2.x.
+
+| Package | Why | Transitive from this package? |
+| --- | --- | --- |
+| `Microsoft.NET.Test.Sdk` | VSTest test host | No — add explicitly |
+| `xunit.v3` | `[Fact]`/`[Theory]`, asserts, v3 framework | No — add explicitly |
+| `xunit.runner.visualstudio` | Discovers/runs v3 tests under VSTest | No — add explicitly |
+
+Minimal consumer `.csproj` (target `net8.0` or `net10.0`):
+
+```xml
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.12.0" />
+    <PackageReference Include="xunit.v3" Version="3.2.2" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="3.1.5" PrivateAssets="all" />
+    <PackageReference Include="FluentDocker.Testing.Xunit" Version="3.*" />
+  </ItemGroup>
+</Project>
+```
+
+> **Warning:** On a shared Docker or Podman daemon, the default
+> `CleanupOrphansOnInit = true` lets a test run force-remove **another** session's managed
+> resources once they pass the one-hour `OrphanCleanupMinimumAge` — on shared CI agents
+> that can delete a parallel job's live containers. Opt out with
+> `CleanupOrphansOnInit = false` from `GetOptions()`; see [Orphan Cleanup](core.md#orphan-cleanup).
 
 ## Test Bases (Per-Test Lifecycle)
 
@@ -514,7 +549,7 @@ var (kernel, resource) = await ResourceLifecycle.CreateAndInitializeAsync(
         r.OnAfterReady(async _ =>
         {
             // Poll until Postgres accepts connections
-            var endpoint = r.Container.ToHostExposedEndpoint("5432/tcp");
+            var endpoint = await r.Container.ToHostExposedEndpointAsync("5432/tcp");
             var connStr = $"Host=localhost;Port={endpoint.Port};" +
                           "Username=postgres;Password=test";
 

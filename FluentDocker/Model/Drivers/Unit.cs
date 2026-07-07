@@ -1,3 +1,4 @@
+#nullable enable
 namespace FluentDocker.Model.Drivers
 {
   /// <summary>
@@ -19,7 +20,7 @@ namespace FluentDocker.Model.Drivers
     /// <summary>
     /// Determines whether this Unit equals another object.
     /// </summary>
-    public override bool Equals(object obj) => obj is Unit;
+    public override bool Equals(object? obj) => obj is Unit;
 
     /// <summary>
     /// Returns the hash code for this Unit.

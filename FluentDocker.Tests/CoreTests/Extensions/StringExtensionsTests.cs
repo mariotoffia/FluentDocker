@@ -105,6 +105,15 @@ namespace FluentDocker.Tests.CoreTests.Extensions
       Assert.Equal("##hello##", result);
     }
 
+
+    [Fact]
+    public void WrapWithChar_ValueEqualsWrapChar_WrapsFully()
+    {
+      var result = "\"".WrapWithChar("\"");
+
+      Assert.Equal("\"\"\"", result);
+    }
+
     [Fact]
     public void WrapWithChar_SingleChar_Works()
     {

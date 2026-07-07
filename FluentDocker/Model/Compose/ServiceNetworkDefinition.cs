@@ -1,3 +1,4 @@
+#nullable enable
 using System.Collections.Generic;
 
 namespace FluentDocker.Model.Compose
@@ -46,7 +47,7 @@ namespace FluentDocker.Model.Compose
     /// <summary>
     ///   Name of the network.
     /// </summary>
-    public string Name { get; set; }
+    public string? Name { get; set; }
 
     /// <summary>
     ///   Aliases (alternative hostnames) for this service on the network.
@@ -67,7 +68,7 @@ namespace FluentDocker.Model.Compose
     ///   The corresponding network configuration in the top-level networks section must have an ipam block with subnet
     ///   configurations covering each static address.
     /// </remarks>
-    public string IpV4Address { get; set; }
+    public string? IpV4Address { get; set; }
 
     /// <summary>
     ///   Specify a static IP address for containers for this service when joining the network.
@@ -78,6 +79,6 @@ namespace FluentDocker.Model.Compose
     ///   configurations covering each static address. Since IPv6 addressing is desired, the enable_ipv6 option must be
     ///   set.
     /// </remarks>
-    public string IpV6Address { get; set; }
+    public string? IpV6Address { get; set; }
   }
 }

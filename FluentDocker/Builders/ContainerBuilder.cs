@@ -102,6 +102,7 @@ namespace FluentDocker.Builders
 
     public IContainerBuilder WithEnvironment(string key, string value)
     {
+      ValidateEnvironmentName(key, $"Expected format name=value, empty name in the name value string: '{key}={value}'");
       _environment[key] = value;
       return this;
     }
@@ -109,6 +110,7 @@ namespace FluentDocker.Builders
     public IContainerBuilder WithEnvironment(string keyValue)
     {
       var parts = keyValue.Split(EqualsSeparator, 2);
+      ValidateEnvironmentName(parts[0], $"Expected format name=value, empty name in the name value string: '{keyValue}'");
       if (parts.Length == 2)
         _environment[parts[0]] = parts[1];
       else
@@ -137,8 +139,8 @@ namespace FluentDocker.Builders
 
     public IContainerBuilder WithIPv4(string ipv4Address) { _ipv4Address = ipv4Address; return this; }
     public IContainerBuilder WithIPv6(string ipv6Address) { _ipv6Address = ipv6Address; return this; }
-    public IContainerBuilder WithMemoryLimit(long bytes) { _memoryLimit = bytes; return this; }
-    public IContainerBuilder WithCpuShares(long shares) { _cpuShares = shares; return this; }
+    public IContainerBuilder WithMemoryLimit(long bytes) { ValidateNonNegative(bytes, nameof(bytes)); _memoryLimit = bytes; return this; }
+    public IContainerBuilder WithCpuShares(long shares) { ValidateNonNegative(shares, nameof(shares)); _cpuShares = shares; return this; }
     public IContainerBuilder WithPrivileged(bool privileged = true) { _privileged = privileged; return this; }
     public IContainerBuilder WithAutoRemove(bool autoRemove = true) { _autoRemove = autoRemove; return this; }
 
@@ -159,7 +161,7 @@ namespace FluentDocker.Builders
     public IContainerBuilder WithCapAdd(string capability) { _capAdd.Add(capability); return this; }
     public IContainerBuilder WithCapDrop(string capability) { _capDrop.Add(capability); return this; }
     public IContainerBuilder WithSecurityOpt(string option) { _securityOpt.Add(option); return this; }
-    public IContainerBuilder WithShmSize(long bytes) { _shmSize = bytes; return this; }
+    public IContainerBuilder WithShmSize(long bytes) { ValidateNonNegative(bytes, nameof(bytes)); _shmSize = bytes; return this; }
     public IContainerBuilder WithTmpfs(string containerPath, string options = null) { _tmpfs[containerPath] = options ?? ""; return this; }
     public IContainerBuilder WithDevice(string hostDevice, string containerDevice = null) { _devices[hostDevice] = containerDevice ?? hostDevice; return this; }
     public IContainerBuilder WithReadonlyRootfs() { _readonlyRootfs = true; return this; }
@@ -327,7 +329,7 @@ namespace FluentDocker.Builders
     {
       Validate();
       var driver = _kernel.SysCtl<Drivers.IContainerDriver>(_driverId);
-      var imageDriver = _kernel.SysCtl<Drivers.IImageDriver>(_driverId);
+      _kernel.TrySysCtl<Drivers.IImageDriver>(_driverId, out var imageDriver);
       var context = new DriverContext(_driverId);
 
       if (!string.IsNullOrEmpty(_name) && _existsBehavior != ContainerExistsBehavior.Default)
@@ -347,7 +349,7 @@ namespace FluentDocker.Builders
             var inspectResult = await driver.InspectAsync(context, existing, cancellationToken).ConfigureAwait(false);
             if (inspectResult.Success && inspectResult.Data?.State?.Running != true)
             {
-              await reuseService.StartAsync(cancellationToken).ConfigureAwait(false);
+              await StartReusedContainerAsync(driver, context, existing, reuseService, cancellationToken).ConfigureAwait(false);
               _pendingService = reuseService;
               _waitConditionsExecuted = true;
               await RunPostStartAsync(reuseService, cancellationToken).ConfigureAwait(false);
@@ -381,7 +383,9 @@ namespace FluentDocker.Builders
           }
         }
       }
-      if (_forcePullImage && imageDriver != null)
+      if (_forcePullImage && imageDriver == null)
+        throw new FluentDockerException("ForcePullImage() requires a driver that supports IImageDriver.");
+      if (_forcePullImage)
         await ExecuteForcePullAsync(imageDriver, context, cancellationToken).ConfigureAwait(false);
 
       var config = new Drivers.ContainerCreateConfig

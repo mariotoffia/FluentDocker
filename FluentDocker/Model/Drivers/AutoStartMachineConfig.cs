@@ -1,3 +1,4 @@
+#nullable enable
 namespace FluentDocker.Model.Drivers
 {
   /// <summary>
@@ -10,7 +11,7 @@ namespace FluentDocker.Model.Drivers
     /// <summary>
     /// Name of the machine to start. When null, the default machine is used.
     /// </summary>
-    public string MachineName { get; set; }
+    public string? MachineName { get; set; }
 
     /// <summary>
     /// When true, initializes a new machine if none exists matching <see cref="MachineName"/>.

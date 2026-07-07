@@ -1,3 +1,4 @@
+#nullable enable
 using System;
 using System.Collections.Generic;
 using FluentDocker.Model.Drivers;
@@ -122,7 +123,7 @@ namespace FluentDocker.Common
     /// <param name="containerId">The container ID.</param>
     /// <param name="driverId">The driver ID.</param>
     /// <returns>A new error context.</returns>
-    public static ErrorContext ForContainer(string operation, string containerId, string driverId = null)
+    public static ErrorContext ForContainer(string operation, string containerId, string? driverId = null)
     {
       var context = new ErrorContext(operation);
       context.Metadata["containerId"] = containerId;
@@ -138,7 +139,7 @@ namespace FluentDocker.Common
     /// <param name="networkId">The network ID.</param>
     /// <param name="driverId">The driver ID.</param>
     /// <returns>A new error context.</returns>
-    public static ErrorContext ForNetwork(string operation, string networkId, string driverId = null)
+    public static ErrorContext ForNetwork(string operation, string networkId, string? driverId = null)
     {
       var context = new ErrorContext(operation);
       context.Metadata["networkId"] = networkId;
@@ -154,7 +155,7 @@ namespace FluentDocker.Common
     /// <param name="volumeName">The volume name.</param>
     /// <param name="driverId">The driver ID.</param>
     /// <returns>A new error context.</returns>
-    public static ErrorContext ForVolume(string operation, string volumeName, string driverId = null)
+    public static ErrorContext ForVolume(string operation, string volumeName, string? driverId = null)
     {
       var context = new ErrorContext(operation);
       context.Metadata["volumeName"] = volumeName;
@@ -170,7 +171,7 @@ namespace FluentDocker.Common
     /// <param name="imageName">The image name.</param>
     /// <param name="driverId">The driver ID.</param>
     /// <returns>A new error context.</returns>
-    public static ErrorContext ForImage(string operation, string imageName, string driverId = null)
+    public static ErrorContext ForImage(string operation, string imageName, string? driverId = null)
     {
       var context = new ErrorContext(operation);
       context.Metadata["imageName"] = imageName;
@@ -186,7 +187,7 @@ namespace FluentDocker.Common
     /// <param name="projectName">The compose project name.</param>
     /// <param name="driverId">The driver ID.</param>
     /// <returns>A new error context.</returns>
-    public static ErrorContext ForCompose(string operation, string projectName, string driverId = null)
+    public static ErrorContext ForCompose(string operation, string projectName, string? driverId = null)
     {
       var context = new ErrorContext(operation);
       context.Metadata["projectName"] = projectName;
@@ -209,16 +210,16 @@ namespace FluentDocker.Common
     /// <param name="operationDescription">Description of the operation for error messages.</param>
     /// <returns>The data from a successful response.</returns>
     /// <exception cref="DriverException">Thrown when the response indicates failure.</exception>
-    public static T EnsureSuccess<T>(this CommandResponse<T> response, string operationDescription = null)
+    public static T EnsureSuccess<T>(this CommandResponse<T> response, string? operationDescription = null)
     {
       if (response.Success)
-        return response.Data;
+        return response.Data!;
 
       throw new DriverException(
           operationDescription != null
               ? $"{operationDescription} failed: {response.Error}"
               : response.Error ?? "Operation failed",
-          response.ErrorCode,
+          response.ErrorCode ?? ErrorCodes.General.Unknown,
           response.ErrorContext);
     }
 
@@ -228,7 +229,7 @@ namespace FluentDocker.Common
     /// <param name="response">The command response.</param>
     /// <param name="operationDescription">Description of the operation for error messages.</param>
     /// <exception cref="DriverException">Thrown when the response indicates failure.</exception>
-    public static void EnsureSuccess(this CommandResponse<Unit> response, string operationDescription = null)
+    public static void EnsureSuccess(this CommandResponse<Unit> response, string? operationDescription = null)
     {
       if (!response.Success)
       {
@@ -236,7 +237,7 @@ namespace FluentDocker.Common
             operationDescription != null
                 ? $"{operationDescription} failed: {response.Error}"
                 : response.Error ?? "Operation failed",
-            response.ErrorCode,
+            response.ErrorCode ?? ErrorCodes.General.Unknown,
             response.ErrorContext);
       }
     }
@@ -255,14 +256,17 @@ namespace FluentDocker.Common
     {
       if (!response.Success)
       {
-        return CommandResponse<TResult>.Fail(
-            response.Error,
-            response.ErrorCode,
-            response.ErrorContext,
-            response.ExitCode);
+        var error = response.Error ?? "Operation failed";
+        var errorCode = response.ErrorCode ?? ErrorCodes.General.Unknown;
+        return response.ErrorContext == null
+            ? CommandResponse<TResult>.Fail(error, errorCode, response.ExitCode)
+            : CommandResponse<TResult>.Fail(error, errorCode, response.ErrorContext, response.ExitCode);
       }
 
-      return CommandResponse<TResult>.Ok(mapper(response.Data), response.Output);
+      var mapped = mapper(response.Data!);
+      return response.Output == null
+          ? CommandResponse<TResult>.Ok(mapped)
+          : CommandResponse<TResult>.Ok(mapped, response.Output);
     }
 
     /// <summary>
@@ -290,7 +294,7 @@ namespace FluentDocker.Common
     /// <param name="response">The command response.</param>
     /// <param name="defaultValue">The default value if the response failed.</param>
     /// <returns>The response data or the default value.</returns>
-    public static T GetOrDefault<T>(this CommandResponse<T> response, T defaultValue = default)
+    public static T? GetOrDefault<T>(this CommandResponse<T> response, T? defaultValue = default)
     {
       return response.Success ? response.Data : defaultValue;
     }
@@ -306,7 +310,7 @@ namespace FluentDocker.Common
     {
       if (response.Success)
       {
-        action(response.Data);
+        action(response.Data!);
       }
       return response;
     }
@@ -318,7 +322,7 @@ namespace FluentDocker.Common
     /// <param name="response">The command response.</param>
     /// <param name="action">The action to execute.</param>
     /// <returns>The same response for chaining.</returns>
-    public static CommandResponse<T> OnFailure<T>(this CommandResponse<T> response, Action<string, ErrorContext> action)
+    public static CommandResponse<T> OnFailure<T>(this CommandResponse<T> response, Action<string?, ErrorContext?> action)
     {
       if (!response.Success)
       {

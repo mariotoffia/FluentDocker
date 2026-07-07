@@ -1,3 +1,4 @@
+#nullable enable
 using System.Collections.Generic;
 using FluentDocker.Model.Containers;
 using FluentDocker.Services;
@@ -26,8 +27,8 @@ namespace FluentDocker.Model.Compose
   /// </remarks>
   public sealed class ComposeServiceDefinition
   {
-    public string Name { get; set; }
-    public BuildDefinition Build { get; set; }
+    public string? Name { get; set; }
+    public BuildDefinition? Build { get; set; }
     public RestartPolicy Restart { get; set; }
     /// <summary>
     /// Add container capabilities. See man 7 capabilities for a full list.
@@ -56,7 +57,7 @@ namespace FluentDocker.Model.Compose
     /// command: bundle exec thin -p 3000
     /// command: ["bundle", "exec", "thin", "-p", "3000"]
     /// </remarks>
-    public string Command { get; set; }
+    public string? Command { get; set; }
     /// <summary>
     /// Grant access to configs on a per-service basis using the per-service configs configuration. 
     /// </summary>
@@ -65,7 +66,7 @@ namespace FluentDocker.Model.Compose
     /// Note: The config must already exist or be defined in the top-level configs configuration of this stack file,
     /// or stack deployment fails.
     /// </remarks>
-    public IList<string> ConfigsShort { get; set; }
+    public IList<string>? ConfigsShort { get; set; }
     /// <summary>
     /// The long syntax provides more granularity in how the config is created within the service’s task containers.
     /// </summary>
@@ -81,7 +82,7 @@ namespace FluentDocker.Model.Compose
     /// Note: This option is ignored when deploying a stack in swarm mode with a (version 3) Compose file.
     /// For example cgroup_parent: m-executor-abcd
     /// </remarks>
-    public string CgroupParent { get; set; }
+    public string? CgroupParent { get; set; }
     /// <summary>
     /// Specify a custom container name, rather than a generated default name.
     /// </summary>
@@ -91,7 +92,7 @@ namespace FluentDocker.Model.Compose
     /// have specified a custom name. Attempting to do so results in an error.
     /// For example container_name: my-web-container
     /// </remarks>
-    public string ContainerName { get; set; }
+    public string? ContainerName { get; set; }
     /// <summary>
     /// Configure the credential spec for managed service account.
     /// </summary>
@@ -111,7 +112,7 @@ namespace FluentDocker.Model.Compose
     /// credential_spec:
     ///   registry: my-credential-spec
     /// </remarks>
-    public string CredentialSpec { get; set; }
+    public string? CredentialSpec { get; set; }
     /// <summary>
     /// List of device mappings. Uses the same format as the --device docker client create option.
     /// </summary>
@@ -258,7 +259,7 @@ namespace FluentDocker.Model.Compose
     /// <summary>
     /// Health check if any.
     /// </summary>
-    public HealthCheckDefinition HealthCheck { get; set; }
+    public HealthCheckDefinition? HealthCheck { get; set; }
     /// <summary>
     /// Specify the image to start the container from.
     /// </summary>
@@ -272,7 +273,7 @@ namespace FluentDocker.Model.Compose
     /// If the image does not exist, Compose attempts to pull it, unless you have also specified build, in which case
     /// it builds it using the specified options and tags it with the specified tag.
     /// </remarks>
-    public string Image { get; set; }
+    public string? Image { get; set; }
     /// <summary>
     /// Run an init inside the container that forwards signals and reaps processes. 
     /// </summary>
@@ -291,14 +292,14 @@ namespace FluentDocker.Model.Compose
     /// image: alpine:latest
     ///   init: /usr/libexec/docker-init
     /// </remarks>
-    public string Init { get; set; }
+    public string? Init { get; set; }
     /// <summary>
     /// Specify a container’s isolation technology.
     /// </summary>
     /// <remarks>
     ///  On Linux, the only supported value is default. On Windows, acceptable values are default, process and hyperv.
     /// </remarks>
-    public ContainerIsolationType Isolation { get; set; }
+    public ContainerIsolationTechnology Isolation { get; set; } = ContainerIsolationTechnology.Default;
     /// <summary>
     ///  Adds metadata to containers.
     /// </summary>
@@ -318,7 +319,7 @@ namespace FluentDocker.Model.Compose
     /// <summary>
     /// Specifies logging for the service.
     /// </summary>
-    public LoggingDefinition Logging { get; set; }
+    public LoggingDefinition? Logging { get; set; }
     /// <summary>
     /// Network mode. Use the same values as the docker client --network parameter, plus the special form
     /// service:[service name].
@@ -328,7 +329,7 @@ namespace FluentDocker.Model.Compose
     /// Note: This option is ignored when deploying a stack in swarm mode with a (version 3) Compose file.
     /// network_mode: "host" cannot be mixed with links.
     /// </remarks>
-    public string NetworkMode { get; set; }
+    public string? NetworkMode { get; set; }
     /// <summary>
     /// Networks to join, referencing entries under the top-level networks key. It also support alias function and
     /// other functionality.
@@ -375,7 +376,7 @@ namespace FluentDocker.Model.Compose
     /// signal has been specified with stop_signal), before sending SIGKILL. Specified as a duration. By default, stop
     /// waits 10 seconds for the container to exit before sending SIGKILL.
     /// </remarks>
-    public string StopGracePeriod { get; set; }
+    public string? StopGracePeriod { get; set; }
     /// <summary>
     /// Sets an alternative signal to stop the container.
     /// </summary>
@@ -383,7 +384,7 @@ namespace FluentDocker.Model.Compose
     /// By default stop uses SIGTERM. Setting an alternative signal using stop_signal causes stop to send that signal
     /// instead. Note: This option is ignored when deploying a stack in swarm mode with a (version 3) Compose file.
     /// </remarks>
-    public string StopSignal { get; set; }
+    public string? StopSignal { get; set; }
     /// <summary>
     /// Kernel parameters to set in the container.
     /// </summary>
@@ -395,11 +396,11 @@ namespace FluentDocker.Model.Compose
     ///   net.core.somaxconn: 1024
     ///   net.ipv4.tcp_syncookies: 0
     /// </example>
-    public IDictionary<string, string> SysCtls { get; set; }
+    public IDictionary<string, string>? SysCtls { get; set; }
     /// <summary>
     /// Override the default ulimits for a container.
     /// </summary>
-    public IDictionary<string, UlimitDefinition> Ulimits { get; set; }
+    public IDictionary<string, UlimitDefinition>? Ulimits { get; set; }
     /// <summary>
     /// Disables the user namespace for this service, if Docker daemon is configured with user namespaces.
     /// </summary>

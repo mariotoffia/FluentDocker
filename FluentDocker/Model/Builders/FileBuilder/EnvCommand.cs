@@ -1,3 +1,4 @@
+#nullable enable
 using System.Linq;
 using FluentDocker.Extensions;
 using FluentDocker.Model.Common;
@@ -14,7 +15,7 @@ namespace FluentDocker.Model.Builders.FileBuilder
       }
       else
       {
-        NameValue = NameValue = [.. nameValue.WrapValue()];
+        NameValue = [.. nameValue.WrapValue()];
       }
     }
 

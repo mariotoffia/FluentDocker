@@ -25,7 +25,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
   /// In-memory mock of <see cref="IDockerApiConnection"/> that returns canned
   /// responses and records every request for later verification.
   /// </summary>
-  public sealed class MockDockerApiConnection : IDockerApiConnection
+  public sealed partial class MockDockerApiConnection : IDockerApiConnection
   {
     private readonly record struct ResponseEntry(
         string Method,
@@ -263,6 +263,9 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
 
     private HttpResponseMessage Resolve(string method, string path)
     {
+      if (TryResolveGetSequence(method, path, out var sequenced))
+        return sequenced;
+
       var entry = _entries
           .Where(e => e.Method == method && path.Contains(e.PathContains))
           .LastOrDefault();

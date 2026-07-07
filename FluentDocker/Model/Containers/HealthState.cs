@@ -1,3 +1,4 @@
+#nullable enable
 namespace FluentDocker.Model.Containers
 {
   public enum HealthState

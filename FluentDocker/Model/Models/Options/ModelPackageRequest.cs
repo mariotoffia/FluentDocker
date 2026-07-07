@@ -1,3 +1,4 @@
+#nullable enable
 namespace FluentDocker.Model.Models.Options
 {
   /// <summary>
@@ -7,10 +8,10 @@ namespace FluentDocker.Model.Models.Options
   public sealed class ModelPackageRequest
   {
     /// <summary>Path to the source GGUF file (<c>--gguf</c>).</summary>
-    public string GgufPath { get; init; }
+    public string? GgufPath { get; init; }
 
     /// <summary>The target repository:tag for the produced artifact.</summary>
-    public ModelReference Target { get; init; }
+    public ModelReference? Target { get; init; }
 
     /// <summary>Push the produced artifact after building (<c>--push</c>).</summary>
     public bool Push { get; init; }
@@ -18,6 +19,6 @@ namespace FluentDocker.Model.Models.Options
     /// <summary>
     /// Optional path to a license file to embed in the artifact (<c>--license &lt;path&gt;</c>).
     /// </summary>
-    public string License { get; init; }
+    public string? License { get; init; }
   }
 }

@@ -1,7 +1,11 @@
 using System;
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using FluentDocker.Builders;
+using FluentDocker.Common;
 using FluentDocker.Kernel;
 using FluentDocker.Services;
 using FluentDocker.Testing.Core;
@@ -71,6 +75,11 @@ namespace FluentDocker.Testing.MsTest
     protected virtual Func<Task<FluentDockerKernel>>? KernelFactory => null;
 
     /// <summary>
+    /// When true, an unavailable Docker-compatible runtime marks the test inconclusive.
+    /// </summary>
+    protected virtual bool SkipWhenUnavailable => false;
+
+    /// <summary>
     /// Initializes the shared class container on the first test method.
     /// </summary>
     [TestInitialize]
@@ -85,12 +94,23 @@ namespace FluentDocker.Testing.MsTest
         if (_resource != null)
           return;
 
-        var (kernel, resource) = await ResourceLifecycle.CreateAndInitializeAsync(
-            k => new ContainerResource(k, ConfigureContainer, GetOptions()!),
-            KernelFactory!).ConfigureAwait(false);
+        (FluentDockerKernel kernel, ContainerResource resource) result;
+        try
+        {
+          result = await ResourceLifecycle.CreateAndInitializeAsync(
+              k => new ContainerResource(k, ConfigureContainer, GetOptions()!),
+              KernelFactory!).ConfigureAwait(false);
+        }
+        catch (ResourceInitializationException ex)
+            when (SkipWhenUnavailable && ex.InnerException is FluentDockerUnavailableException)
+        {
+          Assert.Inconclusive(ex.InnerException.Message);
+          return;
+        }
 
-        _kernel = kernel;
-        _resource = resource;
+        _kernel = result.kernel;
+        _resource = result.resource;
+        MsTestClassContainerLeakTracker.Register(typeof(TFixture));
       }
       finally
       {
@@ -110,6 +130,7 @@ namespace FluentDocker.Testing.MsTest
         await ResourceLifecycle.DisposeAsync(_resource!, _kernel!).ConfigureAwait(false);
         _resource = null;
         _kernel = null;
+        MsTestClassContainerLeakTracker.Unregister(typeof(TFixture));
       }
       finally
       {
@@ -122,6 +143,57 @@ namespace FluentDocker.Testing.MsTest
       if (_resource == null)
         throw new InvalidOperationException(
             "Fixture has not been initialized. Call TestInitializeAsync first.");
+    }
+
+    /// <summary>
+    /// Writes warnings for class fixtures initialized without cleanup.
+    /// </summary>
+    protected static void WriteUncleanedFixtureWarnings(TextWriter writer)
+    {
+      MsTestClassContainerLeakTracker.WriteWarnings(writer);
+    }
+  }
+
+  internal static class MsTestClassContainerLeakTracker
+  {
+    private static readonly object Sync = new();
+    private static readonly HashSet<Type> Fixtures = [];
+    private static bool _handlerRegistered;
+
+    public static void Register(Type fixtureType)
+    {
+      lock (Sync)
+      {
+        Fixtures.Add(fixtureType);
+        if (_handlerRegistered)
+          return;
+
+        AppDomain.CurrentDomain.ProcessExit += (_, _) => WriteWarnings(Console.Error);
+        _handlerRegistered = true;
+      }
+    }
+
+    public static void Unregister(Type fixtureType)
+    {
+      lock (Sync)
+        Fixtures.Remove(fixtureType);
+    }
+
+    public static void WriteWarnings(TextWriter writer)
+    {
+      Type[] fixtures;
+      lock (Sync)
+        fixtures = [.. Fixtures];
+
+      foreach (var fixture in fixtures)
+      {
+        // ponytail: log-only ceiling; label-based OrphanCleanup/CI reaper owns reclamation.
+        var message =
+            $"FluentDocker warning: {fixture.FullName} initialized a shared MSTest container " +
+            "but did not call CleanupClassAsync from [ClassCleanup(ClassCleanupBehavior.EndOfClass)].";
+        Trace.TraceWarning(message);
+        writer.WriteLine(message);
+      }
     }
   }
 }

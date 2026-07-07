@@ -346,7 +346,7 @@ namespace FluentDocker.Drivers.Podman.Cli
       var listResult = await _machineDriver.ListAsync(context, cancellationToken).ConfigureAwait(false);
 
       // Retry once on transient failure (e.g. concurrent Podman CLI access)
-      if (!listResult.Success || listResult.Data.Count == 0)
+      if (!listResult.Success)
       {
         await Task.Delay(500, cancellationToken).ConfigureAwait(false);
         listResult = await _machineDriver.ListAsync(context, cancellationToken).ConfigureAwait(false);

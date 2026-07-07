@@ -1,5 +1,6 @@
 using System;
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.Net;
 using System.Net.Http;
 using System.Net.Sockets;
@@ -270,29 +271,36 @@ namespace FluentDocker.Services.Extensions
     /// <param name="path">URL path, e.g., "/health".</param>
     /// <param name="timeout">Timeout in milliseconds.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
+    /// <param name="useHttps">True to probe with HTTPS; defaults to HTTP.</param>
     /// <returns>True if the endpoint responds successfully, false if timeout.</returns>
     /// <remarks>
     /// Extension waits return false on timeout and throw cancellation or non-transient
     /// driver errors. Builder waits throw <see cref="FluentDockerException"/>.
     /// </remarks>
+    [SuppressMessage("Design", "CA1068:CancellationToken parameters must come last",
+        Justification = "Keeps existing positional CancellationToken calls source-compatible.")]
     public static async Task<bool> WaitForHttpAsync(
         this IContainerService service,
         string portAndProto,
         string path = "/",
         long timeout = 30000,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        bool useHttps = false)
     {
-      return await WaitForHttpAsync(service, portAndProto, path, timeout, 500, cancellationToken)
+      return await WaitForHttpAsync(service, portAndProto, path, timeout, 500, cancellationToken, useHttps)
           .ConfigureAwait(false);
     }
 
+    [SuppressMessage("Design", "CA1068:CancellationToken parameters must come last",
+        Justification = "Keeps existing positional CancellationToken calls source-compatible.")]
     public static async Task<bool> WaitForHttpAsync(
         this IContainerService service,
         string portAndProto,
         string path,
         long timeout,
         int pollIntervalMs,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        bool useHttps = false)
     {
       cancellationToken.ThrowIfCancellationRequested();
       var sw = Stopwatch.StartNew();
@@ -314,7 +322,7 @@ namespace FluentDocker.Services.Extensions
             continue;
           }
 
-          var url = new UriBuilder("http", endpoint.Address.ToString(), endpoint.Port, path).Uri;
+          var url = new UriBuilder(useHttps ? "https" : "http", endpoint.Address.ToString(), endpoint.Port, path).Uri;
           using var requestCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
           var remainingMs = Math.Max(100, timeout - sw.ElapsedMilliseconds);
           requestCts.CancelAfter(TimeSpan.FromMilliseconds(remainingMs));

@@ -1,3 +1,4 @@
+#nullable enable
 using System.Collections.Generic;
 
 namespace FluentDocker.Model.Compose
@@ -49,7 +50,7 @@ namespace FluentDocker.Model.Compose
     /// <summary>
     /// Specify placement of constraints and preferences.
     /// </summary>
-    public PlacementDefinition Placement { get; set; }
+    public PlacementDefinition? Placement { get; set; }
 
     /// <summary>
     /// If the service is replicated (which is the default), specify the number of containers that should be running
@@ -60,9 +61,9 @@ namespace FluentDocker.Model.Compose
     /// </remarks>
     public int Replicas { get; set; } = 1;
 
-    public ResourcesDefinition Resources { get; set; }
-    public RestartPolicyDefinition RestartPolicy { get; set; }
-    public DeployConfigDefinition RollbackConfig { get; set; }
-    public DeployConfigDefinition UpdateConfig { get; set; }
+    public ResourcesDefinition? Resources { get; set; }
+    public RestartPolicyDefinition? RestartPolicy { get; set; }
+    public DeployConfigDefinition? RollbackConfig { get; set; }
+    public DeployConfigDefinition? UpdateConfig { get; set; }
   }
 }

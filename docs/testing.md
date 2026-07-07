@@ -141,7 +141,7 @@ public class RedisTests : NUnitContainerFixtureBase
 
 Tests use `[Trait("Category", "...")]` attributes (`make test` runs Unit,
 `make test-integration` runs all, `dotnet test --filter "Category=X"` for a
-single category). See [Test Categories & Run Guide](test-categories.md) for
+single category). See [Test Categories & Run Guide](testing/test-categories.md) for
 the full reference.
 
 Use `make check` as the pre-push gate. It runs formatting, unit tests, adapter
@@ -186,7 +186,7 @@ public class NginxTests : IAsyncLifetime
     public async Task Nginx_AcceptsConnections()
     {
         var container = _results.Containers.First();
-        var endpoint = container.ToHostExposedEndpoint("80/tcp");
+        var endpoint = await container.ToHostExposedEndpointAsync("80/tcp");
         using var client = new HttpClient();
         var response = await client.GetStringAsync(
             $"http://localhost:{endpoint.Port}");

@@ -1,3 +1,4 @@
+#nullable enable
 namespace FluentDocker.Model.Builders.FileBuilder
 {
   public sealed class ShellCommand(string shell, params string[] args) : ICommand

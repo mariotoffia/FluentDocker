@@ -129,6 +129,18 @@ namespace FluentDocker.Builders
             : Path.Combine(workingFolder, source);
         if (File.Exists(wff) || Directory.Exists(wff))
           continue;
+        if (source.StartsWith("http://", StringComparison.OrdinalIgnoreCase) ||
+            source.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
+          continue;
+        if (Directory.Exists(source))
+          throw new NotSupportedException(
+              "Directory sources are not supported by DockerfileBuilder; add files individually.");
+        if (!File.Exists(source))
+        {
+          if (!strictCopySources)
+            continue;
+          throw new FluentDockerException($"ADD source '{source}' not found");
+        }
 
         // Copy to working folder
         _addSourceOverrides[command] = CopyToWorkDir(source, workingFolder);

@@ -7,7 +7,8 @@ nav_order: 3
 # Getting Started
 
 This guide helps you install FluentDocker and run your first container.
-For the complete beginner-to-advanced map, see [Learning Path](learning-path.md).
+For the complete beginner-to-advanced map and reading plans by role, see the
+[documentation index](index.md#documentation-by-level).
 
 > **Preview API (3.2.0-preview).** These docs track the 3.2.0-preview surface. Install
 > with `--prerelease` (below). `WithPort` is host-first here — the stable 3.0/3.1 line
@@ -87,7 +88,7 @@ await using var results = await new Builder()
 
 // Get the assigned host port
 var container = results.Containers.First();
-var endpoint = container.ToHostExposedEndpoint("80/tcp");
+var endpoint = await container.ToHostExposedEndpointAsync("80/tcp");
 Console.WriteLine($"Nginx running at: http://localhost:{endpoint.Port}");
 
 // All containers stop and are removed when results is disposed
@@ -115,7 +116,7 @@ await using var results = await new Builder()
     .BuildAsync();
 
 var container = results.Containers.First();
-var endpoint = container.ToHostExposedEndpoint("5432/tcp");
+var endpoint = await container.ToHostExposedEndpointAsync("5432/tcp");
 var connectionString =
     $"Host=localhost;Port={endpoint.Port};Database=postgres;Username=postgres;Password=mysecret";
 ```
@@ -218,7 +219,7 @@ await using var results = await new Builder()
     .BuildAsync();
 
 var container = results.Containers.First();
-var endpoint = container.ToHostExposedEndpoint("6379/tcp");
+var endpoint = await container.ToHostExposedEndpointAsync("6379/tcp");
 Console.WriteLine($"Redis running at: localhost:{endpoint.Port}");
 ```
 

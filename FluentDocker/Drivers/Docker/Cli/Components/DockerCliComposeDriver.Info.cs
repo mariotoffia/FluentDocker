@@ -27,7 +27,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
       {
         var args = BuildComposeArgs(config) + " " + BuildListSubArgs(config);
 
-        var result = await ExecuteCommandAsync(context, args, cancellationToken).ConfigureAwait(false);
+        var result = await ExecuteCommandAsync(context, args, config.Environment, cancellationToken).ConfigureAwait(false);
 
         if (!result.Success)
           return CommandResponse<IList<ComposeServiceInfo>>.Fail(
@@ -58,16 +58,16 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
       {
         if (config.Follow)
         {
-          throw new NotSupportedException(
-              "GetLogsAsync does not support follow=true because 'docker compose logs -f' " +
-              "streams indefinitely. Use a streaming logs API instead.");
+          return CommandResponse<string>.Fail(
+              "Compose GetLogsAsync follow=true is not supported by this buffered method; use a streaming logs API instead.",
+              ErrorCodes.Compose.LogsFailed);
         }
 
         var args = BuildComposeArgs(config) + " " + BuildLogsSubArgs(config);
         if (config.Services.Count > 0)
           args += " " + QuoteServices(config.Services);
 
-        var result = await ExecuteCommandAsync(context, args, cancellationToken).ConfigureAwait(false);
+        var result = await ExecuteUnboundedCommandAsync(context, args, config.Environment, cancellationToken).ConfigureAwait(false);
         return result.Success
             ? CommandResponse<string>.Ok(result.Output)
             : CommandResponse<string>.Fail(
@@ -92,7 +92,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
       try
       {
         var args = BuildComposeArgs(config) + " top";
-        var result = await ExecuteCommandAsync(context, args, cancellationToken).ConfigureAwait(false);
+        var result = await ExecuteCommandAsync(context, args, config.Environment, cancellationToken).ConfigureAwait(false);
         return result.Success
             ? CommandResponse<IList<ComposeProcesses>>.Ok(ParseTopOutput(result.Output))
             : CommandResponse<IList<ComposeProcesses>>.Fail(
@@ -119,7 +119,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
       {
         var args = BuildComposeArgs(config) + " " + BuildConfigSubArgs(config);
 
-        var result = await ExecuteCommandAsync(context, args, cancellationToken).ConfigureAwait(false);
+        var result = await ExecuteCommandAsync(context, args, config.Environment, cancellationToken).ConfigureAwait(false);
         return result.Success
             ? CommandResponse<string>.Ok(result.Output)
             : CommandResponse<string>.Fail(
@@ -144,7 +144,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
       try
       {
         var args = BuildComposeArgs(config) + " images --format json";
-        var result = await ExecuteCommandAsync(context, args, cancellationToken).ConfigureAwait(false);
+        var result = await ExecuteCommandAsync(context, args, config.Environment, cancellationToken).ConfigureAwait(false);
 
         if (!result.Success)
           return CommandResponse<IList<ComposeImage>>.Fail(
@@ -198,7 +198,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
       {
         var args = BuildComposeArgs(config) +
             $" port --protocol {QuoteArgumentIfNeeded(config.Protocol)} {QuotePositionalArgument(config.Service, nameof(config.Service))} {config.PrivatePort}";
-        var result = await ExecuteCommandAsync(context, args, cancellationToken).ConfigureAwait(false);
+        var result = await ExecuteCommandAsync(context, args, config.Environment, cancellationToken).ConfigureAwait(false);
         return result.Success
             ? CommandResponse<string>.Ok(result.Output.Trim())
             : CommandResponse<string>.Fail(
@@ -230,7 +230,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
         if (config.Services.Count > 0)
           args += " " + QuoteServices(config.Services);
 
-        var result = await ExecuteUnboundedCommandAsync(context, args, cancellationToken).ConfigureAwait(false);
+        var result = await ExecuteUnboundedCommandAsync(context, args, config.Environment, cancellationToken).ConfigureAwait(false);
         return result.Success
             ? CommandResponse<Unit>.Ok(Unit.Default)
             : CommandResponse<Unit>.Fail(
@@ -258,7 +258,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
         if (config.Services.Count > 0)
           args += " " + QuoteServices(config.Services);
 
-        var result = await ExecuteUnboundedCommandAsync(context, args, cancellationToken).ConfigureAwait(false);
+        var result = await ExecuteUnboundedCommandAsync(context, args, config.Environment, cancellationToken).ConfigureAwait(false);
         return result.Success
             ? CommandResponse<Unit>.Ok(Unit.Default)
             : CommandResponse<Unit>.Fail(
@@ -286,7 +286,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
         if (config.Services.Count > 0)
           args += " " + QuoteServices(config.Services);
 
-        var result = await ExecuteCommandAsync(context, args, cancellationToken).ConfigureAwait(false);
+        var result = await ExecuteUnboundedCommandAsync(context, args, config.Environment, cancellationToken).ConfigureAwait(false);
         return result.Success
             ? CommandResponse<Unit>.Ok(Unit.Default)
             : CommandResponse<Unit>.Fail(
@@ -331,7 +331,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
         if (config.Command is { Length: > 0 })
           args += " " + string.Join(" ", config.Command.Select(QuoteArgumentIfNeeded));
 
-        var result = await ExecuteUnboundedCommandAsync(context, args, cancellationToken).ConfigureAwait(false);
+        var result = await ExecuteUnboundedCommandAsync(context, args, config.Environment, cancellationToken).ConfigureAwait(false);
         if (IsComposeExecInfrastructureFailure(result.ExitCode, result.Output, result.Error))
         {
           return CommandResponse<string>.Fail(
@@ -363,7 +363,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
       {
         var args = BuildComposeArgs(config) + " " + BuildRunSubArgs(config);
 
-        var result = await ExecuteUnboundedCommandAsync(context, args, cancellationToken).ConfigureAwait(false);
+        var result = await ExecuteUnboundedCommandAsync(context, args, config.Environment, cancellationToken).ConfigureAwait(false);
         if (IsComposeExecInfrastructureFailure(result.ExitCode, result.Output, result.Error))
           return CommandResponse<string>.Fail(
               ErrorOrDefault(result, "Compose run failed"),
@@ -399,7 +399,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
       {
         var args = BuildComposeArgs(config) + " " + BuildScaleSubArgs(config);
 
-        var result = await ExecuteCommandAsync(context, args, cancellationToken).ConfigureAwait(false);
+        var result = await ExecuteUnboundedCommandAsync(context, args, config.Environment, cancellationToken).ConfigureAwait(false);
         return result.Success
             ? CommandResponse<Unit>.Ok(Unit.Default)
             : CommandResponse<Unit>.Fail(
@@ -432,7 +432,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
           args += $" --index {config.Index.Value}";
         args += $" {QuotePositionalArgument(config.Source, nameof(config.Source))} {QuotePositionalArgument(config.Destination, nameof(config.Destination))}";
 
-        var result = await ExecuteUnboundedCommandAsync(context, args, cancellationToken).ConfigureAwait(false);
+        var result = await ExecuteUnboundedCommandAsync(context, args, config.Environment, cancellationToken).ConfigureAwait(false);
         return result.Success
             ? CommandResponse<Unit>.Ok(Unit.Default)
             : CommandResponse<Unit>.Fail(
@@ -464,7 +464,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
         if (config.Services.Count > 0)
           args += " " + QuoteServices(config.Services);
 
-        var result = await ExecuteCommandAsync(context, args, cancellationToken).ConfigureAwait(false);
+        var result = await ExecuteUnboundedCommandAsync(context, args, config.Environment, cancellationToken).ConfigureAwait(false);
         return result.Success
             ? CommandResponse<Unit>.Ok(Unit.Default)
             : CommandResponse<Unit>.Fail(

@@ -18,7 +18,14 @@ namespace FluentDocker.Kernel
     /// </summary>
     public void Dispose()
     {
-      Task.Run(() => DisposeAsync().AsTask()).GetAwaiter().GetResult();
+      try
+      {
+        Task.Run(() => DisposeAsync().AsTask()).GetAwaiter().GetResult();
+      }
+      catch (TimeoutException ex)
+      {
+        _logger.LogWarning(ex, "Driver registry sync disposal timed out");
+      }
     }
 #pragma warning restore CA1816
 
@@ -36,11 +43,12 @@ namespace FluentDocker.Kernel
       if (Interlocked.CompareExchange(ref _disposed, 1, 0) == 2)
         return;
 
+      var deadline = DateTimeOffset.UtcNow + DisposeBudget;
       var timeoutMs = DisposeBudget.TotalMilliseconds;
       var lockTaken = false;
       try
       {
-        if (!await _registrationLock.WaitAsync(DisposeBudget).ConfigureAwait(false))
+        if (!await _registrationLock.WaitAsync(Remaining(deadline)).ConfigureAwait(false))
           throw new TimeoutException("Timed out waiting for driver registration lock during disposal.");
         lockTaken = true;
 
@@ -49,11 +57,11 @@ namespace FluentDocker.Kernel
 
         foreach (var kvp in _driverPacks)
           await DisposeDriverPackWithinBudgetAsync(
-              kvp.Value.DriverPack, _logger, kvp.Key, DisposeBudget).ConfigureAwait(false);
+              kvp.Value.DriverPack, _logger, kvp.Key, Remaining(deadline)).ConfigureAwait(false);
 
         foreach (var kvp in _drivers)
           await DisposeDriverWithinBudgetAsync(
-              kvp.Value.Driver, _logger, kvp.Key, DisposeBudget).ConfigureAwait(false);
+              kvp.Value.Driver, _logger, kvp.Key, Remaining(deadline)).ConfigureAwait(false);
 
         _driverPacks.Clear();
         _drivers.Clear();
@@ -84,10 +92,8 @@ namespace FluentDocker.Kernel
     #endregion
 
     /// <summary>
-    /// Per-item budget applied independently to (a) acquiring the registration lock during
-    /// disposal and (b) disposing EACH registered driver/pack, so one hung item cannot starve
-    /// the rest. Worst-case aggregate shutdown is therefore roughly
-    /// (1 + driverCount + packCount) × this budget; well-behaved items dispose promptly.
+    /// Total wall-clock budget for acquiring the registration lock and disposing all registered
+    /// drivers/packs. Each item receives only the remaining budget.
     /// </summary>
     protected virtual TimeSpan DisposeBudget =>
         TimeSpan.FromMilliseconds(BuildResults.DefaultDisposeBudgetMs);
@@ -95,6 +101,12 @@ namespace FluentDocker.Kernel
     private static async Task DisposeDriverWithinBudgetAsync(
         IDriver driver, ILogger logger, string driverId, TimeSpan disposeBudget)
     {
+      if (disposeBudget <= TimeSpan.Zero)
+      {
+        logger.LogWarning("Timed out before disposing driver {DriverId}", driverId);
+        return;
+      }
+
       using var cts = new CancellationTokenSource(disposeBudget);
       try
       {
@@ -112,6 +124,12 @@ namespace FluentDocker.Kernel
     private static async Task DisposeDriverPackWithinBudgetAsync(
         IDriverPack driverPack, ILogger logger, string driverId, TimeSpan disposeBudget)
     {
+      if (disposeBudget <= TimeSpan.Zero)
+      {
+        logger.LogWarning("Timed out before disposing driver pack {DriverId}", driverId);
+        return;
+      }
+
       using var cts = new CancellationTokenSource(disposeBudget);
       try
       {
@@ -162,6 +180,12 @@ namespace FluentDocker.Kernel
         else
           logger.LogWarning(ex, "Failed to dispose driver pack {DriverId}", driverId);
       }
+    }
+
+    private static TimeSpan Remaining(DateTimeOffset deadline)
+    {
+      var remaining = deadline - DateTimeOffset.UtcNow;
+      return remaining > TimeSpan.Zero ? remaining : TimeSpan.Zero;
     }
   }
 }

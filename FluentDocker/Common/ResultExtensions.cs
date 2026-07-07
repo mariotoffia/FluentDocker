@@ -1,3 +1,4 @@
+#nullable enable
 using System;
 using System.Collections.Generic;
 
@@ -6,7 +7,7 @@ namespace FluentDocker.Common
   /// <summary>
   /// Extension methods for creating <see cref="Result{T}"/> instances from data values.
   /// </summary>
-  [System.Obsolete("Unused by FluentDocker and scheduled for removal in v4. Use CommandResponse<T> for driver results.")]
+  [System.Obsolete("Unused by FluentDocker and scheduled for removal in a future release. Use CommandResponse<T> for driver results.")]
   public static class ResultExtensions
   {
     private static readonly string[] LineSeparators = ["\n", "\r\n"];
@@ -16,7 +17,7 @@ namespace FluentDocker.Common
     /// <param name="data">The result value.</param>
     /// <param name="log">Optional log output.</param>
     /// <returns>A successful result containing <paramref name="data"/>.</returns>
-    public static Result<T> ToSuccess<T>(this T data, string log = null)
+    public static Result<T> ToSuccess<T>(this T data, string? log = null)
     {
       return new Result<T>(true, data, log ?? string.Empty, string.Empty);
     }
@@ -37,7 +38,7 @@ namespace FluentDocker.Common
     /// <param name="error">The error message.</param>
     /// <param name="log">Optional log output.</param>
     /// <returns>A failed result containing the error.</returns>
-    public static Result<T> ToFailure<T>(this T data, string error, string log = null)
+    public static Result<T> ToFailure<T>(this T data, string error, string? log = null)
     {
       return new Result<T>(false, data, log ?? string.Empty, error);
     }
@@ -56,7 +57,7 @@ namespace FluentDocker.Common
     /// <summary>Joins a list of log entries into a single newline-delimited string.</summary>
     /// <param name="entries">The log entries to join.</param>
     /// <returns>A joined string, or empty if <paramref name="entries"/> is null or empty.</returns>
-    public static string FromLog(this IList<string> entries)
+    public static string FromLog(this IList<string>? entries)
     {
       if (null == entries || 0 == entries.Count)
       {

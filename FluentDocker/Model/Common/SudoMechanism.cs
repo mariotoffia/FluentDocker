@@ -1,3 +1,4 @@
+#nullable enable
 using FluentDocker.Common;
 
 namespace FluentDocker.Model.Common

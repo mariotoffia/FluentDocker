@@ -1,3 +1,4 @@
+#nullable enable
 using System.Collections.Generic;
 
 namespace FluentDocker.Model.Compose
@@ -12,7 +13,7 @@ namespace FluentDocker.Model.Compose
     ///   directory is also the build context that is sent to the Docker daemon.
     ///   Compose builds and tags it with a generated name, and use that image thereafter.
     /// </remarks>
-    public string Context { get; set; }
+    public string? Context { get; set; }
 
     /// <summary>
     ///   Alternate Dockerfile.
@@ -20,7 +21,7 @@ namespace FluentDocker.Model.Compose
     /// <remarks>
     ///   Compose uses an alternate file to build with. A build path must also be specified.
     /// </remarks>
-    public string Dockerfile { get; set; }
+    public string? Dockerfile { get; set; }
 
     /// <summary>
     ///   Add build arguments, which are environment variables accessible only during the build process.
@@ -82,7 +83,7 @@ namespace FluentDocker.Model.Compose
     /// or
     ///   shm_size: 1000000
     /// </remarks>
-    public string ShmSize { get; set; }
+    public string? ShmSize { get; set; }
     /// <summary>
     /// Build the specified stage as defined inside the Dockerfile.
     /// </summary>
@@ -91,6 +92,6 @@ namespace FluentDocker.Model.Compose
     /// build:
     ///   target: prod
     /// </remarks>
-    public string Target { get; set; }
+    public string? Target { get; set; }
   }
 }

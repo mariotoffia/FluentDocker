@@ -1,21 +1,21 @@
 ---
 layout: default
-title: Test Migration
+title: Test Code Migration
 parent: Migration Guide
 nav_order: 3
 ---
 
-# Test Migration Guide
+# Test Code Migration Guide
 
-How to migrate FluentDocker v2.x.x test code to v3.0.0.
+How to migrate FluentDocker v2.x.x test **code** to v3 — the builder-level API changes.
+For migrating the legacy test **adapter packages** (`Ductus.FluentDocker.XUnit` /
+`.MsTest`) to `FluentDocker.Testing.*`, see
+[Legacy Test Adapter Migration](../testing/migration-from-legacy.md).
 
 > **Samples track the 3.2.0-preview API** — install with `--prerelease`. `WithPort` is host-first here; stable 3.0/3.1 is container-first, so ports bind in reverse.
 
-> **Note:** The legacy `Ductus.FluentDocker.MsTest` and `Ductus.FluentDocker.XUnit` packages
-> have been removed. The examples below show the builder-level API changes.
-> For test support, use the new `FluentDocker.Testing.*` packages. See
-> [Migration from Legacy](../testing/migration-from-legacy.md) for
-> side-by-side adapter examples.
+> **Note:** The legacy `Ductus.FluentDocker.MsTest` / `.XUnit` packages have been removed; use
+> the new `FluentDocker.Testing.*` packages. The examples below show the builder-level API changes.
 
 This guide covers the most common test patterns and shows side-by-side v2 vs v3
 code for each. The core change is that v3 requires a **kernel** with a registered
@@ -202,7 +202,7 @@ public class SharedDatabaseFixture : IAsyncLifetime
             .BuildAsync();
 
         Container = _results.Containers.First();
-        var ep = Container.ToHostExposedEndpoint("5432/tcp");
+        var ep = await Container.ToHostExposedEndpointAsync("5432/tcp");
         ConnectionString =
             $"Host=localhost;Port={ep.Port};Database=postgres;" +
             "Username=postgres;Password=test";
@@ -418,7 +418,7 @@ public class NginxTests : IClassFixture<NginxFixture>
     [Fact]
     public async Task Nginx_ReturnsWelcomePage()
     {
-        var endpoint = _fixture.Container.ToHostExposedEndpoint("80/tcp");
+        var endpoint = await _fixture.Container.ToHostExposedEndpointAsync("80/tcp");
         var client = new HttpClient();
         var response = await client.GetStringAsync(
             $"http://localhost:{endpoint.Port}");
@@ -526,7 +526,7 @@ public class ComposeTests : IAsyncLifetime
     {
         var api = _results.Containers
             .First(c => c.Name.Contains("api"));
-        var endpoint = api.ToHostExposedEndpoint("8080/tcp");
+        var endpoint = await api.ToHostExposedEndpointAsync("8080/tcp");
 
         var client = new HttpClient();
         var response = await client.GetAsync(

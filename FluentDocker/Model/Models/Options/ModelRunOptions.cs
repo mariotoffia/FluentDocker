@@ -1,3 +1,4 @@
+#nullable enable
 using System.Collections.Generic;
 
 namespace FluentDocker.Model.Models.Options
@@ -35,7 +36,7 @@ namespace FluentDocker.Model.Models.Options
     /// Override the OpenAI-compatible base URL the run session targets
     /// (<c>--openaiurl</c>). <c>null</c>/empty emits nothing.
     /// </summary>
-    public string OpenAiUrl { get; init; }
+    public string? OpenAiUrl { get; init; }
 
     /// <summary>Enable the web-search tool for the session (<c>--websearch</c>).</summary>
     public bool WebSearch { get; init; }
@@ -52,6 +53,6 @@ namespace FluentDocker.Model.Models.Options
     /// -- …</c> passthrough BEFORE the run (there is no <c>run</c> flag for them). See
     /// <see cref="LlamaCppRuntimeFlags"/> for a typed builder.
     /// </summary>
-    public IReadOnlyList<string> RuntimeFlags { get; init; }
+    public IReadOnlyList<string>? RuntimeFlags { get; init; }
   }
 }

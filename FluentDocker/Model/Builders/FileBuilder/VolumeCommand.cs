@@ -1,3 +1,4 @@
+#nullable enable
 using System.Linq;
 using FluentDocker.Model.Common;
 

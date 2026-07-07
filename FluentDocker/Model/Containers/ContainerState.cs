@@ -1,3 +1,4 @@
+#nullable enable
 using System;
 
 // ReSharper disable InconsistentNaming
@@ -10,7 +11,7 @@ namespace FluentDocker.Model.Containers
   public sealed class ContainerState
   {
     /// <summary>Raw runtime status string, such as running, exited, or created.</summary>
-    public string Status { get; set; }
+    public string? Status { get; set; }
 
     /// <summary>Whether the container is currently running.</summary>
     public bool Running { get; set; }
@@ -34,15 +35,15 @@ namespace FluentDocker.Model.Containers
     public long ExitCode { get; set; }
 
     /// <summary>Runtime error message, when present.</summary>
-    public string Error { get; set; }
+    public string? Error { get; set; }
 
     /// <summary>Timestamp when the container started.</summary>
-    public DateTime StartedAt { get; set; }
+    public DateTimeOffset StartedAt { get; set; }
 
     /// <summary>Timestamp when the container finished.</summary>
-    public DateTime FinishedAt { get; set; }
+    public DateTimeOffset FinishedAt { get; set; }
 
     /// <summary>Container health status and recent health checks.</summary>
-    public Health Health { get; set; }
+    public Health? Health { get; set; }
   }
 }

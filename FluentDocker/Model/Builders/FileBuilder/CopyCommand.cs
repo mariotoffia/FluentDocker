@@ -1,3 +1,4 @@
+#nullable enable
 using FluentDocker.Model.Common;
 
 namespace FluentDocker.Model.Builders.FileBuilder
@@ -16,7 +17,7 @@ namespace FluentDocker.Model.Builders.FileBuilder
     /// _FROM ... AS aliasname_ buildstep as source.
     /// </param>
     public CopyCommand(TemplateString from, TemplateString to,
-      TemplateString chownUserAndGroup = null, TemplateString fromAlias = null)
+      TemplateString? chownUserAndGroup = null, TemplateString? fromAlias = null)
     {
       From = from.Rendered;
       To = to.Rendered;
@@ -34,8 +35,8 @@ namespace FluentDocker.Model.Builders.FileBuilder
 
     public string From { get; internal set; }
     public string To { get; }
-    public string Alias { get; }
-    public string Chown { get; }
+    public string? Alias { get; }
+    public string? Chown { get; }
 
     public override string ToString()
     {
@@ -54,6 +55,6 @@ namespace FluentDocker.Model.Builders.FileBuilder
       return $"{s} {DockerfileJson.Array([NormalizePath(From), NormalizePath(To)])}";
     }
 
-    private static string NormalizePath(string path) => path?.Replace('\\', '/');
+    private static string NormalizePath(string path) => path.Replace('\\', '/');
   }
 }

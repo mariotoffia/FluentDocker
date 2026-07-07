@@ -1,3 +1,4 @@
+#nullable enable
 namespace FluentDocker.Model.Compose
 {
   /// <summary>
@@ -15,7 +16,7 @@ namespace FluentDocker.Model.Compose
     /// <summary>
     /// The target mount point e.g. /app.
     /// </summary>
-    public string Target { get; set; }
+    public string? Target { get; set; }
     /// <summary>
     /// specifies the size of the tmpfs mount in bytes. Unlimited by default.
     /// </summary>

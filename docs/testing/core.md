@@ -144,7 +144,7 @@ Every resource the testing core creates carries the `fluentdocker.managed=true`
 label, so a CI job can reap leftovers without going through the framework:
 
 ```bash
-docker rm -f $(docker ps -aq --filter label=fluentdocker.managed=true)
+docker ps -aq --filter label=fluentdocker.managed=true | xargs -r docker rm -f
 ```
 
 On a **shared** daemon this cuts both ways: `CleanupOrphansOnInit` with the
@@ -153,10 +153,37 @@ framework-labeled container from a parallel run once it crosses the age
 threshold. Give each CI job its own daemon, or raise `OrphanCleanupMinimumAge`
 above your longest job when several runs share one daemon.
 
+### Cleaning up leaked containers in CI
+
+The testing core removes its containers when the fixture is disposed — that is,
+during normal test teardown. When a CI runner sends `SIGKILL` (`kill -9`) — job
+timeout, cancelled pipeline, agent teardown — the process dies before disposal runs,
+so session-labeled containers stay up. The next run won't reclaim them either: the
+default one-hour `OrphanCleanupMinimumAge` guard keeps `CleanupOrphansOnInit` from
+touching resources younger than an hour, so freshly leaked containers survive until
+they age past the threshold.
+
+Reap them explicitly at the start (or end) of the job. Every managed resource carries
+the `fluentdocker.managed=true` label:
+
+```bash
+docker ps -aq --filter label=fluentdocker.managed=true | xargs -r docker rm -f
+```
+
+Podman uses the same label:
+
+```bash
+podman ps -aq --filter label=fluentdocker.managed=true | xargs -r podman rm -f
+```
+
+Add this step when jobs run on ephemeral or shared CI agents, or anywhere a forced kill
+can interrupt teardown. `xargs -r` skips the `rm` call when nothing matches, so the step
+is a no-op on a clean daemon.
+
 ## Skipping when Docker is unavailable
 
 `DockerAvailability.IsAvailableAsync` (in `FluentDocker.Testing.Core`) probes the
-target runtime and returns `false` on any failure (daemon down, binary missing,
+target runtime and returns `false` on availability failures (daemon down, binary missing,
 internal timeout). It honors the caller's `CancellationToken` — a cancelled token
 propagates `OperationCanceledException` rather than reporting "unavailable". Optional
 `kernelFactory`/`driverId` arguments select a non-default runtime.
@@ -218,8 +245,8 @@ builder.UseImage("my-api:latest")
        .WaitForHttp("8080/tcp", path: "/health", timeoutMs: 30_000);
 ```
 
-Advanced HTTP wait with custom method and response handling (`WaitForHttpUrl` is
-a 3.2-preview API — renamed from `WaitForHttp` in 3.0/3.1):
+Advanced HTTP wait with a full URL, custom method, and response handling. This is the
+separate `WaitForHttpUrl` overload — the simple port+path `WaitForHttp` above still exists:
 
 ```csharp
 builder.WaitForHttpUrl(
@@ -254,7 +281,7 @@ builder.Wait((container, attempt) =>
     // Return -1 to signal success
     // Return 0 to continue immediately
     // Return N > 0 to wait N ms before next poll
-    if (attempt > 30) return -1; // give up after 30 attempts
+    if (attempt > 30) return -1; // -1 = ready (not "give up"); use timeoutMs to fail
     return 1000; // poll every second
 });
 ```
@@ -297,7 +324,7 @@ var resource = new ContainerResource(kernel,
 
 resource.OnAfterReady(async _ =>
 {
-    var endpoint = resource.Container.ToHostExposedEndpoint("5432/tcp");
+    var endpoint = await resource.Container.ToHostExposedEndpointAsync("5432/tcp");
     var connStr = $"Host=localhost;Port={endpoint.Port};" +
                   "Username=postgres;Password=test";
 
@@ -361,7 +388,7 @@ public static async Task ClassInit(TestContext ctx)
             r.OnAfterReady(async _ =>
             {
                 // Wait for Postgres to be connectable
-                var ep = r.Container.ToHostExposedEndpoint("5432/tcp");
+                var ep = await r.Container.ToHostExposedEndpointAsync("5432/tcp");
                 // ... poll connection ...
             });
 

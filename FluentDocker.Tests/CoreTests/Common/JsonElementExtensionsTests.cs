@@ -237,6 +237,39 @@ namespace FluentDocker.Tests.CoreTests.Common
 
     #endregion
 
+    #region GetDateTimeOffsetOrDefault
+
+    [Fact]
+    public void GetDateTimeOffsetOrDefault_ExplicitOffset_IsPreserved()
+    {
+      var el = JsonHelper.ParseElement("""{"created":"2024-01-02T03:04:05+02:00"}""");
+      Assert.Equal(TimeSpan.FromHours(2), el.GetDateTimeOffsetOrDefault("created").Offset);
+    }
+
+    [Fact]
+    public void GetDateTimeOffsetOrDefault_ZuluInput_HasZeroOffset()
+    {
+      var el = JsonHelper.ParseElement("""{"created":"2024-01-02T03:04:05Z"}""");
+      Assert.Equal(TimeSpan.Zero, el.GetDateTimeOffsetOrDefault("created").Offset);
+    }
+
+    [Fact]
+    public void GetDateTimeOffsetOrDefault_ZonelessInput_AssumesUtc_NotHostLocal()
+    {
+      // Without an explicit zone the offset must be UTC (deterministic), never the parsing host's local offset.
+      var el = JsonHelper.ParseElement("""{"created":"2024-06-15T10:30:00"}""");
+      Assert.Equal(TimeSpan.Zero, el.GetDateTimeOffsetOrDefault("created").Offset);
+    }
+
+    [Fact]
+    public void GetDateTimeOffsetOrDefault_Missing_ReturnsMinValue()
+    {
+      var el = JsonHelper.ParseElement("""{}""");
+      Assert.Equal(DateTimeOffset.MinValue, el.GetDateTimeOffsetOrDefault("created"));
+    }
+
+    #endregion
+
     #region GetStringArray
 
     [Fact]

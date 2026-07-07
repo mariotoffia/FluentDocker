@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using FluentDocker.Drivers;
@@ -139,6 +140,30 @@ exit 42
       Assert.Contains("permission denied", result.ErrorContext.StdErr, StringComparison.OrdinalIgnoreCase);
     }
 
+    [Fact]
+    public async Task ContainerList_PreservesCreatedAtOffsets()
+    {
+      if (OperatingSystem.IsWindows())
+        Assert.Skip("POSIX shell script fake docker; not applicable on Windows");
+
+      var driver = new DockerCliContainerDriver(new FakeResolver(CreateFakeDocker("""
+#!/bin/sh
+if [ "$1" = "ps" ]; then
+  printf '%s\n' '{"Command":"sleep","CreatedAt":"2024-01-02T03:04:05+02:00","ID":"offset","Image":"alpine","Names":"offset","State":"running","Status":"Up"}'
+  printf '%s\n' '{"Command":"sleep","CreatedAt":"2024-01-02T01:04:05Z","ID":"zulu","Image":"alpine","Names":"zulu","State":"running","Status":"Up"}'
+  exit 0
+fi
+exit 2
+""")));
+      var context = new DriverContext("docker");
+      driver.Initialize(context);
+
+      var result = await driver.ListAsync(context, cancellationToken: TestContext.Current.CancellationToken);
+
+      Assert.True(result.Success, result.Error);
+      Assert.Equal(TimeSpan.FromHours(2), result.Data.Single(c => c.Id == "offset").Created.Offset);
+      Assert.Equal(TimeSpan.Zero, result.Data.Single(c => c.Id == "zulu").Created.Offset);
+    }
 
     private static string CreateFakeDocker(string script)
     {

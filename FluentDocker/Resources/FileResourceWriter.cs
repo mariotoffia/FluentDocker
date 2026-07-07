@@ -1,3 +1,4 @@
+#nullable enable
 using System.IO;
 using FluentDocker.Model.Common;
 
@@ -11,7 +12,7 @@ namespace FluentDocker.Resources
     {
       var dir = string.IsNullOrEmpty(stream.Info.RelativeRootNamespace)
         ? _basePath.Rendered
-        : Path.Combine(_basePath, stream.Info.RelativeRootNamespace.Replace('.', Path.PathSeparator));
+        : Path.Combine(_basePath.Rendered, stream.Info.RelativeRootNamespace.Replace('.', Path.DirectorySeparatorChar));
 
       if (!Directory.Exists(dir))
       {

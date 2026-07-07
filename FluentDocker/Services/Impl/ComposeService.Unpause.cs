@@ -21,6 +21,7 @@ namespace FluentDocker.Services.Impl
       var response = await driver.UnpauseAsync(context, config, cancellationToken).ConfigureAwait(false);
       if (!response.Success)
       {
+        UpdateState(ServiceRunningState.Unknown);
         throw new DriverException(
             $"Failed to unpause compose project '{_projectName}': {response.Error}",
             response.ErrorCode,

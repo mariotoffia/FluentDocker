@@ -98,7 +98,10 @@ namespace FluentDocker.Drivers
         CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Gets logs from compose services.
+    /// Gets buffered logs from compose services. Large output is returned as a marked
+    /// rolling tail instead of failing on the bounded stdout cap, and the command is
+    /// limited only by caller cancellation. <c>Follow=true</c> is not supported by this
+    /// buffered method and returns a failed response; use a streaming logs API for follow.
     /// </summary>
     Task<CommandResponse<string>> GetLogsAsync(
         DriverContext context,

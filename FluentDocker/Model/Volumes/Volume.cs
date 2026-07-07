@@ -1,3 +1,4 @@
+#nullable enable
 using System;
 using System.Collections.Generic;
 using System.Text.Json.Serialization;
@@ -12,32 +13,32 @@ namespace FluentDocker.Model.Volumes
   {
     /// <summary>Timestamp when the volume was created.</summary>
     [JsonPropertyName("CreatedAt")]
-    public DateTime Created { get; set; }
+    public DateTimeOffset Created { get; set; }
 
     /// <summary>Volume driver name (e.g., "local").</summary>
-    public string Driver { get; set; }
+    public string Driver { get; set; } = null!;
 
     /// <summary>Unique name of the volume.</summary>
-    public string Name { get; set; }
+    public string Name { get; set; } = null!;
 
-    /// <summary>Scope of the volume ("local" or "global").</summary>
-    public string Scope { get; set; }
+    /// <summary>Scope of the volume ("local" or "global"). Absent from some engine responses.</summary>
+    public string? Scope { get; set; }
 
     /// <summary>
-    /// Filesystem path where the volume data is stored on the host.
+    /// Filesystem path where the volume data is stored on the host. Absent from some engine responses.
     /// </summary>
-    public string Mountpoint { get; set; }
+    public string? Mountpoint { get; set; }
 
     /// <summary>
     /// User-defined labels attached to the volume. Legacy compact string input cannot represent comma-containing values.
     /// </summary>
     [JsonConverter(typeof(LenientStringDictionaryConverter))]
-    public Dictionary<string, string> Labels { get; set; }
+    public Dictionary<string, string>? Labels { get; set; }
 
     /// <summary>
     /// Driver-specific options used when creating the volume. Legacy compact string input cannot represent comma-containing values.
     /// </summary>
     [JsonConverter(typeof(LenientStringDictionaryConverter))]
-    public Dictionary<string, string> Options { get; set; }
+    public Dictionary<string, string>? Options { get; set; }
   }
 }

@@ -1,3 +1,4 @@
+#nullable enable
 using System;
 
 namespace FluentDocker.Model.Compose
@@ -34,6 +35,6 @@ namespace FluentDocker.Model.Compose
     /// <remarks>
     /// This specified as a duration (default: decide immediately). For example window: 120s.
     /// </remarks>
-    public string Window { get; set; }
+    public string? Window { get; set; }
   }
 }

@@ -207,6 +207,19 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
     }
 
     [Fact]
+    public void ParsePlayOutput_LineBasedPluralContainers_ReturnsContainers()
+    {
+      var output = "Pod:\nabc123def456abc1\nContainers:\nc1aaa111bbb222cc\nContainers:\nc2ddd333eee444ff\n";
+
+      var result = InvokeParsePlayOutput(output);
+
+      Assert.Single(result.Pods);
+      Assert.Equal(2, result.Pods[0].Containers.Count);
+      Assert.Equal("c1aaa111bbb222cc", result.Pods[0].Containers[0]);
+      Assert.Equal("c2ddd333eee444ff", result.Pods[0].Containers[1]);
+    }
+
+    [Fact]
     public void ParsePlayOutput_BareHexIds_ReturnsPods()
     {
       var podId = new string('a', 64);

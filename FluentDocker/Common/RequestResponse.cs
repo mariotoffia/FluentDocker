@@ -1,3 +1,4 @@
+#nullable enable
 using System;
 using System.Net;
 using System.Net.Http.Headers;

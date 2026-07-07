@@ -70,9 +70,10 @@ namespace FluentDocker.Tests.CoreTests.Common
         // Act
         writer.Write(resourceStream);
 
-        // Assert - RelativeRootNamespace dots are replaced with PathSeparator
-        var expectedSubDir = "Sub.Folder".Replace('.', Path.PathSeparator);
-        var expectedPath = Path.Combine(tempDir, expectedSubDir, "nested.txt");
+        // Assert - RelativeRootNamespace dots become real nested directories (Sub/Folder),
+        // not a single "Sub<PathListSeparator>Folder" segment. Hard-code the segments so the
+        // assertion fails if the writer ever regresses to Path.PathSeparator.
+        var expectedPath = Path.Combine(tempDir, "Sub", "Folder", "nested.txt");
         Assert.True(File.Exists(expectedPath),
           $"Expected file at {expectedPath}");
         Assert.Equal(content, File.ReadAllText(expectedPath));

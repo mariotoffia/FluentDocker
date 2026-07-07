@@ -1,3 +1,4 @@
+#nullable enable
 using System.Text;
 
 namespace FluentDocker.Model.Containers
@@ -7,17 +8,17 @@ namespace FluentDocker.Model.Containers
     /// <summary>
     ///   Host path in MSYS or linux compatible format.
     /// </summary>
-    public string Source { get; set; }
+    public string? Source { get; set; }
 
     /// <summary>
     ///   Inside docker container path in MSYS or linux compatible format.
     /// </summary>
-    public string Destination { get; set; }
+    public string? Destination { get; set; }
 
     /// <summary>
     ///   Mode of the mount (e.g. 'Z').
     /// </summary>
-    public string Mode { get; set; }
+    public string? Mode { get; set; }
 
     /// <summary>
     ///   Which access 'ro' or 'rw'.

@@ -1,3 +1,4 @@
+#nullable enable
 namespace FluentDocker.Common
 {
   public static class CliOutputTruncation

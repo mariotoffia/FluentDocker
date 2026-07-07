@@ -46,7 +46,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
         {
           var relativePath = Path.GetRelativePath(contextRoot, dir.FullName)
               .Replace('\\', '/');
-          if (filter.IsIgnored(relativePath))
+          if (filter.IsIgnored(relativePath + "/"))
             continue;
           await DockerApiTarWriter.WriteDirectoryAsync(fileStream, relativePath,
               dir.LastWriteTimeUtc, DockerApiTarWriter.DirectoryModeFor(dir.FullName),

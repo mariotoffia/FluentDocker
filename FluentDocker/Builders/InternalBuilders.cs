@@ -42,7 +42,7 @@ namespace FluentDocker.Builders
 
     public INetworkBuilder WithName(string name) { _name = name; return this; }
     public INetworkBuilder UseDriver(string driver) { _driver = driver; return this; }
-    public INetworkBuilder WithSubnet(string subnet) { _subnet = subnet; return this; }
+    public INetworkBuilder WithSubnet(string subnet) { if (!System.Net.IPNetwork.TryParse(subnet, out _)) throw new FluentDockerException($"Invalid subnet '{subnet}'. Expected CIDR notation."); _subnet = subnet; return this; }
     public INetworkBuilder WithGateway(string gateway) { _gateway = gateway; return this; }
     public INetworkBuilder WithIPRange(string ipRange) { _ipRange = ipRange; return this; }
     public INetworkBuilder WithIPv6(bool enableIPv6 = true) { _enableIPv6 = enableIPv6; return this; }
@@ -67,7 +67,6 @@ namespace FluentDocker.Builders
 
         if (existingNetwork != null)
         {
-          CreatedResource = false;
           // Building must never delete a pre-existing resource the builder did not create.
           // Reuse the existing network as a borrowed (non-removing) wrapper; _removeOnDispose
           // only governs networks this builder actually creates below.
@@ -82,7 +81,7 @@ namespace FluentDocker.Builders
           }
 
           return new Services.Impl.NetworkService(
-              _kernel, _driverId, existingNetwork.Id, _name, removeOnDispose: false);
+              _kernel, _driverId, existingNetwork.Id, _name, removeOnDispose: CreatedResource);
         }
       }
 
@@ -152,9 +151,8 @@ namespace FluentDocker.Builders
         var existing = await driver.InspectAsync(context, _name, cancellationToken).ConfigureAwait(false);
         if (existing is { Success: true, Data: not null })
         {
-          CreatedResource = false;
           return new Services.Impl.VolumeService(
-              _kernel, _driverId, existing.Data.Name, existing.Data.Driver ?? _driver, removeOnDispose: false);
+              _kernel, _driverId, existing.Data.Name, existing.Data.Driver ?? _driver, removeOnDispose: CreatedResource);
         }
       }
 
@@ -253,8 +251,8 @@ namespace FluentDocker.Builders
     public IComposeBuilder WithRemoveVolumes(bool removeVolumes = true) { _removeVolumes = removeVolumes; return this; }
     public IComposeBuilder WithRemoveImages(bool removeImages = true) { _removeImages = removeImages; return this; }
     public IComposeBuilder ForServices(params string[] services) { _services.AddRange(services); return this; }
-    public IComposeBuilder WithTimeout(int seconds) { _timeout = seconds; return this; }
-    public IComposeBuilder WithScale(string service, int replicas) { _scale[service] = replicas; return this; }
+    public IComposeBuilder WithTimeout(int seconds) { if (seconds < 0) throw new ArgumentOutOfRangeException(nameof(seconds), seconds, "Value must be non-negative."); _timeout = seconds; return this; }
+    public IComposeBuilder WithScale(string service, int replicas) { if (replicas < 0) throw new ArgumentOutOfRangeException(nameof(replicas), replicas, "Value must be non-negative."); _scale[service] = replicas; return this; }
     public IComposeBuilder WithNoDeps(bool noDeps = true) { _noDeps = noDeps; return this; }
     public IComposeBuilder WithNoStart(bool noStart = true) { _noStart = noStart; return this; }
     public IComposeBuilder WithPull(bool always = true) { _pull = always; return this; }

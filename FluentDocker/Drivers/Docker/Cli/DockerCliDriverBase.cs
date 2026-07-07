@@ -104,7 +104,7 @@ namespace FluentDocker.Drivers.Docker.Cli
         var cert = Path.Combine(certPath, "cert.pem");
         var key = Path.Combine(certPath, "key.pem");
 
-        if (context.VerifyTls)
+        if (context.VerifyTls != false)
           AppendWithSpace(sb, "--tlsverify");
         else
           AppendWithSpace(sb, "--tls");

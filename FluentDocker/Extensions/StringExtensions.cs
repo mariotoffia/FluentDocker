@@ -1,3 +1,4 @@
+#nullable enable
 
 using System;
 
@@ -14,13 +15,16 @@ namespace FluentDocker.Extensions
     /// <param name="s">The string to wrap.</param>
     /// <param name="c">The string to check and wrap with if not existing.</param>
     /// <returns>The wrapped string.</returns>
-    public static string WrapWithChar(this string s, string c)
+    public static string? WrapWithChar(this string? s, string c)
     {
       if (s == null || string.IsNullOrEmpty(c))
         return s;
 
       if (s.Length == 0)
         return c + c;
+
+      if (s == c)
+        return c + s + c;
 
       if (!s.StartsWith(c, StringComparison.Ordinal))
       {

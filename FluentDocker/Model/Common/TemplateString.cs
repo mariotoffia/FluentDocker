@@ -1,3 +1,4 @@
+#nullable enable
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -111,15 +112,15 @@ namespace FluentDocker.Model.Common
       {
         var tmpEnv = "${E_" + env.Key + "}";
         if (str.Contains(tmpEnv, StringComparison.Ordinal))
-          str = str.Replace(tmpEnv, (string)env.Value);
+          str = str.Replace(tmpEnv, (string?)env.Value);
       }
 
       return str;
     }
 
-    public static implicit operator TemplateString(string str) => null == str ? null : new TemplateString(str);
+    public static implicit operator TemplateString?(string? str) => null == str ? null : new TemplateString(str);
 
-    public static implicit operator string(TemplateString str) => str?.Rendered;
+    public static implicit operator string?(TemplateString? str) => str?.Rendered;
 
     public override string ToString()
     {

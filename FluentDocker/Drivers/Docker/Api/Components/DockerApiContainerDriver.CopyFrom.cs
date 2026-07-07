@@ -79,21 +79,39 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       var root = Path.GetFullPath(directory).TrimEnd(
           Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
       var rootWithSeparator = root + Path.DirectorySeparatorChar;
-      using var reader = ReaderFactory.OpenReader(stream);
-      while (reader.MoveToNextEntry())
+      var tmp = Path.Combine(directory, $".fluentdocker-archive-{Guid.NewGuid():N}.tmp");
+      try
       {
-        if (reader.Entry.IsDirectory)
-          continue;
-        var target = Path.GetFullPath(Path.Combine(rootWithSeparator, reader.Entry.Key));
-        if (!string.Equals(target, root, StringComparison.Ordinal) &&
-            !target.StartsWith(rootWithSeparator, StringComparison.Ordinal))
-          throw new InvalidOperationException($"Docker archive entry escapes destination: {reader.Entry.Key}");
-        Directory.CreateDirectory(Path.GetDirectoryName(target)!);
-        await using var entry = reader.OpenEntryStream();
-        await using var output = new FileStream(
-            target, FileMode.Create, FileAccess.Write, FileShare.None,
+        await using (var fs = new FileStream(
+            tmp, FileMode.Create, FileAccess.Write, FileShare.None,
+            bufferSize: 81920, FileOptions.Asynchronous))
+        {
+          await stream.CopyToAsync(fs, cancellationToken).ConfigureAwait(false);
+        }
+
+        await using var readFs = new FileStream(
+            tmp, FileMode.Open, FileAccess.Read, FileShare.Read,
             bufferSize: 81920, FileOptions.Asynchronous);
-        await entry.CopyToAsync(output, cancellationToken).ConfigureAwait(false);
+        using var reader = ReaderFactory.OpenReader(readFs);
+        while (reader.MoveToNextEntry())
+        {
+          if (reader.Entry.IsDirectory)
+            continue;
+          var target = Path.GetFullPath(Path.Combine(rootWithSeparator, reader.Entry.Key));
+          if (!string.Equals(target, root, StringComparison.Ordinal) &&
+              !target.StartsWith(rootWithSeparator, StringComparison.Ordinal))
+            throw new InvalidOperationException($"Docker archive entry escapes destination: {reader.Entry.Key}");
+          Directory.CreateDirectory(Path.GetDirectoryName(target)!);
+          await using var entry = reader.OpenEntryStream();
+          await using var output = new FileStream(
+              target, FileMode.Create, FileAccess.Write, FileShare.None,
+              bufferSize: 81920, FileOptions.Asynchronous);
+          await entry.CopyToAsync(output, cancellationToken).ConfigureAwait(false);
+        }
+      }
+      finally
+      {
+        File.Delete(tmp);
       }
     }
 

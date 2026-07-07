@@ -2,6 +2,7 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 using FluentDocker.Builders;
+using FluentDocker.Common;
 using FluentDocker.Kernel;
 using FluentDocker.Services;
 using FluentDocker.Testing.Core;
@@ -75,6 +76,11 @@ namespace FluentDocker.Testing.MsTest
     /// </summary>
     protected virtual Func<Task<FluentDockerKernel>>? KernelFactory => null;
 
+    /// <summary>
+    /// When true, an unavailable Docker-compatible runtime marks the test inconclusive.
+    /// </summary>
+    protected virtual bool SkipWhenUnavailable => false;
+
     [TestInitialize]
     public async Task TestInitializeAsync()
     {
@@ -82,12 +88,22 @@ namespace FluentDocker.Testing.MsTest
         throw new InvalidOperationException(
             "Already initialized. Dispose before re-initializing.");
 
-      var (kernel, resource) = await ResourceLifecycle.CreateAndInitializeAsync(
-          k => new ContainerResource(k, ConfigureContainer, GetOptions()!),
-          KernelFactory!).ConfigureAwait(false);
+      (FluentDockerKernel kernel, ContainerResource resource) result;
+      try
+      {
+        result = await ResourceLifecycle.CreateAndInitializeAsync(
+            k => new ContainerResource(k, ConfigureContainer, GetOptions()!),
+            KernelFactory!).ConfigureAwait(false);
+      }
+      catch (ResourceInitializationException ex)
+          when (SkipWhenUnavailable && ex.InnerException is FluentDockerUnavailableException)
+      {
+        Assert.Inconclusive(ex.InnerException.Message);
+        return;
+      }
 
-      _kernel = kernel;
-      _resource = resource;
+      _kernel = result.kernel;
+      _resource = result.resource;
     }
 
     [TestCleanup]

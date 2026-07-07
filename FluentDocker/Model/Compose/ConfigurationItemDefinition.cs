@@ -1,3 +1,4 @@
+#nullable enable
 using System.Collections.Generic;
 
 namespace FluentDocker.Model.Compose
@@ -10,7 +11,7 @@ namespace FluentDocker.Model.Compose
   /// </remarks>
   public sealed class ConfigurationItemDefinition
   {
-    public string Name { get; set; }
+    public string? Name { get; set; }
     public IDictionary<string, string> NameValues { get; set; } = new Dictionary<string, string>();
   }
 }

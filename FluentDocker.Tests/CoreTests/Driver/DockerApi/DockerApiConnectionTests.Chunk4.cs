@@ -1,6 +1,9 @@
 using System;
+using System.IO;
 using System.Net.Http;
 using System.Reflection;
+using System.Security.Cryptography;
+using System.Security.Cryptography.X509Certificates;
 using System.Threading.Tasks;
 using FluentDocker.Drivers.Docker.Api.Connection;
 using Xunit;
@@ -59,9 +62,13 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
     {
       var oldCertPath = Environment.GetEnvironmentVariable("DOCKER_CERT_PATH");
       var oldTlsVerify = Environment.GetEnvironmentVariable("DOCKER_TLS_VERIFY");
+      var certPath = Path.GetFullPath(Path.Combine(
+          ".out", "docker-api-certs", "env-" + Guid.NewGuid().ToString("N")));
       try
       {
-        Environment.SetEnvironmentVariable("DOCKER_CERT_PATH", "/env/certs");
+        Directory.CreateDirectory(certPath);
+        WriteCaCertificate(Path.Combine(certPath, "ca.pem"));
+        Environment.SetEnvironmentVariable("DOCKER_CERT_PATH", certPath);
         // Docker convention: any non-empty DOCKER_TLS_VERIFY (even "0") ENABLES verification.
         // The environment must never silently disable server-certificate checks.
         Environment.SetEnvironmentVariable("DOCKER_TLS_VERIFY", "0");
@@ -73,13 +80,15 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
 
         var config = GetConfig(conn);
 
-        Assert.Equal("/env/certs", config.CertificatePath);
+        Assert.Equal(certPath, config.CertificatePath);
         Assert.True(config.VerifyTls);
       }
       finally
       {
         Environment.SetEnvironmentVariable("DOCKER_CERT_PATH", oldCertPath);
         Environment.SetEnvironmentVariable("DOCKER_TLS_VERIFY", oldTlsVerify);
+        if (Directory.Exists(certPath))
+          Directory.Delete(certPath, true);
       }
     }
 
@@ -121,6 +130,16 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
           "_config", BindingFlags.Instance | BindingFlags.NonPublic);
       Assert.NotNull(field);
       return (DockerApiConnectionConfig)field.GetValue(connection)!;
+    }
+
+    private static void WriteCaCertificate(string path)
+    {
+      using var key = RSA.Create(2048);
+      var request = new CertificateRequest(
+          "CN=fluentdocker-test-ca", key, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
+      using var certificate = request.CreateSelfSigned(
+          DateTimeOffset.UtcNow.AddDays(-1), DateTimeOffset.UtcNow.AddDays(1));
+      File.WriteAllText(path, certificate.ExportCertificatePem());
     }
   }
 }

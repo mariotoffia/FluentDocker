@@ -31,11 +31,14 @@ namespace FluentDocker.Testing.MsTest.RunnerTests
     [TestInitialize]
     public async Task TestInit()
     {
-      (_kernel, _pack) = await MockModelKernel.CreateAsync();
-
-      (_, _resource) = await MsTestResourceHelpers.CreateResourceAsync<ModelResource>(
+      (_kernel, _resource) = await MsTestResourceHelpers.CreateResourceAsync<ModelResource>(
           k => new ModelResource(k, Model),
-          kernelFactory: () => Task.FromResult(_kernel));
+          kernelFactory: async () =>
+          {
+            var (kernel, pack) = await MockModelKernel.CreateAsync().ConfigureAwait(false);
+            _pack = pack;
+            return kernel;
+          });
     }
 
     [TestCleanup]

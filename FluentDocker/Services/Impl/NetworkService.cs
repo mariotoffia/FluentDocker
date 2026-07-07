@@ -12,6 +12,10 @@ using Microsoft.Extensions.Logging;
 namespace FluentDocker.Services.Impl
 {
   /// <inheritdoc />
+  /// <remarks>
+  /// Lifecycle transitions are individually atomic; a single service instance is not designed
+  /// for concurrent lifecycle calls (Start/Stop/Remove/Dispose) from multiple threads.
+  /// </remarks>
   public class NetworkService : INetworkService, IServiceCapabilities
   {
     // IServiceCapabilities
@@ -19,6 +23,7 @@ namespace FluentDocker.Services.Impl
     bool IServiceCapabilities.CanStop => false;
     bool IServiceCapabilities.CanPause => false;
     bool IServiceCapabilities.CanRemove => true;
+    bool IServiceCapabilities.CanHook => true;
 
     private readonly FluentDockerKernel _kernel;
     private readonly ILogger<NetworkService> _logger;
@@ -28,6 +33,7 @@ namespace FluentDocker.Services.Impl
     private readonly bool _removeOnDispose;
     private readonly TimeSpan _disposeCleanupTimeout;
     private readonly ConcurrentDictionary<string, (ServiceRunningState State, Func<IServiceAsync, Task> Hook)> _hooks = [];
+    private readonly object _stateLock = new();
     private volatile ServiceRunningState _state = ServiceRunningState.Running;
 
     public NetworkService(
@@ -185,13 +191,15 @@ namespace FluentDocker.Services.Impl
       await ExecuteHooksAsync(ServiceRunningState.Removed).ConfigureAwait(false);
     }
 
-    // "not found" is load-bearing, not redundant: Docker reports a missing network as
-    // "<name> not found" (never "no such network"), so the substring — not just the typed code —
-    // is required for Docker remove idempotency. Podman supplies ErrorCodes.Network.NotFound.
-    private static bool IsNetworkAlreadyGone(CommandResponse<Unit> response) =>
+    // Docker CLI reports a missing network as "<id> not found" with a generic RemoveFailed code
+    // (only Podman/the API driver set the typed NotFound). The "not found" substring is therefore
+    // required for CLI remove idempotency, but must be anchored to the network id — otherwise an
+    // unrelated "network driver plugin xyz not found" would be mis-read as already-gone.
+    private bool IsNetworkAlreadyGone(CommandResponse<Unit> response) =>
         response.ErrorCode == ErrorCodes.Network.NotFound ||
         response.Error?.Contains("no such network", StringComparison.OrdinalIgnoreCase) == true ||
-        response.Error?.Contains("not found", StringComparison.OrdinalIgnoreCase) == true;
+        (response.Error?.Contains("not found", StringComparison.OrdinalIgnoreCase) == true &&
+         response.Error.Contains(_networkId, StringComparison.OrdinalIgnoreCase));
 
     public IServiceAsync AddHook(ServiceRunningState state, Func<IServiceAsync, Task> hook, string uniqueName = null)
     {
@@ -267,24 +275,27 @@ namespace FluentDocker.Services.Impl
 
     private void UpdateState(ServiceRunningState newState)
     {
-      if (Volatile.Read(ref _disposeCompleted) != 0 || _state == newState)
-        return;
-
-      _state = newState;
-      var stateChange = StateChange;
-      if (stateChange == null)
-        return;
-
-      var args = new StateChangeEventArgs(this, newState);
-      foreach (ServiceDelegates.StateChange handler in stateChange.GetInvocationList())
+      lock (_stateLock)
       {
-        try
+        if (Volatile.Read(ref _disposeCompleted) != 0 || _state == newState)
+          return;
+
+        _state = newState;
+        var stateChange = StateChange;
+        if (stateChange == null)
+          return;
+
+        var args = new StateChangeEventArgs(this, newState);
+        foreach (ServiceDelegates.StateChange handler in stateChange.GetInvocationList())
         {
-          handler(this, args);
-        }
-        catch (Exception ex)
-        {
-          _logger.LogError(ex, "NetworkService state change handler failed");
+          try
+          {
+            handler(this, args);
+          }
+          catch (Exception ex)
+          {
+            _logger.LogError(ex, "NetworkService state change handler failed");
+          }
         }
       }
     }

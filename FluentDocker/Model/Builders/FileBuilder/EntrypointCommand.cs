@@ -1,3 +1,4 @@
+#nullable enable
 namespace FluentDocker.Model.Builders.FileBuilder
 {
   public sealed class EntrypointCommand(string executable, params string[] args) : ICommand

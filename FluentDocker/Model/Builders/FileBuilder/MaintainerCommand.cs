@@ -1,3 +1,4 @@
+#nullable enable
 namespace FluentDocker.Model.Builders.FileBuilder
 {
   public sealed class MaintainerCommand(string maintainer) : ICommand

@@ -13,6 +13,10 @@ using Microsoft.Extensions.Logging;
 namespace FluentDocker.Services.Impl
 {
   /// <inheritdoc />
+  /// <remarks>
+  /// Lifecycle transitions are individually atomic; a single service instance is not designed
+  /// for concurrent lifecycle calls (Start/Stop/Remove/Dispose) from multiple threads.
+  /// </remarks>
   public class VolumeService : IVolumeService, IServiceCapabilities
   {
     // IServiceCapabilities
@@ -20,6 +24,7 @@ namespace FluentDocker.Services.Impl
     bool IServiceCapabilities.CanStop => false;
     bool IServiceCapabilities.CanPause => false;
     bool IServiceCapabilities.CanRemove => true;
+    bool IServiceCapabilities.CanHook => true;
 
     private readonly FluentDockerKernel _kernel;
     private readonly ILogger<VolumeService> _logger;
@@ -29,6 +34,7 @@ namespace FluentDocker.Services.Impl
     private readonly bool _removeOnDispose;
     private readonly TimeSpan _disposeCleanupTimeout;
     private readonly ConcurrentDictionary<string, (ServiceRunningState State, Func<IServiceAsync, Task> Hook)> _hooks = [];
+    private readonly object _stateLock = new();
     private volatile ServiceRunningState _state = ServiceRunningState.Running;
 
     public VolumeService(
@@ -130,13 +136,15 @@ namespace FluentDocker.Services.Impl
       await ExecuteHooksAsync(ServiceRunningState.Removed).ConfigureAwait(false);
     }
 
-    // "not found" is load-bearing, not redundant: Docker reports a missing volume as
-    // "<name> not found" (never "no such volume"), so the substring — not just the typed code —
-    // is required for Docker remove idempotency. Podman supplies ErrorCodes.Volume.NotFound.
-    private static bool IsVolumeAlreadyGone(CommandResponse<Unit> response) =>
+    // Docker CLI reports a missing volume as "<name> not found" with a generic RemoveFailed code
+    // (only Podman/the API driver set the typed NotFound). The "not found" substring is therefore
+    // required for CLI remove idempotency, but must be anchored to the volume name — otherwise an
+    // unrelated "volume driver plugin xyz not found" would be mis-read as already-gone.
+    private bool IsVolumeAlreadyGone(CommandResponse<Unit> response) =>
         response.ErrorCode == ErrorCodes.Volume.NotFound ||
         response.Error?.Contains("no such volume", StringComparison.OrdinalIgnoreCase) == true ||
-        response.Error?.Contains("not found", StringComparison.OrdinalIgnoreCase) == true;
+        (response.Error?.Contains("not found", StringComparison.OrdinalIgnoreCase) == true &&
+         response.Error.Contains(_volumeName, StringComparison.OrdinalIgnoreCase));
 
     public IServiceAsync AddHook(ServiceRunningState state, Func<IServiceAsync, Task> hook, string uniqueName = null)
     {
@@ -212,24 +220,27 @@ namespace FluentDocker.Services.Impl
 
     private void UpdateState(ServiceRunningState newState)
     {
-      if (Volatile.Read(ref _disposeCompleted) != 0 || _state == newState)
-        return;
-
-      _state = newState;
-      var stateChange = StateChange;
-      if (stateChange == null)
-        return;
-
-      var args = new StateChangeEventArgs(this, newState);
-      foreach (ServiceDelegates.StateChange handler in stateChange.GetInvocationList())
+      lock (_stateLock)
       {
-        try
+        if (Volatile.Read(ref _disposeCompleted) != 0 || _state == newState)
+          return;
+
+        _state = newState;
+        var stateChange = StateChange;
+        if (stateChange == null)
+          return;
+
+        var args = new StateChangeEventArgs(this, newState);
+        foreach (ServiceDelegates.StateChange handler in stateChange.GetInvocationList())
         {
-          handler(this, args);
-        }
-        catch (Exception ex)
-        {
-          _logger.LogError(ex, "VolumeService state change handler failed");
+          try
+          {
+            handler(this, args);
+          }
+          catch (Exception ex)
+          {
+            _logger.LogError(ex, "VolumeService state change handler failed");
+          }
         }
       }
     }

@@ -36,7 +36,7 @@ namespace FluentDocker.Drivers
     /// <summary>
     /// Initializes the driver.
     /// </summary>
-    /// <param name="context">Driver context</param>
+    /// <param name="context">Registration context. Per-call contexts override only explicitly set values; null optional values fall back to this context.</param>
     /// <param name="cancellationToken">Cancellation token</param>
     Task InitializeAsync(DriverContext context, CancellationToken cancellationToken = default);
   }

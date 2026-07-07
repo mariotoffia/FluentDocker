@@ -90,10 +90,16 @@ namespace FluentDocker.Drivers.Docker.Api.Connection
       ConfigureTls(handler, config, useTls, hasCerts, ownedCertificates);
 
       var scheme = (useTls || hasCerts) ? "https" : "http";
-      var port = uri.Port > 0 ? uri.Port : (useTls ? 2376 : 2375);
+      var port = ResolveDockerPort(uri, useTls);
       var baseAddress = $"{scheme}://{uri.Host}:{port}";
 
       return (handler, baseAddress);
+    }
+
+    private static int ResolveDockerPort(Uri uri, bool useTls)
+    {
+      // ponytail: scheme-default port vs docker default; verified by inspection, not unit-tested — no public seam for the resolved base address.
+      return !uri.IsDefaultPort && uri.Port > 0 ? uri.Port : (useTls ? 2376 : 2375);
     }
 
     private static void EnableKeepAlive(Socket socket)
@@ -144,12 +150,13 @@ namespace FluentDocker.Drivers.Docker.Api.Connection
         SslClientAuthenticationOptions sslOptions, DockerApiConnectionConfig config,
         List<X509Certificate2> ownedCertificates)
     {
+      ValidateCertificatePath(config);
       var certPath = Path.Combine(config.CertificatePath, "cert.pem");
       var keyPath = Path.Combine(config.CertificatePath, "key.pem");
 
       if (File.Exists(certPath) && File.Exists(keyPath))
       {
-        var clientCert = X509Certificate2.CreateFromPemFile(certPath, keyPath);
+        var clientCert = ClientCertificateLoader.Load(certPath, keyPath);
         ownedCertificates.Add(clientCert);
         sslOptions.ClientCertificates = [clientCert];
       }
@@ -180,6 +187,34 @@ namespace FluentDocker.Drivers.Docker.Api.Connection
         sslOptions.RemoteCertificateValidationCallback = (_, _, _, errors) =>
             errors is SslPolicyErrors.None or SslPolicyErrors.RemoteCertificateNameMismatch;
       }
+    }
+
+    private static void ValidateCertificatePath(DockerApiConnectionConfig config)
+    {
+      if (!Directory.Exists(config.CertificatePath))
+        throw new InvalidOperationException(
+            $"DockerApiConnectionConfig.CertificatePath '{config.CertificatePath}' does not exist.");
+
+      var certPath = Path.Combine(config.CertificatePath, "cert.pem");
+      var keyPath = Path.Combine(config.CertificatePath, "key.pem");
+      var caPath = Path.Combine(config.CertificatePath, "ca.pem");
+      var hasCert = File.Exists(certPath);
+      var hasKey = File.Exists(keyPath);
+      var hasCa = File.Exists(caPath);
+      if (hasCert != hasKey)
+        RequireCertificateFile(hasCert ? keyPath : certPath,
+            hasCert ? "client private key" : "client certificate");
+      if (!hasCert && !hasKey && !hasCa)
+        throw new InvalidOperationException(
+            $"Configured certificate directory '{config.CertificatePath}' contains none of " +
+            "cert.pem, key.pem or ca.pem; check the path.");
+    }
+
+    private static void RequireCertificateFile(string path, string description)
+    {
+      if (!File.Exists(path))
+        throw new InvalidOperationException(
+            $"Configured certificate directory is missing {Path.GetFileName(path)} ({description}).");
     }
   }
 }

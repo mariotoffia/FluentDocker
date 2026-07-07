@@ -1,4 +1,5 @@
 using System;
+using System.Threading;
 using System.Threading.Tasks;
 using FluentDocker.Builders;
 using FluentDocker.Kernel;
@@ -36,9 +37,14 @@ namespace FluentDocker.Testing.Xunit
   ///       =&gt; Assert.NotNull(_fixture.Container);
   /// }
   /// </code>
+  /// <para>xUnit v3 does not support converting class-fixture initialization
+  /// failures into skipped tests. Leave <see cref="SkipWhenUnavailable"/> false
+  /// and skip from the test body instead:
+  /// <c>Assert.SkipWhen(!await fixture.IsDockerAvailableAsync(), "Docker unavailable");</c>.</para>
   /// </remarks>
   public abstract class XunitContainerFixtureBase : IAsyncLifetime
   {
+    private readonly SemaphoreSlim _lifecycleLock = new(1, 1);
     private ContainerResource? _resource;
     private FluentDockerKernel? _kernel;
 
@@ -79,19 +85,47 @@ namespace FluentDocker.Testing.Xunit
     /// </summary>
     protected virtual Func<Task<FluentDockerKernel>>? KernelFactory => null;
 
+    /// <summary>
+    /// xUnit cannot skip from class-fixture initialization; use
+    /// <see cref="IsDockerAvailableAsync"/> and <c>Assert.SkipWhen</c> in the test body.
+    /// </summary>
+    protected virtual bool SkipWhenUnavailable => false;
+
+    /// <summary>
+    /// Probes availability of the fixture's configured runtime (Docker or Podman) for
+    /// test-body skip checks. Uses the driver selected by <see cref="GetOptions"/> — or
+    /// the kernel's default driver when none is selected — so Podman/custom-id fixtures
+    /// probe the right daemon instead of hard-coding Docker.
+    /// </summary>
+    public Task<bool> IsDockerAvailableAsync(CancellationToken cancellationToken = default)
+    {
+      var driver = GetOptions()?.Driver;
+      var driverId = driver is not null && !driver.UseDefault ? driver.DriverId : null;
+      return DockerAvailability.IsAvailableAsync(KernelFactory!, driverId, cancellationToken);
+    }
+
     /// <inheritdoc />
     public async ValueTask InitializeAsync()
     {
-      if (_resource != null)
-        throw new InvalidOperationException(
-            "Already initialized. Dispose before re-initializing.");
+      await _lifecycleLock.WaitAsync().ConfigureAwait(false);
+      try
+      {
+        if (_resource != null)
+          throw new InvalidOperationException(
+              "Already initialized. Dispose before re-initializing.");
 
-      var (kernel, resource) = await ResourceLifecycle.CreateAndInitializeAsync(
-          k => new ContainerResource(k, ConfigureContainer, GetOptions()!),
-          KernelFactory!).ConfigureAwait(false);
+        // ponytail: xUnit calls InitializeAsync once; the lock guards manual misuse.
+        var (kernel, resource) = await ResourceLifecycle.CreateAndInitializeAsync(
+            k => new ContainerResource(k, ConfigureContainer, GetOptions()!),
+            KernelFactory!).ConfigureAwait(false);
 
-      _kernel = kernel;
-      _resource = resource;
+        _kernel = kernel;
+        _resource = resource;
+      }
+      finally
+      {
+        _lifecycleLock.Release();
+      }
     }
 
     /// <inheritdoc />

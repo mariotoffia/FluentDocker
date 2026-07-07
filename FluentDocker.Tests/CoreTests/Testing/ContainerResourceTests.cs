@@ -111,7 +111,22 @@ namespace FluentDocker.Tests.CoreTests.Testing
       var ex = await Assert.ThrowsAsync<ResourceInitializationException>(
           () => resource.InitializeAsync(TestContext.Current.CancellationToken));
 
-      Assert.IsType<FluentDockerException>(ex.InnerException);
+      Assert.IsAssignableFrom<FluentDockerException>(ex.InnerException);
+      Assert.Contains("Is Docker running?", ex.InnerException.Message);
+    }
+
+    [Fact]
+    public async Task InitializeAsync_WhenDriverIsUnhealthy_UsesUnavailableSentinel()
+    {
+      MockPack.SetHealthy(false);
+      var resource = new ContainerResource(
+          Kernel,
+          builder => builder.UseImage("alpine:latest"));
+
+      var ex = await Assert.ThrowsAsync<ResourceInitializationException>(
+          () => resource.InitializeAsync(TestContext.Current.CancellationToken));
+
+      Assert.IsType<FluentDockerUnavailableException>(ex.InnerException);
       Assert.Contains("Is Docker running?", ex.InnerException.Message);
     }
 

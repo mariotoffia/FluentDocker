@@ -1,3 +1,4 @@
+using System.Text.Json.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
 using FluentDocker.Model.Drivers;
@@ -6,7 +7,7 @@ namespace FluentDocker.Drivers
 {
   /// <summary>
   /// Authentication driver for registry login/logout operations.
-  /// Supported by: Docker, Podman, Kubernetes (partial - imagePullSecrets)
+  /// Supported by: Docker, Podman.
   /// </summary>
   public interface IAuthDriver
   {
@@ -51,6 +52,7 @@ namespace FluentDocker.Drivers
     /// <summary>
     /// Password for authentication.
     /// </summary>
+    [JsonIgnore]
     public string Password { get; set; }
 
     /// <summary>
@@ -62,6 +64,12 @@ namespace FluentDocker.Drivers
     /// Email address (deprecated in newer Docker versions).
     /// </summary>
     public string Email { get; set; }
+
+    /// <inheritdoc />
+    public override string ToString()
+    {
+      var password = string.IsNullOrEmpty(Password) ? "<null>" : "***";
+      return $"RegistryLoginConfig(Server={Server ?? "<null>"}, Username={Username ?? "<null>"}, Password={password}, PasswordStdin={PasswordStdin}, Email={Email ?? "<null>"})";
+    }
   }
 }
-

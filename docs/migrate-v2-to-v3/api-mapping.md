@@ -152,6 +152,7 @@ var compose = results.ComposeServices[0];
 | `.Build()` returns service directly | `.Build()` returns `BuildResults` |
 | `.Build()` then `.Start()` | `.Build()` auto-starts |
 | `.UseContainer().UseImage(...)` chained | `.UseContainer(c => c.UseImage(...))` lambda |
+| `.ExposePort(5432, 5432)` (host, container) | `.ExposePort(5432, 5432)` or `.WithPort("5432", "5432/tcp")` — **host-first** ([details](../containers.md#host-first-mapping-with-withport)) |
 | `.UseNetwork("name")` chained | `.UseNetwork(n => n.WithName("name"))` lambda |
 | `.UseVolume("name")` chained | `.UseVolume(v => v.WithName("name"))` lambda |
 | `.UseCompose().FromFile("x")` | `.UseCompose(c => c.WithComposeFile("x"))` lambda |

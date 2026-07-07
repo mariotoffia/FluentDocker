@@ -1,3 +1,4 @@
+#nullable enable
 using System.Collections.Generic;
 
 namespace FluentDocker.Model.Models.Options
@@ -25,7 +26,7 @@ namespace FluentDocker.Model.Models.Options
     /// supports it; otherwise <c>ConfigureAsync</c> fails with a clear message, since
     /// current DMR auto-selects and exposes no such flag.
     /// </summary>
-    public string Backend { get; init; }
+    public string? Backend { get; init; }
 
     /// <summary>True when <see cref="Backend"/> is unset / <c>"auto"</c> (no <c>--backend</c> emitted).</summary>
     public bool IsAutoBackend =>
@@ -36,9 +37,9 @@ namespace FluentDocker.Model.Models.Options
     /// <c>["--temp","0.7","--top-p","0.9"]</c>. A passthrough to the inference
     /// engine; see <see cref="LlamaCppRuntimeFlags"/> for a typed builder.
     /// </summary>
-    public IReadOnlyList<string> RuntimeFlags { get; init; }
+    public IReadOnlyList<string>? RuntimeFlags { get; init; }
 
     /// <summary>vLLM only — JSON passed to <c>--hf_overrides</c>.</summary>
-    public string HfOverridesJson { get; init; }
+    public string? HfOverridesJson { get; init; }
   }
 }

@@ -4,15 +4,23 @@ nav_order: 17
 ---
 
 # Docker API Driver (Production Notes)
-{: .no_toc }
 
 The Docker API driver talks to the Docker Engine over its HTTP(S) endpoint directly — no
 `docker` CLI binary is required. Use it for locked-down hosts where you cannot shell out,
 or for remote engines reached over TCP+TLS. This page covers the production concerns that
 differ from the [CLI driver](containers.md).
 
-1. TOC
-{:toc}
+## On this page
+
+- [When to use the API driver vs the CLI driver](#when-to-use-the-api-driver-vs-the-cli-driver)
+- [Private registry authentication (X-Registry-Auth)](#private-registry-authentication-x-registry-auth)
+- [Cancellation vs request timeout](#cancellation-vs-request-timeout)
+- [Build support and build-context packaging](#build-support-and-build-context-packaging)
+- [TLS](#tls)
+- [Event, log, and exec streams are bounded](#event-log-and-exec-streams-are-bounded)
+- [Empty response handling](#empty-response-handling)
+- [Unsupported / limited semantics vs the CLI driver](#unsupported--limited-semantics-vs-the-cli-driver)
+- [Related](#related)
 
 ## When to use the API driver vs the CLI driver
 

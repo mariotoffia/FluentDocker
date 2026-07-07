@@ -536,3 +536,4 @@ FluentDocker v3.0 provides:
 - **Multi-host support**: Multiple Docker hosts simultaneously
 - **Full async**: All operations with CancellationToken support
 - **Capability discovery**: flat `DriverCapabilities` flags plus `TrySysCtl<T>()` / `TryDriver<T>()`
+- **Service lifecycle**: `StateChange` event and state hooks on every service ([details](service-lifecycle.md))

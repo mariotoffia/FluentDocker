@@ -1,4 +1,5 @@
 using System;
+using System.Threading;
 using System.Threading.Tasks;
 using FluentDocker.Builders;
 using FluentDocker.Kernel;
@@ -39,6 +40,7 @@ namespace FluentDocker.Testing.Xunit
   /// </remarks>
   public abstract class XunitComposeFixtureBase : IAsyncLifetime
   {
+    private readonly SemaphoreSlim _lifecycleLock = new(1, 1);
     private ComposeResource? _resource;
     private FluentDockerKernel? _kernel;
 
@@ -82,16 +84,25 @@ namespace FluentDocker.Testing.Xunit
     /// <inheritdoc />
     public async ValueTask InitializeAsync()
     {
-      if (_resource != null)
-        throw new InvalidOperationException(
-            "Already initialized. Dispose before re-initializing.");
+      await _lifecycleLock.WaitAsync().ConfigureAwait(false);
+      try
+      {
+        if (_resource != null)
+          throw new InvalidOperationException(
+              "Already initialized. Dispose before re-initializing.");
 
-      var (kernel, resource) = await ResourceLifecycle.CreateAndInitializeAsync(
-          k => new ComposeResource(k, ConfigureCompose, GetOptions()!),
-          KernelFactory!).ConfigureAwait(false);
+        // ponytail: xUnit calls InitializeAsync once; the lock guards manual misuse.
+        var (kernel, resource) = await ResourceLifecycle.CreateAndInitializeAsync(
+            k => new ComposeResource(k, ConfigureCompose, GetOptions()!),
+            KernelFactory!).ConfigureAwait(false);
 
-      _kernel = kernel;
-      _resource = resource;
+        _kernel = kernel;
+        _resource = resource;
+      }
+      finally
+      {
+        _lifecycleLock.Release();
+      }
     }
 
     /// <inheritdoc />

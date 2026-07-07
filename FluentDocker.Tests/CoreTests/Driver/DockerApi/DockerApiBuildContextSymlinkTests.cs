@@ -266,6 +266,29 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
       Assert.NotEqual(511, modes["secret.txt"]);
     }
 
+    [Fact]
+    public async Task BuildAsync_DockerignoreDirectoryPattern_SkipsIgnoredEmptyDirectory()
+    {
+      var root = CreateOutDirectory("ignored-empty-dir");
+      try
+      {
+        File.WriteAllText(Path.Combine(root, "Dockerfile"), "FROM scratch\n");
+        File.WriteAllText(Path.Combine(root, ".dockerignore"), "sub/\n");
+        Directory.CreateDirectory(Path.Combine(root, "sub"));
+        Directory.CreateDirectory(Path.Combine(root, "keep"));
+
+        var keys = ReadTarFileNames(await BuildAndCaptureTarAsync(root))
+            .Select(n => n.Replace('\\', '/')).ToHashSet();
+
+        Assert.DoesNotContain("sub/", keys);
+        Assert.Contains("keep/", keys);
+      }
+      finally
+      {
+        Directory.Delete(root, true);
+      }
+    }
+
     private static string CreateOutDirectory(string name)
     {
       var path = Path.GetFullPath(Path.Combine(

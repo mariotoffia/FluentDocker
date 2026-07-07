@@ -1,4 +1,6 @@
+#nullable enable
 using System;
+using System.Diagnostics.CodeAnalysis;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -31,9 +33,9 @@ namespace FluentDocker.Model.Models
   public sealed class ModelReference : IEquatable<ModelReference>
   {
     private const string DockerHubRegistryPrefix = "docker.io/";
-    private string _string;
+    private string? _string;
 
-    private ModelReference(string registry, string ns, string name, string tag, string digest)
+    private ModelReference(string? registry, string? ns, string name, string? tag, string? digest)
     {
       // Docker registry hosts are case-insensitive; normalize to lowercase so that
       // Equals-equal references (which compare the registry OrdinalIgnoreCase) always
@@ -47,19 +49,19 @@ namespace FluentDocker.Model.Models
     }
 
     /// <summary>The registry host (e.g. <c>hf.co</c>, <c>registry.io:5000</c>) or <c>null</c> for the default Docker Hub.</summary>
-    public string Registry { get; }
+    public string? Registry { get; }
 
     /// <summary>The namespace / organization (e.g. <c>ai</c>, <c>bartowski</c>) or <c>null</c> when the reference is a bare name.</summary>
-    public string Namespace { get; }
+    public string? Namespace { get; }
 
     /// <summary>The model name (e.g. <c>qwen3</c>).</summary>
     public string Name { get; }
 
     /// <summary>The tag (e.g. <c>latest</c>, <c>Q4_K_M</c>) or <c>null</c> when a <see cref="Digest"/> is supplied.</summary>
-    public string Tag { get; }
+    public string? Tag { get; }
 
     /// <summary>The optional digest (e.g. <c>sha256:…</c>) or <c>null</c>.</summary>
-    public string Digest { get; }
+    public string? Digest { get; }
 
     /// <summary>True when the reference targets the Hugging Face registry (<c>hf.co</c>).</summary>
     public bool IsHuggingFace =>
@@ -89,7 +91,7 @@ namespace FluentDocker.Model.Models
     /// <param name="reference">The reference string.</param>
     /// <param name="model">The parsed reference, or <c>null</c> when parsing fails.</param>
     /// <returns><c>true</c> when parsing succeeded; otherwise <c>false</c>.</returns>
-    public static bool TryParse(string reference, out ModelReference model)
+    public static bool TryParse(string? reference, [NotNullWhen(true)] out ModelReference? model)
     {
       if (string.IsNullOrWhiteSpace(reference))
       {
@@ -106,7 +108,7 @@ namespace FluentDocker.Model.Models
     /// </summary>
     /// <param name="reference">The raw model reference.</param>
     /// <returns>The reference without a leading <c>docker.io/</c> prefix.</returns>
-    public static string NormalizeDefaultRegistryAlias(string reference)
+    public static string? NormalizeDefaultRegistryAlias(string? reference)
     {
       return reference != null &&
           reference.StartsWith(DockerHubRegistryPrefix, StringComparison.OrdinalIgnoreCase)
@@ -114,7 +116,7 @@ namespace FluentDocker.Model.Models
           : reference;
     }
 
-    private static bool TryParseCore(string reference, out ModelReference model, out string error)
+    private static bool TryParseCore(string reference, [NotNullWhen(true)] out ModelReference? model, out string? error)
     {
       model = null;
       error = null;
@@ -128,9 +130,9 @@ namespace FluentDocker.Model.Models
         }
       }
 
-      reference = NormalizeDefaultRegistryAlias(reference);
+      reference = NormalizeDefaultRegistryAlias(reference) ?? reference;
       var remainder = reference;
-      string digest = null;
+      string? digest = null;
 
       var at = reference.IndexOf('@');
       if (at >= 0)
@@ -161,7 +163,7 @@ namespace FluentDocker.Model.Models
         }
       }
 
-      string registry = null;
+      string? registry = null;
       var start = 0;
       if (segments.Length >= 2 && LooksLikeRegistry(segments[0]))
       {
@@ -173,7 +175,7 @@ namespace FluentDocker.Model.Models
       var nameTag = segments[lastIndex];
 
       string name;
-      string tag = null;
+      string? tag = null;
       var colon = nameTag.IndexOf(':');
       if (colon >= 0)
       {
@@ -223,7 +225,7 @@ namespace FluentDocker.Model.Models
         return false;
       }
 
-      string ns = null;
+      string? ns = null;
       if (lastIndex - start == 1)
       {
         ns = segments[start];
@@ -262,7 +264,7 @@ namespace FluentDocker.Model.Models
       return true;
     }
 
-    private static bool IsValidNameComponent(string component, out string reason)
+    private static bool IsValidNameComponent(string component, out string? reason)
     {
       reason = null;
       if (string.IsNullOrEmpty(component))
@@ -390,7 +392,7 @@ namespace FluentDocker.Model.Models
     }
 
     /// <inheritdoc />
-    public bool Equals(ModelReference other)
+    public bool Equals(ModelReference? other)
     {
       if (other is null)
         return false;
@@ -405,7 +407,7 @@ namespace FluentDocker.Model.Models
     }
 
     /// <inheritdoc />
-    public override bool Equals(object obj) => Equals(obj as ModelReference);
+    public override bool Equals(object? obj) => Equals(obj as ModelReference);
 
     /// <inheritdoc />
     public override int GetHashCode()
@@ -420,11 +422,11 @@ namespace FluentDocker.Model.Models
     }
 
     /// <summary>Value equality operator.</summary>
-    public static bool operator ==(ModelReference left, ModelReference right) =>
+    public static bool operator ==(ModelReference? left, ModelReference? right) =>
         left is null ? right is null : left.Equals(right);
 
     /// <summary>Value inequality operator.</summary>
-    public static bool operator !=(ModelReference left, ModelReference right) => !(left == right);
+    public static bool operator !=(ModelReference? left, ModelReference? right) => !(left == right);
   }
 
   /// <summary>
@@ -433,7 +435,7 @@ namespace FluentDocker.Model.Models
   /// </summary>
   internal sealed class ModelReferenceJsonConverter : JsonConverter<ModelReference>
   {
-    public override ModelReference Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+    public override ModelReference? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
     {
       if (reader.TokenType == JsonTokenType.Null)
         return null;

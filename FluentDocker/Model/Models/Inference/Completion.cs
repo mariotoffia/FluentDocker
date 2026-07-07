@@ -1,3 +1,4 @@
+#nullable enable
 using System;
 using System.Collections.Generic;
 using System.Text.Json;
@@ -37,10 +38,10 @@ namespace FluentDocker.Model.Models.Inference
     }
 
     /// <summary>The model id.</summary>
-    [JsonPropertyName("model")] public string Model { get; set; }
+    [JsonPropertyName("model")] public string? Model { get; set; }
 
     /// <summary>The prompt text.</summary>
-    [JsonPropertyName("prompt")] public string Prompt { get; set; }
+    [JsonPropertyName("prompt")] public string? Prompt { get; set; }
 
     /// <summary>The maximum number of tokens to generate.</summary>
     [JsonPropertyName("max_tokens")] public int? MaxTokens { get; set; }
@@ -55,7 +56,7 @@ namespace FluentDocker.Model.Models.Inference
     [JsonPropertyName("stream")] public bool? Stream { get; set; }
 
     /// <summary>Stop sequences.</summary>
-    [JsonPropertyName("stop")] public IList<string> Stop { get; set; }
+    [JsonPropertyName("stop")] public IList<string>? Stop { get; set; }
 
     /// <summary>Sampling seed.</summary>
     [JsonPropertyName("seed")] public int? Seed { get; set; }
@@ -65,7 +66,7 @@ namespace FluentDocker.Model.Models.Inference
     /// <c>response_format</c>, <c>logit_bias</c>). Captured verbatim so advanced parameters
     /// round-trip to the engine instead of being dropped. (Preview)
     /// </summary>
-    [JsonExtensionData] public IDictionary<string, JsonElement> AdditionalProperties { get; set; }
+    [JsonExtensionData] public IDictionary<string, JsonElement>? AdditionalProperties { get; set; }
   }
 
   /// <summary>
@@ -74,28 +75,28 @@ namespace FluentDocker.Model.Models.Inference
   public sealed class CompletionResponse
   {
     /// <summary>The response id.</summary>
-    [JsonPropertyName("id")] public string Id { get; set; }
+    [JsonPropertyName("id")] public string? Id { get; set; }
 
     /// <summary>The object type (<c>text_completion</c>).</summary>
-    [JsonPropertyName("object")] public string Object { get; set; }
+    [JsonPropertyName("object")] public string? Object { get; set; }
 
     /// <summary>Creation timestamp (unix seconds).</summary>
     [JsonPropertyName("created")] public long Created { get; set; }
 
     /// <summary>The model that produced the response.</summary>
-    [JsonPropertyName("model")] public string Model { get; set; }
+    [JsonPropertyName("model")] public string? Model { get; set; }
 
     /// <summary>The choices.</summary>
-    [JsonPropertyName("choices")] public IList<CompletionChoice> Choices { get; set; }
+    [JsonPropertyName("choices")] public IList<CompletionChoice>? Choices { get; set; }
 
     /// <summary>Token usage.</summary>
-    [JsonPropertyName("usage")] public Usage Usage { get; set; }
+    [JsonPropertyName("usage")] public Usage? Usage { get; set; }
 
     /// <summary>
     /// Pass-through for any unmodeled response field. Captured verbatim so it is observable
     /// instead of dropped. (Preview)
     /// </summary>
-    [JsonExtensionData] public IDictionary<string, JsonElement> AdditionalProperties { get; set; }
+    [JsonExtensionData] public IDictionary<string, JsonElement>? AdditionalProperties { get; set; }
   }
 
   /// <summary>
@@ -107,16 +108,16 @@ namespace FluentDocker.Model.Models.Inference
     [JsonPropertyName("index")] public int Index { get; set; }
 
     /// <summary>The generated text.</summary>
-    [JsonPropertyName("text")] public string Text { get; set; }
+    [JsonPropertyName("text")] public string? Text { get; set; }
 
     /// <summary>The finish reason.</summary>
-    [JsonPropertyName("finish_reason")] public string FinishReason { get; set; }
+    [JsonPropertyName("finish_reason")] public string? FinishReason { get; set; }
 
     /// <summary>
     /// Pass-through for any unmodeled choice field (e.g. <c>logprobs</c>). Captured verbatim
     /// so it is observable instead of dropped. (Preview)
     /// </summary>
-    [JsonExtensionData] public IDictionary<string, JsonElement> AdditionalProperties { get; set; }
+    [JsonExtensionData] public IDictionary<string, JsonElement>? AdditionalProperties { get; set; }
   }
 
   /// <summary>
@@ -125,24 +126,24 @@ namespace FluentDocker.Model.Models.Inference
   public sealed class CompletionChunk
   {
     /// <summary>The response id.</summary>
-    [JsonPropertyName("id")] public string Id { get; set; }
+    [JsonPropertyName("id")] public string? Id { get; set; }
 
     /// <summary>Creation timestamp (unix seconds).</summary>
     [JsonPropertyName("created")] public long Created { get; set; }
 
     /// <summary>The model.</summary>
-    [JsonPropertyName("model")] public string Model { get; set; }
+    [JsonPropertyName("model")] public string? Model { get; set; }
 
     /// <summary>The choices.</summary>
-    [JsonPropertyName("choices")] public IList<CompletionChoice> Choices { get; set; }
+    [JsonPropertyName("choices")] public IList<CompletionChoice>? Choices { get; set; }
 
     /// <summary>Token usage, usually populated only on the final usage chunk.</summary>
-    [JsonPropertyName("usage")] public Usage Usage { get; set; }
+    [JsonPropertyName("usage")] public Usage? Usage { get; set; }
 
     /// <summary>
     /// Pass-through for any unmodeled chunk field. Captured verbatim so it is observable
     /// instead of dropped. (Preview)
     /// </summary>
-    [JsonExtensionData] public IDictionary<string, JsonElement> AdditionalProperties { get; set; }
+    [JsonExtensionData] public IDictionary<string, JsonElement>? AdditionalProperties { get; set; }
   }
 }

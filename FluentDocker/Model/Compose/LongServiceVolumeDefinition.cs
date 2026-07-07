@@ -1,3 +1,4 @@
+#nullable enable
 using System.Collections.Generic;
 
 namespace FluentDocker.Model.Compose
@@ -19,12 +20,12 @@ namespace FluentDocker.Model.Compose
     ///   the source of the mount, a path on the host for a bind mount, or the name of a volume defined in the top-level
     ///   volumes key. Not applicable for a tmpfs mount.
     /// </summary>
-    public string Source { get; set; }
+    public string? Source { get; set; }
 
     /// <summary>
     ///   the path in the container where the volume is mounted.
     /// </summary>
-    public string Target { get; set; }
+    public string? Target { get; set; }
 
     /// <summary>
     ///   The mount type.

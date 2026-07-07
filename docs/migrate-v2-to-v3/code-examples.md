@@ -18,7 +18,7 @@ Side-by-side before/after examples for common v2.x.x to v3.0.0 patterns.
 - v3 builder uses **lambdas** for configuration instead of method chaining on a single object.
 - v3 `BuildAsync()` auto-starts containers (no separate `.Start()` call).
 - v3 `BuildAsync()` returns `BuildResults`, not individual services.
-- Extension methods like `ToHostExposedEndpoint` require `using FluentDocker.Services.Extensions;`.
+- Extension methods like `ToHostExposedEndpointAsync` require `using FluentDocker.Services.Extensions;`.
 
 ---
 
@@ -67,7 +67,7 @@ await using var results = await new Builder()
     .BuildAsync();
 
 var container = results.Containers.First();
-var endpoint = container.ToHostExposedEndpoint("80/tcp");
+var endpoint = await container.ToHostExposedEndpointAsync("80/tcp");
 Console.WriteLine($"Nginx available at: {endpoint}");
 ```
 

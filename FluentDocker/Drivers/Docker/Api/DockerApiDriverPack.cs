@@ -63,12 +63,12 @@ namespace FluentDocker.Drivers.Docker.Api
       {
         Host = context.Host,
         CertificatePath = context.CertificatePath,
-        VerifyTls = context.VerifyTls,
+        VerifyTls = context.VerifyTls != false,
         ConnectionTimeout = context.ConnectionTimeout ?? TimeSpan.FromSeconds(30),
         RequestTimeout = context.RequestTimeout ?? TimeSpan.FromMinutes(5),
         ApiVersion = context.ApiVersion,
-        AllowTlsHostnameMismatch = context.Metadata.TryGetValue(
-            "DockerApi.AllowTlsHostnameMismatch", out var allowMismatch) &&
+        AllowTlsHostnameMismatch = context.Metadata?.TryGetValue(
+            "DockerApi.AllowTlsHostnameMismatch", out var allowMismatch) == true &&
             bool.TryParse(allowMismatch, out var parsedAllowMismatch) &&
             parsedAllowMismatch,
       };
@@ -124,6 +124,9 @@ namespace FluentDocker.Drivers.Docker.Api
         SupportsKubernetes = false,
         SupportsMachines = false,
         SupportsManifests = false,
+        SupportsStacks = false,
+        SupportsServices = true,
+        SupportsModels = false,
       });
     }
 

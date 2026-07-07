@@ -364,6 +364,8 @@ namespace FluentDocker.Drivers.Models
         if (doc.RootElement.ValueKind != JsonValueKind.Object ||
             !doc.RootElement.TryGetProperty("error", out var error))
           return false;
+        if (error.ValueKind == JsonValueKind.Null)
+          return false;
 
         message = error.ValueKind switch
         {

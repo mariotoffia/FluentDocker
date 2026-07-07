@@ -11,10 +11,63 @@ Package: `FluentDocker.Testing.NUnit`
 
 ## Step by Step
 
+- Setup: [Project setup / requirements](#project-setup--requirements)
 - Basics: [Fixture Base](#fixture-base), [Helper Methods](#helper-methods), [OneTimeSetUp Example](#onetimesetup-example), [Assembly-Level SetUpFixture](#assembly-level-setupfixture)
 - Intermediate: [Compose Example](#compose-example), [Swarm Stack Example](#swarm-stack-example), [Podman Kubernetes Example](#podman-kubernetes-example)
 - Models: [Docker Model Runner Example](#docker-model-runner-example)
 - Advanced: [Generic / Custom Resource](#generic--custom-resource), [Image / Network / Volume via the Generic Path](#image--network--volume-via-the-generic-path)
+
+## Project setup / requirements
+
+`FluentDocker.Testing.NUnit` references `NUnit`, so referencing it gives you the
+`[TestFixture]`/`[Test]` attribute set transitively. That alone is **not** runnable —
+NUnit still needs the VSTest test host and adapter. A consumer test project needs:
+
+| Package | Why | Transitive from this package? |
+| --- | --- | --- |
+| `Microsoft.NET.Test.Sdk` | VSTest test host | No — add explicitly |
+| `NUnit3TestAdapter` | Discovers/runs `[TestFixture]`es under VSTest | No — add explicitly |
+| `NUnit` | Attributes + asserts | Yes (via `FluentDocker.Testing.NUnit`); add explicitly only to pin the version |
+
+Supported NUnit version: **4.3.2** (what `FluentDocker.Testing.NUnit` references). Minimal
+consumer `.csproj` (target `net8.0` or `net10.0`):
+
+```xml
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.12.0" />
+    <PackageReference Include="NUnit" Version="4.3.2" />
+    <PackageReference Include="NUnit3TestAdapter" Version="4.6.0" />
+    <PackageReference Include="FluentDocker.Testing.NUnit" Version="3.*" />
+  </ItemGroup>
+
+</Project>
+```
+
+The repo's `FluentDocker.Testing.NUnit.RunnerTests` project is a working reference: it uses
+`Microsoft.NET.Test.Sdk`, `NUnit`, and `NUnit3TestAdapter` plus a project reference to
+`FluentDocker.Testing.NUnit`.
+
+> **Warning:** On a shared Docker or Podman daemon, the default
+> `CleanupOrphansOnInit = true` lets a test run force-remove **another** session's
+> FluentDocker-managed containers, networks, and volumes once they pass the one-hour
+> `OrphanCleanupMinimumAge`. On a shared CI agent this can delete a parallel job's live
+> resources. Opt out by returning `CleanupOrphansOnInit = false` from `GetOptions()`:
+
+```csharp
+protected override DockerResourceOptions GetOptions() => new()
+{
+    CleanupOrphansOnInit = false
+};
+```
+
+See [Testing Core — Orphan Cleanup](core.md#orphan-cleanup) for the full behavior.
 
 ## Fixture Base
 
@@ -29,6 +82,11 @@ public sealed class RedisTests : NUnitContainerFixtureBase
         => builder.UseImage("redis:alpine").WaitForPort("6379/tcp");
 }
 ```
+
+> **Note:** `NUnitContainerFixtureBase` gives one container **per test class**, via
+> `[OneTimeSetUp]`/`[OneTimeTearDown]`. MSTest's same-named `MsTestContainerFixtureBase`
+> is per **test method** instead — check [MSTest per-test lifecycle](mstest.md#per-test-lifecycle)
+> before porting fixtures across frameworks.
 
 ## Helper Methods
 

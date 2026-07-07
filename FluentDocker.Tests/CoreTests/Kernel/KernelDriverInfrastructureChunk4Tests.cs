@@ -46,16 +46,15 @@ namespace FluentDocker.Tests.CoreTests.Kernel
     }
 
     [Fact]
-    public void SysCtl_WithWhitespaceDriverId_ThrowsDriverIdError()
+    public void SysCtl_WithWhitespaceDriverId_ThrowsClearDefaultDriverError()
     {
       var kernel = new FluentDockerKernel(
           new DriverRegistry(NullLoggerFactory.Instance), NullLoggerFactory.Instance);
 
-      var ex = Assert.Throws<ArgumentException>(() =>
+      var ex = Assert.Throws<InvalidOperationException>(() =>
           kernel.SysCtl("   ", typeof(IMarker)));
 
-      Assert.Equal("driverId", ex.ParamName);
-      Assert.Contains("Driver ID cannot be empty or whitespace", ex.Message, StringComparison.Ordinal);
+      Assert.Contains("No default driver configured", ex.Message, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -88,7 +87,7 @@ namespace FluentDocker.Tests.CoreTests.Kernel
     }
 
     [Fact]
-    public async Task DisposeAsync_GivesEachDriverIndependentTimeoutBudget()
+    public async Task DisposeAsync_UsesOneTotalTimeoutBudget()
     {
       var registry = new FastDisposeBudgetRegistry();
       var slow = new BlockingDisposeDriver();
@@ -98,12 +97,10 @@ namespace FluentDocker.Tests.CoreTests.Kernel
 
       var dispose = registry.DisposeAsync().AsTask();
       await slow.DisposeStarted.Task.WaitAsync(TestContext.Current.CancellationToken);
-      await fast.DisposeStarted.Task.WaitAsync(TimeSpan.FromSeconds(1));
-      fast.CompleteDispose.SetResult();
       await dispose.WaitAsync(TimeSpan.FromSeconds(2));
 
       Assert.Equal(1, slow.DisposeCount);
-      Assert.Equal(1, fast.DisposeCount);
+      Assert.InRange(fast.DisposeCount, 0, 1);
     }
 
     [Fact]

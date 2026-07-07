@@ -43,20 +43,21 @@ namespace FluentDocker.Tests.CoreTests.Model
     }
 
     [Theory]
-    [InlineData(ContainerIsolationType.Default, 0)]
-    [InlineData(ContainerIsolationType.Process, 1)]
-    [InlineData(ContainerIsolationType.HyperV, 2)]
-    public void ContainerIsolationType_HasExpectedValues(
-      ContainerIsolationType value, int expected)
+    [InlineData(ContainerIsolationTechnology.Unknown, 0)]
+    [InlineData(ContainerIsolationTechnology.Default, 1)]
+    [InlineData(ContainerIsolationTechnology.Process, 2)]
+    [InlineData(ContainerIsolationTechnology.Hyperv, 3)]
+    public void ContainerIsolationTechnology_HasExpectedValues(
+      ContainerIsolationTechnology value, int expected)
     {
       Assert.Equal(expected, (int)value);
     }
 
     [Fact]
-    public void ContainerIsolationType_HasExactlyThreeMembers()
+    public void ContainerIsolationTechnology_HasExactlyFourMembers()
     {
-      var values = System.Enum.GetValues<ContainerIsolationType>();
-      Assert.Equal(3, values.Length);
+      var values = System.Enum.GetValues<ContainerIsolationTechnology>();
+      Assert.Equal(4, values.Length);
     }
 
     #endregion
@@ -139,7 +140,7 @@ namespace FluentDocker.Tests.CoreTests.Model
     public void ComposeServiceDefinition_DefaultIsolation_IsDefault()
     {
       var svc = new ComposeServiceDefinition();
-      Assert.Equal(ContainerIsolationType.Default, svc.Isolation);
+      Assert.Equal(ContainerIsolationTechnology.Default, svc.Isolation);
     }
 
     [Fact]
@@ -154,7 +155,7 @@ namespace FluentDocker.Tests.CoreTests.Model
         NetworkMode = "bridge",
         PidModeHost = true,
         DisableUserNamespaceMode = true,
-        Isolation = ContainerIsolationType.Process,
+        Isolation = ContainerIsolationTechnology.Process,
         StopGracePeriod = "30s",
         StopSignal = "SIGQUIT",
         CgroupParent = "m-executor-abcd",
@@ -169,7 +170,7 @@ namespace FluentDocker.Tests.CoreTests.Model
       Assert.Equal("bridge", svc.NetworkMode);
       Assert.True(svc.PidModeHost);
       Assert.True(svc.DisableUserNamespaceMode);
-      Assert.Equal(ContainerIsolationType.Process, svc.Isolation);
+      Assert.Equal(ContainerIsolationTechnology.Process, svc.Isolation);
       Assert.Equal("30s", svc.StopGracePeriod);
       Assert.Equal("SIGQUIT", svc.StopSignal);
       Assert.Equal("m-executor-abcd", svc.CgroupParent);

@@ -60,9 +60,7 @@ namespace FluentDocker.Kernel
       ThrowIfDisposed();
       ArgumentNullException.ThrowIfNull(interfaceType);
 
-      ThrowIfInvalidDriverId(driverId);
-      if (string.IsNullOrEmpty(driverId))
-        throw new InvalidOperationException("No default driver configured. Register a default driver or pass an explicit driver ID.");
+      driverId = ResolveDriverIdOrDefault(driverId);
 
       if (TryResolveCore(driverId, interfaceType, out var resolved))
         return resolved;
@@ -87,9 +85,7 @@ namespace FluentDocker.Kernel
       ThrowIfDisposed();
       instance = null;
 
-      ThrowIfInvalidDriverId(driverId);
-      if (string.IsNullOrEmpty(driverId))
-        throw new InvalidOperationException("No default driver configured. Register a default driver or pass an explicit driver ID.");
+      driverId = ResolveDriverIdOrDefault(driverId);
 
       if (TryResolveCore(driverId, typeof(T), out var resolved))
       {
@@ -112,6 +108,7 @@ namespace FluentDocker.Kernel
     public IDriver GetDriver(string driverId)
     {
       ThrowIfDisposed();
+      driverId = RequireDriverId(driverId);
       return _registry.GetDriver(driverId);
     }
 
@@ -121,6 +118,7 @@ namespace FluentDocker.Kernel
     public IDriverPack GetDriverPack(string driverId)
     {
       ThrowIfDisposed();
+      driverId = RequireDriverId(driverId);
       return _registry.GetDriverPack(driverId);
     }
 
@@ -130,6 +128,7 @@ namespace FluentDocker.Kernel
     public bool IsDriverPack(string driverId)
     {
       ThrowIfDisposed();
+      driverId = RequireDriverId(driverId);
       return _registry.IsDriverPack(driverId);
     }
 
@@ -162,6 +161,7 @@ namespace FluentDocker.Kernel
     public void UnregisterDriver(string driverId)
     {
       ThrowIfDisposed();
+      driverId = RequireDriverId(driverId);
       _registry.Unregister(driverId);
     }
 
@@ -174,6 +174,7 @@ namespace FluentDocker.Kernel
     public async Task UnregisterDriverAsync(string driverId, CancellationToken cancellationToken = default)
     {
       ThrowIfDisposed();
+      driverId = RequireDriverId(driverId);
       await _registry.UnregisterAsync(driverId, cancellationToken).ConfigureAwait(false);
     }
 
@@ -183,6 +184,7 @@ namespace FluentDocker.Kernel
     public bool IsDriverRegistered(string driverId)
     {
       ThrowIfDisposed();
+      driverId = RequireDriverId(driverId);
       return _registry.IsRegistered(driverId);
     }
 
@@ -208,6 +210,7 @@ namespace FluentDocker.Kernel
     public void SetDefaultDriver(string driverId)
     {
       ThrowIfDisposed();
+      driverId = RequireDriverId(driverId);
       _registry.SetDefaultDriver(driverId);
     }
 
@@ -298,10 +301,22 @@ namespace FluentDocker.Kernel
       throw new DriverNotFoundException(driverId);
     }
 
-    private static void ThrowIfInvalidDriverId(string driverId)
+    private string ResolveDriverIdOrDefault(string driverId)
     {
-      if (driverId != null && driverId.Length > 0 && string.IsNullOrWhiteSpace(driverId))
+      if (!string.IsNullOrWhiteSpace(driverId))
+        return driverId;
+
+      var defaultDriverId = _registry.GetDefaultDriverId();
+      if (string.IsNullOrWhiteSpace(defaultDriverId))
+        throw new InvalidOperationException("No default driver configured. Register a default driver or pass an explicit driver ID.");
+      return defaultDriverId;
+    }
+
+    private static string RequireDriverId(string driverId)
+    {
+      if (string.IsNullOrWhiteSpace(driverId))
         throw new ArgumentException("Driver ID cannot be empty or whitespace.", nameof(driverId));
+      return driverId;
     }
 
     #endregion

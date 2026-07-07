@@ -1,3 +1,4 @@
+#nullable enable
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -16,7 +17,7 @@ namespace FluentDocker.Common
   public static class DirectoryHelper
   {
     static DirectoryHelper() => GetTempPath = Path.GetTempPath;
-    private static Func<string> _getTempPath;
+    private static Func<string> _getTempPath = null!;
 
     private static readonly Dictionary<string, string> ToRename = new()
     {

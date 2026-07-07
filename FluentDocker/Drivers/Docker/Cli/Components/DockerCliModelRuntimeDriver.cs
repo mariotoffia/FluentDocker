@@ -273,7 +273,8 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
         sb.Append(" --openaiurl ").Append(QuoteArgumentIfNeeded(options.OpenAiUrl));
 
       sb.Append(' ').Append(QuoteArgumentIfNeeded(model.ToString()));
-      return await SimpleUnitAsync(context, sb.ToString(), "LoadModel", ErrorCodes.Model.LoadFailed, cancellationToken).ConfigureAwait(false);
+      // ponytail: model run -d may implicitly pull, so only caller cancellation bounds it.
+      return await SimpleUnitAsync(context, sb.ToString(), "LoadModel", ErrorCodes.Model.LoadFailed, cancellationToken, unbounded: true).ConfigureAwait(false);
     }
 
     /// <inheritdoc />

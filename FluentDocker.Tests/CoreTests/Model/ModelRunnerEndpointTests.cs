@@ -108,6 +108,32 @@ namespace FluentDocker.Tests.CoreTests.Model
     }
 
     [Fact]
+    public void Raw_AuthorityOnlyUri_UsesEmptyVerbatimBasePath()
+    {
+      var ep = ModelRunnerEndpoint.Raw(new Uri("http://host:12434"));
+
+      Assert.Equal(string.Empty, ep.EnginePath);
+      Assert.Equal("/chat/completions", ep.EngineV1Path("/chat/completions"));
+      Assert.Equal("/chat/completions", ep.ResolveUri("/chat/completions").AbsolutePath);
+    }
+
+    [Fact]
+    public void Raw_PathBearingUri_UsesVerbatimBasePath()
+    {
+      var ep = ModelRunnerEndpoint.Raw(new Uri("http://host:12434/engines/v1"));
+
+      Assert.Equal("/engines/v1/x", ep.EngineV1Path("/x"));
+    }
+
+    [Fact]
+    public void Custom_AuthorityOnlyRegressionGuard_KeepsEnginePrefix()
+    {
+      var ep = ModelRunnerEndpoint.Custom(new Uri("http://host:12434"));
+
+      Assert.Contains("/engines/", ep.EngineV1Path("/x"), StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void UnixSocket_ResolvesEnginePath()
     {
       // Capture the current UnixSocket resolved path so the preview caveat (the Docker

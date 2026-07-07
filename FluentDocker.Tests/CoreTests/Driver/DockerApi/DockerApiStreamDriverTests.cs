@@ -42,7 +42,9 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
       mock.SetupStream("/events", ndjson);
 
       var events = new List<ContainerEvent>();
-      await foreach (var evt in driver.StreamEventsAsync(Ctx, cancellationToken: TestContext.Current.CancellationToken))
+      await foreach (var evt in driver.StreamEventsAsync(Ctx,
+          new StreamEventsConfig { Until = "1700000002" },
+          TestContext.Current.CancellationToken))
         events.Add(evt);
 
       Assert.Equal(2, events.Count);
@@ -68,12 +70,77 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
       mock.SetupStream("/events", ndjson);
 
       var events = new List<ContainerEvent>();
-      await foreach (var evt in driver.StreamEventsAsync(Ctx, cancellationToken: TestContext.Current.CancellationToken))
+      await foreach (var evt in driver.StreamEventsAsync(Ctx,
+          new StreamEventsConfig { Until = "1" },
+          TestContext.Current.CancellationToken))
         events.Add(evt);
 
       Assert.Single(events);
       Assert.Equal("image", events[0].Type);
       Assert.Equal("pull", events[0].Action);
+    }
+
+    [Fact]
+    public async Task StreamEventsAsync_WhenBoundlessStreamEnds_ThrowsStreamEndedAfterYieldingEvents()
+    {
+      var ndjson =
+          @"{""Type"":""container"",""Action"":""start"",""Actor"":{""ID"":""abc123""},""time"":1700000000}"
+          + "\n";
+      var (driver, mock) = CreateDriver();
+      mock.SetupStream("/events", ndjson);
+      var events = new List<ContainerEvent>();
+
+      var error = await Assert.ThrowsAsync<DriverException>(async () =>
+      {
+        await foreach (var evt in driver.StreamEventsAsync(Ctx,
+            new StreamEventsConfig(), TestContext.Current.CancellationToken))
+        {
+          events.Add(evt);
+        }
+      });
+
+      Assert.Single(events);
+      Assert.Equal(ErrorCodes.Api.StreamEnded, error.ErrorCode);
+    }
+
+    [Fact]
+    public async Task StreamEventsAsync_WhenUntilIsSet_CompletesAfterEvents()
+    {
+      var ndjson =
+          @"{""Type"":""container"",""Action"":""die"",""Actor"":{""ID"":""abc123""},""time"":1700000000}"
+          + "\n";
+      var (driver, mock) = CreateDriver();
+      mock.SetupStream("/events", ndjson);
+
+      var events = new List<ContainerEvent>();
+      await foreach (var evt in driver.StreamEventsAsync(Ctx,
+          new StreamEventsConfig { Until = "1700000001" },
+          TestContext.Current.CancellationToken))
+      {
+        events.Add(evt);
+      }
+
+      Assert.Single(events);
+      Assert.Equal("die", events[0].Action);
+    }
+
+    [Fact]
+    public async Task StreamEventsAsync_WhenStreamReadFails_ThrowsDriverException()
+    {
+      var prefix = Encoding.UTF8.GetBytes(
+          @"{""Type"":""container"",""Action"":""start"",""Actor"":{""ID"":""abc123""},""time"":1700000000}");
+      var (driver, mock) = CreateDriver();
+      mock.SetupStreamReadThrows("/events", prefix, new IOException("reset"));
+
+      var error = await Assert.ThrowsAsync<DriverException>(async () =>
+      {
+        await foreach (var _ in driver.StreamEventsAsync(Ctx,
+            new StreamEventsConfig(), TestContext.Current.CancellationToken))
+        {
+        }
+      });
+
+      Assert.Equal(ErrorCodes.Api.ConnectionFailed, error.ErrorCode);
     }
 
     #endregion

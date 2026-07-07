@@ -182,6 +182,9 @@ In the driver pack's `InitializeAsync`, register the implementation:
 // IDriverPack (ISysCtl + IDriverInterfaceResolver) adds the pack lifecycle.
 public class CustomDriverPack : DriverPackBase, IDriverPack
 {
+    public DriverType Type => DriverType.Custom;
+    public RuntimeType Runtime => RuntimeType.Unknown;
+
     public async Task InitializeAsync(
         DriverContext context, CancellationToken cancellationToken = default)
     {

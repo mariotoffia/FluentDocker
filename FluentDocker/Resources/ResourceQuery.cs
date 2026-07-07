@@ -1,17 +1,20 @@
+#nullable enable
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
+using System.Runtime.CompilerServices;
+using FluentDocker.Common;
 
 namespace FluentDocker.Resources
 {
   public sealed class ResourceQuery
   {
-    private string _assembly;
-    private string _namespace;
+    private string? _assembly;
+    private string _namespace = null!;
     private bool _recursive;
 
-    public ResourceQuery From(string assembly)
+    public ResourceQuery From(string? assembly)
     {
       _assembly = assembly;
       return this;
@@ -30,13 +33,31 @@ namespace FluentDocker.Resources
       return this;
     }
 
+    [MethodImpl(MethodImplOptions.NoInlining)]
     public IEnumerable<ResourceInfo> Query()
     {
-      var assembly = string.IsNullOrEmpty(_assembly)
-        ? Assembly.GetCallingAssembly() :
-        AppDomain.CurrentDomain.GetAssemblies()
-        .First(x => x.GetName().Name.Equals(_assembly, StringComparison.OrdinalIgnoreCase));
+      return QueryCore(ResolveAssembly(Assembly.GetCallingAssembly()));
+    }
 
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    public IEnumerable<ResourceInfo> Include(params string[] resources)
+    {
+      return QueryCore(ResolveAssembly(Assembly.GetCallingAssembly()))
+        .Where(x => resources.Contains(x.Resource));
+    }
+
+    private Assembly ResolveAssembly(Assembly caller)
+    {
+      if (string.IsNullOrEmpty(_assembly))
+        return caller;
+
+      return AppDomain.CurrentDomain.GetAssemblies()
+        .FirstOrDefault(x => x.GetName().Name!.Equals(_assembly, StringComparison.OrdinalIgnoreCase))
+        ?? throw new FluentDockerException($"Assembly '{_assembly}' was not found in the current AppDomain.");
+    }
+
+    private IEnumerable<ResourceInfo> QueryCore(Assembly assembly)
+    {
       foreach (var res in assembly.GetManifestResourceNames()
                    .Where(x => x.StartsWith(_namespace, StringComparison.Ordinal)))
       {
@@ -65,11 +86,6 @@ namespace FluentDocker.Resources
           Resource = file
         };
       }
-    }
-
-    public IEnumerable<ResourceInfo> Include(params string[] resources)
-    {
-      return Query().Where(x => resources.Contains(x.Resource));
     }
 
     /// <summary>

@@ -4,14 +4,21 @@ nav_order: 15
 ---
 
 # Podman Production Notes
-{: .no_toc }
 
 FluentDocker drives Podman through the same fluent API as Docker. This page documents the
 runtime-specific behavior you should understand before relying on Podman in CI or
 production. For a runnable sample see the [Podman quick start](index.md#podman-container-runtime).
 
-1. TOC
-{:toc}
+## On this page
+
+- [Machines: macOS / Windows vs Linux](#machines-macos--windows-vs-linux)
+- [Machine naming — the default machine, not "default"](#machine-naming--the-default-machine-not-default)
+- [Readiness wait](#readiness-wait)
+- [Cancellation of long operations](#cancellation-of-long-operations)
+- [Progress callbacks](#progress-callbacks)
+- [Remote TLS verification](#remote-tls-verification)
+- [Standard output caps](#standard-output-caps)
+- [Related](#related)
 
 ## Machines: macOS / Windows vs Linux
 
@@ -102,6 +109,15 @@ gate control flow on receiving progress events.
 |---|---|---|
 | Image pull / push / build progress callbacks | Reports parsed progress events where the CLI emits them. | Accepted for API compatibility but not reported; inspect the command result/output instead. |
 
+## Remote TLS verification
+
+`DriverContext.VerifyTls` and `DriverContext.CertificatePath` are **not** honored by the Podman
+CLI driver. Podman exposes no Docker-style daemon TLS flags (`--tlsverify`, `--tlscacert`,
+`--tlscert`, `--tlskey`), and podman's own `--tls-verify` is a per-command *registry* flag, not a
+connection setting, so it cannot substitute for daemon verification. Setting either property logs
+a one-time warning. To reach a remote Podman securely, use an SSH connection (`ssh://…`) configured
+via `podman system connection`.
+
 ## Standard output caps
 
 Podman output is bounded so a chatty command can never exhaust memory:
@@ -129,4 +145,4 @@ FluentDocker truncation marker; use `IStreamDriver.StreamLogsAsync` for a line s
 
 - [Podman quick start](index.md#podman-container-runtime)
 - [Utilities](utilities.md) — sudo mechanism, endpoint resolution, resource extraction
-- [Test categories](test-categories.md) — the `PodmanIntegration` category and release gates
+- [Test categories](testing/test-categories.md) — the `PodmanIntegration` category and release gates

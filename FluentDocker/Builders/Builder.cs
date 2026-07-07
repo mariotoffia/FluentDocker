@@ -23,6 +23,8 @@ namespace FluentDocker.Builders
     private FluentDockerKernel _currentKernel;
     private string _currentDriverId;
     private readonly List<BuildOperation> _operations = [];
+    private const string ModelBuilderAfterOpsMessage =
+        "UseModelRunner()/UseModel() cannot be chained after UseContainer/UseNetwork/UseVolume/UseImage/UseCompose/UsePod operations; the model builders return directly and are not part of the deferred build pipeline. Call UseModelRunner()/UseModel() on a fresh Builder.";
     internal IEnumerable<object> ResourceBuilders =>
         _operations.Where(o => o.ResourceBuilder != null).Select(o => o.ResourceBuilder);
     private bool _buildSucceeded;
@@ -150,6 +152,8 @@ namespace FluentDocker.Builders
     public IModelRunnerBuilder UseModelRunner()
     {
       ValidateScope();
+      if (_operations.Count > 0)
+        throw new InvalidOperationException(ModelBuilderAfterOpsMessage);
       var builder = new ModelRunnerBuilder(_currentKernel, _currentDriverId);
       // Shared fail-fast capability guard (same one the driver-scoped extensions use).
       if (!ModelDriverScopedBuilderExtensions.HasAnyModelPort(builder))
@@ -175,6 +179,8 @@ namespace FluentDocker.Builders
     public IModelServiceBuilder UseModel(Model.Models.ModelReference reference)
     {
       ValidateScope();
+      if (_operations.Count > 0)
+        throw new InvalidOperationException(ModelBuilderAfterOpsMessage);
       var serviceBuilder = new ModelServiceBuilder(_currentKernel, _currentDriverId);
       if (!ModelDriverScopedBuilderExtensions.HasModelRuntime(serviceBuilder))
         throw new Common.InterfaceNotSupportedException(_currentDriverId, nameof(Drivers.IModelRuntimeDriver));

@@ -1,9 +1,10 @@
+#nullable enable
 namespace FluentDocker.Model.Events
 {
   /// <summary>
   /// The scope of the <see cref="FdEvent{T}"/>.
   /// </summary>
-  [System.Obsolete("Unused by FluentDocker and scheduled for removal in v4. Use stream driver ContainerEvent.Scope instead.")]
+  [System.Obsolete("Unused by FluentDocker and scheduled for removal in a future release. Use stream driver ContainerEvent.Scope instead.")]
   public enum EventScope
   {
     /// <summary>

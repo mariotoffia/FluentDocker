@@ -6,8 +6,8 @@ using FluentDocker.Model.Drivers;
 namespace FluentDocker.Drivers
 {
   /// <summary>
-  /// Stack management for orchestrated deployments (Docker Swarm, Kubernetes).
-  /// Supported by: Docker Swarm, Kubernetes (partial)
+  /// Stack management for orchestrated deployments (Docker Swarm).
+  /// Supported by: Docker Swarm.
   /// Not supported by: Podman (use pods instead)
   /// </summary>
   public interface IStackDriver
@@ -319,4 +319,3 @@ namespace FluentDocker.Drivers
 
   #endregion
 }
-

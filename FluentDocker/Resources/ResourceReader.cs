@@ -1,7 +1,9 @@
+#nullable enable
 using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
+using FluentDocker.Common;
 
 namespace FluentDocker.Resources
 {
@@ -47,7 +49,11 @@ namespace FluentDocker.Resources
         get
         {
           var res = _resources[_pos];
-          return new ResourceStream(res.Assembly.GetManifestResourceStream($"{res.Namespace}.{res.Resource}"), res);
+          var name = $"{res.Namespace}.{res.Resource}";
+          var stream = res.Assembly.GetManifestResourceStream(name)
+            ?? throw new FluentDockerException(
+              $"Manifest resource '{name}' was not found in assembly '{res.Assembly.GetName().Name}'.");
+          return new ResourceStream(stream, res);
         }
       }
 

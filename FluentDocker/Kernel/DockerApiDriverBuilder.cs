@@ -79,7 +79,10 @@ namespace FluentDocker.Kernel
         ApiVersion = _apiVersion,
       };
       if (_allowTlsHostnameMismatch)
+      {
+        context.Metadata ??= [];
         context.Metadata["DockerApi.AllowTlsHostnameMismatch"] = "true";
+      }
 
       return new KernelBuilder.DriverConfiguration
       {

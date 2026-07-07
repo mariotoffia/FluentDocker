@@ -1,3 +1,4 @@
+#nullable enable
 using System.Collections.Generic;
 using System.Linq;
 using FluentDocker.Common;
@@ -29,16 +30,31 @@ namespace FluentDocker.Extensions
         }
 
         var name = s[..index];
+        if (string.IsNullOrWhiteSpace(name))
+          throw new FluentDockerException(
+              $"Expected format name=value, empty name in the name value string: '{s}'"
+            );
         var rawValue = s[(index + 1)..];
-        var unwrapped = rawValue.Length >= 2 && rawValue.StartsWith('"') && rawValue.EndsWith('"')
+        var unwrapped = rawValue.Length >= 2 && rawValue.StartsWith('"') && IsBalancedWrap(rawValue)
             ? rawValue[1..^1]
             : rawValue;
-        var value = $"\"{unwrapped.Replace("\"", "\\\"")}\"";
+        var value = $"\"{unwrapped.Replace("\\", "\\\\").Replace("\"", "\\\"")}\"";
 
         list.Add($"{name}={value}");
       }
 
       return list;
+    }
+
+    private static bool IsBalancedWrap(string value)
+    {
+      if (!value.EndsWith('"'))
+        return false;
+      var backslashes = 0;
+      for (var i = value.Length - 2; i >= 0 && value[i] == '\\'; i--)
+        backslashes++;
+      // ponytail: even backslashes means the final quote closes the wrap, not an escaped value quote.
+      return backslashes % 2 == 0;
     }
   }
 }

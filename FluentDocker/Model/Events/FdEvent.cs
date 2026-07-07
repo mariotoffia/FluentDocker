@@ -1,8 +1,9 @@
+#nullable enable
 using System;
 
 namespace FluentDocker.Model.Events
 {
-  [System.Obsolete("Unused by FluentDocker and scheduled for removal in v4. Use stream driver ContainerEvent instead.")]
+  [System.Obsolete("Unused by FluentDocker and scheduled for removal in a future release. Use stream driver ContainerEvent instead.")]
   public abstract class FdEvent
   {
     /// <summary>
@@ -26,7 +27,7 @@ namespace FluentDocker.Model.Events
     /// <summary>
     /// The actor that is the originator of this event.
     /// </summary>
-    public EventActor EventActor { get; set; }
+    public EventActor EventActor { get; set; } = null!;
 
     /// <summary>
     /// Event timestamp as a <see cref="DateTime"/>.
@@ -39,7 +40,7 @@ namespace FluentDocker.Model.Events
   /// Base event in the system.
   /// </summary>
   /// <typeparam name="T"></typeparam>
-  [System.Obsolete("Unused by FluentDocker and scheduled for removal in v4. Use stream driver ContainerEvent instead.")]
+  [System.Obsolete("Unused by FluentDocker and scheduled for removal in a future release. Use stream driver ContainerEvent instead.")]
   public abstract class FdEvent<T> : FdEvent where T : EventActor
   {
     /// <summary>

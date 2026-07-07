@@ -1,5 +1,6 @@
 using System.Formats.Tar;
 using System.IO;
+using System.Threading;
 using System.Threading.Tasks;
 using FluentDocker.Model.Drivers;
 using SharpCompress.Common;
@@ -104,6 +105,28 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
     }
 
     [Fact]
+    public async Task CopyFromAsync_ExtractsArchiveWithoutSynchronousNetworkReads()
+    {
+      var outputRoot = Path.Combine(".out", "docker-api-copyfrom-async-spool");
+      var destination = Path.Combine(outputRoot, "dest") + Path.DirectorySeparatorChar;
+      if (Directory.Exists(outputRoot))
+        Directory.Delete(outputRoot, recursive: true);
+      Directory.CreateDirectory(outputRoot);
+      var tarBytes = await CreateTarBytesAsync("source.txt", "from async stream");
+
+      var mock = new MockDockerApiConnection();
+      mock.SetupStreamFactory("/archive", () => new SyncReadThrowsStream(tarBytes));
+      var driver = CreateDriver(mock);
+
+      var result = await driver.CopyFromAsync(Ctx, "ctr1", "/tmp/source.txt", destination,
+          TestContext.Current.CancellationToken);
+
+      Assert.True(result.Success, result.Error);
+      Assert.Equal("from async stream", await File.ReadAllTextAsync(
+          Path.Combine(destination, "source.txt"), TestContext.Current.CancellationToken));
+    }
+
+    [Fact]
     public async Task CopyFromAsync_ToFilePath_ReportsArchiveWithMultipleFiles()
     {
       var outputRoot = Path.Combine(".out", "docker-api-copyfrom-multiple");
@@ -137,5 +160,38 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
           DataStream = new MemoryStream(System.Text.Encoding.UTF8.GetBytes(name))
         };
 
+    private static async Task<byte[]> CreateTarBytesAsync(string name, string content)
+    {
+      await using var ms = new MemoryStream();
+      await using (var writer = new TarWriter(ms, TarEntryFormat.Pax, leaveOpen: true))
+      {
+        await writer.WriteEntryAsync(new PaxTarEntry(TarEntryType.RegularFile, name)
+        {
+          DataStream = new MemoryStream(System.Text.Encoding.UTF8.GetBytes(content))
+        }, TestContext.Current.CancellationToken);
+      }
+      return ms.ToArray();
+    }
+
+    private sealed class SyncReadThrowsStream(byte[] bytes) : MemoryStream(bytes)
+    {
+      public override int Read(byte[] buffer, int offset, int count) =>
+          throw new InvalidOperationException("synchronous Read is not allowed");
+
+      public override int Read(Span<byte> buffer) =>
+          throw new InvalidOperationException("synchronous Read is not allowed");
+
+      public override ValueTask<int> ReadAsync(
+          Memory<byte> buffer, CancellationToken cancellationToken = default)
+      {
+        var available = (int)Math.Min(buffer.Length, Length - Position);
+        if (available <= 0)
+          return ValueTask.FromResult(0);
+
+        new ReadOnlySpan<byte>(ToArray(), (int)Position, available).CopyTo(buffer.Span);
+        Position += available;
+        return ValueTask.FromResult(available);
+      }
+    }
   }
 }

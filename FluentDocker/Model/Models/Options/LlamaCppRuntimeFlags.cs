@@ -1,3 +1,4 @@
+#nullable enable
 using System;
 using System.Collections.Generic;
 using System.Globalization;
@@ -54,7 +55,7 @@ namespace FluentDocker.Model.Models.Options
     public int? MainGpu { get; init; }
 
     /// <summary><c>--split-mode</c>; one of <c>none|layer|row</c>.</summary>
-    public string SplitMode { get; init; }
+    public string? SplitMode { get; init; }
 
     // Advanced
     /// <summary><c>--rope-freq-base</c>.</summary>
@@ -64,7 +65,7 @@ namespace FluentDocker.Model.Models.Options
     public double? RopeFreqScale { get; init; }
 
     /// <summary><c>--rope-scaling</c>.</summary>
-    public string RopeScaling { get; init; }
+    public string? RopeScaling { get; init; }
 
     /// <summary><c>--no-prefill-assistant</c>.</summary>
     public bool? NoPrefillAssistant { get; init; }
@@ -73,7 +74,7 @@ namespace FluentDocker.Model.Models.Options
     public int? ReasoningBudget { get; init; }
 
     /// <summary>Escape hatch: extra raw flags appended verbatim (not validated).</summary>
-    public IReadOnlyList<string> Raw { get; init; }
+    public IReadOnlyList<string>? Raw { get; init; }
 
     /// <summary>
     /// Renders to the flat token list DMR expects after the <c>--</c> separator,
@@ -148,7 +149,7 @@ namespace FluentDocker.Model.Models.Options
         args.Add(flag);
     }
 
-    private static void AddString(List<string> args, string flag, string value)
+    private static void AddString(List<string> args, string flag, string? value)
     {
       if (string.IsNullOrEmpty(value))
         return;
@@ -157,7 +158,7 @@ namespace FluentDocker.Model.Models.Options
       args.Add(value);
     }
 
-    private static void AddSplitMode(List<string> args, string value, string name)
+    private static void AddSplitMode(List<string> args, string? value, string name)
     {
       if (string.IsNullOrEmpty(value))
         return;

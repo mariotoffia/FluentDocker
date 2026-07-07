@@ -387,19 +387,19 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       return dict;
     }
 
-    internal static DateTime ParseDateTime(JsonElement? token)
+    internal static DateTimeOffset ParseDateTime(JsonElement? token)
     {
       if (token == null || token.Value.IsNullOrUndefined())
-        return default;
+        return DateTimeOffset.MinValue;
 
       var str = token.Value.GetStringValue();
       if (string.IsNullOrEmpty(str))
-        return default;
+        return DateTimeOffset.MinValue;
 
       return DateTimeOffset.TryParse(str, CultureInfo.InvariantCulture,
-          DateTimeStyles.None, out var dto)
-          ? dto.UtcDateTime
-          : default;
+          DateTimeStyles.AssumeUniversal, out var dto)
+          ? dto
+          : DateTimeOffset.MinValue;
     }
 
     #endregion

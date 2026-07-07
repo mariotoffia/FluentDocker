@@ -1,3 +1,4 @@
+#nullable enable
 using System.Collections.Generic;
 using System.Text.Json.Serialization;
 
@@ -17,7 +18,7 @@ namespace FluentDocker.Model.Containers
     public int FailingStreak { get; set; }
 
     /// <summary>Recent health check execution results.</summary>
-    public List<HealthLog> Log { get; set; }
+    public List<HealthLog>? Log { get; set; }
   }
 
   /// <summary>
@@ -26,15 +27,15 @@ namespace FluentDocker.Model.Containers
   public class HealthLog
   {
     /// <summary>Timestamp when the health check started (ISO 8601).</summary>
-    public string Start { get; set; }
+    public string? Start { get; set; }
 
     /// <summary>Timestamp when the health check finished (ISO 8601).</summary>
-    public string End { get; set; }
+    public string? End { get; set; }
 
     /// <summary>Exit code of the health check command (0 = healthy).</summary>
     public int ExitCode { get; set; }
 
     /// <summary>Standard output from the health check command.</summary>
-    public string Output { get; set; }
+    public string? Output { get; set; }
   }
 }

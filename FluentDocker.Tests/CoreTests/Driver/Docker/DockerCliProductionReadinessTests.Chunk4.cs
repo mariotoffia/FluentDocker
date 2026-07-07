@@ -48,8 +48,8 @@ exit 2
       Assert.True(containers.Success, containers.Error);
       Assert.True(images.Success, images.Error);
       Assert.True(history.Success, history.Error);
-      // Exact UTC instants: an offset-sign regression in the parser must fail these.
-      Assert.Equal(new DateTime(2026, 7, 3, 13, 7, 49, DateTimeKind.Utc), Assert.Single(containers.Data).Created);
+      // Container keeps the engine offset; image and history still expose UTC DateTime.
+      Assert.Equal(new DateTimeOffset(2026, 7, 3, 15, 7, 49, TimeSpan.FromHours(2)), Assert.Single(containers.Data).Created);
       Assert.Equal(new DateTime(2026, 6, 22, 20, 53, 0, DateTimeKind.Utc), Assert.Single(images.Data).Created);
       Assert.Equal(new DateTime(2026, 6, 16, 0, 1, 20, DateTimeKind.Utc), Assert.Single(history.Data).Created);
     }

@@ -1,3 +1,4 @@
+#nullable enable
 using System.IO;
 using SharpCompress.Common;
 using SharpCompress.Readers;

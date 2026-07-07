@@ -1,3 +1,4 @@
+#nullable enable
 using System.Collections.Generic;
 
 namespace FluentDocker.Model.Drivers
@@ -10,22 +11,22 @@ namespace FluentDocker.Model.Drivers
     /// <summary>
     /// Unique identifier for this operation (for tracing and correlation).
     /// </summary>
-    public string OperationId { get; set; }
+    public string? OperationId { get; set; }
 
     /// <summary>
     /// The driver ID where the error occurred.
     /// </summary>
-    public string DriverId { get; set; }
+    public string? DriverId { get; set; }
 
     /// <summary>
     /// The host where the error occurred.
     /// </summary>
-    public string Host { get; set; }
+    public string? Host { get; set; }
 
     /// <summary>
     /// The operation that was being performed.
     /// </summary>
-    public string Operation { get; set; }
+    public string? Operation { get; set; }
 
     /// <summary>
     /// Exit code from the underlying command (if applicable).
@@ -35,12 +36,12 @@ namespace FluentDocker.Model.Drivers
     /// <summary>
     /// Standard output from the underlying command.
     /// </summary>
-    public string StdOut { get; set; }
+    public string? StdOut { get; set; }
 
     /// <summary>
     /// Standard error from the underlying command.
     /// </summary>
-    public string StdErr { get; set; }
+    public string? StdErr { get; set; }
 
     /// <summary>
     /// Additional metadata about the error.

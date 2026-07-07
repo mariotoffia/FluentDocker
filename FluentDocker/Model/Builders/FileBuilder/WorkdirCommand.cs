@@ -1,3 +1,4 @@
+#nullable enable
 using FluentDocker.Model.Common;
 
 namespace FluentDocker.Model.Builders.FileBuilder

@@ -58,6 +58,22 @@ working reference: it uses exactly `Microsoft.NET.Test.Sdk`,
 meta-package (`<Project Sdk="MSTest.Sdk/3.7.3">`) bundles host + adapter +
 framework; then you only add `FluentDocker.Testing.MsTest`.
 
+> **Warning:** On a shared Docker or Podman daemon, the default
+> `CleanupOrphansOnInit = true` lets a test run force-remove **another** session's
+> FluentDocker-managed containers, networks, and volumes once they pass the one-hour
+> `OrphanCleanupMinimumAge`. On shared CI agents that can delete a parallel job's live
+> resources. Opt out by returning `CleanupOrphansOnInit = false` from `GetOptions()` (or
+> by passing a `DockerResourceOptions` to the helper methods).
+
+```csharp
+protected override DockerResourceOptions GetOptions() => new()
+{
+    CleanupOrphansOnInit = false
+};
+```
+
+See [Testing Core — Orphan Cleanup](core.md#orphan-cleanup) for the full behavior.
+
 ## Helper Methods
 
 `MsTestResourceHelpers` provides static async methods for creating and disposing resources.
@@ -100,6 +116,11 @@ public class RedisTests
 `MsTestContainerFixtureBase` is intentionally per-test-method. Use it when each
 test needs a fresh container. For a class-shared container, use the generic
 `MsTestClassContainerFixtureBase<TFixture>` pattern below.
+
+> **Note:** Watch the base-class names when porting from xUnit or NUnit. There,
+> `*ContainerFixtureBase` gives one container **per test class**. In MSTest,
+> `MsTestContainerFixtureBase` gives one **per test method**; the per-class equivalent is
+> `MsTestClassContainerFixtureBase<TFixture>`.
 
 ```csharp
 [TestClass]

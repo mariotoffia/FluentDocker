@@ -354,17 +354,33 @@ namespace FluentDocker.Tests.CoreTests.Service
     }
 
     [Fact]
-    public async Task ContainerUnpauseAsync_WhenDriverReportsNotPaused_TransitionsToRunningWithoutThrowing()
+    public async Task ContainerUnpauseAsync_WhenNotPausedAndInspectRunning_TransitionsToRunning()
     {
       MockPack.ContainerDriver
           .Setup(d => d.UnpauseAsync(
               It.IsAny<DriverContext>(), "container-123", It.IsAny<CancellationToken>()))
           .ReturnsAsync(CommandResponse<Unit>.Fail("Container container-123 is not paused", exitCode: 1));
+      MockPack.SetupContainerInspect("container-123", running: true);
       var service = new ContainerService(Kernel, DriverId, "container-123", "alpine", "test");
 
       await service.UnpauseAsync(TestContext.Current.CancellationToken);
 
       Assert.Equal(ServiceRunningState.Running, service.State);
+    }
+
+    [Fact]
+    public async Task ContainerUnpauseAsync_WhenNotPausedAndInspectExited_TransitionsToStopped()
+    {
+      MockPack.ContainerDriver
+          .Setup(d => d.UnpauseAsync(
+              It.IsAny<DriverContext>(), "container-123", It.IsAny<CancellationToken>()))
+          .ReturnsAsync(CommandResponse<Unit>.Fail("Container container-123 is not paused", exitCode: 1));
+      MockPack.SetupContainerInspect("container-123", running: false);
+      var service = new ContainerService(Kernel, DriverId, "container-123", "alpine", "test");
+
+      await service.UnpauseAsync(TestContext.Current.CancellationToken);
+
+      Assert.Equal(ServiceRunningState.Stopped, service.State);
     }
   }
 }

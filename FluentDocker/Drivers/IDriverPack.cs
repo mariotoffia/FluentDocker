@@ -10,6 +10,8 @@ namespace FluentDocker.Drivers
   /// It allows grouping of related driver implementations under a single registered entity
   /// and provides SysCtl-style resolution of driver interfaces.
   /// Also acts as a <see cref="IDriverInterfaceResolver"/> for runtime interface discovery.
+  /// Driver packs populate their interface map during <see cref="InitializeAsync"/> and must not
+  /// mutate it after initialization completes; registry resolution reads are intentionally unlocked.
   /// </summary>
   public interface IDriverPack : ISysCtl, IDriverInterfaceResolver
   {
@@ -45,4 +47,3 @@ namespace FluentDocker.Drivers
     Task InitializeAsync(DriverContext context, CancellationToken cancellationToken = default);
   }
 }
-

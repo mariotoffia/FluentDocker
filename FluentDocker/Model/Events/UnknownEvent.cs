@@ -1,3 +1,4 @@
+#nullable enable
 using System;
 using System.Collections.Generic;
 
@@ -8,7 +9,7 @@ namespace FluentDocker.Model.Events
   /// this event for any logic if you're not prepare at any time replace that
   /// with a managed one!!!
   /// </summary>
-  [System.Obsolete("Unused by FluentDocker and scheduled for removal in v4. Use stream driver ContainerEvent instead.")]
+  [System.Obsolete("Unused by FluentDocker and scheduled for removal in a future release. Use stream driver ContainerEvent instead.")]
   public sealed class UnknownEvent : FdEvent<UnknownEvent.UnknownActor>
   {
     public UnknownEvent(string action, string type)
@@ -38,13 +39,13 @@ namespace FluentDocker.Model.Events
     /// <summary>
     /// Contains Id and all attributes it could gather.
     /// </summary>
-    [System.Obsolete("Unused by FluentDocker and scheduled for removal in v4. Use stream driver ContainerEvent.ActorAttributes instead.")]
+    [System.Obsolete("Unused by FluentDocker and scheduled for removal in a future release. Use stream driver ContainerEvent.ActorAttributes instead.")]
     public sealed class UnknownActor : EventActor
     {
       /// <summary>
       /// Attributes gathered from the raw data.
       /// </summary>
-      public IList<Tuple<string, string>> Attributes { get; internal set; }
+      public IList<Tuple<string, string>>? Attributes { get; internal set; }
     }
   }
 }

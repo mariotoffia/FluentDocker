@@ -1,3 +1,4 @@
+#nullable enable
 using System.Collections.Generic;
 
 namespace FluentDocker.Model.Models
@@ -29,9 +30,9 @@ namespace FluentDocker.Model.Models
     public bool SupportsPackaging { get; init; }
 
     /// <summary>The default backend, e.g. <c>llama.cpp</c>.</summary>
-    public string DefaultBackend { get; init; }
+    public string? DefaultBackend { get; init; }
 
     /// <summary>The backends the runner reports as available.</summary>
-    public IReadOnlyList<string> AvailableBackends { get; init; }
+    public IReadOnlyList<string>? AvailableBackends { get; init; }
   }
 }

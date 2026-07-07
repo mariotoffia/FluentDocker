@@ -1,3 +1,4 @@
+#nullable enable
 using System;
 using System.IO;
 using FluentDocker.Extensions;
@@ -18,7 +19,7 @@ namespace FluentDocker.Model.Builders.FileBuilder
   /// _FROM ... AS aliasname_ buildstep as source.
   /// </param>
   public sealed class CopyURLCommand(Uri url, TemplateString from, TemplateString to,
-    TemplateString chownUserAndGroup = null, TemplateString fromAlias = null) : CopyCommand(from, to, chownUserAndGroup, fromAlias)
+    TemplateString? chownUserAndGroup = null, TemplateString? fromAlias = null) : CopyCommand(from, to, chownUserAndGroup, fromAlias)
   {
     public Uri FromURL { get; } = url;
     public override string ToString()

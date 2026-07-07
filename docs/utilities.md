@@ -136,7 +136,7 @@ await using var results = await new Builder()
     .BuildAsync();
 
 var container = results.Containers.First();
-var endpoint = container.ToHostExposedEndpoint("8080/tcp");
+var endpoint = await container.ToHostExposedEndpointAsync("8080/tcp");
 var healthUrl = $"http://localhost:{endpoint.Port}/health";
 
 // Wait for healthy
@@ -424,8 +424,8 @@ await using var results = await new Builder()
         }))
     .BuildAsync();
 
-// ToHostExposedEndpoint uses the custom resolver automatically
-var endpoint = results.Containers.First().ToHostExposedEndpoint("8080/tcp");
+// ToHostExposedEndpointAsync uses the custom resolver automatically
+var endpoint = await results.Containers.First().ToHostExposedEndpointAsync("8080/tcp");
 ```
 
 ## Command Response Handling

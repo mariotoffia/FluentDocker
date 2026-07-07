@@ -27,6 +27,8 @@ namespace FluentDocker.Drivers.Podman.Cli
 
     private static readonly ConcurrentDictionary<string, byte> CertificateWarnings = new();
 
+    private static readonly ConcurrentDictionary<string, byte> VerifyTlsWarnings = new();
+
     /// <summary>
     /// The driver context.
     /// </summary>
@@ -80,9 +82,9 @@ namespace FluentDocker.Drivers.Podman.Cli
 
     /// <summary>
     /// Builds global CLI flags from the driver context.
-    /// Podman uses --url for remote host. TLS certificate flags are not
-    /// supported via the Podman CLI, so <see cref="DriverContext.CertificatePath"/>
-    /// is ignored.
+    /// Podman uses --url for the remote host. TLS settings are not supported via the
+    /// Podman CLI, so <see cref="DriverContext.CertificatePath"/> and
+    /// <see cref="DriverContext.VerifyTls"/> are ignored (a one-time warning is logged).
     /// </summary>
     /// <param name="context">The driver context (may be null).</param>
     /// <param name="logger">Optional logger used for one-time warnings about ignored settings.</param>
@@ -94,6 +96,9 @@ namespace FluentDocker.Drivers.Podman.Cli
 
       if (!string.IsNullOrEmpty(context.CertificatePath))
         WarnCertificatePathIgnoredOnce(context, logger);
+
+      if (context.VerifyTls.HasValue)
+        WarnVerifyTlsIgnoredOnce(context, logger);
 
       if (string.IsNullOrEmpty(context.Host))
         return "";
@@ -110,6 +115,17 @@ namespace FluentDocker.Drivers.Podman.Cli
       if (CertificateWarnings.TryAdd(key, 0))
         logger.LogWarning(
             "Podman CLI ignores DriverContext.CertificatePath because podman CLI does not expose Docker-style TLS certificate flags.");
+    }
+
+    private static void WarnVerifyTlsIgnoredOnce(DriverContext context, ILogger logger)
+    {
+      if (logger == null)
+        return;
+
+      var key = context.DriverId ?? context.Host ?? "default";
+      if (VerifyTlsWarnings.TryAdd(key, 0))
+        logger.LogWarning(
+            "Podman CLI ignores DriverContext.VerifyTls because podman CLI has no Docker-style daemon TLS-verify flag; podman's --tls-verify is a per-command registry flag, not a connection setting.");
     }
 
     #endregion

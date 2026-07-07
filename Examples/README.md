@@ -58,6 +58,15 @@ dotnet run --project Examples/ModelRunner -f net10.0
 # -f net8.0 also works
 ```
 
+### TestingExample
+xUnit v3 integration test using the `FluentDocker.Testing.Xunit` adapter: a
+`XunitContainerFixtureBase` starts a Redis container for the test class and disposes it
+after the tests run. Requires Docker (tests are tagged `[Trait("Category", "Integration")]`).
+
+```bash
+dotnet test Examples/TestingExample -f net10.0
+```
+
 ## Running All Examples
 
 ```bash

@@ -288,6 +288,8 @@ namespace FluentDocker.Builders
         // Prepare build context (copy files, render Dockerfile)
         var buildContext = await _dockerfileBuilder.PrepareBuildAsync(
             strictCopySources: true, cancellationToken).ConfigureAwait(false);
+        if (!_dockerfileBuilder.HasFromInstruction)
+          throw new FluentDockerException("Cannot build a Dockerfile with no FROM instruction.");
 
         // Ensure at least one tag
         if (_tags.Count == 0)
@@ -325,7 +327,7 @@ namespace FluentDocker.Builders
     private void SetImageName(string name)
     {
       if (string.IsNullOrEmpty(name))
-        return;
+        throw new ArgumentException("Image name cannot be null or empty.", nameof(name));
       if (name.Contains('@', StringComparison.Ordinal))
         throw new FluentDockerException(
             $"Digest image references are not valid build output names: '{name}'. Use a repository[:tag] name.");

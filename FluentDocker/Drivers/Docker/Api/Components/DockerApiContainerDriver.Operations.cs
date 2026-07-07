@@ -240,10 +240,8 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       }
 
       // Phase 3: Inspect exec for exit code
-      var inspectResult = await GetJsonAsync(
-          $"/exec/{execId}/json",
-          DockerApiJsonContext.Default.ExecInspectResponse, cancellationToken)
-          .ConfigureAwait(false);
+      var inspectResult = await InspectExecExitCodeAsync(
+          execId, config.Detach, cancellationToken).ConfigureAwait(false);
       if (!inspectResult.Success)
         return CommandResponse<ExecResult>.Fail(inspectResult.ErrorMessage,
             ErrorCodes.Container.ExecFailed,
@@ -253,13 +251,15 @@ namespace FluentDocker.Drivers.Docker.Api.Components
 
       // A detached exec (docker exec -d) is fire-and-forget: the process is expected to be
       // still Running at inspect, so we do not wait for an exit code — matching the CLI.
-      // ponytail: single inspect (no poll); if an attached exec is ever observed reporting
-      // Running=true the instant its streams close, add a short bounded re-inspect here.
+      // ponytail: attached exec uses a tiny bounded poll because Docker can report Running=true
+      // for a moment after the streams close; detached exec keeps the single-inspect fast path.
       if (!config.Detach && (inspectResult.Data?.Running == true || inspectResult.Data?.ExitCode == null))
         return CommandResponse<ExecResult>.Fail(
             "Exec exit code is not available yet",
             ErrorCodes.Container.ExecFailed,
-            CreateErrorContext($"GET /exec/{execId}/json", 0));
+            CreateErrorContext($"GET /exec/{execId}/json", 0,
+                $"stdout:{Environment.NewLine}{stdout ?? string.Empty}{Environment.NewLine}" +
+                $"stderr:{Environment.NewLine}{stderr ?? string.Empty}"));
 
       var exitCode = inspectResult.Data?.ExitCode ?? 0;
 

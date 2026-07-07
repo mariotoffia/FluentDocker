@@ -8,7 +8,7 @@ namespace FluentDocker.Drivers
 {
   /// <summary>
   /// Container-specific driver operations.
-  /// Supported by: Docker, Podman, Kubernetes (partial - pods)
+  /// Supported by: Docker, Podman.
   /// </summary>
   public partial interface IContainerDriver
   {

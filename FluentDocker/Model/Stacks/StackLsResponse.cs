@@ -1,14 +1,15 @@
+#nullable enable
 using System;
 
 namespace FluentDocker.Model.Stacks
 {
-  [System.Obsolete("Unused by FluentDocker and scheduled for removal in v4. Use IStackDriver list response models instead.")]
+  [System.Obsolete("Unused by FluentDocker and scheduled for removal in a future release. Use IStackDriver list response models instead.")]
   public sealed class StackLsResponse
   {
-    public string Name { get; set; }
+    public string Name { get; set; } = null!;
     public int Services { get; set; }
     public Orchestrator Orchestrator { get; set; }
-    public string Namespace { get; set; }
+    public string Namespace { get; set; } = null!;
 
     public static Orchestrator ToOrchestrator(string value)
     {

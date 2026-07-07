@@ -117,7 +117,7 @@ Production-readiness remediation of the preview API surface. Recompile and revie
 
 - Added an "Inspecting Container Info" section showing how to read the created date, image config, environment, exposed ports, labels, and the mapped host port (#197)
 
-## [3.0.1] - Patch release
+## [3.0.1] - 2026-05-11
 
 ### Fixed
 
@@ -153,7 +153,7 @@ Production-readiness remediation of the preview API surface. Recompile and revie
 - `IService` (sync) — use `IServiceAsync` instead; sync methods wrap async with `.GetAwaiter().GetResult()` which can deadlock
 - `FluentDocker.Model.Containers.CommandResponse<T>` — use `FluentDocker.Model.Drivers.CommandResponse<T>` instead
 - `FluentDocker.Services.NetworkCreateConfig` — use `FluentDocker.Drivers.NetworkCreateConfig` instead
-- `IFeature`, `FeatureAttribute`, `FeatureConstants` — v2 legacy types, will be removed in v4
+- `IFeature`, `FeatureAttribute`, `FeatureConstants` — v2 legacy types, will be removed in a future release
 
 ### Removed
 

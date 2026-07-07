@@ -1,9 +1,10 @@
+#nullable enable
 namespace FluentDocker.Model.Events
 {
   /// <summary>
   /// Emitted when a container has been sent a kill signal (but is not yet dead).
   /// </summary>
-  [System.Obsolete("Unused by FluentDocker and scheduled for removal in v4. Use stream driver ContainerEvent instead.")]
+  [System.Obsolete("Unused by FluentDocker and scheduled for removal in a future release. Use stream driver ContainerEvent instead.")]
   public sealed class ContainerKillEvent : FdEvent<ContainerKillEvent.ContainerKillActor>
   {
     public ContainerKillEvent()
@@ -18,21 +19,21 @@ namespace FluentDocker.Model.Events
     /// <remarks>
     /// The actor is the hash of the container.
     /// </remarks>
-    [System.Obsolete("Unused by FluentDocker and scheduled for removal in v4. Use stream driver ContainerEvent instead.")]
+    [System.Obsolete("Unused by FluentDocker and scheduled for removal in a future release. Use stream driver ContainerEvent instead.")]
     public sealed class ContainerKillActor : EventActor
     {
       /// <summary>
       /// The image name and label such as "alpine:latest".
       /// </summary>
-      public string Image { get; set; }
+      public string? Image { get; set; }
       /// <summary>
       /// Name of the container.
       /// </summary>
-      public string Name { get; set; }
+      public string? Name { get; set; }
       /// <summary>
       /// The signal that the container has been signalled.
       /// </summary>
-      public string Signal { get; set; }
+      public string? Signal { get; set; }
     }
   }
 }

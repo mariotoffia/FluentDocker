@@ -1,3 +1,4 @@
+#nullable enable
 namespace FluentDocker.Model.Models.Options
 {
   /// <summary>
@@ -7,6 +8,6 @@ namespace FluentDocker.Model.Models.Options
   public sealed class ModelRunnerInstallOptions
   {
     /// <summary>GPU selection (<c>--gpu auto|cuda|none</c>).</summary>
-    public string Gpu { get; init; }
+    public string? Gpu { get; init; }
   }
 }

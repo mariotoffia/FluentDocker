@@ -1,3 +1,4 @@
+#nullable enable
 using System;
 
 namespace FluentDocker.Model.Models
@@ -11,12 +12,12 @@ namespace FluentDocker.Model.Models
     public bool Running { get; init; }
 
     /// <summary>The active backend, e.g. <c>llama.cpp</c>.</summary>
-    public string Backend { get; init; }
+    public string? Backend { get; init; }
 
     /// <summary>The resolved inference endpoint.</summary>
-    public Uri Endpoint { get; init; }
+    public Uri? Endpoint { get; init; }
 
     /// <summary>A remediation / error message, populated when <see cref="Running"/> is false.</summary>
-    public string Error { get; init; }
+    public string? Error { get; init; }
   }
 }

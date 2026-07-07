@@ -1,6 +1,6 @@
 ---
 layout: default
-title: Legacy Test Migration
+title: Legacy Test Adapter Migration
 parent: Testing
 nav_order: 6
 ---
@@ -10,6 +10,10 @@ nav_order: 6
 This guide shows how to migrate from the legacy `Ductus.FluentDocker.XUnit` and
 `Ductus.FluentDocker.MsTest` packages to the new `FluentDocker.Testing.Core` system
 with framework adapters.
+
+> **Scope:** migrating the legacy test **adapter packages** to `FluentDocker.Testing.*`.
+> To migrate your v2 test **code** to the v3 builder API, see
+> [Test Code Migration](../migrate-v2-to-v3/test-migration.md).
 
 ## Step by Step
 

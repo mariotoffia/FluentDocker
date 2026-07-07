@@ -25,7 +25,8 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
 
     #region Pull/Push
 
-    /// <inheritdoc />
+    /// <summary>Pulls an image using the Podman CLI.</summary>
+    /// <remarks>The <paramref name="progress"/> parameter is currently not reported by the Podman CLI driver.</remarks>
     public async Task<CommandResponse<Unit>> PullAsync(
         DriverContext context, string image, string tag = "latest",
         IProgress<ImagePullProgress> progress = null,
@@ -33,7 +34,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
     {
       try
       {
-        var imageRef = string.IsNullOrEmpty(tag) ? image : $"{image}:{tag}";
+        var imageRef = ShouldAppendTag(image, tag) ? $"{image}:{tag}" : image;
         var result = await ExecuteUnboundedCommandAsync(
             context,
             $"pull {QuotePositionalArgument(imageRef, nameof(image))}", cancellationToken).ConfigureAwait(false);
@@ -54,7 +55,8 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       }
     }
 
-    /// <inheritdoc />
+    /// <summary>Pushes an image using the Podman CLI.</summary>
+    /// <remarks>The <paramref name="progress"/> parameter is currently not reported by the Podman CLI driver.</remarks>
     public async Task<CommandResponse<Unit>> PushAsync(
         DriverContext context, string image,
         IProgress<ImagePushProgress> progress = null,
@@ -83,6 +85,16 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
     }
 
     #endregion
+
+    private static bool ShouldAppendTag(string image, string tag)
+    {
+      if (string.IsNullOrEmpty(tag) || string.IsNullOrEmpty(image) || image.Contains('@', StringComparison.Ordinal))
+        return false;
+
+      var lastSlash = image.LastIndexOf('/');
+      var lastSegment = lastSlash < 0 ? image : image[(lastSlash + 1)..];
+      return !lastSegment.Contains(':', StringComparison.Ordinal);
+    }
 
     #region Build
 

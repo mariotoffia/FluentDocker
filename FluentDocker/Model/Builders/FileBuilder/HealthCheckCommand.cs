@@ -1,3 +1,4 @@
+#nullable enable
 using System.Globalization;
 using System.Text;
 using FluentDocker.Extensions;
@@ -16,7 +17,7 @@ namespace FluentDocker.Model.Builders.FileBuilder
   ///   A <paramref name="cmd"/> can be e.g. a curl command combined by other shell command for example:
   ///   "curl -f http://localhost/ || exit 1".
   /// </remarks>
-  public sealed class HealthCheckCommand(string cmd, string interval = null, string timeout = null, string startPeriod = null, int retries = 3) : ICommand
+  public sealed class HealthCheckCommand(string cmd, string? interval = null, string? timeout = null, string? startPeriod = null, int retries = 3) : ICommand
   {
     public string Cmd { get; } = cmd;
     public string Interval { get; } = string.IsNullOrEmpty(interval) ? "30s" : interval;

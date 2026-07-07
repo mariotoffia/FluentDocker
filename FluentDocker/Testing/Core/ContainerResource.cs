@@ -83,7 +83,7 @@ namespace FluentDocker.Testing.Core
     {
       if (!await CapabilityChecks.IsHealthyAsync(Kernel, DriverId, cancellationToken).ConfigureAwait(false))
       {
-        throw new FluentDockerException(
+        throw new FluentDockerUnavailableException(
             $"Docker driver '{DriverId}' is not reachable. Is Docker running?");
       }
 

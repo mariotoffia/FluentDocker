@@ -36,8 +36,18 @@ namespace FluentDocker.Builders
     /// </summary>
     internal string PreparedDockerfileName => _preparedDockerfileName;
 
+    internal bool HasFromInstruction =>
+        _config.Commands.Any(x => x is FromCommand) ||
+        ContainsFromInstruction(_config.DockerFileString) ||
+        ContainsFromInstruction(_lastContents);
+
     private bool IsInPlaceBuild =>
         _buildContext != null && !string.IsNullOrEmpty(_config.UseFile?.Rendered);
+
+    private static bool ContainsFromInstruction(string contents) =>
+        !string.IsNullOrWhiteSpace(contents) &&
+        contents.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries)
+            .Any(line => line.TrimStart().StartsWith("FROM ", StringComparison.OrdinalIgnoreCase));
 
     /// <summary>
     /// Creates a standalone DockerfileBuilder for generating Dockerfile content.

@@ -396,7 +396,7 @@ namespace FluentDocker.Drivers.Models.Connection
         var (certPath, keyPath, caPath, hasClientCertificate) = ValidateCertificatePath(config);
         if (hasClientCertificate)
         {
-          var clientCert = LoadClientCertificate(certPath, keyPath);
+          var clientCert = ClientCertificateLoader.Load(certPath, keyPath);
           ownedCertificates.Add(clientCert);
           sslOptions.ClientCertificates = [clientCert];
         }

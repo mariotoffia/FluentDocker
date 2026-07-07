@@ -1,3 +1,4 @@
+#nullable enable
 using System.Collections.Generic;
 
 namespace FluentDocker.Model.Models
@@ -8,7 +9,7 @@ namespace FluentDocker.Model.Models
   public sealed class ModelPruneResult
   {
     /// <summary>References of removed models.</summary>
-    public IReadOnlyList<string> Removed { get; init; }
+    public IReadOnlyList<string>? Removed { get; init; }
 
     /// <summary>The reclaimed space in bytes (best-effort; 0 when not parseable).</summary>
     public long ReclaimedBytes { get; init; }
@@ -18,6 +19,6 @@ namespace FluentDocker.Model.Models
     /// not guaranteed across DMR versions, so this is the source of truth when
     /// <see cref="Removed"/> / <see cref="ReclaimedBytes"/> could not be parsed.
     /// </summary>
-    public string RawOutput { get; init; }
+    public string? RawOutput { get; init; }
   }
 }

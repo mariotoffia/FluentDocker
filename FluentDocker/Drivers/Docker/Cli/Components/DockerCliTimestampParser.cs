@@ -21,6 +21,21 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     public static bool TryParse(string value, out DateTime created)
     {
       created = default;
+      if (!TryParseCore(value, out var dto))
+        return false;
+
+      created = dto.UtcDateTime;
+      return true;
+    }
+
+    public static bool TryParse(string value, out DateTimeOffset created)
+    {
+      return TryParseCore(value, out created);
+    }
+
+    private static bool TryParseCore(string value, out DateTimeOffset created)
+    {
+      created = default;
       if (string.IsNullOrWhiteSpace(value))
         return false;
 
@@ -29,22 +44,19 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
               text,
               CultureInfo.InvariantCulture,
               DateTimeStyles.AssumeUniversal,
-              out var dto))
-      {
-        created = dto.UtcDateTime;
+              out created))
         return true;
-      }
 
       return TryParseGoTime(text, out created)
-          || DateTime.TryParseExact(
+          || DateTimeOffset.TryParseExact(
               TrimFraction(text),
               LocalFormats,
               CultureInfo.InvariantCulture,
-              DateTimeStyles.None,
+              DateTimeStyles.AssumeUniversal,
               out created);
     }
 
-    private static bool TryParseGoTime(string text, out DateTime created)
+    private static bool TryParseGoTime(string text, out DateTimeOffset created)
     {
       created = default;
       var withoutZoneName = StripTrailingZoneName(text);
@@ -62,10 +74,9 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
               OffsetFormats,
               CultureInfo.InvariantCulture,
               DateTimeStyles.None,
-              out var dto))
+              out created))
         return false;
 
-      created = dto.UtcDateTime;
       return true;
     }
 

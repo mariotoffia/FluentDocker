@@ -293,6 +293,58 @@ namespace FluentDocker.Tests.CoreTests.Service
     }
 
     [Fact]
+    public async Task WaitForHttpAsync_WithUseHttpsTrue_UsesTlsScheme()
+    {
+      using var listener = new TcpListener(IPAddress.Loopback, 0);
+      listener.Start();
+      var port = ((IPEndPoint)listener.LocalEndpoint).Port;
+      var firstByte = new TaskCompletionSource<int>(TaskCreationOptions.RunContinuationsAsynchronously);
+      var server = Task.Run(async () =>
+      {
+        using var client = await listener.AcceptTcpClientAsync(TestContext.Current.CancellationToken);
+        await using var stream = client.GetStream();
+        var buffer = new byte[1];
+        var read = await stream.ReadAsync(buffer, TestContext.Current.CancellationToken);
+        firstByte.SetResult(read == 0 ? -1 : buffer[0]);
+      }, TestContext.Current.CancellationToken);
+      var service = new Mock<IContainerService>();
+      service
+          .Setup(s => s.ToHostExposedEndpointAsync("443/tcp", It.IsAny<CancellationToken>()))
+          .ReturnsAsync(new IPEndPoint(IPAddress.Loopback, port));
+      var overload = Array.Find(
+          typeof(ServiceExtensions).GetMethods(BindingFlags.Public | BindingFlags.Static),
+          m => m.Name == "WaitForHttpAsync" &&
+               Array.Exists(m.GetParameters(), p => p.Name == "useHttps"));
+      Assert.NotNull(overload);
+
+      var parameters = overload.GetParameters();
+      var arguments = new object?[parameters.Length];
+      for (var i = 0; i < parameters.Length; i++)
+      {
+        arguments[i] = parameters[i].Name switch
+        {
+          "service" => service.Object,
+          "portAndProto" => "443/tcp",
+          "path" => "/",
+          "timeout" => 200L,
+          "pollIntervalMs" => 10,
+          "cancellationToken" => TestContext.Current.CancellationToken,
+          "useHttps" => true,
+          _ => throw new InvalidOperationException(parameters[i].Name)
+        };
+      }
+      var task = (Task<bool>)overload.Invoke(
+          null,
+          arguments)!;
+      var ready = await task;
+
+      Assert.False(ready);
+      Assert.Equal(0x16, await firstByte.Task.WaitAsync(
+          TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken));
+      await server;
+    }
+
+    [Fact]
     public async Task WaitForProcessAsync_WhenCallerCancels_ThrowsOperationCanceledException()
     {
       var service = new Mock<IContainerService>();

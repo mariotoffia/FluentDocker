@@ -95,7 +95,7 @@ namespace FluentDocker.Tests.CoreTests.Service
         await runner.StatusAsync(TestContext.Current.CancellationToken);
 
         pack.ModelRuntimeDriver.Verify(d => d.StatusAsync(
-            It.Is<DriverContext>(ctx => ctx.CertificatePath == "/certs/docker" && !ctx.VerifyTls),
+            It.Is<DriverContext>(ctx => ctx.CertificatePath == "/certs/docker" && ctx.VerifyTls == false),
             It.IsAny<CancellationToken>()), Times.Once);
       }
     }

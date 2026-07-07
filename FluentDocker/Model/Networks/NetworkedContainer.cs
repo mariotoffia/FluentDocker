@@ -1,18 +1,19 @@
+#nullable enable
 namespace FluentDocker.Model.Networks
 {
   public sealed class NetworkedContainer
   {
-    public string Name { get; set; }
+    public string Name { get; set; } = null!;
 
     // ReSharper disable once InconsistentNaming
-    public string EndpointID { get; set; }
+    public string? EndpointID { get; set; }
 
-    public string MacAddress { get; set; }
-
-    // ReSharper disable once InconsistentNaming
-    public string IPv4Address { get; set; }
+    public string? MacAddress { get; set; }
 
     // ReSharper disable once InconsistentNaming
-    public string IPv6Address { get; set; }
+    public string? IPv4Address { get; set; }
+
+    // ReSharper disable once InconsistentNaming
+    public string? IPv6Address { get; set; }
   }
 }

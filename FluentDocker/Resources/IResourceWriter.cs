@@ -1,3 +1,4 @@
+#nullable enable
 using System.IO;
 
 namespace FluentDocker.Resources
