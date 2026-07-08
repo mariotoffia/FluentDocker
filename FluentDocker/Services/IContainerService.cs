@@ -67,6 +67,11 @@ namespace FluentDocker.Services
     /// <summary>
     /// Executes a command in the container asynchronously.
     /// </summary>
+    /// <remarks>
+    /// <paramref name="command"/> is split into an argument vector with shell-style quote parsing;
+    /// pass the <c>string[]</c> overload to bypass parsing when arguments are already tokenized.
+    /// </remarks>
+    /// <exception cref="System.FormatException">The command contains an unterminated quoted string.</exception>
     Task<string> ExecuteAsync(string command, CancellationToken cancellationToken = default);
 
     /// <summary>
@@ -74,8 +79,10 @@ namespace FluentDocker.Services
     /// </summary>
     /// <remarks>
     /// A non-zero <see cref="ExecResult.ExitCode"/> is returned, not thrown, so callers can inspect
-    /// stderr and decide how to handle process failure.
+    /// stderr and decide how to handle process failure. <paramref name="command"/> is split into an
+    /// argument vector with shell-style quote parsing; pass the <c>string[]</c> overload to bypass it.
     /// </remarks>
+    /// <exception cref="System.FormatException">The command contains an unterminated quoted string.</exception>
     Task<ExecResult> ExecuteDetailedAsync(string command, CancellationToken cancellationToken = default);
 
     /// <summary>

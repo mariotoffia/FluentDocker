@@ -31,9 +31,12 @@ namespace FluentDocker.Tests.CoreTests.Driver
   {
     private sealed class ShellDriver : DockerCliDriverBase
     {
-      public ShellDriver(IBinaryResolver resolver) : base(resolver)
-      {
-      }
+      private readonly int _maxOutputBytes;
+
+      public ShellDriver(IBinaryResolver resolver, int maxOutputBytes = 64 * 1024 * 1024) : base(resolver) =>
+          _maxOutputBytes = maxOutputBytes;
+
+      protected override int MaxNonStreamingOutputBytes => _maxOutputBytes;
 
       public IAsyncEnumerable<string> StreamStdoutOnly(string args, CancellationToken ct) =>
           ExecuteStreamingCommandAsync(args, ct);
@@ -45,12 +48,12 @@ namespace FluentDocker.Tests.CoreTests.Driver
           ExecuteCommandAsync(args, ct);
     }
 
-    private static ShellDriver CreateShellDriver()
+    private static ShellDriver CreateShellDriver(int maxOutputBytes = 64 * 1024 * 1024)
     {
       var resolver = new Mock<IBinaryResolver>();
       resolver.Setup(r => r.Resolve(It.IsAny<string>()))
           .Returns(new DockerBinary("/bin", "sh", SudoMechanism.None, null!, DockerBinaryType.DockerClient));
-      var driver = new ShellDriver(resolver.Object);
+      var driver = new ShellDriver(resolver.Object, maxOutputBytes);
       driver.Initialize(new DriverContext("docker")); // no Host -> no global args prepended
       return driver;
     }
@@ -127,11 +130,12 @@ namespace FluentDocker.Tests.CoreTests.Driver
       if (OperatingSystem.IsWindows())
         Assert.Skip("POSIX shell semantics; not applicable on Windows");
 
-      var driver = CreateShellDriver();
+      // Override the stdout cap to a small 256 KiB so the bounded read trips deterministically
+      // without generating tens of MiB. 'yes x' emits a 2-byte line ("x\n"); the ~10 MB stream
+      // overruns the cap almost immediately, and the bounded read must abort with a clear
+      // failure rather than buffer without limit (never OOM).
+      var driver = CreateShellDriver(maxOutputBytes: 256 * 1024);
 
-      // Emit ~8 MiB to stdout (yes | head) — well past the 4 MiB cap. The bounded read
-      // must abort and the command must report a clear failure, never OOM.
-      // 'yes x' emits a 2-byte line ("x\n"); 5,000,000 lines ~= 10 MB.
       const string script = "yes x | head -n 5000000";
       var args = $"-c \"{script}\"";
 
@@ -175,9 +179,11 @@ namespace FluentDocker.Tests.CoreTests.Driver
       var sentinel = System.IO.Path.Combine(dir, $"fd-b8-{Guid.NewGuid():N}");
       try
       {
-        var driver = CreateShellDriver();
+        // Override the stdout cap to a small 256 KiB so the overrun (and the resulting kill)
+        // fire deterministically without generating tens of MiB.
+        var driver = CreateShellDriver(maxOutputBytes: 256 * 1024);
 
-        // Script: (1) touch sentinel to prove it started, (2) overflow stdout (> 4 MiB),
+        // Script: (1) touch sentinel to prove it started, (2) overflow stdout (> 256 KiB),
         // (3) remove sentinel — step 3 must never run because Kill fires between 1 and 3.
         var script = $"touch {sentinel}; yes x | head -n 5000000; rm -f {sentinel}";
         var args = $"-c \"{script}\"";

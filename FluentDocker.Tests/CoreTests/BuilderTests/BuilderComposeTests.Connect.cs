@@ -76,6 +76,8 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
     {
       var (kernel, mockPack) = await MockKernelBuilderExtensions.CreateWithMockDriverAsync("docker");
       mockPack.SetupComposeUp("owned-proj");
+      // self-created project: the ownership probe (compose ls) finds nothing, so it is torn down on dispose.
+      mockPack.SetupComposeList();
       mockPack.SetupComposeDown();
       try
       {

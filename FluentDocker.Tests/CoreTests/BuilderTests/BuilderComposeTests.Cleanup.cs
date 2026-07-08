@@ -22,6 +22,8 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
               It.IsAny<ComposeUpConfig>(),
               It.IsAny<CancellationToken>()))
           .ReturnsAsync(CommandResponse<ComposeUpResult>.Fail("up failed"));
+      // self-created project: the ownership probe (compose ls) finds nothing, so up-failure triggers a best-effort down.
+      mockPack.SetupComposeList();
       mockPack.SetupComposeDown();
 
       try

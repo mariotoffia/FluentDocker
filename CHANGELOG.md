@@ -36,6 +36,7 @@ Production-readiness remediation of the preview API surface. Recompile and revie
 - **Moved to `FluentDocker.Kernel`** — `CapabilityChecks`, the `KernelCapabilityExtensions` extension methods (including `kernel.EnsureCapabilityAsync(...)`), and the `DriverCapability` enum moved from `FluentDocker.Common`. Update `using FluentDocker.Common;` to `using FluentDocker.Kernel;` — the extension-method move is otherwise a silent build break.
 - **Moved to `FluentDocker.Kernel`** — `BuildResults` and `BuildScope` moved from `FluentDocker.Model.Kernel` to `FluentDocker.Kernel`. Update imports to `FluentDocker.Kernel` — the type move is source-breaking for build-result call sites.
 - **`ContainerBuildParams` is now `[Obsolete]`** — test-only; slated for removal.
+- **Docker API portless URIs default to standard HTTP(S) ports** — a `DockerHost` given as `http://host` (no port) now defaults to `:80` and `https://host` to `:443`, matching the scheme; previously both fell back to `:2375`/`:2376`. Explicit `tcp://host` still defaults to `2375` (plain) / `2376` (TLS). Set the port explicitly to pin the old behavior.
 
 ### Added
 

@@ -106,6 +106,8 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
             Assert.True(File.Exists(overlayPath));
           })
           .ThrowsAsync(new OperationCanceledException("cancelled by daemon"));
+      // self-created project: the ownership probe (compose ls) finds nothing, so up-failure triggers a best-effort down.
+      MockPack.SetupComposeList();
       MockPack.SetupComposeDown();
 
       await Assert.ThrowsAsync<OperationCanceledException>(() => new Builder()

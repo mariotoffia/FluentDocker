@@ -87,6 +87,10 @@ namespace FluentDocker.Builders
                 _name);
           }
 
+          // A reused network is always borrowed and never removed on dispose. Unlike a volume,
+          // a Docker network name is NOT a unique identity — several networks can share a name,
+          // so a same-name network found on a retry may be a foreign one that replaced the one we
+          // created. Removing it could delete someone else's network, so we never re-own by name.
           return new Services.Impl.NetworkService(
               _kernel, _driverId, existingNetwork.Id, _name, removeOnDispose: CreatedResource);
         }
@@ -170,8 +174,15 @@ namespace FluentDocker.Builders
                 _name);
           }
 
+          // Re-own across retries: when THIS builder created the volume on a prior attempt and
+          // RemoveOnDispose was requested, honor removal on the reused volume. A Docker volume
+          // name is its identity (unlike a network name), so "the volume named X" is unambiguous
+          // and re-owning by name is safe. Narrow exception: if a prior attempt's cleanup already
+          // removed our volume and an external actor recreated the same name in between, we re-own
+          // that name too — acceptable, since the caller explicitly asked to manage (and remove)
+          // the volume named X. A volume not created on any attempt stays borrowed, never removed.
           return new Services.Impl.VolumeService(
-              _kernel, _driverId, existing.Data.Name, existing.Data.Driver ?? _driver, removeOnDispose: CreatedResource);
+              _kernel, _driverId, existing.Data.Name, existing.Data.Driver ?? _driver, removeOnDispose: priorAttemptCreated && _removeOnDispose);
         }
       }
 

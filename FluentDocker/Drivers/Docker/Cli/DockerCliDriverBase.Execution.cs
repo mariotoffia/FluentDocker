@@ -25,9 +25,10 @@ namespace FluentDocker.Drivers.Docker.Cli
     /// Sanity cap (64 MiB) on buffered stdout of a non-streaming Docker command.
     /// Large hosts can produce multi-MiB JSON from list/inspect reads; those outputs must
     /// fail above a high ceiling, not truncate into corrupt JSON. Streaming commands are
-    /// unaffected — they are read line-by-line and never fully buffered.
+    /// unaffected — they are read line-by-line and never fully buffered. Overridable so tests
+    /// can exercise the bounded-read failure path without generating 64 MiB of output.
     /// </summary>
-    private const int MaxNonStreamingOutputBytes = 64 * 1024 * 1024;
+    protected virtual int MaxNonStreamingOutputBytes => 64 * 1024 * 1024;
     private const int MaxNonStreamingErrorBytes = 4 * 1024 * 1024;
 
     /// <summary>
@@ -168,7 +169,7 @@ namespace FluentDocker.Drivers.Docker.Cli
     /// Handles sudo by setting the process FileName to "sudo" and passing the
     /// password via stdin (never on the command line).
     /// </summary>
-    protected static async Task<SimpleCommandResult> ExecuteProcessAsync(
+    protected async Task<SimpleCommandResult> ExecuteProcessAsync(
         string fileName, string arguments,
         IDictionary<string, string> environment,
         string stdinData,

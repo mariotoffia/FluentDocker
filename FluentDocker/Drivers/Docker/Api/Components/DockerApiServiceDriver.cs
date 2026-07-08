@@ -62,7 +62,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
               result.StatusCode);
       }
 
-      throw new InvalidOperationException("unreachable: retry loop always returns");
+      return CommandResponse<Unit>.Ok(Unit.Default);
     }
 
     /// <inheritdoc />
