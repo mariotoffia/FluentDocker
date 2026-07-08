@@ -9,12 +9,15 @@ nav_order: 2
 
 Package: `FluentDocker.Testing.Xunit`
 
+> **Preview docs — not on NuGet yet.** These document the upcoming **3.2.0-preview.2** API; build
+> from [`featrure/model-support`](https://github.com/mariotoffia/FluentDocker/tree/featrure/model-support) to use it. The latest published package
+> is **3.1.0**, whose `WithPort` is container-first (host-first in the preview) — don't run these samples against it.
+
 > **xUnit v3 only.** This package depends on `xunit.v3.extensibility.core` and
 > targets xUnit v3. It is not compatible with xUnit v2 (`xunit` 2.x) projects.
 
-Recommended entry point: use `XunitContainerFixtureBase` (or another
-`Xunit*FixtureBase`) with `IClassFixture<T>` for integration suites. Use
-`XunitContainerTestBase` only when each test method needs a fresh container.
+Recommended entry point: use `XunitContainerFixtureBase` (or another `Xunit*FixtureBase`)
+with `IClassFixture<T>` for integration suites. Use `XunitContainerTestBase` only when each test method needs a fresh container.
 
 The xUnit adapter offers three patterns:
 
@@ -33,9 +36,8 @@ The xUnit adapter offers three patterns:
 
 ## Project setup / requirements
 
-`FluentDocker.Testing.Xunit` brings `xunit.v3.extensibility.core` transitively (fixture
-plumbing), but that is **not** runnable alone — a consumer project also needs the v3
-framework, the VSTest runner, and the test host. Requires **xUnit v3** (`xunit.v3`), not xUnit 2.x.
+`FluentDocker.Testing.Xunit` brings `xunit.v3.extensibility.core` transitively (fixture plumbing),
+but consumers also need the v3 framework, VSTest runner, and test host. Requires **xUnit v3** (`xunit.v3`), not xUnit 2.x.
 
 | Package | Why | Transitive from this package? |
 | --- | --- | --- |

@@ -8,6 +8,10 @@ nav_order: 5
 
 FluentDocker provides full support for Docker Compose V2 (`docker compose` command).
 
+> **Preview docs — not on NuGet yet.** These document the upcoming **3.2.0-preview.2** API; build
+> from [`featrure/model-support`](https://github.com/mariotoffia/FluentDocker/tree/featrure/model-support) to use it. The latest published package
+> is **3.1.0**, whose `WithPort` is container-first (host-first in the preview) — don't run these samples against it.
+
 ## Step by Step
 
 - Basics: [Kernel Setup](#kernel-setup), [Basic Usage](#basic-usage), [Waiting for Services](#waiting-for-services)
@@ -552,7 +556,6 @@ using System.Net.Http.Json;
 using System.Threading.Tasks;
 using FluentDocker.Builders;
 using FluentDocker.Kernel;
-using FluentDocker.Model.Kernel;
 using Xunit;
 public class IntegrationTestBase : IAsyncLifetime
 {

@@ -9,6 +9,10 @@ nav_order: 7
 FluentDocker v3 provides full support for Docker volumes, including named volumes and bind mounts.
 All operations go through the kernel and driver-scoped builder pattern.
 
+> **Preview docs — not on NuGet yet.** These document the upcoming **3.2.0-preview.2** API; build
+> from [`featrure/model-support`](https://github.com/mariotoffia/FluentDocker/tree/featrure/model-support) to use it. The latest published package
+> is **3.1.0**, whose `WithPort` is container-first (host-first in the preview) — don't run these samples against it.
+
 ## Step by Step
 
 - Basics: [Kernel Setup](#kernel-setup), [Named Volumes](#named-volumes), [Bind Mounts](#bind-mounts)
@@ -458,10 +462,11 @@ await volume.RemoveAsync();
 ## Testing with Volumes
 
 ```csharp
+using System;
 using System.Linq;
+using System.Threading.Tasks;
 using FluentDocker.Builders;
 using FluentDocker.Kernel;
-using FluentDocker.Model.Kernel;
 using Xunit;
 
 public class DatabaseTest : IAsyncDisposable

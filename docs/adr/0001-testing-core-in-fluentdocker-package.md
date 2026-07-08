@@ -1,3 +1,10 @@
+---
+layout: default
+title: ADR 0001 - Testing Core Package
+parent: Testing
+nav_order: 8
+---
+
 # ADR 0001: Keep testing core in the FluentDocker package during preview
 
 ## Status
