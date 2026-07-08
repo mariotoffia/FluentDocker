@@ -47,6 +47,44 @@ namespace FluentDocker.Tests.CoreTests.Service
     }
 
     [Fact]
+    public async Task StopAsync_ModelStateChangeHandlerCanReenterLifecycleWithoutDeadlocking()
+    {
+      await using var kernel = new FluentDocker.Kernel.FluentDockerKernel(
+          new DriverRegistry(NullLoggerFactory.Instance), NullLoggerFactory.Instance);
+      var runner = new Mock<IModelRunner>();
+      runner.Setup(r => r.LoadAsync(
+              It.IsAny<ModelReference>(), It.IsAny<ModelRunOptions>(), It.IsAny<CancellationToken>()))
+          .Returns(Task.CompletedTask);
+      runner.Setup(r => r.UnloadAsync(It.IsAny<ModelReference>(), It.IsAny<CancellationToken>()))
+          .Returns(Task.CompletedTask);
+      // Force the reentrant RemoveAsync continuation onto a pool thread so the reentrant
+      // UpdateState(Removed) runs on a DIFFERENT thread than the one holding _stateLock. That
+      // cross-thread hop is what turns an under-lock handler invocation into a real deadlock; a
+      // synchronous mock hides it behind Monitor reentrancy.
+      runner.Setup(r => r.RemoveAsync(It.IsAny<ModelReference>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()))
+          .Returns(async () => await Task.Delay(50, TestContext.Current.CancellationToken));
+      runner.Setup(r => r.DisposeAsync()).Returns(ValueTask.CompletedTask);
+      var service = new ModelService(kernel, "docker", Model, runner.Object, null!, keepRunning: true);
+      await service.StartAsync(TestContext.Current.CancellationToken);
+      var reentered = false;
+      service.StateChange += (_, args) =>
+      {
+        if (args.State != ServiceRunningState.Stopped || reentered)
+          return;
+        reentered = true;
+        service.RemoveAsync(force: true, TestContext.Current.CancellationToken).GetAwaiter().GetResult();
+      };
+
+      var stopTask = service.StopAsync(TestContext.Current.CancellationToken);
+      var completed = await Task.WhenAny(stopTask, Task.Delay(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken));
+
+      Assert.Same(stopTask, completed);
+      await stopTask;
+      Assert.True(reentered);
+      Assert.Equal(ServiceRunningState.Removed, service.State);
+    }
+
+    [Fact]
     public async Task StartAsync_AfterStop_ReloadsModel()
     {
       await using var kernel = new FluentDocker.Kernel.FluentDockerKernel(

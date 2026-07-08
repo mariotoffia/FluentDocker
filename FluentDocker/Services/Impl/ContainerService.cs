@@ -102,7 +102,9 @@ namespace FluentDocker.Services.Impl
       _deleteVolumeOnDispose = deleteVolumeOnDispose;
       _deleteNamedVolumeOnDispose = deleteNamedVolumeOnDispose;
       _customResolver = customResolver;
-      _lifecycleHooks = lifecycleHooks ?? [];
+      // ponytail: shallow copy detaches the builder-owned list so post-Build list mutation
+      // can't corrupt the service's hooks mid-enumeration (7.9); elements are never mutated here.
+      _lifecycleHooks = lifecycleHooks is null ? [] : [.. lifecycleHooks];
       _state = initialState;
       _disposeCleanupTimeout =
           disposeCleanupTimeout ?? TimeSpan.FromMilliseconds(DefaultDisposeCleanupTimeoutMs);
@@ -129,7 +131,7 @@ namespace FluentDocker.Services.Impl
     public async Task StartAsync(CancellationToken cancellationToken = default)
     {
       cancellationToken.ThrowIfCancellationRequested();
-      ObjectDisposedException.ThrowIf(Volatile.Read(ref _disposed) != 0, this);
+      ThrowIfDisposed();
       if (_state == ServiceRunningState.Removed)
         throw new ObjectDisposedException(Name, "Cannot start a removed container.");
 
@@ -185,29 +187,41 @@ namespace FluentDocker.Services.Impl
     public async Task PauseAsync(CancellationToken cancellationToken = default)
     {
       cancellationToken.ThrowIfCancellationRequested();
+      ThrowIfDisposed();
+      if (_state == ServiceRunningState.Removed)
+        return;
       if (_state == ServiceRunningState.Paused)
         return;
 
       var driver = _kernel.SysCtl<IContainerDriver>(_driverId);
       var context = new DriverContext(_driverId);
 
-      var response = await driver.PauseAsync(context, _containerId, cancellationToken).ConfigureAwait(false);
-
-      if (!response.Success)
+      try
       {
-        throw new DriverException(
-            $"Failed to pause container '{_name}': {response.Error}",
-            response.ErrorCode,
-            response.ErrorContext);
-      }
+        var response = await driver.PauseAsync(context, _containerId, cancellationToken).ConfigureAwait(false);
 
-      UpdateState(ServiceRunningState.Paused);
-      await ExecuteHooksAsync(ServiceRunningState.Paused).ConfigureAwait(false);
+        if (!response.Success)
+        {
+          throw new DriverException(
+              $"Failed to pause container '{_name}': {response.Error}",
+              response.ErrorCode,
+              response.ErrorContext);
+        }
+
+        UpdateState(ServiceRunningState.Paused);
+        await ExecuteHooksAsync(ServiceRunningState.Paused).ConfigureAwait(false);
+      }
+      catch
+      {
+        UpdateState(ServiceRunningState.Unknown);
+        throw;
+      }
     }
 
     public async Task UnpauseAsync(CancellationToken cancellationToken = default)
     {
       cancellationToken.ThrowIfCancellationRequested();
+      ThrowIfDisposed();
       if (_state == ServiceRunningState.Removed)
         return;
 
@@ -244,8 +258,15 @@ namespace FluentDocker.Services.Impl
 
     public async Task StopAsync(CancellationToken cancellationToken = default)
     {
+      await StopCoreAsync(throwIfDisposed: true, cancellationToken).ConfigureAwait(false);
+    }
+
+    private async Task StopCoreAsync(bool throwIfDisposed, CancellationToken cancellationToken)
+    {
       cancellationToken.ThrowIfCancellationRequested();
-      if (_state == ServiceRunningState.Removed)
+      if (throwIfDisposed)
+        ThrowIfDisposed();
+      if (_state is ServiceRunningState.Stopped or ServiceRunningState.Removed)
         return;
 
       var driver = _kernel.SysCtl<IContainerDriver>(_driverId);
@@ -280,6 +301,7 @@ namespace FluentDocker.Services.Impl
     public async Task KillAsync(string signal = "SIGKILL", CancellationToken cancellationToken = default)
     {
       cancellationToken.ThrowIfCancellationRequested();
+      ThrowIfDisposed();
       if (_state == ServiceRunningState.Removed)
         return;
 
@@ -314,18 +336,23 @@ namespace FluentDocker.Services.Impl
 
     public async Task RemoveAsync(bool force = false, CancellationToken cancellationToken = default)
     {
-      await RemoveCoreAsync(force, skipExecuteLifecycleHooks: false, null, cancellationToken).ConfigureAwait(false);
+      await RemoveCoreAsync(
+          force, skipExecuteLifecycleHooks: false, removeVolumesOverride: null,
+          throwIfDisposed: true, cancellationToken).ConfigureAwait(false);
     }
 
     public async Task RemoveAsync(
         bool force, bool removeVolumes, CancellationToken cancellationToken = default)
     {
       await RemoveCoreAsync(
-          force, skipExecuteLifecycleHooks: false, removeVolumes, cancellationToken).ConfigureAwait(false);
+          force, skipExecuteLifecycleHooks: false, removeVolumes,
+          throwIfDisposed: true, cancellationToken).ConfigureAwait(false);
     }
 
     public async Task<Container> InspectAsync(CancellationToken cancellationToken = default)
     {
+      cancellationToken.ThrowIfCancellationRequested();
+      ThrowIfDisposed();
       // Return cached result if still valid (reduces redundant calls during wait polling).
       // Single volatile reference read ensures data and timestamp are always consistent.
       var entry = _inspectCacheEntry;
@@ -368,6 +395,11 @@ namespace FluentDocker.Services.Impl
 
       return response.Data;
     }
+
+    // ponytail: key on _disposeCompleted (dispose finished), not _disposed (dispose started), so
+    // lifecycle hooks firing DURING dispose can still observe the live container (7.5/M1); external
+    // callers after Dispose() returns still get ObjectDisposedException.
+    private void ThrowIfDisposed() => ObjectDisposedException.ThrowIf(Volatile.Read(ref _disposeCompleted) != 0, this);
 
   }
 }

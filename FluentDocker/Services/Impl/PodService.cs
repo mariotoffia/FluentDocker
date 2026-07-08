@@ -96,6 +96,11 @@ namespace FluentDocker.Services.Impl
 
     public async Task StopAsync(CancellationToken cancellationToken = default)
     {
+      cancellationToken.ThrowIfCancellationRequested();
+      // A fresh pod starts in Stopped, so only Removed is a terminal state to guard here — mirrors
+      // RemoveAsync's guard so a stop can't resurrect a removed pod (Removed -> Stopping -> Stopped).
+      if (State is ServiceRunningState.Removed)
+        return;
       var driver = _kernel.SysCtl<IPodmanPodDriver>(_driverId);
       var context = new DriverContext(_driverId);
 
@@ -105,7 +110,7 @@ namespace FluentDocker.Services.Impl
         await ExecuteHooksAsync(ServiceRunningState.Stopping).ConfigureAwait(false);
 
         var response = await driver.StopPodAsync(context, _podName, 10, cancellationToken).ConfigureAwait(false);
-        if (!response.Success)
+        if (!response.Success && !IsPodAlreadyStopped(response))
         {
           throw new DriverException(
               $"Failed to stop pod '{_podName}': {response.Error}",
@@ -237,29 +242,22 @@ namespace FluentDocker.Services.Impl
 
     private void UpdateState(ServiceRunningState newState)
     {
+      ServiceDelegates.StateChange stateChange;
+      StateChangeEventArgs args;
       lock (_stateLock)
       {
         if (Volatile.Read(ref _disposeCompleted) != 0 || _state == newState)
           return;
 
         _state = newState;
-        var stateChange = StateChange;
+        stateChange = StateChange;
         if (stateChange == null)
           return;
 
-        var args = new StateChangeEventArgs(this, newState);
-        foreach (ServiceDelegates.StateChange handler in stateChange.GetInvocationList())
-        {
-          try
-          {
-            handler(this, args);
-          }
-          catch (Exception ex)
-          {
-            _logger.LogError(ex, "PodService state change handler failed");
-          }
-        }
+        args = new StateChangeEventArgs(this, newState);
       }
+
+      StateChangeNotifier.Invoke(stateChange, args, _logger, "PodService");
     }
 
     private async Task ExecuteHooksAsync(ServiceRunningState state)
@@ -291,5 +289,11 @@ namespace FluentDocker.Services.Impl
     private static bool IsPodAlreadyGone(CommandResponse<Unit> response) =>
         response.ErrorCode == ErrorCodes.Pod.NotFound ||
         response.Error?.Contains("no such pod", StringComparison.OrdinalIgnoreCase) == true;
+
+    // ponytail: tolerate Podman wording for redundant stops without broad "not found" masking.
+    private static bool IsPodAlreadyStopped(CommandResponse<Unit> response) =>
+        IsPodAlreadyGone(response) ||
+        response.Error?.Contains("not running", StringComparison.OrdinalIgnoreCase) == true ||
+        response.Error?.Contains("already stopped", StringComparison.OrdinalIgnoreCase) == true;
   }
 }

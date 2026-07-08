@@ -13,6 +13,9 @@ namespace FluentDocker.Services
   /// Built-in services make disposal idempotent, use concurrent hook registration, and raise
   /// <see cref="StateChange"/> only when the state actually changes. State-change handlers and
   /// hooks are isolated from lifecycle operations: thrown exceptions are logged and swallowed.
+  /// Handlers run <em>after</em> the internal state lock is released (so a handler may safely
+  /// re-enter lifecycle operations); consequently, under concurrent transitions handler delivery
+  /// order is not guaranteed.
   /// </remarks>
   public interface IServiceAsync : IDisposable, IAsyncDisposable
   {

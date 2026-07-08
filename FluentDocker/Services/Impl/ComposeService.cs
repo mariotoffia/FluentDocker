@@ -178,6 +178,10 @@ namespace FluentDocker.Services.Impl
 
     public async Task RefreshStateAsync(CancellationToken cancellationToken = default)
     {
+      // ponytail: preserve RemoveAsync's idempotency guard; ps-empty must not resurrect Removed.
+      if (_state == ServiceRunningState.Removed)
+        return;
+
       var services = await ListServicesAsync(cancellationToken).ConfigureAwait(false);
 
       if (services == null || services.Count == 0)
@@ -446,29 +450,22 @@ namespace FluentDocker.Services.Impl
 
     private void UpdateState(ServiceRunningState newState)
     {
+      ServiceDelegates.StateChange stateChange;
+      StateChangeEventArgs args;
       lock (_stateLock)
       {
         if (Volatile.Read(ref _disposeCompleted) != 0 || _state == newState)
           return;
 
         _state = newState;
-        var stateChange = StateChange;
+        stateChange = StateChange;
         if (stateChange == null)
           return;
 
-        var args = new StateChangeEventArgs(this, newState);
-        foreach (ServiceDelegates.StateChange handler in stateChange.GetInvocationList())
-        {
-          try
-          {
-            handler(this, args);
-          }
-          catch (Exception ex)
-          {
-            _logger.LogError(ex, "ComposeService state change handler failed");
-          }
-        }
+        args = new StateChangeEventArgs(this, newState);
       }
+
+      StateChangeNotifier.Invoke(stateChange, args, _logger, "ComposeService");
     }
 
     private async Task ExecuteHooksAsync(ServiceRunningState state)

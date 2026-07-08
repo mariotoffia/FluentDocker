@@ -9,8 +9,13 @@ namespace FluentDocker.Services
   /// </summary>
   public enum EngineScopeType
   {
+    /// <summary>The daemon scope could not be determined.</summary>
     Unknown = 0,
+
+    /// <summary>The daemon is running Windows containers.</summary>
     Windows = 1,
+
+    /// <summary>The daemon is running Linux containers.</summary>
     Linux = 2
   }
 
@@ -48,4 +53,3 @@ namespace FluentDocker.Services
     Task<bool> UseWindowsAsync(CancellationToken cancellationToken = default);
   }
 }
-

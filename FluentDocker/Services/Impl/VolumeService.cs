@@ -220,29 +220,22 @@ namespace FluentDocker.Services.Impl
 
     private void UpdateState(ServiceRunningState newState)
     {
+      ServiceDelegates.StateChange stateChange;
+      StateChangeEventArgs args;
       lock (_stateLock)
       {
         if (Volatile.Read(ref _disposeCompleted) != 0 || _state == newState)
           return;
 
         _state = newState;
-        var stateChange = StateChange;
+        stateChange = StateChange;
         if (stateChange == null)
           return;
 
-        var args = new StateChangeEventArgs(this, newState);
-        foreach (ServiceDelegates.StateChange handler in stateChange.GetInvocationList())
-        {
-          try
-          {
-            handler(this, args);
-          }
-          catch (Exception ex)
-          {
-            _logger.LogError(ex, "VolumeService state change handler failed");
-          }
-        }
+        args = new StateChangeEventArgs(this, newState);
       }
+
+      StateChangeNotifier.Invoke(stateChange, args, _logger, "VolumeService");
     }
 
     private async Task ExecuteHooksAsync(ServiceRunningState state)

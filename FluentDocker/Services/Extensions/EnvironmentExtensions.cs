@@ -1,6 +1,7 @@
 using System;
 using System.Net;
 using System.Net.Sockets;
+using System.Threading;
 using System.Threading.Tasks;
 using FluentDocker.Common;
 
@@ -13,6 +14,7 @@ namespace FluentDocker.Services.Extensions
   {
     private static volatile IPAddress _cachedDockerIpAddress;
     private static readonly object CacheLock = new();
+    private static readonly TimeSpan DnsTimeout = TimeSpan.FromSeconds(3);
 
     /// <summary>
     /// Checks if running on native Linux Docker.
@@ -43,14 +45,62 @@ namespace FluentDocker.Services.Extensions
     /// </summary>
     public static async Task<bool> IsDockerDnsAvailableAsync()
     {
+      return await IsDockerDnsAvailableAsync(CancellationToken.None).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Checks if Docker DNS is available (host.docker.internal).
+    /// </summary>
+    public static async Task<bool> IsDockerDnsAvailableAsync(CancellationToken cancellationToken)
+    {
       try
       {
-        await Dns.GetHostAddressesAsync("host.docker.internal").ConfigureAwait(false);
-        return true;
+        var addresses = await ResolveDockerDnsAsync(cancellationToken).ConfigureAwait(false);
+        return addresses.Length > 0;
+      }
+      catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+      {
+        return false;
+      }
+      catch (OperationCanceledException)
+      {
+        throw;
       }
       catch (SocketException)
       {
         return false;
+      }
+    }
+
+    private static async Task<IPAddress[]> ResolveDockerDnsAsync(CancellationToken cancellationToken)
+    {
+      cancellationToken.ThrowIfCancellationRequested();
+      using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+      timeoutCts.CancelAfter(DnsTimeout);
+      try
+      {
+        return await Dns.GetHostAddressesAsync("host.docker.internal", timeoutCts.Token)
+            .ConfigureAwait(false);
+      }
+      catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+      {
+        return [];
+      }
+    }
+
+    private static async Task<IPAddress[]> TryResolveDockerDnsAsync(CancellationToken cancellationToken)
+    {
+      try
+      {
+        return await ResolveDockerDnsAsync(cancellationToken).ConfigureAwait(false);
+      }
+      catch (OperationCanceledException)
+      {
+        throw;
+      }
+      catch (SocketException)
+      {
+        return [];
       }
     }
 
@@ -71,6 +121,20 @@ namespace FluentDocker.Services.Extensions
     /// <returns>The Docker host IP address.</returns>
     public static async Task<IPAddress> GetDockerHostAddressAsync(bool useCache = true)
     {
+      return await GetDockerHostAddressAsync(useCache, CancellationToken.None).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Gets the Docker host address for containers to reach the host.
+    /// </summary>
+    /// <param name="useCache">Whether to cache the result.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>The Docker host IP address.</returns>
+    public static async Task<IPAddress> GetDockerHostAddressAsync(
+        bool useCache,
+        CancellationToken cancellationToken)
+    {
+      cancellationToken.ThrowIfCancellationRequested();
       if (useCache && _cachedDockerIpAddress != null)
         return _cachedDockerIpAddress;
 
@@ -79,9 +143,9 @@ namespace FluentDocker.Services.Extensions
       {
         // Docker gateway is typically 172.17.0.1 for bridge network
         // But for host access, use host.docker.internal if available
-        if (await IsDockerDnsAvailableAsync().ConfigureAwait(false))
+        if (await IsDockerDnsAvailableAsync(cancellationToken).ConfigureAwait(false))
         {
-          var addresses = await Dns.GetHostAddressesAsync("host.docker.internal").ConfigureAwait(false);
+          var addresses = await TryResolveDockerDnsAsync(cancellationToken).ConfigureAwait(false);
           if (addresses.Length > 0)
           {
             var v4Address = Array.Find(addresses,
@@ -97,7 +161,7 @@ namespace FluentDocker.Services.Extensions
       var resolved = IPAddress.Loopback;
       try
       {
-        var addresses = await Dns.GetHostAddressesAsync("host.docker.internal").ConfigureAwait(false);
+        var addresses = await TryResolveDockerDnsAsync(cancellationToken).ConfigureAwait(false);
         if (addresses.Length > 0)
         {
           // Prefer IPv4 addresses
@@ -142,12 +206,18 @@ namespace FluentDocker.Services.Extensions
       // Check for .dockerenv file (Linux)
       if (System.IO.File.Exists("/.dockerenv"))
         return true;
+      // ponytail: cgroup v2 can be opaque; runtime marker files are the cheap reliable hint.
+      if (System.IO.File.Exists("/run/.containerenv"))
+        return true;
 
       // Check for cgroup (Linux)
       try
       {
         var cgroup = System.IO.File.ReadAllText("/proc/1/cgroup");
-        return cgroup.Contains("docker") || cgroup.Contains("kubepods");
+        return cgroup.Contains("docker", StringComparison.OrdinalIgnoreCase) ||
+            cgroup.Contains("kubepods", StringComparison.OrdinalIgnoreCase) ||
+            cgroup.Contains("containerd", StringComparison.OrdinalIgnoreCase) ||
+            cgroup.Contains("libpod", StringComparison.OrdinalIgnoreCase);
       }
       catch (Exception)
       {

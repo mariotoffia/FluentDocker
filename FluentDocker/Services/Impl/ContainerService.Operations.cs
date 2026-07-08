@@ -19,6 +19,8 @@ namespace FluentDocker.Services.Impl
   {
     public async Task<string> GetLogsAsync(bool follow = false, CancellationToken cancellationToken = default)
     {
+      cancellationToken.ThrowIfCancellationRequested();
+      ThrowIfDisposed();
       var driver = _kernel.SysCtl<IContainerDriver>(_driverId);
       var context = new DriverContext(_driverId);
 
@@ -37,6 +39,26 @@ namespace FluentDocker.Services.Impl
 
     public async Task<string> ExecuteAsync(string command, CancellationToken cancellationToken = default)
     {
+      cancellationToken.ThrowIfCancellationRequested();
+      ThrowIfDisposed();
+      var result = await ExecuteDetailedAsync(command, cancellationToken).ConfigureAwait(false);
+      return result?.StdOut;
+    }
+
+    public async Task<ExecResult> ExecuteDetailedAsync(string command, CancellationToken cancellationToken = default)
+    {
+      return await ExecuteDetailedCoreAsync(command, throwIfDisposed: true, cancellationToken)
+          .ConfigureAwait(false);
+    }
+
+    private async Task<ExecResult> ExecuteDetailedCoreAsync(
+        string command,
+        bool throwIfDisposed,
+        CancellationToken cancellationToken)
+    {
+      cancellationToken.ThrowIfCancellationRequested();
+      if (throwIfDisposed)
+        ThrowIfDisposed();
       var driver = _kernel.SysCtl<IContainerDriver>(_driverId);
       var context = new DriverContext(_driverId);
 
@@ -55,11 +77,31 @@ namespace FluentDocker.Services.Impl
             response.ErrorContext);
       }
 
-      return response.Data?.StdOut;
+      return response.Data;
     }
 
     public async Task<string> ExecuteAsync(string[] command, CancellationToken cancellationToken = default)
     {
+      cancellationToken.ThrowIfCancellationRequested();
+      ThrowIfDisposed();
+      var result = await ExecuteDetailedAsync(command, cancellationToken).ConfigureAwait(false);
+      return result?.StdOut;
+    }
+
+    public async Task<ExecResult> ExecuteDetailedAsync(string[] command, CancellationToken cancellationToken = default)
+    {
+      return await ExecuteDetailedCoreAsync(command, throwIfDisposed: true, cancellationToken)
+          .ConfigureAwait(false);
+    }
+
+    private async Task<ExecResult> ExecuteDetailedCoreAsync(
+        string[] command,
+        bool throwIfDisposed,
+        CancellationToken cancellationToken)
+    {
+      cancellationToken.ThrowIfCancellationRequested();
+      if (throwIfDisposed)
+        ThrowIfDisposed();
       var driver = _kernel.SysCtl<IContainerDriver>(_driverId);
       var context = new DriverContext(_driverId);
       var response = await driver.ExecAsync(context, _containerId,
@@ -73,11 +115,19 @@ namespace FluentDocker.Services.Impl
             response.ErrorContext);
       }
 
-      return response.Data?.StdOut;
+      return response.Data;
     }
 
     public async Task<byte[]> ExportAsync(CancellationToken cancellationToken = default)
     {
+      return await ExportCoreAsync(throwIfDisposed: true, cancellationToken).ConfigureAwait(false);
+    }
+
+    private async Task<byte[]> ExportCoreAsync(bool throwIfDisposed, CancellationToken cancellationToken)
+    {
+      cancellationToken.ThrowIfCancellationRequested();
+      if (throwIfDisposed)
+        ThrowIfDisposed();
       var driver = _kernel.SysCtl<IContainerDriver>(_driverId);
       var context = new DriverContext(_driverId);
 
@@ -99,13 +149,25 @@ namespace FluentDocker.Services.Impl
       }
       finally
       {
-        if (File.Exists(tempPath))
-          File.Delete(tempPath);
+        try
+        {
+          // ponytail: cleanup is best-effort and must not mask export success/failure.
+          if (File.Exists(tempPath))
+            File.Delete(tempPath);
+        }
+        catch (IOException)
+        {
+        }
+        catch (UnauthorizedAccessException)
+        {
+        }
       }
     }
 
     public async Task<byte[]> CopyFromAsync(string containerPath, CancellationToken cancellationToken = default)
     {
+      cancellationToken.ThrowIfCancellationRequested();
+      ThrowIfDisposed();
       var driver = _kernel.SysCtl<IContainerDriver>(_driverId);
       var context = new DriverContext(_driverId);
 
@@ -136,15 +198,27 @@ namespace FluentDocker.Services.Impl
       }
       finally
       {
-        if (Directory.Exists(tempDir))
-          Directory.Delete(tempDir, recursive: true);
-        if (Directory.Exists(tempRoot) && !Directory.EnumerateFileSystemEntries(tempRoot).Any())
-          Directory.Delete(tempRoot);
+        try
+        {
+          // ponytail: cleanup is best-effort and must not mask copy success/failure.
+          if (Directory.Exists(tempDir))
+            Directory.Delete(tempDir, recursive: true);
+          if (Directory.Exists(tempRoot) && !Directory.EnumerateFileSystemEntries(tempRoot).Any())
+            Directory.Delete(tempRoot);
+        }
+        catch (IOException)
+        {
+        }
+        catch (UnauthorizedAccessException)
+        {
+        }
       }
     }
 
     public async Task CopyToAsync(string containerPath, byte[] data, CancellationToken cancellationToken = default)
     {
+      cancellationToken.ThrowIfCancellationRequested();
+      ThrowIfDisposed();
       var driver = _kernel.SysCtl<IContainerDriver>(_driverId);
       var context = new DriverContext(_driverId);
 
@@ -166,8 +240,18 @@ namespace FluentDocker.Services.Impl
       }
       finally
       {
-        if (File.Exists(tempPath))
-          File.Delete(tempPath);
+        try
+        {
+          // ponytail: cleanup is best-effort and must not mask copy success/failure.
+          if (File.Exists(tempPath))
+            File.Delete(tempPath);
+        }
+        catch (IOException)
+        {
+        }
+        catch (UnauthorizedAccessException)
+        {
+        }
       }
     }
 
@@ -179,6 +263,19 @@ namespace FluentDocker.Services.Impl
     /// <param name="cancellationToken">Cancellation token.</param>
     public async Task CopyToAsync(string hostPath, string containerPath, CancellationToken cancellationToken = default)
     {
+      await CopyToCoreAsync(hostPath, containerPath, throwIfDisposed: true, cancellationToken)
+          .ConfigureAwait(false);
+    }
+
+    private async Task CopyToCoreAsync(
+        string hostPath,
+        string containerPath,
+        bool throwIfDisposed,
+        CancellationToken cancellationToken)
+    {
+      cancellationToken.ThrowIfCancellationRequested();
+      if (throwIfDisposed)
+        ThrowIfDisposed();
       if (!File.Exists(hostPath) && !Directory.Exists(hostPath))
       {
         throw new FileNotFoundException($"Source path does not exist: {hostPath}");
@@ -206,6 +303,19 @@ namespace FluentDocker.Services.Impl
     /// <param name="cancellationToken">Cancellation token.</param>
     public async Task CopyFromToPathAsync(string containerPath, string hostPath, CancellationToken cancellationToken = default)
     {
+      await CopyFromToPathCoreAsync(containerPath, hostPath, throwIfDisposed: true, cancellationToken)
+          .ConfigureAwait(false);
+    }
+
+    private async Task CopyFromToPathCoreAsync(
+        string containerPath,
+        string hostPath,
+        bool throwIfDisposed,
+        CancellationToken cancellationToken)
+    {
+      cancellationToken.ThrowIfCancellationRequested();
+      if (throwIfDisposed)
+        ThrowIfDisposed();
       var driver = _kernel.SysCtl<IContainerDriver>(_driverId);
       var context = new DriverContext(_driverId);
 
@@ -229,6 +339,8 @@ namespace FluentDocker.Services.Impl
 
     public async Task<ContainerStats> GetStatsAsync(CancellationToken cancellationToken = default)
     {
+      cancellationToken.ThrowIfCancellationRequested();
+      ThrowIfDisposed();
       var driver = _kernel.SysCtl<IContainerDriver>(_driverId);
       var context = new DriverContext(_driverId);
       var response = await driver.StatsAsync(context, _containerId, cancellationToken).ConfigureAwait(false);
@@ -281,6 +393,8 @@ namespace FluentDocker.Services.Impl
         string portAndProto,
         CancellationToken cancellationToken = default)
     {
+      cancellationToken.ThrowIfCancellationRequested();
+      ThrowIfDisposed();
       return await ServiceEndpointResolver.ResolveAsync(
           this,
           portAndProto,

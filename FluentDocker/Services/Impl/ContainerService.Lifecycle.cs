@@ -103,7 +103,7 @@ namespace FluentDocker.Services.Impl
 
       if (_stopOnDispose && _state != ServiceRunningState.Stopped && _state != ServiceRunningState.Removed)
       {
-        var stopTask = StopAsync(cleanupCts.Token);
+        var stopTask = StopCoreAsync(throwIfDisposed: false, cleanupCts.Token);
         try
         {
           await stopTask.WaitAsync(cleanupCts.Token).ConfigureAwait(false);
@@ -119,7 +119,8 @@ namespace FluentDocker.Services.Impl
       {
         using var removeCts = new CancellationTokenSource(removeBudget);
         var removeTask = RemoveCoreAsync(
-            force: true, skipExecuteLifecycleHooks: true, removeVolumesOverride: null, removeCts.Token);
+            force: true, skipExecuteLifecycleHooks: true, removeVolumesOverride: null,
+            throwIfDisposed: false, removeCts.Token);
         try
         {
           await removeTask.WaitAsync(removeCts.Token).ConfigureAwait(false);
@@ -149,8 +150,11 @@ namespace FluentDocker.Services.Impl
         bool force,
         bool skipExecuteLifecycleHooks,
         bool? removeVolumesOverride,
+        bool throwIfDisposed,
         CancellationToken cancellationToken)
     {
+      if (throwIfDisposed)
+        ThrowIfDisposed();
       if (_state == ServiceRunningState.Removed)
         return;
 
@@ -325,6 +329,8 @@ namespace FluentDocker.Services.Impl
 
     private void UpdateStateCore(ServiceRunningState newState, bool invalidateInspectCache)
     {
+      ServiceDelegates.StateChange stateChange;
+      StateChangeEventArgs args;
       lock (_stateLock)
       {
         if (Volatile.Read(ref _disposeCompleted) != 0)
@@ -338,23 +344,14 @@ namespace FluentDocker.Services.Impl
         if (invalidateInspectCache)
           InvalidateInspectCache();
 
-        var stateChange = StateChange;
+        stateChange = StateChange;
         if (stateChange == null)
           return;
 
-        var args = new StateChangeEventArgs(this, newState);
-        foreach (ServiceDelegates.StateChange handler in stateChange.GetInvocationList())
-        {
-          try
-          {
-            handler(this, args);
-          }
-          catch (Exception ex)
-          {
-            _logger.LogError(ex, "ContainerService state change handler failed");
-          }
-        }
+        args = new StateChangeEventArgs(this, newState);
       }
+
+      StateChangeNotifier.Invoke(stateChange, args, _logger, "ContainerService");
     }
 
     private async Task ExecuteHooksAsync(ServiceRunningState state)
@@ -401,11 +398,21 @@ namespace FluentDocker.Services.Impl
           {
             case LifecycleHookType.CopyTo:
               if (File.Exists(hook.HostPath) || Directory.Exists(hook.HostPath))
-                await CopyToAsync(hook.HostPath, hook.ContainerPath, cancellationToken).ConfigureAwait(false);
+                await CopyToCoreAsync(
+                    hook.HostPath, hook.ContainerPath, throwIfDisposed: false, cancellationToken)
+                    .ConfigureAwait(false);
+              else
+                // ponytail: warn rather than throw to preserve existing no-op lifecycle hook behavior.
+                _logger.LogWarning(
+                    "Skipping CopyTo lifecycle hook for missing host path {HostPath} on container {ContainerId}",
+                    hook.HostPath,
+                    _containerId);
               break;
 
             case LifecycleHookType.CopyFrom:
-              await CopyFromToPathAsync(hook.ContainerPath, hook.HostPath, cancellationToken).ConfigureAwait(false);
+              await CopyFromToPathCoreAsync(
+                  hook.ContainerPath, hook.HostPath, throwIfDisposed: false, cancellationToken)
+                  .ConfigureAwait(false);
               break;
 
             case LifecycleHookType.Export:
@@ -414,7 +421,8 @@ namespace FluentDocker.Services.Impl
 
             case LifecycleHookType.Execute:
               if (hook.Command != null)
-                await ExecuteAsync(hook.Command, cancellationToken).ConfigureAwait(false);
+                await ExecuteDetailedCoreAsync(
+                    hook.Command, throwIfDisposed: false, cancellationToken).ConfigureAwait(false);
               break;
           }
         }
@@ -432,7 +440,7 @@ namespace FluentDocker.Services.Impl
       if (hook.Condition != null && !hook.Condition(this))
         return;
 
-      var exportData = await ExportAsync(cancellationToken).ConfigureAwait(false);
+      var exportData = await ExportCoreAsync(throwIfDisposed: false, cancellationToken).ConfigureAwait(false);
       var exportDir = Path.GetDirectoryName(hook.HostPath);
       if (!string.IsNullOrEmpty(exportDir) && !Directory.Exists(exportDir))
         Directory.CreateDirectory(exportDir);

@@ -47,19 +47,26 @@ namespace FluentDocker.Services.Extensions
           bindings == null || bindings.Length == 0)
         return null;
 
-      var binding = bindings.FirstOrDefault();
-      if (binding == null || !int.TryParse(binding.HostPort, out var hostPort))
-        return null;
-
-      var hostIp = binding.HostIp;
-      if (string.IsNullOrEmpty(hostIp) || hostIp == "0.0.0.0" || hostIp == "::")
+      foreach (var binding in bindings)
       {
-        return new IPEndPoint(
-            await ResolveDockerHostAddressAsync(dockerHost, cancellationToken).ConfigureAwait(false),
-            hostPort);
+        if (binding == null || !int.TryParse(binding.HostPort, out var hostPort))
+          continue;
+        if (hostPort is < IPEndPoint.MinPort or > IPEndPoint.MaxPort)
+          continue;
+
+        var hostIp = binding.HostIp;
+        if (string.IsNullOrEmpty(hostIp) || hostIp == "0.0.0.0" || hostIp == "::")
+        {
+          return new IPEndPoint(
+              await ResolveDockerHostAddressAsync(dockerHost, cancellationToken).ConfigureAwait(false),
+              hostPort);
+        }
+
+        if (IPAddress.TryParse(hostIp, out var address))
+          return new IPEndPoint(address, hostPort);
       }
 
-      return new IPEndPoint(IPAddress.Parse(hostIp), hostPort);
+      return null;
     }
 
     internal static Uri GetDockerHostUri(string value)

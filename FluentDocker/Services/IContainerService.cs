@@ -1,6 +1,7 @@
 using System.Net;
 using System.Threading;
 using System.Threading.Tasks;
+using FluentDocker.Drivers;
 using FluentDocker.Model.Containers;
 
 namespace FluentDocker.Services
@@ -69,9 +70,27 @@ namespace FluentDocker.Services
     Task<string> ExecuteAsync(string command, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Executes a command in the container and returns stdout, stderr, and exit code.
+    /// </summary>
+    /// <remarks>
+    /// A non-zero <see cref="ExecResult.ExitCode"/> is returned, not thrown, so callers can inspect
+    /// stderr and decide how to handle process failure.
+    /// </remarks>
+    Task<ExecResult> ExecuteDetailedAsync(string command, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Executes a command argument vector in the container asynchronously.
     /// </summary>
     Task<string> ExecuteAsync(string[] command, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Executes a command argument vector and returns stdout, stderr, and exit code.
+    /// </summary>
+    /// <remarks>
+    /// A non-zero <see cref="ExecResult.ExitCode"/> is returned, not thrown, so callers can inspect
+    /// stderr and decide how to handle process failure.
+    /// </remarks>
+    Task<ExecResult> ExecuteDetailedAsync(string[] command, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Exports the container filesystem as a tar archive buffered in memory.
