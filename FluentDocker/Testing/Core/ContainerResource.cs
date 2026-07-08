@@ -27,6 +27,11 @@ namespace FluentDocker.Testing.Core
             LogLevel.Warning,
             new EventId(2, nameof(DiagnosticsInspectCollectionFailed)),
             "Container diagnostics inspect collection failed.");
+    private static readonly Action<ILogger, Exception> LateContainerProvisionCleanupFailed =
+        LoggerMessage.Define(
+            LogLevel.Warning,
+            new EventId(3, nameof(LateContainerProvisionCleanupFailed)),
+            "Late stale container provision cleanup failed.");
 
     /// <summary>
     /// Creates a container resource.
@@ -87,6 +92,7 @@ namespace FluentDocker.Testing.Core
     /// <inheritdoc />
     protected override async Task ProvisionAsync(CancellationToken cancellationToken)
     {
+      var generation = ProvisionGeneration;
       var builder = new Builder();
       builder.WithinDriver(DriverId, Kernel);
       builder.UseContainer(c =>
@@ -104,8 +110,16 @@ namespace FluentDocker.Testing.Core
           cancellationToken: cancellationToken).ConfigureAwait(false);
       if (results.All.Count > 0 && results.All[0] is IContainerService container)
       {
-        Container = container;
-        ResourceName = container.Name ?? container.Id;
+        if (TryCommitProvision(generation, () =>
+        {
+          Container = container;
+          ResourceName = container.Name ?? container.Id;
+        }))
+        {
+          return;
+        }
+
+        await RemoveStaleContainerAsync(container).ConfigureAwait(false);
       }
       else
       {
@@ -196,6 +210,20 @@ namespace FluentDocker.Testing.Core
       if (!IsInitialized || Container == null)
         throw new InvalidOperationException(
             "Container resource is not initialized. Call InitializeAsync first.");
+    }
+
+    private async Task RemoveStaleContainerAsync(IContainerService container)
+    {
+      try
+      {
+        using var cts = new CancellationTokenSource(Options.TeardownTimeout);
+        await container.RemoveAsync(force: true, cancellationToken: cts.Token).ConfigureAwait(false);
+      }
+      catch (Exception ex)
+      {
+        OrphanCleanup.MarkAbandonedLateProvision(container.Name ?? container.Id);
+        LateContainerProvisionCleanupFailed(Logger, ex);
+      }
     }
 
     private static string ExtractBuilderLogTail(Exception failure)

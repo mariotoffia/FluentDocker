@@ -239,21 +239,6 @@ namespace FluentDocker.Tests.Mocks
               It.IsAny<string>(),
               It.IsAny<CancellationToken>()))
           .ReturnsAsync(FluentDocker.Model.Drivers.CommandResponse<Unit>.Ok(Unit.Default));
-      ContainerDriver
-          .Setup(d => d.InspectAsync(
-              It.IsAny<DriverContext>(),
-              It.IsAny<string>(),
-              It.IsAny<CancellationToken>()))
-          .ReturnsAsync(FluentDocker.Model.Drivers.CommandResponse<Container>.Ok(new Container
-          {
-            Id = "test-container-123",
-            Name = "test-container",
-            State = new ContainerState
-            {
-              Running = true,
-              Status = "running"
-            }
-          }));
       return this;
     }
 
@@ -289,7 +274,7 @@ namespace FluentDocker.Tests.Mocks
     }
 
     /// <summary>
-    /// Sets up ContainerDriver.InspectAsync to return a running container.
+    /// Explicitly sets up ContainerDriver.InspectAsync for one container ID.
     /// </summary>
     public MockDriverPack SetupContainerInspect(string containerId = "test-container-123", bool running = true)
     {

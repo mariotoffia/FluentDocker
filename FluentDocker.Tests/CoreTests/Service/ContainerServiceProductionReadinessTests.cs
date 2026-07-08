@@ -315,7 +315,8 @@ namespace FluentDocker.Tests.CoreTests.Service
     [Fact]
     public async Task StartAsync_AfterDispose_ThrowsAndDoesNotCallDriver()
     {
-      MockPack.SetupContainerStart();
+      MockPack.SetupContainerStart()
+          .SetupContainerInspect("container-123", running: true);
       var service = new ContainerService(Kernel, DriverId, "container-123", "alpine", "test");
       await service.DisposeAsync();
 

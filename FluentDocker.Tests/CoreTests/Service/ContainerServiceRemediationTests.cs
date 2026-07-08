@@ -28,7 +28,9 @@ namespace FluentDocker.Tests.CoreTests.Service
     public async Task DisposeAsync_WithExecuteOnDisposing_RunsExecBeforeStop()
     {
       var calls = new List<string>();
-      MockPack.SetupContainerStart().SetupContainerRemove();
+      MockPack.SetupContainerStart()
+          .SetupContainerInspect("container-123", running: true)
+          .SetupContainerRemove();
       MockPack.ContainerDriver
           .Setup(d => d.ExecAsync(
               It.IsAny<DriverContext>(), "container-123", It.IsAny<ExecConfig>(),
@@ -84,7 +86,8 @@ namespace FluentDocker.Tests.CoreTests.Service
     [Fact]
     public async Task StopAsync_WhenDriverFails_ResetsStateToUnknown()
     {
-      MockPack.SetupContainerStart();
+      MockPack.SetupContainerStart()
+          .SetupContainerInspect("container-123", running: true);
       var service = new ContainerService(Kernel, DriverId, "container-123", "alpine", "test");
       await service.StartAsync(TestContext.Current.CancellationToken);
       MockPack.ContainerDriver
@@ -135,7 +138,8 @@ namespace FluentDocker.Tests.CoreTests.Service
     [Fact]
     public async Task StopAsync_WhenCanceledBeforeDriverCall_PreservesState()
     {
-      MockPack.SetupContainerStart();
+      MockPack.SetupContainerStart()
+          .SetupContainerInspect("container-123", running: true);
       MockPack.ContainerDriver
           .Setup(d => d.StopAsync(
               It.IsAny<DriverContext>(), "container-123", It.IsAny<int?>(),
@@ -222,7 +226,8 @@ namespace FluentDocker.Tests.CoreTests.Service
     [Fact]
     public async Task DisposeAsync_AfterFailedStop_AttemptsGracefulStopAgain()
     {
-      MockPack.SetupContainerStart();
+      MockPack.SetupContainerStart()
+          .SetupContainerInspect("container-123", running: true);
       var service = new ContainerService(
           Kernel, DriverId, "container-123", "alpine", "test",
           stopOnDispose: true, deleteOnDispose: false);
@@ -336,7 +341,8 @@ namespace FluentDocker.Tests.CoreTests.Service
     [Fact]
     public async Task DisposeAsync_WhenStopCompletesAfterBudget_DoesNotRaisePostDisposeStateChange()
     {
-      MockPack.SetupContainerStart();
+      MockPack.SetupContainerStart()
+          .SetupContainerInspect("container-123", running: true);
       var stopResponse = new TaskCompletionSource<CommandResponse<Unit>>(
           TaskCreationOptions.RunContinuationsAsynchronously);
       MockPack.ContainerDriver

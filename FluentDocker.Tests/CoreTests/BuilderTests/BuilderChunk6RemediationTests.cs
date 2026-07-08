@@ -31,7 +31,8 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
       var frontendLogCalls = 0;
       MockPack
           .SetupContainerStart()
-          .SetupContainerInspect(running: true)
+          .SetupContainerInspect("backend", running: true)
+          .SetupContainerInspect("frontend", running: true)
           .SetupContainerRemove();
       MockPack.ContainerDriver
           .Setup(d => d.CreateAsync(
@@ -194,7 +195,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
       var releaseCreate = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
       MockPack
           .SetupContainerStart()
-          .SetupContainerInspect(running: true)
+          .SetupContainerInspect("container-123", running: true)
           .SetupContainerStop()
           .SetupContainerRemove();
       MockPack.ContainerDriver

@@ -43,7 +43,8 @@ namespace FluentDocker.Tests.CoreTests.Service
         return Task.CompletedTask;
       });
       service.RemoveHook(name);
-      MockPack.SetupContainerStart();
+      MockPack.SetupContainerStart()
+          .SetupContainerInspect("container-123", running: true);
 
       await service.StartAsync(TestContext.Current.CancellationToken);
 

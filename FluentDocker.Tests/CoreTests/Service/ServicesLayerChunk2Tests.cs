@@ -26,7 +26,8 @@ namespace FluentDocker.Tests.CoreTests.Service
     [Fact]
     public async Task ContainerStartAsync_WhenAlreadyRunning_StillInvokesDriverAndRefreshesState()
     {
-      MockPack.SetupContainerStart();
+      MockPack.SetupContainerStart()
+          .SetupContainerInspect("container-123", running: true);
       var service = new ContainerService(Kernel, DriverId, "container-123", "alpine", "test");
       await service.StartAsync(TestContext.Current.CancellationToken);
       MockPack.SetupContainerInspect("container-123", running: false);
@@ -74,7 +75,8 @@ namespace FluentDocker.Tests.CoreTests.Service
     [Fact]
     public async Task ContainerUnpauseAsync_WhenAlreadyRunning_StillInvokesDriver()
     {
-      MockPack.SetupContainerStart();
+      MockPack.SetupContainerStart()
+          .SetupContainerInspect("container-123", running: true);
       MockPack.ContainerDriver
           .Setup(d => d.UnpauseAsync(
               It.IsAny<DriverContext>(), "container-123", It.IsAny<CancellationToken>()))

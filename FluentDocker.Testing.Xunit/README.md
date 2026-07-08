@@ -6,6 +6,14 @@ directly in your tests, with the full resource lifecycle managed as async
 fixtures. This package requires xUnit v3 (`xunit.v3`) and is not compatible with
 xUnit 2.x.
 
+## Best-effort crash cleanup
+
+Normal cleanup runs during fixture disposal and the next initialization orphan sweep. Set
+`FLUENTDOCKER_TEST_SESSION=<shared-id>` to group parallel test processes into one live session.
+Set `FLUENTDOCKER_TEST_REAPER_ON_EXIT=1` to opt in to process-exit/SIGINT/SIGTERM cleanup for
+the current session. Shared `FLUENTDOCKER_TEST_SESSION` runs skip exit reaping to avoid deleting
+sibling processes; SIGKILL and hard CI termination cannot run in-process cleanup.
+
 ## Install
 
 ```bash
@@ -17,6 +25,13 @@ dotnet add package FluentDocker.Testing.Xunit
 Recommended entry point: use `XunitContainerFixtureBase` with `IClassFixture<T>`
 for container integration suites. Use `XunitContainerTestBase` only when each
 test method needs a fresh container.
+
+## Fixture lifetime (important)
+
+| Helper | Container lifetime | Use when |
+| --- | --- | --- |
+| `XunitContainerTestBase` | **Per test method** (xUnit creates a test class instance per method) | Tests must be isolated. |
+| `XunitContainerFixtureBase` / `XunitContainerFixture` | **Per test class** with `IClassFixture<T>`; **per collection** with `ICollectionFixture<T>` | Tests intentionally share one expensive fixture. |
 
 ```csharp
 using FluentDocker.Builders;

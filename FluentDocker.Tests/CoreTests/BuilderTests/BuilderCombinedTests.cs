@@ -33,7 +33,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
           .SetupNetworkRemove()
           .SetupContainerCreate("container-123")
           .SetupContainerStart()
-          .SetupContainerInspect(running: true)
+          .SetupContainerInspect("container-123", running: true)
           .SetupContainerStop()
           .SetupContainerRemove();
 

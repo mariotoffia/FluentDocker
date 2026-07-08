@@ -57,6 +57,21 @@ Recommended entry point: use `MsTestContainerFixtureBase` for a fresh container
 per test method. Use `MsTestClassContainerFixtureBase<TFixture>` only when a
 single container must be shared by the whole test class.
 
+## Fixture lifetime (important)
+
+| Helper | Container lifetime | Use when |
+| --- | --- | --- |
+| `MsTestContainerFixtureBase` | **Per test method** (`[TestInitialize]`/`[TestCleanup]`) | Tests must be isolated. |
+| `MsTestClassContainerFixtureBase<TFixture>` | **Per test class** (lazy first `[TestInitialize]`, then `[ClassCleanup]`) | The class intentionally shares one expensive fixture. |
+
+## Best-effort crash cleanup
+
+Normal cleanup runs during fixture disposal and the next initialization orphan sweep. Set
+`FLUENTDOCKER_TEST_SESSION=<shared-id>` to group parallel test processes into one live session.
+Set `FLUENTDOCKER_TEST_REAPER_ON_EXIT=1` to opt in to process-exit/SIGINT/SIGTERM cleanup for
+the current session. Shared `FLUENTDOCKER_TEST_SESSION` runs skip exit reaping to avoid deleting
+sibling processes; SIGKILL and hard CI termination cannot run in-process cleanup.
+
 ```csharp
 using FluentDocker.Builders;
 using FluentDocker.Testing.MsTest;

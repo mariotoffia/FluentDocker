@@ -7,7 +7,14 @@ namespace FluentDocker.Testing.Core
   /// </summary>
   public class DockerResourceOptions
   {
-    private static readonly string ProcessSessionId = SessionLabel.NewSessionId();
+    private static readonly string ProcessSessionId =
+        CreateProcessSessionId();
+
+    private static string CreateProcessSessionId()
+    {
+      var shared = Environment.GetEnvironmentVariable(SessionLabel.SessionEnvironmentVariable);
+      return string.IsNullOrWhiteSpace(shared) ? SessionLabel.NewSessionId() : shared;
+    }
 
     /// <summary>
     /// Driver to use for this resource. Defaults to <see cref="DriverSelection.Default"/>.
@@ -60,8 +67,9 @@ namespace FluentDocker.Testing.Core
 
     /// <summary>
     /// Session ID used for orphan tracking labels. Defaults to one ID per process
-    /// so sibling fixtures are treated as the same live test session. Set this
-    /// property to override the grouping.
+    /// or to <c>FLUENTDOCKER_TEST_SESSION</c> when set, so sibling test
+    /// processes can share one live test session. Set this property to override
+    /// the grouping.
     /// </summary>
     public string SessionId { get; set; } = ProcessSessionId;
 
@@ -100,6 +108,11 @@ namespace FluentDocker.Testing.Core
     /// <summary>
     /// Whether to clean up orphaned resources from previous sessions
     /// during <see cref="ResourceBase.InitializeAsync"/>. Default: true.
+    /// Set <c>FLUENTDOCKER_TEST_REAPER_ON_EXIT=1</c> to also run best-effort
+    /// cleanup for the current session on process exit, SIGINT, and SIGTERM.
+    /// Shared <c>FLUENTDOCKER_TEST_SESSION</c> sessions skip exit reaping so one
+    /// process cannot delete a sibling process's live fixtures.
+    /// SIGKILL and hard host termination cannot be caught.
     /// </summary>
     public bool CleanupOrphansOnInit { get; set; } = true;
 

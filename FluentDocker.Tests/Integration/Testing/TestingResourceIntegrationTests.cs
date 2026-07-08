@@ -173,7 +173,7 @@ namespace FluentDocker.Tests.Integration.Testing
   public class OrphanCleanupIntegrationTests : TestingResourceIntegrationTestBase
   {
     [Fact]
-    public async Task OrphanCleanup_RemovesOldLabeledContainerWithDefaultMinimumAge()
+    public async Task OrphanCleanup_PreservesOldRunningLabeledContainer()
     {
       var ct = TestContext.Current.CancellationToken;
       await EnsureImageAsync(BusyboxImage, ct);
@@ -197,8 +197,10 @@ namespace FluentDocker.Tests.Integration.Testing
         var result = await OrphanCleanup.CleanupOrphanedResourcesAsync(
             Kernel, DriverId, SessionId, ct);
 
-        Assert.True(result.ContainersRemoved >= 1);
-        await AssertNoContainersByNameAsync(name, ct);
+        Assert.Equal(0, result.ContainersRemoved);
+        var inspect = await ContainerDriver.InspectAsync(Context, run.Data.Id, ct);
+        Assert.True(inspect.Success, inspect.Error);
+        Assert.True(inspect.Data.State.Running);
       }
       finally
       {

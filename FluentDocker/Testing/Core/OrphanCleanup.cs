@@ -32,9 +32,23 @@ namespace FluentDocker.Testing.Core
     public const string ManagedKey = "fluentdocker.managed";
 
     /// <summary>
+    /// Optional environment variable that groups multiple test processes into
+    /// one live test session.
+    /// </summary>
+    public const string SessionEnvironmentVariable = "FLUENTDOCKER_TEST_SESSION";
+
+    /// <summary>
+    /// Opt-in environment variable enabling best-effort process-exit cleanup.
+    /// </summary>
+    public const string ReaperEnvironmentVariable = "FLUENTDOCKER_TEST_REAPER_ON_EXIT";
+
+    /// <summary>
     /// Generates a new unique session ID.
     /// </summary>
     public static string NewSessionId() => Guid.NewGuid().ToString("N");
+
+    internal static string SharedSessionId() =>
+        Environment.GetEnvironmentVariable(SessionEnvironmentVariable);
 
     /// <summary>
     /// Builds the standard set of labels for a test resource.
@@ -101,20 +115,44 @@ namespace FluentDocker.Testing.Core
     /// <param name="minimumAge">Minimum age before another session's managed resource can be removed. Use overloads without this parameter for the default one-hour guard; pass <see cref="TimeSpan.Zero"/> only as an explicit opt-in.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>Summary of removed resources.</returns>
-    public static async Task<CleanupResult> CleanupOrphanedResourcesAsync(
+    public static Task<CleanupResult> CleanupOrphanedResourcesAsync(
         FluentDockerKernel kernel,
         string driverId,
         string currentSessionId = null,
         TimeSpan minimumAge = default,
         CancellationToken cancellationToken = default)
     {
+      return CleanupResourcesAsync(
+          kernel, driverId, currentSessionId, minimumAge,
+          targetSessionId: null, cancellationToken);
+    }
+
+    internal static Task<CleanupResult> CleanupSessionResourcesAsync(
+        FluentDockerKernel kernel,
+        string driverId,
+        string sessionId,
+        CancellationToken cancellationToken = default)
+    {
+      return CleanupResourcesAsync(
+          kernel, driverId, currentSessionId: null, minimumAge: TimeSpan.Zero,
+          targetSessionId: sessionId, cancellationToken);
+    }
+
+    private static async Task<CleanupResult> CleanupResourcesAsync(
+        FluentDockerKernel kernel,
+        string driverId,
+        string currentSessionId,
+        TimeSpan minimumAge,
+        string targetSessionId,
+        CancellationToken cancellationToken)
+    {
       var result = new CleanupResult();
       var context = new DriverContext(driverId);
 
       // Clean up in dependency order: containers first, then networks, then volumes
-      await CleanupContainersAsync(kernel, driverId, context, currentSessionId, minimumAge, result, cancellationToken).ConfigureAwait(false);
-      await CleanupNetworksAsync(kernel, driverId, context, currentSessionId, minimumAge, result, cancellationToken).ConfigureAwait(false);
-      await CleanupVolumesAsync(kernel, driverId, context, currentSessionId, minimumAge, result, cancellationToken).ConfigureAwait(false);
+      await CleanupContainersAsync(kernel, driverId, context, currentSessionId, minimumAge, targetSessionId, result, cancellationToken).ConfigureAwait(false);
+      await CleanupNetworksAsync(kernel, driverId, context, currentSessionId, minimumAge, targetSessionId, result, cancellationToken).ConfigureAwait(false);
+      await CleanupVolumesAsync(kernel, driverId, context, currentSessionId, minimumAge, targetSessionId, result, cancellationToken).ConfigureAwait(false);
 
       return result;
     }
@@ -163,8 +201,8 @@ namespace FluentDocker.Testing.Core
 
     private static async Task CleanupContainersAsync(
         FluentDockerKernel kernel, string driverId, DriverContext context,
-        string currentSessionId, TimeSpan minimumAge, CleanupResult result,
-        CancellationToken cancellationToken)
+        string currentSessionId, TimeSpan minimumAge, string targetSessionId,
+        CleanupResult result, CancellationToken cancellationToken)
     {
       if (!kernel.TrySysCtl<IContainerDriver>(driverId, out var driver))
         return;
@@ -182,18 +220,32 @@ namespace FluentDocker.Testing.Core
       foreach (var container in listResult.Data ?? Enumerable.Empty<Model.Containers.Container>())
       {
         var containerLabels = container.Config?.Labels as IDictionary<string, string>;
+        Model.Containers.Container inspected = null;
         if (containerLabels == null || containerLabels.Count == 0)
         {
           // ponytail: one inspect per managed CLI-listed container; upgrade path = map labels in list parsers.
-          var inspect = await driver.InspectAsync(context, container.Id, cancellationToken).ConfigureAwait(false);
-          if (inspect?.Success == true)
-            containerLabels = inspect.Data?.Config?.Labels as IDictionary<string, string>;
+          inspected = await TryInspectContainerAsync(driver, context, container.Id, cancellationToken).ConfigureAwait(false);
+          containerLabels = inspected?.Config?.Labels as IDictionary<string, string>;
         }
+
         var isAbandonedLateProvision = IsAbandonedLateProvision(container.Id, container.Name);
-        if (IsCurrentSession(containerLabels, currentSessionId) && !isAbandonedLateProvision)
+        if (!string.IsNullOrEmpty(targetSessionId) &&
+            !IsSession(containerLabels, targetSessionId) &&
+            !isAbandonedLateProvision)
           continue;
-        if (!isAbandonedLateProvision && ShouldPreserveDueToAge(containerLabels, minimumAge))
+
+        if (string.IsNullOrEmpty(targetSessionId) &&
+            IsCurrentSession(containerLabels, currentSessionId) &&
+            !isAbandonedLateProvision)
           continue;
+        if (string.IsNullOrEmpty(targetSessionId) && !isAbandonedLateProvision)
+        {
+          inspected ??= await TryInspectContainerAsync(driver, context, container.Id, cancellationToken).ConfigureAwait(false);
+          if (IsRunning(container, inspected))
+            continue;
+          if (ShouldPreserveDueToAge(containerLabels, minimumAge, GetCreated(container, inspected)))
+            continue;
+        }
 
         try
         {
@@ -210,8 +262,8 @@ namespace FluentDocker.Testing.Core
 
     private static async Task CleanupNetworksAsync(
         FluentDockerKernel kernel, string driverId, DriverContext context,
-        string currentSessionId, TimeSpan minimumAge, CleanupResult result,
-        CancellationToken cancellationToken)
+        string currentSessionId, TimeSpan minimumAge, string targetSessionId,
+        CleanupResult result, CancellationToken cancellationToken)
     {
       if (!kernel.TrySysCtl<INetworkDriver>(driverId, out var driver))
         return;
@@ -229,9 +281,18 @@ namespace FluentDocker.Testing.Core
       {
         var networkLabels = network.Labels as IDictionary<string, string>;
         var isAbandonedLateProvision = IsAbandonedLateProvision(network.Id, network.Name);
-        if (IsCurrentSession(networkLabels, currentSessionId) && !isAbandonedLateProvision)
+        if (!string.IsNullOrEmpty(targetSessionId) &&
+            !IsSession(networkLabels, targetSessionId) &&
+            !isAbandonedLateProvision)
           continue;
-        if (!isAbandonedLateProvision && ShouldPreserveDueToAge(networkLabels, minimumAge))
+
+        if (string.IsNullOrEmpty(targetSessionId) &&
+            IsCurrentSession(networkLabels, currentSessionId) &&
+            !isAbandonedLateProvision)
+          continue;
+        if (string.IsNullOrEmpty(targetSessionId) &&
+            !isAbandonedLateProvision &&
+            ShouldPreserveDueToAge(networkLabels, minimumAge))
           continue;
 
         try
@@ -248,8 +309,8 @@ namespace FluentDocker.Testing.Core
 
     private static async Task CleanupVolumesAsync(
         FluentDockerKernel kernel, string driverId, DriverContext context,
-        string currentSessionId, TimeSpan minimumAge, CleanupResult result,
-        CancellationToken cancellationToken)
+        string currentSessionId, TimeSpan minimumAge, string targetSessionId,
+        CleanupResult result, CancellationToken cancellationToken)
     {
       if (!kernel.TrySysCtl<IVolumeDriver>(driverId, out var driver))
         return;
@@ -267,9 +328,18 @@ namespace FluentDocker.Testing.Core
       {
         var volumeLabels = volume.Labels as IDictionary<string, string>;
         var isAbandonedLateProvision = IsAbandonedLateProvision(volume.Name);
-        if (IsCurrentSession(volumeLabels, currentSessionId) && !isAbandonedLateProvision)
+        if (!string.IsNullOrEmpty(targetSessionId) &&
+            !IsSession(volumeLabels, targetSessionId) &&
+            !isAbandonedLateProvision)
           continue;
-        if (!isAbandonedLateProvision && ShouldPreserveDueToAge(volumeLabels, minimumAge))
+
+        if (string.IsNullOrEmpty(targetSessionId) &&
+            IsCurrentSession(volumeLabels, currentSessionId) &&
+            !isAbandonedLateProvision)
+          continue;
+        if (string.IsNullOrEmpty(targetSessionId) &&
+            !isAbandonedLateProvision &&
+            ShouldPreserveDueToAge(volumeLabels, minimumAge, volume.Created))
           continue;
 
         try
@@ -288,13 +358,18 @@ namespace FluentDocker.Testing.Core
         IDictionary<string, string> labels, string currentSessionId)
     {
       if (currentSessionId == null)
-        return false; // Remove all when no session specified
+        return IsSession(labels, SessionLabel.SharedSessionId());
 
-      if (labels == null)
+      return IsSession(labels, currentSessionId) ||
+             IsSession(labels, SessionLabel.SharedSessionId());
+    }
+
+    private static bool IsSession(IDictionary<string, string> labels, string sessionId)
+    {
+      if (labels == null || string.IsNullOrWhiteSpace(sessionId))
         return false;
-
-      return labels.TryGetValue(SessionLabel.Key, out var sessionId)
-             && sessionId == currentSessionId;
+      return labels.TryGetValue(SessionLabel.Key, out var resourceSessionId)
+             && resourceSessionId == sessionId;
     }
 
     internal static void MarkAbandonedLateProvision(string resourceName)
@@ -320,21 +395,59 @@ namespace FluentDocker.Testing.Core
 
     private static bool ShouldPreserveDueToAge(
         IDictionary<string, string> labels,
-        TimeSpan minimumAge)
+        TimeSpan minimumAge,
+        DateTimeOffset daemonCreated = default)
     {
       if (minimumAge <= TimeSpan.Zero)
         return false;
 
+      if (daemonCreated != default)
+        return daemonCreated.ToUniversalTime() > DateTimeOffset.UtcNow - minimumAge;
+
       if (labels == null ||
           !labels.TryGetValue(SessionLabel.CreatedAtKey, out var createdAt) ||
-          !DateTime.TryParse(
+          !DateTimeOffset.TryParse(
               createdAt,
               CultureInfo.InvariantCulture,
               DateTimeStyles.RoundtripKind,
               out var created))
         return true;
 
-      return created.ToUniversalTime() > DateTime.UtcNow - minimumAge;
+      return created.ToUniversalTime() > DateTimeOffset.UtcNow - minimumAge;
+    }
+
+    private static async Task<Model.Containers.Container> TryInspectContainerAsync(
+        IContainerDriver driver,
+        DriverContext context,
+        string containerId,
+        CancellationToken cancellationToken)
+    {
+      try
+      {
+        var inspect = await driver.InspectAsync(context, containerId, cancellationToken).ConfigureAwait(false);
+        return inspect?.Success == true ? inspect.Data : null;
+      }
+      catch
+      {
+        return null;
+      }
+    }
+
+    private static bool IsRunning(
+        Model.Containers.Container listed,
+        Model.Containers.Container inspected)
+    {
+      return inspected?.State?.Running == true ||
+             listed?.State?.Running == true;
+    }
+
+    private static DateTimeOffset GetCreated(
+        Model.Containers.Container listed,
+        Model.Containers.Container inspected)
+    {
+      if (inspected?.Created != default)
+        return inspected.Created;
+      return listed?.Created ?? default;
     }
   }
 }
