@@ -98,7 +98,7 @@ namespace FluentDocker.Drivers.Docker.Api.Connection
 
     private static int ResolveDockerPort(Uri uri, bool useTls)
     {
-      return !uri.IsDefaultPort && uri.Port > 0 ? uri.Port : (useTls ? 2376 : 2375);
+      return uri.Port > 0 ? uri.Port : (useTls ? 2376 : 2375);
     }
 
     private static void EnableKeepAlive(Socket socket)

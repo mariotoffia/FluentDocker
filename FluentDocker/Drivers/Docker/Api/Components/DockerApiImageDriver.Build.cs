@@ -85,10 +85,12 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       }
       catch (HttpRequestException ex)
       {
+        var statusCode = HttpStatusCodeOrZero(ex);
         return CommandResponse<Unit>.Fail(
             $"Pull failed: {ex.Message}",
             ErrorCodes.Image.PullFailed,
-            CreateErrorContext("POST /images/create (pull)", 0));
+            CreateErrorContext("POST /images/create (pull)", statusCode),
+            statusCode);
       }
 
       string lastError = null;
@@ -191,10 +193,12 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       }
       catch (HttpRequestException ex)
       {
+        var statusCode = HttpStatusCodeOrZero(ex);
         return CommandResponse<Unit>.Fail(
             $"Push failed: {ex.Message}",
             ErrorCodes.Image.PushFailed,
-            CreateErrorContext("POST /images/push", 0));
+            CreateErrorContext("POST /images/push", statusCode),
+            statusCode);
       }
 
       string lastError = null;
@@ -315,6 +319,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
             new System.Net.Http.Headers.MediaTypeHeaderValue("application/x-tar");
 
         var buildResult = new ImageBuildResult();
+        var buildOutput = CreateOutputTail();
         string lastError = null;
 
         var headers = DockerApiRegistryAuth.RegistryConfigHeaderFor(Connection);
@@ -326,7 +331,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
             buildResult.ImageId = parsed.Aux.Id;
 
           if (!string.IsNullOrEmpty(parsed.Stream))
-            buildResult.Output.Add(parsed.Stream.TrimEnd('\n'));
+            AppendOutputLine(buildOutput, parsed.Stream.TrimEnd('\n'));
 
           if (!string.IsNullOrWhiteSpace(parsed.Error))
           {
@@ -357,6 +362,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
               ErrorCodes.Image.BuildFailed,
               CreateErrorContext("POST /build", 0));
 
+        buildResult.Output = ToOutputLines(buildOutput);
         return CommandResponse<ImageBuildResult>.Ok(buildResult);
       }
       catch (DriverException ex)

@@ -119,9 +119,21 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       }
       finally
       {
-        File.Delete(tmp);
-        if (Directory.Exists(staging))
-          Directory.Delete(staging, recursive: true);
+        try
+        {
+          File.Delete(tmp);
+        }
+        catch (Exception)
+        {
+        }
+        try
+        {
+          if (Directory.Exists(staging))
+            Directory.Delete(staging, recursive: true);
+        }
+        catch (Exception)
+        {
+        }
       }
     }
 

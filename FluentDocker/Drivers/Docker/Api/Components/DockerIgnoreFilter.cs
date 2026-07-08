@@ -206,7 +206,8 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       }
 
       sb.Append(directoryOnly ? "/.*$" : "(?:/.*)?$");
-      return new Regex(sb.ToString(), RegexOptions.CultureInvariant);
+      return new Regex(sb.ToString(),
+          RegexOptions.CultureInvariant | RegexOptions.NonBacktracking);
     }
 
     /// <summary>
