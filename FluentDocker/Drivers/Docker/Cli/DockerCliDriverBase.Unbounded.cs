@@ -31,6 +31,7 @@ namespace FluentDocker.Drivers.Docker.Cli
       Task errTask = null;
       var outTail = new OutputTail(CliOutputTruncation.DefaultTailChars);
       var errTail = new OutputTail(CliOutputTruncation.DefaultTailChars);
+      var processStarted = false;
       try
       {
         process = new Process
@@ -54,7 +55,8 @@ namespace FluentDocker.Drivers.Docker.Cli
           foreach (var kvp in environment)
             process.StartInfo.Environment[kvp.Key] = kvp.Value;
 
-        process.Start();
+        StartProcessOrThrow(process, binaryPath);
+        processStarted = true;
 
         outTask = ReadTailAsync(process.StandardOutput, outTail, cancellationToken);
         errTask = ReadTailAsync(process.StandardError, errTail, cancellationToken);
@@ -79,7 +81,7 @@ namespace FluentDocker.Drivers.Docker.Cli
         await TryObserveTaskAsync(errTask).ConfigureAwait(false);
         throw;
       }
-      catch (Exception ex)
+      catch (Exception ex) when (processStarted || ex is not DriverException)
       {
         KillProcessSafely(process, Logger);
         await TryObserveTaskAsync(outTask).ConfigureAwait(false);

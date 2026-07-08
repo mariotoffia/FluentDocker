@@ -57,16 +57,29 @@ namespace FluentDocker.Drivers.Docker.Cli
         }
       };
 
-      process.Start();
-
-      return new AttachResult
+      var processStarted = false;
+      try
       {
-        InputStream = process.StandardInput.BaseStream,
-        OutputStream = process.StandardOutput.BaseStream,
-        ErrorStream = process.StandardError.BaseStream,
-        IsConnected = !process.HasExited,
-        AttachedProcess = process
-      };
+        StartProcessOrThrow(process, binaryPath);
+        processStarted = true;
+
+        return new AttachResult
+        {
+          InputStream = process.StandardInput.BaseStream,
+          OutputStream = process.StandardOutput.BaseStream,
+          ErrorStream = process.StandardError.BaseStream,
+          IsConnected = !process.HasExited,
+          AttachedProcess = process,
+          Logger = Logger
+        };
+      }
+      catch
+      {
+        if (processStarted)
+          KillProcessSafely(process, Logger);
+        process.Dispose();
+        throw;
+      }
     }
   }
 }

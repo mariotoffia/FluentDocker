@@ -1,4 +1,5 @@
 using System;
+using System.Globalization;
 using System.IO;
 using System.Text;
 using System.Threading;
@@ -73,9 +74,17 @@ namespace FluentDocker.Drivers.Docker.Cli
       }
 
       if (truncated)
-        sb.Append("\n[stderr truncated at the 4 MiB cap]");
+        sb.Append(CultureInfo.InvariantCulture, $"\n[stderr truncated at the {FormatByteCap(maxBytes)} cap]");
 
       return sb.ToString();
+    }
+
+    private static string FormatByteCap(int maxBytes)
+    {
+      var mib = maxBytes / (1024 * 1024);
+      return maxBytes % (1024 * 1024) == 0
+          ? FormattableString.Invariant($"{mib} MiB")
+          : FormattableString.Invariant($"{maxBytes} bytes");
     }
   }
 }
