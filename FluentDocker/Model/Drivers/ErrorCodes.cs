@@ -7,8 +7,8 @@ namespace FluentDocker.Model.Drivers
   public static class ErrorCodes
   {
     /// <summary>
-    /// Returns true when the code represents a connection or timeout failure that may
-    /// succeed on retry.
+    /// Returns true when the code represents a connection, timeout, or transient server
+    /// failure that may succeed on retry.
     /// </summary>
     public static bool IsTransientCode(string errorCode)
     {
@@ -16,7 +16,8 @@ namespace FluentDocker.Model.Drivers
           or Network.Timeout
           or Api.ConnectionFailed
           or ModelInference.EndpointUnreachable
-          or ModelInference.Timeout;
+          or ModelInference.Timeout
+          or ModelInference.ServiceUnavailable;
     }
 
     /// <summary>
@@ -333,6 +334,13 @@ namespace FluentDocker.Model.Drivers
       /// server <see cref="RequestFailed"/>, so callers can retry/backoff on latency specifically.
       /// </summary>
       public const string Timeout = "MIN_006";
+
+      /// <summary>
+      /// The server returned a transient overload/unavailable response (HTTP 503 Service
+      /// Unavailable or 429 Too Many Requests), such as model cold-loading or rate limit;
+      /// retry with backoff.
+      /// </summary>
+      public const string ServiceUnavailable = "MIN_007";
 
       public const string Unauthorized = "MIN_401";
     }

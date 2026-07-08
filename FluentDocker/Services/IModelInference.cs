@@ -8,6 +8,8 @@ namespace FluentDocker.Services
   /// <summary>
   /// OpenAI-compatible inference: chat completions (uni + streaming), text
   /// completions and embeddings. Backed by the REST endpoint on :12434.
+  /// The library does not perform built-in retry/backoff; callers own retry policy
+  /// for retryable failures such as 429/503 or transient transport errors.
   /// </summary>
   public interface IModelInference
   {
