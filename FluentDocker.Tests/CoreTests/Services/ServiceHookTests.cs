@@ -26,7 +26,8 @@ namespace FluentDocker.Tests.CoreTests.Services
     private static async Task<(ContainerService service, FluentDockerKernel kernel)> CreateServiceWithDriverAsync()
     {
       var mockPack = new MockDriverPack();
-      mockPack.SetupContainerStart();
+      mockPack.SetupContainerStart()
+          .SetupContainerInspect("c1", running: true);
       mockPack.SetupContainerStop();
       mockPack.SetupContainerPause();
       mockPack.SetupContainerRemove();

@@ -143,6 +143,12 @@ jobs:
           --filter "Category=Unit|TestCategory=Unit"
           --collect:"XPlat Code Coverage" --results-directory ./coverage
           --settings coverletArgs.runsettings
+      - name: Run Docker-backed testing-resource smoke (net10.0)
+        if: matrix.os == 'ubuntu-latest' && github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
+        run: >
+          dotnet test --no-build --configuration Release --framework net10.0
+          --filter "FullyQualifiedName~ContainerResourceIntegrationTests"
+        timeout-minutes: 10
       - name: Enforce coverage threshold
         if: matrix.os == 'ubuntu-latest'
         shell: bash

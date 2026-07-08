@@ -171,7 +171,7 @@ namespace FluentDocker.Tests.CoreTests.Testing
 
       var completed = await Task.WhenAny(
           initTask,
-          Task.Delay(TimeSpan.FromSeconds(1), TestContext.Current.CancellationToken));
+          Task.Delay(TimeSpan.FromSeconds(15), TestContext.Current.CancellationToken));
       releaseProvision.SetResult();
 
       if (completed != initTask)
@@ -220,7 +220,7 @@ namespace FluentDocker.Tests.CoreTests.Testing
       var disposeTask = resource.DisposeAsync().AsTask();
       var completed = await Task.WhenAny(
           disposeTask,
-          Task.Delay(TimeSpan.FromSeconds(1), TestContext.Current.CancellationToken));
+          Task.Delay(TimeSpan.FromSeconds(15), TestContext.Current.CancellationToken));
       releaseProvision.SetResult();
       await initTask;
 

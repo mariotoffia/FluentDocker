@@ -24,7 +24,8 @@ namespace FluentDocker.Tests.CoreTests.Service
     {
       // Arrange
       var mockPack = new MockDriverPack();
-      mockPack.SetupContainerStart();
+      mockPack.SetupContainerStart()
+          .SetupContainerInspect("c1", running: true);
 
       var kernel = await MockKernelBuilderExtensions.CreateWithMockDriverAsync("docker", mockPack);
       var service = new ContainerService(kernel, "docker", "c1", "nginx", "test");
@@ -148,7 +149,8 @@ namespace FluentDocker.Tests.CoreTests.Service
     {
       // Arrange
       var mockPack = new MockDriverPack();
-      mockPack.SetupContainerStart();
+      mockPack.SetupContainerStart()
+          .SetupContainerInspect("c1", running: true);
 
       var kernel = await MockKernelBuilderExtensions.CreateWithMockDriverAsync("docker", mockPack);
       var service = new ContainerService(kernel, "docker", "c1", "nginx", "test");
@@ -187,7 +189,8 @@ namespace FluentDocker.Tests.CoreTests.Service
     {
       // Arrange
       var mockPack = new MockDriverPack();
-      mockPack.SetupContainerStart();
+      mockPack.SetupContainerStart()
+          .SetupContainerInspect("c1", running: true);
 
       var kernel = await MockKernelBuilderExtensions.CreateWithMockDriverAsync("docker", mockPack);
       var service = new ContainerService(kernel, "docker", "c1", "nginx", "test");
@@ -253,7 +256,8 @@ namespace FluentDocker.Tests.CoreTests.Service
     {
       // Arrange
       var mockPack = new MockDriverPack();
-      mockPack.SetupContainerStart();
+      mockPack.SetupContainerStart()
+          .SetupContainerInspect("c1", running: true);
 
       var kernel = await MockKernelBuilderExtensions.CreateWithMockDriverAsync("docker", mockPack);
       var service = new ContainerService(kernel, "docker", "c1", "nginx", "test");
@@ -309,7 +313,8 @@ namespace FluentDocker.Tests.CoreTests.Service
     {
       // Arrange
       var mockPack = new MockDriverPack();
-      mockPack.SetupContainerStart();
+      mockPack.SetupContainerStart()
+          .SetupContainerInspect("c1", running: true);
 
       var kernel = await MockKernelBuilderExtensions.CreateWithMockDriverAsync("docker", mockPack);
       var service = new ContainerService(kernel, "docker", "c1", "nginx", "test");

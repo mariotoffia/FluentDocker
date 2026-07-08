@@ -20,6 +20,7 @@ namespace FluentDocker.Testing.Core
     private readonly List<Func<ITestResource, Task>> _beforeDisposeHooks = [];
     private readonly List<Func<ITestResource, Task>> _afterDisposeHooks = [];
     private readonly SemaphoreSlim _lifecycleLock = new(1, 1);
+    private readonly object _provisionCommitLock = new();
     private bool _provisioned;
     private int _provisionGeneration;
     private int _disposeProvisionGeneration;
@@ -171,6 +172,7 @@ namespace FluentDocker.Testing.Core
         try
         {
           DriverId = ResolveDriverId();
+          ProcessExitReaper.Register(Kernel, DriverId, Options);
           ValidateExpectedDriverType();
           await RunHooksAsync(_beforeInitHooks, cts.Token).ConfigureAwait(false);
           await EnsureRuntimeHealthyAsync(cts.Token).ConfigureAwait(false);
@@ -180,11 +182,12 @@ namespace FluentDocker.Testing.Core
           {
             try
             {
-              await OrphanCleanup.CleanupOrphanedResourcesAsync(
+              var cleanup = await OrphanCleanup.CleanupOrphanedResourcesAsync(
                   Kernel, DriverId, Options.SessionId,
                   Options.OrphanCleanupMinimumAge, cts.Token).ConfigureAwait(false);
+              LogOrphanCleanupErrors(cleanup);
             }
-            catch { /* orphan cleanup is best-effort */ }
+            catch (Exception ex) { LogOrphanCleanupFailure(ex); }
           }
 
           _provisioned = true;

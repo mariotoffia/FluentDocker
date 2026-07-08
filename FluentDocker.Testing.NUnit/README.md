@@ -17,6 +17,21 @@ Recommended entry point: use `NUnitContainerFixtureBase` for container
 integration suites. Use `NUnitResourceHelpers` only when you need custom
 lifetime control.
 
+## Fixture lifetime (important)
+
+| Helper | Container lifetime | Use when |
+| --- | --- | --- |
+| `NUnitContainerFixtureBase` | **Per test class** (`[OneTimeSetUp]`/`[OneTimeTearDown]`) | The class intentionally shares one fixture. |
+| `NUnitResourceHelpers.CreateContainerAsync` | Caller-controlled | You need method-level or custom lifetime control. |
+
+## Best-effort crash cleanup
+
+Normal cleanup runs during fixture disposal and the next initialization orphan sweep. Set
+`FLUENTDOCKER_TEST_SESSION=<shared-id>` to group parallel test processes into one live session.
+Set `FLUENTDOCKER_TEST_REAPER_ON_EXIT=1` to opt in to process-exit/SIGINT/SIGTERM cleanup for
+the current session. Shared `FLUENTDOCKER_TEST_SESSION` runs skip exit reaping to avoid deleting
+sibling processes; SIGKILL and hard CI termination cannot run in-process cleanup.
+
 ```csharp
 using FluentDocker.Builders;
 using FluentDocker.Testing.NUnit;

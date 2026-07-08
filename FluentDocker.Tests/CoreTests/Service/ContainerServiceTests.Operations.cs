@@ -122,7 +122,8 @@ namespace FluentDocker.Tests.CoreTests.Service
     {
       // Arrange
       var mockPack = new MockDriverPack();
-      mockPack.SetupContainerStart();
+      mockPack.SetupContainerStart()
+          .SetupContainerInspect("test-container-123", running: true);
 
       var kernel = await MockKernelBuilderExtensions.CreateWithMockDriverAsync("docker", mockPack);
 

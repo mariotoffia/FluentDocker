@@ -130,7 +130,7 @@ namespace FluentDocker.Tests.CoreTests.Testing
 
       MockPack
           .SetupContainerStart()
-          .SetupContainerInspect(running: true)
+          .SetupContainerInspect("first-container", running: true)
           .SetupContainerStop()
           .SetupContainerRemove();
 

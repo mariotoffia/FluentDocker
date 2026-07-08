@@ -42,6 +42,20 @@ namespace FluentDocker.Tests.Mocks
     }
 
     /// <summary>
+    /// Sets up ComposeDriver.ConfigAsync to return compose config JSON.
+    /// </summary>
+    public MockDriverPack SetupComposeConfig(string json)
+    {
+      ComposeDriver
+          .Setup(d => d.ConfigAsync(
+              It.IsAny<DriverContext>(),
+              It.IsAny<ComposeConfigConfig>(),
+              It.IsAny<CancellationToken>()))
+          .ReturnsAsync(CommandResponse<string>.Ok(json));
+      return this;
+    }
+
+    /// <summary>
     /// Sets up ComposeDriver.DownAsync to return success.
     /// </summary>
     public MockDriverPack SetupComposeDown()

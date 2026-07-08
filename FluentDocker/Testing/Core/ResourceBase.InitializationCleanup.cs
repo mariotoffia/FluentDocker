@@ -44,8 +44,11 @@ namespace FluentDocker.Testing.Core
     {
       var abandoned = _abandonedProvision;
       _abandonedProvision = null;
-      _provisionGeneration++;
-      _disposeProvisionGeneration = _provisionGeneration;
+      lock (_provisionCommitLock)
+      {
+        _provisionGeneration++;
+        _disposeProvisionGeneration = _provisionGeneration;
+      }
       if (abandoned is null || abandoned.IsCompleted)
         return;
 
@@ -112,6 +115,28 @@ namespace FluentDocker.Testing.Core
       catch (Exception ex)
       {
         LateProvisionCleanupFailed(Logger, ex);
+      }
+    }
+
+    /// <summary>
+    /// Current provision generation. Capture this before creating external
+    /// handles and pass it to <see cref="TryCommitProvision"/>.
+    /// </summary>
+    protected int ProvisionGeneration => Volatile.Read(ref _provisionGeneration);
+
+    /// <summary>
+    /// Commits provisioned handles only if the resource generation still owns
+    /// the provision result.
+    /// </summary>
+    protected bool TryCommitProvision(int generation, Action commit)
+    {
+      ArgumentNullException.ThrowIfNull(commit);
+      lock (_provisionCommitLock)
+      {
+        if (generation != _provisionGeneration)
+          return false;
+        commit();
+        return true;
       }
     }
 

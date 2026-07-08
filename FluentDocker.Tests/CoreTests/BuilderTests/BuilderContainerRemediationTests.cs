@@ -41,7 +41,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
     {
       MockPack
           .SetupContainerStart()
-          .SetupContainerInspect(running: true)
+          .SetupContainerInspect("retry-container", running: true)
           .SetupContainerStop()
           .SetupContainerRemove();
       MockPack.ContainerDriver

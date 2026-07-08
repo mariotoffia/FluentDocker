@@ -33,7 +33,8 @@ namespace FluentDocker.Tests.CoreTests.Service
     [Fact]
     public async Task StopAsync_StateChangeHandlerCanReenterLifecycleWithoutDeadlocking()
     {
-      MockPack.SetupContainerStart();
+      MockPack.SetupContainerStart()
+          .SetupContainerInspect("container-123", running: true);
       MockPack.ContainerDriver
           .Setup(d => d.StopAsync(It.IsAny<DriverContext>(), "container-123", It.IsAny<int?>(), It.IsAny<CancellationToken>()))
           .ReturnsAsync(CommandResponse<Unit>.Ok(Unit.Default));
@@ -72,7 +73,8 @@ namespace FluentDocker.Tests.CoreTests.Service
     [Fact]
     public async Task StopAsync_WhenAlreadyStopped_DoesNotFirePhantomTransitions()
     {
-      MockPack.SetupContainerStart();
+      MockPack.SetupContainerStart()
+          .SetupContainerInspect("container-123", running: true);
       MockPack.ContainerDriver
           .Setup(d => d.StopAsync(It.IsAny<DriverContext>(), "container-123", It.IsAny<int?>(), It.IsAny<CancellationToken>()))
           .ReturnsAsync(CommandResponse<Unit>.Ok(Unit.Default));
@@ -244,7 +246,7 @@ namespace FluentDocker.Tests.CoreTests.Service
     [Fact]
     public async Task Dispose_UserHookDuringDispose_CanCallReadOpWithoutObjectDisposedException()
     {
-      MockPack.SetupContainerStart().SetupContainerStop().SetupContainerRemove().SetupContainerGetLogs();
+      MockPack.SetupContainerStart().SetupContainerInspect("container-123", running: true).SetupContainerStop().SetupContainerRemove().SetupContainerGetLogs();
       var service = new ContainerService(Kernel, DriverId, "container-123", "alpine", "test");
       await service.StartAsync(TestContext.Current.CancellationToken);
       Exception captured = null;
@@ -289,7 +291,8 @@ namespace FluentDocker.Tests.CoreTests.Service
     [Fact]
     public async Task PauseAsync_WhenDriverThrows_NormalizesStateToUnknown()
     {
-      MockPack.SetupContainerStart();
+      MockPack.SetupContainerStart()
+          .SetupContainerInspect("container-123", running: true);
       MockPack.ContainerDriver
           .Setup(d => d.PauseAsync(It.IsAny<DriverContext>(), "container-123", It.IsAny<CancellationToken>()))
           .ThrowsAsync(new InvalidOperationException("daemon gone"));

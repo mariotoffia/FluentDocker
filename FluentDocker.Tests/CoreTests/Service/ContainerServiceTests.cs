@@ -99,7 +99,8 @@ namespace FluentDocker.Tests.CoreTests.Service
     {
       // Arrange
       var (kernel, pack) = await MockKernelBuilderExtensions.CreateWithMockDriverAsync();
-      pack.SetupContainerStart();
+      pack.SetupContainerStart()
+          .SetupContainerInspect("abc123", running: true);
       var service = new ContainerService(kernel, "docker", "abc123", "nginx", "test");
       var hookCalled = false;
 
