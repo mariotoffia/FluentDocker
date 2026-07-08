@@ -9,6 +9,10 @@ has_children: true
 
 FluentDocker v3 provides test support via the Testing.Core framework:
 
+> **Preview docs — not on NuGet yet.** These document the upcoming **3.2.0-preview.2** API; build
+> from [`featrure/model-support`](https://github.com/mariotoffia/FluentDocker/tree/featrure/model-support) to use it. The latest published package
+> is **3.1.0**, whose `WithPort` is container-first (host-first in the preview) — don't run these samples against it.
+
 ## Step by Step
 
 - Basics: [Testing.Core (Recommended)](#testingcore-recommended), [Quick Examples](#quick-examples)
@@ -136,6 +140,7 @@ public class RedisTests : NUnitContainerFixtureBase
 | [NUnit Adapter](testing/nunit.md) | Helper methods for all resource types |
 | [Docker Model Runner](testing/model.md) | Testing Docker Model Runner |
 | [Migration from Legacy](testing/migration-from-legacy.md) | Side-by-side migration examples |
+| [ADR 0001](adr/0001-testing-core-in-fluentdocker-package.md) | Why Testing.Core remains in the main package during preview |
 
 ## Running by Category
 

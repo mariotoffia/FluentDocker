@@ -13,8 +13,9 @@ LM Studio, or a hosted endpoint). It mirrors the existing
 `Builder → WithinDriver → UseXxx` pattern, so a model handle lives in the *same*
 kernel and lifecycle as your containers, networks and volumes.
 
-> **Preview (available in the 3.2 release line).** Model Runner APIs and inference DTO shapes are
-> subject to change before the subsystem reaches 1.0.
+> **Preview docs — not on NuGet yet.** These document the upcoming **3.2.0-preview.2** API; build
+> from [`featrure/model-support`](https://github.com/mariotoffia/FluentDocker/tree/featrure/model-support) to use it. The latest published package
+> is **3.1.0**, whose `WithPort` is container-first (host-first in the preview) — don't run these samples against it.
 
 ## Two surfaces, one façade
 
@@ -212,11 +213,11 @@ injected variables:
 ```csharp
 // Default prefix LLM -> reads LLM_URL / LLM_MODEL:
 var runner = ModelRunnerEnvironment.FromEnvironment();
-// A custom PREFIX -> reads <PREFIX>_URL / <PREFIX>_MODEL:
-var runner = ModelRunnerEnvironment.FromEnvironment("AI_MODEL");   // AI_MODEL_URL / AI_MODEL_MODEL
-// Arbitrary variable NAMES (e.g. the Compose long-form endpoint_var / model_var,
+// Alternative: custom PREFIX -> reads <PREFIX>_URL / <PREFIX>_MODEL:
+// var prefixedRunner = ModelRunnerEnvironment.FromEnvironment("AI_MODEL");   // AI_MODEL_URL / AI_MODEL_MODEL
+// Alternative: arbitrary variable NAMES (e.g. Compose endpoint_var / model_var,
 // where the model variable is AI_MODEL_NAME, not AI_MODEL_MODEL):
-var runner = ModelRunnerEnvironment.FromVariables("AI_MODEL_URL", "AI_MODEL_NAME");
+// var namedRunner = ModelRunnerEnvironment.FromVariables("AI_MODEL_URL", "AI_MODEL_NAME");
 ```
 
 This builds a `GenericOpenAiModelRunner` against the injected URL — which also
@@ -542,8 +543,8 @@ dedicated guide: **[Compose models integration](model-runner-compose.md)**.
 
 | Component | Requirement / notes |
 |---|---|
-| **Docker Desktop** | A recent build with the Model Runner feature — enable under *Settings → AI → Enable Docker Model Runner*, and turn on **host-side TCP** for the inference data plane. |
-| **or Docker Engine (CE)** | Install the `docker-model-plugin`; TCP is on by default. `runner.InstallRunnerAsync(...)` drives `docker model install-runner`. |
+| **Docker Desktop** | **4.40+ on macOS** or **4.41+ on Windows** with the Model Runner feature — enable under *Settings → AI → Enable Docker Model Runner*, and turn on **host-side TCP** for the inference data plane. |
+| **or Docker Engine (CE)** | **26.0+** with the `docker-model-plugin`; TCP is on by default. `runner.InstallRunnerAsync(...)` drives `docker model install-runner`. |
 | **`docker model` plugin (DMR)** | The subsystem is verified against **DMR v1.2.1**; it tolerates that version's CLI quirks (e.g. `inspect`/`df` have no `--json`, `purge` not `prune`). |
 | **Inference endpoint** | OpenAI-compatible HTTP on `:12434` (or whatever `DOCKER_MODEL_RUNNER_URL` / `WithEndpoint(...)` points at). Required for chat/completion/embeddings; management/runtime work over the CLI without it. |
 | **.NET (consuming the library)** | FluentDocker targets **net8.0** and **net10.0** — reference it from either. |
@@ -553,7 +554,7 @@ dedicated guide: **[Compose models integration](model-runner-compose.md)**.
 The library detects but does **not** install DMR. `runner.StatusAsync()` reports whether
 the runner is running.
 
-> **Running the sample.** [`Examples/ModelRunner`](https://github.com/mariotoffia/FluentDocker/tree/master/Examples/ModelRunner)
+> **Running the sample.** [`Examples/ModelRunner`](https://github.com/mariotoffia/FluentDocker/tree/featrure/model-support/Examples/ModelRunner)
 > multi-targets `net8.0;net10.0`, so a bare `dotnet run` fails ("specify which framework").
 > Run it with an explicit framework: `dotnet run -f net10.0` (or `-f net8.0`).
 
@@ -591,4 +592,4 @@ broader `Category=Integration` lane.
 
 - [Getting Started](getting-started.md) · [Containers](containers.md) · [Compose](compose.md) · [Architecture](architecture.md)
 - Model Runner sub-pages: [Compose models](model-runner-compose.md) · [Writing a runner plugin](model-runner-plugins.md)
-- Runnable sample: [`Examples/ModelRunner`](https://github.com/mariotoffia/FluentDocker/tree/master/Examples/ModelRunner)
+- Runnable sample: [`Examples/ModelRunner`](https://github.com/mariotoffia/FluentDocker/tree/featrure/model-support/Examples/ModelRunner)

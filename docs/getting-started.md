@@ -11,7 +11,7 @@ For the complete beginner-to-advanced map and reading plans by role, see the
 [documentation index](index.md#documentation-by-level).
 
 > **Preview docs — not on NuGet yet.** These document the upcoming **3.2.0-preview.2** API; build
-> from [`master`](https://github.com/mariotoffia/FluentDocker) to use it. The latest published package
+> from [`featrure/model-support`](https://github.com/mariotoffia/FluentDocker/tree/featrure/model-support) to use it. The latest published package
 > is **3.1.0**, whose `WithPort` is container-first (host-first in the preview) — don't run these samples against it.
 
 ## Read This Guide in Order
@@ -40,7 +40,7 @@ dotnet add package FluentDocker.Testing.NUnit --prerelease   # NUnit adapter
 ### Package References
 
 ```xml
-<!-- 3.2.0-preview.2 is not on NuGet yet — build from master until it ships. -->
+<!-- 3.2.0-preview.2 is not on NuGet yet — build from featrure/model-support until it ships. -->
 <PackageReference Include="FluentDocker" Version="3.2.0-preview.2" />
 <PackageReference Include="FluentDocker.Testing.Xunit" Version="3.2.0-preview.2" />
 <PackageReference Include="FluentDocker.Testing.MsTest" Version="3.2.0-preview.2" />
@@ -49,7 +49,7 @@ dotnet add package FluentDocker.Testing.NUnit --prerelease   # NUnit adapter
 
 ## Prerequisites
 
-- **Docker** must be installed and running
+- **Docker** — Docker Engine API **1.24+** (Docker Engine 1.12+) or current Docker Desktop; Compose samples require Compose V2
 - **.NET runtime** — FluentDocker targets **net8.0** and **net10.0**, so you can consume it from either
 - **Building this repository** requires the **.NET 10 SDK** (`global.json` pins `10.0.100`) — distinct from the runtime targets above
 

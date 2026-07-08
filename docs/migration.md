@@ -9,10 +9,9 @@ has_children: true
 
 This guide helps you migrate from v2.x.x to the FluentDocker v3 line.
 
-> **Preview docs — not on NuGet yet.** These track the upcoming **3.2.0-preview.2** API; build from
-> [`master`](https://github.com/mariotoffia/FluentDocker) to use it. The latest published package is
-> **3.1.0**, whose `WithPort` is container-first (host-first in the preview) — don't run these
-> samples against 3.1.0.
+> **Preview docs — not on NuGet yet.** These document the upcoming **3.2.0-preview.2** API; build
+> from [`featrure/model-support`](https://github.com/mariotoffia/FluentDocker/tree/featrure/model-support) to use it. The latest published package
+> is **3.1.0**, whose `WithPort` is container-first (host-first in the preview) — don't run these samples against it.
 
 ## Step by Step
 
@@ -455,7 +454,7 @@ For in-depth migration guidance, see these companion documents:
 If you use an AI coding agent, the repository ships an **agent skill** (a prompt for the
 agent, not human guidance) that automates much of the mechanical v2 → v3 rewrite. It lives
 outside the documentation at
-[`tools/claude-migration-skill.md`](https://github.com/mariotoffia/FluentDocker/blob/master/tools/claude-migration-skill.md);
+[`tools/claude-migration-skill.md`](https://github.com/mariotoffia/FluentDocker/blob/featrure/model-support/tools/claude-migration-skill.md);
 copy it into your project's `.claude/skills/` and invoke `/migrate-v2-to-v3`. Always review
 the agent's changes against the human guides above.
 

@@ -11,6 +11,7 @@ production. For a runnable sample see the [Podman quick start](index.md#podman-c
 
 ## On this page
 
+- [Supported Podman versions](#supported-podman-versions)
 - [Machines: macOS / Windows vs Linux](#machines-macos--windows-vs-linux)
 - [Machine naming — the default machine, not "default"](#machine-naming--the-default-machine-not-default)
 - [Readiness wait](#readiness-wait)
@@ -19,6 +20,13 @@ production. For a runnable sample see the [Podman quick start](index.md#podman-c
 - [Remote TLS verification](#remote-tls-verification)
 - [Standard output caps](#standard-output-caps)
 - [Related](#related)
+
+## Supported Podman versions
+
+FluentDocker targets Podman CLI **4.x and 5.x**. Podman 5.x is required when
+`MachineInitConfig.Image` emits `podman machine init --image` (Podman 4 used
+`--image-path`), and Podman **5.1+** is required for `podman update --restart`.
+Avoid those options on older 4.x/5.0 clients.
 
 ## Machines: macOS / Windows vs Linux
 

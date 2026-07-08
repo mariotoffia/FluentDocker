@@ -8,11 +8,13 @@ nav_order: 16
 
 FluentDocker provides several utility classes and extension methods to simplify common operations.
 
+> **Preview docs — not on NuGet yet.** These document the upcoming **3.2.0-preview.2** API; build
+> from [`featrure/model-support`](https://github.com/mariotoffia/FluentDocker/tree/featrure/model-support) to use it. The latest published package
+> is **3.1.0**, whose `WithPort` is container-first (host-first in the preview) — don't run these samples against it.
+
 ## Step by Step
 
-- Basics: [TemplateString](#templatestring), [HTTP Health Checks](#http-health-checks)
-- Intermediate: [Resource Extensions](#resource-extensions), [Logging](#logging), [Model Extensions](#model-extensions)
-- Advanced: [SudoMechanism](#sudomechanism), [Endpoint Resolution](#endpoint-resolution), [Command Response Handling](#command-response-handling), [Container Stats Parsing](#container-stats-parsing)
+Basics: [TemplateString](#templatestring), [HTTP Health Checks](#http-health-checks); intermediate: [Resource Extensions](#resource-extensions), [Logging](#logging), [Model Extensions](#model-extensions); advanced: [SudoMechanism](#sudomechanism), [Endpoint Resolution](#endpoint-resolution), [Command Response Handling](#command-response-handling), [Container Stats Parsing](#container-stats-parsing).
 
 ## TemplateString
 
@@ -548,7 +550,6 @@ var response = await TestDataGenerator.WaitForHealthy($"http://localhost:{port}/
 using System.Threading.Tasks;
 using FluentDocker.Builders;
 using FluentDocker.Kernel;
-using FluentDocker.Model.Kernel;
 
 public static class ContainerFactory
 {

@@ -9,7 +9,7 @@ nav_order: 4
 Complete guide to creating, configuring, and managing containers with FluentDocker v3.
 
 > **Preview docs — not on NuGet yet.** These document the upcoming **3.2.0-preview.2** API; build
-> from [`master`](https://github.com/mariotoffia/FluentDocker) to use it. The latest published package
+> from [`featrure/model-support`](https://github.com/mariotoffia/FluentDocker/tree/featrure/model-support) to use it. The latest published package
 > is **3.1.0**, whose `WithPort` is container-first (host-first in the preview) — don't run these samples against it.
 
 ## Step by Step
@@ -37,9 +37,6 @@ await using var kernel = await FluentDockerKernel.Create()
     .WithDockerCli("docker", d => d.AsDefault())
     .BuildAsync();
 ```
-
-`ReuseIfExists()` matches names case-sensitively and reuses the container as-is
-(config differences ignored). A running match still runs wait conditions; a stopped match runs the full start sequence.
 
 All subsequent examples assume this `kernel` variable is available.
 
@@ -511,6 +508,9 @@ await using var results = await new Builder()
 ## Container Existence Behavior
 
 When a container with the same name already exists, control what happens:
+
+`ReuseIfExists()` matches names case-sensitively and reuses the container as-is
+(config differences ignored). A running match still runs wait conditions; a stopped match runs the full start sequence.
 
 ```csharp
 // Reuse the existing container if one matches by name

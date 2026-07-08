@@ -214,7 +214,7 @@ Pick the plan that matches your goal and read the pages in order.
 
 ## Architecture
 
-FluentDocker uses a four-layer architecture:
+FluentDocker uses a five-layer architecture:
 
 ```text
 ┌─────────────────────────────────┐
@@ -225,6 +225,8 @@ FluentDocker uses a four-layer architecture:
 │      Kernel (instantiable)      │  DriverRegistry, SysCtl() driver access
 ├─────────────────────────────────┤
 │        Driver Layer             │  Docker CLI, API, Podman
+├─────────────────────────────────┤
+│          Model Layer            │  DTOs, enums, value objects
 └─────────────────────────────────┘
 ```
 

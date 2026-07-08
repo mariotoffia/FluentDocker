@@ -8,11 +8,13 @@ nav_order: 6
 
 FluentDocker provides full support for Docker networks, including custom networks, static IP assignment, and multi-network configurations.
 
+> **Preview docs — not on NuGet yet.** These document the upcoming **3.2.0-preview.2** API; build
+> from [`featrure/model-support`](https://github.com/mariotoffia/FluentDocker/tree/featrure/model-support) to use it. The latest published package
+> is **3.1.0**, whose `WithPort` is container-first (host-first in the preview) — don't run these samples against it.
+
 ## Step by Step
 
-- Basics: [Kernel Setup](#kernel-setup), [Basic Network Creation](#basic-network-creation), [Multiple Containers on Same Network](#multiple-containers-on-same-network)
-- Intermediate: [Network with Subnet](#network-with-subnet), [Static IP Assignment](#static-ip-assignment), [DNS and Aliases](#dns-and-aliases), [Network Inspection](#network-inspection)
-- Advanced: [Network Drivers](#network-drivers), [Network Options](#network-options), [Multi-Network Containers](#multi-network-containers), [Testing with Isolated Networks](#testing-with-isolated-networks)
+Basics: [Kernel Setup](#kernel-setup), [Basic Network Creation](#basic-network-creation), [Multiple Containers on Same Network](#multiple-containers-on-same-network); intermediate: [Network with Subnet](#network-with-subnet), [Static IP Assignment](#static-ip-assignment), [DNS and Aliases](#dns-and-aliases), [Network Inspection](#network-inspection); advanced: [Network Drivers](#network-drivers), [Network Options](#network-options), [Multi-Network Containers](#multi-network-containers), [Testing with Isolated Networks](#testing-with-isolated-networks).
 
 ## Kernel Setup
 
@@ -520,10 +522,10 @@ await results.DisposeAllAsync();  // or dispose asynchronously
 ## Testing with Isolated Networks
 
 ```csharp
+using System;
 using System.Linq;
 using FluentDocker.Builders;
 using FluentDocker.Kernel;
-using FluentDocker.Model.Kernel;
 using Xunit;
 
 public class NetworkIsolatedTest : IDisposable
