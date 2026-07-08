@@ -11,6 +11,8 @@ namespace FluentDocker.Services
   /// helpers bound to a default model. This is what <c>UseModelRunner()</c>
   /// returns. Implementations MAY support only a subset; callers can feature-detect
   /// via <see cref="Capabilities"/>.
+  /// No built-in retry/backoff is performed; callers own retry policy for retryable
+  /// inference failures (for example 429/503 and transient transport errors).
   /// </summary>
   public interface IModelRunner : IModelStore, IModelEngine, IModelInference, IAsyncDisposable
   {

@@ -10,6 +10,8 @@ namespace FluentDocker.Services
   /// <see cref="IServiceAsync"/> lifecycle (state machine + hooks) as containers
   /// and volumes. <c>StartAsync</c> loads, <c>StopAsync</c> unloads,
   /// <c>RemoveAsync</c> removes.
+  /// A timed-out/disposed <c>StartAsync</c> abandons the wait; the underlying shared
+  /// load may continue in the background and briefly overlap a retry.
   /// </summary>
   public interface IModelService : IServiceAsync
   {

@@ -130,8 +130,18 @@ namespace FluentDocker.Services
       var connection = new ModelApiConnection(endpoint, config, apiKey: apiKey);
       var inference = new OpenAiModelInferenceDriver(connection, endpoint);
       InferenceModelId? inferenceId = string.IsNullOrWhiteSpace(modelId) ? null : new InferenceModelId(modelId);
-      var model = ModelReference.TryParse(modelId, out var r) ? r : null;
+      var model = ParseDefaultModel(modelId);
       return new Impl.GenericOpenAiModelRunner(endpoint, model, inference, connection.PingAsync, connection, inferenceId);
+    }
+
+    private static ModelReference ParseDefaultModel(string modelId)
+    {
+      // ponytail: remote ids are usually bare (gpt-4o-mini); keep metadata null until
+      // ModelReference can represent a raw id without adding :latest.
+      if (string.IsNullOrWhiteSpace(modelId) || !modelId.Contains('/'))
+        return null;
+
+      return ModelReference.TryParse(modelId, out var r) ? r : null;
     }
 
     private static string Normalize(string prefix) => string.IsNullOrWhiteSpace(prefix) ? DefaultPrefix : prefix;

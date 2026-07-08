@@ -111,6 +111,8 @@ namespace FluentDocker.Drivers.Models
           .GetAsyncEnumerator(cancellationToken);
       var sawAnyEvent = false;
       var sawDone = false;
+      var observedChoices = new HashSet<int>();
+      var finishedChoices = new HashSet<int>();
       try
       {
         while (true)
@@ -171,6 +173,8 @@ namespace FluentDocker.Drivers.Models
                 "Null SSE chunk", ErrorCodes.ModelInference.StreamParseError,
                 CreateStreamErrorContext(context, operation));
 
+          TrackFinishReasons(chunk, observedChoices, finishedChoices);
+
           yield return chunk;
         }
 
@@ -178,7 +182,7 @@ namespace FluentDocker.Drivers.Models
           throw new ModelRunnerException(
               "Inference stream produced no events (empty or non-SSE response).",
               ErrorCodes.ModelInference.StreamParseError, CreateStreamErrorContext(context, operation));
-        if (!sawDone)
+        if (!sawDone && (observedChoices.Count != 1 || finishedChoices.Count != 1))
           throw new ModelRunnerException(
               "Inference stream ended without a [DONE] terminator (response may be truncated).",
               ErrorCodes.ModelInference.StreamParseError, CreateStreamErrorContext(context, operation));
@@ -246,6 +250,33 @@ namespace FluentDocker.Drivers.Models
 
       if (data.Count > 0)
         yield return string.Join("\n", data);
+    }
+
+    private static void TrackFinishReasons<T>(T chunk, ISet<int> observedChoices, ISet<int> finishedChoices)
+    {
+      switch (chunk)
+      {
+        case ChatCompletionChunk chat when chat.Choices != null:
+          foreach (var choice in chat.Choices)
+          {
+            if (choice == null)
+              continue;
+            observedChoices.Add(choice.Index);
+            if (!string.IsNullOrEmpty(choice?.FinishReason))
+              finishedChoices.Add(choice.Index);
+          }
+          break;
+        case CompletionChunk completion when completion.Choices != null:
+          foreach (var choice in completion.Choices)
+          {
+            if (choice == null)
+              continue;
+            observedChoices.Add(choice.Index);
+            if (!string.IsNullOrEmpty(choice?.FinishReason))
+              finishedChoices.Add(choice.Index);
+          }
+          break;
+      }
     }
 
     // Splits the byte stream into lines, decoding UTF-8 in reused chunks (MR5: ONE idle timeout per

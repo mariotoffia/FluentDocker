@@ -12,6 +12,7 @@ namespace FluentDocker.Services
   /// an OpenAI-compatible endpoint (e.g. a Docker Model Runner workload, a container-
   /// injected endpoint, or any third-party endpoint). <see cref="IModelRunner"/> is the
   /// broader interface that additionally covers model management and runtime control.
+  /// No built-in retry/backoff is performed; callers own retry policy.
   /// </remarks>
   public interface IInferenceModelRunner : IModelInference, IAsyncDisposable { }
 }

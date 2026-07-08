@@ -30,14 +30,14 @@ namespace FluentDocker.Drivers.Models.Connection
       {
         response = await _httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, headerToken).ConfigureAwait(false);
       }
-      catch (OperationCanceledException ex) when (!ct.IsCancellationRequested && _streamFirstByteTimeout is not null)
+      catch (OperationCanceledException ex) when (!ct.IsCancellationRequested && _streamFirstByteTimeout is not null && !IsTransportFailure(ex))
       {
         request.Dispose();
         throw new ModelRunnerException(
             "Streaming response headers timed out: no first byte received within the configured first-byte timeout.",
             ErrorCodes.ModelInference.Timeout, ex);
       }
-      catch (Exception ex) when (IsTransportFailure(ex))
+      catch (Exception ex) when (!ct.IsCancellationRequested && IsTransportFailure(ex))
       {
         // A connection-refused / DNS / socket failure opening the stream is "unreachable".
         // (An HTTP error STATUS is delivered as a response below, not thrown here.)

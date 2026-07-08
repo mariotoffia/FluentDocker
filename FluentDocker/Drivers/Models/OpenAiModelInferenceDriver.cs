@@ -187,6 +187,7 @@ namespace FluentDocker.Drivers.Models
     {
       HttpStatusCode.Unauthorized => ErrorCodes.ModelInference.Unauthorized,
       HttpStatusCode.NotFound when modelMissingEligible && LooksLikeModelMissing(error) => ErrorCodes.ModelInference.ModelNotLoaded,
+      HttpStatusCode.TooManyRequests or HttpStatusCode.ServiceUnavailable => ErrorCodes.ModelInference.ServiceUnavailable,
       _ => ErrorCodes.ModelInference.RequestFailed
     };
 

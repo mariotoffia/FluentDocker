@@ -48,7 +48,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
 
         return CommandResponse<ModelInfo>.Fail(
             string.IsNullOrEmpty(info.Error) ? "model pull failed" : info.Error,
-            ModelFailureCode(info.Error, ErrorCodes.Model.PullFailed),
+            PullFailureCode(info.Error),
             info.ErrorContext,
             info.ExitCode);
       }
@@ -58,7 +58,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
       }
       catch (Exception ex) when (ex is not OperationCanceledException)
       {
-        return CommandResponse<ModelInfo>.Fail(ex.Message, ModelFailureCode(ex, ErrorCodes.Model.PullFailed));
+        return CommandResponse<ModelInfo>.Fail(ex.Message, PullFailureCode(ex));
       }
     }
 
@@ -296,6 +296,19 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     private static bool IndicatesNoSuchModel(string output) =>
         !string.IsNullOrEmpty(output) &&
         output.Contains("no such model", StringComparison.OrdinalIgnoreCase);
+
+    private static string PullFailureCode(string error)
+    {
+      // ponytail: stderr heuristics stop at "missing model"; add auth/disk-full only when DMR gives stable text.
+      return IndicatesNoSuchModel(error)
+          ? ErrorCodes.Model.NotFound
+          : ModelFailureCode(error, ErrorCodes.Model.PullFailed);
+    }
+
+    private static string PullFailureCode(Exception ex) =>
+        IndicatesNoSuchModel(ex?.Message)
+            ? ErrorCodes.Model.NotFound
+            : ModelFailureCode(ex, ErrorCodes.Model.PullFailed);
 
   }
 }

@@ -43,6 +43,7 @@ namespace FluentDocker.Drivers.Models.Connection
     // Raw(...) base resolves to). Probing "/" can false-negative for endpoints whose only
     // served surface is under /engines/.../v1 (or an OpenAI server exposing only /v1/*).
     private readonly string _pingPath;
+    private int _disposed;
 
     /// <summary>
     /// Creates a connection from a resolved endpoint (TCP or unix socket).
@@ -57,6 +58,7 @@ namespace FluentDocker.Drivers.Models.Connection
       ArgumentNullException.ThrowIfNull(endpoint);
       config ??= new ModelApiConnectionConfig();
       _logger = (loggerFactory ?? NullLoggerFactory.Instance).CreateLogger<ModelApiConnection>();
+      ValidateApiKeyTransport(endpoint, config, apiKey);
 
       var ownedCertificates = new List<X509Certificate2>();
       var (handler, baseAddress) = CreateHandler(endpoint, config, ownedCertificates);
@@ -78,20 +80,6 @@ namespace FluentDocker.Drivers.Models.Connection
 
       if (!string.IsNullOrEmpty(apiKey))
       {
-        // Never leak the bearer token to a host that can be impersonated: plaintext http to
-        // a non-loopback TCP host, or https with server-cert validation disabled (MITM
-        // equivalent), is refused unless explicitly opted in.
-        var insecureTransport =
-            string.Equals(_httpClient.BaseAddress.Scheme, "http", StringComparison.OrdinalIgnoreCase)
-            || !config.VerifyTls;
-        if (insecureTransport
-            && !_httpClient.BaseAddress.IsLoopback
-            && string.IsNullOrEmpty(endpoint.UnixSocketPath)
-            && !config.AllowApiKeyOverInsecureTransport)
-          throw new ModelRunnerException(
-              $"Refusing to send the API key over an insecure transport (plaintext HTTP or unverified TLS) to non-loopback host '{_httpClient.BaseAddress.Host}'. " +
-              $"Use a verified https endpoint or a unix socket, or set {nameof(ModelApiConnectionConfig.AllowApiKeyOverInsecureTransport)}=true to acknowledge the insecure transport.",
-              ErrorCodes.ModelInference.Unauthorized);
         _httpClient.DefaultRequestHeaders.Authorization =
             new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", apiKey);
       }
@@ -237,7 +225,7 @@ namespace FluentDocker.Drivers.Models.Connection
         {
           return ApplyBodyTimeout(await send(ct).ConfigureAwait(false), DateTimeOffset.MaxValue);
         }
-        catch (Exception ex) when (IsTransportFailure(ex))
+        catch (Exception ex) when (!ct.IsCancellationRequested && IsTransportFailure(ex))
         {
           throw EndpointUnreachable(ex);
         }
@@ -253,11 +241,15 @@ namespace FluentDocker.Drivers.Models.Connection
       {
         return ApplyBodyTimeout(await send(linked.Token).ConfigureAwait(false), deadline);
       }
+      catch (OperationCanceledException ex) when (!ct.IsCancellationRequested && IsTransportFailure(ex))
+      {
+        throw EndpointUnreachable(ex);
+      }
       catch (OperationCanceledException) when (!ct.IsCancellationRequested)
       {
         throw new TimeoutException($"The model API request exceeded the configured request timeout of {_requestTimeout}.");
       }
-      catch (Exception ex) when (IsTransportFailure(ex))
+      catch (Exception ex) when (!ct.IsCancellationRequested && IsTransportFailure(ex))
       {
         // A connection-refused / DNS / socket failure on a non-streaming send is "the
         // endpoint is unreachable", not a generic request failure. The HttpClient verb
@@ -278,6 +270,8 @@ namespace FluentDocker.Drivers.Models.Connection
       HttpRequestException { StatusCode: not null } => false,
       HttpRequestException => true,
       SocketException => true,
+      OperationCanceledException { InnerException: TimeoutException } => true,
+      OperationCanceledException { InnerException: OperationCanceledException inner } => IsTransportFailure(inner),
       _ => false
     };
 
@@ -292,6 +286,9 @@ namespace FluentDocker.Drivers.Models.Connection
     /// <inheritdoc />
     public ValueTask DisposeAsync()
     {
+      if (Interlocked.CompareExchange(ref _disposed, 1, 0) != 0)
+        return ValueTask.CompletedTask;
+
       _httpClient.Dispose();
 
       // Dispose any X509Certificate2 we created (client cert(s) + custom CA) to release
@@ -304,6 +301,29 @@ namespace FluentDocker.Drivers.Models.Connection
 
       GC.SuppressFinalize(this);
       return ValueTask.CompletedTask;
+    }
+
+    private static void ValidateApiKeyTransport(ModelRunnerEndpoint endpoint, ModelApiConnectionConfig config, string apiKey)
+    {
+      if (string.IsNullOrEmpty(apiKey))
+        return;
+
+      // Never leak the bearer token to a host that can be impersonated: plaintext http to
+      // a non-loopback TCP host, or https with server-cert validation disabled (MITM
+      // equivalent), is refused unless explicitly opted in. Validate before creating the
+      // handler/certificates so this guard cannot leak native handles on throw.
+      var baseAddress = endpoint.BaseAddress;
+      var insecureTransport =
+          string.Equals(baseAddress.Scheme, "http", StringComparison.OrdinalIgnoreCase)
+          || !config.VerifyTls;
+      if (insecureTransport
+          && !baseAddress.IsLoopback
+          && string.IsNullOrEmpty(endpoint.UnixSocketPath)
+          && !config.AllowApiKeyOverInsecureTransport)
+        throw new ModelRunnerException(
+            $"Refusing to send the API key over an insecure transport (plaintext HTTP or unverified TLS) to non-loopback host '{baseAddress.Host}'. " +
+            $"Use a verified https endpoint or a unix socket, or set {nameof(ModelApiConnectionConfig.AllowApiKeyOverInsecureTransport)}=true to acknowledge the insecure transport.",
+            ErrorCodes.ModelInference.Unauthorized);
     }
 
     // ownedCertificates collects every X509Certificate2 created here so the connection
